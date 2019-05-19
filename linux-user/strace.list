@@ -860,9 +860,6 @@
 #ifdef TARGET_NR_personality
 { TARGET_NR_personality, "personality" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_pipe
-{ TARGET_NR_pipe, "pipe" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_pivot_root
 { TARGET_NR_pivot_root, "pivot_root" , NULL, NULL, NULL },
 #endif
@@ -1376,9 +1373,6 @@
 #endif
 #ifdef TARGET_NR_sync_file_range2
 { TARGET_NR_sync_file_range2, "sync_file_range2", NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_pipe2
-{ TARGET_NR_pipe2, "pipe2", NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_atomic_cmpxchg_32
 { TARGET_NR_atomic_cmpxchg_32, "atomic_cmpxchg_32", NULL, NULL, NULL },

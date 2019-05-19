@@ -132,6 +132,16 @@ SYSCALL_DEF(open_by_handle_at, ARG_DEC, ARG_PTR, ARG_OPENFLAG);
 #ifdef TARGET_NR_pause
 SYSCALL_DEF(pause);
 #endif
+#ifdef TARGET_NR_pipe
+# if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || \
+     defined(TARGET_SH4) || defined(TARGET_SPARC)
+/* ??? We have no way for strace to display the second returned fd.  */
+SYSCALL_DEF(pipe);
+# else
+SYSCALL_DEF(pipe, ARG_PTR);
+# endif
+#endif
+SYSCALL_DEF(pipe2, ARG_PTR, ARG_OPENFLAG);
 SYSCALL_DEF_FULL(pread64, .impl = impl_pread64,
                  .args = args_pread64_pwrite64,
                  .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });

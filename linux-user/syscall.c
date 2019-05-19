@@ -207,6 +207,9 @@ _syscall0(int, sys_gettid)
 #ifndef __NR_dup3
 #define __NR_dup3  -1
 #endif
+#ifndef __NR_pipe2
+#define __NR_pipe2  -1
+#endif
 #ifndef __NR_syncfs
 #define __NR_syncfs  -1
 #endif
@@ -272,6 +275,16 @@ _syscall5(int, kcmp, pid_t, pid1, pid_t, pid2, int, type,
 #endif
 #ifndef CONFIG_SYNCFS
 _syscall1(int, syncfs, int, fd)
+#endif
+#ifndef CONFIG_PIPE2
+static int pipe2(int *fds, int flags)
+{
+    if (flags) {
+        return syscall(__NR_pipe2, fds, flags);
+    } else {
+        return pipe(fds);
+    }
+}
 #endif
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
@@ -1123,49 +1136,6 @@ static abi_long do_old_select(abi_ulong arg1)
 }
 #endif
 #endif
-
-static abi_long do_pipe2(int host_pipe[], int flags)
-{
-#ifdef CONFIG_PIPE2
-    return pipe2(host_pipe, flags);
-#else
-    return -ENOSYS;
-#endif
-}
-
-static abi_long do_pipe(void *cpu_env, abi_ulong pipedes,
-                        int flags, int is_pipe2)
-{
-    int host_pipe[2];
-    abi_long ret;
-    ret = flags ? do_pipe2(host_pipe, flags) : pipe(host_pipe);
-
-    if (is_error(ret))
-        return get_errno(ret);
-
-    /* Several targets have special calling conventions for the original
-       pipe syscall, but didn't replicate this into the pipe2 syscall.  */
-    if (!is_pipe2) {
-#if defined(TARGET_ALPHA)
-        ((CPUAlphaState *)cpu_env)->ir[IR_A4] = host_pipe[1];
-        return host_pipe[0];
-#elif defined(TARGET_MIPS)
-        ((CPUMIPSState*)cpu_env)->active_tc.gpr[3] = host_pipe[1];
-        return host_pipe[0];
-#elif defined(TARGET_SH4)
-        ((CPUSH4State*)cpu_env)->gregs[1] = host_pipe[1];
-        return host_pipe[0];
-#elif defined(TARGET_SPARC)
-        ((CPUSPARCState*)cpu_env)->regwptr[1] = host_pipe[1];
-        return host_pipe[0];
-#endif
-    }
-
-    if (put_user_s32(host_pipe[0], pipedes)
-        || put_user_s32(host_pipe[1], pipedes + sizeof(host_pipe[0])))
-        return -TARGET_EFAULT;
-    return get_errno(ret);
-}
 
 static inline abi_long target_to_host_ip_mreq(struct ip_mreqn *mreqn,
                                               abi_ulong target_addr,
@@ -5376,15 +5346,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_pipe
-    case TARGET_NR_pipe:
-        return do_pipe(cpu_env, arg1, 0, 0);
-#endif
-#ifdef TARGET_NR_pipe2
-    case TARGET_NR_pipe2:
-        return do_pipe(cpu_env, arg1,
-                       target_to_host_bitmask(arg2, fcntl_flags_tbl), 1);
-#endif
     case TARGET_NR_times:
         {
             struct target_tms *tmsp;

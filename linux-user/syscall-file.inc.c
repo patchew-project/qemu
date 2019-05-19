@@ -726,6 +726,57 @@ SYSCALL_IMPL(open_by_handle_at)
     return ret;
 }
 
+static abi_long do_pipe(CPUArchState *cpu_env, abi_ulong target_fds,
+                        int target_flags, bool is_pipe2)
+{
+    int host_flags = target_to_host_bitmask(target_flags, fcntl_flags_tbl);
+    int host_fds[2];
+    abi_long ret;
+
+    ret = pipe2(host_fds, host_flags);
+    if (is_error(ret)) {
+        return get_errno(ret);
+    }
+
+    /*
+     * Several targets have special calling conventions for the original
+     * pipe syscall, but didn't replicate this into the pipe2 syscall.
+     */
+    if (!is_pipe2) {
+#if defined(TARGET_ALPHA)
+        cpu_env->ir[IR_A4] = host_fds[1];
+        return host_fds[0];
+#elif defined(TARGET_MIPS)
+        cpu_env->active_tc.gpr[3] = host_fds[1];
+        return host_fds[0];
+#elif defined(TARGET_SH4)
+        cpu_env->gregs[1] = host_fds[1];
+        return host_fds[0];
+#elif defined(TARGET_SPARC)
+        cpu_env->regwptr[1] = host_fds[1];
+        return host_fds[0];
+#endif
+    }
+
+    if (put_user_s32(host_fds[0], target_fds)
+        || put_user_s32(host_fds[1], target_fds + 4)) {
+        return -TARGET_EFAULT;
+    }
+    return 0;
+}
+
+#ifdef TARGET_NR_pipe
+SYSCALL_IMPL(pipe)
+{
+    return do_pipe(cpu_env, arg1, 0, false);
+}
+#endif
+
+SYSCALL_IMPL(pipe2)
+{
+    return do_pipe(cpu_env, arg1, arg2, true);
+}
+
 /*
  * Both pread64 and pwrite64 merge args into a 64-bit offset,
  * but the input registers and ordering are target specific.
