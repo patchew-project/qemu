@@ -94,6 +94,48 @@ SYSCALL_IMPL(creat)
 }
 #endif
 
+SYSCALL_IMPL(dup)
+{
+    abi_long ret = get_errno(dup(arg1));
+    if (ret >= 0) {
+        fd_trans_dup(arg1, ret);
+    }
+    return ret;
+}
+
+#ifdef TARGET_NR_dup2
+SYSCALL_IMPL(dup2)
+{
+    abi_long ret = get_errno(dup2(arg1, arg2));
+    if (ret >= 0) {
+        fd_trans_dup(arg1, arg2);
+    }
+    return ret;
+}
+#endif
+
+SYSCALL_IMPL(dup3)
+{
+    int ofd = arg1;
+    int nfd = arg2;
+    int host_flags = target_to_host_bitmask(arg3, fcntl_flags_tbl);
+    abi_long ret;
+
+#ifdef CONFIG_DUP3
+    ret = dup3(ofd, nfd, host_flags);
+#else
+    if (host_flags == 0) {
+        if (ofd == nfd) {
+            return -TARGET_EINVAL;
+        }
+        ret = dup2(ofd, nfd);
+    } else {
+        ret = syscall(__NR_dup3, ofd, nfd, host_flags);
+    }
+#endif
+    return get_errno(ret);
+}
+
 SYSCALL_IMPL(faccessat)
 {
     return do_faccessat(arg1, arg2, arg3);

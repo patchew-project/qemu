@@ -91,12 +91,6 @@
 #ifdef TARGET_NR_dipc
 { TARGET_NR_dipc, "dipc" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_dup
-{ TARGET_NR_dup, "dup" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_dup2
-{ TARGET_NR_dup2, "dup2" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_epoll_create
 { TARGET_NR_epoll_create, "epoll_create" , NULL, NULL, NULL },
 #endif
