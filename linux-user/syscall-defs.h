@@ -61,6 +61,7 @@ SYSCALL_DEF(getppid);
 #ifdef TARGET_NR_getxpid
 SYSCALL_DEF(getxpid);
 #endif
+SYSCALL_DEF(ioctl, ARG_DEC, ARG_HEX);
 #ifdef TARGET_NR_ipc
 SYSCALL_DEF_ARGS(ipc, ARG_HEX, ARG_DEC, ARG_DEC, ARG_HEX, ARG_PTR, ARG_HEX);
 #endif

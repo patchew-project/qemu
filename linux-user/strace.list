@@ -365,9 +365,6 @@
 #ifdef TARGET_NR_io_cancel
 { TARGET_NR_io_cancel, "io_cancel" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_ioctl
-{ TARGET_NR_ioctl, "ioctl" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_io_destroy
 { TARGET_NR_io_destroy, "io_destroy" , NULL, NULL, NULL },
 #endif
