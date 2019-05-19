@@ -1494,15 +1494,6 @@
 #ifdef TARGET_NR_vserver
 { TARGET_NR_vserver, "vserver" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_wait4
-{ TARGET_NR_wait4, "wait4" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_waitid
-{ TARGET_NR_waitid, "waitid" , "%s(%#x,%d,%p,%#x)", NULL, NULL },
-#endif
-#ifdef TARGET_NR_waitpid
-{ TARGET_NR_waitpid, "waitpid" , "%s(%d,%p,%#x)", NULL, NULL },
-#endif
 #ifdef TARGET_NR_utimensat
 { TARGET_NR_utimensat, "utimensat", NULL, print_utimensat, NULL },
 #endif

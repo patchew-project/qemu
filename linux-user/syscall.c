@@ -5271,20 +5271,6 @@ static abi_long do_signalfd4(int fd, abi_long mask, int flags)
 }
 #endif
 
-/* Map host to target signal numbers for the wait family of syscalls.
-   Assume all other status bits are the same.  */
-int host_to_target_waitstatus(int status)
-{
-    if (WIFSIGNALED(status)) {
-        return host_to_target_signal(WTERMSIG(status)) | (status & ~0x7f);
-    }
-    if (WIFSTOPPED(status)) {
-        return (host_to_target_signal(WSTOPSIG(status)) << 8)
-               | (status & 0xff);
-    }
-    return status;
-}
-
 #define TIMER_MAGIC 0x0caf0000
 #define TIMER_MAGIC_MASK 0xffff0000
 
@@ -5397,32 +5383,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_waitpid
-    case TARGET_NR_waitpid:
-        {
-            int status;
-            ret = get_errno(safe_wait4(arg1, &status, arg3, 0));
-            if (!is_error(ret) && arg2 && ret
-                && put_user_s32(host_to_target_waitstatus(status), arg2))
-                return -TARGET_EFAULT;
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_waitid
-    case TARGET_NR_waitid:
-        {
-            siginfo_t info;
-            info.si_pid = 0;
-            ret = get_errno(safe_waitid(arg1, arg2, &info, arg4, NULL));
-            if (!is_error(ret) && arg3 && info.si_pid != 0) {
-                if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_siginfo_t), 0)))
-                    return -TARGET_EFAULT;
-                host_to_target_siginfo(p, &info);
-                unlock_user(p, arg3, sizeof(target_siginfo_t));
-            }
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_creat /* not on alpha */
     case TARGET_NR_creat:
         if (!(p = lock_user_string(arg1)))
@@ -7022,33 +6982,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         return do_syscall(cpu_env, arg1 & 0xffff, arg2, arg3, arg4, arg5,
                           arg6, arg7, arg8, 0);
 #endif
-    case TARGET_NR_wait4:
-        {
-            int status;
-            abi_long status_ptr = arg2;
-            struct rusage rusage, *rusage_ptr;
-            abi_ulong target_rusage = arg4;
-            abi_long rusage_err;
-            if (target_rusage)
-                rusage_ptr = &rusage;
-            else
-                rusage_ptr = NULL;
-            ret = get_errno(safe_wait4(arg1, &status, arg3, rusage_ptr));
-            if (!is_error(ret)) {
-                if (status_ptr && ret) {
-                    status = host_to_target_waitstatus(status);
-                    if (put_user_s32(status, status_ptr))
-                        return -TARGET_EFAULT;
-                }
-                if (target_rusage) {
-                    rusage_err = host_to_target_rusage(target_rusage, &rusage);
-                    if (rusage_err) {
-                        ret = rusage_err;
-                    }
-                }
-            }
-        }
-        return ret;
 #ifdef TARGET_NR_swapoff
     case TARGET_NR_swapoff:
         if (!(p = lock_user_string(arg1)))

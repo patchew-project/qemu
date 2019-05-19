@@ -318,3 +318,91 @@ SYSCALL_IMPL(fork)
     return do_clone(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0);
 }
 #endif
+
+/*
+ * Map host to target signal numbers for the wait family of syscalls.
+ * Assume all other status bits are the same.
+ */
+int host_to_target_waitstatus(int status)
+{
+    if (WIFSIGNALED(status)) {
+        return host_to_target_signal(WTERMSIG(status)) | (status & ~0x7f);
+    }
+    if (WIFSTOPPED(status)) {
+        return (host_to_target_signal(WSTOPSIG(status)) << 8)
+               | (status & 0xff);
+    }
+    return status;
+}
+
+SYSCALL_IMPL(wait4)
+{
+    int status;
+    pid_t pid = arg1;
+    abi_ulong status_ptr = arg2;
+    int options = arg3;
+    abi_ulong target_rusage = arg4;
+    struct rusage rusage;
+    struct rusage *rusage_ptr = target_rusage ? &rusage : NULL;
+    abi_long ret;
+
+    ret = get_errno(safe_wait4(pid, &status, options, rusage_ptr));
+    if (!is_error(ret)) {
+        if (status_ptr && ret) {
+            status = host_to_target_waitstatus(status);
+            if (put_user_s32(status, status_ptr)) {
+                return -TARGET_EFAULT;
+            }
+        }
+        if (target_rusage) {
+            abi_long err = host_to_target_rusage(target_rusage, &rusage);
+            if (err) {
+                ret = err;
+            }
+        }
+    }
+    return ret;
+}
+
+SYSCALL_IMPL(waitid)
+{
+    idtype_t idtype = arg1;
+    id_t id = arg2;
+    abi_ulong target_info = arg3;
+    int options = arg4;
+    siginfo_t info, *info_ptr = target_info ? &info : NULL;
+    abi_long ret;
+
+    info.si_pid = 0;
+    ret = get_errno(safe_waitid(idtype, id, info_ptr, options, NULL));
+    if (!is_error(ret) && target_info && info.si_pid != 0) {
+        target_siginfo_t *p = lock_user(VERIFY_WRITE, target_info,
+                                        sizeof(target_siginfo_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_siginfo(p, &info);
+        unlock_user(p, target_info, sizeof(target_siginfo_t));
+    }
+    return ret;
+}
+
+#ifdef TARGET_NR_waitpid
+SYSCALL_IMPL(waitpid)
+{
+    pid_t pid = arg1;
+    abi_ulong target_status = arg2;
+    int options = arg3;
+    int status;
+    abi_long ret;
+
+    ret = get_errno(safe_wait4(pid, &status, options, NULL));
+    if (!is_error(ret)
+        && target_status
+        && ret
+        && put_user_s32(host_to_target_waitstatus(status), target_status)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+#endif
