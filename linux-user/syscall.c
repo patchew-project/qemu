@@ -4240,18 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_sigreturn
-    case TARGET_NR_sigreturn:
-        if (block_signals()) {
-            return -TARGET_ERESTARTSYS;
-        }
-        return do_sigreturn(cpu_env);
-#endif
-    case TARGET_NR_rt_sigreturn:
-        if (block_signals()) {
-            return -TARGET_ERESTARTSYS;
-        }
-        return do_rt_sigreturn(cpu_env);
     case TARGET_NR_sethostname:
         if (!(p = lock_user_string(arg1)))
             return -TARGET_EFAULT;

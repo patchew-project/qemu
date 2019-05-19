@@ -926,9 +926,6 @@
 #ifdef TARGET_NR_rmdir
 { TARGET_NR_rmdir, "rmdir" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rt_sigreturn
-{ TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_sched_getaffinity
 { TARGET_NR_sched_getaffinity, "sched_getaffinity" , NULL, NULL, NULL },
 #endif
@@ -1112,9 +1109,6 @@
 #endif
 #ifdef TARGET_NR_signalfd4
 { TARGET_NR_signalfd4, "signalfd4" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_sigreturn
-{ TARGET_NR_sigreturn, "sigreturn" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_socket
 { TARGET_NR_socket, "socket" , NULL, print_socket, NULL },

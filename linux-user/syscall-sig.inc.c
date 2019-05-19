@@ -206,6 +206,14 @@ SYSCALL_IMPL(rt_sigqueueinfo)
     return get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
 }
 
+SYSCALL_IMPL(rt_sigreturn)
+{
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+    return do_rt_sigreturn(cpu_env);
+}
+
 SYSCALL_IMPL(rt_sigsuspend)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
@@ -468,6 +476,16 @@ SYSCALL_IMPL(sigprocmask)
     }
 #endif
     return ret;
+}
+#endif
+
+#ifdef TARGET_NR_sigreturn
+SYSCALL_IMPL(sigreturn)
+{
+    if (block_signals()) {
+        return -TARGET_ERESTARTSYS;
+    }
+    return do_sigreturn(cpu_env);
 }
 #endif
 
