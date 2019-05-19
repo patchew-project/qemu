@@ -4240,12 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_sethostname:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(sethostname(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
 #ifdef TARGET_NR_setrlimit
     case TARGET_NR_setrlimit:
         {
@@ -7074,19 +7068,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             target_rold->rlim_cur = tswap64(rold.rlim_cur);
             target_rold->rlim_max = tswap64(rold.rlim_max);
             unlock_user_struct(target_rold, arg4, 1);
-        }
-        return ret;
-    }
-#endif
-#ifdef TARGET_NR_gethostname
-    case TARGET_NR_gethostname:
-    {
-        char *name = lock_user(VERIFY_WRITE, arg1, arg2, 0);
-        if (name) {
-            ret = get_errno(gethostname(name, arg2));
-            unlock_user(name, arg1, arg2);
-        } else {
-            ret = -TARGET_EFAULT;
         }
         return ret;
     }

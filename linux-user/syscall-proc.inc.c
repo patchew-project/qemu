@@ -438,6 +438,21 @@ SYSCALL_IMPL(fork)
 }
 #endif
 
+#ifdef TARGET_NR_gethostname
+SYSCALL_IMPL(gethostname)
+{
+    char *name = lock_user(VERIFY_WRITE, arg1, arg2, 0);
+    abi_long ret;
+    
+    if (!name) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(gethostname(name, arg2));
+    unlock_user(name, arg1, arg2);
+    return ret;
+}
+#endif
+
 SYSCALL_IMPL(getpgid)
 {
     return get_errno(getpgid(arg1));
@@ -484,6 +499,19 @@ SYSCALL_IMPL(nice)
     return get_errno(nice(arg1));
 }
 #endif
+
+SYSCALL_IMPL(sethostname)
+{
+    void *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(sethostname(p, arg2));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
 
 SYSCALL_IMPL(setpgid)
 {

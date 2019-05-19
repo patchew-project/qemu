@@ -59,6 +59,9 @@ SYSCALL_DEF(futimesat, ARG_ATDIRFD, ARG_STR, ARG_PTR);
 #ifdef TARGET_NR_fork
 SYSCALL_DEF(fork);
 #endif
+#ifdef TARGET_NR_gethostname
+SYSCALL_DEF(gethostname, ARG_PTR, ARG_DEC);
+#endif
 SYSCALL_DEF(getpgid, ARG_DEC);
 #ifdef TARGET_NR_getpgrp
 SYSCALL_DEF(getpgrp);
@@ -207,6 +210,7 @@ SYSCALL_DEF(semctl, ARG_DEC, ARG_DEC, ARG_DEC, ARG_HEX);
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semget)
 SYSCALL_DEF(semget, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
+SYSCALL_DEF(sethostname, ARG_STR);
 SYSCALL_DEF(setpgid, ARG_DEC, ARG_DEC);
 SYSCALL_DEF(setsid);
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semop)
