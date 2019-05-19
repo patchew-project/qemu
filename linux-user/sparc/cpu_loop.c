@@ -169,6 +169,18 @@ void cpu_loop (CPUSPARCState *env)
         case 0x110:
         case 0x16d:
 #endif
+            /*
+             * Before copying/adjusting registers for parent/child,
+             * flush the register windows to the stack.
+             */
+            switch (env->gregs[1]) {
+            case TARGET_NR_fork:
+            case TARGET_NR_vfork:
+            case TARGET_NR_clone:
+                flush_windows(env);
+                break;
+            }
+
             ret = do_syscall (env, env->gregs[1],
                               env->regwptr[0], env->regwptr[1],
                               env->regwptr[2], env->regwptr[3],
