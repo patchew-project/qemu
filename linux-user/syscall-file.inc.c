@@ -40,6 +40,34 @@ SYSCALL_IMPL(creat)
 }
 #endif
 
+static abi_long do_linkat(int olddirfd, abi_ulong target_oldpath,
+                          int newdirfd, abi_ulong target_newpath,
+                          int flags)
+{
+    char *oldpath = lock_user_string(target_oldpath);
+    char *newpath = lock_user_string(target_newpath);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (oldpath && newpath) {
+        ret = get_errno(linkat(olddirfd, oldpath, newdirfd, newpath, flags));
+    }
+    unlock_user(oldpath, target_oldpath, 0);
+    unlock_user(newpath, target_newpath, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_link
+SYSCALL_IMPL(link)
+{
+    return do_linkat(AT_FDCWD, arg1, AT_FDCWD, arg2, 0);
+}
+#endif
+
+SYSCALL_IMPL(linkat)
+{
+    return do_linkat(arg1, arg2, arg3, arg4, arg5);
+}
+
 /*
  * Helpers for do_openat, manipulating /proc/self/foo.
  */

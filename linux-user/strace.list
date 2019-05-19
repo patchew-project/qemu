@@ -461,12 +461,6 @@
 #ifdef TARGET_NR_lgetxattr
 { TARGET_NR_lgetxattr, "lgetxattr" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_link
-{ TARGET_NR_link, "link" , NULL, print_link, NULL },
-#endif
-#ifdef TARGET_NR_linkat
-{ TARGET_NR_linkat, "linkat" , NULL, print_linkat, NULL },
-#endif
 #ifdef TARGET_NR_Linux
 { TARGET_NR_Linux, "Linux" , NULL, NULL, NULL },
 #endif

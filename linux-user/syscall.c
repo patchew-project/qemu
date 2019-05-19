@@ -5383,38 +5383,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_link
-    case TARGET_NR_link:
-        {
-            void * p2;
-            p = lock_user_string(arg1);
-            p2 = lock_user_string(arg2);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(link(p, p2));
-            unlock_user(p2, arg2, 0);
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
-#endif
-#if defined(TARGET_NR_linkat)
-    case TARGET_NR_linkat:
-        {
-            void * p2 = NULL;
-            if (!arg2 || !arg4)
-                return -TARGET_EFAULT;
-            p  = lock_user_string(arg2);
-            p2 = lock_user_string(arg4);
-            if (!p || !p2)
-                ret = -TARGET_EFAULT;
-            else
-                ret = get_errno(linkat(arg1, p, arg3, p2, arg5));
-            unlock_user(p, arg2, 0);
-            unlock_user(p2, arg4, 0);
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_unlink
     case TARGET_NR_unlink:
         if (!(p = lock_user_string(arg1)))
