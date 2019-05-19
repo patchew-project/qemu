@@ -314,3 +314,48 @@ SYSCALL_IMPL(openat)
 {
     return do_openat(cpu_env, arg1, arg2, arg3, arg4);
 }
+
+static abi_long do_readlinkat(int dirfd, abi_ulong target_path,
+                              abi_ulong target_buf, abi_ulong bufsiz)
+{
+    char *p = lock_user_string(target_path);
+    void *buf = lock_user(VERIFY_WRITE, target_buf, bufsiz, 0);
+    abi_long ret;
+
+    if (!p || !buf) {
+        ret = -TARGET_EFAULT;
+    } else if (!bufsiz) {
+        /* Short circuit this for the magic exe check. */
+        ret = -TARGET_EINVAL;
+    } else if (is_proc_myself((const char *)p, "exe")) {
+        char real[PATH_MAX];
+        char *temp = realpath(exec_path, real);
+
+        if (temp == NULL) {
+            ret = -host_to_target_errno(errno);
+        } else {
+            ret = MIN(strlen(real), bufsiz);
+            /* We cannot NUL terminate the string. */
+            memcpy(buf, real, ret);
+        }
+    } else {
+        ret = get_errno(readlinkat(dirfd, path(p), buf, bufsiz));
+    }
+    unlock_user(buf, target_buf, ret);
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_readlink
+SYSCALL_IMPL(readlink)
+{
+    return do_readlinkat(AT_FDCWD, arg1, arg2, arg3);
+}
+#endif
+
+#ifdef TARGET_NR_readlinkat
+SYSCALL_IMPL(readlinkat)
+{
+    return do_readlinkat(arg1, arg2, arg3, arg4);
+}
+#endif

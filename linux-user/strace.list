@@ -1079,12 +1079,6 @@
 #ifdef TARGET_NR_readdir
 { TARGET_NR_readdir, "readdir" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_readlink
-{ TARGET_NR_readlink, "readlink" , NULL, print_readlink, NULL },
-#endif
-#ifdef TARGET_NR_readlinkat
-{ TARGET_NR_readlinkat, "readlinkat" , NULL, print_readlinkat, NULL },
-#endif
 #ifdef TARGET_NR_readv
 { TARGET_NR_readv, "readv" , NULL, NULL, NULL },
 #endif
