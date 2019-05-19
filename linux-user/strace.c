@@ -733,7 +733,7 @@ static struct flags const mount_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags umount2_flags[] = {
+static struct flags const umount2_flags[] = {
 #ifdef MNT_FORCE
     FLAG_GENERIC(MNT_FORCE),
 #endif
@@ -2015,31 +2015,6 @@ print_symlinkat(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_umount
-static void
-print_umount(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_umount2
-static void
-print_umount2(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_flags(umount2_flags, arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_utime
 static void
 print_utime(const struct syscallname *name,
@@ -2304,6 +2279,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_OPENFLAG:
             len = add_open_flags(b, rest, arg);
+            break;
+        case ARG_UMOUNTFLAG:
+            len = add_flags(b, rest, umount2_flags, arg, false);
             break;
         case ARG_UNLINKATFLAG:
             len = add_flags(b, rest, unlinkat_flags, arg, true);

@@ -155,6 +155,10 @@ SYSCALL_DEF(shmget, ARG_DEC, ARG_DEC, ARG_HEX);
 #ifdef TARGET_NR_time
 SYSCALL_DEF(time, ARG_PTR);
 #endif
+#ifdef TARGET_NR_umount
+SYSCALL_DEF(umount, ARG_STR);
+#endif
+SYSCALL_DEF(umount2, ARG_STR, ARG_UMOUNTFLAG);
 #ifdef TARGET_NR_unlink
 SYSCALL_DEF(unlink, ARG_STR);
 #endif

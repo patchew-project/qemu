@@ -816,6 +816,31 @@ SYSCALL_IMPL(readlinkat)
 }
 #endif
 
+static abi_long do_umount2(abi_ulong target_path, int flags)
+{
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(umount2(p, flags));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_umount
+SYSCALL_IMPL(umount)
+{
+    return do_umount2(arg1, 0);
+}
+#endif
+
+SYSCALL_IMPL(umount2)
+{
+    return do_umount2(arg1, arg2);
+}
+
 static abi_long do_unlinkat(int dirfd, abi_ulong target_path, int flags)
 {
     char *p = lock_user_string(target_path);

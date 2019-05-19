@@ -1368,12 +1368,6 @@
 #ifdef TARGET_NR_umask
 { TARGET_NR_umask, "umask" , "%s(%#o)", NULL, NULL },
 #endif
-#ifdef TARGET_NR_umount
-{ TARGET_NR_umount, "umount" , NULL, print_umount, NULL },
-#endif
-#ifdef TARGET_NR_umount2
-{ TARGET_NR_umount2, "umount2" , NULL, print_umount2, NULL },
-#endif
 #ifdef TARGET_NR_uname
 { TARGET_NR_uname, "uname" , "%s(%p)", NULL, NULL },
 #endif
