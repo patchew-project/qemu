@@ -385,6 +385,70 @@ SYSCALL_IMPL(pwrite64)
     return ret;
 }
 
+/*
+ * Both preadv and pwritev merge args 4/5 into a 64-bit offset.
+ * Moreover, the parts are *always* in little-endian order.
+ */
+#if TARGET_ABI_BITS == 32
+SYSCALL_ARGS(preadv_pwritev)
+{
+    /* We have already assigned out[0-2].  */
+    abi_ulong lo = in[3], hi = in[4];
+    out[3] = (((uint64_t)hi << (TARGET_ABI_BITS - 1)) << 1) | lo;
+    return def;
+}
+#else
+#define args_preadv_pwritev NULL
+#endif
+
+/* Perform the inverse operation for the host.  */
+static inline void host_offset64_low_high(unsigned long *l, unsigned long *h,
+                                          uint64_t off)
+{
+    *l = off;
+    *h = (off >> (HOST_LONG_BITS - 1)) >> 1;
+}
+
+SYSCALL_IMPL(preadv)
+{
+    int fd = arg1;
+    abi_ulong target_vec = arg2;
+    int count = arg3;
+    uint64_t off = arg4;
+    struct iovec *vec = lock_iovec(VERIFY_WRITE, target_vec, count, 0);
+    unsigned long lo, hi;
+    abi_long ret;
+
+    if (vec == NULL) {
+        return -TARGET_EFAULT;
+    }
+
+    host_offset64_low_high(&lo, &hi, off);
+    ret = get_errno(safe_preadv(fd, vec, count, lo, hi));
+    unlock_iovec(vec, target_vec, count, 1);
+    return ret;
+}
+
+SYSCALL_IMPL(pwritev)
+{
+    int fd = arg1;
+    abi_ulong target_vec = arg2;
+    int count = arg3;
+    uint64_t off = arg4;
+    struct iovec *vec = lock_iovec(VERIFY_READ, target_vec, count, 1);
+    unsigned long lo, hi;
+    abi_long ret;
+
+    if (vec == NULL) {
+        return -TARGET_EFAULT;
+    }
+
+    host_offset64_low_high(&lo, &hi, off);
+    ret = get_errno(safe_pwritev(fd, vec, count, lo, hi));
+    unlock_iovec(vec, target_vec, count, 0);
+    return ret;
+}
+
 SYSCALL_IMPL(read)
 {
     int fd = arg1;

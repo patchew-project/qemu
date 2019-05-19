@@ -27,6 +27,12 @@ SYSCALL_DEF_FULL(pread64, .impl = impl_pread64,
 SYSCALL_DEF_FULL(pwrite64, .impl = impl_pwrite64,
                  .args = args_pread64_pwrite64,
                  .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
+SYSCALL_DEF_FULL(preadv, .impl = impl_preadv,
+                 .args = args_preadv_pwritev,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
+SYSCALL_DEF_FULL(pwritev, .impl = impl_pwritev,
+                 .args = args_preadv_pwritev,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
 SYSCALL_DEF(read, ARG_DEC, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_readlink
 SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
