@@ -108,6 +108,7 @@
 
 #include "qemu.h"
 #include "fd-trans.h"
+#include "syscall.h"
 
 #ifndef CLONE_IO
 #define CLONE_IO                0x80000000      /* Clone io context */
@@ -11631,12 +11632,70 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     return ret;
 }
 
+/* Emit the signature for a SyscallArgsFn.  */
+#define SYSCALL_ARGS(NAME) \
+    static const SyscallDef *args_##NAME(const SyscallDef *def, \
+                                         int64_t out[6], abi_long in[8])
+
+/* Emit the signature for a SyscallImplFn.  */
+#define SYSCALL_IMPL(NAME) \
+    static abi_long impl_##NAME(CPUArchState *cpu_env, int64_t arg1, \
+                                int64_t arg2, int64_t arg3, int64_t arg4, \
+                                int64_t arg5, int64_t arg6)
+
+
+#undef SYSCALL_IMPL
+#undef SYSCALL_ARGS
+
+/*
+ * Emit a complete SyscallDef structure.
+ */
+#define SYSCALL_DEF_FULL(NAME, ...) \
+    static const SyscallDef def_##NAME = { .name = #NAME, __VA_ARGS__ }
+
+/*
+ * Emit the definition for a "simple" syscall.  Such does not use
+ * SyscallArgsFn and only uses arg_type for strace.
+ */
+#define SYSCALL_DEF(NAME, ...) \
+    SYSCALL_DEF_FULL(NAME, .impl = impl_##NAME, .arg_type = { __VA_ARGS__ })
+
+/* Similarly, but also uses an args hook.  */
+#define SYSCALL_DEF_ARGS(NAME, ...) \
+    SYSCALL_DEF_FULL(NAME, .impl = impl_##NAME, .args = args_##NAME, \
+                     .arg_type = { __VA_ARGS__ })
+
+#include "syscall-defs.h"
+
+#undef SYSCALL_DEF
+#undef SYSCALL_DEF_ARGS
+#undef SYSCALL_DEF_FULL
+
+static const SyscallDef *syscall_table(int num)
+{
+#define SYSCALL_DEF(NAME, ...)  case TARGET_NR_##NAME: return &def_##NAME
+#define SYSCALL_DEF_ARGS(NAME, ...)  SYSCALL_DEF(NAME)
+#define SYSCALL_DEF_FULL(NAME, ...)  SYSCALL_DEF(NAME)
+
+    switch (num) {
+#include "syscall-defs.h"
+    }
+    return NULL;
+
+#undef SYSCALL_DEF
+#undef SYSCALL_DEF_ARGS
+#undef SYSCALL_DEF_FULL
+}
+
 abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6, abi_long arg7,
                     abi_long arg8)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
+    const SyscallDef *def, *orig_def;
+    abi_long raw_args[8] = { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 };
+    int64_t  out_args[6] = { arg1, arg2, arg3, arg4, arg5, arg6 };
     abi_long ret;
 
 #ifdef DEBUG_ERESTARTSYS
@@ -11656,16 +11715,44 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
     trace_guest_user_syscall(cpu, num, arg1, arg2, arg3, arg4,
                              arg5, arg6, arg7, arg8);
 
-    if (unlikely(do_strace)) {
-        print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
-        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                          arg5, arg6, arg7, arg8);
-        print_syscall_ret(num, ret);
-    } else {
-        ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
-                          arg5, arg6, arg7, arg8);
+    orig_def = def = syscall_table(num);
+    if (def == NULL) {
+        /* Unconverted.  */
+        if (unlikely(do_strace)) {
+            print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+            ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
+                              arg5, arg6, arg7, arg8);
+            print_syscall_ret(num, ret);
+        } else {
+            ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
+                              arg5, arg6, arg7, arg8);
+        }
+        goto fini;
     }
 
+    if (def->args) {
+        def = def->args(def, out_args, raw_args);
+        if (unlikely(def == NULL)) {
+            ret = -host_to_target_errno(errno);
+            if (unlikely(do_strace)) {
+                print_syscall_def(orig_def, out_args);
+                print_syscall_def_ret(orig_def, ret);
+            }
+            goto fini;
+        }
+    }
+
+    if (unlikely(do_strace)) {
+        print_syscall_def(def, out_args);
+        ret = def->impl(cpu_env, out_args[0], out_args[1], out_args[2],
+                        out_args[3], out_args[4], out_args[5]);
+        print_syscall_def_ret(def, ret);
+    } else {
+        ret = def->impl(cpu_env, out_args[0], out_args[1], out_args[2],
+                        out_args[3], out_args[4], out_args[5]);
+    }
+
+ fini:
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
 }
