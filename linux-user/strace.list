@@ -677,12 +677,6 @@
 #ifdef TARGET_NR_olduname
 { TARGET_NR_olduname, "olduname" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_open
-{ TARGET_NR_open, "open" , NULL, print_open, NULL },
-#endif
-#ifdef TARGET_NR_openat
-{ TARGET_NR_openat, "openat" , NULL, print_openat, NULL },
-#endif
 #ifdef TARGET_NR_osf_adjtime
 { TARGET_NR_osf_adjtime, "osf_adjtime" , NULL, NULL, NULL },
 #endif
