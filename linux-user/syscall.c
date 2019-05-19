@@ -4831,58 +4831,6 @@ _syscall1(int, sys_setgid, gid_t, gid)
 _syscall3(int, sys_setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)
 _syscall3(int, sys_setresgid, gid_t, rgid, gid_t, egid, gid_t, sgid)
 
-void syscall_init(void)
-{
-    IOCTLEntry *ie;
-    const argtype *arg_type;
-    int size;
-    int i;
-
-    thunk_init(STRUCT_MAX);
-
-#define STRUCT(name, ...) thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
-#define STRUCT_SPECIAL(name) thunk_register_struct_direct(STRUCT_ ## name, #name, &struct_ ## name ## _def);
-#include "syscall_types.h"
-#undef STRUCT
-#undef STRUCT_SPECIAL
-
-    /* Build target_to_host_errno_table[] table from
-     * host_to_target_errno_table[]. */
-    for (i = 0; i < ERRNO_TABLE_SIZE; i++) {
-        target_to_host_errno_table[host_to_target_errno_table[i]] = i;
-    }
-
-    /* we patch the ioctl size if necessary. We rely on the fact that
-       no ioctl has all the bits at '1' in the size field */
-    ie = ioctl_entries;
-    while (ie->target_cmd != 0) {
-        if (((ie->target_cmd >> TARGET_IOC_SIZESHIFT) & TARGET_IOC_SIZEMASK) ==
-            TARGET_IOC_SIZEMASK) {
-            arg_type = ie->arg_type;
-            if (arg_type[0] != TYPE_PTR) {
-                fprintf(stderr, "cannot patch size for ioctl 0x%x\n",
-                        ie->target_cmd);
-                exit(1);
-            }
-            arg_type++;
-            size = thunk_type_size(arg_type, 0);
-            ie->target_cmd = (ie->target_cmd &
-                              ~(TARGET_IOC_SIZEMASK << TARGET_IOC_SIZESHIFT)) |
-                (size << TARGET_IOC_SIZESHIFT);
-        }
-
-        /* automatic consistency check if same arch */
-#if (defined(__i386__) && defined(TARGET_I386) && defined(TARGET_ABI32)) || \
-    (defined(__x86_64__) && defined(TARGET_X86_64))
-        if (unlikely(ie->target_cmd != ie->host_cmd)) {
-            fprintf(stderr, "ERROR: ioctl(%s): target=0x%x host=0x%x\n",
-                    ie->name, ie->target_cmd, ie->host_cmd);
-        }
-#endif
-        ie++;
-    }
-}
-
 static inline uint64_t target_offset64(abi_ulong word0, abi_ulong word1)
 {
 #if TARGET_ABI_BITS == 64
@@ -9071,4 +9019,65 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
  fini:
     trace_guest_user_syscall_ret(cpu, num, ret);
     return ret;
+}
+
+void syscall_init(void)
+{
+    IOCTLEntry *ie;
+    const argtype *arg_type;
+    int size;
+    int i;
+
+    thunk_init(STRUCT_MAX);
+
+#define STRUCT(name, ...) \
+    thunk_register_struct(STRUCT_ ## name, #name, struct_ ## name ## _def);
+#define STRUCT_SPECIAL(name) \
+    thunk_register_struct_direct(STRUCT_ ## name, #name, \
+                                 &struct_ ## name ## _def);
+
+#include "syscall_types.h"
+
+#undef STRUCT
+#undef STRUCT_SPECIAL
+
+    /*
+     * Build target_to_host_errno_table[] table from
+     * host_to_target_errno_table[].
+     */
+    for (i = 0; i < ERRNO_TABLE_SIZE; i++) {
+        target_to_host_errno_table[host_to_target_errno_table[i]] = i;
+    }
+
+    /*
+     * We patch the ioctl size if necessary.  We rely on the fact that
+     * no ioctl has all the bits at '1' in the size field.
+     */
+    ie = ioctl_entries;
+    while (ie->target_cmd != 0) {
+        if (((ie->target_cmd >> TARGET_IOC_SIZESHIFT) & TARGET_IOC_SIZEMASK) ==
+            TARGET_IOC_SIZEMASK) {
+            arg_type = ie->arg_type;
+            if (arg_type[0] != TYPE_PTR) {
+                fprintf(stderr, "cannot patch size for ioctl 0x%x\n",
+                        ie->target_cmd);
+                exit(1);
+            }
+            arg_type++;
+            size = thunk_type_size(arg_type, 0);
+            ie->target_cmd = (ie->target_cmd &
+                              ~(TARGET_IOC_SIZEMASK << TARGET_IOC_SIZESHIFT)) |
+                (size << TARGET_IOC_SIZESHIFT);
+        }
+
+        /* automatic consistency check if same arch */
+#if (defined(__i386__) && defined(TARGET_I386) && defined(TARGET_ABI32)) || \
+    (defined(__x86_64__) && defined(TARGET_X86_64))
+        if (unlikely(ie->target_cmd != ie->host_cmd)) {
+            fprintf(stderr, "ERROR: ioctl(%s): target=0x%x host=0x%x\n",
+                    ie->name, ie->target_cmd, ie->host_cmd);
+        }
+#endif
+        ie++;
+    }
 }
