@@ -256,9 +256,6 @@
 #ifdef TARGET_NR_getpmsg
 { TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_getpriority
-{ TARGET_NR_getpriority, "getpriority", "%s(%#x,%#x)", NULL, NULL },
-#endif
 #ifdef TARGET_NR_getrandom
 { TARGET_NR_getrandom, "getrandom", NULL, NULL, NULL },
 #endif
@@ -1006,9 +1003,6 @@
 #endif
 #ifdef TARGET_NR_setpgrp
 { TARGET_NR_setpgrp, "setpgrp" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_setpriority
-{ TARGET_NR_setpriority, "setpriority" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_setregid
 { TARGET_NR_setregid, "setregid" , NULL, NULL, NULL },

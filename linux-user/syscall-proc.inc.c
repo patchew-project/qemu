@@ -479,6 +479,29 @@ SYSCALL_IMPL(getppid)
 }
 #endif
 
+SYSCALL_IMPL(getpriority)
+{
+    abi_long ret;
+
+    /*
+     * Note that negative values are valid for getpriority, so we must
+     * differentiate based on errno settings.
+     */
+    errno = 0;
+    ret = getpriority(arg1, arg2);
+    if (ret == -1 && errno != 0) {
+        return -host_to_target_errno(errno);
+    }
+#ifdef TARGET_ALPHA
+    /* Return value is the unbiased priority.  Signal no error.  */
+    ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0;
+#else
+    /* Return value is a biased priority to avoid negative numbers.  */
+    ret = 20 - ret;
+#endif
+    return ret;
+}
+
 #ifdef TARGET_NR_getrlimit
 SYSCALL_IMPL(getrlimit)
 {
@@ -566,6 +589,11 @@ SYSCALL_IMPL(sethostname)
 SYSCALL_IMPL(setpgid)
 {
     return get_errno(setpgid(arg1, arg2));
+}
+
+SYSCALL_IMPL(setpriority)
+{
+    return get_errno(setpriority(arg1, arg2, arg3));
 }
 
 #ifdef TARGET_NR_setrlimit

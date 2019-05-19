@@ -4144,24 +4144,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_getpriority:
-        /* Note that negative values are valid for getpriority, so we must
-           differentiate based on errno settings.  */
-        errno = 0;
-        ret = getpriority(arg1, arg2);
-        if (ret == -1 && errno != 0) {
-            return -host_to_target_errno(errno);
-        }
-#ifdef TARGET_ALPHA
-        /* Return value is the unbiased priority.  Signal no error.  */
-        ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0;
-#else
-        /* Return value is a biased priority to avoid negative numbers.  */
-        ret = 20 - ret;
-#endif
-        return ret;
-    case TARGET_NR_setpriority:
-        return get_errno(setpriority(arg1, arg2, arg3));
 #ifdef TARGET_NR_statfs
     case TARGET_NR_statfs:
         if (!(p = lock_user_string(arg1))) {
