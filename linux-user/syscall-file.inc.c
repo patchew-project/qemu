@@ -82,6 +82,32 @@ SYSCALL_IMPL(linkat)
     return do_linkat(arg1, arg2, arg3, arg4, arg5);
 }
 
+static abi_long do_mknodat(int dirfd, abi_ulong target_path,
+                           mode_t mode, dev_t dev)
+{
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mknodat(dirfd, p, mode, dev));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_mknod
+SYSCALL_IMPL(mknod)
+{
+    return do_mknodat(AT_FDCWD, arg1, arg2, arg3);
+}
+#endif
+
+SYSCALL_IMPL(mknodat)
+{
+    return do_mknodat(arg1, arg2, arg3, arg4);
+}
+
 /*
  * Helpers for do_openat, manipulating /proc/self/foo.
  */

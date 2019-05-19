@@ -1923,45 +1923,6 @@ print_syslog(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_mknod
-static void
-print_mknod(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    int hasdev = (arg1 & (S_IFCHR|S_IFBLK));
-
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_file_mode(arg1, (hasdev == 0));
-    if (hasdev) {
-        print_raw_param("makedev(%d", major(arg2), 0);
-        print_raw_param("%d)", minor(arg2), 1);
-    }
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_mknodat
-static void
-print_mknodat(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    int hasdev = (arg2 & (S_IFCHR|S_IFBLK));
-
-    print_syscall_prologue(name);
-    print_at_dirfd(arg0, 0);
-    print_string(arg1, 0);
-    print_file_mode(arg2, (hasdev == 0));
-    if (hasdev) {
-        print_raw_param("makedev(%d", major(arg3), 0);
-        print_raw_param("%d)", minor(arg3), 1);
-    }
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_mq_open
 static void
 print_mq_open(const struct syscallname *name,

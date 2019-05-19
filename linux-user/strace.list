@@ -518,12 +518,6 @@
 #ifdef TARGET_NR_mkdirat
 { TARGET_NR_mkdirat, "mkdirat" , NULL, print_mkdirat, NULL },
 #endif
-#ifdef TARGET_NR_mknod
-{ TARGET_NR_mknod, "mknod" , NULL, print_mknod, NULL },
-#endif
-#ifdef TARGET_NR_mknodat
-{ TARGET_NR_mknodat, "mknodat" , NULL, print_mknodat, NULL },
-#endif
 #ifdef TARGET_NR_modify_ldt
 { TARGET_NR_modify_ldt, "modify_ldt" , NULL, NULL, NULL },
 #endif
