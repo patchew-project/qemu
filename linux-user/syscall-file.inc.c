@@ -1117,6 +1117,11 @@ SYSCALL_IMPL(rmdir)
 }
 #endif
 
+SYSCALL_IMPL(umask)
+{
+    return get_errno(umask(arg1));
+}
+
 SYSCALL_IMPL(unlinkat)
 {
     return do_unlinkat(arg1, arg2, arg3);

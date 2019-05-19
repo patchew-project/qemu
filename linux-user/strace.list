@@ -1293,9 +1293,6 @@
 #ifdef TARGET_NR_ulimit
 { TARGET_NR_ulimit, "ulimit" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_umask
-{ TARGET_NR_umask, "umask" , "%s(%#o)", NULL, NULL },
-#endif
 #ifdef TARGET_NR_uname
 { TARGET_NR_uname, "uname" , "%s(%p)", NULL, NULL },
 #endif
