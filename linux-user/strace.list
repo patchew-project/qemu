@@ -1122,12 +1122,6 @@
 #ifdef TARGET_NR_swapon
 { TARGET_NR_swapon, "swapon" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_symlink
-{ TARGET_NR_symlink, "symlink" , NULL, print_symlink, NULL },
-#endif
-#ifdef TARGET_NR_symlinkat
-{ TARGET_NR_symlinkat, "symlinkat", NULL, print_symlinkat, NULL },
-#endif
 #ifdef TARGET_NR_syscall
 { TARGET_NR_syscall, "syscall" , NULL, NULL, NULL },
 #endif

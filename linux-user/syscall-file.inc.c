@@ -1254,6 +1254,34 @@ SYSCALL_IMPL(select)
 }
 #endif
 
+static abi_long do_symlinkat(abi_ulong guest_target, int dirfd,
+                             abi_ulong guest_path)
+{
+    char *target = lock_user_string(guest_target);
+    char *path = lock_user_string(guest_path);
+    abi_long ret = -TARGET_EFAULT;
+
+    if (target && path) {
+        ret = get_errno(symlinkat(target, dirfd, path));
+    }
+    unlock_user(path, guest_path, 0);
+    unlock_user(target, guest_target, 0);
+
+    return ret;
+}
+
+#ifdef TARGET_NR_symlink
+SYSCALL_IMPL(symlink)
+{
+    return do_symlinkat(arg1, AT_FDCWD, arg2);
+}
+#endif
+
+SYSCALL_IMPL(symlinkat)
+{
+    return do_symlinkat(arg1, arg2, arg3);
+}
+
 SYSCALL_IMPL(sync)
 {
     sync();
