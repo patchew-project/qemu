@@ -25,9 +25,6 @@
 #ifdef TARGET_NR_afs_syscall
 { TARGET_NR_afs_syscall, "afs_syscall" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_alarm
-{ TARGET_NR_alarm, "alarm" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_aplib
 { TARGET_NR_aplib, "aplib" , NULL, NULL, NULL },
 #endif
@@ -871,9 +868,6 @@
 #endif
 #ifdef TARGET_NR_osf_waitid
 { TARGET_NR_osf_waitid, "osf_waitid" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_pause
-{ TARGET_NR_pause, "pause" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_pciconfig_iobase
 { TARGET_NR_pciconfig_iobase, "pciconfig_iobase" , NULL, NULL, NULL },

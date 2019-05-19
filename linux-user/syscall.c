@@ -5380,17 +5380,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_alarm /* not on alpha */
-    case TARGET_NR_alarm:
-        return alarm(arg1);
-#endif
-#ifdef TARGET_NR_pause /* not on alpha */
-    case TARGET_NR_pause:
-        if (!block_signals()) {
-            sigsuspend(&((TaskState *)cpu->opaque)->signal_mask);
-        }
-        return -TARGET_EINTR;
-#endif
 #ifdef TARGET_NR_utime
     case TARGET_NR_utime:
         {
@@ -9224,6 +9213,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #include "syscall-ipc.inc.c"
 #include "syscall-mem.inc.c"
 #include "syscall-proc.inc.c"
+#include "syscall-sig.inc.c"
 #include "syscall-time.inc.c"
 
 #undef SYSCALL_IMPL
