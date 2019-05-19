@@ -468,6 +468,11 @@ SYSCALL_IMPL(nice)
 }
 #endif
 
+SYSCALL_IMPL(setpgid)
+{
+    return get_errno(setpgid(arg1, arg2));
+}
+
 SYSCALL_IMPL(times)
 {
     abi_ulong target_buf = arg1;
