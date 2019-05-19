@@ -926,9 +926,6 @@
 #ifdef TARGET_NR_rmdir
 { TARGET_NR_rmdir, "rmdir" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rt_sigpending
-{ TARGET_NR_rt_sigpending, "rt_sigpending" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_rt_sigqueueinfo
 { TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, print_rt_sigqueueinfo, NULL },
 #endif
@@ -1127,9 +1124,6 @@
 #endif
 #ifdef TARGET_NR_signalfd4
 { TARGET_NR_signalfd4, "signalfd4" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_sigpending
-{ TARGET_NR_sigpending, "sigpending" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_sigreturn
 { TARGET_NR_sigreturn, "sigreturn" , NULL, NULL, NULL },

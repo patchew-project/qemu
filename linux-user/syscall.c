@@ -4241,42 +4241,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_sigpending
-    case TARGET_NR_sigpending:
-        {
-            sigset_t set;
-            ret = get_errno(sigpending(&set));
-            if (!is_error(ret)) {
-                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
-                    return -TARGET_EFAULT;
-                host_to_target_old_sigset(p, &set);
-                unlock_user(p, arg1, sizeof(target_sigset_t));
-            }
-        }
-        return ret;
-#endif
-    case TARGET_NR_rt_sigpending:
-        {
-            sigset_t set;
-
-            /* Yes, this check is >, not != like most. We follow the kernel's
-             * logic and it does it like this because it implements
-             * NR_sigpending through the same code path, and in that case
-             * the old_sigset_t is smaller in size.
-             */
-            if (arg2 > sizeof(target_sigset_t)) {
-                return -TARGET_EINVAL;
-            }
-
-            ret = get_errno(sigpending(&set));
-            if (!is_error(ret)) {
-                if (!(p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0)))
-                    return -TARGET_EFAULT;
-                host_to_target_sigset(p, &set);
-                unlock_user(p, arg1, sizeof(target_sigset_t));
-            }
-        }
-        return ret;
 #ifdef TARGET_NR_sigsuspend
     case TARGET_NR_sigsuspend:
         {

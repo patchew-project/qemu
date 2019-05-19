@@ -117,6 +117,33 @@ SYSCALL_IMPL(rt_sigaction)
     return ret;
 }
 
+SYSCALL_IMPL(rt_sigpending)
+{
+    sigset_t set;
+    abi_long ret;
+
+    /*
+     * Yes, this check is >, not != like most. We follow the kernel's
+     * logic and it does it like this because it implements
+     * NR_sigpending through the same code path, and in that case
+     * the old_sigset_t is smaller in size.
+     */
+    if (arg2 > sizeof(target_sigset_t)) {
+        return -TARGET_EINVAL;
+    }
+
+    ret = get_errno(sigpending(&set));
+    if (!is_error(ret)) {
+        void *p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_sigset(p, &set);
+        unlock_user(p, arg1, sizeof(target_sigset_t));
+    }
+    return ret;
+}
+
 SYSCALL_IMPL(rt_sigprocmask)
 {
     int how = 0;
@@ -255,6 +282,24 @@ SYSCALL_IMPL(sigaction)
         unlock_user_struct(old_act, arg3, 1);
     }
 #endif
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_sigpending
+SYSCALL_IMPL(sigpending)
+{
+    sigset_t set;
+    abi_long ret = get_errno(sigpending(&set));
+
+    if (!is_error(ret)) {
+        void *p = lock_user(VERIFY_WRITE, arg1, sizeof(target_sigset_t), 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        host_to_target_old_sigset(p, &set);
+        unlock_user(p, arg1, sizeof(target_sigset_t));
+    }
     return ret;
 }
 #endif
