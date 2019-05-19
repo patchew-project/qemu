@@ -61,9 +61,6 @@
 #ifdef TARGET_NR_capset
 { TARGET_NR_capset, "capset" , "%s(%p,%p)", NULL, NULL },
 #endif
-#ifdef TARGET_NR_chmod
-{ TARGET_NR_chmod, "chmod" , NULL, print_chmod, NULL },
-#endif
 #ifdef TARGET_NR_chown
 { TARGET_NR_chown, "chown" , NULL, NULL, NULL },
 #endif
@@ -168,12 +165,6 @@
 #endif
 #ifdef TARGET_NR_fchdir
 { TARGET_NR_fchdir, "fchdir" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_fchmod
-{ TARGET_NR_fchmod, "fchmod" , "%s(%d,%#o)", NULL, NULL },
-#endif
-#ifdef TARGET_NR_fchmodat
-{ TARGET_NR_fchmodat, "fchmodat" , NULL, print_fchmodat, NULL },
 #endif
 #ifdef TARGET_NR_fchown
 { TARGET_NR_fchown, "fchown" , "%s(%d,%d,%d)", NULL, NULL },

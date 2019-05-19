@@ -30,6 +30,26 @@ SYSCALL_IMPL(chdir)
     return ret;
 }
 
+static abi_long do_fchmodat(int dirfd, abi_ulong target_path, mode_t mode)
+{
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(fchmodat(dirfd, p, mode, 0));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_chmod
+SYSCALL_IMPL(chmod)
+{
+    return do_fchmodat(AT_FDCWD, arg1, arg2);
+}
+#endif
+
 SYSCALL_IMPL(close)
 {
     int fd = arg1;
@@ -53,6 +73,16 @@ SYSCALL_IMPL(creat)
     return ret;
 }
 #endif
+
+SYSCALL_IMPL(fchmod)
+{
+    return get_errno(fchmod(arg1, arg2));
+}
+
+SYSCALL_IMPL(fchmodat)
+{
+    return do_fchmodat(arg1, arg2, arg3);
+}
 
 static abi_long do_linkat(int olddirfd, abi_ulong target_oldpath,
                           int newdirfd, abi_ulong target_newpath,

@@ -5384,14 +5384,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_chmod
-    case TARGET_NR_chmod:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(chmod(p, arg2));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
 #ifdef TARGET_NR_lseek
     case TARGET_NR_lseek:
         return get_errno(lseek(arg1, arg2, arg3));
@@ -6463,16 +6455,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_ftruncate
     case TARGET_NR_ftruncate:
         return get_errno(ftruncate(arg1, arg2));
-#endif
-    case TARGET_NR_fchmod:
-        return get_errno(fchmod(arg1, arg2));
-#if defined(TARGET_NR_fchmodat)
-    case TARGET_NR_fchmodat:
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(fchmodat(arg1, p, arg3, 0));
-        unlock_user(p, arg2, 0);
-        return ret;
 #endif
     case TARGET_NR_getpriority:
         /* Note that negative values are valid for getpriority, so we must
