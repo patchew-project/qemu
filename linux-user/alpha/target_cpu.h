@@ -26,10 +26,12 @@ static inline void cpu_clone_regs_child(CPUAlphaState *env, target_ulong newsp)
     }
     env->ir[IR_V0] = 0;
     env->ir[IR_A3] = 0;
+    env->ir[IR_A4] = 1;  /* OSF/1 secondary return: child */
 }
 
 static inline void cpu_clone_regs_parent(CPUAlphaState *env)
 {
+    env->ir[IR_A4] = 0;  /* OSF/1 secondary return: parent */
 }
 
 static inline void cpu_set_tls(CPUAlphaState *env, target_ulong newtls)
