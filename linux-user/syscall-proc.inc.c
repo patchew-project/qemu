@@ -16,6 +16,258 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef CLONE_IO
+#define CLONE_IO                0x80000000      /* Clone io context */
+#endif
+
+/*
+ * We can't directly call the host clone syscall, because this will
+ * badly confuse libc (breaking mutexes, for example). So we must
+ * divide clone flags into:
+ *  * flag combinations that look like pthread_create()
+ *  * flag combinations that look like fork()
+ *  * flags we can implement within QEMU itself
+ *  * flags we can't support and will return an error for
+ *
+ * For thread creation, all these flags must be present; for
+ * fork, none must be present.
+ */
+#define CLONE_THREAD_FLAGS                              \
+    (CLONE_VM | CLONE_FS | CLONE_FILES |                \
+     CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM)
+
+/*
+ * These flags are ignored:
+ * CLONE_DETACHED is now ignored by the kernel;
+ * CLONE_IO is just an optimisation hint to the I/O scheduler
+ */
+#define CLONE_IGNORED_FLAGS                     \
+    (CLONE_DETACHED | CLONE_IO)
+
+/* Flags for fork which we can implement within QEMU itself */
+#define CLONE_OPTIONAL_FORK_FLAGS               \
+    (CLONE_SETTLS | CLONE_PARENT_SETTID |       \
+     CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID)
+
+/* Flags for thread creation which we can implement within QEMU itself */
+#define CLONE_OPTIONAL_THREAD_FLAGS                             \
+    (CLONE_SETTLS | CLONE_PARENT_SETTID |                       \
+     CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID | CLONE_PARENT)
+
+#define CLONE_INVALID_FORK_FLAGS                                        \
+    (~(CSIGNAL | CLONE_OPTIONAL_FORK_FLAGS | CLONE_IGNORED_FLAGS))
+
+#define CLONE_INVALID_THREAD_FLAGS                                      \
+    (~(CSIGNAL | CLONE_THREAD_FLAGS | CLONE_OPTIONAL_THREAD_FLAGS |     \
+       CLONE_IGNORED_FLAGS))
+
+/*
+ * CLONE_VFORK is special cased early in do_fork(). The other flag bits
+ * have almost all been allocated. We cannot support any of
+ * CLONE_NEWNS, CLONE_NEWCGROUP, CLONE_NEWUTS, CLONE_NEWIPC,
+ * CLONE_NEWUSER, CLONE_NEWPID, CLONE_NEWNET, CLONE_PTRACE, CLONE_UNTRACED.
+ * The checks against the invalid thread masks above will catch these.
+ * (The one remaining unallocated bit is 0x1000 which used to be CLONE_PID.)
+ */
+
+/**
+ * do_clone:
+ * Arguments as for clone(2), returns target errnos.
+ */
+static abi_long do_clone(CPUArchState *env, unsigned int flags,
+                         abi_ulong newsp, abi_ulong parent_tidptr,
+                         abi_ulong child_tidptr, target_ulong newtls)
+{
+    CPUState *cpu = ENV_GET_CPU(env);
+    abi_long ret;
+    TaskState *ts;
+    CPUState *new_cpu;
+    CPUArchState *new_env;
+    sigset_t sigmask;
+
+    flags &= ~CLONE_IGNORED_FLAGS;
+
+    /* Emulate vfork() with fork() */
+    if (flags & CLONE_VFORK) {
+        flags &= ~(CLONE_VFORK | CLONE_VM);
+    }
+
+    if (flags & CLONE_VM) {
+        /* If CLONE_VM, we consider it a new thread.  */
+        TaskState *parent_ts = (TaskState *)cpu->opaque;
+        new_thread_info info;
+        pthread_attr_t attr;
+
+        if (((flags & CLONE_THREAD_FLAGS) != CLONE_THREAD_FLAGS) ||
+            (flags & CLONE_INVALID_THREAD_FLAGS)) {
+            return -TARGET_EINVAL;
+        }
+
+        ts = g_new0(TaskState, 1);
+        init_task_state(ts);
+
+        /* Grab a mutex so that thread setup appears atomic.  */
+        pthread_mutex_lock(&clone_lock);
+
+        /* Create a new CPU instance.  */
+        new_env = cpu_copy(env);
+
+        /* Init regs that differ from the parent.  */
+        cpu_clone_regs_child(new_env, newsp);
+        cpu_clone_regs_parent(env);
+        new_cpu = ENV_GET_CPU(new_env);
+        new_cpu->opaque = ts;
+        ts->bprm = parent_ts->bprm;
+        ts->info = parent_ts->info;
+        ts->signal_mask = parent_ts->signal_mask;
+
+        if (flags & CLONE_CHILD_CLEARTID) {
+            ts->child_tidptr = child_tidptr;
+        }
+
+        if (flags & CLONE_SETTLS) {
+            cpu_set_tls(new_env, newtls);
+        }
+
+        memset(&info, 0, sizeof(info));
+        pthread_mutex_init(&info.mutex, NULL);
+        pthread_mutex_lock(&info.mutex);
+        pthread_cond_init(&info.cond, NULL);
+        info.env = new_env;
+        if (flags & CLONE_CHILD_SETTID) {
+            info.child_tidptr = child_tidptr;
+        }
+        if (flags & CLONE_PARENT_SETTID) {
+            info.parent_tidptr = parent_tidptr;
+        }
+
+        ret = pthread_attr_init(&attr);
+        ret = pthread_attr_setstacksize(&attr, NEW_STACK_SIZE);
+        ret = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+        /*
+         * It is not safe to deliver signals until the child has finished
+         * initializing, so temporarily block all signals.
+         */
+        sigfillset(&sigmask);
+        sigprocmask(SIG_BLOCK, &sigmask, &info.sigmask);
+
+        /*
+         * If this is our first additional thread, we need to ensure we
+         * generate code for parallel execution and flush old translations.
+         */
+        if (!parallel_cpus) {
+            parallel_cpus = true;
+            tb_flush(cpu);
+        }
+
+        ret = pthread_create(&info.thread, &attr, clone_func, &info);
+        /* TODO: Free new CPU state if thread creation failed.  */
+
+        sigprocmask(SIG_SETMASK, &info.sigmask, NULL);
+        pthread_attr_destroy(&attr);
+        if (ret == 0) {
+            /* Wait for the child to initialize.  */
+            pthread_cond_wait(&info.cond, &info.mutex);
+            ret = info.tid;
+        } else {
+            ret = host_to_target_errno(ret);
+        }
+        pthread_mutex_unlock(&info.mutex);
+        pthread_cond_destroy(&info.cond);
+        pthread_mutex_destroy(&info.mutex);
+        pthread_mutex_unlock(&clone_lock);
+    } else {
+        /* If no CLONE_VM, we consider it a fork.  */
+        if (flags & CLONE_INVALID_FORK_FLAGS) {
+            return -TARGET_EINVAL;
+        }
+
+        /* We can't support custom termination signals.  */
+        if ((flags & CSIGNAL) != TARGET_SIGCHLD) {
+            return -TARGET_EINVAL;
+        }
+
+        if (block_signals()) {
+            return -TARGET_ERESTARTSYS;
+        }
+
+        fork_start();
+        ret = fork();
+        if (ret == 0) {
+            /* Child Process.  */
+            cpu_clone_regs_child(env, newsp);
+            fork_end(1);
+            /*
+             * There is a race condition here.  The parent process could
+             * theoretically read the TID in the child process before the
+             * child tid is set.  This would require using either ptrace
+             * (not implemented) or having *_tidptr to point at a shared
+             * memory mapping.  We can't repeat the spinlock hack used
+             * above because the child process gets its own copy of the lock.
+             */
+            if (flags & CLONE_CHILD_SETTID) {
+                put_user_u32(sys_gettid(), child_tidptr);
+            }
+            if (flags & CLONE_PARENT_SETTID) {
+                put_user_u32(sys_gettid(), parent_tidptr);
+            }
+            ts = (TaskState *)cpu->opaque;
+            if (flags & CLONE_SETTLS) {
+                cpu_set_tls(env, newtls);
+            }
+            if (flags & CLONE_CHILD_CLEARTID) {
+                ts->child_tidptr = child_tidptr;
+            }
+        } else {
+            cpu_clone_regs_parent(env);
+            fork_end(0);
+            ret = get_errno(ret);
+        }
+    }
+    return ret;
+}
+
+#if defined(TARGET_MICROBLAZE) || \
+    defined(TARGET_CLONE_BACKWARDS) || \
+    defined(TARGET_CLONE_BACKWARDS2)
+SYSCALL_ARGS(clone)
+{
+    /*
+     * Linux manages to have three "standard" orderings for its
+     * arguments to clone(); the BACKWARDS and BACKWARDS2 defines
+     * match the kernel's CONFIG_CLONE_* settings.
+     * Microblaze is further special in that it uses a sixth
+     * implicit argument to clone for the TLS pointer.
+     *
+     * Standardize on the non-BACKWARDS ordering.
+     */
+# if defined(TARGET_MICROBLAZE)
+    /* We have already assigned out[0-1].  */
+    out[2] = in[3];
+    out[3] = in[4];
+    out[4] = in[5];
+# elif defined(TARGET_CLONE_BACKWARDS)
+    /* We have already assigned out[0-2].  */
+    out[3] = in[4];
+    out[4] = in[3];
+# elif defined(TARGET_CLONE_BACKWARDS2)
+    /* We have already assigned out[2-4].  */
+    out[0] = in[1];
+    out[1] = in[0];
+# else
+#  error Missing case
+# endif
+    return def;
+}
+#else
+#define args_clone NULL
+#endif
+
+SYSCALL_IMPL(clone)
+{
+    return do_clone(cpu_env, arg1, arg2, arg3, arg4, arg5);
+}
 
 SYSCALL_IMPL(exit)
 {
@@ -59,3 +311,10 @@ SYSCALL_IMPL(exit)
     preexit_cleanup(cpu_env, status);
     _exit(status);
 }
+
+#if defined(TARGET_NR_fork) || defined(TARGET_NR_vfork)
+SYSCALL_IMPL(fork)
+{
+    return do_clone(cpu_env, TARGET_SIGCHLD, 0, 0, 0, 0);
+}
+#endif

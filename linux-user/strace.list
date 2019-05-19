@@ -91,9 +91,6 @@
 #ifdef TARGET_NR_clock_settime
 { TARGET_NR_clock_settime, "clock_settime" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_clone
-{ TARGET_NR_clone, "clone" , NULL, print_clone, NULL },
-#endif
 #ifdef TARGET_NR_connect
 { TARGET_NR_connect, "connect" , "%s(%d,%#x,%d)", NULL, NULL },
 #endif
@@ -219,9 +216,6 @@
 #endif
 #ifdef TARGET_NR_flock
 { TARGET_NR_flock, "flock" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_fork
-{ TARGET_NR_fork, "fork" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_fremovexattr
 { TARGET_NR_fremovexattr, "fremovexattr" , NULL, NULL, NULL },
@@ -1484,9 +1478,6 @@
 #endif
 #ifdef TARGET_NR_utrap_install
 { TARGET_NR_utrap_install, "utrap_install" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_vfork
-{ TARGET_NR_vfork, "vfork" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_vhangup
 { TARGET_NR_vhangup, "vhangup" , NULL, NULL, NULL },
