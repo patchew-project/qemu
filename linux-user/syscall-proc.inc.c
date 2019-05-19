@@ -499,6 +499,18 @@ SYSCALL_IMPL(getrlimit)
     return ret;
 }
 #endif
+
+SYSCALL_IMPL(getrusage)
+{
+    struct rusage rusage;
+    abi_long ret = get_errno(getrusage(arg1, &rusage));
+
+    if (!is_error(ret)) {
+        ret = host_to_target_rusage(arg2, &rusage);
+    }
+    return ret;
+}
+
 SYSCALL_IMPL(getsid)
 {
     return get_errno(getsid(arg1));

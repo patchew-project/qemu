@@ -75,6 +75,7 @@ SYSCALL_DEF(getppid);
 #ifdef TARGET_NR_getrlimit
 SYSCALL_DEF(getrlimit, ARG_DEC, ARG_PTR);
 #endif
+SYSCALL_DEF(getrusage, ARG_DEC, ARG_PTR);
 SYSCALL_DEF(getsid, ARG_DEC);
 #ifdef TARGET_NR_getxpid
 SYSCALL_DEF(getxpid);

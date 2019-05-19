@@ -283,9 +283,6 @@
 #ifdef TARGET_NR_get_robust_list
 { TARGET_NR_get_robust_list, "get_robust_list" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_getrusage
-{ TARGET_NR_getrusage, "getrusage" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_getsockname
 { TARGET_NR_getsockname, "getsockname" , NULL, NULL, NULL },
 #endif

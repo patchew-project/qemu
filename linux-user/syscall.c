@@ -4240,15 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_getrusage:
-        {
-            struct rusage rusage;
-            ret = get_errno(getrusage(arg1, &rusage));
-            if (!is_error(ret)) {
-                ret = host_to_target_rusage(arg2, &rusage);
-            }
-        }
-        return ret;
     case TARGET_NR_gettimeofday:
         {
             struct timeval tv;
