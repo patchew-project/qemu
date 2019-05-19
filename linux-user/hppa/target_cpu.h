@@ -31,6 +31,10 @@ static inline void cpu_clone_regs_child(CPUHPPAState *env, target_ulong newsp)
     env->iaoq_b = env->gr[31] + 4;
 }
 
+static inline void cpu_clone_regs_parent(CPUHPPAState *env)
+{
+}
+
 static inline void cpu_set_tls(CPUHPPAState *env, target_ulong newtls)
 {
     env->cr[27] = newtls;

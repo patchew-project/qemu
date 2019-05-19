@@ -31,6 +31,10 @@ static inline void cpu_clone_regs_child(CPUARMState *env, target_ulong newsp)
     env->regs[0] = 0;
 }
 
+static inline void cpu_clone_regs_parent(CPUARMState *env)
+{
+}
+
 static inline void cpu_set_tls(CPUARMState *env, target_ulong newtls)
 {
     if (access_secure_reg(env)) {
