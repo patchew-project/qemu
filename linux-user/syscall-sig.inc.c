@@ -211,3 +211,35 @@ SYSCALL_IMPL(sigaction)
     return ret;
 }
 #endif
+
+#ifdef TARGET_NR_sgetmask
+SYSCALL_IMPL(sgetmask)
+{
+    sigset_t cur_set;
+    abi_ulong target_set;
+    abi_long ret = do_sigprocmask(0, NULL, &cur_set);
+
+    if (!ret) {
+        host_to_target_old_sigset(&target_set, &cur_set);
+        ret = target_set;
+    }
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_ssetmask
+SYSCALL_IMPL(ssetmask)
+{
+    sigset_t set, oset;
+    abi_ulong target_set = arg1;
+    abi_long ret;
+
+    target_to_host_old_sigset(&set, &target_set);
+    ret = do_sigprocmask(SIG_SETMASK, &set, &oset);
+    if (!ret) {
+        host_to_target_old_sigset(&target_set, &oset);
+        ret = target_set;
+    }
+    return ret;
+}
+#endif

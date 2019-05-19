@@ -222,6 +222,12 @@ SYSCALL_DEF(shmget, ARG_DEC, ARG_DEC, ARG_HEX);
 #ifdef TARGET_NR_sigaction
 SYSCALL_DEF(sigaction, ARG_SIGNAL, ARG_PTR, ARG_PTR);
 #endif
+#ifdef TARGET_NR_sgetmask
+SYSCALL_DEF(sgetmask);
+#endif
+#ifdef TARGET_NR_ssetmask
+SYSCALL_DEF(ssetmask, ARG_HEX);
+#endif
 #ifdef TARGET_NR_stime
 SYSCALL_DEF(stime, ARG_PTR);
 #endif

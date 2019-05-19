@@ -4241,33 +4241,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_sgetmask /* not on alpha */
-    case TARGET_NR_sgetmask:
-        {
-            sigset_t cur_set;
-            abi_ulong target_set;
-            ret = do_sigprocmask(0, NULL, &cur_set);
-            if (!ret) {
-                host_to_target_old_sigset(&target_set, &cur_set);
-                ret = target_set;
-            }
-        }
-        return ret;
-#endif
-#ifdef TARGET_NR_ssetmask /* not on alpha */
-    case TARGET_NR_ssetmask:
-        {
-            sigset_t set, oset;
-            abi_ulong target_set = arg1;
-            target_to_host_old_sigset(&set, &target_set);
-            ret = do_sigprocmask(SIG_SETMASK, &set, &oset);
-            if (!ret) {
-                host_to_target_old_sigset(&target_set, &oset);
-                ret = target_set;
-            }
-        }
-        return ret;
-#endif
 #ifdef TARGET_NR_sigprocmask
     case TARGET_NR_sigprocmask:
         {

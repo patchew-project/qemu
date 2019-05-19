@@ -1116,9 +1116,6 @@
 #ifdef TARGET_NR_setxattr
 { TARGET_NR_setxattr, "setxattr" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_sgetmask
-{ TARGET_NR_sgetmask, "sgetmask" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_shutdown
 { TARGET_NR_shutdown, "shutdown" , NULL, NULL, NULL },
 #endif
@@ -1157,9 +1154,6 @@
 #endif
 #ifdef TARGET_NR_splice
 { TARGET_NR_splice, "splice" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_ssetmask
-{ TARGET_NR_ssetmask, "ssetmask" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_stat
 { TARGET_NR_stat, "stat" , NULL, print_stat, NULL },
