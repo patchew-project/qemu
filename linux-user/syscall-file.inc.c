@@ -88,6 +88,19 @@ SYSCALL_IMPL(chmod)
 }
 #endif
 
+SYSCALL_IMPL(chroot)
+{
+    char *p = lock_user_string(arg1);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chroot(p));
+    unlock_user(p, arg1, 0);
+    return ret;
+}
+
 SYSCALL_IMPL(close)
 {
     int fd = arg1;
