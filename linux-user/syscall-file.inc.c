@@ -235,7 +235,6 @@ static abi_long do_openat(void *cpu_env, int dirfd, abi_ulong target_path,
         int (*fill)(void *cpu_env, int fd);
         int (*cmp)(const char *s1, const char *s2);
     };
-    const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
         { "maps", open_self_maps, is_proc_myself },
         { "stat", open_self_stat, is_proc_myself },
@@ -244,12 +243,12 @@ static abi_long do_openat(void *cpu_env, int dirfd, abi_ulong target_path,
 #if defined(HOST_WORDS_BIGENDIAN) != defined(TARGET_WORDS_BIGENDIAN)
         { "/proc/net/route", open_net_route, is_proc },
 #endif
-        { NULL, NULL, NULL }
     };
 
     char *pathname = lock_user_string(target_path);
     int flags = target_to_host_bitmask(target_flags, fcntl_flags_tbl);
     abi_long ret;
+    size_t i;
 
     if (!pathname) {
         return -TARGET_EFAULT;
@@ -263,16 +262,15 @@ static abi_long do_openat(void *cpu_env, int dirfd, abi_ulong target_path,
         goto done;
     }
 
-    for (fake_open = fakes; fake_open->filename; fake_open++) {
-        if (fake_open->cmp(pathname, fake_open->filename)) {
-            break;
-        }
-    }
-
-    if (fake_open->filename) {
+    for (i = 0; i < ARRAY_SIZE(fakes); ++i) {
+        const struct fake_open *fake_open = &fakes[i];
         const char *tmpdir;
         char filename[PATH_MAX];
         int fd;
+
+        if (!fake_open->cmp(pathname, fake_open->filename)) {
+            continue;
+        }
 
         /* create temporary file to map stat to */
         tmpdir = getenv("TMPDIR");
