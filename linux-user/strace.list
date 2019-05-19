@@ -157,12 +157,6 @@
 #ifdef TARGET_NR_fchownat
 { TARGET_NR_fchownat, "fchownat" , NULL, print_fchownat, NULL },
 #endif
-#ifdef TARGET_NR_fcntl
-{ TARGET_NR_fcntl, "fcntl" , NULL, print_fcntl, NULL },
-#endif
-#ifdef TARGET_NR_fcntl64
-{ TARGET_NR_fcntl64, "fcntl64" , NULL, print_fcntl64, NULL },
-#endif
 #ifdef TARGET_NR_fdatasync
 { TARGET_NR_fdatasync, "fdatasync" , NULL, NULL, NULL },
 #endif

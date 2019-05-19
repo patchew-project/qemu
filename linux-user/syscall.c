@@ -3513,102 +3513,6 @@ static void *clone_func(void *arg)
     return NULL;
 }
 
-/* warning : doesn't handle linux specific flags... */
-static int target_to_host_fcntl_cmd(int cmd)
-{
-    int ret;
-
-    switch(cmd) {
-    case TARGET_F_DUPFD:
-    case TARGET_F_GETFD:
-    case TARGET_F_SETFD:
-    case TARGET_F_GETFL:
-    case TARGET_F_SETFL:
-        ret = cmd;
-        break;
-    case TARGET_F_GETLK:
-        ret = F_GETLK64;
-        break;
-    case TARGET_F_SETLK:
-        ret = F_SETLK64;
-        break;
-    case TARGET_F_SETLKW:
-        ret = F_SETLKW64;
-        break;
-    case TARGET_F_GETOWN:
-        ret = F_GETOWN;
-        break;
-    case TARGET_F_SETOWN:
-        ret = F_SETOWN;
-        break;
-    case TARGET_F_GETSIG:
-        ret = F_GETSIG;
-        break;
-    case TARGET_F_SETSIG:
-        ret = F_SETSIG;
-        break;
-#if TARGET_ABI_BITS == 32
-    case TARGET_F_GETLK64:
-        ret = F_GETLK64;
-        break;
-    case TARGET_F_SETLK64:
-        ret = F_SETLK64;
-        break;
-    case TARGET_F_SETLKW64:
-        ret = F_SETLKW64;
-        break;
-#endif
-    case TARGET_F_SETLEASE:
-        ret = F_SETLEASE;
-        break;
-    case TARGET_F_GETLEASE:
-        ret = F_GETLEASE;
-        break;
-#ifdef F_DUPFD_CLOEXEC
-    case TARGET_F_DUPFD_CLOEXEC:
-        ret = F_DUPFD_CLOEXEC;
-        break;
-#endif
-    case TARGET_F_NOTIFY:
-        ret = F_NOTIFY;
-        break;
-#ifdef F_GETOWN_EX
-    case TARGET_F_GETOWN_EX:
-        ret = F_GETOWN_EX;
-        break;
-#endif
-#ifdef F_SETOWN_EX
-    case TARGET_F_SETOWN_EX:
-        ret = F_SETOWN_EX;
-        break;
-#endif
-#ifdef F_SETPIPE_SZ
-    case TARGET_F_SETPIPE_SZ:
-        ret = F_SETPIPE_SZ;
-        break;
-    case TARGET_F_GETPIPE_SZ:
-        ret = F_GETPIPE_SZ;
-        break;
-#endif
-    default:
-        ret = -TARGET_EINVAL;
-        break;
-    }
-
-#if defined(__powerpc64__)
-    /* On PPC64, glibc headers has the F_*LK* defined to 12, 13 and 14 and
-     * is not supported by kernel. The glibc fcntl call actually adjusts
-     * them to 5, 6 and 7 before making the syscall(). Since we make the
-     * syscall directly, adjust to what is supported by the kernel.
-     */
-    if (ret >= F_GETLK64 && ret <= F_SETLKW64) {
-        ret -= F_GETLK64 - 5;
-    }
-#endif
-
-    return ret;
-}
-
 #define FLOCK_TRANSTBL \
     switch (type) { \
     TRANSTBL_CONVERT(F_RDLCK); \
@@ -3772,114 +3676,6 @@ static inline abi_long copy_to_user_flock64(abi_ulong target_flock_addr,
     __put_user(fl->l_pid, &target_fl->l_pid);
     unlock_user_struct(target_fl, target_flock_addr, 1);
     return 0;
-}
-
-static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
-{
-    struct flock64 fl64;
-#ifdef F_GETOWN_EX
-    struct f_owner_ex fox;
-    struct target_f_owner_ex *target_fox;
-#endif
-    abi_long ret;
-    int host_cmd = target_to_host_fcntl_cmd(cmd);
-
-    if (host_cmd == -TARGET_EINVAL)
-	    return host_cmd;
-
-    switch(cmd) {
-    case TARGET_F_GETLK:
-        ret = copy_from_user_flock(&fl64, arg);
-        if (ret) {
-            return ret;
-        }
-        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
-        if (ret == 0) {
-            ret = copy_to_user_flock(arg, &fl64);
-        }
-        break;
-
-    case TARGET_F_SETLK:
-    case TARGET_F_SETLKW:
-        ret = copy_from_user_flock(&fl64, arg);
-        if (ret) {
-            return ret;
-        }
-        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
-        break;
-
-    case TARGET_F_GETLK64:
-        ret = copy_from_user_flock64(&fl64, arg);
-        if (ret) {
-            return ret;
-        }
-        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
-        if (ret == 0) {
-            ret = copy_to_user_flock64(arg, &fl64);
-        }
-        break;
-    case TARGET_F_SETLK64:
-    case TARGET_F_SETLKW64:
-        ret = copy_from_user_flock64(&fl64, arg);
-        if (ret) {
-            return ret;
-        }
-        ret = get_errno(safe_fcntl(fd, host_cmd, &fl64));
-        break;
-
-    case TARGET_F_GETFL:
-        ret = get_errno(safe_fcntl(fd, host_cmd, arg));
-        if (ret >= 0) {
-            ret = host_to_target_bitmask(ret, fcntl_flags_tbl);
-        }
-        break;
-
-    case TARGET_F_SETFL:
-        ret = get_errno(safe_fcntl(fd, host_cmd,
-                                   target_to_host_bitmask(arg,
-                                                          fcntl_flags_tbl)));
-        break;
-
-#ifdef F_GETOWN_EX
-    case TARGET_F_GETOWN_EX:
-        ret = get_errno(safe_fcntl(fd, host_cmd, &fox));
-        if (ret >= 0) {
-            if (!lock_user_struct(VERIFY_WRITE, target_fox, arg, 0))
-                return -TARGET_EFAULT;
-            target_fox->type = tswap32(fox.type);
-            target_fox->pid = tswap32(fox.pid);
-            unlock_user_struct(target_fox, arg, 1);
-        }
-        break;
-#endif
-
-#ifdef F_SETOWN_EX
-    case TARGET_F_SETOWN_EX:
-        if (!lock_user_struct(VERIFY_READ, target_fox, arg, 1))
-            return -TARGET_EFAULT;
-        fox.type = tswap32(target_fox->type);
-        fox.pid = tswap32(target_fox->pid);
-        unlock_user_struct(target_fox, arg, 0);
-        ret = get_errno(safe_fcntl(fd, host_cmd, &fox));
-        break;
-#endif
-
-    case TARGET_F_SETOWN:
-    case TARGET_F_GETOWN:
-    case TARGET_F_SETSIG:
-    case TARGET_F_GETSIG:
-    case TARGET_F_SETLEASE:
-    case TARGET_F_GETLEASE:
-    case TARGET_F_SETPIPE_SZ:
-    case TARGET_F_GETPIPE_SZ:
-        ret = get_errno(safe_fcntl(fd, host_cmd, arg));
-        break;
-
-    default:
-        ret = get_errno(safe_fcntl(fd, cmd, arg));
-        break;
-    }
-    return ret;
 }
 
 #ifdef USE_UID16
@@ -4445,10 +4241,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_fcntl
-    case TARGET_NR_fcntl:
-        return do_fcntl(arg1, arg2, arg3);
-#endif
     case TARGET_NR_setpgid:
         return get_errno(setpgid(arg1, arg2));
     case TARGET_NR_umask:
@@ -7015,53 +6807,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
            This is a hint, so ignoring and returning success is ok.  */
         return 0;
 #endif
-#if TARGET_ABI_BITS == 32
-    case TARGET_NR_fcntl64:
-    {
-	int cmd;
-	struct flock64 fl;
-        from_flock64_fn *copyfrom = copy_from_user_flock64;
-        to_flock64_fn *copyto = copy_to_user_flock64;
-
-#ifdef TARGET_ARM
-        if (!((CPUARMState *)cpu_env)->eabi) {
-            copyfrom = copy_from_user_oabi_flock64;
-            copyto = copy_to_user_oabi_flock64;
-        }
-#endif
-
-	cmd = target_to_host_fcntl_cmd(arg2);
-        if (cmd == -TARGET_EINVAL) {
-            return cmd;
-        }
-
-        switch(arg2) {
-        case TARGET_F_GETLK64:
-            ret = copyfrom(&fl, arg3);
-            if (ret) {
-                break;
-            }
-            ret = get_errno(safe_fcntl(arg1, cmd, &fl));
-            if (ret == 0) {
-                ret = copyto(arg3, &fl);
-            }
-	    break;
-
-        case TARGET_F_SETLK64:
-        case TARGET_F_SETLKW64:
-            ret = copyfrom(&fl, arg3);
-            if (ret) {
-                break;
-            }
-            ret = get_errno(safe_fcntl(arg1, cmd, &fl));
-	    break;
-        default:
-            ret = do_fcntl(arg1, arg2, arg3);
-            break;
-        }
-        return ret;
-    }
-#endif
 #ifdef TARGET_NR_cacheflush
     case TARGET_NR_cacheflush:
         /* self-modifying code is handled automatically, so nothing needed */
@@ -8048,6 +7793,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                                 int64_t arg2, int64_t arg3, int64_t arg4, \
                                 int64_t arg5, int64_t arg6)
 
+#include "syscall-fcntl.inc.c"
 #include "syscall-file.inc.c"
 #include "syscall-ioctl.inc.c"
 #include "syscall-ipc.inc.c"

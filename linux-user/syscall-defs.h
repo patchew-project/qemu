@@ -46,6 +46,12 @@ SYSCALL_DEF(execveat, ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_PTR, ARG_ATFLAG);
 SYSCALL_DEF(faccessat, ARG_ATDIRFD, ARG_STR, ARG_ACCESSFLAG);
 SYSCALL_DEF(fchmod, ARG_DEC, ARG_MODEFLAG);
 SYSCALL_DEF(fchmodat, ARG_ATDIRFD, ARG_STR, ARG_MODEFLAG);
+#ifdef TARGET_NR_fcntl
+SYSCALL_DEF_FULL(fcntl, .impl = impl_fcntl, .print = print_fcntl);
+#endif
+#if TARGET_ABI_BITS == 32
+SYSCALL_DEF_FULL(fcntl64, .impl = impl_fcntl64, .print = print_fcntl64);
+#endif
 #ifdef TARGET_NR_futimesat
 SYSCALL_DEF(futimesat, ARG_ATDIRFD, ARG_STR, ARG_PTR);
 #endif
