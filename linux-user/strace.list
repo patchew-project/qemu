@@ -226,9 +226,6 @@
 #ifdef TARGET_NR_futex
 { TARGET_NR_futex, "futex" , NULL, print_futex, NULL },
 #endif
-#ifdef TARGET_NR_futimesat
-{ TARGET_NR_futimesat, "futimesat" , NULL, print_futimesat, NULL },
-#endif
 #ifdef TARGET_NR_getcpu
 { TARGET_NR_getcpu, "getcpu" , "%s(%p,%d)", NULL, NULL },
 #endif
@@ -1391,12 +1388,6 @@
 #endif
 #ifdef TARGET_NR_ustat
 { TARGET_NR_ustat, "ustat" , "%s(%#x,%p)", NULL, NULL },
-#endif
-#ifdef TARGET_NR_utime
-{ TARGET_NR_utime, "utime" , NULL, print_utime, NULL },
-#endif
-#ifdef TARGET_NR_utimes
-{ TARGET_NR_utimes, "utimes" , NULL, print_utimes, NULL },
 #endif
 #ifdef TARGET_NR_utrap_install
 { TARGET_NR_utrap_install, "utrap_install" , NULL, NULL, NULL },

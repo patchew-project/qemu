@@ -84,6 +84,38 @@ SYSCALL_IMPL(fchmodat)
     return do_fchmodat(arg1, arg2, arg3);
 }
 
+#ifdef TARGET_NR_futimesat
+SYSCALL_IMPL(futimesat)
+{
+    int dirfd = arg1;
+    abi_ulong target_path = arg2;
+    abi_ulong target_tv = arg3;
+    struct timeval *tvp, tv[2];
+    char *p;
+    abi_long ret;
+
+    if (target_tv) {
+        if (copy_from_user_timeval(&tv[0], target_tv)
+            || copy_from_user_timeval(&tv[1],
+                                      target_tv +
+                                      sizeof(struct target_timeval))) {
+            return -TARGET_EFAULT;
+        }
+        tvp = tv;
+    } else {
+        tvp = NULL;
+    }
+
+    p = lock_user_string(target_path);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(futimesat(dirfd, path(p), tvp));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+#endif
+
 static abi_long do_linkat(int olddirfd, abi_ulong target_oldpath,
                           int newdirfd, abi_ulong target_newpath,
                           int flags)
@@ -872,6 +904,69 @@ SYSCALL_IMPL(unlinkat)
 {
     return do_unlinkat(arg1, arg2, arg3);
 }
+
+#ifdef TARGET_NR_utime
+SYSCALL_IMPL(utime)
+{
+    abi_ulong target_path = arg1;
+    abi_ulong target_times = arg2;
+    struct utimbuf tbuf, *host_tbuf;
+    struct target_utimbuf *target_tbuf;
+    char *p;
+    abi_long ret;
+
+    if (target_times) {
+        if (!lock_user_struct(VERIFY_READ, target_tbuf, target_times, 1)) {
+            return -TARGET_EFAULT;
+        }
+        tbuf.actime = tswapal(target_tbuf->actime);
+        tbuf.modtime = tswapal(target_tbuf->modtime);
+        unlock_user_struct(target_tbuf, arg2, 0);
+        host_tbuf = &tbuf;
+    } else {
+        host_tbuf = NULL;
+    }
+
+    p = lock_user_string(target_path);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(utime(p, host_tbuf));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+#endif
+
+#ifdef TARGET_NR_utimes
+SYSCALL_IMPL(utimes)
+{
+    abi_ulong target_path = arg1;
+    abi_ulong target_tv = arg2;
+    struct timeval *tvp, tv[2];
+    char *p;
+    abi_long ret;
+
+    if (target_tv) {
+        if (copy_from_user_timeval(&tv[0], target_tv)
+            || copy_from_user_timeval(&tv[1],
+                                      target_tv +
+                                      sizeof(struct target_timeval))) {
+            return -TARGET_EFAULT;
+        }
+        tvp = tv;
+    } else {
+        tvp = NULL;
+    }
+
+    p = lock_user_string(target_path);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(utimes(p, tvp));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+#endif
 
 SYSCALL_IMPL(write)
 {
