@@ -323,6 +323,32 @@ SYSCALL_IMPL(openat)
     return do_openat(cpu_env, arg1, arg2, arg3, arg4);
 }
 
+SYSCALL_IMPL(read)
+{
+    int fd = arg1;
+    abi_ulong target_p = arg2;
+    abi_ulong size = arg3;
+    void *p;
+    abi_long ret;
+
+    if (target_p == 0 && size == 0) {
+        return get_errno(safe_read(fd, NULL, 0));
+    }
+    p = lock_user(VERIFY_WRITE, target_p, size, 0);
+    if (p == NULL) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(safe_read(fd, p, size));
+    if (!is_error(ret)) {
+        TargetFdDataFunc trans = fd_trans_host_to_target_data(fd);
+        if (trans) {
+            ret = trans(p, ret);
+        }
+    }
+    unlock_user(p, target_p, ret);
+    return ret;
+}
+
 static abi_long do_readlinkat(int dirfd, abi_ulong target_path,
                               abi_ulong target_buf, abi_ulong bufsiz)
 {
@@ -367,3 +393,35 @@ SYSCALL_IMPL(readlinkat)
     return do_readlinkat(arg1, arg2, arg3, arg4);
 }
 #endif
+
+SYSCALL_IMPL(write)
+{
+    int fd = arg1;
+    abi_ulong target_p = arg2;
+    abi_ulong size = arg3;
+    TargetFdDataFunc trans;
+    abi_long ret;
+    void *p;
+
+    if (target_p == 0 && size == 0) {
+        return get_errno(safe_write(fd, NULL, 0));
+    }
+    p = lock_user(VERIFY_READ, target_p, size, 1);
+    if (p == NULL) {
+        return -TARGET_EFAULT;
+    }
+    trans = fd_trans_target_to_host_data(fd);
+    if (trans) {
+        void *copy = g_malloc(size);
+        memcpy(copy, p, size);
+        ret = trans(copy, size);
+        if (ret >= 0) {
+            ret = get_errno(safe_write(fd, copy, ret));
+        }
+        g_free(copy);
+    } else {
+        ret = get_errno(safe_write(fd, p, size));
+    }
+    unlock_user(p, target_p, 0);
+    return ret;
+}
