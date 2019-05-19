@@ -262,12 +262,6 @@
 #ifdef TARGET_NR_getpeername
 { TARGET_NR_getpeername, "getpeername" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_getpgid
-{ TARGET_NR_getpgid, "getpgid" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_getpgrp
-{ TARGET_NR_getpgrp, "getpgrp" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_getpmsg
 { TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
 #endif

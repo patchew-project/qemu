@@ -4241,10 +4241,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_getpgrp
-    case TARGET_NR_getpgrp:
-        return get_errno(getpgrp());
-#endif
     case TARGET_NR_setsid:
         return get_errno(setsid());
 #ifdef TARGET_NR_sigaction
@@ -5388,8 +5384,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         }
         return ret;
 #endif
-    case TARGET_NR_getpgid:
-        return get_errno(getpgid(arg1));
     case TARGET_NR_fchdir:
         return get_errno(fchdir(arg1));
     case TARGET_NR_personality:

@@ -438,6 +438,18 @@ SYSCALL_IMPL(fork)
 }
 #endif
 
+SYSCALL_IMPL(getpgid)
+{
+    return get_errno(getpgid(arg1));
+}
+
+#ifdef TARGET_NR_getpgrp
+SYSCALL_IMPL(getpgrp)
+{
+    return get_errno(getpgrp());
+}
+#endif
+
 #ifdef TARGET_NR_getpid
 SYSCALL_IMPL(getpid)
 {

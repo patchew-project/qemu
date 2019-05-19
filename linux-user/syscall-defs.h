@@ -59,6 +59,10 @@ SYSCALL_DEF(futimesat, ARG_ATDIRFD, ARG_STR, ARG_PTR);
 #ifdef TARGET_NR_fork
 SYSCALL_DEF(fork);
 #endif
+SYSCALL_DEF(getpgid, ARG_DEC);
+#ifdef TARGET_NR_getpgrp
+SYSCALL_DEF(getpgrp);
+#endif
 #ifdef TARGET_NR_getpid
 SYSCALL_DEF(getpid);
 #endif
