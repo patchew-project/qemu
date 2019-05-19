@@ -9,9 +9,6 @@
 #ifdef TARGET_NR_accept4
 { TARGET_NR_accept4, "accept4" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_acct
-{ TARGET_NR_acct, "acct" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_add_key
 { TARGET_NR_add_key, "add_key" , NULL, NULL, NULL },
 #endif

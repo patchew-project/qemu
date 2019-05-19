@@ -5346,17 +5346,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_acct:
-        if (arg1 == 0) {
-            ret = get_errno(acct(NULL));
-        } else {
-            if (!(p = lock_user_string(arg1))) {
-                return -TARGET_EFAULT;
-            }
-            ret = get_errno(acct(path(p)));
-            unlock_user(p, arg1, 0);
-        }
-        return ret;
     case TARGET_NR_ioctl:
         return do_ioctl(arg1, arg2, arg3);
 #ifdef TARGET_NR_fcntl

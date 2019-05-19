@@ -36,6 +36,24 @@ SYSCALL_IMPL(access)
 }
 #endif
 
+SYSCALL_IMPL(acct)
+{
+    abi_ulong target_path = arg1;
+    abi_long ret;
+
+    if (target_path == 0) {
+        ret = get_errno(acct(NULL));
+    } else {
+        char *p = lock_user_string(target_path);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+        ret = get_errno(acct(path(p)));
+        unlock_user(p, target_path, 0);
+    }
+    return ret;
+}
+
 SYSCALL_IMPL(chdir)
 {
     abi_ulong target_path = arg1;

@@ -19,6 +19,7 @@
 #ifdef TARGET_NR_access
 SYSCALL_DEF(access, ARG_STR, ARG_ACCESSFLAG);
 #endif
+SYSCALL_DEF(acct, ARG_STR);
 #ifdef TARGET_NR_alarm
 SYSCALL_DEF(alarm, ARG_DEC);
 #endif
