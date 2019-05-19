@@ -25,6 +25,7 @@ SYSCALL_DEF(close, ARG_DEC);
 SYSCALL_DEF(creat, ARG_STR, ARG_MODEFLAG);
 #endif
 SYSCALL_DEF(exit, ARG_DEC);
+SYSCALL_DEF(execve, ARG_STR, ARG_PTR, ARG_PTR);
 #ifdef TARGET_NR_fork
 SYSCALL_DEF(fork);
 #endif

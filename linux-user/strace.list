@@ -139,9 +139,6 @@
 #ifdef TARGET_NR_execv
 { TARGET_NR_execv, "execv" , NULL, print_execv, NULL },
 #endif
-#ifdef TARGET_NR_execve
-{ TARGET_NR_execve, "execve" , NULL, print_execve, NULL },
-#endif
 #ifdef TARGET_NR_execveat
 { TARGET_NR_execveat, "execveat" , NULL, NULL, NULL },
 #endif

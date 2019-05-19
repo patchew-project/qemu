@@ -269,6 +269,116 @@ SYSCALL_IMPL(clone)
     return do_clone(cpu_env, arg1, arg2, arg3, arg4, arg5);
 }
 
+SYSCALL_IMPL(execve)
+{
+    char **argp, **envp;
+    int argc, envc;
+    abi_ulong gp;
+    abi_ulong guest_path = arg1;
+    abi_ulong guest_argp = arg2;
+    abi_ulong guest_envp = arg3;
+    abi_ulong addr;
+    char **q, *p;
+    int total_size = 0;
+    abi_long ret = -TARGET_EFAULT;
+
+    argc = 0;
+    for (gp = guest_argp; gp; gp += sizeof(abi_ulong)) {
+        if (get_user_ual(addr, gp)) {
+            goto execve_nofree;
+        }
+        if (!addr) {
+            break;
+        }
+        argc++;
+    }
+    envc = 0;
+    for (gp = guest_envp; gp; gp += sizeof(abi_ulong)) {
+        if (get_user_ual(addr, gp)) {
+            goto execve_nofree;
+        }
+        if (!addr) {
+            break;
+        }
+        envc++;
+    }
+
+    argp = g_new0(char *, argc + 1);
+    envp = g_new0(char *, envc + 1);
+
+    for (gp = guest_argp, q = argp; gp; gp += sizeof(abi_ulong), q++) {
+        char *this_q;
+
+        if (get_user_ual(addr, gp)) {
+            goto execve_free;
+        }
+        if (!addr) {
+            break;
+        }
+        this_q = lock_user_string(addr);
+        if (!this_q) {
+            goto execve_free;
+        }
+        *q = this_q;
+        total_size += strlen(this_q) + 1;
+    }
+
+    for (gp = guest_envp, q = envp; gp; gp += sizeof(abi_ulong), q++) {
+        char *this_q;
+
+        if (get_user_ual(addr, gp)) {
+            goto execve_free;
+        }
+        if (!addr) {
+            break;
+        }
+        this_q = lock_user_string(addr);
+        if (!this_q) {
+            goto execve_free;
+        }
+        *q = this_q;
+        total_size += strlen(this_q) + 1;
+    }
+
+    p = lock_user_string(guest_path);
+    if (!p) {
+        goto execve_free;
+    }
+
+    /*
+     * Although execve() is not an interruptible syscall it is
+     * a special case where we must use the safe_syscall wrapper:
+     * if we allow a signal to happen before we make the host
+     * syscall then we will 'lose' it, because at the point of
+     * execve the process leaves QEMU's control. So we use the
+     * safe syscall wrapper to ensure that we either take the
+     * signal as a guest signal, or else it does not happen
+     * before the execve completes and makes it the other
+     * program's problem.
+     */
+    ret = get_errno(safe_execve(p, argp, envp));
+    unlock_user(p, guest_path, 0);
+
+ execve_free:
+    for (gp = guest_argp, q = argp; *q; gp += sizeof(abi_ulong), q++) {
+        if (get_user_ual(addr, gp) || !addr) {
+            break;
+        }
+        unlock_user(*q, addr, 0);
+    }
+    for (gp = guest_envp, q = envp; *q; gp += sizeof(abi_ulong), q++) {
+        if (get_user_ual(addr, gp) || !addr) {
+            break;
+        }
+        unlock_user(*q, addr, 0);
+    }
+    g_free(argp);
+    g_free(envp);
+
+ execve_nofree:
+    return ret;
+}
+
 SYSCALL_IMPL(exit)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
