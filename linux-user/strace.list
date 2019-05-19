@@ -49,9 +49,6 @@
 #ifdef TARGET_NR_break
 { TARGET_NR_break, "break" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_brk
-{ TARGET_NR_brk, "brk" , NULL, print_brk, print_syscall_ret_addr },
-#endif
 #ifdef TARGET_NR_cachectl
 { TARGET_NR_cachectl, "cachectl" , NULL, NULL, NULL },
 #endif

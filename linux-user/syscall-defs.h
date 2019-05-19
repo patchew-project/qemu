@@ -16,6 +16,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+SYSCALL_DEF_FULL(brk, .impl = impl_brk,
+                 .print_ret = print_syscall_ptr_ret,
+                 .arg_type = { ARG_PTR });
 SYSCALL_DEF(close, ARG_DEC);
 SYSCALL_DEF(exit, ARG_DEC);
 #ifdef TARGET_NR_ipc

@@ -604,29 +604,6 @@ print_execve(const struct syscallname *name,
  * Variants for the return value output function
  */
 
-static void
-print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
-{
-    const char *errstr = NULL;
-
-    if (ret < 0) {
-        errstr = target_strerror(-ret);
-    }
-    if (errstr) {
-        gemu_log(" = -1 errno=%d (%s)\n", (int)-ret, errstr);
-    } else {
-        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
-    }
-}
-
-#if 0 /* currently unused */
-static void
-print_syscall_ret_raw(struct syscallname *name, abi_long ret)
-{
-        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
-}
-#endif
-
 #ifdef TARGET_NR__newselect
 static void
 print_syscall_ret_newselect(const struct syscallname *name, abi_long ret)
@@ -1164,18 +1141,6 @@ print_access(const struct syscallname *name,
     print_syscall_prologue(name);
     print_string(arg0, 0);
     print_flags(access_flags, arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_brk
-static void
-print_brk(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_pointer(arg0, 1);
     print_syscall_epilogue(name);
 }
 #endif
