@@ -227,8 +227,8 @@ static int open_net_route(void *cpu_env, int fd)
 }
 #endif
 
-static int do_openat(void *cpu_env, int dirfd, const char *pathname,
-                     int flags, mode_t mode)
+static abi_long do_openat(void *cpu_env, int dirfd, abi_ulong target_path,
+                          int target_flags, mode_t mode)
 {
     struct fake_open {
         const char *filename;
@@ -247,9 +247,20 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname,
         { NULL, NULL, NULL }
     };
 
+    char *pathname = lock_user_string(target_path);
+    int flags = target_to_host_bitmask(target_flags, fcntl_flags_tbl);
+    abi_long ret;
+
+    if (!pathname) {
+        return -TARGET_EFAULT;
+    }
+
     if (is_proc_myself(pathname, "exe")) {
-        int execfd = qemu_getauxval(AT_EXECFD);
-        return execfd ? execfd : safe_openat(dirfd, exec_path, flags, mode);
+        ret = qemu_getauxval(AT_EXECFD);
+        if (ret == 0) {
+            ret = get_errno(safe_openat(dirfd, exec_path, flags, mode));
+        }
+        goto done;
     }
 
     for (fake_open = fakes; fake_open->filename; fake_open++) {
@@ -261,7 +272,7 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname,
     if (fake_open->filename) {
         const char *tmpdir;
         char filename[PATH_MAX];
-        int fd, r;
+        int fd;
 
         /* create temporary file to map stat to */
         tmpdir = getenv("TMPDIR");
@@ -271,55 +282,37 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname,
         snprintf(filename, sizeof(filename), "%s/qemu-open.XXXXXX", tmpdir);
         fd = mkstemp(filename);
         if (fd < 0) {
-            return fd;
+            ret = -TARGET_ENOENT;
+            goto done;
         }
         unlink(filename);
 
-        r = fake_open->fill(cpu_env, fd);
-        if (r) {
-            int e = errno;
+        ret = fake_open->fill(cpu_env, fd);
+        if (ret) {
+            ret = get_errno(ret);
             close(fd);
-            errno = e;
-            return r;
+            goto done;
         }
         lseek(fd, 0, SEEK_SET);
-
-        return fd;
+        ret = fd;
+        goto done;
     }
 
-    return safe_openat(dirfd, path(pathname), flags, mode);
+    ret = get_errno(safe_openat(dirfd, path(pathname), flags, mode));
+ done:
+    fd_trans_unregister(ret);
+    unlock_user(pathname, target_path, 0);
+    return ret;
 }
 
 #ifdef TARGET_NR_open
 SYSCALL_IMPL(open)
 {
-    char *p = lock_user_string(arg1);
-    abi_long ret;
-
-    if (!p) {
-        return -TARGET_EFAULT;
-    }
-    ret = get_errno(do_openat(cpu_env, AT_FDCWD, p,
-                              target_to_host_bitmask(arg2, fcntl_flags_tbl),
-                              arg3));
-    fd_trans_unregister(ret);
-    unlock_user(p, arg1, 0);
-    return ret;
+    return do_openat(cpu_env, AT_FDCWD, arg1, arg2, arg3);
 }
 #endif
 
 SYSCALL_IMPL(openat)
 {
-    char *p = lock_user_string(arg2);
-    abi_long ret;
-
-    if (!p) {
-        return -TARGET_EFAULT;
-    }
-    ret = get_errno(do_openat(cpu_env, arg1, p,
-                              target_to_host_bitmask(arg3, fcntl_flags_tbl),
-                              arg4));
-    fd_trans_unregister(ret);
-    unlock_user(p, arg2, 0);
-    return ret;
+    return do_openat(cpu_env, arg1, arg2, arg3, arg4);
 }
