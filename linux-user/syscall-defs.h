@@ -77,6 +77,7 @@ SYSCALL_DEF(getrlimit, ARG_DEC, ARG_PTR);
 #endif
 SYSCALL_DEF(getrusage, ARG_DEC, ARG_PTR);
 SYSCALL_DEF(getsid, ARG_DEC);
+SYSCALL_DEF(gettimeofday, ARG_PTR);
 #ifdef TARGET_NR_getxpid
 SYSCALL_DEF(getxpid);
 #endif
@@ -220,6 +221,7 @@ SYSCALL_DEF(setpgid, ARG_DEC, ARG_DEC);
 SYSCALL_DEF(setrlimit, ARG_DEC, ARG_PTR);
 #endif
 SYSCALL_DEF(setsid);
+SYSCALL_DEF(settimeofday, ARG_PTR, ARG_PTR);
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semop)
 SYSCALL_DEF(semop, ARG_DEC, ARG_PTR, ARG_DEC);
 #endif

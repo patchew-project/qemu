@@ -16,6 +16,39 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+SYSCALL_IMPL(gettimeofday)
+{
+    struct timeval tv;
+    abi_long ret = get_errno(gettimeofday(&tv, NULL));
+
+    if (!is_error(ret) && copy_to_user_timeval(arg1, &tv)) {
+        return -TARGET_EFAULT;
+    }
+    return ret;
+}
+
+SYSCALL_IMPL(settimeofday)
+{
+    struct timeval tv, *ptv = NULL;
+    struct timezone tz, *ptz = NULL;
+
+    if (arg1) {
+        if (copy_from_user_timeval(&tv, arg1)) {
+            return -TARGET_EFAULT;
+        }
+        ptv = &tv;
+    }
+
+    if (arg2) {
+        if (copy_from_user_timezone(&tz, arg2)) {
+            return -TARGET_EFAULT;
+        }
+        ptz = &tz;
+    }
+
+    return get_errno(settimeofday(ptv, ptz));
+}
+
 #ifdef TARGET_NR_stime
 SYSCALL_IMPL(stime)
 {

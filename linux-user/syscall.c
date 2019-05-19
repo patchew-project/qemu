@@ -4240,37 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_gettimeofday:
-        {
-            struct timeval tv;
-            ret = get_errno(gettimeofday(&tv, NULL));
-            if (!is_error(ret)) {
-                if (copy_to_user_timeval(arg1, &tv))
-                    return -TARGET_EFAULT;
-            }
-        }
-        return ret;
-    case TARGET_NR_settimeofday:
-        {
-            struct timeval tv, *ptv = NULL;
-            struct timezone tz, *ptz = NULL;
-
-            if (arg1) {
-                if (copy_from_user_timeval(&tv, arg1)) {
-                    return -TARGET_EFAULT;
-                }
-                ptv = &tv;
-            }
-
-            if (arg2) {
-                if (copy_from_user_timezone(&tz, arg2)) {
-                    return -TARGET_EFAULT;
-                }
-                ptz = &tz;
-            }
-
-            return get_errno(settimeofday(ptv, ptz));
-        }
 #if defined(TARGET_NR_select)
     case TARGET_NR_select:
 #if defined(TARGET_WANT_NI_OLD_SELECT)

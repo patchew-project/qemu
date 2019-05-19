@@ -296,9 +296,6 @@
 #ifdef TARGET_NR_gettid
 { TARGET_NR_gettid, "gettid" , "%s()", NULL, NULL },
 #endif
-#ifdef TARGET_NR_gettimeofday
-{ TARGET_NR_gettimeofday, "gettimeofday" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_getuid
 { TARGET_NR_getuid, "getuid" , "%s()", NULL, NULL },
 #endif
@@ -1067,9 +1064,6 @@
 #endif
 #ifdef TARGET_NR_set_tid_address
 { TARGET_NR_set_tid_address, "set_tid_address" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_settimeofday
-{ TARGET_NR_settimeofday, "settimeofday" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_setuid
 { TARGET_NR_setuid, "setuid" , NULL, NULL, NULL },
