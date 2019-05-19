@@ -22,22 +22,39 @@
 
 static inline void cpu_clone_regs_child(CPUSPARCState *env, target_ulong newsp)
 {
-    if (newsp) {
-        env->regwptr[22] = newsp;
-    }
-    /* syscall return for clone child: 0, and clear CF since
-     * this counts as a success return value.
+    /*
+     * After cpu_copy, env->regwptr is pointing into old_env.
+     * Update the new cpu to use its own register window.
      */
-    env->regwptr[0] = 0;
+    env->regwptr = env->regbase + (env->cwp * 16);
+
+    /* Set a new stack, if requested.  */
+    if (newsp) {
+        /* ??? The kernel appears to copy one stack frame to the new stack. */
+        /* ??? The kernel force aligns the stack. */
+        env->regwptr[WREG_SP] = newsp;
+    }
+
+    /*
+     * Syscall return for clone child: %o0 = 0 and clear CF since
+     * this counts as a success return value.  %o1 = 1 to indicate
+     * this is the child.  Advance the PC past the syscall.
+     */
+    env->regwptr[WREG_O0] = 0;
 #if defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
     env->xcc &= ~PSR_CARRY;
 #else
     env->psr &= ~PSR_CARRY;
 #endif
+    env->regwptr[WREG_O1] = 1;
+    env->pc = env->npc;
+    env->npc = env->npc + 4;
 }
 
 static inline void cpu_clone_regs_parent(CPUSPARCState *env)
 {
+    /* Set the second return value for the parent: %o1 = 0.  */
+    env->regwptr[WREG_O1] = 0;
 }
 
 static inline void cpu_set_tls(CPUSPARCState *env, target_ulong newtls)
