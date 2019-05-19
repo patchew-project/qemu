@@ -9,9 +9,6 @@
 #ifdef TARGET_NR_accept4
 { TARGET_NR_accept4, "accept4" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_access
-{ TARGET_NR_access, "access" , NULL, print_access, NULL },
-#endif
 #ifdef TARGET_NR_acct
 { TARGET_NR_acct, "acct" , NULL, NULL, NULL },
 #endif
@@ -141,9 +138,6 @@
 #endif
 #ifdef TARGET_NR_exit_group
 { TARGET_NR_exit_group, "exit_group" , "%s(%d)\n", NULL, NULL },
-#endif
-#ifdef TARGET_NR_faccessat
-{ TARGET_NR_faccessat, "faccessat" , NULL, print_faccessat, NULL },
 #endif
 #ifdef TARGET_NR_fadvise64
 { TARGET_NR_fadvise64, "fadvise64" , NULL, NULL, NULL },

@@ -634,7 +634,7 @@ print_syscall_ret_adjtimex(const struct syscallname *name, abi_long ret)
     gemu_log("\n");
 }
 
-UNUSED static struct flags access_flags[] = {
+static struct flags const access_flags[] = {
     FLAG_GENERIC(F_OK),
     FLAG_GENERIC(R_OK),
     FLAG_GENERIC(W_OK),
@@ -1114,19 +1114,6 @@ print_accept(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_access
-static void
-print_access(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_flags(access_flags, arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_chroot
 static void
 print_chroot(const struct syscallname *name,
@@ -1161,21 +1148,6 @@ print_execv(const struct syscallname *name,
     print_syscall_prologue(name);
     print_string(arg0, 0);
     print_raw_param("0x" TARGET_ABI_FMT_lx, arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_faccessat
-static void
-print_faccessat(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_at_dirfd(arg0, 0);
-    print_string(arg1, 0);
-    print_flags(access_flags, arg2, 0);
-    print_flags(at_file_flags, arg3, 1);
     print_syscall_epilogue(name);
 }
 #endif
@@ -2217,6 +2189,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
 #endif
         case ARG_ATDIRFD:
             len = add_atdirfd(b, rest, arg);
+            break;
+        case ARG_ACCESSFLAG:
+            len = add_flags(b, rest, access_flags, arg, false);
             break;
         case ARG_ATFLAG:
             len = add_flags(b, rest, at_file_flags, arg, false);

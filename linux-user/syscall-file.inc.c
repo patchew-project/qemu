@@ -16,6 +16,26 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+static abi_long do_faccessat(int dirfd, abi_ulong target_path, int mode)
+{
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(faccessat(dirfd, p, mode, 0));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_access
+SYSCALL_IMPL(access)
+{
+    return do_faccessat(AT_FDCWD, arg1, arg2);
+}
+#endif
+
 SYSCALL_IMPL(chdir)
 {
     abi_ulong target_path = arg1;
@@ -73,6 +93,11 @@ SYSCALL_IMPL(creat)
     return ret;
 }
 #endif
+
+SYSCALL_IMPL(faccessat)
+{
+    return do_faccessat(arg1, arg2, arg3);
+}
 
 SYSCALL_IMPL(fchmod)
 {
