@@ -280,9 +280,6 @@
 #ifdef TARGET_NR_getresuid32
 { TARGET_NR_getresuid32, "getresuid32" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_getrlimit
-{ TARGET_NR_getrlimit, "getrlimit" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_get_robust_list
 { TARGET_NR_get_robust_list, "get_robust_list" , NULL, NULL, NULL },
 #endif
@@ -1060,9 +1057,6 @@
 #endif
 #ifdef TARGET_NR_setreuid32
 { TARGET_NR_setreuid32, "setreuid32" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_setrlimit
-{ TARGET_NR_setrlimit, "setrlimit" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_set_robust_list
 { TARGET_NR_set_robust_list, "set_robust_list" , NULL, NULL, NULL },

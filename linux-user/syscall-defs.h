@@ -72,6 +72,9 @@ SYSCALL_DEF(getpid);
 #ifdef TARGET_NR_getppid
 SYSCALL_DEF(getppid);
 #endif
+#ifdef TARGET_NR_getrlimit
+SYSCALL_DEF(getrlimit, ARG_DEC, ARG_PTR);
+#endif
 SYSCALL_DEF(getsid, ARG_DEC);
 #ifdef TARGET_NR_getxpid
 SYSCALL_DEF(getxpid);
@@ -212,6 +215,9 @@ SYSCALL_DEF(semget, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
 SYSCALL_DEF(sethostname, ARG_STR);
 SYSCALL_DEF(setpgid, ARG_DEC, ARG_DEC);
+#ifdef TARGET_NR_setrlimit
+SYSCALL_DEF(setrlimit, ARG_DEC, ARG_PTR);
+#endif
 SYSCALL_DEF(setsid);
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semop)
 SYSCALL_DEF(semop, ARG_DEC, ARG_PTR, ARG_DEC);

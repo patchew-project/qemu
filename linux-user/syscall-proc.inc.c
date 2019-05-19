@@ -479,6 +479,26 @@ SYSCALL_IMPL(getppid)
 }
 #endif
 
+#ifdef TARGET_NR_getrlimit
+SYSCALL_IMPL(getrlimit)
+{
+    int resource = target_to_host_resource(arg1);
+    struct target_rlimit *target_rlim;
+    struct rlimit rlim;
+    abi_long ret;
+
+    ret = get_errno(getrlimit(resource, &rlim));
+    if (!is_error(ret)) {
+        if (!lock_user_struct(VERIFY_WRITE, target_rlim, arg2, 0)) {
+            return -TARGET_EFAULT;
+        }
+        target_rlim->rlim_cur = host_to_target_rlim(rlim.rlim_cur);
+        target_rlim->rlim_max = host_to_target_rlim(rlim.rlim_max);
+        unlock_user_struct(target_rlim, arg2, 1);
+    }
+    return ret;
+}
+#endif
 SYSCALL_IMPL(getsid)
 {
     return get_errno(getsid(arg1));
@@ -517,6 +537,38 @@ SYSCALL_IMPL(setpgid)
 {
     return get_errno(setpgid(arg1, arg2));
 }
+
+#ifdef TARGET_NR_setrlimit
+SYSCALL_IMPL(setrlimit)
+{
+    int resource = target_to_host_resource(arg1);
+    struct target_rlimit *target_rlim;
+    struct rlimit rlim;
+
+    if (!lock_user_struct(VERIFY_READ, target_rlim, arg2, 1)) {
+        return -TARGET_EFAULT;
+    }
+    rlim.rlim_cur = target_to_host_rlim(target_rlim->rlim_cur);
+    rlim.rlim_max = target_to_host_rlim(target_rlim->rlim_max);
+    unlock_user_struct(target_rlim, arg2, 0);
+
+    /*
+     * If we just passed through resource limit settings for memory then
+     * they would also apply to QEMU's own allocations, and QEMU will
+     * crash or hang or die if its allocations fail. Ideally we would
+     * track the guest allocations in QEMU and apply the limits ourselves.
+     * For now, just tell the guest the call succeeded but don't actually
+     * limit anything.
+     */
+    if (resource != RLIMIT_AS &&
+        resource != RLIMIT_DATA &&
+        resource != RLIMIT_STACK) {
+        return get_errno(setrlimit(resource, &rlim));
+    } else {
+        return 0;
+    }
+}
+#endif
 
 SYSCALL_IMPL(setsid)
 {
