@@ -684,7 +684,7 @@ static struct flags const at_file_flags[] = {
     FLAG_END,
 };
 
-UNUSED static struct flags unlinkat_flags[] = {
+static struct flags const unlinkat_flags[] = {
 #ifdef AT_REMOVEDIR
     FLAG_GENERIC(AT_REMOVEDIR),
 #endif
@@ -1810,18 +1810,6 @@ print_mkdirat(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_rmdir
-static void
-print_rmdir(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 0);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_rt_sigaction
 static void
 print_rt_sigaction(const struct syscallname *name,
@@ -2187,32 +2175,6 @@ print_umount2(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_unlink
-static void
-print_unlink(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_string(arg0, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
-#ifdef TARGET_NR_unlinkat
-static void
-print_unlinkat(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_at_dirfd(arg0, 0);
-    print_string(arg1, 0);
-    print_flags(unlinkat_flags, arg2, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_utime
 static void
 print_utime(const struct syscallname *name,
@@ -2474,6 +2436,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
             break;
         case ARG_OPENFLAG:
             len = add_open_flags(b, rest, arg);
+            break;
+        case ARG_UNLINKATFLAG:
+            len = add_flags(b, rest, unlinkat_flags, arg, true);
             break;
         case ARG_PTR:
             len = add_pointer(b, rest, arg);

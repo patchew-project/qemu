@@ -5383,22 +5383,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#ifdef TARGET_NR_unlink
-    case TARGET_NR_unlink:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(unlink(p));
-        unlock_user(p, arg1, 0);
-        return ret;
-#endif
-#if defined(TARGET_NR_unlinkat)
-    case TARGET_NR_unlinkat:
-        if (!(p = lock_user_string(arg2)))
-            return -TARGET_EFAULT;
-        ret = get_errno(unlinkat(arg1, p, arg3));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
     case TARGET_NR_execve:
         {
             char **argp, **envp;
@@ -5789,14 +5773,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             return -TARGET_EFAULT;
         ret = get_errno(mkdirat(arg1, p, arg3));
         unlock_user(p, arg2, 0);
-        return ret;
-#endif
-#ifdef TARGET_NR_rmdir
-    case TARGET_NR_rmdir:
-        if (!(p = lock_user_string(arg1)))
-            return -TARGET_EFAULT;
-        ret = get_errno(rmdir(p));
-        unlock_user(p, arg1, 0);
         return ret;
 #endif
     case TARGET_NR_dup:

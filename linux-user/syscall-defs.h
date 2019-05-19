@@ -98,6 +98,9 @@ SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(readlinkat, ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_DEC);
 #endif
 SYSCALL_DEF(readv, ARG_DEC, ARG_PTR, ARG_DEC);
+#ifdef TARGET_NR_rmdir
+SYSCALL_DEF(rmdir, ARG_STR);
+#endif
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semctl)
 SYSCALL_DEF(semctl, ARG_DEC, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
@@ -121,6 +124,10 @@ SYSCALL_DEF(shmdt, ARG_PTR);
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_shmget)
 SYSCALL_DEF(shmget, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
+#ifdef TARGET_NR_unlink
+SYSCALL_DEF(unlink, ARG_STR);
+#endif
+SYSCALL_DEF(unlinkat, ARG_ATDIRFD, ARG_STR, ARG_UNLINKATFLAG);
 #ifdef TARGET_NR_vfork
 /* Emulate vfork() with fork().  */
 SYSCALL_DEF_FULL(vfork, .impl = impl_fork);

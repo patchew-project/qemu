@@ -527,9 +527,6 @@
 #ifdef TARGET_NR_mkdirat
 { TARGET_NR_mkdirat, "mkdirat" , NULL, print_mkdirat, NULL },
 #endif
-#ifdef TARGET_NR_rmdir
-{ TARGET_NR_rmdir, "rmdir" , NULL, print_rmdir, NULL },
-#endif
 #ifdef TARGET_NR_mknod
 { TARGET_NR_mknod, "mknod" , NULL, print_mknod, NULL },
 #endif
@@ -1424,12 +1421,6 @@
 #endif
 #ifdef TARGET_NR_uname
 { TARGET_NR_uname, "uname" , "%s(%p)", NULL, NULL },
-#endif
-#ifdef TARGET_NR_unlink
-{ TARGET_NR_unlink, "unlink" , NULL, print_unlink, NULL },
-#endif
-#ifdef TARGET_NR_unlinkat
-{ TARGET_NR_unlinkat, "unlinkat" , NULL, print_unlinkat, NULL },
 #endif
 #ifdef TARGET_NR_unshare
 { TARGET_NR_unshare, "unshare" , NULL, NULL, NULL },

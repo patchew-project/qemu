@@ -63,6 +63,7 @@ typedef enum {
     ARG_MMAPPROT,
     ARG_MODEFLAG,
     ARG_OPENFLAG,
+    ARG_UNLINKATFLAG,
 
     /* These are interpreted as pointers.  */
     ARG_PTR,

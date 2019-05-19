@@ -662,6 +662,38 @@ SYSCALL_IMPL(readlinkat)
 }
 #endif
 
+static abi_long do_unlinkat(int dirfd, abi_ulong target_path, int flags)
+{
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(unlinkat(dirfd, p, flags));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_unlink
+SYSCALL_IMPL(unlink)
+{
+    return do_unlinkat(AT_FDCWD, arg1, 0);
+}
+#endif
+
+#ifdef TARGET_NR_rmdir
+SYSCALL_IMPL(rmdir)
+{
+    return do_unlinkat(AT_FDCWD, arg1, AT_REMOVEDIR);
+}
+#endif
+
+SYSCALL_IMPL(unlinkat)
+{
+    return do_unlinkat(arg1, arg2, arg3);
+}
+
 SYSCALL_IMPL(write)
 {
     int fd = arg1;
