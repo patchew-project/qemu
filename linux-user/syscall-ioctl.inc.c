@@ -791,7 +791,7 @@ SYSCALL_IMPL(ioctl)
 
     for (ie = ioctl_entries; ; ie++) {
         if (ie->target_cmd == 0) {
-            gemu_log("Unsupported ioctl: cmd=0x%04lx\n", (long)cmd);
+            gemu_log("Unsupported ioctl: cmd=0x%04x\n", cmd);
             return -TARGET_ENOSYS;
         }
         if (ie->target_cmd == cmd) {
@@ -864,8 +864,8 @@ SYSCALL_IMPL(ioctl)
         }
         break;
     default:
-        gemu_log("Unsupported ioctl type: cmd=0x%04lx type=%d\n",
-                 (long)cmd, arg_type[0]);
+        gemu_log("Unsupported ioctl type: cmd=0x%04x type=%d\n",
+                 cmd, arg_type[0]);
         ret = -TARGET_ENOSYS;
         break;
     }
