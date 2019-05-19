@@ -17,6 +17,7 @@
  */
 
 SYSCALL_DEF(close, ARG_DEC);
+SYSCALL_DEF(exit, ARG_DEC);
 #ifdef TARGET_NR_ipc
 SYSCALL_DEF_ARGS(ipc, ARG_HEX, ARG_DEC, ARG_DEC, ARG_HEX, ARG_PTR, ARG_HEX);
 #endif
