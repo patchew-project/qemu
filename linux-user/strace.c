@@ -384,34 +384,6 @@ print_socket_protocol(int domain, int type, int protocol)
 }
 
 
-#ifdef TARGET_NR__newselect
-static void
-print_fdset(int n, abi_ulong target_fds_addr)
-{
-    int i;
-
-    gemu_log("[");
-    if( target_fds_addr ) {
-        abi_long *target_fds;
-
-        target_fds = lock_user(VERIFY_READ,
-                               target_fds_addr,
-                               sizeof(*target_fds)*(n / TARGET_ABI_BITS + 1),
-                               1);
-
-        if (!target_fds)
-            return;
-
-        for (i=n; i>=0; i--) {
-            if ((tswapal(target_fds[i / TARGET_ABI_BITS]) >> (i & (TARGET_ABI_BITS - 1))) & 1)
-                gemu_log("%d,", i );
-            }
-        unlock_user(target_fds, target_fds_addr, 0);
-    }
-    gemu_log("]");
-}
-#endif
-
 #ifdef TARGET_NR_clock_adjtime
 /* IDs of the various system clocks */
 #define TARGET_CLOCK_REALTIME              0
@@ -478,58 +450,6 @@ print_clockid(int clockid, int last)
 /*
  * Sysycall specific output functions
  */
-
-/* select */
-#ifdef TARGET_NR__newselect
-static long newselect_arg1 = 0;
-static long newselect_arg2 = 0;
-static long newselect_arg3 = 0;
-static long newselect_arg4 = 0;
-static long newselect_arg5 = 0;
-
-static void
-print_newselect(const struct syscallname *name,
-                abi_long arg1, abi_long arg2, abi_long arg3,
-                abi_long arg4, abi_long arg5, abi_long arg6)
-{
-    gemu_log("%s(" TARGET_ABI_FMT_ld ",", name->name, arg1);
-    print_fdset(arg1, arg2);
-    gemu_log(",");
-    print_fdset(arg1, arg3);
-    gemu_log(",");
-    print_fdset(arg1, arg4);
-    gemu_log(",");
-    print_timeval(arg5, 1);
-    gemu_log(")");
-
-    /* save for use in the return output function below */
-    newselect_arg1=arg1;
-    newselect_arg2=arg2;
-    newselect_arg3=arg3;
-    newselect_arg4=arg4;
-    newselect_arg5=arg5;
-}
-#endif
-
-/*
- * Variants for the return value output function
- */
-
-#ifdef TARGET_NR__newselect
-static void
-print_syscall_ret_newselect(const struct syscallname *name, abi_long ret)
-{
-    gemu_log(" = 0x" TARGET_ABI_FMT_lx " (", ret);
-    print_fdset(newselect_arg1,newselect_arg2);
-    gemu_log(",");
-    print_fdset(newselect_arg1,newselect_arg3);
-    gemu_log(",");
-    print_fdset(newselect_arg1,newselect_arg4);
-    gemu_log(",");
-    print_timeval(newselect_arg5, 1);
-    gemu_log(")\n");
-}
-#endif
 
 /* special meanings of adjtimex()' non-negative return values */
 #define TARGET_TIME_OK       0   /* clock synchronized, no leap second */

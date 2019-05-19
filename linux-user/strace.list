@@ -470,9 +470,6 @@
 #ifdef TARGET_NR_newfstatat
 { TARGET_NR_newfstatat, "newfstatat" , NULL, print_newfstatat, NULL },
 #endif
-#ifdef TARGET_NR__newselect
-{ TARGET_NR__newselect, "_newselect" , NULL, print_newselect, print_syscall_ret_newselect },
-#endif
 #ifdef TARGET_NR_nfsservctl
 { TARGET_NR_nfsservctl, "nfsservctl" , NULL, NULL, NULL },
 #endif
@@ -961,9 +958,6 @@
 #endif
 #ifdef TARGET_NR_security
 { TARGET_NR_security, "security" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_select
-{ TARGET_NR_select, "select" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_send
 { TARGET_NR_send, "send" , NULL, NULL, NULL },

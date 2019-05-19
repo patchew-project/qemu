@@ -1055,88 +1055,6 @@ static inline abi_long copy_to_user_mq_attr(abi_ulong target_mq_attr_addr,
 }
 #endif
 
-#if defined(TARGET_NR_select) || defined(TARGET_NR__newselect)
-/* do_select() must return target values and target errnos. */
-static abi_long do_select(int n,
-                          abi_ulong rfd_addr, abi_ulong wfd_addr,
-                          abi_ulong efd_addr, abi_ulong target_tv_addr)
-{
-    fd_set rfds, wfds, efds;
-    fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
-    struct timeval tv;
-    struct timespec ts, *ts_ptr;
-    abi_long ret;
-
-    ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
-    if (ret) {
-        return ret;
-    }
-    ret = copy_from_user_fdset_ptr(&wfds, &wfds_ptr, wfd_addr, n);
-    if (ret) {
-        return ret;
-    }
-    ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
-    if (ret) {
-        return ret;
-    }
-
-    if (target_tv_addr) {
-        if (copy_from_user_timeval(&tv, target_tv_addr))
-            return -TARGET_EFAULT;
-        ts.tv_sec = tv.tv_sec;
-        ts.tv_nsec = tv.tv_usec * 1000;
-        ts_ptr = &ts;
-    } else {
-        ts_ptr = NULL;
-    }
-
-    ret = get_errno(safe_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
-                                  ts_ptr, NULL));
-
-    if (!is_error(ret)) {
-        if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n))
-            return -TARGET_EFAULT;
-        if (wfd_addr && copy_to_user_fdset(wfd_addr, &wfds, n))
-            return -TARGET_EFAULT;
-        if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
-            return -TARGET_EFAULT;
-
-        if (target_tv_addr) {
-            tv.tv_sec = ts.tv_sec;
-            tv.tv_usec = ts.tv_nsec / 1000;
-            if (copy_to_user_timeval(target_tv_addr, &tv)) {
-                return -TARGET_EFAULT;
-            }
-        }
-    }
-
-    return ret;
-}
-
-#if defined(TARGET_WANT_OLD_SYS_SELECT)
-static abi_long do_old_select(abi_ulong arg1)
-{
-    struct target_sel_arg_struct *sel;
-    abi_ulong inp, outp, exp, tvp;
-    long nsel;
-
-    if (!lock_user_struct(VERIFY_READ, sel, arg1, 1)) {
-        return -TARGET_EFAULT;
-    }
-
-    nsel = tswapal(sel->n);
-    inp = tswapal(sel->inp);
-    outp = tswapal(sel->outp);
-    exp = tswapal(sel->exp);
-    tvp = tswapal(sel->tvp);
-
-    unlock_user_struct(sel, arg1, 0);
-
-    return do_select(nsel, inp, outp, exp, tvp);
-}
-#endif
-#endif
-
 static inline abi_long target_to_host_ip_mreq(struct ip_mreqn *mreqn,
                                               abi_ulong target_addr,
                                               socklen_t len)
@@ -4240,20 +4158,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-#if defined(TARGET_NR_select)
-    case TARGET_NR_select:
-#if defined(TARGET_WANT_NI_OLD_SELECT)
-        /* some architectures used to have old_select here
-         * but now ENOSYS it.
-         */
-        ret = -TARGET_ENOSYS;
-#elif defined(TARGET_WANT_OLD_SYS_SELECT)
-        ret = do_old_select(arg1);
-#else
-        ret = do_select(arg1, arg2, arg3, arg4, arg5);
-#endif
-        return ret;
-#endif
 #ifdef TARGET_NR_pselect6
     case TARGET_NR_pselect6:
         {
@@ -5007,10 +4911,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         }
         return ret;
 #endif /* TARGET_NR_getdents64 */
-#if defined(TARGET_NR__newselect)
-    case TARGET_NR__newselect:
-        return do_select(arg1, arg2, arg3, arg4, arg5);
-#endif
 #if defined(TARGET_NR_poll) || defined(TARGET_NR_ppoll)
 # ifdef TARGET_NR_poll
     case TARGET_NR_poll:
@@ -7233,6 +7133,12 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #include "syscall-sig.inc.c"
 #include "syscall-time.inc.c"
 
+static SyscallImplFn impl_enosys __attribute__((unused));
+SYSCALL_IMPL(enosys)
+{
+    return -TARGET_ENOSYS;
+}
+
 #undef SYSCALL_IMPL
 #undef SYSCALL_ARGS
 
@@ -7253,6 +7159,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #define SYSCALL_DEF_ARGS(NAME, ...) \
     SYSCALL_DEF_FULL(NAME, .impl = impl_##NAME, .args = args_##NAME, \
                      .arg_type = { __VA_ARGS__ })
+
+/* Emit a definition that always produces ENOSYS without logging.  */
+#define SYSCALL_DEF_NOSYS(NAME) \
+    SYSCALL_DEF_FULL(NAME, .impl = impl_enosys)
 
 #include "syscall-defs.h"
 

@@ -1067,6 +1067,97 @@ SYSCALL_IMPL(renameat2)
     return do_renameat2(arg1, arg2, arg3, arg4, arg5);
 }
 
+#if defined(TARGET_NR_select) && defined(TARGET_WANT_OLD_SYS_SELECT)
+SYSCALL_ARGS(select)
+{
+    struct target_sel_arg_struct *sel;
+    abi_ulong inp, outp, exp, tvp;
+    abi_long nsel;
+
+    if (!lock_user_struct(VERIFY_READ, sel, in[0], 1)) {
+        errno = EFAULT;
+        return NULL;
+    }
+    nsel = tswapal(sel->n);
+    inp = tswapal(sel->inp);
+    outp = tswapal(sel->outp);
+    exp = tswapal(sel->exp);
+    tvp = tswapal(sel->tvp);
+    unlock_user_struct(sel, in[0], 0);
+
+    out[0] = nsel;
+    out[1] = inp;
+    out[2] = outp;
+    out[3] = exp;
+    out[4] = tvp;
+    return def;
+}
+#else
+# define args_select NULL
+#endif
+
+#if (defined(TARGET_NR_select) && !defined(TARGET_WANT_NI_OLD_SELECT)) \
+    || defined(TARGET_NR__newselect)
+SYSCALL_IMPL(select)
+{
+    int n = arg1;
+    abi_ulong rfd_addr = arg2;
+    abi_ulong wfd_addr = arg3;
+    abi_ulong efd_addr = arg4;
+    abi_ulong target_tv_addr = arg5;
+    fd_set rfds, wfds, efds;
+    fd_set *rfds_ptr, *wfds_ptr, *efds_ptr;
+    struct timeval tv;
+    struct timespec ts, *ts_ptr = NULL;
+    abi_long ret;
+
+    ret = copy_from_user_fdset_ptr(&rfds, &rfds_ptr, rfd_addr, n);
+    if (ret) {
+        return ret;
+    }
+    ret = copy_from_user_fdset_ptr(&wfds, &wfds_ptr, wfd_addr, n);
+    if (ret) {
+        return ret;
+    }
+    ret = copy_from_user_fdset_ptr(&efds, &efds_ptr, efd_addr, n);
+    if (ret) {
+        return ret;
+    }
+
+    if (target_tv_addr) {
+        if (copy_from_user_timeval(&tv, target_tv_addr))
+            return -TARGET_EFAULT;
+        ts.tv_sec = tv.tv_sec;
+        ts.tv_nsec = tv.tv_usec * 1000;
+        ts_ptr = &ts;
+    }
+
+    ret = get_errno(safe_pselect6(n, rfds_ptr, wfds_ptr, efds_ptr,
+                                  ts_ptr, NULL));
+
+    if (!is_error(ret)) {
+        if (rfd_addr && copy_to_user_fdset(rfd_addr, &rfds, n)) {
+            return -TARGET_EFAULT;
+        }
+        if (wfd_addr && copy_to_user_fdset(wfd_addr, &wfds, n)) {
+            return -TARGET_EFAULT;
+        }
+        if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n)) {
+            return -TARGET_EFAULT;
+        }
+        if (target_tv_addr) {
+            tv.tv_sec = ts.tv_sec;
+            tv.tv_usec = ts.tv_nsec / 1000;
+            if (copy_to_user_timeval(target_tv_addr, &tv)) {
+                return -TARGET_EFAULT;
+            }
+        }
+    }
+
+    return ret;
+}
+#endif
+
 SYSCALL_IMPL(sync)
 {
     sync();

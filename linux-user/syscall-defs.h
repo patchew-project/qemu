@@ -143,6 +143,10 @@ SYSCALL_DEF(munlockall);
 SYSCALL_DEF(munmap, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(name_to_handle_at,
             ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_PTR, ARG_ATFLAG);
+#ifdef TARGET_NR__newselect
+SYSCALL_DEF_FULL(_newselect, .impl = impl_select,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_PTR, ARG_PTR, ARG_PTR });
+#endif
 #ifdef TARGET_NR_nice
 SYSCALL_DEF(nice, ARG_DEC);
 #endif
@@ -209,6 +213,13 @@ SYSCALL_DEF(rt_sigreturn);
 SYSCALL_DEF(rt_sigsuspend, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(rt_sigtimedwait, ARG_PTR, ARG_PTR, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(rt_tgsigqueueinfo, ARG_DEC, ARG_DEC, ARG_SIGNAL, ARG_PTR);
+#ifdef TARGET_NR_select
+# if defined(TARGET_WANT_NI_OLD_SELECT)
+SYSCALL_DEF_NOSYS(select);
+# else
+SYSCALL_DEF_ARGS(select, ARG_DEC, ARG_PTR, ARG_PTR, ARG_PTR, ARG_PTR);
+# endif
+#endif
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semctl)
 SYSCALL_DEF(semctl, ARG_DEC, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
