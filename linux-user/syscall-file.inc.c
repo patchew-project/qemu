@@ -16,6 +16,14 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+SYSCALL_IMPL(close)
+{
+    int fd = arg1;
+
+    fd_trans_unregister(fd);
+    return get_errno(close(fd));
+}
+
 /*
  * Helpers for do_openat, manipulating /proc/self/foo.
  */
