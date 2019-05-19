@@ -55,8 +55,12 @@ typedef enum {
     ARG_HEX,
     ARG_OCT,
 
-    /* These print as sets of flags.  */
+    /* These numbers are interpreted.  */
     ARG_ATDIRFD,
+    ARG_SIGNAL,
+    ARG_LSEEKWHENCE,
+
+    /* These print as sets of flags.  */
     ARG_ACCESSFLAG,
     ARG_ATFLAG,
     ARG_CLONEFLAG,
@@ -67,7 +71,6 @@ typedef enum {
     ARG_OPENFLAG,
     ARG_UMOUNTFLAG,
     ARG_UNLINKATFLAG,
-    ARG_LSEEKWHENCE,
 
     /* These are interpreted as pointers.  */
     ARG_PTR,

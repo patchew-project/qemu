@@ -70,35 +70,43 @@ UNUSED static void print_socket_protocol(int domain, int type, int protocol);
 /*
  * Utility functions
  */
+static int
+add_signal(char *buf, int size, int sig)
+{
+    static const char * const signals[] = {
+        [TARGET_SIGHUP]  = "SIGHUP",
+        [TARGET_SIGINT]  = "SIGINT",
+        [TARGET_SIGQUIT] = "SIGQUIT",
+        [TARGET_SIGILL]  = "SIGILL",
+        [TARGET_SIGABRT] = "SIGABRT",
+        [TARGET_SIGFPE]  = "SIGFPE",
+        [TARGET_SIGKILL] = "SIGKILL",
+        [TARGET_SIGSEGV] = "SIGSEGV",
+        [TARGET_SIGPIPE] = "SIGPIPE",
+        [TARGET_SIGALRM] = "SIGALRM",
+        [TARGET_SIGTERM] = "SIGTERM",
+        [TARGET_SIGUSR1] = "SIGUSR1",
+        [TARGET_SIGUSR2] = "SIGUSR2",
+        [TARGET_SIGCHLD] = "SIGCHLD",
+        [TARGET_SIGCONT] = "SIGCONT",
+        [TARGET_SIGSTOP] = "SIGSTOP",
+        [TARGET_SIGTTIN] = "SIGTTIN",
+        [TARGET_SIGTTOU] = "SIGTTOU",
+    };
+
+    if (sig >= 0 && sig < ARRAY_SIZE(signals) && signals[sig]) {
+        return snprintf(buf, size, "%s", signals[sig]);
+    } else {
+        return snprintf(buf, size, "%d", sig);
+    }
+}
+
 static void
 print_signal(abi_ulong arg, int last)
 {
-    const char *signal_name = NULL;
-    switch(arg) {
-    case TARGET_SIGHUP: signal_name = "SIGHUP"; break;
-    case TARGET_SIGINT: signal_name = "SIGINT"; break;
-    case TARGET_SIGQUIT: signal_name = "SIGQUIT"; break;
-    case TARGET_SIGILL: signal_name = "SIGILL"; break;
-    case TARGET_SIGABRT: signal_name = "SIGABRT"; break;
-    case TARGET_SIGFPE: signal_name = "SIGFPE"; break;
-    case TARGET_SIGKILL: signal_name = "SIGKILL"; break;
-    case TARGET_SIGSEGV: signal_name = "SIGSEGV"; break;
-    case TARGET_SIGPIPE: signal_name = "SIGPIPE"; break;
-    case TARGET_SIGALRM: signal_name = "SIGALRM"; break;
-    case TARGET_SIGTERM: signal_name = "SIGTERM"; break;
-    case TARGET_SIGUSR1: signal_name = "SIGUSR1"; break;
-    case TARGET_SIGUSR2: signal_name = "SIGUSR2"; break;
-    case TARGET_SIGCHLD: signal_name = "SIGCHLD"; break;
-    case TARGET_SIGCONT: signal_name = "SIGCONT"; break;
-    case TARGET_SIGSTOP: signal_name = "SIGSTOP"; break;
-    case TARGET_SIGTTIN: signal_name = "SIGTTIN"; break;
-    case TARGET_SIGTTOU: signal_name = "SIGTTOU"; break;
-    }
-    if (signal_name == NULL) {
-        print_raw_param("%ld", arg, last);
-        return;
-    }
-    gemu_log("%s%s", signal_name, get_comma(last));
+    char buf[16];
+    add_signal(buf, sizeof(buf), arg);
+    gemu_log("%s%s", buf, get_comma(last));
 }
 
 static void print_si_code(int arg)
@@ -2044,19 +2052,6 @@ print_futex(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR_kill
-static void
-print_kill(const struct syscallname *name,
-    abi_long arg0, abi_long arg1, abi_long arg2,
-    abi_long arg3, abi_long arg4, abi_long arg5)
-{
-    print_syscall_prologue(name);
-    print_raw_param("%d", arg0, 0);
-    print_signal(arg1, 1);
-    print_syscall_epilogue(name);
-}
-#endif
-
 #ifdef TARGET_NR_tkill
 static void
 print_tkill(const struct syscallname *name,
@@ -2189,6 +2184,9 @@ static void print_syscall_def1(const SyscallDef *def, int64_t args[6])
 #endif
         case ARG_ATDIRFD:
             len = add_atdirfd(b, rest, arg);
+            break;
+        case ARG_SIGNAL:
+            len = add_signal(b, rest, arg);
             break;
         case ARG_ACCESSFLAG:
             len = add_flags(b, rest, access_flags, arg, false);

@@ -58,6 +58,7 @@ SYSCALL_DEF(getxpid);
 #ifdef TARGET_NR_ipc
 SYSCALL_DEF_ARGS(ipc, ARG_HEX, ARG_DEC, ARG_DEC, ARG_HEX, ARG_PTR, ARG_HEX);
 #endif
+SYSCALL_DEF(kill, ARG_DEC, ARG_SIGNAL);
 #ifdef TARGET_NR_link
 SYSCALL_DEF(link, ARG_STR, ARG_STR);
 #endif

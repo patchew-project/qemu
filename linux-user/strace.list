@@ -410,9 +410,6 @@
 #ifdef TARGET_NR_keyctl
 { TARGET_NR_keyctl, "keyctl" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_kill
-{ TARGET_NR_kill, "kill", NULL, print_kill, NULL },
-#endif
 #ifdef TARGET_NR_lchown
 { TARGET_NR_lchown, "lchown" , NULL, NULL, NULL },
 #endif

@@ -23,6 +23,11 @@ SYSCALL_IMPL(alarm)
 }
 #endif
 
+SYSCALL_IMPL(kill)
+{
+    return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
+}
+
 #ifdef TARGET_NR_pause
 SYSCALL_IMPL(pause)
 {
