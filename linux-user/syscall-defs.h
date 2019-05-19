@@ -17,6 +17,21 @@
  */
 
 SYSCALL_DEF(close, ARG_DEC);
+#ifdef TARGET_NR_ipc
+SYSCALL_DEF_ARGS(ipc, ARG_HEX, ARG_DEC, ARG_DEC, ARG_HEX, ARG_PTR, ARG_HEX);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_msgctl)
+SYSCALL_DEF(msgctl, ARG_DEC, ARG_DEC, ARG_PTR);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_msgget)
+SYSCALL_DEF(msgget, ARG_DEC, ARG_DEC);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_msgrcv)
+SYSCALL_DEF(msgrcv, ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC, ARG_HEX);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_msgsnd)
+SYSCALL_DEF(msgsnd, ARG_DEC, ARG_PTR, ARG_DEC, ARG_HEX);
+#endif
 SYSCALL_DEF(name_to_handle_at,
             ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_PTR, ARG_ATFLAG);
 #ifdef TARGET_NR_open
@@ -44,5 +59,28 @@ SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(readlinkat, ARG_ATDIRFD, ARG_STR, ARG_PTR, ARG_DEC);
 #endif
 SYSCALL_DEF(readv, ARG_DEC, ARG_PTR, ARG_DEC);
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semctl)
+SYSCALL_DEF(semctl, ARG_DEC, ARG_DEC, ARG_DEC, ARG_HEX);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semget)
+SYSCALL_DEF(semget, ARG_DEC, ARG_DEC, ARG_HEX);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semop)
+SYSCALL_DEF(semop, ARG_DEC, ARG_PTR, ARG_DEC);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_shmat)
+SYSCALL_DEF_FULL(shmat, .impl = impl_shmat,
+                 .print_ret = print_syscall_ptr_ret,
+                 .arg_type = { ARG_DEC, ARG_PTR, ARG_HEX });
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_shmctl)
+SYSCALL_DEF(shmctl, ARG_DEC, ARG_DEC, ARG_PTR);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_shmdt)
+SYSCALL_DEF(shmdt, ARG_PTR);
+#endif
+#if !defined(SYSCALL_TABLE) || defined(TARGET_NR_shmget)
+SYSCALL_DEF(shmget, ARG_DEC, ARG_DEC, ARG_HEX);
+#endif
 SYSCALL_DEF(write, ARG_DEC, ARG_PTR, ARG_DEC);
 SYSCALL_DEF(writev, ARG_DEC, ARG_PTR, ARG_DEC);

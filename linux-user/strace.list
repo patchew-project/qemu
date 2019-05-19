@@ -452,9 +452,6 @@
 #ifdef TARGET_NR_io_submit
 { TARGET_NR_io_submit, "io_submit" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_ipc
-{ TARGET_NR_ipc, "ipc" , NULL, print_ipc, NULL },
-#endif
 #ifdef TARGET_NR_kcmp
 { TARGET_NR_kcmp, "kcmp" , NULL, NULL, NULL },
 #endif
@@ -607,18 +604,6 @@
 #endif
 #ifdef TARGET_NR_mremap
 { TARGET_NR_mremap, "mremap" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_msgctl
-{ TARGET_NR_msgctl, "msgctl" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_msgget
-{ TARGET_NR_msgget, "msgget" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_msgrcv
-{ TARGET_NR_msgrcv, "msgrcv" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_msgsnd
-{ TARGET_NR_msgsnd, "msgsnd" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_msync
 { TARGET_NR_msync, "msync" , NULL, NULL, NULL },
@@ -917,9 +902,6 @@
 #ifdef TARGET_NR_osf_settimeofday
 { TARGET_NR_osf_settimeofday, "osf_settimeofday" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_osf_shmat
-{ TARGET_NR_osf_shmat, "osf_shmat" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_osf_signal
 { TARGET_NR_osf_signal, "osf_signal" , NULL, NULL, NULL },
 #endif
@@ -1184,18 +1166,6 @@
 #ifdef TARGET_NR_select
 { TARGET_NR_select, "select" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_semctl
-{ TARGET_NR_semctl, "semctl" , NULL, print_semctl, NULL },
-#endif
-#ifdef TARGET_NR_semget
-{ TARGET_NR_semget, "semget" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_semop
-{ TARGET_NR_semop, "semop" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_semtimedop
-{ TARGET_NR_semtimedop, "semtimedop" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_send
 { TARGET_NR_send, "send" , NULL, NULL, NULL },
 #endif
@@ -1322,18 +1292,6 @@
 #endif
 #ifdef TARGET_NR_sgetmask
 { TARGET_NR_sgetmask, "sgetmask" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_shmat
-{ TARGET_NR_shmat, "shmat" , NULL, NULL, print_syscall_ret_addr },
-#endif
-#ifdef TARGET_NR_shmctl
-{ TARGET_NR_shmctl, "shmctl" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_shmdt
-{ TARGET_NR_shmdt, "shmdt" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_shmget
-{ TARGET_NR_shmget, "shmget" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_shutdown
 { TARGET_NR_shutdown, "shutdown" , NULL, NULL, NULL },
