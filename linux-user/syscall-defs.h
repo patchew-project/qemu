@@ -69,6 +69,7 @@ SYSCALL_DEF(getpid);
 #ifdef TARGET_NR_getppid
 SYSCALL_DEF(getppid);
 #endif
+SYSCALL_DEF(getsid, ARG_DEC);
 #ifdef TARGET_NR_getxpid
 SYSCALL_DEF(getxpid);
 #endif
@@ -193,6 +194,7 @@ SYSCALL_DEF(semctl, ARG_DEC, ARG_DEC, ARG_DEC, ARG_HEX);
 SYSCALL_DEF(semget, ARG_DEC, ARG_DEC, ARG_HEX);
 #endif
 SYSCALL_DEF(setpgid, ARG_DEC, ARG_DEC);
+SYSCALL_DEF(setsid);
 #if !defined(SYSCALL_TABLE) || defined(TARGET_NR_semop)
 SYSCALL_DEF(semop, ARG_DEC, ARG_PTR, ARG_DEC);
 #endif

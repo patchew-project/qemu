@@ -464,6 +464,11 @@ SYSCALL_IMPL(getppid)
 }
 #endif
 
+SYSCALL_IMPL(getsid)
+{
+    return get_errno(getsid(arg1));
+}
+
 #ifdef TARGET_NR_getxpid
 SYSCALL_IMPL(getxpid)
 {
@@ -483,6 +488,11 @@ SYSCALL_IMPL(nice)
 SYSCALL_IMPL(setpgid)
 {
     return get_errno(setpgid(arg1, arg2));
+}
+
+SYSCALL_IMPL(setsid)
+{
+    return get_errno(setsid());
 }
 
 SYSCALL_IMPL(times)
