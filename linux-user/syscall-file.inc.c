@@ -16,6 +16,20 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+SYSCALL_IMPL(chdir)
+{
+    abi_ulong target_path = arg1;
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(chdir(p));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
 SYSCALL_IMPL(close)
 {
     int fd = arg1;
