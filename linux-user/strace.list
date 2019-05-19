@@ -848,9 +848,6 @@
 #ifdef TARGET_NR_profil
 { TARGET_NR_profil, "profil" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_pselect6
-{ TARGET_NR_pselect6, "pselect6" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_ptrace
 { TARGET_NR_ptrace, "ptrace" , NULL, NULL, NULL },
 #endif

@@ -180,6 +180,7 @@ SYSCALL_DEF_FULL(preadv, .impl = impl_preadv,
 SYSCALL_DEF_FULL(pwritev, .impl = impl_pwritev,
                  .args = args_preadv_pwritev,
                  .arg_type = { ARG_DEC, ARG_PTR, ARG_DEC, ARG_DEC64 });
+SYSCALL_DEF(pselect6, ARG_DEC, ARG_PTR, ARG_PTR, ARG_PTR, ARG_PTR, ARG_PTR);
 SYSCALL_DEF(read, ARG_DEC, ARG_PTR, ARG_DEC);
 #ifdef TARGET_NR_readlink
 SYSCALL_DEF(readlink, ARG_STR, ARG_PTR, ARG_DEC);
