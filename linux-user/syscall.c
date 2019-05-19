@@ -9405,42 +9405,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #error unreachable
 #endif
 #endif
-#ifdef TARGET_NR_pread64
-    case TARGET_NR_pread64:
-        if (regpairs_aligned(cpu_env, num)) {
-            arg4 = arg5;
-            arg5 = arg6;
-        }
-        if (arg2 == 0 && arg3 == 0) {
-            /* Special-case NULL buffer and zero length, which should succeed */
-            p = 0;
-        } else {
-            p = lock_user(VERIFY_WRITE, arg2, arg3, 0);
-            if (!p) {
-                return -TARGET_EFAULT;
-            }
-        }
-        ret = get_errno(pread64(arg1, p, arg3, target_offset64(arg4, arg5)));
-        unlock_user(p, arg2, ret);
-        return ret;
-    case TARGET_NR_pwrite64:
-        if (regpairs_aligned(cpu_env, num)) {
-            arg4 = arg5;
-            arg5 = arg6;
-        }
-        if (arg2 == 0 && arg3 == 0) {
-            /* Special-case NULL buffer and zero length, which should succeed */
-            p = 0;
-        } else {
-            p = lock_user(VERIFY_READ, arg2, arg3, 1);
-            if (!p) {
-                return -TARGET_EFAULT;
-            }
-        }
-        ret = get_errno(pwrite64(arg1, p, arg3, target_offset64(arg4, arg5)));
-        unlock_user(p, arg2, 0);
-        return ret;
-#endif
     case TARGET_NR_getcwd:
         if (!(p = lock_user(VERIFY_WRITE, arg1, arg2, 0)))
             return -TARGET_EFAULT;

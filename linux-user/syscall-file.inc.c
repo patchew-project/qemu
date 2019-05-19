@@ -323,6 +323,68 @@ SYSCALL_IMPL(openat)
     return do_openat(cpu_env, arg1, arg2, arg3, arg4);
 }
 
+/*
+ * Both pread64 and pwrite64 merge args into a 64-bit offset,
+ * but the input registers and ordering are target specific.
+ */
+#if TARGET_ABI_BITS == 32
+SYSCALL_ARGS(pread64_pwrite64)
+{
+    /* We have already assigned out[0-2].  */
+    int off = regpairs_aligned(cpu_env, TARGET_NR_pread64);
+    out[3] = target_offset64(in[3 + off], in[4 + off]);
+    return def;
+}
+#else
+#define args_pread64_pwrite64 NULL
+#endif
+
+SYSCALL_IMPL(pread64)
+{
+    int fd = arg1;
+    abi_ulong target_buf = arg2;
+    abi_ulong len = arg3;
+    uint64_t off = arg4;
+    void *p;
+    abi_long ret;
+
+    if (target_buf == 0 && len == 0) {
+        /* Special-case NULL buffer and zero length, which should succeed */
+        p = NULL;
+    } else {
+        p = lock_user(VERIFY_WRITE, target_buf, len, 0);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(pread64(fd, p, len, off));
+    unlock_user(p, target_buf, ret);
+    return ret;
+}
+
+SYSCALL_IMPL(pwrite64)
+{
+    int fd = arg1;
+    abi_ulong target_buf = arg2;
+    abi_ulong len = arg3;
+    uint64_t off = arg4;
+    void *p;
+    abi_long ret;
+
+    if (target_buf == 0 && len == 0) {
+        /* Special-case NULL buffer and zero length, which should succeed */
+        p = 0;
+    } else {
+        p = lock_user(VERIFY_READ, target_buf, len, 1);
+        if (!p) {
+            return -TARGET_EFAULT;
+        }
+    }
+    ret = get_errno(pwrite64(fd, p, len, off));
+    unlock_user(p, target_buf, 0);
+    return ret;
+}
+
 SYSCALL_IMPL(read)
 {
     int fd = arg1;
