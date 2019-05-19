@@ -473,12 +473,6 @@
 #ifdef TARGET_NR_mincore
 { TARGET_NR_mincore, "mincore" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_mkdir
-{ TARGET_NR_mkdir, "mkdir" , NULL, print_mkdir, NULL },
-#endif
-#ifdef TARGET_NR_mkdirat
-{ TARGET_NR_mkdirat, "mkdirat" , NULL, print_mkdirat, NULL },
-#endif
 #ifdef TARGET_NR_modify_ldt
 { TARGET_NR_modify_ldt, "modify_ldt" , NULL, NULL, NULL },
 #endif

@@ -205,6 +205,31 @@ SYSCALL_IMPL(llseek)
 }
 #endif
 
+static abi_long do_mkdirat(int dirfd, abi_ulong target_path, mode_t mode)
+{
+    char *p = lock_user_string(target_path);
+    abi_long ret;
+
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    ret = get_errno(mkdirat(dirfd, p, mode));
+    unlock_user(p, target_path, 0);
+    return ret;
+}
+
+#ifdef TARGET_NR_mkdir
+SYSCALL_IMPL(mkdir)
+{
+    return do_mkdirat(AT_FDCWD, arg1, arg2);
+}
+#endif
+
+SYSCALL_IMPL(mkdirat)
+{
+    return do_mkdirat(arg1, arg2, arg3);
+}
+
 static abi_long do_mknodat(int dirfd, abi_ulong target_path,
                            mode_t mode, dev_t dev)
 {
