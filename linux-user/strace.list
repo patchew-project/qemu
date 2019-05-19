@@ -298,14 +298,8 @@
 #ifdef TARGET_NR_getpgrp
 { TARGET_NR_getpgrp, "getpgrp" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_getpid
-{ TARGET_NR_getpid, "getpid" , "%s()", NULL, NULL },
-#endif
 #ifdef TARGET_NR_getpmsg
 { TARGET_NR_getpmsg, "getpmsg" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_getppid
-{ TARGET_NR_getppid, "getppid" , "%s()", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getpriority
 { TARGET_NR_getpriority, "getpriority", "%s(%#x,%#x)", NULL, NULL },
@@ -364,9 +358,6 @@
 #endif
 #ifdef TARGET_NR_getxgid
 { TARGET_NR_getxgid, "getxgid" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_getxpid
-{ TARGET_NR_getxpid, "getxpid" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_getxuid
 { TARGET_NR_getxuid, "getxuid" , NULL, NULL, NULL },

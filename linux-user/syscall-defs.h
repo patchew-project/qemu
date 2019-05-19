@@ -36,6 +36,15 @@ SYSCALL_DEF(fchmodat, ARG_ATDIRFD, ARG_STR, ARG_MODEFLAG);
 #ifdef TARGET_NR_fork
 SYSCALL_DEF(fork);
 #endif
+#ifdef TARGET_NR_getpid
+SYSCALL_DEF(getpid);
+#endif
+#ifdef TARGET_NR_getppid
+SYSCALL_DEF(getppid);
+#endif
+#ifdef TARGET_NR_getxpid
+SYSCALL_DEF(getxpid);
+#endif
 #ifdef TARGET_NR_ipc
 SYSCALL_DEF_ARGS(ipc, ARG_HEX, ARG_DEC, ARG_DEC, ARG_HEX, ARG_PTR, ARG_HEX);
 #endif

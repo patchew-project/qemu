@@ -438,6 +438,29 @@ SYSCALL_IMPL(fork)
 }
 #endif
 
+#ifdef TARGET_NR_getpid
+SYSCALL_IMPL(getpid)
+{
+    return getpid();
+}
+#endif
+
+#ifdef TARGET_NR_getppid
+SYSCALL_IMPL(getppid)
+{
+    return getppid();
+}
+#endif
+
+#ifdef TARGET_NR_getxpid
+SYSCALL_IMPL(getxpid)
+{
+    /* Alpha specific */
+    cpu_env->ir[IR_A4] = getppid();
+    return getpid();
+}
+#endif
+
 /*
  * Map host to target signal numbers for the wait family of syscalls.
  * Assume all other status bits are the same.
