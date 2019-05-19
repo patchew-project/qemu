@@ -370,19 +370,30 @@ SYSCALL_IMPL(waitid)
     id_t id = arg2;
     abi_ulong target_info = arg3;
     int options = arg4;
+    abi_ulong target_rusage = arg5;
     siginfo_t info, *info_ptr = target_info ? &info : NULL;
+    struct rusage rusage;
+    struct rusage *rusage_ptr = target_rusage ? &rusage : NULL;
     abi_long ret;
 
     info.si_pid = 0;
-    ret = get_errno(safe_waitid(idtype, id, info_ptr, options, NULL));
-    if (!is_error(ret) && target_info && info.si_pid != 0) {
-        target_siginfo_t *p = lock_user(VERIFY_WRITE, target_info,
-                                        sizeof(target_siginfo_t), 0);
-        if (!p) {
-            return -TARGET_EFAULT;
+    ret = get_errno(safe_waitid(idtype, id, info_ptr, options, rusage_ptr));
+    if (!is_error(ret)) {
+        if (target_info && info.si_pid != 0) {
+            target_siginfo_t *p = lock_user(VERIFY_WRITE, target_info,
+                                            sizeof(target_siginfo_t), 0);
+            if (!p) {
+                return -TARGET_EFAULT;
+            }
+            host_to_target_siginfo(p, &info);
+            unlock_user(p, target_info, sizeof(target_siginfo_t));
         }
-        host_to_target_siginfo(p, &info);
-        unlock_user(p, target_info, sizeof(target_siginfo_t));
+        if (target_rusage) {
+            abi_long err = host_to_target_rusage(target_rusage, &rusage);
+            if (err) {
+                ret = err;
+            }
+        }
     }
     return ret;
 }
