@@ -926,14 +926,8 @@
 #ifdef TARGET_NR_rmdir
 { TARGET_NR_rmdir, "rmdir" , NULL, NULL, NULL },
 #endif
-#ifdef TARGET_NR_rt_sigqueueinfo
-{ TARGET_NR_rt_sigqueueinfo, "rt_sigqueueinfo" , NULL, print_rt_sigqueueinfo, NULL },
-#endif
 #ifdef TARGET_NR_rt_sigreturn
 { TARGET_NR_rt_sigreturn, "rt_sigreturn" , NULL, NULL, NULL },
-#endif
-#ifdef TARGET_NR_rt_tgsigqueueinfo
-{ TARGET_NR_rt_tgsigqueueinfo, "rt_tgsigqueueinfo" , NULL, print_rt_tgsigqueueinfo, NULL },
 #endif
 #ifdef TARGET_NR_sched_getaffinity
 { TARGET_NR_sched_getaffinity, "sched_getaffinity" , NULL, NULL, NULL },

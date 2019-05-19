@@ -4240,32 +4240,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_rt_sigqueueinfo:
-        {
-            siginfo_t uinfo;
-
-            p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
-            if (!p) {
-                return -TARGET_EFAULT;
-            }
-            target_to_host_siginfo(&uinfo, p);
-            unlock_user(p, arg3, 0);
-            ret = get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
-        }
-        return ret;
-    case TARGET_NR_rt_tgsigqueueinfo:
-        {
-            siginfo_t uinfo;
-
-            p = lock_user(VERIFY_READ, arg4, sizeof(target_siginfo_t), 1);
-            if (!p) {
-                return -TARGET_EFAULT;
-            }
-            target_to_host_siginfo(&uinfo, p);
-            unlock_user(p, arg4, 0);
-            ret = get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, arg3, &uinfo));
-        }
-        return ret;
 #ifdef TARGET_NR_sigreturn
     case TARGET_NR_sigreturn:
         if (block_signals()) {

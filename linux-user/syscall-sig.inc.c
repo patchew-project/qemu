@@ -191,6 +191,21 @@ SYSCALL_IMPL(rt_sigprocmask)
     return ret;
 }
 
+SYSCALL_IMPL(rt_sigqueueinfo)
+{
+    siginfo_t uinfo;
+    void *p;
+
+    p = lock_user(VERIFY_READ, arg3, sizeof(target_siginfo_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_siginfo(&uinfo, p);
+    unlock_user(p, arg3, 0);
+
+    return get_errno(sys_rt_sigqueueinfo(arg1, arg2, &uinfo));
+}
+
 SYSCALL_IMPL(rt_sigsuspend)
 {
     CPUState *cpu = ENV_GET_CPU(cpu_env);
@@ -250,6 +265,21 @@ SYSCALL_IMPL(rt_sigtimedwait)
         ret = host_to_target_signal(ret);
     }
     return ret;
+}
+
+SYSCALL_IMPL(rt_tgsigqueueinfo)
+{
+    siginfo_t uinfo;
+    void *p;
+
+    p = lock_user(VERIFY_READ, arg4, sizeof(target_siginfo_t), 1);
+    if (!p) {
+        return -TARGET_EFAULT;
+    }
+    target_to_host_siginfo(&uinfo, p);
+    unlock_user(p, arg4, 0);
+
+    return get_errno(sys_rt_tgsigqueueinfo(arg1, arg2, arg3, &uinfo));
 }
 
 #ifdef TARGET_NR_sigaction
