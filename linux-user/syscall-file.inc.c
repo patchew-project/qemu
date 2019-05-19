@@ -873,6 +873,17 @@ SYSCALL_IMPL(readlinkat)
 }
 #endif
 
+SYSCALL_IMPL(sync)
+{
+    sync();
+    return 0;
+}
+
+SYSCALL_IMPL(syncfs)
+{
+    return get_errno(syncfs(arg1));
+}
+
 static abi_long do_umount2(abi_ulong target_path, int flags)
 {
     char *p = lock_user_string(target_path);

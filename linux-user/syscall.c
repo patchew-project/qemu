@@ -199,6 +199,15 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_gettid __NR_gettid
 _syscall0(int, sys_gettid)
 
+/*
+ * These definitions produce an ENOSYS from the host kernel.
+ * Performing a bogus syscall is easier than boilerplating
+ * the replacement functions here in C.
+ */
+#ifndef __NR_syncfs
+#define __NR_syncfs  -1
+#endif
+
 /* For the 64-bit guest on 32-bit host case we must emulate
  * getdents using getdents64, because otherwise the host
  * might hand us back more dirent records than we can fit
@@ -254,10 +263,12 @@ _syscall3(int, ioprio_set, int, which, int, who, int, ioprio)
 #if defined(TARGET_NR_getrandom) && defined(__NR_getrandom)
 _syscall3(int, getrandom, void *, buf, size_t, buflen, unsigned int, flags)
 #endif
-
 #if defined(TARGET_NR_kcmp) && defined(__NR_kcmp)
 _syscall5(int, kcmp, pid_t, pid1, pid_t, pid2, int, type,
           unsigned long, idx1, unsigned long, idx2)
+#endif
+#ifndef CONFIG_SYNCFS
+_syscall1(int, syncfs, int, fd)
 #endif
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
@@ -5380,13 +5391,6 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     void *p;
 
     switch(num) {
-    case TARGET_NR_sync:
-        sync();
-        return 0;
-#if defined(TARGET_NR_syncfs) && defined(CONFIG_SYNCFS)
-    case TARGET_NR_syncfs:
-        return get_errno(syncfs(arg1));
-#endif
     case TARGET_NR_kill:
         return get_errno(safe_kill(arg1, target_to_host_signal(arg2)));
 #ifdef TARGET_NR_rename
