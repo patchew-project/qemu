@@ -8173,7 +8173,6 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
 void syscall_init(void)
 {
-    IOCTLEntry *ie;
     const argtype *arg_type;
     int size;
     int i;
@@ -8203,8 +8202,8 @@ void syscall_init(void)
      * We patch the ioctl size if necessary.  We rely on the fact that
      * no ioctl has all the bits at '1' in the size field.
      */
-    ie = ioctl_entries;
-    while (ie->target_cmd != 0) {
+    for (i = 0; i < ARRAY_SIZE(ioctl_entries); i++) {
+        IOCTLEntry *ie = &ioctl_entries[i];
         if (((ie->target_cmd >> TARGET_IOC_SIZESHIFT) & TARGET_IOC_SIZEMASK) ==
             TARGET_IOC_SIZEMASK) {
             arg_type = ie->arg_type;
@@ -8228,6 +8227,5 @@ void syscall_init(void)
                     ie->name, ie->target_cmd, ie->host_cmd);
         }
 #endif
-        ie++;
     }
 }

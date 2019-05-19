@@ -773,7 +773,6 @@ static IOCTLEntry ioctl_entries[] = {
 #define IOCTL_IGNORE(cmd)                       \
     { TARGET_ ## cmd, 0, #cmd },
 #include "ioctls.h"
-    { 0, 0, },
 };
 
 /* ??? Implement proper locking for ioctls.  */
@@ -789,16 +788,17 @@ SYSCALL_IMPL(ioctl)
     int target_size;
     void *argptr;
 
-    for (ie = ioctl_entries; ; ie++) {
-        if (ie->target_cmd == 0) {
-            gemu_log("Unsupported ioctl: cmd=0x%04x\n", cmd);
-            return -TARGET_ENOSYS;
-        }
+    for (ie = ioctl_entries;
+         ie < ioctl_entries + ARRAY_SIZE(ioctl_entries);
+         ie++) {
         if (ie->target_cmd == cmd) {
-            break;
+            goto found;
         }
     }
+    gemu_log("Unsupported ioctl: cmd=0x%04x\n", cmd);
+    return -TARGET_ENOSYS;
 
+ found:
     arg_type = ie->arg_type;
     if (ie->do_ioctl) {
         return ie->do_ioctl(ie, buf_temp, fd, cmd, arg);
