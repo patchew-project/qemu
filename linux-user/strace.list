@@ -1350,9 +1350,6 @@
 #ifdef TARGET_NR_tgkill
 { TARGET_NR_tgkill, "tgkill" , NULL, print_tgkill, NULL },
 #endif
-#ifdef TARGET_NR_time
-{ TARGET_NR_time, "time" , NULL, NULL, NULL },
-#endif
 #ifdef TARGET_NR_timer_create
 { TARGET_NR_timer_create, "timer_create" , NULL, NULL, NULL },
 #endif
