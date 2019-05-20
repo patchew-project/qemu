@@ -74,6 +74,7 @@ typedef struct {
 #define  QCOW2_EXT_MAGIC_CRYPTO_HEADER 0x0537be77
 #define  QCOW2_EXT_MAGIC_BITMAPS 0x23852875
 #define  QCOW2_EXT_MAGIC_DATA_FILE 0x44415441
+#define  QCOW2_EXT_MAGIC_COMPRESSION_TYPE 0x434D5052
 
 static int coroutine_fn
 qcow2_co_preadv_compressed(BlockDriverState *bs,
@@ -398,6 +399,9 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #endif
             break;
 
+        case QCOW2_EXT_MAGIC_COMPRESSION_TYPE:
+            /* Setting compression type to BDRVQcow2State->compression_type */
+            /* from the image header is going to be here */
         case QCOW2_EXT_MAGIC_DATA_FILE:
         {
             s->image_data_file = g_malloc0(ext.len + 1);
@@ -2552,6 +2556,11 @@ int qcow2_update_header(BlockDriverState *bs)
                 .bit  = QCOW2_COMPAT_LAZY_REFCOUNTS_BITNR,
                 .name = "lazy refcounts",
             },
+            {
+                .type = QCOW2_FEAT_TYPE_INCOMPATIBLE,
+                .bit  = QCOW2_INCOMPAT_COMPRESSION_TYPE_BITNR,
+                .name = "compression type",
+            },
         };
 
         ret = header_ext_add(buf, QCOW2_EXT_MAGIC_FEATURE_TABLE,
@@ -2574,6 +2583,22 @@ int qcow2_update_header(BlockDriverState *bs)
         };
         ret = header_ext_add(buf, QCOW2_EXT_MAGIC_BITMAPS,
                              &bitmaps_header, sizeof(bitmaps_header),
+                             buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+        buf += ret;
+        buflen -= ret;
+    }
+
+    /* Compression type extension */
+    if (s->compression_type != 0) {
+        Qcow2CompressionTypeExt comp_header = {
+            .compression_type = cpu_to_be32(s->compression_type),
+        };
+        ret = header_ext_add(buf, QCOW2_EXT_MAGIC_COMPRESSION_TYPE,
+                             &comp_header,
+                             cpu_to_be64(sizeof(comp_header)),
                              buflen);
         if (ret < 0) {
             goto fail;

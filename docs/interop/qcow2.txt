@@ -109,7 +109,14 @@ in the description of a field.
                                 An External Data File Name header extension may
                                 be present if this bit is set.
 
-                    Bits 3-63:  Reserved (set to 0)
+                    Bit 3:      Compression type. If the bit is set, then the
+                                type of compression the image uses is set in the
+                                header extension. When the bit is set the
+                                compression type extension header must be present.
+                                When the bit is not set the compression type
+                                header must absent.
+
+                    Bits 4-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -175,6 +182,7 @@ be stored. Each extension has a structure like the following:
                         0x23852875 - Bitmaps extension
                         0x0537be77 - Full disk encryption header pointer
                         0x44415441 - External data file name string
+                        0x434D5052 - Compression type extension
                         other      - Unknown header extension, can be safely
                                      ignored
 
@@ -771,3 +779,27 @@ In the image file the 'enabled' state is reflected by the 'auto' flag. If this
 flag is set, the software must consider the bitmap as 'enabled' and start
 tracking virtual disk changes to this bitmap from the first write to the
 virtual disk. If this flag is not set then the bitmap is disabled.
+
+
+== Compression type extension ==
+
+The compression type extension is an optional header extension. It stores the
+ID of the compressor which has to be used to compress/decompress disk clusters.
+A single compression type is applied to all compressed disk clusters,
+with no way to change compression types per cluster. Two clusters of the image
+couldn't be compressed with different compressors.
+
+The compression type is set on the image creation. The only way to change
+the compression type is to convert the image explicitly.
+
+The compression type extension is present if and only if the incompatible
+compression type bit is set. When the bit is not set the compression type
+header must absent.
+
+When the compression type bit is not set and the compression type header
+extension is absent ZLIB compression is used for compressed clusters.
+This defines default image compression type: ZLIB.
+
+Available compression types:
+    ID    0: Invalid value
+          1: ZSTD
