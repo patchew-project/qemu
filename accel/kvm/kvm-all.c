@@ -169,6 +169,11 @@ int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
     return 1;
 }
 
+bool kvm_manual_dirty_log_protect_enabled(void)
+{
+    return kvm_state && kvm_state->manual_dirty_log_protect;
+}
+
 /* Must be with slots_lock held */
 static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
 {

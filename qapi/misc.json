@@ -253,9 +253,13 @@
 #
 # @present: true if KVM acceleration is built into this executable
 #
+# @manual-dirty-log-protect: true if manual dirty log protect is enabled
+#
 # Since: 0.14.0
 ##
-{ 'struct': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+{ 'struct': 'KvmInfo', 'data':
+  {'enabled': 'bool', 'present': 'bool',
+   'manual-dirty-log-protect': 'bool' } }
 
 ##
 # @query-kvm:

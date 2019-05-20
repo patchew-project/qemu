@@ -73,6 +73,7 @@ KvmInfo *qmp_query_kvm(Error **errp)
 
     info->enabled = kvm_enabled();
     info->present = kvm_available();
+    info->manual_dirty_log_protect = kvm_manual_dirty_log_protect_enabled();
 
     return info;
 }
