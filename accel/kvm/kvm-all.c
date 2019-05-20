@@ -497,31 +497,14 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
             return 0;
         }
 
-        /* XXX bad kernel interface alert
-         * For dirty bitmap, kernel allocates array of size aligned to
-         * bits-per-long.  But for case when the kernel is 64bits and
-         * the userspace is 32bits, userspace can't align to the same
-         * bits-per-long, since sizeof(long) is different between kernel
-         * and user space.  This way, userspace will provide buffer which
-         * may be 4 bytes less than the kernel will use, resulting in
-         * userspace memory corruption (which is not detectable by valgrind
-         * too, in most cases).
-         * So for now, let's align to 64 instead of HOST_LONG_BITS here, in
-         * a hope that sizeof(long) won't become >8 any time soon.
-         */
-        size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS),
-                     /*HOST_LONG_BITS*/ 64) / 8;
-        d.dirty_bitmap = g_malloc0(size);
-
+        d.dirty_bitmap = mem->dirty_bmap;
         d.slot = mem->slot | (kml->as_id << 16);
         if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
             DPRINTF("ioctl failed %d\n", errno);
-            g_free(d.dirty_bitmap);
             return -1;
         }
 
         kvm_get_dirty_pages_log_range(section, d.dirty_bitmap);
-        g_free(d.dirty_bitmap);
     }
 
     return 0;
@@ -765,6 +748,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     MemoryRegion *mr = section->mr;
     bool writeable = !mr->readonly && !mr->rom_device;
     hwaddr start_addr, size;
+    unsigned long bmap_size;
     void *ram;
 
     if (!memory_region_is_ram(mr)) {
@@ -796,6 +780,8 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         }
 
         /* unregister the slot */
+        g_free(mem->dirty_bmap);
+        mem->dirty_bmap = NULL;
         mem->memory_size = 0;
         mem->flags = 0;
         err = kvm_set_user_memory_region(kml, mem, false);
@@ -807,12 +793,29 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         return;
     }
 
+    /*
+     * XXX bad kernel interface alert For dirty bitmap, kernel
+     * allocates array of size aligned to bits-per-long.  But for case
+     * when the kernel is 64bits and the userspace is 32bits,
+     * userspace can't align to the same bits-per-long, since
+     * sizeof(long) is different between kernel and user space.  This
+     * way, userspace will provide buffer which may be 4 bytes less
+     * than the kernel will use, resulting in userspace memory
+     * corruption (which is not detectable by valgrind too, in most
+     * cases).  So for now, let's align to 64 instead of
+     * HOST_LONG_BITS here, in a hope that sizeof(long) won't become
+     * >8 any time soon.
+     */
+    bmap_size = ALIGN((size >> TARGET_PAGE_BITS),
+                      /*HOST_LONG_BITS*/ 64) / 8;
+
     /* register the new slot */
     mem = kvm_alloc_slot(kml);
     mem->memory_size = size;
     mem->start_addr = start_addr;
     mem->ram = ram;
     mem->flags = kvm_mem_flags(mr);
+    mem->dirty_bmap = g_malloc0(bmap_size);
 
     err = kvm_set_user_memory_region(kml, mem, true);
     if (err) {
