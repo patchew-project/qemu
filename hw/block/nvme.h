@@ -69,6 +69,7 @@ typedef struct NvmeCtrl {
     uint16_t    max_prp_ents;
     uint16_t    cqe_size;
     uint16_t    sqe_size;
+    uint16_t    oncs;
     uint32_t    reg_size;
     uint32_t    num_namespaces;
     uint32_t    num_queues;
@@ -79,6 +80,8 @@ typedef struct NvmeCtrl {
     uint32_t    cmbloc;
     uint8_t     *cmbuf;
     uint64_t    irq_status;
+    uint64_t    host_timestamp;                 /* Timestamp sent by the host */
+    uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
 
     char            *serial;
     NvmeNamespace   *namespaces;
