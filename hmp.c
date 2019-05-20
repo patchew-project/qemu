@@ -102,6 +102,8 @@ void hmp_info_kvm(Monitor *mon, const QDict *qdict)
     } else {
         monitor_printf(mon, "not compiled\n");
     }
+    monitor_printf(mon, "kvm manual dirty logging: %s\n",
+                   info->manual_dirty_log_protect ? "enabled" : "disabled");
 
     qapi_free_KvmInfo(info);
 }
