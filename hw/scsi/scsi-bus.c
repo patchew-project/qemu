@@ -134,6 +134,17 @@ void scsi_req_retry(SCSIRequest *req)
     req->retry = true;
 }
 
+static void scsi_device_retry_reqs_bh(void *opaque)
+{
+    SCSIDevice *s = opaque;
+
+    if (!s->bh) {
+        AioContext *ctx = blk_get_aio_context(s->conf.blk);
+        s->bh = aio_bh_new(ctx, scsi_dma_restart_bh, s);
+        qemu_bh_schedule(s->bh);
+    }
+}
+
 static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
 {
     SCSIDevice *s = opaque;
@@ -141,11 +152,13 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
     if (!running) {
         return;
     }
-    if (!s->bh) {
-        AioContext *ctx = blk_get_aio_context(s->conf.blk);
-        s->bh = aio_bh_new(ctx, scsi_dma_restart_bh, s);
-        qemu_bh_schedule(s->bh);
-    }
+
+    /* Defer to a main loop BH since other vm change state handlers may need to
+     * run before the bus is ready for I/O activity (e.g. virtio-scsi's
+     * iothread setup).
+     */
+    aio_bh_schedule_oneshot(qemu_get_aio_context(),
+                            scsi_device_retry_reqs_bh, s);
 }
 
 static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
