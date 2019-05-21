@@ -208,7 +208,7 @@ enum IOMMUMemoryRegionAttr {
 };
 
 /**
- * IOMMUMemoryRegionClass:
+ * struct IOMMUMemoryRegionClass:
  *
  * All IOMMU implementations need to subclass TYPE_IOMMU_MEMORY_REGION
  * and provide an implementation of at least the @translate method here
@@ -224,8 +224,10 @@ enum IOMMUMemoryRegionAttr {
  * attributes and the output TLB entry depends on the transaction
  * attributes, we represent this using IOMMU indexes. Each index
  * selects a particular translation table that the IOMMU has:
- *   @attrs_to_index returns the IOMMU index for a set of transaction attributes
- *   @translate takes an input address and an IOMMU index
+ *
+ * -  @attrs_to_index returns the IOMMU index for a set of transaction attributes
+ * -  @translate takes an input address and an IOMMU index
+ *
  * and the mapping returned can only depend on the input address and the
  * IOMMU index.
  *
@@ -398,7 +400,7 @@ struct IOMMUMemoryRegion {
     QLIST_FOREACH((n), &(mr)->iommu_notify, node)
 
 /**
- * MemoryListener: callbacks structure for updates to the physical memory map
+ * struct MemoryListener: callbacks structure for updates to the physical memory map
  *
  * Allows a component to adjust to changes in the guest-visible memory map.
  * Use with memory_listener_register() and memory_listener_unregister().
@@ -432,7 +434,7 @@ struct MemoryListener {
 };
 
 /**
- * AddressSpace: describes a mapping of addresses to #MemoryRegion objects
+ * struct AddressSpace: describes a mapping of addresses to #MemoryRegion objects
  */
 struct AddressSpace {
     /* All fields are private. */
@@ -472,7 +474,7 @@ static inline FlatView *address_space_to_flatview(AddressSpace *as)
 
 
 /**
- * MemoryRegionSection: describes a fragment of a #MemoryRegion
+ * struct MemoryRegionSection: describes a fragment of a #MemoryRegion
  *
  * @mr: the region, or %NULL if empty
  * @fv: the flat view of the address space the region is mapped in
@@ -1653,8 +1655,8 @@ bool memory_region_is_mapped(MemoryRegion *mr);
  * Returns a #MemoryRegionSection that describes a contiguous overlap.
  * It will have the following characteristics:
  *
- *    .@size = 0 iff no overlap was found
- *    .@mr is non-%NULL iff an overlap was found
+ * -   .@size = 0 iff no overlap was found
+ * -   .@mr is non-%NULL iff an overlap was found
  *
  * Remember that in the return value the @offset_within_region is
  * relative to the returned region (in the .@mr field), not to the
@@ -1666,8 +1668,8 @@ bool memory_region_is_mapped(MemoryRegion *mr);
  * has no container (and thus is the root of the address space), the
  * following will hold:
  *
- *    .@offset_within_address_space >= @addr
- *    .@offset_within_address_space + .@size <= @addr + @size
+ * -   .@offset_within_address_space >= @addr
+ * -   .@offset_within_address_space + .@size <= @addr + @size
  *
  * @mr: a MemoryRegion within which @addr is a relative address
  * @addr: start of the area within @as to be searched
