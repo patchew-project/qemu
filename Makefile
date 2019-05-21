@@ -398,6 +398,7 @@ endif
 dummy := $(call unnest-vars,, \
                 stub-obj-y \
                 authz-obj-y \
+                authz-impl-obj-y \
                 chardev-obj-y \
                 util-obj-y \
                 qga-obj-y \
@@ -446,7 +447,7 @@ qemu-options.def: $(SRC_PATH)/qemu-options.hx $(SRC_PATH)/scripts/hxtool
 SUBDIR_RULES=$(patsubst %,subdir-%, $(TARGET_DIRS))
 SOFTMMU_SUBDIR_RULES=$(filter %-softmmu,$(SUBDIR_RULES))
 
-$(SOFTMMU_SUBDIR_RULES): $(authz-obj-y)
+$(SOFTMMU_SUBDIR_RULES): $(authz-obj-y) $(authz-impl-obj-y)
 $(SOFTMMU_SUBDIR_RULES): $(block-obj-y)
 $(SOFTMMU_SUBDIR_RULES): $(chardev-obj-y)
 $(SOFTMMU_SUBDIR_RULES): $(crypto-obj-y)
@@ -515,7 +516,7 @@ COMMON_LDADDS = libqemuutil.a
 qemu-img.o: qemu-img-cmds.h
 
 qemu-img$(EXESUF): qemu-img.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
-qemu-nbd$(EXESUF): qemu-nbd.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
+qemu-nbd$(EXESUF): qemu-nbd.o $(authz-obj-y) $(authz-impl-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
 qemu-io$(EXESUF): qemu-io.o $(authz-obj-y) $(block-obj-y) $(crypto-obj-y) $(io-obj-y) $(qom-obj-y) $(COMMON_LDADDS)
 
 qemu-bridge-helper$(EXESUF): qemu-bridge-helper.o $(COMMON_LDADDS)

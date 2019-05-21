@@ -176,6 +176,7 @@ all-obj-y := $(obj-y)
 include $(SRC_PATH)/Makefile.objs
 dummy := $(call unnest-vars,.., \
                authz-obj-y \
+               authz-impl-obj-y \
                block-obj-y \
                block-obj-m \
                chardev-obj-y \
@@ -187,7 +188,7 @@ dummy := $(call unnest-vars,.., \
                common-obj-m)
 all-obj-y += $(common-obj-y)
 all-obj-y += $(qom-obj-y)
-all-obj-$(CONFIG_SOFTMMU) += $(authz-obj-y)
+all-obj-$(CONFIG_SOFTMMU) += $(authz-obj-y) $(authz-impl-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y) $(chardev-obj-y)
 all-obj-$(CONFIG_USER_ONLY) += $(crypto-aes-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(crypto-obj-y)

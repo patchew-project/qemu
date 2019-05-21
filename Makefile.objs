@@ -9,6 +9,7 @@ chardev-obj-y = chardev/
 # authz-obj-y is code used by both qemu system emulation and qemu-img
 
 authz-obj-y = authz/
+authz-impl-obj-y = authz/
 
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img

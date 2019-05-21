@@ -1,7 +1,8 @@
 authz-obj-y += base.o
-authz-obj-y += simple.o
-authz-obj-y += list.o
-authz-obj-y += listfile.o
-authz-obj-$(CONFIG_AUTH_PAM) += pamacct.o
+
+authz-impl-obj-y += simple.o
+authz-impl-obj-y += list.o
+authz-impl-obj-y += listfile.o
+authz-impl-obj-$(CONFIG_AUTH_PAM) += pamacct.o
 
 pamacct.o-libs = -lpam
