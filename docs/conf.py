@@ -114,6 +114,17 @@ todo_include_todos = False
 # with "option::" in the document being processed. Turn that off.
 suppress_warnings = ["ref.option"]
 
+nitpick_ignore = [
+    ("c:type", "int8_t"),
+    ("c:type", "int16_t"),
+    ("c:type", "int32_t"),
+    ("c:type", "int64_t"),
+    ("c:type", "uint8_t"),
+    ("c:type", "uint16_t"),
+    ("c:type", "uint32_t"),
+    ("c:type", "uint64_t"),
+]
+
 # -- Options for HTML output ----------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
