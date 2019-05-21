@@ -496,10 +496,10 @@ test-qapi-obj-y = tests/test-qapi-types.o \
 	tests/test-qapi-visit-sub-sub-module.o \
 	tests/test-qapi-introspect.o \
 	$(test-qom-obj-y)
-benchmark-crypto-obj-$(CONFIG_BLOCK) = $(authz-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
-test-crypto-obj-$(CONFIG_BLOCK) = $(authz-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
+benchmark-crypto-obj-$(CONFIG_BLOCK) = $(authz-obj-y) $(authz-impl-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
+test-crypto-obj-$(CONFIG_BLOCK) = $(authz-obj-y) $(authz-impl-obj-y) $(crypto-obj-y) $(test-qom-obj-y)
 test-io-obj-$(CONFIG_BLOCK) = $(io-obj-y) $(test-crypto-obj-y)
-test-authz-obj-$(CONFIG_BLOCK) = $(test-qom-obj-y) $(authz-obj-y)
+test-authz-obj-$(CONFIG_BLOCK) = $(test-qom-obj-y) $(authz-obj-y) $(authz-impl-obj-y)
 test-block-obj-$(CONFIG_BLOCK) = $(block-obj-y) $(test-io-obj-y) tests/iothread.o
 
 tests/check-qnum$(EXESUF): tests/check-qnum.o $(test-util-obj-y)
