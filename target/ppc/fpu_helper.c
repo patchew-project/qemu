@@ -630,6 +630,10 @@ static void do_float_check_status(CPUPPCState *env, uintptr_t raddr)
         env->fpscr &= ~(1 << FPSCR_FI); /* clear the FPSCR[FI] bit */
     }
 
+    /* Set or clear the Fraction Rounded bit */
+    env->fpscr = deposit32(env->fpscr, FPSCR_FR, 1,
+                           (status & float_flag_rounded) != 0);
+
     if (cs->exception_index == POWERPC_EXCP_PROGRAM &&
         (env->error_code & POWERPC_EXCP_FP)) {
         /* Differred floating-point exception after target FPR update */

@@ -702,7 +702,7 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
     const uint64_t roundeven_mask = parm->roundeven_mask;
     const int exp_max = parm->exp_max;
     const int frac_shift = parm->frac_shift;
-    uint64_t frac, inc;
+    uint64_t frac, inc, rounded;
     int exp, flags = 0;
     bool overflow_norm;
 
@@ -744,7 +744,12 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
         if (likely(exp > 0)) {
             if (frac & round_mask) {
                 flags |= float_flag_inexact;
-                frac += inc;
+                rounded = frac + inc;
+                if ((rounded ^ frac) & frac_lsb) {
+                    flags |= float_flag_rounded;
+                }
+                frac = rounded;
+
                 if (frac & DECOMPOSED_OVERFLOW_BIT) {
                     frac >>= 1;
                     exp++;
@@ -793,7 +798,11 @@ static FloatParts round_canonical(FloatParts p, float_status *s,
                     break;
                 }
                 flags |= float_flag_inexact;
-                frac += inc;
+                rounded = frac + inc;
+                if ((rounded ^ frac) & frac_lsb) {
+                    flags |= float_flag_rounded;
+                }
+                frac = rounded;
             }
 
             exp = (frac & DECOMPOSED_IMPLICIT_BIT ? 1 : 0);
