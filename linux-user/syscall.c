@@ -7871,6 +7871,17 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #ifdef TARGET_NR_sgetmask /* not on alpha */
     case TARGET_NR_sgetmask:
         {
+#ifdef TRACK_TARGET_SIGMASK
+            sigset_t cur_set;
+            target_sigset_t target_set_mask;
+            abi_ulong target_set;
+            ret = do_target_sigprocmask(0, NULL, &target_set_mask,
+                                        NULL, &cur_set);
+            if (!ret) {
+                target_to_abi_ulong_old_sigset(&target_set, &target_set_mask);
+                ret = target_set;
+            }
+#else
             sigset_t cur_set;
             abi_ulong target_set;
             ret = do_sigprocmask(0, NULL, &cur_set);
@@ -7878,12 +7889,26 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 host_to_target_old_sigset(&target_set, &cur_set);
                 ret = target_set;
             }
+#endif
         }
         return ret;
 #endif
 #ifdef TARGET_NR_ssetmask /* not on alpha */
     case TARGET_NR_ssetmask:
         {
+#ifdef TRACK_TARGET_SIGMASK
+            sigset_t set, oset;
+            target_sigset_t target_set_mask, target_oset;
+            abi_ulong target_set = arg1;
+            target_to_host_old_sigset(&set, &target_set);
+            abi_ulong_to_target_old_sigset(&target_set_mask, &target_set);
+            ret = do_target_sigprocmask(SIG_SETMASK, &target_set_mask,
+                                        &target_oset, &set, &oset);
+            if (!ret) {
+                target_to_abi_ulong_old_sigset(&target_set, &target_oset);
+                ret = target_set;
+            }
+#else
             sigset_t set, oset;
             abi_ulong target_set = arg1;
             target_to_host_old_sigset(&set, &target_set);
@@ -7892,6 +7917,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 host_to_target_old_sigset(&target_set, &oset);
                 ret = target_set;
             }
+#endif
         }
         return ret;
 #endif
@@ -7900,6 +7926,9 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
 #if defined(TARGET_ALPHA)
             sigset_t set, oldset;
+#ifdef TRACK_TARGET_SIGMASK
+            target_sigset_t target_set, target_oldset;
+#endif
             abi_ulong mask;
             int how;
 
@@ -7919,14 +7948,26 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
 
+#ifdef TRACK_TARGET_SIGMASK
+            abi_ulong_to_target_old_sigset(&target_set, &mask);
+
+            ret = do_target_sigprocmask(how, &target_set, &target_oldset,
+                                        &set, &oldset);
+            if (!is_error(ret)) {
+                target_to_abi_ulong_old_sigset(&mask, &target_oldset);
+#else
             ret = do_sigprocmask(how, &set, &oldset);
             if (!is_error(ret)) {
                 host_to_target_old_sigset(&mask, &oldset);
+#endif
                 ret = mask;
                 ((CPUAlphaState *)cpu_env)->ir[IR_V0] = 0; /* force no error */
             }
 #else
             sigset_t set, oldset, *set_ptr;
+#ifdef TRACK_TARGET_SIGMASK
+            target_sigset_t target_set, target_oldset, *target_set_ptr;
+#endif
             int how;
 
             if (arg2) {
@@ -7946,17 +7987,32 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 if (!(p = lock_user(VERIFY_READ, arg2, sizeof(target_sigset_t), 1)))
                     return -TARGET_EFAULT;
                 target_to_host_old_sigset(&set, p);
+#ifdef TRACK_TARGET_SIGMASK
+                abi_ulong_to_target_old_sigset(&target_set, p);
+                target_set_ptr = &target_set;
+#endif
                 unlock_user(p, arg2, 0);
                 set_ptr = &set;
             } else {
                 how = 0;
                 set_ptr = NULL;
+#ifdef TRACK_TARGET_SIGMASK
+                target_set_ptr = NULL;
+            }
+            ret = do_target_sigprocmask(how, target_set_ptr, &target_oldset,
+                                        set_ptr, &oldset);
+#else
             }
             ret = do_sigprocmask(how, set_ptr, &oldset);
+#endif
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     return -TARGET_EFAULT;
+#ifdef TRACK_TARGET_SIGMASK
+                target_to_abi_ulong_old_sigset(p, &target_oldset);
+#else
                 host_to_target_old_sigset(p, &oldset);
+#endif
                 unlock_user(p, arg3, sizeof(target_sigset_t));
             }
 #endif
@@ -7967,6 +8023,9 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         {
             int how = arg1;
             sigset_t set, oldset, *set_ptr;
+#ifdef TRACK_TARGET_SIGMASK
+            target_sigset_t target_set, target_oldset, *target_set_ptr;
+#endif
 
             if (arg4 != sizeof(target_sigset_t)) {
                 return -TARGET_EINVAL;
@@ -7989,17 +8048,32 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 if (!(p = lock_user(VERIFY_READ, arg2, sizeof(target_sigset_t), 1)))
                     return -TARGET_EFAULT;
                 target_to_host_sigset(&set, p);
+#ifdef TRACK_TARGET_SIGMASK
+                tswapal_target_sigset(&target_set, p);
+                target_set_ptr = &target_set;
+#endif
                 unlock_user(p, arg2, 0);
                 set_ptr = &set;
             } else {
                 how = 0;
                 set_ptr = NULL;
+#ifdef TRACK_TARGET_SIGMASK
+                target_set_ptr = NULL;
+            }
+            ret = do_target_sigprocmask(how, target_set_ptr, &target_oldset,
+                                        set_ptr, &oldset);
+#else
             }
             ret = do_sigprocmask(how, set_ptr, &oldset);
+#endif
             if (!is_error(ret) && arg3) {
                 if (!(p = lock_user(VERIFY_WRITE, arg3, sizeof(target_sigset_t), 0)))
                     return -TARGET_EFAULT;
+#ifdef TRACK_TARGET_SIGMASK
+                tswapal_target_sigset(p, &target_oldset);
+#else
                 host_to_target_sigset(p, &oldset);
+#endif
                 unlock_user(p, arg3, sizeof(target_sigset_t));
             }
         }
@@ -8047,10 +8121,16 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_ALPHA)
             abi_ulong mask = arg1;
             target_to_host_old_sigset(&ts->sigsuspend_mask, &mask);
+#ifdef TRACK_TARGET_SIGMASK
+            abi_ulong_to_target_old_sigset(&ts->target_sigsuspend_mask, &mask);
+#endif
 #else
             if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
                 return -TARGET_EFAULT;
             target_to_host_old_sigset(&ts->sigsuspend_mask, p);
+#ifdef TRACK_TARGET_SIGMASK
+            abi_ulong_to_target_old_sigset(&ts->target_sigsuspend_mask, p);
+#endif
             unlock_user(p, arg1, 0);
 #endif
             ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask,
@@ -8071,6 +8151,9 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             if (!(p = lock_user(VERIFY_READ, arg1, sizeof(target_sigset_t), 1)))
                 return -TARGET_EFAULT;
             target_to_host_sigset(&ts->sigsuspend_mask, p);
+#ifdef TRACK_TARGET_SIGMASK
+            tswapal_target_sigset(&ts->target_sigsuspend_mask, p);
+#endif
             unlock_user(p, arg1, 0);
             ret = get_errno(safe_rt_sigsuspend(&ts->sigsuspend_mask,
                                                SIGSET_T_SIZE));
@@ -10351,6 +10434,9 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             abi_ulong mask;
             int how;
             sigset_t set, oldset;
+#ifdef TRACK_TARGET_SIGMASK
+            target_sigset_t target_set, target_oldset;
+#endif
 
             switch(arg1) {
             case TARGET_SIG_BLOCK:
@@ -10367,9 +10453,17 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             }
             mask = arg2;
             target_to_host_old_sigset(&set, &mask);
+#ifdef TRACK_TARGET_SIGMASK
+            abi_ulong_to_target_old_sigset(&target_set, &mask);
+            ret = do_target_sigprocmask(how, &target_set, &target_oldset,
+                                        &set, &oldset);
+            if (!ret) {
+                target_to_abi_ulong_old_sigset(&mask, &target_oldset);
+#else
             ret = do_sigprocmask(how, &set, &oldset);
             if (!ret) {
                 host_to_target_old_sigset(&mask, &oldset);
+#endif
                 ret = mask;
             }
         }

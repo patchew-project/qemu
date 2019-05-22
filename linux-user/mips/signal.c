@@ -253,6 +253,9 @@ long do_sigreturn(CPUMIPSState *regs)
     abi_ulong frame_addr;
     sigset_t blocked;
     target_sigset_t target_set;
+#ifdef TRACK_TARGET_SIGMASK
+    target_sigset_t target_blocked;
+#endif
     int i;
 
     frame_addr = regs->active_tc.gpr[29];
@@ -265,7 +268,12 @@ long do_sigreturn(CPUMIPSState *regs)
     }
 
     target_to_host_sigset_internal(&blocked, &target_set);
+#ifdef TRACK_TARGET_SIGMASK
+    tswapal_target_sigset(&target_blocked, &target_set);
+    target_set_sigmask(&blocked, &target_blocked);
+#else
     set_sigmask(&blocked);
+#endif
 
     restore_sigcontext(regs, &frame->sf_sc);
 
@@ -358,6 +366,9 @@ long do_rt_sigreturn(CPUMIPSState *env)
     struct target_rt_sigframe *frame;
     abi_ulong frame_addr;
     sigset_t blocked;
+#ifdef TRACK_TARGET_SIGMASK
+    target_sigset_t target_blocked;
+#endif
 
     frame_addr = env->active_tc.gpr[29];
     trace_user_do_rt_sigreturn(env, frame_addr);
@@ -366,7 +377,12 @@ long do_rt_sigreturn(CPUMIPSState *env)
     }
 
     target_to_host_sigset(&blocked, &frame->rs_uc.tuc_sigmask);
+#ifdef TRACK_TARGET_SIGMASK
+    tswapal_target_sigset(&target_blocked, &frame->rs_uc.tuc_sigmask);
+    target_set_sigmask(&blocked, &target_blocked);
+#else
     set_sigmask(&blocked);
+#endif
 
     restore_sigcontext(env, &frame->rs_uc.tuc_mcontext);
 

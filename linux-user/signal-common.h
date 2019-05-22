@@ -37,7 +37,12 @@ void target_to_host_sigset_internal(sigset_t *d,
                                     const target_sigset_t *s);
 void tswap_siginfo(target_siginfo_t *tinfo,
                    const target_siginfo_t *info);
+#ifndef TRACK_TARGET_SIGMASK
 void set_sigmask(const sigset_t *set);
+#else
+void target_set_sigmask(const sigset_t *set,
+                        const target_sigset_t *target_set);
+#endif
 void force_sig(int sig);
 void force_sigsegv(int oldsig);
 #if defined(TARGET_ARCH_HAS_SETUP_FRAME)
