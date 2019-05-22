@@ -51,7 +51,7 @@ vm-build-%: $(IMAGES_DIR)/%.img
 		$(if $(DEBUG), --interactive) \
 		$(if $(J),--jobs $(J)) \
 		$(if $(V),--verbose) \
-		--image "$<" \
+		--image "$<" --snapshot \
 		$(if $(BUILD_TARGET),--build-target $(BUILD_TARGET)) \
 		--build-qemu $(SRC_PATH) -- \
 		$(if $(TARGET_LIST),--target-list=$(TARGET_LIST)) \
