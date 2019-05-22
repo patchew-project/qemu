@@ -737,6 +737,19 @@ extern const VMStateInfo vmstate_info_qtailq;
     .start        = offsetof(_type, _next),                              \
 }
 
+/* Provides a way to save/load complex data structures that do not
+ * fit into int/struct/array terms.
+ * _info: a user defined instance of VMStateInfo to handle saving and loading.
+ */
+#define VMSTATE_OPAQUE(_name, _version, _info) {                      \
+    .name         = _name,                                            \
+    .version_id   = (_version),                                       \
+    .size         = 0,                                                \
+    .info         = &(_info),                                         \
+    .flags        = VMS_SINGLE,                                       \
+    .offset       = 0,                                                \
+}
+
 /* _f : field name
    _f_n : num of elements field_name
    _n : num of elements
