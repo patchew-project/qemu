@@ -28,6 +28,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 #include "block/block_int.h"
 #include "qcow2.h"
@@ -951,6 +952,12 @@ static void set_readonly_helper(gpointer bitmap, gpointer value)
     bdrv_dirty_bitmap_set_readonly(bitmap, (bool)value);
 }
 
+/* for g_slist_foreach for GSList of const char* elements */
+static void error_report_helper(gpointer message, gpointer _unused)
+{
+    error_report("%s", (const char *)message);
+}
+
 /* qcow2_load_dirty_bitmaps()
  * Return value is a hint for caller: true means that the Qcow2 header was
  * updated. (false doesn't mean that the header should be updated by the
@@ -1103,76 +1110,150 @@ Qcow2BitmapInfoList *qcow2_get_bitmap_info_list(BlockDriverState *bs,
     return list;
 }
 
-int qcow2_reopen_bitmaps_rw_hint(BlockDriverState *bs, bool *header_updated,
-                                 Error **errp)
+/*
+ * qcow2_reopen_bitmaps_rw
+ *
+ * The function is called in bdrv_reopen_multiple after all calls to
+ * bdrv_reopen_commit, when final bs is writable. It is done so, as we need
+ * write access to child bs, and with current reopening architecture, when
+ * reopen ro -> rw it is possible only after all reopen commits.
+ *
+ * So, we can't fail here. On the other hand, we may face different kinds of
+ * corruptions and/or just can't write IN_USE flags to the image due to EIO.
+ *
+ * Try to handle as many cases as we can.
+ */
+void qcow2_reopen_bitmaps_rw(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
     Qcow2Bitmap *bm;
-    GSList *ro_dirty_bitmaps = NULL;
+    GSList *ro_dirty_bitmaps = NULL, *corrupted_bitmaps = NULL;
+    Error *local_err = NULL;
     int ret = 0;
-
-    if (header_updated != NULL) {
-        *header_updated = false;
-    }
+    bool need_update = false, updated_ok = false;
 
     if (s->nb_bitmaps == 0) {
         /* No bitmaps - nothing to do */
-        return 0;
-    }
-
-    if (!can_write(bs)) {
-        error_setg(errp, "Can't write to the image on reopening bitmaps rw");
-        return -EINVAL;
+        return;
     }
 
     bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
+                               s->bitmap_directory_size, &local_err);
     if (bm_list == NULL) {
-        return -EINVAL;
+        error_reportf_err(local_err, "Failed to reopen bitmaps rw: "
+                          "cannot load bitmap list: ");
+        return;
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
         BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, bm->name);
-        if (bitmap == NULL) {
-            continue;
-        }
+        const char *corruption = NULL;
 
-        if (!bdrv_dirty_bitmap_readonly(bitmap)) {
-            error_setg(errp, "Bitmap %s was loaded prior to rw-reopen, but was "
-                       "not marked as readonly. This is a bug, something went "
-                       "wrong. All of the bitmaps may be corrupted", bm->name);
-            ret = -EINVAL;
-            goto out;
-        }
+        if (bm->flags & BME_FLAG_IN_USE) {
+            if (bitmap == NULL) {
+                /*
+                 * It's an unexpected inconsistent bitmap,
+                 * it is safe to ignore it.
+                 */
+                continue;
+            }
 
-        bm->flags |= BME_FLAG_IN_USE;
-        ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bitmap);
+            /*
+             * It's either an inconsistent bitmap, or we are reopening rw -> rw,
+             * or we just didn't save bitmap for some buggy reason. Still, no
+             * reason to consider in-RAM bitmap inconsistent, than, mark it rw.
+             */
+            bdrv_dirty_bitmap_set_readonly(bitmap, false);
+        } else {
+            /*
+             * In-image bitmap not marked IN_USE
+             *
+             * The only valid case is
+             *     bitmap && bdrv_dirty_bitmap_readonly(bitmap) &&
+             *        !bdrv_dirty_bitmap_inconsistent(bitmap))
+             *
+             * which means reopen ro -> rw of consistent bitmap.
+             *
+             * Other cases a different kinds of corruptions:
+             */
+            if (!bitmap) {
+                corruption =
+                    "Corruption: unexpected valid bitmap '%s' is found in the "
+                    "image '%s' on reopen rw. Will try to set IN_USE flag.";
+
+                bitmap = load_bitmap(bs, bm, NULL);
+                if (!bitmap) {
+                    bitmap = bdrv_create_dirty_bitmap(
+                            bs, bdrv_get_default_bitmap_granularity(bs),
+                            bm->name, NULL);
+                }
+
+                if (bitmap) {
+                    bdrv_dirty_bitmap_set_persistence(bitmap, true);
+                    bdrv_dirty_bitmap_set_readonly(bitmap, true);
+                    bdrv_dirty_bitmap_set_inconsistent(bitmap);
+                }
+            } else if (!bdrv_dirty_bitmap_readonly(bitmap)) {
+                corruption =
+                    "Corruption: bitmap '%s' is not marked IN_USE in the "
+                    "image '%s' and not marked readonly in RAM. Will try to "
+                    "set IN_USE flag.";
+
+                bdrv_dirty_bitmap_set_readonly(bitmap, true);
+                bdrv_dirty_bitmap_set_inconsistent(bitmap);
+            } else if (bdrv_dirty_bitmap_inconsistent(bitmap)) {
+                corruption =
+                    "Corruption: bitmap '%s' is inconsistent but is not marked "
+                    "IN_USE in the image. Will try to set IN_USE flag.";
+
+                bdrv_dirty_bitmap_set_readonly(bitmap, true);
+            }
+
+            if (bitmap) {
+                ro_dirty_bitmaps = g_slist_append(ro_dirty_bitmaps, bitmap);
+            }
+            bm->flags |= BME_FLAG_IN_USE;
+            need_update = true;
+            if (corruption) {
+                error_report(corruption, bm->name, bs->filename);
+                corrupted_bitmaps = g_slist_append(corrupted_bitmaps, bm->name);
+            }
+        }
     }
 
-    if (ro_dirty_bitmaps != NULL) {
+    if (need_update) {
+        if (!can_write(bs->file->bs)) {
+            error_report("Failed to reopen bitmaps rw: cannot write to "
+                         "the protocol file");
+            goto handle_corrupted;
+        }
+
         /* in_use flags must be updated */
         ret = update_ext_header_and_dir_in_place(bs, bm_list);
         if (ret < 0) {
-            error_setg_errno(errp, -ret, "Can't update bitmap directory");
-            goto out;
+            error_report("Cannot update bitmap directory: %s", strerror(-ret));
+            goto handle_corrupted;
         }
-        if (header_updated != NULL) {
-            *header_updated = true;
-        }
+        updated_ok = true;
         g_slist_foreach(ro_dirty_bitmaps, set_readonly_helper, false);
     }
 
-out:
+handle_corrupted:
+    if (corrupted_bitmaps) {
+        if (updated_ok) {
+            error_report("Corrupted bitmaps in '%s' successfully marked "
+                         "IN_USE", bs->filename);
+        } else {
+            error_report("Failed to mark IN_USE the following corrupted "
+                         "bitmaps in '%s', DO NOT USE THEM:", bs->filename);
+            g_slist_foreach(corrupted_bitmaps, error_report_helper, NULL);
+        }
+    }
+
     g_slist_free(ro_dirty_bitmaps);
+    g_slist_free(corrupted_bitmaps);
     bitmap_list_free(bm_list);
-
-    return ret;
-}
-
-int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
-{
-    return qcow2_reopen_bitmaps_rw_hint(bs, NULL, errp);
 }
 
 /* Checks to see if it's safe to resize bitmaps */
@@ -1446,7 +1527,8 @@ fail:
     bitmap_list_free(bm_list);
 }
 
-void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
+void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs,
+                                          bool release_stored, Error **errp)
 {
     BdrvDirtyBitmap *bitmap;
     BDRVQcow2State *s = bs->opaque;
@@ -1559,20 +1641,23 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         g_free(tb);
     }
 
-    QSIMPLEQ_FOREACH(bm, bm_list, entry) {
-        /* For safety, we remove bitmap after storing.
-         * We may be here in two cases:
-         * 1. bdrv_close. It's ok to drop bitmap.
-         * 2. inactivation. It means migration without 'dirty-bitmaps'
-         *    capability, so bitmaps are not marked with
-         *    BdrvDirtyBitmap.migration flags. It's not bad to drop them too,
-         *    and reload on invalidation.
-         */
-        if (bm->dirty_bitmap == NULL) {
-            continue;
-        }
+    if (release_stored) {
+        QSIMPLEQ_FOREACH(bm, bm_list, entry) {
+            /*
+             * For safety, we remove bitmap after storing.
+             * We may be here in two cases:
+             * 1. bdrv_close. It's ok to drop bitmap.
+             * 2. inactivation. It means migration without 'dirty-bitmaps'
+             *    capability, so bitmaps are not marked with
+             *    BdrvDirtyBitmap.migration flags. It's not bad to drop them
+             *    too, and reload on invalidation.
+             */
+            if (bm->dirty_bitmap == NULL) {
+                continue;
+            }
 
-        bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+            bdrv_release_dirty_bitmap(bs, bm->dirty_bitmap);
+        }
     }
 
 success:
@@ -1600,7 +1685,7 @@ int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
     BdrvDirtyBitmap *bitmap;
     Error *local_err = NULL;
 
-    qcow2_store_persistent_dirty_bitmaps(bs, &local_err);
+    qcow2_store_persistent_dirty_bitmaps(bs, false, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
         return -EINVAL;

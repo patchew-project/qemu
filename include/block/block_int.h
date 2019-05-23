@@ -536,7 +536,7 @@ struct BlockDriver {
      * as rw. This handler should realize it. It also should unset readonly
      * field of BlockDirtyBitmap's in case of success.
      */
-    int (*bdrv_reopen_bitmaps_rw)(BlockDriverState *bs, Error **errp);
+    void (*bdrv_reopen_bitmaps_rw)(BlockDriverState *bs);
     bool (*bdrv_can_store_new_dirty_bitmap)(BlockDriverState *bs,
                                             const char *name,
                                             uint32_t granularity,
