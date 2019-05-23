@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #include "sockbits.h"
 
 #ifndef TARGET_ARCH_HAS_SOCKET_TYPES

@@ -1,3 +1,4 @@
+/* FIXME Does not pass make check-headers, yet! */
 
 #if defined(QEMU_OPTIONS_GENERATE_ENUM)
 

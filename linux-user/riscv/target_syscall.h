@@ -5,6 +5,8 @@
  * Reference: linux/arch/riscv/include/uapi/asm/ptrace.h
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 struct target_pt_regs {
     abi_long sepc;
     abi_long ra;

@@ -18,6 +18,9 @@
     along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef FPA11_H
 #define FPA11_H
 

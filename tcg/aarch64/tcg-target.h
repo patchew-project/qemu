@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory for details.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef AARCH64_TCG_TARGET_H
 #define AARCH64_TCG_TARGET_H
 

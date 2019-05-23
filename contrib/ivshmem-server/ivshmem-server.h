@@ -6,6 +6,8 @@
  * top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_POSIX, yet! */
+
 #ifndef IVSHMEM_SERVER_H
 #define IVSHMEM_SERVER_H
 

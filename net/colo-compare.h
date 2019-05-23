@@ -14,6 +14,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_COLO_COMPARE_H
 #define QEMU_COLO_COMPARE_H
 

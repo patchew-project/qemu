@@ -27,6 +27,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VNC_JOBS_H
 #define VNC_JOBS_H
 

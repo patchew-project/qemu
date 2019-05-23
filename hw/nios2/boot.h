@@ -1,3 +1,6 @@
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef NIOS2_BOOT_H
 #define NIOS2_BOOT_H
 

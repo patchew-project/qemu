@@ -20,10 +20,11 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * HDA codec descriptions
  */
-
 #ifdef HDA_MIXER
 #define QEMU_HDA_ID_OUTPUT  ((QEMU_HDA_ID_VENDOR << 16) | 0x12)
 #define QEMU_HDA_ID_DUPLEX  ((QEMU_HDA_ID_VENDOR << 16) | 0x22)

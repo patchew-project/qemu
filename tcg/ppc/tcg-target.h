@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef PPC_TCG_TARGET_H
 #define PPC_TCG_TARGET_H
 

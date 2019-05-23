@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef X86_64_HOSTDEP_H
 #define X86_64_HOSTDEP_H
 

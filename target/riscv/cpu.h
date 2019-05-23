@@ -17,6 +17,9 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef RISCV_CPU_H
 #define RISCV_CPU_H
 

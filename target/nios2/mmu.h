@@ -18,6 +18,8 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef NIOS2_MMU_H
 #define NIOS2_MMU_H
 

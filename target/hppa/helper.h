@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #if TARGET_REGISTER_BITS == 64
 # define dh_alias_tr     i64
 # define dh_is_64bit_tr  1

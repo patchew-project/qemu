@@ -17,6 +17,9 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HPPA_CPU_H
 #define HPPA_CPU_H
 

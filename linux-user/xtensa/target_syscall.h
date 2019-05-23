@@ -1,3 +1,5 @@
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef XTENSA_TARGET_SYSCALL_H
 #define XTENSA_TARGET_SYSCALL_H
 

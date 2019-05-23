@@ -15,6 +15,9 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HVF_X86_DECODE_H
 #define HVF_X86_DECODE_H
 

@@ -79,6 +79,9 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 /* Define for architectures which deviate from IEEE in not supporting
  * signaling NaNs (so all NaNs are treated as quiet).
  */

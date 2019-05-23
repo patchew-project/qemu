@@ -5,6 +5,8 @@
  * later version. See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XTENSA_TARGET_ELF_H
 #define XTENSA_TARGET_ELF_H
 

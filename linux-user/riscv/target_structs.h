@@ -4,6 +4,9 @@
  * This is a copy of ../aarch64/target_structs.h atm.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef RISCV_TARGET_STRUCTS_H
 #define RISCV_TARGET_STRUCTS_H
 

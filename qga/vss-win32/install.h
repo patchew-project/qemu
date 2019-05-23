@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_WIN32, yet! */
+
 #ifndef INSTALL_H
 #define INSTALL_H
 

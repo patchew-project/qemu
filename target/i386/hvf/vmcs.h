@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VMCS_H
 #define VMCS_H
 

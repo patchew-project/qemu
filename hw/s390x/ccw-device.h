@@ -9,6 +9,9 @@
  * directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_S390X_CCW_DEVICE_H
 #define HW_S390X_CCW_DEVICE_H
 #include "qom/object.h"

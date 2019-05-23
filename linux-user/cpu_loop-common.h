@@ -17,6 +17,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CPU_LOOP_COMMON_H
 #define CPU_LOOP_COMMON_H
 

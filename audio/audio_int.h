@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_AUDIO_INT_H
 #define QEMU_AUDIO_INT_H
 

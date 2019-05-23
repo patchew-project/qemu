@@ -5,6 +5,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef RISCV64_HOSTDEP_H
 #define RISCV64_HOSTDEP_H
 

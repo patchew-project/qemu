@@ -5,6 +5,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_XEN, yet! */
+
 #ifndef HW_BLOCK_DATAPLANE_XEN_BLOCK_H
 #define HW_BLOCK_DATAPLANE_XEN_BLOCK_H
 

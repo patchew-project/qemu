@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef TCG_TCG_OP_H
 #define TCG_TCG_OP_H
 

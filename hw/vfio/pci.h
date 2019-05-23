@@ -9,6 +9,9 @@
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
  */
+
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef HW_VFIO_VFIO_PCI_H
 #define HW_VFIO_VFIO_PCI_H
 

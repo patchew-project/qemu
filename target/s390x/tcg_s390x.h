@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TCG_S390X_H
 #define TCG_S390X_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef NIOS2_TARGET_SIGNAL_H
 #define NIOS2_TARGET_SIGNAL_H
 

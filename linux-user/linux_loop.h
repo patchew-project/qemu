@@ -2,6 +2,8 @@
  * and subsequently updated to match newer additions to the API.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef LINUX_LOOP_H
 #define LINUX_LOOP_H
 

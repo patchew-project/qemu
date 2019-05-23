@@ -1,3 +1,6 @@
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MMU_RADIX64_H
 #define MMU_RADIX64_H
 

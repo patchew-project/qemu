@@ -1,3 +1,7 @@
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+/* FIXME Does not pass make check-headers without CONFIG_SPICE, yet! */
+
+
 #ifndef HW_QXL_H
 #define HW_QXL_H
 

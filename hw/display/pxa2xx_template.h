@@ -9,6 +9,8 @@
  * Framebuffer format conversion routines.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 # define SKIP_PIXEL(to)		to += deststep
 #if BITS == 8
 # define COPY_PIXEL(to, from)  do { *to = from; SKIP_PIXEL(to); } while (0)

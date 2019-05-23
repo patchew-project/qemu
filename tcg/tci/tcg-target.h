@@ -37,6 +37,8 @@
  * Therefore, we need both 32 and 64 bit virtual machines (interpreter).
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TCG_TARGET_H
 #define TCG_TARGET_H
 

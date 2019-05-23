@@ -20,6 +20,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef DISAS_NANOMIPS_H
 #define DISAS_NANOMIPS_H
 

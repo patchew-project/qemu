@@ -24,6 +24,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_CAN_SJA1000_H
 #define HW_CAN_SJA1000_H
 

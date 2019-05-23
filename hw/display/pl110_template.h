@@ -9,6 +9,8 @@
  * Framebuffer format conversion routines.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ORDER
 
 #if BITS == 8

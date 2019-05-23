@@ -21,6 +21,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #if BITS == 8
 # define SET_PIXEL(addr, color)  (*(uint8_t *)addr = color)
 #elif BITS == 15 || BITS == 16

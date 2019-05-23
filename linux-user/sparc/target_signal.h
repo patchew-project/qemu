@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SPARC_TARGET_SIGNAL_H
 #define SPARC_TARGET_SIGNAL_H
 

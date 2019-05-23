@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef I386_TCG_TARGET_H
 #define I386_TCG_TARGET_H
 

@@ -17,6 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * "Generic" vectors.  All operands are given as offsets from ENV,
  * and therefore cannot also be allocated via tcg_global_mem_new_*.

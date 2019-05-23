@@ -1,3 +1,5 @@
+/* NOTE: May only be included into target-dependent code */
+
 #ifdef TARGET_ABI32
 /*
  * Linux N32 syscalls are in the range from 6000 to 6999.

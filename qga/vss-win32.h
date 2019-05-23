@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VSS_WIN32_H
 #define VSS_WIN32_H
 

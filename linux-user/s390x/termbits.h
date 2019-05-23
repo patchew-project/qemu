@@ -6,6 +6,8 @@
  *  Derived from "include/asm-i386/termbits.h"
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #define TARGET_NCCS 19
 struct target_termios {
     unsigned int c_iflag;		/* input mode flags */

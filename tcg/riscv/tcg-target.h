@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef RISCV_TCG_TARGET_H
 #define RISCV_TCG_TARGET_H
 

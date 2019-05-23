@@ -12,6 +12,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_REPLICATION, yet! */
+
 #ifndef REPLICATION_H
 #define REPLICATION_H
 

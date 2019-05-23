@@ -9,6 +9,8 @@
  * Authors: Sanjay Lal <sanjayl@kymasys.com>
 */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef KVM_MIPS_H
 #define KVM_MIPS_H
 

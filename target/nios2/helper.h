@@ -18,6 +18,8 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 DEF_HELPER_2(raise_exception, void, env, i32)
 
 #if !defined(CONFIG_USER_ONLY)

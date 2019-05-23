@@ -18,6 +18,8 @@
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef TARGET_M68K_SOFTFLOAT_H
 #define TARGET_M68K_SOFTFLOAT_H
 #include "fpu/softfloat.h"

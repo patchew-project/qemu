@@ -1,5 +1,7 @@
 /* from asm/termbits.h */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #define TARGET_NCCS 19
 
 struct target_termios {

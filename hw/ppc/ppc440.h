@@ -8,6 +8,8 @@
  *
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef PPC440_H
 #define PPC440_H
 

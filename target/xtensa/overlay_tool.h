@@ -25,6 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #define XTREG(idx, ofs, bi, sz, al, no, fl, cp, typ, grp, name, \
               a1, a2, a3, a4, a5, a6) { \
     .targno = (no), \

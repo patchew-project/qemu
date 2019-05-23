@@ -11,6 +11,9 @@
  *
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_I386_HYPERV_H
 #define TARGET_I386_HYPERV_H
 

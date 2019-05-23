@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* ADB commands */
 
 #define ADB_BUSRESET            0x00

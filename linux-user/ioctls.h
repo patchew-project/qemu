@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
      /* emulated ioctl list */
 
      IOCTL(TCGETS, IOC_R, MK_PTR(MK_STRUCT(STRUCT_termios)))

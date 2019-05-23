@@ -8,6 +8,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PTIMER_TEST_H
 #define PTIMER_TEST_H
 

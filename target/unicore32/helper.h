@@ -7,6 +7,8 @@
  * later version. See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CONFIG_USER_ONLY
 DEF_HELPER_4(cp0_set, void, env, i32, i32, i32)
 DEF_HELPER_3(cp0_get, i32, env, i32, i32)

@@ -11,6 +11,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef LIBVHOST_USER_H
 #define LIBVHOST_USER_H
 

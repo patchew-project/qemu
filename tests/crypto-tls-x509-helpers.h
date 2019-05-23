@@ -18,6 +18,8 @@
  * Author: Daniel P. Berrange <berrange@redhat.com>
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 static inline void glue(rop_8_, ROP_NAME)(CirrusVGAState *s,
                                           uint32_t dstaddr, uint8_t src)
 {

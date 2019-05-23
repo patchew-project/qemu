@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef UNAME_H
 #define UNAME_H
 

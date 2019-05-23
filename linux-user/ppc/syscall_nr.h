@@ -1,6 +1,9 @@
 /*
  * This file contains the system call numbers.
  */
+
+/* NOTE: May only be included into target-dependent code */
+
 #define TARGET_NR_restart_syscall          0
 #define TARGET_NR_exit                     1
 #define TARGET_NR_fork                     2

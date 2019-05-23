@@ -12,6 +12,8 @@
  * (at your option) any later version.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /* 1 on 1 copy of linux/drivers/usb/serial/ftdi_sio_ids.h */
 #include "quirks-ftdi-ids.h"
 /* 1 on 1 copy of linux/drivers/usb/serial/pl2303.h */

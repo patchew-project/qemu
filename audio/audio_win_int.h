@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef AUDIO_WIN_INT_H
 #define AUDIO_WIN_INT_H
 

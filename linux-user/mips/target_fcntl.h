@@ -5,6 +5,9 @@
  * later version. See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MIPS_TARGET_FCNTL_H
 #define MIPS_TARGET_FCNTL_H
 

@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_9P_SYNTH_H
 #define QEMU_9P_SYNTH_H
 

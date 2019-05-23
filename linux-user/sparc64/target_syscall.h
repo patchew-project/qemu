@@ -1,3 +1,6 @@
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SPARC64_TARGET_SYSCALL_H
 #define SPARC64_TARGET_SYSCALL_H
 

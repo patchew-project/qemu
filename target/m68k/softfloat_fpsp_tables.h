@@ -18,6 +18,8 @@
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_M68K_SOFTFLOAT_FPSP_TABLES_H
 #define TARGET_M68K_SOFTFLOAT_FPSP_TABLES_H
 

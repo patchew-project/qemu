@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef REPLAY_INTERNAL_H
 #define REPLAY_INTERNAL_H
 

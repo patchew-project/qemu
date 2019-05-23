@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef AARCH64_HOSTDEP_H
 #define AARCH64_HOSTDEP_H
 

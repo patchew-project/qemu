@@ -10,6 +10,9 @@
  * See the COPYING file in the top-level directory.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_POSTCOPY_RAM_H
 #define QEMU_POSTCOPY_RAM_H
 

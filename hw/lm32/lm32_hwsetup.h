@@ -22,6 +22,9 @@
  * in the Theobroma's uClinux port.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_HW_LM32_HWSETUP_H
 #define QEMU_HW_LM32_HWSETUP_H
 

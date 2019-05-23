@@ -31,6 +31,9 @@
 /* of Linux and other operating systems (AIX, OS/400) that talk this protocol*/
 /* between logical partitions                                                */
 /*****************************************************************************/
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PPC_VIOSRP_H
 #define PPC_VIOSRP_H
 

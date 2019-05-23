@@ -10,6 +10,8 @@
  * directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TARGET_S390X_CPU_MODELS_H
 #define TARGET_S390X_CPU_MODELS_H
 

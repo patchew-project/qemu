@@ -13,6 +13,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef FD_TRANS_H
 #define FD_TRANS_H
 

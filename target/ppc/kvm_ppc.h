@@ -6,6 +6,9 @@
  *
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef KVM_PPC_H
 #define KVM_PPC_H
 

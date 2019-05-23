@@ -16,6 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #define MASK_OP_MAJOR(op)  (op & 0x7F)
 enum {
     /* rv32i, rv64i, rv32m */

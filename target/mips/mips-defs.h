@@ -1,3 +1,5 @@
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef QEMU_MIPS_DEFS_H
 #define QEMU_MIPS_DEFS_H
 

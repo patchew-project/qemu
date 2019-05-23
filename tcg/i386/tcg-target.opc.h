@@ -2,6 +2,8 @@
    emitted by tcg_expand_vec_op.  For those familiar with GCC internals,
    consider these to be UNSPEC with names.  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 DEF(x86_shufps_vec, 1, 2, 1, IMPLVEC)
 DEF(x86_vpblendvb_vec, 1, 3, 0, IMPLVEC)
 DEF(x86_blend_vec, 1, 2, 1, IMPLVEC)

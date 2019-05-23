@@ -4,6 +4,8 @@
    most of them stay the same, so we handle it by putting ifdefs if
    necessary */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SYSCALL_DEFS_H
 #define SYSCALL_DEFS_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MICROBLAZE_BOOT_H
 #define MICROBLAZE_BOOT_H
 

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * Tusen tack till Mike Nordell
  * dec++'ified by Dscho

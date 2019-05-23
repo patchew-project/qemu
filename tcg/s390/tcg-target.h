@@ -22,6 +22,9 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef S390_TCG_TARGET_H
 #define S390_TCG_TARGET_H
 

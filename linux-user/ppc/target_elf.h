@@ -5,6 +5,8 @@
  * later version. See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef PPC_TARGET_ELF_H
 #define PPC_TARGET_ELF_H
 static inline const char *cpu_get_model(uint32_t eflags)

@@ -21,6 +21,9 @@
  * x86 eflags functions
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef X86_FLAGS_H
 #define X86_FLAGS_H
 

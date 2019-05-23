@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef ARM_TCG_TARGET_H
 #define ARM_TCG_TARGET_H
 

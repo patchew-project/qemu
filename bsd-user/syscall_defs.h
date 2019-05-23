@@ -37,6 +37,8 @@
  *      @(#)signal.h    8.2 (Berkeley) 1/21/94
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #define TARGET_NSIG     32              /* counting 0; could be 33 (mask is 1-32) */
 
 #define TARGET_SIGHUP  1       /* hangup */

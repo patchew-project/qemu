@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef QEMU_VNC_H
 #define QEMU_VNC_H
 

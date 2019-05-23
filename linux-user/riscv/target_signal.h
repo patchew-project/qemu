@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef RISCV_TARGET_SIGNAL_H
 #define RISCV_TARGET_SIGNAL_H
 

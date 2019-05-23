@@ -13,6 +13,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_RDMA, yet! */
+
 #ifndef PVRDMA_PVRDMA_H
 #define PVRDMA_PVRDMA_H
 

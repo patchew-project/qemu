@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ARM_HOSTDEP_H
 #define ARM_HOSTDEP_H
 

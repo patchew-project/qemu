@@ -2,6 +2,8 @@
  * This file contains the system call numbers.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #define TARGET_NR_exit                 1
 #define TARGET_NR_fork                 2
 #define TARGET_NR_read                 3

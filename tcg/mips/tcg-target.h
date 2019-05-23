@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MIPS_TCG_TARGET_H
 #define MIPS_TCG_TARGET_H
 

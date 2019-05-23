@@ -10,6 +10,9 @@
  *
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HAX_I386_H
 #define HAX_I386_H
 

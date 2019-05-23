@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef QEMU_VIRTIO_9P_H
 #define QEMU_VIRTIO_9P_H
 

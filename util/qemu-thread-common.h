@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_THREAD_COMMON_H
 #define QEMU_THREAD_COMMON_H
 

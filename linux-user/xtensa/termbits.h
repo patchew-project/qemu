@@ -10,6 +10,8 @@
  * Copyright (C) 2001 - 2005 Tensilica Inc.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef XTENSA_TERMBITS_H
 #define XTENSA_TERMBITS_H
 

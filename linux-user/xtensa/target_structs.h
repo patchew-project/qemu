@@ -1,3 +1,6 @@
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XTENSA_TARGET_STRUCTS_H
 #define XTENSA_TARGET_STRUCTS_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ALPHA_TARGET_SIGNAL_H
 #define ALPHA_TARGET_SIGNAL_H
 

@@ -29,6 +29,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* FIXME Does not pass make check-headers without CONFIG_POSIX, yet! */
+
 #include "config-host.h"
 
 #ifndef HOST_WORDS_BIGENDIAN

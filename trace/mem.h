@@ -7,6 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef TRACE__MEM_H
 #define TRACE__MEM_H
 

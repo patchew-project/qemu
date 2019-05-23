@@ -28,6 +28,8 @@ override define __note
  * inside tests/migration to update, and then remember to send both
  * the header and the assembler differences in your patch submission.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
 endef
 export __note
 

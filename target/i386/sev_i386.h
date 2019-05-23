@@ -11,6 +11,9 @@
  *
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_SEV_I386_H
 #define QEMU_SEV_I386_H
 

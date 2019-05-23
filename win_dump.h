@@ -8,6 +8,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef WIN_DUMP_H
 #define WIN_DUMP_H
 

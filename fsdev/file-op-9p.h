@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef FILE_OP_9P_H
 #define FILE_OP_9P_H
 

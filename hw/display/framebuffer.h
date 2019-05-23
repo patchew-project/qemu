@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_FRAMEBUFFER_H
 #define QEMU_FRAMEBUFFER_H
 

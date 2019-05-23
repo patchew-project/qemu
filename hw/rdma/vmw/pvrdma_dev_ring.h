@@ -13,6 +13,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PVRDMA_DEV_RING_H
 #define PVRDMA_DEV_RING_H
 

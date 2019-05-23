@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_X11, yet! */
+
 #ifndef QEMU_X_KEYMAP_H
 #define QEMU_X_KEYMAP_H
 

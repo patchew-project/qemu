@@ -9,6 +9,8 @@
  * *****************************************************************
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_LM4549_H
 #define HW_LM4549_H
 

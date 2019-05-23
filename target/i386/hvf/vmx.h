@@ -22,6 +22,8 @@
  * https://github.com/mist64/hvdos
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef VMX_H
 #define VMX_H
 

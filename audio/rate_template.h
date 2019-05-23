@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 /*
  * Processed signed long samples from ibuf to obuf.
  * Return number of samples processed.

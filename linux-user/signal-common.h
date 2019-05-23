@@ -17,6 +17,9 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SIGNAL_COMMON_H
 #define SIGNAL_COMMON_H
 extern struct target_sigaltstack target_sigaltstack_used;

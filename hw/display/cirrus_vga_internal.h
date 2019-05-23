@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CIRRUS_VGA_INTERNAL_H
 #define CIRRUS_VGA_INTERNAL_H
 

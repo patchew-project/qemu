@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 static const uint8_t vgafont16[256 * 16] = {
 
 	/* 0 0x00 '^@' */

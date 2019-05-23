@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MMU_HASH32_H
 #define MMU_HASH32_H
 

@@ -7,6 +7,8 @@
  * This code is licensed under the GPL.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifdef ARITH_GE
 #define GE_ARG , void *gep
 #define DECLARE_GE uint32_t ge = 0

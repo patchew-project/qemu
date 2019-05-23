@@ -16,6 +16,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HVF_X86_H
 #define HVF_X86_H
 

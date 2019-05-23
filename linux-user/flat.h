@@ -7,6 +7,8 @@
  * support uClinux flat-format executables.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #define	FLAT_VERSION			0x00000004L
 
 #ifdef CONFIG_BINFMT_SHARED_FLAT

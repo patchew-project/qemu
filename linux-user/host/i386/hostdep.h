@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef I386_HOSTDEP_H
 #define I386_HOSTDEP_H
 

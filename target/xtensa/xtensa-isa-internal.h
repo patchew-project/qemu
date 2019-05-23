@@ -22,6 +22,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XTENSA_ISA_INTERNAL_H
 #define XTENSA_ISA_INTERNAL_H
 

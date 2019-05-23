@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #include <windows.h>
 
 #include <WinHvPlatform.h>

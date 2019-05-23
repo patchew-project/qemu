@@ -1,3 +1,5 @@
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef TILEGX_TARGET_SYSCALL_H
 #define TILEGX_TARGET_SYSCALL_H
 

@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_VNC_AUTH_VENCRYPT_H
 #define QEMU_VNC_AUTH_VENCRYPT_H
 

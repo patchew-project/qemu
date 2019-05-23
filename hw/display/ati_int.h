@@ -6,6 +6,8 @@
  * This work is licensed under the GNU GPL license version 2 or later.
  */
 
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef ATI_INT_H
 #define ATI_INT_H
 

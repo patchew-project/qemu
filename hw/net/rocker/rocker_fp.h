@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ROCKER_FP_H
 #define ROCKER_FP_H
 

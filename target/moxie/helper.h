@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 DEF_HELPER_2(raise_exception, void, env, int)
 DEF_HELPER_1(debug, void, env)
 

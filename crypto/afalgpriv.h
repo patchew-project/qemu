@@ -11,6 +11,8 @@
  * top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef QCRYPTO_AFALGPRIV_H
 #define QCRYPTO_AFALGPRIV_H
 

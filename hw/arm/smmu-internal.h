@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_ARM_SMMU_INTERNAL_H
 #define HW_ARM_SMMU_INTERNAL_H
 

@@ -16,6 +16,8 @@
  * License along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef X86_MMU_H
 #define X86_MMU_H
 

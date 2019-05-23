@@ -13,6 +13,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_RDMA, yet! */
+
 #ifndef RDMACM_MUX_H
 #define RDMACM_MUX_H
 

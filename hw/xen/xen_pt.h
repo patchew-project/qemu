@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without CONFIG_XEN, yet! */
+
 #ifndef XEN_PT_H
 #define XEN_PT_H
 

@@ -6,6 +6,8 @@
  * This file is licensed under the terms of the 3-clause BSD license
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_POSIX, yet! */
+
 #ifndef TPM_IOCTL_H
 #define TPM_IOCTL_H
 

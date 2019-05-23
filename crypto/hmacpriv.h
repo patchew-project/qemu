@@ -12,6 +12,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QCRYPTO_HMACPRIV_H
 #define QCRYPTO_HMACPRIV_H
 

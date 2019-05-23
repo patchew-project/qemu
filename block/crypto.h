@@ -18,6 +18,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef BLOCK_CRYPTO_H
 #define BLOCK_CRYPTO_H
 

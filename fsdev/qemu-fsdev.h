@@ -10,6 +10,9 @@
  * the COPYING file in the top-level directory.
  *
  */
+
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef QEMU_FSDEV_H
 #define QEMU_FSDEV_H
 #include "file-op-9p.h"

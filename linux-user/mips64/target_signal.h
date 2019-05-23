@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MIPS64_TARGET_SIGNAL_H
 #define MIPS64_TARGET_SIGNAL_H
 
