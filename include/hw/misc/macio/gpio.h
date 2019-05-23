@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MACIO_GPIO_H
 #define MACIO_GPIO_H
 

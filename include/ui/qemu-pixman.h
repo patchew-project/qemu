@@ -3,6 +3,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef QEMU_PIXMAN_H
 #define QEMU_PIXMAN_H
 

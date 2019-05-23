@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 static void glue(bswap_ehdr, SZ)(struct elfhdr *ehdr)
 {
     bswap16s(&ehdr->e_type);			/* Object file type */

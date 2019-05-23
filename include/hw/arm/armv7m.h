@@ -7,6 +7,9 @@
  * This code is licensed under the GPL version 2 or later.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_ARM_ARMV7M_H
 #define HW_ARM_ARMV7M_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_DISAS_H
 #define QEMU_DISAS_H
 

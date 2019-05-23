@@ -22,6 +22,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #include "hw/sysbus.h"
 #include "ui/console.h"
 #include "hw/misc/auxbus.h"

@@ -11,6 +11,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef BCM2835_GPIO_H
 #define BCM2835_GPIO_H
 

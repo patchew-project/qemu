@@ -1,3 +1,6 @@
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+/* FIXME Does not pass make check-headers without CONFIG_OPENGL, yet! */
+
 #ifndef EGL_CONTEXT_H
 #define EGL_CONTEXT_H
 

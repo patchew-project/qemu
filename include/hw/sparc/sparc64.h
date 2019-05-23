@@ -1,3 +1,4 @@
+/* FIXME Does not pass make check-headers, yet! */
 
 #define IVEC_MAX             0x40
 

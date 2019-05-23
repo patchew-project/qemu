@@ -17,6 +17,8 @@
  * internals and the TCG TLB code. Do not include it from elsewhere.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MEMORY_INTERNAL_H
 #define MEMORY_INTERNAL_H
 

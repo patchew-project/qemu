@@ -11,6 +11,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef HW_VIRTIO_GPU_H
 #define HW_VIRTIO_GPU_H
 

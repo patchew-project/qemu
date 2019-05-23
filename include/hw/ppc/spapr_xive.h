@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PPC_SPAPR_XIVE_H
 #define PPC_SPAPR_XIVE_H
 

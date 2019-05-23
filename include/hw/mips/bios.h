@@ -1,3 +1,5 @@
+/* NOTE: May only be included into target-dependent code */
+
 #include "qemu/units.h"
 #include "cpu.h"
 

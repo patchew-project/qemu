@@ -14,6 +14,9 @@
  * for more details.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef FSL_IMX6_H
 #define FSL_IMX6_H
 

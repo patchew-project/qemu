@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without CONFIG_XEN, yet! */
+
 #ifndef HW_XEN_LEGACY_BACKEND_H
 #define HW_XEN_LEGACY_BACKEND_H
 

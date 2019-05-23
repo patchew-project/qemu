@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_M48T59_H
 #define HW_M48T59_H
 

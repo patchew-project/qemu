@@ -4,6 +4,9 @@
  * License: GNU GPL, version 2 or later.
  *   See the COPYING file in the top-level directory.
  */
+
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef EXEC_TB_LOOKUP_H
 #define EXEC_TB_LOOKUP_H
 

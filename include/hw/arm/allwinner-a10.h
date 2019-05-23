@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ALLWINNER_H_
 
 #include "qemu-common.h"

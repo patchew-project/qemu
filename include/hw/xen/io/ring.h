@@ -24,6 +24,8 @@
  * Tim Deegan and Andrew Warfield November 2004.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef __XEN_PUBLIC_IO_RING_H__
 #define __XEN_PUBLIC_IO_RING_H__
 

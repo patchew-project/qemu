@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef CONSOLE_H
 #define CONSOLE_H
 

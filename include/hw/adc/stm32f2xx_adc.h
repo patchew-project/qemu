@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_STM32F2XX_ADC_H
 #define HW_STM32F2XX_ADC_H
 

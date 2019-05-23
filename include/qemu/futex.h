@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_LINUX, yet! */
+
 #ifndef QEMU_FUTEX_H
 #define QEMU_FUTEX_H
 

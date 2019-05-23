@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_RATELIMIT_H
 #define QEMU_RATELIMIT_H
 

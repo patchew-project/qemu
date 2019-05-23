@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_EMPTY_SLOT_H
 #define HW_EMPTY_SLOT_H
 

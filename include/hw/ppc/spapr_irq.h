@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_SPAPR_IRQ_H
 #define HW_SPAPR_IRQ_H
 

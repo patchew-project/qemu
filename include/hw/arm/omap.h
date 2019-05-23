@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef hw_omap_h
 #include "exec/memory.h"
 # define hw_omap_h		"omap.h"

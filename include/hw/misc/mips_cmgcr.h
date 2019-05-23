@@ -7,6 +7,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef MIPS_CMGCR_H
 #define MIPS_CMGCR_H
 

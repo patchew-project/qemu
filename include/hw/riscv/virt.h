@@ -16,6 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_RISCV_VIRT_H
 #define HW_RISCV_VIRT_H
 

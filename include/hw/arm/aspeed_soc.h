@@ -9,6 +9,8 @@
  * the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ASPEED_SOC_H
 #define ASPEED_SOC_H
 

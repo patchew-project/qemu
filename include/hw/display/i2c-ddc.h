@@ -16,6 +16,8 @@
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef I2C_DDC_H
 #define I2C_DDC_H
 

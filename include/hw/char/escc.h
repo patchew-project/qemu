@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_ESCC_H
 #define HW_ESCC_H
 

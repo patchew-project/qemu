@@ -44,6 +44,10 @@
  * (for softmmu configs)  a target-specific MMU mode suffix as defined
  * in target cpu.h.
  */
+
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CPU_LDST_H
 #define CPU_LDST_H
 

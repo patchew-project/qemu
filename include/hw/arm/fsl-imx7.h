@@ -16,6 +16,9 @@
  * GNU General Public License for more details.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef FSL_IMX7_H
 #define FSL_IMX7_H
 

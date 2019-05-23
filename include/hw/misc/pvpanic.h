@@ -11,6 +11,9 @@
  * See the COPYING file in the top-level directory.
  *
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_MISC_PVPANIC_H
 #define HW_MISC_PVPANIC_H
 

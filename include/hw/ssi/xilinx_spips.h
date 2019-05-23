@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XILINX_SPIPS_H
 #define XILINX_SPIPS_H
 

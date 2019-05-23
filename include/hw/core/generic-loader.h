@@ -15,6 +15,8 @@
  * for more details.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef GENERIC_LOADER_H
 #define GENERIC_LOADER_H
 

@@ -37,6 +37,8 @@
 /* decNumber.h or one of decDouble (etc.) must be included first.     */
 /* ------------------------------------------------------------------ */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef DECNUMBERLOCAL_H
 #define DECNUMBERLOCAL_H
 
