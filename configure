@@ -5016,6 +5016,7 @@ case "$capstone" in
       LIBCAPSTONE=libcapstone.a
     fi
     LIBS="-L\$(BUILD_DIR)/capstone -lcapstone $LIBS"
+    capstone_capstone_h=yes
     ;;
 
   system)
