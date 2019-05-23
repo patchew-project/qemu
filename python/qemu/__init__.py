@@ -402,7 +402,7 @@ class QEMUMachine(object):
         self._qmp.clear_events()
         return events
 
-    def event_wait(self, name, timeout=60.0, match=None):
+    def event_wait(self, name, timeout=60.0, match=None, fail_on=None):
         """
         Wait for specified timeout on named event in QMP; optionally filter
         results by match.
@@ -430,6 +430,7 @@ class QEMUMachine(object):
 
         # Search cached events
         for event in self._events:
+            assert event['event'] != fail_on
             if (event['event'] == name) and event_match(event, match):
                 self._events.remove(event)
                 return event
@@ -437,6 +438,7 @@ class QEMUMachine(object):
         # Poll for new events
         while True:
             event = self._qmp.pull_event(wait=timeout)
+            assert event['event'] != fail_on
             if (event['event'] == name) and event_match(event, match):
                 return event
             self._events.append(event)
