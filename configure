@@ -5021,6 +5021,9 @@ case "$capstone" in
   system)
     QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags capstone)"
     LIBS="$($pkg_config --libs capstone) $LIBS"
+    if check_include capstone/capstone.h; then
+      capstone_capstone_h=yes
+    fi
     ;;
 
   no)
@@ -7197,6 +7200,9 @@ if test "$ivshmem" = "yes" ; then
 fi
 if test "$capstone" != "no" ; then
   echo "CONFIG_CAPSTONE=y" >> $config_host_mak
+  if test "$capstone_capstone_h" != "no" ; then
+    echo "CONFIG_CAPSTONE_CAPSTONE_H=y" >> $config_host_mak
+  fi
 fi
 if test "$debug_mutex" = "yes" ; then
   echo "CONFIG_DEBUG_MUTEX=y" >> $config_host_mak
