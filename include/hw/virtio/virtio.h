@@ -158,6 +158,13 @@ typedef struct VirtioDeviceClass {
     void (*save)(VirtIODevice *vdev, QEMUFile *f);
     int (*load)(VirtIODevice *vdev, QEMUFile *f, int version_id);
     const VMStateDescription *vmsd;
+
+    /* Called when the device should start/stop running because the guest was
+     * resumed/paused.  Note that this takes VIRTIO_CONFIG_S_DRIVER_OK into
+     * account so running is true iff the guest is resumed and the guest driver
+     * has already indicated it is ready.
+     */
+    void (*vmstate_change)(VirtIODevice *vdev, bool running);
 } VirtioDeviceClass;
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
