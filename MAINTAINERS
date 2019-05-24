@@ -2510,6 +2510,7 @@ R: Stefan Hajnoczi <stefan@redhat.com>
 L: qemu-block@nongnu.org
 S: Maintained
 F: stubs/io_uring.c
+F: block/io_uring.c
 
 
 L: qemu-block@nongnu.original
