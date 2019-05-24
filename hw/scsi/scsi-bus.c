@@ -134,6 +134,27 @@ void scsi_req_retry(SCSIRequest *req)
     req->retry = true;
 }
 
+static void scsi_device_dma_restart(SCSIDevice *dev)
+{
+    if (!dev->bh) {
+        AioContext *ctx = blk_get_aio_context(dev->conf.blk);
+        dev->bh = aio_bh_new(ctx, scsi_dma_restart_bh, dev);
+        qemu_bh_schedule(dev->bh);
+    }
+}
+
+void scsi_bus_dma_restart(SCSIBus *bus)
+{
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
+        SCSIDevice *dev = SCSI_DEVICE(qdev);
+
+        scsi_device_dma_restart(dev);
+    }
+}
+
 static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
 {
     SCSIDevice *s = opaque;
@@ -141,11 +162,8 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
     if (!running) {
         return;
     }
-    if (!s->bh) {
-        AioContext *ctx = blk_get_aio_context(s->conf.blk);
-        s->bh = aio_bh_new(ctx, scsi_dma_restart_bh, s);
-        qemu_bh_schedule(s->bh);
-    }
+
+    scsi_device_dma_restart(s);
 }
 
 static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
@@ -206,8 +224,13 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    dev->vmsentry = qemu_add_vm_change_state_handler(scsi_dma_restart_cb,
-                                                     dev);
+
+    if (bus->info->custom_dma_restart) {
+        dev->vmsentry = NULL;
+    } else {
+        dev->vmsentry = qemu_add_vm_change_state_handler(scsi_dma_restart_cb,
+                                                         dev);
+    }
 }
 
 static void scsi_qdev_unrealize(DeviceState *qdev, Error **errp)

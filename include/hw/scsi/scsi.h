@@ -120,6 +120,10 @@ struct SCSIReqOps {
 struct SCSIBusInfo {
     int tcq;
     int max_channel, max_target, max_lun;
+
+    /* Will the bus call scsi_bus_dma_restart() itself? */
+    bool custom_dma_restart;
+
     int (*parse_cdb)(SCSIDevice *dev, SCSICommand *cmd, uint8_t *buf,
                      void *hba_private);
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
@@ -160,6 +164,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       const char *serial, Error **errp);
 void scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 void scsi_legacy_handle_cmdline(void);
+void scsi_bus_dma_restart(SCSIBus *bus);
 
 SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
                             uint32_t tag, uint32_t lun, void *hba_private);
