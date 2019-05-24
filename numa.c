@@ -458,6 +458,27 @@ void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
     set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);
 }
 
+static char *cpu_topology_to_string(const CPUArchId *cpu)
+{
+    GString *s = g_string_new(NULL);
+    if (cpu->props.has_socket_id) {
+        g_string_append_printf(s, "socket-id %"PRId64, cpu->props.socket_id);
+    }
+    if (cpu->props.has_node_id) {
+        if (s->len) {
+            g_string_append_printf(s, ", ");
+        }
+        g_string_append_printf(s, "node-id %"PRId64, cpu->props.node_id);
+    }
+    if (cpu->props.has_thread_id) {
+        if (s->len) {
+            g_string_append_printf(s, ", ");
+        }
+        g_string_append_printf(s, "thread-id %"PRId64, cpu->props.thread_id);
+    }
+    return g_string_free(s, false);
+}
+
 void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)
 {
     int node_id = object_property_get_int(OBJECT(dev), "node-id", &error_abort);
@@ -470,8 +491,10 @@ void numa_cpu_pre_plug(const CPUArchId *slot, DeviceState *dev, Error **errp)
                                     "node-id", errp);
         }
     } else if (node_id != slot->props.node_id) {
+        char *topology = cpu_topology_to_string(slot);
         error_setg(errp, "node-id=%d must match numa node specified "
-                   "with -numa option", node_id);
+                   "with -numa option '%s'", node_id, topology);
+        g_free(topology);
     }
 }
 
