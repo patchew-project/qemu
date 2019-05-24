@@ -282,54 +282,6 @@ void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        const CPUArchIdList *apic_ids, GArray *entry);
 
-/**
- * E820Type: Type of the e820 address range.
- */
-typedef enum {
-    E820_RAM        = 1,
-    E820_RESERVED   = 2,
-    E820_ACPI       = 3,
-    E820_NVS        = 4,
-    E820_UNUSABLE   = 5
-} E820Type;
-
-/**
- * e820_add_entry: Add an #e820_entry to the @e820_table.
- *
- * Returns the number of entries of the e820_table on success,
- *         or a negative errno otherwise.
- *
- * @address: The base address of the structure which the BIOS is to fill in.
- * @length: The length in bytes of the structure passed to the BIOS.
- * @type: The #E820Type of the address range.
- */
-ssize_t e820_add_entry(uint64_t address, uint64_t length, E820Type type);
-
-/**
- * e820_get_num_entries: The number of entries of the @e820_table.
- *
- * Returns the number of entries of the e820_table.
- */
-size_t e820_get_num_entries(void);
-
-/**
- * e820_get_entry: Get the address/length of an #e820_entry.
- *
- * If the #e820_entry stored at @index is of #E820Type @type, fills @address
- * and @length with the #e820_entry values and return @true.
- * Return @false otherwise.
- *
- * @index: The index of the #e820_entry to get values.
- * @type: The @E820Type of the address range expected.
- * @address: Pointer to the base address of the #e820_entry structure to
- *           be filled.
- * @length: Pointer to the length (in bytes) of the #e820_entry structure
- *          to be filled.
- * @return: true if the entry was found, false otherwise.
- */
-bool e820_get_entry(unsigned int index, E820Type type,
-                    uint64_t *address, uint64_t *length);
-
 extern GlobalProperty pc_compat_4_0[];
 extern const size_t pc_compat_4_0_len;
 
