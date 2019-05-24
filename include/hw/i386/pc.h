@@ -291,7 +291,7 @@ void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
 
 int e820_add_entry(uint64_t, uint64_t, uint32_t);
 int e820_get_num_entries(void);
-bool e820_get_entry(int, uint32_t, uint64_t *, uint64_t *);
+bool e820_get_entry(unsigned int, uint32_t, uint64_t *, uint64_t *);
 
 extern GlobalProperty pc_compat_4_0[];
 extern const size_t pc_compat_4_0_len;

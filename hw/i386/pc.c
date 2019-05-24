@@ -870,7 +870,7 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
 
 int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
 {
-    int index = le32_to_cpu(e820_reserve.count);
+    unsigned int index = le32_to_cpu(e820_reserve.count);
     struct e820_entry *entry;
 
     if (type != E820_RAM) {
@@ -902,7 +902,8 @@ int e820_get_num_entries(void)
     return e820_entries;
 }
 
-bool e820_get_entry(int idx, uint32_t type, uint64_t *address, uint64_t *length)
+bool e820_get_entry(unsigned int idx, uint32_t type,
+                    uint64_t *address, uint64_t *length)
 {
     if (idx < e820_entries && e820_table[idx].type == cpu_to_le32(type)) {
         *address = le64_to_cpu(e820_table[idx].address);
