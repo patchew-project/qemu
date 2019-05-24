@@ -846,11 +846,27 @@ static void virtio_scsi_hotunplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     qdev_simple_device_unplug_cb(hotplug_dev, dev, errp);
 }
 
+static void virtio_scsi_vmstate_change(VirtIODevice *vdev, bool running)
+{
+    VirtIOSCSI *s = VIRTIO_SCSI(vdev);
+
+    if (running) {
+        scsi_bus_dma_restart(&s->bus);
+    }
+}
+
 static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .tcq = true,
     .max_channel = VIRTIO_SCSI_MAX_CHANNEL,
     .max_target = VIRTIO_SCSI_MAX_TARGET,
     .max_lun = VIRTIO_SCSI_MAX_LUN,
+
+    /* We call scsi_bus_dma_restart() ourselves to control the ordering between
+     * ->start_ioeventfd() and DMA restart.  Do it in
+     * virtio_scsi_vmstate_change(), which is called by the core virtio code
+     * after ->start_ioeventfd().
+     */
+    .custom_dma_restart = true,
 
     .complete = virtio_scsi_command_complete,
     .cancel = virtio_scsi_request_cancelled,
@@ -986,6 +1002,7 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     vdc->reset = virtio_scsi_reset;
     vdc->start_ioeventfd = virtio_scsi_dataplane_start;
     vdc->stop_ioeventfd = virtio_scsi_dataplane_stop;
+    vdc->vmstate_change = virtio_scsi_vmstate_change;
     hc->plug = virtio_scsi_hotplug;
     hc->unplug = virtio_scsi_hotunplug;
 }
