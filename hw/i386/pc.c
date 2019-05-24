@@ -104,7 +104,7 @@ struct e820_table {
 
 static struct e820_table e820_reserve;
 static struct e820_entry *e820_table;
-static unsigned e820_entries;
+static size_t e820_entries;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
 /* Physical Address of PVH entry point read from kernel ELF NOTE */
@@ -897,7 +897,7 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
     return e820_entries;
 }
 
-int e820_get_num_entries(void)
+size_t e820_get_num_entries(void)
 {
     return e820_entries;
 }
