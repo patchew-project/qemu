@@ -23,6 +23,7 @@ typedef struct AspeedBoardConfig {
     uint32_t num_cs;
     void (*i2c_init)(AspeedBoardState *bmc);
     uint32_t ram;
+    uint32_t num_cpus;
 } AspeedBoardConfig;
 
 #define TYPE_ASPEED_MACHINE       MACHINE_TYPE_NAME("aspeed")

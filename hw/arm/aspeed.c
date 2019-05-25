@@ -29,7 +29,6 @@
 
 static struct arm_boot_info aspeed_board_binfo = {
     .board_id = -1, /* device-tree-only board */
-    .nb_cpus = 1,
 };
 
 struct AspeedBoardState {
@@ -231,6 +230,7 @@ static void aspeed_board_init(MachineState *machine,
     aspeed_board_binfo.kernel_cmdline = machine->kernel_cmdline;
     aspeed_board_binfo.ram_size = ram_size;
     aspeed_board_binfo.loader_start = sc->info->memmap[ASPEED_SDRAM];
+    aspeed_board_binfo.nb_cpus = cfg->num_cpus;
 
     if (cfg->i2c_init) {
         cfg->i2c_init(bmc);
@@ -327,7 +327,7 @@ static void aspeed_machine_class_init(ObjectClass *oc, void *data)
 
     mc->desc = board->desc;
     mc->init = aspeed_machine_init;
-    mc->max_cpus = 1;
+    mc->max_cpus = ASPEED_CPUS_NUM;
     mc->no_sdcard = 1;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
@@ -357,6 +357,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .num_cs    = 1,
         .i2c_init  = palmetto_bmc_i2c_init,
         .ram       = 256 * MiB,
+        .num_cpus  = 1,
     }, {
         .name      = MACHINE_TYPE_NAME("ast2500-evb"),
         .desc      = "Aspeed AST2500 EVB (ARM1176)",
@@ -367,6 +368,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .num_cs    = 1,
         .i2c_init  = ast2500_evb_i2c_init,
         .ram       = 512 * MiB,
+        .num_cpus  = 1,
     }, {
         .name      = MACHINE_TYPE_NAME("romulus-bmc"),
         .desc      = "OpenPOWER Romulus BMC (ARM1176)",
@@ -377,6 +379,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .num_cs    = 2,
         .i2c_init  = romulus_bmc_i2c_init,
         .ram       = 512 * MiB,
+        .num_cpus  = 1,
     }, {
         .name      = MACHINE_TYPE_NAME("witherspoon-bmc"),
         .desc      = "OpenPOWER Witherspoon BMC (ARM1176)",
@@ -387,6 +390,7 @@ static const AspeedBoardConfig aspeed_boards[] = {
         .num_cs    = 2,
         .i2c_init  = witherspoon_bmc_i2c_init,
         .ram       = 512 * MiB,
+        .num_cpus  = 1,
     },
 };
 

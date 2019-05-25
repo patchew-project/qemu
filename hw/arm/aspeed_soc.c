@@ -172,8 +172,11 @@ static void aspeed_soc_init(Object *obj)
     AspeedSoCClass *sc = ASPEED_SOC_GET_CLASS(s);
     int i;
 
-    object_initialize_child(obj, "cpu", OBJECT(&s->cpu), sizeof(s->cpu),
-                            sc->info->cpu_type, &error_abort, NULL);
+    for (i = 0; i < MIN(smp_cpus, ASPEED_CPUS_NUM); i++) {
+        object_initialize_child(obj, "cpu[*]", OBJECT(&s->cpu[i]),
+                                sizeof(s->cpu[i]), sc->info->cpu_type,
+                                &error_abort, NULL);
+    }
 
     sysbus_init_child_obj(obj, "scu", OBJECT(&s->scu), sizeof(s->scu),
                           TYPE_ASPEED_SCU);
@@ -242,10 +245,12 @@ static void aspeed_soc_realize(DeviceState *dev, Error **errp)
                                 ASPEED_SOC_IOMEM_SIZE);
 
     /* CPU */
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
+    for (i = 0; i < smp_cpus; i++) {
+        object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
     }
 
     /* SRAM */
