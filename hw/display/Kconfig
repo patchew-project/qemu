@@ -123,3 +123,4 @@ config ATI_VGA
 
 config MACFB
     bool
+    depends on NUBUS
