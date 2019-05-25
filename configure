@@ -3972,15 +3972,13 @@ fi
 # linux-io-uring probe
 
 if test "$linux_io_uring" != "no" ; then
-  cat > $TMPC <<EOF
-#include <liburing.h>
-int main(void) { io_uring_queue_init(0, NULL, 0); io_uring_submit(NULL); return 0; }
-EOF
-  if compile_prog "" "-luring" ; then
+  if $pkg_config liburing; then
+    linux_io_uring_cflags=$($pkg_config --cflags liburing)
+    linux_io_uring_libs=$($pkg_config --libs liburing)
     linux_io_uring=yes
   else
     if test "$linux_io_uring" = "yes" ; then
-      feature_not_found "linux io_uring" "Install liburing"
+      feature_not_found "linux io_uring" "Install liburing devel"
     fi
     linux_io_uring=no
   fi
@@ -6884,6 +6882,8 @@ if test "$linux_aio" = "yes" ; then
 fi
 if test "$linux_io_uring" = "yes" ; then
   echo "CONFIG_LINUX_IO_URING=y" >> $config_host_mak
+  echo "LINUX_IO_URING_CFLAGS=$linux_io_uring_cflags" >> $config_host_mak
+  echo "LINUX_IO_URING_LIBS=$linux_io_uring_libs" >> $config_host_mak
 fi
 if test "$attr" = "yes" ; then
   echo "CONFIG_ATTR=y" >> $config_host_mak
