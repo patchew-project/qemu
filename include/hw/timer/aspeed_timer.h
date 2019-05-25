@@ -41,6 +41,7 @@ typedef struct AspeedTimer {
      * interrupts, signalling with both the rising and falling edge.
      */
     int32_t level;
+    uint32_t min_ticks;
     uint32_t reload;
     uint32_t match[2];
     uint64_t start;
