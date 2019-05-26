@@ -462,12 +462,19 @@ void m68k_switch_sp(CPUM68KState *env);
 
 void do_m68k_semihosting(CPUM68KState *env, int nr);
 
-/* There are 4 ColdFire core ISA revisions: A, A+, B and C.
+/* The ColdFire core ISA is a RISC-style reduction of the 68000 series
+   Whilst the 68000 flourished by adding extended stack/instructions in
+   five main flavors original 68000, 680010/20/30/40, and a CPU32/CPU32+
+
+   CPU32/32+ are basically 68000/10 compatible, with and 68020.  Mostly
+   Supervisor state differences.
+
+   There are 4 ColdFire core ISA revisions: A, A+, B and C.
    Each feature covers the subset of instructions common to the
    ISA revisions mentioned.  */
 
 enum m68k_features {
-    M68K_FEATURE_M68000,
+    M68K_FEATURE_M68000,   /* Base m68k set, as opposed to ColdFire */
     M68K_FEATURE_CF_ISA_A,
     M68K_FEATURE_CF_ISA_B, /* (ISA B or C).  */
     M68K_FEATURE_CF_ISA_APLUSC, /* BIT/BITREV, FF1, STRLDSR (ISA A+ or C).  */
@@ -477,6 +484,7 @@ enum m68k_features {
     M68K_FEATURE_CF_EMAC,
     M68K_FEATURE_CF_EMAC_B, /* Revision B EMAC (dual accumulate).  */
     M68K_FEATURE_USP, /* User Stack Pointer.  (ISA A+, B or C).  */
+    M68K_FEATURE_MSP, /* Master Stack Pointer. Not 68000/10,Coldfire,CPU32 */
     M68K_FEATURE_EXT_FULL, /* 68020+ full extension word.  */
     M68K_FEATURE_WORD_INDEX, /* word sized address index registers.  */
     M68K_FEATURE_SCALED_INDEX, /* scaled address index registers.  */
