@@ -6130,6 +6130,8 @@ static void m68k_tr_tb_stop(DisasContextBase *dcbase, CPUState *cpu)
         return;
     }
     if (dc->base.singlestep_enabled) {
+        update_cc_op(dc);
+        tcg_gen_movi_i32(QREG_PC, dc->pc);
         gen_helper_raise_exception(cpu_env, tcg_const_i32(EXCP_DEBUG));
         return;
     }
