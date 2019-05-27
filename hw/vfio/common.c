@@ -95,6 +95,84 @@ void vfio_mask_single_irqindex(VFIODevice *vbasedev, int index)
     ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, &irq_set);
 }
 
+static inline const char *action_to_str(int action)
+{
+    switch (action) {
+    case VFIO_IRQ_SET_ACTION_MASK:
+        return "MASK";
+    case VFIO_IRQ_SET_ACTION_UNMASK:
+        return "UNMASK";
+    case VFIO_IRQ_SET_ACTION_TRIGGER:
+        return "TRIGGER";
+    default:
+        return "UNKNOWN ACTION";
+    }
+}
+
+static char *irq_to_str(int index, int subindex)
+{
+    char *str;
+
+    switch (index) {
+    case VFIO_PCI_INTX_IRQ_INDEX:
+        str = g_strdup_printf("INTX-%d", subindex);
+        break;
+    case VFIO_PCI_MSI_IRQ_INDEX:
+        str = g_strdup_printf("MSI-%d", subindex);
+        break;
+    case VFIO_PCI_MSIX_IRQ_INDEX:
+        str = g_strdup_printf("MSIX-%d", subindex);
+        break;
+    case VFIO_PCI_ERR_IRQ_INDEX:
+        str = g_strdup_printf("ERR-%d", subindex);
+        break;
+    case VFIO_PCI_REQ_IRQ_INDEX:
+        str = g_strdup_printf("REQ-%d", subindex);
+        break;
+    default:
+        str = g_strdup_printf("index %d (unknown)", index);
+        break;
+    }
+    return str;
+}
+
+int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
+                           int action, int fd, Error **errp)
+{
+    struct vfio_irq_set *irq_set;
+    int argsz, ret = 0;
+    int32_t *pfd;
+    char *irq_name;
+
+    argsz = sizeof(*irq_set) + sizeof(*pfd);
+
+    irq_set = g_malloc0(argsz);
+    irq_set->argsz = argsz;
+    irq_set->flags = VFIO_IRQ_SET_DATA_EVENTFD | action;
+    irq_set->index = index;
+    irq_set->start = subindex;
+    irq_set->count = 1;
+    pfd = (int32_t *)&irq_set->data;
+    *pfd = fd;
+
+    ret = ioctl(vbasedev->fd, VFIO_DEVICE_SET_IRQS, irq_set);
+
+    g_free(irq_set);
+
+    if (!ret) {
+        return 0;
+    }
+
+    error_setg_errno(errp, -ret, "VFIO_DEVICE_SET_IRQS failure");
+    irq_name = irq_to_str(index, subindex);
+    error_prepend(errp,
+                  "Failed to %s %s eventfd signaling for interrupt %s: ",
+                  fd < 0 ? "tear down" : "set up", action_to_str(action),
+                  irq_name);
+    g_free(irq_name);
+    return ret;
+}
+
 /*
  * IO Port/MMIO - Beware of the endians, VFIO is always little endian
  */
