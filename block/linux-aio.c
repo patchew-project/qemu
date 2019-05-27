@@ -440,6 +440,7 @@ BlockAIOCB *laio_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
     int ret;
 
     laiocb = qemu_aio_get(&laio_aiocb_info, bs, cb, opaque);
+    laiocb->co = NULL;
     laiocb->nbytes = nb_sectors * BDRV_SECTOR_SIZE;
     laiocb->ctx = s;
     laiocb->ret = -EINPROGRESS;
