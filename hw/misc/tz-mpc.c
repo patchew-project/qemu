@@ -100,8 +100,8 @@ static void tz_mpc_iommu_notify(TZMPC *s, uint32_t lutidx,
         entry.translated_addr = addr;
 
         entry.perm = IOMMU_NONE;
-        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_S, entry);
-        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_NS, entry);
+        memory_region_iotlb_notify_iommu(&s->upstream, IOMMU_IDX_S, entry);
+        memory_region_iotlb_notify_iommu(&s->upstream, IOMMU_IDX_NS, entry);
 
         entry.perm = IOMMU_RW;
         if (block_is_ns) {
@@ -109,13 +109,13 @@ static void tz_mpc_iommu_notify(TZMPC *s, uint32_t lutidx,
         } else {
             entry.target_as = &s->downstream_as;
         }
-        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_S, entry);
+        memory_region_iotlb_notify_iommu(&s->upstream, IOMMU_IDX_S, entry);
         if (block_is_ns) {
             entry.target_as = &s->downstream_as;
         } else {
             entry.target_as = &s->blocked_io_as;
         }
-        memory_region_notify_iommu(&s->upstream, IOMMU_IDX_NS, entry);
+        memory_region_iotlb_notify_iommu(&s->upstream, IOMMU_IDX_NS, entry);
     }
 }
 

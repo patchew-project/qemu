@@ -174,7 +174,7 @@ static void vtd_update_scalable_state(IntelIOMMUState *s)
 /* Whether the address space needs to notify new mappings */
 static inline gboolean vtd_as_has_map_notifier(VTDAddressSpace *as)
 {
-    return as->notifier_flags & IOMMU_NOTIFIER_MAP;
+    return as->notifier_flags & IOMMU_NOTIFIER_IOTLB_MAP;
 }
 
 /* GHashTable functions */
@@ -1361,7 +1361,7 @@ static int vtd_dev_to_context_entry(IntelIOMMUState *s, uint8_t bus_num,
 static int vtd_sync_shadow_page_hook(IOMMUTLBEntry *entry,
                                      void *private)
 {
-    memory_region_notify_iommu((IOMMUMemoryRegion *)private, 0, *entry);
+    memory_region_iotlb_notify_iommu((IOMMUMemoryRegion *)private, 0, *entry);
     return 0;
 }
 
@@ -1928,7 +1928,7 @@ static void vtd_iotlb_page_invalidate_notify(IntelIOMMUState *s,
                     .addr_mask = size - 1,
                     .perm = IOMMU_NONE,
                 };
-                memory_region_notify_iommu(&vtd_as->iommu, 0, entry);
+                memory_region_iotlb_notify_iommu(&vtd_as->iommu, 0, entry);
             }
         }
     }
@@ -2393,7 +2393,7 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
     entry.iova = addr;
     entry.perm = IOMMU_NONE;
     entry.translated_addr = 0;
-    memory_region_notify_iommu(&vtd_dev_as->iommu, 0, entry);
+    memory_region_iotlb_notify_iommu(&vtd_dev_as->iommu, 0, entry);
 
 done:
     return true;
@@ -2925,7 +2925,7 @@ static void vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     VTDAddressSpace *vtd_as = container_of(iommu, VTDAddressSpace, iommu);
     IntelIOMMUState *s = vtd_as->iommu_state;
 
-    if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
+    if (!s->caching_mode && new & IOMMU_NOTIFIER_IOTLB_MAP) {
         error_report("We need to set caching-mode=on for intel-iommu to enable "
                      "device assignment with IOMMU protection.");
         exit(1);
@@ -3368,8 +3368,9 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 {
     IOMMUTLBEntry entry;
     hwaddr size;
-    hwaddr start = n->start;
-    hwaddr end = n->end;
+
+    hwaddr start = n->iotlb_notifier.start;
+    hwaddr end = n->iotlb_notifier.end;
     IntelIOMMUState *s = as->iommu_state;
     DMAMap map;
 
@@ -3405,7 +3406,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 
     entry.target_as = &address_space_memory;
     /* Adjust iova for the size */
-    entry.iova = n->start & ~(size - 1);
+    entry.iova = n->iotlb_notifier.start & ~(size - 1);
     /* This field is meaningless for unmap */
     entry.translated_addr = 0;
     entry.perm = IOMMU_NONE;
@@ -3420,7 +3421,7 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     map.size = entry.addr_mask;
     iova_tree_remove(as->iova_tree, &map);
 
-    memory_region_notify_one(n, &entry);
+    memory_region_iotlb_notify_one(n, &entry);
 }
 
 static void vtd_address_space_unmap_all(IntelIOMMUState *s)
@@ -3430,7 +3431,9 @@ static void vtd_address_space_unmap_all(IntelIOMMUState *s)
 
     QLIST_FOREACH(vtd_as, &s->vtd_as_with_notifiers, next) {
         IOMMU_NOTIFIER_FOREACH(n, &vtd_as->iommu) {
-            vtd_address_space_unmap(vtd_as, n);
+            if (n->notifier_flags & IOMMU_NOTIFIER_IOTLB_UNMAP) {
+                vtd_address_space_unmap(vtd_as, n);
+            }
         }
     }
 }
@@ -3443,7 +3446,7 @@ static void vtd_address_space_refresh_all(IntelIOMMUState *s)
 
 static int vtd_replay_hook(IOMMUTLBEntry *entry, void *private)
 {
-    memory_region_notify_one((IOMMUNotifier *)private, entry);
+    memory_region_iotlb_notify_one((IOMMUNotifier *)private, entry);
     return 0;
 }
 

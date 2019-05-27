@@ -822,7 +822,7 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
     entry.addr_mask = (1 << tt->granule_sz) - 1;
     entry.perm = IOMMU_NONE;
 
-    memory_region_notify_one(n, &entry);
+    memory_region_iotlb_notify_one(n, &entry);
 }
 
 /* invalidate an asid/iova tuple in all mr's */
@@ -837,7 +837,9 @@ static void smmuv3_inv_notifiers_iova(SMMUState *s, int asid, dma_addr_t iova)
         trace_smmuv3_inv_notifiers_iova(mr->parent_obj.name, asid, iova);
 
         IOMMU_NOTIFIER_FOREACH(n, mr) {
-            smmuv3_notify_iova(mr, n, asid, iova);
+            if (n->notifier_flags & IOMMU_NOTIFIER_IOTLB_UNMAP) {
+                smmuv3_notify_iova(mr, n, asid, iova);
+            }
         }
     }
 }
@@ -1473,7 +1475,7 @@ static void smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
     SMMUv3State *s3 = sdev->smmu;
     SMMUState *s = &(s3->smmu_state);
 
-    if (new & IOMMU_NOTIFIER_MAP) {
+    if (new & IOMMU_NOTIFIER_IOTLB_MAP) {
         int bus_num = pci_bus_num(sdev->bus);
         PCIDevice *pcidev = pci_find_device(sdev->bus, bus_num, sdev->devfn);
 

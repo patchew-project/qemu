@@ -677,11 +677,11 @@ static void vhost_iommu_region_add(MemoryListener *listener,
     end = int128_sub(end, int128_one());
     iommu_idx = memory_region_iommu_attrs_to_index(iommu_mr,
                                                    MEMTXATTRS_UNSPECIFIED);
-    iommu_notifier_init(&iommu->n, vhost_iommu_unmap_notify,
-                        IOMMU_NOTIFIER_UNMAP,
-                        section->offset_within_region,
-                        int128_get64(end),
-                        iommu_idx);
+    iommu_iotlb_notifier_init(&iommu->n, vhost_iommu_unmap_notify,
+                              IOMMU_NOTIFIER_IOTLB_UNMAP,
+                              section->offset_within_region,
+                              int128_get64(end),
+                              iommu_idx);
     iommu->mr = section->mr;
     iommu->iommu_offset = section->offset_within_address_space -
                           section->offset_within_region;
@@ -703,8 +703,8 @@ static void vhost_iommu_region_del(MemoryListener *listener,
     }
 
     QLIST_FOREACH(iommu, &dev->iommu_list, iommu_next) {
-        if (iommu->mr == section->mr &&
-            iommu->n.start == section->offset_within_region) {
+        if (iommu->mr == section->mr && is_iommu_iotlb_notifier(&iommu->n) &&
+            iommu->n.iotlb_notifier.start == section->offset_within_region) {
             memory_region_unregister_iommu_notifier(iommu->mr,
                                                     &iommu->n);
             QLIST_REMOVE(iommu, iommu_next);
