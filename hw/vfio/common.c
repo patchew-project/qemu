@@ -130,6 +130,9 @@ static char *irq_to_str(int index, int subindex)
     case VFIO_PCI_REQ_IRQ_INDEX:
         str = g_strdup_printf("REQ-%d", subindex);
         break;
+    case VFIO_PCI_DMA_FAULT_IRQ_INDEX:
+        str = g_strdup_printf("DMA-FAULT-%d", subindex);
+        break;
     default:
         str = g_strdup_printf("index %d (unknown)", index);
         break;
