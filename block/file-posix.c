@@ -154,6 +154,7 @@ typedef struct BDRVRawState {
     bool has_write_zeroes:1;
     bool discard_zeroes:1;
     bool use_linux_aio:1;
+    bool use_linux_io_uring:1;
     bool page_cache_inconsistent:1;
     bool has_fallocate;
     bool needs_alignment;
@@ -423,7 +424,7 @@ static QemuOptsList raw_runtime_opts = {
         {
             .name = "aio",
             .type = QEMU_OPT_STRING,
-            .help = "host AIO implementation (threads, native)",
+            .help = "host AIO implementation (threads, native, io_uring)",
         },
         {
             .name = "locking",
@@ -494,6 +495,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
     s->use_linux_aio = (aio == BLOCKDEV_AIO_OPTIONS_NATIVE);
+#ifdef CONFIG_LINUX_IO_URING
+    s->use_linux_io_uring = (aio == BLOCKDEV_AIO_OPTIONS_IO_URING);
+#endif
 
     locking = qapi_enum_parse(&OnOffAuto_lookup,
                               qemu_opt_get(opts, "locking"),
@@ -557,7 +561,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     s->shared_perm = BLK_PERM_ALL;
 
 #ifdef CONFIG_LINUX_AIO
-     /* Currently Linux does AIO only for files opened with O_DIRECT */
+    /*
+     * Currently Linux does AIO only for files opened with O_DIRECT
+     */
     if (s->use_linux_aio) {
         if (!(s->open_flags & O_DIRECT)) {
             error_setg(errp, "aio=native was specified, but it requires "
@@ -578,6 +584,21 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 #endif /* !defined(CONFIG_LINUX_AIO) */
+#ifdef CONFIG_LINUX_IO_URING
+    if (s->use_linux_io_uring) {
+        if (!aio_setup_linux_io_uring(bdrv_get_aio_context(bs), errp)) {
+            error_prepend(errp, "Unable to use io_uring: ");
+            goto fail;
+        }
+    }
+#else
+    if (s->use_linux_io_uring) {
+        error_setg(errp, "aio=io_uring was specified, but is not supported "
+                         "in this build.");
+        ret = -EINVAL;
+        goto fail;
+    }
+#endif /* !defined(CONFIG_LINUX_IO_URING) */
 
     s->has_discard = true;
     s->has_write_zeroes = true;
@@ -1884,6 +1905,12 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, uint64_t offset,
             assert(qiov->size == bytes);
             return laio_co_submit(bs, aio, s->fd, offset, qiov, type);
 #endif
+#ifdef CONFIG_LINUX_IO_URING
+        } else if (s->use_linux_io_uring) {
+            LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
+            assert(qiov->size == bytes);
+            return luring_co_submit(bs, aio, s->fd, offset, qiov, type);
+#endif
         }
     }
 
@@ -1920,22 +1947,38 @@ static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, uint64_t offset,
 
 static void raw_aio_plug(BlockDriverState *bs)
 {
-#ifdef CONFIG_LINUX_AIO
+#if defined CONFIG_LINUX_AIO || defined CONFIG_LINUX_IO_URING
     BDRVRawState *s = bs->opaque;
+#endif
+#ifdef CONFIG_LINUX_AIO
     if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         laio_io_plug(bs, aio);
+    }
+#endif
+#ifdef CONFIG_LINUX_IO_URING
+    if (s->use_linux_io_uring) {
+        LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
+        luring_io_plug(bs, aio);
     }
 #endif
 }
 
 static void raw_aio_unplug(BlockDriverState *bs)
 {
-#ifdef CONFIG_LINUX_AIO
+#if defined CONFIG_LINUX_AIO || defined CONFIG_LINUX_IO_URING
     BDRVRawState *s = bs->opaque;
+#endif
+#ifdef CONFIG_LINUX_AIO
     if (s->use_linux_aio) {
         LinuxAioState *aio = aio_get_linux_aio(bdrv_get_aio_context(bs));
         laio_io_unplug(bs, aio);
+    }
+#endif
+#ifdef CONFIG_LINUX_IO_URING
+    if (s->use_linux_aio) {
+        LuringState *aio = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
+        luring_io_unplug(bs, aio);
     }
 #endif
 }
@@ -1963,14 +2006,26 @@ static int raw_co_flush_to_disk(BlockDriverState *bs)
 static void raw_aio_attach_aio_context(BlockDriverState *bs,
                                        AioContext *new_context)
 {
+#if defined CONFIG_LINUX_AIO || defined CONFIG_LINUX_IO_URING
+        BDRVRawState *s = bs->opaque;
+#endif
 #ifdef CONFIG_LINUX_AIO
-    BDRVRawState *s = bs->opaque;
     if (s->use_linux_aio) {
         Error *local_err;
         if (!aio_setup_linux_aio(new_context, &local_err)) {
             error_reportf_err(local_err, "Unable to use native AIO, "
                                          "falling back to thread pool: ");
             s->use_linux_aio = false;
+        }
+    }
+#endif
+#ifdef CONFIG_LINUX_IO_URING
+    if (s->use_linux_io_uring) {
+        Error *local_err;
+        if (!aio_setup_linux_io_uring(new_context, &local_err)) {
+            error_reportf_err(local_err, "Unable to use linux io_uring, "
+                                         "falling back to thread pool: ");
+            s->use_linux_io_uring = false;
         }
     }
 #endif
