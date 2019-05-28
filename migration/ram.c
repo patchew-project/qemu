@@ -607,7 +607,7 @@ typedef struct {
     uint64_t packet_num;
     uint64_t unused[4];    /* Reserved for future use */
     char ramblock[256];
-    uint64_t offset[];
+    ram_addr_t offset[];
 } __attribute__((packed)) MultiFDPacket_t;
 
 typedef struct {
