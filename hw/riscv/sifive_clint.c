@@ -26,10 +26,10 @@
 #include "hw/riscv/sifive_clint.h"
 #include "qemu/timer.h"
 
-static uint64_t cpu_riscv_read_rtc(void)
+static uint64_t cpu_riscv_read_rtc(CPURISCVState *env)
 {
     return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
-        SIFIVE_CLINT_TIMEBASE_FREQ, NANOSECONDS_PER_SECOND);
+        env->time_freq, NANOSECONDS_PER_SECOND);
 }
 
 /*
@@ -41,7 +41,7 @@ static void sifive_clint_write_timecmp(RISCVCPU *cpu, uint64_t value)
     uint64_t next;
     uint64_t diff;
 
-    uint64_t rtc_r = cpu_riscv_read_rtc();
+    uint64_t rtc_r = cpu_riscv_read_rtc(&cpu->env);
 
     cpu->env.timecmp = value;
     if (cpu->env.timecmp <= rtc_r) {
@@ -56,7 +56,7 @@ static void sifive_clint_write_timecmp(RISCVCPU *cpu, uint64_t value)
     diff = cpu->env.timecmp - rtc_r;
     /* back to ns (note args switched in muldiv64) */
     next = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
-        muldiv64(diff, NANOSECONDS_PER_SECOND, SIFIVE_CLINT_TIMEBASE_FREQ);
+        muldiv64(diff, NANOSECONDS_PER_SECOND, cpu->env.time_freq);
     timer_mod(cpu->env.timer, next);
 }
 
@@ -107,11 +107,25 @@ static uint64_t sifive_clint_read(void *opaque, hwaddr addr, unsigned size)
             return 0;
         }
     } else if (addr == clint->time_base) {
-        /* time_lo */
-        return cpu_riscv_read_rtc() & 0xFFFFFFFF;
+        /* All harts must have the same time frequency, so just use hart 0 */
+        CPUState *cpu = qemu_get_cpu(0);
+        CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
+        if (!env) {
+            error_report("clint: hart 0 not valid?!");
+        } else {
+            /* time_lo */
+            return cpu_riscv_read_rtc(env) & 0xFFFFFFFF;
+        }
     } else if (addr == clint->time_base + 4) {
-        /* time_hi */
-        return (cpu_riscv_read_rtc() >> 32) & 0xFFFFFFFF;
+        /* All harts must have the same time frequency, so just use hart 0 */
+        CPUState *cpu = qemu_get_cpu(0);
+        CPURISCVState *env = cpu ? cpu->env_ptr : NULL;
+        if (!env) {
+            error_report("clint: hart 0 not valid?!");
+        } else {
+            /* time_hi */
+            return (cpu_riscv_read_rtc(env) >> 32) & 0xFFFFFFFF;
+        }
     }
 
     error_report("clint: invalid read: %08x", (uint32_t)addr);

@@ -146,6 +146,8 @@ static void riscv_sifive_e_soc_init(Object *obj)
                             &error_abort);
     object_property_set_int(OBJECT(&s->cpus), smp_cpus, "num-harts",
                             &error_abort);
+    object_property_set_int(OBJECT(&s->cpus), SIFIVE_E_TIMEBASE_FREQ,
+                            "timebase-frequency", &error_abort);
     sysbus_init_child_obj(obj, "riscv.sifive.e.gpio0",
                           &s->gpio, sizeof(s->gpio),
                           TYPE_SIFIVE_GPIO);

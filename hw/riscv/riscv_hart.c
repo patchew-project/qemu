@@ -19,6 +19,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/timer.h"
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "target/riscv/cpu.h"
@@ -27,6 +28,8 @@
 static Property riscv_harts_props[] = {
     DEFINE_PROP_UINT32("num-harts", RISCVHartArrayState, num_harts, 1),
     DEFINE_PROP_STRING("cpu-type", RISCVHartArrayState, cpu_type),
+    DEFINE_PROP_UINT64("timebase-frequency", RISCVHartArrayState, time_freq,
+                       NANOSECONDS_PER_SECOND),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -49,6 +52,7 @@ static void riscv_harts_realize(DeviceState *dev, Error **errp)
                                 sizeof(RISCVCPU), s->cpu_type,
                                 &error_abort, NULL);
         s->harts[n].env.mhartid = n;
+        s->harts[n].env.time_freq = s->time_freq;
         qemu_register_reset(riscv_harts_cpu_reset, &s->harts[n]);
         object_property_set_bool(OBJECT(&s->harts[n]), true,
                                  "realized", &err);

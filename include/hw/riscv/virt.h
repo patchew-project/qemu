@@ -53,6 +53,7 @@ enum {
 };
 
 enum {
+    VIRT_TIMEBASE_FREQ = 10000000,
     VIRT_CLOCK_FREQ = 1000000000
 };
 

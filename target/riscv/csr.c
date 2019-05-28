@@ -191,22 +191,31 @@ static int read_instreth(CPURISCVState *env, int csrno, target_ulong *val)
 }
 #endif /* TARGET_RISCV32 */
 
-#if defined(CONFIG_USER_ONLY)
 static int read_time(CPURISCVState *env, int csrno, target_ulong *val)
 {
+#if !defined(CONFIG_USER_ONLY)
+    *val = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                    env->time_freq, NANOSECONDS_PER_SECOND);
+#else
     *val = cpu_get_host_ticks();
+#endif
     return 0;
 }
 
 #if defined(TARGET_RISCV32)
 static int read_timeh(CPURISCVState *env, int csrno, target_ulong *val)
 {
+#if !defined(CONFIG_USER_ONLY)
+    *val = muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL),
+                    env->time_freq, NANOSECONDS_PER_SECOND) >> 32;
+#else
     *val = cpu_get_host_ticks() >> 32;
+#endif
     return 0;
 }
 #endif
 
-#else /* CONFIG_USER_ONLY */
+#if !defined(CONFIG_USER_ONLY)
 
 /* Machine constants */
 
@@ -856,13 +865,9 @@ static riscv_csr_operations csr_ops[CSR_TABLE_SIZE] = {
     [CSR_INSTRETH] =            { ctr,  read_instreth                       },
 #endif
 
-    /* User-level time CSRs are only available in linux-user
-     * In privileged mode, the monitor emulates these CSRs */
-#if defined(CONFIG_USER_ONLY)
     [CSR_TIME] =                { ctr,  read_time                           },
 #if defined(TARGET_RISCV32)
     [CSR_TIMEH] =               { ctr,  read_timeh                          },
-#endif
 #endif
 
 #if !defined(CONFIG_USER_ONLY)

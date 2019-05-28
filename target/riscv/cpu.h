@@ -175,7 +175,9 @@ struct CPURISCVState {
     /* temporary htif regs */
     uint64_t mfromhost;
     uint64_t mtohost;
+
     uint64_t timecmp;
+    uint64_t time_freq;
 
     /* physical memory protection */
     pmp_table_t pmp_state;

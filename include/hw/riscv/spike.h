@@ -36,6 +36,7 @@ enum {
 };
 
 enum {
+    SPIKE_TIMEBASE_FREQ = 10000000,
     SPIKE_CLOCK_FREQ = 1000000000
 };
 
