@@ -143,8 +143,10 @@ static void pc_q35_init(MachineState *machine)
      * If it doesn't, we need to split it in chunks below and above 4G.
      * In any case, try to make sure that guest addresses aligned at
      * 1G boundaries get mapped to host addresses aligned at 1G boundaries.
+     *
+     * qemu 4.1+ machines: split at 2G unconditionally (gigabyte_split = true)
      */
-    if (machine->ram_size >= 0xb0000000) {
+    if (machine->ram_size >= 0xb0000000 || pcmc->gigabyte_split) {
         lowmem = 0x80000000;
     } else {
         lowmem = 0xb0000000;
@@ -376,8 +378,11 @@ DEFINE_Q35_MACHINE(v4_1, "pc-q35-4.1", NULL,
 
 static void pc_q35_4_0_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     pc_q35_4_1_machine_options(m);
     m->alias = NULL;
+    pcmc->gigabyte_split = false;
     compat_props_add(m->compat_props, hw_compat_4_0, hw_compat_4_0_len);
     compat_props_add(m->compat_props, pc_compat_4_0, pc_compat_4_0_len);
 }

@@ -120,6 +120,7 @@ typedef struct PCMachineClass {
 
     /* RAM / address space compat: */
     bool gigabyte_align;
+    bool gigabyte_split;
     bool has_reserved_memory;
     bool enforce_aligned_dimm;
     bool broken_reserved_end;
