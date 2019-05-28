@@ -354,6 +354,95 @@ void qemu_iovec_concat(QEMUIOVector *dst,
 }
 
 /*
+ * qiov_find_iov
+ *
+ * Return iov, where byte at @offset (in @qiov) is.
+ * Update @offset to be offset inside that iov to the smae byte.
+ */
+static struct iovec *qiov_find_iov(QEMUIOVector *qiov, size_t *offset)
+{
+    struct iovec *iov = qiov->iov;
+
+    assert(*offset < qiov->size);
+
+    while (*offset >= iov->iov_len) {
+        *offset -= iov->iov_len;
+        iov++;
+    }
+
+    return iov;
+}
+
+/*
+ * qiov_slice
+ *
+ * Fund subarray of iovec's, containing requested range. @head would
+ * be offset in first iov (retruned by the function), @tail would be
+ * count of extra bytes in last iov (returned iov + @niov - 1).
+ */
+static struct iovec *qiov_slice(QEMUIOVector *qiov,
+                                size_t offset, size_t len,
+                                size_t *head, size_t *tail, int *niov)
+{
+    struct iovec *iov = qiov_find_iov(qiov, &offset), *end_iov;
+    size_t end_offset;
+
+    assert(offset + len <= qiov->size);
+
+    end_offset = iov->iov_len;
+    end_iov = iov + 1;
+
+    while (end_offset - offset < len) {
+        end_offset += end_iov->iov_len;
+        end_iov++;
+    }
+
+    *niov = end_iov - iov;
+    *head = offset;
+    *tail = (end_offset - offset) - len;
+
+    return iov;
+}
+
+/*
+ * Compile new iovec, combining @head_buf buffer, sub-qiov of @mid_qiov,
+ * and @tail_buf buffer into new qiov.
+ */
+void qemu_iovec_init_extended(
+        QEMUIOVector *qiov,
+        void *head_buf, size_t head_len,
+        QEMUIOVector *mid_qiov, size_t mid_offset, size_t mid_len,
+        void *tail_buf, size_t tail_len)
+{
+    size_t mid_head, mid_tail;
+    int niov;
+    struct iovec *p, *mid_iov = qiov_slice(mid_qiov, mid_offset, mid_len,
+                                           &mid_head, &mid_tail, &niov);
+
+    assert(niov);
+    qiov->niov = qiov->nalloc = niov + !!head_len + !!tail_len;
+    qiov->size = head_len + mid_len + tail_len;
+
+    p = qiov->iov = g_new(struct iovec, qiov->niov);
+    if (head_len) {
+        p->iov_base = head_buf;
+        p->iov_len = head_len;
+        p++;
+    }
+
+    memcpy(p, mid_iov, niov * sizeof(*p));
+    p[0].iov_base = (uint8_t *)p[0].iov_base + mid_head;
+    p[0].iov_len -= mid_head;
+    p[niov - 1].iov_len -= mid_tail;
+    p += niov;
+
+    if (tail_len) {
+        p->iov_base = tail_buf;
+        p->iov_len = tail_len;
+    }
+}
+
+/*
  * Check if the contents of the iovecs are all zero
  */
 bool qemu_iovec_is_zero(QEMUIOVector *qiov)
