@@ -120,6 +120,7 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
     if (local_err) {
         object_unref(OBJECT(sioc));
         error_propagate(errp, local_err);
+        pr_manager_send_status_changed_event(pr_mgr);
         return -ENOTCONN;
     }
 
