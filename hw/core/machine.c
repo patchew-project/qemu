@@ -24,7 +24,9 @@
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
 
-GlobalProperty hw_compat_4_0[] = {};
+GlobalProperty hw_compat_4_0[] = {
+    { "virtio-device", "use-started", "false" },
+};
 const size_t hw_compat_4_0_len = G_N_ELEMENTS(hw_compat_4_0);
 
 GlobalProperty hw_compat_3_1[] = {

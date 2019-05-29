@@ -191,8 +191,12 @@ static void vhost_user_blk_stop(VirtIODevice *vdev)
 static void vhost_user_blk_set_status(VirtIODevice *vdev, uint8_t status)
 {
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    bool should_start = vdev->started;
+    bool should_start = status & VIRTIO_CONFIG_S_DRIVER_OK;
     int ret;
+
+    if (virtio_device_started(vdev)) {
+        should_start = true;
+    }
 
     if (!vdev->vm_running) {
         should_start = false;
@@ -317,7 +321,7 @@ static int vhost_user_blk_connect(DeviceState *dev)
     }
 
     /* restore vhost state */
-    if (vdev->started) {
+    if (virtio_device_started(vdev)) {
         ret = vhost_user_blk_start(vdev);
         if (ret < 0) {
             error_report("vhost-user-blk: vhost start failed: %s",

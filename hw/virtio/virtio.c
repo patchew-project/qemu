@@ -1803,14 +1803,14 @@ static bool virtio_started_needed(void *opaque)
 {
     VirtIODevice *vdev = opaque;
 
-    return vdev->started;
+    return vdev->started && vdev->use_started;
 }
 
 static bool virtio_start_on_kick_needed(void *opaque)
 {
     VirtIODevice *vdev = opaque;
 
-    return vdev->start_on_kick;
+    return vdev->start_on_kick && vdev->use_started;
 }
 
 static const VMStateDescription vmstate_virtqueue = {
@@ -2320,7 +2320,7 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
     VirtIODevice *vdev = opaque;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    bool backend_run = running && vdev->started;
+    bool backend_run = running && virtio_device_started(vdev);
     vdev->vm_running = running;
 
     if (backend_run) {
@@ -2697,6 +2697,7 @@ static void virtio_device_instance_finalize(Object *obj)
 
 static Property virtio_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
+    DEFINE_PROP_BOOL("use-started", VirtIODevice, use_started, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
