@@ -1802,6 +1802,13 @@ static bool virtio_started_needed(void *opaque)
     return vdev->started;
 }
 
+static bool virtio_start_on_kick_needed(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    return vdev->start_on_kick;
+}
+
 static const VMStateDescription vmstate_virtqueue = {
     .name = "virtqueue_state",
     .version_id = 1,
@@ -1941,6 +1948,17 @@ static const VMStateDescription vmstate_virtio_started = {
     }
 };
 
+static const VMStateDescription vmstate_virtio_start_on_kick = {
+    .name = "virtio/start_on_kick",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = &virtio_start_on_kick_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(start_on_kick, VirtIODevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_virtio = {
     .name = "virtio",
     .version_id = 1,
@@ -1957,6 +1975,7 @@ static const VMStateDescription vmstate_virtio = {
         &vmstate_virtio_broken,
         &vmstate_virtio_extra_state,
         &vmstate_virtio_started,
+        &vmstate_virtio_start_on_kick,
         NULL
     }
 };
