@@ -1162,9 +1162,13 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
             }
         }
     }
-    vdev->started = val & VIRTIO_CONFIG_S_DRIVER_OK;
-    if (unlikely(vdev->start_on_kick && vdev->started)) {
-        vdev->start_on_kick = false;
+
+    if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) !=
+        (val & VIRTIO_CONFIG_S_DRIVER_OK)) {
+        vdev->started = val & VIRTIO_CONFIG_S_DRIVER_OK;
+        if (unlikely(vdev->start_on_kick && vdev->started)) {
+            vdev->start_on_kick = false;
+        }
     }
 
     if (k->set_status) {
