@@ -4125,22 +4125,27 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
 {
     Error *local_err = NULL;
 
-    bdrv_set_backing_hd(bs_new, bs_top, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
+    bdrv_ref(bs_top);
 
     bdrv_replace_node(bs_top, bs_new, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        bdrv_set_backing_hd(bs_new, NULL, &error_abort);
+        error_prepend(errp, "Failed to replace node: ");
+        goto out;
+    }
+
+    bdrv_set_backing_hd(bs_new, bs_top, &local_err);
+    if (local_err) {
+        bdrv_replace_node(bs_new, bs_top, &error_abort);
+        error_propagate(errp, local_err);
+        error_prepend(errp, "Failed to set backing: ");
         goto out;
     }
 
     /* bs_new is now referenced by its new parents, we don't need the
      * additional reference any more. */
 out:
+    bdrv_unref(bs_top);
     bdrv_unref(bs_new);
 }
 
