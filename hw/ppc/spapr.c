@@ -1809,6 +1809,7 @@ static void spapr_machine_reset(void)
 
     spapr->cas_reboot = false;
 
+    spapr->mc_status = -1;
     spapr->guest_machine_check_addr = -1;
 
     /* Signal all vCPUs waiting on this condition */
