@@ -2647,6 +2647,10 @@ static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
 
     FLOPPY_DPRINTF("init controller\n");
     fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
+    if (fdctrl->fifo) {
+        /* To avoid using the uninitialized memory while saving VM state */
+        memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
+    }
     fdctrl->fifo_size = 512;
     fdctrl->result_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,
                                              fdctrl_result_timer, fdctrl);
