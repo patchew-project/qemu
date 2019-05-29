@@ -21,6 +21,7 @@
 #include "qemu/option.h"
 #include "qemu/timer.h"
 #include "qemu/cutils.h"
+#include "string.h"
 
 #define CMD_NOFILE_OK   0x01
 
@@ -337,6 +338,35 @@ static void *qemu_io_alloc(BlockBackend *blk, size_t len, int pattern)
     }
     buf = blk_blockalign(blk, len);
     memset(buf, pattern, len);
+    if (qemuio_misalign) {
+        buf += MISALIGN_OFFSET;
+    }
+    return buf;
+}
+
+static void *qemu_io_alloc_from_file(BlockBackend *blk, size_t len,
+                                     char *file_name)
+{
+    void *buf;
+    FILE *f = fopen(file_name, "r");
+
+    if (!f) {
+        printf("cannot open file '%s'\n", file_name);
+        return NULL;
+    }
+
+    if (qemuio_misalign) {
+        len += MISALIGN_OFFSET;
+    }
+    buf = blk_blockalign(blk, len);
+    memset(buf, 0, len);
+
+    if (!fread(buf, sizeof(char), len, f)) {
+        printf("file '%s' is empty\n", file_name);
+        g_free(buf);
+        return NULL;
+    }
+
     if (qemuio_misalign) {
         buf += MISALIGN_OFFSET;
     }
@@ -965,7 +995,7 @@ static const cmdinfo_t write_cmd = {
     .perm       = BLK_PERM_WRITE,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-bcCfnquz] [-P pattern] off len",
+    .args       = "[-bcCfnquz] [-P pattern | -s source_file] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -974,7 +1004,7 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
 {
     struct timeval t1, t2;
     bool Cflag = false, qflag = false, bflag = false;
-    bool Pflag = false, zflag = false, cflag = false;
+    bool Pflag = false, zflag = false, cflag = false, sflag = false;
     int flags = 0;
     int c, cnt, ret;
     char *buf = NULL;
@@ -983,8 +1013,9 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     /* Some compilers get confused and warn if this is not initialized.  */
     int64_t total = 0;
     int pattern = 0xcd;
+    char *file_name;
 
-    while ((c = getopt(argc, argv, "bcCfnpP:quz")) != -1) {
+    while ((c = getopt(argc, argv, "bcCfnpP:quzs:")) != -1) {
         switch (c) {
         case 'b':
             bflag = true;
@@ -1019,6 +1050,10 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
             break;
         case 'z':
             zflag = true;
+            break;
+        case 's':
+            sflag = true;
+            file_name = g_strdup(optarg);
             break;
         default:
             qemuio_command_usage(&write_cmd);
@@ -1056,6 +1091,14 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
         return -EINVAL;
     }
 
+    if (sflag && Pflag) {
+        printf("-s and -P cannot be specified at the same time\n");
+    }
+
+    if (sflag && zflag) {
+        printf("-s and -z cannot be specified at the same time\n");
+    }
+
     offset = cvtnum(argv[optind]);
     if (offset < 0) {
         print_cvtnum_err(offset, argv[optind]);
@@ -1088,7 +1131,14 @@ static int write_f(BlockBackend *blk, int argc, char **argv)
     }
 
     if (!zflag) {
-        buf = qemu_io_alloc(blk, count, pattern);
+        if (sflag) {
+            buf = qemu_io_alloc_from_file(blk, count, file_name);
+            if (!buf) {
+                return -EINVAL;
+            }
+        } else {
+            buf = qemu_io_alloc(blk, count, pattern);
+        }
     }
 
     gettimeofday(&t1, NULL);
