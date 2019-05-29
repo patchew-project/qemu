@@ -6235,9 +6235,20 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     }
 
     if (bs->implicit) {
-        /* For implicit nodes, just copy everything from the single child */
+        /*
+         * For implicit nodes, just copy everything from the single child or
+         * from backing, if there are several children.
+         * If there are no children for some reason (filter is still attached
+         * to block-job blk, but already removed from backing chain of device)
+         * do nothing.
+         */
         child = QLIST_FIRST(&bs->children);
-        assert(QLIST_NEXT(child, next) == NULL);
+        if (!child) {
+            return;
+        } else if (QLIST_NEXT(child, next)) {
+            assert(bs->backing);
+            child = bs->backing;
+        }
 
         pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
                 child->bs->exact_filename);
