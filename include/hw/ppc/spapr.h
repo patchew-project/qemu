@@ -214,6 +214,8 @@ struct SpaprMachineState {
     SpaprCapabilities def, eff, mig;
 
     unsigned gpu_numa_id;
+
+    Error *fwnmi_migration_blocker;
 };
 
 #define H_SUCCESS         0
