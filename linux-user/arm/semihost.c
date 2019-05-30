@@ -15,10 +15,34 @@
 #include "hw/semihosting/console.h"
 #include "qemu.h"
 
-int qemu_semihosting_console_out(CPUArchState *env, target_ulong addr, int len)
+int qemu_semihosting_console_outs(CPUArchState *env, target_ulong addr)
 {
+    int len;
     void *s = lock_user_string(addr);
-    len = write(STDERR_FILENO, s, len ? len : strlen(s));
+    if (!s) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: passed inaccessible address " TARGET_FMT_lx,
+                      __func__, addr);
+        return 0;
+    }
+
+    len = write(STDERR_FILENO, s, strlen(s));
     unlock_user(s, addr, 0);
     return len;
+}
+
+void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
+{
+    char c;
+
+    if (get_user_u8(c, addr)) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "%s: passed inaccessible address " TARGET_FMT_lx,
+                      __func__, addr);
+    } else {
+        if (write(STDERR_FILENO, &c, 1) != 1) {
+            qemu_log_mask(LOG_UNIMP, "%s: unexpected write to stdout failure",
+                          __func__);
+        }
+    }
 }
