@@ -2282,8 +2282,7 @@ int spapr_dt_phb(SpaprPhbState *phb, uint32_t intc_phandle, void *fdt,
         return ret;
     }
 
-    ret = spapr_drc_populate_dt(fdt, bus_off, OBJECT(phb),
-                                SPAPR_DR_CONNECTOR_TYPE_PCI);
+    ret = spapr_dt_drc(fdt, bus_off, OBJECT(phb), SPAPR_DR_CONNECTOR_TYPE_PCI);
     if (ret) {
         return ret;
     }
