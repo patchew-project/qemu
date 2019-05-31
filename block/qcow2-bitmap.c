@@ -1102,6 +1102,12 @@ Qcow2BitmapInfoList *qcow2_get_bitmap_info_list(BlockDriverState *bs,
     return list;
 }
 
+bool qcow2_has_bitmaps(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    return s->nb_bitmaps;
+}
+
 int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
