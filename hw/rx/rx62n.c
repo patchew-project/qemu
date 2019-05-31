@@ -195,7 +195,7 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
     }
 
     object_initialize_child(OBJECT(s), "cpu", &s->cpu,
-                            sizeof(RXCPU), TYPE_RXCPU,
+                            sizeof(RXCPU), RX_CPU_TYPE_NAME("rx62n"),
                             errp, NULL);
     object_property_set_bool(OBJECT(&s->cpu), true, "realized", errp);
 
