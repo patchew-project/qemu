@@ -531,6 +531,8 @@ struct BlockDriver {
                              uint64_t parent_perm, uint64_t parent_shared,
                              uint64_t *nperm, uint64_t *nshared);
 
+     bool (*bdrv_need_rw_file_child_during_reopen_rw)(BlockDriverState *bs);
+
     /**
      * Bitmaps should be marked as 'IN_USE' in the image on reopening image
      * as rw. This handler should realize it. It also should unset readonly
