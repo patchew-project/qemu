@@ -120,7 +120,7 @@ enum {
     SECONDARY_IN,
 };
 
-static void colo_compare_inconsistency_notify(void)
+static void notify_native_frame(void)
 {
     notifier_list_notify(&colo_compare_notifiers,
                 migrate_get_current());
@@ -449,7 +449,7 @@ sec:
         if (s->notify_dev) {
             notify_remote_frame(s);
         } else {
-            colo_compare_inconsistency_notify();
+            notify_native_frame();
         }
     }
 }
@@ -606,7 +606,7 @@ static int colo_old_packet_check_one_conn(Connection *conn,
         if (s->notify_dev) {
             notify_remote_frame(s);
         } else {
-            colo_compare_inconsistency_notify();
+            notify_native_frame();
         }
         return 0;
     }
@@ -660,7 +660,7 @@ static void colo_compare_packet(CompareState *s, Connection *conn,
             if (s->notify_dev) {
                 notify_remote_frame(s);
             } else {
-                colo_compare_inconsistency_notify();
+                notify_native_frame();
             }
             break;
         }
