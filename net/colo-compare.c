@@ -251,6 +251,17 @@ static void colo_release_primary_pkt(CompareState *s, Packet *pkt)
     packet_destroy(pkt, NULL);
 }
 
+static void notify_remote_frame(CompareState *s)
+{
+    char msg[] = "DO_CHECKPOINT";
+    int ret = 0;
+
+    ret = compare_chr_send(s, (uint8_t *)msg, strlen(msg), 0, true);
+    if (ret < 0) {
+        error_report("Notify Xen COLO-frame failed");
+    }
+}
+
 /*
  * The IP packets sent by primary and secondary
  * will be compared in here
@@ -435,7 +446,11 @@ sec:
         qemu_hexdump((char *)spkt->data, stderr,
                      "colo-compare spkt", spkt->size);
 
-        colo_compare_inconsistency_notify();
+        if (s->notify_dev) {
+            notify_remote_frame(s);
+        } else {
+            colo_compare_inconsistency_notify();
+        }
     }
 }
 
@@ -577,7 +592,7 @@ void colo_compare_unregister_notifier(Notifier *notify)
 }
 
 static int colo_old_packet_check_one_conn(Connection *conn,
-                                           void *user_data)
+                                          CompareState *s)
 {
     GList *result = NULL;
     int64_t check_time = REGULAR_PACKET_CHECK_MS;
@@ -588,7 +603,11 @@ static int colo_old_packet_check_one_conn(Connection *conn,
 
     if (result) {
         /* Do checkpoint will flush old packet */
-        colo_compare_inconsistency_notify();
+        if (s->notify_dev) {
+            notify_remote_frame(s);
+        } else {
+            colo_compare_inconsistency_notify();
+        }
         return 0;
     }
 
@@ -608,7 +627,7 @@ static void colo_old_packet_check(void *opaque)
      * If we find one old packet, stop finding job and notify
      * COLO frame do checkpoint.
      */
-    g_queue_find_custom(&s->conn_list, NULL,
+    g_queue_find_custom(&s->conn_list, s,
                         (GCompareFunc)colo_old_packet_check_one_conn);
 }
 
@@ -637,7 +656,12 @@ static void colo_compare_packet(CompareState *s, Connection *conn,
              */
             trace_colo_compare_main("packet different");
             g_queue_push_head(&conn->primary_list, pkt);
-            colo_compare_inconsistency_notify();
+
+            if (s->notify_dev) {
+                notify_remote_frame(s);
+            } else {
+                colo_compare_inconsistency_notify();
+            }
             break;
         }
     }
@@ -989,7 +1013,24 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 
 static void compare_notify_rs_finalize(SocketReadState *notify_rs)
 {
+    CompareState *s = container_of(notify_rs, CompareState, notify_rs);
+
     /* Get Xen colo-frame's notify and handle the message */
+    char *data = g_memdup(notify_rs->buf, notify_rs->packet_len);
+    char msg[] = "COLO_COMPARE_GET_XEN_INIT";
+    int ret;
+
+    if (!strcmp(data, "COLO_USERSPACE_PROXY_INIT")) {
+        ret = compare_chr_send(s, (uint8_t *)msg, strlen(msg), 0, true);
+        if (ret < 0) {
+            error_report("Notify Xen COLO-frame INIT failed");
+        }
+    }
+
+    if (!strcmp(data, "COLO_CHECKPOINT")) {
+        /* colo-compare do checkpoint, flush pri packet and remove sec packet */
+        g_queue_foreach(&s->conn_list, colo_flush_packets, s);
+    }
 }
 
 /*
