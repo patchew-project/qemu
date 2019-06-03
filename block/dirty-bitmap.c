@@ -35,6 +35,10 @@ struct BdrvDirtyBitmap {
     bool busy;                  /* Bitmap is busy, it can't be used via QMP */
     BdrvDirtyBitmap *successor; /* Anonymous child, if any. */
     char *name;                 /* Optional non-empty unique ID */
+    char *hidden_name;          /* Backup of @name for removal transaction
+                                   action. Used for hide/unhide API. */
+    bool hidden_persistent;     /* Backup of @persistent for removal transaction
+                                   action. */
     int64_t size;               /* Size of the bitmap, in bytes */
     bool disabled;              /* Bitmap is disabled. It ignores all writes to
                                    the device */
@@ -848,4 +852,26 @@ out:
     if (src->mutex != dest->mutex) {
         qemu_mutex_unlock(src->mutex);
     }
+}
+
+void bdrv_dirty_bitmap_hide(BdrvDirtyBitmap *bitmap)
+{
+    qemu_mutex_lock(bitmap->mutex);
+    assert(!bitmap->hidden_name);
+    bitmap->hidden_name = bitmap->name;
+    bitmap->hidden_persistent = bitmap->persistent;
+    bitmap->name = NULL;
+    bitmap->persistent = false;
+    qemu_mutex_unlock(bitmap->mutex);
+}
+
+void bdrv_dirty_bitmap_unhide(BdrvDirtyBitmap *bitmap)
+{
+    qemu_mutex_lock(bitmap->mutex);
+    assert(!bitmap->name);
+    bitmap->name = bitmap->hidden_name;
+    bitmap->persistent = bitmap->hidden_persistent;
+    bitmap->hidden_name = NULL;
+    bitmap->hidden_persistent = false;
+    qemu_mutex_unlock(bitmap->mutex);
 }

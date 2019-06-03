@@ -116,5 +116,7 @@ bool bdrv_dirty_bitmap_next_dirty_area(BdrvDirtyBitmap *bitmap,
 BdrvDirtyBitmap *bdrv_reclaim_dirty_bitmap_locked(BlockDriverState *bs,
                                                   BdrvDirtyBitmap *bitmap,
                                                   Error **errp);
+void bdrv_dirty_bitmap_hide(BdrvDirtyBitmap *bitmap);
+void bdrv_dirty_bitmap_unhide(BdrvDirtyBitmap *bitmap);
 
 #endif
