@@ -233,8 +233,6 @@ typedef struct CPUTLB { } CPUTLB;
 
 #endif  /* !CONFIG_USER_ONLY && CONFIG_TCG */
 
-#define CPU_COMMON  /* Nothing */
-
 /*
  * This structure must be placed in ArchCPU immedately
  * before CPUArchState, as a field named "neg".
