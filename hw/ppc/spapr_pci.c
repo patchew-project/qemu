@@ -1858,7 +1858,7 @@ static int spapr_phb_children_reset(Object *child, void *opaque)
     DeviceState *dev = (DeviceState *) object_dynamic_cast(child, TYPE_DEVICE);
 
     if (dev) {
-        device_reset(dev);
+        device_legacy_reset(dev);
     }
 
     return 0;
