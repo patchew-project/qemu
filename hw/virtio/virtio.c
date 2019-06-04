@@ -1165,10 +1165,7 @@ int virtio_set_status(VirtIODevice *vdev, uint8_t val)
 
     if ((vdev->status & VIRTIO_CONFIG_S_DRIVER_OK) !=
         (val & VIRTIO_CONFIG_S_DRIVER_OK)) {
-        vdev->started = val & VIRTIO_CONFIG_S_DRIVER_OK;
-        if (unlikely(vdev->start_on_kick && vdev->started)) {
-            vdev->start_on_kick = false;
-        }
+        virtio_set_started(vdev, val & VIRTIO_CONFIG_S_DRIVER_OK);
     }
 
     if (k->set_status) {
@@ -1539,8 +1536,7 @@ static bool virtio_queue_notify_aio_vq(VirtQueue *vq)
         ret = vq->handle_aio_output(vdev, vq);
 
         if (unlikely(vdev->start_on_kick)) {
-            vdev->started = true;
-            vdev->start_on_kick = false;
+            virtio_set_started(vdev, true);
         }
     }
 
@@ -1560,8 +1556,7 @@ static void virtio_queue_notify_vq(VirtQueue *vq)
         vq->handle_output(vdev, vq);
 
         if (unlikely(vdev->start_on_kick)) {
-            vdev->started = true;
-            vdev->start_on_kick = false;
+            virtio_set_started(vdev, true);
         }
     }
 }
@@ -1581,8 +1576,7 @@ void virtio_queue_notify(VirtIODevice *vdev, int n)
         vq->handle_output(vdev, vq);
 
         if (unlikely(vdev->start_on_kick)) {
-            vdev->started = true;
-            vdev->start_on_kick = false;
+            virtio_set_started(vdev, true);
         }
     }
 }
@@ -2083,7 +2077,7 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
             }
         }
 
-        if (!vdev->started &&
+        if (!virtio_device_started(vdev, vdev->status) &&
             !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
             vdev->start_on_kick = true;
         }
@@ -2238,7 +2232,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         }
     }
 
-    if (!vdev->started &&
+    if (!virtio_device_started(vdev, vdev->status) &&
         !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         vdev->start_on_kick = true;
     }
@@ -2306,7 +2300,7 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
     VirtIODevice *vdev = opaque;
     BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
-    bool backend_run = running && vdev->started;
+    bool backend_run = running && virtio_device_started(vdev, vdev->status);
     vdev->vm_running = running;
 
     if (backend_run) {
@@ -2683,6 +2677,7 @@ static void virtio_device_instance_finalize(Object *obj)
 
 static Property virtio_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
+    DEFINE_PROP_BOOL("use-started", VirtIODevice, use_started, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
