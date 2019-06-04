@@ -1308,6 +1308,45 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 
+#include "elf.h"
+
+#define ELF_HWCAP get_elf_hwcap()
+
+static uint32_t get_elf_hwcap(void)
+{
+    uint32_t hwcap = 0;
+
+    if (s390_has_feat(S390_FEAT_ESAN3)) {
+        hwcap |= HWCAP_S390_ESAN3;
+    }
+    if (s390_has_feat(S390_FEAT_ZARCH)) {
+        hwcap |= HWCAP_S390_ZARCH;
+    }
+    if (s390_has_feat(S390_FEAT_STFLE)) {
+        hwcap |= HWCAP_S390_STFLE;
+    }
+    if (s390_has_feat(S390_FEAT_MSA)) {
+        hwcap |= HWCAP_S390_MSA;
+    }
+    if (s390_has_feat(S390_FEAT_LONG_DISPLACEMENT)) {
+        hwcap |= HWCAP_S390_LDISP;
+    }
+    if (s390_has_feat(S390_FEAT_EXTENDED_IMMEDIATE)) {
+        hwcap |= HWCAP_S390_EIMM;
+    }
+    if (s390_has_feat(S390_FEAT_EXTENDED_TRANSLATION_3) &&
+        s390_has_feat(S390_FEAT_ETF3_ENH)) {
+        hwcap |= HWCAP_S390_ETF3EH;
+    }
+    /* 31-bit processes can use 64-bit registers */
+    hwcap |= HWCAP_S390_HIGH_GPRS;
+    if (s390_has_feat(S390_FEAT_VECTOR)) {
+        hwcap |= HWCAP_S390_VXRS;
+    }
+
+    return hwcap;
+}
+
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
     regs->psw.addr = infop->entry;
