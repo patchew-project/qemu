@@ -2080,7 +2080,6 @@ int virtio_set_features(VirtIODevice *vdev, uint64_t val)
         }
 
         if (!vdev->started &&
-            virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1) &&
             !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
             vdev->start_on_kick = true;
         }
@@ -2236,7 +2235,6 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
     }
 
     if (!vdev->started &&
-        virtio_host_has_feature(vdev, VIRTIO_F_VERSION_1) &&
         !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1)) {
         vdev->start_on_kick = true;
     }

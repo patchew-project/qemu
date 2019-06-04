@@ -106,7 +106,7 @@ struct VirtIODevice
     bool vm_running;
     bool broken; /* device in invalid state, needs reset */
     bool started;
-    bool start_on_kick; /* virtio 1.0 transitional devices support that */
+    bool start_on_kick; /* when virtio 1.0 feature has not been negotiated */
     VMChangeStateEntry *vmstate;
     char *bus_name;
     uint8_t device_endian;
