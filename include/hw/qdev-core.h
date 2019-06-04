@@ -6,6 +6,7 @@
 #include "qom/object.h"
 #include "hw/irq.h"
 #include "hw/hotplug.h"
+#include "hw/resettable.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -107,6 +108,11 @@ typedef struct DeviceClass {
     bool hotpluggable;
 
     /* callbacks */
+    /*
+     * Reset method here is deprecated and replaced by methods in the
+     * resettable class interface to implement a multi-phase reset.
+     * TODO: remove once every reset callback is unused
+     */
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
@@ -131,6 +137,8 @@ struct NamedGPIOList {
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
+ * @resetting: Indicates whether the device is under reset. Also
+ * used to count how many times reset has been initiated on the device.
  *
  * This structure should not be accessed directly.  We declare it here
  * so that it can be embedded in individual device state structures.
@@ -152,6 +160,7 @@ struct DeviceState {
     int num_child_bus;
     int instance_id_alias;
     int alias_required_for_version;
+    uint32_t resetting;
 };
 
 struct DeviceListener {
@@ -198,6 +207,8 @@ typedef struct BusChild {
 /**
  * BusState:
  * @hotplug_handler: link to a hotplug handler associated with bus.
+ * @resetting: Indicates whether the device is under reset. Also
+ * used to count how many times reset has been initiated on the device.
  */
 struct BusState {
     Object obj;
@@ -209,6 +220,7 @@ struct BusState {
     int num_children;
     QTAILQ_HEAD(, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
+    uint32_t resetting;
 };
 
 /**
@@ -375,11 +387,36 @@ int qdev_walk_children(DeviceState *dev,
                        qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
                        void *opaque);
 
-void qdev_reset_all(DeviceState *dev);
-void qdev_reset_all_fn(void *opaque);
+/**
+ * device_reset:
+ * Resets the device @dev, @cold tell whether to do a cold or warm reset.
+ * Uses the ressetable interface.
+ * Base behavior is to reset the device and its qdev/qbus subtree.
+ */
+void device_reset(DeviceState *dev, bool cold);
 
 /**
- * @qbus_reset_all:
+ * bus_reset:
+ * Resets the bus @bus, @cold tell whether to do a cold or warm reset.
+ * Uses the ressetable interface.
+ * Base behavior is to reset the bus and its qdev/qbus subtree.
+ */
+void bus_reset(BusState *bus, bool cold);
+
+/**
+ * device_is_resetting:
+ * Tell whether the device @dev is currently under reset.
+ */
+bool device_is_resetting(DeviceState *dev);
+
+/**
+ * bus_is_resetting:
+ * Tell whether the bus @bus is currently under reset.
+ */
+bool bus_is_resetting(BusState *bus);
+
+/**
+ * qbus/qdev_reset_all:
  * @bus: Bus to be reset.
  *
  * Reset @bus and perform a bus-level ("hard") reset of all devices connected
@@ -387,7 +424,13 @@ void qdev_reset_all_fn(void *opaque);
  * hard reset means that qbus_reset_all will reset all state of the device.
  * For PCI devices, for example, this will include the base address registers
  * or configuration space.
+ *
+ * Theses functions are deprecated, please use device/bus_reset or
+ * resettable_reset_* instead
+ * TODO: remove them when all occurence are removed
  */
+void qdev_reset_all(DeviceState *dev);
+void qdev_reset_all_fn(void *opaque);
 void qbus_reset_all(BusState *bus);
 void qbus_reset_all_fn(void *opaque);
 
@@ -409,17 +452,21 @@ void qdev_machine_init(void);
  * device_legacy_reset:
  *
  * Reset a single device (by calling the reset method).
+ *
+ * This function is deprecated, please use device_reset() instead.
+ * TODO: remove the function when all occurences are removed.
  */
 void device_legacy_reset(DeviceState *dev);
 
-static inline void device_reset(DeviceState *dev)
-{
-    device_legacy_reset(dev);
-}
-
+/**
+ * device_class_set_parent_reset:
+ * TODO: remove the function when DeviceClass's reset method
+ * is not used anymore.
+ */
 void device_class_set_parent_reset(DeviceClass *dc,
                                    DeviceReset dev_reset,
                                    DeviceReset *parent_reset);
+
 void device_class_set_parent_realize(DeviceClass *dc,
                                      DeviceRealize dev_realize,
                                      DeviceRealize *parent_realize);

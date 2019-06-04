@@ -254,25 +254,56 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
     return hotplug_ctrl;
 }
 
-static int qdev_reset_one(DeviceState *dev, void *opaque)
+void device_reset(DeviceState *dev, bool cold)
 {
-    device_reset(dev);
-
-    return 0;
+    resettable_reset(OBJECT(dev), cold);
 }
 
-static int qbus_reset_one(BusState *bus, void *opaque)
+bool device_is_resetting(DeviceState *dev)
 {
-    BusClass *bc = BUS_GET_CLASS(bus);
-    if (bc->reset) {
-        bc->reset(bus);
+    return (dev->resetting != 0);
+}
+
+static uint32_t device_get_reset_count(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    return dev->resetting;
+}
+
+static uint32_t device_increment_reset_count(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    return ++dev->resetting;
+}
+
+static uint32_t device_decrement_reset_count(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    return --dev->resetting;
+}
+
+static void device_foreach_reset_child(Object *obj, void (*func)(Object *))
+{
+    DeviceState *dev = DEVICE(obj);
+    BusState *bus;
+    QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+        func(OBJECT(bus));
     }
-    return 0;
+}
+
+static void device_reset_init_phase(Object *obj, bool cold)
+{
+    DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (dc->reset) {
+        dc->reset(dev);
+    }
 }
 
 void qdev_reset_all(DeviceState *dev)
 {
-    qdev_walk_children(dev, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    device_reset(dev, false);
 }
 
 void qdev_reset_all_fn(void *opaque)
@@ -282,7 +313,7 @@ void qdev_reset_all_fn(void *opaque)
 
 void qbus_reset_all(BusState *bus)
 {
-    qbus_walk_children(bus, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    bus_reset(bus, false);
 }
 
 void qbus_reset_all_fn(void *opaque)
@@ -864,7 +895,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
         if (dev->hotplugged) {
-            device_reset(dev);
+            device_reset(dev, true);
         }
         dev->pending_deleted_event = false;
 
@@ -954,6 +985,7 @@ static void device_initfn(Object *obj)
 
     dev->instance_id_alias = -1;
     dev->realized = false;
+    dev->resetting = 0;
 
     object_property_add_bool(obj, "realized",
                              device_get_realized, device_set_realized, NULL);
@@ -1049,6 +1081,7 @@ static void device_unparent(Object *obj)
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = device_unparent;
 
@@ -1060,6 +1093,12 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+
+    rc->phases.init = device_reset_init_phase;
+    rc->get_count = device_get_reset_count;
+    rc->increment_count = device_increment_reset_count;
+    rc->decrement_count = device_decrement_reset_count;
+    rc->foreach_child = device_foreach_reset_child;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,
@@ -1117,6 +1156,10 @@ static const TypeInfo device_type_info = {
     .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_RESETTABLE },
+        { }
+    },
 };
 
 static void qdev_register_types(void)
