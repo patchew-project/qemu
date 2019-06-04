@@ -211,6 +211,9 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_preadv)(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags);
+    int coroutine_fn (*bdrv_co_preadv_part)(BlockDriverState *bs,
+        uint64_t offset, uint64_t bytes,
+        QEMUIOVector *qiov, size_t qiov_offset, int flags);
     int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov, int flags);
     /**
@@ -230,6 +233,9 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_pwritev)(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags);
+    int coroutine_fn (*bdrv_co_pwritev_part)(BlockDriverState *bs,
+        uint64_t offset, uint64_t bytes,
+        QEMUIOVector *qiov, size_t qiov_offset, int flags);
 
     /*
      * Efficiently zero a region of the disk image.  Typically an image format
@@ -340,6 +346,9 @@ struct BlockDriver {
 
     int coroutine_fn (*bdrv_co_pwritev_compressed)(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov);
+    int coroutine_fn (*bdrv_co_pwritev_compressed_part)(BlockDriverState *bs,
+        uint64_t offset, uint64_t bytes, QEMUIOVector *qiov,
+        size_t qiov_offset);
 
     int (*bdrv_snapshot_create)(BlockDriverState *bs,
                                 QEMUSnapshotInfo *sn_info);
@@ -563,6 +572,12 @@ struct BlockDriver {
      * "filename" and "driver" are always considered strong. */
     const char *const *strong_runtime_opts;
 };
+
+static inline bool block_driver_can_compress(BlockDriver *drv)
+{
+    return drv->bdrv_co_pwritev_compressed ||
+           drv->bdrv_co_pwritev_compressed_part;
+}
 
 typedef struct BlockLimits {
     /* Alignment requirement, in bytes, for offset/length of I/O
