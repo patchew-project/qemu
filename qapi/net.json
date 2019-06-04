@@ -221,7 +221,8 @@
 #
 # @br: bridge name (since 2.8)
 #
-# @helper: command to execute to configure bridge
+# @helper: command to execute to configure bridge (deprecated, use
+# type 'bridge' instead)
 #
 # @sndbuf: send buffer limit. Understands [TGMKkb] suffixes.
 #

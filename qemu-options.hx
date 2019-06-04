@@ -2121,7 +2121,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                configure a host TAP network backend with ID 'str'\n"
 #else
     "-netdev tap,id=str[,fd=h][,fds=x:y:...:z][,ifname=name][,script=file][,downscript=dfile]\n"
-    "         [,br=bridge][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off]\n"
+    "         [,br=bridge][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off]\n"
     "         [,vhostfd=h][,vhostfds=x:y:...:z][,vhostforce=on|off][,queues=n]\n"
     "         [,poll-us=n]\n"
     "                configure a host TAP network backend with ID 'str'\n"
@@ -2130,8 +2130,6 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
     "                to deconfigure it\n"
     "                use '[down]script=no' to disable script execution\n"
-    "                use network helper 'helper' (default=" DEFAULT_BRIDGE_HELPER ") to\n"
-    "                configure it\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
     "                use 'fds=x:y:...:z' to connect to already opened multiqueue capable TAP interfaces\n"
     "                use 'sndbuf=nbytes' to limit the size of the send buffer (the\n"
@@ -2435,7 +2433,7 @@ qemu-system-i386 -nic  'user,id=n1,guestfwd=tcp:10.0.2.100:1234-cmd:netcat 10.10
 
 @end table
 
-@item -netdev tap,id=@var{id}[,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,br=@var{bridge}][,helper=@var{helper}]
+@item -netdev tap,id=@var{id}[,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,br=@var{bridge}]
 Configure a host TAP network backend with ID @var{id}.
 
 Use the network script @var{file} to configure it and the network script
@@ -2444,11 +2442,6 @@ automatically provides one. The default network configure script is
 @file{/etc/qemu-ifup} and the default network deconfigure script is
 @file{/etc/qemu-ifdown}. Use @option{script=no} or @option{downscript=no}
 to disable script execution.
-
-If running QEMU as an unprivileged user, use the network helper
-@var{helper} to configure the TAP interface and attach it to the bridge.
-The default network helper executable is @file{/path/to/qemu-bridge-helper}
-and the default bridge device is @file{br0}.
 
 @option{fd}=@var{h} can be used to specify the handle of an already
 opened host TAP interface.
@@ -2466,13 +2459,6 @@ qemu-system-i386 linux.img -nic tap
 qemu-system-i386 linux.img \
         -netdev tap,id=nd0,ifname=tap0 -device e1000,netdev=nd0 \
         -netdev tap,id=nd1,ifname=tap1 -device rtl8139,netdev=nd1
-@end example
-
-@example
-#launch a QEMU instance with the default network helper to
-#connect a TAP device to bridge br0
-qemu-system-i386 linux.img -device virtio-net-pci,netdev=n1 \
-        -netdev tap,id=n1,"helper=/path/to/qemu-bridge-helper"
 @end example
 
 @item -netdev bridge,id=@var{id}[,br=@var{bridge}][,helper=@var{helper}]
