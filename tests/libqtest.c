@@ -532,6 +532,10 @@ QDict *qmp_fd_receive(int fd)
     }
     json_message_parser_destroy(&qmp.parser);
 
+    if (log) {
+        fprintf(stderr, "\n\n");
+    }
+
     return qmp.response;
 }
 
