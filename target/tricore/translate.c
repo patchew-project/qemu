@@ -6987,6 +6987,7 @@ static void decode_rrpw_extract_insert(CPUTriCoreState *env, DisasContext *ctx)
     uint32_t op2;
     int r1, r2, r3;
     int32_t pos, width;
+    TCGv temp1, temp2;
 
     op2 = MASK_OP_RRPW_OP2(ctx->opcode);
     r1 = MASK_OP_RRPW_S1(ctx->opcode);
@@ -7025,9 +7026,13 @@ static void decode_rrpw_extract_insert(CPUTriCoreState *env, DisasContext *ctx)
         }
         break;
     case OPC2_32_RRPW_INSERT:
-        if (pos + width <= 31) {
-            tcg_gen_deposit_tl(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
-                               width, pos);
+        if (pos + width <= 32) {
+            temp1 = tcg_const_i32(pos);   /* pos */
+            temp2 = tcg_const_i32(width); /* width */
+            gen_insert(cpu_gpr_d[r3], cpu_gpr_d[r1], cpu_gpr_d[r2],
+                       temp1, temp2);
+            tcg_temp_free(temp1);
+            tcg_temp_free(temp2);
         }
         break;
     default:
