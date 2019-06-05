@@ -124,6 +124,9 @@ struct QIOChannelClass {
     int (*io_set_blocking)(QIOChannel *ioc,
                            bool enabled,
                            Error **errp);
+    int (*io_set_keepalive)(QIOChannel *ioc,
+                            bool enabled,
+                            Error **errp);
 
     /* Optional callbacks */
     int (*io_shutdown)(QIOChannel *ioc,
@@ -489,6 +492,18 @@ int qio_channel_write_all(QIOChannel *ioc,
 int qio_channel_set_blocking(QIOChannel *ioc,
                              bool enabled,
                              Error **errp);
+
+/*
+ * qio_channel_set_keepalive:
+ * @ioc: the channel object
+ * @enabled: the keepalive flag state
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Returns 0 on success, -1 on error.
+ */
+int qio_channel_set_keepalive(QIOChannel *ioc,
+                              bool enabled,
+                              Error **errp);
 
 /**
  * qio_channel_close:

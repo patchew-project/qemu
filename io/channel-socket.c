@@ -656,6 +656,25 @@ qio_channel_socket_set_blocking(QIOChannel *ioc,
 }
 
 
+static int
+qio_channel_socket_set_keepalive(QIOChannel *ioc,
+                                 bool enabled,
+                                 Error **errp)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+    int val = enabled;
+    int ret = qemu_setsockopt(sioc->fd, SOL_SOCKET, SO_KEEPALIVE,
+                              &val, sizeof(val));
+
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 static void
 qio_channel_socket_set_delay(QIOChannel *ioc,
                              bool enabled)
@@ -762,6 +781,7 @@ static void qio_channel_socket_class_init(ObjectClass *klass,
     ioc_klass->io_writev = qio_channel_socket_writev;
     ioc_klass->io_readv = qio_channel_socket_readv;
     ioc_klass->io_set_blocking = qio_channel_socket_set_blocking;
+    ioc_klass->io_set_keepalive = qio_channel_socket_set_keepalive;
     ioc_klass->io_close = qio_channel_socket_close;
     ioc_klass->io_shutdown = qio_channel_socket_shutdown;
     ioc_klass->io_set_cork = qio_channel_socket_set_cork;
