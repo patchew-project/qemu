@@ -1137,6 +1137,7 @@ static int nbd_client_connect(BlockDriverState *bs,
 
     /* NBD handshake */
     logout("session init %s\n", export);
+    qio_channel_set_keepalive(QIO_CHANNEL(sioc), true, NULL);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), true, NULL);
 
     client->info.request_sizes = true;
