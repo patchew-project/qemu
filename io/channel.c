@@ -265,6 +265,20 @@ int qio_channel_set_blocking(QIOChannel *ioc,
     return klass->io_set_blocking(ioc, enabled, errp);
 }
 
+int qio_channel_set_keepalive(QIOChannel *ioc,
+                              bool enabled,
+                              Error **errp)
+{
+    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+
+    if (!klass->io_set_keepalive) {
+        error_setg(errp, "KEEPALIVE is not supported by IO channel");
+        return -ENOTSUP;
+    }
+
+    return klass->io_set_keepalive(ioc, enabled, errp);
+}
+
 
 int qio_channel_close(QIOChannel *ioc,
                       Error **errp)
