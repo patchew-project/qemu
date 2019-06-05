@@ -2159,7 +2159,6 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
                                       BlockDriverState *new_bs)
 {
     BlockDriverState *old_bs = child->bs;
-    int i;
 
     assert(!child->frozen);
 
@@ -2173,12 +2172,12 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
         if (child->role->detach) {
             child->role->detach(child);
         }
-        while (child->parent_quiesce_counter) {
+        if (child->parent_quiesced) {
             bdrv_parent_drained_end_single(child);
         }
         QLIST_REMOVE(child, next_parent);
     } else {
-        assert(child->parent_quiesce_counter == 0);
+        assert(!child->parent_quiesced);
     }
 
     child->bs = new_bs;
@@ -2191,7 +2190,7 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
                 num -= bdrv_drain_all_count;
             }
             assert(num >= 0);
-            for (i = 0; i < num; i++) {
+            if (num) {
                 bdrv_parent_drained_begin_single(child, true);
             }
         }

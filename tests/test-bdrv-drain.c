@@ -446,10 +446,14 @@ static void test_multiparent(void)
 
     do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);
 
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 1);
+    /*
+     * @backing is still drained by @bs_a, so it has not unquiesced
+     * its parents yet (and @bs_a retains its qc of 2).
+     */
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 2);
     g_assert_cmpint(bs_b->quiesce_counter, ==, 1);
     g_assert_cmpint(backing->quiesce_counter, ==, 1);
-    g_assert_cmpint(a_s->drain_count, ==, 1);
+    g_assert_cmpint(a_s->drain_count, ==, 2);
     g_assert_cmpint(b_s->drain_count, ==, 1);
     g_assert_cmpint(backing_s->drain_count, ==, 1);
 
@@ -505,27 +509,28 @@ static void test_graph_change_drain_subtree(void)
     do_drain_begin(BDRV_SUBTREE_DRAIN, bs_b);
 
     bdrv_set_backing_hd(bs_b, backing, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 5);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 5);
-    g_assert_cmpint(backing->quiesce_counter, ==, 5);
-    g_assert_cmpint(a_s->drain_count, ==, 5);
-    g_assert_cmpint(b_s->drain_count, ==, 5);
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 4); /* 3 + !!2 */
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 3); /* !!3 + 2 */
+    g_assert_cmpint(backing->quiesce_counter, ==, 5); /* 3 + 2 */
+    g_assert_cmpint(a_s->drain_count, ==, 4);
+    g_assert_cmpint(b_s->drain_count, ==, 3);
     g_assert_cmpint(backing_s->drain_count, ==, 5);
 
     bdrv_set_backing_hd(bs_b, NULL, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 3);
+    /* @backing remains quiesced, so it does not unquiesce @bs_a */
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 4);
     g_assert_cmpint(bs_b->quiesce_counter, ==, 2);
     g_assert_cmpint(backing->quiesce_counter, ==, 3);
-    g_assert_cmpint(a_s->drain_count, ==, 3);
+    g_assert_cmpint(a_s->drain_count, ==, 4);
     g_assert_cmpint(b_s->drain_count, ==, 2);
     g_assert_cmpint(backing_s->drain_count, ==, 3);
 
     bdrv_set_backing_hd(bs_b, backing, &error_abort);
-    g_assert_cmpint(bs_a->quiesce_counter, ==, 5);
-    g_assert_cmpint(bs_b->quiesce_counter, ==, 5);
+    g_assert_cmpint(bs_a->quiesce_counter, ==, 4);
+    g_assert_cmpint(bs_b->quiesce_counter, ==, 3);
     g_assert_cmpint(backing->quiesce_counter, ==, 5);
-    g_assert_cmpint(a_s->drain_count, ==, 5);
-    g_assert_cmpint(b_s->drain_count, ==, 5);
+    g_assert_cmpint(a_s->drain_count, ==, 4);
+    g_assert_cmpint(b_s->drain_count, ==, 3);
     g_assert_cmpint(backing_s->drain_count, ==, 5);
 
     do_drain_end(BDRV_SUBTREE_DRAIN, bs_b);

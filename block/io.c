@@ -57,24 +57,47 @@ void bdrv_parent_drained_begin(BlockDriverState *bs, BdrvChild *ignore,
 
 void bdrv_parent_drained_end_single(BdrvChild *c)
 {
-    assert(c->parent_quiesce_counter > 0);
-    c->parent_quiesce_counter--;
+    assert(c->parent_quiesced);
+    c->parent_quiesced = false;
     if (c->role->drained_end) {
         c->role->drained_end(c);
     }
 }
 
-void bdrv_parent_drained_end(BlockDriverState *bs, BdrvChild *ignore,
-                             bool ignore_bds_parents)
+static void bdrv_parent_drained_end(BlockDriverState *bs)
 {
-    BdrvChild *c, *next;
+    BdrvChild *c;
 
-    QLIST_FOREACH_SAFE(c, &bs->parents, next_parent, next) {
-        if (c == ignore || (ignore_bds_parents && c->role->parent_is_bds)) {
-            continue;
-        }
-        bdrv_parent_drained_end_single(c);
+    if (bs->quiesce_counter) {
+        return;
     }
+
+    /*
+     * The list of parents can change, so repeat until all are
+     * unquiesced (or until bs->quiesce_counter is no longer zero).
+     */
+    do {
+        QLIST_FOREACH(c, &bs->parents, next_parent) {
+            if (!c->parent_quiesced) {
+                continue;
+            }
+
+            if (bs->quiesce_counter) {
+                /*
+                 * We can just leave here.  The first thing
+                 * bdrv_parent_drained_end_single() does is to set
+                 * c->parent_quiesced to false.  If something decides
+                 * to drain @bs while we are unquiescing some parent,
+                 * it will thus redrain that parent (and everything
+                 * else that we have already unquiesced).
+                 */
+                return;
+            }
+
+            bdrv_parent_drained_end_single(c);
+            break;
+        }
+    } while (c);
 }
 
 static bool bdrv_parent_drained_poll_single(BdrvChild *c)
@@ -103,9 +126,11 @@ static bool bdrv_parent_drained_poll(BlockDriverState *bs, BdrvChild *ignore,
 
 void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll)
 {
-    c->parent_quiesce_counter++;
-    if (c->role->drained_begin) {
-        c->role->drained_begin(c);
+    if (!c->parent_quiesced) {
+        c->parent_quiesced = true;
+        if (c->role->drained_begin) {
+            c->role->drained_begin(c);
+        }
     }
     if (poll) {
         BDRV_POLL_WHILE(c->bs, bdrv_parent_drained_poll_single(c));
@@ -433,9 +458,9 @@ static void bdrv_do_drained_end(BlockDriverState *bs, bool recursive,
 
     /* Re-enable things in child-to-parent order */
     bdrv_drain_invoke(bs, false);
-    bdrv_parent_drained_end(bs, parent, ignore_bds_parents);
-
     old_quiesce_counter = atomic_fetch_dec(&bs->quiesce_counter);
+    bdrv_parent_drained_end(bs);
+
     if (old_quiesce_counter == 1) {
         aio_enable_external(bdrv_get_aio_context(bs));
     }

@@ -730,13 +730,10 @@ struct BdrvChild {
     bool frozen;
 
     /*
-     * How many times the parent of this child has been drained
-     * (through role->drained_*).
-     * Usually, this is equal to bs->quiesce_counter (potentially
-     * reduced by bdrv_drain_all_count).  It may differ while the
-     * child is entering or leaving a drained section.
+     * Whether the parent of this child has been drained through
+     * role->drained_*.
      */
-    int parent_quiesce_counter;
+    bool parent_quiesced;
 
     QLIST_ENTRY(BdrvChild) next;
     QLIST_ENTRY(BdrvChild) next_parent;
