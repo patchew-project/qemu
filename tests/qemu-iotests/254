@@ -29,7 +29,8 @@ qemu_img_create('-f', iotests.imgfmt, disk, str(size))
 vm = iotests.VM().add_drive(disk, opts='node-name=base')
 vm.launch()
 
-vm.qmp_log('block-dirty-bitmap-add', node='drive0', name='bitmap0')
+vm.qmp_log('block-dirty-bitmap-add', node='drive0', name='bitmap0',
+           granularity=65536)
 
 vm.hmp_qemu_io('drive0', 'write 0 512K')
 
@@ -38,7 +39,7 @@ vm.qmp_log('transaction', indent=2, actions=[
      'data': {'device': 'drive0', 'snapshot-file': top,
               'snapshot-node-name': 'snap'}},
     {'type': 'block-dirty-bitmap-add',
-     'data': {'node': 'snap', 'name': 'bitmap0'}},
+     'data': {'node': 'snap', 'name': 'bitmap0', 'granularity': 65536}},
     {'type': 'block-dirty-bitmap-merge',
      'data': {'node': 'snap', 'target': 'bitmap0',
               'bitmaps': [{'node': 'base', 'name': 'bitmap0'}]}}

@@ -1,4 +1,4 @@
-{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmap0", "node": "drive0"}}
+{"execute": "block-dirty-bitmap-add", "arguments": {"granularity": 65536, "name": "bitmap0", "node": "drive0"}}
 {"return": {}}
 {
   "execute": "transaction",
@@ -14,6 +14,7 @@
       },
       {
         "data": {
+          "granularity": 65536,
           "name": "bitmap0",
           "node": "snap"
         },
