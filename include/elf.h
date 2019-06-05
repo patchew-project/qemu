@@ -1650,6 +1650,54 @@ typedef struct elf64_shdr {
 #define NT_ARM_HW_WATCH 0x403           /* ARM hardware watchpoint registers */
 #define NT_ARM_SYSTEM_CALL      0x404   /* ARM system call number */
 
+/* Defined note types for GNU systems.  */
+
+#define NT_GNU_ABI_TAG          1       /* ABI information */
+#define NT_GNU_HWCAP            2       /* Synthetic hwcap information */
+#define NT_GNU_BUILD_ID         3       /* Build ID */
+#define NT_GNU_GOLD_VERSION     4       /* Version of ld.gold */
+#define NT_GNU_PROPERTY_TYPE_0  5       /* Program property */
+
+/* Values used in GNU .note.gnu.property notes (NT_GNU_PROPERTY_TYPE_0).  */
+
+#define GNU_PROPERTY_STACK_SIZE                 1
+#define GNU_PROPERTY_NO_COPY_ON_PROTECTED       2
+
+#define GNU_PROPERTY_LOPROC                     0xc0000000
+#define GNU_PROPERTY_HIPROC                     0xdfffffff
+#define GNU_PROPERTY_LOUSER                     0xe0000000
+#define GNU_PROPERTY_HIUSER                     0xffffffff
+
+#define GNU_PROPERTY_X86_ISA_1_USED             0xc0000000
+#define GNU_PROPERTY_X86_ISA_1_NEEDED           0xc0000001
+
+#define GNU_PROPERTY_X86_ISA_1_486              (1U << 0)
+#define GNU_PROPERTY_X86_ISA_1_586              (1U << 1)
+#define GNU_PROPERTY_X86_ISA_1_686              (1U << 2)
+#define GNU_PROPERTY_X86_ISA_1_SSE              (1U << 3)
+#define GNU_PROPERTY_X86_ISA_1_SSE2             (1U << 4)
+#define GNU_PROPERTY_X86_ISA_1_SSE3             (1U << 5)
+#define GNU_PROPERTY_X86_ISA_1_SSSE3            (1U << 6)
+#define GNU_PROPERTY_X86_ISA_1_SSE4_1           (1U << 7)
+#define GNU_PROPERTY_X86_ISA_1_SSE4_2           (1U << 8)
+#define GNU_PROPERTY_X86_ISA_1_AVX              (1U << 9)
+#define GNU_PROPERTY_X86_ISA_1_AVX2             (1U << 10)
+#define GNU_PROPERTY_X86_ISA_1_AVX512F          (1U << 11)
+#define GNU_PROPERTY_X86_ISA_1_AVX512CD         (1U << 12)
+#define GNU_PROPERTY_X86_ISA_1_AVX512ER         (1U << 13)
+#define GNU_PROPERTY_X86_ISA_1_AVX512PF         (1U << 14)
+#define GNU_PROPERTY_X86_ISA_1_AVX512VL         (1U << 15)
+#define GNU_PROPERTY_X86_ISA_1_AVX512DQ         (1U << 16)
+#define GNU_PROPERTY_X86_ISA_1_AVX512BW         (1U << 17)
+
+#define GNU_PROPERTY_X86_FEATURE_1_AND          0xc0000002
+#define GNU_PROPERTY_X86_FEATURE_1_IBT          (1U << 0)
+#define GNU_PROPERTY_X86_FEATURE_1_SHSTK        (1U << 1)
+
+#define GNU_PROPERTY_AARCH64_FEATURE_1_AND      0xc0000000
+#define GNU_PROPERTY_AARCH64_FEATURE_1_BTI      (1u << 0)
+#define GNU_PROPERTY_AARCH64_FEATURE_1_PAC      (1u << 1)
+
 /*
  * Physical entry point into the kernel.
  *
