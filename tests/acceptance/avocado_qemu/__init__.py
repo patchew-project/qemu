@@ -52,6 +52,12 @@ def pick_default_qemu_bin(arch=None):
 
 class Test(avocado.Test):
     def setUp(self):
+        # Some utility code uses binaries from the system's PATH.  For
+        # instance, avocado.utils.vmimage.get() uses qemu-img, to
+        # create a snapshot image.  This is a transparent way of
+        # making sure those utilities find and use binaries on the
+        # build tree by default.
+        os.environ['PATH'] = '%s:%s' % (SRC_ROOT_DIR, os.environ['PATH'])
         self._vms = {}
         arches = self.tags.get('arch', [])
         if len(arches) == 1:
