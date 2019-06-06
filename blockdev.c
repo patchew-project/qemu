@@ -2851,26 +2851,21 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         disabled = false;
     }
 
-    if (persistent) {
-        aio_context = bdrv_get_aio_context(bs);
-        aio_context_acquire(aio_context);
-        if (!bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp)) {
-            goto out;
-        }
-    }
-
     bitmap = bdrv_create_dirty_bitmap(bs, granularity, name, errp);
     if (bitmap == NULL) {
-        goto out;
+        return;
     }
 
     if (disabled) {
         bdrv_disable_dirty_bitmap(bitmap);
     }
 
-    bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
- out:
-    if (aio_context) {
+    if (persistent) {
+        aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(aio_context);
+        if (bdrv_add_persistent_dirty_bitmap(bs, bitmap, errp)) {
+            bdrv_release_dirty_bitmap(bs, bitmap);
+        }
         aio_context_release(aio_context);
     }
 }

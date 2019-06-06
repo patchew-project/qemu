@@ -537,9 +537,8 @@ struct BlockDriver {
      * field of BlockDirtyBitmap's in case of success.
      */
     int (*bdrv_reopen_bitmaps_rw)(BlockDriverState *bs, Error **errp);
-    bool (*bdrv_can_store_new_dirty_bitmap)(BlockDriverState *bs,
-                                            const char *name,
-                                            uint32_t granularity,
+    int (*bdrv_add_persistent_dirty_bitmap)(BlockDriverState *bs,
+                                            BdrvDirtyBitmap *bitmap,
                                             Error **errp);
     void (*bdrv_remove_persistent_dirty_bitmap)(BlockDriverState *bs,
                                                 const char *name,

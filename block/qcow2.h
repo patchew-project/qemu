@@ -742,9 +742,8 @@ int qcow2_reopen_bitmaps_rw(BlockDriverState *bs, Error **errp);
 int qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp);
 void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp);
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp);
-bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
-                                      const char *name,
-                                      uint32_t granularity,
+int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
+                                      BdrvDirtyBitmap *bitmap,
                                       Error **errp);
 void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                           const char *name,

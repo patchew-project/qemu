@@ -466,6 +466,44 @@ void bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs,
     }
 }
 
+int bdrv_add_persistent_dirty_bitmap(BlockDriverState *bs,
+                                     BdrvDirtyBitmap *bitmap,
+                                     Error **errp)
+{
+    BlockDriver *drv = bs->drv;
+    int ret;
+
+    if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        error_setg(errp, "Bitmap '%s' is already persistent, "
+                   "and cannot be re-added to node '%s'",
+                   bdrv_dirty_bitmap_name(bitmap),
+                   bdrv_get_device_or_node_name(bs));
+        return -EINVAL;
+    }
+
+    if (!drv) {
+        error_setg_errno(errp, ENOMEDIUM,
+                         "Can't store persistent bitmaps to %s",
+                         bdrv_get_device_or_node_name(bs));
+        return -ENOMEDIUM;
+    }
+
+    if (!drv->bdrv_add_persistent_dirty_bitmap) {
+        error_setg_errno(errp, ENOTSUP,
+                         "Can't store persistent bitmaps to %s",
+                         bdrv_get_device_or_node_name(bs));
+        return -ENOTSUP;
+    }
+
+    ret = drv->bdrv_add_persistent_dirty_bitmap(bs, bitmap, errp);
+    if (ret == 0) {
+        bdrv_dirty_bitmap_set_persistence(bitmap, true);
+    }
+
+    return ret;
+}
+
+
 void bdrv_disable_dirty_bitmap(BdrvDirtyBitmap *bitmap)
 {
     bdrv_dirty_bitmap_lock(bitmap);

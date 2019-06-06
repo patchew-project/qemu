@@ -1607,14 +1607,16 @@ int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
     return 0;
 }
 
-bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
-                                      const char *name,
-                                      uint32_t granularity,
+int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
+                                      BdrvDirtyBitmap *bitmap,
                                       Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
     bool found;
     Qcow2BitmapList *bm_list;
+    const char *name = bdrv_dirty_bitmap_name(bitmap);
+    uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
+    int ret = 0;
 
     if (s->qcow_version < 3) {
         /* Without autoclear_features, we would always have to assume
@@ -1623,20 +1625,23 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
          * have to drop all dirty bitmaps (defeating their purpose).
          */
         error_setg(errp, "Cannot store dirty bitmaps in qcow2 v2 files");
+        ret = -ENOTSUP;
         goto fail;
     }
 
-    if (check_constraints_on_bitmap(bs, name, granularity, errp) != 0) {
+    ret = check_constraints_on_bitmap(bs, name, granularity, errp);
+    if (ret) {
         goto fail;
     }
 
     if (s->nb_bitmaps == 0) {
-        return true;
+        return 0;
     }
 
     if (s->nb_bitmaps >= QCOW2_MAX_BITMAPS) {
         error_setg(errp,
                    "Maximum number of persistent bitmaps is already reached");
+        ret = -EOVERFLOW;
         goto fail;
     }
 
@@ -1644,24 +1649,25 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
         QCOW2_MAX_BITMAP_DIRECTORY_SIZE)
     {
         error_setg(errp, "Not enough space in the bitmap directory");
+        ret = -EOVERFLOW;
         goto fail;
     }
 
-    if (bitmap_list_load(bs, &bm_list, errp)) {
+    if ((ret = bitmap_list_load(bs, &bm_list, errp))) {
         goto fail;
     }
 
     found = find_bitmap_by_name(bm_list, name);
     bitmap_list_free(bm_list);
     if (found) {
+        ret = -EEXIST;
         error_setg(errp, "Bitmap with the same name is already stored");
         goto fail;
     }
 
-    return true;
-
+    return 0;
 fail:
     error_prepend(errp, "Can't make bitmap '%s' persistent in '%s': ",
                   name, bdrv_get_device_or_node_name(bs));
-    return false;
+    return ret;
 }
