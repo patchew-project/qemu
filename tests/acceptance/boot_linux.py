@@ -15,6 +15,7 @@ from avocado_qemu import Test, SRC_ROOT_DIR
 from avocado.utils import cloudinit
 from avocado.utils import network
 from avocado.utils import vmimage
+from avocado.utils import datadrainer
 
 
 class BootLinux(Test):
@@ -55,6 +56,13 @@ class BootLinux(Test):
                       phone_home_port=self.phone_home_port)
         self.vm.add_args('-drive', 'file=%s,format=raw' % cloudinit_iso)
 
+    def launch(self):
+        self.vm.set_console()
+        self.vm.launch()
+        console_drainer = datadrainer.LineLogger(self.vm.console_socket.fileno(),
+                                                 logger=self.log.getChild('console'))
+        console_drainer.start()
+
     def wait_for_boot_confirmation(self):
         self.log.info('VM launched, waiting for boot confirmation from guest')
         cloudinit.wait_for_phone_home(('0.0.0.0', self.phone_home_port), self.name)
@@ -70,7 +78,7 @@ class BootLinuxX8664(BootLinux):
         :avocado: tags=machine:pc
         """
         self.vm.set_machine('pc')
-        self.vm.launch()
+        self.launch()
         self.wait_for_boot_confirmation()
 
     def test_q35(self):
@@ -79,7 +87,7 @@ class BootLinuxX8664(BootLinux):
         :avocado: tags=machine:q35
         """
         self.vm.set_machine('q35')
-        self.vm.launch()
+        self.launch()
         self.wait_for_boot_confirmation()
 
 
@@ -99,5 +107,5 @@ class BootLinuxAarch64(BootLinux):
                                       'edk2-aarch64-code.fd'))
         self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
         self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')
-        self.vm.launch()
+        self.launch()
         self.wait_for_boot_confirmation()
