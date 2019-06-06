@@ -135,6 +135,13 @@ static inline int coroutine_fn blk_co_pread(BlockBackend *blk, int64_t offset,
     return blk_co_preadv(blk, offset, bytes, &qiov, flags);
 }
 
+static inline int coroutine_fn blk_co_pcache(BlockBackend *blk, int64_t offset,
+                                             unsigned int bytes)
+{
+    return blk_co_preadv(blk, offset, bytes, NULL,
+                         BDRV_REQ_COPY_ON_READ | BDRV_REQ_CACHE);
+}
+
 static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
                                              unsigned int bytes, void *buf,
                                              BdrvRequestFlags flags)
