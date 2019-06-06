@@ -3,3 +3,5 @@
 # refer to: https://pip.pypa.io/en/stable/user_guide/#id1
 avocado-framework==68.0
 paramiko
+pycdlib==1.6.0
+
