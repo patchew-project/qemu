@@ -318,6 +318,7 @@ typedef struct BDRVQcow2State {
 
     uint32_t nb_bitmaps;
     uint32_t nb_queued_bitmaps;
+    uint32_t queued_directory_size;
     uint64_t bitmap_directory_size;
     uint64_t bitmap_directory_offset;
 

@@ -1405,16 +1405,23 @@ static Qcow2Bitmap *find_bitmap_by_name(Qcow2BitmapList *bm_list,
 static int qcow2_remove_queued_dirty_bitmap(
     BlockDriverState *bs, const char *name, Error **errp)
 {
+    uint32_t size_delta;
     BDRVQcow2State *s = bs->opaque;
     BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, name);
+
     if (!bitmap) {
         error_setg(errp, "Node '%s' has no stored or enqueued bitmap '%s'",
                    bdrv_get_node_name(bs), name);
         return -ENOENT;
     }
+
+    size_delta = calc_dir_entry_size(strlen(name), 0);
     assert(s->nb_queued_bitmaps > 0);
     assert(bdrv_dirty_bitmap_get_persistence(bitmap));
+    assert(s->queued_directory_size >= size_delta);
+
     s->nb_queued_bitmaps -= 1;
+    s->queued_directory_size -= size_delta;
 
     return 0;
 }
@@ -1561,6 +1568,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         goto fail;
     }
     s->nb_queued_bitmaps = 0;
+    s->queued_directory_size = 0;
 
     /* Bitmap directory was successfully updated, so, old data can be dropped.
      * TODO it is better to reuse these clusters */
@@ -1636,6 +1644,7 @@ int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
     const char *name = bdrv_dirty_bitmap_name(bitmap);
     uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
     uint32_t nb_bitmaps;
+    uint32_t size_delta;
     int ret = 0;
 
     if (s->qcow_version < 3) {
@@ -1666,7 +1675,8 @@ int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
         goto fail;
     }
 
-    if (s->bitmap_directory_size + calc_dir_entry_size(strlen(name), 0) >
+    size_delta = calc_dir_entry_size(strlen(name), 0);
+    if (s->bitmap_directory_size + s->queued_directory_size + size_delta >
         QCOW2_MAX_BITMAP_DIRECTORY_SIZE)
     {
         error_setg(errp, "Not enough space in the bitmap directory");
@@ -1687,6 +1697,7 @@ int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
     }
 
     s->nb_queued_bitmaps += 1;
+    s->queued_directory_size += size_delta;
 
     return 0;
 fail:
