@@ -1141,7 +1141,7 @@ $(TESTS_RESULTS_DIR):
 
 check-venv: $(TESTS_VENV_DIR)
 
-check-acceptance: check-venv $(TESTS_RESULTS_DIR)
+check-acceptance: check-venv $(TESTS_RESULTS_DIR) qemu-img$(EXESUF)
 	$(call quiet-command, \
             $(TESTS_VENV_DIR)/bin/python -m avocado \
             --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
