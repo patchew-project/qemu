@@ -10,7 +10,7 @@
 
 import os
 
-from avocado_qemu import Test
+from avocado_qemu import Test, SRC_ROOT_DIR
 
 from avocado.utils import cloudinit
 from avocado.utils import network
@@ -79,5 +79,25 @@ class BootLinuxX8664(BootLinux):
         :avocado: tags=machine:q35
         """
         self.vm.set_machine('q35')
+        self.vm.launch()
+        self.wait_for_boot_confirmation()
+
+
+class BootLinuxAarch64(BootLinux):
+
+    chksum = '528f2659a410e3a8bd47d32a6ac4e6c5729f1d28dbad0763b4282a753ddcab1f'
+
+    def test_virt(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:virt
+        """
+        self.vm.set_machine('virt')
+        self.vm.add_args('-cpu', 'cortex-a53')
+        self.vm.add_args('-bios',
+                         os.path.join(SRC_ROOT_DIR, 'pc-bios',
+                                      'edk2-aarch64-code.fd'))
+        self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
+        self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')
         self.vm.launch()
         self.wait_for_boot_confirmation()
