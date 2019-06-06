@@ -18,6 +18,7 @@
 #include "hw/ppc/xics_spapr.h"
 #include "cpu-models.h"
 #include "sysemu/kvm.h"
+#include "kvm_ppc.h"
 
 #include "trace.h"
 
@@ -667,6 +668,15 @@ static void spapr_irq_check(SpaprMachineState *spapr, Error **errp)
             error_setg(errp, "XIVE-only machines require a POWER9 CPU");
             return;
         }
+    }
+
+    /*
+     * KVM may be too old to support XIVE, in which case we'd rather try
+     * to use the in-kernel XICS instead of the emulated XIVE.
+     */
+    if (kvm_enabled() && !kvmppc_has_cap_xive() &&
+        spapr->irq == &spapr_irq_dual) {
+        spapr->irq = &spapr_irq_xics;
     }
 }
 
