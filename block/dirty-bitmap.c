@@ -450,11 +450,9 @@ void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs)
 }
 
 /**
- * Remove persistent dirty bitmap from the storage if it exists.
- * Absence of bitmap is not an error, because we have the following scenario:
- * BdrvDirtyBitmap can have .persistent = true but not yet saved and have no
- * stored version. For such bitmap bdrv_remove_persistent_dirty_bitmap() should
- * not fail.
+ * Remove a persistent dirty bitmap from storage,
+ * or dequeue it from being stored if it is enqueued.
+ *
  * This function doesn't release the corresponding BdrvDirtyBitmap.
  */
 int bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs,

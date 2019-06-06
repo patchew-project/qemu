@@ -1402,6 +1402,23 @@ static Qcow2Bitmap *find_bitmap_by_name(Qcow2BitmapList *bm_list,
     return NULL;
 }
 
+static int qcow2_remove_queued_dirty_bitmap(
+    BlockDriverState *bs, const char *name, Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+    BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(bs, name);
+    if (!bitmap) {
+        error_setg(errp, "Node '%s' has no stored or enqueued bitmap '%s'",
+                   bdrv_get_node_name(bs), name);
+        return -ENOENT;
+    }
+    assert(s->nb_queued_bitmaps > 0);
+    assert(bdrv_dirty_bitmap_get_persistence(bitmap));
+    s->nb_queued_bitmaps -= 1;
+
+    return 0;
+}
+
 int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
                                          BdrvDirtyBitmap *bitmap,
                                          Error **errp)
@@ -1413,9 +1430,7 @@ int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
     const char *name = bdrv_dirty_bitmap_name(bitmap);
 
     if (s->nb_bitmaps == 0) {
-        /* Absence of the bitmap is not an error: see explanation above
-         * bdrv_remove_persistent_dirty_bitmap() definition. */
-        return 0;
+        return qcow2_remove_queued_dirty_bitmap(bs, name, errp);
     }
 
     if ((ret = bitmap_list_load(bs, &bm_list, errp))) {
@@ -1424,6 +1439,7 @@ int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 
     bm = find_bitmap_by_name(bm_list, name);
     if (bm == NULL) {
+        ret = qcow2_remove_queued_dirty_bitmap(bs, name, errp);
         goto fail;
     }
 
@@ -1544,6 +1560,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         error_setg_errno(errp, -ret, "Failed to update bitmap extension");
         goto fail;
     }
+    s->nb_queued_bitmaps = 0;
 
     /* Bitmap directory was successfully updated, so, old data can be dropped.
      * TODO it is better to reuse these clusters */
@@ -1618,6 +1635,7 @@ int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
     Qcow2BitmapList *bm_list;
     const char *name = bdrv_dirty_bitmap_name(bitmap);
     uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
+    uint32_t nb_bitmaps;
     int ret = 0;
 
     if (s->qcow_version < 3) {
@@ -1636,11 +1654,12 @@ int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
         goto fail;
     }
 
-    if (s->nb_bitmaps == 0) {
+    nb_bitmaps = s->nb_bitmaps + s->nb_queued_bitmaps;
+    if (nb_bitmaps == 0) {
         return 0;
     }
 
-    if (s->nb_bitmaps >= QCOW2_MAX_BITMAPS) {
+    if (nb_bitmaps >= QCOW2_MAX_BITMAPS) {
         error_setg(errp,
                    "Maximum number of persistent bitmaps is already reached");
         ret = -EOVERFLOW;
@@ -1666,6 +1685,8 @@ int qcow2_add_persistent_dirty_bitmap(BlockDriverState *bs,
         error_setg(errp, "Bitmap with the same name is already stored");
         goto fail;
     }
+
+    s->nb_queued_bitmaps += 1;
 
     return 0;
 fail:
