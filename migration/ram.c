@@ -1572,15 +1572,14 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     if (!cache_is_cached(XBZRLE.cache, current_addr,
                          ram_counters.dirty_sync_count)) {
         xbzrle_counters.cache_miss++;
-        if (!last_stage) {
-            if (cache_insert(XBZRLE.cache, current_addr, *current_data,
-                             ram_counters.dirty_sync_count) == -1) {
-                return -1;
-            } else {
-                /* update *current_data when the page has been
-                   inserted into cache */
-                *current_data = get_cached_data(XBZRLE.cache, current_addr);
-            }
+        if (!last_stage &&
+            !cache_insert(XBZRLE.cache, current_addr, *current_data,
+                          ram_counters.dirty_sync_count)) {
+            /*
+             * update *current_data when the page has been inserted into
+             * cache
+             */
+            *current_data = get_cached_data(XBZRLE.cache, current_addr);
         }
         return -1;
     }
