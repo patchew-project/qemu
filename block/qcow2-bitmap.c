@@ -547,30 +547,33 @@ static uint32_t bitmap_list_count(Qcow2BitmapList *bm_list)
  * Get bitmap list from qcow2 image. Actually reads bitmap directory,
  * checks it and convert to bitmap list.
  */
-static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
-                                         uint64_t size, Error **errp)
+static int bitmap_list_load(BlockDriverState *bs, Qcow2BitmapList **bm_list_out,
+                            Error **errp)
 {
-    int ret;
+    int ret = 0;
     BDRVQcow2State *s = bs->opaque;
     uint8_t *dir, *dir_end;
     Qcow2BitmapDirEntry *e;
     uint32_t nb_dir_entries = 0;
     Qcow2BitmapList *bm_list = NULL;
 
+    uint64_t offset = s->bitmap_directory_offset;
+    uint64_t size = s->bitmap_directory_size;
+
     if (size == 0) {
-        error_setg(errp, "Requested bitmap directory size is zero");
-        return NULL;
+        error_setg(errp, "Cannot load a bitmap directory of size 0");
+        return -EINVAL;
     }
 
     if (size > QCOW2_MAX_BITMAP_DIRECTORY_SIZE) {
         error_setg(errp, "Requested bitmap directory size is too big");
-        return NULL;
+        return -EINVAL;
     }
 
     dir = g_try_malloc(size);
     if (dir == NULL) {
         error_setg(errp, "Failed to allocate space for bitmap directory");
-        return NULL;
+        return -ENOMEM;
     }
     dir_end = dir + size;
 
@@ -594,6 +597,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
         if (++nb_dir_entries > s->nb_bitmaps) {
             error_setg(errp, "More bitmaps found than specified in header"
                        " extension");
+            ret = -EINVAL;
             goto fail;
         }
         bitmap_dir_entry_to_cpu(e);
@@ -604,6 +608,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
 
         if (e->extra_data_size != 0) {
             error_setg(errp, "Bitmap extra data is not supported");
+            ret = -ENOTSUP;
             goto fail;
         }
 
@@ -626,6 +631,7 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
     if (nb_dir_entries != s->nb_bitmaps) {
         error_setg(errp, "Less bitmaps found than specified in header"
                          " extension");
+        ret = -EINVAL;
         goto fail;
     }
 
@@ -634,7 +640,8 @@ static Qcow2BitmapList *bitmap_list_load(BlockDriverState *bs, uint64_t offset,
     }
 
     g_free(dir);
-    return bm_list;
+    *bm_list_out = bm_list;
+    return ret;
 
 broken_dir:
     ret = -EINVAL;
@@ -644,7 +651,7 @@ fail:
     g_free(dir);
     bitmap_list_free(bm_list);
 
-    return NULL;
+    return ret;
 }
 
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
@@ -667,11 +674,10 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
         return ret;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, NULL);
-    if (bm_list == NULL) {
+    ret = bitmap_list_load(bs, &bm_list, NULL);
+    if (ret) {
         res->corruptions++;
-        return -EINVAL;
+        return ret;
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
@@ -971,9 +977,7 @@ bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp)
         return false;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
-    if (bm_list == NULL) {
+    if (bitmap_list_load(bs, &bm_list, errp)) {
         return false;
     }
 
@@ -1080,9 +1084,7 @@ Qcow2BitmapInfoList *qcow2_get_bitmap_info_list(BlockDriverState *bs,
         return NULL;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
-    if (bm_list == NULL) {
+    if (bitmap_list_load(bs, &bm_list, errp)) {
         return NULL;
     }
 
@@ -1125,10 +1127,8 @@ int qcow2_reopen_bitmaps_rw_hint(BlockDriverState *bs, bool *header_updated,
         return -EINVAL;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
-    if (bm_list == NULL) {
-        return -EINVAL;
+    if ((ret = bitmap_list_load(bs, &bm_list, errp))) {
+        return ret;
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
@@ -1186,10 +1186,8 @@ int qcow2_truncate_bitmaps_check(BlockDriverState *bs, Error **errp)
         return 0;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
-    if (bm_list == NULL) {
-        return -EINVAL;
+    if ((ret = bitmap_list_load(bs, &bm_list, errp))) {
+        return ret;
     }
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
@@ -1419,9 +1417,7 @@ void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
         return;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
-    if (bm_list == NULL) {
+    if (bitmap_list_load(bs, &bm_list, errp)) {
         return;
     }
 
@@ -1472,9 +1468,7 @@ void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
     if (s->nb_bitmaps == 0) {
         bm_list = bitmap_list_new();
     } else {
-        bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                                   s->bitmap_directory_size, errp);
-        if (bm_list == NULL) {
+        if (bitmap_list_load(bs, &bm_list, errp)) {
             return;
         }
     }
@@ -1653,9 +1647,7 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
         goto fail;
     }
 
-    bm_list = bitmap_list_load(bs, s->bitmap_directory_offset,
-                               s->bitmap_directory_size, errp);
-    if (bm_list == NULL) {
+    if (bitmap_list_load(bs, &bm_list, errp)) {
         goto fail;
     }
 
