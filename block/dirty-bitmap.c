@@ -455,15 +455,30 @@ void bdrv_release_named_dirty_bitmaps(BlockDriverState *bs)
  * BdrvDirtyBitmap can have .persistent = true but not yet saved and have no
  * stored version. For such bitmap bdrv_remove_persistent_dirty_bitmap() should
  * not fail.
- * This function doesn't release corresponding BdrvDirtyBitmap.
+ * This function doesn't release the corresponding BdrvDirtyBitmap.
  */
-void bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs,
-                                         const char *name,
-                                         Error **errp)
+int bdrv_remove_persistent_dirty_bitmap(BlockDriverState *bs,
+                                        BdrvDirtyBitmap *bitmap,
+                                        Error **errp)
 {
-    if (bs->drv && bs->drv->bdrv_remove_persistent_dirty_bitmap) {
-        bs->drv->bdrv_remove_persistent_dirty_bitmap(bs, name, errp);
+    int ret = 0;
+
+    if (!bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        error_setg(errp, "Bitmap '%s' is not persistent, "
+                   "so it cannot be removed from node '%s'",
+                   bdrv_dirty_bitmap_name(bitmap),
+                   bdrv_get_device_or_node_name(bs));
+        return -EINVAL;
     }
+
+    if (bs->drv && bs->drv->bdrv_remove_persistent_dirty_bitmap) {
+        ret = bs->drv->bdrv_remove_persistent_dirty_bitmap(bs, bitmap, errp);
+    }
+    if (!ret) {
+        bdrv_dirty_bitmap_set_persistence(bitmap, false);
+    }
+
+    return ret;
 }
 
 int bdrv_add_persistent_dirty_bitmap(BlockDriverState *bs,

@@ -540,9 +540,9 @@ struct BlockDriver {
     int (*bdrv_add_persistent_dirty_bitmap)(BlockDriverState *bs,
                                             BdrvDirtyBitmap *bitmap,
                                             Error **errp);
-    void (*bdrv_remove_persistent_dirty_bitmap)(BlockDriverState *bs,
-                                                const char *name,
-                                                Error **errp);
+    int (*bdrv_remove_persistent_dirty_bitmap)(BlockDriverState *bs,
+                                               BdrvDirtyBitmap *bitmap,
+                                               Error **errp);
 
     /**
      * Register/unregister a buffer for I/O. For example, when the driver is

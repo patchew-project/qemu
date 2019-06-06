@@ -2875,7 +2875,6 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
-    Error *local_err = NULL;
     AioContext *aio_context = NULL;
 
     bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
@@ -2889,20 +2888,18 @@ void qmp_block_dirty_bitmap_remove(const char *node, const char *name,
     }
 
     if (bdrv_dirty_bitmap_get_persistence(bitmap)) {
+        int ret;
+
         aio_context = bdrv_get_aio_context(bs);
         aio_context_acquire(aio_context);
-        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
-            goto out;
+        ret = bdrv_remove_persistent_dirty_bitmap(bs, bitmap, errp);
+        aio_context_release(aio_context);
+        if (ret) {
+            return;
         }
     }
 
     bdrv_release_dirty_bitmap(bs, bitmap);
- out:
-    if (aio_context) {
-        aio_context_release(aio_context);
-    }
 }
 
 /**

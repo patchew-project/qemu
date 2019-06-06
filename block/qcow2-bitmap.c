@@ -1402,23 +1402,24 @@ static Qcow2Bitmap *find_bitmap_by_name(Qcow2BitmapList *bm_list,
     return NULL;
 }
 
-void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
-                                          const char *name,
-                                          Error **errp)
+int qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
+                                         BdrvDirtyBitmap *bitmap,
+                                         Error **errp)
 {
-    int ret;
+    int ret = 0;
     BDRVQcow2State *s = bs->opaque;
     Qcow2Bitmap *bm;
     Qcow2BitmapList *bm_list;
+    const char *name = bdrv_dirty_bitmap_name(bitmap);
 
     if (s->nb_bitmaps == 0) {
         /* Absence of the bitmap is not an error: see explanation above
          * bdrv_remove_persistent_dirty_bitmap() definition. */
-        return;
+        return 0;
     }
 
-    if (bitmap_list_load(bs, &bm_list, errp)) {
-        return;
+    if ((ret = bitmap_list_load(bs, &bm_list, errp))) {
+        return ret;
     }
 
     bm = find_bitmap_by_name(bm_list, name);
@@ -1439,6 +1440,7 @@ void qcow2_remove_persistent_dirty_bitmap(BlockDriverState *bs,
 fail:
     bitmap_free(bm);
     bitmap_list_free(bm_list);
+    return ret;
 }
 
 void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
