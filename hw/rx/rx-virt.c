@@ -88,7 +88,7 @@ static void rxvirt_class_init(ObjectClass *oc, void *data)
     mc->desc = "RX QEMU Virtual Target";
     mc->init = rxvirt_init;
     mc->is_default = 1;
-    mc->default_cpu_type = TYPE_RXCPU;
+    mc->default_cpu_type = RX_CPU_TYPE_NAME("rx62n");
 }
 
 static const TypeInfo rxvirt_type = {
