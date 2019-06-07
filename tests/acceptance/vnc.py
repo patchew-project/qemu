@@ -11,6 +11,7 @@
 import os
 import tempfile
 import shutil
+import socket
 
 from avocado_qemu import Test
 
@@ -70,6 +71,17 @@ class VncUnixSocket(Test):
                                             target='password',
                                             arg='new_password')
         self.assertEqual(set_password_response['return'], {})
+
+    def test_protocol_version(self):
+        self.vm.add_args('-nodefaults', '-S',
+                         '-vnc', 'unix:%s' % self.socket_path)
+        self.vm.launch()
+        self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
+        client = socket.socket(socket.AF_UNIX)
+        client.connect(self.socket_path)
+        expected = b'RFB 003.008'
+        actual = client.recv(len(expected))
+        self.assertEqual(expected, actual, "Wrong protocol version")
 
     def tearDown(self):
         shutil.rmtree(self.socket_dir)
