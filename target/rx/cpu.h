@@ -24,14 +24,14 @@
 #include "hw/registerfields.h"
 #include "qom/cpu.h"
 
-#define TYPE_RXCPU "rxcpu"
+#define TYPE_RX_CPU "rx-cpu"
 
 #define RXCPU_CLASS(klass)                                     \
-    OBJECT_CLASS_CHECK(RXCPUClass, (klass), TYPE_RXCPU)
+    OBJECT_CLASS_CHECK(RXCPUClass, (klass), TYPE_RX_CPU)
 #define RXCPU(obj) \
-    OBJECT_CHECK(RXCPU, (obj), TYPE_RXCPU)
+    OBJECT_CHECK(RXCPU, (obj), TYPE_RX_CPU)
 #define RXCPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RXCPUClass, (obj), TYPE_RXCPU)
+    OBJECT_GET_CLASS(RXCPUClass, (obj), TYPE_RX_CPU)
 
 /*
  * RXCPUClass:
@@ -164,9 +164,9 @@ static inline RXCPU *rx_env_get_cpu(CPURXState *env)
 
 #define ENV_OFFSET offsetof(RXCPU, env)
 
-#define RX_CPU_TYPE_SUFFIX "-" TYPE_RXCPU
+#define RX_CPU_TYPE_SUFFIX "-" TYPE_RX_CPU
 #define RX_CPU_TYPE_NAME(model) model RX_CPU_TYPE_SUFFIX
-#define CPU_RESOLVING_TYPE TYPE_RXCPU
+#define CPU_RESOLVING_TYPE TYPE_RX_CPU
 
 extern const char rx_crname[][6];
 
