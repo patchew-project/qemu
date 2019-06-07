@@ -80,7 +80,7 @@ static void rx_cpu_list_entry(gpointer data, gpointer user_data)
 void rx_cpu_list(void)
 {
     GSList *list;
-    list = object_class_get_list_sorted(TYPE_RXCPU, false);
+    list = object_class_get_list_sorted(TYPE_RX_CPU, false);
     g_slist_foreach(list, rx_cpu_list_entry, NULL);
     g_slist_free(list);
 }
@@ -88,15 +88,26 @@ void rx_cpu_list(void)
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename = NULL;
+    char *typename;
 
-    typename = g_strdup_printf(RX_CPU_TYPE_NAME(""));
+    oc = object_class_by_name(cpu_model);
+    if (oc != NULL && object_class_dynamic_cast(oc, TYPE_RX_CPU) != NULL &&
+        !object_class_is_abstract(oc)) {
+        return oc;
+    }
+
+    typename = g_strdup_printf(RX_CPU_TYPE_NAME("%s"), cpu_model);
     oc = object_class_by_name(typename);
     if (oc != NULL && object_class_is_abstract(oc)) {
         oc = NULL;
     }
-
     g_free(typename);
+
+    if (!oc) {
+        /* default to rx62n */
+        oc = object_class_by_name(RX_CPU_TYPE_NAME("rx62n"));
+    }
+
     return oc;
 }
 
