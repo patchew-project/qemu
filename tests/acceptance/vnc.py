@@ -45,7 +45,7 @@ class VncUnixSocket(Test):
         self.socket_dir = tempfile.mkdtemp()
         self.socket_path = os.path.join(self.socket_dir, 'vnc-socket')
 
-    def test_vnc_change_password_requires_a_password(self):
+    def test_change_password_requires_a_password(self):
         self.vm.add_args('-nodefaults', '-S',
                          '-vnc', 'unix:%s' % self.socket_path)
         self.vm.launch()
@@ -60,7 +60,7 @@ class VncUnixSocket(Test):
         self.assertEqual(set_password_response['error']['desc'],
                          'Could not set password')
 
-    def test_vnc_change_password(self):
+    def test_change_password(self):
         self.vm.add_args('-nodefaults', '-S',
                          '-vnc', 'unix:%s,password' % self.socket_path)
         self.vm.launch()
