@@ -104,7 +104,7 @@ static int get_command_arg_str(const char *name,
     }
 
     if (end)
-        *val = strndup(start, end - start);
+        *val = g_strndup(start, end - start);
     else
         *val = strdup(start);
     return 1;
