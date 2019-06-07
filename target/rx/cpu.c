@@ -72,9 +72,8 @@ static void rx_cpu_reset(CPUState *s)
 static void rx_cpu_list_entry(gpointer data, gpointer user_data)
 {
     const char *typename = object_class_get_name(OBJECT_CLASS(data));
-    int len = strlen(typename) - strlen(RX_CPU_TYPE_SUFFIX);
 
-    qemu_printf("  %.*s\n", len, typename);
+    qemu_printf("  %s\n",  typename);
 }
 
 void rx_cpu_list(void)
@@ -89,11 +88,8 @@ void rx_cpu_list(void)
 static ObjectClass *rx_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
-    char *typename;
 
-    typename = g_strdup_printf(RX_CPU_TYPE_NAME("%s"), cpu_model);
-    oc = object_class_by_name(typename);
-    g_free(typename);
+    oc = object_class_by_name(cpu_model);
 
     if (oc == NULL ||
         object_class_is_abstract(oc) ||

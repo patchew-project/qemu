@@ -30,7 +30,7 @@
 #include "target/rx/cpu.h"
 #include "qemu/units.h"
 
-#define TYPE_RX62N "rx62n"
+#define TYPE_RX62N "rx62n-mcu"
 #define TYPE_RX62N_CPU RX_CPU_TYPE_NAME(TYPE_RX62N)
 #define RX62N(obj) OBJECT_CHECK(RX62NState, (obj), TYPE_RX62N)
 
