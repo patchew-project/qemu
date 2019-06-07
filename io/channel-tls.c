@@ -346,12 +346,15 @@ static void qio_channel_tls_set_delay(QIOChannel *ioc,
     qio_channel_set_delay(tioc->master, enabled);
 }
 
-static void qio_channel_tls_set_cork(QIOChannel *ioc,
-                                     bool enabled)
+static int qio_channel_tls_set_cork(QIOChannel *ioc,
+                                    bool enabled)
 {
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(ioc);
 
-    qio_channel_set_cork(tioc->master, enabled);
+    if (qcrypto_tls_session_cork(tioc->session, enabled) == -EAGAIN) {
+        return QIO_CHANNEL_ERR_BLOCK;
+    }
+    return 0;
 }
 
 static int qio_channel_tls_shutdown(QIOChannel *ioc,

@@ -379,7 +379,16 @@ void qio_channel_set_cork(QIOChannel *ioc,
     QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
 
     if (klass->io_set_cork) {
-        klass->io_set_cork(ioc, enabled);
+        int r = klass->io_set_cork(ioc, enabled);
+
+        while (r == QIO_CHANNEL_ERR_BLOCK) {
+            if (qemu_in_coroutine()) {
+                qio_channel_yield(ioc, G_IO_OUT);
+            } else {
+                qio_channel_wait(ioc, G_IO_OUT);
+            }
+            r = klass->io_set_cork(ioc, enabled);
+        }
     }
 }
 

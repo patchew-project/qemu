@@ -547,6 +547,17 @@ qcrypto_tls_session_get_peer_name(QCryptoTLSSession *session)
     return NULL;
 }
 
+int qcrypto_tls_session_cork(QCryptoTLSSession *session, bool enabled)
+{
+    return 0;
+    if (enabled) {
+        gnutls_record_cork(session->handle);
+    } else if (gnutls_record_uncork(session->handle, 0) < 0) {
+        return -EAGAIN;
+    }
+    return 0;
+}
+
 
 #else /* ! CONFIG_GNUTLS */
 
@@ -637,6 +648,11 @@ char *
 qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess)
 {
     return NULL;
+}
+
+int qcrypto_tls_session_cork(QCryptoTLSSession *sess, bool enabled)
+{
+    return 0;
 }
 
 #endif

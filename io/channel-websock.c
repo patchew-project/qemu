@@ -1186,12 +1186,13 @@ static void qio_channel_websock_set_delay(QIOChannel *ioc,
     qio_channel_set_delay(tioc->master, enabled);
 }
 
-static void qio_channel_websock_set_cork(QIOChannel *ioc,
+static int qio_channel_websock_set_cork(QIOChannel *ioc,
                                          bool enabled)
 {
     QIOChannelWebsock *tioc = QIO_CHANNEL_WEBSOCK(ioc);
 
     qio_channel_set_cork(tioc->master, enabled);
+    return 0;
 }
 
 static int qio_channel_websock_shutdown(QIOChannel *ioc,

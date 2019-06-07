@@ -129,8 +129,8 @@ struct QIOChannelClass {
     int (*io_shutdown)(QIOChannel *ioc,
                        QIOChannelShutdown how,
                        Error **errp);
-    void (*io_set_cork)(QIOChannel *ioc,
-                        bool enabled);
+    int (*io_set_cork)(QIOChannel *ioc,
+                       bool enabled);
     void (*io_set_delay)(QIOChannel *ioc,
                          bool enabled);
     off_t (*io_seek)(QIOChannel *ioc,

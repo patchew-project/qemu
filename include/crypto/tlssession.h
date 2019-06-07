@@ -319,4 +319,19 @@ int qcrypto_tls_session_get_key_size(QCryptoTLSSession *sess,
  */
 char *qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess);
 
+/**
+ * qcrypto_tls_session_cork:
+ * @sess: the TLS session object
+ * @enabled: the desired cork status
+ *
+ * Update the cork status of the session. If @enabled is true, this is
+ * a hint that the next few writes should be batched together until
+ * the session is uncorked again. If false, then proceed to write
+ * batched data, and it is safe to call this in a loop in case
+ * flushing the queue would block.
+ *
+ * Returns: 0 for success, or -EAGAIN if uncorking is incomplete.
+ */
+int qcrypto_tls_session_cork(QCryptoTLSSession *sess, bool enabled);
+
 #endif /* QCRYPTO_TLSSESSION_H */
