@@ -212,7 +212,7 @@ matrix:
         - CONFIG="--target-list=x86_64-softmmu"
       language: python
       python:
-        - "3.4"
+        - "3.5"
 
 
     - env:
