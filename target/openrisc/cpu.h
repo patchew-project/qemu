@@ -27,7 +27,6 @@
 /* cpu_openrisc_map_address_* in CPUOpenRISCTLBContext need this decl.  */
 struct OpenRISCCPU;
 
-#include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "qom/cpu.h"
 

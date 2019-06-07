@@ -21,7 +21,6 @@
 #define TRICORE_CPU_H
 
 #include "tricore-defs.h"
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 

@@ -20,7 +20,6 @@
 #ifndef PPC_CPU_H
 #define PPC_CPU_H
 
-#include "qemu-common.h"
 #include "qemu/int128.h"
 
 /* #define PPC_EMULATE_32BITS_HYPV */

@@ -21,7 +21,6 @@
 #ifndef NIOS2_CPU_H
 #define NIOS2_CPU_H
 
-#include "qemu-common.h"
 
 #define TARGET_LONG_BITS 32
 

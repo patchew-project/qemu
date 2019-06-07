@@ -5,7 +5,6 @@
 
 #define CPUArchState struct CPUMIPSState
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "mips-defs.h"
 #include "exec/cpu-defs.h"

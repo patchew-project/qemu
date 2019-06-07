@@ -36,7 +36,6 @@
 
 #define CPUArchState struct CPURISCVState
 
-#include "qemu-common.h"
 #include "qom/cpu.h"
 #include "exec/cpu-defs.h"
 #include "fpu/softfloat.h"

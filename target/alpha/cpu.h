@@ -20,7 +20,6 @@
 #ifndef ALPHA_CPU_H
 #define ALPHA_CPU_H
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 
 #define TARGET_LONG_BITS 64

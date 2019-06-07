@@ -36,7 +36,6 @@
 
 #define CPUArchState struct CPUXtensaState
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 #include "xtensa-isa.h"

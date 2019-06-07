@@ -35,7 +35,6 @@
 
 #define CPUArchState struct CPUARMState
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 

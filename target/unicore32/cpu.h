@@ -20,7 +20,6 @@
 
 #define CPUArchState                struct CPUUniCore32State
 
-#include "qemu-common.h"
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
 
