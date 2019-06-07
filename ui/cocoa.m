@@ -27,7 +27,6 @@
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
 
-#include "qemu-common.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include "sysemu/sysemu.h"
@@ -36,6 +35,7 @@
 #include "qapi/qapi-commands-misc.h"
 #include "sysemu/blockdev.h"
 #include "qemu-version.h"
+#include "qemu/module.h"
 #include <Carbon/Carbon.h>
 #include "qom/cpu.h"
 
