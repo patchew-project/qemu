@@ -153,7 +153,7 @@ static void rx_cpu_init(Object *obj)
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }
 
-static void rxcpu_class_init(ObjectClass *klass, void *data)
+static void rx_cpu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     CPUClass *cc = CPU_CLASS(klass);
@@ -181,22 +181,28 @@ static void rxcpu_class_init(ObjectClass *klass, void *data)
     cc->gdb_num_core_regs = 26;
 }
 
-static const TypeInfo rxcpu_info = {
-    .name = TYPE_RXCPU,
+static const TypeInfo rx_cpu_info = {
+    .name = TYPE_RX_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(RXCPU),
     .instance_init = rx_cpu_init,
-    .abstract = false,
+    .abstract = true,
     .class_size = sizeof(RXCPUClass),
-    .class_init = rxcpu_class_init,
+    .class_init = rx_cpu_class_init,
 };
 
-static void rxcpu_register_types(void)
+static const TypeInfo rx62n_rx_cpu_info = {
+    .name = RX_CPU_TYPE_NAME("rx62n"),
+    .parent = TYPE_RX_CPU,
+};
+
+static void rx_cpu_register_types(void)
 {
-    type_register_static(&rxcpu_info);
+    type_register_static(&rx_cpu_info);
+    type_register_static(&rx62n_rx_cpu_info);
 }
 
-type_init(rxcpu_register_types)
+type_init(rx_cpu_register_types)
 
 static uint32_t extable[32];
 
