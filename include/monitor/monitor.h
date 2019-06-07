@@ -21,6 +21,7 @@ bool monitor_cur_is_qmp(void);
 
 void monitor_init_globals(void);
 void monitor_init(Chardev *chr, int flags);
+void monitor_init_qmp(Chardev *chr, int flags);
 void monitor_cleanup(void);
 
 int monitor_suspend(Monitor *mon);
