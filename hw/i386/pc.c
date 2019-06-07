@@ -2722,6 +2722,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->smbios_defaults = true;
     pcmc->smbios_uuid_encoded = true;
     pcmc->gigabyte_align = true;
+    pcmc->gigabyte_split = true;
     pcmc->has_reserved_memory = true;
     pcmc->kvmclock_enabled = true;
     pcmc->enforce_aligned_dimm = true;
