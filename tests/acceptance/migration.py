@@ -25,7 +25,7 @@ class Migration(Test):
         return vm.command('query-migrate')['status'] in ('completed', 'failed')
 
     def _get_free_port(self):
-        port = network.find_free_port()
+        port = network.find_free_port(sequent=False)
         if port is None:
             self.cancel('Failed to find a free port')
         return port
