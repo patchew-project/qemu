@@ -229,11 +229,10 @@ static void rx_cpu_register_types(void)
 
 type_init(rx_cpu_register_types)
 
-static uint32_t extable[32];
-
 void rx_load_image(RXCPU *cpu, const char *filename,
                    uint32_t start, uint32_t size)
 {
+    static uint32_t extable[32];
     long kernel_size;
     int i;
 
@@ -246,7 +245,7 @@ void rx_load_image(RXCPU *cpu, const char *filename,
 
     /* setup exception trap trampoline */
     /* linux kernel only works little-endian mode */
-    for (i = 0; i < 32; i++) {
+    for (i = 0; i < ARRAY_SIZE(extable); i++) {
         extable[i] = cpu_to_le32(0x10 + i * 4);
     }
     rom_add_blob_fixed("extable", extable, sizeof(extable), 0xffffff80);
