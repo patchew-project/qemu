@@ -1,5 +1,5 @@
 /*
- * RX62N device
+ * RX62N Microcontroller
  *
  * Datasheet: RX62N Group, RX621 Group User's Manual: Hardware
  * (Rev.1.40 R01UH0033EJ0140)
@@ -202,6 +202,7 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
         }
     }
 
+    /* Initalize CPU */
     object_initialize_child(OBJECT(s), "cpu", &s->cpu,
                             sizeof(RXCPU), RX_CPU_TYPE_NAME("rx62n"),
                             errp, NULL);

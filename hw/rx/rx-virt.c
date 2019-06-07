@@ -55,7 +55,7 @@ static void rxvirt_init(MachineState *machine)
                            &error_fatal);
     memory_region_add_subregion(sysmem, SDRAM_BASE, sdram);
 
-    /* Initalize CPU */
+    /* Initalize MCU */
     object_initialize_child(OBJECT(machine), "mcu", s,
                             sizeof(RX62NState), TYPE_RX62N,
                             &error_fatal, NULL);
