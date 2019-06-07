@@ -8,6 +8,10 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import os
+import tempfile
+import shutil
+
 from avocado_qemu import Test
 
 
@@ -34,8 +38,16 @@ class Vnc(Test):
         self.assertEqual(set_password_response['error']['desc'],
                          'Could not set password')
 
+class VncUnixSocket(Test):
+
+    def setUp(self):
+        super(VncUnixSocket, self).setUp()
+        self.socket_dir = tempfile.mkdtemp()
+        self.socket_path = os.path.join(self.socket_dir, 'vnc-socket')
+
     def test_vnc_change_password_requires_a_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0')
+        self.vm.add_args('-nodefaults', '-S',
+                         '-vnc', 'unix:%s' % self.socket_path)
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         set_password_response = self.vm.qmp('change',
@@ -49,7 +61,8 @@ class Vnc(Test):
                          'Could not set password')
 
     def test_vnc_change_password(self):
-        self.vm.add_args('-nodefaults', '-S', '-vnc', ':0,password')
+        self.vm.add_args('-nodefaults', '-S',
+                         '-vnc', 'unix:%s,password' % self.socket_path)
         self.vm.launch()
         self.assertTrue(self.vm.qmp('query-vnc')['return']['enabled'])
         set_password_response = self.vm.qmp('change',
@@ -57,3 +70,6 @@ class Vnc(Test):
                                             target='password',
                                             arg='new_password')
         self.assertEqual(set_password_response['return'], {})
+
+    def tearDown(self):
+        shutil.rmtree(self.socket_dir)
