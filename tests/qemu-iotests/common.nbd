@@ -22,6 +22,7 @@
 nbd_unix_socket="${TEST_DIR}/qemu-nbd.sock"
 nbd_tcp_addr="127.0.0.1"
 nbd_pid_file="${TEST_DIR}/qemu-nbd.pid"
+nbd_job_pid=""
 
 nbd_server_stop()
 {
@@ -32,6 +33,9 @@ nbd_server_stop()
         if [ -n "$NBD_PID" ]; then
             kill "$NBD_PID"
         fi
+    fi
+    if [ -n "$nbd_job_pid" ] && kill -s 0 "$nbd_job_pid" 2>/dev/null; then
+        wait "$nbd_job_pid"
     fi
     rm -f "$nbd_unix_socket"
 }
@@ -61,6 +65,7 @@ nbd_server_start_unix_socket()
 {
     nbd_server_stop
     $QEMU_NBD -v -t -k "$nbd_unix_socket" "$@" &
+    nbd_job_pid=$!
     nbd_server_wait_for_unix_socket $!
 }
 
@@ -105,5 +110,6 @@ nbd_server_start_tcp_socket()
 {
     nbd_server_stop
     $QEMU_NBD -v -t -b $nbd_tcp_addr -p $nbd_tcp_port "$@" &
+    nbd_job_pid=$!
     nbd_server_wait_for_tcp_socket $!
 }
