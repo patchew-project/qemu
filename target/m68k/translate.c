@@ -4753,6 +4753,8 @@ DISAS_INSN(m68k_movec)
     } else {
         reg = DREG(ext, 12);
     }
+
+    /* Decode ctrl reg field, issues exception if the cpu doesnt support it */
     if (insn & 1) {
         gen_helper_m68k_movec_to(cpu_env, tcg_const_i32(ext & 0xfff), reg);
     } else {
@@ -5990,7 +5992,7 @@ void register_m68k_insns (CPUM68KState *env)
     BASE(stop,      4e72, ffff);
     BASE(rte,       4e73, ffff);
     INSN(cf_movec,  4e7b, ffff, CF_ISA_A);
-    INSN(m68k_movec, 4e7a, fffe, M68000);
+    INSN(m68k_movec, 4e7a, fffe, M68010);
 #endif
     BASE(nop,       4e71, ffff);
     INSN(rtd,       4e74, ffff, RTD);
