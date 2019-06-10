@@ -7,3 +7,5 @@ add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       language: 'c')
 add_project_arguments(config_host['QEMU_INCLUDES'].split(),
                       language: 'c')
+
+subdir('contrib/libvhost-user')
