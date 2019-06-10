@@ -17,6 +17,7 @@
 #include "block/raw-aio.h"
 #include "qemu/coroutine.h"
 #include "qapi/error.h"
+#include "trace.h"
 
 #define MAX_EVENTS 128
 
@@ -191,12 +192,15 @@ static int ioq_submit(LuringState *s)
 
 void luring_io_plug(BlockDriverState *bs, LuringState *s)
 {
+    trace_luring_io_plug();
     s->io_q.plugged++;
 }
 
 void luring_io_unplug(BlockDriverState *bs, LuringState *s)
 {
     assert(s->io_q.plugged);
+    trace_luring_io_unplug(s->io_q.blocked, s->io_q.plugged,
+                                 s->io_q.in_queue, s->io_q.in_flight);
     if (--s->io_q.plugged == 0 &&
         !s->io_q.blocked && s->io_q.in_queue > 0) {
         ioq_submit(s);
@@ -217,6 +221,7 @@ void luring_io_unplug(BlockDriverState *bs, LuringState *s)
 static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
                             uint64_t offset, int type)
 {
+    int ret;
     struct io_uring_sqe *sqes = io_uring_get_sqe(&s->ring);
     if (!sqes) {
         sqes = &luringcb->sqeq;
@@ -242,11 +247,14 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
     }
     io_uring_sqe_set_data(sqes, luringcb);
     s->io_q.in_queue++;
-
+    trace_luring_do_submit(s->io_q.blocked, s->io_q.plugged,
+                           s->io_q.in_queue, s->io_q.in_flight);
     if (!s->io_q.blocked &&
         (!s->io_q.plugged ||
          s->io_q.in_flight + s->io_q.in_queue >= MAX_EVENTS)) {
-        return ioq_submit(s);
+        ret = ioq_submit(s);
+        trace_luring_do_submit_done(ret);
+        return ret;
     }
     return 0;
 }
@@ -294,6 +302,7 @@ LuringState *luring_init(Error **errp)
     int rc;
     LuringState *s;
     s = g_malloc0(sizeof(*s));
+    trace_luring_init_state((void *)s, sizeof(*s));
     struct io_uring *ring = &s->ring;
     rc =  io_uring_queue_init(MAX_EVENTS, ring, 0);
     if (rc < 0) {
@@ -311,4 +320,5 @@ void luring_cleanup(LuringState *s)
 {
     io_uring_queue_exit(&s->ring);
     g_free(s);
+    trace_luring_cleanup_state();
 }
