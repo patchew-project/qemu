@@ -10,6 +10,9 @@ add_project_arguments(config_host['QEMU_INCLUDES'].split(),
 
 glib = declare_dependency(compile_args: config_host['GLIB_CFLAGS'].split(),
                           link_args: config_host['GLIB_LIBS'].split())
+libiscsi = declare_dependency(compile_args: config_host['LIBISCSI_CFLAGS'].split(),
+                          link_args: config_host['LIBISCSI_LIBS'].split())
 
 subdir('contrib/libvhost-user')
 subdir('contrib/vhost-user-blk')
+subdir('contrib/vhost-user-scsi')

@@ -63,7 +63,7 @@
 /qemu-version.h.tmp
 /module_block.h
 /scsi/qemu-pr-helper
-/vhost-user-scsi
+/contrib/vhost-user-scsi/vhost-user-scsi
 /contrib/vhost-user-blk/vhost-user-blk
 /fsdev/virtfs-proxy-helper
 *.tmp
