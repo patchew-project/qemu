@@ -918,7 +918,7 @@ for binary in "${PYTHON-python3}" python python2
 do
     if has "$binary"
     then
-        python="$binary"
+        python=$(type -p "$binary")
         break
     fi
 done
