@@ -125,6 +125,32 @@ run_qemu_filter_aio <<EOF
 EOF
 
 echo
+echo === aio=io_uring without O_DIRECT ===
+echo
+
+# Skip this test if io_uring is not enabled in this build
+run_qemu_filter_io_uring()
+{
+    run_qemu "$@"
+}
+
+run_qemu_filter_io_uring <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+      "driver": "$IMGFMT",
+      "node-name": "disk",
+      "file": {
+          "driver": "file",
+          "filename": "$TEST_IMG",
+          "aio": "io_uring"
+      }
+    }
+  }
+{ "execute": "quit" }
+EOF
+
+echo
 echo === Encrypted image QCow ===
 echo
 
