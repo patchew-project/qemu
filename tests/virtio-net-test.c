@@ -186,7 +186,7 @@ static void announce_self(void *obj, void *data, QGuestAllocator *t_alloc)
     rsp = qmp("{ 'execute' : 'announce-self', "
                   " 'arguments': {"
                       " 'initial': 50, 'max': 550,"
-                      " 'rounds': 10, 'step': 50 } }");
+                      " 'rounds': 10, 'step': 50, 'id': 'bob' } }");
     assert(!qdict_haskey(rsp, "error"));
     qobject_unref(rsp);
 
