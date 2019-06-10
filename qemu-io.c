@@ -131,6 +131,7 @@ static void open_help(void)
 " -n, -- disable host cache, short for -t none\n"
 " -U, -- force shared permissions\n"
 " -k, -- use kernel AIO implementation (on Linux only)\n"
+" -i  -- use kernel io_uring (Linux 5.1+)\n"
 " -t, -- use the given cache mode for the image\n"
 " -d, -- use the given discard mode for the image\n"
 " -o, -- options to be given to the block driver"
@@ -190,6 +191,11 @@ static int open_f(BlockBackend *blk, int argc, char **argv)
         case 'k':
             flags |= BDRV_O_NATIVE_AIO;
             break;
+#ifdef CONFIG_LINUX_IO_URING
+        case 'i':
+            flags |= BDRV_O_IO_URING;
+            break;
+#endif
         case 't':
             if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
                 error_report("Invalid cache option: %s", optarg);
@@ -292,6 +298,7 @@ static void usage(const char *name)
 "  -C, --copy-on-read   enable copy-on-read\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
+"  -i  --io_uring       use kernel io_uring (Linux 5.1+)\n"
 "  -t, --cache=MODE     use the given cache mode for the image\n"
 "  -d, --discard=MODE   use the given discard mode for the image\n"
 "  -T, --trace [[enable=]<pattern>][,events=<file>][,file=<file>]\n"
@@ -501,6 +508,7 @@ int main(int argc, char **argv)
         { "copy-on-read", no_argument, NULL, 'C' },
         { "misalign", no_argument, NULL, 'm' },
         { "native-aio", no_argument, NULL, 'k' },
+        { "io_uring", no_argument, NULL, 'i' },
         { "discard", required_argument, NULL, 'd' },
         { "cache", required_argument, NULL, 't' },
         { "trace", required_argument, NULL, 'T' },
@@ -568,6 +576,11 @@ int main(int argc, char **argv)
         case 'k':
             flags |= BDRV_O_NATIVE_AIO;
             break;
+#ifdef CONFIG_LINUX_IO_URING
+        case 'i':
+            flags |= BDRV_O_IO_URING;
+            break;
+#endif
         case 't':
             if (bdrv_parse_cache_mode(optarg, &flags, &writethrough) < 0) {
                 error_report("Invalid cache option: %s", optarg);
