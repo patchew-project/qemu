@@ -14,7 +14,7 @@ extern __thread Monitor *cur_mon;
 #define MONITOR_USE_CONTROL   0x04
 #define MONITOR_USE_PRETTY    0x08
 
-#define QMP_REQ_QUEUE_LEN_MAX 8
+#define QMP_REQ_QUEUE_LEN_MAX 4096
 
 bool monitor_cur_is_qmp(void);
 

@@ -4114,7 +4114,7 @@ static int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return !atomic_mb_read(&mon->suspend_cnt);
+    return !atomic_mb_read(&mon->suspend_cnt) ? 4096 : 0;
 }
 
 /*
