@@ -147,20 +147,27 @@ class LinuxSSH(Test):
 
     def run_common_commands(self):
         stdout, stderr = self.ssh_command('lspci -d 11ab:4620')
-        self.assertIn(True, ["GT-64120" in line for line in stdout])
+        self.assertIn(True, ["GT-64120a" in line for line in stdout],
+                      "'lspci -d 11ab:4620' output doesn't contain "
+                      "the word 'GT-64120'")
 
         stdout, stderr = self.ssh_command('cat /sys/bus/i2c/devices/i2c-0/name')
-        self.assertIn(True, ["SMBus PIIX4 adapter" in line
-                             for line in stdout])
+        self.assertIn(True, ["SMBus PIIX4 adaptera" in line
+                             for line in stdout],
+                      "cat /sys/bus/i2c/devices/i2c-0/name' doesn't contain "
+                      "the words 'SMBus PIIX4 adapter'")
 
         stdout, stderr = self.ssh_command('cat /proc/mtd')
-        self.assertIn(True, ["YAMON" in line
-                             for line in stdout])
+        self.assertIn(True, ["YAMONa" in line
+                             for line in stdout],
+                      "'cat /proc/mtd' doesn't contain the word 'YAMON'")
 
         # Empty 'Board Config'
         stdout, stderr = self.ssh_command('md5sum /dev/mtd2ro')
-        self.assertIn(True, ["0dfbe8aa4c20b52e1b8bf3cb6cbdf193" in line
-                             for line in stdout])
+        self.assertIn(True, ["0dfbe8aa4c20b52e1b8bf3cb6cbdf193a" in line
+                             for line in stdout],
+                      "'md5sum /dev/mtd2ro' doesn't contain "
+                      "the word '0dfbe8aa4c20b52e1b8bf3cb6cbdf193'")
 
     def do_test_mips_malta(self, endianess, kernel_path, uname_m):
         self.boot_debian_wheezy_image_and_ssh_login(endianess, kernel_path)
