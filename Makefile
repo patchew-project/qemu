@@ -48,6 +48,15 @@ git-submodule-update:
 endif
 endif
 
+export NINJA=./ninjatool
+Makefile.ninja: build.ninja ninjatool
+	./ninjatool -t ninja2make --omit dist uninstall < $< > $@
+-include Makefile.ninja
+
+ninjatool: $(SRC_PATH)/scripts/ninjatool.py
+	sed -e '1c\' -e '#! $(PYTHON)' $< > $@
+	chmod +x $@
+
 .git-submodule-status: git-submodule-update config-host.mak
 
 # Check that we're not trying to do an out-of-tree build from
