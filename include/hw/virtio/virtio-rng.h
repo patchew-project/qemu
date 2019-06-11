@@ -42,6 +42,7 @@ typedef struct VirtIORNG {
     /* We purposefully don't migrate this state.  The quota will reset on the
      * destination as a result.  Rate limiting is host state, not guest state.
      */
+    QEMUTimer *watchdog_timer;
     QEMUTimer *rate_limit_timer;
     int64_t quota_remaining;
     bool activate_timer;

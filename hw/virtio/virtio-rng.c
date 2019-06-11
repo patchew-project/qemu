@@ -19,6 +19,8 @@
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
+#define VIRTIO_RNG_WATCHDOG_MS 500
+
 static bool is_guest_ready(VirtIORNG *vrng)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(vrng);
@@ -36,6 +38,21 @@ static size_t get_request_size(VirtQueue *vq, unsigned quota)
 
     virtqueue_get_avail_bytes(vq, &in, &out, quota, 0);
     return in;
+}
+
+static void watchdog(void *opaque)
+{
+    VirtIORNG *vrng = opaque;
+    VirtIODevice *vdev = VIRTIO_DEVICE(vrng);
+    VirtQueueElement *elem;
+
+    /* wake up driver */
+    elem = virtqueue_pop(vrng->vq, sizeof(VirtQueueElement));
+    if (!elem) {
+        return;
+    }
+    virtqueue_push(vrng->vq, elem, 0);
+    virtio_notify(vdev, vrng->vq);
 }
 
 static void virtio_rng_process(VirtIORNG *vrng);
@@ -97,6 +114,9 @@ static void virtio_rng_process(VirtIORNG *vrng)
     if (!is_guest_ready(vrng)) {
         return;
     }
+
+    timer_mod(vrng->watchdog_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + VIRTIO_RNG_WATCHDOG_MS);
 
     if (vrng->activate_timer) {
         timer_mod(vrng->rate_limit_timer,
@@ -222,6 +242,7 @@ static void virtio_rng_device_realize(DeviceState *dev, Error **errp)
 
     vrng->vq = virtio_add_queue(vdev, 8, handle_input);
     vrng->quota_remaining = vrng->conf.max_bytes;
+    vrng->watchdog_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, watchdog, vrng);
     vrng->rate_limit_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
                                                check_rate_limit, vrng);
     vrng->activate_timer = true;
@@ -236,6 +257,8 @@ static void virtio_rng_device_unrealize(DeviceState *dev, Error **errp)
     VirtIORNG *vrng = VIRTIO_RNG(dev);
 
     qemu_del_vm_change_state_handler(vrng->vmstate);
+    timer_del(vrng->watchdog_timer);
+    timer_free(vrng->watchdog_timer);
     timer_del(vrng->rate_limit_timer);
     timer_free(vrng->rate_limit_timer);
     virtio_cleanup(vdev);
