@@ -27,6 +27,7 @@
 
 #include "qemu-common.h"
 #include "monitor/monitor.h"
+#include "qemu/cutils.h"
 
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/json-parser.h"
@@ -154,6 +155,29 @@ static inline bool monitor_is_qmp(const Monitor *mon)
     return (mon->flags & MONITOR_USE_CONTROL);
 }
 
+/**
+ * Is @name in the '|' separated list of names @list?
+ */
+static inline int compare_cmd(const char *name, const char *list)
+{
+    const char *p, *pstart;
+    int len;
+    len = strlen(name);
+    p = list;
+    for (;;) {
+        pstart = p;
+        p = qemu_strchrnul(p, '|');
+        if ((p - pstart) == len && !memcmp(pstart, name, len)) {
+            return 1;
+        }
+        if (*p == '\0') {
+            break;
+        }
+        p++;
+    }
+    return 0;
+}
+
 typedef QTAILQ_HEAD(MonitorList, Monitor) MonitorList;
 extern IOThread *mon_iothread;
 extern QEMUBH *qmp_dispatcher_bh;
@@ -161,6 +185,8 @@ extern QmpCommandList qmp_commands, qmp_cap_negotiation_commands;
 extern QemuMutex monitor_lock;
 extern MonitorList mon_list;
 extern int mon_refcount;
+
+extern mon_cmd_t mon_cmds[];
 
 int monitor_puts(Monitor *mon, const char *str);
 void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
@@ -172,5 +198,10 @@ void monitor_fdsets_cleanup(void);
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
 void monitor_data_destroy_qmp(MonitorQMP *mon);
 void monitor_qmp_bh_dispatcher(void *data);
+
+void monitor_data_init_hmp(MonitorHMP *mon, int flags, bool skip_flush);
+int get_monitor_def(int64_t *pval, const char *name);
+void help_cmd(Monitor *mon, const char *name);
+void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
 
 #endif
