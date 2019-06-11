@@ -17,6 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+readonly VALGRIND_SUPPRESS_ERRORS=./valgrind.supp
+
 SED=
 for sed in sed gsed; do
     ($sed --version | grep 'GNU sed') > /dev/null 2>&1
@@ -65,7 +67,8 @@ _qemu_proc_wrapper()
     local VALGRIND_LOGFILE="$1"
     shift
     if [ "${VALGRIND_QEMU}" == "y" ]; then
-        exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$@"
+        exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 \
+            --suppressions="${VALGRIND_SUPPRESS_ERRORS}" "$@"
     else
         exec "$@"
     fi
