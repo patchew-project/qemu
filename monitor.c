@@ -702,7 +702,7 @@ static void handle_hmp_command(Monitor *mon, const char *cmdline);
 
 static void monitor_iothread_init(void);
 
-static void monitor_data_init(Monitor *mon, bool skip_flush,
+static void monitor_data_init(Monitor *mon, int flags, bool skip_flush,
                               bool use_io_thread)
 {
     if (use_io_thread && !mon_iothread) {
@@ -717,6 +717,7 @@ static void monitor_data_init(Monitor *mon, bool skip_flush,
     mon->skip_flush = skip_flush;
     mon->use_io_thread = use_io_thread;
     mon->qmp.qmp_requests = g_queue_new();
+    mon->flags = flags;
 }
 
 static void monitor_data_destroy(Monitor *mon)
@@ -740,7 +741,7 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     char *output = NULL;
     Monitor *old_mon, hmp;
 
-    monitor_data_init(&hmp, true, false);
+    monitor_data_init(&hmp, 0, true, false);
 
     old_mon = cur_mon;
     cur_mon = &hmp;
@@ -4603,19 +4604,48 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(mon);
 }
 
-void monitor_init(Chardev *chr, int flags)
+static void monitor_init_qmp(Chardev *chr, int flags)
+{
+    Monitor *mon = g_malloc(sizeof(*mon));
+
+    /* Note: we run QMP monitor in I/O thread when @chr supports that */
+    monitor_data_init(mon, flags, false,
+                      qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_GCONTEXT));
+
+    qemu_chr_fe_init(&mon->chr, chr, &error_abort);
+    qemu_chr_fe_set_echo(&mon->chr, true);
+
+    json_message_parser_init(&mon->qmp.parser, handle_qmp_command, mon, NULL);
+    if (mon->use_io_thread) {
+        /*
+         * Make sure the old iowatch is gone.  It's possible when
+         * e.g. the chardev is in client mode, with wait=on.
+         */
+        remove_fd_in_watch(chr);
+        /*
+         * We can't call qemu_chr_fe_set_handlers() directly here
+         * since chardev might be running in the monitor I/O
+         * thread.  Schedule a bottom half.
+         */
+        aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
+                                monitor_qmp_setup_handlers_bh, mon);
+        /* The bottom half will add @mon to @mon_list */
+    } else {
+        qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read,
+                                 monitor_qmp_read, monitor_qmp_event,
+                                 NULL, mon, NULL, true);
+        monitor_list_append(mon);
+    }
+}
+
+static void monitor_init_hmp(Chardev *chr, int flags)
 {
     Monitor *mon = g_malloc(sizeof(*mon));
     bool use_readline = flags & MONITOR_USE_READLINE;
 
-    /* Note: we run QMP monitor in I/O thread when @chr supports that */
-    monitor_data_init(mon, false,
-                      (flags & MONITOR_USE_CONTROL)
-                      && qemu_chr_has_feature(chr,
-                                              QEMU_CHAR_FEATURE_GCONTEXT));
-
+    monitor_data_init(mon, flags, false, false);
     qemu_chr_fe_init(&mon->chr, chr, &error_abort);
-    mon->flags = flags;
+
     if (use_readline) {
         mon->rs = readline_init(monitor_readline_printf,
                                 monitor_readline_flush,
@@ -4624,36 +4654,18 @@ void monitor_init(Chardev *chr, int flags)
         monitor_read_command(mon, 0);
     }
 
-    if (monitor_is_qmp(mon)) {
-        qemu_chr_fe_set_echo(&mon->chr, true);
-        json_message_parser_init(&mon->qmp.parser, handle_qmp_command,
-                                 mon, NULL);
-        if (mon->use_io_thread) {
-            /*
-             * Make sure the old iowatch is gone.  It's possible when
-             * e.g. the chardev is in client mode, with wait=on.
-             */
-            remove_fd_in_watch(chr);
-            /*
-             * We can't call qemu_chr_fe_set_handlers() directly here
-             * since chardev might be running in the monitor I/O
-             * thread.  Schedule a bottom half.
-             */
-            aio_bh_schedule_oneshot(iothread_get_aio_context(mon_iothread),
-                                    monitor_qmp_setup_handlers_bh, mon);
-            /* The bottom half will add @mon to @mon_list */
-            return;
-        } else {
-            qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read,
-                                     monitor_qmp_read, monitor_qmp_event,
-                                     NULL, mon, NULL, true);
-        }
-    } else {
-        qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
-                                 monitor_event, NULL, mon, NULL, true);
-    }
-
+    qemu_chr_fe_set_handlers(&mon->chr, monitor_can_read, monitor_read,
+                             monitor_event, NULL, mon, NULL, true);
     monitor_list_append(mon);
+}
+
+void monitor_init(Chardev *chr, int flags)
+{
+    if (flags & MONITOR_USE_CONTROL) {
+        monitor_init_qmp(chr, flags);
+    } else {
+        monitor_init_hmp(chr, flags);
+    }
 }
 
 void monitor_cleanup(void)
