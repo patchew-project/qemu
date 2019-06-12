@@ -1428,6 +1428,10 @@ MachineInfoList *qmp_query_machines(Error **errp)
         info->name = g_strdup(mc->name);
         info->cpu_max = !mc->max_cpus ? 1 : mc->max_cpus;
         info->hotpluggable_cpus = mc->has_hotpluggable_cpus;
+        if (mc->default_cpu_type) {
+            info->default_cpu_type = g_strdup(mc->default_cpu_type);
+            info->has_default_cpu_type = true;
+        }
 
         entry = g_malloc0(sizeof(*entry));
         entry->value = info;
