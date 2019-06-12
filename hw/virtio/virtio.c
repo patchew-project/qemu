@@ -2354,8 +2354,10 @@ void virtio_init(VirtIODevice *vdev, const char *name,
     } else {
         vdev->config = NULL;
     }
-    vdev->vmstate = qemu_add_vm_change_state_handler(virtio_vmstate_change,
-                                                     vdev);
+    vdev->vmstate = qemu_add_vm_change_state_handler_prio(
+            virtio_vmstate_change,
+            vdev,
+            VM_CHANGE_STATE_HANDLER_PRIO_IOTHREAD);
     vdev->device_endian = virtio_default_endian();
     vdev->use_guest_notifier_mask = true;
 }

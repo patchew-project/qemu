@@ -1469,27 +1469,45 @@ static int machine_help_func(QemuOpts *opts, MachineState *machine)
 struct vm_change_state_entry {
     VMChangeStateHandler *cb;
     void *opaque;
-    QLIST_ENTRY (vm_change_state_entry) entries;
+    QTAILQ_ENTRY (vm_change_state_entry) entries;
+    int priority;
 };
 
-static QLIST_HEAD(, vm_change_state_entry) vm_change_state_head;
+static QTAILQ_HEAD(, vm_change_state_entry) vm_change_state_head;
+
+VMChangeStateEntry *qemu_add_vm_change_state_handler_prio(
+        VMChangeStateHandler *cb, void *opaque, int priority)
+{
+    VMChangeStateEntry *e;
+    VMChangeStateEntry *other;
+
+    e = g_malloc0(sizeof (*e));
+    e->cb = cb;
+    e->opaque = opaque;
+    e->priority = priority;
+
+    /* Keep list sorted in ascending priority order */
+    QTAILQ_FOREACH(other, &vm_change_state_head, entries) {
+        if (priority < other->priority) {
+            QTAILQ_INSERT_BEFORE(other, e, entries);
+            return e;
+        }
+    }
+
+    QTAILQ_INSERT_TAIL(&vm_change_state_head, e, entries);
+    return e;
+}
 
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque)
 {
-    VMChangeStateEntry *e;
-
-    e = g_malloc0(sizeof (*e));
-
-    e->cb = cb;
-    e->opaque = opaque;
-    QLIST_INSERT_HEAD(&vm_change_state_head, e, entries);
-    return e;
+    return qemu_add_vm_change_state_handler_prio(cb, opaque,
+            VM_CHANGE_STATE_HANDLER_PRIO_UNDEFINED);
 }
 
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 {
-    QLIST_REMOVE (e, entries);
+    QTAILQ_REMOVE (&vm_change_state_head, e, entries);
     g_free (e);
 }
 
@@ -1499,8 +1517,14 @@ void vm_state_notify(int running, RunState state)
 
     trace_vm_state_notify(running, state, RunState_str(state));
 
-    QLIST_FOREACH_SAFE(e, &vm_change_state_head, entries, next) {
-        e->cb(e->opaque, running, state);
+    if (running) {
+        QTAILQ_FOREACH_SAFE(e, &vm_change_state_head, entries, next) {
+            e->cb(e->opaque, running, state);
+        }
+    } else {
+        QTAILQ_FOREACH_REVERSE_SAFE(e, &vm_change_state_head, entries, next) {
+            e->cb(e->opaque, running, state);
+        }
     }
 }
 
@@ -3009,7 +3033,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    QLIST_INIT (&vm_change_state_head);
+    QTAILQ_INIT (&vm_change_state_head);
     os_setup_early_signal_handling();
 
     cpu_option = NULL;

@@ -27,8 +27,18 @@ bool runstate_store(char *str, size_t size);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
+enum {
+    /* Low priorities run first when the VM starts */
+    VM_CHANGE_STATE_HANDLER_PRIO_UNDEFINED = 0,
+    VM_CHANGE_STATE_HANDLER_PRIO_IOTHREAD = 100,
+    VM_CHANGE_STATE_HANDLER_PRIO_DEVICE = 200,
+    /* High priorities run first when the VM stops */
+};
+
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
+VMChangeStateEntry *qemu_add_vm_change_state_handler_prio(
+        VMChangeStateHandler *cb, void *opaque, int priority);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
 void vm_state_notify(int running, RunState state);
 
