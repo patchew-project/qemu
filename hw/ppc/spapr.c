@@ -2909,6 +2909,19 @@ static void spapr_machine_init(MachineState *machine)
         error_report("Could not get size of LPAR rtas '%s'", filename);
         exit(1);
     }
+
+    if (spapr_get_cap(spapr, SPAPR_CAP_FWNMI_MCE) == SPAPR_CAP_ON) {
+        /*
+         * Ensure that the rtas image size is less than RTAS_ERROR_LOG_OFFSET
+         * or else the rtas image will be overwritten with the rtas error log
+         * when a machine check exception is encountered.
+         */
+        g_assert(spapr->rtas_size < RTAS_ERROR_LOG_OFFSET);
+
+        /* Resize rtas blob to accommodate error log */
+        spapr->rtas_size = RTAS_ERROR_LOG_MAX;
+    }
+
     spapr->rtas_blob = g_malloc(spapr->rtas_size);
     if (load_image_size(filename, spapr->rtas_blob, spapr->rtas_size) < 0) {
         error_report("Could not load LPAR rtas '%s'", filename);
