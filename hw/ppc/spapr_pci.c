@@ -1364,8 +1364,7 @@ static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
         }
     }
 
-    ret = spapr_dt_drc(fdt, offset, OBJECT(bus->parent_dev),
-                       SPAPR_DR_CONNECTOR_TYPE_PCI);
+    ret = spapr_dt_drc(fdt, offset, OBJECT(sphb), SPAPR_DR_CONNECTOR_TYPE_PCI);
     if (ret) {
         return ret;
     }
