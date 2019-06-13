@@ -111,7 +111,7 @@ with iotests.FilePath('t.img') as disk_path, \
     iotests.img_info_log(remote_path)
 
     md5_key = subprocess.check_output(
-        'ssh-keyscan -t rsa 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
+        'ssh-keyscan -t ssh-ed25519 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
         'cut -d" " -f3 | base64 -d | md5sum -b | cut -d" " -f1',
         shell=True).rstrip().decode('ascii')
 
@@ -149,7 +149,7 @@ with iotests.FilePath('t.img') as disk_path, \
     iotests.img_info_log(remote_path)
 
     sha1_key = subprocess.check_output(
-        'ssh-keyscan -t rsa 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
+        'ssh-keyscan -t ssh-ed25519 127.0.0.1 2>/dev/null | grep -v "\\^#" | ' +
         'cut -d" " -f3 | base64 -d | sha1sum -b | cut -d" " -f1',
         shell=True).rstrip().decode('ascii')
 
