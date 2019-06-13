@@ -20,7 +20,7 @@ from avocado.utils import archive
 
 class LinuxSSH(Test):
 
-    timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
+    timeout = 300 # Not for 'configure --enable-debug --enable-debug-tcg'
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
     VM_IP = '127.0.0.1'
