@@ -872,7 +872,7 @@ static void handle_a20_line_change(void *opaque, int irq, int level)
     x86_cpu_set_a20(cpu, level);
 }
 
-ssize_t e820_add_entry(uint64_t address, uint64_t length, uint32_t type)
+ssize_t e820_add_entry(uint64_t address, uint64_t length, E820Type type)
 {
     unsigned int index = le32_to_cpu(e820_reserve.count);
     struct e820_entry *entry;
@@ -906,7 +906,7 @@ size_t e820_get_num_entries(void)
     return e820_entries;
 }
 
-bool e820_get_entry(unsigned int idx, uint32_t type,
+bool e820_get_entry(unsigned int idx, E820Type type,
                     uint64_t *address, uint64_t *length)
 {
     if (idx < e820_entries && e820_table[idx].type == cpu_to_le32(type)) {
