@@ -43,7 +43,13 @@ fi
 # any), for the edk2 "build" utility.
 source ../edk2-funcs.sh
 edk2_toolchain=$(qemu_edk2_get_toolchain "$emulation_target")
-edk2_thread_count=$(qemu_edk2_get_thread_count "$MAKEFLAGS")
+if [ -v MAKEFLAGS ]; then
+  edk2_thread_count=$(qemu_edk2_get_thread_count "$MAKEFLAGS")
+else
+  # We are not running within 'make', let the edk2 "build" utility to fetch
+  # the logical CPU count with Python's multiprocessing.cpu_count() method.
+  edk2_thread_count=0
+fi
 qemu_edk2_set_cross_env "$emulation_target"
 
 # Build the platform firmware.
