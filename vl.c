@@ -190,6 +190,7 @@ bool boot_strict;
 uint8_t *boot_splash_filedata;
 int only_migratable; /* turn it off unless user states otherwise */
 bool wakeup_suspend_enabled;
+bool enable_freq_count = false;
 
 int icount_align_option;
 

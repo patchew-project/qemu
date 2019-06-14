@@ -58,6 +58,7 @@ static const char *seed_optarg;
 unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
+bool enable_freq_count = false;
 
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
