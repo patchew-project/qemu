@@ -60,9 +60,17 @@
 /*
  * plugin_cb_start TCG op args[]:
  * 0: enum plugin_gen_from
- * 1: enum plugin_gen_cb (defined below)
+ * 1: enum plugin_gen_cb
  * 2: set to 1 if it's a mem callback and it's a write, 0 otherwise.
  */
+enum plugin_gen_from {
+    PLUGIN_GEN_FROM_TB,
+    PLUGIN_GEN_FROM_INSN,
+    PLUGIN_GEN_FROM_MEM,
+    PLUGIN_GEN_AFTER_INSN,
+    PLUGIN_GEN_N_FROMS,
+};
+
 enum plugin_gen_cb {
     PLUGIN_GEN_CB_UDATA,
     PLUGIN_GEN_CB_INLINE,

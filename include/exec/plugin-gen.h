@@ -15,15 +15,6 @@
 #include "qemu/plugin.h"
 #include "tcg/tcg.h"
 
-/* used by plugin_callback_start and plugin_callback_end TCG ops */
-enum plugin_gen_from {
-    PLUGIN_GEN_FROM_TB,
-    PLUGIN_GEN_FROM_INSN,
-    PLUGIN_GEN_FROM_MEM,
-    PLUGIN_GEN_AFTER_INSN,
-    PLUGIN_GEN_N_FROMS,
-};
-
 struct DisasContextBase;
 
 #ifdef CONFIG_PLUGIN
@@ -35,6 +26,17 @@ void plugin_gen_insn_end(void);
 
 void plugin_gen_disable_mem_helpers(void);
 void plugin_gen_empty_mem_callback(TCGv addr, uint8_t info);
+
+static inline void plugin_insn_append(const void *from, size_t size)
+{
+    struct qemu_plugin_insn *insn = tcg_ctx->plugin_insn;
+
+    if (insn == NULL) {
+        return;
+    }
+
+    insn->data = g_byte_array_append(insn->data, from, size);
+}
 
 #else /* !CONFIG_PLUGIN */
 
@@ -58,6 +60,9 @@ static inline void plugin_gen_disable_mem_helpers(void)
 { }
 
 static inline void plugin_gen_empty_mem_callback(TCGv addr, uint8_t info)
+{ }
+
+static inline void plugin_insn_append(const void *from, size_t size)
 { }
 
 #endif /* CONFIG_PLUGIN */
