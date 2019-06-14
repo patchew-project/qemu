@@ -57,6 +57,74 @@ static void build_hmat_spa(GArray *table_data, uint16_t flags,
     build_append_int_noprefix(table_data, length, 8);
 }
 
+/*
+ * ACPI 6.2: 5.2.27.4 System Locality Latency and Bandwidth Information
+ * Structure: Table 5-142
+ */
+static void build_hmat_lb(GArray *table_data, HMAT_LB_Info *numa_hmat_lb,
+                          uint32_t num_initiator, uint32_t num_target,
+                          uint32_t *initiator_pxm, uint32_t *target_pxm,
+                          int type)
+{
+    uint32_t s = num_initiator;
+    uint32_t t = num_target;
+    uint8_t m, n;
+    int i, j;
+
+    /* Type */
+    build_append_int_noprefix(table_data, 1, 2);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 2);
+    /* Length */
+    build_append_int_noprefix(table_data, 32 + 4 * s + 4 * t + 2 * s * t, 4);
+    /* Flags */
+    build_append_int_noprefix(table_data, numa_hmat_lb->hierarchy, 1);
+    /* Data Type */
+    build_append_int_noprefix(table_data, numa_hmat_lb->data_type, 1);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 2);
+    /* Number of Initiator Proximity Domains (s) */
+    build_append_int_noprefix(table_data, s, 4);
+    /* Number of Target Proximity Domains (t) */
+    build_append_int_noprefix(table_data, t, 4);
+    /* Reserved */
+    build_append_int_noprefix(table_data, 0, 4);
+
+    /* Entry Base Unit */
+    if (type <= HMAT_LB_DATA_WRITE_LATENCY) {
+        build_append_int_noprefix(table_data, numa_hmat_lb->base_lat, 8);
+    } else {
+        build_append_int_noprefix(table_data, numa_hmat_lb->base_bw, 8);
+    }
+
+    /* Initiator Proximity Domain List */
+    for (i = 0; i < s; i++) {
+        build_append_int_noprefix(table_data, initiator_pxm[i], 4);
+    }
+
+    /* Target Proximity Domain List */
+    for (i = 0; i < t; i++) {
+        build_append_int_noprefix(table_data, target_pxm[i], 4);
+    }
+
+    /* Latency or Bandwidth Entries */
+    for (i = 0; i < s; i++) {
+        m = initiator_pxm[i];
+        for (j = 0; j < t; j++) {
+            n = target_pxm[j];
+            uint16_t entry;
+
+            if (type <= HMAT_LB_DATA_WRITE_LATENCY) {
+                entry = numa_hmat_lb->latency[m][n] * numa_hmat_lb->base_lat;
+            } else {
+                entry = numa_hmat_lb->bandwidth[m][n] * numa_hmat_lb->base_bw;
+            }
+
+            build_append_int_noprefix(table_data, entry, 2);
+        }
+    }
+}
+
 static int pc_dimm_device_list(Object *obj, void *opaque)
 {
     GSList **list = opaque;
@@ -77,10 +145,13 @@ static void hmat_build_table_structs(GArray *table_data, MachineState *ms)
 {
     GSList *device_list = NULL;
     uint16_t flags;
+    uint32_t num_initiator = 0, num_target = 0;
+    uint32_t initiator_pxm[MAX_NODES], target_pxm[MAX_NODES];
     uint64_t mem_base, mem_len;
-    int i;
+    int i, hrchy, type;
     NumaState *nstat = ms->numa_state;
     NumaMemRange *mem_range;
+    HMAT_LB_Info *numa_hmat_lb;
 
     Object *obj = object_resolve_path_type("", TYPE_ACPI_DEVICE_IF, NULL);
     AcpiDeviceIfClass *adevc = ACPI_DEVICE_IF_GET_CLASS(obj);
@@ -133,6 +204,34 @@ static void hmat_build_table_structs(GArray *table_data, MachineState *ms)
             flags |= HMAT_SPA_MEM_VALID;
         }
         build_hmat_spa(table_data, flags, mem_base, mem_len, i);
+    }
+
+    if (!num_initiator && !num_target) {
+        for (i = 0; i < nstat->num_nodes; i++) {
+            if (nstat->nodes[i].is_initiator) {
+                initiator_pxm[num_initiator++] = i;
+            }
+            if (nstat->nodes[i].is_target) {
+                target_pxm[num_target++] = i;
+            }
+        }
+    }
+
+    /*
+     * ACPI 6.2: 5.2.27.4 System Locality Latency and Bandwidth Information
+     * Structure: Table 5-142
+     */
+    for (hrchy = HMAT_LB_MEM_MEMORY;
+         hrchy <= HMAT_LB_MEM_CACHE_3RD_LEVEL; hrchy++) {
+        for (type = HMAT_LB_DATA_ACCESS_LATENCY;
+             type <= HMAT_LB_DATA_WRITE_BANDWIDTH; type++) {
+            numa_hmat_lb = nstat->hmat_lb[hrchy][type];
+
+            if (numa_hmat_lb) {
+                build_hmat_lb(table_data, numa_hmat_lb, num_initiator,
+                              num_target, initiator_pxm, target_pxm, type);
+            }
+        }
     }
 }
 
