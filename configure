@@ -2782,7 +2782,17 @@ if test "$gtk" != "no"; then
             gtk_cflags="$gtk_cflags $x11_cflags"
             gtk_libs="$gtk_libs $x11_libs"
         fi
-        gtk="yes"
+        # Packaging for the static libraries is not always correct.
+        # At least ubuntu 18.04 ships only shared libraries.
+        write_c_skeleton
+        if ! compile_prog "$gtk_cflags" "$gtk_libs" ; then
+            if test "$gtk" = "yes" ; then
+              error_exit "gtk check failed."
+            fi
+            gtk="no"
+        else
+            gtk="yes"
+        fi
     elif test "$gtk" = "yes"; then
         feature_not_found "gtk" "Install gtk3-devel"
     else
