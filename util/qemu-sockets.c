@@ -439,6 +439,12 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     struct addrinfo *res, *e;
     int sock = -1;
 
+    if (saddr->keep_alive) {
+        error_setg(errp, "keep-alive options is not supported for server-side "
+                   "connection");
+        return -1;
+    }
+
     res = inet_parse_connect_saddr(saddr, errp);
     if (!res) {
         return -1;
@@ -458,6 +464,19 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     }
 
     freeaddrinfo(res);
+
+    if (saddr->keep_alive) {
+        int val = 1;
+        int ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                                  &val, sizeof(val));
+
+        if (ret < 0) {
+            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
+            close(sock);
+            return -1;
+        }
+    }
+
     return sock;
 }
 
@@ -652,6 +671,15 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
             return -1;
         }
         addr->has_ipv6 = true;
+    }
+    begin = strstr(optstr, ",keep-alive");
+    if (begin) {
+        if (inet_parse_flag("keep-alive", begin + strlen(",keep-alive"),
+                            &addr->keep_alive, errp) < 0)
+        {
+            return -1;
+        }
+        addr->has_keep_alive = true;
     }
     return 0;
 }
