@@ -388,6 +388,11 @@ static void handle_arg_trace(const char *arg)
     trace_file = trace_opt_parse(arg);
 }
 
+static void handle_arg_execfreq(const char *arg)
+{
+    enable_freq_count = true;
+}
+
 struct qemu_argument {
     const char *argv;
     const char *env;
@@ -439,6 +444,8 @@ static const struct qemu_argument arg_table[] = {
      "",           "Seed for pseudo-random number generator"},
     {"trace",      "QEMU_TRACE",       true,  handle_arg_trace,
      "",           "[[enable=]<pattern>][,events=<file>][,file=<file>]"},
+    {"execfreq",   "QEMU_EXEC_FREQ",   false,  handle_arg_execfreq,
+     "",           "enable and dump TB's execution frequency counting"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}

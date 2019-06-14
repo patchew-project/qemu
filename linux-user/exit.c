@@ -26,8 +26,13 @@
 extern void __gcov_dump(void);
 #endif
 
+extern bool enable_freq_count;
+
 void preexit_cleanup(CPUArchState *env, int code)
 {
+    if (enable_freq_count) {
+        tb_dump_all_exec_freq();
+    }
 #ifdef TARGET_GPROF
         _mcleanup();
 #endif
