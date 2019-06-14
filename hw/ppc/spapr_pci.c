@@ -1807,6 +1807,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     SpaprPhbState *sphb = SPAPR_PCI_HOST_BRIDGE(s);
     PCIHostState *phb = PCI_HOST_BRIDGE(s);
     MachineState *ms = MACHINE(spapr);
+    NodeInfo *numa_info = ms->numa_state->nodes;
     char *namebuf;
     int i;
     PCIBus *bus;
