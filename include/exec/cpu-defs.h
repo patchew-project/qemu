@@ -207,6 +207,14 @@ typedef struct CPUTLBCommon {
     size_t full_flush_count;
     size_t part_flush_count;
     size_t elide_flush_count;
+#ifdef CONFIG_PLUGIN
+    /*
+     * TODO: remove and calculate on the fly
+     *
+     * Stores the host address of a guest access
+     */
+    void *hostaddr;
+#endif
 } CPUTLBCommon;
 
 /*
@@ -215,6 +223,7 @@ typedef struct CPUTLBCommon {
  * Since this is placed within CPUNegativeOffsetState, the smallest
  * negative offsets are at the end of the struct.
  */
+
 typedef struct CPUTLB {
     CPUTLBCommon c;
     CPUTLBDesc d[NB_MMU_MODES];

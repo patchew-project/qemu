@@ -85,6 +85,15 @@ typedef target_ulong abi_ptr;
 #define TARGET_ABI_FMT_ptr TARGET_ABI_FMT_lx
 #endif
 
+static inline void *read_hostaddr(CPUArchState *env)
+{
+#if defined(CONFIG_SOFTMMU) && defined(CONFIG_PLUGIN)
+    return env_tlb(env)->c.hostaddr;
+#else
+    return NULL;
+#endif
+}
+
 #if defined(CONFIG_USER_ONLY)
 
 extern __thread uintptr_t helper_retaddr;

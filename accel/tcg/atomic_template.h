@@ -18,6 +18,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "qemu/plugin.h"
 #include "trace/mem.h"
 
 #if DATA_SIZE == 16
@@ -73,6 +74,8 @@ void atomic_trace_rmw_pre(CPUArchState *env, target_ulong addr, uint8_t info)
 static inline void atomic_trace_rmw_post(CPUArchState *env, target_ulong addr,
                                          void *haddr, uint8_t info)
 {
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, haddr, info);
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, haddr, info | TRACE_MEM_ST);
 }
 
 static inline
@@ -84,6 +87,7 @@ void atomic_trace_ld_pre(CPUArchState *env, target_ulong addr, uint8_t info)
 static inline void atomic_trace_ld_post(CPUArchState *env, target_ulong addr,
                                         void *haddr, uint8_t info)
 {
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, haddr, info);
 }
 
 static inline
@@ -95,6 +99,7 @@ void atomic_trace_st_pre(CPUArchState *env, target_ulong addr, uint8_t info)
 static inline void atomic_trace_st_post(CPUArchState *env, target_ulong addr,
                                         void *haddr, uint8_t info)
 {
+    qemu_plugin_vcpu_mem_cb(env_cpu(env), addr, haddr, info);
 }
 #endif /* ATOMIC_TEMPLATE_COMMON */
 

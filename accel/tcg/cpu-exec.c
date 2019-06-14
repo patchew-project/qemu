@@ -272,6 +272,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
             qemu_mutex_unlock_iothread();
         }
         assert_no_pages_locked();
+        qemu_plugin_disable_mem_helpers(cpu);
     }
 
     if (in_exclusive_region) {
@@ -705,6 +706,8 @@ int cpu_exec(CPUState *cpu)
         if (qemu_mutex_iothread_locked()) {
             qemu_mutex_unlock_iothread();
         }
+        qemu_plugin_disable_mem_helpers(cpu);
+
         assert_no_pages_locked();
     }
 
