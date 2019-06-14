@@ -10,6 +10,8 @@ struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
     bool present;
+    bool is_initiator;
+    bool is_target;
     uint8_t distance[MAX_NODES];
 };
 
