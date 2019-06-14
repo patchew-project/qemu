@@ -3408,10 +3408,21 @@ for drv in $audio_drv_list; do
 
     pa | try-pa)
     if $pkg_config libpulse --exists; then
-        pulse_libs=$($pkg_config libpulse --libs)
-        audio_pt_int="yes"
-        if test "$drv" = "try-pa"; then
-            audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa/pa/')
+        pulse_cflags=$($pkg_config --cflags libpulse)
+        pulse_libs=$($pkg_config --libs libpulse)
+        # Packaging for the static libraries is not always correct.
+        # At least ubuntu 18.04 ships only shared libraries.
+        write_c_skeleton
+        if ! compile_prog "$pulse_cflags" "$pulse_libs" ; then
+            unset pulse_cflags pulse_libs
+            if test "$drv" = "try-pa"; then
+                audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa//')
+            fi
+        else
+            audio_pt_int="yes"
+            if test "$drv" = "try-pa"; then
+                audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-pa/pa/')
+            fi
         fi
     else
         if test "$drv" = "try-pa"; then
