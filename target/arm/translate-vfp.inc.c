@@ -835,7 +835,7 @@ static bool trans_VMOV_64_sp(DisasContext *s, arg_VMOV_64_sp *a)
     return true;
 }
 
-static bool trans_VMOV_64_dp(DisasContext *s, arg_VMOV_64_sp *a)
+static bool trans_VMOV_64_dp(DisasContext *s, arg_VMOV_64_dp *a)
 {
     TCGv_i32 tmp;
 
@@ -910,7 +910,7 @@ static bool trans_VLDR_VSTR_sp(DisasContext *s, arg_VLDR_VSTR_sp *a)
     return true;
 }
 
-static bool trans_VLDR_VSTR_dp(DisasContext *s, arg_VLDR_VSTR_sp *a)
+static bool trans_VLDR_VSTR_dp(DisasContext *s, arg_VLDR_VSTR_dp *a)
 {
     uint32_t offset;
     TCGv_i32 addr;
@@ -1500,7 +1500,7 @@ static void gen_VMLA_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VMLA_dp(DisasContext *s, arg_VMLA_sp *a)
+static bool trans_VMLA_dp(DisasContext *s, arg_VMLA_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VMLA_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1538,7 +1538,7 @@ static void gen_VMLS_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VMLS_dp(DisasContext *s, arg_VMLS_sp *a)
+static bool trans_VMLS_dp(DisasContext *s, arg_VMLS_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VMLS_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1580,7 +1580,7 @@ static void gen_VNMLS_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VNMLS_dp(DisasContext *s, arg_VNMLS_sp *a)
+static bool trans_VNMLS_dp(DisasContext *s, arg_VNMLS_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VNMLS_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1614,7 +1614,7 @@ static void gen_VNMLA_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     tcg_temp_free_i64(tmp);
 }
 
-static bool trans_VNMLA_dp(DisasContext *s, arg_VNMLA_sp *a)
+static bool trans_VNMLA_dp(DisasContext *s, arg_VNMLA_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VNMLA_dp, a->vd, a->vn, a->vm, true);
 }
@@ -1624,7 +1624,7 @@ static bool trans_VMUL_sp(DisasContext *s, arg_VMUL_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_muls, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VMUL_dp(DisasContext *s, arg_VMUL_sp *a)
+static bool trans_VMUL_dp(DisasContext *s, arg_VMUL_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_muld, a->vd, a->vn, a->vm, false);
 }
@@ -1648,7 +1648,7 @@ static void gen_VNMUL_dp(TCGv_i64 vd, TCGv_i64 vn, TCGv_i64 vm, TCGv_ptr fpst)
     gen_helper_vfp_negd(vd, vd);
 }
 
-static bool trans_VNMUL_dp(DisasContext *s, arg_VNMUL_sp *a)
+static bool trans_VNMUL_dp(DisasContext *s, arg_VNMUL_dp *a)
 {
     return do_vfp_3op_dp(s, gen_VNMUL_dp, a->vd, a->vn, a->vm, false);
 }
@@ -1658,7 +1658,7 @@ static bool trans_VADD_sp(DisasContext *s, arg_VADD_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_adds, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VADD_dp(DisasContext *s, arg_VADD_sp *a)
+static bool trans_VADD_dp(DisasContext *s, arg_VADD_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_addd, a->vd, a->vn, a->vm, false);
 }
@@ -1668,7 +1668,7 @@ static bool trans_VSUB_sp(DisasContext *s, arg_VSUB_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_subs, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VSUB_dp(DisasContext *s, arg_VSUB_sp *a)
+static bool trans_VSUB_dp(DisasContext *s, arg_VSUB_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_subd, a->vd, a->vn, a->vm, false);
 }
@@ -1678,7 +1678,7 @@ static bool trans_VDIV_sp(DisasContext *s, arg_VDIV_sp *a)
     return do_vfp_3op_sp(s, gen_helper_vfp_divs, a->vd, a->vn, a->vm, false);
 }
 
-static bool trans_VDIV_dp(DisasContext *s, arg_VDIV_sp *a)
+static bool trans_VDIV_dp(DisasContext *s, arg_VDIV_dp *a)
 {
     return do_vfp_3op_dp(s, gen_helper_vfp_divd, a->vd, a->vn, a->vm, false);
 }
@@ -1741,7 +1741,7 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
     return true;
 }
 
-static bool trans_VFM_dp(DisasContext *s, arg_VFM_sp *a)
+static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
 {
     /*
      * VFNMA : fd = muladd(-fd,  fn, fm)
@@ -2201,7 +2201,7 @@ static bool trans_VRINTR_sp(DisasContext *s, arg_VRINTR_sp *a)
     return true;
 }
 
-static bool trans_VRINTR_dp(DisasContext *s, arg_VRINTR_sp *a)
+static bool trans_VRINTR_dp(DisasContext *s, arg_VRINTR_dp *a)
 {
     TCGv_ptr fpst;
     TCGv_i64 tmp;
@@ -2257,7 +2257,7 @@ static bool trans_VRINTZ_sp(DisasContext *s, arg_VRINTZ_sp *a)
     return true;
 }
 
-static bool trans_VRINTZ_dp(DisasContext *s, arg_VRINTZ_sp *a)
+static bool trans_VRINTZ_dp(DisasContext *s, arg_VRINTZ_dp *a)
 {
     TCGv_ptr fpst;
     TCGv_i64 tmp;
