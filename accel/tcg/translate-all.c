@@ -1118,6 +1118,12 @@ static inline void code_gen_alloc(size_t tb_size)
     }
 }
 
+static bool statistics_cmp(const void* ap, const void *bp) {
+    const TBStatistics *a = ap;
+    const TBStatistics *b = bp;
+    return a->pc == b->pc && a->cs_base == b->cs_base && a->flags == b->flags;
+}
+
 static bool tb_cmp(const void *ap, const void *bp)
 {
     const TranslationBlock *a = ap;
@@ -1137,6 +1143,7 @@ static void tb_htable_init(void)
     unsigned int mode = QHT_MODE_AUTO_RESIZE;
 
     qht_init(&tb_ctx.htable, tb_cmp, CODE_GEN_HTABLE_SIZE, mode);
+    qht_init(&tb_ctx.tb_statistics, statistics_cmp, CODE_GEN_HTABLE_SIZE, QHT_MODE_AUTO_RESIZE);
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -1228,6 +1235,53 @@ static gboolean tb_host_size_iter(gpointer key, gpointer value, gpointer data)
     return false;
 }
 
+static void do_tb_dump_exec_freq(void *p, uint32_t hash, void *userp)
+{
+#if TARGET_LONG_SIZE == 8
+    TBStatistics *tbs = p;
+    printf("%016lx\t%lu\n", tbs->pc, tbs->total_exec_freq);
+#elif TARGET_LONG_SIZE == 4
+    TBStatistics *tbs = p;
+    printf("%016x\t%lu\n", tbs->pc, tbs->total_exec_freq);
+#endif
+}
+
+void tb_dump_all_exec_freq(void)
+{
+    tb_read_exec_freq();
+    qht_iter(&tb_ctx.tb_statistics, do_tb_dump_exec_freq, NULL);
+}
+
+static void do_tb_read_exec_freq(void *p, uint32_t hash, void *userp)
+{
+    TranslationBlock *tb = p;
+    TBStatistics tbscmp;
+    tbscmp.pc = tb->pc;
+    tbscmp.cs_base = tb->cs_base;
+    tbscmp.flags = tb->flags;
+
+    TBStatistics *tbs = qht_lookup(userp, &tbscmp, hash);
+
+    uint64_t exec_freq = tb_get_and_reset_exec_freq((TranslationBlock*) p);
+
+    if (tbs) {
+        tbs->total_exec_freq += exec_freq;
+    } else {
+        void *existing;
+        tbs = malloc(sizeof(TBStatistics));
+        tbs->total_exec_freq = exec_freq;
+        tbs->pc = tb->pc;
+        tbs->cs_base = tb->cs_base;
+        tbs->flags = tb->flags;
+        qht_insert(userp, tbs, hash, &existing);
+    }
+}
+
+void tb_read_exec_freq(void)
+{
+    qht_iter(&tb_ctx.htable, do_tb_read_exec_freq, &tb_ctx.tb_statistics);
+}
+
 /* flush all the translation blocks */
 static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 {
@@ -1250,6 +1304,10 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 
     CPU_FOREACH(cpu) {
         cpu_tb_jmp_cache_clear(cpu);
+    }
+
+    if (enable_freq_count) {
+        tb_read_exec_freq();
     }
 
     qht_reset_size(&tb_ctx.htable, CODE_GEN_HTABLE_SIZE);
@@ -1723,6 +1781,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tb->flags = flags;
     tb->cflags = cflags;
     tb->trace_vcpu_dstate = *cpu->trace_dstate;
+    tb->exec_freq = 0;
     tcg_ctx->tb_cflags = cflags;
  tb_overflow:
 

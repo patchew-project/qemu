@@ -32,6 +32,8 @@ void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
 void tb_check_watchpoint(CPUState *cpu);
 
+extern bool enable_freq_count;
+
 #ifdef CONFIG_USER_ONLY
 int page_unprotect(target_ulong address, uintptr_t pc);
 #endif

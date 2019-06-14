@@ -1013,6 +1013,13 @@ const char *parse_cpu_option(const char *cpu_option)
     return cpu_type;
 }
 
+uint64_t tb_get_and_reset_exec_freq(TranslationBlock *tb)
+{
+    uint64_t exec_freq = atomic_load_acquire(&tb->exec_freq);
+    atomic_store_release(&tb->exec_freq, 0);
+    return exec_freq;
+}
+
 #if defined(CONFIG_USER_ONLY)
 void tb_invalidate_phys_addr(target_ulong addr)
 {

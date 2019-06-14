@@ -513,4 +513,7 @@ hwaddr memory_region_section_get_iotlb(CPUState *cpu,
 /* vl.c */
 extern int singlestep;
 
+void tb_read_exec_freq(void);
+void tb_dump_all_exec_freq(void);
+
 #endif

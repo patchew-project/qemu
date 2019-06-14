@@ -474,6 +474,8 @@ static inline void cpu_tb_jmp_cache_clear(CPUState *cpu)
     }
 }
 
+uint64_t tb_get_and_reset_exec_freq(struct TranslationBlock*);
+
 /**
  * qemu_tcg_mttcg_enabled:
  * Check whether we are running MultiThread TCG or not.
