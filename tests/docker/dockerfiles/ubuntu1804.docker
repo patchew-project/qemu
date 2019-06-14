@@ -54,4 +54,8 @@ ENV PACKAGES flex bison \
 RUN apt-get update && \
     apt-get -y install $PACKAGES
 RUN dpkg -l $PACKAGES | sort > /packages.txt
+# The libunistring2 package does not create a symlink to libunistring.so
+# Create it manually to fix:
+# error: /usr/lib/x86_64-linux-gnu/libunistring.so: No such file or directory
+RUN ln -s libunistring.so.2 /usr/lib/x86_64-linux-gnu/libunistring.so
 ENV FEATURES clang pyyaml sdl2
