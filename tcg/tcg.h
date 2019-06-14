@@ -367,6 +367,13 @@ typedef enum TCGMemOp {
     MO_ALIGN_32 = 5 << MO_ASHIFT,
     MO_ALIGN_64 = 6 << MO_ASHIFT,
 
+    /*
+     * SoftMMU-only: if set, the TCG backend puts the corresponding host address
+     * in CPUArchState.hostaddr.
+     */
+    MO_HSHIFT = MO_ASHIFT + 3,
+    MO_HADDR = 1 << MO_HSHIFT,
+
     /* Combinations of the above, for ease of use.  */
     MO_UB    = MO_8,
     MO_UW    = MO_16,
