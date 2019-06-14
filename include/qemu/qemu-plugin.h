@@ -169,6 +169,7 @@ enum qemu_plugin_mem_rw {
  * callbacks to be triggered when the block or individual instruction
  * executes.
  */
+/* ??? - should we expose vcpu_index here? */
 typedef void (*qemu_plugin_vcpu_tb_trans_cb_t)(qemu_plugin_id_t id,
                                                unsigned int vcpu_index,
                                                struct qemu_plugin_tb *tb);
