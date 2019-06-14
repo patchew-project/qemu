@@ -6,7 +6,6 @@
 #include "sysemu/hostmem.h"
 #include "hw/boards.h"
 
-extern int nb_numa_nodes;   /* Number of NUMA nodes */
 extern bool have_numa_distance;
 
 struct NodeInfo {
@@ -16,15 +15,23 @@ struct NodeInfo {
     uint8_t distance[MAX_NODES];
 };
 
+extern NodeInfo numa_info[MAX_NODES];
+
 struct NumaNodeMem {
     uint64_t node_mem;
     uint64_t node_plugged_mem;
 };
 
-extern NodeInfo numa_info[MAX_NODES];
+struct NumaState {
+    /* Number of NUMA nodes */
+    int num_nodes;
+
+};
+typedef struct NumaState NumaState;
+
 void parse_numa_opts(MachineState *ms);
 void numa_complete_configuration(MachineState *ms);
-void query_numa_node_mem(NumaNodeMem node_mem[]);
+void query_numa_node_mem(NumaNodeMem node_mem[], MachineState *ms);
 extern QemuOptsList qemu_numa_opts;
 void numa_legacy_auto_assign_ram(MachineClass *mc, NodeInfo *nodes,
                                  int nb_nodes, ram_addr_t size);

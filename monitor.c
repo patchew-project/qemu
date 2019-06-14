@@ -1924,14 +1924,21 @@ static void hmp_info_mtree(Monitor *mon, const QDict *qdict)
 
 static void hmp_info_numa(Monitor *mon, const QDict *qdict)
 {
-    int i;
+    int i, nb_numa_nodes;
     NumaNodeMem *node_mem;
     CpuInfoList *cpu_list, *cpu;
+    MachineState *ms = MACHINE(qdev_get_machine());
 
+    if (ms->numa_state == NULL) {
+        monitor_printf(mon, "%d nodes\n", 0);
+        return;
+    }
+
+    nb_numa_nodes = ms->numa_state->num_nodes;
     cpu_list = qmp_query_cpus(&error_abort);
     node_mem = g_new0(NumaNodeMem, nb_numa_nodes);
 
-    query_numa_node_mem(node_mem);
+    query_numa_node_mem(node_mem, ms);
     monitor_printf(mon, "%d nodes\n", nb_numa_nodes);
     for (i = 0; i < nb_numa_nodes; i++) {
         monitor_printf(mon, "node %d cpus:", i);
