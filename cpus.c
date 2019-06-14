@@ -80,7 +80,6 @@ int64_t max_delay;
 int64_t max_advance;
 
 /* vcpu throttling controls */
-static QEMUTimer *throttle_timer;
 static unsigned int throttle_percentage;
 
 #define CPU_THROTTLE_PCT_MIN 1
@@ -792,40 +791,42 @@ static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
     qemu_mutex_unlock_iothread();
     g_usleep(sleeptime_ns / 1000); /* Convert ns to us for usleep call */
     qemu_mutex_lock_iothread();
-    atomic_set(&cpu->throttle_thread_scheduled, 0);
 }
 
 static void cpu_throttle_timer_tick(void *opaque)
 {
-    CPUState *cpu;
+    CPUState *cpu = (CPUState *)opaque;
     double pct;
 
     /* Stop the timer if needed */
     if (!cpu_throttle_get_percentage()) {
         return;
     }
-    CPU_FOREACH(cpu) {
-        if (!atomic_xchg(&cpu->throttle_thread_scheduled, 1)) {
-            async_run_on_cpu(cpu, cpu_throttle_thread,
-                             RUN_ON_CPU_NULL);
-        }
-    }
+    
+    async_run_on_cpu(cpu, cpu_throttle_thread, RUN_ON_CPU_NULL);
 
     pct = (double)cpu_throttle_get_percentage()/100;
-    timer_mod(throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
+    timer_mod(cpu->throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
                                    CPU_THROTTLE_TIMESLICE_NS / (1-pct));
 }
 
 void cpu_throttle_set(int new_throttle_pct)
 {
+    CPUState *cpu;
+    double pct;
+
     /* Ensure throttle percentage is within valid range */
     new_throttle_pct = MIN(new_throttle_pct, CPU_THROTTLE_PCT_MAX);
     new_throttle_pct = MAX(new_throttle_pct, CPU_THROTTLE_PCT_MIN);
 
     atomic_set(&throttle_percentage, new_throttle_pct);
 
-    timer_mod(throttle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
-                                       CPU_THROTTLE_TIMESLICE_NS);
+    pct = (double)new_throttle_pct/100;
+    CPU_FOREACH(cpu) {
+        timer_mod_anticipate(cpu->throttle_timer,
+                qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL_RT) +
+                CPU_THROTTLE_TIMESLICE_NS / (1-pct));
+    }
 }
 
 void cpu_throttle_stop(void)
@@ -848,8 +849,6 @@ void cpu_ticks_init(void)
     seqlock_init(&timers_state.vm_clock_seqlock);
     qemu_spin_init(&timers_state.vm_clock_lock);
     vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
-    throttle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
-                                           cpu_throttle_timer_tick, NULL);
 }
 
 void configure_icount(QemuOpts *opts, Error **errp)
@@ -1267,6 +1266,8 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     qemu_thread_get_self(cpu->thread);
     cpu->thread_id = qemu_get_thread_id();
     cpu->can_do_io = 1;
+    cpu->throttle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL_RT,
+            cpu_throttle_timer_tick, cpu);
     current_cpu = cpu;
 
     r = kvm_init_vcpu(cpu);

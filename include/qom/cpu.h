@@ -439,10 +439,10 @@ struct CPUState {
     /* shared by kvm, hax and hvf */
     bool vcpu_dirty;
 
-    /* Used to keep track of an outstanding cpu throttle thread for migration
+    /* Used to cyclically trigger vCPU throttling during VM migration
      * autoconverge
      */
-    bool throttle_thread_scheduled;
+    QEMUTimer *throttle_timer;
 
     bool ignore_memory_transaction_failures;
 
