@@ -4170,9 +4170,19 @@ fi
 # glusterfs probe
 if test "$glusterfs" != "no" ; then
   if $pkg_config --atleast-version=3 glusterfs-api; then
-    glusterfs="yes"
     glusterfs_cflags=$($pkg_config --cflags glusterfs-api)
     glusterfs_libs=$($pkg_config --libs glusterfs-api)
+    # Packaging for the static libraries is not always correct.
+    # At least ubuntu 18.04 ships only shared libraries.
+    write_c_skeleton
+    if ! compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
+        if test "$glusterfs" = "yes" ; then
+          error_exit "glusterfs check failed."
+        fi
+        glusterfs="no"
+    else
+        glusterfs="yes"
+    fi
     if $pkg_config --atleast-version=4 glusterfs-api; then
       glusterfs_xlator_opt="yes"
     fi
