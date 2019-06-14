@@ -39,6 +39,7 @@
 #include "trace-tcg.h"
 #include "translate-a64.h"
 #include "qemu/atomic128.h"
+#include "qemu/plugin.h"
 
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
@@ -14205,6 +14206,7 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
     uint32_t insn;
 
     insn = arm_ldl_code(env, s->pc, s->sctlr_b);
+    plugin_insn_append(&insn, sizeof(insn));
     s->insn = insn;
     s->pc += 4;
 
