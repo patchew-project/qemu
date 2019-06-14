@@ -92,6 +92,11 @@ matrix:
         - CONFIG="--disable-user --target-list-exclude=${MAIN_SOFTMMU_TARGETS}"
 
 
+    # Test static linking
+    - env:
+        - CONFIG="--static --target-list=lm32-softmmu"
+
+
     # Just build tools and run minimal unit and softfloat checks
     - env:
         - BASE_CONFIG="--enable-tools"
