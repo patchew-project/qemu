@@ -281,6 +281,7 @@ void pc_system_firmware_init(PCMachineState *pcms, MemoryRegion *rom_memory);
 /* acpi-build.c */
 void pc_madt_cpu_entry(AcpiDeviceIf *adev, int uid,
                        const CPUArchIdList *apic_ids, GArray *entry);
+void pc_build_mem_ranges(AcpiDeviceIf *adev, MachineState *ms);
 
 /* e820 types */
 #define E820_RAM        1

@@ -39,6 +39,8 @@ void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event);
  *           for CPU indexed by @uid in @apic_ids array,
  *           returned structure types are:
  *           0 - Local APIC, 9 - Local x2APIC, 0xB - GICC
+ * build_mem_ranges: build memory ranges of ACPI SRAT (except misc
+ * and hotplug SRAT ranges) and HMAT
  *
  * Interface is designed for providing unified interface
  * to generic ACPI functionality that could be used without
@@ -54,5 +56,7 @@ typedef struct AcpiDeviceIfClass {
     void (*send_event)(AcpiDeviceIf *adev, AcpiEventStatusBits ev);
     void (*madt_cpu)(AcpiDeviceIf *adev, int uid,
                      const CPUArchIdList *apic_ids, GArray *entry);
+    void (*build_mem_ranges)(AcpiDeviceIf *adev, MachineState *ms);
+
 } AcpiDeviceIfClass;
 #endif

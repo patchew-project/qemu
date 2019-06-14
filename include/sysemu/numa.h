@@ -20,6 +20,12 @@ struct NumaNodeMem {
     uint64_t node_plugged_mem;
 };
 
+typedef struct NumaMemRange {
+    uint64_t base;
+    uint64_t length;
+    uint32_t node;
+} NumaMemRange;
+
 struct NumaState {
     /* Number of NUMA nodes */
     int num_nodes;
@@ -29,6 +35,12 @@ struct NumaState {
 
     /* NUMA nodes information */
     NodeInfo nodes[MAX_NODES];
+
+    /* Number of NUMA memory ranges */
+    uint32_t mem_ranges_num;
+
+    /* NUMA memory ranges */
+    GArray *mem_ranges;
 };
 typedef struct NumaState NumaState;
 
