@@ -4124,11 +4124,21 @@ if test "$opengl" != "no" ; then
   if $pkg_config $opengl_pkgs; then
     opengl_cflags="$($pkg_config --cflags $opengl_pkgs)"
     opengl_libs="$($pkg_config --libs $opengl_pkgs)"
-    opengl=yes
-    if test "$gtk" = "yes" && $pkg_config --exists "$gtkpackage >= 3.16"; then
-        gtk_gl="yes"
+    # Packaging for the static libraries is not always correct.
+    # At least ubuntu 18.04 ships only shared libraries.
+    write_c_skeleton
+    if ! compile_prog "$opengl_cflags" "$opengl_libs" ; then
+        if test "$opengl" = "yes" ; then
+          error_exit "opengl check failed."
+        fi
+        opengl=no
+    else
+        opengl=yes
+        if test "$gtk" = "yes" && $pkg_config --exists "$gtkpackage >= 3.16"; then
+            gtk_gl="yes"
+        fi
+        QEMU_CFLAGS="$QEMU_CFLAGS $opengl_cflags"
     fi
-    QEMU_CFLAGS="$QEMU_CFLAGS $opengl_cflags"
   else
     if test "$opengl" = "yes" ; then
       feature_not_found "opengl" "Please install opengl (mesa) devel pkgs: $opengl_pkgs"
