@@ -322,8 +322,10 @@ HELPERS-$(call land,$(CONFIG_SOFTMMU),$(CONFIG_LINUX)) = qemu-bridge-helper$(EXE
 ifdef CONFIG_LINUX
 ifdef CONFIG_VIRGL
 ifdef CONFIG_GBM
+ifdef CONFIG_SOFTMMU
 HELPERS-y += vhost-user-gpu$(EXESUF)
 vhost-user-json-y += contrib/vhost-user-gpu/50-qemu-gpu.json
+endif
 endif
 endif
 endif
