@@ -703,9 +703,6 @@ static void vexpress_common_init(MachineState *machine)
     }
 
     daughterboard->bootinfo.ram_size = machine->ram_size;
-    daughterboard->bootinfo.kernel_filename = machine->kernel_filename;
-    daughterboard->bootinfo.kernel_cmdline = machine->kernel_cmdline;
-    daughterboard->bootinfo.initrd_filename = machine->initrd_filename;
     daughterboard->bootinfo.nb_cpus = smp_cpus;
     daughterboard->bootinfo.board_id = VEXPRESS_BOARD_ID;
     daughterboard->bootinfo.loader_start = daughterboard->loader_start;
@@ -715,7 +712,7 @@ static void vexpress_common_init(MachineState *machine)
     daughterboard->bootinfo.modify_dtb = vexpress_modify_dtb;
     /* When booting Linux we should be in secure state if the CPU has one. */
     daughterboard->bootinfo.secure_boot = vms->secure;
-    arm_load_kernel(ARM_CPU(first_cpu), &daughterboard->bootinfo);
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &daughterboard->bootinfo);
 }
 
 static bool vexpress_get_secure(Object *obj, Error **errp)
