@@ -4885,9 +4885,19 @@ fi
 # check for libusb
 if test "$libusb" != "no" ; then
     if $pkg_config --atleast-version=1.0.13 libusb-1.0; then
-        libusb="yes"
         libusb_cflags=$($pkg_config --cflags libusb-1.0)
         libusb_libs=$($pkg_config --libs libusb-1.0)
+        # Packaging for the static libraries is not always correct.
+        # At least ubuntu 18.04 ships only shared libraries.
+        write_c_skeleton
+        if ! compile_prog "$libusb_cflags" "$libusb_libs" ; then
+            if test "$libusb" = "yes" ; then
+              error_exit "libusb check failed."
+            fi
+            libusb="no"
+        else
+            libusb="yes"
+        fi
     else
         if test "$libusb" = "yes"; then
             feature_not_found "libusb" "Install libusb devel >= 1.0.13"
