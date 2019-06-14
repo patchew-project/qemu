@@ -335,7 +335,9 @@ void process_queued_cpu_work(CPUState *cpu)
              */
             qemu_mutex_unlock_iothread();
             start_exclusive();
+            cpu->in_exclusive_work_context = true;
             wi->func(cpu, wi->data);
+            cpu->in_exclusive_work_context = false;
             end_exclusive();
             qemu_mutex_lock_iothread();
         } else {
