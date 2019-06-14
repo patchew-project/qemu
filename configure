@@ -7109,30 +7109,30 @@ if test "$glusterfs" = "yes" ; then
   echo "CONFIG_GLUSTERFS=m" >> $config_host_mak
   echo "GLUSTERFS_CFLAGS=$glusterfs_cflags" >> $config_host_mak
   echo "GLUSTERFS_LIBS=$glusterfs_libs" >> $config_host_mak
-fi
 
-if test "$glusterfs_xlator_opt" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_XLATOR_OPT=y" >> $config_host_mak
-fi
+  if test "$glusterfs_xlator_opt" = "yes" ; then
+    echo "CONFIG_GLUSTERFS_XLATOR_OPT=y" >> $config_host_mak
+  fi
 
-if test "$glusterfs_discard" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_DISCARD=y" >> $config_host_mak
-fi
+  if test "$glusterfs_discard" = "yes" ; then
+    echo "CONFIG_GLUSTERFS_DISCARD=y" >> $config_host_mak
+  fi
 
-if test "$glusterfs_fallocate" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_FALLOCATE=y" >> $config_host_mak
-fi
+  if test "$glusterfs_fallocate" = "yes" ; then
+    echo "CONFIG_GLUSTERFS_FALLOCATE=y" >> $config_host_mak
+  fi
 
-if test "$glusterfs_zerofill" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
-fi
+  if test "$glusterfs_zerofill" = "yes" ; then
+    echo "CONFIG_GLUSTERFS_ZEROFILL=y" >> $config_host_mak
+  fi
 
-if test "$glusterfs_ftruncate_has_stat" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT=y" >> $config_host_mak
-fi
+  if test "$glusterfs_ftruncate_has_stat" = "yes" ; then
+    echo "CONFIG_GLUSTERFS_FTRUNCATE_HAS_STAT=y" >> $config_host_mak
+  fi
 
-if test "$glusterfs_iocb_has_stat" = "yes" ; then
-  echo "CONFIG_GLUSTERFS_IOCB_HAS_STAT=y" >> $config_host_mak
+  if test "$glusterfs_iocb_has_stat" = "yes" ; then
+    echo "CONFIG_GLUSTERFS_IOCB_HAS_STAT=y" >> $config_host_mak
+  fi
 fi
 
 if test "$libssh" = "yes" ; then
