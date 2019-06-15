@@ -35,6 +35,7 @@ obj-y += translate.o op_helper.o
 obj-y += crypto_helper.o
 obj-y += iwmmxt_helper.o vec_helper.o
 obj-y += neon_helper.o vfp_helper.o
+obj-$(call lor,$(CONFIG_USER_ONLY),$(CONFIG_ARM_V7M)) += v7m_helper.o
 
 obj-$(TARGET_AARCH64) += translate-a64.o helper-a64.o
 obj-$(TARGET_AARCH64) += translate-sve.o sve_helper.o
