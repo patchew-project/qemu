@@ -761,9 +761,11 @@ static inline bool arm_extabort_type(MemTxResult result)
     return result != MEMTX_DECODE_ERROR;
 }
 
+#ifdef CONFIG_TCG
 bool arm_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                       MMUAccessType access_type, int mmu_idx,
                       bool probe, uintptr_t retaddr);
+#endif
 
 void arm_deliver_fault(ARMCPU *cpu, vaddr addr, MMUAccessType access_type,
                        int mmu_idx, ARMMMUFaultInfo *fi) QEMU_NORETURN;
