@@ -94,9 +94,9 @@ uint32_t HELPER(v7m_tt)(CPUARMState *env, uint32_t addr, uint32_t op)
  * stack pointers if it is done for the CONTROL register for the current
  * security state.
  */
-void write_v7m_control_spsel_for_secstate(CPUARMState *env,
-                                          bool new_spsel,
-                                          bool secstate)
+static void write_v7m_control_spsel_for_secstate(CPUARMState *env,
+                                                 bool new_spsel,
+                                                 bool secstate)
 {
     bool old_is_psp = v7m_using_psp(env);
 
@@ -121,13 +121,13 @@ void write_v7m_control_spsel_for_secstate(CPUARMState *env,
  * Write to v7M CONTROL.SPSEL bit. This may change the current
  * stack pointer between Main and Process stack pointers.
  */
-void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
+static void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
 {
     write_v7m_control_spsel_for_secstate(env, new_spsel, env->v7m.secure);
 }
 
 /* Switch M profile security state between NS and S */
-void switch_v7m_security_state(CPUARMState *env, bool new_secstate)
+static void switch_v7m_security_state(CPUARMState *env, bool new_secstate)
 {
     uint32_t new_ss_msp, new_ss_psp;
 
