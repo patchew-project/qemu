@@ -1042,4 +1042,12 @@ bool pmsav8_mpu_lookup(CPUARMState *env, uint32_t address,
                        int *prot, bool *is_subpage,
                        ARMMMUFaultInfo *fi, uint32_t *mregion);
 
+#ifdef TARGET_AARCH64
+void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags);
+#else
+static inline void aarch64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
+{
+}
+#endif
+
 #endif
