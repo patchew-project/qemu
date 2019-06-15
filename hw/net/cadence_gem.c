@@ -407,6 +407,11 @@ static inline void rx_desc_set_sof(uint32_t *desc)
     desc[1] |= DESC_1_RX_SOF;
 }
 
+static inline void rx_desc_clear(uint32_t *desc)
+{
+    desc[1]  = 0;
+}
+
 static inline void rx_desc_set_eof(uint32_t *desc)
 {
     desc[1] |= DESC_1_RX_EOF;
@@ -995,6 +1000,8 @@ static ssize_t gem_receive(NetClientState *nc, const uint8_t *buf, size_t size)
         bytes_to_copy -= MIN(bytes_to_copy, rxbufsize);
 
         /* Update the descriptor.  */
+        rx_desc_clear(s->rx_desc[q]);
+
         if (first_desc) {
             rx_desc_set_sof(s->rx_desc[q]);
             first_desc = false;
