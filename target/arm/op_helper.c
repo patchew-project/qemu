@@ -127,8 +127,9 @@ static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
     return syn;
 }
 
-void arm_deliver_fault(ARMCPU *cpu, vaddr addr, MMUAccessType access_type,
-                       int mmu_idx, ARMMMUFaultInfo *fi)
+static void QEMU_NORETURN arm_deliver_fault(ARMCPU *cpu, vaddr addr,
+                                            MMUAccessType access_type,
+                                            int mmu_idx, ARMMMUFaultInfo *fi)
 {
     CPUARMState *env = &cpu->env;
     int target_el;
