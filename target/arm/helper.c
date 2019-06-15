@@ -7923,26 +7923,6 @@ void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
     write_v7m_control_spsel_for_secstate(env, new_spsel, env->v7m.secure);
 }
 
-void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
-{
-    /*
-     * Write a new value to v7m.exception, thus transitioning into or out
-     * of Handler mode; this may result in a change of active stack pointer.
-     */
-    bool new_is_psp, old_is_psp = v7m_using_psp(env);
-    uint32_t tmp;
-
-    env->v7m.exception = new_exc;
-
-    new_is_psp = v7m_using_psp(env);
-
-    if (old_is_psp != new_is_psp) {
-        tmp = env->v7m.other_sp;
-        env->v7m.other_sp = env->regs[13];
-        env->regs[13] = tmp;
-    }
-}
-
 /* Switch M profile security state between NS and S */
 void switch_v7m_security_state(CPUARMState *env, bool new_secstate)
 {
@@ -9245,6 +9225,26 @@ static bool do_v7m_function_return(ARMCPU *cpu)
 
     qemu_log_mask(CPU_LOG_INT, "...function return successful\n");
     return true;
+}
+
+void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
+{
+    /*
+     * Write a new value to v7m.exception, thus transitioning into or out
+     * of Handler mode; this may result in a change of active stack pointer.
+     */
+    bool new_is_psp, old_is_psp = v7m_using_psp(env);
+    uint32_t tmp;
+
+    env->v7m.exception = new_exc;
+
+    new_is_psp = v7m_using_psp(env);
+
+    if (old_is_psp != new_is_psp) {
+        tmp = env->v7m.other_sp;
+        env->v7m.other_sp = env->regs[13];
+        env->regs[13] = tmp;
+    }
 }
 
 void arm_log_exception(int idx)
