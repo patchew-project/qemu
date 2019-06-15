@@ -1372,7 +1372,7 @@ struct X86CPU {
 
     bool hyperv_vapic;
     bool hyperv_relaxed_timing;
-    int hyperv_spinlock_attempts;
+    uint32_t hyperv_spinlock_attempts;
     char *hyperv_vendor_id;
     bool hyperv_time;
     bool hyperv_crash;
