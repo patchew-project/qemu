@@ -20,7 +20,6 @@
 #include "qemu/crc32c.h"
 #include "qemu/qemu-print.h"
 #include "exec/exec-all.h"
-#include "arm_ldst.h"
 #include <zlib.h> /* For crc32 */
 #include "hw/semihosting/semihost.h"
 #include "sysemu/cpus.h"
@@ -30,6 +29,9 @@
 #include "qapi/qapi-commands-target.h"
 #include "qapi/error.h"
 #include "qemu/guest-random.h"
+#ifdef CONFIG_TCG
+#include "arm_ldst.h"
+#endif
 
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
 
@@ -8270,6 +8272,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
 
 static inline bool check_for_semihosting(CPUState *cs)
 {
+#ifdef CONFIG_TCG
     /* Check whether this exception is a semihosting call; if so
      * then handle it and return true; otherwise return false.
      */
@@ -8345,6 +8348,9 @@ static inline bool check_for_semihosting(CPUState *cs)
         env->regs[0] = do_arm_semihosting(env);
         return true;
     }
+#else
+    return false;
+#endif
 }
 
 /* Handle a CPU exception for A and R profile CPUs.
