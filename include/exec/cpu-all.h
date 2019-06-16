@@ -259,6 +259,7 @@ int walk_memory_regions(void *, walk_memory_regions_fn);
 int page_get_flags(target_ulong address);
 void page_set_flags(target_ulong start, target_ulong end, int flags);
 int page_check_range(target_ulong start, target_ulong len, int flags);
+void validate_exec_access(CPUArchState *env, target_ulong s, target_ulong l);
 #endif
 
 CPUArchState *cpu_copy(CPUArchState *env);
