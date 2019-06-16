@@ -173,6 +173,7 @@ static void rx_cpu_init(Object *obj)
     RXCPU *cpu = RXCPU(obj);
     CPURXState *env = &cpu->env;
 
+    cpu_set_cpustate_pointers(cpu);
     cs->env_ptr = env;
     qdev_init_gpio_in(DEVICE(cpu), rx_cpu_set_irq, 2);
 }

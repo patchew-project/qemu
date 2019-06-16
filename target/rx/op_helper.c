@@ -421,7 +421,7 @@ uint32_t helper_divu(CPURXState *env, uint32_t num, uint32_t den)
 static inline void QEMU_NORETURN raise_exception(CPURXState *env, int index,
                                                  uintptr_t retaddr)
 {
-    CPUState *cs = CPU(rx_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = index;
     cpu_loop_exit_restore(cs, retaddr);
@@ -444,7 +444,7 @@ void QEMU_NORETURN helper_raise_illegal_instruction(CPURXState *env)
 
 void QEMU_NORETURN helper_wait(CPURXState *env)
 {
-    CPUState *cs = CPU(rx_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->halted = 1;
     env->in_sleep = 1;
@@ -453,7 +453,7 @@ void QEMU_NORETURN helper_wait(CPURXState *env)
 
 void QEMU_NORETURN helper_debug(CPURXState *env)
 {
-    CPUState *cs = CPU(rx_env_get_cpu(env));
+    CPUState *cs = env_cpu(env);
 
     cs->exception_index = EXCP_DEBUG;
     cpu_loop_exit(cs);

@@ -25,13 +25,7 @@
 #include "cpu-qom.h"
 #include "qom/cpu.h"
 
-#define TARGET_LONG_BITS 32
-#define TARGET_PAGE_BITS 12
-
 #include "exec/cpu-defs.h"
-
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
-#define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 /* PSW define */
 REG32(PSW, 0)
@@ -69,9 +63,6 @@ FIELD(FPSW, FX, 30, 1)
 FIELD(FPSW, FLAGS, 26, 4)
 FIELD(FPSW, FS, 31, 1)
 
-#define NB_MMU_MODES 1
-#define MMU_MODE0_SUFFIX _all
-
 enum {
     NUM_REGS = 16,
 };
@@ -108,8 +99,6 @@ typedef struct CPURXState {
     uint32_t ack_ipl;           /* execute ipl */
     float_status fp_status;
     qemu_irq ack;               /* Interrupt acknowledge */
-
-    CPU_COMMON
 } CPURXState;
 
 /*
@@ -123,18 +112,12 @@ struct RXCPU {
     CPUState parent_obj;
     /*< public >*/
 
+    CPUNegativeOffsetState neg;
     CPURXState env;
 };
 
 typedef struct RXCPU RXCPU;
 typedef RXCPU ArchCPU;
-
-static inline RXCPU *rx_env_get_cpu(CPURXState *env)
-{
-    return container_of(env, RXCPU, env);
-}
-
-#define ENV_GET_CPU(e) CPU(rx_env_get_cpu(e))
 
 #define ENV_OFFSET offsetof(RXCPU, env)
 
@@ -156,8 +139,6 @@ int cpu_rx_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 
 void rx_cpu_list(void);
-void rx_load_image(RXCPU *cpu, const char *filename,
-                   uint32_t start, uint32_t size);
 void rx_cpu_unpack_psw(CPURXState *env, uint32_t psw, int rte);
 
 #define cpu_signal_handler cpu_rx_signal_handler
