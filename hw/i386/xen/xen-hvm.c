@@ -615,7 +615,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
 {
     hwaddr npages = size >> TARGET_PAGE_BITS;
     const int width = sizeof(unsigned long) * 8;
-    unsigned long bitmap[DIV_ROUND_UP(npages, width)];
+    unsigned long *bitmap = NULL;
+    size_t bitmap_size = DIV_ROUND_UP(npages, width);
     int rc, i, j;
     const XenPhysmap *physmap = NULL;
 
@@ -632,6 +633,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
         return;
     }
 
+    bitmap = g_new0(unsigned long, bitmap_size);
+
     rc = xen_track_dirty_vram(xen_domid, start_addr >> TARGET_PAGE_BITS,
                               npages, bitmap);
     if (rc < 0) {
@@ -644,10 +647,10 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
                     ", 0x" TARGET_FMT_plx "): %s\n",
                     start_addr, start_addr + size, strerror(errno));
         }
-        return;
+        goto out;
     }
 
-    for (i = 0; i < ARRAY_SIZE(bitmap); i++) {
+    for (i = 0; i < bitmap_size; i++) {
         unsigned long map = bitmap[i];
         while (map != 0) {
             j = ctzl(map);
@@ -657,6 +660,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
                                     TARGET_PAGE_SIZE);
         };
     }
+out:
+    g_free(bitmap);
 }
 
 static void xen_log_start(MemoryListener *listener,
