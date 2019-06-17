@@ -405,3 +405,41 @@ void del_boot_device_lchs(DeviceState *dev, const char *suffix)
         }
     }
 }
+
+typedef struct QEMU_PACKED FWLCHSEntrySerialized {
+    /* Little-endian. */
+    uint32_t lcyls;
+    uint32_t lheads;
+    uint32_t lsecs;
+} FWLCHSEntrySerialized;
+
+/* Serialized as: (device name\0 + lchs struct) x devices */
+char *get_boot_devices_lchs_list(size_t *size)
+{
+    FWLCHSEntry *i;
+    FWLCHSEntrySerialized s;
+    size_t total = 0;
+    char *list = NULL;
+
+    QTAILQ_FOREACH(i, &fw_lchs, link) {
+        char *bootpath;
+        size_t len;
+
+        bootpath = get_boot_device_path(i->dev, false, i->suffix);
+        s.lcyls = cpu_to_le32(i->lcyls);
+        s.lheads = cpu_to_le32(i->lheads);
+        s.lsecs = cpu_to_le32(i->lsecs);
+
+        len = strlen(bootpath) + 1;
+        list = g_realloc(list, total + len + sizeof(s));
+        memcpy(&list[total], bootpath, len);
+        memcpy(&list[total + len], &s, sizeof(s));
+        total += len + sizeof(s);
+
+        g_free(bootpath);
+    }
+
+    *size = total;
+
+    return list;
+}
