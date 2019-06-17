@@ -14,7 +14,7 @@
 #define HW_9PFS_XEN_9PFS_H
 
 #include <xen/io/protocols.h>
-#include "hw/xen/io/ring.h"
+#include "hw/xen/interface/io/ring.h"
 
 /*
  * Do not merge into xen-9p-backend.c: clang doesn't allow unused static
