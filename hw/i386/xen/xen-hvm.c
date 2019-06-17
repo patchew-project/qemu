@@ -26,9 +26,9 @@
 #include "trace.h"
 #include "exec/address-spaces.h"
 
-#include <xen/hvm/ioreq.h>
-#include <xen/hvm/params.h>
-#include <xen/hvm/e820.h>
+#include "hw/xen/interface/hvm/ioreq.h"
+#include "hw/xen/interface/hvm/params.h"
+#include "hw/xen/interface/hvm/e820.h"
 
 //#define DEBUG_XEN_HVM
 
