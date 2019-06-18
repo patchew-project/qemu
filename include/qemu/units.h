@@ -17,4 +17,11 @@
 #define PiB     (INT64_C(1) << 50)
 #define EiB     (INT64_C(1) << 60)
 
+#define SI_k 1000LL
+#define SI_M 1000000LL
+#define SI_G 1000000000LL
+#define SI_T 1000000000000LL
+#define SI_P 1000000000000000LL
+#define SI_E 1000000000000000000LL
+
 #endif
