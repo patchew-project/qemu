@@ -30,12 +30,15 @@ class BootLinuxConsole(Test):
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
     def wait_for_console_pattern(self, success_message,
-                                 failure_message='Kernel panic - not syncing'):
+                                 failure_message='Kernel panic - not syncing',
+                                 close=True):
         """
         Waits for messages to appear on the console, while logging the content
 
         :param success_message: if this message appears, test succeeds
         :param failure_message: if this message appears, test fails
+        :param close: close the socket file once the a final (success or
+                      failure) message is found
         """
         console = self.vm.console_socket.makefile()
         console_logger = logging.getLogger('console')
@@ -45,15 +48,20 @@ class BootLinuxConsole(Test):
                 continue
             console_logger.debug(msg)
             if success_message in msg:
+                if close:
+                    self.vm.console_socket.close()
                 break
             if failure_message in msg:
+                if close:
+                    self.vm.console_socket.close()
                 fail = 'Failure message found in console: %s' % failure_message
                 self.fail(fail)
 
-    def exec_command_and_wait_for_pattern(self, command, success_message):
+    def exec_command_and_wait_for_pattern(self, command, success_message,
+                                          close):
         command += '\n'
         self.vm.console_socket.sendall(command.encode())
-        self.wait_for_console_pattern(success_message)
+        self.wait_for_console_pattern(success_message, close=close)
 
     def extract_from_deb(self, deb, path):
         """
@@ -180,14 +188,15 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line,
                          '-no-reboot')
         self.vm.launch()
-        self.wait_for_console_pattern('Boot successful.')
+        self.wait_for_console_pattern('Boot successful.', close=False)
 
         self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
-                                               'BogoMIPS')
+                                               'BogoMIPS', close=False)
         self.exec_command_and_wait_for_pattern('uname -a',
-                                               'Debian')
+                                               'Debian', close=False)
         self.exec_command_and_wait_for_pattern('reboot',
-                                               'reboot: Restarting system')
+                                               'reboot: Restarting system',
+                                               close=True)
 
     def do_test_mips_malta32el_nanomips(self, kernel_url, kernel_hash):
         kernel_path_xz = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
