@@ -212,6 +212,8 @@ static void aspeed_soc_init(Object *obj)
                           sc->info->fmc_typename);
     object_property_add_alias(obj, "num-cs", OBJECT(&s->fmc), "num-cs",
                               &error_abort);
+    object_property_add_alias(obj, "dram", OBJECT(&s->fmc), "dram",
+                              &error_abort);
 
     for (i = 0; i < sc->info->spis_num; i++) {
         sysbus_init_child_obj(obj, "spi[*]", OBJECT(&s->spi[i]),
