@@ -308,7 +308,11 @@ class QMPShell(qmp.QEMUMonitorProtocol):
         @return True if execution was ok, return False if disconnected.
         """
         try:
-            cmdline = raw_input(prompt)
+            try: # attempt to set Python2 override
+               import __builtin__;
+               getattr(__builtin__, 'raw_input', input)
+            except ModuleNotFoundError: pass
+            cmdline = input(prompt)
         except EOFError:
             print()
             return False
