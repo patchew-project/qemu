@@ -226,6 +226,20 @@ static bool ioeventfd_enabled(void)
     return !kvm_enabled() || kvm_eventfds_enabled();
 }
 
+static void
+vhost_user_host_notifiers_cleanup(VhostUserState *user)
+{
+    int i;
+
+    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
+        if (user->notifier[i].addr) {
+            object_unparent(OBJECT(&user->notifier[i].mr));
+            munmap(user->notifier[i].addr, qemu_real_host_page_size);
+            user->notifier[i].addr = NULL;
+        }
+    }
+}
+
 static int vhost_user_read_header(struct vhost_dev *dev, VhostUserMsg *msg)
 {
     struct vhost_user *u = dev->opaque;
@@ -1469,6 +1483,9 @@ static int vhost_user_backend_cleanup(struct vhost_dev *dev)
     assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_USER);
 
     u = dev->opaque;
+    if (dev->vq_index == 0) {
+        vhost_user_host_notifiers_cleanup(u->user);
+    }
     if (u->postcopy_notifier.notify) {
         postcopy_remove_notifier(&u->postcopy_notifier);
         u->postcopy_notifier.notify = NULL;
@@ -1898,19 +1915,10 @@ bool vhost_user_init(VhostUserState *user, CharBackend *chr, Error **errp)
 
 void vhost_user_cleanup(VhostUserState *user)
 {
-    int i;
-
     if (!user->chr) {
         return;
     }
-
-    for (i = 0; i < VIRTIO_QUEUE_MAX; i++) {
-        if (user->notifier[i].addr) {
-            object_unparent(OBJECT(&user->notifier[i].mr));
-            munmap(user->notifier[i].addr, qemu_real_host_page_size);
-            user->notifier[i].addr = NULL;
-        }
-    }
+    vhost_user_host_notifiers_cleanup(user);
     user->chr = NULL;
 }
 
