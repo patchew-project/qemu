@@ -1,8 +1,7 @@
 #ifndef XEN_BLKIF_H
 #define XEN_BLKIF_H
 
-#include "hw/xen/io/ring.h"
-#include <xen/io/blkif.h>
+#include "hw/xen/interface/io/blkif.h"
 #include <xen/io/protocols.h>
 
 /*
