@@ -13,7 +13,7 @@
 #ifndef HW_9PFS_XEN_9PFS_H
 #define HW_9PFS_XEN_9PFS_H
 
-#include <xen/io/protocols.h>
+#include "hw/xen/interface/io/protocols.h"
 #include "hw/xen/interface/io/ring.h"
 
 /*
