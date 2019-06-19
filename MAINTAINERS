@@ -2035,6 +2035,7 @@ R: Eduardo Habkost <ehabkost@redhat.com>
 S: Supported
 F: include/qom/
 X: include/qom/cpu.h
+F: qapi/qom.json
 F: qom/
 X: qom/cpu.c
 F: tests/check-qom-interface.c
