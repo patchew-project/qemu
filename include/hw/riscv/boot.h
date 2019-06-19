@@ -20,6 +20,7 @@
 #ifndef RISCV_BOOT_H
 #define RISCV_BOOT_H
 
+void riscv_find_and_load_firmware(MachineState *machine);
 target_ulong riscv_load_firmware(const char *firmware_filename);
 target_ulong riscv_load_kernel(MachineState *machine,
                                const char *kernel_filename);

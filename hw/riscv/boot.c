@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "exec/cpu-defs.h"
@@ -32,6 +33,12 @@
 # define KERNEL_BOOT_ADDRESS 0x80200000
 #endif
 
+#if defined(TARGET_RISCV32)
+# define BIOS_FILENAME "opensbi-riscv32-fw_jump.elf"
+#else
+# define BIOS_FILENAME "opensbi-riscv64-fw_jump.elf"
+#endif
+
 static uint64_t kernel_translate(void *opaque, uint64_t addr)
 {
     MachineState *machine = opaque;
@@ -44,6 +51,27 @@ static uint64_t kernel_translate(void *opaque, uint64_t addr)
         return (addr & 0x7fffffff) + KERNEL_BOOT_ADDRESS;
     } else {
         return addr;
+    }
+}
+
+void riscv_find_and_load_firmware(MachineState *machine)
+{
+    char *firmware_filename;
+
+    if (!machine->firmware) {
+        /* The user didn't specify a firmware, default to OpenSBI */
+        firmware_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BIOS_FILENAME);
+    } else {
+        firmware_filename = machine->firmware;
+    }
+
+    if (strcmp(firmware_filename, "none")) {
+        /* If not "none" load the firmware */
+        riscv_load_firmware(firmware_filename);
+    }
+
+    if (!machine->firmware) {
+        g_free(firmware_filename);
     }
 }
 
