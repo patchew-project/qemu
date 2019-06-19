@@ -8806,6 +8806,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     target_ulong pc_start;
     int num_insns = 0;
 
+    memset(&ctx, 0x00, sizeof(DisasContext));
     pc_start = tb->pc;
     ctx.pc = pc_start;
     ctx.saved_pc = -1;
