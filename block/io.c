@@ -539,6 +539,11 @@ void bdrv_drained_end(BlockDriverState *bs)
     bdrv_do_drained_end(bs, false, NULL, false, true, NULL);
 }
 
+void bdrv_drained_end_no_poll(BlockDriverState *bs)
+{
+    bdrv_do_drained_end(bs, false, NULL, false, false, NULL);
+}
+
 void bdrv_subtree_drained_end(BlockDriverState *bs)
 {
     bdrv_do_drained_end(bs, true, NULL, false, true, NULL);

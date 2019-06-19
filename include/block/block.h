@@ -680,9 +680,19 @@ void bdrv_subtree_drained_begin(BlockDriverState *bs);
 /**
  * bdrv_drained_end:
  *
- * End a quiescent section started by bdrv_drained_begin().
+ * End a quiescent section started by bdrv_drained_begin().  This may
+ * result in block graph changes.
  */
 void bdrv_drained_end(BlockDriverState *bs);
+
+/**
+ * bdrv_drained_end_no_poll:
+ *
+ * Same as bdrv_drained_end(), but do not poll for the subgraph to
+ * actually become unquiesced.  Therefore, no graph changes will occur
+ * with this function.
+ */
+void bdrv_drained_end_no_poll(BlockDriverState *bs);
 
 /**
  * End a quiescent section started by bdrv_subtree_drained_begin().
