@@ -2252,7 +2252,7 @@ static void bdrv_replace_child_noperm(BdrvChild *child,
             child->role->detach(child);
         }
         while (child->parent_quiesce_counter) {
-            bdrv_parent_drained_end_single(child);
+            bdrv_parent_drained_end_single(child, true);
         }
         QLIST_REMOVE(child, next_parent);
     } else {

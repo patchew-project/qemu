@@ -671,6 +671,20 @@ struct BdrvChildRole {
     void (*drained_end)(BdrvChild *child);
 
     /*
+     * Parents that require polling to actually become unquiesced
+     * should implement this function in addition to .drained_end().
+     * In it, the parent should end the drain and aio_poll() until it
+     * is no longer quiesced.
+     *
+     * Thus, in contrast to .drained_end(), this function is allowed
+     * to change the graph.
+     *
+     * (This pointer may be NULL, in which case .drained_end() is
+     * called instead.)
+     */
+    void (*drained_end_unquiesce)(BdrvChild *child);
+
+    /*
      * Returns whether the parent has pending requests for the child. This
      * callback is polled after .drained_begin() has been called until all
      * activity on the child has stopped.

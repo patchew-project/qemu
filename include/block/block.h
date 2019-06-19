@@ -620,8 +620,11 @@ void bdrv_parent_drained_begin_single(BdrvChild *c, bool poll);
  * bdrv_parent_drained_end_single:
  *
  * End a quiesced section for the parent of @c.
+ *
+ * If @poll is true, poll until the parent is unquiesced.  This may
+ * lead to changes in the block graph.
  */
-void bdrv_parent_drained_end_single(BdrvChild *c);
+void bdrv_parent_drained_end_single(BdrvChild *c, bool poll);
 
 /**
  * bdrv_parent_drained_end:
