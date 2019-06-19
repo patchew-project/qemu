@@ -255,6 +255,63 @@ static void bdrv_drain_invoke(BlockDriverState *bs, bool begin,
     }
 }
 
+/* TODO: Actually use this function and drop this forward declaration */
+static void bdrv_poll_drain_data_objs(GSList **data_objs, bool acquire_ctx)
+    __attribute__((unused));
+
+/*
+ * Poll the AioContexts in the given list of BdrvCoDrainData objects
+ * until all of those objects are "done" (i.e. their .done field is
+ * true).
+ * Also, free all objects and the list.
+ *
+ * If @acquire_ctx is true, the AioContexts are locked while they are
+ * polled.
+ */
+static void bdrv_poll_drain_data_objs(GSList **data_objs, bool acquire_ctx)
+{
+    GSList *contexts = NULL;
+    GSList *iter;
+
+    /* First collect the contexts while the BDSs are not gone */
+    for (iter = *data_objs; iter; iter = iter->next) {
+        BdrvCoDrainData *drain_data = iter->data;
+        contexts = g_slist_prepend(contexts,
+                                   bdrv_get_aio_context(drain_data->bs));
+    }
+
+    /*
+     * Reverse the list so it is in the same order as *data_objs
+     * (prepend and then reverse has better performance than appending)
+     */
+    contexts = g_slist_reverse(contexts);
+
+    /* The BDSs may disappear here, but we only need their contexts */
+    while (*data_objs) {
+        GSList *next;
+        BdrvCoDrainData *drain_data = (*data_objs)->data;
+        AioContext *ctx = contexts->data;
+
+        if (acquire_ctx) {
+            aio_context_acquire(ctx);
+        }
+        AIO_WAIT_WHILE(ctx, !drain_data->done);
+        if (acquire_ctx) {
+            aio_context_release(ctx);
+        }
+
+        g_free(drain_data);
+
+        next = (*data_objs)->next;
+        g_slist_free_1(*data_objs);
+        *data_objs = next;
+
+        next = contexts->next;
+        g_slist_free_1(contexts);
+        contexts = next;
+    }
+}
+
 /* Returns true if BDRV_POLL_WHILE() should go into a blocking aio_poll() */
 bool bdrv_drain_poll(BlockDriverState *bs, bool recursive,
                      BdrvChild *ignore_parent, bool ignore_bds_parents)
