@@ -266,6 +266,25 @@
   'if': 'defined(CONFIG_SPICE)' }
 
 ##
+# @set-spice:
+#
+# Set Spice properties.
+# @property: the SPICE property to modify
+# @value: the new value to affect to this property
+#
+# Since: ...
+#
+# Example:
+#
+# -> { "execute": "set-spice", "arguments": { "property": "video-codecs",
+#                                             "value": "spice:mjpeg;gst:mjpeg;" } }
+# <- { "returns": {} }
+##
+{ 'command': 'set-spice',
+  'data': {'property': 'str', 'value': 'str'},
+  'if': 'defined(CONFIG_SPICE)' }
+
+##
 # @SPICE_CONNECTED:
 #
 # Emitted when a SPICE client establishes a connection

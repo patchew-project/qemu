@@ -503,6 +503,19 @@ static QemuOptsList qemu_spice_opts = {
     },
 };
 
+void qmp_set_spice(const char *property, const char *value, Error **errp) {
+    if (strcmp(property, "video-codecs") == 0) {
+        int invalid_codecs = spice_server_set_video_codecs(spice_server, value);
+
+        if (invalid_codecs) {
+            error_setg(errp, "Found %d invalic codecs while setting "
+                       "the property %s=%s\n", invalid_codecs, property, value);
+        }
+    } else {
+        error_setg(errp, "Setting an unknown spice property (%s=%s)\n", property, value);
+    }
+}
+
 SpiceInfo *qmp_query_spice(Error **errp)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
