@@ -94,8 +94,13 @@ void block_job_drain(Job *job)
     BlockJob *bjob = container_of(job, BlockJob, job);
     const JobDriver *drv = job->driver;
     BlockJobDriver *bjdrv = container_of(drv, BlockJobDriver, job_driver);
+    GSList *l;
 
-    blk_drain(bjob->blk);
+    for (l = bjob->nodes; l; l = l->next) {
+        BdrvChild *c = l->data;
+        bdrv_drain(c->bs);
+    }
+
     if (bjdrv->drain) {
         bjdrv->drain(bjob);
     }
