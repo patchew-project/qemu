@@ -914,6 +914,12 @@ static bool bdrv_child_cb_drained_poll(BdrvChild *child)
 static void bdrv_child_cb_drained_end(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
+    bdrv_drained_end_no_poll(bs);
+}
+
+static void bdrv_child_cb_drained_end_unquiesce(BdrvChild *child)
+{
+    BlockDriverState *bs = child->opaque;
     bdrv_drained_end(bs);
 }
 
@@ -1014,6 +1020,7 @@ const BdrvChildRole child_file = {
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
     .drained_end     = bdrv_child_cb_drained_end,
+    .drained_end_unquiesce = bdrv_child_cb_drained_end_unquiesce,
     .attach          = bdrv_child_cb_attach,
     .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
@@ -1042,6 +1049,7 @@ const BdrvChildRole child_format = {
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
     .drained_end     = bdrv_child_cb_drained_end,
+    .drained_end_unquiesce = bdrv_child_cb_drained_end_unquiesce,
     .attach          = bdrv_child_cb_attach,
     .detach          = bdrv_child_cb_detach,
     .inactivate      = bdrv_child_cb_inactivate,
@@ -1168,6 +1176,7 @@ const BdrvChildRole child_backing = {
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
     .drained_end     = bdrv_child_cb_drained_end,
+    .drained_end_unquiesce = bdrv_child_cb_drained_end_unquiesce,
     .inactivate      = bdrv_child_cb_inactivate,
     .update_filename = bdrv_backing_update_filename,
     .can_set_aio_ctx = bdrv_child_cb_can_set_aio_ctx,
