@@ -23,13 +23,50 @@
 #include "exec/cpu-defs.h"
 #include "hw/loader.h"
 #include "hw/riscv/boot.h"
+#include "hw/boards.h"
 #include "elf.h"
 
-target_ulong riscv_load_kernel(const char *kernel_filename)
+#if defined(TARGET_RISCV32)
+# define KERNEL_BOOT_ADDRESS 0x80400000
+#else
+# define KERNEL_BOOT_ADDRESS 0x80200000
+#endif
+
+static uint64_t kernel_translate(void *opaque, uint64_t addr)
+{
+    MachineState *machine = opaque;
+
+    /*
+     * If the user specified a firmware move the kernel to the offset
+     * start address.
+     */
+    if (machine->firmware) {
+        return (addr & 0x7fffffff) + KERNEL_BOOT_ADDRESS;
+    } else {
+        return addr;
+    }
+}
+
+target_ulong riscv_load_firmware(const char *firmware_filename)
+{
+    uint64_t firmware_entry, firmware_start, firmware_end;
+
+    if (load_elf(firmware_filename, NULL, NULL, NULL,
+                 &firmware_entry, &firmware_start, &firmware_end,
+                 0, EM_RISCV, 1, 0) < 0) {
+        error_report("could not load firmware '%s'", firmware_filename);
+        exit(1);
+    }
+
+    return firmware_entry;
+}
+
+target_ulong riscv_load_kernel(MachineState *machine,
+                               const char *kernel_filename)
 {
     uint64_t kernel_entry, kernel_high;
 
-    if (load_elf(kernel_filename, NULL, NULL, NULL,
+    if (load_elf(kernel_filename, NULL, kernel_translate, machine,
                  &kernel_entry, NULL, &kernel_high,
                  0, EM_RISCV, 1, 0) < 0) {
         error_report("could not load kernel '%s'", kernel_filename);

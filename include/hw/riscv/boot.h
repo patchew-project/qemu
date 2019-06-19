@@ -20,7 +20,9 @@
 #ifndef RISCV_BOOT_H
 #define RISCV_BOOT_H
 
-target_ulong riscv_load_kernel(const char *kernel_filename);
+target_ulong riscv_load_firmware(const char *firmware_filename);
+target_ulong riscv_load_kernel(MachineState *machine,
+                               const char *kernel_filename);
 hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
                          uint64_t kernel_entry, hwaddr *start);
 
