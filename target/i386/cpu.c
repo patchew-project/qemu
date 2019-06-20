@@ -1412,6 +1412,10 @@ static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
                      strlen(class_name) - strlen(X86_CPU_TYPE_SUFFIX));
 }
 
+typedef struct X86CPUCacheCPUID {
+    CPUCaches cpuid2, cpuid4, amd;
+} X86CPUCacheCPUID;
+
 struct X86CPUDefinition {
     const char *name;
     uint32_t level;
@@ -1423,7 +1427,7 @@ struct X86CPUDefinition {
     int stepping;
     FeatureWordArray features;
     const char *model_id;
-    const CPUCaches *cache_info;
+    const X86CPUCacheCPUID *cache_cpuid;
 };
 
 static const CPUCaches epyc_cache_info = {
@@ -1475,6 +1479,39 @@ static const CPUCaches epyc_cache_info = {
         .complex_indexing = true,
     },
 };
+
+static X86CPUCacheCPUID epyc_cache_cpuid = {
+    .cpuid2 = epyc_cache_info,
+    .cpuid4 = epyc_cache_info,
+    .amd = epyc_cache_info,
+};
+
+/*
+ * Legacy cache template.  When legacy-cache=on, the cache data
+ * on each CPUID leaf will be different, because we keep compatibility
+ * with old QEMU versions.
+ */
+static X86CPUCacheCPUID legacy_cache_cpuid = {
+    .cpuid2 = {
+        .l1d_cache = &legacy_l1d_cache,
+        .l1i_cache = &legacy_l1i_cache,
+        .l2_cache = &legacy_l2_cache_cpuid2,
+        .l3_cache = &legacy_l3_cache,
+    },
+    .cpuid4 = {
+        .l1d_cache = &legacy_l1d_cache,
+        .l1i_cache = &legacy_l1i_cache,
+        .l2_cache = &legacy_l2_cache,
+        .l3_cache = &legacy_l3_cache,
+    },
+    .amd = {
+        .l1d_cache = &legacy_l1d_cache_amd,
+        .l1i_cache = &legacy_l1i_cache_amd,
+        .l2_cache = &legacy_l2_cache_amd,
+        .l3_cache = &legacy_l3_cache,
+    },
+};
+
 
 static X86CPUDefinition builtin_x86_defs[] = {
     {
@@ -2886,7 +2923,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_SVM_NPT | CPUID_SVM_NRIPSAVE,
         .xlevel = 0x8000001E,
         .model_id = "AMD EPYC Processor",
-        .cache_info = &epyc_cache_info,
+        .cache_cpuid = &epyc_cache_cpuid,
     },
     {
         .name = "EPYC-IBPB",
@@ -2936,7 +2973,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_SVM_NPT | CPUID_SVM_NRIPSAVE,
         .xlevel = 0x8000001E,
         .model_id = "AMD EPYC Processor (with IBPB)",
-        .cache_info = &epyc_cache_info,
+        .cache_cpuid = &epyc_cache_cpuid,
     },
     {
         .name = "Dhyana",
@@ -2986,7 +3023,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_SVM_NPT | CPUID_SVM_NRIPSAVE,
         .xlevel = 0x8000001E,
         .model_id = "Hygon Dhyana Processor",
-        .cache_info = &epyc_cache_info,
+        .cache_cpuid = &epyc_cache_cpuid,
     },
 };
 
@@ -3951,7 +3988,7 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
     }
 
     /* legacy-cache defaults to 'off' if CPU model provides cache info */
-    cpu->legacy_cache = !def->cache_info;
+    cpu->legacy_cache = !def->cache_cpuid;
 
     /* Special cases not set in the X86CPUDefinition structs: */
     /* TODO: in-kernel irqchip for hvf */
@@ -4301,11 +4338,11 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         if (!cpu->enable_l3_cache) {
             *ecx = 0;
         } else {
-            *ecx = cpuid2_cache_descriptor(env->cache_info_cpuid2.l3_cache);
+            *ecx = cpuid2_cache_descriptor(env->caches->cpuid2.l3_cache);
         }
-        *edx = (cpuid2_cache_descriptor(env->cache_info_cpuid2.l1d_cache) << 16) |
-               (cpuid2_cache_descriptor(env->cache_info_cpuid2.l1i_cache) <<  8) |
-               (cpuid2_cache_descriptor(env->cache_info_cpuid2.l2_cache));
+        *edx = (cpuid2_cache_descriptor(env->caches->cpuid2.l1d_cache) << 16) |
+               (cpuid2_cache_descriptor(env->caches->cpuid2.l1i_cache) <<  8) |
+               (cpuid2_cache_descriptor(env->caches->cpuid2.l2_cache));
         break;
     case 4:
         /* cache info: needed for Core compatibility */
@@ -4320,24 +4357,24 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *eax = 0;
             switch (count) {
             case 0: /* L1 dcache info */
-                encode_cache_cpuid4(env->cache_info_cpuid4.l1d_cache,
+                encode_cache_cpuid4(env->caches->cpuid4.l1d_cache,
                                     1, cs->nr_cores,
                                     eax, ebx, ecx, edx);
                 break;
             case 1: /* L1 icache info */
-                encode_cache_cpuid4(env->cache_info_cpuid4.l1i_cache,
+                encode_cache_cpuid4(env->caches->cpuid4.l1i_cache,
                                     1, cs->nr_cores,
                                     eax, ebx, ecx, edx);
                 break;
             case 2: /* L2 cache info */
-                encode_cache_cpuid4(env->cache_info_cpuid4.l2_cache,
+                encode_cache_cpuid4(env->caches->cpuid4.l2_cache,
                                     cs->nr_threads, cs->nr_cores,
                                     eax, ebx, ecx, edx);
                 break;
             case 3: /* L3 cache info */
                 pkg_offset = apicid_pkg_offset(cs->nr_cores, cs->nr_threads);
                 if (cpu->enable_l3_cache) {
-                    encode_cache_cpuid4(env->cache_info_cpuid4.l3_cache,
+                    encode_cache_cpuid4(env->caches->cpuid4.l3_cache,
                                         (1 << pkg_offset), cs->nr_cores,
                                         eax, ebx, ecx, edx);
                     break;
@@ -4551,8 +4588,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                (L1_ITLB_2M_ASSOC <<  8) | (L1_ITLB_2M_ENTRIES);
         *ebx = (L1_DTLB_4K_ASSOC << 24) | (L1_DTLB_4K_ENTRIES << 16) | \
                (L1_ITLB_4K_ASSOC <<  8) | (L1_ITLB_4K_ENTRIES);
-        *ecx = encode_cache_cpuid80000005(env->cache_info_amd.l1d_cache);
-        *edx = encode_cache_cpuid80000005(env->cache_info_amd.l1i_cache);
+        *ecx = encode_cache_cpuid80000005(env->caches->amd.l1d_cache);
+        *edx = encode_cache_cpuid80000005(env->caches->amd.l1i_cache);
         break;
     case 0x80000006:
         /* cache info (L2 cache) */
@@ -4568,9 +4605,9 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
                (L2_DTLB_4K_ENTRIES << 16) | \
                (AMD_ENC_ASSOC(L2_ITLB_4K_ASSOC) << 12) | \
                (L2_ITLB_4K_ENTRIES);
-        encode_cache_cpuid80000006(env->cache_info_amd.l2_cache,
+        encode_cache_cpuid80000006(env->caches->amd.l2_cache,
                                    cpu->enable_l3_cache ?
-                                   env->cache_info_amd.l3_cache : NULL,
+                                   env->caches->amd.l3_cache : NULL,
                                    ecx, edx);
         break;
     case 0x80000007:
@@ -4620,19 +4657,19 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         switch (count) {
         case 0: /* L1 dcache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l1d_cache, cs,
+            encode_cache_cpuid8000001d(env->caches->amd.l1d_cache, cs,
                                        eax, ebx, ecx, edx);
             break;
         case 1: /* L1 icache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l1i_cache, cs,
+            encode_cache_cpuid8000001d(env->caches->amd.l1i_cache, cs,
                                        eax, ebx, ecx, edx);
             break;
         case 2: /* L2 cache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l2_cache, cs,
+            encode_cache_cpuid8000001d(env->caches->amd.l2_cache, cs,
                                        eax, ebx, ecx, edx);
             break;
         case 3: /* L3 cache info */
-            encode_cache_cpuid8000001d(env->cache_info_amd.l3_cache, cs,
+            encode_cache_cpuid8000001d(env->caches->amd.l3_cache, cs,
                                        eax, ebx, ecx, edx);
             break;
         default: /* end of info */
@@ -5331,31 +5368,16 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     /* Cache information initialization */
     if (!cpu->legacy_cache) {
-        if (!xcc->cpu_def || !xcc->cpu_def->cache_info) {
+        if (!xcc->cpu_def || !xcc->cpu_def->cache_cpuid) {
             char *name = x86_cpu_class_get_model_name(xcc);
             error_setg(errp,
                        "CPU model '%s' doesn't support legacy-cache=off", name);
             g_free(name);
             return;
         }
-        env->cache_info_cpuid2 = env->cache_info_cpuid4 = env->cache_info_amd =
-            *xcc->cpu_def->cache_info;
+        env->caches = xcc->cpu_def->cache_cpuid;
     } else {
-        /* Build legacy cache information */
-        env->cache_info_cpuid2.l1d_cache = &legacy_l1d_cache;
-        env->cache_info_cpuid2.l1i_cache = &legacy_l1i_cache;
-        env->cache_info_cpuid2.l2_cache = &legacy_l2_cache_cpuid2;
-        env->cache_info_cpuid2.l3_cache = &legacy_l3_cache;
-
-        env->cache_info_cpuid4.l1d_cache = &legacy_l1d_cache;
-        env->cache_info_cpuid4.l1i_cache = &legacy_l1i_cache;
-        env->cache_info_cpuid4.l2_cache = &legacy_l2_cache;
-        env->cache_info_cpuid4.l3_cache = &legacy_l3_cache;
-
-        env->cache_info_amd.l1d_cache = &legacy_l1d_cache_amd;
-        env->cache_info_amd.l1i_cache = &legacy_l1i_cache_amd;
-        env->cache_info_amd.l2_cache = &legacy_l2_cache_amd;
-        env->cache_info_amd.l3_cache = &legacy_l3_cache;
+        env->caches = &legacy_cache_cpuid;
     }
 
 

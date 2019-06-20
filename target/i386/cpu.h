@@ -1306,11 +1306,8 @@ typedef struct CPUX86State {
     /* Features that were explicitly enabled/disabled */
     FeatureWordArray user_features;
     uint32_t cpuid_model[12];
-    /* Cache information for CPUID.  When legacy-cache=on, the cache data
-     * on each CPUID leaf will be different, because we keep compatibility
-     * with old QEMU versions.
-     */
-    CPUCaches cache_info_cpuid2, cache_info_cpuid4, cache_info_amd;
+    /* Cache information for CPUID */
+    const struct X86CPUCacheCPUID *caches;
 
     /* MTRRs */
     uint64_t mtrr_fixed[11];
