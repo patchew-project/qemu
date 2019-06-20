@@ -1135,6 +1135,20 @@
   'data': ['top', 'full', 'none', 'incremental'] }
 
 ##
+# @BitmapSyncMode:
+#
+# An enumeration of possible behaviors for the synchronization of a bitmap
+# when used for data copy operations.
+#
+# @conditional: The bitmap is only synchronized when the operation is successul.
+#               This is useful for Incremental semantics.
+#
+# Since: 4.1
+##
+{ 'enum': 'BitmapSyncMode',
+  'data': ['conditional'] }
+
+##
 # @MirrorCopyMode:
 #
 # An enumeration whose values tell the mirror block job when to
