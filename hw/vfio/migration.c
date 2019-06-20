@@ -77,6 +77,41 @@ err:
     return ret;
 }
 
+static int vfio_migration_set_state(VFIODevice *vbasedev, uint32_t state)
+{
+    VFIOMigration *migration = vbasedev->migration;
+    VFIORegion *region = &migration->region.buffer;
+    int ret = 0;
+
+    ret = pwrite(vbasedev->fd, &state, sizeof(state),
+                 region->fd_offset + offsetof(struct vfio_device_migration_info,
+                                              device_state));
+    if (ret < 0) {
+        error_report("Failed to set migration state %d %s",
+                     ret, strerror(errno));
+        return ret;
+    }
+
+    vbasedev->device_state = state;
+    return 0;
+}
+
+static void vfio_vmstate_change(void *opaque, int running, RunState state)
+{
+    VFIODevice *vbasedev = opaque;
+
+    if ((vbasedev->vm_running != running) && running) {
+        int ret;
+
+        ret = vfio_migration_set_state(vbasedev, VFIO_DEVICE_STATE_RUNNING);
+        if (ret) {
+            error_report("Failed to set state RUNNING");
+        }
+    }
+
+    vbasedev->vm_running = running;
+}
+
 static int vfio_migration_init(VFIODevice *vbasedev,
                                struct vfio_region_info *info)
 {
@@ -90,6 +125,11 @@ static int vfio_migration_init(VFIODevice *vbasedev,
         error_report("Failed to initialise migration region");
         return ret;
     }
+
+    qemu_mutex_init(&vbasedev->migration->lock);
+
+    vbasedev->vm_state = qemu_add_vm_change_state_handler(vfio_vmstate_change,
+                                                          vbasedev);
 
     return 0;
 }
@@ -127,11 +167,16 @@ void vfio_migration_finalize(VFIODevice *vbasedev)
         return;
     }
 
+    if (vbasedev->vm_state) {
+        qemu_del_vm_change_state_handler(vbasedev->vm_state);
+    }
+
     if (vbasedev->migration_blocker) {
         migrate_del_blocker(vbasedev->migration_blocker);
         error_free(vbasedev->migration_blocker);
     }
 
+    qemu_mutex_destroy(&vbasedev->migration->lock);
     vfio_migration_region_exit(vbasedev);
     g_free(vbasedev->migration);
 }
