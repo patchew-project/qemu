@@ -777,7 +777,17 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
 
 bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b)
 {
-    return (a->size == b->size) && (a->granularity == b->granularity);
+    return (a->size == b->size);
+}
+
+static void hbitmap_sparse_merge(HBitmap *dst, const HBitmap *src)
+{
+    uint64_t offset = 0;
+    uint64_t count = src->orig_size;
+
+    while (hbitmap_next_dirty_area(src, &offset, &count)) {
+        hbitmap_set(dst, offset, count);
+    }
 }
 
 /**
@@ -801,6 +811,16 @@ bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result)
     if ((!hbitmap_count(a) && result == b) ||
         (!hbitmap_count(b) && result == a) ||
         (!hbitmap_count(a) && !hbitmap_count(b))) {
+        return true;
+    }
+
+    if (a->size != b->size) {
+        if (a != result) {
+            hbitmap_sparse_merge(result, a);
+        }
+        if (b != result) {
+            hbitmap_sparse_merge(result, b);
+        }
         return true;
     }
 
