@@ -964,6 +964,26 @@ int vfio_region_mmap(VFIORegion *region)
     return 0;
 }
 
+void vfio_region_unmap(VFIORegion *region)
+{
+    int i;
+
+    if (!region->mem) {
+        return;
+    }
+
+    for (i = 0; i < region->nr_mmaps; i++) {
+        trace_vfio_region_unmap(memory_region_name(&region->mmaps[i].mem),
+                                region->mmaps[i].offset,
+                                region->mmaps[i].offset +
+                                region->mmaps[i].size - 1);
+        memory_region_del_subregion(region->mem, &region->mmaps[i].mem);
+        munmap(region->mmaps[i].mmap, region->mmaps[i].size);
+        object_unparent(OBJECT(&region->mmaps[i].mem));
+        region->mmaps[i].mmap = NULL;
+    }
+}
+
 void vfio_region_exit(VFIORegion *region)
 {
     int i;
