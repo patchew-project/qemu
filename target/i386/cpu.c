@@ -205,7 +205,7 @@ struct CPUID2CacheDescriptorInfo cpuid2_cache_descriptors[] = {
  * Return a CPUID 2 cache descriptor for a given cache.
  * If no known descriptor is found, return CACHE_DESCRIPTOR_UNAVAILABLE
  */
-static uint8_t cpuid2_cache_descriptor(CPUCacheInfo *cache)
+static uint8_t cpuid2_cache_descriptor(const CPUCacheInfo *cache)
 {
     int i;
 
@@ -249,7 +249,7 @@ static uint8_t cpuid2_cache_descriptor(CPUCacheInfo *cache)
 
 
 /* Encode cache info for CPUID[4] */
-static void encode_cache_cpuid4(CPUCacheInfo *cache,
+static void encode_cache_cpuid4(const CPUCacheInfo *cache,
                                 int num_apic_ids, int num_cores,
                                 uint32_t *eax, uint32_t *ebx,
                                 uint32_t *ecx, uint32_t *edx)
@@ -282,7 +282,7 @@ static void encode_cache_cpuid4(CPUCacheInfo *cache,
 }
 
 /* Encode cache info for CPUID[0x80000005].ECX or CPUID[0x80000005].EDX */
-static uint32_t encode_cache_cpuid80000005(CPUCacheInfo *cache)
+static uint32_t encode_cache_cpuid80000005(const CPUCacheInfo *cache)
 {
     assert(cache->size % 1024 == 0);
     assert(cache->lines_per_tag > 0);
@@ -312,8 +312,8 @@ static uint32_t encode_cache_cpuid80000005(CPUCacheInfo *cache)
  * Encode cache info for CPUID[0x80000006].ECX and CPUID[0x80000006].EDX
  * @l3 can be NULL.
  */
-static void encode_cache_cpuid80000006(CPUCacheInfo *l2,
-                                       CPUCacheInfo *l3,
+static void encode_cache_cpuid80000006(const CPUCacheInfo *l2,
+                                       const CPUCacheInfo *l3,
                                        uint32_t *ecx, uint32_t *edx)
 {
     assert(l2->size % 1024 == 0);
@@ -394,9 +394,9 @@ static int cores_in_core_complex(int nr_cores)
 }
 
 /* Encode cache info for CPUID[8000001D] */
-static void encode_cache_cpuid8000001d(CPUCacheInfo *cache, CPUState *cs,
-                                uint32_t *eax, uint32_t *ebx,
-                                uint32_t *ecx, uint32_t *edx)
+static void encode_cache_cpuid8000001d(const CPUCacheInfo *cache, CPUState *cs,
+                                       uint32_t *eax, uint32_t *ebx,
+                                       uint32_t *ecx, uint32_t *edx)
 {
     uint32_t l3_cores;
     assert(cache->size == cache->line_size * cache->associativity *
@@ -541,7 +541,7 @@ static void encode_topo_cpuid8000001e(CPUState *cs, X86CPU *cpu,
  */
 
 /* L1 data cache: */
-static CPUCacheInfo legacy_l1d_cache = {
+static const CPUCacheInfo legacy_l1d_cache = {
     .type = DATA_CACHE,
     .level = 1,
     .size = 32 * KiB,
@@ -554,7 +554,7 @@ static CPUCacheInfo legacy_l1d_cache = {
 };
 
 /*FIXME: CPUID leaf 0x80000005 is inconsistent with leaves 2 & 4 */
-static CPUCacheInfo legacy_l1d_cache_amd = {
+static const CPUCacheInfo legacy_l1d_cache_amd = {
     .type = DATA_CACHE,
     .level = 1,
     .size = 64 * KiB,
@@ -568,7 +568,7 @@ static CPUCacheInfo legacy_l1d_cache_amd = {
 };
 
 /* L1 instruction cache: */
-static CPUCacheInfo legacy_l1i_cache = {
+static const CPUCacheInfo legacy_l1i_cache = {
     .type = INSTRUCTION_CACHE,
     .level = 1,
     .size = 32 * KiB,
@@ -581,7 +581,7 @@ static CPUCacheInfo legacy_l1i_cache = {
 };
 
 /*FIXME: CPUID leaf 0x80000005 is inconsistent with leaves 2 & 4 */
-static CPUCacheInfo legacy_l1i_cache_amd = {
+static const CPUCacheInfo legacy_l1i_cache_amd = {
     .type = INSTRUCTION_CACHE,
     .level = 1,
     .size = 64 * KiB,
@@ -595,7 +595,7 @@ static CPUCacheInfo legacy_l1i_cache_amd = {
 };
 
 /* Level 2 unified cache: */
-static CPUCacheInfo legacy_l2_cache = {
+static const CPUCacheInfo legacy_l2_cache = {
     .type = UNIFIED_CACHE,
     .level = 2,
     .size = 4 * MiB,
@@ -608,7 +608,7 @@ static CPUCacheInfo legacy_l2_cache = {
 };
 
 /*FIXME: CPUID leaf 2 descriptor is inconsistent with CPUID leaf 4 */
-static CPUCacheInfo legacy_l2_cache_cpuid2 = {
+static const CPUCacheInfo legacy_l2_cache_cpuid2 = {
     .type = UNIFIED_CACHE,
     .level = 2,
     .size = 2 * MiB,
@@ -618,7 +618,7 @@ static CPUCacheInfo legacy_l2_cache_cpuid2 = {
 
 
 /*FIXME: CPUID leaf 0x80000006 is inconsistent with leaves 2 & 4 */
-static CPUCacheInfo legacy_l2_cache_amd = {
+static const CPUCacheInfo legacy_l2_cache_amd = {
     .type = UNIFIED_CACHE,
     .level = 2,
     .size = 512 * KiB,
@@ -630,7 +630,7 @@ static CPUCacheInfo legacy_l2_cache_amd = {
 };
 
 /* Level 3 unified cache: */
-static CPUCacheInfo legacy_l3_cache = {
+static const CPUCacheInfo legacy_l3_cache = {
     .type = UNIFIED_CACHE,
     .level = 3,
     .size = 16 * MiB,
@@ -1423,10 +1423,10 @@ struct X86CPUDefinition {
     int stepping;
     FeatureWordArray features;
     const char *model_id;
-    CPUCaches *cache_info;
+    const CPUCaches *cache_info;
 };
 
-static CPUCaches epyc_cache_info = {
+static const CPUCaches epyc_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
         .type = DATA_CACHE,
         .level = 1,

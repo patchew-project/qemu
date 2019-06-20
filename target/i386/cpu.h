@@ -1109,10 +1109,10 @@ typedef struct CPUCacheInfo {
 
 
 typedef struct CPUCaches {
-        CPUCacheInfo *l1d_cache;
-        CPUCacheInfo *l1i_cache;
-        CPUCacheInfo *l2_cache;
-        CPUCacheInfo *l3_cache;
+    const CPUCacheInfo *l1d_cache;
+    const CPUCacheInfo *l1i_cache;
+    const CPUCacheInfo *l2_cache;
+    const CPUCacheInfo *l3_cache;
 } CPUCaches;
 
 typedef struct CPUX86State {
