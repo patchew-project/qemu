@@ -21,6 +21,7 @@
 #include "exec/ramlist.h"
 #include "exec/ram_addr.h"
 #include "pci.h"
+#include "trace.h"
 
 /*
  * Flags used as delimiter:
@@ -104,6 +105,7 @@ static int vfio_migration_set_state(VFIODevice *vbasedev, uint32_t state)
     }
 
     vbasedev->device_state = state;
+    trace_vfio_migration_set_state(vbasedev->name, state);
     return 0;
 }
 
@@ -173,6 +175,8 @@ static int vfio_save_buffer(QEMUFile *f, VFIODevice *vbasedev)
         qemu_put_be64(f, data_size);
     }
 
+    trace_vfio_save_buffer(vbasedev->name, data_offset, data_size,
+                           migration->pending_bytes);
     ret = qemu_file_get_error(f);
 
     return data_size;
@@ -195,6 +199,7 @@ static int vfio_update_pending(VFIODevice *vbasedev)
     }
 
     migration->pending_bytes = pending_bytes;
+    trace_vfio_update_pending(vbasedev->name, pending_bytes);
     return 0;
 }
 
@@ -208,6 +213,8 @@ static int vfio_save_device_config_state(QEMUFile *f, void *opaque)
         vfio_pci_save_config(vbasedev, f);
     }
     qemu_put_be64(f, VFIO_MIG_FLAG_END_OF_STATE);
+
+    trace_vfio_save_device_config_state(vbasedev->name);
 
     return qemu_file_get_error(f);
 }
@@ -225,6 +232,7 @@ static int vfio_load_device_config_state(QEMUFile *f, void *opaque)
         return -EINVAL;
     }
 
+    trace_vfio_load_device_config_state(vbasedev->name);
     return qemu_file_get_error(f);
 }
 
@@ -343,6 +351,9 @@ void vfio_get_dirty_page_list(VFIODevice *vbasedev,
         }
     } while (count < pfn_count);
 
+    trace_vfio_get_dirty_page_list(vbasedev->name, start_pfn, pfn_count,
+                                   page_size);
+
 dpl_unlock:
     qemu_mutex_unlock(&migration->lock);
 }
@@ -390,6 +401,7 @@ static int vfio_save_setup(QEMUFile *f, void *opaque)
         return ret;
     }
 
+    trace_vfio_save_setup(vbasedev->name);
     return 0;
 }
 
@@ -401,6 +413,7 @@ static void vfio_save_cleanup(void *opaque)
     if (migration->region.buffer.mmaps) {
         vfio_region_unmap(&migration->region.buffer);
     }
+    trace_vfio_cleanup(vbasedev->name);
 }
 
 static void vfio_save_pending(QEMUFile *f, void *opaque,
@@ -424,6 +437,7 @@ static void vfio_save_pending(QEMUFile *f, void *opaque,
         *res_postcopy_only += migration->pending_bytes;
     }
     *res_compatible += 0;
+    trace_vfio_save_pending(vbasedev->name);
 }
 
 static int vfio_save_iterate(QEMUFile *f, void *opaque)
@@ -451,6 +465,7 @@ static int vfio_save_iterate(QEMUFile *f, void *opaque)
         return ret;
     }
 
+    trace_vfio_save_iterate(vbasedev->name);
     return ret;
 }
 
@@ -504,6 +519,8 @@ static int vfio_save_complete_precopy(QEMUFile *f, void *opaque)
         error_report("Failed to set state STOPPED");
         return ret;
     }
+
+    trace_vfio_save_complete_precopy(vbasedev->name);
     return ret;
 }
 
@@ -544,6 +561,9 @@ static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
 
     data = qemu_get_be64(f);
     while (data != VFIO_MIG_FLAG_END_OF_STATE) {
+
+        trace_vfio_load_state(vbasedev->name, data);
+
         switch (data) {
         case VFIO_MIG_FLAG_DEV_CONFIG_STATE:
         {
@@ -627,6 +647,8 @@ static int vfio_load_state(QEMUFile *f, void *opaque, int version_id)
                     return -EINVAL;
                 }
             }
+            trace_vfio_load_state_device_data(vbasedev->name, data_offset,
+                                              data_size);
             break;
         }
         }
@@ -668,6 +690,7 @@ static void vfio_vmstate_change(void *opaque, int running, RunState state)
     }
 
     vbasedev->vm_running = running;
+    trace_vfio_vmstate_change(vbasedev->name, running);
 }
 
 static void vfio_migration_state_notifier(Notifier *notifier, void *data)
@@ -675,6 +698,8 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
     MigrationState *s = data;
     VFIODevice *vbasedev = container_of(notifier, VFIODevice, migration_state);
     int ret;
+
+    trace_vfio_migration_state_notifier(vbasedev->name, s->state);
 
     switch (s->state) {
     case MIGRATION_STATUS_ACTIVE:
@@ -758,6 +783,7 @@ int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
             return ret;
         }
     } else {
+        trace_vfio_migration_probe(vbasedev->name, info->index);
         return vfio_migration_init(vbasedev, info);
     }
 
