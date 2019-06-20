@@ -1146,10 +1146,14 @@
 # @conditional: The bitmap is only synchronized when the operation is successul.
 #               This is useful for Incremental semantics.
 #
+# @never: The bitmap is never synchronized with the operation, and is
+#         treated solely as a manifest of blocks to copy.
+#         This is useful for Differential semantics.
+#
 # Since: 4.1
 ##
 { 'enum': 'BitmapSyncMode',
-  'data': ['conditional'] }
+  'data': ['conditional', 'never'] }
 
 ##
 # @MirrorCopyMode:
