@@ -89,6 +89,7 @@ struct BlockAcctStats {
     bool account_invalid;
     bool account_failed;
     BlockHistogram latency_histogram[BLOCK_MAX_IOTYPE];
+    BlockHistogram size_histogram[BLOCK_MAX_IOTYPE];
 };
 
 typedef struct BlockAcctCookie {
@@ -117,5 +118,8 @@ double block_acct_queue_depth(BlockAcctTimedStats *stats,
 int block_latency_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
                                 uint64List *boundaries);
 void block_latency_histograms_clear(BlockAcctStats *stats);
+int block_size_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
+                                uint64List *boundaries);
+void block_size_histograms_clear(BlockAcctStats *stats);
 
 #endif
