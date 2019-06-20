@@ -415,7 +415,7 @@ static uint64List *uint64_list(uint64_t *list, int size)
     return out_list;
 }
 
-static void bdrv_latency_histogram_stats(BlockLatencyHistogram *hist,
+static void bdrv_latency_histogram_stats(BlockHistogram *hist,
                                          bool *not_null,
                                          BlockLatencyHistogramInfo **info)
 {
