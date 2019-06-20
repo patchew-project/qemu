@@ -3572,7 +3572,9 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     }
 
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
+                            backup->sync, bmap,
+                            backup->has_bitmap_mode, backup->bitmap_mode,
+                            backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             job_flags, NULL, NULL, txn, &local_err);
     if (local_err != NULL) {
@@ -3677,7 +3679,9 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
         job_flags |= JOB_MANUAL_DISMISS;
     }
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
+                            backup->sync, bmap,
+                            backup->has_bitmap_mode, backup->bitmap_mode,
+                            backup->compress,
                             backup->on_source_error, backup->on_target_error,
                             job_flags, NULL, NULL, txn, &local_err);
     if (local_err != NULL) {
