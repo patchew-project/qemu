@@ -359,7 +359,7 @@ class Timeout:
         raise Exception(self.errmsg)
 
 
-class FilePath(object):
+class FilePaths(object):
     '''An auto-generated filename that cleans itself up.
 
     Use this context manager to generate filenames and ensure that the file
@@ -369,20 +369,29 @@ class FilePath(object):
             qemu_img('create', img_path, '1G')
         # migration_sock_path is automatically deleted
     '''
-    def __init__(self, name):
-        filename = '{0}-{1}'.format(os.getpid(), name)
-        self.path = os.path.join(test_dir, filename)
+    def __init__(self, names):
+        self.paths = []
+        for name in names:
+            filename = '{0}-{1}'.format(os.getpid(), name)
+            self.paths.append(os.path.join(test_dir, filename))
 
     def __enter__(self):
-        return self.path
+        return self.paths
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
-            os.remove(self.path)
+            for path in self.paths:
+                os.remove(path)
         except OSError:
             pass
         return False
 
+class FilePath(FilePaths):
+    def __init__(self, name):
+        super(FilePath, self).__init__([name])
+
+    def __enter__(self):
+        return self.paths[0]
 
 def file_path_remover():
     for path in reversed(file_path_remover.paths):
