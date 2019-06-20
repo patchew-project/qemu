@@ -1143,6 +1143,9 @@
 # An enumeration of possible behaviors for the synchronization of a bitmap
 # when used for data copy operations.
 #
+# @always: The bitmap is always synchronized with remaining blocks to copy,
+#          whether or not the operation has completed successfully or not.
+#
 # @conditional: The bitmap is only synchronized when the operation is successul.
 #               This is useful for Incremental semantics.
 #
@@ -1153,7 +1156,7 @@
 # Since: 4.1
 ##
 { 'enum': 'BitmapSyncMode',
-  'data': ['conditional', 'never'] }
+  'data': ['always', 'conditional', 'never'] }
 
 ##
 # @MirrorCopyMode:
