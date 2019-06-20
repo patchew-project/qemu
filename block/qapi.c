@@ -428,6 +428,20 @@ static void bdrv_latency_histogram_stats(BlockHistogram *hist,
     }
 }
 
+static void bdrv_size_histogram_stats(BlockHistogram *hist,
+                                         bool *not_null,
+                                         BlockSizeHistogramInfo **info)
+{
+    *not_null = hist->bins != NULL;
+    if (*not_null) {
+        *info = g_new0(BlockSizeHistogramInfo, 1);
+
+        (*info)->boundaries = uint64_list(hist->boundaries, hist->nbins - 1);
+        (*info)->bins = uint64_list(hist->bins, hist->nbins);
+    }
+}
+
+
 static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
 {
     BlockAcctStats *stats = blk_get_stats(blk);
@@ -503,6 +517,16 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
     bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_FLUSH],
                                  &ds->has_flush_latency_histogram,
                                  &ds->flush_latency_histogram);
+
+    bdrv_size_histogram_stats(&stats->size_histogram[BLOCK_ACCT_READ],
+                                 &ds->has_x_rd_size_histogram,
+                                 &ds->x_rd_size_histogram);
+    bdrv_size_histogram_stats(&stats->size_histogram[BLOCK_ACCT_WRITE],
+                                 &ds->has_x_wr_size_histogram,
+                                 &ds->x_wr_size_histogram);
+    bdrv_size_histogram_stats(&stats->size_histogram[BLOCK_ACCT_FLUSH],
+                                 &ds->has_x_flush_size_histogram,
+                                 &ds->x_flush_size_histogram);
 }
 
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,

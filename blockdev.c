@@ -4563,6 +4563,62 @@ void qmp_block_latency_histogram_set(
     }
 }
 
+void qmp_x_block_size_histogram_set(
+    const char *id,
+    bool has_boundaries, uint64List *boundaries,
+    bool has_boundaries_read, uint64List *boundaries_read,
+    bool has_boundaries_write, uint64List *boundaries_write,
+    bool has_boundaries_flush, uint64List *boundaries_flush,
+    Error **errp)
+{
+    BlockBackend *blk = qmp_get_blk(NULL, id, errp);
+    BlockAcctStats *stats;
+    int ret;
+
+    if (!blk) {
+        return;
+    }
+
+    stats = blk_get_stats(blk);
+
+    if (!has_boundaries && !has_boundaries_read && !has_boundaries_write &&
+        !has_boundaries_flush)
+    {
+        block_size_histograms_clear(stats);
+        return;
+    }
+
+    if (has_boundaries || has_boundaries_read) {
+        ret = block_size_histogram_set(
+            stats, BLOCK_ACCT_READ,
+            has_boundaries_read ? boundaries_read : boundaries);
+        if (ret) {
+            error_setg(errp, "Device '%s' set read boundaries fail", id);
+            return;
+        }
+    }
+
+    if (has_boundaries || has_boundaries_write) {
+        ret = block_size_histogram_set(
+            stats, BLOCK_ACCT_WRITE,
+            has_boundaries_write ? boundaries_write : boundaries);
+        if (ret) {
+            error_setg(errp, "Device '%s' set write boundaries fail", id);
+            return;
+        }
+    }
+
+    if (has_boundaries || has_boundaries_flush) {
+        ret = block_size_histogram_set(
+            stats, BLOCK_ACCT_FLUSH,
+            has_boundaries_flush ? boundaries_flush : boundaries);
+        if (ret) {
+            error_setg(errp, "Device '%s' set flush boundaries fail", id);
+            return;
+        }
+    }
+}
+
 QemuOptsList qemu_common_drive_opts = {
     .name = "drive",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),

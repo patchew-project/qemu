@@ -633,6 +633,100 @@
            '*boundaries-flush': ['uint64'] } }
 
 ##
+# @BlockSizeHistogramInfo:
+#
+# Block size histogram.
+#
+# @boundaries: list of interval boundary values in nanoseconds, all greater
+#              than zero and in ascending order.
+#              For example, the list [8193, 32769, 131073] produces the
+#              following histogram intervals:
+#              [0, 8193), [8193, 32769), [32769, 131073), [131073, +inf).
+#
+# @bins: list of io request counts corresponding to histogram intervals.
+#        len(@bins) = len(@boundaries) + 1
+#        For the example above, @bins may be something like [6, 3, 7, 9],
+#        and corresponding histogram looks like:
+#
+# Since: 4.0
+##
+{ 'struct': 'BlockSizeHistogramInfo',
+  'data': {'boundaries': ['uint64'], 'bins': ['uint64'] } }
+
+##
+# @x-block-size-histogram-set:
+#
+# Manage read, write and flush size histograms for the device.
+#
+# If only @id parameter is specified, remove all present size histograms
+# for the device. Otherwise, add/reset some of (or all) size histograms.
+#
+# @id: The name or QOM path of the guest device.
+#
+# @boundaries: list of interval boundary values (see description in
+#              BlockSizeHistogramInfo definition). If specified, all
+#              size histograms are removed, and empty ones created for all
+#              io types with intervals corresponding to @boundaries (except for
+#              io types, for which specific boundaries are set through the
+#              following parameters).
+#
+# @boundaries-read: list of interval boundary values for read size
+#                   histogram. If specified, old read size histogram is
+#                   removed, and empty one created with intervals
+#                   corresponding to @boundaries-read. The parameter has higher
+#                   priority then @boundaries.
+#
+# @boundaries-write: list of interval boundary values for write size
+#                    histogram.
+#
+# @boundaries-flush: list of interval boundary values for flush size
+#                    histogram.
+#
+# Returns: error if device is not found or any boundary arrays are invalid.
+#
+# Since: 4.0
+#
+# Example: set new histograms for all io types with intervals
+# [0, 8193), [8193, 32769), [32769, 131073), [131073, +inf):
+#
+# -> { "execute": "x-block-size-histogram-set",
+#      "arguments": { "id": "drive0",
+#                     "boundaries": [8193, 32769, 131073] } }
+# <- { "return": {} }
+#
+# Example: set new histogram only for write, other histograms will remain
+# not changed (or not created):
+#
+# -> { "execute": "x-block-size-histogram-set",
+#      "arguments": { "id": "drive0",
+#                     "boundaries-write": [8193, 32769, 131073] } }
+# <- { "return": {} }
+#
+# Example: set new histograms with the following intervals:
+#   read, flush: [0, 8193), [8193, 32769), [32769, 131073), [131073, +inf)
+#   write: [0, 4097), [4097, 8193), [8193, 32769), [32769, +inf)
+#
+# -> { "execute": "x-block-size-histogram-set",
+#      "arguments": { "id": "drive0",
+#                     "boundaries": [8193, 32769, 131073],
+#                     "boundaries-write": [4097, 8193, 32769] } }
+# <- { "return": {} }
+#
+# Example: remove all size histograms:
+#
+# -> { "execute": "x-block-size-histogram-set",
+#      "arguments": { "id": "drive0" } }
+# <- { "return": {} }
+##
+{ 'command': 'x-block-size-histogram-set',
+  'data': {'id': 'str',
+           '*boundaries': ['uint64'],
+           '*boundaries-read': ['uint64'],
+           '*boundaries-write': ['uint64'],
+           '*boundaries-flush': ['uint64'] } }
+
+
+##
 # @BlockInfo:
 #
 # Block device information.  This structure describes a virtual device and
@@ -918,6 +1012,12 @@
 #
 # @flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
 #
+# @x_rd_size_histogram: @BlockSizeHistogramInfo. (Since 4.0)
+#
+# @x_wr_size_histogram: @BlockSizeHistogramInfo. (Since 4.0)
+#
+# @x_flush_size_histogram: @BlockSizeHistogramInfo. (Since 4.0)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'BlockDeviceStats',
@@ -933,7 +1033,10 @@
            'timed_stats': ['BlockDeviceTimedStats'],
            '*rd_latency_histogram': 'BlockLatencyHistogramInfo',
            '*wr_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
+           '*flush_latency_histogram': 'BlockLatencyHistogramInfo',
+           '*x_rd_size_histogram': 'BlockSizeHistogramInfo',
+           '*x_wr_size_histogram': 'BlockSizeHistogramInfo',
+           '*x_flush_size_histogram': 'BlockSizeHistogramInfo' } }
 
 ##
 # @BlockStats:
