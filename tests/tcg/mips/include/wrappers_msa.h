@@ -197,8 +197,14 @@ DO_MSA__WD__WS_WT(BINSR_W, binsr.w)
 DO_MSA__WD__WS_WT(BINSR_D, binsr.d)
 
 DO_MSA__WD__WS_WT(BMNZ_V, bmnz.v)
+DO_MSA__WD__WD_WT(BMNZ_V__DDT, bmnz.b)
+DO_MSA__WD__WS_WD(BMNZ_V__DSD, bmnz.b)
 DO_MSA__WD__WS_WT(BMZ_V, bmz.v)
+DO_MSA__WD__WD_WT(BMZ_V__DDT, bmz.b)
+DO_MSA__WD__WS_WD(BMZ_V__DSD, bmz.b)
 DO_MSA__WD__WS_WT(BSEL_V, bsel.v)
+DO_MSA__WD__WD_WT(BSEL_V__DDT, bsel.b)
+DO_MSA__WD__WS_WD(BSEL_V__DSD, bsel.b)
 
 
 /*
