@@ -775,6 +775,11 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size)
     }
 }
 
+bool hbitmap_same_conf(const HBitmap *a, const HBitmap *b)
+{
+    return (a->size == b->size) && (a->granularity == b->granularity);
+}
+
 bool hbitmap_can_merge(const HBitmap *a, const HBitmap *b)
 {
     return (a->size == b->size);

@@ -632,6 +632,20 @@ void bdrv_restore_dirty_bitmap(BdrvDirtyBitmap *bitmap, HBitmap *backup)
     hbitmap_free(tmp);
 }
 
+/* claim ownership of an hbitmap */
+void bdrv_dirty_bitmap_claim(BdrvDirtyBitmap *bitmap, HBitmap **hbitmap)
+{
+    if (hbitmap_same_conf(bitmap->bitmap, *hbitmap)) {
+        bdrv_restore_dirty_bitmap(bitmap, *hbitmap);
+    } else {
+        assert(hbitmap_can_merge(bitmap->bitmap, *hbitmap));
+        bdrv_clear_dirty_bitmap(bitmap, NULL);
+        hbitmap_merge(bitmap->bitmap, *hbitmap, bitmap->bitmap);
+        hbitmap_free(*hbitmap);
+    }
+    *hbitmap = NULL;
+}
+
 uint64_t bdrv_dirty_bitmap_serialization_size(const BdrvDirtyBitmap *bitmap,
                                               uint64_t offset, uint64_t bytes)
 {

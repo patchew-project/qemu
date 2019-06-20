@@ -83,6 +83,14 @@ void hbitmap_truncate(HBitmap *hb, uint64_t size);
 bool hbitmap_merge(const HBitmap *a, const HBitmap *b, HBitmap *result);
 
 /**
+ * hbitmap_same_conf:
+ *
+ * Compares the configuration for HBitmaps A and B.
+ * Return true if they are identical, false otherwise.
+ */
+bool hbitmap_same_conf(const HBitmap *a, const HBitmap *b);
+
+/**
  * hbitmap_can_merge:
  *
  * hbitmap_can_merge(a, b) && hbitmap_can_merge(a, result) is sufficient and
