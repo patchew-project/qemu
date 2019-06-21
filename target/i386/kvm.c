@@ -1640,7 +1640,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
                                   !!(c->ecx & CPUID_EXT_SMX);
     }
 
-    if (cpu_has_vmx(env) && !nested_virt_mig_blocker &&
+    if (cpu_has_nested_virt(env) && !nested_virt_mig_blocker &&
         ((kvm_max_nested_state_length() <= 0) || !has_exception_payload)) {
         error_setg(&nested_virt_mig_blocker,
                    "Kernel do not provide required capabilities for "
