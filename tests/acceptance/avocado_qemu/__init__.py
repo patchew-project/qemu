@@ -9,6 +9,7 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
+import re
 import sys
 import uuid
 
@@ -65,10 +66,21 @@ class Test(avocado.Test):
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the source tree")
 
+        m = re.match('qemu-system-(.*)', self.qemu_bin.split('/').pop())
+        if m:
+            self.target_arch = m.group(1)
+        else:
+            self.target_arch = None
+
     def _new_vm(self, *args):
         vm = QEMUMachine(self.qemu_bin)
         if args:
             vm.add_args(*args)
+        # Handle lack of default machine type on some targets.
+        # Assume that arch tagged tests have machine type set properly.
+        if self.tags.get('arch') is None and \
+           self.target_arch in ('aarch64', 'arm'):
+            vm.set_machine('virt')
         return vm
 
     @property
