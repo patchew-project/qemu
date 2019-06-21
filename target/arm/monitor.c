@@ -89,8 +89,24 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
     return head;
 }
 
+QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
+
+/*
+ * These are cpu model features we want to advertise. The order here
+ * matters as this is the order in which qmp_query_cpu_model_expansion
+ * will attempt to set them. If there are dependencies between features,
+ * as there are with the sve<vl-bits> features, then the order that
+ * considers those dependencies must be used.
+ *
+ * The sve<vl-bits> features need to be in reverse order in order to
+ * enable/disable the largest vector lengths first, ensuring all
+ * power-of-2 vector lengths smaller can also be enabled/disabled.
+ */
 static const char *cpu_model_advertised_features[] = {
     "aarch64", "pmu", "sve",
+    "sve2048", "sve1920", "sve1792", "sve1664", "sve1536", "sve1408",
+    "sve1280", "sve1152", "sve1024", "sve896", "sve768", "sve640",
+    "sve512", "sve384", "sve256", "sve128",
     NULL
 };
 

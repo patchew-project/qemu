@@ -5324,7 +5324,16 @@ static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 
     /* Bits other than [3:0] are RAZ/WI.  */
     QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
-    raw_write(env, ri, value & 0xf);
+    value &= 0xf;
+
+    if (value) {
+        /* get next vq that is smaller than or equal to value's vq */
+        uint32_t vq = value + 1;
+        vq = arm_cpu_vq_map_next_smaller(cpu, vq + 1);
+        value = vq - 1;
+    }
+
+    raw_write(env, ri, value);
 
     /*
      * Because we arrived here, we know both FP and SVE are enabled;

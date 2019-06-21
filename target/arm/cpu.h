@@ -184,8 +184,13 @@ typedef struct {
 
 #ifdef TARGET_AARCH64
 # define ARM_MAX_VQ    16
+void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp);
+uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq);
 #else
 # define ARM_MAX_VQ    1
+static inline void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp) { }
+static inline uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq)
+{ return 0; }
 #endif
 
 typedef struct ARMVectorReg {
@@ -915,6 +920,15 @@ struct ARMCPU {
 
     /* Used to set the maximum vector length the cpu will support.  */
     uint32_t sve_max_vq;
+
+    /*
+     * In sve_vq_map each set bit is a supported vector length of
+     * (bit-number + 1) * 16 bytes, i.e. each bit number + 1 is the vector
+     * length in quadwords. We need a map size twice the maximum
+     * quadword length though because we use two bits for each vector
+     * length in order to track three states: uninitialized, off, and on.
+     */
+    DECLARE_BITMAP(sve_vq_map, ARM_MAX_VQ * 2);
 };
 
 void arm_cpu_post_init(Object *obj);

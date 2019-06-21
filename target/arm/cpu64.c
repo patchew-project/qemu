@@ -257,6 +257,149 @@ static void aarch64_a72_initfn(Object *obj)
     define_arm_cp_regs(cpu, cortex_a72_a57_a53_cp_reginfo);
 }
 
+/*
+ * While we eventually use cpu->sve_vq_map as a typical bitmap, where each vq
+ * has only two states (off/on), until we've finalized the map at realize time
+ * we use an extra bit, at the vq - 1 + ARM_MAX_VQ bit number, to also allow
+ * tracking of the uninitialized state. The arm_vq_state typedef and following
+ * functions allow us to more easily work with the bitmap. Also, while the map
+ * is still initializing, sve-max-vq has an additional three states, bringing
+ * the number of its states to five, which are the following:
+ *
+ * sve-max-vq:
+ *   0:    SVE is disabled. The default value for a vq in the map is 'OFF'.
+ *  -1:    SVE is enabled, but neither sve-max-vq nor sve<vl-bits> properties
+ *         have yet been specified by the user. The default value for a vq in
+ *         the map is 'ON'.
+ *  -2:    SVE is enabled and one or more sve<vl-bits> properties have been
+ *         set to 'OFF' by the user, but no sve<vl-bits> properties have yet
+ *         been set to 'ON'. The user is now blocked from setting sve-max-vq
+ *         and the default value for a vq in the map is 'ON'.
+ *  -3:    SVE is enabled and one or more sve<vl-bits> properties have been
+ *         set to 'ON' by the user. The user is blocked from setting sve-max-vq
+ *         and the default value for a vq in the map is 'OFF'. sve-max-vq never
+ *         transitions back to -2, even if later inputs disable the vector
+ *         lengths that initially transitioned sve-max-vq to this state. This
+ *         avoids the default values from flip-flopping.
+ *  [1-ARM_MAX_VQ]: SVE is enabled and the user has specified a valid
+ *                  sve-max-vq. The sve-max-vq specified vq and all smaller
+ *                  vq's will be initially enabled. All larger vq's will have
+ *                  a default of 'OFF'.
+ */
+#define ARM_SVE_INIT          -1
+#define ARM_VQ_DEFAULT_ON     -2
+#define ARM_VQ_DEFAULT_OFF    -3
+
+#define arm_sve_have_max_vq(cpu) ((int32_t)(cpu)->sve_max_vq > 0)
+
+typedef enum arm_vq_state {
+    ARM_VQ_OFF,
+    ARM_VQ_ON,
+    ARM_VQ_UNINITIALIZED,
+} arm_vq_state;
+
+static arm_vq_state arm_cpu_vq_map_get(ARMCPU *cpu, int vq)
+{
+    assert(vq <= ARM_MAX_VQ);
+
+    return test_bit(vq - 1, cpu->sve_vq_map) |
+           test_bit(vq - 1 + ARM_MAX_VQ, cpu->sve_vq_map) << 1;
+}
+
+static void arm_cpu_vq_map_set(ARMCPU *cpu, int vq, arm_vq_state state)
+{
+    assert(state == ARM_VQ_OFF || state == ARM_VQ_ON);
+    assert(vq <= ARM_MAX_VQ);
+
+    clear_bit(vq - 1 + ARM_MAX_VQ, cpu->sve_vq_map);
+
+    if (state == ARM_VQ_ON) {
+        set_bit(vq - 1, cpu->sve_vq_map);
+    } else {
+        clear_bit(vq - 1, cpu->sve_vq_map);
+    }
+}
+
+static void arm_cpu_vq_map_init(ARMCPU *cpu)
+{
+    bitmap_zero(cpu->sve_vq_map, ARM_MAX_VQ * 2);
+    bitmap_set(cpu->sve_vq_map, ARM_MAX_VQ, ARM_MAX_VQ);
+}
+
+static bool arm_cpu_vq_map_is_finalized(ARMCPU *cpu)
+{
+    DECLARE_BITMAP(map, ARM_MAX_VQ * 2);
+
+    bitmap_zero(map, ARM_MAX_VQ * 2);
+    bitmap_set(map, ARM_MAX_VQ, ARM_MAX_VQ);
+    bitmap_and(map, map, cpu->sve_vq_map, ARM_MAX_VQ * 2);
+
+    return bitmap_empty(map, ARM_MAX_VQ * 2);
+}
+
+static void arm_cpu_vq_map_finalize(ARMCPU *cpu)
+{
+    Error *err = NULL;
+    char name[8];
+    uint32_t vq;
+    bool value;
+
+    /*
+     * We use the property get accessor because it knows what default
+     * values to return for uninitialized vector lengths.
+     */
+    for (vq = 1; vq <= ARM_MAX_VQ; ++vq) {
+        sprintf(name, "sve%d", vq * 128);
+        value = object_property_get_bool(OBJECT(cpu), name, &err);
+        assert(!err);
+        if (value) {
+            arm_cpu_vq_map_set(cpu, vq, ARM_VQ_ON);
+        } else {
+            arm_cpu_vq_map_set(cpu, vq, ARM_VQ_OFF);
+        }
+    }
+
+    assert(arm_cpu_vq_map_is_finalized(cpu));
+}
+
+void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
+{
+    Error *err = NULL;
+
+    if (!cpu->sve_max_vq) {
+        bitmap_zero(cpu->sve_vq_map, ARM_MAX_VQ * 2);
+        return;
+    }
+
+    if (cpu->sve_max_vq == ARM_SVE_INIT) {
+        object_property_set_uint(OBJECT(cpu), ARM_MAX_VQ, "sve-max-vq", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        assert(cpu->sve_max_vq == ARM_MAX_VQ);
+        arm_cpu_vq_map_finalize(cpu);
+    } else {
+        arm_cpu_vq_map_finalize(cpu);
+        if (!arm_sve_have_max_vq(cpu)) {
+            cpu->sve_max_vq = arm_cpu_vq_map_next_smaller(cpu, ARM_MAX_VQ + 1);
+        }
+    }
+
+    assert(cpu->sve_max_vq == arm_cpu_vq_map_next_smaller(cpu, ARM_MAX_VQ + 1));
+}
+
+uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq)
+{
+    uint32_t bitnum;
+
+    assert(vq <= ARM_MAX_VQ + 1);
+    assert(arm_cpu_vq_map_is_finalized(cpu));
+
+    bitnum = find_last_bit(cpu->sve_vq_map, vq - 1);
+    return bitnum == vq - 1 ? 0 : bitnum + 1;
+}
+
 static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -283,12 +426,203 @@ static void cpu_max_set_sve_max_vq(Object *obj, Visitor *v, const char *name,
         return;
     }
 
+    /*
+     * It gets complicated trying to support both sve-max-vq and
+     * sve<vl-bits> properties together, so we mostly don't. We
+     * do allow both if sve-max-vq is specified first and only once
+     * though.
+     */
+    if (cpu->sve_max_vq != ARM_SVE_INIT) {
+        error_setg(errp, "sve<vl-bits> in use or sve-max-vq already "
+                   "specified");
+        error_append_hint(errp, "sve-max-vq must come before all "
+                          "sve<vl-bits> properties and it must only "
+                          "be specified once.\n");
+        return;
+    }
+
     cpu->sve_max_vq = value;
 
     if (cpu->sve_max_vq == 0 || cpu->sve_max_vq > ARM_MAX_VQ) {
         error_setg(errp, "unsupported SVE vector length");
         error_append_hint(errp, "Valid sve-max-vq in range [1-%d]\n",
                           ARM_MAX_VQ);
+    } else {
+        uint32_t vq;
+
+        for (vq = 1; vq <= cpu->sve_max_vq; ++vq) {
+            char name[8];
+            sprintf(name, "sve%d", vq * 128);
+            object_property_set_bool(obj, true, name, &err);
+            if (err) {
+                error_propagate(errp, err);
+                return;
+            }
+        }
+    }
+}
+
+static void cpu_arm_get_sve_vq(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    int vq = atoi(&name[3]) / 128;
+    arm_vq_state vq_state;
+    bool value;
+
+    vq_state = arm_cpu_vq_map_get(cpu, vq);
+
+    if (!cpu->sve_max_vq) {
+        /* All vector lengths are disabled when SVE is off. */
+        value = false;
+    } else if (vq_state == ARM_VQ_ON) {
+        value = true;
+    } else if (vq_state == ARM_VQ_OFF) {
+        value = false;
+    } else {
+        /*
+         * vq is uninitialized. We pick a default here based on the
+         * the state of sve-max-vq and other sve<vl-bits> properties.
+         */
+        if (arm_sve_have_max_vq(cpu)) {
+            /*
+             * If we have sve-max-vq, then all remaining uninitialized
+             * vq's are 'OFF'.
+             */
+            value = false;
+        } else {
+            switch (cpu->sve_max_vq) {
+            case ARM_SVE_INIT:
+            case ARM_VQ_DEFAULT_ON:
+                value = true;
+                break;
+            case ARM_VQ_DEFAULT_OFF:
+                value = false;
+                break;
+            }
+        }
+    }
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void cpu_arm_set_sve_vq(Object *obj, Visitor *v, const char *name,
+                               void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    int vq = atoi(&name[3]) / 128;
+    arm_vq_state vq_state;
+    Error *err = NULL;
+    uint32_t max_vq = 0;
+    bool value;
+
+    visit_type_bool(v, name, &value, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    if (value && !cpu->sve_max_vq) {
+        error_setg(errp, "cannot enable %s", name);
+        error_append_hint(errp, "SVE has been disabled with sve=off\n");
+        return;
+    } else if (!cpu->sve_max_vq) {
+        /*
+         * We don't complain about disabling vector lengths when SVE
+         * is off, but we don't do anything either.
+         */
+        return;
+    }
+
+    if (arm_sve_have_max_vq(cpu)) {
+        max_vq = cpu->sve_max_vq;
+    } else {
+        if (value) {
+            cpu->sve_max_vq = ARM_VQ_DEFAULT_OFF;
+        } else if (cpu->sve_max_vq != ARM_VQ_DEFAULT_OFF) {
+            cpu->sve_max_vq = ARM_VQ_DEFAULT_ON;
+        }
+    }
+
+    /*
+     * We need to know the maximum vector length, which may just currently
+     * be the maximum length, in order to validate the enabling/disabling
+     * of this vector length. We use the property get accessor in order to
+     * get the appropriate default value for any uninitialized lengths.
+     */
+    if (!max_vq) {
+        char tmp[8];
+        bool s;
+
+        for (max_vq = ARM_MAX_VQ; max_vq >= 1; --max_vq) {
+            sprintf(tmp, "sve%d", max_vq * 128);
+            s = object_property_get_bool(OBJECT(cpu), tmp, &err);
+            assert(!err);
+            if (s) {
+                break;
+            }
+        }
+    }
+
+    if (arm_sve_have_max_vq(cpu) && value && vq > cpu->sve_max_vq) {
+        error_setg(errp, "cannot enable %s", name);
+        error_append_hint(errp, "vq=%d (%d bits) is larger than the "
+                          "maximum vector length, sve-max-vq=%d "
+                          "(%d bits)\n", vq, vq * 128,
+                          cpu->sve_max_vq, cpu->sve_max_vq * 128);
+    } else if (arm_sve_have_max_vq(cpu) && !value && vq == cpu->sve_max_vq) {
+        error_setg(errp, "cannot disable %s", name);
+        error_append_hint(errp, "The maximum vector length must be "
+                          "enabled, sve-max-vq=%d (%d bits)\n",
+                          cpu->sve_max_vq, cpu->sve_max_vq * 128);
+    } else if (arm_sve_have_max_vq(cpu) && !value && vq < cpu->sve_max_vq &&
+               is_power_of_2(vq)) {
+        error_setg(errp, "cannot disable %s", name);
+        error_append_hint(errp, "vq=%d (%d bits) is required as it is a "
+                          "power-of-2 length smaller than the maximum, "
+                          "sve-max-vq=%d (%d bits)\n", vq, vq * 128,
+                          cpu->sve_max_vq, cpu->sve_max_vq * 128);
+    } else if (!value && vq < max_vq && is_power_of_2(vq)) {
+        error_setg(errp, "cannot disable %s", name);
+        error_append_hint(errp, "Vector length %d-bits is required as it "
+                          "is a power-of-2 length smaller than another "
+                          "enabled vector length. Disable all larger vector "
+                          "lengths first.\n", vq * 128);
+    } else {
+        if (value) {
+            bool fail = false;
+            uint32_t s;
+
+            /*
+             * Enabling a vector length automatically enables all
+             * uninitialized power-of-2 lengths smaller than it, as
+             * per the architecture.
+             */
+            for (s = 1; s < vq; ++s) {
+                if (is_power_of_2(s)) {
+                    vq_state = arm_cpu_vq_map_get(cpu, s);
+                    if (vq_state == ARM_VQ_UNINITIALIZED) {
+                        arm_cpu_vq_map_set(cpu, s, ARM_VQ_ON);
+                    } else if (vq_state == ARM_VQ_OFF) {
+                        fail = true;
+                        break;
+                    }
+                }
+            }
+
+            if (fail) {
+                error_setg(errp, "cannot enable %s", name);
+                error_append_hint(errp, "Vector length %d-bits is disabled "
+                                  "and is a power-of-2 length smaller than "
+                                  "%s. All power-of-2 vector lengths smaller "
+                                  "than the maximum length are required.\n",
+                                  s * 128, name);
+            } else {
+                arm_cpu_vq_map_set(cpu, vq, ARM_VQ_ON);
+            }
+        } else {
+            arm_cpu_vq_map_set(cpu, vq, ARM_VQ_OFF);
+        }
     }
 }
 
@@ -318,10 +652,11 @@ static void cpu_arm_set_sve(Object *obj, Visitor *v, const char *name,
         /*
          * We handle the -cpu <cpu>,sve=off,sve=on case by reinitializing,
          * but otherwise we don't do anything as an sve=on could come after
-         * a sve-max-vq setting.
+         * a sve-max-vq or sve<vl-bits> setting.
          */
         if (!cpu->sve_max_vq) {
-            cpu->sve_max_vq = ARM_MAX_VQ;
+            cpu->sve_max_vq = ARM_SVE_INIT;
+            arm_cpu_vq_map_init(cpu);
         }
     } else {
         cpu->sve_max_vq = 0;
@@ -336,6 +671,7 @@ static void cpu_arm_set_sve(Object *obj, Visitor *v, const char *name,
 static void aarch64_max_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    uint32_t vq;
 
     if (kvm_enabled()) {
         kvm_arm_set_cpu_features_from_host(cpu);
@@ -420,11 +756,29 @@ static void aarch64_max_initfn(Object *obj)
         cpu->dcz_blocksize = 7; /*  512 bytes */
 #endif
 
-        cpu->sve_max_vq = ARM_MAX_VQ;
+        /*
+         * sve_max_vq is initially unspecified, but must be initialized to a
+         * non-zero value (ARM_SVE_INIT) to indicate that this cpu type has
+         * SVE. It will be finalized in arm_cpu_realizefn().
+         */
+        cpu->sve_max_vq = ARM_SVE_INIT;
         object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_max_vq,
                             cpu_max_set_sve_max_vq, NULL, NULL, &error_fatal);
         object_property_add(obj, "sve", "bool", cpu_arm_get_sve,
                             cpu_arm_set_sve, NULL, NULL, &error_fatal);
+
+        /*
+         * sve_vq_map uses a special state while setting properties, so
+         * we initialize it here with its init function and finalize it
+         * in arm_cpu_realizefn().
+         */
+        arm_cpu_vq_map_init(cpu);
+        for (vq = 1; vq <= ARM_MAX_VQ; ++vq) {
+            char name[8];
+            sprintf(name, "sve%d", vq * 128);
+            object_property_add(obj, name, "bool", cpu_arm_get_sve_vq,
+                                cpu_arm_set_sve_vq, NULL, NULL, &error_fatal);
+        }
     }
 }
 
