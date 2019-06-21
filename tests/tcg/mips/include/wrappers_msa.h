@@ -411,6 +411,10 @@ DO_MSA__WD__WS_WT(DOTP_U_H, dotp_u.h)
 DO_MSA__WD__WS_WT(DOTP_U_W, dotp_u.w)
 DO_MSA__WD__WS_WT(DOTP_U_D, dotp_u.d)
 
+DO_MSA__WD__WS_WT(DPADD_S_H, dpadd_s.h)
+DO_MSA__WD__WD_WT(DPADD_S_H__DDT, dpadd_s.h)
+DO_MSA__WD__WS_WD(DPADD_S_H__DSD, dpadd_s.h)
+
 
 /*
  * Int Max Min
