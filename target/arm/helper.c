@@ -5314,9 +5314,13 @@ uint32_t sve_zcr_len_for_el(CPUARMState *env, int el)
 static void zcr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                       uint64_t value)
 {
+    ARMCPU *cpu = env_archcpu(env);
     int cur_el = arm_current_el(env);
-    int old_len = sve_zcr_len_for_el(env, cur_el);
-    int new_len;
+    int old_len, new_len;
+
+    assert(cpu->sve_max_vq);
+
+    old_len = sve_zcr_len_for_el(env, cur_el);
 
     /* Bits other than [3:0] are RAZ/WI.  */
     QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
