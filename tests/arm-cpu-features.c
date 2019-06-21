@@ -351,8 +351,8 @@ static void sve_tests_sve_off_kvm(const void *data)
 {
     QTestState *qts;
 
-    qts = qtest_init(MACHINE "-accel kvm -cpu max,sve=off");
-    sve_tests_off(qts, "max");
+    qts = qtest_init(MACHINE "-accel kvm -cpu host,sve=off");
+    sve_tests_off(qts, "host");
     qtest_quit(qts);
 }
 
@@ -417,24 +417,24 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
             "The CPU definition 'cortex-a15' cannot "
             "be used with KVM on this host", NULL);
 
-        assert_has_feature(qts, "max", "sve");
-        resp = do_query_no_props(qts, "max");
+        assert_has_feature(qts, "host", "sve");
+        resp = do_query_no_props(qts, "host");
         g_assert(resp);
         kvm_supports_sve = qdict_get_bool(resp_get_props(resp), "sve");
         qobject_unref(resp);
 
         if (kvm_supports_sve) {
-            resp = do_query_no_props(qts, "max");
+            resp = do_query_no_props(qts, "host");
             resp_get_sve_vls(resp, &vls, &max_vq);
             g_assert(max_vq != 0);
             qobject_unref(resp);
 
             /* Enabling a supported length is of course fine. */
             sprintf(name, "sve%d", max_vq * 128);
-            assert_sve_vls(qts, "max", vls, "{ %s: true }", name);
+            assert_sve_vls(qts, "host", vls, "{ %s: true }", name);
 
             /* Also disabling the largest lengths is fine. */
-            assert_sve_vls(qts, "max", (vls & ~BIT(max_vq - 1)),
+            assert_sve_vls(qts, "host", (vls & ~BIT(max_vq - 1)),
                            "{ %s: false }", name);
 
             for (vq = 1; vq <= max_vq; ++vq) {
@@ -446,7 +446,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
             if (vq <= SVE_MAX_VQ) {
                 sprintf(name, "sve%d", vq * 128);
                 error = g_strdup_printf("cannot enable %s", name);
-                assert_error(qts, "max", error, "{ %s: true }", name);
+                assert_error(qts, "host", error, "{ %s: true }", name);
                 g_free(error);
             }
 
@@ -455,16 +455,17 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
                 vq = 64 - __builtin_clzll(vls & ~BIT(max_vq - 1));
                 sprintf(name, "sve%d", vq * 128);
                 error = g_strdup_printf("cannot disable %s", name);
-                assert_error(qts, "max", error, "{ %s: false }", name);
+                assert_error(qts, "host", error, "{ %s: false }", name);
                 g_free(error);
             }
         } else {
-            resp = do_query_no_props(qts, "max");
+            resp = do_query_no_props(qts, "host");
             resp_get_sve_vls(resp, &vls, &max_vq);
             g_assert(max_vq == 0);
             qobject_unref(resp);
         }
     } else {
+        assert_has_not_feature(qts, "host", "sve");
         assert_error(qts, "host",
                      "'pmu' feature not supported by KVM on this host",
                      "{ 'pmu': true }");
