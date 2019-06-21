@@ -1129,6 +1129,12 @@ AVOCADO_SHOW=app
 # Additional tags that are added to each occurence of "--filter-by-tags"
 AVOCADO_EXTRA_TAGS := ,-flaky
 
+# At last one test require spice to be enabled, allow it to be excluded
+# if it's not enabled
+ifneq ($(findstring y,"$(CONFIG_SPICE)"),y)
+AVOCADO_EXTRA_TAGS := $(AVOCADO_EXTRA_TAGS),-spice
+endif
+
 AVOCADO_TAGS=$(patsubst %-softmmu,--filter-by-tags=arch:%$(AVOCADO_EXTRA_TAGS), $(filter %-softmmu,$(TARGET_DIRS)))
 
 ifneq ($(findstring v2,"v$(PYTHON_VERSION)"),v2)
