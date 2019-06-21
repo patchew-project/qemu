@@ -1408,6 +1408,12 @@ static target_ulong h_int_esb(PowerPCCPU *cpu,
         return H_P2;
     }
 
+    if (!xive_source_irq_is_lsi(xsrc, lisn)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: LISN " TARGET_FMT_lx "isn't LSI\n",
+                      lisn);
+        return H_P2;
+    }
+
     if (offset > (1ull << xsrc->esb_shift)) {
         return H_P3;
     }
