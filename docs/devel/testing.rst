@@ -574,6 +574,23 @@ may be invoked by running:
 
   tests/venv/bin/avocado run $OPTION1 $OPTION2 tests/acceptance/
 
+Tagging tests
+-------------
+
+flaky
+~~~~~
+
+If a test is known to fail intermittently, even if only every one
+hundredth time, it's highly advisable to mark it as a flaky test.
+This will prevent these individual tests from failing much larger
+jobs, will avoid human interaction and time wasted to verify a known
+issue, and worse of all, can lead to the discredit of automated
+testing.
+
+To mark a test as flaky, add to its docstring.::
+
+  :avocado: tags=flaky
+
 Manual Installation
 -------------------
 

@@ -208,6 +208,7 @@ class LinuxSSH(Test):
         :avocado: tags=machine:malta
         :avocado: tags=endian:big
         :avocado: tags=device:pcnet32
+        :avocado: tags=flaky
         """
         kernel_url = ('https://people.debian.org/~aurel32/qemu/mips/'
                       'vmlinux-3.2.0-4-5kc-malta')
@@ -222,6 +223,7 @@ class LinuxSSH(Test):
         :avocado: tags=machine:malta
         :avocado: tags=endian:little
         :avocado: tags=device:pcnet32
+        :avocado: tags=flaky
         """
         kernel_url = ('https://people.debian.org/~aurel32/qemu/mipsel/'
                       'vmlinux-3.2.0-4-5kc-malta')

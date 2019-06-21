@@ -249,6 +249,7 @@ class BootLinuxConsole(Test):
         """
         :avocado: tags=arch:aarch64
         :avocado: tags=machine:virt
+        :avocado: tags=flaky
         """
         kernel_url = ('https://download.fedoraproject.org/pub/fedora/linux/'
                       'releases/29/Everything/aarch64/os/images/pxeboot/vmlinuz')
@@ -270,6 +271,7 @@ class BootLinuxConsole(Test):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:virt
+        :avocado: tags=flaky
         """
         kernel_url = ('https://download.fedoraproject.org/pub/fedora/linux/'
                       'releases/29/Everything/armhfp/os/images/pxeboot/vmlinuz')
