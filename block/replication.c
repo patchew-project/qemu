@@ -149,7 +149,9 @@ static void replication_close(BlockDriverState *bs)
         replication_stop(s->rs, false, NULL);
     }
     if (s->stage == BLOCK_REPLICATION_FAILOVER) {
-        job_cancel_sync(&s->commit_job->job);
+        if (s->commit_job) {
+            job_cancel_sync(&s->commit_job->job);
+        }
     }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
