@@ -65,7 +65,7 @@ struct MigrationIncomingState {
 
     QEMUBH *bh;
 
-    int state;
+    MigrationStatus state;
 
     bool have_colo_incoming_thread;
     QemuThread colo_incoming_thread;
@@ -151,7 +151,7 @@ struct MigrationState
     /* params from 'migrate-set-parameters' */
     MigrationParameters parameters;
 
-    int state;
+    MigrationStatus state;
 
     /* State related to return path */
     struct {
@@ -234,7 +234,7 @@ struct MigrationState
     bool decompress_error_check;
 };
 
-void migrate_set_state(int *state, int old_state, int new_state);
+void migrate_set_state(MigrationStatus *state, int old_state, int new_state);
 
 void migration_fd_process_incoming(QEMUFile *f);
 void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);

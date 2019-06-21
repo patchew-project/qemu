@@ -946,6 +946,8 @@ static void fill_source_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_CANCELLED:
         info->has_status = true;
         break;
+    default:
+        return;
     }
     info->status = s->state;
 }
@@ -1054,6 +1056,8 @@ static void fill_destination_migration_info(MigrationInfo *info)
         info->has_status = true;
         fill_destination_postcopy_migration_info(info);
         break;
+    default:
+        return;
     }
     info->status = mis->state;
 }
@@ -1446,7 +1450,7 @@ void qmp_migrate_start_postcopy(Error **errp)
 
 /* shared migration helpers */
 
-void migrate_set_state(int *state, int old_state, int new_state)
+void migrate_set_state(MigrationStatus *state, int old_state, int new_state)
 {
     assert(new_state < MIGRATION_STATUS__MAX);
     if (atomic_cmpxchg(state, old_state, new_state) == old_state) {
@@ -1682,6 +1686,8 @@ bool migration_is_idle(void)
     case MIGRATION_STATUS_DEVICE:
         return false;
     case MIGRATION_STATUS__MAX:
+        g_assert_not_reached();
+    default:
         g_assert_not_reached();
     }
 
