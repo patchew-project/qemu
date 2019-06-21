@@ -579,6 +579,97 @@ static void trans_lvsr(DisasContext *ctx)
 }
 
 /*
+ * vpkpx VRT,VRA,VRB - Vector Pack Pixel
+ *
+ * Rearranges 8 pixels coded in 6-5-5 pattern (4 from each source register)
+ * into contigous array of bits in the destination register.
+ */
+static void trans_vpkpx(DisasContext *ctx)
+{
+    int VT = rD(ctx->opcode);
+    int VA = rA(ctx->opcode);
+    int VB = rB(ctx->opcode);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGv_i64 shifted = tcg_temp_new_i64();
+    TCGv_i64 avr = tcg_temp_new_i64();
+    TCGv_i64 result = tcg_temp_new_i64();
+    int64_t mask1 = 0x1fULL;
+    int64_t mask2 = 0x1fULL << 5;
+    int64_t mask3 = 0x3fULL << 10;
+    int i, j;
+    /*
+     * In each iteration do the 6-5-5 pack for 2 pixels of each doubleword
+     * element of each source register.
+     */
+    for (i = 0; i < 4; i++) {
+        switch (i) {
+        case 0:
+            /*
+             * Get high doubleword of vA to perfrom 6-5-5 pack of pixels
+             * 1 and 2.
+             */
+            get_avr64(avr, VA, true);
+            tcg_gen_movi_i64(result, 0x0ULL);
+            break;
+        case 1:
+            /*
+             * Get low doubleword of vA to perfrom 6-5-5 pack of pixels
+             * 3 and 4.
+             */
+            get_avr64(avr, VA, false);
+            break;
+        case 2:
+            /*
+             * Get high doubleword of vB to perfrom 6-5-5 pack of pixels
+             * 5 and 6.
+             */
+            get_avr64(avr, VB, true);
+            tcg_gen_movi_i64(result, 0x0ULL);
+            break;
+        case 3:
+            /*
+             * Get low doubleword of vB to perfrom 6-5-5 pack of pixels
+             * 7 and 8.
+             */
+            get_avr64(avr, VB, false);
+            break;
+        }
+        /* Perform the packing for 2 pixels(each iteration for 1). */
+        tcg_gen_movi_i64(tmp, 0x0ULL);
+        for (j = 0; j < 2; j++) {
+            tcg_gen_shri_i64(shifted, avr, (j * 16 + 3));
+            tcg_gen_andi_i64(shifted, shifted, mask1 << (j * 16));
+            tcg_gen_or_i64(tmp, tmp, shifted);
+
+            tcg_gen_shri_i64(shifted, avr, (j * 16 + 6));
+            tcg_gen_andi_i64(shifted, shifted, mask2 << (j * 16));
+            tcg_gen_or_i64(tmp, tmp, shifted);
+
+            tcg_gen_shri_i64(shifted, avr, (j * 16 + 9));
+            tcg_gen_andi_i64(shifted, shifted, mask3 << (j * 16));
+            tcg_gen_or_i64(tmp, tmp, shifted);
+        }
+        if ((i == 0) || (i == 2)) {
+            tcg_gen_shli_i64(tmp, tmp, 32);
+        }
+        tcg_gen_or_i64(result, result, tmp);
+        if (i == 1) {
+            /* Place packed pixels 1:4 to high doubleword of vD. */
+            set_avr64(VT, result, true);
+        }
+        if (i == 3) {
+            /* Place packed pixels 5:8 to low doubleword of vD. */
+            set_avr64(VT, result, false);
+        }
+    }
+
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(shifted);
+    tcg_temp_free_i64(avr);
+    tcg_temp_free_i64(result);
+}
+
+/*
  * vsl VRT,VRA,VRB - Vector Shift Left
  *
  * Shifting left 128 bit value of vA by value specified in bits 125-127 of vB.
@@ -802,7 +893,7 @@ GEN_VXFORM_ENV(vpksdus, 7, 21);
 GEN_VXFORM_ENV(vpkshss, 7, 6);
 GEN_VXFORM_ENV(vpkswss, 7, 7);
 GEN_VXFORM_ENV(vpksdss, 7, 23);
-GEN_VXFORM(vpkpx, 7, 12);
+GEN_VXFORM_TRANS(vpkpx, 7, 12);
 GEN_VXFORM_ENV(vsum4ubs, 4, 24);
 GEN_VXFORM_ENV(vsum4sbs, 4, 28);
 GEN_VXFORM_ENV(vsum4shs, 4, 25);
