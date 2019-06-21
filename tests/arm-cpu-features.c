@@ -393,6 +393,7 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
 
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
         assert_has_feature(qts, "host", "aarch64");
+        assert_has_feature(qts, "max", "sve");
 
         assert_error(qts, "cortex-a15",
             "The CPU definition 'cortex-a15' cannot "

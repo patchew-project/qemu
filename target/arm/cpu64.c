@@ -371,6 +371,11 @@ void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
         return;
     }
 
+    /* sve-max-vq and sve<vl-bits> properties not yet implemented for KVM */
+    if (kvm_enabled()) {
+        return;
+    }
+
     if (cpu->sve_max_vq == ARM_SVE_INIT) {
         object_property_set_uint(OBJECT(cpu), ARM_MAX_VQ, "sve-max-vq", &err);
         if (err) {
@@ -632,6 +637,10 @@ static void cpu_arm_get_sve(Object *obj, Visitor *v, const char *name,
     ARMCPU *cpu = ARM_CPU(obj);
     bool value = !!cpu->sve_max_vq;
 
+    if (kvm_enabled() && !kvm_arm_sve_supported(CPU(cpu))) {
+        value = false;
+    }
+
     visit_type_bool(v, name, &value, errp);
 }
 
@@ -649,6 +658,11 @@ static void cpu_arm_set_sve(Object *obj, Visitor *v, const char *name,
     }
 
     if (value) {
+        if (kvm_enabled() && !kvm_arm_sve_supported(CPU(cpu))) {
+            error_setg(errp, "'sve' feature not supported by KVM on this host");
+            return;
+        }
+
         /*
          * We handle the -cpu <cpu>,sve=off,sve=on case by reinitializing,
          * but otherwise we don't do anything as an sve=on could come after
@@ -675,6 +689,11 @@ static void aarch64_max_initfn(Object *obj)
 
     if (kvm_enabled()) {
         kvm_arm_set_cpu_features_from_host(cpu);
+        /*
+         * KVM doesn't yet support the sve-max-vq property, but
+         * setting cpu->sve_max_vq is also used to turn SVE on.
+         */
+        cpu->sve_max_vq = ARM_SVE_INIT;
     } else {
         uint64_t t;
         uint32_t u;
@@ -764,8 +783,6 @@ static void aarch64_max_initfn(Object *obj)
         cpu->sve_max_vq = ARM_SVE_INIT;
         object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_max_vq,
                             cpu_max_set_sve_max_vq, NULL, NULL, &error_fatal);
-        object_property_add(obj, "sve", "bool", cpu_arm_get_sve,
-                            cpu_arm_set_sve, NULL, NULL, &error_fatal);
 
         /*
          * sve_vq_map uses a special state while setting properties, so
@@ -780,6 +797,9 @@ static void aarch64_max_initfn(Object *obj)
                                 cpu_arm_set_sve_vq, NULL, NULL, &error_fatal);
         }
     }
+
+    object_property_add(obj, "sve", "bool", cpu_arm_get_sve,
+                        cpu_arm_set_sve, NULL, NULL, &error_fatal);
 }
 
 struct ARMCPUInfo {

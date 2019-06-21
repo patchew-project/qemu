@@ -604,6 +604,15 @@ bool kvm_arm_aarch32_supported(CPUState *cpu)
     return ret > 0;
 }
 
+bool kvm_arm_sve_supported(CPUState *cpu)
+{
+    KVMState *s = KVM_STATE(current_machine->accelerator);
+    int ret;
+
+    ret = kvm_check_extension(s, KVM_CAP_ARM_SVE);
+    return ret > 0;
+}
+
 #define ARM_CPU_ID_MPIDR       3, 0, 0, 0, 5
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -632,18 +641,32 @@ int kvm_arch_init_vcpu(CPUState *cs)
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_EL1_32BIT;
     }
     if (!kvm_check_extension(cs->kvm_state, KVM_CAP_ARM_PMU_V3)) {
-            cpu->has_pmu = false;
+        cpu->has_pmu = false;
     }
     if (cpu->has_pmu) {
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
     } else {
         unset_feature(&env->features, ARM_FEATURE_PMU);
     }
+    if (cpu->sve_max_vq) {
+        if (!kvm_arm_sve_supported(cs)) {
+            cpu->sve_max_vq = 0;
+        } else {
+            cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
+        }
+    }
 
     /* Do KVM_ARM_VCPU_INIT ioctl */
     ret = kvm_arm_vcpu_init(cs);
     if (ret) {
         return ret;
+    }
+
+    if (cpu->sve_max_vq) {
+        ret = kvm_arm_vcpu_finalize(cs, KVM_ARM_VCPU_SVE);
+        if (ret) {
+            return ret;
+        }
     }
 
     /*
