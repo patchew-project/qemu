@@ -28,6 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "hw/rdma/rdma.h"
+#include "migration/register.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -592,9 +593,62 @@ static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
     pvrdma_fini(pci_dev);
 }
 
+static void pvrdma_save(QEMUFile *f, void *opaque)
+{
+    PVRDMADev *dev = PVRDMA_DEV(opaque);
+
+    qemu_put_be64(f, dev->dsr_info.dma);
+    qemu_put_be64(f, dev->dsr_info.dsr->cmd_slot_dma);
+    qemu_put_be64(f, dev->dsr_info.dsr->resp_slot_dma);
+}
+
+static int pvrdma_load(QEMUFile *f, void *opaque, int version_id)
+{
+    PVRDMADev *dev = PVRDMA_DEV(opaque);
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+
+    // Remap DSR
+    dev->dsr_info.dma = qemu_get_be64(f);
+    dev->dsr_info.dsr = rdma_pci_dma_map(pci_dev, dev->dsr_info.dma,
+                                    sizeof(struct pvrdma_device_shared_region));
+    if (!dev->dsr_info.dsr) {
+        rdma_error_report("Failed to map to DSR");
+        return -1;
+    }
+    qemu_log("pvrdma_load: successfully remapped to DSR\n");
+
+    // Remap cmd slot
+    dev->dsr_info.dsr->cmd_slot_dma = qemu_get_be64(f);
+    dev->dsr_info.req = rdma_pci_dma_map(pci_dev, dev->dsr_info.dsr->cmd_slot_dma,
+                                     sizeof(union pvrdma_cmd_req));
+    if (!dev->dsr_info.req) {
+        rdma_error_report("Failed to map to command slot address");
+        return -1;
+    }
+    qemu_log("pvrdma_load: successfully remapped to cmd slot\n");
+
+    // Remap rsp slot
+    dev->dsr_info.dsr->resp_slot_dma = qemu_get_be64(f);
+    dev->dsr_info.rsp = rdma_pci_dma_map(pci_dev, dev->dsr_info.dsr->resp_slot_dma,
+                                     sizeof(union pvrdma_cmd_resp));
+    if (!dev->dsr_info.rsp) {
+        rdma_error_report("Failed to map to response slot address");
+        return -1;
+    }
+    qemu_log("pvrdma_load: successfully remapped to rsp slot\n");
+
+    return 0;
+}
+
+static SaveVMHandlers savevm_pvrdma = {
+    .save_state = pvrdma_save,
+    .load_state = pvrdma_load,
+};
+
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
     int rc = 0;
+    DeviceState *s = DEVICE(pdev);
     PVRDMADev *dev = PVRDMA_DEV(pdev);
     Object *memdev_root;
     bool ram_shared = false;
@@ -665,6 +719,8 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 
     dev->shutdown_notifier.notify = pvrdma_shutdown_notifier;
     qemu_register_shutdown_notifier(&dev->shutdown_notifier);
+
+    register_savevm_live(s, "pvrdma", -1, 1, &savevm_pvrdma, dev);
 
 out:
     if (rc) {
