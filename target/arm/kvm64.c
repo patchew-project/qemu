@@ -673,11 +673,12 @@ int kvm_arch_destroy_vcpu(CPUState *cs)
 bool kvm_arm_reg_syncs_via_cpreg_list(uint64_t regidx)
 {
     /* Return true if the regidx is a register we should synchronize
-     * via the cpreg_tuples array (ie is not a core reg we sync by
-     * hand in kvm_arch_get/put_registers())
+     * via the cpreg_tuples array (ie is not a core or sve reg that
+     * we sync by hand in kvm_arch_get/put_registers())
      */
     switch (regidx & KVM_REG_ARM_COPROC_MASK) {
     case KVM_REG_ARM_CORE:
+    case KVM_REG_ARM64_SVE:
         return false;
     default:
         return true;
@@ -758,6 +759,70 @@ static int kvm_arch_put_fpsimd(CPUState *cs)
     ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
     if (ret) {
         return ret;
+    }
+
+    return 0;
+}
+
+/*
+ * If ARM_MAX_VQ is increased to be greater than 16, then we can no
+ * longer hard code slices to 1 in kvm_arch_put/get_sve().
+ */
+QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
+
+static int kvm_arch_put_sve(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int slices = 1;
+    int i, n, ret;
+
+    for (i = 0; i < slices; i++) {
+        for (n = 0; n < KVM_ARM64_SVE_NUM_ZREGS; n++) {
+            uint64_t *q = aa64_vfp_qreg(env, n);
+#ifdef HOST_WORDS_BIGENDIAN
+            uint64_t d[ARM_MAX_VQ * 2];
+            int j;
+            for (j = 0; j < cpu->sve_max_vq * 2; j++) {
+                d[j] = bswap64(q[j]);
+            }
+            reg.addr = (uintptr_t)d;
+#else
+            reg.addr = (uintptr_t)q;
+#endif
+            reg.id = KVM_REG_ARM64_SVE_ZREG(n, i);
+            ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+            if (ret) {
+                return ret;
+            }
+        }
+
+        for (n = 0; n < KVM_ARM64_SVE_NUM_PREGS; n++) {
+            uint64_t *q = &env->vfp.pregs[n].p[0];
+#ifdef HOST_WORDS_BIGENDIAN
+            uint64_t d[ARM_MAX_VQ * 2 / 8];
+            int j;
+            for (j = 0; j < cpu->sve_max_vq * 2 / 8; j++) {
+                d[j] = bswap64(q[j]);
+            }
+            reg.addr = (uintptr_t)d;
+#else
+            reg.addr = (uintptr_t)q;
+#endif
+            reg.id = KVM_REG_ARM64_SVE_PREG(n, i);
+            ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+            if (ret) {
+                return ret;
+            }
+        }
+
+        reg.addr = (uintptr_t)&env->vfp.pregs[FFR_PRED_NUM].p[0];
+        reg.id = KVM_REG_ARM64_SVE_FFR(i);
+        ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
     }
 
     return 0;
@@ -857,7 +922,11 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         }
     }
 
-    ret = kvm_arch_put_fpsimd(cs);
+    if (!cpu->sve_max_vq) {
+        ret = kvm_arch_put_fpsimd(cs);
+    } else {
+        ret = kvm_arch_put_sve(cs);
+    }
     if (ret) {
         return ret;
     }
@@ -916,6 +985,60 @@ static int kvm_arch_get_fpsimd(CPUState *cs)
         return ret;
     }
     vfp_set_fpcr(env, fpr);
+
+    return 0;
+}
+
+static int kvm_arch_get_sve(CPUState *cs)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    struct kvm_one_reg reg;
+    int slices = 1;
+    int i, n, ret;
+
+    for (i = 0; i < slices; i++) {
+        for (n = 0; n < KVM_ARM64_SVE_NUM_ZREGS; n++) {
+            uint64_t *q = aa64_vfp_qreg(env, n);
+            reg.id = KVM_REG_ARM64_SVE_ZREG(n, i);
+            reg.addr = (uintptr_t)q;
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+            if (ret) {
+                return ret;
+            } else {
+#ifdef HOST_WORDS_BIGENDIAN
+                int j;
+                for (j = 0; j < cpu->sve_max_vq * 2; j++) {
+                    q[j] = bswap64(q[j]);
+                }
+#endif
+            }
+        }
+
+        for (n = 0; n < KVM_ARM64_SVE_NUM_PREGS; n++) {
+            uint64_t *q = &env->vfp.pregs[n].p[0];
+            reg.id = KVM_REG_ARM64_SVE_PREG(n, i);
+            reg.addr = (uintptr_t)q;
+            ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+            if (ret) {
+                return ret;
+            } else {
+#ifdef HOST_WORDS_BIGENDIAN
+                int j;
+                for (j = 0; j < cpu->sve_max_vq * 2 / 8; j++) {
+                    q[j] = bswap64(q[j]);
+                }
+#endif
+            }
+        }
+
+        reg.addr = (uintptr_t)&env->vfp.pregs[FFR_PRED_NUM].p[0];
+        reg.id = KVM_REG_ARM64_SVE_FFR(i);
+        ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+        if (ret) {
+            return ret;
+        }
+    }
 
     return 0;
 }
@@ -1014,7 +1137,11 @@ int kvm_arch_get_registers(CPUState *cs)
         env->spsr = env->banked_spsr[i];
     }
 
-    ret = kvm_arch_get_fpsimd(cs);
+    if (!cpu->sve_max_vq) {
+        ret = kvm_arch_get_fpsimd(cs);
+    } else {
+        ret = kvm_arch_get_sve(cs);
+    }
     if (ret) {
         return ret;
     }
