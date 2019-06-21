@@ -69,6 +69,15 @@ class Test(avocado.Test):
         vm = QEMUMachine(self.qemu_bin)
         if args:
             vm.add_args(*args)
+        if self.params.get('add-qtest', default=False):
+            # mips and sh4 targets require either a bios or a kernel or
+            # qtest enabled to not abort right at the commad line
+            if self.arch in ('mips', 'mipsel', 'mips64', 'mips64el', 'sh4'):
+                vm.add_args('-accel', 'qtest')
+        if self.params.get('set-arm-aarch64-machine', default=False):
+            # arm and aarch64 require a machine type to be set
+            if self.arch in ('arm', 'aarch64'):
+                vm.set_machine('virt')
         return vm
 
     @property

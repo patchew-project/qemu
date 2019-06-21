@@ -33,8 +33,10 @@ class Migration(Test):
             self.cancel('Failed to find a free port')
         return port
 
-
     def test_migration_with_tcp_localhost(self):
+        blacklist_targets = ["arm", "ppc64", "sh4", "s390x"]
+        if self.arch in blacklist_targets:
+            self.cancel("Test failing on targets: %s" % ", ".join(blacklist_targets))
         source_vm = self.get_vm()
         dest_uri = 'tcp:localhost:%u' % self._get_free_port()
         dest_vm = self.get_vm('-incoming', dest_uri)

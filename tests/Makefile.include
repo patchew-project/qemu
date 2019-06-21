@@ -1154,7 +1154,23 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
             --filter-by-tags-include-empty --filter-by-tags-include-empty-key \
             $(AVOCADO_TAGS) \
             --failfast=on $(SRC_PATH)/tests/acceptance, \
-            "AVOCADO", "tests/acceptance")
+            "AVOCADO", "tests/acceptance (target arch based on test)")
+
+# Allows one to run tests that are generic (independent of target)
+# using a given target
+check-acceptance-generic-on-%: check-venv $(TESTS_RESULTS_DIR)
+	$(call quiet-command, \
+            $(TESTS_VENV_DIR)/bin/python -m avocado \
+            --show=$(AVOCADO_SHOW) run --job-results-dir=$(TESTS_RESULTS_DIR) \
+            --filter-by-tags-include-empty --filter-by-tags-include-empty-key \
+            --filter-by-tags=-arch -p arch=$* \
+            -p add-qtest=yes -p set-arm-aarch64-machine=yes \
+            --failfast=on $(SRC_PATH)/tests/acceptance, \
+            "AVOCADO", "tests/acceptance (target arch set to $*)")
+
+check-acceptance-generic: $(patsubst %-softmmu,check-acceptance-generic-on-%, $(filter %-softmmu,$(TARGET_DIRS)))
+
+check-acceptance-all: check-acceptance check-acceptance-generic
 
 # Consolidated targets
 
