@@ -926,7 +926,8 @@ struct ARMCPU {
      * (bit-number + 1) * 16 bytes, i.e. each bit number + 1 is the vector
      * length in quadwords. We need a map size twice the maximum
      * quadword length though because we use two bits for each vector
-     * length in order to track three states: uninitialized, off, and on.
+     * length in order to track four states: uninitialized, uninitialized
+     * but supported by KVM, off, and on.
      */
     DECLARE_BITMAP(sve_vq_map, ARM_MAX_VQ * 2);
 };

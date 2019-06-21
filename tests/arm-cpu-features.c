@@ -324,23 +324,35 @@ static void sve_tests_sve_max_vq_8(const void *data)
     qtest_quit(qts);
 }
 
+static void sve_tests_off(QTestState *qts, const char *cpu_type)
+{
+    /*
+     * SVE is off, so the map should be empty.
+     */
+    assert_sve_vls(qts, cpu_type, 0, NULL);
+
+    /*
+     * We can't turn anything on, but off is OK.
+     */
+    assert_error(qts, cpu_type, "cannot enable sve128", "{ 'sve128': true }");
+    assert_sve_vls(qts, cpu_type, 0, "{ 'sve128': false }");
+}
+
 static void sve_tests_sve_off(const void *data)
 {
     QTestState *qts;
 
     qts = qtest_init(MACHINE "-cpu max,sve=off");
+    sve_tests_off(qts, "max");
+    qtest_quit(qts);
+}
 
-    /*
-     * SVE is off, so the map should be empty.
-     */
-    assert_sve_vls(qts, "max", 0, NULL);
+static void sve_tests_sve_off_kvm(const void *data)
+{
+    QTestState *qts;
 
-    /*
-     * We can't turn anything on, but off is OK.
-     */
-    assert_error(qts, "max", "cannot enable sve128", "{ 'sve128': true }");
-    assert_sve_vls(qts, "max", 0, "{ 'sve128': false }");
-
+    qts = qtest_init(MACHINE "-accel kvm -cpu max,sve=off");
+    sve_tests_off(qts, "max");
     qtest_quit(qts);
 }
 
@@ -392,12 +404,66 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
     assert_has_feature(qts, "host", "pmu");
 
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
+        bool kvm_supports_sve;
+        uint32_t max_vq, vq;
+        uint64_t vls;
+        char name[8];
+        QDict *resp;
+        char *error;
+
         assert_has_feature(qts, "host", "aarch64");
-        assert_has_feature(qts, "max", "sve");
 
         assert_error(qts, "cortex-a15",
             "The CPU definition 'cortex-a15' cannot "
             "be used with KVM on this host", NULL);
+
+        assert_has_feature(qts, "max", "sve");
+        resp = do_query_no_props(qts, "max");
+        g_assert(resp);
+        kvm_supports_sve = qdict_get_bool(resp_get_props(resp), "sve");
+        qobject_unref(resp);
+
+        if (kvm_supports_sve) {
+            resp = do_query_no_props(qts, "max");
+            resp_get_sve_vls(resp, &vls, &max_vq);
+            g_assert(max_vq != 0);
+            qobject_unref(resp);
+
+            /* Enabling a supported length is of course fine. */
+            sprintf(name, "sve%d", max_vq * 128);
+            assert_sve_vls(qts, "max", vls, "{ %s: true }", name);
+
+            /* Also disabling the largest lengths is fine. */
+            assert_sve_vls(qts, "max", (vls & ~BIT(max_vq - 1)),
+                           "{ %s: false }", name);
+
+            for (vq = 1; vq <= max_vq; ++vq) {
+                if (!(vls & BIT(vq - 1))) {
+                    /* vq is unsupported */
+                    break;
+                }
+            }
+            if (vq <= SVE_MAX_VQ) {
+                sprintf(name, "sve%d", vq * 128);
+                error = g_strdup_printf("cannot enable %s", name);
+                assert_error(qts, "max", error, "{ %s: true }", name);
+                g_free(error);
+            }
+
+            if (max_vq > 1) {
+                /* The next smaller, supported vq is required */
+                vq = 64 - __builtin_clzll(vls & ~BIT(max_vq - 1));
+                sprintf(name, "sve%d", vq * 128);
+                error = g_strdup_printf("cannot disable %s", name);
+                assert_error(qts, "max", error, "{ %s: false }", name);
+                g_free(error);
+            }
+        } else {
+            resp = do_query_no_props(qts, "max");
+            resp_get_sve_vls(resp, &vls, &max_vq);
+            g_assert(max_vq == 0);
+            qobject_unref(resp);
+        }
     } else {
         assert_error(qts, "host",
                      "'pmu' feature not supported by KVM on this host",
@@ -434,6 +500,8 @@ int main(int argc, char **argv)
     if (kvm_available) {
         qtest_add_data_func("/arm/kvm/query-cpu-model-expansion",
                             NULL, test_query_cpu_model_expansion_kvm);
+        qtest_add_data_func("/arm/kvm/query-cpu-model-expansion/sve-off",
+                            NULL, sve_tests_sve_off_kvm);
     }
 
     return g_test_run();

@@ -100,7 +100,7 @@ QEMU_BUILD_BUG_ON(ARM_MAX_VQ > 16);
  *
  * The sve<vl-bits> features need to be in reverse order in order to
  * enable/disable the largest vector lengths first, ensuring all
- * power-of-2 vector lengths smaller can also be enabled/disabled.
+ * smaller required vector lengths can also be enabled/disabled.
  */
 static const char *cpu_model_advertised_features[] = {
     "aarch64", "pmu", "sve",

@@ -617,6 +617,110 @@ bool kvm_arm_sve_supported(CPUState *cpu)
     return ret > 0;
 }
 
+QEMU_BUILD_BUG_ON(KVM_ARM64_SVE_VQ_MIN != 1);
+
+void kvm_arm_sve_get_vls(CPUState *cs, unsigned long *map,
+                         uint32_t qemu_max_vq, uint32_t *kvm_max_vq)
+{
+    static uint64_t vls[KVM_ARM64_SVE_VLS_WORDS];
+    static uint32_t host_max_vq = -1;
+    uint32_t vq;
+    int i, j;
+
+    bitmap_clear(map, 0, qemu_max_vq);
+    *kvm_max_vq = 0;
+
+    /*
+     * KVM ensures all host CPUs support the same set of vector lengths.
+     * So we only need to create a scratch VCPU once and then cache the
+     * results.
+     */
+    if (host_max_vq == -1) {
+        int fdarray[3], ret = -1;
+
+        if (!kvm_arm_create_scratch_host_vcpu(NULL, fdarray, NULL)) {
+            error_report("failed to create scratch vcpu");
+            abort();
+        }
+
+        if (ioctl(fdarray[0], KVM_CHECK_EXTENSION, KVM_CAP_ARM_SVE) > 0) {
+            struct kvm_vcpu_init init = {
+                .target = -1,
+                .features[0] = (1 << KVM_ARM_VCPU_SVE),
+            };
+            struct kvm_one_reg reg = {
+                .id = KVM_REG_ARM64_SVE_VLS,
+                .addr = (uint64_t)&vls[0],
+            };
+
+            kvm_arm_destroy_scratch_host_vcpu(fdarray);
+
+            if (!kvm_arm_create_scratch_host_vcpu(NULL, fdarray, &init)) {
+                error_report("failed to create scratch vcpu");
+                abort();
+            }
+
+            ret = ioctl(fdarray[2], KVM_GET_ONE_REG, &reg);
+            if (ret) {
+                error_report("failed to get KVM_REG_ARM64_SVE_VLS: %s",
+                             strerror(errno));
+                abort();
+            }
+        }
+
+        kvm_arm_destroy_scratch_host_vcpu(fdarray);
+
+        if (ret) {
+            /* The host doesn't support SVE. */
+            return;
+        }
+    }
+
+    for (i = KVM_ARM64_SVE_VLS_WORDS - 1; i >= 0; --i) {
+        if (!vls[i]) {
+            continue;
+        }
+        if (host_max_vq == -1) {
+            host_max_vq = 64 - clz64(vls[i]) + i * 64;
+        }
+        for (j = 1; j <= 64; ++j) {
+            vq = j + i * 64;
+            if (vq > qemu_max_vq) {
+                break;
+            }
+            if (vls[i] & (1UL << (j - 1))) {
+                set_bit(vq - 1, map);
+            }
+        }
+    }
+
+    *kvm_max_vq = host_max_vq;
+}
+
+static int kvm_arm_sve_set_vls(CPUState *cs)
+{
+    uint64_t vls[KVM_ARM64_SVE_VLS_WORDS] = {0};
+    struct kvm_one_reg reg = {
+        .id = KVM_REG_ARM64_SVE_VLS,
+        .addr = (uint64_t)&vls[0],
+    };
+    ARMCPU *cpu = ARM_CPU(cs);
+    uint32_t vq;
+    int i, j;
+
+    assert(cpu->sve_max_vq <= KVM_ARM64_SVE_VQ_MAX);
+
+    for (vq = 1; vq <= cpu->sve_max_vq; ++vq) {
+        if (test_bit(vq - 1, cpu->sve_vq_map)) {
+            i = (vq - 1) / 64;
+            j = (vq - 1) % 64;
+            vls[i] |= 1UL << j;
+        }
+    }
+
+    return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+}
+
 #define ARM_CPU_ID_MPIDR       3, 0, 0, 0, 5
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -628,7 +732,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
     if (cpu->kvm_target == QEMU_KVM_ARM_TARGET_NONE ||
         !object_dynamic_cast(OBJECT(cpu), TYPE_AARCH64_CPU)) {
-        fprintf(stderr, "KVM is not supported for this guest CPU type\n");
+        error_report("KVM is not supported for this guest CPU type");
         return -EINVAL;
     }
 
@@ -653,11 +757,8 @@ int kvm_arch_init_vcpu(CPUState *cs)
         unset_feature(&env->features, ARM_FEATURE_PMU);
     }
     if (cpu->sve_max_vq) {
-        if (!kvm_arm_sve_supported(cs)) {
-            cpu->sve_max_vq = 0;
-        } else {
-            cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
-        }
+        assert(kvm_arm_sve_supported(cs));
+        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
     }
 
     /* Do KVM_ARM_VCPU_INIT ioctl */
@@ -667,6 +768,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     }
 
     if (cpu->sve_max_vq) {
+        ret = kvm_arm_sve_set_vls(cs);
+        if (ret) {
+            return ret;
+        }
         ret = kvm_arm_vcpu_finalize(cs, KVM_ARM_VCPU_SVE);
         if (ret) {
             return ret;

@@ -213,6 +213,22 @@ typedef struct ARMHostCPUFeatures {
 bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf);
 
 /**
+ * kvm_arm_sve_get_vls:
+ * @cs: CPUState
+ * @map: bitmap to fill in
+ * @qemu_max_vq: the maximum vector length QEMU supports in quadwords
+ *               (size of the bitmap to fill in)
+ * @kvm_max_vq: the maximum vector length KVM supports in quadwords
+ *
+ * Get all the SVE vector lengths supported by the KVM host, setting
+ * the bits corresponding to their length in quadwords minus one
+ * (vq - 1) in @map up to @qemu_max_vq. Also assign @kvm_max_vq to the
+ * maximum vector length the KVM host supports.
+ */
+void kvm_arm_sve_get_vls(CPUState *cs, unsigned long *map,
+                         uint32_t qemu_max_vq, uint32_t *kvm_max_vq);
+
+/**
  * kvm_arm_set_cpu_features_from_host:
  * @cpu: ARMCPU to set the features for
  *
@@ -314,6 +330,9 @@ static inline int kvm_arm_vgic_probe(void)
 static inline void kvm_arm_pmu_set_irq(CPUState *cs, int irq) {}
 static inline void kvm_arm_pmu_init(CPUState *cs) {}
 
+static inline void kvm_arm_sve_get_vls(CPUState *cs, unsigned long *map,
+                                       uint32_t qemu_max_vq,
+                                       uint32_t *kvm_max_vq) {}
 #endif
 
 static inline const char *gic_class_name(void)
