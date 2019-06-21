@@ -1714,13 +1714,14 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         env->nested_state->size = max_nested_state_len;
 
-        if (IS_INTEL_CPU(env)) {
+        if (cpu_has_vmx(env)) {
             struct kvm_vmx_nested_state_hdr *vmx_hdr =
                 &env->nested_state->hdr.vmx;
-
             env->nested_state->format = KVM_STATE_NESTED_FORMAT_VMX;
             vmx_hdr->vmxon_pa = -1ull;
             vmx_hdr->vmcs12_pa = -1ull;
+        } else if (cpu_has_svm(env)) {
+            env->nested_state->format = KVM_STATE_NESTED_FORMAT_SVM;
         }
     }
 
