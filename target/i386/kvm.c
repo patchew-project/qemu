@@ -1050,7 +1050,7 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
     }
 
     deps = kvm_hyperv_properties[feature].dependencies;
-    while ((dep_feat = find_next_bit(&deps, 64, dep_feat)) < 64) {
+    while ((dep_feat = find_next_bit((const void *)&deps, 64, dep_feat)) < 64) {
         if (!(hyperv_feat_enabled(cpu, dep_feat))) {
                 fprintf(stderr,
                         "Hyper-V %s requires Hyper-V %s\n",
