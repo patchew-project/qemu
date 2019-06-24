@@ -149,7 +149,6 @@ run_qemu <<EOF
           "filename": "$TEST_IMG"
       },
       "encrypt": {
-          "format": "aes",
           "key-secret": "sec0"
       }
     }
@@ -161,34 +160,48 @@ echo
 echo === Encrypted image LUKS ===
 echo
 
-_make_test_img --object secret,id=sec0,data=123456 -o encrypt.format=luks,encrypt.key-secret=sec0 $size
-run_qemu <<EOF
-{ "execute": "qmp_capabilities" }
-{ "execute": "object-add",
-  "arguments": {
-      "qom-type": "secret",
-      "id": "sec0",
-      "props": {
-          "data": "123456"
-      }
-  }
-}
-{ "execute": "blockdev-add",
-  "arguments": {
-      "driver": "$IMGFMT",
-      "node-name": "disk",
-      "file": {
-          "driver": "file",
-          "filename": "$TEST_IMG"
-      },
-      "encrypt": {
-        "format": "luks",
-        "key-secret": "sec0"
+_make_test_img \
+    --object secret,id=sec0,data=123456 \
+    -o encrypt.format=luks,encrypt.key-secret=sec0,encrypt.iter-time=10 \
+    $size
+
+# Adds the qcow2+LUKS image via blockdev-add.
+# First parameter: Optional entry for the 'encrypt' option dict
+function luks_test()
+{
+    run_qemu <<EOF
+    { "execute": "qmp_capabilities" }
+    { "execute": "object-add",
+      "arguments": {
+          "qom-type": "secret",
+          "id": "sec0",
+          "props": {
+              "data": "123456"
+          }
       }
     }
-  }
-{ "execute": "quit" }
+    { "execute": "blockdev-add",
+      "arguments": {
+          "driver": "$IMGFMT",
+          "node-name": "disk",
+          "file": {
+              "driver": "file",
+              "filename": "$TEST_IMG"
+          },
+          "encrypt": {
+            $1
+            "key-secret": "sec0"
+          }
+        }
+      }
+    { "execute": "quit" }
 EOF
+}
+
+luks_test ''                    # Implicit encrypt.format=auto
+luks_test '"format": "auto",'   # Explicit encrypt.format=auto
+luks_test '"format": "luks",'   # Explicit encrypt.format=luks
+luks_test '"format": "aes",'    # Explicit encrypt.format=aes (wrong)
 
 echo
 echo === Missing driver ===
