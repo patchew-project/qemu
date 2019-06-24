@@ -3363,11 +3363,31 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     return vtd_dev_as;
 }
 
+static uint64_t vtd_get_next_mask(uint64_t start, uint64_t size, int gaw)
+{
+    /* Tries to find smallest mask from start first */
+    uint64_t rmask = start & -start, max_mask = 1ULL << gaw;
+
+    assert(size && gaw > 0 && gaw < 64);
+
+    /* Zero start, or too big */
+    if (!rmask || rmask > max_mask) {
+        rmask = max_mask;
+    }
+
+    /* If the start mask worked, then use it */
+    if (rmask <= size) {
+        return rmask;
+    }
+
+    /* Find the largest page mask from size */
+    return 1ULL << (63 - clz64(size));
+}
+
 /* Unmap the whole range in the notifier's scope. */
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 {
-    IOMMUTLBEntry entry;
-    hwaddr size;
+    hwaddr size, remain;
     hwaddr start = n->start;
     hwaddr end = n->end;
     IntelIOMMUState *s = as->iommu_state;
@@ -3388,39 +3408,37 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
     }
 
     assert(start <= end);
-    size = end - start;
+    size = remain = end - start + 1;
 
-    if (ctpop64(size) != 1) {
-        /*
-         * This size cannot format a correct mask. Let's enlarge it to
-         * suite the minimum available mask.
-         */
-        int n = 64 - clz64(size);
-        if (n > s->aw_bits) {
-            /* should not happen, but in case it happens, limit it */
-            n = s->aw_bits;
-        }
-        size = 1ULL << n;
+    while (remain > 0) {
+        IOMMUTLBEntry entry;
+        uint64_t mask = vtd_get_next_mask(start, remain, s->aw_bits);
+
+        assert(mask);
+
+        entry.iova = start;
+        entry.addr_mask = mask - 1;
+        entry.target_as = &address_space_memory;
+        entry.perm = IOMMU_NONE;
+        /* This field is meaningless for unmap */
+        entry.translated_addr = 0;
+
+        memory_region_notify_one(n, &entry);
+
+        start += mask;
+        remain -= mask;
     }
 
-    entry.target_as = &address_space_memory;
-    /* Adjust iova for the size */
-    entry.iova = n->start & ~(size - 1);
-    /* This field is meaningless for unmap */
-    entry.translated_addr = 0;
-    entry.perm = IOMMU_NONE;
-    entry.addr_mask = size - 1;
+    assert(!remain);
 
     trace_vtd_as_unmap_whole(pci_bus_num(as->bus),
                              VTD_PCI_SLOT(as->devfn),
                              VTD_PCI_FUNC(as->devfn),
-                             entry.iova, size);
+                             n->start, size);
 
-    map.iova = entry.iova;
-    map.size = entry.addr_mask;
+    map.iova = n->start;
+    map.size = size;
     iova_tree_remove(as->iova_tree, &map);
-
-    memory_region_notify_one(n, &entry);
 }
 
 static void vtd_address_space_unmap_all(IntelIOMMUState *s)
