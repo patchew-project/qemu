@@ -229,6 +229,40 @@ static inline int sysparm_st(target_ulong addr, target_ulong len,
     return RTAS_OUT_SUCCESS;
 }
 
+static int rtas_get_num_host_threads(void)
+{
+    const char *entry, *name = "/proc/device-tree/cpus/";
+    int num_threads = -1;
+    GDir *dir;
+
+    if (!kvm_enabled())
+        return 1;
+
+    dir = g_dir_open(name, 0, NULL);
+    if (!dir)
+        return -1;
+
+    while ((entry = g_dir_read_name(dir))) {
+        if (!strncmp(entry, "PowerPC,POWER", strlen("PowerPC,POWER"))) {
+            unsigned long len;
+            char *path, *buf;
+
+            path = g_strconcat(name, entry, "/ibm,ppc-interrupt-server#s",
+                               NULL);
+            if (g_file_get_contents(path, &buf, &len, NULL)) {
+                num_threads = len / sizeof(int);
+                g_free(buf);
+            }
+
+            g_free(path);
+            break;
+        }
+    }
+
+    g_dir_close(dir);
+    return num_threads;
+}
+
 static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           SpaprMachineState *spapr,
                                           uint32_t token, uint32_t nargs,
@@ -250,6 +284,16 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           current_machine->ram_size / MiB,
                                           smp_cpus,
                                           max_cpus);
+        int num_host_threads = rtas_get_num_host_threads();
+
+        if (num_host_threads > 0) {
+            char *hostthr_val, *old = param_val;
+
+            hostthr_val = g_strdup_printf(",HostThrs=%d", num_host_threads);
+            param_val = g_strconcat(param_val, hostthr_val, NULL);
+            g_free(hostthr_val);
+            g_free(old);
+        }
         ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
         g_free(param_val);
         break;
