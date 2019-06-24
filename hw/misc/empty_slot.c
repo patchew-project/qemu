@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "qemu/module.h"
@@ -55,41 +56,45 @@ static const MemoryRegionOps empty_slot_ops = {
 
 void empty_slot_init(hwaddr addr, uint64_t slot_size)
 {
-    if (slot_size > 0) {
-        /* Only empty slots larger than 0 byte need handling. */
-        DeviceState *dev;
-        SysBusDevice *s;
-        EmptySlot *e;
+    DeviceState *dev;
 
-        dev = qdev_create(NULL, TYPE_EMPTY_SLOT);
-        s = SYS_BUS_DEVICE(dev);
-        e = EMPTY_SLOT(dev);
-        e->size = slot_size;
+    dev = qdev_create(NULL, TYPE_EMPTY_SLOT);
 
-        qdev_init_nofail(dev);
+    qdev_prop_set_uint64(dev, "size", slot_size);
+    qdev_init_nofail(dev);
 
-        /*
-         * We use a priority lower than the default UNIMPLEMENTED_DEVICE
-         * to be able to plug a UnimplementedDevice on an EmptySlot.
-         */
-        sysbus_mmio_map_overlap(s, 0, addr, -10000);
-    }
+    /*
+     * We use a priority lower than the default UNIMPLEMENTED_DEVICE
+     * to be able to plug a UnimplementedDevice on an EmptySlot.
+     */
+    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(dev), 0, addr, -10000);
 }
 
 static void empty_slot_realize(DeviceState *dev, Error **errp)
 {
     EmptySlot *s = EMPTY_SLOT(dev);
 
+    if (s->size == 0) {
+        error_setg(errp, "property 'size' not specified or zero");
+        return;
+    }
+
     memory_region_init_io(&s->iomem, OBJECT(s), &empty_slot_ops, s,
                           "empty-slot", s->size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
+
+static Property empty_slot_properties[] = {
+    DEFINE_PROP_UINT64("size", EmptySlot, size, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void empty_slot_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = empty_slot_realize;
+    dc->props = empty_slot_properties;
 }
 
 static const TypeInfo empty_slot_info = {
