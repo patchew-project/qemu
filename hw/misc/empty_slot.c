@@ -32,6 +32,7 @@ typedef struct EmptySlot {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
+    char *name;
     uint64_t size;
 } EmptySlot;
 
@@ -78,14 +79,18 @@ static void empty_slot_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "property 'size' not specified or zero");
         return;
     }
+    if (s->name == NULL) {
+        s->name = g_strdup("empty-slot");
+    }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &empty_slot_ops, s,
-                          "empty-slot", s->size);
+                          s->name, s->size);
     sysbus_init_mmio(SYS_BUS_DEVICE(dev), &s->iomem);
 }
 
 static Property empty_slot_properties[] = {
     DEFINE_PROP_UINT64("size", EmptySlot, size, 0),
+    DEFINE_PROP_STRING("name", EmptySlot, name),
     DEFINE_PROP_END_OF_LIST(),
 };
 
