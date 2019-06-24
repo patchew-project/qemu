@@ -1,0 +1,3 @@
+# Check that booleans do not accept non-booleans
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'bool', 'default': 0 } } }

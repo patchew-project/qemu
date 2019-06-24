@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-str-wrong-default-type.json:2: Value 'None' does not match type str

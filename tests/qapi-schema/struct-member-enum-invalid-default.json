@@ -1,0 +1,4 @@
+# Check that enum values do not accept anything that is not part of the enum
+{ 'enum': 'TestEnum', 'data': [ 'value1', 'value2' ] }
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'TestEnum', 'default': 'value3' } } }

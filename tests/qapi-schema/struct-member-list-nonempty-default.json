@@ -1,0 +1,4 @@
+# Currently, we do not support nonempty defaults for lists
+# TODO: Implement support
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': ['int'], 'default': [42] } } }

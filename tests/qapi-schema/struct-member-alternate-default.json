@@ -1,0 +1,10 @@
+# Check defaults for unsupported types (alternates, here)
+# TODO: Implement support for alternates, and then add a test where
+#       default=null so we can see that that is another thing that
+#       should be implemented
+{ 'enum': 'TestEnum', 'data': [ 'value1', 'value2' ] }
+{ 'alternate': 'TestAlt',
+  'data': { 'alt1': 'TestEnum',
+            'alt2': 'null' } }
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'TestAlt', 'default': 'value1' } } }

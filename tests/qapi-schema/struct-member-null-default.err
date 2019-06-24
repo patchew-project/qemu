@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-null-default.json:5: Cannot specify values for type null

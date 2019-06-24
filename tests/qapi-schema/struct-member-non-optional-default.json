@@ -1,0 +1,3 @@
+# Only optional members can have defaults
+{ 'struct': 'Test',
+  'data': { 'member': { 'type': 'int', 'default': 42 } } }

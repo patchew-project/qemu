@@ -281,3 +281,31 @@
             'cfs1': 'CondFeatureStruct1',
             'cfs2': 'CondFeatureStruct2',
             'cfs3': 'CondFeatureStruct3' } }
+
+# test defaults for optional struct members
+
+{ 'enum': 'TestDefaultEnum',
+  'data': [ 'value1', 'value2', 'value3' ] }
+
+{ 'struct': 'TestDefaultSubStruct',
+  'data': { 'member': 'int' } }
+
+{ 'struct': 'TestDefaultStruct',
+  'data': {
+      '*bool_false': { 'type': 'bool', 'default': false },
+      '*bool_true':  { 'type': 'bool', 'default': true },
+      '*integer':    { 'type': 'int',   'default': -42 },
+      '*int8_low':   { 'type': 'int8',  'default': -0x80 },
+      '*int8_high':  { 'type': 'int8',  'default':  0x7f },
+      '*uint8_high': { 'type': 'uint8', 'default':  0xff },
+      '*size':       { 'type': 'size',  'default':  0xffffffffffffffff },
+      '*fpneg':    { 'type': 'number', 'default': -.375e3 },
+      '*fppos':    { 'type': 'number', 'default': +42. },
+      '*fpposinf': { 'type': 'number', 'default':  inf },
+      '*fpneginf': { 'type': 'number', 'default': -inf },
+      '*fpnan':    { 'type': 'number', 'default': nan },
+      '*str': { 'type': 'str', 'default': 'foo \\鹿"\u007f\b"\'' },
+      '*enum_value2': { 'type': 'TestDefaultEnum', 'default': 'value2' },
+      '*list_scalar': { 'type': ['int'], 'default': [] },
+      '*list_struct': { 'type': ['TestDefaultSubStruct'], 'default': [] }
+  } }

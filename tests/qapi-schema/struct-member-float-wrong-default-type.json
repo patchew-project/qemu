@@ -1,0 +1,3 @@
+# Check that floats do not accept non-floats
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'number', 'default': 42 } } }

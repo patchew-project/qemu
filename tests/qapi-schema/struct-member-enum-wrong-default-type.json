@@ -1,0 +1,4 @@
+# Check that enum values do not accept non-strings
+{ 'enum': 'TestEnum', 'data': [ 'value1', 'value2' ] }
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'TestEnum', 'default': 0 } } }

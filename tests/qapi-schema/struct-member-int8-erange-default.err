@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-int8-erange-default.json:2: Value '-129' does not match type int8

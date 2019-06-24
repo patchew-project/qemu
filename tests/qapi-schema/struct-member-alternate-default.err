@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-alternate-default.json:9: Cannot specify values for type TestAlt (not built-in or an enum)

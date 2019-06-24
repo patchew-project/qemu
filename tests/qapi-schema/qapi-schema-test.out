@@ -397,3 +397,27 @@ object q_obj_test-features-arg
     member cfs3: CondFeatureStruct3 optional=False
 command test-features q_obj_test-features-arg -> None
    gen=True success_response=True boxed=False oob=False preconfig=False
+enum TestDefaultEnum
+    member value1
+    member value2
+    member value3
+object TestDefaultSubStruct
+    member member: int optional=False
+array TestDefaultSubStructList TestDefaultSubStruct
+object TestDefaultStruct
+    member bool_false: bool optional=True default=False
+    member bool_true: bool optional=True default=True
+    member integer: int optional=True default=-42
+    member int8_low: int8 optional=True default=-128
+    member int8_high: int8 optional=True default=127
+    member uint8_high: uint8 optional=True default=255
+    member size: size optional=True default=18446744073709551615
+    member fpneg: number optional=True default=-375.0
+    member fppos: number optional=True default=42.0
+    member fpposinf: number optional=True default=inf
+    member fpneginf: number optional=True default=-inf
+    member fpnan: number optional=True default=nan
+    member str: str optional=True default=foo \鹿""'
+    member enum_value2: TestDefaultEnum optional=True default=value2
+    member list_scalar: intList optional=True default=[]
+    member list_struct: TestDefaultSubStructList optional=True default=[]

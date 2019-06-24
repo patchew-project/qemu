@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-list-nonempty-default.json:3: Support for non-empty lists as default values has not been implemented yet: '[42]'

@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-enum-invalid-default.json:3: Value 'value3' does not occur in enum TestEnum

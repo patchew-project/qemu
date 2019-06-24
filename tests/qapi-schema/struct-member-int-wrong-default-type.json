@@ -1,0 +1,3 @@
+# Check that integers do not accept non-integers
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'int', 'default': 0.0 } } }

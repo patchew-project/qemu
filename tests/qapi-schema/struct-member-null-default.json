@@ -1,0 +1,6 @@
+# Currently, you cannot give a default for null members, because
+# 'None' is reserved for 'no default'.
+# TODO: Fix that, though it would only really make sense for
+#       alternates (which currently cannot receive defaults either)
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'null', 'default': null } } }

@@ -1,0 +1,4 @@
+# This matches our number regex, but it is an invalid float still --
+# test that it is rejected
+{ 'struct': 'Test',
+  'data': { '*member': { 'type': 'number', 'default': 4.42. } } }

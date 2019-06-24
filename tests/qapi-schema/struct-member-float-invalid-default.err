@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-float-invalid-default.json:4:55: "4.42." is not a valid integer or float

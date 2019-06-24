@@ -1,0 +1,1 @@
+tests/qapi-schema/struct-member-enum-wrong-default-type.json:3: Enum values must be strings, but '0' is no string
