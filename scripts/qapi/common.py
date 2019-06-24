@@ -1052,11 +1052,21 @@ def check_union(expr, info):
         base_members = find_base_members(base)
         assert base_members is not None
 
-        # The value of member 'discriminator' must name a non-optional
-        # member of the base struct.
+        # The value of member 'discriminator' must name a member of
+        # the base struct.  (Optional members are allowed, but the
+        # discriminator name must not start with '*', so keep
+        # allow_optional=False.)
         check_name(info, "Discriminator of flat union '%s'" % name,
                    discriminator)
+
         discriminator_value = base_members.get(discriminator)
+        if not discriminator_value:
+            discriminator_value = base_members.get('*' + discriminator)
+            if discriminator_value and 'default' not in discriminator_value:
+                raise QAPISemError(info,
+                    "Optional discriminator '%s' has no default value" %
+                    discriminator)
+
         if not discriminator_value:
             raise QAPISemError(info,
                                "Discriminator '%s' is not a member of base "
