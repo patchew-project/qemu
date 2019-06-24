@@ -767,71 +767,6 @@ static const TypeInfo prom_info = {
     .class_init    = prom_class_init,
 };
 
-#define TYPE_SUN4M_MEMORY "memory"
-#define SUN4M_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4M_MEMORY)
-
-typedef struct RamDevice {
-    SysBusDevice parent_obj;
-
-    MemoryRegion ram;
-    uint64_t size;
-} RamDevice;
-
-/* System RAM */
-static void ram_realize(DeviceState *dev, Error **errp)
-{
-    RamDevice *d = SUN4M_RAM(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    memory_region_allocate_system_memory(&d->ram, OBJECT(d), "sun4m.ram",
-                                         d->size);
-    sysbus_init_mmio(sbd, &d->ram);
-}
-
-static void ram_init(hwaddr addr, ram_addr_t RAM_size,
-                     uint64_t max_mem)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    RamDevice *d;
-
-    /* allocate RAM */
-    if ((uint64_t)RAM_size > max_mem) {
-        error_report("Too much memory for this machine: %" PRId64 ","
-                     " maximum %" PRId64,
-                     RAM_size / MiB, max_mem / MiB);
-        exit(1);
-    }
-    dev = qdev_create(NULL, "memory");
-    s = SYS_BUS_DEVICE(dev);
-
-    d = SUN4M_RAM(dev);
-    d->size = RAM_size;
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(s, 0, addr);
-}
-
-static Property ram_properties[] = {
-    DEFINE_PROP_UINT64("size", RamDevice, size, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void ram_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = ram_realize;
-    dc->props = ram_properties;
-}
-
-static const TypeInfo ram_info = {
-    .name          = TYPE_SUN4M_MEMORY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RamDevice),
-    .class_init    = ram_class_init,
-};
-
 static void cpu_devinit(const char *cpu_type, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
 {
@@ -872,6 +807,19 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     FWCfgState *fw_cfg;
     DeviceState *dev;
     SysBusDevice *s;
+    MemoryRegion ram;
+
+    if ((uint64_t)machine->ram_size > hwdef->max_mem) {
+        error_report("Too much memory for this machine: %" PRId64 ","
+                     " maximum %" PRId64,
+                     machine->ram_size / MiB, hwdef->max_mem / MiB);
+        exit(1);
+    }
+    memory_region_allocate_system_memory(&ram, OBJECT(machine), "sun4m.ram",
+                                         machine->ram_size);
+    memory_region_add_subregion(get_system_memory(), 0x00000000, &ram);
+    /* models without ECC don't trap when missing ram is accessed */
+    empty_slot_init(0x00000000, hwdef->max_mem);
 
     /* init CPUs */
     for(i = 0; i < smp_cpus; i++) {
@@ -881,13 +829,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
-
     /* set up devices */
-    ram_init(0, machine->ram_size, hwdef->max_mem);
-    /* models without ECC don't trap when missing ram is accessed */
-    if (!hwdef->ecc_base) {
-        empty_slot_init(machine->ram_size, hwdef->max_mem - machine->ram_size);
-    }
 
     prom_init(hwdef->slavio_base, bios_name);
 
@@ -1561,7 +1503,6 @@ static void sun4m_register_types(void)
     type_register_static(&idreg_info);
     type_register_static(&afx_info);
     type_register_static(&prom_info);
-    type_register_static(&ram_info);
 
     type_register_static(&ss5_type);
     type_register_static(&ss10_type);
