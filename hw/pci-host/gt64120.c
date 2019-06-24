@@ -31,6 +31,8 @@
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
 #include "exec/address-spaces.h"
+#include "hw/misc/empty_slot.h"
+#include "hw/misc/unimp.h"
 #include "trace.h"
 
 #define GT_REGS                 (0x1000 >> 2)
@@ -1206,6 +1208,23 @@ PCIBus *gt64120_create(qemu_irq *pic, bool target_is_bigendian)
                           "isd-mem", 0x1000);
 
     pci_create_simple(phb->bus, PCI_DEVFN(0, 0), "gt64120_pci");
+
+    create_unimplemented_device("gt64120_i2o", 0x14000000, 256);
+
+    empty_slot_init("SCS0",     0x00000000, 8 * MiB);
+    empty_slot_init("SCS1",     0x00800000, 8 * MiB);
+    empty_slot_init("SCS2",     0x01000000, 8 * MiB);
+    empty_slot_init("SCS3",     0x01800000, 8 * MiB);
+    empty_slot_init("CS0",      0x1c000000, 8 * MiB);
+    empty_slot_init("CS1",      0x1c800000, 8 * MiB);
+    empty_slot_init("CS2",      0x1d000000, 32 * MiB);
+    empty_slot_init("CS3",      0x1f000000, 12 * MiB);
+    empty_slot_init("BootCS",   0x1fc00000, 4 * MiB);
+
+    create_unimplemented_device("pci1-io", 0x20000000, 32 * MiB);
+    empty_slot_init("pci1-mem0", 0x22000000, 32 * MiB);
+    empty_slot_init("pci1-mem1", 0x24000000, 32 * MiB);
+
     return phb->bus;
 }
 
