@@ -46,7 +46,7 @@ struct BlockAcctTimedStats {
     QSLIST_ENTRY(BlockAcctTimedStats) entries;
 };
 
-typedef struct BlockLatencyHistogram {
+typedef struct BlockHistogram {
     /* The following histogram is represented like this:
      *
      * 5|           *
@@ -57,7 +57,7 @@ typedef struct BlockLatencyHistogram {
      *  +------------------
      *      10   50   100
      *
-     * BlockLatencyHistogram histogram = {
+     * BlockHistogram histogram = {
      *     .nbins = 4,
      *     .boundaries = {10, 50, 100},
      *     .bins = {3, 1, 5, 2},
@@ -74,7 +74,7 @@ typedef struct BlockLatencyHistogram {
     uint64_t *boundaries; /* @nbins-1 numbers here
                              (all boundaries, except 0 and +inf) */
     uint64_t *bins;
-} BlockLatencyHistogram;
+} BlockHistogram;
 
 struct BlockAcctStats {
     QemuMutex lock;
@@ -88,7 +88,7 @@ struct BlockAcctStats {
     QSLIST_HEAD(, BlockAcctTimedStats) intervals;
     bool account_invalid;
     bool account_failed;
-    BlockLatencyHistogram latency_histogram[BLOCK_MAX_IOTYPE];
+    BlockHistogram latency_histogram[BLOCK_MAX_IOTYPE];
 };
 
 typedef struct BlockAcctCookie {

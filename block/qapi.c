@@ -415,9 +415,8 @@ static uint64List *uint64_list(uint64_t *list, int size)
     return out_list;
 }
 
-static void bdrv_latency_histogram_stats(BlockLatencyHistogram *hist,
-                                         bool *not_null,
-                                         BlockLatencyHistogramInfo **info)
+static void bdrv_histogram_stats(BlockHistogram *hist, bool *not_null,
+                                 BlockLatencyHistogramInfo **info)
 {
     *not_null = hist->bins != NULL;
     if (*not_null) {
@@ -494,15 +493,15 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
             block_acct_queue_depth(ts, BLOCK_ACCT_WRITE);
     }
 
-    bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_READ],
-                                 &ds->has_rd_latency_histogram,
-                                 &ds->rd_latency_histogram);
-    bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_WRITE],
-                                 &ds->has_wr_latency_histogram,
-                                 &ds->wr_latency_histogram);
-    bdrv_latency_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_FLUSH],
-                                 &ds->has_flush_latency_histogram,
-                                 &ds->flush_latency_histogram);
+    bdrv_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_READ],
+                         &ds->has_rd_latency_histogram,
+                         &ds->rd_latency_histogram);
+    bdrv_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_WRITE],
+                         &ds->has_wr_latency_histogram,
+                         &ds->wr_latency_histogram);
+    bdrv_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_FLUSH],
+                         &ds->has_flush_latency_histogram,
+                         &ds->flush_latency_histogram);
 }
 
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
