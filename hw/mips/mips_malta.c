@@ -1212,7 +1212,7 @@ void mips_malta_init(MachineState *machine)
     /* The whole address space decoded by the GT-64120A doesn't generate
        exception when accessing invalid memory. Create an empty slot to
        emulate this feature. */
-    empty_slot_init(0, 0x20000000);
+    empty_slot_init("gt64120-ad", 0x00000000, 0x20000000);
 
     qdev_init_nofail(dev);
 

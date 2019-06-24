@@ -14,6 +14,7 @@
 
 /**
  * empty_slot_init: create and map a RAZ/WI device
+ * @name: name of the device for debug logging
  * @base: base address of the device's MMIO region
  * @size: size of the device's MMIO region
  *
@@ -27,6 +28,6 @@
  * use it to cover a large region and then map other devices on top of it
  * if necessary.
  */
-void empty_slot_init(hwaddr addr, uint64_t slot_size);
+void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size);
 
 #endif

@@ -819,7 +819,7 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), 0x00000000, &ram);
     /* models without ECC don't trap when missing ram is accessed */
-    empty_slot_init(0x00000000, hwdef->max_mem);
+    empty_slot_init("dram", 0x00000000, hwdef->max_mem);
 
     /* init CPUs */
     for(i = 0; i < smp_cpus; i++) {
@@ -859,7 +859,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
            Software shouldn't use aliased addresses, neither should it crash
            when does. Using empty_slot instead of aliasing can help with
            debugging such accesses */
-        empty_slot_init(hwdef->iommu_pad_base,hwdef->iommu_pad_len);
+        empty_slot_init("iommu.alias",
+                        hwdef->iommu_pad_base, hwdef->iommu_pad_len);
     }
 
     sparc32_dma_init(hwdef->dma_base,
@@ -908,7 +909,9 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     for (i = 0; i < MAX_VSIMMS; i++) {
         /* vsimm registers probed by OBP */
         if (hwdef->vsimm[i].reg_base) {
-            empty_slot_init(hwdef->vsimm[i].reg_base, 0x2000);
+            char *name = g_strdup_printf("vsimm[%d]", i);
+            empty_slot_init(name, hwdef->vsimm[i].reg_base, 0x2000);
+            g_free(name);
         }
     }
 

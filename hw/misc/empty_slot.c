@@ -52,12 +52,13 @@ static const MemoryRegionOps empty_slot_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-void empty_slot_init(hwaddr addr, uint64_t slot_size)
+void empty_slot_init(const char *name, hwaddr addr, uint64_t slot_size)
 {
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_EMPTY_SLOT);
 
+    qdev_prop_set_string(dev, "name", name);
     qdev_prop_set_uint64(dev, "size", slot_size);
     qdev_init_nofail(dev);
 
@@ -77,7 +78,8 @@ static void empty_slot_realize(DeviceState *dev, Error **errp)
         return;
     }
     if (s->name == NULL) {
-        s->name = g_strdup("empty-slot");
+        error_setg(errp, "property 'name' not specified");
+        return;
     }
 
     memory_region_init_io(&s->iomem, OBJECT(s), &empty_slot_ops, s,
