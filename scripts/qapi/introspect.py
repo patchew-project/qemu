@@ -159,7 +159,7 @@ const QLitObject %(c_name)s = %(c_string)s;
     def _gen_member(self, member):
         ret = {'name': member.name, 'type': self._use_type(member.type)}
         if member.optional:
-            ret['default'] = None
+            ret['default'] = member.default
         if member.ifcond:
             ret = (ret, {'if': member.ifcond})
         return ret

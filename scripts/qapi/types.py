@@ -44,7 +44,7 @@ def gen_struct_members(members):
     ret = ''
     for memb in members:
         ret += gen_if(memb.ifcond)
-        if memb.optional:
+        if memb.optional and memb.default is None:
             ret += mcgen('''
     bool has_%(c_name)s;
 ''',

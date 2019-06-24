@@ -198,11 +198,10 @@
 #
 # @default: default when used as command parameter.
 #           If absent, the parameter is mandatory.
-#           If present, the value must be null.  The parameter is
-#           optional, and behavior when it's missing is not specified
-#           here.
-#           Future extension: if present and non-null, the parameter
-#           is optional, and defaults to this value.
+#           If present and null, the parameter is optional, and
+#           behavior when it's missing is not specified here.
+#           If present and non-null, the parameter is optional, and
+#           defaults to this value.
 #
 # Since: 2.5
 ##

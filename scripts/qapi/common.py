@@ -14,6 +14,7 @@
 from __future__ import print_function
 from contextlib import contextmanager
 import errno
+import math
 import os
 import re
 import string
@@ -800,6 +801,136 @@ def check_if(expr, info):
         check_if_str(ifcond, info)
 
 
+def check_value_str(info, value):
+    return 'g_strdup(%s)' % to_c_string(value) if type(value) is str else False
+
+def check_value_number(info, value):
+    if type(value) is not float:
+        return False
+    if math.isinf(value):
+        return 'INFINITY' if value > 0 else '-INFINITY'
+    elif math.isnan(value):
+        return 'NAN'
+    else:
+        return '%.16e' % value
+
+def check_value_bool(info, value):
+    if type(value) is not bool:
+        return False
+    return 'true' if value else 'false'
+
+def is_int_type(value):
+    if type(value) is int:
+        return True
+    # 'long' does not exist in Python 3
+    try:
+        if type(value) is long:
+            return True
+    except NameError:
+        pass
+
+    return False
+
+def gen_check_value_int(bits):
+    def check_value_int(info, value):
+        if not is_int_type(value) or \
+           value < -(2 ** (bits - 1)) or value >= 2 ** (bits - 1):
+            return False
+        if bits > 32:
+            return '%ill' % value
+        else:
+            return '%i' % value
+
+    return check_value_int
+
+def gen_check_value_uint(bits):
+    def check_value_uint(info, value):
+        if not is_int_type(value) or value < 0 or value >= 2 ** bits:
+            return False
+        if bits > 32:
+            return '%uull' % value
+        elif bits > 16:
+            return '%uu' % value
+        else:
+            return '%u' % value
+
+    return check_value_uint
+
+# Check whether the given value fits the given QAPI type.
+# If so, return a C representation of the value (pointers point to
+# newly allocated objects).
+# Otherwise, raise an exception.
+def check_value(info, qapi_type, value):
+    builtin_type_checks = {
+        'str':      check_value_str,
+        'int':      gen_check_value_int(64),
+        'number':   check_value_number,
+        'bool':     check_value_bool,
+        'int8':     gen_check_value_int(8),
+        'int16':    gen_check_value_int(16),
+        'int32':    gen_check_value_int(32),
+        'int64':    gen_check_value_int(64),
+        'uint8':    gen_check_value_uint(8),
+        'uint16':   gen_check_value_uint(16),
+        'uint32':   gen_check_value_uint(32),
+        'uint64':   gen_check_value_uint(64),
+        'size':     gen_check_value_uint(64),
+    }
+
+    # Cannot support null because that would require a value of "None"
+    # (which is reserved for no default)
+    unsupported_builtin_types = ['null', 'any', 'QType']
+
+    if type(qapi_type) is list:
+        has_list = True
+        qapi_type = qapi_type[0]
+    elif qapi_type.endswith('List'):
+        has_list = True
+        qapi_type = qapi_type[:-4]
+    else:
+        has_list = False
+
+    if has_list:
+        if value == []:
+            return 'NULL'
+        else:
+            raise QAPISemError(info,
+                "Support for non-empty lists as default values has not been " \
+                "implemented yet: '{}'".format(value))
+
+    if qapi_type in builtin_type_checks:
+        c_val = builtin_type_checks[qapi_type](info, value)
+        if not c_val:
+            raise QAPISemError(info,
+                "Value '{}' does not match type {}".format(value, qapi_type))
+        return c_val
+
+    if qapi_type in unsupported_builtin_types:
+        raise QAPISemError(info,
+                           "Cannot specify values for type %s" % qapi_type)
+
+    if qapi_type in enum_types:
+        if not check_value_str(info, value):
+            raise QAPISemError(info,
+                "Enum values must be strings, but '{}' is no string" \
+                        .format(value))
+
+        enum_values = enum_types[qapi_type]['data']
+        for ev in enum_values:
+            if ev['name'] == value:
+                return c_enum_const(qapi_type, value,
+                                    enum_types[qapi_type].get('prefix'))
+
+        raise QAPISemError(info,
+            "Value '{}' does not occur in enum {}".format(value, qapi_type))
+
+    # TODO: Support alternates
+
+    raise QAPISemError(info,
+        "Cannot specify values for type %s (not built-in or an enum)" %
+        qapi_type)
+
+
 def check_type(info, source, value, allow_array=False,
                allow_dict=False, allow_optional=False,
                allow_metas=[]):
@@ -842,14 +973,21 @@ def check_type(info, source, value, allow_array=False,
         if c_name(key, False) == 'u' or c_name(key, False).startswith('has_'):
             raise QAPISemError(info, "Member of %s uses reserved name '%s'"
                                % (source, key))
-        # Todo: allow dictionaries to represent default values of
-        # an optional argument.
+
         check_known_keys(info, "member '%s' of %s" % (key, source),
-                         arg, ['type'], ['if'])
+                         arg, ['type'], ['if', 'default'])
         check_type(info, "Member '%s' of %s" % (key, source),
                    arg['type'], allow_array=True,
                    allow_metas=['built-in', 'union', 'alternate', 'struct',
                                 'enum'])
+
+        if 'default' in arg:
+            if key[0] != '*':
+                raise QAPISemError(info,
+                    "'%s' is not optional, so it cannot have a default value" %
+                    key)
+
+            check_value(info, arg['type'], arg['default'])
 
 
 def check_command(expr, info):
@@ -1601,13 +1739,14 @@ class QAPISchemaFeature(QAPISchemaMember):
 
 
 class QAPISchemaObjectTypeMember(QAPISchemaMember):
-    def __init__(self, name, typ, optional, ifcond=None):
+    def __init__(self, name, typ, optional, ifcond=None, default=None):
         QAPISchemaMember.__init__(self, name, ifcond)
         assert isinstance(typ, str)
         assert isinstance(optional, bool)
         self._type_name = typ
         self.type = None
         self.optional = optional
+        self.default = default
 
     def check(self, schema):
         assert self.owner
@@ -1917,7 +2056,7 @@ class QAPISchema(object):
             name, info, doc, ifcond,
             self._make_enum_members(data), prefix))
 
-    def _make_member(self, name, typ, ifcond, info):
+    def _make_member(self, name, typ, ifcond, default, info):
         optional = False
         if name.startswith('*'):
             name = name[1:]
@@ -1925,10 +2064,11 @@ class QAPISchema(object):
         if isinstance(typ, list):
             assert len(typ) == 1
             typ = self._make_array_type(typ[0], info)
-        return QAPISchemaObjectTypeMember(name, typ, optional, ifcond)
+        return QAPISchemaObjectTypeMember(name, typ, optional, ifcond, default)
 
     def _make_members(self, data, info):
-        return [self._make_member(key, value['type'], value.get('if'), info)
+        return [self._make_member(key, value['type'], value.get('if'),
+                                  value.get('default'), info)
                 for (key, value) in data.items()]
 
     def _def_struct_type(self, expr, info, doc):
@@ -1951,7 +2091,7 @@ class QAPISchema(object):
             typ = self._make_array_type(typ[0], info)
         typ = self._make_implicit_object_type(
             typ, info, None, self.lookup_type(typ),
-            'wrapper', [self._make_member('data', typ, None, info)])
+            'wrapper', [self._make_member('data', typ, None, None, info)])
         return QAPISchemaObjectTypeVariant(case, typ, ifcond)
 
     def _def_union_type(self, expr, info, doc):
@@ -2234,6 +2374,15 @@ def to_c_string(string):
     return result
 
 
+# Translates a value for the given QAPI type to its C representation.
+# The caller must have called check_value() during parsing to be sure
+# that the given value fits the type.
+def c_value(qapi_type, value):
+    pseudo_info = {'file': '(generator bug)', 'line': 0, 'parent': None}
+    # The caller guarantees this does not raise an exception
+    return check_value(pseudo_info, qapi_type, value)
+
+
 def guardstart(name):
     return mcgen('''
 #ifndef %(name)s
@@ -2356,7 +2505,7 @@ def build_params(arg_type, boxed, extra=None):
         for memb in arg_type.members:
             ret += sep
             sep = ', '
-            if memb.optional:
+            if memb.optional and memb.default is None:
                 ret += 'bool has_%s, ' % c_name(memb.name)
             ret += '%s %s' % (memb.type.c_param_type(),
                               c_name(memb.name))

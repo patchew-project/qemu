@@ -35,7 +35,7 @@ def gen_call(name, arg_type, boxed, ret_type):
     elif arg_type:
         assert not arg_type.variants
         for memb in arg_type.members:
-            if memb.optional:
+            if memb.optional and memb.default is None:
                 argstr += 'arg.has_%s, ' % c_name(memb.name)
             argstr += 'arg.%s, ' % c_name(memb.name)
 

@@ -40,9 +40,13 @@ def gen_visit_object_members(name, base, members, variants):
 void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 {
     Error *err = NULL;
-
 ''',
                 c_name=c_name(name))
+
+    if len([m for m in members if m.default is not None]) > 0:
+        ret += mcgen('''
+    bool has_optional;
+''')
 
     if base:
         ret += mcgen('''
@@ -53,13 +57,28 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                      c_type=base.c_name())
 
+    ret += mcgen('''
+
+''')
+
     for memb in members:
         ret += gen_if(memb.ifcond)
         if memb.optional:
+            if memb.default is not None:
+                optional_target = 'has_optional'
+                # Visitors other than the input visitor do not have to implement
+                # .optional().  Therefore, we have to initialize has_optional.
+                # Initialize it to true, because the field's value is always
+                # present when using any visitor but the input visitor.
+                ret += mcgen('''
+    has_optional = true;
+''')
+            else:
+                optional_target = 'obj->has_' + c_name(memb.name)
             ret += mcgen('''
-    if (visit_optional(v, "%(name)s", &obj->has_%(c_name)s)) {
+    if (visit_optional(v, "%(name)s", &%(opt_target)s)) {
 ''',
-                         name=memb.name, c_name=c_name(memb.name))
+                         name=memb.name, opt_target=optional_target)
             push_indent()
         ret += mcgen('''
     visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, &err);
@@ -69,7 +88,16 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                      c_type=memb.type.c_name(), name=memb.name,
                      c_name=c_name(memb.name))
-        if memb.optional:
+        if memb.default is not None:
+            pop_indent()
+            ret += mcgen('''
+    } else {
+        obj->%(c_name)s = %(c_value)s;
+    }
+''',
+                         c_name=c_name(memb.name),
+                         c_value=c_value(memb._type_name, memb.default))
+        elif memb.optional:
             pop_indent()
             ret += mcgen('''
     }
@@ -287,6 +315,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
         self._add_system_module(None, ' * Built-in QAPI visitors')
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
+#include <math.h>
 #include "qapi/error.h"
 #include "qapi/qapi-builtin-visit.h"
 '''))
@@ -302,6 +331,7 @@ class QAPISchemaGenVisitVisitor(QAPISchemaModularCVisitor):
         visit = self._module_basename('qapi-visit', name)
         self._genc.preamble_add(mcgen('''
 #include "qemu/osdep.h"
+#include <math.h>
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "%(visit)s.h"

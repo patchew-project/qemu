@@ -139,13 +139,29 @@ def texi_enum_value(value, desc, suffix):
         value.name, desc, texi_if(value.ifcond, prefix='@*'))
 
 
+def doc_value(value):
+    if value is True:
+        return 'true'
+    elif value is False:
+        return 'false'
+    elif value is None:
+        return 'null'
+    else:
+        return '{}'.format(value)
+
 def texi_member(member, desc, suffix):
     """Format a table of members item for an object type member"""
     typ = member.type.doc_type()
     membertype = ': ' + typ if typ else ''
+
+    optional_info = ''
+    if member.default is not None:
+        optional_info = ' (optional, default: %s)' % doc_value(member.default)
+    elif member.optional:
+        optional_info = ' (optional)'
+
     return '@item @code{%s%s}%s%s\n%s%s' % (
-        member.name, membertype,
-        ' (optional)' if member.optional else '',
+        member.name, membertype, optional_info,
         suffix, desc, texi_if(member.ifcond, prefix='@*'))
 
 
