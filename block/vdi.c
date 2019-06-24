@@ -756,9 +756,6 @@ static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
     /* Validate options and set default values */
     bytes = vdi_opts->size;
 
-    if (!vdi_opts->has_preallocation) {
-        vdi_opts->preallocation = PREALLOC_MODE_OFF;
-    }
     switch (vdi_opts->preallocation) {
     case PREALLOC_MODE_OFF:
         image_type = VDI_TYPE_DYNAMIC;

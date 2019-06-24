@@ -1359,9 +1359,14 @@ void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
         .has_format = !!format,
         .format = (char *)format,
         .sync = full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
-        .has_mode = true,
         .mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS,
+        .speed = 0,
+        .on_source_error = BLOCKDEV_ON_ERROR_REPORT,
+        .on_target_error = BLOCKDEV_ON_ERROR_REPORT,
         .unmap = true,
+        .copy_mode = MIRROR_COPY_MODE_BACKGROUND,
+        .auto_finalize = true,
+        .auto_dismiss = true,
     };
 
     if (!filename) {
@@ -1388,10 +1393,13 @@ void hmp_drive_backup(Monitor *mon, const QDict *qdict)
         .has_format = !!format,
         .format = (char *)format,
         .sync = full ? MIRROR_SYNC_MODE_FULL : MIRROR_SYNC_MODE_TOP,
-        .has_mode = true,
         .mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS,
-        .has_compress = !!compress,
+        .speed = 0,
         .compress = compress,
+        .on_source_error = BLOCKDEV_ON_ERROR_REPORT,
+        .on_target_error = BLOCKDEV_ON_ERROR_REPORT,
+        .auto_finalize = true,
+        .auto_dismiss = true,
     };
 
     if (!filename) {
@@ -1408,7 +1416,7 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_try_str(qdict, "snapshot-file");
-    const char *format = qdict_get_try_str(qdict, "format");
+    const char *format = qdict_get_try_str(qdict, "format") ?: "qcow2";
     bool reuse = qdict_get_try_bool(qdict, "reuse", false);
     enum NewImageMode mode;
     Error *err = NULL;
@@ -1424,8 +1432,7 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     qmp_blockdev_snapshot_sync(true, device, false, NULL,
                                filename, false, NULL,
-                               !!format, format,
-                               true, mode, &err);
+                               format, mode, &err);
     hmp_handle_error(mon, &err);
 }
 
@@ -1978,11 +1985,12 @@ void hmp_change(Monitor *mon, const QDict *qdict)
                 hmp_handle_error(mon, &err);
                 return;
             }
+        } else {
+            read_only_mode = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;
         }
 
         qmp_blockdev_change_medium(true, device, false, NULL, target,
-                                   !!arg, arg, !!read_only, read_only_mode,
-                                   &err);
+                                   !!arg, arg, read_only_mode, &err);
     }
 
     hmp_handle_error(mon, &err);
@@ -2024,8 +2032,7 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
 
     qmp_block_stream(true, device, device, base != NULL, base, false, NULL,
-                     false, NULL, qdict_haskey(qdict, "speed"), speed, true,
-                     BLOCKDEV_ON_ERROR_REPORT, false, false, false, false,
+                     false, NULL, speed, BLOCKDEV_ON_ERROR_REPORT, true, true,
                      &error);
 
     hmp_handle_error(mon, &error);

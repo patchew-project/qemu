@@ -2034,9 +2034,6 @@ static int sd_co_create(BlockdevCreateOptions *options, Error **errp)
     s->inode.vdi_size = opts->size;
     backing_file = opts->backing_file;
 
-    if (!opts->has_preallocation) {
-        opts->preallocation = PREALLOC_MODE_OFF;
-    }
     switch (opts->preallocation) {
     case PREALLOC_MODE_OFF:
         prealloc = false;

@@ -1300,7 +1300,8 @@
 { 'struct': 'BlockdevSnapshotSync',
   'data': { '*device': 'str', '*node-name': 'str',
             'snapshot-file': 'str', '*snapshot-node-name': 'str',
-            '*format': 'str', '*mode': 'NewImageMode' } }
+            '*format': { 'type': 'str', 'default': 'qcow2' },
+            '*mode': { 'type': 'NewImageMode', 'default': 'absolute-paths' } } }
 
 ##
 # @BlockdevSnapshot:
@@ -1378,11 +1379,16 @@
 { 'struct': 'DriveBackup',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', 'sync': 'MirrorSyncMode',
-            '*mode': 'NewImageMode', '*speed': 'int',
-            '*bitmap': 'str', '*compress': 'bool',
-            '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*mode': { 'type': 'NewImageMode', 'default': 'absolute-paths' },
+            '*speed': { 'type': 'int', 'default': 0 },
+            '*bitmap': 'str',
+            '*compress': { 'type': 'bool', 'default': false },
+            '*on-source-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*on-target-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*auto-finalize': { 'type': 'bool', 'default': true },
+            '*auto-dismiss': { 'type': 'bool', 'default': true } } }
 
 ##
 # @BlockdevBackup:
@@ -1437,11 +1443,16 @@
 ##
 { 'struct': 'BlockdevBackup',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
-            'sync': 'MirrorSyncMode', '*speed': 'int',
-            '*bitmap': 'str', '*compress': 'bool',
-            '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            'sync': 'MirrorSyncMode',
+            '*speed': { 'type': 'int', 'default': 0 },
+            '*bitmap': 'str',
+            '*compress': { 'type': 'bool', 'default': false },
+            '*on-source-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*on-target-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*auto-finalize': { 'type': 'bool', 'default': true },
+            '*auto-dismiss': { 'type': 'bool', 'default': true } } }
 
 ##
 # @blockdev-snapshot-sync:
@@ -1631,9 +1642,11 @@
 { 'command': 'block-commit',
   'data': { '*job-id': 'str', 'device': 'str', '*base-node': 'str',
             '*base': 'str', '*top-node': 'str', '*top': 'str',
-            '*backing-file': 'str', '*speed': 'int',
+            '*backing-file': 'str',
+            '*speed': { 'type': 'int', 'default': 0 },
             '*filter-node-name': 'str',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*auto-finalize': { 'type': 'bool', 'default': true },
+            '*auto-dismiss': { 'type': 'bool', 'default': true } } }
 
 ##
 # @drive-backup:
@@ -1958,12 +1971,19 @@
 { 'struct': 'DriveMirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
-            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
-            '*speed': 'int', '*granularity': 'uint32',
-            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError',
-            '*unmap': 'bool', '*copy-mode': 'MirrorCopyMode',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            'sync': 'MirrorSyncMode',
+            '*mode': { 'type': 'NewImageMode', 'default': 'absolute-paths' },
+            '*speed': { 'type': 'int', 'default': 0 },
+            '*granularity': 'uint32',
+            '*buf-size': 'int',
+            '*on-source-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*on-target-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*unmap': { 'type': 'bool', 'default': true },
+            '*copy-mode': { 'type': 'MirrorCopyMode', 'default': 'background' },
+            '*auto-finalize': { 'type': 'bool', 'default': true },
+            '*auto-dismiss': { 'type': 'bool', 'default': true } } }
 
 ##
 # @BlockDirtyBitmap:
@@ -1984,8 +2004,8 @@
 #
 # @name: name of the dirty bitmap
 #
-# @granularity: the bitmap granularity, default is 64k for
-#               block-dirty-bitmap-add
+# @granularity: the bitmap granularity, default is the node's cluster size
+#               (clamped to [4k, 64k]), or 64k
 #
 # @persistent: the bitmap is persistent, i.e. it will be saved to the
 #              corresponding block device image file on its close. For now only
@@ -2004,7 +2024,9 @@
 ##
 { 'struct': 'BlockDirtyBitmapAdd',
   'data': { 'node': 'str', 'name': 'str', '*granularity': 'uint32',
-            '*persistent': 'bool', '*autoload': 'bool', '*disabled': 'bool' } }
+            '*persistent': { 'type': 'bool', 'default': false },
+            '*autoload': 'bool',
+            '*disabled': { 'type': 'bool', 'default': false } } }
 
 ##
 # @BlockDirtyBitmapMergeSource:
@@ -2282,12 +2304,17 @@
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*replaces': 'str',
             'sync': 'MirrorSyncMode',
-            '*speed': 'int', '*granularity': 'uint32',
-            '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
-            '*on-target-error': 'BlockdevOnError',
+            '*speed': { 'type': 'int', 'default': 0 },
+            '*granularity': 'uint32',
+            '*buf-size': 'int',
+            '*on-source-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
+            '*on-target-error': { 'type': 'BlockdevOnError',
+                                  'default': 'report' },
             '*filter-node-name': 'str',
-            '*copy-mode': 'MirrorCopyMode',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*copy-mode': { 'type': 'MirrorCopyMode', 'default': 'background' },
+            '*auto-finalize': { 'type': 'bool', 'default': true },
+            '*auto-dismiss': { 'type': 'bool', 'default': true } } }
 
 ##
 # @block_set_io_throttle:
@@ -2580,9 +2607,11 @@
 ##
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
-            '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError',
-            '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
+            '*base-node': 'str', '*backing-file': 'str',
+            '*speed': { 'type': 'int', 'default': 0 },
+            '*on-error': { 'type': 'BlockdevOnError', 'default': 'report' },
+            '*auto-finalize': { 'type': 'bool', 'default': true },
+            '*auto-dismiss': { 'type': 'bool', 'default': true } } }
 
 ##
 # @block-job-set-speed:
@@ -4204,8 +4233,8 @@
 { 'struct': 'BlockdevCreateOptionsFile',
   'data': { 'filename':         'str',
             'size':             'size',
-            '*preallocation':   'PreallocMode',
-            '*nocow':           'bool' } }
+            '*preallocation':   { 'type': 'PreallocMode', 'default': 'off' },
+            '*nocow':           { 'type': 'bool', 'default': false } } }
 
 ##
 # @BlockdevCreateOptionsGluster:
@@ -4224,7 +4253,7 @@
 { 'struct': 'BlockdevCreateOptionsGluster',
   'data': { 'location':         'BlockdevOptionsGluster',
             'size':             'size',
-            '*preallocation':   'PreallocMode' } }
+            '*preallocation':   { 'type': 'PreallocMode', 'default': 'off' } } }
 
 ##
 # @BlockdevCreateOptionsLUKS:
@@ -4269,7 +4298,7 @@
 { 'struct': 'BlockdevCreateOptionsParallels',
   'data': { 'file':             'BlockdevRef',
             'size':             'size',
-            '*cluster-size':    'size' } }
+            '*cluster-size':    { 'type': 'size', 'default': 1048576 } } }
 
 ##
 # @BlockdevCreateOptionsQcow:
@@ -4331,16 +4360,16 @@
 { 'struct': 'BlockdevCreateOptionsQcow2',
   'data': { 'file':             'BlockdevRef',
             '*data-file':       'BlockdevRef',
-            '*data-file-raw':   'bool',
+            '*data-file-raw':   { 'type': 'bool', 'default': false },
             'size':             'size',
-            '*version':         'BlockdevQcow2Version',
+            '*version':         { 'type': 'BlockdevQcow2Version', 'default': 'v3' },
             '*backing-file':    'str',
             '*backing-fmt':     'BlockdevDriver',
             '*encrypt':         'QCryptoBlockCreateOptions',
-            '*cluster-size':    'size',
-            '*preallocation':   'PreallocMode',
-            '*lazy-refcounts':  'bool',
-            '*refcount-bits':   'int' } }
+            '*cluster-size':    { 'type': 'size', 'default': 65536 },
+            '*preallocation':   { 'type': 'PreallocMode', 'default': 'off' },
+            '*lazy-refcounts':  { 'type': 'bool', 'default': false },
+            '*refcount-bits':   { 'type': 'int', 'default': 16 } } }
 
 ##
 # @BlockdevCreateOptionsQed:
@@ -4362,7 +4391,7 @@
             'size':             'size',
             '*backing-file':    'str',
             '*backing-fmt':     'BlockdevDriver',
-            '*cluster-size':    'size',
+            '*cluster-size':    { 'type': 'size', 'default': 65536 },
             '*table-size':      'int' } }
 
 ##
@@ -4445,11 +4474,13 @@
   'data': { 'file':             'BlockdevRef',
             'size':             'size',
             '*extents':          ['BlockdevRef'],
-            '*subformat':       'BlockdevVmdkSubformat',
+            '*subformat':       { 'type': 'BlockdevVmdkSubformat',
+                                  'default': 'monolithicSparse' },
             '*backing-file':    'str',
-            '*adapter-type':    'BlockdevVmdkAdapterType',
-            '*hwversion':       'str',
-            '*zeroed-grain':    'bool' } }
+            '*adapter-type':    { 'type': 'BlockdevVmdkAdapterType',
+                                  'default': 'ide' },
+            '*hwversion':       { 'type': 'str', 'default': '4' },
+            '*zeroed-grain':    { 'type': 'bool', 'default': false } } }
 
 
 ##
@@ -4516,7 +4547,7 @@
   'data': { 'location':         'BlockdevOptionsSheepdog',
             'size':             'size',
             '*backing-file':    'str',
-            '*preallocation':   'PreallocMode',
+            '*preallocation':   { 'type': 'PreallocMode', 'default': 'off' },
             '*redundancy':      'SheepdogRedundancy',
             '*object-size':     'size' } }
 
@@ -4549,7 +4580,7 @@
 { 'struct': 'BlockdevCreateOptionsVdi',
   'data': { 'file':             'BlockdevRef',
             'size':             'size',
-            '*preallocation':   'PreallocMode' } }
+            '*preallocation':   { 'type': 'PreallocMode', 'default': 'off' } } }
 
 ##
 # @BlockdevVhdxSubformat:
@@ -4584,10 +4615,11 @@
 { 'struct': 'BlockdevCreateOptionsVhdx',
   'data': { 'file':                 'BlockdevRef',
             'size':                 'size',
-            '*log-size':            'size',
+            '*log-size':            { 'type': 'size', 'default': 1048576 },
             '*block-size':          'size',
-            '*subformat':           'BlockdevVhdxSubformat',
-            '*block-state-zero':    'bool' } }
+            '*subformat':           { 'type': 'BlockdevVhdxSubformat',
+                                      'default': 'dynamic' },
+            '*block-state-zero':    { 'type': 'bool', 'default': true } } }
 
 ##
 # @BlockdevVpcSubformat:
@@ -4607,7 +4639,7 @@
 #
 # @file             Node to create the image format on
 # @size             Size of the virtual disk in bytes
-# @subformat        vhdx subformat (default: dynamic)
+# @subformat        vpc subformat (default: dynamic)
 # @force-size       Force use of the exact byte size instead of rounding to the
 #                   next size that can be represented in CHS geometry
 #                   (default: false)
@@ -4617,8 +4649,9 @@
 { 'struct': 'BlockdevCreateOptionsVpc',
   'data': { 'file':                 'BlockdevRef',
             'size':                 'size',
-            '*subformat':           'BlockdevVpcSubformat',
-            '*force-size':          'bool' } }
+            '*subformat':           { 'type': 'BlockdevVpcSubformat',
+                                      'default': 'dynamic' },
+            '*force-size':          { 'type': 'bool', 'default': false } } }
 
 ##
 # @BlockdevCreateOptions:
@@ -4714,7 +4747,7 @@
 { 'command': 'blockdev-open-tray',
   'data': { '*device': 'str',
             '*id': 'str',
-            '*force': 'bool' } }
+            '*force': { 'type': 'bool', 'default': false } } }
 
 ##
 # @blockdev-close-tray:
@@ -4905,7 +4938,8 @@
             '*id': 'str',
             'filename': 'str',
             '*format': 'str',
-            '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
+            '*read-only-mode': { 'type': 'BlockdevChangeReadOnlyMode',
+                                 'default': 'retain' } } }
 
 
 ##

@@ -1122,8 +1122,8 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
                                 const char *snapshot_file,
                                 bool has_snapshot_node_name,
                                 const char *snapshot_node_name,
-                                bool has_format, const char *format,
-                                bool has_mode, NewImageMode mode, Error **errp)
+                                const char *format, NewImageMode mode,
+                                Error **errp)
 {
     BlockdevSnapshotSync snapshot = {
         .has_device = has_device,
@@ -1133,9 +1133,7 @@ void qmp_blockdev_snapshot_sync(bool has_device, const char *device,
         .snapshot_file = (char *) snapshot_file,
         .has_snapshot_node_name = has_snapshot_node_name,
         .snapshot_node_name = (char *) snapshot_node_name,
-        .has_format = has_format,
         .format = (char *) format,
-        .has_mode = has_mode,
         .mode = mode,
     };
     TransactionAction action = {
@@ -1601,8 +1599,6 @@ static void external_snapshot_prepare(BlkActionState *common,
 
     if (action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC) {
         BlockdevSnapshotSync *s = action->u.blockdev_snapshot_sync.data;
-        const char *format = s->has_format ? s->format : "qcow2";
-        enum NewImageMode mode;
         const char *snapshot_node_name =
             s->has_snapshot_node_name ? s->snapshot_node_name : NULL;
 
@@ -1622,15 +1618,14 @@ static void external_snapshot_prepare(BlkActionState *common,
         flags |= BDRV_O_NO_BACKING;
 
         /* create new image w/backing file */
-        mode = s->has_mode ? s->mode : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-        if (mode != NEW_IMAGE_MODE_EXISTING) {
+        if (s->mode != NEW_IMAGE_MODE_EXISTING) {
             int64_t size = bdrv_getlength(state->old_bs);
             if (size < 0) {
                 error_setg_errno(errp, -size, "bdrv_getlength failed");
                 goto out;
             }
             bdrv_refresh_filename(state->old_bs);
-            bdrv_img_create(new_image_file, format,
+            bdrv_img_create(new_image_file, s->format,
                             state->old_bs->filename,
                             state->old_bs->drv->format_name,
                             NULL, size, flags, false, &local_err);
@@ -1644,7 +1639,7 @@ static void external_snapshot_prepare(BlkActionState *common,
         if (snapshot_node_name) {
             qdict_put_str(options, "node-name", snapshot_node_name);
         }
-        qdict_put_str(options, "driver", format);
+        qdict_put_str(options, "driver", s->format);
     }
 
     state->new_bs = bdrv_open(new_image_file, snapshot_ref, options, flags,
@@ -1963,9 +1958,9 @@ static void block_dirty_bitmap_add_prepare(BlkActionState *common,
     /* AIO context taken and released within qmp_block_dirty_bitmap_add */
     qmp_block_dirty_bitmap_add(action->node, action->name,
                                action->has_granularity, action->granularity,
-                               action->has_persistent, action->persistent,
+                               action->persistent,
                                action->has_autoload, action->autoload,
-                               action->has_disabled, action->disabled,
+                               action->disabled,
                                &local_err);
 
     if (!local_err) {
@@ -2410,15 +2405,11 @@ static int do_open_tray(const char *blk_name, const char *qdev_id,
 
 void qmp_blockdev_open_tray(bool has_device, const char *device,
                             bool has_id, const char *id,
-                            bool has_force, bool force,
-                            Error **errp)
+                            bool force, Error **errp)
 {
     Error *local_err = NULL;
     int rc;
 
-    if (!has_force) {
-        force = false;
-    }
     rc = do_open_tray(has_device ? device : NULL,
                       has_id ? id : NULL,
                       force, &local_err);
@@ -2610,7 +2601,6 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
                                 bool has_id, const char *id,
                                 const char *filename,
                                 bool has_format, const char *format,
-                                bool has_read_only,
                                 BlockdevChangeReadOnlyMode read_only,
                                 Error **errp)
 {
@@ -2636,10 +2626,6 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
     bdrv_flags = blk_get_open_flags_from_root_state(blk);
     bdrv_flags &= ~(BDRV_O_TEMPORARY | BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING |
         BDRV_O_PROTOCOL | BDRV_O_AUTO_RDONLY);
-
-    if (!has_read_only) {
-        read_only = BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN;
-    }
 
     switch (read_only) {
     case BLOCKDEV_CHANGE_READ_ONLY_MODE_RETAIN:
@@ -2804,10 +2790,8 @@ out:
 
 void qmp_block_dirty_bitmap_add(const char *node, const char *name,
                                 bool has_granularity, uint32_t granularity,
-                                bool has_persistent, bool persistent,
-                                bool has_autoload, bool autoload,
-                                bool has_disabled, bool disabled,
-                                Error **errp)
+                                bool persistent, bool has_autoload,
+                                bool autoload, bool disabled, Error **errp)
 {
     BlockDriverState *bs;
     BdrvDirtyBitmap *bitmap;
@@ -2834,16 +2818,8 @@ void qmp_block_dirty_bitmap_add(const char *node, const char *name,
         granularity = bdrv_get_default_bitmap_granularity(bs);
     }
 
-    if (!has_persistent) {
-        persistent = false;
-    }
-
     if (has_autoload) {
         warn_report("Autoload option is deprecated and its value is ignored");
-    }
-
-    if (!has_disabled) {
-        disabled = false;
     }
 
     if (persistent) {
@@ -3172,10 +3148,8 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base, const char *base,
                       bool has_base_node, const char *base_node,
                       bool has_backing_file, const char *backing_file,
-                      bool has_speed, int64_t speed,
-                      bool has_on_error, BlockdevOnError on_error,
-                      bool has_auto_finalize, bool auto_finalize,
-                      bool has_auto_dismiss, bool auto_dismiss,
+                      int64_t speed, BlockdevOnError on_error,
+                      bool auto_finalize, bool auto_dismiss,
                       Error **errp)
 {
     BlockDriverState *bs, *iter;
@@ -3184,10 +3158,6 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     Error *local_err = NULL;
     const char *base_name = NULL;
     int job_flags = JOB_DEFAULT;
-
-    if (!has_on_error) {
-        on_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
 
     bs = bdrv_lookup_bs(device, device, errp);
     if (!bs) {
@@ -3246,15 +3216,15 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     /* backing_file string overrides base bs filename */
     base_name = has_backing_file ? backing_file : base_name;
 
-    if (has_auto_finalize && !auto_finalize) {
+    if (!auto_finalize) {
         job_flags |= JOB_MANUAL_FINALIZE;
     }
-    if (has_auto_dismiss && !auto_dismiss) {
+    if (!auto_dismiss) {
         job_flags |= JOB_MANUAL_DISMISS;
     }
 
     stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
-                 job_flags, has_speed ? speed : 0, on_error, &local_err);
+                 job_flags, speed, on_error, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -3272,11 +3242,9 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
                       bool has_top_node, const char *top_node,
                       bool has_top, const char *top,
                       bool has_backing_file, const char *backing_file,
-                      bool has_speed, int64_t speed,
+                      int64_t speed,
                       bool has_filter_node_name, const char *filter_node_name,
-                      bool has_auto_finalize, bool auto_finalize,
-                      bool has_auto_dismiss, bool auto_dismiss,
-                      Error **errp)
+                      bool auto_finalize, bool auto_dismiss, Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *iter;
@@ -3289,16 +3257,13 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     BlockdevOnError on_error = BLOCKDEV_ON_ERROR_REPORT;
     int job_flags = JOB_DEFAULT;
 
-    if (!has_speed) {
-        speed = 0;
-    }
     if (!has_filter_node_name) {
         filter_node_name = NULL;
     }
-    if (has_auto_finalize && !auto_finalize) {
+    if (!auto_finalize) {
         job_flags |= JOB_MANUAL_FINALIZE;
     }
-    if (has_auto_dismiss && !auto_dismiss) {
+    if (!auto_dismiss) {
         job_flags |= JOB_MANUAL_DISMISS;
     }
 
@@ -3441,29 +3406,8 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     bool set_backing_hd = false;
     int ret;
 
-    if (!backup->has_speed) {
-        backup->speed = 0;
-    }
-    if (!backup->has_on_source_error) {
-        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_on_target_error) {
-        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_mode) {
-        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    }
     if (!backup->has_job_id) {
         backup->job_id = NULL;
-    }
-    if (!backup->has_auto_finalize) {
-        backup->auto_finalize = true;
-    }
-    if (!backup->has_auto_dismiss) {
-        backup->auto_dismiss = true;
-    }
-    if (!backup->has_compress) {
-        backup->compress = false;
     }
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
@@ -3619,26 +3563,8 @@ BlockJob *do_blockdev_backup(BlockdevBackup *backup, JobTxn *txn,
     int job_flags = JOB_DEFAULT;
     int ret;
 
-    if (!backup->has_speed) {
-        backup->speed = 0;
-    }
-    if (!backup->has_on_source_error) {
-        backup->on_source_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!backup->has_on_target_error) {
-        backup->on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
     if (!backup->has_job_id) {
         backup->job_id = NULL;
-    }
-    if (!backup->has_auto_finalize) {
-        backup->auto_finalize = true;
-    }
-    if (!backup->has_auto_dismiss) {
-        backup->auto_dismiss = true;
-    }
-    if (!backup->has_compress) {
-        backup->compress = false;
     }
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
@@ -3705,51 +3631,33 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
                                    BlockMirrorBackingMode backing_mode,
-                                   bool has_speed, int64_t speed,
+                                   int64_t speed,
                                    bool has_granularity, uint32_t granularity,
                                    bool has_buf_size, int64_t buf_size,
-                                   bool has_on_source_error,
                                    BlockdevOnError on_source_error,
-                                   bool has_on_target_error,
                                    BlockdevOnError on_target_error,
-                                   bool has_unmap, bool unmap,
+                                   bool unmap,
                                    bool has_filter_node_name,
                                    const char *filter_node_name,
-                                   bool has_copy_mode, MirrorCopyMode copy_mode,
-                                   bool has_auto_finalize, bool auto_finalize,
-                                   bool has_auto_dismiss, bool auto_dismiss,
+                                   MirrorCopyMode copy_mode,
+                                   bool auto_finalize, bool auto_dismiss,
                                    Error **errp)
 {
     int job_flags = JOB_DEFAULT;
 
-    if (!has_speed) {
-        speed = 0;
-    }
-    if (!has_on_source_error) {
-        on_source_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
-    if (!has_on_target_error) {
-        on_target_error = BLOCKDEV_ON_ERROR_REPORT;
-    }
     if (!has_granularity) {
         granularity = 0;
     }
     if (!has_buf_size) {
         buf_size = 0;
     }
-    if (!has_unmap) {
-        unmap = true;
-    }
     if (!has_filter_node_name) {
         filter_node_name = NULL;
     }
-    if (!has_copy_mode) {
-        copy_mode = MIRROR_COPY_MODE_BACKGROUND;
-    }
-    if (has_auto_finalize && !auto_finalize) {
+    if (!auto_finalize) {
         job_flags |= JOB_MANUAL_FINALIZE;
     }
-    if (has_auto_dismiss && !auto_dismiss) {
+    if (!auto_dismiss) {
         job_flags |= JOB_MANUAL_DISMISS;
     }
 
@@ -3844,10 +3752,6 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
-    if (!arg->has_mode) {
-        arg->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    }
-
     if (!arg->has_format) {
         format = (arg->mode == NEW_IMAGE_MODE_EXISTING
                   ? NULL : bs->drv->format_name);
@@ -3938,17 +3842,12 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
                            arg->has_replaces, arg->replaces, arg->sync,
-                           backing_mode, arg->has_speed, arg->speed,
+                           backing_mode, arg->speed,
                            arg->has_granularity, arg->granularity,
                            arg->has_buf_size, arg->buf_size,
-                           arg->has_on_source_error, arg->on_source_error,
-                           arg->has_on_target_error, arg->on_target_error,
-                           arg->has_unmap, arg->unmap,
-                           false, NULL,
-                           arg->has_copy_mode, arg->copy_mode,
-                           arg->has_auto_finalize, arg->auto_finalize,
-                           arg->has_auto_dismiss, arg->auto_dismiss,
-                           &local_err);
+                           arg->on_source_error, arg->on_target_error,
+                           arg->unmap, false, NULL, arg->copy_mode,
+                           arg->auto_finalize, arg->auto_dismiss, &local_err);
     bdrv_unref(target_bs);
     error_propagate(errp, local_err);
 out:
@@ -3958,20 +3857,15 @@ out:
 void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          const char *device, const char *target,
                          bool has_replaces, const char *replaces,
-                         MirrorSyncMode sync,
-                         bool has_speed, int64_t speed,
+                         MirrorSyncMode sync, int64_t speed,
                          bool has_granularity, uint32_t granularity,
                          bool has_buf_size, int64_t buf_size,
-                         bool has_on_source_error,
                          BlockdevOnError on_source_error,
-                         bool has_on_target_error,
                          BlockdevOnError on_target_error,
                          bool has_filter_node_name,
                          const char *filter_node_name,
-                         bool has_copy_mode, MirrorCopyMode copy_mode,
-                         bool has_auto_finalize, bool auto_finalize,
-                         bool has_auto_dismiss, bool auto_dismiss,
-                         Error **errp)
+                         MirrorCopyMode copy_mode,
+                         bool auto_finalize, bool auto_dismiss, Error **errp)
 {
     BlockDriverState *bs;
     BlockDriverState *target_bs;
@@ -4000,17 +3894,11 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
 
     blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
                            has_replaces, replaces, sync, backing_mode,
-                           has_speed, speed,
-                           has_granularity, granularity,
+                           speed, has_granularity, granularity,
                            has_buf_size, buf_size,
-                           has_on_source_error, on_source_error,
-                           has_on_target_error, on_target_error,
-                           true, true,
+                           on_source_error, on_target_error, true,
                            has_filter_node_name, filter_node_name,
-                           has_copy_mode, copy_mode,
-                           has_auto_finalize, auto_finalize,
-                           has_auto_dismiss, auto_dismiss,
-                           &local_err);
+                           copy_mode, auto_finalize, auto_dismiss, &local_err);
     error_propagate(errp, local_err);
 out:
     aio_context_release(aio_context);

@@ -2243,13 +2243,6 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     assert(options->driver == BLOCKDEV_DRIVER_FILE);
     file_opts = &options->u.file;
 
-    if (!file_opts->has_nocow) {
-        file_opts->nocow = false;
-    }
-    if (!file_opts->has_preallocation) {
-        file_opts->preallocation = PREALLOC_MODE_OFF;
-    }
-
     /* Create file */
     fd = qemu_open(file_opts->filename, O_RDWR | O_CREAT | O_BINARY, 0644);
     if (fd < 0) {
@@ -2365,9 +2358,7 @@ static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
         .u.file     = {
             .filename           = (char *) filename,
             .size               = total_size,
-            .has_preallocation  = true,
             .preallocation      = prealloc,
-            .has_nocow          = true,
             .nocow              = nocow,
         },
     };

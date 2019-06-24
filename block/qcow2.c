@@ -3076,35 +3076,23 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
-    if (qcow2_opts->has_version) {
-        switch (qcow2_opts->version) {
-        case BLOCKDEV_QCOW2_VERSION_V2:
-            version = 2;
-            break;
-        case BLOCKDEV_QCOW2_VERSION_V3:
-            version = 3;
-            break;
-        default:
-            g_assert_not_reached();
-        }
-    } else {
+    switch (qcow2_opts->version) {
+    case BLOCKDEV_QCOW2_VERSION_V2:
+        version = 2;
+        break;
+    case BLOCKDEV_QCOW2_VERSION_V3:
         version = 3;
+        break;
+    default:
+        g_assert_not_reached();
     }
 
-    if (qcow2_opts->has_cluster_size) {
-        cluster_size = qcow2_opts->cluster_size;
-    } else {
-        cluster_size = DEFAULT_CLUSTER_SIZE;
-    }
-
+    cluster_size = qcow2_opts->cluster_size;
     if (!validate_cluster_size(cluster_size, errp)) {
         ret = -EINVAL;
         goto out;
     }
 
-    if (!qcow2_opts->has_preallocation) {
-        qcow2_opts->preallocation = PREALLOC_MODE_OFF;
-    }
     if (qcow2_opts->has_backing_file &&
         qcow2_opts->preallocation != PREALLOC_MODE_OFF)
     {
@@ -3119,9 +3107,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
-    if (!qcow2_opts->has_lazy_refcounts) {
-        qcow2_opts->lazy_refcounts = false;
-    }
     if (version < 3 && qcow2_opts->lazy_refcounts) {
         error_setg(errp, "Lazy refcounts only supported with compatibility "
                    "level 1.1 and above (use version=v3 or greater)");
@@ -3129,9 +3114,6 @@ qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
         goto out;
     }
 
-    if (!qcow2_opts->has_refcount_bits) {
-        qcow2_opts->refcount_bits = 16;
-    }
     if (qcow2_opts->refcount_bits > 64 ||
         !is_power_of_2(qcow2_opts->refcount_bits))
     {

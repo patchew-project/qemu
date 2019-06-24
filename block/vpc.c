@@ -991,9 +991,6 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     /* Validate options and set default values */
     total_size = vpc_opts->size;
 
-    if (!vpc_opts->has_subformat) {
-        vpc_opts->subformat = BLOCKDEV_VPC_SUBFORMAT_DYNAMIC;
-    }
     switch (vpc_opts->subformat) {
     case BLOCKDEV_VPC_SUBFORMAT_DYNAMIC:
         disk_type = VHD_DYNAMIC;

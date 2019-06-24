@@ -615,9 +615,6 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
     qed_opts = &opts->u.qed;
 
     /* Validate options and set default values */
-    if (!qed_opts->has_cluster_size) {
-        qed_opts->cluster_size = QED_DEFAULT_CLUSTER_SIZE;
-    }
     if (!qed_opts->has_table_size) {
         qed_opts->table_size = QED_DEFAULT_TABLE_SIZE;
     }

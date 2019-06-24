@@ -565,11 +565,11 @@ static int raw_co_create(BlockdevCreateOptions *options, Error **errp)
     assert(options->driver == BLOCKDEV_DRIVER_FILE);
     file_opts = &options->u.file;
 
-    if (file_opts->has_preallocation) {
+    if (file_opts->preallocation) {
         error_setg(errp, "Preallocation is not supported on Windows");
         return -EINVAL;
     }
-    if (file_opts->has_nocow) {
+    if (file_opts->nocow) {
         error_setg(errp, "nocow is not supported on Windows");
         return -EINVAL;
     }
@@ -604,8 +604,8 @@ static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
         .u.file     = {
             .filename           = (char *) filename,
             .size               = total_size,
-            .has_preallocation  = false,
-            .has_nocow          = false,
+            .preallocation      = false,
+            .nocow              = false,
         },
     };
     return raw_co_create(&options, errp);

@@ -522,11 +522,7 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
     /* Sanity checks */
     total_size = parallels_opts->size;
 
-    if (parallels_opts->has_cluster_size) {
-        cl_size = parallels_opts->cluster_size;
-    } else {
-        cl_size = DEFAULT_CLUSTER_SIZE;
-    }
+    cl_size = parallels_opts->cluster_size;
 
     /* XXX What is the real limit here? This is an insanely large maximum. */
     if (cl_size >= INT64_MAX / MAX_PARALLELS_IMAGE_FACTOR) {

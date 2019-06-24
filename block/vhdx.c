@@ -1829,29 +1829,19 @@ static int coroutine_fn vhdx_co_create(BlockdevCreateOptions *opts,
         return -EINVAL;
     }
 
-    if (!vhdx_opts->has_log_size) {
-        log_size = DEFAULT_LOG_SIZE;
-    } else {
-        if (vhdx_opts->log_size > UINT32_MAX) {
-            error_setg(errp, "Log size must be smaller than 4 GB");
-            return -EINVAL;
-        }
-        log_size = vhdx_opts->log_size;
+    if (vhdx_opts->log_size > UINT32_MAX) {
+        error_setg(errp, "Log size must be smaller than 4 GB");
+        return -EINVAL;
     }
+    log_size = vhdx_opts->log_size;
     if (log_size < MiB || (log_size % MiB) != 0) {
         error_setg(errp, "Log size must be a multiple of 1 MB");
         return -EINVAL;
     }
 
-    if (!vhdx_opts->has_block_state_zero) {
-        use_zero_blocks = true;
-    } else {
-        use_zero_blocks = vhdx_opts->block_state_zero;
-    }
+    use_zero_blocks = vhdx_opts->block_state_zero;
 
-    if (!vhdx_opts->has_subformat) {
-        vhdx_opts->subformat = BLOCKDEV_VHDX_SUBFORMAT_DYNAMIC;
-    }
+    vhdx_opts->subformat = BLOCKDEV_VHDX_SUBFORMAT_DYNAMIC;
 
     switch (vhdx_opts->subformat) {
     case BLOCKDEV_VHDX_SUBFORMAT_DYNAMIC:
@@ -2030,10 +2020,8 @@ static int coroutine_fn vhdx_co_create_opts(const char *filename,
     create_options->u.vhdx.size =
         ROUND_UP(create_options->u.vhdx.size, BDRV_SECTOR_SIZE);
 
-    if (create_options->u.vhdx.has_log_size) {
-        create_options->u.vhdx.log_size =
-            ROUND_UP(create_options->u.vhdx.log_size, MiB);
-    }
+    create_options->u.vhdx.log_size =
+        ROUND_UP(create_options->u.vhdx.log_size, MiB);
     if (create_options->u.vhdx.has_block_size) {
         create_options->u.vhdx.block_size =
             ROUND_UP(create_options->u.vhdx.block_size, MiB);
