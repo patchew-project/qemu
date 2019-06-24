@@ -1240,6 +1240,27 @@ static gboolean tb_host_size_iter(gpointer key, gpointer value, gpointer data)
     return false;
 }
 
+static void tb_dump_statistics(TBStatistics *tbs)
+{
+    uint32_t cflags = curr_cflags() | CF_NOCACHE;
+    int old_log_flags = qemu_loglevel;
+
+    qemu_set_log(CPU_LOG_TB_OP_OPT);
+
+    qemu_log("\n------------------------------\n");
+    qemu_log("Translation Block PC: \t0x"TARGET_FMT_lx "\n", tbs->pc);
+    qemu_log("Execution Count: \t%lu\n\n", (uint64_t) (tbs->exec_count + tbs->exec_count_overflows*0xFFFFFFFF));
+
+    mmap_lock();
+    TranslationBlock *tb = tb_gen_code(current_cpu, tbs->pc, tbs->cs_base, tbs->flags, cflags);
+    tb_phys_invalidate(tb, -1);
+    mmap_unlock();
+
+    qemu_set_log(old_log_flags);
+
+    tcg_tb_remove(tb);
+}
+
 /* flush all the translation blocks */
 static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 {
@@ -1274,6 +1295,30 @@ static void do_tb_flush(CPUState *cpu, run_on_cpu_data tb_flush_count)
 
 done:
     mmap_unlock();
+}
+
+static gint inverse_sort_tbs(gconstpointer p1, gconstpointer p2) 
+{
+    const TBStatistics *tbs1 = (TBStatistics *) p1;
+    const TBStatistics *tbs2 = (TBStatistics *) p2;
+    uint64_t p1_count = (uint64_t) (tbs1->exec_count + tbs1->exec_count_overflows*0xFFFFFFFF);
+    uint64_t p2_count = (uint64_t) (tbs2->exec_count + tbs2->exec_count_overflows*0xFFFFFFFF);
+
+    return p1_count < p2_count ? 1 : p1_count == p2_count ? 0 : -1;
+}
+
+void tb_dump_exec_freq(uint32_t max_tbs_to_print)
+{
+    tb_ctx.tb_statistics = g_list_sort(tb_ctx.tb_statistics, inverse_sort_tbs);
+
+    uint32_t tbs_printed = 0;
+    for (GList *i = tb_ctx.tb_statistics; i != NULL; i = i->next) {
+        tbs_printed++;
+	    tb_dump_statistics((TBStatistics *) i->data);
+        if (max_tbs_to_print != 0 && tbs_printed >= max_tbs_to_print) {
+            break;
+        }
+    }
 }
 
 void tb_flush(CPUState *cpu)
