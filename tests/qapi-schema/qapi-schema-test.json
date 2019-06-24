@@ -104,6 +104,16 @@
 { 'struct': 'UserDefC',
   'data': { 'string1': 'str', 'string2': 'str' } }
 
+# for testing unions with an optional discriminator
+{ 'union': 'UserDefFlatUnion3',
+  'base': { '*enum1': { 'type': 'EnumOne', 'default': 'value1' } },
+  'discriminator': 'enum1',
+  'data': { 'value1' : 'UserDefA',
+            'value2' : 'UserDefB',
+            'value3' : 'UserDefB'
+            # 'value4' defaults to empty
+  } }
+
 # for testing use of 'number' within alternates
 { 'alternate': 'AltEnumBool', 'data': { 'e': 'EnumOne', 'b': 'bool' } }
 { 'alternate': 'AltEnumNum', 'data': { 'e': 'EnumOne', 'n': 'number' } }

@@ -96,6 +96,15 @@ alternate UserDefAlternate
 object UserDefC
     member string1: str optional=False
     member string2: str optional=False
+object q_obj_UserDefFlatUnion3-base
+    member enum1: EnumOne optional=True default=value1
+object UserDefFlatUnion3
+    base q_obj_UserDefFlatUnion3-base
+    tag enum1
+    case value1: UserDefA
+    case value2: UserDefB
+    case value3: UserDefB
+    case value4: q_empty
 alternate AltEnumBool
     tag type
     case e: EnumOne

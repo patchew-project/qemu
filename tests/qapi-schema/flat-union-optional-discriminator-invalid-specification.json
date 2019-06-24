@@ -1,0 +1,11 @@
+# For using optional discriminators, only the field in the base struct
+# must be marked optional, not the discriminator name itself
+{ 'enum': 'Enum', 'data': [ 'one', 'two' ] }
+{ 'struct': 'Base',
+  'data': { '*switch': { 'type': 'Enum', 'default': 'one' } } }
+{ 'struct': 'Branch', 'data': { 'name': 'str' } }
+{ 'union': 'MyUnion',
+  'base': 'Base',
+  'discriminator': '*switch',
+  'data': { 'one': 'Branch',
+            'two': 'Branch' } }

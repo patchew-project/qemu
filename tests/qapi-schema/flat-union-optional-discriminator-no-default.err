@@ -1,0 +1,1 @@
+tests/qapi-schema/flat-union-optional-discriminator-no-default.json:7: Optional discriminator 'switch' has no default value
