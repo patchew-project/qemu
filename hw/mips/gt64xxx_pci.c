@@ -240,6 +240,7 @@ typedef struct GT64120State {
     PCI_MAPPING_ENTRY(ISD);
     MemoryRegion pci0_mem;
     AddressSpace pci0_mem_as;
+    bool cpu_big_endian;
 } GT64120State;
 
 /* Adjust range to avoid touching space which isn't mappable via PCI */
@@ -1028,15 +1029,12 @@ static void gt64120_pci_set_irq(void *opaque, int irq_num, int level)
 static void gt64120_reset(DeviceState *dev)
 {
     GT64120State *s = GT64120_PCI_HOST_BRIDGE(dev);
+    const uint32_t pci_cmd = s->cpu_big_endian ? 0x00000000 : 0x00010001;
 
     /* FIXME: Malta specific hw assumptions ahead */
 
     /* CPU Configuration */
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->regs[GT_CPU]           = 0x00000000;
-#else
-    s->regs[GT_CPU]           = 0x00001000;
-#endif
+    s->regs[GT_CPU]           = !s->cpu_big_endian << 12;
     s->regs[GT_MULTI]         = 0x00000003;
 
     /* CPU Address decode */
@@ -1143,11 +1141,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_TC_CONTROL]    = 0x00000000;
 
     /* PCI Internal */
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->regs[GT_PCI0_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI0_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI0_CMD]      = pci_cmd;
     s->regs[GT_PCI0_TOR]      = 0x0000070f;
     s->regs[GT_PCI0_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI0_BS_SCS32] = 0x00fff000;
@@ -1164,11 +1158,7 @@ static void gt64120_reset(DeviceState *dev)
     s->regs[GT_PCI0_SSCS10_BAR] = 0x00000000;
     s->regs[GT_PCI0_SSCS32_BAR] = 0x01000000;
     s->regs[GT_PCI0_SCS3BT_BAR] = 0x1f000000;
-#ifdef TARGET_WORDS_BIGENDIAN
-    s->regs[GT_PCI1_CMD]      = 0x00000000;
-#else
-    s->regs[GT_PCI1_CMD]      = 0x00010001;
-#endif
+    s->regs[GT_PCI1_CMD]      = pci_cmd;
     s->regs[GT_PCI1_TOR]      = 0x0000070f;
     s->regs[GT_PCI1_BS_SCS10] = 0x00fff000;
     s->regs[GT_PCI1_BS_SCS32] = 0x00fff000;
@@ -1193,13 +1183,14 @@ static void gt64120_reset(DeviceState *dev)
     gt64120_pci_mapping(s);
 }
 
-PCIBus *gt64120_register(qemu_irq *pic)
+PCIBus *gt64120_create(qemu_irq *pic, bool target_is_bigendian)
 {
     GT64120State *d;
     PCIHostState *phb;
     DeviceState *dev;
 
     dev = qdev_create(NULL, TYPE_GT64120_PCI_HOST_BRIDGE);
+    qdev_prop_set_bit(dev, "cpu_big_endian", target_is_bigendian);
     d = GT64120_PCI_HOST_BRIDGE(dev);
     phb = PCI_HOST_BRIDGE(dev);
     memory_region_init(&d->pci0_mem, OBJECT(dev), "pci0-mem", 4 * GiB);
@@ -1262,6 +1253,11 @@ static const TypeInfo gt64120_pci_info = {
     },
 };
 
+static Property gt64120_properties[] = {
+    DEFINE_PROP_BOOL("cpu_big_endian", GT64120State, cpu_big_endian, true),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void gt64120_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -1269,6 +1265,7 @@ static void gt64120_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
     dc->reset = gt64120_reset;
     dc->vmsd = &vmstate_gt64120;
+    dc->props = gt64120_properties;
 }
 
 static const TypeInfo gt64120_info = {

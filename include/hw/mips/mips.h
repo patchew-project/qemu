@@ -9,7 +9,7 @@
 #include "hw/irq.h"
 
 /* gt64xxx.c */
-PCIBus *gt64120_register(qemu_irq *pic);
+PCIBus *gt64120_create(qemu_irq *pic, bool target_is_bigendian);
 
 /* bonito.c */
 PCIBus *bonito_init(qemu_irq *pic);

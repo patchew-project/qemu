@@ -1375,7 +1375,7 @@ void mips_malta_init(MachineState *machine)
     isa_irq = qemu_irq_proxy(&s->i8259, 16);
 
     /* Northbridge */
-    pci_bus = gt64120_register(isa_irq);
+    pci_bus = gt64120_create(isa_irq, be);
 
     /* Southbridge */
     ide_drive_get(hd, ARRAY_SIZE(hd));
