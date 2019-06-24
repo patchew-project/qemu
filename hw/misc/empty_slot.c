@@ -68,7 +68,11 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
 
         qdev_init_nofail(dev);
 
-        sysbus_mmio_map(s, 0, addr);
+        /*
+         * We use a priority lower than the default UNIMPLEMENTED_DEVICE
+         * to be able to plug a UnimplementedDevice on an EmptySlot.
+         */
+        sysbus_mmio_map_overlap(s, 0, addr, -10000);
     }
 }
 
