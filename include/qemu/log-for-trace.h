@@ -21,6 +21,8 @@
 /* Private global variable, don't use */
 extern int qemu_loglevel;
 
+extern int32_t max_num_hot_tbs_to_dump;
+
 #define LOG_TRACE          (1 << 15)
 
 /* Returns true if a bit is set in the current loglevel mask */
