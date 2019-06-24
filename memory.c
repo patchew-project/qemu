@@ -1953,6 +1953,16 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
         request_flags = IOMMU_NOTIFIER_UNMAP;
     }
 
+    if (entry->iova < notifier->start ||
+            entry->iova + entry->addr_mask > notifier->end) {
+        warn_report("%s IOMMUTLBEntry %lx-%lx outside of "
+                "notifier scope %lx-%lx",
+                (request_flags == IOMMU_NOTIFIER_MAP) ?
+                "Mapping" : "Unmapping",
+                entry->iova, entry->iova + entry->addr_mask,
+                notifier->start, notifier->end);
+    }
+
     if (notifier->notifier_flags & request_flags) {
         notifier->notify(notifier, entry);
     }
