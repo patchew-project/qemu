@@ -36,6 +36,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qnull.h"
 #include "qapi/qmp/qstring.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "sysemu/block-backend.h"
@@ -6283,6 +6284,56 @@ static bool bdrv_backing_overridden(BlockDriverState *bs)
     }
 }
 
+/**
+ * Take a blockdev @options QDict and convert its values to the
+ * correct type.
+ *
+ * Fail if @options does not match the QAPI schema of BlockdevOptions.
+ *
+ * In case of failure, return NULL and set @errp.
+ *
+ * In case of success, return a correctly typed new QDict.
+ */
+static QDict *bdrv_type_blockdev_opts(const QDict *options, Error **errp)
+{
+    Visitor *v;
+    BlockdevOptions *blockdev_options;
+    QObject *typed_opts;
+    QDict *string_options;
+    Error *local_err = NULL;
+
+    string_options = qdict_clone_shallow(options);
+
+    qdict_flatten(string_options);
+    v = qobject_input_visitor_new_flat_confused(string_options, errp);
+    if (!v) {
+        error_prepend(errp, "Failed to prepare options: ");
+        return NULL;
+    }
+
+    visit_type_BlockdevOptions(v, NULL, &blockdev_options, &local_err);
+    visit_free(v);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "Not a valid BlockdevOptions object: ");
+        return NULL;
+    }
+
+    v = qobject_output_visitor_new(&typed_opts);
+    visit_type_BlockdevOptions(v, NULL, &blockdev_options, &local_err);
+    if (!local_err) {
+        visit_complete(v, &typed_opts);
+    }
+    visit_free(v);
+    qapi_free_BlockdevOptions(blockdev_options);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return NULL;
+    }
+
+    return qobject_to(QDict, typed_opts);
+}
+
 /* Updates the following BDS fields:
  *  - exact_filename: A filename which may be used for opening a block device
  *                    which (mostly) equals the given BDS (even without any
@@ -6400,10 +6451,25 @@ void bdrv_refresh_filename(BlockDriverState *bs)
     if (bs->exact_filename[0]) {
         pstrcpy(bs->filename, sizeof(bs->filename), bs->exact_filename);
     } else {
-        QString *json = qobject_to_json(QOBJECT(bs->full_open_options));
+        QString *json;
+        QDict *typed_opts, *json_opts;
+
+        typed_opts = bdrv_type_blockdev_opts(bs->full_open_options, NULL);
+
+        /*
+         * We cannot be certain that bs->full_open_options matches
+         * BlockdevOptions, so bdrv_type_blockdev_opts() may fail.
+         * That is not fatal, we can just emit bs->full_open_options
+         * directly -- qemu will accept that, even if it does not
+         * match the schema.
+         */
+        json_opts = typed_opts ?: bs->full_open_options;
+
+        json = qobject_to_json(QOBJECT(json_opts));
         snprintf(bs->filename, sizeof(bs->filename), "json:%s",
                  qstring_get_str(json));
         qobject_unref(json);
+        qobject_unref(typed_opts);
     }
 }
 
