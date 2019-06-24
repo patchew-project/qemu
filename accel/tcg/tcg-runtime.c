@@ -167,3 +167,13 @@ void HELPER(exit_atomic)(CPUArchState *env)
 {
     cpu_loop_exit_atomic(env_cpu(env), GETPC());
 }
+
+void HELPER(inc_exec_freq)(void *ptr)
+{
+    TranslationBlock *tb = (TranslationBlock*) ptr;
+    // if overflows, then reset the execution counter and increment the overflow counter
+    if (atomic_cmpxchg(&tb->tb_stats->exec_count, 0xFFFFFFFF, 0) == 0xFFFFFFFF) {
+        atomic_inc(&tb->tb_stats->exec_count_overflows);
+    }
+    atomic_inc(&tb->tb_stats->exec_count);
+}
