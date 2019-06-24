@@ -334,11 +334,15 @@ Usage: { 'struct': STRING, 'data': DICT, '*base': STRUCT-NAME }
 A struct is a dictionary containing a single 'data' key whose value is
 a dictionary; the dictionary may be empty.  This corresponds to a
 struct in C or an Object in JSON. Each value of the 'data' dictionary
-must be the name of a type, or a one-element array containing a type
-name.  An example of a struct is:
+must be the name of a type, a one-element array containing a type
+name, or a dictionary whose 'type' key gives a type name.  An example
+of a struct is:
 
  { 'struct': 'MyType',
-   'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
+   'data': { 'member1': 'str',
+             'member2': 'int',
+             '*member3': 'str',
+             '*member4': { 'type': 'bool' } } }
 
 The use of '*' as a prefix to the name means the member is optional in
 the corresponding JSON protocol usage.
@@ -370,6 +374,21 @@ to mandatory is safe.
 A structure that is used in both input and output of various commands
 must consider the backwards compatibility constraints of both directions
 of use.
+
+Instead of describing the default values for input structures' members
+in the documentation, it is possible to specify it explicitly in the
+struct definition.  In the following example, we let the optional
+'member4' of the above 'MyType' struct default to true:
+
+{ 'struct': 'MyType',
+   'data': { 'member1': 'str',
+             'member2': 'int',
+             '*member3': 'str',
+             '*member4': { 'type': 'bool', 'default': true } } }
+
+In the resulting C interface in QEMU 'member4' will then appear as
+non-optional.  If the client does not specify it, it will be
+automatically set to true.
 
 A struct definition can specify another struct as its base.
 In this case, the members of the base type are included as top-level members
@@ -472,8 +491,9 @@ All branches of the union must be complex types, and the top-level
 members of the union dictionary on the wire will be combination of
 members from both the base type and the appropriate branch type (when
 merging two dictionaries, there must be no keys in common).  The
-'discriminator' member must be the name of a non-optional enum-typed
-member of the base struct.
+'discriminator' member must be the name of an enum-typed member of the
+base struct.  If that member is optional, a default value must be
+given.
 
 The following example enhances the above simple union example by
 adding an optional common member 'read-only', renaming the
@@ -503,6 +523,24 @@ are still valid branches that add no additional members to the data type.
 In the resulting generated C data types, a flat union is
 represented as a struct with the base members included directly, and
 then a union of structures for each branch of the struct.
+
+In the following example, the above BlockdevOptions struct is changed
+so it defaults to the 'file' driver is that field is omitted on the
+wire:
+
+ { 'union': 'BlockdevOptions',
+   'base': {
+       '*driver': { 'type': 'BlockdevDriver', 'default': 'file' },
+       '*read-only': 'bool'
+   },
+   'discriminator': 'driver',
+   'data': { 'file': 'BlockdevOptionsFile',
+             'qcow2': 'BlockdevOptionsQcow2' } }
+
+Now the 'file' JSON object can be abbreviated to:
+
+ { "read-only": true,
+   "filename": "/some/place/my-image" }
 
 A simple union can always be re-written as a flat union where the base
 class has a single member named 'type', and where each branch of the
@@ -922,11 +960,11 @@ and "variants".
 "members" is a JSON array describing the object's common members, if
 any.  Each element is a JSON object with members "name" (the member's
 name), "type" (the name of its type), and optionally "default".  The
-member is optional if "default" is present.  Currently, "default" can
-only have value null.  Other values are reserved for future
-extensions.  The "members" array is in no particular order; clients
-must search the entire object when learning whether a particular
-member is supported.
+member is optional if "default" is present.  If "default" has any
+value but null, that value will be used as the default if the member
+is not specified.  The "members" array is in no particular order;
+clients must search the entire object when learning whether a
+particular member is supported.
 
 Example: the SchemaInfo for MyType from section Struct types
 
@@ -934,7 +972,8 @@ Example: the SchemaInfo for MyType from section Struct types
       "members": [
           { "name": "member1", "type": "str" },
           { "name": "member2", "type": "int" },
-          { "name": "member3", "type": "str", "default": null } ] }
+          { "name": "member3", "type": "str", "default": null },
+          { "name": "member4", "type": "bool", "default": true } ] }
 
 "tag" is the name of the common member serving as type tag.
 "variants" is a JSON array describing the object's variant members.
@@ -1052,7 +1091,9 @@ qmp_my_command(); everything else is produced by the generator.
 
     $ cat example-schema.json
     { 'struct': 'UserDefOne',
-      'data': { 'integer': 'int', '*string': 'str' } }
+      'data': { 'integer': 'int',
+                '*string': 'str',
+                '*defaultbool': { 'type': 'bool', 'default': true } } }
 
     { 'command': 'my-command',
       'data': { 'arg1': ['UserDefOne'] },
@@ -1104,6 +1145,7 @@ Example:
         int64_t integer;
         bool has_string;
         char *string;
+        bool defaultbool;
     };
 
     void qapi_free_UserDefOne(UserDefOne *obj);
@@ -1207,6 +1249,7 @@ Example:
     void visit_type_UserDefOne_members(Visitor *v, UserDefOne *obj, Error **errp)
     {
         Error *err = NULL;
+        bool has_optional;
 
         visit_type_int(v, "integer", &obj->integer, &err);
         if (err) {
@@ -1217,6 +1260,14 @@ Example:
             if (err) {
                 goto out;
             }
+        }
+        if (visit_optional(v, "defaultbool", &has_optional)) {
+            visit_type_bool(v, "defaultbool", &obj->defaultbool, &err);
+            if (err) {
+                goto out;
+            }
+        } else {
+            obj->defaultbool = true;
         }
 
     out:
@@ -1561,6 +1612,12 @@ Example:
                     { "default", QLIT_QNULL, },
                     { "name", QLIT_QSTR("string"), },
                     { "type", QLIT_QSTR("str"), },
+                    {}
+                })),
+                QLIT_QDICT(((QLitDictEntry[]) {
+                    { "default", QLIT_QBOOL(true), },
+                    { "name", QLIT_QSTR("defaultbool"), },
+                    { "type", QLIT_QSTR("bool"), },
                     {}
                 })),
                 {}
