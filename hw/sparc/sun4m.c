@@ -41,7 +41,7 @@
 #include "hw/nvram/chrp_nvram.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
-#include "hw/empty_slot.h"
+#include "hw/misc/empty_slot.h"
 #include "hw/loader.h"
 #include "elf.h"
 #include "trace.h"
