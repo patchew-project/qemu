@@ -20,8 +20,7 @@
 #include "trace.h"
 
 typedef struct {
-    uint32_t size;
-    uint8_t runstate[100];
+    RunState state_pre_migrate;
     RunState state;
     bool received;
 } GlobalState;
@@ -30,21 +29,14 @@ static GlobalState global_state;
 
 int global_state_store(void)
 {
-    if (!runstate_store((char *)global_state.runstate,
-                        sizeof(global_state.runstate))) {
-        error_report("runstate name too big: %s", global_state.runstate);
-        trace_migrate_state_too_big();
-        return -EINVAL;
-    }
+    global_state.state_pre_migrate = runstate_get();
+
     return 0;
 }
 
 void global_state_store_running(void)
 {
-    const char *state = RunState_str(RUN_STATE_RUNNING);
-    assert(strlen(state) < sizeof(global_state.runstate));
-    strncpy((char *)global_state.runstate,
-           state, sizeof(global_state.runstate));
+    global_state.state_pre_migrate = RUN_STATE_RUNNING;
 }
 
 bool global_state_received(void)
@@ -60,7 +52,6 @@ RunState global_state_get_runstate(void)
 static bool global_state_needed(void *opaque)
 {
     GlobalState *s = opaque;
-    char *runstate = (char *)s->runstate;
 
     /* If it is not optional, it is mandatory */
 
@@ -70,8 +61,8 @@ static bool global_state_needed(void *opaque)
 
     /* If state is running or paused, it is not needed */
 
-    if (strcmp(runstate, "running") == 0 ||
-        strcmp(runstate, "paused") == 0) {
+    if (s->state_pre_migrate == RUN_STATE_RUNNING ||
+        s->state_pre_migrate == RUN_STATE_PAUSED) {
         return false;
     }
 
@@ -82,45 +73,10 @@ static bool global_state_needed(void *opaque)
 static int global_state_post_load(void *opaque, int version_id)
 {
     GlobalState *s = opaque;
-    Error *local_err = NULL;
-    int r;
-    char *runstate = (char *)s->runstate;
-
     s->received = true;
-    trace_migrate_global_state_post_load(runstate);
+    s->state = s->state_pre_migrate;
 
-    if (strnlen((char *)s->runstate,
-                sizeof(s->runstate)) == sizeof(s->runstate)) {
-        /*
-         * This condition should never happen during migration, because
-         * all runstate names are shorter than 100 bytes (the size of
-         * s->runstate). However, a malicious stream could overflow
-         * the qapi_enum_parse() call, so we force the last character
-         * to a NUL byte.
-         */
-        s->runstate[sizeof(s->runstate) - 1] = '\0';
-    }
-    r = qapi_enum_parse(&RunState_lookup, runstate, -1, &local_err);
-
-    if (r == -1) {
-        if (local_err) {
-            error_report_err(local_err);
-        }
-        return -EINVAL;
-    }
-    s->state = r;
-
-    return 0;
-}
-
-static int global_state_pre_save(void *opaque)
-{
-    GlobalState *s = opaque;
-
-    trace_migrate_global_state_pre_save((char *)s->runstate);
-    s->size = strnlen((char *)s->runstate, sizeof(s->runstate)) + 1;
-    assert(s->size <= sizeof(s->runstate));
-
+    trace_migrate_global_state_post_load(RunState_str(s->state));
     return 0;
 }
 
@@ -129,11 +85,9 @@ static const VMStateDescription vmstate_globalstate = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = global_state_post_load,
-    .pre_save = global_state_pre_save,
     .needed = global_state_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(size, GlobalState),
-        VMSTATE_BUFFER(runstate, GlobalState),
+        VMSTATE_UINT32(state_pre_migrate, GlobalState),
         VMSTATE_END_OF_LIST()
     },
 };
@@ -141,7 +95,6 @@ static const VMStateDescription vmstate_globalstate = {
 void register_global_state(void)
 {
     /* We would use it independently that we receive it */
-    strcpy((char *)&global_state.runstate, "");
     global_state.received = false;
     vmstate_register(NULL, 0, &vmstate_globalstate, &global_state);
 }

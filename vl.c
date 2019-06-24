@@ -680,16 +680,9 @@ bool runstate_check(RunState state)
     return current_run_state == state;
 }
 
-bool runstate_store(char *str, size_t size)
+RunState runstate_get(void)
 {
-    const char *state = RunState_str(current_run_state);
-    size_t len = strlen(state) + 1;
-
-    if (len > size) {
-        return false;
-    }
-    memcpy(str, state, len);
-    return true;
+    return current_run_state;
 }
 
 static void runstate_init(void)
