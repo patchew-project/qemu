@@ -416,11 +416,11 @@ static uint64List *uint64_list(uint64_t *list, int size)
 }
 
 static void bdrv_histogram_stats(BlockHistogram *hist, bool *not_null,
-                                 BlockLatencyHistogramInfo **info)
+                                 BlockHistogramInfo **info)
 {
     *not_null = hist->bins != NULL;
     if (*not_null) {
-        *info = g_new0(BlockLatencyHistogramInfo, 1);
+        *info = g_new0(BlockHistogramInfo, 1);
 
         (*info)->boundaries = uint64_list(hist->boundaries, hist->nbins - 1);
         (*info)->bins = uint64_list(hist->bins, hist->nbins);
@@ -502,6 +502,13 @@ static void bdrv_query_blk_stats(BlockDeviceStats *ds, BlockBackend *blk)
     bdrv_histogram_stats(&stats->latency_histogram[BLOCK_ACCT_FLUSH],
                          &ds->has_flush_latency_histogram,
                          &ds->flush_latency_histogram);
+    bdrv_histogram_stats(&stats->size_histogram[BLOCK_ACCT_READ],
+                         &ds->has_rd_size_histogram, &ds->rd_size_histogram);
+    bdrv_histogram_stats(&stats->size_histogram[BLOCK_ACCT_WRITE],
+                         &ds->has_wr_size_histogram, &ds->wr_size_histogram);
+    bdrv_histogram_stats(&stats->size_histogram[BLOCK_ACCT_FLUSH],
+                         &ds->has_flush_size_histogram,
+                         &ds->flush_size_histogram);
 }
 
 static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
