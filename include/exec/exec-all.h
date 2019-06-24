@@ -324,6 +324,24 @@ static inline void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu,
 #define CODE_GEN_AVG_BLOCK_SIZE 150
 #endif
 
+typedef struct TBStatistics TBStatistics;                                                                                                               
+
+/* 
+ * This struct stores statistics such as execution count of the TranslationBlocks.
+ * Each TB has its own TBStatistics. TBStatistics is suppose to live even after 
+ * flushes.
+ */
+struct TBStatistics {                                                                                                                                   
+    target_ulong pc;                                                                                                                                    
+    target_ulong cs_base;                                                                                                                               
+    uint32_t flags;                                                                                                                                     
+    tb_page_addr_t page_addr[2];                                                                                                                        
+
+    // total number of times that the related TB have being executed                                                                                    
+    uint32_t exec_count;                                                                                                                                
+    uint32_t exec_count_overflows;                                                                                                                      
+};  
+
 /*
  * Translation Cache-related fields of a TB.
  * This struct exists just for convenience; we keep track of TB's in a binary
@@ -403,6 +421,9 @@ struct TranslationBlock {
     uintptr_t jmp_list_head;
     uintptr_t jmp_list_next[2];
     uintptr_t jmp_dest[2];
+
+    // Pointer to a struct where statistics from the TB is stored
+    TBStatistics *tb_stats;
 };
 
 extern bool parallel_cpus;

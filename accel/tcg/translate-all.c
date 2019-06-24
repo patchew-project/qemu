@@ -1118,6 +1118,18 @@ static inline void code_gen_alloc(size_t tb_size)
     }
 }
 
+static gint statistics_cmp(gconstpointer p1, gconstpointer p2) 
+{
+    const TBStatistics *a = (TBStatistics *) p1;
+    const TBStatistics *b = (TBStatistics *) p2;
+
+    return (a->pc == b->pc && 
+		   a->cs_base == b->cs_base &&
+		   a->flags == b->flags && 
+	       a->page_addr[0] == b->page_addr[0] &&
+    	   a->page_addr[1] == b->page_addr[1]) ? 0 : 1; 
+}
+
 static bool tb_cmp(const void *ap, const void *bp)
 {
     const TranslationBlock *a = ap;
@@ -1586,6 +1598,29 @@ static inline void tb_page_add(PageDesc *p, TranslationBlock *tb,
 #endif
 }
 
+static void tb_insert_statistics_structure(TranslationBlock *tb) {
+    TBStatistics *new_stats = g_new0(TBStatistics, 1);
+    new_stats->pc = tb->pc;
+    new_stats->cs_base = tb->cs_base;
+    new_stats->flags = tb->flags;
+    new_stats->page_addr[0] = tb->page_addr[0];
+    new_stats->page_addr[1] = tb->page_addr[1];
+
+	GList *lookup_result = g_list_find_custom(tb_ctx.tb_statistics, new_stats, statistics_cmp);
+
+	if (lookup_result) {
+		/* If there is already a TBStatistic for this TB from a previous flush
+		* then just make the new TB point to the older TBStatistic
+		*/
+		free(new_stats);
+    	tb->tb_stats = lookup_result->data;
+	} else {
+		/* If not, then points to the new tb_statistics and add it to the hash */
+		tb->tb_stats = new_stats;
+    	tb_ctx.tb_statistics = g_list_prepend(tb_ctx.tb_statistics, new_stats);
+	}
+}
+
 /* add a new TB and link it to the physical page tables. phys_page2 is
  * (-1) to indicate that only one page contains the TB.
  *
@@ -1635,6 +1670,11 @@ tb_link_page(TranslationBlock *tb, tb_page_addr_t phys_pc,
     if (!(tb->cflags & CF_NOCACHE)) {
         void *existing_tb = NULL;
         uint32_t h;
+
+        if (qemu_loglevel_mask(CPU_LOG_HOT_TBS)) {
+        	/* create and link to its TB a structure to store statistics */
+        	tb_insert_statistics_structure(tb);
+		}
 
         /* add in the hash table */
         h = tb_hash_func(phys_pc, tb->pc, tb->flags, tb->cflags & CF_HASH_MASK,

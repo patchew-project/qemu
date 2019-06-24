@@ -35,6 +35,7 @@ struct TBContext {
 
     /* statistics */
     unsigned tb_flush_count;
+    GList *tb_statistics;
 };
 
 extern TBContext tb_ctx;
