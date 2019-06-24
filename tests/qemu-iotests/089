@@ -35,6 +35,7 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
+. ./common.qemu
 
 _supported_fmt qcow2
 _supported_proto file
@@ -142,6 +143,30 @@ $QEMU_IO -c "open -o driver=qcow2 json:{\"file.filename\":\"$TEST_IMG\"}" \
 # Options given directly should be prioritized over those given in the filename
 $QEMU_IO -c "open -o driver=qcow2 json:{\"driver\":\"raw\",\"file.filename\":\"$TEST_IMG\"}" \
          -c "info" 2>&1 | _filter_img_info
+
+echo
+echo "=== Testing option typing ==="
+echo
+
+# json:{} accepts both strings and correctly typed values (even mixed,
+# although we probably do not want to support that...), but when
+# creating a json:{} filename, it should be correctly typed.
+# Therefore, both of these should make the "size" value an integer.
+
+TEST_IMG="json:{'driver': 'null-co', 'size':  42 }" _img_info | grep '^image'
+TEST_IMG="json:{'driver': 'null-co', 'size': '42'}" _img_info | grep '^image'
+
+echo
+
+# This should even work when some driver abuses bs->options to store
+# non-QAPI options (and the given -drive options are not complete)
+# (Watch for whether file.align appears as an int or a string)
+qemu_comm_method=monitor _launch_qemu \
+    -drive if=none,id=drv0,node-name=node0,format=raw,file=blkdebug::null-co://,file.align=512
+
+_send_qemu_cmd $QEMU_HANDLE 'info block' 'json:'
+
+_cleanup_qemu
 
 
 # success, all done
