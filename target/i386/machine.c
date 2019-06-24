@@ -999,7 +999,7 @@ static bool vmx_nested_state_needed(void *opaque)
 
     return ((nested_state->format == KVM_STATE_NESTED_FORMAT_VMX) &&
             ((nested_state->hdr.vmx.vmxon_pa != -1ull) ||
-             (nested_state->hdr.vmx.smm.flags & KVM_STATE_NESTED_SMM_VMXON)));
+             (nested_state->flags & KVM_STATE_NESTED_EVMCS)));
 }
 
 static const VMStateDescription vmstate_vmx_nested_state = {
