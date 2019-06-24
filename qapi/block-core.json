@@ -3059,7 +3059,9 @@
 # Since: 2.10
 ##
 { 'union': 'BlockdevQcowEncryption',
-  'base': { 'format': 'BlockdevQcowEncryptionFormat' },
+  'base': {
+      '*format': { 'type': 'BlockdevQcowEncryptionFormat', 'default': 'aes' }
+  },
   'discriminator': 'format',
   'data': { 'aes': 'QCryptoBlockOptionsQCow' } }
 
