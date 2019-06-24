@@ -57,6 +57,8 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
         ret += indent(level) + '}))'
     elif isinstance(obj, bool):
         ret += 'QLIT_QBOOL(%s)' % ('true' if obj else 'false')
+    elif isinstance(obj, int) and obj >= -(2 ** 63) and obj < 2 ** 63:
+        ret += 'QLIT_QNUM(%i)' % obj
     else:
         assert False                # not implemented
     if level > 0:

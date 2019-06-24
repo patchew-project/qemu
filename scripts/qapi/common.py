@@ -498,6 +498,8 @@ class QAPISchemaParser(object):
             raise QAPISemError(info, "Unknown pragma '%s'" % name)
 
     def accept(self, skip_comment=True):
+        num_match = re.compile(r'([-+]?inf|nan|[-+0-9.][0-9a-f.ex]*)')
+
         while True:
             self.tok = self.src[self.cursor]
             self.pos = self.cursor
@@ -584,7 +586,22 @@ class QAPISchemaParser(object):
                     return
                 self.line += 1
                 self.line_pos = self.cursor
-            elif not self.tok.isspace():
+            elif self.tok.isspace():
+                pass
+            elif num_match.match(self.src[self.pos:]):
+                match = num_match.match(self.src[self.pos:]).group(0)
+                try:
+                    self.val = int(match, 0)
+                except ValueError:
+                    try:
+                        self.val = float(match)
+                    except ValueError:
+                        raise QAPIParseError(self,
+                                '"%s" is not a valid integer or float' % match)
+
+                self.cursor += len(match) - 1
+                return
+            else:
                 raise QAPIParseError(self, 'Stray "%s"' % self.tok)
 
     def get_members(self):
@@ -617,9 +634,9 @@ class QAPISchemaParser(object):
         if self.tok == ']':
             self.accept()
             return expr
-        if self.tok not in "{['tfn":
+        if self.tok not in "{['tfn-+0123456789.i":
             raise QAPIParseError(self, 'Expected "{", "[", "]", string, '
-                                 'boolean or "null"')
+                                 'boolean, number or "null"')
         while True:
             expr.append(self.get_expr(True))
             if self.tok == ']':
@@ -638,7 +655,7 @@ class QAPISchemaParser(object):
         elif self.tok == '[':
             self.accept()
             expr = self.get_values()
-        elif self.tok in "'tfn":
+        elif self.tok in "'tfn-+0123456789.i":
             expr = self.val
             self.accept()
         else:
