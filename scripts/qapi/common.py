@@ -2208,6 +2208,32 @@ def c_fname(filename):
     return re.sub(r'[^A-Za-z0-9_]', '_', filename)
 
 
+# Translates a string to a valid C constant
+def to_c_string(string):
+    result = '"'
+
+    python2 = isinstance(string, bytes)
+    if not python2:
+        # Will return integers when iterated over
+        string = string.encode()
+
+    for c in string:
+        value = ord(c) if python2 else c
+        if value < 0x20 or value > 0x7e:
+            result += '\\%03o' % value
+        else:
+            c = chr(value)
+            if c == '"':
+                result += '\\"'
+            elif c == '\\':
+                result += '\\\\'
+            else:
+                result += c
+
+    result += '"'
+    return result
+
+
 def guardstart(name):
     return mcgen('''
 #ifndef %(name)s

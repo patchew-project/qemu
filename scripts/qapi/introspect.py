@@ -66,10 +66,6 @@ def to_qlit(obj, level=0, suppress_first_indent=False):
     return ret
 
 
-def to_c_string(string):
-    return '"' + string.replace('\\', r'\\').replace('"', r'\"') + '"'
-
-
 class QAPISchemaGenIntrospectVisitor(QAPISchemaMonolithicCVisitor):
 
     def __init__(self, prefix, unmask):
