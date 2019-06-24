@@ -17,5 +17,5 @@ common-obj-$(CONFIG_PCI_PIIX) += piix.o
 common-obj-$(CONFIG_PCI_EXPRESS_Q35) += q35.o
 common-obj-$(CONFIG_PCI_EXPRESS_GENERIC_BRIDGE) += gpex.o
 common-obj-$(CONFIG_PCI_EXPRESS_XILINX) += xilinx-pcie.o
-
+common-obj-$(CONFIG_MALTA) += gt64120.o
 common-obj-$(CONFIG_PCI_EXPRESS_DESIGNWARE) += designware.o
