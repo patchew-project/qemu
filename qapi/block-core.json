@@ -47,6 +47,9 @@
 ##
 # @ImageInfoSpecificQCow2Encryption:
 #
+# @format will never be "auto", as this pseudo-format just tells the
+# qcow2 driver to read the actual format from the image header.
+#
 # Since: 2.10
 ##
 { 'union': 'ImageInfoSpecificQCow2Encryption',
@@ -3081,10 +3084,30 @@
 # @BlockdevQcow2EncryptionFormat:
 # @aes: AES-CBC with plain64 initialization vectors
 #
+# @auto:            Determine the encryption format from the image
+#                   header.  This only allows the use of the
+#                   key-secret option.  (Since: 4.1)
+#
 # Since: 2.10
 ##
 { 'enum': 'BlockdevQcow2EncryptionFormat',
-  'data': [ 'aes', 'luks' ] }
+  'data': [ 'aes', 'luks', 'auto' ] }
+
+##
+# @BlockdevQcow2EncryptionSecret:
+#
+# Allows specifying a key-secret without specifying the exact
+# encryption format, which is determined automatically from the image
+# header.
+#
+# @key-secret:      The ID of a QCryptoSecret object providing the
+#                   decryption key.  Mandatory except when probing
+#                   image for metadata only.
+#
+# Since: 4.1
+##
+{ 'struct': 'BlockdevQcow2EncryptionSecret',
+  'data': { '*key-secret': 'str' } }
 
 ##
 # @BlockdevQcow2Encryption:
@@ -3092,10 +3115,13 @@
 # Since: 2.10
 ##
 { 'union': 'BlockdevQcow2Encryption',
-  'base': { 'format': 'BlockdevQcow2EncryptionFormat' },
+  'base': {
+      '*format': { 'type': 'BlockdevQcow2EncryptionFormat', 'default': 'auto' }
+  },
   'discriminator': 'format',
   'data': { 'aes': 'QCryptoBlockOptionsQCow',
-            'luks': 'QCryptoBlockOptionsLUKS'} }
+            'luks': 'QCryptoBlockOptionsLUKS',
+            'auto': 'BlockdevQcow2EncryptionSecret' } }
 
 ##
 # @BlockdevOptionsQcow2:

@@ -930,6 +930,9 @@ static int qcow2_update_options_prepare(BlockDriverState *bs,
 
     qdict_extract_subqdict(options, &encryptopts, "encrypt.");
     encryptfmt = qdict_get_try_str(encryptopts, "format");
+    if (!g_strcmp0(encryptfmt, "auto")) {
+        encryptfmt = NULL;
+    }
 
     opts = qemu_opts_create(&qcow2_runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &local_err);
