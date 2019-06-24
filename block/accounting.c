@@ -192,6 +192,22 @@ void block_latency_histograms_clear(BlockAcctStats *stats)
     }
 }
 
+int block_size_histogram_set(BlockAcctStats *stats, enum BlockAcctType type,
+                             uint64List *boundaries)
+{
+    BlockHistogram *hist = &stats->size_histogram[type];
+
+    return block_histogram_set(hist, boundaries);
+}
+
+void block_size_histograms_clear(BlockAcctStats *stats)
+{
+    int i;
+
+    for (i = 0; i < BLOCK_MAX_IOTYPE; i++) {
+        block_histogram_clear(&stats->size_histogram[i]);
+    }
+}
 static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
                                  bool failed)
 {
@@ -216,6 +232,8 @@ static void block_account_one_io(BlockAcctStats *stats, BlockAcctCookie *cookie,
 
     block_histogram_account(&stats->latency_histogram[cookie->type],
                             latency_ns);
+    block_histogram_account(&stats->size_histogram[cookie->type],
+                            cookie->bytes);
 
     if (!failed || stats->account_failed) {
         stats->total_time_ns[cookie->type] += latency_ns;
