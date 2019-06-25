@@ -23,7 +23,7 @@ def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
 
 
-def pick_default_qemu_bin(arch=None):
+def pick_default_qemu_bin(path_fmt, bin_fmt, arch=None):
     """
     Picks the path of a QEMU binary, starting either in the current working
     directory or in the source tree root directory.
@@ -39,8 +39,7 @@ def pick_default_qemu_bin(arch=None):
     """
     if arch is None:
         arch = os.uname()[4]
-    qemu_bin_relative_path = os.path.join("%s-softmmu" % arch,
-                                          "qemu-system-%s" % arch)
+    qemu_bin_relative_path = os.path.join(path_fmt % arch, bin_fmt % arch)
     if is_readable_executable_file(qemu_bin_relative_path):
         return qemu_bin_relative_path
 
@@ -51,14 +50,15 @@ def pick_default_qemu_bin(arch=None):
 
 
 class Test(avocado.Test):
-    def setUp(self):
+    def base_setUp(self, path_fmt, bin_fmt):
         arches = self.tags.get('arch', [])
         if len(arches) == 1:
             arch = arches.pop()
         else:
             arch = None
         self.arch = self.params.get('arch', default=arch)
-        default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
+        default_qemu_bin = pick_default_qemu_bin(path_fmt, bin_fmt,
+                                                 arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
                                         default=default_qemu_bin)
         if self.qemu_bin is None:
@@ -68,7 +68,7 @@ class Test(avocado.Test):
 class MachineTest(Test):
     def setUp(self):
         self._vms = {}
-        super().setUp()
+        self.base_setUp("%s-softmmu", "qemu-system-%s")
 
     def _new_vm(self, *args):
         vm = QEMUMachine(self.qemu_bin)
