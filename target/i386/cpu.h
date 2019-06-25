@@ -1925,6 +1925,16 @@ void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
  */
 void x86_cpu_change_kvm_default(const char *prop, const char *value);
 
+/*
+ * Set default CPU model version for all CPU models
+ *
+ * If set to NULL, the old unversioned CPU models will be used by default.
+ *
+ * If non-NULL, the unversioned CPU models will be aliases to the
+ * corresponding version.
+ */
+void x86_cpu_set_default_version(const char *version);
+
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);
 

@@ -1432,7 +1432,17 @@ static char *x86_cpu_class_get_model_name(X86CPUClass *cc)
                      strlen(class_name) - strlen(X86_CPU_TYPE_SUFFIX));
 }
 
-struct X86CPUDefinition {
+typedef struct PropValue {
+    const char *prop, *value;
+} PropValue;
+
+typedef struct X86CPUVersionDefinition {
+    const char *name;
+    PropValue *props;
+} X86CPUVersionDefinition;
+
+/* Base definition for a CPU model */
+typedef struct X86CPUDefinition {
     const char *name;
     uint32_t level;
     uint32_t xlevel;
@@ -1444,7 +1454,31 @@ struct X86CPUDefinition {
     FeatureWordArray features;
     const char *model_id;
     CPUCaches *cache_info;
+    /*
+     * Definitions for alternative versions of CPU model.
+     * List is terminated by item with name==NULL.
+     * If NULL, base_cpu_versions will be used instead.
+     */
+    const X86CPUVersionDefinition *versions;
+} X86CPUDefinition;
+
+/* CPU model, which might include a specific CPU model version */
+struct X86CPUModel {
+    /* Base CPU definition */
+    X86CPUDefinition *cpudef;
+
+    /*
+     * CPU model version.  If NULL, version will be chosen depending on current
+     * machine.
+     */
+    const char *version;
 };
+
+static char *x86_cpu_versioned_model_name(X86CPUDefinition *cpudef,
+                                          const char *version)
+{
+    return g_strdup_printf("%s-%s", cpudef->name, version);
+}
 
 static CPUCaches epyc_cache_info = {
     .l1d_cache = &(CPUCacheInfo) {
@@ -3010,10 +3044,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
     },
 };
 
-typedef struct PropValue {
-    const char *prop, *value;
-} PropValue;
-
 /* KVM-specific features that are automatically added/removed
  * from all CPU models when KVM is enabled.
  */
@@ -3038,6 +3068,19 @@ static PropValue tcg_default_props[] = {
     { NULL, NULL },
 };
 
+
+/* List of CPU model versions used when X86CPUDefinition::versions is NULL */
+static const X86CPUVersionDefinition base_cpu_versions[] = {
+    { "4.1" },
+    { /* end of list */ },
+};
+
+static const char *default_cpu_version = "4.1";
+
+void x86_cpu_set_default_version(const char *version)
+{
+    default_cpu_version = version;
+}
 
 void x86_cpu_change_kvm_default(const char *prop, const char *value)
 {
@@ -3115,8 +3158,6 @@ static void max_x86_cpu_class_init(ObjectClass *oc, void *data)
 
     dc->props = max_x86_cpu_properties;
 }
-
-static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp);
 
 static void max_x86_cpu_initfn(Object *obj)
 {
@@ -3811,8 +3852,8 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     char *name = x86_cpu_class_get_model_name(cc);
     const char *desc = cc->model_description;
-    if (!desc && cc->cpu_def) {
-        desc = cc->cpu_def->model_id;
+    if (!desc && cc->model) {
+        desc = cc->model->cpudef->model_id;
     }
 
     qemu_printf("x86 %-20s  %-48s\n", name, desc);
@@ -3865,6 +3906,11 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     info->migration_safe = cc->migration_safe;
     info->has_migration_safe = true;
     info->q_static = cc->static_model;
+    if (cc->model && !cc->model->version && default_cpu_version) {
+        info->has_alias_of = true;
+        info->alias_of = x86_cpu_versioned_model_name(cc->model->cpudef,
+                                                      default_cpu_version);
+    }
 
     entry = g_malloc0(sizeof(*entry));
     entry->value = info;
@@ -3938,10 +3984,38 @@ static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
     }
 }
 
+static const X86CPUVersionDefinition *x86_cpu_def_get_versions(X86CPUDefinition *def)
+{
+    return def->versions ?: base_cpu_versions;
+}
+
+static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUDefinition *def,
+                                        const char *version)
+{
+    const X86CPUVersionDefinition *vdef;
+
+    for (vdef = x86_cpu_def_get_versions(def); vdef->name; vdef++) {
+        PropValue *p;
+
+        for (p = vdef->props; p && p->prop; p++) {
+            object_property_parse(OBJECT(cpu), p->value, p->prop,
+                                  &error_abort);
+        }
+
+        if (!strcmp(vdef->name, version)) {
+            break;
+        }
+    }
+
+    /* If we reached the end of the list, version string was invalid */
+    assert(vdef->name);
+}
+
 /* Load data from X86CPUDefinition into a X86CPU object
  */
-static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
+static void x86_cpu_load_model(X86CPU *cpu, X86CPUModel *model, Error **errp)
 {
+    X86CPUDefinition *def = model->cpudef;
     CPUX86State *env = &cpu->env;
     const char *vendor;
     char host_vendor[CPUID_VENDOR_SZ + 1];
@@ -3998,11 +4072,16 @@ static void x86_cpu_load_def(X86CPU *cpu, X86CPUDefinition *def, Error **errp)
 
     object_property_set_str(OBJECT(cpu), vendor, "vendor", errp);
 
+    if (model->version) {
+        x86_cpu_apply_version_props(cpu, def, model->version);
+    } else if (default_cpu_version) {
+        x86_cpu_apply_version_props(cpu, def, default_cpu_version);
+    }
 }
 
 #ifndef CONFIG_USER_ONLY
 /* Return a QDict containing keys for all properties that can be included
- * in static expansion of CPU models. All properties set by x86_cpu_load_def()
+ * in static expansion of CPU models. All properties set by x86_cpu_load_model()
  * must be included in the dictionary.
  */
 static QDict *x86_cpu_static_props(void)
@@ -4216,22 +4295,43 @@ static gchar *x86_gdb_arch_name(CPUState *cs)
 
 static void x86_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
-    X86CPUDefinition *cpudef = data;
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
 
-    xcc->cpu_def = cpudef;
+    xcc->model = data;
     xcc->migration_safe = true;
 }
 
-static void x86_register_cpudef_type(X86CPUDefinition *def)
+static char *x86_cpu_model_type_name(X86CPUModel *model)
 {
-    char *typename = x86_cpu_type_name(def->name);
+    if (model->version) {
+        char *name = x86_cpu_versioned_model_name(model->cpudef,
+                                                  model->version);
+        char *r = x86_cpu_type_name(name);
+        g_free(name);
+        return r;
+    } else {
+        return x86_cpu_type_name(model->cpudef->name);
+    }
+}
+
+static void x86_register_cpu_model_type(X86CPUModel *model)
+{
+    char *typename = x86_cpu_model_type_name(model);
     TypeInfo ti = {
         .name = typename,
         .parent = TYPE_X86_CPU,
         .class_init = x86_cpu_cpudef_class_init,
-        .class_data = def,
+        .class_data = model,
     };
+
+    type_register(&ti);
+    g_free(typename);
+}
+
+static void x86_register_cpudef_types(X86CPUDefinition *def)
+{
+    X86CPUModel *m;
+    const X86CPUVersionDefinition *vdef;
 
     /* AMD aliases are handled at runtime based on CPUID vendor, so
      * they shouldn't be set on the CPU model table.
@@ -4240,9 +4340,20 @@ static void x86_register_cpudef_type(X86CPUDefinition *def)
     /* catch mistakes instead of silently truncating model_id when too long */
     assert(def->model_id && strlen(def->model_id) <= 48);
 
+    /* Unversioned model: */
+    m = g_new0(X86CPUModel, 1);
+    m->cpudef = def;
+    x86_register_cpu_model_type(m);
 
-    type_register(&ti);
-    g_free(typename);
+    /* Versioned models: */
+
+    for (vdef = x86_cpu_def_get_versions(def); vdef->name; vdef++) {
+        X86CPUModel *m = g_new0(X86CPUModel, 1);
+        m->cpudef = def;
+        m->version = vdef->name;
+        x86_register_cpu_model_type(m);
+    }
+
 }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -5029,7 +5140,7 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
  * involved in setting up CPUID data are:
  *
  * 1) Loading CPU model definition (X86CPUDefinition). This is
- *    implemented by x86_cpu_load_def() and should be completely
+ *    implemented by x86_cpu_load_model() and should be completely
  *    transparent, as it is done automatically by instance_init.
  *    No code should need to look at X86CPUDefinition structs
  *    outside instance_init.
@@ -5346,7 +5457,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
     /* Cache information initialization */
     if (!cpu->legacy_cache) {
-        if (!xcc->cpu_def || !xcc->cpu_def->cache_info) {
+        if (!xcc->model || !xcc->model->cpudef->cache_info) {
             char *name = x86_cpu_class_get_model_name(xcc);
             error_setg(errp,
                        "CPU model '%s' doesn't support legacy-cache=off", name);
@@ -5354,7 +5465,7 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             return;
         }
         env->cache_info_cpuid2 = env->cache_info_cpuid4 = env->cache_info_amd =
-            *xcc->cpu_def->cache_info;
+            *xcc->model->cpudef->cache_info;
     } else {
         /* Build legacy cache information */
         env->cache_info_cpuid2.l1d_cache = &legacy_l1d_cache;
@@ -5713,8 +5824,8 @@ static void x86_cpu_initfn(Object *obj)
     object_property_add_alias(obj, "sse4_1", obj, "sse4.1", &error_abort);
     object_property_add_alias(obj, "sse4_2", obj, "sse4.2", &error_abort);
 
-    if (xcc->cpu_def) {
-        x86_cpu_load_def(cpu, xcc->cpu_def, &error_abort);
+    if (xcc->model) {
+        x86_cpu_load_model(cpu, xcc->model, &error_abort);
     }
 }
 
@@ -6050,7 +6161,7 @@ static void x86_cpu_register_types(void)
 
     type_register_static(&x86_cpu_type_info);
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
-        x86_register_cpudef_type(&builtin_x86_defs[i]);
+        x86_register_cpudef_types(&builtin_x86_defs[i]);
     }
     type_register_static(&max_x86_cpu_type_info);
     type_register_static(&x86_base_cpu_type_info);
