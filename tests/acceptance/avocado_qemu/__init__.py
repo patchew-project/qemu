@@ -13,6 +13,7 @@ import sys
 import uuid
 
 import avocado
+from avocado.utils import process
 
 SRC_ROOT_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 sys.path.append(os.path.join(SRC_ROOT_DIR, 'python'))
@@ -90,3 +91,11 @@ class MachineTest(Test):
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
+
+
+class LinuxUserTest(Test):
+    def setUp(self):
+        self.base_setUp("%s-linux-user", "qemu-%s")
+
+    def run(self, cmd):
+        return process.run("%s %s" % (self.qemu_bin, cmd))
