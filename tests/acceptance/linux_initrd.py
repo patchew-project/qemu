@@ -12,10 +12,10 @@ import logging
 import tempfile
 from avocado.utils.process import run
 
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 
 
-class LinuxInitrd(Test):
+class LinuxInitrd(MachineTest):
     """
     Checks QEMU evaluates correctly the initrd file passed as -initrd option.
 

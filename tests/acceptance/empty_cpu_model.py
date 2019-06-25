@@ -8,9 +8,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 import subprocess
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 
-class EmptyCPUModel(Test):
+class EmptyCPUModel(MachineTest):
     def test(self):
         cmd = [self.qemu_bin, '-S', '-display', 'none', '-machine', 'none', '-cpu', '']
         r = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)

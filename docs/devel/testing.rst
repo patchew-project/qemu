@@ -599,7 +599,7 @@ class.  Here's a simple usage example:
   from avocado_qemu import Test
 
 
-  class Version(Test):
+  class Version(MachineTest):
       """
       :avocado: tags=quick
       """
@@ -623,7 +623,7 @@ in the current directory, tagged as "quick", run:
 
   avocado run -t quick .
 
-The ``avocado_qemu.Test`` base test class
+The ``avocado_qemu.MachineTest`` base test class
 -----------------------------------------
 
 The ``avocado_qemu.Test`` class has a number of characteristics that
@@ -644,10 +644,10 @@ and hypothetical example follows:
 
 .. code::
 
-  from avocado_qemu import Test
+  from avocado_qemu import MachineTest
 
 
-  class MultipleMachines(Test):
+  class MultipleMachines(MachineTest):
       """
       :avocado: enable
       """

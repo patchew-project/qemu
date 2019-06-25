@@ -10,13 +10,13 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 
 from avocado.utils import network
 from avocado.utils import wait
 
 
-class Migration(Test):
+class Migration(MachineTest):
     """
     :avocado: enable
     """

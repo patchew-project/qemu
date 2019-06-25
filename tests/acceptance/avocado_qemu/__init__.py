@@ -52,7 +52,6 @@ def pick_default_qemu_bin(arch=None):
 
 class Test(avocado.Test):
     def setUp(self):
-        self._vms = {}
         arches = self.tags.get('arch', [])
         if len(arches) == 1:
             arch = arches.pop()
@@ -64,6 +63,12 @@ class Test(avocado.Test):
                                         default=default_qemu_bin)
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the source tree")
+
+
+class MachineTest(Test):
+    def setUp(self):
+        self._vms = {}
+        super().setUp()
 
     def _new_vm(self, *args):
         vm = QEMUMachine(self.qemu_bin)

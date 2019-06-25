@@ -9,10 +9,10 @@
 # later.  See the COPYING file in the top-level directory.
 
 
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 
 
-class Version(Test):
+class Version(MachineTest):
     """
     :avocado: tags=quick
     """

@@ -13,12 +13,12 @@ import paramiko
 import time
 
 from avocado import skipIf
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 from avocado.utils import process
 from avocado.utils import archive
 
 
-class LinuxSSH(Test):
+class LinuxSSH(MachineTest):
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
 
