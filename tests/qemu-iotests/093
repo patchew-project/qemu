@@ -22,9 +22,11 @@
 import iotests
 
 nsec_per_sec = 1000000000
+supported_null_drivers = [ f for f in iotests.supported_formats()
+                           if f.startswith('null-') ]
 
 class ThrottleTestCase(iotests.QMPTestCase):
-    test_img = "null-aio://"
+    test_driver = "null-aio"
     max_drives = 3
 
     def blockstats(self, device):
@@ -36,9 +38,13 @@ class ThrottleTestCase(iotests.QMPTestCase):
         raise Exception("Device not found for blockstats: %s" % device)
 
     def setUp(self):
+        global supported_null_drivers
+        if self.test_driver not in supported_null_drivers:
+            self.case_skip('%s support missing' % self.test_driver)
+
         self.vm = iotests.VM()
         for i in range(0, self.max_drives):
-            self.vm.add_drive(self.test_img)
+            self.vm.add_drive(self.test_driver + "://")
         self.vm.launch()
 
     def tearDown(self):
@@ -264,7 +270,7 @@ class ThrottleTestCase(iotests.QMPTestCase):
         self.assertEqual(self.blockstats('drive1')[0], 4096)
 
 class ThrottleTestCoroutine(ThrottleTestCase):
-    test_img = "null-co://"
+    test_driver = "null-co"
 
 class ThrottleTestGroupNames(iotests.QMPTestCase):
     max_drives = 3
@@ -426,4 +432,6 @@ class ThrottleTestRemovableMedia(iotests.QMPTestCase):
 
 
 if __name__ == '__main__':
+    if 'null-co' not in supported_null_drivers:
+        iotests.notrun('null-co driver support missing')
     iotests.main(supported_fmts=["raw"])
