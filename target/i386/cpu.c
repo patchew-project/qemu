@@ -2607,6 +2607,21 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_6_EAX_ARAT,
         .xlevel = 0x80000008,
         .model_id = "Intel Xeon Processor (Cascadelake)",
+        .versions = (X86CPUVersionDefinition[]) {
+            /*
+             * 4.1 won't have arch-capabilities enabled yet, to not break
+             * older management software
+             */
+            { .name = "4.1" },
+            { .name = "4.1.1",
+              .props = (PropValue[]) {
+                  { "stepping", "5" },
+                  { "arch-capabilities", "on" },
+                  { /* end of list */ },
+              },
+            },
+            { /* end of list */ },
+        }
     },
     {
         .name = "Icelake-Client",
