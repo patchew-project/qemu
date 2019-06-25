@@ -107,3 +107,13 @@ void kvm_s390_stop_interrupt(S390CPU *cpu)
 void kvm_s390_restart_interrupt(S390CPU *cpu)
 {
 }
+
+int kvm_s390_get_diag318_info(uint64_t *info)
+{
+    return 0;
+}
+
+int kvm_s390_set_diag318_info(uint64_t info)
+{
+    return 0;
+}

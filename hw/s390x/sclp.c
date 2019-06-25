@@ -22,6 +22,7 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
+#include "kvm_s390x.h"
 
 static inline SCLPDevice *get_sclp_device(void)
 {
@@ -73,6 +74,8 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
                          read_info->conf_char);
     s390_get_feat_block(S390_FEAT_TYPE_SCLP_CONF_CHAR_EXT,
                          read_info->conf_char_ext);
+
+    s390_get_feat_block(S390_FEAT_TYPE_SCLP_BYTE_134, read_info->fac134);
 
     read_info->facilities = cpu_to_be64(SCLP_HAS_CPU_INFO |
                                         SCLP_HAS_IOA_RECONFIG);

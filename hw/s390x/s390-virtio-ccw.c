@@ -38,6 +38,7 @@
 #include "cpu_models.h"
 #include "hw/nmi.h"
 #include "hw/s390x/tod.h"
+#include "hw/s390x/diag318.h"
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -94,6 +95,7 @@ static const char *const reset_dev_types[] = {
     "s390-sclp-event-facility",
     "s390-flic",
     "diag288",
+    TYPE_S390_DIAG318,
 };
 
 static void subsystem_reset(void)
@@ -258,6 +260,17 @@ static void s390_create_sclpconsole(const char *type, Chardev *chardev)
     qdev_init_nofail(dev);
 }
 
+static void s390_init_diag318(void)
+{
+    Object *new = object_new(TYPE_S390_DIAG318);
+    DeviceState *dev = DEVICE(new);
+
+    object_property_add_child(qdev_get_machine(), TYPE_S390_DIAG318,
+                              new, NULL);
+    object_unref(new);
+    qdev_init_nofail(dev);
+}
+
 static void ccw_init(MachineState *machine)
 {
     int ret;
@@ -315,6 +328,9 @@ static void ccw_init(MachineState *machine)
 
     /* init the TOD clock */
     s390_init_tod();
+
+    /* init object used for migrating diag318 info */
+    s390_init_diag318();
 }
 
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
@@ -583,6 +599,7 @@ static void machine_set_loadparm(Object *obj, const char *val, Error **errp)
         ms->loadparm[i] = ' '; /* pad right with spaces */
     }
 }
+
 static inline void s390_machine_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aes-key-wrap",

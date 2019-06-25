@@ -39,7 +39,13 @@
 
 #define MMU_USER_IDX 0
 
-#define S390_MAX_CPUS 248
+/*
+ * HACK: The introduction of additional facility bytes in the Read Info
+ * struct consumes space used for CPU entries, thus we must reduce the
+ * original maximum CPUs of 248 by one for each new byte or risk smashing
+ * the stack.
+ */
+#define S390_MAX_CPUS 247
 
 typedef struct PSW {
     uint64_t mask;
