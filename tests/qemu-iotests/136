@@ -28,9 +28,11 @@ op_latency = nsec_per_sec // 1000 # See qtest_latency_ns in accounting.c
 bad_sector = 8192
 bad_offset = bad_sector * 512
 blkdebug_file = os.path.join(iotests.test_dir, 'blkdebug.conf')
+supported_null_drivers = [ f for f in iotests.supported_formats()
+                           if f.startswith('null-') ]
 
 class BlockDeviceStatsTestCase(iotests.QMPTestCase):
-    test_img = "null-aio://"
+    test_driver = "null-aio"
     total_rd_bytes = 0
     total_rd_ops = 0
     total_wr_bytes = 0
@@ -68,6 +70,10 @@ sector = "%d"
         file.close()
 
     def setUp(self):
+        global supported_null_drivers
+        if self.test_driver not in supported_null_drivers:
+            self.case_skip('%s support missing' % self.test_driver)
+
         drive_args = []
         drive_args.append("stats-intervals.0=%d" % interval_length)
         drive_args.append("stats-account-invalid=%s" %
@@ -75,8 +81,8 @@ sector = "%d"
         drive_args.append("stats-account-failed=%s" %
                           (self.account_failed and "on" or "off"))
         self.create_blkdebug_file()
-        self.vm = iotests.VM().add_drive('blkdebug:%s:%s' %
-                                         (blkdebug_file, self.test_img),
+        self.vm = iotests.VM().add_drive('blkdebug:%s:%s://' %
+                                         (blkdebug_file, self.test_driver),
                                          ','.join(drive_args))
         self.vm.launch()
         # Set an initial value for the clock
@@ -336,7 +342,9 @@ class BlockDeviceStatsTestAccountBoth(BlockDeviceStatsTestCase):
     account_failed = True
 
 class BlockDeviceStatsTestCoroutine(BlockDeviceStatsTestCase):
-    test_img = "null-co://"
+    test_driver = "null-co"
 
 if __name__ == '__main__':
+    if 'null-co' not in supported_null_drivers:
+        iotests.notrun('null-co driver support missing')
     iotests.main(supported_fmts=["raw"])
