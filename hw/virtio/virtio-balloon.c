@@ -623,16 +623,16 @@ static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
     config.num_pages = cpu_to_le32(dev->num_pages);
     config.actual = cpu_to_le32(dev->actual);
 
-    if (dev->free_page_report_status == FREE_PAGE_REPORT_S_REQUESTED) {
-        config.free_page_report_cmd_id =
-                       cpu_to_le32(dev->free_page_report_cmd_id);
-    } else if (dev->free_page_report_status == FREE_PAGE_REPORT_S_STOP) {
-        config.free_page_report_cmd_id =
-                       cpu_to_le32(VIRTIO_BALLOON_CMD_ID_STOP);
-    } else if (dev->free_page_report_status == FREE_PAGE_REPORT_S_DONE) {
-        config.free_page_report_cmd_id =
-                       cpu_to_le32(VIRTIO_BALLOON_CMD_ID_DONE);
-    }
+    //if (dev->free_page_report_status == FREE_PAGE_REPORT_S_REQUESTED) {
+    //    config.free_page_report_cmd_id =
+    //                   cpu_to_le32(dev->free_page_report_cmd_id);
+    //} else if (dev->free_page_report_status == FREE_PAGE_REPORT_S_STOP) {
+    //    config.free_page_report_cmd_id =
+    //                   cpu_to_le32(VIRTIO_BALLOON_CMD_ID_STOP);
+    //} else if (dev->free_page_report_status == FREE_PAGE_REPORT_S_DONE) {
+    //    config.free_page_report_cmd_id =
+    //                   cpu_to_le32(VIRTIO_BALLOON_CMD_ID_DONE);
+    //}
 
     trace_virtio_balloon_get_config(config.num_pages, config.actual);
     memcpy(config_data, &config, sizeof(struct virtio_balloon_config));
