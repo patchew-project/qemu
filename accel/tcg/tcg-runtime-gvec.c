@@ -1458,3 +1458,45 @@ void HELPER(gvec_bitsel)(void *d, void *a, void *b, void *c, uint32_t desc)
     }
     clear_high(d, oprsz, desc);
 }
+
+void HELPER(gvec_vmrgh8)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < (oprsz / 2); i += sizeof(uint8_t)) {
+        uint8_t aa = *(uint8_t *)(a + 8 * sizeof(uint8_t) + i);
+        uint8_t bb = *(uint8_t *)(b + 8 * sizeof(uint8_t) + i);
+        *(uint8_t *)(d + 2 * i) = bb;
+        *(uint8_t *)(d + 2 * i + sizeof(uint8_t)) = aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_vmrgh16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < (oprsz / 2); i += sizeof(uint16_t)) {
+        uint16_t aa = *(uint16_t *)(a + 4 * sizeof(uint16_t) + i);
+        uint16_t bb = *(uint16_t *)(b + 4 * sizeof(uint16_t) + i);
+        *(uint16_t *)(d + 2 * i) = bb;
+        *(uint16_t *)(d + 2 * i + sizeof(uint16_t)) = aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_vmrgh32)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint32_t)) {
+        uint32_t aa = *(uint32_t *)(a + 2 * sizeof(uint32_t) + i);
+        uint32_t bb = *(uint32_t *)(b + 2 * sizeof(uint32_t) + i);
+        *(uint32_t *)(d + 2 * i) = bb;
+        *(uint32_t *)(d + 2 * i + sizeof(uint32_t)) = aa;
+    }
+    clear_high(d, oprsz, desc);
+}

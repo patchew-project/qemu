@@ -186,6 +186,7 @@ typedef uint64_t TCGRegSet;
 #define TCG_TARGET_HAS_mul_vec          0
 #define TCG_TARGET_HAS_sat_vec          0
 #define TCG_TARGET_HAS_minmax_vec       0
+#define TCG_TARGET_HAS_vmrgh_vec        0
 #define TCG_TARGET_HAS_bitsel_vec       0
 #define TCG_TARGET_HAS_cmpsel_vec       0
 #else

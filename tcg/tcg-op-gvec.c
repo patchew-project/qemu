@@ -2102,6 +2102,29 @@ void tcg_gen_gvec_umax(unsigned vece, uint32_t dofs, uint32_t aofs,
     tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
 }
 
+static const TCGOpcode vecop_list_vmrgh[] = { INDEX_op_vmrgh_vec, 0 };
+
+void tcg_gen_gvec_vmrgh(unsigned vece, uint32_t dofs, uint32_t aofs,
+                       uint32_t bofs, uint32_t oprsz, uint32_t maxsz)
+{
+    static const GVecGen3 g[3] = {
+        { .fniv = tcg_gen_vmrgh_vec,
+          .fno = gen_helper_gvec_vmrgh8,
+          .opt_opc = vecop_list_vmrgh,
+          .vece = MO_8 },
+        { .fniv = tcg_gen_vmrgh_vec,
+          .fno = gen_helper_gvec_vmrgh16,
+          .opt_opc = vecop_list_vmrgh,
+          .vece = MO_16 },
+        { .fniv = tcg_gen_vmrgh_vec,
+          .fno = gen_helper_gvec_vmrgh32,
+          .opt_opc = vecop_list_vmrgh,
+          .vece = MO_32 }
+    };
+    tcg_debug_assert(vece <= MO_64);
+    tcg_gen_gvec_3(dofs, aofs, bofs, oprsz, maxsz, &g[vece]);
+}
+
 /* Perform a vector negation using normal negation and a mask.
    Compare gen_subv_mask above.  */
 static void gen_negv_mask(TCGv_i64 d, TCGv_i64 b, TCGv_i64 m)
