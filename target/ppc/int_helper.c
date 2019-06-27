@@ -948,7 +948,7 @@ void helper_vmladduhm(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b, ppc_avr_t *c)
 
 #define VMRG(suffix, element, access)          \
     VMRG_DO(mrgl##suffix, element, access, half)   \
-    VMRG_DO(mrgh##suffix, element, access, 0)
+
 VMRG(b, u8, VsrB)
 VMRG(h, u16, VsrH)
 VMRG(w, u32, VsrW)
