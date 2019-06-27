@@ -2826,6 +2826,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     case INDEX_op_vmrgh_vec:
         insn = punpckh_insn[vece];
         goto gen_simd;
+    case INDEX_op_vmrgl_vec:
+        insn = punpckl_insn[vece];
+        goto gen_simd;
     case INDEX_op_shlv_vec:
         insn = shlv_insn[vece];
         goto gen_simd;
@@ -3227,6 +3230,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_smax_vec:
     case INDEX_op_umax_vec:
     case INDEX_op_vmrgh_vec:
+    case INDEX_op_vmrgl_vec:
     case INDEX_op_shlv_vec:
     case INDEX_op_shrv_vec:
     case INDEX_op_sarv_vec:
@@ -3326,6 +3330,8 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_abs_vec:
         return vece <= MO_32;
     case INDEX_op_vmrgh_vec:
+        return vece <= MO_32 ? -1 : 0;
+    case INDEX_op_vmrgl_vec:
         return vece <= MO_32 ? -1 : 0;
 
     default:
@@ -3668,6 +3674,10 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
         break;
 
     case INDEX_op_vmrgh_vec:
+        v2 = temp_tcgv_vec(arg_temp(a2));
+        expand_vec_vmrg(opc, type, vece, v0, v1, v2);
+        break;
+    case INDEX_op_vmrgl_vec:
         v2 = temp_tcgv_vec(arg_temp(a2));
         expand_vec_vmrg(opc, type, vece, v0, v1, v2);
         break;
