@@ -1500,3 +1500,45 @@ void HELPER(gvec_vmrgh32)(void *d, void *a, void *b, uint32_t desc)
     }
     clear_high(d, oprsz, desc);
 }
+
+void HELPER(gvec_vmrgl8)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < (oprsz / 2); i += sizeof(uint8_t)) {
+        uint8_t aa = *(uint8_t *)(a + i);
+        uint8_t bb = *(uint8_t *)(b + i);
+        *(uint8_t *)(d + 2 * i) = bb;
+        *(uint8_t *)(d + 2 * i + sizeof(uint8_t)) = aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_vmrgl16)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < (oprsz / 2); i += sizeof(uint16_t)) {
+        uint16_t aa = *(uint16_t *)(a + i);
+        uint16_t bb = *(uint16_t *)(b + i);
+        *(uint16_t *)(d + 2 * i) = bb;
+        *(uint16_t *)(d + 2 * i + sizeof(uint16_t)) = aa;
+    }
+    clear_high(d, oprsz, desc);
+}
+
+void HELPER(gvec_vmrgl32)(void *d, void *a, void *b, uint32_t desc)
+{
+    intptr_t oprsz = simd_oprsz(desc);
+    intptr_t i;
+
+    for (i = 0; i < oprsz; i += sizeof(uint32_t)) {
+        uint32_t aa = *(uint32_t *)(a + i);
+        uint32_t bb = *(uint32_t *)(b + i);
+        *(uint32_t *)(d + 2 * i) = bb;
+        *(uint32_t *)(d + 2 * i + sizeof(uint32_t)) = aa;
+    }
+    clear_high(d, oprsz, desc);
+}

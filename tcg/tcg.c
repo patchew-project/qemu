@@ -1648,6 +1648,8 @@ bool tcg_op_supported(TCGOpcode op)
         return have_vec && TCG_TARGET_HAS_minmax_vec;
     case INDEX_op_vmrgh_vec:
         return have_vec && TCG_TARGET_HAS_vmrgh_vec;
+    case INDEX_op_vmrgl_vec:
+        return have_vec && TCG_TARGET_HAS_vmrgl_vec;
     case INDEX_op_bitsel_vec:
         return have_vec && TCG_TARGET_HAS_bitsel_vec;
     case INDEX_op_cmpsel_vec:

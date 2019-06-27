@@ -236,6 +236,7 @@ DEF(smax_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_minmax_vec))
 DEF(umax_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_minmax_vec))
 
 DEF(vmrgh_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_vmrgh_vec))
+DEF(vmrgl_vec, 1, 2, 0, IMPLVEC | IMPL(TCG_TARGET_HAS_vmrgl_vec))
 
 DEF(and_vec, 1, 2, 0, IMPLVEC)
 DEF(or_vec, 1, 2, 0, IMPLVEC)
