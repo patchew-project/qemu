@@ -857,8 +857,8 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x1D] = 0x00;
     /* Vpp max (no Vpp pin) */
     pfl->cfi_table[0x1E] = 0x00;
-    /* Timeout per single byte/word write (128 ms) */
-    pfl->cfi_table[0x1F] = 0x07;
+    /* Timeout per single byte/word write (16 us) */
+    pfl->cfi_table[0x1F] = 0x04;
     /* Timeout for min size buffer write (NA) */
     pfl->cfi_table[0x20] = 0x00;
     /* Typical timeout for block erase (512 ms) */
