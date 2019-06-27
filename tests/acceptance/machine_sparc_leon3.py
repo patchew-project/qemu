@@ -37,6 +37,11 @@ class Leon3Machine(Test):
                 fail = 'Failure message found in console: %s' % failure_message
                 self.fail(fail)
 
+    def exec_command_and_wait_for_pattern(self, command, success_message):
+        command += '\n'
+        self.vm.console_socket.sendall(command.encode())
+        self.wait_for_console_pattern(success_message)
+
     def test_leon3_helenos_uimage(self):
         """
         :avocado: tags=arch:sparc
@@ -56,3 +61,29 @@ class Leon3Machine(Test):
 
         self.wait_for_console_pattern('Copyright (c) 2001-2014 HelenOS project')
         self.wait_for_console_pattern('Booting the kernel ...')
+
+    def test_leon3_linux_kernel_4_9_busybox(self):
+        """
+        :avocado: tags=arch:sparc
+        :avocado: tags=machine:leon3
+        """
+        kernel_url = ('https://www.gaisler.com/anonftp/linux/linux-4/images/'
+                     'leon-linux-4.9/leon-linux-4.9-1.0/up/image.ram')
+        kernel_hash = '289bd1bcca10cda76d0ef2264a8657adc251f5f5'
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
+        self.vm.set_machine('leon3_generic')
+        self.vm.set_console()
+        self.vm.add_args('-kernel', kernel_path)
+
+        self.vm.launch()
+
+        self.wait_for_console_pattern('TYPE: Leon3 System-on-a-Chip')
+
+        self.wait_for_console_pattern('Welcome to Buildroot')
+
+        self.wait_for_console_pattern('buildroot login:')
+        self.exec_command_and_wait_for_pattern('root', '#')
+        uname = 'Linux buildroot 4.9.54-00018-g62dab2c #2 ' \
+                'Wed Oct 18 09:45:51 CEST 2017 sparc GNU/Linux'
+        self.exec_command_and_wait_for_pattern('uname -a', uname)
