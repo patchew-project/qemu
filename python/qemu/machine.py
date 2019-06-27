@@ -264,7 +264,8 @@ class QEMUMachine(object):
     def _post_launch(self):
         self._qmp.accept()
 
-    def _post_shutdown(self):
+    def _shutdown_cleanup(self):
+        self._load_io_log()
         if self._qemu_log_file is not None:
             self._qemu_log_file.close()
             self._qemu_log_file = None
@@ -326,8 +327,20 @@ class QEMUMachine(object):
         """
         self._popen.wait()
         self._qmp.close()
-        self._load_io_log()
-        self._post_shutdown()
+        self._shutdown_cleanup()
+
+    def _post_shutdown(self):
+        self._shutdown_cleanup()
+        exitcode = self.exitcode()
+        if exitcode is not None and exitcode < 0:
+            msg = 'qemu received signal %i: %s'
+            if self._qemu_full_args:
+                command = ' '.join(self._qemu_full_args)
+            else:
+                command = ''
+            LOG.warning(msg, -int(exitcode), command)
+
+        self._launched = False
 
     def shutdown(self):
         """
@@ -339,21 +352,13 @@ class QEMUMachine(object):
                 self._qmp.close()
             except:
                 self._popen.kill()
-            self._popen.wait()
-
-        self._load_io_log()
-        self._post_shutdown()
-
-        exitcode = self.exitcode()
-        if exitcode is not None and exitcode < 0:
-            msg = 'qemu received signal %i: %s'
-            if self._qemu_full_args:
-                command = ' '.join(self._qemu_full_args)
-            else:
-                command = ''
-            LOG.warning(msg, -exitcode, command)
-
-        self._launched = False
+                # Don't hide exceptions from crashes
+                raise
+            finally:
+                self._popen.wait()
+                self._post_shutdown()
+        else:
+            self._post_shutdown()
 
     def qmp(self, cmd, conv_keys=True, **args):
         """
