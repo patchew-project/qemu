@@ -2580,8 +2580,8 @@ static void memwrite(int64_t addr, uint8List *bytes, CPUState *cpu,
         MemTxResult r = address_space_write(&address_space_memory, addr,
                                             MEMTXATTRS_UNSPECIFIED, buf, l);
         if (r != MEMTX_OK) {
-            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRId64
-                             " specified", addr, size);
+            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRIu32
+                             " specified", addr, l);
             return;
         }
     }

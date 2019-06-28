@@ -3166,3 +3166,32 @@
 { 'command': 'pmemwrite',
   'data': {'addr': 'int', 'bytes': ['uint8']}
 }
+
+##
+# @gpio-set:
+#
+# @path: Path to the device.
+#
+# @gpio: Name of the GPIO will be unnamed-gpio if omitted.
+#
+# @number: Number of the GPIO line, 0 if omitted.
+#
+# @value: Value (boolean) to be set for the GPIO.
+#
+# Returns: nothing in case of success
+#
+# Since 4.1
+#
+# Example:
+#
+# -> { "execute": "gpio-set",
+#      "arguments": { "path": "/machine/unattached/device[5]",
+#                     "gpio": "ssi-gpio-cs",
+#                     "number": 0,
+#                     "value": true } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'gpio-set',
+  'data': { 'path': 'str', '*gpio': 'str', '*number': 'int', 'value': 'bool' }
+}

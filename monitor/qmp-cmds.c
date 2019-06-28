@@ -726,3 +726,33 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+void qmp_gpio_set(const char *path, bool has_gpio, const char *gpio,
+                  bool has_number, int64_t number, bool value, Error **errp)
+{
+    DeviceState *dev;
+    qemu_irq irq;
+
+    dev = DEVICE(object_resolve_path(path, NULL));
+    if (!dev) {
+        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Cannot find device '%s'", path);
+        return;
+    }
+
+    if (!has_gpio) {
+        gpio = NULL;
+    }
+    if (!has_number) {
+        number = 0;
+    }
+    irq = qdev_get_gpio_in_named(dev, gpio, number);
+    if (!irq) {
+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                  "GPIO input '%s[%"PRId64"]' does not exists",
+                  has_gpio ? gpio : "unnamed", number);
+        return;
+    }
+
+    qemu_set_irq(irq, value);
+}
