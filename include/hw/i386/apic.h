@@ -23,5 +23,6 @@ int apic_get_highest_priority_irr(DeviceState *dev);
 
 /* pc.c */
 DeviceState *cpu_get_current_apic(void);
+extern bool compat_apic_id_mode;
 
 #endif
