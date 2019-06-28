@@ -2484,3 +2484,129 @@ void dump_drift_info(void)
         qemu_printf("Max guest advance   NA\n");
     }
 }
+
+static Bytes *memread(int64_t addr, int64_t size, CPUState *cpu, Error **errp)
+{
+    uint32_t l = 0;
+    uint8List *prev = NULL;
+    Bytes *res;
+    uint8_t buf[8];
+
+    if (size <= 0 || size > sizeof(buf)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size",
+                   "out of range");
+        return NULL;
+    }
+
+    if (cpu) {
+        if (cpu_memory_rw_debug(cpu, addr, buf, size, 0) != 0) {
+            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRId64
+                             " specified", addr, size);
+            return NULL;
+        }
+    } else {
+        MemTxResult r = address_space_read(&address_space_memory, addr,
+                                           MEMTXATTRS_UNSPECIFIED, buf, l);
+        if (r != MEMTX_OK) {
+            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRId64
+                             " specified", addr, size);
+            return NULL;
+        }
+    }
+
+    res = g_new0(Bytes, 1);
+    while (l < size) {
+        uint8List *cur = g_new0(uint8List, 1);
+        cur->value = buf[l++];
+        if (!prev) {
+            res->bytes = cur;
+        } else {
+            prev->next = cur;
+        }
+        prev = cur;
+    }
+
+    return res;
+
+}
+
+Bytes *qmp_memread(int64_t addr, int64_t size,
+                   bool has_cpu, int64_t cpu_index, Error **errp)
+{
+    CPUState *cpu;
+
+    if (!has_cpu) {
+        cpu_index = 0;
+    }
+
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                   "a CPU number");
+        return NULL;
+    }
+
+    return memread(addr, size, cpu, errp);
+}
+
+Bytes *qmp_pmemread(int64_t addr, int64_t size, Error **errp)
+{
+    return memread(addr, size, NULL, errp);
+}
+
+static void memwrite(int64_t addr, uint8List *bytes, CPUState *cpu,
+                     Error **errp)
+{
+    uint32_t l = 0;
+    uint8_t buf[8];
+
+    while (bytes != NULL) {
+        if (l >= sizeof(buf)) {
+            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "bytes",
+                       "too long");
+            return;
+        }
+        buf[l++] = bytes->value;
+        bytes = bytes->next;
+    }
+
+    if (cpu) {
+        if (cpu_memory_rw_debug(cpu, addr, buf, l, 1) != 0) {
+            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRIu32
+                             " specified", addr, l);
+            return;
+        }
+    } else {
+        MemTxResult r = address_space_write(&address_space_memory, addr,
+                                            MEMTXATTRS_UNSPECIFIED, buf, l);
+        if (r != MEMTX_OK) {
+            error_setg(errp, "Invalid addr 0x%016" PRIx64 "/size %" PRId64
+                             " specified", addr, size);
+            return;
+        }
+    }
+}
+
+void qmp_memwrite(int64_t addr, uint8List *bytes,
+                  bool has_cpu, int64_t cpu_index, Error **errp)
+{
+    CPUState *cpu;
+
+    if (!has_cpu) {
+        cpu_index = 0;
+    }
+
+    cpu = qemu_get_cpu(cpu_index);
+    if (cpu == NULL) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                   "a CPU number");
+        return;
+    }
+
+    memwrite(addr, bytes, cpu, errp);
+}
+
+void qmp_pmemwrite(int64_t addr, uint8List *bytes, Error **errp)
+{
+    memwrite(addr, bytes, NULL, errp);
+}

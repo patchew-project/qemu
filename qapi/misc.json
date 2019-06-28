@@ -3047,3 +3047,122 @@
   'data': 'NumaOptions',
   'allow-preconfig': true
 }
+
+##
+# @Bytes:
+#
+# An array of bytes.
+#
+# @bytes: the list of bytes
+#
+# Since: 4.1
+##
+{ 'struct': 'Bytes', 'data': {'bytes': ['uint8'] } }
+
+##
+# @memread:
+#
+# Read a portion of guest memory.
+#
+# @addr: the virtual address of the guest to read from
+#
+# @size: the size of memory region to read (max is 8)
+#
+# @cpu-index: the index of the virtual CPU to use for translating the
+#                       virtual address (defaults to CPU 0)
+#
+# Returns: The read bytes
+#
+# Since: 4.1
+#
+# Example:
+#
+# -> { "execute": "memread",
+#      "arguments": { "addr": 10,
+#                     "size": 4 } }
+# <- { "return": { 'bytes' : [10, 78, 231, 7] } }
+#
+##
+{ 'command': 'memread',
+  'data': {'addr': 'int', 'size': 'int', '*cpu-index': 'int'},
+  'returns' : 'Bytes'
+}
+
+##
+# @memwrite:
+#
+# Write a portion of guest memory.
+#
+# @addr: the virtual address of the guest to write to
+#
+# @bytes: the bytes to write into memory region (max length is 8)
+#
+# @cpu-index: the index of the virtual CPU to use for translating the
+#                       virtual address (defaults to CPU 0)
+#
+# Since: 4.1
+#
+# Returns: nothing on success.
+#
+# Example:
+#
+# -> { "execute": "memread",
+#      "arguments": { "addr": 10,
+#                     "bytes": [10, 78, 231, 7] } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'memwrite',
+  'data': {'addr': 'int', 'bytes': ['uint8'], '*cpu-index': 'int'}
+}
+
+##
+# @pmemread:
+#
+# Read a portion of guest memory.
+#
+# @addr: the physical address of the guest to read from
+#
+# @size: the size of memory region to read (max is 8)
+#
+# Returns: The read bytes
+#
+# Since: 4.1
+#
+# Example:
+#
+# -> { "execute": "memread",
+#      "arguments": { "addr": 10,
+#                     "size": 4 } }
+# <- { "return": { 'bytes' : [10, 78, 231, 7] } }
+#
+##
+{ 'command': 'pmemread',
+  'data': {'addr': 'int', 'size': 'int'},
+  'returns' : 'Bytes'
+}
+
+##
+# @pmemwrite:
+#
+# Write a portion of guest memory.
+#
+# @addr: the physical address of the guest to write to
+#
+# @bytes: the bytes to write into memory region (max length is 8)
+#
+# Since: 4.1
+#
+# Returns: nothing on success.
+#
+# Example:
+#
+# -> { "execute": "memread",
+#      "arguments": { "addr": 10,
+#                     "bytes": [10, 78, 231, 7] } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'pmemwrite',
+  'data': {'addr': 'int', 'bytes': ['uint8']}
+}
