@@ -3195,3 +3195,51 @@
 { 'command': 'gpio-set',
   'data': { 'path': 'str', '*gpio': 'str', '*number': 'int', 'value': 'bool' }
 }
+
+##
+# @time-notify:
+#
+# Schedule a TIME_NOTIFICATION which will optionally stop qemu when triggered.
+#
+# @time_ns:  The virtual guest clock at which do the notification.
+#
+# @relative: Optional boolean telling if time_ns is relative to current time.
+#            Defaults to False.
+#
+# @event_id: An ID, to track the notification.
+#
+# @pause: Optional boolean telling whether to pause qemu when notification is
+#         hit. Defaults to False.
+#
+# Returns: nothing in case of success
+#
+# Since 4.1
+#
+# Example:
+#
+# -> { "execute": "time-notify",
+#      "arguments": { "event_id": 5,
+#                      "time_ns": 10000000,
+#                      "pause": true} }
+# <- { "return": {} }
+#
+##
+{ 'command': 'time-notify',
+  'data': {'event_id': 'int', 'time_ns': 'int', '*relative': 'bool',
+           '*pause': 'bool'}
+}
+
+##
+# @TIME_NOTIFICATION:
+#
+# Emitted when notification deadline is hit
+#
+# @time_ns:  The current virtual guest clock time.
+#
+# @event_id: The id given when setting up the notification.
+#
+# Since: 4.1
+#
+##
+{ 'event': 'TIME_NOTIFICATION',
+  'data': { 'event_id': 'int', 'time_ns': 'int'} }

@@ -13,3 +13,7 @@ monitor_suspend(void *ptr, int cnt) "mon %p: %d"
 monitor_qmp_cmd_in_band(const char *id) "%s"
 monitor_qmp_cmd_out_of_band(const char *id) "%s"
 handle_qmp_command(void *mon, const char *req) "mon %p req: %s"
+
+# qmp-cmd-time-notify.c
+qmp_time_notify_trigger(int64_t id, uint64_t time, int pause) "event #%"PRId64" at %"PRIu64" ns pause %d"
+qmp_time_notify_schedule(int64_t id, uint64_t time, int pause) "event #%"PRId64" at %"PRIu64" ns pause %d"
