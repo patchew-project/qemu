@@ -457,7 +457,8 @@ static int write_mcounteren(CPURISCVState *env, int csrno, target_ulong val)
     if (env->priv_ver < PRIV_VERSION_1_10_0) {
         return -1;
     }
-    env->mcounteren = val;
+    /* mcounteren.TM is hardwired to zero, all other bits are writable */
+    env->mcounteren = val & ~(1 << (CSR_TIME & 31));
     return 0;
 }
 
