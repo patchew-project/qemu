@@ -246,7 +246,7 @@ int main(int argc, char **argv)
         if (strcmp(argv[index], "--use-vnet") == 0) {
             use_vnet = 1;
         } else if (strncmp(argv[index], "--br=", 5) == 0) {
-            bridge = &argv[index][5];
+            bridge = strndup(&argv[index][5], IFNAMSIZ - 1);
         } else if (strncmp(argv[index], "--fd=", 5) == 0) {
             unixfd = atoi(&argv[index][5]);
         } else {
