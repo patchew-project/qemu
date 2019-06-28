@@ -136,11 +136,6 @@ static void avr_cpu_initfn(Object *obj)
 #endif
 }
 
-static char *avr_cpu_type_name(const char *cpu_model)
-{
-    return g_strdup_printf(AVR_CPU_TYPE_NAME("%s"), cpu_model);
-}
-
 static ObjectClass *avr_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
