@@ -1937,13 +1937,13 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
                               IOMMUTLBEntry *entry)
 {
     IOMMUNotifierFlag request_flags;
+    hwaddr entry_end = entry->iova + entry->addr_mask;
 
     /*
      * Skip the notification if the notification does not overlap
      * with registered range.
      */
-    if (notifier->start > entry->iova + entry->addr_mask ||
-        notifier->end < entry->iova) {
+    if (notifier->start > entry_end || notifier->end < entry->iova) {
         return;
     }
 
@@ -1951,6 +1951,18 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
         request_flags = IOMMU_NOTIFIER_MAP;
     } else {
         request_flags = IOMMU_NOTIFIER_UNMAP;
+    }
+
+    if (entry->iova < notifier->start || entry_end > notifier->end) {
+        warn_report("IOMMUTLBEntry 0x%" PRIx64 " - 0x%" PRIx64
+                " has non inclusive overlap with notifier 0x%" PRIx64
+                " - 0x%" PRIx64 ". %s is not allowed."
+                " Try to divide it into smaller sections.",
+                entry->iova, entry_end,
+                notifier->start, notifier->end,
+                (request_flags == IOMMU_NOTIFIER_MAP) ?
+                "Mapping" : "Unmapping");
+        return;
     }
 
     if (notifier->notifier_flags & request_flags) {
