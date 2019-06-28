@@ -621,6 +621,17 @@ int get_tmp_filename(char *filename, int size)
 #endif
 }
 
+/**
+ * Helper that checks if a given string represents a regular
+ * local file.
+ */
+bool bdrv_path_is_regular_file(const char *path)
+{
+    struct stat st;
+
+    return (stat(path, &st) == 0) && S_ISREG(st.st_mode);
+}
+
 /*
  * Detect host devices. By convention, /dev/cdrom[N] is always
  * recognized as a host CDROM.

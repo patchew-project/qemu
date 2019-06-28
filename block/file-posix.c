@@ -2374,6 +2374,33 @@ static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
     return raw_co_create(&options, errp);
 }
 
+/**
+ * Co-routine function that erases a regular file.
+ */
+static int coroutine_fn raw_co_delete_file(const char *filename,
+                                           Error **errp)
+{
+    int ret;
+
+    /* Skip file: protocol prefix */
+    strstart(filename, "file:", &filename);
+
+    if (!bdrv_path_is_regular_file(filename)) {
+        ret = -ENOENT;
+        error_setg_errno(errp, -ret, "%s is not a regular file", filename);
+        goto done;
+    }
+
+    ret = unlink(filename);
+    if (ret < 0) {
+        ret = -errno;
+        error_setg_errno(errp, -ret, "Error when deleting file %s", filename);
+    }
+
+done:
+    return ret;
+}
+
 /*
  * Find allocation range in @bs around offset @start.
  * May change underlying file descriptor's file offset.
@@ -2925,6 +2952,7 @@ BlockDriver bdrv_file = {
     .bdrv_co_block_status = raw_co_block_status,
     .bdrv_co_invalidate_cache = raw_co_invalidate_cache,
     .bdrv_co_pwrite_zeroes = raw_co_pwrite_zeroes,
+    .bdrv_co_delete_file = raw_co_delete_file,
 
     .bdrv_co_preadv         = raw_co_preadv,
     .bdrv_co_pwritev        = raw_co_pwritev,

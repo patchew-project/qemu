@@ -370,6 +370,7 @@ int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
                               Error **errp);
 void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
 
+bool bdrv_path_is_regular_file(const char *path);
 
 typedef struct BdrvCheckResult {
     int corruptions;
