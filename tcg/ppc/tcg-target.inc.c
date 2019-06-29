@@ -3513,7 +3513,7 @@ static void tcg_target_init(TCGContext *s)
     unsigned long hwcap = qemu_getauxval(AT_HWCAP);
     unsigned long hwcap2 = qemu_getauxval(AT_HWCAP2);
 
-    if (hwcap & /* PPC_FEATURE_HAS_ALTIVEC -- NOT YET */ 0) {
+    if (hwcap & PPC_FEATURE_HAS_ALTIVEC) {
         have_isa_altivec = true;
     }
     if (hwcap & PPC_FEATURE_ARCH_2_06) {
