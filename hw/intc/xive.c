@@ -1389,7 +1389,7 @@ static bool xive_presenter_match(XiveRouter *xrtr, uint8_t format,
  *
  * The parameters represent what is sent on the PowerBus
  */
-static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
+static bool xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
                                   uint8_t nvt_blk, uint32_t nvt_idx,
                                   bool cam_ignore, uint8_t priority,
                                   uint32_t logic_serv)
@@ -1397,6 +1397,35 @@ static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
     XiveNVT nvt;
     XiveTCTXMatch match = { .tctx = NULL, .ring = 0 };
     bool found;
+
+    /* NVT cache lookup */
+    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: no NVT %x/%x\n",
+                      nvt_blk, nvt_idx);
+        return false;
+    }
+
+    if (!xive_nvt_is_valid(&nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: NVT %x/%x is invalid\n",
+                      nvt_blk, nvt_idx);
+        return false;
+    }
+
+    found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
+                                 priority, logic_serv, &match);
+    if (found) {
+        ipb_update(&match.tctx->regs[match.ring], priority);
+        xive_tctx_notify(match.tctx, match.ring);
+    }
+
+    return found;
+}
+
+static void xive_router_end_backlog(XiveRouter *xrtr,
+                                    uint8_t nvt_blk, uint32_t nvt_idx,
+                                    uint8_t priority)
+{
+    XiveNVT nvt;
 
     /* NVT cache lookup */
     if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
@@ -1411,24 +1440,31 @@ static void xive_presenter_notify(XiveRouter *xrtr, uint8_t format,
         return;
     }
 
-    found = xive_presenter_match(xrtr, format, nvt_blk, nvt_idx, cam_ignore,
-                                 priority, logic_serv, &match);
-    if (found) {
-        ipb_update(&match.tctx->regs[match.ring], priority);
-        xive_tctx_notify(match.tctx, match.ring);
-        return;
-    }
-
     /* Record the IPB in the associated NVT structure */
     ipb_update((uint8_t *) &nvt.w4, priority);
     xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
+}
 
-    /*
-     * If no matching NVT is dispatched on a HW thread :
-     * - update the NVT structure if backlog is activated
-     * - escalate (ESe PQ bits and EAS in w4-5) if escalation is
-     *   activated
-     */
+
+/*
+ * Notification using the END ESe/ESn bit (Event State Buffer for
+ * escalation and notification). Profide futher coalescing in the
+ * Router.
+ */
+static bool xive_router_end_es_notify(XiveRouter *xrtr, uint8_t end_blk,
+                                      uint32_t end_idx, XiveEND *end,
+                                      uint32_t end_esmask)
+{
+    uint8_t pq = xive_get_field32(end_esmask, end->w1);
+    bool notify = xive_esb_trigger(&pq);
+
+    if (pq != xive_get_field32(end_esmask, end->w1)) {
+        end->w1 = xive_set_field32(end_esmask, end->w1, pq);
+        xive_router_write_end(xrtr, end_blk, end_idx, end, 1);
+    }
+
+    /* ESe/n[Q]=1 : end of notification */
+    return notify;
 }
 
 /*
@@ -1442,6 +1478,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     XiveEND end;
     uint8_t priority;
     uint8_t format;
+    bool found;
 
     /* END cache lookup */
     if (xive_router_get_end(xrtr, end_blk, end_idx, &end)) {
@@ -1460,6 +1497,13 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
         xive_end_enqueue(&end, end_data);
         /* Enqueuing event data modifies the EQ toggle and index */
         xive_router_write_end(xrtr, end_blk, end_idx, &end, 1);
+    }
+
+    /*
+     * When the END is silent, we skip the notification part.
+     */
+    if (xive_end_is_silent_escalation(&end)) {
+        goto do_escalation;
     }
 
     /*
@@ -1483,16 +1527,9 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
      * even futher coalescing in the Router
      */
     if (!xive_end_is_notify(&end)) {
-        uint8_t pq = xive_get_field32(END_W1_ESn, end.w1);
-        bool notify = xive_esb_trigger(&pq);
-
-        if (pq != xive_get_field32(END_W1_ESn, end.w1)) {
-            end.w1 = xive_set_field32(END_W1_ESn, end.w1, pq);
-            xive_router_write_end(xrtr, end_blk, end_idx, &end, 1);
-        }
-
         /* ESn[Q]=1 : end of notification */
-        if (!notify) {
+        if (!xive_router_end_es_notify(xrtr, end_blk, end_idx,
+                                       &end, END_W1_ESn)) {
             return;
         }
     }
@@ -1500,7 +1537,7 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
     /*
      * Follows IVPE notification
      */
-    xive_presenter_notify(xrtr, format,
+    found = xive_presenter_notify(xrtr, format,
                           xive_get_field32(END_W6_NVT_BLOCK, end.w6),
                           xive_get_field32(END_W6_NVT_INDEX, end.w6),
                           xive_get_field32(END_W7_F0_IGNORE, end.w7),
@@ -1508,6 +1545,61 @@ static void xive_router_end_notify(XiveRouter *xrtr, uint8_t end_blk,
                           xive_get_field32(END_W7_F1_LOG_SERVER_ID, end.w7));
 
     /* TODO: Auto EOI. */
+
+    if (found) {
+        return;
+    }
+
+    /*
+     * If no matching NVT is dispatched on a HW thread :
+     * - specific VP: update the NVT structure if backlog is activated
+     * - logical server : forward request to IVPE (not supported)
+     */
+    if (xive_end_is_backlog(&end)) {
+        if (format == 1) {
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "XIVE: END %x/%x invalid config: F1 & backlog\n",
+                          end_blk, end_idx);
+            return;
+        }
+        xive_router_end_backlog(xrtr,
+                                xive_get_field32(END_W6_NVT_BLOCK, end.w6),
+                                xive_get_field32(END_W6_NVT_INDEX, end.w6),
+                                priority);
+
+        /*
+         * On HW, follows a "Broadcast Backlog" to IVPEs
+         */
+    }
+
+do_escalation:
+    /*
+     * If activated, escalate notification using the ESe PQ bits and
+     * the EAS in w4-5
+     */
+    if (!xive_end_is_escalate(&end)) {
+        return;
+    }
+
+    /*
+     * Check the END ESe (Event State Buffer for escalation) for even
+     * futher coalescing in the Router
+     */
+    if (!xive_end_is_uncond_escalation(&end)) {
+        /* ESe[Q]=1 : end of notification */
+        if (!xive_router_end_es_notify(xrtr, end_blk, end_idx,
+                                       &end, END_W1_ESe)) {
+            return;
+        }
+    }
+
+    /*
+     * The END trigger becomes an Escalation trigger
+     */
+    xive_router_end_notify(xrtr,
+                           xive_get_field32(END_W4_ESC_END_BLOCK, end.w4),
+                           xive_get_field32(END_W4_ESC_END_INDEX, end.w4),
+                           xive_get_field32(END_W5_ESC_END_DATA,  end.w5));
 }
 
 void xive_router_notify(XiveNotifier *xn, uint32_t lisn)
