@@ -573,6 +573,14 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     Object *obj;
     Error *local_err = NULL;
 
+    obj = object_property_get_link(OBJECT(dev), "xrtr", &local_err);
+    if (!obj) {
+        error_propagate(errp, local_err);
+        error_prepend(errp, "required link 'xrtr' not found: ");
+        return;
+    }
+    tctx->xrtr = obj;
+
     obj = object_property_get_link(OBJECT(dev), "cpu", &local_err);
     if (!obj) {
         error_propagate(errp, local_err);
@@ -657,7 +665,7 @@ static const TypeInfo xive_tctx_info = {
     .class_init    = xive_tctx_class_init,
 };
 
-Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
+Object *xive_tctx_create(Object *cpu, Object *xrtr, Error **errp)
 {
     Error *local_err = NULL;
     Object *obj;
@@ -666,6 +674,7 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
     object_property_add_const_link(obj, "cpu", cpu, &error_abort);
+    object_property_add_const_link(obj, "xrtr", xrtr, &error_abort);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
         goto error;

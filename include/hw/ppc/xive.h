@@ -321,6 +321,8 @@ typedef struct XiveTCTX {
     qemu_irq    os_output;
 
     uint8_t     regs[XIVE_TM_RING_COUNT * XIVE_TM_RING_SIZE];
+
+    Object      *xrtr;
 } XiveTCTX;
 
 /*
@@ -416,7 +418,7 @@ void xive_tctx_tm_write(XiveTCTX *tctx, hwaddr offset, uint64_t value,
 uint64_t xive_tctx_tm_read(XiveTCTX *tctx, hwaddr offset, unsigned size);
 
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon);
-Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp);
+Object *xive_tctx_create(Object *cpu, Object *xrtr, Error **errp);
 
 static inline uint32_t xive_nvt_cam_line(uint8_t nvt_blk, uint32_t nvt_idx)
 {

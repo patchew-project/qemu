@@ -352,7 +352,7 @@ static void spapr_irq_cpu_intc_create_xive(SpaprMachineState *spapr,
     Object *obj;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
-    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(spapr->xive), &local_err);
+    obj = xive_tctx_create(OBJECT(cpu), OBJECT(spapr->xive), &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
