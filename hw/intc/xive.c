@@ -345,6 +345,62 @@ static uint64_t xive_tm_pull_os_ctx(XiveTCTX *tctx, hwaddr offset,
     return qw1w2;
 }
 
+static void xive_tctx_need_resend(XiveTCTX *tctx, uint8_t nvt_blk,
+                                 uint32_t nvt_idx)
+{
+    XiveNVT nvt;
+    uint8_t ipb;
+    XiveRouter *xrtr = XIVE_ROUTER(tctx->xrtr);
+
+    /*
+     * Grab the associated NVT to pull the pending bits, and merge
+     * them with the IPB of the thread interrupt context registers
+     */
+    if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: invalid NVT %x/%x\n",
+                          nvt_blk, nvt_idx);
+        return;
+    }
+
+    ipb = xive_get_field32(NVT_W4_IPB, nvt.w4);
+
+    if (ipb) {
+        uint8_t *regs = &tctx->regs[TM_QW1_OS];
+
+        /* Reset the NVT value */
+        nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, 0);
+        xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
+
+        /* Merge in current context */
+        regs[TM_IPB] |= ipb;
+        regs[TM_PIPR] = ipb_to_pipr(regs[TM_IPB]);
+
+        /* Possibly resend */
+        xive_tctx_notify(tctx, TM_QW1_OS);
+    }
+}
+
+/*
+ * Updating the OS CAM line can trigger a resend of interrupt
+ */
+static void xive_tm_push_os_cam(XiveTCTX *tctx, hwaddr offset,
+                               uint64_t value, unsigned size)
+{
+    uint32_t qw1w2 = value;
+    uint8_t nvt_blk = xive_nvt_blk(qw1w2);
+    uint32_t nvt_idx = xive_nvt_idx(qw1w2);
+    bool vo = !!(qw1w2 & TM_QW1W2_VO);
+
+    /* First update the registers */
+    qw1w2 = cpu_to_be32(qw1w2);
+    memcpy(&tctx->regs[TM_QW1_OS + TM_WORD2], &qw1w2, 4);
+
+    /* Check the interrupt pending bits */
+    if (vo) {
+        xive_tctx_need_resend(tctx, nvt_blk, nvt_idx);
+    }
+}
+
 /*
  * Define a mapping of "special" operations depending on the TIMA page
  * offset and the size of the operation.
@@ -364,6 +420,7 @@ static const XiveTmOp xive_tm_operations[] = {
      * effects
      */
     { XIVE_TM_OS_PAGE, TM_QW1_OS + TM_CPPR,   1, xive_tm_set_os_cppr, NULL },
+    { XIVE_TM_HV_PAGE, TM_QW1_OS + TM_WORD2,     4, xive_tm_push_os_cam, NULL },
     { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_CPPR, 1, xive_tm_set_hv_cppr, NULL },
     { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, xive_tm_vt_push, NULL },
     { XIVE_TM_HV_PAGE, TM_QW3_HV_PHYS + TM_WORD2, 1, NULL, xive_tm_vt_poll },
@@ -1471,6 +1528,7 @@ static void xive_router_end_backlog(XiveRouter *xrtr,
                                     uint8_t priority)
 {
     XiveNVT nvt;
+    uint8_t ipb;
 
     /* NVT cache lookup */
     if (xive_router_get_nvt(xrtr, nvt_blk, nvt_idx, &nvt)) {
@@ -1485,8 +1543,13 @@ static void xive_router_end_backlog(XiveRouter *xrtr,
         return;
     }
 
-    /* Record the IPB in the associated NVT structure */
-    ipb_update((uint8_t *) &nvt.w4, priority);
+    /*
+     * Record the IPB in the associated NVT structure for later
+     * use. The presenter will resend the interrupt when the vCPU is
+     * dispatched again on a HW thread.
+     */
+    ipb = xive_get_field32(NVT_W4_IPB, nvt.w4) | priority_to_ipb(priority);
+    nvt.w4 = xive_set_field32(NVT_W4_IPB, nvt.w4, ipb);
     xive_router_write_nvt(xrtr, nvt_blk, nvt_idx, &nvt, 4);
 }
 
