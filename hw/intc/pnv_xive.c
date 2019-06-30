@@ -121,6 +121,20 @@ static uint64_t pnv_xive_vst_page_size_allowed(uint32_t page_shift)
          page_shift == 21 || page_shift == 24;
 }
 
+static uint64_t pnv_xive_vst_indirect_page_shift(uint64_t vsd)
+{
+    uint32_t page_shift;
+
+    vsd = ldq_be_dma(&address_space_memory, vsd & VSD_ADDRESS_MASK);
+    page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+
+    if (!pnv_xive_vst_page_size_allowed(page_shift)) {
+        return 0;
+    }
+
+    return page_shift;
+}
+
 static uint64_t pnv_xive_vst_size(uint64_t vsd)
 {
     uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
@@ -464,6 +478,24 @@ static uint32_t pnv_xive_nr_ends(PnvXive *xive)
 
     return pnv_xive_vst_size(xive->vsds[VST_TSEL_EQDT][blk])
         / vst_infos[VST_TSEL_EQDT].size;
+}
+
+static uint32_t pnv_xive_nr_indirect(PnvXive *xive, uint32_t type)
+{
+    const XiveVstInfo *info = &vst_infos[type];
+    uint8_t blk = xive->chip->chip_id;
+    uint32_t page_shift =
+        pnv_xive_vst_indirect_page_shift(xive->vsds[type][blk]);
+
+    return (1ull << page_shift) / info->size;
+}
+
+static uint32_t pnv_xive_nr_nvts(PnvXive *xive)
+{
+    uint8_t blk = xive->chip->chip_id;
+
+    return pnv_xive_vst_size(xive->vsds[VST_TSEL_VPDT][blk])
+        / vst_infos[VST_TSEL_VPDT].size;
 }
 
 /*
@@ -1561,6 +1593,21 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
     },
 };
 
+static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
+                                    Monitor *mon)
+{
+    uint8_t  eq_blk = xive_get_field32(NVT_W1_EQ_BLOCK, nvt->w1);
+    uint32_t eq_idx = xive_get_field32(NVT_W1_EQ_INDEX, nvt->w1);
+
+    if (!xive_nvt_is_valid(nvt)) {
+        return;
+    }
+
+    monitor_printf(mon, "  %08x end:%02x/%04x ipb:%02x\n", nvt_idx,
+                   eq_blk, eq_idx,
+                   xive_get_field32(NVT_W4_IPB, nvt->w4));
+}
+
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
@@ -1568,8 +1615,11 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     uint32_t srcno0 = XIVE_SRCNO(blk, 0);
     uint32_t nr_ipis = pnv_xive_nr_ipis(xive);
     uint32_t nr_ends = pnv_xive_nr_ends(xive);
+    uint32_t nr_nvts = pnv_xive_nr_nvts(xive);
+    uint32_t nr_indirect_nvts = pnv_xive_nr_indirect(xive, VST_TSEL_VPDT);
     XiveEAS eas;
     XiveEND end;
+    XiveNVT nvt;
     int i;
 
     monitor_printf(mon, "XIVE[%x] Source %08x .. %08x\n", blk, srcno0,
@@ -1602,6 +1652,16 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
             break;
         }
         xive_end_eas_pic_print_info(&end, i, mon);
+    }
+
+    monitor_printf(mon, "XIVE[%x] NVTT %08x .. %08x\n", blk, 0, nr_nvts - 1);
+    for (i = 0; i < nr_nvts; i++) {
+        if (xive_router_get_nvt(xrtr, blk, i, &nvt)) {
+            /* skip an indirect page */
+            i += nr_indirect_nvts - 1;
+            continue;
+        }
+        xive_nvt_pic_print_info(&nvt, i, mon);
     }
 }
 
