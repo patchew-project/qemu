@@ -499,7 +499,7 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     if (pid == 0) {
         int open_max = sysconf(_SC_OPEN_MAX), i;
         char fd_buf[6+10];
-        char br_buf[6+IFNAMSIZ] = {0};
+        char br_buf[5+IFNAMSIZ] = {0};
         char helper_cmd[PATH_MAX + sizeof(fd_buf) + sizeof(br_buf) + 15];
 
         for (i = 3; i < open_max; i++) {
