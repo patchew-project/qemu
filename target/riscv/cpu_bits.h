@@ -531,4 +531,9 @@
 #define SIP_STIP                           MIP_STIP
 #define SIP_SEIP                           MIP_SEIP
 
+/* mcounteren CSR bits */
+#define MCOUNTEREN_CY                      0x1
+#define MCOUNTEREN_TM                      0x2
+#define MCOUNTEREN_IR                      0x4
+
 #endif
