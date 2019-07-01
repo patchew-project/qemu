@@ -229,6 +229,58 @@ static inline int sysparm_st(target_ulong addr, target_ulong len,
     return RTAS_OUT_SUCCESS;
 }
 
+#define CPUS_PATH       "/proc/device-tree/cpus/"
+#define SUBCORE_PATH    "/sys/devices/system/cpu/subcores_per_core"
+
+static int rtas_get_num_host_threads(void)
+{
+    int num_threads = -1;
+    unsigned long len;
+    const char *entry;
+    char *buf;
+    GDir *dir;
+
+    if (!kvm_enabled()) {
+        return 1;
+    }
+
+    /* Read interrupt servers to determine number of threads per core */
+    dir = g_dir_open(CPUS_PATH, 0, NULL);
+    if (!dir) {
+        return -1;
+    }
+
+    while ((entry = g_dir_read_name(dir))) {
+        if (!strncmp(entry, "PowerPC,POWER", strlen("PowerPC,POWER"))) {
+            char *path;
+
+            path = g_strconcat(CPUS_PATH, entry, "/ibm,ppc-interrupt-server#s",
+                               NULL);
+            if (g_file_get_contents(path, &buf, &len, NULL)) {
+                num_threads = len / sizeof(int);
+                g_free(buf);
+            }
+
+            g_free(path);
+            break;
+        }
+    }
+
+    g_dir_close(dir);
+
+    /* Check if split core mode in use */
+    if (g_file_get_contents(SUBCORE_PATH, &buf, &len, NULL)) {
+        int subcores = g_ascii_strtoll(buf, NULL, 10);
+
+        if (subcores) {
+            num_threads /= subcores;
+        }
+        g_free(buf);
+    }
+
+    return num_threads;
+}
+
 static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           SpaprMachineState *spapr,
                                           uint32_t token, uint32_t nargs,
@@ -250,6 +302,16 @@ static void rtas_ibm_get_system_parameter(PowerPCCPU *cpu,
                                           current_machine->ram_size / MiB,
                                           smp_cpus,
                                           max_cpus);
+        int num_host_threads = rtas_get_num_host_threads();
+
+        if (num_host_threads > 0) {
+            char *hostthr_val, *old = param_val;
+
+            hostthr_val = g_strdup_printf(",HostThrs=%d", num_host_threads);
+            param_val = g_strconcat(param_val, hostthr_val, NULL);
+            g_free(hostthr_val);
+            g_free(old);
+        }
         ret = sysparm_st(buffer, length, param_val, strlen(param_val) + 1);
         g_free(param_val);
         break;
