@@ -478,7 +478,6 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     sigset_t oldmask, mask;
     int pid, status;
     char *args[5];
-    char **parg;
     int sv[2];
 
     sigemptyset(&mask);
@@ -498,9 +497,6 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
     }
     if (pid == 0) {
         int open_max = sysconf(_SC_OPEN_MAX), i;
-        char fd_buf[6+10];
-        char br_buf[6+IFNAMSIZ] = {0};
-        char helper_cmd[PATH_MAX + sizeof(fd_buf) + sizeof(br_buf) + 15];
 
         for (i = 3; i < open_max; i++) {
             if (i != sv[1]) {
@@ -508,39 +504,18 @@ static int net_bridge_run_helper(const char *helper, const char *bridge,
             }
         }
 
-        snprintf(fd_buf, sizeof(fd_buf), "%s%d", "--fd=", sv[1]);
+        args[0] = (char *)helper;
+        args[1] = (char *)"--use-vnet";
+        args[2] = g_strdup_printf("%s%d", "--fd=", sv[1]);
+        args[3] = g_strdup_printf("%s%s", "--br=", bridge);
+        args[4] = NULL;
 
-        if (strrchr(helper, ' ') || strrchr(helper, '\t')) {
-            /* assume helper is a command */
+        execv(helper, args);
 
-            if (strstr(helper, "--br=") == NULL) {
-                snprintf(br_buf, sizeof(br_buf), "%s%s", "--br=", bridge);
-            }
+        g_free(args[2]);
+        g_free(args[3]);
+        fprintf(stderr, "failed to execute helper: %s\n", helper);
 
-            snprintf(helper_cmd, sizeof(helper_cmd), "%s %s %s %s",
-                     helper, "--use-vnet", fd_buf, br_buf);
-
-            parg = args;
-            *parg++ = (char *)"sh";
-            *parg++ = (char *)"-c";
-            *parg++ = helper_cmd;
-            *parg++ = NULL;
-
-            execv("/bin/sh", args);
-        } else {
-            /* assume helper is just the executable path name */
-
-            snprintf(br_buf, sizeof(br_buf), "%s%s", "--br=", bridge);
-
-            parg = args;
-            *parg++ = (char *)helper;
-            *parg++ = (char *)"--use-vnet";
-            *parg++ = fd_buf;
-            *parg++ = br_buf;
-            *parg++ = NULL;
-
-            execv(helper, args);
-        }
         _exit(1);
 
     } else {
