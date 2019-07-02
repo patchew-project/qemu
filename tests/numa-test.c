@@ -26,8 +26,10 @@ static void test_mon_explicit(const void *data)
     QTestState *qts;
 
     cli = make_cli(data, "-smp 8 "
-                   "-numa node,nodeid=0,cpus=0-3 "
-                   "-numa node,nodeid=1,cpus=4-7 ");
+                   "-object memory-backend-ram,id=ram0,size=64M "
+                   "-object memory-backend-ram,id=ram1,size=64M "
+                   "-numa node,nodeid=0,cpus=0-3,memdev=ram0 "
+                   "-numa node,nodeid=1,cpus=4-7,memdev=ram1 ");
     qts = qtest_init(cli);
 
     s = qtest_hmp(qts, "info numa");
@@ -45,7 +47,10 @@ static void test_mon_default(const void *data)
     char *cli;
     QTestState *qts;
 
-    cli = make_cli(data, "-smp 8 -numa node -numa node");
+    cli = make_cli(data, "-smp 8 "
+                   "-object memory-backend-ram,id=ram0,size=64M "
+                   "-object memory-backend-ram,id=ram1,size=64M "
+                   "-numa node,memdev=ram0 -numa node,memdev=ram1");
     qts = qtest_init(cli);
 
     s = qtest_hmp(qts, "info numa");
@@ -64,8 +69,10 @@ static void test_mon_partial(const void *data)
     QTestState *qts;
 
     cli = make_cli(data, "-smp 8 "
-                   "-numa node,nodeid=0,cpus=0-1 "
-                   "-numa node,nodeid=1,cpus=4-5 ");
+                   "-object memory-backend-ram,id=ram0,size=64M "
+                   "-object memory-backend-ram,id=ram1,size=64M "
+                   "-numa node,nodeid=0,cpus=0-1,memdev=ram0 "
+                   "-numa node,nodeid=1,cpus=4-5,memdev=ram1");
     qts = qtest_init(cli);
 
     s = qtest_hmp(qts, "info numa");
@@ -93,7 +100,11 @@ static void test_query_cpus(const void *data)
     QObject *e;
     QTestState *qts;
 
-    cli = make_cli(data, "-smp 8 -numa node,cpus=0-3 -numa node,cpus=4-7");
+    cli = make_cli(data, "-smp 8 "
+                   "-object memory-backend-ram,id=ram0,size=64M "
+                   "-object memory-backend-ram,id=ram1,size=64M "
+                   "-numa node,cpus=0-3,memdev=ram0 "
+                   "-numa node,cpus=4-7,memdev=ram1");
     qts = qtest_init(cli);
     cpus = get_cpus(qts, &resp);
     g_assert(cpus);
@@ -132,7 +143,9 @@ static void pc_numa_cpu(const void *data)
     QTestState *qts;
 
     cli = make_cli(data, "-cpu pentium -smp 8,sockets=2,cores=2,threads=2 "
-        "-numa node,nodeid=0 -numa node,nodeid=1 "
+        "-object memory-backend-ram,id=ram0,size=64M "
+        "-object memory-backend-ram,id=ram1,size=64M "
+        "-numa node,nodeid=0,memdev=ram0 -numa node,nodeid=1,memdev=ram1 "
         "-numa cpu,node-id=1,socket-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=0 "
         "-numa cpu,node-id=0,socket-id=1,core-id=1,thread-id=0 "
@@ -186,7 +199,9 @@ static void spapr_numa_cpu(const void *data)
     QTestState *qts;
 
     cli = make_cli(data, "-smp 4,cores=4 "
-        "-numa node,nodeid=0 -numa node,nodeid=1 "
+        "-object memory-backend-ram,id=ram0,size=64M "
+        "-object memory-backend-ram,id=ram1,size=64M "
+        "-numa node,nodeid=0,memdev=ram0 -numa node,nodeid=1,memdev=ram1 "
         "-numa cpu,node-id=0,core-id=0 "
         "-numa cpu,node-id=0,core-id=1 "
         "-numa cpu,node-id=0,core-id=2 "
@@ -232,7 +247,9 @@ static void aarch64_numa_cpu(const void *data)
     QTestState *qts;
 
     cli = make_cli(data, "-smp 2 "
-        "-numa node,nodeid=0 -numa node,nodeid=1 "
+        "-object memory-backend-ram,id=ram0,size=64M "
+        "-object memory-backend-ram,id=ram1,size=64M "
+        "-numa node,nodeid=0,memdev=ram0 -numa node,nodeid=1,memdev=ram1 "
         "-numa cpu,node-id=1,thread-id=0 "
         "-numa cpu,node-id=0,thread-id=1");
     qts = qtest_init(cli);
@@ -274,14 +291,16 @@ static void pc_dynamic_cpu_cfg(const void *data)
     QList *cpus;
     QTestState *qs;
 
-    qs = qtest_initf("%s -nodefaults --preconfig -smp 2",
+    qs = qtest_initf("%s -nodefaults --preconfig -smp 2 "
+                     "-object memory-backend-ram,id=ram0,size=64M "
+                     "-object memory-backend-ram,id=ram1,size=64M",
                      data ? (char *)data : "");
 
     /* create 2 numa nodes */
     g_assert(!qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
-        " 'arguments': { 'type': 'node', 'nodeid': 0 } }")));
+        " 'arguments': { 'type': 'node', 'nodeid': 0, 'memdev': 'ram0' } }")));
     g_assert(!qmp_rsp_is_err(qtest_qmp(qs, "{ 'execute': 'set-numa-node',"
-        " 'arguments': { 'type': 'node', 'nodeid': 1 } }")));
+        " 'arguments': { 'type': 'node', 'nodeid': 1, 'memdev': 'ram1' } }")));
 
     /* map 2 cpus in non default reverse order
      * i.e socket1->node0, socket0->node1
