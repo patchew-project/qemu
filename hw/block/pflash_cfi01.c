@@ -492,7 +492,8 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             return;
         case 0x98: /* CFI query */
             DPRINTF("%s: CFI query\n", __func__);
-            break;
+            pfl->cmd = cmd;
+            return;
         case 0xe8: /* Write to buffer */
             DPRINTF("%s: Write to buffer\n", __func__);
             /* FIXME should save @offset, @width for case 1+ */
@@ -564,13 +565,6 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             } else {
                 DPRINTF("%s: Unknown (un)locking command\n", __func__);
                 goto mode_read_array;
-            }
-            break;
-        case 0x98:
-            if (cmd == 0xff) {
-                goto mode_read_array;
-            } else {
-                DPRINTF("%s: leaving query mode\n", __func__);
             }
             break;
         default:
