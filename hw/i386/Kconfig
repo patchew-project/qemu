@@ -88,6 +88,10 @@ config Q35
     select SMBIOS
     select FW_CFG_DMA
 
+config MICROVM
+    bool
+    select VIRTIO_MMIO
+
 config VTD
     bool
 
