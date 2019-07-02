@@ -799,10 +799,6 @@ typedef struct FeatureWordInfo {
         /* If type==MSR_FEATURE_WORD */
         struct {
             uint32_t index;
-            struct {   /*CPUID that enumerate this MSR*/
-                FeatureWord cpuid_class;
-                uint32_t    cpuid_flag;
-            } cpuid_dep;
         } msr;
     };
     uint32_t tcg_features; /* Feature flags supported by TCG */
@@ -1197,10 +1193,6 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_ARCH_CAPABILITIES,
-            .cpuid_dep = {
-                FEAT_7_0_EDX,
-                CPUID_7_0_EDX_ARCH_CAPABILITIES
-            }
         },
     },
     [FEAT_CORE_CAPABILITY] = {
@@ -1217,11 +1209,23 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .msr = {
             .index = MSR_IA32_CORE_CAPABILITY,
-            .cpuid_dep = {
-                FEAT_7_0_EDX,
-                CPUID_7_0_EDX_CORE_CAPABILITY,
-            },
         },
+    },
+};
+
+typedef struct FeatureDep {
+    uint16_t from, to;
+    uint64_t from_flag, to_flags;
+} FeatureDep;
+
+static FeatureDep feature_dependencies[] = {
+    {
+        .from = FEAT_7_0_EDX,            .from_flag = CPUID_7_0_EDX_ARCH_CAPABILITIES,
+        .to = FEAT_ARCH_CAPABILITIES,    .to_flags = ~0ull,
+    },
+    {
+        .from = FEAT_7_0_EDX,            .from_flag = CPUID_7_0_EDX_CORE_CAPABILITY,
+        .to = FEAT_CORE_CAPABILITY,      .to_flags = ~0ull,
     },
 };
 
@@ -5086,8 +5090,41 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 {
     CPUX86State *env = &cpu->env;
     FeatureWord w;
+    int i;
     GList *l;
     Error *local_err = NULL;
+
+    for (l = plus_features; l; l = l->next) {
+        const char *prop = l->data;
+        object_property_set_bool(OBJECT(cpu), true, prop, &local_err);
+        if (local_err) {
+            goto out;
+        }
+    }
+
+    for (l = minus_features; l; l = l->next) {
+        const char *prop = l->data;
+        object_property_set_bool(OBJECT(cpu), false, prop, &local_err);
+        if (local_err) {
+            goto out;
+        }
+    }
+
+    for (i = 0; i < ARRAY_SIZE(feature_dependencies); i++) {
+        FeatureDep *d = &feature_dependencies[i];
+        if ((env->user_features[d->from] & d->from_flag) &&
+            !(env->features[d->from] & d->from_flag)) {
+            uint64_t unavailable_features = env->features[d->to] & d->to_flags;
+
+            /* Not an error unless the dependent feature was added explicitly.  */
+            mark_unavailable_features(cpu, d->to, unavailable_features & env->user_features[d->to],
+                                      "This feature depends on other features that were not requested");
+
+            /* Prevent adding the feature in the loop below.  */
+            env->user_features[d->to] |= d->to_flags;
+            env->features[d->to] &= ~d->to_flags;
+        }
+    }
 
     /*TODO: Now cpu->max_features doesn't overwrite features
      * set using QOM properties, and we can convert
@@ -5103,22 +5140,6 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
                 x86_cpu_get_supported_feature_word(w, cpu->migratable) &
                 ~env->user_features[w] & \
                 ~feature_word_info[w].no_autoenable_flags;
-        }
-    }
-
-    for (l = plus_features; l; l = l->next) {
-        const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), true, prop, &local_err);
-        if (local_err) {
-            goto out;
-        }
-    }
-
-    for (l = minus_features; l; l = l->next) {
-        const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), false, prop, &local_err);
-        if (local_err) {
-            goto out;
         }
     }
 
