@@ -2600,8 +2600,37 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
                 }
             }
         }
+        /*
+         * FIXME: We place the signal trampoline on the stack,
+         * even when the guest expects that to be in the vdso.
+         * Until we fix that, allow execute on any readable page.
+         */
+        if ((flags & PAGE_EXEC) && !(p->flags & (PAGE_EXEC | PAGE_READ))) {
+            return -1;
+        }
     }
     return 0;
+}
+
+/*
+ * Called for each code read, longjmp out to issue SIGSEGV if the page(s)
+ * do not have execute access.
+ */
+void validate_exec_access(CPUArchState *env,
+                          target_ulong ptr, target_ulong len)
+{
+    if (page_check_range(ptr, len, PAGE_EXEC) < 0) {
+        CPUState *cs = env_cpu(env);
+        CPUClass *cc = CPU_GET_CLASS(cs);
+
+        /* Like tb_gen_code, release the memory lock before cpu_loop_exit.  */
+        assert_memory_lock();
+        mmap_unlock();
+
+        /* This is user-only.  The target must raise an exception.  */
+        cc->tlb_fill(cs, ptr, 0, MMU_INST_FETCH, MMU_USER_IDX, false, 0);
+        g_assert_not_reached();
+    }
 }
 
 /* called from signal handler: invalidate the code and unprotect the
