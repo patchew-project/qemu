@@ -762,6 +762,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     /* Hardcoded CFI table */
+    const uint16_t pri_ofs = 0x31;
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
     pfl->cfi_table[0x11] = 'R';
@@ -770,14 +771,17 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x13] = 0x01;
     pfl->cfi_table[0x14] = 0x00;
     /* Primary extended table address (none) */
-    pfl->cfi_table[0x15] = 0x31;
-    pfl->cfi_table[0x16] = 0x00;
+    pfl->cfi_table[0x15] = pri_ofs;
+    pfl->cfi_table[0x16] = pri_ofs >> 8;
     /* Alternate command set (none) */
     pfl->cfi_table[0x17] = 0x00;
     pfl->cfi_table[0x18] = 0x00;
     /* Alternate extended table (none) */
     pfl->cfi_table[0x19] = 0x00;
     pfl->cfi_table[0x1A] = 0x00;
+
+    /* CFI: System Interface Information */
+
     /* Vcc min */
     pfl->cfi_table[0x1B] = 0x45;
     /* Vcc max */
@@ -802,6 +806,9 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x25] = 0x04;
     /* Max timeout for chip erase */
     pfl->cfi_table[0x26] = 0x00;
+
+    /* CFI: Device Geometry Definition */
+
     /* Device size */
     pfl->cfi_table[0x27] = ctz32(device_len); /* + 1; */
     /* Flash device interface (8 & 16 bits) */
@@ -826,26 +833,30 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     pfl->cfi_table[0x2E] = (blocks_per_device - 1) >> 8;
     pfl->cfi_table[0x2F] = sector_len_per_device >> 8;
     pfl->cfi_table[0x30] = sector_len_per_device >> 16;
+    assert(0x30 < pri_ofs);
+
+    /* CFI: Primary-Vendor Specific */
 
     /* Extended */
-    pfl->cfi_table[0x31] = 'P';
-    pfl->cfi_table[0x32] = 'R';
-    pfl->cfi_table[0x33] = 'I';
+    pfl->cfi_table[0x00 + pri_ofs] = 'P';
+    pfl->cfi_table[0x01 + pri_ofs] = 'R';
+    pfl->cfi_table[0x02 + pri_ofs] = 'I';
 
-    pfl->cfi_table[0x34] = '1';
-    pfl->cfi_table[0x35] = '0';
+    pfl->cfi_table[0x03 + pri_ofs] = '1';
+    pfl->cfi_table[0x04 + pri_ofs] = '0';
 
-    pfl->cfi_table[0x36] = 0x00;
-    pfl->cfi_table[0x37] = 0x00;
-    pfl->cfi_table[0x38] = 0x00;
-    pfl->cfi_table[0x39] = 0x00;
+    pfl->cfi_table[0x05 + pri_ofs] = 0x00; /* Optional features */
+    pfl->cfi_table[0x06 + pri_ofs] = 0x00;
+    pfl->cfi_table[0x07 + pri_ofs] = 0x00;
+    pfl->cfi_table[0x08 + pri_ofs] = 0x00;
 
-    pfl->cfi_table[0x3a] = 0x00;
+    pfl->cfi_table[0x09 + pri_ofs] = 0x00; /* Func. supported after suspend */
 
-    pfl->cfi_table[0x3b] = 0x00;
-    pfl->cfi_table[0x3c] = 0x00;
+    pfl->cfi_table[0x0a + pri_ofs] = 0x00; /* Block status register mask */
+    pfl->cfi_table[0x0b + pri_ofs] = 0x00;
 
-    pfl->cfi_table[0x3f] = 0x01; /* Number of protection fields */
+    pfl->cfi_table[0x0e + pri_ofs] = 0x01; /* Number of protection fields */
+    assert(0x0e + pri_ofs < ARRAY_SIZE(pfl->cfi_table));
 }
 
 static void pflash_cfi01_system_reset(DeviceState *dev)
