@@ -1221,8 +1221,15 @@ lqspi_read(void *opaque, hwaddr addr, unsigned int size)
     }
 }
 
+static void
+lqspi_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
+{
+    return;
+}
+
 static const MemoryRegionOps lqspi_ops = {
     .read = lqspi_read,
+    .write = lqspi_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
