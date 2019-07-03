@@ -255,8 +255,21 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp)
     state = irq->server;
     state |= (uint64_t)(irq->saved_priority & KVM_XICS_PRIORITY_MASK)
         << KVM_XICS_PRIORITY_SHIFT;
-    if (irq->priority != irq->saved_priority) {
-        assert(irq->priority == 0xff);
+
+    /*
+     * An interrupt can be masked either because the ICS is resetting, in
+     * which case we expect 'current priority' and 'saved priority' to be
+     * equal to 0xff, or because the guest has called the ibm,int-off RTAS
+     * call, in which case we we have recorded the priority the interrupt
+     * had before it was masked in 'saved priority'. If the interrupt isn't
+     * masked, 'saved priority' and 'current priority' are equal (see
+     * ics_get_kvm_state()). Make sure we restore a sane state, otherwise
+     * fail migration.
+     */
+    if (irq->priority != irq->saved_priority && irq->priority != 0xff) {
+        error_setg(errp, "Corrupted state detected for interrupt source %d",
+                   srcno);
+        return -EINVAL;
     }
 
     if (irq->priority == 0xff) {
