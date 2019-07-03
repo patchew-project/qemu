@@ -1146,10 +1146,13 @@
 # @conditional: The bitmap is only synced when the operation is successful.
 #               This is the behavior always used for 'INCREMENTAL' backups.
 #
+# @never: The bitmap is never synchronized with the operation, and is
+#         treated solely as a read-only manifest of blocks to copy.
+#
 # Since: 4.2
 ##
 { 'enum': 'BitmapSyncMode',
-  'data': ['conditional'] }
+  'data': ['conditional', 'never'] }
 
 ##
 # @MirrorCopyMode:
