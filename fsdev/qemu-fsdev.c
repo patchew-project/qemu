@@ -121,6 +121,7 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
     const char *fsdev_id = qemu_opts_id(opts);
     const char *fsdriver = qemu_opt_get(opts, "fsdriver");
     const char *writeout = qemu_opt_get(opts, "writeout");
+    bool remap_inodes = qemu_opt_get_bool(opts, "remap_inodes", 0);
     bool ro = qemu_opt_get_bool(opts, "readonly", 0);
 
     if (!fsdev_id) {
@@ -160,6 +161,11 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
         fsle->fse.export_flags |= V9FS_RDONLY;
     } else {
         fsle->fse.export_flags &= ~V9FS_RDONLY;
+    }
+    if (remap_inodes) {
+        fsle->fse.export_flags |= V9FS_REMAP_INODES;
+    } else {
+        fsle->fse.export_flags &= ~V9FS_REMAP_INODES;
     }
 
     if (fsle->fse.ops->parse_opts) {

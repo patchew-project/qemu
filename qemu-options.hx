@@ -1334,17 +1334,17 @@ ETEXI
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=mapped-xattr|mapped-file|passthrough|none\n"
-    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode]\n"
-    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly]\n"
-    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly]\n"
+    "        [,id=id][,writeout=immediate][,readonly][,fmode=fmode][,dmode=dmode][,remap_inodes]\n"
+    "-virtfs proxy,mount_tag=tag,socket=socket[,id=id][,writeout=immediate][,readonly][,remap_inodes]\n"
+    "-virtfs proxy,mount_tag=tag,sock_fd=sock_fd[,id=id][,writeout=immediate][,readonly][,remap_inodes]\n"
     "-virtfs synth,mount_tag=tag[,id=id][,readonly]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}]
-@itemx -virtfs proxy,socket=@var{socket},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
-@itemx -virtfs proxy,sock_fd=@var{sock_fd},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly]
+@item -virtfs local,path=@var{path},mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}][,readonly] [,fmode=@var{fmode}][,dmode=@var{dmode}][,remap_inodes]
+@itemx -virtfs proxy,socket=@var{socket},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly][,remap_inodes]
+@itemx -virtfs proxy,sock_fd=@var{sock_fd},mount_tag=@var{mount_tag} [,writeout=@var{writeout}][,readonly][,remap_inodes]
 @itemx -virtfs synth,mount_tag=@var{mount_tag}
 @findex -virtfs
 
@@ -1398,6 +1398,19 @@ Specifies the default mode for newly created directories on the host. Works
 only with security models "mapped-xattr" and "mapped-file".
 @item mount_tag=@var{mount_tag}
 Specifies the tag name to be used by the guest to mount this export point.
+@item remap_inodes
+By default virtfs 9p supports only one device per export in order to avoid
+file ID collisions on guest which may otherwise happen because the original
+device IDs from host are not passed and exposed on guest. Instead all files
+of an export shared with virtfs do have the same device id on guest. So two
+files with identical inode numbers but from actually different devices on
+host would otherwise cause a file ID collision and hence potential
+misbehaviours on guest. For that reason it is recommended to create a
+separate virtfs export for each device to be shared with guests. However
+you may also enable "remap_inodes" which allows you to share multiple
+devices with only one export instead, which is achieved by remapping the
+original inode numbers from host to guest in a way that would prevent such
+collisions.
 @end table
 ETEXI
 

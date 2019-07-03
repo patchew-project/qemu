@@ -59,6 +59,7 @@ typedef struct ExtendedOps {
 #define V9FS_RDONLY                 0x00000040
 #define V9FS_PROXY_SOCK_FD          0x00000080
 #define V9FS_PROXY_SOCK_NAME        0x00000100
+#define V9FS_REMAP_INODES           0x00000200
 
 #define V9FS_SEC_MASK               0x0000003C
 
