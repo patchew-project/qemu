@@ -123,6 +123,9 @@ Store the server's process ID in the given file.
 Specify the ID of a qauthz object previously created with the
 --object option. This will be used to authorize connecting users
 against their x509 distinguished name.
+@item --tls-hostname=NAME
+When using list mode with TLS over a Unix socket, supply the hostname
+to use during validation of the server's x509 certificate.
 @item -v, --verbose
 Display extra debugging information.
 @item -h, --help

@@ -1578,6 +1578,11 @@ static QemuOptsList nbd_runtime_opts = {
             .help = "ID of the TLS credentials to use",
         },
         {
+            .name = "tls-hostname",
+            .type = QEMU_OPT_STRING,
+            .help = "hostname for x509 TLS credentials of target host",
+        },
+        {
             .name = "x-dirty-bitmap",
             .type = QEMU_OPT_STRING,
             .help = "experimental: expose named dirty bitmap in place of "
@@ -1624,12 +1629,25 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
             goto error;
         }
 
-        /* TODO SOCKET_ADDRESS_KIND_FD where fd has AF_INET or AF_INET6 */
-        if (s->saddr->type != SOCKET_ADDRESS_TYPE_INET) {
-            error_setg(errp, "TLS only supported over IP sockets");
+        switch (s->saddr->type) {
+        case SOCKET_ADDRESS_TYPE_INET:
+            hostname = s->saddr->u.inet.host;
+            if (qemu_opt_get(opts, "tls-hostname")) {
+                error_setg(errp, "tls-hostname not required with inet socket");
+                goto error;
+            }
+            break;
+        case SOCKET_ADDRESS_TYPE_UNIX:
+            hostname = qemu_opt_get(opts, "tls-hostname");
+            break;
+        default:
+            /* TODO SOCKET_ADDRESS_KIND_FD where fd has AF_INET or AF_INET6 */
+            error_setg(errp, "TLS only supported over IP or Unix sockets");
             goto error;
         }
-        hostname = s->saddr->u.inet.host;
+    } else if (qemu_opt_get(opts, "tls-hostname")) {
+        error_setg(errp, "tls-hostname not supported without tls-creds");
+        goto error;
     }
 
     /* NBD handshake */
@@ -1752,6 +1770,7 @@ static const char *const nbd_strong_runtime_opts[] = {
     "port",
     "export",
     "tls-creds",
+    "tls-hostname",
     "server.",
 
     NULL

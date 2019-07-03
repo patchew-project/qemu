@@ -3856,6 +3856,10 @@
 #
 # @tls-creds:   TLS credentials ID
 #
+# @tls-hostname: Hostname of the server, required only when using x509 based
+#                TLS credentials when @server lacks a hostname (such as
+#                using a Unix socket). (Since 4.1)
+#
 # @x-dirty-bitmap: A "qemu:dirty-bitmap:NAME" string to query in place of
 #                  traditional "base:allocation" block status (see
 #                  NBD_OPT_LIST_META_CONTEXT in the NBD protocol) (since 3.0)
@@ -3866,6 +3870,7 @@
   'data': { 'server': 'SocketAddress',
             '*export': 'str',
             '*tls-creds': 'str',
+            '*tls-hostname': 'str',
             '*x-dirty-bitmap': 'str' } }
 
 ##

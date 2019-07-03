@@ -13,19 +13,19 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 wrote 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== check TLS client to plain server fails ==
+== check TLS client to plain TCP server fails ==
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Denied by server for option 5 (starttls)
 server reported: TLS not configured
 qemu-nbd: Denied by server for option 5 (starttls)
 server reported: TLS not configured
 
-== check plain client to TLS server fails ==
+== check plain client to TLS TCP server fails ==
 qemu-img: Could not open 'nbd://localhost:PORT': TLS negotiation required before option 8 (structured reply)
 server reported: Option 0x8 not permitted before TLS
 qemu-nbd: TLS negotiation required before option 8 (structured reply)
 server reported: Option 0x8 not permitted before TLS
 
-== check TLS works ==
+== check TLS works over TCP ==
 image: nbd://127.0.0.1:PORT
 file format: nbd
 virtual size: 64 MiB (67108864 bytes)
@@ -56,11 +56,64 @@ wrote 1048576/1048576 bytes at offset 1048576
 read 1048576/1048576 bytes at offset 1048576
 1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 
-== check TLS with authorization ==
+== check TLS with authorization over TCP ==
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Failed to read option reply: Cannot read from TLS channel: Software caused connection abort
 qemu-img: Could not open 'driver=nbd,host=127.0.0.1,port=PORT,tls-creds=tls0': Failed to read option reply: Cannot read from TLS channel: Software caused connection abort
 
+== check TLS client to plain Unix server fails ==
+qemu-img: Could not open 'driver=nbd,path=SOCKET,tls-creds=tls0,tls-hostname=localhost': Denied by server for option 5 (starttls)
+server reported: TLS not configured
+qemu-nbd: Denied by server for option 5 (starttls)
+server reported: TLS not configured
+
+== check plain client to TLS Unix server fails ==
+qemu-img: Could not open 'nbd+unix://?socket=SOCKET': TLS negotiation required before option 8 (structured reply)
+server reported: Option 0x8 not permitted before TLS
+qemu-nbd: TLS negotiation required before option 8 (structured reply)
+server reported: Option 0x8 not permitted before TLS
+
+== check TLS works over Unix ==
+image: nbd+unix://?socket=SOCKET
+file format: nbd
+virtual size: 64 MiB (67108864 bytes)
+disk size: unavailable
+image: nbd+unix://?socket=SOCKET
+file format: nbd
+virtual size: 64 MiB (67108864 bytes)
+disk size: unavailable
+qemu-nbd: Certificate does not match the hostname 0.0.0.0
+exports available: 1
+ export: ''
+  size:  67108864
+  flags: 0x4ed ( flush fua trim zeroes df cache )
+  min block: 1
+  opt block: 4096
+  max block: 33554432
+  available meta contexts: 1
+   base:allocation
+
+== check TLS with different CA fails ==
+qemu-img: Could not open 'driver=nbd,path=SOCKET,tls-creds=tls0,tls-hostname=localhost': The certificate hasn't got a known issuer
+qemu-nbd: The certificate hasn't got a known issuer
+
+== perform I/O over TLS ==
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+wrote 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 1048576/1048576 bytes at offset 1048576
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== check TLS with authorization over Unix ==
+qemu-img: Could not open 'driver=nbd,path=SOCKET,tls-creds=tls0,tls-hostname=localhost': Failed to read option reply: Cannot read from TLS channel: Input/output error
+qemu-img: Could not open 'driver=nbd,path=SOCKET,tls-creds=tls0,tls-hostname=localhost': Failed to read option reply: Cannot read from TLS channel: Input/output error
+
 == final server log ==
+qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
+qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
+qemu-nbd: option negotiation failed: TLS x509 authz check for CN=localhost,O=Cthulhu Dark Lord Enterprises client1,L=R'lyeh,C=South Pacific is denied
+qemu-nbd: option negotiation failed: TLS x509 authz check for CN=localhost,O=Cthulhu Dark Lord Enterprises client3,L=R'lyeh,C=South Pacific is denied
+qemu-nbd: option negotiation failed: Failed to read opts magic: Cannot read from TLS channel: Software caused connection abort
 qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
 qemu-nbd: option negotiation failed: Verify failed: No certificate was found.
 qemu-nbd: option negotiation failed: TLS x509 authz check for CN=localhost,O=Cthulhu Dark Lord Enterprises client1,L=R'lyeh,C=South Pacific is denied

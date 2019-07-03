@@ -62,6 +62,7 @@
 #define QEMU_NBD_OPT_FORK          263
 #define QEMU_NBD_OPT_TLSAUTHZ      264
 #define QEMU_NBD_OPT_PID_FILE      265
+#define QEMU_NBD_OPT_TLSHOST       266
 
 #define MBR_SIZE 512
 
@@ -76,6 +77,7 @@ static int nb_fds;
 static QIONetListener *server;
 static QCryptoTLSCreds *tlscreds;
 static const char *tlsauthz;
+static const char *tlshost;
 
 static void usage(const char *name)
 {
@@ -640,6 +642,7 @@ int main(int argc, char **argv)
         { "description", required_argument, NULL, 'D' },
         { "tls-creds", required_argument, NULL, QEMU_NBD_OPT_TLSCREDS },
         { "tls-authz", required_argument, NULL, QEMU_NBD_OPT_TLSAUTHZ },
+        { "tls-hostname", required_argument, NULL, QEMU_NBD_OPT_TLSHOST },
         { "image-opts", no_argument, NULL, QEMU_NBD_OPT_IMAGE_OPTS },
         { "trace", required_argument, NULL, 'T' },
         { "fork", no_argument, NULL, QEMU_NBD_OPT_FORK },
@@ -864,6 +867,9 @@ int main(int argc, char **argv)
         case QEMU_NBD_OPT_TLSAUTHZ:
             tlsauthz = optarg;
             break;
+        case QEMU_NBD_OPT_TLSHOST:
+            tlshost = optarg;
+            break;
         case QEMU_NBD_OPT_FORK:
             fork_process = true;
             break;
@@ -931,17 +937,21 @@ int main(int argc, char **argv)
     }
 
     if (tlscredsid) {
-        if (sockpath) {
-            error_report("TLS is only supported with IPv4/IPv6");
-            exit(EXIT_FAILURE);
-        }
         if (device) {
             error_report("TLS is not supported with a host device");
             exit(EXIT_FAILURE);
         }
         if (tlsauthz && list) {
-            error_report("TLS authorization is incompatible with export list");
+            error_report("TLS authorization is incompatible with --list");
             exit(EXIT_FAILURE);
+        }
+        if (tlshost) {
+            if (!list) {
+                error_report("TLS hostname is only for use with --list");
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            tlshost = bindto;
         }
         tlscreds = nbd_get_tls_creds(tlscredsid, list, &local_err);
         if (local_err) {
@@ -954,11 +964,15 @@ int main(int argc, char **argv)
             error_report("--tls-authz is not permitted without --tls-creds");
             exit(EXIT_FAILURE);
         }
+        if (tlshost) {
+            error_report("--tls-hostname is not permitted without --tls-creds");
+            exit(EXIT_FAILURE);
+        }
     }
 
     if (list) {
         saddr = nbd_build_socket_address(sockpath, bindto, port);
-        return qemu_nbd_client_list(saddr, tlscreds, bindto);
+        return qemu_nbd_client_list(saddr, tlscreds, tlshost);
     }
 
 #if !HAVE_NBD_DEVICE

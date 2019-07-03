@@ -30,7 +30,7 @@ _cleanup()
 {
     nbd_server_stop
     _cleanup_test_img
-    # If we aborted early we want to see this log for diagnosis
+    # If we aborted early we want to see these logs for diagnosis
     test -f "$TEST_DIR/server.log" && cat "$TEST_DIR/server.log"
     rm -f "$TEST_DIR/server.log"
     tls_x509_cleanup
@@ -67,7 +67,7 @@ _make_test_img 64M
 $QEMU_IO -c 'w -P 0x11 1m 1m' "$TEST_IMG" | _filter_qemu_io
 
 echo
-echo "== check TLS client to plain server fails =="
+echo "== check TLS client to plain TCP server fails =="
 nbd_server_start_tcp_socket -f $IMGFMT "$TEST_IMG" 2> "$TEST_DIR/server.log"
 
 obj=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
@@ -80,7 +80,7 @@ $QEMU_NBD_PROG -L -b $nbd_tcp_addr -p $nbd_tcp_port --object $obj \
 nbd_server_stop
 
 echo
-echo "== check plain client to TLS server fails =="
+echo "== check plain client to TLS TCP server fails =="
 
 nbd_server_start_tcp_socket \
     --object tls-creds-x509,dir=${tls_dir}/server1,endpoint=server,id=tls0,verify-peer=yes \
@@ -91,7 +91,7 @@ $QEMU_IMG info nbd://localhost:$nbd_tcp_port 2>&1 | sed "s/$nbd_tcp_port/PORT/g"
 $QEMU_NBD_PROG -L -b $nbd_tcp_addr -p $nbd_tcp_port
 
 echo
-echo "== check TLS works =="
+echo "== check TLS works over TCP =="
 obj1=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
 obj2=tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0
 $QEMU_IMG info --image-opts --object $obj1 \
@@ -123,7 +123,7 @@ $QEMU_IO -c 'r -P 0x11 1m 1m' -c 'w -P 0x22 1m 1m' --image-opts \
 $QEMU_IO -f $IMGFMT -r -U -c 'r -P 0x22 1m 1m' "$TEST_IMG" | _filter_qemu_io
 
 echo
-echo "== check TLS with authorization =="
+echo "== check TLS with authorization over TCP =="
 
 nbd_server_stop
 
@@ -144,6 +144,90 @@ $QEMU_IMG info --image-opts \
     --object tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0 \
     driver=nbd,host=$nbd_tcp_addr,port=$nbd_tcp_port,tls-creds=tls0 \
     2>&1 | sed "s/$nbd_tcp_port/PORT/g"
+
+nbd_server_stop
+
+echo
+echo "== check TLS client to plain Unix server fails =="
+nbd_server_start_unix_socket -f $IMGFMT "$TEST_IMG" 2>> "$TEST_DIR/server.log"
+
+obj=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0,tls-hostname=localhost \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+$QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj --tls-creds=tls0
+
+nbd_server_stop
+
+echo
+echo "== check plain client to TLS Unix server fails =="
+
+nbd_server_start_unix_socket \
+    --object tls-creds-x509,dir=${tls_dir}/server1,endpoint=server,id=tls0,verify-peer=yes \
+    --tls-creds tls0 \
+    -f $IMGFMT "$TEST_IMG" 2>> "$TEST_DIR/server.log"
+
+$QEMU_IMG info nbd+unix://\?socket=$nbd_unix_socket \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+$QEMU_NBD_PROG -L -k $nbd_unix_socket
+
+echo
+echo "== check TLS works over Unix =="
+obj1=tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0
+obj2=tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj1 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0 \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+$QEMU_IMG info --image-opts --object $obj2 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0,tls-hostname=localhost \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+$QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj1 --tls-creds=tls0
+$QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj1 --tls-creds=tls0 \
+    --tls-hostname=localhost
+
+echo
+echo "== check TLS with different CA fails =="
+obj=tls-creds-x509,dir=${tls_dir}/client2,endpoint=client,id=tls0
+$QEMU_IMG info --image-opts --object $obj \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0,tls-hostname=localhost \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+$QEMU_NBD_PROG -L -k $nbd_unix_socket --object $obj \
+    --tls-creds=tls0 --tls-hostname=localhost
+
+echo
+echo "== perform I/O over TLS =="
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+$QEMU_IO -c 'r -P 0x22 1m 1m' -c 'w -P 0x33 1m 1m' --image-opts \
+    --object tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0,tls-hostname=localhost \
+    2>&1 | _filter_qemu_io
+
+$QEMU_IO -f $IMGFMT -r -U -c 'r -P 0x33 1m 1m' "$TEST_IMG" | _filter_qemu_io
+
+echo
+echo "== check TLS with authorization over Unix =="
+
+nbd_server_stop
+
+nbd_server_start_unix_socket \
+    --object tls-creds-x509,dir=${tls_dir}/server1,endpoint=server,id=tls0,verify-peer=yes \
+    --object "authz-simple,id=authz0,identity=CN=localhost,, \
+      O=Cthulu Dark Lord Enterprises client1,,L=R'lyeh,,C=South Pacific" \
+    --tls-authz authz0 \
+    --tls-creds tls0 \
+    -f $IMGFMT "$TEST_IMG" 2>> "$TEST_DIR/server.log"
+
+$QEMU_IMG info --image-opts \
+    --object tls-creds-x509,dir=${tls_dir}/client1,endpoint=client,id=tls0 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0,tls-hostname=localhost \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+
+$QEMU_IMG info --image-opts \
+    --object tls-creds-x509,dir=${tls_dir}/client3,endpoint=client,id=tls0 \
+    driver=nbd,path=$nbd_unix_socket,tls-creds=tls0,tls-hostname=localhost \
+    2>&1 | sed "s,$nbd_unix_socket,SOCKET,g"
+
+nbd_server_stop
 
 echo
 echo "== final server log =="
