@@ -266,16 +266,25 @@ static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
 {
     BdrvDirtyBitmap *bm;
     BlockDriverState *bs = blk_bs(job->common.blk);
+    bool sync = (((ret == 0) || (job->bitmap_mode == BITMAP_SYNC_MODE_ALWAYS)) \
+                 && (job->bitmap_mode != BITMAP_SYNC_MODE_NEVER));
 
-    if (ret < 0 || job->bitmap_mode == BITMAP_SYNC_MODE_NEVER) {
-        /* Failure, or we don't want to synchronize the bitmap.
-         * Merge the successor back into the parent, delete nothing. */
-        bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
-        assert(bm);
-    } else {
-        /* Everything is fine, delete this bitmap and install the backup. */
+    if (sync) {
+        /* We succeeded, or we always intended to sync the bitmap.
+         * Delete this bitmap and install the child. */
         bm = bdrv_dirty_bitmap_abdicate(bs, job->sync_bitmap, NULL);
-        assert(bm);
+    } else {
+        /* We failed, or we never intended to sync the bitmap anyway.
+         * Merge the successor back into the parent, keeping all data. */
+        bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
+    }
+
+    assert(bm);
+
+    if (ret < 0 && job->bitmap_mode == BITMAP_SYNC_MODE_ALWAYS) {
+        /* If we failed and synced, merge in the bits we didn't copy: */
+        bdrv_dirty_bitmap_merge_internal(bm, job->copy_bitmap,
+                                         NULL, true);
     }
 }
 
