@@ -3473,6 +3473,19 @@ static BlockJob *do_backup_common(BackupCommon *backup,
         goto out;
     }
 
+    if (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL) {
+        if (backup->has_bitmap_mode &&
+            backup->bitmap_mode != BITMAP_SYNC_MODE_CONDITIONAL) {
+            error_setg(errp, "Bitmap sync mode must be 'conditional' "
+                       "when using sync mode '%s'",
+                       MirrorSyncMode_str(backup->sync));
+            goto out;
+        }
+        backup->has_bitmap_mode = true;
+        backup->sync = MIRROR_SYNC_MODE_BITMAP;
+        backup->bitmap_mode = BITMAP_SYNC_MODE_CONDITIONAL;
+    }
+
     if (backup->has_bitmap) {
         bmap = bdrv_find_dirty_bitmap(bs, backup->bitmap);
         if (!bmap) {
@@ -3492,8 +3505,10 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     }
 
     job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
-                            backup->sync, bmap, backup->compress,
-                            backup->on_source_error, backup->on_target_error,
+                            backup->sync, bmap, backup->bitmap_mode,
+                            backup->compress,
+                            backup->on_source_error,
+                            backup->on_target_error,
                             job_flags, NULL, NULL, txn, &local_err);
     if (local_err != NULL) {
         error_propagate(errp, local_err);
