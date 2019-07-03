@@ -288,6 +288,8 @@ void trace_fini_vcpu(CPUState *vcpu)
 
 bool trace_init_backends(void)
 {
+    char *trace_env;
+
 #ifdef CONFIG_TRACE_SIMPLE
     if (!st_init()) {
         fprintf(stderr, "failed to initialize simple tracing backend.\n");
@@ -305,6 +307,13 @@ bool trace_init_backends(void)
 #ifdef CONFIG_TRACE_SYSLOG
     openlog(NULL, LOG_PID, LOG_DAEMON);
 #endif
+
+    trace_init_file(getenv("QEMU_TRACE_LOGFILE"));
+    trace_init_events(getenv("QEMU_TRACE_EVENTFILE"));
+    trace_env = getenv("QEMU_TRACE_EVENTS");
+    if (trace_env) {
+        trace_enable_events(trace_env);
+    }
 
     return true;
 }
