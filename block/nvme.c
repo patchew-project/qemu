@@ -1148,6 +1148,90 @@ static void nvme_aio_unplug(BlockDriverState *bs)
     }
 }
 
+static int coroutine_fn nvme_co_create_opts(const char *filename,
+        QemuOpts *opts, Error **errp)
+{
+
+    int64_t total_size = 0;
+    char *buf = NULL;
+    BlockDriverState *bs;
+    QEMUIOVector local_qiov;
+    int ret = 0;
+    int64_t blocksize;
+    QDict *options;
+    Error *local_err = NULL;
+    PreallocMode prealloc;
+
+    total_size = ROUND_UP(qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0),
+                              BDRV_SECTOR_SIZE);
+
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
+                                  PREALLOC_MODE_OFF, &local_err);
+    g_free(buf);
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Only prealloc=off is supported");
+        return -EINVAL;
+    }
+
+    options = qdict_new();
+    qdict_put_str(options, "driver", "nvme");
+    nvme_parse_filename(filename, options, &local_err);
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        qobject_unref(options);
+        return -EINVAL;
+    }
+
+    bs = bdrv_open(NULL, NULL, options,
+                       BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL, errp);
+    if (bs == NULL) {
+        return -EIO;
+    }
+
+    if (nvme_getlength(bs) < total_size) {
+        error_setg(errp, "Device is too small");
+        bdrv_unref(bs);
+        qobject_unref(options);
+        return -ENOSPC;
+    }
+
+    blocksize = nvme_get_blocksize(bs);
+    buf = qemu_try_blockalign0(bs, blocksize);
+    qemu_iovec_init(&local_qiov, 1);
+    qemu_iovec_add(&local_qiov, buf, blocksize);
+
+    ret = nvme_co_prw_aligned(bs, 0, blocksize,
+            &local_qiov, true, BDRV_REQ_FUA);
+    if (ret) {
+        error_setg(errp, "Write error to sector 0");
+    }
+
+    qemu_vfree(buf);
+    bdrv_unref(bs);
+    return ret;
+}
+
+
+static int coroutine_fn nvme_co_truncate(BlockDriverState *bs, int64_t offset,
+                                        PreallocMode prealloc, Error **errp)
+{
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Preallocation mode '%s' unsupported nvme devices",
+                PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    if (offset > nvme_getlength(bs)) {
+        error_setg(errp, "Cannot grow nvme devices");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
 static void nvme_register_buf(BlockDriverState *bs, void *host, size_t size)
 {
     int ret;
@@ -1169,11 +1253,31 @@ static void nvme_unregister_buf(BlockDriverState *bs, void *host)
     qemu_vfio_dma_unmap(s->vfio, host);
 }
 
+
 static const char *const nvme_strong_runtime_opts[] = {
     NVME_BLOCK_OPT_DEVICE,
     NVME_BLOCK_OPT_NAMESPACE,
 
     NULL
+};
+
+
+static QemuOptsList nvme_create_opts = {
+    .name = "nvme-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(nvme_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off)",
+        },
+        { /* end of list */ }
+    }
 };
 
 static BlockDriver bdrv_nvme = {
@@ -1186,6 +1290,10 @@ static BlockDriver bdrv_nvme = {
     .bdrv_close               = nvme_close,
     .bdrv_getlength           = nvme_getlength,
     .bdrv_probe_blocksizes    = nvme_probe_blocksizes,
+
+    .bdrv_co_create_opts      = nvme_co_create_opts,
+    .bdrv_co_truncate         = nvme_co_truncate,
+    .create_opts              = &nvme_create_opts,
 
     .bdrv_co_preadv           = nvme_co_preadv,
     .bdrv_co_pwritev          = nvme_co_pwritev,
