@@ -810,11 +810,15 @@ bool bdrv_dirty_bitmap_next_dirty_area(BdrvDirtyBitmap *bitmap,
     return hbitmap_next_dirty_area(bitmap->bitmap, offset, bytes);
 }
 
+/**
+ * bdrv_merge_dirty_bitmap: merge src into dest.
+ * Ensures permissions on bitmaps are reasonable; use for public API.
+ *
+ * @backup: If provided, make a copy of dest here prior to merge.
+ */
 void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
                              HBitmap **backup, Error **errp)
 {
-    bool ret;
-
     qemu_mutex_lock(dest->mutex);
     if (src->mutex != dest->mutex) {
         qemu_mutex_lock(src->mutex);
@@ -833,6 +837,37 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
         goto out;
     }
 
+    assert(bdrv_dirty_bitmap_merge_internal(dest, src, backup, false));
+
+out:
+    qemu_mutex_unlock(dest->mutex);
+    if (src->mutex != dest->mutex) {
+        qemu_mutex_unlock(src->mutex);
+    }
+}
+
+/**
+ * bdrv_dirty_bitmap_merge_internal: merge src into dest.
+ * Does NOT check bitmap permissions; not suitable for use as public API.
+ *
+ * @backup: If provided, make a copy of dest here prior to merge.
+ * @lock: If true, lock and unlock bitmaps on the way in/out.
+ * returns true if the merge succeeded; false if unattempted.
+ */
+bool bdrv_dirty_bitmap_merge_internal(BdrvDirtyBitmap *dest,
+                                      const BdrvDirtyBitmap *src,
+                                      HBitmap **backup,
+                                      bool lock)
+{
+    bool ret;
+
+    if (lock) {
+        qemu_mutex_lock(dest->mutex);
+        if (src->mutex != dest->mutex) {
+            qemu_mutex_lock(src->mutex);
+        }
+    }
+
     if (backup) {
         *backup = dest->bitmap;
         dest->bitmap = hbitmap_alloc(dest->size, hbitmap_granularity(*backup));
@@ -840,11 +875,13 @@ void bdrv_merge_dirty_bitmap(BdrvDirtyBitmap *dest, const BdrvDirtyBitmap *src,
     } else {
         ret = hbitmap_merge(dest->bitmap, src->bitmap, dest->bitmap);
     }
-    assert(ret);
 
-out:
-    qemu_mutex_unlock(dest->mutex);
-    if (src->mutex != dest->mutex) {
-        qemu_mutex_unlock(src->mutex);
+    if (lock) {
+        qemu_mutex_unlock(dest->mutex);
+        if (src->mutex != dest->mutex) {
+            qemu_mutex_unlock(src->mutex);
+        }
     }
+
+    return ret;
 }
