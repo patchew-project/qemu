@@ -42,12 +42,6 @@
  * and grant_table.h from the Xen public headers.
  */
 
-#if __XEN_INTERFACE_VERSION__ < 0x00030208
-#define xen_mb()  mb()
-#define xen_rmb() rmb()
-#define xen_wmb() wmb()
-#endif
-
 typedef unsigned int RING_IDX;
 
 /* Round a 32-bit unsigned constant down to the nearest power of two. */
