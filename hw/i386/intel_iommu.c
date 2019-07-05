@@ -70,6 +70,8 @@ static void vtd_pasid_cache_reset(IntelIOMMUState *s);
 static int vtd_pasid_cache_psi(IntelIOMMUState *s,
                                uint16_t domain_id,
                                uint32_t pasid);
+static void vtd_pasid_cache_devsi(IntelIOMMUState *s,
+                                  uint16_t devfn);
 static VTDContextCacheEntry *vtd_find_context_cache(IntelIOMMUState *s,
                                                     PCIBus *bus, int devfn);
 static void vtd_invalidate_pe_cache(IntelIOMMUState *s,
@@ -1955,6 +1957,7 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                  *    check if the device has been bound to any pasid
                  *    invoke pasid_unbind regards to each bound pasid
                  */
+                 vtd_pasid_cache_devsi(s, devfn_it);
             }
         }
     }
@@ -3686,6 +3689,11 @@ static inline bool vtd_pc_is_pasid_si(struct VTDPASIDCacheInfo *pc_info)
     return pc_info->flags & VTD_PASID_CACHE_PASIDSI;
 }
 
+static inline bool vtd_pc_is_dev_si(struct VTDPASIDCacheInfo *pc_info)
+{
+    return pc_info->flags & VTD_PASID_CACHE_DEVSI;
+}
+
 /**
  * This function is used to clear pasid_cache_gen of cached pasid
  * entry in vtd_pasid_as instance. Caller of this function should
@@ -3709,6 +3717,7 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
     pasid = vtd_pasid_as->pasid;
     devfn = vtd_pasid_as->devfn;
     if (vtd_pasid_as->pasid_cache_entry.pasid_cache_gen &&
+        (vtd_pc_is_dev_si(pc_info) ? (pc_info->devfn == devfn) : 1) &&
         (vtd_pc_is_dom_si(pc_info) ? (pc_info->domain_id == did) : 1) &&
         (vtd_pc_is_pasid_si(pc_info) ? (pc_info->pasid == pasid) : 1)) {
         /*
@@ -3915,6 +3924,19 @@ static int vtd_pasid_cache_psi(IntelIOMMUState *s,
         }
     }
     return 0;
+}
+
+static void vtd_pasid_cache_devsi(IntelIOMMUState *s,
+                                  uint16_t devfn)
+{
+    VTDPASIDCacheInfo pc_info;
+
+    trace_vtd_pasid_cache_devsi(devfn);
+
+    pc_info.flags = VTD_PASID_CACHE_DEVSI;
+    pc_info.devfn = devfn;
+
+    g_hash_table_foreach_remove(s->vtd_pasid_as, vtd_flush_pasid, &pc_info);
 }
 
 /**
