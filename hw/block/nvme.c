@@ -1366,7 +1366,6 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     id->ieee[2] = 0xb3;
     id->oacs = cpu_to_le16(0);
     id->frmw = 7 << 1;
-    id->lpa = 1 << 0;
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);
