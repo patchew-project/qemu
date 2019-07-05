@@ -283,7 +283,9 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
     switch (pfl->cmd) {
     default:
         /* This should never happen : reset state & treat it as a read */
-        DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid state, "
+                      "wcycle %d cmd 0x02%x\n",
+                      __func__, pfl->wcycle, pfl->cmd);
         pfl->wcycle = 0;
         pfl->cmd = 0xff;
         /* fall through to read code */
@@ -630,7 +632,9 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         break;
     default:
         /* Should never happen */
-        DPRINTF("%s: invalid write state\n",  __func__);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid state, "
+                      "wcycle %d cmd (0x02%x -> value 0x02%x)\n",
+                      __func__, pfl->wcycle, pfl->cmd, value);
         goto mode_read_array;
     }
     return;
