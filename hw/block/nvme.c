@@ -860,13 +860,24 @@ static uint16_t nvme_get_feature_timestamp(NvmeCtrl *n, NvmeCmd *cmd)
 static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
+    uint32_t dw11 = le32_to_cpu(cmd->cdw11);
     uint32_t result;
 
+    trace_nvme_getfeat(dw10);
+
     switch (dw10) {
+    case NVME_ARBITRATION:
+        result = cpu_to_le32(n->features.arbitration);
+        break;
+    case NVME_POWER_MANAGEMENT:
+        result = cpu_to_le32(n->features.power_mgmt);
+        break;
     case NVME_TEMPERATURE_THRESHOLD:
         result = cpu_to_le32(n->features.temp_thresh);
         break;
     case NVME_ERROR_RECOVERY:
+        result = cpu_to_le32(n->features.err_rec);
+        break;
     case NVME_VOLATILE_WRITE_CACHE:
         result = blk_enable_write_cache(n->conf.blk);
         trace_nvme_getfeat_vwcache(result ? "enabled" : "disabled");
@@ -878,6 +889,19 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         break;
     case NVME_TIMESTAMP:
         return nvme_get_feature_timestamp(n, cmd);
+    case NVME_INTERRUPT_COALESCING:
+        result = cpu_to_le32(n->features.int_coalescing);
+        break;
+    case NVME_INTERRUPT_VECTOR_CONF:
+        if ((dw11 & 0xffff) > n->params.num_queues) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
+        result = cpu_to_le32(n->features.int_vector_config[dw11 & 0xffff]);
+        break;
+    case NVME_WRITE_ATOMICITY:
+        result = cpu_to_le32(n->features.write_atomicity);
+        break;
     case NVME_ASYNCHRONOUS_EVENT_CONF:
         result = cpu_to_le32(n->features.async_config);
         break;
@@ -913,6 +937,8 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
 
+    trace_nvme_setfeat(dw10, dw11);
+
     switch (dw10) {
     case NVME_TEMPERATURE_THRESHOLD:
         n->features.temp_thresh = dw11;
@@ -937,6 +963,13 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     case NVME_ASYNCHRONOUS_EVENT_CONF:
         n->features.async_config = dw11;
         break;
+    case NVME_ARBITRATION:
+    case NVME_POWER_MANAGEMENT:
+    case NVME_ERROR_RECOVERY:
+    case NVME_INTERRUPT_COALESCING:
+    case NVME_INTERRUPT_VECTOR_CONF:
+    case NVME_WRITE_ATOMICITY:
+        return NVME_FEAT_NOT_CHANGABLE | NVME_DNR;
     default:
         trace_nvme_err_invalid_setfeat(dw10);
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -1693,6 +1726,14 @@ static void nvme_init_state(NvmeCtrl *n)
     n->aer_reqs = g_new0(NvmeRequest *, NVME_AERL + 1);
     n->temperature = NVME_TEMPERATURE;
     n->features.temp_thresh = 0x14d;
+    n->features.int_vector_config = g_malloc0_n(n->params.num_queues,
+        sizeof(*n->features.int_vector_config));
+
+    /* disable coalescing (not supported) */
+    for (int i = 0; i < n->params.num_queues; i++) {
+        n->features.int_vector_config[i] = i | (1 << 16);
+    }
+
 }
 
 static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
@@ -1769,6 +1810,10 @@ static void nvme_init_ctrl(NvmeCtrl *n)
     id->nn = cpu_to_le32(n->num_namespaces);
     id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROS | NVME_ONCS_TIMESTAMP);
 
+    if (blk_enable_write_cache(n->conf.blk)) {
+        id->vwc = 1;
+    }
+
     strcpy((char *) id->subnqn, "nqn.2014-08.org.nvmexpress:uuid:");
     qemu_uuid_unparse(&qemu_uuid,
         (char *) id->subnqn + strlen((char *) id->subnqn));
@@ -1776,9 +1821,6 @@ static void nvme_init_ctrl(NvmeCtrl *n)
     id->psd[0].mp = cpu_to_le16(0x9c4);
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
-    if (blk_enable_write_cache(n->conf.blk)) {
-        id->vwc = 1;
-    }
 
     n->bar.cap = 0;
     NVME_CAP_SET_MQES(n->bar.cap, 0x7ff);
@@ -1876,6 +1918,7 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->sq);
     g_free(n->elpes);
     g_free(n->aer_reqs);
+    g_free(n->features.int_vector_config);
 
     if (n->params.cmb_size_mb) {
         g_free(n->cmbuf);
