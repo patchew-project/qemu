@@ -9,6 +9,7 @@
 #include "hw/isa/isa.h"
 
 #include "hw/pci/pcie.h"
+#include <linux/iommu.h>
 
 extern bool pci_available;
 
@@ -268,6 +269,10 @@ struct PCIPASIDOps {
     int (*alloc_pasid)(PCIBus *bus, int32_t devfn,
                          uint32_t min_pasid, uint32_t max_pasid);
     int (*free_pasid)(PCIBus *bus, int32_t devfn, uint32_t pasid);
+    void (*bind_gpasid)(PCIBus *bus, int32_t devfn,
+                            struct gpasid_bind_data *g_bind_data);
+    void (*unbind_gpasid)(PCIBus *bus, int32_t devfn,
+                            struct gpasid_bind_data *g_bind_data);
 };
 
 struct PCIDevice {
@@ -498,6 +503,10 @@ bool pci_device_is_ops_set(PCIBus *bus, int32_t devfn);
 int pci_device_request_pasid_alloc(PCIBus *bus, int32_t devfn,
                                    uint32_t min_pasid, uint32_t max_pasid);
 int pci_device_request_pasid_free(PCIBus *bus, int32_t devfn, uint32_t pasid);
+void pci_device_bind_gpasid(PCIBus *bus, int32_t devfn,
+                            struct gpasid_bind_data *g_bind_data);
+void pci_device_unbind_gpasid(PCIBus *bus, int32_t devfn,
+                            struct gpasid_bind_data *g_bind_data);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)

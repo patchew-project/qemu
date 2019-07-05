@@ -2676,6 +2676,36 @@ int pci_device_request_pasid_free(PCIBus *bus, int32_t devfn,
     return -1;
 }
 
+void pci_device_bind_gpasid(PCIBus *bus, int32_t devfn,
+                                struct gpasid_bind_data *g_bind_data)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->pasid_ops) {
+        dev->pasid_ops->bind_gpasid(bus, devfn, g_bind_data);
+    }
+}
+
+void pci_device_unbind_gpasid(PCIBus *bus, int32_t devfn,
+                                struct gpasid_bind_data *g_bind_data)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->pasid_ops) {
+        dev->pasid_ops->unbind_gpasid(bus, devfn, g_bind_data);
+    }
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
