@@ -3014,6 +3014,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
     DEFINE_PROP_BOOL("x-scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
+    DEFINE_PROP_STRING("sm_model", IntelIOMMUState, sm_model),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -3489,6 +3490,14 @@ static void vtd_iommu_replay(IOMMUMemoryRegion *iommu_mr, IOMMUNotifier *n)
     return;
 }
 
+const char sm_model_manual[] =
+        "\"-device intel-iommu,x-scalable-mode=on,"
+        "sm_model=[\"legacy\"|\"scalable\"]\"\n"
+        " - \"legacy\" gives support for SL page table based IOVA\n"
+        " - \"scalable\" gives support for FL page table based IOVA and SVA\n"
+        " - default to be \"legacy\" if \"x-scalable-mode=on\""
+        " while no sm_model is configured\n";
+
 /* Do the initialization. It will also be called when reset, so pay
  * attention when adding new initialization stuff.
  */
@@ -3557,9 +3566,26 @@ static void vtd_init(IntelIOMMUState *s)
         s->cap |= VTD_CAP_CM;
     }
 
+    if (s->sm_model && !s->scalable_mode) {
+        printf("\n\"sm_model\" depends on \"x-scalable-mode\"\n"
+               "please check if \"x-scalable-mode\" is expected\n"
+               "\"sm_model\" manual:\n%s", sm_model_manual);
+        exit(1);
+    }
+
     /* TODO: read cap/ecap from host to decide which cap to be exposed. */
     if (s->scalable_mode) {
-        s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
+        if (!s->sm_model || !strcmp(s->sm_model, "legacy")) {
+            s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
+        } else if (!strcmp(s->sm_model, "scalable")) {
+            s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_PASID
+                       | VTD_ECAP_FLTS;
+        } else {
+            printf("\n!!!!! Invalid sm_model config !!!!!\n"
+                "Please config sm_model=[\"legacy\"|\"scalable\"]\n"
+                "\"sm_model\" manual:\n%s", sm_model_manual);
+            exit(1);
+        }
     }
 
     vtd_reset_caches(s);

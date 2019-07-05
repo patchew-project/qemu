@@ -270,6 +270,7 @@ struct IntelIOMMUState {
     bool buggy_eim;                 /* Force buggy EIM unless eim=off */
     uint8_t aw_bits;                /* Host/IOVA address width (in bits) */
     bool dma_drain;                 /* Whether DMA r/w draining enabled */
+    char *sm_model;          /* identify actual scalable mode iommu model*/
 
     /*
      * Protects IOMMU states in general.  Currently it protects the
