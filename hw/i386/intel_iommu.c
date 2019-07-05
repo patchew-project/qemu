@@ -61,6 +61,16 @@
 static void vtd_address_space_refresh_all(IntelIOMMUState *s);
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
 
+static void hash_pasid_as_free(void *ptr);
+static inline int vtd_get_pasid_key(char *key, int key_size,
+                                   uint32_t pasid, uint16_t sid);
+static int vtd_pasid_cache_dsi(IntelIOMMUState *s, uint16_t domain_id);
+static int vtd_pasid_cache_gsi(IntelIOMMUState *s);
+static void vtd_pasid_cache_reset(IntelIOMMUState *s);
+static int vtd_pasid_cache_psi(IntelIOMMUState *s,
+                               uint16_t domain_id,
+                               uint32_t pasid);
+
 static void vtd_define_quad(IntelIOMMUState *s, hwaddr addr, uint64_t val,
                             uint64_t wmask, uint64_t w1cmask)
 {
@@ -265,6 +275,7 @@ static void vtd_reset_caches(IntelIOMMUState *s)
     vtd_iommu_lock(s);
     vtd_reset_iotlb_locked(s);
     vtd_reset_context_cache_locked(s);
+    vtd_pasid_cache_reset(s);
     vtd_iommu_unlock(s);
 }
 
@@ -673,6 +684,11 @@ static inline bool vtd_pe_type_check(X86IOMMUState *x86_iommu,
         return false;
     }
     return true;
+}
+
+static inline uint16_t vtd_pe_get_domain_id(VTDPASIDEntry *pe)
+{
+    return VTD_SM_PASID_ENTRY_DID((pe)->val[1]);
 }
 
 static int vtd_get_pasid_dire(dma_addr_t pasid_dir_base,
@@ -2334,6 +2350,10 @@ static bool vtd_process_iotlb_desc(IntelIOMMUState *s, VTDInvDesc *inv_desc)
 static bool vtd_process_pasid_desc(IntelIOMMUState *s,
                                    VTDInvDesc *inv_desc)
 {
+    uint16_t domain_id;
+    uint32_t pasid;
+    int ret = 0;
+
     if ((inv_desc->val[0] & VTD_INV_DESC_PASIDC_RSVD_VAL0) ||
         (inv_desc->val[1] & VTD_INV_DESC_PASIDC_RSVD_VAL1) ||
         (inv_desc->val[2] & VTD_INV_DESC_PASIDC_RSVD_VAL2) ||
@@ -2343,14 +2363,20 @@ static bool vtd_process_pasid_desc(IntelIOMMUState *s,
         return false;
     }
 
+    domain_id = VTD_INV_DESC_PASIDC_DID(inv_desc->val[0]);
+    pasid = VTD_INV_DESC_PASIDC_PASID(inv_desc->val[0]);
+
     switch (inv_desc->val[0] & VTD_INV_DESC_PASIDC_G) {
     case VTD_INV_DESC_PASIDC_DSI:
+        ret = vtd_pasid_cache_dsi(s, domain_id);
         break;
 
     case VTD_INV_DESC_PASIDC_PASID_SI:
+        ret = vtd_pasid_cache_psi(s, domain_id, pasid);
         break;
 
     case VTD_INV_DESC_PASIDC_GLOBAL:
+        ret = vtd_pasid_cache_gsi(s);
         break;
 
     default:
@@ -2359,7 +2385,7 @@ static bool vtd_process_pasid_desc(IntelIOMMUState *s,
         return false;
     }
 
-    return true;
+    return (ret == 0) ? true : false;
 }
 
 static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
@@ -3523,6 +3549,142 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
     return vtd_dev_as;
 }
 
+#define VTD_PASID_CACHE_GEN_MAX       0xffffffffUL
+
+static inline bool vtd_pc_is_dom_si(struct VTDPASIDCacheInfo *pc_info)
+{
+    return pc_info->flags & VTD_PASID_CACHE_DOMSI;
+}
+
+static inline bool vtd_pc_is_pasid_si(struct VTDPASIDCacheInfo *pc_info)
+{
+    return pc_info->flags & VTD_PASID_CACHE_PASIDSI;
+}
+
+/**
+ * This function is used to clear pasid_cache_gen of cached pasid
+ * entry in vtd_pasid_as instance. Caller of this function should
+ * do explicit vtd_pasid_as instance release. e.g. call this function
+ * with g_hash_table_foreach_remove() or follow this function with
+ * a function to release vtd_pasid_as instance.
+ */
+static gboolean vtd_flush_pasid(gpointer key, gpointer value,
+                                gpointer user_data)
+{
+    VTDPASIDCacheInfo *pc_info = user_data;
+    VTDAddressSpace *vtd_pasid_as = value;
+    uint16_t did;
+    uint32_t pasid;
+
+    if (!vtd_pasid_as || !vtd_pasid_as->pasid_allocated) {
+        return false;
+    }
+
+    did = vtd_pe_get_domain_id(&(vtd_pasid_as->pasid_cache_entry.pasid_entry));
+    pasid = vtd_pasid_as->pasid;
+    if (vtd_pasid_as->pasid_cache_entry.pasid_cache_gen &&
+        (vtd_pc_is_dom_si(pc_info) ? (pc_info->domain_id == did) : 1) &&
+        (vtd_pc_is_pasid_si(pc_info) ? (pc_info->pasid == pasid) : 1)) {
+        /*
+         * Modify pasid_cache_gen to be 0, the cached pasid entry in
+         * vtd_pasid_as instance is invalid. And vtd_pasid_as instance
+         * would be treated as invalid in QEMU scope until the pasid
+         * cache gen is updated in a new pasid binding.
+         */
+        vtd_pasid_as->pasid_cache_entry.pasid_cache_gen = 0;
+        return true;
+    }
+
+    return false;
+}
+
+static int vtd_pasid_cache_dsi(IntelIOMMUState *s, uint16_t domain_id)
+{
+    VTDPASIDCacheInfo pc_info;
+
+    trace_vtd_pasid_cache_dsi(domain_id);
+
+    pc_info.flags = VTD_PASID_CACHE_DOMSI;
+    pc_info.domain_id = domain_id;
+
+    /*
+     * use g_hash_table_foreach_remove(), which will free the
+     * vtd_pasid_as instances.
+     */
+    g_hash_table_foreach_remove(s->vtd_pasid_as, vtd_flush_pasid, &pc_info);
+    /*
+     * TODO: Domain selective PASID cache invalidation
+     * may be issued wrongly by programmer, to be safe,
+     * after invalidating the pasid caches, emulator
+     * needs to replay the pasid bindings by walking guest
+     * pasid dir and pasid table.
+     */
+    return 0;
+}
+
+static int vtd_pasid_cache_psi(IntelIOMMUState *s,
+                               uint16_t domain_id,
+                               uint32_t pasid)
+{
+    /*
+     * Empty in this patch, will add in next patch
+     * vtd_pasid_as instance will be created in this
+     * function
+     */
+    return 0;
+}
+
+/**
+ * Caller of this function should hold iommu_lock
+ */
+static void vtd_pasid_cache_reset(IntelIOMMUState *s)
+{
+    VTDPASIDCacheInfo pc_info;
+
+    trace_vtd_pasid_cache_reset();
+
+    pc_info.flags = 0;
+
+    /*
+     * Reset pasid cache is a big hammer, so use g_hash_table_foreach_remove
+     * which will free the vtd_pasid_as instances.
+     */
+    g_hash_table_foreach_remove(s->vtd_pasid_as, vtd_flush_pasid, &pc_info);
+    s->pasid_cache_gen = 1;
+}
+
+static int vtd_pasid_cache_gsi(IntelIOMMUState *s)
+{
+    trace_vtd_pasid_cache_gsi();
+    vtd_iommu_lock(s);
+    s->pasid_cache_gen++;
+    if (s->pasid_cache_gen == VTD_PASID_CACHE_GEN_MAX) {
+        vtd_pasid_cache_reset(s);
+    }
+    vtd_iommu_unlock(s);
+    /*
+     * TODO: Global PASID cache invalidation may be
+     * issued wrongly by programmer, to be safe, after
+     * invalidating the pasid caches, emulator needs
+     * to replay the pasid bindings by walking guest
+     * pasid dir and pasid table.
+     */
+    return 0;
+}
+
+static inline int vtd_get_pasid_key(char *key, int key_size,
+                                    uint32_t pasid, uint16_t sid)
+{
+    return snprintf(key, key_size, "rsv%04dpasid%010dsid%06d", 0, pasid, sid);
+}
+
+static void hash_pasid_as_free(void *ptr)
+{
+    VTDAddressSpace *vtd_pasid_as = (VTDAddressSpace *) ptr;
+
+    g_free(vtd_pasid_as);
+}
+
 /* Unmap the whole range in the notifier's scope. */
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n)
 {
@@ -3914,6 +4076,8 @@ static void vtd_realize(DeviceState *dev, Error **errp)
                                      g_free, g_free);
     s->vtd_as_by_busptr = g_hash_table_new_full(vtd_uint64_hash, vtd_uint64_equal,
                                               g_free, g_free);
+    s->vtd_pasid_as = g_hash_table_new_full(&g_str_hash, &g_str_equal,
+                                     g_free, hash_pasid_as_free);
     vtd_init(s);
     sysbus_mmio_map(SYS_BUS_DEVICE(s), 0, Q35_HOST_BRIDGE_IOMMU_ADDR);
     pci_setup_iommu(bus, vtd_host_dma_iommu, dev);

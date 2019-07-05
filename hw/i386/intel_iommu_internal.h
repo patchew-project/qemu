@@ -473,6 +473,15 @@ struct VTDRootEntry {
 };
 typedef struct VTDRootEntry VTDRootEntry;
 
+struct VTDPASIDCacheInfo {
+#define VTD_PASID_CACHE_DOMSI   (1ULL << 0);
+#define VTD_PASID_CACHE_PASIDSI (1ULL << 1);
+    uint32_t flags;
+    uint16_t domain_id;
+    uint32_t pasid;
+};
+typedef struct VTDPASIDCacheInfo VTDPASIDCacheInfo;
+
 /* Masks for struct VTDRootEntry */
 #define VTD_ROOT_ENTRY_P            1ULL
 #define VTD_ROOT_ENTRY_CTP          (~0xfffULL)
