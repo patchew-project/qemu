@@ -208,11 +208,11 @@ static uint32_t pflash_devid_query(PFlashCFI01 *pfl, hwaddr offset)
      * Offsets 2/3 are block lock status, is not emulated.
      */
     switch (boff & 0xFF) {
-    case 0:
+    case 0: /* Manufacturer ID */
         resp = pfl->ident0;
         trace_pflash_manufacturer_id(resp);
         break;
-    case 1:
+    case 1: /* Device ID */
         resp = pfl->ident1;
         trace_pflash_device_id(resp);
         break;
@@ -455,11 +455,11 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     case 0:
         /* read mode */
         switch (cmd) {
-        case 0x10: /* Single Byte Program */
-        case 0x40: /* Single Byte Program */
+        case 0x10: /* Single Byte Program (setup) */
+        case 0x40: /* Single Byte Program (setup) [Intel] */
             DPRINTF("%s: Single Byte Program\n", __func__);
             break;
-        case 0x20: /* Block erase */
+        case 0x20: /* Block erase (setup) */
             p = pfl->storage;
             offset &= ~(pfl->sector_len - 1);
 
@@ -515,8 +515,8 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
         break;
     case 1:
         switch (pfl->cmd) {
-        case 0x10: /* Single Byte Program */
-        case 0x40: /* Single Byte Program */
+        case 0x10: /* Single Byte Program (confirm) */
+        case 0x40: /* Single Byte Program (confirm) [Intel] */
             DPRINTF("%s: Single Byte Program\n", __func__);
             if (!pfl->ro) {
                 pflash_data_write(pfl, offset, value, width, be);
@@ -527,7 +527,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             pfl->status |= 0x80; /* Ready! */
             pfl->wcycle = 0;
         break;
-        case 0x20: /* Block erase */
+        case 0x20: /* Block erase (confirm) */
         case 0x28:
             if (cmd == 0xd0) { /* confirm */
                 pfl->wcycle = 0;
