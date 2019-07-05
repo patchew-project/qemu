@@ -2747,9 +2747,63 @@ static int vfio_pci_device_request_pasid_free(PCIBus *bus,
     return ret;
 }
 
+static void vfio_pci_device_bind_gpasid(PCIBus *bus, int32_t devfn,
+                                     struct gpasid_bind_data *g_bind_data)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    struct vfio_iommu_type1_bind *bind;
+    struct vfio_iommu_type1_bind_guest_pasid *bind_guest_pasid;
+    unsigned long argsz;
+
+    argsz = sizeof(*bind) + sizeof(*bind_guest_pasid);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->bind_type = VFIO_IOMMU_BIND_GUEST_PASID;
+    bind_guest_pasid = (struct vfio_iommu_type1_bind_guest_pasid *) &bind->data;
+    bind_guest_pasid->bind_data = *g_bind_data;
+
+    rcu_read_lock();
+    if (ioctl(container->fd, VFIO_IOMMU_BIND, bind) != 0) {
+        error_report("vfio_pci_device_bind_gpasid:"
+                     " bind failed, contanier: %p", container);
+    }
+    rcu_read_unlock();
+    g_free(bind);
+}
+
+static void vfio_pci_device_unbind_gpasid(PCIBus *bus, int32_t devfn,
+                                     struct gpasid_bind_data *g_bind_data)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    struct vfio_iommu_type1_bind *bind;
+    struct vfio_iommu_type1_bind_guest_pasid *bind_guest_pasid;
+    unsigned long argsz;
+
+    argsz = sizeof(*bind) + sizeof(*bind_guest_pasid);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->bind_type = VFIO_IOMMU_BIND_GUEST_PASID;
+    bind_guest_pasid = (struct vfio_iommu_type1_bind_guest_pasid *) &bind->data;
+    bind_guest_pasid->bind_data = *g_bind_data;
+
+    rcu_read_lock();
+    if (ioctl(container->fd, VFIO_IOMMU_UNBIND, bind) != 0) {
+        error_report("vfio_pci_device_unbind_gpasid:"
+                     " unbind failed, contanier: %p", container);
+    }
+    rcu_read_unlock();
+    g_free(bind);
+}
+
 static PCIPASIDOps vfio_pci_pasid_ops = {
     .alloc_pasid = vfio_pci_device_request_pasid_alloc,
     .free_pasid = vfio_pci_device_request_pasid_free,
+    .bind_gpasid = vfio_pci_device_bind_gpasid,
+    .unbind_gpasid = vfio_pci_device_unbind_gpasid,
 };
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
