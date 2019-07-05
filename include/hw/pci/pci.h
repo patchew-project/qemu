@@ -263,6 +263,13 @@ struct PCIReqIDCache {
 };
 typedef struct PCIReqIDCache PCIReqIDCache;
 
+typedef struct PCIPASIDOps PCIPASIDOps;
+struct PCIPASIDOps {
+    int (*alloc_pasid)(PCIBus *bus, int32_t devfn,
+                         uint32_t min_pasid, uint32_t max_pasid);
+    int (*free_pasid)(PCIBus *bus, int32_t devfn, uint32_t pasid);
+};
+
 struct PCIDevice {
     DeviceState qdev;
 
@@ -352,6 +359,7 @@ struct PCIDevice {
     MSIVectorUseNotifier msix_vector_use_notifier;
     MSIVectorReleaseNotifier msix_vector_release_notifier;
     MSIVectorPollNotifier msix_vector_poll_notifier;
+    PCIPASIDOps *pasid_ops;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
@@ -484,6 +492,12 @@ typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
+
+void pci_setup_pasid_ops(PCIDevice *dev, PCIPASIDOps *ops);
+bool pci_device_is_ops_set(PCIBus *bus, int32_t devfn);
+int pci_device_request_pasid_alloc(PCIBus *bus, int32_t devfn,
+                                   uint32_t min_pasid, uint32_t max_pasid);
+int pci_device_request_pasid_free(PCIBus *bus, int32_t devfn, uint32_t pasid);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)

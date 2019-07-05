@@ -2626,6 +2626,56 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
     bus->iommu_opaque = opaque;
 }
 
+void pci_setup_pasid_ops(PCIDevice *dev, PCIPASIDOps *ops)
+{
+    assert(ops && !dev->pasid_ops);
+    dev->pasid_ops = ops;
+}
+
+bool pci_device_is_ops_set(PCIBus *bus, int32_t devfn)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return false;
+    }
+
+    dev = bus->devices[devfn];
+    return !!(dev && dev->pasid_ops);
+}
+
+int pci_device_request_pasid_alloc(PCIBus *bus, int32_t devfn,
+                                   uint32_t min_pasid, uint32_t max_pasid)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return -1;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->pasid_ops && dev->pasid_ops->alloc_pasid) {
+        return dev->pasid_ops->alloc_pasid(bus, devfn, min_pasid, max_pasid);
+    }
+    return -1;
+}
+
+int pci_device_request_pasid_free(PCIBus *bus, int32_t devfn,
+                                  uint32_t pasid)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return -1;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->pasid_ops && dev->pasid_ops->free_pasid) {
+        return dev->pasid_ops->free_pasid(bus, devfn, pasid);
+    }
+    return -1;
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;
