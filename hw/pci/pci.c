@@ -2706,6 +2706,21 @@ void pci_device_unbind_gpasid(PCIBus *bus, int32_t devfn,
     }
 }
 
+void pci_device_flush_pasid_iotlb(PCIBus *bus, int32_t devfn,
+                            struct iommu_cache_invalidate_info *info)
+{
+    PCIDevice *dev;
+
+    if (!bus) {
+        return;
+    }
+
+    dev = bus->devices[devfn];
+    if (dev && dev->pasid_ops) {
+        dev->pasid_ops->flush_pasid_iotlb(bus, devfn, info);
+    }
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;

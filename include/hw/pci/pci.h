@@ -273,6 +273,8 @@ struct PCIPASIDOps {
                             struct gpasid_bind_data *g_bind_data);
     void (*unbind_gpasid)(PCIBus *bus, int32_t devfn,
                             struct gpasid_bind_data *g_bind_data);
+    void (*flush_pasid_iotlb)(PCIBus *bus, int32_t devfn,
+                            struct iommu_cache_invalidate_info *info);
 };
 
 struct PCIDevice {
@@ -507,6 +509,8 @@ void pci_device_bind_gpasid(PCIBus *bus, int32_t devfn,
                             struct gpasid_bind_data *g_bind_data);
 void pci_device_unbind_gpasid(PCIBus *bus, int32_t devfn,
                             struct gpasid_bind_data *g_bind_data);
+void pci_device_flush_pasid_iotlb(PCIBus *bus, int32_t devfn,
+                            struct iommu_cache_invalidate_info *info);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
