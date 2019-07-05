@@ -1853,6 +1853,14 @@ static void vtd_bind_guest_pasid(IntelIOMMUState *s, int bus_n,
 {
     PCIBus *bus;
     struct gpasid_bind_data *g_bind_data;
+
+    if (pasid < VTD_MIN_HPASID) {
+        /*
+         * If pasid < VTD_HPASID_MIN, this pasid is not allocated
+         * from host. No need to passdown the changes on it to host.
+         */
+        return;
+    }
     bus = vtd_find_pci_bus_from_bus_num(s, bus_n);
     g_bind_data = g_malloc0(sizeof(*g_bind_data));
 
