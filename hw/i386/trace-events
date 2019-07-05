@@ -16,6 +16,7 @@ vtd_inv_desc_wait_sw(uint64_t addr, uint32_t data) "wait invalidate status write
 vtd_inv_desc_wait_irq(const char *msg) "%s"
 vtd_inv_desc_wait_write_fail(uint64_t hi, uint64_t lo) "write fail for wait desc hi 0x%"PRIx64" lo 0x%"PRIx64
 vtd_inv_desc_iec(uint32_t granularity, uint32_t index, uint32_t mask) "granularity 0x%"PRIx32" index 0x%"PRIx32" mask 0x%"PRIx32
+vtd_piotlb_inv(const char *type, uint64_t hi, uint64_t lo) "invalidate desc type %s high 0x%"PRIx64" low 0x%"PRIx64
 vtd_inv_qi_enable(bool enable) "enabled %d"
 vtd_inv_qi_setup(uint64_t addr, int size) "addr 0x%"PRIx64" size %d"
 vtd_inv_qi_head(uint16_t head) "read head %d"
