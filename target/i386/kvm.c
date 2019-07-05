@@ -1714,7 +1714,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
         env->nested_state->size = max_nested_state_len;
 
-        if (IS_INTEL_CPU(env)) {
+        if (cpu_has_vmx(env)) {
             struct kvm_vmx_nested_state_hdr *vmx_hdr =
                 &env->nested_state->hdr.vmx;
 
