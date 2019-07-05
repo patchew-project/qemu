@@ -101,4 +101,15 @@ typedef struct NvmeCtrl {
     NvmeIdCtrl      id_ctrl;
 } NvmeCtrl;
 
+static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
+{
+    NvmeIdNs *id = &ns->id_ns;
+    return id->lbaf[NVME_ID_NS_FLBAS_INDEX(id->flbas)].ds;
+}
+
+static inline size_t nvme_ns_lbads_bytes(NvmeNamespace *ns)
+{
+    return 1 << nvme_ns_lbads(ns);
+}
+
 #endif /* HW_NVME_H */
