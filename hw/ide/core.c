@@ -868,7 +868,7 @@ static void ide_dma_cb(void *opaque, int ret)
 
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        assert(n * 512 == s->sg.size);
+        assert(n == s->sg.size / 512);
         dma_buf_commit(s, s->sg.size);
         sector_num += n;
         ide_set_sector(s, sector_num);
