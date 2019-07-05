@@ -703,6 +703,16 @@ static inline uint16_t vtd_pe_get_domain_id(VTDPASIDEntry *pe)
     return VTD_SM_PASID_ENTRY_DID((pe)->val[1]);
 }
 
+static inline uint32_t vtd_pe_get_fl_aw(VTDPASIDEntry *pe)
+{
+    return 48 + ((pe->val[2] >> 2) & VTD_SM_PASID_ENTRY_FLPM) * 9;
+}
+
+static inline dma_addr_t vtd_pe_get_flpt_base(VTDPASIDEntry *pe)
+{
+    return pe->val[2] & VTD_SM_PASID_ENTRY_FLPTPTR;
+}
+
 static inline bool vtd_pe_present(VTDPASIDEntry *pe)
 {
     return pe->val[0] & VTD_PASID_ENTRY_P;
@@ -1836,6 +1846,47 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
     vtd_iommu_replay_all(s);
 }
 
+static void vtd_bind_guest_pasid(IntelIOMMUState *s, int bus_n,
+            int devfn, int pasid, VTDPASIDEntry *pe, VTDPASIDOp op)
+{
+    PCIBus *bus;
+    struct gpasid_bind_data *g_bind_data;
+    bus = vtd_find_pci_bus_from_bus_num(s, bus_n);
+    g_bind_data = g_malloc0(sizeof(*g_bind_data));
+
+    switch (op) {
+    case VTD_PASID_BIND:
+    case VTD_PASID_UPDATE:
+        g_bind_data->version = IOMMU_GPASID_BIND_VERSION_1;
+        g_bind_data->format = IOMMU_PASID_FORMAT_INTEL_VTD;
+        g_bind_data->gpgd = vtd_pe_get_flpt_base(pe);
+        g_bind_data->addr_width = vtd_pe_get_fl_aw(pe);
+        g_bind_data->hpasid = pasid;
+        g_bind_data->vtd.flags =
+                             (VTD_SM_PASID_ENTRY_SRE_BIT(pe->val[2]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_EAFE_BIT(pe->val[2]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_PCD_BIT(pe->val[1]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_PWT_BIT(pe->val[1]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_EMTE_BIT(pe->val[1]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_CD_BIT(pe->val[1]) ? 1 : 0);
+        g_bind_data->vtd.pat = VTD_SM_PASID_ENTRY_PAT(pe->val[1]);
+        g_bind_data->vtd.emt = VTD_SM_PASID_ENTRY_EMT(pe->val[1]);
+        pci_device_bind_gpasid(bus, devfn, g_bind_data);
+        break;
+
+    case VTD_PASID_UNBIND:
+        g_bind_data->gpgd = 0;
+        g_bind_data->addr_width = 0;
+        g_bind_data->hpasid = pasid;
+        pci_device_unbind_gpasid(bus, devfn, g_bind_data);
+        break;
+
+    default:
+        printf("Unknown VTDPASIDOp!!\n");
+        break;
+    }
+}
+
 /* Do a context-cache device-selective invalidation.
  * @func_mask: FM field after shifting
  */
@@ -1893,6 +1944,17 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                  * happened.
                  */
                 vtd_sync_shadow_page_table(vtd_as);
+                /*
+                 * Per spec, context flush should also followed with PASID
+                 * cache and iotlb flush. Here, mark it as a TODO.
+                 * Regards to a device selective context cache invalidation:
+                 * if (emaulted_device)
+                 *    modify the pasid cache gen and pasid-based iotlb gen
+                 *    value (will be added in following patches)
+                 * else if (assigned_device)
+                 *    check if the device has been bound to any pasid
+                 *    invoke pasid_unbind regards to each bound pasid
+                 */
             }
         }
     }
@@ -3636,7 +3698,7 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
 {
     VTDPASIDCacheInfo *pc_info = user_data;
     VTDAddressSpace *vtd_pasid_as = value;
-    uint16_t did;
+    uint16_t did, devfn;
     uint32_t pasid;
 
     if (!vtd_pasid_as || !vtd_pasid_as->pasid_allocated) {
@@ -3645,6 +3707,7 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
 
     did = vtd_pe_get_domain_id(&(vtd_pasid_as->pasid_cache_entry.pasid_entry));
     pasid = vtd_pasid_as->pasid;
+    devfn = vtd_pasid_as->devfn;
     if (vtd_pasid_as->pasid_cache_entry.pasid_cache_gen &&
         (vtd_pc_is_dom_si(pc_info) ? (pc_info->domain_id == did) : 1) &&
         (vtd_pc_is_pasid_si(pc_info) ? (pc_info->pasid == pasid) : 1)) {
@@ -3655,6 +3718,19 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
          * cache gen is updated in a new pasid binding.
          */
         vtd_pasid_as->pasid_cache_entry.pasid_cache_gen = 0;
+        /*
+         * To be clean, invalidate the vtd_pasid_as instance is expected.
+         * but it is optional if wants to save memory allocation for
+         * frequent pasid usage on a device. This function will not
+         * release the vtd_pasid_as instance, the caller should do
+         * it explicitly.
+         */
+        vtd_bind_guest_pasid(vtd_pasid_as->iommu_state,
+                             pci_bus_num(vtd_pasid_as->bus),
+                             devfn,
+                             pasid,
+                             NULL,
+                             VTD_PASID_UNBIND);
         return true;
     }
 
@@ -3824,11 +3900,18 @@ static int vtd_pasid_cache_psi(IntelIOMMUState *s,
                                              devfn, pasid, true);
             if (!vtd_pasid_as) {
                 printf("%s, fatal error happened!\n", __func__);
+                /*
+                 * get vtd_pasid_as failed, need to do an unbind
+                 * in case of previous bind
+                 */
+                vtd_bind_guest_pasid(s, bus_n, devfn,
+                                     pasid, NULL, VTD_PASID_UNBIND);
                 continue;
             }
             pc_entry = &vtd_pasid_as->pasid_cache_entry;
             pc_entry->pasid_entry = pe; /* update pasid cache */
             pc_entry->pasid_cache_gen = s->pasid_cache_gen;
+            vtd_bind_guest_pasid(s, bus_n, devfn, pasid, &pe, VTD_PASID_BIND);
         }
     }
     return 0;
