@@ -77,6 +77,8 @@ typedef struct NvmeCtrl {
     BlockConf    conf;
     NvmeParams   params;
 
+    uint64_t    starttime_ms;
+    uint16_t    temperature;
     uint32_t    page_size;
     uint16_t    page_bits;
     uint16_t    max_prp_ents;
@@ -99,6 +101,7 @@ typedef struct NvmeCtrl {
     NvmeRequest **aer_reqs;
     QSIMPLEQ_HEAD(, NvmeAsyncEvent) aer_queue;
 
+    NvmeErrorLog    *elpes;
     NvmeNamespace   namespace;
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
