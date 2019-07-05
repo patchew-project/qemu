@@ -2693,6 +2693,65 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static int vfio_pci_device_request_pasid_alloc(PCIBus *bus,
+                                               int32_t devfn,
+                                               uint32_t min_pasid,
+                                               uint32_t max_pasid)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int pasid;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flag = VFIO_IOMMU_PASID_ALLOC;
+    req.min_pasid = min_pasid;
+    req.max_pasid = max_pasid;
+
+    rcu_read_lock();
+    pasid = ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req);
+    if (pasid < 0) {
+        error_report("vfio_pci_device_request_pasid_alloc:"
+                     " request failed, contanier: %p", container);
+    }
+    rcu_read_unlock();
+    return pasid;
+}
+
+static int vfio_pci_device_request_pasid_free(PCIBus *bus,
+                                              int32_t devfn,
+                                              uint32_t pasid)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flag = VFIO_IOMMU_PASID_FREE;
+    req.pasid = pasid;
+
+    rcu_read_lock();
+    ret = ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req);
+    if (ret != 0) {
+        error_report("vfio_pci_device_request_pasid_free:"
+                     " request failed, contanier: %p", container);
+    }
+    rcu_read_unlock();
+    return ret;
+}
+
+static PCIPASIDOps vfio_pci_pasid_ops = {
+    .alloc_pasid = vfio_pci_device_request_pasid_alloc,
+    .free_pasid = vfio_pci_device_request_pasid_free,
+};
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
@@ -2993,6 +3052,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
+
+    pci_setup_pasid_ops(pdev, &vfio_pci_pasid_ops);
 
     return;
 
