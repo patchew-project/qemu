@@ -1243,6 +1243,10 @@ static const MemoryRegionOps lqspi_ops = {
         .min_access_size = 1,
         .max_access_size = 4
     }
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    }
 };
 
 static void xilinx_spips_realize(DeviceState *dev, Error **errp)
