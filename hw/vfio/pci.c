@@ -2799,11 +2799,34 @@ static void vfio_pci_device_unbind_gpasid(PCIBus *bus, int32_t devfn,
     g_free(bind);
 }
 
+static void vfio_pci_device_flush_pasid_iotlb(PCIBus *bus, int32_t devfn,
+                                struct iommu_cache_invalidate_info *info)
+{
+    PCIDevice *pdev = bus->devices[devfn];
+    VFIOPCIDevice *vdev = DO_UPCAST(VFIOPCIDevice, pdev, pdev);
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    struct vfio_iommu_type1_cache_invalidate cache_inv;
+    unsigned long argsz;
+
+    argsz = sizeof(cache_inv);
+    cache_inv.argsz = argsz;
+    cache_inv.info = *info;
+    cache_inv.flags = 0x0;
+
+    rcu_read_lock();
+    if (ioctl(container->fd, VFIO_IOMMU_CACHE_INVALIDATE, &cache_inv) != 0) {
+        error_report("vfio_pci_device_flush_pasid_iotlb:"
+                     " cache invalidation failed, contanier: %p", container);
+    }
+    rcu_read_unlock();
+}
+
 static PCIPASIDOps vfio_pci_pasid_ops = {
     .alloc_pasid = vfio_pci_device_request_pasid_alloc,
     .free_pasid = vfio_pci_device_request_pasid_free,
     .bind_gpasid = vfio_pci_device_bind_gpasid,
     .unbind_gpasid = vfio_pci_device_unbind_gpasid,
+    .flush_pasid_iotlb = vfio_pci_device_flush_pasid_iotlb,
 };
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
