@@ -100,7 +100,7 @@ static int pflash_post_load(void *opaque, int version_id);
 
 static const VMStateDescription vmstate_pflash = {
     .name = "pflash_cfi01",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .post_load = pflash_post_load,
     .fields = (VMStateField[]) {
@@ -277,10 +277,9 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
         /* This should never happen : reset state & treat it as a read */
         DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
         pfl->wcycle = 0;
-        pfl->cmd = 0;
+        pfl->cmd = 0xff;
         /* fall through to read code */
-    case 0x00:
-        /* Flash area read */
+    case 0xff: /* Read Array */
         ret = pflash_data_read(pfl, offset, width, be);
         break;
     case 0x10: /* Single byte program */
@@ -448,8 +447,6 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     case 0:
         /* read mode */
         switch (cmd) {
-        case 0x00: /* ??? */
-            goto reset_flash;
         case 0x10: /* Single Byte Program */
         case 0x40: /* Single Byte Program */
             DPRINTF("%s: Single Byte Program\n", __func__);
@@ -526,7 +523,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             if (cmd == 0xd0) { /* confirm */
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-            } else if (cmd == 0xff) { /* read array mode */
+            } else if (cmd == 0xff) { /* Read Array */
                 goto reset_flash;
             } else
                 goto error_flash;
@@ -553,7 +550,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             } else if (cmd == 0x01) {
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-            } else if (cmd == 0xff) {
+            } else if (cmd == 0xff) { /* read array mode */
                 goto reset_flash;
             } else {
                 DPRINTF("%s: Unknown (un)locking command\n", __func__);
@@ -645,7 +642,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     trace_pflash_reset();
     memory_region_rom_device_set_romd(&pfl->mem, true);
     pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pfl->cmd = 0xff;
 }
 
 
@@ -761,7 +758,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pfl->cmd = 0xff;
     pfl->status = 0;
     /* Hardcoded CFI table */
     /* Standard "QRY" string */
@@ -1000,6 +997,12 @@ static int pflash_post_load(void *opaque, int version_id)
     if (!pfl->ro) {
         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
                                                         pfl);
+    }
+    if (version_id < 2) {
+        /* v1 used incorrect value of 0x00 for the READ_ARRAY command. */
+        if (pfl->cmd == 0x00) {
+            pfl->cmd =  0xff;
+        }
     }
     return 0;
 }
