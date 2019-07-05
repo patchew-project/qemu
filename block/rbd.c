@@ -1084,6 +1084,59 @@ static int64_t qemu_rbd_getlength(BlockDriverState *bs)
     return info.size;
 }
 
+static int rbd_allocated_size_cb(uint64_t offset, size_t len, int exists,
+                                 void *arg)
+{
+    int64_t *alloc_size = (int64_t *) arg;
+
+    if (exists) {
+        (*alloc_size) += len;
+    }
+
+    return 0;
+}
+
+static int64_t qemu_rbd_get_allocated_file_size(BlockDriverState *bs)
+{
+    BDRVRBDState *s = bs->opaque;
+    uint64_t flags, features;
+    int64_t alloc_size = 0;
+    int r;
+
+    r = rbd_get_flags(s->image, &flags);
+    if (r < 0) {
+        return r;
+    }
+
+    r = rbd_get_features(s->image, &features);
+    if (r < 0) {
+        return r;
+    }
+
+    /*
+     * We use rbd_diff_iterate2() only if the RBD image have fast-diff
+     * feature enabled. If it is disabled, rbd_diff_iterate2() could be
+     * very slow on a big image.
+     */
+    if (!(features & RBD_FEATURE_FAST_DIFF) ||
+        (flags & RBD_FLAG_FAST_DIFF_INVALID)) {
+        return -ENOTSUP;
+    }
+
+    /*
+     * rbd_diff_iterate2(), if the source snapshot name is NULL, invokes
+     * the callback on all allocated regions of the image.
+     */
+    r = rbd_diff_iterate2(s->image, NULL, 0,
+                          bs->total_sectors * BDRV_SECTOR_SIZE, 0, 1,
+                          &rbd_allocated_size_cb, &alloc_size);
+    if (r < 0) {
+        return r;
+    }
+
+    return alloc_size;
+}
+
 static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
                                              int64_t offset,
                                              PreallocMode prealloc,
@@ -1291,6 +1344,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_get_info          = qemu_rbd_getinfo,
     .create_opts            = &qemu_rbd_create_opts,
     .bdrv_getlength         = qemu_rbd_getlength,
+    .bdrv_get_allocated_file_size = qemu_rbd_get_allocated_file_size,
     .bdrv_co_truncate       = qemu_rbd_co_truncate,
     .protocol_name          = "rbd",
 
