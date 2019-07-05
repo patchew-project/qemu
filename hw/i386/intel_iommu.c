@@ -2516,15 +2516,83 @@ static bool vtd_process_pasid_desc(IntelIOMMUState *s,
     return (ret == 0) ? true : false;
 }
 
+static inline bool vtd_pasid_cache_valid(VTDAddressSpace *vtd_pasid_as)
+{
+    return (vtd_pasid_as->iommu_state->pasid_cache_gen &&
+            (vtd_pasid_as->iommu_state->pasid_cache_gen
+             == vtd_pasid_as->pasid_cache_entry.pasid_cache_gen));
+}
+
+static void vtd_flush_pasid_iotlb(gpointer key, gpointer value,
+                                  gpointer user_data)
+{
+    VTDPIOTLBInvInfo *piotlb_info = user_data;
+    VTDAddressSpace *vtd_pasid_as = value;
+    uint16_t did;
+
+    /*
+     * Actually, needs to check whether the pasid entry cache stored in
+     * vtd_pasid_as is valid or not. "invalid" means the pasid cache
+     * has been flushed, thus host should have done such piotlb flush,
+     * no need to pass down piotlb flush to host. Only when pasid entry
+     * cache is "valid", should a piotlb flush pass down to host. Because
+     * In such case, it is due to mapping changes in guest, a piotlb flush
+     * in host is required.
+     */
+    if (!vtd_pasid_as || !vtd_pasid_cache_valid(vtd_pasid_as)) {
+        return;
+    }
+
+    did = vtd_pe_get_domain_id(
+                &(vtd_pasid_as->pasid_cache_entry.pasid_entry));
+    /*
+     * vtd_pasid_as should be non-NULL and the pasid_cache_gen
+     * should be non-zero. If vtd_pasid_as management is clean,
+     * the vtd_pasid_as is non-NULL is enough.
+     */
+    if ((piotlb_info->domain_id == did) &&
+        (piotlb_info->pasid == vtd_pasid_as->pasid)) {
+        pci_device_flush_pasid_iotlb(vtd_pasid_as->bus,
+                            vtd_pasid_as->devfn, &piotlb_info->tlb_info);
+    }
+}
+
 static void vtd_piotlb_pasid_invalidate(IntelIOMMUState *s,
                                         uint16_t domain_id,
                                         uint32_t pasid)
 {
+    VTDPIOTLBInvInfo piotlb_info;
+    struct iommu_cache_invalidate_info *inv_info = &piotlb_info.tlb_info;
+
+    piotlb_info.domain_id = domain_id;
+    piotlb_info.pasid = pasid;
+    inv_info->version = IOMMU_CACHE_INVALIDATE_INFO_VERSION_1;
+    inv_info->cache = IOMMU_CACHE_INV_TYPE_IOTLB;
+    inv_info->granularity = IOMMU_INV_GRANU_PASID;
+    inv_info->pasid_info.pasid = pasid;
+    inv_info->pasid_info.flags = IOMMU_INV_PASID_FLAGS_PASID;
+    g_hash_table_foreach(s->vtd_pasid_as, vtd_flush_pasid_iotlb, &piotlb_info);
 }
 
 static void vtd_piotlb_page_invalidate(IntelIOMMUState *s, uint16_t domain_id,
                              uint32_t pasid, hwaddr addr, uint8_t am, bool ih)
 {
+    VTDPIOTLBInvInfo piotlb_info;
+    struct iommu_cache_invalidate_info *inv_info = &piotlb_info.tlb_info;
+
+    piotlb_info.domain_id = domain_id;
+    piotlb_info.pasid = pasid;
+    inv_info->version = IOMMU_CACHE_INVALIDATE_INFO_VERSION_1;
+    inv_info->cache = IOMMU_CACHE_INV_TYPE_IOTLB;
+    inv_info->granularity = IOMMU_INV_GRANU_ADDR;
+    inv_info->addr_info.flags = IOMMU_INV_ADDR_FLAGS_PASID;
+    inv_info->addr_info.flags |= ih ? IOMMU_INV_ADDR_FLAGS_LEAF : 0;
+    inv_info->addr_info.pasid = pasid;
+    inv_info->addr_info.addr = addr;
+    inv_info->addr_info.granule_size = 1 << (12 + am);
+    inv_info->addr_info.nb_granules = 1;
+
+    g_hash_table_foreach(s->vtd_pasid_as, vtd_flush_pasid_iotlb, &piotlb_info);
 }
 
 static bool vtd_process_piotlb_desc(IntelIOMMUState *s,
