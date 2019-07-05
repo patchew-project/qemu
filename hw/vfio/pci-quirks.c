@@ -1870,7 +1870,8 @@ void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr)
         }
 
         for (i = 0; i < quirk->nr_mem; i++) {
-            memory_region_del_subregion(bar->region.mem, &quirk->mem[i]);
+            memory_region_del_subregion(quirk->mem[i].container,
+                                        &quirk->mem[i]);
         }
     }
 }
