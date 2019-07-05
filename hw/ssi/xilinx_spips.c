@@ -1202,6 +1202,18 @@ static void lqspi_load_cache(void *opaque, hwaddr addr)
     }
 }
 
+static bool lqspi_accepts(void *opaque, hwaddr addr,
+                          unsigned size, bool is_write,
+                          MemTxAttrs attrs)
+{
+    /*
+     * From UG1085, Chapter 24 (Quad-SPI controllers):
+     * - Writes are ignored
+     * - AXI writes generate an external AXI slave error (SLVERR)
+     */
+    return !is_write;
+}
+
 static uint64_t
 lqspi_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -1225,6 +1237,7 @@ static const MemoryRegionOps lqspi_ops = {
     .read = lqspi_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
+        .accepts = lqspi_accepts,
         .min_access_size = 1,
         .max_access_size = 4
     }
