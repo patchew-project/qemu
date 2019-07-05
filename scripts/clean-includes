@@ -161,7 +161,7 @@ for f in "$@"; do
   # Remove includes that osdep.h already provides
   perl -n -i -e 'print if !/\s*#\s*include\s*(["<][^>"]*[">])/ ||
                           ! (grep { $_ eq $1 } qw (
-           "config-host.h" "config-target.h" "qemu/compiler.h"
+           "config-host.h" "config-target.h" "config-devices.h" "qemu/compiler.h"
            <setjmp.h> <stdarg.h> <stddef.h> <stdbool.h> <stdint.h> <sys/types.h>
            <stdlib.h> <stdio.h> <string.h> <strings.h> <inttypes.h>
            <limits.h> <unistd.h> <time.h> <ctype.h> <errno.h> <fcntl.h>
