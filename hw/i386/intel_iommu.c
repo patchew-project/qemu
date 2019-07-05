@@ -932,9 +932,17 @@ static VTDBus *vtd_find_as_from_bus_num(IntelIOMMUState *s, uint8_t bus_num)
                 s->vtd_as_by_bus_num[bus_num] = vtd_bus;
                 return vtd_bus;
             }
+            vtd_bus = NULL;
         }
     }
     return vtd_bus;
+}
+
+static PCIBus *vtd_find_pci_bus_from_bus_num(IntelIOMMUState *s,
+                                             uint8_t bus_num)
+{
+    VTDBus *vtd_bus = vtd_find_as_from_bus_num(s, bus_num);
+    return vtd_bus ? vtd_bus->bus : NULL;
 }
 
 /* Given the @iova, get relevant @slptep. @slpte_level will be the last level
@@ -2579,6 +2587,103 @@ static void vtd_handle_iectl_write(IntelIOMMUState *s)
     }
 }
 
+static int vtd_request_pasid_alloc(IntelIOMMUState *s)
+{
+    PCIBus *bus;
+    int bus_n, devfn;
+
+    for (bus_n = 0; bus_n < PCI_BUS_MAX; bus_n++) {
+        bus = vtd_find_pci_bus_from_bus_num(s, bus_n);
+        if (!bus) {
+            continue;
+        }
+        for (devfn = 0; devfn < PCI_DEVFN_MAX; devfn++) {
+            if (pci_device_is_ops_set(bus, devfn)) {
+                return pci_device_request_pasid_alloc(bus, devfn,
+                                                      VTD_MIN_HPASID,
+                                                      VTD_MAX_HPASID);
+            }
+        }
+    }
+    return -1;
+}
+
+static int vtd_request_pasid_free(IntelIOMMUState *s, uint32_t pasid)
+{
+    PCIBus *bus;
+    int bus_n, devfn;
+
+    for (bus_n = 0; bus_n < PCI_BUS_MAX; bus_n++) {
+        bus = vtd_find_pci_bus_from_bus_num(s, bus_n);
+        if (!bus) {
+            continue;
+        }
+        for (devfn = 0; devfn < PCI_DEVFN_MAX; devfn++) {
+            if (pci_device_is_ops_set(bus, devfn)) {
+                return pci_device_request_pasid_free(bus, devfn, pasid);
+            }
+        }
+    }
+    return -1;
+}
+
+/* Handle write to Virtual Command Register */
+static void vtd_handle_vcmd_write(IntelIOMMUState *s)
+{
+    uint32_t status = vtd_get_long_raw(s, DMAR_VCRSP_REG);
+    uint32_t val = vtd_get_long_raw(s, DMAR_VCMD_REG);
+    uint32_t pasid;
+    int ret = -1;
+
+    trace_vtd_reg_write_vcmd(status, val);
+
+    switch (val & VTD_VCMD_CMD_MASK) {
+    case VTD_VCMD_ALLOC_PASID:
+        if (!(s->vccap & VTD_VCCAP_PAS) ||
+             (s->vcrsp & 1)) {
+            break;
+        }
+        s->vcrsp = 1;
+        vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                         ((uint64_t) s->vcrsp));
+        ret = vtd_request_pasid_alloc(s);
+        if (ret < 0) {
+            s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_NO_AVAILABLE_PASID);
+        } else {
+            s->vcrsp |= VTD_VCRSP_RSLT(ret);
+        }
+        s->vcrsp &= (~((uint64_t)(0x1)));
+        vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                         ((uint64_t) s->vcrsp));
+        break;
+
+    case VTD_VCMD_FREE_PASID:
+        if (!(s->vccap & VTD_VCCAP_PAS) ||
+             (s->vcrsp & 1)) {
+            break;
+        }
+        s->vcrsp &= 1;
+        vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                         ((uint64_t) s->vcrsp));
+        pasid = VTD_VCMD_PASID_VALUE(val);
+        ret = vtd_request_pasid_free(s, pasid);
+        if (ret < 0) {
+            s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_FREE_INVALID_PASID);
+        }
+        s->vcrsp &= (~((uint64_t)(0x1)));
+        vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                         ((uint64_t) s->vcrsp));
+        break;
+
+    default:
+        s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_UNDEFINED_CMD);
+        vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                         ((uint64_t) s->vcrsp));
+        printf("Virtual Command: unsupported command!!!\n");
+        break;
+    }
+}
+
 static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
     IntelIOMMUState *s = opaque;
@@ -2618,6 +2723,15 @@ static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
     case DMAR_IQA_REG_HI:
         assert(size == 4);
         val = s->iq >> 32;
+        break;
+
+    case DMAR_VCRSP_REG:
+        val = s->vcrsp;
+        break;
+
+    case DMAR_VCRSP_REG_HI:
+        assert(size == 4);
+        val = s->vcrsp >> 32;
         break;
 
     default:
@@ -2866,6 +2980,21 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     case DMAR_IRTA_REG_HI:
         assert(size == 4);
         vtd_set_long(s, addr, val);
+        break;
+
+    case DMAR_VCMD_REG:
+        if (size == 4) {
+            vtd_set_long(s, addr, val);
+        } else {
+            vtd_set_quad(s, addr, val);
+        }
+        vtd_handle_vcmd_write(s);
+        break;
+
+    case DMAR_VCMD_REG_HI:
+        assert(size == 4);
+        vtd_set_long(s, addr, val);
+        vtd_handle_vcmd_write(s);
         break;
 
     default:
@@ -3579,7 +3708,8 @@ static void vtd_init(IntelIOMMUState *s)
             s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
         } else if (!strcmp(s->sm_model, "scalable")) {
             s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_PASID
-                       | VTD_ECAP_FLTS;
+                       | VTD_ECAP_FLTS | VTD_ECAP_VCS;
+            s->vccap |= VTD_VCCAP_PAS;
         } else {
             printf("\n!!!!! Invalid sm_model config !!!!!\n"
                 "Please config sm_model=[\"legacy\"|\"scalable\"]\n"
@@ -3641,6 +3771,13 @@ static void vtd_init(IntelIOMMUState *s)
      * Interrupt remapping registers.
      */
     vtd_define_quad(s, DMAR_IRTA_REG, 0, 0xfffffffffffff80fULL, 0);
+
+    /*
+     * Virtual Command Definitions
+     */
+    vtd_define_quad(s, DMAR_VCCAP_REG, s->vccap, 0, 0);
+    vtd_define_quad(s, DMAR_VCMD_REG, 0, 0xffffffffffffffffULL, 0);
+    vtd_define_quad(s, DMAR_VCRSP_REG, 0, 0, 0);
 }
 
 /* Should not reset address_spaces when reset because devices will still use
