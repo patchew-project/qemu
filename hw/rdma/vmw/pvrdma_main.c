@@ -28,6 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "hw/rdma/rdma.h"
+#include "migration/register.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -593,6 +594,91 @@ static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
     pvrdma_fini(pci_dev);
 }
 
+struct PVRDMAMigTmp {
+    PVRDMADev *parent;
+    uint64_t dma;
+    uint64_t cmd_slot_dma;
+    uint64_t resp_slot_dma;
+    uint32_t cq_ring_pages_num_pages;
+    uint64_t cq_ring_pages_pdir_dma;
+    uint32_t async_ring_pages_num_pages;
+    uint64_t async_ring_pages_pdir_dma;
+};
+
+static int pvrdma_dsr_dma_pre_save(void *opaque)
+{
+    struct PVRDMAMigTmp *tmp = opaque;
+    DSRInfo *dsr_info = &tmp->parent->dsr_info;
+    struct pvrdma_device_shared_region *dsr = dsr_info->dsr;
+
+    tmp->dma = dsr_info->dma;
+    tmp->cmd_slot_dma = dsr->cmd_slot_dma;
+    tmp->resp_slot_dma = dsr->resp_slot_dma;
+    tmp->cq_ring_pages_num_pages = dsr->cq_ring_pages.num_pages;
+    tmp->cq_ring_pages_pdir_dma = dsr->cq_ring_pages.pdir_dma;
+    tmp->async_ring_pages_num_pages = dsr->async_ring_pages.num_pages;
+    tmp->async_ring_pages_pdir_dma = dsr->async_ring_pages.pdir_dma;
+
+    return 0;
+}
+
+static int pvrdma_dsr_dma_post_load(void *opaque, int version_id)
+{
+    struct PVRDMAMigTmp *tmp = opaque;
+    PVRDMADev *dev = tmp->parent;
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+    DSRInfo *dsr_info = &dev->dsr_info;
+    struct pvrdma_device_shared_region *dsr;
+
+    dsr_info->dma = tmp->dma;
+    dsr_info->dsr = rdma_pci_dma_map(pci_dev, dsr_info->dma,
+                                sizeof(struct pvrdma_device_shared_region));
+    if (!dsr_info->dsr) {
+        rdma_error_report("Failed to map to DSR");
+        return -ENOMEM;
+    }
+
+    dsr = dsr_info->dsr;
+    dsr->cmd_slot_dma = tmp->cmd_slot_dma;
+    dsr->resp_slot_dma = tmp->resp_slot_dma;
+    dsr->cq_ring_pages.num_pages = tmp->cq_ring_pages_num_pages;
+    dsr->cq_ring_pages.pdir_dma = tmp->cq_ring_pages_pdir_dma;
+    dsr->async_ring_pages.num_pages = tmp->async_ring_pages_num_pages;
+    dsr->async_ring_pages.pdir_dma = tmp->async_ring_pages_pdir_dma;
+
+    return load_dsr(dev);
+}
+
+static const VMStateDescription vmstate_pvrdma_dsr_dma = {
+    .name = "pvrdma-dsr-dma",
+    .pre_save = pvrdma_dsr_dma_pre_save,
+    .post_load = pvrdma_dsr_dma_post_load,
+    .fields = (VMStateField[]) {
+            VMSTATE_UINT64(dma, struct PVRDMAMigTmp),
+            VMSTATE_UINT64(cmd_slot_dma, struct PVRDMAMigTmp),
+            VMSTATE_UINT64(resp_slot_dma, struct PVRDMAMigTmp),
+            VMSTATE_UINT32(async_ring_pages_num_pages, struct PVRDMAMigTmp),
+            VMSTATE_UINT64(async_ring_pages_pdir_dma, struct PVRDMAMigTmp),
+            VMSTATE_UINT32(cq_ring_pages_num_pages, struct PVRDMAMigTmp),
+            VMSTATE_UINT64(cq_ring_pages_pdir_dma, struct PVRDMAMigTmp),
+            VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pvrdma = {
+    .name = "pvrdma",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+            VMSTATE_PCI_DEVICE(parent_obj, PVRDMADev),
+            VMSTATE_MSIX(parent_obj, PVRDMADev),
+            VMSTATE_WITH_TMP(PVRDMADev,
+                             struct PVRDMAMigTmp,
+                             vmstate_pvrdma_dsr_dma),
+            VMSTATE_END_OF_LIST()
+    }
+};
+
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
     int rc = 0;
@@ -688,6 +774,7 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "RDMA Device";
     dc->props = pvrdma_dev_properties;
+    dc->vmsd = &vmstate_pvrdma;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 
     ir->print_statistics = pvrdma_print_statistics;
