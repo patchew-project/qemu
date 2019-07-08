@@ -1852,6 +1852,12 @@ static int file_ram_open(const char *path,
                 break;
             }
             g_free(filename);
+        } else if (errno == EROFS) {
+            fd = open(path, O_RDONLY);
+            if (fd >= 0) {
+                /* @path names an existing read-only file, use it */
+                break;
+            }
         }
         if (errno != EEXIST && errno != EINTR) {
             error_setg_errno(errp, errno,
