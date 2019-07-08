@@ -85,6 +85,15 @@ QTestState *qtest_init_with_serial(const char *extra_args, int *sock_fd);
 void qtest_quit(QTestState *s);
 
 /**
+ * qtest_set_exit_status:
+ * @s: #QTestState instance to operate on.
+ * @status: the expected exit status
+ *
+ * Set the expected exit status when calling qtest_quit().
+ */
+void qtest_set_exit_status(QTestState *s, int status);
+
+/**
  * qtest_qmp_fds:
  * @s: #QTestState instance to operate on.
  * @fds: array of file descriptors

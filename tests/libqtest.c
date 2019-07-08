@@ -46,6 +46,7 @@ struct QTestState
     bool big_endian;
     bool irq_level[MAX_IRQ];
     GString *rx;
+    int exit_status;
 };
 
 static GHookList abrt_hooks;
@@ -125,27 +126,29 @@ static void kill_qemu(QTestState *s)
         assert(pid == s->qemu_pid);
     }
 
-    /*
-     * We expect qemu to exit with status 0; anything else is
-     * fishy and should be logged with as much detail as possible.
-     */
     wstatus = s->wstatus;
-    if (wstatus) {
-        if (WIFEXITED(wstatus)) {
-            fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
-                    "process but encountered exit status %d\n",
-                    __FILE__, __LINE__, WEXITSTATUS(wstatus));
-        } else if (WIFSIGNALED(wstatus)) {
-            int sig = WTERMSIG(wstatus);
-            const char *signame = strsignal(sig) ?: "unknown ???";
-            const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
-
-            fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
-                    "from signal %d (%s)%s\n",
-                    __FILE__, __LINE__, sig, signame, dump);
+    if (WIFEXITED(wstatus)) {
+        if (WEXITSTATUS(wstatus) == s->exit_status) {
+            return;
         }
-        abort();
+        fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
+                "process but encountered exit status %d\n",
+                __FILE__, __LINE__, WEXITSTATUS(wstatus));
+    } else if (WIFSIGNALED(wstatus)) {
+        int sig = WTERMSIG(wstatus);
+        const char *signame = strsignal(sig) ?: "unknown ???";
+        const char *dump = WCOREDUMP(wstatus) ? " (core dumped)" : "";
+
+        fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
+                "from signal %d (%s)%s\n",
+                __FILE__, __LINE__, sig, signame, dump);
     }
+    abort();
+}
+
+void qtest_set_exit_status(QTestState *s, int status)
+{
+    s->exit_status = status;
 }
 
 static void kill_qemu_hook_func(void *s)
@@ -215,7 +218,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     gchar *command;
     const char *qemu_binary = qtest_qemu_binary();
 
-    s = g_new(QTestState, 1);
+    s = g_new0(QTestState, 1);
 
     socket_path = g_strdup_printf("/tmp/qtest-%d.sock", getpid());
     qmp_socket_path = g_strdup_printf("/tmp/qtest-%d.qmp", getpid());
