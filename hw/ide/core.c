@@ -841,6 +841,7 @@ static void ide_dma_cb(void *opaque, int ret)
     bool stay_active = false;
 
     if (ret == -ECANCELED) {
+        s->bus->dma->aiocb = NULL;
         return;
     }
 
