@@ -269,6 +269,129 @@ static int vfio_load_device_config_state(QEMUFile *f, void *opaque)
     return qemu_file_get_error(f);
 }
 
+void vfio_get_dirty_page_list(VFIODevice *vbasedev,
+                              uint64_t start_pfn,
+                              uint64_t pfn_count,
+                              uint64_t page_size)
+{
+    VFIOMigration *migration = vbasedev->migration;
+    VFIORegion *region = &migration->region.buffer;
+    uint64_t count = 0;
+    int64_t copied_pfns = 0;
+    int64_t total_pfns = pfn_count;
+    int ret;
+
+    qemu_mutex_lock(&migration->lock);
+
+    while (total_pfns > 0) {
+        uint64_t bitmap_size, data_offset = 0;
+        uint64_t start = start_pfn + count;
+        void *buf = NULL;
+        bool buffer_mmaped = false;
+
+        ret = pwrite(vbasedev->fd, &start, sizeof(start),
+                 region->fd_offset + offsetof(struct vfio_device_migration_info,
+                                              start_pfn));
+        if (ret < 0) {
+            error_report("%s: Failed to set dirty pages start address %d %s",
+                         vbasedev->name, ret, strerror(errno));
+            goto dpl_unlock;
+        }
+
+        ret = pwrite(vbasedev->fd, &page_size, sizeof(page_size),
+                 region->fd_offset + offsetof(struct vfio_device_migration_info,
+                                              page_size));
+        if (ret < 0) {
+            error_report("%s: Failed to set dirty page size %d %s",
+                         vbasedev->name, ret, strerror(errno));
+            goto dpl_unlock;
+        }
+
+        ret = pwrite(vbasedev->fd, &total_pfns, sizeof(total_pfns),
+                 region->fd_offset + offsetof(struct vfio_device_migration_info,
+                                              total_pfns));
+        if (ret < 0) {
+            error_report("%s: Failed to set dirty page total pfns %d %s",
+                         vbasedev->name, ret, strerror(errno));
+            goto dpl_unlock;
+        }
+
+        /* Read copied dirty pfns */
+        ret = pread(vbasedev->fd, &copied_pfns, sizeof(copied_pfns),
+                region->fd_offset + offsetof(struct vfio_device_migration_info,
+                                             copied_pfns));
+        if (ret < 0) {
+            error_report("%s: Failed to get dirty pages bitmap count %d %s",
+                         vbasedev->name, ret, strerror(errno));
+            goto dpl_unlock;
+        }
+
+        if (copied_pfns == VFIO_DEVICE_DIRTY_PFNS_NONE) {
+            /*
+             * copied_pfns could be 0 if driver doesn't have any page to
+             * report dirty in given range
+             */
+            break;
+        } else if (copied_pfns == VFIO_DEVICE_DIRTY_PFNS_ALL) {
+            /* Mark all pages dirty for this range */
+            cpu_physical_memory_set_dirty_range(start_pfn * page_size,
+                                                pfn_count * page_size,
+                                                DIRTY_MEMORY_MIGRATION);
+            break;
+        }
+
+        bitmap_size = (BITS_TO_LONGS(copied_pfns) + 1) * sizeof(unsigned long);
+
+        ret = pread(vbasedev->fd, &data_offset, sizeof(data_offset),
+                region->fd_offset + offsetof(struct vfio_device_migration_info,
+                                             data_offset));
+        if (ret != sizeof(data_offset)) {
+            error_report("%s: Failed to get migration buffer data offset %d",
+                         vbasedev->name, ret);
+            goto dpl_unlock;
+        }
+
+        if (region->mmaps) {
+            buf = find_data_region(region, data_offset, bitmap_size);
+        }
+
+        buffer_mmaped = (buf != NULL) ? true : false;
+
+        if (!buffer_mmaped) {
+            buf = g_try_malloc0(bitmap_size);
+            if (!buf) {
+                error_report("%s: Error allocating buffer ", __func__);
+                goto dpl_unlock;
+            }
+
+            ret = pread(vbasedev->fd, buf, bitmap_size,
+                        region->fd_offset + data_offset);
+            if (ret != bitmap_size) {
+                error_report("%s: Failed to get dirty pages bitmap %d",
+                             vbasedev->name, ret);
+                g_free(buf);
+                goto dpl_unlock;
+            }
+        }
+
+        cpu_physical_memory_set_dirty_lebitmap((unsigned long *)buf,
+                                               (start_pfn + count) * page_size,
+                                                copied_pfns);
+        count      += copied_pfns;
+        total_pfns -= copied_pfns;
+
+        if (!buffer_mmaped) {
+            g_free(buf);
+        }
+    }
+
+    trace_vfio_get_dirty_page_list(vbasedev->name, start_pfn, pfn_count,
+                                   page_size);
+
+dpl_unlock:
+    qemu_mutex_unlock(&migration->lock);
+}
+
 /* ---------------------------------------------------------------------- */
 
 static int vfio_save_setup(QEMUFile *f, void *opaque)
