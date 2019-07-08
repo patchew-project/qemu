@@ -533,12 +533,12 @@
            'flags': ['Qcow2BitmapInfoFlags'] } }
 
 ##
-# @BlockLatencyHistogramInfo:
+# @BlockHistogramInfo:
 #
-# Block latency histogram.
+# Block histogram.
 #
-# @boundaries: list of interval boundary values in nanoseconds, all greater
-#              than zero and in ascending order.
+# @boundaries: list of interval boundary values, all greater than zero and in
+#              ascending order.
 #              For example, the list [10, 50, 100] produces the following
 #              histogram intervals: [0, 10), [10, 50), [50, 100), [100, +inf).
 #
@@ -555,57 +555,72 @@
 #         +------------------
 #             10   50   100
 #
-# Since: 4.0
+# Since: 4.1
 ##
-{ 'struct': 'BlockLatencyHistogramInfo',
+{ 'struct': 'BlockHistogramInfo',
   'data': {'boundaries': ['uint64'], 'bins': ['uint64'] } }
 
 ##
-# @block-latency-histogram-set:
+# @BlockHistogramType:
 #
-# Manage read, write and flush latency histograms for the device.
+# An enumeration of block histogram type.
 #
-# If only @id parameter is specified, remove all present latency histograms
-# for the device. Otherwise, add/reset some of (or all) latency histograms.
+# @latency: The histogram is filled by block I/O latency in nanosecond.
+#
+# @size: The histogram is filled by block I/O size in byte.
+#
+# Since: 4.1
+##
+{ 'enum': 'BlockHistogramType', 'data': [ 'latency', 'size' ] }
+
+##
+# @block-histogram-set:
+#
+# Manage read, write and flush @BlockHistogramType histograms for the device.
+#
+# If only @id and @type parameter are specified, remove all present @type
+# histograms for the device. Otherwise, add/reset some of (or all) @type
+# histograms.
 #
 # @id: The name or QOM path of the guest device.
 #
+# @type: The type @BlockHistogramType of histogram.
+#
 # @boundaries: list of interval boundary values (see description in
-#              BlockLatencyHistogramInfo definition). If specified, all
-#              latency histograms are removed, and empty ones created for all
-#              io types with intervals corresponding to @boundaries (except for
-#              io types, for which specific boundaries are set through the
-#              following parameters).
+#              BlockHistogramInfo definition). If specified, all histograms
+#              are removed, and empty ones created for all io types with
+#              intervals corresponding to @boundaries (except for io types
+#              for which specific boundaries are set through the following
+#              parameters).
 #
-# @boundaries-read: list of interval boundary values for read latency
-#                   histogram. If specified, old read latency histogram is
-#                   removed, and empty one created with intervals
-#                   corresponding to @boundaries-read. The parameter has higher
-#                   priority then @boundaries.
+# @boundaries-read: list of interval boundary values for read histogram. If
+#                   specified, old read histogram is removed, and empty one
+#                   created with intervals corresponding to @boundaries-read.
+#                   The parameter has higher priority then @boundaries.
 #
-# @boundaries-write: list of interval boundary values for write latency
-#                    histogram.
+# @boundaries-write: list of interval boundary values for write histogram.
 #
-# @boundaries-flush: list of interval boundary values for flush latency
-#                    histogram.
+# @boundaries-flush: list of interval boundary values for flush histogram.
 #
 # Returns: error if device is not found or any boundary arrays are invalid.
 #
-# Since: 4.0
+# Since: 4.1
 #
-# Example: set new histograms for all io types with intervals
+# Example: set new latency histograms for all io types with intervals
 # [0, 10), [10, 50), [50, 100), [100, +inf):
 #
-# -> { "execute": "block-latency-histogram-set",
+# -> { "execute": "block-histogram-set",
 #      "arguments": { "id": "drive0",
+#                     "type":"latency",
 #                     "boundaries": [10, 50, 100] } }
 # <- { "return": {} }
 #
-# Example: set new histogram only for write, other histograms will remain
-# not changed (or not created):
+# Example: set new latency histogram only for write, other histograms will
+# remain not changed (or not created):
 #
-# -> { "execute": "block-latency-histogram-set",
+# -> { "execute": "block-histogram-set",
 #      "arguments": { "id": "drive0",
+#                     "type":"latency",
 #                     "boundaries-write": [10, 50, 100] } }
 # <- { "return": {} }
 #
@@ -613,20 +628,23 @@
 #   read, flush: [0, 10), [10, 50), [50, 100), [100, +inf)
 #   write: [0, 1000), [1000, 5000), [5000, +inf)
 #
-# -> { "execute": "block-latency-histogram-set",
+# -> { "execute": "block-histogram-set",
 #      "arguments": { "id": "drive0",
+#                     "type":"latency",
 #                     "boundaries": [10, 50, 100],
 #                     "boundaries-write": [1000, 5000] } }
 # <- { "return": {} }
 #
 # Example: remove all latency histograms:
 #
-# -> { "execute": "block-latency-histogram-set",
-#      "arguments": { "id": "drive0" } }
+# -> { "execute": "block-histogram-set",
+#      "arguments": { "id": "drive0"
+#                     "type":"latency"} }
 # <- { "return": {} }
 ##
-{ 'command': 'block-latency-histogram-set',
+{ 'command': 'block-histogram-set',
   'data': {'id': 'str',
+           'type': 'BlockHistogramType',
            '*boundaries': ['uint64'],
            '*boundaries-read': ['uint64'],
            '*boundaries-write': ['uint64'],
@@ -912,11 +930,11 @@
 # @timed_stats: Statistics specific to the set of previously defined
 #               intervals of time (Since 2.5)
 #
-# @rd_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
+# @rd_latency_histogram: @BlockHistogramInfo. (Since 4.1)
 #
-# @wr_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
+# @wr_latency_histogram: @BlockHistogramInfo. (Since 4.1)
 #
-# @flush_latency_histogram: @BlockLatencyHistogramInfo. (Since 4.0)
+# @flush_latency_histogram: @BlockHistogramInfo. (Since 4.1)
 #
 # Since: 0.14.0
 ##
@@ -931,9 +949,12 @@
            'invalid_wr_operations': 'int', 'invalid_flush_operations': 'int',
            'account_invalid': 'bool', 'account_failed': 'bool',
            'timed_stats': ['BlockDeviceTimedStats'],
-           '*rd_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*wr_latency_histogram': 'BlockLatencyHistogramInfo',
-           '*flush_latency_histogram': 'BlockLatencyHistogramInfo' } }
+           '*rd_latency_histogram': 'BlockHistogramInfo',
+           '*wr_latency_histogram': 'BlockHistogramInfo',
+           '*flush_latency_histogram': 'BlockHistogramInfo',
+           '*rd_size_histogram': 'BlockHistogramInfo',
+           '*wr_size_histogram': 'BlockHistogramInfo',
+           '*flush_size_histogram': 'BlockHistogramInfo' } }
 
 ##
 # @BlockStats:

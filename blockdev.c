@@ -4507,8 +4507,9 @@ void qmp_x_blockdev_set_iothread(const char *node_name, StrOrNull *iothread,
     aio_context_release(old_context);
 }
 
-void qmp_block_latency_histogram_set(
+void qmp_block_histogram_set(
     const char *id,
+    BlockHistogramType type,
     bool has_boundaries, uint64List *boundaries,
     bool has_boundaries_read, uint64List *boundaries_read,
     bool has_boundaries_write, uint64List *boundaries_write,
@@ -4517,9 +4518,28 @@ void qmp_block_latency_histogram_set(
 {
     BlockBackend *blk = qmp_get_blk(NULL, id, errp);
     BlockAcctStats *stats;
+    void (*clear_func)(BlockAcctStats *stats);
+    int (*set_func)(BlockAcctStats *stats, enum BlockAcctType type,
+                    uint64List *boundaries);
     int ret;
 
     if (!blk) {
+        return;
+    }
+
+    switch (type) {
+    case BLOCK_HISTOGRAM_TYPE_LATENCY: {
+        clear_func = block_latency_histograms_clear;
+        set_func = block_latency_histogram_set;
+        break;
+    }
+    case BLOCK_HISTOGRAM_TYPE_SIZE: {
+        clear_func = block_size_histograms_clear;
+        set_func = block_size_histogram_set;
+        break;
+    }
+    default:
+        error_setg(errp, "Unsupported block histogram type");
         return;
     }
 
@@ -4528,13 +4548,12 @@ void qmp_block_latency_histogram_set(
     if (!has_boundaries && !has_boundaries_read && !has_boundaries_write &&
         !has_boundaries_flush)
     {
-        block_latency_histograms_clear(stats);
+        clear_func(stats);
         return;
     }
 
     if (has_boundaries || has_boundaries_read) {
-        ret = block_latency_histogram_set(
-            stats, BLOCK_ACCT_READ,
+        ret = set_func(stats, BLOCK_ACCT_READ,
             has_boundaries_read ? boundaries_read : boundaries);
         if (ret) {
             error_setg(errp, "Device '%s' set read boundaries fail", id);
@@ -4543,8 +4562,7 @@ void qmp_block_latency_histogram_set(
     }
 
     if (has_boundaries || has_boundaries_write) {
-        ret = block_latency_histogram_set(
-            stats, BLOCK_ACCT_WRITE,
+        ret = set_func(stats, BLOCK_ACCT_WRITE,
             has_boundaries_write ? boundaries_write : boundaries);
         if (ret) {
             error_setg(errp, "Device '%s' set write boundaries fail", id);
@@ -4553,8 +4571,7 @@ void qmp_block_latency_histogram_set(
     }
 
     if (has_boundaries || has_boundaries_flush) {
-        ret = block_latency_histogram_set(
-            stats, BLOCK_ACCT_FLUSH,
+        ret = set_func(stats, BLOCK_ACCT_FLUSH,
             has_boundaries_flush ? boundaries_flush : boundaries);
         if (ret) {
             error_setg(errp, "Device '%s' set flush boundaries fail", id);
