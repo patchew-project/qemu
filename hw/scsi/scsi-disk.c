@@ -2401,6 +2401,11 @@ static void scsi_hd_realize(SCSIDevice *dev, Error **errp)
      * backend will be issued in scsi_realize
      */
     if (s->qdev.conf.blk) {
+        if (blk_is_zoned(s->qdev.conf.blk)) {
+            error_setg(errp, "zoned block devices are not supported");
+            return;
+        }
+
         ctx = blk_get_aio_context(s->qdev.conf.blk);
         aio_context_acquire(ctx);
         blkconf_blocksizes(&s->qdev.conf);
