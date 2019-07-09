@@ -26,6 +26,7 @@
 #include "sysemu/qtest.h"
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
+#include "hw/acpi/hmat.h"
 
 GlobalProperty hw_compat_4_0[] = {
     { "VGA",            "edid", "false" },
@@ -1000,6 +1001,9 @@ static void machine_finalize(Object *obj)
     g_free(ms->firmware);
     g_free(ms->device_memory);
     g_free(ms->nvdimms_state);
+    if (ms->numa_state->hma_enabled) {
+        g_free(ms->numa_state->acpi_hma_state);
+    }
     g_free(ms->numa_state);
 }
 

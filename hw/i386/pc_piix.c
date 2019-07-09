@@ -59,6 +59,7 @@
 #include "migration/misc.h"
 #include "kvm_i386.h"
 #include "sysemu/numa.h"
+#include "hw/acpi/hmat.h"
 
 #define MAX_IDE_BUS 2
 
@@ -306,6 +307,11 @@ else {
     if (machine->nvdimms_state->is_enabled) {
         nvdimm_init_acpi_state(machine->nvdimms_state, system_io,
                                pcms->fw_cfg, OBJECT(pcms));
+    }
+
+    if (machine->numa_state->hma_enabled) {
+        hmat_init_acpi_state(machine->numa_state->acpi_hma_state, system_io,
+                             pcms->fw_cfg, OBJECT(pcms));
     }
 }
 

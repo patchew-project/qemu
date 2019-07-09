@@ -251,6 +251,11 @@ void parse_numa_hmat_lb(MachineState *ms, NumaHmatLBOptions *node,
         return;
     }
 
+    if (!ms->numa_state->hma_enabled && !ms->numa_state->acpi_hma_state) {
+        ms->numa_state->hma_enabled = true;
+        ms->numa_state->acpi_hma_state = g_new0(AcpiHmaState, 1);
+    }
+
     if (node->has_latency) {
         hmat_lb = ms->numa_state->hmat_lb[node->hierarchy][node->data_type];
 
@@ -350,6 +355,11 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
                                              [node->level - 1]->size,
                    node->level - 1);
         return;
+    }
+
+    if (!ms->numa_state->hma_enabled && !ms->numa_state->acpi_hma_state) {
+        ms->numa_state->hma_enabled = true;
+        ms->numa_state->acpi_hma_state = g_new0(AcpiHmaState, 1);
     }
 
     hmat_cache = g_malloc0(sizeof(*hmat_cache));

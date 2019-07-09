@@ -38,6 +38,11 @@ struct NumaState {
 
     /* Memory Side Cache Information Structure */
     HMAT_Cache_Info *hmat_cache[MAX_NODES][MAX_HMAT_CACHE_LEVEL + 1];
+
+    /* Detect if HMA support is enabled. */
+    bool hma_enabled;
+
+    struct AcpiHmaState *acpi_hma_state;
 };
 typedef struct NumaState NumaState;
 
