@@ -372,6 +372,172 @@ struct vfio_region_gfx_edid {
  */
 #define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
 
+/* Migration region type and sub-type */
+#define VFIO_REGION_TYPE_MIGRATION	        (2)
+#define VFIO_REGION_SUBTYPE_MIGRATION	        (1)
+
+/**
+ * Structure vfio_device_migration_info is placed at 0th offset of
+ * VFIO_REGION_SUBTYPE_MIGRATION region to get/set VFIO device related migration
+ * information. Field accesses from this structure are only supported at their
+ * native width and alignment, otherwise should return error.
+ *
+ * device_state: (read/write)
+ *      To indicate vendor driver the state VFIO device should be transitioned
+ *      to. If device state transition fails, write on this field return error.
+ *      It consists of 3 bits:
+ *      - If bit 0 set, indicates _RUNNING state. When its reset, that indicates
+ *        _STOPPED state. When device is changed to _STOPPED, driver should stop
+ *        device before write() returns.
+ *      - If bit 1 set, indicates _SAVING state.
+ *      - If bit 2 set, indicates _RESUMING state.
+ *      _SAVING and _RESUMING set at the same time is invalid state.
+ *
+ * pending bytes: (read only)
+ *      Number of pending bytes yet to be migrated from vendor driver
+ *
+ * data_offset: (read only)
+ *      User application should read data_offset in migration region from where
+ *      user application should read device data during _SAVING state or write
+ *      device data during _RESUMING state or read dirty pages bitmap. See below
+ *      for detail of sequence to be followed.
+ *
+ * data_size: (read/write)
+ *      User application should read data_size to get size of data copied in
+ *      migration region during _SAVING state and write size of data copied in
+ *      migration region during _RESUMING state.
+ *
+ * start_pfn: (write only)
+ *      Start address pfn to get bitmap of dirty pages from vendor driver duing
+ *      _SAVING state.
+ *
+ * page_size: (write only)
+ *      User application should write the page_size of pfn.
+ *
+ * total_pfns: (write only)
+ *      Total pfn count from start_pfn for which dirty bitmap is requested.
+ *
+ * copied_pfns: (read only)
+ *      pfn count for which dirty bitmap is copied to migration region.
+ *      Vendor driver should copy the bitmap with bits set only for pages to be
+ *      marked dirty in migration region.
+ *      - Vendor driver should return VFIO_DEVICE_DIRTY_PFNS_NONE if none of the
+ *        pages are dirty in requested range or rest of the range.
+ *      - Vendor driver should return VFIO_DEVICE_DIRTY_PFNS_ALL to mark all
+ *        pages dirty in the given section.
+ *      - Vendor driver should return pfn count for which bitmap is written in
+ *        the region.
+ *
+ * Migration region looks like:
+ *  ------------------------------------------------------------------
+ * |vfio_device_migration_info|    data section                      |
+ * |                          |     ///////////////////////////////  |
+ * ------------------------------------------------------------------
+ *   ^                              ^                              ^
+ *  offset 0-trapped part        data_offset                 data_size
+ *
+ * Data section is always followed by vfio_device_migration_info structure
+ * in the region, so data_offset will always be none-0. Offset from where data
+ * is copied is decided by kernel driver, data section can be trapped or
+ * mapped depending on how kernel driver defines data section. If mmapped,
+ * then data_offset should be page aligned, where as initial section which
+ * contain vfio_device_migration_info structure might not end at offset which
+ * is page aligned.
+ * Data_offset can be same or different for device data and dirty page bitmap.
+ * Vendor driver should decide whether to partition data section and how to
+ * partition the data section. Vendor driver should return data_offset
+ * accordingly.
+ *
+ * Sequence to be followed:
+ * In _SAVING|_RUNNING device state or pre-copy phase:
+ * a. read pending_bytes. If pending_bytes > 0, go through below steps.
+ * b. read data_offset, indicates kernel driver to write data to staging buffer
+ *    which is mmapped.
+ * c. read data_size, amount of data in bytes written by vendor driver in
+ *    migration region.
+ * d. if data section is trapped, read from data_offset of data_size.
+ * e. if data section is mmaped, read data_size bytes from mmaped buffer from
+ *    data_offset in the migration region.
+ * f. Write data_size and data to file stream.
+ * g. iterate through steps a to f while (pending_bytes > 0)
+ *
+ * In _SAVING device state or stop-and-copy phase:
+ * a. read config space of device and save to migration file stream. This
+ *    doesn't need to be from vendor driver. Any other special config state
+ *    from driver can be saved as data in following iteration.
+ * b. read pending_bytes.
+ * c. read data_offset, indicates kernel driver to write data to staging
+ *    buffer which is mmapped.
+ * d. read data_size, amount of data in bytes written by vendor driver in
+ *    migration region.
+ * e. if data section is trapped, read from data_offset of data_size.
+ * f. if data section is mmaped, read data_size bytes from mmaped buffer from
+ *    data_offset in the migration region.
+ * g. Write data_size and data to file stream
+ * h. iterate through steps b to g while (pending_bytes > 0)
+ *
+ * When data region is mapped, its user's responsibility to read data from
+ * data_offset of data_size before moving to next steps.
+ *
+ * Dirty page tracking is part of RAM copy state, where vendor driver
+ * provides the bitmap of pages which are dirtied by vendor driver through
+ * migration region and as part of RAM copy those pages gets copied to file
+ * stream.
+ *
+ * To get dirty page bitmap:
+ * a. write start_pfn, page_size and total_pfns.
+ * b. read copied_pfns.
+ *     - Vendor driver should return VFIO_DEVICE_DIRTY_PFNS_NONE if driver
+ *       doesn't have any page to report dirty in given range or rest of the
+ *       range. Exit loop.
+ *     - Vendor driver should return VFIO_DEVICE_DIRTY_PFNS_ALL to mark all
+ *       pages dirty for given range. Mark all pages in the range as dirty and
+ *       exit the loop.
+ *     - Vendor driver should return copied_pfns and provide bitmap for
+ *       copied_pfn, which means that bitmap copied for given range contains
+ *       information for all pages where some bits are 0s and some are 1s.
+ * c. read data_offset, where vendor driver has written bitmap.
+ * d. read bitmap from the region or mmaped part of the region.
+ * e. Iterate through steps a to d while (total copied_pfns < total_pfns)
+ *
+ * In _RESUMING device state:
+ * - Load device config state.
+ * - While end of data for this device is not reached, repeat below steps:
+ *      - read data_size from file stream, read data from file stream of
+ *        data_size.
+ *      - read data_offset from where User application should write data.
+ *          if region is mmaped, write data of data_size to mmaped region.
+ *      - write data_size.
+ *          In case of mmapped region, write on data_size indicates kernel
+ *          driver that data is written in staging buffer.
+ *      - if region is trapped, write data of data_size from data_offset.
+ *
+ * For user application, data is opaque. User should write data in the same
+ * order as received.
+ */
+
+struct vfio_device_migration_info {
+        __u32 device_state;         /* VFIO device state */
+#define VFIO_DEVICE_STATE_RUNNING   (1 << 0)
+#define VFIO_DEVICE_STATE_SAVING    (1 << 1)
+#define VFIO_DEVICE_STATE_RESUMING  (1 << 2)
+#define VFIO_DEVICE_STATE_MASK      (VFIO_DEVICE_STATE_RUNNING | \
+                                     VFIO_DEVICE_STATE_SAVING | \
+                                     VFIO_DEVICE_STATE_RESUMING)
+#define VFIO_DEVICE_STATE_INVALID   (VFIO_DEVICE_STATE_SAVING | \
+                                     VFIO_DEVICE_STATE_RESUMING)
+        __u32 reserved;
+        __u64 pending_bytes;
+        __u64 data_offset;
+        __u64 data_size;
+        __u64 start_pfn;
+        __u64 page_size;
+        __u64 total_pfns;
+        __u64 copied_pfns;
+#define VFIO_DEVICE_DIRTY_PFNS_NONE     (0)
+#define VFIO_DEVICE_DIRTY_PFNS_ALL      (~0ULL)
+} __attribute__((packed));
+
 /*
  * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
  * which allows direct access to non-MSIX registers which happened to be within
