@@ -38,7 +38,7 @@
 #include "qemu-version.h"
 #include "qemu/module.h"
 #include <Carbon/Carbon.h>
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #ifndef MAC_OS_X_VERSION_10_5
 #define MAC_OS_X_VERSION_10_5 1050

@@ -10,7 +10,7 @@
 #ifndef TRACE__CONTROL_INTERNAL_H
 #define TRACE__CONTROL_INTERNAL_H
 
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 
 extern int trace_events_enabled_count;

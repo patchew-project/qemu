@@ -33,7 +33,7 @@
 #include "exec/hwaddr.h"
 #endif
 #include "exec/memattrs.h"
-#include "qom/cpu.h"
+#include "hw/core/cpu.h"
 
 #include "cpu-param.h"
 
