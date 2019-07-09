@@ -197,7 +197,7 @@ static void sample_class_init(ObjectClass *oc, void *data)
     mc->default_cpus = 1;
     mc->min_cpus = mc->default_cpus;
     mc->max_cpus = mc->default_cpus;
-    mc->default_cpu_type = AVR_CPU_TYPE_NAME("avr6"); /* ATmega2560. */
+    mc->default_cpu_type = "avr6-avr-cpu"; /* ATmega2560. */
     mc->is_default = 1;
 }
 

@@ -136,11 +136,6 @@ static void avr_cpu_initfn(Object *obj)
 #endif
 }
 
-static char *avr_cpu_type_name(const char *cpu_model)
-{
-    return g_strdup_printf(AVR_CPU_TYPE_NAME("%s"), cpu_model);
-}
-
 static ObjectClass *avr_cpu_class_by_name(const char *cpu_model)
 {
     ObjectClass *oc;
@@ -548,10 +543,10 @@ void avr_cpu_list(void)
 }
 
 #define DEFINE_AVR_CPU_TYPE(model, initfn) \
-    {                                      \
-        .parent = TYPE_AVR_CPU,            \
-        .instance_init = initfn,           \
-        .name = AVR_CPU_TYPE_NAME(model),  \
+    { \
+        .parent = TYPE_AVR_CPU, \
+        .instance_init = initfn, \
+        .name = model "-avr-cpu", \
     }
 
 static const TypeInfo avr_cpu_type_info[] = {

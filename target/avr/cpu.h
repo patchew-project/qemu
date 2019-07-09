@@ -29,9 +29,6 @@
 #define TCG_GUEST_DEFAULT_MO 0
 
 #define TYPE_AVR_CPU "avr-cpu"
-
-#define AVR_CPU_TYPE_SUFFIX "-" TYPE_AVR_CPU
-#define AVR_CPU_TYPE_NAME(name) (name AVR_CPU_TYPE_SUFFIX)
 #define CPU_RESOLVING_TYPE TYPE_AVR_CPU
 
 /*

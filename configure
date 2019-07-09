@@ -7503,6 +7503,10 @@ case "$target_name" in
     target_compiler=$cross_cc_aarch64
     eval "target_compiler_cflags=\$cross_cc_cflags_${target_name}"
   ;;
+  avr)
+	gdb_xml_files="avr-cpu.xml"
+    target_compiler=$cross_cc_avr
+  ;;
   cris)
     target_compiler=$cross_cc_cris
   ;;
@@ -7779,6 +7783,9 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     if test -n "${cxx}"; then
       disas_config "ARM_A64"
     fi
+  ;;
+  avr)
+    disas_config "AVR"
   ;;
   cris)
     disas_config "CRIS"
