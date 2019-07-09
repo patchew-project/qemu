@@ -25,6 +25,7 @@
 
 #include "hw/mem/pc-dimm.h"
 #include "hw/acpi/bios-linker-loader.h"
+#include "hw/acpi/aml-build.h"
 
 #define NVDIMM_DEBUG 0
 #define nvdimm_debug(fmt, ...)                                \
@@ -150,4 +151,9 @@ void nvdimm_build_acpi(GArray *table_offsets, GArray *table_data,
                        uint32_t ram_slots);
 void nvdimm_plug(NVDIMMState *state);
 void nvdimm_acpi_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev);
+void aml_build_runtime_buf(Aml *method, Aml *buf, Aml *buf_size,
+                           Aml *call_result, Aml *buf_name, Aml *dev,
+                           const char *help_function, const char *method_name,
+                           int ret_status_success,
+                           int ret_status_changed);
 #endif
