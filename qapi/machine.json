@@ -607,6 +607,31 @@
     '*bandwidth': 'uint16' }}
 
 ##
+# @set-hmat-lb:
+#
+# Set @NumaHmatLBOptions at runtime.
+#
+# Since: 4.1
+#
+# Example:
+# Set the processors in node 0 access memory in node with access-latency 5
+# nanoseconds(base latency is 10):
+#
+# -> { "execute": "set-hmat-lb",
+#      "arguments": { "initiator": 0,
+#                     "target": 1,
+#                     "hierarchy": "memory",
+#                     "data-type": "access-latency",
+#                     "base-lat": 10,
+#                     "latency": 5 } }
+# <- { "return": {} }
+##
+{ 'command': 'set-hmat-lb', 'boxed': true,
+    'data': 'NumaHmatLBOptions',
+    'allow-preconfig': true
+}
+
+##
 # @HmatCacheAssociativity:
 #
 # Cache associativity in the Memory Side Cache
@@ -679,6 +704,30 @@
    'assoc': 'HmatCacheAssociativity',
    'policy': 'HmatCacheWritePolicy',
    'line': 'uint16' }}
+
+##
+# @set-hmat-cache:
+#
+# Set @NumaHmatCacheOptions at runtime.
+#
+# Since: 4.1
+#
+# Example:
+# Set Memory Side Cache Information in node 1:
+#
+# -> { "execute": "set-hmat-cache",
+#      "arguments": { "node-id": 1,
+#                     "size": 0x20000,
+#                     "total": 3,
+#                     "level": "direct",
+#                     "policy": "write-back",
+#                     "line": 8 } }
+# <- { "return": {} }
+##
+{ 'command': 'set-hmat-cache', 'boxed': true,
+    'data': 'NumaHmatCacheOptions',
+    'allow-preconfig': true
+}
 
 ##
 # @HostMemPolicy:

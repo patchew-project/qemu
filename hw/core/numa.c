@@ -185,7 +185,7 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
 }
 
 void parse_numa_hmat_lb(MachineState *ms, NumaHmatLBOptions *node,
-                        Error **errp)
+                        bool runtime_flag, Error **errp)
 {
     int nb_numa_nodes = ms->numa_state->num_nodes;
     NodeInfo *numa_info = ms->numa_state->nodes;
@@ -262,7 +262,8 @@ void parse_numa_hmat_lb(MachineState *ms, NumaHmatLBOptions *node,
         if (!hmat_lb) {
             hmat_lb = g_malloc0(sizeof(*hmat_lb));
             ms->numa_state->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
-        } else if (hmat_lb->latency[node->initiator][node->target]) {
+        } else if (!runtime_flag &&
+                   hmat_lb->latency[node->initiator][node->target]) {
             error_setg(errp, "Duplicate configuration of the latency for "
                        "initiator=%" PRIu16 " and target=%" PRIu16 ".",
                        node->initiator, node->target);
@@ -283,7 +284,8 @@ void parse_numa_hmat_lb(MachineState *ms, NumaHmatLBOptions *node,
         if (!hmat_lb) {
             hmat_lb = g_malloc0(sizeof(*hmat_lb));
             ms->numa_state->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
-        } else if (hmat_lb->bandwidth[node->initiator][node->target]) {
+        } else if (!runtime_flag &&
+                   hmat_lb->bandwidth[node->initiator][node->target]) {
             error_setg(errp, "Duplicate configuration of the bandwidth for "
                        "initiator=%" PRIu16 " and target=%" PRIu16 ".",
                        node->initiator, node->target);
@@ -310,7 +312,7 @@ void parse_numa_hmat_lb(MachineState *ms, NumaHmatLBOptions *node,
 }
 
 void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
-                           Error **errp)
+                           bool runtime_flag, Error **errp)
 {
     int nb_numa_nodes = ms->numa_state->num_nodes;
     HMAT_Cache_Info *hmat_cache = NULL;
@@ -335,7 +337,8 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
                    node->level, node->total);
         return;
     }
-    if (ms->numa_state->hmat_cache[node->node_id][node->level]) {
+    if (!runtime_flag &&
+        ms->numa_state->hmat_cache[node->node_id][node->level]) {
         error_setg(errp, "Duplicate configuration of the side cache for "
                    "node-id=%" PRIu32 " and level=%" PRIu8 ".",
                    node->node_id, node->level);
@@ -414,13 +417,13 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
                                   &err);
         break;
     case NUMA_OPTIONS_TYPE_HMAT_LB:
-        parse_numa_hmat_lb(ms, &object->u.hmat_lb, &err);
+        parse_numa_hmat_lb(ms, &object->u.hmat_lb, 0, &err);
         if (err) {
             goto end;
         }
         break;
     case NUMA_OPTIONS_TYPE_HMAT_CACHE:
-        parse_numa_hmat_cache(ms, &object->u.hmat_cache, &err);
+        parse_numa_hmat_cache(ms, &object->u.hmat_cache, 0, &err);
         if (err) {
             goto end;
         }

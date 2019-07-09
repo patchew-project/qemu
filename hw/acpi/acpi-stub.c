@@ -22,8 +22,15 @@
 #include "qapi/error.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/acpi/acpi.h"
+#include "sysemu/numa.h"
+#include "hw/acpi/hmat.h"
 
 void acpi_table_add(const QemuOpts *opts, Error **errp)
 {
     error_setg(errp, QERR_UNSUPPORTED);
+}
+
+void hmat_update(NumaState *nstat)
+{
+    /* For qmp_set_hmat_lb and qmp_set_hmat_cache in numa.c can compile */
 }

@@ -17,6 +17,7 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
+#include "hw/acpi/hmat.h"
 
 CpuInfoList *qmp_query_cpus(Error **errp)
 {
@@ -281,6 +282,44 @@ void qmp_set_numa_node(NumaOptions *cmd, Error **errp)
     }
 
     set_numa_options(MACHINE(qdev_get_machine()), cmd, errp);
+}
+
+void qmp_set_hmat_lb(NumaHmatLBOptions *node, Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (ms->numa_state == NULL || ms->numa_state->num_nodes <= 0) {
+        error_setg(errp, "NUMA is not supported");
+        return;
+    }
+
+    if (ms->numa_state->hma_enabled) {
+        parse_numa_hmat_lb(ms, node, 1, errp);
+        hmat_update(ms->numa_state);
+    } else {
+        error_setg(errp, "HMAT can't be changed at runtime when QEMU boot"
+                   " without setting HMAT latency, bandwidth or memory cache"
+                   " information");
+    }
+}
+
+void qmp_set_hmat_cache(NumaHmatCacheOptions *node, Error **errp)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (ms->numa_state == NULL || ms->numa_state->num_nodes <= 0) {
+        error_setg(errp, "NUMA is not supported");
+        return;
+    }
+
+    if (ms->numa_state->hma_enabled) {
+        parse_numa_hmat_cache(ms, node, 1, errp);
+        hmat_update(ms->numa_state);
+    } else {
+        error_setg(errp, "HMAT can't be changed at runtime when QEMU boot"
+                   " without setting HMAT latency, bandwidth or memory cache"
+                   " information");
+    }
 }
 
 static int query_memdev(Object *obj, void *opaque)
