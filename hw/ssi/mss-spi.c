@@ -27,18 +27,8 @@
 #include "hw/ssi/mss-spi.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
-#ifndef MSS_SPI_ERR_DEBUG
-#define MSS_SPI_ERR_DEBUG   0
-#endif
-
-#define DB_PRINT_L(lvl, fmt, args...) do { \
-    if (MSS_SPI_ERR_DEBUG >= lvl) { \
-        qemu_log("%s: " fmt "\n", __func__, ## args); \
-    } \
-} while (0)
-
-#define DB_PRINT(fmt, args...) DB_PRINT_L(1, fmt, ## args)
 
 #define FIFO_CAPACITY         32
 
@@ -187,9 +177,9 @@ spi_read(void *opaque, hwaddr addr, unsigned int size)
         }
         break;
     }
-
-    DB_PRINT("addr=0x%" HWADDR_PRIx " = 0x%" PRIx32, addr * 4, ret);
+    trace_mss_spi_read(addr << 2, ret);
     spi_update_irq(s);
+
     return ret;
 }
 
@@ -225,9 +215,9 @@ static void spi_flush_txfifo(MSSSpiState *s)
         s->regs[R_SPI_STATUS] &= ~(S_TXDONE | S_RXRDY);
 
         tx = fifo32_pop(&s->tx_fifo);
-        DB_PRINT("data tx:0x%" PRIx32, tx);
+        trace_mss_spi_flush_fifo("tx", tx);
         rx = ssi_transfer(s->spi, tx);
-        DB_PRINT("data rx:0x%" PRIx32, rx);
+        trace_mss_spi_flush_fifo("rx", rx);
 
         if (fifo32_num_used(&s->rx_fifo) == s->fifo_depth) {
             s->regs[R_SPI_STATUS] |= S_RXCHOVRF;
@@ -262,9 +252,8 @@ static void spi_write(void *opaque, hwaddr addr,
     MSSSpiState *s = opaque;
     uint32_t value = val64;
 
-    DB_PRINT("addr=0x%" HWADDR_PRIx " =0x%" PRIx32, addr, value);
+    trace_mss_spi_write(addr, value);
     addr >>= 2;
-
     switch (addr) {
     case R_SPI_TX:
         /* adding to already full FIFO */

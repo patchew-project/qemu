@@ -1,0 +1,6 @@
+# See docs/devel/tracing.txt for syntax documentation.
+
+# mss-spi.c
+mss_spi_read(uint32_t addr, uint32_t value) "read addr:0x%02x value:0x%08x"
+mss_spi_write(uint32_t addr, uint32_t value) "write addr:0x%02x value:0x%08x"
+mss_spi_flush_fifo(const char *name, uint32_t value) "flush fifo:%s value:0x%08x"
