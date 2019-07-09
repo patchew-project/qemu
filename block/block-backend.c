@@ -1438,6 +1438,15 @@ int64_t blk_nb_sectors(BlockBackend *blk)
     return bdrv_nb_sectors(blk_bs(blk));
 }
 
+uint8_t blk_get_zoned_model(BlockBackend *blk)
+{
+    if (!blk_is_available(blk)) {
+        return BLK_ZONED_NONE;
+    }
+
+    return bdrv_get_zoned_model(blk_bs(blk));
+}
+
 BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
                            QEMUIOVector *qiov, BdrvRequestFlags flags,
                            BlockCompletionFunc *cb, void *opaque)
@@ -1703,6 +1712,17 @@ bool blk_is_sg(BlockBackend *blk)
     }
 
     return bdrv_is_sg(bs);
+}
+
+bool blk_is_zoned(BlockBackend *blk)
+{
+    BlockDriverState *bs = blk_bs(blk);
+
+    if (!bs) {
+        return false;
+    }
+
+    return bdrv_is_zoned(bs);
 }
 
 bool blk_enable_write_cache(BlockBackend *blk)

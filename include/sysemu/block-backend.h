@@ -156,6 +156,7 @@ int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int bytes,
 int64_t blk_getlength(BlockBackend *blk);
 void blk_get_geometry(BlockBackend *blk, uint64_t *nb_sectors_ptr);
 int64_t blk_nb_sectors(BlockBackend *blk);
+uint8_t blk_get_zoned_model(BlockBackend *blk);
 BlockAIOCB *blk_aio_preadv(BlockBackend *blk, int64_t offset,
                            QEMUIOVector *qiov, BdrvRequestFlags flags,
                            BlockCompletionFunc *cb, void *opaque);
@@ -189,6 +190,7 @@ void blk_error_action(BlockBackend *blk, BlockErrorAction action,
                       bool is_read, int error);
 bool blk_is_read_only(BlockBackend *blk);
 bool blk_is_sg(BlockBackend *blk);
+bool blk_is_zoned(BlockBackend *blk);
 bool blk_enable_write_cache(BlockBackend *blk);
 void blk_set_enable_write_cache(BlockBackend *blk, bool wce);
 void blk_invalidate_cache(BlockBackend *blk, Error **errp);
