@@ -653,6 +653,7 @@ void machine_set_cpu_numa_node(MachineState *machine,
                                const CpuInstanceProperties *props, Error **errp)
 {
     MachineClass *mc = MACHINE_GET_CLASS(machine);
+    NodeInfo *numa_info = machine->numa_state->nodes;
     bool match = false;
     int i;
 
@@ -722,6 +723,16 @@ void machine_set_cpu_numa_node(MachineState *machine,
         match = true;
         slot->props.node_id = props->node_id;
         slot->props.has_node_id = props->has_node_id;
+
+        if (numa_info[props->node_id].initiator_valid &&
+            (props->node_id != numa_info[props->node_id].initiator)) {
+            error_setg(errp, "The initiator of CPU NUMA node %" PRId64
+                       " should be itself.", props->node_id);
+            return;
+        }
+        numa_info[props->node_id].initiator_valid = true;
+        numa_info[props->node_id].has_cpu = true;
+        numa_info[props->node_id].initiator = props->node_id;
     }
 
     if (!match) {
@@ -1063,6 +1074,7 @@ static void machine_numa_finish_cpu_init(MachineState *machine)
     GString *s = g_string_new(NULL);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *possible_cpus = mc->possible_cpu_arch_ids(machine);
+    NodeInfo *numa_info = machine->numa_state->nodes;
 
     assert(machine->numa_state->num_nodes);
     for (i = 0; i < possible_cpus->len; i++) {
@@ -1096,6 +1108,18 @@ static void machine_numa_finish_cpu_init(MachineState *machine)
             machine_set_cpu_numa_node(machine, &props, &error_fatal);
         }
     }
+
+    for (i = 0; i < machine->numa_state->num_nodes; i++) {
+        if (numa_info[i].initiator_valid &&
+            !numa_info[numa_info[i].initiator].has_cpu) {
+            error_report("The initiator-id %"PRIu16 " of NUMA node %d"
+                         " does not exist.", numa_info[i].initiator, i);
+            error_printf("\n");
+
+            exit(1);
+        }
+    }
+
     if (s->len && !qtest_enabled()) {
         warn_report("CPU(s) not present in any NUMA nodes: %s",
                     s->str);
