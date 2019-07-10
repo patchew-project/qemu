@@ -2953,3 +2953,10 @@ void kvmppc_set_reg_tb_offset(PowerPCCPU *cpu, int64_t tb_offset)
         kvm_set_one_reg(cs, KVM_REG_PPC_TB_OFFSET, &tb_offset);
     }
 }
+
+int kvmppc_svm_off(void)
+{
+    KVMState *s = KVM_STATE(current_machine->accelerator);
+
+    return kvm_vm_ioctl(s, KVM_PPC_SVM_OFF);
+}
