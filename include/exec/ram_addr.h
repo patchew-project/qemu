@@ -51,6 +51,8 @@ struct RAMBlock {
     unsigned long *unsentmap;
     /* bitmap of already received pages in postcopy */
     unsigned long *receivedmap;
+    /* bitmap of page encryption state for an encrypted guest */
+    unsigned long *encbmap;
 };
 
 static inline bool offset_in_ramblock(RAMBlock *b, ram_addr_t offset)
@@ -314,9 +316,41 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
 }
 
 #if !defined(_WIN32)
-static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
+
+static inline void cpu_physical_memory_set_encrypted_range(ram_addr_t start,
+                                                           ram_addr_t length,
+                                                           unsigned long val)
+{
+    unsigned long end, page;
+    unsigned long * const *src;
+
+    if (length == 0) {
+        return;
+    }
+
+    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
+    page = start >> TARGET_PAGE_BITS;
+
+    rcu_read_lock();
+
+    src = atomic_rcu_read(&ram_list.dirty_memory[DIRTY_MEMORY_ENCRYPTED])->blocks;
+
+    while (page < end) {
+        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+
+        atomic_xchg(&src[idx][BIT_WORD(offset)], val);
+        page += num;
+    }
+
+    rcu_read_unlock();
+}
+
+static inline void cpu_physical_memory_set_dirty_enc_lebitmap(unsigned long *bitmap,
                                                           ram_addr_t start,
-                                                          ram_addr_t pages)
+                                                          ram_addr_t pages,
+                                                          bool enc_map)
 {
     unsigned long i, j;
     unsigned long page_number, c;
@@ -349,10 +383,14 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
             if (bitmap[k]) {
                 unsigned long temp = leul_to_cpu(bitmap[k]);
 
-                atomic_or(&blocks[DIRTY_MEMORY_MIGRATION][idx][offset], temp);
-                atomic_or(&blocks[DIRTY_MEMORY_VGA][idx][offset], temp);
-                if (tcg_enabled()) {
-                    atomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset], temp);
+                if (enc_map) {
+                    atomic_xchg(&blocks[DIRTY_MEMORY_ENCRYPTED][idx][offset], temp);
+                } else {
+                    atomic_or(&blocks[DIRTY_MEMORY_MIGRATION][idx][offset], temp);
+                    atomic_or(&blocks[DIRTY_MEMORY_VGA][idx][offset], temp);
+                    if (tcg_enabled()) {
+                        atomic_or(&blocks[DIRTY_MEMORY_CODE][idx][offset], temp);
+                    }
                 }
             }
 
@@ -372,6 +410,17 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
          * especially when most of the memory is not dirty.
          */
         for (i = 0; i < len; i++) {
+
+            /* If its encrypted bitmap update, then we need to copy the bitmap
+             * value as-is to the destination.
+             */
+            if (enc_map) {
+                cpu_physical_memory_set_encrypted_range(start + i * TARGET_PAGE_SIZE,
+                                                        TARGET_PAGE_SIZE * hpratio,
+                                                        leul_to_cpu(bitmap[i]));
+                continue;
+            }
+
             if (bitmap[i] != 0) {
                 c = leul_to_cpu(bitmap[i]);
                 do {
@@ -387,6 +436,21 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
         }
     }
 }
+
+static inline void cpu_physical_memory_set_encrypted_lebitmap(unsigned long *bitmap,
+                                                              ram_addr_t start,
+                                                              ram_addr_t pages)
+{
+    return cpu_physical_memory_set_dirty_enc_lebitmap(bitmap, start, pages, true);
+}
+
+static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
+                                                          ram_addr_t start,
+                                                          ram_addr_t pages)
+{
+    return cpu_physical_memory_set_dirty_enc_lebitmap(bitmap, start, pages, false);
+}
+
 #endif /* not _WIN32 */
 
 bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
@@ -406,6 +470,7 @@ static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_MIGRATION);
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_VGA);
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_CODE);
+    cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_ENCRYPTED);
 }
 
 
@@ -473,6 +538,90 @@ uint64_t cpu_physical_memory_sync_dirty_bitmap(RAMBlock *rb,
     }
 
     return num_dirty;
+}
+
+static inline bool cpu_physical_memory_test_encrypted(ram_addr_t start,
+                                                      ram_addr_t length)
+{
+    unsigned long end, page;
+    bool enc = false;
+    unsigned long * const *src;
+
+    if (length == 0) {
+        return enc;
+    }
+
+    end = TARGET_PAGE_ALIGN(start + length) >> TARGET_PAGE_BITS;
+    page = start >> TARGET_PAGE_BITS;
+
+    rcu_read_lock();
+
+    src = atomic_rcu_read(&ram_list.dirty_memory[DIRTY_MEMORY_ENCRYPTED])->blocks;
+
+    while (page < end) {
+        unsigned long idx = page / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = page % DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long num = MIN(end - page, DIRTY_MEMORY_BLOCK_SIZE - offset);
+
+        enc |= atomic_read(&src[idx][BIT_WORD(offset)]);
+        page += num;
+    }
+
+    rcu_read_unlock();
+
+    return enc;
+}
+
+static inline
+void cpu_physical_memory_sync_encrypted_bitmap(RAMBlock *rb,
+                                               ram_addr_t start,
+                                               ram_addr_t length)
+{
+    ram_addr_t addr;
+    unsigned long word = BIT_WORD((start + rb->offset) >> TARGET_PAGE_BITS);
+    unsigned long *dest = rb->encbmap;
+
+    /* start address and length is aligned at the start of a word? */
+    if (((word * BITS_PER_LONG) << TARGET_PAGE_BITS) ==
+         (start + rb->offset) &&
+        !(length & ((BITS_PER_LONG << TARGET_PAGE_BITS) - 1))) {
+        int k;
+        int nr = BITS_TO_LONGS(length >> TARGET_PAGE_BITS);
+        unsigned long * const *src;
+        unsigned long idx = (word * BITS_PER_LONG) / DIRTY_MEMORY_BLOCK_SIZE;
+        unsigned long offset = BIT_WORD((word * BITS_PER_LONG) %
+                                        DIRTY_MEMORY_BLOCK_SIZE);
+        unsigned long page = BIT_WORD(start >> TARGET_PAGE_BITS);
+
+        rcu_read_lock();
+
+        src = atomic_rcu_read(
+                &ram_list.dirty_memory[DIRTY_MEMORY_ENCRYPTED])->blocks;
+
+        for (k = page; k < page + nr; k++) {
+            unsigned long bits = atomic_read(&src[idx][offset]);
+            dest[k] = bits;
+
+            if (++offset >= BITS_TO_LONGS(DIRTY_MEMORY_BLOCK_SIZE)) {
+                offset = 0;
+                idx++;
+            }
+        }
+
+        rcu_read_unlock();
+    } else {
+        ram_addr_t offset = rb->offset;
+
+        for (addr = 0; addr < length; addr += TARGET_PAGE_SIZE) {
+            long k = (start + addr) >> TARGET_PAGE_BITS;
+            if (cpu_physical_memory_test_encrypted(start + addr + offset,
+                                                   TARGET_PAGE_SIZE)) {
+                set_bit(k, dest);
+            } else {
+                clear_bit(k, dest);
+            }
+        }
+    }
 }
 #endif
 #endif

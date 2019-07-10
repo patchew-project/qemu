@@ -1680,6 +1680,9 @@ static void migration_bitmap_sync_range(RAMState *rs, RAMBlock *rb,
     rs->migration_dirty_pages +=
         cpu_physical_memory_sync_dirty_bitmap(rb, 0, length,
                                               &rs->num_dirty_pages_period);
+    if (kvm_memcrypt_enabled()) {
+        cpu_physical_memory_sync_encrypted_bitmap(rb, 0, length);
+    }
 }
 
 /**
@@ -2466,6 +2469,22 @@ static bool save_compress_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
 }
 
 /**
+ * encrypted_test_bitmap: check if the page is encrypted
+ *
+ * Returns a bool indicating whether the page is encrypted.
+ */
+static bool encrypted_test_bitmap(RAMState *rs, RAMBlock *block,
+                                  unsigned long page)
+{
+    /* ROM devices contains the unencrypted data */
+    if (memory_region_is_rom(block->mr)) {
+        return false;
+    }
+
+    return test_bit(page, block->encbmap);
+}
+
+/**
  * ram_save_target_page: save one target page
  *
  * Returns the number of pages written
@@ -2491,7 +2510,8 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
      * will take care of accessing the guest memory and re-encrypt it
      * for the transport purposes.
      */
-     if (kvm_memcrypt_enabled()) {
+     if (kvm_memcrypt_enabled() &&
+         encrypted_test_bitmap(rs, pss->block, pss->page)) {
         return ram_save_encrypted_page(rs, pss, last_stage);
      }
 
@@ -2724,6 +2744,8 @@ static void ram_save_cleanup(void *opaque)
         block->bmap = NULL;
         g_free(block->unsentmap);
         block->unsentmap = NULL;
+        g_free(block->encbmap);
+        block->encbmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -3250,6 +3272,10 @@ static void ram_list_init_bitmaps(void)
             if (migrate_postcopy_ram()) {
                 block->unsentmap = bitmap_new(pages);
                 bitmap_set(block->unsentmap, 0, pages);
+            }
+            if (kvm_memcrypt_enabled()) {
+                block->encbmap = bitmap_new(pages);
+                bitmap_set(block->encbmap, 0, pages);
             }
         }
     }
