@@ -1377,8 +1377,7 @@ void postcopy_fault_thread_notify(MigrationIncomingState *mis)
  *   asking to discard individual ranges.
  *
  * @ms: The current migration state.
- * @offset: the bitmap offset of the named RAMBlock in the migration
- *   bitmap.
+ * @offset: the bitmap offset of the named RAMBlock in the migration bitmap.
  * @name: RAMBlock that discards will operate on.
  *
  * returns: a new PDS.
@@ -1386,13 +1385,14 @@ void postcopy_fault_thread_notify(MigrationIncomingState *mis)
 PostcopyDiscardState *postcopy_discard_send_init(MigrationState *ms,
                                                  const char *name)
 {
-    PostcopyDiscardState *res = g_malloc0(sizeof(PostcopyDiscardState));
+    static PostcopyDiscardState res = {0};
 
-    if (res) {
-        res->ramblock_name = name;
-    }
+    res.ramblock_name = name;
+    res.cur_entry = 0;
+    res.nsentwords = 0;
+    res.nsentcmds = 0;
 
-    return res;
+    return &res;
 }
 
 /**
@@ -1449,8 +1449,6 @@ void postcopy_discard_send_finish(MigrationState *ms, PostcopyDiscardState *pds)
 
     trace_postcopy_discard_send_finish(pds->ramblock_name, pds->nsentwords,
                                        pds->nsentcmds);
-
-    g_free(pds);
 }
 
 /*
