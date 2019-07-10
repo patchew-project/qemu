@@ -251,6 +251,7 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
 static int block_crypto_co_create_generic(BlockDriverState *bs,
                                           int64_t size,
                                           QCryptoBlockCreateOptions *opts,
+                                          PreallocMode prealloc,
                                           Error **errp)
 {
     int ret;
@@ -264,6 +265,13 @@ static int block_crypto_co_create_generic(BlockDriverState *bs,
     ret = blk_insert_bs(blk, bs, errp);
     if (ret < 0) {
         goto cleanup;
+    }
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        ret = blk_truncate(blk, size, prealloc, errp);
+        if (ret < 0) {
+                goto cleanup;
+        }
     }
 
     data = (struct BlockCryptoCreateData) {
@@ -516,7 +524,7 @@ block_crypto_co_create_luks(BlockdevCreateOptions *create_options, Error **errp)
     };
 
     ret = block_crypto_co_create_generic(bs, luks_opts->size, &create_opts,
-                                         errp);
+                                         PREALLOC_MODE_OFF, errp);
     if (ret < 0) {
         goto fail;
     }
@@ -534,11 +542,27 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
     QCryptoBlockCreateOptions *create_opts = NULL;
     BlockDriverState *bs = NULL;
     QDict *cryptoopts;
+    PreallocMode prealloc;
+    char *buf = NULL;
     int64_t size;
     int ret;
+    Error *local_err = NULL;
 
     /* Parse options */
     size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
+                                   PREALLOC_MODE_OFF, &local_err);
+    g_free(buf);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+
+    if (prealloc == PREALLOC_MODE_METADATA) {
+        prealloc  = PREALLOC_MODE_OFF;
+    }
 
     cryptoopts = qemu_opts_to_qdict_filtered(opts, NULL,
                                              &block_crypto_create_opts_luks,
@@ -565,7 +589,7 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
     }
 
     /* Create format layer */
-    ret = block_crypto_co_create_generic(bs, size, create_opts, errp);
+    ret = block_crypto_co_create_generic(bs, size, create_opts, prealloc, errp);
     if (ret < 0) {
         goto fail;
     }
