@@ -140,6 +140,18 @@ static inline void (qemu_cond_wait)(QemuCond *cond, QemuMutex *mutex)
     qemu_cond_wait(cond, mutex);
 }
 
+void qemu_cond_timedwait_impl(QemuCond *cond, QemuMutex *mutex, int ms,
+                              const char *file, const int line);
+
+#define qemu_cond_timedwait(cond, mutex, ms) \
+        qemu_cond_timedwait_impl(cond, mutex, ms, __FILE__, __LINE__)
+
+static inline void (qemu_cond_timedwait)(QemuCond *cond, QemuMutex *mutex,
+                                         int ms)
+{
+    qemu_cond_timedwait(cond, mutex, ms);
+}
+
 void qemu_sem_init(QemuSemaphore *sem, int init);
 void qemu_sem_post(QemuSemaphore *sem);
 void qemu_sem_wait(QemuSemaphore *sem);
