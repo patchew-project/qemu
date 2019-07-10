@@ -825,6 +825,17 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
     return 0;
 }
 
+void sev_set_migrate_info(const char *pdh, const char *plat_cert,
+                          const char *amd_cert)
+{
+    SEVState *s = sev_state;
+
+    s->remote_pdh = g_base64_decode(pdh, &s->remote_pdh_len);
+    s->remote_plat_cert = g_base64_decode(plat_cert,
+                                          &s->remote_plat_cert_len);
+    s->amd_cert = g_base64_decode(amd_cert, &s->amd_cert_len);
+}
+
 static void
 sev_register_types(void)
 {

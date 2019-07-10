@@ -266,3 +266,21 @@
 ##
 { 'command': 'query-gic-capabilities', 'returns': ['GICCapability'],
   'if': 'defined(TARGET_ARM)' }
+
+##
+# @migrate-set-sev-info:
+#
+# The command is used to provide the target host information used during the
+# SEV guest.
+#
+# @pdh the target host platform diffie-hellman key encoded in base64
+#
+# @plat-cert the target host platform certificate chain encoded in base64
+#
+# @amd-cert AMD certificate chain which include ASK and OCA encoded in base64
+#
+# Since 4.2
+#
+##
+{ 'command': 'migrate-set-sev-info',
+  'data': { 'pdh': 'str', 'plat-cert': 'str', 'amd-cert' : 'str' }}

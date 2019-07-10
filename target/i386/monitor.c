@@ -736,3 +736,13 @@ SevCapability *qmp_query_sev_capabilities(Error **errp)
 
     return data;
 }
+
+void qmp_migrate_set_sev_info(const char *pdh, const char *plat_cert,
+                              const char *amd_cert, Error **errp)
+{
+    if (sev_enabled()) {
+        sev_set_migrate_info(pdh, plat_cert, amd_cert);
+    } else {
+        error_setg(errp, "SEV is not enabled");
+    }
+}

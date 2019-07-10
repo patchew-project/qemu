@@ -39,7 +39,8 @@ extern uint32_t sev_get_cbit_position(void);
 extern uint32_t sev_get_reduced_phys_bits(void);
 extern char *sev_get_launch_measurement(void);
 extern SevCapability *sev_get_capabilities(void);
-
+extern void sev_set_migrate_info(const char *pdh, const char *plat_cert,
+                                 const char *amd_cert);
 typedef struct QSevGuestInfo QSevGuestInfo;
 typedef struct QSevGuestInfoClass QSevGuestInfoClass;
 
@@ -81,6 +82,12 @@ struct SEVState {
     int sev_fd;
     SevState state;
     gchar *measurement;
+    guchar *remote_pdh;
+    size_t remote_pdh_len;
+    guchar *remote_plat_cert;
+    size_t remote_plat_cert_len;
+    guchar *amd_cert;
+    size_t amd_cert_len;
 };
 
 typedef struct SEVState SEVState;

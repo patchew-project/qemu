@@ -48,3 +48,8 @@ SevCapability *sev_get_capabilities(void)
 {
     return NULL;
 }
+
+void sev_set_migrate_info(const char *pdh, const char *plat_cert,
+                          const char *amd_cert)
+{
+}
