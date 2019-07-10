@@ -24,3 +24,14 @@ void *sev_guest_init(const char *id)
 {
     return NULL;
 }
+
+int sev_save_outgoing_page(void *handle, QEMUFile *f, uint8_t *ptr,
+                           uint32_t size, uint64_t *bytes_sent)
+{
+    return 1;
+}
+
+int sev_load_incoming_page(void *handle, QEMUFile *f, uint8_t *ptr)
+{
+    return 1;
+}

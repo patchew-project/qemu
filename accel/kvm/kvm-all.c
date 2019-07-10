@@ -110,6 +110,10 @@ struct KVMState
     /* memory encryption */
     void *memcrypt_handle;
     int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
+    int (*memcrypt_save_outgoing_page)(void *ehandle, QEMUFile *f,
+            uint8_t *ptr, uint32_t sz, uint64_t *bytes_sent);
+    int (*memcrypt_load_incoming_page)(void *ehandle, QEMUFile *f,
+            uint8_t *ptr);
 };
 
 KVMState *kvm_state;
@@ -160,6 +164,29 @@ int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
         kvm_state->memcrypt_encrypt_data) {
         return kvm_state->memcrypt_encrypt_data(kvm_state->memcrypt_handle,
                                               ptr, len);
+    }
+
+    return 1;
+}
+
+int kvm_memcrypt_save_outgoing_page(QEMUFile *f, uint8_t *ptr,
+                                    uint32_t size, uint64_t *bytes_sent)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_save_outgoing_page) {
+        return kvm_state->memcrypt_save_outgoing_page(kvm_state->memcrypt_handle,
+                    f, ptr, size, bytes_sent);
+    }
+
+    return 1;
+}
+
+int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_load_incoming_page) {
+        return kvm_state->memcrypt_load_incoming_page(kvm_state->memcrypt_handle,
+                    f, ptr);
     }
 
     return 1;

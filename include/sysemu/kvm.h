@@ -247,6 +247,18 @@ bool kvm_memcrypt_enabled(void);
  */
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len);
 
+/**
+ * kvm_memcrypt_save_outgoing_buffer - encrypt the outgoing buffer
+ * and write to the wire.
+ */
+int kvm_memcrypt_save_outgoing_page(QEMUFile *f, uint8_t *ptr, uint32_t size,
+                                    uint64_t *bytes_sent);
+
+/**
+ * kvm_memcrypt_load_incoming_buffer - read the encrypt incoming buffer and copy
+ * the buffer into the guest memory space.
+ */
+int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr);
 
 #ifdef NEED_CPU_H
 #include "cpu.h"
