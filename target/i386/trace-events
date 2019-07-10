@@ -21,3 +21,5 @@ kvm_sev_send_finish(void) ""
 kvm_sev_receive_start(int policy, void *session, void *pdh) "policy 0x%x session %p pdh %p"
 kvm_sev_receive_update_data(void *src, void *dst, int len, void *hdr, int hdr_len) "guest %p trans %p len %d hdr %p hdr_len %d"
 kvm_sev_receive_finish(void) ""
+kvm_sev_save_page_enc_bitmap(uint64_t start, uint64_t len) "start 0x%" PRIx64 " len 0x%" PRIx64
+kvm_sev_load_page_enc_bitmap(uint64_t start, uint64_t len) "start 0x%" PRIx64 " len 0x%" PRIx64

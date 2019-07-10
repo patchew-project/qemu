@@ -78,6 +78,7 @@
 /* 0x80 is reserved in migration.h start with 0x100 next */
 #define RAM_SAVE_FLAG_COMPRESS_PAGE    0x100
 #define RAM_SAVE_FLAG_ENCRYPTED_PAGE   0x200
+#define RAM_SAVE_FLAG_PAGE_ENCRYPTED_BITMAP       0x400 /* used in target/i386/sev.c */
 
 static inline bool is_zero_range(uint8_t *p, uint64_t size)
 {
@@ -3595,6 +3596,10 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     flush_compressed_data(rs);
     ram_control_after_iterate(f, RAM_CONTROL_FINISH);
 
+    if (kvm_memcrypt_enabled()) {
+        ret = kvm_memcrypt_save_outgoing_page_enc_bitmap(f);
+    }
+
     rcu_read_unlock();
 
     multifd_send_sync_main();
@@ -4467,6 +4472,12 @@ static int ram_load(QEMUFile *f, void *opaque, int version_id)
             if (kvm_memcrypt_load_incoming_page(f, host)) {
                     error_report("Failed to encrypted incoming data");
                     ret = -EINVAL;
+            }
+            break;
+        case RAM_SAVE_FLAG_PAGE_ENCRYPTED_BITMAP:
+            if (kvm_memcrypt_load_incoming_page_enc_bitmap(f)) {
+                error_report("Failed to load page enc bitmap");
+                ret = -EINVAL;
             }
             break;
         case RAM_SAVE_FLAG_EOS:
