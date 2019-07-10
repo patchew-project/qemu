@@ -260,6 +260,19 @@ int kvm_memcrypt_save_outgoing_page(QEMUFile *f, uint8_t *ptr, uint32_t size,
  */
 int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr);
 
+/**
+ * kvm_memcrypt_load_incoming_page_enc_bitmap: read the page encryption bitmap
+ * from the socket and pass it to the hypervisor.
+ */
+int kvm_memcrypt_load_incoming_page_enc_bitmap(QEMUFile *f);
+
+/**
+ * kvm_memcrypt_save_outgoing_page_enc_bitmap: write the page encryption bitmap
+ * on socket.
+ */
+int kvm_memcrypt_save_outgoing_page_enc_bitmap(QEMUFile *f);
+
+
 #ifdef NEED_CPU_H
 #include "cpu.h"
 

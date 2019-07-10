@@ -35,3 +35,14 @@ int sev_load_incoming_page(void *handle, QEMUFile *f, uint8_t *ptr)
 {
     return 1;
 }
+
+int sev_load_incoming_page_enc_bitmap(void *handle, QEMUFile *f)
+{
+    return 1;
+}
+
+int sev_save_outgoing_page_enc_bitmap(void *handle, QEMUFile *f,
+                                      uint64_t start, uint64_t length)
+{
+    return 1;
+}

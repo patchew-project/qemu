@@ -125,6 +125,16 @@ int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr)
     return 1;
 }
 
+int kvm_memcrypt_load_incoming_page_enc_bitmap(QEMUFile *f)
+{
+    return 1;
+}
+
+int kvm_memcrypt_save_outgoing_page_enc_bitmap(QEMUFile *f)
+{
+    return 1;
+}
+
 
 #ifndef CONFIG_USER_ONLY
 int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)

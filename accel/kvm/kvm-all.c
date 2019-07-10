@@ -114,6 +114,9 @@ struct KVMState
             uint8_t *ptr, uint32_t sz, uint64_t *bytes_sent);
     int (*memcrypt_load_incoming_page)(void *ehandle, QEMUFile *f,
             uint8_t *ptr);
+    int (*memcrypt_load_incoming_page_enc_bitmap)(void *ehandle, QEMUFile *f);
+    int (*memcrypt_save_outgoing_page_enc_bitmap)(void *ehandle, QEMUFile *f,
+            uint64_t start, uint64_t length);
 };
 
 KVMState *kvm_state;
@@ -190,6 +193,40 @@ int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr)
     }
 
     return 1;
+}
+
+int kvm_memcrypt_load_incoming_page_enc_bitmap(QEMUFile *f)
+{
+    if (kvm_state->memcrypt_handle &&
+        kvm_state->memcrypt_load_incoming_page_enc_bitmap) {
+        return kvm_state->memcrypt_load_incoming_page_enc_bitmap(
+                kvm_state->memcrypt_handle, f);
+    }
+
+    return 1;
+}
+
+int kvm_memcrypt_save_outgoing_page_enc_bitmap(QEMUFile *f)
+{
+    KVMMemoryListener *kml = &kvm_state->memory_listener;
+    KVMState *s = kvm_state;
+    int ret = 1, i;
+
+    if (s->memcrypt_handle &&
+        s->memcrypt_save_outgoing_page_enc_bitmap) {
+
+        /* iterate through all the registered slots and send the bitmap */
+        for (i = 0; i < s->nr_slots; i++) {
+            KVMSlot *mem = &kml->slots[i];
+            ret = s->memcrypt_save_outgoing_page_enc_bitmap(s->memcrypt_handle,
+                        f, mem->start_addr, mem->memory_size);
+            if (ret) {
+                return 1;
+            }
+        }
+    }
+
+    return ret;
 }
 
 static KVMSlot *kvm_get_free_slot(KVMMemoryListener *kml)
