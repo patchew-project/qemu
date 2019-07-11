@@ -531,20 +531,57 @@ out:
     return ret;
 }
 
+static int bdrv_create_file_fallback(const char *filename, BlockDriver *drv,
+                                     QemuOpts *opts, Error **errp)
+{
+    BlockBackend *blk;
+    QDict *options = qdict_new();
+    int64_t size = 0;
+    char *buf = NULL;
+    PreallocMode prealloc;
+    Error *local_err = NULL;
+    int ret;
+
+    size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+    buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
+                               PREALLOC_MODE_OFF, &local_err);
+    g_free(buf);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return -EINVAL;
+    }
+
+    qdict_put_str(options, "driver", drv->format_name);
+
+    blk = blk_new_open(filename, NULL, options,
+                       BDRV_O_RDWR | BDRV_O_RESIZE, errp);
+    if (!blk) {
+        error_prepend(errp, "Protocol driver '%s' does not support "
+                      "image creation, and opening the image failed: ",
+                      drv->format_name);
+        return -EINVAL;
+    }
+
+    ret = blk_truncate(blk, size, prealloc, errp);
+    blk_unref(blk);
+    return ret;
+}
+
 int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
 {
     BlockDriver *drv;
-    Error *local_err = NULL;
-    int ret;
 
     drv = bdrv_find_protocol(filename, true, errp);
     if (drv == NULL) {
         return -ENOENT;
     }
 
-    ret = bdrv_create(drv, filename, opts, &local_err);
-    error_propagate(errp, local_err);
-    return ret;
+    if (drv->bdrv_co_create_opts) {
+        return bdrv_create(drv, filename, opts, errp);
+    } else {
+        return bdrv_create_file_fallback(filename, drv, opts, errp);
+    }
 }
 
 /**
@@ -1418,6 +1455,24 @@ QemuOptsList bdrv_runtime_opts = {
         },
         { /* end of list */ }
     },
+};
+
+static QemuOptsList fallback_create_opts = {
+    .name = "fallback-create-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(fallback_create_opts.head),
+    .desc = {
+        {
+            .name = BLOCK_OPT_SIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Virtual disk size"
+        },
+        {
+            .name = BLOCK_OPT_PREALLOC,
+            .type = QEMU_OPT_STRING,
+            .help = "Preallocation mode (allowed values: off)"
+        },
+        { /* end of list */ }
+    }
 };
 
 /*
@@ -5681,14 +5736,12 @@ void bdrv_img_create(const char *filename, const char *fmt,
         return;
     }
 
-    if (!proto_drv->create_opts) {
-        error_setg(errp, "Protocol driver '%s' does not support image creation",
-                   proto_drv->format_name);
-        return;
-    }
-
     create_opts = qemu_opts_append(create_opts, drv->create_opts);
-    create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+    if (proto_drv->create_opts) {
+        create_opts = qemu_opts_append(create_opts, proto_drv->create_opts);
+    } else {
+        create_opts = qemu_opts_append(create_opts, &fallback_create_opts);
+    }
 
     /* Create parameter list with default values */
     opts = qemu_opts_create(create_opts, NULL, 0, &error_abort);
