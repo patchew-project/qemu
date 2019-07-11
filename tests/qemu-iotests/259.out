@@ -1,0 +1,20 @@
+QA output created by 259
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
+
+--- Testing no-op shrinking ---
+qemu-img: Image was not resized; resizing may not be supported for this image
+
+--- Testing non-working growing ---
+qemu-img: Cannot grow this nbd node
+
+--- Testing creation ---
+Formatting 'TEST_DIR/t.IMGFMT', fmt=qcow2 size=67108864
+image: TEST_DIR/t.IMGFMT
+file format: qcow2
+virtual size: 64 MiB (67108864 bytes)
+disk size: unavailable
+
+--- Testing creation for which the node would need to grow ---
+qemu-img: TEST_DIR/t.IMGFMT: Could not resize image: Cannot grow this nbd node
+Formatting 'TEST_DIR/t.IMGFMT', fmt=qcow2 size=67108864 preallocation=metadata
+*** done
