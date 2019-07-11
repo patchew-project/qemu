@@ -796,7 +796,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     pflash_mode_read_array(pfl);
-    pfl->status = 0;
+    pfl->status = 0x80; /* WSM ready */
     /* Hardcoded CFI table */
     /* Standard "QRY" string */
     pfl->cfi_table[0x10] = 'Q';
