@@ -99,6 +99,9 @@ for arch in $ARCHLIST; do
         cp "$tmpdir/include/asm/$header" "$output/linux-headers/asm-$arch"
     done
 
+    if [ $arch = arm64 ]; then
+        cp "$tmpdir/include/asm/sve_context.h" "$output/linux-headers/asm-arm64/"
+    fi
     if [ $arch = mips ]; then
         cp "$tmpdir/include/asm/sgidefs.h" "$output/linux-headers/asm-mips/"
         cp "$tmpdir/include/asm/unistd_o32.h" "$output/linux-headers/asm-mips/"
