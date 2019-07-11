@@ -11,6 +11,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef HW_VFIO_VFIO_AMD_XGBE_H
 #define HW_VFIO_VFIO_AMD_XGBE_H
 

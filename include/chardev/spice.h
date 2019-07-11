@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without CONFIG_SPICE, yet! */
+
 #ifndef CHARDEV_SPICE_H
 #define CHARDEV_SPICE_H
 

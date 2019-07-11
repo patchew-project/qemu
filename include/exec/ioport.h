@@ -21,6 +21,8 @@
  * IO ports API
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef IOPORT_H
 #define IOPORT_H
 

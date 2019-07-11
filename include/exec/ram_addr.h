@@ -16,6 +16,9 @@
  * The functions declared here will be removed soon.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef RAM_ADDR_H
 #define RAM_ADDR_H
 

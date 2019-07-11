@@ -1,3 +1,6 @@
+/* FIXME Does not pass make check-headers without CONFIG_XEN, yet! */
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef QEMU_HW_XEN_COMMON_H
 #define QEMU_HW_XEN_COMMON_H
 

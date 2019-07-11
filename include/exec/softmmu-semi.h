@@ -7,6 +7,9 @@
  * This code is licensed under the GPL
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef SOFTMMU_SEMI_H
 #define SOFTMMU_SEMI_H
 

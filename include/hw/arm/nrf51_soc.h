@@ -7,6 +7,9 @@
  * the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef NRF51_SOC_H
 #define NRF51_SOC_H
 

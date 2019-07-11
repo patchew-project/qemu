@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef GEN_ICOUNT_H
 #define GEN_ICOUNT_H
 

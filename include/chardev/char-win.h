@@ -21,6 +21,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+/* FIXME Does not pass make check-headers without CONFIG_WIN32, yet! */
+
 #ifndef CHAR_WIN_H
 #define CHAR_WIN_H
 

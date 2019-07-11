@@ -11,6 +11,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_VIRTIO_GPU_BSWAP_H
 #define HW_VIRTIO_GPU_BSWAP_H
 

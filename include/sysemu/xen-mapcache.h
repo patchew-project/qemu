@@ -6,6 +6,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef XEN_MAPCACHE_H
 #define XEN_MAPCACHE_H
 

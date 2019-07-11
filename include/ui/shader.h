@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without CONFIG_OPENGL, yet! */
+
 #ifndef QEMU_SHADER_H
 #define QEMU_SHADER_H
 

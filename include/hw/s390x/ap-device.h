@@ -7,6 +7,9 @@
  * your option) any later version. See the COPYING file in the top-level
  * directory.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_S390X_AP_DEVICE_H
 #define HW_S390X_AP_DEVICE_H
 

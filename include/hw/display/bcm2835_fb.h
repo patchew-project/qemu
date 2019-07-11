@@ -8,6 +8,8 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef BCM2835_FB_H
 #define BCM2835_FB_H
 

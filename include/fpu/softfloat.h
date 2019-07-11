@@ -79,6 +79,8 @@ this code that are retained.
  * version 2 or later. See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef SOFTFLOAT_H
 #define SOFTFLOAT_H
 

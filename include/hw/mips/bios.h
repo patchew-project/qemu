@@ -1,3 +1,5 @@
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef HW_MIPS_BIOS_H
 #define HW_MIPS_BIOS_H
 

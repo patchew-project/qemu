@@ -21,6 +21,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef XLNX_DP_H
 #define XLNX_DP_H
 

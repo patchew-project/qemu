@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef CONSOLE_H
 #define CONSOLE_H
 

@@ -13,6 +13,8 @@
  *  Copyright Red Hat, Inc. 2012
  */
 
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef HW_VFIO_VFIO_PLATFORM_H
 #define HW_VFIO_VFIO_PLATFORM_H
 

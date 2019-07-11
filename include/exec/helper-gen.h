@@ -1,6 +1,8 @@
 /* Helper file for declaring TCG helper functions.
    This one expands generation functions for tcg opcodes.  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HELPER_GEN_H
 #define HELPER_GEN_H
 

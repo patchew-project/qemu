@@ -20,6 +20,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ALLWINNER_EMAC_H
 #define ALLWINNER_EMAC_H
 

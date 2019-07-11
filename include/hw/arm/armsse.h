@@ -86,6 +86,9 @@
  *  + named GPIO outputs mscexp_ns[0..15]
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ARMSSE_H
 #define ARMSSE_H
 

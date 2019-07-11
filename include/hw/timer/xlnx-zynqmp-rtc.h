@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_TIMER_XLNX_ZYNQMP_RTC_H
 #define HW_TIMER_XLNX_ZYNQMP_RTC_H
 

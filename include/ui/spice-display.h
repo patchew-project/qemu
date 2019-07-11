@@ -15,6 +15,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef UI_SPICE_DISPLAY_H
 #define UI_SPICE_DISPLAY_H
 

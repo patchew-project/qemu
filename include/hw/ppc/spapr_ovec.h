@@ -34,6 +34,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef SPAPR_OVEC_H
 #define SPAPR_OVEC_H
 

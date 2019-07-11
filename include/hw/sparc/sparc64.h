@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_SPARC_SPARC64_H
 #define HW_SPARC_SPARC64_H
 

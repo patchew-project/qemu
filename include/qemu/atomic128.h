@@ -10,6 +10,8 @@
  * atomic primitive is meant to provide.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef QEMU_ATOMIC128_H
 #define QEMU_ATOMIC128_H
 

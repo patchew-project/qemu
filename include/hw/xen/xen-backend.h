@@ -5,6 +5,9 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_XEN, yet! */
+/* FIXME Does not pass make check-headers without system emulation, yet! */
+
 #ifndef HW_XEN_BACKEND_H
 #define HW_XEN_BACKEND_H
 

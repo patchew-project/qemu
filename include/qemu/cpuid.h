@@ -4,6 +4,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_CPUID_H, yet! */
+
 #ifndef QEMU_CPUID_H
 #define QEMU_CPUID_H
 

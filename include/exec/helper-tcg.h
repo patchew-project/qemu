@@ -1,6 +1,8 @@
 /* Helper file for declaring TCG helper functions.
    This one defines data structures private to tcg.c.  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HELPER_TCG_H
 #define HELPER_TCG_H
 

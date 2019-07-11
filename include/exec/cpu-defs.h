@@ -16,6 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef CPU_DEFS_H
 #define CPU_DEFS_H
 

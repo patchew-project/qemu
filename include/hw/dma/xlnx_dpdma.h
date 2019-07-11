@@ -22,6 +22,8 @@
  *
  */
 
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef XLNX_DPDMA_H
 #define XLNX_DPDMA_H
 

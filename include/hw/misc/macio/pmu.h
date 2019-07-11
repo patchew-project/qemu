@@ -7,6 +7,8 @@
  * Copyright (C) 2016 Ben Herrenschmidt
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef PMU_H
 #define PMU_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef UI_GTK_H
 #define UI_GTK_H
 

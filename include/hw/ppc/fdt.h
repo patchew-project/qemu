@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef PPC_FDT_H
 #define PPC_FDT_H
 

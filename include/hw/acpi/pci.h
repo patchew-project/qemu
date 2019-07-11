@@ -22,6 +22,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HW_ACPI_PCI_H
 #define HW_ACPI_PCI_H
 

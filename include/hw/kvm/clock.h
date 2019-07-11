@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+
 #ifndef HW_KVM_CLOCK_H
 #define HW_KVM_CLOCK_H
 

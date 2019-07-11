@@ -17,6 +17,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers without pixman, yet! */
+
 #ifndef HW_ARM_OMAP_H
 #define HW_ARM_OMAP_H
 

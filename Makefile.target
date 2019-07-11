@@ -41,6 +41,7 @@ STPFILES=
 
 # Makefile Tests
 include $(SRC_PATH)/tests/tcg/Makefile.include
+include $(SRC_PATH)/tests/check-headers.mak
 
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
@@ -220,6 +221,23 @@ hmp-commands.h: $(SRC_PATH)/hmp-commands.hx $(SRC_PATH)/scripts/hxtool
 hmp-commands-info.h: $(SRC_PATH)/hmp-commands-info.hx $(SRC_PATH)/scripts/hxtool
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"GEN","$(TARGET_DIR)$@")
 
+.PHONY: check-headers
+ifeq ($(wildcard $(SRC_PATH)/.git),)
+check-headers check-bad-headers:
+	@echo "  SKIP  $@ (requires a git tree)"
+else
+check-headers: CFLAGS += -g0	# save disk space
+check-headers: $(check-target-header-tests:.c=.o)
+
+# Expected to fail:
+check-bad-headers: $(check-bad-target-header-tests:.c=.o)
+
+.SECONDARY: $(check-target-header-tests) $(check-bad-target-header-tests)
+$(check-target-header-tests) $(check-bad-target-header-tests): tests/header-test-template.c
+	@mkdir -p $(dir $@)
+	@sed 's,@header@,$(subst tests/headers-tgt/,,$(@:.c=.h)),' <$< >$@
+endif
+
 clean: clean-target
 	rm -f *.a *~ $(PROGS)
 	rm -f $(shell find . -name '*.[od]')
@@ -258,3 +276,5 @@ Makefile: $(generated-files-y)
 
 .PHONY: coverage-report
 coverage-report: $(CURDIR)/reports/coverage/coverage-report.html
+
+-include $(check-target-header-tests:.c=.d) $(check-bad-target-header-tests:.c=.d)

@@ -9,6 +9,9 @@
  * directory.
  */
 
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef CSS_H
 #define CSS_H
 

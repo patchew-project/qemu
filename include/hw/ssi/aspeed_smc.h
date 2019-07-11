@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef ASPEED_SMC_H
 #define ASPEED_SMC_H
 

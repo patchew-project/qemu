@@ -15,6 +15,7 @@ check-help:
 	@echo " $(MAKE) check-tcg            Run TCG tests"
 	@echo " $(MAKE) check-softfloat      Run FPU emulation tests"
 	@echo " $(MAKE) check-acceptance     Run all acceptance (functional) tests"
+	@echo " $(MAKE) check-source         Run source code tests"
 	@echo
 	@echo " $(MAKE) check-report.html    Generates an HTML test report"
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
@@ -493,6 +494,7 @@ generated-files-y += tests/test-qapi-introspect.h
 
 QEMU_CFLAGS += -I$(SRC_PATH)/tests
 
+include $(SRC_PATH)/tests/check-headers.mak
 
 # Deps that are common to various different sets of tests below
 test-util-obj-y = libqemuutil.a
@@ -1159,13 +1161,39 @@ check-acceptance: check-venv $(TESTS_RESULTS_DIR)
             --failfast=on $(SRC_PATH)/tests/acceptance, \
             "AVOCADO", "tests/acceptance")
 
+# Header sanity checking
+
+RECURSIVE_TARGETS += check-headers check-bad-headers
+
+.PHONY: check-headers check-bad-headers
+ifeq ($(wildcard $(SRC_PATH)/.git),)
+check-headers check-bad-headers:
+	@echo "  SKIP  $@ (requires a git tree)"
+else
+check-headers: CFLAGS += -g0	# save disk space
+check-headers: $(check-header-tests:.c=.o)
+check-headers: $(addsuffix /check-headers, $(TARGET_DIRS))
+
+# Expected to fail:
+check-bad-headers: $(check-bad-header-tests:.c=.o)
+check-bad-headers: $(addsuffix /check-bad-headers, $(TARGET_DIRS))
+
+.SECONDARY: $(check-header-tests) $(check-bad-header-tests)
+$(check-header-tests) $(check-bad-header-tests): tests/header-test-template.c
+	@mkdir -p $(dir $@)
+	@sed 's,@header@,$(subst tests/headers/,,$(@:.c=.h)),' <$< >$@
+endif
+
 # Consolidated targets
 
-.PHONY: check-block check-qapi-schema check-qtest check-unit check check-clean
+.PHONY: check-block check-qapi-schema check-qtest check-unit check-source
+.PHONY: check check-clean
 check-qapi-schema: $(patsubst %,check-%, $(check-qapi-schema-y)) check-tests/qapi-schema/doc-good.texi
 check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-block: $(patsubst %,check-%, $(check-block-y))
-check: check-qapi-schema check-unit check-softfloat check-qtest check-decodetree
+check-source: check-headers
+check: check-qapi-schema check-unit check-softfloat check-qtest check-decodetree check-source
+
 check-clean:
 	rm -rf $(check-unit-y) tests/*.o $(QEMU_IOTESTS_HELPERS-y)
 	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y)) $(check-qtest-generic-y))
@@ -1180,5 +1208,6 @@ all: $(QEMU_IOTESTS_HELPERS-y)
 
 -include $(wildcard tests/*.d)
 -include $(wildcard tests/libqos/*.d)
+-include $(check-header-tests:.c=.d) $(check-bad-header-tests:.c=.d)
 
 endif

@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* FIXME Does not pass make check-headers without CONFIG_POSIX, yet! */
+
 #ifndef QEMU_OS_POSIX_H
 #define QEMU_OS_POSIX_H
 

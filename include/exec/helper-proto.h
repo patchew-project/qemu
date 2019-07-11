@@ -1,6 +1,8 @@
 /* Helper file for declaring TCG helper functions.
    This one expands prototypes for the helper functions.  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef HELPER_PROTO_H
 #define HELPER_PROTO_H
 

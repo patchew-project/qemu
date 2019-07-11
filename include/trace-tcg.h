@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef TRACE_TCG_H
 #define TRACE_TCG_H
 

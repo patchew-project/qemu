@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers, yet! */
+
 #ifndef WDT_ASPEED_H
 #define WDT_ASPEED_H
 
