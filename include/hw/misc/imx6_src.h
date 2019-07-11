@@ -8,6 +8,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX6_SRC_H
 #define IMX6_SRC_H
 

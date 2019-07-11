@@ -10,6 +10,8 @@
  * directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_S390X_CSS_BRIDGE_H
 #define HW_S390X_CSS_BRIDGE_H
 

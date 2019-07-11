@@ -5,6 +5,8 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef BCM2835_AUX_H
 #define BCM2835_AUX_H
 

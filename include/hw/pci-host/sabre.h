@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_PCI_HOST_SABRE_H
 #define HW_PCI_HOST_SABRE_H
 

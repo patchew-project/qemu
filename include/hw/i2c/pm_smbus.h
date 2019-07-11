@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PM_SMBUS_H
 #define PM_SMBUS_H
 

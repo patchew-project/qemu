@@ -9,6 +9,8 @@
  *  (at your option) any later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MPS2_SCC_H
 #define MPS2_SCC_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef HW_FLASH_H
 #define HW_FLASH_H
 

@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PPC4XX_I2C_H
 #define PPC4XX_I2C_H
 

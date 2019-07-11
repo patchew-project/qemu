@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QDEV_H
 #define QDEV_H
 

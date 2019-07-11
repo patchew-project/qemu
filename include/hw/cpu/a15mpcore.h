@@ -17,6 +17,9 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_CPU_A15MPCORE_H
 #define HW_CPU_A15MPCORE_H
 

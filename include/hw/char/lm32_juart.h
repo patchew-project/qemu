@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_HW_CHAR_LM32_JUART_H
 #define QEMU_HW_CHAR_LM32_JUART_H
 

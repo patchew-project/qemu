@@ -7,6 +7,9 @@
  *
  * This code is licensed under the GPL.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_CPU_A9MPCORE_H
 #define HW_CPU_A9MPCORE_H
 

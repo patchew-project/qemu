@@ -8,8 +8,9 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or (at your
  * option) any later version.  See the COPYING file in the top-level directory.
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef HW_S390_SCLP_H
 #define HW_S390_SCLP_H

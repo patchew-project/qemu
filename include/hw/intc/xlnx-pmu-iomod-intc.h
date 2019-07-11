@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_INTC_XLNX_PMU_IOMOD_INTC_H
 #define HW_INTC_XLNX_PMU_IOMOD_INTC_H
 

@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef QEMU_PAM_H
 #define QEMU_PAM_H
 

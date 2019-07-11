@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_MSIX_H
 #define QEMU_MSIX_H
 

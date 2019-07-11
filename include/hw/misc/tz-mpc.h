@@ -28,6 +28,8 @@
  * + Named GPIO output "irq": set for a transaction-failed interrupt
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef TZ_MPC_H
 #define TZ_MPC_H
 

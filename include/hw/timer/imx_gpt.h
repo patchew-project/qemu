@@ -26,6 +26,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX_GPT_H
 #define IMX_GPT_H
 

@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef HW_SOC_DMA_H
 #define HW_SOC_DMA_H
 

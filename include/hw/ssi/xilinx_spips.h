@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef XILINX_SPIPS_H
 #define XILINX_SPIPS_H
 

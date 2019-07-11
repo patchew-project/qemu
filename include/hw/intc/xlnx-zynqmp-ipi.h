@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef XLNX_ZYNQMP_IPI_H
 #define XLNX_ZYNQMP_IPI_H
 

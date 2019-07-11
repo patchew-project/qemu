@@ -61,6 +61,8 @@
  *      ...
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_ARM_GIC_H
 #define HW_ARM_GIC_H
 

@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_MSI_H
 #define QEMU_MSI_H
 

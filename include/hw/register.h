@@ -8,6 +8,8 @@
  * the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef REGISTER_H
 #define REGISTER_H
 

@@ -25,6 +25,8 @@
  *   bus master transactions are made
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_DMA_PL080_H
 #define HW_DMA_PL080_H
 

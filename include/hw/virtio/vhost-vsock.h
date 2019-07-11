@@ -11,6 +11,8 @@
  * top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_VHOST_VSOCK_H
 #define QEMU_VHOST_VSOCK_H
 

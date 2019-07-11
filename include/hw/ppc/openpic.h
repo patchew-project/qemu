@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef OPENPIC_H
 #define OPENPIC_H
 

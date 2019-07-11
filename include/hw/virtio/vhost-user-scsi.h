@@ -11,8 +11,9 @@
  *
  * This work is licensed under the terms of the GNU LGPL, version 2 or later.
  * See the COPYING.LIB file in the top-level directory.
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef VHOST_USER_SCSI_H
 #define VHOST_USER_SCSI_H

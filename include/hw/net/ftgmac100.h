@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef FTGMAC100_H
 #define FTGMAC100_H
 

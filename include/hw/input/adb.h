@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ADB_H
 #define ADB_H
 

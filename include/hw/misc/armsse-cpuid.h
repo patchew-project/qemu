@@ -19,6 +19,8 @@
  *  + sysbus MMIO region 0: the system information register bank
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MISC_ARMSSE_CPUID_H
 #define HW_MISC_ARMSSE_CPUID_H
 

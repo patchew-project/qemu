@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MAC_DBDMA_H
 #define HW_MAC_DBDMA_H
 

@@ -4,8 +4,9 @@
  * for more details.
  *
  * Copyright (C) 2015 Imagination Technologies
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef MIPS_CMGCR_H
 #define MIPS_CMGCR_H

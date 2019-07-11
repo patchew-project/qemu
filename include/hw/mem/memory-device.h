@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MEMORY_DEVICE_H
 #define MEMORY_DEVICE_H
 

@@ -8,6 +8,9 @@
  * your option) any later version. See the COPYING file in the top-level
  * directory.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_S390X_S390_VIRTIO_CCW_H
 #define HW_S390X_S390_VIRTIO_CCW_H
 

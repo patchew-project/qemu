@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef CADENCE_GEM_H
 #define CADENCE_GEM_H
 

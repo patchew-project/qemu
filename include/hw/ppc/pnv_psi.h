@@ -17,6 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PPC_PNV_PSI_H
 #define PPC_PNV_PSI_H
 

@@ -7,6 +7,8 @@
  * Copyright (C) 2016 Ben Herrenschmidt
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PMU_H
 #define PMU_H
 

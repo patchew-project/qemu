@@ -10,6 +10,9 @@
  *
  * Need to add SVIC and CVIC support
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_VIC_H
 #define ASPEED_VIC_H
 

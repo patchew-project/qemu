@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef FW_CFG_H
 #define FW_CFG_H
 

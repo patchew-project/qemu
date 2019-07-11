@@ -9,6 +9,8 @@
  * (at your option) any later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef XLNX_VERSAL_H
 #define XLNX_VERSAL_H
 

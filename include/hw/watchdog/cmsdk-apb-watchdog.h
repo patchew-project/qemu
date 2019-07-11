@@ -28,6 +28,8 @@
  * to watchdog_perform_action(), at least for the moment.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef CMSDK_APB_WATCHDOG_H
 #define CMSDK_APB_WATCHDOG_H
 

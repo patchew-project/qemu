@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX_GPCV2_H
 #define IMX_GPCV2_H
 

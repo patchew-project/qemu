@@ -7,6 +7,9 @@
  * See the COPYING file in the top-level directory.
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_ISA_SUPERIO_H
 #define HW_ISA_SUPERIO_H
 

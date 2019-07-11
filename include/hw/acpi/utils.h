@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_ACPI_UTILS_H
 #define HW_ACPI_UTILS_H
 

@@ -25,6 +25,8 @@
 /* Worker routines for a PCI host controller that uses an {address,data}
    register pair to access PCI configuration space.  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PCI_HOST_H
 #define PCI_HOST_H
 

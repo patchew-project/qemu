@@ -9,6 +9,8 @@
  * directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef S390_STORAGE_KEYS_H
 #define S390_STORAGE_KEYS_H
 

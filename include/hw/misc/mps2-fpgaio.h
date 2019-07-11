@@ -18,6 +18,8 @@
  *  + sysbus MMIO region 0: the register bank
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MPS2_FPGAIO_H
 #define MPS2_FPGAIO_H
 

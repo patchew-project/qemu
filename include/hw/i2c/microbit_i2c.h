@@ -8,6 +8,8 @@
  * the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MICROBIT_I2C_H
 #define MICROBIT_I2C_H
 

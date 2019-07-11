@@ -16,6 +16,8 @@
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef I2C_DDC_H
 #define I2C_DDC_H
 

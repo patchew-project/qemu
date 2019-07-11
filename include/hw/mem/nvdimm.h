@@ -20,6 +20,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_NVDIMM_H
 #define QEMU_NVDIMM_H
 

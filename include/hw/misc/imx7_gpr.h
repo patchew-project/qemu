@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX7_GPR_H
 #define IMX7_GPR_H
 

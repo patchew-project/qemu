@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_PCMCIA_H
 #define HW_PCMCIA_H
 

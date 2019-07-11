@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef QEMU_SH_H
 #define QEMU_SH_H
 /* Definitions for SH board emulation.  */

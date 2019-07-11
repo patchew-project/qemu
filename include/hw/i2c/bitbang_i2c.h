@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef BITBANG_I2C_H
 #define BITBANG_I2C_H
 

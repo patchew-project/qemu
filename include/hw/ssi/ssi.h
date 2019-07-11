@@ -8,6 +8,8 @@
    It is assumed that master and slave are both using the same transfer width.
    */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_SSI_H
 #define QEMU_SSI_H
 

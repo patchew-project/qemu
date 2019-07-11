@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef SYSEMU_HOSTMEM_H
 #define SYSEMU_HOSTMEM_H
 

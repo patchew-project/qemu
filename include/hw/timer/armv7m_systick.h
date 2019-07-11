@@ -9,6 +9,8 @@
  * This code is licensed under the GPL (version 2 or later).
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_TIMER_ARMV7M_SYSTICK_H
 #define HW_TIMER_ARMV7M_SYSTICK_H
 

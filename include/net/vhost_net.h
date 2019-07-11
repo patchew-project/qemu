@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef VHOST_NET_H
 #define VHOST_NET_H
 

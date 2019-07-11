@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_I2C_H
 #define QEMU_I2C_H
 

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MSF2_SYSREG_H
 #define HW_MSF2_SYSREG_H
 

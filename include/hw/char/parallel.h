@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_PARALLEL_H
 #define HW_PARALLEL_H
 

@@ -11,6 +11,8 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_TIMER_PL031_H
 #define HW_TIMER_PL031_H
 

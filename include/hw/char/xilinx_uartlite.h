@@ -12,6 +12,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef XILINX_UARTLITE_H
 #define XILINX_UARTLITE_H
 

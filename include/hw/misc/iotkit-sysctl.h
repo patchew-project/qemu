@@ -24,6 +24,8 @@
  *  + sysbus MMIO region 1: the system control register bank
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MISC_IOTKIT_SYSCTL_H
 #define HW_MISC_IOTKIT_SYSCTL_H
 

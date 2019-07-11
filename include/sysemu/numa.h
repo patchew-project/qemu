@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef SYSEMU_NUMA_H
 #define SYSEMU_NUMA_H
 

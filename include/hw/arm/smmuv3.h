@@ -16,6 +16,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_ARM_SMMUV3_H
 #define HW_ARM_SMMUV3_H
 

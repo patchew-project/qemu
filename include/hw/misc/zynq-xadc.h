@@ -12,6 +12,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ZYNQ_XADC_H
 #define ZYNQ_XADC_H
 

@@ -7,6 +7,8 @@
  * This code is licensed under the GPL.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_CPU_ARM11MPCORE_H
 #define HW_CPU_ARM11MPCORE_H
 

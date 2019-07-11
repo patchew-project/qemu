@@ -8,6 +8,8 @@
  * later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_IPACK_H
 #define QEMU_IPACK_H
 

@@ -21,6 +21,10 @@ target-headers := $(shell cd $(SRC_PATH) && egrep -l '$(target-header-regexp)' $
 # Headers for target-independent code only
 untarget-headers := include/exec/poison.h
 
+# Headers not for user emulation (include hw/hw.h)
+hw-header-regexp := NOTE: May not be included into user emulation code
+hw-headers := $(shell cd $(SRC_PATH) && egrep -l '$(hw-header-regexp)' $(src-headers))
+
 # Headers carrying a FIXME about this test
 # Extended regular expression matching the FIXME comment in headers
 # not expected to pass the test in this build's configuration:
@@ -93,10 +97,12 @@ checked-headers := $(filter-out $(excluded-headers) $(bad-headers) $(target-head
 check-header-tests := $(patsubst %.h, tests/headers/%.c, $(checked-headers))
 # to be checked for each target: all less excluded, bad, and untarget
 checked-target-headers := $(filter-out $(excluded-headers) $(bad-headers) $(untarget-headers), $(src-headers))
-# Testing target-independent headers for each target is massive
-# overkill, limit to target-dependent headers for now.  This leaves
-# gaps in testing.  TODO accept the overkill or pick something in between
-checked-target-headers := $(filter $(target-headers), $(checked-target-headers))
+# less hw for user emulation targets
+ifneq ($(TARGET_DIR),)
+ifneq ($(CONFIG_USER_ONLY),)
+checked-target-headers := $(filter-out $(hw-headers), $(checked-target-headers))
+endif
+endif
 check-target-header-tests := $(patsubst %.h, tests/headers-tgt/%.c, $(checked-target-headers))
 
 # Bad headers (all less excluded and checked):

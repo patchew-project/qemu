@@ -5,8 +5,9 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2 or later.
  * See the COPYING file in the top-level directory.
- *
  */
+
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef VHOST_BACKEND_H
 #define VHOST_BACKEND_H

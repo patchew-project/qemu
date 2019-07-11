@@ -21,6 +21,8 @@
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX_FEC_H
 #define IMX_FEC_H
 

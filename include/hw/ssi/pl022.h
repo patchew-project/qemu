@@ -18,6 +18,8 @@
  * + sysbus MMIO region 0: MemoryRegion for the device's registers
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SSI_PL022_H
 #define HW_SSI_PL022_H
 

@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef WDT_ASPEED_H
 #define WDT_ASPEED_H
 

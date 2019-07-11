@@ -26,6 +26,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef XLNX_ZDMA_H
 #define XLNX_ZDMA_H
 

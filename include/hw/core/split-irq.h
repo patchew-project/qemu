@@ -32,6 +32,9 @@
  *  + N unnamed GPIO outputs: the output lines
  *  + QOM property "num-lines": sets the number of output lines
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SPLIT_IRQ_H
 #define HW_SPLIT_IRQ_H
 

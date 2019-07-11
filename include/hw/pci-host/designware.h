@@ -18,6 +18,8 @@
  * <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef DESIGNWARE_H
 #define DESIGNWARE_H
 

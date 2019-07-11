@@ -17,6 +17,8 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_XILINX_PCIE_H
 #define HW_XILINX_PCIE_H
 

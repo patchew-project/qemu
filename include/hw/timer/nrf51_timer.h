@@ -10,6 +10,9 @@
  * This code is licensed under the GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef NRF51_TIMER_H
 #define NRF51_TIMER_H
 

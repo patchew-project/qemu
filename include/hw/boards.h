@@ -1,5 +1,7 @@
 /* Declarations for use by board files for creating devices.  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 

@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_PCI_H
 #define QEMU_PCI_H
 

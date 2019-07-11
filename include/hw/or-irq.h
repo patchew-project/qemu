@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_OR_IRQ_H
 #define HW_OR_IRQ_H
 

@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef SPARC32_DMA_H
 #define SPARC32_DMA_H
 

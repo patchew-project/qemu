@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef SH_INTC_H
 #define SH_INTC_H
 

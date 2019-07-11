@@ -20,8 +20,9 @@
  * split out pci bus specific stuff from pci.[hc] to pci_bridge.[hc]
  * Copyright (c) 2009 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef QEMU_PCI_BRIDGE_H
 #define QEMU_PCI_BRIDGE_H

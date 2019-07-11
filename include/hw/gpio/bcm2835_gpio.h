@@ -11,6 +11,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef BCM2835_GPIO_H
 #define BCM2835_GPIO_H
 

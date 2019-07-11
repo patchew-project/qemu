@@ -8,6 +8,8 @@
  * This code is licensed under the GPL.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MISC_ARM11SCU_H
 #define HW_MISC_ARM11SCU_H
 

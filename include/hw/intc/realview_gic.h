@@ -7,6 +7,8 @@
  * This code is licensed under the GPL.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_INTC_REALVIEW_GIC_H
 #define HW_INTC_REALVIEW_GIC_H
 

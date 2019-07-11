@@ -7,6 +7,8 @@
  * COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PPC_PNV_XIVE_H
 #define PPC_PNV_XIVE_H
 

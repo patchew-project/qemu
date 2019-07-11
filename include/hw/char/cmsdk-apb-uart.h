@@ -9,6 +9,8 @@
  *  (at your option) any later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef CMSDK_APB_UART_H
 #define CMSDK_APB_UART_H
 

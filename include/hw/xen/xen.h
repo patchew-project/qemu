@@ -1,3 +1,5 @@
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef QEMU_HW_XEN_H
 #define QEMU_HW_XEN_H
 

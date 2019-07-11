@@ -17,6 +17,8 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_GPEX_H
 #define HW_GPEX_H
 

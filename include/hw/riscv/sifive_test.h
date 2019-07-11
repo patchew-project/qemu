@@ -16,6 +16,8 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SIFIVE_TEST_H
 #define HW_SIFIVE_TEST_H
 

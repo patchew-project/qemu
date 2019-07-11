@@ -5,6 +5,9 @@
  * Copyright 2019 IBM Corp
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_RTC_H
 #define ASPEED_RTC_H
 

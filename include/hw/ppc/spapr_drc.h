@@ -10,6 +10,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SPAPR_DRC_H
 #define HW_SPAPR_DRC_H
 

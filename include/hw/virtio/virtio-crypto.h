@@ -11,6 +11,8 @@
  * top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_VIRTIO_CRYPTO_H
 #define QEMU_VIRTIO_CRYPTO_H
 

@@ -23,6 +23,8 @@
  *  + sysbus IRQ 2: timer block 2 interrupt TIMINT2
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef CMSDK_APB_DUALTIMER_H
 #define CMSDK_APB_DUALTIMER_H
 

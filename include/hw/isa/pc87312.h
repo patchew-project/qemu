@@ -22,6 +22,9 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_PC87312_H
 #define QEMU_PC87312_H
 

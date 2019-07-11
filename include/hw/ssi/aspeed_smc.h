@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_SMC_H
 #define ASPEED_SMC_H
 

@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef CHIPIDEA_H
 #define CHIPIDEA_H
 

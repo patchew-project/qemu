@@ -6,6 +6,8 @@
  * SPDX-License-Identifer: GPL-2.0-or-later
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_XDMA_H
 #define ASPEED_XDMA_H
 

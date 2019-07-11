@@ -10,6 +10,8 @@
  * directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_S390_FLIC_H
 #define HW_S390_FLIC_H
 

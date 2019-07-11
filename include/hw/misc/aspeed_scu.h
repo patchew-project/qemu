@@ -8,6 +8,9 @@
  * This code is licensed under the GPL version 2 or later.  See
  * the COPYING file in the top-level directory.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_SCU_H
 #define ASPEED_SCU_H
 

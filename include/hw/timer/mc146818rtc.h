@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MC146818RTC_H
 #define MC146818RTC_H
 

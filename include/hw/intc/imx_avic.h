@@ -14,6 +14,9 @@
  *
  * TODO: implement vectors.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX_AVIC_H
 #define IMX_AVIC_H
 

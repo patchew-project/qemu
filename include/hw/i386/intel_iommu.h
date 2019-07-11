@@ -19,6 +19,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef INTEL_IOMMU_H
 #define INTEL_IOMMU_H
 #include "hw/qdev.h"

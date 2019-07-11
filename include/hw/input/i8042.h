@@ -5,6 +5,9 @@
  *
  * SPDX-License-Identifier: MIT
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_INPUT_I8042_H
 #define HW_INPUT_I8042_H
 

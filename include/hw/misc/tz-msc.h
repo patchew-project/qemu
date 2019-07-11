@@ -47,6 +47,8 @@
  *   make memory transactions to
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef TZ_MSC_H
 #define TZ_MSC_H
 

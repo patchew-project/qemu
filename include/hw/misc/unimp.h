@@ -5,6 +5,8 @@
  * Written by Peter Maydell
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MISC_UNIMP_H
 #define HW_MISC_UNIMP_H
 

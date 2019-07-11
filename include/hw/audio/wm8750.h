@@ -11,6 +11,9 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_DAC_WM8750_H
 #define HW_DAC_WM8750_H
 

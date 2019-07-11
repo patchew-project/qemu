@@ -11,6 +11,8 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef BCM2836_CONTROL_H
 #define BCM2836_CONTROL_H
 

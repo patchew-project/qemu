@@ -7,6 +7,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* FIXME Does not pass make check-headers for user emulation, yet! */
+
 #ifndef HW_ACPI_TCO_H
 #define HW_ACPI_TCO_H
 

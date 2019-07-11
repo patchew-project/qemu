@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MACIO_GPIO_H
 #define MACIO_GPIO_H
 

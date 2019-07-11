@@ -27,6 +27,8 @@
  * This is essentially the same approach kvmtool uses.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_ARM_VIRT_H
 #define QEMU_ARM_VIRT_H
 

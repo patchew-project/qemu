@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef WDT_DIAG288_H
 #define WDT_DIAG288_H
 

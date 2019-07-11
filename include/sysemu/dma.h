@@ -7,6 +7,8 @@
  * (GNU GPL), version 2 or later.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef DMA_H
 #define DMA_H
 

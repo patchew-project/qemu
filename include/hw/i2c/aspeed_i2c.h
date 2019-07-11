@@ -18,6 +18,8 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_I2C_H
 #define ASPEED_I2C_H
 

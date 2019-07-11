@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef XLNX_ZYNQ_DEVCFG_H
 #define XLNX_ZYNQ_DEVCFG_H
 

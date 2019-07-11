@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_PLATFORM_BUS_H
 #define HW_PLATFORM_BUS_H
 

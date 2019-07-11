@@ -5,6 +5,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_VIRTIO_VHOST_USER_H
 #define HW_VIRTIO_VHOST_USER_H
 

@@ -19,6 +19,9 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
+/* NOTE: May not be included into user emulation code */
+
 #ifndef ASPEED_TIMER_H
 #define ASPEED_TIMER_H
 

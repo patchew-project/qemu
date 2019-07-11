@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef SUN4M_IOMMU_H
 #define SUN4M_IOMMU_H
 

@@ -8,8 +8,9 @@
  *
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef QEMU_VIRTIO_SCSI_H
 #define QEMU_VIRTIO_SCSI_H

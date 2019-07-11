@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MSS_TIMER_H
 #define HW_MSS_TIMER_H
 

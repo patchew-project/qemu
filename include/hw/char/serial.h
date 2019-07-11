@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SERIAL_H
 #define HW_SERIAL_H
 

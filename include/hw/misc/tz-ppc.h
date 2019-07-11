@@ -62,6 +62,8 @@
  *   parameter.)
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef TZ_PPC_H
 #define TZ_PPC_H
 

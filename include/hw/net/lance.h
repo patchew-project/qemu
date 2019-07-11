@@ -26,6 +26,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef LANCE_H
 #define LANCE_H
 

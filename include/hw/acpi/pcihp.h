@@ -24,6 +24,8 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_ACPI_PCIHP_H
 #define HW_ACPI_PCIHP_H
 

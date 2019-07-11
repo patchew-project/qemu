@@ -20,6 +20,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SMBUS_EEPROM_H
 #define HW_SMBUS_EEPROM_H
 

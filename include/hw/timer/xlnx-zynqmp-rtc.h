@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_TIMER_XLNX_ZYNQMP_RTC_H
 #define HW_TIMER_XLNX_ZYNQMP_RTC_H
 

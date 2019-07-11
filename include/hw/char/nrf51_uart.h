@@ -8,6 +8,8 @@
  * (at your option) any later version.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef NRF51_UART_H
 #define NRF51_UART_H
 

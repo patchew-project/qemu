@@ -52,6 +52,8 @@
  *  + named GPIO outputs mscexp_ns[0..15]
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IOTKIT_SECCTL_H
 #define IOTKIT_SECCTL_H
 

@@ -22,6 +22,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_STM32F2XX_SYSCFG_H
 #define HW_STM32F2XX_SYSCFG_H
 

@@ -27,6 +27,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_SD_H
 #define HW_SD_H
 

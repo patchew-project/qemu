@@ -15,8 +15,9 @@
  *
  *  You should have received a copy of the GNU General Public License along
  *  with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef IMX_I2C_H
 #define IMX_I2C_H

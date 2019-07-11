@@ -9,6 +9,8 @@
  * See the COPYING file in the top-level directory.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef IMX2_WDT_H
 #define IMX2_WDT_H
 

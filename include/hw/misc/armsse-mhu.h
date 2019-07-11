@@ -20,6 +20,8 @@
  *  + sysbus IRQ 1: interrupt for CPU 1
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_MISC_ARMSSE_MHU_H
 #define HW_MISC_ARMSSE_MHU_H
 

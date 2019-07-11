@@ -1,3 +1,5 @@
+/* NOTE: May not be included into user emulation code */
+
 #ifndef HW_IDE_INTERNAL_H
 #define HW_IDE_INTERNAL_H
 

@@ -21,8 +21,9 @@
  *
  * Specification available at:
  *   http://milkymist.walle.cc/socdoc/tmu2.pdf
- *
  */
+
+/* NOTE: May not be included into user emulation code */
 
 #ifndef HW_DISPLAY_MILKYMIST_TMU2_H
 #define HW_DISPLAY_MILKYMIST_TMU2_H

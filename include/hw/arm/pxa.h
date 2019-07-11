@@ -7,6 +7,8 @@
  * This code is licensed under the GNU GPL v2.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef PXA_H
 #define PXA_H
 

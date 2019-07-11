@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef QEMU_ARM_GICV3_ITS_COMMON_H
 #define QEMU_ARM_GICV3_ITS_COMMON_H
 

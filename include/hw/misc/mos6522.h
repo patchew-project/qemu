@@ -24,6 +24,8 @@
  * THE SOFTWARE.
  */
 
+/* NOTE: May not be included into user emulation code */
+
 #ifndef MOS6522_H
 #define MOS6522_H
 
