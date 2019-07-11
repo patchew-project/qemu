@@ -135,7 +135,17 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     qio_channel_shutdown(s->ioc,
                          QIO_CHANNEL_SHUTDOWN_BOTH,
                          NULL);
-    BDRV_POLL_WHILE(bs, s->connection_co);
+
+    if (qemu_in_coroutine()) {
+        /* Let our caller poll and just yield until connection_co is done */
+        while (s->connection_co) {
+            aio_co_schedule(qemu_get_current_aio_context(),
+                            qemu_coroutine_self());
+            qemu_coroutine_yield();
+        }
+    } else {
+        BDRV_POLL_WHILE(bs, s->connection_co);
+    }
 
     nbd_client_detach_aio_context(bs);
     object_unref(OBJECT(s->sioc));
