@@ -12,6 +12,9 @@
 
 #ifndef QEMU_HW_IOMMU_IOMMU_H
 #define QEMU_HW_IOMMU_IOMMU_H
+#ifdef __linux__
+#include <linux/iommu.h>
+#endif
 
 typedef struct IOMMUConfig {
     union {
