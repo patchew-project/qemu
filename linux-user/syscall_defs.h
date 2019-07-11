@@ -751,6 +751,10 @@ struct target_pollfd {
 
 #define TARGET_SIOCGSTAMP      0x8906          /* Get stamp (timeval) */
 #define TARGET_SIOCGSTAMPNS    0x8907          /* Get stamp (timespec) */
+#define TARGET_SIOCGSTAMP_OLD   0x8906          /* Get stamp (timeval) */
+#define TARGET_SIOCGSTAMPNS_OLD 0x8907          /* Get stamp (timespec) */
+#define TARGET_SIOCGSTAMP_NEW   TARGET_IOR(0x89, 0x06, abi_llong[2]) /* Get stamp (timeval64) */
+#define TARGET_SIOCGSTAMPNS_NEW TARGET_IOR(0x89, 0x07, abi_llong[2]) /* Get stamp (timespec64) */
 
 /* Networking ioctls */
 #define TARGET_SIOCADDRT       0x890B          /* add routing table entry */
