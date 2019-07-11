@@ -2301,7 +2301,7 @@ static int coroutine_fn sd_co_truncate(BlockDriverState *bs, int64_t offset,
     max_vdi_size = (UINT64_C(1) << s->inode.block_size_shift) * MAX_DATA_OBJS;
     if (offset < old_size) {
         error_setg(errp, "shrinking is not supported");
-        return -EINVAL;
+        return -ENOTSUP;
     } else if (offset > max_vdi_size) {
         error_setg(errp, "too big image size");
         return -EINVAL;

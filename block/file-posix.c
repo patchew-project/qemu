@@ -2031,23 +2031,7 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
         return raw_regular_truncate(bs, s->fd, offset, prealloc, errp);
     }
 
-    if (prealloc != PREALLOC_MODE_OFF) {
-        error_setg(errp, "Preallocation mode '%s' unsupported for this "
-                   "non-regular file", PreallocMode_str(prealloc));
-        return -ENOTSUP;
-    }
-
-    if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode)) {
-        if (offset > raw_getlength(bs)) {
-            error_setg(errp, "Cannot grow device files");
-            return -EINVAL;
-        }
-    } else {
-        error_setg(errp, "Resizing this file is not supported");
-        return -ENOTSUP;
-    }
-
-    return 0;
+    return -ENOTSUP;
 }
 
 #ifdef __OpenBSD__
@@ -3413,7 +3397,6 @@ static BlockDriver bdrv_host_device = {
     .bdrv_io_unplug = raw_aio_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate       = raw_co_truncate,
     .bdrv_getlength	= raw_getlength,
     .bdrv_get_info = raw_get_info,
     .bdrv_get_allocated_file_size
@@ -3537,7 +3520,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_io_unplug = raw_aio_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate    = raw_co_truncate,
     .bdrv_getlength      = raw_getlength,
     .has_variable_length = true,
     .bdrv_get_allocated_file_size
@@ -3669,7 +3651,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_io_unplug = raw_aio_unplug,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
-    .bdrv_co_truncate    = raw_co_truncate,
     .bdrv_getlength      = raw_getlength,
     .has_variable_length = true,
     .bdrv_get_allocated_file_size
