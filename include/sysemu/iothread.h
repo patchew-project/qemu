@@ -11,13 +11,12 @@
  *
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef IOTHREAD_H
 #define IOTHREAD_H
 
 #include "block/aio.h"
 #include "qemu/thread.h"
+#include "qom/object.h"
 
 #define TYPE_IOTHREAD "iothread"
 

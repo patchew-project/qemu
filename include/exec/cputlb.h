@@ -17,10 +17,10 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef CPUTLB_H
 #define CPUTLB_H
+
+#include "exec/cpu-common.h"
 
 #if !defined(CONFIG_USER_ONLY)
 /* cputlb.c */

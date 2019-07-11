@@ -18,12 +18,12 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
 
 #ifndef THUNK_H
 #define THUNK_H
 
 #include "cpu.h"
+#include "exec/user/abitypes.h"
 
 /* types enums definitions */
 

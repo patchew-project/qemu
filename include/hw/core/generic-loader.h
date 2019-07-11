@@ -15,12 +15,11 @@
  * for more details.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef GENERIC_LOADER_H
 #define GENERIC_LOADER_H
 
 #include "elf.h"
+#include "hw/qdev-core.h"
 
 typedef struct GenericLoaderState {
     /* <private> */

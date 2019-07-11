@@ -13,11 +13,10 @@
  * GNU GPL, version 2 or (at your option) any later version.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef QEMU_RAW_AIO_H
 #define QEMU_RAW_AIO_H
 
+#include "block/aio.h"
 #include "qemu/coroutine.h"
 #include "qemu/iov.h"
 

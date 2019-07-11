@@ -17,7 +17,8 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than arm, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef FSL_IMX7_H
 #define FSL_IMX7_H

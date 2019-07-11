@@ -17,10 +17,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
 
 #ifndef RISCV_BOOT_H
 #define RISCV_BOOT_H
+
+#include "exec/cpu-defs.h"
 
 target_ulong riscv_load_firmware(const char *firmware_filename,
                                  hwaddr firmware_load_addr);

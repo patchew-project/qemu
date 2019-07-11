@@ -23,10 +23,10 @@
  * THE SOFTWARE.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef CUDA_H
 #define CUDA_H
+
+#include "hw/misc/mos6522.h"
 
 /* CUDA commands (2nd byte) */
 #define CUDA_WARM_START                0x0

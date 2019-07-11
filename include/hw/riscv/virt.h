@@ -16,10 +16,14 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef HW_RISCV_VIRT_H
 #define HW_RISCV_VIRT_H
+
+#include "hw/riscv/riscv_hart.h"
+#include "hw/sysbus.h"
 
 typedef struct {
     /*< private >*/

@@ -11,12 +11,11 @@
  * See the COPYING file in the top-level directory.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_VIRTIO_GPU_BSWAP_H
 #define HW_VIRTIO_GPU_BSWAP_H
 
 #include "qemu/bswap.h"
+#include "standard-headers/linux/virtio_gpu.h"
 
 static inline void
 virtio_gpu_ctrl_hdr_bswap(struct virtio_gpu_ctrl_hdr *hdr)

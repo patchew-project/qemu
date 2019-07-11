@@ -16,12 +16,14 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef HW_SIFIVE_U_H
 #define HW_SIFIVE_U_H
 
 #include "hw/net/cadence_gem.h"
+#include "hw/riscv/riscv_hart.h"
 
 #define TYPE_RISCV_U_SOC "riscv.sifive.u.soc"
 #define RISCV_U_SOC(obj) \

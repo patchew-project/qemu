@@ -17,10 +17,11 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_SIFIVE_UART_H
 #define HW_SIFIVE_UART_H
+
+#include "chardev/char-fe.h"
+#include "hw/sysbus.h"
 
 enum {
     SIFIVE_UART_TXFIFO        = 0,

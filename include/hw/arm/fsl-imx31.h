@@ -14,7 +14,9 @@
  * for more details.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than arm, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef FSL_IMX31_H
 #define FSL_IMX31_H
@@ -28,6 +30,7 @@
 #include "hw/i2c/imx_i2c.h"
 #include "hw/gpio/imx_gpio.h"
 #include "exec/memory.h"
+#include "target/arm/cpu.h"
 
 #define TYPE_FSL_IMX31 "fsl,imx31"
 #define FSL_IMX31(obj) OBJECT_CHECK(FslIMX31State, (obj), TYPE_FSL_IMX31)

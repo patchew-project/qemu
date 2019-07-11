@@ -18,10 +18,14 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef HW_RISCV_HART_H
 #define HW_RISCV_HART_H
+
+#include "hw/sysbus.h"
+#include "target/riscv/cpu.h"
 
 #define TYPE_RISCV_HART_ARRAY "riscv.hart_array"
 

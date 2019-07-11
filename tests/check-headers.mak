@@ -25,6 +25,24 @@ untarget-headers := include/exec/poison.h
 # Extended regular expression matching the FIXME comment in headers
 # not expected to pass the test in this build's configuration:
 bad-header-regexp := FIXME Does not pass make check-headers(
+# Fails in %-user:
+ifneq ($(TARGET_DIR),)
+ifneq ($(CONFIG_USER_ONLY),)
+bad-header-regexp += for user emulation|
+endif
+endif
+# Target-dependent arm only:
+ifneq ($(TARGET_BASE_ARCH),arm)
+bad-header-regexp += for TARGET_BASE_ARCH other than arm|
+endif
+# Target-dependent i386 only:
+ifneq ($(TARGET_BASE_ARCH),i386)
+bad-header-regexp += for TARGET_BASE_ARCH other than i386|
+endif
+# Target-dependent mips only:
+ifneq ($(TARGET_BASE_ARCH),mips)
+bad-header-regexp += for TARGET_BASE_ARCH other than mips|
+endif
 # Require <cpuid.h>:
 ifneq ($(CONFIG_CPUID_H),y)
 bad-header-regexp += without CONFIG_CPUID_H|

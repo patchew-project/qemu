@@ -1,8 +1,8 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_M48T59_H
 #define HW_M48T59_H
 
+#include "exec/hwaddr.h"
+#include "hw/irq.h"
 #include "qom/object.h"
 
 #define TYPE_NVRAM "nvram"

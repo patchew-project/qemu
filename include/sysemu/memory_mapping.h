@@ -11,12 +11,15 @@
  *
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef MEMORY_MAPPING_H
 #define MEMORY_MAPPING_H
 
 #include "qemu/queue.h"
+#include "exec/cpu-common.h"
+#include "exec/cpu-defs.h"
 #include "exec/memory.h"
 
 typedef struct GuestPhysBlock {

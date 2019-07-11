@@ -25,7 +25,7 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef XICS_SPAPR_H
 #define XICS_SPAPR_H

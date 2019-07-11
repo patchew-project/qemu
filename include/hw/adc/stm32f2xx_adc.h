@@ -22,10 +22,10 @@
  * THE SOFTWARE.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_STM32F2XX_ADC_H
 #define HW_STM32F2XX_ADC_H
+
+#include "hw/sysbus.h"
 
 #define ADC_SR    0x00
 #define ADC_CR1   0x04

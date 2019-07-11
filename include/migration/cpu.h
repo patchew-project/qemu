@@ -1,10 +1,11 @@
 /* Declarations for use for CPU state serialization.  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
 
 #ifndef MIGRATION_CPU_H
 #define MIGRATION_CPU_H
+
+#include "exec/cpu-defs.h"
 
 #if TARGET_LONG_BITS == 64
 #define qemu_put_betl qemu_put_be64

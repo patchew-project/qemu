@@ -1,7 +1,8 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_ETRAXFS_DMA_H
 #define HW_ETRAXFS_DMA_H
+
+#include "exec/hwaddr.h"
+#include "hw/irq.h"
 
 struct dma_context_metadata {
 	/* data descriptor md */

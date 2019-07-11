@@ -1,7 +1,9 @@
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
 
 #ifndef HW_SPARC_SPARC64_H
 #define HW_SPARC_SPARC64_H
+
+#include "target/sparc/cpu-qom.h"
 
 #define IVEC_MAX             0x40
 

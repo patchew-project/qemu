@@ -15,11 +15,13 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers without CONFIG_SPICE, yet! */
+/* FIXME Does not pass make check-headers without system emulation, yet! */
 
 #ifndef UI_SPICE_DISPLAY_H
 #define UI_SPICE_DISPLAY_H
 
+#include <spice.h>
 #include <spice/ipc_ring.h>
 #include <spice/enums.h>
 #include <spice/qxl_dev.h>

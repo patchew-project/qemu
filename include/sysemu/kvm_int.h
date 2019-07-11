@@ -6,11 +6,11 @@
  *
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef QEMU_KVM_INT_H
 #define QEMU_KVM_INT_H
 
+#include "exec/cpu-common.h"
+#include "exec/memory.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/accel.h"
 #include "sysemu/kvm.h"

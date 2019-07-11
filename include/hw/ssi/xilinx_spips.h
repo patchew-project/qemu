@@ -22,14 +22,13 @@
  * THE SOFTWARE.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef XILINX_SPIPS_H
 #define XILINX_SPIPS_H
 
 #include "hw/ssi/ssi.h"
 #include "qemu/fifo32.h"
 #include "hw/stream.h"
+#include "hw/sysbus.h"
 
 typedef struct XilinxSPIPS XilinxSPIPS;
 

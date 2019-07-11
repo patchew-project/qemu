@@ -1,5 +1,3 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef MC146818RTC_H
 #define MC146818RTC_H
 

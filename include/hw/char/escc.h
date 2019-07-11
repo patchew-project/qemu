@@ -1,10 +1,9 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_ESCC_H
 #define HW_ESCC_H
 
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
+#include "hw/sysbus.h"
 #include "ui/input.h"
 
 /* escc.c */

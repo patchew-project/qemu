@@ -1,4 +1,6 @@
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than arm, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef HW_ARM_ALLWINNER_A10_H
 #define HW_ARM_ALLWINNER_A10_H
@@ -13,6 +15,7 @@
 #include "hw/ide/ahci.h"
 
 #include "sysemu/sysemu.h"
+#include "target/arm/cpu.h"
 
 
 #define AW_A10_PIC_REG_BASE     0x01c20400

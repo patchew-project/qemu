@@ -9,11 +9,10 @@
  * top-level directory.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef QEMU_VIRTIO_RNG_H
 #define QEMU_VIRTIO_RNG_H
 
+#include "hw/virtio/virtio.h"
 #include "sysemu/rng.h"
 #include "sysemu/rng-random.h"
 #include "standard-headers/linux/virtio_rng.h"

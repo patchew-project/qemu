@@ -1,7 +1,7 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_VT82C686_H
 #define HW_VT82C686_H
+
+#include "hw/irq.h"
 
 #define TYPE_VT82C686B_SUPERIO "vt82c686b-superio"
 

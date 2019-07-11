@@ -18,7 +18,7 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef PCI_HOST_SPAPR_H
 #define PCI_HOST_SPAPR_H

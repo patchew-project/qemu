@@ -7,10 +7,11 @@
  * Copyright (C) 2016 Ben Herrenschmidt
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef PMU_H
 #define PMU_H
+
+#include "hw/misc/mos6522.h"
+#include "hw/misc/macio/gpio.h"
 
 /*
  * PMU commands

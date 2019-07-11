@@ -1,5 +1,3 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef QEMU_HID_H
 #define QEMU_HID_H
 

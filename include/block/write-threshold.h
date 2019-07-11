@@ -10,11 +10,10 @@
  * See the COPYING.LIB file in the top-level directory.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef BLOCK_WRITE_THRESHOLD_H
 #define BLOCK_WRITE_THRESHOLD_H
 
+#include "block/block_int.h"
 
 /*
  * bdrv_write_threshold_set:

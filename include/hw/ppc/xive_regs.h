@@ -13,10 +13,11 @@
  * COPYING file in the top-level directory.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef PPC_XIVE_REGS_H
 #define PPC_XIVE_REGS_H
+
+#include "qemu/bswap.h"
+#include "qemu/host-utils.h"
 
 /*
  * Interrupt source number encoding on PowerBUS

@@ -1,11 +1,10 @@
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_FLASH_H
 #define HW_FLASH_H
 
 /* NOR flash devices */
 
 #include "exec/memory.h"
+#include "migration/vmstate.h"
 
 /* pflash_cfi01.c */
 

@@ -9,13 +9,15 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than mips, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef MIPS_GIC_H
 #define MIPS_GIC_H
 
 #include "qemu/units.h"
 #include "hw/timer/mips_gictimer.h"
+#include "hw/sysbus.h"
 #include "cpu.h"
 /*
  * GIC Specific definitions

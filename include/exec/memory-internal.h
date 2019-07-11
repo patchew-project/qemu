@@ -17,10 +17,12 @@
  * internals and the TCG TLB code. Do not include it from elsewhere.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
 
 #ifndef MEMORY_INTERNAL_H
 #define MEMORY_INTERNAL_H
+
+#include "cpu.h"
 
 #ifndef CONFIG_USER_ONLY
 static inline AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv)

@@ -20,8 +20,6 @@
  *
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef ALLWINNER_EMAC_H
 #define ALLWINNER_EMAC_H
 
@@ -29,6 +27,7 @@
 #include "net/net.h"
 #include "qemu/fifo8.h"
 #include "hw/net/mii.h"
+#include "hw/sysbus.h"
 
 #define TYPE_AW_EMAC "allwinner-emac"
 #define AW_EMAC(obj) OBJECT_CHECK(AwEmacState, (obj), TYPE_AW_EMAC)

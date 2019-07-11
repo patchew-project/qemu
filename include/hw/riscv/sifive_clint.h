@@ -17,10 +17,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_SIFIVE_CLINT_H
 #define HW_SIFIVE_CLINT_H
+
+#include "hw/sysbus.h"
 
 #define TYPE_SIFIVE_CLINT "riscv.sifive.clint"
 

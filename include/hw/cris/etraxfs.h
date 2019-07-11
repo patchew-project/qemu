@@ -22,13 +22,12 @@
  * THE SOFTWARE.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_ETRAXFS_H
 #define HW_ETRAXFS_H
 
 #include "net/net.h"
 #include "hw/cris/etraxfs_dma.h"
+#include "hw/sysbus.h"
 
 /* Instantiate an ETRAXFS Ethernet MAC.  */
 static inline DeviceState *

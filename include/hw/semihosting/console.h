@@ -7,10 +7,11 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
 
 #ifndef SEMIHOST_CONSOLE_H
 #define SEMIHOST_CONSOLE_H
+
+#include "cpu.h"
 
 /**
  * qemu_semihosting_console_outs:

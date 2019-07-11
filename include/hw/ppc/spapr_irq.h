@@ -7,10 +7,13 @@
  * COPYING file in the top-level directory.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
 
 #ifndef HW_SPAPR_IRQ_H
 #define HW_SPAPR_IRQ_H
+
+#include "hw/irq.h"
+#include "target/ppc/cpu-qom.h"
 
 /*
  * IRQ range offsets per device type

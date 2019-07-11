@@ -22,10 +22,15 @@
  * THE SOFTWARE.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef PPC4XX_H
 #define PPC4XX_H
+
+#include "hw/ppc/ppc.h"
+#include "exec/cpu-common.h"
+#include "exec/memory.h"
 
 /* PowerPC 4xx core initialization */
 PowerPCCPU *ppc4xx_init(const char *cpu_model,

@@ -21,10 +21,10 @@
  *
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef CRYPTODEV_VHOST_USER_H
 #define CRYPTODEV_VHOST_USER_H
+
+#include "sysemu/cryptodev-vhost.h"
 
 #define VHOST_USER_MAX_AUTH_KEY_LEN    512
 #define VHOST_USER_MAX_CIPHER_KEY_LEN  64

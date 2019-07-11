@@ -12,10 +12,10 @@
  *
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_MISC_PVPANIC_H
 #define HW_MISC_PVPANIC_H
+
+#include "qom/object.h"
 
 #define TYPE_PVPANIC "pvpanic"
 

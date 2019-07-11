@@ -18,7 +18,8 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than mips, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef MIPS_CPS_H
 #define MIPS_CPS_H
@@ -28,6 +29,7 @@
 #include "hw/intc/mips_gic.h"
 #include "hw/misc/mips_cpc.h"
 #include "hw/misc/mips_itu.h"
+#include "target/mips/cpu.h"
 
 #define TYPE_MIPS_CPS "mips-cps"
 #define MIPS_CPS(obj) OBJECT_CHECK(MIPSCPSState, (obj), TYPE_MIPS_CPS)

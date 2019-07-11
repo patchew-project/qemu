@@ -37,8 +37,6 @@
 /* decNumber.h or one of decDouble (etc.) must be included first.     */
 /* ------------------------------------------------------------------ */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef DECNUMBERLOCAL_H
 #define DECNUMBERLOCAL_H
 
@@ -46,6 +44,7 @@
   #define DECNLAUTHOR	"Mike Cowlishaw"	      /* Who to blame */
 
   #include "libdecnumber/dconfig.h"
+  #include "libdecnumber/decContext.h"
 
   /* Conditional code flag -- set this to match hardware platform     */
   /* 1=little-endian, 0=big-endian	                              */

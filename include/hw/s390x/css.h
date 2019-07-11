@@ -10,7 +10,7 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef CSS_H
 #define CSS_H
@@ -20,6 +20,7 @@
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/ioinst.h"
 #include "sysemu/kvm.h"
+#include "target/s390x/cpu-qom.h"
 
 /* Channel subsystem constants. */
 #define MAX_DEVNO 65535

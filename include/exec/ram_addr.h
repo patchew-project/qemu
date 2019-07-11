@@ -17,12 +17,12 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
 
 #ifndef RAM_ADDR_H
 #define RAM_ADDR_H
 
 #ifndef CONFIG_USER_ONLY
+#include "cpu.h"
 #include "hw/xen/xen.h"
 #include "sysemu/tcg.h"
 #include "exec/ramlist.h"

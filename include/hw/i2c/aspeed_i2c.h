@@ -18,12 +18,11 @@
  *  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef ASPEED_I2C_H
 #define ASPEED_I2C_H
 
 #include "hw/i2c/i2c.h"
+#include "hw/sysbus.h"
 
 #define TYPE_ASPEED_I2C "aspeed.i2c"
 #define ASPEED_I2C(obj) \

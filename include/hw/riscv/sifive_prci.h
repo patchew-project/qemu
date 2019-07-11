@@ -16,10 +16,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef HW_SIFIVE_PRCI_H
 #define HW_SIFIVE_PRCI_H
+
+#include "hw/sysbus.h"
 
 enum {
     SIFIVE_PRCI_HFROSCCFG   = 0x0,

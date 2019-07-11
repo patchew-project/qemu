@@ -11,11 +11,11 @@
 /* header to be included in non-HVF-specific code */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
 
 #ifndef HVF_H
 #define HVF_H
 
+#include "cpu.h"
 #include "qemu/bitops.h"
 #include "exec/memory.h"
 #include "sysemu/accel.h"

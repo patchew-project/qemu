@@ -21,10 +21,10 @@
  * IO ports API
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef IOPORT_H
 #define IOPORT_H
+
+#include "exec/memory.h"
 
 #define MAX_IOPORTS     (64 * 1024)
 #define IOPORTS_MASK    (MAX_IOPORTS - 1)

@@ -19,7 +19,8 @@
  */
 
 /* NOTE: May only be included into target-dependent code */
-/* FIXME Does not pass make check-headers, yet! */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than i386, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef QEMU_APIC_INTERNAL_H
 #define QEMU_APIC_INTERNAL_H
@@ -27,6 +28,7 @@
 #include "cpu.h"
 #include "exec/memory.h"
 #include "qemu/timer.h"
+#include "target/i386/cpu-qom.h"
 
 /* APIC Local Vector Table */
 #define APIC_LVT_TIMER                  0

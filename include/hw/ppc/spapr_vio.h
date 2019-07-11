@@ -1,7 +1,10 @@
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef HW_SPAPR_VIO_H
 #define HW_SPAPR_VIO_H
+
+#include "hw/ppc/spapr.h"
 
 /*
  * QEMU sPAPR VIO bus definitions
@@ -39,15 +42,15 @@
 
 #define TYPE_SPAPR_VIO_BRIDGE "spapr-vio-bridge"
 
+typedef struct SpaprVioDevice SpaprVioDevice;
+typedef struct SpaprVioBus SpaprVioBus;
+
 typedef struct SpaprVioCrq {
     uint64_t qladdr;
     uint32_t qsize;
     uint32_t qnext;
     int(*SendFunc)(struct SpaprVioDevice *vdev, uint8_t *crq);
 } SpaprVioCrq;
-
-typedef struct SpaprVioDevice SpaprVioDevice;
-typedef struct SpaprVioBus SpaprVioBus;
 
 typedef struct SpaprVioDeviceClass {
     DeviceClass parent_class;

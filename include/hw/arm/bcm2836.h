@@ -8,13 +8,16 @@
  * This code is licensed under the GNU GPLv2 and later.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for TARGET_BASE_ARCH other than arm, yet! */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef BCM2836_H
 #define BCM2836_H
 
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
+#include "target/arm/cpu.h"
 
 #define TYPE_BCM283X "bcm283x"
 #define BCM283X(obj) OBJECT_CHECK(BCM283XState, (obj), TYPE_BCM283X)

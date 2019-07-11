@@ -1,4 +1,5 @@
-/* FIXME Does not pass make check-headers, yet! */
+#ifndef UI_PIXEL_OPS_H
+#define UI_PIXEL_OPS_H
 
 static inline unsigned int rgb_to_pixel8(unsigned int r, unsigned int g,
                                          unsigned int b)
@@ -53,3 +54,5 @@ static inline unsigned int rgb_to_pixel32bgr(unsigned int r, unsigned int g,
 {
     return (b << 16) | (g << 8) | r;
 }
+
+#endif

@@ -15,10 +15,10 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef CHRP_NVRAM_H
 #define CHRP_NVRAM_H
+
+#include "qemu/bswap.h"
 
 /* OpenBIOS NVRAM partition */
 typedef struct {

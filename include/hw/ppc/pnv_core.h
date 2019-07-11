@@ -17,12 +17,14 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
+/* NOTE: May only be included into target-dependent code */
+/* FIXME Does not pass make check-headers for user emulation, yet! */
 
 #ifndef PPC_PNV_CORE_H
 #define PPC_PNV_CORE_H
 
 #include "hw/cpu/core.h"
+#include "target/ppc/cpu.h"
 
 #define TYPE_PNV_CORE "powernv-cpu-core"
 #define PNV_CORE(obj) \

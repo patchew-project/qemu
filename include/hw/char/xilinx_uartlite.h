@@ -12,10 +12,10 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* FIXME Does not pass make check-headers, yet! */
-
 #ifndef XILINX_UARTLITE_H
 #define XILINX_UARTLITE_H
+
+#include "hw/sysbus.h"
 
 static inline DeviceState *xilinx_uartlite_create(hwaddr addr,
                                         qemu_irq irq,
