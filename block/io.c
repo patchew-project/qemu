@@ -3064,6 +3064,57 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs)
     }
 }
 
+static int coroutine_fn bdrv_co_truncate_fallback(BdrvChild *child,
+                                                  int64_t offset,
+                                                  PreallocMode prealloc,
+                                                  Error **errp)
+{
+    BlockDriverState *bs = child->bs;
+    int64_t cur_size = bdrv_getlength(bs);
+
+    if (cur_size < 0) {
+        error_setg_errno(errp, -cur_size,
+                         "Failed to inquire current file size");
+        return cur_size;
+    }
+
+    if (prealloc != PREALLOC_MODE_OFF) {
+        error_setg(errp, "Unsupported preallocation mode: %s",
+                   PreallocMode_str(prealloc));
+        return -ENOTSUP;
+    }
+
+    if (offset > cur_size) {
+        error_setg(errp, "Cannot grow this %s node", bs->drv->format_name);
+        return -ENOTSUP;
+    }
+
+    /*
+     * Overwrite first "post-EOF" parts of the first sector with
+     * zeroes so raw images will not be misprobed
+     */
+    if (offset < BDRV_SECTOR_SIZE && offset < cur_size) {
+        int64_t fill_len = MIN(BDRV_SECTOR_SIZE - offset, cur_size - offset);
+        int ret;
+
+        if (!(child->perm & BLK_PERM_WRITE)) {
+            error_setg(errp, "Cannot write to this node to clear the file past "
+                       "the truncated EOF");
+            return -EPERM;
+        }
+
+        ret = bdrv_co_pwrite_zeroes(child, offset, fill_len, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret,
+                             "Failed to clear file past the truncated EOF");
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+
 /**
  * Truncate file to 'offset' bytes (needed only for file protocols)
  */
@@ -3074,6 +3125,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
     int64_t old_size, new_bytes;
+    Error *local_err = NULL;
     int ret;
 
 
@@ -3127,15 +3179,24 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
             ret = bdrv_co_truncate(bs->file, offset, prealloc, errp);
             goto out;
         }
-        error_setg(errp, "Image format driver does not support resize");
+        error_setg(&local_err, "Image format driver does not support resize");
         ret = -ENOTSUP;
+    } else {
+        ret = drv->bdrv_co_truncate(bs, offset, prealloc, &local_err);
+    }
+
+    if (ret == -ENOTSUP && drv->bdrv_file_open) {
+        error_free(local_err);
+
+        ret = bdrv_co_truncate_fallback(child, offset, prealloc, errp);
+        if (ret < 0) {
+            goto out;
+        }
+    } else if (ret < 0) {
+        error_propagate(errp, local_err);
         goto out;
     }
 
-    ret = drv->bdrv_co_truncate(bs, offset, prealloc, errp);
-    if (ret < 0) {
-        goto out;
-    }
     ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
