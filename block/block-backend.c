@@ -2041,6 +2041,60 @@ int blk_truncate(BlockBackend *blk, int64_t offset, PreallocMode prealloc,
     return bdrv_truncate(blk->root, offset, prealloc, errp);
 }
 
+int blk_truncate_for_formatting(BlockBackend *blk, int64_t offset, Error **errp)
+{
+    Error *local_err = NULL;
+    int64_t current_size;
+    int bytes_to_clear;
+    int ret;
+
+    ret = blk_truncate(blk, offset, PREALLOC_MODE_OFF, &local_err);
+    if (ret < 0 && ret != -ENOTSUP) {
+        error_propagate(errp, local_err);
+        return ret;
+    } else if (ret >= 0) {
+        return ret;
+    }
+
+    current_size = blk_getlength(blk);
+    if (current_size < 0) {
+        error_free(local_err);
+        error_setg_errno(errp, -current_size,
+                         "Failed to inquire new image file's current length");
+        return current_size;
+    }
+
+    if (current_size < offset) {
+        /* Need to grow the image, but we failed to do that */
+        error_propagate(errp, local_err);
+        return -ENOTSUP;
+    }
+
+    error_free(local_err);
+    /*
+     * We can deal with images that are too big.  We just need to
+     * clear the first sector.
+     */
+
+    bytes_to_clear = MIN(current_size, BDRV_SECTOR_SIZE) - offset;
+    if (bytes_to_clear) {
+        if (!(blk->root->perm & BLK_PERM_WRITE)) {
+            error_setg(errp, "Cannot clear first sector of new image: "
+                       "Write permission missing");
+            return -EPERM;
+        }
+
+        ret = blk_pwrite_zeroes(blk, offset, bytes_to_clear, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to clear the first sector of "
+                             "the new image");
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 static void blk_pdiscard_entry(void *opaque)
 {
     BlkRwCo *rwco = opaque;

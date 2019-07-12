@@ -236,6 +236,18 @@ int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
                           int bytes);
 int blk_truncate(BlockBackend *blk, int64_t offset, PreallocMode prealloc,
                  Error **errp);
+
+/**
+ * Wrapper of blk_truncate() for format drivers that need to truncate
+ * their protocol node before formatting it.
+ * Invoke blk_truncate() to truncate the file to @offset; if that
+ * fails with -ENOTSUP (and the file is already big enough), try to
+ * overwrite the first sector with zeroes.  If that succeeds, return
+ * success.
+ */
+int blk_truncate_for_formatting(BlockBackend *blk, int64_t offset,
+                                Error **errp);
+
 int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes);
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size);
