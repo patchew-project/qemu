@@ -82,7 +82,7 @@ config USB_NETWORK
 config USB_BLUETOOTH
     bool
     default y
-    depends on USB
+    depends on USB && BLUETOOTH
 
 config USB_SMARTCARD
     bool
