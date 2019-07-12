@@ -673,7 +673,7 @@ static int coroutine_fn bdrv_qed_co_create(BlockdevCreateOptions *opts,
     l1_size = header.cluster_size * header.table_size;
 
     /* File must start empty and grow, check truncate is supported */
-    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate_for_formatting(blk, 0, errp);
     if (ret < 0) {
         goto out;
     }

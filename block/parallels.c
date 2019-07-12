@@ -563,7 +563,7 @@ static int coroutine_fn parallels_co_create(BlockdevCreateOptions* opts,
     blk_set_allow_write_beyond_eof(blk, true);
 
     /* Create image format */
-    ret = blk_truncate(blk, 0, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate_for_formatting(blk, 0, errp);
     if (ret < 0) {
         goto out;
     }

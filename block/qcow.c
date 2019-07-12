@@ -858,7 +858,7 @@ static int coroutine_fn qcow_co_create(BlockdevCreateOptions *opts,
     blk_set_allow_write_beyond_eof(qcow_blk, true);
 
     /* Create image format */
-    ret = blk_truncate(qcow_blk, 0, PREALLOC_MODE_OFF, errp);
+    ret = blk_truncate_for_formatting(qcow_blk, 0, errp);
     if (ret < 0) {
         goto exit;
     }
