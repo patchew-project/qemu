@@ -1733,6 +1733,13 @@ F: hw/*/*xive*
 F: include/hw/*/*xive*
 F: docs/*/*xive*
 
+Bluetooth
+S: Orphan
+F: bt-*.c
+F: hw/bt/
+F: include/hw/bt.h
+F: include/sysemu/bt.h
+
 Subsystems
 ----------
 Audio
