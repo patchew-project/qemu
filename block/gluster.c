@@ -931,7 +931,16 @@ static int qemu_gluster_reopen_prepare(BDRVReopenState *state,
     gconf->has_debug = true;
     gconf->logfile = g_strdup(s->logfile);
     gconf->has_logfile = true;
-    reop_s->glfs = qemu_gluster_init(gconf, state->bs->filename, NULL, errp);
+    /*
+     * If 'bs->filename' starts with "json:", then 'state->options' will
+     * contain the parameters already parsed.
+     */
+    if (state->bs->filename && !strstart(state->bs->filename, "json:", NULL)) {
+        reop_s->glfs = qemu_gluster_init(gconf, state->bs->filename, NULL,
+                                         errp);
+    } else {
+        reop_s->glfs = qemu_gluster_init(gconf, NULL, state->options, errp);
+    }
     if (reop_s->glfs == NULL) {
         ret = -errno;
         goto exit;
