@@ -198,6 +198,7 @@ struct SpaprMachineState {
     SpaprXive  *xive;
     SpaprIrq *irq;
     qemu_irq *qirqs;
+    char *tpm_device_file;
 
     bool cmd_line_caps[SPAPR_CAP_NUM];
     SpaprCapabilities def, eff, mig;
@@ -490,8 +491,9 @@ struct SpaprMachineState {
 #define H_INT_ESB               0x3C8
 #define H_INT_SYNC              0x3CC
 #define H_INT_RESET             0x3D0
+#define H_TPM_COMM              0xEF10
 
-#define MAX_HCALL_OPCODE        H_INT_RESET
+#define MAX_HCALL_OPCODE        H_TPM_COMM
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
@@ -864,6 +866,9 @@ int spapr_caps_post_migration(SpaprMachineState *spapr);
 
 void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
                           Error **errp);
+
+void spapr_hcall_tpm_reset(void);
+
 /*
  * XIVE definitions
  */

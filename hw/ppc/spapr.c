@@ -1776,6 +1776,10 @@ static void spapr_machine_reset(MachineState *machine)
      */
     object_child_foreach_recursive(object_get_root(), spapr_reset_drcs, NULL);
 
+    if (spapr->tpm_device_file) {
+        spapr_hcall_tpm_reset();
+    }
+
     spapr_clear_pending_events(spapr);
 
     /*
@@ -3340,6 +3344,21 @@ static void spapr_set_host_serial(Object *obj, const char *value, Error **errp)
     spapr->host_serial = g_strdup(value);
 }
 
+static char *spapr_get_tpm_device_file(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return g_strdup(spapr->tpm_device_file);
+}
+
+static void spapr_set_tpm_device_file(Object *obj, const char *value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    g_free(spapr->tpm_device_file);
+    spapr->tpm_device_file = g_strdup(value);
+}
+
 static void spapr_instance_init(Object *obj)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3396,6 +3415,14 @@ static void spapr_instance_init(Object *obj)
         &error_abort);
     object_property_set_description(obj, "host-serial",
         "Host serial number to advertise in guest device tree", &error_abort);
+    object_property_add_str(obj, "tpm-device-file",
+                            spapr_get_tpm_device_file,
+                            spapr_set_tpm_device_file, &error_abort);
+    object_property_set_description(obj, "tpm-device-file",
+                 "Specifies the path to the TPM character device file to use"
+                 " for TPM communication via hypercalls (usually a TPM"
+                 " resource manager)",
+                 &error_abort);
 }
 
 static void spapr_machine_finalizefn(Object *obj)
