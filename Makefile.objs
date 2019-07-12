@@ -65,8 +65,9 @@ common-obj-y += replay/
 
 common-obj-y += ui/
 common-obj-m += ui/
-common-obj-y += bt-host.o bt-vhci.o bt-opts.o
 bt-host.o-cflags := $(BLUEZ_CFLAGS)
+common-obj-$(CONFIG_BLUETOOTH) += bt-host.o bt-vhci.o bt-opts.o
+common-obj-$(call lnot,$(CONFIG_BLUETOOTH)) += bt-stubs.o
 
 common-obj-y += dma-helpers.o
 common-obj-y += vl.o
