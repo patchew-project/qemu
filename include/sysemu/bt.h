@@ -17,4 +17,7 @@ typedef struct HCIInfo {
 struct HCIInfo *bt_host_hci(const char *id);
 struct HCIInfo *qemu_next_hci(void);
 
+/* TODO Convert bt-opts.c to opts_init() and remove from here. */
+int bt_parse(const char *opt);
+
 #endif
