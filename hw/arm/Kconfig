@@ -106,6 +106,7 @@ config NSERIES
     select LM832X   # GPIO keyboard chip
     select TWL92230 # energy-management
     select TUSB6010
+    select BLUETOOTH
 
 config OMAP
     bool
