@@ -978,8 +978,7 @@ static struct bt_device_s *bt_device_add(const char *opt)
     pstrcpy(devname, MIN(sizeof(devname), len), opt);
 
     if (endp) {
-        vlan_id = strtol(endp + 6, &endp, 0);
-        if (*endp) {
+        if (qemu_strtoi(endp + 6, (const char **)&endp, 0, &vlan_id) < 0) {
             error_report("unrecognised bluetooth vlan Id");
             return 0;
         }
@@ -1019,8 +1018,7 @@ static int bt_parse(const char *opt)
         if (!*endp || *endp == ',') {
             if (*endp) {
                 if (strstart(endp, ",vlan=", &p)) {
-                    vlan = strtol(p, (char **) &endp, 0);
-                    if (*endp) {
+                    if (qemu_strtoi(p, &endp, 0, &vlan) < 0) {
                         error_report("bad scatternet '%s'", p);
                         return 1;
                     }
