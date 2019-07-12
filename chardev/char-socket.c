@@ -490,6 +490,16 @@ static void tcp_chr_disconnect(Chardev *chr)
     }
 }
 
+/*
+ * Call to allow the write operation to complete
+ */
+static void tcp_chr_disconnect_locked(Chardev *chr)
+{
+    qemu_mutex_lock(&chr->chr_write_lock);
+    tcp_chr_disconnect(chr);
+    qemu_mutex_unlock(&chr->chr_write_lock);
+}
+
 static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
 {
     Chardev *chr = CHARDEV(opaque);
@@ -508,7 +518,7 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     size = tcp_chr_recv(chr, (void *)buf, len);
     if (size == 0 || (size == -1 && errno != EAGAIN)) {
         /* connection closed */
-        tcp_chr_disconnect(chr);
+        tcp_chr_disconnect_locked(chr);
     } else if (size > 0) {
         if (s->do_telnetopt) {
             tcp_chr_process_IAC_bytes(chr, s, buf, &size);
@@ -544,7 +554,7 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
     qio_channel_set_blocking(s->ioc, false, NULL);
     if (size == 0) {
         /* connection closed */
-        tcp_chr_disconnect(chr);
+        tcp_chr_disconnect_locked(chr);
     }
 
     return size;
