@@ -61,6 +61,7 @@ typedef struct BDRVNBDState {
     CoMutex send_mutex;
     CoQueue free_sema;
     Coroutine *connection_co;
+    Coroutine *teardown_co;
     int in_flight;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
@@ -135,7 +136,15 @@ static void nbd_teardown_connection(BlockDriverState *bs)
     qio_channel_shutdown(s->ioc,
                          QIO_CHANNEL_SHUTDOWN_BOTH,
                          NULL);
-    BDRV_POLL_WHILE(bs, s->connection_co);
+    if (qemu_in_coroutine()) {
+        s->teardown_co = qemu_coroutine_self();
+        /* connection_co resumes us when it terminates */
+        qemu_coroutine_yield();
+        s->teardown_co = NULL;
+    } else {
+        BDRV_POLL_WHILE(bs, s->connection_co);
+    }
+    assert(!s->connection_co);
 
     nbd_client_detach_aio_context(bs);
     object_unref(OBJECT(s->sioc));
@@ -207,6 +216,9 @@ static coroutine_fn void nbd_connection_entry(void *opaque)
     bdrv_dec_in_flight(s->bs);
 
     s->connection_co = NULL;
+    if (s->teardown_co) {
+        aio_co_wake(s->teardown_co);
+    }
     aio_wait_kick();
 }
 
