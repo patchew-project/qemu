@@ -262,7 +262,7 @@ static void monitor_qapi_event_emit(QAPIEvent event, QDict *qdict)
         }
 
         qmp_mon = container_of(mon, MonitorQMP, common);
-        if (qmp_mon->commands != &qmp_cap_negotiation_commands) {
+        if (qmp_mon->session.cmds != &qmp_cap_negotiation_commands) {
             qmp_send_response(qmp_mon, qdict);
         }
     }

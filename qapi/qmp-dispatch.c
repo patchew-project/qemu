@@ -163,15 +163,24 @@ bool qmp_is_oob(const QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
-QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
-                    bool allow_oob)
+void qmp_session_init(QmpSession *session, const QmpCommandList *cmds)
+{
+    session->cmds = cmds;
+}
+
+void qmp_session_destroy(QmpSession *session)
+{
+    session->cmds = NULL;
+}
+
+QDict *qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)
 {
     Error *err = NULL;
     QDict *dict = qobject_to(QDict, request);
     QObject *ret, *id = dict ? qdict_get(dict, "id") : NULL;
     QDict *rsp;
 
-    ret = do_qmp_dispatch(cmds, request, allow_oob, &err);
+    ret = do_qmp_dispatch(session->cmds, request, allow_oob, &err);
     if (err) {
         rsp = qmp_error_response(err);
     } else if (ret) {

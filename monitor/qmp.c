@@ -117,11 +117,11 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
     old_mon = cur_mon;
     cur_mon = &mon->common;
 
-    rsp = qmp_dispatch(mon->commands, req, qmp_oob_enabled(mon));
+    rsp = qmp_dispatch(&mon->session, req, qmp_oob_enabled(mon));
 
     cur_mon = old_mon;
 
-    if (mon->commands == &qmp_cap_negotiation_commands) {
+    if (mon->session.cmds == &qmp_cap_negotiation_commands) {
         error = qdict_get_qdict(rsp, "error");
         if (error
             && !g_strcmp0(qdict_get_try_str(error, "class"),
@@ -318,7 +318,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        mon->commands = &qmp_cap_negotiation_commands;
+        qmp_session_init(&mon->session, &qmp_cap_negotiation_commands);
         monitor_qmp_caps_reset(mon);
         data = qmp_greeting(mon);
         qmp_send_response(mon, data);
@@ -333,6 +333,7 @@ static void monitor_qmp_event(void *opaque, int event)
          * is closed.
          */
         monitor_qmp_cleanup_queues(mon);
+        qmp_session_destroy(&mon->session);
         json_message_parser_destroy(&mon->parser);
         json_message_parser_init(&mon->parser, handle_qmp_command,
                                  mon, NULL);
@@ -344,6 +345,7 @@ static void monitor_qmp_event(void *opaque, int event)
 
 void monitor_data_destroy_qmp(MonitorQMP *mon)
 {
+    qmp_session_destroy(&mon->session);
     json_message_parser_destroy(&mon->parser);
     qemu_mutex_destroy(&mon->qmp_queue_lock);
     monitor_qmp_cleanup_req_queue_locked(mon);
