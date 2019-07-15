@@ -2341,7 +2341,7 @@ void hmp_screendump(Monitor *mon, const QDict *qdict)
     int64_t head = qdict_get_try_int(qdict, "head", 0);
     Error *err = NULL;
 
-    qmp_screendump(filename, id != NULL, id, id != NULL, head, &err);
+    hmp_screendump_sync(filename, id != NULL, id, id != NULL, head, &err);
     hmp_handle_error(mon, &err);
 }
 
