@@ -391,13 +391,17 @@ void monitor_init_qmp(Chardev *chr, bool pretty)
     }
 }
 
-Monitor *qmp_return_get_monitor(QmpReturn *qret)
+Monitor *qmp_return_get_monitor(QmpReturn *qret, bool hmp)
 {
-    MonitorQMP *mon;
-
     if (!qret->session) {
         return NULL;
     }
-    mon = container_of(qret->session, MonitorQMP, session);
-    return &mon->common;
+
+    if (hmp) {
+        MonitorHMP *hmp = container_of(qret->session, MonitorHMP, qmp_session);
+        return &hmp->common;
+    } else {
+        MonitorQMP *qmp = container_of(qret->session, MonitorQMP, session);
+        return &qmp->common;
+    }
 }

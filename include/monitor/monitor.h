@@ -44,6 +44,6 @@ int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd);
 void monitor_fdset_dup_fd_remove(int dup_fd);
 int64_t monitor_fdset_dup_fd_find(int dup_fd);
 
-Monitor *qmp_return_get_monitor(QmpReturn *qret);
+Monitor *qmp_return_get_monitor(QmpReturn *qret, bool hmp);
 
 #endif /* MONITOR_H */

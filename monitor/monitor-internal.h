@@ -73,7 +73,10 @@ typedef struct HMPCommand {
     const char *params;
     const char *help;
     const char *flags; /* p=preconfig */
-    void (*cmd)(Monitor *mon, const QDict *qdict);
+    union {
+        void (*cmd)(Monitor *mon, const QDict *qdict);
+        void (*async_cmd)(Monitor *mon, const QDict *qdict, QmpReturn *qret);
+    };
     /*
      * @sub_table is a list of 2nd level of commands. If it does not exist,
      * cmd should be used. If it exists, sub_table[?].cmd should be
@@ -81,6 +84,7 @@ typedef struct HMPCommand {
      */
     struct HMPCommand *sub_table;
     void (*command_completion)(ReadLineState *rs, int nb_args, const char *str);
+    bool async;
 } HMPCommand;
 
 struct Monitor {
@@ -121,6 +125,8 @@ struct MonitorHMP {
      * These members can be safely accessed without locks.
      */
     ReadLineState *rs;
+    QmpReturn *for_qmp_command;
+    QmpSession qmp_session;
 };
 
 typedef struct {
@@ -176,7 +182,6 @@ void monitor_qmp_bh_dispatcher(void *data);
 
 int get_monitor_def(int64_t *pval, const char *name);
 void help_cmd(Monitor *mon, const char *name);
-void handle_hmp_command(MonitorHMP *mon, const char *cmdline);
 int hmp_compare_cmd(const char *name, const char *list);
 
 #endif

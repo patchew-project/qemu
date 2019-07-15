@@ -26,17 +26,23 @@
 #include <dirent.h>
 #include "monitor-internal.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-misc.h"
+#include "qapi/qmp/qerror.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qstring.h"
 #include "qemu/config-file.h"
 #include "qemu/ctype.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/option.h"
 #include "qemu/units.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+
+static bool handle_hmp_command(MonitorHMP *mon, const char *cmdline);
 
 static void monitor_command_cb(void *opaque, const char *cmdline,
                                void *readline_opaque)
@@ -1056,7 +1062,7 @@ fail:
     return NULL;
 }
 
-void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
+static bool handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 {
     QDict *qdict;
     const HMPCommand *cmd;
@@ -1066,7 +1072,7 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
 
     cmd = monitor_parse_command(mon, cmdline, &cmdline, hmp_cmds);
     if (!cmd) {
-        return;
+        return false;
     }
 
     qdict = monitor_parse_arguments(&mon->common, &cmdline, cmd);
@@ -1076,11 +1082,19 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
         }
         monitor_printf(&mon->common, "Try \"help %.*s\" for more information\n",
                        (int)(cmdline - cmd_start), cmd_start);
-        return;
+        return false;
     }
 
-    cmd->cmd(&mon->common, qdict);
+    if (cmd->async) {
+        QmpReturn *qret = qmp_return_new(&mon->qmp_session, NULL);
+        monitor_suspend(&mon->common);
+        cmd->async_cmd(&mon->common, qdict, qret);
+    } else {
+        cmd->cmd(&mon->common, qdict);
+    }
     qobject_unref(qdict);
+
+    return cmd->async;
 }
 
 static void cmd_completion(MonitorHMP *mon, const char *name, const char *list)
@@ -1395,6 +1409,59 @@ static void monitor_readline_flush(void *opaque)
     monitor_flush(&mon->common);
 }
 
+static void free_hmp_monitor(void *opaque)
+{
+    MonitorHMP *hmp = opaque;
+
+    qmp_session_destroy(&hmp->qmp_session);
+    monitor_data_destroy(&hmp->common);
+    g_free(hmp);
+}
+
+static AioContext *monitor_get_aio_context(void)
+{
+    return iothread_get_aio_context(mon_iothread);
+}
+
+static void qmp_human_monitor_command_finish(MonitorHMP *hmp, QmpReturn *qret)
+{
+    char *output;
+
+    qemu_mutex_lock(&hmp->common.mon_lock);
+    if (qstring_get_length(hmp->common.outbuf) > 0) {
+        output = g_strdup(qstring_get_str(hmp->common.outbuf));
+    } else {
+        output = g_strdup("");
+    }
+    qemu_mutex_unlock(&hmp->common.mon_lock);
+
+    qmp_human_monitor_command_return(qret, output);
+
+    if (hmp->for_qmp_command) {
+        aio_bh_schedule_oneshot(monitor_get_aio_context(),
+                                free_hmp_monitor, hmp);
+    }
+}
+
+static void hmp_dispatch_return_cb(QmpSession *session, QDict *rsp)
+{
+    MonitorHMP *hmp = container_of(session, MonitorHMP, qmp_session);
+    QDict *err = qdict_get_qdict(rsp, "error");
+    Monitor *old_mon = cur_mon;
+
+    cur_mon = &hmp->common;
+    if (err) {
+        error_report("%s", qdict_get_str(err, "desc"));
+    } /* XXX: else, report depending on command */
+
+    if (hmp->for_qmp_command) {
+        qmp_human_monitor_command_finish(hmp, hmp->for_qmp_command);
+    } else {
+        monitor_resume(&hmp->common);
+    }
+    cur_mon = old_mon;
+}
+
 void monitor_init_hmp(Chardev *chr, bool use_readline)
 {
     MonitorHMP *mon = g_new0(MonitorHMP, 1);
@@ -1411,7 +1478,42 @@ void monitor_init_hmp(Chardev *chr, bool use_readline)
         monitor_read_command(mon, 0);
     }
 
+    qmp_session_init(&mon->qmp_session,
+                     NULL, NULL, hmp_dispatch_return_cb);
     qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read, monitor_read,
                              monitor_event, NULL, &mon->common, NULL, true);
     monitor_list_append(&mon->common);
+}
+
+void qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
+                               int64_t cpu_index, QmpReturn *qret)
+{
+    Monitor *old_mon;
+    MonitorHMP *hmp = g_new0(MonitorHMP, 1);
+
+    monitor_data_init(&hmp->common, false, true, false);
+    qmp_session_init(&hmp->qmp_session, NULL, NULL, hmp_dispatch_return_cb);
+    hmp->for_qmp_command = qret;
+
+    old_mon = cur_mon;
+    cur_mon = &hmp->common;
+
+    if (has_cpu_index) {
+        int ret = monitor_set_cpu(cpu_index);
+        if (ret < 0) {
+            Error *err = NULL;
+            error_setg(&err, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                       "a CPU number");
+            qmp_return_error(qret, err);
+            free_hmp_monitor(hmp);
+            goto out;
+        }
+    }
+
+    if (!handle_hmp_command(hmp, command_line)) {
+        qmp_human_monitor_command_finish(hmp, qret);
+    }
+
+out:
+    cur_mon = old_mon;
 }
