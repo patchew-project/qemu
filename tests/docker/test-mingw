@@ -29,6 +29,7 @@ for prefix in x86_64-w64-mingw32- i686-w64-mingw32-; do
         --enable-bzip2 \
         --enable-guest-agent
     install_qemu
+    make installer
     make clean
 
 done
