@@ -94,6 +94,7 @@ ENV PACKAGES \
     zlib-devel
 ENV QEMU_CONFIGURE_OPTS --python=/usr/bin/python3
 
-RUN dnf install -y $PACKAGES
+RUN echo zchunk=False >> /etc/dnf/dnf.conf
+RUN dnf clean metadata && dnf install -y $PACKAGES
 RUN rpm -q $PACKAGES | sort > /packages.txt
 ENV FEATURES mingw clang pyyaml asan
