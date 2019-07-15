@@ -206,7 +206,8 @@ const QLitObject %(c_name)s = %(c_string)s;
                            for m in variants.variants]}, ifcond)
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig):
+                      success_response, boxed, allow_oob, allow_preconfig,
+                      asyn):
         arg_type = arg_type or self._schema.the_empty_object_type
         ret_type = ret_type or self._schema.the_empty_object_type
         obj = {'arg-type': self._use_type(arg_type),

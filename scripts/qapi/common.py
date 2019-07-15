@@ -1138,7 +1138,7 @@ def check_exprs(exprs):
             meta = 'command'
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response',
-                        'boxed', 'allow-oob', 'allow-preconfig', 'if'])
+                        'boxed', 'allow-oob', 'allow-preconfig', 'if', 'async'])
             normalize_members(expr.get('data'))
         elif 'event' in expr:
             meta = 'event'
@@ -1283,7 +1283,8 @@ class QAPISchemaVisitor(object):
         pass
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig):
+                      success_response, boxed, allow_oob, allow_preconfig,
+                      asyn):
         pass
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
@@ -1697,7 +1698,8 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
 class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
-                 gen, success_response, boxed, allow_oob, allow_preconfig):
+                 gen, success_response, boxed, allow_oob, allow_preconfig,
+                 asyn):
         QAPISchemaEntity.__init__(self, name, info, doc, ifcond)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -1710,6 +1712,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.boxed = boxed
         self.allow_oob = allow_oob
         self.allow_preconfig = allow_preconfig
+        self.asyn = asyn
 
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
@@ -1736,7 +1739,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
                               self.arg_type, self.ret_type,
                               self.gen, self.success_response,
                               self.boxed, self.allow_oob,
-                              self.allow_preconfig)
+                              self.allow_preconfig, self.asyn)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
@@ -1989,6 +1992,7 @@ class QAPISchema(object):
         allow_oob = expr.get('allow-oob', False)
         allow_preconfig = expr.get('allow-preconfig', False)
         ifcond = expr.get('if')
+        asyn = expr.get('async', False)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, doc, ifcond, 'arg', self._make_members(data, info))
@@ -1997,7 +2001,8 @@ class QAPISchema(object):
             rets = self._make_array_type(rets[0], info)
         self._def_entity(QAPISchemaCommand(name, info, doc, ifcond, data, rets,
                                            gen, success_response,
-                                           boxed, allow_oob, allow_preconfig))
+                                           boxed, allow_oob, allow_preconfig,
+                                           asyn))
 
     def _def_event(self, expr, info, doc):
         name = expr['event']

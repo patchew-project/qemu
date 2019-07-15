@@ -16,18 +16,36 @@ See the COPYING file in the top-level directory.
 from qapi.common import *
 
 
-def gen_command_decl(name, arg_type, boxed, ret_type):
-    return mcgen('''
+def gen_command_decl(name, arg_type, boxed, ret_type, success_response, asyn):
+    if asyn:
+        extra = "QmpReturn *qret"
+    else:
+        extra = 'Error **errp'
+
+    if asyn:
+        ret = mcgen('''
+void qmp_%(name)s(%(params)s);
+''',
+                     name=c_name(name),
+                     params=build_params(arg_type, boxed, extra))
+        if success_response:
+            ret += mcgen('''
+void qmp_%(name)s_return(QmpReturn *qret%(c_type)s);
+''',
+                        c_type=(", " + ret_type.c_type() if ret_type else ""),
+                        name=c_name(name))
+
+        return ret
+    else:
+        return mcgen('''
 %(c_type)s qmp_%(c_name)s(%(params)s);
 ''',
-                 c_type=(ret_type and ret_type.c_type()) or 'void',
-                 c_name=c_name(name),
-                 params=build_params(arg_type, boxed, 'Error **errp'))
+                     c_type=(ret_type and ret_type.c_type()) or 'void',
+                     c_name=c_name(name),
+                     params=build_params(arg_type, boxed, extra))
 
 
-def gen_call(name, arg_type, boxed, ret_type):
-    ret = ''
-
+def gen_argstr(arg_type, boxed):
     argstr = ''
     if boxed:
         assert arg_type and not arg_type.is_empty()
@@ -39,6 +57,13 @@ def gen_call(name, arg_type, boxed, ret_type):
                 argstr += 'arg.has_%s, ' % c_name(memb.name)
             argstr += 'arg.%s, ' % c_name(memb.name)
 
+    return argstr
+
+
+def gen_call(name, arg_type, boxed, ret_type):
+    ret = ''
+
+    argstr = gen_argstr(arg_type, boxed)
     lhs = ''
     if ret_type:
         lhs = 'retval = '
@@ -59,6 +84,50 @@ def gen_call(name, arg_type, boxed, ret_type):
                      c_name=ret_type.c_name())
     return ret
 
+
+def gen_async_call(name, arg_type, boxed):
+    argstr = gen_argstr(arg_type, boxed)
+
+    push_indent()
+    ret = mcgen('''
+
+qmp_%(c_name)s(%(args)sqret);
+''',
+                c_name=c_name(name), args=argstr)
+
+    pop_indent()
+    return ret
+
+
+def gen_async_return(name, ret_type):
+    if ret_type:
+        return mcgen('''
+
+void qmp_%(c_name)s_return(QmpReturn *qret, %(ret_type)s ret_in)
+{
+    Error *err = NULL;
+    QObject *ret_out = NULL;
+
+    qmp_marshal_output_%(ret_c_name)s(ret_in, &ret_out, &err);
+
+    if (err) {
+        qmp_return_error(qret, err);
+    } else {
+        qmp_return(qret, ret_out);
+    }
+}
+''',
+                     c_name=c_name(name),
+                     ret_type=ret_type.c_type(), ret_c_name=ret_type.c_name())
+    else:
+        return mcgen('''
+
+void qmp_%(c_name)s_return(QmpReturn *qret)
+{
+    qmp_return(qret, QOBJECT(qdict_new()));
+}
+''',
+                     c_name=c_name(name))
 
 def gen_marshal_output(ret_type):
     return mcgen('''
@@ -83,19 +152,22 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
                  c_type=ret_type.c_type(), c_name=ret_type.c_name())
 
 
-def build_marshal_proto(name):
-    return ('void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)'
-            % c_name(name))
+def build_marshal_proto(name, asyn):
+    if asyn:
+        tmpl = 'void qmp_marshal_%s(QDict *args, QmpReturn *qret)'
+    else:
+        tmpl = 'void qmp_marshal_%s(QDict *args, QObject **ret, Error **errp)'
+    return tmpl % c_name(name)
 
 
-def gen_marshal_decl(name):
+def gen_marshal_decl(name, asyn):
     return mcgen('''
 %(proto)s;
 ''',
-                 proto=build_marshal_proto(name))
+                 proto=build_marshal_proto(name, asyn))
 
 
-def gen_marshal(name, arg_type, boxed, ret_type):
+def gen_marshal(name, arg_type, boxed, ret_type, asyn):
     have_args = arg_type and not arg_type.is_empty()
 
     ret = mcgen('''
@@ -104,9 +176,9 @@ def gen_marshal(name, arg_type, boxed, ret_type):
 {
     Error *err = NULL;
 ''',
-                proto=build_marshal_proto(name))
+                proto=build_marshal_proto(name, asyn))
 
-    if ret_type:
+    if ret_type and not asyn:
         ret += mcgen('''
     %(c_type)s retval;
 ''',
@@ -153,12 +225,28 @@ def gen_marshal(name, arg_type, boxed, ret_type):
     }
 ''')
 
-    ret += gen_call(name, arg_type, boxed, ret_type)
+    if asyn:
+        ret += gen_async_call(name, arg_type, boxed)
+    else:
+        ret += gen_call(name, arg_type, boxed, ret_type)
 
     ret += mcgen('''
 
 out:
+''')
+
+    if asyn:
+        ret += mcgen('''
+    if (err) {
+        qmp_return_error(qret, err);
+    }
+''')
+    else:
+        ret += mcgen('''
     error_propagate(errp, err);
+''')
+
+    ret += mcgen('''
     visit_free(v);
 ''')
 
@@ -193,7 +281,8 @@ out:
     return ret
 
 
-def gen_register_command(name, success_response, allow_oob, allow_preconfig):
+def gen_register_command(name, success_response, allow_oob, allow_preconfig,
+                         asyn):
     options = []
 
     if not success_response:
@@ -202,17 +291,24 @@ def gen_register_command(name, success_response, allow_oob, allow_preconfig):
         options += ['QCO_ALLOW_OOB']
     if allow_preconfig:
         options += ['QCO_ALLOW_PRECONFIG']
+    if asyn:
+        options += ['QCO_ASYNC']
 
     if not options:
         options = ['QCO_NO_OPTIONS']
 
     options = " | ".join(options)
 
+    if asyn:
+        regfn = 'qmp_register_async_command'
+    else:
+        regfn = 'qmp_register_command'
+
     ret = mcgen('''
-    qmp_register_command(cmds, "%(name)s",
+    %(regfn)s(cmds, "%(name)s",
                          qmp_marshal_%(c_name)s, %(opts)s);
 ''',
-                name=name, c_name=c_name(name),
+                regfn=regfn, name=name, c_name=c_name(name),
                 opts=options)
     return ret
 
@@ -276,7 +372,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
         genc.add(gen_registry(self._regy.get_content(), self._prefix))
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig):
+                      success_response, boxed, allow_oob, allow_preconfig,
+                      asyn):
         if not gen:
             return
         # FIXME: If T is a user-defined type, the user is responsible
@@ -290,11 +387,15 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
                            self._genh, self._genc, self._regy):
                 self._genc.add(gen_marshal_output(ret_type))
         with ifcontext(ifcond, self._genh, self._genc, self._regy):
-            self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
-            self._genh.add(gen_marshal_decl(name))
-            self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
+            self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type,
+                                            success_response, asyn))
+            self._genh.add(gen_marshal_decl(name, asyn))
+            self._genc.add(gen_marshal(name, arg_type, boxed, ret_type, asyn))
+            if asyn and success_response:
+                self._genc.add(gen_async_return(name, ret_type))
             self._regy.add(gen_register_command(name, success_response,
-                                                allow_oob, allow_preconfig))
+                                                allow_oob, allow_preconfig,
+                                                asyn))
 
 
 def gen_commands(schema, output_dir, prefix):

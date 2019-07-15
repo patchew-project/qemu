@@ -34,6 +34,28 @@ void qmp_cmd_success_response(Error **errp)
 {
 }
 
+static gboolean cmd_async_idle(gpointer user_data)
+{
+    QmpReturn *qret = user_data;
+
+    qmp_cmd_async_return(qret, g_new0(Empty2, 1));
+
+    return G_SOURCE_REMOVE;
+}
+
+void qmp_cmd_async(const char *filename, QmpReturn *qret)
+{
+    g_idle_add(cmd_async_idle, qret);
+}
+
+void qmp_cmd_success_response_async(const char *filename, QmpReturn *qret)
+{
+    Error *err = NULL;
+
+    error_setg(&err, "no response, but error ok");
+    qmp_return_error(qret, err);
+}
+
 Empty2 *qmp_user_def_cmd0(Error **errp)
 {
     return g_new0(Empty2, 1);
@@ -366,6 +388,43 @@ static void test_qmp_return_orderly(void)
     qobject_unref(dict);
 }
 
+typedef struct QmpReturnAsync {
+    QmpSession session;
+    GMainLoop *loop;
+} QmpReturnAsync;
+
+static void dispatch_return_async(QmpSession *session, QDict *resp)
+{
+    QmpReturnAsync *a = container_of(session, QmpReturnAsync, session);
+
+    g_main_loop_quit(a->loop);
+    g_main_loop_unref(a->loop);
+    a->loop = NULL;
+}
+
+static void test_qmp_return_async(void)
+{
+    QmpReturnAsync a = { { 0, } , };
+    QDict *args = qdict_new();
+    QDict *req = qdict_new();
+
+    a.loop = g_main_loop_new(NULL, TRUE);
+    qmp_session_init(&a.session, &qmp_commands,
+                    NULL, dispatch_return_async);
+
+    qdict_put_str(args, "filename", "test-filename");
+    qdict_put_str(req, "execute", "cmd-async");
+    qdict_put(req, "arguments", args);
+    qmp_dispatch(&a.session, QOBJECT(req), false);
+    g_assert(a.loop);
+
+    g_main_loop_run(a.loop);
+    g_assert(!a.loop);
+
+    qmp_session_destroy(&a.session);
+    qobject_unref(req);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -379,6 +438,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qmp/dealloc_types", test_dealloc_types);
     g_test_add_func("/qmp/dealloc_partial", test_dealloc_partial);
     g_test_add_func("/qmp/return_orderly", test_qmp_return_orderly);
+    g_test_add_func("/qmp/return_async", test_qmp_return_async);
 
     test_qmp_init_marshal(&qmp_commands);
     g_test_run();
