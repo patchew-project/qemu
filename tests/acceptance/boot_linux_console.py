@@ -354,3 +354,69 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_riscv64_virt(self):
+        """
+        :avocado: tags=arch:riscv64
+        :avocado: tags=machine:virt
+        """
+        deb_url = ('https://snapshot.debian.org/archive/debian/'
+                         '20190424T171759Z/pool/main/b/binutils/'
+                         'binutils-riscv64-linux-gnu_2.32-8_amd64.deb')
+        deb_hash = ('7fe376fd4452696c03acd508d6d613ca553ea15e')
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        objcopy_path = '/usr/bin/riscv64-linux-gnu-objcopy'
+        objcopy_path = self.extract_from_deb(deb_path, objcopy_path)
+        libbfd_path = '/usr/lib/x86_64-linux-gnu/libbfd-2.32-riscv64.so'
+        libbfd_path = self.extract_from_deb(deb_path, libbfd_path)
+        process.run('ls -al %s' % (objcopy_path))
+
+        deb_url = ('https://snapshot.debian.org/archive/debian/'
+                   '20190708T032337Z/pool/main/o/opensbi/'
+                   'opensbi_0.4-1_all.deb')
+        deb_hash = ('2319dcd702958291d323acf5649fd98a11d90112')
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        opensbi_path = ('/usr/lib/riscv64-linux-gnu/opensbi/'
+                        'qemu/virt/fw_jump.elf')
+        opensbi_path = self.extract_from_deb(deb_path, opensbi_path)
+
+        deb_url = ('https://snapshot.debian.org/archive/debian-ports/'
+                   '20190620T095935Z/pool-riscv64/main/l/linux/'
+                   'linux-image-4.19.0-5-riscv64_4.19.37-4_riscv64.deb')
+        deb_hash = ('bf5b5680c41d92134d22caef4fbd277c5217e1f0')
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        kernel_path = '/boot/vmlinux-4.19.0-5-riscv64'
+        kernel_path = self.extract_from_deb(deb_path, kernel_path)
+        kimage_path = self.workdir + "/Image"
+        env = os.environ
+        env['LD_LIBRARY_PATH'] = ('%s:' % (os.path.dirname(libbfd_path)) +
+                                 env.get('LD_LIBRARY_PATH', ''))
+        process.run(('%s -O binary -O binary -R'
+                     '.note -R .note.gnu.build-id -R .comment -S %s %s') %
+                     (objcopy_path, kernel_path, kimage_path))
+
+        initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
+                      '8584a59ed9e5eb5ee7ca91f6d74bbb06619205b8/rootfs/'
+                      'riscv64/rootfs.cpio.gz')
+        initrd_hash = 'f4867d263754961b6f626cdcdc0cb334c47e3b49'
+        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+
+        self.vm.set_machine('virt')
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
+                               + 'console=ttyS0 noreboot')
+        self.vm.add_args('-bios', opensbi_path,
+                         '-kernel', kimage_path,
+                         '-initrd', initrd_path,
+                         '-append', kernel_command_line,
+                         '-no-reboot')
+
+        self.vm.launch()
+        self.wait_for_console_pattern('Boot successful.')
+
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'isa')
+        self.exec_command_and_wait_for_pattern('uname -a',
+                                               'SMP Debian')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
