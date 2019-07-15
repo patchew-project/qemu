@@ -333,6 +333,38 @@ static void test_dealloc_partial(void)
     qapi_free_UserDefTwo(ud2);
 }
 
+typedef struct QmpReturnOrderly {
+    QmpSession session;
+    int returns;
+} QmpReturnOrderly;
+
+static void dispatch_return_orderly(QmpSession *session, QDict *resp)
+{
+    QmpReturnOrderly *o = container_of(session, QmpReturnOrderly, session);
+
+    o->returns++;
+}
+
+static void test_qmp_return_orderly(void)
+{
+    QDict *dict = qdict_new();
+    QmpReturnOrderly o = { { 0 }, };
+    QmpReturn *r1, *r2, *r3;
+
+    qmp_session_init(&o.session, &qmp_commands, NULL, dispatch_return_orderly);
+    r1 = qmp_return_new(&o.session, NULL);
+    qdict_put_str(dict, "exec-oob", "test");
+    r2 = qmp_return_new(&o.session, QOBJECT(dict));
+    r3 = qmp_return_new(&o.session, NULL);
+    qmp_return(r3, NULL);
+    g_assert_cmpint(o.returns, ==, 0);
+    qmp_return(r2, NULL);
+    g_assert_cmpint(o.returns, ==, 1);
+    qmp_return(r1, NULL);
+    g_assert_cmpint(o.returns, ==, 3);
+    qmp_session_destroy(&o.session);
+    qobject_unref(dict);
+}
 
 int main(int argc, char **argv)
 {
@@ -346,6 +378,7 @@ int main(int argc, char **argv)
                     test_dispatch_cmd_success_response);
     g_test_add_func("/qmp/dealloc_types", test_dealloc_types);
     g_test_add_func("/qmp/dealloc_partial", test_dealloc_partial);
+    g_test_add_func("/qmp/return_orderly", test_qmp_return_orderly);
 
     test_qmp_init_marshal(&qmp_commands);
     g_test_run();
