@@ -125,7 +125,6 @@ struct MonitorHMP {
 
 typedef struct {
     Monitor common;
-    JSONMessageParser parser;
     bool pretty;
     /*
      * When a client connects, we're in capabilities negotiation mode.

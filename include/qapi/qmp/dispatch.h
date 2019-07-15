@@ -53,6 +53,7 @@ const QmpCommand *qmp_find_command(const QmpCommandList *cmds,
                                    const char *name);
 void qmp_session_init(QmpSession *session,
                       const QmpCommandList *cmds,
+                      JSONMessageEmit *emit,
                       QmpDispatchReturn *return_cb);
 static inline void
 qmp_session_feed(QmpSession *session, const char *buf, size_t count)

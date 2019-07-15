@@ -1319,7 +1319,7 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
-    qmp_session_init(&s->session, &ga_commands, dispatch_return_cb);
+    qmp_session_init(&s->session, &ga_commands, NULL, dispatch_return_cb);
 
 #ifndef _WIN32
     if (!register_signal_handlers()) {

@@ -217,7 +217,7 @@ void monitor_qmp_bh_dispatcher(void *data)
 
 static void handle_qmp_command(void *opaque, QObject *req, Error *err)
 {
-    MonitorQMP *mon = opaque;
+    MonitorQMP *mon = container_of(opaque, MonitorQMP, session);
     QObject *id = NULL;
     QDict *qdict;
     QMPRequest *req_obj;
@@ -279,7 +279,7 @@ static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     MonitorQMP *mon = opaque;
 
-    json_message_parser_feed(&mon->parser, (const char *) buf, size);
+    qmp_session_feed(&mon->session, (const char *) buf, size);
 }
 
 static QDict *qmp_greeting(MonitorQMP *mon)
@@ -309,7 +309,9 @@ static void monitor_qmp_event(void *opaque, int event)
     switch (event) {
     case CHR_EVENT_OPENED:
         qmp_session_init(&mon->session,
-                         &qmp_cap_negotiation_commands, dispatch_return_cb);
+                         &qmp_cap_negotiation_commands,
+                         handle_qmp_command,
+                         dispatch_return_cb);
         monitor_qmp_caps_reset(mon);
         data = qmp_greeting(mon);
         qmp_send_response(mon, data);
@@ -325,9 +327,6 @@ static void monitor_qmp_event(void *opaque, int event)
          */
         monitor_qmp_cleanup_queues(mon);
         qmp_session_destroy(&mon->session);
-        json_message_parser_destroy(&mon->parser);
-        json_message_parser_init(&mon->parser, handle_qmp_command,
-                                 mon, NULL);
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;
@@ -337,7 +336,6 @@ static void monitor_qmp_event(void *opaque, int event)
 void monitor_data_destroy_qmp(MonitorQMP *mon)
 {
     qmp_session_destroy(&mon->session);
-    json_message_parser_destroy(&mon->parser);
     qemu_mutex_destroy(&mon->qmp_queue_lock);
     monitor_qmp_cleanup_req_queue_locked(mon);
     g_queue_free(mon->qmp_requests);
@@ -373,7 +371,6 @@ void monitor_init_qmp(Chardev *chr, bool pretty)
     qemu_chr_fe_init(&mon->common.chr, chr, &error_abort);
     qemu_chr_fe_set_echo(&mon->common.chr, true);
 
-    json_message_parser_init(&mon->parser, handle_qmp_command, mon, NULL);
     if (mon->common.use_io_thread) {
         /*
          * Make sure the old iowatch is gone.  It's possible when
