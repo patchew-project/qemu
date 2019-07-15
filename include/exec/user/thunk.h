@@ -20,6 +20,7 @@
 #define THUNK_H
 
 #include "cpu.h"
+#include "exec/user/abitypes.h"
 
 /* types enums definitions */
 

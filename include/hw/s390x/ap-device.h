@@ -10,6 +10,8 @@
 #ifndef HW_S390X_AP_DEVICE_H
 #define HW_S390X_AP_DEVICE_H
 
+#include "hw/qdev-core.h"
+
 #define AP_DEVICE_TYPE       "ap-device"
 
 typedef struct APDevice {

@@ -14,6 +14,8 @@
 #ifndef HW_MISC_PVPANIC_H
 #define HW_MISC_PVPANIC_H
 
+#include "qom/object.h"
+
 #define TYPE_PVPANIC "pvpanic"
 
 #define PVPANIC_IOPORT_PROP "ioport"

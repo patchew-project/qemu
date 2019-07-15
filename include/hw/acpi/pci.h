@@ -25,6 +25,8 @@
 #ifndef HW_ACPI_PCI_H
 #define HW_ACPI_PCI_H
 
+#include "hw/acpi/bios-linker-loader.h"
+
 typedef struct AcpiMcfgInfo {
     uint64_t base;
     uint32_t size;
