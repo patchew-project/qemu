@@ -115,22 +115,23 @@ __org_qemu_x_Union1 *qmp___org_qemu_x_command(__org_qemu_x_EnumList *a,
     return ret;
 }
 
+static void dispatch_cmd_return(QmpSession *session, QDict *resp)
+{
+    assert(resp != NULL);
+    assert(!qdict_haskey(resp, "error"));
+}
 
 /* test commands with no input and no return value */
 static void test_dispatch_cmd(void)
 {
     QmpSession session = { 0, };
     QDict *req = qdict_new();
-    QDict *resp;
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, dispatch_cmd_return);
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&session, QOBJECT(req), false);
-    assert(resp != NULL);
-    assert(!qdict_haskey(resp, "error"));
+    qmp_dispatch(&session, QOBJECT(req), false);
 
-    qobject_unref(resp);
     qobject_unref(req);
     qmp_session_destroy(&session);
 }
@@ -139,18 +140,20 @@ static void test_dispatch_cmd_oob(void)
 {
     QmpSession session = { 0, };
     QDict *req = qdict_new();
-    QDict *resp;
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, dispatch_cmd_return);
     qdict_put_str(req, "exec-oob", "test-flags-command");
 
-    resp = qmp_dispatch(&session, QOBJECT(req), true);
-    assert(resp != NULL);
-    assert(!qdict_haskey(resp, "error"));
+    qmp_dispatch(&session, QOBJECT(req), true);
 
-    qobject_unref(resp);
     qobject_unref(req);
     qmp_session_destroy(&session);
+}
+
+static void dispatch_cmd_failure_return(QmpSession *session, QDict *resp)
+{
+    assert(resp != NULL);
+    assert(qdict_haskey(resp, "error"));
 }
 
 /* test commands that return an error due to invalid parameters */
@@ -159,62 +162,58 @@ static void test_dispatch_cmd_failure(void)
     QmpSession session = { 0, };
     QDict *req = qdict_new();
     QDict *args = qdict_new();
-    QDict *resp;
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, dispatch_cmd_failure_return);
     qdict_put_str(req, "execute", "user_def_cmd2");
 
-    resp = qmp_dispatch(&session, QOBJECT(req), false);
-    assert(resp != NULL);
-    assert(qdict_haskey(resp, "error"));
+    qmp_dispatch(&session, QOBJECT(req), false);
 
-    qobject_unref(resp);
     qobject_unref(req);
 
     /* check that with extra arguments it throws an error */
     req = qdict_new();
     qdict_put_int(args, "a", 66);
     qdict_put(req, "arguments", args);
-
     qdict_put_str(req, "execute", "user_def_cmd");
 
-    resp = qmp_dispatch(&session, QOBJECT(req), false);
-    assert(resp != NULL);
-    assert(qdict_haskey(resp, "error"));
+    qmp_dispatch(&session, QOBJECT(req), false);
 
-    qobject_unref(resp);
     qobject_unref(req);
     qmp_session_destroy(&session);
 }
+
+static QObject *dispatch_ret;
 
 static void test_dispatch_cmd_success_response(void)
 {
     QmpSession session = { 0, };
     QDict *req = qdict_new();
-    QDict *resp;
 
-    qmp_session_init(&session, &qmp_commands);
+    qmp_session_init(&session, &qmp_commands, (QmpDispatchReturn *)abort);
     qdict_put_str(req, "execute", "cmd-success-response");
-    resp = qmp_dispatch(&session, QOBJECT(req), false);
-    g_assert_null(resp);
+
+    qmp_dispatch(&session, QOBJECT(req), false);
+
     qobject_unref(req);
     qmp_session_destroy(&session);
 }
 
+static void dispatch_return(QmpSession *session, QDict *resp)
+{
+    assert(resp && !qdict_haskey(resp, "error"));
+    dispatch_ret = qdict_get(resp, "return");
+    qobject_ref(dispatch_ret);
+}
 
 static QObject *test_qmp_dispatch(QDict *req)
 {
     QmpSession session = { 0, };
-    QDict *resp;
     QObject *ret;
 
-    qmp_session_init(&session, &qmp_commands);
-    resp = qmp_dispatch(&session, QOBJECT(req), false);
-    assert(resp && !qdict_haskey(resp, "error"));
-    ret = qdict_get(resp, "return");
-    assert(ret);
-    qobject_ref(ret);
-    qobject_unref(resp);
+    qmp_session_init(&session, &qmp_commands, dispatch_return);
+    qmp_dispatch(&session, QOBJECT(req), false);
+    ret = dispatch_ret;
+    dispatch_ret = NULL;
     qmp_session_destroy(&session);
     return ret;
 }

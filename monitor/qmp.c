@@ -96,36 +96,15 @@ void qmp_send_response(MonitorQMP *mon, const QDict *rsp)
     qobject_unref(json);
 }
 
-/*
- * Emit QMP response @rsp with ID @id to @mon.
- * Null @rsp can only happen for commands with QCO_NO_SUCCESS_RESP.
- * Nothing is emitted then.
- */
-static void monitor_qmp_respond(MonitorQMP *mon, QDict *rsp)
+static void dispatch_return_cb(QmpSession *session, QDict *rsp)
 {
-    if (rsp) {
-        qmp_send_response(mon, rsp);
-    }
-}
-
-static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
-{
-    Monitor *old_mon;
-    QDict *rsp;
-    QDict *error;
-
-    old_mon = cur_mon;
-    cur_mon = &mon->common;
-
-    rsp = qmp_dispatch(&mon->session, req, qmp_oob_enabled(mon));
-
-    cur_mon = old_mon;
+    MonitorQMP *mon = container_of(session, MonitorQMP, session);
 
     if (mon->session.cmds == &qmp_cap_negotiation_commands) {
-        error = qdict_get_qdict(rsp, "error");
+        QDict *error = qdict_get_qdict(rsp, "error");
         if (error
             && !g_strcmp0(qdict_get_try_str(error, "class"),
-                    QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
+                          QapiErrorClass_str(ERROR_CLASS_COMMAND_NOT_FOUND))) {
             /* Provide a more useful error message */
             qdict_del(error, "desc");
             qdict_put_str(error, "desc", "Expecting capabilities negotiation"
@@ -133,8 +112,19 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
         }
     }
 
-    monitor_qmp_respond(mon, rsp);
-    qobject_unref(rsp);
+    qmp_send_response(mon, rsp);
+}
+
+static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
+{
+    Monitor *old_mon;
+
+    old_mon = cur_mon;
+    cur_mon = &mon->common;
+
+    qmp_dispatch(&mon->session, req, qmp_oob_enabled(mon));
+
+    cur_mon = old_mon;
 }
 
 /*
@@ -211,7 +201,7 @@ void monitor_qmp_bh_dispatcher(void *data)
         assert(req_obj->err);
         rsp = qmp_error_response(req_obj->err);
         req_obj->err = NULL;
-        monitor_qmp_respond(mon, rsp);
+        qmp_send_response(req_obj->mon, rsp);
         qobject_unref(rsp);
     }
 
@@ -318,7 +308,8 @@ static void monitor_qmp_event(void *opaque, int event)
 
     switch (event) {
     case CHR_EVENT_OPENED:
-        qmp_session_init(&mon->session, &qmp_cap_negotiation_commands);
+        qmp_session_init(&mon->session,
+                         &qmp_cap_negotiation_commands, dispatch_return_cb);
         monitor_qmp_caps_reset(mon);
         data = qmp_greeting(mon);
         qmp_send_response(mon, data);

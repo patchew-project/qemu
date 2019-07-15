@@ -558,29 +558,37 @@ static int send_response(GAState *s, const QDict *rsp)
     return 0;
 }
 
+static void dispatch_return_cb(QmpSession *session, QDict *rsp)
+{
+    GAState *s = container_of(session, GAState, session);
+    int ret = send_response(s, rsp);
+    if (ret < 0) {
+        g_warning("error sending response: %s", strerror(-ret));
+    }
+}
+
 /* handle requests/control events coming in over the channel */
 static void process_event(void *opaque, QObject *obj, Error *err)
 {
     GAState *s = opaque;
-    QDict *rsp;
     int ret;
 
     g_debug("process_event: called");
     assert(!obj != !err);
+
     if (err) {
-        rsp = qmp_error_response(err);
-        goto end;
+        QDict *rsp = qmp_error_response(err);
+
+        ret = send_response(s, rsp);
+        if (ret < 0) {
+            g_warning("error sending error response: %s", strerror(-ret));
+        }
+        qobject_unref(rsp);
+    } else {
+        g_debug("processing command");
+        qmp_dispatch(&s->session, obj, false);
     }
 
-    g_debug("processing command");
-    rsp = qmp_dispatch(&s->session, obj, false);
-
-end:
-    ret = send_response(s, rsp);
-    if (ret < 0) {
-        g_warning("error sending error response: %s", strerror(-ret));
-    }
-    qobject_unref(rsp);
     qobject_unref(obj);
 }
 
@@ -1339,7 +1347,7 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
     json_message_parser_init(&s->parser, process_event, s, NULL);
-    qmp_session_init(&s->session, &ga_commands);
+    qmp_session_init(&s->session, &ga_commands, dispatch_return_cb);
 
 #ifndef _WIN32
     if (!register_signal_handlers()) {

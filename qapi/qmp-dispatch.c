@@ -163,17 +163,28 @@ bool qmp_is_oob(const QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
-void qmp_session_init(QmpSession *session, const QmpCommandList *cmds)
+void qmp_session_init(QmpSession *session,
+                      const QmpCommandList *cmds,
+                      QmpDispatchReturn *return_cb)
 {
+    assert(return_cb);
+    assert(!session->return_cb);
+
     session->cmds = cmds;
+    session->return_cb = return_cb;
 }
 
 void qmp_session_destroy(QmpSession *session)
 {
+    if (!session->return_cb) {
+        return;
+    }
+
     session->cmds = NULL;
+    session->return_cb = NULL;
 }
 
-QDict *qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)
+void qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)
 {
     Error *err = NULL;
     QDict *dict = qobject_to(QDict, request);
@@ -188,12 +199,13 @@ QDict *qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)
         qdict_put_obj(rsp, "return", ret);
     } else {
         /* Can only happen for commands with QCO_NO_SUCCESS_RESP */
-        rsp = NULL;
+        return;
     }
 
-    if (rsp && id) {
+    if (id) {
         qdict_put_obj(rsp, "id", qobject_ref(id));
     }
 
-    return rsp;
+    session->return_cb(session, rsp);
+    qobject_unref(rsp);
 }
