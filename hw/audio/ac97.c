@@ -964,7 +964,7 @@ static int write_audio (AC97LinkState *s, AC97BusMasterRegs *r,
     uint32_t temp = r->picb << 1;
     uint32_t written = 0;
     int to_copy = 0;
-    temp = audio_MIN (temp, max);
+    temp = MIN (temp, max);
 
     if (!temp) {
         *stop = 1;
@@ -973,7 +973,7 @@ static int write_audio (AC97LinkState *s, AC97BusMasterRegs *r,
 
     while (temp) {
         int copied;
-        to_copy = audio_MIN (temp, sizeof (tmpbuf));
+        to_copy = MIN (temp, sizeof (tmpbuf));
         pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
         copied = AUD_write (s->voice_po, tmpbuf, to_copy);
         dolog ("write_audio max=%x to_copy=%x copied=%x\n",
@@ -1019,7 +1019,7 @@ static void write_bup (AC97LinkState *s, int elapsed)
     }
 
     while (elapsed) {
-        int temp = audio_MIN (elapsed, sizeof (s->silence));
+        int temp = MIN (elapsed, sizeof (s->silence));
         while (temp) {
             int copied = AUD_write (s->voice_po, s->silence, temp);
             if (!copied)
@@ -1040,7 +1040,7 @@ static int read_audio (AC97LinkState *s, AC97BusMasterRegs *r,
     int to_copy = 0;
     SWVoiceIn *voice = (r - s->bm_regs) == MC_INDEX ? s->voice_mc : s->voice_pi;
 
-    temp = audio_MIN (temp, max);
+    temp = MIN (temp, max);
 
     if (!temp) {
         *stop = 1;
@@ -1049,7 +1049,7 @@ static int read_audio (AC97LinkState *s, AC97BusMasterRegs *r,
 
     while (temp) {
         int acquired;
-        to_copy = audio_MIN (temp, sizeof (tmpbuf));
+        to_copy = MIN (temp, sizeof (tmpbuf));
         acquired = AUD_read (voice, tmpbuf, to_copy);
         if (!acquired) {
             *stop = 1;
