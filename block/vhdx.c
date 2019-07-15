@@ -2075,6 +2075,25 @@ static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
     return 0;
 }
 
+static int vhdx_has_zero_init(BlockDriverState *bs)
+{
+    BDRVVHDXState *s = bs->opaque;
+    uint32_t bat_i;
+
+    /* Check the subformat (fixed or dynamic) */
+    for (bat_i = 0; bat_i < s->bat_entries; bat_i++) {
+        int state = s->bat[bat_i] & VHDX_BAT_STATE_BIT_MASK;
+
+        if (state == PAYLOAD_BLOCK_FULLY_PRESENT) {
+            /* Fixed subformat */
+            return bdrv_has_zero_init(bs->file->bs);
+        }
+    }
+
+    /* Dynamic subformat */
+    return 1;
+}
+
 static QemuOptsList vhdx_create_opts = {
     .name = "vhdx-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(vhdx_create_opts.head),
@@ -2128,7 +2147,7 @@ static BlockDriver bdrv_vhdx = {
     .bdrv_co_create_opts    = vhdx_co_create_opts,
     .bdrv_get_info          = vhdx_get_info,
     .bdrv_co_check          = vhdx_co_check,
-    .bdrv_has_zero_init     = bdrv_has_zero_init_1,
+    .bdrv_has_zero_init     = vhdx_has_zero_init,
 
     .create_opts            = &vhdx_create_opts,
 };
