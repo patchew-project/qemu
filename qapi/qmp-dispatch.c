@@ -171,7 +171,7 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
     return dict;
 }
 
-static QObject *do_qmp_dispatch(const QmpCommandList *cmds, QObject *request,
+static QObject *do_qmp_dispatch(QmpSession *session, QObject *request,
                                 bool allow_oob, Error **errp)
 {
     Error *local_err = NULL;
@@ -193,7 +193,7 @@ static QObject *do_qmp_dispatch(const QmpCommandList *cmds, QObject *request,
         command = qdict_get_str(dict, "exec-oob");
         oob = true;
     }
-    cmd = qmp_find_command(cmds, command);
+    cmd = qmp_find_command(session->cmds, command);
     if (cmd == NULL) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", command);
@@ -224,14 +224,19 @@ static QObject *do_qmp_dispatch(const QmpCommandList *cmds, QObject *request,
         qobject_ref(args);
     }
 
-    cmd->fn(args, &ret, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-    } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
-        g_assert(!ret);
-    } else if (!ret) {
-        /* TODO turn into assertion */
-        ret = QOBJECT(qdict_new());
+
+    if (cmd->options & QCO_ASYNC) {
+        cmd->async_fn(args, qmp_return_new(session, request));
+    } else {
+        cmd->fn(args, &ret, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+        } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
+            g_assert(!ret);
+        } else if (!ret) {
+            /* TODO turn into assertion */
+            ret = QOBJECT(qdict_new());
+        }
     }
 
     qobject_unref(args);
@@ -304,7 +309,7 @@ void qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)
     Error *err = NULL;
     QObject *ret;
 
-    ret = do_qmp_dispatch(session->cmds, request, allow_oob, &err);
+    ret = do_qmp_dispatch(session, request, allow_oob, &err);
     if (err) {
         qmp_return_error(qmp_return_new(session, request), err);
     } else if (ret) {
