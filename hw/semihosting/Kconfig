@@ -1,3 +1,4 @@
 
 config SEMIHOSTING
-       bool
+    bool
+    default n
