@@ -2334,15 +2334,13 @@ err_out:
     goto out;
 }
 
-void hmp_screendump(Monitor *mon, const QDict *qdict)
+void hmp_screendump_async(Monitor *mon, const QDict *qdict, QmpReturn *qret)
 {
     const char *filename = qdict_get_str(qdict, "filename");
     const char *id = qdict_get_try_str(qdict, "device");
     int64_t head = qdict_get_try_int(qdict, "head", 0);
-    Error *err = NULL;
 
-    hmp_screendump_sync(filename, id != NULL, id, id != NULL, head, &err);
-    hmp_handle_error(mon, &err);
+    qmp_screendump(filename, id != NULL, id, id != NULL, head, qret);
 }
 
 void hmp_nbd_server_start(Monitor *mon, const QDict *qdict)

@@ -280,7 +280,7 @@ static void qmp_screendump_finish(QemuConsole *con, struct qmp_screendump *dump)
         goto cleanup;
     }
 
-    cur_mon = qmp_return_get_monitor(dump->ret);
+    cur_mon = qmp_return_get_monitor(dump->ret, true);
     surface = qemu_console_surface(con);
     if (!surface) {
         error_setg(&err, "no surface");
@@ -428,28 +428,6 @@ static QemuConsole *get_console(bool has_device, const char *device,
     }
 
     return con;
-}
-
-void hmp_screendump_sync(const char *filename,
-                         bool has_device, const char *device,
-                         bool has_head, int64_t head, Error **errp)
-{
-    DisplaySurface *surface;
-    QemuConsole *con = get_console(has_device, device, has_head, head, errp);
-
-    if (!con) {
-        return;
-    }
-    /* This may not complete the drawing with Spice, you may have
-     * glitches or outdated dumps, use qmp instead! */
-    graphic_hw_update(con);
-    surface = qemu_console_surface(con);
-    if (!surface) {
-        error_setg(errp, "no surface");
-        return;
-    }
-
-    ppm_save(filename, surface, errp);
 }
 
 void qmp_screendump(const char *filename,
