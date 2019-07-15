@@ -1,6 +1,6 @@
 # Common mips*-softmmu CONFIG defines
 
-# CONFIG_SEMIHOSTING is always required on this architecture
+# CONFIG_SEMIHOSTING is probably not required on KVM only builds
 CONFIG_SEMIHOSTING=y
 
 CONFIG_ISA_BUS=y
