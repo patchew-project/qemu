@@ -1,6 +1,6 @@
 # Default configuration for arm-softmmu
 
-# CONFIG_SEMIHOSTING is always required on this architecture
+# CONFIG_SEMIHOSTING is not required on KVM only builds
 CONFIG_SEMIHOSTING=y
 
 # TODO: ARM_V7M is currently always required - make this more flexible!
