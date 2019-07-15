@@ -34,17 +34,29 @@ void qmp_cmd_success_response(Error **errp)
 {
 }
 
+static GMainLoop *loop;
+
 static gboolean cmd_async_idle(gpointer user_data)
 {
     QmpReturn *qret = user_data;
 
-    qmp_cmd_async_return(qret, g_new0(Empty2, 1));
+    if (!qret->session) {
+        g_assert(qmp_return_is_cancelled(qret));
+        g_main_loop_quit(loop);
+        g_main_loop_unref(loop);
+        loop = NULL;
+    } else {
+        qmp_cmd_async_return(qret, g_new0(Empty2, 1));
+    }
 
     return G_SOURCE_REMOVE;
 }
 
 void qmp_cmd_async(const char *filename, QmpReturn *qret)
 {
+    if (g_str_equal(filename, "cancel")) {
+        qmp_session_destroy(qret->session);
+    }
     g_idle_add(cmd_async_idle, qret);
 }
 
@@ -425,6 +437,30 @@ static void test_qmp_return_async(void)
     qobject_unref(req);
 }
 
+static void test_qmp_return_async_cancel(void)
+{
+    QmpReturnAsync a = { { 0, }, };
+    QDict *args = qdict_new();
+    QDict *req = qdict_new();
+
+    a.loop = g_main_loop_new(NULL, TRUE);
+    qmp_session_init(&a.session, &qmp_commands,
+                     NULL, dispatch_return_async);
+
+    qdict_put_str(args, "filename", "cancel");
+    qdict_put_str(req, "execute", "cmd-async");
+    qdict_put(req, "arguments", args);
+    qmp_dispatch(&a.session, QOBJECT(req), false);
+    g_assert(a.loop);
+
+    loop = a.loop;
+    g_main_loop_run(loop);
+    g_assert(!loop);
+
+    qmp_session_destroy(&a.session);
+    qobject_unref(req);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -439,6 +475,7 @@ int main(int argc, char **argv)
     g_test_add_func("/qmp/dealloc_partial", test_dealloc_partial);
     g_test_add_func("/qmp/return_orderly", test_qmp_return_orderly);
     g_test_add_func("/qmp/return_async", test_qmp_return_async);
+    g_test_add_func("/qmp/return_async_cancel", test_qmp_return_async_cancel);
 
     test_qmp_init_marshal(&qmp_commands);
     g_test_run();
