@@ -163,6 +163,23 @@ bool qmp_is_oob(const QDict *dict)
         && !qdict_haskey(dict, "execute");
 }
 
+static void qmp_json_emit(void *opaque, QObject *obj, Error *err)
+{
+    QmpSession *session = opaque;
+
+    assert(!obj != !err);
+
+    if (err) {
+        QDict *rsp = qmp_error_response(err);
+        session->return_cb(session, rsp);
+        qobject_unref(rsp);
+    } else {
+        qmp_dispatch(session, obj, false);
+    }
+
+    qobject_unref(obj);
+}
+
 void qmp_session_init(QmpSession *session,
                       const QmpCommandList *cmds,
                       QmpDispatchReturn *return_cb)
@@ -170,6 +187,7 @@ void qmp_session_init(QmpSession *session,
     assert(return_cb);
     assert(!session->return_cb);
 
+    json_message_parser_init(&session->parser, qmp_json_emit, session, NULL);
     session->cmds = cmds;
     session->return_cb = return_cb;
 }
@@ -182,6 +200,7 @@ void qmp_session_destroy(QmpSession *session)
 
     session->cmds = NULL;
     session->return_cb = NULL;
+    json_message_parser_destroy(&session->parser);
 }
 
 void qmp_dispatch(QmpSession *session, QObject *request, bool allow_oob)

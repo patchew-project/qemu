@@ -19,7 +19,6 @@
 #include <sys/wait.h>
 #endif
 #include "qemu-common.h"
-#include "qapi/qmp/json-parser.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
@@ -75,7 +74,6 @@ typedef struct GAConfig GAConfig;
 
 struct GAState {
     QmpSession session;
-    JSONMessageParser parser;
     GMainLoop *main_loop;
     GAChannel *channel;
     bool virtio; /* fastpath to check for virtio to deal with poll() quirks */
@@ -567,31 +565,6 @@ static void dispatch_return_cb(QmpSession *session, QDict *rsp)
     }
 }
 
-/* handle requests/control events coming in over the channel */
-static void process_event(void *opaque, QObject *obj, Error *err)
-{
-    GAState *s = opaque;
-    int ret;
-
-    g_debug("process_event: called");
-    assert(!obj != !err);
-
-    if (err) {
-        QDict *rsp = qmp_error_response(err);
-
-        ret = send_response(s, rsp);
-        if (ret < 0) {
-            g_warning("error sending error response: %s", strerror(-ret));
-        }
-        qobject_unref(rsp);
-    } else {
-        g_debug("processing command");
-        qmp_dispatch(&s->session, obj, false);
-    }
-
-    qobject_unref(obj);
-}
-
 /* false return signals GAChannel to close the current client connection */
 static gboolean channel_event_cb(GIOCondition condition, gpointer data)
 {
@@ -607,7 +580,7 @@ static gboolean channel_event_cb(GIOCondition condition, gpointer data)
     case G_IO_STATUS_NORMAL:
         buf[count] = 0;
         g_debug("read data, count: %d, data: %s", (int)count, buf);
-        json_message_parser_feed(&s->parser, (char *)buf, (int)count);
+        qmp_session_feed(&s->session, (char *)buf, (int)count);
         break;
     case G_IO_STATUS_EOF:
         g_debug("received EOF");
@@ -1346,7 +1319,6 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
     s->command_state = ga_command_state_new();
     ga_command_state_init(s, s->command_state);
     ga_command_state_init_all(s->command_state);
-    json_message_parser_init(&s->parser, process_event, s, NULL);
     qmp_session_init(&s->session, &ga_commands, dispatch_return_cb);
 
 #ifndef _WIN32
@@ -1382,7 +1354,6 @@ static void cleanup_agent(GAState *s)
         qmp_session_destroy(&s->session);
         ga_command_state_cleanup_all(s->command_state);
         ga_command_state_free(s->command_state);
-        json_message_parser_destroy(&s->parser);
     }
     g_free(s->pstate_filepath);
     g_free(s->state_filepath_isfrozen);
