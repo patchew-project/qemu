@@ -1148,7 +1148,17 @@ static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     int bits = qdict_get_try_int(qdict, "bits", -1);
     int has_channels = qdict_haskey(qdict, "nchannels");
     int nchannels = qdict_get_try_int(qdict, "nchannels", -1);
+    const char *audiodev = qdict_get_try_str(qdict, "audiodev");
     CaptureState *s;
+    AudioState *as = NULL;
+
+    if (audiodev) {
+        as = audio_state_by_name(audiodev);
+        if (!as) {
+            monitor_printf(mon, "Invalid audiodev specified\n");
+            return;
+        }
+    }
 
     s = g_malloc0 (sizeof (*s));
 
@@ -1156,7 +1166,7 @@ static void hmp_wavcapture(Monitor *mon, const QDict *qdict)
     bits = has_bits ? bits : 16;
     nchannels = has_channels ? nchannels : 2;
 
-    if (wav_start_capture(NULL, s, path, freq, bits, nchannels)) {
+    if (wav_start_capture(as, s, path, freq, bits, nchannels)) {
         monitor_printf(mon, "Failed to add wave capture\n");
         g_free (s);
         return;
