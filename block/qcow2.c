@@ -4631,6 +4631,94 @@ static ImageInfoSpecific *qcow2_get_specific_info(BlockDriverState *bs,
     return spec_info;
 }
 
+/*
+ * Return 1 if the file only contains zero and unallocated clusters.
+ * Return 0 if it contains compressed or normal clusters.
+ * Return -errno on error.
+ */
+static int qcow2_is_zero(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int l1_i;
+    int ret;
+
+    if (bs->backing) {
+        return 0;
+    }
+
+    for (l1_i = 0; l1_i < s->l1_size; l1_i++) {
+        uint64_t l2_offset = s->l1_table[l1_i] & L1E_OFFSET_MASK;
+        int slice_start_i;
+
+        if (!l2_offset) {
+            continue;
+        }
+
+        for (slice_start_i = 0; slice_start_i < s->l2_size;
+             slice_start_i += s->l2_slice_size)
+        {
+            uint64_t *l2_slice;
+            int l2_slice_i;
+
+            ret = qcow2_cache_get(bs, s->l2_table_cache,
+                                  l2_offset + slice_start_i * sizeof(uint64_t),
+                                  (void **)&l2_slice);
+            if (ret < 0) {
+                return ret;
+            }
+
+            for (l2_slice_i = 0; l2_slice_i < s->l2_slice_size; l2_slice_i++) {
+                uint64_t l2_entry = be64_to_cpu(l2_slice[l2_slice_i]);
+
+                switch (qcow2_get_cluster_type(bs, l2_entry)) {
+                case QCOW2_CLUSTER_UNALLOCATED:
+                case QCOW2_CLUSTER_ZERO_PLAIN:
+                case QCOW2_CLUSTER_ZERO_ALLOC:
+                    break;
+
+                case QCOW2_CLUSTER_NORMAL:
+                case QCOW2_CLUSTER_COMPRESSED:
+                    qcow2_cache_put(s->l2_table_cache, (void **)&l2_slice);
+                    return 0;
+
+                default:
+                    abort();
+                }
+            }
+
+            qcow2_cache_put(s->l2_table_cache, (void **)&l2_slice);
+        }
+    }
+
+    return 1;
+}
+
+static int qcow2_has_zero_init(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret;
+
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_lock(&s->lock);
+    }
+    /* Check preallocation status */
+    ret = qcow2_is_zero(bs);
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_unlock(&s->lock);
+    }
+    if (ret < 0) {
+        return 0;
+    }
+
+    if (ret == 1) {
+        return 1;
+    } else if (bs->encrypted) {
+        return 0;
+    } else {
+        return bdrv_has_zero_init(s->data_file->bs);
+    }
+}
+
 static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)
 {
@@ -5186,7 +5274,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_child_perm      = bdrv_format_default_perms,
     .bdrv_co_create_opts  = qcow2_co_create_opts,
     .bdrv_co_create       = qcow2_co_create,
-    .bdrv_has_zero_init = bdrv_has_zero_init_1,
+    .bdrv_has_zero_init   = qcow2_has_zero_init,
     .bdrv_co_block_status = qcow2_co_block_status,
 
     .bdrv_co_preadv         = qcow2_co_preadv,
