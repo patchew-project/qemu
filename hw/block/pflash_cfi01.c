@@ -96,6 +96,37 @@ struct PFlashCFI01 {
     bool old_multiple_chip_handling;
 };
 
+static int pflash_pre_save(void *opaque)
+{
+    PFlashCFI01 *s = opaque;
+
+    /*
+     * Previous to QEMU v4.1 an incorrect value of 0x00 was used for the
+     * READ_ARRAY command. To preserve migrating to these older version,
+     * always migrate the READ_ARRAY command as 0x00.
+     */
+    if (s->cmd == 0xff) {
+        s->cmd = 0x00;
+    }
+
+    return 0;
+}
+
+static int pflash_post_save(void *opaque)
+{
+    PFlashCFI01 *s = opaque;
+
+    /*
+     * If migration failed, the guest will continue to run.
+     * Restore the correct READ_ARRAY value.
+     */
+    if (s->cmd == 0x00) {
+        s->cmd = 0xff;
+    }
+
+    return 0;
+}
+
 static int pflash_post_load(void *opaque, int version_id);
 
 static const VMStateDescription vmstate_pflash = {
@@ -103,6 +134,8 @@ static const VMStateDescription vmstate_pflash = {
     .version_id = 1,
     .minimum_version_id = 1,
     .post_load = pflash_post_load,
+    .pre_save = pflash_pre_save,
+    .post_save = pflash_post_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT8(wcycle, PFlashCFI01),
         VMSTATE_UINT8(cmd, PFlashCFI01),
@@ -277,10 +310,9 @@ static uint32_t pflash_read(PFlashCFI01 *pfl, hwaddr offset,
         /* This should never happen : reset state & treat it as a read */
         DPRINTF("%s: unknown command state: %x\n", __func__, pfl->cmd);
         pfl->wcycle = 0;
-        pfl->cmd = 0;
+        pfl->cmd = 0xff;
         /* fall through to read code */
-    case 0x00:
-        /* Flash area read */
+    case 0xff: /* Read Array */
         ret = pflash_data_read(pfl, offset, width, be);
         break;
     case 0x10: /* Single byte program */
@@ -448,8 +480,6 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     case 0:
         /* read mode */
         switch (cmd) {
-        case 0x00: /* ??? */
-            goto reset_flash;
         case 0x10: /* Single Byte Program */
         case 0x40: /* Single Byte Program */
             DPRINTF("%s: Single Byte Program\n", __func__);
@@ -526,7 +556,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             if (cmd == 0xd0) { /* confirm */
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-            } else if (cmd == 0xff) { /* read array mode */
+            } else if (cmd == 0xff) { /* Read Array */
                 goto reset_flash;
             } else
                 goto error_flash;
@@ -553,7 +583,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
             } else if (cmd == 0x01) {
                 pfl->wcycle = 0;
                 pfl->status |= 0x80;
-            } else if (cmd == 0xff) {
+            } else if (cmd == 0xff) { /* read array mode */
                 goto reset_flash;
             } else {
                 DPRINTF("%s: Unknown (un)locking command\n", __func__);
@@ -645,7 +675,7 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
     trace_pflash_reset();
     memory_region_rom_device_set_romd(&pfl->mem, true);
     pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pfl->cmd = 0xff;
 }
 
 
@@ -761,7 +791,7 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     pfl->wcycle = 0;
-    pfl->cmd = 0;
+    pfl->cmd = 0xff;
     pfl->status = 0;
     /* Hardcoded CFI table */
     /* Standard "QRY" string */
@@ -1001,5 +1031,14 @@ static int pflash_post_load(void *opaque, int version_id)
         pfl->vmstate = qemu_add_vm_change_state_handler(postload_update_cb,
                                                         pfl);
     }
+
+    /*
+     * Previous to QEMU v4.1 an incorrect value of 0x00 was used for the
+     * READ_ARRAY command.
+     */
+    if (pfl->cmd == 0x00) {
+        pfl->cmd = 0xff;
+    }
+
     return 0;
 }
