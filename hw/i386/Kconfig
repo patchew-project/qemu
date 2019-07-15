@@ -10,7 +10,6 @@ config PC
     imply ISA_IPMI_BT
     imply ISA_DEBUG
     imply PARALLEL
-    imply PCI_DEVICES
     imply PVPANIC
     imply QXL
     imply SEV

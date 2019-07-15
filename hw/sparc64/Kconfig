@@ -1,6 +1,5 @@
 config SUN4U
     bool
-    imply PCI_DEVICES
     imply SUNHME
     imply TEST_DEVICES
     imply PARALLEL

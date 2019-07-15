@@ -1,6 +1,5 @@
 config PSERIES
     bool
-    imply PCI_DEVICES
     imply TEST_DEVICES
     imply VIRTIO_VGA
     select DIMM
@@ -18,7 +17,6 @@ config SPAPR_RNG
 
 config POWERNV
     bool
-    imply PCI_DEVICES
     imply TEST_DEVICES
     select ISA_IPMI_BT
     select IPMI_LOCAL
@@ -36,7 +34,6 @@ config PPC405
 
 config PPC440
     bool
-    imply PCI_DEVICES
     imply TEST_DEVICES
     imply E1000_PCI
     select PCI_EXPRESS
@@ -62,7 +59,6 @@ config SAM460EX
 
 config PREP
     bool
-    imply PCI_DEVICES
     imply TEST_DEVICES
     select CS4231A
     select PREP_PCI
@@ -77,7 +73,6 @@ config RS6000_MC
 
 config MAC_OLDWORLD
     bool
-    imply PCI_DEVICES
     imply SUNGEM
     imply TEST_DEVICES
     select ADB
@@ -87,7 +82,6 @@ config MAC_OLDWORLD
 
 config MAC_NEWWORLD
     bool
-    imply PCI_DEVICES
     imply SUNGEM
     imply TEST_DEVICES
     select ADB

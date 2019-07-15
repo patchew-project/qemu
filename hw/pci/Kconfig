@@ -1,5 +1,6 @@
 config PCI
     bool
+    imply PCI_DEVICES
 
 config PCI_EXPRESS
     bool
