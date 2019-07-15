@@ -1536,27 +1536,6 @@ void helper_vpmsumd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
 #else
 #define PKBIG 0
 #endif
-void helper_vpkpx(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
-{
-    int i, j;
-    ppc_avr_t result;
-#if defined(HOST_WORDS_BIGENDIAN)
-    const ppc_avr_t *x[2] = { a, b };
-#else
-    const ppc_avr_t *x[2] = { b, a };
-#endif
-
-    VECTOR_FOR_INORDER_I(i, u64) {
-        VECTOR_FOR_INORDER_I(j, u32) {
-            uint32_t e = x[i]->u32[j];
-
-            result.u16[4 * i + j] = (((e >> 9) & 0xfc00) |
-                                     ((e >> 6) & 0x3e0) |
-                                     ((e >> 3) & 0x1f));
-        }
-    }
-    *r = result;
-}
 
 #define VPK(suffix, from, to, cvt, dosat)                               \
     void helper_vpk##suffix(CPUPPCState *env, ppc_avr_t *r,             \
