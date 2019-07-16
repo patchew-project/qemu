@@ -649,6 +649,13 @@ static void pnv_init(MachineState *machine)
 
     /* load initrd */
     if (machine->initrd_filename) {
+        if (machine->ram_size <= (1.5 * GiB)) {
+            /* INITRD_LOAD_ADDR is at 1.5GB, so we require at least that much RAM
+             * when specifying the initrd on the command line */
+            warn_report("initrd load requires > %ld MB of RAM",
+                    INITRD_LOAD_ADDR / MiB);
+        }
+
         pnv->initrd_base = INITRD_LOAD_ADDR;
         pnv->initrd_size = load_image_targphys(machine->initrd_filename,
                                   pnv->initrd_base, INITRD_MAX_SIZE);
