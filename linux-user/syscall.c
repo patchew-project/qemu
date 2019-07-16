@@ -7183,6 +7183,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                           NULL, NULL, 0);
             }
             thread_cpu = NULL;
+            object_unparent(OBJECT(cpu));
             object_unref(OBJECT(cpu));
             g_free(ts);
             rcu_unregister_thread();
