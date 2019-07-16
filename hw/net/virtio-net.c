@@ -2064,7 +2064,18 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
          */
         assert(n->host_hdr_len <= n->guest_hdr_len);
         if (n->host_hdr_len != n->guest_hdr_len) {
-            unsigned sg_num = iov_copy(sg, ARRAY_SIZE(sg),
+            unsigned sg_num;
+
+            if (!n->has_vnet_hdr) {
+                if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
+                    n->guest_hdr_len) {
+                    virtio_error(vdev, "virtio-net header incorrect");
+                    virtqueue_detach_element(q->tx_vq, elem, 0);
+                    g_free(elem);
+                    return -EINVAL;
+                }
+            }
+            sg_num = iov_copy(sg, ARRAY_SIZE(sg),
                                        out_sg, out_num,
                                        0, n->host_hdr_len);
             sg_num += iov_copy(sg + sg_num, ARRAY_SIZE(sg) - sg_num,
