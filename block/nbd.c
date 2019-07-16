@@ -707,7 +707,7 @@ static bool nbd_reply_chunk_iter_receive(BDRVNBDState *s,
                                          void **payload)
 {
     int ret, request_ret;
-    NBDReply local_reply;
+    NBDReply local_reply = {};
     NBDStructuredReplyChunk *chunk;
     Error *local_err = NULL;
     if (s->quit) {
