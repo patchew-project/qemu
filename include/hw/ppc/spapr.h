@@ -171,6 +171,10 @@ struct SpaprMachineState {
     bool use_hotplug_event_source;
     SpaprEventSource *event_sources;
 
+    /* Machine has been suspended, so the next machine_reset should not
+     * reset state, but just return and allow execution to resume. */
+    bool suspend_reset;
+
     /* ibm,client-architecture-support option negotiation */
     bool cas_reboot;
     bool cas_legacy_guest_workaround;
@@ -631,8 +635,9 @@ target_ulong spapr_hypercall(PowerPCCPU *cpu, target_ulong opcode,
 #define RTAS_IBM_CREATE_PE_DMA_WINDOW           (RTAS_TOKEN_BASE + 0x27)
 #define RTAS_IBM_REMOVE_PE_DMA_WINDOW           (RTAS_TOKEN_BASE + 0x28)
 #define RTAS_IBM_RESET_PE_DMA_WINDOW            (RTAS_TOKEN_BASE + 0x29)
+#define RTAS_IBM_SUSPEND_ME                     (RTAS_TOKEN_BASE + 0x2A)
 
-#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x2A)
+#define RTAS_TOKEN_MAX                          (RTAS_TOKEN_BASE + 0x2B)
 
 /* RTAS ibm,get-system-parameter token values */
 #define RTAS_SYSPARM_SPLPAR_CHARACTERISTICS      20

@@ -1710,6 +1710,11 @@ static void spapr_machine_reset(MachineState *machine)
     void *fdt;
     int rc;
 
+    if (spapr->suspend_reset) {
+        spapr->suspend_reset = false;
+        return;
+    }
+
     spapr_caps_apply(spapr);
 
     first_ppc_cpu = POWERPC_CPU(first_cpu);
@@ -2721,6 +2726,23 @@ static PCIHostState *spapr_create_default_phb(void)
     return PCI_HOST_BRIDGE(dev);
 }
 
+static Notifier wakeup;
+static void spapr_notify_wakeup(Notifier *notifier, void *data)
+{
+    WakeupReason *reason = data;
+
+    switch (*reason) {
+    case QEMU_WAKEUP_REASON_RTC:
+        break;
+    case QEMU_WAKEUP_REASON_PMTIMER:
+        break;
+    case QEMU_WAKEUP_REASON_OTHER:
+        break;
+    default:
+        break;
+    }
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void spapr_machine_init(MachineState *machine)
 {
@@ -3077,6 +3099,10 @@ static void spapr_machine_init(MachineState *machine)
                              &error_fatal);
 
     qemu_register_boot_set(spapr_boot_set, spapr);
+
+    wakeup.notify = spapr_notify_wakeup;
+    qemu_register_wakeup_notifier(&wakeup);
+    qemu_register_wakeup_support();
 
     if (kvm_enabled()) {
         /* to stop and start vmclock */
