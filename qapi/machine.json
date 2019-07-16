@@ -414,6 +414,9 @@
 # @memdev: memory backend object.  If specified for one node,
 #          it must be specified for all nodes.
 #
+# @initiator: the initiator numa nodeid that is closest (as in directly
+#             attached) to this numa node (since 4.2)
+#
 # Since: 2.1
 ##
 { 'struct': 'NumaNodeOptions',
@@ -421,7 +424,8 @@
    '*nodeid': 'uint16',
    '*cpus':   ['uint16'],
    '*mem':    'size',
-   '*memdev': 'str' }}
+   '*memdev': 'str',
+   '*initiator': 'uint16' }}
 
 ##
 # @NumaDistOptions:
