@@ -1069,6 +1069,47 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_join(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    CPUPPCState *env = &cpu->env;
+    CPUState *cs;
+    SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
+    bool last_unjoined = true;
+
+    if (env->msr & (1ULL << MSR_EE)) {
+        return H_BAD_MODE;
+    }
+
+    if (spapr_cpu->prod) {
+        spapr_cpu->prod = false;
+        return H_SUCCESS;
+    }
+
+    CPU_FOREACH(cs) {
+        PowerPCCPU *c = POWERPC_CPU(cs);
+        CPUPPCState *e = &c->env;
+        if (c == cpu)
+            continue;
+
+	/* Don't have a way to indicate joined, so use halted && MSR[EE]=0 */
+        if (!cs->halted || (e->msr & (1ULL << MSR_EE))) {
+            last_unjoined = false;
+            break;
+        }
+    }
+    if (last_unjoined) {
+        return H_CONTINUE;
+    }
+
+    cs = CPU(cpu);
+    cs->halted = 1;
+    cs->exception_index = EXCP_HALTED;
+    cs->exit_request = 1;
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -1958,6 +1999,9 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(H_CEDE, h_cede);
     spapr_register_hypercall(H_CONFER, h_confer);
     spapr_register_hypercall(H_PROD, h_prod);
+
+    /* hcall-join */
+    spapr_register_hypercall(H_JOIN, h_join);
 
     spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
 
