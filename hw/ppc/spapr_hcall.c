@@ -1069,6 +1069,53 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_confer(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                           target_ulong opcode, target_ulong *args)
+{
+    target_long target = args[0];
+    uint32_t dispatch = args[1];
+    PowerPCCPU *target_cpu = spapr_find_cpu(target);
+    CPUState *target_cs = CPU(target_cpu);
+    CPUState *cs = CPU(cpu);
+    SpaprCpuState *spapr_cpu;
+
+    /*
+     * This does not do a targeted yield or confer, but check the parameter
+     * anyway. -1 means confer to all/any other CPUs.
+     */
+    if (target != -1 && !target_cs) {
+        return H_PARAMETER;
+    }
+
+    spapr_cpu = spapr_cpu_state(target_cpu);
+
+    /*
+     * PAPR specifies waiting until proded in this case, without dispatch
+     * counter check.
+     */
+    if (cpu == target_cpu) {
+        if (spapr_cpu->prod) {
+            spapr_cpu->prod = false;
+            return H_SUCCESS;
+        }
+
+        cs->halted = 1;
+        cs->exception_index = EXCP_HALTED;
+        cs->exit_request = 1;
+
+        return H_SUCCESS;
+    }
+
+    if (spapr_cpu->dispatch_counter != dispatch || (dispatch & 1) == 0) {
+        return H_SUCCESS;
+    }
+
+    cs->exception_index = EXCP_YIELD;
+    cpu_loop_exit(cs);
+
+    return H_SUCCESS;
+}
+
 static target_ulong h_prod(PowerPCCPU *cpu, SpaprMachineState *spapr,
                            target_ulong opcode, target_ulong *args)
 {
@@ -1909,6 +1956,7 @@ static void hypercall_register_types(void)
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+    spapr_register_hypercall(H_CONFER, h_confer);
     spapr_register_hypercall(H_PROD, h_prod);
 
     spapr_register_hypercall(H_SIGNAL_SYS_RESET, h_signal_sys_reset);
