@@ -10,6 +10,7 @@
 #include "hw/ppc/spapr_irq.h"
 #include "hw/ppc/spapr_xive.h"  /* For SpaprXive */
 #include "hw/ppc/xics.h"        /* For ICSState */
+#include "hw/ppc/spapr_tpm_proxy.h"
 
 struct SpaprVioBus;
 struct SpaprPhbState;
@@ -203,6 +204,7 @@ struct SpaprMachineState {
     SpaprCapabilities def, eff, mig;
 
     unsigned gpu_numa_id;
+    SpaprTpmProxy *tpm_proxy;
 };
 
 #define H_SUCCESS         0
@@ -490,8 +492,9 @@ struct SpaprMachineState {
 #define H_INT_ESB               0x3C8
 #define H_INT_SYNC              0x3CC
 #define H_INT_RESET             0x3D0
+#define H_TPM_COMM              0xEF10
 
-#define MAX_HCALL_OPCODE        H_INT_RESET
+#define MAX_HCALL_OPCODE        H_TPM_COMM
 
 /* The hcalls above are standardized in PAPR and implemented by pHyp
  * as well.
