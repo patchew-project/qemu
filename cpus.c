@@ -1071,6 +1071,7 @@ static int do_vm_stop(RunState state, bool send_stop)
     int ret = 0;
 
     if (runstate_is_running()) {
+        vm_state_notify(1, state);
         cpu_disable_ticks();
         pause_all_vcpus();
         runstate_set(state);
