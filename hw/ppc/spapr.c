@@ -2572,11 +2572,6 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
     int ret;
     unsigned int smp_threads = ms->smp.threads;
 
-    if (!kvm_enabled() && (smp_threads > 1)) {
-        error_setg(&local_err, "TCG cannot support more than 1 thread/core "
-                     "on a pseries machine");
-        goto out;
-    }
     if (!is_power_of_2(smp_threads)) {
         error_setg(&local_err, "Cannot support %d threads/core on a pseries "
                      "machine because it must be a power of 2", smp_threads);

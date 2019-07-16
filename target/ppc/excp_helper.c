@@ -1231,6 +1231,30 @@ static int book3s_dbell2irq(target_ulong rb)
     return msg == DBELL_TYPE_DBELL_SERVER ? PPC_INTERRUPT_HDOORBELL : -1;
 }
 
+void helper_msgsndp(target_ulong rb)
+{
+    CPUState *cs;
+    int irq = rb & DBELL_TYPE_MASK;
+    int thread_id = rb & 0x3f;
+
+    if (irq != DBELL_TYPE_DBELL_SERVER) {
+        return;
+    }
+
+    qemu_mutex_lock_iothread();
+    CPU_FOREACH(cs) {
+        PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+        if (cpu->vcpu_id == thread_id) {
+            continue;
+        }
+
+        cpu->env.pending_interrupts |= 1 << PPC_INTERRUPT_EXT;
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+    qemu_mutex_unlock_iothread();
+}
+
 void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
 {
     int irq = book3s_dbell2irq(rb);
