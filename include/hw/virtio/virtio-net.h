@@ -174,7 +174,6 @@ struct VirtIONet {
     uint32_t *vlans;
     virtio_net_conf net_conf;
     NICConf nic_conf;
-    DeviceState *qdev;
     int multiqueue;
     uint16_t max_queues;
     uint16_t curr_queues;
