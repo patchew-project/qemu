@@ -360,6 +360,16 @@
 # @write_threshold: configured write threshold for the device.
 #                   0 if disabled. (Since 2.3)
 #
+# @dirty-bitmaps: dirty bitmaps information (only present if node
+#                 has one or more dirty bitmaps) (Since 4.2)
+#
+# Features:
+# @node-dirty-bitmaps: Signals the capability to return dirty bitmap information
+#                      per-node instead of per-drive. If this flag is present,
+#                      dirty-bitmaps should not be read from the BlockInfo
+#                      structure, the top-level data for query-block.
+#                      (Since 4.2)
+#
 # Since: 0.14.0
 #
 ##
@@ -378,7 +388,8 @@
             '*bps_wr_max_length': 'int', '*iops_max_length': 'int',
             '*iops_rd_max_length': 'int', '*iops_wr_max_length': 'int',
             '*iops_size': 'int', '*group': 'str', 'cache': 'BlockdevCacheInfo',
-            'write_threshold': 'int' } }
+            'write_threshold': 'int', '*dirty-bitmaps': ['BlockDirtyInfo'] },
+  'features': [ { 'name': 'node-dirty-bitmaps' } ] }
 
 ##
 # @BlockDeviceIoStatus:
@@ -656,6 +667,7 @@
 #
 # @dirty-bitmaps: dirty bitmaps information (only present if the
 #                 driver has one or more dirty bitmaps) (Since 2.0)
+#                 Deprecated in 4.2; see BlockDirtyInfo instead.
 #
 # @io-status: @BlockDeviceIoStatus. Only present if the device
 #             supports it and the VM is configured to stop on errors
