@@ -548,6 +548,7 @@ QEMU_BUILD_BUG_ON(sizeof(SysIB) != 4096);
 #define ASCE_TABLE_LENGTH     0x03        /* region table length              */
 
 #define REGION_ENTRY_ORIGIN   (~0xfffULL) /* region/segment table origin    */
+#define REGION_ENTRY_FC       0x400       /* region format control          */
 #define REGION_ENTRY_RO       0x200       /* region/segment protection bit  */
 #define REGION_ENTRY_TF       0xc0        /* region/segment table offset    */
 #define REGION_ENTRY_INV      0x20        /* invalid region table entry     */

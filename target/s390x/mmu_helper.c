@@ -242,6 +242,14 @@ static int mmu_translate_region(CPUS390XState *env, target_ulong vaddr,
         return -1;
     }
 
+    if (level == ASCE_TYPE_REGION3
+        && (new_entry & REGION_ENTRY_FC) && (env->cregs[0] & CR0_EDAT)) {
+        /* Decode EDAT-2 region frame absolute address (2GB page) */
+        *raddr = (new_entry & 0xffffffff80000000ULL) | (vaddr & 0x7fffffff);
+        PTE_DPRINTF("%s: REG=0x%" PRIx64 "\n", __func__, new_entry);
+        return 0;
+    }
+
     if (level == ASCE_TYPE_SEGMENT) {
         return mmu_translate_segment(env, vaddr, asc, new_entry, raddr, flags,
                                      rw, exc);
