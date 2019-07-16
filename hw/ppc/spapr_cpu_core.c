@@ -261,6 +261,7 @@ error:
 static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 {
     SpaprCpuCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(sc);
+    SpaprCpuState *spapr_cpu;
     CPUCore *cc = CPU_CORE(sc);
     Object *obj;
     char *id;
@@ -287,7 +288,9 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
         goto err;
     }
 
-    cpu->machine_data = g_new0(SpaprCpuState, 1);
+    spapr_cpu = g_new0(SpaprCpuState, 1);
+    spapr_cpu->dispatch_counter = 1;
+    cpu->machine_data = spapr_cpu;
 
     object_unref(obj);
     return cpu;

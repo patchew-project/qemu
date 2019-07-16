@@ -46,6 +46,8 @@ typedef struct SpaprCpuState {
     uint64_t vpa_addr;
     uint64_t slb_shadow_addr, slb_shadow_size;
     uint64_t dtl_addr, dtl_size;
+    uint32_t dispatch_counter;
+    bool prod;
     struct ICPState *icp;
     struct XiveTCTX *tctx;
 } SpaprCpuState;
