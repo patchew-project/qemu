@@ -238,6 +238,7 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIDevice *s = r->req.dev;
     int len;
+    uint8_t sense_key = NO_SENSE;
 
     assert(r->req.aiocb != NULL);
     r->req.aiocb = NULL;
@@ -254,6 +255,12 @@ static void scsi_read_complete(void * opaque, int ret)
 
     r->len = -1;
 
+    if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
+        SCSISense sense =
+            scsi_parse_sense_buf(r->req.sense, r->io_header.sb_len_wr);
+        sense_key = sense.key;
+    }
+
     /*
      * Check if this is a VPD Block Limits request that
      * resulted in sense error but would need emulation.
@@ -264,9 +271,7 @@ static void scsi_read_complete(void * opaque, int ret)
         r->req.cmd.buf[0] == INQUIRY &&
         (r->req.cmd.buf[1] & 0x01) &&
         r->req.cmd.buf[2] == 0xb0) {
-        SCSISense sense =
-            scsi_parse_sense_buf(r->req.sense, r->io_header.sb_len_wr);
-        if (sense.key == ILLEGAL_REQUEST) {
+        if (sense_key == ILLEGAL_REQUEST) {
             len = scsi_generic_emulate_block_limits(r, s);
             /*
              * No need to let scsi_read_complete go on and handle an
@@ -281,15 +286,17 @@ static void scsi_read_complete(void * opaque, int ret)
         goto done;
     }
 
-    /* Snoop READ CAPACITY output to set the blocksize.  */
-    if (r->req.cmd.buf[0] == READ_CAPACITY_10 &&
-        (ldl_be_p(&r->buf[0]) != 0xffffffffU || s->max_lba == 0)) {
-        s->blocksize = ldl_be_p(&r->buf[4]);
-        s->max_lba = ldl_be_p(&r->buf[0]) & 0xffffffffULL;
-    } else if (r->req.cmd.buf[0] == SERVICE_ACTION_IN_16 &&
-               (r->req.cmd.buf[1] & 31) == SAI_READ_CAPACITY_16) {
-        s->blocksize = ldl_be_p(&r->buf[8]);
-        s->max_lba = ldq_be_p(&r->buf[0]);
+    /* Snoop READ CAPACITY output to set the blocksize. */
+    if (sense_key == NO_SENSE) {
+        if (r->req.cmd.buf[0] == READ_CAPACITY_10 &&
+            (ldl_be_p(&r->buf[0]) != 0xffffffffU || s->max_lba == 0)) {
+            s->blocksize = ldl_be_p(&r->buf[4]);
+            s->max_lba = ldl_be_p(&r->buf[0]) & 0xffffffffULL;
+        } else if (r->req.cmd.buf[0] == SERVICE_ACTION_IN_16 &&
+                   (r->req.cmd.buf[1] & 31) == SAI_READ_CAPACITY_16) {
+            s->blocksize = ldl_be_p(&r->buf[8]);
+            s->max_lba = ldq_be_p(&r->buf[0]);
+        }
     }
     blk_set_guest_block_size(s->conf.blk, s->blocksize);
 
