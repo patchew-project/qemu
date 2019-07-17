@@ -492,7 +492,8 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
 static int get_physical_address_data(CPUSPARCState *env,
                                      hwaddr *physical, int *prot,
-                                     target_ulong address, int rw, int mmu_idx)
+                                     MemTxAttrs *attrs, target_ulong address,
+                                     int rw, int mmu_idx)
 {
     CPUState *cs = env_cpu(env);
     unsigned int i;
@@ -535,6 +536,10 @@ static int get_physical_address_data(CPUSPARCState *env,
         /* ctx match, vaddr match, valid? */
         if (ultrasparc_tag_match(&env->dtlb[i], address, context, physical)) {
             int do_fault = 0;
+
+            if (TTE_IS_IE(env->dtlb[i].tte)) {
+                attrs->byte_swap = true;
+            }
 
             /* access ok? */
             /* multiple bits in SFSR.FT may be set on TT_DFAULT */
@@ -686,7 +691,7 @@ static int get_physical_address_code(CPUSPARCState *env,
 }
 
 static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
-                                int *prot, int *access_index,
+                                int *prot, MemTxAttrs *attrs,
                                 target_ulong address, int rw, int mmu_idx,
                                 target_ulong *page_size)
 {
@@ -716,11 +721,12 @@ static int get_physical_address(CPUSPARCState *env, hwaddr *physical,
     }
 
     if (rw == 2) {
+        *attrs = MEMTXATTRS_UNSPECIFIED;
         return get_physical_address_code(env, physical, prot, address,
                                          mmu_idx);
     } else {
-        return get_physical_address_data(env, physical, prot, address, rw,
-                                         mmu_idx);
+        return get_physical_address_data(env, physical, prot, attrs, address,
+                                         rw, mmu_idx);
     }
 }
 
@@ -734,10 +740,11 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     target_ulong vaddr;
     hwaddr paddr;
     target_ulong page_size;
-    int error_code = 0, prot, access_index;
+    MemTxAttrs attrs = {};
+    int error_code = 0, prot;
 
     address &= TARGET_PAGE_MASK;
-    error_code = get_physical_address(env, &paddr, &prot, &access_index,
+    error_code = get_physical_address(env, &paddr, &prot, &attrs,
                                       address, access_type,
                                       mmu_idx, &page_size);
     if (likely(error_code == 0)) {
@@ -747,7 +754,8 @@ bool sparc_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                                    env->dmmu.mmu_primary_context,
                                    env->dmmu.mmu_secondary_context);
 
-        tlb_set_page(cs, vaddr, paddr, prot, mmu_idx, page_size);
+        tlb_set_page_with_attrs(cs, vaddr, paddr, attrs, prot, mmu_idx,
+                                page_size);
         return true;
     }
     if (probe) {
@@ -789,7 +797,7 @@ void dump_mmu(CPUSPARCState *env)
             }
             if (TTE_IS_VALID(env->dtlb[i].tte)) {
                 qemu_printf("[%02u] VA: %" PRIx64 ", PA: %llx"
-                            ", %s, %s, %s, %s, ctx %" PRId64 " %s\n",
+                            ", %s, %s, %s, %s, ie %s, ctx %" PRId64 " %s\n",
                             i,
                             env->dtlb[i].tag & (uint64_t)~0x1fffULL,
                             TTE_PA(env->dtlb[i].tte),
@@ -798,6 +806,8 @@ void dump_mmu(CPUSPARCState *env)
                             TTE_IS_W_OK(env->dtlb[i].tte) ? "RW" : "RO",
                             TTE_IS_LOCKED(env->dtlb[i].tte) ?
                             "locked" : "unlocked",
+                            TTE_IS_IE(env->dtlb[i].tte) ?
+                            "yes" : "no",
                             env->dtlb[i].tag & (uint64_t)0x1fffULL,
                             TTE_IS_GLOBAL(env->dtlb[i].tte) ?
                             "global" : "local");
@@ -848,13 +858,20 @@ static int cpu_sparc_get_phys_page(CPUSPARCState *env, hwaddr *phys,
                                    target_ulong addr, int rw, int mmu_idx)
 {
     target_ulong page_size;
-    int prot, access_index;
+    int prot;
 
-    return get_physical_address(env, phys, &prot, &access_index, addr, rw,
-                                mmu_idx, &page_size);
+#ifdef TARGET_SPARC64
+    MemTxAttrs attrs = {};
+    return get_physical_address(env, phys, &prot, &attrs,
+                                addr, rw, mmu_idx, &page_size);
+#else
+    int access_index;
+    return get_physical_address(env, phys, &prot, &access_index,
+                                addr, rw, mmu_idx, &page_size);
+#endif /* TARGET_SPARC64 */
 }
 
-#if defined(TARGET_SPARC64)
+#ifdef TARGET_SPARC64
 hwaddr cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx)
 {
