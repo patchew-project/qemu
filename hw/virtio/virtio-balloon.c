@@ -40,6 +40,12 @@ struct PartiallyBalloonedPage {
     unsigned long bitmap[];
 };
 
+static void virtio_balloon_reset_pbp(VirtIOBalloon *balloon)
+{
+    g_free(balloon->pbp);
+    balloon->pbp = NULL;
+}
+
 static void balloon_inflate_page(VirtIOBalloon *balloon,
                                  MemoryRegion *mr, hwaddr offset)
 {
@@ -82,8 +88,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
         /* We've partially ballooned part of a host page, but now
          * we're trying to balloon part of a different one.  Too hard,
          * give up on the old partial page */
-        g_free(balloon->pbp);
-        balloon->pbp = NULL;
+        virtio_balloon_reset_pbp(balloon);
     }
 
     if (!balloon->pbp) {
@@ -106,8 +111,7 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
 
-        g_free(balloon->pbp);
-        balloon->pbp = NULL;
+        virtio_balloon_reset_pbp(balloon);
     }
 }
 
@@ -143,8 +147,7 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
                   balloon->pbp->bitmap);
 
         if (bitmap_empty(balloon->pbp->bitmap, subpages)) {
-            g_free(balloon->pbp);
-            balloon->pbp = NULL;
+            virtio_balloon_reset_pbp(balloon);
         }
     }
 
@@ -831,6 +834,7 @@ static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
         virtio_balloon_free_page_stop(s);
         precopy_remove_notifier(&s->free_page_report_notify);
     }
+    virtio_balloon_reset_pbp(s);
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
     virtio_cleanup(vdev);
