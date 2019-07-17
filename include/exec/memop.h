@@ -100,4 +100,22 @@ typedef enum MemOp {
     MO_SSIZE = MO_SIZE | MO_SIGN,
 } MemOp;
 
+#define MEMOP_SIZE(op) (1 << ((op) & MO_SIZE))
+
+static inline MemOp MEMOP(unsigned size)
+{
+    switch (size) {
+    case 1:
+        return MO_8;
+    case 2:
+        return MO_16;
+    case 4:
+        return MO_32;
+    case 8:
+        return MO_64;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 #endif

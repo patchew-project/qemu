@@ -522,6 +522,7 @@ void virtio_address_space_write(VirtIOPCIProxy *proxy, hwaddr addr,
 {
     uint64_t val;
     MemoryRegion *mr;
+    MemOp op = MEMOP(len);
 
     /* address_space_* APIs assume an aligned address.
      * As address is under guest control, handle illegal values.
@@ -550,7 +551,7 @@ void virtio_address_space_write(VirtIOPCIProxy *proxy, hwaddr addr,
         /* As length is under guest control, handle illegal values. */
         return;
     }
-    memory_region_dispatch_write(mr, addr, val, len, MEMTXATTRS_UNSPECIFIED);
+    memory_region_dispatch_write(mr, addr, val, op, MEMTXATTRS_UNSPECIFIED);
 }
 
 static void
@@ -559,6 +560,7 @@ virtio_address_space_read(VirtIOPCIProxy *proxy, hwaddr addr,
 {
     uint64_t val;
     MemoryRegion *mr;
+    MemOp op = MEMOP(len);
 
     /* address_space_* APIs assume an aligned address.
      * As address is under guest control, handle illegal values.
@@ -573,7 +575,7 @@ virtio_address_space_read(VirtIOPCIProxy *proxy, hwaddr addr,
     /* Make sure caller aligned buf properly */
     assert(!(((uintptr_t)buf) & (len - 1)));
 
-    memory_region_dispatch_read(mr, addr, &val, len, MEMTXATTRS_UNSPECIFIED);
+    memory_region_dispatch_read(mr, addr, &val, op, MEMTXATTRS_UNSPECIFIED);
     switch (len) {
     case 1:
         pci_set_byte(buf, val);

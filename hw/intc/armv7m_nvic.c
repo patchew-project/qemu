@@ -2337,7 +2337,7 @@ static const MemoryRegionOps nvic_sysreg_ops = {
 };
 
 static MemTxResult nvic_sysreg_ns_write(void *opaque, hwaddr addr,
-                                        uint64_t value, unsigned size,
+                                        uint64_t data, unsigned size,
                                         MemTxAttrs attrs)
 {
     MemoryRegion *mr = opaque;
@@ -2345,7 +2345,7 @@ static MemTxResult nvic_sysreg_ns_write(void *opaque, hwaddr addr,
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
-        return memory_region_dispatch_write(mr, addr, value, size, attrs);
+        return memory_region_dispatch_write(mr, addr, data, MEMOP(size), attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -2364,7 +2364,7 @@ static MemTxResult nvic_sysreg_ns_read(void *opaque, hwaddr addr,
     if (attrs.secure) {
         /* S accesses to the alias act like NS accesses to the real region */
         attrs.secure = 0;
-        return memory_region_dispatch_read(mr, addr, data, size, attrs);
+        return memory_region_dispatch_read(mr, addr, data, MEMOP(size), attrs);
     } else {
         /* NS attrs are RAZ/WI for privileged, and BusFault for user */
         if (attrs.user) {
@@ -2382,7 +2382,7 @@ static const MemoryRegionOps nvic_sysreg_ns_ops = {
 };
 
 static MemTxResult nvic_systick_write(void *opaque, hwaddr addr,
-                                      uint64_t value, unsigned size,
+                                      uint64_t data, unsigned size,
                                       MemTxAttrs attrs)
 {
     NVICState *s = opaque;
@@ -2390,7 +2390,7 @@ static MemTxResult nvic_systick_write(void *opaque, hwaddr addr,
 
     /* Direct the access to the correct systick */
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
-    return memory_region_dispatch_write(mr, addr, value, size, attrs);
+    return memory_region_dispatch_write(mr, addr, data, MEMOP(size), attrs);
 }
 
 static MemTxResult nvic_systick_read(void *opaque, hwaddr addr,
@@ -2402,7 +2402,7 @@ static MemTxResult nvic_systick_read(void *opaque, hwaddr addr,
 
     /* Direct the access to the correct systick */
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->systick[attrs.secure]), 0);
-    return memory_region_dispatch_read(mr, addr, data, size, attrs);
+    return memory_region_dispatch_read(mr, addr, data, MEMOP(size), attrs);
 }
 
 static const MemoryRegionOps nvic_systick_ops = {
