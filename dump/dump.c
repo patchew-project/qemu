@@ -2022,8 +2022,9 @@ void qmp_dump_guest_memory(bool paging, const char *file,
     if (detach_p) {
         /* detached dump */
         s->detached = true;
+        /* TODO: let the further caller handle the error instead of abort() */
         qemu_thread_create(&s->dump_thread, "dump_thread", dump_thread,
-                           s, QEMU_THREAD_DETACHED);
+                           s, QEMU_THREAD_DETACHED, &error_abort);
     } else {
         /* sync dump */
         dump_process(s, errp);

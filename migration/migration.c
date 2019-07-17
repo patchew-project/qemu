@@ -483,8 +483,10 @@ static void process_incoming_migration_co(void *opaque)
             goto fail;
         }
 
+        /* TODO: let the further caller handle the error instead of abort() */
         qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
-             colo_process_incoming_thread, mis, QEMU_THREAD_JOINABLE);
+                           colo_process_incoming_thread, mis,
+                           QEMU_THREAD_JOINABLE, &error_abort);
         mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
@@ -2496,8 +2498,10 @@ static int open_return_path_on_source(MigrationState *ms,
         return 0;
     }
 
+    /* TODO: let the further caller handle the error instead of abort() here */
     qemu_thread_create(&ms->rp_state.rp_thread, "return path",
-                       source_return_path_thread, ms, QEMU_THREAD_JOINABLE);
+                       source_return_path_thread, ms,
+                       QEMU_THREAD_JOINABLE, &error_abort);
 
     trace_open_return_path_on_source_continue();
 
@@ -3342,8 +3346,9 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         migrate_fd_cleanup(s);
         return;
     }
+    /* TODO: let the further caller handle the error instead of abort() here */
     qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_JOINABLE, &error_abort);
     s->migration_thread_running = true;
 }
 

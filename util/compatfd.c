@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/thread.h"
+#include "qapi/error.h"
 
 #include <sys/syscall.h>
 
@@ -87,8 +88,9 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     memcpy(&info->mask, mask, sizeof(*mask));
     info->fd = fds[1];
 
-    qemu_thread_create(&thread, "signalfd_compat", sigwait_compat, info,
-                       QEMU_THREAD_DETACHED);
+    /* TODO: let the further caller handle the error instead of abort() here */
+    qemu_thread_create(&thread, "signalfd_compat", sigwait_compat,
+                       info, QEMU_THREAD_DETACHED, &error_abort);
 
     return fds[0];
 }

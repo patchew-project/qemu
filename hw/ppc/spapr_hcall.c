@@ -508,8 +508,10 @@ static target_ulong h_resize_hpt_prepare(PowerPCCPU *cpu,
     pending->shift = shift;
     pending->ret = H_HARDWARE;
 
+    /* TODO: let the further caller handle the error instead of abort() here */
     qemu_thread_create(&pending->thread, "sPAPR HPT prepare",
-                       hpt_prepare_thread, pending, QEMU_THREAD_DETACHED);
+                       hpt_prepare_thread, pending,
+                       QEMU_THREAD_DETACHED, &error_abort);
 
     spapr->pending_hpt = pending;
 

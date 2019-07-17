@@ -1826,9 +1826,10 @@ static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
     mis->have_listen_thread = true;
     /* Start up the listening thread and wait for it to signal ready */
     qemu_sem_init(&mis->listen_thread_sem, 0);
+    /* TODO: let the further caller handle the error instead of abort() here */
     qemu_thread_create(&mis->listen_thread, "postcopy/listen",
                        postcopy_ram_listen_thread, NULL,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_DETACHED, &error_abort);
     qemu_sem_wait(&mis->listen_thread_sem);
     qemu_sem_destroy(&mis->listen_thread_sem);
 

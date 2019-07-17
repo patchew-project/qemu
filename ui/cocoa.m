@@ -1766,7 +1766,7 @@ int main (int argc, const char * argv[]) {
     qemu_sem_init(&app_started_sem, 0);
 
     qemu_thread_create(&thread, "qemu_main", call_qemu_main,
-                       NULL, QEMU_THREAD_DETACHED);
+                       NULL, QEMU_THREAD_DETACHED, &error_abort);
 
     COCOA_DEBUG("Main thread: waiting for display_init_sem\n");
     qemu_sem_wait(&display_init_sem);

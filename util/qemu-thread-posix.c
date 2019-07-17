@@ -15,6 +15,7 @@
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
 #include "qemu-thread-common.h"
+#include "qapi/error.h"
 
 static bool name_threads;
 
@@ -504,9 +505,18 @@ static void *qemu_thread_start(void *args)
     return r;
 }
 
-void qemu_thread_create(QemuThread *thread, const char *name,
-                       void *(*start_routine)(void*),
-                       void *arg, int mode)
+/*
+ * Create a new thread with name @name
+ * The thread executes @start_routine() with argument @arg.
+ * The thread will be created in a detached state if @mode is
+ * QEMU_THREAD_DETACHED, and in a jounable state if it's
+ * QEMU_THREAD_JOINABLE.
+ * On success, return 0.
+ * On failure, store an error through @errp and return negative errno.
+ */
+int qemu_thread_create(QemuThread *thread, const char *name,
+                       void *(*start_routine)(void *),
+                       void *arg, int mode, Error **errp)
 {
     sigset_t set, oldset;
     int err;
@@ -515,7 +525,8 @@ void qemu_thread_create(QemuThread *thread, const char *name,
 
     err = pthread_attr_init(&attr);
     if (err) {
-        error_exit(err, __func__);
+        error_setg(errp, "pthread_attr_init failed");
+        return -err;
     }
 
     if (mode == QEMU_THREAD_DETACHED) {
@@ -538,13 +549,18 @@ void qemu_thread_create(QemuThread *thread, const char *name,
 
     err = pthread_create(&thread->thread, &attr,
                          qemu_thread_start, qemu_thread_args);
-
-    if (err)
-        error_exit(err, __func__);
+    if (err) {
+        error_setg(errp, "pthread_create failed");
+        pthread_attr_destroy(&attr);
+        g_free(qemu_thread_args->name);
+        g_free(qemu_thread_args);
+        return -err;
+    }
 
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     pthread_attr_destroy(&attr);
+    return 0;
 }
 
 void qemu_thread_get_self(QemuThread *thread)

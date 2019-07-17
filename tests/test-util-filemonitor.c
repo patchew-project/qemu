@@ -397,7 +397,7 @@ test_file_monitor_events(void)
     evstopping = 0;
     qemu_thread_create(&th, "event-loop",
                        qemu_file_monitor_test_event_loop, NULL,
-                       QEMU_THREAD_JOINABLE);
+                       QEMU_THREAD_JOINABLE, &error_abort);
 
     if (local_err) {
         g_printerr("File monitoring not available: %s",
