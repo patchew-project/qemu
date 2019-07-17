@@ -483,10 +483,13 @@ static void process_incoming_migration_co(void *opaque)
             goto fail;
         }
 
-        /* TODO: let the further caller handle the error instead of abort() */
-        qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
-                           colo_process_incoming_thread, mis,
-                           QEMU_THREAD_JOINABLE, &error_abort);
+        if (qemu_thread_create(&mis->colo_incoming_thread, "COLO incoming",
+                               colo_process_incoming_thread, mis,
+                               QEMU_THREAD_JOINABLE, &local_err) < 0) {
+            error_reportf_err(local_err, "failed to create "
+                              "colo_process_incoming_thread: ");
+            goto fail;
+        }
         mis->have_colo_incoming_thread = true;
         qemu_coroutine_yield();
 
@@ -2485,6 +2488,7 @@ out:
 static int open_return_path_on_source(MigrationState *ms,
                                       bool create_thread)
 {
+    Error *local_err = NULL;
 
     ms->rp_state.from_dst_file = qemu_file_get_return_path(ms->to_dst_file);
     if (!ms->rp_state.from_dst_file) {
@@ -2498,10 +2502,15 @@ static int open_return_path_on_source(MigrationState *ms,
         return 0;
     }
 
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(&ms->rp_state.rp_thread, "return path",
-                       source_return_path_thread, ms,
-                       QEMU_THREAD_JOINABLE, &error_abort);
+    if (qemu_thread_create(&ms->rp_state.rp_thread, "return path",
+                           source_return_path_thread, ms,
+                           QEMU_THREAD_JOINABLE, &local_err) < 0) {
+        error_reportf_err(local_err,
+                          "failed to create source_return_path_thread: ");
+        qemu_fclose(ms->rp_state.from_dst_file);
+        ms->rp_state.from_dst_file = NULL;
+        return -1;
+     }
 
     trace_open_return_path_on_source_continue();
 
@@ -3346,9 +3355,13 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         migrate_fd_cleanup(s);
         return;
     }
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
-                       QEMU_THREAD_JOINABLE, &error_abort);
+    if (qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
+                           QEMU_THREAD_JOINABLE, &error_in) < 0) {
+        error_reportf_err(error_in, "failed to create migration_thread: ");
+        migrate_set_state(&s->state, s->state, MIGRATION_STATUS_FAILED);
+        migrate_fd_cleanup(s);
+        return;
+    }
     s->migration_thread_running = true;
 }
 

@@ -504,6 +504,14 @@ static void compress_threads_save_cleanup(void)
 
     thread_count = migrate_compress_threads();
     for (i = 0; i < thread_count; i++) {
+        qemu_mutex_lock(&comp_param[i].mutex);
+        comp_param[i].quit = true;
+        qemu_cond_signal(&comp_param[i].cond);
+        qemu_mutex_unlock(&comp_param[i].mutex);
+
+        qemu_mutex_destroy(&comp_param[i].mutex);
+        qemu_cond_destroy(&comp_param[i].cond);
+
         /*
          * we use it as a indicator which shows if the thread is
          * properly init'd or not
@@ -511,15 +519,7 @@ static void compress_threads_save_cleanup(void)
         if (!comp_param[i].file) {
             break;
         }
-
-        qemu_mutex_lock(&comp_param[i].mutex);
-        comp_param[i].quit = true;
-        qemu_cond_signal(&comp_param[i].cond);
-        qemu_mutex_unlock(&comp_param[i].mutex);
-
         qemu_thread_join(compress_threads + i);
-        qemu_mutex_destroy(&comp_param[i].mutex);
-        qemu_cond_destroy(&comp_param[i].cond);
         deflateEnd(&comp_param[i].stream);
         g_free(comp_param[i].originbuf);
         qemu_fclose(comp_param[i].file);
@@ -536,6 +536,7 @@ static void compress_threads_save_cleanup(void)
 static int compress_threads_save_setup(void)
 {
     int i, thread_count;
+    Error *local_err = NULL;
 
     if (!migrate_use_compression()) {
         return 0;
@@ -546,6 +547,9 @@ static int compress_threads_save_setup(void)
     qemu_cond_init(&comp_done_cond);
     qemu_mutex_init(&comp_done_lock);
     for (i = 0; i < thread_count; i++) {
+        qemu_mutex_init(&comp_param[i].mutex);
+        qemu_cond_init(&comp_param[i].cond);
+        comp_param[i].quit = false;
         comp_param[i].originbuf = g_try_malloc(TARGET_PAGE_SIZE);
         if (!comp_param[i].originbuf) {
             goto exit;
@@ -562,13 +566,16 @@ static int compress_threads_save_setup(void)
          */
         comp_param[i].file = qemu_fopen_ops(NULL, &empty_ops);
         comp_param[i].done = true;
-        comp_param[i].quit = false;
-        qemu_mutex_init(&comp_param[i].mutex);
-        qemu_cond_init(&comp_param[i].cond);
-        /* TODO: let the further caller handle the error instead of abort() */
-        qemu_thread_create(compress_threads + i, "compress",
-                           do_data_compress, comp_param + i,
-                           QEMU_THREAD_JOINABLE, &error_abort);
+        if (qemu_thread_create(compress_threads + i, "compress",
+                               do_data_compress, comp_param + i,
+                               QEMU_THREAD_JOINABLE, &local_err) < 0) {
+            error_reportf_err(local_err, "failed to create do_data_compress: ");
+            deflateEnd(&comp_param[i].stream);
+            g_free(comp_param[i].originbuf);
+            qemu_fclose(comp_param[i].file);
+            comp_param[i].file = NULL;
+            goto exit;
+        }
     }
     return 0;
 
@@ -1168,9 +1175,14 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         p->c = QIO_CHANNEL(sioc);
         qio_channel_set_delay(p->c, false);
         p->running = true;
-        /* TODO: let the further caller handle the error instead of abort() */
-        qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
-                           QEMU_THREAD_JOINABLE, &error_abort);
+        if (qemu_thread_create(&p->thread, p->name, multifd_send_thread, p,
+                               QEMU_THREAD_JOINABLE, &local_err) < 0) {
+            migrate_set_error(migrate_get_current(), local_err);
+            error_reportf_err(local_err,
+                              "failed to create multifd_send_thread: ");
+            multifd_save_cleanup();
+            return;
+        }
     }
 }
 
@@ -1449,9 +1461,13 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     p->num_packets = 1;
 
     p->running = true;
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
-                       QEMU_THREAD_JOINABLE, &error_abort);
+    if (qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
+                           QEMU_THREAD_JOINABLE, &local_err) < 0) {
+        multifd_recv_terminate_threads(local_err);
+        error_propagate_prepend(errp, local_err,
+                                "failed to create multifd_recv_thread: ");
+        return false;
+    }
     atomic_inc(&multifd_recv_state->count);
     return atomic_read(&multifd_recv_state->count) ==
            migrate_multifd_channels();
@@ -3873,6 +3889,7 @@ static void compress_threads_load_cleanup(void)
 static int compress_threads_load_setup(QEMUFile *f)
 {
     int i, thread_count;
+    Error *local_err = NULL;
 
     if (!migrate_use_compression()) {
         return 0;
@@ -3894,10 +3911,13 @@ static int compress_threads_load_setup(QEMUFile *f)
         qemu_cond_init(&decomp_param[i].cond);
         decomp_param[i].done = true;
         decomp_param[i].quit = false;
-        /* TODO: let the further caller handle the error instead of abort() */
-        qemu_thread_create(decompress_threads + i, "decompress",
-                           do_data_decompress, decomp_param + i,
-                           QEMU_THREAD_JOINABLE, &error_abort);
+        if (qemu_thread_create(decompress_threads + i, "decompress",
+                               do_data_decompress, decomp_param + i,
+                               QEMU_THREAD_JOINABLE, &local_err) < 0) {
+            error_reportf_err(local_err,
+                              "failed to create do_data_decompress: ");
+            goto exit;
+        }
     }
     return 0;
 exit:
