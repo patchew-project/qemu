@@ -448,12 +448,12 @@ static inline int get_memset_num_threads(int smp_cpus)
 }
 
 static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
-                            int smp_cpus)
+                            int smp_cpus, Error **errp)
 {
     size_t numpages_per_thread;
     size_t size_per_thread;
     char *addr = area;
-    int i = 0;
+    int i = 0, j = 0;
 
     memset_thread_failed = false;
     memset_num_threads = get_memset_num_threads(smp_cpus);
@@ -465,20 +465,32 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
         memset_thread[i].numpages = (i == (memset_num_threads - 1)) ?
                                     numpages : numpages_per_thread;
         memset_thread[i].hpagesize = hpagesize;
-        /* TODO: let the callers handle the error instead of abort() here */
-        qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
-                           do_touch_pages, &memset_thread[i],
-                           QEMU_THREAD_JOINABLE, &error_abort);
+        if (qemu_thread_create(&memset_thread[i].pgthread, "touch_pages",
+                               do_touch_pages, &memset_thread[i],
+                               QEMU_THREAD_JOINABLE, errp) < 0) {
+            break;
+        }
         addr += size_per_thread;
         numpages -= numpages_per_thread;
     }
-    for (i = 0; i < memset_num_threads; i++) {
-        qemu_thread_join(&memset_thread[i].pgthread);
+
+    for (j = 0; j < i; j++) {
+        qemu_thread_join(&memset_thread[j].pgthread);
     }
     g_free(memset_thread);
     memset_thread = NULL;
 
-    return memset_thread_failed;
+    if (i < memset_num_threads) {
+        /* qemu_thread_create() has set @errp */
+        return false;
+    }
+
+    if (memset_thread_failed) {
+        error_setg(errp, "os_mem_prealloc: Insufficient free host "
+                         "memory pages available to allocate guest RAM");
+        return false;
+    }
+    return true;
 }
 
 void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
@@ -501,10 +513,7 @@ void os_mem_prealloc(int fd, char *area, size_t memory, int smp_cpus,
     }
 
     /* touch pages simultaneously */
-    if (touch_all_pages(area, hpagesize, numpages, smp_cpus)) {
-        error_setg(errp, "os_mem_prealloc: Insufficient free host memory "
-            "pages available to allocate guest RAM");
-    }
+    touch_all_pages(area, hpagesize, numpages, smp_cpus, errp);
 
     ret = sigaction(SIGBUS, &oldact, NULL);
     if (ret) {
