@@ -731,7 +731,7 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
               vaddr, paddr, prot, mmu_idx);
 
     address = vaddr_page;
-    if (size < TARGET_PAGE_SIZE) {
+    if (size < TARGET_PAGE_SIZE || attrs.byte_swap) {
         /*
          * Slow-path the TLB entries; we will repeat the MMU check and TLB
          * fill on every access.
@@ -891,6 +891,10 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     bool locked = false;
     MemTxResult r;
 
+    if (iotlbentry->attrs.byte_swap) {
+        op ^= MO_BSWAP;
+    }
+
     section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
     mr = section->mr;
     mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
@@ -932,6 +936,10 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     MemoryRegion *mr;
     bool locked = false;
     MemTxResult r;
+
+    if (iotlbentry->attrs.byte_swap) {
+        op ^= MO_BSWAP;
+    }
 
     section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
     mr = section->mr;
