@@ -847,6 +847,7 @@ static void virtio_balloon_device_reset(VirtIODevice *vdev)
     if (virtio_balloon_free_page_support(s)) {
         virtio_balloon_free_page_stop(s);
     }
+    virtio_balloon_reset_pbp(s);
 
     if (s->stats_vq_elem != NULL) {
         virtqueue_unpop(s->svq, s->stats_vq_elem, 0);
