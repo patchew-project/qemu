@@ -2870,6 +2870,20 @@ static int raw_check_perm(BlockDriverState *bs, uint64_t perm, uint64_t shared,
             goto fail;
         }
     }
+
+    /*
+     * If we are opening a zoned block device, check if the backend
+     * driver can properly handle such devices, abort if not.
+     */
+    if (bdrv_is_zoned(bs) &&
+        (shared & BLK_PERM_SUPPORT_ZONED) &&
+        !(perm & BLK_PERM_SUPPORT_ZONED)) {
+        error_setg(errp,
+                   "block backend driver doesn't support HM zoned devices");
+        ret = -ENOTSUP;
+        goto fail;
+    }
+
     return 0;
 
 fail:
