@@ -9843,7 +9843,9 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
     gdb_register_coprocessor(cs, gdb_get_spr_reg, gdb_set_spr_reg,
                              pcc->gdb_num_sprs, "power-spr.xml", 0);
 #endif
-    qemu_init_vcpu(cs);
+    if (!qemu_init_vcpu(cs, errp)) {
+        goto unrealize;
+    }
 
     pcc->parent_realize(dev, errp);
 

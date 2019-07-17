@@ -412,7 +412,9 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
 
     riscv_cpu_register_gdb_regs_for_features(cs);
 
-    qemu_init_vcpu(cs);
+    if (!qemu_init_vcpu(cs, errp)) {
+        return;
+    }
     cpu_reset(cs);
 
     mcc->parent_realize(dev, errp);
