@@ -228,6 +228,7 @@ opts_start_list(Visitor *v, const char *name, GenericList **list, size_t size,
         *list = g_malloc0(size);
     } else {
         *list = NULL;
+        error_setg(errp, QERR_MISSING_PARAMETER, name);
     }
 }
 
@@ -255,9 +256,14 @@ opts_next_list(Visitor *v, GenericList *tail, size_t size)
     case LM_IN_PROGRESS: {
         const QemuOpt *opt;
 
+        if (!ov->repeated_opts) {
+            return NULL;
+        }
+
         opt = g_queue_pop_head(ov->repeated_opts);
         if (g_queue_is_empty(ov->repeated_opts)) {
             g_hash_table_remove(ov->unprocessed_opts, opt->name);
+            ov->repeated_opts = NULL;
             return NULL;
         }
         break;
@@ -307,6 +313,10 @@ lookup_scalar(const OptsVisitor *ov, const char *name, Error **errp)
         return list ? g_queue_peek_tail(list) : NULL;
     }
     assert(ov->list_mode == LM_IN_PROGRESS);
+    if (!ov->repeated_opts) {
+        error_setg(errp, QERR_INVALID_PARAMETER, name);
+        return NULL;
+    }
     return g_queue_peek_head(ov->repeated_opts);
 }
 
