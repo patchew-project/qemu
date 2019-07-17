@@ -59,12 +59,45 @@ static void check_bitmap_copy_with_offset(void)
     g_free(bmap3);
 }
 
+static void check_bitmap_set(void)
+{
+    unsigned long *bmap;
+
+    bmap = bitmap_new(BMAP_SIZE);
+
+    /* Both Aligned, set bits [BITS_PER_LONG, 2*BITS_PER_LONG] */
+    bitmap_set(bmap, BITS_PER_LONG, BITS_PER_LONG);
+    g_assert_cmpint(find_first_bit(bmap, BITS_PER_LONG), ==, BITS_PER_LONG);
+    g_assert_cmpint(find_next_zero_bit(bmap, 2 * BITS_PER_LONG, BITS_PER_LONG),
+                    ==, 2 * BITS_PER_LONG);
+
+    bitmap_clear(bmap, 0, BMAP_SIZE);
+    /* End Aligned, set bits [BITS_PER_LONG - 5, 2*BITS_PER_LONG] */
+    bitmap_set(bmap, BITS_PER_LONG - 5, BITS_PER_LONG + 5);
+    g_assert_cmpint(find_first_bit(bmap, BITS_PER_LONG),
+                    ==, BITS_PER_LONG - 5);
+    g_assert_cmpint(find_next_zero_bit(bmap,
+                                       2 * BITS_PER_LONG, BITS_PER_LONG - 5),
+                    ==, 2 * BITS_PER_LONG);
+
+    bitmap_clear(bmap, 0, BMAP_SIZE);
+    /* Start Aligned, set bits [BITS_PER_LONG, 2*BITS_PER_LONG + 5] */
+    bitmap_set(bmap, BITS_PER_LONG, BITS_PER_LONG + 5);
+    g_assert_cmpint(find_first_bit(bmap, BITS_PER_LONG),
+                    ==, BITS_PER_LONG);
+    g_assert_cmpint(find_next_zero_bit(bmap,
+                                       2 * BITS_PER_LONG + 5, BITS_PER_LONG),
+                    ==, 2 * BITS_PER_LONG + 5);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
 
     g_test_add_func("/bitmap/bitmap_copy_with_offset",
                     check_bitmap_copy_with_offset);
+    g_test_add_func("/bitmap/bitmap_set",
+                    check_bitmap_set);
 
     g_test_run();
 
