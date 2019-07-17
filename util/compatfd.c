@@ -70,6 +70,7 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     struct sigfd_compat_info *info;
     QemuThread thread;
     int fds[2];
+    int ret;
 
     info = malloc(sizeof(*info));
     if (info == NULL) {
@@ -88,9 +89,15 @@ static int qemu_signalfd_compat(const sigset_t *mask)
     memcpy(&info->mask, mask, sizeof(*mask));
     info->fd = fds[1];
 
-    /* TODO: let the further caller handle the error instead of abort() here */
-    qemu_thread_create(&thread, "signalfd_compat", sigwait_compat,
-                       info, QEMU_THREAD_DETACHED, &error_abort);
+    ret = qemu_thread_create(&thread, "signalfd_compat", sigwait_compat,
+                             info, QEMU_THREAD_DETACHED, NULL);
+    if (ret < 0) {
+        close(fds[0]);
+        close(fds[1]);
+        free(info);
+        errno = -ret;
+        return -1;
+    }
 
     return fds[0];
 }
