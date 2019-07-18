@@ -1540,6 +1540,12 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
     },
 };
 
+/*
+ * skiboot uses an indirect NVT table with 64k subpages
+ */
+#define XIVE_NVT_COUNT          (1 << XIVE_NVT_SHIFT)
+#define XIVE_NVT_PER_PAGE       (0x10000 / sizeof(XiveNVT))
+
 static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
                                     Monitor *mon)
 {
@@ -1593,10 +1599,12 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
         xive_end_eas_pic_print_info(&end, i++, mon);
     }
 
-    monitor_printf(mon, "XIVE[%x] NVTT\n", blk);
-    i = 0;
-    while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
-        xive_nvt_pic_print_info(&nvt, i++, mon);
+    monitor_printf(mon, "XIVE[%x] NVTT %08x .. %08x\n", blk, 0,
+                   XIVE_NVT_COUNT - 1);
+    for (i = 0; i < XIVE_NVT_COUNT; i += XIVE_NVT_PER_PAGE) {
+        while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
+            xive_nvt_pic_print_info(&nvt, i++, mon);
+        }
     }
 }
 
