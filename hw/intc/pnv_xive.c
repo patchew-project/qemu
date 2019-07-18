@@ -1540,6 +1540,21 @@ static const MemoryRegionOps pnv_xive_pc_ops = {
     },
 };
 
+static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
+                                    Monitor *mon)
+{
+    uint8_t  eq_blk = xive_get_field32(NVT_W1_EQ_BLOCK, nvt->w1);
+    uint32_t eq_idx = xive_get_field32(NVT_W1_EQ_INDEX, nvt->w1);
+
+    if (!xive_nvt_is_valid(nvt)) {
+        return;
+    }
+
+    monitor_printf(mon, "  %08x end:%02x/%04x IPB:%02x\n", nvt_idx,
+                   eq_blk, eq_idx,
+                   xive_get_field32(NVT_W4_IPB, nvt->w4));
+}
+
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
@@ -1548,6 +1563,7 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     uint32_t nr_ipis = pnv_xive_nr_ipis(xive, blk);
     XiveEAS eas;
     XiveEND end;
+    XiveNVT nvt;
     int i;
 
     monitor_printf(mon, "XIVE[%x] Source %08x .. %08x\n", blk, srcno0,
@@ -1575,6 +1591,12 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     i = 0;
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
         xive_end_eas_pic_print_info(&end, i++, mon);
+    }
+
+    monitor_printf(mon, "XIVE[%x] NVTT\n", blk);
+    i = 0;
+    while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
+        xive_nvt_pic_print_info(&nvt, i++, mon);
     }
 }
 
