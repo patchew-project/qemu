@@ -1556,6 +1556,33 @@ void qemu_system_reset(ShutdownCause reason)
     cpu_synchronize_all_post_reset();
 }
 
+/*
+ * Wake the VM after suspend.
+ */
+static void qemu_system_wakeup(void)
+{
+    MachineClass *mc;
+
+    mc = current_machine ? MACHINE_GET_CLASS(current_machine) : NULL;
+
+    if (mc && mc->wakeup) {
+        mc->wakeup(current_machine);
+    } else {
+        /*
+         * Fall back to old reset wakeup method. Platforms supporting
+         * wakeup should be converted over to use ->wakeup and this
+         * fallback code removed.
+         */
+        cpu_synchronize_all_states();
+        if (mc && mc->reset) {
+            mc->reset(current_machine);
+        } else {
+            qemu_devices_reset();
+        }
+        cpu_synchronize_all_post_reset();
+    }
+}
+
 void qemu_system_guest_panicked(GuestPanicInformation *info)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "Guest crashed");
@@ -1764,7 +1791,7 @@ static bool main_loop_should_exit(void)
     }
     if (qemu_wakeup_requested()) {
         pause_all_vcpus();
-        qemu_system_reset(SHUTDOWN_CAUSE_NONE);
+        qemu_system_wakeup();
         notifier_list_notify(&wakeup_notifiers, &wakeup_reason);
         wakeup_reason = QEMU_WAKEUP_REASON_NONE;
         resume_all_vcpus();
