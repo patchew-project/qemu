@@ -758,7 +758,13 @@ static gint crs_range_compare(gconstpointer a, gconstpointer b)
      CrsRangeEntry *entry_a = *(CrsRangeEntry **)a;
      CrsRangeEntry *entry_b = *(CrsRangeEntry **)b;
 
-     return (int64_t)entry_a->base - (int64_t)entry_b->base;
+     if (entry_a->base < entry_b->base) {
+         return -1;
+     } else if (entry_a->base > entry_b->base) {
+         return 1;
+     } else {
+         return 0;
+     }
 }
 
 /*
