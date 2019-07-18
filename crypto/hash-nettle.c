@@ -28,10 +28,10 @@
 
 typedef void (*qcrypto_nettle_init)(void *ctx);
 typedef void (*qcrypto_nettle_write)(void *ctx,
-                                     unsigned int len,
+                                     size_t len,
                                      const uint8_t *buf);
 typedef void (*qcrypto_nettle_result)(void *ctx,
-                                      unsigned int len,
+                                      size_t len,
                                       uint8_t *buf);
 
 union qcrypto_hash_ctx {
