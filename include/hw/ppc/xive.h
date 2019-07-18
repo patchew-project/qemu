@@ -320,6 +320,8 @@ typedef struct XiveTCTX {
     qemu_irq    os_output;
 
     uint8_t     regs[XIVE_TM_RING_COUNT * XIVE_TM_RING_SIZE];
+
+    struct XiveRouter  *xrtr;
 } XiveTCTX;
 
 /*
