@@ -370,22 +370,13 @@ static XiveTCTX *pnv_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     XiveTCTX *tctx = XIVE_TCTX(pnv_cpu_state(cpu)->intc);
-    PnvXive *xive = NULL;
+    PnvXive *xive = PNV_XIVE(tctx->xrtr);
     CPUPPCState *env = &cpu->env;
     int pir = env->spr_cb[SPR_PIR].default_value;
 
     /*
      * Perform an extra check on the HW thread enablement.
-     *
-     * The TIMA is shared among the chips and to identify the chip
-     * from which the access is being done, we extract the chip id
-     * from the PIR.
      */
-    xive = pnv_xive_get_ic((pir >> 8) & 0xf);
-    if (!xive) {
-        return NULL;
-    }
-
     if (!(xive->regs[PC_THREAD_EN_REG0 >> 3] & PPC_BIT(pir & 0x3f))) {
         xive_error(PNV_XIVE(xrtr), "IC: CPU %x is not enabled", pir);
     }
