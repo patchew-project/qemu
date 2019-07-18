@@ -1190,6 +1190,7 @@ struct PowerPCCPU {
     void *machine_data;
     int32_t node_id; /* NUMA node this CPU belongs to */
     PPCHash64Options *hash64_opts;
+    QEMUTimer idle_timer;
 
     /* Fields related to migration compatibility hacks */
     bool pre_2_8_migration;

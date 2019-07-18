@@ -87,18 +87,6 @@ static int cap_large_decr;
 
 static uint32_t debug_inst_opcode;
 
-/*
- * XXX We have a race condition where we actually have a level triggered
- *     interrupt, but the infrastructure can't expose that yet, so the guest
- *     takes but ignores it, goes to sleep and never gets notified that there's
- *     still an interrupt pending.
- *
- *     As a quick workaround, let's just wake up again 20 ms after we injected
- *     an interrupt. That way we can assure that we're always reinjecting
- *     interrupts in case the guest swallowed them.
- */
-static QEMUTimer *idle_timer;
-
 static void kvm_kick_cpu(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -491,7 +479,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         return ret;
     }
 
-    idle_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
+    timer_init_ns(&cpu->idle_timer, QEMU_CLOCK_VIRTUAL, kvm_kick_cpu, cpu);
 
     switch (cenv->mmu_model) {
     case POWERPC_MMU_BOOKE206:
@@ -523,6 +511,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
 
 int kvm_arch_destroy_vcpu(CPUState *cs)
 {
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+
+    timer_deinit(&cpu->idle_timer);
+
     return 0;
 }
 
@@ -1379,8 +1371,17 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
             printf("cpu %d fail inject %x\n", cs->cpu_index, irq);
         }
 
-        /* Always wake up soon in case the interrupt was level based */
-        timer_mod(idle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+        /*
+         * XXX We have a race condition where we actually have a level
+         *     triggered interrupt, but the infrastructure can't expose that
+         *     yet, so the guest takes but ignores it, goes to sleep and
+         *     never gets notified that there's still an interrupt pending.
+         *
+         *     As a quick workaround, let's just wake up again 20 ms after
+         *     we injected an interrupt. That way we can assure that we're
+         *     always reinjecting interrupts in case the guest swallowed them.
+         */
+        timer_mod(&cpu->idle_timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
                        (NANOSECONDS_PER_SECOND / 50));
     }
 
