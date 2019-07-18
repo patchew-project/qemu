@@ -1340,6 +1340,13 @@ XiveTCTX *xive_router_get_tctx(XiveRouter *xrtr, CPUState *cs)
     return xrc->get_tctx(xrtr, cs);
 }
 
+uint8_t xive_router_get_block_id(XiveRouter *xrtr)
+{
+    XiveRouterClass *xrc = XIVE_ROUTER_GET_CLASS(xrtr);
+
+    return xrc->get_block_id(xrtr);
+}
+
 /*
  * Encode the HW CAM line in the block group mode format :
  *
@@ -1349,8 +1356,9 @@ static uint32_t xive_tctx_hw_cam_line(XiveTCTX *tctx)
 {
     CPUPPCState *env = &POWERPC_CPU(tctx->cs)->env;
     uint32_t pir = env->spr_cb[SPR_PIR].default_value;
+    uint8_t blk = xive_router_get_block_id(XIVE_ROUTER(tctx->xrtr));
 
-    return xive_nvt_cam_line((pir >> 8) & 0xf, 1 << 7 | (pir & 0x7f));
+    return xive_nvt_cam_line(blk, 1 << 7 | (pir & 0x7f));
 }
 
 /*

@@ -419,6 +419,11 @@ static XiveTCTX *spapr_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
     return spapr_cpu_state(cpu)->tctx;
 }
 
+static uint8_t spapr_xive_get_block_id(XiveRouter *xrtr)
+{
+    return SPAPR_XIVE_BLOCK_ID;
+}
+
 static const VMStateDescription vmstate_spapr_xive_end = {
     .name = TYPE_SPAPR_XIVE "/end",
     .version_id = 1,
@@ -508,6 +513,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_nvt = spapr_xive_get_nvt;
     xrc->write_nvt = spapr_xive_write_nvt;
     xrc->get_tctx = spapr_xive_get_tctx;
+    xrc->get_block_id = spapr_xive_get_block_id;
 }
 
 static const TypeInfo spapr_xive_info = {

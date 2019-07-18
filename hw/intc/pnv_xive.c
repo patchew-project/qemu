@@ -84,6 +84,23 @@ static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
 }
 
 /*
+ * When PC_TCTXT_CHIPID_OVERRIDE is configured, the PC_TCTXT_CHIPID
+ * field overrides the hardwired chip ID in the Powerbus operations
+ * and for CAM compares
+ */
+static uint8_t pnv_xive_block_id(PnvXive *xive)
+{
+    uint8_t blk = xive->chip->chip_id;
+    uint64_t cfg_val = xive->regs[PC_TCTXT_CFG >> 3];
+
+    if (cfg_val & PC_TCTXT_CHIPID_OVERRIDE) {
+        blk = GETFIELD(PC_TCTXT_CHIPID, cfg_val);
+    }
+
+    return blk;
+}
+
+/*
  * Remote access to controllers. HW uses MMIOs. For now, a simple scan
  * of the chips is good enough.
  *
@@ -98,7 +115,7 @@ static PnvXive *pnv_xive_get_ic(uint8_t blk)
         Pnv9Chip *chip9 = PNV9_CHIP(pnv->chips[i]);
         PnvXive *xive = &chip9->xive;
 
-        if (xive->chip->chip_id == blk) {
+        if (pnv_xive_block_id(xive) == blk) {
             return xive;
         }
     }
@@ -384,6 +401,11 @@ static XiveTCTX *pnv_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
     return tctx;
 }
 
+static uint8_t pnv_xive_get_block_id(XiveRouter *xrtr)
+{
+    return pnv_xive_block_id(PNV_XIVE(xrtr));
+}
+
 /*
  * The internal sources (IPIs) of the interrupt controller have no
  * knowledge of the XIVE chip on which they reside. Encode the block
@@ -394,7 +416,7 @@ static XiveTCTX *pnv_xive_get_tctx(XiveRouter *xrtr, CPUState *cs)
 static void pnv_xive_notify(XiveNotifier *xn, uint32_t srcno)
 {
     PnvXive *xive = PNV_XIVE(xn);
-    uint8_t blk = xive->chip->chip_id;
+    uint8_t blk = pnv_xive_block_id(xive);
 
     xive_router_notify(xn, XIVE_SRCNO(blk, srcno));
 }
@@ -758,21 +780,9 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
     case PC_TCTXT_CFG:
         /*
          * TODO: block group support
-         *
-         * PC_TCTXT_CFG_BLKGRP_EN
-         * PC_TCTXT_CFG_HARD_CHIPID_BLK :
-         *   Moves the chipid into block field for hardwired CAM compares.
-         *   Block offset value is adjusted to 0b0..01 & ThrdId
-         *
-         *   Will require changes in xive_presenter_tctx_match(). I am
-         *   not sure how to handle that yet.
          */
-
-        /* Overrides hardwired chip ID with the chip ID field */
-        if (val & PC_TCTXT_CHIPID_OVERRIDE) {
-            xive->tctx_chipid = GETFIELD(PC_TCTXT_CHIPID, val);
-        }
         break;
+
     case PC_TCTXT_TRACK:
         /*
          * PC_TCTXT_TRACK_EN:
@@ -1555,7 +1565,8 @@ static void xive_nvt_pic_print_info(XiveNVT *nvt, uint32_t nvt_idx,
 void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
 {
     XiveRouter *xrtr = XIVE_ROUTER(xive);
-    uint8_t blk = xive->chip->chip_id;
+    uint8_t blk = pnv_xive_block_id(xive);
+    uint8_t chip_id = xive->chip->chip_id;
     uint32_t srcno0 = XIVE_SRCNO(blk, 0);
     uint32_t nr_ipis = pnv_xive_nr_ipis(xive, blk);
     XiveEAS eas;
@@ -1563,12 +1574,12 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
     XiveNVT nvt;
     int i;
 
-    monitor_printf(mon, "XIVE[%x] Source %08x .. %08x\n", blk, srcno0,
-                   srcno0 + nr_ipis - 1);
+    monitor_printf(mon, "XIVE[%x] #%d Source %08x .. %08x\n", chip_id, blk,
+                   srcno0, srcno0 + nr_ipis - 1);
     xive_source_pic_print_info(&xive->ipi_source, srcno0, mon);
 
-    monitor_printf(mon, "XIVE[%x] EAT %08x .. %08x\n", blk, srcno0,
-                   srcno0 + nr_ipis - 1);
+    monitor_printf(mon, "XIVE[%x] #%d EAT %08x .. %08x\n", chip_id, blk,
+                   srcno0, srcno0 + nr_ipis - 1);
     for (i = 0; i < nr_ipis; i++) {
         if (xive_router_get_eas(xrtr, blk, i, &eas)) {
             break;
@@ -1578,20 +1589,20 @@ void pnv_xive_pic_print_info(PnvXive *xive, Monitor *mon)
         }
     }
 
-    monitor_printf(mon, "XIVE[%x] ENDT\n", blk);
+    monitor_printf(mon, "XIVE[%x] #%d ENDT\n", chip_id, blk);
     i = 0;
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
         xive_end_pic_print_info(&end, i++, mon);
     }
 
-    monitor_printf(mon, "XIVE[%x] END Escalation EAT\n", blk);
+    monitor_printf(mon, "XIVE[%x] #%d END Escalation EAT\n", chip_id, blk);
     i = 0;
     while (!xive_router_get_end(xrtr, blk, i, &end)) {
         xive_end_eas_pic_print_info(&end, i++, mon);
     }
 
-    monitor_printf(mon, "XIVE[%x] NVTT %08x .. %08x\n", blk, 0,
-                   XIVE_NVT_COUNT - 1);
+    monitor_printf(mon, "XIVE[%x] #%d NVTT %08x .. %08x\n", chip_id, blk,
+                   0, XIVE_NVT_COUNT - 1);
     for (i = 0; i < XIVE_NVT_COUNT; i += XIVE_NVT_PER_PAGE) {
         while (!xive_router_get_nvt(xrtr, blk, i, &nvt)) {
             xive_nvt_pic_print_info(&nvt, i++, mon);
@@ -1604,12 +1615,6 @@ static void pnv_xive_reset(void *dev)
     PnvXive *xive = PNV_XIVE(dev);
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
-
-    /*
-     * Use the PnvChip id to identify the XIVE interrupt controller.
-     * It can be overriden by configuration at runtime.
-     */
-    xive->tctx_chipid = xive->chip->chip_id;
 
     /* Default page size (Should be changed at runtime to 64k) */
     xive->ic_shift = xive->vc_shift = xive->pc_shift = 12;
@@ -1803,6 +1808,7 @@ static void pnv_xive_class_init(ObjectClass *klass, void *data)
     xrc->get_nvt = pnv_xive_get_nvt;
     xrc->write_nvt = pnv_xive_write_nvt;
     xrc->get_tctx = pnv_xive_get_tctx;
+    xrc->get_block_id = pnv_xive_get_block_id;
 
     xnc->notify = pnv_xive_notify;
 };
