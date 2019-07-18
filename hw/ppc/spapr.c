@@ -1700,6 +1700,14 @@ static int spapr_reset_drcs(Object *child, void *opaque)
     return 0;
 }
 
+static void spapr_machine_wakeup(MachineState *machine)
+{
+    /*
+     * Nothing needs to be done to resume a suspended guest because
+     * suspending does not change the machine state.
+     */
+}
+
 static void spapr_machine_reset(MachineState *machine)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
@@ -3077,6 +3085,8 @@ static void spapr_machine_init(MachineState *machine)
 
     qemu_register_boot_set(spapr_boot_set, spapr);
 
+    qemu_register_wakeup_support();
+
     if (kvm_enabled()) {
         /* to stop and start vmclock */
         qemu_add_vm_change_state_handler(cpu_ppc_clock_vm_state_change,
@@ -4323,6 +4333,7 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
      */
     mc->init = spapr_machine_init;
     mc->reset = spapr_machine_reset;
+    mc->wakeup = spapr_machine_wakeup;
     mc->block_default_type = IF_SCSI;
     mc->max_cpus = 1024;
     mc->no_parallel = 1;
