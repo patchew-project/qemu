@@ -786,7 +786,7 @@ static int nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t handle,
                                         int *request_ret, Error **errp)
 {
     NBDReplyChunkIter iter;
-    NBDReply reply;
+    NBDReply reply = {};
     void *payload = NULL;
     Error *local_err = NULL;
 
