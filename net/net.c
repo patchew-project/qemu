@@ -741,6 +741,9 @@ ssize_t qemu_sendv_packet_async(NetClientState *sender,
     size_t size = iov_size(iov, iovcnt);
     int ret;
 
+    /* 0-sized packets are unsupported. Check size in the caller */
+    assert(size);
+
     if (size > NET_BUFSIZE) {
         return size;
     }
