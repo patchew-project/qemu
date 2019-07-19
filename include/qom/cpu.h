@@ -283,6 +283,7 @@ struct hax_vcpu_state;
 typedef union {
     int           host_int;
     unsigned long host_ulong;
+    uint64_t      host_uint64;
     void         *host_ptr;
     vaddr         target_ptr;
 } run_on_cpu_data;
