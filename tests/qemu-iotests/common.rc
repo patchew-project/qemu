@@ -428,6 +428,13 @@ _notrun()
     exit
 }
 
+# bail out, setting up .casenotrun file
+#
+_casenotrun()
+{
+    echo "    [case not run] $*" >>"$OUTPUT_DIR/$seq.casenotrun"
+}
+
 # just plain bail out
 #
 _fail()
