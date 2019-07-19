@@ -126,7 +126,7 @@ static bool v7m_stack_write(ARMCPU *cpu, uint32_t addr, uint32_t value,
     hwaddr physaddr;
     int prot;
     ARMMMUFaultInfo fi = {};
-    bool secure = mmu_idx & ARM_MMU_IDX_M_S;
+    bool secure = mmu_idx & ARM_MMU_IDX_S;
     int exc;
     bool exc_secure;
 
@@ -218,7 +218,7 @@ static bool v7m_stack_read(ARMCPU *cpu, uint32_t *dest, uint32_t addr,
     hwaddr physaddr;
     int prot;
     ARMMMUFaultInfo fi = {};
-    bool secure = mmu_idx & ARM_MMU_IDX_M_S;
+    bool secure = mmu_idx & ARM_MMU_IDX_S;
     int exc;
     bool exc_secure;
     uint32_t value;
@@ -2669,7 +2669,7 @@ ARMMMUIdx arm_v7m_mmu_idx_all(CPUARMState *env,
     }
 
     if (secstate) {
-        mmu_idx |= ARM_MMU_IDX_M_S;
+        mmu_idx |= ARM_MMU_IDX_S;
     }
 
     return mmu_idx;
