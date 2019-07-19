@@ -1805,8 +1805,8 @@ static void gen_shiftd_rm_T1(DisasContext *s, TCGMemOp ot, int op1,
             tcg_gen_shri_i64(s->tmp0, s->tmp0, 32);
             tcg_gen_shri_i64(s->T0, s->T0, 32);
         }
-        break;
 #endif
+        break;
     default:
         tcg_gen_subi_tl(s->tmp0, count, 1);
         if (is_right) {
