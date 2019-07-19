@@ -2035,14 +2035,19 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
             return -EINVAL;
         }
 
-        if (n->has_vnet_hdr) {
-            if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
+        /*
+         * Even if !n->has_vnet_hdr and we dont need mhdr, we still need this
+         * to check that out_sg contains at least guest_hdr_len bytes
+         */
+        if (iov_to_buf(out_sg, out_num, 0, &mhdr, n->guest_hdr_len) <
                 n->guest_hdr_len) {
-                virtio_error(vdev, "virtio-net header incorrect");
-                virtqueue_detach_element(q->tx_vq, elem, 0);
-                g_free(elem);
-                return -EINVAL;
-            }
+            virtio_error(vdev, "virtio-net header incorrect");
+            virtqueue_detach_element(q->tx_vq, elem, 0);
+            g_free(elem);
+            return -EINVAL;
+        }
+
+        if (n->has_vnet_hdr) {
             if (n->needs_vnet_hdr_swap) {
                 virtio_net_hdr_swap(vdev, (void *) &mhdr);
                 sg2[0].iov_base = &mhdr;
