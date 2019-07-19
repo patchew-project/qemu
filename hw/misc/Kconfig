@@ -117,4 +117,7 @@ config AUX
     bool
     select I2C
 
+config AVR_MASK
+    bool
+
 source macio/Kconfig
