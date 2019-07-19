@@ -3104,11 +3104,13 @@ static inline bool arm_sctlr_b(CPUARMState *env)
 static inline uint64_t arm_sctlr(CPUARMState *env, int el)
 {
     if (el == 0) {
-        /* FIXME: ARMv8.1-VHE S2 translation regime.  */
-        return env->cp15.sctlr_el[1];
-    } else {
-        return env->cp15.sctlr_el[el];
+        if (arm_el_is_aa64(env, 2) && (arm_hcr_el2_eff(env) & HCR_E2H)) {
+            el = 2;
+        } else {
+            el = 1;
+        }
     }
+    return env->cp15.sctlr_el[el];
 }
 
 

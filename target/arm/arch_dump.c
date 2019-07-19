@@ -320,7 +320,7 @@ int cpu_get_dump_info(ArchDumpInfo *info,
      * dump a hypervisor that happens to be running an opposite-endian
      * kernel.
      */
-    info->d_endian = (env->cp15.sctlr_el[1] & SCTLR_EE) != 0
+    info->d_endian = (arm_sctlr(env, 1) & SCTLR_EE) != 0
                      ? ELFDATA2MSB : ELFDATA2LSB;
 
     return 0;
