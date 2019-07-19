@@ -2074,12 +2074,15 @@ static int32_t virtio_net_flush_tx(VirtIONetQueue *q)
             out_sg = sg;
         }
 
-        ret = qemu_sendv_packet_async(qemu_get_subqueue(n->nic, queue_index),
-                                      out_sg, out_num, virtio_net_tx_complete);
-        if (ret == 0) {
-            virtio_queue_set_notification(q->tx_vq, 0);
-            q->async_tx.elem = elem;
-            return -EBUSY;
+        /* Do not try to send 0-sized packets */
+        if (iov_size(out_sg, out_num)) {
+            ret = qemu_sendv_packet_async(qemu_get_subqueue(n->nic,
+                        queue_index), out_sg, out_num, virtio_net_tx_complete);
+            if (ret == 0) {
+                virtio_queue_set_notification(q->tx_vq, 0);
+                q->async_tx.elem = elem;
+                return -EBUSY;
+            }
         }
 
 drop:
