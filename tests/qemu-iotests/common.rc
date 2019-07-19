@@ -482,6 +482,16 @@ _supported_cache_modes()
     _notrun "not suitable for cache mode: $CACHEMODE"
 }
 
+_supported_aio_modes()
+{
+    for mode; do
+        if [ "$mode" = "$AIOMODE" ]; then
+            return
+        fi
+    done
+    _notrun "not suitable for aio mode: $AIOMODE"
+}
+
 _default_cache_mode()
 {
     if $CACHEMODE_IS_DEFAULT; then
