@@ -4192,7 +4192,7 @@ static int img_bench(int argc, char **argv)
             {"force-share", no_argument, 0, 'U'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hc:d:f:no:qs:S:t:wU", long_options, NULL);
+        c = getopt_long(argc, argv, ":hc:d:f:io:qs:S:t:wU", long_options, NULL);
         if (c == -1) {
             break;
         }
@@ -4232,8 +4232,13 @@ static int img_bench(int argc, char **argv)
         case 'f':
             fmt = optarg;
             break;
-        case 'n':
-            flags |= BDRV_O_NATIVE_AIO;
+        case 'i':
+            ret = bdrv_parse_aio(optarg, &flags);
+            if (ret < 0) {
+                error_report("Invalid aio option: %s", optarg);
+                ret = -1;
+                goto out;
+            }
             break;
         case 'o':
         {
