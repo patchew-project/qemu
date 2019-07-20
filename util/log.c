@@ -326,3 +326,31 @@ void qemu_print_log_usage(FILE *f)
     fprintf(f, "\nUse \"-d trace:help\" to get a list of trace events.\n\n");
 #endif
 }
+
+int tcg_collect_tb_stats;
+
+void enable_collect_tb_stats(void)
+{
+    tcg_collect_tb_stats = 1;
+}
+
+void disable_collect_tb_stats(void)
+{
+    tcg_collect_tb_stats = 0;
+}
+
+void pause_collect_tb_stats(void)
+{
+    tcg_collect_tb_stats = 2;
+}
+
+bool tb_stats_collection_enabled(void)
+{
+    return tcg_collect_tb_stats;
+}
+
+bool tb_stats_collection_paused(void)
+{
+    return tcg_collect_tb_stats == 2;
+}
+
