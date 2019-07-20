@@ -28,6 +28,7 @@
 #include "sysemu/sysemu.h"
 #include "monitor/monitor.h"
 #include "hw/rdma/rdma.h"
+#include "migration/register.h"
 
 #include "../rdma_rm.h"
 #include "../rdma_backend.h"
@@ -593,6 +594,81 @@ static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
     pvrdma_fini(pci_dev);
 }
 
+static int pvrdma_post_save(void *opaque)
+{
+    int i, rc;
+    PVRDMADev *dev = opaque;
+
+    for (i = 0; i < MAX_GIDS; i++) {
+
+        if (!dev->rdma_dev_res.port.gid_tbl[i].gid.global.interface_id) {
+            continue;
+        }
+        rc = rdma_backend_del_gid(&dev->backend_dev,
+                                   dev->backend_eth_device_name,
+                                   &dev->rdma_dev_res.port.gid_tbl[i].gid);
+        if (rc) {
+            return -EINVAL;
+        }
+    }
+
+    return 0;
+}
+
+static int pvrdma_post_load(void *opaque, int version_id)
+{
+    int i, rc;
+    PVRDMADev *dev = opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
+    DSRInfo *dsr_info = &dev->dsr_info;
+
+    dsr_info->dsr = rdma_pci_dma_map(pci_dev, dsr_info->dma,
+                                sizeof(struct pvrdma_device_shared_region));
+    if (!dsr_info->dsr) {
+        rdma_error_report("Failed to map to DSR");
+        return -ENOMEM;
+    }
+
+    for (i = 0; i < MAX_GIDS; i++) {
+
+        if (!dev->rdma_dev_res.port.gid_tbl[i].gid.global.interface_id) {
+            continue;
+        }
+
+        rc = rdma_backend_add_gid(&dev->backend_dev,
+                                  dev->backend_eth_device_name,
+                                  &dev->rdma_dev_res.port.gid_tbl[i].gid);
+        if (rc) {
+            return -EINVAL;
+        }
+    }
+
+    return load_dsr(dev);
+}
+
+static const VMStateDescription vmstate_pvrdma_gids = {
+    .name = "pvrdma-gids",
+    .fields = (VMStateField[]) {
+            VMSTATE_UINT8_ARRAY_V(gid.raw, RdmaRmGid, 16, 0),
+            VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_pvrdma = {
+    .name = PVRDMA_HW_NAME,
+    .post_save = pvrdma_post_save,
+    .post_load = pvrdma_post_load,
+    .fields = (VMStateField[]) {
+            VMSTATE_PCI_DEVICE(parent_obj, PVRDMADev),
+            VMSTATE_MSIX(parent_obj, PVRDMADev),
+            VMSTATE_UINT64(dsr_info.dma, PVRDMADev),
+            VMSTATE_STRUCT_ARRAY(rdma_dev_res.port.gid_tbl, PVRDMADev,
+                                 MAX_PORT_GIDS, 0, vmstate_pvrdma_gids,
+                                 RdmaRmGid),
+            VMSTATE_END_OF_LIST()
+    }
+};
+
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
     int rc = 0;
@@ -688,6 +764,7 @@ static void pvrdma_class_init(ObjectClass *klass, void *data)
 
     dc->desc = "RDMA Device";
     dc->props = pvrdma_dev_properties;
+    dc->vmsd = &vmstate_pvrdma;
     set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
 
     ir->print_statistics = pvrdma_print_statistics;
