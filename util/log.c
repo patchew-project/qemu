@@ -354,3 +354,14 @@ bool tb_stats_collection_paused(void)
     return tcg_collect_tb_stats == 2;
 }
 
+uint32_t default_tbstats_flag;
+
+void set_default_tbstats_flag(uint32_t flag)
+{
+    default_tbstats_flag = flag;
+}
+
+uint32_t get_default_tbstats_flag(void)
+{
+    return default_tbstats_flag;
+}

@@ -129,10 +129,16 @@ void qemu_log_flush(void);
 /* Close the log file */
 void qemu_log_close(void);
 
+#define TB_NOTHING    0
+#define TB_EXEC_STATS (1 << 1)
+
 void enable_collect_tb_stats(void);
 void disable_collect_tb_stats(void);
 void pause_collect_tb_stats(void);
 bool tb_stats_collection_enabled(void);
 bool tb_stats_collection_paused(void);
+
+void set_default_tbstats_flag(uint32_t flag);
+uint32_t get_default_tbstats_flag(void);
 
 #endif

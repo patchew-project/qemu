@@ -6,6 +6,9 @@
 #include "exec/tb-context.h"
 #include "tcg.h"
 
+#define tb_stats_enabled(tb, JIT_STATS) \
+    (tb && tb->tb_stats && (tb->tb_stats->stats_enabled & JIT_STATS))
+
 typedef struct TBStatistics TBStatistics;
 
 /*
@@ -22,6 +25,14 @@ struct TBStatistics {
     uint32_t     flags;
     /* cs_base isn't included in the hash but we do check for matches */
     target_ulong cs_base;
+
+    uint32_t stats_enabled;
+
+    /* Execution stats */
+    struct {
+        unsigned long total;
+        unsigned long atomic;
+    } executions;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
