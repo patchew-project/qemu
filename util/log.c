@@ -30,6 +30,7 @@ FILE *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
+int32_t max_num_hot_tbs_to_dump;
 
 /* Return the number of characters emitted.  */
 int qemu_log(const char *fmt, ...)
@@ -273,6 +274,8 @@ const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_NOCHAIN, "nochain",
       "do not chain compiled TBs so that \"exec\" and \"cpu\" show\n"
       "complete traces" },
+    { CPU_LOG_TB_STATS, "tb_stats[:limit:(all,jit,exec)]",
+      "show TBs statistics (until given a limit) ordered by their hotness.\n" },
     { 0, NULL, NULL },
 };
 
@@ -294,6 +297,37 @@ int qemu_str_to_log_mask(const char *str)
             trace_enable_events((*tmp) + 6);
             mask |= LOG_TRACE;
 #endif
+        } else if (g_str_has_prefix(*tmp, "tb_stats")) {
+            if (g_str_has_prefix(*tmp, "tb_stats:") && (*tmp)[9] != '\0') {
+
+                if (!g_ascii_isdigit(*((*tmp) + 9))) {
+                    fprintf(stderr,
+                            "should be a number follow by [all|jit|exec], as tb_stats:10:all\n");
+                    exit(1);
+                }
+                /* get limit */
+                max_num_hot_tbs_to_dump = atoi((*tmp) + 9);
+
+                /* get profilling level */
+                char *s = (*tmp) + 9;
+                while (*s != '\0') {
+                    if (*s++ == ':') {
+                        break;
+                    }
+                }
+                if (g_str_equal(s, "jit") == 0) {
+                    set_default_tbstats_flag(TB_JIT_STATS);
+                } else if (g_str_equal(s, "exec") == 0) {
+                    set_default_tbstats_flag(TB_EXEC_STATS);
+                } else {
+                    set_default_tbstats_flag(TB_JIT_STATS | TB_EXEC_STATS);
+                }
+            } else {
+                set_default_tbstats_flag(TB_JIT_STATS | TB_EXEC_STATS);
+            }
+
+            mask |= CPU_LOG_TB_STATS;
+            enable_collect_tb_stats();
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 if (g_str_equal(*tmp, item->name)) {
