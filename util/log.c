@@ -19,6 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/qemu-print.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
@@ -31,23 +32,32 @@ int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
 int32_t max_num_hot_tbs_to_dump;
+static bool to_monitor;
 
 /* Return the number of characters emitted.  */
 int qemu_log(const char *fmt, ...)
 {
     int ret = 0;
-    if (qemu_logfile) {
-        va_list ap;
-        va_start(ap, fmt);
-        ret = vfprintf(qemu_logfile, fmt, ap);
-        va_end(ap);
+    va_list ap;
+    va_start(ap, fmt);
 
-        /* Don't pass back error results.  */
-        if (ret < 0) {
-            ret = 0;
-        }
+    if (to_monitor) {
+        ret = qemu_vprintf(fmt, ap);
+    } else if (qemu_logfile) {
+        ret = vfprintf(qemu_logfile, fmt, ap);
+    }
+    va_end(ap);
+
+    /* Don't pass back error results.  */
+    if (ret < 0) {
+        ret = 0;
     }
     return ret;
+}
+
+void qemu_log_to_monitor(bool enable)
+{
+    to_monitor = enable;
 }
 
 static bool log_uses_own_buffers;

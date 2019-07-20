@@ -499,6 +499,77 @@ static void hmp_tbstats(Monitor *mon, const QDict *qdict)
 
 }
 
+static void hmp_info_tbs(Monitor *mon, const QDict *qdict)
+{
+    int n;
+    const char *s = NULL;
+    if (!tcg_enabled()) {
+        error_report("TB information is only available with accel=tcg");
+        return;
+    }
+    if (!tb_ctx.tb_stats.map) {
+        error_report("no TB information recorded");
+        return;
+    }
+
+    n = qdict_get_try_int(qdict, "number", 10);
+    s = qdict_get_try_str(qdict, "sortedby");
+
+    int sortedby = 0;
+    if (s == NULL || strcmp(s, "hotness") == 0) {
+        sortedby = SORT_BY_HOTNESS;
+    } else if (strcmp(s, "hg") == 0) {
+        sortedby = SORT_BY_HG;
+    } else if (strcmp(s, "spills") == 0) {
+        sortedby = SORT_BY_SPILLS;
+    }
+
+    dump_tbs_info(n, sortedby, true);
+}
+
+static void hmp_info_tb(Monitor *mon, const QDict *qdict)
+{
+    const int id = qdict_get_int(qdict, "id");
+    const char *flags = qdict_get_try_str(qdict, "flags");
+    int mask;
+
+    if (!tcg_enabled()) {
+        error_report("TB information is only available with accel=tcg");
+        return;
+    }
+
+    mask = flags ? qemu_str_to_log_mask(flags) : CPU_LOG_TB_IN_ASM;
+
+    if (!mask) {
+        help_cmd(mon, "log");
+        return;
+    }
+
+    dump_tb_info(id, mask, true);
+}
+
+static void hmp_info_coverset(Monitor *mon, const QDict *qdict)
+{
+    int n;
+    if (!tcg_enabled()) {
+        error_report("TB information is only available with accel=tcg");
+        return;
+    }
+    if (!tb_stats_collection_enabled()) {
+        error_report("TB information not being recorded");
+        return;
+    }
+
+    n = qdict_get_try_int(qdict, "number", 90);
+
+    if (n < 0 || n > 100) {
+        error_report("Coverset percentage should be between 0 and 100");
+        return;
+    }
+
+    dump_coverset_info(n, true);
+}
+
 static void hmp_info_jit(Monitor *mon, const QDict *qdict)
 {
     if (!tcg_enabled()) {

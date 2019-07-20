@@ -57,6 +57,9 @@ struct TBStatistics {
         unsigned long uncached;
         unsigned long spanning;
     } translations;
+
+    /* HMP information - used for referring to previous search */
+    int display_id;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
@@ -72,5 +75,39 @@ struct TbstatsCommand {
 };
 
 void do_hmp_tbstats_safe(CPUState *cpu, run_on_cpu_data icmd);
+
+/**
+ * dump_coverset_info: report the hottest blocks to cover n% of execution
+ *
+ * @percentage: cover set percentage
+ * @use_monitor: redirect output to monitor
+ *
+ * Report the hottest blocks to either the log or monitor
+ */
+void dump_coverset_info(int percentage, bool use_monitor);
+
+
+/**
+ * dump_tbs_info: report the hottest blocks
+ *
+ * @count: the limit of hotblocks
+ * @sort_by: property in which the dump will be sorted
+ * @use_monitor: redirect output to monitor
+ *
+ * Report the hottest blocks to either the log or monitor
+ */
+void dump_tbs_info(int count, int sort_by, bool use_monitor);
+
+/**
+ * dump_tb_info: dump information about one TB
+ *
+ * @id: the display id of the block (from previous search)
+ * @mask: the temporary logging mask
+ * @Use_monitor: redirect output to monitor
+ *
+ * Re-run a translation of a block at addr for the purposes of debug output
+ */
+void dump_tb_info(int id, int log_mask, bool use_monitor);
+
 
 #endif

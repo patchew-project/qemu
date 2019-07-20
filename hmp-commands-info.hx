@@ -289,6 +289,29 @@ ETEXI
         .help       = "show dynamic compiler info",
         .cmd        = hmp_info_jit,
     },
+    {
+        .name       = "tbs",
+        .args_type  = "number:i?,sortedby:s?",
+        .params     = "[number sortedby]",
+        .help       = "show a [number] translated blocks sorted by [sortedby]"
+                      "sortedby opts: hotness hg",
+        .cmd        = hmp_info_tbs,
+    },
+    {
+        .name       = "tb",
+        .args_type  = "id:i,flags:s?",
+        .params     = "id [log1[,...] flags]",
+        .help       = "show information about one translated block by id",
+        .cmd        = hmp_info_tb,
+    },
+    {
+        .name       = "coverset",
+        .args_type  = "number:i?",
+        .params     = "[number]",
+        .help       = "show hottest translated blocks neccesary to cover"
+                      "[number]% of the execution count",
+        .cmd        = hmp_info_coverset,
+    },
 #endif
 
 STEXI
