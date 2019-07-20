@@ -475,6 +475,114 @@ void target_disas(FILE *out, CPUState *cpu, target_ulong code,
     }
 }
 
+static int fprintf_fake(struct _IO_FILE *a, const char *b, ...)
+{
+    return 1;
+}
+
+/*
+ * This is a work around to get the number of host instructions with
+ * a small effort. It reuses the disas function with a fake printf to
+ * print nothing but count the number of instructions.
+ *
+ */
+unsigned get_num_insts(void *code, unsigned long size)
+{
+    uintptr_t pc;
+    int count;
+    CPUDebug s;
+    int (*print_insn)(bfd_vma pc, disassemble_info *info) = NULL;
+
+    INIT_DISASSEMBLE_INFO(s.info, NULL, fprintf_fake);
+    s.info.print_address_func = generic_print_host_address;
+
+    s.info.buffer = code;
+    s.info.buffer_vma = (uintptr_t)code;
+    s.info.buffer_length = size;
+    s.info.cap_arch = -1;
+    s.info.cap_mode = 0;
+    s.info.cap_insn_unit = 4;
+    s.info.cap_insn_split = 4;
+
+#ifdef HOST_WORDS_BIGENDIAN
+    s.info.endian = BFD_ENDIAN_BIG;
+#else
+    s.info.endian = BFD_ENDIAN_LITTLE;
+#endif
+#if defined(CONFIG_TCG_INTERPRETER)
+    print_insn = print_insn_tci;
+#elif defined(__i386__)
+    s.info.mach = bfd_mach_i386_i386;
+    print_insn = print_insn_i386;
+    s.info.cap_arch = CS_ARCH_X86;
+    s.info.cap_mode = CS_MODE_32;
+    s.info.cap_insn_unit = 1;
+    s.info.cap_insn_split = 8;
+#elif defined(__x86_64__)
+    s.info.mach = bfd_mach_x86_64;
+    print_insn = print_insn_i386;
+    s.info.cap_arch = CS_ARCH_X86;
+    s.info.cap_mode = CS_MODE_64;
+    s.info.cap_insn_unit = 1;
+    s.info.cap_insn_split = 8;
+#elif defined(_ARCH_PPC)
+    s.info.disassembler_options = (char *)"any";
+    print_insn = print_insn_ppc;
+    s.info.cap_arch = CS_ARCH_PPC;
+# ifdef _ARCH_PPC64
+    s.info.cap_mode = CS_MODE_64;
+# endif
+#elif defined(__riscv) && defined(CONFIG_RISCV_DIS)
+#if defined(_ILP32) || (__riscv_xlen == 32)
+    print_insn = print_insn_riscv32;
+#elif defined(_LP64)
+    print_insn = print_insn_riscv64;
+#else
+#error unsupported RISC-V ABI
+#endif
+#elif defined(__aarch64__) && defined(CONFIG_ARM_A64_DIS)
+    print_insn = print_insn_arm_a64;
+    s.info.cap_arch = CS_ARCH_ARM64;
+#elif defined(__alpha__)
+    print_insn = print_insn_alpha;
+#elif defined(__sparc__)
+    print_insn = print_insn_sparc;
+    s.info.mach = bfd_mach_sparc_v9b;
+#elif defined(__arm__)
+    print_insn = print_insn_arm;
+    s.info.cap_arch = CS_ARCH_ARM;
+    /* TCG only generates code for arm mode.  */
+#elif defined(__MIPSEB__)
+    print_insn = print_insn_big_mips;
+#elif defined(__MIPSEL__)
+    print_insn = print_insn_little_mips;
+#elif defined(__m68k__)
+    print_insn = print_insn_m68k;
+#elif defined(__s390__)
+    print_insn = print_insn_s390;
+#elif defined(__hppa__)
+    print_insn = print_insn_hppa;
+#endif
+
+    if (print_insn == NULL) {
+        print_insn = print_insn_od_host;
+    }
+
+    s.info.fprintf_func = fprintf_fake;
+    unsigned num_insts = 0;
+    for (pc = (uintptr_t)code; size > 0; pc += count, size -= count) {
+        num_insts++;
+        count = print_insn(pc, &s.info);
+        if (count < 0) {
+            break;
+        }
+    }
+    return num_insts;
+}
+
+
+
+
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, void *code, unsigned long size)
 {

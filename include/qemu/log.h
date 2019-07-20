@@ -131,6 +131,7 @@ void qemu_log_close(void);
 
 #define TB_NOTHING    0
 #define TB_EXEC_STATS (1 << 1)
+#define TB_JIT_STATS  (1 << 2)
 
 void enable_collect_tb_stats(void);
 void disable_collect_tb_stats(void);

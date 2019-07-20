@@ -33,6 +33,20 @@ struct TBStatistics {
         unsigned long total;
         unsigned long atomic;
     } executions;
+
+    struct {
+        unsigned num_guest_inst;
+        unsigned num_host_inst;
+        unsigned num_tcg_ops;
+        unsigned num_tcg_ops_opt;
+        unsigned spills;
+    } code;
+
+    struct {
+        unsigned long total;
+        unsigned long uncached;
+        unsigned long spanning;
+    } translations;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);

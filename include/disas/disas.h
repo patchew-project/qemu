@@ -7,6 +7,7 @@
 
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, void *code, unsigned long size);
+unsigned get_num_insts(void *code, unsigned long size);
 void target_disas(FILE *out, CPUState *cpu, target_ulong code,
                   target_ulong size);
 
