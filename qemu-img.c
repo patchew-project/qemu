@@ -545,7 +545,7 @@ static int img_create(int argc, char **argv)
     bdrv_img_create(filename, fmt, base_filename, base_fmt,
                     options, img_size, flags, quiet, &local_err);
     if (local_err) {
-        error_reportf_err(local_err, "%s: ", filename);
+        error_reportf_err(local_err, "error creating %s: ", filename);
         goto fail;
     }
 

@@ -5790,6 +5790,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
                             "This may become an error in future versions.\n");
             local_err = NULL;
         } else if (!bs) {
+            error_prepend(&local_err, "%s: ", backing_file);
             /* Couldn't open bs, do not have size */
             error_append_hint(&local_err,
                               "Could not open backing image to determine size.\n");
