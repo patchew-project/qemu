@@ -296,6 +296,16 @@ static void aarch64_max_initfn(Object *obj)
         uint32_t u;
         aarch64_a57_initfn(obj);
 
+        /* reset MIDR so our franken-max-cpu type isn't mistaken for a real one */
+        t = 0;
+        t = FIELD_DP64(t, MIDR_EL1, IMPLEMENTER, 0); /* Reserved for SW */
+        t = FIELD_DP64(t, MIDR_EL1, ARCHITECTURE, 0xf); /* See ID_* for details */
+        /* Encode QEMU version details */
+        t = FIELD_DP64(t, MIDR_EL1, VARIENT, QEMU_VERSION_MAJOR);
+        t = FIELD_DP64(t, MIDR_EL1, REVISION, QEMU_VERSION_MINOR);
+        t = FIELD_DP64(t, MIDR_EL1, PARTNUM, QEMU_VERSION_MICRO);
+        cpu->midr = t;
+
         t = cpu->isar.id_aa64isar0;
         t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2); /* AES + PMULL */
         t = FIELD_DP64(t, ID_AA64ISAR0, SHA1, 1);
