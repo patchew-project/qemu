@@ -4499,6 +4499,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
     int ret = -EIO;
 
     bdrv_ref(top);
+    bdrv_subtree_drained_begin(top);
 
     if (!top->drv || !base->drv) {
         goto exit;
@@ -4570,6 +4571,7 @@ int bdrv_drop_intermediate(BlockDriverState *top, BlockDriverState *base,
 
     ret = 0;
 exit:
+    bdrv_subtree_drained_end(top);
     bdrv_unref(top);
     return ret;
 }
