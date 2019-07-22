@@ -44,7 +44,7 @@ uint64_t ram_bytes_total(void);
 int multifd_save_setup(void);
 void multifd_save_cleanup(void);
 int multifd_load_setup(void);
-int multifd_load_cleanup(Error **errp);
+void multifd_load_cleanup(void);
 bool multifd_recv_all_channels_created(void);
 bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp);
 
