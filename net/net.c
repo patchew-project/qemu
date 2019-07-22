@@ -741,6 +741,15 @@ ssize_t qemu_sendv_packet_async(NetClientState *sender,
     size_t size = iov_size(iov, iovcnt);
     int ret;
 
+    /*
+     * Since this function returns the size of the sent packets, and a return
+     * value of zero indicates that the packet will be sent asynchronously,
+     * there is currently no way to report that a 0-sized packet has been sent
+     * successfully. Forbid it for now, and if someone needs this functionality
+     * later, the API will require a change.
+     */
+    assert(size);
+
     if (size > NET_BUFSIZE) {
         return size;
     }
