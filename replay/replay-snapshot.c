@@ -24,7 +24,7 @@ static int replay_pre_save(void *opaque)
 {
     ReplayState *state = opaque;
     state->file_offset = ftell(replay_file);
-    state->host_clock_last = qemu_clock_get_last(QEMU_CLOCK_HOST);
+    state->host_clock_last = get_clock_realtime();
 
     return 0;
 }
@@ -34,7 +34,6 @@ static int replay_post_load(void *opaque, int version_id)
     ReplayState *state = opaque;
     if (replay_mode == REPLAY_MODE_PLAY) {
         fseek(replay_file, state->file_offset, SEEK_SET);
-        qemu_clock_set_last(QEMU_CLOCK_HOST, state->host_clock_last);
         /* If this was a vmstate, saved in recording mode,
            we need to initialize replay data fields. */
         replay_fetch_data_kind();
