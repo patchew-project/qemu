@@ -1241,17 +1241,20 @@ static void load_linux(PCMachineState *pcms,
 
             /* load initrd */
             if (initrd_filename) {
+                GMappedFile *gmf;
                 gsize initrd_size;
                 gchar *initrd_data;
                 GError *gerr = NULL;
 
-                if (!g_file_get_contents(initrd_filename, &initrd_data,
-                            &initrd_size, &gerr)) {
+                gmf = g_mapped_file_new(initrd_filename, false, &gerr);
+                if (!gmf) {
                     fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                             initrd_filename, gerr->message);
                     exit(1);
                 }
 
+                initrd_data = g_mapped_file_get_contents(gmf);
+                initrd_size = g_mapped_file_get_length(gmf);
                 initrd_max = pcms->below_4g_mem_size - pcmc->acpi_data_size - 1;
                 if (initrd_size >= initrd_max) {
                     fprintf(stderr, "qemu: initrd is too large, cannot support."
@@ -1378,6 +1381,7 @@ static void load_linux(PCMachineState *pcms,
 
     /* load initrd */
     if (initrd_filename) {
+        GMappedFile *gmf;
         gsize initrd_size;
         gchar *initrd_data;
         GError *gerr = NULL;
@@ -1387,12 +1391,15 @@ static void load_linux(PCMachineState *pcms,
             exit(1);
         }
 
-        if (!g_file_get_contents(initrd_filename, &initrd_data,
-                                 &initrd_size, &gerr)) {
+        gmf = g_mapped_file_new(initrd_filename, false, &gerr);
+        if (!gmf) {
             fprintf(stderr, "qemu: error reading initrd %s: %s\n",
                     initrd_filename, gerr->message);
             exit(1);
         }
+
+        initrd_data = g_mapped_file_get_contents(gmf);
+        initrd_size = g_mapped_file_get_length(gmf);
         if (initrd_size >= initrd_max) {
             fprintf(stderr, "qemu: initrd is too large, cannot support."
                     "(max: %"PRIu32", need %"PRId64")\n",
