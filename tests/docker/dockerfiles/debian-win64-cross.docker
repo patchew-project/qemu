@@ -9,7 +9,8 @@ MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
 
 ENV TARGET x86-64
 
-RUN DEBIAN_FRONTEND=noninteractive eatmydata \
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
     apt-get install -y --no-install-recommends \
         mxe-$TARGET-w64-mingw32.shared-bzip2 \
         mxe-$TARGET-w64-mingw32.shared-curl \
