@@ -72,9 +72,11 @@ static void qcrypto_secret_decrypt(QCryptoSecret *secret,
                                    size_t *outputlen,
                                    Error **errp)
 {
-    uint8_t *key = NULL, *ciphertext = NULL, *iv = NULL;
+    g_autofree uint8_t *key = NULL;
+    g_autofree uint8_t *ciphertext = NULL;
+    g_autofree uint8_t *iv = NULL;
     size_t keylen, ciphertextlen, ivlen;
-    QCryptoCipher *aes = NULL;
+    g_autoptr(QCryptoCipher) aes = NULL;
     uint8_t *plaintext = NULL;
 
     *output = NULL;
@@ -160,9 +162,6 @@ static void qcrypto_secret_decrypt(QCryptoSecret *secret,
     *outputlen = ciphertextlen;
 
  cleanup:
-    g_free(ciphertext);
-    g_free(iv);
-    g_free(key);
     qcrypto_cipher_free(aes);
 }
 
