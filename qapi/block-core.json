@@ -4346,13 +4346,16 @@
 #                   point to a snapshot.
 # @size             Size of the virtual disk in bytes
 # @cluster-size     RBD object size
+# @preallocation    Preallocation mode for the new image (since: 4.2)
+#                   (default: off; allowed values: off, full)
 #
 # Since: 2.12
 ##
 { 'struct': 'BlockdevCreateOptionsRbd',
   'data': { 'location':         'BlockdevOptionsRbd',
             'size':             'size',
-            '*cluster-size' :   'size' } }
+            '*cluster-size' :   'size',
+            '*preallocation':   'PreallocMode' } }
 
 ##
 # @BlockdevVmdkSubformat:
