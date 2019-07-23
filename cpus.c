@@ -74,6 +74,8 @@
 
 #endif /* CONFIG_LINUX */
 
+static QemuMutex qemu_global_mutex;
+
 int64_t max_delay;
 int64_t max_advance;
 
@@ -777,7 +779,7 @@ static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
 {
     double pct;
     double throttle_ratio;
-    long sleeptime_ns;
+    int64_t sleeptime_ns;
 
     if (!cpu_throttle_get_percentage()) {
         return;
@@ -785,11 +787,22 @@ static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
 
     pct = (double)cpu_throttle_get_percentage()/100;
     throttle_ratio = pct / (1 - pct);
-    sleeptime_ns = (long)(throttle_ratio * CPU_THROTTLE_TIMESLICE_NS);
+    /* Add 1ns to fix double's rounding error (like 0.9999999...) */
+    sleeptime_ns = (int64_t)(throttle_ratio * CPU_THROTTLE_TIMESLICE_NS + 1);
 
-    qemu_mutex_unlock_iothread();
-    g_usleep(sleeptime_ns / 1000); /* Convert ns to us for usleep call */
-    qemu_mutex_lock_iothread();
+    while (sleeptime_ns >= SCALE_MS && !cpu->stop) {
+        int64_t start, end;
+        start = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        qemu_cond_timedwait(cpu->halt_cond, &qemu_global_mutex,
+                            sleeptime_ns / SCALE_MS);
+        end = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
+        sleeptime_ns -= end - start;
+    }
+    if (sleeptime_ns >= SCALE_US && !cpu->stop) {
+        qemu_mutex_unlock_iothread();
+        g_usleep(sleeptime_ns / SCALE_US);
+        qemu_mutex_lock_iothread();
+    }
     atomic_set(&cpu->throttle_thread_scheduled, 0);
 }
 
@@ -1166,8 +1179,6 @@ static void qemu_init_sigbus(void)
 {
 }
 #endif /* !CONFIG_LINUX */
-
-static QemuMutex qemu_global_mutex;
 
 static QemuThread io_thread;
 
