@@ -323,8 +323,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
     struct elfhdr ehdr;
     struct elf_phdr *phdr = NULL, *ph;
     int size, i, total_size;
-    elf_word mem_size, file_size;
+    elf_word mem_size, file_size, data_offset;
     uint64_t addr, low = (uint64_t)-1, high = 0;
+    GMappedFile *gmf = NULL;
     uint8_t *data = NULL;
     char label[128];
     int ret = ELF_LOAD_FAILED;
@@ -409,21 +410,25 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         }
     }
 
+    gmf = g_mapped_file_new_from_fd(fd, false, NULL);
+    if (!gmf) {
+        goto fail;
+    }
+
     total_size = 0;
     for(i = 0; i < ehdr.e_phnum; i++) {
         ph = &phdr[i];
         if (ph->p_type == PT_LOAD) {
             mem_size = ph->p_memsz; /* Size of the ROM */
             file_size = ph->p_filesz; /* Size of the allocated data */
-            data = g_malloc0(file_size);
-            if (ph->p_filesz > 0) {
-                if (lseek(fd, ph->p_offset, SEEK_SET) < 0) {
-                    goto fail;
-                }
-                if (read(fd, data, file_size) != file_size) {
-                    goto fail;
-                }
+            data_offset = ph->p_offset; /* Offset where the data is located */
+
+            if (g_mapped_file_get_length(gmf) < file_size + data_offset) {
+                goto fail;
             }
+
+            data = (uint8_t *)g_mapped_file_get_contents(gmf);
+            data += data_offset;
 
             /* The ELF spec is somewhat vague about the purpose of the
              * physical address field. One common use in the embedded world
@@ -513,17 +518,16 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 *pentry = ehdr.e_entry - ph->p_vaddr + ph->p_paddr;
             }
 
-            if (mem_size == 0) {
-                /* Some ELF files really do have segments of zero size;
-                 * just ignore them rather than trying to create empty
-                 * ROM blobs, because the zero-length blob can falsely
-                 * trigger the overlapping-ROM-blobs check.
-                 */
-                g_free(data);
-            } else {
+            /* Some ELF files really do have segments of zero size;
+             * just ignore them rather than trying to create empty
+             * ROM blobs, because the zero-length blob can falsely
+             * trigger the overlapping-ROM-blobs check.
+             */
+            if (mem_size != 0) {
                 if (load_rom) {
                     snprintf(label, sizeof(label), "phdr #%d: %s", i, name);
-
+                    /* Increments the reference count to avoid the unmap */
+                    g_mapped_file_ref(gmf);
                     /* rom_add_elf_program() seize the ownership of 'data' */
                     rom_add_elf_program(label, data, file_size, mem_size,
                                         addr, as);
@@ -531,7 +535,6 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     address_space_write(as ? as : &address_space_memory,
                                         addr, MEMTXATTRS_UNSPECIFIED,
                                         data, file_size);
-                    g_free(data);
                 }
             }
 
@@ -547,15 +550,14 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             struct elf_note *nhdr = NULL;
 
             file_size = ph->p_filesz; /* Size of the range of ELF notes */
-            data = g_malloc0(file_size);
-            if (ph->p_filesz > 0) {
-                if (lseek(fd, ph->p_offset, SEEK_SET) < 0) {
-                    goto fail;
-                }
-                if (read(fd, data, file_size) != file_size) {
-                    goto fail;
-                }
+            data_offset = ph->p_offset; /* Offset where the notes are located */
+
+            if (g_mapped_file_get_length(gmf) < file_size + data_offset) {
+                goto fail;
             }
+
+            data = (uint8_t *)g_mapped_file_get_contents(gmf);
+            data += data_offset;
 
             /*
              * Search the ELF notes to find one with a type matching the
@@ -570,7 +572,6 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                     sizeof(struct elf_note) == sizeof(struct elf64_note);
                 elf_note_fn((void *)nhdr, (void *)&ph->p_align, is64);
             }
-            g_free(data);
             data = NULL;
         }
     }
@@ -582,7 +583,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         *highaddr = (uint64_t)(elf_sword)high;
     return total_size;
  fail:
-    g_free(data);
+    g_mapped_file_unref(gmf);
     g_free(phdr);
     return ret;
 }
