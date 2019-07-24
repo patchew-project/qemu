@@ -171,6 +171,32 @@ guest software that this vNVDIMM device contains a region that cannot
 accept persistent writes. In result, for example, the guest Linux
 NVDIMM driver, marks such vNVDIMM device as read-only.
 
+Backend File Setup Example
+..........................
+
+Here is two examples for how to setup these persistent backend on
+linux, which leverages the tool ndctl [3].
+
+It is easy to setup DAX device backend file.
+
+A. DAX device
+
+    ndctl create-namespace -f -e namespace0.0 -m devdax
+
+The /dev/dax0.0 could be used directly in "mem-path" option.
+
+For DAX file, it is more than creating the proper namespace. The
+block device should be partitioned and mounted (with dax option).
+
+B. DAX file
+
+    ndctl create-namespace -f -e namespace0.0 -m fsdax
+    (partition /dev/pmem0 with name pmem0p1)
+    mount -o dax /dev/pmem0p1 /mnt
+    (dd a file with proper size in /mnt)
+
+Then the new file in /mnt could be used in "mem-path" option.
+
 NVDIMM Persistence
 ------------------
 
@@ -212,3 +238,5 @@ References
     https://www.snia.org/sites/default/files/technical_work/final/NVMProgrammingModel_v1.2.pdf
 [2] Persistent Memory Development Kit (PMDK), formerly known as NVML project, home page:
     http://pmem.io/pmdk/
+[3] ndctl-create-namespace - provision or reconfigure a namespace
+    http://pmem.io/ndctl/ndctl-create-namespace.html
