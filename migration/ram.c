@@ -2424,6 +2424,16 @@ static bool save_page_use_compression(RAMState *rs)
     }
 
     /*
+     * The decompression threads asynchronously write into RAM
+     * rather than use the atomic copies needed to avoid
+     * userfaulting.  It should be possible to fix the decompression
+     * threads for compatibility in future.
+     */
+    if (migration_in_postcopy()) {
+        return false;
+    }
+
+    /*
      * If xbzrle is on, stop using the data compression after first
      * round of migration even if compression is enabled. In theory,
      * xbzrle can do better than compression.
