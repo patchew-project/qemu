@@ -1,0 +1,145 @@
+= Fuzzing =
+
+== Introduction ==
+
+This document describes the fuzzing infrastructure in QEMU and how to use it
+to add additional fuzzing targets.
+
+== Basics ==
+
+Fuzzing operates by passing inputs to an entry point/target function. The
+fuzzer tracks the code coverage triggered by the input. Based on these
+findings, the fuzzer mutates the input and repeats the fuzzing. 
+
+To fuzz QEMU, we rely on libfuzzer. Unlike other fuzzers such as AFL, libfuzzer
+is an _in-process_ fuzzer. For the developer, this means that it is their
+responsibility to ensure that state is reset between fuzzing-runs.
+
+libfuzzer provides its own main() and expects the developer to implement the
+entrypoint "LLVMFuzzerTestOneInput".
+
+Currently, Fuzz targets are built out to fuzz virtual-devices from guests. The
+fuzz targets can use qtest and qos functions to pass inputs to virtual devices.
+
+== Main Modifications required for Fuzzing ==
+
+Fuzzing is enabled with the -enable-fuzzing flag, which adds the needed cflags
+to enable Libfuzzer and AddressSanitizer. In the code, most of the changes to
+existing qemu source are surrounded by #ifdef CONFIG_FUZZ statements. Here are
+the key areas that are changed:
+
+=== General Changes ===
+
+vl.c:main renamed to real_main to avoid conflicts when libfuzzer is linked in.
+Also, real_main returns where it would normally call main_loop. 
+
+The fuzzer adds an accelerator. The accelerator does not do anything, much
+like the qtest accelerator.
+
+=== Changes to SaveVM ===
+
+There aren't any particular changes to SaveVM, but the fuzzer adds a type
+of file "ramfile" implemented in test/fuzz/ramfile.c which allocates a buffer
+on the heap to which it saves the vmstate.
+
+=== Changes to QTest ===
+
+QEMU-fuzz modifies the qtest server(qtest.c) and qtest client
+(tests/libqtest.c) so that they communicate within the same QEMU process. In
+the qtest server, there is a qtest_init_fuzz function to initialize the
+QTestState. Normally, qtest commands are passed to socket_send which
+communicates the command to the server/QEMU process over a socket. The fuzzer,
+instead, directly calls the qtest server recieve function with the the command
+string as an argument. The server usually responds to commands with an "OK"
+command. To support this, there is an added qtest_client_recv function in
+libqtest.c, which the server calls directly.
+
+At the moment, qtest's qmp wrapper functions are not supported.
+
+=== Chages to QOS ===
+
+QOS tests are usually linked against the compiled tests/qos-test.c. The main
+function in this file initializes the QOS graph and uses some QMP commands to
+query the qtest server for the available devices. It also registers the tests
+implemented in all of the linked qos test-case files. Then it uses a DFS walker
+to iterate over QOS graph and determine the required QEMU devices/arguments and
+device initialization functions to perform each test.
+
+The fuzzer doesn't link against qos-test, but re-uses most of the functionality
+in test/fuzz/qos_helpers.c The major changes are that the walker simply saves
+the last QGraph path for later use in the fuzzer. The
+qos_set_machines_devices_available function is changed to directly used qmp_*
+commands. Note that to populate the QGraph, the fuzzer still needs to be linked
+against the devices described in test/libqos/*.o
+
+== The Fuzzer's Lifecycle ==
+
+The fuzzer has two entrypoints that libfuzzer calls.
+
+LLVMFuzzerInitialize: called prior to fuzzing. Used to initialize all of the
+necessary state
+
+LLVMFuzzerTestOneInput: called for each fuzzing run. Processes the input and
+resets the state at the end of each run.
+
+In more detail:
+
+LLVMFuzzerInitialize parses the arguments to the fuzzer (must start with two
+dashes, so they are ignored by libfuzzer main()). Currently, the arguments
+select the fuzz target. Then, the qtest client is initialized. If the target
+requires qos, qgraph is set up and the QOM/LIBQOS modules are initailized.
+Then the QGraph is walked and the QEMU cmd_line is determined and saved.
+
+After this, the vl.c:real_main is called to set up the guest. After this, the
+fuzzer saves the initial vm/device state to ram, after which the initilization
+is complete.
+
+LLVMFuzzerTestOneInput: Uses qtest/qos functions to act based on the fuzz
+input. It is also responsible for manually calling the main loop/main_loop_wait
+to ensure that bottom halves are executed. Finally, it calls reset() which
+restores state from the ramfile and/or resets the guest.
+
+
+Since the same process is reused for many fuzzing runs, QEMU state needs to
+be reset at the end of each run. There are currently three implemented
+options for resetting state: 
+1. Reboot the guest between runs.
+   Pros: Straightforward and fast for simple fuzz targets. 
+   Cons: Depending on the device, does not reset all device state. If the
+   device requires some initialization prior to being ready for fuzzing
+   (common for QOS-based targets), this initialization needs to be done after
+   each reboot.
+   Example target: --virtio-net-ctrl-fuzz
+2. vmsave the state to RAM, once, and restore it after each run.
+   Alternatively only save the device state(savevm.c:qemu_save_device_state)
+   Pros: Do not need to initialize devices prior to each run.
+   VMStateDescriptions often specify more state the device resetting
+   functions called during reboots.
+   Cons: Restoring state is often slower than rebooting. There is
+   currently no way to save the QOS object state, so the objects usually
+   needs to be re-allocated, defeating the purpose of one-time device
+   initialization.
+   Example target: --qtest-fuzz
+3. Run each test case in a separate forked process and copy the coverage
+   information back to the parent. This is fairly similar to AFL's "deferred"
+   fork-server mode [3]
+   Pros: Relatively fast. Devices only need to be initialized once. No need
+   to do slow reboots or vmloads.
+   Cons: Not officially supported by libfuzzer and the implementation is very
+   flimsy. Does not work well for devices that rely on dedicated threads.
+   Example target: --qtest-fork-fuzz
+
+== Adding new Targets ==
+1. Create a file : tests/fuzz/[file].c
+2. Add target registration function and fuzz_target_init(FUNC) at the bottom of
+the file.
+3. In the registration function, register targets using fuzz_add_qos_target or
+fuzz_add_target. The arguments to thes function specify the resetting method
+and QOS path.
+4. These functions refererence a fuzz function which should be a:
+static void func(const unsigned char* Data, size_t Size)
+Inside the fuzz function, translate the "Data" into qtest actions.
+5. Add [file].o to target/i386/Makefile.objs
+
+tests/fuzz/qtest_fuzz.c and tests/fuzz/virtio-net-fuzz.c both contain examples
+of fuzz targets that follow this structure.
