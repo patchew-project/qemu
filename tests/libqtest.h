@@ -1001,4 +1001,10 @@ void qmp_assert_error_class(QDict *rsp, const char *class);
  */
 bool qtest_probe_child(QTestState *s);
 
+#ifdef CONFIG_FUZZ
+QTestState *qtest_init_fuzz(const char *extra_args, int *sock_fd);
+void qtest_clear_rxbuf(QTestState *s);
+void qtest_client_recv(const char *str, size_t len);
+#endif
+
 #endif
