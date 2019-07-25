@@ -23,7 +23,12 @@ static inline bool qtest_enabled(void)
 }
 
 bool qtest_driver(void);
-
+#ifdef CONFIG_FUZZ
+/* Both the client and the server have qtest_init's, Rename on of them... */
+void qtest_init_server(const char *qtest_chrdev, const char *qtest_log, Error **errp);
+void qtest_server_recv(GString *inbuf); /* Client sends commands using this */
+#else
 void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp);
+#endif
 
 #endif
