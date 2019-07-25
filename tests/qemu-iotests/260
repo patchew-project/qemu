@@ -83,3 +83,5 @@ def test(persistent, restart):
 
 
 test(persistent=False, restart=False)
+test(persistent=True, restart=False)
+test(persistent=True, restart=True)

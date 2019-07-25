@@ -5232,6 +5232,7 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_bitmaps_rw = qcow2_reopen_bitmaps_rw,
     .bdrv_can_store_new_dirty_bitmap = qcow2_can_store_new_dirty_bitmap,
     .bdrv_remove_persistent_dirty_bitmap = qcow2_remove_persistent_dirty_bitmap,
+    .bdrv_need_rw_file_child_during_reopen_rw = qcow2_has_bitmaps,
 };
 
 static void bdrv_qcow2_init(void)
