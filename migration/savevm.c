@@ -1404,8 +1404,11 @@ void qemu_savevm_state_cleanup(void)
         }
     }
 }
-
+#ifdef CONFIG_FUZZ
+int qemu_savevm_state(QEMUFile *f, Error **errp)
+#else
 static int qemu_savevm_state(QEMUFile *f, Error **errp)
+#endif
 {
     int ret;
     MigrationState *ms = migrate_get_current();
@@ -1471,11 +1474,12 @@ void qemu_savevm_live_state(QEMUFile *f)
 int qemu_save_device_state(QEMUFile *f)
 {
     SaveStateEntry *se;
-
+#ifndef CONFIG_FUZZ
     if (!migration_in_colo_state()) {
         qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
         qemu_put_be32(f, QEMU_VM_FILE_VERSION);
     }
+#endif
     cpu_synchronize_all_states();
 
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
