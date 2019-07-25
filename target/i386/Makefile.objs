@@ -18,5 +18,24 @@ endif
 obj-$(CONFIG_HVF) += hvf/
 obj-$(CONFIG_WHPX) += whpx-all.o
 endif
+
+# Need to link against target, qtest and qos.. Just list everything here, until
+# I find a better way to integrate into the build system
+ifeq ($(CONFIG_FUZZ),y)
+obj-$(CONFIG_FUZZ) += ../../tests/fuzz/ramfile.o ../../accel/fuzz.o
+obj-$(CONFIG_FUZZ) += ../../tests/fuzz/fuzz.o
+obj-$(CONFIG_FUZZ) += ../../tests/fuzz/virtio-net-fuzz.o 
+obj-$(CONFIG_FUZZ) += ../../tests/fuzz/qtest_fuzz.o
+obj-$(CONFIG_FUZZ) += ../../tests/libqtest.o
+obj-$(CONFIG_FUZZ) += ../../tests/libqos/qgraph.o ../../tests/libqos/libqos.o 
+obj-$(CONFIG_FUZZ) += ../../tests/fuzz/qos_fuzz.o ../../tests/fuzz/qos_helpers.o
+obj-$(CONFIG_FUZZ) +=  ../../tests/libqos/malloc.o ../../tests/libqos/pci-pc.o \
+	../../tests/libqos/virtio-pci.o ../../tests/libqos/malloc-pc.o \
+	../../tests/libqos/libqos-pc.o ../../tests/libqos/fw_cfg.o \
+	../../tests/libqos/e1000e.o ../../tests/libqos/pci.o \
+	../../tests/libqos/pci-pc.o ../../tests/libqos/virtio.o \
+	../../tests/libqos/virtio-net.o ../../tests/libqos/x86_64_pc-machine.o
+endif
+
 obj-$(CONFIG_SEV) += sev.o
 obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o
