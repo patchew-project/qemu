@@ -23,7 +23,7 @@ endif
 # I find a better way to integrate into the build system
 ifeq ($(CONFIG_FUZZ),y)
 obj-$(CONFIG_FUZZ) += ../../tests/fuzz/ramfile.o ../../accel/fuzz.o
-obj-$(CONFIG_FUZZ) += ../../tests/fuzz/fuzz.o
+obj-$(CONFIG_FUZZ) += ../../tests/fuzz/fuzz.o ../../tests/fuzz/fuzzer_hooks.o
 obj-$(CONFIG_FUZZ) += ../../tests/fuzz/virtio-net-fuzz.o 
 obj-$(CONFIG_FUZZ) += ../../tests/fuzz/qtest_fuzz.o
 obj-$(CONFIG_FUZZ) += ../../tests/libqtest.o
