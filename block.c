@@ -1715,10 +1715,12 @@ static void bdrv_get_cumulative_perm(BlockDriverState *bs, uint64_t *perm,
                                      uint64_t *shared_perm);
 
 typedef struct BlockReopenQueueEntry {
-     bool prepared;
-     bool perms_checked;
-     BDRVReopenState state;
-     QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
+    bool reopened_file_child_rw;
+    bool changed_file_child_perm_rw;
+    bool prepared;
+    bool perms_checked;
+    BDRVReopenState state;
+    QSIMPLEQ_ENTRY(BlockReopenQueueEntry) entry;
 } BlockReopenQueueEntry;
 
 /*
@@ -3421,6 +3423,105 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
                                    keep_old_opts);
 }
 
+static int bdrv_reopen_set_read_only_drained(BlockDriverState *bs,
+                                             bool read_only,
+                                             Error **errp)
+{
+    BlockReopenQueue *queue;
+    QDict *opts = qdict_new();
+
+    qdict_put_bool(opts, BDRV_OPT_READ_ONLY, read_only);
+
+    queue = bdrv_reopen_queue(NULL, bs, opts, true);
+
+    return bdrv_reopen_multiple(queue, errp);
+}
+
+/*
+ * handle_recursive_reopens
+ *
+ * On fail it needs rollback_recursive_reopens to be called.
+ */
+static int handle_recursive_reopens(BlockReopenQueueEntry *current,
+                                    Error **errp)
+{
+    int ret;
+    BlockDriverState *bs = current->state.bs;
+
+    /*
+     * We use the fact that in reopen-queue children are always following
+     * parents.
+     * TODO: Switch BlockReopenQueue to be QTAILQ and use
+     *       QTAILQ_FOREACH_REVERSE.
+     */
+    if (QSIMPLEQ_NEXT(current, entry)) {
+        ret = handle_recursive_reopens(QSIMPLEQ_NEXT(current, entry), errp);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if ((current->state.flags & BDRV_O_RDWR) && bs->file && bs->drv &&
+        bs->drv->bdrv_need_rw_file_child_during_reopen_rw &&
+        bs->drv->bdrv_need_rw_file_child_during_reopen_rw(bs))
+    {
+        if (!bdrv_is_writable(bs->file->bs)) {
+            ret = bdrv_reopen_set_read_only_drained(bs->file->bs, false, errp);
+            if (ret < 0) {
+                return ret;
+            }
+            current->reopened_file_child_rw = true;
+        }
+
+        if (!(bs->file->perm & BLK_PERM_WRITE)) {
+            ret = bdrv_child_try_set_perm(bs->file,
+                                          bs->file->perm | BLK_PERM_WRITE,
+                                          bs->file->shared_perm, errp);
+            if (ret < 0) {
+                return ret;
+            }
+            current->changed_file_child_perm_rw = true;
+        }
+    }
+
+    return 0;
+}
+
+static int rollback_recursive_reopens(BlockReopenQueue *bs_queue,
+                                      Error **errp)
+{
+    int ret;
+    BlockReopenQueueEntry *bs_entry;
+
+    /*
+     * We use the fact that in reopen-queue children are always following
+     * parents.
+     */
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
+        BlockDriverState *bs = bs_entry->state.bs;
+
+        if (bs_entry->changed_file_child_perm_rw) {
+            ret = bdrv_child_try_set_perm(bs->file,
+                                          bs->file->perm & ~BLK_PERM_WRITE,
+                                          bs->file->shared_perm, errp);
+
+            if (ret < 0) {
+                return ret;
+            }
+        }
+
+        if (bs_entry->reopened_file_child_rw) {
+            ret = bdrv_reopen_set_read_only_drained(bs, true, errp);
+
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
 /*
  * Reopen multiple BlockDriverStates atomically & transactionally.
  *
@@ -3440,10 +3541,17 @@ BlockReopenQueue *bdrv_reopen_queue(BlockReopenQueue *bs_queue,
  */
 int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 {
-    int ret = -1;
+    int ret;
     BlockReopenQueueEntry *bs_entry, *next;
 
     assert(bs_queue != NULL);
+
+    ret = handle_recursive_reopens(QSIMPLEQ_FIRST(bs_queue), errp);
+    if (ret < 0) {
+        goto rollback_recursion;
+    }
+
+    ret = -1;
 
     QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         assert(bs_entry->state.bs->quiesce_counter > 0);
@@ -3485,7 +3593,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
 
     ret = 0;
 cleanup_perm:
-    QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         BDRVReopenState *state = &bs_entry->state;
 
         if (!bs_entry->perms_checked) {
@@ -3502,7 +3610,7 @@ cleanup_perm:
         }
     }
 cleanup:
-    QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
+    QSIMPLEQ_FOREACH(bs_entry, bs_queue, entry) {
         if (ret) {
             if (bs_entry->prepared) {
                 bdrv_reopen_abort(&bs_entry->state);
@@ -3513,8 +3621,23 @@ cleanup:
         if (bs_entry->state.new_backing_bs) {
             bdrv_unref(bs_entry->state.new_backing_bs);
         }
+    }
+
+rollback_recursion:
+    if (ret) {
+        Error *local_err = NULL;
+        int ret2 = rollback_recursive_reopens(bs_queue, &local_err);
+
+        if (ret2 < 0) {
+            error_reportf_err(local_err, "Failed to rollback partially "
+                              "succeeded reopen to RW: ");
+        }
+    }
+
+    QSIMPLEQ_FOREACH_SAFE(bs_entry, bs_queue, entry, next) {
         g_free(bs_entry);
     }
+
     g_free(bs_queue);
 
     return ret;
@@ -3524,14 +3647,9 @@ int bdrv_reopen_set_read_only(BlockDriverState *bs, bool read_only,
                               Error **errp)
 {
     int ret;
-    BlockReopenQueue *queue;
-    QDict *opts = qdict_new();
-
-    qdict_put_bool(opts, BDRV_OPT_READ_ONLY, read_only);
 
     bdrv_subtree_drained_begin(bs);
-    queue = bdrv_reopen_queue(NULL, bs, opts, true);
-    ret = bdrv_reopen_multiple(queue, errp);
+    ret = bdrv_reopen_set_read_only_drained(bs, read_only, errp);
     bdrv_subtree_drained_end(bs);
 
     return ret;
