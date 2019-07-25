@@ -104,6 +104,7 @@ void blk_get_perm(BlockBackend *blk, uint64_t *perm, uint64_t *shared_perm);
 
 void blk_set_allow_write_beyond_eof(BlockBackend *blk, bool allow);
 void blk_set_allow_aio_context_change(BlockBackend *blk, bool allow);
+void blk_set_disable_request_queuing(BlockBackend *blk, bool disable);
 void blk_iostatus_enable(BlockBackend *blk);
 bool blk_iostatus_is_enabled(const BlockBackend *blk);
 BlockDeviceIoStatus blk_iostatus(const BlockBackend *blk);
@@ -119,10 +120,10 @@ BlockBackend *blk_by_qdev_id(const char *id, Error **errp);
 void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops, void *opaque);
 int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
                                unsigned int bytes, QEMUIOVector *qiov,
-                               BdrvRequestFlags flags);
+                               BdrvRequestFlags flags, bool wait_while_drained);
 int coroutine_fn blk_co_pwritev(BlockBackend *blk, int64_t offset,
-                               unsigned int bytes, QEMUIOVector *qiov,
-                               BdrvRequestFlags flags);
+                                unsigned int bytes, QEMUIOVector *qiov,
+                                BdrvRequestFlags flags, bool wait_while_drained);
 
 static inline int coroutine_fn blk_co_pread(BlockBackend *blk, int64_t offset,
                                             unsigned int bytes, void *buf,
@@ -130,7 +131,7 @@ static inline int coroutine_fn blk_co_pread(BlockBackend *blk, int64_t offset,
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
 
-    return blk_co_preadv(blk, offset, bytes, &qiov, flags);
+    return blk_co_preadv(blk, offset, bytes, &qiov, flags, true);
 }
 
 static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
@@ -139,7 +140,7 @@ static inline int coroutine_fn blk_co_pwrite(BlockBackend *blk, int64_t offset,
 {
     QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, buf, bytes);
 
-    return blk_co_pwritev(blk, offset, bytes, &qiov, flags);
+    return blk_co_pwritev(blk, offset, bytes, &qiov, flags, true);
 }
 
 int blk_pwrite_zeroes(BlockBackend *blk, int64_t offset,

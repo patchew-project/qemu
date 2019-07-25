@@ -231,7 +231,8 @@ static void coroutine_fn mirror_read_complete(MirrorOp *op, int ret)
         return;
     }
 
-    ret = blk_co_pwritev(s->target, op->offset, op->qiov.size, &op->qiov, 0);
+    ret = blk_co_pwritev(s->target, op->offset, op->qiov.size, &op->qiov, 0,
+                         false);
     mirror_write_complete(op, ret);
 }
 
@@ -1237,7 +1238,7 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
         switch (method) {
         case MIRROR_METHOD_COPY:
             ret = blk_co_pwritev(job->target, dirty_offset, dirty_bytes,
-                                 qiov ? &target_qiov : NULL, flags);
+                                 qiov ? &target_qiov : NULL, flags, false);
             break;
 
         case MIRROR_METHOD_ZERO:
@@ -1624,6 +1625,7 @@ static BlockJob *mirror_start_job(
         blk_set_force_allow_inactivate(s->target);
     }
     blk_set_allow_aio_context_change(s->target, true);
+    blk_set_disable_request_queuing(s->target, true);
 
     s->replaces = g_strdup(replaces);
     s->on_source_error = on_source_error;
