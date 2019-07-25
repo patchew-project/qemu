@@ -51,7 +51,7 @@ static void virtio_net_setup(QVirtioNet *interface)
     if (features & (1u << VIRTIO_NET_F_MQ)) {
         interface->n_queues = qvirtio_config_readw(vdev, 8) * 2;
     } else {
-        interface->n_queues = 2;
+        interface->n_queues = 3;
     }
 
     interface->queues = g_new(QVirtQueue *, interface->n_queues);
