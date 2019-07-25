@@ -31,6 +31,9 @@
 #ifdef TARGET_PPC64
 #include "hw/ppc/spapr_rtas.h"
 #endif
+#ifdef CONFIG_FUZZ
+#include "tests/libqtest.h"
+#endif
 
 #define MAX_IRQ 256
 
@@ -231,10 +234,14 @@ static void GCC_FMT_ATTR(1, 2) qtest_log_send(const char *fmt, ...)
 
 static void do_qtest_send(CharBackend *chr, const char *str, size_t len)
 {
+#ifdef CONFIG_FUZZ
+    qtest_client_recv(str, len);
+#else
     qemu_chr_fe_write_all(chr, (uint8_t *)str, len);
     if (qtest_log_fp && qtest_opened) {
         fprintf(qtest_log_fp, "%s", str);
     }
+#endif
 }
 
 static void qtest_send(CharBackend *chr, const char *str)
@@ -748,8 +755,11 @@ static void qtest_event(void *opaque, int event)
         break;
     }
 }
-
+#ifdef CONFIG_FUZZ
+void qtest_init_server(const char *qtest_chrdev, const char *qtest_log, Error **errp)
+#else
 void qtest_init(const char *qtest_chrdev, const char *qtest_log, Error **errp)
+#endif
 {
     Chardev *chr;
 
@@ -781,3 +791,10 @@ bool qtest_driver(void)
 {
     return qtest_chr.chr != NULL;
 }
+#ifdef CONFIG_FUZZ
+void qtest_server_recv(GString *inbuf)
+{
+    qtest_process_inbuf(NULL, inbuf);
+}
+#endif
+
