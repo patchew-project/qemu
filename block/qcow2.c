@@ -1815,6 +1815,11 @@ static int qcow2_reopen_prepare(BDRVReopenState *state,
         if (ret < 0) {
             goto fail;
         }
+    } else {
+        ret = qcow2_reopen_bitmaps_rw(state->bs, errp);
+        if (ret < 0) {
+            goto fail;
+        }
     }
 
     return 0;
@@ -5229,7 +5234,6 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_detach_aio_context  = qcow2_detach_aio_context,
     .bdrv_attach_aio_context  = qcow2_attach_aio_context,
 
-    .bdrv_reopen_bitmaps_rw = qcow2_reopen_bitmaps_rw,
     .bdrv_can_store_new_dirty_bitmap = qcow2_can_store_new_dirty_bitmap,
     .bdrv_remove_persistent_dirty_bitmap = qcow2_remove_persistent_dirty_bitmap,
     .bdrv_need_rw_file_child_during_reopen_rw = qcow2_has_bitmaps,
