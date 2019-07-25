@@ -34,6 +34,11 @@
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
+#ifdef CONFIG_FUZZ
+#include "tests/fuzz/fuzz.h"
+#include "tests/fuzz/qos_fuzz.h"
+#endif
+
 
 //#define DEBUG_UNASSIGNED
 
@@ -3016,12 +3021,20 @@ static void mtree_print_flatview(gpointer key, gpointer value,
     int n = view->nr;
     int i;
     AddressSpace *as;
+#ifdef CONFIG_FUZZ
+    bool io=false;
+#endif
+
 
     qemu_printf("FlatView #%d\n", fvi->counter);
     ++fvi->counter;
 
     for (i = 0; i < fv_address_spaces->len; ++i) {
         as = g_array_index(fv_address_spaces, AddressSpace*, i);
+#ifdef CONFIG_FUZZ
+        if(strcmp("I/O",as->name) == 0)
+            io = true;
+#endif
         qemu_printf(" AS \"%s\", root: %s",
                     as->name, memory_region_name(as->root));
         if (as->root->alias) {
@@ -3062,6 +3075,27 @@ static void mtree_print_flatview(gpointer key, gpointer value,
                         range->readonly ? "rom" : memory_region_type(mr),
                         memory_region_name(mr));
         }
+#ifdef CONFIG_FUZZ
+        if(strcmp("i/o", memory_region_type(mr))==0 && strcmp("io", memory_region_name(mr))){
+            fuzz_memory_region *fmr = g_new0(fuzz_memory_region, 1);
+            if(!fuzz_memory_region_head)
+            {
+                fuzz_memory_region_head = fmr;
+                fuzz_memory_region_tail = fmr;
+            }
+            fmr->io = io;
+            fmr->start = int128_get64(range->addr.start);
+            fmr->length = MR_SIZE(range->addr.size);
+            fmr->next = fuzz_memory_region_head;
+            fuzz_memory_region_tail->next = fmr;
+            fuzz_memory_region_tail = fmr;
+            if(io == true){
+                total_io_mem += MR_SIZE(range->addr.size)+1;
+            } else {
+                total_ram_mem += MR_SIZE(range->addr.size)+1;
+            }
+        }
+#endif
         if (fvi->owner) {
             mtree_print_mr_owner(mr);
         }
