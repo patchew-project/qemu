@@ -130,6 +130,10 @@ int main(int argc, char **argv)
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
 
+#ifdef CONFIG_FUZZ
+#include "tests/libqtest.h"
+#endif
+
 #define MAX_VIRTIO_CONSOLES 1
 
 static const char *data_dir[16];
@@ -2853,8 +2857,11 @@ static void user_register_global_props(void)
     qemu_opts_foreach(qemu_find_opts("global"),
                       global_init_func, NULL, NULL);
 }
-
+#ifdef CONFIG_FUZZ
+int real_main(int argc, char **argv, char **envp)
+#else
 int main(int argc, char **argv, char **envp)
+#endif
 {
     int i;
     int snapshot, linux_boot;
@@ -2903,7 +2910,9 @@ int main(int argc, char **argv, char **envp)
     atexit(qemu_run_exit_notifiers);
     qemu_init_exec_dir(argv[0]);
 
+#ifndef CONFIG_FUZZ // QOM is already set up by the fuzzer.
     module_call_init(MODULE_INIT_QOM);
+#endif
 
     qemu_add_opts(&qemu_drive_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
@@ -4196,9 +4205,11 @@ int main(int argc, char **argv, char **envp)
      */
     migration_object_init();
 
+#ifndef CONFIG_FUZZ // Already set up by the fuzzer
     if (qtest_chrdev) {
         qtest_init(qtest_chrdev, qtest_log, &error_fatal);
     }
+#endif
 
     machine_opts = qemu_get_machine_opts();
     kernel_filename = qemu_opt_get(machine_opts, "kernel");
@@ -4469,6 +4480,14 @@ int main(int argc, char **argv, char **envp)
 
     accel_setup_post(current_machine);
     os_setup_post();
+
+/*
+ * Return to the fuzzer since it will run qtest programs and run the
+ * main_loop
+*/
+#ifdef CONFIG_FUZZ
+    return 0;
+#endif
 
     main_loop();
 
