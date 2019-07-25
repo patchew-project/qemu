@@ -513,6 +513,9 @@ void main_loop_wait(int nonblocking)
     timeout_ns = qemu_soonest_timeout(timeout_ns,
                                       timerlistgroup_deadline_ns(
                                           &main_loop_tlg));
+#ifdef CONFIG_FUZZ
+    timeout_ns = 50000;
+#endif
 
     ret = os_host_main_loop_wait(timeout_ns);
     mlpoll.state = ret < 0 ? MAIN_LOOP_POLL_ERR : MAIN_LOOP_POLL_OK;
