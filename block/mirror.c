@@ -644,6 +644,11 @@ static int mirror_exit_common(Job *job)
     bdrv_ref(mirror_top_bs);
     bdrv_ref(target_bs);
 
+    /* The mirror job has no requests in flight any more, but we need to
+     * drain potential other users of the BDS before changing the graph. */
+    assert(s->in_drain);
+    bdrv_drained_begin(target_bs);
+
     /* Remove target parent that still uses BLK_PERM_WRITE/RESIZE before
      * inserting target_bs at s->to_replace, where we might not be able to get
      * these permissions.
@@ -684,12 +689,7 @@ static int mirror_exit_common(Job *job)
             bdrv_reopen_set_read_only(target_bs, ro, NULL);
         }
 
-        /* The mirror job has no requests in flight any more, but we need to
-         * drain potential other users of the BDS before changing the graph. */
-        assert(s->in_drain);
-        bdrv_drained_begin(target_bs);
         bdrv_replace_node(to_replace, target_bs, &local_err);
-        bdrv_drained_end(target_bs);
         if (local_err) {
             error_report_err(local_err);
             ret = -EPERM;
@@ -704,7 +704,6 @@ static int mirror_exit_common(Job *job)
         aio_context_release(replace_aio_context);
     }
     g_free(s->replaces);
-    bdrv_unref(target_bs);
 
     /*
      * Remove the mirror filter driver from the graph. Before this, get rid of
@@ -724,9 +723,12 @@ static int mirror_exit_common(Job *job)
     bs_opaque->job = NULL;
 
     bdrv_drained_end(src);
+    bdrv_drained_end(target_bs);
+
     s->in_drain = false;
     bdrv_unref(mirror_top_bs);
     bdrv_unref(src);
+    bdrv_unref(target_bs);
 
     return ret;
 }
