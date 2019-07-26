@@ -108,8 +108,7 @@ static bool full_vfp_access_check(DisasContext *s, bool ignore_vfp_enabled)
 
     if (!s->vfp_enabled && !ignore_vfp_enabled) {
         assert(!arm_dc_feature(s, ARM_FEATURE_M));
-        gen_exception_insn(s, EXCP_UDEF, syn_uncategorized(),
-                           default_exception_el(s));
+        gen_illegal_op(s);
         return false;
     }
 
