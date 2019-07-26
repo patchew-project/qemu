@@ -1737,10 +1737,6 @@ static void spapr_machine_reset(MachineState *machine)
         ppc_set_compat(first_ppc_cpu, spapr->max_compat_pvr, &error_fatal);
     }
 
-    if (!SPAPR_MACHINE_GET_CLASS(spapr)->legacy_irq_allocation) {
-        spapr_irq_msi_reset(spapr);
-    }
-
     /*
      * NVLink2-connected GPU RAM needs to be placed on a separate NUMA node.
      * We assign a new numa ID per GPU in spapr_pci_collect_nvgpu() which is
