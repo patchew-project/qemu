@@ -1209,26 +1209,13 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 #endif
 
 /*
- * Byte Swap Helper
+ * Byte Swap Checker
  *
- * This should all dead code away depending on the build host and
- * access type.
+ * Dead code should all go away depending on the build host and access type.
  */
-
-static inline uint64_t handle_bswap(uint64_t val, int size, bool big_endian)
+static inline bool need_bswap(bool big_endian)
 {
-    if ((big_endian && NEED_BE_BSWAP) || (!big_endian && NEED_LE_BSWAP)) {
-        switch (size) {
-        case 1: return val;
-        case 2: return bswap16(val);
-        case 4: return bswap32(val);
-        case 8: return bswap64(val);
-        default:
-            g_assert_not_reached();
-        }
-    } else {
-        return val;
-    }
+    return (big_endian && NEED_BE_BSWAP) || (!big_endian && NEED_LE_BSWAP);
 }
 
 /*
@@ -1259,6 +1246,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     unsigned a_bits = get_alignment_bits(get_memop(oi));
     void *haddr;
     uint64_t res;
+    MemOp op;
 
     /* Handle CPU specific unaligned behaviour */
     if (addr & ((1 << a_bits) - 1)) {
@@ -1304,9 +1292,13 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
             }
         }
 
-        res = io_readx(env, &env_tlb(env)->d[mmu_idx].iotlb[index],
-                       mmu_idx, addr, retaddr, access_type, SIZE_MEMOP(size));
-        return handle_bswap(res, size, big_endian);
+        op = SIZE_MEMOP(size);
+        if (need_bswap(big_endian)) {
+            op ^= MO_BSWAP;
+        }
+
+        return io_readx(env, &env_tlb(env)->d[mmu_idx].iotlb[index],
+                       mmu_idx, addr, retaddr, access_type, op);
     }
 
     /* Handle slow unaligned access (it spans two pages or IO).  */
@@ -1507,6 +1499,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     const size_t tlb_off = offsetof(CPUTLBEntry, addr_write);
     unsigned a_bits = get_alignment_bits(get_memop(oi));
     void *haddr;
+    MemOp op;
 
     /* Handle CPU specific unaligned behaviour */
     if (addr & ((1 << a_bits) - 1)) {
@@ -1552,9 +1545,13 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
             }
         }
 
+        op = SIZE_MEMOP(size);
+        if (need_bswap(big_endian)) {
+            op ^= MO_BSWAP;
+        }
+
         io_writex(env, &env_tlb(env)->d[mmu_idx].iotlb[index], mmu_idx,
-                  handle_bswap(val, size, big_endian),
-                  addr, retaddr, SIZE_MEMOP(size));
+                  val, addr, retaddr, op);
         return;
     }
 
