@@ -3223,13 +3223,17 @@
 # @host-key-check:      Defines how and what to check the host key against
 #                       (default: known_hosts)
 #
+# @password-secret:     ID of a QCryptoSecret object providing a password
+#                       for authentication (since 4.2)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSsh',
   'data': { 'server': 'InetSocketAddress',
             'path': 'str',
             '*user': 'str',
-            '*host-key-check': 'SshHostKeyCheck' } }
+            '*host-key-check': 'SshHostKeyCheck',
+            '*password-secret': 'str' } }
 
 
 ##

@@ -771,8 +771,11 @@ matches a specific fingerprint:
 (@code{sha1:} can also be used as a prefix, but note that OpenSSH
 tools only use MD5 to print fingerprints).
 
-Currently authentication must be done using ssh-agent.  Other
-authentication methods may be supported in future.
+The optional @var{password-secret} parameter provides the ID of a
+@code{secret} object that contains the password for authenticating.
+
+Currently authentication must be done using ssh-agent, or providing a
+password.  Other authentication methods may be supported in future.
 
 Note: Many ssh servers do not support an @code{fsync}-style operation.
 The ssh driver cannot guarantee that disk flush requests are

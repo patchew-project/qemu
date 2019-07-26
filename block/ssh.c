@@ -43,6 +43,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qobject-input-visitor.h"
 #include "qapi/qobject-output-visitor.h"
+#include "crypto/secret.h"
 #include "trace.h"
 
 /*
@@ -499,7 +500,8 @@ static int check_host_key(BDRVSSHState *s, SshHostKeyCheck *hkc, Error **errp)
     return -EINVAL;
 }
 
-static int authenticate(BDRVSSHState *s, Error **errp)
+static int authenticate(BDRVSSHState *s, BlockdevOptionsSsh *opts,
+                        Error **errp)
 {
     int r, ret;
     int method;
@@ -538,9 +540,35 @@ static int authenticate(BDRVSSHState *s, Error **errp)
         }
     }
 
+    /*
+     * Try to authenticate with password, if available.
+     */
+    if (method & SSH_AUTH_METHOD_PASSWORD && opts->has_password_secret) {
+        char *password;
+
+        trace_ssh_option_secret_object(opts->password_secret);
+        password = qcrypto_secret_lookup_as_utf8(opts->password_secret, errp);
+        if (!password) {
+            ret = -EINVAL;
+            goto out;
+        }
+        r = ssh_userauth_password(s->session, NULL, password);
+        g_free(password);
+        if (r == SSH_AUTH_ERROR) {
+            ret = -EINVAL;
+            session_error_setg(errp, s, "failed to authenticate using "
+                                        "password authentication");
+            goto out;
+        } else if (r == SSH_AUTH_SUCCESS) {
+            /* Authenticated! */
+            ret = 0;
+            goto out;
+        }
+    }
+
     ret = -EPERM;
     error_setg(errp, "failed to authenticate using publickey authentication "
-               "and the identities held by your ssh-agent");
+               "and the identities held by your ssh-agent, or using password");
 
  out:
     return ret;
@@ -785,7 +813,7 @@ static int connect_to_ssh(BDRVSSHState *s, BlockdevOptionsSsh *opts,
     }
 
     /* Authenticate. */
-    ret = authenticate(s, errp);
+    ret = authenticate(s, opts, errp);
     if (ret < 0) {
         goto err;
     }
@@ -1376,6 +1404,7 @@ static const char *const ssh_strong_runtime_opts[] = {
     "user",
     "host_key_check",
     "server.",
+    "password-secret",
 
     NULL
 };

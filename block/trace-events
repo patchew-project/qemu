@@ -186,6 +186,7 @@ ssh_write_return(ssize_t ret, int sftp_err) "sftp_write returned %zd (sftp error
 ssh_seek(int64_t offset) "seeking to offset=%" PRIi64
 ssh_auth_methods(int methods) "auth methods=0x%x"
 ssh_server_status(int status) "server status=%d"
+ssh_option_secret_object(const char *path) "using password from object %s"
 
 # curl.c
 curl_timer_cb(long timeout_ms) "timer callback timeout_ms %ld"

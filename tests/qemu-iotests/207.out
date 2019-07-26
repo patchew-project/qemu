@@ -74,7 +74,7 @@ Job failed: failed to open remote file '/this/is/not/an/existing/path': SFTP ser
 
 {"execute": "blockdev-create", "arguments": {"job-id": "job0", "options": {"driver": "ssh", "location": {"host-key-check": {"mode": "none"}, "path": "TEST_DIR/PID-t.img", "server": {"host": "127.0.0.1", "port": "22"}, "user": "invalid user"}, "size": 4194304}}}
 {"return": {}}
-Job failed: failed to authenticate using publickey authentication and the identities held by your ssh-agent
+Job failed: failed to authenticate using publickey authentication and the identities held by your ssh-agent, or using password
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
