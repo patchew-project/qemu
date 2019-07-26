@@ -1256,12 +1256,12 @@ static void gen_exception_insn(DisasContext *s, int excp, int syn,
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static void gen_exception_bkpt_insn(DisasContext *s, int offset, uint32_t syn)
+static void gen_exception_bkpt_insn(DisasContext *s, uint32_t syn)
 {
     TCGv_i32 tcg_syn;
 
     gen_set_condexec(s);
-    gen_set_pc_im(s, s->pc - offset);
+    gen_set_pc_im(s, s->base.pc_next);
     tcg_syn = tcg_const_i32(syn);
     gen_helper_exception_bkpt_insn(cpu_env, tcg_syn);
     tcg_temp_free_i32(tcg_syn);
@@ -8139,7 +8139,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             case 1:
                 /* bkpt */
                 ARCH(5);
-                gen_exception_bkpt_insn(s, 4, syn_aa32_bkpt(imm16, false));
+                gen_exception_bkpt_insn(s, syn_aa32_bkpt(imm16, false));
                 break;
             case 2:
                 /* Hypervisor call (v7) */
@@ -11611,7 +11611,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         {
             int imm8 = extract32(insn, 0, 8);
             ARCH(5);
-            gen_exception_bkpt_insn(s, 2, syn_aa32_bkpt(imm8, true));
+            gen_exception_bkpt_insn(s, syn_aa32_bkpt(imm8, true));
             break;
         }
 
