@@ -885,8 +885,17 @@ struct target_pollfd {
 
 /* From <linux/fd.h> */
 
+struct target_format_descr {
+    abi_uint        device;
+    abi_uint        head;
+    abi_uint        track;
+};
+
 #define TARGET_FDMSGON       TARGET_IO(2, 0x45)
 #define TARGET_FDMSGOFF      TARGET_IO(2, 0x46)
+#define TARGET_FDFMTBEG      TARGET_IO(2, 0x47)
+#define TARGET_FDFMTTRK     TARGET_IOW(2, 0x48, struct target_format_descr)
+#define TARGET_FDFMTEND      TARGET_IO(2, 0x49)
 #define TARGET_FDFLUSH       TARGET_IO(2, 0x4b)
 #define TARGET_FDRESET       TARGET_IO(2, 0x54)
 #define TARGET_FDRAWCMD      TARGET_IO(2, 0x58)
