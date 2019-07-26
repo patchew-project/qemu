@@ -2740,7 +2740,10 @@ static void gen_goto_ptr(void)
  */
 static void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
 {
-    if (use_goto_tb(s, dest)) {
+    if (unlikely(is_singlestepping(s))) {
+        gen_set_pc_im(s, dest);
+        gen_singlestep_exception(s);
+    } else if (use_goto_tb(s, dest)) {
         tcg_gen_goto_tb(n);
         gen_set_pc_im(s, dest);
         tcg_gen_exit_tb(s->base.tb, n);
@@ -2751,16 +2754,9 @@ static void gen_goto_tb(DisasContext *s, int n, target_ulong dest)
     s->base.is_jmp = DISAS_NORETURN;
 }
 
-static inline void gen_jmp (DisasContext *s, uint32_t dest)
+static inline void gen_jmp(DisasContext *s, uint32_t dest)
 {
-    if (unlikely(is_singlestepping(s))) {
-        /* An indirect jump so that we still trigger the debug exception.  */
-        if (s->thumb)
-            dest |= 1;
-        gen_bx_im(s, dest);
-    } else {
-        gen_goto_tb(s, 0, dest);
-    }
+    gen_goto_tb(s, 0, dest);
 }
 
 static inline void gen_mulxy(TCGv_i32 t0, TCGv_i32 t1, int x, int y)
