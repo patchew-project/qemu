@@ -774,8 +774,16 @@ tools only use MD5 to print fingerprints).
 The optional @var{password-secret} parameter provides the ID of a
 @code{secret} object that contains the password for authenticating.
 
-Currently authentication must be done using ssh-agent, or providing a
-password.  Other authentication methods may be supported in future.
+The optional @var{private-key} parameter provides the path to the
+private key for authenticating.
+
+The optional @var{private-key-secret} parameter provides the ID of a
+@code{secret} object that contains the passphrase of the private key
+specified as @var{private-key} for authenticating.
+
+Currently authentication must be done using ssh-agent, providing a
+private key with its passphrase, or providing a password.
+Other authentication methods may be supported in future.
 
 Note: Many ssh servers do not support an @code{fsync}-style operation.
 The ssh driver cannot guarantee that disk flush requests are

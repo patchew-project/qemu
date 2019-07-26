@@ -3226,6 +3226,11 @@
 # @password-secret:     ID of a QCryptoSecret object providing a password
 #                       for authentication (since 4.2)
 #
+# @private-key:         path to the private key (since 4.2)
+#
+# @private-key-secret:  ID of a QCryptoSecret object providing the passphrase
+#                       for 'private-key' (since 4.2)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsSsh',
@@ -3233,7 +3238,9 @@
             'path': 'str',
             '*user': 'str',
             '*host-key-check': 'SshHostKeyCheck',
-            '*password-secret': 'str' } }
+            '*password-secret': 'str',
+            '*private-key': 'str',
+            '*private-key-secret': 'str' } }
 
 
 ##

@@ -500,6 +500,89 @@ static int check_host_key(BDRVSSHState *s, SshHostKeyCheck *hkc, Error **errp)
     return -EINVAL;
 }
 
+static int authenticate_privkey(BDRVSSHState *s, BlockdevOptionsSsh *opts,
+                                Error **errp)
+{
+    int err;
+    int ret;
+    char *pubkey_file = NULL;
+    ssh_key public_key = NULL;
+    ssh_key private_key = NULL;
+    char *passphrase;
+
+    pubkey_file = g_strdup_printf("%s.pub", opts->private_key);
+
+    /* load the private key */
+    trace_ssh_auth_key_passphrase(opts->private_key_secret, opts->private_key);
+    passphrase = qcrypto_secret_lookup_as_utf8(opts->private_key_secret, errp);
+    if (!passphrase) {
+        err = SSH_AUTH_ERROR;
+        goto error;
+    }
+    ret = ssh_pki_import_privkey_file(opts->private_key, passphrase,
+                                      NULL, NULL, &private_key);
+    g_free(passphrase);
+    if (ret == SSH_EOF) {
+        error_setg(errp, "Cannot read private key '%s'", opts->private_key);
+        err = SSH_AUTH_ERROR;
+        goto error;
+    } else if (ret == SSH_ERROR) {
+        error_setg(errp,
+                   "Cannot open private key '%s', maybe the passphrase is "
+                   "wrong",
+                   opts->private_key);
+        err = SSH_AUTH_ERROR;
+        goto error;
+    }
+
+    /* try to open the public part of the private key */
+    ret = ssh_pki_import_pubkey_file(pubkey_file, &public_key);
+    if (ret == SSH_ERROR) {
+        error_setg(errp, "Cannot read public key '%s'", pubkey_file);
+        err = SSH_AUTH_ERROR;
+        goto error;
+    } else if (ret == SSH_EOF) {
+        /* create the public key from the private key */
+        ret = ssh_pki_export_privkey_to_pubkey(private_key, &public_key);
+        if (ret == SSH_ERROR) {
+            error_setg(errp,
+                       "Cannot export the public key from the private key "
+                       "'%s'",
+                       opts->private_key);
+            err = SSH_AUTH_ERROR;
+            goto error;
+        }
+    }
+
+    ret = ssh_userauth_try_publickey(s->session, NULL, public_key);
+    if (ret != SSH_AUTH_SUCCESS) {
+        err = SSH_AUTH_DENIED;
+        goto error;
+    }
+
+    ret = ssh_userauth_publickey(s->session, NULL, private_key);
+    if (ret != SSH_AUTH_SUCCESS) {
+        err = SSH_AUTH_DENIED;
+        goto error;
+    }
+
+    ssh_key_free(private_key);
+    ssh_key_free(public_key);
+    g_free(pubkey_file);
+
+    return SSH_AUTH_SUCCESS;
+
+ error:
+    if (private_key) {
+        ssh_key_free(private_key);
+    }
+    if (public_key) {
+        ssh_key_free(public_key);
+    }
+    g_free(pubkey_file);
+    return err;
+}
+
 static int authenticate(BDRVSSHState *s, BlockdevOptionsSsh *opts,
                         Error **errp)
 {
@@ -537,6 +620,21 @@ static int authenticate(BDRVSSHState *s, BlockdevOptionsSsh *opts,
             /* Authenticated! */
             ret = 0;
             goto out;
+        }
+
+        /*
+         * Try to authenticate with private key, if available.
+         */
+        if (opts->has_private_key && opts->has_private_key_secret) {
+            r = authenticate_privkey(s, opts, errp);
+            if (r == SSH_AUTH_ERROR) {
+                ret = -EINVAL;
+                goto out;
+            } else if (r == SSH_AUTH_SUCCESS) {
+                /* Authenticated! */
+                ret = 0;
+                goto out;
+            }
         }
     }
 
