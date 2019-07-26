@@ -200,13 +200,7 @@ static inline void store_cpu_offset(TCGv_i32 var, int offset)
 static void load_reg_var(DisasContext *s, TCGv_i32 var, int reg)
 {
     if (reg == 15) {
-        uint32_t addr;
-        /* normally, since we updated PC, we need only to add one insn */
-        if (s->thumb)
-            addr = (long)s->pc + 2;
-        else
-            addr = (long)s->pc + 4;
-        tcg_gen_movi_i32(var, addr);
+        tcg_gen_movi_i32(var, s->pc_read);
     } else {
         tcg_gen_mov_i32(var, cpu_R[reg]);
     }
@@ -7868,16 +7862,14 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
             /* branch link and change to thumb (blx <offset>) */
             int32_t offset;
 
-            val = (uint32_t)s->pc;
             tmp = tcg_temp_new_i32();
-            tcg_gen_movi_i32(tmp, val);
+            tcg_gen_movi_i32(tmp, s->pc);
             store_reg(s, 14, tmp);
             /* Sign-extend the 24-bit offset */
             offset = (((int32_t)insn) << 8) >> 8;
+            val = s->pc_read;
             /* offset * 4 + bit24 * 2 + (thumb bit) */
             val += (offset << 2) | ((insn >> 23) & 2) | 1;
-            /* pipeline offset */
-            val += 4;
             /* protected by ARCH(5); above, near the start of uncond block */
             gen_bx_im(s, val);
             return;
@@ -9154,9 +9146,8 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                             /* store */
                             if (i == 15) {
                                 /* special case: r15 = PC + 8 */
-                                val = (long)s->pc + 4;
                                 tmp = tcg_temp_new_i32();
-                                tcg_gen_movi_i32(tmp, val);
+                                tcg_gen_movi_i32(tmp, s->pc_read);
                             } else if (user) {
                                 tmp = tcg_temp_new_i32();
                                 tmp2 = tcg_const_i32(i);
@@ -9222,14 +9213,13 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                 int32_t offset;
 
                 /* branch (and link) */
-                val = (int32_t)s->pc;
                 if (insn & (1 << 24)) {
                     tmp = tcg_temp_new_i32();
-                    tcg_gen_movi_i32(tmp, val);
+                    tcg_gen_movi_i32(tmp, s->pc);
                     store_reg(s, 14, tmp);
                 }
                 offset = sextract32(insn << 2, 0, 26);
-                val += offset + 4;
+                val = s->pc_read + offset;
                 gen_jmp(s, val);
             }
             break;
@@ -9484,7 +9474,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                         goto illegal_op;
                     }
                     addr = tcg_temp_new_i32();
-                    tcg_gen_movi_i32(addr, s->pc & ~3);
+                    tcg_gen_movi_i32(addr, s->pc_read & ~3);
                 } else {
                     addr = load_reg(s, rn);
                 }
@@ -9590,7 +9580,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 /* Table Branch.  */
                 if (rn == 15) {
                     addr = tcg_temp_new_i32();
-                    tcg_gen_movi_i32(addr, s->pc);
+                    tcg_gen_movi_i32(addr, s->pc_read);
                 } else {
                     addr = load_reg(s, rn);
                 }
@@ -9609,7 +9599,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 }
                 tcg_temp_free_i32(addr);
                 tcg_gen_shli_i32(tmp, tmp, 1);
-                tcg_gen_addi_i32(tmp, tmp, s->pc);
+                tcg_gen_addi_i32(tmp, tmp, s->pc_read);
                 store_reg(s, 15, tmp);
             } else {
                 bool is_lasr = false;
@@ -10342,7 +10332,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     tcg_gen_movi_i32(cpu_R[14], s->pc | 1);
                 }
 
-                offset += s->pc;
+                offset += s->pc_read;
                 if (insn & (1 << 12)) {
                     /* b/bl */
                     gen_jmp(s, offset);
@@ -10583,7 +10573,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                 offset |= (insn & (1 << 11)) << 8;
 
                 /* jump to the offset */
-                gen_jmp(s, s->pc + offset);
+                gen_jmp(s, s->pc_read + offset);
             }
         } else {
             /*
@@ -10694,7 +10684,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
                     } else {
                         /* Add/sub 12-bit immediate.  */
                         if (rn == 15) {
-                            offset = s->pc & ~(uint32_t)3;
+                            offset = s->pc_read & ~(uint32_t)3;
                             if (insn & (1 << 23))
                                 offset -= imm;
                             else
@@ -10830,8 +10820,7 @@ static void disas_thumb2_insn(DisasContext *s, uint32_t insn)
         if (rn == 15) {
             addr = tcg_temp_new_i32();
             /* PC relative.  */
-            /* s->pc has already been incremented by 4.  */
-            imm = s->pc & 0xfffffffc;
+            imm = s->pc_read & 0xfffffffc;
             if (insn & (1 << 23))
                 imm += insn & 0xfff;
             else
@@ -11077,7 +11066,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         if (insn & (1 << 11)) {
             rd = (insn >> 8) & 7;
             /* load pc-relative.  Bit 1 of PC is ignored.  */
-            val = s->pc + 2 + ((insn & 0xff) * 4);
+            val = s->pc_read + ((insn & 0xff) * 4);
             val &= ~(uint32_t)2;
             addr = tcg_temp_new_i32();
             tcg_gen_movi_i32(addr, val);
@@ -11464,7 +11453,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         } else {
             /* PC. bit 1 is ignored.  */
             tmp = tcg_temp_new_i32();
-            tcg_gen_movi_i32(tmp, (s->pc + 2) & ~(uint32_t)2);
+            tcg_gen_movi_i32(tmp, s->pc_read & ~(uint32_t)2);
         }
         val = (insn & 0xff) * 4;
         tcg_gen_addi_i32(tmp, tmp, val);
@@ -11584,7 +11573,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
                 tcg_gen_brcondi_i32(TCG_COND_NE, tmp, 0, s->condlabel);
             tcg_temp_free_i32(tmp);
             offset = ((insn & 0xf8) >> 2) | (insn & 0x200) >> 3;
-            val = (uint32_t)s->pc + 2;
+            val = s->pc_read;
             val += offset;
             gen_jmp(s, val);
             break;
@@ -11750,7 +11739,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
         arm_skip_unless(s, cond);
 
         /* jump to the offset */
-        val = (uint32_t)s->pc + 2;
+        val = s->pc_read;
         offset = ((int32_t)insn << 24) >> 24;
         val += offset << 1;
         gen_jmp(s, val);
@@ -11776,9 +11765,9 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             break;
         }
         /* unconditional branch */
-        val = (uint32_t)s->pc;
+        val = s->pc_read;
         offset = ((int32_t)insn << 21) >> 21;
-        val += (offset << 1) + 2;
+        val += offset << 1;
         gen_jmp(s, val);
         break;
 
@@ -11802,7 +11791,7 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
             /* 0b1111_0xxx_xxxx_xxxx : BL/BLX prefix */
             uint32_t uoffset = ((int32_t)insn << 21) >> 9;
 
-            tcg_gen_movi_i32(cpu_R[14], s->pc + 2 + uoffset);
+            tcg_gen_movi_i32(cpu_R[14], s->pc_read + uoffset);
         }
         break;
     }
@@ -12055,6 +12044,7 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     insn = arm_ldl_code(env, dc->pc, dc->sctlr_b);
     dc->insn = insn;
+    dc->pc_read = dc->pc + 8;
     dc->pc += 4;
     disas_arm_insn(dc, insn);
 
@@ -12123,6 +12113,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
 
     insn = arm_lduw_code(env, dc->pc, dc->sctlr_b);
     is_16bit = thumb_insn_is_16bit(dc, insn);
+    dc->pc_read = dc->pc + 4;
     dc->pc += 2;
     if (!is_16bit) {
         uint32_t insn2 = arm_lduw_code(env, dc->pc, dc->sctlr_b);

@@ -9,7 +9,17 @@ typedef struct DisasContext {
     DisasContextBase base;
     const ARMISARegisters *isar;
 
+    /*
+     * Summary of the various values for "PC":
+     * base.pc_next -- the start of the current insn
+     * pc           -- the start of the next insn
+     * pc_read      -- the value for "PC" in the ARM ARM;
+     *                 in arm mode, the current insn + 8;
+     *                 in thumb mode, the current insn + 4;
+     *                 in aa64 mode, unused.
+     */
     target_ulong pc;
+    target_ulong pc_read;
     target_ulong page_start;
     uint32_t insn;
     /* Nonzero if this instruction has been conditionally skipped.  */
