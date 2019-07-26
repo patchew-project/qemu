@@ -7705,8 +7705,14 @@ static void arm_gen_condlabel(DisasContext *s)
 /* Skip this instruction if the ARM condition is false */
 static void arm_skip_unless(DisasContext *s, uint32_t cond)
 {
-    arm_gen_condlabel(s);
-    arm_gen_test_cc(cond ^ 1, s->condlabel);
+    /*
+     * Conditionally skip the insn. Note that both 0xe and 0xf mean
+     * "always"; 0xf is not "never".
+     */
+    if (cond < 0xe) {
+        arm_gen_condlabel(s);
+        arm_gen_test_cc(cond ^ 1, s->condlabel);
+    }
 }
 
 static void disas_arm_insn(DisasContext *s, unsigned int insn)
@@ -7944,11 +7950,9 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
         }
         goto illegal_op;
     }
-    if (cond != 0xe) {
-        /* if not always execute, we generate a conditional jump to
-           next instruction */
-        arm_skip_unless(s, cond);
-    }
+
+    arm_skip_unless(s, cond);
+
     if ((insn & 0x0f900000) == 0x03000000) {
         if ((insn & (1 << 21)) == 0) {
             ARCH(6T2);
@@ -12095,15 +12099,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     dc->insn = insn;
 
     if (dc->condexec_mask && !thumb_insn_is_unconditional(dc, insn)) {
-        uint32_t cond = dc->condexec_cond;
-
-        /*
-         * Conditionally skip the insn. Note that both 0xe and 0xf mean
-         * "always"; 0xf is not "never".
-         */
-        if (cond < 0x0e) {
-            arm_skip_unless(dc, cond);
-        }
+        arm_skip_unless(dc, dc->condexec_cond);
     }
 
     if (is_16bit) {
