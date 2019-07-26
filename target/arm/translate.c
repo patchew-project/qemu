@@ -9161,11 +9161,7 @@ static void disas_arm_insn(DisasContext *s, unsigned int insn)
                             }
                         } else {
                             /* store */
-                            if (i == 15) {
-                                /* special case: r15 = PC + 8 */
-                                tmp = tcg_temp_new_i32();
-                                tcg_gen_movi_i32(tmp, s->pc_read);
-                            } else if (user) {
+                            if (user && i != 15) {
                                 tmp = tcg_temp_new_i32();
                                 tmp2 = tcg_const_i32(i);
                                 gen_helper_get_user_reg(tmp, cpu_env, tmp2);
