@@ -7608,6 +7608,7 @@ static int t32_branch24(DisasContext *s, int x)
 #include "decode-a32.inc.c"
 #include "decode-a32-uncond.inc.c"
 #include "decode-t32.inc.c"
+#include "decode-t16.inc.c"
 
 #ifdef CONFIG_PRAGMA_DIAGNOSTIC_AVAILABLE
 # pragma GCC diagnostic pop
@@ -10558,6 +10559,11 @@ static void disas_thumb_insn(DisasContext *s, uint32_t insn)
     TCGv_i32 tmp;
     TCGv_i32 tmp2;
     TCGv_i32 addr;
+
+    if (disas_t16(s, insn)) {
+        return;
+    }
+    /* fall back to legacy decoder */
 
     switch (insn >> 12) {
     case 0: case 1:
