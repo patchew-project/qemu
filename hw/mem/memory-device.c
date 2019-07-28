@@ -180,7 +180,7 @@ static uint64_t memory_device_get_free_addr(MachineState *ms,
                 range_make_empty(&new);
                 break;
             }
-        } else if (!hint) {
+        } else if (!hint || range_lob(&tmp) > range_upb(&new)) {
             break;
         }
     }
