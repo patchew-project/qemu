@@ -274,7 +274,7 @@ void pci_bridge_write_config(PCIDevice *d,
     newctl = pci_get_word(d->config + PCI_BRIDGE_CONTROL);
     if (~oldctl & newctl & PCI_BRIDGE_CTL_BUS_RESET) {
         /* Trigger hot reset on 0->1 transition. */
-        qbus_reset_all(BUS(&s->sec_bus));
+        bus_reset_warm(BUS(&s->sec_bus));
     }
 }
 
