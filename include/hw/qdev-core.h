@@ -109,6 +109,11 @@ typedef struct DeviceClass {
     bool hotpluggable;
 
     /* callbacks */
+    /*
+     * Reset method here is deprecated and replaced by methods in the
+     * resettable class interface to implement a multi-phase reset.
+     * TODO: remove once every reset callback is unused
+     */
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
@@ -458,19 +463,22 @@ bool bus_is_resetting(BusState *bus);
  */
 bool bus_is_reset_cold(BusState *bus);
 
-void qdev_reset_all(DeviceState *dev);
-void qdev_reset_all_fn(void *opaque);
-
 /**
- * @qbus_reset_all:
- * @bus: Bus to be reset.
+ * qbus/qdev_reset_all:
+ * @bus/dev: Bus/Device to be reset.
  *
- * Reset @bus and perform a bus-level ("hard") reset of all devices connected
+ * Reset @bus/dev and perform a bus-level reset of all devices/buses connected
  * to it, including recursive processing of all buses below @bus itself.  A
  * hard reset means that qbus_reset_all will reset all state of the device.
  * For PCI devices, for example, this will include the base address registers
  * or configuration space.
+ *
+ * Theses functions are deprecated, please use device/bus_reset or
+ * resettable_reset_* instead
+ * TODO: remove them when all occurence are removed
  */
+void qdev_reset_all(DeviceState *dev);
+void qdev_reset_all_fn(void *opaque);
 void qbus_reset_all(BusState *bus);
 void qbus_reset_all_fn(void *opaque);
 
@@ -492,9 +500,17 @@ void qdev_machine_init(void);
  * device_legacy_reset:
  *
  * Reset a single device (by calling the reset method).
+ *
+ * This function is deprecated, please use device_reset() instead.
+ * TODO: remove the function when all occurences are removed.
  */
 void device_legacy_reset(DeviceState *dev);
 
+/**
+ * device_class_set_parent_reset:
+ * TODO: remove the function when DeviceClass's reset method
+ * is not used anymore.
+ */
 void device_class_set_parent_reset(DeviceClass *dc,
                                    DeviceReset dev_reset,
                                    DeviceReset *parent_reset);

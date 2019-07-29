@@ -312,25 +312,9 @@ static void device_foreach_reset_child(Object *obj, void (*func)(Object *))
     }
 }
 
-static int qdev_reset_one(DeviceState *dev, void *opaque)
-{
-    device_legacy_reset(dev);
-
-    return 0;
-}
-
-static int qbus_reset_one(BusState *bus, void *opaque)
-{
-    BusClass *bc = BUS_GET_CLASS(bus);
-    if (bc->reset) {
-        bc->reset(bus);
-    }
-    return 0;
-}
-
 void qdev_reset_all(DeviceState *dev)
 {
-    qdev_walk_children(dev, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    device_reset(dev, false);
 }
 
 void qdev_reset_all_fn(void *opaque)
@@ -340,7 +324,7 @@ void qdev_reset_all_fn(void *opaque)
 
 void qbus_reset_all(BusState *bus)
 {
-    qbus_walk_children(bus, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    bus_reset(bus, false);
 }
 
 void qbus_reset_all_fn(void *opaque)
@@ -922,7 +906,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
         if (dev->hotplugged) {
-            device_legacy_reset(dev);
+            device_reset(dev, true);
         }
         dev->pending_deleted_event = false;
 
