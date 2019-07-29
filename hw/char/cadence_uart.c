@@ -39,6 +39,18 @@
     #define DB_PRINT(...)
 #endif
 
+#define CADENCE_UART_CLASS(class) \
+    OBJECT_CLASS_CHECK(CadenceUartClass, (class), TYPE_CADENCE_UART)
+#define CADENCE_UART_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(CadenceUartClass, (obj), TYPE_CADENCE_UART)
+
+typedef struct CadenceUartClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+
+    struct ResettablePhases parent_reset_phases;
+} CadenceUartClass;
+
 #define UART_SR_INTR_RTRIG     0x00000001
 #define UART_SR_INTR_REMPTY    0x00000002
 #define UART_SR_INTR_RFUL      0x00000004
@@ -223,6 +235,10 @@ static int uart_can_receive(void *opaque)
     int ret = MAX(CADENCE_UART_RX_FIFO_SIZE, CADENCE_UART_TX_FIFO_SIZE);
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
+    if (device_is_resetting((DeviceState *) opaque)) {
+        return 0;
+    }
+
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
         ret = MIN(ret, CADENCE_UART_RX_FIFO_SIZE - s->rx_count);
     }
@@ -338,6 +354,10 @@ static void uart_receive(void *opaque, const uint8_t *buf, int size)
     CadenceUARTState *s = opaque;
     uint32_t ch_mode = s->r[R_MR] & UART_MR_CHMODE;
 
+    if (device_is_resetting((DeviceState *) opaque)) {
+        return;
+    }
+
     if (ch_mode == NORMAL_MODE || ch_mode == ECHO_MODE) {
         uart_write_rx_fifo(opaque, buf, size);
     }
@@ -350,6 +370,10 @@ static void uart_event(void *opaque, int event)
 {
     CadenceUARTState *s = opaque;
     uint8_t buf = '\0';
+
+    if (device_is_resetting((DeviceState *) opaque)) {
+        return;
+    }
 
     if (event == CHR_EVENT_BREAK) {
         uart_write_rx_fifo(opaque, &buf, 1);
@@ -382,6 +406,10 @@ static void uart_write(void *opaque, hwaddr offset,
                           uint64_t value, unsigned size)
 {
     CadenceUARTState *s = opaque;
+
+    if (device_is_resetting((DeviceState *)opaque)) {
+        return;
+    }
 
     DB_PRINT(" offset:%x data:%08x\n", (unsigned)offset, (unsigned)value);
     offset >>= 2;
@@ -441,6 +469,10 @@ static uint64_t uart_read(void *opaque, hwaddr offset,
     CadenceUARTState *s = opaque;
     uint32_t c = 0;
 
+    if (device_is_resetting((DeviceState *)opaque)) {
+        return 0;
+    }
+
     offset >>= 2;
     if (offset >= CADENCE_UART_R_MAX) {
         c = 0;
@@ -460,9 +492,14 @@ static const MemoryRegionOps uart_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void cadence_uart_reset(DeviceState *dev)
+static void cadence_uart_reset_init(Object *obj)
 {
-    CadenceUARTState *s = CADENCE_UART(dev);
+    CadenceUARTState *s = CADENCE_UART(obj);
+    CadenceUartClass *cc = CADENCE_UART_GET_CLASS(obj);
+
+    if (cc->parent_reset_phases.init) {
+        cc->parent_reset_phases.init(obj);
+    }
 
     s->r[R_CR] = 0x00000128;
     s->r[R_IMR] = 0;
@@ -471,6 +508,28 @@ static void cadence_uart_reset(DeviceState *dev)
     s->r[R_BRGR] = 0x0000028B;
     s->r[R_BDIV] = 0x0000000F;
     s->r[R_TTRIG] = 0x00000020;
+}
+
+static void cadence_uart_reset_hold(Object *obj)
+{
+    CadenceUARTState *s = CADENCE_UART(obj);
+    CadenceUartClass *cc = CADENCE_UART_GET_CLASS(obj);
+
+    if (cc->parent_reset_phases.hold) {
+        cc->parent_reset_phases.hold(obj);
+    }
+
+    qemu_set_irq(s->irq, 0);
+}
+
+static void cadence_uart_reset_exit(Object *obj)
+{
+    CadenceUARTState *s = CADENCE_UART(obj);
+    CadenceUartClass *cc = CADENCE_UART_GET_CLASS(obj);
+
+    if (cc->parent_reset_phases.exit) {
+        cc->parent_reset_phases.exit(obj);
+    }
 
     uart_rx_reset(s);
     uart_tx_reset(s);
@@ -499,6 +558,8 @@ static void cadence_uart_init(Object *obj)
     sysbus_init_irq(sbd, &s->irq);
 
     s->char_tx_time = (NANOSECONDS_PER_SECOND / 9600) * 10;
+
+    qdev_init_warm_reset_gpio(DEVICE(obj), "rst", DEVICE_RESET_ACTIVE_HIGH);
 }
 
 static int cadence_uart_post_load(void *opaque, int version_id)
@@ -544,12 +605,19 @@ static Property cadence_uart_properties[] = {
 static void cadence_uart_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    CadenceUartClass *cc = CADENCE_UART_CLASS(klass);
 
     dc->realize = cadence_uart_realize;
     dc->vmsd = &vmstate_cadence_uart;
-    dc->reset = cadence_uart_reset;
     dc->props = cadence_uart_properties;
-  }
+
+    resettable_class_set_parent_reset_phases(rc,
+                                             cadence_uart_reset_init,
+                                             cadence_uart_reset_hold,
+                                             cadence_uart_reset_exit,
+                                             &cc->parent_reset_phases);
+}
 
 static const TypeInfo cadence_uart_info = {
     .name          = TYPE_CADENCE_UART,
@@ -557,6 +625,7 @@ static const TypeInfo cadence_uart_info = {
     .instance_size = sizeof(CadenceUARTState),
     .instance_init = cadence_uart_init,
     .class_init    = cadence_uart_class_init,
+    .class_size = sizeof(CadenceUartClass),
 };
 
 static void cadence_uart_register_types(void)
