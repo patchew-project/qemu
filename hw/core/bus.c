@@ -22,6 +22,7 @@
 #include "qemu/module.h"
 #include "hw/qdev.h"
 #include "qapi/error.h"
+#include "hw/resettable.h"
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
 {
@@ -66,6 +67,75 @@ int qbus_walk_children(BusState *bus,
     }
 
     return 0;
+}
+
+void bus_reset(BusState *bus, bool cold)
+{
+    resettable_reset(OBJECT(bus), cold);
+}
+
+bool bus_is_resetting(BusState *bus)
+{
+    return (bus->resetting != 0);
+}
+
+bool bus_is_reset_cold(BusState *bus)
+{
+    return bus->reset_is_cold;
+}
+
+static uint32_t bus_get_reset_count(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    return bus->resetting;
+}
+
+static uint32_t bus_increment_reset_count(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    return ++bus->resetting;
+}
+
+static uint32_t bus_decrement_reset_count(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    return --bus->resetting;
+}
+
+static bool bus_set_reset_cold(Object *obj, bool cold)
+{
+    BusState *bus = BUS(obj);
+    bool old = bus->reset_is_cold;
+    bus->reset_is_cold = cold;
+    return old;
+}
+
+static bool bus_set_hold_needed(Object *obj, bool hold_needed)
+{
+    BusState *bus = BUS(obj);
+    bool old = bus->reset_hold_needed;
+    bus->reset_hold_needed = hold_needed;
+    return old;
+}
+
+static void bus_foreach_reset_child(Object *obj, void (*func)(Object *))
+{
+    BusState *bus = BUS(obj);
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        func(OBJECT(kid->child));
+    }
+}
+
+static void bus_obj_legacy_reset(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    BusClass *bc = BUS_GET_CLASS(obj);
+
+    if (bc->reset) {
+        bc->reset(bus);
+    }
 }
 
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
@@ -192,6 +262,8 @@ static void qbus_initfn(Object *obj)
                              NULL);
     object_property_add_bool(obj, "realized",
                              bus_get_realized, bus_set_realized, NULL);
+
+    bus->resetting = 0;
 }
 
 static char *default_bus_get_fw_dev_path(DeviceState *dev)
@@ -202,9 +274,18 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = bus_unparent;
     bc->get_fw_dev_path = default_bus_get_fw_dev_path;
+
+    rc->phases.exit = bus_obj_legacy_reset;
+    rc->get_count = bus_get_reset_count;
+    rc->increment_count = bus_increment_reset_count;
+    rc->decrement_count = bus_decrement_reset_count;
+    rc->foreach_child = bus_foreach_reset_child;
+    rc->set_cold = bus_set_reset_cold;
+    rc->set_hold_needed = bus_set_hold_needed;
 }
 
 static void qbus_finalize(Object *obj)
@@ -223,6 +304,10 @@ static const TypeInfo bus_info = {
     .instance_init = qbus_initfn,
     .instance_finalize = qbus_finalize,
     .class_init = bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_RESETTABLE },
+        { }
+    },
 };
 
 static void bus_register_types(void)

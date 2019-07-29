@@ -7,6 +7,7 @@
 #include "hw/irq.h"
 #include "hw/hotplug.h"
 #include "sysemu/sysemu.h"
+#include "hw/resettable.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -132,6 +133,10 @@ struct NamedGPIOList {
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
+ * @resetting: Indicates whether the device is under reset. Also
+ * used to count how many times reset has been initiated on the device.
+ * @reset_is_cold: If the device is under reset, indicates whether it is cold
+ * or warm.
  *
  * This structure should not be accessed directly.  We declare it here
  * so that it can be embedded in individual device state structures.
@@ -153,6 +158,9 @@ struct DeviceState {
     int num_child_bus;
     int instance_id_alias;
     int alias_required_for_version;
+    uint32_t resetting;
+    bool reset_is_cold;
+    bool reset_hold_needed;
 };
 
 struct DeviceListener {
@@ -199,6 +207,10 @@ typedef struct BusChild {
 /**
  * BusState:
  * @hotplug_handler: link to a hotplug handler associated with bus.
+ * @resetting: Indicates whether the bus is under reset. Also
+ * used to count how many times reset has been initiated on the bus.
+ * @reset_is_cold: If the bus is under reset, indicates whether it is cold
+ * or warm.
  */
 struct BusState {
     Object obj;
@@ -210,6 +222,9 @@ struct BusState {
     int num_children;
     QTAILQ_HEAD(, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
+    uint32_t resetting;
+    bool reset_is_cold;
+    bool reset_hold_needed;
 };
 
 /**
@@ -379,6 +394,70 @@ int qdev_walk_children(DeviceState *dev,
                        qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
                        void *opaque);
 
+/**
+ * device_reset:
+ * Resets the device @dev, @cold tell whether to do a cold or warm reset.
+ * Uses the ressetable interface.
+ * Base behavior is to reset the device and its qdev/qbus subtree.
+ */
+void device_reset(DeviceState *dev, bool cold);
+
+static inline void device_reset_warm(DeviceState *dev)
+{
+    device_reset(dev, false);
+}
+
+static inline void device_reset_cold(DeviceState *dev)
+{
+    device_reset(dev, true);
+}
+
+/**
+ * bus_reset:
+ * Resets the bus @bus, @cold tell whether to do a cold or warm reset.
+ * Uses the ressetable interface.
+ * Base behavior is to reset the bus and its qdev/qbus subtree.
+ */
+void bus_reset(BusState *bus, bool cold);
+
+static inline void bus_reset_warm(BusState *bus)
+{
+    bus_reset(bus, false);
+}
+
+static inline void bus_reset_cold(BusState *bus)
+{
+    bus_reset(bus, true);
+}
+
+/**
+ * device_is_resetting:
+ * Tell whether the device @dev is currently under reset.
+ */
+bool device_is_resetting(DeviceState *dev);
+
+/**
+ * device_is_reset_cold:
+ * Tell whether the device @dev is currently under reset cold or warm reset.
+ *
+ * Note: only valid when device_is_resetting returns true.
+ */
+bool device_is_reset_cold(DeviceState *dev);
+
+/**
+ * bus_is_resetting:
+ * Tell whether the bus @bus is currently under reset.
+ */
+bool bus_is_resetting(BusState *bus);
+
+/**
+ * bus_is_reset_cold:
+ * Tell whether the bus @bus is currently under reset cold or warm reset.
+ *
+ * Note: only valid when bus_is_resetting returns true.
+ */
+bool bus_is_reset_cold(BusState *bus);
+
 void qdev_reset_all(DeviceState *dev);
 void qdev_reset_all_fn(void *opaque);
 
@@ -415,11 +494,6 @@ void qdev_machine_init(void);
  * Reset a single device (by calling the reset method).
  */
 void device_legacy_reset(DeviceState *dev);
-
-static inline void device_reset(DeviceState *dev)
-{
-    device_legacy_reset(dev);
-}
 
 void device_class_set_parent_reset(DeviceClass *dc,
                                    DeviceReset dev_reset,
