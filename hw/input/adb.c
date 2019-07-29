@@ -32,7 +32,7 @@
 
 static void adb_device_reset(ADBDevice *d)
 {
-    qdev_reset_all(DEVICE(d));
+    device_reset_warm(DEVICE(d));
 }
 
 int adb_request(ADBBusState *s, uint8_t *obuf, const uint8_t *buf, int len)
