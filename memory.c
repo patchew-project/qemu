@@ -1678,6 +1678,11 @@ void memory_region_init_alias(MemoryRegion *mr,
     memory_region_init(mr, owner, name, size);
     mr->alias = orig;
     mr->alias_offset = offset;
+    if (orig->ram_block && size) {
+        mr->ram_block = qemu_ram_alloc_from_ptr(size,
+                                                orig->ram_block->host + offset,
+                                                mr, &error_fatal);
+    }
 }
 
 void memory_region_init_rom_nomigrate(MemoryRegion *mr,
