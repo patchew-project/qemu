@@ -1,0 +1,165 @@
+
+=====
+Reset
+=====
+
+The reset of qemu objects is handled using the Resettable interface declared
+in *include/hw/resettable.h*.
+As of now DeviceClass and BusClass implement this interface.
+
+
+Triggering reset
+----------------
+
+The function *resettable_reset* is used to trigger a reset on a given
+object.
+void resettable_reset(Object *obj, bool cold)
+
+The parameter *obj* must implement the Resettable interface.
+The parameter *cold* is a boolean specifying whether to do a cold or warm
+reset
+
+For Devices and Buses there is also the corresponding helpers:
+void device_reset(Device *dev, bool cold)
+void bus_reset(Device *dev, bool cold)
+
+If one wants to put an object into a reset state. There is the
+*resettable_assert_reset* function.
+void resettable_assert_reset(Object *obj, bool cold)
+
+One must eventually call the function *resettable_deassert_reset* to end the
+reset state:
+void resettable_deassert_reset(Object *obj, bool cold)
+
+Calling *resettable_assert_reset* then *resettable_deassert_reset* is the
+same as calling *resettable_reset*.
+
+It is possible to interleave multiple calls to
+ - resettable_reset,
+ - resettable_assert_reset, and
+ - resettable_deassert_reset.
+The only constraint is that *resettable_deassert_reset* must be called once
+per *resettable_assert_reset* call so that the object leaves the reset state.
+
+Therefore there may be several reset sources/controllers of a given object.
+The interface handle everything and the controllers do not need to know
+anything about each others. The object will leave reset state only when all
+controllers released their reset.
+
+All theses functions must called while holding the iothread lock.
+
+
+Implementing reset for a Resettable object : Multi-phase reset
+--------------------------------------------------------------
+
+The Resettable uses a multi-phase mechanism to handle some ordering constraints
+when resetting multiple object at the same time. For a given object the reset
+procedure is split into three different phases executed in order:
+ 1 INIT: This phase should set/reset the state of the Resettable it has when is
+         in reset state. Side-effects to others object is forbidden (such as
+         setting IO level).
+ 2 HOLD: This phase corresponds to the external side-effects due to staying into
+         the reset state.
+ 3 EXIT: This phase corresponds to leaving the reset state. It have both
+         local and external effects.
+
+*resettable_assert_reset* does the INIT and HOLD phases. While
+*resettable_deassert_reset* does the EXIT phase.
+
+When resetting multiple object at the same time. The interface executes the
+given phase of the objects before going to the next phase. This guarantee that
+all INIT phases are done before any HOLD phase and so on.
+
+There is three methods in the interface so must be implemented in an object.
+The methods corresponds to the three phases:
+```
+typedef void (*ResettableInitPhase)(Object *obj);
+typedef void (*ResettableHoldPhase)(Object *obj);
+typedef void (*ResettableExitPhase)(Object *obj);
+typedef struct ResettableClass {
+    InterfaceClass parent_class;
+
+    struct ResettablePhases {
+        ResettableInitPhase init;
+        ResettableHoldPhase hold;
+        ResettableExitPhase exit;
+    } phases;
+    [...]
+} ResettableClass;
+```
+
+Theses methods should be updated when specializing an object. For this the
+helper function *resettable_class_set_parent_reset_phases* can be used to
+backup parent methods while changing the specialized ones.
+void resettable_class_set_parent_reset_phases(ResettableClass *rc,
+                                              ResettableInitPhase init,
+                                              ResettableHoldPhase hold,
+                                              ResettableExitPhase exit,
+
+For Devices and Buses, some helper exists to know if a device/bus is under
+reset and what type of reset it is:
+```
+bool device_is_resetting(DeviceState *dev);
+bool device_is_reset_cold(DeviceState *dev);
+bool bus_is_resetting(BusState *bus);
+bool bus_is_reset_cold(BusState *bus);
+```
+
+
+Implementing the base Resettable behavior : Re-entrance, Hierarchy and Cold/Warm
+--------------------------------------------------------------------------------
+
+There is five others methods in the interface to handle the base mechanics
+of the Resettable interface. The methods should be implemented in object
+base class. DeviceClass and BusClass implement them.
+
+```
+typedef bool (*ResettableSetCold)(Object *obj, bool cold);
+typedef bool (*ResettableSetHoldNeeded)(Object *obj, bool hold_needed);
+typedef uint32_t (*ResettableGetCount)(Object *obj);
+typedef uint32_t (*ResettableIncrementCount)(Object *obj);
+typedef uint32_t (*ResettableDecrementCount)(Object *obj);
+typedef void (*ResettableForeachChild)(Object *obj, void (*visitor)(Object *));
+typedef struct ResettableClass {
+    InterfaceClass parent_class;
+
+    [...]
+
+    ResettableSetCold set_cold;
+    ResettableSetHoldNeeded set_hold_needed;
+    ResettableGetCount get_count;
+    ResettableIncrementCount increment_count;
+    ResettableDecrementCount decrement_count;
+    ResettableForeachChild foreach_child;
+} ResettableClass;
+```
+
+*set_cold* is used when entering reset, before calling the init phase, to
+indicate the reset type.
+
+*set_hold_needed* is used to set/clear and retrieve an "hold_needed" flag.
+This flag allows to omly execute the hold pahse when required.
+
+As stated above, several reset procedures can be concurrent on an object.
+This is handled with the three methods *get_count*, *increment_count* and
+*decrement_count*. An object is in reset state if the count is non-zero.
+
+The reset hierarchy is handled using the *foreach_child* method. This method
+executes a given function on every reset "child".
+
+In DeviceClass and BusClass the base behavior is to mimic the legacy qdev
+reset. Reset hierarchy follows the qdev/qbus tree.
+
+Reset control through GPIO
+--------------------------
+
+For devices, two reset inputs can be added: one for the cold, one the warm
+reset. This is done using the following function.
+```
+typedef enum DeviceResetActiveType {
+    DEVICE_RESET_ACTIVE_LOW,
+    DEVICE_RESET_ACTIVE_HIGH,
+} DeviceResetActiveType;
+void qdev_init_reset_gpio_in_named(DeviceState *dev, const char *name,
+                                   bool cold, DeviceResetActiveType type);
+```
