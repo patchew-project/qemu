@@ -519,7 +519,7 @@ reply_maybe_async:
             reply.ResponseCode = MPI_SCSITASKMGMT_RSP_TM_INVALID_LUN;
             goto out;
         }
-        qdev_reset_all(&sdev->qdev);
+        device_reset_warm(&sdev->qdev);
         break;
 
     case MPI_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
@@ -535,13 +535,13 @@ reply_maybe_async:
         QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
             sdev = SCSI_DEVICE(kid->child);
             if (sdev->channel == 0 && sdev->id == req->TargetID) {
-                qdev_reset_all(kid->child);
+                device_reset_warm(kid->child);
             }
         }
         break;
 
     case MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS:
-        qbus_reset_all(BUS(&s->bus));
+        bus_reset_warm(BUS(&s->bus));
         break;
 
     default:
@@ -804,7 +804,7 @@ static void mptsas_soft_reset(MPTSASState *s)
     s->intr_mask = MPI_HIM_DIM | MPI_HIM_RIM;
     mptsas_update_interrupt(s);
 
-    qbus_reset_all(BUS(&s->bus));
+    bus_reset_warm(BUS(&s->bus));
     s->intr_status = 0;
     s->intr_mask = save_mask;
 

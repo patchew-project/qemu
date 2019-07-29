@@ -317,7 +317,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
             goto incorrect_lun;
         }
         s->resetting++;
-        qdev_reset_all(&d->qdev);
+        device_reset_warm(&d->qdev);
         s->resetting--;
         break;
 
@@ -367,7 +367,7 @@ static int virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
         QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
              d = SCSI_DEVICE(kid->child);
              if (d->channel == 0 && d->id == target) {
-                qdev_reset_all(&d->qdev);
+                device_reset_warm(&d->qdev);
              }
         }
         s->resetting--;
@@ -697,7 +697,7 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
 
     assert(!s->dataplane_started);
     s->resetting++;
-    qbus_reset_all(BUS(&s->bus));
+    bus_reset_warm(BUS(&s->bus));
     s->resetting--;
 
     vs->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
