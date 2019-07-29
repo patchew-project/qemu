@@ -136,6 +136,23 @@ struct NamedGPIOList {
     QLIST_ENTRY(NamedGPIOList) node;
 };
 
+typedef enum DeviceResetActiveType {
+    DEVICE_RESET_ACTIVE_LOW,
+    DEVICE_RESET_ACTIVE_HIGH,
+} DeviceResetActiveType;
+
+/**
+ * DeviceResetInputState:
+ * @exists: tell if io exists
+ * @type: tell whether the io active low or high
+ * @state: true if reset is currently active
+ */
+typedef struct DeviceResetInputState {
+    bool exists;
+    DeviceResetActiveType type;
+    bool state;
+} DeviceResetInputState;
+
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
@@ -143,6 +160,8 @@ struct NamedGPIOList {
  * used to count how many times reset has been initiated on the device.
  * @reset_is_cold: If the device is under reset, indicates whether it is cold
  * or warm.
+ * @cold_reset_input: state data for cold reset io
+ * @warm_reset_input: state data for warm reset io
  *
  * This structure should not be accessed directly.  We declare it here
  * so that it can be embedded in individual device state structures.
@@ -167,6 +186,8 @@ struct DeviceState {
     uint32_t resetting;
     bool reset_is_cold;
     bool reset_hold_needed;
+    DeviceResetInputState cold_reset_input;
+    DeviceResetInputState warm_reset_input;
 };
 
 struct DeviceListener {
@@ -374,6 +395,42 @@ static inline void qdev_init_gpio_in_named(DeviceState *dev,
 
 void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
                      const char *name);
+
+/**
+ * qdev_init_reset_gpio_in_named:
+ * Create a gpio controlling the warm or cold reset of the device.
+ *
+ * @cold: specify whether it triggers cold or warm reset
+ * @type: what kind of reset io it is
+ *
+ * Note: the io is considered created in its inactive state. No reset
+ * is started by this function.
+ */
+void qdev_init_reset_gpio_in_named(DeviceState *dev, const char *name,
+                                   bool cold, DeviceResetActiveType type);
+
+/**
+ * qdev_init_warm_reset_gpio:
+ * Create the input to control the device warm reset.
+ */
+static inline void qdev_init_warm_reset_gpio(DeviceState *dev,
+                                             const char *name,
+                                             DeviceResetActiveType type)
+{
+    qdev_init_reset_gpio_in_named(dev, name, false, type);
+}
+
+/**
+ * qdev_init_cold_reset_gpio:
+ * Create the input to control the device cold reset.
+ * It can also be used as a power gate control.
+ */
+static inline void qdev_init_cold_reset_gpio(DeviceState *dev,
+                                             const char *name,
+                                             DeviceResetActiveType type)
+{
+    qdev_init_reset_gpio_in_named(dev, name, true, type);
+}
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
 

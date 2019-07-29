@@ -24,9 +24,22 @@ static int device_vmstate_reset_post_load(void *opaque, int version_id)
 {
     DeviceState *dev = (DeviceState *) opaque;
     BusState *bus;
+    uint32_t io_count = 0;
+
     QLIST_FOREACH(bus, &dev->child_bus, sibling) {
         bus->resetting = dev->resetting;
         bus->reset_is_cold = dev->reset_is_cold;
+    }
+
+    if (dev->cold_reset_input.state) {
+        io_count += 1;
+    }
+    if (dev->warm_reset_input.state) {
+        io_count += 1;
+    }
+    /* ensure resetting count is coherent with io states */
+    if (dev->resetting < io_count) {
+        return -1;
     }
     return 0;
 }
@@ -40,6 +53,8 @@ const struct VMStateDescription device_vmstate_reset = {
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(resetting, DeviceState),
         VMSTATE_BOOL(reset_is_cold, DeviceState),
+        VMSTATE_BOOL(cold_reset_input.state, DeviceState),
+        VMSTATE_BOOL(warm_reset_input.state, DeviceState),
         VMSTATE_END_OF_LIST()
     },
 };
