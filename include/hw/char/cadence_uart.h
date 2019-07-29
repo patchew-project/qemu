@@ -52,7 +52,10 @@ typedef struct {
 
 static inline DeviceState *cadence_uart_create(hwaddr addr,
                                         qemu_irq irq,
-                                        Chardev *chr)
+                                        Chardev *chr,
+                                        DeviceState *rst_dev,
+                                        const char *rst_name,
+                                        int rst_n)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -63,6 +66,11 @@ static inline DeviceState *cadence_uart_create(hwaddr addr,
     qdev_init_nofail(dev);
     sysbus_mmio_map(s, 0, addr);
     sysbus_connect_irq(s, 0, irq);
+
+    if (rst_dev) {
+        qdev_connect_gpio_out_named(rst_dev, rst_name, rst_n,
+                qdev_get_gpio_in_named(dev, "rst", 0));
+    }
 
     return dev;
 }
