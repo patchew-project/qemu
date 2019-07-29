@@ -234,7 +234,11 @@ static void s390_ipl_realize(DeviceState *dev, Error **errp)
      */
     ipl->compat_start_addr = ipl->start_addr;
     ipl->compat_bios_start_addr = ipl->bios_start_addr;
-    qemu_register_reset(qdev_reset_all_fn, dev);
+    /*
+     * TODO: when we add some kind of main reset container / domain
+     * switch to it to really benefit from multi-phase.
+     */
+    qemu_register_reset(resettable_reset_cold_fn, dev);
 error:
     error_propagate(errp, err);
 }
