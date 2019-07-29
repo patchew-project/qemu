@@ -703,7 +703,7 @@ static void pnv_psi_p9_mmio_write(void *opaque, hwaddr addr,
         break;
     case PSIHB9_INTERRUPT_CONTROL:
         if (val & PSIHB9_IRQ_RESET) {
-            device_reset(DEVICE(&psi9->source));
+            device_legacy_reset(DEVICE(&psi9->source));
         }
         psi->regs[reg] = val;
         break;
