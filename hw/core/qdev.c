@@ -45,7 +45,17 @@ bool qdev_hot_removed = false;
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
-    return dc->vmsd;
+
+    if (!dc->vmsd) {
+        return NULL;
+    }
+
+    if (!dc->vmsd_ext) {
+        /* build it first time we need it */
+        device_class_build_extended_vmsd(dc);
+    }
+
+    return dc->vmsd_ext;
 }
 
 static void bus_remove_child(BusState *bus, DeviceState *child)

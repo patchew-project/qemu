@@ -120,6 +120,7 @@ typedef struct DeviceClass {
 
     /* device state */
     const struct VMStateDescription *vmsd;
+    const struct VMStateDescription *vmsd_ext;
 
     /* Private to qdev / bus.  */
     const char *bus_type;
@@ -522,6 +523,8 @@ void device_class_set_parent_unrealize(DeviceClass *dc,
                                        DeviceUnrealize *parent_unrealize);
 
 const struct VMStateDescription *qdev_get_vmsd(DeviceState *dev);
+
+void device_class_build_extended_vmsd(DeviceClass *dc);
 
 const char *qdev_fw_name(DeviceState *dev);
 
