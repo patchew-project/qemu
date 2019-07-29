@@ -4421,7 +4421,11 @@ int main(int argc, char **argv, char **envp)
 
     /* TODO: once all bus devices are qdevified, this should be done
      * when bus is created by qdev.c */
-    qemu_register_reset(qbus_reset_all_fn, sysbus_get_default());
+    /*
+     * TODO: when we have a main reset container/domain object, use
+     * it to fully benefit from multi-phase reset
+     */
+    qemu_register_reset(resettable_reset_cold_fn, sysbus_get_default());
     qemu_run_machine_init_done_notifiers();
 
     if (rom_check_and_register_reset() != 0) {
