@@ -521,25 +521,6 @@ bool bus_is_resetting(BusState *bus);
  */
 bool bus_is_reset_cold(BusState *bus);
 
-/**
- * qbus/qdev_reset_all:
- * @bus/dev: Bus/Device to be reset.
- *
- * Reset @bus/dev and perform a bus-level reset of all devices/buses connected
- * to it, including recursive processing of all buses below @bus itself.  A
- * hard reset means that qbus_reset_all will reset all state of the device.
- * For PCI devices, for example, this will include the base address registers
- * or configuration space.
- *
- * Theses functions are deprecated, please use device/bus_reset or
- * resettable_reset_* instead
- * TODO: remove them when all occurence are removed
- */
-void qdev_reset_all(DeviceState *dev);
-void qdev_reset_all_fn(void *opaque);
-void qbus_reset_all(BusState *bus);
-void qbus_reset_all_fn(void *opaque);
-
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);
 
@@ -553,16 +534,6 @@ char *qdev_get_own_fw_dev_path_from_handler(BusState *bus, DeviceState *dev);
  * support for composition is added.
  */
 void qdev_machine_init(void);
-
-/**
- * device_legacy_reset:
- *
- * Reset a single device (by calling the reset method).
- *
- * This function is deprecated, please use device_reset() instead.
- * TODO: remove the function when all occurences are removed.
- */
-void device_legacy_reset(DeviceState *dev);
 
 /**
  * device_class_set_parent_reset:

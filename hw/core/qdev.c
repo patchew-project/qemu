@@ -322,27 +322,6 @@ static void device_foreach_reset_child(Object *obj, void (*func)(Object *))
     }
 }
 
-void qdev_reset_all(DeviceState *dev)
-{
-    device_reset(dev, false);
-}
-
-void qdev_reset_all_fn(void *opaque)
-{
-    qdev_reset_all(DEVICE(opaque));
-}
-
-void qbus_reset_all(BusState *bus)
-{
-    bus_reset(bus, false);
-}
-
-void qbus_reset_all_fn(void *opaque)
-{
-    BusState *bus = opaque;
-    qbus_reset_all(bus);
-}
-
 /* can be used as ->unplug() callback for the simple cases */
 void qdev_simple_device_unplug_cb(HotplugHandler *hotplug_dev,
                                   DeviceState *dev, Error **errp)
@@ -1221,15 +1200,6 @@ void device_class_set_parent_unrealize(DeviceClass *dc,
 {
     *parent_unrealize = dc->unrealize;
     dc->unrealize = dev_unrealize;
-}
-
-void device_legacy_reset(DeviceState *dev)
-{
-    DeviceClass *klass = DEVICE_GET_CLASS(dev);
-
-    if (klass->reset) {
-        klass->reset(dev);
-    }
 }
 
 Object *qdev_get_machine(void)
