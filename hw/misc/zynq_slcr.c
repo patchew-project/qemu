@@ -172,6 +172,17 @@ REG32(DDRIOB, 0xb40)
 
 #define TYPE_ZYNQ_SLCR "xilinx,zynq_slcr"
 #define ZYNQ_SLCR(obj) OBJECT_CHECK(ZynqSLCRState, (obj), TYPE_ZYNQ_SLCR)
+#define ZYNQ_SLCR_CLASS(class) \
+        OBJECT_CLASS_CHECK(ZynqSLCRClass, (class), TYPE_ZYNQ_SLCR)
+#define ZYNQ_SLCR_GET_CLASS(obj) \
+        OBJECT_GET_CLASS(ZynqSLCRClass, (obj), TYPE_ZYNQ_SLCR)
+
+typedef struct ZynqSLCRClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+
+    struct ResettablePhases parent_reset_phases;
+} ZynqSLCRClass;
 
 typedef struct ZynqSLCRState {
     SysBusDevice parent_obj;
@@ -181,12 +192,17 @@ typedef struct ZynqSLCRState {
     uint32_t regs[ZYNQ_SLCR_NUM_REGS];
 } ZynqSLCRState;
 
-static void zynq_slcr_reset(DeviceState *d)
+static void zynq_slcr_reset_init(Object *obj)
 {
-    ZynqSLCRState *s = ZYNQ_SLCR(d);
+    ZynqSLCRState *s = ZYNQ_SLCR(obj);
+    ZynqSLCRClass *zc = ZYNQ_SLCR_GET_CLASS(obj);
     int i;
 
     DB_PRINT("RESET\n");
+
+    if (zc->parent_reset_phases.init) {
+        zc->parent_reset_phases.init(obj);
+    }
 
     s->regs[R_LOCKSTA] = 1;
     /* 0x100 - 0x11C */
@@ -277,7 +293,6 @@ static void zynq_slcr_reset(DeviceState *d)
     s->regs[R_DDRIOB + 12] = 0x00000021;
 }
 
-
 static bool zynq_slcr_check_offset(hwaddr offset, bool rnw)
 {
     switch (offset) {
@@ -347,6 +362,10 @@ static uint64_t zynq_slcr_read(void *opaque, hwaddr offset,
     offset /= 4;
     uint32_t ret = s->regs[offset];
 
+    if (device_is_resetting((DeviceState *) opaque)) {
+        return 0;
+    }
+
     if (!zynq_slcr_check_offset(offset, true)) {
         qemu_log_mask(LOG_GUEST_ERROR, "zynq_slcr: Invalid read access to "
                       " addr %" HWADDR_PRIx "\n", offset * 4);
@@ -361,6 +380,10 @@ static void zynq_slcr_write(void *opaque, hwaddr offset,
 {
     ZynqSLCRState *s = (ZynqSLCRState *)opaque;
     offset /= 4;
+
+    if (device_is_resetting((DeviceState *) opaque)) {
+        return;
+    }
 
     DB_PRINT("addr: %08" HWADDR_PRIx " data: %08" PRIx64 "\n", offset * 4, val);
 
@@ -440,9 +463,16 @@ static const VMStateDescription vmstate_zynq_slcr = {
 static void zynq_slcr_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
+    ZynqSLCRClass *zc = ZYNQ_SLCR_CLASS(klass);
 
     dc->vmsd = &vmstate_zynq_slcr;
-    dc->reset = zynq_slcr_reset;
+
+    resettable_class_set_parent_reset_phases(rc,
+                                             zynq_slcr_reset_init,
+                                             NULL,
+                                             NULL,
+                                             &zc->parent_reset_phases);
 }
 
 static const TypeInfo zynq_slcr_info = {
@@ -451,6 +481,7 @@ static const TypeInfo zynq_slcr_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size  = sizeof(ZynqSLCRState),
     .instance_init = zynq_slcr_init,
+    .class_size = sizeof(ZynqSLCRClass),
 };
 
 static void zynq_slcr_register_types(void)
