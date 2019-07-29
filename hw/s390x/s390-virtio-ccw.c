@@ -163,21 +163,31 @@ static void virtio_ccw_register_hcalls(void)
 static void s390_memory_init(ram_addr_t mem_size)
 {
     MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     ram_addr_t chunk, offset = 0;
     unsigned int number = 0;
     Error *local_err = NULL;
     gchar *name;
 
     /* allocate RAM for core */
+    memory_region_allocate_system_memory(ram, NULL, "s390.whole.ram", mem_size);
+    /*
+     * memory_region_allocate_system_memory() registers allocated RAM for
+     * migration, however for compat reasons the RAM should be passed over
+     * as RAMBlocks of the size upto KVM_SLOT_MAX_BYTES. So unregister just
+     * allocated RAM so it won't be migrated directly. Aliases will take care
+     * of segmenting RAM into legacy chunks that migration and KVM compatible.
+     */
+    vmstate_unregister_ram(ram, NULL);
     name = g_strdup_printf("s390.ram");
     while (mem_size) {
-        MemoryRegion *ram = g_new(MemoryRegion, 1);
-        uint64_t size = mem_size;
+        MemoryRegion *alias = g_new(MemoryRegion, 1);
 
         /* KVM does not allow memslots >= 8 TB */
-        chunk = MIN(size, KVM_SLOT_MAX_BYTES);
-        memory_region_allocate_system_memory(ram, NULL, name, chunk);
-        memory_region_add_subregion(sysmem, offset, ram);
+        chunk = MIN(mem_size, KVM_SLOT_MAX_BYTES);
+        memory_region_init_alias(alias, NULL, name, ram, offset, chunk);
+        vmstate_register_ram_global(alias);
+        memory_region_add_subregion(sysmem, offset, alias);
         mem_size -= chunk;
         offset += chunk;
         g_free(name);
