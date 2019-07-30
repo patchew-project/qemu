@@ -91,7 +91,8 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     cpu = MIPS_CPU(first_cpu);
     env = &cpu->env;
-    saar_present = (bool)env->saarp;
+    saar_present = env->saarp;
+    bool dspram_present = env->dspramp;
 
     /* Inter-Thread Communication Unit */
     if (itu_present) {
@@ -102,7 +103,8 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
         object_property_set_bool(OBJECT(&s->itu), saar_present, "saar-present",
                                  &err);
         if (saar_present) {
-            qdev_prop_set_ptr(DEVICE(&s->itu), "saar", (void *)&env->CP0_SAAR);
+            qdev_prop_set_ptr(DEVICE(&s->itu), "saar",
+                              (void *) &env->CP0_SAAR[0]);
         }
         object_property_set_bool(OBJECT(&s->itu), true, "realized", &err);
         if (err != NULL) {
@@ -112,6 +114,28 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
         memory_region_add_subregion(&s->container, 0,
                            sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->itu), 0));
+    }
+    env->dspram = g_new0(MIPSDSPRAMState, 1);
+
+    /* Data Scratch Pad RAM */
+    if (dspram_present) {
+        if (!saar_present) {
+            error_report("%s: DSPRAM requires SAAR registers", __func__);
+            return;
+        }
+        object_initialize(&s->dspram, sizeof(MIPSDSPRAMState),
+                          TYPE_MIPS_DSPRAM);
+        qdev_set_parent_bus(DEVICE(&s->dspram), sysbus_get_default());
+        qdev_prop_set_ptr(DEVICE(&s->dspram), "saar",
+                          &env->CP0_SAAR[1]);
+        object_property_set_bool(OBJECT(&s->dspram), true, "realized", &err);
+        if (err != NULL) {
+            error_report("%s: DSPRAM initialisation failed", __func__);
+            error_propagate(errp, err);
+            return;
+        }
+        memory_region_add_subregion(&s->container, 0,
+                    sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->dspram), 0));
     }
 
     /* Cluster Power Controller */
