@@ -101,6 +101,8 @@ it points to, or it is aliased to another pointer that is.
 
 2.3. Typedefs
 Typedefs are used to eliminate the redundant 'struct' keyword.
+However, the 'struct' keyword may be sometimes used in header
+files to avoid unnecessary dependencies between headers.
 
 2.4. Reserved namespaces in C and POSIX
 Underscore capital, double underscore, and underscore 't' suffixes should be
