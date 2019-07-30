@@ -1908,6 +1908,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
     }
 
     migrate_init(s);
+    /*
+     * set ram_counters memory to zero for a
+     * new migration
+     */
+    memset(&ram_counters, 0, sizeof(ram_counters));
 
     return true;
 }
@@ -3187,6 +3192,10 @@ static void *migration_thread(void *opaque)
 
     object_ref(OBJECT(s));
     s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    /*
+     * Update s->iteration_initial_bytes to match s->iteration_start_time.
+     */
+    s->iteration_initial_bytes = migration_total_bytes(s);
 
     qemu_savevm_state_header(s->to_dst_file);
 
@@ -3252,7 +3261,11 @@ static void *migration_thread(void *opaque)
              * breaking transferred_bytes and bandwidth calculation
              */
             s->iteration_start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
-            s->iteration_initial_bytes = 0;
+            /*
+             * Update s->iteration_initial_bytes to current size to
+             * avoid historical data lead wrong bandwidth.
+             */
+            s->iteration_initial_bytes = migration_total_bytes(s);
         }
 
         current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
