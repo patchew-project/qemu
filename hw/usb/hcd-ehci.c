@@ -1352,6 +1352,11 @@ static int ehci_execute(EHCIPacket *p, const char *action)
         return -1;
     }
 
+    if (p->queue->dev == NULL) {
+        ehci_trace_guest_bug(p->queue->ehci, "No device attached to queue\n");
+        return -1;
+    }
+
     if (get_field(p->qtd.token, QTD_TOKEN_TBYTES) > BUFF_SIZE) {
         ehci_trace_guest_bug(p->queue->ehci,
                              "guest requested more bytes than allowed");
