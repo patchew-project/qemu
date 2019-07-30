@@ -502,6 +502,21 @@ int coroutine_fn qcow2_check_read_snapshot_table(BlockDriverState *bs,
         result->corruptions -= nb_clusters_reduced;
     }
 
+    /*
+     * All of v3 images' snapshot table entries need to have at least
+     * 16 bytes of extra data.
+     */
+    if (s->qcow_version >= 3) {
+        int i;
+        for (i = 0; i < s->nb_snapshots; i++) {
+            if (s->snapshots[i].extra_data_size < 16) {
+                result->corruptions++;
+                fprintf(stderr, "%s snapshot table entry %i is incomplete\n",
+                        fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR", i);
+            }
+        }
+    }
+
     return 0;
 }
 
