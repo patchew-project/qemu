@@ -45,10 +45,17 @@ typedef struct LuringQueue {
     QSIMPLEQ_HEAD(, LuringAIOCB) submit_queue;
 } LuringQueue;
 
+typedef struct LuringFd {
+    int *fd_array;
+    int *fd_index;
+    GHashTable *fd_lookup;
+} LuringFd;
+
 typedef struct LuringState {
     AioContext *aio_context;
 
     struct io_uring ring;
+    LuringFd fd_reg;
 
     /* io queue for submit at batch.  Protected by AioContext lock. */
     LuringQueue io_q;
@@ -305,6 +312,70 @@ static int ioq_submit(LuringState *s)
     }
     return ret;
 }
+/**
+ * luring_fd_register:
+ *
+ * Register and unregisters file descriptors, see luring_fd_lookup
+ */
+static int luring_fd_register(struct io_uring *ring, LuringFd *fd_reg, int fd)
+{
+    int ret, nr;
+    GHashTable *lookup = fd_reg->fd_lookup;
+    nr = g_hash_table_size(lookup);
+
+    /* Unregister */
+    if (!fd) {
+        ret = io_uring_unregister_files(ring);
+        g_hash_table_remove_all(lookup);
+        return ret;
+    }
+
+    /* If adding new, API requires older registrations to be removed */
+    if (nr) {
+        io_uring_unregister_files(ring);
+    }
+
+    fd_reg->fd_array = g_realloc_n(fd_reg->fd_array, nr + 1, sizeof(int));
+    fd_reg->fd_array[nr] = fd;
+    fd_reg->fd_index = g_realloc_n(fd_reg->fd_index, nr + 1, sizeof(int));
+    fd_reg->fd_index[nr] = nr;
+
+    g_hash_table_insert(lookup, &fd_reg->fd_array[nr], &fd_reg->fd_index[nr]);
+    trace_luring_fd_register(fd, nr);
+    return io_uring_register_files(ring, fd_reg->fd_array, nr + 1);
+}
+
+/**
+ * luring_fd_lookup:
+ *
+ * Used to lookup fd index in registered array at submission time
+ * If the lookup table has not been created or the fd is not in the table,
+ * the fd is registered.
+ *
+ * If registration errors, the hash is cleared and the fd used directly
+ *
+ * Unregistering is done at luring_detach_aio_context
+ */
+static int luring_fd_lookup(LuringState *s, int fd)
+{
+    int *index, ret;
+    if (!s->fd_reg.fd_lookup) {
+        s->fd_reg.fd_lookup = g_hash_table_new_full(g_int_hash, g_int_equal,
+                                                    g_free, g_free);
+        luring_fd_register(&s->ring, &s->fd_reg, fd);
+    }
+    index = g_hash_table_lookup(s->fd_reg.fd_lookup, &fd);
+
+    if (!index) {
+        ret = luring_fd_register(&s->ring, &s->fd_reg, fd);
+        if (ret < 0) {
+            g_hash_table_remove_all(s->fd_reg.fd_lookup);
+            return ret;
+        }
+        index = g_hash_table_lookup(s->fd_reg.fd_lookup, &fd);
+    }
+    return *index;
+}
 
 void luring_io_plug(BlockDriverState *bs, LuringState *s)
 {
@@ -357,7 +428,11 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
                         __func__, type);
         abort();
     }
+
     io_uring_sqe_set_data(sqes, luringcb);
+    if (s->fd_reg.fd_array) {
+        io_uring_sqe_set_flags(sqes, IOSQE_FIXED_FILE);
+    }
 
     QSIMPLEQ_INSERT_TAIL(&s->io_q.submit_queue, luringcb, next);
     s->io_q.in_queue++;
@@ -376,13 +451,19 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
 int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
                                   uint64_t offset, QEMUIOVector *qiov, int type)
 {
-    int ret;
+    int ret, fd_index;
     LuringAIOCB luringcb = {
         .co         = qemu_coroutine_self(),
         .ret        = -EINPROGRESS,
         .qiov       = qiov,
         .is_read    = (type == QEMU_AIO_READ),
     };
+
+    fd_index = luring_fd_lookup(s, fd);
+    if (fd_index >= 0) {
+        fd = fd_index;
+    }
+
     trace_luring_co_submit(bs, s, &luringcb, fd, offset, qiov ? qiov->size : 0,
                            type);
     ret = luring_do_submit(fd, &luringcb, s, offset, type);
@@ -399,6 +480,7 @@ int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
 
 void luring_detach_aio_context(LuringState *s, AioContext *old_context)
 {
+    luring_fd_register(&s->ring, &s->fd_reg, 0);
     aio_set_fd_handler(old_context, s->ring.ring_fd, false, NULL, NULL, NULL,
                        s);
     qemu_bh_delete(s->completion_bh);
