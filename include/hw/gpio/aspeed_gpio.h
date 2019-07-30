@@ -25,7 +25,7 @@
 #define ASPEED_GPIO_NR_PINS 228
 #define ASPEED_GROUPS_PER_SET 4
 #define ASPEED_GPIO_NR_DEBOUNCE_REGS 3
-#define ASPEED_CHARS_PER_GROUP_LABEL 3
+#define ASPEED_CHARS_PER_GROUP_LABEL 4
 
 typedef struct GPIOSets GPIOSets;
 typedef struct AspeedGPIOState AspeedGPIOState;
