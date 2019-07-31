@@ -339,8 +339,6 @@ static inline int satsw(int x)
 
 #define FADDUB(a, b) satub((a) + (b))
 #define FADDUW(a, b) satuw((a) + (b))
-#define FADDSB(a, b) satsb((int8_t)(a) + (int8_t)(b))
-#define FADDSW(a, b) satsw((int16_t)(a) + (int16_t)(b))
 
 #define FSUBUB(a, b) satub((a) - (b))
 #define FSUBUW(a, b) satuw((a) - (b))
@@ -365,12 +363,10 @@ static inline int satsw(int x)
 #endif
 
 SSE_HELPER_B(helper_paddusb, FADDUB)
-SSE_HELPER_B(helper_paddsb, FADDSB)
 SSE_HELPER_B(helper_psubusb, FSUBUB)
 SSE_HELPER_B(helper_psubsb, FSUBSB)
 
 SSE_HELPER_W(helper_paddusw, FADDUW)
-SSE_HELPER_W(helper_paddsw, FADDSW)
 SSE_HELPER_W(helper_psubusw, FSUBUW)
 SSE_HELPER_W(helper_psubsw, FSUBSW)
 
