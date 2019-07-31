@@ -37,6 +37,8 @@
 
 #include "hw/ppc/spapr.h"
 
+#define CAPABILITY_ERROR(X) "appending \"," X "\" to the machine name"
+
 typedef struct SpaprCapPossible {
     int num;            /* size of vals array below */
     const char *help;   /* help text for vals */
@@ -194,10 +196,12 @@ static void cap_htm_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
     }
     if (tcg_enabled()) {
         error_setg(errp,
-                   "No Transactional Memory support in TCG, try cap-htm=off");
+                   "No Transactional Memory support in TCG, try "
+                   CAPABILITY_ERROR("cap-htm=off"));
     } else if (kvm_enabled() && !kvmppc_has_cap_htm()) {
         error_setg(errp,
-"KVM implementation does not support Transactional Memory, try cap-htm=off"
+"KVM implementation does not support Transactional Memory, try "
+                   CAPABILITY_ERROR("cap-htm=off")
             );
     }
 }
@@ -215,7 +219,8 @@ static void cap_vsx_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
      * rid of anything that doesn't do VMX */
     g_assert(env->insns_flags & PPC_ALTIVEC);
     if (!(env->insns_flags2 & PPC2_VSX)) {
-        error_setg(errp, "VSX support not available, try cap-vsx=off");
+        error_setg(errp, "VSX support not available, try "
+                   CAPABILITY_ERROR("cap-vsx=off"));
     }
 }
 
@@ -229,7 +234,8 @@ static void cap_dfp_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
         return;
     }
     if (!(env->insns_flags2 & PPC2_DFP)) {
-        error_setg(errp, "DFP support not available, try cap-dfp=off");
+        error_setg(errp, "DFP support not available, try "
+                   CAPABILITY_ERROR("cap-dfp=off"));
     }
 }
 
@@ -249,11 +255,13 @@ static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
         error_setg(&local_err,
-                   "TCG doesn't support requested feature, cap-cfpc=%s",
+                   "TCG doesn't support requested feature, use "
+                   CAPABILITY_ERROR("cap-cfpc=%s"),
                    cap_cfpc_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
-"Requested safe cache capability level not supported by kvm, try cap-cfpc=%s",
+"Requested safe cache capability level not supported by kvm, try "
+                   CAPABILITY_ERROR("cap-cfpc=%s"),
                    cap_cfpc_possible.vals[kvm_val]);
     }
 
@@ -281,7 +289,8 @@ static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
                    cap_sbbc_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
-"Requested safe bounds check capability level not supported by kvm, try cap-sbbc=%s",
+"Requested safe bounds check capability level not supported by kvm, try "
+                   CAPABILITY_ERROR("cap-sbbc=%s"),
                    cap_sbbc_possible.vals[kvm_val]);
     }
 
@@ -312,7 +321,8 @@ static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
                    cap_ibs_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
-"Requested safe indirect branch capability level not supported by kvm, try cap-ibs=%s",
+"Requested safe indirect branch capability level not supported by kvm, try "
+                   CAPABILITY_ERROR("cap-ibs=%s"),
                    cap_ibs_possible.vals[kvm_val]);
     }
 
@@ -401,11 +411,13 @@ static void cap_nested_kvm_hv_apply(SpaprMachineState *spapr,
 
     if (tcg_enabled()) {
         error_setg(errp,
-                   "No Nested KVM-HV support in tcg, try cap-nested-hv=off");
+                   "No Nested KVM-HV support in tcg, try "
+                   CAPABILITY_ERROR("cap-nested-hv=off"));
     } else if (kvm_enabled()) {
         if (!kvmppc_has_cap_nested_kvm_hv()) {
             error_setg(errp,
-"KVM implementation does not support Nested KVM-HV, try cap-nested-hv=off");
+"KVM implementation does not support Nested KVM-HV, try "
+                       CAPABILITY_ERROR("cap-nested-hv=off"));
         } else if (kvmppc_set_cap_nested_kvm_hv(val) < 0) {
                 error_setg(errp,
 "Error enabling cap-nested-hv with KVM, try cap-nested-hv=off");
@@ -435,10 +447,12 @@ static void cap_large_decr_apply(SpaprMachineState *spapr,
 
         if (!kvm_nr_bits) {
             error_setg(errp,
-                       "No large decrementer support, try cap-large-decr=off");
+                       "No large decrementer support, try "
+                        CAPABILITY_ERROR("cap-large-decr=off"));
         } else if (pcc->lrg_decr_bits != kvm_nr_bits) {
             error_setg(errp,
-"KVM large decrementer size (%d) differs to model (%d), try -cap-large-decr=off",
+"KVM large decrementer size (%d) differs to model (%d), try "
+                CAPABILITY_ERROR("cap-large-decr=off"),
                 kvm_nr_bits, pcc->lrg_decr_bits);
         }
     }
@@ -454,7 +468,8 @@ static void cap_large_decr_cpu_apply(SpaprMachineState *spapr,
     if (kvm_enabled()) {
         if (kvmppc_enable_cap_large_decr(cpu, val)) {
             error_setg(errp,
-                       "No large decrementer support, try cap-large-decr=off");
+                       "No large decrementer support, try "
+                       CAPABILITY_ERROR("cap-large-decr=off"));
         }
     }
 
@@ -474,10 +489,12 @@ static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
     if (tcg_enabled() && val) {
         /* TODO - for now only allow broken for TCG */
         error_setg(errp,
-"Requested count cache flush assist capability level not supported by tcg, try cap-ccf-assist=off");
+"Requested count cache flush assist capability level not supported by tcg, try "
+                   CAPABILITY_ERROR("cap-ccf-assist=off"));
     } else if (kvm_enabled() && (val > kvm_val)) {
         error_setg(errp,
-"Requested count cache flush assist capability level not supported by kvm, try cap-ccf-assist=off");
+"Requested count cache flush assist capability level not supported by kvm, try "
+                   CAPABILITY_ERROR("cap-ccf-assist=off"));
     }
 }
 
