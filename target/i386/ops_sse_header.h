@@ -62,8 +62,6 @@ DEF_HELPER_3(glue(pslldq, SUFFIX), void, env, Reg, Reg)
 
 SSE_HELPER_B(pmaxub, FMAXUB)
 
-SSE_HELPER_W(pmaxsw, FMAXSW)
-
 SSE_HELPER_B(pcmpgtb, FCMPGTB)
 SSE_HELPER_W(pcmpgtw, FCMPGTW)
 SSE_HELPER_L(pcmpgtl, FCMPGTL)

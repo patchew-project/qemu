@@ -2844,7 +2844,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xeb] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xec] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xed] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
-    [0xee] = MMX_OP2(pmaxsw),
+    [0xee] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xef] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xf0] = { NULL, NULL, NULL, SSE_SPECIAL }, /* lddqu */
     [0xf1] = MMX_OP2(psllw),
@@ -3206,6 +3206,11 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
 #define gen_vpminu_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_umin, 0123)
 #define gen_vpminu_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_umin, 0123)
 
+#define gen_pmaxs_mm(env, s, modrm, vece)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), (vece), tcg_gen_gvec_smax, 0112)
+#define gen_pmaxs_xmm(env, s, modrm, vece)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), (vece), tcg_gen_gvec_smax, 0112)
+#define gen_vpmaxs_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_smax, 0123)
+#define gen_vpmaxs_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_smax, 0123)
+
 #define gen_pand_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_pand_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_vpand_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
@@ -3430,6 +3435,11 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     case 0xea | M_0F | P_66:           gen_pmins_xmm(env, s, modrm, MO_16); return;
     case 0xea | M_0F | P_66 | VEX_128: gen_vpmins_xmm(env, s, modrm, MO_16); return;
     case 0xea | M_0F | P_66 | VEX_256: gen_vpmins_ymm(env, s, modrm, MO_16); return;
+
+    case 0xee | M_0F:                  gen_pmaxs_mm(env, s, modrm, MO_16); return;
+    case 0xee | M_0F | P_66:           gen_pmaxs_xmm(env, s, modrm, MO_16); return;
+    case 0xee | M_0F | P_66 | VEX_128: gen_vpmaxs_xmm(env, s, modrm, MO_16); return;
+    case 0xee | M_0F | P_66 | VEX_256: gen_vpmaxs_ymm(env, s, modrm, MO_16); return;
 
     case 0xdb | M_0F:                  gen_pand_mm(env, s, modrm); return;
     case 0xdb | M_0F | P_66:           gen_pand_xmm(env, s, modrm); return;
