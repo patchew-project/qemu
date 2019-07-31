@@ -2818,7 +2818,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xd1] = MMX_OP2(psrlw),
     [0xd2] = MMX_OP2(psrld),
     [0xd3] = MMX_OP2(psrlq),
-    [0xd4] = MMX_OP2(paddq),
+    [0xd4] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xd5] = MMX_OP2(pmullw),
     [0xd6] = { NULL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },
     [0xd7] = { SSE_SPECIAL, SSE_SPECIAL }, /* pmovmskb */
@@ -2859,9 +2859,9 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xf9] = MMX_OP2(psubw),
     [0xfa] = MMX_OP2(psubl),
     [0xfb] = MMX_OP2(psubq),
-    [0xfc] = MMX_OP2(paddb),
-    [0xfd] = MMX_OP2(paddw),
-    [0xfe] = MMX_OP2(paddl),
+    [0xfc] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0xfd] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0xfe] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
 };
 
 static const SSEFunc_0_epp sse_op_table2[3 * 8][2] = {
@@ -3166,6 +3166,11 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
                         gen_ld_modrm_VxHxWx,                            \
                         gen_gvec_2_fp, (opctl))
 
+#define gen_padd_mm(env, s, modrm, vece)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), (vece), tcg_gen_gvec_add, 0112)
+#define gen_padd_xmm(env, s, modrm, vece)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), (vece), tcg_gen_gvec_add, 0112)
+#define gen_vpadd_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_add, 0123)
+#define gen_vpadd_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_add, 0123)
+
 #define gen_pand_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_pand_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_vpand_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
@@ -3301,6 +3306,26 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
            | (s->prefix & PREFIX_REPZ ? P_F3 : 0)
            | (s->prefix & PREFIX_REPNZ ? P_F2 : 0)
            | (s->prefix & PREFIX_VEX ? (s->vex_l ? VEX_256 : VEX_128) : 0)) {
+    case 0xfc | M_0F:                  gen_padd_mm(env, s, modrm, MO_8); return;
+    case 0xfc | M_0F | P_66:           gen_padd_xmm(env, s, modrm, MO_8); return;
+    case 0xfc | M_0F | P_66 | VEX_128: gen_vpadd_xmm(env, s, modrm, MO_8); return;
+    case 0xfc | M_0F | P_66 | VEX_256: gen_vpadd_ymm(env, s, modrm, MO_8); return;
+
+    case 0xfd | M_0F:                  gen_padd_mm(env, s, modrm, MO_16); return;
+    case 0xfd | M_0F | P_66:           gen_padd_xmm(env, s, modrm, MO_16); return;
+    case 0xfd | M_0F | P_66 | VEX_128: gen_vpadd_xmm(env, s, modrm, MO_16); return;
+    case 0xfd | M_0F | P_66 | VEX_256: gen_vpadd_ymm(env, s, modrm, MO_16); return;
+
+    case 0xfe | M_0F:                  gen_padd_mm(env, s, modrm, MO_32); return;
+    case 0xfe | M_0F | P_66:           gen_padd_xmm(env, s, modrm, MO_32); return;
+    case 0xfe | M_0F | P_66 | VEX_128: gen_vpadd_xmm(env, s, modrm, MO_32); return;
+    case 0xfe | M_0F | P_66 | VEX_256: gen_vpadd_ymm(env, s, modrm, MO_32); return;
+
+    case 0xd4 | M_0F:                  gen_padd_mm(env, s, modrm, MO_64); return;
+    case 0xd4 | M_0F | P_66:           gen_padd_xmm(env, s, modrm, MO_64); return;
+    case 0xd4 | M_0F | P_66 | VEX_128: gen_vpadd_xmm(env, s, modrm, MO_64); return;
+    case 0xd4 | M_0F | P_66 | VEX_256: gen_vpadd_ymm(env, s, modrm, MO_64); return;
+
     case 0xdb | M_0F:                  gen_pand_mm(env, s, modrm); return;
     case 0xdb | M_0F | P_66:           gen_pand_xmm(env, s, modrm); return;
     case 0xdb | M_0F | P_66 | VEX_128: gen_vpand_xmm(env, s, modrm); return;

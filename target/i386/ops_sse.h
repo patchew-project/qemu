@@ -337,7 +337,6 @@ static inline int satsw(int x)
     }
 }
 
-#define FADD(a, b) ((a) + (b))
 #define FADDUB(a, b) satub((a) + (b))
 #define FADDUW(a, b) satuw((a) + (b))
 #define FADDSB(a, b) satsb((int8_t)(a) + (int8_t)(b))
@@ -365,11 +364,6 @@ static inline int satsw(int x)
 
 #define FAVG(a, b) (((a) + (b) + 1) >> 1)
 #endif
-
-SSE_HELPER_B(helper_paddb, FADD)
-SSE_HELPER_W(helper_paddw, FADD)
-SSE_HELPER_L(helper_paddl, FADD)
-SSE_HELPER_Q(helper_paddq, FADD)
 
 SSE_HELPER_B(helper_psubb, FSUB)
 SSE_HELPER_W(helper_psubw, FSUB)
