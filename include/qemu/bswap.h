@@ -306,6 +306,11 @@ static inline int ldub_p(const void *ptr)
     return *(uint8_t *)ptr;
 }
 
+static inline int ldb_p(const void *ptr)
+{
+    return ldub_p(ptr);
+}
+
 static inline int ldsb_p(const void *ptr)
 {
     return *(int8_t *)ptr;
