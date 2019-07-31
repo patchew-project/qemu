@@ -165,8 +165,8 @@ static void create_fdt(SBSAMachineState *sms)
         for (i = 0; i < nb_numa_nodes; i++) {
             for (j = 0; j < nb_numa_nodes; j++) {
                 idx = (i * nb_numa_nodes + j) * 3;
-                matrix[idx + 0] = cpu_to_be32(i);
-                matrix[idx + 1] = cpu_to_be32(j);
+                matrix[idx + 0] = cpu_to_be32(numa_info[i].nodeid);
+                matrix[idx + 1] = cpu_to_be32(numa_info[j].nodeid);
                 matrix[idx + 2] = cpu_to_be32(numa_info[i].distance[j]);
             }
         }
@@ -761,7 +761,7 @@ sbsa_ref_cpu_index_to_props(MachineState *ms, unsigned cpu_index)
 static int64_t
 sbsa_ref_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-    return idx % nb_numa_nodes;
+    return numa_info[idx % nb_numa_nodes].nodeid;
 }
 
 static void sbsa_ref_instance_init(Object *obj)

@@ -1722,22 +1722,47 @@ void build_srat_memory(AcpiSratMemoryAffinity *numamem, uint64_t base,
     numamem->range_length = cpu_to_le64(len);
 }
 
+static int find_numa_node(int node)
+{
+    int i;
+    for (i = 0; i < nb_numa_nodes && numa_info[i].nodeid != node; i++) {
+        /* empty */
+    }
+    return i;
+}
 /*
  * ACPI spec 5.2.17 System Locality Distance Information Table
  * (Revision 2.0 or later)
  */
 void build_slit(GArray *table_data, BIOSLinker *linker)
 {
-    int slit_start, i, j;
+    int slit_start, i, j, src, dst, largest;
     slit_start = table_data->len;
 
     acpi_data_push(table_data, sizeof(AcpiTableHeader));
 
-    build_append_int_noprefix(table_data, nb_numa_nodes, 8);
-    for (i = 0; i < nb_numa_nodes; i++) {
-        for (j = 0; j < nb_numa_nodes; j++) {
-            assert(numa_info[i].distance[j]);
-            build_append_int_noprefix(table_data, numa_info[i].distance[j], 1);
+    for (largest = 0, i = 0; i < nb_numa_nodes; i++)
+        if (largest < numa_info[i].nodeid) {
+            largest = numa_info[i].nodeid;
+        }
+
+    /* number of entries is largest + 1 as nodes start at 0 */
+    build_append_int_noprefix(table_data, largest + 1, 8);
+
+    for (i = 0; i <= largest; i++) {
+        src = find_numa_node(i);
+        for (j = 0; j <= largest; j++) {
+            dst = find_numa_node(j);
+
+            if (dst == nb_numa_nodes || src == nb_numa_nodes) {
+                /* 255 is unreachable. Linux expects 10 in self-maps entries */
+                build_append_int_noprefix(table_data,
+                                          i == j ? NUMA_DISTANCE_MIN : 255, 1);
+            } else {
+                assert(numa_info[src].distance[dst]);
+                build_append_int_noprefix(table_data,
+                                          numa_info[src].distance[dst], 1);
+            }
         }
     }
 

@@ -424,7 +424,8 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
         if (!mem_start) {
             /* spapr_machine_init() checks for rma_size <= node0_size
              * already */
-            spapr_populate_memory_node(fdt, i, 0, spapr->rma_size);
+            spapr_populate_memory_node(fdt, nodes[i].nodeid, 0,
+                                       spapr->rma_size);
             mem_start += spapr->rma_size;
             node_size -= spapr->rma_size;
         }
@@ -436,7 +437,7 @@ static int spapr_populate_memory(SpaprMachineState *spapr, void *fdt)
                 sizetmp = 1ULL << ctzl(mem_start);
             }
 
-            spapr_populate_memory_node(fdt, i, mem_start, sizetmp);
+            spapr_populate_memory_node(fdt, nodes[i].nodeid, mem_start, sizetmp);
             node_size -= sizetmp;
             mem_start += sizetmp;
         }
@@ -2542,7 +2543,7 @@ static void spapr_validate_node_memory(MachineState *machine, Error **errp)
             error_setg(errp,
                        "Node %d memory size 0x%" PRIx64
                        " is not aligned to %" PRIu64 " MiB",
-                       i, numa_info[i].node_mem,
+                       numa_info[i].nodeid, numa_info[i].node_mem,
                        SPAPR_MEMORY_BLOCK_SIZE / MiB);
             return;
         }
@@ -4139,7 +4140,7 @@ spapr_cpu_index_to_props(MachineState *machine, unsigned cpu_index)
 
 static int64_t spapr_get_default_cpu_node_id(const MachineState *ms, int idx)
 {
-    return idx / ms->smp.cores % nb_numa_nodes;
+    return numa_info[idx / ms->smp.cores % nb_numa_nodes].nodeid;
 }
 
 static const CPUArchIdList *spapr_possible_cpu_arch_ids(MachineState *machine)

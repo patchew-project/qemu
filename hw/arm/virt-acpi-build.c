@@ -535,8 +535,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     for (i = 0; i < nb_numa_nodes; ++i) {
         if (numa_info[i].node_mem > 0) {
             numamem = acpi_data_push(table_data, sizeof(*numamem));
-            build_srat_memory(numamem, mem_base, numa_info[i].node_mem, i,
-                              MEM_AFFINITY_ENABLED);
+            build_srat_memory(numamem, mem_base, numa_info[i].node_mem,
+                              numa_info[i].nodeid, MEM_AFFINITY_ENABLED);
             mem_base += numa_info[i].node_mem;
         }
     }

@@ -13,6 +13,7 @@ struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
     bool present;
+    uint16_t nodeid;
     uint8_t distance[MAX_NODES];
 };
 

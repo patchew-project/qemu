@@ -2360,6 +2360,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     numa_start = table_data->len;
 
     for (i = 1; i < pcms->numa_nodes + 1; ++i) {
+        int nodeid = numa_info[i - 1].nodeid;
         mem_base = next_base;
         mem_len = pcms->node_mem[i - 1];
         next_base = mem_base + mem_len;
@@ -2370,7 +2371,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
             mem_len -= next_base - HOLE_640K_START;
             if (mem_len > 0) {
                 numamem = acpi_data_push(table_data, sizeof *numamem);
-                build_srat_memory(numamem, mem_base, mem_len, i - 1,
+                build_srat_memory(numamem, mem_base, mem_len, nodeid,
                                   MEM_AFFINITY_ENABLED);
             }
 
@@ -2389,7 +2390,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
             mem_len -= next_base - pcms->below_4g_mem_size;
             if (mem_len > 0) {
                 numamem = acpi_data_push(table_data, sizeof *numamem);
-                build_srat_memory(numamem, mem_base, mem_len, i - 1,
+                build_srat_memory(numamem, mem_base, mem_len, nodeid,
                                   MEM_AFFINITY_ENABLED);
             }
             mem_base = 1ULL << 32;
@@ -2399,7 +2400,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
 
         if (mem_len > 0) {
             numamem = acpi_data_push(table_data, sizeof *numamem);
-            build_srat_memory(numamem, mem_base, mem_len, i - 1,
+            build_srat_memory(numamem, mem_base, mem_len, nodeid,
                               MEM_AFFINITY_ENABLED);
         }
     }
@@ -2420,7 +2421,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
     if (hotplugabble_address_space_size) {
         numamem = acpi_data_push(table_data, sizeof *numamem);
         build_srat_memory(numamem, machine->device_memory->base,
-                          hotplugabble_address_space_size, pcms->numa_nodes - 1,
+                          hotplugabble_address_space_size,
+                          numa_info[pcms->numa_nodes - 1].nodeid,
                           MEM_AFFINITY_HOTPLUGGABLE | MEM_AFFINITY_ENABLED);
     }
 

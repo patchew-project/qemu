@@ -47,13 +47,19 @@ QemuOptsList qemu_numa_opts = {
 
 static int have_memdevs;
 static int have_mem;
-static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
-                             * For all nodes, nodeid < max_numa_nodeid
-                             */
 int nb_numa_nodes;
 bool have_numa_distance;
 NodeInfo numa_info[MAX_NODES];
 
+static int find_numa(uint16_t node)
+{
+    for (int i = 0; i < nb_numa_nodes; i++) {
+        if (numa_info[i].present && numa_info[i].nodeid == node) {
+            return i;
+        }
+    }
+    return MAX_NODES;
+}
 
 static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
                             Error **errp)
@@ -64,19 +70,15 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
     MachineClass *mc = MACHINE_GET_CLASS(ms);
     unsigned int max_cpus = ms->smp.max_cpus;
 
-    if (node->has_nodeid) {
-        nodenr = node->nodeid;
-    } else {
-        nodenr = nb_numa_nodes;
-    }
+    nodenr = nb_numa_nodes;
 
-    if (nodenr >= MAX_NODES) {
+    if (nb_numa_nodes >= MAX_NODES) {
         error_setg(errp, "Max number of NUMA nodes reached: %"
                    PRIu16 "", nodenr);
         return;
     }
 
-    if (numa_info[nodenr].present) {
+    if (node->has_nodeid && find_numa(node->nodeid) != MAX_NODES) {
         error_setg(errp, "Duplicate NUMA nodeid: %" PRIu16, nodenr);
         return;
     }
@@ -95,7 +97,7 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
             return;
         }
         props = mc->cpu_index_to_instance_props(ms, cpus->value);
-        props.node_id = nodenr;
+        props.node_id = node->has_nodeid ? node->nodeid : nodenr;
         props.has_node_id = true;
         machine_set_cpu_numa_node(ms, &props, &err);
         if (err) {
@@ -132,24 +134,24 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
     numa_info[nodenr].present = true;
-    max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
+    numa_info[nodenr].nodeid = node->has_nodeid ? node->nodeid : nb_numa_nodes;
     nb_numa_nodes++;
 }
 
 static void parse_numa_distance(NumaDistOptions *dist, Error **errp)
 {
-    uint16_t src = dist->src;
-    uint16_t dst = dist->dst;
+    uint16_t src = find_numa(dist->src);
+    uint16_t dst = find_numa(dist->dst);
     uint8_t val = dist->val;
 
-    if (src >= MAX_NODES || dst >= MAX_NODES) {
-        error_setg(errp, "Parameter '%s' expects an integer between 0 and %d",
-                   src >= MAX_NODES ? "src" : "dst", MAX_NODES - 1);
+    if (src >= MAX_NODES || !numa_info[src].present) {
+        error_setg(errp, "Source NUMA node is missing. "
+                   "Please use '-numa node' option to declare it first.");
         return;
     }
 
-    if (!numa_info[src].present || !numa_info[dst].present) {
-        error_setg(errp, "Source/Destination NUMA node is missing. "
+    if (dst >= MAX_NODES || !numa_info[dst].present) {
+        error_setg(errp, "Destination NUMA node is missing. "
                    "Please use '-numa node' option to declare it first.");
         return;
     }
@@ -193,7 +195,7 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
             error_setg(&err, "Missing mandatory node-id property");
             goto end;
         }
-        if (!numa_info[object->u.cpu.node_id].present) {
+        if (find_numa(object->u.cpu.node_id) == MAX_NODES) {
             error_setg(&err, "Invalid node-id=%" PRId64 ", NUMA node must be "
                 "defined with -numa node,nodeid=ID before it's used with "
                 "-numa cpu,node-id=ID", object->u.cpu.node_id);
@@ -261,7 +263,7 @@ static void validate_numa_distance(void)
                     error_report("The distance between node %d and %d is "
                                  "missing, at least one distance value "
                                  "between each nodes should be provided.",
-                                 src, dst);
+                                 numa_info[src].nodeid, numa_info[dst].nodeid);
                     exit(EXIT_FAILURE);
                 }
             }
@@ -279,9 +281,10 @@ static void validate_numa_distance(void)
         for (src = 0; src < nb_numa_nodes; src++) {
             for (dst = 0; dst < nb_numa_nodes; dst++) {
                 if (src != dst && numa_info[src].distance[dst] == 0) {
-                    error_report("At least one asymmetrical pair of "
+                    error_report("At least one asymmetrical pair (%d, %d) of "
                             "distances is given, please provide distances "
-                            "for both directions of all node pairs.");
+                            "for both directions of all node pairs.",
+                            numa_info[src].nodeid, numa_info[dst].nodeid);
                     exit(EXIT_FAILURE);
                 }
             }
@@ -370,20 +373,6 @@ void numa_complete_configuration(MachineState *ms)
             NumaNodeOptions node = { };
             parse_numa_node(ms, &node, &error_abort);
     }
-
-    assert(max_numa_nodeid <= MAX_NODES);
-
-    /* No support for sparse NUMA node IDs yet: */
-    for (i = max_numa_nodeid - 1; i >= 0; i--) {
-        /* Report large node IDs first, to make mistakes easier to spot */
-        if (!numa_info[i].present) {
-            error_report("numa: Node ID missing: %d", i);
-            exit(1);
-        }
-    }
-
-    /* This must be always true if all nodes are present: */
-    assert(nb_numa_nodes == max_numa_nodeid);
 
     if (nb_numa_nodes > 0) {
         uint64_t numa_total;

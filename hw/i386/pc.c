@@ -2847,7 +2847,7 @@ static int64_t pc_get_default_cpu_node_id(const MachineState *ms, int idx)
    x86_topo_ids_from_apicid(ms->possible_cpus->cpus[idx].arch_id,
                             pcms->smp_dies, ms->smp.cores,
                             ms->smp.threads, &topo);
-   return topo.pkg_id % nb_numa_nodes;
+   return numa_info[topo.pkg_id % nb_numa_nodes].nodeid;
 }
 
 static const CPUArchIdList *pc_possible_cpu_arch_ids(MachineState *ms)
