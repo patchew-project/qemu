@@ -1692,6 +1692,7 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
             memory_notdirty_write_complete(&ndi);       \
         }                                               \
     } while (0)
+#define ATOMIC_MMU_IDX oi
 
 #define DATA_SIZE 1
 #include "atomic_template.h"
@@ -1734,6 +1735,7 @@ void helper_be_stq_mmu(CPUArchState *env, target_ulong addr, uint64_t val,
 #define DATA_SIZE 8
 #include "atomic_template.h"
 #endif
+#undef ATOMIC_MMU_IDX
 
 /* Code access functions.  */
 
