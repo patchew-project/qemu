@@ -338,7 +338,6 @@ static inline int satsw(int x)
 }
 
 #define FMINUB(a, b) ((a) < (b)) ? (a) : (b)
-#define FMINSW(a, b) ((int16_t)(a) < (int16_t)(b)) ? (a) : (b)
 #define FMAXUB(a, b) ((a) > (b)) ? (a) : (b)
 #define FMAXSW(a, b) ((int16_t)(a) > (int16_t)(b)) ? (a) : (b)
 
@@ -358,7 +357,6 @@ static inline int satsw(int x)
 SSE_HELPER_B(helper_pminub, FMINUB)
 SSE_HELPER_B(helper_pmaxub, FMAXUB)
 
-SSE_HELPER_W(helper_pminsw, FMINSW)
 SSE_HELPER_W(helper_pmaxsw, FMAXSW)
 
 SSE_HELPER_B(helper_pcmpgtb, FCMPGTB)
