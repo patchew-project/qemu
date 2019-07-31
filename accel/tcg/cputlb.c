@@ -1130,6 +1130,38 @@ void *tlb_vaddr_to_host(CPUArchState *env, abi_ptr addr,
     return (void *)((uintptr_t)addr + entry->addend);
 }
 
+
+#ifdef CONFIG_PLUGIN
+/*
+ * Perform a TLB lookup and populate the qemu_plugin_hwaddr structure.
+ * This should be a hot path as we will have just looked this path up
+ * in the softmmu lookup code (or helper). We don't handle re-fills or
+ * checking the victim table. This is purely informational.
+ */
+
+bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
+                       bool is_store, struct qemu_plugin_hwaddr *data)
+{
+    CPUArchState *env = cpu->env_ptr;
+    CPUTLBEntry *tlbe = tlb_entry(env, mmu_idx, addr);
+    target_ulong tlb_addr = is_store ? tlb_addr_write(tlbe) : tlbe->addr_read;
+
+    if (tlb_hit(tlb_addr, addr)) {
+        if (tlb_addr & TLB_MMIO) {
+            data->hostaddr = 0;
+            data->is_io = true;
+            /* XXX: lookup device */
+        } else {
+            data->hostaddr = addr + tlbe->addend;
+            data->is_io = false;
+        }
+        return true;
+    }
+    return false;
+}
+
+#endif
+
 /* Probe for a read-modify-write atomic operation.  Do not allow unaligned
  * operations, or io operations to proceed.  Return the host address.  */
 static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,

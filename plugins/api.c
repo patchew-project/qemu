@@ -39,7 +39,7 @@
 #include "cpu.h"
 #include "sysemu/sysemu.h"
 #include "tcg/tcg.h"
-#include "trace/mem-internal.h" /* mem_info macros */
+#include "exec/exec-all.h"
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
 #include "hw/boards.h"
@@ -240,11 +240,42 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info)
  * Virtual Memory queries
  */
 
+#ifdef CONFIG_SOFTMMU
+static GArray *hwaddr_refs;
+
+struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
+                                                  uint64_t vaddr)
+{
+    CPUState *cpu = current_cpu;
+    unsigned int mmu_idx = info >> TRACE_MEM_MMU_SHIFT;
+    struct qemu_plugin_hwaddr *hwaddr;
+
+    /* Ensure we have memory allocated for this work */
+    if (!hwaddr_refs) {
+        hwaddr_refs = g_array_sized_new(false, true,
+                                        sizeof(struct qemu_plugin_hwaddr),
+                                        cpu->cpu_index + 1);
+    } else if (cpu->cpu_index >= hwaddr_refs->len) {
+        hwaddr_refs = g_array_set_size(hwaddr_refs, cpu->cpu_index + 1);
+    }
+
+    hwaddr = &g_array_index(hwaddr_refs, struct qemu_plugin_hwaddr,
+                            cpu->cpu_index);
+
+    if (!tlb_plugin_lookup(cpu, vaddr, mmu_idx,
+                           info & TRACE_MEM_ST, hwaddr)) {
+        return NULL;
+    }
+
+    return hwaddr;
+}
+#else
 struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
                                                   uint64_t vaddr)
 {
     return NULL;
 }
+#endif
 
 bool qemu_plugin_hwaddr_is_io(struct qemu_plugin_hwaddr *hwaddr)
 {
@@ -253,14 +284,15 @@ bool qemu_plugin_hwaddr_is_io(struct qemu_plugin_hwaddr *hwaddr)
 
 uint64_t qemu_plugin_hwaddr_to_raddr(const struct qemu_plugin_hwaddr *haddr)
 {
-#if 0 /* XXX FIXME should be SOFTMMU */
-    ram_addr_t ram_addr;
+#ifdef CONFIG_SOFTMMU
+    ram_addr_t ram_addr = 0;
 
-    g_assert(haddr);
-    ram_addr = qemu_ram_addr_from_host(haddr);
-    if (ram_addr == RAM_ADDR_INVALID) {
-        error_report("Bad ram pointer %p", haddr);
-        abort();
+    if (haddr && !haddr->is_io) {
+        ram_addr = qemu_ram_addr_from_host((void *) haddr->hostaddr);
+        if (ram_addr == RAM_ADDR_INVALID) {
+            error_report("Bad ram pointer %"PRIx64"", haddr->hostaddr);
+            abort();
+        }
     }
     return ram_addr;
 #else

@@ -182,6 +182,12 @@ struct qemu_plugin_insn *qemu_plugin_tb_insn_get(struct qemu_plugin_tb *tb)
     return insn;
 }
 
+struct qemu_plugin_hwaddr {
+    uint64_t hostaddr;
+    bool is_io;
+};
+
+
 #ifdef CONFIG_PLUGIN
 
 void qemu_plugin_vcpu_init_hook(CPUState *cpu);
