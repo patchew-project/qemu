@@ -1064,6 +1064,7 @@ struct target_format_descr {
 #define TARGET_HDIO_GET_32BIT         0x0309  /* get current io_32bit setting */
 #define TARGET_HDIO_GET_NOWERR        0x030a  /* get ignore-write-error flag */
 #define TARGET_HDIO_GET_DMA           0x030b  /* get use-dma flag */
+#define TARGET_HDIO_GET_NICE          0x030c  /* get nice flags */
 #define TARGET_HDIO_GET_IDENTITY      0x030d  /* get IDE identification info */
 #define TARGET_HDIO_DRIVE_CMD         0x031f  /* execute a special drive command */
 
@@ -1075,6 +1076,7 @@ struct target_format_descr {
 #define TARGET_HDIO_SET_NOWERR        0x0325  /* change ignore-write-error flag */
 #define TARGET_HDIO_SET_DMA           0x0326  /* change use-dma flag */
 #define TARGET_HDIO_SET_PIO_MODE      0x0327  /* reconfig interface to new speed */
+#define TARGET_HDIO_SET_NICE          0x0329  /* set nice flags */
 
 /* loop ioctls */
 #define TARGET_LOOP_SET_FD            0x4C00
