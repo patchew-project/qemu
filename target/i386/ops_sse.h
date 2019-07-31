@@ -337,8 +337,6 @@ static inline int satsw(int x)
     }
 }
 
-#define FMAXUB(a, b) ((a) > (b)) ? (a) : (b)
-
 #define FCMPGTB(a, b) ((int8_t)(a) > (int8_t)(b) ? -1 : 0)
 #define FCMPGTW(a, b) ((int16_t)(a) > (int16_t)(b) ? -1 : 0)
 #define FCMPGTL(a, b) ((int32_t)(a) > (int32_t)(b) ? -1 : 0)
@@ -351,8 +349,6 @@ static inline int satsw(int x)
 
 #define FAVG(a, b) (((a) + (b) + 1) >> 1)
 #endif
-
-SSE_HELPER_B(helper_pmaxub, FMAXUB)
 
 SSE_HELPER_B(helper_pcmpgtb, FCMPGTB)
 SSE_HELPER_W(helper_pcmpgtw, FCMPGTW)
