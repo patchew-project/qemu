@@ -23,6 +23,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
+#include "tcg-op-gvec.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 
@@ -2723,6 +2724,7 @@ typedef void (*SSEFunc_0_eppt)(TCGv_ptr env, TCGv_ptr reg_a, TCGv_ptr reg_b,
 
 #define SSE_SPECIAL ((void *)1)
 #define SSE_DUMMY ((void *)2)
+#define SSE_TOMBSTONE ((void *)3)
 
 #define MMX_OP2(x) { gen_helper_ ## x ## _mmx, gen_helper_ ## x ## _xmm }
 #define SSE_FOP(x) { gen_helper_ ## x ## ps, gen_helper_ ## x ## pd, \
@@ -2754,7 +2756,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x51] = SSE_FOP(sqrt),
     [0x52] = { gen_helper_rsqrtps, NULL, gen_helper_rsqrtss, NULL },
     [0x53] = { gen_helper_rcpps, NULL, gen_helper_rcpss, NULL },
-    [0x54] = { gen_helper_pand_xmm, gen_helper_pand_xmm }, /* andps, andpd */
+    [0x54] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* andps, andpd */
     [0x55] = { gen_helper_pandn_xmm, gen_helper_pandn_xmm }, /* andnps, andnpd */
     [0x56] = { gen_helper_por_xmm, gen_helper_por_xmm }, /* orps, orpd */
     [0x57] = { gen_helper_pxor_xmm, gen_helper_pxor_xmm }, /* xorps, xorpd */
@@ -2823,7 +2825,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xd8] = MMX_OP2(psubusb),
     [0xd9] = MMX_OP2(psubusw),
     [0xda] = MMX_OP2(pminub),
-    [0xdb] = MMX_OP2(pand),
+    [0xdb] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xdc] = MMX_OP2(paddusb),
     [0xdd] = MMX_OP2(paddusw),
     [0xde] = MMX_OP2(pmaxub),
@@ -3164,6 +3166,17 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
                         gen_ld_modrm_VxHxWx,                            \
                         gen_gvec_2_fp, (opctl))
 
+#define gen_pand_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
+#define gen_pand_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
+#define gen_vpand_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
+#define gen_vpand_ymm(env, s, modrm) gen_gvec_ld_modrm_vymm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
+#define gen_andps_xmm  gen_pand_xmm
+#define gen_vandps_xmm gen_vpand_xmm
+#define gen_vandps_ymm gen_vpand_ymm
+#define gen_andpd_xmm  gen_pand_xmm
+#define gen_vandpd_xmm gen_vpand_xmm
+#define gen_vandpd_ymm gen_vpand_ymm
+
 static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 {
     int b1, op1_offset, op2_offset, is_xmm, val;
@@ -3238,6 +3251,38 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
         reg |= REX_R(s);
     }
     mod = (modrm >> 6) & 3;
+
+    enum {
+        M_0F    = 0x01 << 8,
+        M_0F38  = 0x02 << 8,
+        M_0F3A  = 0x04 << 8,
+        P_66    = 0x08 << 8,
+        P_F3    = 0x10 << 8,
+        P_F2    = 0x20 << 8,
+        VEX_128 = 0x40 << 8,
+        VEX_256 = 0x80 << 8,
+    };
+
+    switch(b | M_0F
+           | (s->prefix & PREFIX_DATA ? P_66 : 0)
+           | (s->prefix & PREFIX_REPZ ? P_F3 : 0)
+           | (s->prefix & PREFIX_REPNZ ? P_F2 : 0)
+           | (s->prefix & PREFIX_VEX ? (s->vex_l ? VEX_256 : VEX_128) : 0)) {
+    case 0xdb | M_0F:                  gen_pand_mm(env, s, modrm); return;
+    case 0xdb | M_0F | P_66:           gen_pand_xmm(env, s, modrm); return;
+    case 0xdb | M_0F | P_66 | VEX_128: gen_vpand_xmm(env, s, modrm); return;
+    case 0xdb | M_0F | P_66 | VEX_256: gen_vpand_ymm(env, s, modrm); return;
+    case 0x54 | M_0F:                  gen_andps_xmm(env, s, modrm); return;
+    case 0x54 | M_0F | VEX_128:        gen_vandps_xmm(env, s, modrm); return;
+    case 0x54 | M_0F | VEX_256:        gen_vandps_ymm(env, s, modrm); return;
+    case 0x54 | M_0F | P_66:           gen_andpd_xmm(env, s, modrm); return;
+    case 0x54 | M_0F | P_66 | VEX_128: gen_vandpd_xmm(env, s, modrm); return;
+    case 0x54 | M_0F | P_66 | VEX_256: gen_vandpd_ymm(env, s, modrm); return;
+    default: break;
+    }
+
+    assert(sse_fn_epp != SSE_TOMBSTONE);
+
     if (sse_fn_epp == SSE_SPECIAL) {
         b |= (b1 << 8);
         switch(b) {
