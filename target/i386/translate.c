@@ -2855,10 +2855,10 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xf6] = MMX_OP2(psadbw),
     [0xf7] = { (SSEFunc_0_epp)gen_helper_maskmov_mmx,
                (SSEFunc_0_epp)gen_helper_maskmov_xmm }, /* XXX: casts */
-    [0xf8] = MMX_OP2(psubb),
-    [0xf9] = MMX_OP2(psubw),
-    [0xfa] = MMX_OP2(psubl),
-    [0xfb] = MMX_OP2(psubq),
+    [0xf8] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0xf9] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0xfa] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0xfb] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xfc] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xfd] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xfe] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
@@ -3171,6 +3171,11 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
 #define gen_vpadd_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_add, 0123)
 #define gen_vpadd_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_add, 0123)
 
+#define gen_psub_mm(env, s, modrm, vece)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), (vece), tcg_gen_gvec_sub, 0112)
+#define gen_psub_xmm(env, s, modrm, vece)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), (vece), tcg_gen_gvec_sub, 0112)
+#define gen_vpsub_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_sub, 0123)
+#define gen_vpsub_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_sub, 0123)
+
 #define gen_pand_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_pand_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_vpand_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
@@ -3325,6 +3330,26 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     case 0xd4 | M_0F | P_66:           gen_padd_xmm(env, s, modrm, MO_64); return;
     case 0xd4 | M_0F | P_66 | VEX_128: gen_vpadd_xmm(env, s, modrm, MO_64); return;
     case 0xd4 | M_0F | P_66 | VEX_256: gen_vpadd_ymm(env, s, modrm, MO_64); return;
+
+    case 0xf8 | M_0F:                  gen_psub_mm(env, s, modrm, MO_8); return;
+    case 0xf8 | M_0F | P_66:           gen_psub_xmm(env, s, modrm, MO_8); return;
+    case 0xf8 | M_0F | P_66 | VEX_128: gen_vpsub_xmm(env, s, modrm, MO_8); return;
+    case 0xf8 | M_0F | P_66 | VEX_256: gen_vpsub_ymm(env, s, modrm, MO_8); return;
+
+    case 0xf9 | M_0F:                  gen_psub_mm(env, s, modrm, MO_16); return;
+    case 0xf9 | M_0F | P_66:           gen_psub_xmm(env, s, modrm, MO_16); return;
+    case 0xf9 | M_0F | P_66 | VEX_128: gen_vpsub_xmm(env, s, modrm, MO_16); return;
+    case 0xf9 | M_0F | P_66 | VEX_256: gen_vpsub_ymm(env, s, modrm, MO_16); return;
+
+    case 0xfa | M_0F:                  gen_psub_mm(env, s, modrm, MO_32); return;
+    case 0xfa | M_0F | P_66:           gen_psub_xmm(env, s, modrm, MO_32); return;
+    case 0xfa | M_0F | P_66 | VEX_128: gen_vpsub_xmm(env, s, modrm, MO_32); return;
+    case 0xfa | M_0F | P_66 | VEX_256: gen_vpsub_ymm(env, s, modrm, MO_32); return;
+
+    case 0xfb | M_0F:                  gen_psub_mm(env, s, modrm, MO_64); return;
+    case 0xfb | M_0F | P_66:           gen_psub_xmm(env, s, modrm, MO_64); return;
+    case 0xfb | M_0F | P_66 | VEX_128: gen_vpsub_xmm(env, s, modrm, MO_64); return;
+    case 0xfb | M_0F | P_66 | VEX_256: gen_vpsub_ymm(env, s, modrm, MO_64); return;
 
     case 0xdb | M_0F:                  gen_pand_mm(env, s, modrm); return;
     case 0xdb | M_0F | P_66:           gen_pand_xmm(env, s, modrm); return;
