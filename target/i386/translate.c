@@ -3087,6 +3087,83 @@ static inline void gen_ld_modrm_VxHxWx(CPUX86State *env, DisasContext *s, int mo
     *aofs = offsetof(CPUX86State, xmm_regs[s->vex_v]);
 }
 
+typedef void (*gen_ld_modrm_2_fp_t)(CPUX86State *env, DisasContext *s, int modrm,
+                                    uint32_t *dofs, uint32_t *aofs);
+typedef void (*gen_ld_modrm_3_fp_t)(CPUX86State *env, DisasContext *s, int modrm,
+                                    uint32_t *dofs, uint32_t *aofs, uint32_t *bofs);
+typedef void (*gen_gvec_2_fp_t)(unsigned vece, uint32_t dofs, uint32_t aofs,
+                                uint32_t bofs, uint32_t oprsz, uint32_t maxsz);
+
+static inline void gen_gvec_ld_modrm_2(CPUX86State *env, DisasContext *s,
+                                       int modrm, unsigned vece,
+                                       uint32_t oprsz, uint32_t maxsz,
+                                       gen_ld_modrm_2_fp_t gen_ld_modrm_2_fp,
+                                       gen_gvec_2_fp_t gen_gvec_2_fp,
+                                       int opctl)
+{
+    uint32_t ofss[2];
+
+    const int opd = ((opctl >> 6) & 7) - 1;
+    const int opa = ((opctl >> 3) & 7) - 1;
+    const int opb = ((opctl >> 0) & 7) - 1;
+
+    assert(0 <= opd && opd < 2);
+    assert(0 <= opa && opa < 2);
+    assert(0 <= opb && opb < 2);
+
+    (*gen_ld_modrm_2_fp)(env, s, modrm, &ofss[0], &ofss[1]);
+    (*gen_gvec_2_fp)(vece, ofss[opd], ofss[opa], ofss[opb], oprsz, maxsz);
+}
+
+static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
+                                       int modrm, unsigned vece,
+                                       uint32_t oprsz, uint32_t maxsz,
+                                       gen_ld_modrm_3_fp_t gen_ld_modrm_3_fp,
+                                       gen_gvec_2_fp_t gen_gvec_2_fp,
+                                       int opctl)
+{
+    uint32_t ofss[3];
+
+    const int opd = ((opctl >> 6) & 7) - 1;
+    const int opa = ((opctl >> 3) & 7) - 1;
+    const int opb = ((opctl >> 0) & 7) - 1;
+
+    assert(0 <= opd && opd < 3);
+    assert(0 <= opa && opa < 3);
+    assert(0 <= opb && opb < 3);
+
+    (*gen_ld_modrm_3_fp)(env, s, modrm, &ofss[0], &ofss[1], &ofss[2]);
+    (*gen_gvec_2_fp)(vece, ofss[opd], ofss[opa], ofss[opb], oprsz, maxsz);
+}
+
+#define gen_gvec_ld_modrm_mm(env, s, modrm, vece,                       \
+                             gen_gvec_2_fp, opctl)                      \
+    gen_gvec_ld_modrm_2((env), (s), (modrm), (vece),                    \
+                        sizeof(MMXReg), sizeof(MMXReg),                 \
+                        gen_ld_modrm_PqQq,                              \
+                        gen_gvec_2_fp, (opctl))
+
+#define gen_gvec_ld_modrm_xmm(env, s, modrm, vece,                      \
+                              gen_gvec_2_fp, opctl)                     \
+    gen_gvec_ld_modrm_2((env), (s), (modrm), (vece),                    \
+                        sizeof(XMMReg), sizeof(XMMReg),                 \
+                        gen_ld_modrm_VxWx,                              \
+                        gen_gvec_2_fp, (opctl))
+
+#define gen_gvec_ld_modrm_vxmm(env, s, modrm, vece,                     \
+                               gen_gvec_2_fp, opctl)                    \
+    gen_gvec_ld_modrm_3((env), (s), (modrm), (vece),                    \
+                        sizeof(XMMReg), sizeof(ZMMReg),                 \
+                        gen_ld_modrm_VxHxWx,                            \
+                        gen_gvec_2_fp, (opctl))
+
+#define gen_gvec_ld_modrm_vymm(env, s, modrm, vece,                     \
+                               gen_gvec_2_fp, opctl)                    \
+    gen_gvec_ld_modrm_3((env), (s), (modrm), (vece),                    \
+                        sizeof(YMMReg), sizeof(ZMMReg),                 \
+                        gen_ld_modrm_VxHxWx,                            \
+                        gen_gvec_2_fp, (opctl))
+
 static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 {
     int b1, op1_offset, op2_offset, is_xmm, val;
