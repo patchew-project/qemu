@@ -2783,9 +2783,9 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x61] = MMX_OP2(punpcklwd),
     [0x62] = MMX_OP2(punpckldq),
     [0x63] = MMX_OP2(packsswb),
-    [0x64] = MMX_OP2(pcmpgtb),
-    [0x65] = MMX_OP2(pcmpgtw),
-    [0x66] = MMX_OP2(pcmpgtl),
+    [0x64] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0x65] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0x66] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0x67] = MMX_OP2(packuswb),
     [0x68] = MMX_OP2(punpckhbw),
     [0x69] = MMX_OP2(punpckhwd),
@@ -2802,9 +2802,9 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x71] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftw */
     [0x72] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftd */
     [0x73] = { SSE_SPECIAL, SSE_SPECIAL }, /* shiftq */
-    [0x74] = MMX_OP2(pcmpeqb),
-    [0x75] = MMX_OP2(pcmpeqw),
-    [0x76] = MMX_OP2(pcmpeql),
+    [0x74] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0x75] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0x76] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0x77] = { SSE_DUMMY }, /* emms */
     [0x78] = { NULL, SSE_SPECIAL, NULL, SSE_SPECIAL }, /* extrq_i, insertq_i */
     [0x79] = { NULL, gen_helper_extrq_r, NULL, gen_helper_insertq_r },
@@ -3216,6 +3216,30 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
 #define gen_vpmaxu_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_umax, 0123)
 #define gen_vpmaxu_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_umax, 0123)
 
+static inline void gen_gvec_cmpeq(unsigned vece, uint32_t dofs,
+                                  uint32_t aofs, uint32_t bofs,
+                                  uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_cmp(TCG_COND_EQ, vece, dofs, aofs, bofs, oprsz, maxsz);
+}
+
+#define gen_pcmpeq_mm(env, s, modrm, vece)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), (vece), gen_gvec_cmpeq, 0112)
+#define gen_pcmpeq_xmm(env, s, modrm, vece)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), (vece), gen_gvec_cmpeq, 0112)
+#define gen_vpcmpeq_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), gen_gvec_cmpeq, 0123)
+#define gen_vpcmpeq_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), gen_gvec_cmpeq, 0123)
+
+static inline void gen_gvec_cmpgt(unsigned vece, uint32_t dofs,
+                                  uint32_t aofs, uint32_t bofs,
+                                  uint32_t oprsz, uint32_t maxsz)
+{
+    tcg_gen_gvec_cmp(TCG_COND_GT, vece, dofs, aofs, bofs, oprsz, maxsz);
+}
+
+#define gen_pcmpgt_mm(env, s, modrm, vece)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), (vece), gen_gvec_cmpgt, 0112)
+#define gen_pcmpgt_xmm(env, s, modrm, vece)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), (vece), gen_gvec_cmpgt, 0112)
+#define gen_vpcmpgt_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), gen_gvec_cmpgt, 0123)
+#define gen_vpcmpgt_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), gen_gvec_cmpgt, 0123)
+
 #define gen_pand_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_pand_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_vpand_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
@@ -3450,6 +3474,36 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     case 0xee | M_0F | P_66:           gen_pmaxs_xmm(env, s, modrm, MO_16); return;
     case 0xee | M_0F | P_66 | VEX_128: gen_vpmaxs_xmm(env, s, modrm, MO_16); return;
     case 0xee | M_0F | P_66 | VEX_256: gen_vpmaxs_ymm(env, s, modrm, MO_16); return;
+
+    case 0x64 | M_0F:                  gen_pcmpgt_mm(env, s, modrm, MO_8); return;
+    case 0x64 | M_0F | P_66:           gen_pcmpgt_xmm(env, s, modrm, MO_8); return;
+    case 0x64 | M_0F | P_66 | VEX_128: gen_vpcmpgt_xmm(env, s, modrm, MO_8); return;
+    case 0x64 | M_0F | P_66 | VEX_256: gen_vpcmpgt_ymm(env, s, modrm, MO_8); return;
+
+    case 0x65 | M_0F:                  gen_pcmpgt_mm(env, s, modrm, MO_16); return;
+    case 0x65 | M_0F | P_66:           gen_pcmpgt_xmm(env, s, modrm, MO_16); return;
+    case 0x65 | M_0F | P_66 | VEX_128: gen_vpcmpgt_xmm(env, s, modrm, MO_16); return;
+    case 0x65 | M_0F | P_66 | VEX_256: gen_vpcmpgt_ymm(env, s, modrm, MO_16); return;
+
+    case 0x66 | M_0F:                  gen_pcmpgt_mm(env, s, modrm, MO_32); return;
+    case 0x66 | M_0F | P_66:           gen_pcmpgt_xmm(env, s, modrm, MO_32); return;
+    case 0x66 | M_0F | P_66 | VEX_128: gen_vpcmpgt_xmm(env, s, modrm, MO_32); return;
+    case 0x66 | M_0F | P_66 | VEX_256: gen_vpcmpgt_ymm(env, s, modrm, MO_32); return;
+
+    case 0x74 | M_0F:                  gen_pcmpeq_mm(env, s, modrm, MO_8); return;
+    case 0x74 | M_0F | P_66:           gen_pcmpeq_xmm(env, s, modrm, MO_8); return;
+    case 0x74 | M_0F | P_66 | VEX_128: gen_vpcmpeq_xmm(env, s, modrm, MO_8); return;
+    case 0x74 | M_0F | P_66 | VEX_256: gen_vpcmpeq_ymm(env, s, modrm, MO_8); return;
+
+    case 0x75 | M_0F:                  gen_pcmpeq_mm(env, s, modrm, MO_16); return;
+    case 0x75 | M_0F | P_66:           gen_pcmpeq_xmm(env, s, modrm, MO_16); return;
+    case 0x75 | M_0F | P_66 | VEX_128: gen_vpcmpeq_xmm(env, s, modrm, MO_16); return;
+    case 0x75 | M_0F | P_66 | VEX_256: gen_vpcmpeq_ymm(env, s, modrm, MO_16); return;
+
+    case 0x76 | M_0F:                  gen_pcmpeq_mm(env, s, modrm, MO_32); return;
+    case 0x76 | M_0F | P_66:           gen_pcmpeq_xmm(env, s, modrm, MO_32); return;
+    case 0x76 | M_0F | P_66 | VEX_128: gen_vpcmpeq_xmm(env, s, modrm, MO_32); return;
+    case 0x76 | M_0F | P_66 | VEX_256: gen_vpcmpeq_ymm(env, s, modrm, MO_32); return;
 
     case 0xdb | M_0F:                  gen_pand_mm(env, s, modrm); return;
     case 0xdb | M_0F | P_66:           gen_pand_xmm(env, s, modrm); return;
