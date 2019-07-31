@@ -128,6 +128,19 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         numa_info[nodenr].node_mem = object_property_get_uint(o, "size", NULL);
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
+
+    if (node->has_initiator) {
+        if (numa_info[nodenr].initiator_valid &&
+            (node->initiator != numa_info[nodenr].initiator)) {
+            error_setg(errp, "The initiator of NUMA node %" PRIu16 " has been "
+                       "set to node %" PRIu16, nodenr,
+                       numa_info[nodenr].initiator);
+            return;
+        }
+
+        numa_info[nodenr].initiator_valid = true;
+        numa_info[nodenr].initiator = node->initiator;
+    }
     numa_info[nodenr].present = true;
     max_numa_nodeid = MAX(max_numa_nodeid, nodenr + 1);
     ms->numa_state->num_nodes++;
