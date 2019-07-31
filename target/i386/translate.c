@@ -2822,8 +2822,8 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xd5] = MMX_OP2(pmullw),
     [0xd6] = { NULL, SSE_SPECIAL, SSE_SPECIAL, SSE_SPECIAL },
     [0xd7] = { SSE_SPECIAL, SSE_SPECIAL }, /* pmovmskb */
-    [0xd8] = MMX_OP2(psubusb),
-    [0xd9] = MMX_OP2(psubusw),
+    [0xd8] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
+    [0xd9] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xda] = MMX_OP2(pminub),
     [0xdb] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xdc] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
@@ -3191,6 +3191,11 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
 #define gen_vpsubs_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_sssub, 0123)
 #define gen_vpsubs_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_sssub, 0123)
 
+#define gen_psubus_mm(env, s, modrm, vece)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), (vece), tcg_gen_gvec_ussub, 0112)
+#define gen_psubus_xmm(env, s, modrm, vece)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), (vece), tcg_gen_gvec_ussub, 0112)
+#define gen_vpsubus_xmm(env, s, modrm, vece) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), (vece), tcg_gen_gvec_ussub, 0123)
+#define gen_vpsubus_ymm(env, s, modrm, vece) gen_gvec_ld_modrm_vymm((env), (s), (modrm), (vece), tcg_gen_gvec_ussub, 0123)
+
 #define gen_pand_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_pand_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0112)
 #define gen_vpand_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_and, 0123)
@@ -3385,6 +3390,16 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     case 0xfb | M_0F | P_66:           gen_psub_xmm(env, s, modrm, MO_64); return;
     case 0xfb | M_0F | P_66 | VEX_128: gen_vpsub_xmm(env, s, modrm, MO_64); return;
     case 0xfb | M_0F | P_66 | VEX_256: gen_vpsub_ymm(env, s, modrm, MO_64); return;
+
+    case 0xd8 | M_0F:                  gen_psubus_mm(env, s, modrm, MO_8); return;
+    case 0xd8 | M_0F | P_66:           gen_psubus_xmm(env, s, modrm, MO_8); return;
+    case 0xd8 | M_0F | P_66 | VEX_128: gen_vpsubus_xmm(env, s, modrm, MO_8); return;
+    case 0xd8 | M_0F | P_66 | VEX_256: gen_vpsubus_ymm(env, s, modrm, MO_8); return;
+
+    case 0xd9 | M_0F:                  gen_psubus_mm(env, s, modrm, MO_16); return;
+    case 0xd9 | M_0F | P_66:           gen_psubus_xmm(env, s, modrm, MO_16); return;
+    case 0xd9 | M_0F | P_66 | VEX_128: gen_vpsubus_xmm(env, s, modrm, MO_16); return;
+    case 0xd9 | M_0F | P_66 | VEX_256: gen_vpsubus_ymm(env, s, modrm, MO_16); return;
 
     case 0xe8 | M_0F:                  gen_psubs_mm(env, s, modrm, MO_8); return;
     case 0xe8 | M_0F | P_66:           gen_psubs_xmm(env, s, modrm, MO_8); return;

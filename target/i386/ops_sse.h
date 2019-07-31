@@ -337,8 +337,6 @@ static inline int satsw(int x)
     }
 }
 
-#define FSUBUB(a, b) satub((a) - (b))
-#define FSUBUW(a, b) satuw((a) - (b))
 #define FMINUB(a, b) ((a) < (b)) ? (a) : (b)
 #define FMINSW(a, b) ((int16_t)(a) < (int16_t)(b)) ? (a) : (b)
 #define FMAXUB(a, b) ((a) > (b)) ? (a) : (b)
@@ -356,10 +354,6 @@ static inline int satsw(int x)
 
 #define FAVG(a, b) (((a) + (b) + 1) >> 1)
 #endif
-
-SSE_HELPER_B(helper_psubusb, FSUBUB)
-
-SSE_HELPER_W(helper_psubusw, FSUBUW)
 
 SSE_HELPER_B(helper_pminub, FMINUB)
 SSE_HELPER_B(helper_pmaxub, FMAXUB)
