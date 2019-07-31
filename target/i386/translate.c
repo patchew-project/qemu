@@ -3040,6 +3040,53 @@ static const struct SSEOpHelper_eppi sse_op_table7[256] = {
     [0xdf] = AESNI_OP(aeskeygenassist),
 };
 
+static inline void gen_ld_modrm_PqQq(CPUX86State *env, DisasContext *s, int modrm,
+                                     uint32_t* dofs, uint32_t* aofs)
+{
+    const int mod = (modrm >> 6) & 3;
+    const int reg = (modrm >> 3) & 7; /* no REX_R */
+    *dofs = offsetof(CPUX86State, fpregs[reg].mmx);
+
+    if(mod == 3) {
+        const int rm = modrm & 7; /* no REX_B */
+
+        *aofs = offsetof(CPUX86State, fpregs[rm].mmx);
+    } else {
+        *aofs = offsetof(CPUX86State, mmx_t0);
+
+        gen_lea_modrm(env, s, modrm);
+        gen_ldq_env_A0(s, *aofs);
+    }
+}
+
+static inline void gen_ld_modrm_VxWx(CPUX86State *env, DisasContext *s, int modrm,
+                                     uint32_t* dofs, uint32_t* aofs)
+{
+    const int mod = (modrm >> 6) & 3;
+    const int reg = ((modrm >> 3) & 7) | REX_R(s);
+    *dofs = offsetof(CPUX86State, xmm_regs[reg]);
+
+    if(mod == 3) {
+        const int rm = (modrm & 7) | REX_B(s);
+
+        *aofs = offsetof(CPUX86State, xmm_regs[rm]);
+    } else {
+        *aofs = offsetof(CPUX86State, xmm_t0);
+
+        gen_lea_modrm(env, s, modrm);
+        gen_ldo_env_A0(s, *aofs); /* FIXME this needs to load 32 bytes for YMM */
+    }
+}
+
+static inline void gen_ld_modrm_VxHxWx(CPUX86State *env, DisasContext *s, int modrm,
+                                       uint32_t* dofs, uint32_t* aofs, uint32_t* bofs)
+{
+    assert(s->prefix & PREFIX_VEX);
+
+    gen_ld_modrm_VxWx(env, s, modrm, dofs, bofs);
+    *aofs = offsetof(CPUX86State, xmm_regs[s->vex_v]);
+}
+
 static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 {
     int b1, op1_offset, op2_offset, is_xmm, val;
