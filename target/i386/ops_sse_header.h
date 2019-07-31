@@ -61,10 +61,8 @@ DEF_HELPER_3(glue(pslldq, SUFFIX), void, env, Reg, Reg)
     DEF_HELPER_3(glue(name, SUFFIX), void, env, Reg, Reg)
 
 SSE_HELPER_B(psubusb, FSUBUB)
-SSE_HELPER_B(psubsb, FSUBSB)
 
 SSE_HELPER_W(psubusw, FSUBUW)
-SSE_HELPER_W(psubsw, FSUBSW)
 
 SSE_HELPER_B(pminub, FMINUB)
 SSE_HELPER_B(pmaxub, FMAXUB)
