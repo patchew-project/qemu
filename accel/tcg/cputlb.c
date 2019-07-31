@@ -881,7 +881,7 @@ static void tlb_fill(CPUState *cpu, target_ulong addr, int size,
 
 static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                          int mmu_idx, target_ulong addr, uintptr_t retaddr,
-                         MMUAccessType access_type, int size)
+                         TCGMemOp mo, MMUAccessType access_type, int size)
 {
     CPUState *cpu = env_cpu(env);
     hwaddr mr_offset;
@@ -925,7 +925,7 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
 
 static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                       int mmu_idx, uint64_t val, target_ulong addr,
-                      uintptr_t retaddr, int size)
+                      uintptr_t retaddr, TCGMemOp mo, int size)
 {
     CPUState *cpu = env_cpu(env);
     hwaddr mr_offset;
@@ -1264,7 +1264,8 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         offsetof(CPUTLBEntry, addr_code) : offsetof(CPUTLBEntry, addr_read);
     const MMUAccessType access_type =
         code_read ? MMU_INST_FETCH : MMU_DATA_LOAD;
-    unsigned a_bits = get_alignment_bits(get_memop(oi));
+    TCGMemOp mo = get_memop(oi);
+    unsigned a_bits = get_alignment_bits(mo);
     void *haddr;
     uint64_t res;
 
@@ -1313,7 +1314,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
         }
 
         res = io_readx(env, &env_tlb(env)->d[mmu_idx].iotlb[index],
-                       mmu_idx, addr, retaddr, access_type, size);
+                       mmu_idx, addr, retaddr, mo, access_type, size);
         return handle_bswap(res, size, big_endian);
     }
 
@@ -1513,7 +1514,8 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
     target_ulong tlb_addr = tlb_addr_write(entry);
     const size_t tlb_off = offsetof(CPUTLBEntry, addr_write);
-    unsigned a_bits = get_alignment_bits(get_memop(oi));
+    TCGMemOp mo = get_memop(oi);
+    unsigned a_bits = get_alignment_bits(mo);
     void *haddr;
 
     /* Handle CPU specific unaligned behaviour */
@@ -1562,7 +1564,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
 
         io_writex(env, &env_tlb(env)->d[mmu_idx].iotlb[index], mmu_idx,
                   handle_bswap(val, size, big_endian),
-                  addr, retaddr, size);
+                  addr, retaddr, mo, size);
         return;
     }
 
