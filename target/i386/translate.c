@@ -2758,7 +2758,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x53] = { gen_helper_rcpps, NULL, gen_helper_rcpss, NULL },
     [0x54] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* andps, andpd */
     [0x55] = { gen_helper_pandn_xmm, gen_helper_pandn_xmm }, /* andnps, andnpd */
-    [0x56] = { gen_helper_por_xmm, gen_helper_por_xmm }, /* orps, orpd */
+    [0x56] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* orps, orpd */
     [0x57] = { gen_helper_pxor_xmm, gen_helper_pxor_xmm }, /* xorps, xorpd */
     [0x58] = SSE_FOP(add),
     [0x59] = SSE_FOP(mul),
@@ -2841,7 +2841,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xe8] = MMX_OP2(psubsb),
     [0xe9] = MMX_OP2(psubsw),
     [0xea] = MMX_OP2(pminsw),
-    [0xeb] = MMX_OP2(por),
+    [0xeb] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xec] = MMX_OP2(paddsb),
     [0xed] = MMX_OP2(paddsw),
     [0xee] = MMX_OP2(pmaxsw),
@@ -3177,6 +3177,17 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
 #define gen_vandpd_xmm gen_vpand_xmm
 #define gen_vandpd_ymm gen_vpand_ymm
 
+#define gen_por_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0112)
+#define gen_por_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0112)
+#define gen_vpor_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0123)
+#define gen_vpor_ymm(env, s, modrm) gen_gvec_ld_modrm_vymm((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0123)
+#define gen_orps_xmm  gen_por_xmm
+#define gen_vorps_xmm gen_vpor_xmm
+#define gen_vorps_ymm gen_vpor_ymm
+#define gen_orpd_xmm  gen_por_xmm
+#define gen_vorpd_xmm gen_vpor_xmm
+#define gen_vorpd_ymm gen_vpor_ymm
+
 static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 {
     int b1, op1_offset, op2_offset, is_xmm, val;
@@ -3278,6 +3289,18 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     case 0x54 | M_0F | P_66:           gen_andpd_xmm(env, s, modrm); return;
     case 0x54 | M_0F | P_66 | VEX_128: gen_vandpd_xmm(env, s, modrm); return;
     case 0x54 | M_0F | P_66 | VEX_256: gen_vandpd_ymm(env, s, modrm); return;
+
+    case 0xeb | M_0F:                  gen_por_mm(env, s, modrm); return;
+    case 0xeb | M_0F | P_66:           gen_por_xmm(env, s, modrm); return;
+    case 0xeb | M_0F | P_66 | VEX_128: gen_vpor_xmm(env, s, modrm); return;
+    case 0xeb | M_0F | P_66 | VEX_256: gen_vpor_ymm(env, s, modrm); return;
+    case 0x56 | M_0F:                  gen_orps_xmm(env, s, modrm); return;
+    case 0x56 | M_0F | VEX_128:        gen_vorps_xmm(env, s, modrm); return;
+    case 0x56 | M_0F | VEX_256:        gen_vorps_ymm(env, s, modrm); return;
+    case 0x56 | M_0F | P_66:           gen_orpd_xmm(env, s, modrm); return;
+    case 0x56 | M_0F | P_66 | VEX_128: gen_vorpd_xmm(env, s, modrm); return;
+    case 0x56 | M_0F | P_66 | VEX_256: gen_vorpd_ymm(env, s, modrm); return;
+
     default: break;
     }
 
