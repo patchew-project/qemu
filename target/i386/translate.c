@@ -2757,7 +2757,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0x52] = { gen_helper_rsqrtps, NULL, gen_helper_rsqrtss, NULL },
     [0x53] = { gen_helper_rcpps, NULL, gen_helper_rcpss, NULL },
     [0x54] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* andps, andpd */
-    [0x55] = { gen_helper_pandn_xmm, gen_helper_pandn_xmm }, /* andnps, andnpd */
+    [0x55] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* andnps, andnpd */
     [0x56] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* orps, orpd */
     [0x57] = { SSE_TOMBSTONE, SSE_TOMBSTONE }, /* xorps, xorpd */
     [0x58] = SSE_FOP(add),
@@ -2829,7 +2829,7 @@ static const SSEFunc_0_epp sse_op_table1[256][4] = {
     [0xdc] = MMX_OP2(paddusb),
     [0xdd] = MMX_OP2(paddusw),
     [0xde] = MMX_OP2(pmaxub),
-    [0xdf] = MMX_OP2(pandn),
+    [0xdf] = { SSE_TOMBSTONE, SSE_TOMBSTONE },
     [0xe0] = MMX_OP2(pavgb),
     [0xe1] = MMX_OP2(psraw),
     [0xe2] = MMX_OP2(psrad),
@@ -3177,6 +3177,17 @@ static inline void gen_gvec_ld_modrm_3(CPUX86State *env, DisasContext *s,
 #define gen_vandpd_xmm gen_vpand_xmm
 #define gen_vandpd_ymm gen_vpand_ymm
 
+#define gen_pandn_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_andc, 0121)
+#define gen_pandn_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_andc, 0121)
+#define gen_vpandn_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_andc, 0132)
+#define gen_vpandn_ymm(env, s, modrm) gen_gvec_ld_modrm_vymm((env), (s), (modrm), MO_64, tcg_gen_gvec_andc, 0132)
+#define gen_andnps_xmm  gen_pandn_xmm
+#define gen_vandnps_xmm gen_vpandn_xmm
+#define gen_vandnps_ymm gen_vpandn_ymm
+#define gen_andnpd_xmm  gen_pandn_xmm
+#define gen_vandnpd_xmm gen_vpandn_xmm
+#define gen_vandnpd_ymm gen_vpandn_ymm
+
 #define gen_por_mm(env, s, modrm)   gen_gvec_ld_modrm_mm  ((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0112)
 #define gen_por_xmm(env, s, modrm)  gen_gvec_ld_modrm_xmm ((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0112)
 #define gen_vpor_xmm(env, s, modrm) gen_gvec_ld_modrm_vxmm((env), (s), (modrm), MO_64, tcg_gen_gvec_or, 0123)
@@ -3300,6 +3311,17 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     case 0x54 | M_0F | P_66:           gen_andpd_xmm(env, s, modrm); return;
     case 0x54 | M_0F | P_66 | VEX_128: gen_vandpd_xmm(env, s, modrm); return;
     case 0x54 | M_0F | P_66 | VEX_256: gen_vandpd_ymm(env, s, modrm); return;
+
+    case 0xdf | M_0F:                  gen_pandn_mm(env, s, modrm); return;
+    case 0xdf | M_0F | P_66:           gen_pandn_xmm(env, s, modrm); return;
+    case 0xdf | M_0F | P_66 | VEX_128: gen_vpandn_xmm(env, s, modrm); return;
+    case 0xdf | M_0F | P_66 | VEX_256: gen_vpandn_ymm(env, s, modrm); return;
+    case 0x55 | M_0F:                  gen_andnps_xmm(env, s, modrm); return;
+    case 0x55 | M_0F | VEX_128:        gen_vandnps_xmm(env, s, modrm); return;
+    case 0x55 | M_0F | VEX_256:        gen_vandnps_ymm(env, s, modrm); return;
+    case 0x55 | M_0F | P_66:           gen_andnpd_xmm(env, s, modrm); return;
+    case 0x55 | M_0F | P_66 | VEX_128: gen_vandnpd_xmm(env, s, modrm); return;
+    case 0x55 | M_0F | P_66 | VEX_256: gen_vandnpd_ymm(env, s, modrm); return;
 
     case 0xeb | M_0F:                  gen_por_mm(env, s, modrm); return;
     case 0xeb | M_0F | P_66:           gen_por_xmm(env, s, modrm); return;
