@@ -11257,21 +11257,29 @@ int fp_exception_el(CPUARMState *env, int cur_el)
 
 ARMMMUIdx core_to_arm_mmu_idx(CPUARMState *env, int mmu_idx)
 {
+    bool e2h;
+
     if (arm_feature(env, ARM_FEATURE_M)) {
         return mmu_idx | ARM_MMU_IDX_M;
     }
 
     mmu_idx |= ARM_MMU_IDX_A;
+    if (mmu_idx & ARM_MMU_IDX_S) {
+        return mmu_idx;
+    }
+
+    e2h = (env->cp15.hcr_el2 & HCR_E2H) != 0;
+    if (!arm_el_is_aa64(env, 2)) {
+        e2h = false;
+    }
+
     switch (mmu_idx) {
     case 0 | ARM_MMU_IDX_A:
-        return ARMMMUIdx_EL10_0;
+        return e2h ? ARMMMUIdx_EL20_0 : ARMMMUIdx_EL10_0;
     case 1 | ARM_MMU_IDX_A:
         return ARMMMUIdx_EL10_1;
     case ARMMMUIdx_E2:
-    case ARMMMUIdx_SE0:
-    case ARMMMUIdx_SE1:
-    case ARMMMUIdx_SE3:
-        return mmu_idx;
+        return e2h ? ARMMMUIdx_EL20_2 : ARMMMUIdx_E2;
     default:
         g_assert_not_reached();
     }
@@ -11299,24 +11307,28 @@ ARMMMUIdx arm_v7m_mmu_idx_for_secstate(CPUARMState *env, bool secstate)
 
 ARMMMUIdx arm_mmu_idx(CPUARMState *env)
 {
+    bool e2h, sec;
     int el;
 
     if (arm_feature(env, ARM_FEATURE_M)) {
         return arm_v7m_mmu_idx_for_secstate(env, env->v7m.secure);
     }
 
+    sec = arm_is_secure_below_el3(env);
+    e2h = (env->cp15.hcr_el2 & HCR_E2H) != 0;
+    if (!arm_el_is_aa64(env, 2)) {
+        e2h = false;
+    }
+
     el = arm_current_el(env);
     switch (el) {
     case 0:
-        /* TODO: ARMv8.1-VHE */
+        return sec ? ARMMMUIdx_SE0 : e2h ? ARMMMUIdx_EL20_0 : ARMMMUIdx_EL10_0;
     case 1:
-        return (arm_is_secure_below_el3(env)
-                ? ARMMMUIdx_SE0 + el
-                : ARMMMUIdx_EL10_0 + el);
+        return sec ? ARMMMUIdx_SE1 : ARMMMUIdx_EL10_1;
     case 2:
-        /* TODO: ARMv8.1-VHE */
         /* TODO: ARMv8.4-SecEL2 */
-        return ARMMMUIdx_E2;
+        return e2h ? ARMMMUIdx_EL20_2 : ARMMMUIdx_E2;
     case 3:
         return ARMMMUIdx_SE3;
     default:
@@ -11427,6 +11439,14 @@ void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     }
 
     flags = FIELD_DP32(flags, TBFLAG_ANY, MMUIDX, arm_to_core_mmu_idx(mmu_idx));
+
+    /*
+     * Include E2H in TBFLAGS so that core_to_arm_mmu_idx can
+     * reliably determine E1&0 vs E2&0 regimes.
+     */
+    if (arm_el_is_aa64(env, 2) && (env->cp15.hcr_el2 & HCR_E2H)) {
+        flags = FIELD_DP32(flags, TBFLAG_ANY, E2H, 1);
+    }
 
     /* The SS_ACTIVE and PSTATE_SS bits correspond to the state machine
      * states defined in the ARM ARM for software singlestep:
