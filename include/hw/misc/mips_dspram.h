@@ -1,7 +1,7 @@
 /*
- * Coherent Processing System emulation.
+ * Data Scratch Pad RAM
  *
- * Copyright (c) 2016 Imagination Technologies
+ * Copyright (c) 2017 Imagination Technologies
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,34 +17,30 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MIPS_CPS_H
-#define MIPS_CPS_H
+#ifndef MIPS_DSPRAM_H
+#define MIPS_DSPRAM_H
 
 #include "hw/sysbus.h"
-#include "hw/misc/mips_cmgcr.h"
-#include "hw/intc/mips_gic.h"
-#include "hw/misc/mips_cpc.h"
-#include "hw/misc/mips_itu.h"
-#include "hw/misc/mips_dspram.h"
 
-#define TYPE_MIPS_CPS "mips-cps"
-#define MIPS_CPS(obj) OBJECT_CHECK(MIPSCPSState, (obj), TYPE_MIPS_CPS)
+#define TYPE_MIPS_DSPRAM "mips-dspram"
+#define MIPS_DSPRAM(obj) OBJECT_CHECK(MIPSDSPRAMState, (obj), TYPE_MIPS_DSPRAM)
 
-typedef struct MIPSCPSState {
+typedef struct MIPSDSPRAMState {
+    /*< private >*/
     SysBusDevice parent_obj;
+    /*< public >*/
 
-    uint32_t num_vp;
-    uint32_t num_irq;
-    char *cpu_type;
+    /* 2 ^ SIZE */
+    uint64_t size;
 
-    MemoryRegion container;
-    MIPSGCRState gcr;
-    MIPSGICState gic;
-    MIPSCPCState cpc;
-    MIPSITUState itu;
-    MIPSDSPRAMState dspram;
-} MIPSCPSState;
+    MemoryRegion mr;
 
-qemu_irq get_cps_irq(MIPSCPSState *cps, int pin_number);
+    /* SAAR */
+    bool saar_present;
+    void *saar;
 
-#endif
+    /* ramblock */
+    uint8_t *ramblock;
+} MIPSDSPRAMState;
+
+#endif /* MIPS_DSPRAM_H */
