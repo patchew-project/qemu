@@ -71,6 +71,7 @@ luring_co_submit(void *bs, void *s, void *luringcb, int fd, uint64_t offset, siz
 luring_process_completion(void *s, void *aiocb, int ret) "LuringState %p luringcb %p ret %d"
 luring_io_uring_submit(void *s, int ret) "LuringState %p ret %d"
 luring_resubmit_short_read(void *s, void *luringcb, int nread) "LuringState %p luringcb %p nread %d"
+luring_fd_register(int fd, int index) "fd %d index %d"
 
 # qcow2.c
 qcow2_writev_start_req(void *co, int64_t offset, int bytes) "co %p offset 0x%" PRIx64 " bytes %d"
