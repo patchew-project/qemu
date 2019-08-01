@@ -23,6 +23,7 @@
 import iotests
 from iotests import imgfmt
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['vdi'])
 iotests.verify_protocol(supported=['file'])
 

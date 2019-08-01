@@ -22,6 +22,7 @@
 
 import iotests
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['generic'])
 
 with iotests.FilePath('disk.img') as disk_img_path, \

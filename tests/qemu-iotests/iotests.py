@@ -858,10 +858,7 @@ def skip_if_unsupported(required_formats=[], read_only=False):
         return func_wrapper
     return skip_test_decorator
 
-def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
-         unsupported_fmts=[]):
-    '''Run tests'''
-
+def init():
     global debug
 
     # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
@@ -873,7 +870,19 @@ def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
         sys.exit(os.EX_USAGE)
 
     debug = '-d' in sys.argv
-    verbosity = 1
+    if debug:
+        sys.argv.remove('-d')
+
+    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
+
+def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
+         unsupported_fmts=[]):
+    '''Run tests'''
+
+    global debug
+
+    init()
+
     verify_image_format(supported_fmts, unsupported_fmts)
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
@@ -881,8 +890,8 @@ def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
     if debug:
         output = sys.stdout
         verbosity = 2
-        sys.argv.remove('-d')
     else:
+        verbosity = 1
         # We need to filter out the time taken from the output so that
         # qemu-iotest can reliably diff the results against master output.
         if sys.version_info.major >= 3:
@@ -891,8 +900,6 @@ def main(supported_fmts=[], supported_oses=['linux'], supported_cache_modes=[],
             # io.StringIO is for unicode strings, which is not what
             # 2.x's test runner emits.
             output = io.BytesIO()
-
-    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
     class MyTestRunner(unittest.TextTestRunner):
         def __init__(self, stream=output, descriptions=True, verbosity=verbosity):

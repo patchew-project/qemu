@@ -24,6 +24,7 @@ import iotests
 import subprocess
 import re
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['raw'])
 iotests.verify_protocol(supported=['ssh'])
 

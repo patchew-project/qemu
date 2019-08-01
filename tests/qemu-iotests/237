@@ -24,6 +24,7 @@ import math
 import iotests
 from iotests import imgfmt
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['vmdk'])
 
 def blockdev_create(vm, options):

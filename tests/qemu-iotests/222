@@ -24,6 +24,7 @@
 import iotests
 from iotests import log, qemu_img, qemu_io, qemu_io_silent
 
+iotests.init()
 iotests.verify_platform(['linux'])
 iotests.verify_image_format(supported_fmts=['qcow2', 'qcow', 'qed', 'vmdk',
                                             'vhdx', 'raw'])

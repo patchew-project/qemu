@@ -23,6 +23,7 @@
 import iotests
 from iotests import imgfmt
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['qcow2'])
 
 def blockdev_create(vm, options):

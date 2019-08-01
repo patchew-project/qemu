@@ -29,6 +29,7 @@
 import iotests
 from iotests import log, qemu_img, qemu_io_silent
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['qcow2', 'raw'])
 
 

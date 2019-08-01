@@ -26,6 +26,8 @@ import os
 iotests.verify_image_format(supported_fmts=['qcow2'])
 iotests.verify_platform(['linux'])
 
+iotests.init()
+
 with iotests.FilePath('img') as img_path, \
      iotests.FilePath('backing') as backing_path, \
      iotests.FilePath('mig_fifo_a') as fifo_a, \

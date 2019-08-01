@@ -24,6 +24,8 @@ import iotests
 from iotests import log, qemu_img, filter_testfiles, filter_imgfmt, \
         filter_qmp_testfiles, filter_qmp_imgfmt
 
+iotests.init()
+
 # Need backing file and change-backing-file support
 iotests.verify_image_format(supported_fmts=['qcow2', 'qed'])
 iotests.verify_platform(['linux'])

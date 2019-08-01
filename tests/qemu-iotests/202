@@ -24,6 +24,7 @@
 
 import iotests
 
+iotests.init()
 iotests.verify_image_format(supported_fmts=['qcow2'])
 iotests.verify_platform(['linux'])
 
