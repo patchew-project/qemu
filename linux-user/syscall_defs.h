@@ -1069,6 +1069,7 @@ struct target_format_descr {
 #define TARGET_HDIO_GET_WCACHE        0x030e  /* get write cache mode on|off */
 #define TARGET_HDIO_GET_ACOUSTIC      0x030f  /* get acoustic value */
 #define TARGET_HDIO_GET_ADDRESS       0x0310  /* get lba addressing modes */
+#define TARGET_HDIO_GET_BUSSTATE      0x031a  /* get hwif bus state */
 #define TARGET_HDIO_DRIVE_CMD         0x031f  /* execute a special drive command */
 
 /* hd/ide ctl's that pass (arg) non-ptr values are numbered 0x032n/0x033n */
@@ -1082,6 +1083,7 @@ struct target_format_descr {
 #define TARGET_HDIO_SET_NICE          0x0329  /* set nice flags */
 #define TARGET_HDIO_SET_WCACHE        0x032b  /* change write cache mode */
 #define TARGET_HDIO_SET_ACOUSTIC      0x032c  /* change acoustic behavior */
+#define TARGET_HDIO_SET_BUSSTATE      0x032d  /* set hwif bus state */
 #define TARGET_HDIO_SET_ADDRESS       0x032f  /* change lba addressing modes */
 
 /* loop ioctls */
