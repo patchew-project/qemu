@@ -288,6 +288,17 @@ static int ioq_submit(LuringState *s)
             *sqes = luringcb->sqeq;
             QSIMPLEQ_REMOVE_HEAD(&s->io_q.submit_queue, next);
         }
+        /*
+         * io_uring_submit() returns sqes in ring for kernel side
+         * submission polling and sets wakeup flag if needed.
+         *
+         * It is not possible for any sqes to have already been
+         * submitted by the sq_poll as the writes are only made visible
+         * to the kernel in this function.
+         *
+         * For normal I/O, it returns the actual submitted requests
+         * from io_uring_enter()
+         */
         ret = io_uring_submit(&s->ring);
         trace_luring_io_uring_submit(s, ret);
         /* Prevent infinite loop if submission is refused */
@@ -525,7 +536,11 @@ LuringState *luring_init(Error **errp)
     s = g_new0(LuringState, 1);
     trace_luring_init_state(s, sizeof(*s));
     struct io_uring *ring = &s->ring;
-    rc = io_uring_queue_init(MAX_EVENTS, ring, 0);
+
+    rc = io_uring_queue_init(MAX_EVENTS, ring, IORING_SETUP_SQPOLL);
+    if (rc == -EOPNOTSUPP) {
+            rc = io_uring_queue_init(MAX_EVENTS, ring, 0);
+    }
     if (rc < 0) {
         error_setg_errno(errp, errno, "failed to init linux io_uring ring");
         g_free(s);
