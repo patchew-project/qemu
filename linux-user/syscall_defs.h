@@ -1067,6 +1067,7 @@ struct target_format_descr {
 #define TARGET_HDIO_GET_NICE          0x030c  /* get nice flags */
 #define TARGET_HDIO_GET_IDENTITY      0x030d  /* get IDE identification info */
 #define TARGET_HDIO_GET_WCACHE        0x030e  /* get write cache mode on|off */
+#define TARGET_HDIO_GET_ACOUSTIC      0x030f  /* get acoustic value */
 #define TARGET_HDIO_DRIVE_CMD         0x031f  /* execute a special drive command */
 
 /* hd/ide ctl's that pass (arg) non-ptr values are numbered 0x032n/0x033n */
@@ -1079,6 +1080,7 @@ struct target_format_descr {
 #define TARGET_HDIO_SET_PIO_MODE      0x0327  /* reconfig interface to new speed */
 #define TARGET_HDIO_SET_NICE          0x0329  /* set nice flags */
 #define TARGET_HDIO_SET_WCACHE        0x032b  /* change write cache mode */
+#define TARGET_HDIO_SET_ACOUSTIC      0x032c  /* change acoustic behavior */
 
 /* loop ioctls */
 #define TARGET_LOOP_SET_FD            0x4C00
