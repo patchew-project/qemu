@@ -570,3 +570,25 @@
 { 'event': 'VSERPORT_CHANGE',
   'data': { 'id': 'str',
             'open': 'bool' } }
+
+##
+# @VSOCK_RUNNING:
+#
+# Emitted when the guest changes the vsock status.
+#
+# @cid: guest context ID
+#
+# @running: true if the vsock is running
+#
+# Since: v4.2
+#
+# Example:
+#
+# <- { "event": "VSOCK_RUNNING",
+#      "data": { "cid": "123456", "running": true },
+#      "timestamp": { "seconds": 1401385907, "microseconds": 422329 } }
+#
+##
+{ 'event': 'VSOCK_RUNNING',
+  'data': { 'cid': 'uint64',
+            'running': 'bool' } }

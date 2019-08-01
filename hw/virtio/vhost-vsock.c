@@ -22,6 +22,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "monitor/monitor.h"
+#include "qapi/qapi-events-char.h"
 
 enum {
     VHOST_VSOCK_SAVEVM_VERSION = 0,
@@ -68,6 +69,8 @@ static int vhost_vsock_set_running(VHostVSock *vsock, int start)
     if (ret < 0) {
         return -errno;
     }
+    qapi_event_send_vsock_running(vsock->conf.guest_cid, start != 0);
+
     return 0;
 }
 
