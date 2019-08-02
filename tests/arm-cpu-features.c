@@ -117,6 +117,17 @@ static QDict *resp_get_props(QDict *resp)
     return qdict;
 }
 
+static bool resp_get_feature(QDict *resp, const char *feature)
+{
+    QDict *props;
+
+    g_assert(resp);
+    g_assert(resp_has_props(resp));
+    props = resp_get_props(resp);
+    g_assert(qdict_get(props, feature));
+    return qdict_get_bool(props, feature);
+}
+
 #define assert_has_feature(qts, cpu_type, feature)                     \
 ({                                                                     \
     QDict *_resp = do_query_no_props(qts, cpu_type);                   \
@@ -344,6 +355,25 @@ static void sve_tests_sve_off(const void *data)
     qtest_quit(qts);
 }
 
+static void sve_tests_sve_off_kvm(const void *data)
+{
+    QTestState *qts;
+
+    qts = qtest_init(MACHINE "-accel kvm -cpu max,sve=off");
+
+    /*
+     * We don't know if this host supports SVE so we don't
+     * attempt to test enabling anything. We only test that
+     * everything is disabled (as it should be with sve=off)
+     * and that using sve<vl-bits>=off to explicitly disable
+     * vector lengths is OK too.
+     */
+    assert_sve_vls(qts, "max", 0, NULL);
+    assert_sve_vls(qts, "max", 0, "{ 'sve128': false }");
+
+    qtest_quit(qts);
+}
+
 static void test_query_cpu_model_expansion(const void *data)
 {
     QTestState *qts;
@@ -393,12 +423,65 @@ static void test_query_cpu_model_expansion_kvm(const void *data)
     assert_has_feature(qts, "host", "pmu");
 
     if (g_str_equal(qtest_get_arch(), "aarch64")) {
+        bool kvm_supports_sve;
+        uint32_t max_vq, vq;
+        uint64_t vls;
+        char name[8];
+        QDict *resp;
+        char *error;
+
         assert_has_feature(qts, "host", "aarch64");
-        assert_has_feature(qts, "max", "sve");
 
         assert_error(qts, "cortex-a15",
             "We cannot guarantee the CPU type 'cortex-a15' works "
             "with KVM on this host", NULL);
+
+        assert_has_feature(qts, "max", "sve");
+        resp = do_query_no_props(qts, "max");
+        kvm_supports_sve = resp_get_feature(resp, "sve");
+        vls = resp_get_sve_vls(resp);
+        qobject_unref(resp);
+
+        if (kvm_supports_sve) {
+            g_assert(vls != 0);
+            max_vq = 64 - __builtin_clzll(vls);
+
+            /* Enabling a supported length is of course fine. */
+            sprintf(name, "sve%d", max_vq * 128);
+            assert_sve_vls(qts, "max", vls, "{ %s: true }", name);
+
+            /* Also disabling the largest lengths is fine. */
+            assert_sve_vls(qts, "max", (vls & ~BIT(max_vq - 1)),
+                           "{ %s: false }", name);
+
+            for (vq = 1; vq <= max_vq; ++vq) {
+                if (!(vls & BIT(vq - 1))) {
+                    /* vq is unsupported */
+                    break;
+                }
+            }
+            if (vq <= SVE_MAX_VQ) {
+                sprintf(name, "sve%d", vq * 128);
+                error = g_strdup_printf("cannot enable %s", name);
+                assert_error(qts, "max", error, "{ %s: true }", name);
+                g_free(error);
+            }
+
+            if (max_vq > 1) {
+                /*
+                 * Smaller, supported vector lengths cannot be disabled
+                 * unless all larger, supported vector lengths are disabled
+                 * first.
+                 */
+                vq = 64 - __builtin_clzll(vls & ~BIT(max_vq - 1));
+                sprintf(name, "sve%d", vq * 128);
+                error = g_strdup_printf("cannot disable %s", name);
+                assert_error(qts, "max", error, "{ %s: false }", name);
+                g_free(error);
+            }
+        } else {
+            g_assert(vls == 0);
+        }
     } else {
         assert_error(qts, "host",
                      "'pmu' feature not supported by KVM on this host",
@@ -435,6 +518,10 @@ int main(int argc, char **argv)
     if (kvm_available) {
         qtest_add_data_func("/arm/kvm/query-cpu-model-expansion",
                             NULL, test_query_cpu_model_expansion_kvm);
+        if (g_str_equal(qtest_get_arch(), "aarch64")) {
+            qtest_add_data_func("/arm/kvm/query-cpu-model-expansion/sve-off",
+                                NULL, sve_tests_sve_off_kvm);
+        }
     }
 
     return g_test_run();

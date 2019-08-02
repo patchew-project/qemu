@@ -188,10 +188,17 @@ SVE CPU Property Dependencies and Constraints
 
   1) At least one vector length must be enabled when `sve` is enabled.
 
-  2) If a vector length `N` is enabled, then all power-of-2 vector
-     lengths smaller than `N` must also be enabled.  E.g. if `sve512`
-     is enabled, then `sve128` and `sve256` must also be enabled,
-     but `sve384` is not required.
+  2) If a vector length `N` is enabled, then, when KVM is enabled, all
+     smaller, host supported vector lengths must also be enabled.  If
+     KVM is not enabled, then only all the smaller, power-of-2 vector
+     lengths must be enabled.  E.g. with KVM if the host supports all
+     vector lengths up to 512-bits (128, 256, 384, 512), then if
+     `sve512` is enabled, `sve128`, `sve256`, and `sve384` must also
+     be enabled. Without KVM `sve384` would not be required.
+
+  3) If KVM is enabled then only vector lengths that the host CPU type
+     support may be enabled.  If SVE is not supported by the host, then
+     no `sve*` properties may be enabled.
 
 SVE CPU Property Parsing Semantics
 ----------------------------------
@@ -210,20 +217,29 @@ SVE CPU Property Parsing Semantics
      disable the last enabled vector length (see constraint (1) of "SVE
      CPU Property Dependencies and Constraints").
 
-  4) If one or more `sve<N>` CPU properties are set `off`, but no `sve<N>`,
+  4) When KVM is enabled, if the host does not support SVE, then an error
+     is generated when attempting to enable any `sve*` properties.
+
+  5) When KVM is enabled, if the host does support SVE, then an error is
+     generated when attempting to enable any vector lengths not supported
+     by the host.
+
+  6) If one or more `sve<N>` CPU properties are set `off`, but no `sve<N>`,
      CPU properties are set `on`, then the specified vector lengths are
      disabled but the default for any unspecified lengths remains enabled.
-     Disabling a power-of-2 vector length also disables all vector lengths
-     larger than the power-of-2 length (see constraint (2) of "SVE CPU
-     Property Dependencies and Constraints").
+     When KVM is not enabled, disabling a power-of-2 vector length also
+     disables all vector lengths larger than the power-of-2 length.  When
+     KVM is enabled, then disabling any length also disables all larger
+     vector lengths (see constraint (2) of "SVE CPU Property Dependencies
+     and Constraints").
 
-  5) If one or more `sve<N>` CPU properties are set to `on`, then they
+  7) If one or more `sve<N>` CPU properties are set to `on`, then they
      are enabled and all unspecified lengths default to disabled, except
      for the required lengths per constraint (2) of "SVE CPU Property
      Dependencies and Constraints", which will even be auto-enabled if
      they were not explicitly enabled.
 
-  6) If SVE was disabled (`sve=off`), allowing all vector lengths to be
+  8) If SVE was disabled (`sve=off`), allowing all vector lengths to be
      explicitly disabled (i.e. avoiding the error specified in (3) of
      "SVE CPU Property Parsing Semantics"), then if later an `sve=on` is
      provided an error will be generated.  To avoid this error, one must
