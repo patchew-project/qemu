@@ -424,7 +424,7 @@ static void test_hbitmap_granularity(TestHBitmapData *data,
     hbitmap_test_set(data, 0, 3);
     g_assert_cmpint(hbitmap_count(data->hb), ==, 4);
     hbitmap_test_reset(data, 0, 1);
-    g_assert_cmpint(hbitmap_count(data->hb), ==, 2);
+    g_assert_cmpint(hbitmap_count(data->hb), ==, 4);
 }
 
 static void test_hbitmap_iter_granularity(TestHBitmapData *data,

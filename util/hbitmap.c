@@ -473,14 +473,28 @@ void hbitmap_reset(HBitmap *hb, uint64_t start, uint64_t count)
 {
     /* Compute range in the last layer.  */
     uint64_t first;
-    uint64_t last = start + count - 1;
+    uint64_t last;
+    uint64_t end = start + count;
+    uint64_t gran = UINT64_C(1) << hb->granularity;
 
-    trace_hbitmap_reset(hb, start, count,
-                        start >> hb->granularity, last >> hb->granularity);
+    /*
+     * We should clear only bits, fully covered by requested region. Otherwise
+     * we may clear something that is actually still dirty.
+     */
+    first = DIV_ROUND_UP(start, gran);
 
-    first = start >> hb->granularity;
-    last >>= hb->granularity;
+    if (end == hb->orig_size) {
+        end = DIV_ROUND_UP(end, gran);
+    } else {
+        end = end >> hb->granularity;
+    }
+    if (end <= first) {
+        return;
+    }
+    last = end - 1;
     assert(last < hb->size);
+
+    trace_hbitmap_reset(hb, start, count, first, last);
 
     hb->count -= hb_count_between(hb, first, last);
     if (hb_reset_between(hb, HBITMAP_LEVELS - 1, first, last) &&
