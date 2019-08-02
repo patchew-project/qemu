@@ -2313,7 +2313,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
                                         new_block->used_length,
                                         DIRTY_CLIENTS_ALL);
 
-    if (new_block->host) {
+    if (new_block->host && !new_block->mr->alias) {
         qemu_ram_setup_dump(new_block->host, new_block->max_length);
         qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
         /* MADV_DONTFORK is also needed by KVM in absence of synchronous MMU */
@@ -2497,7 +2497,7 @@ void qemu_ram_free(RAMBlock *block)
         return;
     }
 
-    if (block->host) {
+    if (block->host && !block->mr->alias) {
         ram_block_notify_remove(block->host, block->max_length);
     }
 
@@ -2671,7 +2671,8 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
 
     rcu_read_lock();
     block = atomic_rcu_read(&ram_list.mru_block);
-    if (block && block->host && host - block->host < block->max_length) {
+    if (block && !block->mr->alias && block->host &&
+        host - block->host < block->max_length) {
         goto found;
     }
 
@@ -2680,7 +2681,7 @@ RAMBlock *qemu_ram_block_from_host(void *ptr, bool round_offset,
         if (block->host == NULL) {
             continue;
         }
-        if (host - block->host < block->max_length) {
+        if (!block->mr->alias && host - block->host < block->max_length) {
             goto found;
         }
     }
