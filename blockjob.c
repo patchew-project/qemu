@@ -92,13 +92,25 @@ void block_job_free(Job *job)
 void block_job_drain(Job *job)
 {
     BlockJob *bjob = container_of(job, BlockJob, job);
-    const JobDriver *drv = job->driver;
-    BlockJobDriver *bjdrv = container_of(drv, BlockJobDriver, job_driver);
+    GSList *nodes = NULL, *el;
 
-    blk_drain(bjob->blk);
-    if (bjdrv->drain) {
-        bjdrv->drain(bjob);
+    for (el = bjob->nodes; el; el = el->next) {
+        BdrvChild *c = el->data;
+        bdrv_ref(c->bs);
+        nodes = g_slist_prepend(nodes, c->bs);
     }
+
+    for (el = nodes; el; el = el->next) {
+        BlockDriverState *bs = el->data;
+        bdrv_drained_begin(bs);
+    }
+    for (el = nodes; el; el = el->next) {
+        BlockDriverState *bs = el->data;
+        bdrv_drained_end(bs);
+        bdrv_unref(bs);
+    }
+
+    g_slist_free(nodes);
 }
 
 static char *child_job_get_parent_desc(BdrvChild *c)
