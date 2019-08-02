@@ -151,28 +151,47 @@ static void virtio_ccw_register_hcalls(void)
                                    virtio_ccw_hcall_early_printk);
 }
 
-static void s390_memory_init(ram_addr_t mem_size)
+static void s390_memory_init(MachineState *ms)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_GET_CLASS(ms);
     MemoryRegion *sysmem = get_system_memory();
-    ram_addr_t chunk, offset = 0;
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     unsigned int number = 0;
     Error *local_err = NULL;
-    gchar *name;
+    ram_addr_t mem_size = ms->ram_size;
+    gchar *name = g_strdup_printf(s390mc->split_ram_layout ?
+                                  "s390.whole.ram" : "s390.ram");
 
     /* allocate RAM for core */
-    name = g_strdup_printf("s390.ram");
-    while (mem_size) {
-        MemoryRegion *ram = g_new(MemoryRegion, 1);
-        uint64_t size = mem_size;
+    memory_region_allocate_system_memory(ram, NULL, name, mem_size);
 
-        /* KVM does not allow memslots >= 8 TB */
-        chunk = MIN(size, KVM_SLOT_MAX_BYTES);
-        memory_region_allocate_system_memory(ram, NULL, name, chunk);
-        memory_region_add_subregion(sysmem, offset, ram);
-        mem_size -= chunk;
-        offset += chunk;
-        g_free(name);
-        name = g_strdup_printf("s390.ram.%u", ++number);
+    /* migration compatible RAM handling for 4.1 and older machines */
+    if (s390mc->split_ram_layout) {
+       ram_addr_t chunk, offset = 0;
+       /*
+        * memory_region_allocate_system_memory() registers allocated RAM for
+        * migration, however for compat reasons the RAM should be passed over
+        * as RAMBlocks of the size upto KVM_SLOT_MAX_BYTES. So unregister just
+        * allocated RAM so it won't be migrated directly. Aliases will take care
+        * of segmenting RAM into legacy chunks that migration compatible.
+        */
+       vmstate_unregister_ram(ram, NULL);
+       name = g_strdup_printf("s390.ram");
+       while (mem_size) {
+           MemoryRegion *alias = g_new(MemoryRegion, 1);
+
+           /* KVM does not allow memslots >= 8 TB */
+           chunk = MIN(mem_size, KVM_SLOT_MAX_BYTES);
+           memory_region_init_alias(alias, NULL, name, ram, offset, chunk);
+           vmstate_register_ram_global(alias);
+           memory_region_add_subregion(sysmem, offset, alias);
+           mem_size -= chunk;
+           offset += chunk;
+           g_free(name);
+           name = g_strdup_printf("s390.ram.%u", ++number);
+       }
+    } else {
+       memory_region_add_subregion(sysmem, 0, ram);
     }
     g_free(name);
 
@@ -257,7 +276,7 @@ static void ccw_init(MachineState *machine)
 
     s390_sclp_init();
     /* init memory + setup max page size. Required for the CPU model */
-    s390_memory_init(machine->ram_size);
+    s390_memory_init(machine);
 
     /* init CPUs (incl. CPU model) early so s390_has_feature() works */
     s390_init_cpus(machine);
@@ -667,8 +686,11 @@ static void ccw_machine_4_1_instance_options(MachineState *machine)
 
 static void ccw_machine_4_1_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
     ccw_machine_4_2_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
+    s390mc->split_ram_layout = true;
 }
 DEFINE_CCW_MACHINE(4_1, "4.1", false);
 
