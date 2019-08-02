@@ -946,6 +946,9 @@ static void fill_source_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_CANCELLED:
         info->has_status = true;
         break;
+    case MIGRATION_STATUS_WAIT_UNPLUG:
+        info->has_status = true;
+        break;
     }
     info->status = s->state;
 }
@@ -1680,6 +1683,7 @@ bool migration_is_idle(void)
     case MIGRATION_STATUS_COLO:
     case MIGRATION_STATUS_PRE_SWITCHOVER:
     case MIGRATION_STATUS_DEVICE:
+    case MIGRATION_STATUS_WAIT_UNPLUG:
         return false;
     case MIGRATION_STATUS__MAX:
         g_assert_not_reached();
@@ -1712,6 +1716,7 @@ void migrate_init(MigrationState *s)
     error_free(s->error);
     s->error = NULL;
 
+    /* go to WAIT_UNPLUG first? */
     migrate_set_state(&s->state, MIGRATION_STATUS_NONE, MIGRATION_STATUS_SETUP);
 
     s->start_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
@@ -3217,6 +3222,15 @@ static void *migration_thread(void *opaque)
     }
 
     qemu_savevm_state_setup(s->to_dst_file);
+
+    migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_WAIT_UNPLUG);
+    while (qemu_savevm_state_guest_unplug_pending()) {
+        continue;
+    }
+    migrate_set_state(&s->state, MIGRATION_STATUS_WAIT_UNPLUG,
+                      MIGRATION_STATUS_ACTIVE); 
+
 
     s->setup_time = qemu_clock_get_ms(QEMU_CLOCK_HOST) - setup_start;
     migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
