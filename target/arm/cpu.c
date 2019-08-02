@@ -1255,6 +1255,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (cpu_isar_feature(aa64_sve, cpu)) {
+        arm_cpu_sve_finalize(cpu);
+    }
+
     if (arm_feature(env, ARM_FEATURE_AARCH64) &&
         cpu->has_vfp != cpu->has_neon) {
         /*
