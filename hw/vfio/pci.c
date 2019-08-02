@@ -35,6 +35,9 @@
 #include "pci.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "migration/blocker.h"
+#include "qemu/option.h"
+#include "qemu/option_int.h"
 
 #define TYPE_VFIO_PCI "vfio-pci"
 #define PCI_VFIO(obj)    OBJECT_CHECK(VFIOPCIDevice, obj, TYPE_VFIO_PCI)
@@ -2693,6 +2696,12 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static int has_standby_arg(void *opaque, const char *name,
+                           const char *value, Error **errp)
+{
+    return strcmp(name, "standby") == 0;
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
@@ -2705,6 +2714,19 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     int groupid;
     int i, ret;
     bool is_mdev;
+
+    if (qemu_opt_foreach(pdev->qdev.opts, has_standby_arg,
+                         (void *) pdev->qdev.opts, &err) == 0) {
+        error_setg(&vdev->migration_blocker,
+                "VFIO device doesn't support migration");
+        ret = migrate_add_blocker(vdev->migration_blocker, &err);
+        if (err) {
+            error_propagate(errp, err);
+            error_free(vdev->migration_blocker);
+        }
+    } else {
+        pdev->qdev.allow_unplug_during_migration = true;
+    }
 
     if (!vdev->vbasedev.sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
@@ -3148,7 +3170,7 @@ static Property vfio_pci_dev_properties[] = {
 
 static const VMStateDescription vfio_pci_vmstate = {
     .name = "vfio-pci",
-    .unmigratable = 1,
+    .unmigratable = 0,
 };
 
 static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
