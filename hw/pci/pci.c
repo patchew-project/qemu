@@ -2074,6 +2074,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
     Error *local_err = NULL;
     bool is_default_rom;
 
+    pci_dev->partially_hotplugged = false;
+
     /* initialize cap_present for pci_is_express() and pci_config_size(),
      * Note that hybrid PCIs are not set automatically and need to manage
      * QEMU_PCI_CAP_EXPRESS manually */
