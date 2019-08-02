@@ -32,8 +32,10 @@
 #include "qemu/help_option.h"
 #include "qemu/option.h"
 #include "qemu/qemu-print.h"
+#include "qemu/option_int.h"
 #include "sysemu/block-backend.h"
 #include "migration/misc.h"
+#include "migration/migration.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -561,13 +563,44 @@ void qdev_set_id(DeviceState *dev, const char *id)
     }
 }
 
+static int is_failover_device(void *opaque, const char *name, const char *value,
+                        Error **errp)
+{
+    if (strcmp(name, "standby") == 0) {
+        QemuOpts *opts = (QemuOpts *)opaque;
+
+        if (qdev_should_hide_device(opts, errp) && errp && !*errp) {
+            return 1;
+        } else if (errp && *errp) {
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static bool should_hide_device(QemuOpts *opts, Error **err)
+{
+    if (qemu_opt_foreach(opts, is_failover_device, opts, err) == 0) {
+        return false;
+    }
+    return true;
+}
+
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 {
     DeviceClass *dc;
     const char *driver, *path;
-    DeviceState *dev;
+    DeviceState *dev = NULL;
     BusState *bus = NULL;
     Error *err = NULL;
+
+    if (opts && should_hide_device(opts, &err)) {
+        if (err) {
+            goto err_del_dev;
+        }
+        return NULL;
+    }
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
@@ -640,8 +673,10 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 
 err_del_dev:
     error_propagate(errp, err);
-    object_unparent(OBJECT(dev));
-    object_unref(OBJECT(dev));
+    if (dev) {
+        object_unparent(OBJECT(dev));
+        object_unref(OBJECT(dev));
+    }
     return NULL;
 }
 
@@ -810,7 +845,7 @@ void qdev_unplug(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (!migration_is_idle()) {
+    if (!migration_is_idle() && !migration_in_setup(migrate_get_current())) {
         error_setg(errp, "device_del not allowed while migrating");
         return;
     }
