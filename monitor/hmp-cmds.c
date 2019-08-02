@@ -229,9 +229,13 @@ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 
     /* do not display parameters during setup */
     if (info->has_status && caps) {
+        int index = 0;
         monitor_printf(mon, "capabilities: ");
-        for (cap = caps; cap; cap = cap->next) {
-            monitor_printf(mon, "%s: %s ",
+        for (cap = caps; cap; cap = cap->next, index++) {
+            if (!(index % 4)) {
+                monitor_printf(mon, "\n");
+            }
+            monitor_printf(mon, "%20s: %3s ",
                            MigrationCapability_str(cap->value->capability),
                            cap->value->state ? "on" : "off");
         }
