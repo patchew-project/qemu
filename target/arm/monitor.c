@@ -91,7 +91,7 @@ GICCapabilityList *qmp_query_gic_capabilities(Error **errp)
 }
 
 static const char *cpu_model_advertised_features[] = {
-    "aarch64", "pmu",
+    "aarch64", "pmu", "sve",
     NULL
 };
 
