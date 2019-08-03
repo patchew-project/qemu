@@ -370,6 +370,7 @@ ivshmem_server_close(IvshmemServer *server)
     }
 
     unlink(server->unix_sock_path);
+    shm_unlink(server->shm_path);
     close(server->sock_fd);
     close(server->shm_fd);
     server->sock_fd = -1;
