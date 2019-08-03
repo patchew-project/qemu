@@ -53,13 +53,13 @@ static const struct MemmapEntry {
     hwaddr base;
     hwaddr size;
 } sifive_e_memmap[] = {
-    [SIFIVE_E_DEBUG] =    {        0x0,      0x100 },
+    [SIFIVE_E_DEBUG] =    {        0x0,     0x1000 },
     [SIFIVE_E_MROM] =     {     0x1000,     0x2000 },
     [SIFIVE_E_OTP] =      {    0x20000,     0x2000 },
     [SIFIVE_E_CLINT] =    {  0x2000000,    0x10000 },
     [SIFIVE_E_PLIC] =     {  0xc000000,  0x4000000 },
-    [SIFIVE_E_AON] =      { 0x10000000,     0x8000 },
-    [SIFIVE_E_PRCI] =     { 0x10008000,     0x8000 },
+    [SIFIVE_E_AON] =      { 0x10000000,     0x1000 },
+    [SIFIVE_E_PRCI] =     { 0x10008000,     0x1000 },
     [SIFIVE_E_OTP_CTRL] = { 0x10010000,     0x1000 },
     [SIFIVE_E_GPIO0] =    { 0x10012000,     0x1000 },
     [SIFIVE_E_UART0] =    { 0x10013000,     0x1000 },
