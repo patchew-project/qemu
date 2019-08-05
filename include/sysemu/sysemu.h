@@ -184,6 +184,8 @@ QemuOpts *qemu_get_machine_opts(void);
 
 bool defaults_enabled(void);
 
+int qemu_init(int argc, char **argv, char **envp);
+
 extern QemuOptsList qemu_legacy_drive_opts;
 extern QemuOptsList qemu_common_drive_opts;
 extern QemuOptsList qemu_drive_opts;
@@ -197,4 +199,7 @@ extern QemuOptsList qemu_global_opts;
 extern QemuOptsList qemu_mon_opts;
 extern QemuOptsList qemu_semihosting_config_opts;
 
+#ifdef CONFIG_FUZZ
+int real_main(int argc, char **argv, char **envp);
+#endif
 #endif

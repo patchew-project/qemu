@@ -130,6 +130,10 @@ int main(int argc, char **argv)
 #include "sysemu/iothread.h"
 #include "qemu/guest-random.h"
 
+#ifdef CONFIG_FUZZ
+#include "tests/libqtest.h"
+#endif
+
 #define MAX_VIRTIO_CONSOLES 1
 
 static const char *data_dir[16];
@@ -2854,7 +2858,7 @@ static void user_register_global_props(void)
                       global_init_func, NULL, NULL);
 }
 
-int main(int argc, char **argv, char **envp)
+int qemu_init(int argc, char **argv, char **envp)
 {
     int i;
     int snapshot, linux_boot;
@@ -4453,7 +4457,7 @@ int main(int argc, char **argv, char **envp)
     if (vmstate_dump_file) {
         /* dump and exit */
         dump_vmstate_json_to_file(vmstate_dump_file);
-        return 0;
+        exit(0);
     }
 
     if (incoming) {
@@ -4469,6 +4473,23 @@ int main(int argc, char **argv, char **envp)
 
     accel_setup_post(current_machine);
     os_setup_post();
+
+    return 0;
+}
+#ifdef CONFIG_FUZZ
+/*
+ * Without this, the compiler complains about all of the unused
+ * cleanup and shutdown() functions
+ */
+int real_main(int argc, char **argv, char **envp)
+#else
+int main(int argc, char **argv, char **envp)
+#endif
+{
+    int ret = qemu_init(argc, argv, envp);
+    if (ret != 0) {
+        return ret;
+    }
 
     main_loop();
 
