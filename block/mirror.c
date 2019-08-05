@@ -1481,6 +1481,15 @@ static void bdrv_mirror_top_child_perm(BlockDriverState *bs, BdrvChild *c,
     *nshared = BLK_PERM_ALL;
 }
 
+static void bdrv_mirror_top_refresh_limits(BlockDriverState *bs, Error **errp)
+{
+    MirrorBDSOpaque *s = bs->opaque;
+
+    if (s && s->job && s->job->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        bs->bl.request_alignment = s->job->granularity;
+    }
+}
+
 /* Dummy node that provides consistent read to its users without requiring it
  * from its backing file and that allows writes on the backing file chain. */
 static BlockDriver bdrv_mirror_top = {
@@ -1493,6 +1502,7 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
+    .bdrv_refresh_limits        = bdrv_mirror_top_refresh_limits,
 };
 
 static BlockJob *mirror_start_job(
@@ -1677,6 +1687,8 @@ static BlockJob *mirror_start_job(
     }
 
     QTAILQ_INIT(&s->ops_in_flight);
+
+    bdrv_refresh_limits(mirror_top_bs, &error_abort);
 
     trace_mirror_start(bs, s, opaque);
     job_start(&s->common.job);
