@@ -2587,7 +2587,9 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         break;
     }
 
-    run_cmd_parser(s, line_buf, cmd_parser);
+    if (cmd_parser) {
+        run_cmd_parser(s, line_buf, cmd_parser);
+    }
 
     return RS_IDLE;
 }
