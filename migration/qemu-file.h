@@ -177,4 +177,15 @@ size_t ram_control_save_page(QEMUFile *f, ram_addr_t block_offset,
 
 void qemu_put_counted_string(QEMUFile *f, const char *name);
 
+#ifdef CONFIG_FUZZ
+typedef struct ram_disk {
+    void *base;
+    gsize len;
+} ram_disk;
+
+QEMUFile *qemu_fopen_ram(ram_disk **rd);
+QEMUFile *qemu_fopen_ro_ram(ram_disk* rd);
+void qemu_freopen_ro_ram(QEMUFile *f);
+#endif
+
 #endif
