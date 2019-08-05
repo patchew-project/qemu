@@ -47,7 +47,6 @@ class Migration(Test):
             step=0.1,
             args=(source_vm,)
         )
-        self.assertEqual(dest_vm.command('query-migrate')['status'], 'completed')
         self.assertEqual(source_vm.command('query-migrate')['status'], 'completed')
         self.assertEqual(dest_vm.command('query-status')['status'], 'running')
         self.assertEqual(source_vm.command('query-status')['status'], 'postmigrate')
