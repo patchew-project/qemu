@@ -220,23 +220,12 @@ static char *SocketAddress_to_str(SocketAddress *addr)
 void hmp_info_migrate(Monitor *mon, const QDict *qdict)
 {
     MigrationInfo *info;
-    MigrationCapabilityStatusList *caps, *cap;
+    MigrationCapabilityStatusList *caps;
 
     info = qmp_query_migrate(NULL);
     caps = qmp_query_migrate_capabilities(NULL);
 
     migration_global_dump(mon);
-
-    /* do not display parameters during setup */
-    if (info->has_status && caps) {
-        monitor_printf(mon, "capabilities: ");
-        for (cap = caps; cap; cap = cap->next) {
-            monitor_printf(mon, "%s: %s ",
-                           MigrationCapability_str(cap->value->capability),
-                           cap->value->state ? "on" : "off");
-        }
-        monitor_printf(mon, "\n");
-    }
 
     if (info->has_status) {
         monitor_printf(mon, "Migration status: %s",
