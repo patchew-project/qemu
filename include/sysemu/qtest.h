@@ -26,4 +26,8 @@ bool qtest_driver(void);
 
 void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **errp);
 
+#ifdef CONFIG_FUZZ
+void qtest_server_recv(GString *inbuf); /* Client sends commands using this */
+#endif
+
 #endif
