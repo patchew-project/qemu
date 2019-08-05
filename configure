@@ -499,6 +499,7 @@ docker="no"
 debug_mutex="no"
 libpmem=""
 default_devices="yes"
+fuzzing="no"
 
 # cross compilers defaults, can be overridden with --cross-cc-ARCH
 cross_cc_aarch64="aarch64-linux-gnu-gcc"
@@ -1542,6 +1543,8 @@ for opt do
   --enable-libpmem) libpmem=yes
   ;;
   --disable-libpmem) libpmem=no
+  ;;
+  --enable-fuzzing) fuzzing=yes
   ;;
   *)
       echo "ERROR: unknown option $opt"
@@ -6481,6 +6484,7 @@ echo "docker            $docker"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
 echo "default devices   $default_devices"
+echo "fuzzing support   $fuzzing"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -7305,6 +7309,17 @@ if test "$parallels" = "yes" ; then
 fi
 if test "$sheepdog" = "yes" ; then
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
+fi
+if test "$fuzzing" = "yes" ; then
+  QEMU_CFLAGS="$QEMU_CFLAGS -fsanitize=fuzzer,address  -fprofile-instr-generate"
+  QEMU_CFLAGS="$QEMU_CFLAGS -fprofile-instr-generate -fcoverage-mapping"
+  QEMU_LDFLAGS="$LDFLAGS -fsanitize=fuzzer,address"
+
+  # Add tests/ to include path, since this is done in tests/Makefile.include,
+  # and required for QOS objects to build. This can be removed if/when the
+  # fuzzer is compiled using rules in tests/Makefile.include
+  QEMU_INCLUDES="-iquote \$(SRC_PATH)/tests $QEMU_INCLUDES"
+  echo "CONFIG_FUZZ=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
