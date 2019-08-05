@@ -82,6 +82,12 @@ class Test(avocado.Test):
             self._vms[name] = self._new_vm(*args)
         return self._vms[name]
 
+    def get_machine_types(self):
+        cmd = "%s -machine ?" % self.qemu_bin
+        output = avocado.utils.process.getoutput(cmd).split("\n")
+        output.remove("Supported machines are:")
+        return [each.split()[0] for each in output]
+
     def tearDown(self):
         for vm in self._vms.values():
             vm.shutdown()
