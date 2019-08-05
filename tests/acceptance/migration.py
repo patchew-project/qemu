@@ -50,3 +50,29 @@ class Migration(Test):
         self.assertEqual(source_vm.command('query-migrate')['status'], 'completed')
         self.assertEqual(dest_vm.command('query-status')['status'], 'running')
         self.assertEqual(source_vm.command('query-status')['status'], 'postmigrate')
+
+
+    def test_migration_with_machine_types(self):
+        migration_port = self._get_free_port()
+        for machine in self.get_machine_types():
+            if 'pseries' in machine:
+                print("migrating with machine type - {}".format(machine))
+                source_vm = self.get_vm('-M', '{},cap-htm=off'.format(machine))
+                dest_uri = 'tcp:localhost:%u' % migration_port
+                dest_vm = self.get_vm('-M', '{},cap-htm=off'.format(machine),
+                                      '-incoming', dest_uri)
+                dest_vm.launch()
+                source_vm.launch()
+                source_vm.qmp('migrate', uri=dest_uri)
+                wait.wait_for(
+                    self.migration_finished,
+                    timeout=self.timeout,
+                    step=0.1,
+                    args=(source_vm,)
+                )
+                self.assertEqual(source_vm.command('query-migrate')['status'],
+                                                   'completed')
+                self.assertEqual(dest_vm.command('query-status')['status'],
+                                                 'running')
+                self.assertEqual(source_vm.command('query-status')['status'],
+                                                   'postmigrate')
