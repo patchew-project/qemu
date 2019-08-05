@@ -64,4 +64,6 @@ void qemu_loadvm_state_cleanup(void);
 int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
 int qemu_load_device_state(QEMUFile *f);
 
+int qemu_savevm_state(QEMUFile *f, Error **errp);
+
 #endif
