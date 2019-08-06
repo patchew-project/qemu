@@ -172,8 +172,17 @@ static int kvm_memcrypt_save_setup(const char *pdh, const char *plat_cert,
                           plat_cert, amd_cert);
 }
 
+static int kvm_memcrypt_save_outgoing_page(QEMUFile *f, uint8_t *ptr,
+                                           uint32_t size,
+                                           uint64_t *bytes_sent)
+{
+    return sev_save_outgoing_page(kvm_state->memcrypt_handle, f, ptr, size,
+                                  bytes_sent);
+}
+
 static struct MachineMemoryEncryptionOps sev_memory_encryption_ops = {
     .save_setup = kvm_memcrypt_save_setup,
+    .save_outgoing_page = kvm_memcrypt_save_outgoing_page,
 };
 
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)

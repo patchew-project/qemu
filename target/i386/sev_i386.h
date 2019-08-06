@@ -87,6 +87,8 @@ struct SEVState {
     size_t remote_plat_cert_len;
     guchar *amd_cert;
     size_t amd_cert_len;
+    gchar *send_packet_hdr;
+    size_t send_packet_hdr_len;
 };
 
 typedef struct SEVState SEVState;
