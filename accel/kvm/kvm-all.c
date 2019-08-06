@@ -180,9 +180,15 @@ static int kvm_memcrypt_save_outgoing_page(QEMUFile *f, uint8_t *ptr,
                                   bytes_sent);
 }
 
+static int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr)
+{
+    return sev_load_incoming_page(kvm_state->memcrypt_handle, f, ptr);
+}
+
 static struct MachineMemoryEncryptionOps sev_memory_encryption_ops = {
     .save_setup = kvm_memcrypt_save_setup,
     .save_outgoing_page = kvm_memcrypt_save_outgoing_page,
+    .load_incoming_page = kvm_memcrypt_load_incoming_page,
 };
 
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
