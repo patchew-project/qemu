@@ -8,6 +8,7 @@
 #include "hw/block/flash.h"
 #include "net/net.h"
 #include "hw/i386/ioapic.h"
+#include "hw/i386/sgx-epc.h"
 
 #include "qemu/range.h"
 #include "qemu/bitmap.h"
@@ -69,6 +70,8 @@ struct PCMachineState {
     /* Address space used by IOAPIC device. All IOAPIC interrupts
      * will be translated to MSI messages in the address space. */
     AddressSpace *ioapic_as;
+
+    SGXEPCState *sgx_epc;
 };
 
 #define PC_MACHINE_ACPI_DEVICE_PROP "acpi-device"
