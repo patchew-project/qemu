@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "hw/boards.h"
 #include "migration/cpu.h"
 #include "migration/vmstate.h"
 

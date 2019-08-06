@@ -33,7 +33,6 @@
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
 #include "qemu/main-loop.h"
-#include "hw/boards.h"
 
 #define DEBUG_HAX 0
 
