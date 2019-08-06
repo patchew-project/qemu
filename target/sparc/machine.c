@@ -6,6 +6,7 @@
 #include "qemu/timer.h"
 
 #include "migration/cpu.h"
+#include "migration/vmstate.h"
 
 #ifdef TARGET_SPARC64
 static const VMStateDescription vmstate_cpu_timer = {

@@ -3,6 +3,7 @@
 #include "internal.h"
 #include "hw/hw.h"
 #include "migration/cpu.h"
+#include "migration/vmstate.h"
 
 static int cpu_post_load(void *opaque, int version_id)
 {

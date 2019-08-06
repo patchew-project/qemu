@@ -7,6 +7,7 @@
 #include "kvm_arm.h"
 #include "internals.h"
 #include "migration/cpu.h"
+#include "migration/vmstate.h"
 
 static bool vfp_needed(void *opaque)
 {

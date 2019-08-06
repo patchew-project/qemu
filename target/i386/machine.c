@@ -6,6 +6,7 @@
 #include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
 #include "migration/cpu.h"
+#include "migration/vmstate.h"
 #include "hyperv.h"
 #include "kvm_i386.h"
 

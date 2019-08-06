@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "hw/hw.h"
 #include "migration/cpu.h"
+#include "migration/vmstate.h"
 
 static const VMStateDescription vmstate_tlbset = {
     .name = "cpu/tlbset",

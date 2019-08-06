@@ -22,6 +22,7 @@
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "migration/cpu.h"
+#include "migration/vmstate.h"
 
 #if TARGET_REGISTER_BITS == 64
 #define qemu_put_betr   qemu_put_be64
