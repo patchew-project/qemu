@@ -57,6 +57,7 @@
 #include "qemu/uuid.h"
 #include "savevm.h"
 #include "qemu/iov.h"
+#include "hw/boards.h"
 
 /***********************************************************/
 /* ram save/restore */
@@ -699,6 +700,13 @@ typedef struct {
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
 } MultiFDRecvParams;
+
+static inline bool memcrypt_enabled(void)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    return machine_memory_encryption_enabled(ms);
+}
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
 {
@@ -1754,6 +1762,9 @@ static void migration_bitmap_sync_range(RAMState *rs, RAMBlock *rb,
     rs->migration_dirty_pages +=
         cpu_physical_memory_sync_dirty_bitmap(rb, 0, length,
                                               &rs->num_dirty_pages_period);
+    if (memcrypt_enabled()) {
+        cpu_physical_memory_sync_encrypted_bitmap(rb, 0, length);
+    }
 }
 
 /**
@@ -2768,6 +2779,8 @@ static void ram_save_cleanup(void *opaque)
         block->bmap = NULL;
         g_free(block->unsentmap);
         block->unsentmap = NULL;
+        g_free(block->encbmap);
+        block->encbmap = NULL;
     }
 
     xbzrle_cleanup();
@@ -3309,6 +3322,10 @@ static void ram_list_init_bitmaps(void)
             if (migrate_postcopy_ram()) {
                 block->unsentmap = bitmap_new(pages);
                 bitmap_set(block->unsentmap, 0, pages);
+            }
+            if (memcrypt_enabled()) {
+                block->encbmap = bitmap_new(pages);
+                bitmap_set(block->encbmap, 0, pages);
             }
         }
     }
