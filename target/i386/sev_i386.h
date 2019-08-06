@@ -81,6 +81,12 @@ struct SEVState {
     int sev_fd;
     SevState state;
     gchar *measurement;
+    guchar *remote_pdh;
+    size_t remote_pdh_len;
+    guchar *remote_plat_cert;
+    size_t remote_plat_cert_len;
+    guchar *amd_cert;
+    size_t amd_cert_len;
 };
 
 typedef struct SEVState SEVState;

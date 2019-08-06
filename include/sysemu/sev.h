@@ -18,4 +18,6 @@
 
 void *sev_guest_init(const char *id);
 int sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len);
+int sev_save_setup(void *handle, const char *pdh, const char *plat_cert,
+                   const char *amd_cert);
 #endif

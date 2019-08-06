@@ -165,6 +165,17 @@ bool kvm_memcrypt_enabled(void)
     return false;
 }
 
+static int kvm_memcrypt_save_setup(const char *pdh, const char *plat_cert,
+                                   const char *amd_cert)
+{
+    return sev_save_setup(kvm_state->memcrypt_handle, pdh,
+                          plat_cert, amd_cert);
+}
+
+static struct MachineMemoryEncryptionOps sev_memory_encryption_ops = {
+    .save_setup = kvm_memcrypt_save_setup,
+};
+
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
 {
     if (kvm_state->memcrypt_handle &&
@@ -1968,6 +1979,7 @@ static int kvm_init(MachineState *ms)
         }
 
         kvm_state->memcrypt_encrypt_data = sev_encrypt_data;
+        mc->memory_encryption_ops = &sev_memory_encryption_ops;
     }
 
     ret = kvm_arch_init(ms, s);

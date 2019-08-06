@@ -24,3 +24,9 @@ void *sev_guest_init(const char *id)
 {
     return NULL;
 }
+
+int sev_save_setup(void *handle, const char *pdh, const char *plat_cert,
+                   const char *amd_cert)
+{
+    return 1;
+}
