@@ -19,6 +19,8 @@
 #ifndef CPUTLB_H
 #define CPUTLB_H
 
+#include "exec/cpu-common.h"
+
 #if !defined(CONFIG_USER_ONLY)
 /* cputlb.c */
 void tlb_protect_code(ram_addr_t ram_addr);

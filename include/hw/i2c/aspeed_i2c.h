@@ -21,6 +21,7 @@
 #define ASPEED_I2C_H
 
 #include "hw/i2c/i2c.h"
+#include "hw/sysbus.h"
 
 #define TYPE_ASPEED_I2C "aspeed.i2c"
 #define ASPEED_I2C(obj) \
