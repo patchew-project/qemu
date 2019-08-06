@@ -1574,18 +1574,46 @@
 }
 
 ##
+# @SGXEPCDeviceInfo:
+#
+# SGX EPC state information
+#
+# @id: device's ID
+#
+# @addr: physical address, where device is mapped
+#
+# @size: size of memory that the device provides
+#
+# @node: NUMA node number where device is plugged in
+#
+# @memdev: memory backend linked with device
+#
+# Since: TBD
+##
+{ 'struct': 'SGXEPCDeviceInfo',
+  'data': { '*id': 'str',
+            'addr': 'int',
+            'size': 'int',
+            'node': 'int',
+            'memdev': 'str'
+          }
+}
+
+##
 # @MemoryDeviceInfo:
 #
 # Union containing information about a memory device
 #
-# nvdimm is included since 2.12. virtio-pmem is included since 4.1.
+# nvdimm is included since 2.12. virtio-pmem is included since 4.1,
+# sgx-epc is included since TBD.
 #
 # Since: 2.1
 ##
 { 'union': 'MemoryDeviceInfo',
   'data': { 'dimm': 'PCDIMMDeviceInfo',
             'nvdimm': 'PCDIMMDeviceInfo',
-            'virtio-pmem': 'VirtioPMEMDeviceInfo'
+            'virtio-pmem': 'VirtioPMEMDeviceInfo',
+            'sgx-epc': 'SGXEPCDeviceInfo'
           }
 }
 
