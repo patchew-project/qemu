@@ -65,6 +65,8 @@ static const char *const sev_fw_errlist[] = {
 #define SEV_FW_MAX_ERROR      ARRAY_SIZE(sev_fw_errlist)
 
 #define SEV_FW_BLOB_MAX_SIZE            0x4000          /* 16KB */
+#define ENCRYPTED_BITMAP_CONTINUE       0x1
+#define ENCRYPTED_BITMAP_END            0x2
 
 static int
 sev_ioctl(int fd, int cmd, void *data, int *error)
@@ -1230,6 +1232,97 @@ int sev_load_incoming_page(void *handle, QEMUFile *f, uint8_t *ptr)
     }
 
     return sev_receive_update_data(f, ptr);
+}
+
+#define ALIGN(x, y)  (((x) + (y) - 1) & ~((y) - 1))
+
+int sev_load_incoming_bitmap(void *handle, QEMUFile *f)
+{
+    void *bmap;
+    unsigned long bmap_size, base_gpa;
+    unsigned long npages, expected_size, length;
+    struct kvm_page_enc_bitmap e = {};
+    int status;
+
+    status = qemu_get_be32(f);
+
+    while (status != ENCRYPTED_BITMAP_END) {
+        base_gpa = qemu_get_be64(f);
+        npages = qemu_get_be64(f);
+        bmap_size = qemu_get_be64(f);
+
+        /*
+         * Before allocating the bitmap buffer, lets do some bound check to
+         * ensure that we are not dealing with corrupted stream.
+         */
+        length = npages << TARGET_PAGE_BITS;
+        expected_size = ALIGN((length >> TARGET_PAGE_BITS), 64) / 8;
+        if (expected_size != bmap_size) {
+            error_report("corrupted bitmap expected size %ld got %ld",
+                    expected_size, bmap_size);
+            return 1;
+        }
+
+        bmap = g_malloc0(bmap_size);
+        qemu_get_buffer(f, (uint8_t *)bmap, bmap_size);
+
+        trace_kvm_sev_load_bitmap(base_gpa, npages << TARGET_PAGE_BITS);
+
+        e.start_gfn = base_gpa >> TARGET_PAGE_BITS;
+        e.num_pages = npages;
+        e.enc_bitmap = bmap;
+        if (kvm_vm_ioctl(kvm_state, KVM_SET_PAGE_ENC_BITMAP, &e) == -1) {
+            error_report("KVM_SET_PAGE_ENC_BITMAP ioctl failed %d", errno);
+            g_free(bmap);
+            return 1;
+        }
+
+        g_free(bmap);
+
+        status = qemu_get_be32(f);
+    }
+
+    return 0;
+}
+
+int sev_save_outgoing_bitmap(void *handle, QEMUFile *f,
+                             unsigned long start, uint64_t length, bool last)
+{
+    uint64_t size;
+    struct kvm_page_enc_bitmap e = {};
+
+    if (!length) {
+        /* nothing to send */
+        goto done;
+    }
+
+    size = ALIGN((length >> TARGET_PAGE_BITS), 64) / 8;
+    e.enc_bitmap = g_malloc0(size);
+    e.start_gfn = start >> TARGET_PAGE_BITS;
+    e.num_pages = length >> TARGET_PAGE_BITS;
+
+    trace_kvm_sev_save_bitmap(start, length);
+
+    if (kvm_vm_ioctl(kvm_state, KVM_GET_PAGE_ENC_BITMAP, &e) == -1) {
+        error_report("%s: KVM_GET_PAGE_ENC_BITMAP ioctl failed %d",
+                    __func__, errno);
+        g_free(e.enc_bitmap);
+        return 1;
+    }
+
+    qemu_put_be32(f, ENCRYPTED_BITMAP_CONTINUE);
+    qemu_put_be64(f, start);
+    qemu_put_be64(f, e.num_pages);
+    qemu_put_be64(f, size);
+    qemu_put_buffer(f, (uint8_t *)e.enc_bitmap, size);
+
+    g_free(e.enc_bitmap);
+
+done:
+    if (last) {
+        qemu_put_be32(f, ENCRYPTED_BITMAP_END);
+    }
+    return 0;
 }
 
 static void

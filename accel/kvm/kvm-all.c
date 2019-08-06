@@ -185,10 +185,37 @@ static int kvm_memcrypt_load_incoming_page(QEMUFile *f, uint8_t *ptr)
     return sev_load_incoming_page(kvm_state->memcrypt_handle, f, ptr);
 }
 
+static int kvm_memcrypt_save_outgoing_bitmap(QEMUFile *f)
+{
+    KVMMemoryListener *kml = &kvm_state->memory_listener;
+    KVMState *s = kvm_state;
+    int ret = 1, i;
+
+    /* iterate through all the registered slots and send the bitmap */
+    for (i = 0; i < s->nr_slots; i++) {
+        KVMSlot *mem = &kml->slots[i];
+        ret = sev_save_outgoing_bitmap(s->memcrypt_handle, f, mem->start_addr,
+                                       mem->memory_size,
+                                       (i + 1) == s->nr_slots);
+        if (ret) {
+            return 1;
+        }
+    }
+
+    return ret;
+}
+
+static int kvm_memcrypt_load_incoming_bitmap(QEMUFile *f)
+{
+    return sev_load_incoming_bitmap(kvm_state->memcrypt_handle, f);
+}
+
 static struct MachineMemoryEncryptionOps sev_memory_encryption_ops = {
     .save_setup = kvm_memcrypt_save_setup,
     .save_outgoing_page = kvm_memcrypt_save_outgoing_page,
     .load_incoming_page = kvm_memcrypt_load_incoming_page,
+    .save_outgoing_bitmap = kvm_memcrypt_save_outgoing_bitmap,
+    .load_incoming_bitmap = kvm_memcrypt_load_incoming_bitmap,
 };
 
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
