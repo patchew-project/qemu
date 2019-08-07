@@ -28,6 +28,7 @@
 #include "hw/ppc/pnv_occ.h"
 #include "hw/ppc/pnv_xive.h"
 #include "hw/ppc/pnv_core.h"
+#include "hw/ppc/pnv_homer.h"
 
 #define TYPE_PNV_CHIP "pnv-chip"
 #define PNV_CHIP(obj) OBJECT_CHECK(PnvChip, (obj), TYPE_PNV_CHIP)
@@ -35,6 +36,13 @@
      OBJECT_CLASS_CHECK(PnvChipClass, (klass), TYPE_PNV_CHIP)
 #define PNV_CHIP_GET_CLASS(obj) \
      OBJECT_GET_CLASS(PnvChipClass, (obj), TYPE_PNV_CHIP)
+
+enum SysBusNum {
+    PNV_XSCOM_SYSBUS,
+    PNV_ICP_SYSBUS,
+    PNV_HOMER_SYSBUS,
+    PNV_OCC_COMMON_AREA_SYSBUS,
+};
 
 typedef enum PnvChipType {
     PNV_CHIP_POWER8E,     /* AKA Murano (default) */
@@ -56,6 +64,8 @@ typedef struct PnvChip {
     uint64_t     cores_mask;
     void         *cores;
 
+    MemoryRegion homer_mmio;
+    MemoryRegion occ_common_area_mmio;
     MemoryRegion xscom_mmio;
     MemoryRegion xscom;
     AddressSpace xscom_as;
@@ -190,6 +200,10 @@ static inline bool pnv_is_power9(PnvMachineState *pnv)
  */
 void pnv_dt_bmc_sensors(IPMIBmc *bmc, void *fdt);
 void pnv_bmc_powerdown(IPMIBmc *bmc);
+
+extern void pnv_occ_common_area_realize(PnvChip *chip, Error **errp);
+extern void pnv_homer_realize(PnvChip *chip, Error **errp);
+
 
 /*
  * POWER8 MMIO base addresses
