@@ -501,7 +501,22 @@ char *riscv_isa_string(RISCVCPU *cpu)
     char *p = isa_str + snprintf(isa_str, maxlen, "rv%d", TARGET_LONG_BITS);
     for (i = 0; i < sizeof(riscv_exts); i++) {
         if (cpu->env.misa & RV(riscv_exts[i])) {
-            *p++ = qemu_tolower(riscv_exts[i]);
+            char lower = qemu_tolower(riscv_exts[i]);
+            switch (lower) {
+            case 's':
+            case 'u':
+                /*
+                 * The 's' and 'u' extensions shouldn't be passed in the device
+                 * tree, but we still use them internally to track extension
+                 * sets.  Here we just explicitly remove them when formatting
+                 * an ISA string.
+                 */
+                break;
+
+            default:
+                *p++ = lower;
+                break;
+            }
         }
     }
     *p = '\0';
