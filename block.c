@@ -547,6 +547,83 @@ int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp)
     return ret;
 }
 
+typedef struct DeleteCo {
+    BlockDriver *drv;
+    BlockDriverState *bs;
+    int ret;
+    Error *err;
+} DeleteCo;
+
+static void coroutine_fn bdrv_delete_co_entry(void *opaque)
+{
+    Error *local_err = NULL;
+    DeleteCo *dco = opaque;
+
+    assert(dco->bs);
+
+    dco->ret = dco->drv->bdrv_co_delete_file(dco->bs, &local_err);
+    error_propagate(&dco->err, local_err);
+}
+
+int bdrv_delete_file(const char *filename, Error **errp)
+{
+    BlockDriver *drv = bdrv_find_protocol(filename, true, NULL);
+    BlockDriverState *bs = bdrv_open(filename, NULL, NULL,
+                                     BDRV_O_RDWR | BDRV_O_PROTOCOL, NULL);
+    DeleteCo dco = {
+        .drv = drv,
+        .bs = bs,
+        .ret = NOT_DONE,
+        .err = NULL,
+    };
+    Coroutine *co;
+    int ret;
+
+    if (!drv) {
+        error_setg(errp, "File '%s' has unknown format", filename);
+        ret = -ENOENT;
+        goto out;
+    }
+
+    if (!drv->bdrv_co_delete_file) {
+        error_setg(errp, "Driver '%s' does not support image delete",
+                   drv->format_name);
+        ret = -ENOTSUP;
+        goto out;
+    }
+
+    if (!bs) {
+        error_setg(errp, "Could not open image '%s' for erasing",
+                   filename);
+        ret = 1;
+        goto out;
+    }
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_delete_co_entry(&dco);
+    } else {
+        co = qemu_coroutine_create(bdrv_delete_co_entry, &dco);
+        qemu_coroutine_enter(co);
+        while (dco.ret == NOT_DONE) {
+            aio_poll(qemu_get_aio_context(), true);
+        }
+    }
+
+    ret = dco.ret;
+    if (ret < 0) {
+        if (dco.err) {
+            error_propagate(errp, dco.err);
+        } else {
+            error_setg_errno(errp, -ret, "Could not delete image");
+        }
+    }
+
+out:
+    bdrv_unref(bs);
+    return ret;
+}
+
 /**
  * Try to get @bs's logical and physical block size.
  * On success, store them in @bsz struct and return 0.
