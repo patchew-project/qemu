@@ -7504,7 +7504,18 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
              * before the execve completes and makes it the other
              * program's problem.
              */
-            ret = get_errno(safe_execve(p, argp, envp));
+            {
+                const char *pathname = p;
+                char real_path[PATH_MAX];
+                if (is_proc_myself(pathname, "exe")) {
+                    if (NULL == realpath(exec_path, real_path)) {
+                        ret = get_errno(-1);
+                        goto execve_efault;
+                    }
+                    pathname = real_path;
+                }
+                ret = get_errno(safe_execve(pathname, argp, envp));
+            }
             unlock_user(p, arg1, 0);
 
             goto execve_end;
