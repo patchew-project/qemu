@@ -16,7 +16,9 @@
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "sysemu/python_api.h"
 #include "qemu/osdep.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "sysemu/cpus.h"
 #include "hw/ppc/pnv.h"
@@ -37,6 +39,15 @@ static bool core_max_array(hwaddr addr)
 
 static uint64_t homer_read(void *opaque, hwaddr addr, unsigned width)
 {
+    if (homer_module && homer) {
+        uint64_t homer_ret;
+        char **address = g_malloc(sizeof(uint64_t));
+        python_args_init_cast_long(address, addr, 0);
+        homer_ret = python_callback_int(module_path, homer_module, homer, address, 1);
+        python_args_clean(address, 1);
+        g_free(address);
+        return homer_ret;
+    }
     switch (addr) {
         case 0xe2006:  /* max pstate ultra turbo */
         case 0xe2018:  /* pstate id for 0 */
@@ -106,6 +117,15 @@ const MemoryRegionOps pnv_homer_ops = {
 
 static uint64_t occ_common_area_read(void *opaque, hwaddr addr, unsigned width)
 {
+    if (occ_module && occ) {
+        uint64_t occ_ret;
+        char **address = g_malloc(sizeof(uint64_t));
+        python_args_init_cast_long(address, addr, 0);
+        occ_ret = python_callback_int(module_path, occ_module, occ, address, 1);
+        python_args_clean(address, 1);
+        g_free(address);
+        return occ_ret;
+    }
     switch (addr) {
         /*
          * occ-sensor sanity check that asserts the sensor

@@ -144,6 +144,10 @@ const char *module_path = NULL;
 const char *xscom_module = NULL;
 const char *xscom_readp = NULL;
 const char *xscom_writep = NULL;
+const char *homer_module = NULL;
+const char *homer = NULL;
+const char *occ_module = NULL;
+const char *occ = NULL;
 int mem_prealloc = 0; /* force preallocation of physical target memory */
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
@@ -493,6 +497,22 @@ static QemuOptsList qemu_module_opts = {
         },
         {
             .name = "xscom_write",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "homer_module",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "homer",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "occ_module",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "occ",
             .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
@@ -3231,6 +3251,10 @@ int main(int argc, char **argv, char **envp)
                 xscom_module = qemu_opt_get(opts, "xscom_module");
                 xscom_readp = qemu_opt_get(opts, "xscom_read");
                 xscom_writep = qemu_opt_get(opts, "xscom_write");
+                homer_module = qemu_opt_get(opts, "homer_module");
+                homer = qemu_opt_get(opts, "homer");
+                occ_module = qemu_opt_get(opts, "occ_module");
+                occ = qemu_opt_get(opts, "occ");
                 break;
             case QEMU_OPTION_mem_prealloc:
                 mem_prealloc = 1;

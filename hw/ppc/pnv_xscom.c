@@ -179,13 +179,14 @@ static uint64_t xscom_read(void *opaque, hwaddr addr, unsigned width)
     MemTxResult result;
 
     if (xscom_module && xscom_readp) {
-        char **args = g_malloc(2 * sizeof(uint64_t));
+        char **args = g_malloc(3 * sizeof(uint64_t));
         PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
         python_args_init_cast_long(args, pcba, 0);
-        python_args_init_cast_int(args, pcc->chip_type, 1);
+        python_args_init_cast_int(args, chip->chip_num, 1);
+        python_args_init_cast_int(args, pcc->chip_type, 2);
         val = python_callback_int(module_path, xscom_module, xscom_readp,
-                                  args, 2);
-        python_args_clean(args, 2);
+                                  args, 3);
+        python_args_clean(args, 3);
         g_free(args);
     }
     else {

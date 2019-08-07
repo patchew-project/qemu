@@ -121,6 +121,10 @@ extern const char *module_path;
 extern const char *xscom_module;
 extern const char *xscom_readp;
 extern const char *xscom_writep;
+extern const char *homer_module;
+extern const char *homer;
+extern const char *occ_module;
+extern const char *occ;
 extern int mem_prealloc;
 
 #define MAX_NODES 128
