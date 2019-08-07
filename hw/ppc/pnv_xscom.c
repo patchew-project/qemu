@@ -77,6 +77,29 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case 0x18002:       /* ECID2 */
         return 0;
 
+    /* PBA BAR0 */
+    case 0x5012b00: /* P9 homer base address */
+        return PNV9_HOMER_BASE(chip);
+    case 0x2013f00: /* P8 homer base address */
+        return PNV_HOMER_BASE(chip);
+
+    /* PBA BARMASK0 */
+    case 0x5012b04: /* P9 homer region size */
+    case 0x2013f04: /* P8 homer region size */
+        return PNV_HOMER_SIZE;
+
+    /* PBA BAR2 */
+    case 0x5012b02: /* P9 occ common area */
+        return PNV9_OCC_COMMON_AREA(chip);
+    case 0x2013f02: /* P8 occ common area */
+        return PNV_OCC_COMMON_AREA(chip);
+
+    /* PBA BARMASK2 */
+    case 0x5012b06: /* P9 occ common area size */
+    case 0x2013f06: /* P8 occ common area size */
+        return PNV_OCC_COMMON_AREA_SIZE;
+
+
     case 0x1010c00:     /* PIBAM FIR */
     case 0x1010c03:     /* PIBAM FIR MASK */
 
@@ -96,13 +119,9 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case 0x2020009:     /* ADU stuff, error register */
     case 0x202000f:     /* ADU stuff, receive status register*/
         return 0;
-    case 0x2013f00:     /* PBA stuff */
     case 0x2013f01:     /* PBA stuff */
-    case 0x2013f02:     /* PBA stuff */
     case 0x2013f03:     /* PBA stuff */
-    case 0x2013f04:     /* PBA stuff */
     case 0x2013f05:     /* PBA stuff */
-    case 0x2013f06:     /* PBA stuff */
     case 0x2013f07:     /* PBA stuff */
         return 0;
     case 0x2013028:     /* CAPP stuff */
