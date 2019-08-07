@@ -675,6 +675,7 @@ static void pnv_init(MachineState *machine)
         Object *chip = object_new(chip_typename);
 
         pnv->chips[i] = PNV_CHIP(chip);
+        PNV_CHIP(chip)->chip_num = i;
 
         /* TODO: put all the memory in one node on chip 0 until we find a
          * way to specify different ranges for each chip
@@ -824,18 +825,20 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
  {
     PnvChip *chip = PNV_CHIP(chip8);
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+    SysBusDevice *sbd = SYS_BUS_DEVICE(chip);
     const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
     int i, j;
     char *name;
     XICSFabric *xi = XICS_FABRIC(qdev_get_machine());
 
+    sbd->num_mmio = PNV_ICP_SYSBUS;
     name = g_strdup_printf("icp-%x", chip->chip_id);
     memory_region_init(&chip8->icp_mmio, OBJECT(chip), name, PNV_ICP_SIZE);
-    sysbus_init_mmio(SYS_BUS_DEVICE(chip), &chip8->icp_mmio);
+    sysbus_init_mmio(sbd, &chip8->icp_mmio);
     g_free(name);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 1, PNV_ICP_BASE(chip));
+    sysbus_mmio_map(sbd, PNV_ICP_SYSBUS, PNV_ICP_BASE(chip));
 
     /* Map the ICP registers for each thread */
     for (i = 0; i < chip->nr_cores; i++) {
@@ -866,7 +869,26 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), PNV_XSCOM_SYSBUS,
+                                   PNV_XSCOM_BASE(chip));
+
+    /* homer */
+    pnv_homer_realize(chip, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), PNV_HOMER_SYSBUS,
+                    PNV_HOMER_BASE(chip));
+
+    /* occ common area */
+    pnv_occ_common_area_realize(chip, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), PNV_OCC_COMMON_AREA_SYSBUS,
+                    PNV_OCC_COMMON_AREA(chip));
 
     pcc->parent_realize(dev, &local_err);
     if (local_err) {
@@ -1035,7 +1057,26 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV9_XSCOM_BASE(chip));
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), PNV_XSCOM_SYSBUS,
+                    PNV9_XSCOM_BASE(chip));
+
+    /* homer */
+    pnv_homer_realize(chip, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), PNV_HOMER_SYSBUS,
+                    PNV9_HOMER_BASE(chip));
+
+    /* occ common area */
+    pnv_occ_common_area_realize(chip, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(chip), PNV_OCC_COMMON_AREA_SYSBUS,
+                    PNV9_OCC_COMMON_AREA(chip));
 
     pcc->parent_realize(dev, &local_err);
     if (local_err) {

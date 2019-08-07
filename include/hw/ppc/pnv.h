@@ -57,6 +57,7 @@ typedef struct PnvChip {
 
     /*< public >*/
     uint32_t     chip_id;
+    uint32_t     chip_num;
     uint64_t     ram_start;
     uint64_t     ram_size;
 
