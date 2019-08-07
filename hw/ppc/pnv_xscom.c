@@ -17,11 +17,13 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "sysemu/python_api.h"
 #include "qemu/osdep.h"
 #include "hw/hw.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "sysemu/hw_accel.h"
+#include "sysemu/sysemu.h"
 #include "target/ppc/cpu.h"
 #include "hw/sysbus.h"
 
@@ -157,8 +159,20 @@ static uint64_t xscom_read(void *opaque, hwaddr addr, unsigned width)
     uint64_t val = 0;
     MemTxResult result;
 
-    /* Handle some SCOMs here before dispatch */
-    val = xscom_read_default(chip, pcba);
+    if (xscom_module && xscom_readp) {
+        char **args = g_malloc(2 * sizeof(uint64_t));
+        PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
+        python_args_init_cast_long(args, pcba, 0);
+        python_args_init_cast_int(args, pcc->chip_type, 1);
+        val = python_callback_int(module_path, xscom_module, xscom_readp,
+                                  args, 2);
+        python_args_clean(args, 2);
+        g_free(args);
+    }
+    else {
+        /* Handle some SCOMs here before dispatch */
+        val = xscom_read_default(chip, pcba);
+    }
     if (val != -1) {
         goto complete;
     }
@@ -184,8 +198,19 @@ static void xscom_write(void *opaque, hwaddr addr, uint64_t val,
     uint32_t pcba = pnv_xscom_pcba(chip, addr);
     MemTxResult result;
 
+    if (xscom_module && xscom_writep) {
+        char **args = g_malloc(sizeof(uint64_t));
+        bool xscom_success;
+        python_args_init_cast_long(args, pcba, 0);
+        xscom_success = python_callback_bool(module_path, xscom_module,
+                                             xscom_writep, args, 1);
+        python_args_clean(args, 1);
+        g_free(args);
+        if (xscom_success)
+            goto complete;
+    }
     /* Handle some SCOMs here before dispatch */
-    if (xscom_write_default(chip, pcba, val)) {
+    else if (xscom_write_default(chip, pcba, val)) {
         goto complete;
     }
 

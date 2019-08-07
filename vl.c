@@ -140,6 +140,10 @@ int display_opengl;
 const char* keyboard_layout = NULL;
 ram_addr_t ram_size;
 const char *mem_path = NULL;
+const char *module_path = NULL;
+const char *xscom_module = NULL;
+const char *xscom_readp = NULL;
+const char *xscom_writep = NULL;
 int mem_prealloc = 0; /* force preallocation of physical target memory */
 bool enable_mlock = false;
 bool enable_cpu_pm = false;
@@ -464,6 +468,32 @@ static QemuOptsList qemu_mem_opts = {
         {
             .name = "maxmem",
             .type = QEMU_OPT_SIZE,
+        },
+        { /* end of list */ }
+    },
+};
+
+static QemuOptsList qemu_module_opts = {
+    .name = "module_path",
+    .implied_opt_name = "module_path",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_module_opts.head),
+    .merge_lists = true,
+    .desc = {
+        {
+            .name = "module_path",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "xscom_module",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "xscom_read",
+            .type = QEMU_OPT_STRING,
+        },
+        {
+            .name = "xscom_write",
+            .type = QEMU_OPT_STRING,
         },
         { /* end of list */ }
     },
@@ -2923,6 +2953,7 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_machine_opts);
     qemu_add_opts(&qemu_accel_opts);
     qemu_add_opts(&qemu_mem_opts);
+    qemu_add_opts(&qemu_module_opts);
     qemu_add_opts(&qemu_smp_opts);
     qemu_add_opts(&qemu_boot_opts);
     qemu_add_opts(&qemu_add_fd_opts);
@@ -3189,6 +3220,17 @@ int main(int argc, char **argv, char **envp)
 #endif
             case QEMU_OPTION_mempath:
                 mem_path = optarg;
+                break;
+            case QEMU_OPTION_modulepath:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("module_path"),
+                                               optarg, true);
+                if (!opts) {
+                    exit(EXIT_FAILURE);
+                }
+                module_path = qemu_opt_get(opts, "module_path");
+                xscom_module = qemu_opt_get(opts, "xscom_module");
+                xscom_readp = qemu_opt_get(opts, "xscom_read");
+                xscom_writep = qemu_opt_get(opts, "xscom_write");
                 break;
             case QEMU_OPTION_mem_prealloc:
                 mem_prealloc = 1;

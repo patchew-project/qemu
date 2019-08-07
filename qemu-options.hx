@@ -385,6 +385,20 @@ STEXI
 Allocate guest RAM from a temporarily created file in @var{path}.
 ETEXI
 
+DEF("module-path", HAS_ARG, QEMU_OPTION_modulepath,
+    "-module-path FILE  provide absolute path where python modules"
+    "resides\n", QEMU_ARCH_ALL)
+STEXI
+@item -module-path [path=]@var{absolute path}[,homer_module=homer,homer_func=func1]
+@findex -module-path
+Provides information about where the python modules exist and the callback
+functions defined.
+
+@example
+qemu-system-ppc64 -module-path /home/modules/,homer_module=homer,homer_func=homer_read
+@end example
+ETEXI
+
 DEF("mem-prealloc", 0, QEMU_OPTION_mem_prealloc,
     "-mem-prealloc   preallocate guest memory (use with -mem-path)\n",
     QEMU_ARCH_ALL)

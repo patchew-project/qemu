@@ -117,6 +117,10 @@ extern bool enable_mlock;
 extern bool enable_cpu_pm;
 extern QEMUClockType rtc_clock;
 extern const char *mem_path;
+extern const char *module_path;
+extern const char *xscom_module;
+extern const char *xscom_readp;
+extern const char *xscom_writep;
 extern int mem_prealloc;
 
 #define MAX_NODES 128
