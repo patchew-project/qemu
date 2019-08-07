@@ -1866,6 +1866,11 @@ fi
 # Preserve python version since some functionality is dependent on it
 python_version=$($python -V 2>&1 | sed -e 's/Python\ //')
 
+# Python config to be used for CFLAGS and LDFLAGS
+if ! [ -z "$python" ]; then
+    python_config="$python-config"
+fi
+
 # Suppress writing compiled files
 python="$python -B"
 
@@ -6303,6 +6308,11 @@ echo_version() {
         echo "($2)"
     fi
 }
+
+if ! [ -z "$python_config" ]; then
+    QEMU_CFLAGS="$QEMU_CFLAGS $($python_config --includes)"
+    QEMU_LDFLAGS="$QEMU_LDFLAGS $($python_config --ldflags)"
+fi
 
 # prepend pixman and ftd flags after all config tests are done
 QEMU_CFLAGS="$pixman_cflags $fdt_cflags $QEMU_CFLAGS"
