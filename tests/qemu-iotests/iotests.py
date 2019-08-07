@@ -540,6 +540,16 @@ class VM(qtest.QEMUQtestMachine):
         log(result, filters, indent=indent)
         return result
 
+    def event_wait_log(self, name, **kwargs):
+        event = self.event_wait(name, **kwargs)
+        log(event, filters=[filter_qmp_event])
+        return event
+
+    def events_wait_log(self, events, **kwargs):
+        event = self.events_wait(events, **kwargs)
+        log(event, filters=[filter_qmp_event])
+        return event
+
     # Returns None on success, and an error string on failure
     def run_job(self, job, auto_finalize=True, auto_dismiss=False,
                 pre_finalize=None, use_log=True, wait=60.0):
