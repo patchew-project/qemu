@@ -599,6 +599,10 @@ static void virtio_write_config(PCIDevice *pci_dev, uint32_t address,
 
     pci_default_write_config(pci_dev, address, val, len);
 
+    if (proxy->has_flr) {
+        pcie_cap_flr_write_config(pci_dev, address, val, len);
+    }
+
     if (range_covers_byte(address, len, PCI_COMMAND) &&
         !(pci_dev->config[PCI_COMMAND] & PCI_COMMAND_MASTER)) {
         virtio_pci_stop_ioeventfd(proxy);
@@ -1718,6 +1722,8 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     proxy->notify_pio.size = 0x4;
     proxy->notify_pio.type = VIRTIO_PCI_CAP_NOTIFY_CFG;
 
+    proxy->has_flr = false;
+
     /* subclasses can enforce modern, so do this unconditionally */
     memory_region_init(&proxy->modern_bar, OBJECT(proxy), "virtio-pci",
                        /* PCI BAR regions must be powers of 2 */
@@ -1748,6 +1754,10 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
         }
 
         pci_dev->exp.pm_cap = pos;
+
+        /* Set Function Level Reset capability bit */
+        pcie_cap_flr_init(pci_dev);
+        proxy->has_flr = true;
 
         /*
          * Indicates that this function complies with revision 1.2 of the
