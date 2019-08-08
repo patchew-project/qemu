@@ -1132,7 +1132,10 @@ static void lsi_execute_script(LSIState *s)
 
     s->istat1 |= LSI_ISTAT1_SRUN;
 again:
-    insn_processed++;
+    if (++insn_processed > 10000) {
+        s->waiting = LSI_NOWAIT;
+        goto exitloop;
+    }
     insn = read_dword(s, s->dsp);
     if (!insn) {
         /* If we receive an empty opcode increment the DSP by 4 bytes
@@ -1569,6 +1572,7 @@ again:
             }
         }
     }
+exitloop:
     if (insn_processed > 10000 && s->waiting == LSI_NOWAIT) {
         /* Some windows drivers make the device spin waiting for a memory
            location to change.  If we have been executed a lot of code then
