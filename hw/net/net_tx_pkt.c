@@ -349,7 +349,7 @@ void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
         case IP_PROTO_UDP:
             pkt->virt_hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
             pkt->virt_hdr.csum_start = pkt->hdr_len;
-            pkt->virt_hdr.csum_offset = offsetof(struct udp_hdr, uh_sum);
+            pkt->virt_hdr.csum_offset = offsetof(struct udp_header, uh_sum);
             break;
         default:
             break;

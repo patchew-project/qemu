@@ -153,13 +153,6 @@ struct ip6_option_hdr {
     uint8_t len;
 };
 
-struct udp_hdr {
-  uint16_t uh_sport;           /* source port */
-  uint16_t uh_dport;           /* destination port */
-  uint16_t uh_ulen;            /* udp length */
-  uint16_t uh_sum;             /* udp checksum */
-};
-
 #define ip6_nxt      ip6_ctlun.ip6_un1.ip6_un1_nxt
 #define ip6_ecn_acc  ip6_ctlun.ip6_un3.ip6_un3_ecn
 
