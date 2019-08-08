@@ -72,7 +72,14 @@ typedef struct tcp_header {
 #define TCP_HEADER_FLAGS(tcp) \
     TCP_FLAGS_ONLY(be16_to_cpu((tcp)->th_offset_flags))
 
-#define TCP_FLAG_ACK  0x10
+#define TH_FIN  0x01
+#define TH_SYN  0x02
+#define TH_RST  0x04
+#define TH_PUSH 0x08
+#define TH_ACK  0x10
+#define TH_URG  0x20
+#define TH_ECE  0x40
+#define TH_CWR  0x80
 
 #define TCP_HEADER_DATA_OFFSET(tcp) \
     (((be16_to_cpu((tcp)->th_offset_flags) >> 12) & 0xf) << 2)
@@ -151,37 +158,6 @@ struct udp_hdr {
   uint16_t uh_dport;           /* destination port */
   uint16_t uh_ulen;            /* udp length */
   uint16_t uh_sum;             /* udp checksum */
-};
-
-struct tcp_hdr {
-    u_short     th_sport;   /* source port */
-    u_short     th_dport;   /* destination port */
-    uint32_t    th_seq;     /* sequence number */
-    uint32_t    th_ack;     /* acknowledgment number */
-#ifdef HOST_WORDS_BIGENDIAN
-    u_char  th_off : 4,     /* data offset */
-        th_x2:4;            /* (unused) */
-#else
-    u_char  th_x2 : 4,      /* (unused) */
-        th_off:4;           /* data offset */
-#endif
-
-#define TH_ELN  0x1 /* explicit loss notification */
-#define TH_ECN  0x2 /* explicit congestion notification */
-#define TH_FS   0x4 /* fast start */
-
-    u_char  th_flags;
-#define TH_FIN  0x01
-#define TH_SYN  0x02
-#define TH_RST  0x04
-#define TH_PUSH 0x08
-#define TH_ACK  0x10
-#define TH_URG  0x20
-#define TH_ECE  0x40
-#define TH_CWR  0x80
-    u_short th_win;      /* window */
-    u_short th_sum;      /* checksum */
-    u_short th_urp;      /* urgent pointer */
 };
 
 #define ip6_nxt      ip6_ctlun.ip6_un1.ip6_un1_nxt
