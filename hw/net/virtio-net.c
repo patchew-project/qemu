@@ -46,9 +46,6 @@
 
 #define VIRTIO_NET_IP4_ADDR_SIZE   8        /* ipv4 saddr + daddr */
 
-#define VIRTIO_NET_TCP_FLAG         0x3F
-#define VIRTIO_NET_TCP_HDR_LENGTH   0xF000
-
 /* IPv4 max payload, 16 bits in the header */
 #define VIRTIO_NET_MAX_IP4_PAYLOAD (65535 - sizeof(struct ip_header))
 #define VIRTIO_NET_MAX_TCP_PAYLOAD 65535
@@ -1658,10 +1655,8 @@ static int virtio_net_rsc_tcp_ctrl_check(VirtioNetRscChain *chain,
     uint16_t tcp_hdr;
     uint16_t tcp_flag;
 
-    tcp_flag = htons(tcp->th_offset_flags);
-    tcp_hdr = (tcp_flag & VIRTIO_NET_TCP_HDR_LENGTH) >> 10;
-    tcp_flag &= VIRTIO_NET_TCP_FLAG;
-    tcp_flag = htons(tcp->th_offset_flags) & 0x3F;
+    tcp_hdr = TCP_HEADER_DATA_OFFSET(tcp);
+    tcp_flag = TCP_HEADER_FLAGS(tcp);
     if (tcp_flag & TH_SYN) {
         chain->stat.tcp_syn++;
         return RSC_BYPASS;
