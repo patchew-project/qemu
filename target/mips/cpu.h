@@ -5,7 +5,8 @@
 
 #include "cpu-qom.h"
 #include "exec/cpu-defs.h"
-#include "fpu/softfloat.h"
+#include "fpu/softfloat-types.h"
+#include "fpu/softfloat-helpers.h"
 #include "mips-defs.h"
 
 #define TCG_GUEST_DEFAULT_MO (0)
