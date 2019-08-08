@@ -161,28 +161,28 @@ static void colo_compare_inconsistency_notify(CompareState *s)
 
 static gint seq_sorter(Packet *a, Packet *b, gpointer data)
 {
-    struct tcp_hdr *atcp, *btcp;
+    struct tcp_header *atcp, *btcp;
 
-    atcp = (struct tcp_hdr *)(a->transport_header);
-    btcp = (struct tcp_hdr *)(b->transport_header);
+    atcp = (struct tcp_header *)(a->transport_header);
+    btcp = (struct tcp_header *)(b->transport_header);
     return ntohl(atcp->th_seq) - ntohl(btcp->th_seq);
 }
 
 static void fill_pkt_tcp_info(void *data, uint32_t *max_ack)
 {
     Packet *pkt = data;
-    struct tcp_hdr *tcphd;
+    struct tcp_header *tcphd;
 
-    tcphd = (struct tcp_hdr *)pkt->transport_header;
+    tcphd = (struct tcp_header *)pkt->transport_header;
 
     pkt->tcp_seq = ntohl(tcphd->th_seq);
     pkt->tcp_ack = ntohl(tcphd->th_ack);
     *max_ack = *max_ack > pkt->tcp_ack ? *max_ack : pkt->tcp_ack;
     pkt->header_size = pkt->transport_header - (uint8_t *)pkt->data
-                       + (tcphd->th_off << 2) - pkt->vnet_hdr_len;
+                       + TCP_HEADER_DATA_OFFSET(tcphd) - pkt->vnet_hdr_len;
     pkt->payload_size = pkt->size - pkt->header_size;
     pkt->seq_end = pkt->tcp_seq + pkt->payload_size;
-    pkt->flags = tcphd->th_flags;
+    pkt->flags = TCP_HEADER_FLAGS(tcphd);
 }
 
 /*
