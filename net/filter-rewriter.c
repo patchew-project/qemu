@@ -73,23 +73,26 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
                                   Connection *conn,
                                   Packet *pkt, ConnectionKey *key)
 {
-    struct tcp_hdr *tcp_pkt;
+    struct tcp_header *tcp_pkt;
+    uint8_t tcp_flags;
 
-    tcp_pkt = (struct tcp_hdr *)pkt->transport_header;
+    tcp_pkt = (struct tcp_header *)pkt->transport_header;
+    tcp_flags = TCP_HEADER_FLAGS(tcp_pkt);
+
     if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
-                    tcp_pkt->th_flags);
+                    tcp_flags);
         trace_colo_filter_rewriter_conn_offset(conn->offset);
     }
 
-    if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN)) &&
+    if (((tcp_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN)) &&
         conn->tcp_state == TCPS_SYN_SENT) {
         conn->tcp_state = TCPS_ESTABLISHED;
     }
 
-    if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
+    if (((tcp_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
         /*
          * we use this flag update offset func
          * run once in independent tcp connection
@@ -97,7 +100,7 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
         conn->tcp_state = TCPS_SYN_RECEIVED;
     }
 
-    if (((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_ACK)) {
+    if (((tcp_flags & (TH_ACK | TH_SYN)) == TH_ACK)) {
         if (conn->tcp_state == TCPS_SYN_RECEIVED) {
             /*
              * offset = secondary_seq - primary seq
@@ -119,13 +122,13 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
          * Passive close step 3
          */
         if ((conn->tcp_state == TCPS_LAST_ACK) &&
-            (ntohl(tcp_pkt->th_ack) == (conn->fin_ack_seq + 1))) {
+            (ldl_be_p(&tcp_pkt->th_ack) == (conn->fin_ack_seq + 1))) {
             conn->tcp_state = TCPS_CLOSED;
             g_hash_table_remove(rf->connection_track_table, key);
         }
     }
 
-    if ((tcp_pkt->th_flags & TH_FIN) == TH_FIN) {
+    if ((tcp_flags & TH_FIN) == TH_FIN) {
         /*
          * Passive close.
          * Step 1:
@@ -176,20 +179,22 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
                                     Connection *conn,
                                     Packet *pkt, ConnectionKey *key)
 {
-    struct tcp_hdr *tcp_pkt;
+    struct tcp_header *tcp_pkt;
+    uint8_t tcp_flags;
 
-    tcp_pkt = (struct tcp_hdr *)pkt->transport_header;
+    tcp_pkt = (struct tcp_header *)pkt->transport_header;
+    tcp_flags = TCP_HEADER_FLAGS(tcp_pkt);
 
     if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
-                    tcp_pkt->th_flags);
+                    tcp_flags);
         trace_colo_filter_rewriter_conn_offset(conn->offset);
     }
 
     if (conn->tcp_state == TCPS_SYN_RECEIVED &&
-        ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN))) {
+        ((tcp_flags & (TH_ACK | TH_SYN)) == (TH_ACK | TH_SYN))) {
         /*
          * save offset = secondary_seq and then
          * in handle_primary_tcp_pkt make offset
@@ -200,11 +205,11 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
 
     /* VM active connect */
     if (conn->tcp_state == TCPS_CLOSED &&
-        ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
+        ((tcp_flags & (TH_ACK | TH_SYN)) == TH_SYN)) {
         conn->tcp_state = TCPS_SYN_SENT;
     }
 
-    if ((tcp_pkt->th_flags & (TH_ACK | TH_SYN)) == TH_ACK) {
+    if ((tcp_flags & (TH_ACK | TH_SYN)) == TH_ACK) {
         /* Only need to adjust seq while offset is Non-zero */
         if (conn->offset) {
             /* handle packets to the primary from the secondary*/
@@ -219,7 +224,7 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
      * Passive close step 2:
      */
     if (conn->tcp_state == TCPS_CLOSE_WAIT &&
-        (tcp_pkt->th_flags & (TH_ACK | TH_FIN)) == (TH_ACK | TH_FIN)) {
+        (tcp_flags & (TH_ACK | TH_FIN)) == (TH_ACK | TH_FIN)) {
         conn->fin_ack_seq = ntohl(tcp_pkt->th_seq);
         conn->tcp_state = TCPS_LAST_ACK;
     }
@@ -237,7 +242,7 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
      * CLOSING status.
      */
     if (conn->tcp_state == TCPS_ESTABLISHED &&
-        (tcp_pkt->th_flags & (TH_ACK | TH_FIN)) == TH_FIN) {
+        (tcp_flags & (TH_ACK | TH_FIN)) == TH_FIN) {
         conn->tcp_state = TCPS_FIN_WAIT_1;
     }
 
