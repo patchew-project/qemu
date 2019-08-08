@@ -376,7 +376,7 @@ bool net_rx_pkt_is_tcp_ack(struct NetRxPkt *pkt)
     assert(pkt);
 
     if (pkt->istcp) {
-        return TCP_HEADER_FLAGS(&pkt->l4hdr_info.hdr.tcp) & TCP_FLAG_ACK;
+        return TCP_HEADER_FLAGS(&pkt->l4hdr_info.hdr.tcp) & TH_ACK;
     }
 
     return false;

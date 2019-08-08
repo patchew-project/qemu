@@ -307,7 +307,7 @@ func_exit:
 void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
     bool csum_enable, uint32_t gso_size)
 {
-    struct tcp_hdr l4hdr;
+    struct tcp_header l4hdr;
     assert(pkt);
 
     /* csum has to be enabled if tso is. */
@@ -330,7 +330,8 @@ void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
     case VIRTIO_NET_HDR_GSO_TCPV6:
         iov_to_buf(&pkt->vec[NET_TX_PKT_PL_START_FRAG], pkt->payload_frags,
                    0, &l4hdr, sizeof(l4hdr));
-        pkt->virt_hdr.hdr_len = pkt->hdr_len + l4hdr.th_off * sizeof(uint32_t);
+        pkt->virt_hdr.hdr_len = pkt->hdr_len
+                            + TCP_HEADER_DATA_OFFSET(&l4hdr) * sizeof(uint32_t);
         pkt->virt_hdr.gso_size = gso_size;
         break;
 
@@ -343,7 +344,7 @@ void net_tx_pkt_build_vheader(struct NetTxPkt *pkt, bool tso_enable,
         case IP_PROTO_TCP:
             pkt->virt_hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
             pkt->virt_hdr.csum_start = pkt->hdr_len;
-            pkt->virt_hdr.csum_offset = offsetof(struct tcp_hdr, th_sum);
+            pkt->virt_hdr.csum_offset = offsetof(struct tcp_header, th_sum);
             break;
         case IP_PROTO_UDP:
             pkt->virt_hdr.flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
