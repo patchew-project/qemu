@@ -2277,6 +2277,34 @@ static const ARMCPRegInfo v6k_cp_reginfo[] = {
 
 #ifndef CONFIG_USER_ONLY
 
+static void gt_recalc_timer(ARMCPU *cpu, int timeridx);
+static void gt_cntfrq_write(CPUARMState *env, const ARMCPRegInfo *ri,
+                            uint64_t value)
+{
+    uint64_t scale;
+    ARMCPU *cpu;
+    int i;
+
+    raw_write(env, ri, value);
+
+    /* Fix up the timer scaling */
+    cpu = env_archcpu(env);
+    scale = MAX(1, NANOSECONDS_PER_SECOND / value);
+    for (i = 0; i < NUM_GTIMERS; i++) {
+        if (!cpu->gt_timer[i]) {
+            continue;
+        }
+
+        cpu->gt_timer[i]->scale = scale;
+        gt_recalc_timer(cpu, i);
+    }
+}
+
+static void gt_cntfrq_reset(CPUARMState *env, const ARMCPRegInfo *opaque)
+{
+    gt_cntfrq_write(env, opaque, opaque->resetvalue);
+}
+
 static CPAccessResult gt_cntfrq_access(CPUARMState *env, const ARMCPRegInfo *ri,
                                        bool isread)
 {
@@ -2407,7 +2435,21 @@ static CPAccessResult gt_stimer_access(CPUARMState *env,
 
 static uint64_t gt_get_countervalue(CPUARMState *env)
 {
-    return qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / GTIMER_SCALE;
+    uint64_t effective;
+
+    /*
+     * Deal with quantized clock scaling by calculating the effective frequency
+     * in terms of the timer scale.
+     */
+    if (env->cp15.c14_cntfrq <= NANOSECONDS_PER_SECOND) {
+        uint32_t scale = NANOSECONDS_PER_SECOND / env->cp15.c14_cntfrq;
+        effective = NANOSECONDS_PER_SECOND / scale;
+    } else {
+        effective = NANOSECONDS_PER_SECOND;
+    }
+
+    return muldiv64(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL), effective,
+                    NANOSECONDS_PER_SECOND);
 }
 
 static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
@@ -2443,8 +2485,8 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
          * set the timer for as far in the future as possible. When the
          * timer expires we will reset the timer for any remaining period.
          */
-        if (nexttick > INT64_MAX / GTIMER_SCALE) {
-            nexttick = INT64_MAX / GTIMER_SCALE;
+        if (nexttick > INT64_MAX / cpu->gt_timer[timeridx]->scale) {
+            nexttick = INT64_MAX / cpu->gt_timer[timeridx]->scale;
         }
         timer_mod(cpu->gt_timer[timeridx], nexttick);
         trace_arm_gt_recalc(timeridx, irqstate, nexttick);
@@ -2686,13 +2728,16 @@ static const ARMCPRegInfo generic_timer_cp_reginfo[] = {
     { .name = "CNTFRQ", .cp = 15, .crn = 14, .crm = 0, .opc1 = 0, .opc2 = 0,
       .type = ARM_CP_ALIAS,
       .access = PL1_RW | PL0_R, .accessfn = gt_cntfrq_access,
+      .writefn = gt_cntfrq_write,
       .fieldoffset = offsetoflow32(CPUARMState, cp15.c14_cntfrq),
     },
     { .name = "CNTFRQ_EL0", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 3, .crn = 14, .crm = 0, .opc2 = 0,
       .access = PL1_RW | PL0_R, .accessfn = gt_cntfrq_access,
+      .writefn = gt_cntfrq_write,
       .fieldoffset = offsetof(CPUARMState, cp15.c14_cntfrq),
       .resetvalue = (1000 * 1000 * 1000) / GTIMER_SCALE,
+      .resetfn = gt_cntfrq_reset,
     },
     /* overall control: mostly access permissions */
     { .name = "CNTKCTL", .state = ARM_CP_STATE_BOTH,
