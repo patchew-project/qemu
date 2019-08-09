@@ -5392,8 +5392,6 @@ fi
 
 if test "$cpuid_h" = "yes" && test "$avx2_opt" != "no"; then
   cat > $TMPC << EOF
-#pragma GCC push_options
-#pragma GCC target("avx2")
 #include <cpuid.h>
 #include <immintrin.h>
 static int bar(void *a) {
@@ -5402,7 +5400,7 @@ static int bar(void *a) {
 }
 int main(int argc, char *argv[]) { return bar(argv[0]); }
 EOF
-  if compile_object "" ; then
+  if compile_object "-mavx2" ; then
     avx2_opt="yes"
   else
     avx2_opt="no"
