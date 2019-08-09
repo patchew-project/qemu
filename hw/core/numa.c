@@ -37,6 +37,7 @@
 #include "qemu/option.h"
 #include "qemu/config-file.h"
 #include "qemu/cutils.h"
+#include "hw/acpi/hmat.h"
 
 QemuOptsList qemu_numa_opts = {
     .name = "numa",
@@ -183,6 +184,184 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
     ms->numa_state->have_numa_distance = true;
 }
 
+void parse_numa_hmat_lb(MachineState *ms, NumaHmatLBOptions *node,
+                        Error **errp)
+{
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    NodeInfo *numa_info = ms->numa_state->nodes;
+    HMAT_LB_Info *hmat_lb = NULL;
+    const char *endptr;
+    int ret;
+    uint32_t latency, bandwidth;
+    uint64_t base_lat = 0, base_bw = 0;
+
+    if (node->data_type <= HMATLB_DATA_TYPE_WRITE_LATENCY) {
+        if (!node->has_latency) {
+            error_setg(errp, "Missing 'latency' option.");
+            return;
+        }
+        if (node->has_bandwidth) {
+            error_setg(errp, "Invalid option 'bandwidth' since "
+                       "the data type is latency.");
+            return;
+        }
+    }
+
+    if (node->data_type >= HMATLB_DATA_TYPE_ACCESS_BANDWIDTH) {
+        if (!node->has_bandwidth) {
+            error_setg(errp, "Missing 'bandwidth' option.");
+            return;
+        }
+        if (node->has_latency) {
+            error_setg(errp, "Invalid option 'latency' since "
+                       "the data type is bandwidth.");
+            return;
+        }
+    }
+
+    if (node->initiator >= nb_numa_nodes) {
+        error_setg(errp, "Invalid initiator=%"
+                   PRIu16 ", it should be less than %d.",
+                   node->initiator, nb_numa_nodes);
+        return;
+    }
+    if (!numa_info[node->initiator].has_cpu) {
+        error_setg(errp, "Invalid initiator=%"
+                   PRIu16 ", it isn't an initiator proximity domain.",
+                   node->initiator);
+        return;
+    }
+
+    if (node->target >= nb_numa_nodes) {
+        error_setg(errp, "Invalid target=%"
+                   PRIu16 ", it should be less than %d.",
+                   node->target, nb_numa_nodes);
+        return;
+    }
+    if (!numa_info[node->target].initiator_valid) {
+        error_setg(errp, "Invalid target=%"
+                   PRIu16 ", it hasn't a valid initiator proximity domain.",
+                   node->target);
+        return;
+    }
+
+    if (node->has_latency) {
+        hmat_lb = ms->numa_state->hmat_lb[node->hierarchy][node->data_type];
+
+        if (!hmat_lb) {
+            hmat_lb = g_malloc0(sizeof(*hmat_lb));
+            ms->numa_state->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
+        } else if (hmat_lb->latency[node->initiator][node->target]) {
+            error_setg(errp, "Duplicate configuration of the latency for "
+                       "initiator=%" PRIu16 " and target=%" PRIu16 ".",
+                       node->initiator, node->target);
+            return;
+        }
+
+        ret = qemu_strtoui(node->latency, &endptr, 10, &latency);
+        if (ret < 0) {
+            error_setg(errp, "Invalid latency %s", node->latency);
+            return;
+        }
+
+        if (*endptr == '\0') {
+            base_lat = 1;
+        } else if (*(endptr + 1) == 's') {
+            switch (*endptr) {
+            case 'p':
+                base_lat = 1;
+                break;
+            case 'n':
+                base_lat = PICO_PER_NSEC;
+                break;
+            case 'u':
+                base_lat = PICO_PER_USEC;
+                break;
+            }
+        } else {
+            error_setg(errp, "Invalid latency unit %s,"
+                "vaild units are \"ps\" \"ns\" \"us\"", node->latency);
+            return;
+        }
+
+        /* Only the first time of setting the base unit is valid. */
+        if (hmat_lb->base_lat == 0) {
+            hmat_lb->base_lat = base_lat;
+        } else if (hmat_lb->base_lat != base_lat) {
+            error_setg(errp, "Invalid latency unit %s,"
+                " please unify the units.", node->latency);
+            return;
+        }
+
+        if (latency >= UINT16_MAX) {
+            error_setg(errp, "Latency value %s overflow, max value"
+                " is %" PRIu16, node->latency, UINT16_MAX - 1);
+        }
+
+        hmat_lb->latency[node->initiator][node->target] = latency;
+    }
+
+    if (node->has_bandwidth) {
+        hmat_lb = ms->numa_state->hmat_lb[node->hierarchy][node->data_type];
+
+        if (!hmat_lb) {
+            hmat_lb = g_malloc0(sizeof(*hmat_lb));
+            ms->numa_state->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
+        } else if (hmat_lb->bandwidth[node->initiator][node->target]) {
+            error_setg(errp, "Duplicate configuration of the bandwidth for "
+                       "initiator=%" PRIu16 " and target=%" PRIu16 ".",
+                       node->initiator, node->target);
+            return;
+        }
+
+        ret = qemu_strtoui(node->bandwidth, &endptr, 10, &bandwidth);
+        if (ret < 0) {
+            error_setg(errp, "Invalid bandwidth %s", node->bandwidth);
+            return;
+        }
+
+        switch (toupper(*endptr)) {
+        case '\0':
+        case 'M':
+            base_bw = 1;
+            break;
+        case 'G':
+            base_bw = UINT64_C(1) << 10;
+            break;
+        case 'P':
+            base_bw = UINT64_C(1) << 20;
+            break;
+        }
+
+        if (base_bw == 0) {
+            error_setg(errp, "Invalid bandwidth unit %s,"
+                " vaild units are \"M\" \"G\" \"P\"", node->bandwidth);
+            return;
+        }
+
+        /* Only the first time of setting the base unit is valid. */
+        if (hmat_lb->base_bw == 0) {
+            hmat_lb->base_bw = base_bw;
+        } else if (hmat_lb->base_lat != base_lat) {
+            error_setg(errp, "Invalid bandwidth unit %s,"
+                " please unify the units.", node->bandwidth);
+            return;
+        }
+
+        if (bandwidth >= UINT16_MAX) {
+            error_setg(errp, "Bandwidth value %s overflow, max value"
+                " is %" PRIu16, node->bandwidth, UINT16_MAX - 1);
+        }
+
+        hmat_lb->bandwidth[node->initiator][node->target] = bandwidth;
+    }
+
+    if (hmat_lb) {
+        hmat_lb->hierarchy = node->hierarchy;
+        hmat_lb->data_type = node->data_type;
+    }
+}
+
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
@@ -220,6 +399,12 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 
         machine_set_cpu_numa_node(ms, qapi_NumaCpuOptions_base(&object->u.cpu),
                                   &err);
+        break;
+    case NUMA_OPTIONS_TYPE_HMAT_LB:
+        parse_numa_hmat_lb(ms, &object->u.hmat_lb, &err);
+        if (err) {
+            goto end;
+        }
         break;
     default:
         abort();

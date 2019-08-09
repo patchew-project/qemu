@@ -42,6 +42,9 @@
 
 #define HMAT_IS_LATENCY(type) (type <= HMAT_LB_DATA_WRITE_LATENCY)
 
+#define PICO_PER_USEC 1000000
+#define PICO_PER_NSEC 1000
+
 struct HMAT_LB_Info {
     /*
      * Indicates total number of Proximity Domains
