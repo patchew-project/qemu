@@ -1614,7 +1614,16 @@ void helper_mtc0_saar(CPUMIPSState *env, target_ulong arg1)
                 itc_reconfigure(env->itu);
             }
             break;
+#if defined(CONFIG_MIPS_DSPRAM)
+        case 1:
+            if (env->dspram) {
+                dspram_reconfigure(env->dspram);
+            }
+            break;
+#endif
         }
+    } else {
+        helper_raise_exception(env, EXCP_RI);
     }
 }
 
@@ -1631,7 +1640,16 @@ void helper_mthc0_saar(CPUMIPSState *env, target_ulong arg1)
                 itc_reconfigure(env->itu);
             }
             break;
+#if defined(CONFIG_MIPS_DSPRAM)
+        case 1:
+            if (env->dspram) {
+                dspram_reconfigure(env->dspram);
+            }
+            break;
+#endif
         }
+    } else {
+        helper_raise_exception(env, EXCP_RI);
     }
 }
 
