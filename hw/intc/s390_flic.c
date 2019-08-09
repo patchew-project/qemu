@@ -22,6 +22,7 @@
 #include "hw/qdev.h"
 #include "qapi/error.h"
 #include "hw/s390x/s390-virtio-ccw.h"
+#include "migration/qemu-file-types.h"
 
 S390FLICStateClass *s390_get_flic_class(S390FLICState *fs)
 {
