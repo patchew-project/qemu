@@ -1578,7 +1578,7 @@ again:
             }
         }
     }
-    if (insn_processed > 10000 && s->waiting == LSI_NOWAIT) {
+    if (insn_processed > LSI_MAX_INSN && s->waiting == LSI_NOWAIT) {
         /* Some windows drivers make the device spin waiting for a memory
            location to change.  If we have been executed a lot of code then
            assume this is the case and force an unexpected device disconnect.
