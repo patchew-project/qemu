@@ -195,7 +195,10 @@ class MultiField:
     """Class representing a compound instruction field"""
     def __init__(self, subs, mask):
         self.subs = subs
-        self.sign = subs[0].sign
+        if len(subs):
+            self.sign = subs[0].sign
+        else:
+            self.sign = 0
         self.mask = mask
 
     def __str__(self):
@@ -245,7 +248,7 @@ class ConstField:
 
 
 class FunctionField:
-    """Class representing a field passed through an expander"""
+    """Class representing a field passed through a function"""
     def __init__(self, func, base):
         self.mask = base.mask
         self.sign = base.sign
@@ -260,6 +263,27 @@ class FunctionField:
 
     def __eq__(self, other):
         return self.func == other.func and self.base == other.base
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+# end FunctionField
+
+
+class ParameterField:
+    """Class representing a psuedo-field read from a function"""
+    def __init__(self, func):
+        self.mask = 0
+        self.sign = 0
+        self.func = func
+
+    def __str__(self):
+        return self.func
+
+    def str_extract(self):
+        return self.func + '(ctx)'
+
+    def __eq__(self, other):
+        return self.func == other.func
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -433,17 +457,23 @@ def parse_field(lineno, name, toks):
 
     if width > insnwidth:
         error(lineno, 'field too large')
-    if len(subs) == 1:
-        f = subs[0]
+    if len(subs) == 0:
+        if func:
+            f = ParameterField(func)
+        else:
+            error(lineno, 'field with no value')
     else:
-        mask = 0
-        for s in subs:
-            if mask & s.mask:
-                error(lineno, 'field components overlap')
-            mask |= s.mask
-        f = MultiField(subs, mask)
-    if func:
-        f = FunctionField(func, f)
+        if len(subs) == 1:
+            f = subs[0]
+        else:
+            mask = 0
+            for s in subs:
+                if mask & s.mask:
+                    error(lineno, 'field components overlap')
+                mask |= s.mask
+            f = MultiField(subs, mask)
+        if func:
+            f = FunctionField(func, f)
 
     if name in fields:
         error(lineno, 'duplicate field', name)
