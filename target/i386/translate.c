@@ -4777,6 +4777,9 @@ INSNOP(Rq, TCGv_i64, INSNOP_INIT_FAIL,
 #endif /* !TARGET_X86_64 */
 
 #ifdef TARGET_X86_64
+INSNOP_LDST(RdMw, Rd, Mw, s->tmp3_i32,
+            tcg_gen_qemu_ld_i32(reg, ptr, s->mem_index, MO_LEUW),
+            tcg_gen_qemu_st_i32(reg, ptr, s->mem_index, MO_LEUW))
 INSNOP_LDST(RdMd, Rd, Md, s->tmp3_i32,
             tcg_gen_qemu_ld_i32(reg, ptr, s->mem_index, MO_LEUL),
             tcg_gen_qemu_st_i32(reg, ptr, s->mem_index, MO_LEUL))
@@ -4784,6 +4787,9 @@ INSNOP_LDST(RqMq, Rq, Mq, s->T0,
             tcg_gen_qemu_ld_i64(reg, ptr, s->mem_index, MO_LEQ),
             tcg_gen_qemu_st_i64(reg, ptr, s->mem_index, MO_LEQ))
 #else /* !TARGET_X86_64 */
+INSNOP_LDST(RdMw, Rd, Md, s->T0,
+            tcg_gen_qemu_ld_i32(reg, ptr, s->mem_index, MO_LEUW),
+            tcg_gen_qemu_st_i32(reg, ptr, s->mem_index, MO_LEUW))
 INSNOP_LDST(RdMd, Rd, Md, s->T0,
             tcg_gen_qemu_ld_i32(reg, ptr, s->mem_index, MO_LEUL),
             tcg_gen_qemu_st_i32(reg, ptr, s->mem_index, MO_LEUL))
