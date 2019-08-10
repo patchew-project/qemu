@@ -4698,6 +4698,14 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
         } while (0))
 
 /*
+ * Immediate operand
+ */
+INSNOP(Ib, int8_t,                              \
+       INSNOP_INIT_OK(*op),                     \
+       (*op = x86_ldub_code(env, s)),           \
+       INSNOP_FINALIZE_INVALID)
+
+/*
  * Code generators
  */
 #define gen_insn(mnem)                          \
