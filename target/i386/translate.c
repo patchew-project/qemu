@@ -4697,6 +4697,24 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
             insnop_finalize(opTrm)(env, s, modrm, &rm);                 \
         } while (0))
 
+/*
+ * Code generators
+ */
+#define gen_insn(mnem)                          \
+    gen_ ## mnem
+#define gen_insn_r(mnem, opR1)                  \
+    gen_ ## mnem ## _ ## opR1
+#define gen_insn_rr(mnem, opR1, opR2)           \
+    gen_ ## mnem ## _ ## opR1 ## opR2
+#define gen_insn_w(mnem, opW1)                  \
+    gen_ ## mnem ## _ ## opW1
+#define gen_insn_wr(mnem, opW1, opR1)           \
+    gen_ ## mnem ## _ ## opW1 ## opR1
+#define gen_insn_wrr(mnem, opW1, opR1, opR2)    \
+    gen_ ## mnem ## _ ## opW1 ## opR1 ## opR2
+#define gen_insn_wrrr(mnem, opW1, opR1, opR2, opR3)     \
+    gen_ ## mnem ## _ ## opW1 ## opR1 ## opR2 ## opR3
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
