@@ -4715,6 +4715,222 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
 #define gen_insn_wrrr(mnem, opW1, opR1, opR2, opR3)     \
     gen_ ## mnem ## _ ## opW1 ## opR1 ## opR2 ## opR3
 
+/*
+ * Instruction translators
+ */
+#define translate_insn_r(opR1)                  \
+    translate_insn_r_ ## opR1
+#define translate_insn_rr(opR1, opR2)           \
+    translate_insn_rr_ ## opR1 ## opR2
+#define translate_insn_w(opW1)                  \
+    translate_insn_w_ ## opW1
+#define translate_insn_wr(opW1, opR1)           \
+    translate_insn_wr_ ## opW1 ## opR1
+#define translate_insn_wrr(opW1, opR1, opR2)    \
+    translate_insn_wrr_ ## opW1 ## opR1 ## opR2
+#define translate_insn_wrrr(opW1, opR1, opR2, opR3)             \
+    translate_insn_wrrr_ ## opW1 ## opR1 ## opR2 ## opR3
+#define translate_group(grpname)                \
+    translate_group_ ## grpname
+
+static void translate_insn(
+    CPUX86State *env, DisasContext *s, int ck_cpuid_feat,
+    void (*gen_insn_fp)(CPUX86State *, DisasContext *))
+{
+    if (ck_cpuid(env, s, ck_cpuid_feat)) {
+        gen_illegal_opcode(s);
+        return;
+    }
+
+    (*gen_insn_fp)(env, s);
+}
+
+#define TRANSLATE_INSN_R(opR1)                                          \
+    static void translate_insn_r(opR1)(                                 \
+        CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
+        void (*gen_insn_fp)(CPUX86State *, DisasContext *, insnop_t(opR1))) \
+    {                                                                   \
+        insnop_t(opR1) arg1;                                            \
+                                                                        \
+        if (ck_cpuid(env, s, ck_cpuid_feat)                             \
+            || insnop_init(opR1)(env, s, modrm, &arg1)) {               \
+            gen_illegal_opcode(s);                                      \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        insnop_prepare(opR1)(env, s, modrm, &arg1);                     \
+        (*gen_insn_fp)(env, s, arg1);                                   \
+    }
+
+#define TRANSLATE_INSN_RR(opR1, opR2)                                   \
+    static void translate_insn_rr(opR1, opR2)(                          \
+        CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
+        void (*gen_insn_fp)(CPUX86State *, DisasContext *, insnop_t(opR1), \
+                            insnop_t(opR2)))                            \
+    {                                                                   \
+        insnop_t(opR1) arg1;                                            \
+        insnop_t(opR2) arg2;                                            \
+                                                                        \
+        if (ck_cpuid(env, s, ck_cpuid_feat)                             \
+            || insnop_init(opR1)(env, s, modrm, &arg1)                  \
+            || insnop_init(opR2)(env, s, modrm, &arg2)) {               \
+            gen_illegal_opcode(s);                                      \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        insnop_prepare(opR1)(env, s, modrm, &arg1);                     \
+        insnop_prepare(opR2)(env, s, modrm, &arg2);                     \
+        (*gen_insn_fp)(env, s, arg1, arg2);                             \
+    }
+
+#define TRANSLATE_INSN_W(opW1)                                          \
+    static void translate_insn_w(opW1)(                                 \
+        CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
+        void (*gen_insn_fp)(CPUX86State *, DisasContext *, insnop_t(opW1))) \
+    {                                                                   \
+        insnop_t(opW1) ret;                                             \
+                                                                        \
+        if (ck_cpuid(env, s, ck_cpuid_feat)                             \
+            || insnop_init(opW1)(env, s, modrm, &ret)) {                \
+            gen_illegal_opcode(s);                                      \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        (*gen_insn_fp)(env, s, ret);                                    \
+        insnop_finalize(opW1)(env, s, modrm, &ret);                     \
+    }
+
+#define TRANSLATE_INSN_WR(opW1, opR1)                                   \
+    static void translate_insn_wr(opW1, opR1)(                          \
+        CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
+        void (*gen_insn_fp)(CPUX86State *, DisasContext *, insnop_t(opW1), \
+                            insnop_t(opR1)))                            \
+    {                                                                   \
+        insnop_t(opW1) ret;                                             \
+        insnop_t(opR1) arg1;                                            \
+                                                                        \
+        if (ck_cpuid(env, s, ck_cpuid_feat)                             \
+            || insnop_init(opW1)(env, s, modrm, &ret)                   \
+            || insnop_init(opR1)(env, s, modrm, &arg1)) {               \
+            gen_illegal_opcode(s);                                      \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        insnop_prepare(opR1)(env, s, modrm, &arg1);                     \
+        (*gen_insn_fp)(env, s, ret, arg1);                              \
+        insnop_finalize(opW1)(env, s, modrm, &ret);                     \
+    }
+
+#define TRANSLATE_INSN_WRR(opW1, opR1, opR2)                            \
+    static void translate_insn_wrr(opW1, opR1, opR2)(                   \
+        CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
+        void (*gen_insn_fp)(CPUX86State *, DisasContext *, insnop_t(opW1), \
+                            insnop_t(opR1), insnop_t(opR2)))            \
+    {                                                                   \
+        insnop_t(opW1) ret;                                             \
+        insnop_t(opR1) arg1;                                            \
+        insnop_t(opR2) arg2;                                            \
+                                                                        \
+        if (ck_cpuid(env, s, ck_cpuid_feat)                             \
+            || insnop_init(opW1)(env, s, modrm, &ret)                   \
+            || insnop_init(opR1)(env, s, modrm, &arg1)                  \
+            || insnop_init(opR2)(env, s, modrm, &arg2)) {               \
+            gen_illegal_opcode(s);                                      \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        insnop_prepare(opR1)(env, s, modrm, &arg1);                     \
+        insnop_prepare(opR2)(env, s, modrm, &arg2);                     \
+        (*gen_insn_fp)(env, s, ret, arg1, arg2);                        \
+        insnop_finalize(opW1)(env, s, modrm, &ret);                     \
+    }
+
+#define TRANSLATE_INSN_WRRR(opW1, opR1, opR2, opR3)                     \
+    static void translate_insn_wrrr(opW1, opR1, opR2, opR3)(            \
+        CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
+        void (*gen_insn_fp)(CPUX86State *, DisasContext *, insnop_t(opW1), \
+                            insnop_t(opR1), insnop_t(opR2), insnop_t(opR3))) \
+    {                                                                   \
+        insnop_t(opW1) ret;                                             \
+        insnop_t(opR1) arg1;                                            \
+        insnop_t(opR2) arg2;                                            \
+        insnop_t(opR3) arg3;                                            \
+                                                                        \
+        if (ck_cpuid(env, s, ck_cpuid_feat)                             \
+            || insnop_init(opW1)(env, s, modrm, &ret)                   \
+            || insnop_init(opR1)(env, s, modrm, &arg1)                  \
+            || insnop_init(opR2)(env, s, modrm, &arg2)                  \
+            || insnop_init(opR3)(env, s, modrm, &arg3)) {               \
+            gen_illegal_opcode(s);                                      \
+            return;                                                     \
+        }                                                               \
+                                                                        \
+        insnop_prepare(opR1)(env, s, modrm, &arg1);                     \
+        insnop_prepare(opR2)(env, s, modrm, &arg2);                     \
+        insnop_prepare(opR3)(env, s, modrm, &arg3);                     \
+        (*gen_insn_fp)(env, s, ret, arg1, arg2, arg3);                  \
+        insnop_finalize(opW1)(env, s, modrm, &ret);                     \
+    }
+
+#define INSN_GRP_BEGIN(grpname)                                 \
+    static void translate_group(grpname)(                       \
+        CPUX86State *env, DisasContext *s, int modrm)           \
+    {                                                           \
+        const int reg = decode_modrm_reg_norexr(env, s, modrm); \
+                                                                \
+        switch (reg) {
+#define INSN_GRPMEMB(grpname, mnem, opcode, feat) \
+        case opcode:                              \
+            translate_insn(                       \
+                env, s, CK_CPUID_ ## feat,        \
+                gen_insn(mnem));                  \
+            return;
+#define INSN_GRPMEMB_R(grpname, mnem, opcode, feat, opR1) \
+        case opcode:                                      \
+            translate_insn_r(opR1)(                       \
+                env, s, modrm, CK_CPUID_ ## feat,         \
+                gen_insn_r(mnem, opR1));                  \
+            return;
+#define INSN_GRPMEMB_RR(grpname, mnem, opcode, feat, opR1, opR2) \
+        case opcode:                                             \
+            translate_insn_rr(opR1, opR2)(                       \
+                env, s, modrm, CK_CPUID_ ## feat,                \
+                gen_insn_rr(mnem, opR1, opR2));                  \
+            return;
+#define INSN_GRPMEMB_W(grpname, mnem, opcode, feat, opW1) \
+        case opcode:                                      \
+            translate_insn_w(opW1)(                       \
+                env, s, modrm, CK_CPUID_ ## feat,         \
+                gen_insn_w(mnem, opW1));                  \
+            return;
+#define INSN_GRPMEMB_WR(grpname, mnem, opcode, feat, opW1, opR1) \
+        case opcode:                                             \
+            translate_insn_wr(opW1, opR1)(                       \
+                env, s, modrm, CK_CPUID_ ## feat,                \
+                gen_insn_wr(mnem, opW1, opR1));                  \
+            return;
+#define INSN_GRPMEMB_WRR(grpname, mnem, opcode, feat, opW1, opR1, opR2) \
+        case opcode:                                                    \
+            translate_insn_wrr(opW1, opR1, opR2)(                       \
+                env, s, modrm, CK_CPUID_ ## feat,                       \
+                gen_insn_wrr(mnem, opW1, opR1, opR2));                  \
+            return;
+#define INSN_GRPMEMB_WRRR(grpname, mnem, opcode, feat, opW1, opR1, opR2, opR3) \
+        case opcode:                                                    \
+            translate_insn_wrrr(opW1, opR1, opR2, opR3)(                \
+                env, s, modrm, CK_CPUID_ ## feat,                       \
+                gen_insn_wrrr(mnem, opW1, opR1, opR2, opR3));           \
+            return;
+#define INSN_GRP_END(grpname)                   \
+        default:                                \
+            gen_illegal_opcode(s);              \
+            return;                             \
+        }                                       \
+                                                \
+        g_assert_not_reached();                 \
+    }
+#include "insn.h"
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
@@ -4726,15 +4942,87 @@ static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
         M_0F = 1 << (4 + 8),
     };
 
+    int modrm;
+
     switch (b | M_0F
             | (s->prefix & PREFIX_DATA ? P_66 : 0)
             | (s->prefix & PREFIX_REPZ ? P_F3 : 0)
             | (s->prefix & PREFIX_REPNZ ? P_F2 : 0)
             | (REX_W(s) > 0 ? W_1 : W_0)) {
 
+#define CASES_LEG_NP_0F_W0(opcode)              \
+    case opcode | M_0F | W_0:
+#define CASES_LEG_NP_0F_W1(opcode)              \
+    case opcode | M_0F | W_1:
+#define CASES_LEG_F3_0F_W0(opcode)              \
+    case opcode | M_0F | P_F3 | W_0:
+#define CASES_LEG_F3_0F_W1(opcode)              \
+    case opcode | M_0F | P_F3 | W_1:
+
+#define LEG(p, m, w)                            \
+    CASES_LEG_ ## p ## _ ## m ## _W ## w
+#define INSN(mnem, cases, opcode, feat)         \
+    cases(opcode)                               \
+        translate_insn(                         \
+            env, s, CK_CPUID_ ## feat,          \
+            gen_insn(mnem));                    \
+        return;
+#define INSN_R(mnem, cases, opcode, feat, opR1)      \
+    cases(opcode)                                    \
+        modrm = x86_ldub_code(env, s);               \
+        translate_insn_r(opR1)(                      \
+            env, s, modrm, CK_CPUID_ ## feat,        \
+            gen_insn_r(mnem, opR1));                 \
+        return;
+#define INSN_RR(mnem, cases, opcode, feat, opR1, opR2)       \
+    cases(opcode)                                            \
+        modrm = x86_ldub_code(env, s);                       \
+        translate_insn_rr(opR1, opR2)(                       \
+            env, s, modrm, CK_CPUID_ ## feat,                \
+            gen_insn_rr(mnem, opR1, opR2));                  \
+        return;
+#define INSN_W(mnem, cases, opcode, feat, opW1)       \
+    cases(opcode)                                     \
+        modrm = x86_ldub_code(env, s);                \
+        translate_insn_wr(opW1)(                      \
+            env, s, modrm, CK_CPUID_ ## feat,         \
+            gen_insn_wr(mnem, opW1));                 \
+        return;
+#define INSN_WR(mnem, cases, opcode, feat, opW1, opR1)      \
+    cases(opcode)                                           \
+        modrm = x86_ldub_code(env, s);                      \
+        translate_insn_wr(opW1, opR1)(                      \
+            env, s, modrm, CK_CPUID_ ## feat,               \
+            gen_insn_wr(mnem, opW1, opR1));                 \
+        return;
+#define INSN_WRR(mnem, cases, opcode, feat, opW1, opR1, opR2)       \
+    cases(opcode)                                                   \
+        modrm = x86_ldub_code(env, s);                              \
+        translate_insn_wrr(opW1, opR1, opR2)(                       \
+            env, s, modrm, CK_CPUID_ ## feat,                       \
+            gen_insn_wrr(mnem, opW1, opR1, opR2));                  \
+        return;
+#define INSN_WRRR(mnem, cases, opcode, feat, opW1, opR1, opR2, opR3)    \
+    cases(opcode)                                                   \
+        modrm = x86_ldub_code(env, s);                              \
+        translate_insn_wrrr(opW1, opR1, opR2, opR3)(                \
+            env, s, modrm, CK_CPUID_ ## feat,                       \
+            gen_insn_wrrr(mnem, opW1, opR1, opR2, opR3));           \
+        return;
+#define INSN_GRP(grpname, cases, opcode)                \
+    cases(opcode)                                       \
+        modrm = x86_ldub_code(env, s);                  \
+        translate_group(grpname)(env, s, modrm);        \
+        return;
+#include "insn.h"
     default:
         gen_sse(env, s, b);
         return;
+
+#undef CASES_LEG_NP_0F_W0
+#undef CASES_LEG_NP_0F_W1
+#undef CASES_LEG_F3_0F_W0
+#undef CASES_LEG_F3_0F_W1
     }
 
     g_assert_not_reached();
