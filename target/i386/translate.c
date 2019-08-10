@@ -23,6 +23,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
+#include "tcg-op-gvec.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 
@@ -4880,6 +4881,22 @@ INSNOP_LDST_UNIFY(Qq, Nq, NqMq)
         tcg_gen_addi_ptr(s->ptr0, cpu_env, ret);                \
         tcg_gen_addi_ptr(s->ptr1, cpu_env, arg2);               \
         gen_helper_ ## helper(cpu_env, s->ptr0, s->ptr1);       \
+    }
+
+#define GEN_INSN_WR_GVEC(mnem, gvec, opW1, opR1, vece, oprsz, maxsz)    \
+    static void gen_insn_wr(mnem, opW1, opR1)(                          \
+        CPUX86State *env, DisasContext *s, insnop_t(opW1) ret,          \
+        insnop_t(opR1) arg1)                                            \
+    {                                                                   \
+        tcg_gen_gvec_ ## gvec(vece, ret, arg1, oprsz, maxsz);           \
+    }
+
+#define GEN_INSN_WRR_GVEC(mnem, gvec, opW1, opR1, opR2, vece, oprsz, maxsz) \
+    static void gen_insn_wrr(mnem, opW1, opR1, opR2)(                   \
+        CPUX86State *env, DisasContext *s, insnop_t(opW1) ret,          \
+        insnop_t(opR1) arg1, insnop_t(opR2) arg2)                       \
+    {                                                                   \
+        tcg_gen_gvec_ ## gvec(vece, ret, arg1, arg2, oprsz, maxsz);     \
     }
 
 /*
