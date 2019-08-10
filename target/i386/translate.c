@@ -4500,6 +4500,51 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 #define tcg_gen_gvec_cmpgt(vece, dofs, aofs, bofs, oprsz, maxsz)        \
     tcg_gen_gvec_cmp(TCG_COND_GT, vece, dofs, aofs, bofs, oprsz, maxsz)
 
+enum {
+    CK_CPUID_MMX = 1,
+    CK_CPUID_3DNOW,
+    CK_CPUID_SSE,
+    CK_CPUID_SSE2,
+    CK_CPUID_SSE3,
+    CK_CPUID_SSSE3,
+    CK_CPUID_SSE4_1,
+    CK_CPUID_SSE4_2,
+    CK_CPUID_SSE4A,
+    CK_CPUID_AVX,
+    CK_CPUID_AVX2,
+};
+
+static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
+{
+    switch (ck_cpuid_feat) {
+    case CK_CPUID_MMX:
+        return !(s->cpuid_features & CPUID_MMX)
+            || !(s->cpuid_ext2_features & CPUID_EXT2_MMX);
+    case CK_CPUID_3DNOW:
+        return !(s->cpuid_ext2_features & CPUID_EXT2_3DNOW);
+    case CK_CPUID_SSE:
+        return !(s->cpuid_features & CPUID_SSE);
+    case CK_CPUID_SSE2:
+        return !(s->cpuid_features & CPUID_SSE2);
+    case CK_CPUID_SSE3:
+        return !(s->cpuid_ext_features & CPUID_EXT_SSE3);
+    case CK_CPUID_SSSE3:
+        return !(s->cpuid_ext_features & CPUID_EXT_SSSE3);
+    case CK_CPUID_SSE4_1:
+        return !(s->cpuid_ext_features & CPUID_EXT_SSE41);
+    case CK_CPUID_SSE4_2:
+        return !(s->cpuid_ext_features & CPUID_EXT_SSE42);
+    case CK_CPUID_SSE4A:
+        return !(s->cpuid_ext3_features & CPUID_EXT3_SSE4A);
+    case CK_CPUID_AVX:
+        return !(s->cpuid_ext_features & CPUID_EXT_AVX);
+    case CK_CPUID_AVX2:
+        return !(s->cpuid_7_0_ebx_features & CPUID_7_0_EBX_AVX2);
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
