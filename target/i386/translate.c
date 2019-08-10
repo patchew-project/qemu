@@ -4856,6 +4856,32 @@ INSNOP_LDST_UNIFY(Qq, Nq, NqMq)
 #define gen_insn_wrrr(mnem, opW1, opR1, opR2, opR3)     \
     gen_ ## mnem ## _ ## opW1 ## opR1 ## opR2 ## opR3
 
+#define GEN_INSN_HELPER(mnem, helper)           \
+    static void gen_insn(mnem)(                 \
+        CPUX86State *env, DisasContext *s)      \
+    {                                           \
+        gen_helper_ ## helper(cpu_env);         \
+    }
+#define GEN_INSN_WR_HELPER(mnem, helper, opW1, opR1)            \
+    static void gen_insn_wr(mnem, opW1, opR1)(                  \
+        CPUX86State *env, DisasContext *s, insnop_t(opW1) ret,  \
+        insnop_t(opR1) arg1)                                    \
+    {                                                           \
+        tcg_gen_addi_ptr(s->ptr0, cpu_env, ret);                \
+        tcg_gen_addi_ptr(s->ptr1, cpu_env, arg1);               \
+        gen_helper_ ## helper(cpu_env, s->ptr0, s->ptr1);       \
+    }
+#define GEN_INSN_WRR_HELPER(mnem, helper, opW1, opR1, opR2)     \
+    static void gen_insn_wrr(mnem, opW1, opR1, opR2)(           \
+        CPUX86State *env, DisasContext *s, insnop_t(opW1) ret,  \
+        insnop_t(opR1) arg1, insnop_t(opR2) arg2)               \
+    {                                                           \
+        assert(ret == arg1);                                    \
+        tcg_gen_addi_ptr(s->ptr0, cpu_env, ret);                \
+        tcg_gen_addi_ptr(s->ptr1, cpu_env, arg2);               \
+        gen_helper_ ## helper(cpu_env, s->ptr0, s->ptr1);       \
+    }
+
 /*
  * Instruction translators
  */
