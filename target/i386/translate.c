@@ -4610,6 +4610,15 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
         }                                               \
     } while (0)
 
+/*
+ * "Alias" operand helper
+ */
+#define INSNOP_ALIAS(opT, opT2)                               \
+    INSNOP(opT, insnop_t(opT2),                               \
+           return insnop_init(opT2)(env, s, modrm, op),       \
+           insnop_prepare(opT2)(env, s, modrm, op),           \
+           insnop_finalize(opT2)(env, s, modrm, op))
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
