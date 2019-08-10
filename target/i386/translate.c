@@ -5005,6 +5005,15 @@ static void translate_insn(
         insnop_finalize(opW1)(env, s, modrm, &ret);                     \
     }
 
+TRANSLATE_INSN_WR(Pq, Ed)
+TRANSLATE_INSN_WR(Pq, Eq)
+TRANSLATE_INSN_WR(Ed, Pq)
+TRANSLATE_INSN_WR(Eq, Pq)
+TRANSLATE_INSN_WR(Pq, Qq)
+TRANSLATE_INSN_WR(Qq, Pq)
+TRANSLATE_INSN_WR(Gd, Nq)
+TRANSLATE_INSN_WR(Gq, Nq)
+
 #define TRANSLATE_INSN_WRR(opW1, opR1, opR2)                            \
     static void translate_insn_wrr(opW1, opR1, opR2)(                   \
         CPUX86State *env, DisasContext *s, int modrm, int ck_cpuid_feat, \
@@ -5028,6 +5037,13 @@ static void translate_insn(
         (*gen_insn_fp)(env, s, ret, arg1, arg2);                        \
         insnop_finalize(opW1)(env, s, modrm, &ret);                     \
     }
+
+TRANSLATE_INSN_WRR(Pq, Pq, Qd)
+TRANSLATE_INSN_WRR(Pq, Pq, Qq)
+TRANSLATE_INSN_WRR(Pq, Qq, Ib)
+TRANSLATE_INSN_WRR(Gd, Nq, Ib)
+TRANSLATE_INSN_WRR(Gq, Nq, Ib)
+TRANSLATE_INSN_WRR(Nq, Nq, Ib)
 
 #define TRANSLATE_INSN_WRRR(opW1, opR1, opR2, opR3)                     \
     static void translate_insn_wrrr(opW1, opR1, opR2, opR3)(            \
