@@ -4731,6 +4731,71 @@ INSNOP_ALIAS(Mdq, M)
 INSNOP_ALIAS(Mqq, M)
 
 /*
+ * General registers
+ */
+#define INSNOP_R32(opT, regid_fp, init_stmt)                    \
+    INSNOP(                                                     \
+        opT, TCGv_i32, init_stmt,                               \
+        do {                                                    \
+            const int regid = regid_fp(env, s, modrm);          \
+            tcg_gen_trunc_tl_i32(*op, cpu_regs[regid]);         \
+        } while (0),                                            \
+        do {                                                    \
+            const int regid = regid_fp(env, s, modrm);          \
+            tcg_gen_extu_i32_tl(cpu_regs[regid], *op);          \
+        } while (0))
+
+#define INSNOP_R64(opT, regid_fp, init_stmt)                    \
+    INSNOP(                                                     \
+        opT, TCGv_i64, init_stmt,                               \
+        do {                                                    \
+            const int regid = regid_fp(env, s, modrm);          \
+            tcg_gen_mov_i64(*op, cpu_regs[regid]);              \
+        } while (0),                                            \
+        do {                                                    \
+            const int regid = regid_fp(env, s, modrm);          \
+            tcg_gen_mov_i64(cpu_regs[regid], *op);              \
+        } while (0))
+
+#ifdef TARGET_X86_64
+INSNOP_R32(Gd, decode_modrm_reg_rexr, INSNOP_INIT_OK(s->tmp2_i32))
+INSNOP_R64(Gq, decode_modrm_reg_rexr, INSNOP_INIT_OK(s->T1))
+
+INSNOP_R32(Rd, decode_modrm_rm_rexb,
+           INSNOP_INIT_DIRECT_ONLY(INSNOP_INIT_OK(s->tmp3_i32)))
+INSNOP_R64(Rq, decode_modrm_rm_rexb,
+           INSNOP_INIT_DIRECT_ONLY(INSNOP_INIT_OK(s->T0)))
+#else /* !TARGET_X86_64 */
+INSNOP_R32(Gd, decode_modrm_reg_rexr, INSNOP_INIT_OK(s->T1))
+INSNOP(Gq, TCGv_i64, INSNOP_INIT_FAIL,
+       INSNOP_PREPARE_INVALID, INSNOP_FINALIZE_INVALID)
+
+INSNOP_R32(Rd, decode_modrm_rm_rexb,
+           INSNOP_INIT_DIRECT_ONLY(INSNOP_INIT_OK(s->T0)))
+INSNOP(Rq, TCGv_i64, INSNOP_INIT_FAIL,
+       INSNOP_PREPARE_INVALID, INSNOP_FINALIZE_INVALID)
+#endif /* !TARGET_X86_64 */
+
+#ifdef TARGET_X86_64
+INSNOP_LDST(RdMd, Rd, Md, s->tmp3_i32,
+            tcg_gen_qemu_ld_i32(reg, ptr, s->mem_index, MO_LEUL),
+            tcg_gen_qemu_st_i32(reg, ptr, s->mem_index, MO_LEUL))
+INSNOP_LDST(RqMq, Rq, Mq, s->T0,
+            tcg_gen_qemu_ld_i64(reg, ptr, s->mem_index, MO_LEQ),
+            tcg_gen_qemu_st_i64(reg, ptr, s->mem_index, MO_LEQ))
+#else /* !TARGET_X86_64 */
+INSNOP_LDST(RdMd, Rd, Md, s->T0,
+            tcg_gen_qemu_ld_i32(reg, ptr, s->mem_index, MO_LEUL),
+            tcg_gen_qemu_st_i32(reg, ptr, s->mem_index, MO_LEUL))
+INSNOP_LDST(RqMq, Rq, Mq, NULL,
+            INSNOP_PREPARE_INVALID,
+            INSNOP_FINALIZE_INVALID)
+#endif /* !TARGET_X86_64 */
+
+INSNOP_LDST_UNIFY(Ed, Rd, RdMd)
+INSNOP_LDST_UNIFY(Eq, Rq, RqMq)
+
+/*
  * Code generators
  */
 #define gen_insn(mnem)                          \
