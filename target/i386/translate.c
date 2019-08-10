@@ -4802,6 +4802,43 @@ INSNOP_LDST_UNIFY(Ed, Rd, RdMd)
 INSNOP_LDST_UNIFY(Eq, Rq, RqMq)
 
 /*
+ * MMX registers
+ */
+#define INSNOP_INIT_MM(mmid_fp)                                         \
+    do {                                                                \
+        const int mmid = mmid_fp(env, s, modrm);                        \
+        INSNOP_INIT_OK(offsetof(CPUX86State, fpregs[mmid].mmx));        \
+    } while (0)
+
+#define INSNOP_MM(opT, init_stmt)      \
+    INSNOP(opT, uint32_t,              \
+           init_stmt,                  \
+           INSNOP_PREPARE_NOOP,        \
+           INSNOP_FINALIZE_NOOP)
+
+INSNOP_MM(P, INSNOP_INIT_MM(decode_modrm_reg_norexr))
+INSNOP_ALIAS(Pd, P)
+INSNOP_ALIAS(Pq, P)
+
+INSNOP_MM(N, INSNOP_INIT_DIRECT_ONLY(INSNOP_INIT_MM(decode_modrm_rm_norexb)))
+INSNOP_ALIAS(Nd, N)
+INSNOP_ALIAS(Nq, N)
+
+INSNOP_LDST(NdMd, Nd, Md, offsetof(CPUX86State, mmx_t0),
+            (assert(ptr == s->A0),
+             gen_ldd_env_A0(s, reg + offsetof(MMXReg, MMX_L(0)))),
+            (assert(ptr == s->A0),
+             gen_std_env_A0(s, reg + offsetof(MMXReg, MMX_L(0)))))
+INSNOP_LDST(NqMq, Nq, Mq, offsetof(CPUX86State, mmx_t0),
+            (assert(ptr == s->A0),
+             gen_ldq_env_A0(s, reg + offsetof(MMXReg, MMX_Q(0)))),
+            (assert(ptr == s->A0),
+             gen_stq_env_A0(s, reg + offsetof(MMXReg, MMX_Q(0)))))
+
+INSNOP_LDST_UNIFY(Qd, Nd, NdMd)
+INSNOP_LDST_UNIFY(Qq, Nq, NqMq)
+
+/*
  * Code generators
  */
 #define gen_insn(mnem)                          \
