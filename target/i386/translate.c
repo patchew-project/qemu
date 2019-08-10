@@ -4840,6 +4840,51 @@ INSNOP_LDST_UNIFY(Qd, Nd, NdMd)
 INSNOP_LDST_UNIFY(Qq, Nq, NqMq)
 
 /*
+ * SSE/AVX registers
+ */
+#define INSNOP_INIT_XMM(xmmid_fp)                               \
+    do {                                                        \
+        const int xmmid = xmmid_fp(env, s, modrm);              \
+        INSNOP_INIT_OK(offsetof(CPUX86State, xmm_regs[xmmid])); \
+    } while (0)
+
+#define INSNOP_XMM(opT, init_stmt)     \
+    INSNOP(opT, uint32_t,              \
+           init_stmt,                  \
+           INSNOP_PREPARE_NOOP,        \
+           INSNOP_FINALIZE_NOOP)
+
+INSNOP_XMM(V, INSNOP_INIT_XMM(decode_modrm_reg_rexr))
+INSNOP_ALIAS(Vd, V)
+INSNOP_ALIAS(Vq, V)
+INSNOP_ALIAS(Vdq, V)
+INSNOP_ALIAS(Vqq, V)
+
+INSNOP_XMM(U, INSNOP_INIT_DIRECT_ONLY(INSNOP_INIT_XMM(decode_modrm_rm_rexb)))
+INSNOP_ALIAS(Ud, U)
+INSNOP_ALIAS(Uq, U)
+INSNOP_ALIAS(Udq, U)
+INSNOP_ALIAS(Uqq, U)
+
+INSNOP_LDST(UdMd, Ud, Md, offsetof(CPUX86State, xmm_t0),
+            (assert(ptr == s->A0),
+             gen_ldd_env_A0(s, reg + offsetof(ZMMReg, ZMM_L(0)))),
+            (assert(ptr == s->A0),
+             gen_std_env_A0(s, reg + offsetof(ZMMReg, ZMM_L(0)))))
+INSNOP_LDST(UqMq, Uq, Mq, offsetof(CPUX86State, xmm_t0),
+            (assert(ptr == s->A0),
+             gen_ldq_env_A0(s, reg + offsetof(ZMMReg, ZMM_Q(0)))),
+            (assert(ptr == s->A0),
+             gen_stq_env_A0(s, reg + offsetof(ZMMReg, ZMM_Q(0)))))
+INSNOP_LDST(UdqMdq, Udq, Mdq, offsetof(CPUX86State, xmm_t0),
+            (assert(ptr == s->A0), gen_ldo_env_A0(s, reg)),
+            (assert(ptr == s->A0), gen_sto_env_A0(s, reg)))
+
+INSNOP_LDST_UNIFY(Wd, Ud, UdMd)
+INSNOP_LDST_UNIFY(Wq, Uq, UqMq)
+INSNOP_LDST_UNIFY(Wdq, Udq, UdqMdq)
+
+/*
  * Code generators
  */
 #define gen_insn(mnem)                          \
