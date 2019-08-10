@@ -4890,6 +4890,9 @@ INSNOP_LDST_UNIFY(Qq, Nq, NqMq)
     {                                                                   \
         tcg_gen_gvec_ ## gvec(vece, ret, arg1, oprsz, maxsz);           \
     }
+#define GEN_INSN_WR_GVEC_MM(mnem, gvec, opW1, opR1, vece)       \
+    GEN_INSN_WR_GVEC(mnem, gvec, opW1, opR1, vece,              \
+                     sizeof(MMXReg), sizeof(MMXReg))
 
 #define GEN_INSN_WRR_GVEC(mnem, gvec, opW1, opR1, opR2, vece, oprsz, maxsz) \
     static void gen_insn_wrr(mnem, opW1, opR1, opR2)(                   \
@@ -4898,6 +4901,117 @@ INSNOP_LDST_UNIFY(Qq, Nq, NqMq)
     {                                                                   \
         tcg_gen_gvec_ ## gvec(vece, ret, arg1, arg2, oprsz, maxsz);     \
     }
+#define GEN_INSN_WRR_GVEC_MM(mnem, gvec, opW1, opR1, opR2, vece)    \
+    GEN_INSN_WRR_GVEC(mnem, gvec, opW1, opR1, opR2, vece,           \
+                      sizeof(MMXReg), sizeof(MMXReg))
+
+static void gen_insn_wr(movq, Eq, Pq)(CPUX86State *env, DisasContext *s,
+                                      insnop_t(Eq) ret, insnop_t(Pq) arg1)
+{
+    const size_t ofs = offsetof(MMXReg, MMX_Q(0));
+    tcg_gen_ld_i64(ret, cpu_env, arg1 + ofs);
+}
+
+static void gen_insn_wr(movd, Ed, Pq)(CPUX86State *env, DisasContext *s,
+                                      insnop_t(Ed) ret, insnop_t(Pq) arg1)
+{
+    const size_t ofs = offsetof(MMXReg, MMX_L(0));
+    tcg_gen_ld_i32(ret, cpu_env, arg1 + ofs);
+}
+
+static void gen_insn_wr(movq, Pq, Eq)(CPUX86State *env, DisasContext *s,
+                                      insnop_t(Pq) ret, insnop_t(Eq) arg1)
+{
+    const size_t ofs = offsetof(MMXReg, MMX_Q(0));
+    tcg_gen_st_i64(arg1, cpu_env, ret + ofs);
+}
+
+static void gen_insn_wr(movd, Pq, Ed)(CPUX86State *env, DisasContext *s,
+                                      insnop_t(Pq) ret, insnop_t(Ed) arg1)
+{
+    const insnop_t(Eq) r64 = s->tmp1_i64;
+    tcg_gen_extu_i32_i64(r64, arg1);
+    gen_insn_wr(movq, Pq, Eq)(env, s, ret, r64);
+}
+
+GEN_INSN_WR_GVEC_MM(movq, mov, Pq, Qq, MO_64)
+GEN_INSN_WR_GVEC_MM(movq, mov, Qq, Pq, MO_64)
+
+GEN_INSN_WRR_GVEC_MM(paddb, add, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(paddw, add, Pq, Pq, Qq, MO_16)
+GEN_INSN_WRR_GVEC_MM(paddd, add, Pq, Pq, Qq, MO_32)
+GEN_INSN_WRR_GVEC_MM(paddsb, ssadd, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(paddsw, ssadd, Pq, Pq, Qq, MO_16)
+GEN_INSN_WRR_GVEC_MM(paddusb, usadd, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(paddusw, usadd, Pq, Pq, Qq, MO_16)
+
+GEN_INSN_WRR_GVEC_MM(psubb, sub, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(psubw, sub, Pq, Pq, Qq, MO_16)
+GEN_INSN_WRR_GVEC_MM(psubd, sub, Pq, Pq, Qq, MO_32)
+GEN_INSN_WRR_GVEC_MM(psubsb, sssub, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(psubsw, sssub, Pq, Pq, Qq, MO_16)
+GEN_INSN_WRR_GVEC_MM(psubusb, ussub, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(psubusw, ussub, Pq, Pq, Qq, MO_16)
+
+GEN_INSN_WRR_HELPER(pmulhw, pmulhw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(pmullw, pmullw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(pmaddwd, pmaddwd_mmx, Pq, Pq, Qq)
+
+GEN_INSN_WRR_GVEC_MM(pcmpeqb, cmpeq, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(pcmpeqw, cmpeq, Pq, Pq, Qq, MO_16)
+GEN_INSN_WRR_GVEC_MM(pcmpeqd, cmpeq, Pq, Pq, Qq, MO_32)
+GEN_INSN_WRR_GVEC_MM(pcmpgtb, cmpgt, Pq, Pq, Qq, MO_8)
+GEN_INSN_WRR_GVEC_MM(pcmpgtw, cmpgt, Pq, Pq, Qq, MO_16)
+GEN_INSN_WRR_GVEC_MM(pcmpgtd, cmpgt, Pq, Pq, Qq, MO_32)
+
+GEN_INSN_WRR_GVEC_MM(pand, and, Pq, Pq, Qq, MO_64)
+GEN_INSN_WRR_GVEC_MM(pandn, andn, Pq, Pq, Qq, MO_64)
+GEN_INSN_WRR_GVEC_MM(por, or, Pq, Pq, Qq, MO_64)
+GEN_INSN_WRR_GVEC_MM(pxor, xor, Pq, Pq, Qq, MO_64)
+
+GEN_INSN_WRR_HELPER(psllw, psllw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(pslld, pslld_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(psllq, psllq_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(psrlw, psrlw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(psrld, psrld_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(psrlq, psrlq_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(psraw, psraw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(psrad, psrad_mmx, Pq, Pq, Qq)
+
+#define GEN_PSHIFT_IMM_MM(mnem, opW1, opR1)                             \
+    static void gen_insn_wrr(mnem, opW1, opR1, Ib)(                     \
+        CPUX86State *env, DisasContext *s,                              \
+        insnop_t(opW1) ret, insnop_t(opR1) arg1, insnop_t(Ib) arg2)     \
+    {                                                                   \
+        const uint64_t arg2_ui64 = (uint8_t)arg2;                       \
+        const insnop_t(Eq) arg2_r64 = s->tmp1_i64;                      \
+        const insnop_t(Qq) arg2_mm = offsetof(CPUX86State, mmx_t0.MMX_Q(0)); \
+                                                                        \
+        tcg_gen_movi_i64(arg2_r64, arg2_ui64);                          \
+        gen_insn_wr(movq, Pq, Eq)(env, s, arg2_mm, arg2_r64);           \
+        gen_insn_wrr(mnem, Pq, Pq, Qq)(env, s, ret, arg1, arg2_mm);     \
+    }
+
+GEN_PSHIFT_IMM_MM(psllw, Nq, Nq)
+GEN_PSHIFT_IMM_MM(pslld, Nq, Nq)
+GEN_PSHIFT_IMM_MM(psllq, Nq, Nq)
+GEN_PSHIFT_IMM_MM(psrlw, Nq, Nq)
+GEN_PSHIFT_IMM_MM(psrld, Nq, Nq)
+GEN_PSHIFT_IMM_MM(psrlq, Nq, Nq)
+GEN_PSHIFT_IMM_MM(psraw, Nq, Nq)
+GEN_PSHIFT_IMM_MM(psrad, Nq, Nq)
+
+GEN_INSN_WRR_HELPER(packsswb, packsswb_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(packssdw, packssdw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(packuswb, packuswb_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(punpcklbw, punpcklbw_mmx, Pq, Pq, Qd)
+GEN_INSN_WRR_HELPER(punpcklwd, punpcklwd_mmx, Pq, Pq, Qd)
+GEN_INSN_WRR_HELPER(punpckldq, punpckldq_mmx, Pq, Pq, Qd)
+GEN_INSN_WRR_HELPER(punpckhbw, punpckhbw_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(punpckhwd, punpckhwd_mmx, Pq, Pq, Qq)
+GEN_INSN_WRR_HELPER(punpckhdq, punpckhdq_mmx, Pq, Pq, Qq)
+
+GEN_INSN_HELPER(emms, emms)
 
 /*
  * Instruction translators
