@@ -4601,6 +4601,15 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
 #define INSNOP_FINALIZE_NOOP    /* no-op */
 #define INSNOP_FINALIZE_INVALID g_assert_not_reached()
 
+#define INSNOP_INIT_DIRECT_ONLY(init_stmt)              \
+    do {                                                \
+        if (decode_modrm_mod(env, s, modrm) == 3) {     \
+            init_stmt;                                  \
+        } else {                                        \
+            INSNOP_INIT_FAIL;                           \
+        }                                               \
+    } while (0)
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
