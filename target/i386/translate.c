@@ -4706,6 +4706,31 @@ INSNOP(Ib, int8_t,                              \
        INSNOP_FINALIZE_INVALID)
 
 /*
+ * Memory-pointer operand
+ */
+INSNOP(
+    M, TCGv,
+    do {
+        if (decode_modrm_mod(env, s, modrm) == 3) {
+            INSNOP_INIT_FAIL;
+        } else {
+            INSNOP_INIT_OK(s->A0);
+        }
+    } while (0),
+    do {
+        assert(*op == s->A0);
+        gen_lea_modrm(env, s, modrm);
+    } while (0),
+    INSNOP_FINALIZE_NOOP)
+
+INSNOP_ALIAS(Mb, M)
+INSNOP_ALIAS(Mw, M)
+INSNOP_ALIAS(Mq, M)
+INSNOP_ALIAS(Md, M)
+INSNOP_ALIAS(Mdq, M)
+INSNOP_ALIAS(Mqq, M)
+
+/*
  * Code generators
  */
 #define gen_insn(mnem)                          \
