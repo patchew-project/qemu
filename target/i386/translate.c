@@ -4545,6 +4545,47 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
     }
 }
 
+/*
+ * Core instruction operand infrastructure
+ */
+#define insnop_t(opT)        insnop_ ## opT ## _t
+#define insnop_init(opT)     insnop_ ## opT ## _init
+#define insnop_prepare(opT)  insnop_ ## opT ## _prepare
+#define insnop_finalize(opT) insnop_ ## opT ## _finalize
+
+#define TYPEDEF_INSNOP_T(opT, type)             \
+    typedef type insnop_t(opT);
+#define INSNOP_INIT(opT, init_stmt)                                \
+    static int insnop_init(opT)(CPUX86State *env, DisasContext *s, \
+                                int modrm, insnop_t(opT) *op)      \
+    {                                                              \
+        init_stmt;                                                 \
+    }
+#define INSNOP_PREPARE(opT, prepare_stmt)                               \
+    static void insnop_prepare(opT)(CPUX86State *env, DisasContext *s,  \
+                                    int modrm, insnop_t(opT) *op)       \
+    {                                                                   \
+        prepare_stmt;                                                   \
+    }
+#define INSNOP_FINALIZE(opT, finalize_stmt)                             \
+    static void insnop_finalize(opT)(CPUX86State *env, DisasContext *s, \
+                                     int modrm, insnop_t(opT) *op)      \
+    {                                                                   \
+        finalize_stmt;                                                  \
+    }
+#define INSNOP(opT, type, init_stmt, prepare_stmt, finalize_stmt)       \
+    TYPEDEF_INSNOP_T(opT, type)                                         \
+    INSNOP_INIT(opT, init_stmt)                                         \
+    INSNOP_PREPARE(opT, prepare_stmt)                                   \
+    INSNOP_FINALIZE(opT, finalize_stmt)
+
+#define INSNOP_INIT_FAIL        return 1
+#define INSNOP_INIT_OK(x)       return ((*(op) = (x)), 0)
+#define INSNOP_PREPARE_NOOP     /* no-op */
+#define INSNOP_PREPARE_INVALID  g_assert_not_reached()
+#define INSNOP_FINALIZE_NOOP    /* no-op */
+#define INSNOP_FINALIZE_INVALID g_assert_not_reached()
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
