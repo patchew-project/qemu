@@ -4876,6 +4876,11 @@ INSNOP_LDST(UqMq, Uq, Mq, offsetof(CPUX86State, xmm_t0),
              gen_ldq_env_A0(s, reg + offsetof(ZMMReg, ZMM_Q(0)))),
             (assert(ptr == s->A0),
              gen_stq_env_A0(s, reg + offsetof(ZMMReg, ZMM_Q(0)))))
+INSNOP_LDST(UdqMq, Udq, Mq, offsetof(CPUX86State, xmm_t0),
+            (assert(ptr == s->A0),
+             gen_ldq_env_A0(s, reg + offsetof(ZMMReg, ZMM_Q(0)))),
+            (assert(ptr == s->A0),
+             gen_stq_env_A0(s, reg + offsetof(ZMMReg, ZMM_Q(0)))))
 INSNOP_LDST(UdqMdq, Udq, Mdq, offsetof(CPUX86State, xmm_t0),
             (assert(ptr == s->A0), gen_ldo_env_A0(s, reg)),
             (assert(ptr == s->A0), gen_sto_env_A0(s, reg)))
