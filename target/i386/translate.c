@@ -2652,6 +2652,18 @@ static void gen_jmp(DisasContext *s, target_ulong eip)
     gen_jmp_tb(s, eip, 0);
 }
 
+static inline void gen_ldd_env_A0(DisasContext *s, int offset)
+{
+    tcg_gen_qemu_ld_i32(s->tmp2_i32, s->A0, s->mem_index, MO_LEUL);
+    tcg_gen_st_i32(s->tmp2_i32, cpu_env, offset);
+}
+
+static inline void gen_std_env_A0(DisasContext *s, int offset)
+{
+    tcg_gen_ld_i32(s->tmp2_i32, cpu_env, offset);
+    tcg_gen_qemu_st_i32(s->tmp2_i32, s->A0, s->mem_index, MO_LEUL);
+}
+
 static inline void gen_ldq_env_A0(DisasContext *s, int offset)
 {
     tcg_gen_qemu_ld_i64(s->tmp1_i64, s->A0, s->mem_index, MO_LEQ);
