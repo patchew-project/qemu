@@ -4619,6 +4619,84 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, int ck_cpuid_feat)
            insnop_prepare(opT2)(env, s, modrm, op),           \
            insnop_finalize(opT2)(env, s, modrm, op))
 
+/*
+ * "Load-store" operand helper
+ */
+#define INSNOP_LDST(opT, opTr, opTm, scratch_op, ld_stmt, st_stmt)      \
+    INSNOP(                                                             \
+        opT,                                                            \
+        struct {                                                        \
+            bool is_mem;                                                \
+            insnop_t(opTr) op_reg;                                      \
+        },                                                              \
+        do {                                                            \
+            insnop_t(opTr) reg;                                         \
+            insnop_t(opTm) ptr;                                         \
+            if (!insnop_init(opTr)(env, s, modrm, &reg)) {              \
+                op->is_mem = 0;                                         \
+                op->op_reg = reg;                                       \
+                INSNOP_INIT_OK(*op);                                    \
+            } else if (!insnop_init(opTm)(env, s, modrm, &ptr)) {       \
+                op->is_mem = 1;                                         \
+                op->op_reg = (scratch_op);                              \
+                INSNOP_INIT_OK(*op);                                    \
+            }                                                           \
+            INSNOP_INIT_FAIL;                                           \
+        } while (0),                                                    \
+        do {                                                            \
+            insnop_t(opTr) reg = op->op_reg;                            \
+            if (op->is_mem) {                                           \
+                insnop_t(opTm) ptr;                                     \
+                const int ret = insnop_init(opTm)(env, s, modrm, &ptr); \
+                assert(!ret);                                           \
+                                                                        \
+                insnop_prepare(opTm)(env, s, modrm, &ptr);              \
+                ld_stmt;                                                \
+            } else {                                                    \
+                insnop_prepare(opTr)(env, s, modrm, &reg);              \
+            }                                                           \
+        } while (0),                                                    \
+        do {                                                            \
+            insnop_t(opTr) reg = op->op_reg;                            \
+            if (op->is_mem) {                                           \
+                insnop_t(opTm) ptr;                                     \
+                const int ret = insnop_init(opTm)(env, s, modrm, &ptr); \
+                assert(!ret);                                           \
+                                                                        \
+                insnop_prepare(opTm)(env, s, modrm, &ptr);              \
+                st_stmt;                                                \
+            } else {                                                    \
+                insnop_finalize(opTr)(env, s, modrm, &reg);             \
+            }                                                           \
+        } while (0))
+
+#define INSNOP_LDST_UNIFY(opT, opTr, opTrm)                             \
+    INSNOP(                                                             \
+        opT, insnop_t(opTr),                                            \
+        do {                                                            \
+            insnop_t(opTrm) rm;                                         \
+            if (!insnop_init(opTrm)(env, s, modrm, &rm)) {              \
+                INSNOP_INIT_OK(rm.op_reg);                              \
+            }                                                           \
+            INSNOP_INIT_FAIL;                                           \
+        } while (0),                                                    \
+        do {                                                            \
+            insnop_t(opTrm) rm;                                         \
+            const int ret = insnop_init(opTrm)(env, s, modrm, &rm);     \
+            assert(!ret);                                               \
+                                                                        \
+            rm.op_reg = *op;                                            \
+            insnop_prepare(opTrm)(env, s, modrm, &rm);                  \
+        } while (0),                                                    \
+        do {                                                            \
+            insnop_t(opTrm) rm;                                         \
+            const int ret = insnop_init(opTrm)(env, s, modrm, &rm);     \
+            assert(!ret);                                               \
+                                                                        \
+            rm.op_reg = *op;                                            \
+            insnop_finalize(opTrm)(env, s, modrm, &rm);                 \
+        } while (0))
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
