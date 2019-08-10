@@ -94,12 +94,14 @@ INSN_WR(movss, LEG(F3, 0F, 0), 0x11, SSE, Wd, Vd)
 /* NP 0F 12 /r: MOVLPS xmm1, m64 */
 INSN_WR(movhlps, LEG(NP, 0F, 0), 0x12, SSE, Vq, UdqMq)
 /* 0F 13 /r: MOVLPS m64, xmm1 */
-INSN_WR(movlps, LEG(NP, 0F, 0), 0x13, SSE, Mq, Vq)
+/* FIXME this is hacked, should be INSN_WR */
+INSN_RR(movlps, LEG(NP, 0F, 0), 0x13, SSE, Mq, Vq)
 /* NP 0F 16 /r: MOVLHPS xmm1, xmm2 */
 /* NP 0F 16 /r: MOVHPS xmm1, m64 */
 INSN_WRR(movlhps, LEG(NP, 0F, 0), 0x16, SSE, Vdq, Vq, UqMq)
 /* NP 0F 17 /r: MOVHPS m64, xmm1 */
-INSN_WR(movhps, LEG(NP, 0F, 0), 0x17, SSE, Mq, Vdq)
+/* FIXME this is hacked, should be INSN_WR */
+INSN_RR(movhps, LEG(NP, 0F, 0), 0x17, SSE, Mq, Vdq)
 /* NP 0F D7 /r: PMOVMSKB r32, mm */
 INSN_WR(pmovmskb, LEG(NP, 0F, 0), 0xd7, SSE, Gd, Nq)
 /* NP REX.W 0F D7 /r: PMOVMSKB r64, mm */
@@ -299,9 +301,11 @@ INSN_WR(cvttss2si, LEG(F3, 0F, 1), 0x2c, SSE, Gq, Wd)
 /* NP 0F F7 /r: MASKMOVQ mm1, mm2 */
 INSN_RR(maskmovq, LEG(NP, 0F, 0), 0xf7, SSE, Pq, Nq)
 /* NP 0F 2B /r: MOVNTPS m128, xmm1 */
-INSN_WR(movntps, LEG(NP, 0F, 0), 0x2b, SSE, Mdq, Vdq)
+/* FIXME this is hacked, should be INSN_WR */
+INSN_RR(movntps, LEG(NP, 0F, 0), 0x2b, SSE, Mdq, Vdq)
 /* NP 0F E7 /r: MOVNTQ m64, mm */
-INSN_WR(movntq, LEG(NP, 0F, 0), 0xe7, SSE, Mq, Pq)
+/* FIXME this is hacked, should be INSN_WR */
+INSN_RR(movntq, LEG(NP, 0F, 0), 0xe7, SSE, Mq, Pq)
 /* NP 0F 77: EMMS */
 INSN(emms, LEG(NP, 0F, 0), 0x77, MMX)
 
@@ -340,7 +344,8 @@ INSN_GRP_BEGIN(grp15_LEG_NP)
     /* NP 0F AE /2: LDMXCSR m32 */
     INSN_GRPMEMB_R(grp15_LEG_NP, ldmxcsr, 2, SSE, Md)
     /* NP 0F AE /3: STMXCSR m32 */
-    INSN_GRPMEMB_W(grp15_LEG_NP, stmxcsr, 3, SSE, Md)
+    /* FIXME this is hacked, should be INSN_GRPMEMB_W */
+    INSN_GRPMEMB_R(grp15_LEG_NP, stmxcsr, 3, SSE, Md)
 INSN_GRP_END(grp15_LEG_NP)
 
 INSN_GRP(grp16_LEG_NP, LEG(NP, 0F, 0), 0x18)
