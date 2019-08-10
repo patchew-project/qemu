@@ -4500,6 +4500,21 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 #define tcg_gen_gvec_cmpgt(vece, dofs, aofs, bofs, oprsz, maxsz)        \
     tcg_gen_gvec_cmp(TCG_COND_GT, vece, dofs, aofs, bofs, oprsz, maxsz)
 
+#define decode_modrm_mod(env, s, modrm)         \
+    (((modrm) >> 6) & 3)
+
+#define decode_modrm_reg_norexr(env, s, modrm)  \
+    (((modrm) >> 3) & 7)
+#define decode_modrm_reg_rexr(env, s, modrm)    \
+    (decode_modrm_reg_norexr(env, s, modrm)     \
+     | REX_R(s))
+
+#define decode_modrm_rm_norexb(env, s, modrm)   \
+    ((modrm) & 7)
+#define decode_modrm_rm_rexb(env, s, modrm)     \
+    (decode_modrm_rm_norexb(env, s, modrm)      \
+     | REX_B(s))
+
 enum {
     CK_CPUID_MMX = 1,
     CK_CPUID_3DNOW,
