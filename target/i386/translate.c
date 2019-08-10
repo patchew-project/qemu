@@ -4493,6 +4493,13 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
+#define tcg_gen_gvec_andn(vece, dofs, aofs, bofs, oprsz, maxsz) \
+    tcg_gen_gvec_andc(vece, dofs, bofs, aofs, oprsz, maxsz)
+#define tcg_gen_gvec_cmpeq(vece, dofs, aofs, bofs, oprsz, maxsz)        \
+    tcg_gen_gvec_cmp(TCG_COND_EQ, vece, dofs, aofs, bofs, oprsz, maxsz)
+#define tcg_gen_gvec_cmpgt(vece, dofs, aofs, bofs, oprsz, maxsz)        \
+    tcg_gen_gvec_cmp(TCG_COND_GT, vece, dofs, aofs, bofs, oprsz, maxsz)
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
