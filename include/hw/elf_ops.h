@@ -381,6 +381,12 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                 goto fail;
             }
             break;
+        case EM_AARCH64:
+            if (ehdr.e_machine != EM_AARCH64) {
+                ret = ELF_LOAD_WRONG_ARCH;
+                goto fail;
+            }
+            break;
         default:
             if (elf_machine != ehdr.e_machine) {
                 ret = ELF_LOAD_WRONG_ARCH;
