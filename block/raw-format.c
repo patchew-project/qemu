@@ -275,7 +275,7 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
     *pnum = bytes;
     *file = bs->file->bs;
     *map = offset + s->offset;
-    return BDRV_BLOCK_RAW | BDRV_BLOCK_OFFSET_VALID;
+    return BDRV_BLOCK_DATA | BDRV_BLOCK_OFFSET_VALID | BDRV_BLOCK_RECURSE;
 }
 
 static int coroutine_fn raw_co_pwrite_zeroes(BlockDriverState *bs,
