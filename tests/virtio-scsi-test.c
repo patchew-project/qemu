@@ -225,7 +225,8 @@ static void test_iothread_attach_node(void *obj, void *data,
     mkqcow2(tmp_path, 64);
 
     /* Attach the overlay to the null0 node */
-    qmp_assert_success("{'execute': 'blockdev-add', 'arguments': {"
+    qtest_qmp_assert_success(scsi_pci->pci_vdev.pdev->bus->qts,
+                       "{'execute': 'blockdev-add', 'arguments': {"
                        "   'driver': 'qcow2', 'node-name': 'overlay',"
                        "   'backing': 'null0', 'file': {"
                        "     'driver': 'file', 'filename': %s}}}", tmp_path);
