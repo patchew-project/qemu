@@ -13,6 +13,7 @@ import distutils.spawn
 
 from avocado_qemu import Test
 from avocado import skipUnless
+from vncdotool import api as vnc
 from avocado.utils import process
 from avocado.utils.path import find_command, CmdNotFoundError
 
@@ -119,3 +120,51 @@ class NextCubeMachine(Test):
         self.assertIn('System test failed. Error code 51', text)
         self.assertIn('Boot command', text)
         self.assertIn('Next>', text)
+
+
+    @staticmethod
+    def vnc_send_string(client, string, eol=True):
+        for key in string:
+            client.keyPress(key)
+            time.sleep(0.02)
+        if eol:
+            client.keyPress('enter')
+            time.sleep(0.02)
+
+    @skipUnless(tesseract_available(3), 'tesseract v3 OCR tool not available')
+    def test_bootrom_via_vnc_with_tesseract_v3(self):
+        """
+        :avocado: tags=arch:m68k
+        :avocado: tags=machine:next_cube
+        :avocado: tags=device:framebuffer
+        """
+        screenshot_path = os.path.join(self.workdir, "dump.png")
+
+        rom_url = ('http://www.nextcomputers.org/NeXTfiles/Software/ROM_Files/'
+                   '68040_Non-Turbo_Chipset/Rev_2.5_v66.BIN')
+        rom_hash = 'b3534796abae238a0111299fc406a9349f7fee24'
+        rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
+
+        self.vm.set_machine('next-cube')
+        self.vm.add_args('-bios', rom_path,
+                         '-vnc', ':0') # XXX do not use static TCP port...
+        self.vm.launch()
+
+        self.log.info('VM launched, waiting for display')
+        # TODO: Use avocado.utils.wait.wait_for to catch the
+        #       'displaysurface_create 1120x832' trace-event.
+        time.sleep(2)
+
+        with vnc.connect('127.0.0.1') as client:
+            self.vnc_send_string(client, 'help')
+            self.vnc_send_string(client, 'mem')
+            client.captureScreen(screenshot_path)
+            client.disconnect()
+
+        console_logger = logging.getLogger('console')
+        text = process.run("tesseract %s stdout" % screenshot_path).stdout_text
+        for line in text.split('\n'):
+            if len(line):
+                console_logger.debug(line)
+        self.assertIn('address space', text)
+        self.assertIn('System', text)
