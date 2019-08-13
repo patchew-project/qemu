@@ -49,3 +49,15 @@ base = master
 to = qemu-devel@nongnu.org
 cc = qemu-ppc@nongnu.org
 cccmd = scripts/get_maintainer.pl --noroles --norolestats --nogit --nogit-fallback 2>/dev/null
+
+# https://wiki.qemu.org/SecurityProcess
+[gitpublishprofile "security"]
+base = master
+to = mst@redhat.com
+to = pmatouse@redhat.com
+to = sstabellini@kernel.org
+to = secalert@redhat.com
+to = mdroth@linux.vnet.ibm.com
+to = pjp@redhat.com
+suppresscc = all
+inspect-emails = true
