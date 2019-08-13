@@ -2004,6 +2004,19 @@
             '*persistent': 'bool', '*autoload': 'bool', '*disabled': 'bool' } }
 
 ##
+# @BlockDirtyBitmapPersist:
+#
+# @persist: True sets the specified bitmap as persistent.
+#           False will remove it from storage and mark it transient.
+#
+# Since: 4.2
+##
+{ 'struct': 'BlockDirtyBitmapPersist',
+  'base': 'BlockDirtyBitmap',
+  'data': { 'persist': 'bool' }
+}
+
+##
 # @BlockDirtyBitmapMergeSource:
 #
 # @local: name of the bitmap, attached to the same node as target bitmap.
@@ -2174,6 +2187,27 @@
 ##
       { 'command': 'block-dirty-bitmap-merge',
         'data': 'BlockDirtyBitmapMerge' }
+
+##
+# @block-dirty-bitmap-persist:
+#
+# Mark a dirty bitmap as either persistent or transient.
+#
+# Returns: nothing on success; including for no-op.
+#          GenericError with explanation if the operation did not succeed.
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-persist",
+#      "arguments": { "node": "drive0",
+#                     "bitmap": "bitmap0",
+#                     "persist": true } }
+# <- { "return": {} }
+#
+# Since: 4.2
+##
+{ 'command': 'block-dirty-bitmap-persist',
+  'data': 'BlockDirtyBitmapPersist' }
 
 ##
 # @BlockDirtyBitmapSha256:

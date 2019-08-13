@@ -3032,6 +3032,55 @@ void qmp_block_dirty_bitmap_merge(const char *node, const char *target,
     do_block_dirty_bitmap_merge(node, target, bitmaps, NULL, errp);
 }
 
+void qmp_block_dirty_bitmap_persist(const char *node, const char *name,
+                                    bool persist, Error **errp)
+{
+    BdrvDirtyBitmap *bitmap;
+    BlockDriverState *bs;
+    AioContext *aio_context = NULL;
+    Error *local_err = NULL;
+    bool persistent;
+
+    bitmap = block_dirty_bitmap_lookup(node, name, &bs, errp);
+    if (!bitmap || !bs) {
+        return;
+    }
+
+    if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, errp)) {
+        return;
+    }
+
+    persistent = bdrv_dirty_bitmap_get_persistence(bitmap);
+
+    if (persist != persistent) {
+        aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(aio_context);
+    }
+
+    if (!persist && persistent) {
+        bdrv_remove_persistent_dirty_bitmap(bs, name, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            goto out;
+        }
+    }
+
+    if (persist && !persistent) {
+        uint32_t granularity = bdrv_dirty_bitmap_granularity(bitmap);
+        if (!bdrv_can_store_new_dirty_bitmap(bs, name, granularity, errp)) {
+            goto out;
+        }
+    }
+
+    bdrv_dirty_bitmap_set_persistence(bitmap, persistent);
+
+ out:
+    if (aio_context) {
+        aio_context_release(aio_context);
+    }
+    return;
+}
+
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,
                                                               const char *name,
                                                               Error **errp)
