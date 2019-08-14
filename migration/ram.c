@@ -1173,6 +1173,7 @@ static void *multifd_send_thread(void *opaque)
 
 out:
     if (local_err) {
+        trace_multifd_send_error(p->id);
         multifd_send_terminate_threads(local_err);
     }
 
@@ -1203,6 +1204,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
     QIOChannel *sioc = QIO_CHANNEL(qio_task_get_source(task));
     Error *local_err = NULL;
 
+    trace_multifd_new_send_channel_async(p->id);
     if (qio_task_propagate_error(task, &local_err)) {
         migrate_set_error(migrate_get_current(), local_err);
         multifd_save_cleanup();
@@ -1496,6 +1498,7 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
                                 atomic_read(&multifd_recv_state->count));
         return false;
     }
+    trace_multifd_recv_new_channel(id);
 
     p = &multifd_recv_state->params[id];
     if (p->c != NULL) {
