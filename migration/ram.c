@@ -1248,6 +1248,7 @@ int multifd_save_setup(void)
         p->packet = g_malloc0(p->packet_len);
         p->name = g_strdup_printf("multifdsend_%d", i);
         socket_send_channel_create(multifd_new_send_channel_async, p);
+        usleep(100000);
     }
     return 0;
 }
