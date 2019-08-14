@@ -551,6 +551,8 @@ static int
 qcrypto_block_luks_check_header(QCryptoBlockLUKS *luks, Error **errp)
 {
     int ret;
+    int i, j;
+
 
     if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
                QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
@@ -566,6 +568,46 @@ qcrypto_block_luks_check_header(QCryptoBlockLUKS *luks, Error **errp)
         goto fail;
     }
 
+    /* Check all keyslots for corruption  */
+    for (i = 0 ; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS ; i++) {
+
+        QCryptoBlockLUKSKeySlot *slot1 = &luks->header.key_slots[i];
+        uint start1 = slot1->key_offset;
+        uint len1 = splitkeylen_sectors(luks, slot1->stripes);
+
+        if (slot1->stripes == 0 ||
+                (slot1->active != QCRYPTO_BLOCK_LUKS_KEY_SLOT_DISABLED &&
+                slot1->active != QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED)) {
+
+            error_setg(errp, "Keyslot %i is corrupted", i);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        if (start1 + len1 > luks->header.payload_offset) {
+            error_setg(errp,
+                       "Keyslot %i is overlapping with the encrypted payload",
+                       i);
+            ret = -EINVAL;
+            goto fail;
+        }
+
+        for (j = i + 1 ; j < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS ; j++) {
+
+            QCryptoBlockLUKSKeySlot *slot2 = &luks->header.key_slots[j];
+            uint start2 = slot2->key_offset;
+            uint len2 = splitkeylen_sectors(luks, slot2->stripes);
+
+            if (start1 + len1 > start2 && start2 + len2 > start1) {
+                error_setg(errp,
+                           "Keyslots %i and %i are overlapping in the header",
+                           i, j);
+                ret = -EINVAL;
+                goto fail;
+            }
+        }
+
+    }
     return 0;
 fail:
     return ret;
