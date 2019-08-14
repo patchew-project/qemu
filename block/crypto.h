@@ -94,4 +94,7 @@ block_crypto_create_opts_init(QDict *opts, Error **errp);
 QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QDict *opts, Error **errp);
 
+QCryptoEncryptionSetupOptions *
+block_crypto_setup_opts_init(QDict *opts, Error **errp);
+
 #endif /* BLOCK_CRYPTO_H */

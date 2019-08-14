@@ -203,6 +203,22 @@ block_crypto_create_opts_init(QDict *opts, Error **errp)
     return ret;
 }
 
+QCryptoEncryptionSetupOptions *
+block_crypto_setup_opts_init(QDict *opts, Error **errp)
+{
+    Visitor *v;
+    QCryptoEncryptionSetupOptions *ret;
+
+    v = qobject_input_visitor_new_flat_confused(opts, errp);
+    if (!v) {
+        return NULL;
+    }
+
+    visit_type_QCryptoEncryptionSetupOptions(v, NULL, &ret, errp);
+
+    visit_free(v);
+    return ret;
+}
 
 static int block_crypto_open_generic(QCryptoBlockFormat format,
                                      QemuOptsList *opts_spec,

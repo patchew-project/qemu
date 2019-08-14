@@ -47,6 +47,7 @@
 #include "block/blockjob.h"
 #include "block/qapi.h"
 #include "crypto/init.h"
+#include "block/crypto.h"
 #include "trace/control.h"
 
 #define QEMU_IMG_VERSION "qemu-img version " QEMU_FULL_VERSION \
@@ -70,6 +71,8 @@ enum {
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
     OPTION_SALVAGE = 267,
+    OPTION_FORCE = 268,
+    OPTION_KEYDEF = 269,
 };
 
 typedef enum OutputFormat {
@@ -218,6 +221,14 @@ static QemuOptsList qemu_source_opts = {
     .name = "source",
     .implied_opt_name = "file",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_source_opts.head),
+    .desc = {
+        { }
+    },
+};
+
+static QemuOptsList keydef_opts = {
+    .name = "encryption_opts",
+    .head = QTAILQ_HEAD_INITIALIZER(keydef_opts.head),
     .desc = {
         { }
     },
@@ -4995,6 +5006,135 @@ out:
     g_free(options);
     blk_unref(in_blk);
     return ret;
+}
+
+
+static QemuOptsList keydef_options_list = {
+    .name = "encryption",
+    .head = QTAILQ_HEAD_INITIALIZER(keydef_options_list.head),
+    .desc = {
+        { }
+    },
+};
+
+static int setup_encryption(int argc, char **argv,
+        enum BlkSetupEncryptionAction action)
+{
+    static const struct option long_options[] = {
+        {"help", no_argument, 0, 'h'},
+        {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+        {"object", required_argument, 0, OPTION_OBJECT},
+        {"force", no_argument, 0, OPTION_FORCE},
+        {"force-share", no_argument, 0, 'U'},
+        {"keydef", required_argument, 0, OPTION_KEYDEF},
+        {0, 0, 0, 0}
+    };
+
+    BlockBackend *blk = NULL;
+    const char *filename = NULL;
+    bool force_share = false;
+    QemuOpts *keydef_opts = NULL;
+    bool image_opts = false;
+    Error *local_err = NULL;
+    QDict *keydef_dict = NULL;
+    QCryptoEncryptionSetupOptions *qcrypto_options = NULL;
+    bool force = false;
+
+    int ret = 1;
+    int c;
+
+    while ((c = getopt_long(argc, argv, "hU:", long_options, NULL)) != -1) {
+        switch (c) {
+        case '?':
+        case 'h':
+            help();
+            break;
+        case 'U':
+            force_share = true;
+            break;
+
+        case OPTION_KEYDEF:
+            if (keydef_opts) {
+                error_report("Only single --keydef argument is allowed.");
+                goto out;
+            }
+
+            keydef_opts = qemu_opts_parse_noisily(&keydef_options_list,
+                                                  optarg, false);
+            if (!keydef_opts) {
+                goto out;
+            }
+            break;
+
+        case OPTION_OBJECT: {
+            QemuOpts *object_opts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                                  optarg, true);
+            if (!object_opts) {
+                goto out;
+            }
+            break;
+        }
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        case OPTION_FORCE:
+            force = true;
+            break;
+        break;
+        }
+    }
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          NULL, &error_fatal)) {
+        goto out;
+    }
+
+    if (argc - optind > 1) {
+        error_report("At most one filename argument is allowed.");
+        goto out;
+    } else if (argc - optind == 1) {
+        filename = argv[optind];
+    } else {
+        error_report("filename is required");
+        goto out;
+
+    }
+
+    blk = img_open(image_opts, filename, NULL, BDRV_O_RDWR,
+                   false, false, force_share);
+    if (!blk) {
+        goto out;
+    }
+
+    keydef_dict = qemu_opts_to_qdict(keydef_opts, NULL);
+    qcrypto_options = block_crypto_setup_opts_init(keydef_dict, &local_err);
+    if (!qcrypto_options) {
+        error_report_err(local_err);
+        goto out;
+    }
+
+    if (blk_setup_encryption(blk, action, qcrypto_options, force, &local_err)) {
+        error_report_err(local_err);
+        goto out;
+    }
+    ret = 0;
+out:
+    qemu_opts_del(keydef_opts);
+    qobject_unref(keydef_dict);
+    qapi_free_QCryptoEncryptionSetupOptions(qcrypto_options);
+    blk_unref(blk);
+    return ret;
+}
+
+static int img_add_encryption_key(int argc, char **argv)
+{
+    return setup_encryption(argc, argv, BLK_UPDATE_ENCRYPTION);
+}
+
+static int img_erase_encryption_key(int argc, char **argv)
+{
+    return setup_encryption(argc, argv, BLK_ERASE_ENCRYPTION);
 }
 
 static const img_cmd_t img_cmds[] = {

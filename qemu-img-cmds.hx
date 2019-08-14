@@ -19,6 +19,18 @@ STEXI
 @item amend [--object @var{objectdef}] [--image-opts] [-p] [-q] [-f @var{fmt}] [-t @var{cache}] -o @var{options} @var{filename}
 ETEXI
 
+DEF("add_encryption_key", img_add_encryption_key,
+    "add_encryption_key [--object objectdef] [--image-opts] [--force] -U --keydef key_definition filename")
+STEXI
+@item add_encryption_key [--object @var{objectdef}] [--image-opts] [--force] -U --keydef @var{key_definition} @var{filename}
+ETEXI
+
+DEF("erase_encryption_key", img_erase_encryption_key,
+    "erase_encryption_key [--object objectdef] [--image-opts] [--force] -U --keydef key_definition filename")
+STEXI
+@item erase_encryption_key [--object @var{objectdef}] [--image-opts] [--force] -U --keydef @var{key_definition} @var{filename}
+ETEXI
+
 DEF("bench", img_bench,
     "bench [-c count] [-d depth] [-f fmt] [--flush-interval=flush_interval] [-n] [--no-drain] [-o offset] [--pattern=pattern] [-q] [-s buffer_size] [-S step_size] [-t cache] [-w] [-U] filename")
 STEXI
@@ -96,6 +108,7 @@ DEF("resize", img_resize,
 STEXI
 @item resize [--object @var{objectdef}] [--image-opts] [-f @var{fmt}] [--preallocation=@var{prealloc}] [-q] [--shrink] @var{filename} [+ | -]@var{size}
 ETEXI
+
 
 STEXI
 @end table
