@@ -3951,7 +3951,7 @@ if test "$libssh" = "yes"; then
 #include <libssh/libssh.h>
 int main(void) { return ssh_get_server_publickey(NULL, NULL); }
 EOF
-  if compile_prog "$libssh_cflags" "$libssh_libs"; then
+  if compile_object "$libssh_cflags"; then
     libssh_cflags="-DHAVE_LIBSSH_0_8 $libssh_cflags"
   fi
 fi
