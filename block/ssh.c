@@ -438,7 +438,7 @@ check_host_key_hash(BDRVSSHState *s, const char *hash,
     unsigned char *server_hash;
     size_t server_hash_len;
 
-#ifdef HAVE_LIBSSH_0_8
+#ifdef HAVE_SSH_GET_SERVER_PUBLICKEY
     r = ssh_get_server_publickey(s->session, &pubkey);
 #else
     r = ssh_get_publickey(s->session, &pubkey);

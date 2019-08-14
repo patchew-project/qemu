@@ -3949,10 +3949,17 @@ fi
 if test "$libssh" = "yes"; then
   cat > $TMPC <<EOF
 #include <libssh/libssh.h>
+#ifdef HAVE_SSH_GET_SERVER_PUBLICKEY
 int main(void) { return ssh_get_server_publickey(NULL, NULL); }
+#else
+int main(void) { return ssh_get_publickey(NULL, NULL); }
+#endif
 EOF
   if compile_object "$libssh_cflags"; then
     libssh_cflags="-DHAVE_LIBSSH_0_8 $libssh_cflags"
+  fi
+  if compile_object "$libssh_cflags -DHAVE_SSH_GET_SERVER_PUBLICKEY"; then
+    libssh_cflags="-DHAVE_SSH_GET_SERVER_PUBLICKEY $libssh_cflags"
   fi
 fi
 
