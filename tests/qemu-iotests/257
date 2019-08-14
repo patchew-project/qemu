@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+#
+# Test encryption key management with luks
+# Based on 134
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=mlevitsk@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2 luks
+_supported_proto file #TODO
+
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT
+
+# you are supposed to see the password as *******, see :-)
+SECRET0="--object secret,id=sec0,data=hunter0"
+SECRET1="--object secret,id=sec1,data=hunter1"
+SECRET2="--object secret,id=sec2,data=hunter2"
+SECRET3="--object secret,id=sec3,data=hunter3"
+SECRETS="$SECRET0 $SECRET1 $SECRET2 $SECRET3"
+
+
+if [ "$IMGFMT" = "qcow2" ] ; then
+	OPTPREFIX="encrypt."
+	EXTRA_IMG_ARGS="-o encrypt.format=luks"
+fi
+
+IMGSPEC0="driver=$IMGFMT,file.filename=$TEST_IMG,${OPTPREFIX}key-secret=sec0"
+IMGSPEC1="driver=$IMGFMT,file.filename=$TEST_IMG,${OPTPREFIX}key-secret=sec1"
+IMGSPEC2="driver=$IMGFMT,file.filename=$TEST_IMG,${OPTPREFIX}key-secret=sec2"
+IMGSPEC3="driver=$IMGFMT,file.filename=$TEST_IMG,${OPTPREFIX}key-secret=sec3"
+
+echo "== creating a test image =="
+_make_test_img $SECRET0 $EXTRA_IMG_ARGS -o "${OPTPREFIX}key-secret=sec0,${OPTPREFIX}iter-time=10"   32M
+
+echo
+echo "== test that key 0 opens the image =="
+$QEMU_IO $SECRET0 -c "read 0 4096" --image-opts $IMGSPEC0 | _filter_qemu_io | _filter_testdir
+
+
+echo
+echo "== adding a password to slot 1 =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC0 --keydef key-secret=sec1,iter-time=10
+echo "== adding a password to slot 3 =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec3,iter-time=100,slot=3
+echo "== adding a password to slot 2 =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC3 --keydef key-secret=sec2,iter-time=10
+
+echo
+echo "== all secrets should work =="
+for IMGSPEC in $IMGSPEC0 $IMGSPEC1 $IMGSPEC2 $IMGSPEC3; do
+	$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+done
+
+
+echo
+echo "== erase slot 0 and try it =="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec0| _filter_img_create
+$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC0 | _filter_qemu_io | _filter_testdir
+
+echo
+echo "== erase slot 2 and try it =="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef slot=2| _filter_img_create
+$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC2 | _filter_qemu_io | _filter_testdir
+
+
+# at this point slots 1 and 3 should be active
+
+echo
+echo "== filling  4 slots with secret 2 =="
+for i in $(seq 0 3) ; do
+	$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC3 --keydef key-secret=sec2,iter-time=10
+done
+
+echo
+echo "== adding secret 0 =="
+	$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC3 --keydef key-secret=sec0,iter-time=10
+
+echo
+echo "== adding secret 3 (last slot) =="
+	$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC3 --keydef key-secret=sec3,iter-time=10
+
+echo
+echo "== trying to add another slot (should fail) =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC2 --keydef key-secret=sec3,iter-time=10
+
+echo
+echo "== all secrets should work again =="
+for IMGSPEC in $IMGSPEC0 $IMGSPEC1 $IMGSPEC2 $IMGSPEC3; do
+	$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+done
+
+echo
+echo "== erase all keys of secret 2=="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec2
+echo "== erase all keys of secret 1=="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec1
+echo "== erase all keys of secret 0=="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC0 --keydef key-secret=sec0
+echo "== erase all keys of secret 3, except a remaining key =="
+
+
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC3 --keydef key-secret=sec3
+
+
+echo
+echo "== only secret3 should work now  =="
+for IMGSPEC in $IMGSPEC0 $IMGSPEC1 $IMGSPEC2 $IMGSPEC3; do
+	$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+done
+
+echo
+echo "== add secret0  =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC3 --keydef key-secret=sec0,iter-time=10
+
+echo "== erase secret3 =="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC0 --keydef key-secret=sec3
+
+echo
+echo "== only secret0 should work now  == "
+for IMGSPEC in $IMGSPEC0 $IMGSPEC1 $IMGSPEC2 $IMGSPEC3; do
+	$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+done
+
+echo
+echo "== replace secret0 with secret1 (should fail)  =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC0 --keydef key-secret=sec1,iter-time=10,slot=0
+
+echo
+echo "== replace secret0 with secret1 with force (should work)  =="
+$QEMU_IMG add_encryption_key $SECRETS --image-opts $IMGSPEC0 --keydef key-secret=sec1,iter-time=10,slot=0 --force
+
+
+echo
+echo "== only secret1 should work now  =="
+for IMGSPEC in $IMGSPEC0 $IMGSPEC1 $IMGSPEC2 $IMGSPEC3; do
+	$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+done
+
+
+
+echo
+echo "== erase last secret (should fail)  =="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef slot=0
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec1
+
+
+echo "== erase non existing secrets (should fail)  =="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec5 --force
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef key-secret=sec0 --force
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef slot=1 --force
+
+echo
+echo "== erase last secret with force by slot (should work)  =="
+$QEMU_IMG erase_encryption_key $SECRETS --image-opts $IMGSPEC1 --keydef slot=0 --force
+
+echo
+echo "== we have no secrets now, data is lost forever =="
+for IMGSPEC in $IMGSPEC0 $IMGSPEC1 $IMGSPEC2 $IMGSPEC3; do
+	$QEMU_IO $SECRETS -c "read 0 4096" --image-opts $IMGSPEC | _filter_qemu_io | _filter_testdir
+done
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
+

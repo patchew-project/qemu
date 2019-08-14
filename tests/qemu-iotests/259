@@ -1,0 +1,199 @@
+#!/usr/bin/env python
+#
+# Test case QMP's encrypted key management
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+import os
+import time
+
+test_img = os.path.join(iotests.test_dir, 'test.img')
+
+class Secret:
+    def __init__(self, index):
+        self._id = "keysec" + str(index)
+        # you are not supposed to see the password...
+        self._secret = "hunter" + str(index)
+
+    def id(self):
+        return self._id
+
+    def secret(self):
+        return self._secret
+
+    def to_cmdline_object(self):
+        return  [ "secret,id=" + self._id + ",data=" + self._secret]
+
+    def to_qmp_object(self):
+        return { "qom_type" : "secret", "id": self.id(),
+                 "props": { "data": self.secret() } }
+
+class EncryptionSetupTestCase(iotests.QMPTestCase):
+
+    # test case startup
+    def setUp(self):
+        # start the VM
+        self.vm = iotests.VM()
+        self.vm.launch()
+
+        # create the secrets and load 'em into the VM
+        self.secrets = [ Secret(i) for i in range(0, 4) ]
+        for secret in self.secrets:
+            result = self.vm.qmp("object-add", **secret.to_qmp_object())
+            self.assert_qmp(result, 'return', {})
+
+    # test case shutdown
+    def tearDown(self):
+        # stop the VM
+        self.vm.shutdown()
+
+    # create the encrypted block device
+    def createImg(self, file, secret):
+
+        if iotests.imgfmt == "qcow2":
+            prefix="encrypt."
+            extra_options = [ '-o', "encrypt.format=luks" ]
+        else:
+            prefix=""
+            extra_options = []
+
+        return iotests.qemu_img('create',
+                                '--object', *secret.to_cmdline_object(),
+                                '-f', iotests.imgfmt,
+                                '-o', prefix+'key-secret=' + secret.id(),
+                                '-o', prefix+'iter-time=10',
+                                *extra_options, file, '1M')
+
+    # open an encrypted block device
+    def openLUKS(self, id, file, secret):
+        if iotests.imgfmt == "qcow2":
+            encrypt_options = {
+                'encrypt': {
+                    'format':'luks',
+                    'key-secret' : secret.id()}
+                }
+        else:
+            encrypt_options = {
+                'key-secret' : secret.id()
+            }
+
+        return self.vm.qmp('blockdev-add', **
+            {
+                'driver': iotests.imgfmt,
+                'node-name': id,
+
+                **encrypt_options,
+
+                'file': {
+                    'driver': 'file',
+                    'filename': test_img,
+                }
+            }
+        )
+
+    # close the encrypted block device
+    def closeLUKS(self, id):
+        return self.vm.qmp('blockdev-del', **{ 'node-name': id })
+
+    # add a key to an encrypted block device
+    def addKey(self, id, secret, old_secret = None, slot = None, force = False):
+        args = {
+            'node-name': id,
+            'options' : { 'key-secret' : secret.id(), 'iter-time' : 10}
+        }
+
+        if slot != None:
+            args['options']['slot'] = slot
+        if old_secret != None:
+            args['options']['old-key-secret'] = old_secret.id()
+        if force == True:
+            args['force'] = True
+
+        return self.vm.qmp('x-blockdev-update-encryption', **args)
+
+    # erase a key from an encrypted block device
+    def eraseKey(self, id, secret = None, slot = None, force = False):
+        args = {
+            'node-name': id,
+            'options' : { }
+        }
+
+        if secret != None:
+            args['options']['key-secret'] = secret.id()
+        if slot != None:
+            args['options']['slot'] = slot
+        if force == True:
+            args['force'] = True
+
+        return self.vm.qmp('x-blockdev-erase-encryption', **args)
+
+    def check(self, result):
+        self.assert_qmp(result, 'return', {})
+
+    # create image, and change its key
+    def testChangeKey(self):
+
+        # create the image with secret0 and open it
+        result = self.createImg(test_img, self.secrets[0]);
+        self.check(self.openLUKS("testdev", test_img, self.secrets[0]))
+
+        # add key to slot 1
+        self.check(self.addKey("testdev", secret=self.secrets[1]))
+
+
+        # erase key from slot 0
+        self.check(self.eraseKey("testdev", secret=self.secrets[0]))
+
+        #reopen the image with secret1
+        self.check(self.closeLUKS("testdev"))
+        self.check(self.openLUKS("testdev", test_img, self.secrets[1]))
+
+        # close and erase the image for good
+        self.check(self.closeLUKS("testdev"))
+        os.remove(test_img)
+
+    # test that if we erase the old password,
+    # we can still change the encryption keys using 'old-secret'
+    def testOldPassword(self):
+
+        # create the image with secret0 and open it
+        result = self.createImg(test_img, self.secrets[0]);
+        self.check(self.openLUKS("testdev", test_img, self.secrets[0]))
+
+        # add key to slot 1
+        self.check(self.addKey("testdev", secret=self.secrets[1]))
+
+        # erase key from slot 0
+        self.check(self.eraseKey("testdev", secret=self.secrets[0]))
+
+        # this will fail as the old password is no longer valid
+        result = self.addKey("testdev", secret=self.secrets[2])
+        self.assert_qmp(result, 'error/desc', "Invalid password, cannot unlock any keyslot")
+
+        # this will work
+        self.check(self.addKey("testdev", secret=self.secrets[2], old_secret=self.secrets[1]))
+
+
+        # close and erase the image for good
+        self.check(self.closeLUKS("testdev"))
+        os.remove(test_img)
+
+
+if __name__ == '__main__':
+    # Encrypted formats support
+    iotests.main(iotests.main(supported_fmts=['qcow2','luks']))
