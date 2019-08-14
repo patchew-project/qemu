@@ -23,6 +23,7 @@
 
 #include "crypto/cipher.h"
 #include "crypto/ivgen.h"
+#include "block/block.h"
 
 typedef struct QCryptoBlock QCryptoBlock;
 
@@ -267,5 +268,31 @@ uint64_t qcrypto_block_get_sector_size(QCryptoBlock *block);
  * object
  */
 void qcrypto_block_free(QCryptoBlock *block);
+
+
+/**
+ * qcrypto_block_setup_encryption:
+ * @block: the block encryption object
+ *
+ * @readfunc: callback for reading data from the volume header
+ * @writefunc: callback for writing data to the volume header
+ * @opaque: data to pass to @readfunc and @writefunc
+ * @action: tell the driver the setup action (add/erase currently)
+ * @options: driver specific options, that specify
+ *           what encryption settings to manage
+ * @force: hint for the driver to allow unsafe operation
+ * @errp: error pointer
+ *
+ * Adds/Erases a new encryption key using @options
+ *
+ */
+int qcrypto_block_setup_encryption(QCryptoBlock *block,
+                                   QCryptoBlockReadFunc readfunc,
+                                   QCryptoBlockWriteFunc writefunc,
+                                   void *opaque,
+                                   enum BlkSetupEncryptionAction action,
+                                   QCryptoEncryptionSetupOptions *options,
+                                   bool force,
+                                   Error **errp);
 
 #endif /* QCRYPTO_BLOCK_H */

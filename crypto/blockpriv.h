@@ -81,6 +81,15 @@ struct QCryptoBlockDriver {
 
     bool (*has_format)(const uint8_t *buf,
                        size_t buflen);
+
+    int (*setup_encryption)(QCryptoBlock *block,
+                            QCryptoBlockReadFunc readfunc,
+                            QCryptoBlockWriteFunc writefunc,
+                            void *opaque,
+                            enum BlkSetupEncryptionAction action,
+                            QCryptoEncryptionSetupOptions *options,
+                            bool force,
+                            Error **errp);
 };
 
 

@@ -20,6 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+
 #include "blockpriv.h"
 #include "block-qcow.h"
 #include "block-luks.h"
@@ -280,6 +281,34 @@ void qcrypto_block_free(QCryptoBlock *block)
     qemu_mutex_destroy(&block->mutex);
     g_free(block);
 }
+
+
+int qcrypto_block_setup_encryption(QCryptoBlock *block,
+                                   QCryptoBlockReadFunc readfunc,
+                                   QCryptoBlockWriteFunc writefunc,
+                                   void *opaque,
+                                   enum BlkSetupEncryptionAction action,
+                                   QCryptoEncryptionSetupOptions *options,
+                                   bool force,
+                                   Error **errp)
+{
+    if (!block->driver->setup_encryption) {
+        error_setg(errp,
+                "Crypto format %s doesn't support management of encryption keys",
+                QCryptoBlockFormat_str(block->format));
+        return -1;
+    }
+
+    return block->driver->setup_encryption(block,
+                                           readfunc,
+                                           writefunc,
+                                           opaque,
+                                           action,
+                                           options,
+                                           force,
+                                           errp);
+}
+
 
 
 typedef int (*QCryptoCipherEncDecFunc)(QCryptoCipher *cipher,
