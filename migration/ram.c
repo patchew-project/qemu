@@ -663,6 +663,8 @@ typedef struct {
     uint64_t num_pages;
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
+    /* thread has started and setup is done */
+    QemuSemaphore started;
 }  MultiFDSendParams;
 
 typedef struct {
@@ -1039,6 +1041,7 @@ void multifd_save_cleanup(void)
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
         qemu_sem_destroy(&p->sem_sync);
+        qemu_sem_destroy(&p->started);
         g_free(p->name);
         p->name = NULL;
         multifd_pages_clear(p->pages);
@@ -1112,6 +1115,8 @@ static void *multifd_send_thread(void *opaque)
     }
     /* initial packet */
     p->num_packets = 1;
+
+    qemu_sem_post(&p->started);
 
     while (true) {
         qemu_sem_wait(&p->sem);
@@ -1229,6 +1234,7 @@ int multifd_save_setup(void)
         qemu_mutex_init(&p->mutex);
         qemu_sem_init(&p->sem, 0);
         qemu_sem_init(&p->sem_sync, 0);
+        qemu_sem_init(&p->started, 0);
         p->quit = false;
         p->pending_job = 0;
         p->id = i;
@@ -3486,6 +3492,14 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     ram_control_before_iterate(f, RAM_CONTROL_SETUP);
     ram_control_after_iterate(f, RAM_CONTROL_SETUP);
 
+    /* We want to wait for all threads to have started before doing
+     * anything else */
+    for (int i = 0; i < migrate_multifd_channels(); i++) {
+        MultiFDSendParams *p = &multifd_send_state->params[i];
+
+        qemu_sem_wait(&p->started);
+        trace_multifd_send_thread_started(p->id);
+    }
     multifd_send_sync_main();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
     qemu_fflush(f);
