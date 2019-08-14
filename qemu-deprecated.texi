@@ -183,6 +183,13 @@ the 'wait' field, which is only applicable to sockets in server mode
 
 Use blockdev-mirror and blockdev-backup instead.
 
+@subsection implicit filters (since 4.2)
+
+Mirror and commit jobs inserts filters, which becomes implicit if user
+omitted filter-node-name parameter. So omitting it is deprecated, set it
+always. Note, that drive-mirror don't have this parameter, so it will
+create implicit filter anyway, but drive-mirror is deprecated itself too.
+
 @section Human Monitor Protocol (HMP) commands
 
 @subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)

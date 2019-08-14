@@ -762,7 +762,15 @@ struct BlockDriverState {
     bool sg;        /* if true, the device is a /dev/sg* */
     bool probed;    /* if true, format was probed rather than specified */
     bool force_share; /* if true, always allow all shared permissions */
-    bool implicit;  /* if true, this filter node was automatically inserted */
+
+    /*
+     * @implicit field is deprecated, don't set it to true for new filters.
+     * If true, this filter node was automatically inserted and user don't
+     * know about it and unprepared for any effects of it. So, implicit
+     * filters are workarounded and skipped in many places of the block
+     * layer code.
+     */
+    bool implicit;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
