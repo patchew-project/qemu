@@ -36,6 +36,7 @@ typedef struct BlockCrypto BlockCrypto;
 
 struct BlockCrypto {
     QCryptoBlock *block;
+    bool updating_keys;
 };
 
 
@@ -64,6 +65,24 @@ static ssize_t block_crypto_read_func(QCryptoBlock *block,
     ret = bdrv_pread(bs->file, offset, buf, buflen);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not read encryption header");
+        return ret;
+    }
+    return ret;
+}
+
+static ssize_t block_crypto_write_func(QCryptoBlock *block,
+                                      size_t offset,
+                                      const uint8_t *buf,
+                                      size_t buflen,
+                                      void *opaque,
+                                      Error **errp)
+{
+    BlockDriverState *bs = opaque;
+    ssize_t ret;
+
+    ret = bdrv_pwrite(bs->file, offset, buf, buflen);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Could not write encryption header");
         return ret;
     }
     return ret;
@@ -622,6 +641,78 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
     return spec_info;
 }
 
+
+static int
+block_crypto_setup_encryption(BlockDriverState *bs,
+                              enum BlkSetupEncryptionAction action,
+                              QCryptoEncryptionSetupOptions *options,
+                              bool force,
+                              Error **errp)
+{
+    BlockCrypto *crypto = bs->opaque;
+    int ret;
+
+    assert(crypto);
+    assert(crypto->block);
+
+    crypto->updating_keys = true;
+
+    ret = bdrv_child_refresh_perms(bs, bs->file, errp);
+
+    if (ret) {
+        crypto->updating_keys = false;
+        return ret;
+    }
+
+    ret = qcrypto_block_setup_encryption(crypto->block,
+                                          block_crypto_read_func,
+                                          block_crypto_write_func,
+                                          bs,
+                                          action,
+                                          options,
+                                          force,
+                                          errp);
+
+    crypto->updating_keys = false;
+    bdrv_child_refresh_perms(bs, bs->file, errp);
+
+
+    return ret;
+
+}
+
+
+static void
+block_crypto_child_perms(BlockDriverState *bs, BdrvChild *c,
+                         const BdrvChildRole *role,
+                         BlockReopenQueue *reopen_queue,
+                         uint64_t perm, uint64_t shared,
+                         uint64_t *nperm, uint64_t *nshared)
+{
+
+    BlockCrypto *crypto = bs->opaque;
+
+    /*
+     * This driver doesn't modify LUKS metadata except
+     * when updating the encryption slots.
+     * Allow share-rw=on as a special case.
+     *
+     * Encryption update will set the crypto->updating_keys
+     * during that period and refresh permissions
+     *
+     * */
+
+    if (crypto->updating_keys) {
+        /*need exclusive write access for header update  */
+        perm |= BLK_PERM_WRITE;
+        shared &= ~BLK_PERM_WRITE;
+    }
+
+    bdrv_filter_default_perms(bs, c, role, reopen_queue,
+            perm, shared, nperm, nshared);
+}
+
+
 static const char *const block_crypto_strong_runtime_opts[] = {
     BLOCK_CRYPTO_OPT_LUKS_KEY_SECRET,
 
@@ -634,9 +725,7 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_probe         = block_crypto_probe_luks,
     .bdrv_open          = block_crypto_open_luks,
     .bdrv_close         = block_crypto_close,
-    /* This driver doesn't modify LUKS metadata except when creating image.
-     * Allow share-rw=on as a special case. */
-    .bdrv_child_perm    = bdrv_filter_default_perms,
+    .bdrv_child_perm    = block_crypto_child_perms,
     .bdrv_co_create     = block_crypto_co_create_luks,
     .bdrv_co_create_opts = block_crypto_co_create_opts_luks,
     .bdrv_co_truncate   = block_crypto_co_truncate,
@@ -649,6 +738,7 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_getlength     = block_crypto_getlength,
     .bdrv_get_info      = block_crypto_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
+    .bdrv_setup_encryption = block_crypto_setup_encryption,
 
     .strong_runtime_opts = block_crypto_strong_runtime_opts,
 };
