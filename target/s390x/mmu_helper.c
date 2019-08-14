@@ -414,7 +414,8 @@ nodat:
     *raddr = mmu_real2abs(env, *raddr);
 
     if (*raddr < ram_size) {
-        if (skeyclass->get_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key)) {
+        r = skeyclass->get_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key);
+        if (r) {
             trace_get_skeys_nonzero(r);
             return 0;
         }
@@ -427,7 +428,8 @@ nodat:
             key |= SK_C;
         }
 
-        if (skeyclass->set_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key)) {
+        r = skeyclass->set_skeys(ss, *raddr / TARGET_PAGE_SIZE, 1, &key);
+        if (r) {
             trace_set_skeys_nonzero(r);
             return 0;
         }
