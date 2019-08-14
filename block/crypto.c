@@ -51,7 +51,6 @@ static int block_crypto_probe_generic(QCryptoBlockFormat format,
     }
 }
 
-
 static ssize_t block_crypto_read_func(QCryptoBlock *block,
                                       size_t offset,
                                       uint8_t *buf,
@@ -77,7 +76,7 @@ struct BlockCryptoCreateData {
 };
 
 
-static ssize_t block_crypto_write_func(QCryptoBlock *block,
+static ssize_t block_crypto_create_write_func(QCryptoBlock *block,
                                        size_t offset,
                                        const uint8_t *buf,
                                        size_t buflen,
@@ -95,8 +94,7 @@ static ssize_t block_crypto_write_func(QCryptoBlock *block,
     return ret;
 }
 
-
-static ssize_t block_crypto_init_func(QCryptoBlock *block,
+static ssize_t block_crypto_create_init_func(QCryptoBlock *block,
                                       size_t headerlen,
                                       void *opaque,
                                       Error **errp)
@@ -108,13 +106,16 @@ static ssize_t block_crypto_init_func(QCryptoBlock *block,
         return -EFBIG;
     }
 
-    /* User provided size should reflect amount of space made
+    /*
+     * User provided size should reflect amount of space made
      * available to the guest, so we must take account of that
      * which will be used by the crypto header
      */
     return blk_truncate(data->blk, data->size + headerlen, PREALLOC_MODE_OFF,
                         errp);
 }
+
+
 
 
 static QemuOptsList block_crypto_runtime_opts_luks = {
@@ -272,8 +273,8 @@ static int block_crypto_co_create_generic(BlockDriverState *bs,
     };
 
     crypto = qcrypto_block_create(opts, NULL,
-                                  block_crypto_init_func,
-                                  block_crypto_write_func,
+                                  block_crypto_create_init_func,
+                                  block_crypto_create_write_func,
                                   &data,
                                   errp);
 
