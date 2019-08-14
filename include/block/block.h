@@ -276,6 +276,12 @@ enum {
     DEFAULT_PERM_UNCHANGED      = BLK_PERM_ALL & ~DEFAULT_PERM_PASSTHROUGH,
 };
 
+enum BlkSetupEncryptionAction {
+    BLK_UPDATE_ENCRYPTION,
+    BLK_ERASE_ENCRYPTION,
+
+};
+
 char *bdrv_perm_names(uint64_t perm);
 
 /* disk I/O throttling */
@@ -347,6 +353,12 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset,
                                   PreallocMode prealloc, Error **errp);
 int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
                   Error **errp);
+
+int bdrv_setup_encryption(BlockDriverState *bs,
+                          enum BlkSetupEncryptionAction action,
+                          QCryptoEncryptionSetupOptions *options,
+                          bool force,
+                          Error **errp);
 
 int64_t bdrv_nb_sectors(BlockDriverState *bs);
 int64_t bdrv_getlength(BlockDriverState *bs);

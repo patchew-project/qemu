@@ -309,3 +309,29 @@
   'base': 'QCryptoBlockInfoBase',
   'discriminator': 'format',
   'data': { 'luks': 'QCryptoBlockInfoLUKS' } }
+
+
+##
+# @QCryptoEncryptionSetupOptions:
+#
+# Driver specific options for encryption key management.
+#
+# @key-secret: the ID of a QCryptoSecret object providing the password
+#              to add or to erase (optional for erase)
+#
+# @old-key-secret: the ID of a QCryptoSecret object providing the password
+#                  that can currently unlock the image
+#
+# @slot: Key slot to update/erase
+#        (optional, for update will select a free slot,
+#        for erase will erase all slots that match the password)
+#
+# @iter-time: number of milliseconds to spend in
+#             PBKDF passphrase processing. Currently defaults to 2000
+# Since: 4.2
+##
+{ 'struct': 'QCryptoEncryptionSetupOptions',
+  'data': { '*key-secret': 'str',
+            '*old-key-secret': 'str',
+            '*slot': 'int',
+            '*iter-time': 'int' } }

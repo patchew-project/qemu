@@ -2284,3 +2284,12 @@ const BdrvChild *blk_root(BlockBackend *blk)
 {
     return blk->root;
 }
+
+int blk_setup_encryption(BlockBackend *blk,
+                         enum BlkSetupEncryptionAction action,
+                         QCryptoEncryptionSetupOptions *options,
+                         bool force,
+                         Error **errp)
+{
+    return bdrv_setup_encryption(blk->root->bs, action, options, force, errp);
+}

@@ -3256,3 +3256,27 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, PreallocMode prealloc,
 
     return tco.ret;
 }
+
+
+int bdrv_setup_encryption(BlockDriverState *bs,
+                          enum BlkSetupEncryptionAction action,
+                          QCryptoEncryptionSetupOptions *options,
+                          bool force,
+                          Error **errp)
+{
+    Error *local_err = NULL;
+    int ret;
+
+    if (!(bs->open_flags & BDRV_O_RDWR)) {
+        error_setg(errp, "Can't do key management on read only block device");
+        return -ENOTSUP;
+    }
+
+    ret = bs->drv->bdrv_setup_encryption(bs, action, options, force,
+                                         &local_err);
+    if (ret) {
+        error_propagate(errp, local_err);
+        return ret;
+    }
+    return 0;
+}

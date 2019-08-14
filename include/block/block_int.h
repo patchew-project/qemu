@@ -556,6 +556,16 @@ struct BlockDriver {
     void (*bdrv_unregister_buf)(BlockDriverState *bs, void *host);
     QLIST_ENTRY(BlockDriver) list;
 
+
+    /* Manage encryption keys on the block device */
+    int (*bdrv_setup_encryption)(BlockDriverState *bs,
+                                  enum BlkSetupEncryptionAction action,
+                                  QCryptoEncryptionSetupOptions *options,
+                                  bool force,
+                                  Error **errp);
+
+
+
     /* Pointer to a NULL-terminated array of names of strong options
      * that can be specified for bdrv_open(). A strong option is one
      * that changes the data of a BDS.
@@ -1270,5 +1280,6 @@ int coroutine_fn bdrv_co_copy_range_to(BdrvChild *src, uint64_t src_offset,
                                        BdrvRequestFlags write_flags);
 
 int refresh_total_sectors(BlockDriverState *bs, int64_t hint);
+
 
 #endif /* BLOCK_INT_H */

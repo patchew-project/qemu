@@ -5327,3 +5327,39 @@
   'data' : { 'node-name': 'str',
              'iothread': 'StrOrNull',
              '*force': 'bool' } }
+
+
+##
+# @x-blockdev-update-encryption:
+#
+# Update the encryption keys for an encrypted block device
+#
+# @node-name: 	  Name of the blockdev to operate on
+# @force:         Disable safety checks (use with care)
+# @options:       Driver specific options
+#
+
+# Since: 4.2
+##
+{ 'command': 'x-blockdev-update-encryption',
+  'data': { 'node-name' : 'str',
+            '*force' : 'bool',
+            'options': 'QCryptoEncryptionSetupOptions' } }
+
+##
+# @x-blockdev-erase-encryption:
+#
+# Erase the encryption keys for an encrypted block device
+#
+# @node-name: 	  Name of the blockdev to operate on
+# @force:         Disable safety checks (use with care)
+# @options:       Driver specific options
+#
+# Returns: @QCryptoKeyManageResult
+#
+# Since: 4.2
+##
+{ 'command': 'x-blockdev-erase-encryption',
+  'data': { 'node-name' : 'str',
+            '*force' : 'bool',
+            'options': 'QCryptoEncryptionSetupOptions' } }

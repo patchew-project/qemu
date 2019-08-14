@@ -4563,6 +4563,46 @@ void qmp_block_latency_histogram_set(
     }
 }
 
+void qmp_x_blockdev_update_encryption(const char *node_name,
+                                      bool has_force, bool force,
+                                      QCryptoEncryptionSetupOptions *options,
+                                      Error **errp)
+{
+    BlockDriverState *bs = bdrv_find_node(node_name);
+    Error *local_error = NULL;
+
+    if (!bs) {
+        error_setg(errp, "Cannot find node %s", node_name);
+        return;
+    }
+
+    if (bdrv_setup_encryption(bs, BLK_UPDATE_ENCRYPTION, options,
+                              has_force ? force : false, &local_error)) {
+        error_propagate(errp, local_error);
+    }
+}
+
+
+void qmp_x_blockdev_erase_encryption(const char *node_name,
+                                     bool has_force, bool force,
+                                     QCryptoEncryptionSetupOptions *options,
+                                     Error **errp)
+{
+    BlockDriverState *bs = bdrv_find_node(node_name);
+    Error *local_error = NULL;
+
+    if (!bs) {
+        error_setg(errp, "Cannot find node %s", node_name);
+        return;
+    }
+
+    if (bdrv_setup_encryption(bs, BLK_ERASE_ENCRYPTION, options,
+                              has_force ? force : false, &local_error)) {
+            error_propagate(errp, local_error);
+        }
+}
+
+
 QemuOptsList qemu_common_drive_opts = {
     .name = "drive",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_common_drive_opts.head),
