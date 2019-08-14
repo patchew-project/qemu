@@ -3949,17 +3949,23 @@ fi
 if test "$libssh" = "yes"; then
   cat > $TMPC <<EOF
 #include <libssh/libssh.h>
+#ifdef HAVE_LIBSSH_0_8
+static const enum ssh_known_hosts_e val = SSH_KNOWN_HOSTS_OK;
+#endif
 #ifdef HAVE_SSH_GET_SERVER_PUBLICKEY
 int main(void) { return ssh_get_server_publickey(NULL, NULL); }
 #else
 int main(void) { return ssh_get_publickey(NULL, NULL); }
 #endif
 EOF
-  if compile_object "$libssh_cflags"; then
+  if compile_object "$libssh_cflags -DHAVE_LIBSSH_0_8"; then
     libssh_cflags="-DHAVE_LIBSSH_0_8 $libssh_cflags"
   fi
   if compile_object "$libssh_cflags -DHAVE_SSH_GET_SERVER_PUBLICKEY"; then
     libssh_cflags="-DHAVE_SSH_GET_SERVER_PUBLICKEY $libssh_cflags"
+  fi
+  if ! compile_object "$libssh_cflags"; then
+    error_exit "cannot use with libssh (is it broken?)"
   fi
 fi
 
