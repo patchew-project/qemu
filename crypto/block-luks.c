@@ -418,6 +418,33 @@ static int masterkeylen(QCryptoBlockLUKS *luks)
 
 
 /*
+ * Returns number of sectors needed to store the key material
+ * given number of anti forensic stripes
+ */
+static int splitkeylen_sectors(QCryptoBlockLUKS *luks, int stripes)
+
+{
+    /*
+     * This calculation doesn't match that shown in the spec,
+     * but instead follows the cryptsetup implementation.
+     */
+
+    size_t header_sectors = QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
+                     QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
+
+    size_t splitkeylen = masterkeylen(luks) * stripes;
+
+    /* First align the key material size to block size*/
+    size_t splitkeylen_sectors =
+            DIV_ROUND_UP(splitkeylen, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE);
+
+    /* Then also align the key material size to the size of the header */
+    return ROUND_UP(splitkeylen_sectors, header_sectors);
+}
+
+
+
+/*
  * Stores the main LUKS header, taking care of endianess
  */
 static int
@@ -1169,7 +1196,7 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     QCryptoBlockCreateOptionsLUKS luks_opts;
     Error *local_err = NULL;
     uint8_t *masterkey = NULL;
-    size_t splitkeylen = 0;
+    size_t next_sector;
     size_t i;
     char *password;
     const char *cipher_alg;
@@ -1388,23 +1415,16 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
     }
 
+    /* start with the sector that follows the header*/
+    next_sector = QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
+                  QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
 
-    /* Although LUKS has multiple key slots, we're just going
-     * to use the first key slot */
-    splitkeylen = luks->header.key_bytes * QCRYPTO_BLOCK_LUKS_STRIPES;
     for (i = 0; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS; i++) {
-        luks->header.key_slots[i].active = QCRYPTO_BLOCK_LUKS_KEY_SLOT_DISABLED;
-        luks->header.key_slots[i].stripes = QCRYPTO_BLOCK_LUKS_STRIPES;
-
-        /* This calculation doesn't match that shown in the spec,
-         * but instead follows the cryptsetup implementation.
-         */
-        luks->header.key_slots[i].key_offset =
-            (QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
-             QCRYPTO_BLOCK_LUKS_SECTOR_SIZE) +
-            (ROUND_UP(DIV_ROUND_UP(splitkeylen, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE),
-                      (QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
-                       QCRYPTO_BLOCK_LUKS_SECTOR_SIZE)) * i);
+        QCryptoBlockLUKSKeySlot *slot = &luks->header.key_slots[i];
+        slot->active = QCRYPTO_BLOCK_LUKS_KEY_SLOT_DISABLED;
+        slot->key_offset = next_sector;
+        slot->stripes = QCRYPTO_BLOCK_LUKS_STRIPES;
+        next_sector += splitkeylen_sectors(luks, QCRYPTO_BLOCK_LUKS_STRIPES);
     }
 
 
@@ -1412,17 +1432,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
      * slot headers, rounded up to the nearest sector, combined with
      * the size of each master key material region, also rounded up
      * to the nearest sector */
-    luks->header.payload_offset =
-        (QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
-         QCRYPTO_BLOCK_LUKS_SECTOR_SIZE) +
-        (ROUND_UP(DIV_ROUND_UP(splitkeylen, QCRYPTO_BLOCK_LUKS_SECTOR_SIZE),
-                  (QCRYPTO_BLOCK_LUKS_KEY_SLOT_OFFSET /
-                   QCRYPTO_BLOCK_LUKS_SECTOR_SIZE)) *
-         QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS);
-
+    luks->header.payload_offset = next_sector;
     block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
-    block->payload_offset = luks->header.payload_offset *
-        block->sector_size;
+    block->payload_offset = luks->header.payload_offset * block->sector_size;
 
     /* Reserve header space to match payload offset */
     initfunc(block, block->payload_offset, opaque, &local_err);
