@@ -1023,8 +1023,18 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
  cleanup:
     qcrypto_ivgen_free(ivgen);
     qcrypto_cipher_free(cipher);
-    g_free(splitkey);
-    g_free(possiblekey);
+
+    if (splitkey) {
+        memset(splitkey, 0, splitkeylen);
+        g_free(splitkey);
+    }
+
+    if (possiblekey) {
+        memset(possiblekey, 0, masterkeylen(luks));
+        g_free(possiblekey);
+
+    }
+
     return ret;
 }
 
@@ -1161,16 +1171,34 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     block->sector_size = QCRYPTO_BLOCK_LUKS_SECTOR_SIZE;
     block->payload_offset = luks->header.payload_offset * block->sector_size;
 
-    g_free(masterkey);
-    g_free(password);
+    if (masterkey) {
+        memset(masterkey, 0, masterkeylen(luks));
+        g_free(masterkey);
+    }
+
+    if (password) {
+        memset(password, 0, strlen(password));
+        g_free(password);
+    }
+
     return 0;
 
  fail:
-    g_free(masterkey);
+
+    if (masterkey) {
+        memset(masterkey, 0, masterkeylen(luks));
+        g_free(masterkey);
+    }
+
+    if (password) {
+        memset(password, 0, strlen(password));
+        g_free(password);
+    }
+
     qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
+
     g_free(luks);
-    g_free(password);
     return ret;
 }
 
@@ -1459,7 +1487,10 @@ qcrypto_block_luks_create(QCryptoBlock *block,
 
     memset(masterkey, 0, luks->header.key_bytes);
     g_free(masterkey);
+
+    memset(password, 0, strlen(password));
     g_free(password);
+
     g_free(cipher_mode_spec);
 
     return 0;
@@ -1467,9 +1498,14 @@ qcrypto_block_luks_create(QCryptoBlock *block,
  error:
     if (masterkey) {
         memset(masterkey, 0, luks->header.key_bytes);
+        g_free(masterkey);
     }
-    g_free(masterkey);
-    g_free(password);
+
+    if (password) {
+        memset(password, 0, strlen(password));
+        g_free(password);
+    }
+
     g_free(cipher_mode_spec);
 
     qcrypto_block_free_cipher(block);
