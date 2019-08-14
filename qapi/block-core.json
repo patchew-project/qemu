@@ -1635,6 +1635,8 @@
 ##
 # @drive-backup:
 #
+# Command is deprecated, use blockdev-mirror instead.
+#
 # Start a point-in-time copy of a block device to a new destination.  The
 # status of ongoing drive-backup operations can be checked with
 # query-block-jobs where the BlockJobInfo.type field has the value 'backup'.
@@ -1854,6 +1856,8 @@
 
 ##
 # @drive-mirror:
+#
+# Command is deprecated, use blockdev-mirror instead.
 #
 # Start mirroring a block device's writes to a new destination. target
 # specifies the target of the new image. If the file exists, or if it

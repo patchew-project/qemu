@@ -179,6 +179,10 @@ and accurate ``query-qmp-schema'' command.
 Character devices creating sockets in client mode should not specify
 the 'wait' field, which is only applicable to sockets in server mode
 
+@subsection drive-mirror, drive-backup and drive-backup transaction action (since 4.2)
+
+Use blockdev-mirror and blockdev-backup instead.
+
 @section Human Monitor Protocol (HMP) commands
 
 @subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)

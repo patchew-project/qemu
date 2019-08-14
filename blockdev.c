@@ -1771,6 +1771,9 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
     AioContext *aio_context;
     Error *local_err = NULL;
 
+    warn_report("drive-backup transaction action is deprecated and will "
+                "disappear in future. Use blockdev-backup action instead");
+
     assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
     backup = common->action->u.drive_backup.data;
 
@@ -3591,6 +3594,10 @@ void qmp_drive_backup(DriveBackup *arg, Error **errp)
 {
 
     BlockJob *job;
+
+    warn_report("drive-backup command is deprecated and will disappear in "
+                "future. Use blockdev-backup instead");
+
     job = do_drive_backup(arg, NULL, errp);
     if (job) {
         job_start(&job->job);
@@ -3830,6 +3837,9 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     int64_t size;
     const char *format = arg->format;
     int ret;
+
+    warn_report("drive-mirror command is deprecated and will disappear in "
+                "future. Use blockdev-mirror instead");
 
     bs = qmp_get_root_bs(arg->device, errp);
     if (!bs) {
