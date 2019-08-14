@@ -5086,6 +5086,31 @@ void qcow2_signal_corruption(BlockDriverState *bs, bool fatal, int64_t offset,
     s->signaled_corruption = true;
 }
 
+
+static int qcow2_setup_encryption(BlockDriverState *bs,
+                                  enum BlkSetupEncryptionAction action,
+                                  QCryptoEncryptionSetupOptions *options,
+                                  bool force,
+                                  Error **errp)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    if (!s->crypto) {
+        error_setg(errp, "Can't manage encryption - image is not encrypted");
+        return -EINVAL;
+    }
+
+    return qcrypto_block_setup_encryption(s->crypto,
+                                          qcow2_crypto_hdr_read_func,
+                                          qcow2_crypto_hdr_write_func,
+                                          bs,
+                                          action,
+                                          options,
+                                          force,
+                                          errp);
+}
+
+
 static QemuOptsList qcow2_create_opts = {
     .name = "qcow2-create-opts",
     .head = QTAILQ_HEAD_INITIALIZER(qcow2_create_opts.head),
@@ -5232,6 +5257,8 @@ BlockDriver bdrv_qcow2 = {
     .bdrv_reopen_bitmaps_rw = qcow2_reopen_bitmaps_rw,
     .bdrv_can_store_new_dirty_bitmap = qcow2_can_store_new_dirty_bitmap,
     .bdrv_remove_persistent_dirty_bitmap = qcow2_remove_persistent_dirty_bitmap,
+
+    .bdrv_setup_encryption = qcow2_setup_encryption,
 };
 
 static void bdrv_qcow2_init(void)
