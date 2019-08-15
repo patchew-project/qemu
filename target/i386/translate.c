@@ -5357,12 +5357,123 @@ INSNOP_LDST(xmm_t0, Mhq)
     {                                                                   \
         tcg_gen_gvec_ ## gvec(vece, arg1, arg2, oprsz, maxsz);          \
     }
+#define DEF_GEN_INSN2_GVEC_MM(mnem, gvec, opT1, opT2, vece)       \
+    DEF_GEN_INSN2_GVEC(mnem, gvec, opT1, opT2, vece,              \
+                       sizeof(MMXReg), sizeof(MMXReg))
 
 #define DEF_GEN_INSN3_GVEC(mnem, gvec, opT1, opT2, opT3, vece, oprsz, maxsz) \
     GEN_INSN3(mnem, opT1, opT2, opT3)                                   \
     {                                                                   \
         tcg_gen_gvec_ ## gvec(vece, arg1, arg2, arg3, oprsz, maxsz);    \
     }
+#define DEF_GEN_INSN3_GVEC_MM(mnem, gvec, opT1, opT2, opT3, vece)   \
+    DEF_GEN_INSN3_GVEC(mnem, gvec, opT1, opT2, opT3, vece,          \
+                       sizeof(MMXReg), sizeof(MMXReg))
+
+GEN_INSN2(movq, Pq, Eq);        /* forward declaration */
+GEN_INSN2(movd, Pq, Ed)
+{
+    const insnop_arg_t(Eq) arg2_r64 = tcg_temp_new_i64();
+    tcg_gen_extu_i32_i64(arg2_r64, arg2);
+    gen_insn2(movq, Pq, Eq)(env, s, arg1, arg2_r64);
+    tcg_temp_free_i64(arg2_r64);
+}
+
+GEN_INSN2(movd, Ed, Pq)
+{
+    const insnop_arg_t(Pq) ofs = offsetof(MMXReg, MMX_L(0));
+    tcg_gen_ld_i32(arg1, cpu_env, arg2 + ofs);
+}
+
+GEN_INSN2(movq, Pq, Eq)
+{
+    const insnop_arg_t(Pq) ofs = offsetof(MMXReg, MMX_Q(0));
+    tcg_gen_st_i64(arg2, cpu_env, arg1 + ofs);
+}
+
+GEN_INSN2(movq, Eq, Pq)
+{
+    const insnop_arg_t(Pq) ofs = offsetof(MMXReg, MMX_Q(0));
+    tcg_gen_ld_i64(arg1, cpu_env, arg2 + ofs);
+}
+
+DEF_GEN_INSN2_GVEC_MM(movq, mov, Pq, Qq, MO_64)
+DEF_GEN_INSN2_GVEC_MM(movq, mov, Qq, Pq, MO_64)
+
+DEF_GEN_INSN3_GVEC_MM(paddb, add, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(paddw, add, Pq, Pq, Qq, MO_16)
+DEF_GEN_INSN3_GVEC_MM(paddd, add, Pq, Pq, Qq, MO_32)
+DEF_GEN_INSN3_GVEC_MM(paddsb, ssadd, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(paddsw, ssadd, Pq, Pq, Qq, MO_16)
+DEF_GEN_INSN3_GVEC_MM(paddusb, usadd, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(paddusw, usadd, Pq, Pq, Qq, MO_16)
+
+DEF_GEN_INSN3_GVEC_MM(psubb, sub, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(psubw, sub, Pq, Pq, Qq, MO_16)
+DEF_GEN_INSN3_GVEC_MM(psubd, sub, Pq, Pq, Qq, MO_32)
+DEF_GEN_INSN3_GVEC_MM(psubsb, sssub, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(psubsw, sssub, Pq, Pq, Qq, MO_16)
+DEF_GEN_INSN3_GVEC_MM(psubusb, ussub, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(psubusw, ussub, Pq, Pq, Qq, MO_16)
+
+DEF_GEN_INSN3_HELPER_EPP(pmullw, pmullw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(pmulhw, pmulhw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(pmaddwd, pmaddwd_mmx, Pq, Pq, Qq)
+
+DEF_GEN_INSN3_GVEC_MM(pcmpeqb, cmpeq, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(pcmpeqw, cmpeq, Pq, Pq, Qq, MO_16)
+DEF_GEN_INSN3_GVEC_MM(pcmpeqd, cmpeq, Pq, Pq, Qq, MO_32)
+DEF_GEN_INSN3_GVEC_MM(pcmpgtb, cmpgt, Pq, Pq, Qq, MO_8)
+DEF_GEN_INSN3_GVEC_MM(pcmpgtw, cmpgt, Pq, Pq, Qq, MO_16)
+DEF_GEN_INSN3_GVEC_MM(pcmpgtd, cmpgt, Pq, Pq, Qq, MO_32)
+
+DEF_GEN_INSN3_GVEC_MM(pand, and, Pq, Pq, Qq, MO_64)
+DEF_GEN_INSN3_GVEC_MM(pandn, andn, Pq, Pq, Qq, MO_64)
+DEF_GEN_INSN3_GVEC_MM(por, or, Pq, Pq, Qq, MO_64)
+DEF_GEN_INSN3_GVEC_MM(pxor, xor, Pq, Pq, Qq, MO_64)
+
+DEF_GEN_INSN3_HELPER_EPP(psllw, psllw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(pslld, pslld_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(psllq, psllq_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(psrlw, psrlw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(psrld, psrld_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(psrlq, psrlq_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(psraw, psraw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(psrad, psrad_mmx, Pq, Pq, Qq)
+
+#define DEF_GEN_PSHIFT_IMM_MM(mnem, opT1, opT2)                         \
+    GEN_INSN3(mnem, opT1, opT2, Ib)                                     \
+    {                                                                   \
+        const uint64_t arg3_ui64 = (uint8_t)arg3;                       \
+        const insnop_arg_t(Eq) arg3_r64 = s->tmp1_i64;                  \
+        const insnop_arg_t(Qq) arg3_mm =                                \
+            offsetof(CPUX86State, mmx_t0.MMX_Q(0));                     \
+                                                                        \
+        tcg_gen_movi_i64(arg3_r64, arg3_ui64);                          \
+        gen_insn2(movq, Pq, Eq)(env, s, arg3_mm, arg3_r64);             \
+        gen_insn3(mnem, Pq, Pq, Qq)(env, s, arg1, arg2, arg3_mm);       \
+    }
+
+DEF_GEN_PSHIFT_IMM_MM(psllw, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(pslld, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(psllq, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(psrlw, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(psrld, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(psrlq, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(psraw, Nq, Nq)
+DEF_GEN_PSHIFT_IMM_MM(psrad, Nq, Nq)
+
+DEF_GEN_INSN3_HELPER_EPP(packsswb, packsswb_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(packssdw, packssdw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(packuswb, packuswb_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(punpcklbw, punpcklbw_mmx, Pq, Pq, Qd)
+DEF_GEN_INSN3_HELPER_EPP(punpcklwd, punpcklwd_mmx, Pq, Pq, Qd)
+DEF_GEN_INSN3_HELPER_EPP(punpckldq, punpckldq_mmx, Pq, Pq, Qd)
+DEF_GEN_INSN3_HELPER_EPP(punpckhbw, punpckhbw_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(punpckhwd, punpckhwd_mmx, Pq, Pq, Qq)
+DEF_GEN_INSN3_HELPER_EPP(punpckhdq, punpckhdq_mmx, Pq, Pq, Qq)
+
+DEF_GEN_INSN0_HELPER(emms, emms)
 
 /*
  * Instruction translators
