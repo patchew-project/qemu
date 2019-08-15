@@ -8,6 +8,7 @@
 #include <sys/syscall.h>
 #include <elf.h>
 
+#include "exec/tb-stats.h"
 #include "jitdump.h"
 #include "qemu-common.h"
 
@@ -135,7 +136,19 @@ void start_jitdump_file(void)
 void append_load_in_jitdump_file(TranslationBlock *tb)
 {
     GString *func_name = g_string_new(NULL);
-    g_string_printf(func_name, "TB virt:0x"TARGET_FMT_lx"%c", tb->pc, '\0');
+    if (tb->tb_stats) {
+        TBStatistics *tbs = tb->tb_stats;
+        g = stat_per_translation(tbs, code.num_guest_inst);
+        ops = stat_per_translation(tbs, code.num_tcg_ops);
+        ops_opt = stat_per_translation(tbs, code.num_tcg_ops_opt);
+        spills = stat_per_translation(tbs, code.spills);
+
+        g_string_printf(func_name,
+                "TB virt:0x"TARGET_FMT_lx" (g:%u op:%u opt:%u spills:%d)%c",
+                tb->pc, g, ops, ops_opt, spills, '\0');
+    } else {
+        g_string_printf(func_name, "TB virt:0x"TARGET_FMT_lx"%c", tb->pc, '\0');
+    }
 
     struct jr_code_load *load_event = g_new0(struct jr_code_load, 1);
     load_event->p.id = JIT_CODE_LOAD;
