@@ -23,6 +23,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg-op.h"
+#include "tcg-op-gvec.h"
 #include "exec/cpu_ldst.h"
 #include "exec/translator.h"
 
@@ -5349,6 +5350,18 @@ INSNOP_LDST(xmm_t0, Mhq)
         tcg_temp_free_ptr(arg1_ptr);                                    \
         tcg_temp_free_ptr(arg3_ptr);                                    \
         tcg_temp_free_i32(arg4_r32);                                    \
+    }
+
+#define DEF_GEN_INSN2_GVEC(mnem, gvec, opT1, opT2, vece, oprsz, maxsz)  \
+    GEN_INSN2(mnem, opT1, opT2)                                         \
+    {                                                                   \
+        tcg_gen_gvec_ ## gvec(vece, arg1, arg2, oprsz, maxsz);          \
+    }
+
+#define DEF_GEN_INSN3_GVEC(mnem, gvec, opT1, opT2, opT3, vece, oprsz, maxsz) \
+    GEN_INSN3(mnem, opT1, opT2, opT3)                                   \
+    {                                                                   \
+        tcg_gen_gvec_ ## gvec(vece, arg1, arg2, arg3, oprsz, maxsz);    \
     }
 
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
