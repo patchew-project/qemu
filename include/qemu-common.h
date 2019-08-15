@@ -141,6 +141,7 @@ enum TBStatsStatus {
 #define TB_EXEC_STATS 1
 #define TB_JIT_STATS  2
 #define TB_JIT_TIME   4
+#define TB_PAUSED     8
 
 extern int tcg_collect_tb_stats;
 extern uint32_t default_tbstats_flag;
