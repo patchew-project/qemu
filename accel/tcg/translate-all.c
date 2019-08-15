@@ -1779,7 +1779,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
      * generation so we can count interesting things about this
      * generation.
      */
-    if (tb_stats_collection_enabled()) {
+    if (tb_stats_collection_enabled() && !(tb->cflags & CF_NOCACHE)) {
         tb->tb_stats = tb_get_stats(phys_pc, pc, cs_base, flags, tb);
         uint32_t flag = get_default_tbstats_flag();
 

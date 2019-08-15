@@ -9,8 +9,11 @@
 enum SortBy { SORT_BY_HOTNESS, SORT_BY_HG /* Host/Guest */, SORT_BY_SPILLS };
 enum TbstatsCmd { START, PAUSE, STOP, FILTER };
 
+#define tbs_stats_enabled(tbs, JIT_STATS) \
+    (tbs && (tbs->stats_enabled & JIT_STATS))
+
 #define tb_stats_enabled(tb, JIT_STATS) \
-    (tb && tb->tb_stats && (tb->tb_stats->stats_enabled & JIT_STATS))
+    (tb && tb->tb_stats && tbs_stats_enabled(tb->tb_stats, JIT_STATS))
 
 #define stat_per_translation(stat, name) \
     (stat->translations.total ? stat->name / stat->translations.total : 0)
@@ -56,7 +59,6 @@ struct TBStatistics {
 
     struct {
         unsigned long total;
-        unsigned long uncached;
         unsigned long spanning;
     } translations;
 
@@ -68,6 +70,9 @@ struct TBStatistics {
         uint64_t opt;
         uint64_t la;
     } time;
+
+    /* HMP information - used for referring to previous search */
+    int display_id;
 
     /* current TB linked to this TBStatistics */
     TranslationBlock *tb;
@@ -88,6 +93,40 @@ struct TbstatsCommand {
 };
 
 void do_hmp_tbstats_safe(CPUState *cpu, run_on_cpu_data icmd);
+
+/**
+ * dump_coverset_info: report the hottest blocks to cover n% of execution
+ *
+ * @percentage: cover set percentage
+ * @use_monitor: redirect output to monitor
+ *
+ * Report the hottest blocks to either the log or monitor
+ */
+void dump_coverset_info(int percentage, bool use_monitor);
+
+
+/**
+ * dump_tbs_info: report the hottest blocks
+ *
+ * @count: the limit of hotblocks
+ * @sort_by: property in which the dump will be sorted
+ * @use_monitor: redirect output to monitor
+ *
+ * Report the hottest blocks to either the log or monitor
+ */
+void dump_tbs_info(int count, int sort_by, bool use_monitor);
+
+/**
+ * dump_tb_info: dump information about one TB
+ *
+ * @id: the display id of the block (from previous search)
+ * @mask: the temporary logging mask
+ * @Use_monitor: redirect output to monitor
+ *
+ * Re-run a translation of a block at addr for the purposes of debug output
+ */
+void dump_tb_info(int id, int log_mask, bool use_monitor);
+
 
 /* TBStatistic collection controls */
 void enable_collect_tb_stats(void);
