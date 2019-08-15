@@ -5011,6 +5011,85 @@ INSNOP_LDST(tcg_temp_i64, Mq)
     }
 }
 
+/*
+ * MMX-technology register operands
+ */
+#define DEF_INSNOP_MM(opT, opTmmid)                                     \
+    typedef unsigned int insnop_arg_t(opT);                             \
+    typedef struct {                                                    \
+        insnop_ctxt_t(opTmmid) mmid;                                    \
+    } insnop_ctxt_t(opT);                                               \
+                                                                        \
+    INSNOP_INIT(opT)                                                    \
+    {                                                                   \
+        return insnop_init(opTmmid)(&ctxt->mmid, env, s, modrm, is_write); \
+    }                                                                   \
+    INSNOP_PREPARE(opT)                                                 \
+    {                                                                   \
+        const insnop_arg_t(opTmmid) mmid =                              \
+            insnop_prepare(opTmmid)(&ctxt->mmid, env, s, modrm, is_write); \
+        const insnop_arg_t(opT) arg =                                   \
+            offsetof(CPUX86State, fpregs[mmid & 7].mmx);                \
+        insnop_finalize(opTmmid)(&ctxt->mmid, env, s, modrm, is_write, mmid); \
+        return arg;                                                     \
+    }                                                                   \
+    INSNOP_FINALIZE(opT)                                                \
+    {                                                                   \
+    }
+
+typedef unsigned int insnop_arg_t(mm_t0);
+typedef struct {} insnop_ctxt_t(mm_t0);
+
+INSNOP_INIT(mm_t0)
+{
+    return 0;
+}
+INSNOP_PREPARE(mm_t0)
+{
+    return offsetof(CPUX86State, mmx_t0);
+}
+INSNOP_FINALIZE(mm_t0)
+{
+}
+
+DEF_INSNOP_MM(P, modrm_reg)
+DEF_INSNOP_ALIAS(Pd, P)
+DEF_INSNOP_ALIAS(Pq, P)
+
+DEF_INSNOP_MM(N, modrm_rm_direct)
+DEF_INSNOP_ALIAS(Nd, N)
+DEF_INSNOP_ALIAS(Nq, N)
+
+DEF_INSNOP_LDST(MQd, mm_t0, Md)
+DEF_INSNOP_LDST(MQq, mm_t0, Mq)
+DEF_INSNOP_EITHER(Qd, Nd, MQd)
+DEF_INSNOP_EITHER(Qq, Nq, MQq)
+
+INSNOP_LDST(mm_t0, Md)
+{
+    const insnop_arg_t(mm_t0) ofs =
+        offsetof(MMXReg, MMX_L(0));
+
+    assert(ptr == s->A0);
+    if (is_write) {
+        gen_std_env_A0(s, arg + ofs);
+    } else {
+        gen_ldd_env_A0(s, arg + ofs);
+    }
+}
+INSNOP_LDST(mm_t0, Mq)
+{
+    const insnop_arg_t(mm_t0) ofs =
+        offsetof(MMXReg, MMX_Q(0));
+
+    assert(ptr == s->A0);
+    if (is_write) {
+        gen_stq_env_A0(s, arg + ofs);
+    } else {
+        gen_ldq_env_A0(s, arg + ofs);
+    }
+}
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
