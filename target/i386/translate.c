@@ -5457,6 +5457,15 @@ static void translate_insn0()(
         }                                                               \
     }
 
+DEF_TRANSLATE_INSN2(Ed, Pq)
+DEF_TRANSLATE_INSN2(Eq, Pq)
+DEF_TRANSLATE_INSN2(Gd, Nq)
+DEF_TRANSLATE_INSN2(Gq, Nq)
+DEF_TRANSLATE_INSN2(Pq, Ed)
+DEF_TRANSLATE_INSN2(Pq, Eq)
+DEF_TRANSLATE_INSN2(Pq, Qq)
+DEF_TRANSLATE_INSN2(Qq, Pq)
+
 #define DEF_TRANSLATE_INSN3(opT1, opT2, opT3)                           \
     static void translate_insn3(opT1, opT2, opT3)(                      \
         CPUX86State *env, DisasContext *s, int modrm,                   \
@@ -5500,6 +5509,13 @@ static void translate_insn0()(
             gen_illegal_opcode(s);                                      \
         }                                                               \
     }
+
+DEF_TRANSLATE_INSN3(Gd, Nq, Ib)
+DEF_TRANSLATE_INSN3(Gq, Nq, Ib)
+DEF_TRANSLATE_INSN3(Nq, Nq, Ib)
+DEF_TRANSLATE_INSN3(Pq, Pq, Qd)
+DEF_TRANSLATE_INSN3(Pq, Pq, Qq)
+DEF_TRANSLATE_INSN3(Pq, Qq, Ib)
 
 #define DEF_TRANSLATE_INSN4(opT1, opT2, opT3, opT4)                     \
     static void translate_insn4(opT1, opT2, opT3, opT4)(                \
