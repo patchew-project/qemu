@@ -5533,6 +5533,9 @@ static void translate_insn0()(
         }                                                               \
     }
 
+DEF_TRANSLATE_INSN1(Mb)
+DEF_TRANSLATE_INSN1(Md)
+
 #define DEF_TRANSLATE_INSN2(opT1, opT2)                                 \
     static void translate_insn2(opT1, opT2)(                            \
         CPUX86State *env, DisasContext *s, int modrm,                   \
@@ -5571,11 +5574,29 @@ static void translate_insn0()(
 DEF_TRANSLATE_INSN2(Ed, Pq)
 DEF_TRANSLATE_INSN2(Eq, Pq)
 DEF_TRANSLATE_INSN2(Gd, Nq)
+DEF_TRANSLATE_INSN2(Gd, Udq)
+DEF_TRANSLATE_INSN2(Gd, Wd)
 DEF_TRANSLATE_INSN2(Gq, Nq)
+DEF_TRANSLATE_INSN2(Gq, Udq)
+DEF_TRANSLATE_INSN2(Gq, Wd)
+DEF_TRANSLATE_INSN2(Mdq, Vdq)
+DEF_TRANSLATE_INSN2(Mq, Pq)
+DEF_TRANSLATE_INSN2(Mq, Vdq)
+DEF_TRANSLATE_INSN2(Mq, Vq)
 DEF_TRANSLATE_INSN2(Pq, Ed)
 DEF_TRANSLATE_INSN2(Pq, Eq)
+DEF_TRANSLATE_INSN2(Pq, Nq)
 DEF_TRANSLATE_INSN2(Pq, Qq)
+DEF_TRANSLATE_INSN2(Pq, Wq)
 DEF_TRANSLATE_INSN2(Qq, Pq)
+DEF_TRANSLATE_INSN2(Vd, Ed)
+DEF_TRANSLATE_INSN2(Vd, Eq)
+DEF_TRANSLATE_INSN2(Vd, Wd)
+DEF_TRANSLATE_INSN2(Vdq, Qq)
+DEF_TRANSLATE_INSN2(Vdq, Wdq)
+DEF_TRANSLATE_INSN2(Vq, UdqMhq)
+DEF_TRANSLATE_INSN2(Wd, Vd)
+DEF_TRANSLATE_INSN2(Wdq, Vdq)
 
 #define DEF_TRANSLATE_INSN3(opT1, opT2, opT3)                           \
     static void translate_insn3(opT1, opT2, opT3)(                      \
@@ -5627,6 +5648,9 @@ DEF_TRANSLATE_INSN3(Nq, Nq, Ib)
 DEF_TRANSLATE_INSN3(Pq, Pq, Qd)
 DEF_TRANSLATE_INSN3(Pq, Pq, Qq)
 DEF_TRANSLATE_INSN3(Pq, Qq, Ib)
+DEF_TRANSLATE_INSN3(Vd, Vd, Wd)
+DEF_TRANSLATE_INSN3(Vdq, Vdq, Wdq)
+DEF_TRANSLATE_INSN3(Vdq, Vq, Wq)
 
 #define DEF_TRANSLATE_INSN4(opT1, opT2, opT3, opT4)                     \
     static void translate_insn4(opT1, opT2, opT3, opT4)(                \
@@ -5679,6 +5703,11 @@ DEF_TRANSLATE_INSN3(Pq, Qq, Ib)
             gen_illegal_opcode(s);                                      \
         }                                                               \
     }
+
+DEF_TRANSLATE_INSN4(Pq, Pq, RdMw, Ib)
+DEF_TRANSLATE_INSN4(Vd, Vd, Wd, Ib)
+DEF_TRANSLATE_INSN4(Vdq, Vdq, Wd, modrm_mod)
+DEF_TRANSLATE_INSN4(Vdq, Vdq, Wdq, Ib)
 
 #define OPCODE_GRP_BEGIN(grpname)                                       \
     static void translate_group(grpname)(                               \
