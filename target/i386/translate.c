@@ -4489,6 +4489,10 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     }
 }
 
+/* XXX TODO get rid of this eventually */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
@@ -4515,6 +4519,7 @@ static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 
     g_assert_not_reached();
 }
+#pragma GCC diagnostic pop
 
 /* convert one instruction. s->base.is_jmp is set if the translation must
    be stopped. Return the next pc value */
