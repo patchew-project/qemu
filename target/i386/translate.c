@@ -4576,6 +4576,26 @@ static int ck_cpuid(CPUX86State *env, DisasContext *s, CkCpuidFeat feat)
                                      int modrm, bool is_write,  \
                                      insnop_arg_t(opT) arg)
 
+/*
+ * Operand alias
+ */
+#define DEF_INSNOP_ALIAS(opT, opT2)                                     \
+    typedef insnop_arg_t(opT2) insnop_arg_t(opT);                       \
+    typedef insnop_ctxt_t(opT2) insnop_ctxt_t(opT);                     \
+                                                                        \
+    INSNOP_INIT(opT)                                                    \
+    {                                                                   \
+        return insnop_init(opT2)(ctxt, env, s, modrm, is_write);        \
+    }                                                                   \
+    INSNOP_PREPARE(opT)                                                 \
+    {                                                                   \
+        return insnop_prepare(opT2)(ctxt, env, s, modrm, is_write);     \
+    }                                                                   \
+    INSNOP_FINALIZE(opT)                                                \
+    {                                                                   \
+        insnop_finalize(opT2)(ctxt, env, s, modrm, is_write, arg);      \
+    }
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
