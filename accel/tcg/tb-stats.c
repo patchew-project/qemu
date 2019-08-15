@@ -8,6 +8,8 @@
 
 #include "exec/tb-stats.h"
 
+uint64_t dev_time;
+
 struct jit_profile_info {
     uint64_t translations;
     uint64_t aborted;
@@ -19,6 +21,13 @@ struct jit_profile_info {
     uint64_t host;
     uint64_t guest;
     uint64_t search_data;
+
+    uint64_t interm_time;
+    uint64_t code_time;
+    uint64_t restore_count;
+    uint64_t restore_time;
+    uint64_t opt_time;
+    uint64_t la_time;
 };
 
 /* accumulate the statistics from all TBs */
@@ -40,6 +49,29 @@ static void collect_jit_profile_info(void *p, uint32_t hash, void *userp)
     jpi->host += tbs->code.out_len;
     jpi->guest += tbs->code.in_len;
     jpi->search_data += tbs->code.search_out_len;
+
+    jpi->interm_time += stat_per_translation(tbs, time.interm);
+    jpi->code_time += stat_per_translation(tbs, time.code);
+    jpi->opt_time += stat_per_translation(tbs, time.opt);
+    jpi->la_time += stat_per_translation(tbs, time.la);
+    jpi->restore_time += tbs->time.restore;
+    jpi->restore_count += tbs->time.restore_count;
+}
+
+void dump_jit_exec_time_info(uint64_t dev_time)
+{
+    static uint64_t last_cpu_exec_time;
+    uint64_t cpu_exec_time;
+    uint64_t delta;
+
+    cpu_exec_time = tcg_cpu_exec_time();
+    delta = cpu_exec_time - last_cpu_exec_time;
+
+    qemu_printf("async time  %" PRId64 " (%0.3f)\n",
+                   dev_time, dev_time / (double) NANOSECONDS_PER_SECOND);
+    qemu_printf("qemu time   %" PRId64 " (%0.3f)\n",
+                   delta, delta / (double) NANOSECONDS_PER_SECOND);
+    last_cpu_exec_time = cpu_exec_time;
 }
 
 /* dump JIT statisticis using TCGProfile and TBStats */
@@ -66,36 +98,45 @@ void dump_jit_profile_info(TCGProfile *s)
         qemu_printf("avg search data/TB  %0.1f\n",
                 jpi->search_data / (double) jpi->translations);
 
+        uint64_t tot = jpi->interm_time + jpi->code_time;
+
+        qemu_printf("JIT cycles          %" PRId64 " (%0.3fs at 2.4 GHz)\n",
+                tot, tot / 2.4e9);
+        qemu_printf("cycles/op           %0.1f\n",
+                jpi->ops ? (double)tot / jpi->ops : 0);
+        qemu_printf("cycles/in byte      %0.1f\n",
+                jpi->guest ? (double)tot / jpi->guest : 0);
+        qemu_printf("cycles/out byte     %0.1f\n",
+                jpi->host ? (double)tot / jpi->host : 0);
+        qemu_printf("cycles/search byte     %0.1f\n",
+                jpi->search_data ? (double)tot / jpi->search_data : 0);
+        if (tot == 0) {
+            tot = 1;
+        }
+
+        qemu_printf("  gen_interm time   %0.1f%%\n",
+                (double)jpi->interm_time / tot * 100.0);
+        qemu_printf("  gen_code time     %0.1f%%\n",
+                (double)jpi->code_time / tot * 100.0);
+
+        qemu_printf("optim./code time    %0.1f%%\n",
+                (double)jpi->opt_time / (jpi->code_time ? jpi->code_time : 1)
+                * 100.0);
+        qemu_printf("liveness/code time  %0.1f%%\n",
+                (double)jpi->la_time / (jpi->code_time ? jpi->code_time : 1) * 100.0);
+
+        qemu_printf("cpu_restore count   %" PRId64 "\n",
+                jpi->restore_count);
+        qemu_printf("  avg cycles        %0.1f\n",
+                jpi->restore_count ? (double)jpi->restore_time / jpi->restore_count : 0);
+
         if (s) {
-            int64_t tot = s->interm_time + s->code_time;
-            qemu_printf("JIT cycles          %" PRId64 " (%0.3f s at 2.4 GHz)\n",
-                            tot, tot / 2.4e9);
-            qemu_printf("cycles/op           %0.1f\n",
-                        jpi->ops ? (double)tot / jpi->ops : 0);
-            qemu_printf("cycles/in byte      %0.1f\n",
-                        jpi->guest ? (double)tot / jpi->guest : 0);
-            qemu_printf("cycles/out byte     %0.1f\n",
-                        jpi->host ? (double)tot / jpi->host : 0);
-            qemu_printf("cycles/search byte     %0.1f\n",
-                        jpi->search_data ? (double)tot / jpi->search_data : 0);
-            if (tot == 0) {
-                tot = 1;
-            }
-            qemu_printf("  gen_interm time   %0.1f%%\n",
-                        (double)s->interm_time / tot * 100.0);
-            qemu_printf("  gen_code time     %0.1f%%\n",
-                        (double)s->code_time / tot * 100.0);
-            qemu_printf("optim./code time    %0.1f%%\n",
-                        (double)s->opt_time / (s->code_time ? s->code_time : 1)
-                        * 100.0);
-            qemu_printf("liveness/code time  %0.1f%%\n",
-                    (double)s->la_time / (s->code_time ? s->code_time : 1) * 100.0);
-            qemu_printf("cpu_restore count   %" PRId64 "\n",
-                    s->restore_count);
-            qemu_printf("  avg cycles        %0.1f\n",
-                    s->restore_count ? (double)s->restore_time / s->restore_count : 0);
+            qemu_printf("cpu exec time  %" PRId64 " (%0.3fs)\n",
+                s->cpu_exec_time, s->cpu_exec_time / (double) NANOSECONDS_PER_SECOND);
         }
     }
+
+    g_free(jpi);
 }
 
 

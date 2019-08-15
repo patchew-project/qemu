@@ -1037,13 +1037,10 @@ static inline int64_t cpu_get_host_ticks(void)
 }
 #endif
 
-#ifdef CONFIG_PROFILER
 static inline int64_t profile_getclock(void)
 {
     return get_clock();
 }
 
-extern int64_t dev_time;
-#endif
-
+extern uint64_t dev_time;
 #endif

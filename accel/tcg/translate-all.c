@@ -337,10 +337,11 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     CPUArchState *env = cpu->env_ptr;
     uint8_t *p = tb->tc.ptr + tb->tc.size;
     int i, j, num_insns = tb->icount;
-#ifdef CONFIG_PROFILER
-    TCGProfile *prof = &tcg_ctx->prof;
-    int64_t ti = profile_getclock();
-#endif
+    uint64_t ti = 0;
+
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        ti = profile_getclock();
+    }
 
     searched_pc -= GETPC_ADJ;
 
@@ -370,11 +371,11 @@ static int cpu_restore_state_from_tb(CPUState *cpu, TranslationBlock *tb,
     }
     restore_state_to_opc(env, tb, data);
 
-#ifdef CONFIG_PROFILER
-    atomic_set(&prof->restore_time,
-                prof->restore_time + profile_getclock() - ti);
-    atomic_set(&prof->restore_count, prof->restore_count + 1);
-#endif
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        atomic_add(&tb->tb_stats->time.restore, profile_getclock() - ti);
+        atomic_inc(&tb->tb_stats->time.restore_count);
+    }
+
     return 0;
 }
 
@@ -1725,10 +1726,8 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     target_ulong virt_page2;
     tcg_insn_unit *gen_code_buf;
     int gen_code_size, search_size, max_insns;
-#ifdef CONFIG_PROFILER
-    TCGProfile *prof = &tcg_ctx->prof;
-    int64_t ti;
-#endif
+    uint64_t ti = 0;
+
     assert_memory_lock();
 
     phys_pc = get_page_addr_code(env, pc);
@@ -1774,9 +1773,6 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     tcg_ctx->tb_cflags = cflags;
  tb_overflow:
 
-#ifdef CONFIG_PROFILER
-    ti = profile_getclock();
-#endif
 
     /*
      * We want to fetch the stats structure before we start code
@@ -1796,6 +1792,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         if (flag & TB_JIT_STATS) {
             tb->tb_stats->stats_enabled |= TB_JIT_STATS;
             atomic_inc(&tb->tb_stats->translations.total);
+        }
+
+        if (flag & TB_JIT_TIME) {
+            tb->tb_stats->stats_enabled |= TB_JIT_TIME;
+            ti = profile_getclock();
         }
     } else {
         tb->tb_stats = NULL;
@@ -1821,10 +1822,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         tcg_ctx->tb_jmp_target_addr = tb->jmp_target_arg;
     }
 
-#ifdef CONFIG_PROFILER
-    atomic_set(&prof->interm_time, prof->interm_time + profile_getclock() - ti);
-    ti = profile_getclock();
-#endif
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        atomic_add(&tb->tb_stats->time.interm, profile_getclock() - ti);
+        ti = profile_getclock();
+    }
 
     gen_code_size = tcg_gen_code(tcg_ctx, tb);
     if (unlikely(gen_code_size < 0)) {
@@ -1866,9 +1867,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     }
     tb->tc.size = gen_code_size;
 
-#ifdef CONFIG_PROFILER
-    atomic_set(&prof->code_time, prof->code_time + profile_getclock() - ti);
-#endif
+    if (tb_stats_enabled(tb, TB_JIT_TIME)) {
+        atomic_add(&tb->tb_stats->time.code, profile_getclock() - ti);
+    }
 
     if (tb_stats_enabled(tb, TB_JIT_STATS)) {
         atomic_add(&tb->tb_stats->code.in_len, tb->size);
