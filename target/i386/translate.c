@@ -4489,6 +4489,33 @@ static void gen_sse(CPUX86State *env, DisasContext *s, int b)
     }
 }
 
+static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
+{
+    enum {
+        P_NP = 0,
+        P_66 = 1 << (0 + 8),
+        P_F3 = 1 << (1 + 8),
+        P_F2 = 1 << (2 + 8),
+        W_0  = 0 << (3 + 8),
+        W_1  = 1 << (3 + 8),
+        M_NA = 0,
+        M_0F = 1 << (4 + 8),
+    };
+
+    switch ((b & 0xff) | M_0F
+            | (s->prefix & PREFIX_DATA ? P_66 : 0)
+            | (s->prefix & PREFIX_REPZ ? P_F3 : 0)
+            | (s->prefix & PREFIX_REPNZ ? P_F2 : 0)
+            | (REX_W(s) > 0 ? W_1 : W_0)) {
+
+    default:
+        gen_sse(env, s, b);
+        return;
+    }
+
+    g_assert_not_reached();
+}
+
 /* convert one instruction. s->base.is_jmp is set if the translation must
    be stopped. Return the next pc value */
 static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
@@ -8379,7 +8406,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     case 0x1c2:
     case 0x1c4 ... 0x1c6:
     case 0x1d0 ... 0x1fe:
-        gen_sse(env, s, b);
+        gen_sse_ng(env, s, b);
         break;
     default:
         goto unknown_op;
