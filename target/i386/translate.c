@@ -5245,6 +5245,112 @@ INSNOP_LDST(xmm_t0, Mhq)
         insnop_arg_t(opT1) arg1, insnop_arg_t(opT2) arg2,       \
         insnop_arg_t(opT3) arg3, insnop_arg_t(opT4) arg4)
 
+#define DEF_GEN_INSN0_HELPER(mnem, helper)      \
+    GEN_INSN0(mnem)                             \
+    {                                           \
+        gen_helper_ ## helper(cpu_env);         \
+    }
+
+#define DEF_GEN_INSN2_HELPER_EPD(mnem, helper, opT1, opT2)      \
+    GEN_INSN2(mnem, opT1, opT2)                                 \
+    {                                                           \
+        const TCGv_ptr arg1_ptr = tcg_temp_new_ptr();           \
+                                                                \
+        tcg_gen_addi_ptr(arg1_ptr, cpu_env, arg1);              \
+        gen_helper_ ## helper(cpu_env, arg1_ptr, arg2);         \
+                                                                \
+        tcg_temp_free_ptr(arg1_ptr);                            \
+    }
+#define DEF_GEN_INSN2_HELPER_DEP(mnem, helper, opT1, opT2)      \
+    GEN_INSN2(mnem, opT1, opT2)                                 \
+    {                                                           \
+        const TCGv_ptr arg2_ptr = tcg_temp_new_ptr();           \
+                                                                \
+        tcg_gen_addi_ptr(arg2_ptr, cpu_env, arg2);              \
+        gen_helper_ ## helper(arg1, cpu_env, arg2_ptr);         \
+                                                                \
+        tcg_temp_free_ptr(arg2_ptr);                            \
+    }
+#ifdef TARGET_X86_64
+#define DEF_GEN_INSN2_HELPER_EPQ(mnem, helper, opT1, opT2)      \
+    DEF_GEN_INSN2_HELPER_EPD(mnem, helper, opT1, opT2)
+#define DEF_GEN_INSN2_HELPER_QEP(mnem, helper, opT1, opT2)      \
+    DEF_GEN_INSN2_HELPER_DEP(mnem, helper, opT1, opT2)
+#else /* !TARGET_X86_64 */
+#define DEF_GEN_INSN2_HELPER_EPQ(mnem, helper, opT1, opT2)      \
+    GEN_INSN2(mnem, opT1, opT2)                                 \
+    {                                                           \
+        g_assert_not_reached();                                 \
+    }
+#define DEF_GEN_INSN2_HELPER_QEP(mnem, helper, opT1, opT2)      \
+    GEN_INSN2(mnem, opT1, opT2)                                 \
+    {                                                           \
+        g_assert_not_reached();                                 \
+    }
+#endif /* !TARGET_X86_64 */
+#define DEF_GEN_INSN2_HELPER_EPP(mnem, helper, opT1, opT2)      \
+    GEN_INSN2(mnem, opT1, opT2)                                 \
+    {                                                           \
+        const TCGv_ptr arg1_ptr = tcg_temp_new_ptr();           \
+        const TCGv_ptr arg2_ptr = tcg_temp_new_ptr();           \
+                                                                \
+        tcg_gen_addi_ptr(arg1_ptr, cpu_env, arg1);              \
+        tcg_gen_addi_ptr(arg2_ptr, cpu_env, arg2);              \
+        gen_helper_ ## helper(cpu_env, arg1_ptr, arg2_ptr);     \
+                                                                \
+        tcg_temp_free_ptr(arg1_ptr);                            \
+        tcg_temp_free_ptr(arg2_ptr);                            \
+    }
+
+#define DEF_GEN_INSN3_HELPER_EPP(mnem, helper, opT1, opT2, opT3)        \
+    GEN_INSN3(mnem, opT1, opT2, opT3)                                   \
+    {                                                                   \
+        const TCGv_ptr arg1_ptr = tcg_temp_new_ptr();                   \
+        const TCGv_ptr arg3_ptr = tcg_temp_new_ptr();                   \
+                                                                        \
+        assert(arg1 == arg2);                                           \
+        tcg_gen_addi_ptr(arg1_ptr, cpu_env, arg1);                      \
+        tcg_gen_addi_ptr(arg3_ptr, cpu_env, arg3);                      \
+        gen_helper_ ## helper(cpu_env, arg1_ptr, arg3_ptr);             \
+                                                                        \
+        tcg_temp_free_ptr(arg1_ptr);                                    \
+        tcg_temp_free_ptr(arg3_ptr);                                    \
+    }
+#define DEF_GEN_INSN3_HELPER_PPI(mnem, helper, opT1, opT2, opT3)        \
+    GEN_INSN3(mnem, opT1, opT2, opT3)                                   \
+    {                                                                   \
+        const TCGv_ptr arg1_ptr = tcg_temp_new_ptr();                   \
+        const TCGv_ptr arg2_ptr = tcg_temp_new_ptr();                   \
+        const TCGv_i32 arg3_r32 = tcg_temp_new_i32();                   \
+                                                                        \
+        tcg_gen_addi_ptr(arg1_ptr, cpu_env, arg1);                      \
+        tcg_gen_addi_ptr(arg2_ptr, cpu_env, arg2);                      \
+        tcg_gen_movi_i32(arg3_r32, arg3);                               \
+        gen_helper_ ## helper(arg1_ptr, arg2_ptr, arg3_r32);            \
+                                                                        \
+        tcg_temp_free_ptr(arg1_ptr);                                    \
+        tcg_temp_free_ptr(arg2_ptr);                                    \
+        tcg_temp_free_i32(arg3_r32);                                    \
+    }
+
+#define DEF_GEN_INSN4_HELPER_PPI(mnem, helper, opT1, opT2, opT3, opT4)  \
+    GEN_INSN4(mnem, opT1, opT2, opT3, opT4)                             \
+    {                                                                   \
+        const TCGv_ptr arg1_ptr = tcg_temp_new_ptr();                   \
+        const TCGv_ptr arg3_ptr = tcg_temp_new_ptr();                   \
+        const TCGv_i32 arg4_r32 = tcg_temp_new_i32();                   \
+                                                                        \
+        assert(arg1 == arg2);                                           \
+        tcg_gen_addi_ptr(arg1_ptr, cpu_env, arg1);                      \
+        tcg_gen_addi_ptr(arg3_ptr, cpu_env, arg3);                      \
+        tcg_gen_movi_i32(arg4_r32, arg4);                               \
+        gen_helper_ ## helper(arg1_ptr, arg3_ptr, arg4_r32);            \
+                                                                        \
+        tcg_temp_free_ptr(arg1_ptr);                                    \
+        tcg_temp_free_ptr(arg3_ptr);                                    \
+        tcg_temp_free_i32(arg4_r32);                                    \
+    }
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
