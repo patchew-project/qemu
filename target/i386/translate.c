@@ -4930,6 +4930,7 @@ DEF_INSNOP_ALIAS(Mb, M)
 DEF_INSNOP_ALIAS(Mw, M)
 DEF_INSNOP_ALIAS(Md, M)
 DEF_INSNOP_ALIAS(Mq, M)
+DEF_INSNOP_ALIAS(Mhq, M)
 DEF_INSNOP_ALIAS(Mdq, M)
 DEF_INSNOP_ALIAS(Mqq, M)
 
@@ -5081,6 +5082,122 @@ INSNOP_LDST(mm_t0, Mq)
 {
     const insnop_arg_t(mm_t0) ofs =
         offsetof(MMXReg, MMX_Q(0));
+
+    assert(ptr == s->A0);
+    if (is_write) {
+        gen_stq_env_A0(s, arg + ofs);
+    } else {
+        gen_ldq_env_A0(s, arg + ofs);
+    }
+}
+
+/*
+ * SSE/AVX-technology registers
+ */
+#define DEF_INSNOP_XMM(opT, opTxmmid)                                   \
+    typedef unsigned int insnop_arg_t(opT);                             \
+    typedef struct {                                                    \
+        insnop_ctxt_t(opTxmmid) xmmid;                                  \
+    } insnop_ctxt_t(opT);                                               \
+                                                                        \
+    INSNOP_INIT(opT)                                                    \
+    {                                                                   \
+        return insnop_init(opTxmmid)(&ctxt->xmmid, env, s, modrm, is_write); \
+    }                                                                   \
+    INSNOP_PREPARE(opT)                                                 \
+    {                                                                   \
+        const insnop_arg_t(opTxmmid) xmmid =                            \
+            insnop_prepare(opTxmmid)(&ctxt->xmmid, env, s, modrm, is_write); \
+        const insnop_arg_t(opT) arg =                                   \
+            offsetof(CPUX86State, xmm_regs[xmmid]);                     \
+        insnop_finalize(opTxmmid)(&ctxt->xmmid, env, s,                 \
+                                  modrm, is_write, xmmid);              \
+        return arg;                                                     \
+    }                                                                   \
+    INSNOP_FINALIZE(opT)                                                \
+    {                                                                   \
+    }
+
+typedef unsigned int insnop_arg_t(xmm_t0);
+typedef struct {} insnop_ctxt_t(xmm_t0);
+
+INSNOP_INIT(xmm_t0)
+{
+    return 0;
+}
+INSNOP_PREPARE(xmm_t0)
+{
+    return offsetof(CPUX86State, xmm_t0);
+}
+INSNOP_FINALIZE(xmm_t0)
+{
+}
+
+DEF_INSNOP_XMM(V, modrm_reg)
+DEF_INSNOP_ALIAS(Vd, V)
+DEF_INSNOP_ALIAS(Vq, V)
+DEF_INSNOP_ALIAS(Vdq, V)
+DEF_INSNOP_ALIAS(Vqq, V)
+
+DEF_INSNOP_XMM(U, modrm_rm_direct)
+DEF_INSNOP_ALIAS(Ud, U)
+DEF_INSNOP_ALIAS(Uq, U)
+DEF_INSNOP_ALIAS(Udq, U)
+DEF_INSNOP_ALIAS(Uqq, U)
+
+DEF_INSNOP_XMM(H, vex_v)
+DEF_INSNOP_ALIAS(Hd, H)
+DEF_INSNOP_ALIAS(Hq, H)
+DEF_INSNOP_ALIAS(Hdq, H)
+DEF_INSNOP_ALIAS(Hqq, H)
+
+DEF_INSNOP_LDST(MUd, xmm_t0, Md)
+DEF_INSNOP_LDST(MUq, xmm_t0, Mq)
+DEF_INSNOP_LDST(MWdq, xmm_t0, Mdq)
+DEF_INSNOP_LDST(MUdqMhq, xmm_t0, Mhq)
+DEF_INSNOP_EITHER(Wd, Ud, MUd)
+DEF_INSNOP_EITHER(Wq, Uq, MUq)
+DEF_INSNOP_EITHER(Wdq, Udq, MWdq)
+DEF_INSNOP_EITHER(UdqMq, Udq, MUq)
+DEF_INSNOP_EITHER(UdqMhq, Udq, MUdqMhq)
+
+INSNOP_LDST(xmm_t0, Md)
+{
+    const insnop_arg_t(xmm_t0) ofs =
+        offsetof(ZMMReg, ZMM_L(0));
+
+    assert(ptr == s->A0);
+    if (is_write) {
+        gen_std_env_A0(s, arg + ofs);
+    } else {
+        gen_ldd_env_A0(s, arg + ofs);
+    }
+}
+INSNOP_LDST(xmm_t0, Mq)
+{
+    const insnop_arg_t(xmm_t0) ofs =
+        offsetof(ZMMReg, ZMM_Q(0));
+
+    assert(ptr == s->A0);
+    if (is_write) {
+        gen_stq_env_A0(s, arg + ofs);
+    } else {
+        gen_ldq_env_A0(s, arg + ofs);
+    }
+}
+INSNOP_LDST(xmm_t0, Mdq)
+{
+    assert(ptr == s->A0);
+    if (is_write) {
+        gen_sto_env_A0(s, arg);
+    } else {
+        gen_ldo_env_A0(s, arg);
+    }
+}
+INSNOP_LDST(xmm_t0, Mhq)
+{
+    const insnop_arg_t(xmm_t0) ofs =
+        offsetof(ZMMReg, ZMM_Q(1));
 
     assert(ptr == s->A0);
     if (is_write) {
