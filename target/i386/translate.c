@@ -5627,6 +5627,63 @@ GEN_INSN2(movmskpd, Gq, Udq)
     tcg_temp_free_i32(arg1_r32);
 }
 
+GEN_INSN2(lddqu, Vdq, Mdq)
+{
+    assert(arg2 == s->A0);
+    gen_ldo_env_A0(s, arg1);
+}
+
+GEN_INSN2(movshdup, Vdq, Wdq)
+{
+    const TCGv_i32 r32 = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(r32, cpu_env, arg2 + offsetof(ZMMReg, ZMM_L(1)));
+    tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(0)));
+    if (arg1 != arg2) {
+        tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(1)));
+    }
+
+    tcg_gen_ld_i32(r32, cpu_env, arg2 + offsetof(ZMMReg, ZMM_L(3)));
+    tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(2)));
+    if (arg1 != arg2) {
+        tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(3)));
+    }
+
+    tcg_temp_free_i32(r32);
+}
+
+GEN_INSN2(movsldup, Vdq, Wdq)
+{
+    const TCGv_i32 r32 = tcg_temp_new_i32();
+
+    tcg_gen_ld_i32(r32, cpu_env, arg2 + offsetof(ZMMReg, ZMM_L(0)));
+    if (arg1 != arg2) {
+        tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(0)));
+    }
+    tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(1)));
+
+    tcg_gen_ld_i32(r32, cpu_env, arg2 + offsetof(ZMMReg, ZMM_L(2)));
+    if (arg1 != arg2) {
+        tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(2)));
+    }
+    tcg_gen_st_i32(r32, cpu_env, arg1 + offsetof(ZMMReg, ZMM_L(3)));
+
+    tcg_temp_free_i32(r32);
+}
+
+GEN_INSN2(movddup, Vdq, Wq)
+{
+    const TCGv_i64 r64 = tcg_temp_new_i64();
+
+    tcg_gen_ld_i64(r64, cpu_env, arg2 + offsetof(ZMMReg, ZMM_Q(0)));
+    if (arg1 != arg2) {
+        tcg_gen_st_i64(r64, cpu_env, arg1 + offsetof(ZMMReg, ZMM_Q(0)));
+    }
+    tcg_gen_st_i64(r64, cpu_env, arg1 + offsetof(ZMMReg, ZMM_Q(1)));
+
+    tcg_temp_free_i64(r64);
+}
+
 DEF_GEN_INSN3_GVEC_MM(paddb, add, Pq, Pq, Qq, MO_8)
 DEF_GEN_INSN3_GVEC_XMM(paddb, add, Vdq, Vdq, Wdq, MO_8)
 DEF_GEN_INSN3_GVEC_MM(paddw, add, Pq, Pq, Qq, MO_16)
@@ -5647,6 +5704,8 @@ DEF_GEN_INSN3_HELPER_EPP(addps, addps, Vdq, Vdq, Wdq)
 DEF_GEN_INSN3_HELPER_EPP(addss, addss, Vd, Vd, Wd)
 DEF_GEN_INSN3_HELPER_EPP(addpd, addpd, Vdq, Vdq, Wdq)
 DEF_GEN_INSN3_HELPER_EPP(addsd, addsd, Vq, Vq, Wq)
+DEF_GEN_INSN3_HELPER_EPP(haddps, haddps, Vdq, Vdq, Wdq)
+DEF_GEN_INSN3_HELPER_EPP(haddpd, haddpd, Vdq, Vdq, Wdq)
 
 DEF_GEN_INSN3_GVEC_MM(psubb, sub, Pq, Pq, Qq, MO_8)
 DEF_GEN_INSN3_GVEC_XMM(psubb, sub, Vdq, Vdq, Wdq, MO_8)
@@ -5668,6 +5727,11 @@ DEF_GEN_INSN3_HELPER_EPP(subps, subps, Vdq, Vdq, Wdq)
 DEF_GEN_INSN3_HELPER_EPP(subpd, subpd, Vdq, Vdq, Wdq)
 DEF_GEN_INSN3_HELPER_EPP(subss, subss, Vd, Vd, Wd)
 DEF_GEN_INSN3_HELPER_EPP(subsd, subsd, Vq, Vq, Wq)
+DEF_GEN_INSN3_HELPER_EPP(hsubps, hsubps, Vdq, Vdq, Wdq)
+DEF_GEN_INSN3_HELPER_EPP(hsubpd, hsubpd, Vdq, Vdq, Wdq)
+
+DEF_GEN_INSN3_HELPER_EPP(addsubps, addsubps, Vdq, Vdq, Wdq)
+DEF_GEN_INSN3_HELPER_EPP(addsubpd, addsubpd, Vdq, Vdq, Wdq)
 
 DEF_GEN_INSN3_HELPER_EPP(pmullw, pmullw_mmx, Pq, Pq, Qq)
 DEF_GEN_INSN3_HELPER_EPP(pmullw, pmullw_xmm, Vdq, Vdq, Wdq)
