@@ -133,6 +133,14 @@ OPCODE(movmskps, LEG(NP, 0F, 1, 0x50), SSE, WR, Gq, Udq)
 OPCODE(movmskpd, LEG(66, 0F, 0, 0x50), SSE2, WR, Gd, Udq)
 /* 66 REX.W 0F 50 /r: MOVMSKPD r64, xmm */
 OPCODE(movmskpd, LEG(66, 0F, 1, 0x50), SSE2, WR, Gq, Udq)
+/* F2 0F F0 /r: LDDQU xmm1, m128 */
+OPCODE(lddqu, LEG(F2, 0F, 0, 0xf0), SSE3, WR, Vdq, Mdq)
+/* F3 0F 16 /r: MOVSHDUP xmm1, xmm2/m128 */
+OPCODE(movshdup, LEG(F3, 0F, 0, 0x16), SSE3, WR, Vdq, Wdq)
+/* F3 0F 12 /r: MOVSLDUP xmm1, xmm2/m128 */
+OPCODE(movsldup, LEG(F3, 0F, 0, 0x12), SSE3, WR, Vdq, Wdq)
+/* F2 0F 12 /r: MOVDDUP xmm1, xmm2/m64 */
+OPCODE(movddup, LEG(F2, 0F, 0, 0x12), SSE3, WR, Vdq, Wq)
 /* NP 0F FC /r: PADDB mm, mm/m64 */
 OPCODE(paddb, LEG(NP, 0F, 0, 0xfc), MMX, WRR, Pq, Pq, Qq)
 /* 66 0F FC /r: PADDB xmm1, xmm2/m128 */
@@ -173,6 +181,10 @@ OPCODE(addpd, LEG(66, 0F, 0, 0x58), SSE2, WRR, Vdq, Vdq, Wdq)
 OPCODE(addss, LEG(F3, 0F, 0, 0x58), SSE, WRR, Vd, Vd, Wd)
 /* F2 0F 58 /r: ADDSD xmm1, xmm2/m64 */
 OPCODE(addsd, LEG(F2, 0F, 0, 0x58), SSE2, WRR, Vq, Vq, Wq)
+/* F2 0F 7C /r: HADDPS xmm1, xmm2/m128 */
+OPCODE(haddps, LEG(F2, 0F, 0, 0x7c), SSE3, WRR, Vdq, Vdq, Wdq)
+/* 66 0F 7C /r: HADDPD xmm1, xmm2/m128 */
+OPCODE(haddpd, LEG(66, 0F, 0, 0x7c), SSE3, WRR, Vdq, Vdq, Wdq)
 /* NP 0F F8 /r: PSUBB mm, mm/m64 */
 OPCODE(psubb, LEG(NP, 0F, 0, 0xf8), MMX, WRR, Pq, Pq, Qq)
 /* 66 0F F8 /r: PSUBB xmm1, xmm2/m128 */
@@ -213,6 +225,14 @@ OPCODE(subpd, LEG(66, 0F, 0, 0x5c), SSE2, WRR, Vdq, Vdq, Wdq)
 OPCODE(subss, LEG(F3, 0F, 0, 0x5c), SSE, WRR, Vd, Vd, Wd)
 /* F2 0F 5C /r: SUBSD xmm1, xmm2/m64 */
 OPCODE(subsd, LEG(F2, 0F, 0, 0x5c), SSE2, WRR, Vq, Vq, Wq)
+/* F2 0F 7D /r: HSUBPS xmm1, xmm2/m128 */
+OPCODE(hsubps, LEG(F2, 0F, 0, 0x7d), SSE3, WRR, Vdq, Vdq, Wdq)
+/* 66 0F 7D /r: HSUBPD xmm1, xmm2/m128 */
+OPCODE(hsubpd, LEG(66, 0F, 0, 0x7d), SSE3, WRR, Vdq, Vdq, Wdq)
+/* F2 0F D0 /r: ADDSUBPS xmm1, xmm2/m128 */
+OPCODE(addsubps, LEG(F2, 0F, 0, 0xd0), SSE3, WRR, Vdq, Vdq, Wdq)
+/* 66 0F D0 /r: ADDSUBPD xmm1, xmm2/m128 */
+OPCODE(addsubpd, LEG(66, 0F, 0, 0xd0), SSE3, WRR, Vdq, Vdq, Wdq)
 /* NP 0F D5 /r: PMULLW mm, mm/m64 */
 OPCODE(pmullw, LEG(NP, 0F, 0, 0xd5), MMX, WRR, Pq, Pq, Qq)
 /* 66 0F D5 /r: PMULLW xmm1, xmm2/m128 */
