@@ -130,7 +130,7 @@ struct CPURISCVState {
      * wuth the invariant that CPU_INTERRUPT_HARD is set iff mip is non-zero.
      * mip is 32-bits to allow atomic_read on 32-bit hosts.
      */
-    uint32_t mip;
+    target_ulong mip;
     uint32_t miclaim;
 
     target_ulong mie;
