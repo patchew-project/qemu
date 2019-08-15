@@ -4760,6 +4760,68 @@ INSNOP_FINALIZE(modrm)
 {
 }
 
+/*
+ * modrm_mod
+ *
+ * Operand whose value is the MOD field of the ModR/M byte.
+ */
+typedef int insnop_arg_t(modrm_mod);
+typedef struct {} insnop_ctxt_t(modrm_mod);
+
+INSNOP_INIT(modrm_mod)
+{
+    return 0;
+}
+INSNOP_PREPARE(modrm_mod)
+{
+    return (modrm >> 6) & 3;
+}
+INSNOP_FINALIZE(modrm_mod)
+{
+}
+
+/*
+ * modrm_reg
+ *
+ * Operand whose value is the REG field of the ModR/M byte, extended
+ * with the REX.R bit if REX prefix is present.
+ */
+typedef int insnop_arg_t(modrm_reg);
+typedef struct {} insnop_ctxt_t(modrm_reg);
+
+INSNOP_INIT(modrm_reg)
+{
+    return 0;
+}
+INSNOP_PREPARE(modrm_reg)
+{
+    return ((modrm >> 3) & 7) | REX_R(s);
+}
+INSNOP_FINALIZE(modrm_reg)
+{
+}
+
+/*
+ * modrm_rm
+ *
+ * Operand whose value is the RM field of the ModR/M byte, extended
+ * with the REX.B bit if REX prefix is present.
+ */
+typedef int insnop_arg_t(modrm_rm);
+typedef struct {} insnop_ctxt_t(modrm_rm);
+
+INSNOP_INIT(modrm_rm)
+{
+    return 0;
+}
+INSNOP_PREPARE(modrm_rm)
+{
+    return (modrm & 7) | REX_B(s);
+}
+INSNOP_FINALIZE(modrm_rm)
+{
+}
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
