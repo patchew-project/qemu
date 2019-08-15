@@ -4147,6 +4147,18 @@ STEXI
 Enable FIPS 140-2 compliance mode.
 ETEXI
 
+#ifdef __linux__
+DEF("perf", 0, QEMU_OPTION_perf,
+    "-perf    dump jitdump files to help linux perf JIT code visualization\n",
+    QEMU_ARCH_ALL)
+#endif
+STEXI
+@item -perf
+@findex -perf
+Dumps jitdump files to help linux perf JIT code visualization
+ETEXI
+
+
 HXCOMM Deprecated by -machine accel=tcg property
 DEF("no-kvm", 0, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
 

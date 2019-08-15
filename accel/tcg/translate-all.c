@@ -58,6 +58,8 @@
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"
 
+#include "perf/jitdump.h"
+
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
 /* make various TB consistency checks */
@@ -1148,6 +1150,11 @@ void tcg_exec_init(unsigned long tb_size)
     cpu_gen_init();
     page_init();
     tb_htable_init();
+#ifdef __linux__
+    if (jitdump_enabled()) {
+        start_jitdump_file();
+    }
+#endif
     code_gen_alloc(tb_size);
 #if defined(CONFIG_SOFTMMU)
     /* There's no guest base to take into account, so go ahead and
@@ -1877,6 +1884,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         return existing_tb;
     }
     tcg_tb_insert(tb);
+#ifdef __linux__
+    if (jitdump_enabled()) {
+        append_load_in_jitdump_file(tb);
+    }
+#endif
     return tb;
 }
 
