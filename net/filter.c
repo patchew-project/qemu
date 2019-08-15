@@ -171,11 +171,47 @@ static void netfilter_set_status(Object *obj, const char *str, Error **errp)
     }
 }
 
+static char *netfilter_get_position(Object *obj, Error **errp)
+{
+    NetFilterState *nf = NETFILTER(obj);
+
+    return g_strdup(nf->position);
+}
+
+static void netfilter_set_position(Object *obj, const char *str, Error **errp)
+{
+    NetFilterState *nf = NETFILTER(obj);
+
+    nf->position = g_strdup(str);
+}
+
+static char *netfilter_get_insert(Object *obj, Error **errp)
+{
+    NetFilterState *nf = NETFILTER(obj);
+
+    return nf->insert_before ? g_strdup("before") : g_strdup("after");
+}
+
+static void netfilter_set_insert(Object *obj, const char *str, Error **errp)
+{
+    NetFilterState *nf = NETFILTER(obj);
+
+    if (strcmp(str, "before") && strcmp(str, "after")) {
+        error_setg(errp, "Invalid value for netfilter insert, "
+                         "should be 'head' or 'tail'");
+        return;
+    }
+
+    nf->insert_before = !strcmp(str, "before");
+}
+
 static void netfilter_init(Object *obj)
 {
     NetFilterState *nf = NETFILTER(obj);
 
     nf->on = true;
+    nf->insert_before = false;
+    nf->position = g_strdup("tail");
 
     object_property_add_str(obj, "netdev",
                             netfilter_get_netdev_id, netfilter_set_netdev_id,
@@ -187,11 +223,18 @@ static void netfilter_init(Object *obj)
     object_property_add_str(obj, "status",
                             netfilter_get_status, netfilter_set_status,
                             NULL);
+    object_property_add_str(obj, "position",
+                            netfilter_get_position, netfilter_set_position,
+                            NULL);
+    object_property_add_str(obj, "insert",
+                            netfilter_get_insert, netfilter_set_insert,
+                            NULL);
 }
 
 static void netfilter_complete(UserCreatable *uc, Error **errp)
 {
     NetFilterState *nf = NETFILTER(uc);
+    NetFilterState *position = NULL;
     NetClientState *ncs[MAX_QUEUE_NUM];
     NetFilterClass *nfc = NETFILTER_GET_CLASS(uc);
     int queues;
@@ -219,6 +262,20 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
         return;
     }
 
+    if (strcmp(nf->position, "head") && strcmp(nf->position, "tail")) {
+        /* Search for the position to insert before/after */
+        Object *container;
+        Object *obj;
+
+        container = object_get_objects_root();
+        obj = object_resolve_path_component(container, nf->position);
+        if (!obj) {
+            error_setg(errp, "filter '%s' not found", nf->position);
+            return;
+        }
+        position = NETFILTER(obj);
+    }
+
     nf->netdev = ncs[0];
 
     if (nfc->setup) {
@@ -228,7 +285,18 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
             return;
         }
     }
-    QTAILQ_INSERT_TAIL(&nf->netdev->filters, nf, next);
+
+    if (position) {
+        if (nf->insert_before) {
+            QTAILQ_INSERT_BEFORE(position, nf, next);
+        } else {
+            QTAILQ_INSERT_AFTER(&nf->netdev->filters, position, nf, next);
+        }
+    } else if (!strcmp(nf->position, "head")) {
+        QTAILQ_INSERT_HEAD(&nf->netdev->filters, nf, next);
+    } else if (!strcmp(nf->position, "tail")) {
+        QTAILQ_INSERT_TAIL(&nf->netdev->filters, nf, next);
+    }
 }
 
 static void netfilter_finalize(Object *obj)
@@ -245,6 +313,7 @@ static void netfilter_finalize(Object *obj)
         QTAILQ_REMOVE(&nf->netdev->filters, nf, next);
     }
     g_free(nf->netdev_id);
+    g_free(nf->position);
 }
 
 static void default_handle_event(NetFilterState *nf, int event, Error **errp)
