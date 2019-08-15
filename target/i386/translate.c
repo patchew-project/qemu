@@ -4822,6 +4822,43 @@ INSNOP_FINALIZE(modrm_rm)
 {
 }
 
+/*
+ * modrm_rm_direct
+ *
+ * Equivalent of modrm_rm, but only decodes successfully if
+ * the ModR/M byte has the direct form (i.e. MOD=3).
+ */
+typedef insnop_arg_t(modrm_rm) insnop_arg_t(modrm_rm_direct);
+typedef struct {
+    insnop_ctxt_t(modrm_rm) rm;
+} insnop_ctxt_t(modrm_rm_direct);
+
+INSNOP_INIT(modrm_rm_direct)
+{
+    int ret;
+    insnop_ctxt_t(modrm_mod) modctxt;
+
+    ret = insnop_init(modrm_mod)(&modctxt, env, s, modrm, 0);
+    if (!ret) {
+        const int mod = insnop_prepare(modrm_mod)(&modctxt, env, s, modrm, 0);
+        if (mod == 3) {
+            ret = insnop_init(modrm_rm)(&ctxt->rm, env, s, modrm, is_write);
+        } else {
+            ret = 1;
+        }
+        insnop_finalize(modrm_mod)(&modctxt, env, s, modrm, 0, mod);
+    }
+    return ret;
+}
+INSNOP_PREPARE(modrm_rm_direct)
+{
+    return insnop_prepare(modrm_rm)(&ctxt->rm, env, s, modrm, is_write);
+}
+INSNOP_FINALIZE(modrm_rm_direct)
+{
+    insnop_finalize(modrm_rm)(&ctxt->rm, env, s, modrm, is_write, arg);
+}
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
