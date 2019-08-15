@@ -637,6 +637,182 @@ void dump_tb_info(int id, int log_mask, bool use_monitor)
     /* tbdi free'd by do_dump_tb_info_safe */
 }
 
+/* TB CFG xdot/dot dump implementation */
+#define MAX_CFG_NUM_NODES 1000
+static int cfg_tb_id;
+static GHashTable *cfg_nodes;
+static uint64_t root_count;
+
+static void fputs_jump(TBStatistics *from, TBStatistics *to, FILE *dot)
+{
+    if (!from || !to) {
+        return;
+    }
+
+    int *from_id = (int *) g_hash_table_lookup(cfg_nodes, from);
+    int *to_id   = (int *) g_hash_table_lookup(cfg_nodes, to);
+
+    if (!from_id || !to_id) {
+        return;
+    }
+
+    GString *line = g_string_new(NULL);
+
+    g_string_printf(line, "   node_%d -> node_%d;\n", *from_id, *to_id);
+
+    fputs(line->str, dot);
+
+    g_string_free(line, true);
+}
+
+static void fputs_tbstats(TBStatistics *tbs, FILE *dot, int log_flags)
+{
+    if (!tbs) {
+        return;
+    }
+
+    GString *line = g_string_new(NULL);;
+
+    uint32_t color = 0xFF666;
+    uint64_t count = tbs->executions.normal;
+    if (count > 1.6 * root_count) {
+        color = 0xFF000;
+    } else if (count > 1.2 * root_count) {
+        color = 0xFF333;
+    } else if (count < 0.4 * root_count) {
+        color = 0xFFCCC;
+    } else if (count < 0.8 * root_count) {
+        color = 0xFF999;
+    }
+
+    GString *code_s = get_code_string(tbs, log_flags);
+
+    for (int i = 0; i < code_s->len; i++) {
+        if (code_s->str[i] == '\n') {
+            code_s->str[i] = ' ';
+            code_s = g_string_insert(code_s, i, "\\l");
+            i += 2;
+        }
+    }
+
+    g_string_printf(line,
+            "   node_%d [fillcolor=\"#%xFF0000\" shape=\"record\" "
+            "label=\"TB %d\\l"
+            "-------------\\l"
+            "PC:\t0x"TARGET_FMT_lx"\\l"
+            "exec count:\t%lu\\l"
+            "\\l %s\"];\n",
+            cfg_tb_id, color, cfg_tb_id, tbs->pc,
+            tbs->executions.normal, code_s->str);
+
+    fputs(line->str, dot);
+
+    int *id = g_new(int, 1);
+    *id = cfg_tb_id;
+    g_hash_table_insert(cfg_nodes, tbs, id);
+
+    cfg_tb_id++;
+
+    g_string_free(line, true);
+    g_string_free(code_s, true);
+}
+
+static void fputs_preorder_walk(TBStatistics *tbs, int depth, FILE *dot, int log_flags)
+{
+    if (tbs && depth > 0
+            && cfg_tb_id < MAX_CFG_NUM_NODES
+            && !g_hash_table_contains(cfg_nodes, tbs)) {
+
+        fputs_tbstats(tbs, dot, log_flags);
+
+        if (tbs->tb) {
+            TranslationBlock *left_tb  = NULL;
+            TranslationBlock *right_tb = NULL;
+            if (tbs->tb->jmp_dest[0]) {
+                left_tb = (TranslationBlock *) atomic_read(tbs->tb->jmp_dest);
+            }
+            if (tbs->tb->jmp_dest[1]) {
+                right_tb = (TranslationBlock *) atomic_read(tbs->tb->jmp_dest + 1);
+            }
+
+            if (left_tb) {
+                fputs_preorder_walk(left_tb->tb_stats, depth - 1, dot, log_flags);
+                fputs_jump(tbs, left_tb->tb_stats, dot);
+            }
+            if (right_tb) {
+                fputs_preorder_walk(right_tb->tb_stats, depth - 1, dot, log_flags);
+                fputs_jump(tbs, right_tb->tb_stats, dot);
+            }
+        }
+    }
+}
+
+struct PreorderInfo {
+    TBStatistics *tbs;
+    int depth;
+    int log_flags;
+};
+
+static void fputs_preorder_walk_safe(CPUState *cpu, run_on_cpu_data icmd)
+{
+    struct PreorderInfo *info = icmd.host_ptr;
+
+    GString *file_name = g_string_new(NULL);;
+    g_string_printf(file_name, "/tmp/qemu-cfg-tb-%d-%d.dot", id, info->depth);
+    FILE *dot = fopen(file_name->str, "w+");
+
+    fputs(
+            "digraph G {\n"
+            "   mclimit=1.5;\n"
+            "   rankdir=TD; ordering=out;\n"
+            "   graph[fontsize=10 fontname=\"Verdana\"];\n"
+            "   color=\"#efefef\";\n"
+            "   node[shape=box style=filled fontsize=8 fontname=\"Verdana\" fillcolor=\"#efefef\"];\n"
+            "   edge[fontsize=8 fontname=\"Verdana\"];\n"
+         , dot);
+
+    cfg_nodes = g_hash_table_new(NULL, NULL);
+    fputs_preorder_walk(info->tbs, info->depth, dot, info->log_flags);
+    g_hash_table_destroy(cfg_nodes);
+
+    fputs("}\n\0", dot);
+    fclose(dot);
+
+#ifdef __linux__
+    pid_t pid = fork();
+    if (pid == 0) {
+        char *args[] = {(char *) "xdot", file_name->str, NULL};
+        execvp(args[0], args);
+    }
+#endif
+
+    qemu_log("CFG dumped: %s\n", file_name->str);
+
+    g_string_free(file_name, true);
+    g_free(info);
+}
+
+void dump_tb_cfg(int id, int depth, int log_flags)
+{
+    cfg_tb_id = 1;
+    root_count = 0;
+
+    /* do a pre-order walk in the CFG with a limited depth */
+    TBStatistics *root = get_tbstats_by_id(id);
+    if (root) {
+        root_count = root->executions.normal;
+    }
+
+    struct PreorderInfo *info = g_new(struct PreorderInfo, 1);
+    info->tbs = root;
+    info->depth = depth + 1;
+    info->log_flags = log_flags;
+    async_safe_run_on_cpu(first_cpu, fputs_preorder_walk_safe,
+            RUN_ON_CPU_HOST_PTR(info));
+}
+
+/* TBStatistic collection controls */
+
 
 void enable_collect_tb_stats(void)
 {
@@ -686,3 +862,4 @@ uint32_t get_default_tbstats_flag(void)
 {
     return default_tbstats_flag;
 }
+
