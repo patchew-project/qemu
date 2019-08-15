@@ -1696,6 +1696,7 @@ static TBStatistics *tb_get_stats(tb_page_addr_t phys_pc, target_ulong pc,
     new_stats->cs_base = cs_base;
     new_stats->flags = flags;
     new_stats->tb = current_tb;
+    new_stats->translations.total = 1;
 
     qht_insert(&tb_ctx.tb_stats, new_stats, hash, &existing_stats);
 
@@ -1705,6 +1706,7 @@ static TBStatistics *tb_get_stats(tb_page_addr_t phys_pc, target_ulong pc,
          * then just make the new TB point to the older TBStatistic
          */
         g_free(new_stats);
+        ((TBStatistics *) existing_stats)->tb = current_tb;
         return existing_stats;
     } else {
         return new_stats;
@@ -1792,6 +1794,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
                 tb->tb_stats->stats_enabled |= TB_EXEC_STATS;
             }
         }
+
+        if (flag & TB_JIT_STATS) {
+            tb->tb_stats->stats_enabled |= TB_JIT_STATS;
+            atomic_inc(&tb->tb_stats->translations.total);
+        }
     } else {
         tb->tb_stats = NULL;
     }
@@ -1869,6 +1876,10 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     atomic_set(&prof->search_out_len, prof->search_out_len + search_size);
 #endif
 
+    if (tb_stats_enabled(tb, TB_JIT_STATS)) {
+        atomic_add(&tb->tb_stats->code.out_len, gen_code_size);
+    }
+
 #ifdef DEBUG_DISAS
     if (qemu_loglevel_mask(CPU_LOG_TB_OUT_ASM) &&
         qemu_log_in_addr_range(tb->pc)) {
@@ -1926,6 +1937,9 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     phys_page2 = -1;
     if ((pc & TARGET_PAGE_MASK) != virt_page2) {
         phys_page2 = get_page_addr_code(env, virt_page2);
+        if (tb_stats_enabled(tb, TB_JIT_STATS)) {
+            atomic_inc(&tb->tb_stats->translations.spanning);
+        }
     }
     /*
      * No explicit memory barrier is required -- tb_link_page() makes the
