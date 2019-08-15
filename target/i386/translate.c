@@ -4740,6 +4740,26 @@ INSNOP_FINALIZE(tcg_temp_i64)
     tcg_temp_free_i64(arg);
 }
 
+/*
+ * modrm
+ *
+ * Operand whose value is the ModR/M byte.
+ */
+typedef int insnop_arg_t(modrm);
+typedef struct {} insnop_ctxt_t(modrm);
+
+INSNOP_INIT(modrm)
+{
+    return 0;
+}
+INSNOP_PREPARE(modrm)
+{
+    return modrm;
+}
+INSNOP_FINALIZE(modrm)
+{
+}
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
