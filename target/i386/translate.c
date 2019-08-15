@@ -4897,6 +4897,42 @@ INSNOP_FINALIZE(Ib)
 {
 }
 
+/*
+ * Memory-pointer operand
+ */
+typedef TCGv insnop_arg_t(M);
+typedef struct {} insnop_ctxt_t(M);
+
+INSNOP_INIT(M)
+{
+    int ret;
+    insnop_ctxt_t(modrm_mod) modctxt;
+
+    ret = insnop_init(modrm_mod)(&modctxt, env, s, modrm, is_write);
+    if (!ret) {
+        const int mod =
+            insnop_prepare(modrm_mod)(&modctxt, env, s, modrm, is_write);
+        ret = !(mod != 3);
+        insnop_finalize(modrm_mod)(&modctxt, env, s, modrm, is_write, mod);
+    }
+    return ret;
+}
+INSNOP_PREPARE(M)
+{
+    gen_lea_modrm(env, s, modrm);
+    return s->A0;
+}
+INSNOP_FINALIZE(M)
+{
+}
+
+DEF_INSNOP_ALIAS(Mb, M)
+DEF_INSNOP_ALIAS(Mw, M)
+DEF_INSNOP_ALIAS(Md, M)
+DEF_INSNOP_ALIAS(Mq, M)
+DEF_INSNOP_ALIAS(Mdq, M)
+DEF_INSNOP_ALIAS(Mqq, M)
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
