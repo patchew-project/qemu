@@ -2,6 +2,7 @@
 #define GEN_ICOUNT_H
 
 #include "qemu/timer.h"
+#include "qemu-common.h"
 
 /* Helpers for instruction counting code generation.  */
 

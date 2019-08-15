@@ -19,17 +19,20 @@
 
 #include "qemu/osdep.h"
 #include "qemu/log.h"
+#include "qemu/qemu-print.h"
 #include "qemu/range.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "trace/control.h"
+#include "qemu-common.h"
 
 static char *logfilename;
 FILE *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
+int32_t max_num_hot_tbs_to_dump;
 
 int tcg_collect_tb_stats;
 uint32_t default_tbstats_flag;
@@ -276,6 +279,9 @@ const QEMULogItem qemu_log_items[] = {
     { CPU_LOG_TB_NOCHAIN, "nochain",
       "do not chain compiled TBs so that \"exec\" and \"cpu\" show\n"
       "complete traces" },
+    { CPU_LOG_TB_STATS, "tb_stats[[,level=(+all+jit+exec+time)][,dump_limit=<number>]]",
+      "enable collection of TBs statistics"
+      "(and dump until given a limit if in user mode).\n" },
     { 0, NULL, NULL },
 };
 
@@ -297,6 +303,35 @@ int qemu_str_to_log_mask(const char *str)
             trace_enable_events((*tmp) + 6);
             mask |= LOG_TRACE;
 #endif
+        } else if (g_str_has_prefix(*tmp, "tb_stats")) {
+            mask |= CPU_LOG_TB_STATS;
+            default_tbstats_flag = TB_JIT_STATS | TB_EXEC_STATS | TB_JIT_TIME;
+            tcg_collect_tb_stats = TB_STATS_RUNNING;
+        } else if (tcg_collect_tb_stats == TB_STATS_RUNNING &&
+                g_str_has_prefix(*tmp, "dump_limit=")) {
+
+            max_num_hot_tbs_to_dump = atoi((*tmp) + 11);
+        } else if (tcg_collect_tb_stats == TB_STATS_RUNNING &&
+                g_str_has_prefix(*tmp, "level=")) {
+
+            default_tbstats_flag = 0;
+            char **level_parts = g_strsplit(*tmp + 6, "+", 0);
+            char **level_tmp;
+            for (level_tmp = level_parts; level_tmp && *level_tmp; level_tmp++) {
+                if (g_str_equal(*level_tmp, "jit")) {
+                    default_tbstats_flag |= TB_JIT_STATS;
+                } else if (g_str_equal(*level_tmp, "exec")) {
+                    default_tbstats_flag |= TB_EXEC_STATS;
+                } else if (g_str_equal(*level_tmp, "time")) {
+                    default_tbstats_flag |= TB_JIT_TIME;
+                } else if (g_str_equal(*level_tmp, "all")) {
+                    default_tbstats_flag |= TB_JIT_STATS | TB_EXEC_STATS | TB_JIT_TIME;
+                } else {
+                    fprintf(stderr, "no option level=%s, valid options are:"
+                            "all, jit, exec or/and time\n", *level_tmp);
+                    exit(1);
+                }
+            }
         } else {
             for (item = qemu_log_items; item->mask != 0; item++) {
                 if (g_str_equal(*tmp, item->name)) {

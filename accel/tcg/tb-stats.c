@@ -3,6 +3,7 @@
 #include "disas/disas.h"
 #include "exec/exec-all.h"
 #include "tcg.h"
+#include "qemu-common.h"
 
 #include "qemu/qemu-print.h"
 

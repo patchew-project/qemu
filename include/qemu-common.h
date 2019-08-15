@@ -130,4 +130,19 @@ void page_size_init(void);
  * returned. */
 bool dump_in_progress(void);
 
+enum TBStatsStatus {
+    TB_STATS_DISABLED = 0,
+    TB_STATS_RUNNING,
+    TB_STATS_PAUSED,
+    TB_STATS_STOPPED
+};
+
+#define TB_NOTHING    0
+#define TB_EXEC_STATS 1
+#define TB_JIT_STATS  2
+#define TB_JIT_TIME   4
+
+extern int tcg_collect_tb_stats;
+extern uint32_t default_tbstats_flag;
+
 #endif
