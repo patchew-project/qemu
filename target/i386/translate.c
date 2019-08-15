@@ -4493,10 +4493,13 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     CPUX86State *env = cpu->env_ptr;
     int b, prefixes;
     int shift;
-    TCGMemOp ot, aflag, dflag;
+    TCGMemOp ot, dflag;
     int modrm, reg, rm, mod, op, opreg, val;
     target_ulong next_eip, tval;
     target_ulong pc_start = s->base.pc_next;
+
+    {
+    TCGMemOp aflag;
 
     s->pc_start = s->pc = pc_start;
     s->override = -1;
@@ -4657,6 +4660,7 @@ static target_ulong disas_insn(DisasContext *s, CPUState *cpu)
     s->prefix = prefixes;
     s->aflag = aflag;
     s->dflag = dflag;
+    }
 
     /* now check op code */
  reswitch:
