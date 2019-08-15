@@ -2406,6 +2406,23 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         int max_socket = (ms->smp.max_cpus - 1) /
                                 smp_threads / smp_cores / pcms->smp_dies;
 
+        /*
+         * If there's only one possible value for a topology property,
+         * allow it to be omitted.
+         */
+        if (cpu->socket_id < 0 && max_socket == 0) {
+            cpu->socket_id = 0;
+        }
+        if (cpu->die_id < 0 && pcms->smp_dies == 1) {
+            cpu->die_id = 0;
+        }
+        if (cpu->core_id < 0 && smp_cores == 1) {
+            cpu->core_id = 0;
+        }
+        if (cpu->thread_id < 0 && smp_threads == 1) {
+            cpu->thread_id = 0;
+        }
+
         if (cpu->socket_id < 0) {
             error_setg(errp, "CPU socket-id is not set");
             return;
