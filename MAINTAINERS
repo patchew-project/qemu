@@ -1571,6 +1571,13 @@ F: hw/virtio/virtio-crypto.c
 F: hw/virtio/virtio-crypto-pci.c
 F: include/hw/virtio/virtio-crypto.h
 
+vhost-vsock
+M: Stefan Hajnoczi <stefanha@redhat.com>
+S: Supported
+F: hw/virtio/vhost-vsock.c
+F: hw/virtio/vhost-vsock-pci.c
+F: include/hw/virtio/vhost-vsock.h
+
 nvme
 M: Keith Busch <keith.busch@intel.com>
 L: qemu-block@nongnu.org
