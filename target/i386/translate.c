@@ -5207,6 +5207,44 @@ INSNOP_LDST(xmm_t0, Mhq)
     }
 }
 
+/*
+ * Code generators
+ */
+#define gen_insn(mnem, argc, ...)               \
+    glue(gen_insn, argc)(mnem, ## __VA_ARGS__)
+#define gen_insn0(mnem)                         \
+    gen_ ## mnem ## _0
+#define gen_insn1(mnem, opT1)                   \
+    gen_ ## mnem ## _1 ## opT1
+#define gen_insn2(mnem, opT1, opT2)             \
+    gen_ ## mnem ## _2 ## opT1 ## opT2
+#define gen_insn3(mnem, opT1, opT2, opT3)       \
+    gen_ ## mnem ## _3 ## opT1 ## opT2 ## opT3
+#define gen_insn4(mnem, opT1, opT2, opT3, opT4)         \
+    gen_ ## mnem ## _4 ## opT1 ## opT2 ## opT3 ## opT4
+
+#define GEN_INSN0(mnem)                         \
+    static void gen_insn0(mnem)(                \
+        CPUX86State *env, DisasContext *s)
+#define GEN_INSN1(mnem, opT1)                   \
+    static void gen_insn1(mnem, opT1)(          \
+        CPUX86State *env, DisasContext *s,      \
+        insnop_arg_t(opT1) arg1)
+#define GEN_INSN2(mnem, opT1, opT2)                             \
+    static void gen_insn2(mnem, opT1, opT2)(                    \
+        CPUX86State *env, DisasContext *s,                      \
+        insnop_arg_t(opT1) arg1, insnop_arg_t(opT2) arg2)
+#define GEN_INSN3(mnem, opT1, opT2, opT3)                       \
+    static void gen_insn3(mnem, opT1, opT2, opT3)(              \
+        CPUX86State *env, DisasContext *s,                      \
+        insnop_arg_t(opT1) arg1, insnop_arg_t(opT2) arg2,       \
+        insnop_arg_t(opT3) arg3)
+#define GEN_INSN4(mnem, opT1, opT2, opT3, opT4)                 \
+    static void gen_insn4(mnem, opT1, opT2, opT3, opT4)(        \
+        CPUX86State *env, DisasContext *s,                      \
+        insnop_arg_t(opT1) arg1, insnop_arg_t(opT2) arg2,       \
+        insnop_arg_t(opT3) arg3, insnop_arg_t(opT4) arg4)
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
