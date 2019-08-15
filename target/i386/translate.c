@@ -4859,6 +4859,26 @@ INSNOP_FINALIZE(modrm_rm_direct)
     insnop_finalize(modrm_rm)(&ctxt->rm, env, s, modrm, is_write, arg);
 }
 
+/*
+ * vex_v
+ *
+ * Operand whose value is the VVVV field of the VEX prefix.
+ */
+typedef int insnop_arg_t(vex_v);
+typedef struct {} insnop_ctxt_t(vex_v);
+
+INSNOP_INIT(vex_v)
+{
+    return !(s->prefix & PREFIX_VEX);
+}
+INSNOP_PREPARE(vex_v)
+{
+    return s->vex_v;
+}
+INSNOP_FINALIZE(vex_v)
+{
+}
+
 static void gen_sse_ng(CPUX86State *env, DisasContext *s, int b)
 {
     enum {
