@@ -252,6 +252,10 @@ void cpu_exec_step_atomic(CPUState *cpu)
 
         start_exclusive();
 
+        if (tb_stats_enabled(tb, TB_EXEC_STATS)) {
+            tb->tb_stats->executions.atomic++;
+        }
+
         /* Since we got here, we know that parallel_cpus must be true.  */
         parallel_cpus = false;
         in_exclusive_region = true;
