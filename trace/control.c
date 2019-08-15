@@ -159,12 +159,19 @@ TraceEvent *trace_event_iter_next(TraceEventIter *iter)
 
 void trace_list_events(void)
 {
+#ifdef CONFIG_TRACE_DTRACE
+    fprintf(stderr, "Run 'qemu-trace-stap list %s' to print a list\n"
+                    "of names of trace points with the DTrace/SystemTap"
+                    " backends.\n",
+                    error_get_progname());
+#else
     TraceEventIter iter;
     TraceEvent *ev;
     trace_event_iter_init(&iter, NULL);
     while ((ev = trace_event_iter_next(&iter)) != NULL) {
         fprintf(stderr, "%s\n", trace_event_get_name(ev));
     }
+#endif
 }
 
 static void do_trace_enable_events(const char *line_buf)
