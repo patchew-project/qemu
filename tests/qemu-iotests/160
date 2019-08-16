@@ -57,6 +57,10 @@ for skip in $TEST_SKIP_BLOCKS; do
     $QEMU_IMG dd if="$TEST_IMG" of="$TEST_IMG.out" skip="$skip" -O "$IMGFMT" \
         2> /dev/null
     TEST_IMG="$TEST_IMG.out" _check_test_img
+
+    # We always write the first byte of an image.
+    printf "\0" > "$TEST_IMG.out.dd"
+
     dd if="$TEST_IMG" of="$TEST_IMG.out.dd" skip="$skip" status=none
 
     echo
