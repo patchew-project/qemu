@@ -62,13 +62,14 @@ uint64_t helper_todouble(uint32_t arg)
         ret  = (uint64_t)extract32(arg, 30, 2) << 62;
         ret |= ((extract32(arg, 30, 1) ^ 1) * (uint64_t)7) << 59;
         ret |= (uint64_t)extract32(arg, 0, 30) << 29;
+        ret |= (0x7ffULL * (extract32(arg, 23, 8) == 0xff)) << 52;
     } else {
         /* Zero or Denormalized operand.  */
         ret = (uint64_t)extract32(arg, 31, 1) << 63;
         if (unlikely(abs_arg != 0)) {
             /* Denormalized operand.  */
             int shift = clz32(abs_arg) - 9;
-            int exp = -126 - shift + 1023;
+            int exp = -127 - shift + 1023;
             ret |= (uint64_t)exp << 52;
             ret |= abs_arg << (shift + 29);
         }
@@ -2871,10 +2872,14 @@ void helper_xscvqpdp(CPUPPCState *env, uint32_t opcode,
 
 uint64_t helper_xscvdpspn(CPUPPCState *env, uint64_t xb)
 {
+    uint64_t result;
+
     float_status tstat = env->fp_status;
     set_float_exception_flags(0, &tstat);
 
-    return (uint64_t)float64_to_float32(xb, &tstat) << 32;
+    result = (uint64_t)float64_to_float32(xb, &tstat);
+    /* hardware replicates result to both words of the doubleword result.  */
+    return (result << 32) | result;
 }
 
 uint64_t helper_xscvspdpn(CPUPPCState *env, uint64_t xb)
