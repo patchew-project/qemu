@@ -301,6 +301,8 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     /* Clean up guest notifier (irq) */
     k->set_guest_notifiers(qbus->parent, nvqs, false);
 
+    qemu_bh_cancel(s->bh);
+
     vblk->dataplane_started = false;
     s->stopping = false;
 }
