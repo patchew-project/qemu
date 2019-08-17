@@ -819,6 +819,8 @@ struct target_pollfd {
 #define TARGET_SIOCGIFTXQLEN   0x8942          /* Get the tx queue length      */
 #define TARGET_SIOCSIFTXQLEN   0x8943          /* Set the tx queue length      */
 
+#define TARGET_SIOCETHTOOL     0x8946          /* Ethtool interface            */
+
 /* ARP cache control calls. */
 #define TARGET_OLD_SIOCDARP    0x8950          /* old delete ARP table entry   */
 #define TARGET_OLD_SIOCGARP    0x8951          /* old get ARP table entry      */
