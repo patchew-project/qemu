@@ -52,6 +52,9 @@
 
 #define GERR_INDEX_HINT "hint: check in 'server' array index '%d'\n"
 
+/* The value is known only on the server side. */
+#define MAX_ALIGN 4096
+
 typedef struct GlusterAIOCB {
     int64_t size;
     int ret;
@@ -902,8 +905,52 @@ out:
     return ret;
 }
 
+/*
+ * Check if read is allowed with given memory buffer and length.
+ *
+ * This function is used to check O_DIRECT request alignment.
+ */
+static bool gluster_is_io_aligned(struct glfs_fd *fd, void *buf, size_t len)
+{
+    ssize_t ret = glfs_pread(fd, buf, len, 0, 0, NULL);
+    return ret >= 0 || errno != EINVAL;
+}
+
+static void gluster_probe_alignment(BlockDriverState *bs, struct glfs_fd *fd,
+                                    Error **errp)
+{
+    char *buf;
+    size_t alignments[] = {1, 512, 1024, 2048, 4096};
+    size_t align;
+    int i;
+
+    buf = qemu_memalign(MAX_ALIGN, MAX_ALIGN);
+
+    for (i = 0; i < ARRAY_SIZE(alignments); i++) {
+        align = alignments[i];
+        if (gluster_is_io_aligned(fd, buf, align)) {
+            /* Fallback to safe value. */
+            bs->bl.request_alignment = (align != 1) ? align : MAX_ALIGN;
+            break;
+        }
+    }
+
+    qemu_vfree(buf);
+
+    if (!bs->bl.request_alignment) {
+        error_setg(errp, "Could not find working O_DIRECT alignment");
+        error_append_hint(errp, "Try cache.direct=off\n");
+    }
+}
+
 static void qemu_gluster_refresh_limits(BlockDriverState *bs, Error **errp)
 {
+    BDRVGlusterState *s = bs->opaque;
+
+    gluster_probe_alignment(bs, s->fd, errp);
+
+    bs->bl.min_mem_alignment = bs->bl.request_alignment;
+    bs->bl.opt_mem_alignment = MAX(bs->bl.request_alignment, MAX_ALIGN);
     bs->bl.max_transfer = GLUSTER_MAX_TRANSFER;
 }
 
