@@ -217,7 +217,13 @@ struct FlatRange {
     bool romd_mode;
     bool readonly;
     bool nonvolatile;
-    int has_coalesced_range;
+    /*
+     * Flags to show whether we have delievered the
+     * coalesced_io_{add|del} events to the listeners for this
+     * FlatRange.
+     */
+    bool coalesced_mmio_add_done;
+    bool coalesced_mmio_del_done;
 };
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
@@ -654,7 +660,8 @@ static void render_memory_region(FlatView *view,
     fr.romd_mode = mr->romd_mode;
     fr.readonly = readonly;
     fr.nonvolatile = nonvolatile;
-    fr.has_coalesced_range = 0;
+    fr.coalesced_mmio_add_done = false;
+    fr.coalesced_mmio_del_done = false;
 
     /* Render the region itself into any gaps left by the current view. */
     for (i = 0; i < view->nr && int128_nz(remain); ++i) {
@@ -857,13 +864,15 @@ static void address_space_update_ioeventfds(AddressSpace *as)
 
 static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
 {
-    if (!fr->has_coalesced_range) {
+    if (QTAILQ_EMPTY(&fr->mr->coalesced)) {
         return;
     }
 
-    if (--fr->has_coalesced_range > 0) {
+    if (fr->coalesced_mmio_del_done) {
         return;
     }
+
+    fr->coalesced_mmio_del_done = true;
 
     MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
                                   int128_get64(fr->addr.start),
@@ -880,9 +889,11 @@ static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
         return;
     }
 
-    if (fr->has_coalesced_range++) {
+    if (fr->coalesced_mmio_add_done) {
         return;
     }
+
+    fr->coalesced_mmio_add_done = true;
 
     QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
         tmp = addrrange_shift(cmr->addr,
