@@ -864,6 +864,9 @@ static void address_space_update_ioeventfds(AddressSpace *as)
 
 static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
 {
+    CoalescedMemoryRange *cmr;
+    AddrRange tmp;
+
     if (QTAILQ_EMPTY(&fr->mr->coalesced)) {
         return;
     }
@@ -874,9 +877,30 @@ static void flat_range_coalesced_io_del(FlatRange *fr, AddressSpace *as)
 
     fr->coalesced_mmio_del_done = true;
 
-    MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
-                                  int128_get64(fr->addr.start),
-                                  int128_get64(fr->addr.size));
+    /*
+     * We split the big region into smaller ones to satisfy KVM's
+     * KVM_UNREGISTER_COALESCED_MMIO interface, where it does not
+     * allow to specify a large region to unregister all the devices
+     * under that zone instead it only accepts exact zones or even a
+     * smaller zone of previously registered mmio device.  Logically
+     * speaking we should better fix KVM to allow the userspace to
+     * unregister multiple mmio devices within a large requested zone,
+     * but in all cases we'll still need to live with old kernels.  So
+     * let's simply break the zones into exactly the small pieces when
+     * we do coalesced_io_add().
+     */
+    QTAILQ_FOREACH(cmr, &fr->mr->coalesced, link) {
+        tmp = addrrange_shift(cmr->addr,
+                              int128_sub(fr->addr.start,
+                                         int128_make64(fr->offset_in_region)));
+        if (!addrrange_intersects(tmp, fr->addr)) {
+            continue;
+        }
+        tmp = addrrange_intersection(tmp, fr->addr);
+        MEMORY_LISTENER_UPDATE_REGION(fr, as, Reverse, coalesced_io_del,
+                                      int128_get64(tmp.start),
+                                      int128_get64(tmp.size));
+    }
 }
 
 static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
