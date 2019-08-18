@@ -1,0 +1,21 @@
+#!/bin/bash -e
+#
+# Compile default Travis-CI target and run Avocado acceptance tests
+#
+# Copyright (c) 2019 Red Hat Inc.
+#
+# Authors:
+#  Philippe Mathieu-Daudé <philmd@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2
+# or (at your option) any later version. See the COPYING file in
+# the top-level directory.
+
+. common.rc
+
+cd "$BUILD_DIR"
+
+DEF_TARGET_LIST="x86_64-softmmu,mips-softmmu,mips64el-softmmu,aarch64-softmmu,arm-softmmu,s390x-softmmu,alpha-softmmu"
+TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
+build_qemu
+check_qemu check-acceptance
