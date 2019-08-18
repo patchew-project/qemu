@@ -13,6 +13,8 @@ RUN apt-get -y install \
     lsof \
     net-tools \
     python2.7 \
+    python3-pip \
+    python3.5-venv \
     python-yaml
 # Travis tools require PhantomJS / Neo4j / Maven accessible
 # in their PATH (QEMU build won't access them).
