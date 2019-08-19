@@ -109,7 +109,12 @@ in the description of a field.
                                 An External Data File Name header extension may
                                 be present if this bit is set.
 
-                    Bits 3-63:  Reserved (set to 0)
+                    Bit 3:      Compression type bit. The bit must be set if
+                                the compression type differs from default of zlib.
+                                If the compression type is default the bit should
+                                be unset.
+
+                    Bits 4-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
                     Bitmask of compatible features. An implementation can
@@ -164,6 +169,18 @@ in the description of a field.
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2
                     images, the length is always assumed to be 72 bytes.
+
+        104 - 107:  compression_type
+                    Defines the compression method used for compressed clusters.
+                    A single compression type is applied to all compressed image
+                    clusters.
+                    The compression type is set on image creation only.
+                    The default compression type is zlib (value: 0).
+                    When the compression type differs from the default
+                    the compression type bit (incompatible feature bit 3)
+                    must be set.
+                    Available compression type values:
+                        0: zlib <https://www.zlib.net/> (default)
 
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:
