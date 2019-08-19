@@ -530,6 +530,7 @@ class TestQuorum(iotests.QMPTestCase):
     children = []
     backing = []
 
+    @iotests.skip_if_unsupported(['quorum'])
     def setUp(self):
         opts = ['driver=quorum', 'vote-threshold=2']
 
@@ -552,6 +553,7 @@ class TestQuorum(iotests.QMPTestCase):
         self.vm.add_drive(path = None, opts = ','.join(opts))
         self.vm.launch()
 
+    @iotests.skip_if_unsupported(['quorum'])
     def tearDown(self):
         self.vm.shutdown()
         for img in self.children:
@@ -559,6 +561,7 @@ class TestQuorum(iotests.QMPTestCase):
         for img in self.backing:
             os.remove(img)
 
+    @iotests.skip_if_unsupported(['quorum'])
     def test_stream_quorum(self):
         if not iotests.supports_quorum():
             return
