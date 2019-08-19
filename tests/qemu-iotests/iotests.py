@@ -896,7 +896,7 @@ def skip_if_unsupported(required_formats=[], read_only=False):
             usf_list = list(set(required_formats) -
                             set(supported_formats(read_only)))
             if usf_list:
-                case_notrun('{}: formats {} are not whitelisted'.format(
+                args[0].case_skip('{}: formats {} are not whitelisted'.format(
                     args[0], usf_list))
             else:
                 return func(*args, **kwargs)
