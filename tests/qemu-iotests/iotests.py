@@ -893,8 +893,12 @@ def skip_if_unsupported(required_formats=[], read_only=False):
        Runs the test if all the required formats are whitelisted'''
     def skip_test_decorator(func):
         def func_wrapper(*args, **kwargs):
-            usf_list = list(set(required_formats) -
-                            set(supported_formats(read_only)))
+            if callable(required_formats):
+                fmts = required_formats(args[0])
+            else:
+                fmts = required_formats
+
+            usf_list = list(set(fmts) - set(supported_formats(read_only)))
             if usf_list:
                 args[0].case_skip('{}: formats {} are not whitelisted'.format(
                     args[0], usf_list))
