@@ -939,6 +939,15 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In both and unchanged (except logging may have changed) */
 
             if (adding) {
+                /*
+                 * We must inherit the has_coalesced_range information
+                 * if the new FlatRange is exactly the same as the old
+                 * one, because it'll be used to conditionally call
+                 * the coalesced mmio deletion listeners correctly in
+                 * flat_range_coalesced_io_del() when the FlatRange
+                 * needs to really go away.
+                 */
+                frnew->has_coalesced_range = frold->has_coalesced_range;
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
                 if (frnew->dirty_log_mask & ~frold->dirty_log_mask) {
                     MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, log_start,
