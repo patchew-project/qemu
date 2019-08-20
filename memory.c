@@ -2283,7 +2283,10 @@ void memory_region_add_coalescing(MemoryRegion *mr,
 void memory_region_clear_coalescing(MemoryRegion *mr)
 {
     CoalescedMemoryRange *cmr;
-    bool updated = false;
+
+    if (QTAILQ_EMPTY(&mr->coalesced)) {
+        return;
+    }
 
     qemu_flush_coalesced_mmio_buffer();
     mr->flush_coalesced_mmio = false;
@@ -2292,12 +2295,9 @@ void memory_region_clear_coalescing(MemoryRegion *mr)
         cmr = QTAILQ_FIRST(&mr->coalesced);
         QTAILQ_REMOVE(&mr->coalesced, cmr, link);
         g_free(cmr);
-        updated = true;
     }
 
-    if (updated) {
-        memory_region_update_coalesced_range(mr);
-    }
+    memory_region_update_coalesced_range(mr);
 }
 
 void memory_region_set_flush_coalesced(MemoryRegion *mr)
