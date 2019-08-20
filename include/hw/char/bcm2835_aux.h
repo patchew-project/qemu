@@ -9,6 +9,7 @@
 #define BCM2835_AUX_H
 
 #include "hw/sysbus.h"
+#include "hw/char/serial.h"
 #include "chardev/char-fe.h"
 
 #define TYPE_BCM2835_AUX "bcm2835-aux"
@@ -22,12 +23,8 @@ typedef struct {
     /*< public >*/
 
     MemoryRegion iomem;
-    CharBackend chr;
     qemu_irq irq;
-
-    uint8_t read_fifo[BCM2835_AUX_RX_FIFO_LEN];
-    uint8_t read_pos, read_count;
-    uint8_t ier, iir;
+    SerialState *serial;
 } BCM2835AuxState;
 
 #endif
