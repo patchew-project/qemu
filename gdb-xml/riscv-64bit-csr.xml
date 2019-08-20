@@ -15,9 +15,6 @@
   <reg name="ucause" bitsize="64"/>
   <reg name="utval" bitsize="64"/>
   <reg name="uip" bitsize="64"/>
-  <reg name="fflags" bitsize="64"/>
-  <reg name="frm" bitsize="64"/>
-  <reg name="fcsr" bitsize="64"/>
   <reg name="cycle" bitsize="64"/>
   <reg name="time" bitsize="64"/>
   <reg name="instret" bitsize="64"/>
