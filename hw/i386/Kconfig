@@ -99,4 +99,5 @@ config VMPORT
 
 config VMMOUSE
     bool
+    default y
     depends on VMPORT
