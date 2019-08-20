@@ -191,6 +191,12 @@ static void serial_update_parameters(SerialState *s)
            speed, parity, data_bits, stop_bits);
 }
 
+void serial_set_divider(SerialState *s, uint16_t divider)
+{
+    s->divider = divider;
+    serial_update_parameters(s);
+}
+
 static void serial_update_msl(SerialState *s)
 {
     uint8_t omsr;

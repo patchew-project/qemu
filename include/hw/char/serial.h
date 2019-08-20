@@ -83,6 +83,7 @@ extern const MemoryRegionOps serial_io_ops;
 void serial_realize_core(SerialState *s, Error **errp);
 void serial_exit_core(SerialState *s);
 void serial_set_frequency(SerialState *s, uint32_t frequency);
+void serial_set_divider(SerialState *s, uint16_t divider);
 
 /* legacy pre qom */
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
