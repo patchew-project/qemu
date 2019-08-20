@@ -174,6 +174,7 @@ void start_exclusive(void)
     CPUState *other_cpu;
     int running_cpus;
 
+    assert(!qemu_mutex_iothread_locked());
     qemu_mutex_lock(&qemu_cpu_list_lock);
     exclusive_idle();
 
@@ -205,6 +206,7 @@ void start_exclusive(void)
 /* Finish an exclusive operation.  */
 void end_exclusive(void)
 {
+    assert(!qemu_mutex_iothread_locked());
     qemu_mutex_lock(&qemu_cpu_list_lock);
     atomic_set(&pending_cpus, 0);
     qemu_cond_broadcast(&exclusive_resume);
@@ -214,6 +216,7 @@ void end_exclusive(void)
 /* Wait for exclusive ops to finish, and begin cpu execution.  */
 void cpu_exec_start(CPUState *cpu)
 {
+    assert(!qemu_mutex_iothread_locked());
     atomic_set(&cpu->running, true);
 
     /* Write cpu->running before reading pending_cpus.  */
@@ -255,6 +258,7 @@ void cpu_exec_start(CPUState *cpu)
 /* Mark cpu as not executing, and release pending exclusive ops.  */
 void cpu_exec_end(CPUState *cpu)
 {
+    assert(!qemu_mutex_iothread_locked());
     atomic_set(&cpu->running, false);
 
     /* Write cpu->running before reading pending_cpus.  */
