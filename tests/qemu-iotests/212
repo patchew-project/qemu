@@ -23,8 +23,8 @@
 import iotests
 from iotests import imgfmt
 
-iotests.script_initialize(supported_fmts=['parallels'])
-iotests.verify_protocol(supported=['file'])
+iotests.script_initialize(supported_fmts=['parallels'],
+                          supported_protocols=['file'])
 
 def blockdev_create(vm, options):
     result = vm.qmp_log('blockdev-create', job_id='job0', options=options,

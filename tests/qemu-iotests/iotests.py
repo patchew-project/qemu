@@ -925,7 +925,9 @@ def execute_unittest(debug=False):
 def execute_setup_common(supported_fmts=[],
                          supported_oses=['linux'],
                          supported_cache_modes=[],
-                         unsupported_fmts=[]):
+                         unsupported_fmts=[],
+                         supported_protocols=[],
+                         unsupported_protocols=[]):
     """
     Perform necessary setup for either script-style or unittest-style tests.
     """
@@ -941,6 +943,7 @@ def execute_setup_common(supported_fmts=[],
     verify_image_format(supported_fmts, unsupported_fmts)
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
+    verify_protocol(supported_protocols, unsupported_protocols)
 
     debug = '-d' in sys.argv
     if debug:
