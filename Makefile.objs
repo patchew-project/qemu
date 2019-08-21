@@ -191,6 +191,7 @@ trace-events-subdirs += migration
 trace-events-subdirs += net
 trace-events-subdirs += ui
 endif
+trace-events-subdirs += hw/core
 trace-events-subdirs += hw/display
 trace-events-subdirs += qapi
 trace-events-subdirs += qom
