@@ -22,6 +22,7 @@
 #include "qemu/ctype.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "hw/resettable.h"
 
 void qbus_set_hotplug_handler(BusState *bus, Object *handler, Error **errp)
 {
@@ -66,6 +67,34 @@ int qbus_walk_children(BusState *bus,
     }
 
     return 0;
+}
+
+void bus_cold_reset(BusState *bus)
+{
+    resettable_reset(OBJECT(bus), RESET_TYPE_COLD);
+}
+
+bool bus_is_resetting(BusState *bus)
+{
+    return resettable_is_resetting(OBJECT(bus));
+}
+
+static ResetState *bus_get_reset_state(Object *obj)
+{
+    BusState *bus = BUS(obj);
+    return &bus->reset;
+}
+
+static void bus_reset_foreach_child(Object *obj,
+                                    void (*func)(Object *, ResetType),
+                                    ResetType type)
+{
+    BusState *bus = BUS(obj);
+    BusChild *kid;
+
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        func(OBJECT(kid->child), type);
+    }
 }
 
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
@@ -199,12 +228,32 @@ static char *default_bus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(object_get_typename(OBJECT(dev)));
 }
 
+/**
+ * bus_legacy_reset_wrapper:
+ * Compatibility wrapper during the transition to multi-phase reset.
+ * This function should be deleted when all buses are converted.
+ */
+static void bus_legacy_reset_wrapper(Object *obj, ResetType type)
+{
+    BusState *bus = BUS(obj);
+    BusClass *bc = BUS_GET_CLASS(obj);
+
+    if (bc->reset) {
+        bc->reset(bus);
+    }
+}
+
 static void bus_class_init(ObjectClass *class, void *data)
 {
     BusClass *bc = BUS_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = bus_unparent;
     bc->get_fw_dev_path = default_bus_get_fw_dev_path;
+
+    rc->phases.init = bus_legacy_reset_wrapper;
+    rc->get_state = bus_get_reset_state;
+    rc->foreach_child = bus_reset_foreach_child;
 }
 
 static void qbus_finalize(Object *obj)
@@ -223,6 +272,10 @@ static const TypeInfo bus_info = {
     .instance_init = qbus_initfn,
     .instance_finalize = qbus_finalize,
     .class_init = bus_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_RESETTABLE_INTERFACE },
+        { }
+    },
 };
 
 static void bus_register_types(void)

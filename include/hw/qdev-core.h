@@ -5,6 +5,7 @@
 #include "qemu/bitmap.h"
 #include "qom/object.h"
 #include "hw/hotplug.h"
+#include "hw/resettable.h"
 
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
@@ -104,6 +105,11 @@ typedef struct DeviceClass {
     bool hotpluggable;
 
     /* callbacks */
+    /*
+     * Reset method here is deprecated and replaced by methods in the
+     * resettable class interface to implement a multi-phase reset.
+     * TODO: remove once every reset callback is unused
+     */
     DeviceReset reset;
     DeviceRealize realize;
     DeviceUnrealize unrealize;
@@ -128,6 +134,7 @@ struct NamedGPIOList {
 /**
  * DeviceState:
  * @realized: Indicates whether the device has been fully constructed.
+ * @reset: ResetState for the device; handled by Resettable interface.
  *
  * This structure should not be accessed directly.  We declare it here
  * so that it can be embedded in individual device state structures.
@@ -149,6 +156,7 @@ struct DeviceState {
     int num_child_bus;
     int instance_id_alias;
     int alias_required_for_version;
+    ResetState reset;
 };
 
 struct DeviceListener {
@@ -195,6 +203,7 @@ typedef struct BusChild {
 /**
  * BusState:
  * @hotplug_handler: link to a hotplug handler associated with bus.
+ * @reset: ResetState for the bus; handled by Resettable interface.
  */
 struct BusState {
     Object obj;
@@ -206,6 +215,7 @@ struct BusState {
     int num_children;
     QTAILQ_HEAD(, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
+    ResetState reset;
 };
 
 /**
@@ -375,21 +385,54 @@ int qdev_walk_children(DeviceState *dev,
                        qdev_walkerfn *post_devfn, qbus_walkerfn *post_busfn,
                        void *opaque);
 
-void qdev_reset_all(DeviceState *dev);
-void qdev_reset_all_fn(void *opaque);
-
 /**
- * @qbus_reset_all:
- * @bus: Bus to be reset.
+ * qbus/qdev_reset_all:
+ * @bus (resp. @dev): Bus (resp. Device) to be reset.
  *
  * Reset @bus and perform a bus-level ("hard") reset of all devices connected
  * to it, including recursive processing of all buses below @bus itself.  A
  * hard reset means that qbus_reset_all will reset all state of the device.
  * For PCI devices, for example, this will include the base address registers
  * or configuration space.
+ *
+ * These functions are deprecated and are wrappers around device_cold_reset and
+ * bus_cold_reset. Please use these instead.
+ * TODO: remove them when all occurrences are removed
  */
+void qdev_reset_all(DeviceState *dev);
+void qdev_reset_all_fn(void *opaque);
 void qbus_reset_all(BusState *bus);
 void qbus_reset_all_fn(void *opaque);
+
+/**
+ * device_cold_reset:
+ * Trigger a cold reset of the device @dev.
+ *
+ * Use the Resettable interface (see hw/interface.h); it also reset the
+ * device's qdev/qbus subtree.
+ */
+void device_cold_reset(DeviceState *dev);
+
+/**
+ * bus_cold_reset:
+ * Trigger a cold reset of the bus @bus.
+ *
+ * Use the Resettable interface (see hw/interface.h); it also reset the
+ * bus's qdev/qbus subtree.
+ */
+void bus_cold_reset(BusState *bus);
+
+/**
+ * device_is_resetting:
+ * Return true if the device @dev is currently being reset.
+ */
+bool device_is_resetting(DeviceState *dev);
+
+/**
+ * bus_is_resetting:
+ * Return true if the bus @bus is currently being reset.
+ */
+bool bus_is_resetting(BusState *bus);
 
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);
@@ -409,9 +452,18 @@ void qdev_machine_init(void);
  * device_legacy_reset:
  *
  * Reset a single device (by calling the reset method).
+ *
+ * This function is deprecated, please use Resettable api instead (eg:
+ * device_cold_reset())
+ * TODO: remove the function when all occurrences are removed.
  */
 void device_legacy_reset(DeviceState *dev);
 
+/**
+ * device_class_set_parent_reset:
+ * TODO: remove the function when DeviceClass's reset method
+ * is not used anymore.
+ */
 void device_class_set_parent_reset(DeviceClass *dc,
                                    DeviceReset dev_reset,
                                    DeviceReset *parent_reset);

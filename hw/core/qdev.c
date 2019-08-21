@@ -255,25 +255,9 @@ HotplugHandler *qdev_get_hotplug_handler(DeviceState *dev)
     return hotplug_ctrl;
 }
 
-static int qdev_reset_one(DeviceState *dev, void *opaque)
-{
-    device_legacy_reset(dev);
-
-    return 0;
-}
-
-static int qbus_reset_one(BusState *bus, void *opaque)
-{
-    BusClass *bc = BUS_GET_CLASS(bus);
-    if (bc->reset) {
-        bc->reset(bus);
-    }
-    return 0;
-}
-
 void qdev_reset_all(DeviceState *dev)
 {
-    qdev_walk_children(dev, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    device_cold_reset(dev);
 }
 
 void qdev_reset_all_fn(void *opaque)
@@ -283,13 +267,40 @@ void qdev_reset_all_fn(void *opaque)
 
 void qbus_reset_all(BusState *bus)
 {
-    qbus_walk_children(bus, NULL, NULL, qdev_reset_one, qbus_reset_one, NULL);
+    bus_cold_reset(bus);
 }
 
 void qbus_reset_all_fn(void *opaque)
 {
     BusState *bus = opaque;
     qbus_reset_all(bus);
+}
+
+void device_cold_reset(DeviceState *dev)
+{
+    resettable_reset(OBJECT(dev), RESET_TYPE_COLD);
+}
+
+bool device_is_resetting(DeviceState *dev)
+{
+    return resettable_is_resetting(OBJECT(dev));
+}
+
+static ResetState *device_get_reset_state(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    return &dev->reset;
+}
+
+static void device_reset_foreach_child(Object *obj,
+                                       void (*func)(Object *, ResetType),
+                                       ResetType type)
+{
+    DeviceState *dev = DEVICE(obj);
+    BusState *bus;
+    QLIST_FOREACH(bus, &dev->child_bus, sibling) {
+        func(OBJECT(bus), type);
+    }
 }
 
 /* can be used as ->unplug() callback for the simple cases */
@@ -1047,9 +1058,25 @@ static void device_unparent(Object *obj)
     }
 }
 
+/**
+ * device_legacy_reset_wrapper:
+ * Compatibility wrapper during the transition to multi-phase reset.
+ * This function should be deleted when all devices are converted.
+ */
+static void device_legacy_reset_wrapper(Object *obj, ResetType type)
+{
+    DeviceState *dev = DEVICE(obj);
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (dc->reset) {
+        dc->reset(dev);
+    }
+}
+
 static void device_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
+    ResettableClass *rc = RESETTABLE_CLASS(class);
 
     class->unparent = device_unparent;
 
@@ -1061,6 +1088,10 @@ static void device_class_init(ObjectClass *class, void *data)
      */
     dc->hotpluggable = true;
     dc->user_creatable = true;
+
+    rc->phases.init = device_legacy_reset_wrapper;
+    rc->get_state = device_get_reset_state;
+    rc->foreach_child = device_reset_foreach_child;
 }
 
 void device_class_set_parent_reset(DeviceClass *dc,
@@ -1118,6 +1149,10 @@ static const TypeInfo device_type_info = {
     .class_init = device_class_init,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_RESETTABLE_INTERFACE },
+        { }
+    },
 };
 
 static void qdev_register_types(void)
