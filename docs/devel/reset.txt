@@ -31,15 +31,20 @@ makes no difference. But there can be some; some configuration may be kept when
 applying a warm reset for example.
 
 The Resettable interface handles reset kinds with an enum. For now only cold
-reset is defined, others may be added later.
+and warm reset are defined, others may be added later.
 ```
 typedef enum ResetType {
     RESET_TYPE_COLD,
+    RESET_TYPE_WARM,
 } ResetType;
 ```
 
 In qemu, RESET_TYPE_COLD means we reset to the initial state corresponding to
 the start of qemu; this might differs from what is a read hardware cold reset.
+
+Although the interface can handle several kind of resets, these are not totally
+independant and disjoint. There are some constraints; these are explained below
+in the "multi-phase" section.
 
 
 Triggering reset
@@ -49,21 +54,41 @@ This section documents the APIs which "users" of a resettable object should use
 to control it. All resettable control functions must be called while holding
 the iothread lock.
 
-You can trigger a reset event on a resettable object with resettable_reset().
-The object will be instantly reset.
+A resettable object can be put into its "in reset" state and held there
+indefinitely.
+
+You must call resettable_assert_reset() to put an object in reset. It will stay
+in this state until you eventually call resettable_deassert_reset(). Care must
+be taken to call resettable_deassert_reset() once and only once per call of
+resettable_assert_reset().
+
+```resettable_assert_reset(Object *obj, ResetType type);```
+The parameter "obj" is an object implementing the Resettable interface.
+The parameter "type" gives the type of reset you want to trigger.
+
+```resettable_deassert_reset(Object *obj);```
+The parameter "obj" is an object implementing the Resettable interface.
+
+If you want to just trigger a reset event but not leave the object in reset for
+any period of time, you can use resettable_reset(), which is a convenience
+function identical in behaviour to calling resettable_assert() and then
+immediately calling resettable_deassert().
 
 ```void resettable_reset(Object *obj, ResetType type);```
 The parameter "obj" is an object implementing the Resettable interface.
 The parameter "type" gives the type of reset you want to trigger.
 
 It is possible to interleave multiple calls to
+ - resettable_assert_reset(),
+ - resettable_deassert_reset(),
  - resettable_reset().
 
 There may be several reset sources/controllers of a given object. The interface
 handles everything and the different reset controllers do not need to know
 anything about each others. The object will leave reset state only when each
 other controllers end their reset operation. This point is handled by
-maintaining a count of reset.
+maintaining a count of reset; this is why resettable_deassert_reset() must be
+called once and only once per resettable_assert_reset().
 
 Note that it is a programming error to call a resettable function on a
 non-Resettable object and it will trigger a run time assert error. Since most
@@ -74,6 +99,8 @@ For Devices and Buses, the following helper functions exists:
 ```
 void device_cold_reset(Device *dev);
 void bus_cold_reset(Bus *bus);
+void device_warm_reset(Device *dev);
+void bus_warm_reset(Bus *bus);
 ```
 
 These are simple wrappers around resettable_reset() function; they only cast the
@@ -122,6 +149,25 @@ or resettable_reset(), they are not executed).
 The exit phase is executed only when the last reset operation ends. Therefore
 the object has not to care how many reset controllers it has and how many of
 them have started a reset.
+
+An exception to that is when entering a new reset type AND if there was no
+previous cold reset; in that case, init and hold methods are executed again
+because the different reset type may reset more things than the previous one
+has done.
+
+For example if some controller has started a RESET_TYPE_WARM with
+resettable_assert_reset() on a device and another controller does a
+device_cold_reset() on the same object, then the init phase is executed with
+RESET_TYPE_COLD as an argument and then the hold phase.
+If the first reset was a cold reset, then the warm reset would have triggered
+nothing because the cold reset is "stronger".
+
+Note also that the exit phase will never be executed twice; it will only be
+executed when all reset operation are closed, independently of the number of
+reset types that were issued. This is a limitation of the interface, there is
+only a global count of reset (not a count per reset type). The consequence is
+that the different reset types must be close enough in behavior to not require
+different exit phases.
 
 
 Handling reset in a new resettable object
@@ -203,6 +249,7 @@ interface.
 typedef struct ResetState {
     uint32_t count;
     bool hold_phase_needed;
+    ResetType type;
 } ResetState;
 
 typedef ResetState *(*ResettableGetState)(Object *obj);
