@@ -281,9 +281,20 @@ void device_cold_reset(DeviceState *dev)
     resettable_reset(OBJECT(dev), RESET_TYPE_COLD);
 }
 
+void device_warm_reset(DeviceState *dev)
+{
+    resettable_reset(OBJECT(dev), RESET_TYPE_WARM);
+}
+
 bool device_is_resetting(DeviceState *dev)
 {
     return resettable_is_resetting(OBJECT(dev));
+}
+
+bool device_test_reset_type(DeviceState *dev, ResetType type)
+{
+    ResetType cur_type = resettable_get_type(OBJECT(dev));
+    return (cur_type & type);
 }
 
 static ResetState *device_get_reset_state(Object *obj)

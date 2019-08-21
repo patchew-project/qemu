@@ -74,9 +74,20 @@ void bus_cold_reset(BusState *bus)
     resettable_reset(OBJECT(bus), RESET_TYPE_COLD);
 }
 
+void bus_warm_reset(BusState *bus)
+{
+    resettable_reset(OBJECT(bus), RESET_TYPE_WARM);
+}
+
 bool bus_is_resetting(BusState *bus)
 {
     return resettable_is_resetting(OBJECT(bus));
+}
+
+bool bus_test_reset_type(BusState *bus, ResetType type)
+{
+    ResetType cur_type = resettable_get_type(OBJECT(bus));
+    return (cur_type & type);
 }
 
 static ResetState *bus_get_reset_state(Object *obj)

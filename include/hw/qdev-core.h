@@ -423,16 +423,50 @@ void device_cold_reset(DeviceState *dev);
 void bus_cold_reset(BusState *bus);
 
 /**
+ * device_warm_reset:
+ * Trigger a warm reset of the device @dev.
+ *
+ * Use the Resettable interface (see hw/interface.h); it also reset the
+ * device's qdev/qbus subtree.
+ */
+void device_warm_reset(DeviceState *dev);
+
+/**
+ * bus_warm_reset:
+ * Trigger a warm reset of the bus @bus.
+ *
+ * Use the Resettable interface (see hw/interface.h); it also reset the
+ * bus's qdev/qbus subtree.
+ */
+void bus_warm_reset(BusState *bus);
+
+/**
  * device_is_resetting:
  * Return true if the device @dev is currently being reset.
  */
 bool device_is_resetting(DeviceState *dev);
 
 /**
+ * device_test_reset_type:
+ * Return true if the device @dev is currently under reset type
+ * @type.
+ * Only valid if device_is_resetting() is true
+ */
+bool device_test_reset_type(DeviceState *dev, ResetType type);
+
+/**
  * bus_is_resetting:
  * Return true if the bus @bus is currently being reset.
  */
 bool bus_is_resetting(BusState *bus);
+
+/**
+ * bus_test_reset_type:
+ * Return true if the bus @bus is currently under reset type
+ * @type.
+ * Only valid if device_is_resetting() is true
+ */
+bool bus_test_reset_type(BusState *bus, ResetType type);
 
 /* This should go away once we get rid of the NULL bus hack */
 BusState *sysbus_get_default(void);
