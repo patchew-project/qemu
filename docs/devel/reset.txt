@@ -1,0 +1,237 @@
+
+=====
+Reset
+=====
+
+The reset of qemu objects is handled using the Resettable interface declared
+in *include/hw/resettable.h*.
+
+This interface allows to group objects (on a tree basis) and to reset the
+whole group consistently. Each individual member object does not have to care
+about others; in particular problems of order (which object is reset first)
+are addressed.
+
+As of now DeviceClass and BusClass implement this interface.
+
+
+Reset types
+-----------
+
+There are several kinds of reset. The most obvious one is the "cold" reset: a
+"cold" reset is the operation resulting of a power cycle (when we apply the
+power).
+
+By opposition, we call a "warm" reset, a reset operation not resulting of a
+power cycle; it can be triggered by a gpio or a software operation.
+
+Some buses also define specific kinds of reset.
+
+What does a reset is device-dependent. For most devices, cold or warm reset
+makes no difference. But there can be some; some configuration may be kept when
+applying a warm reset for example.
+
+The Resettable interface handles reset kinds with an enum. For now only cold
+reset is defined, others may be added later.
+```
+typedef enum ResetType {
+    RESET_TYPE_COLD,
+} ResetType;
+```
+
+In qemu, RESET_TYPE_COLD means we reset to the initial state corresponding to
+the start of qemu; this might differs from what is a read hardware cold reset.
+
+
+Triggering reset
+----------------
+
+This section documents the APIs which "users" of a resettable object should use
+to control it. All resettable control functions must be called while holding
+the iothread lock.
+
+You can trigger a reset event on a resettable object with resettable_reset().
+The object will be instantly reset.
+
+```void resettable_reset(Object *obj, ResetType type);```
+The parameter "obj" is an object implementing the Resettable interface.
+The parameter "type" gives the type of reset you want to trigger.
+
+It is possible to interleave multiple calls to
+ - resettable_reset().
+
+There may be several reset sources/controllers of a given object. The interface
+handles everything and the different reset controllers do not need to know
+anything about each others. The object will leave reset state only when each
+other controllers end their reset operation. This point is handled by
+maintaining a count of reset.
+
+Note that it is a programming error to call a resettable function on a
+non-Resettable object and it will trigger a run time assert error. Since most
+call to Resettable interface are done through base class functions, such an
+error is not likely to happen.
+
+For Devices and Buses, the following helper functions exists:
+```
+void device_cold_reset(Device *dev);
+void bus_cold_reset(Bus *bus);
+```
+
+These are simple wrappers around resettable_reset() function; they only cast the
+Device or Bus into an Object and add the corresponding reset type.
+
+Device and bus functions co-exist because there can be semantic differences
+between resetting a bus and resetting the controller bridge which owns it.
+For example, considering a SCSI controller. Resetting the controller puts all
+its registers back to what reset state was as well as reset everything on the
+SCSI bus. Whereas resetting just the SCSI bus only resets everything that's on
+it but not the controller.
+
+
+How it works: multi-phase reset
+-------------------------------
+
+This section documents the internals of the resettable interface.
+
+The resettable interface uses a multi-phase system to relieve objects and
+machines from reset ordering problems. To address this, the reset operation
+of an object is split into 3 well defined phases.
+
+When resetting a several objects (for example the whole machine at simulation
+startup), all 1st phases of all objects are executed, then all 2nd phases and
+then all 3rd phases.
+
+The 3 phases are:
+
+  1. INIT: This phase is executed when the object enters reset. It should reset
+  local state of the object, but it must not do anything that has a side-effect
+  on other objects, such as raising or lowering a qemu_irq line or reading or
+  writing guest memory.
+
+  2. HOLD: This phase is executed for entry into reset, once every object in the
+  system which is being reset has had its init phase executed. At this point
+  devices can do actions that affect other objects.
+
+  3. EXIT: This phase is executed when the object leaves the reset state.
+  Actions affecting other objects are permitted.
+
+As said in previous section, the interface maintains a count of reset. This
+count is used to ensure phases are executed only when required.
+init and hold phases are executed only when entering reset for the first time
+(if an object is already in reset state when calling resettable_assert_reset()
+or resettable_reset(), they are not executed).
+The exit phase is executed only when the last reset operation ends. Therefore
+the object has not to care how many reset controllers it has and how many of
+them have started a reset.
+
+
+Handling reset in a new resettable object
+-----------------------------------------
+
+This section documents the APIs that an implementation of a resettable object
+must provide and what functions it has access to.
+
+There are three methods in the interface that must be implemented in an
+resettable object.
+The methods correspond to the three phases described in the previous section:
+```
+typedef void (*ResettableInitPhase)(Object *obj, ResetType type);
+typedef void (*ResettableHoldPhase)(Object *obj);
+typedef void (*ResettableExitPhase)(Object *obj);
+typedef struct ResettableClass {
+    InterfaceClass parent_class;
+
+    struct ResettablePhases {
+        ResettableInitPhase init;
+        ResettableHoldPhase hold;
+        ResettableExitPhase exit;
+    } phases;
+    [...]
+} ResettableClass;
+```
+
+All phases takes a pointer to the object as first argument. The init phase also
+takes the reset type.
+
+These methods should be updated when specializing an object. For this the
+helper function resettable_class_set_parent_phases() can be used to "backup"
+parent methods while changing the specialized ones:
+
+
+```
+void resettable_class_set_parent_reset_phases(ResettableClass *rc,
+                                              ResettableInitPhase init,
+                                              ResettableHoldPhase hold,
+                                              ResettableExitPhase exit,
+                                              ResettablePhases *parent_phases);
+```
+"rc" argument is the interface class structure; "init", "hold" and "exit" are
+the specialized phase methods for the object; and "parent_phases" is an
+allocated space (typically in the specialized object class) to backup the
+parent phases. This function only do the backup and update operation for phase
+arguments that are non-NULL; you can use it to specialize only the init method
+for example. When you specialize a method, it's on you to call or not the parent
+method inside the specialized one.
+
+If for some operation in the object, you need to know the reset state, there is
+a function to access that:
+```
+bool resettable_is_resetting(Object *obj);
+```
+
+resettable_is_resetting() tells if the resettable object is currently under
+reset.
+
+Helpers are defined for devices and buses that wrap resettable_is_resetting():
+```
+bool device_is_resetting(DeviceState *dev);
+bool bus_is_resetting(BusState *bus);
+```
+
+
+Base class handling of reset
+----------------------------
+
+This section documents parts of the reset mechanism that you only need to know
+about if you are extending it to work with a new base class other than
+DeviceClass or BusClass, or maintaining the existing code in those classes. Most
+people can ignore it.
+
+There are two other methods that need to exist in a class implementing the
+interface.
+
+```
+typedef struct ResetState {
+    uint32_t count;
+    bool hold_phase_needed;
+} ResetState;
+
+typedef ResetState *(*ResettableGetState)(Object *obj);
+typedef void (*ResettableForeachChild)(Object *obj,
+                                       void (*visitor)(Object *, ResetType),
+                                       ResetType type);
+typedef struct ResettableClass {
+    InterfaceClass parent_class;
+
+    [...]
+
+    ResettableGetState get_state;
+    ResettableForeachChild foreach_child;
+} ResettableClass;
+```
+
+get_state() must return a pointer to an allocated ResetState structure.
+This structure is used by the interface to store the information required
+to handle reset properly. This structure must not be modified by the object
+directly. The object must handle eventual allocation/deallocation of this
+structure during its creation and deletion. Typically it is located in the
+object state structure.
+
+The reset hierarchy is handled by means of the foreach_child() method. This
+method executes a given function on all reset children. An additional type
+argument is given to foreach_child() and must be passed to the function.
+
+In DeviceClass and BusClass the ResetState structure is located
+DeviceState/BusState structure. foreach_child() is implemented to follow the bus
+hierarchy; for a bus, it calls the function on every child device; for a device,
+it calls the function on every bus child. So when we reset the main system bus,
+we reset the whole machine bus tree.
