@@ -104,6 +104,11 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
+static inline bool is_single_page_access(uint64_t addr, uint32_t size)
+{
+    return (addr & TARGET_PAGE_MASK) == ((addr + size - 1) & TARGET_PAGE_MASK);
+}
+
 static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
                         uint32_t l, uintptr_t ra)
 {
@@ -310,6 +315,10 @@ static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
     /* MVC always copies one more byte than specified - maximum is 256 */
     l++;
 
+    if (unlikely(!is_single_page_access(dest, l))) {
+        probe_write_access(env, dest, l, ra);
+    }
+
     /*
      * "When the operands overlap, the result is obtained as if the operands
      * were processed one byte at a time". Only non-overlapping or forward
@@ -317,7 +326,14 @@ static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
      */
     if (dest == src + 1) {
         fast_memset(env, dest, cpu_ldub_data_ra(env, src, ra), l, ra);
-    } else if (dest < src || src + l <= dest) {
+        return env->cc_op;
+    }
+
+    if (unlikely(!is_single_page_access(src, l))) {
+        probe_read_access(env, src, l, ra);
+    }
+
+    if (dest < src || src + l <= dest) {
         fast_memmove(env, dest, src, l, ra);
     } else {
         for (i = 0; i < l; i++) {
