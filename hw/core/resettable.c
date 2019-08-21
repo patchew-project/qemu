@@ -34,12 +34,17 @@ static void resettable_init_reset(Object *obj, ResetType type)
     ResetState *s = rc->get_state(obj);
     bool action_needed = false;
 
-    /* Only take action if we really enter reset for the 1st time. */
-    /*
-     * TODO: if adding more ResetType support, some additional checks
-     * are probably needed here.
-     */
+    /* ensure type is empty if no reset is in progress */
     if (s->count == 0) {
+        s->type = 0;
+    }
+
+    /*
+     * Only take action if:
+     * + we are not already in cold reset,
+     * + and we enter a new type of reset.
+     */
+    if ((s->type & RESET_TYPE_COLD) == 0 && (s->type & type) == 0) {
         action_needed = true;
     }
     s->count += 1;
@@ -62,6 +67,7 @@ static void resettable_init_reset(Object *obj, ResetType type)
 
     /* exec init phase */
     if (action_needed) {
+        s->type |= type;
         s->hold_phase_needed = true;
         if (rc->phases.init) {
             rc->phases.init(obj, type);
@@ -133,8 +139,7 @@ static void resettable_exit_reset(Object *obj)
 
 void resettable_reset(Object *obj, ResetType type)
 {
-    /* TODO: change that when adding support for other reset types */
-    assert(type == RESET_TYPE_COLD);
+    assert(type == RESET_TYPE_COLD || type == RESET_TYPE_WARM);
     trace_resettable_reset(obj, type);
     resettable_init_reset(obj, type);
     resettable_hold_reset(obj);
@@ -152,6 +157,14 @@ bool resettable_is_resetting(Object *obj)
     ResetState *s = rc->get_state(obj);
 
     return (s->count > 0);
+}
+
+ResetType resettable_get_type(Object *obj)
+{
+    ResettableClass *rc = RESETTABLE_GET_CLASS(obj);
+    ResetState *s = rc->get_state(obj);
+
+    return s->type;
 }
 
 void resettable_class_set_parent_phases(ResettableClass *rc,

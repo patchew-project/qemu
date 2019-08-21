@@ -12,15 +12,14 @@ typedef struct ResetState ResetState;
 
 /**
  * ResetType:
- * Types of reset.
+ * Types of reset, values can be OR'ed together.
  *
  * + Cold: reset resulting from a power cycle of the object.
- *
- * TODO: Support has to be added to handle more types. In particular,
- * ResetState structure needs to be expanded.
+ * + Warm: reset without power cycling.
  */
 typedef enum ResetType {
-    RESET_TYPE_COLD,
+    RESET_TYPE_COLD = 0x1,
+    RESET_TYPE_WARM = 0x2,
 } ResetType;
 
 /*
@@ -107,11 +106,13 @@ typedef struct ResettablePhases ResettablePhases;
  *
  * @count: Number of reset level the object is into. It is incremented when
  * the reset operation starts and decremented when it finishes.
+ * @type: Type of the in-progress reset. Valid only when count is non-zero.
  * @hold_phase_needed: flag which indicates that we need to invoke the 'hold'
  * phase handler for this object.
  */
 struct ResetState {
     uint32_t count;
+    ResetType type;
     bool hold_phase_needed;
 };
 
@@ -122,6 +123,17 @@ struct ResetState {
  * @obj must implement Resettable interface.
  */
 bool resettable_is_resetting(Object *obj);
+
+/**
+ * resettable_get_type:
+ * Return the current type of reset @obj is under.
+ *
+ * @obj must implement Resettable interface. Result is only valid if
+ * @resettable_is_resetting is true.
+ *
+ * Note: this return an OR'ed value of type if several reset were triggered
+ */
+ResetType resettable_get_type(Object *obj);
 
 /**
  * resettable_reset:
