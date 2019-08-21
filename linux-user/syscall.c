@@ -6969,17 +6969,57 @@ static int open_self_auxv(void *cpu_env, int fd)
     return 0;
 }
 
+static int consume_task_directories(const char **filename)
+{
+    if (!strncmp(*filename, "task/", strlen("task/"))) {
+        *filename += strlen("task/");
+        if (**filename < '1' || **filename > '9') {
+            return 0;
+        }
+        /*
+         * Don't care about the exact tid.
+         * XXX: this allows opening files under /proc/self|<pid>/task/<n> where
+         *      <n> is not a valid thread id. Consider checking if the file
+         *      actually exists.
+         */
+        const char *p = *filename + 1;
+        while (*p >= '0' && *p <= '9') {
+            ++p;
+        }
+        if (*p == '/') {
+            *filename = p + 1;
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/*
+ * Determines if filename refer to a procfs file for the current process or any
+ * thread within the current process. This function should only be used to check
+ * for files that have identical contents in all threads, e.g. exec, maps, etc.
+ */
 static int is_proc_myself(const char *filename, const char *entry)
 {
     if (!strncmp(filename, "/proc/", strlen("/proc/"))) {
         filename += strlen("/proc/");
         if (!strncmp(filename, "self/", strlen("self/"))) {
             filename += strlen("self/");
+            if (!consume_task_directories(&filename)) {
+                return 0;
+            }
+        } else if (!strncmp(filename, "thread-self/", strlen("thread-self/"))) {
+            filename += strlen("thread-self/");
         } else if (*filename >= '1' && *filename <= '9') {
             char myself[80];
             snprintf(myself, sizeof(myself), "%d/", getpid());
             if (!strncmp(filename, myself, strlen(myself))) {
                 filename += strlen(myself);
+                if (!consume_task_directories(&filename)) {
+                    return 0;
+                }
             } else {
                 return 0;
             }
