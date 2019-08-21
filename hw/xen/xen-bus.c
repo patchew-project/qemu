@@ -481,20 +481,27 @@ static int xen_device_backend_scanf(XenDevice *xendev, const char *key,
     return rc;
 }
 
-void xen_device_backend_set_state(XenDevice *xendev,
-                                  enum xenbus_state state)
+static bool xen_device_backend_record_state(XenDevice *xendev,
+                                            enum xenbus_state state)
 {
     const char *type = object_get_typename(OBJECT(xendev));
 
     if (xendev->backend_state == state) {
-        return;
+        return false;
     }
 
     trace_xen_device_backend_state(type, xendev->name,
                                    xs_strstate(state));
 
     xendev->backend_state = state;
-    xen_device_backend_printf(xendev, "state", "%u", state);
+    return true;
+}
+
+void xen_device_backend_set_state(XenDevice *xendev,
+                                  enum xenbus_state state)
+{
+    if (xen_device_backend_record_state(xendev, state))
+        xen_device_backend_printf(xendev, "state", "%u", state);
 }
 
 enum xenbus_state xen_device_backend_get_state(XenDevice *xendev)
@@ -502,7 +509,8 @@ enum xenbus_state xen_device_backend_get_state(XenDevice *xendev)
     return xendev->backend_state;
 }
 
-static void xen_device_backend_set_online(XenDevice *xendev, bool online)
+static void xen_device_backend_set_online(XenDevice *xendev, bool online,
+                                          bool export)
 {
     const char *type = object_get_typename(OBJECT(xendev));
 
@@ -513,7 +521,8 @@ static void xen_device_backend_set_online(XenDevice *xendev, bool online)
     trace_xen_device_backend_online(type, xendev->name, online);
 
     xendev->backend_online = online;
-    xen_device_backend_printf(xendev, "online", "%u", online);
+    if (export)
+        xen_device_backend_printf(xendev, "online", "%u", online);
 }
 
 static void xen_device_backend_changed(void *opaque)
@@ -529,13 +538,13 @@ static void xen_device_backend_changed(void *opaque)
         state = XenbusStateUnknown;
     }
 
-    xen_device_backend_set_state(xendev, state);
+    xen_device_backend_record_state(xendev, state);
 
     if (xen_device_backend_scanf(xendev, "online", "%u", &online) != 1) {
         online = 0;
     }
 
-    xen_device_backend_set_online(xendev, !!online);
+    xen_device_backend_set_online(xendev, !!online, false);
 
     /*
      * If the toolstack (or unplug request callback) has set the backend
@@ -683,7 +692,8 @@ int xen_device_frontend_scanf(XenDevice *xendev, const char *key,
 }
 
 static void xen_device_frontend_set_state(XenDevice *xendev,
-                                          enum xenbus_state state)
+                                          enum xenbus_state state,
+                                          bool export)
 {
     const char *type = object_get_typename(OBJECT(xendev));
 
@@ -695,7 +705,8 @@ static void xen_device_frontend_set_state(XenDevice *xendev,
                                     xs_strstate(state));
 
     xendev->frontend_state = state;
-    xen_device_frontend_printf(xendev, "state", "%u", state);
+    if (export)
+        xen_device_frontend_printf(xendev, "state", "%u", state);
 }
 
 static void xen_device_frontend_changed(void *opaque)
@@ -711,7 +722,7 @@ static void xen_device_frontend_changed(void *opaque)
         state = XenbusStateUnknown;
     }
 
-    xen_device_frontend_set_state(xendev, state);
+    xen_device_frontend_set_state(xendev, state, false);
 
     if (state == XenbusStateInitialising &&
         xendev->backend_state == XenbusStateClosed &&
@@ -1146,7 +1157,7 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
                               xendev->frontend_id);
     xen_device_backend_printf(xendev, "hotplug-status", "connected");
 
-    xen_device_backend_set_online(xendev, true);
+    xen_device_backend_set_online(xendev, true, true);
     xen_device_backend_set_state(xendev, XenbusStateInitWait);
 
     xen_device_frontend_printf(xendev, "backend", "%s",
@@ -1154,7 +1165,7 @@ static void xen_device_realize(DeviceState *dev, Error **errp)
     xen_device_frontend_printf(xendev, "backend-id", "%u",
                                xenbus->backend_id);
 
-    xen_device_frontend_set_state(xendev, XenbusStateInitialising);
+    xen_device_frontend_set_state(xendev, XenbusStateInitialising, true);
 
     xendev->exit.notify = xen_device_exit;
     qemu_add_exit_notifier(&xendev->exit);
