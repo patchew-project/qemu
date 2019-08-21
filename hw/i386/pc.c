@@ -2838,7 +2838,7 @@ static void pc_machine_reset(MachineState *machine)
         cpu = X86_CPU(cs);
 
         if (cpu->apic_state) {
-            device_reset(cpu->apic_state);
+            device_legacy_reset(cpu->apic_state);
         }
     }
 }
