@@ -17,31 +17,52 @@
 #include "qemu/timer.h"
 #include "block/aio.h"
 
-static void co_sleep_cb(void *opaque)
-{
-    Coroutine *co = opaque;
+const char *qemu_co_sleep_ns__scheduled = "qemu_co_sleep_ns";
 
+typedef struct QemuCoSleepState {
+    Coroutine *co;
+    QEMUTimer *ts;
+    void **user_state_pointer;
+} QemuCoSleepState;
+
+void qemu_co_sleep_wake(void *sleep_state)
+{
+    QemuCoSleepState *s = (QemuCoSleepState *)sleep_state;
     /* Write of schedule protected by barrier write in aio_co_schedule */
-    atomic_set(&co->scheduled, NULL);
-    aio_co_wake(co);
+    const char *scheduled = atomic_cmpxchg(&s->co->scheduled,
+                                           qemu_co_sleep_ns__scheduled, NULL);
+
+    assert(scheduled == qemu_co_sleep_ns__scheduled);
+    if (s->user_state_pointer) {
+        *s->user_state_pointer = NULL;
+    }
+    timer_del(s->ts);
+    aio_co_wake(s->co);
 }
 
-void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns)
+void coroutine_fn qemu_co_sleep_ns(QEMUClockType type, int64_t ns,
+                                   void **sleep_state)
 {
     AioContext *ctx = qemu_get_current_aio_context();
-    QEMUTimer *ts;
-    Coroutine *co = qemu_coroutine_self();
+    QemuCoSleepState state = {
+        .co = qemu_coroutine_self(),
+        .ts = aio_timer_new(ctx, type, SCALE_NS, qemu_co_sleep_wake, &state),
+        .user_state_pointer = sleep_state,
+    };
 
-    const char *scheduled = atomic_cmpxchg(&co->scheduled, NULL, __func__);
+    const char *scheduled = atomic_cmpxchg(&state.co->scheduled, NULL,
+                                           qemu_co_sleep_ns__scheduled);
     if (scheduled) {
         fprintf(stderr,
                 "%s: Co-routine was already scheduled in '%s'\n",
                 __func__, scheduled);
         abort();
     }
-    ts = aio_timer_new(ctx, type, SCALE_NS, co_sleep_cb, co);
-    timer_mod(ts, qemu_clock_get_ns(type) + ns);
+
+    if (sleep_state) {
+        *sleep_state = &state;
+    }
+    timer_mod(state.ts, qemu_clock_get_ns(type) + ns);
     qemu_coroutine_yield();
-    timer_del(ts);
-    timer_free(ts);
+    timer_free(state.ts);
 }

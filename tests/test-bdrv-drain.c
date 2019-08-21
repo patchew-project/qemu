@@ -43,7 +43,7 @@ static void coroutine_fn bdrv_test_co_drain_begin(BlockDriverState *bs)
     BDRVTestState *s = bs->opaque;
     s->drain_count++;
     if (s->sleep_in_drain_begin) {
-        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000, NULL);
     }
 }
 
@@ -74,7 +74,7 @@ static int coroutine_fn bdrv_test_co_preadv(BlockDriverState *bs,
      * it to complete. We need to sleep a while as bdrv_drain_invoke() comes
      * first and polls its result, too, but it shouldn't accidentally complete
      * this request yet. */
-    qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000);
+    qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 100000, NULL);
 
     if (s->bh_indirection_ctx) {
         aio_bh_schedule_oneshot(s->bh_indirection_ctx, co_reenter_bh,
@@ -829,7 +829,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
         /* Avoid job_sleep_ns() because it marks the job as !busy. We want to
          * emulate some actual activity (probably some I/O) here so that drain
          * has to wait for this activity to stop. */
-        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000, NULL);
 
         job_pause_point(&s->common.job);
     }

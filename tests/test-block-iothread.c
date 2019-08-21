@@ -381,7 +381,7 @@ static int coroutine_fn test_job_run(Job *job, Error **errp)
          * emulate some actual activity (probably some I/O) here so that the
          * drain involved in AioContext switches has to wait for this activity
          * to stop. */
-        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000);
+        qemu_co_sleep_ns(QEMU_CLOCK_REALTIME, 1000000, NULL);
 
         job_pause_point(&s->common.job);
     }
