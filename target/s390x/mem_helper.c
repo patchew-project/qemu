@@ -2602,6 +2602,40 @@ uint32_t HELPER(cu42)(CPUS390XState *env, uint32_t r1, uint32_t r2, uint32_t m3)
                            decode_utf32, encode_utf16);
 }
 
+/*
+ * Make sure the read access is permitted and TLB entries are created. In
+ * very rare cases it might happen that the actual accesses might need
+ * new MMU translations. If the page tables were changed in between, we
+ * might still trigger a fault. However, this seems to barely happen, so we
+ * can ignore this for now.
+ */
+void probe_read_access(CPUS390XState *env, uint64_t addr, uint64_t len,
+                       uintptr_t ra)
+{
+#ifdef CONFIG_USER_ONLY
+    if (!guest_addr_valid(addr) || !guest_addr_valid(addr + len - 1) ||
+        page_check_range(addr, len, PAGE_READ) < 0) {
+        s390_program_interrupt(env, PGM_ADDRESSING, ILEN_AUTO, ra);
+    }
+#else
+    while (len) {
+        const uint64_t pagelen = -(addr | -TARGET_PAGE_MASK);
+        const uint64_t curlen = MIN(pagelen, len);
+
+        cpu_ldub_data_ra(env, addr, ra);
+        addr = wrap_address(env, addr + curlen);
+        len -= curlen;
+    }
+#endif
+}
+
+/*
+ * Make sure the write access is permitted and TLB entries are created. In
+ * very rare cases it might happen that the actual accesses might need
+ * new MMU translations - especially, on LAP protected pages. If the page
+ * tables were changed in between, we might still trigger a fault. However,
+ * this seems to barely happen, so we can ignore this for now.
+ */
 void probe_write_access(CPUS390XState *env, uint64_t addr, uint64_t len,
                         uintptr_t ra)
 {
