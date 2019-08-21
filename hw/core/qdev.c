@@ -876,7 +876,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
         }
         if (dev->hotplugged) {
-            device_legacy_reset(dev);
+            device_cold_reset(dev);
         }
         dev->pending_deleted_event = false;
 
