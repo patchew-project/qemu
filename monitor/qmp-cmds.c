@@ -413,3 +413,12 @@ MemoryInfo *qmp_query_memory_size_summary(Error **errp)
 
     return mem_info;
 }
+
+MemoryChecksum *qmp_query_memory_checksum(Error **errp)
+{
+    MemoryChecksum *chk = g_malloc0(sizeof(MemoryChecksum));
+
+    chk->checksum = qemu_ram_chksum();
+
+    return chk;
+}

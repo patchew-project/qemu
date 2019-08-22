@@ -1194,6 +1194,33 @@
 ##
 { 'command': 'query-memory-size-summary', 'returns': 'MemoryInfo' }
 
+##
+# @MemoryChecksum:
+#
+# A string with MD5 checksum of all RAMBlocks.
+#
+# @checksum: the checksum.
+#
+# Since: 3.2.0
+##
+{ 'struct': 'MemoryChecksum',
+  'data'  : { 'checksum': 'str' } }
+
+##
+# @query-memory-checksum:
+#
+# Return the MD5 checksum of all RAMBlocks.
+#
+# Example:
+#
+# -> { "execute": "query-memory-checksum" }
+# <- { "return": { "checksum": "a0880304994f64cb2edad77b9a1cd58f" } }
+#
+# Since: 3.2.0
+##
+{ 'command': 'query-memory-checksum',
+  'returns': 'MemoryChecksum' }
+
 
 ##
 # @AddfdInfo:

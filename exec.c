@@ -2051,6 +2051,22 @@ void *qemu_ram_get_host_addr(RAMBlock *rb)
     return rb->host;
 }
 
+gchar *qemu_ram_chksum(void)
+{
+    struct RAMBlock *rb;
+    GChecksum *chksum = g_checksum_new(G_CHECKSUM_MD5);
+    gchar *ret;
+
+    RAMBLOCK_FOREACH(rb) {
+        g_checksum_update(chksum, qemu_ram_get_host_addr(rb),
+                          qemu_ram_get_used_length(rb));
+    }
+    ret = g_strdup(g_checksum_get_string(chksum));
+    g_checksum_free(chksum);
+
+    return ret;
+}
+
 ram_addr_t qemu_ram_get_offset(RAMBlock *rb)
 {
     return rb->offset;
