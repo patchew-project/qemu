@@ -2231,8 +2231,14 @@ set_timeout:
                 optname = SO_PASSSEC;
                 break;
         case TARGET_SO_TIMESTAMP:
-		optname = SO_TIMESTAMP;
-		break;
+                optname = SO_TIMESTAMP;
+                break;
+        case TARGET_SO_TIMESTAMPNS:
+                optname = SO_TIMESTAMPNS;
+                break;
+        case TARGET_SO_TIMESTAMPING:
+                optname = SO_TIMESTAMPING;
+                break;
         case TARGET_SO_RCVLOWAT:
 		optname = SO_RCVLOWAT;
 		break;

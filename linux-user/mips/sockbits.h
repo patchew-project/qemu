@@ -63,6 +63,10 @@
 #define TARGET_SO_PEERNAME             28
 #define TARGET_SO_TIMESTAMP            29
 #define SCM_TIMESTAMP          SO_TIMESTAMP
+#define TARGET_SO_TIMESTAMPNS          35
+#define SCM_TIMESTAMPNS         SO_TIMESTAMPNS
+#define TARGET_SO_TIMESTAMPING         37
+#define SCM_TIMESTAMPING        SO_TIMESTAMPING
 
 #define TARGET_SO_PEERSEC              30
 #define TARGET_SO_SNDBUFFORCE          31
