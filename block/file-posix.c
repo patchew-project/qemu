@@ -1472,10 +1472,13 @@ static int xfs_write_zeroes(BDRVRawState *s, int64_t offset, uint64_t bytes)
     }
 
     if (offset + bytes > len) {
-        /* XFS_IOC_ZERO_RANGE does not increase the file length */
-        if (ftruncate(s->fd, offset + bytes) < 0) {
-            return -errno;
-        }
+        /*
+         * XFS_IOC_ZERO_RANGE does not increase the file length, but
+         * the caller probably wants us to.
+         * Calling ftruncate() would not be safe, so let the generic
+         * implementation handle this case.
+         */
+        return -ENOTSUP;
     }
 
     memset(&fl, 0, sizeof(fl));
@@ -1580,7 +1583,10 @@ static int handle_aiocb_write_zeroes(void *opaque)
 
 #ifdef CONFIG_XFS
     if (s->is_xfs) {
-        return xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+        int ret = xfs_write_zeroes(s, aiocb->aio_offset, aiocb->aio_nbytes);
+        if (ret != -ENOTSUP) {
+            return ret;
+        }
     }
 #endif
 
