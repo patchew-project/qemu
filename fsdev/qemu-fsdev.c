@@ -58,6 +58,7 @@ static FsDriverTable FsDrivers[] = {
             "writeout",
             "fmode",
             "dmode",
+            "multidevs",
             "throttling.bps-total",
             "throttling.bps-read",
             "throttling.bps-write",
@@ -121,6 +122,7 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
     const char *fsdev_id = qemu_opts_id(opts);
     const char *fsdriver = qemu_opt_get(opts, "fsdriver");
     const char *writeout = qemu_opt_get(opts, "writeout");
+    const char *multidevs = qemu_opt_get(opts, "multidevs");
     bool ro = qemu_opt_get_bool(opts, "readonly", 0);
 
     if (!fsdev_id) {
@@ -160,6 +162,15 @@ int qemu_fsdev_add(QemuOpts *opts, Error **errp)
         fsle->fse.export_flags |= V9FS_RDONLY;
     } else {
         fsle->fse.export_flags &= ~V9FS_RDONLY;
+    }
+    if (multidevs) {
+        if (!strcmp(multidevs, "remap")) {
+            fsle->fse.export_flags &= ~V9FS_FORBID_MULTIDEVS;
+            fsle->fse.export_flags |= V9FS_REMAP_INODES;
+        } else if (!strcmp(multidevs, "forbid")) {
+            fsle->fse.export_flags &= ~V9FS_REMAP_INODES;
+            fsle->fse.export_flags |= V9FS_FORBID_MULTIDEVS;
+        }
     }
 
     if (fsle->fse.ops->parse_opts) {
