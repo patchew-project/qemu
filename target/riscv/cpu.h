@@ -124,6 +124,10 @@ struct CPURISCVState {
     target_ulong mhartid;
     target_ulong *mstatus;
 
+#ifdef TARGET_RISCV32
+    target_ulong *mstatush;
+#endif
+
     /*
      * CAUTION! Unlike the rest of this struct, mip and mip_novirt is accessed
      * asynchonously by I/O threads. It should be read with atomic_read. It should
@@ -164,6 +168,9 @@ struct CPURISCVState {
      */
     target_ulong mie_novirt;
     target_ulong mstatus_novirt;
+#ifdef TARGET_RISCV32
+    target_ulong mstatush_novirt;
+#endif
 
     /* Hypervisor CSRs */
     target_ulong hstatus;

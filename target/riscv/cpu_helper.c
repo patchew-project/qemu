@@ -949,10 +949,17 @@ void riscv_cpu_do_interrupt(CPUState *cs)
             if (riscv_cpu_virt_enabled(env)) {
                 riscv_cpu_swap_hypervisor_regs(env);
             }
+#ifdef TARGET_RISCV32
+            *env->mstatush = set_field(*env->mstatush, MSTATUS_MPV,
+                                       riscv_cpu_virt_enabled(env));
+            *env->mstatush = set_field(*env->mstatush, MSTATUS_MTL,
+                                       riscv_cpu_force_hs_excep_enabled(env));
+#else
             *env->mstatus = set_field(*env->mstatus, MSTATUS_MPV,
                                       riscv_cpu_virt_enabled(env));
             *env->mstatus = set_field(*env->mstatus, MSTATUS_MTL,
                                       riscv_cpu_force_hs_excep_enabled(env));
+#endif
 
             /* Trapping to M mode, virt is disabled */
             riscv_cpu_set_virt_enabled(env, VIRT_OFF);
