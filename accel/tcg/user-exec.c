@@ -188,6 +188,22 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     g_assert_not_reached();
 }
 
+void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
+                 uintptr_t retaddr)
+{
+    CPUState *cpu = env_cpu(env);
+    CPUClass *cc;
+
+    if (!guest_addr_valid(addr) ||
+        (size > 0 && !guest_addr_valid(addr + size - 1)) ||
+        page_check_range(addr, size, PAGE_WRITE) < 0) {
+        cc = CPU_GET_CLASS(cpu);
+        cc->tlb_fill(cpu, addr, size, MMU_DATA_STORE, MMU_USER_IDX, false,
+                     retaddr);
+        g_assert_not_reached();
+    }
+}
+
 #if defined(__i386__)
 
 #if defined(__NetBSD__)
