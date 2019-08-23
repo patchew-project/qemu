@@ -77,7 +77,7 @@ static void versatile_i2c_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps versatile_i2c_ops = {
     .read = versatile_i2c_read,
     .write = versatile_i2c_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void versatile_i2c_init(Object *obj)

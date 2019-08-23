@@ -278,7 +278,7 @@ static const MemoryRegionOps imx_i2c_ops = {
     .write = imx_i2c_write,
     .valid.min_access_size = 1,
     .valid.max_access_size = 2,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription imx_i2c_vmstate = {
