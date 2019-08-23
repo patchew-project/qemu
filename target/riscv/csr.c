@@ -799,9 +799,15 @@ int riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
 
     /* check privileges and return -1 if check fails */
 #if !defined(CONFIG_USER_ONLY)
-    int csr_priv = get_field(csrno, 0x300);
+    int csr_priv = env->priv;
     int read_only = get_field(csrno, 0xC00) == 3;
-    if ((write_mask && read_only) || (env->priv < csr_priv)) {
+
+    if (riscv_has_ext(env, RVH) && !riscv_cpu_virt_enabled(env)) {
+        /* Plus 1 as we are in HS mode */
+        csr_priv++;
+    }
+
+    if ((write_mask && read_only) || (csr_priv < get_field(csrno, 0x300))) {
         return -1;
     }
 #endif
