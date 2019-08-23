@@ -48,7 +48,8 @@ static int coroutine_fn blockdev_create_run(Job *job, Error **errp)
 
     qapi_free_BlockdevCreateOptions(s->opts);
 
-    return ret;
+    /* Jobs must return 0 to indicate success */
+    return ret < 0 ? ret : 0;
 }
 
 static const JobDriver blockdev_create_job_driver = {
