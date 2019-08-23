@@ -4,7 +4,7 @@ QEMU Coding Style
 Please use the script checkpatch.pl in the scripts directory to check
 patches before submitting.
 
-1. Whitespace
+## Whitespace
 
 Of course, the most important aspect in any coding style is whitespace.
 Crusty old coders who have trouble spotting the glasses on their noses
@@ -29,7 +29,7 @@ Spaces of course are superior to tabs because:
 
 Do not leave whitespace dangling off the ends of lines.
 
-1.1 Multiline Indent
+### Multiline Indent
 
 There are several places where indent is necessary:
 
@@ -53,9 +53,8 @@ For example:
 
 In case of function, there are several variants:
 
-    * 4 spaces indent from the beginning
-    * align the secondary lines just after the opening parenthesis of the
-      first
+ * 4 spaces indent from the beginning
+ * align the secondary lines just after the opening parenthesis of the first
 
 For example:
 
@@ -68,7 +67,7 @@ For example:
     do_something(x, do_another(y,
                                z));
 
-2. Line width
+## Line width
 
 Lines should be 80 characters; try not to make them longer.
 
@@ -77,6 +76,7 @@ that use long function or symbol names.  Even in that case, do not make
 lines much longer than 80 characters.
 
 Rationale:
+
  - Some people like to tile their 24" screens with a 6x4 matrix of 80x24
    xterms and use vi in all of them.  The best way to punish them is to
    let them keep doing it.
@@ -86,7 +86,7 @@ Rationale:
    at all that white space on the left!") moot.
  - It is the QEMU coding style.
 
-3. Naming
+## Naming
 
 Variables are lower_case_with_underscores; easy to type and read.  Structured
 type names are in CamelCase; harder to type but standing out.  Enum type
@@ -98,7 +98,7 @@ and is therefore likely to be changed.
 When wrapping standard library functions, use the prefix qemu_ to alert
 readers that they are seeing a wrapped version; otherwise avoid this prefix.
 
-4. Block structure
+## Block structure
 
 Every indented statement is braced; even if the block contains just one
 statement.  The opening brace is on the line that contains the control
@@ -130,7 +130,7 @@ Rationale: a consistent (except for functions...) bracing style reduces
 ambiguity and avoids needless churn when lines are added or removed.
 Furthermore, it is the QEMU coding style.
 
-5. Declarations
+## Declarations
 
 Mixed declarations (interleaving statements and declarations within
 blocks) are generally not allowed; declarations should be at the beginning
@@ -142,7 +142,7 @@ be placed at the top of the block even if there are statements above.
 On the other hand, however, it's often best to move that #ifdef/#ifndef
 block to a separate function altogether.
 
-6. Conditional statements
+## Conditional statements
 
 When comparing a variable for (in)equality with a constant, list the
 constant on the right, as in:
@@ -156,7 +156,7 @@ Rationale: Yoda conditions (as in 'if (1 == a)') are awkward to read.
 Besides, good compilers already warn users when '==' is mis-typed as '=',
 even when the constant is on the right.
 
-7. Comment style
+## Comment style
 
 We use traditional C-style /* */ comments and avoid // comments.
 
@@ -165,10 +165,12 @@ consistency of style. The checkpatch script will warn you about this.
 
 Multiline comment blocks should have a row of stars on the left,
 and the initial /* and terminating */ both on their own lines:
+
     /*
      * like
      * this
      */
+
 This is the same format required by the Linux kernel coding style.
 
 (Some of the existing comments in the codebase use the GNU Coding
@@ -180,24 +182,24 @@ comment anyway.)
 Rationale: Consistency, and ease of visually picking out a multiline
 comment from the surrounding code.
 
-8. trace-events style
+## trace-events style
 
-8.1 0x prefix
+### 0x prefix
 
 In trace-events files, use a '0x' prefix to specify hex numbers, as in:
 
-some_trace(unsigned x, uint64_t y) "x 0x%x y 0x" PRIx64
+    some_trace(unsigned x, uint64_t y) "x 0x%x y 0x" PRIx64
 
 An exception is made for groups of numbers that are hexadecimal by
 convention and separated by the symbols '.', '/', ':', or ' ' (such as
 PCI bus id):
 
-another_trace(int cssid, int ssid, int dev_num) "bus id: %x.%x.%04x"
+    another_trace(int cssid, int ssid, int dev_num) "bus id: %x.%x.%04x"
 
 However, you can use '0x' for such groups if you want. Anyway, be sure that
 it is obvious that numbers are in hex, ex.:
 
-data_dump(uint8_t c1, uint8_t c2, uint8_t c3) "bytes (in hex): %02x %02x %02x"
+    data_dump(uint8_t c1, uint8_t c2, uint8_t c3) "bytes (in hex): %02x %02x %02x"
 
 Rationale: hex numbers are hard to read in logs when there is no 0x prefix,
 especially when (occasionally) the representation doesn't contain any letters
@@ -205,12 +207,13 @@ and especially in one line with other decimal numbers. Number groups are allowed
 to not use '0x' because for some things notations like %x.%x.%x are used not
 only in Qemu. Also dumping raw data bytes with '0x' is less readable.
 
-8.2 '#' printf flag
+### '#' printf flag
 
 Do not use printf flag '#', like '%#x'.
 
 Rationale: there are two ways to add a '0x' prefix to printed number: '0x%...'
 and '%#...'. For consistency the only one way should be used. Arguments for
 '0x%' are:
+
  - it is more popular
  - '%#' omits the 0x for the value 0 which makes output inconsistent
