@@ -522,7 +522,7 @@ static void pl041_device_reset(DeviceState *d)
 static const MemoryRegionOps pl041_ops = {
     .read = pl041_read,
     .write = pl041_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pl041_init(Object *obj)

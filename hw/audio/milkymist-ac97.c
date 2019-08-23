@@ -177,7 +177,7 @@ static const MemoryRegionOps ac97_mmio_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void ac97_in_cb(void *opaque, int avail_b)

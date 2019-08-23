@@ -242,7 +242,7 @@ static void mv88w8618_audio_reset(DeviceState *d)
 static const MemoryRegionOps mv88w8618_audio_ops = {
     .read = mv88w8618_audio_read,
     .write = mv88w8618_audio_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void mv88w8618_audio_init(Object *obj)
