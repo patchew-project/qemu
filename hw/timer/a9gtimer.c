@@ -258,7 +258,7 @@ static const MemoryRegionOps a9_gtimer_this_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps a9_gtimer_ops = {
@@ -268,7 +268,7 @@ static const MemoryRegionOps a9_gtimer_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void a9_gtimer_reset(DeviceState *dev)

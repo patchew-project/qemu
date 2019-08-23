@@ -268,7 +268,7 @@ static void stm32f2xx_timer_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps stm32f2xx_timer_ops = {
     .read = stm32f2xx_timer_read,
     .write = stm32f2xx_timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_stm32f2xx_timer = {

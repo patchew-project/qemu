@@ -194,7 +194,7 @@ static const MemoryRegionOps arm_thistimer_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps timerblock_ops = {
@@ -204,7 +204,7 @@ static const MemoryRegionOps timerblock_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void timerblock_reset(TimerBlock *tb)
