@@ -125,15 +125,18 @@ struct CPURISCVState {
     target_ulong *mstatus;
 
     /*
-     * CAUTION! Unlike the rest of this struct, mip is accessed asynchonously
-     * by I/O threads. It should be read with atomic_read. It should be updated
-     * using riscv_cpu_update_mip with the iothread mutex held. The iothread
-     * mutex must be held because mip must be consistent with the CPU inturrept
-     * state. riscv_cpu_update_mip calls cpu_interrupt or cpu_reset_interrupt
-     * wuth the invariant that CPU_INTERRUPT_HARD is set iff mip is non-zero.
+     * CAUTION! Unlike the rest of this struct, mip and mip_novirt is accessed
+     * asynchonously by I/O threads. It should be read with atomic_read. It should
+     * be updated using riscv_cpu_update_mip with the iothread mutex held. The
+     * iothread mutex must be held because mip must be consistent with the CPU
+     * inturrept state. riscv_cpu_update_mip calls cpu_interrupt or
+     * cpu_reset_interrupt wuth the invariant that CPU_INTERRUPT_HARD is set if
+     * mip is non-zero.
      * mip is 32-bits to allow atomic_read on 32-bit hosts.
      */
     uint32_t mip;
+    uint32_t mip_novirt;
+
     uint32_t miclaim;
 
     target_ulong *mie;
@@ -178,6 +181,14 @@ struct CPURISCVState {
     target_ulong vscause;
     target_ulong vstval;
     target_ulong vsatp;
+
+    /* HS Backup CSRs */
+    target_ulong stvec_hs;
+    target_ulong sscratch_hs;
+    target_ulong sepc_hs;
+    target_ulong scause_hs;
+    target_ulong stval_hs;
+    target_ulong satp_hs;
 
     target_ulong scounteren;
     target_ulong mcounteren;
@@ -306,6 +317,7 @@ void riscv_cpu_list(void);
 #define cpu_mmu_index riscv_cpu_mmu_index
 
 #ifndef CONFIG_USER_ONLY
+void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env);
 int riscv_cpu_claim_interrupts(RISCVCPU *cpu, uint32_t interrupts);
 uint32_t riscv_cpu_update_mip(RISCVCPU *cpu, uint32_t mask, uint32_t value);
 #define BOOL_TO_MASK(x) (-!!(x)) /* helper for riscv_cpu_update_mip value */

@@ -81,6 +81,94 @@ bool riscv_cpu_fp_enabled(CPURISCVState *env)
     return false;
 }
 
+void riscv_cpu_swap_hypervisor_regs(CPURISCVState *env)
+{
+    RISCVCPU *cpu = RISCV_CPU(env_cpu(env));
+    uint32_t tmp;
+    target_ulong mstatus_mask = MSTATUS_MXR | MSTATUS_SUM | MSTATUS_FS |
+                                MSTATUS_SPP | MSTATUS_SPIE | MSTATUS_SIE;
+    target_ulong sie_mask = MIE_SEIE | MIE_STIE | MIE_SSIE |
+                            MIE_UEIE | MIE_UTIE | MIE_USIE;
+    target_ulong mip_mask = MIP_SSIP | MIP_STIP | MIP_SEIP;
+    bool current_virt = riscv_cpu_virt_enabled(env);
+
+    g_assert(riscv_has_ext(env, RVH));
+
+#if defined(TARGET_RISCV64)
+    mstatus_mask |= MSTATUS64_UXL;
+#endif
+
+    if (current_virt) {
+        /* Current V=1 and we are about to change to V=0 */
+        env->mstatus = &env->mstatus_novirt;
+        *env->mstatus &= mstatus_mask;
+        *env->mstatus |= env->vsstatus & ~mstatus_mask;
+        /* Ensure that vsstatus only holds the correct bits */
+        env->vsstatus &= mstatus_mask;
+
+        env->mie = &env->mie_novirt;
+        *env->mie &= sie_mask;
+        *env->mie |= env->vsie & ~sie_mask;
+        /* Ensure that vsie only holds the correct bits */
+        env->vsie &= sie_mask;
+
+        env->vstvec = env->stvec;
+        env->stvec = env->stvec_hs;
+
+        env->vsscratch = env->sscratch;
+        env->sscratch = env->sscratch_hs;
+
+        env->vsepc = env->sepc;
+        env->sepc = env->sepc_hs;
+
+        env->vscause = env->scause;
+        env->scause = env->scause_hs;
+
+        env->vstval = env->sbadaddr;
+        env->sbadaddr = env->stval_hs;
+
+        env->vsatp = env->satp;
+        env->satp = env->satp_hs;
+
+        tmp = (uint32_t)atomic_read(&env->mip_novirt);
+        tmp = riscv_cpu_update_mip(cpu, mip_mask, tmp);
+        tmp &= mip_mask;
+        atomic_set(&env->vsip, tmp);
+    } else {
+        /* Current V=0 and we are about to change to V=1 */
+        env->mstatus = &env->vsstatus;
+        *env->mstatus &= mstatus_mask;
+        *env->mstatus |= env->mstatus_novirt & ~mstatus_mask;
+
+        env->mie = &env->vsie;
+        *env->mie &= sie_mask;
+        *env->mie |= env->mie_novirt & ~sie_mask;
+
+        env->stvec_hs = env->stvec;
+        env->stvec = env->vstvec;
+
+        env->sscratch_hs = env->sscratch;
+        env->sscratch = env->vsscratch;
+
+        env->sepc_hs = env->sepc;
+        env->sepc = env->vsepc;
+
+        env->scause_hs = env->scause;
+        env->scause = env->vscause;
+
+        env->stval_hs = env->sbadaddr;
+        env->sbadaddr = env->vstval;
+
+        env->satp_hs = env->satp;
+        env->satp = env->vsatp;
+
+        tmp = (uint32_t)atomic_read(&env->vsip);
+        tmp = riscv_cpu_update_mip(cpu, mip_mask, tmp);
+        tmp &= mip_mask;
+        atomic_set(&env->mip_novirt, tmp);
+    }
+}
+
 bool riscv_cpu_virt_enabled(CPURISCVState *env)
 {
     bool tmp;
