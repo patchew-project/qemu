@@ -109,7 +109,7 @@ static uint64_t superio_ioport_readb(void *opaque, hwaddr addr, unsigned size)
 static const MemoryRegionOps superio_ops = {
     .read = superio_ioport_readb,
     .write = superio_ioport_writeb,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
