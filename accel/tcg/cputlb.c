@@ -1064,6 +1064,8 @@ void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
 
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+
     if (!tlb_hit(tlb_addr_write(entry), addr)) {
         /* TLB entry is for a different page */
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
