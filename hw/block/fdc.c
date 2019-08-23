@@ -570,7 +570,7 @@ static void floppy_drive_realize(DeviceState *qdev, Error **errp)
     dev->conf.werror = BLOCKDEV_ON_ERROR_AUTO;
 
     if (!blkconf_apply_backend_options(&dev->conf, read_only, false, false,
-    				       errp)) {
+                                       errp)) {
         return;
     }
 
