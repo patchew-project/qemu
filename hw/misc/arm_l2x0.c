@@ -159,7 +159,7 @@ static void l2x0_priv_reset(DeviceState *dev)
 static const MemoryRegionOps l2x0_mem_ops = {
     .read = l2x0_priv_read,
     .write = l2x0_priv_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
  };
 
 static void l2x0_priv_init(Object *obj)
