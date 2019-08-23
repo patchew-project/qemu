@@ -428,6 +428,12 @@
 #define VIRT_MODE_SHIFT     0
 #define VIRT_MODE_MASK      (1 << VIRT_MODE_SHIFT)
 
+/* HS-level exception modes */
+#define CLEAR_HS_EXCEP        0
+#define FORCE_HS_EXCEP        1
+#define FORCE_HS_EXCEP_SHIFT  1
+#define FORCE_HS_EXCEP_MASK   (1 << FORCE_HS_EXCEP_SHIFT)
+
 /* RV32 satp CSR field masks */
 #define SATP32_MODE         0x80000000
 #define SATP32_ASID         0x7fc00000
