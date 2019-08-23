@@ -1063,6 +1063,7 @@ void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
 {
     uintptr_t index = tlb_index(env, mmu_idx, addr);
     CPUTLBEntry *entry = tlb_entry(env, mmu_idx, addr);
+    target_ulong tlb_addr;
 
     g_assert(-(addr | TARGET_PAGE_MASK) >= size);
 
@@ -1071,7 +1072,22 @@ void probe_write(CPUArchState *env, target_ulong addr, int size, int mmu_idx,
         if (!VICTIM_TLB_HIT(addr_write, addr)) {
             tlb_fill(env_cpu(env), addr, size, MMU_DATA_STORE,
                      mmu_idx, retaddr);
+            /* TLB resize via tlb_fill may have moved the entry. */
+            entry = tlb_entry(env, mmu_idx, addr);
         }
+    }
+
+    if (!size) {
+        return;
+    }
+    tlb_addr = tlb_addr_write(entry);
+
+    /* Watchpoints for this entry only apply if TLB_MMIO was set. */
+    if (tlb_addr & TLB_MMIO) {
+        MemTxAttrs attrs = env_tlb(env)->d[mmu_idx].iotlb[index].attrs;
+
+        cpu_check_watchpoint(env_cpu(env), addr, size, attrs, BP_MEM_WRITE,
+                             retaddr);
     }
 }
 
