@@ -1070,6 +1070,8 @@ static inline bool cpu_breakpoint_test(CPUState *cpu, vaddr pc, int mask)
     return false;
 }
 
+void cpu_check_watchpoint(CPUState *cpu, vaddr vaddr, int len,
+                          MemTxAttrs attrs, int flags, uintptr_t ra);
 int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
                           int flags, CPUWatchpoint **watchpoint);
 int cpu_watchpoint_remove(CPUState *cpu, vaddr addr,
