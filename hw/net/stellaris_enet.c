@@ -459,7 +459,7 @@ static void stellaris_enet_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps stellaris_enet_ops = {
     .read = stellaris_enet_read,
     .write = stellaris_enet_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void stellaris_enet_reset(DeviceState *dev)

@@ -1308,13 +1308,13 @@ static uint64_t lan9118_16bit_mode_read(void *opaque, hwaddr offset,
 static const MemoryRegionOps lan9118_mem_ops = {
     .read = lan9118_readl,
     .write = lan9118_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const MemoryRegionOps lan9118_16bit_mem_ops = {
     .read = lan9118_16bit_mode_read,
     .write = lan9118_16bit_mode_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static NetClientInfo net_lan9118_info = {
