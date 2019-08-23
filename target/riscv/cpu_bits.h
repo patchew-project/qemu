@@ -422,6 +422,12 @@
 #define PRV_H 2 /* Reserved */
 #define PRV_M 3
 
+/* Virtulisation modes */
+#define VIRT_OFF            0
+#define VIRT_ON             1
+#define VIRT_MODE_SHIFT     0
+#define VIRT_MODE_MASK      (1 << VIRT_MODE_SHIFT)
+
 /* RV32 satp CSR field masks */
 #define SATP32_MODE         0x80000000
 #define SATP32_ASID         0x7fc00000
