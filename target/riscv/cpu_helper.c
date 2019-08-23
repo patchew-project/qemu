@@ -38,11 +38,26 @@ static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
     target_ulong mstatus_mie = get_field(*env->mstatus, MSTATUS_MIE);
     target_ulong mstatus_sie = get_field(*env->mstatus, MSTATUS_SIE);
-    target_ulong pending = atomic_read(env->mip) & *env->mie;
-    target_ulong mie = env->priv < PRV_M || (env->priv == PRV_M && mstatus_mie);
-    target_ulong sie = env->priv < PRV_S || (env->priv == PRV_S && mstatus_sie);
+    target_ulong vsstatus_sie = get_field(env->mstatus_novirt, MSTATUS_SIE);
+
+    target_ulong pending = atomic_read(&env->mip) & *env->mie;
+    target_ulong hspending = atomic_read(&env->mip_novirt) & env->mie_novirt;
+
+    target_ulong mie  = env->priv < PRV_M || (env->priv == PRV_M && mstatus_mie);
+    target_ulong sie  = env->priv < PRV_S || (env->priv == PRV_S && mstatus_sie);
+    target_ulong vsie = env->priv < PRV_S || (env->priv == PRV_S && vsstatus_sie);
+
     target_ulong irqs = (pending & ~env->mideleg & -mie) |
                         (pending &  env->mideleg & -sie);
+
+    if (riscv_cpu_virt_enabled(env)) {
+        target_ulong pending_hs_irq = hspending & -vsie;
+
+        if (pending_hs_irq) {
+            riscv_cpu_set_force_hs_excep(env, FORCE_HS_EXCEP);
+            return ctz64(pending_hs_irq);
+        }
+    }
 
     if (irqs) {
         return ctz64(irqs); /* since non-zero */
