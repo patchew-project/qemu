@@ -1,6 +1,37 @@
 QEMU Coding Style
 =================
 
+#### Table Of Contents
+
+  * [Whitespace](#whitespace)
+    + [Multiline Indent](#multiline-indent)
+  * [Line width](#line-width)
+  * [Naming](#naming)
+  * [Block structure](#block-structure)
+  * [Declarations](#declarations)
+  * [Conditional statements](#conditional-statements)
+  * [Comment style](#comment-style)
+  * [trace-events style](#trace-events-style)
+    + [0x prefix](#0x-prefix)
+    + ['#' printf flag](#----printf-flag)
+  * [Preprocessor](#preprocessor)
+    + [Variadic macros](#variadic-macros)
+    + [Include directives](#include-directives)
+  * [C types](#c-types)
+    + [Scalars](#scalars)
+    + [Pointers](#pointers)
+    + [Typedefs](#typedefs)
+    + [Reserved namespaces in C and POSIX](#reserved-namespaces-in-c-and-posix)
+  * [Low level memory management](#low-level-memory-management)
+  * [String manipulation](#string-manipulation)
+  * [Printf-style functions](#printf-style-functions)
+  * [C standard, implementation defined and undefined behaviors](#c-standard--implementation-defined-and-undefined-behaviors)
+  * [Error handling and reporting](#error-handling-and-reporting)
+    + [Reporting errors to the human user](#reporting-errors-to-the-human-user)
+    + [Propagating errors](#propagating-errors)
+    + [Handling errors](#handling-errors)
+  * [Automatic memory deallocation](#automatic-memory-deallocation)
+
 Please use the script checkpatch.pl in the scripts directory to check
 patches before submitting.
 
