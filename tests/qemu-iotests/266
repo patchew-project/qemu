@@ -1,0 +1,182 @@
+#!/usr/bin/env python
+#
+# Test VPC and file image creation
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import imgfmt
+
+iotests.verify_image_format(supported_fmts=['vpc'])
+iotests.verify_protocol(supported=['file'])
+
+def blockdev_create(vm, options):
+    result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
+                        filters=[iotests.filter_qmp_testfiles])
+
+    if 'return' in result:
+        assert result['return'] == {}
+        vm.run_job('job0')
+    iotests.log("")
+
+with iotests.FilePath('t.vpc') as disk_path, \
+     iotests.VM() as vm:
+
+    #
+    # Successful image creation (defaults)
+    #
+    iotests.log("=== Successful image creation (defaults) ===")
+    iotests.log("")
+
+    # 8 heads, 964 cyls/head, 17 secs/cyl
+    # (Close to 64 MB)
+    size = 8 * 964 * 17 * 512
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+
+    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+               node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'imgfile',
+                          'size': size })
+    vm.shutdown()
+
+    iotests.img_info_log(disk_path)
+
+    #
+    # Successful image creation (explicit defaults)
+    #
+    iotests.log("=== Successful image creation (explicit defaults) ===")
+    iotests.log("")
+
+    # 16 heads, 964 cyls/head, 17 secs/cyl
+    # (Close to 128 MB)
+    size = 16 * 964 * 17 * 512
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+
+    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+               node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'imgfile',
+                          'size': size,
+                          'subformat': 'dynamic',
+                          'force-size': False })
+    vm.shutdown()
+
+    iotests.img_info_log(disk_path)
+
+    #
+    # Successful image creation (non-default options)
+    #
+    iotests.log("=== Successful image creation (non-default options) ===")
+    iotests.log("")
+
+    # Not representable in CHS (fine with force-size=True)
+    size = 1048576
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+
+    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+               node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'imgfile',
+                          'size': size,
+                          'subformat': 'fixed',
+                          'force-size': True })
+    vm.shutdown()
+
+    iotests.img_info_log(disk_path)
+
+    #
+    # Size not representable in CHS with force-size=False
+    #
+    iotests.log("=== Size not representable in CHS ===")
+    iotests.log("")
+
+    # Not representable in CHS (will not work with force-size=False)
+    size = 1048576
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': 'file',
+                          'filename': disk_path,
+                          'size': 0 })
+
+    vm.qmp_log('blockdev-add', driver='file', filename=disk_path,
+               node_name='imgfile', filters=[iotests.filter_qmp_testfiles])
+
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'imgfile',
+                          'size': size,
+                          'force-size': False })
+    vm.shutdown()
+
+    #
+    # Zero size
+    #
+    iotests.log("=== Zero size===")
+    iotests.log("")
+
+    vm.add_blockdev('driver=file,filename=%s,node-name=node0' % (disk_path))
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'size': 0 })
+    vm.shutdown()
+
+    iotests.img_info_log(disk_path)
+
+    #
+    # Maximum CHS size
+    #
+    iotests.log("=== Maximum CHS size===")
+    iotests.log("")
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'size': 16 * 65535 * 255 * 512 })
+    vm.shutdown()
+
+    iotests.img_info_log(disk_path)
+
+    #
+    # Actual maximum size
+    #
+    iotests.log("=== Actual maximum size===")
+    iotests.log("")
+
+    vm.launch()
+    blockdev_create(vm, { 'driver': imgfmt,
+                          'file': 'node0',
+                          'size': 0xff000000 * 512,
+                          'force-size': True })
+    vm.shutdown()
+
+    iotests.img_info_log(disk_path)
