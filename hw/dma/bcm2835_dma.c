@@ -290,7 +290,7 @@ static void bcm2835_dma15_write(void *opaque, hwaddr offset, uint64_t value,
 static const MemoryRegionOps bcm2835_dma0_ops = {
     .read = bcm2835_dma0_read,
     .write = bcm2835_dma0_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
 };
@@ -298,7 +298,7 @@ static const MemoryRegionOps bcm2835_dma0_ops = {
 static const MemoryRegionOps bcm2835_dma15_ops = {
     .read = bcm2835_dma15_read,
     .write = bcm2835_dma15_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
 };

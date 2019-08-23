@@ -700,7 +700,7 @@ dma_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps dma_ops = {
 	.read = dma_read,
 	.write = dma_write,
-	.endianness = DEVICE_NATIVE_ENDIAN,
+	.endianness = DEVICE_LITTLE_ENDIAN,
 	.valid = {
 		.min_access_size = 1,
 		.max_access_size = 4
