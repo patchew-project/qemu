@@ -12,10 +12,10 @@ ifeq ($(CONFIG_ISA_BUS),y)
 common-obj-$(CONFIG_M48T59) += m48t59-isa.o
 endif
 common-obj-$(CONFIG_PL031) += pl031.o
-common-obj-$(CONFIG_PUV3) += puv3_ost.o
+obj-$(CONFIG_PUV3) += puv3_ost.o
 common-obj-$(CONFIG_TWL92230) += twl92230.o
-common-obj-$(CONFIG_XILINX) += xilinx_timer.o
-common-obj-$(CONFIG_SLAVIO) += slavio_timer.o
+obj-$(CONFIG_XILINX) += xilinx_timer.o
+obj-$(CONFIG_SLAVIO) += slavio_timer.o
 common-obj-$(CONFIG_ETRAXFS) += etraxfs_timer.o
 common-obj-$(CONFIG_GRLIB) += grlib_gptimer.o
 common-obj-$(CONFIG_IMX) += imx_epit.o

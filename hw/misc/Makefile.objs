@@ -1,4 +1,4 @@
-common-obj-$(CONFIG_APPLESMC) += applesmc.o
+ommon-obj-$(CONFIG_APPLESMC) += applesmc.o
 common-obj-$(CONFIG_MAX111X) += max111x.o
 common-obj-$(CONFIG_TMP105) += tmp105.o
 common-obj-$(CONFIG_TMP421) += tmp421.o
@@ -6,20 +6,20 @@ common-obj-$(CONFIG_ISA_DEBUG) += debugexit.o
 common-obj-$(CONFIG_SGA) += sga.o
 common-obj-$(CONFIG_ISA_TESTDEV) += pc-testdev.o
 common-obj-$(CONFIG_PCI_TESTDEV) += pci-testdev.o
-common-obj-$(CONFIG_EDU) += edu.o
+obj-$(CONFIG_EDU) += edu.o
 common-obj-$(CONFIG_PCA9552) += pca9552.o
 
-common-obj-$(CONFIG_UNIMP) += unimp.o
+obj-$(CONFIG_UNIMP) += unimp.o
 common-obj-$(CONFIG_FW_CFG_DMA) += vmcoreinfo.o
 
 # ARM devices
 common-obj-$(CONFIG_PL310) += arm_l2x0.o
-common-obj-$(CONFIG_INTEGRATOR_DEBUG) += arm_integrator_debug.o
+obj-$(CONFIG_INTEGRATOR_DEBUG) += arm_integrator_debug.o
 common-obj-$(CONFIG_A9SCU) += a9scu.o
 common-obj-$(CONFIG_ARM11SCU) += arm11scu.o
 
 # Mac devices
-common-obj-$(CONFIG_MOS6522) += mos6522.o
+obj-$(CONFIG_MOS6522) += mos6522.o
 
 # PKUnity SoC devices
 common-obj-$(CONFIG_PUV3) += puv3_pm.o
