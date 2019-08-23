@@ -136,7 +136,7 @@ static int write_fflags(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_FS;
+    *env->mstatus |= MSTATUS_FS;
 #endif
     riscv_cpu_set_fflags(env, val & (FSR_AEXC >> FSR_AEXC_SHIFT));
     return 0;
@@ -159,7 +159,7 @@ static int write_frm(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_FS;
+    *env->mstatus |= MSTATUS_FS;
 #endif
     env->frm = val & (FSR_RD >> FSR_RD_SHIFT);
     return 0;
@@ -183,7 +183,7 @@ static int write_fcsr(CPURISCVState *env, int csrno, target_ulong val)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
         return -1;
     }
-    env->mstatus |= MSTATUS_FS;
+    *env->mstatus |= MSTATUS_FS;
 #endif
     env->frm = (val & FSR_RD) >> FSR_RD_SHIFT;
     riscv_cpu_set_fflags(env, (val & FSR_AEXC) >> FSR_AEXC_SHIFT);
@@ -307,7 +307,7 @@ static int read_mhartid(CPURISCVState *env, int csrno, target_ulong *val)
 /* Machine Trap Setup */
 static int read_mstatus(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mstatus;
+    *val = *env->mstatus;
     return 0;
 }
 
@@ -319,7 +319,7 @@ static int validate_vm(CPURISCVState *env, target_ulong vm)
 
 static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
 {
-    target_ulong mstatus = env->mstatus;
+    target_ulong mstatus = *env->mstatus;
     target_ulong mask = 0;
     int dirty;
 
@@ -359,7 +359,7 @@ static int write_mstatus(CPURISCVState *env, int csrno, target_ulong val)
              ((mstatus & MSTATUS_FS) == MSTATUS_FS)) |
             ((mstatus & MSTATUS_XS) == MSTATUS_XS);
     mstatus = set_field(mstatus, MSTATUS_SD, dirty);
-    env->mstatus = mstatus;
+    *env->mstatus = mstatus;
 
     return 0;
 }
@@ -448,13 +448,13 @@ static int write_mideleg(CPURISCVState *env, int csrno, target_ulong val)
 
 static int read_mie(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mie;
+    *val = *env->mie;
     return 0;
 }
 
 static int write_mie(CPURISCVState *env, int csrno, target_ulong val)
 {
-    env->mie = (env->mie & ~all_ints) | (val & all_ints);
+    *env->mie = (*env->mie & ~all_ints) | (val & all_ints);
     return 0;
 }
 
@@ -608,7 +608,7 @@ static int read_sstatus(CPURISCVState *env, int csrno, target_ulong *val)
 {
     target_ulong mask = ((env->priv_ver >= PRIV_VERSION_1_10_0) ?
                          sstatus_v1_10_mask : sstatus_v1_9_mask);
-    *val = env->mstatus & mask;
+    *val = *env->mstatus & mask;
     return 0;
 }
 
@@ -616,19 +616,19 @@ static int write_sstatus(CPURISCVState *env, int csrno, target_ulong val)
 {
     target_ulong mask = ((env->priv_ver >= PRIV_VERSION_1_10_0) ?
                          sstatus_v1_10_mask : sstatus_v1_9_mask);
-    target_ulong newval = (env->mstatus & ~mask) | (val & mask);
+    target_ulong newval = (*env->mstatus & ~mask) | (val & mask);
     return write_mstatus(env, CSR_MSTATUS, newval);
 }
 
 static int read_sie(CPURISCVState *env, int csrno, target_ulong *val)
 {
-    *val = env->mie & env->mideleg;
+    *val = *env->mie & env->mideleg;
     return 0;
 }
 
 static int write_sie(CPURISCVState *env, int csrno, target_ulong val)
 {
-    target_ulong newval = (env->mie & ~env->mideleg) | (val & env->mideleg);
+    target_ulong newval = (*env->mie & ~env->mideleg) | (val & env->mideleg);
     return write_mie(env, CSR_MIE, newval);
 }
 
@@ -731,7 +731,7 @@ static int read_satp(CPURISCVState *env, int csrno, target_ulong *val)
     if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
         *val = 0;
     } else if (env->priv_ver >= PRIV_VERSION_1_10_0) {
-        if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
+        if (env->priv == PRV_S && get_field(*env->mstatus, MSTATUS_TVM)) {
             return -1;
         } else {
             *val = env->satp;
@@ -756,7 +756,7 @@ static int write_satp(CPURISCVState *env, int csrno, target_ulong val)
         validate_vm(env, get_field(val, SATP_MODE)) &&
         ((val ^ env->satp) & (SATP_MODE | SATP_ASID | SATP_PPN)))
     {
-        if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
+        if (env->priv == PRV_S && get_field(*env->mstatus, MSTATUS_TVM)) {
             return -1;
         } else {
             if((val ^ env->satp) & SATP_ASID) {

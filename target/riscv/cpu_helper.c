@@ -36,9 +36,9 @@ int riscv_cpu_mmu_index(CPURISCVState *env, bool ifetch)
 #ifndef CONFIG_USER_ONLY
 static int riscv_cpu_local_irq_pending(CPURISCVState *env)
 {
-    target_ulong mstatus_mie = get_field(env->mstatus, MSTATUS_MIE);
-    target_ulong mstatus_sie = get_field(env->mstatus, MSTATUS_SIE);
-    target_ulong pending = atomic_read(&env->mip) & env->mie;
+    target_ulong mstatus_mie = get_field(*env->mstatus, MSTATUS_MIE);
+    target_ulong mstatus_sie = get_field(*env->mstatus, MSTATUS_SIE);
+    target_ulong pending = atomic_read(env->mip) & *env->mie;
     target_ulong mie = env->priv < PRV_M || (env->priv == PRV_M && mstatus_mie);
     target_ulong sie = env->priv < PRV_S || (env->priv == PRV_S && mstatus_sie);
     target_ulong irqs = (pending & ~env->mideleg & -mie) |
@@ -74,7 +74,7 @@ bool riscv_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 /* Return true is floating point support is currently enabled */
 bool riscv_cpu_fp_enabled(CPURISCVState *env)
 {
-    if (env->mstatus & MSTATUS_FS) {
+    if (*env->mstatus & MSTATUS_FS) {
         return true;
     }
 
@@ -219,8 +219,8 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
     int mode = mmu_idx;
 
     if (mode == PRV_M && access_type != MMU_INST_FETCH) {
-        if (get_field(env->mstatus, MSTATUS_MPRV)) {
-            mode = get_field(env->mstatus, MSTATUS_MPP);
+        if (get_field(*env->mstatus, MSTATUS_MPRV)) {
+            mode = get_field(*env->mstatus, MSTATUS_MPP);
         }
     }
 
@@ -234,11 +234,11 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
 
     target_ulong base;
     int levels, ptidxbits, ptesize, vm, sum;
-    int mxr = get_field(env->mstatus, MSTATUS_MXR);
+    int mxr = get_field(*env->mstatus, MSTATUS_MXR);
 
     if (env->priv_ver >= PRIV_VERSION_1_10_0) {
         base = get_field(env->satp, SATP_PPN) << PGSHIFT;
-        sum = get_field(env->mstatus, MSTATUS_SUM);
+        sum = get_field(*env->mstatus, MSTATUS_SUM);
         vm = get_field(env->satp, SATP_MODE);
         switch (vm) {
         case VM_1_10_SV32:
@@ -258,8 +258,8 @@ static int get_physical_address(CPURISCVState *env, hwaddr *physical,
         }
     } else {
         base = env->sptbr << PGSHIFT;
-        sum = !get_field(env->mstatus, MSTATUS_PUM);
-        vm = get_field(env->mstatus, MSTATUS_VM);
+        sum = !get_field(*env->mstatus, MSTATUS_PUM);
+        vm = get_field(*env->mstatus, MSTATUS_VM);
         switch (vm) {
         case VM_1_09_SV32:
           levels = 2; ptidxbits = 10; ptesize = 4; break;
@@ -505,8 +505,8 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     ret = get_physical_address(env, &pa, &prot, address, access_type, mmu_idx);
 
     if (mode == PRV_M && access_type != MMU_INST_FETCH) {
-        if (get_field(env->mstatus, MSTATUS_MPRV)) {
-            mode = get_field(env->mstatus, MSTATUS_MPP);
+        if (get_field(*env->mstatus, MSTATUS_MPRV)) {
+            mode = get_field(*env->mstatus, MSTATUS_MPP);
         }
     }
 
@@ -606,12 +606,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
     if (env->priv <= PRV_S &&
             cause < TARGET_LONG_BITS && ((deleg >> cause) & 1)) {
         /* handle the trap in S-mode */
-        target_ulong s = env->mstatus;
+        target_ulong s = *env->mstatus;
         s = set_field(s, MSTATUS_SPIE, env->priv_ver >= PRIV_VERSION_1_10_0 ?
             get_field(s, MSTATUS_SIE) : get_field(s, MSTATUS_UIE << env->priv));
         s = set_field(s, MSTATUS_SPP, env->priv);
         s = set_field(s, MSTATUS_SIE, 0);
-        env->mstatus = s;
+        *env->mstatus = s;
         env->scause = cause | ((target_ulong)async << (TARGET_LONG_BITS - 1));
         env->sepc = env->pc;
         env->sbadaddr = tval;
@@ -620,12 +620,12 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         riscv_cpu_set_mode(env, PRV_S);
     } else {
         /* handle the trap in M-mode */
-        target_ulong s = env->mstatus;
+        target_ulong s = *env->mstatus;
         s = set_field(s, MSTATUS_MPIE, env->priv_ver >= PRIV_VERSION_1_10_0 ?
             get_field(s, MSTATUS_MIE) : get_field(s, MSTATUS_UIE << env->priv));
         s = set_field(s, MSTATUS_MPP, env->priv);
         s = set_field(s, MSTATUS_MIE, 0);
-        env->mstatus = s;
+        *env->mstatus = s;
         env->mcause = cause | ~(((target_ulong)-1) >> async);
         env->mepc = env->pc;
         env->mbadaddr = tval;
