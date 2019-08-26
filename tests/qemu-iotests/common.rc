@@ -60,61 +60,132 @@ if ! . ./common.config
     exit 1
 fi
 
-_qemu_wrapper()
-{
-    (
-        if [ -n "${QEMU_NEED_PID}" ]; then
-            echo $BASHPID > "${QEMU_TEST_DIR}/qemu-${_QEMU_HANDLE}.pid"
-        fi
-        exec "$QEMU_PROG" $QEMU_OPTIONS "$@"
-    )
-}
+# Unset the variables to turn Valgrind off for specific processes, e.g.
+# $ VALGRIND_QEMU_IO= ./check -qcow2 -valgrind 015
 
-_qemu_img_wrapper()
-{
-    (exec "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS "$@")
-}
+: ${VALGRIND_QEMU_VM='y'}
+: ${VALGRIND_QEMU_IMG='y'}
+: ${VALGRIND_QEMU_IO='y'}
+: ${VALGRIND_QEMU_NBD='y'}
+: ${VALGRIND_QEMU_VXHS='y'}
 
-_qemu_io_wrapper()
+# The Valgrind own parameters may be set with
+# its environment variable VALGRIND_OPTS, e.g.
+# $ VALGRIND_OPTS="--leak-check=yes" ./check -qcow2 -valgrind 015
+
+_qemu_proc_exec()
 {
-    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
-    local QEMU_IO_ARGS="$QEMU_IO_OPTIONS"
-    if [ "$IMGOPTSSYNTAX" = "true" ]; then
-        QEMU_IO_ARGS="--image-opts $QEMU_IO_ARGS"
-        if [ -n "$IMGKEYSECRET" ]; then
-            QEMU_IO_ARGS="--object secret,id=keysec0,data=$IMGKEYSECRET $QEMU_IO_ARGS"
-        fi
+    local VALGRIND_LOGFILE="$1"
+    shift
+    if [ "${VALGRIND_QEMU}" == "y" ]; then
+        exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$@"
+    else
+        exec "$@"
     fi
-    local RETVAL
-    (
-        if [ "${VALGRIND_QEMU}" == "y" ]; then
-            exec valgrind --log-file="${VALGRIND_LOGFILE}" --error-exitcode=99 "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@"
-        else
-            exec "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@"
-        fi
-    )
-    RETVAL=$?
+}
+
+_qemu_proc_valgrind_log()
+{
+    local VALGRIND_LOGFILE="$1"
+    local RETVAL="$2"
     if [ "${VALGRIND_QEMU}" == "y" ]; then
         if [ $RETVAL == 99 ]; then
             cat "${VALGRIND_LOGFILE}"
         fi
         rm -f "${VALGRIND_LOGFILE}"
     fi
-    (exit $RETVAL)
+}
+
+_qemu_wrapper()
+{
+    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
+    local VALGRIND_ON="${VALGRIND_QEMU}"
+    if [ "${VALGRIND_QEMU_VM}" != "y" ]; then
+        VALGRIND_ON=''
+    fi
+    (
+        if [ -n "${QEMU_NEED_PID}" ]; then
+            echo $BASHPID > "${QEMU_TEST_DIR}/qemu-${_QEMU_HANDLE}.pid"
+        fi
+        VALGRIND_QEMU="${VALGRIND_ON}" _qemu_proc_exec "${VALGRIND_LOGFILE}" \
+            "$QEMU_PROG" $QEMU_OPTIONS "$@"
+    )
+    RETVAL=$?
+    _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
+    return $RETVAL
+}
+
+_qemu_img_wrapper()
+{
+    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
+    local VALGRIND_ON="${VALGRIND_QEMU}"
+    if [ "${VALGRIND_QEMU_IMG}" != "y" ]; then
+        VALGRIND_ON=''
+    fi
+    (
+        VALGRIND_QEMU="${VALGRIND_ON}" _qemu_proc_exec "${VALGRIND_LOGFILE}" \
+            "$QEMU_IMG_PROG" $QEMU_IMG_OPTIONS "$@"
+    )
+    RETVAL=$?
+    _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
+    return $RETVAL
+}
+
+_qemu_io_wrapper()
+{
+    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
+    local QEMU_IO_ARGS="$QEMU_IO_OPTIONS"
+    local VALGRIND_ON="${VALGRIND_QEMU}"
+    if [ "${VALGRIND_QEMU_IO}" != "y" ]; then
+        VALGRIND_ON=''
+    fi
+    if [ "$IMGOPTSSYNTAX" = "true" ]; then
+        QEMU_IO_ARGS="--image-opts $QEMU_IO_ARGS"
+        if [ -n "$IMGKEYSECRET" ]; then
+            QEMU_IO_ARGS="--object secret,id=keysec0,data=$IMGKEYSECRET $QEMU_IO_ARGS"
+        fi
+    fi
+    (
+        VALGRIND_QEMU="${VALGRIND_ON}" _qemu_proc_exec "${VALGRIND_LOGFILE}" \
+            "$QEMU_IO_PROG" $QEMU_IO_ARGS "$@"
+    )
+    RETVAL=$?
+    _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
+    return $RETVAL
 }
 
 _qemu_nbd_wrapper()
 {
-    "$QEMU_NBD_PROG" --pid-file="${QEMU_TEST_DIR}/qemu-nbd.pid" \
-                     $QEMU_NBD_OPTIONS "$@"
+    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
+    local VALGRIND_ON="${VALGRIND_QEMU}"
+    if [ "${VALGRIND_QEMU_NBD}" != "y" ]; then
+        VALGRIND_ON=''
+    fi
+    (
+        VALGRIND_QEMU="${VALGRIND_ON}" _qemu_proc_exec "${VALGRIND_LOGFILE}" \
+            "$QEMU_NBD_PROG" --pid-file="${QEMU_TEST_DIR}/qemu-nbd.pid" \
+             $QEMU_NBD_OPTIONS "$@"
+    )
+    RETVAL=$?
+    _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
+    return $RETVAL
 }
 
 _qemu_vxhs_wrapper()
 {
+    local VALGRIND_LOGFILE="${TEST_DIR}"/$$.valgrind
+    local VALGRIND_ON="${VALGRIND_QEMU}"
+    if [ "${VALGRIND_QEMU_VXHS}" != "y" ]; then
+        VALGRIND_ON=''
+    fi
     (
         echo $BASHPID > "${TEST_DIR}/qemu-vxhs.pid"
-        exec "$QEMU_VXHS_PROG" $QEMU_VXHS_OPTIONS "$@"
+        VALGRIND_QEMU="${VALGRIND_ON}" _qemu_proc_exec "${VALGRIND_LOGFILE}" \
+            "$QEMU_VXHS_PROG" $QEMU_VXHS_OPTIONS "$@"
     )
+    RETVAL=$?
+    _qemu_proc_valgrind_log "${VALGRIND_LOGFILE}" $RETVAL
+    return $RETVAL
 }
 
 export QEMU=_qemu_wrapper
