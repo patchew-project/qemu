@@ -46,7 +46,7 @@ static const MemoryRegionOps unimp_ops = {
     .impl.max_access_size = 8,
     .valid.min_access_size = 1,
     .valid.max_access_size = 8,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
 };
 
 static void unimp_realize(DeviceState *dev, Error **errp)

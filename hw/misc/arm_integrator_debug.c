@@ -72,7 +72,7 @@ static void intdbg_control_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps intdbg_control_ops = {
     .read = intdbg_control_read,
     .write = intdbg_control_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void intdbg_control_init(Object *obj)

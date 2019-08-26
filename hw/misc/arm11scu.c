@@ -58,7 +58,7 @@ static void mpcore_scu_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps mpcore_scu_ops = {
     .read = mpcore_scu_read,
     .write = mpcore_scu_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void arm11_scu_realize(DeviceState *dev, Error **errp)
