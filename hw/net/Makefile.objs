@@ -1,4 +1,4 @@
-common-obj-$(CONFIG_DP8393X) += dp8393x.o
+obj-$(CONFIG_DP8393X) += dp8393x.o
 common-obj-$(CONFIG_XEN) += xen_nic.o
 common-obj-$(CONFIG_NE2000_COMMON) += ne2000.o
 
