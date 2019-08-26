@@ -1285,7 +1285,7 @@ static const MemoryRegionOps imx_eth_ops = {
     .write                 = imx_eth_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
-    .endianness            = DEVICE_NATIVE_ENDIAN,
+    .endianness            = DEVICE_LITTLE_ENDIAN,
 };
 
 static void imx_eth_cleanup(NetClientState *nc)
