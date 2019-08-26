@@ -866,7 +866,7 @@ static void *qpa_conn_init(const char *server)
     }
 
     c->context = pa_context_new(pa_threaded_mainloop_get_api(c->mainloop),
-                                server);
+                                "qemu");
     if (!c->context) {
         goto fail;
     }
