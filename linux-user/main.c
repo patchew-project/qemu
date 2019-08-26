@@ -393,6 +393,13 @@ static void handle_arg_trace(const char *arg)
     trace_file = trace_opt_parse(arg);
 }
 
+#if defined(TARGET_XTENSA)
+static void handle_arg_abi_call0(const char *arg)
+{
+    xtensa_set_abi_call0();
+}
+#endif
+
 struct qemu_argument {
     const char *argv;
     const char *env;
@@ -446,6 +453,10 @@ static const struct qemu_argument arg_table[] = {
      "",           "[[enable=]<pattern>][,events=<file>][,file=<file>]"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
      "",           "display version information and exit"},
+#if defined(TARGET_XTENSA)
+    {"xtensa-abi-call0", "QEMU_XTENSA_ABI_CALL0", false, handle_arg_abi_call0,
+     "",           "assume CALL0 Xtensa ABI"},
+#endif
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
@@ -709,6 +720,12 @@ int main(int argc, char **argv, char **envp)
             exit(1);
         }
     }
+
+#if defined(TARGET_XTENSA)
+    if (getenv("QEMU_XTENSA_ABI_CALL0")) {
+        xtensa_set_abi_call0();
+    }
+#endif
 
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
