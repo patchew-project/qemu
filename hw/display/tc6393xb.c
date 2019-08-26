@@ -549,7 +549,7 @@ TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
     static const MemoryRegionOps tc6393xb_ops = {
         .read = tc6393xb_readb,
         .write = tc6393xb_writeb,
-        .endianness = DEVICE_NATIVE_ENDIAN,
+        .endianness = DEVICE_LITTLE_ENDIAN,
         .impl = {
             .min_access_size = 1,
             .max_access_size = 1,

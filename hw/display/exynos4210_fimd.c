@@ -1821,7 +1821,7 @@ static const MemoryRegionOps exynos4210_fimd_mmio_ops = {
         .max_access_size = 4,
         .unaligned = false
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int exynos4210_fimd_load(void *opaque, int version_id)

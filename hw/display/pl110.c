@@ -473,7 +473,7 @@ static void pl110_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps pl110_ops = {
     .read = pl110_read,
     .write = pl110_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void pl110_mux_ctrl_set(void *opaque, int line, int level)

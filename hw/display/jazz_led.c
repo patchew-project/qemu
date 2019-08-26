@@ -73,7 +73,7 @@ static void jazz_led_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps led_ops = {
     .read = jazz_led_read,
     .write = jazz_led_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
     .impl.min_access_size = 1,
     .impl.max_access_size = 1,
 };
