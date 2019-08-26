@@ -98,27 +98,32 @@ fail:
  * error occurred, return a negative error number
  */
 static int coroutine_fn block_copy_with_bounce_buffer(
-        BlockCopyState *s, int64_t start, int64_t end, bool is_write_notifier,
+        BlockCopyState *s, int64_t start, int64_t end,
         bool *error_is_read, void **bounce_buffer)
 {
     int ret;
-    int nbytes;
-    int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
+    int nbytes = MIN(s->cluster_size, s->len - start);
+    void *lock = bdrv_co_try_lock(blk_bs(s->source), start, nbytes);
+
+    /*
+     * Function must be called only on full-dirty region, so nobody touching or
+     * touched these bytes. Therefore, we must successfully get lock.
+     */
+    assert(lock);
 
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     bdrv_reset_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
-    nbytes = MIN(s->cluster_size, s->len - start);
     if (!*bounce_buffer) {
         *bounce_buffer = blk_blockalign(s->source, s->cluster_size);
     }
 
-    ret = blk_co_pread(s->source, start, nbytes, *bounce_buffer, read_flags);
+    ret = blk_co_pread(s->source, start, nbytes, *bounce_buffer, 0);
     if (ret < 0) {
         trace_block_copy_with_bounce_buffer_read_fail(s, start, ret);
         if (error_is_read) {
             *error_is_read = true;
         }
-        goto fail;
+        goto out;
     }
 
     ret = blk_co_pwrite(s->target, start, nbytes, *bounce_buffer,
@@ -128,13 +133,16 @@ static int coroutine_fn block_copy_with_bounce_buffer(
         if (error_is_read) {
             *error_is_read = false;
         }
-        goto fail;
+        goto out;
     }
 
-    return nbytes;
-fail:
-    bdrv_set_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
-    return ret;
+out:
+    if (ret < 0) {
+        bdrv_set_dirty_bitmap(s->copy_bitmap, start, s->cluster_size);
+    }
+    bdrv_co_unlock(lock);
+
+    return ret < 0 ? ret : nbytes;
 
 }
 
@@ -143,29 +151,37 @@ fail:
  * negative error number.
  */
 static int coroutine_fn block_copy_with_offload(
-        BlockCopyState *s, int64_t start, int64_t end, bool is_write_notifier)
+        BlockCopyState *s, int64_t start, int64_t end)
 {
     int ret;
     int nr_clusters;
     int nbytes;
-    int read_flags = is_write_notifier ? BDRV_REQ_NO_SERIALISING : 0;
+    void *lock;
 
     assert(QEMU_IS_ALIGNED(s->copy_range_size, s->cluster_size));
     assert(QEMU_IS_ALIGNED(start, s->cluster_size));
     nbytes = MIN(s->copy_range_size, MIN(end - start, s->len - start));
+    lock = bdrv_co_try_lock(blk_bs(s->source), start, nbytes);
+    /*
+     * Function must be called only on full-dirty region, so nobody touching or
+     * touched these bytes. Therefore, we must successfully get lock.
+     */
+    assert(lock);
+
     nr_clusters = DIV_ROUND_UP(nbytes, s->cluster_size);
     bdrv_reset_dirty_bitmap(s->copy_bitmap, start,
                             s->cluster_size * nr_clusters);
     ret = blk_co_copy_range(s->source, start, s->target, start, nbytes,
-                            read_flags, s->write_flags);
+                            0, s->write_flags);
     if (ret < 0) {
         trace_block_copy_with_offload_fail(s, start, ret);
         bdrv_set_dirty_bitmap(s->copy_bitmap, start,
                               s->cluster_size * nr_clusters);
-        return ret;
     }
 
-    return nbytes;
+    bdrv_co_unlock(lock);
+
+    return ret < 0 ? ret : nbytes;
 }
 
 /*
@@ -239,8 +255,7 @@ int64_t block_copy_reset_unallocated(
 }
 
 int coroutine_fn block_copy(
-        BlockCopyState *s, int64_t offset, uint64_t bytes, bool *error_is_read,
-        bool is_write_notifier)
+        BlockCopyState *s, int64_t offset, uint64_t bytes, bool *error_is_read)
 {
     int ret = 0;
     int64_t start = offset, end = bytes + offset; /* bytes */
@@ -279,15 +294,13 @@ int coroutine_fn block_copy(
         trace_block_copy_process(s, start);
 
         if (s->use_copy_range) {
-            ret = block_copy_with_offload(s, start, dirty_end,
-                                          is_write_notifier);
+            ret = block_copy_with_offload(s, start, dirty_end);
             if (ret < 0) {
                 s->use_copy_range = false;
             }
         }
         if (!s->use_copy_range) {
             ret = block_copy_with_bounce_buffer(s, start, dirty_end,
-                                                is_write_notifier,
                                                 error_is_read, &bounce_buffer);
         }
         if (ret < 0) {

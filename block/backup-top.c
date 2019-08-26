@@ -49,15 +49,11 @@ static coroutine_fn int backup_top_co_preadv(
 static coroutine_fn int backup_top_cbw(BlockDriverState *bs, uint64_t offset,
                                        uint64_t bytes)
 {
-    /*
-     * Here we'd like to use block_copy(), but it needs some additional
-     * synchronization mechanism to prevent intersecting guest writes during
-     * copy operation. The will appear in further commit (it should be done
-     * together with moving backup to using of backup-top and to the same
-     * synchronization mechanism), and for now it is a TODO.
-     */
+    BDRVBackupTopState *s = bs->opaque;
+    uint64_t end = QEMU_ALIGN_UP(offset + bytes, s->bcs->cluster_size);
+    uint64_t off = QEMU_ALIGN_DOWN(offset, s->bcs->cluster_size);
 
-    abort();
+    return block_copy(s->bcs, off, end - off, NULL);
 }
 
 static int coroutine_fn backup_top_co_pdiscard(BlockDriverState *bs,
