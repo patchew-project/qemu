@@ -49,7 +49,7 @@ static void empty_slot_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps empty_slot_ops = {
     .read = empty_slot_read,
     .write = empty_slot_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
 };
 
 void empty_slot_init(hwaddr addr, uint64_t slot_size)
