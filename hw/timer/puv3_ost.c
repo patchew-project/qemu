@@ -99,7 +99,7 @@ static const MemoryRegionOps puv3_ost_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void puv3_ost_tick(void *opaque)

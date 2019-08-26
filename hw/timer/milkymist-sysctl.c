@@ -223,7 +223,7 @@ static const MemoryRegionOps sysctl_mmio_ops = {
         .min_access_size = 4,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static void timer0_hit(void *opaque)

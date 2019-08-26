@@ -391,7 +391,7 @@ static void cadence_ttc_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps cadence_ttc_ops = {
     .read = cadence_ttc_read,
     .write = cadence_ttc_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void cadence_timer_reset(CadenceTimerState *s)
