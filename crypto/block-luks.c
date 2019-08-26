@@ -541,12 +541,12 @@ fail:
 static int
 qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
 {
-    int ret;
+    int ret = -EINVAL;
+    size_t i, j;
 
     if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
                QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
         error_setg(errp, "Volume is not in LUKS format");
-        ret = -EINVAL;
         goto fail;
     }
 
@@ -557,6 +557,48 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
         goto fail;
     }
 
+    /* Check all keyslots for corruption  */
+    for (i = 0 ; i < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS ; i++) {
+
+        const QCryptoBlockLUKSKeySlot *slot1 = &luks->header.key_slots[i];
+        unsigned int start1 = slot1->key_offset_sector;
+        unsigned int len1 =
+            qcrypto_block_luks_splitkeylen_sectors(luks, slot1->stripes);
+
+        if (slot1->stripes == 0) {
+            error_setg(errp, "Keyslot %zu is corrupted (stripes == 0)", i);
+            goto fail;
+        }
+
+        if (slot1->active != QCRYPTO_BLOCK_LUKS_KEY_SLOT_DISABLED &&
+                slot1->active != QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED) {
+            error_setg(errp,
+                       "Keyslot %zu state (active/disable) is corrupted", i);
+            goto fail;
+        }
+
+        if (start1 + len1 > luks->header.payload_offset_sector) {
+            error_setg(errp,
+                       "Keyslot %zu is overlapping with the encrypted payload",
+                       i);
+            goto fail;
+        }
+
+        for (j = i + 1 ; j < QCRYPTO_BLOCK_LUKS_NUM_KEY_SLOTS ; j++) {
+            const QCryptoBlockLUKSKeySlot *slot2 = &luks->header.key_slots[j];
+            unsigned int start2 = slot2->key_offset_sector;
+            unsigned int len2 =
+                qcrypto_block_luks_splitkeylen_sectors(luks, slot2->stripes);
+
+            if (start1 + len1 > start2 && start2 + len2 > start1) {
+                error_setg(errp,
+                           "Keyslots %zu and %zu are overlapping in the header",
+                           i, j);
+                goto fail;
+            }
+        }
+
+    }
     return 0;
 fail:
     return ret;
