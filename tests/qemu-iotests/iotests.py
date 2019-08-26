@@ -643,6 +643,28 @@ class VM(qtest.QEMUQtestMachine):
                 return x
         return None
 
+    def query_bitmaps(self):
+        res = self.qmp("query-named-block-nodes")
+        return {"bitmaps": {device['node-name']: device['dirty-bitmaps']
+                                for device in res['return']
+                                    if 'dirty-bitmaps' in device}}
+
+    def get_bitmap(self, bitmaps, node_name, name, recording=None):
+        """
+        get a specific bitmap from the object returned by query_bitmaps.
+        :param recording: If specified, filter results by the specified value.
+        """
+        if bitmaps is None:
+            bitmaps = self.query_bitmaps()
+
+        for bitmap in bitmaps['bitmaps'][node_name]:
+            if bitmap.get('name', '') == name:
+                if recording is None:
+                    return bitmap
+                elif bitmap.get('recording') == recording:
+                    return bitmap
+        return None
+
 
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 

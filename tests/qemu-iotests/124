@@ -749,8 +749,7 @@ class TestIncrementalBackupBlkdebug(TestIncrementalBackupBase):
 
         # Bitmap Status Check
         query = self.vm.qmp('query-block')
-        ret = [bmap for bmap in query['return'][0]['dirty-bitmaps']
-               if bmap.get('name') == bitmap.name][0]
+        ret = self.vm.get_bitmap(None, drive0['id'], bitmap.name)
         self.assert_qmp(ret, 'count', 458752)
         self.assert_qmp(ret, 'granularity', 65536)
         self.assert_qmp(ret, 'status', 'frozen')
