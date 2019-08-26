@@ -192,14 +192,13 @@ fail:
     return NULL;
 }
 
-/* Copy range to target with a bounce buffer and return the bytes copied. If
- * error occurred, return a negative error number */
-static int coroutine_fn block_copy_with_bounce_buffer(BlockCopyState *s,
-                                                      int64_t start,
-                                                      int64_t end,
-                                                      bool is_write_notifier,
-                                                      bool *error_is_read,
-                                                      void **bounce_buffer)
+/*
+ * Copy range to target with a bounce buffer and return the bytes copied. If
+ * error occurred, return a negative error number
+ */
+static int coroutine_fn block_copy_with_bounce_buffer(
+        BlockCopyState *s, int64_t start, int64_t end, bool is_write_notifier,
+        bool *error_is_read, void **bounce_buffer)
 {
     int ret;
     int nbytes;
@@ -238,12 +237,12 @@ fail:
 
 }
 
-/* Copy range to target and return the bytes copied. If error occurred, return a
- * negative error number. */
-static int coroutine_fn block_copy_with_offload(BlockCopyState *s,
-                                                int64_t start,
-                                                int64_t end,
-                                                bool is_write_notifier)
+/*
+ * Copy range to target and return the bytes copied. If error occurred, return a
+ * negative error number.
+ */
+static int coroutine_fn block_copy_with_offload(
+        BlockCopyState *s, int64_t start, int64_t end, bool is_write_notifier)
 {
     int ret;
     int nr_clusters;
@@ -310,14 +309,14 @@ static int block_copy_is_cluster_allocated(BlockCopyState *s, int64_t offset,
     }
 }
 
-/**
+/*
  * Reset bits in copy_bitmap starting at offset if they represent unallocated
  * data in the image. May reset subsequent contiguous bits.
  * @return 0 when the cluster at @offset was unallocated,
  *         1 otherwise, and -ret on error.
  */
-static int64_t block_copy_reset_unallocated(BlockCopyState *s,
-                                            int64_t offset, int64_t *count)
+static int64_t block_copy_reset_unallocated(
+        BlockCopyState *s, int64_t offset, int64_t *count)
 {
     int ret;
     int64_t clusters, bytes;
@@ -338,10 +337,9 @@ static int64_t block_copy_reset_unallocated(BlockCopyState *s,
     return ret;
 }
 
-static int coroutine_fn block_copy(BlockCopyState *s,
-                                   int64_t offset, uint64_t bytes,
-                                   bool *error_is_read,
-                                   bool is_write_notifier)
+static int coroutine_fn block_copy(
+        BlockCopyState *s, int64_t offset, uint64_t bytes, bool *error_is_read,
+        bool is_write_notifier)
 {
     int ret = 0;
     int64_t start = offset, end = bytes + offset; /* bytes */
