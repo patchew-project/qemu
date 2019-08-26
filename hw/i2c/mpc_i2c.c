@@ -306,7 +306,7 @@ static const MemoryRegionOps i2c_ops = {
     .read =  mpc_i2c_read,
     .write =  mpc_i2c_write,
     .valid.max_access_size = 1,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static const VMStateDescription mpc_i2c_vmstate = {

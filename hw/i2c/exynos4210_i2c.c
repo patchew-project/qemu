@@ -266,7 +266,7 @@ static void exynos4210_i2c_write(void *opaque, hwaddr offset,
 static const MemoryRegionOps exynos4210_i2c_ops = {
     .read = exynos4210_i2c_read,
     .write = exynos4210_i2c_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription exynos4210_i2c_vmstate = {
