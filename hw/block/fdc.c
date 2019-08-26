@@ -984,13 +984,13 @@ static void fdctrl_write_mem (void *opaque, hwaddr reg,
 static const MemoryRegionOps fdctrl_mem_ops = {
     .read = fdctrl_read_mem,
     .write = fdctrl_write_mem,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
 };
 
 static const MemoryRegionOps fdctrl_mem_strict_ops = {
     .read = fdctrl_read_mem,
     .write = fdctrl_write_mem,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 1,

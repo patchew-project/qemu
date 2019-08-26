@@ -771,7 +771,7 @@ static void onenand_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps onenand_ops = {
     .read = onenand_read,
     .write = onenand_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void onenand_realize(DeviceState *dev, Error **errp)
