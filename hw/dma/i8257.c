@@ -476,7 +476,7 @@ static int i8257_phony_handler(void *opaque, int nchan, int dma_pos,
 static const MemoryRegionOps channel_io_ops = {
     .read = i8257_read_chan,
     .write = i8257_write_chan,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
@@ -500,7 +500,7 @@ static const MemoryRegionPortio pageh_portio_list[] = {
 static const MemoryRegionOps cont_io_ops = {
     .read = i8257_read_cont,
     .write = i8257_write_cont,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_HOST_ENDIAN,
     .impl = {
         .min_access_size = 1,
         .max_access_size = 1,
