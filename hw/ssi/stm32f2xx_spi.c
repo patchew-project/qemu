@@ -167,7 +167,7 @@ static void stm32f2xx_spi_write(void *opaque, hwaddr addr,
 static const MemoryRegionOps stm32f2xx_spi_ops = {
     .read = stm32f2xx_spi_read,
     .write = stm32f2xx_spi_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_stm32f2xx_spi = {
