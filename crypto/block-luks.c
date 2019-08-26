@@ -32,6 +32,7 @@
 #include "qemu/uuid.h"
 
 #include "qemu/coroutine.h"
+#include "autowipe.h"
 
 /*
  * Reference for the LUKS format implemented here is
@@ -698,19 +699,18 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
 {
     QCryptoBlockLUKS *luks = block->opaque;
     QCryptoBlockLUKSKeySlot *slot = &luks->header.key_slots[slot_idx];
-    g_autofree uint8_t *splitkey = NULL;
+    g_autowipe uint8_t *splitkey = NULL;
     size_t splitkeylen;
-    g_autofree uint8_t *slotkey = NULL;
+    g_autowipe uint8_t *slotkey = NULL;
     g_autoptr(QCryptoCipher) cipher = NULL;
     g_autoptr(QCryptoIVGen) ivgen = NULL;
     Error *local_err = NULL;
     uint64_t iters;
-    int ret = -1;
 
     if (qcrypto_random_bytes(slot->salt,
                              QCRYPTO_BLOCK_LUKS_SALT_LEN,
                              errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     splitkeylen = luks->header.master_key_len * slot->stripes;
@@ -728,14 +728,14 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                                        &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto cleanup;
+        return -1;
     }
 
     if (iters > (ULLONG_MAX / iter_time)) {
         error_setg_errno(errp, ERANGE,
                          "PBKDF iterations %llu too large to scale",
                          (unsigned long long)iters);
-        goto cleanup;
+        return -1;
     }
 
     /* iter_time was in millis, but count_iters reported for secs */
@@ -745,7 +745,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
         error_setg_errno(errp, ERANGE,
                          "PBKDF iterations %llu larger than %u",
                          (unsigned long long)iters, UINT32_MAX);
-        goto cleanup;
+        return -1;
     }
 
     slot->iterations =
@@ -764,7 +764,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                        slot->iterations,
                        slotkey, luks->header.master_key_len,
                        errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
 
@@ -777,7 +777,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                                 slotkey, luks->header.master_key_len,
                                 errp);
     if (!cipher) {
-        goto cleanup;
+        return -1;
     }
 
     ivgen = qcrypto_ivgen_new(luks->ivgen_alg,
@@ -786,7 +786,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                               slotkey, luks->header.master_key_len,
                               errp);
     if (!ivgen) {
-        goto cleanup;
+        return -1;
     }
 
     /*
@@ -802,7 +802,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                                masterkey,
                                splitkey,
                                errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     /*
@@ -815,7 +815,7 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                                             splitkey,
                                             splitkeylen,
                                             errp) < 0) {
-        goto cleanup;
+        return -1;
     }
 
     /* Write out the slot's master key material. */
@@ -825,25 +825,16 @@ qcrypto_block_luks_store_key(QCryptoBlock *block,
                   splitkey, splitkeylen,
                   opaque,
                   errp) != splitkeylen) {
-        goto cleanup;
+        return -1;
     }
 
     slot->active = QCRYPTO_BLOCK_LUKS_KEY_SLOT_ENABLED;
 
     if (qcrypto_block_luks_store_header(block,  writefunc, opaque, errp)) {
-        goto cleanup;
+        return -1;
     }
 
-    ret = 0;
-
-cleanup:
-    if (slotkey) {
-        memset(slotkey, 0, luks->header.master_key_len);
-    }
-    if (splitkey) {
-        memset(splitkey, 0, splitkeylen);
-    }
-    return ret;
+    return 0;
 }
 
 /*
@@ -868,9 +859,9 @@ qcrypto_block_luks_load_key(QCryptoBlock *block,
 {
     QCryptoBlockLUKS *luks = block->opaque;
     const QCryptoBlockLUKSKeySlot *slot = &luks->header.key_slots[slot_idx];
-    g_autofree uint8_t *splitkey = NULL;
+    g_autowipe uint8_t *splitkey = NULL;
     size_t splitkeylen;
-    g_autofree uint8_t *possiblekey = NULL;
+    g_autowipe uint8_t *possiblekey = NULL;
     ssize_t rv;
     g_autoptr(QCryptoCipher) cipher = NULL;
     uint8_t keydigest[QCRYPTO_BLOCK_LUKS_DIGEST_LEN];
@@ -1059,8 +1050,8 @@ qcrypto_block_luks_open(QCryptoBlock *block,
 {
     QCryptoBlockLUKS *luks = NULL;
     int ret = 0;
-    g_autofree uint8_t *masterkey = NULL;
-    g_autofree char *password = NULL;
+    g_autowipe uint8_t *masterkey = NULL;
+    g_autowipe char *password = NULL;
 
     if (!(flags & QCRYPTO_BLOCK_OPEN_NO_IO)) {
         if (!options->u.luks.key_secret) {
@@ -1151,6 +1142,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
  fail:
     qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
+
     g_free(luks);
     return ret;
 }
@@ -1176,11 +1168,11 @@ qcrypto_block_luks_create(QCryptoBlock *block,
     QCryptoBlockLUKS *luks;
     QCryptoBlockCreateOptionsLUKS luks_opts;
     Error *local_err = NULL;
-    g_autofree uint8_t *masterkey = NULL;
+    g_autowipe uint8_t *masterkey = NULL;
     size_t header_sectors;
     size_t split_key_sectors;
     size_t i;
-    g_autofree char *password;
+    g_autowipe char *password;
     const char *cipher_alg;
     const char *cipher_mode;
     const char *ivgen_alg;
@@ -1445,22 +1437,13 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         goto error;
      }
 
-
-    memset(masterkey, 0, luks->header.master_key_len);
     return 0;
-
  error:
-    if (masterkey) {
-        memset(masterkey, 0, luks->header.master_key_len);
-    }
-
     qcrypto_block_free_cipher(block);
     qcrypto_ivgen_free(block->ivgen);
-
     g_free(luks);
     return -1;
 }
-
 
 static int qcrypto_block_luks_get_info(QCryptoBlock *block,
                                        QCryptoBlockInfo *info,
