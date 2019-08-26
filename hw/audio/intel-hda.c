@@ -1069,7 +1069,7 @@ static const MemoryRegionOps intel_hda_mmio_ops = {
         .min_access_size = 1,
         .max_access_size = 4,
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /* --------------------------------------------------------------------- */
