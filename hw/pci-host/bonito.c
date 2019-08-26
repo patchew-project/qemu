@@ -526,7 +526,7 @@ static const MemoryRegionOps bonito_spciconf_ops = {
     .valid.max_access_size = 4,
     .impl.min_access_size = 1,
     .impl.max_access_size = 4,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 #define BONITO_IRQ_BASE 32
