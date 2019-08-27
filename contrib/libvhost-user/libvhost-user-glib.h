@@ -22,7 +22,6 @@ typedef struct VugDev {
     VuDev parent;
 
     GHashTable *fdmap; /* fd -> gsource */
-    GSource *src;
 } VugDev;
 
 bool vug_init(VugDev *dev, uint16_t max_queues, int socket,

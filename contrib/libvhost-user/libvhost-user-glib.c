@@ -146,7 +146,7 @@ vug_init(VugDev *dev, uint16_t max_queues, int socket,
     dev->fdmap = g_hash_table_new_full(NULL, NULL, NULL,
                                        (GDestroyNotify) g_source_destroy);
 
-    dev->src = vug_source_new(dev, socket, G_IO_IN, vug_watch, NULL);
+    set_watch(&dev->parent, socket, VU_WATCH_IN, vug_watch, NULL);
 
     return true;
 }
@@ -157,5 +157,4 @@ vug_deinit(VugDev *dev)
     g_assert(dev);
 
     g_hash_table_unref(dev->fdmap);
-    g_source_unref(dev->src);
 }
