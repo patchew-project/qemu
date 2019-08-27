@@ -56,6 +56,7 @@ void kvm_arm_gic_set_irq(uint32_t num_irq, int irq, int level)
      * CPU number and interrupt number.
      */
     int kvm_irq, irqtype, cpu;
+    int cpu_idx1 = 0, cpu_idx2 = 0;
 
     if (irq < (num_irq - GIC_INTERNAL)) {
         /* External interrupt. The kernel numbers these like the GIC
@@ -63,17 +64,20 @@ void kvm_arm_gic_set_irq(uint32_t num_irq, int irq, int level)
          * internal ones.
          */
         irqtype = KVM_ARM_IRQ_TYPE_SPI;
-        cpu = 0;
         irq += GIC_INTERNAL;
     } else {
         /* Internal interrupt: decode into (cpu, interrupt id) */
         irqtype = KVM_ARM_IRQ_TYPE_PPI;
         irq -= (num_irq - GIC_INTERNAL);
         cpu = irq / GIC_INTERNAL;
+        cpu_idx2 = cpu / 256;
+        cpu_idx1 = cpu % 256;
         irq %= GIC_INTERNAL;
     }
-    kvm_irq = (irqtype << KVM_ARM_IRQ_TYPE_SHIFT)
-        | (cpu << KVM_ARM_IRQ_VCPU_SHIFT) | irq;
+    kvm_irq = (irqtype << KVM_ARM_IRQ_TYPE_SHIFT) |
+              (cpu_idx1 << KVM_ARM_IRQ_VCPU_SHIFT) |
+              ((cpu_idx2 & KVM_ARM_IRQ_VCPU2_MASK) << KVM_ARM_IRQ_VCPU2_SHIFT) |
+              irq;
 
     kvm_set_irq(kvm_state, kvm_irq, !!level);
 }
