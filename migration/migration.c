@@ -1250,11 +1250,13 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
 
     if (params->has_tls_creds) {
         assert(params->tls_creds->type == QTYPE_QSTRING);
+        g_free(dest->tls_creds);
         dest->tls_creds = g_strdup(params->tls_creds->u.s);
     }
 
     if (params->has_tls_hostname) {
         assert(params->tls_hostname->type == QTYPE_QSTRING);
+        g_free(dest->tls_hostname);
         dest->tls_hostname = g_strdup(params->tls_hostname->u.s);
     }
 
