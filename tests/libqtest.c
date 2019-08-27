@@ -43,6 +43,7 @@ struct QTestState
     int qmp_fd;
     pid_t qemu_pid;  /* our child QEMU process */
     int wstatus;
+    int expected_status;
     bool big_endian;
     bool irq_level[MAX_IRQ];
     GString *rx;
@@ -113,6 +114,11 @@ bool qtest_probe_child(QTestState *s)
     return false;
 }
 
+void qtest_set_expected_status(QTestState *s, int status)
+{
+    s->expected_status = status;
+}
+
 static void kill_qemu(QTestState *s)
 {
     pid_t pid = s->qemu_pid;
@@ -130,11 +136,12 @@ static void kill_qemu(QTestState *s)
      * fishy and should be logged with as much detail as possible.
      */
     wstatus = s->wstatus;
-    if (wstatus) {
+    if (WEXITSTATUS(wstatus) != s->expected_status) {
         if (WIFEXITED(wstatus)) {
             fprintf(stderr, "%s:%d: kill_qemu() tried to terminate QEMU "
-                    "process but encountered exit status %d\n",
-                    __FILE__, __LINE__, WEXITSTATUS(wstatus));
+                    "process but encountered exit status %d (expected %d)\n",
+                    __FILE__, __LINE__, WEXITSTATUS(wstatus),
+                    s->expected_status);
         } else if (WIFSIGNALED(wstatus)) {
             int sig = WTERMSIG(wstatus);
             const char *signame = strsignal(sig) ?: "unknown ???";
@@ -248,6 +255,7 @@ QTestState *qtest_init_without_qmp_handshake(const char *extra_args)
     g_test_message("starting QEMU: %s", command);
 
     s->wstatus = 0;
+    s->expected_status = 0;
     s->qemu_pid = fork();
     if (s->qemu_pid == 0) {
         setenv("QEMU_AUDIO_DRV", "none", true);
