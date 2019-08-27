@@ -1575,6 +1575,13 @@ static void machvirt_init(MachineState *machine)
         virt_max_cpus = GIC_NCPU;
     }
 
+    if (kvm_enabled() && max_cpus > 256 &&
+        !kvm_arm_irq_line_layout_2(MACHINE(vms))) {
+        error_report("Using more than 256 vcpus require a host kernel "
+                     "with KVM_CAP_ARM_IRQ_LINE_LAYOUT_2");
+        exit(1);
+    }
+
     if (max_cpus > virt_max_cpus) {
         error_report("Number of SMP CPUs requested (%d) exceeds max CPUs "
                      "supported by machine 'mach-virt' (%d)",

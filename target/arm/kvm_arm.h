@@ -234,6 +234,14 @@ bool kvm_arm_pmu_supported(CPUState *cs);
 int kvm_arm_get_max_vm_ipa_size(MachineState *ms);
 
 /**
+ * kvm_arm_irq_line_layout_2 - Returns whether more than 256
+ * vcpus are supported by KVM_IRQ_LINE
+ *
+ * @ms: Machine state handle
+ */
+bool kvm_arm_irq_line_layout_2(MachineState *ms);
+
+/**
  * kvm_arm_sync_mpstate_to_kvm
  * @cpu: ARMCPU
  *
@@ -276,6 +284,11 @@ static inline bool kvm_arm_pmu_supported(CPUState *cs)
 }
 
 static inline int kvm_arm_get_max_vm_ipa_size(MachineState *ms)
+{
+    return -ENOENT;
+}
+
+static inline int kvm_arm_irq_line_layout_2(MachineState *ms)
 {
     return -ENOENT;
 }

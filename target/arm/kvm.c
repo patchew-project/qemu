@@ -171,6 +171,13 @@ bool kvm_arm_pmu_supported(CPUState *cpu)
     return kvm_check_extension(s, KVM_CAP_ARM_PMU_V3);
 }
 
+bool kvm_arm_irq_line_layout_2(MachineState *ms)
+{
+    KVMState *s = KVM_STATE(ms->accelerator);
+
+    return kvm_check_extension(s, KVM_CAP_ARM_IRQ_LINE_LAYOUT_2);
+}
+
 int kvm_arm_get_max_vm_ipa_size(MachineState *ms)
 {
     KVMState *s = KVM_STATE(ms->accelerator);
