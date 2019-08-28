@@ -564,6 +564,9 @@ class QAPISchemaParser(object):
                     elif ch == "'":
                         self.val = string
                         return
+                    elif ord(ch) < 32 or ch == '\x7f':
+                        raise QAPIParseError(self,
+                                             'Control character in string')
                     else:
                         string += ch
             elif self.src.startswith('true', self.pos):
