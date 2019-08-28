@@ -840,7 +840,7 @@ def check_command(expr, info):
 
     args_meta = ['struct']
     if boxed:
-        args_meta += ['union', 'alternate']
+        args_meta += ['union']
     check_type(info, "'data' for command '%s'" % name,
                expr.get('data'), allow_dict=not boxed,
                allow_metas=args_meta)
@@ -858,7 +858,7 @@ def check_event(expr, info):
 
     meta = ['struct']
     if boxed:
-        meta += ['union', 'alternate']
+        meta += ['union']
     check_type(info, "'data' for event '%s'" % name,
                expr.get('data'), allow_dict=not boxed,
                allow_metas=meta)
@@ -1689,9 +1689,6 @@ class QAPISchemaAlternateType(QAPISchemaType):
     def visit(self, visitor):
         visitor.visit_alternate_type(self.name, self.info, self.ifcond,
                                      self.variants)
-
-    def is_empty(self):
-        return False
 
 
 class QAPISchemaCommand(QAPISchemaEntity):
