@@ -181,6 +181,7 @@ in the description of a field.
                     must be set.
                     Available compression type values:
                         0: zlib <https://www.zlib.net/> (default)
+                        1: zstd <http://github.com/facebook/zstd>
 
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:
@@ -536,6 +537,9 @@ Compressed Clusters Descriptor (x = 62 - (cluster_bits - 8)):
                     Another compressed cluster may map to the tail of the final
                     sector used by this compressed cluster.
 
+                    The layout of the compressed data depends on the compression
+                    type used for the image (see compressed cluster layout).
+
 If a cluster is unallocated, read requests shall read the data from the backing
 file (except if bit 0 in the Standard Cluster Descriptor is set). If there is
 no backing file or the backing file is smaller than the image, they shall read
@@ -788,3 +792,19 @@ In the image file the 'enabled' state is reflected by the 'auto' flag. If this
 flag is set, the software must consider the bitmap as 'enabled' and start
 tracking virtual disk changes to this bitmap from the first write to the
 virtual disk. If this flag is not set then the bitmap is disabled.
+
+=== Compressed cluster layout ===
+
+The compressed cluster data may have a different layout depending on the
+compression type used for the image, and store specific data for the particular
+compression type.
+
+Compressed data layout for the available compression types:
+(x = data_space_length - 1)
+
+    zlib <http://zlib.net/>:
+        Byte  0 -  x:     the compressed data content
+                          all the space provided used for compressed data
+    zstd <http://github.com/facebook/zstd>:
+        Byte  0 -  3:     the length of compressed data
+              4 -  x:     the compressed data content
