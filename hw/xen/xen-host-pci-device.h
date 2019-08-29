@@ -32,6 +32,7 @@ typedef struct XenHostPCIDevice {
     XenHostPCIIORegion rom;
 
     bool is_virtfn;
+    bool is_resetable;
 
     int config_fd;
 } XenHostPCIDevice;
@@ -54,5 +55,7 @@ int xen_host_pci_set_block(XenHostPCIDevice *d, int pos, uint8_t *buf,
                            int len);
 
 int xen_host_pci_find_ext_cap_offset(XenHostPCIDevice *s, uint32_t cap);
+
+void xen_host_pci_reset(XenHostPCIDevice *d);
 
 #endif /* XEN_HOST_PCI_DEVICE_H */

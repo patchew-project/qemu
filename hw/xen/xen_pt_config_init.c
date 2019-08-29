@@ -852,6 +852,30 @@ static inline uint8_t get_device_type(XenPCIPassthroughState *s,
     return (flag & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
+/* Initialize Device Capability register */
+static int xen_pt_devcap_reg_init(XenPCIPassthroughState *s,
+                                  XenPTRegInfo *reg, uint32_t real_offset,
+                                  uint32_t *data)
+{
+    *data = reg->init_val;
+
+    if (s->real_device.is_resetable) {
+        *data |= PCI_EXP_DEVCAP_FLR;
+    }
+
+    return 0;
+}
+
+static int xen_pt_devctl_reg_write(XenPCIPassthroughState *s,
+                                   XenPTReg *cfg_entry, uint16_t *val,
+                                   uint16_t dev_value, uint16_t valid_mask)
+{
+    if (s->real_device.is_resetable && (*val & PCI_EXP_DEVCTL_BCR_FLR)) {
+        xen_pt_reset(s);
+    }
+    return xen_pt_word_reg_write(s, cfg_entry, val, dev_value, valid_mask);
+}
+
 /* initialize Link Control register */
 static int xen_pt_linkctrl_reg_init(XenPCIPassthroughState *s,
                                     XenPTRegInfo *reg, uint32_t real_offset,
@@ -933,7 +957,7 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .init_val   = 0x00000000,
         .ro_mask    = 0xFFFFFFFF,
         .emu_mask   = 0x10000000,
-        .init       = xen_pt_common_reg_init,
+        .init       = xen_pt_devcap_reg_init,
         .u.dw.read  = xen_pt_long_reg_read,
         .u.dw.write = xen_pt_long_reg_write,
     },
@@ -946,7 +970,7 @@ static XenPTRegInfo xen_pt_emu_reg_pcie[] = {
         .emu_mask   = 0xFFFF,
         .init       = xen_pt_common_reg_init,
         .u.w.read   = xen_pt_word_reg_read,
-        .u.w.write  = xen_pt_word_reg_write,
+        .u.w.write  = xen_pt_devctl_reg_write,
     },
     /* Device Status reg */
     {
@@ -1969,7 +1993,7 @@ static void xen_pt_config_reg_init(XenPCIPassthroughState *s,
             /* Mask out host (including past size). */
             new_val = val & host_mask;
             /* Merge emulated ones (excluding the non-emulated ones). */
-            new_val |= data & host_mask;
+            new_val |= data & ~host_mask;
             /* Leave intact host and emulated values past the size - even though
              * we do not care as we write per reg->size granularity, but for the
              * logging below lets have the proper value. */

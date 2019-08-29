@@ -938,6 +938,15 @@ static void xen_pt_unregister_device(PCIDevice *d)
     xen_pt_destroy(d);
 }
 
+void xen_pt_reset(XenPCIPassthroughState *s)
+{
+    PCIDevice *d = PCI_DEVICE(s);
+
+    xen_pt_unregister_device(d);
+    xen_host_pci_reset(&s->real_device);
+    xen_pt_realize(d, NULL);
+}
+
 static Property xen_pci_passthrough_properties[] = {
     DEFINE_PROP_PCI_HOST_DEVADDR("hostaddr", XenPCIPassthroughState, hostaddr),
     DEFINE_PROP_BOOL("permissive", XenPCIPassthroughState, permissive, false),

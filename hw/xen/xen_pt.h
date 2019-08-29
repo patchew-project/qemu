@@ -332,4 +332,5 @@ int xen_pt_register_vga_regions(XenHostPCIDevice *dev);
 int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev);
 void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
                      Error **errp);
+void xen_pt_reset(XenPCIPassthroughState *s);
 #endif /* XEN_PT_H */

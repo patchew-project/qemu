@@ -198,6 +198,35 @@ static bool xen_host_pci_dev_is_virtfn(XenHostPCIDevice *d)
     return !stat(path, &buf);
 }
 
+static bool xen_host_pci_resetable(XenHostPCIDevice *d)
+{
+    char path[PATH_MAX];
+
+    xen_host_pci_sysfs_path(d, "reset", path, sizeof(path));
+
+    return !access(path, W_OK);
+}
+
+void xen_host_pci_reset(XenHostPCIDevice *d)
+{
+    char path[PATH_MAX];
+    int fd;
+
+    xen_host_pci_sysfs_path(d, "reset", path, sizeof(path));
+
+    fd = open(path, O_WRONLY);
+    if (fd == -1) {
+        XEN_HOST_PCI_LOG("Xen host pci reset: open error\n");
+        return;
+    }
+
+    if (write(fd, "1", 1) != 1) {
+        XEN_HOST_PCI_LOG("Xen host pci reset: write error\n");
+    }
+
+    return;
+}
+
 static void xen_host_pci_config_open(XenHostPCIDevice *d, Error **errp)
 {
     char path[PATH_MAX];
@@ -377,6 +406,7 @@ void xen_host_pci_device_get(XenHostPCIDevice *d, uint16_t domain,
     d->class_code = v;
 
     d->is_virtfn = xen_host_pci_dev_is_virtfn(d);
+    d->is_resetable = xen_host_pci_resetable(d);
 
     return;
 
