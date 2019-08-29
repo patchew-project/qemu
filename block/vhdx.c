@@ -2068,10 +2068,29 @@ static int coroutine_fn vhdx_co_check(BlockDriverState *bs,
                                       BdrvCheckMode fix)
 {
     BDRVVHDXState *s = bs->opaque;
+    VHDXSectorInfo sinfo;
+    int64_t file_size = bdrv_get_allocated_file_size(bs);
+    int64_t sector_num;
 
     if (s->log_replayed_on_open) {
         result->corruptions_fixed++;
     }
+
+    for (sector_num = 0; sector_num < bs->total_sectors;
+         sector_num += s->block_size / BDRV_SECTOR_SIZE) {
+        int nb_sectors = MIN(bs->total_sectors - sector_num,
+                             s->block_size / BDRV_SECTOR_SIZE);
+        vhdx_block_translate(s, sector_num, nb_sectors, &sinfo);
+        if ((s->bat[sinfo.bat_idx] & VHDX_BAT_STATE_BIT_MASK) ==
+            PAYLOAD_BLOCK_FULLY_PRESENT) {
+            if (sinfo.file_offset +
+                sinfo.sectors_avail * BDRV_SECTOR_SIZE > file_size) {
+                /* block is past the end of file, image has been truncated. */
+                result->corruptions++;
+            }
+        }
+    }
+
     return 0;
 }
 
