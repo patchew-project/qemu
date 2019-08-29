@@ -14,6 +14,8 @@
 #
 # @CommandNotFound: the requested command has not been found
 #
+# @CommandDisabled: the requested command has been disabled
+#
 # @DeviceNotActive: a device has failed to be become active
 #
 # @DeviceNotFound: the requested device has not been found
@@ -25,5 +27,5 @@
 ##
 { 'enum': 'QapiErrorClass',
   # Keep this in sync with ErrorClass in error.h
-  'data': [ 'GenericError', 'CommandNotFound',
+  'data': [ 'GenericError', 'CommandNotFound', 'CommandDisabled',
             'DeviceNotActive', 'DeviceNotFound', 'KVMMissingCap' ] }
