@@ -32,6 +32,7 @@ static int log_append = 0;
 static GArray *debug_regions;
 
 int tcg_collect_tb_stats;
+uint32_t default_tbstats_flag;
 
 /* Return the number of characters emitted.  */
 int qemu_log(const char *fmt, ...)
