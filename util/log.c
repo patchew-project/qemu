@@ -33,26 +33,56 @@ int qemu_loglevel;
 static int log_append = 0;
 static GArray *debug_regions;
 int32_t max_num_hot_tbs_to_dump;
+static bool to_monitor;
+bool to_string;
 
 int tcg_collect_tb_stats;
 uint32_t default_tbstats_flag;
+
+GString *string;
+
+int qemu_vlog(const char *fmt, va_list va)
+{
+    int ret = 0;
+    if (to_string) {
+        if (string) {
+            g_string_append_vprintf(string, fmt, va);
+        }
+    } else if (to_monitor) {
+        ret = qemu_vprintf(fmt, va);
+    } else if (qemu_logfile) {
+        ret = vfprintf(qemu_logfile, fmt, va);
+    }
+
+    /* Don't pass back error results.  */
+    if (ret < 0) {
+        ret = 0;
+    }
+    return ret;
+}
 
 /* Return the number of characters emitted.  */
 int qemu_log(const char *fmt, ...)
 {
     int ret = 0;
-    if (qemu_logfile) {
-        va_list ap;
-        va_start(ap, fmt);
-        ret = vfprintf(qemu_logfile, fmt, ap);
-        va_end(ap);
+    va_list ap;
+    va_start(ap, fmt);
 
-        /* Don't pass back error results.  */
-        if (ret < 0) {
-            ret = 0;
-        }
-    }
+    ret = qemu_vlog(fmt, ap);
+
+    va_end(ap);
     return ret;
+}
+
+void qemu_log_to_monitor(bool enable)
+{
+    to_monitor = enable;
+}
+
+void qemu_log_to_string(bool enable, GString *s)
+{
+    to_string = enable;
+    string = s;
 }
 
 static bool log_uses_own_buffers;
