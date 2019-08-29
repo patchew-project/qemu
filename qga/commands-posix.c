@@ -2709,6 +2709,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 
     return 0;
 }
+
 #endif /* CONFIG_FSFREEZE */
 
 #if !defined(CONFIG_FSTRIM)
@@ -2756,6 +2757,8 @@ GList *ga_command_blacklist_init(GList *blacklist)
 #if !defined(CONFIG_FSTRIM)
     blacklist = g_list_append(blacklist, g_strdup("guest-fstrim"));
 #endif
+
+    blacklist = g_list_append(blacklist, g_strdup("guest-get-devices"));
 
     return blacklist;
 }
@@ -2977,3 +2980,11 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 
     return info;
 }
+
+GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+
+    return NULL;
+}
+

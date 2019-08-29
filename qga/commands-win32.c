@@ -21,10 +21,11 @@
 #ifdef CONFIG_QGA_NTDDSCSI
 #include <winioctl.h>
 #include <ntddscsi.h>
+#endif
 #include <setupapi.h>
 #include <cfgmgr32.h>
 #include <initguid.h>
-#endif
+#include <devpropdef.h>
 #include <lm.h>
 #include <wtsapi32.h>
 #include <wininet.h>
@@ -37,6 +38,36 @@
 #include "qemu/queue.h"
 #include "qemu/host-utils.h"
 #include "qemu/base64.h"
+
+
+/* The following should be in devpkey.h, but it isn't */
+DEFINE_DEVPROPKEY(DEVPKEY_NAME, 0xb725f130, 0x47ef, 0x101a, 0xa5, 0xf1, 0x02,
+    0x60, 0x8c, 0x9e, 0xeb, 0xac, 10);  /* DEVPROP_TYPE_STRING */
+DEFINE_DEVPROPKEY(DEVPKEY_Device_HardwareIds, 0xa45c254e, 0xdf1c, 0x4efd, 0x80,
+    0x20, 0x67, 0xd1, 0x46, 0xa8, 0x50, 0xe0, 3);
+    /* DEVPROP_TYPE_STRING_LIST */
+DEFINE_DEVPROPKEY(DEVPKEY_Device_DriverDate, 0xa8b865dd, 0x2e3d, 0x4094, 0xad,
+    0x97, 0xe5, 0x93, 0xa7, 0xc, 0x75, 0xd6, 2);  /* DEVPROP_TYPE_FILETIME */
+DEFINE_DEVPROPKEY(DEVPKEY_Device_DriverVersion, 0xa8b865dd, 0x2e3d, 0x4094,
+    0xad, 0x97, 0xe5, 0x93, 0xa7, 0xc, 0x75, 0xd6, 3);
+    /* DEVPROP_TYPE_STRING */
+/* The following should be in sal.h, but it isn't */
+#ifndef _Out_writes_bytes_opt_
+#define _Out_writes_bytes_opt_(s)
+#endif
+/* The following shoud be in cfgmgr32.h, but it isn't */
+#ifndef CM_Get_DevNode_Property
+CMAPI CONFIGRET WINAPI CM_Get_DevNode_PropertyW(
+    _In_  DEVINST               dnDevInst,
+    _In_  CONST DEVPROPKEY    * PropertyKey,
+    _Out_ DEVPROPTYPE         * PropertyType,
+    _Out_writes_bytes_opt_(*PropertyBufferSize) PBYTE PropertyBuffer,
+    _Inout_ PULONG              PropertyBufferSize,
+    _In_  ULONG                 ulFlags
+    );
+#define CM_Get_DevNode_Property                  CM_Get_DevNode_PropertyW
+#endif
+
 
 #ifndef SHTDN_REASON_FLAG_PLANNED
 #define SHTDN_REASON_FLAG_PLANNED 0x80000000
@@ -2233,4 +2264,166 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
     info->variant_id = g_strdup(server ? "server" : "client");
 
     return info;
+}
+
+/*
+ * Safely get device property. Returned strings are using wide characters.
+ * Caller is responsible for freeing the buffer.
+ */
+static LPBYTE cm_get_property(DEVINST devInst, const DEVPROPKEY *propName,
+    PDEVPROPTYPE propType)
+{
+    CONFIGRET cr;
+    LPBYTE buffer = NULL;
+    ULONG bufferLen = 0;
+
+    /* First query for needed space */
+    cr = CM_Get_DevNode_Property(devInst, propName, propType,
+        buffer, &bufferLen, 0);
+    if ((cr != CR_SUCCESS) && (cr != CR_BUFFER_SMALL)) {
+
+        g_debug(
+            "failed to get size of device property, device error code=%lx",
+            cr);
+        return NULL;
+    }
+    buffer = (LPBYTE)g_malloc(bufferLen);
+    cr = CM_Get_DevNode_Property(devInst, propName, propType,
+        buffer, &bufferLen, 0);
+    if (cr != CR_SUCCESS) {
+        g_free(buffer);
+        g_debug(
+            "failed to get device property, device error code=%lx", cr);
+        return NULL;
+    }
+    return buffer;
+}
+
+/*
+ * https://docs.microsoft.com/en-us/windows-hardware/drivers/install/identifiers-for-pci-devices
+ */
+#define DEVICE_PCI_RE "PCI\\\\VEN_(1AF4|1B36)&DEV_([0-9A-B]{4})(&|$)"
+
+GuestDeviceInfoList *qmp_guest_get_devices(Error **errp)
+{
+    GuestDeviceInfoList *head = NULL, *cur_item = NULL, *item = NULL;
+    HDEVINFO dev_info = INVALID_HANDLE_VALUE;
+    SP_DEVINFO_DATA dev_info_data;
+    int i;
+    GError *gerr = NULL;
+    GRegex *device_pci_re = NULL;
+
+    device_pci_re = g_regex_new(DEVICE_PCI_RE,
+        G_REGEX_ANCHORED | G_REGEX_OPTIMIZE, 0,
+        &gerr);
+
+    if (gerr) {
+        error_setg(errp, QERR_QGA_COMMAND_FAILED, gerr->message);
+        g_error_free(gerr);
+        goto out;
+    }
+
+    dev_info_data.cbSize = sizeof(SP_DEVINFO_DATA);
+    dev_info = SetupDiGetClassDevs(0, 0, 0, DIGCF_PRESENT | DIGCF_ALLCLASSES);
+    if (dev_info == INVALID_HANDLE_VALUE) {
+        error_setg(errp, "failed to get device tree");
+        goto out;
+    }
+
+    g_debug("enumerating devices");
+    for (i = 0; SetupDiEnumDeviceInfo(dev_info, i, &dev_info_data); i++) {
+        LPWSTR name = NULL, hwIDs = NULL, lpValue;
+        bool skip = true;
+        DEVPROPTYPE cmType;
+        SYSTEMTIME stUTC;
+        LPFILETIME pfdDriverDate;
+        LPWSTR driverVersion;
+
+        GuestDeviceInfo *device = g_new0(GuestDeviceInfo, 1);
+
+        name = (LPWSTR)cm_get_property(dev_info_data.DevInst, &DEVPKEY_NAME,
+            &cmType);
+        if (name == NULL) {
+            g_debug("failed to get device description");
+            goto next;
+        }
+        device->driver_name = guest_wctomb_dup(name);
+        g_free(name);
+        g_debug("querying device: %s", device->driver_name);
+
+        hwIDs = (LPWSTR)cm_get_property(dev_info_data.DevInst,
+            &DEVPKEY_Device_HardwareIds, &cmType);
+        if (hwIDs == NULL) {
+            g_debug("failed to get hardware IDs");
+            goto next;
+        }
+        for (lpValue = hwIDs;
+            '\0' != *lpValue;
+            lpValue += lstrlenW(lpValue) + 1) {
+            GMatchInfo *match_info;
+            char *hwID = guest_wctomb_dup(lpValue);
+            /* g_debug("hwID: %s", hwID); */
+            if (!g_regex_match(device_pci_re, hwID, 0, &match_info)) {
+                continue;
+            }
+            skip = false;
+            device->vendor_id = g_match_info_fetch(match_info, 1);
+            device->device_id = g_match_info_fetch(match_info, 2);
+            g_match_info_free(match_info);
+        }
+        free(hwIDs);
+
+        if (skip) {
+            goto next;
+        }
+
+        driverVersion = (LPWSTR)cm_get_property(dev_info_data.DevInst,
+            &DEVPKEY_Device_DriverVersion, &cmType);
+        if (driverVersion == NULL) {
+            g_debug("failed to get driver version");
+            goto next;
+        }
+        device->driver_version = guest_wctomb_dup(driverVersion);
+        free(driverVersion);
+
+        pfdDriverDate = (LPFILETIME)cm_get_property(dev_info_data.DevInst,
+            &DEVPKEY_Device_DriverDate, &cmType);
+        if (driverVersion == NULL) {
+            g_debug("failed to get driver date");
+            goto next;
+        }
+        FileTimeToSystemTime(pfdDriverDate, &stUTC);
+        free(pfdDriverDate);
+        device->driver_date = g_strdup_printf("%02d/%02d/%04d",
+            stUTC.wMonth, stUTC.wDay, stUTC.wYear);
+        g_debug("Driver Version: %s,%s\n", device->driver_date,
+            device->driver_version);
+
+        item = g_new0(GuestDeviceInfoList, 1);
+        item->value = device;
+        if (!cur_item) {
+            head = cur_item = item;
+        } else {
+            cur_item->next = item;
+            cur_item = item;
+        }
+        continue;
+
+next:
+        g_free(device->vendor_id);
+        g_free(device->device_id);
+        g_free(device->driver_date);
+        g_free(device->driver_name);
+        g_free(device->driver_version);
+        g_free(device);
+    }
+
+out:
+
+    if (dev_info != INVALID_HANDLE_VALUE) {
+        SetupDiDestroyDeviceInfoList(dev_info);
+    }
+    g_regex_unref(device_pci_re);
+
+    return head;
 }
