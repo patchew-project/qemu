@@ -212,7 +212,13 @@ typedef struct MemoryRegionClass {
 
 
 enum IOMMUMemoryRegionAttr {
-    IOMMU_ATTR_SPAPR_TCE_FD
+    /* Retrieve an integer corresponding to the TCE file descriptor */
+    IOMMU_ATTR_SPAPR_TCE_FD,
+    /*
+     * Retrieve a boolean that indicates whether the virtual IOMMU relies
+     * on physical IOMMU HW nested paging to protect host assigned devices
+     */
+    IOMMU_ATTR_NEED_HW_NESTED_PAGING,
 };
 
 /**
