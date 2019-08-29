@@ -28,3 +28,7 @@ Makefile*
 *.c
 *.py
 
+# shell scripts
+*.rc
+*.sh
+
