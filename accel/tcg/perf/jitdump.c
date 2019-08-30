@@ -21,6 +21,7 @@
 #include "disas/disas.h"
 #include "jitdump.h"
 #include "qemu-common.h"
+#include "exec/tb-stats.h"
 
 struct jitheader {
     uint32_t magic;     /* characters "jItD" */
@@ -149,7 +150,20 @@ void start_jitdump_file(void)
 
 void append_load_in_jitdump_file(TranslationBlock *tb)
 {
-    gchar *func_name = g_strdup_printf("TB virt:0x"TARGET_FMT_lx, tb->pc);
+    gchar *func_name;
+    if (tb->tb_stats) {
+        TBStatistics *tbs = tb->tb_stats;
+        unsigned g = stat_per_translation(tbs, code.num_guest_inst);
+        unsigned ops = stat_per_translation(tbs, code.num_tcg_ops);
+        unsigned ops_opt = stat_per_translation(tbs, code.num_tcg_ops_opt);
+        unsigned spills = stat_per_translation(tbs, code.spills);
+
+        func_name = g_strdup_printf(func_name,
+                "TB virt:0x"TARGET_FMT_lx" (g:%u op:%u opt:%u spills:%d)",
+                tb->pc, g, ops, ops_opt, spills);
+    } else {
+        func_name = g_strdup_printf("TB virt:0x"TARGET_FMT_lx, tb->pc);
+    }
 
     struct jr_code_load load_event;
     load_event.p.id = JIT_CODE_LOAD;
