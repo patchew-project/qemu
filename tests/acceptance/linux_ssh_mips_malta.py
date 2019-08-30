@@ -9,13 +9,18 @@ import os
 import re
 import base64
 import logging
-import paramiko
 import time
 
-from avocado import skipIf
+from avocado import skipIf, skipUnless
 from avocado_qemu import Test
 from avocado.utils import process
 from avocado.utils import archive
+
+PARAMIKO_AVAILABLE = True
+try:
+    import paramiko
+except ImportError:
+    PARAMIKO_AVAILABLE = False
 
 
 class LinuxSSH(Test):
@@ -171,6 +176,7 @@ class LinuxSSH(Test):
         self.run_common_commands()
         self.shutdown_via_ssh()
 
+    @skipUnless(PARAMIKO_AVAILABLE, "paramiko module not available")
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta32eb_kernel3_2_0(self):
         """
@@ -186,6 +192,7 @@ class LinuxSSH(Test):
 
         self.do_test_mips_malta('be', kernel_path, 'mips')
 
+    @skipUnless(PARAMIKO_AVAILABLE, "paramiko module not available")
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta32el_kernel3_2_0(self):
         """
@@ -201,6 +208,7 @@ class LinuxSSH(Test):
 
         self.do_test_mips_malta('le', kernel_path, 'mips')
 
+    @skipUnless(PARAMIKO_AVAILABLE, "paramiko module not available")
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta64eb_kernel3_2_0(self):
         """
@@ -215,6 +223,7 @@ class LinuxSSH(Test):
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
         self.do_test_mips_malta('be', kernel_path, 'mips64')
 
+    @skipUnless(PARAMIKO_AVAILABLE, "paramiko module not available")
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_mips_malta64el_kernel3_2_0(self):
         """
