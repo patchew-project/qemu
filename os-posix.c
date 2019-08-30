@@ -191,6 +191,9 @@ int os_parse_cmd_args(int index, const char *optarg)
     case QEMU_OPTION_enablefips:
         fips_set_state(true);
         break;
+    case QEMU_OPTION_perf:
+        enable_jitdump();
+        break;
 #endif
     default:
         return -1;
