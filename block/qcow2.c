@@ -4243,7 +4243,7 @@ static int make_completely_empty(BlockDriverState *bs)
     ret = bdrv_pwrite_sync(bs->file, s->cluster_size,
                            &rt_entry, sizeof(rt_entry));
     if (ret < 0) {
-        goto fail_broken_refcounts;
+        goto fail;
     }
     s->refcount_table[0] = 2 * s->cluster_size;
 
@@ -4252,7 +4252,7 @@ static int make_completely_empty(BlockDriverState *bs)
     offset = qcow2_alloc_clusters(bs, 3 * s->cluster_size + l1_size2);
     if (offset < 0) {
         ret = offset;
-        goto fail_broken_refcounts;
+        goto fail;
     } else if (offset > 0) {
         error_report("First cluster in emptied image is in use");
         abort();
@@ -4274,6 +4274,9 @@ static int make_completely_empty(BlockDriverState *bs)
 
     return 0;
 
+fail:
+    g_free(s->refcount_table);
+
 fail_broken_refcounts:
     /* The BDS is unusable at this point. If we wanted to make it usable, we
      * would have to call qcow2_refcount_close(), qcow2_refcount_init(),
@@ -4283,8 +4286,6 @@ fail_broken_refcounts:
      * that that sequence will fail as well. Therefore, just eject the BDS. */
     bs->drv = NULL;
 
-fail:
-    g_free(new_reftable);
     return ret;
 }
 
