@@ -169,6 +169,14 @@ _qemu_vxhs_wrapper()
     return $RETVAL
 }
 
+# Valgrind bug #409141 https://bugs.kde.org/show_bug.cgi?id=409141
+# Until valgrind 3.16+ is ubiquitous, we must work around a hang in
+# valgrind when issuing sigkill. Disable valgrind for this invocation.
+_NO_VALGRIND()
+{
+    VALGRIND_QEMU="" "$@"
+}
+
 export QEMU=_qemu_wrapper
 export QEMU_IMG=_qemu_img_wrapper
 export QEMU_IO=_qemu_io_wrapper
