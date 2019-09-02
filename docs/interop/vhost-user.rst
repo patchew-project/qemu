@@ -2,6 +2,7 @@
 Vhost-user Protocol
 ===================
 :Copyright: 2014 Virtual Open Systems Sarl.
+:Copyright: 2019 Intel Corporation
 :Licence: This work is licensed under the terms of the GNU GPL,
           version 2 or later. See the COPYING file in the top-level
           directory.
@@ -785,6 +786,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
   #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
   #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
+  #define VHOST_USER_PROTOCOL_F_KICK_CALL_MSGS 13
 
 Master message types
 --------------------
@@ -946,7 +948,9 @@ Master message types
   Bits (0-7) of the payload contain the vring index. Bit 8 is the
   invalid FD flag. This flag is set when there is no file descriptor
   in the ancillary data. This signals that polling should be used
-  instead of waiting for a kick.
+  instead of waiting for the call. however, if the protocol feature
+  ``VHOST_USER_PROTOCOL_F_KICK_CALL_MSGS`` has been negotiated it instead
+  means the updates should be done using the messages.
 
 ``VHOST_USER_SET_VRING_CALL``
   :id: 13
@@ -959,7 +963,9 @@ Master message types
   Bits (0-7) of the payload contain the vring index. Bit 8 is the
   invalid FD flag. This flag is set when there is no file descriptor
   in the ancillary data. This signals that polling will be used
-  instead of waiting for the call.
+  instead of waiting for the call; however, if the protocol feature
+  ``VHOST_USER_PROTOCOL_F_KICK_CALL_MSGS`` has been negotiated it instead
+  means the updates should be done using the messages.
 
 ``VHOST_USER_SET_VRING_ERR``
   :id: 14
@@ -1190,6 +1196,19 @@ Master message types
   ancillary data. The GPU protocol is used to inform the master of
   rendering state and updates. See vhost-user-gpu.rst for details.
 
+``VHOST_USER_VQ_CALL``
+  :id: 34
+  :equivalent ioctl: N/A
+  :slave payload: vring state description
+  :master payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_KICK_CALL_MSGS`` protocol feature has
+  been successfully negotiated, this message may be submitted by the master
+  to indicate that a buffer was added to the vring instead of signalling it
+  using the vring's event FD or having the slave rely on polling.
+
+  The state.num field is currently reserved and must be set to 0.
+
 Slave message types
 -------------------
 
@@ -1245,6 +1264,19 @@ Slave message types
   This request should be sent only when
   ``VHOST_USER_PROTOCOL_F_HOST_NOTIFIER`` protocol feature has been
   successfully negotiated.
+
+``VHOST_USER_VQ_KICK``
+  :id: 4
+  :equivalent ioctl: N/A
+  :slave payload: vring state description
+  :master payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_KICK_CALL_MSGS`` protocol feature has
+  been successfully negotiated, this message may be submitted by the slave
+  to indicate that a buffer was used from the vring instead of signalling it
+  using the vring's kick FD or having the master relying on polling.
+
+  The state.num field is currently reserved and must be set to 0.
 
 .. _reply_ack:
 
