@@ -30,6 +30,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
+#include "qemu/cutils.h"
 #include "crypto.h"
 
 typedef struct BlockCrypto BlockCrypto;
@@ -599,6 +600,27 @@ fail:
     bdrv_unref(bs);
     qapi_free_QCryptoBlockCreateOptions(create_opts);
     qobject_unref(cryptoopts);
+
+    /*
+     * If an error occurred, delete the file. Even if the file existed
+     * beforehand, it has been truncated and corrupted in the process.
+     */
+    if (ret) {
+        Error *local_err;
+        int r_del = bdrv_delete_file(filename, &local_err);
+        /*
+         * ENOTSUP will happen if the block driver doesn't support
+         * 'bdrv_co_delete_file'. ENOENT will be fired by
+         * 'raw_co_delete_file' if the file doesn't exist. Both are
+         * predictable (we're not verifying if the driver supports
+         * file deletion or if the file was created), thus we
+         * shouldn't report this back to the user.
+         */
+        if ((r_del < 0) && (r_del != -ENOTSUP) && (r_del != -ENOENT)) {
+            error_reportf_err(local_err, "%s: ", bs->filename);
+        }
+    }
+
     return ret;
 }
 
