@@ -2773,12 +2773,12 @@ static bool notdirty_mem_accepts(void *opaque, hwaddr addr,
 
 static const MemoryRegionOps notdirty_mem_ops = {
     .write = notdirty_mem_write,
-    .valid.accepts = notdirty_mem_accepts,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 8,
         .unaligned = false,
+        .accepts = notdirty_mem_accepts,
     },
     .impl = {
         .min_access_size = 1,
