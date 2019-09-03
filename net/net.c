@@ -1253,15 +1253,23 @@ void print_net_client(Monitor *mon, NetClientState *nc)
                    NetClientDriver_str(nc->info->type),
                    nc->info_str);
     if (!QTAILQ_EMPTY(&nc->filters)) {
-        monitor_printf(mon, "filters:\n");
-    }
-    QTAILQ_FOREACH(nf, &nc->filters, next) {
-        char *path = object_get_canonical_path_component(OBJECT(nf));
+        monitor_printf(mon, "filters order:\n");
+        QTAILQ_FOREACH(nf, &nc->filters, next) {
+            char *path = object_get_canonical_path_component(OBJECT(nf));
 
-        monitor_printf(mon, "  - %s: type=%s", path,
-                       object_get_typename(OBJECT(nf)));
-        netfilter_print_info(mon, nf);
-        g_free(path);
+            monitor_printf(mon, " %s --->", path);
+        }
+        monitor_printf(mon, " End\n");
+        monitor_printf(mon, "filters detail info:\n");
+
+        QTAILQ_FOREACH(nf, &nc->filters, next) {
+            char *path = object_get_canonical_path_component(OBJECT(nf));
+
+            monitor_printf(mon, "  - %s: type=%s", path,
+                           object_get_typename(OBJECT(nf)));
+            netfilter_print_info(mon, nf);
+            g_free(path);
+        }
     }
 }
 
