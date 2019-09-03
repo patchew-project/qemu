@@ -70,6 +70,12 @@ size=128M
 
 _make_test_img $size
 
+chmod a-w $TEST_IMG
+(echo test > $TEST_IMG) 2>/dev/null && \
+    _notrun "Readonly attribute is ignored, probably you run this test as" \
+            "root, which is unsupported."
+chmod a+w $TEST_IMG
+
 if [ -n "$TEST_IMG_FILE" ]; then
     TEST_IMG=$TEST_IMG_FILE
 fi
