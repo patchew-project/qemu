@@ -2,6 +2,10 @@
 # down to Kconfig.  See also MINIKCONF_ARGS in the Makefile:
 # these two need to be kept in sync.
 
+config TCG
+    bool
+    default y
+
 config KVM
     bool
 
