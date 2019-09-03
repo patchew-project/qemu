@@ -112,7 +112,7 @@ void qvirtio_set_acknowledge(QVirtioDevice *d);
 void qvirtio_set_driver(QVirtioDevice *d);
 void qvirtio_set_driver_ok(QVirtioDevice *d);
 
-void qvirtio_wait_queue_isr(QVirtioDevice *d,
+void qvirtio_wait_queue_isr(QTestState *qts, QVirtioDevice *d,
                             QVirtQueue *vq, gint64 timeout_us);
 uint8_t qvirtio_wait_status_byte_no_isr(QTestState *qts, QVirtioDevice *d,
                                         QVirtQueue *vq,
@@ -123,7 +123,8 @@ void qvirtio_wait_used_elem(QTestState *qts, QVirtioDevice *d,
                             uint32_t desc_idx,
                             uint32_t *len,
                             gint64 timeout_us);
-void qvirtio_wait_config_isr(QVirtioDevice *d, gint64 timeout_us);
+void qvirtio_wait_config_isr(QTestState *qts, QVirtioDevice *d,
+                             gint64 timeout_us);
 QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
                              QGuestAllocator *alloc, uint16_t index);
 void qvirtqueue_cleanup(const QVirtioBus *bus, QVirtQueue *vq,

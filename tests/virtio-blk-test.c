@@ -435,6 +435,7 @@ static void config(void *obj, void *data, QGuestAllocator *t_alloc)
     QVirtioDevice *dev = blk_if->vdev;
     int n_size = TEST_IMAGE_SIZE / 2;
     uint64_t capacity;
+    QTestState *qts = global_qtest;
 
     capacity = qvirtio_config_readq(dev, 0);
     g_assert_cmpint(capacity, ==, TEST_IMAGE_SIZE / 512);
@@ -444,7 +445,7 @@ static void config(void *obj, void *data, QGuestAllocator *t_alloc)
     qmp_discard_response("{ 'execute': 'block_resize', "
                          " 'arguments': { 'device': 'drive0', "
                          " 'size': %d } }", n_size);
-    qvirtio_wait_config_isr(dev, QVIRTIO_BLK_TIMEOUT_US);
+    qvirtio_wait_config_isr(qts, dev, QVIRTIO_BLK_TIMEOUT_US);
 
     capacity = qvirtio_config_readq(dev, 0);
     g_assert_cmpint(capacity, ==, n_size / 512);
@@ -494,7 +495,7 @@ static void msix(void *obj, void *u_data, QGuestAllocator *t_alloc)
                          " 'arguments': { 'device': 'drive0', "
                          " 'size': %d } }", n_size);
 
-    qvirtio_wait_config_isr(dev, QVIRTIO_BLK_TIMEOUT_US);
+    qvirtio_wait_config_isr(qts, dev, QVIRTIO_BLK_TIMEOUT_US);
 
     capacity = qvirtio_config_readq(dev, 0);
     g_assert_cmpint(capacity, ==, n_size / 512);
@@ -737,6 +738,7 @@ static void resize(void *obj, void *data, QGuestAllocator *t_alloc)
     int n_size = TEST_IMAGE_SIZE / 2;
     uint64_t capacity;
     QVirtQueue *vq;
+    QTestState *qts = global_qtest;
 
     vq = qvirtqueue_setup(dev, t_alloc, 0);
 
@@ -746,7 +748,7 @@ static void resize(void *obj, void *data, QGuestAllocator *t_alloc)
                          " 'arguments': { 'device': 'drive0', "
                          " 'size': %d } }", n_size);
 
-    qvirtio_wait_queue_isr(dev, vq, QVIRTIO_BLK_TIMEOUT_US);
+    qvirtio_wait_queue_isr(qts, dev, vq, QVIRTIO_BLK_TIMEOUT_US);
 
     capacity = qvirtio_config_readq(dev, 0);
     g_assert_cmpint(capacity, ==, n_size / 512);
