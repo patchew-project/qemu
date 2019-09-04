@@ -57,6 +57,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00010001: /* Get board model */
             qemu_log_mask(LOG_UNIMP,
                           "bcm2835_property: %x get board model NYI\n", tag);
+            /* FIXME returning uninitialized memory */
             resplen = 4;
             break;
         case 0x00010002: /* Get board revision */
@@ -70,6 +71,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         case 0x00010004: /* Get board serial */
             qemu_log_mask(LOG_UNIMP,
                           "bcm2835_property: %x get board serial NYI\n", tag);
+            /* FIXME returning uninitialized memory */
             resplen = 8;
             break;
         case 0x00010005: /* Get ARM memory */
