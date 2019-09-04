@@ -21,6 +21,7 @@
 #include "hw/loader.h"
 #include "hw/arm/boot.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/reset.h"
 
 #define SMPBOOT_ADDR    0x300 /* this should leave enough space for ATAGS */
 #define MVBAR_ADDR      0x400 /* secure vectors */
@@ -214,6 +215,32 @@ static void raspi_init(MachineState *machine, int version)
     setup_boot(machine, version, machine->ram_size - vcram_size);
 }
 
+static void raspi_reset(MachineState *machine)
+{
+    BCM2835GpioState *gpio;
+
+    gpio = BCM2835_GPIO(object_resolve_path("gpio", NULL));
+
+    /*
+     * Put the sd-card on sdhci bus as the bcm2835_gpio's reset
+     * procedure will do during qemu_devices_reset().
+     *
+     * Note: we do this here to avoid doing it during following
+     * qemu_devices_reset() so that we don't modify the qbus tree during the
+     * reset (which is based on it).
+     *
+     * Note: sd-card can be on sdbus, sdbus_sdhci or sdbus_sdhost. So at least
+     * one of the following sdbus_reparent_card is useless. This is not a
+     * problem because sdbus_reparent_card is a no-op if the source does not
+     * has a card.
+     */
+    sdbus_reparent_card(&gpio->sdbus, gpio->sdbus_sdhci);
+    sdbus_reparent_card(gpio->sdbus_sdhost, gpio->sdbus_sdhci);
+
+    /* then do the classical reset */
+    qemu_devices_reset();
+}
+
 static void raspi2_init(MachineState *machine)
 {
     raspi_init(machine, 2);
@@ -223,6 +250,7 @@ static void raspi2_machine_init(MachineClass *mc)
 {
     mc->desc = "Raspberry Pi 2";
     mc->init = raspi2_init;
+    mc->reset = raspi_reset;
     mc->block_default_type = IF_SD;
     mc->no_parallel = 1;
     mc->no_floppy = 1;
@@ -245,6 +273,7 @@ static void raspi3_machine_init(MachineClass *mc)
 {
     mc->desc = "Raspberry Pi 3";
     mc->init = raspi3_init;
+    mc->reset = raspi_reset;
     mc->block_default_type = IF_SD;
     mc->no_parallel = 1;
     mc->no_floppy = 1;
