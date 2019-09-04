@@ -39,11 +39,13 @@ enum BoardIdChip {
     C_BCM2835 = 0,
     C_BCM2836 = 1,
     C_BCM2837 = 2,
+    C_BCM2711 = 3,
 };
 
 enum BoardIdType {
     T_2B = 0x04,
     T_3B = 0x08,
+    T_4B = 0x11,
 };
 
 enum BoardIdRevision {
@@ -56,6 +58,7 @@ enum BoardIdRevision {
 static const char *processor_typename[] = {
     [C_BCM2836] = TYPE_BCM2836,
     [C_BCM2837] = TYPE_BCM2837,
+    [C_BCM2711] = TYPE_BCM2838,
 };
 
 typedef struct BoardInfo BoardInfo;
@@ -89,6 +92,12 @@ static const BoardInfo bcm283x_boards[] = {
         .board_rev = { T_3B, R_1_2, C_BCM2837, M_SONY_UK },
         .ram_size_min = 1 * GiB,
         .ram_size_max = 1 * GiB,
+    },
+    [4] = {
+        .board_id = 0xc42,
+        .board_rev = { T_4B, R_1_1, C_BCM2711, M_SONY_UK },
+        .ram_size_min = 1 * GiB,
+        .ram_size_max = 4 * GiB,
     },
 };
 
@@ -336,4 +345,24 @@ static void raspi3_machine_init(MachineClass *mc)
     mc->default_ram_size = 1 * GiB;
 }
 DEFINE_MACHINE("raspi3", raspi3_machine_init)
-#endif
+
+static void raspi4_init(MachineState *machine)
+{
+    raspi_init(machine, 4);
+}
+
+static void raspi4_machine_init(MachineClass *mc)
+{
+    mc->desc = "Raspberry Pi 4B";
+    mc->init = raspi4_init;
+    mc->block_default_type = IF_SD;
+    mc->no_parallel = 1;
+    mc->no_floppy = 1;
+    mc->no_cdrom = 1;
+    mc->max_cpus = BCM283X_NCPUS;
+    mc->min_cpus = BCM283X_NCPUS;
+    mc->default_cpus = BCM283X_NCPUS;
+    mc->default_ram_size = 1 * GiB;
+}
+DEFINE_MACHINE("raspi4", raspi4_machine_init)
+#endif /* TARGET_AARCH64 */
