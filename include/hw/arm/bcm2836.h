@@ -13,6 +13,7 @@
 
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/intc/bcm2836_control.h"
+#include "hw/intc/arm_gic.h"
 #include "target/arm/cpu.h"
 
 #define TYPE_BCM283X "bcm283x"
@@ -26,6 +27,7 @@
  */
 #define TYPE_BCM2836 "bcm2836"
 #define TYPE_BCM2837 "bcm2837"
+#define TYPE_BCM2838 "bcm2838"
 
 typedef struct BCM283XState {
     /*< private >*/
@@ -36,6 +38,7 @@ typedef struct BCM283XState {
     uint32_t enabled_cpus;
 
     ARMCPU cpus[BCM283X_NCPUS];
+    GICState gic;
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
 } BCM283XState;

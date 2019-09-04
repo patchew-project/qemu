@@ -21,6 +21,7 @@ struct BCM283XInfo {
     const char *cpu_type;
     hwaddr peri_base; /* Peripheral base address seen by the CPU */
     hwaddr ctrl_base; /* Interrupt controller and mailboxes etc. */
+    hwaddr gic_base;
     int clusterid;
 };
 
@@ -40,8 +41,24 @@ static const BCM283XInfo bcm283x_socs[] = {
         .ctrl_base = 0x40000000,
         .clusterid = 0x0,
     },
+    {
+        .name = TYPE_BCM2838,
+        .cpu_type = ARM_CPU_TYPE_NAME("cortex-a72"),
+        .peri_base = 0xfe000000,
+        .ctrl_base = 0xff800000,
+        .gic_base = 0x40000,
+    },
 #endif
 };
+
+#define GIC_NUM_IRQS                256
+
+#define GIC_BASE_OFS                0x0000
+#define GIC_DIST_OFS                0x1000
+#define GIC_CPU_OFS                 0x2000
+#define GIC_VIFACE_THIS_OFS         0x4000
+#define GIC_VIFACE_OTHER_OFS(cpu)  (0x5000 + (cpu) * 0x200)
+#define GIC_VCPU_OFS                0x6000
 
 static void bcm2836_init(Object *obj)
 {
@@ -53,6 +70,11 @@ static void bcm2836_init(Object *obj)
     for (n = 0; n < BCM283X_NCPUS; n++) {
         object_initialize_child(obj, "cpu[*]", &s->cpus[n], sizeof(s->cpus[n]),
                                 info->cpu_type, &error_abort, NULL);
+    }
+
+    if (info->gic_base) {
+        sysbus_init_child_obj(obj, "gic", &s->gic, sizeof(s->gic),
+                              TYPE_ARM_GIC);
     }
 
     sysbus_init_child_obj(obj, "control", &s->control, sizeof(s->control),
@@ -114,6 +136,59 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     }
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->control), 0, info->ctrl_base);
+
+    /* bcm2838 GICv2 */
+    if (info->gic_base) {
+        object_property_set_uint(OBJECT(&s->gic), 2, "revision", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        object_property_set_uint(OBJECT(&s->gic),
+                                 BCM283X_NCPUS, "num-cpu", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        object_property_set_uint(OBJECT(&s->gic),
+                                 32 + GIC_NUM_IRQS, "num-irq", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        object_property_set_bool(OBJECT(&s->gic),
+                                 true, "has-virtualization-extensions", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 0,
+                        info->ctrl_base + info->gic_base + GIC_DIST_OFS);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 1,
+                        info->ctrl_base + info->gic_base + GIC_CPU_OFS);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 2,
+                        info->ctrl_base + info->gic_base + GIC_VIFACE_THIS_OFS);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 3,
+                        info->ctrl_base + info->gic_base + GIC_VCPU_OFS);
+
+        for (n = 0; n < BCM283X_NCPUS; n++) {
+            sysbus_mmio_map(SYS_BUS_DEVICE(&s->gic), 4 + n,
+                            info->ctrl_base + info->gic_base
+                            + GIC_VIFACE_OTHER_OFS(n));
+        }
+
+        /* TODO wire IRQs!!! */
+    }
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 0,
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-irq", 0));
