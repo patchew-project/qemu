@@ -49,10 +49,22 @@
 #define RNG_OFFSET              0x104000
 #define GPIO_OFFSET             0x200000
 #define UART0_OFFSET            0x201000 /* PL011 */
+#define UART2_OFFSET            0x201400 /* PL011 */
+#define UART3_OFFSET            0x201600 /* PL011 */
+#define UART4_OFFSET            0x201800 /* PL011 */
+#define UART5_OFFSET            0x201a00 /* PL011 */
 #define MMCI0_OFFSET            0x202000 /* Legacy MMC */
 #define I2S_OFFSET              0x203000 /* PCM */
 #define SPI0_OFFSET             0x204000 /* SPI master */
+#define SPI3_OFFSET             0x204600
+#define SPI4_OFFSET             0x204800
+#define SPI5_OFFSET             0x204a00
+#define SPI6_OFFSET             0x204c00
 #define BSC0_OFFSET             0x205000 /* BSC0 I2C/TWI */
+#define BSC3_OFFSET             0x205600
+#define BSC4_OFFSET             0x205800
+#define BSC5_OFFSET             0x205a00
+#define BSC6_OFFSET             0x205c00
 #define PIXV0_OFFSET            0x206000
 #define PIXV1_OFFSET            0x207000
 #define DPI_OFFSET              0x208000
@@ -84,6 +96,8 @@
 #define DBUS_OFFSET             0x900000
 #define AVE0_OFFSET             0x910000
 #define USB_OTG_OFFSET          0x980000 /* DTC_OTG USB controller */
+#define USB_XHCI_OFFSET         0x9c0000 /* generic-xhci controller */
+#define ARGON_OFFSET            0xb00000
 #define V3D_OFFSET              0xc00000
 #define SDRAMC_OFFSET           0xe00000
 #define L2CC_OFFSET             0xe01000 /* Level 2 Cache controller */

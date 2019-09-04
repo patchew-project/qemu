@@ -42,6 +42,7 @@ typedef struct BCM2835PeripheralState {
     UnimplementedDeviceState cprman;
     UnimplementedDeviceState a2w;
     PL011State uart0;
+    UnimplementedDeviceState uartu[6];
     BCM2835AuxState aux;
     BCM2835FBState fb;
     BCM2835DMAState dma;
@@ -53,14 +54,17 @@ typedef struct BCM2835PeripheralState {
     BCM2835SDHostState sdhost;
     BCM2835GpioState gpio;
     UnimplementedDeviceState i2s;
-    UnimplementedDeviceState spi0;
-    UnimplementedDeviceState i2c[3];
+    UnimplementedDeviceState spi[7];
+    UnimplementedDeviceState i2c[7];
     UnimplementedDeviceState otp;
     UnimplementedDeviceState dbus;
     UnimplementedDeviceState ave0;
     UnimplementedDeviceState bscsl;
     UnimplementedDeviceState smi;
     UnimplementedDeviceState dwc2;
+    UnimplementedDeviceState xhci;
+    UnimplementedDeviceState argon;
+    UnimplementedDeviceState v3d;
     UnimplementedDeviceState sdramc;
 } BCM2835PeripheralState;
 
