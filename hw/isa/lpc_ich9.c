@@ -359,6 +359,38 @@ static void ich9_set_sci(void *opaque, int irq_num, int level)
     }
 }
 
+static uint64_t smbase_blackhole_read(void *ptr, hwaddr reg, unsigned size)
+{
+    return 0xffffffff;
+}
+
+static void smbase_blackhole_write(void *opaque, hwaddr addr, uint64_t val,
+                                   unsigned width)
+{
+    /* nothing */
+}
+
+static const MemoryRegionOps smbase_blackhole_ops = {
+    .read = smbase_blackhole_read,
+    .write = smbase_blackhole_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.min_access_size = 1,
+    .valid.max_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static void ich9_lpc_smbase_locked_update(ICH9LPCState *lpc)
+{
+    bool en = lpc->smi_negotiated_features & ICH9_LPC_SMI_F_LOCKED_SMBASE_BIT;
+
+    memory_region_transaction_begin();
+    memory_region_set_enabled(&lpc->smbase_blackhole, en);
+    memory_region_set_enabled(&lpc->smbase_window, en);
+    memory_region_transaction_commit();
+}
+
 static void smi_features_ok_callback(void *opaque)
 {
     ICH9LPCState *lpc = opaque;
@@ -379,9 +411,13 @@ static void smi_features_ok_callback(void *opaque)
     /* valid feature subset requested, lock it down, report success */
     lpc->smi_negotiated_features = guest_features;
     lpc->smi_features_ok = 1;
+
+    ich9_lpc_smbase_locked_update(lpc);
 }
 
-void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
+void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled,
+                      MemoryRegion *system_memory,  MemoryRegion *ram,
+                      MemoryRegion *smram)
 {
     ICH9LPCState *lpc = ICH9_LPC_DEVICE(lpc_pci);
     qemu_irq sci_irq;
@@ -413,6 +449,20 @@ void ich9_lpc_pm_init(PCIDevice *lpc_pci, bool smm_enabled)
                                  &lpc->smi_features_ok,
                                  sizeof lpc->smi_features_ok,
                                  true);
+
+        memory_region_init_io(&lpc->smbase_blackhole, OBJECT(lpc),
+                              &smbase_blackhole_ops, NULL,
+                              "smbase-blackhole", ICH9_LPC_SMBASE_RAM_SIZE);
+        memory_region_set_enabled(&lpc->smbase_blackhole, false);
+        memory_region_add_subregion_overlap(system_memory, ICH9_LPC_SMBASE_ADDR,
+                                            &lpc->smbase_blackhole, 1);
+
+
+        memory_region_init_alias(&lpc->smbase_window, OBJECT(lpc),
+            "smbase-window", ram,
+             ICH9_LPC_SMBASE_ADDR, ICH9_LPC_SMBASE_RAM_SIZE);
+        memory_region_set_enabled(&lpc->smbase_window, false);
+        memory_region_add_subregion(smram, 0x30000, &lpc->smbase_window);
     }
 
     ich9_lpc_reset(DEVICE(lpc));
@@ -508,6 +558,7 @@ static int ich9_lpc_post_load(void *opaque, int version_id)
     ich9_lpc_pmbase_sci_update(lpc);
     ich9_lpc_rcba_update(lpc, 0 /* disabled ICH9_LPC_RCBA_EN */);
     ich9_lpc_pmcon_update(lpc);
+    ich9_lpc_smbase_locked_update(lpc);
     return 0;
 }
 
@@ -567,6 +618,8 @@ static void ich9_lpc_reset(DeviceState *qdev)
     memset(lpc->smi_guest_features_le, 0, sizeof lpc->smi_guest_features_le);
     lpc->smi_features_ok = 0;
     lpc->smi_negotiated_features = 0;
+
+    ich9_lpc_smbase_locked_update(lpc);
 }
 
 /* root complex register block is mapped into memory space */
@@ -697,6 +750,7 @@ static void ich9_lpc_realize(PCIDevice *d, Error **errp)
     qdev_init_gpio_out_named(dev, lpc->gsi, ICH9_GPIO_GSI, GSI_NUM_PINS);
 
     isa_bus_irqs(isa_bus, lpc->gsi);
+
 }
 
 static bool ich9_rst_cnt_needed(void *opaque)
@@ -764,6 +818,8 @@ static Property ich9_lpc_properties[] = {
     DEFINE_PROP_BOOL("noreboot", ICH9LPCState, pin_strap.spkr_hi, true),
     DEFINE_PROP_BIT64("x-smi-broadcast", ICH9LPCState, smi_host_features,
                       ICH9_LPC_SMI_F_BROADCAST_BIT, true),
+    DEFINE_PROP_BIT64("x-smi-locked-smbase", ICH9LPCState, smi_host_features,
+                      ICH9_LPC_SMI_F_LOCKED_SMBASE_BIT, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

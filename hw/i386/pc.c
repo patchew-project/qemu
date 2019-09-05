@@ -119,7 +119,9 @@ struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 /* Physical Address of PVH entry point read from kernel ELF NOTE */
 static size_t pvh_start_addr;
 
-GlobalProperty pc_compat_4_1[] = {};
+GlobalProperty pc_compat_4_1[] = {
+    { "ICH9-LPC", "x-smi-locked-smbase", "off" },
+};
 const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 
 GlobalProperty pc_compat_4_0[] = {};

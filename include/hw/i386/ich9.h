@@ -12,11 +12,14 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/ich9.h"
 #include "hw/pci/pci_bus.h"
+#include "qemu/units.h"
 
 void ich9_lpc_set_irq(void *opaque, int irq_num, int level);
 int ich9_lpc_map_irq(PCIDevice *pci_dev, int intx);
 PCIINTxRoute ich9_route_intx_pin_to_irq(void *opaque, int pirq_pin);
-void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled);
+void ich9_lpc_pm_init(PCIDevice *pci_lpc, bool smm_enabled,
+                      MemoryRegion *system_memory, MemoryRegion *ram,
+                      MemoryRegion *smram);
 I2CBus *ich9_smb_init(PCIBus *bus, int devfn, uint32_t smb_io_base);
 
 void ich9_generate_smi(void);
@@ -71,6 +74,8 @@ typedef struct ICH9LPCState {
     uint8_t smi_features_ok;          /* guest-visible, read-only; selecting it
                                        * triggers feature lockdown */
     uint64_t smi_negotiated_features; /* guest-invisible, host endian */
+    MemoryRegion smbase_blackhole;
+    MemoryRegion smbase_window;
 
     /* isa bus */
     ISABus *isa_bus;
@@ -248,5 +253,7 @@ typedef struct ICH9LPCState {
 
 /* bit positions used in fw_cfg SMI feature negotiation */
 #define ICH9_LPC_SMI_F_BROADCAST_BIT            0
-
+#define ICH9_LPC_SMI_F_LOCKED_SMBASE_BIT        1
+#define ICH9_LPC_SMBASE_ADDR                    0x30000
+#define ICH9_LPC_SMBASE_RAM_SIZE                (128 * KiB)
 #endif /* HW_ICH9_H */
