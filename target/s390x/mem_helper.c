@@ -117,27 +117,82 @@ static inline void cpu_stsize_data_ra(CPUS390XState *env, uint64_t addr,
     }
 }
 
-static void fast_memset(CPUS390XState *env, uint64_t dest, uint8_t byte,
-                        uint32_t l, uintptr_t ra)
+/*
+ * An access covers at most 4096 bytes and therefore at most two pages. If
+ * we can't access the host page directly, we'll have to do I/O access
+ * via ld/st helpers.
+ */
+typedef struct S390Access {
+    target_ulong vaddr1;
+    target_ulong vaddr2;
+    char *haddr1;
+    char *haddr2;
+    uint16_t size1;
+    uint16_t size2;
+} S390Access;
+
+static S390Access access_prepare_idx(CPUS390XState *env, vaddr vaddr, int size,
+                                     MMUAccessType access_type, int mmu_idx,
+                                     uintptr_t ra)
+{
+    S390Access access = {
+        .vaddr1 = vaddr,
+        .size1 = MIN(size, -(vaddr | TARGET_PAGE_MASK)),
+    };
+
+    g_assert(size > 0 && size <= 4096);
+    access.haddr1 = probe_access(env, access.vaddr1, access.size1, access_type,
+                                 mmu_idx, ra);
+
+    if (unlikely(access.size1 != size)) {
+        /* The access crosses page boundaries. */
+        access.vaddr2 = wrap_address(env, vaddr + access.size1);
+        access.size2 = size - access.size1;
+        access.haddr2 = probe_access(env, access.vaddr2, access.size2,
+                                     access_type, mmu_idx, ra);
+    }
+    return access;
+}
+
+static void access_memset_idx(CPUS390XState *env, vaddr vaddr, uint8_t byte,
+                              int size, int mmu_idx, uintptr_t ra)
+{
+    S390Access desta = access_prepare_idx(env, vaddr, size, MMU_DATA_STORE,
+                                          mmu_idx, ra);
+#ifdef CONFIG_USER_ONLY
+    g_assert(desta.haddr1 && (desta.haddr2 || !desta.size2));
+    memset(desta.haddr1, byte, desta.size1);
+    memset(desta.haddr2, byte, desta.size2);
+#else
+    TCGMemOpIdx oi = make_memop_idx(MO_UB, mmu_idx);
+    int i;
+
+    if (likely(desta.haddr1)) {
+        memset(desta.haddr1, byte, desta.size1);
+    } else {
+        for (i = 0; i < desta.size1; i++) {
+            helper_ret_stb_mmu(env, desta.vaddr1 + i, byte, oi, ra);
+        }
+    }
+    if (likely(!desta.size2)) {
+        return;
+    }
+    if (likely(desta.haddr2)) {
+            memset(desta.haddr2, byte, desta.size2);
+    } else {
+        for (i = 0; i < desta.size2; i++) {
+            helper_ret_stb_mmu(env, desta.vaddr2 + i, byte, oi, ra);
+        }
+    }
+#endif
+}
+
+static void access_memset(CPUS390XState *env, vaddr vaddr, uint8_t byte,
+                          int size, uintptr_t ra)
 {
     int mmu_idx = cpu_mmu_index(env, false);
 
-    while (l > 0) {
-        void *p = tlb_vaddr_to_host(env, dest, MMU_DATA_STORE, mmu_idx);
-        if (p) {
-            /* Access to the whole page in write mode granted.  */
-            uint32_t l_adj = adj_len_to_page(l, dest);
-            memset(p, byte, l_adj);
-            dest += l_adj;
-            l -= l_adj;
-        } else {
-            /* We failed to get access to the whole page. The next write
-               access will likely fill the QEMU TLB for the next iteration.  */
-            cpu_stb_data_ra(env, dest, byte, ra);
-            dest++;
-            l--;
-        }
-    }
+    access_memset_idx(env, vaddr, byte, size, mmu_idx, ra);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -267,7 +322,7 @@ static uint32_t do_helper_xc(CPUS390XState *env, uint32_t l, uint64_t dest,
 
     /* xor with itself is the same as memset(0) */
     if (src == dest) {
-        fast_memset(env, dest, 0, l + 1, ra);
+        access_memset(env, dest, 0, l + 1, ra);
         return 0;
     }
 
@@ -329,7 +384,7 @@ static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
      * behave like memmove().
      */
     if (dest == src + 1) {
-        fast_memset(env, dest, cpu_ldub_data_ra(env, src, ra), l, ra);
+        access_memset(env, dest, cpu_ldub_data_ra(env, src, ra), l, ra);
     } else if (!is_destructive_overlap(env, dest, src, l)) {
         fast_memmove(env, dest, src, l, ra);
     } else {
@@ -798,7 +853,7 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
     } else if (wordsize == 1) {
         /* Pad the remaining area */
         *destlen -= len;
-        fast_memset(env, *dest, pad, len, ra);
+        access_memset(env, *dest, pad, len, ra);
         *dest = wrap_address(env, *dest + len);
     } else {
         /* The remaining length selects the padding byte. */
@@ -852,7 +907,7 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     while (destlen) {
         cur_len = MIN(destlen, 2048);
         if (!srclen) {
-            fast_memset(env, dest, pad, cur_len, ra);
+            access_memset(env, dest, pad, cur_len, ra);
         } else {
             cur_len = MIN(cur_len, srclen);
 
