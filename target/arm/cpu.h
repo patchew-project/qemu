@@ -805,6 +805,9 @@ struct ARMCPU {
      */
     uint32_t psci_conduit;
 
+    /* For M, initial value of the entry and SP */
+    uint32_t init_sp, init_entry;
+
     /* For v8M, initial value of the Secure VTOR */
     uint32_t init_svtor;
 

@@ -311,6 +311,9 @@ static void arm_cpu_reset(CPUState *s)
              */
             initial_msp = ldl_p(rom);
             initial_pc = ldl_p(rom + 4);
+        } else if (cpu->init_sp || cpu->init_entry) {
+            initial_msp = cpu->init_sp;
+            initial_pc = cpu->init_entry;
         } else {
             /* Address zero not covered by a ROM blob, or the ROM blob
              * is in non-modifiable memory and this is a second reset after
@@ -1055,6 +1058,38 @@ static void arm_set_init_svtor(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, &cpu->init_svtor, errp);
 }
 
+static void arm_get_init_sp(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    visit_type_uint32(v, name, &cpu->init_sp, errp);
+}
+
+static void arm_set_init_sp(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    visit_type_uint32(v, name, &cpu->init_sp, errp);
+}
+
+static void arm_get_init_entry(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    visit_type_uint32(v, name, &cpu->init_entry, errp);
+}
+
+static void arm_set_init_entry(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    visit_type_uint32(v, name, &cpu->init_entry, errp);
+}
+
 void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1155,18 +1190,25 @@ void arm_cpu_post_init(Object *obj)
         }
     }
 
+    /*
+     * M profile: initial value of the SP, entry and Secure VTOR.
+     * We can't just use a simple DEFINE_PROP_UINT32 for this because we want
+     * to permit the property to be set after realize.
+     */
     if (arm_feature(&cpu->env, ARM_FEATURE_M_SECURITY)) {
         object_property_add_link(obj, "idau", TYPE_IDAU_INTERFACE, &cpu->idau,
                                  qdev_prop_allow_set_link_before_realize,
                                  OBJ_PROP_LINK_STRONG,
                                  &error_abort);
-        /*
-         * M profile: initial value of the Secure VTOR. We can't just use
-         * a simple DEFINE_PROP_UINT32 for this because we want to permit
-         * the property to be set after realize.
-         */
         object_property_add(obj, "init-svtor", "uint32",
                             arm_get_init_svtor, arm_set_init_svtor,
+                            NULL, NULL, &error_abort);
+    } else if (arm_feature(&cpu->env, ARM_FEATURE_M)) {
+        object_property_add(obj, "init-sp", "uint32",
+                            arm_get_init_sp, arm_set_init_sp,
+                            NULL, NULL, &error_abort);
+        object_property_add(obj, "init-entry", "uint32",
+                            arm_get_init_entry, arm_set_init_entry,
                             NULL, NULL, &error_abort);
     }
 
