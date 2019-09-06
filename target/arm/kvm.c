@@ -20,6 +20,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
 #include "sysemu/kvm_int.h"
+#include "sysemu/reset.h"
 #include "kvm_arm.h"
 #include "cpu.h"
 #include "trace.h"
@@ -194,6 +195,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvm_halt_in_kernel_allowed = true;
 
     cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
+
+    qemu_register_reset(kvm_unpoison_all, NULL);
 
     return 0;
 }
