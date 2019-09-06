@@ -145,6 +145,14 @@ static S390Access access_prepare_idx(CPUS390XState *env, vaddr vaddr, int size,
     return access;
 }
 
+static S390Access access_prepare(CPUS390XState *env, vaddr vaddr, int size,
+                                 MMUAccessType access_type, uintptr_t ra)
+{
+    int mmu_idx = cpu_mmu_index(env, false);
+
+    return access_prepare_idx(env, vaddr, size, access_type, mmu_idx, ra);
+}
+
 static void access_memset_idx(CPUS390XState *env, vaddr vaddr, uint8_t byte,
                               int size, int mmu_idx, uintptr_t ra)
 {
@@ -420,9 +428,13 @@ static uint32_t do_helper_mvc(CPUS390XState *env, uint32_t l, uint64_t dest,
     } else if (!is_destructive_overlap(env, dest, src, l)) {
         access_memmove(env, dest, src, l, ra);
     } else {
+        S390Access srca = access_prepare(env, src, l, MMU_DATA_LOAD, ra);
+        S390Access desta = access_prepare(env, dest, l, MMU_DATA_STORE, ra);
+
         for (i = 0; i < l; i++) {
-            uint8_t x = cpu_ldub_data_ra(env, src + i, ra);
-            cpu_stb_data_ra(env, dest + i, x, ra);
+            uint8_t byte = access_get_byte(env, &srca, i, ra);
+
+            access_set_byte(env, &desta, i, byte, ra);
         }
     }
 
