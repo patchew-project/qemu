@@ -2049,7 +2049,7 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
     const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
     uintptr_t ra = GETPC();
-    int cc = 0, i;
+    int cc = 0;
 
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
                __func__, l, a1, a2);
@@ -2068,12 +2068,8 @@ uint32_t HELPER(mvcs)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
         return cc;
     }
 
-    /* XXX replace w/ memcpy */
-    for (i = 0; i < l; i++) {
-        uint8_t x = cpu_ldub_primary_ra(env, a2 + i, ra);
-        cpu_stb_secondary_ra(env, a1 + i, x, ra);
-    }
-
+    /* TODO: Access key handling */
+    access_memmove_idx(env, a1, a2, l, MMU_SECONDARY_IDX, MMU_PRIMARY_IDX, ra);
     return cc;
 }
 
@@ -2081,7 +2077,7 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
 {
     const uint8_t psw_as = (env->psw.mask & PSW_MASK_ASC) >> PSW_SHIFT_ASC;
     uintptr_t ra = GETPC();
-    int cc = 0, i;
+    int cc = 0;
 
     HELPER_LOG("%s: %16" PRIx64 " %16" PRIx64 " %16" PRIx64 "\n",
                __func__, l, a1, a2);
@@ -2100,12 +2096,8 @@ uint32_t HELPER(mvcp)(CPUS390XState *env, uint64_t l, uint64_t a1, uint64_t a2)
         return cc;
     }
 
-    /* XXX replace w/ memcpy */
-    for (i = 0; i < l; i++) {
-        uint8_t x = cpu_ldub_secondary_ra(env, a2 + i, ra);
-        cpu_stb_primary_ra(env, a1 + i, x, ra);
-    }
-
+    /* TODO: Access key handling */
+    access_memmove_idx(env, a1, a2, l, MMU_PRIMARY_IDX, MMU_SECONDARY_IDX, ra);
     return cc;
 }
 
