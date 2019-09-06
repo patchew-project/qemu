@@ -1783,6 +1783,20 @@ static void virt_set_its(Object *obj, bool value, Error **errp)
     vms->its = value;
 }
 
+static bool virt_get_ras(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    return vms->ras;
+}
+
+static void virt_set_ras(Object *obj, bool value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+
+    vms->ras = value;
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
@@ -2026,6 +2040,19 @@ static void virt_instance_init(Object *obj)
                                     "Valid values are none and smmuv3",
                                     NULL);
 
+    if (vmc->no_ras) {
+        vms->ras = false;
+    } else {
+        /* Default disallows RAS instantiation */
+        vms->ras = false;
+        object_property_add_bool(obj, "ras", virt_get_ras,
+                                 virt_set_ras, NULL);
+        object_property_set_description(obj, "ras",
+                                        "Set on/off to enable/disable "
+                                        "RAS instantiation",
+                                        NULL);
+    }
+
     vms->irqmap = a15irqmap;
 
     virt_flash_create(vms);
@@ -2058,8 +2085,14 @@ DEFINE_VIRT_MACHINE_AS_LATEST(4, 2)
 
 static void virt_machine_4_1_options(MachineClass *mc)
 {
+    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+
     virt_machine_4_2_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
+    /* Disable memory recovery feature for 4.1 as RAS support was
+     * introduced with 4.2.
+     */
+    vmc->no_ras = true;
 }
 DEFINE_VIRT_MACHINE(4, 1)
 
