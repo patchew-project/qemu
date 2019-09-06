@@ -306,7 +306,7 @@ static void armv7m_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
-void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
+uint64_t armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
 {
     int image_size;
     uint64_t entry;
@@ -353,6 +353,8 @@ void armv7m_load_kernel(ARMCPU *cpu, const char *kernel_filename, int mem_size)
      * board must call this function!
      */
     qemu_register_reset(armv7m_reset, cpu);
+
+    return entry;
 }
 
 static Property bitband_properties[] = {
