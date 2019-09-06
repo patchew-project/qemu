@@ -463,8 +463,8 @@ static int coroutine_fn do_perform_cow_read(BlockDriverState *bs,
 }
 
 static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
-                                                uint64_t src_cluster_offset,
-                                                uint64_t cluster_offset,
+                                                uint64_t guest_cluster_offset,
+                                                uint64_t host_cluster_offset,
                                                 unsigned offset_in_cluster,
                                                 uint8_t *buffer,
                                                 unsigned bytes)
@@ -474,8 +474,8 @@ static bool coroutine_fn do_perform_cow_encrypt(BlockDriverState *bs,
         assert((offset_in_cluster & ~BDRV_SECTOR_MASK) == 0);
         assert((bytes & ~BDRV_SECTOR_MASK) == 0);
         assert(s->crypto);
-        if (qcow2_co_encrypt(bs, cluster_offset,
-                             src_cluster_offset + offset_in_cluster,
+        if (qcow2_co_encrypt(bs, host_cluster_offset,
+                             guest_cluster_offset + offset_in_cluster,
                              buffer, bytes) < 0) {
             return false;
         }

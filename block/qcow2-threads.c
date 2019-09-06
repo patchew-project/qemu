@@ -234,15 +234,19 @@ static int qcow2_encdec_pool_func(void *opaque)
 }
 
 static int coroutine_fn
-qcow2_co_encdec(BlockDriverState *bs, uint64_t file_cluster_offset,
-                  uint64_t offset, void *buf, size_t len, Qcow2EncDecFunc func)
+qcow2_co_encdec(BlockDriverState *bs, uint64_t host_cluster_offset,
+                  uint64_t guest_offset, void *buf, size_t len,
+                  Qcow2EncDecFunc func)
 {
     BDRVQcow2State *s = bs->opaque;
+
+    uint64_t offset = s->crypt_physical_offset ?
+        host_cluster_offset + offset_into_cluster(s, guest_offset) :
+        guest_offset;
+
     Qcow2EncDecData arg = {
         .block = s->crypto,
-        .offset = s->crypt_physical_offset ?
-                      file_cluster_offset + offset_into_cluster(s, offset) :
-                      offset,
+        .offset = offset,
         .buf = buf,
         .len = len,
         .func = func,
@@ -251,18 +255,45 @@ qcow2_co_encdec(BlockDriverState *bs, uint64_t file_cluster_offset,
     return qcow2_co_process(bs, qcow2_encdec_pool_func, &arg);
 }
 
+
+/*
+ * qcow2_co_encrypt()
+ *
+ * Encrypts a sector size aligned contiguous area
+ *
+ * @host_cluster_offset - on disk offset of the cluster in which
+ *                        the buffer resides
+ *
+ * @guest_offset - guest (virtual) offset of the buffer
+ * @buf - buffer with the data to encrypt
+ * @len - length of the buffer
+ *
+ * Note that the area is not cluster aligned and might cross a cluster
+ * boundary
+ *
+ *
+ */
 int coroutine_fn
-qcow2_co_encrypt(BlockDriverState *bs, uint64_t file_cluster_offset,
-                 uint64_t offset, void *buf, size_t len)
+qcow2_co_encrypt(BlockDriverState *bs, uint64_t host_cluster_offset,
+                 uint64_t guest_offset, void *buf, size_t len)
 {
-    return qcow2_co_encdec(bs, file_cluster_offset, offset, buf, len,
+    return qcow2_co_encdec(bs, host_cluster_offset, guest_offset, buf, len,
                              qcrypto_block_encrypt);
 }
 
+
+/*
+ * qcow2_co_decrypt()
+ *
+ * Decrypts a sector size aligned contiguous area
+ * Same function as qcow2_co_encrypt
+ *
+ */
+
 int coroutine_fn
-qcow2_co_decrypt(BlockDriverState *bs, uint64_t file_cluster_offset,
-                 uint64_t offset, void *buf, size_t len)
+qcow2_co_decrypt(BlockDriverState *bs, uint64_t host_cluster_offset,
+                 uint64_t guest_offset, void *buf, size_t len)
 {
-    return qcow2_co_encdec(bs, file_cluster_offset, offset, buf, len,
+    return qcow2_co_encdec(bs, host_cluster_offset, guest_offset, buf, len,
                              qcrypto_block_decrypt);
 }
