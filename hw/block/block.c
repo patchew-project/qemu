@@ -86,7 +86,8 @@ void blkconf_blocksizes(BlockConf *conf)
 }
 
 bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
-                                   bool resizable, Error **errp)
+                                   bool resizable, bool zoned_support,
+                                   Error **errp)
 {
     BlockBackend *blk = conf->blk;
     BlockdevOnError rerror, werror;
@@ -97,6 +98,9 @@ bool blkconf_apply_backend_options(BlockConf *conf, bool readonly,
     perm = BLK_PERM_CONSISTENT_READ;
     if (!readonly) {
         perm |= BLK_PERM_WRITE;
+    }
+    if (zoned_support) {
+        perm |= BLK_PERM_SUPPORT_HM_ZONED;
     }
 
     shared_perm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
