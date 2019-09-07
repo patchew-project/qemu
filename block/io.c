@@ -157,6 +157,11 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
             return;
         }
         bdrv_merge_limits(&bs->bl, &bs->file->bs->bl);
+
+        /* Propagate zoned model */
+        if (!bs->probed) {
+            bs->bl.zoned_model = bs->file->bs->bl.zoned_model;
+        }
     } else {
         bs->bl.min_mem_alignment = 512;
         bs->bl.opt_mem_alignment = getpagesize();
