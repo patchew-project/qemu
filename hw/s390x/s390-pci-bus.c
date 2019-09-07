@@ -15,6 +15,8 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "cpu.h"
+#include "s390-pci-clp.h"
+#include <linux/vfio_zdev.h>
 #include "s390-pci-bus.h"
 #include "s390-pci-inst.h"
 #include "hw/pci/pci_bus.h"
@@ -23,6 +25,9 @@
 #include "hw/pci/msi.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+
+#include "hw/vfio/pci.h"
+#include <sys/ioctl.h>
 
 #ifndef DEBUG_S390PCI_BUS
 #define DEBUG_S390PCI_BUS  0
@@ -781,6 +786,76 @@ static void set_pbdev_info(S390PCIBusDevice *pbdev)
     pbdev->pci_grp = s390_grp_find(ZPCI_DEFAULT_FN_GRP);
 }
 
+static int get_pbdev_info(S390PCIBusDevice *pbdev)
+{
+    VFIOPCIDevice *vfio_pci;
+    VFIODevice *vdev;
+    struct vfio_region_info *info;
+    CLPRegion *clp_region;
+    int size;
+    int ret;
+
+    vfio_pci = container_of(pbdev->pdev, VFIOPCIDevice, pdev);
+    vdev = &vfio_pci->vbasedev;
+
+    if (vdev->num_regions < VFIO_PCI_NUM_REGIONS + 1) {
+        /* Fall back to old handling */
+        return -ENODEV;
+    }
+
+    ret = vfio_get_dev_region_info(vdev,
+                                   PCI_VENDOR_ID_IBM |
+                                   VFIO_REGION_TYPE_PCI_VENDOR_TYPE,
+                                   VFIO_REGION_SUBTYPE_ZDEV_CLP, &info);
+    if (ret) {
+        /* Fall back to old handling */
+        return -EIO;
+    }
+
+    if (info->size != (sizeof(CLPRegion) + CLP_UTIL_STR_LEN)) {
+        /* Fall back to old handling */
+        g_free(info);
+        return -ENOMEM;
+    }
+    clp_region = g_malloc0(sizeof(*clp_region) + CLP_UTIL_STR_LEN);
+    size = pread(vdev->fd, clp_region, (sizeof(*clp_region) + CLP_UTIL_STR_LEN),
+                 info->offset);
+    if (size != (sizeof(*clp_region) + CLP_UTIL_STR_LEN)) {
+        goto end;
+    }
+
+    pbdev->zpci_fn.fid = pbdev->fid;
+    pbdev->zpci_fn.uid = pbdev->uid;
+    pbdev->zpci_fn.sdma = clp_region->start_dma;
+    pbdev->zpci_fn.edma = clp_region->end_dma;
+    pbdev->zpci_fn.pchid = clp_region->pchid;
+    pbdev->zpci_fn.ug = clp_region->gid;
+    pbdev->pci_grp = s390_grp_find(clp_region->gid);
+
+    if (!pbdev->pci_grp) {
+        ClpRspQueryPciGrp *resgrp;
+
+        pbdev->pci_grp = s390_grp_create(clp_region->gid);
+
+        resgrp = &pbdev->pci_grp->zpci_grp;
+        if (clp_region->flags & VFIO_PCI_ZDEV_FLAGS_REFRESH) {
+            resgrp->fr = 1;
+        }
+        stq_p(&resgrp->dasm, clp_region->dasm);
+        stq_p(&resgrp->msia, clp_region->msi_addr);
+        stw_p(&resgrp->mui, clp_region->mui);
+        stw_p(&resgrp->i, clp_region->noi);
+        /* These two must be queried in a next iteration */
+        stw_p(&resgrp->maxstbl, 128);
+        resgrp->version = 0;
+    }
+
+end:
+    g_free(info);
+    g_free(clp_region);
+    return ret;
+}
+
 static void s390_pcihost_realize(DeviceState *dev, Error **errp)
 {
     PCIBus *b;
@@ -853,7 +928,8 @@ static int s390_pci_msix_init(S390PCIBusDevice *pbdev)
     name = g_strdup_printf("msix-s390-%04x", pbdev->uid);
     memory_region_init_io(&pbdev->msix_notify_mr, OBJECT(pbdev),
                           &s390_msi_ctrl_ops, pbdev, name, PAGE_SIZE);
-    memory_region_add_subregion(&pbdev->iommu->mr, ZPCI_MSI_ADDR,
+    memory_region_add_subregion(&pbdev->iommu->mr,
+                                pbdev->pci_grp->zpci_grp.msia,
                                 &pbdev->msix_notify_mr);
     g_free(name);
 
@@ -1003,12 +1079,15 @@ static void s390_pcihost_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         pbdev->iommu = s390_pci_get_iommu(s, pci_get_bus(pdev), pdev->devfn);
         pbdev->iommu->pbdev = pbdev;
         pbdev->state = ZPCI_FS_DISABLED;
-        set_pbdev_info(pbdev);
 
         if (object_dynamic_cast(OBJECT(dev), "vfio-pci")) {
             pbdev->fh |= FH_SHM_VFIO;
+            if (get_pbdev_info(pbdev) != 0) {
+                set_pbdev_info(pbdev);
+            }
         } else {
             pbdev->fh |= FH_SHM_EMUL;
+            set_pbdev_info(pbdev);
         }
 
         if (s390_pci_msix_init(pbdev)) {

@@ -320,6 +320,8 @@ typedef struct S390PCIGroup {
 } S390PCIGroup;
 S390PCIGroup *s390_grp_find(int ug);
 
+typedef struct vfio_region_zpci_info CLPRegion;
+
 struct S390PCIBusDevice {
     DeviceState qdev;
     PCIDevice *pdev;
