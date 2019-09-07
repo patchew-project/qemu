@@ -271,17 +271,32 @@ enum {
      */
     BLK_PERM_GRAPH_MOD          = 0x10,
 
-    BLK_PERM_ALL                = 0x1f,
+    /**
+     * This permission is required to open host-managed zoned block devices.
+     */
+    BLK_PERM_SUPPORT_HM_ZONED   = 0x20,
+
+    BLK_PERM_ALL                = 0x3f,
 
     DEFAULT_PERM_PASSTHROUGH    = BLK_PERM_CONSISTENT_READ
                                  | BLK_PERM_WRITE
                                  | BLK_PERM_WRITE_UNCHANGED
-                                 | BLK_PERM_RESIZE,
+                                 | BLK_PERM_RESIZE
+                                 | BLK_PERM_SUPPORT_HM_ZONED,
 
     DEFAULT_PERM_UNCHANGED      = BLK_PERM_ALL & ~DEFAULT_PERM_PASSTHROUGH,
 };
 
 char *bdrv_perm_names(uint64_t perm);
+
+/*
+ * Known zoned device models.
+ */
+typedef enum {
+    BDRV_ZONED_MODEL_NONE, /* Regular block device */
+    BDRV_ZONED_MODEL_HA,   /* Host-aware zoned block device */
+    BDRV_ZONED_MODEL_HM,   /* Host-managed zoned block device */
+} BdrvZonedModel;
 
 /* disk I/O throttling */
 void bdrv_init(void);
@@ -359,6 +374,8 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs);
 BlockMeasureInfo *bdrv_measure(BlockDriver *drv, QemuOpts *opts,
                                BlockDriverState *in_bs, Error **errp);
 void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr);
+BdrvZonedModel bdrv_get_zoned_model(BlockDriverState *bs);
+bool bdrv_is_hm_zoned(BlockDriverState *bs);
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp);
 int bdrv_commit(BlockDriverState *bs);
 int bdrv_change_backing_file(BlockDriverState *bs,

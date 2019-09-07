@@ -1803,11 +1803,14 @@
 # @graph-mod: This permission is required to change the node that this
 #             BdrvChild points to.
 #
+# @support-hm-zoned: This permission is required to attach host-managed
+#                    zoned devices.
+#
 # Since: 4.0
 ##
   { 'enum': 'BlockPermission',
     'data': [ 'consistent-read', 'write', 'write-unchanged', 'resize',
-              'graph-mod' ] }
+              'graph-mod', 'support-hm-zoned' ] }
 ##
 # @XDbgBlockGraphEdge:
 #

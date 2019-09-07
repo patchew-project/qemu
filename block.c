@@ -1968,11 +1968,12 @@ char *bdrv_perm_names(uint64_t perm)
         uint64_t perm;
         const char *name;
     } permissions[] = {
-        { BLK_PERM_CONSISTENT_READ, "consistent read" },
-        { BLK_PERM_WRITE,           "write" },
-        { BLK_PERM_WRITE_UNCHANGED, "write unchanged" },
-        { BLK_PERM_RESIZE,          "resize" },
-        { BLK_PERM_GRAPH_MOD,       "change children" },
+        { BLK_PERM_CONSISTENT_READ,  "consistent read" },
+        { BLK_PERM_WRITE,            "write" },
+        { BLK_PERM_WRITE_UNCHANGED,  "write unchanged" },
+        { BLK_PERM_RESIZE,           "resize" },
+        { BLK_PERM_GRAPH_MOD,        "change children" },
+        { BLK_PERM_SUPPORT_HM_ZONED, "attach hm-zoned" },
         { 0, NULL }
     };
 
@@ -4678,6 +4679,21 @@ void bdrv_get_geometry(BlockDriverState *bs, uint64_t *nb_sectors_ptr)
     *nb_sectors_ptr = nb_sectors < 0 ? 0 : nb_sectors;
 }
 
+BdrvZonedModel bdrv_get_zoned_model(BlockDriverState *bs)
+{
+    return bs->bl.zoned_model;
+}
+
+bool bdrv_is_hm_zoned(BlockDriverState *bs)
+{
+    /*
+     * Host Aware zone devices are supposed to be able to work
+     * just like regular block devices. Thus, we only consider
+     * Host Managed devices to be zoned here.
+     */
+    return bdrv_get_zoned_model(bs) == BDRV_ZONED_MODEL_HM;
+}
+
 bool bdrv_is_sg(BlockDriverState *bs)
 {
     return bs->sg;
@@ -4871,11 +4887,12 @@ static void xdbg_graph_add_edge(XDbgBlockGraphConstructor *gr, void *parent,
     } PermissionMap;
 
     static const PermissionMap permissions[] = {
-        { BLK_PERM_CONSISTENT_READ, BLOCK_PERMISSION_CONSISTENT_READ },
-        { BLK_PERM_WRITE,           BLOCK_PERMISSION_WRITE },
-        { BLK_PERM_WRITE_UNCHANGED, BLOCK_PERMISSION_WRITE_UNCHANGED },
-        { BLK_PERM_RESIZE,          BLOCK_PERMISSION_RESIZE },
-        { BLK_PERM_GRAPH_MOD,       BLOCK_PERMISSION_GRAPH_MOD },
+        { BLK_PERM_CONSISTENT_READ,  BLOCK_PERMISSION_CONSISTENT_READ },
+        { BLK_PERM_WRITE,            BLOCK_PERMISSION_WRITE },
+        { BLK_PERM_WRITE_UNCHANGED,  BLOCK_PERMISSION_WRITE_UNCHANGED },
+        { BLK_PERM_RESIZE,           BLOCK_PERMISSION_RESIZE },
+        { BLK_PERM_GRAPH_MOD,        BLOCK_PERMISSION_GRAPH_MOD },
+        { BLK_PERM_SUPPORT_HM_ZONED, BLOCK_PERMISSION_SUPPORT_HM_ZONED },
         { 0, 0 }
     };
     const PermissionMap *p;
