@@ -1649,33 +1649,52 @@ static const VMStateDescription vmstate_ahci_device = {
     },
 };
 
+static int ahci_state_load_engines(AHCIState *s, AHCIDevice *ad)
+{
+    AHCIPortRegs *pr = &ad->port_regs;
+    DeviceState *dev_state = s->container;
+    PCIDevice *pci_dev = (PCIDevice *) object_dynamic_cast(OBJECT(dev_state),
+                                                           TYPE_PCI_DEVICE);
+    bool pci_bus_master_enabled = pci_dev->bus_master_enable_region.enabled;
+
+    if (!(pr->cmd & PORT_CMD_START) && (pr->cmd & PORT_CMD_LIST_ON)) {
+        error_report("AHCI: DMA engine should be off, but status bit "
+                     "indicates it is still running.");
+        return -1;
+    }
+    if (!(pr->cmd & PORT_CMD_FIS_RX) && (pr->cmd & PORT_CMD_FIS_ON)) {
+        error_report("AHCI: FIS RX engine should be off, but status bit "
+                     "indicates it is still running.");
+        return -1;
+    }
+
+    memory_region_set_enabled(&pci_dev->bus_master_enable_region, true);
+
+    /*
+     * After a migrate, the DMA/FIS engines are "off" and
+     * need to be conditionally restarted
+     */
+    pr->cmd &= ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON);
+    if (ahci_cond_start_engines(ad) != 0) {
+        return -1;
+    }
+    memory_region_set_enabled(&pci_dev->bus_master_enable_region,
+                              pci_bus_master_enabled);
+
+    return 0;
+}
+
 static int ahci_state_post_load(void *opaque, int version_id)
 {
     int i, j;
     struct AHCIDevice *ad;
     NCQTransferState *ncq_tfs;
-    AHCIPortRegs *pr;
     AHCIState *s = opaque;
 
     for (i = 0; i < s->ports; i++) {
         ad = &s->dev[i];
-        pr = &ad->port_regs;
 
-        if (!(pr->cmd & PORT_CMD_START) && (pr->cmd & PORT_CMD_LIST_ON)) {
-            error_report("AHCI: DMA engine should be off, but status bit "
-                         "indicates it is still running.");
-            return -1;
-        }
-        if (!(pr->cmd & PORT_CMD_FIS_RX) && (pr->cmd & PORT_CMD_FIS_ON)) {
-            error_report("AHCI: FIS RX engine should be off, but status bit "
-                         "indicates it is still running.");
-            return -1;
-        }
-
-        /* After a migrate, the DMA/FIS engines are "off" and
-         * need to be conditionally restarted */
-        pr->cmd &= ~(PORT_CMD_LIST_ON | PORT_CMD_FIS_ON);
-        if (ahci_cond_start_engines(ad) != 0) {
+        if (ahci_state_load_engines(s, ad)) {
             return -1;
         }
 
