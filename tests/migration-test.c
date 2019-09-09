@@ -240,6 +240,17 @@ static int64_t read_ram_property_int(QTestState *who, const char *property)
     return result;
 }
 
+static int64_t read_migrate_property_int(QTestState *who, const char *property)
+{
+    QDict *rsp_return;
+    int64_t result;
+
+    rsp_return = migrate_query(who);
+    result = qdict_get_try_int(rsp_return, property, 0);
+    qobject_unref(rsp_return);
+    return result;
+}
+
 static uint64_t get_migration_pass(QTestState *who)
 {
     return read_ram_property_int(who, "dirty-sync-count");
@@ -254,20 +265,22 @@ static void read_blocktime(QTestState *who)
     qobject_unref(rsp_return);
 }
 
+static bool check_migration_status(QTestState *who, const char *status)
+{
+    bool completed;
+    char *current_status;
+
+    current_status = migrate_query_status(who);
+    completed = strcmp(current_status, status) == 0;
+    g_assert_cmpstr(current_status, !=, "failed");
+    g_free(current_status);
+    return completed;
+}
+
 static void wait_for_migration_status(QTestState *who,
                                       const char *goal)
 {
-    while (true) {
-        bool completed;
-        char *status;
-
-        status = migrate_query_status(who);
-        completed = strcmp(status, goal) == 0;
-        g_assert_cmpstr(status, !=,  "failed");
-        g_free(status);
-        if (completed) {
-            return;
-        }
+    while (!check_migration_status(who, goal)) {
         usleep(1000);
     }
 }
@@ -442,6 +455,17 @@ static void migrate_pause(QTestState *who)
     QDict *rsp;
 
     rsp = wait_command(who, "{ 'execute': 'migrate-pause' }");
+    qobject_unref(rsp);
+}
+
+static void migrate_continue(QTestState *who, const char *state)
+{
+    QDict *rsp;
+
+    rsp = wait_command(who,
+                       "{ 'execute': 'migrate-continue',"
+                       "  'arguments': { 'state': %s } }",
+                       state);
     qobject_unref(rsp);
 }
 
@@ -1125,6 +1149,89 @@ static void test_migrate_fd_proto(void)
     test_migrate_end(from, to, true);
 }
 
+static void test_migrate_auto_converge(void)
+{
+    char *uri = g_strdup_printf("unix:%s/migsocket", tmpfs);
+    QTestState *from, *to;
+    int64_t remaining, percentage;
+
+    /*
+     * We want the test to be stable and as fast as possible.
+     * E.g., with 1Gb/s bandwith migration may pass without throttling,
+     * so we need to decrease a bandwidth.
+     */
+    const int64_t init_pct = 5, inc_pct = 50, max_pct = 95;
+    const int64_t max_bandwidth = 400000000; /* ~400Mb/s */
+    const int64_t downtime_limit = 250; /* 250ms */
+    /*
+     * We migrate through unix-socket (> 500Mb/s).
+     * Thus, expected migration speed ~= bandwidth limit (< 500Mb/s).
+     * So, we can predict expected_threshold
+     */
+    const int64_t expected_threshold = max_bandwidth * downtime_limit / 1000;
+
+    if (test_migrate_start(&from, &to, uri, false, false)) {
+        return;
+    }
+
+    migrate_set_capability(from, "auto-converge", true);
+    migrate_set_parameter_int(from, "cpu-throttle-initial", init_pct);
+    migrate_set_parameter_int(from, "cpu-throttle-increment", inc_pct);
+    migrate_set_parameter_int(from, "max-cpu-throttle", max_pct);
+
+    /*
+     * Set the initial parameters so that the migration could not converge
+     * without throttling.
+     */
+    migrate_set_parameter_int(from, "downtime-limit", 1);
+    migrate_set_parameter_int(from, "max-bandwidth", 100000000); /* ~100Mb/s */
+
+    /* To check remaining size after precopy */
+    migrate_set_capability(from, "pause-before-switchover", true);
+
+    /* Wait for the first serial output from the source */
+    wait_for_serial("src_serial");
+
+    migrate(from, uri, "{}");
+
+    /* Wait for throttling begins */
+    percentage = 0;
+    while (percentage == 0) {
+        percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
+        usleep(100);
+        g_assert_false(got_stop);
+    }
+    /* The first percentage of throttling should be equal to init_pct */
+    g_assert_cmpint(percentage, ==, init_pct);
+    /* Now, when we tested that throttling works, let it converge */
+    migrate_set_parameter_int(from, "downtime-limit", downtime_limit);
+    migrate_set_parameter_int(from, "max-bandwidth", max_bandwidth);
+
+    /*
+     * Wait for pre-switchover status to check last throttle percentage
+     * and remaining. These values will be zeroed later
+     */
+    wait_for_migration_status(from, "pre-switchover");
+
+    /* The final percentage of throttling shouldn't be greater than max_pct */
+    percentage = read_migrate_property_int(from, "cpu-throttle-percentage");
+    g_assert_cmpint(percentage, <=, max_pct);
+
+    remaining = read_ram_property_int(from, "remaining");
+    g_assert_cmpint(remaining, <, expected_threshold);
+
+    migrate_continue(from, "pre-switchover");
+
+    qtest_qmp_eventwait(to, "RESUME");
+
+    wait_for_serial("dest_serial");
+    wait_for_migration_complete(from);
+
+    g_free(uri);
+
+    test_migrate_end(from, to, true);
+}
+
 int main(int argc, char **argv)
 {
     char template[] = "/tmp/migration-test-XXXXXX";
@@ -1180,6 +1287,7 @@ int main(int argc, char **argv)
     /* qtest_add_func("/migration/ignore_shared", test_ignore_shared); */
     qtest_add_func("/migration/xbzrle/unix", test_xbzrle_unix);
     qtest_add_func("/migration/fd_proto", test_migrate_fd_proto);
+    qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
 
     ret = g_test_run();
 
