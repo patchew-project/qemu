@@ -119,7 +119,7 @@ Section "${PRODUCT} (required)"
     File "${SRCDIR}\Changelog"
     File "${SRCDIR}\COPYING"
     File "${SRCDIR}\COPYING.LIB"
-    File "${SRCDIR}\README"
+    File "${SRCDIR}\README.rst"
     File "${SRCDIR}\VERSION"
 
     File "${BINDIR}\*.bmp"
