@@ -12,3 +12,15 @@ config NEXTCUBE
     bool
     select FRAMEBUFFER
     select ESCC
+
+config Q800
+    bool
+    select FRAMEBUFFER
+    select ADB
+    select MAC_VIA
+    select ESCC
+    select ESP
+    select MACFB
+    select NUBUS
+    select DP8393X
+    select SWIM
