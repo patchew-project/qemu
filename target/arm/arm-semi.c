@@ -36,6 +36,13 @@
 #else
 #include "exec/gdbstub.h"
 #include "qemu/cutils.h"
+
+/*
+ * Dummy typedef so that we can have functions that take
+ * a TaskState* even if we're building for softmmu; in that
+ * case the argument will always be NULL.
+ */
+typedef void TaskState;
 #endif
 
 #define TARGET_SYS_OPEN        0x01
@@ -213,26 +220,23 @@ static GuestFD *get_guestfd(int guestfd)
     return gf;
 }
 
-#ifdef CONFIG_USER_ONLY
-static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
-{
-    if (code == (uint32_t)-1)
-        ts->swi_errno = errno;
-    return code;
-}
-#else
+#ifndef CONFIG_USER_ONLY
 static target_ulong syscall_err;
-
-static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
-{
-    if (code == (uint32_t)-1) {
-        syscall_err = errno;
-    }
-    return code;
-}
 
 #include "exec/softmmu-semi.h"
 #endif
+
+static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
+{
+    if (code == (uint32_t)-1) {
+#ifdef CONFIG_USER_ONLY
+        ts->swi_errno = errno;
+#else
+        syscall_err = errno;
+#endif
+    }
+    return code;
+}
 
 static target_ulong arm_semi_syscall_len;
 
@@ -374,12 +378,14 @@ target_ulong do_arm_semihosting(CPUARMState *env)
     int nr;
     uint32_t ret;
     uint32_t len;
-#ifdef CONFIG_USER_ONLY
-    TaskState *ts = cs->opaque;
-#else
-    CPUARMState *ts = env;
-#endif
+    TaskState *ts;
     GuestFD *gf;
+
+#ifdef CONFIG_USER_ONLY
+    ts = cs->opaque;
+#else
+    ts = NULL;
+#endif
 
     if (is_a64(env)) {
         /* Note that the syscall number is in W0, not X0 */
