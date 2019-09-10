@@ -232,6 +232,8 @@ static int stressone(unsigned long long ramsizeMB)
 
     free(data);
     free(ram);
+
+    return 0;
 }
 
 
@@ -256,9 +258,7 @@ static int stress(unsigned long long ramsizeGB, int ncpus)
                        stressthread,   &ramsizeMB);
     }
 
-    stressone(ramsizeMB);
-
-    return 0;
+    return stressone(ramsizeMB);
 }
 
 
