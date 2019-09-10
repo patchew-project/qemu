@@ -5,6 +5,7 @@
 #include "qemu.h"
 #include "disas/disas.h"
 #include "qemu/path.h"
+#include "elf/elf-arch.h"
 
 #ifdef _ARCH_PPC64
 #undef ARCH_DLINFO
@@ -12,7 +13,6 @@
 #undef ELF_HWCAP
 #undef ELF_CLASS
 #undef ELF_DATA
-#undef ELF_ARCH
 #endif
 
 /* from personality.h */
@@ -115,7 +115,6 @@ static uint32_t get_elf_hwcap(void)
 
 #define ELF_CLASS      ELFCLASS64
 #define ELF_DATA       ELFDATA2LSB
-#define ELF_ARCH       EM_X86_64
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -141,7 +140,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
  */
 #define ELF_CLASS       ELFCLASS32
 #define ELF_DATA        ELFDATA2LSB
-#define ELF_ARCH        EM_386
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -176,7 +174,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #else
 #define ELF_DATA        ELFDATA2LSB
 #endif
-#define ELF_ARCH        EM_ARM
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -231,7 +228,6 @@ enum
 
 #define ELF_CLASS   ELFCLASS64
 #define ELF_DATA    ELFDATA2MSB
-#define ELF_ARCH    EM_SPARCV9
 
 #define STACK_BIAS              2047
 
@@ -265,7 +261,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_CLASS   ELFCLASS32
 #define ELF_DATA    ELFDATA2MSB
-#define ELF_ARCH    EM_SPARC
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -302,7 +297,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #else
 #define ELF_DATA        ELFDATA2LSB
 #endif
-#define ELF_ARCH        EM_PPC
 
 /*
  * We need to put in some extra aux table entries to tell glibc what
@@ -388,7 +382,6 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 #else
 #define ELF_DATA        ELFDATA2LSB
 #endif
-#define ELF_ARCH    EM_MIPS
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -410,7 +403,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2LSB
-#define ELF_ARCH  EM_SH
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -432,7 +424,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_CLASS ELFCLASS32
 #define ELF_DATA  ELFDATA2LSB
-#define ELF_ARCH  EM_CRIS
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
@@ -452,7 +443,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_DATA        ELFDATA2MSB
-#define ELF_ARCH        EM_68K
 
 /* ??? Does this need to do anything?
 #define ELF_PLAT_INIT(_r) */
@@ -477,7 +467,6 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 
 #define ELF_CLASS      ELFCLASS64
 #define ELF_DATA       ELFDATA2MSB
-#define ELF_ARCH       EM_ALPHA
 
 static inline void init_thread(struct target_pt_regs *regs, struct image_info *infop)
 {
