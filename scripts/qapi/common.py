@@ -523,27 +523,7 @@ class QAPISchemaParser(object):
                     if ch == '\n':
                         raise QAPIParseError(self, 'Missing terminating "\'"')
                     if esc:
-                        if ch == 'u':
-                            value = 0
-                            for _ in range(0, 4):
-                                ch = self.src[self.cursor]
-                                self.cursor += 1
-                                if ch not in '0123456789abcdefABCDEF':
-                                    raise QAPIParseError(self,
-                                                         '\\u escape needs 4 '
-                                                         'hex digits')
-                                value = (value << 4) + int(ch, 16)
-                            # If Python 2 and 3 didn't disagree so much on
-                            # how to handle Unicode, then we could allow
-                            # Unicode string defaults.  But most of QAPI is
-                            # ASCII-only, so we aren't losing much for now.
-                            if not value or value > 0x7f:
-                                raise QAPIParseError(self,
-                                                     'For now, \\u escape '
-                                                     'only supports non-zero '
-                                                     'values up to \\u007f')
-                            ch = chr(value)
-                        elif ch not in '\\/\'"':
+                        if ch != '\\':
                             raise QAPIParseError(self,
                                                  "Unknown escape \\%s" % ch)
                         esc = False
