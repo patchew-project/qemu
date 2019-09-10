@@ -7927,8 +7927,9 @@ fi
 # so the build tree will be missing the link back to the new file, and
 # tests might fail. Prefer to keep the relevant files in their own
 # directory and symlink the directory instead.
-DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/libqos tests/qapi-schema tests/tcg/xtensa tests/qemu-iotests tests/vm"
-DIRS="$DIRS tests/fp tests/qgraph"
+DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/tcg/xtensa"
+DIRS="$DIRS tests/libqos tests/qtest tests/qapi-schema tests/qemu-iotests"
+DIRS="$DIRS tests/fp tests/vm"
 DIRS="$DIRS docs docs/interop fsdev scsi"
 DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas pc-bios/s390-ccw"
 DIRS="$DIRS roms/seabios roms/vgabios"
