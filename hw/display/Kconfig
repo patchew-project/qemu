@@ -136,3 +136,4 @@ config ATI_VGA
 config MACFB
     bool
     select FRAMEBUFFER
+    depends on NUBUS
