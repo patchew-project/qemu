@@ -18,3 +18,4 @@ config Q800
     select MAC_VIA
     select MACFB
     select NUBUS
+    select SWIM
