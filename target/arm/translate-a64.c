@@ -1746,6 +1746,11 @@ static void handle_sys(DisasContext *s, uint32_t insn, bool isread,
         tcg_rt = cpu_reg(s, rt);
         gen_helper_dc_zva(cpu_env, tcg_rt);
         return;
+    case ARM_CP_DC_CVAP:
+        /* DC CVAP / DC CVADP */
+        tcg_rt = cpu_reg(s, rt);
+        gen_helper_dc_cvap(cpu_env, tcg_rt);
+        return;
     default:
         break;
     }

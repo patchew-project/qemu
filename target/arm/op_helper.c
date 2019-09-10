@@ -987,3 +987,39 @@ void HELPER(dc_zva)(CPUARMState *env, uint64_t vaddr_in)
     memset(g2h(vaddr), 0, blocklen);
 #endif
 }
+
+void HELPER(dc_cvap)(CPUARMState *env, uint64_t vaddr_in)
+{
+#ifndef CONFIG_USER_ONLY
+    ARMCPU *cpu = env_archcpu(env);
+    /* CTR_EL0 System register -> DminLine, bits [19:16] */
+    uint64_t dline_size = 4 << ((cpu->ctr >> 16) & 0xF);
+    uint64_t vaddr = vaddr_in & ~(dline_size - 1);
+    void *haddr;
+    int mem_idx = cpu_mmu_index(env, false);
+
+    /* This won't be crossing page boundaries */
+    haddr = probe_read(env, vaddr, dline_size, mem_idx, GETPC());
+    if (haddr) {
+
+        ram_addr_t offset;
+        MemoryRegion *mr;
+
+        /*
+         * RCU critical section + ref counting,
+         * so that MR won't disappear behind the scene
+         */
+        rcu_read_lock();
+        mr = memory_region_from_host(haddr, &offset);
+        if (mr) {
+            memory_region_ref(mr);
+        }
+        rcu_read_unlock();
+
+        if (mr) {
+            memory_region_do_writeback(mr, offset, dline_size);
+            memory_region_unref(mr);
+        }
+    }
+#endif
+}

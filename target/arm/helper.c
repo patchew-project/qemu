@@ -3843,6 +3843,22 @@ static CPAccessResult aa64_cacheop_access(CPUARMState *env,
     return CP_ACCESS_OK;
 }
 
+static CPAccessResult aa64_cacheop_persist_access(CPUARMState *env,
+                                                  const ARMCPRegInfo *ri,
+                                                  bool isread)
+{
+    ARMCPU *cpu = env_archcpu(env);
+    /*
+     * Access is UNDEF if lacking implementation for either DC CVAP or DC CVADP
+     * DC CVAP ->  CRm: 0xc
+     * DC CVADP -> CRm: 0xd
+     */
+    return (ri->crm == 0xc && !cpu_isar_feature(aa64_dcpop, cpu)) ||
+           (ri->crm == 0xd && !cpu_isar_feature(aa64_dcpodp, cpu))
+           ? CP_ACCESS_TRAP_UNCATEGORIZED
+           : aa64_cacheop_access(env, ri, isread);
+}
+
 /* See: D4.7.2 TLB maintenance requirements and the TLB maintenance instructions
  * Page D4-1736 (DDI0487A.b)
  */
@@ -4251,6 +4267,14 @@ static const ARMCPRegInfo v8_cp_reginfo[] = {
       .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 10, .opc2 = 1,
       .access = PL0_W, .type = ARM_CP_NOP,
       .accessfn = aa64_cacheop_access },
+    { .name = "DC_CVAP", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 12, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_DC_CVAP,
+      .accessfn = aa64_cacheop_persist_access },
+    { .name = "DC_CVADP", .state = ARM_CP_STATE_AA64,
+      .opc0 = 1, .opc1 = 3, .crn = 7, .crm = 13, .opc2 = 1,
+      .access = PL0_W, .type = ARM_CP_DC_CVAP,
+      .accessfn = aa64_cacheop_persist_access },
     { .name = "DC_CSW", .state = ARM_CP_STATE_AA64,
       .opc0 = 1, .opc1 = 0, .crn = 7, .crm = 10, .opc2 = 2,
       .access = PL1_W, .type = ARM_CP_NOP },
