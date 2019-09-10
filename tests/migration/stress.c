@@ -181,6 +181,8 @@ static int stressone(unsigned long long ramsizeMB)
     if (!ram) {
         fprintf(stderr, "%s (%05d): ERROR: cannot allocate %llu MB of RAM: %s\n",
                 argv0, gettid(), ramsizeMB, strerror(errno));
+        if (data)
+            free(data);
         return -1;
     }
     if (!data) {
