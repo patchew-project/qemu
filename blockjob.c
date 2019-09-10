@@ -192,6 +192,12 @@ void block_job_remove_all_bdrv(BlockJob *job)
         BdrvChild *c = l->data;
         bdrv_op_unblock_all(c->bs, job->blocker);
         bdrv_root_unref_child(c);
+        /*
+         * The call above may reach child_job_[can_]set_aio_ctx(), which will
+         * also traverse job->nodes, so update the head here to make sure it
+         * doesn't attempt to process an already freed BdrvChild.
+         */
+        job->nodes = l->next;
     }
     g_slist_free(job->nodes);
     job->nodes = NULL;
