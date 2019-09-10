@@ -7928,7 +7928,7 @@ fi
 # tests might fail. Prefer to keep the relevant files in their own
 # directory and symlink the directory instead.
 DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32 tests/tcg/xtensa"
-DIRS="$DIRS tests/libqos tests/qtest tests/qapi-schema tests/qemu-iotests"
+DIRS="$DIRS tests/qtest tests/qtest/libqos tests/qapi-schema tests/qemu-iotests"
 DIRS="$DIRS tests/fp tests/vm"
 DIRS="$DIRS docs docs/interop fsdev scsi"
 DIRS="$DIRS pc-bios/optionrom pc-bios/spapr-rtas pc-bios/s390-ccw"
