@@ -187,7 +187,8 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
 
     _FDT((fdt_setprop_cell(fdt, offset, "timebase-frequency", tbfreq)));
     _FDT((fdt_setprop_cell(fdt, offset, "clock-frequency", cpufreq)));
-    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size", cpu->hash64_opts->slb_size)));
+    _FDT((fdt_setprop_cell(fdt, offset, "ibm,slb-size",
+                           cpu->hash64_opts->slb_size)));
     _FDT((fdt_setprop_string(fdt, offset, "status", "okay")));
     _FDT((fdt_setprop(fdt, offset, "64-bit", NULL, 0)));
 
@@ -200,19 +201,23 @@ static void pnv_dt_core(PnvChip *chip, PnvCore *pc, void *fdt)
                            segs, sizeof(segs))));
     }
 
-    /* Advertise VMX/VSX (vector extensions) if available
+    /*
+     * Advertise VMX/VSX (vector extensions) if available
      *   0 / no property == no vector extensions
      *   1               == VMX / Altivec available
-     *   2               == VSX available */
+     *   2               == VSX available
+     */
     if (env->insns_flags & PPC_ALTIVEC) {
         uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
 
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,vmx", vmx)));
     }
 
-    /* Advertise DFP (Decimal Floating Point) if available
+    /*
+     * Advertise DFP (Decimal Floating Point) if available
      *   0 / no property == no DFP
-     *   1               == DFP available */
+     *   1               == DFP available
+     */
     if (env->insns_flags2 & PPC2_DFP) {
         _FDT((fdt_setprop_cell(fdt, offset, "ibm,dfp", 1)));
     }
@@ -424,7 +429,8 @@ static int pnv_dt_isa_device(DeviceState *dev, void *opaque)
     return 0;
 }
 
-/* The default LPC bus of a multichip system is on chip 0. It's
+/*
+ * The default LPC bus of a multichip system is on chip 0. It's
  * recognized by the firmware (skiboot) using a "primary" property.
  */
 static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
@@ -442,8 +448,10 @@ static void pnv_dt_isa(PnvMachineState *pnv, void *fdt)
     assert(phandle > 0);
     _FDT((fdt_setprop_cell(fdt, isa_offset, "phandle", phandle)));
 
-    /* ISA devices are not necessarily parented to the ISA bus so we
-     * can not use object_child_foreach() */
+    /*
+     * ISA devices are not necessarily parented to the ISA bus so we
+     * can not use object_child_foreach()
+     */
     qbus_walk_children(BUS(pnv->isa_bus), pnv_dt_isa_device, NULL, NULL, NULL,
                        &args);
 }
@@ -545,7 +553,8 @@ static void pnv_reset(MachineState *machine)
 
     qemu_devices_reset();
 
-    /* OpenPOWER systems have a BMC, which can be defined on the
+    /*
+     * OpenPOWER systems have a BMC, which can be defined on the
      * command line with:
      *
      *   -device ipmi-bmc-sim,id=bmc0
@@ -705,7 +714,8 @@ static void pnv_init(MachineState *machine)
 
         pnv->chips[i] = PNV_CHIP(chip);
 
-        /* TODO: put all the memory in one node on chip 0 until we find a
+        /*
+         * TODO: put all the memory in one node on chip 0 until we find a
          * way to specify different ranges for each chip
          */
         if (i == 0) {
@@ -732,8 +742,10 @@ static void pnv_init(MachineState *machine)
     /* Create an RTC ISA device too */
     mc146818_rtc_init(pnv->isa_bus, 2000, NULL);
 
-    /* OpenPOWER systems use a IPMI SEL Event message to notify the
-     * host to powerdown */
+    /*
+     * OpenPOWER systems use a IPMI SEL Event message to notify the
+     * host to powerdown
+     */
     pnv->powerdown_notifier.notify = pnv_powerdown_notify;
     qemu_register_powerdown_notifier(&pnv->powerdown_notifier);
 }
@@ -803,7 +815,8 @@ static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
     pnv_cpu->intc = obj;
 }
 
-/* Allowed core identifiers on a POWER8 Processor Chip :
+/*
+ * Allowed core identifiers on a POWER8 Processor Chip :
  *
  * <EX0 reserved>
  *  EX1  - Venice only
@@ -847,6 +860,11 @@ static void pnv_chip_power8_instance_init(Object *obj)
                             TYPE_PNV8_OCC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip8->occ), "psi",
                                    OBJECT(&chip8->psi), &error_abort);
+
+    object_initialize_child(obj, "homer",  &chip8->homer, sizeof(chip8->homer),
+                            TYPE_PNV8_HOMER, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip8->homer), "xics",
+                                   OBJECT(qdev_get_machine()), &error_abort);
 }
 
 static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
@@ -923,8 +941,10 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                                             (uint64_t) PNV_XSCOM_BASE(chip),
                                             PNV_XSCOM_LPC_BASE);
 
-    /* Interrupt Management Area. This is the memory region holding
-     * all the Interrupt Control Presenter (ICP) registers */
+    /*
+     * Interrupt Management Area. This is the memory region holding
+     * all the Interrupt Control Presenter (ICP) registers
+     */
     pnv_chip_icp_realize(chip8, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -942,6 +962,16 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV_OCC_COMMON_AREA(chip),
                                 &chip8->occ.sram_regs);
+
+    /* HOMER */
+    object_property_set_bool(OBJECT(&chip8->homer), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV_HOMER_BASE(chip),
+                                &chip8->homer.homer_regs);
 }
 
 static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
@@ -1024,6 +1054,11 @@ static void pnv_chip_power9_instance_init(Object *obj)
                             TYPE_PNV9_OCC, &error_abort, NULL);
     object_property_add_const_link(OBJECT(&chip9->occ), "psi",
                                    OBJECT(&chip9->psi), &error_abort);
+
+    object_initialize_child(obj, "homer",  &chip9->homer, sizeof(chip9->homer),
+                            TYPE_PNV9_HOMER, &error_abort, NULL);
+    object_property_add_const_link(OBJECT(&chip9->homer), "chip", obj,
+                                   &error_abort);
 }
 
 static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
@@ -1134,6 +1169,16 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* OCC SRAM model */
     memory_region_add_subregion(get_system_memory(), PNV9_OCC_COMMON_AREA(chip),
                                 &chip9->occ.sram_regs);
+
+    /* HOMER */
+    object_property_set_bool(OBJECT(&chip9->homer), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    memory_region_add_subregion(get_system_memory(), PNV9_HOMER_BASE(chip),
+                                &chip9->homer.homer_regs);
 }
 
 static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
@@ -1412,8 +1457,8 @@ static void pnv_machine_class_init(ObjectClass *oc, void *data)
     mc->init = pnv_init;
     mc->reset = pnv_reset;
     mc->max_cpus = MAX_CPUS;
-    mc->block_default_type = IF_IDE; /* Pnv provides a AHCI device for
-                                      * storage */
+    /* Pnv provides a AHCI device for storage */
+    mc->block_default_type = IF_IDE;
     mc->no_parallel = 1;
     mc->default_boot_order = NULL;
     /*
