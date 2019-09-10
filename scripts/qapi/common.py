@@ -1337,7 +1337,7 @@ class QAPISchemaEnumType(QAPISchemaType):
     def __init__(self, name, info, doc, ifcond, members, prefix):
         QAPISchemaType.__init__(self, name, info, doc, ifcond)
         for m in members:
-            assert isinstance(m, QAPISchemaMember)
+            assert isinstance(m, QAPISchemaEnumMember)
             m.set_owner(name)
         assert prefix is None or isinstance(prefix, str)
         self.members = members
@@ -1546,6 +1546,10 @@ class QAPISchemaMember(object):
 
     def describe(self):
         return "'%s' %s" % (self.name, self._pretty_owner())
+
+
+class QAPISchemaEnumMember(QAPISchemaMember):
+    role = 'value'
 
 
 class QAPISchemaFeature(QAPISchemaMember):
@@ -1804,7 +1808,8 @@ class QAPISchema(object):
         return [QAPISchemaFeature(f['name'], f.get('if')) for f in features]
 
     def _make_enum_members(self, values):
-        return [QAPISchemaMember(v['name'], v.get('if')) for v in values]
+        return [QAPISchemaEnumMember(v['name'], v.get('if'))
+                for v in values]
 
     def _make_implicit_enum_type(self, name, info, ifcond, values):
         # See also QAPISchemaObjectTypeMember._pretty_owner()
@@ -2220,7 +2225,7 @@ const QEnumLookup %(c_name)s_lookup = {
 
 def gen_enum(name, members, prefix=None):
     # append automatically generated _MAX value
-    enum_members = members + [QAPISchemaMember('_MAX')]
+    enum_members = members + [QAPISchemaEnumMember('_MAX')]
 
     ret = mcgen('''
 
