@@ -33,7 +33,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "hw/char/serial.h"

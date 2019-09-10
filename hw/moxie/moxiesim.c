@@ -37,7 +37,7 @@
 #include "hw/loader.h"
 #include "hw/char/serial.h"
 #include "exec/address-spaces.h"
-#include "elf.h"
+#include "elf/elf.h"
 
 #define PHYS_MEM_BASE 0x80000000
 #define FIRMWARE_BASE 0x1000

@@ -35,7 +35,7 @@
 #include "hw/boards.h"
 #include "sysemu/device_tree.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qemu/option.h"

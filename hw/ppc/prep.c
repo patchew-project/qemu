@@ -49,7 +49,7 @@
 #include "sysemu/reset.h"
 #include "exec/address-spaces.h"
 #include "trace.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "qemu/units.h"
 #include "kvm_ppc.h"
 

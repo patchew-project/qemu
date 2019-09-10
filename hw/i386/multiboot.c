@@ -28,7 +28,7 @@
 #include "hw/nvram/fw_cfg.h"
 #include "multiboot.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/sysemu.h"
 #include "qemu/error-report.h"
 

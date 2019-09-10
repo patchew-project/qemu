@@ -26,7 +26,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "exec/address-spaces.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "hw/tricore/tricore.h"
 #include "qemu/error-report.h"
 

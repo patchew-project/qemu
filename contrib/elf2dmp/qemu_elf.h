@@ -7,7 +7,7 @@
 #ifndef ELF2DMP_QEMU_ELF_H
 #define ELF2DMP_QEMU_ELF_H
 
-#include "elf.h"
+#include "elf/elf.h"
 
 typedef struct QEMUCPUSegment {
     uint32_t selector;

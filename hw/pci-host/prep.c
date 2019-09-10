@@ -37,7 +37,7 @@
 #include "hw/loader.h"
 #include "hw/or-irq.h"
 #include "exec/address-spaces.h"
-#include "elf.h"
+#include "elf/elf.h"
 
 #define TYPE_RAVEN_PCI_DEVICE "raven"
 #define TYPE_RAVEN_PCI_HOST_BRIDGE "raven-pcihost"

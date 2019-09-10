@@ -25,7 +25,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "boot.h"
 #include "qemu/cutils.h"
 #include "sysemu/reset.h"

@@ -14,7 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/dump.h"
 #include "sysemu/kvm.h"
 #include "exec/helper-proto.h"

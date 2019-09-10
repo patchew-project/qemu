@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "elf.h"
+#include "elf/elf.h"
 #include "tcg-pool.inc.c"
 
 int arm_arch = __ARM_ARCH;

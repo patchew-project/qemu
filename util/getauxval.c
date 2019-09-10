@@ -36,7 +36,7 @@ unsigned long qemu_getauxval(unsigned long key)
     return getauxval(key);
 }
 #elif defined(__linux__)
-#include "elf.h"
+#include "elf/elf.h"
 
 /* Our elf.h doesn't contain Elf32_auxv_t and Elf64_auxv_t, which is ok because
    that just makes it easier to define it properly for the host here.  */

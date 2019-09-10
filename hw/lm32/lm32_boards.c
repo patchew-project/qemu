@@ -26,7 +26,7 @@
 #include "hw/block/flash.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "lm32_hwsetup.h"
 #include "lm32.h"
 #include "exec/address-spaces.h"

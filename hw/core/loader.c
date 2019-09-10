@@ -59,6 +59,7 @@
 #include "hw/boards.h"
 #include "qemu/cutils.h"
 #include "sysemu/runstate.h"
+#include "elf/elf.h"
 
 #include <zlib.h>
 
@@ -295,7 +296,7 @@ static void *load_at(int fd, off_t offset, size_t size)
 #endif
 
 #define ELF_CLASS   ELFCLASS32
-#include "elf.h"
+#include "elf/elf-types.inc.h"
 
 #define SZ		32
 #define elf_word        uint32_t

@@ -22,7 +22,7 @@
 #include "qemu/error-report.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
-#include "elf.h"
+#include "elf/elf.h"
 
 void cpu_loop(CPURISCVState *env)
 {

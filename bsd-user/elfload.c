@@ -509,7 +509,7 @@ static inline void init_thread(struct target_pt_regs *regs, struct image_info *i
 #define bswaptls(ptr) bswap32s(ptr)
 #endif
 
-#include "elf.h"
+#include "elf/elf.h"
 
 struct exec
 {

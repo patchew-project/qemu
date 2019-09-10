@@ -20,7 +20,7 @@
 
 #include "qemu/osdep.h"
 #include "cpu.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/dump.h"
 
 /* struct user_pt_regs from arch/arm64/include/uapi/asm/ptrace.h */

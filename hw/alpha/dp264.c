@@ -9,7 +9,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "cpu.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "hw/loader.h"
 #include "alpha_sys.h"
 #include "qemu/error-report.h"

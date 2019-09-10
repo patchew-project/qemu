@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 
-#include "elf.h"
+#include "elf/elf.h"
 #include "tcg-pool.inc.c"
 
 #if defined _CALL_DARWIN || defined __APPLE__

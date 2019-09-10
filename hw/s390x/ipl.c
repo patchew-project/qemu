@@ -19,7 +19,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/tcg.h"
 #include "cpu.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"

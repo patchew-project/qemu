@@ -1696,49 +1696,7 @@ struct elf32_fdpic_loadmap {
 };
 
 #ifdef ELF_CLASS
-#if ELF_CLASS == ELFCLASS32
 
-#define elfhdr		elf32_hdr
-#define elf_phdr	elf32_phdr
-#define elf_note	elf32_note
-#define elf_shdr	elf32_shdr
-#define elf_sym		elf32_sym
-#define elf_addr_t	Elf32_Off
-#define elf_rela  elf32_rela
-
-#ifdef ELF_USES_RELOCA
-# define ELF_RELOC      Elf32_Rela
-#else
-# define ELF_RELOC      Elf32_Rel
-#endif
-
-#else
-
-#define elfhdr		elf64_hdr
-#define elf_phdr	elf64_phdr
-#define elf_note	elf64_note
-#define elf_shdr	elf64_shdr
-#define elf_sym		elf64_sym
-#define elf_addr_t	Elf64_Off
-#define elf_rela  elf64_rela
-
-#ifdef ELF_USES_RELOCA
-# define ELF_RELOC      Elf64_Rela
-#else
-# define ELF_RELOC      Elf64_Rel
-#endif
-
-#endif /* ELF_CLASS */
-
-#ifndef ElfW
-# if ELF_CLASS == ELFCLASS32
-#  define ElfW(x)  Elf32_ ## x
-#  define ELFW(x)  ELF32_ ## x
-# else
-#  define ElfW(x)  Elf64_ ## x
-#  define ELFW(x)  ELF64_ ## x
-# endif
-#endif
 
 #endif /* ELF_CLASS */
 

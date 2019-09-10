@@ -50,6 +50,8 @@
 
 #include "tcg-op.h"
 
+#include "elf/elf.h"
+
 #if UINTPTR_MAX == UINT32_MAX
 # define ELF_CLASS  ELFCLASS32
 #else
@@ -61,7 +63,8 @@
 # define ELF_DATA   ELFDATA2LSB
 #endif
 
-#include "elf.h"
+#include "elf/elf-types.inc.h"
+
 #include "exec/log.h"
 #include "sysemu/sysemu.h"
 

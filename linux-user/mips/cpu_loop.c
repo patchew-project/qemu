@@ -21,7 +21,7 @@
 #include "qemu-common.h"
 #include "qemu.h"
 #include "cpu_loop-common.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "internal.h"
 
 # ifdef TARGET_ABI_MIPSO32

@@ -25,7 +25,7 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "hw/riscv/boot.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/qtest.h"
 
 #if defined(TARGET_RISCV32)

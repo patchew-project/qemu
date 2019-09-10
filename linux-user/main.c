@@ -40,7 +40,7 @@
 #include "qemu/timer.h"
 #include "qemu/envlist.h"
 #include "qemu/guest-random.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "trace/control.h"
 #include "target_elf.h"
 #include "cpu_loop-common.h"

@@ -38,7 +38,7 @@
 #include "hw/boards.h"
 #include "hw/mips/bios.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "hw/sysbus.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"

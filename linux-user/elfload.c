@@ -7,6 +7,7 @@
 
 #include "qemu.h"
 #include "disas/disas.h"
+#include "elf/elf.h"
 #include "qemu/path.h"
 #include "qemu/queue.h"
 #include "qemu/guest-random.h"
@@ -1340,8 +1341,6 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_DATA	ELFDATA2MSB
 #define ELF_ARCH	EM_S390
 
-#include "elf.h"
-
 #define ELF_HWCAP get_elf_hwcap()
 
 #define GET_FEATURE(_feat, _hwcap) \
@@ -1535,7 +1534,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs,
 #define bswaptls(ptr) bswap32s(ptr)
 #endif
 
-#include "elf.h"
+#include "elf/elf-types.inc.h"
 
 struct exec
 {

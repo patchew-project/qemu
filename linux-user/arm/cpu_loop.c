@@ -20,7 +20,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 #include "qemu.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "cpu_loop-common.h"
 
 #define get_user_code_u32(x, gaddr, env)                \

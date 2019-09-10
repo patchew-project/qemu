@@ -14,7 +14,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internal.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/dump.h"
 
 

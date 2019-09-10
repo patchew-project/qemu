@@ -20,7 +20,7 @@
 #include "hw/boards.h"
 #include "sysemu/reset.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/device_tree.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"

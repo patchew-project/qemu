@@ -37,7 +37,7 @@
 #include "sysemu/reset.h"
 #include "hw/boards.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
 

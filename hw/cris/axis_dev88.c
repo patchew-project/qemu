@@ -32,7 +32,7 @@
 #include "hw/boards.h"
 #include "hw/cris/etraxfs.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "boot.h"
 #include "exec/address-spaces.h"
 #include "sysemu/qtest.h"

@@ -18,7 +18,7 @@
 #ifndef GENERIC_LOADER_H
 #define GENERIC_LOADER_H
 
-#include "elf.h"
+#include "elf/elf.h"
 #include "hw/qdev-core.h"
 
 typedef struct GenericLoaderState {

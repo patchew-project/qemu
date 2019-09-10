@@ -44,7 +44,7 @@
 #include "hw/ide.h"
 #include "hw/loader.h"
 #include "hw/fw-path-provider.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
 #include "sysemu/reset.h"

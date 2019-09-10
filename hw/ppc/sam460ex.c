@@ -22,7 +22,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/block-backend.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "ppc440.h"

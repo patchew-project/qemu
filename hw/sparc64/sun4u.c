@@ -54,7 +54,7 @@
 #include "hw/ide/pci.h"
 #include "hw/loader.h"
 #include "hw/fw-path-provider.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "trace.h"
 
 #define KERNEL_LOAD_ADDR     0x00404000

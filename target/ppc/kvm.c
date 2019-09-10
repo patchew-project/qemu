@@ -48,7 +48,7 @@
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
 #include "qemu/mmap-alloc.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "sysemu/kvm_int.h"
 
 #define PROC_DEVTREE_CPU      "/proc/device-tree/cpus/"

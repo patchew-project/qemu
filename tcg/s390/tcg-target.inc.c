@@ -30,7 +30,7 @@
 #endif
 
 #include "tcg-pool.inc.c"
-#include "elf.h"
+#include "elf/elf.h"
 
 /* ??? The translation blocks produced by TCG are generally small enough to
    be entirely reachable with a 16-bit displacement.  Leaving the option for

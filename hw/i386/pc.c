@@ -39,7 +39,7 @@
 #include "hw/timer/hpet.h"
 #include "hw/firmware/smbios.h"
 #include "hw/loader.h"
-#include "elf.h"
+#include "elf/elf.h"
 #include "migration/vmstate.h"
 #include "multiboot.h"
 #include "hw/timer/mc146818rtc.h"
