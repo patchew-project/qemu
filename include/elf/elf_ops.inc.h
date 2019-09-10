@@ -1,3 +1,12 @@
+/*
+ * Macro expansions for Elf operations. This is included in a
+ * compilation unit with appropriate definitions for SZ and elf
+ * headers to generate utility functions for reading 32 and 64 bit elf
+ * headers.
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
 static void glue(bswap_ehdr, SZ)(struct elfhdr *ehdr)
 {
     bswap16s(&ehdr->e_type);			/* Object file type */
