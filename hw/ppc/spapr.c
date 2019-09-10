@@ -4561,6 +4561,7 @@ static void spapr_machine_4_1_class_options(MachineClass *mc)
     smc->linux_pci_probe = false;
     compat_props_add(mc->compat_props, hw_compat_4_1, hw_compat_4_1_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
+    smc->irq_reset_all = true;
 }
 
 DEFINE_SPAPR_MACHINE(4_1, "4.1", false);

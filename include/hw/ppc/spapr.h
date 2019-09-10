@@ -131,6 +131,7 @@ struct SpaprMachineClass {
     SpaprResizeHpt resize_hpt_default;
     SpaprCapabilities default_caps;
     SpaprIrq *irq;
+    bool irq_reset_all;
 };
 
 /**

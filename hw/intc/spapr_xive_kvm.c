@@ -253,12 +253,22 @@ void kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
                       true, errp);
 }
 
+static bool xive_source_skip_reset(SpaprXive *xive, int srcno)
+{
+    return !xive->reset_all && !xive_eas_is_valid(&xive->eat[srcno]);
+}
+
 static void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
 {
+    SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
     for (i = 0; i < xsrc->nr_irqs; i++) {
         Error *local_err = NULL;
+
+        if (xive_source_skip_reset(xive, i)) {
+            continue;
+        }
 
         kvmppc_xive_source_reset_one(xsrc, i, &local_err);
         if (local_err) {
@@ -328,11 +338,18 @@ uint64_t kvmppc_xive_esb_rw(XiveSource *xsrc, int srcno, uint32_t offset,
 
 static void kvmppc_xive_source_get_state(XiveSource *xsrc)
 {
+    SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
     for (i = 0; i < xsrc->nr_irqs; i++) {
+        uint8_t pq;
+
+        if (xive_source_skip_reset(xive, i)) {
+            continue;
+        }
+
         /* Perform a load without side effect to retrieve the PQ bits */
-        uint8_t pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
+        pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
 
         /* and save PQ locally */
         xive_source_esb_set(xsrc, i, pq);
@@ -521,9 +538,14 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
      */
     if (running) {
         for (i = 0; i < xsrc->nr_irqs; i++) {
-            uint8_t pq = xive_source_esb_get(xsrc, i);
+            uint8_t pq;
             uint8_t old_pq;
 
+            if (xive_source_skip_reset(xive, i)) {
+                continue;
+            }
+
+            pq = xive_source_esb_get(xsrc, i);
             old_pq = xive_esb_read(xsrc, i, XIVE_ESB_SET_PQ_00 + (pq << 8));
 
             /*
@@ -545,7 +567,13 @@ static void kvmppc_xive_change_state_handler(void *opaque, int running,
      * migration is in progress.
      */
     for (i = 0; i < xsrc->nr_irqs; i++) {
-        uint8_t pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
+        uint8_t pq;
+
+        if (xive_source_skip_reset(xive, i)) {
+            continue;
+        }
+
+        pq = xive_esb_read(xsrc, i, XIVE_ESB_GET);
 
         /*
          * PQ is set to PENDING to possibly catch a triggered

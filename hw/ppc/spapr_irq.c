@@ -97,11 +97,13 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
 {
     Object *obj;
     Error *local_err = NULL;
+    bool reset_all = SPAPR_MACHINE_GET_CLASS(spapr)->irq_reset_all;
 
     obj = object_new(TYPE_ICS_SIMPLE);
     object_property_add_child(OBJECT(spapr), "ics", obj, &error_abort);
     object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
                                    &error_fatal);
+    object_property_set_bool(obj, reset_all, "reset-all",  &error_fatal);
     object_property_set_int(obj, nr_irqs, "nr-irqs",  &error_fatal);
     object_property_set_bool(obj, true, "realized", &local_err);
     if (local_err) {
@@ -113,9 +115,6 @@ static void spapr_irq_init_xics(SpaprMachineState *spapr, int nr_irqs,
 
     xics_spapr_init(spapr);
 }
-
-#define ICS_IRQ_FREE(ics, srcno)   \
-    (!((ics)->irqs[(srcno)].flags & (XICS_FLAGS_IRQ_MASK)))
 
 static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
                                 Error **errp)
@@ -129,7 +128,7 @@ static int spapr_irq_claim_xics(SpaprMachineState *spapr, int irq, bool lsi,
         return -1;
     }
 
-    if (!ICS_IRQ_FREE(ics, irq - ics->offset)) {
+    if (!ics_irq_free(ics, irq - ics->offset)) {
         error_setg(errp, "IRQ %d is not free", irq);
         return -1;
     }
@@ -147,7 +146,7 @@ static void spapr_irq_free_xics(SpaprMachineState *spapr, int irq, int num)
     if (ics_valid_irq(ics, irq)) {
         trace_spapr_irq_free(0, irq, num);
         for (i = srcno; i < srcno + num; ++i) {
-            if (ICS_IRQ_FREE(ics, i)) {
+            if (ics_irq_free(ics, i)) {
                 trace_spapr_irq_free_warn(0, i);
             }
             memset(&ics->irqs[i], 0, sizeof(ICSIRQState));
@@ -270,9 +269,11 @@ static void spapr_irq_init_xive(SpaprMachineState *spapr, int nr_irqs,
 {
     uint32_t nr_servers = spapr_max_server_number(spapr);
     DeviceState *dev;
+    bool reset_all = SPAPR_MACHINE_GET_CLASS(spapr)->irq_reset_all;
     int i;
 
     dev = qdev_create(NULL, TYPE_SPAPR_XIVE);
+    object_property_set_bool(OBJECT(dev), reset_all, "reset-all", &error_fatal);
     qdev_prop_set_uint32(dev, "nr-irqs", nr_irqs);
     /*
      * 8 XIVE END structures per CPU. One for each available priority
@@ -767,7 +768,7 @@ static int ics_find_free_block(ICSState *ics, int num, int alignnum)
             return -1;
         }
         for (i = first; i < first + num; ++i) {
-            if (!ICS_IRQ_FREE(ics, i)) {
+            if (!ics_irq_free(ics, i)) {
                 break;
             }
         }

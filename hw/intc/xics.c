@@ -746,6 +746,7 @@ static const VMStateDescription vmstate_ics_base = {
 
 static Property ics_base_properties[] = {
     DEFINE_PROP_UINT32("nr-irqs", ICSState, nr_irqs, 0),
+    DEFINE_PROP_BOOL("reset-all", ICSState, reset_all, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
