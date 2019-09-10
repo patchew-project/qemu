@@ -19,3 +19,6 @@ config Q800
     select MACFB
     select NUBUS
     select SWIM
+    select ESCC
+    select ESP
+    select DP8393X
