@@ -65,6 +65,8 @@
 #include "exec/ram_addr.h"
 #include "exec/log.h"
 
+#include "qemu/pmem.h"
+
 #include "migration/vmstate.h"
 
 #include "qemu/range.h"
@@ -2180,6 +2182,42 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
         block->resized(block->idstr, newsize, block->host);
     }
     return 0;
+}
+
+/*
+ * Trigger sync on the given ram block for range [start, start + length]
+ * with the backing store if available.
+ * @Note: this is supposed to be a SYNC op.
+ */
+void qemu_ram_writeback(RAMBlock *block, ram_addr_t start, ram_addr_t length)
+{
+    void *addr = ramblock_ptr(block, start);
+
+    /*
+     * The requested range might spread up to the very end of the block
+     */
+    if ((start + length) > block->used_length) {
+        error_report("%s: sync range outside the block boundires: "
+                     "start: " RAM_ADDR_FMT " length: " RAM_ADDR_FMT
+                     " block length: " RAM_ADDR_FMT " Narrowing down ..." ,
+                     __func__, start, length, block->used_length);
+        length = block->used_length - start;
+    }
+
+#ifdef CONFIG_LIBPMEM
+    /* The lack of support for pmem should not block the sync */
+    if (ramblock_is_pmem(block)) {
+        pmem_persist(addr, length);
+    } else
+#endif
+    if (block->fd >= 0) {
+#ifdef CONFIG_MSYNC
+        msync((void *)((uintptr_t)addr & qemu_host_page_mask),
+               HOST_PAGE_ALIGN(length), MS_SYNC);
+#else
+        qemu_fdatasync(block->fd);
+#endif
+    }
 }
 
 /* Called with ram_list.mutex held */

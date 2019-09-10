@@ -5082,6 +5082,26 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# verify support for msyc
+
+msync=no
+cat > $TMPC << EOF
+#include <unistd.h>
+#include <sys/mman.h>
+int main(void) {
+#if defined(_POSIX_MAPPED_FILES) && _POSIX_MAPPED_FILES > 0 \
+&& defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
+return msync(NULL,0, MS_SYNC);
+#else
+#error Not supported
+#endif
+}
+EOF
+if compile_prog "" "" ; then
+    msync=yes
+fi
+
+##########################################
 # check if we have madvise
 
 madvise=no
@@ -6413,6 +6433,7 @@ echo "fdt support       $fdt"
 echo "membarrier        $membarrier"
 echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
+echo "msync             $msync"
 echo "madvise           $madvise"
 echo "posix_madvise     $posix_madvise"
 echo "posix_memalign    $posix_memalign"
@@ -6951,6 +6972,9 @@ if test "$tcg" = "yes"; then
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak
+fi
+if test "$msync" = "yes" ; then
+    echo "CONFIG_MSYNC=y" >> $config_host_mak
 fi
 if test "$madvise" = "yes" ; then
   echo "CONFIG_MADVISE=y" >> $config_host_mak
