@@ -187,13 +187,21 @@ static const BdrvChildRole child_job = {
 
 void block_job_remove_all_bdrv(BlockJob *job)
 {
-    GSList *l;
+    GSList *l, *orig_nodes;
+
+    orig_nodes = job->nodes;
     for (l = job->nodes; l; l = l->next) {
         BdrvChild *c = l->data;
         bdrv_op_unblock_all(c->bs, job->blocker);
         bdrv_root_unref_child(c);
+        /*
+         * The call above may reach child_job_[can_]set_aio_ctx(), which will
+         * also traverse job->nodes, so update the head here to make sure it
+         * doesn't attempt to process an already freed BdrvChild.
+         */
+        job->nodes = l->next;
     }
-    g_slist_free(job->nodes);
+    g_slist_free(orig_nodes);
     job->nodes = NULL;
 }
 
