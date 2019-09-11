@@ -47,6 +47,23 @@ static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
     return true;                                       \
 }
 
+#define GEN_VECTOR_R_WDVM(INSN) \
+static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
+{                                                      \
+    TCGv_i32 s1 = tcg_const_i32(a->rs1);               \
+    TCGv_i32 s2 = tcg_const_i32(a->rs2);               \
+    TCGv_i32 d  = tcg_const_i32(a->rd);                \
+    TCGv_i32 wd  = tcg_const_i32(a->wd);               \
+    TCGv_i32 vm = tcg_const_i32(a->vm);                \
+    gen_helper_vector_##INSN(cpu_env, wd, vm, s1, s2, d);\
+    tcg_temp_free_i32(s1);                             \
+    tcg_temp_free_i32(s2);                             \
+    tcg_temp_free_i32(d);                              \
+    tcg_temp_free_i32(wd);                             \
+    tcg_temp_free_i32(vm);                             \
+    return true;                                       \
+}
+
 #define GEN_VECTOR_R(INSN) \
 static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
 {                                                      \
@@ -118,6 +135,25 @@ GEN_VECTOR_R_NFVM(vsuxb_v)
 GEN_VECTOR_R_NFVM(vsuxh_v)
 GEN_VECTOR_R_NFVM(vsuxw_v)
 GEN_VECTOR_R_NFVM(vsuxe_v)
+
+GEN_VECTOR_R_WDVM(vamoswapw_v)
+GEN_VECTOR_R_WDVM(vamoswapd_v)
+GEN_VECTOR_R_WDVM(vamoaddw_v)
+GEN_VECTOR_R_WDVM(vamoaddd_v)
+GEN_VECTOR_R_WDVM(vamoxorw_v)
+GEN_VECTOR_R_WDVM(vamoxord_v)
+GEN_VECTOR_R_WDVM(vamoandw_v)
+GEN_VECTOR_R_WDVM(vamoandd_v)
+GEN_VECTOR_R_WDVM(vamoorw_v)
+GEN_VECTOR_R_WDVM(vamoord_v)
+GEN_VECTOR_R_WDVM(vamominw_v)
+GEN_VECTOR_R_WDVM(vamomind_v)
+GEN_VECTOR_R_WDVM(vamomaxw_v)
+GEN_VECTOR_R_WDVM(vamomaxd_v)
+GEN_VECTOR_R_WDVM(vamominuw_v)
+GEN_VECTOR_R_WDVM(vamominud_v)
+GEN_VECTOR_R_WDVM(vamomaxuw_v)
+GEN_VECTOR_R_WDVM(vamomaxud_v)
 
 GEN_VECTOR_R2_ZIMM(vsetvli)
 GEN_VECTOR_R(vsetvl)
