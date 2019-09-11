@@ -76,3 +76,6 @@ DEF_HELPER_2(mret, tl, env, tl)
 DEF_HELPER_1(wfi, void, env)
 DEF_HELPER_1(tlb_flush, void, env)
 #endif
+/* Vector functions */
+DEF_HELPER_4(vector_vsetvli, void, env, i32, i32, i32)
+DEF_HELPER_4(vector_vsetvl, void, env, i32, i32, i32)
