@@ -77,6 +77,17 @@ static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
     return true;                                       \
 }
 
+#define GEN_VECTOR_R1_VM(INSN) \
+static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
+{                                                      \
+    TCGv_i32 d  = tcg_const_i32(a->rd);                \
+    TCGv_i32 vm = tcg_const_i32(a->vm);                \
+    gen_helper_vector_##INSN(cpu_env, vm, d);        \
+    tcg_temp_free_i32(d);                              \
+    tcg_temp_free_i32(vm);                             \
+    return true;                                       \
+}
+
 #define GEN_VECTOR_R_VM(INSN) \
 static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
 {                                                      \
@@ -443,6 +454,22 @@ GEN_VECTOR_R_VM(vfredmin_vs)
 GEN_VECTOR_R_VM(vfredmax_vs)
 GEN_VECTOR_R_VM(vfwredsum_vs)
 GEN_VECTOR_R_VM(vfwredosum_vs)
+
+GEN_VECTOR_R(vmandnot_mm)
+GEN_VECTOR_R(vmand_mm)
+GEN_VECTOR_R(vmor_mm)
+GEN_VECTOR_R(vmxor_mm)
+GEN_VECTOR_R(vmornot_mm)
+GEN_VECTOR_R(vmnand_mm)
+GEN_VECTOR_R(vmnor_mm)
+GEN_VECTOR_R(vmxnor_mm)
+GEN_VECTOR_R2_VM(vmpopc_m)
+GEN_VECTOR_R2_VM(vmfirst_m)
+GEN_VECTOR_R2_VM(vmsbf_m)
+GEN_VECTOR_R2_VM(vmsof_m)
+GEN_VECTOR_R2_VM(vmsif_m)
+GEN_VECTOR_R2_VM(viota_m)
+GEN_VECTOR_R1_VM(vid_v)
 
 GEN_VECTOR_R2_ZIMM(vsetvli)
 GEN_VECTOR_R(vsetvl)
