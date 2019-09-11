@@ -2,6 +2,7 @@
 Vhost-user Protocol
 ===================
 :Copyright: 2014 Virtual Open Systems Sarl.
+:Copyright: 2019 Intel Corporation
 :Licence: This work is licensed under the terms of the GNU GPL,
           version 2 or later. See the COPYING file in the top-level
           directory.
@@ -279,6 +280,9 @@ If *master* is unable to send the full message or receives a wrong
 reply it will close the connection. An optional reconnection mechanism
 can be implemented.
 
+If *slave* detects some error such as incompatible features, it may also
+close the connection. This should only happen in exceptional circumstances.
+
 Any protocol extensions are gated by protocol feature bits, which
 allows full backwards compatibility on both master and slave.  As
 older slaves don't support negotiating protocol features, a feature
@@ -315,7 +319,8 @@ it until ring is started, or after it has been stopped.
 
 Client must start ring upon receiving a kick (that is, detecting that
 file descriptor is readable) on the descriptor specified by
-``VHOST_USER_SET_VRING_KICK``, and stop ring upon receiving
+``VHOST_USER_SET_VRING_KICK`` (or receiving the in-band message
+``VHOST_USER_VRING_KICK`` if negotiated) and stop ring upon receiving
 ``VHOST_USER_GET_VRING_BASE``.
 
 While processing the rings (whether they are enabled or not), client
@@ -767,24 +772,48 @@ When reconnecting:
 #. Resubmit inflight ``DescStatePacked`` entries in order of their
    counter value
 
+In-band notifications
+---------------------
+
+In some limited situations (e.g. for simulation) it is desirable to
+have the kick, call and error (if used) signals done via in-band
+messages instead of asynchronous eventfd notifications. This can be
+done by negotiating the ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS``
+protocol feature.
+
+Note that due to the fact that too many messages on the sockets can
+cause the sending application(s) to block, it is not advised to use
+this feature unless absolutely necessary. It is also considered an
+error to negotiate this feature without also negotiating
+``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` and ``VHOST_USER_PROTOCOL_F_REPLY_ACK``,
+the former is necessary for getting a message channel from the slave
+to the master, while the latter needs to be used with the in-band
+notification messages to block until they are processed, both to avoid
+blocking later and for proper processing (at least in the simulation
+use case.) As it has no other way of signalling this error, the slave
+should close the connection as a response to a
+``VHOST_USER_SET_PROTOCOL_FEATURES`` message that sets the in-band
+notifications feature flag without the other two.
+
 Protocol features
 -----------------
 
 .. code:: c
 
-  #define VHOST_USER_PROTOCOL_F_MQ             0
-  #define VHOST_USER_PROTOCOL_F_LOG_SHMFD      1
-  #define VHOST_USER_PROTOCOL_F_RARP           2
-  #define VHOST_USER_PROTOCOL_F_REPLY_ACK      3
-  #define VHOST_USER_PROTOCOL_F_MTU            4
-  #define VHOST_USER_PROTOCOL_F_SLAVE_REQ      5
-  #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN   6
-  #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION 7
-  #define VHOST_USER_PROTOCOL_F_PAGEFAULT      8
-  #define VHOST_USER_PROTOCOL_F_CONFIG         9
-  #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
-  #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
-  #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
+  #define VHOST_USER_PROTOCOL_F_MQ                     0
+  #define VHOST_USER_PROTOCOL_F_LOG_SHMFD              1
+  #define VHOST_USER_PROTOCOL_F_RARP                   2
+  #define VHOST_USER_PROTOCOL_F_REPLY_ACK              3
+  #define VHOST_USER_PROTOCOL_F_MTU                    4
+  #define VHOST_USER_PROTOCOL_F_SLAVE_REQ              5
+  #define VHOST_USER_PROTOCOL_F_CROSS_ENDIAN           6
+  #define VHOST_USER_PROTOCOL_F_CRYPTO_SESSION         7
+  #define VHOST_USER_PROTOCOL_F_PAGEFAULT              8
+  #define VHOST_USER_PROTOCOL_F_CONFIG                 9
+  #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD         10
+  #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER         11
+  #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD        12
+  #define VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS 13
 
 Master message types
 --------------------
@@ -946,7 +975,9 @@ Master message types
   Bits (0-7) of the payload contain the vring index. Bit 8 is the
   invalid FD flag. This flag is set when there is no file descriptor
   in the ancillary data. This signals that polling should be used
-  instead of waiting for a kick.
+  instead of waiting for the call. however, if the protocol feature
+  ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS`` has been negotiated
+  it instead means the updates should be done using the messages.
 
 ``VHOST_USER_SET_VRING_CALL``
   :id: 13
@@ -959,7 +990,9 @@ Master message types
   Bits (0-7) of the payload contain the vring index. Bit 8 is the
   invalid FD flag. This flag is set when there is no file descriptor
   in the ancillary data. This signals that polling will be used
-  instead of waiting for the call.
+  instead of waiting for the call; however, if the protocol feature
+  ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS`` has been negotiated
+  it instead means the updates should be done using the messages.
 
 ``VHOST_USER_SET_VRING_ERR``
   :id: 14
@@ -971,7 +1004,11 @@ Master message types
 
   Bits (0-7) of the payload contain the vring index. Bit 8 is the
   invalid FD flag. This flag is set when there is no file descriptor
-  in the ancillary data.
+  in the ancillary data. If the protocol features
+  ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS`` and
+  ``VHOST_USER_PROTOCOL_F_SLAVE_REQ`` have been negotiated the invalid
+  FD flag will be used to indicate that updates should be done using
+  the ``VHOST_USER_SLAVE_ message.
 
 ``VHOST_USER_GET_QUEUE_NUM``
   :id: 17
@@ -1190,6 +1227,20 @@ Master message types
   ancillary data. The GPU protocol is used to inform the master of
   rendering state and updates. See vhost-user-gpu.rst for details.
 
+``VHOST_USER_VRING_KICK``
+  :id: 34
+  :equivalent ioctl: N/A
+  :slave payload: vring state description
+  :master payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS`` protocol
+  feature has been successfully negotiated, this message may be
+  submitted by the master to indicate that a buffer was added to
+  the vring instead of signalling it using the vring's event FD or
+  having the slave rely on polling.
+
+  The state.num field is currently reserved and must be set to 0.
+
 Slave message types
 -------------------
 
@@ -1245,6 +1296,34 @@ Slave message types
   This request should be sent only when
   ``VHOST_USER_PROTOCOL_F_HOST_NOTIFIER`` protocol feature has been
   successfully negotiated.
+
+``VHOST_USER_SLAVE_VRING_CALL``
+  :id: 4
+  :equivalent ioctl: N/A
+  :slave payload: vring state description
+  :master payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS`` protocol
+  feature has been successfully negotiated, this message may be
+  submitted by the slave to indicate that a buffer was used from
+  the vring instead of signalling this using the vring's kick FD or
+  having the master relying on polling.
+
+  The state.num field is currently reserved and must be set to 0.
+
+``VHOST_USER_SLAVE_VRING_ERR``
+  :id: 5
+  :equivalent ioctl: N/A
+  :slave payload: vring state description
+  :master payload: N/A
+
+  When the ``VHOST_USER_PROTOCOL_F_IN_BAND_NOTIFICATIONS`` protocol
+  feature has been successfully negotiated, this message may be
+  submitted by the slave to indicate that an error occurred on the
+  specific vring, instead of signalling the error FD set by the
+  master via ``VHOST_USER_SET_VRING_ERR``.
+
+  The state.num field is currently reserved and must be set to 0.
 
 .. _reply_ack:
 
