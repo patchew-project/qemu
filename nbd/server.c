@@ -476,6 +476,7 @@ static int nbd_negotiate_handle_export_name(NBDClient *client, bool no_zeroes,
     QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
     nbd_export_get(client->exp);
     nbd_check_meta_export(client);
+    qio_channel_attach_aio_context(client->ioc, client->exp->ctx);
 
     return 0;
 }
@@ -681,6 +682,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         QTAILQ_INSERT_TAIL(&client->exp->clients, client, next);
         nbd_export_get(client->exp);
         nbd_check_meta_export(client);
+        qio_channel_attach_aio_context(client->ioc, exp->ctx);
         rc = 1;
     }
     return rc;
