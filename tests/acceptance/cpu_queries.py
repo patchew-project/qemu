@@ -15,6 +15,7 @@ class QueryCPUModelExpansion(Test):
     Run query-cpu-model-expansion for each CPU model, and validate results
 
     :avocado: tags=arch:x86_64
+    :avocado: tags=machine:none
     """
 
     def test(self):
