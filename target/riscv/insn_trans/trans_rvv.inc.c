@@ -92,6 +92,20 @@ static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
     return true;                                       \
 }
 
+#define GEN_VECTOR_R2_VM(INSN) \
+static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
+{                                                      \
+    TCGv_i32 s2 = tcg_const_i32(a->rs2);               \
+    TCGv_i32 d  = tcg_const_i32(a->rd);                \
+    TCGv_i32 vm = tcg_const_i32(a->vm);                \
+    gen_helper_vector_##INSN(cpu_env, vm, s2, d);        \
+    tcg_temp_free_i32(s2);                             \
+    tcg_temp_free_i32(d);                              \
+    tcg_temp_free_i32(vm);                             \
+    return true;                                       \
+}
+
+
 #define GEN_VECTOR_R2_ZIMM(INSN) \
 static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
 {                                                      \
@@ -372,6 +386,46 @@ GEN_VECTOR_R_VM(vfmsub_vv)
 GEN_VECTOR_R_VM(vfmsub_vf)
 GEN_VECTOR_R_VM(vfnmsub_vv)
 GEN_VECTOR_R_VM(vfnmsub_vf)
+
+GEN_VECTOR_R2_VM(vfsqrt_v)
+GEN_VECTOR_R_VM(vfmin_vv)
+GEN_VECTOR_R_VM(vfmin_vf)
+GEN_VECTOR_R_VM(vfmax_vv)
+GEN_VECTOR_R_VM(vfmax_vf)
+GEN_VECTOR_R_VM(vfsgnj_vv)
+GEN_VECTOR_R_VM(vfsgnj_vf)
+GEN_VECTOR_R_VM(vfsgnjn_vv)
+GEN_VECTOR_R_VM(vfsgnjn_vf)
+GEN_VECTOR_R_VM(vfsgnjx_vv)
+GEN_VECTOR_R_VM(vfsgnjx_vf)
+GEN_VECTOR_R_VM(vmfeq_vv)
+GEN_VECTOR_R_VM(vmfeq_vf)
+GEN_VECTOR_R_VM(vmfne_vv)
+GEN_VECTOR_R_VM(vmfne_vf)
+GEN_VECTOR_R_VM(vmfle_vv)
+GEN_VECTOR_R_VM(vmfle_vf)
+GEN_VECTOR_R_VM(vmflt_vv)
+GEN_VECTOR_R_VM(vmflt_vf)
+GEN_VECTOR_R_VM(vmfgt_vf)
+GEN_VECTOR_R_VM(vmfge_vf)
+GEN_VECTOR_R_VM(vmford_vv)
+GEN_VECTOR_R_VM(vmford_vf)
+GEN_VECTOR_R2_VM(vfclass_v)
+GEN_VECTOR_R_VM(vfmerge_vfm)
+GEN_VECTOR_R2_VM(vfcvt_xu_f_v)
+GEN_VECTOR_R2_VM(vfcvt_x_f_v)
+GEN_VECTOR_R2_VM(vfcvt_f_xu_v)
+GEN_VECTOR_R2_VM(vfcvt_f_x_v)
+GEN_VECTOR_R2_VM(vfwcvt_xu_f_v)
+GEN_VECTOR_R2_VM(vfwcvt_x_f_v)
+GEN_VECTOR_R2_VM(vfwcvt_f_xu_v)
+GEN_VECTOR_R2_VM(vfwcvt_f_x_v)
+GEN_VECTOR_R2_VM(vfwcvt_f_f_v)
+GEN_VECTOR_R2_VM(vfncvt_xu_f_v)
+GEN_VECTOR_R2_VM(vfncvt_x_f_v)
+GEN_VECTOR_R2_VM(vfncvt_f_xu_v)
+GEN_VECTOR_R2_VM(vfncvt_f_x_v)
+GEN_VECTOR_R2_VM(vfncvt_f_f_v)
 
 GEN_VECTOR_R2_ZIMM(vsetvli)
 GEN_VECTOR_R(vsetvl)
