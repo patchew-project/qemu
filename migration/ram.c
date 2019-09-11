@@ -181,14 +181,14 @@ int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)
     RAMBlock *block;
     int ret = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_AUTO
+
     RAMBLOCK_FOREACH_NOT_IGNORED(block) {
         ret = func(block, opaque);
         if (ret) {
             break;
         }
     }
-    rcu_read_unlock();
     return ret;
 }
 
@@ -2398,13 +2398,12 @@ static void migration_page_queue_free(RAMState *rs)
     /* This queue generally should be empty - but in the case of a failed
      * migration might have some droppings in.
      */
-    rcu_read_lock();
+    RCU_READ_LOCK_AUTO
     QSIMPLEQ_FOREACH_SAFE(mspr, &rs->src_page_requests, next_req, next_mspr) {
         memory_region_unref(mspr->rb->mr);
         QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
         g_free(mspr);
     }
-    rcu_read_unlock();
 }
 
 /**
@@ -2425,7 +2424,8 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     RAMState *rs = ram_state;
 
     ram_counters.postcopy_requests++;
-    rcu_read_lock();
+    RCU_READ_LOCK_AUTO
+
     if (!rbname) {
         /* Reuse last RAMBlock */
         ramblock = rs->last_req_rb;
@@ -2467,12 +2467,10 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     QSIMPLEQ_INSERT_TAIL(&rs->src_page_requests, new_entry, next_req);
     migration_make_urgent_request();
     qemu_mutex_unlock(&rs->src_page_req_mutex);
-    rcu_read_unlock();
 
     return 0;
 
 err:
-    rcu_read_unlock();
     return -1;
 }
 
@@ -2705,7 +2703,8 @@ static uint64_t ram_bytes_total_common(bool count_ignored)
     RAMBlock *block;
     uint64_t total = 0;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_AUTO
+
     if (count_ignored) {
         RAMBLOCK_FOREACH_MIGRATABLE(block) {
             total += block->used_length;
@@ -2715,7 +2714,6 @@ static uint64_t ram_bytes_total_common(bool count_ignored)
             total += block->used_length;
         }
     }
-    rcu_read_unlock();
     return total;
 }
 
@@ -3079,7 +3077,7 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     RAMBlock *block;
     int ret;
 
-    rcu_read_lock();
+    RCU_READ_LOCK_AUTO
 
     /* This should be our last sync, the src is now paused */
     migration_bitmap_sync(rs);
@@ -3100,13 +3098,11 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
              * point.
              */
             error_report("migration ram resized during precopy phase");
-            rcu_read_unlock();
             return -EINVAL;
         }
         /* Deal with TPS != HPS and huge pages */
         ret = postcopy_chunk_hostpages(ms, block);
         if (ret) {
-            rcu_read_unlock();
             return ret;
         }
 
@@ -3121,7 +3117,6 @@ int ram_postcopy_send_discard_bitmap(MigrationState *ms)
     trace_ram_postcopy_send_discard_bitmap();
 
     ret = postcopy_each_ram_send_discard(ms);
-    rcu_read_unlock();
 
     return ret;
 }
@@ -3142,7 +3137,7 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
 
     trace_ram_discard_range(rbname, start, length);
 
-    rcu_read_lock();
+    RCU_READ_LOCK_AUTO
     RAMBlock *rb = qemu_ram_block_by_name(rbname);
 
     if (!rb) {
@@ -3162,8 +3157,6 @@ int ram_discard_range(const char *rbname, uint64_t start, size_t length)
     ret = ram_block_discard_range(rb, start, length);
 
 err:
-    rcu_read_unlock();
-
     return ret;
 }
 
