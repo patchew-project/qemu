@@ -69,6 +69,15 @@ class QEMUMachine(object):
         # vm is guaranteed to be shut down here
     """
 
+
+    #: The default machine model, used by :meth:`set_machine_auto_selection` and
+    #: :meth:`get_machine_auto_selection`
+    DEFAULT_MACHINE_MODELS = {
+        'arm': 'virt',
+        'aarch64': 'virt',
+        }
+
+
     def __init__(self, binary, args=None, wrapper=None, name=None,
                  test_dir="/var/tmp", monitor_address=None,
                  socket_scm_helper=None):
@@ -108,6 +117,7 @@ class QEMUMachine(object):
         self._temp_dir = None
         self._launched = False
         self._machine = None
+        self._machine_auto_selection = False
         self._console_set = False
         self._console_device_type = None
         self._console_address = None
@@ -286,6 +296,7 @@ class QEMUMachine(object):
 
         self._iolog = None
         self._qemu_full_args = None
+        self._perform_machine_auto_selection()
         try:
             self._launch()
             self._launched = True
@@ -533,3 +544,73 @@ class QEMUMachine(object):
                                                  socket.SOCK_STREAM)
             self._console_socket.connect(self._console_address)
         return self._console_socket
+
+    def set_machine_auto_selection(self, value):
+        """
+        Defines whether QEMUMachine will set a machine model when needed
+
+        The machine model will only be set automatically if:
+
+        1) No machine model was explicity set with :meth:`set_machine`
+        2) Target binary is known to not work properly when a machine
+           is not specified (usually producing "No machine specified,
+           and there's no default" on the command line)
+        3) A default machine model exists in :data:`DEFAULT_MACHINE_MODELS`
+        4) :func:`get_target_from_qemu_binary` is capable of returning
+           the target for the binary set on this class
+
+        If machine auto selection is enabled, it will be done so by
+        calling :meth:`set_machine` during the machine launc, that is
+        on :meth:`launch` so that a manually set machine model is not
+        discarded.
+
+        @param value: wether to enable or disable the machine auto selection
+                      feature
+        @type value: bool
+        """
+        self._machine_auto_selection = value
+
+    def get_machine_auto_selection(self):
+        """
+        Returns whether QEMUMachine will set a machine model when needed
+
+        Please refer to :meth:`set_machine_auto_selection` for a more
+        complete explanation.
+        """
+        return self._machine_auto_selection
+
+    def _perform_machine_auto_selection(self):
+        if not (self.get_machine_auto_selection() and self._machine is None):
+            return
+
+        target = self._get_target_from_qemu_binary()
+        if target is None:
+            LOG.warn('Machine auto selection was requested, but it was not '
+                     'applied as the binary "%s" could not be probed for its '
+                     'target architecture', self._binary)
+            return
+
+        machine_model = self.DEFAULT_MACHINE_MODELS.get(target, None)
+        if machine_model is None:
+            LOG.warn('Machine auto selection was requested, but it was not '
+                     'applied as there is no default machine model defined '
+                     'for target architecture "%s"', target)
+            return
+
+        LOG.debug('Setting machine model to: %s', machine_model)
+        self.set_machine(machine_model)
+
+    def _get_target_from_qemu_binary(self):
+        """
+        Returns the target for this machine's QEMU binary
+        """
+        qemu_machine = QEMUMachine(self._binary)
+        qemu_machine.add_args('-S')
+        qemu_machine.set_machine('none')
+        try:
+            qemu_machine.launch()
+            target_resp = qemu_machine.command('query-target')
+            qemu_machine.shutdown()
+            return target_resp['arch']
+        except Exception:
+            return None

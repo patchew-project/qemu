@@ -70,6 +70,7 @@ class Test(avocado.Test):
 
     def _new_vm(self, *args):
         vm = QEMUMachine(self.qemu_bin)
+        vm.set_machine_auto_selection(True)
         if args:
             vm.add_args(*args)
         return vm
