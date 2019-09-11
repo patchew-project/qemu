@@ -93,9 +93,37 @@ typedef struct CPURISCVState CPURISCVState;
 
 #include "pmp.h"
 
+#define VLEN 128
+#define VUNIT(x) (VLEN / x)
+
 struct CPURISCVState {
     target_ulong gpr[32];
     uint64_t fpr[32]; /* assume both F and D extensions */
+
+    /* vector coprocessor state.  */
+    struct {
+        union VECTOR {
+            float64  f64[VUNIT(64)];
+            float32  f32[VUNIT(32)];
+            float16  f16[VUNIT(16)];
+            uint64_t u64[VUNIT(64)];
+            int64_t  s64[VUNIT(64)];
+            uint32_t u32[VUNIT(32)];
+            int32_t  s32[VUNIT(32)];
+            uint16_t u16[VUNIT(16)];
+            int16_t  s16[VUNIT(16)];
+            uint8_t  u8[VUNIT(8)];
+            int8_t   s8[VUNIT(8)];
+        } vreg[32];
+        target_ulong vxrm;
+        target_ulong vxsat;
+        target_ulong vl;
+        target_ulong vstart;
+        target_ulong vtype;
+        float_status fp_status;
+    } vfp;
+
+    bool         foflag;
     target_ulong pc;
     target_ulong load_res;
     target_ulong load_val;
