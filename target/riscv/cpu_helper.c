@@ -521,6 +521,13 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         [PRV_H] = RISCV_EXCP_H_ECALL,
         [PRV_M] = RISCV_EXCP_M_ECALL
     };
+    if (env->foflag) {
+        if (env->vfp.vl != 0) {
+            env->foflag = false;
+            env->pc += 4;
+            return;
+        }
+    }
 
     if (!async) {
         /* set tval to badaddr for traps with address information */

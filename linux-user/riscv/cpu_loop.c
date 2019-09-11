@@ -41,6 +41,13 @@ void cpu_loop(CPURISCVState *env)
         sigcode = 0;
         sigaddr = 0;
 
+        if (env->foflag) {
+            if (env->vfp.vl != 0) {
+                env->foflag = false;
+                env->pc += 4;
+                continue;
+            }
+        }
         switch (trapnr) {
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */

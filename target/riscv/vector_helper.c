@@ -2762,3 +2762,570 @@ void VECTOR_HELPER(vsuxe_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
     env->vfp.vstart = 0;
 }
 
+void VECTOR_HELPER(vlbuff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+
+    vector_lmul_check_reg(env, lmul, rd, false);
+
+    env->foflag = true;
+    env->vfp.vl = 0;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 8:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].u8[j] =
+                            cpu_ldub_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 16:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].u16[j] =
+                            cpu_ldub_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].u32[j] =
+                            cpu_ldub_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].u64[j] =
+                            cpu_ldub_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->foflag = false;
+    env->vfp.vl = vl;
+    env->vfp.vstart = 0;
+}
+
+void VECTOR_HELPER(vlbff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+
+    vector_lmul_check_reg(env, lmul, rd, false);
+    env->foflag = true;
+    env->vfp.vl = 0;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 8:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].s8[j] =
+                            cpu_ldsb_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 16:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].s16[j] = sign_extend(
+                            cpu_ldsb_data(env, env->gpr[rs1] + read), 8);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].s32[j] = sign_extend(
+                            cpu_ldsb_data(env, env->gpr[rs1] + read), 8);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].s64[j] = sign_extend(
+                            cpu_ldsb_data(env, env->gpr[rs1] + read), 8);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->foflag = false;
+    env->vfp.vl = vl;
+    env->vfp.vstart = 0;
+}
+
+void VECTOR_HELPER(vlhuff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    vector_lmul_check_reg(env, lmul, rd, false);
+    env->foflag = true;
+    env->vfp.vl = 0;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 16:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].u16[j] =
+                            cpu_lduw_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].u32[j] =
+                            cpu_lduw_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].u64[j] =
+                            cpu_lduw_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->foflag = false;
+    env->vfp.vl = vl;
+    env->vfp.vstart = 0;
+}
+
+void VECTOR_HELPER(vlhff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    vector_lmul_check_reg(env, lmul, rd, false);
+    env->foflag = true;
+    env->vfp.vl = 0;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 16:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].s16[j] =
+                            cpu_ldsw_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].s32[j] = sign_extend(
+                            cpu_ldsw_data(env, env->gpr[rs1] + read), 16);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].s64[j] = sign_extend(
+                            cpu_ldsw_data(env, env->gpr[rs1] + read), 16);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->vfp.vl = vl;
+    env->foflag = false;
+    env->vfp.vstart = 0;
+}
+
+void VECTOR_HELPER(vlwuff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    vector_lmul_check_reg(env, lmul, rd, false);
+    env->foflag = true;
+    env->vfp.vl = 0;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 4;
+                        env->vfp.vreg[dest + k * lmul].u32[j] =
+                            cpu_ldl_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 4;
+                        env->vfp.vreg[dest + k * lmul].u64[j] =
+                            cpu_ldl_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->foflag = false;
+    env->vfp.vl = vl;
+    env->vfp.vstart = 0;
+}
+
+void VECTOR_HELPER(vlwff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    vector_lmul_check_reg(env, lmul, rd, false);
+    env->foflag = true;
+    env->vfp.vl = 0;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 4;
+                        env->vfp.vreg[dest + k * lmul].s32[j] =
+                            cpu_ldl_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 4;
+                        env->vfp.vreg[dest + k * lmul].s64[j] = sign_extend(
+                            cpu_ldl_data(env, env->gpr[rs1] + read), 32);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->foflag = false;
+    env->vfp.vl = vl;
+    env->vfp.vstart = 0;
+}
+
+void VECTOR_HELPER(vleff_v)(CPURISCVState *env, uint32_t nf, uint32_t vm,
+    uint32_t rs1, uint32_t rd)
+{
+    int i, j, k, vl, vlmax, lmul, width, dest, read;
+
+    vl = env->vfp.vl;
+    lmul   = vector_get_lmul(env);
+    width = vector_get_width(env);
+    vlmax = vector_get_vlmax(env);
+
+    if (vector_vtype_ill(env) || vector_overlap_vm_common(lmul, vm, rd)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+    if (lmul * (nf + 1) > 32) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return;
+    }
+
+    vector_lmul_check_reg(env, lmul, rd, false);
+    env->vfp.vl = 0;
+    env->foflag = true;
+    for (i = 0; i < vlmax; i++) {
+        dest = rd + (i / (VLEN / width));
+        j = i % (VLEN / width);
+        k = nf;
+        if (i < env->vfp.vstart) {
+            continue;
+        } else if (i < vl) {
+            switch (width) {
+            case 8:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = i * (nf + 1)  + k;
+                        env->vfp.vreg[dest + k * lmul].u8[j] =
+                            cpu_ldub_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 16:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 2;
+                        env->vfp.vreg[dest + k * lmul].u16[j] =
+                            cpu_lduw_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 32:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 4;
+                        env->vfp.vreg[dest + k * lmul].u32[j] =
+                            cpu_ldl_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            case 64:
+                if (vector_elem_mask(env, vm, width, lmul, i)) {
+                    while (k >= 0) {
+                        read = (i * (nf + 1)  + k) * 8;
+                        env->vfp.vreg[dest + k * lmul].u64[j] =
+                            cpu_ldq_data(env, env->gpr[rs1] + read);
+                        k--;
+                    }
+                    env->vfp.vstart++;
+                }
+                env->vfp.vl++;
+                break;
+            default:
+                riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+                return;
+            }
+        } else {
+            vector_tail_segment(env, dest, j, width, k, lmul);
+        }
+    }
+    env->foflag = false;
+    env->vfp.vl = vl;
+    env->vfp.vstart = 0;
+}
