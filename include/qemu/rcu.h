@@ -154,6 +154,18 @@ extern void call_rcu1(struct rcu_head *head, RCUCBFunc *func);
       }),                                                                \
       (RCUCBFunc *)g_free);
 
+typedef char rcu_read_auto_t;
+static inline void rcu_read_auto_unlock(rcu_read_auto_t *r)
+{
+  rcu_read_unlock();
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(rcu_read_auto_t, rcu_read_auto_unlock)
+
+#define RCU_READ_LOCK_AUTO g_auto(rcu_read_auto_t) \
+    _rcu_read_auto = 'x'; \
+    rcu_read_lock();
+
 #ifdef __cplusplus
 }
 #endif
