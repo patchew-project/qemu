@@ -470,6 +470,7 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
     "-audiodev pa,id=id[,prop[=value][,...]]\n"
     "                server= PulseAudio server address\n"
     "                in|out.name= source/sink device name\n"
+    "                in|out.latency= desired latency in microseconds\n"
 #endif
 #ifdef CONFIG_AUDIO_SDL
     "-audiodev sdl,id=id[,prop[=value][,...]]\n"
@@ -629,6 +630,9 @@ Sets the PulseAudio @var{server} to connect to.
 
 @item in|out.name=@var{sink}
 Use the specified source/sink for recording/playback.
+
+@item in|out.latency=@var{usecs}
+Desired latency in microseconds.
 
 @end table
 
