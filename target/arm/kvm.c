@@ -171,6 +171,27 @@ bool kvm_arm_pmu_supported(CPUState *cpu)
     return kvm_check_extension(s, KVM_CAP_ARM_PMU_V3);
 }
 
+bool kvm_arm_irq_line_layout_mismatch(MachineState *ms, int vcpus)
+{
+    KVMState *s;
+    bool ret;
+
+    if (!kvm_enabled()) {
+        return false;
+    }
+
+    s = KVM_STATE(ms->accelerator);
+
+    ret = vcpus > 256 &&
+          !kvm_check_extension(s, KVM_CAP_ARM_IRQ_LINE_LAYOUT_2);
+
+    if (ret) {
+        error_report("Using more than 256 vcpus requires a host kernel "
+                     "with KVM_CAP_ARM_IRQ_LINE_LAYOUT_2");
+    }
+    return ret;
+}
+
 int kvm_arm_get_max_vm_ipa_size(MachineState *ms)
 {
     KVMState *s = KVM_STATE(ms->accelerator);

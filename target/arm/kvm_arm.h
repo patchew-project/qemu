@@ -234,6 +234,16 @@ bool kvm_arm_pmu_supported(CPUState *cs);
 int kvm_arm_get_max_vm_ipa_size(MachineState *ms);
 
 /**
+ * kvm_arm_irq_line_layout_mismatch - Returns whether the number of vcpus
+ * exceeds the limit imposed by the legacy KVM_IRQ_LINE ARM layout
+ * (without the vcpu2_index field).
+ *
+ * @ms: Machine state handle
+ * @vcpus: number of vcpus
+ */
+bool kvm_arm_irq_line_layout_mismatch(MachineState *ms, int vcpus);
+
+/**
  * kvm_arm_sync_mpstate_to_kvm
  * @cpu: ARMCPU
  *
@@ -279,6 +289,11 @@ static inline bool kvm_arm_pmu_supported(CPUState *cs)
 static inline int kvm_arm_get_max_vm_ipa_size(MachineState *ms)
 {
     return -ENOENT;
+}
+
+static inline bool kvm_arm_irq_line_layout_mismatch(MachineState *ms, int vcpus)
+{
+    return false;
 }
 
 static inline int kvm_arm_vgic_probe(void)
