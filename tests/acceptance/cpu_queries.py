@@ -25,9 +25,8 @@ class QueryCPUModelExpansion(Test):
 
         cpus = self.vm.command('query-cpu-definitions')
         for c in cpus:
-            self.assertNotIn('', c['unavailable-features'], c['name'])
-
-        for c in cpus:
-            model = {'name': c['name']}
-            e = self.vm.command('query-cpu-model-expansion', model=model, type='full')
-            self.assertEquals(e['model']['name'], c['name'])
+            model_name = c['name']
+            self.assertNotIn('', c['unavailable-features'], model_name)
+            e = self.vm.command('query-cpu-model-expansion',
+                                model={'name': model_name}, type='full')
+            self.assertEquals(e['model']['name'], model_name)
