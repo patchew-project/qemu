@@ -77,6 +77,21 @@ static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
     return true;                                       \
 }
 
+#define GEN_VECTOR_R_VM(INSN) \
+static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
+{                                                      \
+    TCGv_i32 s1 = tcg_const_i32(a->rs1);               \
+    TCGv_i32 s2 = tcg_const_i32(a->rs2);               \
+    TCGv_i32 d  = tcg_const_i32(a->rd);                \
+    TCGv_i32 vm = tcg_const_i32(a->vm);                \
+    gen_helper_vector_##INSN(cpu_env, vm, s1, s2, d);    \
+    tcg_temp_free_i32(s1);                             \
+    tcg_temp_free_i32(s2);                             \
+    tcg_temp_free_i32(d);                              \
+    tcg_temp_free_i32(vm);                             \
+    return true;                                       \
+}
+
 #define GEN_VECTOR_R2_ZIMM(INSN) \
 static bool trans_##INSN(DisasContext *ctx, arg_##INSN * a) \
 {                                                      \
@@ -154,6 +169,40 @@ GEN_VECTOR_R_WDVM(vamominuw_v)
 GEN_VECTOR_R_WDVM(vamominud_v)
 GEN_VECTOR_R_WDVM(vamomaxuw_v)
 GEN_VECTOR_R_WDVM(vamomaxud_v)
+
+GEN_VECTOR_R(vadc_vvm)
+GEN_VECTOR_R(vadc_vxm)
+GEN_VECTOR_R(vadc_vim)
+GEN_VECTOR_R(vmadc_vvm)
+GEN_VECTOR_R(vmadc_vxm)
+GEN_VECTOR_R(vmadc_vim)
+GEN_VECTOR_R(vsbc_vvm)
+GEN_VECTOR_R(vsbc_vxm)
+GEN_VECTOR_R(vmsbc_vvm)
+GEN_VECTOR_R(vmsbc_vxm)
+GEN_VECTOR_R_VM(vadd_vv)
+GEN_VECTOR_R_VM(vadd_vx)
+GEN_VECTOR_R_VM(vadd_vi)
+GEN_VECTOR_R_VM(vsub_vv)
+GEN_VECTOR_R_VM(vsub_vx)
+GEN_VECTOR_R_VM(vrsub_vx)
+GEN_VECTOR_R_VM(vrsub_vi)
+GEN_VECTOR_R_VM(vwaddu_vv)
+GEN_VECTOR_R_VM(vwaddu_vx)
+GEN_VECTOR_R_VM(vwadd_vv)
+GEN_VECTOR_R_VM(vwadd_vx)
+GEN_VECTOR_R_VM(vwsubu_vv)
+GEN_VECTOR_R_VM(vwsubu_vx)
+GEN_VECTOR_R_VM(vwsub_vv)
+GEN_VECTOR_R_VM(vwsub_vx)
+GEN_VECTOR_R_VM(vwaddu_wv)
+GEN_VECTOR_R_VM(vwaddu_wx)
+GEN_VECTOR_R_VM(vwadd_wv)
+GEN_VECTOR_R_VM(vwadd_wx)
+GEN_VECTOR_R_VM(vwsubu_wv)
+GEN_VECTOR_R_VM(vwsubu_wx)
+GEN_VECTOR_R_VM(vwsub_wv)
+GEN_VECTOR_R_VM(vwsub_wx)
 
 GEN_VECTOR_R2_ZIMM(vsetvli)
 GEN_VECTOR_R(vsetvl)
