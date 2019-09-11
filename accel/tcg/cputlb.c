@@ -1270,6 +1270,18 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 }
 
 /*
+ * In order for the expected constant folding to happen,
+ * we require that some functions be inlined.
+ * However, this inlining can make debugging harder for a
+ * non-optimizing build.
+ */
+#ifdef __OPTIMIZE__
+#define ALWAYS_INLINE  __attribute__((always_inline))
+#else
+#define ALWAYS_INLINE
+#endif
+
+/*
  * Load Helpers
  *
  * We support two different access types. SOFTMMU_CODE_ACCESS is
@@ -1281,7 +1293,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
 typedef uint64_t FullLoadHelper(CPUArchState *env, target_ulong addr,
                                 TCGMemOpIdx oi, uintptr_t retaddr);
 
-static inline uint64_t __attribute__((always_inline))
+static inline uint64_t ALWAYS_INLINE
 load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
             uintptr_t retaddr, MemOp op, bool code_read,
             FullLoadHelper *full_load)
@@ -1530,7 +1542,7 @@ tcg_target_ulong helper_be_ldsl_mmu(CPUArchState *env, target_ulong addr,
  * Store Helpers
  */
 
-static inline void __attribute__((always_inline))
+static inline void ALWAYS_INLINE
 store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
              TCGMemOpIdx oi, uintptr_t retaddr, MemOp op)
 {
