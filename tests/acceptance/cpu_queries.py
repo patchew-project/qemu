@@ -13,6 +13,8 @@ from avocado_qemu import Test
 class QueryCPUModelExpansion(Test):
     """
     Run query-cpu-model-expansion for each CPU model, and validate results
+
+    :avocado: tags=arch:x86_64
     """
 
     def test(self):
