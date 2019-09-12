@@ -895,7 +895,20 @@ def skip_if_unsupported(required_formats=[], read_only=False):
         return func_wrapper
     return skip_test_decorator
 
-def execute_unittest(output, verbosity, debug):
+def execute_unittest(debug=False):
+    """Executes unittests within the calling module."""
+
+    verbosity = 2 if debug else 1
+
+    if debug:
+        output = sys.stdout
+    elif sys.version_info.major >= 3:
+        output = io.StringIO()
+    else:
+        # io.StringIO is for unicode strings, which is not what
+        # 2.x's test runner emits.
+        output = io.BytesIO()
+
     runner = unittest.TextTestRunner(stream=output, descriptions=True,
                                      verbosity=verbosity)
     try:
@@ -903,15 +916,21 @@ def execute_unittest(output, verbosity, debug):
         # exception
         unittest.main(testRunner=runner)
     finally:
+        # We need to filter out the time taken from the output so that
+        # qemu-iotest can reliably diff the results against master output.
         if not debug:
             sys.stderr.write(re.sub(r'Ran (\d+) tests? in [\d.]+s',
                                     r'Ran \1 tests', output.getvalue()))
 
-def execute_test(test_function=None,
-                 supported_fmts=[], supported_oses=['linux'],
-                 supported_cache_modes=[], unsupported_fmts=[],
-                 supported_protocols=[], unsupported_protocols=[]):
-    """Run either unittest or script-style tests."""
+def execute_setup_common(supported_fmts=[],
+                         supported_oses=['linux'],
+                         supported_cache_modes=[],
+                         unsupported_fmts=[],
+                         supported_protocols=[],
+                         unsupported_protocols=[]):
+    """
+    Perform necessary setup for either script-style or unittest-style tests.
+    """
 
     # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
     # indicate that we're not being run via "check". There may be
@@ -921,38 +940,38 @@ def execute_test(test_function=None,
         sys.stderr.write('Please run this test via the "check" script\n')
         sys.exit(os.EX_USAGE)
 
-    debug = '-d' in sys.argv
-    verbosity = 1
     verify_image_format(supported_fmts, unsupported_fmts)
     verify_protocol(supported_protocols, unsupported_protocols)
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
 
+    debug = '-d' in sys.argv
     if debug:
-        output = sys.stdout
-        verbosity = 2
         sys.argv.remove('-d')
-    else:
-        # We need to filter out the time taken from the output so that
-        # qemu-iotest can reliably diff the results against master output.
-        if sys.version_info.major >= 3:
-            output = io.StringIO()
-        else:
-            # io.StringIO is for unicode strings, which is not what
-            # 2.x's test runner emits.
-            output = io.BytesIO()
-
     logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
 
+    return debug
+
+def execute_test(test_function=None, *args, **kwargs):
+    """Run either unittest or script-style tests."""
+
+    debug = execute_setup_common(*args, **kwargs)
     if not test_function:
-        execute_unittest(output, verbosity, debug)
+        execute_unittest(debug)
     else:
         test_function()
 
+# This is called from script-style iotests without a single point of entry
+def script_initialize(*args, **kwargs):
+    """Initialize script-style tests without running any tests."""
+    execute_setup_common(*args, **kwargs)
+
+# This is called from script-style iotests with a single point of entry
 def script_main(test_function, *args, **kwargs):
     """Run script-style tests outside of the unittest framework"""
     execute_test(test_function, *args, **kwargs)
 
+# This is called from unittest style iotests
 def main(*args, **kwargs):
     """Run tests using the unittest framework"""
     execute_test(None, *args, **kwargs)

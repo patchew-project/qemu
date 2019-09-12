@@ -24,7 +24,7 @@ import math
 import iotests
 from iotests import imgfmt
 
-iotests.verify_image_format(supported_fmts=['vmdk'])
+iotests.script_initialize(supported_fmts=['vmdk'])
 
 def blockdev_create(vm, options):
     result = vm.qmp_log('blockdev-create', job_id='job0', options=options,
