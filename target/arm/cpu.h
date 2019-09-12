@@ -915,6 +915,9 @@ struct ARMCPU {
 
     /* Used to set the maximum vector length the cpu will support.  */
     uint32_t sve_max_vq;
+
+    /* Used to configure the generic timer input clock */
+    uint64_t gt_cntfrq;
 };
 
 void arm_cpu_post_init(Object *obj);
