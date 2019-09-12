@@ -28,9 +28,11 @@
 #include "qemu/cutils.h"
 #include "qemu/config-file.h"
 #include "block/block_int.h"
+#include "block/qdict.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 #include "sysemu/qtest.h"
 
@@ -43,6 +45,9 @@ typedef struct BDRVBlkdebugState {
     uint64_t max_write_zero;
     uint64_t opt_discard;
     uint64_t max_discard;
+
+    uint64_t take_child_perms;
+    uint64_t unshare_child_perms;
 
     /* For blkdebug_refresh_filename() */
     char *config_file;
@@ -344,6 +349,84 @@ static void blkdebug_parse_filename(const char *filename, QDict *options,
     qdict_put_str(options, "x-image", filename);
 }
 
+static int blkdebug_parse_perm_list(uint64_t *dest, QDict *options,
+                                    const char *prefix, Error **errp)
+{
+    int ret = 0;
+    QDict *subqdict = NULL;
+    QObject *crumpled_subqdict = NULL;
+    QList *perm_list;
+    const QListEntry *perm;
+
+    qdict_extract_subqdict(options, &subqdict, prefix);
+    if (!qdict_size(subqdict)) {
+        goto out;
+    }
+
+    crumpled_subqdict = qdict_crumple(subqdict, errp);
+    if (!crumpled_subqdict) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    perm_list = qobject_to(QList, crumpled_subqdict);
+    if (!perm_list) {
+        /* Omit the trailing . from the prefix */
+        error_setg(errp, "%.*s expects a list",
+                   (int)(strlen(prefix) - 1), prefix);
+        ret = -EINVAL;
+        goto out;
+    }
+
+    for (perm = qlist_first(perm_list); perm; perm = qlist_next(perm)) {
+        const char *perm_name;
+        BlockdevPermission perm_bit;
+
+        perm_name = qstring_get_try_str(qobject_to(QString, perm->value));
+        if (!perm_name) {
+            /* Omit the trailing . from the prefix */
+            error_setg(errp, "%.*s expects a list of enum strings",
+                       (int)(strlen(prefix) - 1), prefix);
+            ret = -EINVAL;
+            goto out;
+        }
+
+        perm_bit = qapi_enum_parse(&BlockdevPermission_lookup, perm_name,
+                                   BLOCKDEV_PERMISSION__MAX, errp);
+        if (perm_bit == BLOCKDEV_PERMISSION__MAX) {
+            ret = -EINVAL;
+            goto out;
+        }
+
+        *dest |= UINT64_C(1) << perm_bit;
+    }
+
+out:
+    qobject_unref(subqdict);
+    qobject_unref(crumpled_subqdict);
+    return ret;
+}
+
+static int blkdebug_parse_perms(BDRVBlkdebugState *s, QDict *options,
+                                Error **errp)
+{
+    int ret;
+
+    ret = blkdebug_parse_perm_list(&s->take_child_perms, options,
+                                   "take-child-perms.", errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = blkdebug_parse_perm_list(&s->unshare_child_perms, options,
+                                   "unshare-child-perms.", errp);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return 0;
+}
+
 static QemuOptsList runtime_opts = {
     .name = "blkdebug",
     .head = QTAILQ_HEAD_INITIALIZER(runtime_opts.head),
@@ -418,6 +501,12 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Set initial state */
     s->state = 1;
+
+    /* Parse permissions modifiers before opening the image file */
+    ret = blkdebug_parse_perms(s, options, errp);
+    if (ret < 0) {
+        goto out;
+    }
 
     /* Open the image file */
     bs->file = bdrv_open_child(qemu_opt_get(opts, "x-image"), options, "image",
@@ -916,6 +1005,21 @@ static int blkdebug_reopen_prepare(BDRVReopenState *reopen_state,
     return 0;
 }
 
+static void blkdebug_child_perm(BlockDriverState *bs, BdrvChild *c,
+                                const BdrvChildRole *role,
+                                BlockReopenQueue *reopen_queue,
+                                uint64_t perm, uint64_t shared,
+                                uint64_t *nperm, uint64_t *nshared)
+{
+    BDRVBlkdebugState *s = bs->opaque;
+
+    bdrv_filter_default_perms(bs, c, role, reopen_queue, perm, shared,
+                              nperm, nshared);
+
+    *nperm |= s->take_child_perms;
+    *nshared &= ~s->unshare_child_perms;
+}
+
 static const char *const blkdebug_strong_runtime_opts[] = {
     "config",
     "inject-error.",
@@ -940,7 +1044,7 @@ static BlockDriver bdrv_blkdebug = {
     .bdrv_file_open         = blkdebug_open,
     .bdrv_close             = blkdebug_close,
     .bdrv_reopen_prepare    = blkdebug_reopen_prepare,
-    .bdrv_child_perm        = bdrv_filter_default_perms,
+    .bdrv_child_perm        = blkdebug_child_perm,
 
     .bdrv_getlength         = blkdebug_getlength,
     .bdrv_refresh_filename  = blkdebug_refresh_filename,
