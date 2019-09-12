@@ -6740,12 +6740,12 @@ void register_cp_regs_for_features(ARMCPU *cpu)
             ARMCPRegInfo cbar_reginfo[] = {
                 { .name = "CBAR",
                   .type = ARM_CP_CONST,
-                  .cp = 15, .crn = 15, .crm = 0, .opc1 = 4, .opc2 = 0,
-                  .access = PL1_R, .resetvalue = cpu->reset_cbar },
+                  .cp = 15, .crn = 15, .crm = 3, .opc1 = 1, .opc2 = 0,
+                  .access = PL1_R, .resetvalue = cbar32 },
                 { .name = "CBAR_EL1", .state = ARM_CP_STATE_AA64,
                   .type = ARM_CP_CONST,
                   .opc0 = 3, .opc1 = 1, .crn = 15, .crm = 3, .opc2 = 0,
-                  .access = PL1_R, .resetvalue = cbar32 },
+                  .access = PL1_R, .resetvalue = cpu->reset_cbar },
                 REGINFO_SENTINEL
             };
             /* We don't implement a r/w 64 bit CBAR currently */
