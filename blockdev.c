@@ -1762,8 +1762,10 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
-                            Error **errp);
+static BlockJob *do_drive_backup(DriveBackup *backup,
+                                 BlockDriverState *backup_bs,
+                                 JobTxn *txn,
+                                 Error **errp);
 
 static void drive_backup_prepare(BlkActionState *common, Error **errp)
 {
@@ -1781,6 +1783,11 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
         return;
     }
 
+    if (!bs->drv) {
+        error_setg(errp, "Device has no medium");
+        return;
+    }
+
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
 
@@ -1789,7 +1796,9 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
 
     state->bs = bs;
 
-    state->job = do_drive_backup(backup, common->block_job_txn, &local_err);
+    state->job = do_drive_backup(backup, bs,
+                                 common->block_job_txn,
+                                 &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -3607,7 +3616,9 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     return job;
 }
 
-static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
+static BlockJob *do_drive_backup(DriveBackup *backup,
+                                 BlockDriverState *backup_bs,
+                                 JobTxn *txn,
                                  Error **errp)
 {
     BlockDriverState *bs;
@@ -3625,18 +3636,27 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
-    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
-    if (!bs) {
-        return NULL;
-    }
+    if (backup_bs) {
+        bs = backup_bs;
+        /*
+         * If the caller passes us a BDS, we assume it has already
+         * acquired the context lock.
+         */
+        aio_context = bdrv_get_aio_context(bs);
+    } else {
+        bs = bdrv_lookup_bs(backup->device, backup->device, errp);
+        if (!bs) {
+            return NULL;
+        }
 
-    if (!bs->drv) {
-        error_setg(errp, "Device has no medium");
-        return NULL;
-    }
+        if (!bs->drv) {
+            error_setg(errp, "Device has no medium");
+            return NULL;
+        }
 
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
+        aio_context = bdrv_get_aio_context(bs);
+        aio_context_acquire(aio_context);
+    }
 
     if (!backup->has_format) {
         backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
@@ -3713,7 +3733,9 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
 unref:
     bdrv_unref(target_bs);
 out:
-    aio_context_release(aio_context);
+    if (!backup_bs) {
+        aio_context_release(aio_context);
+    }
     return job;
 }
 
@@ -3721,7 +3743,7 @@ void qmp_drive_backup(DriveBackup *arg, Error **errp)
 {
 
     BlockJob *job;
-    job = do_drive_backup(arg, NULL, errp);
+    job = do_drive_backup(arg, NULL, NULL, errp);
     if (job) {
         job_start(&job->job);
     }
