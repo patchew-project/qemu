@@ -16,6 +16,7 @@
 #include "qemu/iov.h"
 #include "qemu/module.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
 #include "trace.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
@@ -1086,11 +1087,33 @@ static int virtio_blk_load_device(VirtIODevice *vdev, QEMUFile *f,
     return 0;
 }
 
+static void coroutine_fn virtio_resize_co_entry(void *opaque)
+{
+    VirtIODevice *vdev = opaque;
+
+    assert(qemu_get_current_aio_context() == qemu_get_aio_context());
+    virtio_notify_config(vdev);
+    aio_wait_kick();
+}
+
 static void virtio_blk_resize(void *opaque)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(opaque);
+    Coroutine *co;
 
-    virtio_notify_config(vdev);
+    if (qemu_in_coroutine() &&
+        qemu_get_current_aio_context() != qemu_get_aio_context()) {
+        /*
+         * virtio_notify_config() needs to acquire the global mutex,
+         * so calling it from a coroutine running on a non-main context
+         * may cause a deadlock. Instead, create a new coroutine and
+         * schedule it to be run on the main thread.
+         */
+        co = qemu_coroutine_create(virtio_resize_co_entry, vdev);
+        aio_co_schedule(qemu_get_aio_context(), co);
+    } else {
+        virtio_notify_config(vdev);
+    }
 }
 
 static const BlockDevOps virtio_block_ops = {
