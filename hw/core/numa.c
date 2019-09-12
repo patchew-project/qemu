@@ -186,6 +186,100 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
     ms->numa_state->have_numa_distance = true;
 }
 
+void parse_numa_hmat_lb(NumaState *nstat, NumaHmatLBOptions *node,
+                        Error **errp)
+{
+    int i;
+    int init = node->initiator;
+    int targ = node->target;
+    int nb_nodes = nstat->num_nodes;
+    NodeInfo *numa_info = nstat->nodes;
+    HMAT_LB_Info *hmat_lb = nstat->hmat_lb[node->hierarchy][node->data_type];
+
+    /* Error checking */
+    if (init >= nb_nodes) {
+        error_setg(errp, "Invalid initiator=%d, it should be less than %d.",
+                   init, nb_nodes);
+        return;
+    }
+    if (targ >= nb_nodes) {
+        error_setg(errp, "Invalid target=%d, it should be less than %d.",
+                   targ, nb_nodes);
+        return;
+    }
+    if (!numa_info[init].has_cpu) {
+        error_setg(errp, "Invalid initiator=%d, it isn't an "
+                   "initiator proximity domain.", init);
+        return;
+    }
+    if (!numa_info[targ].present) {
+        error_setg(errp, "Invalid target=%d, it hasn't a valid NUMA node.",
+                   targ);
+        return;
+    }
+
+    /* HMAT latency and bandwidth data initialization */
+    if (nstat->num_initiator == 0) {
+        for (i = 0; i < nstat->num_nodes; i++) {
+            if (numa_info[i].has_cpu) {
+                nstat->num_initiator++;
+            }
+        }
+    }
+
+    if (!hmat_lb) {
+        int size = nstat->num_initiator * nb_nodes * sizeof(uint64_t);
+        hmat_lb = g_malloc0(sizeof(*hmat_lb));
+        nstat->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
+        hmat_lb->latency = g_malloc0(size);
+        hmat_lb->bandwidth = g_malloc0(size);
+    }
+    hmat_lb->hierarchy = node->hierarchy;
+    hmat_lb->data_type = node->data_type;
+
+    /* Input latency data */
+    if (node->data_type <= HMATLB_DATA_TYPE_WRITE_LATENCY) {
+        if (!node->has_latency) {
+            error_setg(errp, "Missing 'latency' option.");
+            return;
+        }
+        if (node->has_bandwidth) {
+            error_setg(errp, "Invalid option 'bandwidth' since "
+                       "the data type is latency.");
+            return;
+        }
+        if (hmat_lb->latency[init * nb_nodes + targ]) {
+            error_setg(errp, "Duplicate configuration of the latency for "
+                        "initiator=%d and target=%d.", init, targ);
+            return;
+        }
+
+        hmat_lb->latency[init * nb_nodes + targ] = node->latency;
+    }
+
+    /* Input bandwidth data */
+    if (node->data_type >= HMATLB_DATA_TYPE_ACCESS_BANDWIDTH) {
+        if (!node->has_bandwidth) {
+            error_setg(errp, "Missing 'bandwidth' option.");
+            return;
+        }
+        if (node->has_latency) {
+            error_setg(errp, "Invalid option 'latency' since "
+                       "the data type is bandwidth.");
+            return;
+        }
+        if (hmat_lb->bandwidth[init * nb_nodes + targ]) {
+            error_setg(errp, "Duplicate configuration of the bandwidth for "
+                        "initiator=%d and target=%d.", init, targ);
+            return;
+        }
+
+        /* Convert Byte to Megabyte */
+        hmat_lb->bandwidth[init * nb_nodes + targ] =
+            node->bandwidth / 1024 / 1024;
+    }
+}
+
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
@@ -224,6 +318,19 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
         machine_set_cpu_numa_node(ms, qapi_NumaCpuOptions_base(&object->u.cpu),
                                   &err);
         break;
+    case NUMA_OPTIONS_TYPE_HMAT_LB:
+        if (!ms->numa_state->hmat_enabled) {
+            error_setg(errp, "ACPI Heterogeneous Memory Attribute Table "
+                       "(HMAT) is disabled, use -machine hmat=on before "
+                       "set initiator of NUMA");
+            return;
+        }
+
+        parse_numa_hmat_lb(ms->numa_state, &object->u.hmat_lb, &err);
+        if (err) {
+            goto end;
+        }
+        break;
     default:
         abort();
     }
@@ -249,6 +356,13 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
     if ((object->type == NUMA_OPTIONS_TYPE_NODE) && object->u.node.has_mem) {
         const char *mem_str = qemu_opt_get(opts, "mem");
         qemu_strtosz_MiB(mem_str, NULL, &object->u.node.mem);
+    }
+
+    /* Set up suffix-less bandwidth as megabytes */
+    if ((object->type == NUMA_OPTIONS_TYPE_HMAT_LB) &&
+        object->u.hmat_lb.has_bandwidth) {
+        const char *bw_str = qemu_opt_get(opts, "bandwidth");
+        qemu_strtosz_MiB(bw_str, NULL, &object->u.hmat_lb.bandwidth);
     }
 
     set_numa_options(ms, object, &err);
