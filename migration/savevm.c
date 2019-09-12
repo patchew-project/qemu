@@ -684,7 +684,7 @@ static void savevm_state_handler_insert(SaveStateEntry *nse)
    of the system, so instance_id should be removed/replaced.
    Meanwhile pass -1 as instance_id if you do not already have a clearly
    distinguishing id for all instances of your device class. */
-int register_savevm_live(DeviceState *dev,
+int register_savevm_live(VMStateIf *obj,
                          const char *idstr,
                          int instance_id,
                          int version_id,
@@ -704,8 +704,8 @@ int register_savevm_live(DeviceState *dev,
         se->is_ram = 1;
     }
 
-    if (dev) {
-        char *id = qdev_get_dev_path(dev);
+    if (obj) {
+        char *id = vmstate_if_get_id(obj);
         if (id) {
             if (snprintf(se->idstr, sizeof(se->idstr), "%s/", id) >=
                 sizeof(se->idstr)) {
@@ -736,17 +736,17 @@ int register_savevm_live(DeviceState *dev,
     return 0;
 }
 
-void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
+void unregister_savevm(VMStateIf *obj, const char *idstr, void *opaque)
 {
     SaveStateEntry *se, *new_se;
     char id[256] = "";
 
-    if (dev) {
-        char *path = qdev_get_dev_path(dev);
-        if (path) {
-            pstrcpy(id, sizeof(id), path);
+    if (obj) {
+        char *oid = vmstate_if_get_id(obj);
+        if (oid) {
+            pstrcpy(id, sizeof(id), oid);
             pstrcat(id, sizeof(id), "/");
-            g_free(path);
+            g_free(oid);
         }
     }
     pstrcat(id, sizeof(id), idstr);
@@ -760,7 +760,7 @@ void unregister_savevm(DeviceState *dev, const char *idstr, void *opaque)
     }
 }
 
-int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
+int vmstate_register_with_alias_id(VMStateIf *obj, int instance_id,
                                    const VMStateDescription *vmsd,
                                    void *opaque, int alias_id,
                                    int required_for_version,
@@ -778,8 +778,8 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     se->vmsd = vmsd;
     se->alias_id = alias_id;
 
-    if (dev) {
-        char *id = qdev_get_dev_path(dev);
+    if (obj) {
+        char *id = vmstate_if_get_id(obj);
         if (id) {
             if (snprintf(se->idstr, sizeof(se->idstr), "%s/", id) >=
                 sizeof(se->idstr)) {
@@ -810,7 +810,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     return 0;
 }
 
-void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
+void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
                         void *opaque)
 {
     SaveStateEntry *se, *new_se;
