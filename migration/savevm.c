@@ -1290,7 +1290,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
                                                     bool in_postcopy,
                                                     bool inactivate_disks)
 {
-    QJSON *vmdesc;
+    g_autoptr(QJSON) vmdesc = NULL;
     int vmdesc_len;
     SaveStateEntry *se;
     int ret;
@@ -1351,7 +1351,6 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
         qemu_put_be32(f, vmdesc_len);
         qemu_put_buffer(f, (uint8_t *)qjson_get_str(vmdesc), vmdesc_len);
     }
-    qjson_destroy(vmdesc);
 
     return 0;
 }
