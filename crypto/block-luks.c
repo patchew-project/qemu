@@ -675,13 +675,13 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     if (memcmp(luks->header.magic, qcrypto_block_luks_magic,
                QCRYPTO_BLOCK_LUKS_MAGIC_LEN) != 0) {
         error_setg(errp, "Volume is not in LUKS format");
-        ret = -EINVAL;
+        ret = -1;
         goto fail;
     }
     if (luks->header.version != QCRYPTO_BLOCK_LUKS_VERSION) {
         error_setg(errp, "LUKS version %" PRIu32 " is not supported",
                    luks->header.version);
-        ret = -ENOTSUP;
+        ret = -1;
         goto fail;
     }
 
@@ -697,7 +697,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
      */
     ivgen_name = strchr(cipher_mode, '-');
     if (!ivgen_name) {
-        ret = -EINVAL;
+        ret = -1;
         error_setg(errp, "Unexpected cipher mode string format %s",
                    cipher_mode);
         goto fail;
@@ -715,7 +715,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
         luks->ivgen_hash_alg = qcrypto_block_luks_hash_name_lookup(ivhash_name,
                                                                    &local_err);
         if (local_err) {
-            ret = -ENOTSUP;
+            ret = -1;
             error_propagate(errp, local_err);
             goto fail;
         }
@@ -724,7 +724,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     luks->cipher_mode = qcrypto_block_luks_cipher_mode_lookup(cipher_mode,
                                                               &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
+        ret = -1;
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -735,7 +735,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                               luks->header.master_key_len,
                                               &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
+        ret = -1;
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -744,7 +744,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
             qcrypto_block_luks_hash_name_lookup(luks->header.hash_spec,
                                                 &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
+        ret = -1;
         error_propagate(errp, local_err);
         goto fail;
     }
@@ -752,14 +752,14 @@ qcrypto_block_luks_open(QCryptoBlock *block,
     luks->ivgen_alg = qcrypto_block_luks_ivgen_name_lookup(ivgen_name,
                                                            &local_err);
     if (local_err) {
-        ret = -ENOTSUP;
+        ret = -1;
         error_propagate(errp, local_err);
         goto fail;
     }
 
     if (luks->ivgen_alg == QCRYPTO_IVGEN_ALG_ESSIV) {
         if (!ivhash_name) {
-            ret = -EINVAL;
+            ret = -1;
             error_setg(errp, "Missing IV generator hash specification");
             goto fail;
         }
@@ -768,7 +768,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                                 luks->ivgen_hash_alg,
                                                 &local_err);
         if (local_err) {
-            ret = -ENOTSUP;
+            ret = -1;
             error_propagate(errp, local_err);
             goto fail;
         }
@@ -795,7 +795,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                         masterkey,
                                         readfunc, opaque,
                                         errp) < 0) {
-            ret = -EACCES;
+            ret = -1;
             goto fail;
         }
 
@@ -813,7 +813,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                          luks->header.master_key_len,
                                          errp);
         if (!block->ivgen) {
-            ret = -ENOTSUP;
+            ret = -1;
             goto fail;
         }
 
@@ -825,7 +825,7 @@ qcrypto_block_luks_open(QCryptoBlock *block,
                                         n_threads,
                                         errp);
         if (ret < 0) {
-            ret = -ENOTSUP;
+            ret = -1;
             goto fail;
         }
     }
