@@ -1182,6 +1182,39 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
                      QEMUIOVector *qiov, int flags)
 {
     int ret;
+    size_t qiov_offset = 0;
+
+    if (!QEMU_IS_ALIGNED(offset, job->granularity) &&
+        bdrv_dirty_bitmap_get(job->dirty_bitmap, offset)) {
+            /*
+             * Dirty unaligned padding
+             * 1. It's already dirty, no damage to "actively_synced" if we just
+             *    skip unaligned part.
+             * 2. If we copy it, we can't reset corresponding bit in
+             *    dirty_bitmap as there may be some "dirty" bytes still not
+             *    copied.
+             * So, just ignore it.
+             */
+            qiov_offset = QEMU_ALIGN_UP(offset, job->granularity) - offset;
+            if (bytes <= qiov_offset) {
+                /* nothing to do after shrink */
+                return;
+            }
+            offset += qiov_offset;
+            bytes -= qiov_offset;
+    }
+
+    if (!QEMU_IS_ALIGNED(offset + bytes, job->granularity) &&
+        bdrv_dirty_bitmap_get(job->dirty_bitmap, offset + bytes - 1))
+    {
+        uint64_t tail = (offset + bytes) % job->granularity;
+
+        if (bytes <= tail) {
+            /* nothing to do after shrink */
+            return;
+        }
+        bytes -= tail;
+    }
 
     bdrv_reset_dirty_bitmap(job->dirty_bitmap, offset, bytes);
 
@@ -1189,7 +1222,8 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
 
     switch (method) {
     case MIRROR_METHOD_COPY:
-        ret = blk_co_pwritev(job->target, offset, bytes, qiov, flags);
+        ret = blk_co_pwritev_part(job->target, offset, bytes,
+                                  qiov, qiov_offset, flags);
         break;
 
     case MIRROR_METHOD_ZERO:
@@ -1617,6 +1651,9 @@ static BlockJob *mirror_start_job(
     s->dirty_bitmap = bdrv_create_dirty_bitmap(bs, granularity, NULL, errp);
     if (!s->dirty_bitmap) {
         goto fail;
+    }
+    if (s->copy_mode == MIRROR_COPY_MODE_WRITE_BLOCKING) {
+        bdrv_disable_dirty_bitmap(s->dirty_bitmap);
     }
 
     ret = block_job_add_bdrv(&s->common, "source", bs, 0,
