@@ -1126,15 +1126,18 @@ static int proxy_parse_opts(QemuOpts *opts, FsDriverEntry *fs, Error **errp)
 {
     const char *socket = qemu_opt_get(opts, "socket");
     const char *sock_fd = qemu_opt_get(opts, "sock_fd");
+    Error *local_err = NULL;
 
     if (!socket && !sock_fd) {
-        error_setg(errp, "both socket and sock_fd properties are missing");
-        error_append_socket_sockfd_hint(errp);
+        error_setg(&local_err, "both socket and sock_fd properties are missing");
+        error_append_socket_sockfd_hint(&local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
     if (socket && sock_fd) {
-        error_setg(errp, "both socket and sock_fd properties are set");
-        error_append_socket_sockfd_hint(errp);
+        error_setg(&local_err, "both socket and sock_fd properties are set");
+        error_append_socket_sockfd_hint(&local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
     if (socket) {

@@ -1482,8 +1482,9 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
     Error *local_err = NULL;
 
     if (!sec_model) {
-        error_setg(errp, "security_model property not set");
-        error_append_security_model_hint(errp);
+        error_setg(&local_err, "security_model property not set");
+        error_append_security_model_hint(&local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
 
@@ -1497,8 +1498,10 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
     } else if (!strcmp(sec_model, "mapped-file")) {
         fse->export_flags |= V9FS_SM_MAPPED_FILE;
     } else {
-        error_setg(errp, "invalid security_model property '%s'", sec_model);
-        error_append_security_model_hint(errp);
+        error_setg(&local_err, "invalid security_model property '%s'",
+                   sec_model);
+        error_append_security_model_hint(&local_err);
+        error_propagate(errp, local_err);
         return -1;
     }
 
