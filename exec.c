@@ -692,7 +692,8 @@ static void tcg_register_iommu_notifier(CPUState *cpu,
                             0,
                             HWADDR_MAX,
                             iommu_idx);
-        memory_region_register_iommu_notifier(notifier->mr, &notifier->n);
+        assert(!memory_region_register_iommu_notifier(notifier->mr,
+                                                      &notifier->n));
     }
 
     if (!notifier->active) {
