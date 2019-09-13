@@ -1783,20 +1783,16 @@ static void drive_backup_prepare(BlkActionState *common, Error **errp)
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
-
     /* Paired with .clean() */
     bdrv_drained_begin(bs);
+    aio_context_release(aio_context);
 
     state->bs = bs;
 
     state->job = do_drive_backup(backup, common->block_job_txn, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        goto out;
     }
-
-out:
-    aio_context_release(aio_context);
 }
 
 static void drive_backup_commit(BlkActionState *common)
