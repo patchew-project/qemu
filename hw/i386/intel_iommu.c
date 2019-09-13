@@ -2931,7 +2931,7 @@ static int vtd_iommu_notify_flag_changed(IOMMUMemoryRegion *iommu,
     if (!s->caching_mode && new & IOMMU_NOTIFIER_MAP) {
         error_report("We need to set caching-mode=on for intel-iommu to enable "
                      "device assignment with IOMMU protection.");
-        exit(1);
+        return -EINVAL;
     }
 
     /* Update per-address-space notifier flags */
