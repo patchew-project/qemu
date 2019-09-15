@@ -1994,7 +1994,7 @@ EOF
 
 if ! compile_prog "-Werror" "" ; then
     error_exit "Your compiler does not support the __thread specifier for " \
-	"Thread-Local Storage (TLS). Please upgrade to a version that does."
+    "Thread-Local Storage (TLS). Please upgrade to a version that does."
 fi
 
 if test "$pie" = ""; then
@@ -2783,7 +2783,7 @@ if test "$gnutls" != "no"; then
         fi
     fi
     if test "$pass" = "no" && test "$gnutls" = "yes"; then
-	feature_not_found "gnutls" "Install gnutls devel >= 3.1.18"
+    feature_not_found "gnutls" "Install gnutls devel >= 3.1.18"
     else
         gnutls="$pass"
     fi
@@ -2815,16 +2815,16 @@ fi
 has_libgcrypt() {
     if ! has "libgcrypt-config"
     then
-	return 1
+    return 1
     fi
 
     if test -n "$cross_prefix"
     then
-	host=$(libgcrypt-config --host)
-	if test "$host-" != $cross_prefix
-	then
-	    return 1
-	fi
+    host=$(libgcrypt-config --host)
+    if test "$host-" != $cross_prefix
+    then
+        return 1
+    fi
     fi
 
     maj=`libgcrypt-config --version | awk -F . '{print $1}'`
@@ -3034,7 +3034,7 @@ EOF
          sdl_cflags="$sdl_cflags $(aalib-config --cflags 2>/dev/null)"
       fi
       if compile_prog "$sdl_cflags" "$sdl_libs" ; then
-	:
+    :
       else
         sdl=no
       fi
@@ -3652,8 +3652,8 @@ EOF
 if ! compile_prog "$CFLAGS" "$LIBS" ; then
     error_exit "sizeof(size_t) doesn't match GLIB_SIZEOF_SIZE_T."\
                "You probably need to set PKG_CONFIG_LIBDIR"\
-	       "to point to the right pkg-config files for your"\
-	       "build target"
+           "to point to the right pkg-config files for your"\
+           "build target"
 fi
 
 # Silence clang 3.5.0 warnings about glib attribute __alloc_size__ usage
@@ -4163,8 +4163,8 @@ if test "$glusterfs" != "no" ; then
 int
 main(void)
 {
-	/* new glfs_ftruncate() passes two additional args */
-	return glfs_ftruncate(NULL, 0, NULL, NULL);
+    /* new glfs_ftruncate() passes two additional args */
+    return glfs_ftruncate(NULL, 0, NULL, NULL);
 }
 EOF
     if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
@@ -4181,9 +4181,9 @@ glusterfs_iocb(glfs_fd_t *fd, ssize_t ret, struct glfs_stat *prestat, struct glf
 int
 main(void)
 {
-	glfs_io_cbk iocb = &glusterfs_iocb;
-	iocb(NULL, 0 , NULL, NULL, NULL);
-	return 0;
+    glfs_io_cbk iocb = &glusterfs_iocb;
+    iocb(NULL, 0 , NULL, NULL, NULL);
+    return 0;
 }
 EOF
     if compile_prog "$glusterfs_cflags" "$glusterfs_libs" ; then
@@ -4210,8 +4210,8 @@ cat > $TMPC << EOF
 int
 main(void)
 {
-	/* try to start inotify */
-	return inotify_init();
+    /* try to start inotify */
+    return inotify_init();
 }
 EOF
 if compile_prog "" "" ; then
@@ -4884,8 +4884,8 @@ if test "$mingw32" = "yes" && test "$guest_agent" != "no" && \
     *\ *) # The SDK is installed in "Program Files" by default, but we cannot
           # handle path with spaces. So we symlink the headers into ".sdk/vss".
           vss_win32_include="-isystem $source_path/.sdk/vss"
-	  symlink "$vss_win32_sdk/inc" "$source_path/.sdk/vss/inc"
-	  ;;
+      symlink "$vss_win32_sdk/inc" "$source_path/.sdk/vss/inc"
+      ;;
     *)    vss_win32_include="-isystem $vss_win32_sdk"
   esac
   cat > $TMPC << EOF
@@ -5606,7 +5606,7 @@ if test "$membarrier" = "yes"; then
     int main(void) {
         syscall(__NR_membarrier, MEMBARRIER_CMD_QUERY, 0);
         syscall(__NR_membarrier, MEMBARRIER_CMD_SHARED, 0);
-	exit(0);
+    exit(0);
     }
 EOF
         if compile_prog "" "" ; then
@@ -5683,7 +5683,7 @@ if test "$crypto_afalg" = "yes"
 then
     if test "$have_afalg" != "yes"
     then
-	error_exit "AF_ALG requested but could not be detected"
+    error_exit "AF_ALG requested but could not be detected"
     fi
 fi
 
@@ -5860,18 +5860,18 @@ fi
 # check for libpmem
 
 if test "$libpmem" != "no"; then
-	if $pkg_config --exists "libpmem"; then
-		libpmem="yes"
-		libpmem_libs=$($pkg_config --libs libpmem)
-		libpmem_cflags=$($pkg_config --cflags libpmem)
-		libs_softmmu="$libs_softmmu $libpmem_libs"
-		QEMU_CFLAGS="$QEMU_CFLAGS $libpmem_cflags"
-	else
-		if test "$libpmem" = "yes" ; then
-			feature_not_found "libpmem" "Install nvml or pmdk"
-		fi
-		libpmem="no"
-	fi
+    if $pkg_config --exists "libpmem"; then
+        libpmem="yes"
+        libpmem_libs=$($pkg_config --libs libpmem)
+        libpmem_cflags=$($pkg_config --cflags libpmem)
+        libs_softmmu="$libs_softmmu $libpmem_libs"
+        QEMU_CFLAGS="$QEMU_CFLAGS $libpmem_cflags"
+    else
+        if test "$libpmem" = "yes" ; then
+            feature_not_found "libpmem" "Install nvml or pmdk"
+        fi
+        libpmem="no"
+    fi
 fi
 
 ##########################################
@@ -6595,10 +6595,10 @@ echo "CONFIG_AUDIO_DRIVERS=$audio_drv_list" >> $config_host_mak
 for drv in $audio_drv_list; do
     def=CONFIG_AUDIO_$(echo $drv | LC_ALL=C tr '[a-z]' '[A-Z]')
     case "$drv" in
-	alsa | oss | pa | sdl)
-	    echo "$def=m" >> $config_host_mak ;;
-	*)
-	    echo "$def=y" >> $config_host_mak ;;
+    alsa | oss | pa | sdl)
+        echo "$def=m" >> $config_host_mak ;;
+    *)
+        echo "$def=y" >> $config_host_mak ;;
     esac
 done
 echo "ALSA_LIBS=$alsa_libs" >> $config_host_mak
@@ -7446,6 +7446,10 @@ case "$target_name" in
     mttcg="yes"
     gdb_xml_files="aarch64-core.xml aarch64-fpu.xml arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
   ;;
+  avr)
+    gdb_xml_files="avr-cpu.xml"
+    target_compiler=$cross_cc_avr
+  ;;
   cris)
   ;;
   hppa)
@@ -7665,6 +7669,9 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
       disas_config "ARM_A64"
     fi
   ;;
+  avr)
+    disas_config "AVR"
+  ;;
   cris)
     disas_config "CRIS"
   ;;
@@ -7878,10 +7885,10 @@ preserve_env() {
 
     if test -n "$envval"
     then
-	echo "$envname='$envval'" >> config.status
-	echo "export $envname" >> config.status
+    echo "$envname='$envval'" >> config.status
+    echo "export $envname" >> config.status
     else
-	echo "unset $envname" >> config.status
+    echo "unset $envname" >> config.status
     fi
 }
 
