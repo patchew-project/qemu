@@ -2487,7 +2487,7 @@ static MachineClass *machine_parse(const char *name, GSList *machines)
 
     mc = find_machine(name, machines);
     if (!mc) {
-        error_report("unsupported machine type");
+        error_printf("-machine %s: unsupported machine type\n", name);
         error_printf("Use -machine help to list supported machines\n");
         exit(1);
     }
