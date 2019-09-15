@@ -37,6 +37,11 @@ class IbmPrep40pMachine(Test):
                 fail = 'Failure message found in console: %s' % failure_message
                 self.fail(fail)
 
+    def exec_command_and_wait_for_pattern(self, command, success_message):
+        command += '\n'
+        self.vm.console_socket.sendall(command.encode())
+        self.wait_for_console_pattern(success_message)
+
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_factory_firmware_and_netbsd(self):
         """
@@ -114,3 +119,32 @@ class IbmPrep40pMachine(Test):
 
         self.vm.launch()
         self.wait_for_console_pattern('NetBSD/prep BOOT, Revision 1.9')
+
+    def test_sandalfoot_busybox(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        drive_url = ('http://www.juneau-lug.org/zImage.initrd.sandalfoot')
+        drive_hash = 'dacacfc4085ea51d34d99ef70e972b849e2c6949'
+        drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash)
+
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', drive_path,
+                         '-boot', 'd')
+
+        self.vm.launch()
+        self.wait_for_console_pattern('Now booting the kernel')
+
+        msg = 'Please press Enter to activate this console.'
+        self.wait_for_console_pattern(msg)
+
+        version = 'BusyBox v0.60.0 (2001.08.19-09:26+0000) Built-in shell (ash)'
+        self.exec_command_and_wait_for_pattern('', version)
+
+        uname = 'Linux ppc 2.4.18 #5 Wed May 21 23:50:43 AKDT 2003 ppc unknown'
+        self.exec_command_and_wait_for_pattern('uname -a', uname)
+
+        cpu = 'PReP IBM 6015/7020 (Sandalfoot/Sandalbow)'
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo', cpu)
