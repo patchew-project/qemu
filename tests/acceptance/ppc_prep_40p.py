@@ -82,3 +82,35 @@ class IbmPrep40pMachine(Test):
         self.wait_for_console_pattern(fw_banner)
         prompt_msg = 'Type any key to interrupt automatic startup'
         self.wait_for_console_pattern(prompt_msg)
+
+    def test_openbios_192m(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-m', '192')
+
+        self.vm.launch()
+        self.wait_for_console_pattern('>> OpenBIOS')
+        self.wait_for_console_pattern('>> Memory: 192M')
+        self.wait_for_console_pattern('>> CPU type PowerPC,604')
+
+    def test_openbios_and_netbsd(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        drive_url = ('https://ftp.netbsd.org/pub/NetBSD/iso/7.1.2/'
+                     'NetBSD-7.1.2-prep.iso')
+        drive_hash = '78734c1bdda79778f0b6f391969ad2458ed8981c'
+        drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash)
+
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', drive_path,
+                         '-boot', 'd')
+
+        self.vm.launch()
+        self.wait_for_console_pattern('NetBSD/prep BOOT, Revision 1.9')
