@@ -26,7 +26,6 @@
 #define MC146818RTC_H
 
 #include "hw/isa/isa.h"
-#include "hw/rtc/mc146818rtc_regs.h"
 
 #define TYPE_MC146818_RTC "mc146818rtc"
 
