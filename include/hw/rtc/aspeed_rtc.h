@@ -8,9 +8,6 @@
 #ifndef ASPEED_RTC_H
 #define ASPEED_RTC_H
 
-#include <stdint.h>
-
-#include "hw/irq.h"
 #include "hw/sysbus.h"
 
 typedef struct AspeedRtcState {
