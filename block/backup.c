@@ -352,7 +352,6 @@ static int coroutine_fn backup_before_write_notify(
 static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
 {
     BdrvDirtyBitmap *bm;
-    BlockDriverState *bs = blk_bs(job->common.blk);
     bool sync = (((ret == 0) || (job->bitmap_mode == BITMAP_SYNC_MODE_ALWAYS)) \
                  && (job->bitmap_mode != BITMAP_SYNC_MODE_NEVER));
 
@@ -361,13 +360,13 @@ static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
          * We succeeded, or we always intended to sync the bitmap.
          * Delete this bitmap and install the child.
          */
-        bm = bdrv_dirty_bitmap_abdicate(bs, job->sync_bitmap, NULL);
+        bm = bdrv_dirty_bitmap_abdicate(job->sync_bitmap, NULL);
     } else {
         /*
          * We failed, or we never intended to sync the bitmap anyway.
          * Merge the successor back into the parent, keeping all data.
          */
-        bm = bdrv_reclaim_dirty_bitmap(bs, job->sync_bitmap, NULL);
+        bm = bdrv_reclaim_dirty_bitmap(job->sync_bitmap, NULL);
     }
 
     assert(bm);
@@ -398,10 +397,9 @@ static void backup_abort(Job *job)
 static void backup_clean(Job *job)
 {
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
-    BlockDriverState *bs = blk_bs(s->common.blk);
 
     if (s->copy_bitmap) {
-        bdrv_release_dirty_bitmap(bs, s->copy_bitmap);
+        bdrv_release_dirty_bitmap(s->copy_bitmap);
         s->copy_bitmap = NULL;
     }
 
@@ -679,7 +677,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
         }
 
         /* Create a new bitmap, and freeze/disable this one. */
-        if (bdrv_dirty_bitmap_create_successor(bs, sync_bitmap, errp) < 0) {
+        if (bdrv_dirty_bitmap_create_successor(sync_bitmap, errp) < 0) {
             return NULL;
         }
     }
@@ -758,10 +756,10 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
  error:
     if (copy_bitmap) {
         assert(!job || !job->copy_bitmap);
-        bdrv_release_dirty_bitmap(bs, copy_bitmap);
+        bdrv_release_dirty_bitmap(copy_bitmap);
     }
     if (sync_bitmap) {
-        bdrv_reclaim_dirty_bitmap(bs, sync_bitmap, NULL);
+        bdrv_reclaim_dirty_bitmap(sync_bitmap, NULL);
     }
     if (job) {
         backup_clean(&job->common.job);
