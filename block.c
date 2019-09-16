@@ -5363,9 +5363,7 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
         }
     }
 
-    for (bm = bdrv_dirty_bitmap_next(bs, NULL); bm;
-         bm = bdrv_dirty_bitmap_next(bs, bm))
-    {
+    FOR_EACH_DIRTY_BITMAP(bs, bm) {
         bdrv_dirty_bitmap_skip_store(bm, false);
     }
 
