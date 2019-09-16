@@ -26,6 +26,7 @@
 #define MC146818RTC_REGS_H
 
 #include "qemu/timer.h"
+#include "qemu/host-utils.h"
 
 #define RTC_ISA_IRQ 8
 
