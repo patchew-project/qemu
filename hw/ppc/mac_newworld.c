@@ -618,8 +618,11 @@ static void core99_set_via_config(Object *obj, const char *value, Error **errp)
     } else if (!strcmp(value, "pmu-adb")) {
         cms->via_config = CORE99_VIA_CONFIG_PMU_ADB;
     } else {
-        error_setg(errp, "Invalid via value");
-        error_append_hint(errp, "Valid values are cuda, pmu, pmu-adb.\n");
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "Invalid via value");
+        error_append_hint(&local_err, "Valid values are cuda, pmu, pmu-adb.\n");
+        error_propagate(errp, local_err);
     }
 }
 

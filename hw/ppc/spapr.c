@@ -4337,10 +4337,13 @@ void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
     vcpu_id = spapr_vcpu_id(spapr, cpu_index);
 
     if (kvm_enabled() && !kvm_vcpu_id_is_valid(vcpu_id)) {
-        error_setg(errp, "Can't create CPU with id %d in KVM", vcpu_id);
-        error_append_hint(errp, "Adjust the number of cpus to %d "
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "Can't create CPU with id %d in KVM", vcpu_id);
+        error_append_hint(&local_err, "Adjust the number of cpus to %d "
                           "or try to raise the number of threads per core\n",
                           vcpu_id * ms->smp.threads / spapr->vsmt);
+        error_propagate(errp, local_err);
         return;
     }
 

@@ -242,8 +242,11 @@ static void kvm_get_smmu_info(struct kvm_ppc_smmu_info *info, Error **errp)
     assert(kvm_state != NULL);
 
     if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
-        error_setg(errp, "KVM doesn't expose the MMU features it supports");
-        error_append_hint(errp, "Consider switching to a newer KVM\n");
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "KVM doesn't expose the MMU features it supports");
+        error_append_hint(&local_err, "Consider switching to a newer KVM\n");
+        error_propagate(errp, local_err);
         return;
     }
 
@@ -2076,6 +2079,7 @@ void kvmppc_hint_smt_possible(Error **errp)
     int i;
     GString *g;
     char *s;
+    Error *local_err = NULL;
 
     assert(kvm_enabled());
     if (cap_ppc_smt_possible) {
@@ -2086,12 +2090,13 @@ void kvmppc_hint_smt_possible(Error **errp)
             }
         }
         s = g_string_free(g, false);
-        error_append_hint(errp, "%s.\n", s);
+        error_append_hint(&local_err, "%s.\n", s);
         g_free(s);
     } else {
-        error_append_hint(errp,
+        error_append_hint(&local_err,
                           "This KVM seems to be too old to support VSMT.\n");
     }
+    error_propagate(errp, local_err);
 }
 
 
