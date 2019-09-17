@@ -155,11 +155,14 @@ void parse_option_size(const char *name, const char *value,
         return;
     }
     if (err) {
-        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, name,
+        Error *local_err = NULL;
+
+        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, name,
                    "a non-negative number below 2^64");
-        error_append_hint(errp, "Optional suffix k, M, G, T, P or E means"
+        error_append_hint(&local_err, "Optional suffix k, M, G, T, P or E means"
                           " kilo-, mega-, giga-, tera-, peta-\n"
                           "and exabytes, respectively.\n");
+        error_propagate(errp, local_err);
         return;
     }
     *ret = size;
@@ -664,10 +667,13 @@ QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
 
     if (id) {
         if (!id_wellformed(id)) {
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "id",
+            Error *local_err = NULL;
+
+            error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "id",
                        "an identifier");
-            error_append_hint(errp, "Identifiers consist of letters, digits, "
+            error_append_hint(&local_err, "Identifiers consist of letters, digits, "
                               "'-', '.', '_', starting with a letter.\n");
+            error_propagate(errp, local_err);
             return NULL;
         }
         opts = qemu_opts_find(list, id);
