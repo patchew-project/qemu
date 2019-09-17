@@ -667,7 +667,7 @@ static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 out:
     if (rc) {
         pvrdma_fini(pdev);
-        error_append_hint(errp, "Device failed to load\n");
+        rdma_error_report("Device failed to load");
     }
 }
 
