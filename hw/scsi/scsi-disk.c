@@ -2619,9 +2619,12 @@ static void scsi_block_realize(SCSIDevice *dev, Error **errp)
     /* check we are using a driver managing SG_IO (version 3 and after) */
     rc = blk_ioctl(s->qdev.conf.blk, SG_GET_VERSION_NUM, &sg_version);
     if (rc < 0) {
-        error_setg_errno(errp, -rc, "cannot get SG_IO version number");
+        Error *local_err = NULL;
+
+        error_setg_errno(&local_err, -rc, "cannot get SG_IO version number");
         if (rc != -EPERM) {
-            error_append_hint(errp, "Is this a SCSI device?\n");
+            error_append_hint(&local_err, "Is this a SCSI device?\n");
+            error_propagate(errp, local_err);
         }
         goto out;
     }
