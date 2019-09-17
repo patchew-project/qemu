@@ -24,8 +24,8 @@ import iotests
 import subprocess
 import re
 
-iotests.script_initialize(supported_fmts=['raw'])
-iotests.verify_protocol(supported=['ssh'])
+iotests.script_initialize(supported_fmts=['raw'],
+                          supported_protocols=['ssh'])
 
 def filter_hash(qmsg):
     def _filter(key, value):
