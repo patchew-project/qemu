@@ -1020,6 +1020,11 @@
 #
 # @cpu-index: The CPU to use for commands that require an implicit CPU
 #
+# Features:
+# @savevm-blockdev-monitor-nodes: If present, the savevm monitor command
+#                                 correctly handles monitor owned block nodes
+#                                 when taking a snapshot.
+#
 # Returns: the output of the command as a string
 #
 # Since: 0.14.0
@@ -1047,7 +1052,8 @@
 ##
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
-  'returns': 'str' }
+  'returns': 'str',
+  'features' : [ { 'name': 'savevm-blockdev-monitor-nodes' } ] }
 
 ##
 # @change:
