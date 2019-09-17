@@ -838,6 +838,7 @@ def check_type(info, source, value, allow_array=False,
 def check_command(expr, info):
     name = expr['command']
     boxed = expr.get('boxed', False)
+    features = expr.get('features')
 
     args_meta = ['struct']
     if boxed:
@@ -851,6 +852,19 @@ def check_command(expr, info):
     check_type(info, "'returns' for command '%s'" % name,
                expr.get('returns'), allow_array=True,
                allow_optional=True, allow_metas=returns_meta)
+
+    if features:
+        if not isinstance(features, list):
+            raise QAPISemError(info,
+                               "Command '%s' requires an array for 'features'" %
+                               name)
+        for f in features:
+            assert isinstance(f, dict)
+            check_known_keys(info, "feature of command %s" % name, f,
+                             ['name'], ['if'])
+
+            check_if(f, info)
+            check_name(info, "Feature of command %s" % name, f['name'])
 
 
 def check_event(expr, info):
@@ -1138,8 +1152,10 @@ def check_exprs(exprs):
             meta = 'command'
             check_keys(expr_elem, 'command', [],
                        ['data', 'returns', 'gen', 'success-response',
-                        'boxed', 'allow-oob', 'allow-preconfig', 'if'])
+                        'boxed', 'allow-oob', 'allow-preconfig', 'if',
+                        'features'])
             normalize_members(expr.get('data'))
+            normalize_features(expr.get('features'))
         elif 'event' in expr:
             meta = 'event'
             check_keys(expr_elem, 'event', [], ['data', 'boxed', 'if'])
@@ -1283,7 +1299,8 @@ class QAPISchemaVisitor(object):
         pass
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
-                      success_response, boxed, allow_oob, allow_preconfig):
+                      success_response, boxed, allow_oob, allow_preconfig,
+                      features):
         pass
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
@@ -1697,10 +1714,14 @@ class QAPISchemaAlternateType(QAPISchemaType):
 
 class QAPISchemaCommand(QAPISchemaEntity):
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
-                 gen, success_response, boxed, allow_oob, allow_preconfig):
+                 gen, success_response, boxed, allow_oob, allow_preconfig,
+                 features):
         QAPISchemaEntity.__init__(self, name, info, doc, ifcond)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
+        for f in features:
+            assert isinstance(f, QAPISchemaFeature)
+            f.set_owner(name)
         self._arg_type_name = arg_type
         self.arg_type = None
         self._ret_type_name = ret_type
@@ -1710,6 +1731,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.boxed = boxed
         self.allow_oob = allow_oob
         self.allow_preconfig = allow_preconfig
+        self.features = features
 
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
@@ -1731,12 +1753,18 @@ class QAPISchemaCommand(QAPISchemaEntity):
             self.ret_type = schema.lookup_type(self._ret_type_name)
             assert isinstance(self.ret_type, QAPISchemaType)
 
+        # Features are in a name space separate from members
+        seen = {}
+        for f in self.features:
+            f.check_clash(self.info, seen)
+
     def visit(self, visitor):
         visitor.visit_command(self.name, self.info, self.ifcond,
                               self.arg_type, self.ret_type,
                               self.gen, self.success_response,
                               self.boxed, self.allow_oob,
-                              self.allow_preconfig)
+                              self.allow_preconfig,
+                              self.features)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
@@ -1989,6 +2017,7 @@ class QAPISchema(object):
         allow_oob = expr.get('allow-oob', False)
         allow_preconfig = expr.get('allow-preconfig', False)
         ifcond = expr.get('if')
+        features = expr.get('features', [])
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, doc, ifcond, 'arg', self._make_members(data, info))
@@ -1997,7 +2026,8 @@ class QAPISchema(object):
             rets = self._make_array_type(rets[0], info)
         self._def_entity(QAPISchemaCommand(name, info, doc, ifcond, data, rets,
                                            gen, success_response,
-                                           boxed, allow_oob, allow_preconfig))
+                                           boxed, allow_oob, allow_preconfig,
+                                           self._make_features(features)))
 
     def _def_event(self, expr, info, doc):
         name = expr['event']
