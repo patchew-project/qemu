@@ -983,18 +983,24 @@ static bool migrate_caps_check(bool *cap_list,
 
 #ifndef CONFIG_LIVE_BLOCK_MIGRATION
     if (cap_list[MIGRATION_CAPABILITY_BLOCK]) {
-        error_setg(errp, "QEMU compiled without old-style (blk/-b, inc/-i) "
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "QEMU compiled without old-style (blk/-b, inc/-i) "
                    "block migration");
-        error_append_hint(errp, "Use drive_mirror+NBD instead.\n");
+        error_append_hint(&local_err, "Use drive_mirror+NBD instead.\n");
+        error_propagate(errp, local_err);
         return false;
     }
 #endif
 
 #ifndef CONFIG_REPLICATION
     if (cap_list[MIGRATION_CAPABILITY_X_COLO]) {
-        error_setg(errp, "QEMU compiled without replication module"
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "QEMU compiled without replication module"
                    " can't enable COLO");
-        error_append_hint(errp, "Please enable replication before COLO.\n");
+        error_append_hint(&local_err, "Please enable replication before COLO.\n");
+        error_propagate(errp, local_err);
         return false;
     }
 #endif
