@@ -1469,10 +1469,13 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     }
 
     if (!(status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
-        error_setg(errp, "group %d is not viable", groupid);
-        error_append_hint(errp,
+        Error *err = NULL;
+
+        error_setg(&err, "group %d is not viable", groupid);
+        error_append_hint(&err,
                           "Please ensure all devices within the iommu_group "
                           "are bound to their vfio bus driver.\n");
+        error_propagate(errp, err);
         goto close_fd_exit;
     }
 
@@ -1531,11 +1534,14 @@ int vfio_get_device(VFIOGroup *group, const char *name,
 
     fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
     if (fd < 0) {
-        error_setg_errno(errp, errno, "error getting device from group %d",
+        Error *err = NULL;
+
+        error_setg_errno(&err, errno, "error getting device from group %d",
                          group->groupid);
-        error_append_hint(errp,
+        error_append_hint(&err,
                       "Verify all devices in group %d are bound to vfio-<bus> "
                       "or pci-stub and not already in use\n", group->groupid);
+        error_propagate(errp, err);
         return fd;
     }
 

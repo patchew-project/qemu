@@ -2527,10 +2527,13 @@ static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
     g_free(reg_info);
 
     if (vdev->features & VFIO_FEATURE_ENABLE_VGA) {
-        ret = vfio_populate_vga(vdev, errp);
+        Error *err = NULL;
+
+        ret = vfio_populate_vga(vdev, &err);
         if (ret) {
-            error_append_hint(errp, "device does not support "
+            error_append_hint(&err, "device does not support "
                               "requested feature x-vga\n");
+            error_propagate(errp, err);
             return;
         }
     }
@@ -2714,9 +2717,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (!vdev->vbasedev.sysfsdev) {
         if (!(~vdev->host.domain || ~vdev->host.bus ||
               ~vdev->host.slot || ~vdev->host.function)) {
-            error_setg(errp, "No provided host device");
-            error_append_hint(errp, "Use -device vfio-pci,host=DDDD:BB:DD.F "
+            error_setg(&err, "No provided host device");
+            error_append_hint(&err, "Use -device vfio-pci,host=DDDD:BB:DD.F "
                               "or -device vfio-pci,sysfsdev=PATH_TO_DEVICE\n");
+            error_propagate(errp, err);
             return;
         }
         vdev->vbasedev.sysfsdev =
