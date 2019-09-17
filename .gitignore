@@ -67,6 +67,7 @@
 /vhost-user-blk
 /vhost-user-gpu
 /vhost-user-input
+/vhost-user-sim
 /fsdev/virtfs-proxy-helper
 *.tmp
 *.[1-9]
