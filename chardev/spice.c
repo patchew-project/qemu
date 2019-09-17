@@ -279,10 +279,12 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
     if (*psubtype == NULL) {
         char *subtypes = g_strjoinv(", ",
             (gchar **)spice_server_char_device_recognized_subtypes());
+        Error *local_err = NULL;
 
-        error_setg(errp, "unsupported type name: %s", type);
-        error_append_hint(errp, "allowed spice char type names: %s\n",
+        error_setg(&local_err, "unsupported type name: %s", type);
+        error_append_hint(&local_err, "allowed spice char type names: %s\n",
                           subtypes);
+        error_propagate(errp, local_err);
 
         g_free(subtypes);
         return;
