@@ -882,9 +882,12 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
 
     pathlen = strlen(path);
     if (pathlen > sizeof(un.sun_path)) {
-        error_setg(errp, "UNIX socket path '%s' is too long", path);
-        error_append_hint(errp, "Path must be less than %zu bytes\n",
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "UNIX socket path '%s' is too long", path);
+        error_append_hint(&local_err, "Path must be less than %zu bytes\n",
                           sizeof(un.sun_path));
+        error_propagate(errp, local_err);
         goto err;
     }
 
@@ -952,9 +955,12 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 
     pathlen = strlen(saddr->path);
     if (pathlen > sizeof(un.sun_path)) {
-        error_setg(errp, "UNIX socket path '%s' is too long", saddr->path);
-        error_append_hint(errp, "Path must be less than %zu bytes\n",
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "UNIX socket path '%s' is too long", saddr->path);
+        error_append_hint(&local_err, "Path must be less than %zu bytes\n",
                           sizeof(un.sun_path));
+        error_propagate(errp, local_err);
         goto err;
     }
 
