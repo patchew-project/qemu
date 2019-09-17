@@ -154,6 +154,7 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
                                 bool strict, Error **errp)
 {
     g_autofree char *msg = NULL;
+    Error *local_err = NULL;
 
     if (!(reply->type & (1 << 31))) {
         return 1;
@@ -161,14 +162,14 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
 
     if (reply->length) {
         if (reply->length > NBD_MAX_BUFFER_SIZE) {
-            error_setg(errp, "server error %" PRIu32
+            error_setg(&local_err, "server error %" PRIu32
                        " (%s) message is too long",
                        reply->type, nbd_rep_lookup(reply->type));
             goto err;
         }
         msg = g_malloc(reply->length + 1);
         if (nbd_read(ioc, msg, reply->length, NULL, errp) < 0) {
-            error_prepend(errp, "Failed to read option error %" PRIu32
+            error_prepend(&local_err, "Failed to read option error %" PRIu32
                           " (%s) message: ",
                           reply->type, nbd_rep_lookup(reply->type));
             goto err;
@@ -187,50 +188,51 @@ static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
 
     switch (reply->type) {
     case NBD_REP_ERR_POLICY:
-        error_setg(errp, "Denied by server for option %" PRIu32 " (%s)",
+        error_setg(&local_err, "Denied by server for option %" PRIu32 " (%s)",
                    reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_INVALID:
-        error_setg(errp, "Invalid parameters for option %" PRIu32 " (%s)",
+        error_setg(&local_err, "Invalid parameters for option %" PRIu32 " (%s)",
                    reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_PLATFORM:
-        error_setg(errp, "Server lacks support for option %" PRIu32 " (%s)",
+        error_setg(&local_err, "Server lacks support for option %" PRIu32 " (%s)",
                    reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_TLS_REQD:
-        error_setg(errp, "TLS negotiation required before option %" PRIu32
+        error_setg(&local_err, "TLS negotiation required before option %" PRIu32
                    " (%s)", reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_UNKNOWN:
-        error_setg(errp, "Requested export not available");
+        error_setg(&local_err, "Requested export not available");
         break;
 
     case NBD_REP_ERR_SHUTDOWN:
-        error_setg(errp, "Server shutting down before option %" PRIu32 " (%s)",
+        error_setg(&local_err, "Server shutting down before option %" PRIu32 " (%s)",
                    reply->option, nbd_opt_lookup(reply->option));
         break;
 
     case NBD_REP_ERR_BLOCK_SIZE_REQD:
-        error_setg(errp, "Server requires INFO_BLOCK_SIZE for option %" PRIu32
+        error_setg(&local_err, "Server requires INFO_BLOCK_SIZE for option %" PRIu32
                    " (%s)", reply->option, nbd_opt_lookup(reply->option));
         break;
 
     default:
-        error_setg(errp, "Unknown error code when asking for option %" PRIu32
+        error_setg(&local_err, "Unknown error code when asking for option %" PRIu32
                    " (%s)", reply->option, nbd_opt_lookup(reply->option));
         break;
     }
 
     if (msg) {
-        error_append_hint(errp, "server reported: %s\n", msg);
+        error_append_hint(&local_err, "server reported: %s\n", msg);
     }
 
  err:
+    error_propagate(errp, local_err);
     nbd_send_opt_abort(ioc);
     return -1;
 }
