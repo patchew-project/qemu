@@ -1543,9 +1543,12 @@ static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
         virtio_pci_disable_modern(proxy);
 
         if (!legacy) {
-            error_setg(errp, "Device doesn't support modern mode, and legacy"
+            Error *local_err = NULL;
+
+            error_setg(&local_err, "Device doesn't support modern mode, and legacy"
                              " mode is disabled");
-            error_append_hint(errp, "Set disable-legacy to off\n");
+            error_append_hint(&local_err, "Set disable-legacy to off\n");
+            error_propagate(errp, local_err);
 
             return;
         }
@@ -1737,10 +1740,13 @@ static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
     }
 
     if (!virtio_pci_modern(proxy) && !virtio_pci_legacy(proxy)) {
-        error_setg(errp, "device cannot work as neither modern nor legacy mode"
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "device cannot work as neither modern nor legacy mode"
                    " is enabled");
-        error_append_hint(errp, "Set either disable-modern or disable-legacy"
+        error_append_hint(&local_err, "Set either disable-modern or disable-legacy"
                           " to off\n");
+        error_propagate(errp, local_err);
         return;
     }
 
