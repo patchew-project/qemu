@@ -57,11 +57,13 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
 {
     unsigned int cssid, ssid, devid;
     char dev_path[PATH_MAX] = {0}, *tmp;
+    Error *err = NULL;
 
     if (!sysfsdev) {
-        error_setg(errp, "No host device provided");
-        error_append_hint(errp,
+        error_setg(&err, "No host device provided");
+        error_append_hint(&err,
                           "Use -device vfio-ccw,sysfsdev=PATH_TO_DEVICE\n");
+        error_propagate(errp, err);
         return;
     }
 
