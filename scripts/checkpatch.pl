@@ -2902,6 +2902,10 @@ sub process {
 		}
 	}
 
+		if ($line =~ /error_append_hint\(errp/) {
+		    WARN("suspicious errp passed to error_append_hint()\n" .
+			 $herecurr);
+		}
 # check for non-portable libc calls that have portable alternatives in QEMU
 		if ($line =~ /\bffs\(/) {
 			ERROR("use ctz32() instead of ffs()\n" . $herecurr);
