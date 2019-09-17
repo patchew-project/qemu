@@ -511,10 +511,13 @@ static void emulated_realize(CCIDCardState *base, Error **errp)
     }
 
     if (card->backend == 0) {
-        error_setg(errp, "backend must be one of:");
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "backend must be one of:");
         for (ptable = backend_enum_table; ptable->name != NULL; ++ptable) {
-            error_append_hint(errp, "%s\n", ptable->name);
+            error_append_hint(&local_err, "%s\n", ptable->name);
         }
+        error_propagate(errp, local_err);
         goto out2;
     }
 
