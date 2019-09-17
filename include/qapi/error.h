@@ -27,6 +27,13 @@
  *     error_setg(&err, "invalid quark\n"
  *                "Valid quarks are up, down, strange, charm, top, bottom.");
  *
+ * Dot *not* pass the errp parameter from the caller
+ *     error_setg(errp, "invalid quark");
+ *     error_append_hint(errp, "Valid quarks are up, down, strange, "
+ *                       "charm, top, bottom.\n");
+ * because error_setg() terminates QEMU if @errp is &error_fatal or
+ * &error_abort, and the hints are not even added.
+ *
  * Report an error to the current monitor if we have one, else stderr:
  *     error_report_err(err);
  * This frees the error object.
@@ -252,7 +259,9 @@ void error_prepend(Error **errp, const char *fmt, ...)
  * error message.
  * @errp may be NULL, but not &error_fatal or &error_abort.
  * Trivially the case if you call it only after error_setg() or
- * error_propagate().
+ * error_propagate(). CAUTION: error_setg() and error_propagate() do
+ * not return when passed &error_fatal. Always use a local error object
+ * and propagate it to the caller.
  * May be called multiple times.  The resulting hint should end with a
  * newline.
  */
