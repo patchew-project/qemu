@@ -261,6 +261,8 @@
 #          sockets (default: false)
 # @tn3270: enable tn3270 protocol on server
 #          sockets (default: false) (Since: 2.10)
+# @rfc2217: enable RFC2217 protocol on client
+#          sockets (default: false) (Since: ???)
 # @websocket: enable websocket protocol on server
 #           sockets (default: false) (Since: 3.1)
 # @reconnect: For a client socket, if a socket is disconnected,
@@ -279,6 +281,7 @@
             '*nodelay': 'bool',
             '*telnet': 'bool',
             '*tn3270': 'bool',
+            '*rfc2217': 'bool',
             '*websocket': 'bool',
             '*reconnect': 'int' },
   'base': 'ChardevCommon' }

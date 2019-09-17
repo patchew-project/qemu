@@ -423,6 +423,7 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
     if (strstart(filename, "tcp:", &p) ||
         strstart(filename, "telnet:", &p) ||
         strstart(filename, "tn3270:", &p) ||
+        strstart(filename, "rfc2217:", &p) ||
         strstart(filename, "websocket:", &p)) {
         if (sscanf(p, "%64[^:]:%32[^,]%n", host, port, &pos) < 2) {
             host[0] = 0;
@@ -443,6 +444,8 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
             qemu_opt_set(opts, "telnet", "on", &error_abort);
         } else if (strstart(filename, "tn3270:", &p)) {
             qemu_opt_set(opts, "tn3270", "on", &error_abort);
+        } else if (strstart(filename, "rfc2217:", &p)) {
+            qemu_opt_set(opts, "rfc2217", "on", &error_abort);
         } else if (strstart(filename, "websocket:", &p)) {
             qemu_opt_set(opts, "websocket", "on", &error_abort);
         }
@@ -878,6 +881,9 @@ QemuOptsList qemu_chardev_opts = {
             .type = QEMU_OPT_BOOL,
         },{
             .name = "tn3270",
+            .type = QEMU_OPT_BOOL,
+        },{
+            .name = "rfc2217",
             .type = QEMU_OPT_BOOL,
         },{
             .name = "tls-creds",

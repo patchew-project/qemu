@@ -36,6 +36,7 @@
 #include "qapi/qapi-visit-sockets.h"
 
 #include "chardev/char-io.h"
+#include "chardev/char-serial.h"
 
 /***********************************************************/
 /* TCP Net console */
@@ -74,6 +75,7 @@ typedef struct {
     bool is_listen;
     bool is_telnet;
     bool is_tn3270;
+    bool is_rfc2217;
     GSource *telnet_source;
     TCPChardevTelnetInit *telnet_init;
 
@@ -152,8 +154,8 @@ static void tcp_chr_accept(QIONetListener *listener,
 static int tcp_chr_read_poll(void *opaque);
 static void tcp_chr_disconnect_locked(Chardev *chr);
 
-/* Called with chr_write_lock held.  */
-static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
+/* Must be called with chr_write_lock held.  */
+static int tcp_chr_write_raw(Chardev *chr, const uint8_t *buf, int len)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
 
@@ -183,6 +185,45 @@ static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
     } else {
         /* XXX: indicate an error ? */
         return len;
+    }
+}
+
+/* Must be called with chr_write_lock held.  */
+static int tcp_chr_write_telnet(Chardev *chr, const uint8_t *buf, int len)
+{
+    const uint8_t buf_esc[] = { IAC, IAC };
+    int wlen = 0;
+
+    /* Send chunks between IAC bytes */
+    while (len) {
+        uint8_t *end = memchr(buf, IAC, len);
+        int clen = end ? (end - buf) : len;
+
+        if (clen) {
+            wlen += tcp_chr_write_raw(chr, buf, clen);
+            buf += clen;
+            len -= clen;
+        }
+
+        if (end) {
+            wlen += tcp_chr_write_raw(chr, buf_esc, 2);
+            buf += 1;
+            len -= 1;
+        }
+    }
+
+    return wlen;
+}
+
+/* Called with chr_write_lock held.  */
+static int tcp_chr_write(Chardev *chr, const uint8_t *buf, int len)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (s->do_telnetopt) {
+        return tcp_chr_write_telnet(chr, buf, len);
+    } else {
+        return tcp_chr_write_raw(chr, buf, len);
     }
 }
 
@@ -222,37 +263,74 @@ static void tcp_chr_process_IAC_bytes(Chardev *chr,
     int j = 0;
 
     for (i = 0; i < *size; i++) {
-        if (s->do_telnetopt > 1) {
-            if ((unsigned char)buf[i] == IAC && s->do_telnetopt == 2) {
+        if (s->do_telnetopt == 2) {
+            /* Generic options */
+            if ((unsigned char)buf[i] == IAC) {
                 /* Double IAC means send an IAC */
                 if (j != i) {
                     buf[j] = buf[i];
                 }
                 j++;
                 s->do_telnetopt = 1;
-            } else {
-                if ((unsigned char)buf[i] == IAC_BREAK
-                    && s->do_telnetopt == 2) {
-                    /* Handle IAC break commands by sending a serial break */
-                    qemu_chr_be_event(chr, CHR_EVENT_BREAK);
-                    s->do_telnetopt++;
-                } else if (s->is_tn3270 && ((unsigned char)buf[i] == IAC_EOR
-                           || (unsigned char)buf[i] == IAC_SB
-                           || (unsigned char)buf[i] == IAC_SE)
-                           && s->do_telnetopt == 2) {
+            } else if ((unsigned char)buf[i] == IAC_BREAK) {
+                /* Handle IAC break commands by sending a serial break */
+                qemu_chr_be_event(chr, CHR_EVENT_BREAK);
+                s->do_telnetopt = 1;
+            } else if (s->is_tn3270) {
+                /* TN3270 specific */
+                if ((unsigned char)buf[i] == IAC_EOR
+                 || (unsigned char)buf[i] == IAC_SB
+                 || (unsigned char)buf[i] == IAC_SE) {
                     buf[j++] = IAC;
                     buf[j++] = buf[i];
-                    s->do_telnetopt++;
-                } else if (s->is_tn3270 && ((unsigned char)buf[i] == IAC_IP
-                           || (unsigned char)buf[i] == IAC_NOP)
-                           && s->do_telnetopt == 2) {
+                    s->do_telnetopt = 1;
+                } else if ((unsigned char)buf[i] == IAC_IP
+                        || (unsigned char)buf[i] == IAC_NOP) {
                     /* TODO: IP and NOP need to be implemented later. */
-                    s->do_telnetopt++;
+                    s->do_telnetopt = 1;
                 }
-                s->do_telnetopt++;
+            } else if (s->is_rfc2217) {
+                /* RFC2217 specific */
+                if ((unsigned char)buf[i] == IAC_SE) {
+                    /* Shouldn't happen but ... */
+                    s->do_telnetopt = 1;
+                } else if ((unsigned char)buf[i] == IAC_SB) {
+                    s->do_telnetopt = 50;
+                }
             }
-            if (s->do_telnetopt >= 4) {
-                s->do_telnetopt = 1;
+        } else if (s->do_telnetopt > 2) {
+            if (s->is_rfc2217) {
+                if (s->do_telnetopt > 100) { /* Skip mode */
+                    s->do_telnetopt--;
+                } else if (s->do_telnetopt == 50) { /* Post-SB */
+                    if ((unsigned char)buf[i] == 0x2c) {
+                        /* This is a COM-Port-Option, look at next byte */
+                        s->do_telnetopt = 51;
+                    } else {
+                        /*
+                         * Unknown option, just skip 1 and wait for IAC SE and
+                         * hope it doesn't happen in the option stream
+                         */
+                        s->do_telnetopt = 101;
+                    }
+                } else if (s->do_telnetopt == 51) { /* SB Options */
+                    /*
+                     * Skip 4 next bytes if this is baudrate option,
+                     * else skip 1 byte
+                     */
+                    s->do_telnetopt = (buf[i] == 0x65) ? 104 : 101;
+                } else if (s->do_telnetopt == 100) { /* Wait for IAC */
+                    if ((unsigned char)buf[i] == IAC) {
+                        s->do_telnetopt = 99;
+                    }
+                } else if (s->do_telnetopt == 99) { /* Wait for SE */
+                    if ((unsigned char)buf[i] == IAC_SE)
+                        s->do_telnetopt = 1;
+                    else if ((unsigned char)buf[i] == IAC)
+                        s->do_telnetopt = 99;
+                    else
+                        s->do_telnetopt = 100;
+                }
             }
         } else {
             if ((unsigned char)buf[i] == IAC) {
@@ -558,6 +636,57 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
     return size;
 }
 
+static int tcp_chr_ioctl(Chardev *chr, int cmd, void *arg)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    if (s->is_rfc2217 == 0) {
+        return -ENOTSUP;
+    }
+    if (s->state != TCP_CHARDEV_STATE_CONNECTED) {
+        return 0;
+    }
+
+    switch (cmd) {
+    case CHR_IOCTL_SERIAL_SET_PARAMS:
+        {
+            QEMUSerialSetParams *ssp = arg;
+            const uint8_t buf[] = {
+                /* IAC SB COM-PORT-OPTION SET-BAUD <value(4)> IAC SE */
+                0xff, 0xfa, 0x2c, 0x01,
+                (ssp->speed >> 24) & 0xff,
+                (ssp->speed >> 16) & 0xff,
+                (ssp->speed >>  8) & 0xff,
+                (ssp->speed >>  0) & 0xff,
+                0xff, 0xf0,
+
+                /* IAC SB COM-PORT-OPTION SET-DATASIZE <value> IAC SE */
+                0xff, 0xfa, 0x2c, 0x02,
+                ssp->data_bits,
+                0xff, 0xf0,
+
+                /* IAC SB COM-PORT-OPTION SET-PARITY <value> IAC SE */
+                0xff, 0xfa, 0x2c, 0x03,
+                (ssp->parity == 'O') ? 2 : (ssp->parity == 'E' ? 3 : 1),
+                0xff, 0xf0,
+
+                /* IAC SB COM-PORT-OPTION SET-STOPSIZE <value> IAC SE */
+                0xff, 0xfa, 0x2c, 0x04,
+                ssp->stop_bits,
+                0xff, 0xf0,
+            };
+
+            qemu_mutex_lock(&chr->chr_write_lock);
+            tcp_chr_write_raw(chr, buf, sizeof(buf));
+            qemu_mutex_unlock(&chr->chr_write_lock);
+        }
+        break;
+    default:
+        return -ENOTSUP;
+    }
+    return 0;
+}
+
 static char *qemu_chr_compute_filename(SocketChardev *s)
 {
     struct sockaddr_storage *ss = &s->sioc->localAddr;
@@ -722,16 +851,7 @@ static void tcp_chr_telnet_init(Chardev *chr)
         x[n++] = c;                             \
     } while (0)
 
-    if (!s->is_tn3270) {
-        init->buflen = 12;
-        /* Prep the telnet negotion to put telnet in binary,
-         * no echo, single char mode */
-        IACSET(init->buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
-        IACSET(init->buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
-        IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
-        IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
-    } else {
-        init->buflen = 21;
+    if (s->is_tn3270) {
         /* Prep the TN3270 negotion based on RFC1576 */
         IACSET(init->buf, 0xff, 0xfd, 0x19);  /* IAC DO EOR */
         IACSET(init->buf, 0xff, 0xfb, 0x19);  /* IAC WILL EOR */
@@ -740,6 +860,30 @@ static void tcp_chr_telnet_init(Chardev *chr)
         IACSET(init->buf, 0xff, 0xfd, 0x18);  /* IAC DO TERMINAL TYPE */
         IACSET(init->buf, 0xff, 0xfa, 0x18);  /* IAC SB TERMINAL TYPE */
         IACSET(init->buf, 0x01, 0xff, 0xf0);  /* SEND IAC SE */
+        init->buflen = n;
+    } else if (s->is_rfc2217) {
+        /*
+         * Prep the telnet negotion to put telnet in binary,
+         * no echo, single char mode with COM port options
+         */
+        IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
+        IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
+        IACSET(init->buf, 0xff, 0xfc, 0x01);  /* IAC WON'T ECHO */
+        IACSET(init->buf, 0xff, 0xfe, 0x01);  /* IAC DON'T ECHO */
+        IACSET(init->buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
+        IACSET(init->buf, 0xff, 0xfd, 0x03);  /* IAC DO Suppress go ahead */
+        IACSET(init->buf, 0xff, 0xfb, 0x2c);  /* IAC WILL COM-Port-Option */
+        init->buflen = n;
+    } else {
+        /*
+         * Prep the telnet negotion to put telnet in binary,
+         * no echo, single char mode
+         */
+        IACSET(init->buf, 0xff, 0xfb, 0x01);  /* IAC WILL ECHO */
+        IACSET(init->buf, 0xff, 0xfb, 0x03);  /* IAC WILL Suppress go ahead */
+        IACSET(init->buf, 0xff, 0xfb, 0x00);  /* IAC WILL Binary */
+        IACSET(init->buf, 0xff, 0xfd, 0x00);  /* IAC DO Binary */
+        init->buflen = n;
     }
 
 #undef IACSET
@@ -964,8 +1108,12 @@ static void tcp_chr_accept_server_sync(Chardev *chr)
 static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-    const char *opts[] = { "telnet", "tn3270", "websock", "tls-creds" };
-    bool optset[] = { s->is_telnet, s->is_tn3270, s->is_websock, s->tls_creds };
+    const char *opts[] = {
+        "telnet", "tn3270", "rfc2217", "websock", "tls-creds"
+    };
+    bool optset[] = {
+        s->is_telnet, s->is_tn3270, s->is_rfc2217, s->is_websock, s->tls_creds
+    };
     size_t i;
 
     QEMU_BUILD_BUG_ON(G_N_ELEMENTS(opts) != G_N_ELEMENTS(optset));
@@ -1155,15 +1303,11 @@ static gboolean socket_reconnect_timeout(gpointer opaque)
 
 
 static int qmp_chardev_open_socket_server(Chardev *chr,
-                                          bool is_telnet,
                                           bool is_waitconnect,
                                           Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
     char *name;
-    if (is_telnet) {
-        s->do_telnetopt = 1;
-    }
     s->listener = qio_net_listener_new();
 
     name = g_strdup_printf("chardev-tcp-listener-%s", chr->label);
@@ -1300,6 +1444,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
+    bool is_rfc2217     = sock->has_rfc2217 ? sock->rfc2217 : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
     bool is_websock     = sock->has_websocket ? sock->websocket : false;
     int64_t reconnect   = sock->has_reconnect ? sock->reconnect : 0;
@@ -1308,6 +1453,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->is_listen = is_listen;
     s->is_telnet = is_telnet;
     s->is_tn3270 = is_tn3270;
+    s->is_rfc2217 = is_rfc2217;
     s->is_websock = is_websock;
     s->do_nodelay = do_nodelay;
     if (sock->tls_creds) {
@@ -1361,9 +1507,12 @@ static void qmp_chardev_open_socket(Chardev *chr,
 
     update_disconnected_filename(s);
 
+    if (s->is_listen ? (is_telnet || is_tn3270) : is_rfc2217) {
+        s->do_telnetopt = 1;
+    }
+
     if (s->is_listen) {
-        if (qmp_chardev_open_socket_server(chr, is_telnet || is_tn3270,
-                                           is_waitconnect, errp) < 0) {
+        if (qmp_chardev_open_socket_server(chr, is_waitconnect, errp) < 0) {
             return;
         }
     } else {
@@ -1410,6 +1559,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->telnet = qemu_opt_get_bool(opts, "telnet", false);
     sock->has_tn3270 = qemu_opt_get(opts, "tn3270");
     sock->tn3270 = qemu_opt_get_bool(opts, "tn3270", false);
+    sock->has_rfc2217 = qemu_opt_get(opts, "rfc2217");
+    sock->rfc2217 = qemu_opt_get_bool(opts, "rfc2217", false);
     sock->has_websocket = qemu_opt_get(opts, "websocket");
     sock->websocket = qemu_opt_get_bool(opts, "websocket", false);
     /*
@@ -1480,6 +1631,7 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     cc->chr_wait_connected = tcp_chr_wait_connected;
     cc->chr_write = tcp_chr_write;
     cc->chr_sync_read = tcp_chr_sync_read;
+    cc->chr_ioctl = tcp_chr_ioctl;
     cc->chr_disconnect = tcp_chr_disconnect;
     cc->get_msgfds = tcp_get_msgfds;
     cc->set_msgfds = tcp_set_msgfds;
