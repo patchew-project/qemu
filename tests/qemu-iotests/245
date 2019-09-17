@@ -1000,5 +1000,6 @@ class TestBlockdevReopen(iotests.QMPTestCase):
         self.reopen(opts, {'backing': 'hd2'})
 
 if __name__ == '__main__':
+    iotests.activate_logging()
     iotests.main(supported_fmts=["qcow2"],
                  supported_protocols=["file"])
