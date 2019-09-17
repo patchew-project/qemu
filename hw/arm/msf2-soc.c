@@ -127,8 +127,9 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     if (!s->m3clk) {
-        error_setg(errp, "Invalid m3clk value");
-        error_append_hint(errp, "m3clk can not be zero\n");
+        error_setg(&err, "Invalid m3clk value");
+        error_append_hint(&err, "m3clk can not be zero\n");
+        error_propagate(errp, err);
         return;
     }
 

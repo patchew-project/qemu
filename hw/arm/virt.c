@@ -1804,8 +1804,11 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
     } else if (!strcmp(value, "max")) {
         vms->gic_version = -1; /* Will probe later */
     } else {
-        error_setg(errp, "Invalid gic-version value");
-        error_append_hint(errp, "Valid values are 3, 2, host, max.\n");
+        Error *err = NULL;
+
+        error_setg(&err, "Invalid gic-version value");
+        error_append_hint(&err, "Valid values are 3, 2, host, max.\n");
+        error_propagate(errp, err);
     }
 }
 
@@ -1832,8 +1835,11 @@ static void virt_set_iommu(Object *obj, const char *value, Error **errp)
     } else if (!strcmp(value, "none")) {
         vms->iommu = VIRT_IOMMU_NONE;
     } else {
-        error_setg(errp, "Invalid iommu value");
-        error_append_hint(errp, "Valid values are none, smmuv3.\n");
+        Error *err = NULL;
+
+        error_setg(&err, "Invalid iommu value");
+        error_append_hint(&err, "Valid values are none, smmuv3.\n");
+        error_propagate(errp, err);
     }
 }
 

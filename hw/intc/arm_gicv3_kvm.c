@@ -810,10 +810,11 @@ static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
                               KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION);
 
     if (!multiple_redist_region_allowed && s->nb_redist_regions > 1) {
-        error_setg(errp, "Multiple VGICv3 redistributor regions are not "
+        error_setg(&local_err, "Multiple VGICv3 redistributor regions are not "
                    "supported by this host kernel");
-        error_append_hint(errp, "A maximum of %d VCPUs can be used",
+        error_append_hint(&local_err, "A maximum of %d VCPUs can be used",
                           s->redist_region_count[0]);
+        error_propagate(errp, local_err);
         return;
     }
 

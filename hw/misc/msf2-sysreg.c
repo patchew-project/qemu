@@ -128,12 +128,14 @@ static Property msf2_sysreg_properties[] = {
 static void msf2_sysreg_realize(DeviceState *dev, Error **errp)
 {
     MSF2SysregState *s = MSF2_SYSREG(dev);
+    Error *local_err = NULL;
 
     if ((s->apb0div > 32 || !is_power_of_2(s->apb0div))
         || (s->apb1div > 32 || !is_power_of_2(s->apb1div))) {
-        error_setg(errp, "Invalid apb divisor value");
-        error_append_hint(errp, "apb divisor must be a power of 2"
+        error_setg(&local_err, "Invalid apb divisor value");
+        error_append_hint(&local_err, "apb divisor must be a power of 2"
                            " and maximum value is 32\n");
+        error_propagate(errp, local_err);
     }
 }
 
