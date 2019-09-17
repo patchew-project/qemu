@@ -1357,14 +1357,17 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     if (s->crypt_method_header) {
         if (bdrv_uses_whitelist() &&
             s->crypt_method_header == QCOW_CRYPT_AES) {
-            error_setg(errp,
+            Error *local_err = NULL;
+
+            error_setg(&local_err,
                        "Use of AES-CBC encrypted qcow2 images is no longer "
                        "supported in system emulators");
-            error_append_hint(errp,
+            error_append_hint(&local_err,
                               "You can use 'qemu-img convert' to convert your "
                               "image to an alternative supported format, such "
                               "as unencrypted qcow2, or raw with the LUKS "
                               "format instead.\n");
+            error_propagate(errp, local_err);
             ret = -ENOSYS;
             goto fail;
         }

@@ -156,11 +156,12 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
         goto fail;
     }
     if (header.version != QCOW_VERSION) {
-        error_setg(errp, "qcow (v%d) does not support qcow version %" PRIu32,
+        error_setg(&local_err, "qcow (v%d) does not support qcow version %" PRIu32,
                    QCOW_VERSION, header.version);
         if (header.version == 2 || header.version == 3) {
-            error_append_hint(errp, "Try the 'qcow2' driver instead.\n");
+            error_append_hint(&local_err, "Try the 'qcow2' driver instead.\n");
         }
+        error_propagate(errp, local_err);
 
         ret = -ENOTSUP;
         goto fail;
@@ -189,14 +190,15 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     if (s->crypt_method_header) {
         if (bdrv_uses_whitelist() &&
             s->crypt_method_header == QCOW_CRYPT_AES) {
-            error_setg(errp,
+            error_setg(&local_err,
                        "Use of AES-CBC encrypted qcow images is no longer "
                        "supported in system emulators");
-            error_append_hint(errp,
+            error_append_hint(&local_err,
                               "You can use 'qemu-img convert' to convert your "
                               "image to an alternative supported format, such "
                               "as unencrypted qcow, or raw with the LUKS "
                               "format instead.\n");
+            error_propagate(errp, local_err);
             ret = -ENOSYS;
             goto fail;
         }

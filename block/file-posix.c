@@ -389,8 +389,11 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
     }
 
     if (!s->buf_align || !bs->bl.request_alignment) {
-        error_setg(errp, "Could not find working O_DIRECT alignment");
-        error_append_hint(errp, "Try cache.direct=off\n");
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "Could not find working O_DIRECT alignment");
+        error_append_hint(&local_err, "Try cache.direct=off\n");
+        error_propagate(errp, local_err);
     }
 }
 
@@ -845,16 +848,18 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         }
         ret = raw_apply_lock_bytes(s, s->fd, s->perm | new_perm,
                                    ~s->shared_perm | ~new_shared,
-                                   false, errp);
+                                   false, &local_err);
         if (!ret) {
-            ret = raw_check_lock_bytes(s->fd, new_perm, new_shared, errp);
+            ret = raw_check_lock_bytes(s->fd, new_perm, new_shared, &local_err);
             if (!ret) {
                 return 0;
             }
-            error_append_hint(errp,
+            error_append_hint(&local_err,
                               "Is another process using the image [%s]?\n",
                               bs->filename);
         }
+        error_propagate(errp, local_err);
+        local_err = NULL; /* for fall through */
         op = RAW_PL_ABORT;
         /* fall through to unlock bytes. */
     case RAW_PL_ABORT:
@@ -2277,11 +2282,12 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     }
 
     /* Step two: Check that nobody else has taken conflicting locks */
-    result = raw_check_lock_bytes(fd, perm, shared, errp);
+    result = raw_check_lock_bytes(fd, perm, shared, &local_err);
     if (result < 0) {
-        error_append_hint(errp,
+        error_append_hint(&local_err,
                           "Is another process using the image [%s]?\n",
                           file_opts->filename);
+        error_propagate(errp, local_err);
         goto out_unlock;
     }
 

@@ -602,11 +602,14 @@ static int64_t backup_calculate_cluster_size(BlockDriverState *target,
                     BACKUP_CLUSTER_SIZE_DEFAULT);
         return BACKUP_CLUSTER_SIZE_DEFAULT;
     } else if (ret < 0 && !target->backing) {
-        error_setg_errno(errp, -ret,
+        Error *local_err = NULL;
+
+        error_setg_errno(&local_err, -ret,
             "Couldn't determine the cluster size of the target image, "
             "which has no backing file");
-        error_append_hint(errp,
+        error_append_hint(&local_err,
             "Aborting, since this may create an unusable destination image\n");
+        error_propagate(errp, local_err);
         return ret;
     } else if (ret < 0 && target->backing) {
         /* Not fatal; just trudge on ahead. */

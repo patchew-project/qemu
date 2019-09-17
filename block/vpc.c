@@ -1028,12 +1028,15 @@ static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
     }
 
     if (total_size != total_sectors * BDRV_SECTOR_SIZE) {
-        error_setg(errp, "The requested image size cannot be represented in "
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "The requested image size cannot be represented in "
                          "CHS geometry");
-        error_append_hint(errp, "Try size=%llu or force-size=on (the "
+        error_append_hint(&local_err, "Try size=%llu or force-size=on (the "
                                 "latter makes the image incompatible with "
                                 "Virtual PC)",
                           total_sectors * BDRV_SECTOR_SIZE);
+        error_propagate(errp, local_err);
         ret = -EINVAL;
         goto out;
     }

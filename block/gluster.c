@@ -473,26 +473,29 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
 
     ret = glfs_init(glfs);
     if (ret) {
-        error_setg(errp, "Gluster connection for volume %s, path %s failed"
+        Error *local_err = NULL;
+
+        error_setg(&local_err, "Gluster connection for volume %s, path %s failed"
                          " to connect", gconf->volume, gconf->path);
         for (server = gconf->server; server; server = server->next) {
             if (server->value->type  == SOCKET_ADDRESS_TYPE_UNIX) {
-                error_append_hint(errp, "hint: failed on socket %s ",
+                error_append_hint(&local_err, "hint: failed on socket %s ",
                                   server->value->u.q_unix.path);
             } else {
-                error_append_hint(errp, "hint: failed on host %s and port %s ",
+                error_append_hint(&local_err, "hint: failed on host %s and port %s ",
                                   server->value->u.inet.host,
                                   server->value->u.inet.port);
             }
         }
 
-        error_append_hint(errp, "Please refer to gluster logs for more info\n");
+        error_append_hint(&local_err, "Please refer to gluster logs for more info\n");
 
         /* glfs_init sometimes doesn't set errno although docs suggest that */
         if (errno == 0) {
             errno = EINVAL;
         }
 
+        error_propagate(errp, local_err);
         goto out;
     }
     return glfs;
@@ -695,20 +698,23 @@ static int qemu_gluster_parse(BlockdevOptionsGluster *gconf,
                               QDict *options, Error **errp)
 {
     int ret;
+    Error *local_err = NULL;
+
     if (filename) {
         ret = qemu_gluster_parse_uri(gconf, filename);
         if (ret < 0) {
-            error_setg(errp, "invalid URI %s", filename);
-            error_append_hint(errp, "Usage: file=gluster[+transport]://"
+            error_setg(&local_err, "invalid URI %s", filename);
+            error_append_hint(&local_err, "Usage: file=gluster[+transport]://"
                                     "[host[:port]]volume/path[?socket=...]"
                                     "[,file.debug=N]"
                                     "[,file.logfile=/path/filename.log]\n");
+            error_propagate(errp, local_err);
             return ret;
         }
     } else {
-        ret = qemu_gluster_parse_json(gconf, options, errp);
+        ret = qemu_gluster_parse_json(gconf, options, &local_err);
         if (ret < 0) {
-            error_append_hint(errp, "Usage: "
+            error_append_hint(&local_err, "Usage: "
                              "-drive driver=qcow2,file.driver=gluster,"
                              "file.volume=testvol,file.path=/path/a.qcow2"
                              "[,file.debug=9]"
@@ -719,6 +725,7 @@ static int qemu_gluster_parse(BlockdevOptionsGluster *gconf,
                              "file.server.1.transport=unix,"
                              "file.server.1.path=/var/run/glusterd.socket ..."
                              "\n");
+            error_propagate(errp, local_err);
             return ret;
         }
     }
