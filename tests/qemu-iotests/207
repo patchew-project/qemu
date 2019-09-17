@@ -24,7 +24,7 @@ import iotests
 import subprocess
 import re
 
-iotests.verify_image_format(supported_fmts=['raw'])
+iotests.script_initialize(supported_fmts=['raw'])
 iotests.verify_protocol(supported=['ssh'])
 
 def filter_hash(qmsg):

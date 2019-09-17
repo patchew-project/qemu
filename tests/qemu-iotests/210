@@ -23,7 +23,7 @@
 import iotests
 from iotests import imgfmt
 
-iotests.verify_image_format(supported_fmts=['luks'])
+iotests.script_initialize(supported_fmts=['luks'])
 iotests.verify_protocol(supported=['file'])
 
 def blockdev_create(vm, options):
