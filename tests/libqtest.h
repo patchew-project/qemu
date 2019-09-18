@@ -716,5 +716,4 @@ bool qtest_probe_child(QTestState *s);
  * Set expected exit status of the child.
  */
 void qtest_set_expected_status(QTestState *s, int status);
-
 #endif
