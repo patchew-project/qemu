@@ -85,6 +85,7 @@ static int cap_ppc_safe_indirect_branch;
 static int cap_ppc_count_cache_flush_assist;
 static int cap_ppc_nested_kvm_hv;
 static int cap_large_decr;
+static int cap_ppc_fwnmi;
 
 static uint32_t debug_inst_opcode;
 
@@ -2055,6 +2056,26 @@ void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
     }
 }
 
+int kvmppc_set_fwnmi(void)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+    CPUState *cs = CPU(cpu);
+    int ret;
+
+    ret = kvm_vcpu_enable_cap(cs, KVM_CAP_PPC_FWNMI, 0);
+    if (ret) {
+        error_report("This KVM version does not support FWNMI");
+        return ret;
+    }
+
+    /*
+     * cap_ppc_fwnmi is set when FWNMI is available and enabled in KVM
+     * and not just when FWNMI is available in KVM
+     */
+    cap_ppc_fwnmi = 1;
+    return ret;
+}
+
 int kvmppc_smt_threads(void)
 {
     return cap_ppc_smt ? cap_ppc_smt : 1;
@@ -2353,6 +2374,11 @@ bool kvmppc_has_cap_mmu_radix(void)
 bool kvmppc_has_cap_mmu_hash_v3(void)
 {
     return cap_mmu_hash_v3;
+}
+
+bool kvmppc_has_cap_ppc_fwnmi(void)
+{
+    return cap_ppc_fwnmi;
 }
 
 static bool kvmppc_power8_host(void)
