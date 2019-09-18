@@ -28,5 +28,6 @@ void qtest_server_init(const char *qtest_chrdev, const char *qtest_log, Error **
 
 void qtest_server_set_tx_handler(void (*send)(void *, const char *, size_t),
                                  void *opaque);
+void qtest_server_inproc_recv(void *opaque, const char *buf, size_t size);
 
 #endif

@@ -802,3 +802,10 @@ bool qtest_driver(void)
 {
     return qtest_chr.chr != NULL;
 }
+
+void qtest_server_inproc_recv(void *opaque, const char *buf, size_t size)
+{
+    GString *gstr = g_string_new_len(buf, size);
+    qtest_process_inbuf(NULL, gstr);
+    g_string_free(gstr, true);
+}
