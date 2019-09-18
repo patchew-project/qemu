@@ -498,6 +498,7 @@ libxml2=""
 debug_mutex="no"
 libpmem=""
 default_devices="yes"
+fuzzing="no"
 
 supported_cpu="no"
 supported_os="no"
@@ -1520,6 +1521,8 @@ for opt do
   --enable-libpmem) libpmem=yes
   ;;
   --disable-libpmem) libpmem=no
+  ;;
+  --enable-fuzzing) fuzzing=yes
   ;;
   *)
       echo "ERROR: unknown option $opt"
@@ -6429,6 +6432,7 @@ echo "capstone          $capstone"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
 echo "default devices   $default_devices"
+echo "fuzzing support   $fuzzing"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -7258,6 +7262,10 @@ fi
 if test "$sheepdog" = "yes" ; then
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
 fi
+if test "$fuzzing" = "yes" ; then
+  FUZZ_LDFLAGS=" -fsanitize=address,fuzzer"
+  FUZZ_CFLAGS=" -fsanitize=address,fuzzer"
+fi
 
 if test "$tcg_interpreter" = "yes"; then
   QEMU_INCLUDES="-iquote \$(SRC_PATH)/tcg/tci $QEMU_INCLUDES"
@@ -7338,6 +7346,11 @@ fi
 if test "$libudev" != "no"; then
     echo "CONFIG_LIBUDEV=y" >> $config_host_mak
     echo "LIBUDEV_LIBS=$libudev_libs" >> $config_host_mak
+fi
+if test "$fuzzing" != "no"; then
+    echo "CONFIG_FUZZ=y" >> $config_host_mak
+    echo "FUZZ_CFLAGS=$FUZZ_CFLAGS" >> $config_host_mak
+    echo "FUZZ_LDFLAGS=$FUZZ_LDFLAGS" >> $config_host_mak
 fi
 
 # use included Linux headers
