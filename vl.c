@@ -36,18 +36,6 @@
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
 
-#ifdef CONFIG_SDL
-#if defined(__APPLE__) || defined(main)
-#include <SDL.h>
-int qemu_main(int argc, char **argv, char **envp);
-int main(int argc, char **argv)
-{
-    return qemu_main(argc, argv, NULL);
-}
-#undef main
-#define main qemu_main
-#endif
-#endif /* CONFIG_SDL */
 
 #ifdef CONFIG_COCOA
 #undef main
@@ -1794,7 +1782,7 @@ static bool main_loop_should_exit(void)
     return false;
 }
 
-static void main_loop(void)
+void main_loop(void)
 {
 #ifdef CONFIG_PROFILER
     int64_t ti;
@@ -2869,7 +2857,7 @@ static void user_register_global_props(void)
                       global_init_func, NULL, NULL);
 }
 
-int main(int argc, char **argv, char **envp)
+int qemu_init(int argc, char **argv, char **envp)
 {
     int i;
     int snapshot, linux_boot;
@@ -4468,7 +4456,7 @@ int main(int argc, char **argv, char **envp)
     if (vmstate_dump_file) {
         /* dump and exit */
         dump_vmstate_json_to_file(vmstate_dump_file);
-        return 0;
+        exit(0);
     }
 
     if (incoming) {
@@ -4485,8 +4473,11 @@ int main(int argc, char **argv, char **envp)
     accel_setup_post(current_machine);
     os_setup_post();
 
-    main_loop();
+    return 0;
+}
 
+void qemu_cleanup()
+{
     gdbserver_cleanup();
 
     /*
@@ -4522,6 +4513,4 @@ int main(int argc, char **argv, char **envp)
     qemu_chr_cleanup();
     user_creatable_cleanup();
     /* TODO: unref root container, check all devices are ok */
-
-    return 0;
 }
