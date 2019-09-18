@@ -60,6 +60,7 @@ struct QTestState
 static GHookList abrt_hooks;
 static struct sigaction sigact_old;
 static GString *recv_str;
+static const char *qtest_arch;
 
 static int qtest_query_target_endianness(QTestState *s);
 
@@ -490,6 +491,7 @@ static GString *qtest_client_socket_recv_line(void* opaque)
     return line;
 }
 
+
 static gchar **qtest_rsp(QTestState *s, int expected_args)
 {
     GString *line;
@@ -830,6 +832,9 @@ char *qtest_hmp(QTestState *s, const char *fmt, ...)
 
 const char *qtest_get_arch(void)
 {
+    if (qtest_arch) {
+        return qtest_arch;
+    }
     const char *qemu = qtest_qemu_binary();
     const char *end = strrchr(qemu, '/');
 
@@ -1366,4 +1371,45 @@ static void qtest_client_set_rx_handler(QTestState *s,
 {
     s->ops.recv_line = recv;
     s->ops.recv_line_opaque = opaque;
+}
+
+static GString *qtest_client_inproc_recv_line(void* opaque)
+{
+    GString *line;
+    size_t offset;
+    char *eol;
+
+    eol = strchr(recv_str->str, '\n');
+    offset = eol - recv_str->str;
+    line = g_string_new_len(recv_str->str, offset);
+    g_string_erase(recv_str, 0, offset + 1);
+    return line;
+}
+
+QTestState *qtest_inproc_init(bool log, const char* arch,
+                    void (*send)(void*, const char*, size_t))
+{
+    QTestState *qts;
+    qts = g_new(QTestState, 1);
+    qts->wstatus = 0;
+    for (int i = 0; i < MAX_IRQ; i++) {
+        qts->irq_level[i] = false;
+    }
+
+    qtest_client_set_rx_handler(qts, qtest_client_inproc_recv_line, qts);
+    qtest_client_set_tx_handler(qts, send, NULL);
+
+    qts->big_endian = qtest_query_target_endianness(qts);
+    qtest_arch = arch;
+
+    return qts;
+}
+
+void qtest_client_inproc_recv(void *opaque, const char *str, size_t len)
+{
+    if (!recv_str) {
+        recv_str = g_string_new(NULL);
+    }
+    g_string_append_len(recv_str, str, len);
+    return;
 }
