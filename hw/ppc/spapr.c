@@ -2942,6 +2942,15 @@ static void spapr_machine_init(MachineState *machine)
 
         /* Resize rtas blob to accommodate error log */
         spapr->rtas_size = RTAS_ERROR_LOG_MAX;
+
+        /* Set fwnmi capability in KVM */
+        if (kvmppc_set_fwnmi() < 0) {
+            error_report("Could not enable FWNMI capability");
+            exit(1);
+        }
+
+        /* Register ibm,nmi-register and ibm,nmi-interlock RTAS calls */
+        spapr_fwnmi_register();
     }
 
     spapr->rtas_blob = g_malloc(spapr->rtas_size);
