@@ -322,6 +322,108 @@ void error_set_internal(Error **errp,
                         ErrorClass err_class, const char *fmt, ...)
     GCC_FMT_ATTR(6, 7);
 
+typedef struct ErrorPropagator {
+    Error **errp;
+    Error *local_err;
+} ErrorPropagator;
+
+static inline void error_propagator_cleanup(ErrorPropagator *prop)
+{
+    if (prop->local_err) {
+        error_propagate(prop->errp, prop->local_err);
+    }
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagator, error_propagator_cleanup);
+
+/*
+ * ErrorPropagationPair
+ *
+ * [Error *local_err, Error **errp]
+ *
+ * First element is local_err, second is original errp, which is propagation
+ * target. Yes, errp has a bit another type, so it should be converted.
+ *
+ * ErrorPropagationPair may be used as errp, which points to local_err,
+ * as it's type is compatible.
+ */
+typedef Error *ErrorPropagationPair[2];
+
+static inline void error_propagation_pair_cleanup(ErrorPropagationPair *arr)
+{
+    Error *local_err = (*arr)[0];
+    Error **errp = (Error **)(*arr)[1];
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagationPair,
+                                 error_propagation_pair_cleanup);
+
+/*
+ * DEF_AUTO_ERRP
+ *
+ * Define auto_errp variable, which may be used instead of errp, and
+ * *auto_errp may be safely checked to be zero or not, and may be safely
+ * used for error_append_hint(). auto_errp is automatically propagated
+ * to errp at function exit.
+ */
+#define DEF_AUTO_ERRP(auto_errp, errp) \
+    g_auto(ErrorPropagationPair) (auto_errp) = {NULL, (Error *)(errp)}
+
+
+/*
+ * Another variant:
+ *   Pros:
+ *     - normal structure instead of cheating with array
+ *     - we can directly use errp, if it's not NULL and don't point to
+ *       error_abort or error_fatal
+ *   Cons:
+ *     - we need to define two variables instead of one
+ */
+typedef struct ErrorPropagationStruct {
+    Error *local_err;
+    Error **errp;
+} ErrorPropagationStruct;
+
+static inline void error_propagation_struct_cleanup(ErrorPropagationStruct *prop)
+{
+    if (prop->local_err) {
+        error_propagate(prop->errp, prop->local_err);
+    }
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagationStruct,
+                                 error_propagation_struct_cleanup);
+
+#define DEF_AUTO_ERRP_V2(auto_errp, errp) \
+    g_auto(ErrorPropagationStruct) (__auto_errp_prop) = {.errp = (errp)}; \
+    Error **auto_errp = \
+        ((errp) == NULL || *(errp) == error_abort || *(errp) == error_fatal) ? \
+        &__auto_errp_prop.local_err : \
+        (errp);
+
+/*
+ * Third variant:
+ *   Pros:
+ *     - simpler movement for functions which don't have local_err yet
+ *       the only thing to do is to call one macro at function start.
+ *       This extremely simplifies Greg's series
+ *   Cons:
+ *     - looks like errp shadowing.. Still seems safe.
+ *     - must be after all definitions of local variables and before any
+ *       code.
+ *     - like v2, several statements in one open macro
+ */
+#define MAKE_ERRP_SAFE(errp) \
+g_auto(ErrorPropagationStruct) (__auto_errp_prop) = {.errp = (errp)}; \
+if ((errp) == NULL || *(errp) == error_abort || *(errp) == error_fatal) { \
+    (errp) = &__auto_errp_prop.local_err; \
+}
+
+
 /*
  * Special error destination to abort on error.
  * See error_setg() and error_propagate() for details.

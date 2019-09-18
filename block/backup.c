@@ -583,6 +583,10 @@ static const BlockJobDriver backup_job_driver = {
 static int64_t backup_calculate_cluster_size(BlockDriverState *target,
                                              Error **errp)
 {
+    /*
+     * Example of using DEF_AUTO_ERRP to make error_append_hint safe
+     */
+    DEF_AUTO_ERRP(auto_errp, errp);
     int ret;
     BlockDriverInfo bdi;
 
@@ -602,10 +606,10 @@ static int64_t backup_calculate_cluster_size(BlockDriverState *target,
                     BACKUP_CLUSTER_SIZE_DEFAULT);
         return BACKUP_CLUSTER_SIZE_DEFAULT;
     } else if (ret < 0 && !target->backing) {
-        error_setg_errno(errp, -ret,
+        error_setg_errno(auto_errp, -ret,
             "Couldn't determine the cluster size of the target image, "
             "which has no backing file");
-        error_append_hint(errp,
+        error_append_hint(auto_errp,
             "Aborting, since this may create an unusable destination image\n");
         return ret;
     } else if (ret < 0 && target->backing) {

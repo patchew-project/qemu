@@ -1275,12 +1275,11 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
                             const char *node_name, QDict *options,
                             int open_flags, Error **errp)
 {
-    Error *local_err = NULL;
+    DEF_AUTO_ERRP_V2(auto_errp, errp);
     int i, ret;
 
-    bdrv_assign_node_name(bs, node_name, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    bdrv_assign_node_name(bs, node_name, auto_errp);
+    if (*auto_errp) {
         return -EINVAL;
     }
 
@@ -1290,20 +1289,21 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
 
     if (drv->bdrv_file_open) {
         assert(!drv->bdrv_needs_filename || bs->filename[0]);
-        ret = drv->bdrv_file_open(bs, options, open_flags, &local_err);
+        ret = drv->bdrv_file_open(bs, options, open_flags, auto_errp);
     } else if (drv->bdrv_open) {
-        ret = drv->bdrv_open(bs, options, open_flags, &local_err);
+        ret = drv->bdrv_open(bs, options, open_flags, auto_errp);
     } else {
         ret = 0;
     }
 
     if (ret < 0) {
-        if (local_err) {
-            error_propagate(errp, local_err);
-        } else if (bs->filename[0]) {
-            error_setg_errno(errp, -ret, "Could not open '%s'", bs->filename);
-        } else {
-            error_setg_errno(errp, -ret, "Could not open image");
+        if (!*auto_errp) {
+            if (bs->filename[0]) {
+                error_setg_errno(errp, -ret, "Could not open '%s'",
+                                 bs->filename);
+            } else {
+                error_setg_errno(errp, -ret, "Could not open image");
+            }
         }
         goto open_failed;
     }
@@ -1314,9 +1314,8 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         return ret;
     }
 
-    bdrv_refresh_limits(bs, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    bdrv_refresh_limits(bs, auto_errp);
+    if (*auto_errp) {
         return -EINVAL;
     }
 
@@ -4238,17 +4237,17 @@ out:
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                  Error **errp)
 {
-    Error *local_err = NULL;
+    g_auto(ErrorPropagator) prop = {.errp = errp};
 
-    bdrv_set_backing_hd(bs_new, bs_top, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    errp = &prop.local_err;
+
+    bdrv_set_backing_hd(bs_new, bs_top, errp);
+    if (*errp) {
         goto out;
     }
 
-    bdrv_replace_node(bs_top, bs_new, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    bdrv_replace_node(bs_top, bs_new, errp);
+    if (*errp) {
         bdrv_set_backing_hd(bs_new, NULL, &error_abort);
         goto out;
     }
@@ -5309,9 +5308,9 @@ void bdrv_init_with_whitelist(void)
 static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
                                                   Error **errp)
 {
+    DEF_AUTO_ERRP(auto_errp, errp);
     BdrvChild *child, *parent;
     uint64_t perm, shared_perm;
-    Error *local_err = NULL;
     int ret;
     BdrvDirtyBitmap *bm;
 
@@ -5324,9 +5323,8 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
     }
 
     QLIST_FOREACH(child, &bs->children, next) {
-        bdrv_co_invalidate_cache(child->bs, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        bdrv_co_invalidate_cache(child->bs, auto_errp);
+        if (*auto_errp) {
             return;
         }
     }
@@ -5346,19 +5344,17 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
      */
     bs->open_flags &= ~BDRV_O_INACTIVE;
     bdrv_get_cumulative_perm(bs, &perm, &shared_perm);
-    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, &local_err);
+    ret = bdrv_check_perm(bs, NULL, perm, shared_perm, NULL, NULL, auto_errp);
     if (ret < 0) {
         bs->open_flags |= BDRV_O_INACTIVE;
-        error_propagate(errp, local_err);
         return;
     }
     bdrv_set_perm(bs, perm, shared_perm);
 
     if (bs->drv->bdrv_co_invalidate_cache) {
-        bs->drv->bdrv_co_invalidate_cache(bs, &local_err);
-        if (local_err) {
+        bs->drv->bdrv_co_invalidate_cache(bs, auto_errp);
+        if (*auto_errp) {
             bs->open_flags |= BDRV_O_INACTIVE;
-            error_propagate(errp, local_err);
             return;
         }
     }
@@ -5378,10 +5374,9 @@ static void coroutine_fn bdrv_co_invalidate_cache(BlockDriverState *bs,
 
     QLIST_FOREACH(parent, &bs->parents, next_parent) {
         if (parent->role->activate) {
-            parent->role->activate(parent, &local_err);
-            if (local_err) {
+            parent->role->activate(parent, auto_errp);
+            if (*auto_errp) {
                 bs->open_flags |= BDRV_O_INACTIVE;
-                error_propagate(errp, local_err);
                 return;
             }
         }

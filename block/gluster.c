@@ -695,6 +695,13 @@ static int qemu_gluster_parse(BlockdevOptionsGluster *gconf,
                               QDict *options, Error **errp)
 {
     int ret;
+    /*
+     * Example of using MAKE_ERRP_SAFE to make error_append_hint safe. We
+     * only need to add one macro call. Note, it must be placed exactly after
+     * all local variables defenition.
+     */
+    MAKE_ERRP_SAFE(errp);
+
     if (filename) {
         ret = qemu_gluster_parse_uri(gconf, filename);
         if (ret < 0) {
