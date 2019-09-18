@@ -19,6 +19,7 @@ typedef struct FuzzTarget {
 } FuzzTarget;
 
 void set_fuzz_target_args(int argc, char **argv);
+char *get_fuzz_target_name(void);
 void reboot(QTestState *);
 void fuzz_add_target(const char *name, const char *description, FuzzTarget
         *target);

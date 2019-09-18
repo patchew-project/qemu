@@ -33,6 +33,9 @@ void set_fuzz_target_args(int argc, char **argv)
         fuzz_target->main_argv = argv;
     }
 }
+char *get_fuzz_target_name(void){
+    return fuzz_target->name->str;
+}
 
 void reboot(QTestState *s)
 {
