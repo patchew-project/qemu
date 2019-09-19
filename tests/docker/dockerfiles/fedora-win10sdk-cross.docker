@@ -1,0 +1,21 @@
+#
+# Docker MinGW64 cross-compiler target with WHPX header installed
+#
+# This docker target builds on the Fedora 30 base image.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+FROM qemu:fedora
+
+# Install headers extracted by the Android folks from the win10sdk.iso:
+# https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk
+ENV WIN10SDK_INCDIR /usr/local/include/win10sdk
+RUN mkdir ${WIN10SDK_INCDIR} && \
+    for hdr in WinHvEmulation.h WinHvPlatformDefs.h WinHvPlatform.h; do \
+        curl -s "https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/host/x86_64-w64-mingw32-4.8/+/1bde9c3b14f3a3b081ada6e32da9f2870671b46f/x86_64-w64-mingw32/include/${hdr}?format=TEXT" | base64 --decode > ${WIN10SDK_INCDIR}/${hdr}; \
+    done
+
+ENV QEMU_CONFIGURE_OPTS ${QEMU_CONFIGURE_OPTS} \
+    --cross-prefix=x86_64-w64-mingw32- \
+    --extra-cflags="-I ${WIN10SDK_INCDIR}" --disable-werror \
+    --enable-hax --enable-whpx
