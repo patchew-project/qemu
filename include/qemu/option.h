@@ -28,6 +28,18 @@
 
 #include "qemu/queue.h"
 
+/**
+ * get_opt_value
+ * @p: a pointer to the option name, delimited by commas
+ * @value: a non-NULL pointer that will received the delimited options
+ *
+ * The @value char pointer will be allocated and filled with
+ * the delimited options.
+ * It is an error to pass a non-NULL @value parameter.
+ *
+ * Returns the position of the comma delimiter/zero byte after the
+ * option name in @p.
+ */
 const char *get_opt_value(const char *p, char **value);
 
 void parse_option_size(const char *name, const char *value,
