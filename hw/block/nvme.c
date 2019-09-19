@@ -25,6 +25,7 @@
  * offset 0 in BAR2 and supports only WDS, RDS and SQS for now.
  */
 
+#include "block/error_inject.h"
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "hw/block/block.h"
@@ -388,6 +389,13 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
         block_acct_invalid(blk_get_stats(n->conf.blk), acct);
         trace_nvme_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
         return NVME_LBA_RANGE | NVME_DNR;
+    }
+
+    if (!is_write) {
+        uint64_t error_sector = 0;
+        if (error_in_read(n->serial, slba, nlb, &error_sector)) {
+            return NVME_UNRECOVERED_READ | NVME_DNR;
+        }
     }
 
     if (nvme_map_prp(&req->qsg, &req->iov, prp1, prp2, data_size, n)) {
