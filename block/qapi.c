@@ -26,11 +26,14 @@
 #include "qemu-common.h"
 #include "block/qapi.h"
 #include "block/block_int.h"
+#include "block/error_inject.h"
 #include "block/throttle-groups.h"
 #include "block/write-threshold.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-block.h"
 #include "qapi/qapi-commands-block-core.h"
 #include "qapi/qobject-output-visitor.h"
+#include "qapi/qapi-types-block.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qmp/qbool.h"
 #include "qapi/qmp/qdict.h"
@@ -840,4 +843,19 @@ void bdrv_image_info_dump(ImageInfo *info)
         qemu_printf("Format specific information:\n");
         bdrv_image_info_specific_dump(info->format_specific);
     }
+}
+
+void qmp_media_error_create(const char *device_id, uint64_t lba,
+        MediaErrorBehavior behavior, Error **errp)
+{
+    /*
+     * We could validate the device_id and lba for existence and range, but we
+     * want to be able to add entries before a device is hot plugged too.
+     */
+    media_error_create(device_id, lba, behavior);
+}
+
+void qmp_media_error_delete(const char *device_id, uint64_t lba, Error **errp)
+{
+    media_error_delete(device_id, lba);
 }

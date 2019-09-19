@@ -453,3 +453,39 @@
 { 'event': 'QUORUM_REPORT_BAD',
   'data': { 'type': 'QuorumOpType', '*error': 'str', 'node-name': 'str',
             'sector-num': 'int', 'sectors-count': 'int' } }
+
+##
+# @MediaErrorBehavior:
+#
+# Enumerated type for classifying type of read error behavior.
+#
+##
+{ 'enum': 'MediaErrorBehavior', 'data': ['hard', 'fixed_on_write', 'flakey'] }
+
+##
+# @media-error-create:
+#
+# Example:
+# -> {"execute": "media-error-create",
+#     "arguments": {"device_id": "12345678, "lba" : 10000, "behavior" : "hard"}}
+# <- { "return": {} }
+#
+# Create a synthetic media error for the specified logical block address when
+# it is read by the guest OS.
+#
+##
+{ 'command':'media-error-create',
+  'data': {'device_id': 'str', 'lba': 'uint64', 'behavior': 'MediaErrorBehavior'}}
+
+##
+# @media-error-delete:
+#
+# Delete a synthetic media error for the specified logical block address.
+#
+# # Example:
+# -> {"execute": "media-error-delete",
+#     "arguments": {"device_id": "01020304", "lba" : 10000}
+# <- { "return": {} }
+##
+{ 'command':'media-error-delete',
+  'data': {'device_id': 'str', 'lba': 'uint64'}}
