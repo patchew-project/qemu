@@ -235,20 +235,24 @@ class Docker(object):
         if not only_active:
             cmd.append("-a")
         for i in self._output(cmd).split():
-            resp = self._output(["inspect", i])
-            labels = json.loads(resp)[0]["Config"]["Labels"]
-            active = json.loads(resp)[0]["State"]["Running"]
-            if not labels:
-                continue
-            instance_uuid = labels.get("com.qemu.instance.uuid", None)
-            if not instance_uuid:
-                continue
-            if only_known and instance_uuid not in self._instances:
-                continue
-            print("Terminating", i)
-            if active:
-                self._do(["kill", i])
-            self._do(["rm", i])
+            try:
+                resp = self._output(["inspect", i])
+                labels = json.loads(resp)[0]["Config"]["Labels"]
+                active = json.loads(resp)[0]["State"]["Running"]
+                if not labels:
+                    continue
+                instance_uuid = labels.get("com.qemu.instance.uuid", None)
+                if not instance_uuid:
+                    continue
+                if only_known and instance_uuid not in self._instances:
+                    continue
+                print("Terminating", i)
+                if active:
+                    self._do(["kill", i])
+                    self._do(["rm", i])
+            except subprocess.CalledProcessError:
+                # i likely finished running before we got here
+                pass
 
     def clean(self):
         self._do_kill_instances(False, False)
