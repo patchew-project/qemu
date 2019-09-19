@@ -36,6 +36,7 @@
 #include "hw/ide/internal.h"
 #include "hw/ide/pci.h"
 #include "ahci_internal.h"
+#include "block/error_inject.h"
 
 #include "trace.h"
 
@@ -999,6 +1000,22 @@ static void ncq_err(NCQTransferState *ncq_tfs)
     ncq_tfs->used = 0;
 }
 
+/*
+ * Figure out correct way to report media error, this is at best a guess
+ * and based on the output of linux kernel, not even remotely close.
+ */
+static void ncq_media_err(NCQTransferState *ncq_tfs, uint64_t err_sector)
+{
+    IDEState *ide_state = &ncq_tfs->drive->port.ifs[0];
+
+    ide_state->error = ECC_ERR;
+    ide_state->status = READY_STAT | ERR_STAT;
+    ncq_tfs->drive->port_regs.scr_err |= (1 << ncq_tfs->tag);
+    ncq_tfs->lba = err_sector;
+    qemu_sglist_destroy(&ncq_tfs->sglist);
+    ncq_tfs->used = 0;
+}
+
 static void ncq_finish(NCQTransferState *ncq_tfs)
 {
     /* If we didn't error out, set our finished bit. Errored commands
@@ -1065,6 +1082,8 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
 {
     AHCIDevice *ad = ncq_tfs->drive;
     IDEState *ide_state = &ad->port.ifs[0];
+    uint64_t error_sector = 0;
+    char device_id[32];
     int port = ad->port_no;
 
     g_assert(is_ncq(ncq_tfs->cmd));
@@ -1072,6 +1091,14 @@ static void execute_ncq_command(NCQTransferState *ncq_tfs)
 
     switch (ncq_tfs->cmd) {
     case READ_FPDMA_QUEUED:
+        sprintf(device_id, "%lu", ide_state->wwn);
+
+        if (error_in_read(device_id, ncq_tfs->lba,
+                ncq_tfs->sector_count, &error_sector)) {
+            ncq_media_err(ncq_tfs, error_sector);
+            return;
+        }
+
         trace_execute_ncq_command_read(ad->hba, port, ncq_tfs->tag,
                                        ncq_tfs->sector_count, ncq_tfs->lba);
         dma_acct_start(ide_state->blk, &ncq_tfs->acct,
