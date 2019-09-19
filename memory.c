@@ -1837,33 +1837,37 @@ bool memory_region_is_logging(MemoryRegion *mr, uint8_t client)
     return memory_region_get_dirty_log_mask(mr) & (1 << client);
 }
 
-static void memory_region_update_iommu_notify_flags(IOMMUMemoryRegion *iommu_mr)
+static int memory_region_update_iommu_notify_flags(IOMMUMemoryRegion *iommu_mr)
 {
     IOMMUNotifierFlag flags = IOMMU_NOTIFIER_NONE;
     IOMMUNotifier *iommu_notifier;
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_GET_CLASS(iommu_mr);
+    int ret = 0;
 
     IOMMU_NOTIFIER_FOREACH(iommu_notifier, iommu_mr) {
         flags |= iommu_notifier->notifier_flags;
     }
 
     if (flags != iommu_mr->iommu_notify_flags && imrc->notify_flag_changed) {
-        imrc->notify_flag_changed(iommu_mr,
-                                  iommu_mr->iommu_notify_flags,
-                                  flags);
+        ret = imrc->notify_flag_changed(iommu_mr,
+                                        iommu_mr->iommu_notify_flags,
+                                        flags);
     }
 
-    iommu_mr->iommu_notify_flags = flags;
+    if (!ret) {
+        iommu_mr->iommu_notify_flags = flags;
+    }
+    return ret;
 }
 
-void memory_region_register_iommu_notifier(MemoryRegion *mr,
-                                           IOMMUNotifier *n)
+int memory_region_register_iommu_notifier(MemoryRegion *mr,
+                                          IOMMUNotifier *n)
 {
     IOMMUMemoryRegion *iommu_mr;
+    int ret;
 
     if (mr->alias) {
-        memory_region_register_iommu_notifier(mr->alias, n);
-        return;
+        return memory_region_register_iommu_notifier(mr->alias, n);
     }
 
     /* We need to register for at least one bitfield */
@@ -1874,7 +1878,11 @@ void memory_region_register_iommu_notifier(MemoryRegion *mr,
            n->iommu_idx < memory_region_iommu_num_indexes(iommu_mr));
 
     QLIST_INSERT_HEAD(&iommu_mr->iommu_notify, n, node);
-    memory_region_update_iommu_notify_flags(iommu_mr);
+    ret = memory_region_update_iommu_notify_flags(iommu_mr);
+    if (ret) {
+        QLIST_REMOVE(n, node);
+    }
+    return ret;
 }
 
 uint64_t memory_region_iommu_get_min_page_size(IOMMUMemoryRegion *iommu_mr)
