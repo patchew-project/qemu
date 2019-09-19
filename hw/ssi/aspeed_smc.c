@@ -54,10 +54,8 @@
 
 /* CE Control Register */
 #define R_CE_CTRL            (0x04 / 4)
-#define   CTRL_EXTENDED4       4  /* 32 bit addressing for SPI */
-#define   CTRL_EXTENDED3       3  /* 32 bit addressing for SPI */
-#define   CTRL_EXTENDED2       2  /* 32 bit addressing for SPI */
-#define   CTRL_EXTENDED1       1  /* 32 bit addressing for SPI */
+
+#define   CTRL_4B_AUTOREAD     4  /* 4B address Auto-Read command selection */
 #define   CTRL_EXTENDED0       0  /* 32 bit addressing for SPI */
 
 /* Interrupt Control and Status Register */
@@ -71,8 +69,11 @@
 
 /* CEx Control Register */
 #define R_CTRL0           (0x10 / 4)
+#define   CTRL_IO_QPI              (1 << 31)
+#define   CTRL_IO_QUAD_DATA        (1 << 30)
 #define   CTRL_IO_DUAL_DATA        (1 << 29)
 #define   CTRL_IO_DUAL_ADDR_DATA   (1 << 28) /* Includes dummies */
+#define   CTRL_IO_QUAD_ADDR_DATA   (1 << 28) /* Includes dummies */
 #define   CTRL_CMD_SHIFT           16
 #define   CTRL_CMD_MASK            0xff
 #define   CTRL_DUMMY_HIGH_SHIFT    14
@@ -84,7 +85,7 @@
 #define   CTRL_DUMMY_LOW_SHIFT     6 /* 2 bits [7:6] */
 #define   CTRL_CE_STOP_ACTIVE      (1 << 2)
 #define   CTRL_CMD_MODE_MASK       0x3
-#define     CTRL_READMODE          0x0
+#define     CTRL_READMODE          0x0 /* AST2600: 4BYTE READ */
 #define     CTRL_FREADMODE         0x1
 #define     CTRL_WRITEMODE         0x2
 #define     CTRL_USERMODE          0x3
@@ -135,8 +136,11 @@
 
 /* Misc Control Register #2 */
 #define R_TIMINGS         (0x94 / 4)
+#define R_CE0_READ_TIMING (0x94 / 4)
+#define R_CE1_READ_TIMING (0x98 / 4)
+#define R_CE2_READ_TIMING (0x9C / 4)
 
-/* SPI controller registers and bits */
+/* AST2400 SPI1 controller registers and bits */
 #define R_SPI_CONF        (0x00 / 4)
 #define   SPI_CONF_ENABLE_W0   0
 #define R_SPI_CTRL0       (0x4 / 4)
@@ -212,6 +216,36 @@ static const AspeedSegments aspeed_segments_ast2500_spi2[] = {
     { 0x3A000000, 96 * 1024 * 1024 }, /* end address is readonly */
 };
 
+/*
+ * AST2600 definitions
+ */
+#define ASPEED26_SOC_FMC_FLASH_BASE   0x20000000
+#define ASPEED26_SOC_SPI_FLASH_BASE   0x30000000
+#define ASPEED26_SOC_SPI2_FLASH_BASE  0x50000000
+
+static const AspeedSegments aspeed_segments_ast2600_fmc[] = {
+    { 0x20000000, 128 * 1024 * 1024 }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+    { 0x0, 0 }, /* disabled */
+};
+
+static const AspeedSegments aspeed_segments_ast2600_spi1[] = {
+    { 0x30000000, 128 * 1024 * 1024 }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+};
+
+static const AspeedSegments aspeed_segments_ast2600_spi2[] = {
+    { 0x50000000, 128 * 1024 * 1024 }, /* start address is readonly */
+    { 0x0, 0 }, /* disabled */
+    { 0x0, 0 }, /* disabled */
+};
+
+static uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg);
+static void aspeed_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg);
+
+static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSegments *seg);
+static void aspeed_2600_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg);
+
 static const AspeedSMCController controllers[] = {
     {
         .name              = "aspeed.smc-ast2400",
@@ -226,6 +260,8 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x6000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_SMC_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
         .name              = "aspeed.fmc-ast2400",
         .r_conf            = R_CONF,
@@ -241,6 +277,8 @@ static const AspeedSMCController controllers[] = {
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x1FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
         .name              = "aspeed.spi1-ast2400",
         .r_conf            = R_SPI_CONF,
@@ -254,6 +292,8 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x10000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_SPI_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
         .name              = "aspeed.fmc-ast2500",
         .r_conf            = R_CONF,
@@ -269,6 +309,8 @@ static const AspeedSMCController controllers[] = {
         .dma_flash_mask    = 0x0FFFFFFC,
         .dma_dram_mask     = 0x3FFFFFFC,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
         .name              = "aspeed.spi1-ast2500",
         .r_conf            = R_CONF,
@@ -282,6 +324,8 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x8000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
     }, {
         .name              = "aspeed.spi2-ast2500",
         .r_conf            = R_CONF,
@@ -295,6 +339,53 @@ static const AspeedSMCController controllers[] = {
         .flash_window_size = 0x8000000,
         .has_dma           = false,
         .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.fmc-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 3,
+        .segments          = aspeed_segments_ast2600_fmc,
+        .flash_window_base = ASPEED26_SOC_FMC_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = true,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.spi1-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 2,
+        .segments          = aspeed_segments_ast2600_spi1,
+        .flash_window_base = ASPEED26_SOC_SPI_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
+    }, {
+        .name              = "aspeed.spi2-ast2600",
+        .r_conf            = R_CONF,
+        .r_ce_ctrl         = R_CE_CTRL,
+        .r_ctrl0           = R_CTRL0,
+        .r_timings         = R_TIMINGS,
+        .conf_enable_w0    = CONF_ENABLE_W0,
+        .max_slaves        = 3,
+        .segments          = aspeed_segments_ast2600_spi2,
+        .flash_window_base = ASPEED26_SOC_SPI2_FLASH_BASE,
+        .flash_window_size = 0x10000000,
+        .has_dma           = false,
+        .nregs             = ASPEED_SMC_R_MAX,
+        .segment_to_reg    = aspeed_2600_smc_segment_to_reg,
+        .reg_to_segment    = aspeed_2600_smc_reg_to_segment,
     },
 };
 
@@ -307,7 +398,7 @@ static const AspeedSMCController controllers[] = {
  *        |  end   |  start |   0    |   0    |
  *
  */
-static inline uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg)
+static uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg)
 {
     uint32_t reg = 0;
     reg |= ((seg->addr >> 23) & SEG_START_MASK) << SEG_START_SHIFT;
@@ -315,10 +406,32 @@ static inline uint32_t aspeed_smc_segment_to_reg(const AspeedSegments *seg)
     return reg;
 }
 
-static inline void aspeed_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg)
+static void aspeed_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg)
 {
     seg->addr = ((reg >> SEG_START_SHIFT) & SEG_START_MASK) << 23;
     seg->size = (((reg >> SEG_END_SHIFT) & SEG_END_MASK) << 23) - seg->addr;
+}
+
+/*
+ * AST2600 uses a 1MB unit
+ */
+static uint32_t aspeed_2600_smc_segment_to_reg(const AspeedSegments *seg)
+{
+    uint32_t reg = 0;
+
+    /* Disabled segments have a nil register */
+    if (!seg->addr) {
+        return 0;
+    }
+    reg |= (seg->addr >> 20) & 0xffff;
+    reg |= (((seg->addr + seg->size) >> 20) & 0xffff) << 16;
+    return reg;
+}
+
+static void aspeed_2600_smc_reg_to_segment(uint32_t reg, AspeedSegments *seg)
+{
+    seg->addr = (reg & 0xffff) << 20;
+    seg->size = (((reg >> 16) & 0xffff) << 20) - seg->addr;
 }
 
 static bool aspeed_smc_flash_overlap(const AspeedSMCState *s,
