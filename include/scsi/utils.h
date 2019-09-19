@@ -35,6 +35,10 @@ SCSISense scsi_parse_sense_buf(const uint8_t *in_buf, int in_len);
 int scsi_build_sense_buf(uint8_t *buf, size_t max_size, SCSISense sense,
                          bool fixed_sense);
 
+int scsi_build_sense_buf_info(uint8_t *out_buf, size_t size, SCSISense sense,
+                              uint32_t information, uint8_t sksv,
+                              uint16_t sense_key_specific_info);
+
 /*
  * Predefined sense codes
  */

@@ -37,6 +37,7 @@
 #include "sysemu/dma.h"
 #include "qemu/cutils.h"
 #include "trace.h"
+#include "block/error_inject.h"
 
 #ifdef __linux
 #include <scsi/sg.h>
@@ -129,6 +130,18 @@ static void scsi_check_condition(SCSIDiskReq *r, SCSISense sense)
     trace_scsi_disk_check_condition(r->req.tag, sense.key, sense.asc,
                                     sense.ascq);
     scsi_req_build_sense(&r->req, sense);
+    scsi_req_complete(&r->req, CHECK_CONDITION);
+}
+
+/* Helper function for SCSI media error  */
+static void scsi_media_error(SCSIDiskReq *r, SCSISense sense, uint32_t lba)
+{
+    trace_scsi_disk_check_condition(r->req.tag, sense.key, sense.asc,
+                                    sense.ascq);
+
+    r->req.sense_len = scsi_build_sense_buf_info(r->req.sense,
+                                                  SCSI_SENSE_LEN, sense, lba,
+                                                  0x80, 32);
     scsi_req_complete(&r->req, CHECK_CONDITION);
 }
 
@@ -2170,6 +2183,26 @@ static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
         r->sector_count = len * (s->qdev.blocksize / 512);
+
+        /*
+         * TODO Move this check to a more appropriate spot.  Additionally we
+         * also need to transfer the data that was read up before encountering
+         * the media error.
+         */
+        uint64_t error_sector = 0;
+        char device_id[32];
+        sprintf(device_id, "%lu", s->qdev.wwn);
+        if (error_in_read(device_id, r->sector, r->sector_count,
+                          &error_sector)) {
+            /*
+             * TODO Fix error reporting for disks > 2TiB
+             */
+            if (error_sector > 0xFFFFFFFF) {
+                error_sector = 0xFFFFFFFF;
+            }
+            scsi_media_error(r, SENSE_CODE(READ_ERROR), (uint32_t)error_sector);
+            return 0;
+        }
         break;
     case WRITE_6:
     case WRITE_10:

@@ -147,6 +147,37 @@ int scsi_build_sense_buf(uint8_t *out_buf, size_t size, SCSISense sense,
     return len;
 }
 
+int scsi_build_sense_buf_info(uint8_t *out_buf, size_t size, SCSISense sense,
+                                uint32_t information, uint8_t sksv,
+                                uint16_t sense_key_specific_info)
+{
+    uint8_t buf[SCSI_SENSE_LEN] = { 0 };
+
+    buf[0] = 0xF0;  /* Valid bit set. */
+    buf[2] = sense.key;
+
+    /*
+     * Set bytes 3, 4, 5, 6 value of information field
+     */
+    *((uint32_t *)(&buf[3])) = cpu_to_be32(information);
+
+    buf[7] = 10;
+    buf[12] = sense.asc;
+    buf[13] = sense.ascq;
+
+    if (sksv) {
+        buf[15] = sksv;
+        /*
+         * Set bytes 16, 17 to Sense-key specific bytes
+         */
+        *((uint16_t *)&buf[16]) = cpu_to_be16(sense_key_specific_info);
+    }
+
+    int len = MIN(SCSI_SENSE_LEN, size);
+    memcpy(out_buf, buf, len);
+    return len;
+}
+
 int scsi_build_sense(uint8_t *buf, SCSISense sense)
 {
     return scsi_build_sense_buf(buf, SCSI_SENSE_LEN, sense, true);
