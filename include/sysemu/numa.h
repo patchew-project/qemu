@@ -14,6 +14,27 @@ struct CPUArchId;
 #define NUMA_DISTANCE_MAX         254
 #define NUMA_DISTANCE_UNREACHABLE 255
 
+/* the value of AcpiHmatLBInfo flags */
+enum {
+    HMAT_LB_MEM_MEMORY           = 0,
+    HMAT_LB_MEM_CACHE_1ST_LEVEL  = 1,
+    HMAT_LB_MEM_CACHE_2ND_LEVEL  = 2,
+    HMAT_LB_MEM_CACHE_3RD_LEVEL  = 3,
+};
+
+/* the value of AcpiHmatLBInfo data type */
+enum {
+    HMAT_LB_DATA_ACCESS_LATENCY   = 0,
+    HMAT_LB_DATA_READ_LATENCY     = 1,
+    HMAT_LB_DATA_WRITE_LATENCY    = 2,
+    HMAT_LB_DATA_ACCESS_BANDWIDTH = 3,
+    HMAT_LB_DATA_READ_BANDWIDTH   = 4,
+    HMAT_LB_DATA_WRITE_BANDWIDTH  = 5,
+};
+
+#define HMAT_LB_LEVELS    (HMAT_LB_MEM_CACHE_3RD_LEVEL + 1)
+#define HMAT_LB_TYPES     (HMAT_LB_DATA_WRITE_BANDWIDTH + 1)
+
 struct NodeInfo {
     uint64_t node_mem;
     struct HostMemoryBackend *node_memdev;
@@ -29,6 +50,21 @@ struct NumaNodeMem {
     uint64_t node_plugged_mem;
 };
 
+struct HMAT_LB_Info {
+    /* Indicates it's memory or the specified level memory side cache. */
+    uint8_t     hierarchy;
+
+    /* Present the type of data, access/read/write latency or bandwidth. */
+    uint8_t     data_type;
+
+    /* Array to store the latencies */
+    uint64_t    *latency;
+
+    /* Array to store the bandwidthes */
+    uint64_t    *bandwidth;
+};
+typedef struct HMAT_LB_Info HMAT_LB_Info;
+
 struct NumaState {
     /* Number of NUMA nodes */
     int num_nodes;
@@ -39,13 +75,21 @@ struct NumaState {
     /* Detect if HMAT support is enabled. */
     bool hmat_enabled;
 
+    /* Number of Proximity Domains that can initiate memory access requests. */
+    int num_initiator;
+
     /* NUMA nodes information */
     NodeInfo nodes[MAX_NODES];
+
+    /* NUMA nodes HMAT Locality Latency and Bandwidth Information */
+    HMAT_LB_Info *hmat_lb[HMAT_LB_LEVELS][HMAT_LB_TYPES];
 };
 typedef struct NumaState NumaState;
 
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp);
 void parse_numa_opts(MachineState *ms);
+void parse_numa_hmat_lb(NumaState *nstat, NumaHmatLBOptions *node,
+                        Error **errp);
 void numa_complete_configuration(MachineState *ms);
 void query_numa_node_mem(NumaNodeMem node_mem[], MachineState *ms);
 extern QemuOptsList qemu_numa_opts;
