@@ -35,8 +35,6 @@
 #include "hw/boards.h"
 #include "migration/vmstate.h"
 
-//#define DEBUG_UNASSIGNED
-
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
 static bool ioeventfd_update_pending;
@@ -1272,23 +1270,6 @@ static void iommu_memory_region_initfn(Object *obj)
     mr->is_iommu = true;
 }
 
-static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
-                                    unsigned size)
-{
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
-#endif
-    return 0;
-}
-
-static void unassigned_mem_write(void *opaque, hwaddr addr,
-                                 uint64_t val, unsigned size)
-{
-#ifdef DEBUG_UNASSIGNED
-    printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
-#endif
-}
-
 static bool unassigned_mem_accepts(void *opaque, hwaddr addr,
                                    unsigned size, bool is_write,
                                    MemTxAttrs attrs)
@@ -1437,7 +1418,8 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
     MemTxResult r;
 
     if (!memory_region_access_valid(mr, addr, size, false, attrs)) {
-        *pval = unassigned_mem_read(mr, addr, size);
+        trace_memory_region_invalid_read(size, addr);
+        *pval = 0; /* FIXME now this value shouldn't be accessed in guest */
         return MEMTX_DECODE_ERROR;
     }
 
@@ -1481,7 +1463,7 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
     unsigned size = memop_size(op);
 
     if (!memory_region_access_valid(mr, addr, size, true, attrs)) {
-        unassigned_mem_write(mr, addr, data, size);
+        trace_memory_region_invalid_write(size, addr, size << 1, data);
         return MEMTX_DECODE_ERROR;
     }
 
