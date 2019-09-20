@@ -20,6 +20,14 @@
 typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
 typedef void (*ProgressResetCallbackFunc)(void *opaque);
 typedef struct BlockCopyState {
+    /*
+     * block-copy shares WRITE permission on source, but it relies on user to
+     * guarantee that nobody is touching dirty areas.
+     *
+     * For backup job this is guaranteed by backup-top filter, which don't share
+     * WRITE permission and calls block_copy on any write, so it will handle
+     * dirty areas by itself.
+     */
     BlockBackend *source;
     BlockBackend *target;
     BdrvDirtyBitmap *copy_bitmap;
@@ -71,6 +79,6 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
                                      int64_t offset, int64_t *count);
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
-                            bool *error_is_read, bool is_write_notifier);
+                            bool *error_is_read);
 
 #endif /* BLOCK_COPY_H */
