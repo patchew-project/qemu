@@ -1,0 +1,23 @@
+#
+# Docker MinGW64 cross-compiler target with WHPX header installed
+#
+# This docker target builds on the Fedora 30 base image.
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+FROM qemu:fedora
+
+RUN dnf install -y \
+        cabextract \
+        msitools \
+        wget
+
+# Install WHPX headers from Windows Software Development Kit:
+# https://developer.microsoft.com/en-us/windows/downloads/windows-10-sdk
+ADD win10sdk-dl.sh /usr/local/bin/win10sdk-dl.sh
+RUN /usr/local/bin/win10sdk-dl.sh
+
+ENV QEMU_CONFIGURE_OPTS ${QEMU_CONFIGURE_OPTS} \
+    --cross-prefix=x86_64-w64-mingw32- \
+    --extra-cflags=-I/opt/win10sdk/include --disable-werror \
+    --enable-hax --enable-whpx
