@@ -30,5 +30,4 @@ RUN apt update && \
         git \
         gnupg \
         pkg-config \
-        python-minimal
-
+        python3-minimal

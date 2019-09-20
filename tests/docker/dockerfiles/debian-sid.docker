@@ -31,5 +31,5 @@ RUN apt update && \
         git \
         pkg-config \
         psmisc \
-        python \
+        python3 \
         texinfo || { echo "Failed to build - see debian-sid.docker notes"; exit 1; }
