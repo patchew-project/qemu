@@ -990,7 +990,8 @@ static uint64_t virtio_blk_get_features(VirtIODevice *vdev, uint64_t features,
         virtio_add_feature(&features, VIRTIO_BLK_F_SCSI);
     }
 
-    if (blk_enable_write_cache(s->blk)) {
+    if (blk_enable_write_cache(s->blk) ||
+        virtio_has_feature(features, VIRTIO_BLK_F_CONFIG_WCE)) {
         virtio_add_feature(&features, VIRTIO_BLK_F_WCE);
     }
     if (blk_is_read_only(s->blk)) {
