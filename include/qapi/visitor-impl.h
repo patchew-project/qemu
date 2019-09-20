@@ -88,6 +88,10 @@ struct Visitor
     void (*type_size)(Visitor *v, const char *name, uint64_t *obj,
                       Error **errp);
 
+    /* Optional; fallback is type_uint64() */
+    void (*type_time)(Visitor *v, const char *name, uint64_t *obj,
+                      Error **errp);
+
     /* Must be set */
     void (*type_bool)(Visitor *v, const char *name, bool *obj, Error **errp);
 

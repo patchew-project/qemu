@@ -35,6 +35,7 @@ builtin_types = {
     'uint32':   'QTYPE_QNUM',
     'uint64':   'QTYPE_QNUM',
     'size':     'QTYPE_QNUM',
+    'time':     'QTYPE_QNUM',
     'any':      None,           # any QType possible, actually
     'QType':    'QTYPE_QSTRING',
 }
@@ -1834,6 +1835,7 @@ class QAPISchema(object):
                   ('uint32', 'int',     'uint32_t'),
                   ('uint64', 'int',     'uint64_t'),
                   ('size',   'int',     'uint64_t'),
+                  ('time',   'int',     'uint64_t'),
                   ('bool',   'boolean', 'bool'),
                   ('any',    'value',   'QObject' + pointer_suffix),
                   ('null',   'null',    'QNull' + pointer_suffix)]:
