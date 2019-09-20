@@ -40,6 +40,8 @@
  */
 #define HMAT_PROX_INIT_VALID 0x1
 
+#define HMAT_IS_LATENCY(type) (type <= HMAT_LB_DATA_WRITE_LATENCY)
+
 void build_hmat(GArray *table_data, BIOSLinker *linker, NumaState *nstat);
 
 #endif
