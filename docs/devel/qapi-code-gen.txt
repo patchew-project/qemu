@@ -726,8 +726,8 @@ change in the QMP syntax (usually by allowing values or operations that
 previously resulted in an error). QMP clients may still need to know
 whether the extension is available.
 
-For this purpose, a list of features can be specified for a struct type.
-This is exposed to the client as a list of string, where each string
+For this purpose, a list of features can be specified for a command or struct
+type. This is exposed to the client as a list of strings, where each string
 signals that this build of QEMU shows a certain behaviour.
 
 In the schema, features can be specified as simple strings, for example:
