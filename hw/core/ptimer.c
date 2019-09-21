@@ -125,6 +125,9 @@ static void ptimer_reload(ptimer_state *s, int delta_adjust)
 
     s->last_event = s->next_event;
     s->next_event = s->last_event + delta * period;
+    /* Verify forward progress */
+    g_assert(s->next_event > s->last_event);
+
     if (period_frac) {
         s->next_event += ((int64_t)period_frac * delta) >> 32;
     }
