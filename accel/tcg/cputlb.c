@@ -904,7 +904,7 @@ static uint64_t io_readx(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     mr = section->mr;
     mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
     cpu->mem_io_pc = retaddr;
-    if (mr != &io_mem_notdirty && !cpu->can_do_io) {
+    if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
 
@@ -945,7 +945,7 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
     section = iotlb_to_section(cpu, iotlbentry->addr, iotlbentry->attrs);
     mr = section->mr;
     mr_offset = (iotlbentry->addr & TARGET_PAGE_MASK) + addr;
-    if (mr != &io_mem_notdirty && !cpu->can_do_io) {
+    if (!cpu->can_do_io) {
         cpu_io_recompile(cpu, retaddr);
     }
     cpu->mem_io_vaddr = addr;
@@ -1606,7 +1606,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         }
 
         /* Handle I/O access.  */
-        if (likely(tlb_addr & (TLB_MMIO | TLB_NOTDIRTY))) {
+        if (tlb_addr & TLB_MMIO) {
             io_writex(env, iotlbentry, mmu_idx, val, addr, retaddr,
                       op ^ (tlb_addr & TLB_BSWAP ? MO_BSWAP : 0));
             return;
@@ -1618,6 +1618,26 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
         }
 
         haddr = (void *)((uintptr_t)addr + entry->addend);
+
+        /* Handle clean RAM pages.  */
+        if (tlb_addr & TLB_NOTDIRTY) {
+            NotDirtyInfo ndi;
+
+            /* We require mem_io_pc in tb_invalidate_phys_page_range.  */
+            env_cpu(env)->mem_io_pc = retaddr;
+
+            memory_notdirty_write_prepare(&ndi, env_cpu(env), addr,
+                                          addr + iotlbentry->addr, size);
+
+            if (unlikely(tlb_addr & TLB_BSWAP)) {
+                direct_swap(haddr, val);
+            } else {
+                direct(haddr, val);
+            }
+
+            memory_notdirty_write_complete(&ndi);
+            return;
+        }
 
         if (unlikely(tlb_addr & TLB_BSWAP)) {
             direct_swap(haddr, val);
