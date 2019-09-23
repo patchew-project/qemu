@@ -925,13 +925,17 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
     reg->size_lo = 0;
 
     for (i = 0; i < PCI_NUM_REGIONS; i++) {
+        hwaddr addr;
+        int bar;
+
         if (!d->io_regions[i].size) {
             continue;
         }
 
+        bar = pci_bar(d, i);
         reg = &rp->reg[reg_idx++];
 
-        reg->phys_hi = cpu_to_be32(dev_id | b_rrrrrrrr(pci_bar(d, i)));
+        reg->phys_hi = cpu_to_be32(dev_id | b_rrrrrrrr(bar));
         if (d->io_regions[i].type & PCI_BASE_ADDRESS_SPACE_IO) {
             reg->phys_hi |= cpu_to_be32(b_ss(1));
         } else if (d->io_regions[i].type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
@@ -944,14 +948,15 @@ static void populate_resource_props(PCIDevice *d, ResourceProps *rp)
         reg->size_hi = cpu_to_be32(d->io_regions[i].size >> 32);
         reg->size_lo = cpu_to_be32(d->io_regions[i].size);
 
-        if (d->io_regions[i].addr == PCI_BAR_UNMAPPED) {
+        addr = pci_get_long(d->config + bar) & ~(d->io_regions[i].size - 1);
+        if (!addr) {
             continue;
         }
 
         assigned = &rp->assigned[assigned_idx++];
         assigned->phys_hi = cpu_to_be32(be32_to_cpu(reg->phys_hi) | b_n(1));
-        assigned->phys_mid = cpu_to_be32(d->io_regions[i].addr >> 32);
-        assigned->phys_lo = cpu_to_be32(d->io_regions[i].addr);
+        assigned->phys_mid = cpu_to_be32(addr >> 32);
+        assigned->phys_lo = cpu_to_be32(addr);
         assigned->size_hi = reg->size_hi;
         assigned->size_lo = reg->size_lo;
     }
@@ -1471,8 +1476,10 @@ static int spapr_dt_pci_device(SpaprPhbState *sphb, PCIDevice *dev,
 
     populate_resource_props(dev, &rp);
     _FDT(fdt_setprop(fdt, offset, "reg", (uint8_t *)rp.reg, rp.reg_len));
-    _FDT(fdt_setprop(fdt, offset, "assigned-addresses",
-                     (uint8_t *)rp.assigned, rp.assigned_len));
+    if (rp.assigned_len) {
+        _FDT(fdt_setprop(fdt, offset, "assigned-addresses",
+                         (uint8_t *)rp.assigned, rp.assigned_len));
+    }
 
     if (sphb->pcie_ecs && pci_is_express(dev)) {
         _FDT(fdt_setprop_cell(fdt, offset, "ibm,pci-config-space-type", 0x1));
