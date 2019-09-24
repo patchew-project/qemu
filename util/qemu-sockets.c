@@ -860,6 +860,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     struct sockaddr_un un;
     int sock, fd;
     char *pathbuf = NULL;
@@ -935,6 +936,7 @@ err:
 
 static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     struct sockaddr_un un;
     int sock, rc;
     size_t pathlen;
