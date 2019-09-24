@@ -766,6 +766,7 @@ static void vm_change_state_handler(void *opaque, int running,
 
 static void kvm_arm_gicv3_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     GICv3State *s = KVM_ARM_GICV3(dev);
     KVMARMGICv3Class *kgc = KVM_ARM_GICV3_GET_CLASS(s);
     bool multiple_redist_region_allowed;
