@@ -971,6 +971,7 @@ static bool migrate_caps_check(bool *cap_list,
                                MigrationCapabilityStatusList *params,
                                Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     MigrationCapabilityStatusList *cap;
     bool old_postcopy_cap;
     MigrationIncomingState *mis = migration_incoming_get_current();
