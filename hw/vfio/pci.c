@@ -2469,6 +2469,7 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
 
 static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
@@ -2700,6 +2701,7 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;

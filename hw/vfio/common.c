@@ -1437,6 +1437,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
 VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     VFIOGroup *group;
     char path[32];
     struct vfio_group_status status = { .argsz = sizeof(status) };
@@ -1526,6 +1527,7 @@ void vfio_put_group(VFIOGroup *group)
 int vfio_get_device(VFIOGroup *group, const char *name,
                     VFIODevice *vbasedev, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
     int ret, fd;
 
