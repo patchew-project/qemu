@@ -1,6 +1,14 @@
 /*
  * ARM AMBA PrimeCell PL031 RTC
  *
+ * Note from the maintainer:
+ *
+ * Don't use the pl031 code as a good model of how to do an RTC,
+ * it has some definite flaws. x86 or ppc RTC handling is probably
+ * a better place to look.
+ *
+ * See https://lists.gnu.org/archive/html/qemu-devel/2019-09/msg05399.html
+ *
  * Copyright (c) 2007 CodeSourcery
  *
  * This file is free software; you can redistribute it and/or modify
