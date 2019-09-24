@@ -260,6 +260,7 @@ restart:
         target_ulong pte = ldl_phys(cs->as, pte_addr);
 #elif defined(TARGET_RISCV64)
         target_ulong pte = ldq_phys(cs->as, pte_addr);
+        pte = pte << 10 >> 10;
 #endif
         hwaddr ppn = pte >> PTE_PPN_SHIFT;
 
