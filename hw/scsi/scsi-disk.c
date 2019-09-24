@@ -2597,6 +2597,7 @@ static int get_device_type(SCSIDiskState *s)
 
 static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     AioContext *ctx;
     int sg_version;
