@@ -634,4 +634,9 @@ struct AcpiIortRC {
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 
+struct AcpiSdei {
+    ACPI_TABLE_HEADER_DEF     /* ACPI common table header */
+} QEMU_PACKED;
+typedef struct AcpiSdei AcpiSdei;
+
 #endif
