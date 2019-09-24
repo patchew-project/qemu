@@ -153,6 +153,7 @@ static int nbd_receive_option_reply(QIOChannel *ioc, uint32_t opt,
 static int nbd_handle_reply_err(QIOChannel *ioc, NBDOptionReply *reply,
                                 bool strict, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     g_autofree char *msg = NULL;
 
     if (!(reply->type & (1 << 31))) {
