@@ -60,11 +60,11 @@
 #include <spice/enums.h>
 #endif
 
-void hmp_handle_error(Monitor *mon, Error **errp)
+void hmp_handle_error(Monitor *mon, Error **errp_in)
 {
-    assert(errp);
-    if (*errp) {
-        error_reportf_err(*errp, "Error: ");
+    assert(errp_in);
+    if (*errp_in) {
+        error_reportf_err(*errp_in, "Error: ");
     }
 }
 
