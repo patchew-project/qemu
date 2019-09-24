@@ -711,6 +711,8 @@ struct kvm_enable_cap {
 	__u8  pad[64];
 };
 
+#define KVM_CAP_FORWARD_HYPERCALL_EXCL_PSCI (1 << 0)
+
 /* for KVM_PPC_GET_PVINFO */
 
 #define KVM_PPC_PVINFO_FLAGS_EV_IDLE   (1<<0)
@@ -995,6 +997,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_ARM_SVE 170
 #define KVM_CAP_ARM_PTRAUTH_ADDRESS 171
 #define KVM_CAP_ARM_PTRAUTH_GENERIC 172
+#define KVM_CAP_FORWARD_HYPERCALL 174
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
