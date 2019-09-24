@@ -25,6 +25,8 @@ env:
       TARGET_LIST=mips64el-softmmu,mips64el-linux-user
     - IMAGE=debian-ppc64el-cross
       TARGET_LIST=ppc64-softmmu,ppc64-linux-user,ppc64abi32-linux-user
+    - IMAGE=fedora-win10sdk-cross
+      TARGET_LIST=x86_64-softmmu,i386-softmmu
 build:
   pre_ci:
     # usually host ARCH is set by configure
