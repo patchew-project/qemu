@@ -1,0 +1,1 @@
+tests/qapi-schema/string-unicode.json:2:14: non-ASCII character in string

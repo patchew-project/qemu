@@ -1,0 +1,1 @@
+tests/qapi-schema/string-control.json:2:14: control character \u007f in string
