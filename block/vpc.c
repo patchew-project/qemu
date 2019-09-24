@@ -971,6 +971,7 @@ static int calculate_rounded_image_size(BlockdevCreateOptionsVpc *vpc_opts,
 static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
                                       Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     BlockdevCreateOptionsVpc *vpc_opts;
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;

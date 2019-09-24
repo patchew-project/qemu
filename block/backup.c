@@ -583,6 +583,7 @@ static const BlockJobDriver backup_job_driver = {
 static int64_t backup_calculate_cluster_size(BlockDriverState *target,
                                              Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     int ret;
     BlockDriverInfo bdi;
 

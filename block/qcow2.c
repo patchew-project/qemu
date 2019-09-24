@@ -1207,6 +1207,7 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
 static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
                                       int flags, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     BDRVQcow2State *s = bs->opaque;
     unsigned int len, i;
     int ret = 0;
