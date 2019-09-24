@@ -145,6 +145,7 @@ static const QemuOptDesc *find_desc_by_name(const QemuOptDesc *desc,
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     uint64_t size;
     int err;
 
@@ -660,6 +661,7 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     QemuOpts *opts = NULL;
 
     if (id) {
