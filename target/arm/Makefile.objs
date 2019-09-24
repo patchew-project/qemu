@@ -7,6 +7,7 @@ obj-$(CONFIG_SOFTMMU) += machine.o arch_dump.o monitor.o
 obj-$(CONFIG_SOFTMMU) += arm-powerctl.o
 
 obj-$(CONFIG_KVM) += kvm.o
+obj-$(CONFIG_KVM) += sdei.o
 obj-$(call land,$(CONFIG_KVM),$(call lnot,$(TARGET_AARCH64))) += kvm32.o
 obj-$(call land,$(CONFIG_KVM),$(TARGET_AARCH64)) += kvm64.o
 obj-$(call lnot,$(CONFIG_KVM)) += kvm-stub.o
