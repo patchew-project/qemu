@@ -1817,6 +1817,7 @@ static void spapr_phb_destroy_msi(gpointer opaque)
 
 static void spapr_phb_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
      * tries to add a sPAPR PHB to a non-pseries machine.
      */

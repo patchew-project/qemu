@@ -609,6 +609,7 @@ static char *core99_get_via_config(Object *obj, Error **errp)
 
 static void core99_set_via_config(Object *obj, const char *value, Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     Core99MachineState *cms = CORE99_MACHINE(obj);
 
     if (!strcmp(value, "cuda")) {
