@@ -201,6 +201,7 @@ static int fit_load_fdt(const struct fit_loader *ldr, const void *itb,
     if (err == -ENOENT) {
         load_addr = ROUND_UP(kernel_end, 64 * KiB) + (10 * MiB);
         error_free(*errp);
+        *errp = NULL;
     } else if (err) {
         error_prepend(errp, "unable to read FDT load address from FIT: ");
         ret = err;
