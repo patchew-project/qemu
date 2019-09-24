@@ -1192,7 +1192,7 @@ Instead of @option{-fda}, @option{-fdb}, you can use:
 By default, @var{interface} is "ide" and @var{index} is automatically
 incremented:
 @example
-@value{qemu_system_x86} -drive file=a -drive file=b"
+@value{qemu_system_x86} -drive file=a -drive file=b
 @end example
 is interpreted like:
 @example
