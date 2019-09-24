@@ -258,10 +258,11 @@ restart:
         }
 #if defined(TARGET_RISCV32)
         target_ulong pte = ldl_phys(cs->as, pte_addr);
+        hwaddr ppn = pte >> PTE_PPN_SHIFT;
 #elif defined(TARGET_RISCV64)
         target_ulong pte = ldq_phys(cs->as, pte_addr);
+        hwaddr ppn = (pte & ~PTE_RESERVED) >> PTE_PPN_SHIFT;
 #endif
-        hwaddr ppn = pte >> PTE_PPN_SHIFT;
 
         if (!(pte & PTE_V)) {
             /* Invalid PTE */
