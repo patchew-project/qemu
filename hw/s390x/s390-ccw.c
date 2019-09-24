@@ -55,6 +55,7 @@ static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)
 {
+    ERRP_FUNCTION_BEGIN();
     unsigned int cssid, ssid, devid;
     char dev_path[PATH_MAX] = {0}, *tmp;
 
