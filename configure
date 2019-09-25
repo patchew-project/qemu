@@ -728,7 +728,7 @@ ARCH=
 # Normalise host CPU name and set ARCH.
 # Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  ppc|ppc64|s390|s390x|sparc64|x32|riscv32|riscv64)
+  ppc64|s390|s390x|sparc64|riscv64)
     supported_cpu="yes"
   ;;
   ppc64le)
@@ -737,7 +737,6 @@ case "$cpu" in
   ;;
   i386|i486|i586|i686|i86pc|BePC)
     cpu="i386"
-    supported_cpu="yes"
   ;;
   x86_64|amd64)
     cpu="x86_64"
@@ -745,19 +744,22 @@ case "$cpu" in
   ;;
   armv*b|armv*l|arm)
     cpu="arm"
-    supported_cpu="yes"
   ;;
   aarch64)
     cpu="aarch64"
     supported_cpu="yes"
   ;;
-  mips*)
+  mips64*)
     cpu="mips"
     supported_cpu="yes"
   ;;
+  mips*)
+    cpu="mips"
+  ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
-    supported_cpu="yes"
+  ;;
+  x32|riscv32)
   ;;
   *)
     # This will result in either an error or falling back to TCI later
@@ -6438,12 +6440,12 @@ if test "$supported_cpu" = "no"; then
     echo "WARNING: SUPPORT FOR THIS HOST CPU WILL GO AWAY IN FUTURE RELEASES!"
     echo
     echo "CPU host architecture $cpu support is not currently maintained."
-    echo "The QEMU project intends to remove support for this host CPU in"
-    echo "a future release if nobody volunteers to maintain it and to"
-    echo "provide a build host for our continuous integration setup."
-    echo "configure has succeeded and you can continue to build, but"
-    echo "if you care about QEMU on this platform you should contact"
-    echo "us upstream at qemu-devel@nongnu.org."
+    echo "The QEMU project intends to remove support for all 32 bit host"
+    echo "CPUs in a future release. 64 bit hosts will need a volunteer"
+    echo "to maintain it and to provide a build host for our continuous"
+    echo "integration setup. configure has succeeded and you can continue"
+    echo "to build, but if you care about QEMU on this platform you"
+    echo "should contact us upstream at qemu-devel@nongnu.org."
 fi
 
 if test "$supported_os" = "no"; then
