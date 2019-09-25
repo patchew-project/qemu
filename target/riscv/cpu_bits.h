@@ -470,6 +470,9 @@
 #define PTE_D               0x080 /* Dirty */
 #define PTE_SOFT            0x300 /* Reserved for Software */
 
+/* Reserved highest 10 bits in PTE */
+#define PTE_RESERVED        0xFFC0000000000000ULL
+
 /* Page table PPN shift amount */
 #define PTE_PPN_SHIFT       10
 
