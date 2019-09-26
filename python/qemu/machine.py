@@ -235,6 +235,8 @@ class QEMUMachine(object):
                 '-display', 'none', '-vga', 'none']
         if self._machine is not None:
             args.extend(['-machine', self._machine])
+        for i in range(self._console_id):
+            args.extend(['-serial', 'null'])
         if self._console_set:
             self._console_address = os.path.join(self._temp_dir,
                                                  self._name + "-console.sock")
@@ -495,7 +497,7 @@ class QEMUMachine(object):
         """
         self._machine = machine_type
 
-    def set_console(self, device_type=None):
+    def set_console(self, device_type=None, console_id=0):
         """
         Sets the device type for a console device
 
@@ -519,6 +521,7 @@ class QEMUMachine(object):
         """
         self._console_set = True
         self._console_device_type = device_type
+        self._console_id = console_id
 
     @property
     def console_socket(self):
