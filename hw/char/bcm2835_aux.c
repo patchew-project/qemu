@@ -27,6 +27,7 @@
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "trace.h"
 
 #define AUX_IRQ         0x0
 #define AUX_ENABLES     0x4
@@ -62,17 +63,24 @@ static void bcm2835_aux_update(BCM2835AuxState *s)
     qemu_set_irq(s->irq, s->iir != 0);
 }
 
+static bool is_16650(hwaddr offset)
+{
+    return offset >= AUX_MU_IO_REG && offset < AUX_MU_CNTL_REG;
+}
+
 static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
 {
     BCM2835AuxState *s = opaque;
-    uint32_t c, res;
+    uint32_t c, res = 0;
 
     switch (offset) {
     case AUX_IRQ:
-        return s->iir != 0;
+        res = s->iir != 0;
+        break;
 
     case AUX_ENABLES:
-        return 1; /* mini UART permanently enabled */
+        res = 1; /* mini UART permanently enabled */
+        break;
 
     case AUX_MU_IO_REG:
         /* "DLAB bit set means access baudrate register" is NYI */
@@ -85,11 +93,13 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
         }
         qemu_chr_fe_accept_input(&s->chr);
         bcm2835_aux_update(s);
-        return c;
+        res = c;
+        break;
 
     case AUX_MU_IER_REG:
         /* "DLAB bit set means access baudrate register" is NYI */
-        return 0xc0 | s->ier; /* FIFO enables always read 1 */
+        res = 0xc0 | s->ier; /* FIFO enables always read 1 */
+        break;
 
     case AUX_MU_IIR_REG:
         res = 0xc0; /* FIFO enables */
@@ -105,33 +115,34 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
         if (s->iir == 0) {
             res |= 0x1;
         }
-        return res;
+        break;
 
     case AUX_MU_LCR_REG:
         qemu_log_mask(LOG_UNIMP, "%s: AUX_MU_LCR_REG unsupported\n", __func__);
-        return 0;
+        break;
 
     case AUX_MU_MCR_REG:
         qemu_log_mask(LOG_UNIMP, "%s: AUX_MU_MCR_REG unsupported\n", __func__);
-        return 0;
+        break;
 
     case AUX_MU_LSR_REG:
         res = 0x60; /* tx idle, empty */
         if (s->read_count != 0) {
             res |= 0x1;
         }
-        return res;
+        break;
 
     case AUX_MU_MSR_REG:
         qemu_log_mask(LOG_UNIMP, "%s: AUX_MU_MSR_REG unsupported\n", __func__);
-        return 0;
+        break;
 
     case AUX_MU_SCRATCH:
         qemu_log_mask(LOG_UNIMP, "%s: AUX_MU_SCRATCH unsupported\n", __func__);
-        return 0;
+        break;
 
     case AUX_MU_CNTL_REG:
-        return 0x3; /* tx, rx enabled */
+        res = 0x3; /* tx, rx enabled */
+        break;
 
     case AUX_MU_STAT_REG:
         res = 0x30e; /* space in the output buffer, empty tx fifo, idle tx/rx */
@@ -140,17 +151,25 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
             assert(s->read_count < BCM2835_AUX_RX_FIFO_LEN);
             res |= ((uint32_t)s->read_count) << 16; /* rx fifo fill level */
         }
-        return res;
+        break;
 
     case AUX_MU_BAUD_REG:
         qemu_log_mask(LOG_UNIMP, "%s: AUX_MU_BAUD_REG unsupported\n", __func__);
-        return 0;
+        break;
 
     default:
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset %"HWADDR_PRIx"\n",
                       __func__, offset);
-        return 0;
+        break;
     }
+
+    if (is_16650(offset)) {
+        trace_serial_ioport_read((offset & 0x1f) >> 2, res);
+    } else {
+        trace_bcm2835_aux_read(offset, res);
+    }
+
+    return res;
 }
 
 static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
@@ -158,6 +177,12 @@ static void bcm2835_aux_write(void *opaque, hwaddr offset, uint64_t value,
 {
     BCM2835AuxState *s = opaque;
     unsigned char ch;
+
+    if (is_16650(offset)) {
+        trace_serial_ioport_write((offset & 0x1f) >> 2, value);
+    } else {
+        trace_bcm2835_aux_write(offset, value);
+    }
 
     switch (offset) {
     case AUX_ENABLES:
