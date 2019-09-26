@@ -410,6 +410,51 @@ class BootLinuxConsole(Test):
         self.exec_command_and_wait_for_pattern('reboot',
                                                'reboot: Restarting system')
 
+    def test_arm_raspi3_initrd_sd_temp(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:raspi3
+        """
+        tarball_url = ('https://github.com/sakaki-/bcmrpi3-kernel/releases/'
+                       'download/4.19.71.20190910/'
+                       'bcmrpi3-kernel-4.19.71.20190910.tar.xz')
+        tarball_hash = '844f117a1a6de0532ba92d2a7bceb5b2acfbb298'
+        tarball_path = self.fetch_asset(tarball_url, asset_hash=tarball_hash)
+        archive.extract(tarball_path, self.workdir)
+        dtb_path    = self.workdir + "/boot/bcm2837-rpi-3-b.dtb"
+        kernel_path = self.workdir + "/boot/kernel8.img"
+
+        rootfs_url = ('https://github.com/groeck/linux-build-test/raw/'
+                      '9b6b392ea7bc15f0d6632328d429d31c9c6273da/rootfs/'
+                      'arm64/rootfs.ext2.gz')
+        rootfs_hash = 'dbe4136f0b4a0d2180b93fd2a3b9a784f9951d10'
+        rootfs_path_gz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+        rootfs_path = self.workdir + "rootfs.ext2"
+        gunzip(rootfs_path_gz, rootfs_path)
+
+        self.vm.set_machine('raspi3')
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
+                               'earlycon=pl011,0x3f201000 console=ttyAMA0 ' +
+                               'root=/dev/mmcblk0 rootwait rw ' +
+                               'panic=-1 noreboot')
+        self.vm.add_args('-kernel', kernel_path,
+                         '-dtb', dtb_path,
+                         '-append', kernel_command_line,
+                         '-drive', 'file=' + rootfs_path + ',if=sd,format=raw',
+                         '-no-reboot')
+        self.vm.launch()
+
+        self.wait_for_console_pattern('Boot successful.')
+
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'Raspberry Pi 3 Model B')
+        self.exec_command_and_wait_for_pattern('cat /sys/devices/virtual/' +
+                                               'thermal/thermal_zone0/temp',
+                                               '25178')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
+
     def test_s390x_s390_ccw_virtio(self):
         """
         :avocado: tags=arch:s390x
