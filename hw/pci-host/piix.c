@@ -36,7 +36,6 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "hw/pci-host/pam.h"
-#include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "hw/i386/ioapic.h"
 #include "qapi/visitor.h"
@@ -562,9 +561,9 @@ static void piix3_write_config_xen(PCIDevice *dev,
     piix3_write_config(dev, address, val, len);
 }
 
-static void piix3_reset(void *opaque)
+static void piix3_reset(DeviceState *dev)
 {
-    PIIX3State *d = opaque;
+    PIIX3State *d = PIIX3_PCI_DEVICE(dev);
     uint8_t *pci_conf = d->dev.config;
 
     pci_conf[0x04] = 0x07; /* master, memory and I/O */
@@ -711,8 +710,6 @@ static void piix3_realize(PCIDevice *dev, Error **errp)
                           "piix3-reset-control", 1);
     memory_region_add_subregion_overlap(pci_address_space_io(dev), RCR_IOPORT,
                                         &d->rcr_mem, 1);
-
-    qemu_register_reset(piix3_reset, d);
 }
 
 static void pci_piix3_class_init(ObjectClass *klass, void *data)
@@ -723,6 +720,7 @@ static void pci_piix3_class_init(ObjectClass *klass, void *data)
     dc->desc        = "ISA bridge";
     dc->vmsd        = &vmstate_piix3;
     dc->hotpluggable   = false;
+    dc->reset       = piix3_reset;
     k->realize      = piix3_realize;
     k->vendor_id    = PCI_VENDOR_ID_INTEL;
     /* 82371SB PIIX3 PCI-to-ISA bridge (Step A1) */
