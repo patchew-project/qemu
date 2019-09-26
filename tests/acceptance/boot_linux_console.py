@@ -326,6 +326,7 @@ class BootLinuxConsole(Test):
         """
         serial_kernel_cmdline = {
             0: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
+            1: 'earlycon=uart8250,mmio32,0x3f215040 console=ttyS1,115200'
         }
         deb_url = ('http://archive.raspberrypi.org/debian/'
                    'pool/main/r/raspberrypi-firmware/'
@@ -336,7 +337,7 @@ class BootLinuxConsole(Test):
         dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
 
         self.vm.set_machine('raspi2')
-        self.vm.set_console()
+        self.vm.set_console(console_id=uart_id)
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                serial_kernel_cmdline[uart_id])
         self.vm.add_args('-kernel', kernel_path,
@@ -353,6 +354,14 @@ class BootLinuxConsole(Test):
         :avocado: tags=device:pl011
         """
         self.do_test_arm_raspi2(0)
+
+    def test_arm_raspi2_uart1(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi2
+        :avocado: tags=device:bcm2835_aux
+        """
+        self.do_test_arm_raspi2(1)
 
     def test_s390x_s390_ccw_virtio(self):
         """
