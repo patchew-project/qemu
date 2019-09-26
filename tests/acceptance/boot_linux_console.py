@@ -363,6 +363,53 @@ class BootLinuxConsole(Test):
         """
         self.do_test_arm_raspi2(1)
 
+    def test_arm_raspi3_initrd_uart0(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:raspi3
+        """
+        deb_url = ('https://snapshot.debian.org/archive/debian/'
+                   '20180106T174014Z/pool/main/l/linux/'
+                   'linux-image-4.14.0-3-arm64_4.14.12-2_arm64.deb')
+        deb_hash = 'e71c995de57921921895c1162baea5df527d1c6b'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        kernel_path = self.extract_from_deb(deb_path,
+                                            '/boot/vmlinuz-4.14.0-3-arm64')
+
+        dtb_url = ('https://github.com/raspberrypi/firmware/raw/'
+                   '1.20180313/boot/bcm2710-rpi-3-b.dtb')
+        dtb_hash = 'eb14d67133401ef2f93523be7341456d38bfc077'
+        dtb_path = self.fetch_asset(dtb_url, asset_hash=dtb_hash)
+
+        initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
+                      '9b6b392ea7bc15f0d6632328d429d31c9c6273da/rootfs/'
+                      'arm64/rootfs.cpio.gz')
+        initrd_hash = '6fd05324f17bb950196b5ad9d3a0fa996339f4cd'
+        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path = self.workdir + "rootfs.cpio"
+        gunzip(initrd_path_gz, initrd_path)
+
+        self.vm.set_machine('raspi3')
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
+                               'earlycon=pl011,0x3f201000 console=ttyAMA0 ' +
+                               'panic=-1 noreboot')
+        self.vm.add_args('-kernel', kernel_path,
+                         '-dtb', dtb_path,
+                         '-initrd', initrd_path,
+                         '-append', kernel_command_line,
+                         '-no-reboot')
+        self.vm.launch()
+
+        self.wait_for_console_pattern('Boot successful.')
+
+        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+                                               'BogoMIPS')
+        self.exec_command_and_wait_for_pattern('uname -a',
+                                               'Debian')
+        self.exec_command_and_wait_for_pattern('reboot',
+                                               'reboot: Restarting system')
+
     def test_s390x_s390_ccw_virtio(self):
         """
         :avocado: tags=arch:s390x
