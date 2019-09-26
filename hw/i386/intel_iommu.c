@@ -3567,6 +3567,13 @@ static void vtd_init(IntelIOMMUState *s)
 
     if (x86_iommu->dt_supported) {
         s->ecap |= VTD_ECAP_DT;
+        vtd_paging_entry_rsvd_field[1] &= ~(1ULL << 62);
+        vtd_paging_entry_rsvd_field[2] &= ~(1ULL << 62);
+        vtd_paging_entry_rsvd_field[3] &= ~(1ULL << 62);
+
+        vtd_paging_entry_rsvd_field[5] &= ~(1ULL << 62);
+        vtd_paging_entry_rsvd_field[6] &= ~(1ULL << 62);
+        vtd_paging_entry_rsvd_field[7] &= ~(1ULL << 62);
     }
 
     if (x86_iommu->pt_supported) {
