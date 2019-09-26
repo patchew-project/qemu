@@ -19,6 +19,11 @@ from avocado.utils import process
 from avocado.utils import archive
 
 
+def gunzip(in_pathname_gz, out_pathname):
+    with gzip.open(in_pathname_gz, 'rb') as f_in:
+        with open(out_pathname, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
 class BootLinuxConsole(Test):
     """
     Boots a Linux kernel and checks that the console is operational and the
@@ -166,10 +171,7 @@ class BootLinuxConsole(Test):
         initrd_hash = 'bf806e17009360a866bf537f6de66590de349a99'
         initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
         initrd_path = self.workdir + "rootfs.cpio"
-
-        with gzip.open(initrd_path_gz, 'rb') as f_in:
-            with open(initrd_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        gunzip(initrd_path_gz, initrd_path)
 
         self.vm.set_machine('malta')
         self.vm.set_console()
