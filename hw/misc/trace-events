@@ -149,3 +149,11 @@ bcm2835_mbox_write(unsigned int size, uint64_t addr, uint64_t value) "mbox write
 bcm2835_mbox_read(unsigned int size, uint64_t addr, uint64_t value) "mbox read sz:%u addr:0x%"PRIx64" data:0x%"PRIx64
 bcm2835_mbox_irq(unsigned level) "mbox irq:ARM level:%u"
 bcm2835_mbox_property(uint32_t tag, uint32_t bufsize, size_t resplen) "mbox property tag:0x%08x in_sz:%u out_sz:%zu"
+
+# bcm2835_cprman.c
+bcm2835_cprman_read(unsigned size, uint64_t offset, const char *reg_type, const char *reg_name1, const char *reg_name2, uint32_t value) "cprman: rd%u @0x%03" PRIx64 " %s %s.%s val:0x%x"
+bcm2835_cprman_write_pm(uint64_t offset, const char *reg_name, uint32_t value) "pm: wr @0x%03" PRIx64 " %s val:0x%x"
+bcm2835_cprman_write_cm_generic(const char *reg_name, uint32_t val) "cprman: wr %s 0x%08x"
+bcm2835_cprman_write_cm_div(const char *reg_name, uint32_t v0, uint32_t v1) "cprman: wr %s.DIV float:%u.%u"
+bcm2835_cprman_write_cm_ctl(const char *reg_name, const char *src, uint32_t ena) "cprman: wr %s.CTL src:%s enabled:%u"
+bcm2835_cprman_write_a2w(uint64_t offset, const char *reg_name, const char *pll_name, uint32_t value) "a2w: wr @0x%03" PRIx64 " %s.%s val:0x%x"
