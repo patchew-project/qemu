@@ -13,7 +13,6 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
-#include "sysemu/reset.h"
 #include "hw/nvram/fw_cfg.h"
 #include "migration/vmstate.h"
 #include "hw/misc/vmcoreinfo.h"
@@ -26,7 +25,7 @@ static void fw_cfg_vmci_write(void *dev, off_t offset, size_t len)
         && s->vmcoreinfo.guest_format != FW_CFG_VMCOREINFO_FORMAT_NONE;
 }
 
-static void vmcoreinfo_reset(void *dev)
+static void vmcoreinfo_reset(DeviceState *dev)
 {
     VMCoreInfoState *s = VMCOREINFO(dev);
 
@@ -61,7 +60,6 @@ static void vmcoreinfo_realize(DeviceState *dev, Error **errp)
                              NULL, fw_cfg_vmci_write, s,
                              &s->vmcoreinfo, sizeof(s->vmcoreinfo), false);
 
-    qemu_register_reset(vmcoreinfo_reset, dev);
     vmcoreinfo_state = s;
 }
 
@@ -84,6 +82,7 @@ static void vmcoreinfo_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_vmcoreinfo;
+    dc->reset = vmcoreinfo_reset;
     dc->realize = vmcoreinfo_realize;
     dc->hotpluggable = false;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
