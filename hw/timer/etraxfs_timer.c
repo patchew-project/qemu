@@ -24,7 +24,6 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
-#include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
@@ -307,9 +306,9 @@ static const MemoryRegionOps timer_ops = {
     }
 };
 
-static void etraxfs_timer_reset(void *opaque)
+static void etraxfs_timer_reset(DeviceState *dev)
 {
-    ETRAXTimerState *t = opaque;
+    ETRAXTimerState *t = ETRAX_TIMER(dev);
 
     ptimer_stop(t->ptimer_t0);
     ptimer_stop(t->ptimer_t1);
@@ -338,13 +337,13 @@ static void etraxfs_timer_realize(DeviceState *dev, Error **errp)
     memory_region_init_io(&t->mmio, OBJECT(t), &timer_ops, t,
                           "etraxfs-timer", 0x5c);
     sysbus_init_mmio(sbd, &t->mmio);
-    qemu_register_reset(etraxfs_timer_reset, t);
 }
 
 static void etraxfs_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = etraxfs_timer_reset;
     dc->realize = etraxfs_timer_realize;
 }
 
