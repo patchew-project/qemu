@@ -45,7 +45,6 @@
 #include "hw/mips/mips.h"
 #include "hw/pci/pci_host.h"
 #include "migration/vmstate.h"
-#include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
 
@@ -570,9 +569,9 @@ static int pci_bonito_map_irq(PCIDevice * pci_dev, int irq_num)
     }
 }
 
-static void bonito_reset(void *opaque)
+static void bonito_reset(DeviceState *dev)
 {
-    PCIBonitoState *s = opaque;
+    PCIBonitoState *s = PCI_BONITO(dev);
 
     /* set the default value of north bridge registers */
 
@@ -671,8 +670,6 @@ static void bonito_realize(PCIDevice *dev, Error **errp)
     pci_set_byte(dev->config + PCI_INTERRUPT_PIN, 0x01);
     pci_set_byte(dev->config + PCI_MIN_GNT, 0x3c);
     pci_set_byte(dev->config + PCI_MAX_LAT, 0x00);
-
-    qemu_register_reset(bonito_reset, s);
 }
 
 PCIBus *bonito_init(qemu_irq *pic)
@@ -703,6 +700,7 @@ static void bonito_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->reset = bonito_reset;
     k->realize = bonito_realize;
     k->vendor_id = 0xdf53;
     k->device_id = 0x00d5;
