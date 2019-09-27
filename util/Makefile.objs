@@ -54,5 +54,8 @@ util-obj-$(CONFIG_INOTIFY1) += filemonitor-inotify.o
 util-obj-$(CONFIG_LINUX) += vfio-helpers.o
 util-obj-$(CONFIG_POSIX) += drm.o
 util-obj-y += guest-random.o
+util-obj-$(CONFIG_GIO) += dbus.o
+dbus.o-cflags = $(GIO_CFLAGS)
+dbus.o-libs = $(GIO_LIBS)
 
 stub-obj-y += filemonitor-stub.o
