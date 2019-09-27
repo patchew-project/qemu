@@ -315,7 +315,7 @@ static void spapr_tce_table_realize(DeviceState *dev, Error **errp)
 
     QLIST_INSERT_HEAD(&spapr_tce_tables, tcet, list);
 
-    vmstate_register(DEVICE(tcet), tcet->liobn, &vmstate_spapr_tce_table,
+    vmstate_register(VMSTATE_IF(tcet), tcet->liobn, &vmstate_spapr_tce_table,
                      tcet);
 }
 
@@ -418,7 +418,7 @@ static void spapr_tce_table_unrealize(DeviceState *dev, Error **errp)
 {
     SpaprTceTable *tcet = SPAPR_TCE_TABLE(dev);
 
-    vmstate_unregister(DEVICE(tcet), &vmstate_spapr_tce_table, tcet);
+    vmstate_unregister(VMSTATE_IF(tcet), &vmstate_spapr_tce_table, tcet);
 
     QLIST_REMOVE(tcet, list);
 
