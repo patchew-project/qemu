@@ -648,6 +648,10 @@ static int nbd_send_meta_query(QIOChannel *ioc, uint32_t opt,
     if (query) {
         query_len = strlen(query);
         data_len += sizeof(query_len) + query_len;
+        if (query_len > NBD_MAX_STRING_SIZE) {
+            error_setg(errp, "x_dirty_bitmap query too long to send to server");
+            return -1;
+        }
     } else {
         assert(opt == NBD_OPT_LIST_META_CONTEXT);
     }
@@ -1010,6 +1014,10 @@ int nbd_receive_negotiate(AioContext *aio_context, QIOChannel *ioc,
     bool base_allocation = info->base_allocation;
 
     assert(info->name);
+    if (strlen(info->name) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "name too long to send to server");
+        return -EINVAL;
+    }
     trace_nbd_receive_negotiate_name(info->name);
 
     result = nbd_start_negotiate(aio_context, ioc, tlscreds, hostname, outioc,

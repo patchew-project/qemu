@@ -232,6 +232,7 @@ enum {
  * going larger would require an audit of more code to make sure we
  * aren't overflowing some other buffer. */
 #define NBD_MAX_NAME_SIZE 256
+#define NBD_MAX_STRING_SIZE 4096
 
 /* Two types of reply structures */
 #define NBD_SIMPLE_REPLY_MAGIC      0x67446698
