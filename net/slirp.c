@@ -456,7 +456,7 @@ static int net_slirp_init(NetClientState *peer, const char *model,
         error_setg(errp, "Failed to parse DNS");
         return -1;
     }
-    if ((dns.s_addr & mask.s_addr) != net.s_addr) {
+    if (restricted && (dns.s_addr & mask.s_addr) != net.s_addr) {
         error_setg(errp, "DNS doesn't belong to network");
         return -1;
     }
