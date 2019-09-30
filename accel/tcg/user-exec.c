@@ -143,9 +143,12 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
      * for some other kind of fault that should really be passed to the
      * guest, we'd end up in an infinite loop of retrying the faulting
      * access.
+     *
+     * XXX: At least one host kernel, ppc64le w/Centos 7 4.14.0-115.6.1,
+     * incorrectly reports SEGV_MAPERR for a STDX write to a read-only page.
+     * Therefore, do not test info->si_code.
      */
-    if (is_write && info->si_signo == SIGSEGV && info->si_code == SEGV_ACCERR &&
-        h2g_valid(address)) {
+    if (is_write && info->si_signo == SIGSEGV && h2g_valid(address)) {
         switch (page_unprotect(h2g(address), pc)) {
         case 0:
             /* Fault not caused by a page marked unwritable to protect
