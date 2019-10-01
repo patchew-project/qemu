@@ -1471,6 +1471,7 @@ static void local_cleanup(FsContext *ctx)
 
 static void error_append_security_model_hint(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     error_append_hint(errp, "Valid options are: security_model="
                       "[passthrough|mapped-xattr|mapped-file|none]\n");
 }
