@@ -1005,6 +1005,24 @@ static inline uint32_t do_mvcl(CPUS390XState *env,
     return *destlen ? 3 : cc;
 }
 
+static inline bool should_interrupt_instruction(CPUState *cs)
+{
+    /*
+     * Something asked us to stop executing chained TBs, e.g.,
+     * cpu_interrupt() or cpu_exit().
+     */
+    if ((int32_t)atomic_read(&cpu_neg(cs)->icount_decr.u32) < 0) {
+        return true;
+    }
+
+    /* We have a deliverable interrupt pending. */
+    if ((atomic_read(&cs->interrupt_request) & CPU_INTERRUPT_HARD) &&
+        s390_cpu_has_int(S390_CPU(cs))) {
+        return true;
+    }
+    return false;
+}
+
 /* move long */
 uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
 {
@@ -1015,6 +1033,7 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
     uint64_t src = get_address(env, r2);
     uint8_t pad = env->regs[r2 + 1] >> 24;
+    CPUState *cs = env_cpu(env);
     S390Access srca, desta;
     uint32_t cc, cur_len;
 
@@ -1065,7 +1084,14 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
         env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
         set_address_zero(env, r1, dest);
 
-        /* TODO: Deliver interrupts. */
+        /*
+         * MVCL is interruptible. Check if there is any irq, and if so,
+         * return to the main loop where we can process it. In case we
+         * don't deliver an interrupt, we'll end up back in this handler.
+         */
+        if (unlikely(should_interrupt_instruction(cs))) {
+            cpu_loop_exit_restore(cs, ra);
+        }
     }
     return cc;
 }
