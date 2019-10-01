@@ -1264,12 +1264,13 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
      * allocating cluster in the image file.  Note that this value may exceed
      * BDRV_REQUEST_MAX_BYTES (even when the original read did not), which
      * is one reason we loop rather than doing it all at once.
+     * Also, this is crucial for compressed copy-on-read.
      */
     bdrv_round_to_clusters(bs, offset, bytes, &cluster_offset, &cluster_bytes);
     skip_bytes = offset - cluster_offset;
 
     trace_bdrv_co_do_copy_on_readv(bs, offset, bytes,
-                                   cluster_offset, cluster_bytes);
+                                   cluster_offset, cluster_bytes, flags);
 
     while (cluster_bytes) {
         int64_t pnum;
@@ -1328,9 +1329,15 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
                 /* This does not change the data on the disk, it is not
                  * necessary to flush even in cache=writethrough mode.
                  */
-                ret = bdrv_driver_pwritev(bs, cluster_offset, pnum,
-                                          &local_qiov, 0,
-                                          BDRV_REQ_WRITE_UNCHANGED);
+                if (flags & BDRV_REQ_WRITE_COMPRESSED) {
+                    ret = bdrv_driver_pwritev_compressed(bs, cluster_offset,
+                                                         pnum, &local_qiov,
+                                                         qiov_offset);
+                } else {
+                    ret = bdrv_driver_pwritev(bs, cluster_offset, pnum,
+                                              &local_qiov, 0,
+                                              BDRV_REQ_WRITE_UNCHANGED);
+                }
             }
 
             if (ret < 0) {
@@ -1396,7 +1403,11 @@ static int coroutine_fn bdrv_aligned_preadv(BdrvChild *child,
      * to pass through to drivers.  For now, there aren't any
      * passthrough flags.  */
     assert(!(flags & ~(BDRV_REQ_NO_SERIALISING | BDRV_REQ_COPY_ON_READ |
-                       BDRV_REQ_PREFETCH)));
+                       BDRV_REQ_PREFETCH | BDRV_REQ_WRITE_COMPRESSED)));
+
+    /* write compressed only makes sense with copy on read */
+    assert(!(flags & BDRV_REQ_WRITE_COMPRESSED) ||
+           (flags & BDRV_REQ_COPY_ON_READ));
 
     /* Handle Copy on Read and associated serialisation */
     if (flags & BDRV_REQ_COPY_ON_READ) {
