@@ -1659,6 +1659,7 @@ static void pnv_xive_init(Object *obj)
 
 static void pnv_xive_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvXive *xive = PNV_XIVE(dev);
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
