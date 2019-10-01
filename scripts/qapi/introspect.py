@@ -11,6 +11,9 @@ See the COPYING file in the top-level directory.
 """
 
 from qapi.common import *
+from qapi.gen import QAPISchemaMonolithicCVisitor
+from qapi.schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
+                         QAPISchemaType)
 
 
 def to_qlit(obj, level=0, suppress_first_indent=False):
