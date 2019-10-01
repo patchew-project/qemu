@@ -191,7 +191,7 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
     }
 
     exp = nbd_export_new(bs, 0, len, name, NULL, bitmap, !writable, !writable,
-                         NULL, false, on_eject_blk, errp);
+                         0, NULL, false, on_eject_blk, errp);
     if (!exp) {
         goto out;
     }

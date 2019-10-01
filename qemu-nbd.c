@@ -139,6 +139,7 @@ static void usage(const char *name)
 "      --discard=MODE        set discard mode (ignore, unmap)\n"
 "      --detect-zeroes=MODE  set detect-zeroes mode (off, on, unmap)\n"
 "      --image-opts          treat FILE as a full set of image options\n"
+"  -C, --compress            use data compression (if the target format supports it)\n"
 "\n"
 QEMU_HELP_BOTTOM "\n"
     , name, name, NBD_DEFAULT_PORT, "DEVICE");
@@ -602,6 +603,7 @@ int main(int argc, char **argv)
     BlockDriverState *bs;
     uint64_t dev_offset = 0;
     bool readonly = false;
+    uint32_t iflags = 0;
     bool disconnect = false;
     const char *bindto = NULL;
     const char *port = NULL;
@@ -610,7 +612,7 @@ int main(int argc, char **argv)
     int64_t fd_size;
     QemuOpts *sn_opts = NULL;
     const char *sn_id_or_name = NULL;
-    const char *sopt = "hVb:o:p:rsnP:c:dvk:e:f:tl:x:T:D:B:L";
+    const char *sopt = "hVb:o:p:CrsnP:c:dvk:e:f:tl:x:T:D:B:L";
     struct option lopt[] = {
         { "help", no_argument, NULL, 'h' },
         { "version", no_argument, NULL, 'V' },
@@ -619,6 +621,7 @@ int main(int argc, char **argv)
         { "socket", required_argument, NULL, 'k' },
         { "offset", required_argument, NULL, 'o' },
         { "read-only", no_argument, NULL, 'r' },
+        { "compress", no_argument, NULL, 'C'},
         { "partition", required_argument, NULL, 'P' },
         { "bitmap", required_argument, NULL, 'B' },
         { "connect", required_argument, NULL, 'c' },
@@ -785,6 +788,9 @@ int main(int argc, char **argv)
         case 'r':
             readonly = true;
             flags &= ~BDRV_O_RDWR;
+            break;
+        case 'C':
+            iflags |= NBD_INTERNAL_FLAG_COMPRESS;
             break;
         case 'P':
             warn_report("The '-P' option is deprecated; use --image-opts with "
@@ -1117,6 +1123,14 @@ int main(int argc, char **argv)
 
     blk_set_enable_write_cache(blk, !writethrough);
 
+    if ((iflags & NBD_INTERNAL_FLAG_COMPRESS) &&
+        !(bs->drv && bs->drv->bdrv_co_pwritev_compressed_part))
+    {
+        error_report("Compression not supported for this file format %s",
+                     argv[optind]);
+        exit(EXIT_FAILURE);
+    }
+
     if (sn_opts) {
         ret = bdrv_snapshot_load_tmp(bs,
                                      qemu_opt_get(sn_opts, SNAPSHOT_OPT_ID),
@@ -1175,7 +1189,7 @@ int main(int argc, char **argv)
 
     export = nbd_export_new(bs, dev_offset, fd_size, export_name,
                             export_description, bitmap, readonly, shared > 1,
-                            nbd_export_closed, writethrough, NULL,
+                            iflags, nbd_export_closed, writethrough, NULL,
                             &error_fatal);
 
     if (device) {

@@ -25,6 +25,10 @@
 #include "crypto/tlscreds.h"
 #include "qapi/error.h"
 
+enum {
+  NBD_INTERNAL_FLAG_COMPRESS = 1 << 1, /* Use write compressed */
+};
+
 /* Handshake phase structs - this struct is passed on the wire */
 
 struct NBDOption {
@@ -330,7 +334,8 @@ typedef struct NBDClient NBDClient;
 
 NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
                           uint64_t size, const char *name, const char *desc,
-                          const char *bitmap, bool readonly, bool shared,
+                          const char *bitmap, bool readonly,
+                          bool shared, uint32_t iflags,
                           void (*close)(NBDExport *), bool writethrough,
                           BlockBackend *on_eject_blk, Error **errp);
 void nbd_export_close(NBDExport *exp);

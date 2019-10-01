@@ -55,6 +55,8 @@ Force the use of the block driver for format @var{fmt} instead of
 auto-detecting.
 @item -r, --read-only
 Export the disk as read-only.
+@item -C, --compress
+Use data compression (if the target format supports it)
 @item -P, --partition=@var{num}
 Deprecated: Only expose MBR partition @var{num}.  Understands physical
 partitions 1-4 and logical partition 5. New code should instead use
