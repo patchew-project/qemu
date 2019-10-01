@@ -221,6 +221,7 @@ static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     Error *local_err = NULL;
     Property *prop = opaque;

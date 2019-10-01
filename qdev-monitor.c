@@ -328,6 +328,7 @@ static Object *qdev_get_peripheral_anon(void)
 
 static void qbus_list_bus(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BusState *child;
     const char *sep = " ";
 
@@ -342,6 +343,7 @@ static void qbus_list_bus(DeviceState *dev, Error **errp)
 
 static void qbus_list_dev(BusState *bus, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BusChild *kid;
     const char *sep = " ";
 
