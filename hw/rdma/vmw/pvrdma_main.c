@@ -592,6 +592,7 @@ static void pvrdma_shutdown_notifier(Notifier *n, void *opaque)
 
 static void pvrdma_realize(PCIDevice *pdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int rc = 0;
     PVRDMADev *dev = PVRDMA_DEV(pdev);
     Object *memdev_root;
