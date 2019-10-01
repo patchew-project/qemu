@@ -3238,6 +3238,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
                       bool has_base_node, const char *base_node,
                       bool has_backing_file, const char *backing_file,
                       bool has_speed, int64_t speed,
+                      bool has_compress, bool compress,
                       bool has_on_error, BlockdevOnError on_error,
                       bool has_auto_finalize, bool auto_finalize,
                       bool has_auto_dismiss, bool auto_dismiss,
@@ -3252,6 +3253,10 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
 
     if (!has_on_error) {
         on_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+
+    if (!has_compress) {
+        compress = false;
     }
 
     bs = bdrv_lookup_bs(device, device, errp);
@@ -3308,6 +3313,12 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         goto out;
     }
 
+    if (compress && bs->drv->bdrv_co_pwritev_compressed_part == NULL) {
+        error_setg(errp, "Compression is not supported for this drive %s",
+                   bdrv_get_device_name(bs));
+        goto out;
+    }
+
     /* backing_file string overrides base bs filename */
     base_name = has_backing_file ? backing_file : base_name;
 
@@ -3319,7 +3330,8 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     }
 
     stream_start(has_job_id ? job_id : NULL, bs, base_bs, base_name,
-                 job_flags, has_speed ? speed : 0, on_error, &local_err);
+                 job_flags, has_speed ? speed : 0, compress, on_error,
+                 &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;

@@ -36,15 +36,21 @@ typedef struct StreamBlockJob {
     char *backing_file_str;
     bool bs_read_only;
     bool chain_frozen;
+    bool compress;
 } StreamBlockJob;
 
-static int coroutine_fn stream_populate(BlockBackend *blk,
-                                        int64_t offset, uint64_t bytes)
+static int coroutine_fn stream_populate(BlockBackend *blk, int64_t offset,
+                                        uint64_t bytes, bool compress)
 {
+    int flags = BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH;
+
+    if (compress) {
+        flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
+
     assert(bytes < SIZE_MAX);
 
-    return blk_co_preadv(blk, offset, bytes, NULL,
-                         BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH);
+    return blk_co_preadv(blk, offset, bytes, NULL, flags);
 }
 
 static void stream_abort(Job *job)
@@ -167,7 +173,7 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
         }
         trace_stream_one_iteration(s, offset, n, ret);
         if (copy) {
-            ret = stream_populate(blk, offset, n);
+            ret = stream_populate(blk, offset, n, s->compress);
         }
         if (ret < 0) {
             BlockErrorAction action =
@@ -217,7 +223,7 @@ static const BlockJobDriver stream_job_driver = {
 
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int creation_flags, int64_t speed,
+                  int creation_flags, int64_t speed, bool compress,
                   BlockdevOnError on_error, Error **errp)
 {
     StreamBlockJob *s;
@@ -267,6 +273,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     s->backing_file_str = g_strdup(backing_file_str);
     s->bs_read_only = bs_read_only;
     s->chain_frozen = true;
+    s->compress = compress;
 
     s->on_error = on_error;
     trace_stream_start(bs, base, s);

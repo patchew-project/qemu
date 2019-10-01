@@ -2025,11 +2025,12 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     const char *base = qdict_get_try_str(qdict, "base");
     int64_t speed = qdict_get_try_int(qdict, "speed", 0);
+    bool compress = qdict_get_try_bool(qdict, "compress", false);
 
     qmp_block_stream(true, device, device, base != NULL, base, false, NULL,
                      false, NULL, qdict_haskey(qdict, "speed"), speed, true,
-                     BLOCKDEV_ON_ERROR_REPORT, false, false, false, false,
-                     &error);
+                     compress, true, BLOCKDEV_ON_ERROR_REPORT,
+                     false, false, false, false, &error);
 
     hmp_handle_error(mon, &error);
 }
