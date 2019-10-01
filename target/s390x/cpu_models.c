@@ -840,6 +840,7 @@ static void error_prepend_missing_feat(const char *name, void *opaque)
 static void check_compatibility(const S390CPUModel *max_model,
                                 const S390CPUModel *model, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     S390FeatBitmap missing;
 
     if (model->def->gen > max_model->def->gen) {
@@ -922,6 +923,7 @@ static inline void apply_cpu_model(const S390CPUModel *model, Error **errp)
 
 void s390_realize_cpu_model(CPUState *cs, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     S390CPUClass *xcc = S390_CPU_GET_CLASS(cs);
     S390CPU *cpu = S390_CPU(cs);
     const S390CPUModel *max_model;
