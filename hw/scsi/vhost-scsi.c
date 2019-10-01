@@ -165,6 +165,7 @@ static const VMStateDescription vmstate_virtio_vhost_scsi = {
 
 static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(dev);
     Error *err = NULL;

@@ -653,6 +653,7 @@ static void scsi_generic_reset(DeviceState *dev)
 
 static void scsi_generic_realize(SCSIDevice *s, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int rc;
     int sg_version;
     struct sg_scsi_id scsiid;
