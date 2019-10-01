@@ -570,6 +570,7 @@ static void xive_tctx_reset(void *dev)
 
 static void xive_tctx_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveTCTX *tctx = XIVE_TCTX(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
@@ -1050,6 +1051,7 @@ static void xive_source_reset(void *dev)
 
 static void xive_source_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveSource *xsrc = XIVE_SOURCE(dev);
     Object *obj;
     Error *local_err = NULL;
@@ -1806,6 +1808,7 @@ static const MemoryRegionOps xive_end_source_ops = {
 
 static void xive_end_source_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveENDSource *xsrc = XIVE_END_SOURCE(dev);
     Object *obj;
     Error *local_err = NULL;
