@@ -85,6 +85,7 @@ static void m2sxxx_soc_initfn(Object *obj)
 
 static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MSF2State *s = MSF2_SOC(dev_soc);
     DeviceState *dev, *armv7m;
     SysBusDevice *busdev;
