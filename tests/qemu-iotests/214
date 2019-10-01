@@ -89,6 +89,15 @@ _check_test_img -r all
 $QEMU_IO -c "read  -P 0x11  0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 $QEMU_IO -c "read  -P 0x22 4M 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
+echo
+echo "=== Write compressed data to multiple clusters ==="
+echo
+# Create an empty image and fill three and half clusters with compressed data.
+_make_test_img 2M -o cluster_size=0x10000
+data_size=3*0x10000+0x8000
+$QEMU_IO -c "write -c -P 0x11 0 256k" "$TEST_IMG" \
+         2>&1 | _filter_qemu_io | _filter_testdir
+
 # success, all done
 echo '*** done'
 rm -f $seq.full
