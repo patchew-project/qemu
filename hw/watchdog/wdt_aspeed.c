@@ -243,6 +243,7 @@ static void aspeed_wdt_timer_expired(void *dev)
 
 static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedWDTState *s = ASPEED_WDT(dev);
     Error *err = NULL;
