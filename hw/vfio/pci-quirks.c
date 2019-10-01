@@ -2139,6 +2139,7 @@ const PropertyInfo qdev_prop_nv_gpudirect_clique = {
 
 static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDevice *pdev = &vdev->pdev;
     int ret, pos = 0xC8;
 
