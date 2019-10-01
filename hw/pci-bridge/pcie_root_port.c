@@ -60,6 +60,7 @@ static void rp_reset(DeviceState *qdev)
 
 static void rp_realize(PCIDevice *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIEPort *p = PCIE_PORT(d);
     PCIESlot *s = PCIE_SLOT(d);
     PCIDeviceClass *dc = PCI_DEVICE_GET_CLASS(d);
