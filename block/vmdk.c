@@ -1078,6 +1078,7 @@ static const char *next_line(const char *s)
 static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                               QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     int matches;
     char access[11];

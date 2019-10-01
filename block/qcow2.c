@@ -1207,6 +1207,7 @@ static int qcow2_update_options(BlockDriverState *bs, QDict *options,
 static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
                                       int flags, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVQcow2State *s = bs->opaque;
     unsigned int len, i;
     int ret = 0;
@@ -3036,6 +3037,7 @@ static uint64_t qcow2_opt_get_refcount_bits_del(QemuOpts *opts, int version,
 static int coroutine_fn
 qcow2_co_create(BlockdevCreateOptions *create_options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptionsQcow2 *qcow2_opts;
     QDict *options;
 
@@ -3740,6 +3742,7 @@ fail:
 static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
                                           PreallocMode prealloc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVQcow2State *s = bs->opaque;
     uint64_t old_length;
     int64_t new_l1_size;

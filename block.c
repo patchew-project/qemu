@@ -1565,6 +1565,7 @@ fail_opts:
 
 static QDict *parse_json_filename(const char *filename, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QObject *options_obj;
     QDict *options;
     int ret;
@@ -2592,6 +2593,7 @@ out:
 int bdrv_open_backing_file(BlockDriverState *bs, QDict *parent_options,
                            const char *bdref_key, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     char *backing_filename = NULL;
     char *bdref_key_dot;
     const char *reference = NULL;
@@ -2823,6 +2825,7 @@ static BlockDriverState *bdrv_append_temp_snapshot(BlockDriverState *bs,
                                                    QDict *snapshot_options,
                                                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     /* TODO: extra byte is a hack to ensure MAX_PATH space on Windows. */
     char *tmp_filename = g_malloc0(PATH_MAX + 1);
     int64_t total_size;

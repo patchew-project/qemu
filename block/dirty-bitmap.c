@@ -237,6 +237,7 @@ static bool bdrv_dirty_bitmap_recording(BdrvDirtyBitmap *bitmap)
 int bdrv_dirty_bitmap_check(const BdrvDirtyBitmap *bitmap, uint32_t flags,
                             Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     if ((flags & BDRV_BITMAP_BUSY) && bdrv_dirty_bitmap_busy(bitmap)) {
         error_setg(errp, "Bitmap '%s' is currently in use by another"
                    " operation and cannot be used", bitmap->name);

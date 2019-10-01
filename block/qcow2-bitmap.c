@@ -1618,6 +1618,7 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
                                       uint32_t granularity,
                                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVQcow2State *s = bs->opaque;
     bool found;
     Qcow2BitmapList *bm_list;

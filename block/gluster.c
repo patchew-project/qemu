@@ -419,6 +419,7 @@ out:
 static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                                            Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct glfs *glfs;
     int ret;
     int old_errno;
@@ -694,6 +695,7 @@ static int qemu_gluster_parse(BlockdevOptionsGluster *gconf,
                               const char *filename,
                               QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     if (filename) {
         ret = qemu_gluster_parse_uri(gconf, filename);

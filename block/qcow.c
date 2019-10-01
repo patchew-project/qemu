@@ -117,6 +117,7 @@ static QemuOptsList qcow_runtime_opts = {
 static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVQcowState *s = bs->opaque;
     unsigned int len, i, shift;
     int ret;

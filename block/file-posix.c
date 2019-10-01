@@ -320,6 +320,7 @@ static bool raw_is_io_aligned(int fd, void *buf, size_t len)
 
 static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     char *buf;
     size_t max_align = MAX(MAX_BLOCKSIZE, getpagesize());
@@ -473,6 +474,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                            int bdrv_flags, int open_flags,
                            bool device, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     QemuOpts *opts;
     Error *local_err = NULL;
@@ -817,6 +819,7 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
                                 uint64_t new_perm, uint64_t new_shared,
                                 Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     int ret = 0;
     Error *local_err = NULL;
@@ -2232,6 +2235,7 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
 static int coroutine_fn
 raw_co_create(BlockdevCreateOptions *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptionsFile *file_opts;
     Error *local_err = NULL;
     int fd;

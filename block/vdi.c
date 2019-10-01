@@ -735,6 +735,7 @@ nonallocating_write:
 static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
                                          size_t block_size, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
     uint64_t bytes = 0;
