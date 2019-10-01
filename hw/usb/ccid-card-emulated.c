@@ -488,6 +488,7 @@ static uint32_t parse_enumeration(char *str,
 
 static void emulated_realize(CCIDCardState *base, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     EmulatedState *card = EMULATED_CCID_CARD(base);
     VCardEmulError ret;
     const EnumTable *ptable;
