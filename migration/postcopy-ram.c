@@ -577,7 +577,7 @@ int postcopy_ram_incoming_cleanup(MigrationIncomingState *mis)
         }
     }
 
-    postcopy_state_set(POSTCOPY_INCOMING_END);
+    postcopy_state_set(POSTCOPY_INCOMING_END, NULL);
 
     if (mis->postcopy_tmp_page) {
         munmap(mis->postcopy_tmp_page, mis->largest_page_size);
@@ -626,7 +626,7 @@ int postcopy_ram_prepare_discard(MigrationIncomingState *mis)
         return -1;
     }
 
-    postcopy_state_set(POSTCOPY_INCOMING_DISCARD);
+    postcopy_state_set(POSTCOPY_INCOMING_DISCARD, NULL);
 
     return 0;
 }
@@ -1457,9 +1457,14 @@ PostcopyState  postcopy_state_get(void)
 }
 
 /* Set the state and return the old state */
-PostcopyState postcopy_state_set(PostcopyState new_state)
+PostcopyState postcopy_state_set(PostcopyState new_state,
+                                 const PostcopyState *old_state)
 {
-    return atomic_xchg(&incoming_postcopy_state, new_state);
+    if (!old_state) {
+        return atomic_xchg(&incoming_postcopy_state, new_state);
+    } else {
+        return atomic_cmpxchg(&incoming_postcopy_state, *old_state, new_state);
+    }
 }
 
 /* Register a handler for external shared memory postcopy

@@ -1599,7 +1599,7 @@ enum LoadVMExitCodes {
 static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
                                          uint16_t len)
 {
-    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_ADVISE);
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_ADVISE, NULL);
     uint64_t remote_pagesize_summary, local_pagesize_summary, remote_tps;
     Error *local_err = NULL;
 
@@ -1628,7 +1628,7 @@ static int loadvm_postcopy_handle_advise(MigrationIncomingState *mis,
     }
 
     if (!postcopy_ram_supported_by_host(mis)) {
-        postcopy_state_set(POSTCOPY_INCOMING_NONE);
+        postcopy_state_set(POSTCOPY_INCOMING_NONE, NULL);
         return -1;
     }
 
@@ -1841,7 +1841,7 @@ static void *postcopy_ram_listen_thread(void *opaque)
 /* After this message we must be able to immediately receive postcopy data */
 static int loadvm_postcopy_handle_listen(MigrationIncomingState *mis)
 {
-    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_LISTENING);
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_LISTENING, NULL);
     trace_loadvm_postcopy_handle_listen();
     Error *local_err = NULL;
 
@@ -1934,10 +1934,11 @@ static void loadvm_postcopy_handle_run_bh(void *opaque)
 /* After all discards we can start running and asking for pages */
 static int loadvm_postcopy_handle_run(MigrationIncomingState *mis)
 {
-    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_RUNNING);
+    PostcopyState old_ps = POSTCOPY_INCOMING_LISTENING;
+    PostcopyState ps = postcopy_state_set(POSTCOPY_INCOMING_RUNNING, &old_ps);
 
     trace_loadvm_postcopy_handle_run();
-    if (ps != POSTCOPY_INCOMING_LISTENING) {
+    if (ps != old_ps) {
         error_report("CMD_POSTCOPY_RUN in wrong postcopy state (%d)", ps);
         return -1;
     }
