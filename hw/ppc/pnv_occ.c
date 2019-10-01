@@ -255,6 +255,7 @@ static const TypeInfo pnv_occ_power9_type_info = {
 
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvOCC *occ = PNV_OCC(dev);
     PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
     Object *obj;

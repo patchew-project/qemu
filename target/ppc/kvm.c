@@ -237,6 +237,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 #if defined(TARGET_PPC64)
 static void kvm_get_smmu_info(struct kvm_ppc_smmu_info *info, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
     assert(kvm_state != NULL);
@@ -2078,6 +2079,7 @@ int kvmppc_set_smt_threads(int smt)
 
 void kvmppc_hint_smt_possible(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int i;
     GString *g;
     char *s;

@@ -407,6 +407,7 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Error *local_err = NULL;
 
     /*

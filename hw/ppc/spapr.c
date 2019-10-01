@@ -4283,6 +4283,7 @@ int spapr_get_vcpu_id(PowerPCCPU *cpu)
 
 void spapr_set_vcpu_id(PowerPCCPU *cpu, int cpu_index, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprMachineState *spapr = SPAPR_MACHINE(qdev_get_machine());
     MachineState *ms = MACHINE(spapr);
     int vcpu_id;

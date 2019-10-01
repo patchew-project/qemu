@@ -681,6 +681,7 @@ static const TypeInfo pnv_lpc_power9_info = {
 
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvLpcController *lpc = PNV_LPC(dev);
     Object *obj;
     Error *local_err = NULL;
