@@ -193,7 +193,8 @@ virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
 }
 
 static void
-virtio_gpu_base_set_features(VirtIODevice *vdev, uint64_t features)
+virtio_gpu_base_set_features(VirtIODevice *vdev, uint64_t features,
+                               bool reset_offloads)
 {
     static const uint32_t virgl = (1 << VIRTIO_GPU_F_VIRGL);
     VirtIOGPUBase *g = VIRTIO_GPU_BASE(vdev);

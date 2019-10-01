@@ -746,7 +746,8 @@ static inline uint64_t virtio_net_supported_guest_offloads(VirtIONet *n)
     return virtio_net_guest_offloads_by_features(vdev->guest_features);
 }
 
-static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
+static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features,
+                                        bool reset_offloads)
 {
     VirtIONet *n = VIRTIO_NET(vdev);
     int i;
@@ -770,7 +771,7 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
     n->rsc6_enabled = virtio_has_feature(features, VIRTIO_NET_F_RSC_EXT) &&
         virtio_has_feature(features, VIRTIO_NET_F_GUEST_TSO6);
 
-    if (n->has_vnet_hdr) {
+    if (reset_offloads && n->has_vnet_hdr) {
         n->curr_guest_offloads =
             virtio_net_guest_offloads_by_features(features);
         virtio_net_apply_guest_offloads(n);
