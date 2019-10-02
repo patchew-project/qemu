@@ -151,6 +151,7 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
     BlockBackend *on_eject_blk;
     NBDExport *exp;
     int64_t len;
+    uint32_t iflags = 0;
     AioContext *aio_context;
 
     if (!nbd_server) {
@@ -189,9 +190,12 @@ void qmp_nbd_server_add(const char *device, bool has_name, const char *name,
     if (bdrv_is_read_only(bs)) {
         writable = false;
     }
+    if (!writable) {
+        iflags = NBD_INTERNAL_FLAG_READONLY | NBD_INTERNAL_FLAG_SHARED;
+    }
 
-    exp = nbd_export_new(bs, 0, len, name, NULL, bitmap, !writable, !writable,
-                         NULL, false, on_eject_blk, errp);
+    exp = nbd_export_new(bs, 0, len, name, NULL, bitmap, iflags, NULL,
+                         on_eject_blk, errp);
     if (!exp) {
         goto out;
     }

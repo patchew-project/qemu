@@ -91,6 +91,7 @@ struct NBDExport {
     uint16_t nbdflags;
     QTAILQ_HEAD(, NBDClient) clients;
     QTAILQ_ENTRY(NBDExport) next;
+    uint32_t iflags;
 
     AioContext *ctx;
 
@@ -1471,13 +1472,14 @@ static void nbd_eject_notifier(Notifier *n, void *data)
 
 NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
                           uint64_t size, const char *name, const char *desc,
-                          const char *bitmap, bool readonly, bool shared,
-                          void (*close)(NBDExport *), bool writethrough,
+                          const char *bitmap, uint32_t iflags,
+                          void (*close)(NBDExport *),
                           BlockBackend *on_eject_blk, Error **errp)
 {
     AioContext *ctx;
     BlockBackend *blk;
     NBDExport *exp = g_new0(NBDExport, 1);
+    bool readonly = iflags & NBD_INTERNAL_FLAG_READONLY;
     uint64_t perm;
     int ret;
 
@@ -1504,7 +1506,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     if (ret < 0) {
         goto fail;
     }
-    blk_set_enable_write_cache(blk, !writethrough);
+    blk_set_enable_write_cache(blk, !(iflags & NBD_INTERNAL_FLAG_WRITETHROUGH));
     blk_set_allow_aio_context_change(blk, true);
 
     exp->refcount = 1;
@@ -1518,13 +1520,14 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
                      NBD_FLAG_SEND_FUA | NBD_FLAG_SEND_CACHE);
     if (readonly) {
         exp->nbdflags |= NBD_FLAG_READ_ONLY;
-        if (shared) {
+        if (iflags & NBD_INTERNAL_FLAG_SHARED) {
             exp->nbdflags |= NBD_FLAG_CAN_MULTI_CONN;
         }
     } else {
         exp->nbdflags |= (NBD_FLAG_SEND_TRIM | NBD_FLAG_SEND_WRITE_ZEROES |
                           NBD_FLAG_SEND_FAST_ZERO);
     }
+    exp->iflags = iflags;
     assert(size <= INT64_MAX - dev_offset);
     exp->size = QEMU_ALIGN_DOWN(size, BDRV_SECTOR_SIZE);
 
@@ -2311,6 +2314,9 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
         flags = 0;
         if (request->flags & NBD_CMD_FLAG_FUA) {
             flags |= BDRV_REQ_FUA;
+        }
+        if (exp->iflags & NBD_INTERNAL_FLAG_COMPRESS) {
+            flags |= BDRV_REQ_WRITE_COMPRESSED;
         }
         ret = blk_pwrite(exp->blk, request->from + exp->dev_offset,
                          data, request->len, flags);
