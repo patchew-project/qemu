@@ -1015,6 +1015,7 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
     uint64_t srclen = env->regs[r2 + 1] & 0xffffff;
     uint64_t src = get_address(env, r2);
     uint8_t pad = env->regs[r2 + 1] >> 24;
+    CPUState *cs = env_cpu(env);
     S390Access srca, desta;
     uint32_t cc, cur_len;
 
@@ -1065,7 +1066,14 @@ uint32_t HELPER(mvcl)(CPUS390XState *env, uint32_t r1, uint32_t r2)
         env->regs[r1 + 1] = deposit64(env->regs[r1 + 1], 0, 24, destlen);
         set_address_zero(env, r1, dest);
 
-        /* TODO: Deliver interrupts. */
+        /*
+         * MVCL is interruptible. Check if somebody (e.g., cpu_interrupt() or
+         * cpu_exit()) asked us to return to the main loop. In case there is
+         * no deliverable interrupt, we'll end up back in this handler.
+         */
+        if (unlikely((int32_t)atomic_read(&cpu_neg(cs)->icount_decr.u32) < 0)) {
+            cpu_loop_exit_restore(cs, ra);
+        }
     }
     return cc;
 }
