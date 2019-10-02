@@ -10,7 +10,7 @@
 #
 # - img : Tests in this group can be used to excercise the qemu-img tool.
 #
-# - auto : Tests in this group are used during "make check" and should be
+# - auto : Tests in this group are usable in all environments and should be
 #   runnable in any case. That means they should run with every QEMU binary
 #   (also non-x86), with every QEMU configuration (i.e. must not fail if
 #   an optional feature is not compiled in - but reporting a "skip" is ok),
