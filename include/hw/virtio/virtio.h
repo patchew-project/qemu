@@ -128,7 +128,7 @@ typedef struct VirtioDeviceClass {
                              uint64_t requested_features,
                              Error **errp);
     uint64_t (*bad_features)(VirtIODevice *vdev);
-    void (*set_features)(VirtIODevice *vdev, uint64_t val);
+    void (*set_features)(VirtIODevice *vdev, uint64_t val, bool reset_offloads);
     int (*validate_features)(VirtIODevice *vdev);
     void (*get_config)(VirtIODevice *vdev, uint8_t *config);
     void (*set_config)(VirtIODevice *vdev, const uint8_t *config);
