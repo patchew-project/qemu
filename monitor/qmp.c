@@ -70,8 +70,18 @@ static void qmp_request_free(QMPRequest *req)
 /* Caller must hold mon->qmp.qmp_queue_lock */
 static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
 {
+    bool need_resume = (!qmp_oob_enabled(mon) && mon->qmp_requests->length > 0)
+        || mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX;
     while (!g_queue_is_empty(mon->qmp_requests)) {
         qmp_request_free(g_queue_pop_head(mon->qmp_requests));
+    }
+    if (need_resume) {
+        /*
+         * Pairs with the monitor_suspend() in handle_qmp_command() in case the
+         * queue gets cleared from a CH_EVENT_CLOSED event before the dispatch
+         * bh got scheduled.
+         */
+        monitor_resume(&mon->common);
     }
 }
 
