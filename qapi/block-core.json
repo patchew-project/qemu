@@ -2544,6 +2544,9 @@
 #
 # @speed:  the maximum speed, in bytes per second
 #
+# @compress: true to compress data, if the target format supports it
+#            (default: false). Since 4.2.
+#
 # @on-error: the action to take on an error (default report).
 #            'stop' and 'enospc' can only be used if the block device
 #            supports io-status (see BlockInfo).  Since 1.3.
@@ -2576,7 +2579,7 @@
 { 'command': 'block-stream',
   'data': { '*job-id': 'str', 'device': 'str', '*base': 'str',
             '*base-node': 'str', '*backing-file': 'str', '*speed': 'int',
-            '*on-error': 'BlockdevOnError',
+            '*compress': 'bool', '*on-error': 'BlockdevOnError',
             '*auto-finalize': 'bool', '*auto-dismiss': 'bool' } }
 
 ##

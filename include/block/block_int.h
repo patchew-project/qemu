@@ -1065,6 +1065,7 @@ int is_windows_drive(const char *filename);
  * @creation_flags: Flags that control the behavior of the Job lifetime.
  *                  See @BlockJobCreateFlags
  * @speed: The maximum speed, in bytes per second, or 0 for unlimited.
+ * @compress: True to compress data.
  * @on_error: The action to take upon error.
  * @errp: Error object.
  *
@@ -1077,7 +1078,7 @@ int is_windows_drive(const char *filename);
  */
 void stream_start(const char *job_id, BlockDriverState *bs,
                   BlockDriverState *base, const char *backing_file_str,
-                  int creation_flags, int64_t speed,
+                  int creation_flags, int64_t speed, bool compress,
                   BlockdevOnError on_error, Error **errp);
 
 /**
