@@ -25,47 +25,42 @@ static uint16_t boot_menu = 0;
 
 typedef struct {
     const char *machine_name;
+    QFWCFG *fw_cfg;
 } QTestCtx;
 
 static void test_fw_cfg_signature(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
     char buf[5];
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    qfw_cfg_get(s, fw_cfg, FW_CFG_SIGNATURE, buf, 4);
+    qfw_cfg_get(s, ctx->fw_cfg, FW_CFG_SIGNATURE, buf, 4);
     buf[4] = 0;
-
     g_assert_cmpstr(buf, ==, "QEMU");
-    g_free(fw_cfg);
+
     qtest_quit(s);
 }
 
 static void test_fw_cfg_id(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
     uint32_t id;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    id = qfw_cfg_get_u32(s, fw_cfg, FW_CFG_ID);
+    id = qfw_cfg_get_u32(s, ctx->fw_cfg, FW_CFG_ID);
     g_assert((id == 1) ||
              (id == 3));
-    g_free(fw_cfg);
+
     qtest_quit(s);
 }
 
 static void test_fw_cfg_uuid(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
 
     uint8_t buf[16];
@@ -75,12 +70,10 @@ static void test_fw_cfg_uuid(const void *opaque)
     };
 
     s = qtest_initf("-M %s -uuid 4600cb32-38ec-4b2f-8acb-81c6ea54f2d8", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    qfw_cfg_get(s, fw_cfg, FW_CFG_UUID, buf, 16);
+    qfw_cfg_get(s, ctx->fw_cfg, FW_CFG_UUID, buf, 16);
     g_assert(memcmp(buf, uuid, sizeof(buf)) == 0);
 
-    g_free(fw_cfg);
     qtest_quit(s);
 
 }
@@ -88,80 +81,71 @@ static void test_fw_cfg_uuid(const void *opaque)
 static void test_fw_cfg_ram_size(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    g_assert_cmpint(qfw_cfg_get_u64(s, fw_cfg, FW_CFG_RAM_SIZE), ==, ram_size);
+    g_assert_cmpint(qfw_cfg_get_u64(s, ctx->fw_cfg, FW_CFG_RAM_SIZE),
+                    ==, ram_size);
 
-    g_free(fw_cfg);
     qtest_quit(s);
 }
 
 static void test_fw_cfg_nographic(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    g_assert_cmpint(qfw_cfg_get_u16(s, fw_cfg, FW_CFG_NOGRAPHIC), ==, 0);
+    g_assert_cmpint(qfw_cfg_get_u16(s, ctx->fw_cfg, FW_CFG_NOGRAPHIC), ==, 0);
 
-    g_free(fw_cfg);
     qtest_quit(s);
 }
 
 static void test_fw_cfg_nb_cpus(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    g_assert_cmpint(qfw_cfg_get_u16(s, fw_cfg, FW_CFG_NB_CPUS), ==, nb_cpus);
+    g_assert_cmpint(qfw_cfg_get_u16(s, ctx->fw_cfg, FW_CFG_NB_CPUS),
+                    ==, nb_cpus);
 
-    g_free(fw_cfg);
     qtest_quit(s);
 }
 
 static void test_fw_cfg_max_cpus(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    g_assert_cmpint(qfw_cfg_get_u16(s, fw_cfg, FW_CFG_MAX_CPUS), ==, max_cpus);
-    g_free(fw_cfg);
+    g_assert_cmpint(qfw_cfg_get_u16(s, ctx->fw_cfg, FW_CFG_MAX_CPUS),
+                    ==, max_cpus);
+
     qtest_quit(s);
 }
 
 static void test_fw_cfg_numa(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
     uint64_t *cpu_mask;
     uint64_t *node_mask;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    g_assert_cmpint(qfw_cfg_get_u64(s, fw_cfg, FW_CFG_NUMA), ==, nb_nodes);
+    g_assert_cmpint(qfw_cfg_get_u64(s, ctx->fw_cfg, FW_CFG_NUMA),
+                    ==, nb_nodes);
 
     cpu_mask = g_new0(uint64_t, max_cpus);
     node_mask = g_new0(uint64_t, nb_nodes);
 
-    qfw_cfg_read_data(s, fw_cfg, cpu_mask, sizeof(uint64_t) * max_cpus);
-    qfw_cfg_read_data(s, fw_cfg, node_mask, sizeof(uint64_t) * nb_nodes);
+    qfw_cfg_read_data(s, ctx->fw_cfg, cpu_mask, sizeof(uint64_t) * max_cpus);
+    qfw_cfg_read_data(s, ctx->fw_cfg, node_mask, sizeof(uint64_t) * nb_nodes);
 
     if (nb_nodes) {
         g_assert(cpu_mask[0] & 0x01);
@@ -170,62 +154,56 @@ static void test_fw_cfg_numa(const void *opaque)
 
     g_free(node_mask);
     g_free(cpu_mask);
-    g_free(fw_cfg);
+
     qtest_quit(s);
 }
 
 static void test_fw_cfg_boot_menu(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
 
     s = qtest_initf("-M %s", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    g_assert_cmpint(qfw_cfg_get_u16(s, fw_cfg, FW_CFG_BOOT_MENU),
+    g_assert_cmpint(qfw_cfg_get_u16(s, ctx->fw_cfg, FW_CFG_BOOT_MENU),
                     ==, boot_menu);
-    g_free(fw_cfg);
+
     qtest_quit(s);
 }
 
 static void test_fw_cfg_reboot_timeout(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
     uint32_t reboot_timeout = 0;
     size_t filesize;
 
     s = qtest_initf("-M %s -boot reboot-timeout=15", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    filesize = qfw_cfg_get_file(s, fw_cfg, "etc/boot-fail-wait",
+    filesize = qfw_cfg_get_file(s, ctx->fw_cfg, "etc/boot-fail-wait",
                                 &reboot_timeout, sizeof(reboot_timeout));
     g_assert_cmpint(filesize, ==, sizeof(reboot_timeout));
     reboot_timeout = le32_to_cpu(reboot_timeout);
     g_assert_cmpint(reboot_timeout, ==, 15);
-    g_free(fw_cfg);
+
     qtest_quit(s);
 }
 
 static void test_fw_cfg_splash_time(const void *opaque)
 {
     QTestCtx *ctx = (QTestCtx *)opaque;
-    QFWCFG *fw_cfg;
     QTestState *s;
     uint16_t splash_time = 0;
     size_t filesize;
 
     s = qtest_initf("-M %s -boot splash-time=12", ctx->machine_name);
-    fw_cfg = pc_fw_cfg_init();
 
-    filesize = qfw_cfg_get_file(s, fw_cfg, "etc/boot-menu-wait",
+    filesize = qfw_cfg_get_file(s, ctx->fw_cfg, "etc/boot-menu-wait",
                                 &splash_time, sizeof(splash_time));
     g_assert_cmpint(filesize, ==, sizeof(splash_time));
     splash_time = le16_to_cpu(splash_time);
     g_assert_cmpint(splash_time, ==, 12);
-    g_free(fw_cfg);
+
     qtest_quit(s);
 }
 
@@ -237,6 +215,7 @@ int main(int argc, char **argv)
     g_test_init(&argc, &argv, NULL);
 
     ctx->machine_name = "pc";
+    ctx->fw_cfg = pc_fw_cfg_init();
 
     qtest_add_data_func("fw_cfg/signature", ctx, test_fw_cfg_signature);
     qtest_add_data_func("fw_cfg/id", ctx, test_fw_cfg_id);
@@ -259,6 +238,7 @@ int main(int argc, char **argv)
 
     ret = g_test_run();
 
+    g_free(ctx->fw_cfg);
     g_free(ctx);
 
     return ret;
