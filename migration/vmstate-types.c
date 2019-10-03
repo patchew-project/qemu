@@ -17,6 +17,7 @@
 #include "qemu/error-report.h"
 #include "qemu/queue.h"
 #include "trace.h"
+#include <glib.h>
 
 /* bool */
 
@@ -690,4 +691,136 @@ const VMStateInfo vmstate_info_qtailq = {
     .name = "qtailq",
     .get  = get_qtailq,
     .put  = put_qtailq,
+};
+
+struct put_gtree_data {
+    QEMUFile *f;
+    const VMStateField *field;
+    QJSON *vmdesc;
+};
+
+static gboolean put_gtree_elem(gpointer key, gpointer value, gpointer data)
+{
+    struct put_gtree_data *capsule = (struct put_gtree_data *)data;
+    const VMStateField *field = capsule->field;
+    QEMUFile *f = capsule->f;
+    const VMStateDescription *key_vmsd = &field->vmsd[0];
+    const VMStateDescription *data_vmsd = &field->vmsd[1];
+
+    qemu_put_byte(f, true);
+
+    /* put the key */
+    if (!key_vmsd->fields) {
+        qemu_put_be32(f, GPOINTER_TO_UINT(key));
+    } else {
+        if (vmstate_save_state(f, key_vmsd, key, capsule->vmdesc)) {
+            return true;
+        }
+    }
+
+    /* put the data */
+    if (vmstate_save_state(f, data_vmsd, value, capsule->vmdesc)) {
+        return true;
+    }
+    return false;
+}
+
+static int put_gtree(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field, QJSON *vmdesc)
+{
+    const VMStateDescription *key_vmsd = &field->vmsd[0];
+    const VMStateDescription *val_vmsd = &field->vmsd[1];
+    struct put_gtree_data capsule = {f, field, vmdesc};
+    GTree **pval = pv;
+    GTree *tree = *pval;
+
+    trace_put_gtree(key_vmsd->name, key_vmsd->version_id,
+                    val_vmsd->name, val_vmsd->version_id);
+    g_tree_foreach(tree, put_gtree_elem, (gpointer)&capsule);
+    qemu_put_byte(f, false);
+
+    trace_put_gtree_end(key_vmsd->name, val_vmsd->name, "end");
+    return 0;
+}
+
+static int get_gtree(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field)
+{
+    const VMStateDescription *key_vmsd = &field->vmsd[0];
+    const VMStateDescription *val_vmsd = &field->vmsd[1];
+    int version_id = field->version_id;
+    size_t key_size = field->start;
+    size_t val_size = field->size;
+    GTreeInitData *init_data;
+    GTree **pval = pv;
+    void *key, *val;
+    GTree *tree;
+    int ret;
+
+    /* in case of direct key, the key vmsd can be {}, ie. check fields */
+    trace_get_gtree(key_vmsd->name, val_vmsd->name, version_id);
+    if (key_vmsd->fields && version_id > key_vmsd->version_id) {
+        error_report("%s %s",  key_vmsd->name, "too new");
+        trace_get_gtree_fail(key_vmsd->name, "too new", -EINVAL);
+        return -EINVAL;
+    }
+    if (key_vmsd->fields && version_id < key_vmsd->minimum_version_id) {
+        error_report("%s %s",  key_vmsd->name, "too old");
+        trace_get_gtree_fail(key_vmsd->name, "too old", -EINVAL);
+        return -EINVAL;
+    }
+    if (version_id > val_vmsd->version_id) {
+        error_report("%s %s",  val_vmsd->name, "too new");
+        trace_get_gtree_fail(val_vmsd->name, "too new", -EINVAL);
+        return -EINVAL;
+    }
+    if (version_id < val_vmsd->minimum_version_id) {
+        error_report("%s %s",  val_vmsd->name, "too old");
+        trace_get_gtree_fail(val_vmsd->name, "too old", -EINVAL);
+        return -EINVAL;
+    }
+
+    if (field->data) {
+        init_data = (GTreeInitData *)field->data;
+        tree = g_tree_new_full(init_data->key_compare_func,
+                               init_data->key_compare_data,
+                               init_data->key_destroy_func,
+                               init_data->value_destroy_func);
+        *pval = tree;
+    } else {
+        /* tree is externally allocated */
+        tree = *pval;
+    }
+
+    while (qemu_get_byte(f)) {
+        if (!key_vmsd->fields) {
+            key = GUINT_TO_POINTER(qemu_get_be32(f));
+        } else {
+            key = g_malloc0(key_size);
+            ret = vmstate_load_state(f, key_vmsd, key, version_id);
+        }
+        if (ret) {
+            g_free(key);
+            trace_get_gtree_fail(key_vmsd->name, "saving state", ret);
+            return ret;
+        }
+        val = g_malloc0(val_size);
+        ret = vmstate_load_state(f, val_vmsd, val, version_id);
+        if (ret) {
+            g_free(key);
+            g_free(val);
+            trace_get_gtree_fail(val_vmsd->name, "saving state", ret);
+            return ret;
+        }
+        g_tree_insert(tree, key, val);
+    }
+    trace_get_gtree_succeed(key_vmsd->name, val_vmsd->name, "end", 0);
+    return 0;
+}
+
+
+const VMStateInfo vmstate_info_gtree = {
+    .name = "gtree",
+    .get  = get_gtree,
+    .put  = put_gtree,
 };
