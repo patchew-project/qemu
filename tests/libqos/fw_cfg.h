@@ -54,14 +54,18 @@ QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base);
  */
 QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base);
 
+/**
+ * pc_fw_cfg_init():
+ * @qts: The #QTestState that will be referred to by the QFWCFG object.
+ *
+ * This function is specific to the PC machine (X86).
+ *
+ * Returns a newly allocated QFWCFG object which must be released
+ * with a call to g_free() when no longer required.
+ */
 static inline QFWCFG *pc_fw_cfg_init(QTestState *qts)
 {
     return io_fw_cfg_init(qts, 0x510);
-}
-
-static inline void pc_fw_cfg_uninit(QFWCFG *fw_cfg)
-{
-    g_free(fw_cfg);
 }
 
 #endif
