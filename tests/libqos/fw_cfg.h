@@ -34,8 +34,16 @@ uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key);
 size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
                         void *data, size_t buflen);
 
+/**
+ * mm_fw_cfg_init():
+ * @qts: The #QTestState that will be referred to by the QFWCFG object.
+ * @base: The MMIO base address of the fw_cfg device in the guest.
+ *
+ * Returns a newly allocated QFWCFG object which must be released
+ * with a call to g_free() when no longer required.
+ */
 QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base);
-void mm_fw_cfg_uninit(QFWCFG *fw_cfg);
+
 /**
  * io_fw_cfg_init():
  * @qts: The #QTestState that will be referred to by the QFWCFG object.
