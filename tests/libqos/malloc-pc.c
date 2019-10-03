@@ -23,9 +23,9 @@
 void pc_alloc_init(QGuestAllocator *s, QTestState *qts, QAllocOpts flags)
 {
     uint64_t ram_size;
-    QFWCFG *fw_cfg = pc_fw_cfg_init(qts);
+    QFWCFG *fw_cfg = pc_fw_cfg_init();
 
-    ram_size = qfw_cfg_get_u64(fw_cfg, FW_CFG_RAM_SIZE);
+    ram_size = qfw_cfg_get_u64(qts, fw_cfg, FW_CFG_RAM_SIZE);
     alloc_init(s, flags, 1 << 20, MIN(ram_size, 0xE0000000), PAGE_SIZE);
 
     /* clean-up */
