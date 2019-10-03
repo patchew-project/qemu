@@ -209,13 +209,22 @@ static void test_fw_cfg_splash_time(const void *opaque)
 
 int main(int argc, char **argv)
 {
+    const char *arch = qtest_get_arch();
     QTestCtx *ctx = g_new(QTestCtx, 1);
     int ret;
 
     g_test_init(&argc, &argv, NULL);
 
-    ctx->machine_name = "pc";
-    ctx->fw_cfg = pc_fw_cfg_init();
+    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
+        ctx->machine_name = "pc";
+        ctx->fw_cfg = pc_fw_cfg_init();
+    } else if (g_str_equal(arch, "sparc")) {
+        ctx->machine_name = "SS-5";
+        ctx->fw_cfg = mm_fw_cfg_init(0xd00000510ULL);
+    } else if (g_str_equal(arch, "ppc64")) {
+        ctx->machine_name = "mac99";
+        ctx->fw_cfg = mm_fw_cfg_init(0xf0000510);
+    }
 
     qtest_add_data_func("fw_cfg/signature", ctx, test_fw_cfg_signature);
     qtest_add_data_func("fw_cfg/id", ctx, test_fw_cfg_id);
@@ -230,11 +239,14 @@ int main(int argc, char **argv)
     qtest_add_func("fw_cfg/boot_device", test_fw_cfg_boot_device);
 #endif
     qtest_add_data_func("fw_cfg/max_cpus", ctx, test_fw_cfg_max_cpus);
-    qtest_add_data_func("fw_cfg/numa", ctx, test_fw_cfg_numa);
     qtest_add_data_func("fw_cfg/boot_menu", ctx, test_fw_cfg_boot_menu);
     qtest_add_data_func("fw_cfg/reboot_timeout", ctx,
                         test_fw_cfg_reboot_timeout);
     qtest_add_data_func("fw_cfg/splash_time", ctx, test_fw_cfg_splash_time);
+
+    if (g_str_equal(arch, "i386") || g_str_equal(arch, "x86_64")) {
+        qtest_add_data_func("fw_cfg/numa", ctx, test_fw_cfg_numa);
+    }
 
     ret = g_test_run();
 
