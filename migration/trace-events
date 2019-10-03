@@ -71,6 +71,12 @@ get_qtailq_end(const char *name, const char *reason, int val) "%s %s/%d"
 put_qtailq(const char *name, int version_id) "%s v%d"
 put_qtailq_end(const char *name, const char *reason) "%s %s"
 
+get_gtree(const char *key_name, const char *val_name, int version) "%s/%s %d"
+get_gtree_fail(const char *key_name, const char *reason, int val) "%s %s/%d"
+get_gtree_succeed(const char *key_name, const char *val_name, const char *reason, int val) "%s/%s %s/%d"
+put_gtree(const char *key_name, int key_version, const char *val_name, int val_version) "%s(%d)/%s(%d)"
+put_gtree_end(const char *key_name, const char *val_name, const char *reason) "%s/%s %s"
+
 # qemu-file.c
 qemu_file_fclose(void) ""
 

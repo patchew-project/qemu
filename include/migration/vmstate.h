@@ -171,6 +171,7 @@ struct VMStateField {
     int version_id;
     int struct_version_id;
     bool (*field_exists)(void *opaque, int version_id);
+    void *data;
 };
 
 struct VMStateDescription {
@@ -224,6 +225,7 @@ extern const VMStateInfo vmstate_info_unused_buffer;
 extern const VMStateInfo vmstate_info_tmp;
 extern const VMStateInfo vmstate_info_bitmap;
 extern const VMStateInfo vmstate_info_qtailq;
+extern const VMStateInfo vmstate_info_gtree;
 
 #define type_check_2darray(t1,t2,n,m) ((t1(*)[n][m])0 - (t2*)0)
 /*
@@ -752,6 +754,35 @@ extern const VMStateInfo vmstate_info_qtailq;
     .info         = &vmstate_info_qtailq,                                \
     .offset       = offsetof(_state, _field),                            \
     .start        = offsetof(_type, _next),                              \
+}
+
+typedef struct GTreeInitData {
+    GCompareDataFunc key_compare_func;
+    gpointer key_compare_data;
+    GDestroyNotify key_destroy_func;
+    GDestroyNotify value_destroy_func;
+} GTreeInitData;
+
+/*
+ * For migrating a GTree.
+ * _vmsd: Start address of the 2 element array containing the key vmsd
+ *        and the data vmsd
+ * _key_type: type of the key
+ * _val_type: type of the value
+ * _data: pointer to a GTreeInitData struct
+ * if _data is NULL, the target tree must have been properly initialized
+ */
+#define VMSTATE_GTREE_V(_field, _state, _version, _vmsd,                       \
+                        _key_type, _val_type, _data)                           \
+{                                                                              \
+    .name         = (stringify(_field)),                                       \
+    .version_id   = (_version),                                                \
+    .vmsd         = (_vmsd),                                                   \
+    .info         = &vmstate_info_gtree,                                       \
+    .start        = sizeof(_key_type),                                         \
+    .size         = sizeof(_val_type),                                         \
+    .offset       = offsetof(_state, _field),                                  \
+    .data         = (_data)                                                    \
 }
 
 /* _f : field name
