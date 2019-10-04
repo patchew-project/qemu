@@ -97,3 +97,8 @@ the "D-Bus API Design Guidelines":
 https://dbus.freedesktop.org/doc/dbus-api-design.html
 
 The "org.qemu.*" prefix is reserved for the QEMU project.
+
+QEMU Interfaces
+===============
+
+:doc:`dbus-vmstate`
