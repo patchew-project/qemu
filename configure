@@ -1132,6 +1132,10 @@ for opt do
   ;;
   --enable-netmap) netmap="yes"
   ;;
+  --enable-netmap=git) netmap="git"
+  ;;
+  --enable-netmap=system) netmap="system"
+  ;;
   --disable-xen) xen="no"
   ;;
   --enable-xen) xen="yes"
@@ -3318,8 +3322,9 @@ fi
 # a minor/major version number. Minor new features will be marked with values up
 # to 15, and if something happens that requires a change to the backend we will
 # move above 15, submit the backend fixes and modify this two bounds.
-if test "$netmap" != "no" ; then
-  cat > $TMPC << EOF
+case "$netmap" in
+    "" | yes | system)
+      cat > $TMPC << EOF
 #include <inttypes.h>
 #include <net/if.h>
 #include <net/netmap.h>
@@ -3330,14 +3335,55 @@ if test "$netmap" != "no" ; then
 int main(void) { return 0; }
 EOF
   if compile_prog "" "" ; then
-    netmap=yes
+    netmap_system=yes
   else
-    if test "$netmap" = "yes" ; then
-      feature_not_found "netmap"
-    fi
-    netmap=no
+    netmap_system=no
   fi
-fi
+  ;;
+esac
+
+case "$netmap" in
+  "" | yes)
+    if test "$netmap_system" = "yes"; then
+      netmap=system
+    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+      netmap=git
+    elif test -e "${source_path}/netmap/configure" ; then
+      netmap=internal
+    elif test -z "$netmap" ; then
+      netmap=no
+    else
+      feature_not_found "netmap" "Install netmap or git submodule"
+    fi
+    ;;
+
+  system)
+    if test "$netmap_system" = "no"; then
+      feature_not_found "netmap" "Install netmap"
+    fi
+    ;;
+esac
+
+case "$netmap" in
+  git | internal)
+    if test "$netmap" = git; then
+      git_submodules="${git_submodules} netmap"
+    fi
+    mkdir -p netmap
+    QEMU_CFLAGS="$QEMU_CFLAGS -I\$(SRC_PATH)/netmap/sys"
+    ;;
+
+  system)
+    ;;
+
+  no)
+    ;;
+  *)
+    error_exit "Unknown state for netmap: $netmap"
+    ;;
+esac
+
+##########################################
 
 ##########################################
 # libcap-ng library probe
@@ -6585,7 +6631,7 @@ if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
   echo "VDE_LIBS=$vde_libs" >> $config_host_mak
 fi
-if test "$netmap" = "yes" ; then
+if test "$netmap" != "no" ; then
   echo "CONFIG_NETMAP=y" >> $config_host_mak
 fi
 if test "$l2tpv3" = "yes" ; then

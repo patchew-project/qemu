@@ -58,3 +58,6 @@
 [submodule "roms/opensbi"]
 	path = roms/opensbi
 	url = 	https://git.qemu.org/git/opensbi.git
+[submodule "netmap"]
+	path = netmap
+	url = https://github.com/luigirizzo/netmap.git
