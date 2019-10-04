@@ -290,8 +290,8 @@ static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     const char cpu_prefix[] = "exynos4210-gic-alias_cpu";
     const char dist_prefix[] = "exynos4210-gic-alias_dist";
-    char cpu_alias_name[sizeof(cpu_prefix) + 3];
-    char dist_alias_name[sizeof(cpu_prefix) + 3];
+    char cpu_alias_name[sizeof(cpu_prefix) + 10];
+    char dist_alias_name[sizeof(cpu_prefix) + 10];
     SysBusDevice *gicbusdev;
     uint32_t i;
 
