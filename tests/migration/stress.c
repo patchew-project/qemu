@@ -167,7 +167,7 @@ static unsigned long long now(void)
     return (tv.tv_sec * 1000ull) + (tv.tv_usec / 1000ull);
 }
 
-static int stressone(unsigned long long ramsizeMB)
+static void stressone(unsigned long long ramsizeMB)
 {
     size_t pagesPerMB = 1024 * 1024 / PAGE_SIZE;
     g_autofree char *ram = g_malloc(ramsizeMB * 1024 * 1024);
@@ -181,12 +181,12 @@ static int stressone(unsigned long long ramsizeMB)
     if (!ram) {
         fprintf(stderr, "%s (%05d): ERROR: cannot allocate %llu MB of RAM: %s\n",
                 argv0, gettid(), ramsizeMB, strerror(errno));
-        return -1;
+        return;
     }
     if (!data) {
         fprintf(stderr, "%s (%d): ERROR: cannot allocate %d bytes of RAM: %s\n",
                 argv0, gettid(), PAGE_SIZE, strerror(errno));
-        return -1;
+        return;
     }
 
     /* We don't care about initial state, but we do want
@@ -197,7 +197,7 @@ static int stressone(unsigned long long ramsizeMB)
     memset(ram, 0xfe, ramsizeMB * 1024 * 1024);
 
     if (random_bytes(data, PAGE_SIZE) < 0) {
-        return -1;
+        return;
     }
 
     before = now();
@@ -250,7 +250,7 @@ static int stress(unsigned long long ramsizeGB, int ncpus)
 
     stressone(ramsizeMB);
 
-    return 0;
+    return -1;
 }
 
 
@@ -348,6 +348,4 @@ int main(int argc, char **argv)
 
     if (stress(ramsizeGB, ncpus) < 0)
         exit_failure();
-
-    exit_success();
 }
