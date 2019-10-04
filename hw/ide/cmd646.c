@@ -301,7 +301,7 @@ static void pci_cmd646_ide_realize(PCIDevice *dev, Error **errp)
         ide_register_restart_cb(&d->bus[i]);
     }
 
-    vmstate_register(DEVICE(dev), 0, &vmstate_ide_pci, d);
+    vmstate_register(VMSTATE_IF(dev), 0, &vmstate_ide_pci, d);
     qemu_register_reset(cmd646_reset, d);
 }
 
