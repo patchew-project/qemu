@@ -691,3 +691,63 @@ const VMStateInfo vmstate_info_qtailq = {
     .get  = get_qtailq,
     .put  = put_qtailq,
 };
+
+static int put_qlist(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field, QJSON *vmdesc)
+{
+    const VMStateDescription *vmsd = field->vmsd;
+    /* offset of the QTAILQ entry in a QTAILQ element*/
+    size_t entry_offset = field->start;
+    void *elm;
+    int ret;
+
+    QLIST_RAW_FOREACH(elm, pv, entry_offset) {
+        qemu_put_byte(f, true);
+        ret = vmstate_save_state(f, vmsd, elm, vmdesc);
+        if (ret) {
+            return ret;
+        }
+    }
+    qemu_put_byte(f, false);
+
+    return 0;
+}
+
+static int get_qlist(QEMUFile *f, void *pv, size_t unused_size,
+                     const VMStateField *field)
+{
+    int ret = 0;
+    const VMStateDescription *vmsd = field->vmsd;
+    /* size of a QLIST element */
+    size_t size = field->size;
+    /* offset of the QLIST entry in a QLIST element */
+    size_t entry_offset = field->start;
+    int version_id = field->version_id;
+    void *elm;
+
+    if (version_id > vmsd->version_id) {
+        error_report("%s %s",  vmsd->name, "too new");
+        return -EINVAL;
+    }
+    if (version_id < vmsd->minimum_version_id) {
+        error_report("%s %s",  vmsd->name, "too old");
+        return -EINVAL;
+    }
+
+    while (qemu_get_byte(f)) {
+        elm = g_malloc(size);
+        ret = vmstate_load_state(f, vmsd, elm, version_id);
+        if (ret) {
+            return ret;
+        }
+        QLIST_RAW_INSERT_TAIL(pv, elm, entry_offset);
+    }
+
+    return ret;
+}
+
+const VMStateInfo vmstate_info_qlist = {
+    .name = "qlist",
+    .get  = get_qlist,
+    .put  = put_qlist,
+};

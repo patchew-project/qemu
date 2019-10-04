@@ -491,4 +491,34 @@ union {                                                                 \
         QTAILQ_RAW_TQH_CIRC(head)->tql_prev = QTAILQ_RAW_TQE_CIRC(elm, entry);  \
 } while (/*CONSTCOND*/0)
 
+#define QLIST_RAW_FIRST(head)                                                  \
+        field_at_offset(head, 0, void *)
+
+#define QLIST_RAW_NEXT(elm, entry)                                             \
+        field_at_offset(elm, entry, void *)
+
+#define QLIST_RAW_PREVIOUS(elm, entry)                                         \
+        field_at_offset(elm, entry + sizeof(void *), void *)
+
+#define QLIST_RAW_FOREACH(elm, head, entry)                                    \
+        for ((elm) = *QLIST_RAW_FIRST(head);                                   \
+             (elm);                                                            \
+             (elm) = *QLIST_RAW_NEXT(elm, entry))
+
+#define QLIST_RAW_INSERT_TAIL(head, elm, entry) do {                           \
+        void *iter, *last = NULL;                                              \
+        *QLIST_RAW_NEXT(elm, entry) = NULL;                                    \
+        if (!*QLIST_RAW_FIRST(head)) {                                         \
+            *QLIST_RAW_FIRST(head) = elm;                                      \
+            *QLIST_RAW_PREVIOUS(elm, entry) = head;                            \
+            break;                                                             \
+        }                                                                      \
+        for (iter = *QLIST_RAW_FIRST(head);                                    \
+             iter; last = iter, iter = *QLIST_RAW_NEXT(iter, entry))           \
+            { }                                                                \
+        *QLIST_RAW_NEXT(last, entry) = elm;                                    \
+        *QLIST_RAW_PREVIOUS(elm, entry) = last;                                \
+} while (0)
+
+
 #endif /* QEMU_SYS_QUEUE_H */
