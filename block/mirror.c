@@ -1487,6 +1487,8 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
     .bdrv_child_perm            = bdrv_mirror_top_child_perm,
     .bdrv_refresh_limits        = bdrv_mirror_top_refresh_limits,
+
+    .is_filter                  = true,
 };
 
 static BlockJob *mirror_start_job(
