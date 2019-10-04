@@ -87,3 +87,10 @@ pl031_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 pl031_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
 pl031_alarm_raised(void) "alarm raised"
 pl031_set_alarm(uint32_t ticks) "alarm set for %u ticks"
+
+# arm_timer.c
+sp804_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+sp804_write(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
+# Note that this trace event can't distinguish which of the two timers
+# in the sp804 is being updated
+sp804_arm_timer_update(int level) "level %d"

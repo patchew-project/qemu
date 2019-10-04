@@ -17,6 +17,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/log.h"
+#include "trace.h"
 
 /* Common timer implementation.  */
 
@@ -43,7 +44,10 @@ typedef struct {
 static void arm_timer_update(arm_timer_state *s)
 {
     /* Update interrupts.  */
-    if (s->int_level && (s->control & TIMER_CTRL_IE)) {
+    int level = s->int_level && (s->control & TIMER_CTRL_IE);
+
+    trace_sp804_arm_timer_update(level);
+    if (level) {
         qemu_irq_raise(s->irq);
     } else {
         qemu_irq_lower(s->irq);
@@ -216,17 +220,21 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
                            unsigned size)
 {
     SP804State *s = (SP804State *)opaque;
+    uint64_t res;
 
     if (offset < 0x20) {
-        return arm_timer_read(s->timer[0], offset);
+        res = arm_timer_read(s->timer[0], offset);
+        goto out;
     }
     if (offset < 0x40) {
-        return arm_timer_read(s->timer[1], offset - 0x20);
+        res = arm_timer_read(s->timer[1], offset - 0x20);
+        goto out;
     }
 
     /* TimerPeriphID */
     if (offset >= 0xfe0 && offset <= 0xffc) {
-        return sp804_ids[(offset - 0xfe0) >> 2];
+        res = sp804_ids[(offset - 0xfe0) >> 2];
+        goto out;
     }
 
     switch (offset) {
@@ -236,18 +244,25 @@ static uint64_t sp804_read(void *opaque, hwaddr offset,
         qemu_log_mask(LOG_UNIMP,
                       "%s: integration test registers unimplemented\n",
                       __func__);
-        return 0;
+        res = 0;
+        goto out;
     }
 
     qemu_log_mask(LOG_GUEST_ERROR,
                   "%s: Bad offset %x\n", __func__, (int)offset);
-    return 0;
+    res = 0;
+
+out:
+    trace_sp804_read(offset, res);
+    return res;
 }
 
 static void sp804_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
     SP804State *s = (SP804State *)opaque;
+
+    trace_sp804_write(offset, value);
 
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
