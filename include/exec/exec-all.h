@@ -72,6 +72,26 @@ void QEMU_NORETURN cpu_loop_exit(CPUState *cpu);
 void QEMU_NORETURN cpu_loop_exit_restore(CPUState *cpu, uintptr_t pc);
 void QEMU_NORETURN cpu_loop_exit_atomic(CPUState *cpu, uintptr_t pc);
 
+/**
+ * cpu_cond_loop_exit_restore:
+ * @cpu: the vCPU state to be restored
+ * @pc: the host PC
+ *
+ * Trigger a cpu_loop_exit_restore() in case somebody asked for a return
+ * to the main loop (e.g., cpu_exit() or cpu_interrupt()).
+ *
+ * This is helpful for architectures that support interruptible
+ * instructions. After writing back all state to registers/memory, this
+ * call can be used to conditionally return back to the main loop or to
+ * continue executing the interruptible instruction.
+ */
+static inline void cpu_cond_loop_exit_restore(CPUState *cpu, uintptr_t pc)
+{
+    if (unlikely((int32_t)atomic_read(&cpu_neg(cpu)->icount_decr.u32) < 0)) {
+        cpu_loop_exit_restore(cpu, pc);
+    }
+}
+
 #if !defined(CONFIG_USER_ONLY)
 void cpu_reloading_memory_map(void);
 /**
