@@ -23,7 +23,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/hw.h"
 #include "hw/irq.h"
 #include "qemu/main-loop.h"
 #include "sysemu/runstate.h"
@@ -577,22 +576,12 @@ static inline int channel_in_run(struct fs_dma_ctrl *ctrl, int c)
 		return 0;
 }
 
-static uint32_t dma_rinvalid (void *opaque, hwaddr addr)
-{
-        hw_error("Unsupported short raccess. reg=" TARGET_FMT_plx "\n", addr);
-        return 0;
-}
-
 static uint64_t
 dma_read(void *opaque, hwaddr addr, unsigned int size)
 {
         struct fs_dma_ctrl *ctrl = opaque;
 	int c;
 	uint32_t r = 0;
-
-	if (size != 4) {
-		dma_rinvalid(opaque, addr);
-	}
 
 	/* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
@@ -616,12 +605,6 @@ dma_read(void *opaque, hwaddr addr, unsigned int size)
 }
 
 static void
-dma_winvalid (void *opaque, hwaddr addr, uint32_t value)
-{
-        hw_error("Unsupported short waccess. reg=" TARGET_FMT_plx "\n", addr);
-}
-
-static void
 dma_update_state(struct fs_dma_ctrl *ctrl, int c)
 {
 	if (ctrl->channels[c].regs[RW_CFG] & 2)
@@ -637,10 +620,6 @@ dma_write(void *opaque, hwaddr addr,
         struct fs_dma_ctrl *ctrl = opaque;
 	uint32_t value = val64;
 	int c;
-
-	if (size != 4) {
-		dma_winvalid(opaque, addr, value);
-	}
 
         /* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
@@ -701,6 +680,10 @@ static const MemoryRegionOps dma_ops = {
 	.read = dma_read,
 	.write = dma_write,
 	.endianness = DEVICE_NATIVE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 	.valid = {
 		.min_access_size = 1,
 		.max_access_size = 4
