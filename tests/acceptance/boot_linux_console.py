@@ -14,6 +14,7 @@ import lzma
 import gzip
 import shutil
 
+from avocado import skip
 from avocado_qemu import Test
 from avocado.utils import process
 from avocado.utils import archive
@@ -351,6 +352,52 @@ class BootLinuxConsole(Test):
                          '-dtb', dtb_path,
                          '-initrd', initrd_path,
                          '-append', kernel_command_line,
+                         '-no-reboot')
+        self.vm.launch()
+
+        self.wait_for_console_pattern('Boot successful.')
+        # TODO user command, for now the uart is stuck
+
+    @skip("unstable clock timings")
+    def test_arm_exynos4210_sdcard(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:smdkc210
+        """
+        deb_url = ('https://snapshot.debian.org/archive/debian/'
+                   '20190928T224601Z/pool/main/l/linux/'
+                   'linux-image-4.19.0-6-armmp_4.19.67-2+deb10u1_armhf.deb')
+        deb_hash = 'fa9df4a0d38936cb50084838f2cb933f570d7d82'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        kernel_path = self.extract_from_deb(deb_path,
+                                            '/boot/vmlinuz-4.19.0-6-armmp')
+        dtb_path = '/usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
+        dtb_path = self.extract_from_deb(deb_path, dtb_path)
+
+        rootfs_url = ('https://github.com/groeck/linux-build-test/raw/'
+                      '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
+                      'arm/rootfs-armv5.ext2.gz')
+        rootfs_hash = '093e89d2b4d982234bf528bc9fb2f2f17a9d1f93'
+        rootfs_path_gz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+        rootfs_path = os.path.join(self.workdir, 'rootfs.ext2')
+        gunzip(rootfs_path_gz, rootfs_path)
+
+        self.vm.set_machine('smdkc210')
+        self.vm.set_console(console_id=1)
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
+                               'earlycon=exynos4210,0x13810000 earlyprintk ' +
+                               'console=ttySAC1,115200n8 ' +
+                               'random.trust_cpu=off cryptomgr.notests ' +
+                               'root=/dev/mmcblk0 rootwait rw ' +
+                               'cpuidle.off=1 panic=-1 noreboot')
+
+        self.vm.add_args('-kernel', kernel_path,
+                         '-dtb', dtb_path,
+                         '-append', kernel_command_line,
+                         # The external MMC is on the 3rd slot
+                         '-drive', 'if=sd,driver=null-co',
+                         '-drive', 'if=sd,driver=null-co',
+                         '-drive', 'if=sd,file=' + rootfs_path + ',format=raw',
                          '-no-reboot')
         self.vm.launch()
 
