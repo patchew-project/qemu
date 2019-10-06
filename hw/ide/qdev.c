@@ -279,6 +279,9 @@ static void ide_drive_realize(IDEDevice *dev, Error **errp)
 {
     DriveInfo *dinfo = NULL;
 
+    warn_report("The 'ide-drive' device is deprecated. "
+                "Use 'ide-hd' or 'ide-cd' instead");
+
     if (dev->conf.blk) {
         dinfo = blk_legacy_dinfo(dev->conf.blk);
     }
