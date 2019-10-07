@@ -46,10 +46,16 @@ typedef struct LuringQueue {
     QSIMPLEQ_HEAD(, LuringAIOCB) submit_queue;
 } LuringQueue;
 
+typedef struct LuringFd {
+    int *fd_array;
+    GHashTable *fd_lookup;
+} LuringFd;
+
 typedef struct LuringState {
     AioContext *aio_context;
 
     struct io_uring ring;
+    LuringFd fd_reg;
 
     /* io queue for submit at batch.  Protected by AioContext lock. */
     LuringQueue io_q;
@@ -298,6 +304,136 @@ static void ioq_init(LuringQueue *io_q)
     io_q->blocked = false;
 }
 
+/**
+ * luring_fd_unregister:
+ *
+ * Remove a file descriptor from the registered fds list.  This is a slow
+ * operation because all registered fds are refreshed, but this function should
+ * not be called often anyway.
+ *
+ * Only call this function while there are no requests in flight.
+ */
+void luring_fd_unregister(LuringState *s, int fd)
+{
+    LuringFd *fd_reg = &s->fd_reg;
+    void *value;
+    int idx;
+    int ret;
+    int nr;
+    int i;
+
+    if (!g_hash_table_lookup_extended(fd_reg->fd_lookup, GINT_TO_POINTER(fd),
+                                      NULL, &value)) {
+        return;
+    }
+
+    ret = io_uring_unregister_files(&s->ring);
+    if (ret < 0) {
+        return;
+    }
+
+    idx = GPOINTER_TO_INT(value);
+    nr = g_hash_table_size(fd_reg->fd_lookup) - 1; /* minus this fd */
+
+    trace_luring_fd_unregister(s, fd, idx);
+
+    memmove(&fd_reg->fd_array[idx], &fd_reg->fd_array[idx + 1], nr - idx);
+
+    /* Rebuild hash table */
+    g_hash_table_remove_all(fd_reg->fd_lookup);
+    for (i = 0; i < nr; i++) {
+        g_hash_table_insert(fd_reg->fd_lookup,
+                            GINT_TO_POINTER(fd_reg->fd_array[i]),
+                            GINT_TO_POINTER(i));
+    }
+
+    io_uring_register_files(&s->ring, fd_reg->fd_array, nr);
+}
+
+/**
+ * luring_fd_register:
+ *
+ * Register file descriptors, see luring_fd_lookup
+ */
+static int luring_fd_register(struct io_uring *ring, LuringFd *fd_reg, int fd)
+{
+    int ret, nr;
+    GHashTable *lookup = fd_reg->fd_lookup;
+    nr = g_hash_table_size(lookup);
+
+    /* If adding new, API requires older registrations to be removed */
+    if (nr) {
+        /*
+         * See linux b19062a56726, register needs the ring mutex, any
+         * submission in progress will complete before unregistering begins
+         * and new ones will have to wait.
+         */
+        ret = io_uring_unregister_files(ring);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    fd_reg->fd_array = g_realloc_n(fd_reg->fd_array, nr + 1, sizeof(int));
+    fd_reg->fd_array[nr] = fd;
+
+    g_hash_table_insert(lookup, GINT_TO_POINTER(fd), GINT_TO_POINTER(nr));
+    ret = io_uring_register_files(ring, fd_reg->fd_array, nr + 1);
+    trace_luring_fd_register(fd, nr, ret);
+    if (ret < 0) {
+        /* Leave fd_array[] alone, fd will be overwritten next time anyway */
+        g_hash_table_remove(lookup, GINT_TO_POINTER(fd));
+        return ret;
+    }
+    return nr;
+}
+
+/**
+ * luring_fd_init:
+ *
+ * Initialize file descriptors
+ */
+static void luring_fd_init(LuringState *s)
+{
+    s->fd_reg.fd_lookup = g_hash_table_new(g_direct_hash, g_direct_equal);
+}
+
+/**
+ * luring_fd_cleanup:
+ *
+ * Unregisters file descriptors, TODO: error handling
+ */
+static void luring_fd_cleanup(LuringState *s)
+{
+    io_uring_unregister_files(&s->ring);
+    g_hash_table_unref(s->fd_reg.fd_lookup);
+    g_free(s->fd_reg.fd_array);
+    s->fd_reg.fd_array = NULL;
+}
+
+/**
+ * luring_fd_lookup:
+ *
+ * Used to lookup fd index in registered array at submission time
+ * If the lookup table has not been created or the fd is not in the table,
+ * the fd is registered.
+ *
+ * If registration errors, this function returns -errno.
+ *
+ * Unregistering is done in luring_detach_aio_context().
+ */
+static int luring_fd_lookup(LuringState *s, int fd)
+{
+    void *index;
+
+    if (g_hash_table_lookup_extended(s->fd_reg.fd_lookup, GINT_TO_POINTER(fd),
+                                     NULL, &index)) {
+        return GPOINTER_TO_INT(index);
+    }
+
+    return luring_fd_register(&s->ring, &s->fd_reg, fd);
+}
+
 void luring_io_plug(BlockDriverState *bs, LuringState *s)
 {
     trace_luring_io_plug(s);
@@ -329,8 +465,13 @@ void luring_io_unplug(BlockDriverState *bs, LuringState *s)
 static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
                             uint64_t offset, int type)
 {
-    int ret;
+    int ret, fd_index;
     struct io_uring_sqe *sqes = &luringcb->sqeq;
+
+    fd_index = luring_fd_lookup(s, fd);
+    if (fd_index >= 0) {
+        fd = fd_index;
+    }
 
     switch (type) {
     case QEMU_AIO_WRITE:
@@ -349,7 +490,11 @@ static int luring_do_submit(int fd, LuringAIOCB *luringcb, LuringState *s,
                         __func__, type);
         abort();
     }
+
     io_uring_sqe_set_data(sqes, luringcb);
+    if (fd_index >= 0) {
+        io_uring_sqe_set_flags(sqes, IOSQE_FIXED_FILE);
+    }
 
     QSIMPLEQ_INSERT_TAIL(&s->io_q.submit_queue, luringcb, next);
     s->io_q.in_queue++;
@@ -375,6 +520,7 @@ int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
         .qiov       = qiov,
         .is_read    = (type == QEMU_AIO_READ),
     };
+
     trace_luring_co_submit(bs, s, &luringcb, fd, offset, qiov ? qiov->size : 0,
                            type);
     ret = luring_do_submit(fd, &luringcb, s, offset, type);
@@ -391,6 +537,7 @@ int coroutine_fn luring_co_submit(BlockDriverState *bs, LuringState *s, int fd,
 
 void luring_detach_aio_context(LuringState *s, AioContext *old_context)
 {
+    luring_fd_cleanup(s);
     aio_set_fd_handler(old_context, s->ring.ring_fd, false, NULL, NULL, NULL,
                        s);
     qemu_bh_delete(s->completion_bh);
@@ -403,6 +550,7 @@ void luring_attach_aio_context(LuringState *s, AioContext *new_context)
     s->completion_bh = aio_bh_new(new_context, qemu_luring_completion_bh, s);
     aio_set_fd_handler(s->aio_context, s->ring.ring_fd, false,
                        qemu_luring_completion_cb, NULL, qemu_luring_poll_cb, s);
+    luring_fd_init(s);
 }
 
 LuringState *luring_init(Error **errp)

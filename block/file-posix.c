@@ -2010,6 +2010,20 @@ static int raw_co_flush_to_disk(BlockDriverState *bs)
     return raw_thread_pool_submit(bs, handle_aiocb_flush, &acb);
 }
 
+static void raw_aio_detach_aio_context(BlockDriverState *bs)
+{
+#ifdef CONFIG_LINUX_IO_URING
+    BDRVRawState *s = bs->opaque;
+
+    if (s->fd >= 0 && s->use_linux_io_uring) {
+        LuringState *luring;
+
+        luring = aio_get_linux_io_uring(bdrv_get_aio_context(bs));
+        luring_fd_unregister(luring, s->fd);
+    }
+#endif
+}
+
 static void raw_aio_attach_aio_context(BlockDriverState *bs,
                                        AioContext *new_context)
 {
@@ -2994,6 +3008,7 @@ BlockDriver bdrv_file = {
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_detach_aio_context = raw_aio_detach_aio_context,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate = raw_co_truncate,
@@ -3470,6 +3485,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_detach_aio_context = raw_aio_detach_aio_context,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate       = raw_co_truncate,
@@ -3594,6 +3610,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_detach_aio_context = raw_aio_detach_aio_context,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate    = raw_co_truncate,
@@ -3726,6 +3743,7 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_refresh_limits = raw_refresh_limits,
     .bdrv_io_plug = raw_aio_plug,
     .bdrv_io_unplug = raw_aio_unplug,
+    .bdrv_detach_aio_context = raw_aio_detach_aio_context,
     .bdrv_attach_aio_context = raw_aio_attach_aio_context,
 
     .bdrv_co_truncate    = raw_co_truncate,

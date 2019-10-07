@@ -68,6 +68,7 @@ void luring_detach_aio_context(LuringState *s, AioContext *old_context);
 void luring_attach_aio_context(LuringState *s, AioContext *new_context);
 void luring_io_plug(BlockDriverState *bs, LuringState *s);
 void luring_io_unplug(BlockDriverState *bs, LuringState *s);
+void luring_fd_unregister(LuringState *s, int fd);
 #endif
 
 #ifdef _WIN32
