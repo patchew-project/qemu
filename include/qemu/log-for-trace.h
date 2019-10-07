@@ -20,6 +20,9 @@
 
 /* Private global variable, don't use */
 extern int qemu_loglevel;
+extern bool to_string;
+
+extern int32_t max_num_hot_tbs_to_dump;
 
 #define LOG_TRACE          (1 << 15)
 
@@ -31,5 +34,6 @@ static inline bool qemu_loglevel_mask(int mask)
 
 /* main logging function */
 int GCC_FMT_ATTR(1, 2) qemu_log(const char *fmt, ...);
+int qemu_vlog(const char *fmt, va_list va);
 
 #endif
