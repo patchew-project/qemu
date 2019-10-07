@@ -36,7 +36,7 @@ static void test_fw_cfg_signature(void)
     buf[4] = 0;
 
     g_assert_cmpstr(buf, ==, "QEMU");
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -52,7 +52,7 @@ static void test_fw_cfg_id(void)
     id = qfw_cfg_get_u32(fw_cfg, FW_CFG_ID);
     g_assert((id == 1) ||
              (id == 3));
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -73,7 +73,7 @@ static void test_fw_cfg_uuid(void)
     qfw_cfg_get(fw_cfg, FW_CFG_UUID, buf, 16);
     g_assert(memcmp(buf, uuid, sizeof(buf)) == 0);
 
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 
 }
@@ -88,7 +88,7 @@ static void test_fw_cfg_ram_size(void)
 
     g_assert_cmpint(qfw_cfg_get_u64(fw_cfg, FW_CFG_RAM_SIZE), ==, ram_size);
 
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -102,7 +102,7 @@ static void test_fw_cfg_nographic(void)
 
     g_assert_cmpint(qfw_cfg_get_u16(fw_cfg, FW_CFG_NOGRAPHIC), ==, 0);
 
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -116,7 +116,7 @@ static void test_fw_cfg_nb_cpus(void)
 
     g_assert_cmpint(qfw_cfg_get_u16(fw_cfg, FW_CFG_NB_CPUS), ==, nb_cpus);
 
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -129,7 +129,7 @@ static void test_fw_cfg_max_cpus(void)
     fw_cfg = pc_fw_cfg_init(s);
 
     g_assert_cmpint(qfw_cfg_get_u16(fw_cfg, FW_CFG_MAX_CPUS), ==, max_cpus);
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -158,7 +158,7 @@ static void test_fw_cfg_numa(void)
 
     g_free(node_mask);
     g_free(cpu_mask);
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -171,7 +171,7 @@ static void test_fw_cfg_boot_menu(void)
     fw_cfg = pc_fw_cfg_init(s);
 
     g_assert_cmpint(qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_MENU), ==, boot_menu);
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -190,7 +190,7 @@ static void test_fw_cfg_reboot_timeout(void)
     g_assert_cmpint(filesize, ==, sizeof(reboot_timeout));
     reboot_timeout = le32_to_cpu(reboot_timeout);
     g_assert_cmpint(reboot_timeout, ==, 15);
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
@@ -209,7 +209,7 @@ static void test_fw_cfg_splash_time(void)
     g_assert_cmpint(filesize, ==, sizeof(splash_time));
     splash_time = le16_to_cpu(splash_time);
     g_assert_cmpint(splash_time, ==, 12);
-    pc_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
     qtest_quit(s);
 }
 
