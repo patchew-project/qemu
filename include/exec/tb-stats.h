@@ -90,9 +90,23 @@ struct TBStatistics {
      * this TBStats structure. Has to be reset on a tb_flush.
      */
     GPtrArray *tbs;
+
+    /* end of jit_stats_lock */
+
+    /* These are accessed with atomic operations */
+    struct {
+        int64_t restore;
+        uint64_t restore_count;
+        int64_t interm;
+        int64_t code;
+        int64_t opt;
+        int64_t la;
+    } time;
 };
 
 bool tb_stats_cmp(const void *ap, const void *bp);
+
+void dump_jit_exec_time_info(uint64_t dev_time);
 
 void init_tb_stats_htable_if_not(void);
 
@@ -101,6 +115,7 @@ void dump_jit_profile_info(TCGProfile *s);
 #define TB_NOTHING    (1 << 0)
 #define TB_EXEC_STATS (1 << 1)
 #define TB_JIT_STATS  (1 << 2)
+#define TB_JIT_TIME   (1 << 3)
 
 void enable_collect_tb_stats(void);
 void disable_collect_tb_stats(void);
