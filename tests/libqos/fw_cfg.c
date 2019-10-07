@@ -126,11 +126,6 @@ QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base)
     return fw_cfg;
 }
 
-void mm_fw_cfg_uninit(QFWCFG *fw_cfg)
-{
-    g_free(fw_cfg);
-}
-
 static void io_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
     qtest_outw(fw_cfg->qts, fw_cfg->base, key);
