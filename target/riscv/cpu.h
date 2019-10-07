@@ -88,6 +88,7 @@ enum {
 #define MMU_USER_IDX 3
 
 #define MAX_RISCV_PMPS (16)
+#define RISCV_INSN_LENGTH 4
 
 typedef struct CPURISCVState CPURISCVState;
 
