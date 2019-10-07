@@ -419,7 +419,6 @@ oss_lib=""
 bsd="no"
 linux="no"
 solaris="no"
-profiler="no"
 cocoa="no"
 softmmu="yes"
 linux_user="no"
@@ -1192,8 +1191,6 @@ for opt do
   ;;
   --enable-libnfs) libnfs="yes"
   ;;
-  --enable-profiler) profiler="yes"
-  ;;
   --disable-cocoa) cocoa="no"
   ;;
   --enable-cocoa)
@@ -1702,7 +1699,6 @@ Advanced options (experts only):
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
   --enable-gprof           QEMU profiling with gprof
-  --enable-profiler        profiler support
   --enable-debug-stack-usage
                            track the maximum stack usage of stacks created by qemu_alloc_stack
 
@@ -6304,7 +6300,6 @@ echo "target list       $target_list"
 echo "gprof enabled     $gprof"
 echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
-echo "profiler          $profiler"
 echo "static build      $static"
 if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
