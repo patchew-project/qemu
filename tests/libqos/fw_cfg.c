@@ -18,46 +18,47 @@
 #include "qemu/bswap.h"
 #include "hw/nvram/fw_cfg.h"
 
-void qfw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
+void qfw_cfg_select(QTestState *qts, QFWCFG *fw_cfg, uint16_t key)
 {
-    fw_cfg->select(fw_cfg, key);
+    fw_cfg->select(qts, fw_cfg, key);
 }
 
-void qfw_cfg_read_data(QFWCFG *fw_cfg, void *data, size_t len)
+void qfw_cfg_read_data(QTestState *qts, QFWCFG *fw_cfg, void *data, size_t len)
 {
-    fw_cfg->read(fw_cfg, data, len);
+    fw_cfg->read(qts, fw_cfg, data, len);
 }
 
-void qfw_cfg_get(QFWCFG *fw_cfg, uint16_t key, void *data, size_t len)
+void qfw_cfg_get(QTestState *qts, QFWCFG *fw_cfg, uint16_t key,
+                 void *data, size_t len)
 {
-    qfw_cfg_select(fw_cfg, key);
-    qfw_cfg_read_data(fw_cfg, data, len);
+    qfw_cfg_select(qts, fw_cfg, key);
+    qfw_cfg_read_data(qts, fw_cfg, data, len);
 }
 
-uint16_t qfw_cfg_get_u16(QFWCFG *fw_cfg, uint16_t key)
+uint16_t qfw_cfg_get_u16(QTestState *qts, QFWCFG *fw_cfg, uint16_t key)
 {
     uint16_t value;
-    qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
+    qfw_cfg_get(qts, fw_cfg, key, &value, sizeof(value));
     return le16_to_cpu(value);
 }
 
-uint32_t qfw_cfg_get_u32(QFWCFG *fw_cfg, uint16_t key)
+uint32_t qfw_cfg_get_u32(QTestState *qts, QFWCFG *fw_cfg, uint16_t key)
 {
     uint32_t value;
-    qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
+    qfw_cfg_get(qts, fw_cfg, key, &value, sizeof(value));
     return le32_to_cpu(value);
 }
 
-uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key)
+uint64_t qfw_cfg_get_u64(QTestState *qts, QFWCFG *fw_cfg, uint16_t key)
 {
     uint64_t value;
-    qfw_cfg_get(fw_cfg, key, &value, sizeof(value));
+    qfw_cfg_get(qts, fw_cfg, key, &value, sizeof(value));
     return le64_to_cpu(value);
 }
 
-static void mm_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
+static void mm_fw_cfg_select(QTestState *qts, QFWCFG *fw_cfg, uint16_t key)
 {
-    qtest_writew(fw_cfg->qts, fw_cfg->base, key);
+    qtest_writew(qts, fw_cfg->base, key);
 }
 
 /*
@@ -72,8 +73,8 @@ static void mm_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
  * necessary in total. And, while the caller's buffer has been fully
  * populated, it has received only a starting slice of the fw_cfg file.
  */
-size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
-                      void *data, size_t buflen)
+size_t qfw_cfg_get_file(QTestState *qts, QFWCFG *fw_cfg, const char *filename,
+                        void *data, size_t buflen)
 {
     uint32_t count;
     uint32_t i;
@@ -82,11 +83,11 @@ size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
     FWCfgFile *pdir_entry;
     size_t filesize = 0;
 
-    qfw_cfg_get(fw_cfg, FW_CFG_FILE_DIR, &count, sizeof(count));
+    qfw_cfg_get(qts, fw_cfg, FW_CFG_FILE_DIR, &count, sizeof(count));
     count = be32_to_cpu(count);
     dsize = sizeof(uint32_t) + count * sizeof(struct fw_cfg_file);
     filesbuf = g_malloc(dsize);
-    qfw_cfg_get(fw_cfg, FW_CFG_FILE_DIR, filesbuf, dsize);
+    qfw_cfg_get(qts, fw_cfg, FW_CFG_FILE_DIR, filesbuf, dsize);
     pdir_entry = (FWCfgFile *)(filesbuf + sizeof(uint32_t));
     for (i = 0; i < count; ++i, ++pdir_entry) {
         if (!strcmp(pdir_entry->name, filename)) {
@@ -96,7 +97,7 @@ size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
             if (len > buflen) {
                 len = buflen;
             }
-            qfw_cfg_get(fw_cfg, sel, data, len);
+            qfw_cfg_get(qts, fw_cfg, sel, data, len);
             break;
         }
     }
@@ -104,49 +105,49 @@ size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
     return filesize;
 }
 
-static void mm_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
+static void mm_fw_cfg_read(QTestState *qts, QFWCFG *fw_cfg,
+                           void *data, size_t len)
 {
     uint8_t *ptr = data;
     int i;
 
     for (i = 0; i < len; i++) {
-        ptr[i] = qtest_readb(fw_cfg->qts, fw_cfg->base + 2);
+        ptr[i] = qtest_readb(qts, fw_cfg->base + 2);
     }
 }
 
-QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base)
+QFWCFG *mm_fw_cfg_init(uint64_t base)
 {
     QFWCFG *fw_cfg = g_malloc0(sizeof(*fw_cfg));
 
     fw_cfg->base = base;
-    fw_cfg->qts = qts;
     fw_cfg->select = mm_fw_cfg_select;
     fw_cfg->read = mm_fw_cfg_read;
 
     return fw_cfg;
 }
 
-static void io_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
+static void io_fw_cfg_select(QTestState *qts, QFWCFG *fw_cfg, uint16_t key)
 {
-    qtest_outw(fw_cfg->qts, fw_cfg->base, key);
+    qtest_outw(qts, fw_cfg->base, key);
 }
 
-static void io_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
+static void io_fw_cfg_read(QTestState *qts, QFWCFG *fw_cfg,
+                           void *data, size_t len)
 {
     uint8_t *ptr = data;
     int i;
 
     for (i = 0; i < len; i++) {
-        ptr[i] = qtest_inb(fw_cfg->qts, fw_cfg->base + 1);
+        ptr[i] = qtest_inb(qts, fw_cfg->base + 1);
     }
 }
 
-QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base)
+QFWCFG *io_fw_cfg_init(uint16_t base)
 {
     QFWCFG *fw_cfg = g_malloc0(sizeof(*fw_cfg));
 
     fw_cfg->base = base;
-    fw_cfg->qts = qts;
     fw_cfg->select = io_fw_cfg_select;
     fw_cfg->read = io_fw_cfg_read;
 
