@@ -13,7 +13,7 @@
 
 #include "hw/sysbus.h"
 #include "hw/char/pl011.h"
-#include "hw/char/bcm2835_aux.h"
+#include "hw/misc/bcm2835_aux.h"
 #include "hw/display/bcm2835_fb.h"
 #include "hw/dma/bcm2835_dma.h"
 #include "hw/intc/bcm2835_ic.h"
