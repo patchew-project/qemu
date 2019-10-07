@@ -79,9 +79,9 @@ The first cluster of a qcow2 image contains the file header:
                     Offset into the image file at which the snapshot table
                     starts. Must be aligned to a cluster boundary.
 
-If the version is 3 or higher, the header has the following additional fields.
-For version 2, the values are assumed to be zero, unless specified otherwise
-in the description of a field.
+For version 2, header is always 72 bytes length and finishes here.
+For version 3 or higher the header length is at least 104 bytes and has at
+least next five fields, up to the @header_length field.
 
          72 -  79:  incompatible_features
                     Bitmask of incompatible features. An implementation must
@@ -164,6 +164,26 @@ in the description of a field.
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2
                     images, the length is always assumed to be 72 bytes.
+
+Additional fields (version 3 and higher)
+
+The following fields of the header are optional: if software don't know how to
+interpret the field, it may safely ignore it. Still the field must be kept as is
+when rewriting the image. @header_length must be bound to the end of one of
+these fields (or to @header_length field end itself, to be 104 bytes).
+This definition implies the following:
+1. Software may support some of these optional fields and ignore the others,
+   which means that features may be backported to downstream Qemu independently.
+2. Software may check @header_length, if it knows optional fields specification
+   enough (knows about the field which exceeds @header_length).
+3. If @header_length is higher than the highest field end that software knows,
+   it should assume that additional fields are correct, @header_length is
+   correct and keep @header_length and additional unknown fields as is on
+   rewriting the image.
+3. If we want to add incompatible field (or a field, for which some its values
+   would be incompatible), it must be accompanied by incompatible feature bit.
+
+        < ... No additional fields in the header currently ... >
 
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:
