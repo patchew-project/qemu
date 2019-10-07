@@ -36,8 +36,15 @@ size_t qfw_cfg_get_file(QFWCFG *fw_cfg, const char *filename,
 
 QFWCFG *mm_fw_cfg_init(QTestState *qts, uint64_t base);
 void mm_fw_cfg_uninit(QFWCFG *fw_cfg);
+/**
+ * io_fw_cfg_init():
+ * @qts: The #QTestState that will be referred to by the QFWCFG object.
+ * @base: The I/O address of the fw_cfg device in the guest.
+ *
+ * Returns a newly allocated QFWCFG object which must be released
+ * with a call to g_free() when no longer required.
+ */
 QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base);
-void io_fw_cfg_uninit(QFWCFG *fw_cfg);
 
 static inline QFWCFG *pc_fw_cfg_init(QTestState *qts)
 {
@@ -46,7 +53,7 @@ static inline QFWCFG *pc_fw_cfg_init(QTestState *qts)
 
 static inline void pc_fw_cfg_uninit(QFWCFG *fw_cfg)
 {
-    io_fw_cfg_uninit(fw_cfg);
+    g_free(fw_cfg);
 }
 
 #endif

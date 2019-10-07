@@ -157,8 +157,3 @@ QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base)
 
     return fw_cfg;
 }
-
-void io_fw_cfg_uninit(QFWCFG *fw_cfg)
-{
-    g_free(fw_cfg);
-}
