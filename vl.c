@@ -35,6 +35,7 @@
 #include "sysemu/runstate.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
+#include "exec/tb-stats-dump.h"
 
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
@@ -4514,6 +4515,7 @@ int main(int argc, char **argv, char **envp)
     /* No more vcpu or device emulation activity beyond this point */
     vm_shutdown();
 
+    tb_stats_dump();
     job_cancel_sync_all();
     bdrv_close_all();
 

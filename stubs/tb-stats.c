@@ -21,6 +21,11 @@ bool tb_stats_collection_enabled(void)
     return false;
 }
 
+void set_tbstats_max_tbs(int max)
+{
+    return;
+}
+
 void set_default_tbstats_flag(uint32_t flags)
 {
     return;

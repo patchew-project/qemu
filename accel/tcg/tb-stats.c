@@ -15,6 +15,7 @@
 #include "qemu/qemu-print.h"
 
 #include "exec/tb-stats.h"
+#include "exec/tb-stats-dump.h"
 
 /* TBStatistic collection controls */
 enum TBStatsStatus {
@@ -26,6 +27,7 @@ enum TBStatsStatus {
 
 static enum TBStatsStatus tcg_collect_tb_stats;
 static uint32_t default_tbstats_flag;
+static int max_dump_tbs;
 /* only accessed in safe work */
 static GList *last_search;
 static int id = 1; /* display_id increment counter */
@@ -591,6 +593,20 @@ void dump_tb_info(int id, int log_mask, bool use_monitor)
 }
 
 
+/*
+ * Dump the final stats
+ */
+void tb_stats_dump(void)
+{
+    if (!tb_stats_collection_enabled()) {
+        return;
+    }
+
+    dump_tbs_info(max_dump_tbs, SORT_BY_HOTNESS, false);
+}
+
+/* TBStatistic collection controls */
+
 void enable_collect_tb_stats(void)
 {
     init_tb_stats_htable_if_not();
@@ -638,4 +654,9 @@ uint32_t get_default_tbstats_flag(void)
 void set_default_tbstats_flag(uint32_t flags)
 {
     default_tbstats_flag = flags;
+}
+
+void set_tbstats_max_tbs(int max)
+{
+    max_dump_tbs = max;
 }
