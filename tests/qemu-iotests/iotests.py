@@ -58,6 +58,7 @@ imgproto = os.environ.get('IMGPROTO', 'file')
 test_dir = os.environ.get('TEST_DIR')
 output_dir = os.environ.get('OUTPUT_DIR', '.')
 cachemode = os.environ.get('CACHEMODE')
+aiomode = os.environ.get('AIOMODE')
 qemu_default_machine = os.environ.get('QEMU_DEFAULT_MACHINE')
 
 socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
@@ -474,6 +475,7 @@ class VM(qtest.QEMUQtestMachine):
             options.append('file=%s' % path)
             options.append('format=%s' % format)
             options.append('cache=%s' % cachemode)
+            options.append('aio=%s' % aiomode)
 
         if opts:
             options.append(opts)
@@ -852,6 +854,10 @@ def verify_cache_mode(supported_cache_modes=[]):
     if supported_cache_modes and (cachemode not in supported_cache_modes):
         notrun('not suitable for this cache mode: %s' % cachemode)
 
+def verify_aio_mode(supported_aio_modes=[]):
+    if supported_aio_modes and (aiomode not in supported_aio_modes):
+        notrun('not suitable for this aio mode: %s' % aiomode)
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
 
@@ -909,8 +915,9 @@ def execute_unittest(output, verbosity, debug):
 
 def execute_test(test_function=None,
                  supported_fmts=[], supported_oses=['linux'],
-                 supported_cache_modes=[], unsupported_fmts=[],
-                 supported_protocols=[], unsupported_protocols=[]):
+                 supported_cache_modes=[], supported_aio_modes={},
+                 unsupported_fmts=[], supported_protocols=[],
+                 unsupported_protocols=[]):
     """Run either unittest or script-style tests."""
 
     # We are using TEST_DIR and QEMU_DEFAULT_MACHINE as proxies to
@@ -927,6 +934,7 @@ def execute_test(test_function=None,
     verify_protocol(supported_protocols, unsupported_protocols)
     verify_platform(supported_oses)
     verify_cache_mode(supported_cache_modes)
+    verify_aio_mode(supported_aio_modes)
 
     if debug:
         output = sys.stdout
