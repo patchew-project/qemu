@@ -555,7 +555,26 @@ typedef struct TCGOp {
 /* Make sure operands fit in the bitfields above.  */
 QEMU_BUILD_BUG_ON(NB_OPS > (1 << 8));
 
+/*
+ * The TCGProfile structure holds data for analysing the quality of
+ * the code generation. The data is split between stuff that is valid
+ * for the lifetime of a single translation and things that are valid
+ * for the lifetime of the translator. As the former is reset for each
+ * new translation so it should be copied elsewhere if you want to
+ * keep it.
+ *
+ * The structure is safe to access within the context of translation
+ * but accessing the data from elsewhere should be done with safe
+ * work.
+ */
 typedef struct TCGProfile {
+
+    struct {
+        int nb_guest_insns;
+        int nb_spills;
+        int nb_ops_pre_opt;
+    } translation;
+
     int64_t cpu_exec_time;
     int64_t tb_count1;
     int64_t tb_count;
@@ -600,9 +619,7 @@ struct TCGContext {
 
     tcg_insn_unit *code_ptr;
 
-#ifdef CONFIG_PROFILER
     TCGProfile prof;
-#endif
 
 #ifdef CONFIG_DEBUG_TCG
     int temps_in_use;
@@ -651,6 +668,8 @@ struct TCGContext {
 
     uint16_t gen_insn_end_off[TCG_MAX_INSNS];
     target_ulong gen_insn_data[TCG_MAX_INSNS][TARGET_INSN_START_WORDS];
+
+    TranslationBlock *current_tb;
 };
 
 extern TCGContext tcg_init_ctx;
