@@ -118,7 +118,8 @@ in list mode.
 @item --fork
 Fork off the server process and exit the parent once the server is running.
 @item --pid-file=PATH
-Store the server's process ID in the given file.
+Store the server's process ID in the given file.  The pid file is not
+created until after the server socket is open.
 @item --tls-authz=ID
 Specify the ID of a qauthz object previously created with the
 --object option. This will be used to authorize connecting users
