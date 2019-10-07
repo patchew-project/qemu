@@ -1784,10 +1784,17 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
     /*
      * We want to fetch the stats structure before we start code
      * generation so we can count interesting things about this
-     * generation.
+     * generation. If dfilter is in effect we will only collect stats
+     * for the specified range.
      */
-    if (tb_stats_collection_enabled()) {
+    if (tb_stats_collection_enabled() &&
+        qemu_log_in_addr_range(tb->pc)) {
+        uint32_t flag = get_default_tbstats_flag();
         tb->tb_stats = tb_get_stats(phys_pc, pc, cs_base, flags);
+
+        if (flag & TB_EXEC_STATS) {
+            tb->tb_stats->stats_enabled |= TB_EXEC_STATS;
+        }
     } else {
         tb->tb_stats = NULL;
     }
