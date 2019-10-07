@@ -129,4 +129,7 @@ void page_size_init(void);
  * returned. */
 bool dump_in_progress(void);
 
+void enable_jitdump(void);
+bool jitdump_enabled(void);
+
 #endif

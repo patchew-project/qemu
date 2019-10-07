@@ -109,3 +109,18 @@ memory areas instead calls out to C code for device emulation.
 Finally, the MMU helps tracking dirty pages and pages pointed to by
 translation blocks.
 
+Profiling JITted code
+---------------------
+
+The Linux `perf` tool will treat all JITed code as a single block as
+unlike the main code it can't use debug information to link individual
+program counter samples with larger functions. To overcome this
+limitation you can use the `--perf` option to generate a map file.
+This needs to be integrated with the `perf.data` file before the final
+report can be viewed.
+
+.. code::
+
+  perf record -k 1 $QEMU --perf $REMAINING_ARGS
+  perf inject -i perf.data -j -o perf.data.jitted
+  perf report -i perf.data.jitted
