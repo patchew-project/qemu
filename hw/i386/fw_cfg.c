@@ -85,9 +85,26 @@ void fw_cfg_build_smbios(MachineState *ms, FWCfgState *fw_cfg)
     }
 }
 
+static void fw_cfg_expose_topology(FWCfgState *fw_cfg,
+                                   unsigned dies,
+                                   unsigned cores,
+                                   unsigned threads,
+                                   unsigned max_cpus)
+{
+    FWCfgX86Topology *topo = g_new(FWCfgX86Topology, 1);
+
+    topo->dies     = cpu_to_le32(dies);
+    topo->cores    = cpu_to_le32(cores);
+    topo->threads  = cpu_to_le32(threads);
+    topo->max_cpus = cpu_to_le32(max_cpus);
+    fw_cfg_add_file(fw_cfg, "etc/x86-smp-topology", topo, sizeof *topo);
+}
+
 FWCfgState *fw_cfg_arch_create(MachineState *ms,
-                                      uint16_t boot_cpus,
-                                      uint16_t apic_id_limit)
+                               uint16_t boot_cpus,
+                               uint16_t apic_id_limit,
+                               unsigned smp_dies,
+                               bool expose_topology)
 {
     FWCfgState *fw_cfg;
     uint64_t *numa_fw_cfg;
@@ -142,6 +159,11 @@ FWCfgState *fw_cfg_arch_create(MachineState *ms,
     fw_cfg_add_bytes(fw_cfg, FW_CFG_NUMA, numa_fw_cfg,
                      (1 + apic_id_limit + nb_numa_nodes) *
                      sizeof(*numa_fw_cfg));
+
+    if (expose_topology) {
+        fw_cfg_expose_topology(fw_cfg, smp_dies, ms->smp.cores,
+                               ms->smp.threads, ms->smp.max_cpus);
+    }
 
     return fw_cfg;
 }
