@@ -54,6 +54,9 @@ class FreeBSDVM(basevm.BaseVM):
         # libs: opengl
         "libepoxy",
         "mesa-libs",
+
+        # libs: network
+        "netmap",
     ]
 
     BUILD_SCRIPT = """
