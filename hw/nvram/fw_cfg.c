@@ -40,7 +40,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 
-#define FW_CFG_FILE_SLOTS_DFLT 0x20
+#define FW_CFG_FILE_SLOTS_DFLT 0x28
 
 /* FW_CFG_VERSION bits */
 #define FW_CFG_VERSION      0x01

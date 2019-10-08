@@ -29,6 +29,8 @@
 
 GlobalProperty hw_compat_4_1[] = {
     { "virtio-pci", "x-pcie-flr-init", "off" },
+    { "fw_cfg_mem", "x-file-slots", "0x20" },
+    { "fw_cfg_io", "x-file-slots", "0x20" },
 };
 const size_t hw_compat_4_1_len = G_N_ELEMENTS(hw_compat_4_1);
 
