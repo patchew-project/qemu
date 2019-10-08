@@ -144,6 +144,9 @@ typedef struct PCMachineClass {
 
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
+
+    /* expose x86 CPU topology over fw_cfg */
+    bool fwcfg_topology;
 } PCMachineClass;
 
 #define TYPE_PC_MACHINE "generic-pc-machine"

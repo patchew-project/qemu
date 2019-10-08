@@ -1739,7 +1739,7 @@ void pc_memory_init(PCMachineState *pcms,
                                         1);
 
     fw_cfg = fw_cfg_arch_create(machine, pcms->boot_cpus, pcms->apic_id_limit,
-                                pcms->smp_dies, false);
+                                pcms->smp_dies, pcmc->fwcfg_topology);
 
     rom_set_fw(fw_cfg);
 
@@ -2798,6 +2798,7 @@ static void pc_machine_class_init(ObjectClass *oc, void *data)
     pcmc->save_tsc_khz = true;
     pcmc->linuxboot_dma_enabled = true;
     pcmc->pvh_enabled = true;
+    pcmc->fwcfg_topology = true;
     assert(!mc->get_hotplug_handler);
     mc->get_hotplug_handler = pc_get_hotplug_handler;
     mc->hotplug_allowed = pc_hotplug_allowed;
