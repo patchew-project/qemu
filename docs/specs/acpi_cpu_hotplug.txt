@@ -44,9 +44,10 @@ read access:
            3-7: reserved and should be ignored by OSPM
     [0x5-0x7] reserved
     [0x8] Command data: (DWORD access)
-          in case of error or unsupported command reads is 0xFFFFFFFF
+          in case of error or unsupported command reads is 0x0
           current 'Command field' value:
-              0: returns PXM value corresponding to device
+              0: returns CPU selector value corresponding to a CPU with
+                 pending event.
 
 write access:
     offset:
