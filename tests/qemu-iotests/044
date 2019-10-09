@@ -102,17 +102,14 @@ class TestRefcountTableGrowth(iotests.QMPTestCase):
     def setUp(self):
         qemu_img('create', '-f', iotests.imgfmt, '-o', 'cluster_size=512', test_img, '16G')
         self.preallocate(test_img)
-        pass
 
 
     def tearDown(self):
         os.remove(test_img)
-        pass
 
     def test_grow_refcount_table(self):
         qemu_io('-c', 'write 3800M 1M', test_img)
         qemu_img_verbose('check' , test_img)
-        pass
 
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2'],
