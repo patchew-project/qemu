@@ -602,6 +602,3 @@ _require_drivers()
         fi
     done
 }
-
-# make sure this script returns success
-true
