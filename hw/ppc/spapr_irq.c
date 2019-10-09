@@ -101,81 +101,9 @@ int spapr_irq_init_kvm(int (*fn)(SpaprInterruptController *, Error **),
     return 0;
 }
 
-/*
- * XICS IRQ backend.
- */
-
-SpaprIrq spapr_irq_xics = {
-    .xics        = true,
-    .xive        = false,
-};
-
-/*
- * XIVE IRQ backend.
- */
-
-SpaprIrq spapr_irq_xive = {
-    .xics        = false,
-    .xive        = true,
-};
-
-/*
- * Dual XIVE and XICS IRQ backend.
- *
- * Both interrupt mode, XIVE and XICS, objects are created but the
- * machine starts in legacy interrupt mode (XICS). It can be changed
- * by the CAS negotiation process and, in that case, the new mode is
- * activated after an extra machine reset.
- */
-
-/*
- * Define values in sync with the XIVE and XICS backend
- */
-SpaprIrq spapr_irq_dual = {
-    .xics        = true,
-    .xive        = true,
-};
-
-
 static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
-
-    /*
-     * Sanity checks on non-P9 machines. On these, XIVE is not
-     * advertised, see spapr_dt_ov5_platform_support()
-     */
-    if (!ppc_type_check_compat(machine->cpu_type, CPU_POWERPC_LOGICAL_3_00,
-                               0, spapr->max_compat_pvr)) {
-        /*
-         * If the 'dual' interrupt mode is selected, force XICS as CAS
-         * negotiation is useless.
-         */
-        if (spapr->irq == &spapr_irq_dual) {
-            spapr->irq = &spapr_irq_xics;
-            return 0;
-        }
-
-        /*
-         * Non-P9 machines using only XIVE is a bogus setup. We have two
-         * scenarios to take into account because of the compat mode:
-         *
-         * 1. POWER7/8 machines should fail to init later on when creating
-         *    the XIVE interrupt presenters because a POWER9 exception
-         *    model is required.
-
-         * 2. POWER9 machines using the POWER8 compat mode won't fail and
-         *    will let the OS boot with a partial XIVE setup : DT
-         *    properties but no hcalls.
-         *
-         * To cover both and not confuse the OS, add an early failure in
-         * QEMU.
-         */
-        if (spapr->irq == &spapr_irq_xive) {
-            error_setg(errp, "XIVE-only machines require a POWER9 CPU");
-            return -1;
-        }
-    }
 
     /*
      * On a POWER9 host, some older KVM XICS devices cannot be destroyed and
@@ -183,8 +111,9 @@ static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
      * guest reboots.
      */
     if (kvm_enabled() &&
-        spapr->irq == &spapr_irq_dual &&
         machine_kernel_irqchip_required(machine) &&
+        spapr_get_cap(spapr, SPAPR_CAP_XICS) &&
+        spapr_get_cap(spapr, SPAPR_CAP_XIVE) &&
         xics_kvm_has_broken_disconnect(spapr)) {
         error_setg(errp, "KVM is too old to support ic-mode=dual,kernel-irqchip=on");
         return -1;
@@ -280,7 +209,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
     /* Initialize the MSI IRQ allocator. */
     spapr_irq_msi_init(spapr);
 
-    if (spapr->irq->xics) {
+    if (spapr_get_cap(spapr, SPAPR_CAP_XICS)) {
         Error *local_err = NULL;
         Object *obj;
 
@@ -313,7 +242,7 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
         spapr->ics = ICS_SPAPR(obj);
     }
 
-    if (spapr->irq->xive) {
+    if (spapr_get_cap(spapr, SPAPR_CAP_XIVE)) {
         uint32_t nr_servers = spapr_max_server_number(spapr);
         DeviceState *dev;
         int i;
@@ -557,11 +486,6 @@ int spapr_irq_find(SpaprMachineState *spapr, int num, bool align, Error **errp)
 
     return first + ics->offset;
 }
-
-SpaprIrq spapr_irq_xics_legacy = {
-    .xics        = true,
-    .xive        = false,
-};
 
 static void spapr_irq_register_types(void)
 {

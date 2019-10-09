@@ -79,8 +79,12 @@ typedef enum {
 #define SPAPR_CAP_LARGE_DECREMENTER     0x08
 /* Count Cache Flush Assist HW Instruction */
 #define SPAPR_CAP_CCF_ASSIST            0x09
+/* XICS interrupt controller */
+#define SPAPR_CAP_XICS                  0x0a
+/* XIVE interrupt controller */
+#define SPAPR_CAP_XIVE                  0x0b
 /* Num Caps */
-#define SPAPR_CAP_NUM                   (SPAPR_CAP_CCF_ASSIST + 1)
+#define SPAPR_CAP_NUM                   (SPAPR_CAP_XIVE + 1)
 
 /*
  * Capability Values
@@ -131,7 +135,6 @@ struct SpaprMachineClass {
                           hwaddr *nv2atsd, Error **errp);
     SpaprResizeHpt resize_hpt_default;
     SpaprCapabilities default_caps;
-    SpaprIrq *irq;
 };
 
 /**
@@ -195,7 +198,6 @@ struct SpaprMachineState {
 
     int32_t irq_map_nr;
     unsigned long *irq_map;
-    SpaprIrq *irq;
     qemu_irq *qirqs;
     SpaprInterruptController *active_intc;
     ICSState *ics;
@@ -870,6 +872,8 @@ extern const VMStateDescription vmstate_spapr_cap_hpt_maxpagesize;
 extern const VMStateDescription vmstate_spapr_cap_nested_kvm_hv;
 extern const VMStateDescription vmstate_spapr_cap_large_decr;
 extern const VMStateDescription vmstate_spapr_cap_ccf_assist;
+extern const VMStateDescription vmstate_spapr_cap_xics;
+extern const VMStateDescription vmstate_spapr_cap_xive;
 
 static inline uint8_t spapr_get_cap(SpaprMachineState *spapr, int cap)
 {

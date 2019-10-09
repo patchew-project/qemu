@@ -1784,13 +1784,13 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      * terminate the boot.
      */
     if (guest_xive) {
-        if (!spapr->irq->xive) {
+        if (!spapr_get_cap(spapr, SPAPR_CAP_XIVE)) {
             error_report(
 "Guest requested unavailable interrupt mode (XIVE), try the ic-mode=xive or ic-mode=dual machine property");
             exit(EXIT_FAILURE);
         }
     } else {
-        if (!spapr->irq->xics) {
+        if (!spapr_get_cap(spapr, SPAPR_CAP_XICS)) {
             error_report(
 "Guest requested unavailable interrupt mode (XICS), either don't set the ic-mode machine property or try ic-mode=xics or ic-mode=dual");
             exit(EXIT_FAILURE);
@@ -1804,7 +1804,8 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
      */
     if (!spapr->cas_reboot) {
         spapr->cas_reboot = spapr_ovec_test(ov5_updates, OV5_XIVE_EXPLOIT)
-            && spapr->irq->xics && spapr->irq->xive;
+            && spapr_get_cap(spapr, SPAPR_CAP_XICS)
+            && spapr_get_cap(spapr, SPAPR_CAP_XIVE);
     }
 
     spapr_ovec_cleanup(ov5_updates);

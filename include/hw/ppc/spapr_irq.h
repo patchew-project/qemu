@@ -77,16 +77,6 @@ int spapr_irq_msi_alloc(SpaprMachineState *spapr, uint32_t num, bool align,
                         Error **errp);
 void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num);
 
-typedef struct SpaprIrq {
-    bool        xics;
-    bool        xive;
-} SpaprIrq;
-
-extern SpaprIrq spapr_irq_xics;
-extern SpaprIrq spapr_irq_xics_legacy;
-extern SpaprIrq spapr_irq_xive;
-extern SpaprIrq spapr_irq_dual;
-
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp);
 int spapr_irq_claim(SpaprMachineState *spapr, int irq, bool lsi, Error **errp);
 void spapr_irq_free(SpaprMachineState *spapr, int irq, int num);

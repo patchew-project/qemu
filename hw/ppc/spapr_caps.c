@@ -496,6 +496,42 @@ static void cap_ccf_assist_apply(SpaprMachineState *spapr, uint8_t val,
     }
 }
 
+static void cap_xics_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+
+    if (!val) {
+        if (!spapr_get_cap(spapr, SPAPR_CAP_XIVE)) {
+            error_setg(errp,
+"No interrupt controllers enabled, try cap-xics=on or cap-xive=on");
+            return;
+        }
+
+        if (smc->legacy_irq_allocation) {
+            error_setg(errp, "This machine version requires XICS support");
+            return;
+        }
+    }
+}
+
+static void cap_xive_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
+{
+    SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
+    PowerPCCPU *cpu = POWERPC_CPU(first_cpu);
+
+    if (val) {
+        if (smc->legacy_irq_allocation) {
+            error_setg(errp, "This machine version cannot support XIVE");
+            return;
+        }
+        if (!ppc_check_compat(cpu, CPU_POWERPC_LOGICAL_3_00, 0,
+                              spapr->max_compat_pvr)) {
+            error_setg(errp, "XIVE requires POWER9 CPU");
+            return;
+        }
+    }
+}
+
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -595,6 +631,24 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .type = "bool",
         .apply = cap_ccf_assist_apply,
     },
+    [SPAPR_CAP_XICS] = {
+        .name = "xics",
+        .description = "Allow XICS interrupt controller",
+        .index = SPAPR_CAP_XICS,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_xics_apply,
+    },
+    [SPAPR_CAP_XIVE] = {
+        .name = "xive",
+        .description = "Allow XIVE interrupt controller",
+        .index = SPAPR_CAP_XIVE,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_xive_apply,
+    },
 };
 
 static SpaprCapabilities default_caps_with_cpu(SpaprMachineState *spapr,
@@ -639,6 +693,14 @@ static SpaprCapabilities default_caps_with_cpu(SpaprMachineState *spapr,
         }
 
         caps.caps[SPAPR_CAP_HPT_MAXPAGESIZE] = mps;
+    }
+
+    /*
+     * POWER8 machines don't have XIVE
+     */
+    if (!ppc_type_check_compat(cputype, CPU_POWERPC_LOGICAL_3_00,
+                               0, spapr->max_compat_pvr)) {
+        caps.caps[SPAPR_CAP_XIVE] = SPAPR_CAP_OFF;
     }
 
     return caps;
@@ -734,6 +796,8 @@ SPAPR_CAP_MIG_STATE(hpt_maxpagesize, SPAPR_CAP_HPT_MAXPAGESIZE);
 SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 SPAPR_CAP_MIG_STATE(ccf_assist, SPAPR_CAP_CCF_ASSIST);
+SPAPR_CAP_MIG_STATE(xics, SPAPR_CAP_XICS);
+SPAPR_CAP_MIG_STATE(xive, SPAPR_CAP_XIVE);
 
 void spapr_caps_init(SpaprMachineState *spapr)
 {
