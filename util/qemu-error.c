@@ -11,6 +11,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "monitor/monitor.h"
 #include "qemu/error-report.h"
 
@@ -192,6 +194,8 @@ static void print_loc(void)
 }
 
 bool enable_timestamp_msg;
+bool enable_guestname_msg;
+
 /*
  * Print a message to current monitor if we have one, else to stderr.
  * @report_type is the type of message: error, warning or informational.
@@ -228,6 +232,27 @@ static void vreport(report_type type, const char *fmt, va_list ap)
     error_printf("\n");
 }
 
+static const char *error_get_guestname(void)
+{
+    QemuOpts *opts = qemu_opts_find(qemu_find_opts("name"), NULL);
+    return qemu_opt_get(opts, "guest");
+}
+
+/*
+ * Also print the guest name, handy if we log to a server.
+ */
+static void error_print_guestname(void)
+{
+    const char *name;
+
+    if (enable_guestname_msg) {
+        name = error_get_guestname();
+        if (name && !cur_mon) {
+            error_printf("Guest [%s] ", name);
+        }
+    }
+}
+
 /*
  * Print an error message to current monitor if we have one, else to stderr.
  * Format arguments like vsprintf().  The resulting message should be
@@ -237,6 +262,7 @@ static void vreport(report_type type, const char *fmt, va_list ap)
  */
 void error_vreport(const char *fmt, va_list ap)
 {
+    error_print_guestname();
     vreport(REPORT_TYPE_ERROR, fmt, ap);
 }
 
@@ -248,6 +274,7 @@ void error_vreport(const char *fmt, va_list ap)
  */
 void warn_vreport(const char *fmt, va_list ap)
 {
+    error_print_guestname();
     vreport(REPORT_TYPE_WARNING, fmt, ap);
 }
 
@@ -274,6 +301,7 @@ void error_report(const char *fmt, ...)
 {
     va_list ap;
 
+    error_print_guestname();
     va_start(ap, fmt);
     vreport(REPORT_TYPE_ERROR, fmt, ap);
     va_end(ap);
@@ -289,6 +317,7 @@ void warn_report(const char *fmt, ...)
 {
     va_list ap;
 
+    error_print_guestname();
     va_start(ap, fmt);
     vreport(REPORT_TYPE_WARNING, fmt, ap);
     va_end(ap);
@@ -324,6 +353,7 @@ bool error_report_once_cond(bool *printed, const char *fmt, ...)
         return false;
     }
     *printed = true;
+    error_print_guestname();
     va_start(ap, fmt);
     vreport(REPORT_TYPE_ERROR, fmt, ap);
     va_end(ap);
@@ -344,6 +374,7 @@ bool warn_report_once_cond(bool *printed, const char *fmt, ...)
         return false;
     }
     *printed = true;
+    error_print_guestname();
     va_start(ap, fmt);
     vreport(REPORT_TYPE_WARNING, fmt, ap);
     va_end(ap);

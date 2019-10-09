@@ -417,6 +417,10 @@ static QemuOptsList qemu_msg_opts = {
             .name = "timestamp",
             .type = QEMU_OPT_BOOL,
         },
+        {
+            .name = "name",
+            .type = QEMU_OPT_BOOL,
+        },
         { /* end of list */ }
     },
 };
@@ -1263,6 +1267,7 @@ static void realtime_init(void)
 static void configure_msg(QemuOpts *opts)
 {
     enable_timestamp_msg = qemu_opt_get_bool(opts, "timestamp", true);
+    enable_guestname_msg = qemu_opt_get_bool(opts, "name", false);
 }
 
 

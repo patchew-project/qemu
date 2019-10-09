@@ -4164,14 +4164,16 @@ HXCOMM Deprecated by -accel tcg
 DEF("no-kvm", 0, QEMU_OPTION_no_kvm, "", QEMU_ARCH_I386)
 
 DEF("msg", HAS_ARG, QEMU_OPTION_msg,
-    "-msg timestamp[=on|off]\n"
+    "-msg [timestamp=on|off][name=on|off]\n"
     "                change the format of messages\n"
-    "                on|off controls leading timestamps (default:on)\n",
+    "                timestamp=on|off controls leading timestamps (default: on)\n"
+    "                name=on|off controls leading guest name (default: off)\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -msg timestamp[=on|off]
+@item -msg timestamp=on|off
+@item -msg name=on|off
 @findex -msg
-prepend a timestamp to each log message.(default:on)
+Prepend additional information to each log message
 ETEXI
 
 DEF("dump-vmstate", HAS_ARG, QEMU_OPTION_dump_vmstate,

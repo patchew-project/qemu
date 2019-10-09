@@ -74,5 +74,6 @@ void error_init(const char *argv0);
 
 const char *error_get_progname(void);
 extern bool enable_timestamp_msg;
+extern bool enable_guestname_msg;
 
 #endif
