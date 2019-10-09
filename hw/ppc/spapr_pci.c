@@ -93,6 +93,15 @@ PCIDevice *spapr_pci_find_dev(SpaprMachineState *spapr, uint64_t buid,
     return pci_find_device(phb->bus, bus_num, devfn);
 }
 
+void spapr_pci_fire_intx_routing_notifiers(SpaprMachineState *spapr)
+{
+    SpaprPhbState *sphb;
+
+    QLIST_FOREACH(sphb, &spapr->phbs, list) {
+        pci_bus_fire_intx_routing_notifier(PCI_HOST_BRIDGE(sphb)->bus);
+    }
+}
+
 static uint32_t rtas_pci_cfgaddr(uint32_t arg)
 {
     /* This handles the encoding of extended config space addresses */

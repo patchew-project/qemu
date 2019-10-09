@@ -409,6 +409,12 @@ static void set_active_intc(SpaprMachineState *spapr,
     }
 
     spapr->active_intc = new_intc;
+
+    /*
+     * We've changed the interrupt routing at the KVM level, let VFIO
+     * devices know they need to readjust.
+     */
+    spapr_pci_fire_intx_routing_notifiers(spapr);
 }
 
 void spapr_irq_update_active_intc(SpaprMachineState *spapr)
