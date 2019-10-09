@@ -31,7 +31,6 @@ import sys
 test_img = os.path.join(iotests.test_dir, 'test.img')
 
 class TestRefcountTableGrowth(iotests.QMPTestCase):
-    '''Abstract base class for image mirroring test cases'''
 
     def preallocate(self, name):
         fd = open(name, "r+b")
