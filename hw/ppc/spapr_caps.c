@@ -509,9 +509,14 @@ static void cap_fwnmi_mce_apply(SpaprMachineState *spapr, uint8_t val,
          * of software injected faults like duplicate SLBs).
          */
         warn_report("Firmware Assisted Non-Maskable Interrupts not supported in TCG");
-    } else if (kvm_enabled() && kvmppc_set_fwnmi()) {
-        error_setg(errp,
+    } else if (kvm_enabled()) {
+	if (!kvmppc_set_fwnmi()) {
+	    /* Register ibm,nmi-register and ibm,nmi-interlock RTAS calls */
+	    spapr_fwnmi_register();
+	} else {
+	    error_setg(errp,
 "Firmware Assisted Non-Maskable Interrupts not supported by KVM, try cap-fwnmi-mce=off");
+	}
     }
 }
 
