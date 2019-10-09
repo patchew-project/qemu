@@ -371,6 +371,7 @@ static bool trans_fcvt_l_d(DisasContext *ctx, arg_fcvt_l_d *a)
     gen_helper_fcvt_l_d(t0, cpu_env, cpu_fpr[a->rs1]);
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
+    mark_fs_dirty(ctx);
     return true;
 }
 
@@ -384,6 +385,7 @@ static bool trans_fcvt_lu_d(DisasContext *ctx, arg_fcvt_lu_d *a)
     gen_helper_fcvt_lu_d(t0, cpu_env, cpu_fpr[a->rs1]);
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
+    mark_fs_dirty(ctx);
     return true;
 }
 

@@ -237,6 +237,7 @@ static bool trans_fcvt_w_s(DisasContext *ctx, arg_fcvt_w_s *a)
     gen_helper_fcvt_w_s(t0, cpu_env, cpu_fpr[a->rs1]);
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
+    mark_fs_dirty(ctx);
 
     return true;
 }
@@ -251,6 +252,7 @@ static bool trans_fcvt_wu_s(DisasContext *ctx, arg_fcvt_wu_s *a)
     gen_helper_fcvt_wu_s(t0, cpu_env, cpu_fpr[a->rs1]);
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
+    mark_fs_dirty(ctx);
 
     return true;
 }
@@ -389,6 +391,7 @@ static bool trans_fcvt_l_s(DisasContext *ctx, arg_fcvt_l_s *a)
     gen_helper_fcvt_l_s(t0, cpu_env, cpu_fpr[a->rs1]);
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
+    mark_fs_dirty(ctx);
     return true;
 }
 
@@ -402,6 +405,7 @@ static bool trans_fcvt_lu_s(DisasContext *ctx, arg_fcvt_lu_s *a)
     gen_helper_fcvt_lu_s(t0, cpu_env, cpu_fpr[a->rs1]);
     gen_set_gpr(a->rd, t0);
     tcg_temp_free(t0);
+    mark_fs_dirty(ctx);
     return true;
 }
 
