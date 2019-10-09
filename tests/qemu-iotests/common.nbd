@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-# -*- shell-script-mode -*-
+# -*- emacs mode: sh -*-
 #
 # Helpers for NBD server related config
 #

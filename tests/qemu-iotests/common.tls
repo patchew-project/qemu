@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+# -*- emacs mode: sh -*-
 #
 # Helpers for TLS related config
 #
