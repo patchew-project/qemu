@@ -342,3 +342,9 @@ matrix:
         - CONFIG="--target-list=xtensa-softmmu,arm-softmmu,aarch64-softmmu,alpha-softmmu"
         - TEST_CMD="make -j3 check-tcg V=1"
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-default"
+
+    # Non-x86 builds:
+    - env:
+        - CONFIG="--disable-libssh --target-list=aarch64-softmmu,ppc64-softmmu,s390x-softmmu,x86_64-linux-user"
+        - TEST_CMD="make check-qtest check-softfloat -j3 V=1"
+      arch: arm64
