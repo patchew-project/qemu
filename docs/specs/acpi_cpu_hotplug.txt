@@ -54,6 +54,7 @@ write access:
     [0x0-0x3] CPU selector: (DWORD access)
               selects active CPU device. All following accesses to other
               registers will read/store data from/to selected CPU.
+              Valid values: [0 .. max_cpus)
     [0x4] CPU device control fields: (1 byte access)
         bits:
             0: reserved, OSPM must clear it before writing to register.
@@ -93,3 +94,24 @@ Selecting CPU device beyond possible range has no effect on platform:
      ignored
    - read accesses to CPU hot-plug registers not documented above return
      all bits set to 0.
+
+Typical usecases:
+   - Get a cpu with pending event
+     1. write 0x0 into 'Command field' register
+     2. read from 'Command data' register, CPU selector value (CPU's UID in ACPI
+        tables) and event for selected CPU from 'CPU device status fields'
+        register. If there aren't pending events, CPU selector value doesn't
+        change and 'insert' and 'remove' bits are not set.
+   - Enumerate CPUs present/non present CPUs.
+     1. set iterator to 0x0
+     2. write 0x0 into 'Command field' register and then iterator
+        into 'CPU selector' register.
+     3. read 'enabled' flag for selected CPU from 'CPU device status fields'
+        register
+     4. to continue to the next CPU, increment iterator and repeat step 2
+     5. read 'Command data' register
+     5.1 if 'Command data' register matches iterator continue to step 3.
+         (read presence bit for the next CPU)
+     5.2 if 'Command data' register has not changed, there is not CPU
+         corresponding to iterator value and the last valid iterator value
+         equals to 'max_cpus' + 1
