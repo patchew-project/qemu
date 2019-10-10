@@ -68,6 +68,7 @@
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "qemu/option.h"
+#include "qemu/cutils.h"
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/boards.h"
@@ -1201,7 +1202,8 @@ static void x86_load_linux(PCMachineState *pcms,
     /* handle vga= parameter */
     vmode = strstr(kernel_cmdline, "vga=");
     if (vmode) {
-        unsigned int video_mode;
+        long video_mode;
+        int ret;
         /* skip "vga=" */
         vmode += 4;
         if (!strncmp(vmode, "normal", 6)) {
@@ -1211,7 +1213,12 @@ static void x86_load_linux(PCMachineState *pcms,
         } else if (!strncmp(vmode, "ask", 3)) {
             video_mode = 0xfffd;
         } else {
-            video_mode = strtol(vmode, NULL, 0);
+            ret = qemu_strtol(vmode, NULL, 0, &video_mode);
+            if (ret != 0) {
+                fprintf(stderr, "qemu: can't parse 'vga' parameter: %s\n",
+                        strerror(-ret));
+                exit(1);
+            }
         }
         stw_p(header + 0x1fa, video_mode);
     }
