@@ -51,7 +51,7 @@ class BootLinuxConsole(Test):
                 self.fail(fail)
 
     def exec_command_and_wait_for_pattern(self, command, success_message):
-        command += '\n'
+        command += '\r\n'
         self.vm.console_socket.sendall(command.encode())
         self.wait_for_console_pattern(success_message)
 
