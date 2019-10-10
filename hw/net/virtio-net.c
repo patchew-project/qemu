@@ -770,7 +770,14 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
     n->rsc6_enabled = virtio_has_feature(features, VIRTIO_NET_F_RSC_EXT) &&
         virtio_has_feature(features, VIRTIO_NET_F_GUEST_TSO6);
 
-    if (n->has_vnet_hdr) {
+    /*
+     * In case of RUN_STATE_INMIGRATE the virtio_net_set_features
+     * is called as part of VM state restore process.
+     * At this stage we do not want the curr_guest_offloads to be reset,
+     * i.e. want to preserve them in the same state as was set
+     * by the guest on the source machine.
+     */
+    if (n->has_vnet_hdr && !runstate_check(RUN_STATE_INMIGRATE)) {
         n->curr_guest_offloads =
             virtio_net_guest_offloads_by_features(features);
         virtio_net_apply_guest_offloads(n);
