@@ -378,3 +378,28 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_hppa_fwupdate(self):
+        """
+        :avocado: tags=arch:hppa
+        :avocado: tags=device:lsi53c895a
+        """
+        cdrom_url = ('https://github.com/philmd/qemu-testing-blob/raw/ec1b741/'
+                     'hppa/hp9000/712/C7120023.frm')
+        cdrom_hash = '17944dee46f768791953009bcda551be5ab9fac9'
+        cdrom_path = self.fetch_asset(cdrom_url, asset_hash=cdrom_hash)
+
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', cdrom_path,
+                         '-boot', 'd',
+                         '-no-reboot')
+        self.vm.launch()
+        self.wait_for_console_pattern('Unrecognized MODEL TYPE = 502')
+
+        self.exec_command_and_wait_for_pattern('exit',
+                                               'UPDATE>')
+        self.exec_command_and_wait_for_pattern('ls',
+                                               'IMAGE1B')
+        self.exec_command_and_wait_for_pattern('exit',
+                                               'THIS UTILITY WILL NOW '
+                                               'RESET THE SYSTEM.....')
