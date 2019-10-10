@@ -375,6 +375,7 @@ static int nbd_negotiate_send_rep_list(NBDClient *client, NBDExport *exp,
     trace_nbd_negotiate_send_rep_list(name, desc);
     name_len = strlen(name);
     desc_len = strlen(desc);
+    assert(name_len <= NBD_MAX_STRING_SIZE && desc_len <= NBD_MAX_STRING_SIZE);
     len = name_len + desc_len + sizeof(len);
     ret = nbd_negotiate_send_rep_len(client, NBD_REP_SERVER, len, errp);
     if (ret < 0) {
@@ -608,6 +609,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     if (exp->description) {
         size_t len = strlen(exp->description);
 
+        assert(len <= NBD_MAX_STRING_SIZE);
         rc = nbd_negotiate_send_info(client, NBD_INFO_DESCRIPTION,
                                      len, exp->description, errp);
         if (rc < 0) {
@@ -752,6 +754,7 @@ static int nbd_negotiate_send_meta_context(NBDClient *client,
         {.iov_base = (void *)context, .iov_len = strlen(context)}
     };
 
+    assert(iov[1].iov_len <= NBD_MAX_STRING_SIZE);
     if (client->opt == NBD_OPT_LIST_META_CONTEXT) {
         context_id = 0;
     }
@@ -900,7 +903,7 @@ static int nbd_meta_qemu_query(NBDClient *client, NBDExportMetaContexts *meta,
  * Parse namespace name and call corresponding function to parse body of the
  * query.
  *
- * The only supported namespace now is 'base'.
+ * The only supported namespaces are 'base' and 'qemu'.
  *
  * The function aims not wasting time and memory to read long unknown namespace
  * names.
@@ -926,6 +929,10 @@ static int nbd_negotiate_meta_query(NBDClient *client,
     }
     len = cpu_to_be32(len);
 
+    if (len > NBD_MAX_STRING_SIZE) {
+        trace_nbd_negotiate_meta_query_skip("length too long");
+        return nbd_opt_skip(client, len, errp);
+    }
     if (len < ns_len) {
         trace_nbd_negotiate_meta_query_skip("length too short");
         return nbd_opt_skip(client, len, errp);
@@ -1487,7 +1494,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
      * access since the export could be available before migration handover.
      * ctx was acquired in the caller.
      */
-    assert(name);
+    assert(name && strlen(name) <= NBD_MAX_STRING_SIZE);
     ctx = bdrv_get_aio_context(bs);
     bdrv_invalidate_cache(bs, NULL);
 
@@ -1513,6 +1520,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
     assert(dev_offset <= INT64_MAX);
     exp->dev_offset = dev_offset;
     exp->name = g_strdup(name);
+    assert(!desc || strlen(desc) <= NBD_MAX_STRING_SIZE);
     exp->description = g_strdup(desc);
     exp->nbdflags = (NBD_FLAG_HAS_FLAGS | NBD_FLAG_SEND_FLUSH |
                      NBD_FLAG_SEND_FUA | NBD_FLAG_SEND_CACHE);
@@ -1561,6 +1569,8 @@ NBDExport *nbd_export_new(BlockDriverState *bs, uint64_t dev_offset,
         exp->export_bitmap = bm;
         exp->export_bitmap_context = g_strdup_printf("qemu:dirty-bitmap:%s",
                                                      bitmap);
+        /* See BME_MAX_NAME_SIZE in block/qcow2-bitmap.c */
+        assert(strlen(exp->export_bitmap_context) <= NBD_MAX_STRING_SIZE);
     }
 
     exp->close = close;

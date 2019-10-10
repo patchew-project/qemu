@@ -1633,6 +1633,10 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
     }
 
     s->export = g_strdup(qemu_opt_get(opts, "export"));
+    if (s->export && strlen(s->export) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "export name too long to send to server");
+        goto error;
+    }
 
     s->tlscredsid = g_strdup(qemu_opt_get(opts, "tls-creds"));
     if (s->tlscredsid) {
@@ -1650,6 +1654,11 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
     }
 
     s->x_dirty_bitmap = g_strdup(qemu_opt_get(opts, "x-dirty-bitmap"));
+    if (s->x_dirty_bitmap && strlen(s->x_dirty_bitmap) > NBD_MAX_STRING_SIZE) {
+        error_setg(errp, "x_dirty_bitmap query too long to send to server");
+        goto error;
+    }
+
     s->reconnect_delay = qemu_opt_get_number(opts, "reconnect-delay", 0);
 
     ret = 0;
