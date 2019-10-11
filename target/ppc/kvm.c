@@ -237,6 +237,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
 #if defined(TARGET_PPC64)
 static void kvm_get_smmu_info(struct kvm_ppc_smmu_info *info, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
     assert(kvm_state != NULL);
@@ -325,18 +326,17 @@ bool kvmppc_hpt_needs_host_contiguous_pages(void)
 
 void kvm_check_mmu(PowerPCCPU *cpu, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct kvm_ppc_smmu_info smmu_info;
     int iq, ik, jq, jk;
-    Error *local_err = NULL;
 
     /* For now, we only have anything to check on hash64 MMUs */
     if (!cpu->hash64_opts || !kvm_enabled()) {
         return;
     }
 
-    kvm_get_smmu_info(&smmu_info, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    kvm_get_smmu_info(&smmu_info, errp);
+    if (*errp) {
         return;
     }
 
