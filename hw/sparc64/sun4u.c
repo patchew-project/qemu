@@ -455,14 +455,13 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
 static void prom_realize(DeviceState *ds, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PROMState *s = OPENPROM(ds);
     SysBusDevice *dev = SYS_BUS_DEVICE(ds);
-    Error *local_err = NULL;
 
     memory_region_init_ram_nomigrate(&s->prom, OBJECT(ds), "sun4u.prom",
-                                     PROM_SIZE_MAX, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                     PROM_SIZE_MAX, errp);
+    if (*errp) {
         return;
     }
 

@@ -601,14 +601,13 @@ typedef struct IDRegState {
 
 static void idreg_realize(DeviceState *ds, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     IDRegState *s = MACIO_ID_REGISTER(ds);
     SysBusDevice *dev = SYS_BUS_DEVICE(ds);
-    Error *local_err = NULL;
 
     memory_region_init_ram_nomigrate(&s->mem, OBJECT(ds), "sun4m.idreg",
-                                     sizeof(idreg_data), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                     sizeof(idreg_data), errp);
+    if (*errp) {
         return;
     }
 
@@ -655,14 +654,13 @@ static void afx_init(hwaddr addr)
 
 static void afx_realize(DeviceState *ds, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     AFXState *s = TCX_AFX(ds);
     SysBusDevice *dev = SYS_BUS_DEVICE(ds);
-    Error *local_err = NULL;
 
     memory_region_init_ram_nomigrate(&s->mem, OBJECT(ds), "sun4m.afx", 4,
-                                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                     errp);
+    if (*errp) {
         return;
     }
 
@@ -737,14 +735,13 @@ static void prom_init(hwaddr addr, const char *bios_name)
 
 static void prom_realize(DeviceState *ds, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PROMState *s = OPENPROM(ds);
     SysBusDevice *dev = SYS_BUS_DEVICE(ds);
-    Error *local_err = NULL;
 
     memory_region_init_ram_nomigrate(&s->prom, OBJECT(ds), "sun4m.prom",
-                                     PROM_SIZE_MAX, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                     PROM_SIZE_MAX, errp);
+    if (*errp) {
         return;
     }
 
