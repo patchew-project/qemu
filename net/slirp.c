@@ -941,6 +941,7 @@ static ssize_t guestfwd_write(const void *buf, size_t len, void *chr)
 
 static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     /* TODO: IPv6 */
     struct in_addr server = { .s_addr = 0 };
     struct GuestFwd *fwd;
@@ -979,7 +980,6 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
             return -1;
         }
     } else {
-        Error *err = NULL;
         /*
          * FIXME: sure we want to support implicit
          * muxed monitors here?
@@ -993,9 +993,8 @@ static int slirp_guestfwd(SlirpState *s, const char *config_str, Error **errp)
         }
 
         fwd = g_new(struct GuestFwd, 1);
-        qemu_chr_fe_init(&fwd->hd, chr, &err);
-        if (err) {
-            error_propagate(errp, err);
+        qemu_chr_fe_init(&fwd->hd, chr, errp);
+        if (*errp) {
             object_unparent(OBJECT(chr));
             g_free(fwd);
             return -1;
