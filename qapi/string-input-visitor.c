@@ -313,14 +313,13 @@ static void parse_type_uint64(Visitor *v, const char *name, uint64_t *obj,
 static void parse_type_size(Visitor *v, const char *name, uint64_t *obj,
                             Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     StringInputVisitor *siv = to_siv(v);
-    Error *err = NULL;
     uint64_t val;
 
     assert(siv->lm == LM_NONE);
-    parse_option_size(name, siv->string, &val, &err);
-    if (err) {
-        error_propagate(errp, err);
+    parse_option_size(name, siv->string, &val, errp);
+    if (*errp) {
         return;
     }
 

@@ -78,7 +78,7 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
 static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
                                 bool allow_oob, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     bool oob;
     const char *command;
     QDict *args, *dict;
@@ -129,9 +129,8 @@ static QObject *do_qmp_dispatch(QmpCommandList *cmds, QObject *request,
         qobject_ref(args);
     }
 
-    cmd->fn(args, &ret, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    cmd->fn(args, &ret, errp);
+    if (*errp) {
     } else if (cmd->options & QCO_NO_SUCCESS_RESP) {
         g_assert(!ret);
     } else if (!ret) {
