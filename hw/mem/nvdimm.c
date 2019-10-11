@@ -44,29 +44,27 @@ static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
 static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NVDIMMDevice *nvdimm = NVDIMM(obj);
-    Error *local_err = NULL;
     uint64_t value;
 
     if (nvdimm->nvdimm_mr) {
-        error_setg(&local_err, "cannot change property value");
-        goto out;
+        error_setg(errp, "cannot change property value");
+        return;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_size(v, name, &value, errp);
+    if (*errp) {
+        return;
     }
     if (value < MIN_NAMESPACE_LABEL_SIZE) {
-        error_setg(&local_err, "Property '%s.%s' (0x%" PRIx64 ") is required"
+        error_setg(errp, "Property '%s.%s' (0x%" PRIx64 ") is required"
                    " at least 0x%lx", object_get_typename(obj),
                    name, value, MIN_NAMESPACE_LABEL_SIZE);
-        goto out;
+        return;
     }
 
     nvdimm->label_size = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static void nvdimm_init(Object *obj)
@@ -126,13 +124,12 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
 static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
                                                  Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NVDIMMDevice *nvdimm = NVDIMM(md);
-    Error *local_err = NULL;
 
     if (!nvdimm->nvdimm_mr) {
-        nvdimm_prepare_memory_region(nvdimm, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        nvdimm_prepare_memory_region(nvdimm, errp);
+        if (*errp) {
             return NULL;
         }
     }
