@@ -474,11 +474,11 @@ static void ivshmem_add_kvm_msi_virq(IVShmemState *s, int vector,
 
 static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     EventNotifier *n = &s->peers[s->vm_id].eventfds[vector];
     bool with_irqfd = kvm_msi_via_irqfd_enabled() &&
         ivshmem_has_feature(s, IVSHMEM_MSI);
     PCIDevice *pdev = PCI_DEVICE(s);
-    Error *err = NULL;
 
     IVSHMEM_DPRINTF("setting up interrupt for vector: %d\n", vector);
 
@@ -487,9 +487,8 @@ static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
         watch_vector_notifier(s, n, vector);
     } else if (msix_enabled(pdev)) {
         IVSHMEM_DPRINTF("with irqfd\n");
-        ivshmem_add_kvm_msi_virq(s, vector, &err);
-        if (err) {
-            error_propagate(errp, err);
+        ivshmem_add_kvm_msi_virq(s, vector, errp);
+        if (*errp) {
             return;
         }
 
@@ -506,7 +505,7 @@ static void setup_interrupt(IVShmemState *s, int vector, Error **errp)
 
 static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     struct stat buf;
     size_t size;
 
@@ -527,9 +526,8 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
 
     /* mmap the region and map into the BAR2 */
     memory_region_init_ram_from_fd(&s->server_bar2, OBJECT(s),
-                                   "ivshmem.bar2", size, true, fd, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                   "ivshmem.bar2", size, true, fd, errp);
+    if (*errp) {
         return;
     }
 
@@ -662,13 +660,12 @@ static int64_t ivshmem_recv_msg(IVShmemState *s, int *pfd, Error **errp)
 
 static void ivshmem_recv_setup(IVShmemState *s, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int64_t msg;
     int fd;
 
-    msg = ivshmem_recv_msg(s, &fd, &err);
-    if (err) {
-        error_propagate(errp, err);
+    msg = ivshmem_recv_msg(s, &fd, errp);
+    if (*errp) {
         return;
     }
     if (msg != IVSHMEM_PROTOCOL_VERSION) {
@@ -694,9 +691,8 @@ static void ivshmem_recv_setup(IVShmemState *s, Error **errp)
      * older versions of the device accepted it out of order, but
      * broke when an interrupt setup message arrived before it.
      */
-    msg = ivshmem_recv_msg(s, &fd, &err);
-    if (err) {
-        error_propagate(errp, err);
+    msg = ivshmem_recv_msg(s, &fd, errp);
+    if (*errp) {
         return;
     }
     if (fd != -1 || msg < 0 || msg > IVSHMEM_MAX_PEERS) {
@@ -709,14 +705,12 @@ static void ivshmem_recv_setup(IVShmemState *s, Error **errp)
      * Receive more messages until we got shared memory.
      */
     do {
-        msg = ivshmem_recv_msg(s, &fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+        msg = ivshmem_recv_msg(s, &fd, errp);
+        if (*errp) {
             return;
         }
-        process_msg(s, msg, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+        process_msg(s, msg, fd, errp);
+        if (*errp) {
             return;
         }
     } while (msg != -1);
@@ -864,6 +858,7 @@ static void ivshmem_write_config(PCIDevice *pdev, uint32_t address,
 
 static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     IVShmemState *s = IVSHMEM_COMMON(dev);
     Error *err = NULL;
     uint8_t *pci_conf;

@@ -71,13 +71,12 @@ static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
 static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     TMP105State *s = TMP105(obj);
-    Error *local_err = NULL;
     int64_t temp;
 
-    visit_type_int(v, name, &temp, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &temp, errp);
+    if (*errp) {
         return;
     }
     if (temp >= 128000 || temp < -128000) {
