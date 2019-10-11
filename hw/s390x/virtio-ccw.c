@@ -692,18 +692,18 @@ static void virtio_sch_disable_cb(SubchDev *sch)
 
 static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOCCWDeviceClass *k = VIRTIO_CCW_DEVICE_GET_CLASS(dev);
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     CCWDeviceClass *ck = CCW_DEVICE_GET_CLASS(ccw_dev);
     SubchDev *sch;
-    Error *err = NULL;
 
     sch = css_create_sch(ccw_dev->devno, errp);
     if (!sch) {
         return;
     }
     if (!virtio_ccw_rev_max(dev) && dev->force_revision_1) {
-        error_setg(&err, "Invalid value of property max_rev "
+        error_setg(errp, "Invalid value of property max_rev "
                    "(is %d expected >= 1)", virtio_ccw_rev_max(dev));
         goto out_err;
     }
@@ -728,21 +728,20 @@ static void virtio_ccw_device_realize(VirtioCcwDevice *dev, Error **errp)
     }
 
     if (k->realize) {
-        k->realize(dev, &err);
-        if (err) {
+        k->realize(dev, errp);
+        if (*errp) {
             goto out_err;
         }
     }
 
-    ck->realize(ccw_dev, &err);
-    if (err) {
+    ck->realize(ccw_dev, errp);
+    if (*errp) {
         goto out_err;
     }
 
     return;
 
 out_err:
-    error_propagate(errp, err);
     css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
     ccw_dev->sch = NULL;
     g_free(sch);
