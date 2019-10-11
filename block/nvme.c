@@ -187,9 +187,9 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
                                              int idx, int size,
                                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int i, r;
     BDRVNVMeState *s = bs->opaque;
-    Error *local_err = NULL;
     NVMeQueuePair *q = g_new0(NVMeQueuePair, 1);
     uint64_t prp_list_iova;
 
@@ -209,16 +209,14 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
         req->prp_list_page = q->prp_list_pages + i * s->page_size;
         req->prp_list_iova = prp_list_iova + i * s->page_size;
     }
-    nvme_init_queue(bs, &q->sq, size, NVME_SQ_ENTRY_BYTES, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    nvme_init_queue(bs, &q->sq, size, NVME_SQ_ENTRY_BYTES, errp);
+    if (*errp) {
         goto fail;
     }
     q->sq.doorbell = &s->regs->doorbells[idx * 2 * s->doorbell_scale];
 
-    nvme_init_queue(bs, &q->cq, size, NVME_CQ_ENTRY_BYTES, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    nvme_init_queue(bs, &q->cq, size, NVME_CQ_ENTRY_BYTES, errp);
+    if (*errp) {
         goto fail;
     }
     q->cq.doorbell = &s->regs->doorbells[(idx * 2 + 1) * s->doorbell_scale];
@@ -569,12 +567,12 @@ static bool nvme_poll_cb(void *opaque)
 static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVNVMeState *s = bs->opaque;
     int ret;
     uint64_t cap;
     uint64_t timeout_ms;
     uint64_t deadline, now;
-    Error *local_err = NULL;
 
     qemu_co_mutex_init(&s->dma_map_lock);
     qemu_co_queue_init(&s->dma_flush_queue);
@@ -666,9 +664,8 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
                            false, nvme_handle_event, nvme_poll_cb);
 
-    nvme_identify(bs, namespace, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    nvme_identify(bs, namespace, errp);
+    if (*errp) {
         ret = -EIO;
         goto out;
     }
