@@ -371,11 +371,11 @@ static int vdi_probe(const uint8_t *buf, int buf_size, const char *filename)
 static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVVdiState *s = bs->opaque;
     VdiHeader header;
     size_t bmap_size;
     int ret;
-    Error *local_err = NULL;
     QemuUUID uuid_link, uuid_parent;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
@@ -496,9 +496,8 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The vdi format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (*errp) {
         error_free(s->migration_blocker);
         goto fail_free_bmap;
     }
@@ -735,6 +734,7 @@ nonallocating_write:
 static int coroutine_fn vdi_co_do_create(BlockdevCreateOptions *create_options,
                                          size_t block_size, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptionsVdi *vdi_opts;
     int ret = 0;
     uint64_t bytes = 0;
@@ -899,13 +899,13 @@ static int coroutine_fn vdi_co_create(BlockdevCreateOptions *create_options,
 static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
                                            Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QDict *qdict = NULL;
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs_file = NULL;
     uint64_t block_size = DEFAULT_CLUSTER_SIZE;
     bool is_static = false;
     Visitor *v;
-    Error *local_err = NULL;
     int ret;
 
     /* Parse options and convert legacy syntax.
@@ -956,11 +956,10 @@ static int coroutine_fn vdi_co_create_opts(const char *filename, QemuOpts *opts,
         ret = -EINVAL;
         goto done;
     }
-    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto done;
     }
