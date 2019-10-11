@@ -1078,6 +1078,7 @@ static const char *next_line(const char *s)
 static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
                               QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     int matches;
     char access[11];
@@ -1092,7 +1093,6 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
     BDRVVmdkState *s = bs->opaque;
     VmdkExtent *extent;
     char extent_opt_prefix[32];
-    Error *local_err = NULL;
 
     for (p = desc; *p; p = next_line(p)) {
         /* parse extent line in one of below formats:
@@ -1152,10 +1152,9 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
         assert(ret < 32);
 
         extent_file = bdrv_open_child(extent_path, options, extent_opt_prefix,
-                                      bs, &child_file, false, &local_err);
+                                      bs, &child_file, false, errp);
         g_free(extent_path);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             ret = -EINVAL;
             goto out;
         }
@@ -1251,11 +1250,11 @@ exit:
 static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     char *buf;
     int ret;
     BDRVVmdkState *s = bs->opaque;
     uint32_t magic;
-    Error *local_err = NULL;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
                                false, errp);
@@ -1303,9 +1302,8 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The vmdk format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (*errp) {
         error_free(s->migration_blocker);
         goto fail;
     }
@@ -2223,21 +2221,19 @@ static int vmdk_create_extent(const char *filename, int64_t filesize,
                               BlockBackend **pbb,
                               QemuOpts *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     BlockBackend *blk = NULL;
-    Error *local_err = NULL;
 
-    ret = bdrv_create_file(filename, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
         goto exit;
     }
 
     blk = blk_new_open(filename, NULL, NULL,
                        BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_PROTOCOL,
-                       &local_err);
+                       errp);
     if (blk == NULL) {
-        error_propagate(errp, local_err);
         ret = -EIO;
         goto exit;
     }
@@ -2333,10 +2329,10 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
                                           void *opaque,
                                           Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int extent_idx;
     BlockBackend *blk = NULL;
     BlockBackend *extent_blk;
-    Error *local_err = NULL;
     char *desc = NULL;
     int ret = 0;
     bool flat, split, compress;
@@ -2440,9 +2436,8 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
         char *full_backing =
             bdrv_get_full_backing_filename_from_filename(blk_bs(blk)->filename,
                                                          backing_file,
-                                                         &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                                         errp);
+        if (*errp) {
             ret = -ENOENT;
             goto exit;
         }
@@ -2591,7 +2586,7 @@ exit:
 static int coroutine_fn vmdk_co_create_opts(const char *filename, QemuOpts *opts,
                                             Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     char *desc = NULL;
     int64_t total_size = 0;
     char *adapter_type = NULL;
@@ -2634,9 +2629,8 @@ static int coroutine_fn vmdk_co_create_opts(const char *filename, QemuOpts *opts
         adapter_type_enum = qapi_enum_parse(&BlockdevVmdkAdapterType_lookup,
                                             adapter_type,
                                             BLOCKDEV_VMDK_ADAPTER_TYPE_IDE,
-                                            &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                            errp);
+        if (*errp) {
             ret = -EINVAL;
             goto exit;
         }
@@ -2651,9 +2645,8 @@ static int coroutine_fn vmdk_co_create_opts(const char *filename, QemuOpts *opts
         subformat = qapi_enum_parse(&BlockdevVmdkSubformat_lookup,
                                     fmt,
                                     BLOCKDEV_VMDK_SUBFORMAT_MONOLITHICSPARSE,
-                                    &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                    errp);
+        if (*errp) {
             ret = -EINVAL;
             goto exit;
         }
