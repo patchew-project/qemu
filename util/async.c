@@ -242,7 +242,7 @@ aio_ctx_check(GSource *source)
     aio_notify_accept(ctx);
 
     for (bh = ctx->first_bh; bh; bh = bh->next) {
-        if (bh->scheduled) {
+        if (atomic_mb_read(&bh->scheduled)) {
             return true;
         }
     }
@@ -342,12 +342,12 @@ LinuxAioState *aio_get_linux_aio(AioContext *ctx)
 
 void aio_notify(AioContext *ctx)
 {
-    /* Write e.g. bh->scheduled before reading ctx->notify_me.  Pairs
-     * with atomic_or in aio_ctx_prepare or atomic_add in aio_poll.
+    /* Using atomic_mb_read ensures that e.g. bh->scheduled is written before
+     * ctx->notify_me is read.  Pairs with atomic_or in aio_ctx_prepare or
+     * atomic_add in aio_poll.
      */
-    smp_mb();
-    if (ctx->notify_me) {
-        event_notifier_set(&ctx->notifier);
+    if (atomic_mb_read(&ctx->notify_me)) {
+	event_notifier_set(&ctx->notifier);
         atomic_mb_set(&ctx->notified, true);
     }
 }
