@@ -407,9 +407,16 @@ err:
  * dirty pages logging control
  */
 
-static int kvm_mem_flags(MemoryRegion *mr)
+static inline bool kvm_is_mem_readonly(MemoryRegionSection *section)
 {
-    bool readonly = mr->readonly || memory_region_is_romd(mr);
+    MemoryRegion *mr = section->mr;
+    return mr->readonly || memory_region_is_romd(mr) || section->readonly;
+}
+
+static int kvm_mem_flags(MemoryRegionSection *section)
+{
+    MemoryRegion *mr = section->mr;
+    bool readonly = kvm_is_mem_readonly(section);
     int flags = 0;
 
     if (memory_region_get_dirty_log_mask(mr) != 0) {
@@ -423,9 +430,9 @@ static int kvm_mem_flags(MemoryRegion *mr)
 
 /* Called with KVMMemoryListener.slots_lock held */
 static int kvm_slot_update_flags(KVMMemoryListener *kml, KVMSlot *mem,
-                                 MemoryRegion *mr)
+                                 MemoryRegionSection *section)
 {
-    mem->flags = kvm_mem_flags(mr);
+    mem->flags = kvm_mem_flags(section);
 
     /* If nothing changed effectively, no need to issue ioctl */
     if (mem->flags == mem->old_flags) {
@@ -457,7 +464,7 @@ static int kvm_section_update_flags(KVMMemoryListener *kml,
             goto out;
         }
 
-        ret = kvm_slot_update_flags(kml, mem, section->mr);
+        ret = kvm_slot_update_flags(kml, mem, section);
         start_addr += slot_size;
         size -= slot_size;
     }
@@ -1002,7 +1009,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     KVMSlot *mem;
     int err;
     MemoryRegion *mr = section->mr;
-    bool writeable = !mr->readonly && !mr->rom_device;
+    bool writeable = !kvm_is_mem_readonly(section);
     hwaddr start_addr, size, slot_size;
     void *ram;
 
@@ -1062,7 +1069,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         mem->memory_size = slot_size;
         mem->start_addr = start_addr;
         mem->ram = ram;
-        mem->flags = kvm_mem_flags(mr);
+        mem->flags = kvm_mem_flags(section);
 
         err = kvm_set_user_memory_region(kml, mem, true);
         if (err) {
