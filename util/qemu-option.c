@@ -145,6 +145,7 @@ static const QemuOptDesc *find_desc_by_name(const QemuOptDesc *desc,
 void parse_option_size(const char *name, const char *value,
                        uint64_t *ret, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     uint64_t size;
     int err;
 
@@ -541,9 +542,9 @@ int qemu_opt_unset(QemuOpts *opts, const char *name)
 static void opt_set(QemuOpts *opts, const char *name, char *value,
                     bool prepend, bool *invalidp, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuOpt *opt;
     const QemuOptDesc *desc;
-    Error *local_err = NULL;
 
     desc = find_desc_by_name(opts->list->desc, name);
     if (!desc && !opts_accepts_any(opts)) {
@@ -565,9 +566,8 @@ static void opt_set(QemuOpts *opts, const char *name, char *value,
     }
     opt->desc = desc;
     opt->str = value;
-    qemu_opt_parse(opt, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opt_parse(opt, errp);
+    if (*errp) {
         qemu_opt_del(opt);
     }
 }
@@ -660,6 +660,7 @@ QemuOpts *qemu_opts_find(QemuOptsList *list, const char *id)
 QemuOpts *qemu_opts_create(QemuOptsList *list, const char *id,
                            int fail_if_exists, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuOpts *opts = NULL;
 
     if (id) {
@@ -711,12 +712,11 @@ void qemu_opts_loc_restore(QemuOpts *opts)
 void qemu_opts_set(QemuOptsList *list, const char *id,
                    const char *name, const char *value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuOpts *opts;
-    Error *local_err = NULL;
 
-    opts = qemu_opts_create(list, id, 1, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    opts = qemu_opts_create(list, id, 1, errp);
+    if (*errp) {
         return;
     }
     qemu_opt_set(opts, name, value, errp);
@@ -809,10 +809,10 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
                           const char *firstname, bool prepend,
                           bool *invalidp, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     char *option = NULL;
     char *value = NULL;
     const char *p,*pe,*pc;
-    Error *local_err = NULL;
 
     for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');
@@ -842,10 +842,9 @@ static void opts_do_parse(QemuOpts *opts, const char *params,
         }
         if (strcmp(option, "id") != 0) {
             /* store and parse */
-            opt_set(opts, option, value, prepend, invalidp, &local_err);
+            opt_set(opts, option, value, prepend, invalidp, errp);
             value = NULL;
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (*errp) {
                 goto cleanup;
             }
         }
@@ -878,11 +877,11 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
                             bool permit_abbrev, bool defaults,
                             bool *invalidp, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const char *firstname;
     char *id = NULL;
     const char *p;
     QemuOpts *opts;
-    Error *local_err = NULL;
 
     assert(!permit_abbrev || list->implied_opt_name);
     firstname = permit_abbrev ? list->implied_opt_name : NULL;
@@ -901,16 +900,14 @@ static QemuOpts *opts_parse(QemuOptsList *list, const char *params,
      * (if unlikely) future misuse:
      */
     assert(!defaults || list->merge_lists);
-    opts = qemu_opts_create(list, id, !defaults, &local_err);
+    opts = qemu_opts_create(list, id, !defaults, errp);
     g_free(id);
     if (opts == NULL) {
-        error_propagate(errp, local_err);
         return NULL;
     }
 
-    opts_do_parse(opts, params, firstname, defaults, invalidp, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    opts_do_parse(opts, params, firstname, defaults, invalidp, errp);
+    if (*errp) {
         qemu_opts_del(opts);
         return NULL;
     }
@@ -1012,24 +1009,22 @@ static void qemu_opts_from_qdict_1(const char *key, QObject *obj, void *opaque)
 QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     OptsFromQDictState state;
-    Error *local_err = NULL;
     QemuOpts *opts;
 
     opts = qemu_opts_create(list, qdict_get_try_str(qdict, "id"), 1,
-                            &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                            errp);
+    if (*errp) {
         return NULL;
     }
 
     assert(opts != NULL);
 
-    state.errp = &local_err;
+    state.errp = errp;
     state.opts = opts;
     qdict_iter(qdict, qemu_opts_from_qdict_1, &state);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         qemu_opts_del(opts);
         return NULL;
     }
@@ -1044,14 +1039,14 @@ QemuOpts *qemu_opts_from_qdict(QemuOptsList *list, const QDict *qdict,
  */
 void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const QDictEntry *entry, *next;
 
     entry = qdict_first(qdict);
 
     while (entry != NULL) {
-        Error *local_err = NULL;
         OptsFromQDictState state = {
-            .errp = &local_err,
+            .errp = errp,
             .opts = opts,
         };
 
@@ -1059,8 +1054,7 @@ void qemu_opts_absorb_qdict(QemuOpts *opts, QDict *qdict, Error **errp)
 
         if (find_desc_by_name(opts->list->desc, entry->key)) {
             qemu_opts_from_qdict_1(entry->key, entry->value, &state);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (*errp) {
                 return;
             } else {
                 qdict_del(qdict, entry->key);
@@ -1130,8 +1124,8 @@ QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
  */
 void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuOpt *opt;
-    Error *local_err = NULL;
 
     assert(opts_accepts_any(opts));
 
@@ -1142,9 +1136,8 @@ void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
             return;
         }
 
-        qemu_opt_parse(opt, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        qemu_opt_parse(opt, errp);
+        if (*errp) {
             return;
         }
     }
