@@ -126,9 +126,9 @@ void qmp_x_exit_preconfig(Error **errp)
 
 void qmp_cont(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockBackend *blk;
     BlockJob *job;
-    Error *local_err = NULL;
 
     /* if there is a dump in background, we should wait until the dump
      * finished */
@@ -161,9 +161,8 @@ void qmp_cont(Error **errp)
      * If there are no inactive block nodes (e.g. because the VM was just
      * paused rather than completing a migration), bdrv_inactivate_all() simply
      * doesn't do anything. */
-    bdrv_invalidate_cache_all(&local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    bdrv_invalidate_cache_all(errp);
+    if (*errp) {
         return;
     }
 
