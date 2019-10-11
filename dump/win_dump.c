@@ -60,15 +60,14 @@ static size_t write_run(WinDumpPhyMemRun64 *run, int fd, Error **errp)
 
 static void write_runs(DumpState *s, WinDumpHeader64 *h, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     WinDumpPhyMemDesc64 *desc = &h->PhysicalMemoryBlock;
     WinDumpPhyMemRun64 *run = desc->Run;
-    Error *local_err = NULL;
     int i;
 
     for (i = 0; i < desc->NumberOfRuns; i++) {
-        s->written_size += write_run(run + i, s->fd, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        s->written_size += write_run(run + i, s->fd, errp);
+        if (*errp) {
             return;
         }
     }
@@ -317,12 +316,12 @@ static void restore_context(WinDumpHeader64 *h,
 
 void create_win_dump(DumpState *s, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     WinDumpHeader64 *h = (WinDumpHeader64 *)(s->guest_note +
             VMCOREINFO_ELF_NOTE_HDR_SIZE);
     X86CPU *first_x86_cpu = X86_CPU(first_cpu);
     uint64_t saved_cr3 = first_x86_cpu->env.cr[3];
     struct saved_context *saved_ctx = NULL;
-    Error *local_err = NULL;
 
     if (s->guest_note_size != sizeof(WinDumpHeader64) +
             VMCOREINFO_ELF_NOTE_HDR_SIZE) {
@@ -330,9 +329,8 @@ void create_win_dump(DumpState *s, Error **errp)
         return;
     }
 
-    check_header(h, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    check_header(h, errp);
+    if (*errp) {
         return;
     }
 
@@ -343,9 +341,8 @@ void create_win_dump(DumpState *s, Error **errp)
 
     first_x86_cpu->env.cr[3] = h->DirectoryTableBase;
 
-    check_kdbg(h, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    check_kdbg(h, errp);
+    if (*errp) {
         goto out_cr3;
     }
 
@@ -358,9 +355,8 @@ void create_win_dump(DumpState *s, Error **errp)
      * to determine if the system-saved context is valid
      */
 
-    patch_and_save_context(h, saved_ctx, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    patch_and_save_context(h, saved_ctx, errp);
+    if (*errp) {
         goto out_free;
     }
 
@@ -372,9 +368,8 @@ void create_win_dump(DumpState *s, Error **errp)
         goto out_restore;
     }
 
-    write_runs(s, h, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    write_runs(s, h, errp);
+    if (*errp) {
         goto out_restore;
     }
 
