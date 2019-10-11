@@ -1779,6 +1779,7 @@ static void iscsi_save_designator(IscsiLun *lun,
 static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     IscsiLun *iscsilun = bs->opaque;
     struct iscsi_context *iscsi = NULL;
     struct scsi_task *task = NULL;
@@ -1786,7 +1787,6 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     struct scsi_inquiry_supported_pages *inq_vpd;
     char *initiator_name = NULL;
     QemuOpts *opts;
-    Error *local_err = NULL;
     const char *transport_name, *portal, *target;
 #if LIBISCSI_API_VERSION >= (20160603)
     enum iscsi_transport_type transport;
@@ -1794,9 +1794,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     int i, ret = 0, timeout = 0, lun;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -1850,9 +1849,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* check if we got CHAP username/password via the options */
-    apply_chap(iscsi, opts, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    apply_chap(iscsi, opts, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -1864,9 +1862,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* check if we got HEADER_DIGEST via the options */
-    apply_header_digest(iscsi, opts, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    apply_header_digest(iscsi, opts, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -1918,9 +1915,8 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         flags &= ~BDRV_O_RDWR;
     }
 
-    iscsi_readcapacity_sync(iscsilun, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    iscsi_readcapacity_sync(iscsilun, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -2124,8 +2120,8 @@ static void iscsi_reopen_commit(BDRVReopenState *reopen_state)
 static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
                                           PreallocMode prealloc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     IscsiLun *iscsilun = bs->opaque;
-    Error *local_err = NULL;
 
     if (prealloc != PREALLOC_MODE_OFF) {
         error_setg(errp, "Unsupported preallocation mode '%s'",
@@ -2138,9 +2134,8 @@ static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
         return -ENOTSUP;
     }
 
-    iscsi_readcapacity_sync(iscsilun, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    iscsi_readcapacity_sync(iscsilun, errp);
+    if (*errp) {
         return -EIO;
     }
 
@@ -2159,12 +2154,12 @@ static int coroutine_fn iscsi_co_truncate(BlockDriverState *bs, int64_t offset,
 static int coroutine_fn iscsi_co_create_opts(const char *filename, QemuOpts *opts,
                                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret = 0;
     int64_t total_size = 0;
     BlockDriverState *bs;
     IscsiLun *iscsilun = NULL;
     QDict *bs_options;
-    Error *local_err = NULL;
 
     bs = bdrv_new();
 
@@ -2175,9 +2170,8 @@ static int coroutine_fn iscsi_co_create_opts(const char *filename, QemuOpts *opt
     iscsilun = bs->opaque;
 
     bs_options = qdict_new();
-    iscsi_parse_filename(filename, bs_options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    iscsi_parse_filename(filename, bs_options, errp);
+    if (*errp) {
         ret = -EINVAL;
     } else {
         ret = iscsi_open(bs, bs_options, 0, NULL);
