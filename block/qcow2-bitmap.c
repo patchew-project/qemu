@@ -1447,6 +1447,7 @@ fail:
 
 void qcow2_store_persistent_dirty_bitmaps(BlockDriverState *bs, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BdrvDirtyBitmap *bitmap;
     BDRVQcow2State *s = bs->opaque;
     uint32_t new_nb_bitmaps = s->nb_bitmaps;
@@ -1593,12 +1594,11 @@ fail:
 
 int qcow2_reopen_bitmaps_ro(BlockDriverState *bs, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BdrvDirtyBitmap *bitmap;
-    Error *local_err = NULL;
 
-    qcow2_store_persistent_dirty_bitmaps(bs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    qcow2_store_persistent_dirty_bitmaps(bs, errp);
+    if (*errp) {
         return -EINVAL;
     }
 
@@ -1618,6 +1618,7 @@ bool qcow2_can_store_new_dirty_bitmap(BlockDriverState *bs,
                                       uint32_t granularity,
                                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVQcow2State *s = bs->opaque;
     bool found;
     Qcow2BitmapList *bm_list;
