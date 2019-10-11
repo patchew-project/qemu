@@ -613,8 +613,8 @@ static int coroutine_fn parallels_co_create_opts(const char *filename,
                                                  QemuOpts *opts,
                                                  Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions *create_options = NULL;
-    Error *local_err = NULL;
     BlockDriverState *bs = NULL;
     QDict *qdict;
     Visitor *v;
@@ -635,9 +635,8 @@ static int coroutine_fn parallels_co_create_opts(const char *filename,
     }
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_create_file(filename, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
         goto done;
     }
 
@@ -658,11 +657,10 @@ static int coroutine_fn parallels_co_create_opts(const char *filename,
         goto done;
     }
 
-    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto done;
     }
@@ -721,11 +719,11 @@ static int parallels_update_header(BlockDriverState *bs)
 static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVParallelsState *s = bs->opaque;
     ParallelsHeader ph;
     int ret, size, i;
     QemuOpts *opts = NULL;
-    Error *local_err = NULL;
     char *buf;
 
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
@@ -813,13 +811,13 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
-    opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, &local_err);
-    if (local_err != NULL) {
+    opts = qemu_opts_create(&parallels_runtime_opts, NULL, 0, errp);
+    if (*errp) {
         goto fail_options;
     }
 
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err != NULL) {
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         goto fail_options;
     }
 
@@ -829,9 +827,9 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     buf = qemu_opt_get_del(opts, PARALLELS_OPT_PREALLOC_MODE);
     s->prealloc_mode = qapi_enum_parse(&prealloc_mode_lookup, buf,
                                        PRL_PREALLOC_MODE_FALLOCATE,
-                                       &local_err);
+                                       errp);
     g_free(buf);
-    if (local_err != NULL) {
+    if (*errp) {
         goto fail_options;
     }
 
@@ -855,9 +853,8 @@ static int parallels_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The Parallels format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (*errp) {
         error_free(s->migration_blocker);
         goto fail;
     }
@@ -872,7 +869,6 @@ fail:
     return ret;
 
 fail_options:
-    error_propagate(errp, local_err);
     ret = -EINVAL;
     goto fail;
 }
