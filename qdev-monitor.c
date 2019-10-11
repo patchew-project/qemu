@@ -326,36 +326,36 @@ static Object *qdev_get_peripheral_anon(void)
     return dev;
 }
 
-static void qbus_list_bus(DeviceState *dev, Error **errp)
+static void error_append_qbus_bus_list_hint(DeviceState *dev, Error **errp_in)
 {
     BusState *child;
     const char *sep = " ";
 
-    error_append_hint(errp, "child buses at \"%s\":",
+    error_append_hint(errp_in, "child buses at \"%s\":",
                       dev->id ? dev->id : object_get_typename(OBJECT(dev)));
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
-        error_append_hint(errp, "%s\"%s\"", sep, child->name);
+        error_append_hint(errp_in, "%s\"%s\"", sep, child->name);
         sep = ", ";
     }
-    error_append_hint(errp, "\n");
+    error_append_hint(errp_in, "\n");
 }
 
-static void qbus_list_dev(BusState *bus, Error **errp)
+static void error_append_qbus_dev_list_hint(BusState *bus, Error **errp_in)
 {
     BusChild *kid;
     const char *sep = " ";
 
-    error_append_hint(errp, "devices at \"%s\":", bus->name);
+    error_append_hint(errp_in, "devices at \"%s\":", bus->name);
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         DeviceState *dev = kid->child;
-        error_append_hint(errp, "%s\"%s\"", sep,
+        error_append_hint(errp_in, "%s\"%s\"", sep,
                           object_get_typename(OBJECT(dev)));
         if (dev->id) {
-            error_append_hint(errp, "/\"%s\"", dev->id);
+            error_append_hint(errp_in, "/\"%s\"", dev->id);
         }
         sep = ", ";
     }
-    error_append_hint(errp, "\n");
+    error_append_hint(errp_in, "\n");
 }
 
 static BusState *qbus_find_bus(DeviceState *dev, char *elem)
@@ -498,7 +498,7 @@ static BusState *qbus_find(const char *path, Error **errp)
         if (!dev) {
             error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
                       "Device '%s' not found", elem);
-            qbus_list_dev(bus, errp);
+            error_append_qbus_dev_list_hint(bus, errp);
             return NULL;
         }
 
@@ -516,7 +516,7 @@ static BusState *qbus_find(const char *path, Error **errp)
             if (dev->num_child_bus) {
                 error_setg(errp, "Device '%s' has multiple child buses",
                            elem);
-                qbus_list_bus(dev, errp);
+                error_append_qbus_bus_list_hint(dev, errp);
             } else {
                 error_setg(errp, "Device '%s' has no child bus", elem);
             }
@@ -532,7 +532,7 @@ static BusState *qbus_find(const char *path, Error **errp)
         bus = qbus_find_bus(dev, elem);
         if (!bus) {
             error_setg(errp, "Bus '%s' not found", elem);
-            qbus_list_bus(dev, errp);
+            error_append_qbus_bus_list_hint(dev, errp);
             return NULL;
         }
     }
