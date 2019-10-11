@@ -253,30 +253,28 @@ uint64_t get_plugged_memory_size(void)
 void memory_device_pre_plug(MemoryDeviceState *md, MachineState *ms,
                             const uint64_t *legacy_align, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const MemoryDeviceClass *mdc = MEMORY_DEVICE_GET_CLASS(md);
-    Error *local_err = NULL;
     uint64_t addr, align;
     MemoryRegion *mr;
 
-    mr = mdc->get_memory_region(md, &local_err);
-    if (local_err) {
-        goto out;
+    mr = mdc->get_memory_region(md, errp);
+    if (*errp) {
+        return;
     }
 
     align = legacy_align ? *legacy_align : memory_region_get_alignment(mr);
     addr = mdc->get_addr(md);
     addr = memory_device_get_free_addr(ms, !addr ? NULL : &addr, align,
-                                       memory_region_size(mr), &local_err);
-    if (local_err) {
-        goto out;
+                                       memory_region_size(mr), errp);
+    if (*errp) {
+        return;
     }
-    mdc->set_addr(md, addr, &local_err);
-    if (!local_err) {
+    mdc->set_addr(md, addr, errp);
+    if (!*errp) {
         trace_memory_device_pre_plug(DEVICE(md)->id ? DEVICE(md)->id : "",
                                      addr);
     }
-out:
-    error_propagate(errp, local_err);
 }
 
 void memory_device_plug(MemoryDeviceState *md, MachineState *ms)

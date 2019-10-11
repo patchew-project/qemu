@@ -75,7 +75,7 @@ void legacy_acpi_cpu_plug_cb(HotplugHandler *hotplug_dev,
                              AcpiCpuHotplug *g, DeviceState *dev, Error **errp)
 {
     acpi_set_cpu_present_bit(g, CPU(dev), errp);
-    if (*errp != NULL) {
+    if (*errp) {
         return;
     }
     acpi_send_event(DEVICE(hotplug_dev), ACPI_CPU_HOTPLUG_STATUS);

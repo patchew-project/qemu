@@ -37,31 +37,29 @@ static int pc_dimm_get_free_slot(const int *hint, int max_slots, Error **errp);
 void pc_dimm_pre_plug(PCDIMMDevice *dimm, MachineState *machine,
                       const uint64_t *legacy_align, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int slot;
 
     slot = object_property_get_int(OBJECT(dimm), PC_DIMM_SLOT_PROP,
                                    &error_abort);
     if ((slot < 0 || slot >= machine->ram_slots) &&
          slot != PC_DIMM_UNASSIGNED_SLOT) {
-        error_setg(&local_err, "invalid slot number, valid range is [0-%"
+        error_setg(errp, "invalid slot number, valid range is [0-%"
                    PRIu64 "]", machine->ram_slots - 1);
-        goto out;
+        return;
     }
 
     slot = pc_dimm_get_free_slot(slot == PC_DIMM_UNASSIGNED_SLOT ? NULL : &slot,
-                                 machine->ram_slots, &local_err);
-    if (local_err) {
-        goto out;
+                                 machine->ram_slots, errp);
+    if (*errp) {
+        return;
     }
     object_property_set_int(OBJECT(dimm), slot, PC_DIMM_SLOT_PROP,
                             &error_abort);
     trace_mhp_pc_dimm_assigned_slot(slot);
 
     memory_device_pre_plug(MEMORY_DEVICE(dimm), machine, legacy_align,
-                           &local_err);
-out:
-    error_propagate(errp, local_err);
+                           errp);
 }
 
 void pc_dimm_plug(PCDIMMDevice *dimm, MachineState *machine, Error **errp)
@@ -150,12 +148,11 @@ static Property pc_dimm_properties[] = {
 static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     uint64_t value;
 
-    value = memory_device_get_region_size(MEMORY_DEVICE(obj), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    value = memory_device_get_region_size(MEMORY_DEVICE(obj), errp);
+    if (*errp) {
         return;
     }
 

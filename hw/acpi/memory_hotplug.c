@@ -241,12 +241,11 @@ static MemStatus *
 acpi_memory_slot_status(MemHotplugState *mem_st,
                         DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int slot = object_property_get_int(OBJECT(dev), PC_DIMM_SLOT_PROP,
-                                       &local_err);
+                                       errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return NULL;
     }
 
