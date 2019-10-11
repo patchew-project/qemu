@@ -529,10 +529,10 @@ static void sd_aio_setup(SheepdogAIOCB *acb, BDRVSheepdogState *s,
 
 static SocketAddress *sd_server_config(QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QDict *server = NULL;
     Visitor *iv = NULL;
     SocketAddress *saddr = NULL;
-    Error *local_err = NULL;
 
     qdict_extract_subqdict(options, &server, "server.");
 
@@ -541,9 +541,8 @@ static SocketAddress *sd_server_config(QDict *options, Error **errp)
         goto done;
     }
 
-    visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_SocketAddress(iv, NULL, &saddr, errp);
+    if (*errp) {
         goto done;
     }
 
@@ -1008,7 +1007,7 @@ static void sd_config_done(SheepdogConfig *cfg)
 static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
                          Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     QueryParams *qp = NULL;
     bool is_unix;
     URI *uri;
@@ -1017,7 +1016,7 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
 
     cfg->uri = uri = uri_parse(filename);
     if (!uri) {
-        error_setg(&err, "invalid URI '%s'", filename);
+        error_setg(errp, "invalid URI '%s'", filename);
         goto out;
     }
 
@@ -1029,18 +1028,18 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     } else if (!g_strcmp0(uri->scheme, "sheepdog+unix")) {
         is_unix = true;
     } else {
-        error_setg(&err, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
+        error_setg(errp, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
                    " or 'sheepdog+unix'");
         goto out;
     }
 
     if (uri->path == NULL || !strcmp(uri->path, "/")) {
-        error_setg(&err, "missing file path in URI");
+        error_setg(errp, "missing file path in URI");
         goto out;
     }
     if (g_strlcpy(cfg->vdi, uri->path + 1, SD_MAX_VDI_LEN)
         >= SD_MAX_VDI_LEN) {
-        error_setg(&err, "VDI name is too long");
+        error_setg(errp, "VDI name is too long");
         goto out;
     }
 
@@ -1049,25 +1048,25 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     if (is_unix) {
         /* sheepdog+unix:///vdiname?socket=path */
         if (uri->server || uri->port) {
-            error_setg(&err, "URI scheme %s doesn't accept a server address",
+            error_setg(errp, "URI scheme %s doesn't accept a server address",
                        uri->scheme);
             goto out;
         }
         if (!qp->n) {
-            error_setg(&err,
+            error_setg(errp,
                        "URI scheme %s requires query parameter 'socket'",
                        uri->scheme);
             goto out;
         }
         if (qp->n != 1 || strcmp(qp->p[0].name, "socket")) {
-            error_setg(&err, "unexpected query parameters");
+            error_setg(errp, "unexpected query parameters");
             goto out;
         }
         cfg->path = qp->p[0].value;
     } else {
         /* sheepdog[+tcp]://[host:port]/vdiname */
         if (qp->n) {
-            error_setg(&err, "unexpected query parameters");
+            error_setg(errp, "unexpected query parameters");
             goto out;
         }
         cfg->host = uri->server;
@@ -1078,7 +1077,7 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     if (uri->fragment) {
         if (!sd_parse_snapid_or_tag(uri->fragment,
                                     &cfg->snap_id, cfg->tag)) {
-            error_setg(&err, "'%s' is not a valid snapshot ID",
+            error_setg(errp, "'%s' is not a valid snapshot ID",
                        uri->fragment);
             goto out;
         }
@@ -1087,8 +1086,7 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     }
 
 out:
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         sd_config_done(cfg);
     }
 }
@@ -1113,7 +1111,7 @@ out:
 static void parse_vdiname(SheepdogConfig *cfg, const char *filename,
                           Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     char *p, *q, *uri;
     const char *host_spec, *vdi_spec;
     int nr_sep;
@@ -1155,14 +1153,14 @@ static void parse_vdiname(SheepdogConfig *cfg, const char *filename,
      * FIXME We to escape URI meta-characters, e.g. "x?y=z"
      * produces "sheepdog://x?y=z".  Because of that ...
      */
-    sd_parse_uri(cfg, uri, &err);
-    if (err) {
+    sd_parse_uri(cfg, uri, errp);
+    if (*errp) {
         /*
          * ... this can fail, but the error message is misleading.
          * Replace it by the traditional useless one until the
          * escaping is fixed.
          */
-        error_free(err);
+        error_free_errp(errp);
         error_setg(errp, "Can't parse filename");
     }
 
@@ -1173,17 +1171,16 @@ static void parse_vdiname(SheepdogConfig *cfg, const char *filename,
 static void sd_parse_filename(const char *filename, QDict *options,
                               Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     SheepdogConfig cfg;
     char buf[32];
 
     if (strstr(filename, "://")) {
-        sd_parse_uri(&cfg, filename, &err);
+        sd_parse_uri(&cfg, filename, errp);
     } else {
-        parse_vdiname(&cfg, filename, &err);
+        parse_vdiname(&cfg, filename, errp);
     }
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         return;
     }
 
@@ -1543,6 +1540,7 @@ static QemuOptsList runtime_opts = {
 static int sd_open(BlockDriverState *bs, QDict *options, int flags,
                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret, fd;
     uint32_t vid = 0;
     BDRVSheepdogState *s = bs->opaque;
@@ -1550,15 +1548,13 @@ static int sd_open(BlockDriverState *bs, QDict *options, int flags,
     uint64_t snap_id;
     char *buf = NULL;
     QemuOpts *opts;
-    Error *local_err = NULL;
 
     s->bs = bs;
     s->aio_context = bdrv_get_aio_context(bs);
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto err_no_fd;
     }
@@ -1850,19 +1846,18 @@ out_with_err_set:
 static int sd_create_prealloc(BlockdevOptionsSheepdog *location, int64_t size,
                               Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockDriverState *bs;
     Visitor *v;
     QObject *obj = NULL;
     QDict *qdict;
-    Error *local_err = NULL;
     int ret;
 
     v = qobject_output_visitor_new(&obj);
-    visit_type_BlockdevOptionsSheepdog(v, NULL, &location, &local_err);
+    visit_type_BlockdevOptionsSheepdog(v, NULL, &location, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         qobject_unref(obj);
         return -EINVAL;
     }
@@ -2160,11 +2155,11 @@ out:
 static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
                                           Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict, *location_qdict;
     Visitor *v;
     char *redundancy;
-    Error *local_err = NULL;
     int ret;
 
     redundancy = qemu_opt_get_del(opts, BLOCK_OPT_REDUNDANCY);
@@ -2175,9 +2170,8 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     location_qdict = qdict_new();
     qdict_put(qdict, "location", location_qdict);
 
-    sd_parse_filename(filename, location_qdict, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    sd_parse_filename(filename, location_qdict, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -2203,11 +2197,10 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
         goto fail;
     }
 
-    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
