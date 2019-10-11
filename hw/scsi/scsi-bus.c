@@ -154,10 +154,10 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
 
 static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SCSIDevice *dev = SCSI_DEVICE(qdev);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
     SCSIDevice *d;
-    Error *local_err = NULL;
 
     if (dev->channel > bus->info->max_channel) {
         error_setg(errp, "bad scsi channel id: %d", dev->channel);
@@ -205,9 +205,8 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     }
 
     QTAILQ_INIT(&dev->requests);
-    scsi_device_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    scsi_device_realize(dev, errp);
+    if (*errp) {
         return;
     }
     dev->vmsentry = qdev_add_vm_change_state_handler(DEVICE(dev),
@@ -234,10 +233,10 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
                                       BlockdevOnError werror,
                                       const char *serial, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const char *driver;
     char *name;
     DeviceState *dev;
-    Error *err = NULL;
 
     driver = blk_is_sg(blk) ? "scsi-generic" : "scsi-disk";
     dev = qdev_create(&bus->qbus, driver);
@@ -256,15 +255,13 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     if (serial && object_property_find(OBJECT(dev), "serial", NULL)) {
         qdev_prop_set_string(dev, "serial", serial);
     }
-    qdev_prop_set_drive(dev, "drive", blk, &err);
-    if (err) {
-        error_propagate(errp, err);
+    qdev_prop_set_drive(dev, "drive", blk, errp);
+    if (*errp) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), share_rw, "share-rw", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(dev), share_rw, "share-rw", errp);
+    if (*errp) {
         object_unparent(OBJECT(dev));
         return NULL;
     }
@@ -272,9 +269,8 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
     qdev_prop_set_enum(dev, "rerror", rerror);
     qdev_prop_set_enum(dev, "werror", werror);
 
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(dev), true, "realized", errp);
+    if (*errp) {
         object_unparent(OBJECT(dev));
         return NULL;
     }

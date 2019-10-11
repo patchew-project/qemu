@@ -468,16 +468,15 @@ static void dc390_write_config(PCIDevice *dev,
 
 static void dc390_scsi_realize(PCIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DC390State *pci = DC390(dev);
-    Error *err = NULL;
     uint8_t *contents;
     uint16_t chksum = 0;
     int i;
 
     /* init base class */
-    esp_pci_scsi_realize(dev, &err);
-    if (err) {
-        error_propagate(errp, err);
+    esp_pci_scsi_realize(dev, errp);
+    if (*errp) {
         return;
     }
 

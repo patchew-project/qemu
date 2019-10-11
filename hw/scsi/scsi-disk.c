@@ -2455,13 +2455,12 @@ static void scsi_cd_realize(SCSIDevice *dev, Error **errp)
 
 static void scsi_disk_realize(SCSIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DriveInfo *dinfo;
-    Error *local_err = NULL;
 
     if (!dev->conf.blk) {
-        scsi_realize(dev, &local_err);
-        assert(local_err);
-        error_propagate(errp, local_err);
+        scsi_realize(dev, errp);
+        assert(*errp);
         return;
     }
 
@@ -2597,6 +2596,7 @@ static int get_device_type(SCSIDiskState *s)
 
 static void scsi_block_realize(SCSIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     AioContext *ctx;
     int sg_version;
