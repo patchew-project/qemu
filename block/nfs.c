@@ -561,21 +561,20 @@ out:
 static BlockdevOptionsNfs *nfs_options_qdict_to_qapi(QDict *options,
                                                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevOptionsNfs *opts = NULL;
     Visitor *v;
     const QDictEntry *e;
-    Error *local_err = NULL;
 
     v = qobject_input_visitor_new_flat_confused(options, errp);
     if (!v) {
         return NULL;
     }
 
-    visit_type_BlockdevOptionsNfs(v, NULL, &opts, &local_err);
+    visit_type_BlockdevOptionsNfs(v, NULL, &opts, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return NULL;
     }
 
