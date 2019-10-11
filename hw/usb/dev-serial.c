@@ -484,8 +484,8 @@ static void usb_serial_event(void *opaque, int event)
 
 static void usb_serial_realize(USBDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     USBSerialState *s = USB_SERIAL_DEV(dev);
-    Error *local_err = NULL;
 
     usb_desc_create_serial(dev);
     usb_desc_init(dev);
@@ -496,9 +496,8 @@ static void usb_serial_realize(USBDevice *dev, Error **errp)
         return;
     }
 
-    usb_check_attach(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    usb_check_attach(dev, errp);
+    if (*errp) {
         return;
     }
 
