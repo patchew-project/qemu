@@ -240,15 +240,15 @@ void qmp_guest_file_close(int64_t handle, Error **errp)
 
 static void acquire_privilege(const char *name, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HANDLE token = NULL;
     TOKEN_PRIVILEGES priv;
-    Error *local_err = NULL;
 
     if (OpenProcessToken(GetCurrentProcess(),
         TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
     {
         if (!LookupPrivilegeValue(NULL, name, &priv.Privileges[0].Luid)) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "no luid for requested privilege");
             goto out;
         }
@@ -257,13 +257,13 @@ static void acquire_privilege(const char *name, Error **errp)
         priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
         if (!AdjustTokenPrivileges(token, FALSE, &priv, 0, NULL, 0)) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "unable to acquire requested privilege");
             goto out;
         }
 
     } else {
-        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
                    "failed to open privilege token");
     }
 
@@ -271,25 +271,23 @@ out:
     if (token) {
         CloseHandle(token);
     }
-    error_propagate(errp, local_err);
 }
 
 static void execute_async(DWORD WINAPI (*func)(LPVOID), LPVOID opaque,
                           Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     HANDLE thread = CreateThread(NULL, 0, func, opaque, 0, NULL);
     if (!thread) {
-        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
                    "failed to dispatch asynchronous command");
-        error_propagate(errp, local_err);
     }
 }
 
 void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     UINT shutdown_flag = EWX_FORCE;
 
     slog("guest-shutdown called, mode: %s", mode);
@@ -308,9 +306,8 @@ void qmp_guest_shutdown(bool has_mode, const char *mode, Error **errp)
 
     /* Request a shutdown privilege, but try to shut down the system
        anyway. */
-    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    acquire_privilege(SE_SHUTDOWN_NAME, errp);
+    if (*errp) {
         return;
     }
 
@@ -409,6 +406,7 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
                                    GuestFileWhence *whence_code,
                                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     GuestFileHandle *gfh;
     GuestFileSeek *seek_data;
     HANDLE fh;
@@ -416,7 +414,6 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     off_pos.QuadPart = offset;
     BOOL res;
     int whence;
-    Error *err = NULL;
 
     gfh = guest_file_handle_find(handle, errp);
     if (!gfh) {
@@ -424,9 +421,8 @@ GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     }
 
     /* We stupidly exposed 'whence':'int' in our qapi */
-    whence = ga_parse_whence(whence_code, &err);
-    if (err) {
-        error_propagate(errp, err);
+    whence = ga_parse_whence(whence_code, errp);
+    if (*errp) {
         return NULL;
     }
 
@@ -792,10 +788,10 @@ out_free:
 static void get_single_disk_info(int disk_number,
                                  GuestDiskAddress *disk, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SCSI_ADDRESS addr, *scsi_ad;
     DWORD len;
     HANDLE disk_h;
-    Error *local_err = NULL;
 
     scsi_ad = &addr;
 
@@ -807,9 +803,8 @@ static void get_single_disk_info(int disk_number,
         return;
     }
 
-    get_disk_properties(disk_h, disk, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    get_disk_properties(disk_h, disk, errp);
+    if (*errp) {
         goto err_close;
     }
 
@@ -819,9 +814,8 @@ static void get_single_disk_info(int disk_number,
      * if that doesn't hold since that suggests some other unexpected
      * breakage
      */
-    disk->pci_controller = get_pci_info(disk_number, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    disk->pci_controller = get_pci_info(disk_number, errp);
+    if (*errp) {
         goto err_close;
     }
     if (disk->bus_type == GUEST_DISK_BUS_TYPE_SCSI
@@ -854,7 +848,7 @@ err_close:
  * volume is returned for the spanned disk group (LVM) */
 static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     GuestDiskAddressList *list = NULL, *cur_item = NULL;
     GuestDiskAddress *disk = NULL;
     int i;
@@ -900,11 +894,11 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
             disk = g_malloc0(sizeof(GuestDiskAddress));
             disk->has_dev = true;
             disk->dev = g_strdup(name);
-            get_single_disk_info(0xffffffff, disk, &local_err);
-            if (local_err) {
+            get_single_disk_info(0xffffffff, disk, errp);
+            if (*errp) {
                 g_debug("failed to get disk info, ignoring error: %s",
-                    error_get_pretty(local_err));
-                error_free(local_err);
+                    error_get_pretty(*errp));
+                error_free_errp(errp);
                 goto out;
             }
             list = g_malloc0(sizeof(*list));
@@ -936,9 +930,8 @@ static GuestDiskAddressList *build_guest_disk_info(char *guid, Error **errp)
         disk->dev = g_strdup_printf("\\\\.\\PhysicalDrive%lu",
                                     extents->Extents[i].DiskNumber);
 
-        get_single_disk_info(extents->Extents[i].DiskNumber, disk, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        get_single_disk_info(extents->Extents[i].DiskNumber, disk, errp);
+        if (*errp) {
             goto out;
         }
         cur_item = g_malloc0(sizeof(*list));
@@ -1090,8 +1083,8 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
                                        strList *mountpoints,
                                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int i;
-    Error *local_err = NULL;
 
     if (!vss_initialized()) {
         error_setg(errp, QERR_UNSUPPORTED);
@@ -1103,20 +1096,19 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
     /* cannot risk guest agent blocking itself on a write in this state */
     ga_set_frozen(ga_state);
 
-    qga_vss_fsfreeze(&i, true, mountpoints, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qga_vss_fsfreeze(&i, true, mountpoints, errp);
+    if (*errp) {
         goto error;
     }
 
     return i;
 
 error:
-    local_err = NULL;
-    qmp_guest_fsfreeze_thaw(&local_err);
-    if (local_err) {
-        g_debug("cleanup thaw: %s", error_get_pretty(local_err));
-        error_free(local_err);
+    *errp = NULL;
+    qmp_guest_fsfreeze_thaw(errp);
+    if (*errp) {
+        g_debug("cleanup thaw: %s", error_get_pretty(*errp));
+        error_free_errp(errp);
     }
     return 0;
 }
@@ -1281,36 +1273,33 @@ typedef enum {
 
 static void check_suspend_mode(GuestSuspendMode mode, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SYSTEM_POWER_CAPABILITIES sys_pwr_caps;
-    Error *local_err = NULL;
 
     ZeroMemory(&sys_pwr_caps, sizeof(sys_pwr_caps));
     if (!GetPwrCapabilities(&sys_pwr_caps)) {
-        error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+        error_setg(errp, QERR_QGA_COMMAND_FAILED,
                    "failed to determine guest suspend capabilities");
-        goto out;
+        return;
     }
 
     switch (mode) {
     case GUEST_SUSPEND_MODE_DISK:
         if (!sys_pwr_caps.SystemS4) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "suspend-to-disk not supported by OS");
         }
         break;
     case GUEST_SUSPEND_MODE_RAM:
         if (!sys_pwr_caps.SystemS3) {
-            error_setg(&local_err, QERR_QGA_COMMAND_FAILED,
+            error_setg(errp, QERR_QGA_COMMAND_FAILED,
                        "suspend-to-ram not supported by OS");
         }
         break;
     default:
-        error_setg(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "mode",
                    "GuestSuspendMode");
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static DWORD WINAPI do_suspend(LPVOID opaque)
@@ -1328,32 +1317,30 @@ static DWORD WINAPI do_suspend(LPVOID opaque)
 
 void qmp_guest_suspend_disk(Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     GuestSuspendMode *mode = g_new(GuestSuspendMode, 1);
 
     *mode = GUEST_SUSPEND_MODE_DISK;
-    check_suspend_mode(*mode, &local_err);
-    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
-    execute_async(do_suspend, mode, &local_err);
+    check_suspend_mode(*mode, errp);
+    acquire_privilege(SE_SHUTDOWN_NAME, errp);
+    execute_async(do_suspend, mode, errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         g_free(mode);
     }
 }
 
 void qmp_guest_suspend_ram(Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     GuestSuspendMode *mode = g_new(GuestSuspendMode, 1);
 
     *mode = GUEST_SUSPEND_MODE_RAM;
-    check_suspend_mode(*mode, &local_err);
-    acquire_privilege(SE_SHUTDOWN_NAME, &local_err);
-    execute_async(do_suspend, mode, &local_err);
+    check_suspend_mode(*mode, errp);
+    acquire_privilege(SE_SHUTDOWN_NAME, errp);
+    execute_async(do_suspend, mode, errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         g_free(mode);
     }
 }
@@ -1616,7 +1603,7 @@ int64_t qmp_guest_get_time(Error **errp)
 
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     SYSTEMTIME ts;
     FILETIME tf;
     LONGLONG time;
@@ -1681,9 +1668,8 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
         return;
     }
 
-    acquire_privilege(SE_SYSTEMTIME_NAME, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    acquire_privilege(SE_SYSTEMTIME_NAME, errp);
+    if (*errp) {
         return;
     }
 
@@ -1695,10 +1681,10 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
 GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION pslpi, ptr;
     DWORD length;
     GuestLogicalProcessorList *head, **link;
-    Error *local_err = NULL;
     int64_t current;
 
     ptr = pslpi = NULL;
@@ -1712,16 +1698,16 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
         (length > sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION))) {
         ptr = pslpi = g_malloc0(length);
         if (GetLogicalProcessorInformation(pslpi, &length) == FALSE) {
-            error_setg(&local_err, "Failed to get processor information: %d",
+            error_setg(errp, "Failed to get processor information: %d",
                        (int)GetLastError());
         }
     } else {
-        error_setg(&local_err,
+        error_setg(errp,
                    "Failed to get processor information buffer length: %d",
                    (int)GetLastError());
     }
 
-    while ((local_err == NULL) && (length > 0)) {
+    while ((*errp == NULL) && (length > 0)) {
         if (pslpi->Relationship == RelationProcessorCore) {
             ULONG_PTR cpu_bits = pslpi->ProcessorMask;
 
@@ -1750,16 +1736,15 @@ GuestLogicalProcessorList *qmp_guest_get_vcpus(Error **errp)
 
     g_free(ptr);
 
-    if (local_err == NULL) {
+    if (*errp == NULL) {
         if (head != NULL) {
             return head;
         }
         /* there's no guest with zero VCPUs */
-        error_setg(&local_err, "Guest reported zero VCPUs");
+        error_setg(errp, "Guest reported zero VCPUs");
     }
 
     qapi_free_GuestLogicalProcessorList(head);
-    error_propagate(errp, local_err);
     return NULL;
 }
 
@@ -2186,22 +2171,20 @@ static char *ga_get_current_arch(void)
 
 GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     OSVERSIONINFOEXW os_version = {0};
     bool server;
     char *product_name;
     GuestOSInfo *info;
 
-    ga_get_win_version(&os_version, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ga_get_win_version(&os_version, errp);
+    if (*errp) {
         return NULL;
     }
 
     server = os_version.wProductType != VER_NT_WORKSTATION;
-    product_name = ga_get_win_product_name(&local_err);
+    product_name = ga_get_win_product_name(errp);
     if (product_name == NULL) {
-        error_propagate(errp, local_err);
         return NULL;
     }
 

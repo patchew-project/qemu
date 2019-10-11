@@ -542,6 +542,7 @@ char *qemu_get_pid_name(pid_t pid)
 
 pid_t qemu_fork(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     sigset_t oldmask, newmask;
     struct sigaction sig_action;
     int saved_errno;
@@ -600,10 +601,9 @@ pid_t qemu_fork(Error **errp)
          * propagate that to children */
         sigemptyset(&newmask);
         if (pthread_sigmask(SIG_SETMASK, &newmask, NULL) != 0) {
-            Error *local_err = NULL;
-            error_setg_errno(&local_err, errno,
+            error_setg_errno(errp, errno,
                              "cannot unblock signals");
-            error_report_err(local_err);
+            error_report_errp(errp);
             _exit(1);
         }
     }
