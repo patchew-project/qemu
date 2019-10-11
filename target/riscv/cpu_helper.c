@@ -451,6 +451,7 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
     CPURISCVState *env = &cpu->env;
     hwaddr pa = 0;
     int prot;
+    int pmp_size = 0;
     bool pmp_violation = false;
     int ret = TRANSLATE_FAIL;
     int mode = mmu_idx;
@@ -470,9 +471,19 @@ bool riscv_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
                   "%s address=%" VADDR_PRIx " ret %d physical " TARGET_FMT_plx
                   " prot %d\n", __func__, address, ret, pa, prot);
 
+    /*
+     * if size is unknown (0), assume that all bytes
+     * from addr to the end of the page will be accessed.
+     */
+    if (size == 0) {
+        pmp_size = -(address | TARGET_PAGE_MASK);
+    } else {
+        pmp_size = size;
+    }
+
     if (riscv_feature(env, RISCV_FEATURE_PMP) &&
         (ret == TRANSLATE_SUCCESS) &&
-        !pmp_hart_has_privs(env, pa, size, 1 << access_type, mode)) {
+        !pmp_hart_has_privs(env, pa, pmp_size, 1 << access_type, mode)) {
         ret = TRANSLATE_PMP_FAIL;
     }
     if (ret == TRANSLATE_PMP_FAIL) {
