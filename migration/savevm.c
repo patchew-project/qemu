@@ -942,6 +942,20 @@ static void qemu_savevm_command_send(QEMUFile *f,
     qemu_fflush(f);
 }
 
+static int qemu_savevm_nr_failover_devices(void)
+{
+    SaveStateEntry *se;
+    int n = 0;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (se->vmsd && se->vmsd->dev_unplug_pending) {
+            n++;
+        }
+    }
+
+    return n;
+}
+
 void qemu_savevm_send_colo_enable(QEMUFile *f)
 {
     trace_savevm_send_colo_enable();
@@ -1111,6 +1125,28 @@ void qemu_savevm_state_header(QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_CONFIGURATION);
         vmstate_save_state(f, &vmstate_configuration, &savevm_state, 0);
     }
+}
+
+bool qemu_savevm_state_guest_unplug_pending(void)
+{
+    int nr_failover_devs;
+    SaveStateEntry *se;
+    bool ret = false;
+    int n = 0;
+
+    nr_failover_devs = qemu_savevm_nr_failover_devices();
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->vmsd || !se->vmsd->dev_unplug_pending) {
+            continue;
+        }
+        ret = se->vmsd->dev_unplug_pending(se->opaque);
+        if (!ret) {
+            n++;
+        }
+    }
+
+    return n == nr_failover_devs;
 }
 
 void qemu_savevm_state_setup(QEMUFile *f)
