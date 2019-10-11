@@ -213,12 +213,12 @@ static void vpc_parse_options(BlockDriverState *bs, QemuOpts *opts,
 static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVVPCState *s = bs->opaque;
     int i;
     VHDFooter *footer;
     VHDDynDiskHeader *dyndisk_header;
     QemuOpts *opts = NULL;
-    Error *local_err = NULL;
     bool use_chs;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
@@ -235,16 +235,14 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     opts = qemu_opts_create(&vpc_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
 
-    vpc_parse_options(bs, opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    vpc_parse_options(bs, opts, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -448,9 +446,8 @@ static int vpc_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The vpc format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (*errp) {
         error_free(s->migration_blocker);
         goto fail;
     }
@@ -971,6 +968,7 @@ static int calculate_rounded_image_size(BlockdevCreateOptionsVpc *vpc_opts,
 static int coroutine_fn vpc_co_create(BlockdevCreateOptions *opts,
                                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptionsVpc *vpc_opts;
     BlockBackend *blk = NULL;
     BlockDriverState *bs = NULL;
@@ -1092,11 +1090,11 @@ out:
 static int coroutine_fn vpc_co_create_opts(const char *filename,
                                            QemuOpts *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions *create_options = NULL;
     QDict *qdict;
     Visitor *v;
     BlockDriverState *bs = NULL;
-    Error *local_err = NULL;
     int ret;
 
     static const QDictRenames opt_renames[] = {
@@ -1113,9 +1111,8 @@ static int coroutine_fn vpc_co_create_opts(const char *filename,
     }
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_create_file(filename, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
         goto fail;
     }
 
@@ -1136,11 +1133,10 @@ static int coroutine_fn vpc_co_create_opts(const char *filename,
         goto fail;
     }
 
-    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
