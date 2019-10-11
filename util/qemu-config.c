@@ -478,10 +478,10 @@ int qemu_read_config_file(const char *filename)
 static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
                                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuOpts *subopts;
     QDict *subqdict;
     QList *list = NULL;
-    Error *local_err = NULL;
     size_t orig_size, enum_size;
     char *prefix;
 
@@ -493,15 +493,13 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
         goto out;
     }
 
-    subopts = qemu_opts_create(opts, NULL, 0, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    subopts = qemu_opts_create(opts, NULL, 0, errp);
+    if (*errp) {
         goto out;
     }
 
-    qemu_opts_absorb_qdict(subopts, subqdict, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(subopts, subqdict, errp);
+    if (*errp) {
         goto out;
     }
 
@@ -538,16 +536,14 @@ static void config_parse_qdict_section(QDict *options, QemuOptsList *opts,
             }
 
             opt_name = g_strdup_printf("%s.%u", opts->name, i++);
-            subopts = qemu_opts_create(opts, opt_name, 1, &local_err);
+            subopts = qemu_opts_create(opts, opt_name, 1, errp);
             g_free(opt_name);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (*errp) {
                 goto out;
             }
 
-            qemu_opts_absorb_qdict(subopts, section, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            qemu_opts_absorb_qdict(subopts, section, errp);
+            if (*errp) {
                 qemu_opts_del(subopts);
                 goto out;
             }
@@ -569,13 +565,12 @@ out:
 void qemu_config_parse_qdict(QDict *options, QemuOptsList **lists,
                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int i;
-    Error *local_err = NULL;
 
     for (i = 0; lists[i]; i++) {
-        config_parse_qdict_section(options, lists[i], &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        config_parse_qdict_section(options, lists[i], errp);
+        if (*errp) {
             return;
         }
     }
