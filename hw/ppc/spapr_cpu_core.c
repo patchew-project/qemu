@@ -219,13 +219,13 @@ static void spapr_cpu_core_unrealize(DeviceState *dev, Error **errp)
 static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
                                SpaprCpuCore *sc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUPPCState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
-    Error *local_err = NULL;
 
-    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
-    if (local_err) {
-        goto error;
+    object_property_set_bool(OBJECT(cpu), true, "realized", errp);
+    if (*errp) {
+        return;
     }
 
     /* Set time-base frequency to 512 MHz */
@@ -237,8 +237,8 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
     qemu_register_reset(spapr_cpu_reset, cpu);
     spapr_cpu_reset(cpu);
 
-    spapr->irq->cpu_intc_create(spapr, cpu, &local_err);
-    if (local_err) {
+    spapr->irq->cpu_intc_create(spapr, cpu, errp);
+    if (*errp) {
         goto error_unregister;
     }
 
@@ -252,36 +252,34 @@ static void spapr_realize_vcpu(PowerPCCPU *cpu, SpaprMachineState *spapr,
 error_unregister:
     qemu_unregister_reset(spapr_cpu_reset, cpu);
     cpu_remove_sync(CPU(cpu));
-error:
-    error_propagate(errp, local_err);
 }
 
 static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprCpuCoreClass *scc = SPAPR_CPU_CORE_GET_CLASS(sc);
     CPUCore *cc = CPU_CORE(sc);
     Object *obj;
     char *id;
     CPUState *cs;
     PowerPCCPU *cpu;
-    Error *local_err = NULL;
 
     obj = object_new(scc->cpu_type);
 
     cs = CPU(obj);
     cpu = POWERPC_CPU(obj);
     cs->cpu_index = cc->core_id + i;
-    spapr_set_vcpu_id(cpu, cs->cpu_index, &local_err);
-    if (local_err) {
+    spapr_set_vcpu_id(cpu, cs->cpu_index, errp);
+    if (*errp) {
         goto err;
     }
 
     cpu->node_id = sc->node_id;
 
     id = g_strdup_printf("thread[%d]", i);
-    object_property_add_child(OBJECT(sc), id, obj, &local_err);
+    object_property_add_child(OBJECT(sc), id, obj, errp);
     g_free(id);
-    if (local_err) {
+    if (*errp) {
         goto err;
     }
 
@@ -292,7 +290,6 @@ static PowerPCCPU *spapr_create_vcpu(SpaprCpuCore *sc, int i, Error **errp)
 
 err:
     object_unref(obj);
-    error_propagate(errp, local_err);
     return NULL;
 }
 
@@ -307,6 +304,7 @@ static void spapr_delete_vcpu(PowerPCCPU *cpu, SpaprCpuCore *sc)
 
 static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     /* We don't use SPAPR_MACHINE() in order to exit gracefully if the user
      * tries to add a sPAPR CPU core to a non-pseries machine.
      */
@@ -315,7 +313,6 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
                                                   TYPE_SPAPR_MACHINE);
     SpaprCpuCore *sc = SPAPR_CPU_CORE(OBJECT(dev));
     CPUCore *cc = CPU_CORE(OBJECT(dev));
-    Error *local_err = NULL;
     int i, j;
 
     if (!spapr) {
@@ -325,15 +322,15 @@ static void spapr_cpu_core_realize(DeviceState *dev, Error **errp)
 
     sc->threads = g_new(PowerPCCPU *, cc->nr_threads);
     for (i = 0; i < cc->nr_threads; i++) {
-        sc->threads[i] = spapr_create_vcpu(sc, i, &local_err);
-        if (local_err) {
+        sc->threads[i] = spapr_create_vcpu(sc, i, errp);
+        if (*errp) {
             goto err;
         }
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        spapr_realize_vcpu(sc->threads[j], spapr, sc, &local_err);
-        if (local_err) {
+        spapr_realize_vcpu(sc->threads[j], spapr, sc, errp);
+        if (*errp) {
             goto err_unrealize;
         }
     }
@@ -348,7 +345,6 @@ err:
         spapr_delete_vcpu(sc->threads[i], sc);
     }
     g_free(sc->threads);
-    error_propagate(errp, local_err);
 }
 
 static Property spapr_cpu_core_properties[] = {

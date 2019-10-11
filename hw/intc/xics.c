@@ -297,15 +297,15 @@ static void icp_reset_handler(void *dev)
 
 static void icp_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICPState *icp = ICP(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
     Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), ICP_PROP_XICS, &err);
+    obj = object_property_get_link(OBJECT(dev), ICP_PROP_XICS, errp);
     if (!obj) {
-        error_propagate_prepend(errp, err,
+        error_prepend(errp,
                                 "required link '" ICP_PROP_XICS
                                 "' not found: ");
         return;
@@ -313,9 +313,9 @@ static void icp_realize(DeviceState *dev, Error **errp)
 
     icp->xics = XICS_FABRIC(obj);
 
-    obj = object_property_get_link(OBJECT(dev), ICP_PROP_CPU, &err);
+    obj = object_property_get_link(OBJECT(dev), ICP_PROP_CPU, errp);
     if (!obj) {
-        error_propagate_prepend(errp, err,
+        error_prepend(errp,
                                 "required link '" ICP_PROP_CPU
                                 "' not found: ");
         return;
@@ -344,9 +344,8 @@ static void icp_realize(DeviceState *dev, Error **errp)
 
     /* Connect the presenter to the VCPU (required for CPU hotplug) */
     if (kvm_irqchip_in_kernel()) {
-        icp_kvm_realize(dev, &err);
-        if (err) {
-            error_propagate(errp, err);
+        icp_kvm_realize(dev, errp);
+        if (*errp) {
             return;
         }
     }
@@ -381,7 +380,7 @@ static const TypeInfo icp_info = {
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
 
     obj = object_new(type);
@@ -390,10 +389,9 @@ Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
     object_property_add_const_link(obj, ICP_PROP_XICS, OBJECT(xi),
                                    &error_abort);
     object_property_add_const_link(obj, ICP_PROP_CPU, cpu, &error_abort);
-    object_property_set_bool(obj, true, "realized", &local_err);
-    if (local_err) {
+    object_property_set_bool(obj, true, "realized", errp);
+    if (*errp) {
         object_unparent(obj);
-        error_propagate(errp, local_err);
         obj = NULL;
     }
 
@@ -587,13 +585,13 @@ static void ics_reset_handler(void *dev)
 
 static void ics_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICSState *ics = ICS(dev);
-    Error *local_err = NULL;
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, &local_err);
+    obj = object_property_get_link(OBJECT(dev), ICS_PROP_XICS, errp);
     if (!obj) {
-        error_propagate_prepend(errp, local_err,
+        error_prepend(errp,
                                 "required link '" ICS_PROP_XICS
                                 "' not found: ");
         return;

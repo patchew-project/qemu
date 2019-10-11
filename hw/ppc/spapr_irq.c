@@ -62,19 +62,18 @@ void spapr_irq_msi_free(SpaprMachineState *spapr, int irq, uint32_t num)
 static void spapr_irq_init_kvm(SpaprMachineState *spapr,
                                   SpaprIrq *irq, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *machine = MACHINE(spapr);
-    Error *local_err = NULL;
 
     if (kvm_enabled() && machine_kernel_irqchip_allowed(machine)) {
-        irq->init_kvm(spapr, &local_err);
-        if (local_err && machine_kernel_irqchip_required(machine)) {
-            error_prepend(&local_err,
+        irq->init_kvm(spapr, errp);
+        if (*errp && machine_kernel_irqchip_required(machine)) {
+            error_prepend(errp,
                           "kernel_irqchip requested but unavailable: ");
-            error_propagate(errp, local_err);
             return;
         }
 
-        if (!local_err) {
+        if (!*errp) {
             return;
         }
 
@@ -82,9 +81,9 @@ static void spapr_irq_init_kvm(SpaprMachineState *spapr,
          * We failed to initialize the KVM device, fallback to
          * emulated mode
          */
-        error_prepend(&local_err, "kernel_irqchip allowed but unavailable: ");
-        error_append_hint(&local_err, "Falling back to kernel-irqchip=off\n");
-        warn_report_err(local_err);
+        error_prepend(errp, "kernel_irqchip allowed but unavailable: ");
+        error_append_hint(errp, "Falling back to kernel-irqchip=off\n");
+        warn_report_errp(errp);
     }
 }
 
@@ -135,14 +134,13 @@ static void spapr_irq_print_info_xics(SpaprMachineState *spapr, Monitor *mon)
 static void spapr_irq_cpu_intc_create_xics(SpaprMachineState *spapr,
                                            PowerPCCPU *cpu, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
     obj = icp_create(OBJECT(cpu), TYPE_ICP, XICS_FABRIC(spapr),
-                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                     errp);
+    if (*errp) {
         return;
     }
 
@@ -171,11 +169,10 @@ static void spapr_irq_set_irq_xics(void *opaque, int irq, int val)
 
 static void spapr_irq_reset_xics(SpaprMachineState *spapr, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
-    spapr_irq_init_kvm(spapr, &spapr_irq_xics, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    spapr_irq_init_kvm(spapr, &spapr_irq_xics, errp);
+    if (*errp) {
         return;
     }
 }
@@ -236,13 +233,12 @@ static void spapr_irq_print_info_xive(SpaprMachineState *spapr,
 static void spapr_irq_cpu_intc_create_xive(SpaprMachineState *spapr,
                                            PowerPCCPU *cpu, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
     SpaprCpuState *spapr_cpu = spapr_cpu_state(cpu);
 
-    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(spapr->xive), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(spapr->xive), errp);
+    if (*errp) {
         return;
     }
 
@@ -262,8 +258,8 @@ static int spapr_irq_post_load_xive(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs;
-    Error *local_err = NULL;
 
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -272,9 +268,8 @@ static void spapr_irq_reset_xive(SpaprMachineState *spapr, Error **errp)
         spapr_xive_set_tctx_os_cam(spapr_cpu_state(cpu)->tctx);
     }
 
-    spapr_irq_init_kvm(spapr, &spapr_irq_xive, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    spapr_irq_init_kvm(spapr, &spapr_irq_xive, errp);
+    if (*errp) {
         return;
     }
 
@@ -339,18 +334,16 @@ static SpaprIrq *spapr_irq_current(SpaprMachineState *spapr)
 static int spapr_irq_claim_dual(SpaprMachineState *spapr, int irq, bool lsi,
                                 Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
-    ret = spapr_irq_xics.claim(spapr, irq, lsi, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = spapr_irq_xics.claim(spapr, irq, lsi, errp);
+    if (*errp) {
         return ret;
     }
 
-    ret = spapr_irq_xive.claim(spapr, irq, lsi, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = spapr_irq_xive.claim(spapr, irq, lsi, errp);
+    if (*errp) {
         return ret;
     }
 
@@ -378,11 +371,10 @@ static void spapr_irq_dt_populate_dual(SpaprMachineState *spapr,
 static void spapr_irq_cpu_intc_create_dual(SpaprMachineState *spapr,
                                            PowerPCCPU *cpu, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
-    spapr_irq_xive.cpu_intc_create(spapr, cpu, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    spapr_irq_xive.cpu_intc_create(spapr, cpu, errp);
+    if (*errp) {
         return;
     }
 
@@ -407,7 +399,7 @@ static int spapr_irq_post_load_dual(SpaprMachineState *spapr, int version_id)
 
 static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     /*
      * Deactivate the XIVE MMIOs. The XIVE backend will reenable them
@@ -417,15 +409,13 @@ static void spapr_irq_reset_dual(SpaprMachineState *spapr, Error **errp)
 
     /* Destroy all KVM devices */
     if (kvm_irqchip_in_kernel()) {
-        xics_kvm_disconnect(spapr, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        xics_kvm_disconnect(spapr, errp);
+        if (*errp) {
             error_prepend(errp, "KVM XICS disconnect failed: ");
             return;
         }
-        kvmppc_xive_disconnect(spapr->xive, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        kvmppc_xive_disconnect(spapr->xive, errp);
+        if (*errp) {
             error_prepend(errp, "KVM XIVE disconnect failed: ");
             return;
         }
@@ -523,6 +513,7 @@ static int spapr_irq_check(SpaprMachineState *spapr, Error **errp)
  */
 void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *machine = MACHINE(spapr);
 
     if (machine_kernel_irqchip_split(machine)) {
@@ -546,33 +537,28 @@ void spapr_irq_init(SpaprMachineState *spapr, Error **errp)
     }
 
     if (spapr->irq->xics) {
-        Error *local_err = NULL;
         Object *obj;
 
         obj = object_new(TYPE_ICS_SPAPR);
-        object_property_add_child(OBJECT(spapr), "ics", obj, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        object_property_add_child(OBJECT(spapr), "ics", obj, errp);
+        if (*errp) {
             return;
         }
 
         object_property_add_const_link(obj, ICS_PROP_XICS, OBJECT(spapr),
-                                       &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                       errp);
+        if (*errp) {
             return;
         }
 
         object_property_set_int(obj, spapr->irq->nr_xirqs, "nr-irqs",
-                                &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                errp);
+        if (*errp) {
             return;
         }
 
-        object_property_set_bool(obj, true, "realized", &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        object_property_set_bool(obj, true, "realized", errp);
+        if (*errp) {
             return;
         }
 

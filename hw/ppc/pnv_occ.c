@@ -255,16 +255,15 @@ static const TypeInfo pnv_occ_power9_type_info = {
 
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvOCC *occ = PNV_OCC(dev);
     PnvOCCClass *poc = PNV_OCC_GET_CLASS(occ);
     Object *obj;
-    Error *local_err = NULL;
 
     occ->occmisc = 0;
 
-    obj = object_property_get_link(OBJECT(dev), "psi", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "psi", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'psi' not found: ");
         return;
     }

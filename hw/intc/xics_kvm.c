@@ -294,6 +294,7 @@ int ics_set_kvm_state_one(ICSState *ics, int srcno, Error **errp)
 
 int ics_set_kvm_state(ICSState *ics, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int i;
 
     /* The KVM XICS device is not in use */
@@ -302,16 +303,14 @@ int ics_set_kvm_state(ICSState *ics, Error **errp)
     }
 
     for (i = 0; i < ics->nr_irqs; i++) {
-        Error *local_err = NULL;
         int ret;
 
         if (ics_irq_free(ics, i)) {
             continue;
         }
 
-        ret = ics_set_kvm_state_one(ics, i, &local_err);
+        ret = ics_set_kvm_state_one(ics, i, errp);
         if (ret < 0) {
-            error_propagate(errp, local_err);
             return ret;
         }
     }
@@ -344,9 +343,9 @@ void ics_kvm_set_irq(ICSState *ics, int srcno, int val)
 
 int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int rc;
     CPUState *cs;
-    Error *local_err = NULL;
 
     /*
      * The KVM XICS device already in use. This is the case when
@@ -364,28 +363,28 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_SET_XIVE, "ibm,set-xive");
     if (rc < 0) {
-        error_setg_errno(&local_err, -rc,
+        error_setg_errno(errp, -rc,
                          "kvmppc_define_rtas_kernel_token: ibm,set-xive");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_GET_XIVE, "ibm,get-xive");
     if (rc < 0) {
-        error_setg_errno(&local_err, -rc,
+        error_setg_errno(errp, -rc,
                          "kvmppc_define_rtas_kernel_token: ibm,get-xive");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_ON, "ibm,int-on");
     if (rc < 0) {
-        error_setg_errno(&local_err, -rc,
+        error_setg_errno(errp, -rc,
                          "kvmppc_define_rtas_kernel_token: ibm,int-on");
         goto fail;
     }
 
     rc = kvmppc_define_rtas_kernel_token(RTAS_IBM_INT_OFF, "ibm,int-off");
     if (rc < 0) {
-        error_setg_errno(&local_err, -rc,
+        error_setg_errno(errp, -rc,
                          "kvmppc_define_rtas_kernel_token: ibm,int-off");
         goto fail;
     }
@@ -393,7 +392,7 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     /* Create the KVM XICS device */
     rc = kvm_create_device(kvm_state, KVM_DEV_TYPE_XICS, false);
     if (rc < 0) {
-        error_setg_errno(&local_err, -rc, "Error on KVM_CREATE_DEVICE for XICS");
+        error_setg_errno(errp, -rc, "Error on KVM_CREATE_DEVICE for XICS");
         goto fail;
     }
 
@@ -406,23 +405,23 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        icp_kvm_realize(DEVICE(spapr_cpu_state(cpu)->icp), &local_err);
-        if (local_err) {
+        icp_kvm_realize(DEVICE(spapr_cpu_state(cpu)->icp), errp);
+        if (*errp) {
             goto fail;
         }
     }
 
     /* Update the KVM sources */
-    ics_set_kvm_state(spapr->ics, &local_err);
-    if (local_err) {
+    ics_set_kvm_state(spapr->ics, errp);
+    if (*errp) {
         goto fail;
     }
 
     /* Connect the presenters to the initial VCPUs of the machine */
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
-        icp_set_kvm_state(spapr_cpu_state(cpu)->icp, &local_err);
-        if (local_err) {
+        icp_set_kvm_state(spapr_cpu_state(cpu)->icp, errp);
+        if (*errp) {
             goto fail;
         }
     }
@@ -430,7 +429,6 @@ int xics_kvm_connect(SpaprMachineState *spapr, Error **errp)
     return 0;
 
 fail:
-    error_propagate(errp, local_err);
     xics_kvm_disconnect(spapr, NULL);
     return -1;
 }

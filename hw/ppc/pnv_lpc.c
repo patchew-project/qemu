@@ -599,13 +599,12 @@ static const MemoryRegionOps opb_master_ops = {
 
 static void pnv_lpc_power8_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvLpcController *lpc = PNV_LPC(dev);
     PnvLpcClass *plc = PNV_LPC_GET_CLASS(dev);
-    Error *local_err = NULL;
 
-    plc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    plc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 
@@ -644,13 +643,12 @@ static const TypeInfo pnv_lpc_power8_info = {
 
 static void pnv_lpc_power9_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvLpcController *lpc = PNV_LPC(dev);
     PnvLpcClass *plc = PNV_LPC_GET_CLASS(dev);
-    Error *local_err = NULL;
 
-    plc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    plc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 
@@ -681,13 +679,12 @@ static const TypeInfo pnv_lpc_power9_info = {
 
 static void pnv_lpc_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvLpcController *lpc = PNV_LPC(dev);
     Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "psi", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "psi", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'psi' not found: ");
         return;
     }
@@ -797,7 +794,7 @@ static void pnv_lpc_isa_irq_handler(void *opaque, int n, int level)
 
 ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     ISABus *isa_bus;
     qemu_irq *irqs;
     qemu_irq_handler handler;
@@ -806,9 +803,8 @@ ISABus *pnv_lpc_isa_create(PnvLpcController *lpc, bool use_cpld, Error **errp)
      * devices speficied on the command line won't find the bus and
      * will fail to create.
      */
-    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    isa_bus = isa_bus_new(NULL, &lpc->isa_mem, &lpc->isa_io, errp);
+    if (*errp) {
         return NULL;
     }
 

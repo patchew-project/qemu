@@ -483,30 +483,28 @@ static const uint8_t irq_to_xivr[] = {
 
 static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvPsi *psi = PNV_PSI(dev);
     ICSState *ics = &PNV8_PSI(psi)->ics;
     Object *obj;
-    Error *err = NULL;
     unsigned int i;
 
-    obj = object_property_get_link(OBJECT(dev), "xics", &err);
+    obj = object_property_get_link(OBJECT(dev), "xics", errp);
     if (!obj) {
         error_setg(errp, "%s: required link 'xics' not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 
     /* Create PSI interrupt control source */
     object_property_add_const_link(OBJECT(ics), ICS_PROP_XICS, obj,
                                    &error_abort);
-    object_property_set_int(OBJECT(ics), PSI_NUM_INTERRUPTS, "nr-irqs", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_int(OBJECT(ics), PSI_NUM_INTERRUPTS, "nr-irqs", errp);
+    if (*errp) {
         return;
     }
-    object_property_set_bool(OBJECT(ics), true, "realized",  &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(ics), true, "realized",  errp);
+    if (*errp) {
         return;
     }
 
@@ -832,9 +830,9 @@ static void pnv_psi_power9_instance_init(Object *obj)
 
 static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvPsi *psi = PNV_PSI(dev);
     XiveSource *xsrc = &PNV9_PSI(psi)->source;
-    Error *local_err = NULL;
     int i;
 
     /* This is the only device with 4k ESB pages */
@@ -844,9 +842,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(psi),
                                    &error_fatal);
-    object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(xsrc), true, "realized", errp);
+    if (*errp) {
         return;
     }
 

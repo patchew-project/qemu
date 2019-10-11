@@ -161,14 +161,13 @@ static const MemoryRegionOps pnv_icp_ops = {
 
 static void pnv_icp_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICPState *icp = ICP(dev);
     PnvICPState *pnv_icp = PNV_ICP(icp);
     ICPStateClass *icpc = ICP_GET_CLASS(icp);
-    Error *local_err = NULL;
 
-    icpc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    icpc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 

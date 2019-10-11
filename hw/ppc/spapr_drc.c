@@ -299,9 +299,9 @@ static void prop_get_index(Object *obj, Visitor *v, const char *name,
 static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(obj);
     QNull *null = NULL;
-    Error *err = NULL;
     int fdt_offset_next, fdt_offset, fdt_depth;
     void *fdt;
 
@@ -326,19 +326,17 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
         case FDT_BEGIN_NODE:
             fdt_depth++;
             name = fdt_get_name(fdt, fdt_offset, &name_len);
-            visit_start_struct(v, name, NULL, 0, &err);
-            if (err) {
-                error_propagate(errp, err);
+            visit_start_struct(v, name, NULL, 0, errp);
+            if (*errp) {
                 return;
             }
             break;
         case FDT_END_NODE:
             /* shouldn't ever see an FDT_END_NODE before FDT_BEGIN_NODE */
             g_assert(fdt_depth > 0);
-            visit_check_struct(v, &err);
+            visit_check_struct(v, errp);
             visit_end_struct(v, NULL);
-            if (err) {
-                error_propagate(errp, err);
+            if (*errp) {
                 return;
             }
             fdt_depth--;
@@ -347,22 +345,19 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             int i;
             prop = fdt_get_property_by_offset(fdt, fdt_offset, &prop_len);
             name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
-            visit_start_list(v, name, NULL, 0, &err);
-            if (err) {
-                error_propagate(errp, err);
+            visit_start_list(v, name, NULL, 0, errp);
+            if (*errp) {
                 return;
             }
             for (i = 0; i < prop_len; i++) {
-                visit_type_uint8(v, NULL, (uint8_t *)&prop->data[i], &err);
-                if (err) {
-                    error_propagate(errp, err);
+                visit_type_uint8(v, NULL, (uint8_t *)&prop->data[i], errp);
+                if (*errp) {
                     return;
                 }
             }
-            visit_check_list(v, &err);
+            visit_check_list(v, errp);
             visit_end_list(v, NULL);
-            if (err) {
-                error_propagate(errp, err);
+            if (*errp) {
                 return;
             }
             break;
@@ -485,11 +480,11 @@ static const VMStateDescription vmstate_spapr_drc = {
 
 static void realize(DeviceState *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(d);
     Object *root_container;
     gchar *link_name;
     gchar *child_name;
-    Error *err = NULL;
 
     trace_spapr_drc_realize(spapr_drc_index(drc));
     /* NOTE: we do this as part of realize/unrealize due to the fact
@@ -504,11 +499,10 @@ static void realize(DeviceState *d, Error **errp)
     child_name = object_get_canonical_path_component(OBJECT(drc));
     trace_spapr_drc_realize_child(spapr_drc_index(drc), child_name);
     object_property_add_alias(root_container, link_name,
-                              drc->owner, child_name, &err);
+                              drc->owner, child_name, errp);
     g_free(child_name);
     g_free(link_name);
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         return;
     }
     vmstate_register(DEVICE(drc), spapr_drc_index(drc), &vmstate_spapr_drc,
@@ -610,12 +604,11 @@ static void drc_physical_reset(void *opaque)
 
 static void realize_physical(DeviceState *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprDrcPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
-    Error *local_err = NULL;
 
-    realize(d, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    realize(d, errp);
+    if (*errp) {
         return;
     }
 
@@ -626,12 +619,11 @@ static void realize_physical(DeviceState *d, Error **errp)
 
 static void unrealize_physical(DeviceState *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprDrcPhysical *drcp = SPAPR_DRC_PHYSICAL(d);
-    Error *local_err = NULL;
 
-    unrealize(d, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    unrealize(d, errp);
+    if (*errp) {
         return;
     }
 

@@ -162,22 +162,20 @@ static const MemoryRegionOps pnv_core_power9_xscom_ops = {
 
 static void pnv_realize_vcpu(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUPPCState *env = &cpu->env;
     int core_pir;
     int thread_index = 0; /* TODO: TCG supports only one thread */
     ppc_spr_t *pir = &env->spr_cb[SPR_PIR];
-    Error *local_err = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
 
-    object_property_set_bool(OBJECT(cpu), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
-    pcc->intc_create(chip, cpu, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pcc->intc_create(chip, cpu, errp);
+    if (*errp) {
         return;
     }
 
@@ -198,19 +196,19 @@ static void pnv_realize_vcpu(PowerPCCPU *cpu, PnvChip *chip, Error **errp)
 
 static void pnv_core_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvCore *pc = PNV_CORE(OBJECT(dev));
     PnvCoreClass *pcc = PNV_CORE_GET_CLASS(pc);
     CPUCore *cc = CPU_CORE(OBJECT(dev));
     const char *typename = pnv_core_cpu_typename(pc);
-    Error *local_err = NULL;
     void *obj;
     int i, j;
     char name[32];
     Object *chip;
 
-    chip = object_property_get_link(OBJECT(dev), "chip", &local_err);
+    chip = object_property_get_link(OBJECT(dev), "chip", errp);
     if (!chip) {
-        error_propagate_prepend(errp, local_err,
+        error_prepend(errp,
                                 "required link 'chip' not found: ");
         return;
     }
@@ -235,8 +233,8 @@ static void pnv_core_realize(DeviceState *dev, Error **errp)
     }
 
     for (j = 0; j < cc->nr_threads; j++) {
-        pnv_realize_vcpu(pc->threads[j], PNV_CHIP(chip), &local_err);
-        if (local_err) {
+        pnv_realize_vcpu(pc->threads[j], PNV_CHIP(chip), errp);
+        if (*errp) {
             goto err;
         }
     }
@@ -252,7 +250,6 @@ err:
         object_unparent(obj);
     }
     g_free(pc->threads);
-    error_propagate(errp, local_err);
 }
 
 static void pnv_unrealize_vcpu(PowerPCCPU *cpu)

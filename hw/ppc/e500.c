@@ -764,16 +764,15 @@ static DeviceState *ppce500_init_mpic_qemu(PPCE500MachineState *pms,
 static DeviceState *ppce500_init_mpic_kvm(const PPCE500MachineClass *pmc,
                                           IrqLines *irqs, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev;
     CPUState *cs;
 
     dev = qdev_create(NULL, TYPE_KVM_OPENPIC);
     qdev_prop_set_uint32(dev, "model", pmc->mpic_version);
 
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(dev), true, "realized", errp);
+    if (*errp) {
         object_unparent(OBJECT(dev));
         return NULL;
     }

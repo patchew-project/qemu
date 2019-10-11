@@ -83,14 +83,13 @@ static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprCapabilityInfo *cap = opaque;
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     bool value;
-    Error *local_err = NULL;
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_bool(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 
@@ -121,15 +120,14 @@ static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprCapabilityInfo *cap = opaque;
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
-    Error *local_err = NULL;
     uint8_t i;
     char *val;
 
-    visit_type_str(v, name, &val, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_str(v, name, &val, errp);
+    if (*errp) {
         return;
     }
 
@@ -165,15 +163,14 @@ static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
 static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprCapabilityInfo *cap = opaque;
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     uint64_t pagesize;
     uint8_t val;
-    Error *local_err = NULL;
 
-    visit_type_size(v, name, &pagesize, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_size(v, name, &pagesize, errp);
+    if (*errp) {
         return;
     }
 
@@ -248,12 +245,12 @@ SpaprCapPossible cap_cfpc_possible = {
 static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
                                  Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     uint8_t kvm_val =  kvmppc_get_cap_safe_cache();
 
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
-        error_setg(&local_err,
+        error_setg(errp,
                    "TCG doesn't support requested feature, cap-cfpc=%s",
                    cap_cfpc_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
@@ -263,8 +260,8 @@ static void cap_safe_cache_apply(SpaprMachineState *spapr, uint8_t val,
                    cap_cfpc_possible.vals[kvm_val]);
     }
 
-    if (local_err != NULL)
-        warn_report_err(local_err);
+    if (*errp)
+        warn_report_errp(errp);
 }
 
 SpaprCapPossible cap_sbbc_possible = {
@@ -277,12 +274,12 @@ SpaprCapPossible cap_sbbc_possible = {
 static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
                                         Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     uint8_t kvm_val =  kvmppc_get_cap_safe_bounds_check();
 
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
-        error_setg(&local_err,
+        error_setg(errp,
                    "TCG doesn't support requested feature, cap-sbbc=%s",
                    cap_sbbc_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
@@ -292,8 +289,8 @@ static void cap_safe_bounds_check_apply(SpaprMachineState *spapr, uint8_t val,
                    cap_sbbc_possible.vals[kvm_val]);
     }
 
-    if (local_err != NULL)
-        warn_report_err(local_err);
+    if (*errp)
+        warn_report_errp(errp);
 }
 
 SpaprCapPossible cap_ibs_possible = {
@@ -309,12 +306,12 @@ SpaprCapPossible cap_ibs_possible = {
 static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
                                            uint8_t val, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     uint8_t kvm_val = kvmppc_get_cap_safe_indirect_branch();
 
     if (tcg_enabled() && val) {
         /* TCG only supports broken, allow other values and print a warning */
-        error_setg(&local_err,
+        error_setg(errp,
                    "TCG doesn't support requested feature, cap-ibs=%s",
                    cap_ibs_possible.vals[val]);
     } else if (kvm_enabled() && (val > kvm_val)) {
@@ -324,8 +321,8 @@ static void cap_safe_indirect_branch_apply(SpaprMachineState *spapr,
                    cap_ibs_possible.vals[kvm_val]);
     }
 
-    if (local_err != NULL) {
-        warn_report_err(local_err);
+    if (*errp) {
+        warn_report_errp(errp);
     }
 }
 
@@ -787,7 +784,7 @@ void spapr_caps_cpu_apply(SpaprMachineState *spapr, PowerPCCPU *cpu)
 
 void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     ObjectClass *klass = OBJECT_CLASS(smc);
     int i;
 
@@ -798,19 +795,17 @@ void spapr_caps_add_properties(SpaprMachineClass *smc, Error **errp)
 
         object_class_property_add(klass, name, cap->type,
                                   cap->get, cap->set,
-                                  NULL, cap, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                  NULL, cap, errp);
+        if (*errp) {
             g_free(name);
             return;
         }
 
         desc = g_strdup_printf("%s", cap->description);
-        object_class_property_set_description(klass, name, desc, &local_err);
+        object_class_property_set_description(klass, name, desc, errp);
         g_free(name);
         g_free(desc);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
     }

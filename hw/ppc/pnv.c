@@ -764,14 +764,13 @@ static uint32_t pnv_chip_core_pir_p8(PnvChip *chip, uint32_t core_id)
 static void pnv_chip_power8_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
     obj = icp_create(OBJECT(cpu), TYPE_PNV_ICP, XICS_FABRIC(qdev_get_machine()),
-                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                     errp);
+    if (*errp) {
         return;
     }
 
@@ -796,8 +795,8 @@ static uint32_t pnv_chip_core_pir_p9(PnvChip *chip, uint32_t core_id)
 static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
                                         Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Pnv9Chip *chip9 = PNV9_CHIP(chip);
-    Error *local_err = NULL;
     Object *obj;
     PnvCPUState *pnv_cpu = pnv_cpu_state(cpu);
 
@@ -806,9 +805,8 @@ static void pnv_chip_power9_intc_create(PnvChip *chip, PowerPCCPU *cpu,
      * controller object is initialized afterwards. Hopefully, it's
      * only used at runtime.
      */
-    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(&chip9->xive), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    obj = xive_tctx_create(OBJECT(cpu), XIVE_ROUTER(&chip9->xive), errp);
+    if (*errp) {
         return;
     }
 
@@ -901,32 +899,29 @@ static void pnv_chip_icp_realize(Pnv8Chip *chip8, Error **errp)
 
 static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     PnvChip *chip = PNV_CHIP(dev);
     Pnv8Chip *chip8 = PNV8_CHIP(dev);
     Pnv8Psi *psi8 = &chip8->psi;
-    Error *local_err = NULL;
 
     /* XSCOM bridge is first */
-    pnv_xscom_realize(chip, PNV_XSCOM_SIZE, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pnv_xscom_realize(chip, PNV_XSCOM_SIZE, errp);
+    if (*errp) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV_XSCOM_BASE(chip));
 
-    pcc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pcc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip8->psi), PNV_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    object_property_set_bool(OBJECT(&chip8->psi), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(&chip8->psi), true, "realized", errp);
+    if (*errp) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_PSIHB_BASE,
@@ -945,16 +940,14 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
      * Interrupt Management Area. This is the memory region holding
      * all the Interrupt Control Presenter (ICP) registers
      */
-    pnv_chip_icp_realize(chip8, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pnv_chip_icp_realize(chip8, errp);
+    if (*errp) {
         return;
     }
 
     /* Create the simplified OCC model */
-    object_property_set_bool(OBJECT(&chip8->occ), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(&chip8->occ), true, "realized", errp);
+    if (*errp) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
@@ -965,9 +958,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
 
     /* HOMER */
     object_property_set_bool(OBJECT(&chip8->homer), true, "realized",
-                             &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                             errp);
+    if (*errp) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV_HOMER_BASE(chip),
@@ -1091,29 +1083,26 @@ static void pnv_chip_quad_realize(Pnv9Chip *chip9, Error **errp)
 
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     Pnv9Chip *chip9 = PNV9_CHIP(dev);
     PnvChip *chip = PNV_CHIP(dev);
     Pnv9Psi *psi9 = &chip9->psi;
-    Error *local_err = NULL;
 
     /* XSCOM bridge is first */
-    pnv_xscom_realize(chip, PNV9_XSCOM_SIZE, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pnv_xscom_realize(chip, PNV9_XSCOM_SIZE, errp);
+    if (*errp) {
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(chip), 0, PNV9_XSCOM_BASE(chip));
 
-    pcc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pcc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 
-    pnv_chip_quad_realize(chip9, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pnv_chip_quad_realize(chip9, errp);
+    if (*errp) {
         return;
     }
 
@@ -1127,9 +1116,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     object_property_set_int(OBJECT(&chip9->xive), PNV9_XIVE_TM_BASE(chip),
                             "tm-bar", &error_fatal);
     object_property_set_bool(OBJECT(&chip9->xive), true, "realized",
-                             &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                             errp);
+    if (*errp) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_XIVE_BASE,
@@ -1138,18 +1126,16 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
                             "bar", &error_fatal);
-    object_property_set_bool(OBJECT(&chip9->psi), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(&chip9->psi), true, "realized", errp);
+    if (*errp) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_PSIHB_BASE,
                             &PNV_PSI(psi9)->xscom_regs);
 
     /* LPC */
-    object_property_set_bool(OBJECT(&chip9->lpc), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(&chip9->lpc), true, "realized", errp);
+    if (*errp) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
@@ -1159,9 +1145,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                                             (uint64_t) PNV9_LPCM_BASE(chip));
 
     /* Create the simplified OCC model */
-    object_property_set_bool(OBJECT(&chip9->occ), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(&chip9->occ), true, "realized", errp);
+    if (*errp) {
         return;
     }
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
@@ -1172,9 +1157,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 
     /* HOMER */
     object_property_set_bool(OBJECT(&chip9->homer), true, "realized",
-                             &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                             errp);
+    if (*errp) {
         return;
     }
     memory_region_add_subregion(get_system_memory(), PNV9_HOMER_BASE(chip),
@@ -1232,8 +1216,8 @@ static void pnv_chip_core_sanitize(PnvChip *chip, Error **errp)
 
 static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *ms = MACHINE(qdev_get_machine());
-    Error *error = NULL;
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(chip);
     const char *typename = pnv_chip_core_typename(chip);
     size_t typesize = object_type_get_instance_size(typename);
@@ -1245,9 +1229,8 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
     }
 
     /* Cores */
-    pnv_chip_core_sanitize(chip, &error);
-    if (error) {
-        error_propagate(errp, error);
+    pnv_chip_core_sanitize(chip, errp);
+    if (*errp) {
         return;
     }
 
@@ -1293,13 +1276,12 @@ static void pnv_chip_core_realize(PnvChip *chip, Error **errp)
 
 static void pnv_chip_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvChip *chip = PNV_CHIP(dev);
-    Error *error = NULL;
 
     /* Cores */
-    pnv_chip_core_realize(chip, &error);
-    if (error) {
-        error_propagate(errp, error);
+    pnv_chip_core_realize(chip, errp);
+    if (*errp) {
         return;
     }
 }
@@ -1387,13 +1369,12 @@ static void pnv_get_num_chips(Object *obj, Visitor *v, const char *name,
 static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvMachineState *pnv = PNV_MACHINE(obj);
     uint32_t num_chips;
-    Error *local_err = NULL;
 
-    visit_type_uint32(v, name, &num_chips, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_uint32(v, name, &num_chips, errp);
+    if (*errp) {
         return;
     }
 

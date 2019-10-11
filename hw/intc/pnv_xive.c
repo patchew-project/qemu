@@ -1659,15 +1659,14 @@ static void pnv_xive_init(Object *obj)
 
 static void pnv_xive_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvXive *xive = PNV_XIVE(dev);
     XiveSource *xsrc = &xive->ipi_source;
     XiveENDSource *end_xsrc = &xive->end_source;
-    Error *local_err = NULL;
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "chip", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "chip", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'chip' not found: ");
         return;
     }
@@ -1685,9 +1684,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(xive),
                                    &error_fatal);
-    object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(xsrc), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -1695,9 +1693,8 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_add_const_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
                                    &error_fatal);
-    object_property_set_bool(OBJECT(end_xsrc), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(end_xsrc), true, "realized", errp);
+    if (*errp) {
         return;
     }
 

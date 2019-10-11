@@ -227,14 +227,13 @@ static const TypeInfo pnv_homer_power9_type_info = {
 
 static void pnv_homer_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PnvHomer *homer = PNV_HOMER(dev);
     PnvHomerClass *hmrc = PNV_HOMER_GET_CLASS(homer);
     Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "chip", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "chip", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'chip' not found: ");
         return;
     }

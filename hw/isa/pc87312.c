@@ -291,18 +291,17 @@ static void pc87312_reset(DeviceState *d)
 
 static void pc87312_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PC87312State *s;
     ISADevice *isa;
-    Error *local_err = NULL;
 
     s = PC87312(dev);
     isa = ISA_DEVICE(dev);
     isa_register_ioport(isa, &s->io, s->iobase);
     pc87312_hard_reset(s);
 
-    ISA_SUPERIO_GET_CLASS(dev)->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ISA_SUPERIO_GET_CLASS(dev)->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 }

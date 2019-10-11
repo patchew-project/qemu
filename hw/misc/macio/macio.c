@@ -105,13 +105,12 @@ static void macio_init_child_obj(MacIOState *s, const char *childname,
 
 static void macio_common_realize(PCIDevice *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MacIOState *s = MACIO(d);
     SysBusDevice *sysbus_dev;
-    Error *err = NULL;
 
-    object_property_set_bool(OBJECT(&s->dbdma), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->dbdma), true, "realized", errp);
+    if (*errp) {
         return;
     }
     sysbus_dev = SYS_BUS_DEVICE(&s->dbdma);
@@ -125,9 +124,8 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     qdev_prop_set_chr(DEVICE(&s->escc), "chrB", serial_hd(1));
     qdev_prop_set_uint32(DEVICE(&s->escc), "chnBtype", escc_serial);
     qdev_prop_set_uint32(DEVICE(&s->escc), "chnAtype", escc_serial);
-    object_property_set_bool(OBJECT(&s->escc), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->escc), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -153,23 +151,21 @@ static void macio_realize_ide(MacIOState *s, MACIOIDEState *ide,
 
 static void macio_oldworld_realize(PCIDevice *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MacIOState *s = MACIO(d);
     OldWorldMacIOState *os = OLDWORLD_MACIO(d);
     DeviceState *pic_dev = DEVICE(os->pic);
-    Error *err = NULL;
     SysBusDevice *sysbus_dev;
 
-    macio_common_realize(d, &err);
-    if (err) {
-        error_propagate(errp, err);
+    macio_common_realize(d, errp);
+    if (*errp) {
         return;
     }
 
     qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
                          s->frequency);
-    object_property_set_bool(OBJECT(&s->cuda), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->cuda), true, "realized", errp);
+    if (*errp) {
         return;
     }
     sysbus_dev = SYS_BUS_DEVICE(&s->cuda);
@@ -184,9 +180,8 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     sysbus_connect_irq(sysbus_dev, 1, qdev_get_gpio_in(pic_dev,
                                                        OLDWORLD_ESCCA_IRQ));
 
-    object_property_set_bool(OBJECT(&os->nvram), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&os->nvram), true, "realized", errp);
+    if (*errp) {
         return;
     }
     sysbus_dev = SYS_BUS_DEVICE(&os->nvram);
@@ -203,18 +198,16 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     macio_realize_ide(s, &os->ide[0],
                       qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_IRQ),
                       qdev_get_gpio_in(pic_dev, OLDWORLD_IDE0_DMA_IRQ),
-                      0x16, &err);
-    if (err) {
-        error_propagate(errp, err);
+                      0x16, errp);
+    if (*errp) {
         return;
     }
 
     macio_realize_ide(s, &os->ide[1],
                       qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_IRQ),
                       qdev_get_gpio_in(pic_dev, OLDWORLD_IDE1_DMA_IRQ),
-                      0x1a, &err);
-    if (err) {
-        error_propagate(errp, err);
+                      0x1a, errp);
+    if (*errp) {
         return;
     }
 }
@@ -291,16 +284,15 @@ static const MemoryRegionOps timer_ops = {
 
 static void macio_newworld_realize(PCIDevice *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MacIOState *s = MACIO(d);
     NewWorldMacIOState *ns = NEWWORLD_MACIO(d);
     DeviceState *pic_dev = DEVICE(ns->pic);
-    Error *err = NULL;
     SysBusDevice *sysbus_dev;
     MemoryRegion *timer_memory = NULL;
 
-    macio_common_realize(d, &err);
-    if (err) {
-        error_propagate(errp, err);
+    macio_common_realize(d, errp);
+    if (*errp) {
         return;
     }
 
@@ -319,18 +311,16 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
     macio_realize_ide(s, &ns->ide[0],
                       qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_IRQ),
                       qdev_get_gpio_in(pic_dev, NEWWORLD_IDE0_DMA_IRQ),
-                      0x16, &err);
-    if (err) {
-        error_propagate(errp, err);
+                      0x16, errp);
+    if (*errp) {
         return;
     }
 
     macio_realize_ide(s, &ns->ide[1],
                       qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_IRQ),
                       qdev_get_gpio_in(pic_dev, NEWWORLD_IDE1_DMA_IRQ),
-                      0x1a, &err);
-    if (err) {
-        error_propagate(errp, err);
+                      0x1a, errp);
+    if (*errp) {
         return;
     }
 
@@ -347,7 +337,7 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
                                  &error_abort);
         memory_region_add_subregion(&s->bar, 0x50,
                                     sysbus_mmio_get_region(sysbus_dev, 0));
-        object_property_set_bool(OBJECT(&ns->gpio), true, "realized", &err);
+        object_property_set_bool(OBJECT(&ns->gpio), true, "realized", errp);
 
         /* PMU */
         object_initialize_child(OBJECT(s), "pmu", &s->pmu, sizeof(s->pmu),
@@ -357,9 +347,8 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         qdev_prop_set_bit(DEVICE(&s->pmu), "has-adb", ns->has_adb);
         qdev_set_parent_bus(DEVICE(&s->pmu), BUS(&s->macio_bus));
 
-        object_property_set_bool(OBJECT(&s->pmu), true, "realized", &err);
-        if (err) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->pmu), true, "realized", errp);
+        if (*errp) {
             return;
         }
         sysbus_dev = SYS_BUS_DEVICE(&s->pmu);
@@ -375,9 +364,8 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         qdev_prop_set_uint64(DEVICE(&s->cuda), "timebase-frequency",
                              s->frequency);
 
-        object_property_set_bool(OBJECT(&s->cuda), true, "realized", &err);
-        if (err) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->cuda), true, "realized", errp);
+        if (*errp) {
             return;
         }
         sysbus_dev = SYS_BUS_DEVICE(&s->cuda);

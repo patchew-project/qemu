@@ -285,13 +285,12 @@ static void rtas_int_on(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
 static void ics_spapr_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICSState *ics = ICS_SPAPR(dev);
     ICSStateClass *icsc = ICS_GET_CLASS(ics);
-    Error *local_err = NULL;
 
-    icsc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    icsc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 
