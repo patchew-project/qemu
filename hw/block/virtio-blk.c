@@ -1113,10 +1113,10 @@ static const BlockDevOps virtio_block_ops = {
 
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
-    Error *err = NULL;
     unsigned i;
 
     if (!conf->conf.blk) {
@@ -1188,9 +1188,8 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < conf->num_queues; i++) {
         virtio_add_queue(vdev, conf->queue_size, virtio_blk_handle_output);
     }
-    virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    virtio_blk_data_plane_create(vdev, conf, &s->dataplane, errp);
+    if (*errp) {
         virtio_cleanup(vdev);
         return;
     }
