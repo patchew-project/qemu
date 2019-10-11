@@ -737,3 +737,19 @@
 ##
 { 'command': 'announce-self', 'boxed': true,
   'data' : 'AnnounceParameters'}
+
+##
+# @FAILOVER_NEGOTIATED:
+#
+# Emitted when VIRTIO_NET_F_STANDBY was negotiated during feature negotiation
+#
+# Since: 4.2
+#
+# Example:
+#
+# <- { "event": "FAILOVER_NEGOTIATED",
+#      "data": {} }
+#
+##
+{ 'event': 'FAILOVER_NEGOTIATED',
+  'data': {} }
