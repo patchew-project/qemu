@@ -2762,7 +2762,6 @@ static X86CPUDefinition builtin_x86_defs[] = {
             CPUID_7_0_EBX_FSGSBASE |
             CPUID_7_0_EBX_SMEP |
             CPUID_7_0_EBX_ERMS |
-            CPUID_7_0_EBX_MPX |  /* missing bits 13, 15 */
             CPUID_7_0_EBX_RDSEED |
             CPUID_7_0_EBX_SMAP | CPUID_7_0_EBX_CLFLUSHOPT |
             CPUID_7_0_EBX_CLWB |
