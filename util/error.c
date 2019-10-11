@@ -121,41 +121,41 @@ void error_setg_file_open_internal(Error **errp,
                               "Could not open '%s'", filename);
 }
 
-void error_vprepend(Error **errp, const char *fmt, va_list ap)
+void error_vprepend(Error **errp_in, const char *fmt, va_list ap)
 {
     GString *newmsg;
 
-    if (!errp) {
+    if (!errp_in) {
         return;
     }
 
     newmsg = g_string_new(NULL);
     g_string_vprintf(newmsg, fmt, ap);
-    g_string_append(newmsg, (*errp)->msg);
-    g_free((*errp)->msg);
-    (*errp)->msg = g_string_free(newmsg, 0);
+    g_string_append(newmsg, (*errp_in)->msg);
+    g_free((*errp_in)->msg);
+    (*errp_in)->msg = g_string_free(newmsg, 0);
 }
 
-void error_prepend(Error **errp, const char *fmt, ...)
+void error_prepend(Error **errp_in, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    error_vprepend(errp, fmt, ap);
+    error_vprepend(errp_in, fmt, ap);
     va_end(ap);
 }
 
-void error_append_hint(Error **errp, const char *fmt, ...)
+void error_append_hint(Error **errp_in, const char *fmt, ...)
 {
     va_list ap;
     int saved_errno = errno;
     Error *err;
 
-    if (!errp) {
+    if (!errp_in) {
         return;
     }
-    err = *errp;
-    assert(err && errp != &error_abort && errp != &error_fatal);
+    err = *errp_in;
+    assert(err && errp_in != &error_abort && errp_in != &error_fatal);
 
     if (!err->hint) {
         err->hint = g_string_new(NULL);
@@ -271,11 +271,11 @@ void error_free(Error *err)
     }
 }
 
-void error_free_or_abort(Error **errp)
+void error_free_or_abort(Error **errp_in)
 {
-    assert(errp && *errp);
-    error_free(*errp);
-    *errp = NULL;
+    assert(errp_in && *errp_in);
+    error_free(*errp_in);
+    *errp_in = NULL;
 }
 
 void error_propagate(Error **dst_errp, Error *local_err)
