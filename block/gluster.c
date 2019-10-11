@@ -419,6 +419,7 @@ out:
 static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
                                            Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct glfs *glfs;
     int ret;
     int old_errno;
@@ -512,38 +513,38 @@ out:
 static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
                                   QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuOpts *opts;
     SocketAddress *gsconf = NULL;
     SocketAddressList *curr = NULL;
     QDict *backing_options = NULL;
-    Error *local_err = NULL;
     char *str = NULL;
     const char *ptr;
     int i, type, num_servers;
 
     /* create opts info from runtime_json_opts list */
     opts = qemu_opts_create(&runtime_json_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         goto out;
     }
 
     num_servers = qdict_array_entries(options, GLUSTER_OPT_SERVER_PATTERN);
     if (num_servers < 1) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, "server");
+        error_setg(errp, QERR_MISSING_PARAMETER, "server");
         goto out;
     }
 
     ptr = qemu_opt_get(opts, GLUSTER_OPT_VOLUME);
     if (!ptr) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_VOLUME);
+        error_setg(errp, QERR_MISSING_PARAMETER, GLUSTER_OPT_VOLUME);
         goto out;
     }
     gconf->volume = g_strdup(ptr);
 
     ptr = qemu_opt_get(opts, GLUSTER_OPT_PATH);
     if (!ptr) {
-        error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_PATH);
+        error_setg(errp, QERR_MISSING_PARAMETER, GLUSTER_OPT_PATH);
         goto out;
     }
     gconf->path = g_strdup(ptr);
@@ -555,15 +556,15 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
 
         /* create opts info from runtime_type_opts list */
         opts = qemu_opts_create(&runtime_type_opts, NULL, 0, &error_abort);
-        qemu_opts_absorb_qdict(opts, backing_options, &local_err);
-        if (local_err) {
+        qemu_opts_absorb_qdict(opts, backing_options, errp);
+        if (*errp) {
             goto out;
         }
 
         ptr = qemu_opt_get(opts, GLUSTER_OPT_TYPE);
         if (!ptr) {
-            error_setg(&local_err, QERR_MISSING_PARAMETER, GLUSTER_OPT_TYPE);
-            error_append_hint(&local_err, GERR_INDEX_HINT, i);
+            error_setg(errp, QERR_MISSING_PARAMETER, GLUSTER_OPT_TYPE);
+            error_append_hint(errp, GERR_INDEX_HINT, i);
             goto out;
 
         }
@@ -574,10 +575,10 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         type = qapi_enum_parse(&SocketAddressType_lookup, ptr, -1, NULL);
         if (type != SOCKET_ADDRESS_TYPE_INET
             && type != SOCKET_ADDRESS_TYPE_UNIX) {
-            error_setg(&local_err,
+            error_setg(errp,
                        "Parameter '%s' may be 'inet' or 'unix'",
                        GLUSTER_OPT_TYPE);
-            error_append_hint(&local_err, GERR_INDEX_HINT, i);
+            error_append_hint(errp, GERR_INDEX_HINT, i);
             goto out;
         }
         gsconf->type = type;
@@ -586,24 +587,24 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
         if (gsconf->type == SOCKET_ADDRESS_TYPE_INET) {
             /* create opts info from runtime_inet_opts list */
             opts = qemu_opts_create(&runtime_inet_opts, NULL, 0, &error_abort);
-            qemu_opts_absorb_qdict(opts, backing_options, &local_err);
-            if (local_err) {
+            qemu_opts_absorb_qdict(opts, backing_options, errp);
+            if (*errp) {
                 goto out;
             }
 
             ptr = qemu_opt_get(opts, GLUSTER_OPT_HOST);
             if (!ptr) {
-                error_setg(&local_err, QERR_MISSING_PARAMETER,
+                error_setg(errp, QERR_MISSING_PARAMETER,
                            GLUSTER_OPT_HOST);
-                error_append_hint(&local_err, GERR_INDEX_HINT, i);
+                error_append_hint(errp, GERR_INDEX_HINT, i);
                 goto out;
             }
             gsconf->u.inet.host = g_strdup(ptr);
             ptr = qemu_opt_get(opts, GLUSTER_OPT_PORT);
             if (!ptr) {
-                error_setg(&local_err, QERR_MISSING_PARAMETER,
+                error_setg(errp, QERR_MISSING_PARAMETER,
                            GLUSTER_OPT_PORT);
-                error_append_hint(&local_err, GERR_INDEX_HINT, i);
+                error_append_hint(errp, GERR_INDEX_HINT, i);
                 goto out;
             }
             gsconf->u.inet.port = g_strdup(ptr);
@@ -624,19 +625,19 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
                 gsconf->u.inet.has_ipv6 = true;
             }
             if (gsconf->u.inet.has_to) {
-                error_setg(&local_err, "Parameter 'to' not supported");
+                error_setg(errp, "Parameter 'to' not supported");
                 goto out;
             }
             if (gsconf->u.inet.has_ipv4 || gsconf->u.inet.has_ipv6) {
-                error_setg(&local_err, "Parameters 'ipv4/ipv6' not supported");
+                error_setg(errp, "Parameters 'ipv4/ipv6' not supported");
                 goto out;
             }
             qemu_opts_del(opts);
         } else {
             /* create opts info from runtime_unix_opts list */
             opts = qemu_opts_create(&runtime_unix_opts, NULL, 0, &error_abort);
-            qemu_opts_absorb_qdict(opts, backing_options, &local_err);
-            if (local_err) {
+            qemu_opts_absorb_qdict(opts, backing_options, errp);
+            if (*errp) {
                 goto out;
             }
 
@@ -644,15 +645,15 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
             if (!ptr) {
                 ptr = qemu_opt_get(opts, GLUSTER_OPT_SOCKET);
             } else if (qemu_opt_get(opts, GLUSTER_OPT_SOCKET)) {
-                error_setg(&local_err,
+                error_setg(errp,
                            "Conflicting parameters 'path' and 'socket'");
-                error_append_hint(&local_err, GERR_INDEX_HINT, i);
+                error_append_hint(errp, GERR_INDEX_HINT, i);
                 goto out;
             }
             if (!ptr) {
-                error_setg(&local_err, QERR_MISSING_PARAMETER,
+                error_setg(errp, QERR_MISSING_PARAMETER,
                            GLUSTER_OPT_PATH);
-                error_append_hint(&local_err, GERR_INDEX_HINT, i);
+                error_append_hint(errp, GERR_INDEX_HINT, i);
                 goto out;
             }
             gsconf->u.q_unix.path = g_strdup(ptr);
@@ -679,7 +680,6 @@ static int qemu_gluster_parse_json(BlockdevOptionsGluster *gconf,
     return 0;
 
 out:
-    error_propagate(errp, local_err);
     qapi_free_SocketAddress(gsconf);
     qemu_opts_del(opts);
     g_free(str);
@@ -694,6 +694,7 @@ static int qemu_gluster_parse(BlockdevOptionsGluster *gconf,
                               const char *filename,
                               QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     if (filename) {
         ret = qemu_gluster_parse_uri(gconf, filename);
@@ -810,18 +811,17 @@ static bool qemu_gluster_test_seek(struct glfs_fd *fd)
 static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
                              int bdrv_flags, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVGlusterState *s = bs->opaque;
     int open_flags = 0;
     int ret = 0;
     BlockdevOptionsGluster *gconf = NULL;
     QemuOpts *opts;
-    Error *local_err = NULL;
     const char *filename, *logfile;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -1134,11 +1134,11 @@ static int coroutine_fn qemu_gluster_co_create_opts(const char *filename,
                                                     QemuOpts *opts,
                                                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions *options;
     BlockdevCreateOptionsGluster *gopts;
     BlockdevOptionsGluster *gconf;
     char *tmp = NULL;
-    Error *local_err = NULL;
     int ret;
 
     options = g_new0(BlockdevCreateOptions, 1);
@@ -1153,10 +1153,9 @@ static int coroutine_fn qemu_gluster_co_create_opts(const char *filename,
 
     tmp = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     gopts->preallocation = qapi_enum_parse(&PreallocMode_lookup, tmp,
-                                           PREALLOC_MODE_OFF, &local_err);
+                                           PREALLOC_MODE_OFF, errp);
     g_free(tmp);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
