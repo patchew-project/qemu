@@ -33,6 +33,7 @@ typedef struct PCIEPCIBridge {
 
 static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIBridge *br = PCI_BRIDGE(d);
     PCIEPCIBridge *pcie_br = PCIE_PCI_BRIDGE_DEV(d);
     int rc, pos;
@@ -66,17 +67,14 @@ static void pcie_pci_bridge_realize(PCIDevice *d, Error **errp)
     if (rc < 0) {
         goto aer_error;
     }
-
-    Error *local_err = NULL;
     if (pcie_br->msi != ON_OFF_AUTO_OFF) {
-        rc = msi_init(d, 0, 1, true, true, &local_err);
+        rc = msi_init(d, 0, 1, true, true, errp);
         if (rc < 0) {
             assert(rc == -ENOTSUP);
             if (pcie_br->msi != ON_OFF_AUTO_ON) {
-                error_free(local_err);
+                error_free_errp(errp);
             } else {
                 /* failed to satisfy user's explicit request for MSI */
-                error_propagate(errp, local_err);
                 goto msi_error;
             }
         }

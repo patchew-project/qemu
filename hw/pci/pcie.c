@@ -463,13 +463,12 @@ static void pcie_unplug_device(PCIBus *bus, PCIDevice *dev, void *opaque)
 void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     PCIDevice *pci_dev = PCI_DEVICE(dev);
     PCIBus *bus = pci_get_bus(pci_dev);
 
-    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pcie_cap_slot_plug_common(PCI_DEVICE(hotplug_dev), dev, errp);
+    if (*errp) {
         return;
     }
 

@@ -995,10 +995,10 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
                                          const char *name, int devfn,
                                          Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     PCIConfigReadFunc *config_read = pc->config_read;
     PCIConfigWriteFunc *config_write = pc->config_write;
-    Error *local_err = NULL;
     DeviceState *dev = DEVICE(pci_dev);
     PCIBus *bus = pci_get_bus(pci_dev);
 
@@ -1084,9 +1084,8 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev,
     if (pc->is_bridge) {
         pci_init_mask_bridge(pci_dev);
     }
-    pci_init_multifunction(bus, pci_dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pci_init_multifunction(bus, pci_dev, errp);
+    if (*errp) {
         do_pci_unregister_device(pci_dev);
         return NULL;
     }
@@ -2072,10 +2071,10 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 
 static void pci_qdev_realize(DeviceState *qdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
     ObjectClass *klass = OBJECT_CLASS(pc);
-    Error *local_err = NULL;
     bool is_default_rom;
 
     /* initialize cap_present for pci_is_express() and pci_config_size(),
@@ -2093,9 +2092,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         return;
 
     if (pc->realize) {
-        pc->realize(pci_dev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        pc->realize(pci_dev, errp);
+        if (*errp) {
             do_pci_unregister_device(pci_dev);
             return;
         }
@@ -2108,9 +2106,8 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
         is_default_rom = true;
     }
 
-    pci_add_option_rom(pci_dev, is_default_rom, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pci_add_option_rom(pci_dev, is_default_rom, errp);
+    if (*errp) {
         pci_qdev_unrealize(DEVICE(pci_dev), NULL);
         return;
     }

@@ -73,14 +73,13 @@ static bool gen_rp_test_migrate_msix(void *opaque, int version_id)
 
 static void gen_rp_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDevice *d = PCI_DEVICE(dev);
     GenPCIERootPort *grp = GEN_PCIE_ROOT_PORT(d);
     PCIERootPortClass *rpc = PCIE_ROOT_PORT_GET_CLASS(d);
-    Error *local_err = NULL;
 
-    rpc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    rpc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 

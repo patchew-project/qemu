@@ -209,11 +209,11 @@ static gint pxb_compare(gconstpointer a, gconstpointer b)
 
 static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PXBDev *pxb = convert_to_pxb(dev);
     DeviceState *ds, *bds = NULL;
     PCIBus *bus;
     const char *dev_name = NULL;
-    Error *local_err = NULL;
     MachineState *ms = MACHINE(qdev_get_machine());
 
     if (ms->numa_state == NULL) {
@@ -249,9 +249,8 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 
     PCI_HOST_BRIDGE(ds)->bus = bus;
 
-    pxb_register_bus(dev, bus, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pxb_register_bus(dev, bus, errp);
+    if (*errp) {
         goto err_register_bus;
     }
 
