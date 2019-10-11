@@ -141,36 +141,33 @@ static uint64_t blk_log_writes_find_cur_log_sector(BdrvChild *log,
 static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVBlkLogWritesState *s = bs->opaque;
     QemuOpts *opts;
-    Error *local_err = NULL;
     int ret;
     uint64_t log_sector_size;
     bool log_append;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
-        error_propagate(errp, local_err);
         goto fail;
     }
 
     /* Open the file */
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, false,
-                               &local_err);
-    if (local_err) {
+                               errp);
+    if (*errp) {
         ret = -EINVAL;
-        error_propagate(errp, local_err);
         goto fail;
     }
 
     /* Open the log file */
     s->log_file = bdrv_open_child(NULL, options, "log", bs, &child_file, false,
-                                  &local_err);
-    if (local_err) {
+                                  errp);
+    if (*errp) {
         ret = -EINVAL;
-        error_propagate(errp, local_err);
         goto fail;
     }
 
@@ -220,10 +217,9 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
         if (blk_log_writes_sector_size_valid(log_sector_size)) {
             s->cur_log_sector =
                 blk_log_writes_find_cur_log_sector(s->log_file, log_sector_size,
-                                    le64_to_cpu(log_sb.nr_entries), &local_err);
-            if (local_err) {
+                                    le64_to_cpu(log_sb.nr_entries), errp);
+            if (*errp) {
                 ret = -EINVAL;
-                error_propagate(errp, local_err);
                 goto fail_log;
             }
 
