@@ -65,11 +65,11 @@ int qio_net_listener_open_sync(QIONetListener *listener,
                                int num,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QIODNSResolver *resolver = qio_dns_resolver_get_instance();
     SocketAddress **resaddrs;
     size_t nresaddrs;
     size_t i;
-    Error *err = NULL;
     bool success = false;
 
     if (qio_dns_resolver_lookup_sync(resolver,
@@ -84,7 +84,7 @@ int qio_net_listener_open_sync(QIONetListener *listener,
         QIOChannelSocket *sioc = qio_channel_socket_new();
 
         if (qio_channel_socket_listen_sync(sioc, resaddrs[i], num,
-                                           err ? NULL : &err) == 0) {
+                                           *errp ? NULL : errp) == 0) {
             success = true;
 
             qio_net_listener_add(listener, sioc);
@@ -96,10 +96,9 @@ int qio_net_listener_open_sync(QIONetListener *listener,
     g_free(resaddrs);
 
     if (success) {
-        error_free(err);
+        error_free_errp(errp);
         return 0;
     } else {
-        error_propagate(errp, err);
         return -1;
     }
 }

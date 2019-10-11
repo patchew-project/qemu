@@ -52,13 +52,13 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
                                              SocketAddress ***addrs,
                                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct addrinfo ai, *res, *e;
     InetSocketAddress *iaddr = &addr->u.inet;
     char port[33];
     char uaddr[INET6_ADDRSTRLEN + 1];
     char uport[33];
     int rc;
-    Error *err = NULL;
     size_t i;
 
     *naddrs = 0;
@@ -69,11 +69,10 @@ static int qio_dns_resolver_lookup_sync_inet(QIODNSResolver *resolver,
     if (iaddr->has_numeric && iaddr->numeric) {
         ai.ai_flags |= AI_NUMERICHOST | AI_NUMERICSERV;
     }
-    ai.ai_family = inet_ai_family_from_address(iaddr, &err);
+    ai.ai_family = inet_ai_family_from_address(iaddr, errp);
     ai.ai_socktype = SOCK_STREAM;
 
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         return -1;
     }
 
