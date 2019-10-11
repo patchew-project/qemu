@@ -35,20 +35,19 @@ static BlockBackend *open_image(const char *path,
                                 uint64_t perm, uint64_t shared_perm,
                                 Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     BlockBackend *blk;
     QDict *options = qdict_new();
 
     qdict_put_str(options, "driver", "raw");
-    blk = blk_new_open(path, NULL, options, BDRV_O_RDWR, &local_err);
+    blk = blk_new_open(path, NULL, options, BDRV_O_RDWR, errp);
     if (blk) {
-        g_assert_null(local_err);
+        g_assert_null(*errp);
         if (blk_set_perm(blk, perm, shared_perm, errp)) {
             blk_unref(blk);
             blk = NULL;
         }
     } else {
-        error_propagate(errp, local_err);
     }
     return blk;
 }
