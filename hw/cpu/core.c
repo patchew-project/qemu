@@ -27,13 +27,12 @@ static void core_prop_get_core_id(Object *obj, Visitor *v, const char *name,
 static void core_prop_set_core_id(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUCore *core = CPU_CORE(obj);
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 
@@ -57,13 +56,12 @@ static void core_prop_get_nr_threads(Object *obj, Visitor *v, const char *name,
 static void core_prop_set_nr_threads(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUCore *core = CPU_CORE(obj);
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 
