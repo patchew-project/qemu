@@ -855,18 +855,17 @@ out:
 
 static void igd_pt_i440fx_realize(PCIDevice *pci_dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     uint32_t val = 0;
     int i, num;
     int pos, len;
-    Error *local_err = NULL;
 
     num = ARRAY_SIZE(igd_host_bridge_infos);
     for (i = 0; i < num; i++) {
         pos = igd_host_bridge_infos[i].offset;
         len = igd_host_bridge_infos[i].len;
-        host_pci_config_read(pos, len, &val, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        host_pci_config_read(pos, len, &val, errp);
+        if (*errp) {
             return;
         }
         pci_default_write_config(pci_dev, pos, val, len);

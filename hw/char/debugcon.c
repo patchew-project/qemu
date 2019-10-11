@@ -97,14 +97,13 @@ static void debugcon_realize_core(DebugconState *s, Error **errp)
 
 static void debugcon_isa_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ISADevice *d = ISA_DEVICE(dev);
     ISADebugconState *isa = ISA_DEBUGCON_DEVICE(dev);
     DebugconState *s = &isa->state;
-    Error *err = NULL;
 
-    debugcon_realize_core(s, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    debugcon_realize_core(s, errp);
+    if (*errp) {
         return;
     }
     memory_region_init_io(&s->io, OBJECT(dev), &debugcon_ops, s,

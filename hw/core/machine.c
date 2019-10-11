@@ -192,13 +192,12 @@ static void machine_set_kernel_irqchip(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     MachineState *ms = MACHINE(obj);
     OnOffSplit mode;
 
-    visit_type_OnOffSplit(v, name, &mode, &err);
-    if (err) {
-        error_propagate(errp, err);
+    visit_type_OnOffSplit(v, name, &mode, errp);
+    if (*errp) {
         return;
     } else {
         switch (mode) {
@@ -240,13 +239,12 @@ static void machine_set_kvm_shadow_mem(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *ms = MACHINE(obj);
-    Error *error = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 
@@ -342,13 +340,12 @@ static void machine_set_phandle_start(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *ms = MACHINE(obj);
-    Error *error = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 

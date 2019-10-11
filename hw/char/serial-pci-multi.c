@@ -79,10 +79,10 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
 
 static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
     SerialState *s;
-    Error *err = NULL;
     int i, nr_ports = 0;
 
     switch (pc->device_id) {
@@ -106,9 +106,8 @@ static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
     for (i = 0; i < nr_ports; i++) {
         s = pci->state + i;
         s->baudbase = 115200;
-        serial_realize_core(s, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        serial_realize_core(s, errp);
+        if (*errp) {
             multi_serial_pci_exit(dev);
             return;
         }

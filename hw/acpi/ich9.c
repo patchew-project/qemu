@@ -369,17 +369,15 @@ static void ich9_pm_get_disable_s3(Object *obj, Visitor *v, const char *name,
 static void ich9_pm_set_disable_s3(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICH9LPCPMRegs *pm = opaque;
-    Error *local_err = NULL;
     uint8_t value;
 
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_uint8(v, name, &value, errp);
+    if (*errp) {
+        return;
     }
     pm->disable_s3 = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static void ich9_pm_get_disable_s4(Object *obj, Visitor *v, const char *name,
@@ -394,17 +392,15 @@ static void ich9_pm_get_disable_s4(Object *obj, Visitor *v, const char *name,
 static void ich9_pm_set_disable_s4(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICH9LPCPMRegs *pm = opaque;
-    Error *local_err = NULL;
     uint8_t value;
 
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_uint8(v, name, &value, errp);
+    if (*errp) {
+        return;
     }
     pm->disable_s4 = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static void ich9_pm_get_s4_val(Object *obj, Visitor *v, const char *name,
@@ -419,17 +415,15 @@ static void ich9_pm_get_s4_val(Object *obj, Visitor *v, const char *name,
 static void ich9_pm_set_s4_val(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ICH9LPCPMRegs *pm = opaque;
-    Error *local_err = NULL;
     uint8_t value;
 
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_uint8(v, name, &value, errp);
+    if (*errp) {
+        return;
     }
     pm->s4_val = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static bool ich9_pm_get_enable_tco(Object *obj, Error **errp)

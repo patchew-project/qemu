@@ -43,14 +43,13 @@ typedef struct PCISerialState {
 
 static void serial_pci_realize(PCIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCISerialState *pci = DO_UPCAST(PCISerialState, dev, dev);
     SerialState *s = &pci->state;
-    Error *err = NULL;
 
     s->baudbase = 115200;
-    serial_realize_core(s, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    serial_realize_core(s, errp);
+    if (*errp) {
         return;
     }
 

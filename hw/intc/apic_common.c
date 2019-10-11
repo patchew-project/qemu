@@ -464,9 +464,9 @@ static void apic_common_get_id(Object *obj, Visitor *v, const char *name,
 static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     APICCommonState *s = APIC_COMMON(obj);
     DeviceState *dev = DEVICE(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
     if (dev->realized) {
@@ -474,9 +474,8 @@ static void apic_common_set_id(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_uint32(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 

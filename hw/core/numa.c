@@ -59,7 +59,7 @@ static int max_numa_nodeid; /* Highest specified NUMA node ID, plus one.
 static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
                             Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     uint16_t nodenr;
     uint16List *cpus = NULL;
     MachineClass *mc = MACHINE_GET_CLASS(ms);
@@ -99,9 +99,8 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         props = mc->cpu_index_to_instance_props(ms, cpus->value);
         props.node_id = nodenr;
         props.has_node_id = true;
-        machine_set_cpu_numa_node(ms, &props, &err);
-        if (err) {
-            error_propagate(errp, err);
+        machine_set_cpu_numa_node(ms, &props, errp);
+        if (*errp) {
             return;
         }
     }
@@ -177,60 +176,57 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
 
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     MachineClass *mc = MACHINE_GET_CLASS(ms);
 
     if (!mc->numa_mem_supported) {
         error_setg(errp, "NUMA is not supported by this machine-type");
-        goto end;
+        return;
     }
 
     switch (object->type) {
     case NUMA_OPTIONS_TYPE_NODE:
-        parse_numa_node(ms, &object->u.node, &err);
-        if (err) {
-            goto end;
+        parse_numa_node(ms, &object->u.node, errp);
+        if (*errp) {
+            return;
         }
         break;
     case NUMA_OPTIONS_TYPE_DIST:
-        parse_numa_distance(ms, &object->u.dist, &err);
-        if (err) {
-            goto end;
+        parse_numa_distance(ms, &object->u.dist, errp);
+        if (*errp) {
+            return;
         }
         break;
     case NUMA_OPTIONS_TYPE_CPU:
         if (!object->u.cpu.has_node_id) {
-            error_setg(&err, "Missing mandatory node-id property");
-            goto end;
+            error_setg(errp, "Missing mandatory node-id property");
+            return;
         }
         if (!ms->numa_state->nodes[object->u.cpu.node_id].present) {
-            error_setg(&err, "Invalid node-id=%" PRId64 ", NUMA node must be "
-                "defined with -numa node,nodeid=ID before it's used with "
-                "-numa cpu,node-id=ID", object->u.cpu.node_id);
-            goto end;
+            error_setg(errp, "Invalid node-id=%" PRId64 ", NUMA node must be "
+                       "defined with -numa node,nodeid=ID before it's used with "
+                       "-numa cpu,node-id=ID", object->u.cpu.node_id);
+            return;
         }
 
         machine_set_cpu_numa_node(ms, qapi_NumaCpuOptions_base(&object->u.cpu),
-                                  &err);
+                                  errp);
         break;
     default:
         abort();
     }
-
-end:
-    error_propagate(errp, err);
 }
 
 static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NumaOptions *object = NULL;
     MachineState *ms = MACHINE(opaque);
-    Error *err = NULL;
     Visitor *v = opts_visitor_new(opts);
 
-    visit_type_NumaOptions(v, NULL, &object, &err);
+    visit_type_NumaOptions(v, NULL, &object, errp);
     visit_free(v);
-    if (err) {
+    if (*errp) {
         goto end;
     }
 
@@ -240,12 +236,11 @@ static int parse_numa(void *opaque, QemuOpts *opts, Error **errp)
         qemu_strtosz_MiB(mem_str, NULL, &object->u.node.mem);
     }
 
-    set_numa_options(ms, object, &err);
+    set_numa_options(ms, object, errp);
 
 end:
     qapi_free_NumaOptions(object);
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         return -1;
     }
 
