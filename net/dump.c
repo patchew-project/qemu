@@ -191,23 +191,20 @@ static void filter_dump_get_maxlen(Object *obj, Visitor *v, const char *name,
 static void filter_dump_set_maxlen(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NetFilterDumpState *nfds = FILTER_DUMP(obj);
-    Error *local_err = NULL;
     uint32_t value;
 
-    visit_type_uint32(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_uint32(v, name, &value, errp);
+    if (*errp) {
+        return;
     }
     if (value == 0) {
-        error_setg(&local_err, "Property '%s.%s' doesn't take value '%u'",
+        error_setg(errp, "Property '%s.%s' doesn't take value '%u'",
                    object_get_typename(obj), name, value);
-        goto out;
+        return;
     }
     nfds->maxlen = value;
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static char *file_dump_get_filename(Object *obj, Error **errp)

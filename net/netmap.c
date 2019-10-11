@@ -406,15 +406,14 @@ static NetClientInfo net_netmap_info = {
 int net_init_netmap(const Netdev *netdev,
                     const char *name, NetClientState *peer, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const NetdevNetmapOptions *netmap_opts = &netdev->u.netmap;
     struct nm_desc *nmd;
     NetClientState *nc;
-    Error *err = NULL;
     NetmapState *s;
 
-    nmd = netmap_open(netmap_opts, &err);
-    if (err) {
-        error_propagate(errp, err);
+    nmd = netmap_open(netmap_opts, errp);
+    if (*errp) {
         return -1;
     }
     /* Create the object. */

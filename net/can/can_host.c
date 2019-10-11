@@ -50,12 +50,11 @@ static void can_host_disconnect(CanHostState *ch)
 
 static void can_host_connect(CanHostState *ch, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CanHostClass *chc = CAN_HOST_GET_CLASS(ch);
-    Error *local_err = NULL;
 
-    chc->connect(ch, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    chc->connect(ch, errp);
+    if (*errp) {
         return;
     }
 

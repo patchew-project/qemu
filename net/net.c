@@ -1098,9 +1098,9 @@ static void show_netdevs(void)
 
 static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     gchar **substrings = NULL;
     void *object = NULL;
-    Error *err = NULL;
     int ret = -1;
     Visitor *v = opts_visitor_new(opts);
 
@@ -1143,13 +1143,13 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     }
 
     if (is_netdev) {
-        visit_type_Netdev(v, NULL, (Netdev **)&object, &err);
+        visit_type_Netdev(v, NULL, (Netdev **)&object, errp);
     } else {
-        visit_type_NetLegacy(v, NULL, (NetLegacy **)&object, &err);
+        visit_type_NetLegacy(v, NULL, (NetLegacy **)&object, errp);
     }
 
-    if (!err) {
-        ret = net_client_init1(object, is_netdev, &err);
+    if (!*errp) {
+        ret = net_client_init1(object, is_netdev, errp);
     }
 
     if (is_netdev) {
@@ -1159,7 +1159,6 @@ static int net_client_init(QemuOpts *opts, bool is_netdev, Error **errp)
     }
 
 out:
-    error_propagate(errp, err);
     g_strfreev(substrings);
     visit_free(v);
     return ret;
@@ -1172,28 +1171,25 @@ void netdev_add(QemuOpts *opts, Error **errp)
 
 void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     QemuOptsList *opts_list;
     QemuOpts *opts;
 
-    opts_list = qemu_find_opts_err("netdev", &local_err);
-    if (local_err) {
-        goto out;
+    opts_list = qemu_find_opts_err("netdev", errp);
+    if (*errp) {
+        return;
     }
 
-    opts = qemu_opts_from_qdict(opts_list, qdict, &local_err);
-    if (local_err) {
-        goto out;
+    opts = qemu_opts_from_qdict(opts_list, qdict, errp);
+    if (*errp) {
+        return;
     }
 
-    netdev_add(opts, &local_err);
-    if (local_err) {
+    netdev_add(opts, errp);
+    if (*errp) {
         qemu_opts_del(opts);
-        goto out;
+        return;
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 void qmp_netdev_del(const char *id, Error **errp)
@@ -1348,17 +1344,16 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
 
 void colo_notify_filters_event(int event, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NetClientState *nc;
     NetFilterState *nf;
     NetFilterClass *nfc = NULL;
-    Error *local_err = NULL;
 
     QTAILQ_FOREACH(nc, &net_clients, next) {
         QTAILQ_FOREACH(nf, &nc->filters, next) {
             nfc = NETFILTER_GET_CLASS(OBJECT(nf));
-            nfc->handle_event(nf, event, &local_err);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            nfc->handle_event(nf, event, errp);
+            if (*errp) {
                 return;
             }
         }

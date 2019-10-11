@@ -191,11 +191,11 @@ static void netfilter_init(Object *obj)
 
 static void netfilter_complete(UserCreatable *uc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NetFilterState *nf = NETFILTER(uc);
     NetClientState *ncs[MAX_QUEUE_NUM];
     NetFilterClass *nfc = NETFILTER_GET_CLASS(uc);
     int queues;
-    Error *local_err = NULL;
 
     if (!nf->netdev_id) {
         error_setg(errp, "Parameter 'netdev' is required");
@@ -222,9 +222,8 @@ static void netfilter_complete(UserCreatable *uc, Error **errp)
     nf->netdev = ncs[0];
 
     if (nfc->setup) {
-        nfc->setup(nf, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        nfc->setup(nf, errp);
+        if (*errp) {
             return;
         }
     }

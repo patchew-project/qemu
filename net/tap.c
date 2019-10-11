@@ -610,7 +610,7 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
                         const char *setup_script, char *ifname,
                         size_t ifname_sz, int mq_required, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int fd, vnet_hdr_required;
 
     if (tap->has_vnet_hdr) {
@@ -630,9 +630,8 @@ static int net_tap_init(const NetdevTapOptions *tap, int *vnet_hdr,
     if (setup_script &&
         setup_script[0] != '\0' &&
         strcmp(setup_script, "no") != 0) {
-        launch_script(setup_script, ifname, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+        launch_script(setup_script, ifname, fd, errp);
+        if (*errp) {
             close(fd);
             return -1;
         }
@@ -649,13 +648,12 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
                              const char *downscript, const char *vhostfdname,
                              int vnet_hdr, int fd, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     TAPState *s = net_tap_fd_init(peer, model, name, fd, vnet_hdr);
     int vhostfd;
 
-    tap_set_sndbuf(s->fd, tap, &err);
-    if (err) {
-        error_propagate(errp, err);
+    tap_set_sndbuf(s->fd, tap, errp);
+    if (*errp) {
         return;
     }
 
@@ -689,12 +687,11 @@ static void net_init_tap_one(const NetdevTapOptions *tap, NetClientState *peer,
         }
 
         if (vhostfdname) {
-            vhostfd = monitor_fd_param(cur_mon, vhostfdname, &err);
+            vhostfd = monitor_fd_param(cur_mon, vhostfdname, errp);
             if (vhostfd == -1) {
                 if (tap->has_vhostforce && tap->vhostforce) {
-                    error_propagate(errp, err);
                 } else {
-                    warn_report_err(err);
+                    warn_report_errp(errp);
                 }
                 return;
             }
@@ -758,12 +755,12 @@ static int get_fds(char *str, char *fds[], int max)
 int net_init_tap(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const NetdevTapOptions *tap;
     int fd, vnet_hdr = 0, i = 0, queues;
     /* for the no-fd, no-helper case */
     const char *script = NULL; /* suppress wrong "uninit'd use" gcc warning */
     const char *downscript = NULL;
-    Error *err = NULL;
     const char *vhostfdname;
     char ifname[128];
 
@@ -789,9 +786,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
             return -1;
         }
 
-        fd = monitor_fd_param(cur_mon, tap->fd, &err);
+        fd = monitor_fd_param(cur_mon, tap->fd, errp);
         if (fd == -1) {
-            error_propagate(errp, err);
             return -1;
         }
 
@@ -801,9 +797,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
 
         net_init_tap_one(tap, peer, "tap", name, NULL,
                          script, downscript,
-                         vhostfdname, vnet_hdr, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+                         vhostfdname, vnet_hdr, fd, errp);
+        if (*errp) {
             return -1;
         }
     } else if (tap->has_fds) {
@@ -836,9 +831,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
         }
 
         for (i = 0; i < nfds; i++) {
-            fd = monitor_fd_param(cur_mon, fds[i], &err);
+            fd = monitor_fd_param(cur_mon, fds[i], errp);
             if (fd == -1) {
-                error_propagate(errp, err);
                 ret = -1;
                 goto free_fail;
             }
@@ -857,9 +851,8 @@ int net_init_tap(const Netdev *netdev, const char *name,
             net_init_tap_one(tap, peer, "tap", name, ifname,
                              script, downscript,
                              tap->has_vhostfds ? vhost_fds[i] : NULL,
-                             vnet_hdr, fd, &err);
-            if (err) {
-                error_propagate(errp, err);
+                             vnet_hdr, fd, errp);
+            if (*errp) {
                 ret = -1;
                 goto free_fail;
             }
@@ -896,9 +889,8 @@ free_fail:
 
         net_init_tap_one(tap, peer, "bridge", name, ifname,
                          script, downscript, vhostfdname,
-                         vnet_hdr, fd, &err);
-        if (err) {
-            error_propagate(errp, err);
+                         vnet_hdr, fd, errp);
+        if (*errp) {
             close(fd);
             return -1;
         }
@@ -935,9 +927,8 @@ free_fail:
             net_init_tap_one(tap, peer, "tap", name, ifname,
                              i >= 1 ? "no" : script,
                              i >= 1 ? "no" : downscript,
-                             vhostfdname, vnet_hdr, fd, &err);
-            if (err) {
-                error_propagate(errp, err);
+                             vhostfdname, vnet_hdr, fd, errp);
+            if (*errp) {
                 close(fd);
                 return -1;
             }
