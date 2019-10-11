@@ -81,13 +81,12 @@ static void tilegx_cpu_reset(CPUState *s)
 
 static void tilegx_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     TileGXCPUClass *tcc = TILEGX_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
 
