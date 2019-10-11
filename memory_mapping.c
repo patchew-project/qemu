@@ -288,6 +288,7 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
                                    const GuestPhysBlockList *guest_phys_blocks,
                                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cpu, *first_paging_enabled_cpu;
     GuestPhysBlock *block;
     ram_addr_t offset, length;
@@ -296,10 +297,8 @@ void qemu_get_guest_memory_mapping(MemoryMappingList *list,
     if (first_paging_enabled_cpu) {
         for (cpu = first_paging_enabled_cpu; cpu != NULL;
              cpu = CPU_NEXT(cpu)) {
-            Error *err = NULL;
-            cpu_get_memory_mapping(cpu, list, &err);
-            if (err) {
-                error_propagate(errp, err);
+            cpu_get_memory_mapping(cpu, list, errp);
+            if (*errp) {
                 return;
             }
         }
