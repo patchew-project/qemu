@@ -748,6 +748,7 @@ exit:
 int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret = 0;
     VHDXHeader *hdr;
     VHDXLogSequence logs = { 0 };
