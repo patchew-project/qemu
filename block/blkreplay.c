@@ -23,15 +23,14 @@ typedef struct Request {
 static int blkreplay_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
     /* Open the image file */
     bs->file = bdrv_open_child(NULL, options, "image",
-                               bs, &child_file, false, &local_err);
-    if (local_err) {
+                               bs, &child_file, false, errp);
+    if (*errp) {
         ret = -EINVAL;
-        error_propagate(errp, local_err);
         goto fail;
     }
 
