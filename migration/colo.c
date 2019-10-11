@@ -243,19 +243,19 @@ void qmp_xen_set_replication(bool enable, bool primary,
 
 ReplicationStatus *qmp_query_xen_replication_status(Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     ReplicationStatus *s = g_new0(ReplicationStatus, 1);
 
-    replication_get_error_all(&err);
-    if (err) {
+    replication_get_error_all(errp);
+    if (*errp) {
         s->error = true;
         s->has_desc = true;
-        s->desc = g_strdup(error_get_pretty(err));
+        s->desc = g_strdup(error_get_pretty(*errp));
     } else {
         s->error = false;
     }
 
-    error_free(err);
+    error_free_errp(errp);
     return s;
 }
 
@@ -314,12 +314,11 @@ static void colo_send_message(QEMUFile *f, COLOMessage msg,
 static void colo_send_message_value(QEMUFile *f, COLOMessage msg,
                                     uint64_t value, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
-    colo_send_message(f, msg, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    colo_send_message(f, msg, errp);
+    if (*errp) {
         return;
     }
     qemu_put_be64(f, value);
@@ -354,12 +353,11 @@ static COLOMessage colo_receive_message(QEMUFile *f, Error **errp)
 static void colo_receive_check_message(QEMUFile *f, COLOMessage expect_msg,
                                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     COLOMessage msg;
-    Error *local_err = NULL;
 
-    msg = colo_receive_message(f, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    msg = colo_receive_message(f, errp);
+    if (*errp) {
         return;
     }
     if (msg != expect_msg) {
@@ -371,13 +369,12 @@ static void colo_receive_check_message(QEMUFile *f, COLOMessage expect_msg,
 static uint64_t colo_receive_message_value(QEMUFile *f, uint32_t expect_msg,
                                            Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     uint64_t value;
     int ret;
 
-    colo_receive_check_message(f, expect_msg, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    colo_receive_check_message(f, expect_msg, errp);
+    if (*errp) {
         return 0;
     }
 
@@ -667,12 +664,11 @@ void migrate_start_colo_process(MigrationState *s)
 static void colo_wait_handle_message(QEMUFile *f, int *checkpoint_request,
                                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     COLOMessage msg;
-    Error *local_err = NULL;
 
-    msg = colo_receive_message(f, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    msg = colo_receive_message(f, errp);
+    if (*errp) {
         return;
     }
 
