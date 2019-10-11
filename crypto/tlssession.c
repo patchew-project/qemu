@@ -256,13 +256,13 @@ static int
 qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
                                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     unsigned int status;
     const gnutls_datum_t *certs;
     unsigned int nCerts, i;
     time_t now;
     gnutls_x509_crt_t cert = NULL;
-    Error *err = NULL;
 
     now = time(NULL);
     if (now == ((time_t)-1)) {
@@ -354,9 +354,8 @@ qcrypto_tls_session_check_certificate(QCryptoTLSSession *session,
                 bool allow;
 
                 allow = qauthz_is_allowed_by_id(session->authzid,
-                                                session->peername, &err);
-                if (err) {
-                    error_propagate(errp, err);
+                                                session->peername, errp);
+                if (*errp) {
                     goto error;
                 }
                 if (!allow) {

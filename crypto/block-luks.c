@@ -442,8 +442,8 @@ qcrypto_block_luks_store_header(QCryptoBlock *block,
                                 void *opaque,
                                 Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const QCryptoBlockLUKS *luks = block->opaque;
-    Error *local_err = NULL;
     size_t i;
     g_autofree QCryptoBlockLUKSHeader *hdr_copy = NULL;
 
@@ -469,10 +469,9 @@ qcrypto_block_luks_store_header(QCryptoBlock *block,
 
     /* Write out the partition header and key slot headers */
     writefunc(block, 0, (const uint8_t *)hdr_copy, sizeof(*hdr_copy),
-              opaque, &local_err);
+              opaque, errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return -1;
     }
     return 0;
@@ -603,9 +602,9 @@ qcrypto_block_luks_check_header(const QCryptoBlockLUKS *luks, Error **errp)
 static int
 qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     g_autofree char *cipher_mode = g_strdup(luks->header.cipher_mode);
     char *ivgen_name, *ivhash_name;
-    Error *local_err = NULL;
 
     /*
      * The cipher_mode header contains a string that we have
@@ -632,17 +631,15 @@ qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
         ivhash_name++;
 
         luks->ivgen_hash_alg = qcrypto_block_luks_hash_name_lookup(ivhash_name,
-                                                                   &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                                                   errp);
+        if (*errp) {
             return -1;
         }
     }
 
     luks->cipher_mode = qcrypto_block_luks_cipher_mode_lookup(cipher_mode,
-                                                              &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                                              errp);
+    if (*errp) {
         return -1;
     }
 
@@ -650,24 +647,21 @@ qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
             qcrypto_block_luks_cipher_name_lookup(luks->header.cipher_name,
                                                   luks->cipher_mode,
                                                   luks->header.master_key_len,
-                                                  &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                                  errp);
+    if (*errp) {
         return -1;
     }
 
     luks->hash_alg =
             qcrypto_block_luks_hash_name_lookup(luks->header.hash_spec,
-                                                &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                                errp);
+    if (*errp) {
         return -1;
     }
 
     luks->ivgen_alg = qcrypto_block_luks_ivgen_name_lookup(ivgen_name,
-                                                           &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                                           errp);
+    if (*errp) {
         return -1;
     }
 
@@ -679,9 +673,8 @@ qcrypto_block_luks_parse_header(QCryptoBlockLUKS *luks, Error **errp)
         luks->ivgen_cipher_alg =
                 qcrypto_block_luks_essiv_cipher(luks->cipher_alg,
                                                 luks->ivgen_hash_alg,
-                                                &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                                errp);
+        if (*errp) {
             return -1;
         }
     } else {
@@ -1186,9 +1179,9 @@ qcrypto_block_luks_create(QCryptoBlock *block,
                           void *opaque,
                           Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QCryptoBlockLUKS *luks;
     QCryptoBlockCreateOptionsLUKS luks_opts;
-    Error *local_err = NULL;
     g_autofree uint8_t *masterkey = NULL;
     size_t header_sectors;
     size_t split_key_sectors;
@@ -1298,9 +1291,8 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         luks->ivgen_cipher_alg =
                 qcrypto_block_luks_essiv_cipher(luks_opts.cipher_alg,
                                                 luks_opts.ivgen_hash_alg,
-                                                &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                                errp);
+        if (*errp) {
             goto error;
         }
     } else {
@@ -1364,9 +1356,8 @@ qcrypto_block_luks_create(QCryptoBlock *block,
                                        luks->header.master_key_salt,
                                        QCRYPTO_BLOCK_LUKS_SALT_LEN,
                                        QCRYPTO_BLOCK_LUKS_DIGEST_LEN,
-                                       &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                       errp);
+    if (*errp) {
         goto error;
     }
 
@@ -1439,9 +1430,8 @@ qcrypto_block_luks_create(QCryptoBlock *block,
         block->sector_size;
 
     /* Reserve header space to match payload offset */
-    initfunc(block, block->payload_offset, opaque, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    initfunc(block, block->payload_offset, opaque, errp);
+    if (*errp) {
         goto error;
     }
 

@@ -178,27 +178,25 @@ qcrypto_secret_prop_set_loaded(Object *obj,
                                bool value,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QCryptoSecret *secret = QCRYPTO_SECRET(obj);
 
     if (value) {
-        Error *local_err = NULL;
         uint8_t *input = NULL;
         size_t inputlen = 0;
         uint8_t *output = NULL;
         size_t outputlen = 0;
 
-        qcrypto_secret_load_data(secret, &input, &inputlen, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        qcrypto_secret_load_data(secret, &input, &inputlen, errp);
+        if (*errp) {
             return;
         }
 
         if (secret->keyid) {
             qcrypto_secret_decrypt(secret, input, inputlen,
-                                   &output, &outputlen, &local_err);
+                                   &output, &outputlen, errp);
             g_free(input);
-            if (local_err) {
-                error_propagate(errp, local_err);
+            if (*errp) {
                 return;
             }
             input = output;
@@ -206,10 +204,9 @@ qcrypto_secret_prop_set_loaded(Object *obj,
         } else {
             if (secret->format != QCRYPTO_SECRET_FORMAT_RAW) {
                 qcrypto_secret_decode(input, inputlen,
-                                      &output, &outputlen, &local_err);
+                                      &output, &outputlen, errp);
                 g_free(input);
-                if (local_err) {
-                    error_propagate(errp, local_err);
+                if (*errp) {
                     return;
                 }
                 input = output;
