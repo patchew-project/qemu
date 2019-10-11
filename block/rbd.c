@@ -428,10 +428,10 @@ static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
                                                 QemuOpts *opts,
                                                 Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions *create_options;
     BlockdevCreateOptionsRbd *rbd_opts;
     BlockdevOptionsRbd *loc;
-    Error *local_err = NULL;
     const char *keypairs, *password_secret;
     QDict *options = NULL;
     int ret = 0;
@@ -452,10 +452,9 @@ static int coroutine_fn qemu_rbd_co_create_opts(const char *filename,
     rbd_opts->has_cluster_size = (rbd_opts->cluster_size != 0);
 
     options = qdict_new();
-    qemu_rbd_parse_filename(filename, options, &local_err);
-    if (local_err) {
+    qemu_rbd_parse_filename(filename, options, errp);
+    if (*errp) {
         ret = -EINVAL;
-        error_propagate(errp, local_err);
         goto exit;
     }
 
@@ -572,8 +571,8 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
                             const char *keypairs, const char *secretid,
                             Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     char *mon_host = NULL;
-    Error *local_err = NULL;
     int r;
 
     if (secretid) {
@@ -586,9 +585,8 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
         opts->has_key_secret = true;
     }
 
-    mon_host = qemu_rbd_mon_host(opts, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    mon_host = qemu_rbd_mon_host(opts, errp);
+    if (*errp) {
         r = -EINVAL;
         goto failed_opts;
     }
@@ -660,8 +658,8 @@ failed_opts:
 static int qemu_rbd_convert_options(QDict *options, BlockdevOptionsRbd **opts,
                                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Visitor *v;
-    Error *local_err = NULL;
 
     /* Convert the remaining options into a QAPI object */
     v = qobject_input_visitor_new_flat_confused(options, errp);
@@ -669,11 +667,10 @@ static int qemu_rbd_convert_options(QDict *options, BlockdevOptionsRbd **opts,
         return -EINVAL;
     }
 
-    visit_type_BlockdevOptionsRbd(v, NULL, opts, &local_err);
+    visit_type_BlockdevOptionsRbd(v, NULL, opts, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return -EINVAL;
     }
 
@@ -710,10 +707,10 @@ static int qemu_rbd_attempt_legacy_options(QDict *options,
 static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRBDState *s = bs->opaque;
     BlockdevOptionsRbd *opts = NULL;
     const QDictEntry *e;
-    Error *local_err = NULL;
     char *keypairs, *secretid;
     int r;
 
@@ -727,13 +724,12 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         qdict_del(options, "password-secret");
     }
 
-    r = qemu_rbd_convert_options(options, &opts, &local_err);
-    if (local_err) {
+    r = qemu_rbd_convert_options(options, &opts, errp);
+    if (*errp) {
         /* If keypairs are present, that means some options are present in
          * the modern option format.  Don't attempt to parse legacy option
          * formats, as we won't support mixed usage. */
         if (keypairs) {
-            error_propagate(errp, local_err);
             goto out;
         }
 
@@ -746,7 +742,6 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         if (r < 0) {
             /* Propagate the original error, not the legacy parsing fallback
              * error, as the latter was just a best-effort attempt. */
-            error_propagate(errp, local_err);
             goto out;
         }
         /* Take care whenever deciding to actually deprecate; once this ability
