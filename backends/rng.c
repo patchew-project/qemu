@@ -53,9 +53,9 @@ static void rng_backend_complete(UserCreatable *uc, Error **errp)
 
 static void rng_backend_prop_set_opened(Object *obj, bool value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     RngBackend *s = RNG_BACKEND(obj);
     RngBackendClass *k = RNG_BACKEND_GET_CLASS(s);
-    Error *local_err = NULL;
 
     if (value == s->opened) {
         return;
@@ -67,9 +67,8 @@ static void rng_backend_prop_set_opened(Object *obj, bool value, Error **errp)
     }
 
     if (k->opened) {
-        k->opened(s, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        k->opened(s, errp);
+        if (*errp) {
             return;
         }
     }
