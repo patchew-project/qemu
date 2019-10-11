@@ -963,6 +963,7 @@ static void tcp_chr_accept_server_sync(Chardev *chr)
 
 static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SocketChardev *s = SOCKET_CHARDEV(chr);
     const char *opts[] = { "telnet", "tn3270", "websock", "tls-creds" };
     bool optset[] = { s->is_telnet, s->is_tn3270, s->is_websock, s->tls_creds };
@@ -1031,13 +1032,11 @@ static int tcp_chr_wait_connected(Chardev *chr, Error **errp)
         if (s->is_listen) {
             tcp_chr_accept_server_sync(chr);
         } else {
-            Error *err = NULL;
-            if (tcp_chr_connect_client_sync(chr, &err) < 0) {
+            if (tcp_chr_connect_client_sync(chr, errp) < 0) {
                 if (s->reconnect_time) {
-                    error_free(err);
+                    error_free_errp(errp);
                     g_usleep(s->reconnect_time * 1000ULL * 1000ULL);
                 } else {
-                    error_propagate(errp, err);
                     return -1;
                 }
             }

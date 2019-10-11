@@ -267,6 +267,7 @@ static void qemu_chr_open_spice_vmc(Chardev *chr,
                                     bool *be_opened,
                                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ChardevSpiceChannel *spicevmc = backend->u.spicevmc.data;
     const char *type = spicevmc->type;
     const char **psubtype = spice_server_char_device_recognized_subtypes();

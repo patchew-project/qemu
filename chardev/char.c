@@ -603,7 +603,7 @@ static const char *chardev_alias_translate(const char *name)
 
 ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     const ChardevClass *cc;
     ChardevBackend *backend = NULL;
     const char *name = chardev_alias_translate(qemu_opt_get(opts, "backend"));
@@ -623,9 +623,8 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
     backend->type = CHARDEV_BACKEND_KIND_NULL;
 
     if (cc->parse) {
-        cc->parse(opts, backend, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        cc->parse(opts, backend, errp);
+        if (*errp) {
             qapi_free_ChardevBackend(backend);
             return NULL;
         }
@@ -949,9 +948,9 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
                           GMainContext *gcontext,
                           Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
     Chardev *chr = NULL;
-    Error *local_err = NULL;
     bool be_opened = true;
 
     assert(g_str_has_prefix(typename, "chardev-"));
@@ -961,8 +960,8 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
     chr->label = g_strdup(id);
     chr->gcontext = gcontext;
 
-    qemu_char_open(chr, backend, &be_opened, &local_err);
-    if (local_err) {
+    qemu_char_open(chr, backend, &be_opened, errp);
+    if (*errp) {
         goto end;
     }
 
@@ -974,16 +973,15 @@ Chardev *qemu_chardev_new(const char *id, const char *typename,
     }
 
     if (id) {
-        object_property_add_child(get_chardevs_root(), id, obj, &local_err);
-        if (local_err) {
+        object_property_add_child(get_chardevs_root(), id, obj, errp);
+        if (*errp) {
             goto end;
         }
         object_unref(obj);
     }
 
 end:
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         object_unref(obj);
         return NULL;
     }
