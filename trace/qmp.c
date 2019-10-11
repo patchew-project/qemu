@@ -70,7 +70,7 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
                                               bool has_vcpu, int64_t vcpu,
                                               Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     TraceEventInfoList *events = NULL;
     TraceEventIter iter;
     TraceEvent *ev;
@@ -78,9 +78,8 @@ TraceEventInfoList *qmp_trace_event_get_state(const char *name,
     CPUState *cpu;
 
     /* Check provided vcpu */
-    cpu = get_cpu(has_vcpu, vcpu, &err);
-    if (err) {
-        error_propagate(errp, err);
+    cpu = get_cpu(has_vcpu, vcpu, errp);
+    if (*errp) {
         return NULL;
     }
 
@@ -135,16 +134,15 @@ void qmp_trace_event_set_state(const char *name, bool enable,
                                bool has_vcpu, int64_t vcpu,
                                Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     TraceEventIter iter;
     TraceEvent *ev;
     bool is_pattern = trace_event_is_pattern(name);
     CPUState *cpu;
 
     /* Check provided vcpu */
-    cpu = get_cpu(has_vcpu, vcpu, &err);
-    if (err) {
-        error_propagate(errp, err);
+    cpu = get_cpu(has_vcpu, vcpu, errp);
+    if (*errp) {
         return;
     }
 
