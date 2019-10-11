@@ -1775,20 +1775,19 @@ void monitor_fdset_dup_fd_remove(int dup_fd)
 
 int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int fd;
-    Error *local_err = NULL;
 
     if (!qemu_isdigit(fdname[0]) && mon) {
-        fd = monitor_get_fd(mon, fdname, &local_err);
+        fd = monitor_get_fd(mon, fdname, errp);
     } else {
         fd = qemu_parse_fd(fdname);
         if (fd == -1) {
-            error_setg(&local_err, "Invalid file descriptor number '%s'",
+            error_setg(errp, "Invalid file descriptor number '%s'",
                        fdname);
         }
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         assert(fd == -1);
     } else {
         assert(fd != -1);
