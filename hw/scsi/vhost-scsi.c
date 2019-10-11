@@ -165,9 +165,9 @@ static const VMStateDescription vmstate_virtio_vhost_scsi = {
 
 static void vhost_scsi_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(dev);
-    Error *err = NULL;
     int vhostfd = -1;
     int ret;
 
@@ -195,9 +195,8 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                                vhost_dummy_handle_output,
                                vhost_dummy_handle_output,
                                vhost_dummy_handle_output,
-                               &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+                               errp);
+    if (*errp) {
         goto close_fd;
     }
 
@@ -207,9 +206,8 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
                 "When external environment supports it (Orchestrator migrates "
                 "target SCSI device state or use shared storage over network), "
                 "set 'migratable' property to true to enable migration.");
-        migrate_add_blocker(vsc->migration_blocker, &err);
-        if (err) {
-            error_propagate(errp, err);
+        migrate_add_blocker(vsc->migration_blocker, errp);
+        if (*errp) {
             error_free(vsc->migration_blocker);
             goto free_virtio;
         }

@@ -388,9 +388,9 @@ static void vhost_user_blk_event(void *opaque, int event)
 
 static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    Error *err = NULL;
     int i, ret;
 
     if (!s->chardev.chr) {
@@ -429,8 +429,8 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
                              NULL, (void *)dev, NULL, true);
 
 reconnect:
-    if (qemu_chr_fe_wait_connected(&s->chardev, &err) < 0) {
-        error_report_err(err);
+    if (qemu_chr_fe_wait_connected(&s->chardev, errp) < 0) {
+        error_report_errp(errp);
         goto virtio_err;
     }
 

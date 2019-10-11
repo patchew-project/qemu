@@ -68,11 +68,11 @@ static void vhost_dummy_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 
 static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(dev);
     VHostUserSCSI *s = VHOST_USER_SCSI(dev);
     VHostSCSICommon *vsc = VHOST_SCSI_COMMON(s);
     struct vhost_virtqueue *vqs = NULL;
-    Error *err = NULL;
     int ret;
 
     if (!vs->conf.chardev.chr) {
@@ -82,9 +82,8 @@ static void vhost_user_scsi_realize(DeviceState *dev, Error **errp)
 
     virtio_scsi_common_realize(dev, vhost_dummy_handle_output,
                                vhost_dummy_handle_output,
-                               vhost_dummy_handle_output, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+                               vhost_dummy_handle_output, errp);
+    if (*errp) {
         return;
     }
 
