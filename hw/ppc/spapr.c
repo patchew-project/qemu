@@ -2565,7 +2565,7 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
                                       " requires the use of VSMT mode %d.\n",
                                       smp_threads, kvm_smt, spapr->vsmt);
                 }
-                kvmppc_hint_smt_possible(&local_err);
+                error_append_kvmppc_smt_possible_hint(&local_err);
                 goto out;
             }
         }
