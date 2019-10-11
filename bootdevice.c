@@ -53,7 +53,7 @@ void qemu_register_boot_set(QEMUBootSetHandler *func, void *opaque)
 
 void qemu_boot_set(const char *boot_order, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     if (!boot_set_handler) {
         error_setg(errp, "no function defined to set boot device list for"
@@ -61,9 +61,8 @@ void qemu_boot_set(const char *boot_order, Error **errp)
         return;
     }
 
-    validate_bootdevices(boot_order, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    validate_bootdevices(boot_order, errp);
+    if (*errp) {
         return;
     }
 
@@ -286,26 +285,23 @@ static void device_get_bootindex(Object *obj, Visitor *v, const char *name,
 static void device_set_bootindex(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BootIndexProperty *prop = opaque;
     int32_t boot_index;
-    Error *local_err = NULL;
 
-    visit_type_int32(v, name, &boot_index, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_int32(v, name, &boot_index, errp);
+    if (*errp) {
+        return;
     }
     /* check whether bootindex is present in fw_boot_order list  */
-    check_boot_index(boot_index, &local_err);
-    if (local_err) {
-        goto out;
+    check_boot_index(boot_index, errp);
+    if (*errp) {
+        return;
     }
     /* change bootindex to a new one */
     *prop->bootindex = boot_index;
 
     add_boot_device_path(*prop->bootindex, prop->dev, prop->suffix);
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static void property_release_bootindex(Object *obj, const char *name,
@@ -322,7 +318,7 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                                    const char *name, const char *suffix,
                                    DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     BootIndexProperty *prop = g_malloc0(sizeof(*prop));
 
     prop->bootindex = bootindex;
@@ -333,10 +329,9 @@ void device_add_bootindex_property(Object *obj, int32_t *bootindex,
                         device_get_bootindex,
                         device_set_bootindex,
                         property_release_bootindex,
-                        prop, &local_err);
+                        prop, errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         g_free(prop);
         return;
     }
