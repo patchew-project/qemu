@@ -8658,9 +8658,18 @@ static inline bool regime_translation_disabled(CPUARMState *env,
         }
     }
 
-    if (mmu_idx == ARMMMUIdx_S2NS) {
+    switch (mmu_idx) {
+    case ARMMMUIdx_S2NS:
         /* HCR.DC means HCR.VM behaves as 1 */
         return (env->cp15.hcr_el2 & (HCR_DC | HCR_VM)) == 0;
+
+    case ARMMMUIdx_TagS:
+    case ARMMMUIdx_TagNS:
+        /* These indexes are qemu internal, and are physically mapped.  */
+        return true;
+
+    default:
+        break;
     }
 
     if (env->cp15.hcr_el2 & HCR_TGE) {
@@ -10662,7 +10671,9 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
                    target_ulong *page_size,
                    ARMMMUFaultInfo *fi, ARMCacheAttrs *cacheattrs)
 {
-    if (mmu_idx == ARMMMUIdx_S12NSE0 || mmu_idx == ARMMMUIdx_S12NSE1) {
+    switch (mmu_idx) {
+    case ARMMMUIdx_S12NSE0:
+    case ARMMMUIdx_S12NSE1:
         /* Call ourselves recursively to do the stage 1 and then stage 2
          * translations.
          */
@@ -10713,6 +10724,16 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
              */
             mmu_idx = stage_1_mmu_idx(mmu_idx);
         }
+        break;
+
+    case ARMMMUIdx_TagS:
+    case ARMMMUIdx_TagNS:
+        /* Indicate tag memory to arm_asidx_from_attrs.  */
+        attrs->target_tlb_bit2 = true;
+        break;
+
+    default:
+        break;
     }
 
     /* The page table entries may downgrade secure to non-secure, but
