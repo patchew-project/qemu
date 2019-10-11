@@ -42,20 +42,19 @@ do { printf("virtio_bus: " fmt , ## __VA_ARGS__); } while (0)
 /* A VirtIODevice is being plugged */
 void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *qdev = DEVICE(vdev);
     BusState *qbus = BUS(qdev_get_parent_bus(qdev));
     VirtioBusState *bus = VIRTIO_BUS(qbus);
     VirtioBusClass *klass = VIRTIO_BUS_GET_CLASS(bus);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
     bool has_iommu = virtio_host_has_feature(vdev, VIRTIO_F_IOMMU_PLATFORM);
-    Error *local_err = NULL;
 
     DPRINTF("%s: plug device.\n", qbus->name);
 
     if (klass->pre_plugged != NULL) {
-        klass->pre_plugged(qbus->parent, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        klass->pre_plugged(qbus->parent, errp);
+        if (*errp) {
             return;
         }
     }
@@ -63,17 +62,15 @@ void virtio_bus_device_plugged(VirtIODevice *vdev, Error **errp)
     /* Get the features of the plugged device. */
     assert(vdc->get_features != NULL);
     vdev->host_features = vdc->get_features(vdev, vdev->host_features,
-                                            &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                            errp);
+    if (*errp) {
         return;
     }
 
     if (klass->device_plugged != NULL) {
-        klass->device_plugged(qbus->parent, &local_err);
+        klass->device_plugged(qbus->parent, errp);
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return;
     }
 

@@ -229,40 +229,38 @@ static void balloon_stats_poll_cb(void *opaque)
 static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     VirtIOBalloon *s = opaque;
     int i;
 
-    visit_start_struct(v, name, NULL, 0, &err);
-    if (err) {
-        goto out;
+    visit_start_struct(v, name, NULL, 0, errp);
+    if (*errp) {
+        return;
     }
-    visit_type_int(v, "last-update", &s->stats_last_update, &err);
-    if (err) {
+    visit_type_int(v, "last-update", &s->stats_last_update, errp);
+    if (*errp) {
         goto out_end;
     }
 
-    visit_start_struct(v, "stats", NULL, 0, &err);
-    if (err) {
+    visit_start_struct(v, "stats", NULL, 0, errp);
+    if (*errp) {
         goto out_end;
     }
     for (i = 0; i < VIRTIO_BALLOON_S_NR; i++) {
-        visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], &err);
-        if (err) {
+        visit_type_uint64(v, balloon_stat_names[i], &s->stats[i], errp);
+        if (*errp) {
             goto out_nested;
         }
     }
-    visit_check_struct(v, &err);
+    visit_check_struct(v, errp);
 out_nested:
     visit_end_struct(v, NULL);
 
-    if (!err) {
-        visit_check_struct(v, &err);
+    if (!*errp) {
+        visit_check_struct(v, errp);
     }
 out_end:
     visit_end_struct(v, NULL);
-out:
-    error_propagate(errp, err);
 }
 
 static void balloon_stats_get_poll_interval(Object *obj, Visitor *v,
@@ -277,13 +275,12 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOBalloon *s = opaque;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 

@@ -2606,24 +2606,22 @@ static void virtio_memory_listener_commit(MemoryListener *listener)
 
 static void virtio_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
-    Error *err = NULL;
 
     /* Devices should either use vmsd or the load/save methods */
     assert(!vdc->vmsd || !vdc->load);
 
     if (vdc->realize != NULL) {
-        vdc->realize(dev, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        vdc->realize(dev, errp);
+        if (*errp) {
             return;
         }
     }
 
-    virtio_bus_device_plugged(vdev, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    virtio_bus_device_plugged(vdev, errp);
+    if (*errp) {
         vdc->unrealize(dev, NULL);
         return;
     }
@@ -2634,16 +2632,15 @@ static void virtio_device_realize(DeviceState *dev, Error **errp)
 
 static void virtio_device_unrealize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(dev);
-    Error *err = NULL;
 
     virtio_bus_device_unplugged(vdev);
 
     if (vdc->unrealize != NULL) {
-        vdc->unrealize(dev, &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        vdc->unrealize(dev, errp);
+        if (*errp) {
             return;
         }
     }

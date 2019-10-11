@@ -1525,6 +1525,7 @@ static void virtio_pci_pre_plugged(DeviceState *d, Error **errp)
 /* This is called by virtio-bus just after the device is plugged. */
 static void virtio_pci_device_plugged(DeviceState *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     VirtioBusState *bus = &proxy->bus;
     bool legacy = virtio_pci_legacy(proxy);
@@ -1684,6 +1685,7 @@ static void virtio_pci_device_unplugged(DeviceState *d)
 
 static void virtio_pci_realize(PCIDevice *pci_dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOPCIProxy *proxy = VIRTIO_PCI(pci_dev);
     VirtioPCIClass *k = VIRTIO_PCI_GET_CLASS(pci_dev);
     bool pcie_port = pci_bus_is_express(pci_get_bus(pci_dev)) &&
