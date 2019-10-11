@@ -935,12 +935,12 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
 
 static void virtser_port_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOSerialPort *port = VIRTIO_SERIAL_PORT(dev);
     VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
     VirtIOSerialBus *bus = VIRTIO_SERIAL_BUS(qdev_get_parent_bus(dev));
     int max_nr_ports;
     bool plugging_port0;
-    Error *err = NULL;
 
     port->vser = bus->vser;
     port->bh = qemu_bh_new(flush_queued_data_bh, port);
@@ -986,9 +986,8 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    vsc->realize(dev, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    vsc->realize(dev, errp);
+    if (*errp) {
         return;
     }
 
