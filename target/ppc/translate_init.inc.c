@@ -9807,14 +9807,13 @@ static int ppc_fixup_cpu(PowerPCCPU *cpu)
 
 static void ppc_cpu_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
     if (cpu->vcpu_id == UNASSIGNED_CPU_INDEX) {
@@ -9828,9 +9827,8 @@ static void ppc_cpu_realize(DeviceState *dev, Error **errp)
         }
     }
 
-    create_ppc_opcodes(cpu, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    create_ppc_opcodes(cpu, errp);
+    if (*errp) {
         goto unrealize;
     }
     init_ppc_proc(cpu);
@@ -10033,15 +10031,14 @@ unrealize:
 
 static void ppc_cpu_unrealize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PowerPCCPU *cpu = POWERPC_CPU(dev);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
-    Error *local_err = NULL;
     opc_handler_t **table, **table_2;
     int i, j, k;
 
-    pcc->parent_unrealize(dev, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    pcc->parent_unrealize(dev, errp);
+    if (*errp) {
         return;
     }
 
@@ -10188,6 +10185,7 @@ static ObjectClass *ppc_cpu_class_by_name(const char *name)
 static void ppc_cpu_parse_featurestr(const char *type, char *features,
                                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Object *machine = qdev_get_machine();
     const PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(object_class_by_name(type));
 
@@ -10199,7 +10197,6 @@ static void ppc_cpu_parse_featurestr(const char *type, char *features,
         int i;
         char **inpieces;
         char *s = features;
-        Error *local_err = NULL;
         char *compat_str = NULL;
 
         /*
@@ -10227,11 +10224,10 @@ static void ppc_cpu_parse_featurestr(const char *type, char *features,
 
         if (compat_str) {
             char *v = compat_str + strlen("compat=");
-            object_property_set_str(machine, v, "max-cpu-compat", &local_err);
+            object_property_set_str(machine, v, "max-cpu-compat", errp);
         }
         g_strfreev(inpieces);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
     }

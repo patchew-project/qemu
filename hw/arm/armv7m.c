@@ -148,9 +148,9 @@ static void armv7m_instance_init(Object *obj)
 
 static void armv7m_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ARMv7MState *s = ARMV7M(dev);
     SysBusDevice *sbd;
-    Error *err = NULL;
     int i;
 
     if (!s->board_memory) {
@@ -161,50 +161,44 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
 
     s->cpu = ARM_CPU(object_new_with_props(s->cpu_type, OBJECT(s), "cpu",
-                                           &err, NULL));
-    if (err != NULL) {
-        error_propagate(errp, err);
+                                           errp, NULL));
+    if (*errp) {
         return;
     }
 
     object_property_set_link(OBJECT(s->cpu), OBJECT(&s->container), "memory",
                              &error_abort);
     if (object_property_find(OBJECT(s->cpu), "idau", NULL)) {
-        object_property_set_link(OBJECT(s->cpu), s->idau, "idau", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        object_property_set_link(OBJECT(s->cpu), s->idau, "idau", errp);
+        if (*errp) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "init-svtor", NULL)) {
         object_property_set_uint(OBJECT(s->cpu), s->init_svtor,
-                                 "init-svtor", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+                                 "init-svtor", errp);
+        if (*errp) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "start-powered-off", NULL)) {
         object_property_set_bool(OBJECT(s->cpu), s->start_powered_off,
-                                 "start-powered-off", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+                                 "start-powered-off", errp);
+        if (*errp) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "vfp", NULL)) {
         object_property_set_bool(OBJECT(s->cpu), s->vfp,
-                                 "vfp", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+                                 "vfp", errp);
+        if (*errp) {
             return;
         }
     }
     if (object_property_find(OBJECT(s->cpu), "dsp", NULL)) {
         object_property_set_bool(OBJECT(s->cpu), s->dsp,
-                                 "dsp", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+                                 "dsp", errp);
+        if (*errp) {
             return;
         }
     }
@@ -216,16 +210,14 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
     s->cpu->env.nvic = &s->nvic;
     s->nvic.cpu = s->cpu;
 
-    object_property_set_bool(OBJECT(s->cpu), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(s->cpu), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
     /* Note that we must realize the NVIC after the CPU */
-    object_property_set_bool(OBJECT(&s->nvic), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->nvic), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -250,16 +242,14 @@ static void armv7m_realize(DeviceState *dev, Error **errp)
             Object *obj = OBJECT(&s->bitband[i]);
             SysBusDevice *sbd = SYS_BUS_DEVICE(&s->bitband[i]);
 
-            object_property_set_int(obj, bitband_input_addr[i], "base", &err);
-            if (err != NULL) {
-                error_propagate(errp, err);
+            object_property_set_int(obj, bitband_input_addr[i], "base", errp);
+            if (*errp) {
                 return;
             }
             object_property_set_link(obj, OBJECT(s->board_memory),
                                      "source-memory", &error_abort);
-            object_property_set_bool(obj, true, "realized", &err);
-            if (err != NULL) {
-                error_propagate(errp, err);
+            object_property_set_bool(obj, true, "realized", errp);
+            if (*errp) {
                 return;
             }
 

@@ -265,11 +265,11 @@ static void milkymist_memcard_init(Object *obj)
 
 static void milkymist_memcard_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MilkymistMemcardState *s = MILKYMIST_MEMCARD(dev);
     DeviceState *carddev;
     BlockBackend *blk;
     DriveInfo *dinfo;
-    Error *err = NULL;
 
     qbus_create_inplace(&s->sdbus, sizeof(s->sdbus), TYPE_SD_BUS,
                         dev, "sd-bus");
@@ -279,10 +279,11 @@ static void milkymist_memcard_realize(DeviceState *dev, Error **errp)
     dinfo = drive_get_next(IF_SD);
     blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
     carddev = qdev_create(BUS(&s->sdbus), TYPE_SD_CARD);
-    qdev_prop_set_drive(carddev, "drive", blk, &err);
-    object_property_set_bool(OBJECT(carddev), true, "realized", &err);
-    if (err) {
-        error_setg(errp, "failed to init SD card: %s", error_get_pretty(err));
+    qdev_prop_set_drive(carddev, "drive", blk, errp);
+    object_property_set_bool(OBJECT(carddev), true, "realized", errp);
+    if (*errp) {
+        error_setg(errp, "failed to init SD card: %s",
+                   error_get_pretty(*errp));
         return;
     }
     s->enabled = blk && blk_is_inserted(blk);

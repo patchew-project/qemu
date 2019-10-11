@@ -1200,12 +1200,12 @@ static void arm_cpu_finalizefn(Object *obj)
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     ARMCPU *cpu = ARM_CPU(dev);
     ARMCPUClass *acc = ARM_CPU_GET_CLASS(dev);
     CPUARMState *env = &cpu->env;
     int pagebits;
-    Error *local_err = NULL;
     bool no_aa32 = false;
 
     /* If we needed to query the host kernel for the CPU features
@@ -1248,9 +1248,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                                           arm_gt_stimer_cb, cpu);
 #endif
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
 

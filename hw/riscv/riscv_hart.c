@@ -43,7 +43,7 @@ static void riscv_harts_cpu_reset(void *opaque)
 static void riscv_hart_realize(RISCVHartArrayState *s, int idx,
                                char *cpu_type, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     object_initialize_child(OBJECT(s), "harts[*]", &s->harts[idx],
                             sizeof(RISCVCPU), cpu_type,
@@ -51,9 +51,8 @@ static void riscv_hart_realize(RISCVHartArrayState *s, int idx,
     s->harts[idx].env.mhartid = s->hartid_base + idx;
     qemu_register_reset(riscv_harts_cpu_reset, &s->harts[idx]);
     object_property_set_bool(OBJECT(&s->harts[idx]), true,
-                             "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+                             "realized", errp);
+    if (*errp) {
         return;
     }
 }

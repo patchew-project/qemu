@@ -67,11 +67,11 @@ static bool cpu_mips_itu_supported(CPUMIPSState *env)
 
 static void mips_cps_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MIPSCPSState *s = MIPS_CPS(dev);
     CPUMIPSState *env;
     MIPSCPU *cpu;
     int i;
-    Error *err = NULL;
     target_ulong gcr_base;
     bool itu_present = false;
     bool saar_present = false;
@@ -101,16 +101,15 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     if (itu_present) {
         sysbus_init_child_obj(OBJECT(dev), "itu", &s->itu, sizeof(s->itu),
                               TYPE_MIPS_ITU);
-        object_property_set_int(OBJECT(&s->itu), 16, "num-fifo", &err);
-        object_property_set_int(OBJECT(&s->itu), 16, "num-semaphores", &err);
+        object_property_set_int(OBJECT(&s->itu), 16, "num-fifo", errp);
+        object_property_set_int(OBJECT(&s->itu), 16, "num-semaphores", errp);
         object_property_set_bool(OBJECT(&s->itu), saar_present, "saar-present",
-                                 &err);
+                                 errp);
         if (saar_present) {
             qdev_prop_set_ptr(DEVICE(&s->itu), "saar", (void *)&env->CP0_SAAR);
         }
-        object_property_set_bool(OBJECT(&s->itu), true, "realized", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->itu), true, "realized", errp);
+        if (*errp) {
             return;
         }
 
@@ -121,11 +120,10 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     /* Cluster Power Controller */
     sysbus_init_child_obj(OBJECT(dev), "cpc", &s->cpc, sizeof(s->cpc),
                           TYPE_MIPS_CPC);
-    object_property_set_int(OBJECT(&s->cpc), s->num_vp, "num-vp", &err);
-    object_property_set_int(OBJECT(&s->cpc), 1, "vp-start-running", &err);
-    object_property_set_bool(OBJECT(&s->cpc), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_int(OBJECT(&s->cpc), s->num_vp, "num-vp", errp);
+    object_property_set_int(OBJECT(&s->cpc), 1, "vp-start-running", errp);
+    object_property_set_bool(OBJECT(&s->cpc), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -135,11 +133,10 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
     /* Global Interrupt Controller */
     sysbus_init_child_obj(OBJECT(dev), "gic", &s->gic, sizeof(s->gic),
                           TYPE_MIPS_GIC);
-    object_property_set_int(OBJECT(&s->gic), s->num_vp, "num-vp", &err);
-    object_property_set_int(OBJECT(&s->gic), 128, "num-irq", &err);
-    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_int(OBJECT(&s->gic), s->num_vp, "num-vp", errp);
+    object_property_set_int(OBJECT(&s->gic), 128, "num-irq", errp);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -151,14 +148,13 @@ static void mips_cps_realize(DeviceState *dev, Error **errp)
 
     sysbus_init_child_obj(OBJECT(dev), "gcr", &s->gcr, sizeof(s->gcr),
                           TYPE_MIPS_GCR);
-    object_property_set_int(OBJECT(&s->gcr), s->num_vp, "num-vp", &err);
-    object_property_set_int(OBJECT(&s->gcr), 0x800, "gcr-rev", &err);
-    object_property_set_int(OBJECT(&s->gcr), gcr_base, "gcr-base", &err);
-    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->gic.mr), "gic", &err);
-    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->cpc.mr), "cpc", &err);
-    object_property_set_bool(OBJECT(&s->gcr), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_int(OBJECT(&s->gcr), s->num_vp, "num-vp", errp);
+    object_property_set_int(OBJECT(&s->gcr), 0x800, "gcr-rev", errp);
+    object_property_set_int(OBJECT(&s->gcr), gcr_base, "gcr-base", errp);
+    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->gic.mr), "gic", errp);
+    object_property_set_link(OBJECT(&s->gcr), OBJECT(&s->cpc.mr), "cpc", errp);
+    object_property_set_bool(OBJECT(&s->gcr), true, "realized", errp);
+    if (*errp) {
         return;
     }
 

@@ -49,12 +49,12 @@ static void a15mp_priv_initfn(Object *obj)
 
 static void a15mp_priv_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     A15MPPrivState *s = A15MPCORE_PRIV(dev);
     DeviceState *gicdev;
     SysBusDevice *busdev;
     int i;
-    Error *err = NULL;
     bool has_el3;
     bool has_el2 = false;
     Object *cpuobj;
@@ -77,9 +77,8 @@ static void a15mp_priv_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_bit(gicdev, "has-virtualization-extensions", has_el2);
     }
 
-    object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->gic), true, "realized", errp);
+    if (*errp) {
         return;
     }
     busdev = SYS_BUS_DEVICE(&s->gic);

@@ -71,15 +71,14 @@ static bool tricore_cpu_has_work(CPUState *cs)
 
 static void tricore_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     TriCoreCPU *cpu = TRICORE_CPU(dev);
     TriCoreCPUClass *tcc = TRICORE_CPU_GET_CLASS(dev);
     CPUTriCoreState *env = &cpu->env;
-    Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
 

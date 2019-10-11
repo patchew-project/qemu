@@ -134,9 +134,9 @@ static void riscv_sifive_e_soc_init(Object *obj)
 
 static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *ms = MACHINE(qdev_get_machine());
     const struct MemmapEntry *memmap = sifive_e_memmap;
-    Error *err = NULL;
 
     SiFiveESoCState *s = RISCV_E_SOC(dev);
     MemoryRegion *sys_mem = get_system_memory();
@@ -171,9 +171,8 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
     /* GPIO */
 
-    object_property_set_bool(OBJECT(&s->gpio), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->gpio), true, "realized", errp);
+    if (*errp) {
         return;
     }
 

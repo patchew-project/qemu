@@ -1376,8 +1376,8 @@ void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 
 static void pc_new_cpu(PCMachineState *pcms, int64_t apic_id, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Object *cpu = NULL;
-    Error *local_err = NULL;
     CPUX86State *env = NULL;
 
     cpu = object_new(MACHINE(pcms)->cpu_type);
@@ -1385,11 +1385,10 @@ static void pc_new_cpu(PCMachineState *pcms, int64_t apic_id, Error **errp)
     env = &X86_CPU(cpu)->env;
     env->nr_dies = pcms->smp_dies;
 
-    object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
-    object_property_set_bool(cpu, true, "realized", &local_err);
+    object_property_set_uint(cpu, apic_id, "apic-id", errp);
+    object_property_set_bool(cpu, true, "realized", errp);
 
     object_unref(cpu);
-    error_propagate(errp, local_err);
 }
 
 /*
@@ -1474,9 +1473,9 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
 
 void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCMachineState *pcms = PC_MACHINE(ms);
     int64_t apic_id = x86_cpu_apic_id_from_index(pcms, id);
-    Error *local_err = NULL;
 
     if (id < 0) {
         error_setg(errp, "Invalid CPU id: %" PRIi64, id);
@@ -1490,9 +1489,8 @@ void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
         return;
     }
 
-    pc_new_cpu(PC_MACHINE(ms), apic_id, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    pc_new_cpu(PC_MACHINE(ms), apic_id, errp);
+    if (*errp) {
         return;
     }
 }
@@ -1990,12 +1988,12 @@ void ioapic_init_gsi(GSIState *gsi_state, const char *parent_name)
 static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     const PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     const MachineState *ms = MACHINE(hotplug_dev);
     const bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
     const uint64_t legacy_align = TARGET_PAGE_SIZE;
-    Error *local_err = NULL;
 
     /*
      * When -no-acpi is used with Q35 machine type, no ACPI is built,
@@ -2013,9 +2011,8 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
         return;
     }
 
-    hotplug_handler_pre_plug(pcms->acpi_dev, dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    hotplug_handler_pre_plug(pcms->acpi_dev, dev, errp);
+    if (*errp) {
         return;
     }
 
@@ -2026,14 +2023,14 @@ static void pc_memory_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
 static void pc_memory_plug(HotplugHandler *hotplug_dev,
                            DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
     MachineState *ms = MACHINE(hotplug_dev);
     bool is_nvdimm = object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM);
 
-    pc_dimm_plug(PC_DIMM(dev), MACHINE(pcms), &local_err);
-    if (local_err) {
-        goto out;
+    pc_dimm_plug(PC_DIMM(dev), MACHINE(pcms), errp);
+    if (*errp) {
+        return;
     }
 
     if (is_nvdimm) {
@@ -2041,14 +2038,12 @@ static void pc_memory_plug(HotplugHandler *hotplug_dev,
     }
 
     hotplug_handler_plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &error_abort);
-out:
-    error_propagate(errp, local_err);
 }
 
 static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
     /*
@@ -2057,38 +2052,34 @@ static void pc_memory_unplug_request(HotplugHandler *hotplug_dev,
      * addition to cover this case.
      */
     if (!pcms->acpi_dev || !acpi_enabled) {
-        error_setg(&local_err,
+        error_setg(errp,
                    "memory hotplug is not enabled: missing acpi device or acpi disabled");
-        goto out;
+        return;
     }
 
     if (object_dynamic_cast(OBJECT(dev), TYPE_NVDIMM)) {
-        error_setg(&local_err,
+        error_setg(errp,
                    "nvdimm device hot unplug is not supported yet.");
-        goto out;
+        return;
     }
 
     hotplug_handler_unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev,
-                                   &local_err);
-out:
-    error_propagate(errp, local_err);
+                                   errp);
 }
 
 static void pc_memory_unplug(HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
-    Error *local_err = NULL;
 
-    hotplug_handler_unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
-    if (local_err) {
-        goto out;
+    hotplug_handler_unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, errp);
+    if (*errp) {
+        return;
     }
 
     pc_dimm_unplug(PC_DIMM(dev), MACHINE(pcms));
     object_property_set_bool(OBJECT(dev), false, "realized", NULL);
- out:
-    error_propagate(errp, local_err);
 }
 
 static int pc_apic_cmp(const void *a, const void *b)
@@ -2120,15 +2111,15 @@ static CPUArchId *pc_find_cpu_slot(MachineState *ms, uint32_t id, int *idx)
 static void pc_cpu_plug(HotplugHandler *hotplug_dev,
                         DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUArchId *found_cpu;
-    Error *local_err = NULL;
     X86CPU *cpu = X86_CPU(dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
     if (pcms->acpi_dev) {
-        hotplug_handler_plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
-        if (local_err) {
-            goto out;
+        hotplug_handler_plug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, errp);
+        if (*errp) {
+            return;
         }
     }
 
@@ -2143,51 +2134,46 @@ static void pc_cpu_plug(HotplugHandler *hotplug_dev,
 
     found_cpu = pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, NULL);
     found_cpu->cpu = OBJECT(dev);
-out:
-    error_propagate(errp, local_err);
 }
 static void pc_cpu_unplug_request_cb(HotplugHandler *hotplug_dev,
                                      DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int idx = -1;
-    Error *local_err = NULL;
     X86CPU *cpu = X86_CPU(dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
     if (!pcms->acpi_dev) {
-        error_setg(&local_err, "CPU hot unplug not supported without ACPI");
-        goto out;
+        error_setg(errp, "CPU hot unplug not supported without ACPI");
+        return;
     }
 
     pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, &idx);
     assert(idx != -1);
     if (idx == 0) {
-        error_setg(&local_err, "Boot CPU is unpluggable");
-        goto out;
+        error_setg(errp, "Boot CPU is unpluggable");
+        return;
     }
 
     hotplug_handler_unplug_request(HOTPLUG_HANDLER(pcms->acpi_dev), dev,
-                                   &local_err);
-    if (local_err) {
-        goto out;
+                                   errp);
+    if (*errp) {
+        return;
     }
-
- out:
-    error_propagate(errp, local_err);
 
 }
 
 static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
                              DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUArchId *found_cpu;
-    Error *local_err = NULL;
     X86CPU *cpu = X86_CPU(dev);
     PCMachineState *pcms = PC_MACHINE(hotplug_dev);
 
-    hotplug_handler_unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, &local_err);
-    if (local_err) {
-        goto out;
+    hotplug_handler_unplug(HOTPLUG_HANDLER(pcms->acpi_dev), dev, errp);
+    if (*errp) {
+        return;
     }
 
     found_cpu = pc_find_cpu_slot(MACHINE(pcms), cpu->apic_id, NULL);
@@ -2199,8 +2185,6 @@ static void pc_cpu_unplug_cb(HotplugHandler *hotplug_dev,
     /* Update the number of CPUs in CMOS */
     rtc_set_cpus_count(pcms->rtc, pcms->boot_cpus);
     fw_cfg_modify_i16(pcms->fw_cfg, FW_CFG_NB_CPUS, pcms->boot_cpus);
- out:
-    error_propagate(errp, local_err);
 }
 
 static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
@@ -2353,8 +2337,8 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
 static void pc_virtio_pmem_pci_pre_plug(HotplugHandler *hotplug_dev,
                                         DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HotplugHandler *hotplug_dev2 = qdev_get_bus_hotplug_handler(dev);
-    Error *local_err = NULL;
 
     if (!hotplug_dev2) {
         /*
@@ -2370,18 +2354,17 @@ static void pc_virtio_pmem_pci_pre_plug(HotplugHandler *hotplug_dev,
      * succeeds, branch of to the actual hotplug handler.
      */
     memory_device_pre_plug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev), NULL,
-                           &local_err);
-    if (!local_err) {
-        hotplug_handler_pre_plug(hotplug_dev2, dev, &local_err);
+                           errp);
+    if (!*errp) {
+        hotplug_handler_pre_plug(hotplug_dev2, dev, errp);
     }
-    error_propagate(errp, local_err);
 }
 
 static void pc_virtio_pmem_pci_plug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HotplugHandler *hotplug_dev2 = qdev_get_bus_hotplug_handler(dev);
-    Error *local_err = NULL;
 
     /*
      * Plug the memory device first and then branch off to the actual
@@ -2389,11 +2372,10 @@ static void pc_virtio_pmem_pci_plug(HotplugHandler *hotplug_dev,
      * device bits.
      */
     memory_device_plug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
-    hotplug_handler_plug(hotplug_dev2, dev, &local_err);
-    if (local_err) {
+    hotplug_handler_plug(hotplug_dev2, dev, errp);
+    if (*errp) {
         memory_device_unplug(MEMORY_DEVICE(dev), MACHINE(hotplug_dev));
     }
-    error_propagate(errp, local_err);
 }
 
 static void pc_virtio_pmem_pci_unplug_request(HotplugHandler *hotplug_dev,
@@ -2504,20 +2486,18 @@ static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCMachineState *pcms = PC_MACHINE(obj);
-    Error *error = NULL;
     uint64_t value;
 
-    visit_type_size(v, name, &value, &error);
-    if (error) {
-        error_propagate(errp, error);
+    visit_type_size(v, name, &value, errp);
+    if (*errp) {
         return;
     }
     if (value > 4 * GiB) {
-        error_setg(&error,
+        error_setg(errp,
                    "Machine option 'max-ram-below-4g=%"PRIu64
                    "' expects size less than or equal to 4G", value);
-        error_propagate(errp, error);
         return;
     }
 

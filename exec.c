@@ -2239,10 +2239,10 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
 
 static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
 {
+    ERRP_AUTO_PROPAGATE();
     RAMBlock *block;
     RAMBlock *last_block = NULL;
     ram_addr_t old_ram_size, new_ram_size;
-    Error *err = NULL;
 
     old_ram_size = last_ram_page();
 
@@ -2252,9 +2252,8 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
     if (!new_block->host) {
         if (xen_enabled()) {
             xen_ram_alloc(new_block->offset, new_block->max_length,
-                          new_block->mr, &err);
-            if (err) {
-                error_propagate(errp, err);
+                          new_block->mr, errp);
+            if (*errp) {
                 qemu_mutex_unlock_ramlist();
                 return;
             }
@@ -2319,8 +2318,8 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
                                  uint32_t ram_flags, int fd,
                                  Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     RAMBlock *new_block;
-    Error *local_err = NULL;
     int64_t file_size;
 
     /* Just support these ram flags by now. */
@@ -2368,10 +2367,9 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         return NULL;
     }
 
-    ram_block_add(new_block, &local_err, ram_flags & RAM_SHARED);
-    if (local_err) {
+    ram_block_add(new_block, errp, ram_flags & RAM_SHARED);
+    if (*errp) {
         g_free(new_block);
-        error_propagate(errp, local_err);
         return NULL;
     }
     return new_block;
@@ -2413,8 +2411,8 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
                                   void *host, bool resizeable, bool share,
                                   MemoryRegion *mr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     RAMBlock *new_block;
-    Error *local_err = NULL;
 
     size = HOST_PAGE_ALIGN(size);
     max_size = HOST_PAGE_ALIGN(max_size);
@@ -2433,10 +2431,9 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
     if (resizeable) {
         new_block->flags |= RAM_RESIZEABLE;
     }
-    ram_block_add(new_block, &local_err, share);
-    if (local_err) {
+    ram_block_add(new_block, errp, share);
+    if (*errp) {
         g_free(new_block);
-        error_propagate(errp, local_err);
         return NULL;
     }
     return new_block;

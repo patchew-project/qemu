@@ -65,13 +65,13 @@ static void altera_iic_init(Object *obj)
 
 static void altera_iic_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct AlteraIIC *pv = ALTERA_IIC(dev);
-    Error *err = NULL;
 
-    pv->cpu = object_property_get_link(OBJECT(dev), "cpu", &err);
+    pv->cpu = object_property_get_link(OBJECT(dev), "cpu", errp);
     if (!pv->cpu) {
         error_setg(errp, "altera,iic: CPU link not found: %s",
-                   error_get_pretty(err));
+                   error_get_pretty(*errp));
         return;
     }
 }

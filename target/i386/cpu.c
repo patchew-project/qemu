@@ -3391,16 +3391,15 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
                                          const char *name, void *opaque,
                                          Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     const int64_t min = 0;
     const int64_t max = 0xff + 0xf;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
     if (value < min || value > max) {
@@ -3434,16 +3433,15 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     const int64_t min = 0;
     const int64_t max = 0xff;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
     if (value < min || value > max) {
@@ -3472,16 +3470,15 @@ static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
                                            const char *name, void *opaque,
                                            Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *cpu = X86_CPU(obj);
     CPUX86State *env = &cpu->env;
     const int64_t min = 0;
     const int64_t max = 0xf;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
     if (value < min || value > max) {
@@ -3578,15 +3575,14 @@ static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, const char *name,
 static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *cpu = X86_CPU(obj);
     const int64_t min = 0;
     const int64_t max = INT64_MAX;
-    Error *local_err = NULL;
     int64_t value;
 
-    visit_type_int(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_int(v, name, &value, errp);
+    if (*errp) {
         return;
     }
     if (value < min || value > max) {
@@ -4247,49 +4243,46 @@ static void x86_cpu_to_dict_full(X86CPU *cpu, QDict *props)
 
 static void object_apply_props(Object *obj, QDict *props, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const QDictEntry *prop;
-    Error *err = NULL;
 
     for (prop = qdict_first(props); prop; prop = qdict_next(props, prop)) {
         object_property_set_qobject(obj, qdict_entry_value(prop),
-                                         qdict_entry_key(prop), &err);
-        if (err) {
+                                         qdict_entry_key(prop), errp);
+        if (*errp) {
             break;
         }
     }
-
-    error_propagate(errp, err);
 }
 
 /* Create X86CPU object according to model+props specification */
 static X86CPU *x86_cpu_from_model(const char *model, QDict *props, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *xc = NULL;
     X86CPUClass *xcc;
-    Error *err = NULL;
 
     xcc = X86_CPU_CLASS(cpu_class_by_name(TYPE_X86_CPU, model));
     if (xcc == NULL) {
-        error_setg(&err, "CPU model '%s' not found", model);
+        error_setg(errp, "CPU model '%s' not found", model);
         goto out;
     }
 
     xc = X86_CPU(object_new(object_class_get_name(OBJECT_CLASS(xcc))));
     if (props) {
-        object_apply_props(OBJECT(xc), props, &err);
-        if (err) {
+        object_apply_props(OBJECT(xc), props, errp);
+        if (*errp) {
             goto out;
         }
     }
 
-    x86_cpu_expand_features(xc, &err);
-    if (err) {
+    x86_cpu_expand_features(xc, errp);
+    if (*errp) {
         goto out;
     }
 
 out:
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         object_unref(OBJECT(xc));
         xc = NULL;
     }
@@ -4301,8 +4294,8 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
                                                       CpuModelInfo *model,
                                                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *xc = NULL;
-    Error *err = NULL;
     CpuModelExpansionInfo *ret = g_new0(CpuModelExpansionInfo, 1);
     QDict *props = NULL;
     const char *base_name;
@@ -4310,8 +4303,8 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     xc = x86_cpu_from_model(model->name,
                             model->has_props ?
                                 qobject_to(QDict, model->props) :
-                                NULL, &err);
-    if (err) {
+                                NULL, errp);
+    if (*errp) {
         goto out;
     }
 
@@ -4335,7 +4328,7 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
         x86_cpu_to_dict_full(xc, props);
     break;
     default:
-        error_setg(&err, "Unsupported expansion type");
+        error_setg(errp, "Unsupported expansion type");
         goto out;
     }
 
@@ -4345,8 +4338,7 @@ qmp_query_cpu_model_expansion(CpuModelExpansionType type,
 
 out:
     object_unref(OBJECT(xc));
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         qapi_free_CpuModelExpansionInfo(ret);
         ret = NULL;
     }
@@ -5297,24 +5289,24 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
  */
 static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUX86State *env = &cpu->env;
     FeatureWord w;
     int i;
     GList *l;
-    Error *local_err = NULL;
 
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), true, prop, &local_err);
-        if (local_err) {
+        object_property_set_bool(OBJECT(cpu), true, prop, errp);
+        if (*errp) {
             goto out;
         }
     }
 
     for (l = minus_features; l; l = l->next) {
         const char *prop = l->data;
-        object_property_set_bool(OBJECT(cpu), false, prop, &local_err);
-        if (local_err) {
+        object_property_set_bool(OBJECT(cpu), false, prop, errp);
+        if (*errp) {
             goto out;
         }
     }
@@ -5410,8 +5402,7 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     }
 
 out:
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    if (*errp) {
     }
 }
 
@@ -5471,17 +5462,17 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
 
 static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
     CPUX86State *env = &cpu->env;
-    Error *local_err = NULL;
     static bool ht_warned;
 
     if (xcc->host_cpuid_required) {
         if (!accel_uses_host_cpuid()) {
             char *name = x86_cpu_class_get_model_name(xcc);
-            error_setg(&local_err, "CPU model '%s' requires KVM", name);
+            error_setg(errp, "CPU model '%s' requires KVM", name);
             g_free(name);
             goto out;
         }
@@ -5502,15 +5493,15 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    x86_cpu_expand_features(cpu, &local_err);
-    if (local_err) {
+    x86_cpu_expand_features(cpu, errp);
+    if (*errp) {
         goto out;
     }
 
     x86_cpu_filter_features(cpu, cpu->check_cpuid || cpu->enforce_cpuid);
 
     if (cpu->enforce_cpuid && x86_cpu_have_filtered_features(cpu)) {
-        error_setg(&local_err,
+        error_setg(errp,
                    accel_uses_host_cpuid() ?
                        "Host doesn't support requested features" :
                        "TCG doesn't support requested features");
@@ -5625,9 +5616,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     }
 
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
 
@@ -5636,8 +5626,8 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
     qemu_register_reset(x86_cpu_machine_reset_cb, cpu);
 
     if (cpu->env.features[FEAT_1_EDX] & CPUID_APIC || ms->smp.cpus > 1) {
-        x86_cpu_apic_create(cpu, &local_err);
-        if (local_err != NULL) {
+        x86_cpu_apic_create(cpu, errp);
+        if (*errp) {
             goto out;
         }
     }
@@ -5694,26 +5684,25 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
             ht_warned = true;
     }
 
-    x86_cpu_apic_realize(cpu, &local_err);
-    if (local_err != NULL) {
+    x86_cpu_apic_realize(cpu, errp);
+    if (*errp) {
         goto out;
     }
     cpu_reset(cs);
 
-    xcc->parent_realize(dev, &local_err);
+    xcc->parent_realize(dev, errp);
 
 out:
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return;
     }
 }
 
 static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     X86CPU *cpu = X86_CPU(dev);
     X86CPUClass *xcc = X86_CPU_GET_CLASS(dev);
-    Error *local_err = NULL;
 
 #ifndef CONFIG_USER_ONLY
     cpu_remove_sync(CPU(dev));
@@ -5725,9 +5714,8 @@ static void x86_cpu_unrealizefn(DeviceState *dev, Error **errp)
         cpu->apic_state = NULL;
     }
 
-    xcc->parent_unrealize(dev, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    xcc->parent_unrealize(dev, errp);
+    if (*errp) {
         return;
     }
 }
@@ -5750,10 +5738,10 @@ static void x86_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
 static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
-    Error *local_err = NULL;
     bool value;
 
     if (dev->realized) {
@@ -5761,9 +5749,8 @@ static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_bool(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 

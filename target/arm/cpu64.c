@@ -266,17 +266,16 @@ static void cpu_max_get_sve_vq(Object *obj, Visitor *v, const char *name,
 static void cpu_max_set_sve_vq(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ARMCPU *cpu = ARM_CPU(obj);
-    Error *err = NULL;
 
-    visit_type_uint32(v, name, &cpu->sve_max_vq, &err);
+    visit_type_uint32(v, name, &cpu->sve_max_vq, errp);
 
-    if (!err && (cpu->sve_max_vq == 0 || cpu->sve_max_vq > ARM_MAX_VQ)) {
-        error_setg(&err, "unsupported SVE vector length");
-        error_append_hint(&err, "Valid sve-max-vq in range [1-%d]\n",
+    if (!*errp && (cpu->sve_max_vq == 0 || cpu->sve_max_vq > ARM_MAX_VQ)) {
+        error_setg(errp, "unsupported SVE vector length");
+        error_append_hint(errp, "Valid sve-max-vq in range [1-%d]\n",
                           ARM_MAX_VQ);
     }
-    error_propagate(errp, err);
 }
 
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);

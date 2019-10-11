@@ -421,13 +421,12 @@ void smmu_inv_notifiers_all(SMMUState *s)
 
 static void smmu_base_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SMMUState *s = ARM_SMMU(dev);
     SMMUBaseClass *sbc = ARM_SMMU_GET_CLASS(dev);
-    Error *local_err = NULL;
 
-    sbc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    sbc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
     s->configs = g_hash_table_new_full(NULL, NULL, NULL, g_free);

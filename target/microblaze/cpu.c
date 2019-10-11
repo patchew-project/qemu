@@ -140,6 +140,7 @@ static void mb_disas_set_info(CPUState *cpu, disassemble_info *info)
 
 static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     MicroBlazeCPUClass *mcc = MICROBLAZE_CPU_GET_CLASS(dev);
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
@@ -147,11 +148,9 @@ static void mb_cpu_realizefn(DeviceState *dev, Error **errp)
     uint8_t version_code = 0;
     const char *version;
     int i = 0;
-    Error *local_err = NULL;
 
-    cpu_exec_realizefn(cs, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
         return;
     }
 

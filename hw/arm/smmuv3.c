@@ -1385,15 +1385,14 @@ static void smmu_reset(DeviceState *dev)
 
 static void smmu_realize(DeviceState *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SMMUState *sys = ARM_SMMU(d);
     SMMUv3State *s = ARM_SMMUV3(sys);
     SMMUv3Class *c = ARM_SMMUV3_GET_CLASS(s);
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
-    Error *local_err = NULL;
 
-    c->parent_realize(d, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    c->parent_realize(d, errp);
+    if (*errp) {
         return;
     }
 
