@@ -87,12 +87,11 @@ void qemu_input_handler_bind(QemuInputHandlerState *s,
                              const char *device_id, int head,
                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QemuConsole *con;
-    Error *err = NULL;
 
-    con = qemu_console_lookup_by_device_name(device_id, head, &err);
-    if (err) {
-        error_propagate(errp, err);
+    con = qemu_console_lookup_by_device_name(device_id, head, errp);
+    if (*errp) {
         return;
     }
 
@@ -128,18 +127,17 @@ void qmp_input_send_event(bool has_device, const char *device,
                           bool has_head, int64_t head,
                           InputEventList *events, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     InputEventList *e;
     QemuConsole *con;
-    Error *err = NULL;
 
     con = NULL;
     if (has_device) {
         if (!has_head) {
             head = 0;
         }
-        con = qemu_console_lookup_by_device_name(device, head, &err);
-        if (err) {
-            error_propagate(errp, err);
+        con = qemu_console_lookup_by_device_name(device, head, errp);
+        if (*errp) {
             return;
         }
     }

@@ -3795,6 +3795,7 @@ static int vnc_display_listen(VncDisplay *vd,
 
 void vnc_display_open(const char *id, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VncDisplay *vd = vnc_display_find(id);
     QemuOpts *opts = qemu_opts_find(&qemu_vnc_opts, id);
     SocketAddress **saddr = NULL, **wsaddr = NULL;
@@ -4008,11 +4009,9 @@ void vnc_display_open(const char *id, Error **errp)
     device_id = qemu_opt_get(opts, "display");
     if (device_id) {
         int head = qemu_opt_get_number(opts, "head", 0);
-        Error *err = NULL;
 
-        con = qemu_console_lookup_by_device_name(device_id, head, &err);
-        if (err) {
-            error_propagate(errp, err);
+        con = qemu_console_lookup_by_device_name(device_id, head, errp);
+        if (*errp) {
             goto fail;
         }
     } else {
@@ -4106,18 +4105,16 @@ QemuOpts *vnc_parse(const char *str, Error **errp)
 
 int vnc_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     char *id = (char *)qemu_opts_id(opts);
 
     assert(id);
-    vnc_display_init(id, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    vnc_display_init(id, errp);
+    if (*errp) {
         return -1;
     }
-    vnc_display_open(id, &local_err);
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    vnc_display_open(id, errp);
+    if (*errp) {
         return -1;
     }
     return 0;
