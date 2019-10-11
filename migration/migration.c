@@ -583,6 +583,7 @@ void migration_fd_process_incoming(QEMUFile *f)
 
 void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MigrationIncomingState *mis = migration_incoming_get_current();
     bool start_migration;
 
@@ -603,12 +604,10 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp)
          */
         start_migration = !migrate_use_multifd();
     } else {
-        Error *local_err = NULL;
         /* Multiple connections */
         assert(migrate_use_multifd());
-        start_migration = multifd_recv_new_channel(ioc, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        start_migration = multifd_recv_new_channel(ioc, errp);
+        if (*errp) {
             return;
         }
     }
@@ -971,6 +970,7 @@ static bool migrate_caps_check(bool *cap_list,
                                MigrationCapabilityStatusList *params,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MigrationCapabilityStatusList *cap;
     bool old_postcopy_cap;
     MigrationIncomingState *mis = migration_incoming_get_current();
@@ -1764,7 +1764,7 @@ void migrate_del_blocker(Error *reason)
 
 void qmp_migrate_incoming(const char *uri, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     static bool once = true;
 
     if (!deferred_incoming) {
@@ -1775,10 +1775,9 @@ void qmp_migrate_incoming(const char *uri, Error **errp)
         error_setg(errp, "The incoming migration has already been started");
     }
 
-    qemu_start_incoming_migration(uri, &local_err);
+    qemu_start_incoming_migration(uri, errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return;
     }
 
@@ -1856,7 +1855,7 @@ bool migration_is_blocked(Error **errp)
 static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                             bool resume, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     if (resume) {
         if (s->state != MIGRATION_STATUS_POSTCOPY_PAUSED) {
@@ -1909,9 +1908,8 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
                        "current migration capabilities");
             return false;
         }
-        migrate_set_block_enabled(true, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        migrate_set_block_enabled(true, errp);
+        if (*errp) {
             return false;
         }
         s->must_remove_block_options = true;
@@ -1935,7 +1933,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
                  bool has_inc, bool inc, bool has_detach, bool detach,
                  bool has_resume, bool resume, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     MigrationState *s = migrate_get_current();
     const char *p;
 
@@ -1946,17 +1944,17 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (strstart(uri, "tcp:", &p)) {
-        tcp_start_outgoing_migration(s, p, &local_err);
+        tcp_start_outgoing_migration(s, p, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
-        rdma_start_outgoing_migration(s, p, &local_err);
+        rdma_start_outgoing_migration(s, p, errp);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
-        exec_start_outgoing_migration(s, p, &local_err);
+        exec_start_outgoing_migration(s, p, errp);
     } else if (strstart(uri, "unix:", &p)) {
-        unix_start_outgoing_migration(s, p, &local_err);
+        unix_start_outgoing_migration(s, p, errp);
     } else if (strstart(uri, "fd:", &p)) {
-        fd_start_outgoing_migration(s, p, &local_err);
+        fd_start_outgoing_migration(s, p, errp);
     } else {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
@@ -1966,9 +1964,8 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         return;
     }
 
-    if (local_err) {
-        migrate_fd_error(s, local_err);
-        error_propagate(errp, local_err);
+    if (*errp) {
+        migrate_fd_error(s, *errp);
         return;
     }
 }

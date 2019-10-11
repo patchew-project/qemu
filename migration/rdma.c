@@ -2396,8 +2396,9 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
 
 static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret, idx;
-    Error *local_err = NULL, **temp = &local_err;
+    Error **temp = errp;
 
     /*
      * Will be validated against destination's actual capabilities
@@ -2450,7 +2451,6 @@ static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
     return 0;
 
 err_rdma_source_init:
-    error_propagate(errp, local_err);
     qemu_rdma_cleanup(rdma);
     return -1;
 }
@@ -4044,18 +4044,18 @@ static void rdma_accept_incoming_migration(void *opaque)
 
 void rdma_start_incoming_migration(const char *host_port, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     RDMAContext *rdma, *rdma_return_path = NULL;
-    Error *local_err = NULL;
 
     trace_rdma_start_incoming_migration();
-    rdma = qemu_rdma_data_init(host_port, &local_err);
+    rdma = qemu_rdma_data_init(host_port, errp);
 
     if (rdma == NULL) {
         goto err;
     }
 
-    ret = qemu_rdma_dest_init(rdma, &local_err);
+    ret = qemu_rdma_dest_init(rdma, errp);
 
     if (ret) {
         goto err;
@@ -4074,7 +4074,7 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
 
     /* initialize the RDMAContext for return path */
     if (migrate_postcopy()) {
-        rdma_return_path = qemu_rdma_data_init(host_port, &local_err);
+        rdma_return_path = qemu_rdma_data_init(host_port, errp);
 
         if (rdma_return_path == NULL) {
             goto err;
@@ -4087,7 +4087,6 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
                         NULL, (void *)(intptr_t)rdma);
     return;
 err:
-    error_propagate(errp, local_err);
     g_free(rdma);
     g_free(rdma_return_path);
 }

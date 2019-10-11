@@ -139,12 +139,11 @@ void tcp_start_outgoing_migration(MigrationState *s,
                                   const char *host_port,
                                   Error **errp)
 {
-    Error *err = NULL;
-    SocketAddress *saddr = tcp_build_address(host_port, &err);
-    if (!err) {
-        socket_start_outgoing_migration(s, saddr, &err);
+    ERRP_AUTO_PROPAGATE();
+    SocketAddress *saddr = tcp_build_address(host_port, errp);
+    if (!*errp) {
+        socket_start_outgoing_migration(s, saddr, errp);
     }
-    error_propagate(errp, err);
 }
 
 void unix_start_outgoing_migration(MigrationState *s,
@@ -209,13 +208,12 @@ static void socket_start_incoming_migration(SocketAddress *saddr,
 
 void tcp_start_incoming_migration(const char *host_port, Error **errp)
 {
-    Error *err = NULL;
-    SocketAddress *saddr = tcp_build_address(host_port, &err);
-    if (!err) {
-        socket_start_incoming_migration(saddr, &err);
+    ERRP_AUTO_PROPAGATE();
+    SocketAddress *saddr = tcp_build_address(host_port, errp);
+    if (!*errp) {
+        socket_start_incoming_migration(saddr, errp);
     }
     qapi_free_SocketAddress(saddr);
-    error_propagate(errp, err);
 }
 
 void unix_start_incoming_migration(const char *path, Error **errp)

@@ -1474,14 +1474,14 @@ bool multifd_recv_all_channels_created(void)
  */
 bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MultiFDRecvParams *p;
-    Error *local_err = NULL;
     int id;
 
-    id = multifd_recv_initial_packet(ioc, &local_err);
+    id = multifd_recv_initial_packet(ioc, errp);
     if (id < 0) {
-        multifd_recv_terminate_threads(local_err);
-        error_propagate_prepend(errp, local_err,
+        multifd_recv_terminate_threads(*errp);
+        error_prepend(errp,
                                 "failed to receive packet"
                                 " via multifd channel %d: ",
                                 atomic_read(&multifd_recv_state->count));
@@ -1491,10 +1491,9 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 
     p = &multifd_recv_state->params[id];
     if (p->c != NULL) {
-        error_setg(&local_err, "multifd: received id '%d' already setup'",
+        error_setg(errp, "multifd: received id '%d' already setup'",
                    id);
-        multifd_recv_terminate_threads(local_err);
-        error_propagate(errp, local_err);
+        multifd_recv_terminate_threads(*errp);
         return false;
     }
     p->c = ioc;
