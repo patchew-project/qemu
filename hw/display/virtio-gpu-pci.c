@@ -27,18 +27,17 @@ static Property virtio_gpu_pci_base_properties[] = {
 
 static void virtio_gpu_pci_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOGPUPCIBase *vgpu = VIRTIO_GPU_PCI_BASE(vpci_dev);
     VirtIOGPUBase *g = vgpu->vgpu;
     DeviceState *vdev = DEVICE(g);
     int i;
-    Error *local_error = NULL;
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     virtio_pci_force_virtio_1(vpci_dev);
-    object_property_set_bool(OBJECT(vdev), true, "realized", &local_error);
+    object_property_set_bool(OBJECT(vdev), true, "realized", errp);
 
-    if (local_error) {
-        error_propagate(errp, local_error);
+    if (*errp) {
         return;
     }
 

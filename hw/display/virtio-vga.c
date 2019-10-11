@@ -90,10 +90,10 @@ static const VMStateDescription vmstate_virtio_vga_base = {
 /* VGA device wrapper around PCI device around virtio GPU */
 static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtIOVGABase *vvga = VIRTIO_VGA_BASE(vpci_dev);
     VirtIOGPUBase *g = vvga->vgpu;
     VGACommonState *vga = &vvga->vga;
-    Error *err = NULL;
     uint32_t offset;
     int i;
 
@@ -138,9 +138,8 @@ static void virtio_vga_base_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     /* init virtio bits */
     qdev_set_parent_bus(DEVICE(g), BUS(&vpci_dev->bus));
     virtio_pci_force_virtio_1(vpci_dev);
-    object_property_set_bool(OBJECT(g), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(g), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
