@@ -192,9 +192,9 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
                                      int flags,
                                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockCrypto *crypto = bs->opaque;
     QemuOpts *opts = NULL;
-    Error *local_err = NULL;
     int ret = -EINVAL;
     QCryptoBlockOpenOptions *open_opts = NULL;
     unsigned int cflags = 0;
@@ -210,9 +210,8 @@ static int block_crypto_open_generic(QCryptoBlockFormat format,
         bs->file->bs->supported_write_flags;
 
     opts = qemu_opts_create(opts_spec, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         goto cleanup;
     }
 
@@ -543,6 +542,7 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
                                                          QemuOpts *opts,
                                                          Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QCryptoBlockCreateOptions *create_opts = NULL;
     BlockDriverState *bs = NULL;
     QDict *cryptoopts;
@@ -550,17 +550,15 @@ static int coroutine_fn block_crypto_co_create_opts_luks(const char *filename,
     char *buf = NULL;
     int64_t size;
     int ret;
-    Error *local_err = NULL;
 
     /* Parse options */
     size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
 
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
-                               PREALLOC_MODE_OFF, &local_err);
+                               PREALLOC_MODE_OFF, errp);
     g_free(buf);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return -EINVAL;
     }
 

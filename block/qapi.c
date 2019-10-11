@@ -44,6 +44,7 @@
 BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
                                         BlockDriverState *bs, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ImageInfo **p_image_info;
     BlockDriverState *bs0;
     BlockDeviceInfo *info;
@@ -148,10 +149,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
     p_image_info = &info->image;
     info->backing_file_depth = 0;
     while (1) {
-        Error *local_err = NULL;
-        bdrv_query_image_info(bs0, p_image_info, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        bdrv_query_image_info(bs0, p_image_info, errp);
+        if (*errp) {
             qapi_free_BlockDeviceInfo(info);
             return NULL;
         }
@@ -257,11 +256,11 @@ void bdrv_query_image_info(BlockDriverState *bs,
                            ImageInfo **p_info,
                            Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int64_t size;
     const char *backing_filename;
     BlockDriverInfo bdi;
     int ret;
-    Error *err = NULL;
     ImageInfo *info;
 
     aio_context_acquire(bdrv_get_aio_context(bs));
@@ -293,9 +292,8 @@ void bdrv_query_image_info(BlockDriverState *bs,
         info->dirty_flag = bdi.is_dirty;
         info->has_dirty_flag = true;
     }
-    info->format_specific = bdrv_get_specific_info(bs, &err);
-    if (err) {
-        error_propagate(errp, err);
+    info->format_specific = bdrv_get_specific_info(bs, errp);
+    if (*errp) {
         qapi_free_ImageInfo(info);
         goto out;
     }
@@ -322,7 +320,7 @@ void bdrv_query_image_info(BlockDriverState *bs,
         g_free(backing_filename2);
     }
 
-    ret = bdrv_query_snapshot_info_list(bs, &info->snapshots, &err);
+    ret = bdrv_query_snapshot_info_list(bs, &info->snapshots, errp);
     switch (ret) {
     case 0:
         if (info->snapshots) {
@@ -332,10 +330,9 @@ void bdrv_query_image_info(BlockDriverState *bs,
     /* recoverable error */
     case -ENOMEDIUM:
     case -ENOTSUP:
-        error_free(err);
+        error_free_errp(errp);
         break;
     default:
-        error_propagate(errp, err);
         qapi_free_ImageInfo(info);
         goto out;
     }
@@ -552,9 +549,9 @@ static BlockStats *bdrv_query_bds_stats(BlockDriverState *bs,
 
 BlockInfoList *qmp_query_block(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockInfoList *head = NULL, **p_next = &head;
     BlockBackend *blk;
-    Error *local_err = NULL;
 
     for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
         BlockInfoList *info;
@@ -564,9 +561,8 @@ BlockInfoList *qmp_query_block(Error **errp)
         }
 
         info = g_malloc0(sizeof(*info));
-        bdrv_query_info(blk, &info->value, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        bdrv_query_info(blk, &info->value, errp);
+        if (*errp) {
             g_free(info);
             qapi_free_BlockInfoList(head);
             return NULL;

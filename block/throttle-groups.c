@@ -808,10 +808,10 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
                                void *opaque, Error **errp)
 
 {
+    ERRP_AUTO_PROPAGATE();
     ThrottleGroup *tg = THROTTLE_GROUP(obj);
     ThrottleConfig *cfg;
     ThrottleParamInfo *info = opaque;
-    Error *local_err = NULL;
     int64_t value;
 
     /* If we have finished initialization, don't accept individual property
@@ -819,16 +819,16 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
      * transaction, as certain combinations are invalid.
      */
     if (tg->is_initialized) {
-        error_setg(&local_err, "Property cannot be set after initialization");
+        error_setg(errp, "Property cannot be set after initialization");
         goto ret;
     }
 
-    visit_type_int64(v, name, &value, &local_err);
-    if (local_err) {
+    visit_type_int64(v, name, &value, errp);
+    if (*errp) {
         goto ret;
     }
     if (value < 0) {
-        error_setg(&local_err, "Property values cannot be negative");
+        error_setg(errp, "Property values cannot be negative");
         goto ret;
     }
 
@@ -842,7 +842,7 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
         break;
     case BURST_LENGTH:
         if (value > UINT_MAX) {
-            error_setg(&local_err, "%s value must be in the"
+            error_setg(errp, "%s value must be in the"
                        "range [0, %u]", info->name, UINT_MAX);
             goto ret;
         }
@@ -854,7 +854,6 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
     }
 
 ret:
-    error_propagate(errp, local_err);
     return;
 
 }
@@ -891,20 +890,20 @@ static void throttle_group_set_limits(Object *obj, Visitor *v,
                                       Error **errp)
 
 {
+    ERRP_AUTO_PROPAGATE();
     ThrottleGroup *tg = THROTTLE_GROUP(obj);
     ThrottleConfig cfg;
     ThrottleLimits arg = { 0 };
     ThrottleLimits *argp = &arg;
-    Error *local_err = NULL;
 
-    visit_type_ThrottleLimits(v, name, &argp, &local_err);
-    if (local_err) {
+    visit_type_ThrottleLimits(v, name, &argp, errp);
+    if (*errp) {
         goto ret;
     }
     qemu_mutex_lock(&tg->lock);
     throttle_get_config(&tg->ts, &cfg);
-    throttle_limits_to_config(argp, &cfg, &local_err);
-    if (local_err) {
+    throttle_limits_to_config(argp, &cfg, errp);
+    if (*errp) {
         goto unlock;
     }
     throttle_config(&tg->ts, tg->clock_type, &cfg);
@@ -912,7 +911,6 @@ static void throttle_group_set_limits(Object *obj, Visitor *v,
 unlock:
     qemu_mutex_unlock(&tg->lock);
 ret:
-    error_propagate(errp, local_err);
     return;
 }
 

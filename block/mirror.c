@@ -1507,12 +1507,12 @@ static BlockJob *mirror_start_job(
                              bool is_mirror, MirrorCopyMode copy_mode,
                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MirrorBlockJob *s;
     MirrorBDSOpaque *bs_opaque;
     BlockDriverState *mirror_top_bs;
     bool target_graph_mod;
     bool target_is_backing;
-    Error *local_err = NULL;
     int ret;
 
     if (granularity == 0) {
@@ -1561,12 +1561,11 @@ static BlockJob *mirror_start_job(
      * it alive until block_job_create() succeeds even if bs has no parent. */
     bdrv_ref(mirror_top_bs);
     bdrv_drained_begin(bs);
-    bdrv_append(mirror_top_bs, bs, &local_err);
+    bdrv_append(mirror_top_bs, bs, errp);
     bdrv_drained_end(bs);
 
-    if (local_err) {
+    if (*errp) {
         bdrv_unref(mirror_top_bs);
-        error_propagate(errp, local_err);
         return NULL;
     }
 
@@ -1647,9 +1646,8 @@ static BlockJob *mirror_start_job(
      * (We start tracking writes as of the following
      * bdrv_create_dirty_bitmap() call.)
      */
-    bdrv_refresh_limits(mirror_top_bs, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    bdrv_refresh_limits(mirror_top_bs, errp);
+    if (*errp) {
         goto fail;
     }
 
@@ -1760,8 +1758,8 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
                               BlockCompletionFunc *cb, void *opaque,
                               bool auto_complete, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     bool base_read_only;
-    Error *local_err = NULL;
     BlockJob *ret;
 
     base_read_only = bdrv_is_read_only(base);
@@ -1778,9 +1776,8 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
                      on_error, on_error, true, cb, opaque,
                      &commit_active_job_driver, false, base, auto_complete,
                      filter_node_name, false, MIRROR_COPY_MODE_BACKGROUND,
-                     &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                     errp);
+    if (*errp) {
         goto error_restore_flags;
     }
 

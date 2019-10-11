@@ -44,14 +44,13 @@ static QemuOptsList throttle_opts = {
  */
 static int throttle_parse_options(QDict *options, char **group, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     const char *group_name;
-    Error *local_err = NULL;
     QemuOpts *opts = qemu_opts_create(&throttle_opts, NULL, 0, &error_abort);
 
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fin;
     }

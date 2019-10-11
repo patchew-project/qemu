@@ -966,16 +966,15 @@ void job_complete(Job *job, Error **errp)
 
 int job_finish_sync(Job *job, void (*finish)(Job *, Error **errp), Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
     job_ref(job);
 
     if (finish) {
-        finish(job, &local_err);
+        finish(job, errp);
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         job_unref(job);
         return -EBUSY;
     }

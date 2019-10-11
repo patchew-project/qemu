@@ -261,10 +261,10 @@ void commit_start(const char *job_id, BlockDriverState *bs,
                   BlockdevOnError on_error, const char *backing_file_str,
                   const char *filter_node_name, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CommitBlockJob *s;
     BlockDriverState *iter;
     BlockDriverState *commit_top_bs = NULL;
-    Error *local_err = NULL;
     int ret;
 
     assert(top != bs);
@@ -303,10 +303,9 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
     commit_top_bs->total_sectors = top->total_sectors;
 
-    bdrv_append(commit_top_bs, top, &local_err);
-    if (local_err) {
+    bdrv_append(commit_top_bs, top, errp);
+    if (*errp) {
         commit_top_bs = NULL;
-        error_propagate(errp, local_err);
         goto fail;
     }
 

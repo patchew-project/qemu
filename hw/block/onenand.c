@@ -776,11 +776,11 @@ static const MemoryRegionOps onenand_ops = {
 
 static void onenand_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     OneNANDState *s = ONE_NAND(dev);
     uint32_t size = 1 << (24 + ((s->id.dev >> 4) & 7));
     void *ram;
-    Error *local_err = NULL;
 
     s->base = (hwaddr)-1;
     s->rdy = NULL;
@@ -800,9 +800,8 @@ static void onenand_realize(DeviceState *dev, Error **errp)
             return;
         }
         blk_set_perm(s->blk, BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE,
-                     BLK_PERM_ALL, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                     BLK_PERM_ALL, errp);
+        if (*errp) {
             return;
         }
         s->blk_cur = s->blk;

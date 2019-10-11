@@ -135,8 +135,8 @@ static void bdrv_merge_limits(BlockLimits *dst, const BlockLimits *src)
 
 void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockDriver *drv = bs->drv;
-    Error *local_err = NULL;
 
     memset(&bs->bl, 0, sizeof(bs->bl));
 
@@ -151,9 +151,8 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
 
     /* Take some limits from the children as a default */
     if (bs->file) {
-        bdrv_refresh_limits(bs->file->bs, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        bdrv_refresh_limits(bs->file->bs, errp);
+        if (*errp) {
             return;
         }
         bdrv_merge_limits(&bs->bl, &bs->file->bs->bl);
@@ -166,9 +165,8 @@ void bdrv_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 
     if (bs->backing) {
-        bdrv_refresh_limits(bs->backing->bs, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        bdrv_refresh_limits(bs->backing->bs, errp);
+        if (*errp) {
             return;
         }
         bdrv_merge_limits(&bs->bl, &bs->backing->bs->bl);

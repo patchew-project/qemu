@@ -184,6 +184,7 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
                        const char *snapshot_id,
                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockDriver *drv = bs->drv;
     int ret, open_ret;
 
@@ -209,7 +210,6 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         BlockDriverState *file;
         QDict *options = qdict_clone_shallow(bs->options);
         QDict *file_options;
-        Error *local_err = NULL;
 
         file = bs->file->bs;
         /* Prevent it from getting deleted when detached from bs */
@@ -226,13 +226,12 @@ int bdrv_snapshot_goto(BlockDriverState *bs,
         bs->file = NULL;
 
         ret = bdrv_snapshot_goto(file, snapshot_id, errp);
-        open_ret = drv->bdrv_open(bs, options, bs->open_flags, &local_err);
+        open_ret = drv->bdrv_open(bs, options, bs->open_flags, errp);
         qobject_unref(options);
         if (open_ret < 0) {
             bdrv_unref(file);
             bs->drv = NULL;
             /* A bdrv_snapshot_goto() error takes precedence */
-            error_propagate(errp, local_err);
             return ret < 0 ? ret : open_ret;
         }
 
@@ -370,17 +369,14 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
                                          const char *id_or_name,
                                          Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
-    Error *local_err = NULL;
 
-    ret = bdrv_snapshot_load_tmp(bs, id_or_name, NULL, &local_err);
+    ret = bdrv_snapshot_load_tmp(bs, id_or_name, NULL, errp);
     if (ret == -ENOENT || ret == -EINVAL) {
-        error_free(local_err);
-        local_err = NULL;
-        ret = bdrv_snapshot_load_tmp(bs, NULL, id_or_name, &local_err);
+        error_free_errp(errp);
+        ret = bdrv_snapshot_load_tmp(bs, NULL, id_or_name, errp);
     }
-
-    error_propagate(errp, local_err);
 
     return ret;
 }

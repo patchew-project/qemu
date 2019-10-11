@@ -186,8 +186,8 @@ static void blk_vm_state_changed(void *opaque, int running, RunState state)
  */
 static void blk_root_activate(BdrvChild *child, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockBackend *blk = child->opaque;
-    Error *local_err = NULL;
 
     if (!blk->disable_perm) {
         return;
@@ -195,9 +195,8 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
 
     blk->disable_perm = false;
 
-    blk_set_perm(blk, blk->perm, BLK_PERM_ALL, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    blk_set_perm(blk, blk->perm, BLK_PERM_ALL, errp);
+    if (*errp) {
         blk->disable_perm = true;
         return;
     }
@@ -213,9 +212,8 @@ static void blk_root_activate(BdrvChild *child, Error **errp)
         return;
     }
 
-    blk_set_perm(blk, blk->perm, blk->shared_perm, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    blk_set_perm(blk, blk->perm, blk->shared_perm, errp);
+    if (*errp) {
         blk->disable_perm = true;
         return;
     }
@@ -961,15 +959,14 @@ void blk_set_dev_ops(BlockBackend *blk, const BlockDevOps *ops,
  */
 void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     if (blk->dev_ops && blk->dev_ops->change_media_cb) {
         bool tray_was_open, tray_is_open;
-        Error *local_err = NULL;
 
         tray_was_open = blk_dev_is_tray_open(blk);
-        blk->dev_ops->change_media_cb(blk->dev_opaque, load, &local_err);
-        if (local_err) {
+        blk->dev_ops->change_media_cb(blk->dev_opaque, load, errp);
+        if (*errp) {
             assert(load == true);
-            error_propagate(errp, local_err);
             return;
         }
         tray_is_open = blk_dev_is_tray_open(blk);
