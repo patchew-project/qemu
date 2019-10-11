@@ -684,18 +684,18 @@ typedef struct NBDReplyChunkIter {
 } NBDReplyChunkIter;
 
 static void nbd_iter_channel_error(NBDReplyChunkIter *iter,
-                                   int ret, Error **local_err)
+                                   int ret, Error **errp_in)
 {
-    assert(ret < 0);
+    assert(ret < 0 && errp_in && *errp_in);
 
     if (!iter->ret) {
         iter->ret = ret;
-        error_propagate(&iter->err, *local_err);
+        error_propagate(&iter->err, *errp_in);
     } else {
-        error_free(*local_err);
+        error_free(*errp_in);
     }
 
-    *local_err = NULL;
+    *errp_in = NULL;
 }
 
 static void nbd_iter_request_error(NBDReplyChunkIter *iter, int ret)
