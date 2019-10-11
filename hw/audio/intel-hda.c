@@ -1095,9 +1095,9 @@ static void intel_hda_reset(DeviceState *dev)
 
 static void intel_hda_realize(PCIDevice *pci, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     IntelHDAState *d = INTEL_HDA(pci);
     uint8_t *conf = d->pci.config;
-    Error *err = NULL;
     int ret;
 
     d->name = object_get_typename(OBJECT(d));
@@ -1109,20 +1109,19 @@ static void intel_hda_realize(PCIDevice *pci, Error **errp)
 
     if (d->msi != ON_OFF_AUTO_OFF) {
         ret = msi_init(&d->pci, d->old_msi_addr ? 0x50 : 0x60,
-                       1, true, false, &err);
+                       1, true, false, errp);
         /* Any error other than -ENOTSUP(board's MSI support is broken)
          * is a programming error */
         assert(!ret || ret == -ENOTSUP);
         if (ret && d->msi == ON_OFF_AUTO_ON) {
             /* Can't satisfy user's explicit msi=on request, fail */
-            error_append_hint(&err, "You have to use msi=auto (default) or "
-                    "msi=off with this machine type.\n");
-            error_propagate(errp, err);
+            error_append_hint(errp, "You have to use msi=auto (default) or "
+                              "msi=off with this machine type.\n");
             return;
         }
-        assert(!err || d->msi == ON_OFF_AUTO_AUTO);
+        assert(!*errp || d->msi == ON_OFF_AUTO_AUTO);
         /* With msi=auto, we fall back to MSI off silently */
-        error_free(err);
+        error_free_errp(errp);
     }
 
     memory_region_init_io(&d->mmio, OBJECT(d), &intel_hda_mmio_ops, d,

@@ -1936,19 +1936,17 @@ static void audio_validate_per_direction_opts(
 
 static void audio_validate_opts(Audiodev *dev, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     audio_create_pdos(dev);
 
-    audio_validate_per_direction_opts(audio_get_pdo_in(dev), &err);
-    if (err) {
-        error_propagate(errp, err);
+    audio_validate_per_direction_opts(audio_get_pdo_in(dev), errp);
+    if (*errp) {
         return;
     }
 
-    audio_validate_per_direction_opts(audio_get_pdo_out(dev), &err);
-    if (err) {
-        error_propagate(errp, err);
+    audio_validate_per_direction_opts(audio_get_pdo_out(dev), errp);
+    if (*errp) {
         return;
     }
 
