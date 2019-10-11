@@ -28,8 +28,69 @@
 static uint8_t *allocation_tag_mem(CPUARMState *env, uint64_t ptr,
                                    bool write, uintptr_t ra)
 {
+#ifdef CONFIG_USER_ONLY
     /* Tag storage not implemented.  */
     return NULL;
+#else
+    CPUState *cs = env_cpu(env);
+    uintptr_t index;
+    int mmu_idx;
+    CPUTLBEntry *entry;
+    CPUIOTLBEntry *iotlbentry;
+    MemoryRegionSection *section;
+    hwaddr physaddr, tag_physaddr;
+
+    /*
+     * Find the TLB entry for this access.
+     * As a side effect, this also raises an exception for invalid access.
+     *
+     * TODO: Perhaps there should be a cputlb helper that returns a
+     * matching tlb entry + iotlb entry.  That would also be able to
+     * make use of the victim tlb cache, which is currently private.
+     */
+    mmu_idx = cpu_mmu_index(env, false);
+    index = tlb_index(env, mmu_idx, ptr);
+    entry = tlb_entry(env, mmu_idx, ptr);
+    if (!tlb_hit(write ? tlb_addr_write(entry) : entry->addr_read, ptr)) {
+        bool ok = arm_cpu_tlb_fill(cs, ptr, 16,
+                                   write ? MMU_DATA_STORE : MMU_DATA_LOAD,
+                                   mmu_idx, false, ra);
+        assert(ok);
+        index = tlb_index(env, mmu_idx, ptr);
+        entry = tlb_entry(env, mmu_idx, ptr);
+    }
+
+    /* If the virtual page MemAttr != Tagged, nothing to do.  */
+    iotlbentry = &env_tlb(env)->d[mmu_idx].iotlb[index];
+    if (!iotlbentry->attrs.target_tlb_bit1) {
+        return NULL;
+    }
+
+    /*
+     * Find the physical address for the virtual access.
+     *
+     * TODO: It should be possible to have the tag mmu_idx map
+     * from main memory ram_addr to tag memory host address.
+     * that would allow this lookup step to be cached as well.
+     */
+    section = iotlb_to_section(cs, iotlbentry->addr, iotlbentry->attrs);
+    physaddr = ((iotlbentry->addr & TARGET_PAGE_MASK) + ptr
+                + section->offset_within_address_space
+                - section->offset_within_region);
+
+    /* Convert to the physical address in tag space.  */
+    tag_physaddr = physaddr >> (LOG2_TAG_GRANULE + 1);
+
+    /* Choose the tlb index to use for the tag physical access.  */
+    mmu_idx = iotlbentry->attrs.secure ? ARMMMUIdx_TagS : ARMMMUIdx_TagNS;
+    mmu_idx = arm_to_core_mmu_idx(mmu_idx);
+
+    /*
+     * FIXME: Get access length and type so that we can use
+     * probe_access, so that pages are marked dirty for migration.
+     */
+    return tlb_vaddr_to_host(env, tag_physaddr, MMU_DATA_LOAD, mmu_idx);
+#endif
 }
 
 static int get_allocation_tag(CPUARMState *env, uint64_t ptr, uintptr_t ra)
