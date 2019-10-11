@@ -1829,17 +1829,16 @@ static NetClientInfo net_eepro100_info = {
 
 static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
     E100PCIDeviceInfo *info = eepro100_get_class(s);
-    Error *local_err = NULL;
 
     TRACE(OTHER, logout("\n"));
 
     s->device = info->device;
 
-    e100_pci_reset(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    e100_pci_reset(s, errp);
+    if (*errp) {
         return;
     }
 
