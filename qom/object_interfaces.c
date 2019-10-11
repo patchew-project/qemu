@@ -33,10 +33,10 @@ Object *user_creatable_add_type(const char *type, const char *id,
                                 const QDict *qdict,
                                 Visitor *v, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
     ObjectClass *klass;
     const QDictEntry *e;
-    Error *local_err = NULL;
 
     klass = object_class_by_name(type);
     if (!klass) {
@@ -57,34 +57,34 @@ Object *user_creatable_add_type(const char *type, const char *id,
 
     assert(qdict);
     obj = object_new(type);
-    visit_start_struct(v, NULL, NULL, 0, &local_err);
-    if (local_err) {
+    visit_start_struct(v, NULL, NULL, 0, errp);
+    if (*errp) {
         goto out;
     }
     for (e = qdict_first(qdict); e; e = qdict_next(qdict, e)) {
-        object_property_set(obj, v, e->key, &local_err);
-        if (local_err) {
+        object_property_set(obj, v, e->key, errp);
+        if (*errp) {
             break;
         }
     }
-    if (!local_err) {
-        visit_check_struct(v, &local_err);
+    if (!*errp) {
+        visit_check_struct(v, errp);
     }
     visit_end_struct(v, NULL);
-    if (local_err) {
+    if (*errp) {
         goto out;
     }
 
     if (id != NULL) {
         object_property_add_child(object_get_objects_root(),
-                                  id, obj, &local_err);
-        if (local_err) {
+                                  id, obj, errp);
+        if (*errp) {
             goto out;
         }
     }
 
-    user_creatable_complete(USER_CREATABLE(obj), &local_err);
-    if (local_err) {
+    user_creatable_complete(USER_CREATABLE(obj), errp);
+    if (*errp) {
         if (id != NULL) {
             object_property_del(object_get_objects_root(),
                                 id, &error_abort);
@@ -92,8 +92,7 @@ Object *user_creatable_add_type(const char *type, const char *id,
         goto out;
     }
 out:
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         object_unref(obj);
         return NULL;
     }

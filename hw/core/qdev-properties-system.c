@@ -44,8 +44,8 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
                                       Error **errp),
                         const char *name, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
-    Error *local_err = NULL;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
 
@@ -54,9 +54,8 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_str(v, name, &str, errp);
+    if (*errp) {
         return;
     }
     if (!*str) {
@@ -221,8 +220,8 @@ static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
-    Error *local_err = NULL;
     Property *prop = opaque;
     CharBackend *be = qdev_get_prop_ptr(dev, prop);
     Chardev *s;
@@ -233,9 +232,8 @@ static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_str(v, name, &str, errp);
+    if (*errp) {
         return;
     }
 
@@ -289,12 +287,12 @@ static void get_netdev(Object *obj, Visitor *v, const char *name,
 static void set_netdev(Object *obj, Visitor *v, const char *name,
                        void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
     NetClientState **ncs = peers_ptr->ncs;
     NetClientState *peers[MAX_QUEUE_NUM];
-    Error *local_err = NULL;
     int queues, err = 0, i = 0;
     char *str;
 
@@ -303,9 +301,8 @@ static void set_netdev(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_str(v, name, &str, errp);
+    if (*errp) {
         return;
     }
 
@@ -370,11 +367,11 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
 static void set_audiodev(Object *obj, Visitor *v, const char* name,
                          void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     QEMUSoundCard *card = qdev_get_prop_ptr(dev, prop);
     AudioState *state;
-    Error *local_err = NULL;
     int err = 0;
     char *str;
 
@@ -383,9 +380,8 @@ static void set_audiodev(Object *obj, Visitor *v, const char* name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_str(v, name, &str, errp);
+    if (*errp) {
         return;
     }
 

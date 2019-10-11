@@ -170,17 +170,16 @@ static void qdev_print_devinfos(bool show_no_user)
 static int set_property(void *opaque, const char *name, const char *value,
                         Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Object *obj = opaque;
-    Error *err = NULL;
 
     if (strcmp(name, "driver") == 0)
         return 0;
     if (strcmp(name, "bus") == 0)
         return 0;
 
-    object_property_parse(obj, value, name, &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_parse(obj, value, name, errp);
+    if (*errp) {
         return -1;
     }
     return 0;
@@ -564,11 +563,11 @@ void qdev_set_id(DeviceState *dev, const char *id)
 
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceClass *dc;
     const char *driver, *path;
     DeviceState *dev;
     BusState *bus = NULL;
-    Error *err = NULL;
 
     driver = qemu_opt_get(opts, "driver");
     if (!driver) {
@@ -616,9 +615,9 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     dev = DEVICE(object_new(driver));
 
     /* Check whether the hotplug is allowed by the machine */
-    if (qdev_hotplug && !qdev_hotplug_allowed(dev, &err)) {
+    if (qdev_hotplug && !qdev_hotplug_allowed(dev, errp)) {
         /* Error must be set in the machine hook */
-        assert(err);
+        assert(*errp);
         goto err_del_dev;
     }
 
@@ -626,7 +625,7 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
         qdev_set_parent_bus(dev, bus);
     } else if (qdev_hotplug && !qdev_get_machine_hotplug_handler(dev)) {
         /* No bus, no machine hotplug handler --> device is not hotpluggable */
-        error_setg(&err, "Device '%s' can not be hotplugged on this machine",
+        error_setg(errp, "Device '%s' can not be hotplugged on this machine",
                    driver);
         goto err_del_dev;
     }
@@ -634,20 +633,19 @@ DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
     qdev_set_id(dev, qemu_opts_id(opts));
 
     /* set properties */
-    if (qemu_opt_foreach(opts, set_property, dev, &err)) {
+    if (qemu_opt_foreach(opts, set_property, dev, errp)) {
         goto err_del_dev;
     }
 
     dev->opts = opts;
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err != NULL) {
+    object_property_set_bool(OBJECT(dev), true, "realized", errp);
+    if (*errp) {
         dev->opts = NULL;
         goto err_del_dev;
     }
     return dev;
 
 err_del_dev:
-    error_propagate(errp, err);
     object_unparent(OBJECT(dev));
     object_unref(OBJECT(dev));
     return NULL;
@@ -749,22 +747,20 @@ void hmp_info_qdm(Monitor *mon, const QDict *qdict)
 
 void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     QemuOpts *opts;
     DeviceState *dev;
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, errp);
+    if (*errp) {
         return;
     }
     if (!monitor_cur_is_qmp() && qdev_device_help(opts)) {
         qemu_opts_del(opts);
         return;
     }
-    dev = qdev_device_add(opts, &local_err);
+    dev = qdev_device_add(opts, errp);
     if (!dev) {
-        error_propagate(errp, local_err);
         qemu_opts_del(opts);
         return;
     }
@@ -802,10 +798,10 @@ static DeviceState *find_device_state(const char *id, Error **errp)
 
 void qdev_unplug(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     HotplugHandler *hotplug_ctrl;
     HotplugHandlerClass *hdc;
-    Error *local_err = NULL;
 
     if (dev->parent_bus && !qbus_is_hotpluggable(dev->parent_bus)) {
         error_setg(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
@@ -834,14 +830,13 @@ void qdev_unplug(DeviceState *dev, Error **errp)
      * otherwise just remove it synchronously */
     hdc = HOTPLUG_HANDLER_GET_CLASS(hotplug_ctrl);
     if (hdc->unplug_request) {
-        hotplug_handler_unplug_request(hotplug_ctrl, dev, &local_err);
+        hotplug_handler_unplug_request(hotplug_ctrl, dev, errp);
     } else {
-        hotplug_handler_unplug(hotplug_ctrl, dev, &local_err);
-        if (!local_err) {
+        hotplug_handler_unplug(hotplug_ctrl, dev, errp);
+        if (!*errp) {
             object_unparent(OBJECT(dev));
         }
     }
-    error_propagate(errp, local_err);
 }
 
 void qmp_device_del(const char *id, Error **errp)

@@ -30,16 +30,15 @@ void object_property_set_qobject(Object *obj, QObject *value,
 QObject *object_property_get_qobject(Object *obj, const char *name,
                                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QObject *ret = NULL;
-    Error *local_err = NULL;
     Visitor *v;
 
     v = qobject_output_visitor_new(&ret);
-    object_property_get(obj, v, name, &local_err);
-    if (!local_err) {
+    object_property_get(obj, v, name, errp);
+    if (!*errp) {
         visit_complete(v, &ret);
     }
-    error_propagate(errp, local_err);
     visit_free(v);
     return ret;
 }

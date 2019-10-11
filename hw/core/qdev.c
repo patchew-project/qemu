@@ -709,11 +709,11 @@ static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 void qdev_property_add_static(DeviceState *dev, Property *prop,
                               Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     Object *obj = OBJECT(dev);
 
     if (prop->info->create) {
-        prop->info->create(obj, prop, &local_err);
+        prop->info->create(obj, prop, errp);
     } else {
         /*
          * TODO qdev_prop_ptr does not have getters or setters.  It must
@@ -726,11 +726,10 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
         object_property_add(obj, prop->name, prop->info->name,
                             prop->info->get, prop->info->set,
                             prop->info->release,
-                            prop, &local_err);
+                            prop, errp);
     }
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return;
     }
 
@@ -812,11 +811,11 @@ static bool check_only_migratable(Object *obj, Error **errp)
 
 static void device_set_realized(Object *obj, bool value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
     HotplugHandler *hotplug_ctrl;
     BusState *bus;
-    Error *local_err = NULL;
     bool unattached_parent = false;
     static int unattached_count;
 
@@ -826,7 +825,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     }
 
     if (value && !dev->realized) {
-        if (!check_only_migratable(obj, &local_err)) {
+        if (!check_only_migratable(obj, errp)) {
             goto fail;
         }
 
@@ -842,15 +841,15 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
 
         hotplug_ctrl = qdev_get_hotplug_handler(dev);
         if (hotplug_ctrl) {
-            hotplug_handler_pre_plug(hotplug_ctrl, dev, &local_err);
-            if (local_err != NULL) {
+            hotplug_handler_pre_plug(hotplug_ctrl, dev, errp);
+            if (*errp) {
                 goto fail;
             }
         }
 
         if (dc->realize) {
-            dc->realize(dev, &local_err);
-            if (local_err != NULL) {
+            dc->realize(dev, errp);
+            if (*errp) {
                 goto fail;
             }
         }
@@ -868,15 +867,15 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             if (vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
                                                dev->instance_id_alias,
                                                dev->alias_required_for_version,
-                                               &local_err) < 0) {
+                                               errp) < 0) {
                 goto post_realize_fail;
             }
         }
 
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), true, "realized",
-                                         &local_err);
-            if (local_err != NULL) {
+                                         errp);
+            if (*errp) {
                 goto child_realize_fail;
             }
         }
@@ -886,8 +885,8 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         dev->pending_deleted_event = false;
 
         if (hotplug_ctrl) {
-            hotplug_handler_plug(hotplug_ctrl, dev, &local_err);
-            if (local_err != NULL) {
+            hotplug_handler_plug(hotplug_ctrl, dev, errp);
+            if (*errp) {
                 goto child_realize_fail;
             }
        }
@@ -896,23 +895,23 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         /* We want to catch in local_err only first error */
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), false, "realized",
-                                     local_err ? NULL : &local_err);
+                                     *errp ? NULL : errp);
         }
         if (qdev_get_vmsd(dev)) {
             vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
         }
         if (dc->unrealize) {
-            dc->unrealize(dev, local_err ? NULL : &local_err);
+            dc->unrealize(dev, *errp ? NULL : errp);
         }
         dev->pending_deleted_event = true;
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
 
-        if (local_err != NULL) {
+        if (*errp) {
             goto fail;
         }
     }
 
-    assert(local_err == NULL);
+    assert(*errp == NULL);
     dev->realized = value;
     return;
 
@@ -934,7 +933,6 @@ post_realize_fail:
     }
 
 fail:
-    error_propagate(errp, local_err);
     if (unattached_parent) {
         object_unparent(OBJECT(dev));
         unattached_count--;
