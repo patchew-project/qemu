@@ -117,11 +117,11 @@ static QemuOptsList qcow_runtime_opts = {
 static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVQcowState *s = bs->opaque;
     unsigned int len, i, shift;
     int ret;
     QCowHeader header;
-    Error *local_err = NULL;
     QCryptoBlockOpenOptions *crypto_opts = NULL;
     unsigned int cflags = 0;
     QDict *encryptopts = NULL;
@@ -314,9 +314,8 @@ static int qcow_open(BlockDriverState *bs, QDict *options, int flags,
     error_setg(&s->migration_blocker, "The qcow format used by node '%s' "
                "does not support live migration",
                bdrv_get_device_or_node_name(bs));
-    ret = migrate_add_blocker(s->migration_blocker, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    ret = migrate_add_blocker(s->migration_blocker, errp);
+    if (*errp) {
         error_free(s->migration_blocker);
         goto fail;
     }
@@ -942,12 +941,12 @@ exit:
 static int coroutine_fn qcow_co_create_opts(const char *filename,
                                             QemuOpts *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs = NULL;
     QDict *qdict;
     Visitor *v;
     const char *val;
-    Error *local_err = NULL;
     int ret;
 
     static const QDictRenames opt_renames[] = {
@@ -977,9 +976,8 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
     }
 
     /* Create and open the file (protocol layer) */
-    ret = bdrv_create_file(filename, opts, &local_err);
+    ret = bdrv_create_file(filename, opts, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
         goto fail;
     }
 
@@ -1000,11 +998,10 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
         goto fail;
     }
 
-    visit_type_BlockdevCreateOptions(v, NULL, &create_options, &local_err);
+    visit_type_BlockdevCreateOptions(v, NULL, &create_options, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
