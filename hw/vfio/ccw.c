@@ -476,38 +476,38 @@ static VFIOGroup *vfio_ccw_get_group(S390CCWDevice *cdev, Error **errp)
 
 static void vfio_ccw_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VFIOGroup *group;
     CcwDevice *ccw_dev = DO_UPCAST(CcwDevice, parent_obj, dev);
     S390CCWDevice *cdev = DO_UPCAST(S390CCWDevice, parent_obj, ccw_dev);
     VFIOCCWDevice *vcdev = DO_UPCAST(VFIOCCWDevice, cdev, cdev);
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
-    Error *err = NULL;
 
     /* Call the class init function for subchannel. */
     if (cdc->realize) {
-        cdc->realize(cdev, vcdev->vdev.sysfsdev, &err);
-        if (err) {
-            goto out_err_propagate;
+        cdc->realize(cdev, vcdev->vdev.sysfsdev, errp);
+        if (*errp) {
+            return;
         }
     }
 
-    group = vfio_ccw_get_group(cdev, &err);
+    group = vfio_ccw_get_group(cdev, errp);
     if (!group) {
         goto out_group_err;
     }
 
-    vfio_ccw_get_device(group, vcdev, &err);
-    if (err) {
+    vfio_ccw_get_device(group, vcdev, errp);
+    if (*errp) {
         goto out_device_err;
     }
 
-    vfio_ccw_get_region(vcdev, &err);
-    if (err) {
+    vfio_ccw_get_region(vcdev, errp);
+    if (*errp) {
         goto out_region_err;
     }
 
-    vfio_ccw_register_io_notifier(vcdev, &err);
-    if (err) {
+    vfio_ccw_register_io_notifier(vcdev, errp);
+    if (*errp) {
         goto out_notifier_err;
     }
 
@@ -523,8 +523,6 @@ out_group_err:
     if (cdc->unrealize) {
         cdc->unrealize(cdev, NULL);
     }
-out_err_propagate:
-    error_propagate(errp, err);
 }
 
 static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)

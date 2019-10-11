@@ -95,13 +95,13 @@ static int emulated_ccw_3270_cb(SubchDev *sch, CCW1 ccw)
 
 static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     uint16_t chpid;
     EmulatedCcw3270Device *dev = EMULATED_CCW_3270(ds);
     EmulatedCcw3270Class *ck = EMULATED_CCW_3270_GET_CLASS(dev);
     CcwDevice *cdev = CCW_DEVICE(ds);
     CCWDeviceClass *cdk = CCW_DEVICE_GET_CLASS(cdev);
     SubchDev *sch;
-    Error *err = NULL;
 
     sch = css_create_sch(cdev->devno, errp);
     if (!sch) {
@@ -117,7 +117,7 @@ static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
     chpid = css_find_free_chpid(sch->cssid);
 
     if (chpid > MAX_CHPID) {
-        error_setg(&err, "No available chpid to use.");
+        error_setg(errp, "No available chpid to use.");
         goto out_err;
     }
 
@@ -128,20 +128,19 @@ static void emulated_ccw_3270_realize(DeviceState *ds, Error **errp)
     sch->do_subchannel_work = do_subchannel_work_virtual;
     sch->ccw_cb = emulated_ccw_3270_cb;
 
-    ck->init(dev, &err);
-    if (err) {
+    ck->init(dev, errp);
+    if (*errp) {
         goto out_err;
     }
 
-    cdk->realize(cdev, &err);
-    if (err) {
+    cdk->realize(cdev, errp);
+    if (*errp) {
         goto out_err;
     }
 
     return;
 
 out_err:
-    error_propagate(errp, err);
     css_subch_assign(sch->cssid, sch->ssid, sch->schid, sch->devno, NULL);
     cdev->sch = NULL;
     g_free(sch);

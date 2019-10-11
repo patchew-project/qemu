@@ -61,19 +61,18 @@ S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 static S390CPU *s390x_new_cpu(const char *typename, uint32_t core_id,
                               Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     S390CPU *cpu = S390_CPU(object_new(typename));
-    Error *err = NULL;
 
-    object_property_set_int(OBJECT(cpu), core_id, "core-id", &err);
-    if (err != NULL) {
+    object_property_set_int(OBJECT(cpu), core_id, "core-id", errp);
+    if (*errp) {
         goto out;
     }
-    object_property_set_bool(OBJECT(cpu), true, "realized", &err);
+    object_property_set_bool(OBJECT(cpu), true, "realized", errp);
 
 out:
     object_unref(OBJECT(cpu));
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         cpu = NULL;
     }
     return cpu;

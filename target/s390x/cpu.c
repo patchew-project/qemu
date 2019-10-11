@@ -184,42 +184,42 @@ static void s390_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 
 static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CPUState *cs = CPU(dev);
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 #if !defined(CONFIG_USER_ONLY)
     S390CPU *cpu = S390_CPU(dev);
 #endif
-    Error *err = NULL;
 
     /* the model has to be realized before qemu_init_vcpu() due to kvm */
-    s390_realize_cpu_model(cs, &err);
-    if (err) {
-        goto out;
+    s390_realize_cpu_model(cs, errp);
+    if (*errp) {
+        return;
     }
 
 #if !defined(CONFIG_USER_ONLY)
     MachineState *ms = MACHINE(qdev_get_machine());
     unsigned int max_cpus = ms->smp.max_cpus;
     if (cpu->env.core_id >= max_cpus) {
-        error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
+        error_setg(errp, "Unable to add CPU with core-id: %" PRIu32
                    ", maximum core-id: %d", cpu->env.core_id,
                    max_cpus - 1);
-        goto out;
+        return;
     }
 
     if (cpu_exists(cpu->env.core_id)) {
-        error_setg(&err, "Unable to add CPU with core-id: %" PRIu32
+        error_setg(errp, "Unable to add CPU with core-id: %" PRIu32
                    ", it already exists", cpu->env.core_id);
-        goto out;
+        return;
     }
 
     /* sync cs->cpu_index and env->core_id. The latter is needed for TCG. */
     cs->cpu_index = cpu->env.core_id;
 #endif
 
-    cpu_exec_realizefn(cs, &err);
-    if (err != NULL) {
-        goto out;
+    cpu_exec_realizefn(cs, errp);
+    if (*errp) {
+        return;
     }
 
 #if !defined(CONFIG_USER_ONLY)
@@ -240,9 +240,7 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
         cpu_reset(cs);
     }
 
-    scc->parent_realize(dev, &err);
-out:
-    error_propagate(errp, err);
+    scc->parent_realize(dev, errp);
 }
 
 static GuestPanicInformation *s390_cpu_get_crash_info(CPUState *cs)

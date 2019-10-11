@@ -30,15 +30,14 @@
 static void ccw_device_unplug(HotplugHandler *hotplug_dev,
                               DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CcwDevice *ccw_dev = CCW_DEVICE(dev);
     CCWDeviceClass *k = CCW_DEVICE_GET_CLASS(ccw_dev);
     SubchDev *sch = ccw_dev->sch;
-    Error *err = NULL;
 
     if (k->unplug) {
-        k->unplug(hotplug_dev, dev, &err);
-        if (err) {
-            error_propagate(errp, err);
+        k->unplug(hotplug_dev, dev, errp);
+        if (*errp) {
             return;
         }
     }

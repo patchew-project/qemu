@@ -300,16 +300,16 @@ void s390_sclp_init(void)
 
 static void sclp_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MachineState *machine = MACHINE(qdev_get_machine());
     SCLPDevice *sclp = SCLP(dev);
-    Error *err = NULL;
     uint64_t hw_limit;
     int ret;
 
     object_property_set_bool(OBJECT(sclp->event_facility), true, "realized",
-                             &err);
-    if (err) {
-        goto out;
+                             errp);
+    if (*errp) {
+        return;
     }
     /*
      * qdev_device_add searches the sysbus for TYPE_SCLP_EVENTS_BUS. As long
@@ -320,14 +320,11 @@ static void sclp_realize(DeviceState *dev, Error **errp)
 
     ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
     if (ret == -E2BIG) {
-        error_setg(&err, "host supports a maximum of %" PRIu64 " GB",
+        error_setg(errp, "host supports a maximum of %" PRIu64 " GB",
                    hw_limit / GiB);
     } else if (ret) {
-        error_setg(&err, "setting the guest size failed");
+        error_setg(errp, "setting the guest size failed");
     }
-
-out:
-    error_propagate(errp, err);
 }
 
 static void sclp_memory_init(SCLPDevice *sclp)

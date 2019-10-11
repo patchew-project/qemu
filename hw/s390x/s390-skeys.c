@@ -107,11 +107,11 @@ void hmp_dump_skeys(Monitor *mon, const QDict *qdict)
 
 void qmp_dump_skeys(const char *filename, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     S390SKeysState *ss = s390_get_skeys_device();
     S390SKeysClass *skeyclass = S390_SKEYS_GET_CLASS(ss);
     const uint64_t total_count = ram_size / TARGET_PAGE_SIZE;
     uint64_t handled_count = 0, cur_count;
-    Error *lerr = NULL;
     vaddr cur_gfn = 0;
     uint8_t *buf;
     int ret;
@@ -155,8 +155,8 @@ void qmp_dump_skeys(const char *filename, Error **errp)
         }
 
         /* write keys to stream */
-        write_keys(f, buf, cur_gfn, cur_count, &lerr);
-        if (lerr) {
+        write_keys(f, buf, cur_gfn, cur_count, errp);
+        if (*errp) {
             goto out_free;
         }
 
@@ -165,7 +165,6 @@ void qmp_dump_skeys(const char *filename, Error **errp)
     }
 
 out_free:
-    error_propagate(errp, lerr);
     g_free(buf);
 out:
     fclose(f);

@@ -55,7 +55,7 @@ static void kvm_s390_set_tod_raw(const S390TOD *tod, Error **errp)
 
 static void kvm_s390_tod_set(S390TODState *td, const S390TOD *tod, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
     /*
      * Somebody (e.g. migration) set the TOD. We'll store it into KVM to
@@ -64,9 +64,8 @@ static void kvm_s390_tod_set(S390TODState *td, const S390TOD *tod, Error **errp)
      * is the point where we want to stop the initially running TOD to fire
      * it back up when actually starting the migrated guest.
      */
-    kvm_s390_set_tod_raw(tod, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    kvm_s390_set_tod_raw(tod, errp);
+    if (*errp) {
         return;
     }
 
@@ -106,13 +105,12 @@ static void kvm_s390_tod_vm_state_change(void *opaque, int running,
 
 static void kvm_s390_tod_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     S390TODState *td = S390_TOD(dev);
     S390TODClass *tdc = S390_TOD_GET_CLASS(td);
-    Error *local_err = NULL;
 
-    tdc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    tdc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 
