@@ -83,9 +83,9 @@ static ReplicationOps replication_ops = {
 static int replication_open(BlockDriverState *bs, QDict *options,
                             int flags, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
     BDRVReplicationState *s = bs->opaque;
-    Error *local_err = NULL;
     QemuOpts *opts = NULL;
     const char *mode;
     const char *top_id;
@@ -98,14 +98,14 @@ static int replication_open(BlockDriverState *bs, QDict *options,
 
     ret = -EINVAL;
     opts = qemu_opts_create(&replication_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         goto fail;
     }
 
     mode = qemu_opt_get(opts, REPLICATION_MODE);
     if (!mode) {
-        error_setg(&local_err, "Missing the option mode");
+        error_setg(errp, "Missing the option mode");
         goto fail;
     }
 
@@ -113,7 +113,8 @@ static int replication_open(BlockDriverState *bs, QDict *options,
         s->mode = REPLICATION_MODE_PRIMARY;
         top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);
         if (top_id) {
-            error_setg(&local_err, "The primary side does not support option top-id");
+            error_setg(errp,
+                       "The primary side does not support option top-id");
             goto fail;
         }
     } else if (!strcmp(mode, "secondary")) {
@@ -121,11 +122,11 @@ static int replication_open(BlockDriverState *bs, QDict *options,
         top_id = qemu_opt_get(opts, REPLICATION_TOP_ID);
         s->top_id = g_strdup(top_id);
         if (!s->top_id) {
-            error_setg(&local_err, "Missing the option top-id");
+            error_setg(errp, "Missing the option top-id");
             goto fail;
         }
     } else {
-        error_setg(&local_err,
+        error_setg(errp,
                    "The option mode's value should be primary or secondary");
         goto fail;
     }
@@ -136,7 +137,6 @@ static int replication_open(BlockDriverState *bs, QDict *options,
 
 fail:
     qemu_opts_del(opts);
-    error_propagate(errp, local_err);
 
     return ret;
 }
@@ -314,7 +314,7 @@ static bool replication_recurse_is_first_non_filter(BlockDriverState *bs,
 
 static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int ret;
 
     if (!s->backup_job) {
@@ -322,9 +322,8 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
         return;
     }
 
-    backup_do_checkpoint(s->backup_job, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    backup_do_checkpoint(s->backup_job, errp);
+    if (*errp) {
         return;
     }
 
@@ -361,9 +360,9 @@ static void secondary_do_checkpoint(BDRVReplicationState *s, Error **errp)
 static void reopen_backing_file(BlockDriverState *bs, bool writable,
                                 Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVReplicationState *s = bs->opaque;
     BlockReopenQueue *reopen_queue = NULL;
-    Error *local_err = NULL;
 
     if (writable) {
         s->orig_hidden_read_only = bdrv_is_read_only(s->hidden_disk->bs);
@@ -388,8 +387,7 @@ static void reopen_backing_file(BlockDriverState *bs, bool writable,
     }
 
     if (reopen_queue) {
-        bdrv_reopen_multiple(reopen_queue, &local_err);
-        error_propagate(errp, local_err);
+        bdrv_reopen_multiple(reopen_queue, errp);
     }
 
     bdrv_subtree_drained_end(s->hidden_disk->bs);
@@ -445,12 +443,12 @@ static bool check_top_bs(BlockDriverState *top_bs, BlockDriverState *bs)
 static void replication_start(ReplicationState *rs, ReplicationMode mode,
                               Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockDriverState *bs = rs->opaque;
     BDRVReplicationState *s;
     BlockDriverState *top_bs;
     int64_t active_length, hidden_length, disk_length;
     AioContext *aio_context;
-    Error *local_err = NULL;
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
@@ -519,9 +517,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
         }
 
         /* reopen the backing file in r/w mode */
-        reopen_backing_file(bs, true, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        reopen_backing_file(bs, true, errp);
+        if (*errp) {
             aio_context_release(aio_context);
             return;
         }
@@ -546,9 +543,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
                                 0, MIRROR_SYNC_MODE_NONE, NULL, 0, false,
                                 BLOCKDEV_ON_ERROR_REPORT,
                                 BLOCKDEV_ON_ERROR_REPORT, JOB_INTERNAL,
-                                backup_job_completed, bs, NULL, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                backup_job_completed, bs, NULL, errp);
+        if (*errp) {
             backup_job_cleanup(bs);
             aio_context_release(aio_context);
             return;

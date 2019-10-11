@@ -44,15 +44,14 @@ void replication_remove(ReplicationState *rs)
  */
 void replication_start_all(ReplicationMode mode, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ReplicationState *rs, *next;
-    Error *local_err = NULL;
 
     QLIST_FOREACH_SAFE(rs, &replication_states, node, next) {
         if (rs->ops && rs->ops->start) {
-            rs->ops->start(rs, mode, &local_err);
+            rs->ops->start(rs, mode, errp);
         }
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
     }
@@ -60,15 +59,14 @@ void replication_start_all(ReplicationMode mode, Error **errp)
 
 void replication_do_checkpoint_all(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ReplicationState *rs, *next;
-    Error *local_err = NULL;
 
     QLIST_FOREACH_SAFE(rs, &replication_states, node, next) {
         if (rs->ops && rs->ops->checkpoint) {
-            rs->ops->checkpoint(rs, &local_err);
+            rs->ops->checkpoint(rs, errp);
         }
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
     }
@@ -76,15 +74,14 @@ void replication_do_checkpoint_all(Error **errp)
 
 void replication_get_error_all(Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ReplicationState *rs, *next;
-    Error *local_err = NULL;
 
     QLIST_FOREACH_SAFE(rs, &replication_states, node, next) {
         if (rs->ops && rs->ops->get_error) {
-            rs->ops->get_error(rs, &local_err);
+            rs->ops->get_error(rs, errp);
         }
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
     }
@@ -92,15 +89,14 @@ void replication_get_error_all(Error **errp)
 
 void replication_stop_all(bool failover, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     ReplicationState *rs, *next;
-    Error *local_err = NULL;
 
     QLIST_FOREACH_SAFE(rs, &replication_states, node, next) {
         if (rs->ops && rs->ops->stop) {
-            rs->ops->stop(rs, failover, &local_err);
+            rs->ops->stop(rs, failover, errp);
         }
-        if (local_err) {
-            error_propagate(errp, local_err);
+        if (*errp) {
             return;
         }
     }
