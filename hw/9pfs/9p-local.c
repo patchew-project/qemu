@@ -1477,9 +1477,9 @@ static void error_append_security_model_hint(Error **errp_in)
 
 static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *path = qemu_opt_get(opts, "path");
-    Error *local_err = NULL;
 
     if (!sec_model) {
         error_setg(errp, "security_model property not set");
@@ -1507,9 +1507,9 @@ static int local_parse_opts(QemuOpts *opts, FsDriverEntry *fse, Error **errp)
         return -1;
     }
 
-    fsdev_throttle_parse_opts(opts, &fse->fst, &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
+    fsdev_throttle_parse_opts(opts, &fse->fst, errp);
+    if (*errp) {
+        error_prepend(errp,
                                 "invalid throttle configuration: ");
         return -1;
     }
