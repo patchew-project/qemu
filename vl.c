@@ -2213,11 +2213,10 @@ static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 
 static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
 
-    if (!qemu_chr_new_from_opts(opts, NULL, &local_err)) {
-        if (local_err) {
-            error_propagate(errp, local_err);
+    if (!qemu_chr_new_from_opts(opts, NULL, errp)) {
+        if (*errp) {
             return -1;
         }
         exit(0);
@@ -2613,8 +2612,8 @@ static int machine_set_property(void *opaque,
                                 const char *name, const char *value,
                                 Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     Object *obj = OBJECT(opaque);
-    Error *local_err = NULL;
     char *p, *qom_name;
 
     if (strcmp(name, "type") == 0) {
@@ -2628,11 +2627,10 @@ static int machine_set_property(void *opaque,
         }
     }
 
-    object_property_parse(obj, value, qom_name, &local_err);
+    object_property_parse(obj, value, qom_name, errp);
     g_free(qom_name);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return -1;
     }
 
