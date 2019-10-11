@@ -53,29 +53,27 @@ static void
 host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-    Error *local_err = NULL;
     uint64_t value;
 
     if (host_memory_backend_mr_inited(backend)) {
-        error_setg(&local_err, "cannot change property %s of %s ",
+        error_setg(errp, "cannot change property %s of %s ",
                    name, object_get_typename(obj));
-        goto out;
+        return;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_size(v, name, &value, errp);
+    if (*errp) {
+        return;
     }
     if (!value) {
-        error_setg(&local_err,
+        error_setg(errp,
                    "property '%s' of %s doesn't take value '%" PRIu64 "'",
                    name, object_get_typename(obj), value);
-        goto out;
+        return;
     }
     backend->size = value;
-out:
-    error_propagate(errp, local_err);
 }
 
 static void
@@ -221,7 +219,7 @@ static bool host_memory_backend_get_prealloc(Object *obj, Error **errp)
 static void host_memory_backend_set_prealloc(Object *obj, bool value,
                                              Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     MachineState *ms = MACHINE(qdev_get_machine());
 
@@ -243,9 +241,8 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
         void *ptr = memory_region_get_ram_ptr(&backend->mr);
         uint64_t sz = memory_region_size(&backend->mr);
 
-        os_mem_prealloc(fd, ptr, sz, ms->smp.cpus, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        os_mem_prealloc(fd, ptr, sz, ms->smp.cpus, errp);
+        if (*errp) {
             return;
         }
         backend->prealloc = true;
@@ -311,17 +308,17 @@ size_t host_memory_backend_pagesize(HostMemoryBackend *memdev)
 static void
 host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HostMemoryBackend *backend = MEMORY_BACKEND(uc);
     HostMemoryBackendClass *bc = MEMORY_BACKEND_GET_CLASS(uc);
     MachineState *ms = MACHINE(qdev_get_machine());
-    Error *local_err = NULL;
     void *ptr;
     uint64_t sz;
 
     if (bc->alloc) {
-        bc->alloc(backend, &local_err);
-        if (local_err) {
-            goto out;
+        bc->alloc(backend, errp);
+        if (*errp) {
+            return;
         }
 
         ptr = memory_region_get_ram_ptr(&backend->mr);
@@ -378,14 +375,12 @@ host_memory_backend_memory_complete(UserCreatable *uc, Error **errp)
          */
         if (backend->prealloc) {
             os_mem_prealloc(memory_region_get_fd(&backend->mr), ptr, sz,
-                            ms->smp.cpus, &local_err);
-            if (local_err) {
-                goto out;
+                            ms->smp.cpus, errp);
+            if (*errp) {
+                return;
             }
         }
     }
-out:
-    error_propagate(errp, local_err);
 }
 
 static bool

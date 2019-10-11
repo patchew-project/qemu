@@ -116,25 +116,22 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
                                           const char *name, void *opaque,
                                           Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
-    Error *local_err = NULL;
     uint64_t val;
 
     if (host_memory_backend_mr_inited(backend)) {
-        error_setg(&local_err, "cannot change property '%s' of %s",
+        error_setg(errp, "cannot change property '%s' of %s",
                    name, object_get_typename(o));
-        goto out;
+        return;
     }
 
-    visit_type_size(v, name, &val, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_size(v, name, &val, errp);
+    if (*errp) {
+        return;
     }
     fb->align = val;
-
- out:
-    error_propagate(errp, local_err);
 }
 
 static bool file_memory_backend_get_pmem(Object *o, Error **errp)
@@ -144,6 +141,7 @@ static bool file_memory_backend_get_pmem(Object *o, Error **errp)
 
 static void file_memory_backend_set_pmem(Object *o, bool value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     HostMemoryBackend *backend = MEMORY_BACKEND(o);
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
 
@@ -156,13 +154,10 @@ static void file_memory_backend_set_pmem(Object *o, bool value, Error **errp)
 
 #ifndef CONFIG_LIBPMEM
     if (value) {
-        Error *local_err = NULL;
-
-        error_setg(&local_err,
+        error_setg(errp,
                    "Lack of libpmem support while setting the 'pmem=on'"
                    " of %s. We can't ensure data persistence.",
                    object_get_typename(o));
-        error_propagate(errp, local_err);
         return;
     }
 #endif
