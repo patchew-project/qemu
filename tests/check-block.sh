@@ -26,8 +26,22 @@ if grep -q "CFLAGS.*-fsanitize" config-host.mak 2>/dev/null ; then
     exit 0
 fi
 
-if [ -z "$(find . -name 'qemu-system-*' -print)" ]; then
+if [ -n "$QEMU_PROG" ]; then
+    qemu_prog="$QEMU_PROG"
+else
+    for binary in *-softmmu/qemu-system-* ; do
+        if [ -x "$binary" ]; then
+            qemu_prog="$binary"
+            break
+        fi
+    done
+fi
+if [ -z "$qemu_prog" ]; then
     echo "No qemu-system binary available ==> Not running the qemu-iotests."
+    exit 0
+fi
+if ! "$qemu_prog" -M none -device help | grep virtio-blk >/dev/null 2>&1 ; then
+    echo "$qemu_prog does not support virtio-blk ==> Not running the qemu-iotests."
     exit 0
 fi
 
