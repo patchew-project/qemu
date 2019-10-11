@@ -136,6 +136,7 @@ static const char *index_to_str(VFIODevice *vbasedev, int index)
 int vfio_set_irq_signaling(VFIODevice *vbasedev, int index, int subindex,
                            int action, int fd, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct vfio_irq_set *irq_set;
     int argsz, ret = 0;
     const char *name;
@@ -1455,6 +1456,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
 VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VFIOGroup *group;
     char path[32];
     struct vfio_group_status status = { .argsz = sizeof(status) };
@@ -1544,6 +1546,7 @@ void vfio_put_group(VFIOGroup *group)
 int vfio_get_device(VFIOGroup *group, const char *name,
                     VFIODevice *vbasedev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct vfio_device_info dev_info = { .argsz = sizeof(dev_info) };
     int ret, fd;
 

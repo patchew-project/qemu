@@ -617,6 +617,7 @@ static int vfio_base_device_init(VFIODevice *vbasedev, Error **errp)
  */
 static void vfio_platform_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VFIOPlatformDevice *vdev = VFIO_PLATFORM_DEVICE(dev);
     SysBusDevice *sbdev = SYS_BUS_DEVICE(dev);
     VFIODevice *vbasedev = &vdev->vbasedev;

@@ -119,7 +119,6 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
         .gsi = vdev->intx.route.irq,
         .flags = KVM_IRQFD_FLAG_RESAMPLE,
     };
-    Error *err = NULL;
 
     if (vdev->no_kvm_intx || !kvm_irqfds_enabled() ||
         vdev->intx.route.mode != PCI_INTX_ENABLED ||
@@ -149,8 +148,7 @@ static void vfio_intx_enable_kvm(VFIOPCIDevice *vdev, Error **errp)
 
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
                                VFIO_IRQ_SET_ACTION_UNMASK,
-                               irqfd.resamplefd, &err)) {
-        error_propagate(errp, err);
+                               irqfd.resamplefd, errp)) {
         goto fail_vfio;
     }
 
@@ -253,8 +251,8 @@ static void vfio_intx_update(PCIDevice *pdev)
 
 static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     uint8_t pin = vfio_pci_read_config(&vdev->pdev, PCI_INTERRUPT_PIN, 1);
-    Error *err = NULL;
     int32_t fd;
     int ret;
 
@@ -288,16 +286,15 @@ static int vfio_intx_enable(VFIOPCIDevice *vdev, Error **errp)
     qemu_set_fd_handler(fd, vfio_intx_interrupt, NULL, vdev);
 
     if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_INTX_IRQ_INDEX, 0,
-                               VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
-        error_propagate(errp, err);
+                               VFIO_IRQ_SET_ACTION_TRIGGER, fd, errp)) {
         qemu_set_fd_handler(fd, NULL, NULL, vdev);
         event_notifier_cleanup(&vdev->intx.interrupt);
         return -errno;
     }
 
-    vfio_intx_enable_kvm(vdev, &err);
-    if (err) {
-        warn_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+    vfio_intx_enable_kvm(vdev, errp);
+    if (*errp) {
+        warn_reportf_err(*errp, VFIO_MSG_PREFIX, vdev->vbasedev.name);
     }
 
     vdev->interrupt = VFIO_INT_INTx;
@@ -1218,10 +1215,10 @@ static void vfio_disable_interrupts(VFIOPCIDevice *vdev)
 
 static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     uint16_t ctrl;
     bool msi_64bit, msi_maskbit;
     int ret, entries;
-    Error *err = NULL;
 
     if (pread(vdev->vbasedev.fd, &ctrl, sizeof(ctrl),
               vdev->config_offset + pos + PCI_CAP_FLAGS) != sizeof(ctrl)) {
@@ -1236,12 +1233,12 @@ static int vfio_msi_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 
     trace_vfio_msi_setup(vdev->vbasedev.name, pos);
 
-    ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit, &err);
+    ret = msi_init(&vdev->pdev, pos, entries, msi_64bit, msi_maskbit, errp);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
             return 0;
         }
-        error_propagate_prepend(errp, err, "msi_init failed: ");
+        error_prepend(errp, "msi_init failed: ");
         return ret;
     }
     vdev->msi_cap_size = 0xa + (msi_maskbit ? 0xa : 0) + (msi_64bit ? 0x4 : 0);
@@ -1502,8 +1499,8 @@ static void vfio_msix_early_setup(VFIOPCIDevice *vdev, Error **errp)
 
 static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret;
-    Error *err = NULL;
 
     vdev->msix->pending = g_malloc0(BITS_TO_LONGS(vdev->msix->entries) *
                                     sizeof(unsigned long));
@@ -1512,14 +1509,13 @@ static int vfio_msix_setup(VFIOPCIDevice *vdev, int pos, Error **errp)
                     vdev->msix->table_bar, vdev->msix->table_offset,
                     vdev->bars[vdev->msix->pba_bar].mr,
                     vdev->msix->pba_bar, vdev->msix->pba_offset, pos,
-                    &err);
+                    errp);
     if (ret < 0) {
         if (ret == -ENOTSUP) {
-            warn_report_err(err);
+            warn_report_errp(errp);
             return 0;
         }
 
-        error_propagate(errp, err);
         return ret;
     }
 
@@ -1916,6 +1912,7 @@ static void vfio_check_af_flr(VFIOPCIDevice *vdev, uint8_t pos)
 
 static int vfio_add_std_cap(VFIOPCIDevice *vdev, uint8_t pos, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDevice *pdev = &vdev->pdev;
     uint8_t cap_id, next, size;
     int ret;
@@ -2469,6 +2466,7 @@ int vfio_populate_vga(VFIOPCIDevice *vdev, Error **errp)
 
 static void vfio_populate_device(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VFIODevice *vbasedev = &vdev->vbasedev;
     struct vfio_region_info *reg_info;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
@@ -2700,11 +2698,11 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
 
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
     char *tmp, *subsys, group_path[PATH_MAX], *group_name;
-    Error *err = NULL;
     ssize_t len;
     struct stat st;
     int groupid;
@@ -2796,9 +2794,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    vfio_populate_device(vdev, &err);
-    if (err) {
-        error_propagate(errp, err);
+    vfio_populate_device(vdev, errp);
+    if (*errp) {
         goto error;
     }
 
@@ -2891,9 +2888,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     vfio_bars_prepare(vdev);
 
-    vfio_msix_early_setup(vdev, &err);
-    if (err) {
-        error_propagate(errp, err);
+    vfio_msix_early_setup(vdev, errp);
+    if (*errp) {
         goto error;
     }
 

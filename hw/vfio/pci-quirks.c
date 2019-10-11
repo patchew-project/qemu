@@ -2106,19 +2106,18 @@ static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint8_t value, *ptr = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
-    visit_type_uint8(v, name, &value, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_uint8(v, name, &value, errp);
+    if (*errp) {
         return;
     }
 
@@ -2139,6 +2138,7 @@ const PropertyInfo qdev_prop_nv_gpudirect_clique = {
 
 static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIDevice *pdev = &vdev->pdev;
     int ret, pos = 0xC8;
 
