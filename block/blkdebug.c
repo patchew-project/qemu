@@ -164,6 +164,7 @@ struct add_rule_data {
 
 static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct add_rule_data *d = opaque;
     BDRVBlkdebugState *s = d->s;
     const char* event_name;
@@ -171,7 +172,6 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
     struct BlkdebugRule *rule;
     int64_t sector;
     BlkdebugIOType iotype;
-    Error *local_error = NULL;
 
     /* Find the right event for the rule */
     event_name = qemu_opt_get(opts, "event");
@@ -205,9 +205,8 @@ static int add_rule(void *opaque, QemuOpts *opts, Error **errp)
 
         iotype = qapi_enum_parse(&BlkdebugIOType_lookup,
                                  qemu_opt_get(opts, "iotype"),
-                                 BLKDEBUG_IO_TYPE__MAX, &local_error);
-        if (local_error) {
-            error_propagate(errp, local_error);
+                                 BLKDEBUG_IO_TYPE__MAX, errp);
+        if (*errp) {
             return -1;
         }
         if (iotype != BLKDEBUG_IO_TYPE__MAX) {
@@ -259,10 +258,10 @@ static void remove_rule(BlkdebugRule *rule)
 static int read_config(BDRVBlkdebugState *s, const char *filename,
                        QDict *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     FILE *f = NULL;
     int ret;
     struct add_rule_data d;
-    Error *local_err = NULL;
 
     if (filename) {
         f = fopen(filename, "r");
@@ -278,26 +277,23 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
         }
     }
 
-    qemu_config_parse_qdict(options, config_groups, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_config_parse_qdict(options, config_groups, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
 
     d.s = s;
     d.action = ACTION_INJECT_ERROR;
-    qemu_opts_foreach(&inject_error_opts, add_rule, &d, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_foreach(&inject_error_opts, add_rule, &d, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
 
     d.action = ACTION_SET_STATE;
-    qemu_opts_foreach(&set_state_opts, add_rule, &d, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_foreach(&set_state_opts, add_rule, &d, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -395,16 +391,15 @@ static QemuOptsList runtime_opts = {
 static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
                          Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVBlkdebugState *s = bs->opaque;
     QemuOpts *opts;
-    Error *local_err = NULL;
     int ret;
     uint64_t align;
 
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -421,10 +416,9 @@ static int blkdebug_open(BlockDriverState *bs, QDict *options, int flags,
 
     /* Open the image file */
     bs->file = bdrv_open_child(qemu_opt_get(opts, "x-image"), options, "image",
-                               bs, &child_file, false, &local_err);
-    if (local_err) {
+                               bs, &child_file, false, errp);
+    if (*errp) {
         ret = -EINVAL;
-        error_propagate(errp, local_err);
         goto out;
     }
 
