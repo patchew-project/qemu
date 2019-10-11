@@ -60,7 +60,7 @@ static void ohci_pci_die(struct OHCIState *ohci)
 
 static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     OHCIPCIState *ohci = PCI_OHCI(dev);
 
     dev->config[PCI_CLASS_PROG] = 0x10; /* OHCI */
@@ -68,9 +68,8 @@ static void usb_ohci_realize_pci(PCIDevice *dev, Error **errp)
 
     usb_ohci_init(&ohci->state, DEVICE(dev), ohci->num_ports, 0,
                   ohci->masterbus, ohci->firstport,
-                  pci_get_address_space(dev), ohci_pci_die, &err);
-    if (err) {
-        error_propagate(errp, err);
+                  pci_get_address_space(dev), ohci_pci_die, errp);
+    if (*errp) {
         return;
     }
 

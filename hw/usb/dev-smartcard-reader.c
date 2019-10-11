@@ -1271,19 +1271,18 @@ void ccid_card_card_inserted(CCIDCardState *card)
 
 static void ccid_card_unrealize(DeviceState *qdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CCIDCardState *card = CCID_CARD(qdev);
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
-    Error *local_err = NULL;
 
     if (ccid_card_inserted(s)) {
         ccid_card_card_removed(card);
     }
     if (cc->unrealize) {
-        cc->unrealize(card, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
+        cc->unrealize(card, errp);
+        if (*errp) {
             return;
         }
     }
@@ -1292,11 +1291,11 @@ static void ccid_card_unrealize(DeviceState *qdev, Error **errp)
 
 static void ccid_card_realize(DeviceState *qdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     CCIDCardState *card = CCID_CARD(qdev);
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
     USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
     USBCCIDState *s = USB_CCID_DEV(dev);
-    Error *local_err = NULL;
 
     if (card->slot != 0) {
         error_setg(errp, "usb-ccid supports one slot, can't add %d",
@@ -1308,9 +1307,8 @@ static void ccid_card_realize(DeviceState *qdev, Error **errp)
         return;
     }
     if (cc->realize) {
-        cc->realize(card, &local_err);
-        if (local_err != NULL) {
-            error_propagate(errp, local_err);
+        cc->realize(card, errp);
+        if (*errp) {
             return;
         }
     }

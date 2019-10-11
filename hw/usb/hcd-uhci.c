@@ -1213,7 +1213,7 @@ static USBBusOps uhci_bus_ops = {
 
 static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     UHCIPCIDeviceClass *u = container_of(pc, UHCIPCIDeviceClass, parent_class);
     UHCIState *s = UHCI(dev);
@@ -1234,9 +1234,8 @@ static void usb_uhci_common_realize(PCIDevice *dev, Error **errp)
         usb_register_companion(s->masterbus, ports, NB_PORTS,
                                s->firstport, s, &uhci_port_ops,
                                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
-                               &err);
-        if (err) {
-            error_propagate(errp, err);
+                               errp);
+        if (*errp) {
             return;
         }
     } else {

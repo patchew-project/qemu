@@ -1795,7 +1795,7 @@ void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
                    uint32_t firstport, AddressSpace *as,
                    void (*ohci_die_fn)(struct OHCIState *), Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int i;
 
     ohci->as = as;
@@ -1831,9 +1831,8 @@ void usb_ohci_init(OHCIState *ohci, DeviceState *dev, uint32_t num_ports,
         usb_register_companion(masterbus, ports, num_ports,
                                firstport, ohci, &ohci_port_ops,
                                USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL,
-                               &err);
-        if (err) {
-            error_propagate(errp, err);
+                               errp);
+        if (*errp) {
             return;
         }
     } else {
@@ -1887,15 +1886,14 @@ typedef struct {
 
 static void ohci_realize_pxa(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     OHCISysBusState *s = SYSBUS_OHCI(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-    Error *err = NULL;
 
     usb_ohci_init(&s->ohci, dev, s->num_ports, s->dma_offset,
                   s->masterbus, s->firstport,
-                  &address_space_memory, ohci_sysbus_die, &err);
-    if (err) {
-        error_propagate(errp, err);
+                  &address_space_memory, ohci_sysbus_die, errp);
+    if (*errp) {
         return;
     }
     sysbus_init_irq(sbd, &s->ohci.irq);

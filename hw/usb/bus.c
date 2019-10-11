@@ -240,8 +240,8 @@ void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps)
 
 static void usb_qdev_realize(DeviceState *qdev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     USBDevice *dev = USB_DEVICE(qdev);
-    Error *local_err = NULL;
 
     pstrcpy(dev->product_desc, sizeof(dev->product_desc),
             usb_device_get_product_desc(dev));
@@ -249,24 +249,21 @@ static void usb_qdev_realize(DeviceState *qdev, Error **errp)
     QLIST_INIT(&dev->strings);
     usb_ep_init(dev);
 
-    usb_claim_port(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    usb_claim_port(dev, errp);
+    if (*errp) {
         return;
     }
 
-    usb_device_realize(dev, &local_err);
-    if (local_err) {
+    usb_device_realize(dev, errp);
+    if (*errp) {
         usb_release_port(dev);
-        error_propagate(errp, local_err);
         return;
     }
 
     if (dev->auto_attach) {
-        usb_device_attach(dev, &local_err);
-        if (local_err) {
+        usb_device_attach(dev, errp);
+        if (*errp) {
             usb_qdev_unrealize(qdev, NULL);
-            error_propagate(errp, local_err);
             return;
         }
     }
@@ -325,7 +322,7 @@ USBDevice *usb_create(USBBus *bus, const char *name)
 static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
                                         Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     USBDevice *dev;
 
     dev = USB_DEVICE(qdev_try_create(&bus->qbus, name));
@@ -333,9 +330,9 @@ static USBDevice *usb_try_create_simple(USBBus *bus, const char *name,
         error_setg(errp, "Failed to create USB device '%s'", name);
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), true, "realized", &err);
-    if (err) {
-        error_propagate_prepend(errp, err,
+    object_property_set_bool(OBJECT(dev), true, "realized", errp);
+    if (*errp) {
+        error_prepend(errp,
                                 "Failed to initialize USB device '%s': ",
                                 name);
         return NULL;
@@ -532,12 +529,11 @@ void usb_check_attach(USBDevice *dev, Error **errp)
 
 void usb_device_attach(USBDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     USBPort *port = dev->port;
-    Error *local_err = NULL;
 
-    usb_check_attach(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    usb_check_attach(dev, errp);
+    if (*errp) {
         return;
     }
 
@@ -731,16 +727,15 @@ static bool usb_get_attached(Object *obj, Error **errp)
 
 static void usb_set_attached(Object *obj, bool value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     USBDevice *dev = USB_DEVICE(obj);
-    Error *err = NULL;
 
     if (dev->attached == value) {
         return;
     }
 
     if (value) {
-        usb_device_attach(dev, &err);
-        error_propagate(errp, err);
+        usb_device_attach(dev, errp);
     } else {
         usb_device_detach(dev);
     }

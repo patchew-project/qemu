@@ -717,19 +717,19 @@ static void usb_msd_get_bootindex(Object *obj, Visitor *v, const char *name,
 static void usb_msd_set_bootindex(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     USBDevice *dev = USB_DEVICE(obj);
     MSDState *s = USB_STORAGE_DEV(dev);
     int32_t boot_index;
-    Error *local_err = NULL;
 
-    visit_type_int32(v, name, &boot_index, &local_err);
-    if (local_err) {
-        goto out;
+    visit_type_int32(v, name, &boot_index, errp);
+    if (*errp) {
+        return;
     }
     /* check whether bootindex is present in fw_boot_order list  */
-    check_boot_index(boot_index, &local_err);
-    if (local_err) {
-        goto out;
+    check_boot_index(boot_index, errp);
+    if (*errp) {
+        return;
     }
     /* change bootindex to a new one */
     s->conf.bootindex = boot_index;
@@ -738,9 +738,6 @@ static void usb_msd_set_bootindex(Object *obj, Visitor *v, const char *name,
         object_property_set_int(OBJECT(s->scsi_dev), boot_index, "bootindex",
                                 &error_abort);
     }
-
-out:
-    error_propagate(errp, local_err);
 }
 
 static const TypeInfo usb_storage_dev_type_info = {
