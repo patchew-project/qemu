@@ -326,11 +326,11 @@ static bool get_aio_option(QemuOpts *opts, int flags, Error **errp)
 static int raw_open(BlockDriverState *bs, QDict *options, int flags,
                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     int access_flags;
     DWORD overlapped;
     QemuOpts *opts;
-    Error *local_err = NULL;
     const char *filename;
     bool use_aio;
     int ret;
@@ -338,9 +338,8 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
     s->type = FTYPE_FILE;
 
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -353,9 +352,8 @@ static int raw_open(BlockDriverState *bs, QDict *options, int flags,
 
     filename = qemu_opt_get(opts, "filename");
 
-    use_aio = get_aio_option(opts, flags, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    use_aio = get_aio_option(opts, flags, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -722,33 +720,30 @@ static void hdev_refresh_limits(BlockDriverState *bs, Error **errp)
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     int access_flags, create_flags;
     int ret = 0;
     DWORD overlapped;
     char device_name[64];
-
-    Error *local_err = NULL;
     const char *filename;
     bool use_aio;
 
     QemuOpts *opts = qemu_opts_create(&raw_runtime_opts, NULL, 0,
                                       &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto done;
     }
 
     filename = qemu_opt_get(opts, "filename");
 
-    use_aio = get_aio_option(opts, flags, &local_err);
-    if (!local_err && use_aio) {
-        error_setg(&local_err, "AIO is not supported on Windows host devices");
+    use_aio = get_aio_option(opts, flags, errp);
+    if (!*errp && use_aio) {
+        error_setg(errp, "AIO is not supported on Windows host devices");
     }
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         ret = -EINVAL;
         goto done;
     }

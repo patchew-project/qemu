@@ -320,6 +320,7 @@ static bool raw_is_io_aligned(int fd, void *buf, size_t len)
 
 static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     char *buf;
     size_t max_align = MAX(MAX_BLOCKSIZE, getpagesize());
@@ -473,9 +474,9 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                            int bdrv_flags, int open_flags,
                            bool device, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     QemuOpts *opts;
-    Error *local_err = NULL;
     const char *filename = NULL;
     const char *str;
     BlockdevAioOptions aio, aio_default;
@@ -484,9 +485,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     OnOffAuto locking;
 
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -503,9 +503,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
                   : BLOCKDEV_AIO_OPTIONS_THREADS;
     aio = qapi_enum_parse(&BlockdevAioOptions_lookup,
                           qemu_opt_get(opts, "aio"),
-                          aio_default, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                          aio_default, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -513,9 +512,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     locking = qapi_enum_parse(&OnOffAuto_lookup,
                               qemu_opt_get(opts, "locking"),
-                              ON_OFF_AUTO_AUTO, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                              ON_OFF_AUTO_AUTO, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto fail;
     }
@@ -541,9 +539,8 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 
     str = qemu_opt_get(opts, "pr-manager");
     if (str) {
-        s->pr_mgr = pr_manager_lookup(str, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        s->pr_mgr = pr_manager_lookup(str, errp);
+        if (*errp) {
             ret = -EINVAL;
             goto fail;
         }
@@ -817,9 +814,9 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
                                 uint64_t new_perm, uint64_t new_shared,
                                 Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
     int ret = 0;
-    Error *local_err = NULL;
 
     if (!s->use_lock) {
         return 0;
@@ -859,22 +856,22 @@ static int raw_handle_perm_lock(BlockDriverState *bs,
         /* fall through to unlock bytes. */
     case RAW_PL_ABORT:
         raw_apply_lock_bytes(s, s->fd, s->perm, ~s->shared_perm,
-                             true, &local_err);
-        if (local_err) {
+                             true, errp);
+        if (*errp) {
             /* Theoretically the above call only unlocks bytes and it cannot
              * fail. Something weird happened, report it.
              */
-            warn_report_err(local_err);
+            warn_report_errp(errp);
         }
         break;
     case RAW_PL_COMMIT:
         raw_apply_lock_bytes(s, s->fd, new_perm, ~new_shared,
-                             true, &local_err);
-        if (local_err) {
+                             true, errp);
+        if (*errp) {
             /* Theoretically the above call only unlocks bytes and it cannot
              * fail. Something weird happened, report it.
              */
-            warn_report_err(local_err);
+            warn_report_errp(errp);
         }
         break;
     }
@@ -948,11 +945,11 @@ static int raw_reconfigure_getfd(BlockDriverState *bs, int flags,
 static int raw_reopen_prepare(BDRVReopenState *state,
                               BlockReopenQueue *queue, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s;
     BDRVRawReopenState *rs;
     QemuOpts *opts;
     int ret;
-    Error *local_err = NULL;
 
     assert(state != NULL);
     assert(state->bs != NULL);
@@ -964,9 +961,8 @@ static int raw_reopen_prepare(BDRVReopenState *state,
 
     /* Handle options changes */
     opts = qemu_opts_create(&raw_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, state->options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, state->options, errp);
+    if (*errp) {
         ret = -EINVAL;
         goto out;
     }
@@ -981,9 +977,8 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     qemu_opts_to_qdict(opts, state->options);
 
     rs->fd = raw_reconfigure_getfd(state->bs, state->flags, &rs->open_flags,
-                                   state->perm, true, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                   state->perm, true, errp);
+    if (*errp) {
         ret = -1;
         goto out;
     }
@@ -991,9 +986,8 @@ static int raw_reopen_prepare(BDRVReopenState *state,
     /* Fail already reopen_prepare() if we can't get a working O_DIRECT
      * alignment with the new fd. */
     if (rs->fd != -1) {
-        raw_probe_alignment(state->bs, rs->fd, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        raw_probe_alignment(state->bs, rs->fd, errp);
+        if (*errp) {
             ret = -EINVAL;
             goto out_fd;
         }
@@ -2232,8 +2226,8 @@ static int64_t raw_get_allocated_file_size(BlockDriverState *bs)
 static int coroutine_fn
 raw_co_create(BlockdevCreateOptions *options, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptionsFile *file_opts;
-    Error *local_err = NULL;
     int fd;
     uint64_t perm, shared;
     int result = 0;
@@ -2315,13 +2309,13 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     }
 
 out_unlock:
-    raw_apply_lock_bytes(NULL, fd, 0, 0, true, &local_err);
-    if (local_err) {
+    raw_apply_lock_bytes(NULL, fd, 0, 0, true, errp);
+    if (*errp) {
         /* The above call should not fail, and if it does, that does
          * not mean the whole creation operation has failed.  So
          * report it the user for their convenience, but do not report
          * it to the caller. */
-        warn_report_err(local_err);
+        warn_report_errp(errp);
     }
 
 out_close:
@@ -2336,12 +2330,12 @@ out:
 static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
                                            Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BlockdevCreateOptions options;
     int64_t total_size = 0;
     bool nocow = false;
     PreallocMode prealloc;
     char *buf = NULL;
-    Error *local_err = NULL;
 
     /* Skip file: protocol prefix */
     strstart(filename, "file:", &filename);
@@ -2352,10 +2346,9 @@ static int coroutine_fn raw_co_create_opts(const char *filename, QemuOpts *opts,
     nocow = qemu_opt_get_bool(opts, BLOCK_OPT_NOCOW, false);
     buf = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
     prealloc = qapi_enum_parse(&PreallocMode_lookup, buf,
-                               PREALLOC_MODE_OFF, &local_err);
+                               PREALLOC_MODE_OFF, errp);
     g_free(buf);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return -EINVAL;
     }
 
@@ -3155,8 +3148,8 @@ static bool hdev_is_sg(BlockDriverState *bs)
 static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
-    Error *local_err = NULL;
     int ret;
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -3221,9 +3214,8 @@ hdev_open_Mac_error:
 
     s->type = FTYPE_FILE;
 
-    ret = raw_open_common(bs, options, flags, 0, true, &local_err);
+    ret = raw_open_common(bs, options, flags, 0, true, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
 #if defined(__APPLE__) && defined(__MACH__)
         if (*bsd_path) {
             filename = bsd_path;
@@ -3557,15 +3549,14 @@ static BlockDriver bdrv_host_cdrom = {
 static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVRawState *s = bs->opaque;
-    Error *local_err = NULL;
     int ret;
 
     s->type = FTYPE_CD;
 
-    ret = raw_open_common(bs, options, flags, 0, true, &local_err);
+    ret = raw_open_common(bs, options, flags, 0, true, errp);
     if (ret) {
-        error_propagate(errp, local_err);
         return ret;
     }
 
