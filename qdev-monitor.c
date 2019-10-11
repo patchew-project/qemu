@@ -857,7 +857,7 @@ void hmp_device_add(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_device_add((QDict *)qdict, NULL, &err);
-    hmp_handle_error(mon, &err);
+    hmp_handle_error(mon, err);
 }
 
 void hmp_device_del(Monitor *mon, const QDict *qdict)
@@ -866,7 +866,7 @@ void hmp_device_del(Monitor *mon, const QDict *qdict)
     Error *err = NULL;
 
     qmp_device_del(id, &err);
-    hmp_handle_error(mon, &err);
+    hmp_handle_error(mon, err);
 }
 
 BlockBackend *blk_by_qdev_id(const char *id, Error **errp)
