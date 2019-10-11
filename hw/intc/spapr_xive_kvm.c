@@ -186,6 +186,7 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp)
 void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
                                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     uint32_t end_idx;
     uint32_t end_blk;
     uint8_t priority;
@@ -193,7 +194,6 @@ void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
     bool masked;
     uint32_t eisn;
     uint64_t kvm_src;
-    Error *local_err = NULL;
 
     assert(xive_eas_is_valid(eas));
 
@@ -214,9 +214,8 @@ void kvmppc_xive_set_source_config(SpaprXive *xive, uint32_t lisn, XiveEAS *eas,
         KVM_XIVE_SOURCE_EISN_MASK;
 
     kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_SOURCE_CONFIG, lisn,
-                      &kvm_src, true, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                      &kvm_src, true, errp);
+    if (*errp) {
         return;
     }
 }
@@ -255,19 +254,17 @@ int kvmppc_xive_source_reset_one(XiveSource *xsrc, int srcno, Error **errp)
 
 static void kvmppc_xive_source_reset(XiveSource *xsrc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprXive *xive = SPAPR_XIVE(xsrc->xive);
     int i;
 
     for (i = 0; i < xsrc->nr_irqs; i++) {
-        Error *local_err = NULL;
-
         if (!xive_eas_is_valid(&xive->eat[i])) {
             continue;
         }
 
-        kvmppc_xive_source_reset_one(xsrc, i, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        kvmppc_xive_source_reset_one(xsrc, i, errp);
+        if (*errp) {
             return;
         }
     }
@@ -389,11 +386,11 @@ void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
                                   uint32_t end_idx, XiveEND *end,
                                   Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct kvm_ppc_xive_eq kvm_eq = { 0 };
     uint64_t kvm_eq_idx;
     uint8_t priority;
     uint32_t server;
-    Error *local_err = NULL;
 
     assert(xive_end_is_valid(end));
 
@@ -406,9 +403,8 @@ void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
         KVM_XIVE_EQ_SERVER_MASK;
 
     kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
-                      &kvm_eq, false, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                      &kvm_eq, false, errp);
+    if (*errp) {
         return;
     }
 
@@ -425,11 +421,11 @@ void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
                                   uint32_t end_idx, XiveEND *end,
                                   Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct kvm_ppc_xive_eq kvm_eq = { 0 };
     uint64_t kvm_eq_idx;
     uint8_t priority;
     uint32_t server;
-    Error *local_err = NULL;
 
     /*
      * Build the KVM state from the local END structure.
@@ -468,9 +464,8 @@ void kvmppc_xive_set_queue_config(SpaprXive *xive, uint8_t end_blk,
         KVM_XIVE_EQ_SERVER_MASK;
 
     kvm_device_access(xive->fd, KVM_DEV_XIVE_GRP_EQ_CONFIG, kvm_eq_idx,
-                      &kvm_eq, true, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                      &kvm_eq, true, errp);
+    if (*errp) {
         return;
     }
 }
@@ -483,7 +478,7 @@ void kvmppc_xive_reset(SpaprXive *xive, Error **errp)
 
 static void kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     int i;
 
     for (i = 0; i < xive->nr_ends; i++) {
@@ -492,9 +487,8 @@ static void kvmppc_xive_get_queues(SpaprXive *xive, Error **errp)
         }
 
         kvmppc_xive_get_queue_config(xive, SPAPR_XIVE_BLOCK_ID, i,
-                                     &xive->endt[i], &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+                                     &xive->endt[i], errp);
+        if (*errp) {
             return;
         }
     }
@@ -742,8 +736,8 @@ static void *kvmppc_xive_mmap(SpaprXive *xive, int pgoff, size_t len,
  */
 void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveSource *xsrc = &xive->source;
-    Error *local_err = NULL;
     size_t esb_len = (1ull << xsrc->esb_shift) * xsrc->nr_irqs;
     size_t tima_len = 4ull << TM_SHIFT;
     CPUState *cs;
@@ -772,8 +766,8 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
      * 1. Source ESB pages - KVM mapping
      */
     xsrc->esb_mmap = kvmppc_xive_mmap(xive, KVM_XIVE_ESB_PAGE_OFFSET, esb_len,
-                                      &local_err);
-    if (local_err) {
+                                      errp);
+    if (*errp) {
         goto fail;
     }
 
@@ -790,8 +784,8 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
      * 3. TIMA pages - KVM mapping
      */
     xive->tm_mmap = kvmppc_xive_mmap(xive, KVM_XIVE_TIMA_PAGE_OFFSET, tima_len,
-                                     &local_err);
-    if (local_err) {
+                                     errp);
+    if (*errp) {
         goto fail;
     }
     memory_region_init_ram_device_ptr(&xive->tm_mmio_kvm, OBJECT(xive),
@@ -806,15 +800,15 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
     CPU_FOREACH(cs) {
         PowerPCCPU *cpu = POWERPC_CPU(cs);
 
-        kvmppc_xive_cpu_connect(spapr_cpu_state(cpu)->tctx, &local_err);
-        if (local_err) {
+        kvmppc_xive_cpu_connect(spapr_cpu_state(cpu)->tctx, errp);
+        if (*errp) {
             goto fail;
         }
     }
 
     /* Update the KVM sources */
-    kvmppc_xive_source_reset(xsrc, &local_err);
-    if (local_err) {
+    kvmppc_xive_source_reset(xsrc, errp);
+    if (*errp) {
         goto fail;
     }
 
@@ -824,7 +818,6 @@ void kvmppc_xive_connect(SpaprXive *xive, Error **errp)
     return;
 
 fail:
-    error_propagate(errp, local_err);
     kvmppc_xive_disconnect(xive, NULL);
 }
 

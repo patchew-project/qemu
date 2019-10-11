@@ -570,15 +570,14 @@ static void xive_tctx_reset(void *dev)
 
 static void xive_tctx_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveTCTX *tctx = XIVE_TCTX(dev);
     PowerPCCPU *cpu;
     CPUPPCState *env;
     Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "cpu", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "cpu", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'cpu' not found: ");
         return;
     }
@@ -601,9 +600,8 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
 
     /* Connect the presenter to the VCPU (required for CPU hotplug) */
     if (kvm_irqchip_in_kernel()) {
-        kvmppc_xive_cpu_connect(tctx, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        kvmppc_xive_cpu_connect(tctx, errp);
+        if (*errp) {
             return;
         }
     }
@@ -681,15 +679,15 @@ static const TypeInfo xive_tctx_info = {
 
 Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     Object *obj;
 
     obj = object_new(TYPE_XIVE_TCTX);
     object_property_add_child(cpu, TYPE_XIVE_TCTX, obj, &error_abort);
     object_unref(obj);
     object_property_add_const_link(obj, "cpu", cpu, &error_abort);
-    object_property_set_bool(obj, true, "realized", &local_err);
-    if (local_err) {
+    object_property_set_bool(obj, true, "realized", errp);
+    if (*errp) {
         goto error;
     }
 
@@ -697,7 +695,6 @@ Object *xive_tctx_create(Object *cpu, XiveRouter *xrtr, Error **errp)
 
 error:
     object_unparent(obj);
-    error_propagate(errp, local_err);
     return NULL;
 }
 
@@ -1050,13 +1047,12 @@ static void xive_source_reset(void *dev)
 
 static void xive_source_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveSource *xsrc = XIVE_SOURCE(dev);
     Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "xive", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "xive", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'xive' not found: ");
         return;
     }
@@ -1806,13 +1802,12 @@ static const MemoryRegionOps xive_end_source_ops = {
 
 static void xive_end_source_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XiveENDSource *xsrc = XIVE_END_SOURCE(dev);
     Object *obj;
-    Error *local_err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "xive", &local_err);
+    obj = object_property_get_link(OBJECT(dev), "xive", errp);
     if (!obj) {
-        error_propagate(errp, local_err);
         error_prepend(errp, "required link 'xive' not found: ");
         return;
     }

@@ -273,10 +273,10 @@ static void spapr_xive_instance_init(Object *obj)
 
 static void spapr_xive_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SpaprXive *xive = SPAPR_XIVE(dev);
     XiveSource *xsrc = &xive->source;
     XiveENDSource *end_xsrc = &xive->end_source;
-    Error *local_err = NULL;
 
     if (!xive->nr_irqs) {
         error_setg(errp, "Number of interrupt needs to be greater 0");
@@ -295,9 +295,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_add_const_link(OBJECT(xsrc), "xive", OBJECT(xive),
                                    &error_fatal);
-    object_property_set_bool(OBJECT(xsrc), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(xsrc), true, "realized", errp);
+    if (*errp) {
         return;
     }
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &xsrc->esb_mmio);
@@ -309,9 +308,8 @@ static void spapr_xive_realize(DeviceState *dev, Error **errp)
                             &error_fatal);
     object_property_add_const_link(OBJECT(end_xsrc), "xive", OBJECT(xive),
                                    &error_fatal);
-    object_property_set_bool(OBJECT(end_xsrc), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    object_property_set_bool(OBJECT(end_xsrc), true, "realized", errp);
+    if (*errp) {
         return;
     }
     sysbus_init_mmio(SYS_BUS_DEVICE(xive), &end_xsrc->esb_mmio);
