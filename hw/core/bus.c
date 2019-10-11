@@ -146,14 +146,14 @@ static bool bus_get_realized(Object *obj, Error **errp)
 
 static void bus_set_realized(Object *obj, bool value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BusState *bus = BUS(obj);
     BusClass *bc = BUS_GET_CLASS(bus);
     BusChild *kid;
-    Error *local_err = NULL;
 
     if (value && !bus->realized) {
         if (bc->realize) {
-            bc->realize(bus, &local_err);
+            bc->realize(bus, errp);
         }
 
         /* TODO: recursive realization */
@@ -161,18 +161,17 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
         QTAILQ_FOREACH(kid, &bus->children, sibling) {
             DeviceState *dev = kid->child;
             object_property_set_bool(OBJECT(dev), false, "realized",
-                                     &local_err);
-            if (local_err != NULL) {
+                                     errp);
+            if (*errp) {
                 break;
             }
         }
-        if (bc->unrealize && local_err == NULL) {
-            bc->unrealize(bus, &local_err);
+        if (bc->unrealize && *errp == NULL) {
+            bc->unrealize(bus, errp);
         }
     }
 
-    if (local_err != NULL) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         return;
     }
 
