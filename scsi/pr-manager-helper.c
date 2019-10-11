@@ -101,13 +101,13 @@ static int pr_manager_helper_write(PRManagerHelper *pr_mgr,
 static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
                                         Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     char *path = g_strdup(pr_mgr->path);
     SocketAddress saddr = {
         .type = SOCKET_ADDRESS_TYPE_UNIX,
         .u.q_unix.path = path
     };
     QIOChannelSocket *sioc = qio_channel_socket_new();
-    Error *local_err = NULL;
 
     uint32_t flags;
     int r;
@@ -116,11 +116,10 @@ static int pr_manager_helper_initialize(PRManagerHelper *pr_mgr,
     qio_channel_set_name(QIO_CHANNEL(sioc), "pr-manager-helper");
     qio_channel_socket_connect_sync(sioc,
                                     &saddr,
-                                    &local_err);
+                                    errp);
     g_free(path);
-    if (local_err) {
+    if (*errp) {
         object_unref(OBJECT(sioc));
-        error_propagate(errp, local_err);
         return -ENOTCONN;
     }
 
