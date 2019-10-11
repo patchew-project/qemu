@@ -737,11 +737,11 @@ static void s390_pci_iommu_free(S390pciState *s, PCIBus *bus, int32_t devfn)
 
 static void s390_pcihost_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIBus *b;
     BusState *bus;
     PCIHostState *phb = PCI_HOST_BRIDGE(dev);
     S390pciState *s = S390_PCI_HOST_BRIDGE(dev);
-    Error *local_err = NULL;
 
     DPRINTF("host_init\n");
 
@@ -751,17 +751,15 @@ static void s390_pcihost_realize(DeviceState *dev, Error **errp)
     pci_setup_iommu(b, s390_pci_dma_iommu, s);
 
     bus = BUS(b);
-    qbus_set_hotplug_handler(bus, OBJECT(dev), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qbus_set_hotplug_handler(bus, OBJECT(dev), errp);
+    if (*errp) {
         return;
     }
     phb->bus = b;
 
     s->bus = S390_PCI_BUS(qbus_create(TYPE_S390_PCI_BUS, dev, NULL));
-    qbus_set_hotplug_handler(BUS(s->bus), OBJECT(dev), &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qbus_set_hotplug_handler(BUS(s->bus), OBJECT(dev), errp);
+    if (*errp) {
         return;
     }
 
@@ -773,8 +771,7 @@ static void s390_pcihost_realize(DeviceState *dev, Error **errp)
     QTAILQ_INIT(&s->zpci_devs);
 
     css_register_io_adapters(CSS_IO_ADAPTER_PCI, true, false,
-                             S390_ADAPTER_SUPPRESSIBLE, &local_err);
-    error_propagate(errp, local_err);
+                             S390_ADAPTER_SUPPRESSIBLE, errp);
 }
 
 static int s390_pci_msix_init(S390PCIBusDevice *pbdev)
@@ -821,7 +818,7 @@ static void s390_pci_msix_free(S390PCIBusDevice *pbdev)
 static S390PCIBusDevice *s390_pci_device_new(S390pciState *s,
                                              const char *target, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev;
 
     dev = qdev_try_create(BUS(s->bus), TYPE_S390_PCI_DEVICE);
@@ -830,17 +827,17 @@ static S390PCIBusDevice *s390_pci_device_new(S390pciState *s,
         return NULL;
     }
 
-    object_property_set_str(OBJECT(dev), target, "target", &local_err);
-    if (local_err) {
+    object_property_set_str(OBJECT(dev), target, "target", errp);
+    if (*errp) {
         object_unparent(OBJECT(dev));
-        error_propagate_prepend(errp, local_err,
+        error_prepend(errp,
                                 "zPCI device could not be created: ");
         return NULL;
     }
-    object_property_set_bool(OBJECT(dev), true, "realized", &local_err);
-    if (local_err) {
+    object_property_set_bool(OBJECT(dev), true, "realized", errp);
+    if (*errp) {
         object_unparent(OBJECT(dev));
-        error_propagate_prepend(errp, local_err,
+        error_prepend(errp,
                                 "zPCI device could not be created: ");
         return NULL;
     }
@@ -1187,6 +1184,7 @@ static uint32_t s390_pci_generate_fid(S390pciState *s, Error **errp)
 
 static void s390_pci_device_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     S390PCIBusDevice *zpci = S390_PCI_DEVICE(dev);
     S390pciState *s = s390_get_phb();
 
@@ -1213,11 +1211,8 @@ static void s390_pci_device_realize(DeviceState *dev, Error **errp)
     }
 
     if (!zpci->fid_defined) {
-        Error *local_error = NULL;
-
-        zpci->fid = s390_pci_generate_fid(s, &local_error);
-        if (local_error) {
-            error_propagate(errp, local_error);
+        zpci->fid = s390_pci_generate_fid(s, errp);
+        if (*errp) {
             return;
         }
     } else if (s390_pci_find_dev_by_fid(s, zpci->fid)) {
