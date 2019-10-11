@@ -727,8 +727,8 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
                                unsigned int protocol,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XenDevice *xendev = dataplane->xendev;
-    Error *local_err = NULL;
     unsigned int ring_size;
     unsigned int i;
 
@@ -764,9 +764,8 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     }
 
     xen_device_set_max_grant_refs(xendev, dataplane->nr_ring_ref,
-                                  &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                  errp);
+    if (*errp) {
         goto stop;
     }
 
@@ -774,9 +773,8 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
                                               dataplane->ring_ref,
                                               dataplane->nr_ring_ref,
                                               PROT_READ | PROT_WRITE,
-                                              &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                              errp);
+    if (*errp) {
         goto stop;
     }
 
@@ -809,9 +807,8 @@ void xen_block_dataplane_start(XenBlockDataPlane *dataplane,
     dataplane->event_channel =
         xen_device_bind_event_channel(xendev, dataplane->ctx, event_channel,
                                       xen_block_dataplane_event, dataplane,
-                                      &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                                      errp);
+    if (*errp) {
         goto stop;
     }
 
