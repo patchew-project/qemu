@@ -2210,9 +2210,9 @@ static void qxl_realize_common(PCIQXLDevice *qxl, Error **errp)
 
 static void qxl_realize_primary(PCIDevice *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     PCIQXLDevice *qxl = PCI_QXL(dev);
     VGACommonState *vga = &qxl->vga;
-    Error *local_err = NULL;
 
     qxl_init_ramsize(qxl);
     vga->vbe_size = qxl->vgamem_size;
@@ -2234,9 +2234,8 @@ static void qxl_realize_primary(PCIDevice *dev, Error **errp)
         return;
     }
 
-    qxl_realize_common(qxl, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qxl_realize_common(qxl, errp);
+    if (*errp) {
         return;
     }
 
