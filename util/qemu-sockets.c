@@ -211,6 +211,7 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct addrinfo ai,*res,*e;
     char port[33];
     char uaddr[INET6_ADDRSTRLEN+1];
@@ -219,7 +220,6 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     int slisten = -1;
     int saved_errno = 0;
     bool socket_created = false;
-    Error *err = NULL;
 
     if (saddr->keep_alive) {
         error_setg(errp, "keep-alive option is not supported for passive "
@@ -232,11 +232,10 @@ static int inet_listen_saddr(InetSocketAddress *saddr,
     if (saddr->has_numeric && saddr->numeric) {
         ai.ai_flags |= AI_NUMERICHOST | AI_NUMERICSERV;
     }
-    ai.ai_family = inet_ai_family_from_address(saddr, &err);
+    ai.ai_family = inet_ai_family_from_address(saddr, errp);
     ai.ai_socktype = SOCK_STREAM;
 
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         return -1;
     }
 
@@ -387,9 +386,9 @@ static int inet_connect_addr(struct addrinfo *addr, Error **errp)
 static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
                                                  Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct addrinfo ai, *res;
     int rc;
-    Error *err = NULL;
     static int useV4Mapped = 1;
 
     memset(&ai, 0, sizeof(ai));
@@ -398,11 +397,10 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
     if (atomic_read(&useV4Mapped)) {
         ai.ai_flags |= AI_V4MAPPED;
     }
-    ai.ai_family = inet_ai_family_from_address(saddr, &err);
+    ai.ai_family = inet_ai_family_from_address(saddr, errp);
     ai.ai_socktype = SOCK_STREAM;
 
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         return NULL;
     }
 
@@ -443,7 +441,7 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  */
 int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     struct addrinfo *res, *e;
     int sock = -1;
 
@@ -453,9 +451,8 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     }
 
     for (e = res; e != NULL; e = e->ai_next) {
-        error_free(local_err);
-        local_err = NULL;
-        sock = inet_connect_addr(e, &local_err);
+        error_free_errp(errp);
+        sock = inet_connect_addr(e, errp);
         if (sock >= 0) {
             break;
         }
@@ -464,7 +461,6 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     freeaddrinfo(res);
 
     if (sock < 0) {
-        error_propagate(errp, local_err);
         return sock;
     }
 
@@ -487,20 +483,19 @@ static int inet_dgram_saddr(InetSocketAddress *sraddr,
                             InetSocketAddress *sladdr,
                             Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct addrinfo ai, *peer = NULL, *local = NULL;
     const char *addr;
     const char *port;
     int sock = -1, rc;
-    Error *err = NULL;
 
     /* lookup peer addr */
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_CANONNAME | AI_V4MAPPED | AI_ADDRCONFIG;
-    ai.ai_family = inet_ai_family_from_address(sraddr, &err);
+    ai.ai_family = inet_ai_family_from_address(sraddr, errp);
     ai.ai_socktype = SOCK_DGRAM;
 
-    if (err) {
-        error_propagate(errp, err);
+    if (*errp) {
         goto err;
     }
 
@@ -861,6 +856,7 @@ static int unix_listen_saddr(UnixSocketAddress *saddr,
                              int num,
                              Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct sockaddr_un un;
     int sock, fd;
     char *pathbuf = NULL;
@@ -936,6 +932,7 @@ err:
 
 static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     struct sockaddr_un un;
     int sock, rc;
     size_t pathlen;
