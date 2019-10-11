@@ -177,17 +177,16 @@ static void cryptodev_vhost_user_event(void *opaque, int event)
 static void cryptodev_vhost_user_init(
              CryptoDevBackend *backend, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int queues = backend->conf.peers.queues;
     size_t i;
-    Error *local_err = NULL;
     Chardev *chr;
     CryptoDevBackendClient *cc;
     CryptoDevBackendVhostUser *s =
                       CRYPTODEV_BACKEND_VHOST_USER(backend);
 
-    chr = cryptodev_vhost_claim_chardev(s, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    chr = cryptodev_vhost_claim_chardev(s, errp);
+    if (*errp) {
         return;
     }
 
@@ -204,8 +203,7 @@ static void cryptodev_vhost_user_init(
         backend->conf.peers.ccs[i] = cc;
 
         if (i == 0) {
-            if (!qemu_chr_fe_init(&s->chr, chr, &local_err)) {
-                error_propagate(errp, local_err);
+            if (!qemu_chr_fe_init(&s->chr, chr, errp)) {
                 return;
             }
         }
