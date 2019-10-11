@@ -382,23 +382,23 @@ static void bcm2835_property_reset(DeviceState *dev)
 
 static void bcm2835_property_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BCM2835PropertyState *s = BCM2835_PROPERTY(dev);
     Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "fb", &err);
+    obj = object_property_get_link(OBJECT(dev), "fb", errp);
     if (obj == NULL) {
         error_setg(errp, "%s: required fb link not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 
     s->fbdev = BCM2835_FB(obj);
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &err);
+    obj = object_property_get_link(OBJECT(dev), "dma-mr", errp);
     if (obj == NULL) {
         error_setg(errp, "%s: required dma-mr link not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 

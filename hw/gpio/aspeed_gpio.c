@@ -679,16 +679,15 @@ static void aspeed_gpio_get_pin(Object *obj, Visitor *v, const char *name,
 static void aspeed_gpio_set_pin(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    Error *local_err = NULL;
+    ERRP_AUTO_PROPAGATE();
     bool level;
     int pin = 0xfff;
     char group[3];
     AspeedGPIOState *s = ASPEED_GPIO(obj);
     int set_idx, group_idx = 0;
 
-    visit_type_bool(v, name, &level, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_bool(v, name, &level, errp);
+    if (*errp) {
         return;
     }
     if (sscanf(name, "gpio%2[A-Z]%1d", group, &pin) != 2) {

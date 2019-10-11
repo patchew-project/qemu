@@ -127,6 +127,7 @@ static Property msf2_sysreg_properties[] = {
 
 static void msf2_sysreg_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     MSF2SysregState *s = MSF2_SYSREG(dev);
 
     if ((s->apb0div > 32 || !is_power_of_2(s->apb0div))

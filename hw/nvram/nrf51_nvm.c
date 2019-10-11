@@ -326,13 +326,12 @@ static void nrf51_nvm_init(Object *obj)
 
 static void nrf51_nvm_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NRF51NVMState *s = NRF51_NVM(dev);
-    Error *err = NULL;
 
     memory_region_init_rom_device(&s->flash, OBJECT(dev), &flash_ops, s,
-        "nrf51_soc.flash", s->flash_size, &err);
-    if (err) {
-        error_propagate(errp, err);
+        "nrf51_soc.flash", s->flash_size, errp);
+    if (*errp) {
         return;
     }
 

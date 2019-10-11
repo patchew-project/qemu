@@ -109,17 +109,17 @@ static void bcm2835_peripherals_init(Object *obj)
 
 static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BCM2835PeripheralState *s = BCM2835_PERIPHERALS(dev);
     Object *obj;
     MemoryRegion *ram;
-    Error *err = NULL;
     uint64_t ram_size, vcram_size;
     int n;
 
-    obj = object_property_get_link(OBJECT(dev), "ram", &err);
+    obj = object_property_get_link(OBJECT(dev), "ram", errp);
     if (obj == NULL) {
         error_setg(errp, "%s: required ram link not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 
@@ -143,9 +143,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     }
 
     /* Interrupt Controller */
-    object_property_set_bool(OBJECT(&s->ic), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->ic), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -155,9 +154,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
 
     /* UART0 */
     qdev_prop_set_chr(DEVICE(&s->uart0), "chardev", serial_hd(0));
-    object_property_set_bool(OBJECT(&s->uart0), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->uart0), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -169,9 +167,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     /* AUX / UART1 */
     qdev_prop_set_chr(DEVICE(&s->aux), "chardev", serial_hd(1));
 
-    object_property_set_bool(OBJECT(&s->aux), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->aux), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -182,9 +179,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_AUX));
 
     /* Mailboxes */
-    object_property_set_bool(OBJECT(&s->mboxes), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->mboxes), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -195,22 +191,19 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_ARM_MAILBOX));
 
     /* Framebuffer */
-    vcram_size = object_property_get_uint(OBJECT(s), "vcram-size", &err);
-    if (err) {
-        error_propagate(errp, err);
+    vcram_size = object_property_get_uint(OBJECT(s), "vcram-size", errp);
+    if (*errp) {
         return;
     }
 
     object_property_set_uint(OBJECT(&s->fb), ram_size - vcram_size,
-                             "vcram-base", &err);
-    if (err) {
-        error_propagate(errp, err);
+                             "vcram-base", errp);
+    if (*errp) {
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->fb), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->fb), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -220,9 +213,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
 
     /* Property channel */
-    object_property_set_bool(OBJECT(&s->property), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->property), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -233,9 +225,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                       qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_PROPERTY));
 
     /* Random Number Generator */
-    object_property_set_bool(OBJECT(&s->rng), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->rng), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -252,19 +243,17 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
      * For the exact details please refer to the Arasan documentation:
      *   SD3.0_Host_AHB_eMMC4.4_Usersguide_ver5.9_jan11_10.pdf
      */
-    object_property_set_uint(OBJECT(&s->sdhci), 3, "sd-spec-version", &err);
+    object_property_set_uint(OBJECT(&s->sdhci), 3, "sd-spec-version", errp);
     object_property_set_uint(OBJECT(&s->sdhci), BCM2835_SDHC_CAPAREG, "capareg",
-                             &err);
+                             errp);
     object_property_set_bool(OBJECT(&s->sdhci), true, "pending-insert-quirk",
-                             &err);
-    if (err) {
-        error_propagate(errp, err);
+                             errp);
+    if (*errp) {
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->sdhci), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->sdhci), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -275,9 +264,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_ARASANSDIO));
 
     /* SDHOST */
-    object_property_set_bool(OBJECT(&s->sdhost), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->sdhost), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -288,9 +276,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_SDIO));
 
     /* DMA Channels */
-    object_property_set_bool(OBJECT(&s->dma), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->dma), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -307,9 +294,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     }
 
     /* GPIO */
-    object_property_set_bool(OBJECT(&s->gpio), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->gpio), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -317,9 +303,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                 sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->gpio), 0));
 
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->gpio), "sd-bus",
-                              &err);
-    if (err) {
-        error_propagate(errp, err);
+                              errp);
+    if (*errp) {
         return;
     }
 }

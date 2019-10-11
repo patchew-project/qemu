@@ -82,10 +82,10 @@ static void stm32f205_soc_initfn(Object *obj)
 
 static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     STM32F205State *s = STM32F205_SOC(dev_soc);
     DeviceState *dev, *armv7m;
     SysBusDevice *busdev;
-    Error *err = NULL;
     int i;
 
     MemoryRegion *system_memory = get_system_memory();
@@ -114,17 +114,15 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
                                      "memory", &error_abort);
-    object_property_set_bool(OBJECT(&s->armv7m), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->armv7m), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
-    object_property_set_bool(OBJECT(&s->syscfg), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->syscfg), true, "realized", errp);
+    if (*errp) {
         return;
     }
     busdev = SYS_BUS_DEVICE(dev);
@@ -135,9 +133,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_USARTS; i++) {
         dev = DEVICE(&(s->usart[i]));
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        object_property_set_bool(OBJECT(&s->usart[i]), true, "realized", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->usart[i]), true, "realized", errp);
+        if (*errp) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
@@ -149,9 +146,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     for (i = 0; i < STM_NUM_TIMERS; i++) {
         dev = DEVICE(&(s->timer[i]));
         qdev_prop_set_uint64(dev, "clock-frequency", 1000000000);
-        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", errp);
+        if (*errp) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
@@ -161,10 +157,9 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* ADC 1 to 3 */
     object_property_set_int(OBJECT(s->adc_irqs), STM_NUM_ADCS,
-                            "num-lines", &err);
-    object_property_set_bool(OBJECT(s->adc_irqs), true, "realized", &err);
-    if (err != NULL) {
-        error_propagate(errp, err);
+                            "num-lines", errp);
+    object_property_set_bool(OBJECT(s->adc_irqs), true, "realized", errp);
+    if (*errp) {
         return;
     }
     qdev_connect_gpio_out(DEVICE(s->adc_irqs), 0,
@@ -172,9 +167,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
 
     for (i = 0; i < STM_NUM_ADCS; i++) {
         dev = DEVICE(&(s->adc[i]));
-        object_property_set_bool(OBJECT(&s->adc[i]), true, "realized", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->adc[i]), true, "realized", errp);
+        if (*errp) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);
@@ -186,9 +180,8 @@ static void stm32f205_soc_realize(DeviceState *dev_soc, Error **errp)
     /* SPI 1 and 2 */
     for (i = 0; i < STM_NUM_SPIS; i++) {
         dev = DEVICE(&(s->spi[i]));
-        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
-        if (err != NULL) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", errp);
+        if (*errp) {
             return;
         }
         busdev = SYS_BUS_DEVICE(dev);

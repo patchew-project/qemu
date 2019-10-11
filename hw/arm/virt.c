@@ -1793,6 +1793,7 @@ static char *virt_get_gic_version(Object *obj, Error **errp)
 
 static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     if (!strcmp(value, "3")) {
@@ -1825,6 +1826,7 @@ static char *virt_get_iommu(Object *obj, Error **errp)
 
 static void virt_set_iommu(Object *obj, const char *value, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     if (!strcmp(value, "smmuv3")) {

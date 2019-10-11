@@ -401,8 +401,8 @@ static void bcm2835_fb_reset(DeviceState *dev)
 
 static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BCM2835FBState *s = BCM2835_FB(dev);
-    Error *err = NULL;
     Object *obj;
 
     if (s->vcram_base == 0) {
@@ -410,10 +410,10 @@ static void bcm2835_fb_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    obj = object_property_get_link(OBJECT(dev), "dma-mr", &err);
+    obj = object_property_get_link(OBJECT(dev), "dma-mr", errp);
     if (obj == NULL) {
         error_setg(errp, "%s: required dma-mr link not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 

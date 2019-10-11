@@ -68,38 +68,35 @@ static void bcm2836_init(Object *obj)
 
 static void bcm2836_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BCM283XState *s = BCM283X(dev);
     BCM283XClass *bc = BCM283X_GET_CLASS(dev);
     const BCM283XInfo *info = bc->info;
     Object *obj;
-    Error *err = NULL;
     int n;
 
     /* common peripherals from bcm2835 */
 
-    obj = object_property_get_link(OBJECT(dev), "ram", &err);
+    obj = object_property_get_link(OBJECT(dev), "ram", errp);
     if (obj == NULL) {
         error_setg(errp, "%s: required ram link not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 
-    object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj, &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj, errp);
+    if (*errp) {
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->peripherals), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->peripherals), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->peripherals),
-                              "sd-bus", &err);
-    if (err) {
-        error_propagate(errp, err);
+                              "sd-bus", errp);
+    if (*errp) {
         return;
     }
 
@@ -107,9 +104,8 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                             BCM2836_PERI_BASE, 1);
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
-    object_property_set_bool(OBJECT(&s->control), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->control), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -127,23 +123,20 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         /* set periphbase/CBAR value for CPU-local registers */
         object_property_set_int(OBJECT(&s->cpus[n]),
                                 BCM2836_PERI_BASE + MCORE_OFFSET,
-                                "reset-cbar", &err);
-        if (err) {
-            error_propagate(errp, err);
+                                "reset-cbar", errp);
+        if (*errp) {
             return;
         }
 
         /* start powered off if not enabled */
         object_property_set_bool(OBJECT(&s->cpus[n]), n >= s->enabled_cpus,
-                                 "start-powered-off", &err);
-        if (err) {
-            error_propagate(errp, err);
+                                 "start-powered-off", errp);
+        if (*errp) {
             return;
         }
 
-        object_property_set_bool(OBJECT(&s->cpus[n]), true, "realized", &err);
-        if (err) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->cpus[n]), true, "realized", errp);
+        if (*errp) {
             return;
         }
 

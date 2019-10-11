@@ -2036,16 +2036,15 @@ static const MemoryRegionOps gic_viface_ops = {
 
 static void arm_gic_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     /* Device instance realize function for the GIC sysbus device */
     int i;
     GICState *s = ARM_GIC(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     ARMGICClass *agc = ARM_GIC_GET_CLASS(s);
-    Error *local_err = NULL;
 
-    agc->parent_realize(dev, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    agc->parent_realize(dev, errp);
+    if (*errp) {
         return;
     }
 

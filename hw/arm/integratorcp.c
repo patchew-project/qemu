@@ -284,14 +284,13 @@ static void integratorcm_init(Object *obj)
 
 static void integratorcm_realize(DeviceState *d, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     IntegratorCMState *s = INTEGRATOR_CM(d);
     SysBusDevice *dev = SYS_BUS_DEVICE(d);
-    Error *local_err = NULL;
 
     memory_region_init_ram(&s->flash, OBJECT(d), "integrator.flash", 0x100000,
-                           &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+                           errp);
+    if (*errp) {
         return;
     }
 

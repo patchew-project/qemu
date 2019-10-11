@@ -243,14 +243,13 @@ static void aspeed_wdt_timer_expired(void *dev)
 
 static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedWDTState *s = ASPEED_WDT(dev);
-    Error *err = NULL;
     Object *obj;
 
-    obj = object_property_get_link(OBJECT(dev), "scu", &err);
+    obj = object_property_get_link(OBJECT(dev), "scu", errp);
     if (!obj) {
-        error_propagate(errp, err);
         error_prepend(errp, "required link 'scu' not found: ");
         return;
     }

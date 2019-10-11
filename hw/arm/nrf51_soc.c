@@ -54,9 +54,9 @@ static const MemoryRegionOps clock_ops = {
 
 static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NRF51State *s = NRF51_SOC(dev_soc);
     MemoryRegion *mr;
-    Error *err = NULL;
     uint8_t i = 0;
     hwaddr base_addr = 0;
 
@@ -66,31 +66,27 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     }
 
     object_property_set_link(OBJECT(&s->cpu), OBJECT(&s->container), "memory",
-            &err);
-    if (err) {
-        error_propagate(errp, err);
+            errp);
+    if (*errp) {
         return;
     }
-    object_property_set_bool(OBJECT(&s->cpu), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->cpu), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
     memory_region_add_subregion_overlap(&s->container, 0, s->board_memory, -1);
 
     memory_region_init_ram(&s->sram, OBJECT(s), "nrf51.sram", s->sram_size,
-                           &err);
-    if (err) {
-        error_propagate(errp, err);
+                           errp);
+    if (*errp) {
         return;
     }
     memory_region_add_subregion(&s->container, NRF51_SRAM_BASE, &s->sram);
 
     /* UART */
-    object_property_set_bool(OBJECT(&s->uart), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->uart), true, "realized", errp);
+    if (*errp) {
         return;
     }
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->uart), 0);
@@ -100,9 +96,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
                        BASE_TO_IRQ(NRF51_UART_BASE)));
 
     /* RNG */
-    object_property_set_bool(OBJECT(&s->rng), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->rng), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -114,15 +109,13 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* UICR, FICR, NVMC, FLASH */
     object_property_set_uint(OBJECT(&s->nvm), s->flash_size, "flash-size",
-                             &err);
-    if (err) {
-        error_propagate(errp, err);
+                             errp);
+    if (*errp) {
         return;
     }
 
-    object_property_set_bool(OBJECT(&s->nvm), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->nvm), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -136,9 +129,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion_overlap(&s->container, NRF51_FLASH_BASE, mr, 0);
 
     /* GPIO */
-    object_property_set_bool(OBJECT(&s->gpio), true, "realized", &err);
-    if (err) {
-        error_propagate(errp, err);
+    object_property_set_bool(OBJECT(&s->gpio), true, "realized", errp);
+    if (*errp) {
         return;
     }
 
@@ -150,9 +142,8 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
 
     /* TIMER */
     for (i = 0; i < NRF51_NUM_TIMERS; i++) {
-        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", &err);
-        if (err) {
-            error_propagate(errp, err);
+        object_property_set_bool(OBJECT(&s->timer[i]), true, "realized", errp);
+        if (*errp) {
             return;
         }
 

@@ -232,13 +232,12 @@ static void fdt_add_gem_nodes(VersalVirt *s)
 
 static void fdt_nop_memory_nodes(void *fdt, Error **errp)
 {
-    Error *err = NULL;
+    ERRP_AUTO_PROPAGATE();
     char **node_path;
     int n = 0;
 
-    node_path = qemu_fdt_node_unit_path(fdt, "memory", &err);
-    if (err) {
-        error_propagate(errp, err);
+    node_path = qemu_fdt_node_unit_path(fdt, "memory", errp);
+    if (*errp) {
         return;
     }
     while (node_path[n]) {

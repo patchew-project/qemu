@@ -298,14 +298,14 @@ static void bcm2835_mbox_reset(DeviceState *dev)
 
 static void bcm2835_mbox_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BCM2835MboxState *s = BCM2835_MBOX(dev);
     Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "mbox-mr", &err);
+    obj = object_property_get_link(OBJECT(dev), "mbox-mr", errp);
     if (obj == NULL) {
         error_setg(errp, "%s: required mbox-mr link not found: %s",
-                   __func__, error_get_pretty(err));
+                   __func__, error_get_pretty(*errp));
         return;
     }
 

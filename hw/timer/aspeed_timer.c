@@ -482,15 +482,15 @@ static void aspeed_init_one_timer(AspeedTimerCtrlState *s, uint8_t id)
 
 static void aspeed_timer_realize(DeviceState *dev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int i;
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
     AspeedTimerCtrlState *s = ASPEED_TIMER(dev);
     Object *obj;
-    Error *err = NULL;
 
-    obj = object_property_get_link(OBJECT(dev), "scu", &err);
+    obj = object_property_get_link(OBJECT(dev), "scu", errp);
     if (!obj) {
-        error_propagate_prepend(errp, err, "required link 'scu' not found: ");
+        error_prepend(errp, "required link 'scu' not found: ");
         return;
     }
     s->scu = ASPEED_SCU(obj);
