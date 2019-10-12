@@ -1465,8 +1465,7 @@ static void smmuv3_class_init(ObjectClass *klass, void *data)
 
     dc->vmsd = &vmstate_smmuv3;
     device_class_set_parent_reset(dc, smmu_reset, &c->parent_reset);
-    c->parent_realize = dc->realize;
-    dc->realize = smmu_realize;
+    device_class_set_parent_realize(dc, smmu_realize, &c->parent_realize);
 }
 
 static int smmuv3_notify_flag_changed(IOMMUMemoryRegion *iommu,
