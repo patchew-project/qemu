@@ -299,6 +299,11 @@ F: hw/sparc64/
 F: include/hw/sparc/sparc64.h
 F: disas/sparc.c
 
+TILE-Gx CPUs
+M: Chen Gang <gang.chen.5i5j@gmail.com>
+S: Maintained
+F: target/tilegx/
+
 UniCore32 TCG CPUs
 M: Guan Xuetao <gxt@mprc.pku.edu.cn>
 S: Maintained
