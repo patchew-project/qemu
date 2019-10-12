@@ -1235,6 +1235,27 @@ static int hyperv_handle_properties(CPUState *cs,
         r |= 1;
     }
 
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_DIRECT_TLBFLUSH)) {
+        if (!kvm_check_extension(cs->kvm_state,
+            KVM_CAP_HYPERV_DIRECT_TLBFLUSH)) {
+            fprintf(stderr,
+                    "Kernel doesn't support Hyper-V direct tlbflush.\n");
+            r = -ENOSYS;
+            goto free;
+        }
+
+        if (cpu->expose_kvm ||
+            !hyperv_feat_enabled(cpu, HYPERV_FEAT_TLBFLUSH)) {
+            fprintf(stderr, "Hyper-V direct tlbflush requires Hyper-V %s"
+                    " and not expose KVM.\n",
+                    kvm_hyperv_properties[HYPERV_FEAT_TLBFLUSH].desc);
+            r = -ENOSYS;
+            goto free;
+        }
+
+        kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_DIRECT_TLBFLUSH, 0, 0);
+    }
+
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
 

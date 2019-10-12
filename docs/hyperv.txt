@@ -184,6 +184,18 @@ enabled.
 
 Requires: hv-vpindex, hv-synic, hv-time, hv-stimer
 
+3.18. hv-direct-tlbflush
+=======================
+The enlightenment targets KVM on Hyper-V guest. Enable direct TLB flush for
+its guests meaning that TLB flush hypercalls are handled by Level 0 hypervisor
+(Hyper-V) bypassing KVM in Level 1. Due to the different ABI for hypercall
+parameters between Hyper-V and KVM, enabling this capability effectively
+disables all hypercall handling by KVM (as some KVM hypercall may be mistakenly
+treated as TLB flush hypercalls by Hyper-V). So kvm capability should not show
+to guest when enable this capability. If not, user will fail to enable this
+capability.
+
+Requires: hv-tlbflush, -kvm
 
 4. Development features
 ========================
