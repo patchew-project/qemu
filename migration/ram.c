@@ -532,12 +532,12 @@ static void compress_threads_save_cleanup(void)
     comp_param = NULL;
 }
 
-static int compress_threads_save_setup(void)
+static void compress_threads_save_setup(void)
 {
     int i, thread_count;
 
     if (!migrate_use_compression()) {
-        return 0;
+        return;
     }
     thread_count = migrate_compress_threads();
     compress_threads = g_new0(QemuThread, thread_count);
@@ -568,11 +568,14 @@ static int compress_threads_save_setup(void)
                            do_data_compress, comp_param + i,
                            QEMU_THREAD_JOINABLE);
     }
-    return 0;
+    return;
 
 exit:
     compress_threads_save_cleanup();
-    return -1;
+    migrate_disable_compression();
+    error_report("%s: failed to setup compress threads, compress disabled",
+                 __func__);
+    return;
 }
 
 /* Multiple fd's */
@@ -3393,9 +3396,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     RAMState **rsp = opaque;
     RAMBlock *block;
 
-    if (compress_threads_save_setup()) {
-        return -1;
-    }
+    compress_threads_save_setup();
 
     /* migration has already setup the bitmap, reuse it. */
     if (!migration_in_colo_state()) {

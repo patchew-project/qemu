@@ -2093,6 +2093,15 @@ bool migrate_use_compression(void)
     return s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS];
 }
 
+void migrate_disable_compression(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    s->enabled_capabilities[MIGRATION_CAPABILITY_COMPRESS] = false;
+}
+
 int migrate_compress_level(void)
 {
     MigrationState *s;
