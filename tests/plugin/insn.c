@@ -45,8 +45,9 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     dprintf(stdout_fd, "insns: %" PRIu64 "\n", insn_count);
 }
 
-QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, int argc,
-                                           char **argv)
+QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
+                                           const qemu_info_t *info,
+                                           int argc, char **argv)
 {
     if (argc && !strcmp(argv[0], "inline")) {
         do_inline = true;
