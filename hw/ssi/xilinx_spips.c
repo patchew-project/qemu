@@ -109,6 +109,7 @@
 #define R_GPIO              (0x30 / 4)
 #define R_LPBK_DLY_ADJ      (0x38 / 4)
 #define R_LPBK_DLY_ADJ_RESET (0x33)
+#define R_IOU_TAPDLY_BYPASS (0x3C / 4)
 #define R_TXD1              (0x80 / 4)
 #define R_TXD2              (0x84 / 4)
 #define R_TXD3              (0x88 / 4)
@@ -139,6 +140,8 @@
 #define R_LQSPI_STS         (0xA4 / 4)
 #define LQSPI_STS_WR_RECVD      (1 << 1)
 
+#define R_DUMMY_CYCLE_EN    (0xC8 / 4)
+#define R_ECO               (0xF8 / 4)
 #define R_MOD_ID            (0xFC / 4)
 
 #define R_GQSPI_SELECT          (0x144 / 4)
@@ -938,7 +941,16 @@ static uint64_t xlnx_zynqmp_qspips_read(void *opaque,
     int shortfall;
 
     if (reg <= R_MOD_ID) {
-        return xilinx_spips_read(opaque, addr, size);
+        switch (addr) {
+        case R_GPIO:
+        case R_LPBK_DLY_ADJ:
+        case R_IOU_TAPDLY_BYPASS:
+        case R_DUMMY_CYCLE_EN:
+        case R_ECO:
+            return s->regs[addr / 4];
+        default:
+            return xilinx_spips_read(opaque, addr, size);
+        }
     } else {
         switch (reg) {
         case R_GQSPI_RXD:
@@ -1063,7 +1075,17 @@ static void xlnx_zynqmp_qspips_write(void *opaque, hwaddr addr,
     uint32_t reg = addr / 4;
 
     if (reg <= R_MOD_ID) {
-        xilinx_qspips_write(opaque, addr, value, size);
+        switch (reg) {
+        case R_GPIO:
+        case R_LPBK_DLY_ADJ:
+        case R_IOU_TAPDLY_BYPASS:
+        case R_DUMMY_CYCLE_EN:
+        case R_ECO:
+            s->regs[addr] = value;
+            break;
+        default:
+            xilinx_qspips_write(opaque, addr, value, size);
+        }
     } else {
         switch (reg) {
         case R_GQSPI_CNFG:
