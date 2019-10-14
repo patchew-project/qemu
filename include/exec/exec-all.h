@@ -278,6 +278,20 @@ void tlb_set_page_with_attrs(CPUState *cpu, target_ulong vaddr,
 void tlb_set_page(CPUState *cpu, target_ulong vaddr,
                   hwaddr paddr, int prot,
                   int mmu_idx, target_ulong size);
+
+/**
+ * tlb_plugin_lookup: query last TLB lookup
+ * @cpu: cpu environment
+ *
+ * This function can be used directly after a memory operation to
+ * query information about the access. It is used by the plugin
+ * infrastructure to expose more information about the address.
+ *
+ * It would only fail if not called from an instrumented memory access
+ * which would be an abuse of the API.
+ */
+bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr, int mmu_idx,
+                       bool is_store, struct qemu_plugin_hwaddr *data);
 #else
 static inline void tlb_init(CPUState *cpu)
 {
@@ -326,6 +340,12 @@ static inline void tlb_flush_by_mmuidx_all_cpus(CPUState *cpu, uint16_t idxmap)
 static inline void tlb_flush_by_mmuidx_all_cpus_synced(CPUState *cpu,
                                                        uint16_t idxmap)
 {
+}
+static inline bool tlb_plugin_lookup(CPUState *cpu, target_ulong addr,
+                                     int mmu_idx, bool is_store,
+                                     struct qemu_plugin_hwaddr *data)
+{
+    return false;
 }
 #endif
 void *probe_access(CPUArchState *env, target_ulong addr, int size,
