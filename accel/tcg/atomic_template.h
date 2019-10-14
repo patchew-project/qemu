@@ -60,7 +60,7 @@
 #endif
 
 #define ATOMIC_TRACE_RMW do {                                           \
-        uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false); \
+        uint16_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false, ATOMIC_MMU_IDX); \
                                                                         \
         trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
         trace_guest_mem_before_exec(env_cpu(env), addr,             \
@@ -68,13 +68,13 @@
     } while (0)
 
 #define ATOMIC_TRACE_LD do {                                            \
-        uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false); \
+        uint16_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, false, ATOMIC_MMU_IDX); \
                                                                         \
         trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
     } while (0)
 
 # define ATOMIC_TRACE_ST do {                                           \
-        uint8_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, true); \
+        uint16_t info = glue(trace_mem_build_info_no_se, MEND)(SHIFT, true, ATOMIC_MMU_IDX); \
                                                                         \
         trace_guest_mem_before_exec(env_cpu(env), addr, info);      \
     } while (0)
