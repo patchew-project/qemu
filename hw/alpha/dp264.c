@@ -20,6 +20,7 @@
 #include "hw/isa/superio.h"
 #include "hw/dma/i8257.h"
 #include "qemu/cutils.h"
+#include "net/net.h"
 
 #define MAX_IDE_BUS 2
 
