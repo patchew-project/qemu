@@ -4,8 +4,7 @@
  * How vectorised is this code?
  *
  * Attempt to measure the amount of vectorisation that has been done
- * on some code by counting classes of instruction. This is very much
- * ARM specific.
+ * on some code by counting classes of instruction.
  *
  * License: GNU GPL, version 2 or later.
  *   See the COPYING file in the top-level directory.
@@ -61,7 +60,7 @@ typedef struct {
  *
  * 31..28 27..24 23..20 19..16 15..12 11..8 7..4 3..0
  */
-InsnClassExecCount insn_classes[] = {
+InsnClassExecCount aarch64_insn_classes[] = {
     /* "Reserved"" */
     { "  UDEF",              "udef",   0xffff0000, 0x00000000, COUNT_NONE},
     { "  SVE",               "sve",    0x1e000000, 0x04000000, COUNT_CLASS},
@@ -110,8 +109,28 @@ InsnClassExecCount insn_classes[] = {
     /* Scalar FP */
     { "Scalar FP ",          "fpsimd", 0x0e000000, 0x0e000000, COUNT_CLASS},
     /* Unclassified */
-    { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_CLASS}
+    { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_CLASS},
 };
+
+/* Default matcher for currently unclassified architectures */
+InsnClassExecCount default_insn_classes[] = {
+    { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_INDIVIDUAL},
+};
+
+typedef struct {
+    const char *qemu_target;
+    InsnClassExecCount *table;
+    int table_sz;
+} ClassSelector;
+
+ClassSelector class_tables[] =
+{
+    { "aarch64", aarch64_insn_classes, ARRAY_SIZE(aarch64_insn_classes) },
+    { NULL, default_insn_classes, ARRAY_SIZE(default_insn_classes) },
+};
+
+static InsnClassExecCount *class_table;
+static int class_table_sz;
 
 static gint cmp_exec_count(gconstpointer a, gconstpointer b)
 {
@@ -125,23 +144,25 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
     GString *report = g_string_new("Instruction Classes:\n");
     int i;
     GList *counts;
+    InsnClassExecCount *class = NULL;
 
-    for (i = 0; i < ARRAY_SIZE(insn_classes); i++) {
-        switch (insn_classes[i].what) {
+    for (i = 0; i < class_table_sz; i++) {
+        class = &class_table[i];
+        switch (class->what) {
         case COUNT_CLASS:
-            if (insn_classes[i].count || verbose) {
+            if (class->count || verbose) {
                 g_string_append_printf(report, "Class: %-24s\t(%ld hits)\n",
-                                       insn_classes[i].class,
-                                       insn_classes[i].count);
+                                       class->class,
+                                       class->count);
             }
             break;
         case COUNT_INDIVIDUAL:
             g_string_append_printf(report, "Class: %-24s\tcounted individually\n",
-                                   insn_classes[i].class);
+                                   class->class);
             break;
         case COUNT_NONE:
             g_string_append_printf(report, "Class: %-24s\tnot counted\n",
-                                   insn_classes[i].class);
+                                   class->class);
             break;
         default:
             break;
@@ -190,14 +211,18 @@ static uint64_t * find_counter(struct qemu_plugin_insn *insn)
     uint32_t opcode;
     InsnClassExecCount *class = NULL;
 
-    /* we expect all instructions to by 32 bits for ARM */
-    g_assert(qemu_plugin_insn_size(insn) == 4);
+    /*
+     * We only match the first 32 bits of the instruction which is
+     * fine for most RISCs but a bit limiting for CISC architectures.
+     * They would probably benefit from a more tailored plugin.
+     * However we can fall back to individual instruction counting.
+     */
     opcode = *((uint32_t *)qemu_plugin_insn_data(insn));
 
-    for (i = 0; !cnt && i < ARRAY_SIZE(insn_classes); i++) {
-        uint32_t masked_bits = opcode & insn_classes[i].mask;
-        if (masked_bits == insn_classes[i].pattern) {
-            class = &insn_classes[i];
+    for (i = 0; !cnt && i < class_table_sz; i++) {
+        class = &class_table[i];
+        uint32_t masked_bits = opcode & class->mask;
+        if (masked_bits == class->pattern) {
             break;
         }
     }
@@ -270,6 +295,17 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
 {
     int i;
 
+    /* Select a class table appropriate to the guest architecture */
+    for (i = 0; i < ARRAY_SIZE(class_tables); i++) {
+        ClassSelector *entry = &class_tables[i];
+        if (!entry->qemu_target ||
+            strcmp(entry->qemu_target, info->target_name) == 0) {
+            class_table = entry->table;
+            class_table_sz = entry->table_sz;
+            break;
+        }
+    }
+
     for (i = 0; i < argc; i++) {
         char *p = argv[i];
         if (strcmp(p, "inline") == 0) {
@@ -283,9 +319,9 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                 type = COUNT_NONE;
                 p++;
             }
-            for (j = 0; j < ARRAY_SIZE(insn_classes); j++) {
-                if (strcmp(p, insn_classes[j].opt) == 0) {
-                    insn_classes[j].what = type;
+            for (j = 0; j < class_table_sz; j++) {
+                if (strcmp(p, class_table[j].opt) == 0) {
+                    class_table[j].what = type;
                     break;
                 }
             }
