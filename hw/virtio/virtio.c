@@ -337,7 +337,7 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
         return;
     }
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (virtio_vdev_has_feature(vq->vdev, VIRTIO_RING_F_EVENT_IDX)) {
         vring_set_avail_event(vq, vring_avail_idx(vq));
     } else if (enable) {
@@ -349,7 +349,6 @@ void virtio_queue_set_notification(VirtQueue *vq, int enable)
         /* Expose avail event/used flags before caller checks the avail idx. */
         smp_mb();
     }
-    rcu_read_unlock();
 }
 
 int virtio_queue_ready(VirtQueue *vq)
@@ -393,9 +392,8 @@ int virtio_queue_empty(VirtQueue *vq)
         return 0;
     }
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     empty = vring_avail_idx(vq) == vq->last_avail_idx;
-    rcu_read_unlock();
     return empty;
 }
 
@@ -530,10 +528,9 @@ void virtqueue_flush(VirtQueue *vq, unsigned int count)
 void virtqueue_push(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len)
 {
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     virtqueue_fill(vq, elem, len, 0);
     virtqueue_flush(vq, 1);
-    rcu_read_unlock();
 }
 
 /* Called within rcu_read_lock().  */
@@ -624,7 +621,7 @@ void virtqueue_get_avail_bytes(VirtQueue *vq, unsigned int *in_bytes,
         return;
     }
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     idx = vq->last_avail_idx;
     total_bufs = in_total = out_total = 0;
 
@@ -719,7 +716,6 @@ done:
     if (out_bytes) {
         *out_bytes = out_total;
     }
-    rcu_read_unlock();
     return;
 
 err:
@@ -869,7 +865,7 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     if (unlikely(vdev->broken)) {
         return NULL;
     }
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (virtio_queue_empty_rcu(vq)) {
         goto done;
     }
@@ -977,7 +973,6 @@ void *virtqueue_pop(VirtQueue *vq, size_t sz)
     trace_virtqueue_pop(vq, elem, elem->in_num, elem->out_num);
 done:
     address_space_cache_destroy(&indirect_desc_cache);
-    rcu_read_unlock();
 
     return elem;
 
@@ -1680,13 +1675,10 @@ static bool virtio_should_notify(VirtIODevice *vdev, VirtQueue *vq)
 
 void virtio_notify_irqfd(VirtIODevice *vdev, VirtQueue *vq)
 {
-    bool should_notify;
-    rcu_read_lock();
-    should_notify = virtio_should_notify(vdev, vq);
-    rcu_read_unlock();
-
-    if (!should_notify) {
-        return;
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (!virtio_should_notify(vdev, vq)) {
+            return;
+        }
     }
 
     trace_virtio_notify_irqfd(vdev, vq);
@@ -1718,13 +1710,10 @@ static void virtio_irq(VirtQueue *vq)
 
 void virtio_notify(VirtIODevice *vdev, VirtQueue *vq)
 {
-    bool should_notify;
-    rcu_read_lock();
-    should_notify = virtio_should_notify(vdev, vq);
-    rcu_read_unlock();
-
-    if (!should_notify) {
-        return;
+    WITH_RCU_READ_LOCK_GUARD() {
+        if (!virtio_should_notify(vdev, vq)) {
+            return;
+        }
     }
 
     trace_virtio_notify(vdev, vq);
@@ -2241,7 +2230,7 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
         vdev->start_on_kick = true;
     }
 
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     for (i = 0; i < num; i++) {
         if (vdev->vq[i].vring.desc) {
             uint16_t nheads;
@@ -2289,7 +2278,6 @@ int virtio_load(VirtIODevice *vdev, QEMUFile *f, int version_id)
             }
         }
     }
-    rcu_read_unlock();
 
     return 0;
 }
@@ -2422,21 +2410,19 @@ void virtio_queue_set_last_avail_idx(VirtIODevice *vdev, int n, uint16_t idx)
 
 void virtio_queue_restore_last_avail_idx(VirtIODevice *vdev, int n)
 {
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (vdev->vq[n].vring.desc) {
         vdev->vq[n].last_avail_idx = vring_used_idx(&vdev->vq[n]);
         vdev->vq[n].shadow_avail_idx = vdev->vq[n].last_avail_idx;
     }
-    rcu_read_unlock();
 }
 
 void virtio_queue_update_used_idx(VirtIODevice *vdev, int n)
 {
-    rcu_read_lock();
+    RCU_READ_LOCK_GUARD();
     if (vdev->vq[n].vring.desc) {
         vdev->vq[n].used_idx = vring_used_idx(&vdev->vq[n]);
     }
-    rcu_read_unlock();
 }
 
 void virtio_queue_invalidate_signalled_used(VirtIODevice *vdev, int n)
