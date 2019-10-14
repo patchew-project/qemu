@@ -1,0 +1,3 @@
+65535 persistent bitmap already created, let's try to create one more
+{"execute": "block-dirty-bitmap-add", "arguments": {"name": "bitmap65535", "node": "drive0", "persistent": true}}
+{"error": {"class": "GenericError", "desc": "Can't make bitmap 'bitmap65535' persistent in 'drive0': Maximum number of persistent bitmaps is already reached"}}

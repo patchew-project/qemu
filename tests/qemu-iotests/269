@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+#
+# Test exceeding dirty bitmaps maximum amount in qcow2 image
+#
+# Copyright (c) 2019 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+from iotests import qemu_img_create, file_path, log, filter_qmp_event
+
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+img = file_path('img')
+size = 64 * 1024
+
+qemu_img_create('-f', iotests.imgfmt, img, str(size))
+vm = iotests.VM().add_drive(img)
+vm.launch()
+
+# Look at block/qcow2.h
+QCOW2_MAX_BITMAPS = 65535
+
+for i in range(QCOW2_MAX_BITMAPS):
+    result = vm.qmp('block-dirty-bitmap-add', node='drive0',
+                    name='bitmap{}'.format(i), persistent=True)
+    assert result['return'] == {}
+
+log("{} persistent bitmap already created, " \
+    "let's try to create one more".format(QCOW2_MAX_BITMAPS))
+
+vm.qmp_log('block-dirty-bitmap-add', node='drive0',
+           name='bitmap{}'.format(QCOW2_MAX_BITMAPS), persistent=True)
+
+vm.shutdown()
