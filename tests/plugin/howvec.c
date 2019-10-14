@@ -112,6 +112,27 @@ InsnClassExecCount aarch64_insn_classes[] = {
     { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_CLASS},
 };
 
+InsnClassExecCount sparc32_insn_classes[] = {
+    { "Call",                "call",   0xc0000000, 0x40000000, COUNT_CLASS},
+    { "Branch ICond",        "bcc",    0xc1c00000, 0x00800000, COUNT_CLASS},
+    { "Branch Fcond",        "fbcc",   0xc1c00000, 0x01800000, COUNT_CLASS},
+    { "SetHi",               "sethi",  0xc1c00000, 0x01000000, COUNT_CLASS},
+    { "FPU ALU",             "fpu",    0xc1f00000, 0x81a00000, COUNT_CLASS},
+    { "ALU",                 "alu",    0xc0000000, 0x80000000, COUNT_CLASS},
+    { "Load/Store",          "ldst",   0xc0000000, 0xc0000000, COUNT_CLASS},
+    /* Unclassified */
+    { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_INDIVIDUAL},
+};
+
+InsnClassExecCount sparc64_insn_classes[] = {
+    { "SetHi & Branches",     "op0",   0xc0000000, 0x00000000, COUNT_CLASS},
+    { "Call",                 "op1",   0xc0000000, 0x40000000, COUNT_CLASS},
+    { "Arith/Logical/Move",   "op2",   0xc0000000, 0x80000000, COUNT_CLASS},
+    { "Arith/Logical/Move",   "op3",   0xc0000000, 0xc0000000, COUNT_CLASS},
+    /* Unclassified */
+    { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_INDIVIDUAL},
+};
+
 /* Default matcher for currently unclassified architectures */
 InsnClassExecCount default_insn_classes[] = {
     { "Unclassified",        "unclas", 0x00000000, 0x00000000, COUNT_INDIVIDUAL},
@@ -126,6 +147,7 @@ typedef struct {
 ClassSelector class_tables[] =
 {
     { "aarch64", aarch64_insn_classes, ARRAY_SIZE(aarch64_insn_classes) },
+    { "sparc64", sparc64_insn_classes, ARRAY_SIZE(sparc64_insn_classes) },
     { NULL, default_insn_classes, ARRAY_SIZE(default_insn_classes) },
 };
 
