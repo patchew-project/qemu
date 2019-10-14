@@ -35,6 +35,7 @@
 #include "hw/timer/mc146818rtc.h"
 #include "migration/vmstate.h"
 #include "hw/timer/i8254.h"
+#include "exec/address-spaces.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
