@@ -26,6 +26,7 @@ struct IOThread {
     QemuMutex init_done_lock;
     QemuCond init_done_cond;    /* is thread initialization done? */
     bool stopping;
+    bool running;
 };
 
 static __thread IOThread *my_iothread;
@@ -47,7 +48,7 @@ static void *iothread_run(void *opaque)
     qemu_cond_signal(&iothread->init_done_cond);
     qemu_mutex_unlock(&iothread->init_done_lock);
 
-    while (!atomic_read(&iothread->stopping)) {
+    while (iothread->running) {
         aio_poll(iothread->ctx, true);
     }
 
@@ -55,10 +56,26 @@ static void *iothread_run(void *opaque)
     return NULL;
 }
 
+/* Runs in iothread_run() thread */
+static void iothread_stop_bh(void *opaque)
+{
+    IOThread *iothread = opaque;
+
+    iothread->running = false; /* stop iothread_run() */
+}
+
 void iothread_join(IOThread *iothread)
 {
+    /* Forbid reentering iothread_join.  */
+    assert(!iothread->stopping);
     iothread->stopping = true;
-    aio_notify(iothread->ctx);
+
+    /*
+     * Force the loop to run once more, so that already scheduled bottom
+     * halves and coroutines are executed.
+     */
+    aio_bh_schedule_oneshot(iothread->ctx, iothread_stop_bh, iothread);
+
     qemu_thread_join(&iothread->thread);
     qemu_cond_destroy(&iothread->init_done_cond);
     qemu_mutex_destroy(&iothread->init_done_lock);
@@ -76,6 +93,7 @@ IOThread *iothread_new(void)
                        iothread, QEMU_THREAD_JOINABLE);
 
     /* Wait for initialization to complete */
+    iothread->running = true;
     qemu_mutex_lock(&iothread->init_done_lock);
     while (iothread->ctx == NULL) {
         qemu_cond_wait(&iothread->init_done_cond,
