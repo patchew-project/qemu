@@ -29,7 +29,6 @@ typedef enum {
 } CountType;
 
 static int limit = 50;
-static int stdout_fd;
 static bool do_inline;
 static bool verbose;
 
@@ -163,7 +162,7 @@ static gint cmp_exec_count(gconstpointer a, gconstpointer b)
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
-    GString *report = g_string_new("Instruction Classes:\n");
+    g_autoptr(GString) report = g_string_new("Instruction Classes:\n");
     int i;
     GList *counts;
     InsnClassExecCount *class = NULL;
@@ -211,8 +210,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
         g_list_free(it);
     }
 
-    dprintf(stdout_fd, "%s", report->str);
-    g_string_free(report, true);
+    qemu_plugin_outs(report->str);
 }
 
 static void plugin_init(void)
@@ -270,11 +268,6 @@ static uint64_t * find_counter(struct qemu_plugin_insn *insn)
             icount->insn = qemu_plugin_insn_disas(insn);
             icount->class = class;
 
-            if (verbose) {
-                dprintf(stdout_fd, "adding for %s (%#08x @ %#20lx from %s)\n",
-                        icount->insn, opcode, qemu_plugin_insn_vaddr(insn),
-                        class->class);
-            }
             g_hash_table_insert(insns, GUINT_TO_POINTER(opcode),
                                 (gpointer) icount);
         }
@@ -349,10 +342,6 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
             }
         }
     }
-
-    /* to be used when in the exit hook */
-    stdout_fd = dup(STDOUT_FILENO);
-    assert(stdout_fd);
 
     plugin_init();
 

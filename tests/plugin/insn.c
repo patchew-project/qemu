@@ -10,10 +10,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <glib.h>
 
 #include <qemu-plugin.h>
 
-static int stdout_fd;
 static uint64_t insn_count;
 static bool do_inline;
 
@@ -42,7 +42,9 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
-    dprintf(stdout_fd, "insns: %" PRIu64 "\n", insn_count);
+    g_autofree gchar *out;
+    out = g_strdup_printf("insns: %" PRIu64 "\n", insn_count);
+    qemu_plugin_outs(out);
 }
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
@@ -52,10 +54,6 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     if (argc && !strcmp(argv[0], "inline")) {
         do_inline = true;
     }
-
-    /* to be used when in the exit hook */
-    stdout_fd = dup(STDOUT_FILENO);
-    assert(stdout_fd);
 
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_atexit_cb(id, plugin_exit, NULL);

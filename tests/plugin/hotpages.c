@@ -22,7 +22,6 @@
 
 static uint64_t page_size = 4096;
 static uint64_t page_mask;
-static int stdout_fd;
 static int limit = 50;
 static enum qemu_plugin_mem_rw rw = QEMU_PLUGIN_MEM_RW;
 
@@ -69,7 +68,7 @@ static gint cmp_access_count(gconstpointer a, gconstpointer b)
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
-    GString *report = g_string_new("Addr, RCPUs, Reads, WCPUs, Writes\n");
+    g_autoptr(GString) report = g_string_new("Addr, RCPUs, Reads, WCPUs, Writes\n");
     int i;
     GList *counts;
 
@@ -91,8 +90,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
         g_list_free(it);
     }
 
-    dprintf(stdout_fd, "%s", report->str);
-    g_string_free(report, true);
+    qemu_plugin_outs(report->str);
 }
 
 static void plugin_init(void)
@@ -154,10 +152,6 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
 {
     int i;
 
-    /* to be used when in the exit hook */
-    stdout_fd = dup(STDOUT_FILENO);
-    assert(stdout_fd);
-
     for (i = 0; i < argc; i++) {
         char *opt = argv[i];
         if (g_strcmp0(opt, "reads") == 0) {
@@ -167,7 +161,7 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
         } else if (g_str_has_prefix(opt, "pagesize=")) {
             page_size = g_ascii_strtoull(opt + 9, NULL, 10);
         } else {
-            dprintf(stdout_fd, "option parsing failed: %s\n", opt);
+            fprintf(stderr, "option parsing failed: %s\n", opt);
             return -1;
         }
     }

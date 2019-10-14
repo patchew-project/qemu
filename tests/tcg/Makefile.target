@@ -153,6 +153,7 @@ run-%: %
 run-plugin-%:
 	$(call run-test, $@, $(QEMU) $(QEMU_OPTS) \
 		-plugin $(PLUGIN_DIR)/$(call extract-plugin,$@) \
+		-d plugin -D $*.pout \
 		 $(call strip-plugin,$<), \
 	"$* on $(TARGET_NAME)")
 else
@@ -168,6 +169,7 @@ run-plugin-%:
 	  $(QEMU) -monitor none -display none \
 		  -chardev file$(COMMA)path=$@.out$(COMMA)id=output \
 	   	  -plugin $(PLUGIN_DIR)/$(call extract-plugin,$@) \
+	    	  -d plugin -D $*.pout \
 	   	  $(QEMU_OPTS) $(call strip-plugin,$<), \
 	  "$* on $(TARGET_NAME)")
 endif

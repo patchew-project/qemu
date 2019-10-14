@@ -16,7 +16,6 @@
 #include <qemu-plugin.h>
 
 static bool do_inline;
-static int stdout_fd;
 
 /* Plugins need to take care of their own locking */
 static GMutex lock;
@@ -47,7 +46,7 @@ static gint cmp_exec_count(gconstpointer a, gconstpointer b)
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
-    GString *report = g_string_new("collected ");
+    g_autoptr(GString) report = g_string_new("collected ");
     GList *counts, *it;
     int i;
 
@@ -71,8 +70,7 @@ static void plugin_exit(qemu_plugin_id_t id, void *p)
         g_mutex_unlock(&lock);
     }
 
-    dprintf(stdout_fd, "%s", report->str);
-    g_string_free(report, true);
+    qemu_plugin_outs(report->str);
 }
 
 static void plugin_init(void)
@@ -136,10 +134,6 @@ int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
     if (argc && strcmp(argv[0], "inline") == 0) {
         do_inline = true;
     }
-
-    /* to be used when in the exit hook */
-    stdout_fd = dup(STDOUT_FILENO);
-    assert(stdout_fd);
 
     plugin_init();
 
