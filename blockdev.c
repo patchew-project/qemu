@@ -471,7 +471,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
-    bool writethrough, read_only;
+    bool writethrough, read_only, compress;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -570,6 +570,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     read_only = qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false);
+    compress = qemu_opt_get_bool(opts, BDRV_OPT_COMPRESS, false);
 
     /* init */
     if ((!file || !*file) && !qdict_size(bs_opts)) {
@@ -595,6 +596,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY,
                               read_only ? "on" : "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_AUTO_READ_ONLY, "on");
+        qdict_set_default_str(bs_opts, BDRV_OPT_COMPRESS,
+                              compress ? "on" : "off");
         assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
         if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -3305,6 +3308,13 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     if (base_bs == NULL && has_backing_file) {
         error_setg(errp, "backing file specified, but streaming the "
                          "entire chain");
+        goto out;
+    }
+
+    if (bs->all_write_compressed &&
+        bs->drv->bdrv_co_pwritev_compressed_part == NULL) {
+        error_setg(errp, "Compression is not supported for this drive %s",
+                   bdrv_get_device_name(bs));
         goto out;
     }
 

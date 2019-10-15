@@ -41,10 +41,16 @@ typedef struct StreamBlockJob {
 static int coroutine_fn stream_populate(BlockBackend *blk,
                                         int64_t offset, uint64_t bytes)
 {
+    BlockDriverState *bs = blk_bs(blk);
+    int flags = BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH;
+
+    if (bs->all_write_compressed) {
+        flags |= BDRV_REQ_WRITE_COMPRESSED;
+    }
+
     assert(bytes < SIZE_MAX);
 
-    return blk_co_preadv(blk, offset, bytes, NULL,
-                         BDRV_REQ_COPY_ON_READ | BDRV_REQ_PREFETCH);
+    return blk_co_preadv(blk, offset, bytes, NULL, flags);
 }
 
 static void stream_abort(Job *job)
