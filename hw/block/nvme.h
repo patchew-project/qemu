@@ -6,12 +6,14 @@
 #define DEFINE_NVME_PROPERTIES(_state, _props) \
     DEFINE_PROP_STRING("serial", _state, _props.serial), \
     DEFINE_PROP_UINT32("cmb_size_mb", _state, _props.cmb_size_mb, 0), \
-    DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 64)
+    DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 64), \
+    DEFINE_PROP_UINT8("elpe", _state, _props.elpe, 24)
 
 typedef struct NvmeParams {
     char     *serial;
     uint32_t num_queues;
     uint32_t cmb_size_mb;
+    uint8_t  elpe;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
@@ -23,6 +25,7 @@ typedef struct NvmeRequest {
     struct NvmeSQueue       *sq;
     BlockAIOCB              *aiocb;
     uint16_t                status;
+    uint16_t                cid;
     bool                    has_sg;
     NvmeCqe                 cqe;
     BlockAcctCookie         acct;
@@ -92,12 +95,16 @@ typedef struct NvmeCtrl {
     uint64_t    irq_status;
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
+    uint64_t    starttime_ms;
+    uint16_t    temperature;
 
     NvmeNamespace   *namespaces;
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
     NvmeSQueue      admin_sq;
     NvmeCQueue      admin_cq;
+    NvmeFeatureVal  features;
+    NvmeErrorLog    *elpes;
     NvmeIdCtrl      id_ctrl;
 } NvmeCtrl;
 

@@ -44,6 +44,7 @@
 #include "nvme.h"
 
 #define NVME_MAX_QS PCI_MSIX_FLAGS_QSIZE
+#define NVME_TEMPERATURE 0x143
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -577,6 +578,137 @@ static uint16_t nvme_create_sq(NvmeCtrl *n, NvmeCmd *cmd)
     return NVME_SUCCESS;
 }
 
+static uint16_t nvme_error_info(NvmeCtrl *n, NvmeCmd *cmd,
+    uint32_t buf_len, uint64_t off, NvmeRequest *req)
+{
+    uint32_t trans_len;
+    uint64_t prp1 = le64_to_cpu(cmd->prp1);
+    uint64_t prp2 = le64_to_cpu(cmd->prp2);
+
+    if (off > sizeof(*n->elpes) * (n->params.elpe + 1)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    trans_len = MIN(sizeof(*n->elpes) * (n->params.elpe + 1) - off, buf_len);
+
+    return nvme_dma_read_prp(n, (uint8_t *) n->elpes + off, trans_len, prp1,
+        prp2);
+}
+
+static uint16_t nvme_smart_info(NvmeCtrl *n, NvmeCmd *cmd, uint32_t buf_len,
+    uint64_t off, NvmeRequest *req)
+{
+    uint64_t prp1 = le64_to_cpu(cmd->prp1);
+    uint64_t prp2 = le64_to_cpu(cmd->prp2);
+    uint32_t nsid = le32_to_cpu(cmd->nsid);
+
+    uint32_t trans_len;
+    time_t current_ms;
+    uint64_t units_read = 0, units_written = 0, read_commands = 0,
+        write_commands = 0;
+    NvmeSmartLog smart;
+    BlockAcctStats *s;
+
+    if (!nsid || (nsid != 0xffffffff && nsid > n->num_namespaces)) {
+        trace_nvme_err_invalid_ns(nsid, n->num_namespaces);
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    s = blk_get_stats(n->conf.blk);
+
+    units_read = s->nr_bytes[BLOCK_ACCT_READ] >> BDRV_SECTOR_BITS;
+    units_written = s->nr_bytes[BLOCK_ACCT_WRITE] >> BDRV_SECTOR_BITS;
+    read_commands = s->nr_ops[BLOCK_ACCT_READ];
+    write_commands = s->nr_ops[BLOCK_ACCT_WRITE];
+
+    if (off > sizeof(smart)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    trans_len = MIN(sizeof(smart) - off, buf_len);
+
+    memset(&smart, 0x0, sizeof(smart));
+
+    smart.data_units_read[0] = cpu_to_le64(units_read / 1000);
+    smart.data_units_written[0] = cpu_to_le64(units_written / 1000);
+    smart.host_read_commands[0] = cpu_to_le64(read_commands);
+    smart.host_write_commands[0] = cpu_to_le64(write_commands);
+
+    smart.number_of_error_log_entries[0] = cpu_to_le64(0);
+    smart.temperature[0] = n->temperature & 0xff;
+    smart.temperature[1] = (n->temperature >> 8) & 0xff;
+
+    if (n->features.temp_thresh <= n->temperature) {
+        smart.critical_warning |= NVME_SMART_TEMPERATURE;
+    }
+
+    current_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    smart.power_on_hours[0] = cpu_to_le64(
+        (((current_ms - n->starttime_ms) / 1000) / 60) / 60);
+
+    return nvme_dma_read_prp(n, (uint8_t *) &smart + off, trans_len, prp1,
+        prp2);
+}
+
+static uint16_t nvme_fw_log_info(NvmeCtrl *n, NvmeCmd *cmd, uint32_t buf_len,
+    uint64_t off, NvmeRequest *req)
+{
+    uint32_t trans_len;
+    uint64_t prp1 = le64_to_cpu(cmd->prp1);
+    uint64_t prp2 = le64_to_cpu(cmd->prp2);
+    NvmeFwSlotInfoLog fw_log;
+
+    if (off > sizeof(fw_log)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    memset(&fw_log, 0, sizeof(NvmeFwSlotInfoLog));
+
+    trans_len = MIN(sizeof(fw_log) - off, buf_len);
+
+    return nvme_dma_read_prp(n, (uint8_t *) &fw_log + off, trans_len, prp1,
+        prp2);
+}
+
+static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
+{
+    uint32_t dw10 = le32_to_cpu(cmd->cdw10);
+    uint32_t dw11 = le32_to_cpu(cmd->cdw11);
+    uint32_t dw12 = le32_to_cpu(cmd->cdw12);
+    uint32_t dw13 = le32_to_cpu(cmd->cdw13);
+    uint16_t lid = dw10 & 0xff;
+    uint8_t  rae = (dw10 >> 15) & 0x1;
+    uint32_t numdl, numdu;
+    uint64_t off, lpol, lpou;
+    size_t   len;
+
+    numdl = (dw10 >> 16);
+    numdu = (dw11 & 0xffff);
+    lpol = dw12;
+    lpou = dw13;
+
+    len = (((numdu << 16) | numdl) + 1) << 2;
+    off = (lpou << 32ULL) | lpol;
+
+    if (off & 0x3) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    trace_nvme_get_log(req->cid, lid, rae, len, off);
+
+    switch (lid) {
+    case NVME_LOG_ERROR_INFO:
+        return nvme_error_info(n, cmd, len, off, req);
+    case NVME_LOG_SMART_INFO:
+        return nvme_smart_info(n, cmd, len, off, req);
+    case NVME_LOG_FW_SLOT_INFO:
+        return nvme_fw_log_info(n, cmd, len, off, req);
+    default:
+        trace_nvme_err_invalid_log_page(req->cid, lid);
+        return NVME_INVALID_LOG_ID | NVME_DNR;
+    }
+}
+
 static void nvme_free_cq(NvmeCQueue *cq, NvmeCtrl *n)
 {
     n->cq[cq->cqid] = NULL;
@@ -812,6 +944,9 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t result;
 
     switch (dw10) {
+    case NVME_TEMPERATURE_THRESHOLD:
+        result = cpu_to_le32(n->features.temp_thresh);
+        break;
     case NVME_VOLATILE_WRITE_CACHE:
         result = blk_enable_write_cache(n->conf.blk);
         trace_nvme_getfeat_vwcache(result ? "enabled" : "disabled");
@@ -856,6 +991,10 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
 
     switch (dw10) {
+    case NVME_TEMPERATURE_THRESHOLD:
+        n->features.temp_thresh = dw11;
+        break;
+
     case NVME_VOLATILE_WRITE_CACHE:
         blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
         break;
@@ -884,6 +1023,8 @@ static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         return nvme_del_sq(n, cmd);
     case NVME_ADM_CMD_CREATE_SQ:
         return nvme_create_sq(n, cmd);
+    case NVME_ADM_CMD_GET_LOG_PAGE:
+        return nvme_get_log(n, cmd, req);
     case NVME_ADM_CMD_DELETE_CQ:
         return nvme_del_cq(n, cmd);
     case NVME_ADM_CMD_CREATE_CQ:
@@ -923,6 +1064,7 @@ static void nvme_process_sq(void *opaque)
         QTAILQ_INSERT_TAIL(&sq->out_req_list, req, entry);
         memset(&req->cqe, 0, sizeof(req->cqe));
         req->cqe.cid = cmd.cid;
+        req->cid = le16_to_cpu(cmd.cid);
 
         status = sq->sqid ? nvme_io_cmd(n, &cmd, req) :
             nvme_admin_cmd(n, &cmd, req);
@@ -1378,6 +1520,10 @@ static void nvme_init_state(NvmeCtrl *n)
     n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
     n->sq = g_new0(NvmeSQueue *, n->params.num_queues);
     n->cq = g_new0(NvmeCQueue *, n->params.num_queues);
+    n->elpes = g_new0(NvmeErrorLog, n->params.elpe + 1);
+    n->starttime_ms = qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL);
+    n->temperature = NVME_TEMPERATURE;
+    n->features.temp_thresh = 0x14d;
 }
 
 static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
@@ -1446,7 +1592,8 @@ static void nvme_init_ctrl(NvmeCtrl *n)
     id->oacs = cpu_to_le16(0);
     id->acl = 3;
     id->frmw = 7 << 1;
-    id->lpa = 1 << 0;
+    id->lpa = 1 << 2;
+    id->elpe = n->params.elpe;
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);
@@ -1530,6 +1677,7 @@ static void nvme_exit(PCIDevice *pci_dev)
     g_free(n->namespaces);
     g_free(n->cq);
     g_free(n->sq);
+    g_free(n->elpes);
 
     if (n->params.cmb_size_mb) {
         g_free(n->cmbuf);
