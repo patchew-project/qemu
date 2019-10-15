@@ -52,14 +52,34 @@
 
 static void nvme_process_sq(void *opaque);
 
-static void nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf, int size)
+static inline bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
 {
-    if (n->cmbsz && addr >= n->ctrl_mem.addr &&
-                addr < (n->ctrl_mem.addr + int128_get64(n->ctrl_mem.size))) {
-        memcpy(buf, (void *)&n->cmbuf[addr - n->ctrl_mem.addr], size);
-    } else {
-        pci_dma_read(&n->parent_obj, addr, buf, size);
+    hwaddr low = n->ctrl_mem.addr;
+    hwaddr hi  = n->ctrl_mem.addr + int128_get64(n->ctrl_mem.size);
+
+    return addr >= low && addr < hi;
+}
+
+static inline void nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf,
+    int size)
+{
+    if (n->cmbsz && nvme_addr_is_cmb(n, addr)) {
+        memcpy(buf, (void *) &n->cmbuf[addr - n->ctrl_mem.addr], size);
+        return;
     }
+
+    pci_dma_read(&n->parent_obj, addr, buf, size);
+}
+
+static inline void nvme_addr_write(NvmeCtrl *n, hwaddr addr, void *buf,
+    int size)
+{
+    if (n->cmbsz && nvme_addr_is_cmb(n, addr)) {
+        memcpy((void *) &n->cmbuf[addr - n->ctrl_mem.addr], buf, size);
+        return;
+    }
+
+    pci_dma_write(&n->parent_obj, addr, buf, size);
 }
 
 static int nvme_check_sqid(NvmeCtrl *n, uint16_t sqid)
@@ -281,6 +301,7 @@ static void nvme_post_cqes(void *opaque)
 
     QTAILQ_FOREACH_SAFE(req, &cq->req_list, entry, next) {
         NvmeSQueue *sq;
+        NvmeCqe *cqe = &req->cqe;
         hwaddr addr;
 
         if (nvme_cq_full(cq)) {
@@ -294,8 +315,7 @@ static void nvme_post_cqes(void *opaque)
         req->cqe.sq_head = cpu_to_le16(sq->head);
         addr = cq->dma_addr + cq->tail * n->cqe_size;
         nvme_inc_cq_tail(cq);
-        pci_dma_write(&n->parent_obj, addr, (void *)&req->cqe,
-            sizeof(req->cqe));
+        nvme_addr_write(n, addr, (void *) cqe, sizeof(*cqe));
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
     if (cq->tail != cq->head) {
@@ -1401,7 +1421,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         NVME_CMBLOC_SET_OFST(n->bar.cmbloc, 0);
 
         NVME_CMBSZ_SET_SQS(n->bar.cmbsz, 1);
-        NVME_CMBSZ_SET_CQS(n->bar.cmbsz, 0);
+        NVME_CMBSZ_SET_CQS(n->bar.cmbsz, 1);
         NVME_CMBSZ_SET_LISTS(n->bar.cmbsz, 0);
         NVME_CMBSZ_SET_RDS(n->bar.cmbsz, 1);
         NVME_CMBSZ_SET_WDS(n->bar.cmbsz, 1);
