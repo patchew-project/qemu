@@ -346,7 +346,7 @@ GlobalProperty pc_compat_1_4[] = {
 };
 const size_t pc_compat_1_4_len = G_N_ELEMENTS(pc_compat_1_4);
 
-void gsi_handler(void *opaque, int n, int level)
+static void gsi_handler(void *opaque, int n, int level)
 {
     GSIState *s = opaque;
 
