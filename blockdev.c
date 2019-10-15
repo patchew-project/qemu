@@ -4682,6 +4682,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
+        },{
+            .name = BDRV_OPT_COMPRESS,
+            .type = QEMU_OPT_BOOL,
+            .help = "compress all writes to image",
         },
 
         THROTTLE_OPTS,

@@ -922,6 +922,8 @@ struct BlockDriverState {
 
     /* BdrvChild links to this node may never be frozen */
     bool never_freeze;
+    /* Compress all writes to the image */
+    bool all_write_compressed;
 };
 
 struct BlockBackendRootState {

@@ -3949,6 +3949,9 @@
 # @force-share:   force share all permission on added nodes.
 #                 Requires read-only=true. (Since 2.10)
 #
+# @compress:      compress all writes to the image (Since 4.2)
+#                 (default: false)
+#
 # Remaining options are determined by the block driver.
 #
 # Since: 2.9
@@ -3961,7 +3964,8 @@
             '*read-only': 'bool',
             '*auto-read-only': 'bool',
             '*force-share': 'bool',
-            '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
+            '*detect-zeroes': 'BlockdevDetectZeroesOptions',
+            '*compress': 'bool' },
   'discriminator': 'driver',
   'data': {
       'blkdebug':   'BlockdevOptionsBlkdebug',

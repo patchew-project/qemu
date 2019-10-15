@@ -1418,6 +1418,11 @@ QemuOptsList bdrv_runtime_opts = {
             .type = QEMU_OPT_BOOL,
             .help = "always accept other writers (default: off)",
         },
+        {
+            .name = BDRV_OPT_COMPRESS,
+            .type = QEMU_OPT_BOOL,
+            .help = "compress all writes to the image (default: off)",
+        },
         { /* end of list */ }
     },
 };
@@ -2983,6 +2988,11 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
         flags &= ~BDRV_O_RDWR;
     }
 
+    if (!g_strcmp0(qdict_get_try_str(options, BDRV_OPT_COMPRESS), "on") ||
+        qdict_get_try_bool(options, BDRV_OPT_COMPRESS, false)) {
+        bs->all_write_compressed = true;
+    }
+
     if (flags & BDRV_O_SNAPSHOT) {
         snapshot_options = qdict_new();
         bdrv_temp_snapshot_options(&snapshot_flags, snapshot_options,
@@ -3208,7 +3218,7 @@ static int bdrv_reset_options_allowed(BlockDriverState *bs,
      * in bdrv_reopen_prepare() so they can be left out of @new_opts */
     const char *const common_options[] = {
         "node-name", "discard", "cache.direct", "cache.no-flush",
-        "read-only", "auto-read-only", "detect-zeroes", NULL
+        "read-only", "auto-read-only", "detect-zeroes", "compress", NULL
     };
 
     for (e = qdict_first(bs->options); e; e = qdict_next(bs->options, e)) {
