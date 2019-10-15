@@ -456,49 +456,54 @@ void check_invalid_mmaps(void)
 
 int main(int argc, char **argv)
 {
-	char tempname[] = "/tmp/.cmmapXXXXXX";
-	unsigned int i;
+    char tempname[] = "/tmp/.cmmapXXXXXX";
+    unsigned int i;
 
-	/* Trust the first argument, otherwise probe the system for our
-	   pagesize.  */
-	if (argc > 1)
-		pagesize = strtoul(argv[1], NULL, 0);
-	else
-		pagesize = sysconf(_SC_PAGESIZE);
+    /*
+     * Trust the first argument, otherwise probe the system for our
+     * pagesize.
+     */
+    if (argc > 1) {
+        qemu_strtoul(argv[1], NULL, 0, &pagesize);
+    } else {
+        pagesize = sysconf(_SC_PAGESIZE);
+    }
 
-	/* Assume pagesize is a power of two.  */
-	pagemask = pagesize - 1;
-	dummybuf = malloc (pagesize);
-	printf ("pagesize=%u pagemask=%x\n", pagesize, pagemask);
+    /* Assume pagesize is a power of two.  */
+    pagemask = pagesize - 1;
+    dummybuf = malloc(pagesize);
+    printf("pagesize=%u pagemask=%x\n", pagesize, pagemask);
 
-	test_fd = mkstemp(tempname);
-	unlink(tempname);
+    test_fd = mkstemp(tempname);
+    unlink(tempname);
 
-	/* Fill the file with int's counting from zero and up.  */
+    /* Fill the file with int's counting from zero and up.  */
     for (i = 0; i < (pagesize * 4) / sizeof i; i++) {
         checked_write(test_fd, &i, sizeof i);
     }
 
-	/* Append a few extra writes to make the file end at non 
-	   page boundary.  */
+    /*
+     * Append a few extra writes to make the file end at non
+     * page boundary.
+     */
     checked_write(test_fd, &i, sizeof i); i++;
     checked_write(test_fd, &i, sizeof i); i++;
     checked_write(test_fd, &i, sizeof i); i++;
 
-	test_fsize = lseek(test_fd, 0, SEEK_CUR);
+    test_fsize = lseek(test_fd, 0, SEEK_CUR);
 
-	/* Run the tests.  */
-	check_aligned_anonymous_unfixed_mmaps();
-	check_aligned_anonymous_unfixed_colliding_mmaps();
-	check_aligned_anonymous_fixed_mmaps();
-	check_file_unfixed_mmaps();
-	check_file_fixed_mmaps();
-	check_file_fixed_eof_mmaps();
-	check_file_unfixed_eof_mmaps();
-	check_invalid_mmaps();
+    /* Run the tests.  */
+    check_aligned_anonymous_unfixed_mmaps();
+    check_aligned_anonymous_unfixed_colliding_mmaps();
+    check_aligned_anonymous_fixed_mmaps();
+    check_file_unfixed_mmaps();
+    check_file_fixed_mmaps();
+    check_file_fixed_eof_mmaps();
+    check_file_unfixed_eof_mmaps();
+    check_invalid_mmaps();
 
-	/* Fails at the moment.  */
-	/* check_aligned_anonymous_fixed_mmaps_collide_with_host(); */
+    /* Fails at the moment.  */
+    /* check_aligned_anonymous_fixed_mmaps_collide_with_host(); */
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
