@@ -6,10 +6,12 @@
     OBJECT_CHECK(NvmeNamespace, (obj), TYPE_NVME_NS)
 
 #define DEFINE_NVME_NS_PROPERTIES(_state, _props) \
-    DEFINE_PROP_UINT32("nsid", _state, _props.nsid, 0)
+    DEFINE_PROP_UINT32("nsid", _state, _props.nsid, 0), \
+    DEFINE_PROP_UINT8("lbads", _state, _props.lbads, 9)
 
 typedef struct NvmeNamespaceParams {
     uint32_t nsid;
+    uint8_t  lbads;
 } NvmeNamespaceParams;
 
 typedef struct NvmeNamespace {

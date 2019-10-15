@@ -2602,6 +2602,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     if (n->namespace.conf.blk) {
         ns = &n->namespace;
         ns->params.nsid = 1;
+        ns->params.lbads = 9;
 
         if (nvme_ns_setup(n, ns, &local_err)) {
             error_propagate_prepend(errp, local_err, "nvme_ns_setup: ");
