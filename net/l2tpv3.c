@@ -41,7 +41,7 @@
  * chosen to be sufficient to accommodate one packet with some headers
  */
 
-#define BUFFER_ALIGN sysconf(_SC_PAGESIZE)
+#define BUFFER_ALIGN qemu_real_host_page_size
 #define BUFFER_SIZE 2048
 #define IOVSIZE 2
 #define MAX_L2TPV3_MSGCNT 64

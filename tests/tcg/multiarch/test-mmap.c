@@ -466,7 +466,7 @@ int main(int argc, char **argv)
     if (argc > 1) {
         qemu_strtoul(argv[1], NULL, 0, &pagesize);
     } else {
-        pagesize = sysconf(_SC_PAGESIZE);
+        pagesize = qemu_real_host_page_size;
     }
 
     /* Assume pagesize is a power of two.  */

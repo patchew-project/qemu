@@ -2569,7 +2569,7 @@ static void check_cache_dropped(BlockDriverState *bs, Error **errp)
     off_t end;
 
     /* mincore(2) page status information requires 1 byte per page */
-    page_size = sysconf(_SC_PAGESIZE);
+    page_size = qemu_real_host_page_size;
     vec = g_malloc(DIV_ROUND_UP(window_size, page_size));
 
     end = raw_getlength(bs);
