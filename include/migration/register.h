@@ -69,7 +69,7 @@ typedef struct SaveVMHandlers {
 } SaveVMHandlers;
 
 int register_savevm_live(const char *idstr,
-                         int instance_id,
+                         int64_t instance_id,
                          int version_id,
                          const SaveVMHandlers *ops,
                          void *opaque);
