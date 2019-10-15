@@ -37,6 +37,37 @@
 #define ACPI_GHES_MAX_RAW_DATA_LENGTH       0x1000
 
 /*
+ * The total size of Generic Error Data Entry
+ * ACPI 6.1/6.2: 18.3.2.7.1 Generic Error Data,
+ * Table 18-343 Generic Error Data Entry
+ */
+#define ACPI_GHES_DATA_LENGTH               72
+
+/*
+ * The memory section CPER size,
+ * UEFI 2.6: N.2.5 Memory Error Section
+ */
+#define ACPI_GHES_MEM_CPER_LENGTH           80
+
+#define ACPI_GHES_CPER_OK                   1
+#define ACPI_GHES_CPER_FAIL                 0
+
+/*
+ * Masks for block_status flags
+ */
+#define ACPI_GEBS_UNCORRECTABLE         1
+
+/*
+ * Values for error_severity field
+ */
+enum AcpiGenericErrorSeverity {
+    ACPI_CPER_SEV_RECOVERABLE,
+    ACPI_CPER_SEV_FATAL,
+    ACPI_CPER_SEV_CORRECTED,
+    ACPI_CPER_SEV_NONE,
+};
+
+/*
  * Now only support ARMv8 SEA notification type error source
  */
 #define ACPI_GHES_ERROR_SOURCE_COUNT        1
@@ -69,6 +100,16 @@ enum AcpiGhesNotifyType {
     ACPI_GHES_NOTIFY_SDEI = 11,
     ACPI_GHES_NOTIFY_RESERVED = 12 /* 12 and greater are reserved */
 };
+
+#define UUID_BE(a, b, c, d0, d1, d2, d3, d4, d5, d6, d7)        \
+    {{{ ((a) >> 24) & 0xff, ((a) >> 16) & 0xff, ((a) >> 8) & 0xff, (a) & 0xff, \
+    ((b) >> 8) & 0xff, (b) & 0xff,                   \
+    ((c) >> 8) & 0xff, (c) & 0xff,                    \
+    (d0), (d1), (d2), (d3), (d4), (d5), (d6), (d7) } } }
+
+#define UEFI_CPER_SEC_PLATFORM_MEM                   \
+    UUID_BE(0xA5BC1114, 0x6F64, 0x4EDE, 0xB8, 0x63, 0x3E, 0x83, \
+    0xED, 0x7C, 0x83, 0xB1)
 
 /*
  * | +--------------------------+ 0
@@ -103,4 +144,5 @@ void acpi_ghes_build_hest(GArray *table_data, GArray *hardware_error,
 
 void acpi_ghes_build_error_table(GArray *hardware_errors, BIOSLinker *linker);
 void acpi_ghes_add_fw_cfg(FWCfgState *s, GArray *hardware_errors);
+bool acpi_ghes_record_errors(uint32_t notify, uint64_t error_physical_addr);
 #endif
