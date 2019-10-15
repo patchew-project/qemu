@@ -900,6 +900,10 @@ static struct {
         },
         .dependencies = BIT(HYPERV_FEAT_STIMER)
     },
+    [HYPERV_FEAT_DIRECT_TLBFLUSH] = {
+        .desc = "direct tlbflush (hv-direct-tlbflush)",
+        .dependencies = BIT(HYPERV_FEAT_TLBFLUSH)
+    },
 };
 
 static struct kvm_cpuid2 *try_get_hv_cpuid(CPUState *cs, int max)
@@ -1224,6 +1228,7 @@ static int hyperv_handle_properties(CPUState *cs,
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_EVMCS);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_IPI);
     r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_STIMER_DIRECT);
+    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_DIRECT_TLBFLUSH);
 
     /* Additional dependencies not covered by kvm_hyperv_properties[] */
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC) &&
@@ -1241,6 +1246,24 @@ static int hyperv_handle_properties(CPUState *cs,
     if (r) {
         r = -ENOSYS;
         goto free;
+    }
+
+    if (hyperv_feat_enabled(cpu, HYPERV_FEAT_DIRECT_TLBFLUSH) ||
+        cpu->hyperv_passthrough) {
+        if (!cpu->expose_kvm) {
+            r = kvm_vcpu_enable_cap(cs, KVM_CAP_HYPERV_DIRECT_TLBFLUSH, 0, 0);
+            if (hyperv_feat_enabled(cpu, HYPERV_FEAT_DIRECT_TLBFLUSH) && r) {
+                fprintf(stderr,
+                    "Hyper-V %s is not supported by kernel\n",
+                    kvm_hyperv_properties[HYPERV_FEAT_DIRECT_TLBFLUSH].desc);
+                return -ENOSYS;
+            }
+        } else if (!cpu->hyperv_passthrough) {
+            fprintf(stderr,
+                "Hyper-V %s requires not to expose KVM capabilities.\n",
+                kvm_hyperv_properties[HYPERV_FEAT_DIRECT_TLBFLUSH].desc);
+            return -ENOSYS;
+        }
     }
 
     if (cpu->hyperv_passthrough) {
