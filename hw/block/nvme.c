@@ -161,6 +161,22 @@ static void nvme_irq_deassert(NvmeCtrl *n, NvmeCQueue *cq)
     }
 }
 
+static void nvme_set_error_page(NvmeCtrl *n, uint16_t sqid, uint16_t cid,
+    uint16_t status, uint16_t location, uint64_t lba, uint32_t nsid)
+{
+    NvmeErrorLog *elp;
+
+    elp = &n->elpes[n->elp_index];
+    elp->error_count = n->error_count++;
+    elp->sqid = sqid;
+    elp->cid = cid;
+    elp->status_field = status;
+    elp->param_error_location = location;
+    elp->lba = lba;
+    elp->nsid = nsid;
+    n->elp_index = (n->elp_index + 1) % n->params.elpe;
+}
+
 static uint16_t nvme_map_prp(QEMUSGList *qsg, QEMUIOVector *iov, uint64_t prp1,
                              uint64_t prp2, uint32_t len, NvmeCtrl *n)
 {
@@ -386,7 +402,9 @@ static void nvme_rw_cb(void *opaque, int ret)
         req->status = NVME_SUCCESS;
     } else {
         block_acct_failed(blk_get_stats(n->conf.blk), &req->acct);
-        req->status = NVME_INTERNAL_DEV_ERROR;
+        nvme_set_error_page(n, sq->sqid, cpu_to_le16(req->cid),
+            NVME_INTERNAL_DEV_ERROR, 0, 0, 1);
+        req->status = NVME_INTERNAL_DEV_ERROR | NVME_MORE;
     }
     if (req->has_sg) {
         qemu_sglist_destroy(&req->qsg);
@@ -678,7 +696,7 @@ static uint16_t nvme_smart_info(NvmeCtrl *n, NvmeCmd *cmd, uint8_t rae,
     smart.host_read_commands[0] = cpu_to_le64(read_commands);
     smart.host_write_commands[0] = cpu_to_le64(write_commands);
 
-    smart.number_of_error_log_entries[0] = cpu_to_le64(0);
+    smart.number_of_error_log_entries[0] = cpu_to_le64(n->error_count);
     smart.temperature[0] = n->temperature & 0xff;
     smart.temperature[1] = (n->temperature >> 8) & 0xff;
 

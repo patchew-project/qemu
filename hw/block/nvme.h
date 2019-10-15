@@ -100,6 +100,8 @@ typedef struct NvmeCtrl {
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint64_t    starttime_ms;
     uint16_t    temperature;
+    uint8_t     elp_index;
+    uint64_t    error_count;
 
     QEMUTimer   *aer_timer;
     uint8_t     aer_mask;
