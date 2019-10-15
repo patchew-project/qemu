@@ -89,6 +89,41 @@ _check_test_img -r all
 $QEMU_IO -c "read  -P 0x11  0 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 $QEMU_IO -c "read  -P 0x22 4M 4M" "$TEST_IMG" 2>&1 | _filter_qemu_io | _filter_testdir
 
+echo
+echo "=== Write compressed data of multiple clusters ==="
+echo
+cluster_size=0x10000
+_make_test_img 2M -o cluster_size=$cluster_size
+
+echo "Uncompressed data:"
+let data_size="8 * $cluster_size"
+$QEMU_IO -c "write -P 0xaa 0 $data_size" "$TEST_IMG" \
+         2>&1 | _filter_qemu_io | _filter_testdir
+$QEMU_IMG info "$TEST_IMG" | sed -n '/disk size:/ s/^ *//p'
+
+_make_test_img 2M -o cluster_size=$cluster_size
+let data_size="3 * $cluster_size + ($cluster_size >> 1)"
+# Set compress=on. That will align the written data
+# by the cluster size and will write them compressed.
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT \
+$QEMU_IO -c "write -P 0xbb 0 $data_size" --image-opts \
+         driver=$IMGFMT,compress=on,file.filename=$TEST_IMG \
+         2>&1 | _filter_qemu_io | _filter_testdir
+
+let offset="4 * $cluster_size"
+QEMU_IO_OPTIONS=$QEMU_IO_OPTIONS_NO_FMT \
+$QEMU_IO -c "write -P 0xcc $offset $data_size" "json:{\
+    'driver': '$IMGFMT',
+    'file': {
+        'driver': 'file',
+        'filename': '$TEST_IMG'
+    },
+    'compress': true
+}" | _filter_qemu_io | _filter_testdir
+
+echo "After the multiple cluster data have been written compressed,"
+$QEMU_IMG info "$TEST_IMG" | sed -n '/disk size:/ s/^ *//p'
+
 # success, all done
 echo '*** done'
 rm -f $seq.full
