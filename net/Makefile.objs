@@ -19,6 +19,7 @@ common-obj-y += colo-compare.o
 common-obj-y += colo.o
 common-obj-y += filter-rewriter.o
 common-obj-y += filter-replay.o
+common-obj-y += awd.o
 
 tap-obj-$(CONFIG_LINUX) = tap-linux.o
 tap-obj-$(CONFIG_BSD) = tap-bsd.o

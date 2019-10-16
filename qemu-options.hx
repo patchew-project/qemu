@@ -4520,6 +4520,12 @@ Dump the network traffic on netdev @var{dev} to the file specified by
 The file format is libpcap, so it can be analyzed with tools such as tcpdump
 or Wireshark.
 
+@item -object advanced-watchdog,id=@var{id},awd_node=@var{chardevid},notification_node=@var{chardevid},server=@var{server},iothread=@var{id}[,pulse_interval=@var{time_ms},timeout=@var{time_ms}]
+
+Advanced Watch Dog is an universal monitoring module on VMM side, it can be used to detect network down(VMM to guest, VMM to VMM, VMM to another remote server) and do previously set operation.
+for example: send message to admin, notify another VMM, send qmp command to qemu do some operation like restart the VM, build VMM heartbeat system, etc.
+It make user have basic VM/Host network monitoring tools and basic false tolerance and recovery solution.
+
 @item -object colo-compare,id=@var{id},primary_in=@var{chardevid},secondary_in=@var{chardevid},outdev=@var{chardevid},iothread=@var{id}[,vnet_hdr_support][,notify_dev=@var{id}]
 
 Colo-compare gets packet from primary_in@var{chardevid} and secondary_in@var{chardevid}, than compare primary packet with
