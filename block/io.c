@@ -1360,9 +1360,15 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
                 /* This does not change the data on the disk, it is not
                  * necessary to flush even in cache=writethrough mode.
                  */
-                ret = bdrv_driver_pwritev(bs, cluster_offset, pnum,
-                                          &local_qiov, 0,
-                                          BDRV_REQ_WRITE_UNCHANGED);
+                if (bs->all_write_compressed) {
+                    ret = bdrv_driver_pwritev_compressed(bs, cluster_offset,
+                                                         pnum, &local_qiov,
+                                                         qiov_offset);
+                } else {
+                    ret = bdrv_driver_pwritev(bs, cluster_offset, pnum,
+                                              &local_qiov, 0,
+                                              BDRV_REQ_WRITE_UNCHANGED);
+                }
             }
 
             if (ret < 0) {
@@ -1954,7 +1960,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
     } else if (flags & BDRV_REQ_ZERO_WRITE) {
         bdrv_debug_event(bs, BLKDBG_PWRITEV_ZERO);
         ret = bdrv_co_do_pwrite_zeroes(bs, offset, bytes, flags);
-    } else if (flags & BDRV_REQ_WRITE_COMPRESSED) {
+    } else if (flags & BDRV_REQ_WRITE_COMPRESSED || bs->all_write_compressed) {
         ret = bdrv_driver_pwritev_compressed(bs, offset, bytes,
                                              qiov, qiov_offset);
     } else if (bytes <= max_transfer) {

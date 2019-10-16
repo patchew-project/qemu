@@ -471,7 +471,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     int bdrv_flags = 0;
     int on_read_error, on_write_error;
     bool account_invalid, account_failed;
-    bool writethrough, read_only;
+    bool writethrough, read_only, compress;
     BlockBackend *blk;
     BlockDriverState *bs;
     ThrottleConfig cfg;
@@ -570,6 +570,7 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
     }
 
     read_only = qemu_opt_get_bool(opts, BDRV_OPT_READ_ONLY, false);
+    compress = qemu_opt_get_bool(opts, BDRV_OPT_COMPRESS, false);
 
     /* init */
     if ((!file || !*file) && !qdict_size(bs_opts)) {
@@ -595,6 +596,8 @@ static BlockBackend *blockdev_init(const char *file, QDict *bs_opts,
         qdict_set_default_str(bs_opts, BDRV_OPT_READ_ONLY,
                               read_only ? "on" : "off");
         qdict_set_default_str(bs_opts, BDRV_OPT_AUTO_READ_ONLY, "on");
+        qdict_set_default_str(bs_opts, BDRV_OPT_COMPRESS,
+                              compress ? "on" : "off");
         assert((bdrv_flags & BDRV_O_CACHE_MASK) == 0);
 
         if (runstate_check(RUN_STATE_INMIGRATE)) {
@@ -4683,6 +4686,10 @@ QemuOptsList qemu_common_drive_opts = {
             .name = BDRV_OPT_READ_ONLY,
             .type = QEMU_OPT_BOOL,
             .help = "open drive file as read-only",
+        },{
+            .name = BDRV_OPT_COMPRESS,
+            .type = QEMU_OPT_BOOL,
+            .help = "compress all writes to image",
         },
 
         THROTTLE_OPTS,
