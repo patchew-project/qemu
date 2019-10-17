@@ -9,15 +9,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/arm/bcm2835_peripherals.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
 #include "hw/arm/raspi_platform.h"
 #include "sysemu/sysemu.h"
-
-/* Peripheral base address on the VC (GPU) system bus */
-#define BCM2835_VC_PERI_BASE 0x7e000000
 
 /* Capabilities for SD controller: no DMA, high-speed, default clocks etc. */
 #define BCM2835_SDHC_CAPAREG 0x52134b4
@@ -44,10 +42,6 @@ static void bcm2835_peripherals_init(Object *obj)
     memory_region_init(&s->peri_mr, obj,"bcm2835-peripherals", 0x1000000);
     object_property_add_child(obj, "peripheral-io", OBJECT(&s->peri_mr), NULL);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->peri_mr);
-
-    /* Internal memory region for peripheral bus addresses (not exported) */
-    memory_region_init(&s->gpu_bus_mr, obj, "bcm2835-gpu", (uint64_t)1 << 32);
-    object_property_add_child(obj, "gpu-bus", OBJECT(&s->gpu_bus_mr), NULL);
 
     /* Internal memory region for request/response communication with
      * mailbox-addressable peripherals (not exported)
@@ -82,9 +76,6 @@ static void bcm2835_peripherals_init(Object *obj)
     object_property_add_alias(obj, "vcram-size", OBJECT(&s->fb), "vcram-size",
                               &error_abort);
 
-    object_property_add_const_link(OBJECT(&s->fb), "dma-mr",
-                                   OBJECT(&s->gpu_bus_mr), &error_abort);
-
     /* Property channel */
     sysbus_init_child_obj(obj, "property", &s->property, sizeof(s->property),
                           TYPE_BCM2835_PROPERTY);
@@ -93,8 +84,6 @@ static void bcm2835_peripherals_init(Object *obj)
 
     object_property_add_const_link(OBJECT(&s->property), "fb",
                                    OBJECT(&s->fb), &error_abort);
-    object_property_add_const_link(OBJECT(&s->property), "dma-mr",
-                                   OBJECT(&s->gpu_bus_mr), &error_abort);
 
     /* Random Number Generator */
     sysbus_init_child_obj(obj, "rng", &s->rng, sizeof(s->rng),
@@ -111,9 +100,6 @@ static void bcm2835_peripherals_init(Object *obj)
     /* DMA Channels */
     sysbus_init_child_obj(obj, "dma", &s->dma, sizeof(s->dma),
                           TYPE_BCM2835_DMA);
-
-    object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
-                                   OBJECT(&s->gpu_bus_mr), &error_abort);
 
     /* Thermal */
     sysbus_init_child_obj(obj, "thermal", &s->thermal, sizeof(s->thermal),
@@ -133,7 +119,7 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
 {
     BCM2835PeripheralState *s = BCM2835_PERIPHERALS(dev);
     Object *obj;
-    MemoryRegion *ram;
+    MemoryRegion *ram, *vc;
     Error *err = NULL;
     uint64_t ram_size, vcram_size;
     int n;
@@ -144,25 +130,16 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                    __func__, error_get_pretty(err));
         return;
     }
-
     ram = MEMORY_REGION(obj);
     ram_size = memory_region_size(ram);
 
-    /* Map peripherals and RAM into the GPU address space. */
-    memory_region_init_alias(&s->peri_mr_alias, OBJECT(s),
-                             "bcm2835-peripherals", &s->peri_mr, 0,
-                             memory_region_size(&s->peri_mr));
-
-    memory_region_add_subregion_overlap(&s->gpu_bus_mr, BCM2835_VC_PERI_BASE,
-                                        &s->peri_mr_alias, 1);
-
-    /* RAM is aliased four times (different cache configurations) on the GPU */
-    for (n = 0; n < 4; n++) {
-        memory_region_init_alias(&s->ram_alias[n], OBJECT(s),
-                                 "bcm2835-gpu-ram-alias[*]", ram, 0, ram_size);
-        memory_region_add_subregion_overlap(&s->gpu_bus_mr, (hwaddr)n << 30,
-                                            &s->ram_alias[n], 0);
+    obj = object_property_get_link(OBJECT(dev), "videocore", &err);
+    if (obj == NULL) {
+        error_setg(errp, "%s: required videocore link not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
     }
+    vc = MEMORY_REGION(obj);
 
     /* Interrupt Controller */
     object_property_set_bool(OBJECT(&s->ic), true, "realized", &err);
@@ -243,6 +220,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    object_property_add_const_link(OBJECT(&s->fb), "dma-mr",
+                                   OBJECT(vc), &error_abort);
     object_property_set_bool(OBJECT(&s->fb), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -255,6 +234,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                        qdev_get_gpio_in(DEVICE(&s->mboxes), MBOX_CHAN_FB));
 
     /* Property channel */
+    object_property_add_const_link(OBJECT(&s->property), "dma-mr",
+                                   OBJECT(vc), &error_abort);
     object_property_set_bool(OBJECT(&s->property), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -323,6 +304,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
                                INTERRUPT_SDIO));
 
     /* DMA Channels */
+    object_property_add_const_link(OBJECT(&s->dma), "dma-mr",
+                                   OBJECT(vc), &error_abort);
     object_property_set_bool(OBJECT(&s->dma), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);

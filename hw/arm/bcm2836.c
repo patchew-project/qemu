@@ -9,12 +9,16 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "cpu.h"
 #include "hw/arm/bcm2836.h"
 #include "hw/arm/raspi_platform.h"
 #include "hw/sysbus.h"
+
+/* Peripheral base address on the VC (GPU) system bus */
+#define BCM2835_VC_PERI_BASE    0x3e000000
 
 struct BCM283XInfo {
     const char *name;
@@ -50,6 +54,21 @@ static void bcm2836_init(Object *obj)
     const BCM283XInfo *info = bc->info;
     int n;
 
+    /* VideoCore memory region */
+    memory_region_init(&s->videocore.mr[0], obj, "videocore-bus", 1 * GiB);
+    object_property_add_child(obj, "videocore",
+                              OBJECT(&s->videocore.mr[0]), NULL);
+    for (n = 1; n < BCM283X_NCPUS; n++) {
+        static const char *alias_name[] = {
+            NULL, "cached-coherent", "cached", "uncached"
+        };
+        memory_region_init_alias(&s->videocore.mr[n], obj,
+                                 alias_name[n], &s->videocore.mr[0],
+                                 0, 1 * GiB);
+        memory_region_add_subregion_overlap(&s->videocore.mr[0], n * GiB,
+                                            &s->videocore.mr[n], 0);
+    }
+
     for (n = 0; n < BCM283X_NCPUS; n++) {
         object_initialize_child(obj, "cpu[*]", &s->cpus[n], sizeof(s->cpus[n]),
                                 info->cpu_type, &error_abort, NULL);
@@ -71,6 +90,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     BCM283XState *s = BCM283X(dev);
     BCM283XClass *bc = BCM283X_GET_CLASS(dev);
     const BCM283XInfo *info = bc->info;
+    MemoryRegion *ram_mr, *peri_mr;
     Object *obj;
     Error *err = NULL;
     int n;
@@ -83,18 +103,38 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                    __func__, error_get_pretty(err));
         return;
     }
-
+    ram_mr = MEMORY_REGION(obj);
     object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj, &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
 
+    object_property_add_const_link(OBJECT(&s->peripherals), "videocore",
+                                   OBJECT(&s->videocore), &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_bool(OBJECT(&s->peripherals), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
+
+    /* Map peripherals and RAM into the GPU address space. */
+    memory_region_init_alias(&s->videocore.ram_mr_alias, OBJECT(s),
+                             "vc-ram-alias", ram_mr, 0,
+                             memory_region_size(ram_mr));
+    memory_region_add_subregion_overlap(&s->videocore.mr[0], 0,
+                                        &s->videocore.ram_mr_alias, 1);
+    peri_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->peripherals), 0);
+    memory_region_init_alias(&s->videocore.peri_mr_alias, OBJECT(s),
+                             "vc-peripherals-alias",
+                             peri_mr, 0, 16 * MiB);
+    memory_region_add_subregion_overlap(&s->videocore.mr[0],
+                                        BCM2835_VC_PERI_BASE,
+                                        &s->videocore.peri_mr_alias, 2);
 
     object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->peripherals),
                               "sd-bus", &err);
@@ -102,7 +142,6 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->peripherals), 0,
                             info->peri_base, 1);
 
