@@ -70,6 +70,8 @@ static void bcm2836_init(Object *obj)
     }
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
+        memory_region_init(&s->cpu[n].container_mr, obj, "cpu-bus", 4 * GiB);
+
         object_initialize_child(obj, "cpu[*]", &s->cpus[n], sizeof(s->cpus[n]),
                                 info->cpu_type, &error_abort, NULL);
     }
@@ -90,7 +92,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     BCM283XState *s = BCM283X(dev);
     BCM283XClass *bc = BCM283X_GET_CLASS(dev);
     const BCM283XInfo *info = bc->info;
-    MemoryRegion *ram_mr, *peri_mr;
+    MemoryRegion *ram_mr, *peri_mr, *ctrl_mr;
     Object *obj;
     Error *err = NULL;
     int n;
@@ -142,8 +144,6 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->peripherals), 0,
-                            info->peri_base, 1);
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
     object_property_set_bool(OBJECT(&s->control), true, "realized", &err);
@@ -151,15 +151,41 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->control), 0, info->ctrl_base);
-
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 0,
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-irq", 0));
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
+    ctrl_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->control), 0);
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
+        memory_region_init_alias(&s->cpu[n].ram_mr_alias, OBJECT(s),
+                                 "arm-ram-alias", ram_mr, 0,
+                                 memory_region_size(ram_mr));
+        memory_region_add_subregion_overlap(&s->cpu[n].container_mr, 0,
+                                            &s->cpu[n].ram_mr_alias, 1);
+
+        memory_region_init_alias(&s->cpu[n].peri_mr_alias, OBJECT(s),
+                                 "arm-peripherals-alias",
+                                 peri_mr, 0, 16 * MiB);
+        memory_region_add_subregion_overlap(&s->cpu[n].container_mr,
+                                            info->peri_base,
+                                            &s->cpu[n].peri_mr_alias, 2);
+
+        memory_region_init_alias(&s->cpu[n].control_mr_alias, OBJECT(s),
+                                 "arm-control-alias", ctrl_mr,
+                                 0, 16 * KiB);
+        memory_region_add_subregion_overlap(&s->cpu[n].container_mr,
+                                            info->ctrl_base,
+                                            &s->cpu[n].control_mr_alias, 2);
+
+        object_property_set_link(OBJECT(&s->cpus[n]),
+                                 OBJECT(&s->cpu[n].container_mr),
+                                 "memory", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
         /* TODO: this should be converted to a property of ARM_CPU */
         s->cpus[n].mp_affinity = (info->clusterid << 8) | n;
 
