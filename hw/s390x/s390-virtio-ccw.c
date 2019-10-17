@@ -243,6 +243,10 @@ static void ccw_init(MachineState *machine)
     VirtualCssBus *css_bus;
     DeviceState *dev;
 
+    if (machine->usb) {
+        warn_report("This machine does not support USB");
+    }
+
     s390_sclp_init();
     /* init memory + setup max page size. Required for the CPU model */
     s390_memory_init(machine->ram_size);
