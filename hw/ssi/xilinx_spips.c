@@ -1022,6 +1022,13 @@ static void xilinx_spips_write(void *opaque, hwaddr addr,
     }
     s->regs[addr] = (s->regs[addr] & ~mask) | (value & mask);
 no_reg_update:
+    /* In GQSPI mode skip update of CS and fifo's related to spips */
+    if (object_dynamic_cast(OBJECT(s), TYPE_XLNX_ZYNQMP_QSPIPS)) {
+        XlnxZynqMPQSPIPS *ss = XLNX_ZYNQMP_QSPIPS(s);
+        if (ARRAY_FIELD_EX32(ss->regs, GQSPI_SELECT, GENERIC_QSPI_EN)) {
+            return;
+        }
+    }
     xilinx_spips_update_cs_lines(s);
     xilinx_spips_check_flush(s);
     xilinx_spips_update_cs_lines(s);
