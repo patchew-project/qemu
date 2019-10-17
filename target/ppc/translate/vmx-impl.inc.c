@@ -1031,6 +1031,95 @@ static void trans_vclzd(DisasContext *ctx)
     tcg_temp_free_i64(avr);
 }
 
+/*
+ * vupkhpx VRT,VRB - Vector Unpack High Pixel
+ * vupklpx VRT,VRB - Vector Unpack Low Pixel
+ *
+ * Unpacks 4 pixels coded in 1-5-5-5 pattern from high/low doubleword element
+ * of source register into contigous array of bits in the destination register.
+ * Argument 'high' determines if high or low doubleword element of source
+ * register is processed.
+ */
+static void trans_vupkpx(DisasContext *ctx, int high)
+{
+    int VT = rD(ctx->opcode);
+    int VB = rB(ctx->opcode);
+    TCGv_i64 tmp = tcg_temp_new_i64();
+    TCGv_i64 avr = tcg_temp_new_i64();
+    TCGv_i64 result = tcg_temp_new_i64();
+    TCGv_i64 result1 = tcg_temp_new_i64();
+    TCGv_i64 result2 = tcg_temp_new_i64();
+    int64_t mask1 = 0x1fULL;
+    int64_t mask2 = 0x1fULL << 8;
+    int64_t mask3 = 0x1fULL << 16;
+    int64_t mask4 = 0xffULL << 56;
+    int i, j;
+
+    if (high == 1) {
+        get_avr64(avr, VB, true);
+    } else {
+        get_avr64(avr, VB, false);
+    }
+
+    tcg_gen_movi_i64(result, 0x0ULL);
+    for (i = 0; i < 2; i++) {
+        for (j = 0; j < 2; j++) {
+            tcg_gen_shli_i64(tmp, avr, (j * 16));
+            tcg_gen_andi_i64(tmp, tmp, mask1 << (j * 32));
+            tcg_gen_or_i64(result, result, tmp);
+
+            tcg_gen_shli_i64(tmp, avr, 3 + (j * 16));
+            tcg_gen_andi_i64(tmp, tmp, mask2 << (j * 32));
+            tcg_gen_or_i64(result, result, tmp);
+
+            tcg_gen_shli_i64(tmp, avr, 6 + (j * 16));
+            tcg_gen_andi_i64(tmp, tmp, mask3 << (j * 32));
+            tcg_gen_or_i64(result, result, tmp);
+
+            tcg_gen_shri_i64(tmp, avr, (j * 16));
+            tcg_gen_ext16s_i64(tmp, tmp);
+            tcg_gen_andi_i64(tmp, tmp, mask4);
+            tcg_gen_shri_i64(tmp, tmp, (32 * (1 - j)));
+            tcg_gen_or_i64(result, result, tmp);
+        }
+        if (i == 0) {
+            tcg_gen_mov_i64(result1, result);
+            tcg_gen_movi_i64(result, 0x0ULL);
+            tcg_gen_shri_i64(avr, avr, 32);
+        }
+        if (i == 1) {
+            tcg_gen_mov_i64(result2, result);
+        }
+    }
+
+    set_avr64(VT, result1, false);
+    set_avr64(VT, result2, true);
+
+    tcg_temp_free_i64(tmp);
+    tcg_temp_free_i64(avr);
+    tcg_temp_free_i64(result);
+    tcg_temp_free_i64(result1);
+    tcg_temp_free_i64(result2);
+}
+
+static void gen_vupkhpx(DisasContext *ctx)
+{
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    trans_vupkpx(ctx, 1);
+}
+
+static void gen_vupklpx(DisasContext *ctx)
+{
+    if (unlikely(!ctx->altivec_enabled)) {
+        gen_exception(ctx, POWERPC_EXCP_VPU);
+        return;
+    }
+    trans_vupkpx(ctx, 0);
+}
+
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
@@ -1348,8 +1437,6 @@ GEN_VXFORM_NOA(vupkhsw, 7, 25);
 GEN_VXFORM_NOA(vupklsb, 7, 10);
 GEN_VXFORM_NOA(vupklsh, 7, 11);
 GEN_VXFORM_NOA(vupklsw, 7, 27);
-GEN_VXFORM_NOA(vupkhpx, 7, 13);
-GEN_VXFORM_NOA(vupklpx, 7, 15);
 GEN_VXFORM_NOA_ENV(vrefp, 5, 4);
 GEN_VXFORM_NOA_ENV(vrsqrtefp, 5, 5);
 GEN_VXFORM_NOA_ENV(vexptefp, 5, 6);
