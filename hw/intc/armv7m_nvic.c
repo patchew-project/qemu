@@ -1604,6 +1604,7 @@ static void nvic_writel(NVICState *s, uint32_t offset, uint32_t value,
         }
 
         cpu->env.v7m.ccr[attrs.secure] = value;
+        arm_rebuild_hflags(&cpu->env);
         break;
     case 0xd24: /* System Handler Control and State (SHCSR) */
         if (!arm_feature(&cpu->env, ARM_FEATURE_V7)) {
