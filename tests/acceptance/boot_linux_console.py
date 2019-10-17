@@ -14,6 +14,7 @@ import gzip
 import shutil
 
 from avocado_qemu import Test
+from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
@@ -28,11 +29,6 @@ class BootLinuxConsole(Test):
     timeout = 90
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
-
-    def exec_command_and_wait_for_pattern(self, command, success_message):
-        command += '\r\n'
-        self.vm.console_socket.sendall(command.encode())
-        wait_for_console_pattern(self, success_message)
 
     def extract_from_deb(self, deb, path):
         """
@@ -162,11 +158,11 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         wait_for_console_pattern(self, 'Boot successful.')
 
-        self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo',
                                                'BogoMIPS')
-        self.exec_command_and_wait_for_pattern('uname -a',
+        exec_command_and_wait_for_pattern(self, 'uname -a',
                                                'Debian')
-        self.exec_command_and_wait_for_pattern('reboot',
+        exec_command_and_wait_for_pattern(self, 'reboot',
                                                'reboot: Restarting system')
 
     def do_test_mips_malta32el_nanomips(self, kernel_url, kernel_hash):
