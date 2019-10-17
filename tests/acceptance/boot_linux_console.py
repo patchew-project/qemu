@@ -9,12 +9,12 @@
 # later.  See the COPYING file in the top-level directory.
 
 import os
-import logging
 import lzma
 import gzip
 import shutil
 
 from avocado_qemu import Test
+from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 
@@ -29,31 +29,10 @@ class BootLinuxConsole(Test):
 
     KERNEL_COMMON_COMMAND_LINE = 'printk.time=0 '
 
-    def wait_for_console_pattern(self, success_message,
-                                 failure_message='Kernel panic - not syncing'):
-        """
-        Waits for messages to appear on the console, while logging the content
-
-        :param success_message: if this message appears, test succeeds
-        :param failure_message: if this message appears, test fails
-        """
-        console = self.vm.console_socket.makefile()
-        console_logger = logging.getLogger('console')
-        while True:
-            msg = console.readline().strip()
-            if not msg:
-                continue
-            console_logger.debug(msg)
-            if success_message in msg:
-                break
-            if failure_message in msg:
-                fail = 'Failure message found in console: %s' % failure_message
-                self.fail(fail)
-
     def exec_command_and_wait_for_pattern(self, command, success_message):
         command += '\n'
         self.vm.console_socket.sendall(command.encode())
-        self.wait_for_console_pattern(success_message)
+        wait_for_console_pattern(self, success_message)
 
     def extract_from_deb(self, deb, path):
         """
@@ -89,7 +68,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_mips_malta(self):
         """
@@ -112,7 +91,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_mips64el_malta(self):
         """
@@ -145,7 +124,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_mips_malta_cpio(self):
         """
@@ -181,7 +160,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line,
                          '-no-reboot')
         self.vm.launch()
-        self.wait_for_console_pattern('Boot successful.')
+        wait_for_console_pattern(self, 'Boot successful.')
 
         self.exec_command_and_wait_for_pattern('cat /proc/cpuinfo',
                                                'BogoMIPS')
@@ -208,7 +187,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_mips_malta32el_nanomips_4k(self):
         """
@@ -266,7 +245,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_arm_virt(self):
         """
@@ -287,7 +266,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_arm_emcraft_sf2(self):
         """
@@ -314,7 +293,7 @@ class BootLinuxConsole(Test):
                          '-drive', 'file=' + spi_path + ',if=mtd,format=raw',
                          '-no-reboot')
         self.vm.launch()
-        self.wait_for_console_pattern('init started: BusyBox')
+        wait_for_console_pattern(self, 'init started: BusyBox')
 
     def test_s390x_s390_ccw_virtio(self):
         """
@@ -335,7 +314,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_alpha_clipper(self):
         """
@@ -357,7 +336,7 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
 
     def test_ppc64_pseries(self):
         """
@@ -377,4 +356,4 @@ class BootLinuxConsole(Test):
                          '-append', kernel_command_line)
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
-        self.wait_for_console_pattern(console_pattern)
+        wait_for_console_pattern(self, console_pattern)
