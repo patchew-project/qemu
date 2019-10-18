@@ -75,7 +75,10 @@ static void gpfsel_set(BCM2835GpioState *s, uint8_t reg, uint32_t value)
             s->fsel[index] = fsel;
         }
     }
+}
 
+static void gpfsel_update_sdbus(BCM2835GpioState *s)
+{
     /* SD controller selection (48-53) */
     if (s->sd_fsel != 0
             && (s->fsel[48] == 0) /* SD_CLK_R */
@@ -86,6 +89,7 @@ static void gpfsel_set(BCM2835GpioState *s, uint8_t reg, uint32_t value)
             && (s->fsel[53] == 0) /* SD_DATA3_R */
             ) {
         /* SDHCI controller selected */
+        sdbus_reparent_card(&s->sdbus, s->sdbus_sdhci);
         sdbus_reparent_card(s->sdbus_sdhost, s->sdbus_sdhci);
         s->sd_fsel = 0;
     } else if (s->sd_fsel != 4
@@ -97,6 +101,7 @@ static void gpfsel_set(BCM2835GpioState *s, uint8_t reg, uint32_t value)
             && (s->fsel[53] == 4) /* SD_DATA3_R */
             ) {
         /* SDHost controller selected */
+        sdbus_reparent_card(&s->sdbus, s->sdbus_sdhost);
         sdbus_reparent_card(s->sdbus_sdhci, s->sdbus_sdhost);
         s->sd_fsel = 4;
     }
@@ -210,6 +215,7 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
     case GPFSEL4:
     case GPFSEL5:
         gpfsel_set(s, offset / 4, value);
+        gpfsel_update_sdbus(s);
         break;
     case GPSET0:
         gpset(s, value, 0, 32, &s->lev0);
@@ -265,10 +271,12 @@ static void bcm2835_gpio_reset(DeviceState *dev)
         gpfsel_set(s, i, 0);
     }
 
-    s->sd_fsel = 0;
-
-    /* SDHCI is selected by default */
-    sdbus_reparent_card(&s->sdbus, s->sdbus_sdhci);
+    /*
+     * Setup the right sdbus (put 1 in sd_fsel to force reparenting
+     * the sd). It will be SDHCI because of the gpfsel_set() above.
+     */
+    s->sd_fsel = 1;
+    gpfsel_update_sdbus(s);
 
     s->lev0 = 0;
     s->lev1 = 0;
