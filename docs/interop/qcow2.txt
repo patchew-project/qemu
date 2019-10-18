@@ -109,6 +109,12 @@ least next five fields, up to the @header_length field.
                                 An External Data File Name header extension may
                                 be present if this bit is set.
 
+                    Bit 3:      Compression type bit.  If this bit is set,
+                                non-default compression is used for compressed
+                                clusters. In this case, @header_length must
+                                be at least 105 and @compression_type field
+                                must be non-zero.
+
                     Bits 3-63:  Reserved (set to 0)
 
          80 -  87:  compatible_features
@@ -183,7 +189,18 @@ It's allowed for the header end to cut some field in the middle (in this case
 the field is considered as absent), but in this case the part of the field
 which is covered by @header_length must be zeroed.
 
-        < ... No additional fields in the header currently ... >
+              104:  compression_type
+                    Defines the compression method used for compressed clusters.
+                    A single compression type is applied to all compressed image
+                    clusters.
+                    If incompatible compression type bit is set: the field must
+                    exist (i.e. @header_length >= 105) and must be non-zero (
+                    which means non-zlib compression type)
+                    If incompatible compression type bit is unset: the field
+                    may not exist (if @header_length < 105) or it must be zero
+                    (which means zlib).
+                    Available compression type values:
+                        0: zlib <https://www.zlib.net/>
 
 Header padding
         If @header_length is larger than 104, software SHOULD make it a
