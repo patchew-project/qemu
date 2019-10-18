@@ -1950,6 +1950,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     const char *target = qdict_get_str(qdict, "target");
     const char *arg = qdict_get_try_str(qdict, "arg");
     const char *read_only = qdict_get_try_str(qdict, "read-only-mode");
+    const char *target_name = qdict_get_try_str(qdict, "target-name");
     BlockdevChangeReadOnlyMode read_only_mode = 0;
     Error *err = NULL;
 
@@ -1985,6 +1986,7 @@ void hmp_change(Monitor *mon, const QDict *qdict)
 
         qmp_blockdev_change_medium(true, device, false, NULL, target,
                                    !!arg, arg, !!read_only, read_only_mode,
+                                   !!target_name, target_name,
                                    &err);
     }
 

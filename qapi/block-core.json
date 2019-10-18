@@ -4915,6 +4915,8 @@
 # @read-only-mode:  change the read-only mode of the device; defaults
 #                   to 'retain'
 #
+# @medium-name:     drive-name when changing the media in non-removable devices
+#                   ignored when changing media in removable devices
 # Since: 2.5
 #
 # Examples:
@@ -4953,9 +4955,8 @@
             '*id': 'str',
             'filename': 'str',
             '*format': 'str',
-            '*read-only-mode': 'BlockdevChangeReadOnlyMode' } }
-
-
+            '*read-only-mode': 'BlockdevChangeReadOnlyMode',
+            '*medium-name': 'str' } }
 ##
 # @BlockErrorAction:
 #

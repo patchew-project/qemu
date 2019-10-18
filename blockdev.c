@@ -2665,6 +2665,8 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
                                 bool has_format, const char *format,
                                 bool has_read_only,
                                 BlockdevChangeReadOnlyMode read_only,
+                                bool has_medium_name,
+                                const char *medium_name,
                                 Error **errp)
 {
     BlockBackend *blk;
@@ -2723,29 +2725,56 @@ void qmp_blockdev_change_medium(bool has_device, const char *device,
         goto fail;
     }
 
-    rc = do_open_tray(has_device ? device : NULL,
-                      has_id ? id : NULL,
-                      false, &err);
-    if (rc && rc != -ENOSYS) {
-        error_propagate(errp, err);
-        goto fail;
-    }
-    error_free(err);
-    err = NULL;
+    if (blk_dev_has_removable_media(blk)) {
+        rc = do_open_tray(has_device ? device : NULL,
+                          has_id ? id : NULL,
+                          false, &err);
+        if (rc && rc != -ENOSYS) {
+            error_propagate(errp, err);
+            goto fail;
+        }
+        error_free(err);
+        err = NULL;
 
-    blockdev_remove_medium(has_device, device, has_id, id, &err);
-    if (err) {
-        error_propagate(errp, err);
-        goto fail;
-    }
+        blockdev_remove_medium(has_device, device, has_id, id, &err);
+        if (err) {
+            error_propagate(errp, err);
+            goto fail;
+        }
 
-    qmp_blockdev_insert_anon_medium(blk, medium_bs, &err);
-    if (err) {
-        error_propagate(errp, err);
-        goto fail;
-    }
+        qmp_blockdev_insert_anon_medium(blk, medium_bs, &err);
+        if (err) {
+            error_propagate(errp, err);
+            goto fail;
+        }
 
-    qmp_blockdev_close_tray(has_device, device, has_id, id, errp);
+        qmp_blockdev_close_tray(has_device, device, has_id, id, errp);
+    } else {
+        if (!medium_name) {
+            error_setg(errp, "A medium name should be given");
+            goto fail;
+        }
+
+        if (runstate_is_running()) {
+            error_setg(errp, "Can't set a medium for non-removable device "
+                    "in a running VM");
+            goto fail;
+        }
+
+        if (strlen(blk_name(blk))) {
+            error_setg(errp, "The device already has a medium");
+            goto fail;
+        }
+
+        if (blk_insert_bs(blk, medium_bs, &err) < 0) {
+            error_propagate(errp, err);
+            goto fail;
+        }
+
+        if (!monitor_add_blk(blk, medium_name, &err)) {
+            error_propagate(errp, err);
+        }
+    }
 
 fail:
     /* If the medium has been inserted, the device has its own reference, so
