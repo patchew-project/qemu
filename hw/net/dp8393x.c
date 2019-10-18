@@ -173,7 +173,7 @@ typedef struct dp8393xState {
     int loopback_packet;
 
     /* Memory access */
-    void *dma_mr;
+    MemoryRegion *dma_mr;
     AddressSpace as;
 } dp8393xState;
 
@@ -922,7 +922,8 @@ static const VMStateDescription vmstate_dp8393x = {
 
 static Property dp8393x_properties[] = {
     DEFINE_NIC_PROPERTIES(dp8393xState, conf),
-    DEFINE_PROP_PTR("dma_mr", dp8393xState, dma_mr),
+    DEFINE_PROP_LINK("dma_mr", dp8393xState, dma_mr,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_UINT8("it_shift", dp8393xState, it_shift, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -936,8 +937,6 @@ static void dp8393x_class_init(ObjectClass *klass, void *data)
     dc->reset = dp8393x_reset;
     dc->vmsd = &vmstate_dp8393x;
     dc->props = dp8393x_properties;
-    /* Reason: dma_mr property can't be set */
-    dc->user_creatable = false;
 }
 
 static const TypeInfo dp8393x_info = {
