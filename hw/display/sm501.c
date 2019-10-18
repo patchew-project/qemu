@@ -1930,7 +1930,7 @@ typedef struct {
     SM501State state;
     uint32_t vram_size;
     uint32_t base;
-    void *chr_state;
+    Chardev *chr_state;
 } SM501SysBusState;
 
 static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
@@ -1968,7 +1968,8 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
 static Property sm501_sysbus_properties[] = {
     DEFINE_PROP_UINT32("vram-size", SM501SysBusState, vram_size, 0),
     DEFINE_PROP_UINT32("base", SM501SysBusState, base, 0),
-    DEFINE_PROP_PTR("chr-state", SM501SysBusState, chr_state),
+    DEFINE_PROP_LINK("chr-state", SM501SysBusState, chr_state,
+                     TYPE_CHARDEV, Chardev *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
