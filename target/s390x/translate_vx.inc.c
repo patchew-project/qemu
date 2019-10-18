@@ -2240,17 +2240,30 @@ static void gen_sbcbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al, TCGv_i64 ah,
 {
     TCGv_i64 th = tcg_temp_new_i64();
     TCGv_i64 tl = tcg_temp_new_i64();
+    TCGv_i64 sh = tcg_temp_new_i64();
+    TCGv_i64 sl = tcg_temp_new_i64();
     TCGv_i64 zero = tcg_const_i64(0);
 
     tcg_gen_andi_i64(tl, cl, 1);
-    tcg_gen_sub2_i64(tl, th, al, zero, tl, zero);
-    tcg_gen_sub2_i64(tl, th, tl, th, bl, zero);
+    tcg_gen_not_i64(sl, bl);
+    tcg_gen_not_i64(sh, bh);
+
+    /* Add the borrow to the low doubleword of a */
+    tcg_gen_add2_i64(tl, th, al, zero, tl, zero);
+    /* Add the bit-wise complement of b to the low doubleword */
+    tcg_gen_add2_i64(tl, th, tl, th, sl, zero);
+    /* Isolate the carry to the high doubleword */
     tcg_gen_andi_i64(th, th, 1);
-    tcg_gen_sub2_i64(tl, th, ah, zero, th, zero);
-    tcg_gen_sub2_i64(tl, th, tl, th, bh, zero);
+    /* Add the carry to the high doubleword of a */
+    tcg_gen_add2_i64(tl, th, ah, zero, th, zero);
+    /* Add the bit-wise complement of b to the high doubleword */
+    tcg_gen_add2_i64(tl, th, tl, th, sh, zero);
+    /* Isolate the carry to the next doubleword */
     tcg_gen_andi_i64(dl, th, 1);
     tcg_gen_mov_i64(dh, zero);
 
+    tcg_temp_free_i64(sl);
+    tcg_temp_free_i64(sh);
     tcg_temp_free_i64(tl);
     tcg_temp_free_i64(th);
     tcg_temp_free_i64(zero);
