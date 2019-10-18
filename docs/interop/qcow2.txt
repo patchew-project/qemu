@@ -79,9 +79,9 @@ The first cluster of a qcow2 image contains the file header:
                     Offset into the image file at which the snapshot table
                     starts. Must be aligned to a cluster boundary.
 
-If the version is 3 or higher, the header has the following additional fields.
-For version 2, the values are assumed to be zero, unless specified otherwise
-in the description of a field.
+For version 2, header is always 72 bytes length and finishes here.
+For version 3 or higher the header length is at least 104 bytes and has at
+least next five fields, up to the @header_length field.
 
          72 -  79:  incompatible_features
                     Bitmask of incompatible features. An implementation must
@@ -164,6 +164,26 @@ in the description of a field.
         100 - 103:  header_length
                     Length of the header structure in bytes. For version 2
                     images, the length is always assumed to be 72 bytes.
+                    For version 3 it's at least 104 bytes.
+
+Additional fields (version 3 and higher)
+
+The following fields of the header are optional: if software doesn't know how
+to interpret the field, it may be safely ignored, other than preserving the
+field unchanged when rewriting the image header.
+
+For all additional fields zero value equals to absence of field (absence is
+when field.offset + field.size > @header_length). This implies
+that if software want's to set fields up to some field not aligned to multiply
+of 8 it must align header up by zeroes. And on the other hand, if software
+need some optional field which is absent it should assume that it's value is
+zero.
+
+It's allowed for the header end to cut some field in the middle (in this case
+the field is considered as absent), but in this case the part of the field
+which is covered by @header_length must be zeroed.
+
+        < ... No additional fields in the header currently ... >
 
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:
