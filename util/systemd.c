@@ -59,9 +59,10 @@ unsigned int check_socket_activation(void)
              * descriptor is invalid, so socket activation has gone wrong
              * and we should exit.
              */
+            const char *errmsg = g_strerror(errno);
             error_report("Socket activation failed: "
-                         "invalid file descriptor fd = %d: %m",
-                         fd);
+                         "invalid file descriptor fd = %d: %s", fd, errmsg);
+            g_free((gpointer)errmsg);
             exit(EXIT_FAILURE);
         }
     }
