@@ -199,14 +199,20 @@ static void pc_init1(MachineState *machine,
     }
 
     if (pcmc->pci_enabled) {
+        PIIX3State *piix3;
+
         pci_bus = i440fx_init(host_type,
                               pci_type,
-                              &i440fx_state, &piix3_devfn, &isa_bus, pcms->gsi,
+                              &i440fx_state,
                               system_memory, system_io, machine->ram_size,
                               pcms->below_4g_mem_size,
                               pcms->above_4g_mem_size,
                               pci_memory, ram_memory);
         pcms->bus = pci_bus;
+
+        piix3 = piix3_create(pci_bus, &isa_bus);
+        piix3->pic = pcms->gsi;
+        piix3_devfn = piix3->dev.devfn;
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
