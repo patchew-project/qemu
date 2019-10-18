@@ -27,8 +27,7 @@
 #include "qemu/module.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
-//#include "pc.h"
-//#include "etraxfs.h"
+#include "target/cris/cpu.h"
 
 #define D(x)
 
@@ -48,10 +47,10 @@ struct etrax_pic
     SysBusDevice parent_obj;
 
     MemoryRegion mmio;
-    void *interrupt_vector;
     qemu_irq parent_irq;
     qemu_irq parent_nmi;
     uint32_t regs[R_MAX];
+    CRISCPU *cpu;
 };
 
 static void pic_update(struct etrax_pic *fs)
@@ -79,9 +78,10 @@ static void pic_update(struct etrax_pic *fs)
         }
     }
 
-    if (fs->interrupt_vector) {
-        /* hack alert: ptr property */
-        *(uint32_t*)(fs->interrupt_vector) = vector;
+    if (fs->cpu) {
+        /* hack alert: cpu link property */
+        int32_t *int_vec = &fs->cpu->env.interrupt_vector;
+        *int_vec = (uint32_t)vector;
     }
     qemu_set_irq(fs->parent_irq, !!vector);
 }
@@ -164,7 +164,7 @@ static void etraxfs_pic_init(Object *obj)
 }
 
 static Property etraxfs_pic_properties[] = {
-    DEFINE_PROP_PTR("interrupt_vector", struct etrax_pic, interrupt_vector),
+    DEFINE_PROP_LINK("cpu", struct etrax_pic, cpu, TYPE_CRIS_CPU, CRISCPU *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -173,10 +173,6 @@ static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->props = etraxfs_pic_properties;
-    /*
-     * Note: pointer property "interrupt_vector" may remain null, thus
-     * no need for dc->user_creatable = false;
-     */
 }
 
 static const TypeInfo etraxfs_pic_info = {
