@@ -592,6 +592,7 @@ void cpu_check_irqs(CPUSPARCState *env);
 
 /* leon3.c */
 void leon3_irq_ack(void *irq_manager, int intno);
+void leon3_set_pil_in(SPARCCPU *cpu, uint32_t pil_in);
 
 #if defined (TARGET_SPARC64)
 

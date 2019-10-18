@@ -143,9 +143,9 @@ void leon3_irq_ack(void *irq_manager, int intno)
     grlib_irqmp_ack((DeviceState *)irq_manager, intno);
 }
 
-static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
+void leon3_set_pil_in(SPARCCPU *cpu, uint32_t pil_in)
 {
-    CPUSPARCState *env = (CPUSPARCState *)opaque;
+    CPUSPARCState *env = &cpu->env;
     CPUState *cs;
 
     assert(env != NULL);
@@ -225,8 +225,7 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate IRQ manager */
     dev = qdev_create(NULL, TYPE_GRLIB_IRQMP);
-    qdev_prop_set_ptr(dev, "set_pil_in", leon3_set_pil_in);
-    qdev_prop_set_ptr(dev, "set_pil_in_opaque", env);
+    object_property_set_link(OBJECT(dev), OBJECT(cpu), "cpu", &error_abort);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_IRQMP_OFFSET);
     env->irq_manager = dev;

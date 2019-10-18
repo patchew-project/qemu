@@ -58,10 +58,8 @@ typedef struct IRQMP {
 
     MemoryRegion iomem;
 
-    void *set_pil_in;
-    void *set_pil_in_opaque;
-
     IRQMPState *state;
+    SPARCCPU *cpu;
 } IRQMP;
 
 struct IRQMPState {
@@ -82,7 +80,6 @@ static void grlib_irqmp_check_irqs(IRQMPState *state)
     uint32_t      pend   = 0;
     uint32_t      level0 = 0;
     uint32_t      level1 = 0;
-    set_pil_in_fn set_pil_in;
 
     assert(state != NULL);
     assert(state->parent != NULL);
@@ -97,13 +94,11 @@ static void grlib_irqmp_check_irqs(IRQMPState *state)
     trace_grlib_irqmp_check_irqs(state->pending, state->force[0],
                                  state->mask[0], level1, level0);
 
-    set_pil_in = (set_pil_in_fn)state->parent->set_pil_in;
-
     /* Trigger level1 interrupt first and level0 if there is no level1 */
     if (level1 != 0) {
-        set_pil_in(state->parent->set_pil_in_opaque, level1);
+        leon3_set_pil_in(state->parent->cpu, level1);
     } else {
-        set_pil_in(state->parent->set_pil_in_opaque, level0);
+        leon3_set_pil_in(state->parent->cpu, level0);
     }
 }
 
@@ -348,14 +343,13 @@ static void grlib_irqmp_realize(DeviceState *dev, Error **errp)
     IRQMP *irqmp = GRLIB_IRQMP(dev);
 
         /* Check parameters */
-    if (irqmp->set_pil_in == NULL) {
-        error_setg(errp, "set_pil_in cannot be NULL.");
+    if (irqmp->cpu == NULL) {
+        error_setg(errp, "cpu cannot be NULL.");
     }
 }
 
 static Property grlib_irqmp_properties[] = {
-    DEFINE_PROP_PTR("set_pil_in", IRQMP, set_pil_in),
-    DEFINE_PROP_PTR("set_pil_in_opaque", IRQMP, set_pil_in_opaque),
+    DEFINE_PROP_LINK("cpu", IRQMP, cpu, TYPE_SPARC_CPU, SPARCCPU *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -365,8 +359,6 @@ static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
 
     dc->reset = grlib_irqmp_reset;
     dc->props = grlib_irqmp_properties;
-    /* Reason: pointer properties "set_pil_in", "set_pil_in_opaque" */
-    dc->user_creatable = false;
     dc->realize = grlib_irqmp_realize;
 }
 
