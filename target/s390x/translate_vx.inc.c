@@ -2130,14 +2130,40 @@ static DisasJumpType op_vs(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static void gen_scbi8_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_not_i64(t, b);
+    gen_acc(d, a, t, ES_8);
+    tcg_temp_free_i64(t);
+}
+
+static void gen_scbi16_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
+{
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_not_i64(t, b);
+    gen_acc(d, a, t, ES_16);
+    tcg_temp_free_i64(t);
+}
+
 static void gen_scbi_i32(TCGv_i32 d, TCGv_i32 a, TCGv_i32 b)
 {
-    tcg_gen_setcond_i32(TCG_COND_LTU, d, a, b);
+    TCGv_i32 t = tcg_temp_new_i32();
+
+    tcg_gen_not_i32(t, b);
+    gen_acc_i32(d, a, t);
+    tcg_temp_free_i32(t);
 }
 
 static void gen_scbi_i64(TCGv_i64 d, TCGv_i64 a, TCGv_i64 b)
 {
-    tcg_gen_setcond_i64(TCG_COND_LTU, d, a, b);
+    TCGv_i64 t = tcg_temp_new_i64();
+
+    tcg_gen_not_i64(t, b);
+    gen_acc_i64(d, a, t);
+    tcg_temp_free_i64(t);
 }
 
 static void gen_scbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al,
@@ -2145,26 +2171,21 @@ static void gen_scbi2_i64(TCGv_i64 dl, TCGv_i64 dh, TCGv_i64 al,
 {
     TCGv_i64 th = tcg_temp_new_i64();
     TCGv_i64 tl = tcg_temp_new_i64();
-    TCGv_i64 zero = tcg_const_i64(0);
 
-    tcg_gen_sub2_i64(tl, th, al, zero, bl, zero);
-    tcg_gen_andi_i64(th, th, 1);
-    tcg_gen_sub2_i64(tl, th, ah, zero, th, zero);
-    tcg_gen_sub2_i64(tl, th, tl, th, bh, zero);
-    tcg_gen_andi_i64(dl, th, 1);
-    tcg_gen_mov_i64(dh, zero);
+    tcg_gen_not_i64(tl, bl);
+    tcg_gen_not_i64(th, bh);
+    gen_acc2_i64(dl, dh, al, ah, tl, th);
 
     tcg_temp_free_i64(th);
     tcg_temp_free_i64(tl);
-    tcg_temp_free_i64(zero);
 }
 
 static DisasJumpType op_vscbi(DisasContext *s, DisasOps *o)
 {
     const uint8_t es = get_field(s->fields, m4);
     static const GVecGen3 g[4] = {
-        { .fno = gen_helper_gvec_vscbi8, },
-        { .fno = gen_helper_gvec_vscbi16, },
+        { .fni8 = gen_scbi8_i64, },
+        { .fni8 = gen_scbi16_i64, },
         { .fni4 = gen_scbi_i32, },
         { .fni8 = gen_scbi_i64, },
     };
