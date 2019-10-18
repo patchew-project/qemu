@@ -16,6 +16,7 @@ resettable_reset_assert_begin(void *obj, int cold) "obj=%p cold=%d"
 resettable_reset_assert_end(void *obj) "obj=%p"
 resettable_reset_release_begin(void *obj, int cold) "obj=%p cold=%d"
 resettable_reset_release_end(void *obj) "obj=%p"
+resettable_change_parent(void *obj, void *o, uint32_t oc, void *n, uint32_t nc) "obj=%p from=%p(%" PRIu32 ") to=%p(%" PRIu32 ")"
 resettable_phase_enter_begin(void *obj, const char *objtype, uint32_t count, int type) "obj=%p(%s) count=%" PRIu32 " type=%d"
 resettable_phase_enter_exec(void *obj, const char *objtype, int type, int has_method) "obj=%p(%s) type=%d method=%d"
 resettable_phase_enter_end(void *obj, const char *objtype, uint32_t count) "obj=%p(%s) count=%" PRIu32

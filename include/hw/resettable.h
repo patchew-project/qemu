@@ -183,6 +183,22 @@ void resettable_release_reset(Object *obj, ResetType type);
 bool resettable_is_in_reset(Object *obj);
 
 /**
+ * resettable_change_parent:
+ * Indicate that the parent of Ressettable @obj change from @oldp to @newp.
+ * All 3 objects must implements resettable interface. @oldp or @newp may be
+ * NULL.
+ *
+ * This function will adapt the reset state of @obj so that it is coherent
+ * with the reset state of @newp. It may trigger @resettable_assert_reset()
+ * or @resettable_release_reset(). It will do such things only if the reset
+ * state of @newp and @oldp are different.
+ *
+ * When using this function during reset, it must only be called during
+ * an hold phase method. Calling this during enter or exit phase is an error.
+ */
+void resettable_change_parent(Object *obj, Object *newp, Object *oldp);
+
+/**
  * resettable_class_set_parent_phases:
  *
  * Save @rc current reset phases into @parent_phases and override @rc phases

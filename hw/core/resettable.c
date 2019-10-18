@@ -32,6 +32,14 @@ static void resettable_phase_exit(Object *obj, void *opaque, ResetType type);
  */
 static bool enter_phase_in_progress;
 
+/**
+ * exit_phase_in_progress:
+ * Flag telling whether we are currently in an enter phase where side
+ * effects are forbidden. This flag allows us to catch if
+ * resettable_change_parent() is called during exit phase.
+ */
+static unsigned exit_phase_in_progress;
+
 void resettable_reset(Object *obj, ResetType type)
 {
     trace_resettable_reset(obj, type);
@@ -58,7 +66,9 @@ void resettable_release_reset(Object *obj, ResetType type)
     /* TODO: change that assert when adding support for other reset types */
     assert(type == RESET_TYPE_COLD);
     trace_resettable_reset_release_begin(obj, type);
+    exit_phase_in_progress += 1;
     resettable_phase_exit(obj, NULL, type);
+    exit_phase_in_progress -= 1;
     trace_resettable_reset_release_end(obj);
 }
 
@@ -196,6 +206,50 @@ static void resettable_phase_exit(Object *obj, void *opaque, ResetType type)
     }
     s->exit_phase_in_progress = false;
     trace_resettable_phase_exit_end(obj, obj_typename, s->count);
+}
+
+/*
+ * resettable_get_count:
+ * Get the count of the Resettable object @obj. Return 0 if @obj is NULL.
+ */
+static uint32_t resettable_get_count(Object *obj)
+{
+    if (obj) {
+        ResettableClass *rc = RESETTABLE_GET_CLASS(obj);
+        return rc->get_state(obj)->count;
+    }
+    return 0;
+}
+
+void resettable_change_parent(Object *obj, Object *newp, Object *oldp)
+{
+    ResettableClass *rc = RESETTABLE_GET_CLASS(obj);
+    ResettableState *s = rc->get_state(obj);
+    uint32_t newp_count = resettable_get_count(newp);
+    uint32_t oldp_count = resettable_get_count(oldp);
+
+    assert(!enter_phase_in_progress && !exit_phase_in_progress);
+    trace_resettable_change_parent(obj, oldp, oldp_count, newp, newp_count);
+
+    /*
+     * At most one of the two 'for' loop will be executed below
+     * in order to cope with the diff between the two count.
+     */
+    /* if newp is more reset than oldp */
+    for (uint32_t i = oldp_count; i < newp_count; i++) {
+        resettable_assert_reset(obj, RESET_TYPE_COLD);
+    }
+    /*
+     * if obj is leaving a bus under reset, we need to ensure
+     * hold phase is not pending.
+     */
+    if (oldp_count && s->hold_phase_pending) {
+        resettable_phase_hold(obj, NULL, RESET_TYPE_COLD);
+    }
+    /* if oldp is more reset than newp */
+    for (uint32_t i = newp_count; i < oldp_count; i++) {
+        resettable_release_reset(obj, RESET_TYPE_COLD);
+    }
 }
 
 void resettable_class_set_parent_phases(ResettableClass *rc,
