@@ -185,6 +185,11 @@ which is covered by @header_length must be zeroed.
 
         < ... No additional fields in the header currently ... >
 
+Header padding
+        If @header_length is larger than 104, software SHOULD make it a
+        multiply of 8, adding zero-padding after additional fields. Still the
+        padding is optional and may be absent in the image.
+
 Directly after the image header, optional sections called header extensions can
 be stored. Each extension has a structure like the following:
 
