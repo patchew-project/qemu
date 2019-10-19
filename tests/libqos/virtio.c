@@ -13,23 +13,33 @@
 #include "standard-headers/linux/virtio_config.h"
 #include "standard-headers/linux/virtio_ring.h"
 
+/* Features must be negotiated before config space or virtqueue access */
+static void check_features_negotiated(QVirtioDevice *d)
+{
+    g_assert_cmphex(d->features, !=, 0);
+}
+
 uint8_t qvirtio_config_readb(QVirtioDevice *d, uint64_t addr)
 {
+    check_features_negotiated(d);
     return d->bus->config_readb(d, addr);
 }
 
 uint16_t qvirtio_config_readw(QVirtioDevice *d, uint64_t addr)
 {
+    check_features_negotiated(d);
     return d->bus->config_readw(d, addr);
 }
 
 uint32_t qvirtio_config_readl(QVirtioDevice *d, uint64_t addr)
 {
+    check_features_negotiated(d);
     return d->bus->config_readl(d, addr);
 }
 
 uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr)
 {
+    check_features_negotiated(d);
     return d->bus->config_readq(d, addr);
 }
 
@@ -47,6 +57,7 @@ void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
 QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
                              QGuestAllocator *alloc, uint16_t index)
 {
+    check_features_negotiated(d);
     return d->bus->virtqueue_setup(d, alloc, index);
 }
 
