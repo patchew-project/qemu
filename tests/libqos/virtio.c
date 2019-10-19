@@ -52,6 +52,19 @@ void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
 {
     d->features = features;
     d->bus->set_features(d, features);
+
+    /*
+     * This could be a separate function for drivers that want to access
+     * configuration space before setting FEATURES_OK, but no existing users
+     * need that and it's less code for callers if this is done implicitly.
+    */
+    if (features & (1ull << VIRTIO_F_VERSION_1)) {
+        uint8_t status = d->bus->get_status(d) |
+                         VIRTIO_CONFIG_S_FEATURES_OK;
+
+        d->bus->set_status(d, status);
+        g_assert_cmphex(d->bus->get_status(d), ==, status);
+    }
 }
 
 QVirtQueue *qvirtqueue_setup(QVirtioDevice *d,
@@ -88,9 +101,10 @@ void qvirtio_set_driver(QVirtioDevice *d)
 
 void qvirtio_set_driver_ok(QVirtioDevice *d)
 {
-    d->bus->set_status(d, d->bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER_OK);
-    g_assert_cmphex(d->bus->get_status(d), ==, VIRTIO_CONFIG_S_DRIVER_OK |
-                    VIRTIO_CONFIG_S_DRIVER | VIRTIO_CONFIG_S_ACKNOWLEDGE);
+    uint8_t status = d->bus->get_status(d) | VIRTIO_CONFIG_S_DRIVER_OK;
+
+    d->bus->set_status(d, status);
+    g_assert_cmphex(d->bus->get_status(d), ==, status);
 }
 
 void qvirtio_wait_queue_isr(QTestState *qts, QVirtioDevice *d,
