@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "cpu.h"
@@ -51,6 +52,8 @@ static void bcm2836_init(Object *obj)
     int n;
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
+        memory_region_init(&s->cpu[n].container, obj, "cpu-bus", 4 * GiB);
+
         object_initialize_child(obj, "cpu[*]", &s->cpu[n].core,
                                 sizeof(s->cpu[n].core), info->cpu_type,
                                 &error_abort, NULL);
@@ -72,9 +75,11 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     BCM283XState *s = BCM283X(dev);
     BCM283XClass *bc = BCM283X_GET_CLASS(dev);
     const BCM283XInfo *info = bc->info;
+    MemoryRegion *ram_mr, *peri_mr, *ctrl_mr;
     Object *obj;
     Error *err = NULL;
     int n;
+    uint64_t ram_size;
 
     /* common peripherals from bcm2835 */
 
@@ -84,13 +89,14 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                    __func__, error_get_pretty(err));
         return;
     }
+    ram_mr = MEMORY_REGION(obj);
+    ram_size = memory_region_size(ram_mr);
 
     object_property_add_const_link(OBJECT(&s->peripherals), "ram", obj, &err);
     if (err) {
         error_propagate(errp, err);
         return;
     }
-
     object_property_set_bool(OBJECT(&s->peripherals), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -104,8 +110,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->peripherals), 0,
-                            info->peri_base, 1);
+    peri_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->peripherals), 0);
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
     object_property_set_bool(OBJECT(&s->control), true, "realized", &err);
@@ -113,8 +118,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
-
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->control), 0, info->ctrl_base);
+    ctrl_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->control), 0);
 
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 0,
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-irq", 0));
@@ -122,6 +126,31 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
 
     for (n = 0; n < BCM283X_NCPUS; n++) {
+        memory_region_init_alias(&s->cpu[n].ram_alias, OBJECT(s),
+                                 "arm-ram", ram_mr, 0, ram_size);
+        memory_region_add_subregion_overlap(&s->cpu[n].container, 0,
+                                            &s->cpu[n].ram_alias, 1);
+
+        memory_region_init_alias(&s->cpu[n].peri_alias, OBJECT(s),
+                                 "arm-peripherals", peri_mr, 0, 16 * MiB);
+        memory_region_add_subregion_overlap(&s->cpu[n].container,
+                                            info->peri_base,
+                                            &s->cpu[n].peri_alias, 2);
+
+        memory_region_init_alias(&s->cpu[n].control_alias, OBJECT(s),
+                                 "arm-control", ctrl_mr, 0, 16 * KiB);
+        memory_region_add_subregion_overlap(&s->cpu[n].container,
+                                            info->ctrl_base,
+                                            &s->cpu[n].control_alias, 2);
+
+        object_property_set_link(OBJECT(&s->cpu[n].core),
+                                 OBJECT(&s->cpu[n].container),
+                                 "memory", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
         /* TODO: this should be converted to a property of ARM_CPU */
         s->cpu[n].core.mp_affinity = (info->clusterid << 8) | n;
 

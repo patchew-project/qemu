@@ -37,6 +37,10 @@ typedef struct BCM283XState {
 
     struct {
         ARMCPU core;
+        MemoryRegion container;
+        MemoryRegion ram_alias;
+        MemoryRegion peri_alias;
+        MemoryRegion control_alias;
     } cpu[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
