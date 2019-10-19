@@ -36,6 +36,13 @@ typedef struct BCM283XState {
     uint32_t enabled_cpus;
 
     struct {
+        MemoryRegion bus;
+        MemoryRegion gpu;
+        MemoryRegion peri_alias;
+        MemoryRegion ram_alias;
+        MemoryRegion gpu_alias[4];
+    } vc;
+    struct {
         ARMCPU core;
         MemoryRegion container;
         MemoryRegion ram_alias;

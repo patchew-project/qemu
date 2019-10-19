@@ -51,6 +51,14 @@ static void bcm2836_init(Object *obj)
     const BCM283XInfo *info = bc->info;
     int n;
 
+    /* VideoCore memory region */
+    memory_region_init(&s->vc.gpu, obj, "videocore", 1 * GiB);
+    object_property_add_child(obj, "videocore", OBJECT(&s->vc.gpu), NULL);
+
+    /* Internal memory region for peripheral bus addresses (not exported) */
+    memory_region_init(&s->vc.bus, obj, "gpu-bus", 4 * GiB);
+    object_property_add_child(obj, "gpu-bus", OBJECT(&s->vc.bus), NULL);
+
     for (n = 0; n < BCM283X_NCPUS; n++) {
         memory_region_init(&s->cpu[n].container, obj, "cpu-bus", 4 * GiB);
 
@@ -97,6 +105,12 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, err);
         return;
     }
+    object_property_add_const_link(OBJECT(&s->peripherals), "videocore-bus",
+                                   OBJECT(&s->vc.bus), &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_bool(OBJECT(&s->peripherals), true, "realized", &err);
     if (err) {
         error_propagate(errp, err);
@@ -111,6 +125,30 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     }
 
     peri_mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&s->peripherals), 0);
+
+    /* Map peripherals and RAM into the GPU address space. */
+    memory_region_init_alias(&s->vc.peri_alias, OBJECT(s),
+                             "vc-peripherals", peri_mr, 0,
+                             memory_region_size(peri_mr));
+    memory_region_add_subregion_overlap(&s->vc.gpu, 0x3e000000,
+                                        &s->vc.peri_alias, 1);
+    memory_region_init_alias(&s->vc.ram_alias, OBJECT(s),
+                             "vc-ram", ram_mr, 0, ram_size);
+    memory_region_add_subregion(&s->vc.gpu, 0,
+                                &s->vc.ram_alias);
+    static const char * const bus_alias_name[] = {
+        "l1-l2-cached",
+        "l2-cached-coherent",
+        "l2-cached",
+        "direct-uncached"
+    };
+    /* Alias different cache configurations on the GPU */
+    for (n = 0; n < ARRAY_SIZE(bus_alias_name); n++) {
+        memory_region_init_alias(&s->vc.gpu_alias[n], OBJECT(s),
+                                 bus_alias_name[n], &s->vc.gpu, 0, 1 * GiB);
+        memory_region_add_subregion(&s->vc.bus, n * GiB,
+                                    &s->vc.gpu_alias[n]);
+    }
 
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
     object_property_set_bool(OBJECT(&s->control), true, "realized", &err);

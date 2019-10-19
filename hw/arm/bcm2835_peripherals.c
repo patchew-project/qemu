@@ -9,6 +9,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/arm/bcm2835_peripherals.h"
@@ -44,10 +45,6 @@ static void bcm2835_peripherals_init(Object *obj)
     memory_region_init(&s->peri_mr, obj,"bcm2835-peripherals", 0x1000000);
     object_property_add_child(obj, "peripheral-io", OBJECT(&s->peri_mr), NULL);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->peri_mr);
-
-    /* Internal memory region for peripheral bus addresses (not exported) */
-    memory_region_init(&s->gpu_bus_mr, obj, "bcm2835-gpu", (uint64_t)1 << 32);
-    object_property_add_child(obj, "gpu-bus", OBJECT(&s->gpu_bus_mr), NULL);
 
     /* Internal memory region for request/response communication with
      * mailbox-addressable peripherals (not exported)
@@ -140,21 +137,11 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     ram = MEMORY_REGION(obj);
     ram_size = memory_region_size(ram);
 
-    /* Map peripherals and RAM into the GPU address space. */
-    memory_region_init_alias(&s->peri_mr_alias, OBJECT(s),
-                             "bcm2835-peripherals", &s->peri_mr, 0,
-                             memory_region_size(&s->peri_mr));
-
-    memory_region_add_subregion_overlap(&s->gpu_bus_mr, BCM2835_VC_PERI_BASE,
-                                        &s->peri_mr_alias, 1);
-
-    obj = OBJECT(&s->gpu_bus_mr);
-    /* RAM is aliased four times (different cache configurations) on the GPU */
-    for (n = 0; n < 4; n++) {
-        memory_region_init_alias(&s->ram_alias[n], OBJECT(s),
-                                 "bcm2835-gpu-ram-alias[*]", ram, 0, ram_size);
-        memory_region_add_subregion_overlap(&s->gpu_bus_mr, (hwaddr)n << 30,
-                                            &s->ram_alias[n], 0);
+    obj = object_property_get_link(OBJECT(dev), "videocore-bus", &err);
+    if (obj == NULL) {
+        error_setg(errp, "%s: required videocore-bus link not found: %s",
+                   __func__, error_get_pretty(err));
+        return;
     }
 
     /* Interrupt Controller */
