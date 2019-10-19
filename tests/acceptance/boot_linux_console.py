@@ -14,6 +14,7 @@ import lzma
 import gzip
 import shutil
 
+from avocado import skipUnless
 from avocado_qemu import Test
 from avocado.utils import process
 from avocado.utils import archive
@@ -315,6 +316,28 @@ class BootLinuxConsole(Test):
                          '-no-reboot')
         self.vm.launch()
         self.wait_for_console_pattern('init started: BusyBox')
+
+    @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    def test_arm_raspi3_uboot(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:raspi3
+        :avocado: tags=endian:little
+        """
+        uboot_url = ('https://github.com/poinck/piii64/raw/bf3e070d/'
+                     'boot/u-boot.bin')
+        uboot_hash = 'cd2ab2a24589a5b9d177af172af8b39998e5f93f'
+        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash)
+
+        self.vm.set_machine('raspi3')
+        self.vm.set_console(console_index=1)
+        kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
+        self.vm.add_args('-kernel', uboot_path,
+                         '-smp', '4,cores=1', # start 3 cores disabled
+                         '-no-reboot')
+        self.vm.launch()
+        self.wait_for_console_pattern('RPI 3 Model B')
+        self.wait_for_console_pattern('No ethernet found.')
 
     def test_s390x_s390_ccw_virtio(self):
         """
