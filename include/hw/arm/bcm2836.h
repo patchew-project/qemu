@@ -33,7 +33,7 @@ typedef struct BCM283XState {
     /*< public >*/
 
     char *cpu_type;
-    uint32_t enabled_cpus;
+    uint32_t enabled_cores;
 
     struct {
         MemoryRegion bus;

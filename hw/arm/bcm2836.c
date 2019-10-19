@@ -202,7 +202,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         }
 
         /* start powered off if not enabled */
-        object_property_set_bool(OBJECT(&s->cpu[n].core), n >= s->enabled_cpus,
+        object_property_set_bool(OBJECT(&s->cpu[n].core), n >= s->enabled_cores,
                                  "start-powered-off", &err);
         if (err) {
             error_propagate(errp, err);
@@ -235,7 +235,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
 }
 
 static Property bcm2836_props[] = {
-    DEFINE_PROP_UINT32("enabled-cpus", BCM283XState, enabled_cpus,
+    DEFINE_PROP_UINT32("enabled-cores", BCM283XState, enabled_cores,
                        BCM283X_NCPUS),
     DEFINE_PROP_END_OF_LIST()
 };
