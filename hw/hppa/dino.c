@@ -1,7 +1,7 @@
 /*
- * HP-PARISC Dino PCI chipset emulation.
+ * HP-PARISC Dino PCI chipset emulation, as in B160L and similiar machines
  *
- * (C) 2017 by Helge Deller <deller@gmx.de>
+ * (C) 2017-2019 by Helge Deller <deller@gmx.de>
  *
  * This work is licensed under the GNU GPL license version 2 or later.
  *
@@ -21,6 +21,7 @@
 #include "migration/vmstate.h"
 #include "hppa_sys.h"
 #include "exec/address-spaces.h"
+#include "trace.h"
 
 
 #define TYPE_DINO_PCI_HOST_BRIDGE "dino-pcihost"
@@ -82,11 +83,16 @@
 #define DINO_PCI_HOST_BRIDGE(obj) \
     OBJECT_CHECK(DinoState, (obj), TYPE_DINO_PCI_HOST_BRIDGE)
 
+#define DINO800_REGS ((DINO_TLTIM - DINO_GMASK) / 4)
+static uint8_t reg800_keep_bits[DINO800_REGS]
+        = { 1, 7, 7, 8, 7, 9, 32, 8, 30, 25, 22, 9 };
+
 typedef struct DinoState {
     PCIHostState parent_obj;
 
     /* PCI_CONFIG_ADDR is parent_obj.config_reg, via pci_host_conf_be_ops,
        so that we can map PCI_CONFIG_DATA to pci_host_data_be_ops.  */
+    uint32_t config_reg_dino; /* keep original copy, including 2 lowest bits */
 
     uint32_t iar0;
     uint32_t iar1;
@@ -94,8 +100,12 @@ typedef struct DinoState {
     uint32_t ipr;
     uint32_t icr;
     uint32_t ilr;
+    uint32_t io_fbb_en;
     uint32_t io_addr_en;
     uint32_t io_control;
+    uint32_t toc_addr;
+
+    uint32_t reg800[DINO800_REGS];
 
     MemoryRegion this_mem;
     MemoryRegion pci_mem;
@@ -106,8 +116,6 @@ typedef struct DinoState {
     MemoryRegion bm_ram_alias;
     MemoryRegion bm_pci_alias;
     MemoryRegion bm_cpu_alias;
-
-    MemoryRegion cpu0_eir_mem;
 } DinoState;
 
 /*
@@ -122,6 +130,8 @@ static void gsc_to_pci_forwarding(DinoState *s)
     tmp = extract32(s->io_control, 7, 2);
     enabled = (tmp == 0x01);
     io_addr_en = s->io_addr_en;
+    /* Mask out first (=firmware) and last (=Dino) areas. */
+    io_addr_en &= 0x7ffffffe;
 
     memory_region_transaction_begin();
     for (i = 1; i < 31; i++) {
@@ -142,6 +152,8 @@ static bool dino_chip_mem_valid(void *opaque, hwaddr addr,
                                 unsigned size, bool is_write,
                                 MemTxAttrs attrs)
 {
+    bool ret = false;
+
     switch (addr) {
     case DINO_IAR0:
     case DINO_IAR1:
@@ -152,16 +164,22 @@ static bool dino_chip_mem_valid(void *opaque, hwaddr addr,
     case DINO_ICR:
     case DINO_ILR:
     case DINO_IO_CONTROL:
+    case DINO_IO_FBB_EN:
     case DINO_IO_ADDR_EN:
     case DINO_PCI_IO_DATA:
-        return true;
+    case DINO_TOC_ADDR:
+    case DINO_GMASK ... DINO_TLTIM:
+        ret = true;
+        break;
     case DINO_PCI_IO_DATA + 2:
-        return size <= 2;
+        ret = (size <= 2);
+        break;
     case DINO_PCI_IO_DATA + 1:
     case DINO_PCI_IO_DATA + 3:
-        return size == 1;
+        ret = (size == 1);
     }
-    return false;
+    trace_dino_chip_mem_valid(addr, ret);
+    return ret;
 }
 
 static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
@@ -194,6 +212,9 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
         }
         break;
 
+    case DINO_IO_FBB_EN:
+        val = s->io_fbb_en;
+        break;
     case DINO_IO_ADDR_EN:
         val = s->io_addr_en;
         break;
@@ -227,12 +248,28 @@ static MemTxResult dino_chip_read_with_attrs(void *opaque, hwaddr addr,
     case DINO_IRR1:
         val = s->ilr & s->imr & s->icr;
         break;
+    case DINO_TOC_ADDR:
+        val = s->toc_addr;
+        break;
+    case DINO_GMASK ... DINO_TLTIM:
+        val = s->reg800[(addr - DINO_GMASK) / 4];
+        if (addr == DINO_PAMR) {
+            val &= ~0x01;  /* LSB is hardwired to 0 */
+        }
+        if (addr == DINO_MLTIM) {
+            val &= ~0x07;  /* 3 LSB are hardwired to 0 */
+        }
+        if (addr == DINO_BRDG_FEAT) {
+            val &= ~(0x10710E0ul | 8); /* bits 5-7, 24 & 15 reserved */
+        }
+        break;
 
     default:
         /* Controlled by dino_chip_mem_valid above.  */
         g_assert_not_reached();
     }
 
+    trace_dino_chip_read(addr, val);
     *data = val;
     return ret;
 }
@@ -245,6 +282,9 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
     AddressSpace *io;
     MemTxResult ret;
     uint16_t ioaddr;
+    int i;
+
+    trace_dino_chip_write(addr, val);
 
     switch (addr) {
     case DINO_IO_DATA ... DINO_PCI_IO_DATA + 3:
@@ -266,9 +306,11 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
         }
         return ret;
 
+    case DINO_IO_FBB_EN:
+        s->io_fbb_en = val & 0x03;
+        break;
     case DINO_IO_ADDR_EN:
-        /* Never allow first (=firmware) and last (=Dino) areas.  */
-        s->io_addr_en = val & 0x7ffffffe;
+        s->io_addr_en = val;
         gsc_to_pci_forwarding(s);
         break;
     case DINO_IO_CONTROL:
@@ -292,11 +334,21 @@ static MemTxResult dino_chip_write_with_attrs(void *opaque, hwaddr addr,
         /* Any write to IPR clears the register.  */
         s->ipr = 0;
         break;
+    case DINO_TOC_ADDR:
+        /* IO_COMMAND of CPU with client_id bits */
+        s->toc_addr = 0xFFFA0030 | (val & 0x1e000);
+        break;
 
     case DINO_ILR:
     case DINO_IRR0:
     case DINO_IRR1:
         /* These registers are read-only.  */
+        break;
+
+    case DINO_GMASK ... DINO_TLTIM:
+        i = (addr - DINO_GMASK) / 4;
+        val &= (1ul << (1 + reg800_keep_bits[i])) - 1;
+        s->reg800[i] = val;
         break;
 
     default:
@@ -332,8 +384,10 @@ static const VMStateDescription vmstate_dino = {
         VMSTATE_UINT32(ipr, DinoState),
         VMSTATE_UINT32(icr, DinoState),
         VMSTATE_UINT32(ilr, DinoState),
+        VMSTATE_UINT32(io_fbb_en, DinoState),
         VMSTATE_UINT32(io_addr_en, DinoState),
         VMSTATE_UINT32(io_control, DinoState),
+        VMSTATE_UINT32(toc_addr, DinoState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -362,14 +416,16 @@ static const MemoryRegionOps dino_config_data_ops = {
 
 static uint64_t dino_config_addr_read(void *opaque, hwaddr addr, unsigned len)
 {
-    PCIHostState *s = opaque;
-    return s->config_reg;
+    DinoState *s = opaque;
+    return s->config_reg_dino;
 }
 
 static void dino_config_addr_write(void *opaque, hwaddr addr,
                                    uint64_t val, unsigned len)
 {
     PCIHostState *s = opaque;
+    DinoState *ds = opaque;
+    ds->config_reg_dino = val; /* keep a copy of original value */
     s->config_reg = val & ~3U;
 }
 
@@ -453,6 +509,8 @@ PCIBus *dino_init(MemoryRegion *addr_space,
 
     dev = qdev_create(NULL, TYPE_DINO_PCI_HOST_BRIDGE);
     s = DINO_PCI_HOST_BRIDGE(dev);
+    s->iar0 = s->iar1 = CPU_HPA + 3;
+    s->toc_addr = 0xFFFA0030; /* IO_COMMAND of CPU */
 
     /* Dino PCI access from main memory.  */
     memory_region_init_io(&s->this_mem, OBJECT(s), &dino_chip_ops,
