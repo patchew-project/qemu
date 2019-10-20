@@ -162,8 +162,8 @@ static void ref405ep_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
 
     /* XXX: fix this */
-    memory_region_allocate_system_memory(&ram_memories[0], NULL, "ef405ep.ram",
-                                         0x08000000);
+    memory_region_allocate_system_memory(&ram_memories[0], machine,
+                                         "ef405ep.ram", 128 * MiB);
     ram_bases[0] = 0;
     ram_sizes[0] = 0x08000000;
     memory_region_init(&ram_memories[1], NULL, "ef405ep.ram1", 0);
@@ -427,7 +427,7 @@ static void taihu_405ep_init(MachineState *machine)
 
     /* RAM is soldered to the board so the size cannot be changed */
     ram_size = 0x08000000;
-    memory_region_allocate_system_memory(ram, NULL, "taihu_405ep.ram",
+    memory_region_allocate_system_memory(ram, machine, "taihu_405ep.ram",
                                          ram_size);
 
     ram_bases[0] = 0;

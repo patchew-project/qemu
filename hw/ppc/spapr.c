@@ -2840,7 +2840,7 @@ static void spapr_machine_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    memory_region_allocate_system_memory(ram, NULL, "ppc_spapr.ram",
+    memory_region_allocate_system_memory(ram, machine, "ppc_spapr.ram",
                                          machine->ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
 

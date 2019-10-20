@@ -912,7 +912,8 @@ void ppce500_init(MachineState *machine)
     machine->ram_size = ram_size;
 
     /* Register Memory */
-    memory_region_allocate_system_memory(ram, NULL, "mpc8544ds.ram", ram_size);
+    memory_region_allocate_system_memory(ram, machine, "mpc8544ds.ram",
+                                         ram_size);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
     dev = qdev_create(NULL, "e500-ccsr");

@@ -152,7 +152,8 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    memory_region_allocate_system_memory(ram, NULL, "ppc_core99.ram", ram_size);
+    memory_region_allocate_system_memory(ram, machine, "ppc_core99.ram",
+                                         ram_size);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     /* allocate and load BIOS */

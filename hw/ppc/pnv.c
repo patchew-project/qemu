@@ -640,7 +640,7 @@ static void pnv_init(MachineState *machine)
     }
 
     ram = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(ram, NULL, "pnv.ram",
+    memory_region_allocate_system_memory(ram, machine, "pnv.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 

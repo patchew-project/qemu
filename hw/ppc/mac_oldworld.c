@@ -127,7 +127,7 @@ static void ppc_heathrow_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_allocate_system_memory(ram, NULL, "ppc_heathrow.ram",
+    memory_region_allocate_system_memory(ram, machine, "ppc_heathrow.ram",
                                          ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
 

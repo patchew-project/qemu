@@ -445,7 +445,8 @@ static void ppc_prep_init(MachineState *machine)
     }
 
     /* allocate RAM */
-    memory_region_allocate_system_memory(ram, NULL, "ppc_prep.ram", ram_size);
+    memory_region_allocate_system_memory(ram, machine, "ppc_prep.ram",
+                                         ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
 
     if (linux_boot) {
