@@ -1787,6 +1787,10 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
         /* Encryption works on a sector granularity */
         bs->bl.request_alignment = qcrypto_block_get_sector_size(s->crypto);
     }
+    if (bs->all_write_compressed) {
+        bs->bl.request_alignment = MAX(bs->bl.request_alignment,
+                                       s->cluster_size);
+    }
     bs->bl.pwrite_zeroes_alignment = s->cluster_size;
     bs->bl.pdiscard_alignment = s->cluster_size;
 }
