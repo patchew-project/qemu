@@ -62,6 +62,7 @@ static void clipper_init(MachineState *machine)
     uint64_t palcode_entry, palcode_low, palcode_high;
     uint64_t kernel_entry, kernel_low, kernel_high;
     unsigned int smp_cpus = machine->smp.cpus;
+    MemoryRegion ram_region;
 
     /* Create up to 4 cpus.  */
     memset(cpus, 0, sizeof(cpus));
@@ -73,8 +74,16 @@ static void clipper_init(MachineState *machine)
     cpus[0]->env.trap_arg1 = 0;
     cpus[0]->env.trap_arg2 = smp_cpus;
 
+    /*
+     * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
+     * but the address space hole reserved at this point is 8TB.
+     */
+    memory_region_allocate_system_memory(&ram_region, NULL, "ram",
+                                         ram_size);
+    memory_region_add_subregion(get_system_memory(), 0, &ram_region);
+
     /* Init the chipset.  */
-    pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
+    pci_bus = typhoon_init(&isa_bus, &rtc_irq, cpus,
                            clipper_pci_map_irq);
 
     /* Since we have an SRM-compatible PALcode, use the SRM epoch.  */
