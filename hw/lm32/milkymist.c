@@ -116,7 +116,7 @@ milkymist_init(MachineState *machine)
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
 
-    memory_region_allocate_system_memory(phys_sdram, NULL, "milkymist.sdram",
+    memory_region_allocate_system_memory(phys_sdram, machine, "milkymist.sdram",
                                          sdram_size);
     memory_region_add_subregion(address_space_mem, sdram_base, phys_sdram);
 
