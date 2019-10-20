@@ -893,7 +893,7 @@ static void next_cube_init(MachineState *machine)
     memcpy(ns->rtc.ram, rtc_ram2, 32);
 
     /* 64MB RAM starting at 0x04000000  */
-    memory_region_allocate_system_memory(ram, NULL, "next.ram", ram_size);
+    memory_region_allocate_system_memory(ram, machine, "next.ram", ram_size);
     memory_region_add_subregion(sysmem, 0x04000000, ram);
 
     /* Framebuffer */
