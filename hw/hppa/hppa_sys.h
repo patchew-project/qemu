@@ -11,6 +11,8 @@
 #include "hppa_hardware.h"
 
 PCIBus *dino_init(MemoryRegion *, qemu_irq *, qemu_irq *);
+DeviceState *lasi_init(MemoryRegion *);
+#define enable_lasi_lan()       0
 
 #define TYPE_DINO_PCI_HOST_BRIDGE "dino-pcihost"
 
