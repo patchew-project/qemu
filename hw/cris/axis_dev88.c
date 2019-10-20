@@ -270,7 +270,7 @@ void axisdev88_init(MachineState *machine)
     env = &cpu->env;
 
     /* allocate RAM */
-    memory_region_allocate_system_memory(phys_ram, NULL, "axisdev88.ram",
+    memory_region_allocate_system_memory(phys_ram, machine, "axisdev88.ram",
                                          ram_size);
     memory_region_add_subregion(address_space_mem, 0x40000000, phys_ram);
 
