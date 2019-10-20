@@ -14,7 +14,7 @@
 /**
  * memory_region_allocate_system_memory - Allocate a board's main memory
  * @mr: the #MemoryRegion to be initialized
- * @owner: the object that tracks the region's reference count
+ * @ms: the #MachineState object that own the system memory
  * @name: name of the memory region
  * @ram_size: size of the region in bytes
  *
@@ -38,8 +38,10 @@
  * Smaller pieces of memory (display RAM, static RAMs, etc) don't need
  * to be backed via the -mem-path memory backend and can simply
  * be created via memory_region_init_ram().
+ *
+ * The #MachineState object will track the region's reference count.
  */
-void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
+void memory_region_allocate_system_memory(MemoryRegion *mr, MachineState *ms,
                                           const char *name,
                                           uint64_t ram_size);
 

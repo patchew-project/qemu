@@ -520,21 +520,24 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
     vmstate_register_ram_global(mr);
 }
 
-void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
+void memory_region_allocate_system_memory(MemoryRegion *mr, MachineState *ms,
                                           const char *name,
                                           uint64_t ram_size)
 {
     uint64_t addr = 0;
     int i;
-    MachineState *ms = MACHINE(qdev_get_machine());
+
+    if (!ms) {
+        ms = MACHINE(qdev_get_machine());
+    }
 
     if (ms->numa_state == NULL ||
         ms->numa_state->num_nodes == 0 || !have_memdevs) {
-        allocate_system_memory_nonnuma(mr, owner, name, ram_size);
+        allocate_system_memory_nonnuma(mr, OBJECT(ms), name, ram_size);
         return;
     }
 
-    memory_region_init(mr, owner, name, ram_size);
+    memory_region_init(mr, OBJECT(ms), name, ram_size);
     for (i = 0; i < ms->numa_state->num_nodes; i++) {
         uint64_t size = ms->numa_state->nodes[i].node_mem;
         HostMemoryBackend *backend = ms->numa_state->nodes[i].node_memdev;
