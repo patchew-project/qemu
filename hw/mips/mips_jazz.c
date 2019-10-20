@@ -188,7 +188,7 @@ static void mips_jazz_init(MachineState *machine,
     cc->do_transaction_failed = mips_jazz_do_transaction_failed;
 
     /* allocate RAM */
-    memory_region_allocate_system_memory(ram, NULL, "mips_jazz.ram",
+    memory_region_allocate_system_memory(ram, machine, "mips_jazz.ram",
                                          machine->ram_size);
     memory_region_add_subregion(address_space, 0, ram);
 

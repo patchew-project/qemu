@@ -1267,7 +1267,7 @@ void mips_malta_init(MachineState *machine)
     }
 
     /* register RAM at high address where it is undisturbed by IO */
-    memory_region_allocate_system_memory(ram_high, NULL, "mips_malta.ram",
+    memory_region_allocate_system_memory(ram_high, machine, "mips_malta.ram",
                                          ram_size);
     memory_region_add_subregion(system_memory, 0x80000000, ram_high);
 

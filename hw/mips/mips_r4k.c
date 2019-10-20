@@ -203,7 +203,8 @@ void mips_r4k_init(MachineState *machine)
                      " maximum 256MB", ram_size / MiB);
         exit(1);
     }
-    memory_region_allocate_system_memory(ram, NULL, "mips_r4k.ram", ram_size);
+    memory_region_allocate_system_memory(ram, machine, "mips_r4k.ram",
+                                         ram_size);
 
     memory_region_add_subregion(address_space_mem, 0, ram);
 

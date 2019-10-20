@@ -474,7 +474,7 @@ static void boston_mach_init(MachineState *machine)
     memory_region_add_subregion_overlap(sys_mem, 0x18000000, flash, 0);
 
     ddr = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(ddr, NULL, "boston.ddr",
+    memory_region_allocate_system_memory(ddr, machine, "boston.ddr",
                                          machine->ram_size);
     memory_region_add_subregion_overlap(sys_mem, 0x80000000, ddr, 0);
 

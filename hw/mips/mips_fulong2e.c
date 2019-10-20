@@ -318,7 +318,8 @@ static void mips_fulong2e_init(MachineState *machine)
     ram_size = 256 * MiB;
 
     /* allocate RAM */
-    memory_region_allocate_system_memory(ram, NULL, "fulong2e.ram", ram_size);
+    memory_region_allocate_system_memory(ram, machine,
+                                         "fulong2e.ram", ram_size);
     memory_region_init_ram(bios, NULL, "fulong2e.bios", BIOS_SIZE,
                            &error_fatal);
     memory_region_set_readonly(bios, true);
