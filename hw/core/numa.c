@@ -527,9 +527,7 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, MachineState *ms,
     uint64_t addr = 0;
     int i;
 
-    if (!ms) {
-        ms = MACHINE(qdev_get_machine());
-    }
+    g_assert(ms);
 
     if (ms->numa_state == NULL ||
         ms->numa_state->num_nodes == 0 || !have_memdevs) {

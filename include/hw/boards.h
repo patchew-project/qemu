@@ -14,7 +14,7 @@
 /**
  * memory_region_allocate_system_memory - Allocate a board's main memory
  * @mr: the #MemoryRegion to be initialized
- * @ms: the #MachineState object that own the system memory
+ * @ms: the #MachineState object that own the system memory (must not be NULL)
  * @name: name of the memory region
  * @ram_size: size of the region in bytes
  *
