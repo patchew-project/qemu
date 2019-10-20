@@ -96,7 +96,7 @@ static void machine_hppa_init(MachineState *machine)
 
     /* Main memory region. */
     ram_region = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(ram_region, OBJECT(machine),
+    memory_region_allocate_system_memory(ram_region, NULL,
                                          "ram", ram_size);
     memory_region_add_subregion(addr_space, 0, ram_region);
 

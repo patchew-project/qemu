@@ -788,7 +788,7 @@ static void ram_realize(DeviceState *dev, Error **errp)
     RamDevice *d = SUN4M_RAM(dev);
     SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
 
-    memory_region_allocate_system_memory(&d->ram, OBJECT(d), "sun4m.ram",
+    memory_region_allocate_system_memory(&d->ram, NULL, "sun4m.ram",
                                          d->size);
     sysbus_init_mmio(sbd, &d->ram);
 }

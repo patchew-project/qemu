@@ -182,7 +182,7 @@ static void raspi_init(MachineState *machine, int version)
                             &error_abort, NULL);
 
     /* Allocate and map RAM */
-    memory_region_allocate_system_memory(&s->ram, OBJECT(machine), "ram",
+    memory_region_allocate_system_memory(&s->ram, NULL, "ram",
                                          machine->ram_size);
     /* FIXME: Remove when we have custom CPU address space support */
     memory_region_add_subregion_overlap(get_system_memory(), 0, &s->ram, 0);
