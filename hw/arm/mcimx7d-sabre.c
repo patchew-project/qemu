@@ -50,7 +50,7 @@ static void mcimx7d_sabre_init(MachineState *machine)
                             TYPE_FSL_IMX7, &error_fatal, NULL);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "mcimx7d-sabre.ram",
+    memory_region_allocate_system_memory(&s->ram, machine, "mcimx7d-sabre.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(),
                                 FSL_IMX7_MMDC_ADDR, &s->ram);

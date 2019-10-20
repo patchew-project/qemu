@@ -31,7 +31,7 @@ static void collie_init(MachineState *machine)
 
     s = sa1110_init(machine->cpu_type);
 
-    memory_region_allocate_system_memory(sdram, NULL, "strongarm.sdram",
+    memory_region_allocate_system_memory(sdram, machine, "strongarm.sdram",
                                          collie_binfo.ram_size);
     memory_region_add_subregion(get_system_memory(), SA_SDCS0, sdram);
 

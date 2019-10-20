@@ -84,7 +84,7 @@ static void imx25_pdk_init(MachineState *machine)
         machine->ram_size = FSL_IMX25_SDRAM0_SIZE + FSL_IMX25_SDRAM1_SIZE;
     }
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "imx25.ram",
+    memory_region_allocate_system_memory(&s->ram, machine, "imx25.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), FSL_IMX25_SDRAM0_ADDR,
                                 &s->ram);

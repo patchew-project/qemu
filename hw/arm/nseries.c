@@ -1315,7 +1315,7 @@ static void n8x0_init(MachineState *machine,
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
     uint64_t sdram_size = binfo->ram_size;
 
-    memory_region_allocate_system_memory(sdram, NULL, "omap2.dram",
+    memory_region_allocate_system_memory(sdram, machine, "omap2.dram",
                                          sdram_size);
     memory_region_add_subregion(get_system_memory(), OMAP2_Q2_BASE, sdram);
 

@@ -199,7 +199,7 @@ static void palmte_init(MachineState *machine)
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
 
-    memory_region_allocate_system_memory(dram, NULL, "omap1.dram",
+    memory_region_allocate_system_memory(dram, machine, "omap1.dram",
                                          palmte_binfo.ram_size);
     memory_region_add_subregion(address_space_mem, OMAP_EMIFF_BASE, dram);
 

@@ -48,7 +48,7 @@ static void mcimx6ul_evk_init(MachineState *machine)
 
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_fatal);
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "mcimx6ul-evk.ram",
+    memory_region_allocate_system_memory(&s->ram, machine, "mcimx6ul-evk.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(),
                                 FSL_IMX6UL_MMDC_ADDR, &s->ram);

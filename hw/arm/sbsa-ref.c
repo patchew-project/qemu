@@ -687,7 +687,7 @@ static void sbsa_ref_init(MachineState *machine)
         object_unref(cpuobj);
     }
 
-    memory_region_allocate_system_memory(ram, NULL, "sbsa-ref.ram",
+    memory_region_allocate_system_memory(ram, machine, "sbsa-ref.ram",
                                          machine->ram_size);
     memory_region_add_subregion(sysmem, sbsa_ref_memmap[SBSA_MEM].base, ram);
 

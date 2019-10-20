@@ -190,7 +190,7 @@ static void zynq_init(MachineState *machine)
     }
 
     /* DDR remapped to address zero.  */
-    memory_region_allocate_system_memory(ext_ram, NULL, "zynq.ext_ram",
+    memory_region_allocate_system_memory(ext_ram, machine, "zynq.ext_ram",
                                          ram_size);
     memory_region_add_subregion(address_space_mem, 0, ext_ram);
 

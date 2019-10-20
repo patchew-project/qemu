@@ -212,7 +212,7 @@ static void aspeed_board_init(MachineState *machine,
     ram_size = object_property_get_uint(OBJECT(&bmc->soc), "ram-size",
                                         &error_abort);
 
-    memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
+    memory_region_allocate_system_memory(&bmc->ram, machine, "ram", ram_size);
     memory_region_add_subregion(&bmc->ram_container, 0, &bmc->ram);
     memory_region_add_subregion(get_system_memory(),
                                 sc->memmap[ASPEED_SDRAM],

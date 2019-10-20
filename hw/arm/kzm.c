@@ -84,7 +84,7 @@ static void kzm_init(MachineState *machine)
         machine->ram_size = FSL_IMX31_SDRAM0_SIZE + FSL_IMX31_SDRAM1_SIZE;
     }
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "kzm.ram",
+    memory_region_allocate_system_memory(&s->ram, machine, "kzm.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), FSL_IMX31_SDRAM0_ADDR,
                                 &s->ram);

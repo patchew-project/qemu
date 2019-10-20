@@ -119,7 +119,7 @@ static void sx1_init(MachineState *machine, const int version)
         flash_size = flash2_size;
     }
 
-    memory_region_allocate_system_memory(dram, NULL, "omap1.dram",
+    memory_region_allocate_system_memory(dram, machine, "omap1.dram",
                                          sx1_binfo.ram_size);
     memory_region_add_subregion(address_space, OMAP_EMIFF_BASE, dram);
 

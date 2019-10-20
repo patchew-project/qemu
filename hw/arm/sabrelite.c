@@ -64,7 +64,7 @@ static void sabrelite_init(MachineState *machine)
         exit(1);
     }
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "sabrelite.ram",
+    memory_region_allocate_system_memory(&s->ram, machine, "sabrelite.ram",
                                          machine->ram_size);
     memory_region_add_subregion(get_system_memory(), FSL_IMX6_MMDC_ADDR,
                                 &s->ram);

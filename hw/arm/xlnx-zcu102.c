@@ -87,7 +87,7 @@ static void xlnx_zcu102_init(MachineState *machine)
                  ram_size);
     }
 
-    memory_region_allocate_system_memory(&s->ddr_ram, NULL, "ddr-ram",
+    memory_region_allocate_system_memory(&s->ddr_ram, machine, "ddr-ram",
                                          ram_size);
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),

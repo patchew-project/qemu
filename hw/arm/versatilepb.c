@@ -220,7 +220,7 @@ static void versatile_init(MachineState *machine, int board_id)
 
     cpu = ARM_CPU(cpuobj);
 
-    memory_region_allocate_system_memory(ram, NULL, "versatile.ram",
+    memory_region_allocate_system_memory(ram, machine, "versatile.ram",
                                          machine->ram_size);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */

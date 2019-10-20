@@ -414,7 +414,7 @@ static void versal_virt_init(MachineState *machine)
         psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     }
 
-    memory_region_allocate_system_memory(&s->mr_ddr, NULL, "ddr",
+    memory_region_allocate_system_memory(&s->mr_ddr, machine, "ddr",
                                          machine->ram_size);
 
     sysbus_init_child_obj(OBJECT(machine), "xlnx-ve", &s->soc,

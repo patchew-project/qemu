@@ -290,7 +290,8 @@ static void calxeda_init(MachineState *machine, enum cxmachines machine_id)
 
     sysmem = get_system_memory();
     dram = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(dram, NULL, "highbank.dram", ram_size);
+    memory_region_allocate_system_memory(dram, machine, "highbank.dram",
+                                         ram_size);
     /* SDRAM at address zero.  */
     memory_region_add_subregion(sysmem, 0, dram);
 

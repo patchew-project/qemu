@@ -53,7 +53,7 @@ typedef struct DigicBoard {
     const char *rom1_def_filename;
 } DigicBoard;
 
-static void digic4_board_init(DigicBoard *board)
+static void digic4_board_init(MachineState *machine, DigicBoard *board)
 {
     Error *err = NULL;
 
@@ -66,7 +66,8 @@ static void digic4_board_init(DigicBoard *board)
         exit(1);
     }
 
-    memory_region_allocate_system_memory(&s->ram, NULL, "ram", board->ram_size);
+    memory_region_allocate_system_memory(&s->ram, machine, "ram",
+                                         board->ram_size);
     memory_region_add_subregion(get_system_memory(), 0, &s->ram);
 
     if (board->add_rom0) {
@@ -142,7 +143,7 @@ static DigicBoard digic4_board_canon_a1100 = {
 
 static void canon_a1100_init(MachineState *machine)
 {
-    digic4_board_init(&digic4_board_canon_a1100);
+    digic4_board_init(machine, &digic4_board_canon_a1100);
 }
 
 static void canon_a1100_machine_init(MachineClass *mc)

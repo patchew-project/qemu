@@ -1702,7 +1702,7 @@ static void machvirt_init(MachineState *machine)
         }
     }
 
-    memory_region_allocate_system_memory(ram, NULL, "mach-virt.ram",
+    memory_region_allocate_system_memory(ram, machine, "mach-virt.ram",
                                          machine->ram_size);
     memory_region_add_subregion(sysmem, vms->memmap[VIRT_MEM].base, ram);
     if (machine->device_memory) {
