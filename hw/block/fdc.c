@@ -1733,7 +1733,8 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
             dma_mode_ok = (dma_mode == ISADMA_TRANSFER_WRITE);
             break;
         case FD_DIR_READ:
-            dma_mode_ok = (dma_mode == ISADMA_TRANSFER_READ);
+            dma_mode_ok = (dma_mode == ISADMA_TRANSFER_READ) ||
+                          (dma_mode == ISADMA_TRANSFER_VERIFY);
             break;
         case FD_DIR_VERIFY:
             dma_mode_ok = true;
@@ -1835,8 +1836,11 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
         switch (fdctrl->data_dir) {
         case FD_DIR_READ:
             /* READ commands */
-            k->write_memory(fdctrl->dma, nchan, fdctrl->fifo + rel_pos,
-                            fdctrl->data_pos, len);
+            if (k->get_transfer_mode(fdctrl->dma, fdctrl->dma_chann) !=
+                ISADMA_TRANSFER_VERIFY) {
+                k->write_memory(fdctrl->dma, nchan, fdctrl->fifo + rel_pos,
+                        fdctrl->data_pos, len);
+            }
             break;
         case FD_DIR_WRITE:
             /* WRITE commands */
