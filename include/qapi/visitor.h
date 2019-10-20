@@ -555,6 +555,15 @@ void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
                      Error **errp);
 
 /*
+ * Visit a uint64_t value.
+ * Like visit_type_uint64(), except that some visitors may choose to
+ * recognize numbers with timeunit suffix, such as "ps", "ns", "us"
+ * "ms" and "s".
+ */
+void visit_type_time(Visitor *v, const char *name, uint64_t *obj,
+                     Error **errp);
+
+/*
  * Visit a boolean value.
  *
  * @name expresses the relationship of this boolean to its parent
