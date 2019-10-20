@@ -78,7 +78,7 @@ static void clipper_init(MachineState *machine)
      * Main memory region, 0x00.0000.0000.  Real hardware supports 32GB,
      * but the address space hole reserved at this point is 8TB.
      */
-    memory_region_allocate_system_memory(&ram_region, NULL, "ram",
+    memory_region_allocate_system_memory(&ram_region, machine, "ram",
                                          ram_size);
     memory_region_add_subregion(get_system_memory(), 0, &ram_region);
 
