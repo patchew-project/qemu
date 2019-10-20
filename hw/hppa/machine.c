@@ -22,30 +22,6 @@
 #include "qapi/error.h"
 #include "qemu/log.h"
 
-#define MAX_IDE_BUS 2
-
-static ISABus *hppa_isa_bus(void)
-{
-    ISABus *isa_bus;
-    qemu_irq *isa_irqs;
-    MemoryRegion *isa_region;
-
-    isa_region = g_new(MemoryRegion, 1);
-    memory_region_init_io(isa_region, NULL, &hppa_pci_ignore_ops,
-                          NULL, "isa-io", 0x800);
-    memory_region_add_subregion(get_system_memory(), IDE_HPA,
-                                isa_region);
-
-    isa_bus = isa_bus_new(NULL, get_system_memory(), isa_region,
-                          &error_abort);
-    isa_irqs = i8259_init(isa_bus,
-                          /* qemu_allocate_irq(dino_set_isa_irq, s, 0)); */
-                          NULL);
-    isa_bus_irqs(isa_bus, isa_irqs);
-
-    return isa_bus;
-}
-
 static uint64_t cpu_hppa_to_phys(void *opaque, uint64_t addr)
 {
     addr &= (0x10000000 - 1);
@@ -62,7 +38,6 @@ static void machine_hppa_init(MachineState *machine)
     const char *initrd_filename = machine->initrd_filename;
     DeviceState *dev;
     PCIBus *pci_bus;
-    ISABus *isa_bus;
     qemu_irq rtc_irq, serial_irq;
     char *firmware_filename;
     uint64_t firmware_low, firmware_high;
@@ -107,13 +82,6 @@ static void machine_hppa_init(MachineState *machine)
     /* Init Dino (PCI host bus chip).  */
     pci_bus = dino_init(addr_space, &rtc_irq, &serial_irq);
     assert(pci_bus);
-
-    /* Create ISA bus. */
-    isa_bus = hppa_isa_bus();
-    assert(isa_bus);
-
-    /* Realtime clock, used by firmware for PDC_TOD call. */
-    mc146818_rtc_init(isa_bus, 2000, rtc_irq);
 
     /* Serial code setup.  */
     if (serial_hd(0)) {
