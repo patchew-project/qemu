@@ -219,7 +219,7 @@ static inline int cpu_interrupts_enabled(CPUAVRState *env)
 static inline uint8_t cpu_get_sreg(CPUAVRState *env)
 {
     uint8_t sreg;
-    sreg = (env->sregC & 0x01) << 0
+    sreg = (env->sregC) << 0
          | (env->sregZ == 0 ? 1 : 0) << 1
          | (env->sregN) << 2
          | (env->sregV) << 3
