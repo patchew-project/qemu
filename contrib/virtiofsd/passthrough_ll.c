@@ -1216,6 +1216,14 @@ static struct fuse_lowlevel_ops lo_oper = {
 #endif
 };
 
+/* Print vhost-user.json backend program capabilities */
+static void print_capabilities(void)
+{
+	printf("{\n");
+	printf("  \"type\": \"fs\"\n");
+	printf("}\n");
+}
+
 int main(int argc, char *argv[])
 {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
@@ -1244,6 +1252,10 @@ int main(int argc, char *argv[])
 		goto err_out1;
 	} else if (opts.show_version) {
 		fuse_lowlevel_version();
+		ret = 0;
+		goto err_out1;
+	} else if (opts.print_capabilities) {
+		print_capabilities();
 		ret = 0;
 		goto err_out1;
 	}
