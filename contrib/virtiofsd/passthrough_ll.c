@@ -34,6 +34,7 @@
  * \include passthrough_ll.c
  */
 
+#include "fuse_virtio.h"
 #include "fuse_lowlevel.h"
 #include <unistd.h>
 #include <stdlib.h>
@@ -1311,10 +1312,7 @@ int main(int argc, char *argv[])
 	fuse_daemonize(opts.foreground);
 
 	/* Block until ctrl+c or fusermount -u */
-	if (opts.singlethread)
-		ret = fuse_session_loop(se);
-	else
-		ret = fuse_session_loop_mt(se, opts.clone_fd);
+	ret = virtio_loop(se);
 
 	fuse_session_unmount(se);
 err_out3:
