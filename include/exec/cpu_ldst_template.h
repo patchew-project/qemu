@@ -65,8 +65,12 @@
 #ifdef SOFTMMU_CODE_ACCESS
 #define ADDR_READ addr_code
 #define MMUSUFFIX _cmmu
-#define URETSUFFIX SUFFIX
-#define SRETSUFFIX SUFFIX
+#define URETSUFFIX USUFFIX
+/*
+ * All code access functions are unsigned, I could poison this but it
+ * it would break further inclusions of this template.
+ */
+#define SRETSUFFIX _unused_
 #else
 #define ADDR_READ addr_read
 #define MMUSUFFIX _mmu
@@ -114,7 +118,7 @@ glue(glue(cpu_ld, USUFFIX), MEMSUFFIX)(CPUArchState *env, target_ulong ptr)
     return glue(glue(glue(cpu_ld, USUFFIX), MEMSUFFIX), _ra)(env, ptr, 0);
 }
 
-#if DATA_SIZE <= 2
+#if DATA_SIZE <= 2 && !defined(SOFTMMU_CODE_ACCESS)
 static inline int
 glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
                                                   target_ulong ptr,
@@ -126,11 +130,9 @@ glue(glue(glue(cpu_lds, SUFFIX), MEMSUFFIX), _ra)(CPUArchState *env,
     int mmu_idx;
     TCGMemOpIdx oi;
 
-#if !defined(SOFTMMU_CODE_ACCESS)
     trace_guest_mem_before_exec(
         env_cpu(env), ptr,
         trace_mem_build_info(SHIFT, true, MO_TE, false));
-#endif
 
     addr = ptr;
     mmu_idx = CPU_MMU_INDEX;

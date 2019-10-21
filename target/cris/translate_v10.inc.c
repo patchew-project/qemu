@@ -183,9 +183,9 @@ static int dec10_prep_move_m(CPUCRISState *env, DisasContext *dc,
         if (memsize != 4) {
             if (s_ext) {
                 if (memsize == 1)
-                    imm = cpu_ldsb_code(env, dc->pc + 2);
+                    imm = (int8_t) cpu_ldub_code(env, dc->pc + 2);
                 else
-                    imm = cpu_ldsw_code(env, dc->pc + 2);
+                    imm = (int16_t) cpu_lduw_code(env, dc->pc + 2);
             } else {
                 if (memsize == 1)
                     imm = cpu_ldub_code(env, dc->pc + 2);
@@ -1202,8 +1202,7 @@ static unsigned int dec10_ind(CPUCRISState *env, DisasContext *dc)
         case CRISV10_IND_BCC_M:
 
             cris_cc_mask(dc, 0);
-            imm = cpu_ldsw_code(env, dc->pc + 2);
-            simm = (int16_t)imm;
+            simm = (int16_t) cpu_lduw_code(env, dc->pc + 2);
             simm += 4;
 
             LOG_DIS("bcc_m: b%s %x\n", cc_name(dc->cond), dc->pc + simm);

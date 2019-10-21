@@ -231,7 +231,7 @@ static int cris_fetch(CPUCRISState *env, DisasContext *dc, uint32_t addr,
     case 2:
     {
         if (sign) {
-            r = cpu_ldsw_code(env, addr);
+            r = (int16_t) cpu_lduw_code(env, addr);
         } else {
             r = cpu_lduw_code(env, addr);
         }
@@ -240,7 +240,7 @@ static int cris_fetch(CPUCRISState *env, DisasContext *dc, uint32_t addr,
     case 1:
     {
         if (sign) {
-            r = cpu_ldsb_code(env, addr);
+            r = (int8_t) cpu_ldub_code(env, addr);
         } else {
             r = cpu_ldub_code(env, addr);
         }
