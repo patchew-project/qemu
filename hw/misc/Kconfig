@@ -120,4 +120,7 @@ config AUX
 config UNIMP
     bool
 
+config AVR_MASK
+    bool
+
 source macio/Kconfig
