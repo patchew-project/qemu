@@ -763,6 +763,16 @@ file which is COW and has data blocks already, it couldn't be changed to NOCOW
 by setting @code{nocow=on}. One can issue @code{lsattr filename} to check if
 the NOCOW flag is set or not (Capital 'C' is NOCOW flag).
 
+@item data_file
+File name of data file that is stored in the image and used as a default for
+opening the image. If the option is used, qcow2 file only stores the metadata
+for the image.
+
+@item data_file_raw
+This option requires @option{data_file}. If this option is set to @code{on},
+qemu will always keep the external data file consistent as a standalone
+read-only raw image. Default value is @code{off}.
+
 @end table
 
 @item Other
