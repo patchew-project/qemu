@@ -98,6 +98,7 @@
 #define IPMI_CMD_GET_SEL_TIME             0x48
 #define IPMI_CMD_SET_SEL_TIME             0x49
 
+#define IPMI_NETFN_OEM                    0x3a
 
 /* Same as a timespec struct. */
 struct ipmi_time {
@@ -167,22 +168,7 @@ typedef struct IPMISensor {
 #define MAX_SENSORS 20
 #define IPMI_WATCHDOG_SENSOR 0
 
-typedef struct IPMIBmcSim IPMIBmcSim;
-typedef struct RspBuffer RspBuffer;
-
 #define MAX_NETFNS 64
-
-typedef struct IPMICmdHandler {
-    void (*cmd_handler)(IPMIBmcSim *s,
-                        uint8_t *cmd, unsigned int cmd_len,
-                        RspBuffer *rsp);
-    unsigned int cmd_len_min;
-} IPMICmdHandler;
-
-typedef struct IPMINetfn {
-    unsigned int cmd_nums;
-    const IPMICmdHandler *cmd_handlers;
-} IPMINetfn;
 
 typedef struct IPMIRcvBufEntry {
     QTAILQ_ENTRY(IPMIRcvBufEntry) entry;
@@ -279,27 +265,7 @@ struct IPMIBmcSim {
 #define IPMI_BMC_WATCHDOG_ACTION_POWER_DOWN      2
 #define IPMI_BMC_WATCHDOG_ACTION_POWER_CYCLE     3
 
-struct RspBuffer {
-    uint8_t buffer[MAX_IPMI_MSG_SIZE];
-    unsigned int len;
-};
-
 #define RSP_BUFFER_INITIALIZER { }
-
-static inline void rsp_buffer_set_error(RspBuffer *rsp, uint8_t byte)
-{
-    rsp->buffer[2] = byte;
-}
-
-/* Add a byte to the response. */
-static inline void rsp_buffer_push(RspBuffer *rsp, uint8_t byte)
-{
-    if (rsp->len >= sizeof(rsp->buffer)) {
-        rsp_buffer_set_error(rsp, IPMI_CC_REQUEST_DATA_TRUNCATED);
-        return;
-    }
-    rsp->buffer[rsp->len++] = byte;
-}
 
 static inline void rsp_buffer_pushmore(RspBuffer *rsp, uint8_t *bytes,
                                        unsigned int n)
@@ -638,6 +604,11 @@ static int ipmi_register_netfn(IPMIBmcSim *s, unsigned int netfn,
     }
     s->netfns[netfn / 2] = netfnd;
     return 0;
+}
+
+int ipmi_register_oem_netfn(IPMIBmc *b, const IPMINetfn *netfnd)
+{
+    return ipmi_register_netfn(IPMI_BMC_SIMULATOR(b), IPMI_NETFN_OEM, netfnd);
 }
 
 static const IPMICmdHandler *ipmi_get_handler(IPMIBmcSim *ibs,
