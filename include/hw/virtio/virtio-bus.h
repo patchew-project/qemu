@@ -139,6 +139,13 @@ static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
 
 /* Return whether the proxy allows ioeventfd.  */
 bool virtio_bus_ioeventfd_enabled(VirtioBusState *bus);
+
+/* Return whether ioeventfd has been started. */
+static inline bool virtio_bus_ioeventfd_started(VirtioBusState *bus)
+{
+    return bus->ioeventfd_started;
+}
+
 /* Start the ioeventfd. */
 int virtio_bus_start_ioeventfd(VirtioBusState *bus);
 /* Stop the ioeventfd. */

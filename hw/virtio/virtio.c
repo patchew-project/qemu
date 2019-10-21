@@ -1567,6 +1567,8 @@ static void virtio_queue_notify_vq(VirtQueue *vq)
 
 void virtio_queue_notify(VirtIODevice *vdev, int n)
 {
+    BusState *qbus = qdev_get_parent_bus(DEVICE(vdev));
+    VirtioBusState *vbus = VIRTIO_BUS(qbus);
     VirtQueue *vq = &vdev->vq[n];
 
     if (unlikely(!vq->vring.desc || vdev->broken)) {
@@ -1574,7 +1576,7 @@ void virtio_queue_notify(VirtIODevice *vdev, int n)
     }
 
     trace_virtio_queue_notify(vdev, vq - vdev->vq, vq);
-    if (vq->handle_aio_output) {
+    if (virtio_bus_ioeventfd_started(vbus)) {
         event_notifier_set(&vq->host_notifier);
     } else if (vq->handle_output) {
         vq->handle_output(vdev, vq);
