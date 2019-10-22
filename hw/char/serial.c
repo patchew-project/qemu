@@ -990,6 +990,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     qdev_connect_gpio_out_named(dev, "serial-irq", 0, irq);
     qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
+    qdev_prop_set_uint64(dev, "base", base);
     serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(dev, base, 2);
     qdev_init_nofail(dev);
@@ -1003,6 +1004,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 static Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SerialState, chr),
     DEFINE_PROP_UINT32("baudbase", SerialState, baudbase, 115200),
+    DEFINE_PROP_UINT64("base", SerialState, base, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1083,6 +1085,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint8(dev, "regshift", regshift);
+    qdev_prop_set_uint64(dev, "base", base);
 
     serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(DEVICE(s), base, 2);

@@ -77,6 +77,7 @@ typedef struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
+    uint64_t base;
 } SerialState;
 
 typedef struct SerialMMState {
