@@ -182,10 +182,24 @@ static void multi_4x_serial_pci_class_initfn(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
+static void multi_serial_init(Object *o)
+{
+    PCIDevice *dev = PCI_DEVICE(o);
+    PCIMultiSerialState *self = DO_UPCAST(PCIMultiSerialState, dev, dev);
+    int i, nr_ports = multi_serial_get_nr_ports(PCI_DEVICE_GET_CLASS(dev));
+
+    for (i = 0; i < nr_ports; i++) {
+        object_initialize_child(o, "serial[*]", &self->state[i],
+                                sizeof(self->state[i]),
+                                TYPE_SERIAL, &error_abort, NULL);
+    }
+}
+
 static const TypeInfo multi_2x_serial_pci_info = {
     .name          = "pci-serial-2x",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),
+    .instance_init = multi_serial_init,
     .class_init    = multi_2x_serial_pci_class_initfn,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -197,6 +211,7 @@ static const TypeInfo multi_4x_serial_pci_info = {
     .name          = "pci-serial-4x",
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIMultiSerialState),
+    .instance_init = multi_serial_init,
     .class_init    = multi_4x_serial_pci_class_initfn,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
