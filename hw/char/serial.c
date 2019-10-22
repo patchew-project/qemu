@@ -1025,14 +1025,14 @@ static const TypeInfo serial_info = {
 static uint64_t serial_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    SerialState *s = opaque;
+    SerialMMState *s = SERIAL_MM(opaque);
     return serial_ioport_read(s, addr >> s->it_shift, 1);
 }
 
 static void serial_mm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    SerialState *s = opaque;
+    SerialMMState *s = SERIAL_MM(opaque);
     value &= 255;
     serial_ioport_write(s, addr >> s->it_shift, value, 1);
 }
@@ -1066,10 +1066,11 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end)
 {
-    DeviceState *dev = DEVICE(object_new(TYPE_SERIAL));
+    DeviceState *dev = DEVICE(object_new(TYPE_SERIAL_MM));
+    SerialMMState *m = SERIAL_MM(dev);
     SerialState *s = SERIAL(dev);
 
-    s->it_shift = it_shift;
+    m->it_shift = it_shift;
     s->irq = irq;
     s->baudbase = baudbase;
     qdev_prop_set_chr(dev, "chardev", chr);
@@ -1088,6 +1089,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
 static const TypeInfo serial_mm_info = {
     .name = TYPE_SERIAL_MM,
     .parent = TYPE_SERIAL,
+    .instance_size = sizeof(SerialMMState),
 };
 
 static void serial_register_types(void)

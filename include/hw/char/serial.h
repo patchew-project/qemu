@@ -57,7 +57,6 @@ typedef struct SerialState {
     qemu_irq irq;
     CharBackend chr;
     int last_break_enable;
-    int it_shift;
     int baudbase;
     uint32_t tsr_retry;
     guint watch_tag;
@@ -80,6 +79,12 @@ typedef struct SerialState {
     MemoryRegion io;
 } SerialState;
 
+typedef struct SerialMMState {
+    SerialState parent;
+
+    int it_shift;
+} SerialMMState;
+
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
@@ -91,7 +96,7 @@ void serial_set_frequency(SerialState *s, uint32_t frequency);
 #define SERIAL(s) OBJECT_CHECK(SerialState, (s), TYPE_SERIAL)
 
 #define TYPE_SERIAL_MM "serial-mm"
-#define SERIAL_MM(s) OBJECT_CHECK(SerialState, (s), TYPE_SERIAL_MM)
+#define SERIAL_MM(s) OBJECT_CHECK(SerialMMState, (s), TYPE_SERIAL_MM)
 
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          Chardev *chr, MemoryRegion *system_io);
