@@ -49,6 +49,8 @@
 #define KBD_CMD_RESET_DISABLE	0xF5	/* reset and disable scanning */
 #define KBD_CMD_RESET_ENABLE   	0xF6    /* reset and enable scanning */
 #define KBD_CMD_RESET		0xFF	/* Reset */
+#define KBD_CMD_SET_MAKE_BREAK  0xFC    /* Set Make and Break mode */
+#define KBD_CMD_SET_TYPEMATIC   0xFA    /* Set Typematic Make and Break mode */
 
 /* Keyboard Replies */
 #define KBD_REPLY_POR		0xAA	/* Power on reset */
@@ -591,6 +593,10 @@ void ps2_write_keyboard(void *opaque, int val)
             ps2_queue_2(&s->common,
                 KBD_REPLY_ACK,
                 KBD_REPLY_POR);
+            break;
+        case KBD_CMD_SET_TYPEMATIC:
+        case KBD_CMD_SET_MAKE_BREAK:
+            ps2_queue(&s->common, KBD_REPLY_ACK);
             break;
         default:
             ps2_queue(&s->common, KBD_REPLY_RESEND);
