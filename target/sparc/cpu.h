@@ -508,6 +508,7 @@ struct CPUSPARCState {
 #endif
     sparc_def_t def;
 
+    qemu_irq pil_irq;
     void *irq_manager;
     void (*qemu_irq_ack)(CPUSPARCState *env, void *irq_manager, int intno);
 
