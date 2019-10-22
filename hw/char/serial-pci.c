@@ -50,7 +50,7 @@ static void serial_pci_realize(PCIDevice *dev, Error **errp)
     Error *err = NULL;
 
     s->baudbase = 115200;
-    serial_realize_core(s, &err);
+    object_property_set_bool(OBJECT(s), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
         return;
