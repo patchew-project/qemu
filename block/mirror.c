@@ -1190,15 +1190,14 @@ do_sync_target_write(MirrorBlockJob *job, MirrorMethod method,
     }
 
     while (true) {
-        bool valid_area;
+        bool found;
         int ret;
 
         bdrv_dirty_bitmap_lock(job->dirty_bitmap);
-        dirty_bytes = MIN(offset + bytes - dirty_offset, INT_MAX);
-        valid_area = bdrv_dirty_bitmap_next_dirty_area(job->dirty_bitmap,
-                                                       &dirty_offset,
-                                                       &dirty_bytes);
-        if (!valid_area) {
+        found = bdrv_dirty_bitmap_next_dirty_area(job->dirty_bitmap,
+                dirty_offset, offset + bytes, INT_MAX,
+                &dirty_offset, &dirty_bytes);
+        if (!found) {
             bdrv_dirty_bitmap_unlock(job->dirty_bitmap);
             break;
         }
