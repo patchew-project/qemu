@@ -98,3 +98,95 @@ void qemu_semihosting_console_outc(CPUArchState *env, target_ulong addr)
                       __func__, addr);
     }
 }
+
+#include <pthread.h>
+#include "chardev/char-fe.h"
+#include "sysemu/sysemu.h"
+#include "qemu/main-loop.h"
+#include "qapi/error.h"
+
+#define FIFO_SIZE   1024
+
+typedef struct SemihostingFifo {
+    unsigned int     insert, remove;
+
+    uint8_t fifo[FIFO_SIZE];
+} SemihostingFifo;
+
+#define fifo_insert(f, c) do { \
+    (f)->fifo[(f)->insert] = (c); \
+    (f)->insert = ((f)->insert + 1) & (FIFO_SIZE - 1); \
+} while (0)
+
+#define fifo_remove(f, c) do {\
+    c = (f)->fifo[(f)->remove]; \
+    (f)->remove = ((f)->remove + 1) & (FIFO_SIZE - 1); \
+} while (0)
+
+#define fifo_full(f)        ((((f)->insert + 1) & (FIFO_SIZE - 1)) == \
+                             (f)->remove)
+#define fifo_empty(f)       ((f)->insert == (f)->remove)
+#define fifo_space(f)       (((f)->remove - ((f)->insert + 1)) & \
+                             (FIFO_SIZE - 1))
+
+typedef struct SemihostingConsole {
+    CharBackend         backend;
+    pthread_mutex_t     mutex;
+    pthread_cond_t      cond;
+    bool                got;
+    SemihostingFifo     fifo;
+} SemihostingConsole;
+
+static SemihostingConsole console = {
+    .mutex = PTHREAD_MUTEX_INITIALIZER,
+    .cond = PTHREAD_COND_INITIALIZER
+};
+
+static int console_can_read(void *opaque)
+{
+    SemihostingConsole *c = opaque;
+    int ret;
+    pthread_mutex_lock(&c->mutex);
+    ret = fifo_space(&c->fifo);
+    pthread_mutex_unlock(&c->mutex);
+    return ret;
+}
+
+static void console_read(void *opaque, const uint8_t *buf, int size)
+{
+    SemihostingConsole *c = opaque;
+    pthread_mutex_lock(&c->mutex);
+    while (size-- && !fifo_full(&c->fifo)) {
+        fifo_insert(&c->fifo, *buf++);
+    }
+    pthread_cond_broadcast(&c->cond);
+    pthread_mutex_unlock(&c->mutex);
+}
+
+target_ulong qemu_semihosting_console_inc(CPUArchState *env)
+{
+    (void) env;
+    SemihostingConsole *c = &console;
+    qemu_mutex_unlock_iothread();
+    pthread_mutex_lock(&c->mutex);
+    while (fifo_empty(&c->fifo)) {
+        pthread_cond_wait(&c->cond, &c->mutex);
+    }
+    uint8_t ch;
+    fifo_remove(&c->fifo, ch);
+    pthread_mutex_unlock(&c->mutex);
+    qemu_mutex_lock_iothread();
+    return (target_ulong) ch;
+}
+
+void qemu_semihosting_console_init(void)
+{
+    if (semihosting_enabled()) {
+        qemu_chr_fe_init(&console.backend, serial_hd(0), &error_abort);
+        qemu_chr_fe_set_handlers(&console.backend,
+                                 console_can_read,
+                                 console_read,
+                                 NULL, NULL, &console,
+                                 NULL, true);
+    }
+}
