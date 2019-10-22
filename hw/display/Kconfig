@@ -91,6 +91,9 @@ config TCX
 config CG3
     bool
 
+config ARTIST
+    bool
+
 config VGA
     bool
 
