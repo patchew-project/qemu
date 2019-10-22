@@ -869,9 +869,14 @@ def verify_protocol(supported=[], unsupported=[]):
     if not_sup or (imgproto in unsupported):
         notrun('not suitable for this protocol: %s' % imgproto)
 
-def verify_platform(supported_oses=['linux']):
-    if True not in [sys.platform.startswith(x) for x in supported_oses]:
-        notrun('not suitable for this OS: %s' % sys.platform)
+def verify_platform(supported=None, unsupported=None):
+    if unsupported is not None:
+        if any((sys.platform.startswith(x) for x in unsupported)):
+            notrun('not suitable for this OS: %s' % sys.platform)
+
+    if supported is not None:
+        if not any((sys.platform.startswith(x) for x in supported)):
+            notrun('not suitable for this OS: %s' % sys.platform)
 
 def verify_cache_mode(supported_cache_modes=[]):
     if supported_cache_modes and (cachemode not in supported_cache_modes):
@@ -933,7 +938,8 @@ def execute_unittest(output, verbosity, debug):
                                     r'Ran \1 tests', output.getvalue()))
 
 def execute_test(test_function=None,
-                 supported_fmts=[], supported_oses=['linux'],
+                 supported_fmts=[],
+                 supported_platforms=None,
                  supported_cache_modes=[], unsupported_fmts=[],
                  supported_protocols=[], unsupported_protocols=[]):
     """Run either unittest or script-style tests."""
@@ -950,7 +956,7 @@ def execute_test(test_function=None,
     verbosity = 1
     verify_image_format(supported_fmts, unsupported_fmts)
     verify_protocol(supported_protocols, unsupported_protocols)
-    verify_platform(supported_oses)
+    verify_platform(supported=supported_platforms)
     verify_cache_mode(supported_cache_modes)
 
     if debug:
