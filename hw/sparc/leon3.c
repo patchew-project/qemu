@@ -38,7 +38,6 @@
 #include "hw/boards.h"
 #include "hw/loader.h"
 #include "elf.h"
-#include "trace.h"
 #include "exec/address-spaces.h"
 
 #include "hw/sparc/grlib.h"
@@ -143,41 +142,6 @@ void leon3_irq_ack(void *irq_manager, int intno)
     grlib_irqmp_ack((DeviceState *)irq_manager, intno);
 }
 
-static void leon3_set_pil_in(void *opaque, int n, int level)
-{
-    CPUSPARCState *env = opaque;
-    uint32_t pil_in = level;
-    CPUState *cs;
-
-    assert(env != NULL);
-
-    env->pil_in = pil_in;
-
-    if (env->pil_in && (env->interrupt_index == 0 ||
-                        (env->interrupt_index & ~15) == TT_EXTINT)) {
-        unsigned int i;
-
-        for (i = 15; i > 0; i--) {
-            if (env->pil_in & (1 << i)) {
-                int old_interrupt = env->interrupt_index;
-
-                env->interrupt_index = TT_EXTINT | i;
-                if (old_interrupt != env->interrupt_index) {
-                    cs = env_cpu(env);
-                    trace_leon3_set_irq(i);
-                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
-                }
-                break;
-            }
-        }
-    } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
-        cs = env_cpu(env);
-        trace_leon3_reset_irq(env->interrupt_index & 15);
-        env->interrupt_index = 0;
-        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
-    }
-}
-
 static void leon3_generic_hw_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
@@ -226,7 +190,6 @@ static void leon3_generic_hw_init(MachineState *machine)
 
     /* Allocate IRQ manager */
     dev = qdev_create(NULL, TYPE_GRLIB_IRQMP);
-    env->pil_irq = qemu_allocate_irq(leon3_set_pil_in, env, 0);
     qdev_connect_gpio_out_named(dev, "grlib-irq", 0, env->pil_irq);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, LEON3_IRQMP_OFFSET);
