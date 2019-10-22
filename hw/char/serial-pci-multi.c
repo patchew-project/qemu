@@ -77,24 +77,26 @@ static void multi_serial_irq_mux(void *opaque, int n, int level)
     pci_set_irq(&pci->dev, pending);
 }
 
+static int multi_serial_get_nr_ports(PCIDeviceClass *pc)
+{
+    switch (pc->device_id) {
+    case 0x0003:
+        return 2;
+    case 0x0004:
+        return 4;
+    }
+
+    g_assert_not_reached();
+}
+
+
 static void multi_serial_pci_realize(PCIDevice *dev, Error **errp)
 {
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
     PCIMultiSerialState *pci = DO_UPCAST(PCIMultiSerialState, dev, dev);
     SerialState *s;
     Error *err = NULL;
-    int i, nr_ports = 0;
-
-    switch (pc->device_id) {
-    case 0x0003:
-        nr_ports = 2;
-        break;
-    case 0x0004:
-        nr_ports = 4;
-        break;
-    }
-    assert(nr_ports > 0);
-    assert(nr_ports <= PCI_SERIAL_MAX_PORTS);
+    int i, nr_ports = multi_serial_get_nr_ports(pc);
 
     pci->dev.config[PCI_CLASS_PROG] = pci->prog_if;
     pci->dev.config[PCI_INTERRUPT_PIN] = 0x01;
