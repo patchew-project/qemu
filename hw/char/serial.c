@@ -987,7 +987,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     DeviceState *dev = DEVICE(object_new(TYPE_SERIAL));
     SerialState *s = SERIAL(dev);
 
-    s->irq = irq;
+    qdev_connect_gpio_out_named(dev, "serial-irq", 0, irq);
     s->baudbase = baudbase;
     qdev_prop_set_chr(dev, "chardev", chr);
     serial_realize_core(s, &error_fatal);
@@ -1014,10 +1014,18 @@ static void serial_class_init(ObjectClass *klass, void* data)
     dc->props = serial_properties;
 }
 
+static void serial_instance_init(Object *o)
+{
+    SerialState *s = SERIAL(o);
+
+    qdev_init_gpio_out_named(DEVICE(o), &s->irq, "serial-irq", 1);
+}
+
 static const TypeInfo serial_info = {
     .name = TYPE_SERIAL,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SerialState),
+    .instance_init = serial_instance_init,
     .class_init = serial_class_init,
 };
 
@@ -1070,7 +1078,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     SerialMMState *m = SERIAL_MM(dev);
     SerialState *s = SERIAL(dev);
 
-    s->irq = irq;
+    qdev_connect_gpio_out_named(dev, "serial-irq", 0, irq);
     s->baudbase = baudbase;
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint8(dev, "regshift", regshift);
