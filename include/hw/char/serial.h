@@ -82,7 +82,7 @@ typedef struct SerialState {
 typedef struct SerialMMState {
     SerialState parent;
 
-    int it_shift;
+    uint8_t regshift;
 } SerialMMState;
 
 extern const VMStateDescription vmstate_serial;

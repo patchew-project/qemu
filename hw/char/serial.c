@@ -1026,7 +1026,7 @@ static uint64_t serial_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
     SerialMMState *s = SERIAL_MM(opaque);
-    return serial_ioport_read(s, addr >> s->it_shift, 1);
+    return serial_ioport_read(s, addr >> s->regshift, 1);
 }
 
 static void serial_mm_write(void *opaque, hwaddr addr,
@@ -1034,7 +1034,7 @@ static void serial_mm_write(void *opaque, hwaddr addr,
 {
     SerialMMState *s = SERIAL_MM(opaque);
     value &= 255;
-    serial_ioport_write(s, addr >> s->it_shift, value, 1);
+    serial_ioport_write(s, addr >> s->regshift, value, 1);
 }
 
 static const MemoryRegionOps serial_mm_ops[3] = {
@@ -1062,7 +1062,7 @@ static const MemoryRegionOps serial_mm_ops[3] = {
 };
 
 SerialState *serial_mm_init(MemoryRegion *address_space,
-                            hwaddr base, int it_shift,
+                            hwaddr base, int regshift,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end)
 {
@@ -1070,26 +1070,39 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     SerialMMState *m = SERIAL_MM(dev);
     SerialState *s = SERIAL(dev);
 
-    m->it_shift = it_shift;
     s->irq = irq;
     s->baudbase = baudbase;
     qdev_prop_set_chr(dev, "chardev", chr);
+    qdev_prop_set_uint8(dev, "regshift", regshift);
 
     serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(DEVICE(s), base, 2);
     qdev_init_nofail(dev);
 
     memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
-                          "serial", 8 << it_shift);
+                          "serial", 8 << m->regshift);
     memory_region_add_subregion(address_space, base, &s->io);
 
     return s;
+}
+
+static Property serial_mm_properties[] = {
+    DEFINE_PROP_UINT8("regshift", SerialMMState, regshift, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void serial_mm_class_init(ObjectClass *klass, void* data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->props = serial_mm_properties;
 }
 
 static const TypeInfo serial_mm_info = {
     .name = TYPE_SERIAL_MM,
     .parent = TYPE_SERIAL,
     .instance_size = sizeof(SerialMMState),
+    .class_init = serial_mm_class_init,
 };
 
 static void serial_register_types(void)
