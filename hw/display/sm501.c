@@ -1930,7 +1930,7 @@ typedef struct {
     SM501State state;
     uint32_t vram_size;
     uint32_t base;
-    void *chr_state;
+    SerialMMState serial;
 } SM501SysBusState;
 
 static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
@@ -1958,17 +1958,20 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(usb_dev));
 
     /* bridge to serial emulation module */
-    if (s->chr_state) {
-        serial_mm_init(&s->state.mmio_region, SM501_UART0, 2,
-                       NULL, /* TODO : chain irq to IRL */
-                       115200, s->chr_state, DEVICE_LITTLE_ENDIAN);
+    if (qemu_chr_fe_backend_connected(&SERIAL(&s->serial)->chr)) {
+        qdev_prop_set_uint64(DEVICE(&s->serial), "base", SM501_UART0);
+        qdev_prop_set_uint8(DEVICE(&s->serial), "regshift", 2);
+        qdev_init_nofail(DEVICE(&s->serial));
+        serial_mm_connect(&s->serial, DEVICE_LITTLE_ENDIAN,
+                          &s->state.mmio_region,
+                          NULL /* TODO : chain irq to IRL */);
     }
 }
 
 static Property sm501_sysbus_properties[] = {
     DEFINE_PROP_UINT32("vram-size", SM501SysBusState, vram_size, 0),
     DEFINE_PROP_UINT32("base", SM501SysBusState, base, 0),
-    DEFINE_PROP_PTR("chr-state", SM501SysBusState, chr_state),
+    DEFINE_PROP_CHR("chardev", SM501SysBusState, serial.parent.chr),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1999,15 +2002,21 @@ static void sm501_sysbus_class_init(ObjectClass *klass, void *data)
     dc->props = sm501_sysbus_properties;
     dc->reset = sm501_reset_sysbus;
     dc->vmsd = &vmstate_sm501_sysbus;
-    /* Note: pointer property "chr-state" may remain null, thus
-     * no need for dc->user_creatable = false;
-     */
+}
+
+static void sm501_sysbus_init(Object *o)
+{
+    SM501SysBusState *self = SYSBUS_SM501(o);
+
+    object_initialize_child(o, "serial", &self->serial, sizeof(self->serial),
+                            TYPE_SERIAL_MM, &error_abort, NULL);
 }
 
 static const TypeInfo sm501_sysbus_info = {
     .name          = TYPE_SYSBUS_SM501,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(SM501SysBusState),
+    .instance_init = sm501_sysbus_init,
     .class_init    = sm501_sysbus_class_init,
 };
 
