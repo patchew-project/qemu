@@ -104,6 +104,9 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end);
 
+void serial_mm_connect(SerialMMState *self, enum device_endian end,
+                       MemoryRegion *address_space, qemu_irq irq);
+
 /* serial-isa.c */
 
 #define MAX_ISA_SERIAL_PORTS 4

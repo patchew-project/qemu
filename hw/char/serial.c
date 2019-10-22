@@ -1078,27 +1078,33 @@ static const MemoryRegionOps serial_mm_ops[3] = {
     },
 };
 
+void serial_mm_connect(SerialMMState *self, enum device_endian end,
+                       MemoryRegion *address_space, qemu_irq irq)
+{
+    SerialState *s = SERIAL(self);
+
+    qdev_connect_gpio_out_named(DEVICE(self), "serial-irq", 0, irq);
+    memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], self,
+                          "serial", 8 << self->regshift);
+    memory_region_add_subregion(address_space, s->base, &s->io);
+}
+
 SerialState *serial_mm_init(MemoryRegion *address_space,
                             hwaddr base, int regshift,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end)
 {
     DeviceState *dev = DEVICE(object_new(TYPE_SERIAL_MM));
-    SerialMMState *m = SERIAL_MM(dev);
-    SerialState *s = SERIAL(dev);
 
-    qdev_connect_gpio_out_named(dev, "serial-irq", 0, irq);
     qdev_prop_set_uint32(dev, "baudbase", baudbase);
     qdev_prop_set_chr(dev, "chardev", chr);
     qdev_prop_set_uint8(dev, "regshift", regshift);
     qdev_prop_set_uint64(dev, "base", base);
     qdev_init_nofail(dev);
 
-    memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
-                          "serial", 8 << m->regshift);
-    memory_region_add_subregion(address_space, base, &s->io);
+    serial_mm_connect(SERIAL_MM(dev), end, address_space, irq);
 
-    return s;
+    return SERIAL(dev);
 }
 
 static Property serial_mm_properties[] = {
