@@ -1112,6 +1112,7 @@ FM_OPL *OPLCreate(int clock, int rate)
 		opl_dbg_maxchip++;
 	}
 #endif
+	free(ptr);
 	return OPL;
 }
 
