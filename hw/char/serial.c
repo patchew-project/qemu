@@ -1032,16 +1032,16 @@ static const TypeInfo serial_info = {
 static uint64_t serial_mm_read(void *opaque, hwaddr addr,
                                unsigned size)
 {
-    SerialState *s = opaque;
-    return serial_ioport_read(s, addr >> s->it_shift, 1);
+    SerialMM *s = SERIAL_MM(opaque);
+    return serial_ioport_read(&s->serial, addr >> s->it_shift, 1);
 }
 
 static void serial_mm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
-    SerialState *s = opaque;
+    SerialMM *s = SERIAL_MM(opaque);
     value &= 255;
-    serial_ioport_write(s, addr >> s->it_shift, value, 1);
+    serial_ioport_write(&s->serial, addr >> s->it_shift, value, 1);
 }
 
 static const MemoryRegionOps serial_mm_ops[3] = {
@@ -1068,30 +1068,49 @@ static const MemoryRegionOps serial_mm_ops[3] = {
     },
 };
 
-SerialState *serial_mm_init(MemoryRegion *address_space,
+SerialMM *serial_mm_init(MemoryRegion *address_space,
                             hwaddr base, int it_shift,
                             qemu_irq irq, int baudbase,
                             Chardev *chr, enum device_endian end)
 {
-    DeviceState *dev = DEVICE(object_new(TYPE_SERIAL));
-    SerialState *s = SERIAL(dev);
+    SerialMM *self = SERIAL_MM(qdev_create(NULL, TYPE_SERIAL_MM));
+    SerialState *s = &self->serial;
 
-    s->it_shift = it_shift;
+    self->it_shift = it_shift;
     s->irq = irq;
-    qdev_prop_set_uint32(dev, "baudbase", baudbase);
-    qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_prop_set_int32(dev, "instance-id", base);
-    qdev_init_nofail(dev);
+    qdev_prop_set_uint32(DEVICE(s), "baudbase", baudbase);
+    qdev_prop_set_chr(DEVICE(s), "chardev", chr);
+    qdev_prop_set_int32(DEVICE(s), "instance-id", base);
 
-    memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], s,
+    qdev_init_nofail(DEVICE(s));
+    qdev_init_nofail(DEVICE(self));
+
+    memory_region_init_io(&s->io, NULL, &serial_mm_ops[end], self,
                           "serial", 8 << it_shift);
     memory_region_add_subregion(address_space, base, &s->io);
-    return s;
+
+    return self;
 }
+
+static void serial_mm_instance_init(Object *o)
+{
+    SerialMM *self = SERIAL_MM(o);
+
+    object_initialize_child(o, "serial", &self->serial, sizeof(self->serial),
+                            TYPE_SERIAL, &error_abort, NULL);
+}
+
+static const TypeInfo serial_mm_info = {
+    .name = TYPE_SERIAL_MM,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = serial_mm_instance_init,
+    .instance_size = sizeof(SerialMM),
+};
 
 static void serial_register_types(void)
 {
     type_register_static(&serial_info);
+    type_register_static(&serial_mm_info);
 }
 
 type_init(serial_register_types)
