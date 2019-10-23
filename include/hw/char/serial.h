@@ -78,6 +78,7 @@ typedef struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
+    int instance_id;
 } SerialState;
 
 extern const VMStateDescription vmstate_serial;
