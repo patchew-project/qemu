@@ -167,6 +167,13 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
  */
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
 
+/**
+ * Assert that the current coroutine holds @mutex.
+ */
+static inline coroutine_fn void qemu_co_mutex_assert_locked(CoMutex *mutex)
+{
+    assert(mutex->locked && mutex->holder == qemu_coroutine_self());
+}
 
 /**
  * CoQueues are a mechanism to queue coroutines in order to continue executing
