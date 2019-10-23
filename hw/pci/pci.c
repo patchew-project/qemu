@@ -2116,6 +2116,7 @@ static void pci_qdev_realize(DeviceState *qdev, Error **errp)
             error_propagate(errp, local_err);
             return;
         }
+        qdev->allow_unplug_during_migration = true;
     }
 
     /* rom loading */
