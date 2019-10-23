@@ -25,6 +25,8 @@
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
+#include "trace.h"
+#include "hw/irq.h"
 
 //#define DEBUG_FEATURES
 
@@ -540,6 +542,41 @@ static const sparc_def_t sparc_defs[] = {
 #endif
 };
 
+static void sparc_set_pil_in(void *opaque, int n, int level)
+{
+    CPUSPARCState *env = opaque;
+    uint32_t pil_in = level;
+    CPUState *cs;
+
+    assert(env != NULL);
+
+    env->pil_in = pil_in;
+
+    if (env->pil_in && (env->interrupt_index == 0 ||
+                        (env->interrupt_index & ~15) == TT_EXTINT)) {
+        unsigned int i;
+
+        for (i = 15; i > 0; i--) {
+            if (env->pil_in & (1 << i)) {
+                int old_interrupt = env->interrupt_index;
+
+                env->interrupt_index = TT_EXTINT | i;
+                if (old_interrupt != env->interrupt_index) {
+                    cs = env_cpu(env);
+                    trace_sparc_set_irq(i);
+                    cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+                }
+                break;
+            }
+        }
+    } else if (!env->pil_in && (env->interrupt_index & ~15) == TT_EXTINT) {
+        cs = env_cpu(env);
+        trace_sparc_reset_irq(env->interrupt_index & 15);
+        env->interrupt_index = 0;
+        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
+    }
+}
+
 static const char * const feature_name[] = {
     "float",
     "float128",
@@ -761,6 +798,8 @@ static void sparc_cpu_realizefn(DeviceState *dev, Error **errp)
     env->version |= env->def.maxtl << 8;
     env->version |= env->def.nwindows - 1;
 #endif
+
+    env->pil_irq = qemu_allocate_irq(sparc_set_pil_in, env, 0);
 
     cpu_exec_realizefn(cs, &local_err);
     if (local_err != NULL) {
