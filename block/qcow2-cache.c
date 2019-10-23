@@ -327,6 +327,9 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
     int min_lru_index = -1;
 
     assert(offset != 0);
+    if (qemu_in_coroutine()) {
+        qemu_co_mutex_assert_locked(&s->lock);
+    }
 
     trace_qcow2_cache_get(qemu_coroutine_self(), c == s->l2_table_cache,
                           offset, read_from_disk);
@@ -386,6 +389,8 @@ static int qcow2_cache_do_get(BlockDriverState *bs, Qcow2Cache *c,
         }
     }
 
+    assert(c->entries[i].ref == 0);
+    assert(c->entries[i].offset == 0);
     c->entries[i].offset = offset;
 
     /* And return the right table */
