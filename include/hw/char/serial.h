@@ -86,6 +86,7 @@ typedef struct SerialMM {
     SerialState serial;
 
     uint8_t regshift;
+    uint8_t endianness;
 } SerialMM;
 
 extern const VMStateDescription vmstate_serial;
