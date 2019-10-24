@@ -48,6 +48,7 @@
 #include "block/block.h"
 #include "exec/memattrs.h"
 #include "exec/address-spaces.h"
+#include "remote/iohub.h"
 
 static MPQemuLinkState *mpqemu_link;
 PCIDevice *remote_pci_dev;
@@ -185,6 +186,9 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         if (err) {
             goto finalize_loop;
         }
+        break;
+    case SET_IRQFD:
+        process_set_irqfd_msg(remote_pci_dev, msg);
         break;
     default:
         error_setg(&err, "Unknown command");
