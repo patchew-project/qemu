@@ -69,6 +69,8 @@ typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 typedef struct VTDPASIDDirEntry VTDPASIDDirEntry;
 typedef struct VTDPASIDEntry VTDPASIDEntry;
 typedef struct VTDIOMMUContext VTDIOMMUContext;
+typedef struct VTDPASIDCacheEntry VTDPASIDCacheEntry;
+typedef struct VTDPASIDAddressSpace VTDPASIDAddressSpace;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -101,6 +103,31 @@ struct VTDPASIDEntry {
     uint64_t val[8];
 };
 
+struct pasid_key {
+    uint32_t pasid;
+    uint16_t sid;
+};
+
+struct VTDPASIDCacheEntry {
+    /*
+     * The cache entry is obsolete if
+     * pasid_cache_gen!=IntelIOMMUState.pasid_cache_gen
+     */
+    uint32_t pasid_cache_gen;
+    struct VTDPASIDEntry pasid_entry;
+};
+
+struct VTDPASIDAddressSpace {
+    VTDBus *vtd_bus;
+    uint8_t devfn;
+    AddressSpace as;
+    uint32_t pasid;
+    IntelIOMMUState *iommu_state;
+    VTDContextCacheEntry context_cache_entry;
+    QLIST_ENTRY(VTDPASIDAddressSpace) next;
+    VTDPASIDCacheEntry pasid_cache_entry;
+};
+
 struct VTDAddressSpace {
     PCIBus *bus;
     uint8_t devfn;
@@ -121,6 +148,7 @@ struct VTDIOMMUContext {
     VTDBus *vtd_bus;
     uint8_t devfn;
     IOMMUContext iommu_context;
+    QLIST_ENTRY(VTDIOMMUContext) next;
     IntelIOMMUState *iommu_state;
 };
 
@@ -269,8 +297,13 @@ struct IntelIOMMUState {
 
     GHashTable *vtd_as_by_busptr;   /* VTDBus objects indexed by PCIBus* reference */
     VTDBus *vtd_as_by_bus_num[VTD_PCI_BUS_MAX]; /* VTDBus objects indexed by bus number */
+    GHashTable *vtd_pasid_as;   /* VTDPASIDAddressSpace objects */
+    uint32_t pasid_cache_gen;   /* Should be in [1,MAX] */
     /* list of registered notifiers */
     QLIST_HEAD(, VTDAddressSpace) vtd_as_with_notifiers;
+
+    /* list of registered notifiers */
+    QLIST_HEAD(, VTDIOMMUContext) vtd_dev_ic_list;
 
     /* interrupt remapping */
     bool intr_enabled;              /* Whether guest enabled IR */
@@ -288,7 +321,8 @@ struct IntelIOMMUState {
 
     /*
      * Protects IOMMU states in general.  Currently it protects the
-     * per-IOMMU IOTLB cache, and context entry cache in VTDAddressSpace.
+     * per-IOMMU IOTLB cache, and context entry cache in VTDAddressSpace,
+     * and pasid cache in VTDPASIDAddressSpace.
      */
     QemuMutex iommu_lock;
 };
