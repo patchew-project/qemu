@@ -49,6 +49,21 @@
 #include "exec/memattrs.h"
 #include "exec/address-spaces.h"
 #include "remote/iohub.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qobject.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
+#include "monitor/qdev.h"
+#include "qapi/qmp/qdict.h"
+#include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
+#include "block/block.h"
+#include "qapi/qmp/qstring.h"
+#include "hw/qdev-properties.h"
+#include "hw/scsi/scsi.h"
+#include "block/qdict.h"
+#include "qapi/qmp/qlist.h"
+#include "qemu/log.h"
 
 static MPQemuLinkState *mpqemu_link;
 PCIDevice *remote_pci_dev;
@@ -139,6 +154,200 @@ fail:
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_device_add_msg(MPQemuMsg *msg)
+{
+    Error *local_err = NULL;
+    const char *json = (const char *)msg->data2;
+    int wait = msg->fds[0];
+    QObject *qobj = NULL;
+    QDict *qdict = NULL;
+    QemuOpts *opts = NULL;
+
+    qobj = qobject_from_json(json, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    qdict = qobject_to(QDict, qobj);
+    assert(qdict);
+
+    opts = qemu_opts_from_qdict(qemu_find_opts("device"), qdict, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    (void)qdev_device_add(opts, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+fail:
+    if (local_err) {
+        error_report_err(local_err);
+        /* TODO: communicate the exact error message to proxy */
+    }
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
+static void process_device_del_msg(MPQemuMsg *msg)
+{
+    Error *local_err = NULL;
+    DeviceState *dev = NULL;
+    const char *json = (const char *)msg->data2;
+    int wait = msg->fds[0];
+    QObject *qobj = NULL;
+    QDict *qdict = NULL;
+    const char *id;
+
+    qobj = qobject_from_json(json, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    qdict = qobject_to(QDict, qobj);
+    assert(qdict);
+
+    id = qdict_get_try_str(qdict, "id");
+    assert(id);
+
+    dev = find_device_state(id, &local_err);
+    if (local_err) {
+        goto fail;
+    }
+
+    if (dev) {
+        qdev_unplug(dev, &local_err);
+    }
+
+fail:
+    if (local_err) {
+        error_report_err(local_err);
+        /* TODO: communicate the exact error message to proxy */
+    }
+
+    notify_proxy(wait, 1);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
+static int init_drive(QDict *rqdict, Error **errp)
+{
+    QemuOpts *opts;
+    Error *local_error = NULL;
+
+    if (rqdict != NULL && qdict_size(rqdict) > 0) {
+        opts = qemu_opts_from_qdict(&qemu_drive_opts,
+                                    rqdict, &local_error);
+        if (!opts) {
+            error_propagate(errp, local_error);
+            return -EINVAL;
+        }
+    } else {
+        return -EINVAL;
+    }
+
+    qemu_opt_unset(opts, "rid");
+    qemu_opt_unset(opts, "socket");
+    qemu_opt_unset(opts, "remote");
+    qemu_opt_unset(opts, "command");
+
+    if (drive_new(opts, IF_IDE, &local_error) == NULL) {
+        error_propagate(errp, local_error);
+        return -EINVAL;
+    }
+
+    return 0;
+}
+
+static int setup_drive(MPQemuMsg *msg, Error **errp)
+{
+    QObject *obj;
+    QDict *qdict;
+    QString *qstr;
+    Error *local_error = NULL;
+    int rc = -EINVAL;
+
+    if (!msg->data2) {
+        return rc;
+    }
+
+    qstr = qstring_from_str((char *)msg->data2);
+    obj = qobject_from_json(qstring_get_str(qstr), &local_error);
+    if (!obj) {
+        error_propagate(errp, local_error);
+        return rc;
+    }
+
+    qdict = qobject_to(QDict, obj);
+    if (!qdict) {
+        return rc;
+    }
+
+    if (init_drive(qdict, &local_error)) {
+        error_setg(errp, "init_drive failed in setup_drive.");
+        return rc;
+    }
+
+    return 0;
+}
+
+static int setup_device(MPQemuMsg *msg, Error **errp)
+{
+    QObject *obj;
+    QDict *qdict;
+    QString *qstr;
+    QemuOpts *opts;
+    DeviceState *dev = NULL;
+    int rc = -EINVAL;
+    Error *local_error = NULL;
+
+    if (!msg->data2) {
+        return rc;
+    }
+
+    qstr = qstring_from_str((char *)msg->data2);
+    obj = qobject_from_json(qstring_get_str(qstr), &local_error);
+    if (!obj) {
+        error_setg(errp, "Could not get object!");
+        return rc;
+    }
+
+    qdict = qobject_to(QDict, obj);
+    if (!qdict) {
+        return rc;
+    }
+
+    g_assert(qdict_size(qdict) > 1);
+
+    opts = qemu_opts_from_qdict(&qemu_device_opts, qdict, &local_error);
+    qemu_opt_unset(opts, "rid");
+    qemu_opt_unset(opts, "socket");
+    qemu_opt_unset(opts, "remote");
+    qemu_opt_unset(opts, "command");
+    /*
+     * TODO: use the bus and addr from the device options. For now
+     * we use default value.
+     */
+    qemu_opt_unset(opts, "bus");
+    qemu_opt_unset(opts, "addr");
+
+    dev = qdev_device_add(opts, &local_error);
+    if (!dev) {
+        error_setg(errp, "Could not add device %s.",
+                   qstring_get_str(qobject_to_json(QOBJECT(qdict))));
+        return rc;
+    }
+    if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
+        remote_pci_dev = PCI_DEVICE(dev);
+    }
+    qemu_opts_del(opts);
+
+    return 0;
+}
+
 static void process_msg(GIOCondition cond, MPQemuChannel *chan)
 {
     MPQemuMsg *msg = NULL;
@@ -184,11 +393,33 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
          */
         remote_sysmem_reconfig(msg, &err);
         if (err) {
+            error_report_err(err);
             goto finalize_loop;
         }
         break;
     case SET_IRQFD:
         process_set_irqfd_msg(remote_pci_dev, msg);
+        qdev_machine_creation_done();
+        qemu_mutex_lock_iothread();
+        qemu_run_machine_init_done_notifiers();
+        qemu_mutex_unlock_iothread();
+
+        break;
+    case DRIVE_OPTS:
+        if (setup_drive(msg, &err)) {
+            error_report_err(err);
+        }
+        break;
+    case DEV_OPTS:
+        if (setup_device(msg, &err)) {
+            error_report_err(err);
+        }
+        break;
+    case DEVICE_ADD:
+        process_device_add_msg(msg);
+        break;
+    case DEVICE_DEL:
+        process_device_del_msg(msg);
         break;
     default:
         error_setg(&err, "Unknown command");
