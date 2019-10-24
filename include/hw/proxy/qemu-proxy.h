@@ -63,7 +63,7 @@ typedef struct PCIProxyDev {
 
     void (*set_remote_opts) (PCIDevice *dev, QDict *qdict, unsigned int cmd);
     void (*proxy_ready) (PCIDevice *dev);
-    void (*init_proxy) (PCIDevice *pdev, char *command, Error **errp);
+    void (*init_proxy) (PCIDevice *dev, char *command, bool need_spawn, Error **errp);
 
 } PCIProxyDev;
 
