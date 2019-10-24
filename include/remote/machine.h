@@ -1,5 +1,5 @@
 /*
- * Remote device initialization
+ * Remote machine configuration
  *
  * Copyright 2019, Oracle and/or its affiliates.
  *
@@ -22,23 +22,25 @@
  * THE SOFTWARE.
  */
 
+#ifndef REMOTE_MACHINE_H
+#define REMOTE_MACHINE_H
+
 #include "qemu/osdep.h"
-#include "qemu-common.h"
-
-#include <stdio.h>
-
-#include "qemu/module.h"
-#include "remote/pcihost.h"
-#include "remote/machine.h"
+#include "qom/object.h"
 #include "hw/boards.h"
-#include "hw/qdev-core.h"
-#include "qemu/main-loop.h"
+#include "remote/pcihost.h"
+#include "qemu/notify.h"
 
-int main(int argc, char *argv[])
-{
-    module_call_init(MODULE_INIT_QOM);
+typedef struct RemMachineState {
+    MachineState parent_obj;
 
-    current_machine = MACHINE(REMOTE_MACHINE(object_new(TYPE_REMOTE_MACHINE)));
+    RemPCIHost *host;
+} RemMachineState;
 
-    return 0;
-}
+#define TYPE_REMOTE_MACHINE "remote-machine"
+#define REMOTE_MACHINE(obj) \
+    OBJECT_CHECK(RemMachineState, (obj), TYPE_REMOTE_MACHINE)
+
+void qemu_run_machine_init_done_notifiers(void);
+
+#endif
