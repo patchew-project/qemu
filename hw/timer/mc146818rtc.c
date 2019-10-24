@@ -224,7 +224,6 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
         last_periodic_clock = next_periodic_clock - old_period;
         lost_clock = cur_clock - last_periodic_clock;
         assert(lost_clock >= 0);
-        }
 
         /*
          * s->irq_coalesced can change for two reasons:
@@ -261,6 +260,7 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
              */
             lost_clock = MIN(lost_clock, period);
         }
+    }
 
     assert(lost_clock >= 0 && lost_clock <= period);
 
