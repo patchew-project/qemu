@@ -89,6 +89,8 @@ struct PCIProxyDev {
     void (*init_proxy) (PCIDevice *dev, char *command, bool need_spawn, Error **errp);
 
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
+
+    uint64_t migsize;
 };
 
 typedef struct PCIProxyDevClass {
