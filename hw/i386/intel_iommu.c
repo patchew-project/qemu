@@ -70,6 +70,10 @@ static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
 static void vtd_pasid_cache_reset(IntelIOMMUState *s);
 static int vtd_update_pe_cache_for_dev(IntelIOMMUState *s,
               VTDBus *vtd_bus, int devfn, int pasid, VTDPASIDEntry *pe);
+static void vtd_replay_guest_pasid_bindings(IntelIOMMUState *s,
+                                           uint16_t *did, bool is_dsi);
+static void vtd_pasid_cache_devsi(IntelIOMMUState *s,
+                                  VTDBus *vtd_bus, uint16_t devfn);
 
 static void vtd_panic_require_caching_mode(void)
 {
@@ -1861,6 +1865,10 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
      * VT-d emulation codes.
      */
     vtd_iommu_replay_all(s);
+
+    vtd_iommu_lock(s);
+    vtd_replay_guest_pasid_bindings(s, NULL, false);
+    vtd_iommu_unlock(s);
 }
 
 static void vtd_bind_guest_pasid(IntelIOMMUState *s, VTDBus *vtd_bus,
@@ -1981,6 +1989,22 @@ static void vtd_context_device_invalidate(IntelIOMMUState *s,
                  * happened.
                  */
                 vtd_sync_shadow_page_table(vtd_as);
+                /*
+                 * Per spec, context flush should also followed with PASID
+                 * cache and iotlb flush. Regards to a device selective
+                 * context cache invalidation:
+                 * if (emaulted_device)
+                 *    modify the pasid cache gen and pasid-based iotlb gen
+                 *    value (will be added in following patches)
+                 * else if (assigned_device)
+                 *    check if the device has been bound to any pasid
+                 *    invoke pasid_unbind regards to each bound pasid
+                 * Here, we have vtd_pasid_cache_devsi() to invalidate pasid
+                 * caches, while for piotlb in QEMU, we don't have it yet, so
+                 * no handling. For assigned device, host iommu driver would
+                 * flush piotlb when a pasid unbind is passdown to it.
+                 */
+                 vtd_pasid_cache_devsi(s, vtd_bus, devfn_it);
             }
         }
     }
@@ -2516,6 +2540,11 @@ static inline bool vtd_pc_is_pasid_si(struct VTDPASIDCacheInfo *pc_info)
     return pc_info->flags & VTD_PASID_CACHE_PASIDSI;
 }
 
+static inline bool vtd_pc_is_dev_si(struct VTDPASIDCacheInfo *pc_info)
+{
+    return pc_info->flags & VTD_PASID_CACHE_DEVSI;
+}
+
 static inline int vtd_dev_get_pe_from_pasid(IntelIOMMUState *s,
                                             uint8_t bus_num,
                                             uint8_t devfn,
@@ -2578,6 +2607,8 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
     devfn = vtd_pasid_as->devfn;
 
     if (pc_entry->pasid_cache_gen &&
+        (vtd_pc_is_dev_si(pc_info) ? (((pc_info->devfn == devfn)) &&
+         (pc_info->vtd_bus == vtd_bus)) : 1) &&
         (vtd_pc_is_dom_si(pc_info) ? (pc_info->domain_id == did) : 1) &&
         (vtd_pc_is_pasid_si(pc_info) ? (pc_info->pasid == pasid) : 1)) {
         /*
@@ -2932,6 +2963,43 @@ static int vtd_pasid_cache_psi(IntelIOMMUState *s,
     }
     vtd_iommu_unlock(s);
     return 0;
+}
+
+static void vtd_pasid_cache_devsi(IntelIOMMUState *s,
+                                  VTDBus *vtd_bus, uint16_t devfn)
+{
+    VTDPASIDCacheInfo pc_info;
+    VTDContextEntry ce;
+    vtd_pt_walk_info info;
+
+    trace_vtd_pasid_cache_devsi(devfn);
+
+    pc_info.flags = VTD_PASID_CACHE_DEVSI;
+    pc_info.vtd_bus = vtd_bus;
+    pc_info.devfn = devfn;
+
+    vtd_iommu_lock(s);
+    g_hash_table_foreach_remove(s->vtd_pasid_as, vtd_flush_pasid, &pc_info);
+
+    /*
+     * To be safe, after invalidating the pasid caches,
+     * emulator needs to replay the pasid bindings by
+     * walking guest pasid dir and pasid table.
+     */
+    if (vtd_bus->dev_ic[devfn] &&
+        !vtd_dev_to_context_entry(s,
+                                  pci_bus_num(vtd_bus->bus),
+                                  devfn, &ce)) {
+        info.flags = 0x0;
+        info.did = 0;
+        info.ic = vtd_bus->dev_ic[devfn];
+        vtd_sm_pasid_table_walk(s,
+                                VTD_CE_GET_PASID_DIR_TABLE(&ce),
+                                0,
+                                VTD_MAX_HPASID,
+                                &info);
+    }
+    vtd_iommu_unlock(s);
 }
 
 /**
