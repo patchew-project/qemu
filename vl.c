@@ -40,6 +40,7 @@
 #include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
+#include "vl.h"
 
 #ifdef CONFIG_SDL
 #if defined(__APPLE__) || defined(main)
@@ -1134,54 +1135,6 @@ static int cleanup_add_fd(void *opaque, QemuOpts *opts, Error **errp)
 /***********************************************************/
 /* QEMU Block devices */
 
-#define HD_OPTS "media=disk"
-#define CDROM_OPTS "media=cdrom"
-#define FD_OPTS ""
-#define PFLASH_OPTS ""
-#define MTD_OPTS ""
-#define SD_OPTS ""
-
-#if defined(CONFIG_MPQEMU)
-static int rdrive_init_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    DeviceState *dev;
-
-    dev = qdev_remote_add(opts, false /* this is drive */, errp);
-    if (!dev) {
-        error_setg(errp, "qdev_remote_add failed for drive.");
-        return -1;
-    }
-    object_unref(OBJECT(dev));
-    return 0;
-}
-#endif
-
-#if defined(CONFIG_MPQEMU)
-static int pass;
-#endif
-
-static int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    BlockInterfaceType *block_default_type = opaque;
-
-#if defined(CONFIG_MPQEMU)
-    const char *remote;
-
-    remote = qemu_opt_get(opts, "remote");
-    if (pass && remote) {
-        return rdrive_init_func(opaque, opts, errp);
-    } else {
-        if (!remote && !pass) {
-            drive_new(opts, *block_default_type, errp);
-        }
-    }
-
-    return 0;
-#else
-    return drive_new(opts, *block_default_type, errp) == NULL;
-#endif
-}
-
 static int drive_enable_snapshot(void *opaque, QemuOpts *opts, Error **errp)
 {
     if (qemu_opt_get(opts, "snapshot") == NULL) {
@@ -1877,21 +1830,6 @@ static void help(int exitcode)
     exit(exitcode);
 }
 
-#define HAS_ARG 0x0001
-
-typedef struct QEMUOption {
-    const char *name;
-    int flags;
-    int index;
-    uint32_t arch_mask;
-} QEMUOption;
-
-static const QEMUOption qemu_options[] = {
-    { "h", 0, QEMU_OPTION_h, QEMU_ARCH_ALL },
-#define QEMU_OPTIONS_GENERATE_OPTIONS
-#include "qemu-options-wrapper.h"
-    { NULL },
-};
 
 typedef struct VGAInterfaceInfo {
     const char *opt_name;    /* option name */
@@ -2238,43 +2176,6 @@ static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
     return qdev_device_help(opts);
 }
 
-#if defined(CONFIG_MPQEMU)
-static int rdevice_init_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    DeviceState *dev;
-
-    dev = qdev_remote_add(opts, true /* this is device */, errp);
-    if (!dev) {
-        error_setg(errp, "qdev_remote_add failed for device.");
-        return -1;
-    }
-    object_unref(OBJECT(dev));
-    return 0;
-}
-#endif
-
-static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    DeviceState *dev;
-
-#if defined(CONFIG_MPQEMU)
-    const char *remote;
-
-    remote = qemu_opt_get(opts, "remote");
-    if (remote) {
-        /* This will be a remote process */
-        return rdevice_init_func(opaque, opts, errp);
-    }
-#endif
-
-    dev = qdev_device_add(opts, errp);
-    if (!dev) {
-        return -1;
-    }
-    object_unref(OBJECT(dev));
-    return 0;
-}
-
 static int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     Error *local_err = NULL;
@@ -2602,46 +2503,6 @@ static void qemu_run_machine_init_done_notifiers(void)
 {
     machine_init_done = true;
     notifier_list_notify(&machine_init_done_notifiers, NULL);
-}
-
-static const QEMUOption *lookup_opt(int argc, char **argv,
-                                    const char **poptarg, int *poptind)
-{
-    const QEMUOption *popt;
-    int optind = *poptind;
-    char *r = argv[optind];
-    const char *optarg;
-
-    loc_set_cmdline(argv, optind, 1);
-    optind++;
-    /* Treat --foo the same as -foo.  */
-    if (r[1] == '-')
-        r++;
-    popt = qemu_options;
-    for(;;) {
-        if (!popt->name) {
-            error_report("invalid option");
-            exit(1);
-        }
-        if (!strcmp(popt->name, r + 1))
-            break;
-        popt++;
-    }
-    if (popt->flags & HAS_ARG) {
-        if (optind >= argc) {
-            error_report("requires an argument");
-            exit(1);
-        }
-        optarg = argv[optind++];
-        loc_set_cmdline(argv, optind - 2, 2);
-    } else {
-        optarg = NULL;
-    }
-
-    *poptarg = optarg;
-    *poptind = optind;
-
-    return popt;
 }
 
 static MachineClass *select_machine(void)
@@ -4411,17 +4272,6 @@ int main(int argc, char **argv, char **envp)
 
     /* Check if IGD GFX passthrough. */
     igd_gfx_passthru();
-
-#if defined(CONFIG_MPQEMU)
-    /*
-     * Parse the list for remote drives here as we launch PCIProxyDev here and
-     * need PCI host initialized. As a TODO: could defer init of PCIProxyDev instead.
-     */
-    if (qemu_opts_foreach(qemu_find_opts("drive"), drive_init_func,
-                          &machine_class->block_default_type, &error_fatal)) {
-        exit(0);
-    }
-#endif
 
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
