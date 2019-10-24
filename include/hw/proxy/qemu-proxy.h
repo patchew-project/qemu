@@ -112,4 +112,6 @@ void proxy_default_bar_write(void *opaque, hwaddr addr, uint64_t val,
 
 uint64_t proxy_default_bar_read(void *opaque, hwaddr addr, unsigned size);
 
+void proxy_device_reset(DeviceState *dev);
+
 #endif /* QEMU_PROXY_H */

@@ -74,6 +74,7 @@ typedef enum {
     DEVICE_DEL,
     PROXY_PING,
     MMIO_RETURN,
+    DEVICE_RESET,
     MAX,
 } mpqemu_cmd_t;
 
