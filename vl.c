@@ -665,11 +665,6 @@ static int default_driver_check(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
-/***********************************************************/
-/* QEMU state */
-
-static RunState current_run_state = RUN_STATE_PRECONFIG;
-
 /* We use RUN_STATE__MAX but any invalid value will do */
 static RunState vmstop_requested = RUN_STATE__MAX;
 static QemuMutex vmstop_lock;
@@ -776,11 +771,6 @@ static const RunStateTransition runstate_transitions_def[] = {
 };
 
 static bool runstate_valid_transitions[RUN_STATE__MAX][RUN_STATE__MAX];
-
-bool runstate_check(RunState state)
-{
-    return current_run_state == state;
-}
 
 bool runstate_store(char *str, size_t size)
 {

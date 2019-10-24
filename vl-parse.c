@@ -159,4 +159,3 @@ int rdevice_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 #endif
-
