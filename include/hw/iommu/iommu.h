@@ -33,6 +33,7 @@ typedef struct IOMMUContext IOMMUContext;
 enum IOMMUCTXEvent {
     IOMMU_CTX_EVENT_PASID_ALLOC,
     IOMMU_CTX_EVENT_PASID_FREE,
+    IOMMU_CTX_EVENT_PASID_BIND,
     IOMMU_CTX_EVENT_NUM,
 };
 typedef enum IOMMUCTXEvent IOMMUCTXEvent;
@@ -49,6 +50,16 @@ union IOMMUCTXPASIDReqDesc {
     };
 };
 typedef union IOMMUCTXPASIDReqDesc IOMMUCTXPASIDReqDesc;
+
+struct IOMMUCTXPASIDBindData {
+#define IOMMU_CTX_BIND_PASID   (1 << 0)
+#define IOMMU_CTX_UNBIND_PASID (1 << 1)
+    uint32_t flag;
+#ifdef __linux__
+    struct iommu_gpasid_bind_data *data;
+#endif
+};
+typedef struct IOMMUCTXPASIDBindData IOMMUCTXPASIDBindData;
 
 struct IOMMUCTXEventData {
     IOMMUCTXEvent event;

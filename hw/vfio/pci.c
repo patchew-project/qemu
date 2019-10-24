@@ -2767,6 +2767,41 @@ static void vfio_iommu_pasid_free_notify(IOMMUCTXNotifier *n,
     pasid_req->free_result = ret;
 }
 
+static void vfio_iommu_pasid_bind_notify(IOMMUCTXNotifier *n,
+                                         IOMMUCTXEventData *event_data)
+{
+#ifdef __linux__
+    VFIOIOMMUContext *giommu_ctx = container_of(n, VFIOIOMMUContext, n);
+    VFIOContainer *container = giommu_ctx->container;
+    IOMMUCTXPASIDBindData *pasid_bind =
+                              (IOMMUCTXPASIDBindData *) event_data->data;
+    struct vfio_iommu_type1_bind *bind;
+    struct iommu_gpasid_bind_data *bind_data;
+    unsigned long argsz;
+
+    argsz = sizeof(*bind) + sizeof(*bind_data);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->bind_type = VFIO_IOMMU_BIND_GUEST_PASID;
+    bind_data = (struct iommu_gpasid_bind_data *) &bind->data;
+    *bind_data = *pasid_bind->data;
+
+    if (pasid_bind->flag & IOMMU_CTX_BIND_PASID) {
+        if (ioctl(container->fd, VFIO_IOMMU_BIND, bind) != 0) {
+            error_report("%s: pasid (%llu:%llu) bind failed: %d", __func__,
+                         bind_data->gpasid, bind_data->hpasid, -errno);
+        }
+    } else if (pasid_bind->flag & IOMMU_CTX_UNBIND_PASID) {
+        if (ioctl(container->fd, VFIO_IOMMU_UNBIND, bind) != 0) {
+            error_report("%s: pasid (%llu:%llu) unbind failed: %d", __func__,
+                         bind_data->gpasid, bind_data->hpasid, -errno);
+        }
+    }
+
+    g_free(bind);
+#endif
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
@@ -3079,6 +3114,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                                          iommu_context,
                                          vfio_iommu_pasid_free_notify,
                                          IOMMU_CTX_EVENT_PASID_FREE);
+        vfio_register_iommu_ctx_notifier(vdev,
+                                         iommu_context,
+                                         vfio_iommu_pasid_bind_notify,
+                                         IOMMU_CTX_EVENT_PASID_BIND);
     }
 
     return;
