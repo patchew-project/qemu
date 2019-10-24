@@ -79,6 +79,8 @@ common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 
+remote-pci-obj-$(CONFIG_POSIX) += os-posix.o
+
 common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += migration/
@@ -109,6 +111,8 @@ qemu-seccomp.o-libs := $(SECCOMP_LIBS)
 common-obj-$(CONFIG_FDT) += device_tree.o
 
 common-obj-y += vl-parse.o
+
+remote-pci-obj-$(CONFIG_MPQEMU) += net/
 
 ######################################################################
 # qapi

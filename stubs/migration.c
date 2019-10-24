@@ -6,6 +6,35 @@
 #include "qapi/qapi-types-migration.h"
 #include "qapi/qapi-commands-migration.h"
 #include "qapi/qapi-types-net.h"
+#include "net/filter.h"
+#include "net/colo-compare.h"
+
+#pragma weak qmp_query_migrate_capabilities
+#pragma weak qmp_query_migrate_parameters
+#pragma weak migrate_announce_params
+#pragma weak qmp_query_migrate
+#pragma weak qmp_migrate_set_capabilities
+#pragma weak qmp_migrate_set_parameters
+#pragma weak qmp_migrate_incoming
+#pragma weak qmp_migrate_recover
+#pragma weak qmp_migrate_pause
+#pragma weak qmp_migrate
+#pragma weak qmp_migrate_cancel
+#pragma weak qmp_migrate_continue
+#pragma weak qmp_migrate_set_cache_size
+#pragma weak qmp_query_migrate_cache_size
+#pragma weak qmp_migrate_set_speed
+#pragma weak qmp_migrate_set_downtime
+#pragma weak qmp_migrate_start_postcopy
+#pragma weak migration_global_dump
+#pragma weak save_snapshot
+#pragma weak qmp_xen_save_devices_state
+#pragma weak load_snapshot
+#pragma weak qmp_xen_set_replication
+#pragma weak qmp_query_xen_replication_status
+#pragma weak qmp_xen_colo_do_checkpoint
+#pragma weak qmp_query_colo_status
+#pragma weak qmp_x_colo_lost_heartbeat
 
 MigrationInfo *qmp_query_migrate(Error **errp)
 {
@@ -159,4 +188,24 @@ AnnounceParameters *migrate_announce_params(void)
     qemu_debug_assert(0);
 
     return NULL;
+}
+
+void colo_notify_filters_event(int event, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+void colo_notify_compares_event(void *opaque, int event, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+void colo_compare_register_notifier(Notifier *notify)
+{
+    qemu_debug_assert(0);
+}
+
+void colo_compare_unregister_notifier(Notifier *notify)
+{
+    qemu_debug_assert(0);
 }
