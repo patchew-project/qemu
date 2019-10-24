@@ -3019,7 +3019,7 @@ static Property vtd_properties[] = {
     DEFINE_PROP_UINT8("aw-bits", IntelIOMMUState, aw_bits,
                       VTD_HOST_ADDRESS_WIDTH),
     DEFINE_PROP_BOOL("caching-mode", IntelIOMMUState, caching_mode, FALSE),
-    DEFINE_PROP_BOOL("x-scalable-mode", IntelIOMMUState, scalable_mode, FALSE),
+    DEFINE_PROP_STRING("x-scalable-mode", IntelIOMMUState, scalable_mode),
     DEFINE_PROP_BOOL("dma-drain", IntelIOMMUState, dma_drain, true),
     DEFINE_PROP_END_OF_LIST(),
 };
@@ -3581,7 +3581,12 @@ static void vtd_init(IntelIOMMUState *s)
 
     /* TODO: read cap/ecap from host to decide which cap to be exposed. */
     if (s->scalable_mode) {
-        s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
+        if (!strcmp(s->scalable_mode, "legacy")) {
+            s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
+        } else if (!strcmp(s->scalable_mode, "modern")) {
+            s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_PASID
+                       | VTD_ECAP_FLTS | VTD_ECAP_PSS;
+        }
     }
 
     vtd_reset_caches(s);
@@ -3698,6 +3703,12 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     if (s->scalable_mode && !s->dma_drain) {
         error_setg(errp, "Need to set dma_drain for scalable mode");
         return false;
+    }
+
+    if (s->scalable_mode &&
+        (strcmp(s->scalable_mode, "modern") &&
+         strcmp(s->scalable_mode, "legacy"))) {
+            error_setg(errp, "Invalid x-scalable-mode config");
     }
 
     return true;

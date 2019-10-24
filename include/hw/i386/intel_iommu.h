@@ -231,7 +231,7 @@ struct IntelIOMMUState {
     uint32_t version;
 
     bool caching_mode;              /* RO - is cap CM enabled? */
-    bool scalable_mode;             /* RO - is Scalable Mode supported? */
+    char *scalable_mode;            /* RO - Scalable Mode model */
 
     dma_addr_t root;                /* Current root table pointer */
     bool root_scalable;             /* Type of root table (scalable or not) */
