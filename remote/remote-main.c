@@ -85,7 +85,8 @@
 
 static MPQemuLinkState *mpqemu_link;
 
-PCIDevice *remote_pci_dev;
+PCIDevice **remote_pci_devs;
+uint64_t nr_devices;
 bool create_done;
 
 static void process_config_write(MPQemuMsg *msg)
@@ -93,7 +94,8 @@ static void process_config_write(MPQemuMsg *msg)
     struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
 
     qemu_mutex_lock_iothread();
-    pci_default_write_config(remote_pci_dev, conf->addr, conf->val, conf->l);
+    pci_default_write_config(remote_pci_devs[msg->id], conf->addr, conf->val,
+                             conf->l);
     qemu_mutex_unlock_iothread();
 }
 
@@ -106,7 +108,8 @@ static void process_config_read(MPQemuMsg *msg)
     wait = msg->fds[0];
 
     qemu_mutex_lock_iothread();
-    val = pci_default_read_config(remote_pci_dev, conf->addr, conf->l);
+    val = pci_default_read_config(remote_pci_devs[msg->id], conf->addr,
+                                  conf->l);
     qemu_mutex_unlock_iothread();
 
     notify_proxy(wait, val);
@@ -366,9 +369,17 @@ static int setup_device(MPQemuMsg *msg, Error **errp)
                    qstring_get_str(qobject_to_json(QOBJECT(qdict))));
         return rc;
     }
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        remote_pci_dev = PCI_DEVICE(dev);
+        if (nr_devices <= msg->id) {
+            nr_devices = msg->id + 1;
+            remote_pci_devs = g_realloc(remote_pci_devs,
+                                        nr_devices * sizeof(PCIDevice *));
+        }
+
+        remote_pci_devs[msg->id] = PCI_DEVICE(dev);
     }
+
     qemu_opts_del(opts);
 
     return 0;
@@ -489,12 +500,15 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         }
         break;
     case SET_IRQFD:
-        process_set_irqfd_msg(remote_pci_dev, msg);
-        qdev_machine_creation_done();
-        qemu_mutex_lock_iothread();
-        qemu_run_machine_init_done_notifiers();
-        qemu_mutex_unlock_iothread();
-        create_done = true;
+        process_set_irqfd_msg(remote_pci_devs[msg->id], msg);
+
+        if (!create_done) {
+            qdev_machine_creation_done();
+            qemu_mutex_lock_iothread();
+            qemu_run_machine_init_done_notifiers();
+            qemu_mutex_unlock_iothread();
+            create_done = true;
+        }
         break;
     case DRIVE_OPTS:
         if (setup_drive(msg, &err)) {

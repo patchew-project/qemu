@@ -176,6 +176,7 @@ static void set_remote_opts(PCIDevice *dev, QDict *qdict, unsigned int cmd)
     msg.bytestream = 1;
     msg.size = qstring_get_length(qstr) + 1;
     msg.num_fds = 0;
+    msg.id = pdev->id;
 
     mpqemu_msg_send(pdev->mpqemu_link, &msg, pdev->mpqemu_link->com);
 
@@ -322,6 +323,7 @@ static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
     msg.size = sizeof(conf_data);
     msg.cmd = op;
     msg.bytestream = 1;
+    msg.id = dev->id;
 
     if (op == CONF_WRITE) {
         msg.num_fds = 0;
@@ -602,6 +604,7 @@ static void setup_irqfd(PCIProxyDev *dev)
 
     memset(&msg, 0, sizeof(MPQemuMsg));
     msg.cmd = SET_IRQFD;
+    msg.id = dev->id;
     msg.num_fds = 2;
     msg.fds[0] = event_notifier_get_fd(&dev->intr);
     msg.fds[1] = event_notifier_get_fd(&dev->resample);

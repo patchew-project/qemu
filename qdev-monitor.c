@@ -716,9 +716,11 @@ DeviceState *qdev_proxy_add(const char *rid, const char *id, char *bus,
         pdev->mmio_sock = old_pdev->mmio_sock;
         pdev->remote_pid = old_pdev->remote_pid;
         pdev->mem_init = true;
+        pdev->id = old_pdev->nr_devices++;
     } else {
         pdev->rsocket = managed ? rsocket : -1;
         pdev->socket = managed ? rsocket : -1;
+        pdev->id =  pdev->nr_devices++;
     }
     pdev->managed = managed;
 
