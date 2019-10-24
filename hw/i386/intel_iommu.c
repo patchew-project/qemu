@@ -944,6 +944,7 @@ static VTDBus *vtd_find_as_from_bus_num(IntelIOMMUState *s, uint8_t bus_num)
                 return vtd_bus;
             }
         }
+        vtd_bus = NULL;
     }
     return vtd_bus;
 }
@@ -2590,6 +2591,140 @@ static void vtd_handle_iectl_write(IntelIOMMUState *s)
     }
 }
 
+static int vtd_request_pasid_alloc(IntelIOMMUState *s)
+{
+    VTDBus *vtd_bus;
+    int bus_n, devfn;
+    IOMMUCTXEventData event_data;
+    IOMMUCTXPASIDReqDesc req;
+    VTDIOMMUContext *vtd_ic;
+
+    event_data.event = IOMMU_CTX_EVENT_PASID_ALLOC;
+    event_data.data = &req;
+    req.min_pasid = VTD_MIN_HPASID;
+    req.max_pasid = VTD_MAX_HPASID;
+    req.alloc_result = 0;
+    event_data.length = sizeof(req);
+    for (bus_n = 0; bus_n < PCI_BUS_MAX; bus_n++) {
+        vtd_bus = vtd_find_as_from_bus_num(s, bus_n);
+        if (!vtd_bus) {
+            continue;
+        }
+        for (devfn = 0; devfn < PCI_DEVFN_MAX; devfn++) {
+            vtd_ic = vtd_bus->dev_ic[devfn];
+            if (!vtd_ic) {
+                continue;
+            }
+            iommu_ctx_event_notify(&vtd_ic->iommu_context, &event_data);
+            if (req.alloc_result > 0) {
+                return req.alloc_result;
+            }
+        }
+    }
+    return -1;
+}
+
+static int vtd_request_pasid_free(IntelIOMMUState *s, uint32_t pasid)
+{
+    VTDBus *vtd_bus;
+    int bus_n, devfn;
+    IOMMUCTXEventData event_data;
+    IOMMUCTXPASIDReqDesc req;
+    VTDIOMMUContext *vtd_ic;
+
+    event_data.event = IOMMU_CTX_EVENT_PASID_FREE;
+    event_data.data = &req;
+    req.pasid = pasid;
+    req.free_result = 0;
+    event_data.length = sizeof(req);
+    for (bus_n = 0; bus_n < PCI_BUS_MAX; bus_n++) {
+        vtd_bus = vtd_find_as_from_bus_num(s, bus_n);
+        if (!vtd_bus) {
+            continue;
+        }
+        for (devfn = 0; devfn < PCI_DEVFN_MAX; devfn++) {
+            vtd_ic = vtd_bus->dev_ic[devfn];
+            if (!vtd_ic) {
+                continue;
+            }
+            iommu_ctx_event_notify(&vtd_ic->iommu_context, &event_data);
+            if (req.free_result == 0) {
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
+/*
+ * If IP is not set, set it and return 0
+ * If IP is already set, return -1
+ */
+static int vtd_vcmd_rsp_ip_check(IntelIOMMUState *s)
+{
+    if (!(s->vccap & VTD_VCCAP_PAS) ||
+         (s->vcrsp & 1)) {
+        return -1;
+    }
+    s->vcrsp = 1;
+    vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                     ((uint64_t) s->vcrsp));
+    return 0;
+}
+
+static void vtd_vcmd_clear_ip(IntelIOMMUState *s)
+{
+    s->vcrsp &= (~((uint64_t)(0x1)));
+    vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                     ((uint64_t) s->vcrsp));
+}
+
+/* Handle write to Virtual Command Register */
+static int vtd_handle_vcmd_write(IntelIOMMUState *s, uint64_t val)
+{
+    uint32_t pasid;
+    int ret = -1;
+
+    trace_vtd_reg_write_vcmd(s->vcrsp, val);
+
+    /*
+     * Since vCPU should be blocked when the guest VMCD
+     * write was trapped to here. Should be no other vCPUs
+     * try to access VCMD if guest software is well written.
+     * However, we still emulate the IP bit here in case of
+     * bad guest software. Also align with the spec.
+     */
+    ret = vtd_vcmd_rsp_ip_check(s);
+    if (ret) {
+        return ret;
+    }
+    switch (val & VTD_VCMD_CMD_MASK) {
+    case VTD_VCMD_ALLOC_PASID:
+        ret = vtd_request_pasid_alloc(s);
+        if (ret < 0) {
+            s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_NO_AVAILABLE_PASID);
+        } else {
+            s->vcrsp |= VTD_VCRSP_RSLT(ret);
+        }
+        break;
+
+    case VTD_VCMD_FREE_PASID:
+        pasid = VTD_VCMD_PASID_VALUE(val);
+        ret = vtd_request_pasid_free(s, pasid);
+        if (ret < 0) {
+            s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_FREE_INVALID_PASID);
+        }
+        break;
+
+    default:
+        s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_UNDEFINED_CMD);
+        printf("Virtual Command: unsupported command!!!\n");
+        break;
+    }
+    vtd_vcmd_clear_ip(s);
+    return 0;
+}
+
 static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
     IntelIOMMUState *s = opaque;
@@ -2877,6 +3012,23 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     case DMAR_IRTA_REG_HI:
         assert(size == 4);
         vtd_set_long(s, addr, val);
+        break;
+
+    case DMAR_VCMD_REG:
+        if (!vtd_handle_vcmd_write(s, val)) {
+            if (size == 4) {
+                vtd_set_long(s, addr, val);
+            } else {
+                vtd_set_quad(s, addr, val);
+            }
+        }
+        break;
+
+    case DMAR_VCMD_REG_HI:
+        assert(size == 4);
+        if (!vtd_handle_vcmd_write(s, val)) {
+            vtd_set_long(s, addr, val);
+        }
         break;
 
     default:
@@ -3617,7 +3769,8 @@ static void vtd_init(IntelIOMMUState *s)
             s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
         } else if (!strcmp(s->scalable_mode, "modern")) {
             s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_PASID
-                       | VTD_ECAP_FLTS | VTD_ECAP_PSS;
+                       | VTD_ECAP_FLTS | VTD_ECAP_PSS | VTD_ECAP_VCS;
+            s->vccap |= VTD_VCCAP_PAS;
         }
     }
 
@@ -3674,6 +3827,13 @@ static void vtd_init(IntelIOMMUState *s)
      * Interrupt remapping registers.
      */
     vtd_define_quad(s, DMAR_IRTA_REG, 0, 0xfffffffffffff80fULL, 0);
+
+    /*
+     * Virtual Command Definitions
+     */
+    vtd_define_quad(s, DMAR_VCCAP_REG, s->vccap, 0, 0);
+    vtd_define_quad(s, DMAR_VCMD_REG, 0, 0xffffffffffffffffULL, 0);
+    vtd_define_quad(s, DMAR_VCRSP_REG, 0, 0, 0);
 }
 
 /* Should not reset address_spaces when reset because devices will still use
