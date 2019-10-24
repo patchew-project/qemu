@@ -31,9 +31,24 @@
 typedef struct IOMMUContext IOMMUContext;
 
 enum IOMMUCTXEvent {
+    IOMMU_CTX_EVENT_PASID_ALLOC,
+    IOMMU_CTX_EVENT_PASID_FREE,
     IOMMU_CTX_EVENT_NUM,
 };
 typedef enum IOMMUCTXEvent IOMMUCTXEvent;
+
+union IOMMUCTXPASIDReqDesc {
+    struct {
+        uint32_t min_pasid;
+        uint32_t max_pasid;
+        int32_t alloc_result; /* pasid allocated for the alloc request */
+    };
+    struct {
+        uint32_t pasid; /* pasid to be free */
+        int free_result;
+    };
+};
+typedef union IOMMUCTXPASIDReqDesc IOMMUCTXPASIDReqDesc;
 
 struct IOMMUCTXEventData {
     IOMMUCTXEvent event;

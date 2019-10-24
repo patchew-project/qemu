@@ -1436,6 +1436,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
     if (QLIST_EMPTY(&container->group_list)) {
         VFIOAddressSpace *space = container->space;
         VFIOGuestIOMMU *giommu, *tmp;
+        VFIOIOMMUContext *giommu_ctx, *ctx;
 
         QLIST_REMOVE(container, next);
 
@@ -1444,6 +1445,14 @@ static void vfio_disconnect_container(VFIOGroup *group)
                     MEMORY_REGION(giommu->iommu), &giommu->n);
             QLIST_REMOVE(giommu, giommu_next);
             g_free(giommu);
+        }
+
+        QLIST_FOREACH_SAFE(giommu_ctx, &container->iommu_ctx_list,
+                                                   iommu_ctx_next, ctx) {
+            iommu_ctx_notifier_unregister(giommu_ctx->iommu_ctx,
+                                                      &giommu_ctx->n);
+            QLIST_REMOVE(giommu_ctx, iommu_ctx_next);
+            g_free(giommu_ctx);
         }
 
         trace_vfio_disconnect_container(container->fd);

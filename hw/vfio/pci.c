@@ -2699,11 +2699,80 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+static void vfio_register_iommu_ctx_notifier(VFIOPCIDevice *vdev,
+                                             IOMMUContext *iommu_ctx,
+                                             IOMMUCTXNotifyFn fn,
+                                             IOMMUCTXEvent event)
+{
+    VFIOContainer *container = vdev->vbasedev.group->container;
+    VFIOIOMMUContext *giommu_ctx;
+
+    giommu_ctx = g_malloc0(sizeof(*giommu_ctx));
+    giommu_ctx->container = container;
+    giommu_ctx->iommu_ctx = iommu_ctx;
+    QLIST_INSERT_HEAD(&container->iommu_ctx_list,
+                      giommu_ctx,
+                      iommu_ctx_next);
+    iommu_ctx_notifier_register(iommu_ctx,
+                                &giommu_ctx->n,
+                                fn,
+                                event);
+}
+
+static void vfio_iommu_pasid_alloc_notify(IOMMUCTXNotifier *n,
+                                          IOMMUCTXEventData *event_data)
+{
+    VFIOIOMMUContext *giommu_ctx = container_of(n, VFIOIOMMUContext, n);
+    VFIOContainer *container = giommu_ctx->container;
+    IOMMUCTXPASIDReqDesc *pasid_req =
+                              (IOMMUCTXPASIDReqDesc *) event_data->data;
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int pasid;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flag = VFIO_IOMMU_PASID_ALLOC;
+    req.min_pasid = pasid_req->min_pasid;
+    req.max_pasid = pasid_req->max_pasid;
+
+    pasid = ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req);
+    if (pasid < 0) {
+        error_report("%s: %d, alloc failed", __func__, -errno);
+    }
+    pasid_req->alloc_result = pasid;
+}
+
+static void vfio_iommu_pasid_free_notify(IOMMUCTXNotifier *n,
+                                          IOMMUCTXEventData *event_data)
+{
+    VFIOIOMMUContext *giommu_ctx = container_of(n, VFIOIOMMUContext, n);
+    VFIOContainer *container = giommu_ctx->container;
+    IOMMUCTXPASIDReqDesc *pasid_req =
+                              (IOMMUCTXPASIDReqDesc *) event_data->data;
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flag = VFIO_IOMMU_PASID_FREE;
+    req.pasid = pasid_req->pasid;
+
+    ret = ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req);
+    if (ret != 0) {
+        error_report("%s: %d, pasid %u free failed",
+                   __func__, -errno, (unsigned) pasid_req->pasid);
+    }
+    pasid_req->free_result = ret;
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
+    IOMMUContext *iommu_context;
     char *tmp, *subsys, group_path[PATH_MAX], *group_name;
     Error *err = NULL;
     ssize_t len;
@@ -2999,6 +3068,18 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
+
+    iommu_context = pci_device_iommu_context(pdev);
+    if (iommu_context) {
+        vfio_register_iommu_ctx_notifier(vdev,
+                                         iommu_context,
+                                         vfio_iommu_pasid_alloc_notify,
+                                         IOMMU_CTX_EVENT_PASID_ALLOC);
+        vfio_register_iommu_ctx_notifier(vdev,
+                                         iommu_context,
+                                         vfio_iommu_pasid_free_notify,
+                                         IOMMU_CTX_EVENT_PASID_FREE);
+    }
 
     return;
 
