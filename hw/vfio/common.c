@@ -1271,6 +1271,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container->error = NULL;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
+    QLIST_INIT(&container->iommu_ctx_list);
 
     ret = vfio_init_container(container, group->fd, errp);
     if (ret) {

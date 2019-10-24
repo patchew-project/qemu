@@ -29,6 +29,7 @@
 #ifdef CONFIG_LINUX
 #include <linux/vfio.h>
 #endif
+#include "hw/iommu/iommu.h"
 
 #define VFIO_MSG_PREFIX "vfio %s: "
 
@@ -75,6 +76,7 @@ typedef struct VFIOContainer {
     bool initialized;
     unsigned long pgsizes;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
+    QLIST_HEAD(, VFIOIOMMUContext) iommu_ctx_list;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
     QLIST_ENTRY(VFIOContainer) next;
@@ -87,6 +89,13 @@ typedef struct VFIOGuestIOMMU {
     IOMMUNotifier n;
     QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
 } VFIOGuestIOMMU;
+
+typedef struct VFIOIOMMUContext {
+    VFIOContainer *container;
+    IOMMUContext *iommu_ctx;
+    IOMMUCTXNotifier n;
+    QLIST_ENTRY(VFIOIOMMUContext) iommu_ctx_next;
+} VFIOIOMMUContext;
 
 typedef struct VFIOHostDMAWindow {
     hwaddr min_iova;
