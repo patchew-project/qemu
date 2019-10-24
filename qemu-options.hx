@@ -27,6 +27,27 @@ STEXI
 Display version information and exit
 ETEXI
 
+DEF("remote", HAS_ARG, QEMU_OPTION_remote,
+    "-remote socket[,prop[=value][,...]]\n"
+    "                add remote process\n"
+    "                prop=value,... sets driver properties\n"
+    "                use '-remote help' to print all possible properties\n",
+    QEMU_ARCH_ALL)
+STEXI
+@table @option
+@item rid
+@findex -rid
+remote id
+@item socket
+@findex -socket
+Remote process socket
+@item command
+@findex -command
+Remote process command.
+
+@end table
+ETEXI
+
 DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "-machine [type=]name[,prop[=value][,...]]\n"
     "                selects emulated machine ('-machine help' for list)\n"
