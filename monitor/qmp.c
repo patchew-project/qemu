@@ -75,10 +75,30 @@ static void monitor_qmp_cleanup_req_queue_locked(MonitorQMP *mon)
     }
 }
 
-static void monitor_qmp_cleanup_queues(MonitorQMP *mon)
+static void monitor_qmp_cleanup_queues_and_resume(MonitorQMP *mon)
 {
     qemu_mutex_lock(&mon->qmp_queue_lock);
+
+    /*
+     * Same condition as in monitor_qmp_bh_dispatcher(), but before removing an
+     * element from the queue (hence no `- 1`), also, the queue should not be
+     * empty either, otherwise the monitor hasn't been suspended yet (or was
+     * already resumed).
+     */
+    bool need_resume = (!qmp_oob_enabled(mon) && mon->qmp_requests->length > 0)
+        || mon->qmp_requests->length == QMP_REQ_QUEUE_LEN_MAX;
+
     monitor_qmp_cleanup_req_queue_locked(mon);
+
+    if (need_resume) {
+        /*
+         * Pairs with the monitor_suspend() in handle_qmp_command() in case the
+         * queue gets cleared from a CH_EVENT_CLOSED event before the dispatch
+         * bh got scheduled.
+         */
+        monitor_resume(&mon->common);
+    }
+
     qemu_mutex_unlock(&mon->qmp_queue_lock);
 }
 
@@ -332,7 +352,7 @@ static void monitor_qmp_event(void *opaque, int event)
          * stdio, it's possible that stdout is still open when stdin
          * is closed.
          */
-        monitor_qmp_cleanup_queues(mon);
+        monitor_qmp_cleanup_queues_and_resume(mon);
         json_message_parser_destroy(&mon->parser);
         json_message_parser_init(&mon->parser, handle_qmp_command,
                                  mon, NULL);
