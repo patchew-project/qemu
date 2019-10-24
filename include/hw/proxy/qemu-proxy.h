@@ -28,6 +28,8 @@
 #include "io/mpqemu-link.h"
 #include "hw/proxy/memory-sync.h"
 #include "qemu/event_notifier.h"
+#include "hw/pci/pci.h"
+#include "block/qdict.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
