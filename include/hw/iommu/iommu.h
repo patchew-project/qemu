@@ -34,6 +34,7 @@ enum IOMMUCTXEvent {
     IOMMU_CTX_EVENT_PASID_ALLOC,
     IOMMU_CTX_EVENT_PASID_FREE,
     IOMMU_CTX_EVENT_PASID_BIND,
+    IOMMU_CTX_EVENT_CACHE_INV,
     IOMMU_CTX_EVENT_NUM,
 };
 typedef enum IOMMUCTXEvent IOMMUCTXEvent;
@@ -60,6 +61,13 @@ struct IOMMUCTXPASIDBindData {
 #endif
 };
 typedef struct IOMMUCTXPASIDBindData IOMMUCTXPASIDBindData;
+
+struct IOMMUCTXCacheInvInfo {
+#ifdef __linux__
+    struct iommu_cache_invalidate_info *info;
+#endif
+};
+typedef struct IOMMUCTXCacheInvInfo IOMMUCTXCacheInvInfo;
 
 struct IOMMUCTXEventData {
     IOMMUCTXEvent event;

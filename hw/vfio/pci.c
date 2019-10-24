@@ -2802,6 +2802,31 @@ static void vfio_iommu_pasid_bind_notify(IOMMUCTXNotifier *n,
 #endif
 }
 
+static void vfio_iommu_cache_inv_notify(IOMMUCTXNotifier *n,
+                                        IOMMUCTXEventData *event_data)
+{
+#ifdef __linux__
+    VFIOIOMMUContext *giommu_ctx = container_of(n, VFIOIOMMUContext, n);
+    VFIOContainer *container = giommu_ctx->container;
+    IOMMUCTXCacheInvInfo *inv_info =
+                              (IOMMUCTXCacheInvInfo *) event_data->data;
+    struct vfio_iommu_type1_cache_invalidate *cache_inv;
+    unsigned long argsz;
+
+    argsz = sizeof(*cache_inv);
+    cache_inv = g_malloc0(argsz);
+    cache_inv->argsz = argsz;
+    cache_inv->info = *inv_info->info;
+    cache_inv->flags = 0;
+
+    if (ioctl(container->fd, VFIO_IOMMU_CACHE_INVALIDATE, cache_inv) != 0) {
+        error_report("%s: cache invalidation failed: %d", __func__, -errno);
+    }
+
+    g_free(cache_inv);
+#endif
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
@@ -3118,6 +3143,10 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                                          iommu_context,
                                          vfio_iommu_pasid_bind_notify,
                                          IOMMU_CTX_EVENT_PASID_BIND);
+        vfio_register_iommu_ctx_notifier(vdev,
+                                         iommu_context,
+                                         vfio_iommu_cache_inv_notify,
+                                         IOMMU_CTX_EVENT_CACHE_INV);
     }
 
     return;
