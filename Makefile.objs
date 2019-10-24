@@ -30,6 +30,7 @@ remote-pci-obj-$(CONFIG_MPQEMU) += backends/
 remote-pci-obj-$(CONFIG_MPQEMU) += block/
 remote-pci-obj-$(CONFIG_MPQEMU) += migration/
 remote-pci-obj-$(CONFIG_MPQEMU) += remote/
+remote-pci-obj-$(CONFIG_MPQEMU) += monitor/
 
 remote-pci-obj-$(CONFIG_MPQEMU) += cpus-common.o
 remote-pci-obj-$(CONFIG_MPQEMU) += dma-helpers.o
@@ -42,6 +43,9 @@ remote-pci-obj-$(CONFIG_MPQEMU) += iothread.o
 # remote-lsi-obj-y is code used to implement remote LSI device
 
 remote-lsi-obj-$(CONFIG_MPQEMU) += hw/
+remote-lsi-obj-$(CONFIG_MPQEMU) += ui/
+
+remote-lsi-obj-$(CONFIG_MPQEMU) += device-hotplug.o
 
 #######################################################################
 # crypto-obj-y is code used by both qemu system emulation and qemu-img
@@ -111,6 +115,11 @@ common-obj-y += vl-parse.o
 
 common-obj-y += qapi/
 endif
+
+remote-pci-obj-$(CONFIG_MPQEMU) += qapi/
+remote-pci-obj-$(CONFIG_MPQEMU) += blockdev-nbd.o
+remote-pci-obj-$(CONFIG_MPQEMU) += job-qmp.o
+remote-pci-obj-$(CONFIG_MPQEMU) += balloon.o
 
 #######################################################################
 # Target-independent parts used in system and user emulation

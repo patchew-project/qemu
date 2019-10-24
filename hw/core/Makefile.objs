@@ -44,3 +44,4 @@ remote-pci-obj-$(CONFIG_MPQEMU) += qdev-properties-system.o
 remote-pci-obj-$(CONFIG_MPQEMU) += qdev-fw.o
 remote-pci-obj-$(CONFIG_MPQEMU) += numa.o
 remote-pci-obj-$(CONFIG_MPQEMU) += cpu.o
+remote-pci-obj-$(CONFIG_MPQEMU) += machine-qmp-cmds.o
