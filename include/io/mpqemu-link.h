@@ -30,7 +30,9 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <pthread.h>
+#include <sys/eventfd.h>
 
 #include "qom/object.h"
 #include "qemu/thread.h"
@@ -146,5 +148,12 @@ void mpqemu_init_channel(MPQemuLinkState *s, MPQemuChannel **chan, int fd);
 void mpqemu_destroy_channel(MPQemuChannel *chan);
 void mpqemu_link_set_callback(MPQemuLinkState *s, mpqemu_link_callback callback);
 void mpqemu_start_coms(MPQemuLinkState *s);
+
+#define GET_REMOTE_WAIT eventfd(0, 0)
+#define PUT_REMOTE_WAIT(wait) close(wait)
+#define PROXY_LINK_WAIT_DONE 1
+
+uint64_t wait_for_remote(int efd);
+void notify_proxy(int fd, uint64_t val);
 
 #endif
