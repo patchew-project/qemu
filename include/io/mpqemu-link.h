@@ -36,6 +36,8 @@
 
 #include "qom/object.h"
 #include "qemu/thread.h"
+#include "exec/cpu-common.h"
+#include "exec/hwaddr.h"
 
 #define TYPE_MPQEMU_LINK "mpqemu-link"
 #define MPQEMU_LINK(obj) \
@@ -49,6 +51,7 @@
  * mpqemu_cmd_t:
  * CONF_READ        PCI config. space read
  * CONF_WRITE       PCI config. space write
+ * SYNC_SYSMEM      Shares QEMU's RAM with remote device's RAM
  *
  * proc_cmd_t enum type to specify the command to be executed on the remote
  * device.
@@ -57,6 +60,7 @@ typedef enum {
     INIT = 0,
     CONF_READ,
     CONF_WRITE,
+    SYNC_SYSMEM,
     MAX,
 } mpqemu_cmd_t;
 
@@ -74,12 +78,19 @@ typedef enum {
  *
  */
 typedef struct {
+    hwaddr gpas[REMOTE_MAX_FDS];
+    uint64_t sizes[REMOTE_MAX_FDS];
+    ram_addr_t offsets[REMOTE_MAX_FDS];
+} sync_sysmem_msg_t;
+
+typedef struct {
     mpqemu_cmd_t cmd;
     int bytestream;
     size_t size;
 
     union {
         uint64_t u64;
+        sync_sysmem_msg_t sync_sysmem;
     } data1;
 
     int fds[REMOTE_MAX_FDS];
