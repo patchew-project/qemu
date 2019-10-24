@@ -63,6 +63,7 @@ struct PCIProxyDev {
     MPQemuLinkState *mpqemu_link;
 
     RemoteMemSync *sync;
+    bool mem_init;
     struct kvm_irqfd irqfd;
 
     EventNotifier intr;

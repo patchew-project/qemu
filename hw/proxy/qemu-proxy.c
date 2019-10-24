@@ -350,6 +350,13 @@ static void pci_proxy_write_config(PCIDevice *d, uint32_t addr, uint32_t val,
     config_op_send(PCI_PROXY_DEV(d), addr, &val, l, CONF_WRITE);
 }
 
+static void pci_proxy_dev_inst_init(Object *obj)
+{
+    PCIProxyDev *dev = PCI_PROXY_DEV(obj);
+
+    dev->mem_init = false;
+}
+
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -364,6 +371,7 @@ static const TypeInfo pci_proxy_dev_type_info = {
     .name          = TYPE_PCI_PROXY_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIProxyDev),
+    .instance_init = pci_proxy_dev_inst_init,
     .abstract      = true,
     .class_size    = sizeof(PCIProxyDevClass),
     .class_init    = pci_proxy_dev_class_init,
@@ -460,7 +468,10 @@ static void init_proxy(PCIDevice *dev, char *command, bool need_spawn, Error **e
     mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->mmio,
                         pdev->mmio_sock);
 
-    configure_memory_sync(pdev->sync, pdev->mpqemu_link);
+    if (!pdev->mem_init) {
+        pdev->mem_init = true;
+        configure_memory_sync(pdev->sync, pdev->mpqemu_link);
+    }
 }
 
 static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
