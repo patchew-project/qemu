@@ -278,6 +278,7 @@ static void vring_packed_flags_write(VirtIODevice *vdev,
     address_space_cache_invalidate(cache, off, sizeof(flags));
 }
 
+/* Called within rcu_read_lock().  */
 static VRingMemoryRegionCaches *vring_get_region_caches(struct VirtQueue *vq)
 {
     VRingMemoryRegionCaches *caches = atomic_rcu_read(&vq->vring.caches);
@@ -721,7 +722,6 @@ bool virtqueue_rewind(VirtQueue *vq, unsigned int num)
     return true;
 }
 
-/* Called within rcu_read_lock().  */
 static void virtqueue_split_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
@@ -780,6 +780,7 @@ static void virtqueue_packed_fill_desc(VirtQueue *vq,
     vring_packed_desc_write(vq->vdev, &desc, &caches->desc, head, strict_order);
 }
 
+/* Called within rcu_read_lock().  */
 void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx)
 {
