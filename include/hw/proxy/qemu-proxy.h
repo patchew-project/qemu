@@ -36,7 +36,19 @@
 #define PCI_PROXY_DEV_GET_CLASS(obj) \
             OBJECT_GET_CLASS(PCIProxyDevClass, (obj), TYPE_PCI_PROXY_DEV)
 
-typedef struct PCIProxyDev {
+typedef struct PCIProxyDev PCIProxyDev;
+
+typedef struct ProxyMemoryRegion {
+    PCIProxyDev *dev;
+    MemoryRegion mr;
+    bool memory;
+    bool present;
+    uint8_t type;
+} ProxyMemoryRegion;
+
+extern const MemoryRegionOps proxy_default_ops;
+
+struct PCIProxyDev {
     PCIDevice parent_dev;
 
     int n_mr_sections;
@@ -65,7 +77,8 @@ typedef struct PCIProxyDev {
     void (*proxy_ready) (PCIDevice *dev);
     void (*init_proxy) (PCIDevice *dev, char *command, bool need_spawn, Error **errp);
 
-} PCIProxyDev;
+    ProxyMemoryRegion region[PCI_NUM_REGIONS];
+};
 
 typedef struct PCIProxyDevClass {
     PCIDeviceClass parent_class;
@@ -77,5 +90,9 @@ typedef struct PCIProxyDevClass {
 
 int remote_spawn(PCIProxyDev *pdev, const char *command, Error **errp);
 
+void proxy_default_bar_write(void *opaque, hwaddr addr, uint64_t val,
+                             unsigned size);
+
+uint64_t proxy_default_bar_read(void *opaque, hwaddr addr, unsigned size);
 
 #endif /* QEMU_PROXY_H */
