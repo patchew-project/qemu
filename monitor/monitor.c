@@ -33,7 +33,10 @@
 #include "sysemu/qtest.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
-
+#include "qemu/cutils.h"
+#include "qemu/option.h"
+#include "qemu-options.h"
+#include "qemu/config-file.h"
 /*
  * To prevent flooding clients, events can be throttled. The
  * throttling is calculated globally, rather than per-Monitor
@@ -607,6 +610,84 @@ void monitor_init_globals_core(void)
     qmp_dispatcher_bh = aio_bh_new(iohandler_get_aio_context(),
                                    monitor_qmp_bh_dispatcher,
                                    NULL);
+}
+
+void monitor_parse(const char *optarg, const char *mode, bool pretty)
+{
+    static int monitor_device_index;
+    QemuOpts *opts;
+    const char *p;
+    char label[32];
+
+    if (strstart(optarg, "chardev:", &p)) {
+        snprintf(label, sizeof(label), "%s", p);
+    } else {
+        snprintf(label, sizeof(label), "compat_monitor%d",
+                 monitor_device_index);
+        opts = qemu_chr_parse_compat(label, optarg, true);
+        if (!opts) {
+            error_report("parse error: %s", optarg);
+            exit(1);
+        }
+    }
+
+    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, &error_fatal);
+    qemu_opt_set(opts, "mode", mode, &error_abort);
+    qemu_opt_set(opts, "chardev", label, &error_abort);
+    if (!strcmp(mode, "control")) {
+        qemu_opt_set_bool(opts, "pretty", pretty, &error_abort);
+    } else {
+        assert(pretty == false);
+    }
+    monitor_device_index++;
+}
+
+int mon_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Chardev *chr;
+    bool qmp;
+    bool pretty = false;
+    const char *chardev;
+    const char *mode;
+
+    mode = qemu_opt_get(opts, "mode");
+    if (mode == NULL) {
+        mode = "readline";
+    }
+    if (strcmp(mode, "readline") == 0) {
+        qmp = false;
+    } else if (strcmp(mode, "control") == 0) {
+        qmp = true;
+    } else {
+        error_setg(errp, "unknown monitor mode \"%s\"", mode);
+        return -1;
+    }
+
+    if (!qmp && qemu_opt_get(opts, "pretty")) {
+        warn_report("'pretty' is deprecated for HMP monitors, it has no effect "
+                    "and will be removed in future versions");
+    }
+    if (qemu_opt_get_bool(opts, "pretty", 0)) {
+        pretty = true;
+    }
+
+    chardev = qemu_opt_get(opts, "chardev");
+    if (!chardev) {
+        error_report("chardev is required");
+        exit(1);
+    }
+    chr = qemu_chr_find(chardev);
+    if (chr == NULL) {
+        error_setg(errp, "chardev \"%s\" not found", chardev);
+        return -1;
+    }
+
+    if (qmp) {
+        monitor_init_qmp(chr, pretty);
+    } else {
+        monitor_init_hmp(chr, true);
+    }
+    return 0;
 }
 
 QemuOptsList qemu_mon_opts = {

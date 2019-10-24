@@ -55,6 +55,7 @@
 #include "block/block.h"
 #include "remote/remote-opts.h"
 #include "include/qemu-common.h"
+#include "monitor/monitor.h"
 
 #include "vl.h"
 /*

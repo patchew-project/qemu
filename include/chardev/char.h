@@ -290,4 +290,5 @@ GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
 /* console.c */
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
+int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp);
 #endif

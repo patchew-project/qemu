@@ -110,6 +110,24 @@ int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    DeviceState *dev;
+    const char *remote = NULL;
+
+    remote = qemu_opt_get(opts, "rid");
+    if (remote) {
+        return 0;
+    }
+
+    dev = qdev_device_add(opts, errp);
+    if (!dev) {
+        return -1;
+    }
+    object_unref(OBJECT(dev));
+    return 0;
+}
+
 #if defined(CONFIG_MPQEMU)
 int rdrive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
@@ -139,20 +157,3 @@ int rdevice_init_func(void *opaque, QemuOpts *opts, Error **errp)
 }
 #endif
 
-int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
-{
-    DeviceState *dev;
-    const char *remote = NULL;
-
-    remote = qemu_opt_get(opts, "rid");
-    if (remote) {
-        return 0;
-    }
-
-    dev = qdev_device_add(opts, errp);
-    if (!dev) {
-        return -1;
-    }
-    object_unref(OBJECT(dev));
-    return 0;
-}
