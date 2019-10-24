@@ -497,6 +497,7 @@ sheepdog="yes"
 libxml2=""
 debug_mutex="no"
 libpmem=""
+force_preserve_argv0="no"
 default_devices="yes"
 
 supported_cpu="no"
@@ -1529,6 +1530,8 @@ for opt do
   ;;
   --disable-xkbcommon) xkbcommon=no
   ;;
+  --force-preserve-argv0) force_preserve_argv0=yes
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1710,6 +1713,8 @@ Advanced options (experts only):
   --enable-profiler        profiler support
   --enable-debug-stack-usage
                            track the maximum stack usage of stacks created by qemu_alloc_stack
+  --force-preserve-argv0   for linux-user only, force the use of binfmt_misc 'P'
+                           flag (preserve-argv[0])
 
 Optional features, enabled with --enable-FEATURE and
 disabled with --disable-FEATURE, default is enabled if available:
@@ -7633,6 +7638,9 @@ if test "$target_user_only" = "yes" ; then
 fi
 if test "$target_linux_user" = "yes" ; then
   echo "CONFIG_LINUX_USER=y" >> $config_target_mak
+  if test "$force_preserve_argv0" = "yes" ; then
+    echo "CONFIG_FORCE_PRESERVE_ARGV0=y" >> $config_target_mak
+  fi
 fi
 list=""
 if test ! -z "$gdb_xml_files" ; then
