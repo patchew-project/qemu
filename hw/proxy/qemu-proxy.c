@@ -337,7 +337,8 @@ static void init_proxy(PCIDevice *dev, char *command, bool need_spawn, Error **e
 
     if (!pdev->managed) {
         if (need_spawn) {
-            if (!remote_spawn(pdev, command, &local_error)) {
+            if (remote_spawn(pdev, command, &local_error)) {
+                fprintf(stderr, "remote spawn failed\n");
                 return;
             }
         }
