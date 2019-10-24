@@ -17,3 +17,5 @@ endif
 common-obj-$(call land,$(CONFIG_VHOST_USER),$(CONFIG_VIRTIO)) += vhost-user.o
 
 common-obj-$(CONFIG_LINUX) += hostmem-memfd.o
+
+remote-pci-obj-$(CONFIG_MPQEMU) += hostmem.o
