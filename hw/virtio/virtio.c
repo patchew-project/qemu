@@ -1631,10 +1631,6 @@ static unsigned int virtqueue_packed_drop_all(VirtQueue *vq)
     VirtIODevice *vdev = vq->vdev;
     VRingPackedDesc desc;
 
-    if (unlikely(vdev->broken)) {
-        return 0;
-    }
-
     caches = vring_get_region_caches(vq);
     desc_cache = &caches->desc;
 
@@ -1680,10 +1676,6 @@ static unsigned int virtqueue_split_drop_all(VirtQueue *vq)
     VirtIODevice *vdev = vq->vdev;
     bool fEventIdx = virtio_vdev_has_feature(vdev, VIRTIO_RING_F_EVENT_IDX);
 
-    if (unlikely(vdev->broken)) {
-        return 0;
-    }
-
     while (!virtio_queue_empty(vq) && vq->inuse < vq->vring.num) {
         /* works similar to virtqueue_pop but does not map buffers
         * and does not allocate any memory */
@@ -1714,6 +1706,10 @@ static unsigned int virtqueue_split_drop_all(VirtQueue *vq)
 unsigned int virtqueue_drop_all(VirtQueue *vq)
 {
     struct VirtIODevice *vdev = vq->vdev;
+
+    if (unlikely(vdev->broken)) {
+        return 0;
+    }
 
     if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
         return virtqueue_packed_drop_all(vq);
