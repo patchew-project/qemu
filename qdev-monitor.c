@@ -34,6 +34,7 @@
 #include "qemu/qemu-print.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "migration/misc.h"
 #include "hw/boards.h"
 #include "hw/proxy/qemu-proxy.h"
@@ -641,7 +642,7 @@ void qdev_proxy_fire(void)
 }
 
 DeviceState *qdev_proxy_add(const char *rid, const char *id, char *bus,
-                            char *command, int rsocket, bool managed,
+                            char *cmd, int rsocket, bool managed,
                             Error **errp)
 {
     DeviceState *ds;
@@ -653,6 +654,7 @@ DeviceState *qdev_proxy_add(const char *rid, const char *id, char *bus,
     const char *str;
     bool need_spawn = false;
     bool remote_exists = false;
+    char *command;
 
     if (strlen(rid) > MAX_RID_LENGTH) {
         error_setg(errp, "rid %s is too long.", rid);
@@ -725,6 +727,12 @@ DeviceState *qdev_proxy_add(const char *rid, const char *id, char *bus,
         need_spawn = true;
     }
 
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        command = g_strdup_printf("%s %s", cmd, "-incoming defer");
+    } else {
+        command = g_strdup(cmd);
+    }
+
     pdev->init_proxy(PCI_DEVICE(ds), command, need_spawn, errp);
 
     qemu_mutex_lock(&proxy_list_lock);
@@ -732,6 +740,9 @@ DeviceState *qdev_proxy_add(const char *rid, const char *id, char *bus,
     qemu_mutex_unlock(&proxy_list_lock);
 
     qemu_opts_del(proxy_opts);
+
+    g_free(command);
+
     return ds;
 }
 

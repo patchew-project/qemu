@@ -8,6 +8,7 @@ extern RunState current_run_state;
 
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
+void remote_runstate_set(RunState state);
 int runstate_is_running(void);
 bool runstate_needs_reset(void);
 bool runstate_store(char *str, size_t size);
