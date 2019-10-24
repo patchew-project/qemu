@@ -203,7 +203,12 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
 
     period = rtc_periodic_clock_ticks(s);
 
-    if (period) {
+    if (!period) {
+        s->irq_coalesced = 0;
+        timer_del(s->periodic_timer);
+        return;
+    }
+
         /* compute 32 khz clock */
         cur_clock =
             muldiv64(current_time, RTC_CLOCK_RATE, NANOSECONDS_PER_SECOND);
@@ -263,10 +268,6 @@ periodic_timer_update(RTCState *s, int64_t current_time, uint32_t old_period)
         next_irq_clock = cur_clock + period - lost_clock;
         s->next_periodic_time = periodic_clock_to_ns(next_irq_clock) + 1;
         timer_mod(s->periodic_timer, s->next_periodic_time);
-    } else {
-        s->irq_coalesced = 0;
-        timer_del(s->periodic_timer);
-    }
 }
 
 static void rtc_periodic_timer(void *opaque)
