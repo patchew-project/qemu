@@ -68,6 +68,8 @@ static void vtd_address_space_refresh_all(IntelIOMMUState *s);
 static void vtd_address_space_unmap(VTDAddressSpace *as, IOMMUNotifier *n);
 
 static void vtd_pasid_cache_reset(IntelIOMMUState *s);
+static int vtd_update_pe_cache_for_dev(IntelIOMMUState *s,
+              VTDBus *vtd_bus, int devfn, int pasid, VTDPASIDEntry *pe);
 
 static void vtd_panic_require_caching_mode(void)
 {
@@ -2618,6 +2620,111 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
     return remove;
 }
 
+/**
+ * Constant information used during pasid table walk
+ * @ic: iommu_context
+ * @flags: indicates if it is domain selective walk
+ * @did: domain ID of the pasid table walk
+ */
+typedef struct {
+    VTDIOMMUContext *ic;
+#define VTD_PASID_TABLE_DID_SEL_WALK   (1ULL << 0);
+    uint32_t flags;
+    uint16_t did;
+} vtd_pt_walk_info;
+
+static bool vtd_sm_pasid_table_walk_one(IntelIOMMUState *s,
+                                       dma_addr_t pt_base,
+                                       int start,
+                                       int end,
+                                       vtd_pt_walk_info *info)
+{
+    VTDPASIDEntry pe;
+    int pasid = start;
+    int pasid_next;
+    VTDIOMMUContext *ic = info->ic;
+
+    while (pasid < end) {
+        pasid_next = pasid + 1;
+
+        if (!vtd_get_pe_in_pasid_leaf_table(s, pasid, pt_base, &pe)
+            && vtd_pe_present(&pe)) {
+            if (vtd_update_pe_cache_for_dev(s,
+                                      ic->vtd_bus, ic->devfn, pasid, &pe)) {
+                error_report_once("%s, bus: %d, devfn: %d, pasid: %d",
+                  __func__, pci_bus_num(ic->vtd_bus->bus), ic->devfn, pasid);
+                return false;
+            }
+        }
+        pasid = pasid_next;
+    }
+    return true;
+}
+
+/*
+ * Currently, VT-d scalable mode pasid table is a two level table, this
+ * function aims to loop a range of PASIDs in a given pasid table to
+ * identify the pasid config in guest.
+ */
+static void vtd_sm_pasid_table_walk(IntelIOMMUState *s, dma_addr_t pdt_base,
+                                  int start, int end, vtd_pt_walk_info *info)
+{
+    VTDPASIDDirEntry pdire;
+    int pasid = start;
+    int pasid_next;
+    dma_addr_t pt_base;
+
+    while (pasid < end) {
+        pasid_next = pasid + VTD_PASID_TBL_ENTRY_NUM;
+        if (!vtd_get_pdire_from_pdir_table(pdt_base, pasid, &pdire)
+            && vtd_pdire_present(&pdire)) {
+            pt_base = pdire.val & VTD_PASID_TABLE_BASE_ADDR_MASK;
+            if (!vtd_sm_pasid_table_walk_one(s,
+                              pt_base, pasid, pasid_next, info)) {
+                break;
+            }
+        }
+        pasid = pasid_next;
+    }
+}
+
+/**
+ * This function replay the guest pasid bindings to hots by
+ * walking the guest PASID table. This ensures host will have
+ * latest guest pasid bindings.
+ */
+static void vtd_replay_guest_pasid_bindings(IntelIOMMUState *s,
+                                           uint16_t *did, bool is_dsi)
+{
+    VTDContextEntry ce;
+    vtd_pt_walk_info info;
+    VTDIOMMUContext *vtd_ic;
+
+    if (is_dsi) {
+        info.flags = VTD_PASID_TABLE_DID_SEL_WALK;
+        info.did = *did;
+    }
+
+    /*
+     * In this replay, only needs to care about the devices which
+     * has iommu_context created. For the one not have iommu_context,
+     * it is not necessary to replay the bindings since their cache
+     * could be re-created in the next DMA address transaltion.
+     */
+    QLIST_FOREACH(vtd_ic, &s->vtd_dev_ic_list, next) {
+        if (!vtd_dev_to_context_entry(s,
+                                      pci_bus_num(vtd_ic->vtd_bus->bus),
+                                      vtd_ic->devfn, &ce)) {
+            info.ic = vtd_ic;
+            vtd_sm_pasid_table_walk(s,
+                                    VTD_CE_GET_PASID_DIR_TABLE(&ce),
+                                    0,
+                                    VTD_MAX_HPASID,
+                                    &info);
+        }
+    }
+}
+
 static int vtd_pasid_cache_dsi(IntelIOMMUState *s, uint16_t domain_id)
 {
     VTDPASIDCacheInfo pc_info;
@@ -2632,15 +2739,17 @@ static int vtd_pasid_cache_dsi(IntelIOMMUState *s, uint16_t domain_id)
      */
     vtd_iommu_lock(s);
     g_hash_table_foreach_remove(s->vtd_pasid_as, vtd_flush_pasid, &pc_info);
-    vtd_iommu_unlock(s);
 
     /*
-     * TODO: Domain selective PASID cache invalidation
-     * may be issued wrongly by programmer, to be safe,
-     * after invalidating the pasid caches, emulator
-     * needs to replay the pasid bindings by walking guest
-     * pasid dir and pasid table.
+     * Domain selective PASID cache invalidation may be
+     * issued wrongly by programmer, to be safe, after
+     * invalidating the pasid caches, emulator needs to
+     * replay the pasid bindings by walking guest pasid
+     * dir and pasid table.
      */
+    vtd_replay_guest_pasid_bindings(s, &domain_id, true);
+
+    vtd_iommu_unlock(s);
     return 0;
 }
 
@@ -2704,6 +2813,31 @@ static inline void vtd_fill_in_pe_cache(
                          vtd_pasid_as->devfn,
                          vtd_pasid_as->pasid,
                          pe, VTD_PASID_UPDATE);
+}
+
+/**
+ * This function updates the pasid entry cached in &vtd_pasid_as.
+ * Caller of this function should hold iommu_lock.
+ */
+static int vtd_update_pe_cache_for_dev(IntelIOMMUState *s, VTDBus *vtd_bus,
+                               int devfn, int pasid, VTDPASIDEntry *pe)
+{
+    VTDPASIDAddressSpace *vtd_pasid_as;
+
+    vtd_pasid_as = vtd_add_find_pasid_as(s, vtd_bus,
+                                        devfn, pasid, true);
+    if (!vtd_pasid_as) {
+        error_report_once("%s, fatal error happened!\n", __func__);
+        return -1;
+    }
+
+    if (vtd_pasid_as->pasid_cache_entry.pasid_cache_gen ==
+                                               s->pasid_cache_gen) {
+        return 0;
+    }
+
+    vtd_fill_in_pe_cache(vtd_pasid_as, pe);
+    return 0;
 }
 
 static int vtd_pasid_cache_psi(IntelIOMMUState *s,
@@ -2825,15 +2959,17 @@ static int vtd_pasid_cache_gsi(IntelIOMMUState *s)
 
     vtd_iommu_lock(s);
     vtd_pasid_cache_reset(s);
-    vtd_iommu_unlock(s);
 
     /*
-     * TODO: Global PASID cache invalidation may be
-     * issued wrongly by programmer, to be safe, after
-     * invalidating the pasid caches, emulator needs
-     * to replay the pasid bindings by walking guest
-     * pasid dir and pasid table.
+     * Global PASID cache invalidation may be issued
+     * wrongly by programmer, to be safe, after invalidating
+     * the pasid caches, emulator needs to replay the
+     * pasid bindings by walking guest pasid dir and
+     * pasid table.
      */
+    vtd_replay_guest_pasid_bindings(s, NULL, false);
+
+    vtd_iommu_unlock(s);
     return 0;
 }
 
