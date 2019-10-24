@@ -69,6 +69,7 @@
 #include "monitor/monitor.h"
 #include "chardev/char.h"
 #include "sysemu/reset.h"
+#include "vl.h"
 
 static MPQemuLinkState *mpqemu_link;
 
@@ -476,6 +477,8 @@ int main(int argc, char *argv[])
 
     module_call_init(MODULE_INIT_QOM);
 
+    monitor_init_globals();
+
     bdrv_init_with_whitelist();
 
     if (qemu_init_main_loop(&err)) {
@@ -491,6 +494,8 @@ int main(int argc, char *argv[])
 
     qemu_add_opts(&qemu_device_opts);
     qemu_add_opts(&qemu_drive_opts);
+    qemu_add_opts(&qemu_chardev_opts);
+    qemu_add_opts(&qemu_mon_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
     qemu_add_drive_opts(&qemu_drive_opts);
@@ -520,6 +525,12 @@ int main(int argc, char *argv[])
     parse_cmdline(argc - 3, argv + 3, NULL);
 
     mpqemu_link_set_callback(mpqemu_link, process_msg);
+
+    qemu_opts_foreach(qemu_find_opts("chardev"),
+                      chardev_init_func, NULL, &error_fatal);
+
+    qemu_opts_foreach(qemu_find_opts("mon"),
+                      mon_init_func, NULL, &error_fatal);
 
     mpqemu_start_coms(mpqemu_link);
 
