@@ -247,10 +247,11 @@ static void fw_cfg_reboot(FWCfgState *s)
 
     if (reboot_timeout) {
         rt_val = qemu_opt_get_number(opts, "reboot-timeout", -1);
+
         /* validate the input */
-        if (rt_val < 0 || rt_val > 0xffff) {
+        if (rt_val < -1 || rt_val > 0xffff) {
             error_report("reboot timeout is invalid,"
-                         "it should be a value between 0 and 65535");
+                         "it should be a value between -1 and 65535");
             exit(1);
         }
     }
