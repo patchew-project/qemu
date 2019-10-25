@@ -149,7 +149,7 @@ typedef struct BDRVRawState {
     int perm_change_flags;
     BDRVReopenState *reopen_state;
 
-#ifdef CONFIG_XFS
+#if defined(CONFIG_XFS) || defined(CONFIG_FALLOCATE)
     bool is_xfs:1;
 #endif
     bool has_discard:1;
@@ -667,7 +667,7 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
     }
 #endif
 
-#ifdef CONFIG_XFS
+#if defined(CONFIG_XFS) || defined(CONFIG_FALLOCATE)
     if (platform_test_xfs_fd(s->fd)) {
         s->is_xfs = true;
     }
