@@ -57,6 +57,7 @@
 #include "hw/xen/xen.h"
 #include "hw/i386/apic_internal.h"
 #include "hw/boards.h"
+#include "hw/i386/pc.h"
 #endif
 
 #include "disas/capstone.h"
@@ -3165,14 +3166,25 @@ static PropValue tcg_default_props[] = {
 };
 
 
-X86CPUVersion default_cpu_version = CPU_VERSION_LATEST;
-
-void x86_cpu_set_default_version(X86CPUVersion version)
+#ifdef CONFIG_USER_ONLY
+static X86CPUVersion default_cpu_version(void)
 {
-    /* Translating CPU_VERSION_AUTO to CPU_VERSION_AUTO doesn't make sense */
-    assert(version != CPU_VERSION_AUTO);
-    default_cpu_version = version;
+    return CPU_VERSION_LATEST;
 }
+#else
+static X86CPUVersion default_cpu_version_for_machine(MachineClass *mc)
+{
+    PCMachineClass *pcmc =
+        (PCMachineClass *)object_class_dynamic_cast(OBJECT_CLASS(mc), TYPE_PC_MACHINE);
+    return pcmc ? pcmc->default_cpu_version : CPU_VERSION_LATEST;
+}
+
+static X86CPUVersion default_cpu_version(void)
+{
+    return default_cpu_version_for_machine(MACHINE_GET_CLASS(qdev_get_machine()));
+}
+#endif
+
 
 static X86CPUVersion x86_cpu_model_last_version(const X86CPUModel *model)
 {
@@ -4047,8 +4059,8 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
      * Old machine types won't report aliases, so that alias translation
      * doesn't break compatibility with previous QEMU versions.
      */
-    if (default_cpu_version != CPU_VERSION_LEGACY) {
-        info->alias_of = x86_cpu_class_get_alias_of(cc, default_cpu_version);
+    if (default_cpu_version() != CPU_VERSION_LEGACY) {
+        info->alias_of = x86_cpu_class_get_alias_of(cc, default_cpu_version());
         info->has_alias_of = !!info->alias_of;
     }
 
@@ -4119,7 +4131,7 @@ static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
 static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
 {
     const X86CPUVersionDefinition *vdef;
-    X86CPUVersion version = x86_cpu_model_resolve_version(model, default_cpu_version);
+    X86CPUVersion version = x86_cpu_model_resolve_version(model, default_cpu_version());
 
     if (version == CPU_VERSION_LEGACY) {
         return;

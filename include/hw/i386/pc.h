@@ -113,7 +113,10 @@ typedef struct PCMachineClass {
 
     /* Compat options: */
 
-    /* Default CPU model version.  See x86_cpu_set_default_version(). */
+    /*
+     * Default CPU model version for CPU models having
+     * version == CPU_VERSION_AUTO.
+     */
     int default_cpu_version;
 
     /* ACPI compat: */

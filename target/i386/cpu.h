@@ -2168,12 +2168,6 @@ void x86_cpu_change_kvm_default(const char *prop, const char *value);
 
 typedef int X86CPUVersion;
 
-/*
- * Set default CPU model version for CPU models having
- * version == CPU_VERSION_AUTO.
- */
-void x86_cpu_set_default_version(X86CPUVersion version);
-
 /* Return name of 32-bit register, from a R_* constant */
 const char *get_register_name_32(unsigned int reg);
 
