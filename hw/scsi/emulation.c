@@ -9,6 +9,7 @@ int scsi_emulate_block_limits(uint8_t *outbuf, const SCSIBlockLimits *bl)
     memset(outbuf, 0, 0x3c);
 
     outbuf[0] = bl->wsnz; /* wsnz */
+    outbuf[1] = MAX_COMPARE_AND_WRITE_LENGTH;
 
     if (bl->max_io_sectors) {
         /* optimal transfer length granularity.  This field and the optimal

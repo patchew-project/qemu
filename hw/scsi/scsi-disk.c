@@ -477,6 +477,9 @@ static bool scsi_handle_rw_error(SCSIDiskReq *r, int error, bool acct_failed)
         case ENOSPC:
             scsi_check_condition(r, SENSE_CODE(SPACE_ALLOC_FAILED));
             break;
+        case EILSEQ:
+            scsi_check_condition(r, SENSE_CODE(MISCOMPARE_DURING_VERIFY));
+            break;
         default:
             scsi_check_condition(r, SENSE_CODE(IO_ERROR));
             break;
@@ -1824,6 +1827,84 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
                                    scsi_write_same_complete, data);
 }
 
+typedef struct CompareAndWriteCBData {
+    SCSIDiskReq *r;
+    int64_t sector;
+    int nb_sectors;
+    QEMUIOVector qiov;
+    struct iovec iov;
+} CompareAndWriteCBData;
+
+static void scsi_compare_and_write_complete(void *opaque, int ret)
+{
+    CompareAndWriteCBData *data = opaque;
+    SCSIDiskReq *r = data->r;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    assert(r->req.aiocb != NULL);
+    r->req.aiocb = NULL;
+    aio_context_acquire(blk_get_aio_context(s->qdev.conf.blk));
+    if (scsi_disk_req_check_error(r, ret, true)) {
+        goto done;
+    }
+
+    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    scsi_req_complete(&r->req, GOOD);
+
+done:
+    scsi_req_unref(&r->req);
+    qemu_vfree(data->iov.iov_base);
+    g_free(data);
+    aio_context_release(blk_get_aio_context(s->qdev.conf.blk));
+}
+
+static void scsi_disk_emulate_compare_and_write(SCSIDiskReq *r, uint8_t *inbuf)
+{
+    SCSIRequest *req = &r->req;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    uint32_t nb_sectors = scsi_data_cdb_xfer(r->req.cmd.buf);
+    CompareAndWriteCBData *data;
+    uint8_t *buf;
+    int i;
+
+    if (nb_sectors > MAX_COMPARE_AND_WRITE_LENGTH) {
+        scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
+        return;
+    }
+
+    if (blk_is_read_only(s->qdev.conf.blk)) {
+        scsi_check_condition(r, SENSE_CODE(WRITE_PROTECTED));
+        return;
+    }
+
+    if (r->req.cmd.lba > s->qdev.max_lba ||
+                !check_lba_range(s, r->req.cmd.lba, nb_sectors)) {
+        scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
+        return;
+    }
+
+    data = g_new0(CompareAndWriteCBData, 1);
+    data->r = r;
+    data->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
+    data->nb_sectors = r->req.cmd.xfer * (s->qdev.blocksize / 512);
+    data->iov.iov_len = data->nb_sectors;
+    data->iov.iov_base = buf = blk_blockalign(s->qdev.conf.blk,
+                                              data->iov.iov_len);
+    qemu_iovec_init_external(&data->qiov, &data->iov, 1);
+
+    for (i = 0; i < data->iov.iov_len; i += s->qdev.blocksize) {
+        memcpy(&buf[i], &inbuf[i], s->qdev.blocksize);
+    }
+
+    scsi_req_ref(&r->req);
+    block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
+                     data->iov.iov_len, BLOCK_ACCT_WRITE);
+    r->req.aiocb = blk_aio_pwritev(s->qdev.conf.blk,
+                                   data->sector << BDRV_SECTOR_BITS,
+                                   &data->qiov, BDRV_REQ_COMPARE_AND_WRITE,
+                                   scsi_compare_and_write_complete, data);
+}
+
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -1860,6 +1941,9 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
         scsi_disk_emulate_write_same(r, r->iov.iov_base);
         break;
 
+    case COMPARE_AND_WRITE:
+        scsi_disk_emulate_compare_and_write(r, r->iov.iov_base);
+        break;
     default:
         abort();
     }
@@ -2113,6 +2197,9 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     case WRITE_SAME_16:
         trace_scsi_disk_emulate_command_WRITE_SAME(
                 req->cmd.buf[0] == WRITE_SAME_10 ? 10 : 16, r->req.cmd.xfer);
+        break;
+    case COMPARE_AND_WRITE:
+        trace_scsi_disk_emulate_command_COMPARE_AND_WRITE(r->req.cmd.xfer);
         break;
     default:
         trace_scsi_disk_emulate_command_UNKNOWN(buf[0],
@@ -2531,6 +2618,7 @@ static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
     [VERIFY_10]                       = &scsi_disk_emulate_reqops,
     [VERIFY_12]                       = &scsi_disk_emulate_reqops,
     [VERIFY_16]                       = &scsi_disk_emulate_reqops,
+    [COMPARE_AND_WRITE]               = &scsi_disk_emulate_reqops,
 
     [READ_6]                          = &scsi_disk_dma_reqops,
     [READ_10]                         = &scsi_disk_dma_reqops,

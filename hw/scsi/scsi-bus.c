@@ -987,6 +987,9 @@ static int scsi_req_xfer(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case WRITE_VERIFY_16:
         cmd->xfer *= dev->blocksize;
         break;
+    case COMPARE_AND_WRITE:
+        cmd->xfer *= 2 * dev->blocksize;
+        break;
     case READ_6:
     case READ_REVERSE:
         /* length 0 means 256 blocks */
@@ -1206,6 +1209,7 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
     case SET_WINDOW:
+    case COMPARE_AND_WRITE:
     case SCAN:
         /* SCAN conflicts with START_STOP.  START_STOP has cmd->xfer set to 0 for
          * non-scanner devices, so we only get here for SCAN and not for START_STOP.
