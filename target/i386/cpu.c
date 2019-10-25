@@ -3187,11 +3187,12 @@ static X86CPUVersion x86_cpu_model_last_version(const X86CPUModel *model)
 }
 
 /* Return the actual version being used for a specific CPU model */
-static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model)
+static X86CPUVersion x86_cpu_model_resolve_version(const X86CPUModel *model,
+                                                   X86CPUVersion default_version)
 {
     X86CPUVersion v = model->version;
     if (v == CPU_VERSION_AUTO) {
-        v = default_cpu_version;
+        v = default_version;
     }
     if (v == CPU_VERSION_LATEST) {
         return x86_cpu_model_last_version(model);
@@ -3958,14 +3959,15 @@ static char *x86_cpu_class_get_model_id(X86CPUClass *xc)
     return r;
 }
 
-static char *x86_cpu_class_get_alias_of(X86CPUClass *cc)
+static char *x86_cpu_class_get_alias_of(X86CPUClass *cc,
+                                        X86CPUVersion default_version)
 {
     X86CPUVersion version;
 
     if (!cc->model || !cc->model->is_alias) {
         return NULL;
     }
-    version = x86_cpu_model_resolve_version(cc->model);
+    version = x86_cpu_model_resolve_version(cc->model, default_version);
     if (version <= 0) {
         return NULL;
     }
@@ -3978,7 +3980,7 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     g_autofree char *name = x86_cpu_class_get_model_name(cc);
     g_autofree char *desc = g_strdup(cc->model_description);
-    g_autofree char *alias_of = x86_cpu_class_get_alias_of(cc);
+    g_autofree char *alias_of = x86_cpu_class_get_alias_of(cc, default_cpu_version);
 
     if (!desc && alias_of) {
         if (cc->model && cc->model->version == CPU_VERSION_AUTO) {
@@ -4045,7 +4047,7 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
      * doesn't break compatibility with previous QEMU versions.
      */
     if (default_cpu_version != CPU_VERSION_LEGACY) {
-        info->alias_of = x86_cpu_class_get_alias_of(cc);
+        info->alias_of = x86_cpu_class_get_alias_of(cc, default_cpu_version);
         info->has_alias_of = !!info->alias_of;
     }
 
@@ -4116,7 +4118,7 @@ static void x86_cpu_apply_props(X86CPU *cpu, PropValue *props)
 static void x86_cpu_apply_version_props(X86CPU *cpu, X86CPUModel *model)
 {
     const X86CPUVersionDefinition *vdef;
-    X86CPUVersion version = x86_cpu_model_resolve_version(model);
+    X86CPUVersion version = x86_cpu_model_resolve_version(model, default_cpu_version);
 
     if (version == CPU_VERSION_LEGACY) {
         return;
