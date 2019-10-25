@@ -1306,21 +1306,6 @@ static int usb_parse(const char *cmdline)
 
 MachineState *current_machine;
 
-static MachineClass *find_machine(const char *name, GSList *machines)
-{
-    GSList *el;
-
-    for (el = machines; el; el = el->next) {
-        MachineClass *mc = el->data;
-
-        if (!strcmp(mc->name, name) || !g_strcmp0(mc->alias, name)) {
-            return mc;
-        }
-    }
-
-    return NULL;
-}
-
 static MachineClass *find_default_machine(GSList *machines)
 {
     GSList *el;
@@ -2485,7 +2470,7 @@ static MachineClass *machine_parse(const char *name, GSList *machines)
         exit(0);
     }
 
-    mc = find_machine(name, machines);
+    mc = machine_find_class(name);
     if (!mc) {
         error_report("unsupported machine type");
         error_printf("Use -machine help to list supported machines\n");

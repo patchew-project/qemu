@@ -76,6 +76,7 @@ void machine_set_cpu_numa_node(MachineState *machine,
                                Error **errp);
 
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
+MachineClass *machine_find_class(const char *name);
 
 
 /**

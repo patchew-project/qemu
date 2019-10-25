@@ -1143,6 +1143,22 @@ void machine_run_board_init(MachineState *machine)
     machine_class->init(machine);
 }
 
+MachineClass *machine_find_class(const char *name)
+{
+    g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
+    GSList *el;
+
+    for (el = machines; el; el = el->next) {
+        MachineClass *mc = el->data;
+
+        if (!strcmp(mc->name, name) || !g_strcmp0(mc->alias, name)) {
+            return mc;
+        }
+    }
+
+    return NULL;
+}
+
 static const TypeInfo machine_info = {
     .name = TYPE_MACHINE,
     .parent = TYPE_OBJECT,
