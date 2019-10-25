@@ -92,9 +92,10 @@ typedef enum {
      * on read request and means that caller doesn't really need data to be
      * written to qiov parameter which may be NULL.
      */
-    BDRV_REQ_PREFETCH  = 0x200,
+    BDRV_REQ_PREFETCH           = 0x200,
+    BDRV_REQ_COMPARE_AND_WRITE  = 0x400,
     /* Mask of valid flags */
-    BDRV_REQ_MASK               = 0x3ff,
+    BDRV_REQ_MASK               = 0x7ff,
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
