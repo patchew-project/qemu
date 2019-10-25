@@ -3976,9 +3976,9 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
 {
     ObjectClass *oc = data;
     X86CPUClass *cc = X86_CPU_CLASS(oc);
-    char *name = x86_cpu_class_get_model_name(cc);
-    char *desc = g_strdup(cc->model_description);
-    char *alias_of = x86_cpu_class_get_alias_of(cc);
+    g_autofree char *name = x86_cpu_class_get_model_name(cc);
+    g_autofree char *desc = g_strdup(cc->model_description);
+    g_autofree char *alias_of = x86_cpu_class_get_alias_of(cc);
 
     if (!desc && alias_of) {
         if (cc->model && cc->model->version == CPU_VERSION_AUTO) {
@@ -3992,9 +3992,6 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     }
 
     qemu_printf("x86 %-20s  %-48s\n", name, desc);
-    g_free(name);
-    g_free(desc);
-    g_free(alias_of);
 }
 
 /* list available CPU models and flags */
