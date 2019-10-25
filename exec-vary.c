@@ -97,5 +97,6 @@ void finalize_target_page_bits(void)
         init_target_page.bits = TARGET_PAGE_BITS_MIN;
     }
     init_target_page.decided = true;
+    init_target_page.mask = (target_long)-1 << init_target_page.bits;
 #endif
 }
