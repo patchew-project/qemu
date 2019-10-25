@@ -281,6 +281,10 @@
 #
 # @alias-of: Name of CPU model this model is an alias for.  The target of the
 #            CPU model alias may change depending on the machine type.
+#            If the @machine argument was provided to query-cpu-definitions,
+#            alias information that machine type will be returned.
+#            If @machine is not provided, alias information for
+#            the current machine will be returned.
 #            Management software is supposed to translate CPU model aliases
 #            in the VM configuration, because aliases may stop being
 #            migration-safe in the future (since 4.1)
@@ -317,9 +321,17 @@
 #
 # Return a list of supported virtual CPU definitions
 #
+# @machine: Name of machine type.  The command returns some data
+#           that machine-specific.  This overrides the machine type
+#           used to look up that information.  This can be used,
+#           for example, to query machine-specific CPU model aliases
+#           without restarting QEMU (since 4.2)
+#
 # Returns: a list of CpuDefInfo
 #
 # Since: 1.2.0
 ##
-{ 'command': 'query-cpu-definitions', 'returns': ['CpuDefinitionInfo'],
+{ 'command': 'query-cpu-definitions',
+  'data': { '*machine': 'str' },
+  'returns': ['CpuDefinitionInfo'],
   'if': 'defined(TARGET_PPC) || defined(TARGET_ARM) || defined(TARGET_I386) || defined(TARGET_S390X) || defined(TARGET_MIPS)' }

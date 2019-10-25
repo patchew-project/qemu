@@ -234,6 +234,48 @@ class X86CPUModelAliases(avocado_qemu.Test):
 
         self.validate_aliases(cpus)
 
+    def test_machine_arg_none(self):
+        """Check if unversioned CPU model is an alias pointing to right version"""
+        vm1 = self.get_vm()
+        vm1.add_args('-S')
+        vm1.set_machine('pc-i440fx-4.0')
+        vm1.launch()
+        cpus1 = dict((m['name'], m.get('alias-of')) for m in vm1.command('query-cpu-definitions', machine='none'))
+        vm1.shutdown()
+
+        vm2 = self.get_vm()
+        vm2.add_args('-S')
+        vm2.set_machine('none')
+        vm2.launch()
+        cpus2 = dict((m['name'], m.get('alias-of')) for m in vm2.command('query-cpu-definitions'))
+        vm1.shutdown()
+
+        self.assertEquals(cpus1, cpus2)
+
+    def test_machine_arg_4_1(self):
+        """Check if unversioned CPU model is an alias pointing to right version"""
+        vm1 = self.get_vm()
+        vm1.add_args('-S')
+        vm1.set_machine('pc-i440fx-4.0')
+        vm1.launch()
+        cpus1 = dict((m['name'], m.get('alias-of')) for m in vm1.command('query-cpu-definitions', machine='pc-i440fx-4.1'))
+        vm1.shutdown()
+
+        vm2 = self.get_vm()
+        vm2.add_args('-S')
+        vm2.set_machine('pc-i440fx-4.1')
+        vm2.launch()
+        cpus2 = dict((m['name'], m.get('alias-of')) for m in vm2.command('query-cpu-definitions'))
+        vm1.shutdown()
+
+        self.assertEquals(cpus1, cpus2)
+
+    def test_invalid_machine(self):
+        self.vm.add_args('-S')
+        self.vm.launch()
+        r = self.vm.qmp('query-cpu-definitions', machine='invalid-machine-123')
+        self.assertIn('error', r)
+
 
 class CascadelakeArchCapabilities(avocado_qemu.Test):
     """

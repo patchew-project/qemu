@@ -4078,11 +4078,23 @@ static void x86_cpu_definition_entry(gpointer data, gpointer user_data)
     args->cpu_list = entry;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList *qmp_query_cpu_definitions(bool has_machine,
+                                                 const char *machine,
+                                                 Error **errp)
 {
     X86CPUDefinitionArgs args = { .cpu_list = NULL };
     GSList *list;
-    MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
+    MachineClass *mc;
+
+    if (!has_machine) {
+        mc = MACHINE_GET_CLASS(qdev_get_machine());
+    } else {
+        mc = machine_find_class(machine);
+        if (!mc) {
+            error_setg(errp, "Machine type '%s' not found", machine);
+            return NULL;
+        }
+    }
 
     args.default_version = default_cpu_version_for_machine(mc);
     list = get_sorted_cpu_model_list();

@@ -456,7 +456,9 @@ static void create_cpu_model_list(ObjectClass *klass, void *opaque)
     *cpu_list = entry;
 }
 
-CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
+CpuDefinitionInfoList *qmp_query_cpu_definitions(bool has_machine,
+                                                 const char *machine,
+                                                 Error **errp)
 {
     struct CpuDefinitionInfoListData list_data = {
         .list = NULL,
