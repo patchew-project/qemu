@@ -3980,10 +3980,11 @@ static void x86_cpu_list_entry(gpointer data, gpointer user_data)
     X86CPUClass *cc = X86_CPU_CLASS(oc);
     g_autofree char *name = x86_cpu_class_get_model_name(cc);
     g_autofree char *desc = g_strdup(cc->model_description);
-    g_autofree char *alias_of = x86_cpu_class_get_alias_of(cc, default_cpu_version);
 
-    if (!desc && alias_of) {
-        if (cc->model && cc->model->version == CPU_VERSION_AUTO) {
+    if (!desc && cc->model && cc->model->is_alias) {
+        g_autofree char *alias_of =
+            x86_cpu_class_get_alias_of(cc, CPU_VERSION_AUTO);
+        if (!alias_of) {
             desc = g_strdup("(alias configured by machine type)");
         } else {
             desc = g_strdup_printf("(alias of %s)", alias_of);
