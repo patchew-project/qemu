@@ -73,11 +73,18 @@
 #define LIBRBD_USE_IOVEC 0
 #endif
 
+#ifdef LIBRBD_SUPPORTS_COMPARE_AND_WRITE
+#define LIBRBD_HAVE_COMPARE_AND_WRITE 1
+#else
+#define LIBRBD_HAVE_COMPARE_AND_WRITE 0
+#endif
+
 typedef enum {
     RBD_AIO_READ,
     RBD_AIO_WRITE,
     RBD_AIO_DISCARD,
-    RBD_AIO_FLUSH
+    RBD_AIO_FLUSH,
+    RBD_AIO_COMPARE_AND_WRITE
 } RBDAIOCmd;
 
 typedef struct RBDAIOCB {
@@ -798,6 +805,9 @@ static int qemu_rbd_open(BlockDriverState *bs, QDict *options, int flags,
         }
     }
 
+    if (LIBRBD_HAVE_COMPARE_AND_WRITE)
+        bs->supported_write_flags = BDRV_REQ_COMPARE_AND_WRITE;
+
     r = 0;
     goto out;
 
@@ -933,7 +943,15 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
 
     rcb = g_new(RADOSCB, 1);
 
-    if (!LIBRBD_USE_IOVEC) {
+    if (cmd == RBD_AIO_COMPARE_AND_WRITE) {
+        acb->bounce = qemu_try_blockalign(bs, qiov->size);
+        if (acb->bounce == NULL) {
+            goto failed;
+        }
+
+        qemu_iovec_to_buf(acb->qiov, 0, acb->bounce, qiov->size);
+        rcb->buf = acb->bounce;
+    } else if (!LIBRBD_USE_IOVEC) {
         if (cmd == RBD_AIO_DISCARD || cmd == RBD_AIO_FLUSH) {
             acb->bounce = NULL;
         } else {
@@ -992,6 +1010,9 @@ static BlockAIOCB *rbd_start_aio(BlockDriverState *bs,
         break;
     case RBD_AIO_FLUSH:
         r = rbd_aio_flush_wrapper(s->image, c);
+        break;
+    case RBD_AIO_COMPARE_AND_WRITE:
+        r = rbd_aio_compare_and_write(s->image, off, size/2, rcb->buf, (rcb->buf + size/2), c, 0, 0);
         break;
     default:
         r = -EINVAL;
@@ -1053,6 +1074,18 @@ static int qemu_rbd_co_flush(BlockDriverState *bs)
 #else
     return 0;
 #endif
+}
+#endif
+
+#ifdef LIBRBD_SUPPORTS_COMPARE_AND_WRITE
+static BlockAIOCB *qemu_rbd_aio_compare_and_write(BlockDriverState *bs,
+                                                  uint64_t offset, uint64_t bytes,
+                                                  QEMUIOVector *qiov, int flags,
+                                                  BlockCompletionFunc *cb,
+                                                  void *opaque)
+{
+    return rbd_start_aio(bs, offset, qiov, bytes, cb, opaque,
+                         RBD_AIO_COMPARE_AND_WRITE);
 }
 #endif
 
@@ -1307,6 +1340,10 @@ static BlockDriver bdrv_rbd = {
 
 #ifdef LIBRBD_SUPPORTS_DISCARD
     .bdrv_aio_pdiscard      = qemu_rbd_aio_pdiscard,
+#endif
+
+#ifdef LIBRBD_SUPPORTS_COMPARE_AND_WRITE
+    .bdrv_aio_compare_and_write = qemu_rbd_aio_compare_and_write,
 #endif
 
     .bdrv_snapshot_create   = qemu_rbd_snap_create,
