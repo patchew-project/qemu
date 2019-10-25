@@ -2713,6 +2713,48 @@ raw_do_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int bytes,
     RawPosixAIOData acb;
     ThreadPoolFunc *handler;
 
+#ifdef CONFIG_FALLOCATE
+    if (s->is_xfs && s->use_linux_aio &&
+        offset + bytes > bs->total_sectors * BDRV_SECTOR_SIZE)
+    {
+        BdrvTrackedRequest *req;
+        uint64_t end;
+
+        /*
+         * The Linux XFS driver has a bug where it will discard writes
+         * submitted through the AIO interface if they happen beyond a
+         * concurrently running fallocate() that increases the file
+         * length (i.e., both the write and the fallocate() happen
+         * beyond the EOF).
+         *
+         * To work around it, we look for the tracked request for this
+         * zero write, extend it until INT64_MAX (effectively
+         * infinity), and mark it as serializing.
+         *
+         * TODO: Detect whether this has been fixed in the XFS driver.
+         */
+
+        QLIST_FOREACH(req, &bs->tracked_requests, list) {
+            if (req->co == qemu_coroutine_self() &&
+                req->type == BDRV_TRACKED_WRITE)
+            {
+                break;
+            }
+        }
+
+        assert(req);
+        assert(req->offset <= offset);
+        assert(req->offset + req->bytes >= offset + bytes);
+
+        end = INT64_MAX & -(uint64_t)bs->bl.request_alignment;
+        req->bytes = end - req->offset;
+        req->overlap_bytes = req->bytes;
+
+        bdrv_mark_request_serialising(req, bs->bl.request_alignment);
+        bdrv_wait_serialising_requests(req);
+    }
+#endif
+
     acb = (RawPosixAIOData) {
         .bs             = bs,
         .aio_fildes     = s->fd,
