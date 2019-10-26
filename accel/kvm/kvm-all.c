@@ -41,6 +41,7 @@
 #include "hw/irq.h"
 #include "sysemu/sev.h"
 #include "sysemu/balloon.h"
+#include "sysemu/reset.h"
 
 #include "hw/boards.h"
 
@@ -854,6 +855,39 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     }
 
     return ret;
+}
+
+typedef struct HWPoisonPage {
+    ram_addr_t ram_addr;
+    QLIST_ENTRY(HWPoisonPage) list;
+} HWPoisonPage;
+
+static QLIST_HEAD(, HWPoisonPage) hwpoison_page_list =
+    QLIST_HEAD_INITIALIZER(hwpoison_page_list);
+
+static void kvm_unpoison_all(void *param)
+{
+    HWPoisonPage *page, *next_page;
+
+    QLIST_FOREACH_SAFE(page, &hwpoison_page_list, list, next_page) {
+        QLIST_REMOVE(page, list);
+        qemu_ram_remap(page->ram_addr, TARGET_PAGE_SIZE);
+        g_free(page);
+    }
+}
+
+void kvm_hwpoison_page_add(ram_addr_t ram_addr)
+{
+    HWPoisonPage *page;
+
+    QLIST_FOREACH(page, &hwpoison_page_list, list) {
+        if (page->ram_addr == ram_addr) {
+            return;
+        }
+    }
+    page = g_new(HWPoisonPage, 1);
+    page->ram_addr = ram_addr;
+    QLIST_INSERT_HEAD(&hwpoison_page_list, page, list);
 }
 
 static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)
@@ -2030,6 +2064,8 @@ static int kvm_init(MachineState *ms)
     if (ret < 0) {
         goto err;
     }
+
+    qemu_register_reset(kvm_unpoison_all, NULL);
 
     if (machine_kernel_irqchip_allowed(ms)) {
         kvm_irqchip_create(ms, s);
