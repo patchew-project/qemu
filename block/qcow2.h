@@ -77,6 +77,15 @@
 
 #define QCOW_MAX_SUBCLUSTERS_PER_CLUSTER 32
 
+/* The subcluster X [0..31] reads as zeroes */
+#define QCOW_OFLAG_SUB_ZERO(X)    ((1ULL << 63) >> (X))
+/* The subcluster X [0..31] is allocated */
+#define QCOW_OFLAG_SUB_ALLOC(X)   ((1ULL << 31) >> (X))
+/* L2 entry bitmap with all "read as zeroes" bits set */
+#define QCOW_L2_BITMAP_ALL_ZEROES 0xFFFFFFFF00000000ULL
+/* L2 entry bitmap with all allocation bits set */
+#define QCOW_L2_BITMAP_ALL_ALLOC  0x00000000FFFFFFFFULL
+
 #define MIN_CLUSTER_BITS 9
 #define MAX_CLUSTER_BITS 21
 
@@ -438,10 +447,12 @@ typedef struct QCowL2Meta
 
 typedef enum QCow2ClusterType {
     QCOW2_CLUSTER_UNALLOCATED,
+    QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER,
     QCOW2_CLUSTER_ZERO_PLAIN,
     QCOW2_CLUSTER_ZERO_ALLOC,
     QCOW2_CLUSTER_NORMAL,
     QCOW2_CLUSTER_COMPRESSED,
+    QCOW2_CLUSTER_INVALID,
 } QCow2ClusterType;
 
 typedef enum QCow2MetadataOverlap {
@@ -619,6 +630,57 @@ static inline QCow2ClusterType qcow2_get_cluster_type(BlockDriverState *bs,
     } else {
         return QCOW2_CLUSTER_NORMAL;
     }
+}
+
+/* In an image without subsclusters this returns the same value as
+ * qcow2_get_cluster_type() */
+static inline int qcow2_get_subcluster_type(BlockDriverState *bs,
+                                            uint64_t l2_entry,
+                                            uint64_t l2_bitmap,
+                                            unsigned sc_index)
+{
+    BDRVQcow2State *s = bs->opaque;
+    QCow2ClusterType type = qcow2_get_cluster_type(bs, l2_entry);
+    assert(sc_index < s->subclusters_per_cluster);
+
+    if (has_subclusters(s)) {
+        bool sc_zero  = l2_bitmap & QCOW_OFLAG_SUB_ZERO(sc_index);
+        bool sc_alloc = l2_bitmap & QCOW_OFLAG_SUB_ALLOC(sc_index);
+        switch (type) {
+        case QCOW2_CLUSTER_COMPRESSED:
+            if (l2_bitmap != 0) {
+                return QCOW2_CLUSTER_INVALID;
+            }
+            break;
+        case QCOW2_CLUSTER_ZERO_PLAIN:
+        case QCOW2_CLUSTER_ZERO_ALLOC:
+            return QCOW2_CLUSTER_INVALID;
+        case QCOW2_CLUSTER_NORMAL:
+            if (!sc_zero && !sc_alloc) {
+                return QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER;
+            } else if (!sc_zero && sc_alloc) {
+                return QCOW2_CLUSTER_NORMAL;
+            } else if (sc_zero && !sc_alloc) {
+                return QCOW2_CLUSTER_ZERO_ALLOC;
+            } else { /* sc_zero && sc_alloc */
+                return QCOW2_CLUSTER_INVALID;
+            }
+        case QCOW2_CLUSTER_UNALLOCATED:
+            if (!sc_zero && !sc_alloc) {
+                return QCOW2_CLUSTER_UNALLOCATED;
+            } else if (!sc_zero && sc_alloc) {
+                return QCOW2_CLUSTER_INVALID;
+            } else if (sc_zero && !sc_alloc) {
+                return QCOW2_CLUSTER_ZERO_PLAIN;
+            } else { /* sc_zero && sc_alloc */
+                return QCOW2_CLUSTER_INVALID;
+            }
+        default:
+            g_assert_not_reached();
+        }
+    }
+
+    return type;
 }
 
 /* Check whether refcounts are eager or lazy */
