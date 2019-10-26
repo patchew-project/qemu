@@ -1852,7 +1852,7 @@ static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
     assert(nb_clusters <= INT_MAX);
 
     for (i = 0; i < nb_clusters; i++) {
-        uint64_t old_offset;
+        uint64_t old_offset, l2_entry = 0;
         QCow2ClusterType cluster_type;
 
         old_offset = get_l2_entry(s, l2_slice, l2_index + i);
@@ -1869,12 +1869,18 @@ static int zero_in_l2_slice(BlockDriverState *bs, uint64_t offset,
 
         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
         if (cluster_type == QCOW2_CLUSTER_COMPRESSED || unmap) {
-            set_l2_entry(s, l2_slice, l2_index + i, QCOW_OFLAG_ZERO);
             qcow2_free_any_clusters(bs, old_offset, 1, QCOW2_DISCARD_REQUEST);
         } else {
-            uint64_t entry = get_l2_entry(s, l2_slice, l2_index + i);
-            set_l2_entry(s, l2_slice, l2_index + i, entry | QCOW_OFLAG_ZERO);
+            l2_entry = get_l2_entry(s, l2_slice, l2_index + i);
         }
+
+        if (has_subclusters(s)) {
+            set_l2_bitmap(s, l2_slice, l2_index + i, QCOW_L2_BITMAP_ALL_ZEROES);
+        } else {
+            l2_entry |= QCOW_OFLAG_ZERO;
+        }
+
+        set_l2_entry(s, l2_slice, l2_index + i, l2_entry);
     }
 
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
