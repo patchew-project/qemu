@@ -1938,8 +1938,8 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
 
     *pnum = bytes;
 
-    if ((ret == QCOW2_CLUSTER_NORMAL || ret == QCOW2_CLUSTER_ZERO_ALLOC) &&
-        !s->crypto) {
+    if ((ret == QCOW2_CLUSTER_NORMAL || ret == QCOW2_CLUSTER_ZERO_ALLOC ||
+         ret == QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER) && !s->crypto) {
         index_in_cluster = offset & (s->cluster_size - 1);
         *map = cluster_offset | index_in_cluster;
         *file = s->data_file->bs;
@@ -1947,7 +1947,8 @@ static int coroutine_fn qcow2_co_block_status(BlockDriverState *bs,
     }
     if (ret == QCOW2_CLUSTER_ZERO_PLAIN || ret == QCOW2_CLUSTER_ZERO_ALLOC) {
         status |= BDRV_BLOCK_ZERO;
-    } else if (ret != QCOW2_CLUSTER_UNALLOCATED) {
+    } else if (ret != QCOW2_CLUSTER_UNALLOCATED &&
+               ret != QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER) {
         status |= BDRV_BLOCK_DATA;
     }
     if (s->metadata_preallocation && (status & BDRV_BLOCK_DATA) &&
@@ -2117,6 +2118,7 @@ static coroutine_fn int qcow2_co_preadv_task(BlockDriverState *bs,
         g_assert_not_reached();
 
     case QCOW2_CLUSTER_UNALLOCATED:
+    case QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER:
         assert(bs->backing); /* otherwise handled in qcow2_co_preadv_part */
 
         BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
@@ -2187,7 +2189,8 @@ static coroutine_fn int qcow2_co_preadv_part(BlockDriverState *bs,
 
         if (ret == QCOW2_CLUSTER_ZERO_PLAIN ||
             ret == QCOW2_CLUSTER_ZERO_ALLOC ||
-            (ret == QCOW2_CLUSTER_UNALLOCATED && !bs->backing))
+            (ret == QCOW2_CLUSTER_UNALLOCATED && !bs->backing) ||
+            (ret == QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER && !bs->backing))
         {
             qemu_iovec_memset(qiov, qiov_offset, 0, cur_bytes);
         } else {
@@ -3701,6 +3704,7 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
         nr = s->cluster_size;
         ret = qcow2_get_cluster_offset(bs, offset, &nr, &off);
         if (ret != QCOW2_CLUSTER_UNALLOCATED &&
+            ret != QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER &&
             ret != QCOW2_CLUSTER_ZERO_PLAIN &&
             ret != QCOW2_CLUSTER_ZERO_ALLOC) {
             qemu_co_mutex_unlock(&s->lock);
@@ -3771,6 +3775,7 @@ qcow2_co_copy_range_from(BlockDriverState *bs,
 
         switch (ret) {
         case QCOW2_CLUSTER_UNALLOCATED:
+        case QCOW2_CLUSTER_UNALLOCATED_SUBCLUSTER:
             if (bs->backing && bs->backing->bs) {
                 int64_t backing_length = bdrv_getlength(bs->backing->bs);
                 if (src_offset >= backing_length) {
