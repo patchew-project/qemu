@@ -1,0 +1,235 @@
+#!/bin/bash
+#
+# Test qcow2 images with extended L2 entries
+#
+# Copyright (C) 2019 Igalia, S.L.
+# Author: Alberto Garcia <berto@igalia.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=berto@igalia.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+here="$PWD"
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+        rm -f "$TEST_IMG.raw"
+        rm -f "$TEST_IMG.backing"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file nfs
+_supported_os Linux
+
+IMGOPTS="extended_l2=on"
+l2_offset=262144 # 0x40000
+
+_verify_img()
+{
+    $QEMU_IMG compare "$TEST_IMG" "$TEST_IMG.raw" | grep -v 'Images are identical'
+    $QEMU_IMG check "$TEST_IMG" | _filter_qemu_img_check | \
+        grep -v 'No errors were found on the image'
+}
+
+_read_l2_entry()
+{
+    entry_no=$1
+    nentries=$2
+    offset=$(($l2_offset + $entry_no * 16))
+    length=$((nentries * 16))
+    $QEMU_IO -f raw -c "read -v $offset $length" "$TEST_IMG" | _filter_qemu_io | head -n -2
+}
+
+_test_write()
+{
+    cmd="$1"
+    l2_entry_idx="$2"
+    l2_entry_num="$3"
+    raw_cmd=`echo $1 | sed s/-c//` # Raw images don't support -c
+    echo "$cmd"
+    $QEMU_IO -c "$cmd" "$TEST_IMG" | _filter_qemu_io
+    $QEMU_IO -c "$raw_cmd" -f raw "$TEST_IMG.raw" | _filter_qemu_io
+    _verify_img
+    if [ -n "$l2_entry_idx" ]; then
+        _read_l2_entry "$l2_entry_idx" "$l2_entry_num"
+    fi
+}
+
+_reset_img()
+{
+    $QEMU_IMG create -f raw "$TEST_IMG.raw" 1M | _filter_img_create
+    if [ "$use_backing_file" = "yes" ]; then
+        $QEMU_IMG create -f raw "$TEST_IMG.backing" 1M | _filter_img_create
+        $QEMU_IO -c 'write -q -P 0xFF 0 1M' -f raw "$TEST_IMG.backing" | _filter_qemu_io
+        $QEMU_IO -c 'write -q -P 0xFF 0 1M' -f raw "$TEST_IMG.raw" | _filter_qemu_io
+        _make_test_img -b "$TEST_IMG.backing" 1M
+    else
+        _make_test_img 1M
+    fi
+}
+
+# Test that writing to an image with subclusters produces the expected
+# results, in images with and without backing files
+for use_backing_file in yes no; do
+    echo
+    echo "### Standard write tests (backing file: $use_backing_file) ###"
+    echo
+    _reset_img
+    ### Write subcluster #0 (beginning of subcluster) ###
+    _test_write 'write -q -P 1 0 1k' 0 1
+
+    ### Write subcluster #1 (middle of subcluster) ###
+    _test_write 'write -q -P 2 3k 512' 0 1
+
+    ### Write subcluster #2 (end of subcluster) ###
+    _test_write 'write -q -P 3 5k 1k' 0 1
+
+    ### Write subcluster #3 (full subcluster) ###
+    _test_write 'write -q -P 4 6k 2k' 0 1
+
+    ### Write subclusters #4-6 (full subclusters) ###
+    _test_write 'write -q -P 5 8k 6k' 0 1
+
+    ### Write subclusters #7-9 (partial subclusters) ###
+    _test_write 'write -q -P 6 15k 4k' 0 1
+
+    ### Write subcluster #16 (partial subcluster) ###
+    _test_write 'write -q -P 7 32k 1k' 0 2
+
+    ### Write subcluster #31-#34 (cluster overlap) ###
+    _test_write 'write -q -P 8 63k 4k' 0 2
+
+    ### Zero subcluster #1 (TODO: use the "all zeros" bit)
+    _test_write 'write -q -z 2k 2k' 0 1
+
+    ### Zero cluster #0
+    _test_write 'write -q -z 0 64k' 0 1
+
+    ### Fill cluster #0 with data
+    _test_write 'write -q -P 9 0 64k' 0 1
+
+    ### Zero and unmap half of cluster #0 (this won't unmap it)
+    _test_write 'write -q -z -u 0 32k' 0 1
+
+    ### Zero and unmap cluster #0
+    _test_write 'write -q -z -u 0 64k' 0 1
+
+    ### Write subcluster #2 (middle of subcluster)
+    _test_write 'write -q -P 10 3k 512' 0 1
+
+    ### Fill cluster #0 with data
+    _test_write 'write -q -P 11 0 64k' 0 1
+
+    ### Discard cluster #0
+    _test_write 'discard -q 0 64k' 0 1
+
+    ### Write compressed data to cluster #0
+    _test_write 'write -q -c -P 12 0 64k' 0 1
+
+    ### Write subcluster #2 (middle of subcluster)
+    _test_write 'write -q -P 13 3k 512' 0 1
+done
+
+# Test that corrupted L2 entries are detected in both read and write
+# operations
+for corruption_test_cmd in read write; do
+    echo
+    echo "### Corrupted L2 entries - $corruption_test_cmd test (allocated) ###"
+    echo
+    echo "# 'cluster is zero' bit set on the standard cluster descriptor"
+    echo
+    _make_test_img 1M
+    $QEMU_IO -c 'write -q 0 2k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+7)) "\x01"
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+
+    echo
+    echo "# Both 'subcluster is zero' and 'subcluster is allocated' bits set"
+    echo
+    _make_test_img 1M
+    $QEMU_IO -c 'write -q 0 2k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+8)) "\x80"
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+
+    echo
+    echo "### Corrupted L2 entries - $corruption_test_cmd test (unallocated) ###"
+    echo
+    echo "# 'cluster is zero' bit set on the standard cluster descriptor"
+    echo
+    _make_test_img 1M
+    # Write to cluster #4 in order to initialize the L2 table
+    $QEMU_IO -c 'write -q 256k 1k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+7)) "\x01"
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+
+    echo
+    echo "# 'subcluster is allocated' bit set"
+    echo
+    _make_test_img 1M
+    # Write to cluster #4 in order to initialize the L2 table
+    $QEMU_IO -c 'write -q 256k 1k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+12)) "\x80"
+    _read_l2_entry 0 1
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+
+    echo
+    echo "# Both 'subcluster is zero' and 'subcluster is allocated' bits set"
+    echo
+    _make_test_img 1M
+    # Write to cluster #4 in order to initialize the L2 table
+    $QEMU_IO -c 'write -q 256k 1k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+8)) "\x80\x00\x00\x00\x80"
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+
+    echo
+    echo "### Compressed cluster with subcluster bitmap != 0 - $corruption_test_cmd test ###"
+    echo
+    _make_test_img 1M
+    $QEMU_IO -c 'write -q -c 0 64k' "$TEST_IMG"
+    poke_file "$TEST_IMG" $(($l2_offset+8)) "\x01"
+    $QEMU_IO -c "$corruption_test_cmd 0 1k" "$TEST_IMG"
+done
+
+echo
+echo "### Image creation options ###"
+echo
+echo "# cluster_size < 16k"
+IMGOPTS="extended_l2=on,cluster_size=8k" _make_test_img 1M
+
+echo "# backing file and preallocation=metadata"
+IMGOPTS="extended_l2=on,preallocation=metadata" _make_test_img -b "$TEST_IMG.backing" 1M
+
+echo "# backing file and preallocation=falloc"
+IMGOPTS="extended_l2=on,preallocation=falloc" _make_test_img -b "$TEST_IMG.backing" 1M
+
+echo "# backing file and preallocation=full"
+IMGOPTS="extended_l2=on,preallocation=full" _make_test_img -b "$TEST_IMG.backing" 1M
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
+

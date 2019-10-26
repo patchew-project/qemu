@@ -1,0 +1,183 @@
+QA output created by 271
+
+### Standard write tests (backing file: yes) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT.backing', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.backing
+write -q -P 1 0 1k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 80 00 00 00  ................
+write -q -P 2 3k 512
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 c0 00 00 00  ................
+write -q -P 3 5k 1k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 e0 00 00 00  ................
+write -q -P 4 6k 2k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 f0 00 00 00  ................
+write -q -P 5 8k 6k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 fe 00 00 00  ................
+write -q -P 6 15k 4k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 00 00  ................
+write -q -P 7 32k 1k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 80 00  ................
+00040010:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+write -q -P 8 63k 4k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 80 01  ................
+00040010:  80 00 00 00 00 06 00 00 00 00 00 00 c0 00 00 00  ................
+write -q -z 2k 2k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 80 01  ................
+write -q -z 0 64k
+00040000:  80 00 00 00 00 05 00 00 ff ff ff ff 00 00 00 00  ................
+write -q -P 9 0 64k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff ff ff ff  ................
+write -q -z -u 0 32k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff ff ff ff  ................
+write -q -z -u 0 64k
+00040000:  00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
+write -q -P 10 3k 512
+00040000:  80 00 00 00 00 05 00 00 bf ff ff ff 40 00 00 00  ................
+write -q -P 11 0 64k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff ff ff ff  ................
+discard -q 0 64k
+00040000:  00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
+write -q -c -P 12 0 64k
+00040000:  40 00 00 00 00 05 00 00 00 00 00 00 00 00 00 00  ................
+write -q -P 13 3k 512
+00040000:  80 00 00 00 00 07 00 00 00 00 00 00 ff ff ff ff  ................
+
+### Standard write tests (backing file: no) ###
+
+Formatting 'TEST_DIR/t.IMGFMT.raw', fmt=raw size=1048576
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+write -q -P 1 0 1k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 80 00 00 00  ................
+write -q -P 2 3k 512
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 c0 00 00 00  ................
+write -q -P 3 5k 1k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 e0 00 00 00  ................
+write -q -P 4 6k 2k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 f0 00 00 00  ................
+write -q -P 5 8k 6k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 fe 00 00 00  ................
+write -q -P 6 15k 4k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 00 00  ................
+write -q -P 7 32k 1k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 80 00  ................
+00040010:  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+write -q -P 8 63k 4k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 80 01  ................
+00040010:  80 00 00 00 00 06 00 00 00 00 00 00 c0 00 00 00  ................
+write -q -z 2k 2k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff c0 80 01  ................
+write -q -z 0 64k
+00040000:  80 00 00 00 00 05 00 00 ff ff ff ff 00 00 00 00  ................
+write -q -P 9 0 64k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff ff ff ff  ................
+write -q -z -u 0 32k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff ff ff ff  ................
+write -q -z -u 0 64k
+00040000:  00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
+write -q -P 10 3k 512
+00040000:  80 00 00 00 00 05 00 00 bf ff ff ff 40 00 00 00  ................
+write -q -P 11 0 64k
+00040000:  80 00 00 00 00 05 00 00 00 00 00 00 ff ff ff ff  ................
+discard -q 0 64k
+00040000:  00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
+write -q -c -P 12 0 64k
+00040000:  40 00 00 00 00 05 00 00 00 00 00 00 00 00 00 00  ................
+write -q -P 13 3k 512
+00040000:  80 00 00 00 00 07 00 00 00 00 00 00 ff ff ff ff  ................
+
+### Corrupted L2 entries - read test (allocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+### Corrupted L2 entries - read test (unallocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+# 'subcluster is allocated' bit set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+00040000:  00 00 00 00 00 00 00 00 00 00 00 00 80 00 00 00  ................
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+### Compressed cluster with subcluster bitmap != 0 - read test ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+read failed: Input/output error
+
+### Corrupted L2 entries - write test (allocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+### Corrupted L2 entries - write test (unallocated) ###
+
+# 'cluster is zero' bit set on the standard cluster descriptor
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+# 'subcluster is allocated' bit set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+00040000:  00 00 00 00 00 00 00 00 00 00 00 00 80 00 00 00  ................
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+# Both 'subcluster is zero' and 'subcluster is allocated' bits set
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+### Compressed cluster with subcluster bitmap != 0 - write test ###
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+qcow2: Marking image as corrupt: Invalid cluster entry found  (L2 offset: 0x40000, L2 index: 0); further corruption events will be suppressed
+write failed: Input/output error
+
+### Image creation options ###
+
+# cluster_size < 16k
+qemu-img: TEST_DIR/t.IMGFMT: Extended L2 entries are only supported with cluster sizes of at least 16384 bytes
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576
+# backing file and preallocation=metadata
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.backing preallocation=metadata
+# backing file and preallocation=falloc
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.backing preallocation=falloc
+# backing file and preallocation=full
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=TEST_DIR/t.IMGFMT.backing preallocation=full
+*** done
