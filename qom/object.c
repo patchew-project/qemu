@@ -244,6 +244,7 @@ static void type_initialize_interface(TypeImpl *ti, TypeImpl *interface_type,
     TypeImpl *iface_impl;
 
     info.parent = parent_type->name;
+    info.class_data = parent_type->class_data;
     info.name = g_strdup_printf("%s::%s", ti->name, interface_type->name);
     info.abstract = true;
 
