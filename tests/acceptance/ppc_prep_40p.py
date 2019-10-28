@@ -11,6 +11,7 @@ import logging
 from avocado import skipIf
 from avocado import skipUnless
 from avocado_qemu import MachineTest
+from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 
 
@@ -101,3 +102,33 @@ class IbmPrep40pMachine(MachineTest):
 
         self.vm.launch()
         wait_for_console_pattern(self, 'NetBSD/prep BOOT, Revision 1.9')
+
+    @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    def test_sandalfoot_busybox(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        drive_url = ('http://www.juneau-lug.org/zImage.initrd.sandalfoot')
+        drive_hash = 'dacacfc4085ea51d34d99ef70e972b849e2c6949'
+        drive_path = self.fetch_asset(drive_url, asset_hash=drive_hash)
+
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', drive_path,
+                         '-boot', 'd')
+
+        self.vm.launch()
+        wait_for_console_pattern(self, 'Now booting the kernel')
+
+        msg = 'Please press Enter to activate this console.'
+        wait_for_console_pattern(self, msg)
+
+        version = 'BusyBox v0.60.0 (2001.08.19-09:26+0000) Built-in shell (ash)'
+        exec_command_and_wait_for_pattern(self, '', version)
+
+        uname = 'Linux ppc 2.4.18 #5 Wed May 21 23:50:43 AKDT 2003 ppc unknown'
+        exec_command_and_wait_for_pattern(self, 'uname -a', uname)
+
+        cpu = 'PReP IBM 6015/7020 (Sandalfoot/Sandalbow)'
+        exec_command_and_wait_for_pattern(self, 'cat /proc/cpuinfo', cpu)
