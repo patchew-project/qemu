@@ -13,6 +13,7 @@ import lzma
 import gzip
 import shutil
 
+from avocado import skipUnless
 from avocado_qemu import MachineTest
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
@@ -357,3 +358,29 @@ class BootLinuxConsole(MachineTest):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    @skipUnless(os.getenv('AVOCADO_ALLOW_UNTRUSTED_CODE'), 'untrusted code')
+    def test_hppa_fwupdate(self):
+        """
+        :avocado: tags=arch:hppa
+        :avocado: tags=device:lsi53c895a
+        """
+        cdrom_url = ('https://github.com/philmd/qemu-testing-blob/raw/ec1b741/'
+                     'hppa/hp9000/712/C7120023.frm')
+        cdrom_hash = '17944dee46f768791953009bcda551be5ab9fac9'
+        cdrom_path = self.fetch_asset(cdrom_url, asset_hash=cdrom_hash)
+
+        self.vm.set_console()
+        self.vm.add_args('-cdrom', cdrom_path,
+                         '-boot', 'd',
+                         '-no-reboot')
+        self.vm.launch()
+        self.wait_for_console_pattern('Unrecognized MODEL TYPE = 502')
+
+        exec_command_and_wait_for_pattern(self, 'exit',
+                                                'UPDATE>')
+        exec_command_and_wait_for_pattern(self, 'ls',
+                                                'IMAGE1B')
+        exec_command_and_wait_for_pattern(self, 'exit',
+                                                'THIS UTILITY WILL NOW '
+                                                'RESET THE SYSTEM.....')
