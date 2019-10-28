@@ -10,9 +10,9 @@
 
 import logging
 
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 
-class QueryCPUModelExpansion(Test):
+class QueryCPUModelExpansion(MachineTest):
     """
     Run query-cpu-model-expansion for each CPU model, and validate results
     """

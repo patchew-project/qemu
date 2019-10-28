@@ -13,14 +13,14 @@ import lzma
 import gzip
 import shutil
 
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 
 
-class BootLinuxConsole(Test):
+class BootLinuxConsole(MachineTest):
     """
     Boots a Linux kernel and checks that the console is operational and the
     kernel command line is properly passed from QEMU to the kernel

@@ -12,14 +12,14 @@ import logging
 import time
 
 from avocado import skipUnless
-from avocado_qemu import Test
+from avocado_qemu import MachineTest
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
 from avocado.utils import ssh
 
 
-class LinuxSSH(Test):
+class LinuxSSH(MachineTest):
 
     timeout = 150 # Not for 'configure --enable-debug --enable-debug-tcg'
 
