@@ -48,3 +48,24 @@ class IbmPrep40pMachine(MachineTest):
         os_banner = 'NetBSD 4.0 (GENERIC) #0: Sun Dec 16 00:49:40 PST 2007'
         wait_for_console_pattern(self, os_banner)
         wait_for_console_pattern(self, 'Model: IBM PPS Model 6015')
+
+    def test_openfirmware(self):
+        """
+        :avocado: tags=arch:ppc
+        :avocado: tags=machine:40p
+        """
+        bios_url = ('https://github.com/artyom-tarasenko/openfirmware/'
+                    'releases/download/40p-20190413/q40pofw-serial.rom')
+        bios_hash = '880c80172ea5b2247c0ac2a8bf36bbe385192c72'
+        bios_path = self.fetch_asset(bios_url, asset_hash=bios_hash)
+
+        self.vm.set_machine('40p')
+        self.vm.set_console()
+        self.vm.add_args('-bios', bios_path)
+
+        self.vm.launch()
+        wait_for_console_pattern(self, 'QEMU PReP/40p')
+        fw_banner = 'Open Firmware, built  April 13, 2019 09:29:23'
+        wait_for_console_pattern(self, fw_banner)
+        prompt_msg = 'Type any key to interrupt automatic startup'
+        wait_for_console_pattern(self, prompt_msg)
