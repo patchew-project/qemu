@@ -54,7 +54,7 @@ needs_sphinx = '1.3'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['qmp_lexer']
+extensions = ['kerneldoc', 'qmp_lexer']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -215,4 +215,9 @@ texinfo_documents = [
 ]
 
 
+# kernel-doc extension configuration for running Sphinx directly (e.g. by Read
+# the Docs). In a normal build, these are supplied from the Makefile via command
+# line arguments.
+kerneldoc_bin = '../scripts/kernel-doc'
+kerneldoc_srctree = '..'
 
