@@ -86,9 +86,11 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 # qapi
 
 common-obj-y += qapi/
+softmmu-obj-y = main.o
 
-softmmu-main-y = main.o
 endif
+
+
 
 #######################################################################
 # Target-independent parts used in system and user emulation

@@ -1,0 +1,4 @@
+# QEMU_PROG_FUZZ=qemu-fuzz-$(TARGET_NAME)$(EXESUF)
+fuzz-obj-y = $(libqos-obj-y)
+fuzz-obj-y += tests/libqtest.o
+
