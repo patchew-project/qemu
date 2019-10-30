@@ -37,7 +37,7 @@ static void imx_i2c_set_slave_addr(IMXI2C *s, uint8_t addr,
                  (addr << 1) | (direction == IMX_I2C_READ ? 1 : 0));
 }
 
-static void imx_i2c_send(I2CAdapter *i2c, uint8_t addr,
+static void qimx_i2c_send(I2CAdapter *i2c, uint8_t addr,
                          const uint8_t *buf, uint16_t len)
 {
     IMXI2C *s = container_of(i2c, IMXI2C, parent);
@@ -97,7 +97,7 @@ static void imx_i2c_send(I2CAdapter *i2c, uint8_t addr,
     g_assert((status & I2SR_IBB) == 0);
 }
 
-static void imx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
+static void qimx_i2c_recv(I2CAdapter *i2c, uint8_t addr,
                          uint8_t *buf, uint16_t len)
 {
     IMXI2C *s = container_of(i2c, IMXI2C, parent);
@@ -202,8 +202,8 @@ void imx_i2c_init(IMXI2C *s, QTestState *qts, uint64_t addr)
 
     s->obj.get_driver = imx_i2c_get_driver;
 
-    s->parent.send = imx_i2c_send;
-    s->parent.recv = imx_i2c_recv;
+    s->parent.send = qimx_i2c_send;
+    s->parent.recv = qimx_i2c_recv;
     s->parent.qts = qts;
 }
 

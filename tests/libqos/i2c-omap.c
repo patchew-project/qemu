@@ -50,7 +50,7 @@ static void omap_i2c_set_slave_addr(OMAPI2C *s, uint8_t addr)
     g_assert_cmphex(data, ==, addr);
 }
 
-static void omap_i2c_send(I2CAdapter *i2c, uint8_t addr,
+static void qomap_i2c_send(I2CAdapter *i2c, uint8_t addr,
                           const uint8_t *buf, uint16_t len)
 {
     OMAPI2C *s = container_of(i2c, OMAPI2C, parent);
@@ -94,7 +94,7 @@ static void omap_i2c_send(I2CAdapter *i2c, uint8_t addr,
     g_assert((data & OMAP_I2C_CON_STP) == 0);
 }
 
-static void omap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
+static void qomap_i2c_recv(I2CAdapter *i2c, uint8_t addr,
                           uint8_t *buf, uint16_t len)
 {
     OMAPI2C *s = container_of(i2c, OMAPI2C, parent);
@@ -182,8 +182,8 @@ void omap_i2c_init(OMAPI2C *s, QTestState *qts, uint64_t addr)
     s->obj.get_driver = omap_i2c_get_driver;
     s->obj.start_hw = omap_i2c_start_hw;
 
-    s->parent.send = omap_i2c_send;
-    s->parent.recv = omap_i2c_recv;
+    s->parent.send = qomap_i2c_send;
+    s->parent.recv = qomap_i2c_recv;
     s->parent.qts = qts;
 }
 
