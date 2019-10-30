@@ -27,7 +27,6 @@ check-help:
 	@echo "Default options are -k and (for $(MAKE) V=1) --verbose; they can be"
 	@echo "changed with variable GTESTER_OPTIONS."
 
-ifneq ($(wildcard config-host.mak),)
 export SRC_PATH
 
 # TODO don't duplicate $(SRC_PATH)/Makefile's qapi-py here
@@ -872,6 +871,8 @@ tests/test-qga$(EXESUF): qemu-ga$(EXESUF)
 tests/test-qga$(EXESUF): tests/test-qga.o $(qtest-obj-y)
 
 SPEED = quick
+
+ifneq ($(wildcard config-host.mak),)
 
 # gtester tests, possibly with verbose output
 # do_test_tap runs all tests, even if some of them fail, while do_test_human
