@@ -2792,6 +2792,12 @@ int virtio_save(VirtIODevice *vdev, QEMUFile *f)
          * Save desc now, the rest of the ring addresses are saved in
          * subsections for VIRTIO-1 devices.
          */
+        if (!vdev->vq[i].vring.desc && vdev->vq[i].last_avail_idx) {
+            error_report("VQ %d address 0x0 "
+                         "inconsistent with Host index 0x%x",
+                         i, vdev->vq[i].last_avail_idx);
+            return -1;
+        }
         qemu_put_be64(f, vdev->vq[i].vring.desc);
         qemu_put_be16s(f, &vdev->vq[i].last_avail_idx);
         if (k->save_queue) {
