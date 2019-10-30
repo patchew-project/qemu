@@ -501,6 +501,7 @@ libxml2=""
 debug_mutex="no"
 libpmem=""
 default_devices="yes"
+fuzzing="no"
 
 supported_cpu="no"
 supported_os="no"
@@ -627,6 +628,15 @@ EOF
 write_c_skeleton() {
     cat > $TMPC <<EOF
 int main(void) { return 0; }
+EOF
+}
+
+write_c_fuzzer_skeleton() {
+    cat > $TMPC <<EOF
+#include <stdint.h>
+#include <sys/types.h>
+int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size);
+int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) { return 0; }
 EOF
 }
 
@@ -1531,6 +1541,10 @@ for opt do
   --enable-xkbcommon) xkbcommon=yes
   ;;
   --disable-xkbcommon) xkbcommon=no
+  ;;
+  --enable-fuzzing) fuzzing=yes
+  ;;
+  --disable-fuzzing) fuzzing=no
   ;;
   *)
       echo "ERROR: unknown option $opt"
@@ -5912,6 +5926,15 @@ EOF
 fi
 
 ##########################################
+# checks for fuzzer
+if test "$fuzzing" = "yes" ; then
+  write_c_fuzzer_skeleton
+  if compile_prog "$CPU_CFLAGS -Werror -fsanitize=address,fuzzer" ""; then
+      have_fuzzer=yes
+  fi
+fi
+
+##########################################
 # check for libpmem
 
 if test "$libpmem" != "no"; then
@@ -6491,6 +6514,7 @@ echo "capstone          $capstone"
 echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
 echo "default devices   $default_devices"
+echo "fuzzing support   $fuzzing"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -7327,6 +7351,16 @@ fi
 if test "$sheepdog" = "yes" ; then
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
 fi
+if test "$fuzzing" = "yes" ; then
+  if test "$have_fuzzer" = "yes"; then
+    FUZZ_LDFLAGS=" -fsanitize=address,fuzzer"
+    FUZZ_CFLAGS=" -fsanitize=address,fuzzer"
+    CFLAGS=" -fsanitize=address"
+  else
+    error_exit "Your compiler doesn't support -fsanitize=address,fuzzer"
+    exit 1
+  fi
+fi
 
 if test "$tcg_interpreter" = "yes"; then
   QEMU_INCLUDES="-iquote \$(SRC_PATH)/tcg/tci $QEMU_INCLUDES"
@@ -7408,6 +7442,11 @@ fi
 if test "$libudev" != "no"; then
     echo "CONFIG_LIBUDEV=y" >> $config_host_mak
     echo "LIBUDEV_LIBS=$libudev_libs" >> $config_host_mak
+fi
+if test "$fuzzing" != "no"; then
+    echo "CONFIG_FUZZ=y" >> $config_host_mak
+    echo "FUZZ_CFLAGS=$FUZZ_CFLAGS" >> $config_host_mak
+    echo "FUZZ_LDFLAGS=$FUZZ_LDFLAGS" >> $config_host_mak
 fi
 
 # use included Linux headers
