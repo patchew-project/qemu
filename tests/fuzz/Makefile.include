@@ -6,5 +6,6 @@ fuzz-obj-y += tests/fuzz/fork_fuzz.o
 fuzz-obj-y += tests/fuzz/qos_fuzz.o
 
 fuzz-obj-y += tests/fuzz/i440fx_fuzz.o
+fuzz-obj-y += tests/fuzz/virtio_net_fuzz.o
 
 FUZZ_LDFLAGS += -Xlinker -T$(SRC_PATH)/tests/fuzz/fork_fuzz.ld
