@@ -728,4 +728,9 @@ bool qtest_probe_child(QTestState *s);
  * Set expected exit status of the child.
  */
 void qtest_set_expected_status(QTestState *s, int status);
+
+
+QTestState *qtest_inproc_init(bool log, const char* arch,
+                    void (*send)(void*, const char*, size_t));
+void qtest_client_inproc_recv(void *opaque, const char *str, size_t len);
 #endif
