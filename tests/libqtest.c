@@ -1083,8 +1083,8 @@ void qtest_bufwrite(QTestState *s, uint64_t addr, const void *data, size_t size)
 
     bdata = g_base64_encode(data, size);
     qtest_sendf(s, "b64write 0x%" PRIx64 " 0x%zx ", addr, size);
-    socket_send(s->fd, bdata, strlen(bdata));
-    socket_send(s->fd, "\n", 1);
+    s->ops.send(s, bdata, strlen(bdata));
+    s->ops.send(s, "\n", 1);
     qtest_rsp(s, 0);
     g_free(bdata);
 }
