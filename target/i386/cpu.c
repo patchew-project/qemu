@@ -5440,8 +5440,12 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 
         /* Intel Processor Trace requires CPUID[0x14] */
         if ((env->features[FEAT_7_0_EBX] & CPUID_7_0_EBX_INTEL_PT) &&
-             kvm_enabled() && cpu->intel_pt_auto_level) {
-            x86_cpu_adjust_level(cpu, &cpu->env.cpuid_min_level, 0x14);
+             kvm_enabled()) {
+            if (cpu->intel_pt_auto_level)
+                x86_cpu_adjust_level(cpu, &cpu->env.cpuid_min_level, 0x14);
+            else
+                warn_report("Intel PT need CPUID leaf 0x14, please set "
+                            "by \"-cpu ...,+intel-pt,level=0x14\"");
         }
 
         /* CPU topology with multi-dies support requires CPUID[0x1F] */
