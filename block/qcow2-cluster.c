@@ -809,7 +809,7 @@ static int perform_cow(BlockDriverState *bs, QCowL2Meta *m)
     assert(start->nb_bytes + end->nb_bytes <= UINT_MAX - data_bytes);
     assert(start->offset + start->nb_bytes <= end->offset);
 
-    if ((start->nb_bytes == 0 && end->nb_bytes == 0) || m->skip_cow) {
+    if (start->nb_bytes == 0 && end->nb_bytes == 0) {
         return 0;
     }
 
