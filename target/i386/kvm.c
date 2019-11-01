@@ -1365,6 +1365,9 @@ static int hyperv_init_vcpu(X86CPU *cpu)
     Error *local_err = NULL;
     int ret;
 
+    if (!hyperv_enabled(cpu))
+        return 0;
+
     if (cpu->hyperv_passthrough && hv_passthrough_mig_blocker == NULL) {
         error_setg(&hv_passthrough_mig_blocker,
                    "'hv-passthrough' CPU flag prevents migration, use explicit"
