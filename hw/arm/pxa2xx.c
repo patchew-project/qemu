@@ -306,6 +306,8 @@ static void pxa2xx_pwrmode_write(CPUARMState *env, const ARMCPRegInfo *ri,
         cpu_physical_memory_write(8, &buffer, 4);
 #endif
 
+        arm_rebuild_hflags(s->cpu->env);
+
         /* Suspend */
         cpu_interrupt(current_cpu, CPU_INTERRUPT_HALT);
 
