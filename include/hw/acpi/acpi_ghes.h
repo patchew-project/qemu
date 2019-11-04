@@ -24,6 +24,9 @@
 
 #include "hw/acpi/bios-linker-loader.h"
 
+#define ACPI_GHES_CPER_OK                   1
+#define ACPI_GHES_CPER_FAIL                 0
+
 /*
  * Values for Hardware Error Notification Type field
  */
@@ -53,4 +56,5 @@ void acpi_ghes_build_hest(GArray *table_data, GArray *hardware_error,
 
 void acpi_ghes_build_error_table(GArray *hardware_errors, BIOSLinker *linker);
 void acpi_ghes_add_fw_cfg(FWCfgState *s, GArray *hardware_errors);
+bool acpi_ghes_record_errors(uint32_t notify, uint64_t error_physical_addr);
 #endif
