@@ -178,6 +178,19 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info)
         goto err_symbol;
     }
 
+    if (!g_module_symbol(ctx->handle, "qemu_plugin_version", &sym)) {
+        warn_report("%s: missing version %s", __func__, g_module_error());
+    } else {
+        int version = *(int *)sym;
+        if (version < QEMU_PLUGIN_MIN_VERSION ||
+            version > QEMU_PLUGIN_VERSION) {
+            error_report("%s: bad plugin version %d vs %d/%d",
+                         __func__, version, QEMU_PLUGIN_MIN_VERSION,
+                         QEMU_PLUGIN_VERSION);
+            goto err_symbol;
+        }
+    }
+
     qemu_rec_mutex_lock(&plugin.lock);
 
     /* find an unused random id with &ctx as the seed */
@@ -248,6 +261,8 @@ int qemu_plugin_load_list(QemuPluginList *head)
     g_autofree qemu_info_t *info = g_new0(qemu_info_t, 1);
 
     info->target_name = TARGET_NAME;
+    info->version.min = QEMU_PLUGIN_MIN_VERSION;
+    info->version.cur = QEMU_PLUGIN_VERSION;
 #ifndef CONFIG_USER_ONLY
     MachineState *ms = MACHINE(qdev_get_machine());
     info->system_emulation = true;
