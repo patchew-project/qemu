@@ -16,7 +16,7 @@ import tempfile
 
 import avocado
 
-SRC_ROOT_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
+SRC_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 sys.path.append(os.path.join(SRC_ROOT_DIR, 'python'))
 
 from qemu.machine import QEMUMachine
