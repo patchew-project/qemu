@@ -390,7 +390,10 @@ MINIKCONF_ARGS = \
     CONFIG_LINUX=$(CONFIG_LINUX) \
     CONFIG_PVRDMA=$(CONFIG_PVRDMA)
 
-MINIKCONF_INPUTS = $(SRC_PATH)/Kconfig.host $(SRC_PATH)/hw/Kconfig
+MINIKCONF_INPUTS = $(SRC_PATH)/Kconfig.host $(SRC_PATH)/hw/Kconfig \
+                   $(patsubst %,$(SRC_PATH)/hw/%,$(shell sed -ne \
+                                                    's/source \(.*\)/\1/p' \
+                                                    < $(SRC_PATH)/hw/Kconfig))
 MINIKCONF = $(PYTHON) $(SRC_PATH)/scripts/minikconf.py \
 
 $(SUBDIR_DEVICES_MAK): %/config-devices.mak: default-configs/%.mak $(MINIKCONF_INPUTS) $(BUILD_DIR)/config-host.mak
