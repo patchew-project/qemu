@@ -88,6 +88,24 @@ static void qemu_sde_cpu_init(QemuSDEState *s)
     }
 }
 
+static int gic_int_to_irq(int num_irq, int intid, int cpu)
+{
+    if (intid >= GIC_INTERNAL) {
+        return intid - GIC_INTERNAL;
+    }
+    return num_irq - GIC_INTERNAL + cpu * GIC_INTERNAL + intid;
+}
+
+static int irq_to_gic_int(int num_irq, int irq, int *cpu)
+{
+    if (irq < num_irq - GIC_INTERNAL) {
+        return irq + GIC_INTERNAL;
+    }
+    irq -= num_irq - GIC_INTERNAL;
+    *cpu = irq / GIC_INTERNAL;
+    return irq % GIC_INTERNAL;
+}
+
 static inline QemuSDECpu *get_sde_cpu(QemuSDEState *s, CPUState *cs)
 {
     if (cs->cpu_index >= s->sdei_max_cpus) {
@@ -410,6 +428,74 @@ static void dispatch_cpu(QemuSDEState *s, CPUState *cs, bool is_critical)
     }
 }
 
+static void qemu_sdei_irq_handler(void *opaque, int irq, int level)
+{
+    int cpu = 0;
+
+    irq = irq_to_gic_int(sde_state->num_irq, irq, &cpu);
+    trigger_sdei_by_irq(cpu, irq);
+}
+
+static void override_qemu_irq(QemuSDEState *s, int32_t event, uint32_t intid)
+{
+    qemu_irq irq;
+    QemuSDE *sde;
+    CPUState *cs;
+
+    /* SPI */
+    if (intid >= GIC_INTERNAL) {
+        cs = first_cpu;
+        irq = qdev_get_gpio_in(s->gic_dev,
+                               gic_int_to_irq(s->num_irq, intid, 0));
+        if (irq) {
+            qemu_irq_intercept_in(&irq, qemu_sdei_irq_handler, 1);
+        }
+        sde = get_sde_no_check(s, event, cs);
+        sde->irq = irq;
+        put_sde(sde, cs);
+        return;
+    }
+    /* PPI */
+    CPU_FOREACH(cs) {
+        irq = qdev_get_gpio_in(
+            s->gic_dev,
+            gic_int_to_irq(s->num_irq, intid, cs->cpu_index));
+        if (irq) {
+            qemu_irq_intercept_in(&irq, qemu_sdei_irq_handler, 1);
+        }
+        sde = get_sde_no_check(s, event, cs);
+        sde->irq = irq;
+        put_sde(sde, cs);
+    }
+}
+
+static void restore_qemu_irq(QemuSDEState *s, int32_t event, uint32_t intid)
+{
+    QemuSDE *sde;
+    CPUState *cs;
+
+    /* SPI */
+    if (intid >= GIC_INTERNAL) {
+        cs = first_cpu;
+        sde = get_sde_no_check(s, event, cs);
+        if (sde->irq) {
+            qemu_irq_remove_intercept(&sde->irq, 1);
+            sde->irq = NULL;
+        }
+        put_sde(sde, cs);
+        return;
+    }
+    /* PPI */
+    CPU_FOREACH(cs) {
+        sde = get_sde_no_check(s, event, cs);
+        if (sde->irq) {
+            qemu_irq_remove_intercept(&sde->irq, 1);
+            sde->irq = NULL;
+        }
+        put_sde(sde, cs);
+    }
+}
+
 static int32_t sdei_alloc_event_num(QemuSDEState *s, bool is_critical,
                                     bool is_shared, int intid)
 {
@@ -443,6 +529,7 @@ static int32_t sdei_alloc_event_num(QemuSDEState *s, bool is_critical,
             sde_props[index].interrupt = intid;
             sde_props[index].is_shared = is_shared;
             sde_props[index].is_critical = is_critical;
+            override_qemu_irq(s, event, intid);
             s->irq_map[intid] = event;
             qemu_mutex_unlock(&sde_props[index].lock);
             qemu_mutex_unlock(&s->sdei_interrupt_bind_lock);
@@ -460,6 +547,7 @@ static int32_t sdei_free_event_num_locked(QemuSDEState *s, QemuSDEProp *prop)
         return SDEI_DENIED;
     }
 
+    restore_qemu_irq(s, prop->event_id, prop->interrupt);
     s->irq_map[prop->interrupt] = SDEI_INVALID_EVENT_ID;
     prop->event_id = SDEI_INVALID_EVENT_ID;
     prop->interrupt = SDEI_INVALID_INTERRUPT;
@@ -992,13 +1080,33 @@ static int64_t sdei_event_pe_unmask(QemuSDEState *s, CPUState *cs,
     return SDEI_SUCCESS;
 }
 
+static int dev_walkerfn(DeviceState *dev, void *opaque)
+{
+    QemuSDEState *s = opaque;
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_ARM_GICV3_COMMON)) {
+        GICv3State *gic = ARM_GICV3_COMMON(dev);
+        s->num_irq = gic->num_irq;
+        s->gic_dev = dev;
+        return -1;
+    }
+
+    if (object_dynamic_cast(OBJECT(dev), TYPE_ARM_GIC_COMMON)) {
+        GICState *gic = ARM_GIC_COMMON(dev);
+        s->num_irq = gic->num_irq;
+        s->gic_dev = dev;
+        return -1;
+    }
+    return 0;
+}
+
 static int64_t sdei_event_interrupt_bind(QemuSDEState *s, CPUState *cs,
                                          struct kvm_run *run)
 {
     uint64_t *args = (uint64_t *)(run->hypercall.args);
     uint32_t intid = args[1];
 
-    if (intid < GIC_NR_SGIS || intid >= GIC_MAXIRQ) {
+    if (intid < GIC_NR_SGIS || intid >= s->num_irq) {
         return SDEI_INVALID_PARAMETERS;
     }
     return sdei_alloc_event_num(s, false, intid >= GIC_INTERNAL, intid);
@@ -1110,6 +1218,17 @@ void sdei_handle_request(CPUState *cs, struct kvm_run *run)
     if (!sde_state) {
         run->hypercall.args[0] = SDEI_NOT_SUPPORTED;
         return;
+    }
+
+    if (!sde_state->gic_dev) {
+        /* Search for ARM GIC device */
+        qbus_walk_children(sysbus_get_default(), dev_walkerfn,
+                           NULL, NULL, NULL, sde_state);
+        if (!sde_state->gic_dev) {
+            error_report("Cannot find ARM GIC device!");
+            run->hypercall.args[0] = SDEI_NOT_SUPPORTED;
+            return;
+        }
     }
 
     if (func_id < SDEI_1_0_FN_BASE || func_id > SDEI_MAX_REQ) {
@@ -1259,11 +1378,20 @@ static int qemu_sdei_post_load(void *opaque, int version_id)
         }
     }
 
+    /* Search for ARM GIC device */
+    qbus_walk_children(sysbus_get_default(), dev_walkerfn,
+                       NULL, NULL, NULL, s);
+    if (!s->gic_dev) {
+        error_report("Cannot find ARM GIC device!");
+        return 0;
+    }
+
     for (i = 0; i < PRIVATE_SLOT_COUNT + SHARED_SLOT_COUNT; i++) {
         int intid = sde_props[i].interrupt;
 
         if (intid != SDEI_INVALID_INTERRUPT) {
             s->irq_map[intid] = sde_props[i].event_id;
+            override_qemu_irq(s, sde_props[i].event_id, intid);
         }
     }
 
