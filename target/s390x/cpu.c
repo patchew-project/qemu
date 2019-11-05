@@ -76,8 +76,15 @@ static bool s390_cpu_has_work(CPUState *cs)
 static void s390_cpu_load_normal(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
-    cpu->env.psw.addr = ldl_phys(s->as, 4) & PSW_MASK_ESA_ADDR;
-    cpu->env.psw.mask = PSW_MASK_32 | PSW_MASK_64;
+    uint64_t spsw = ldq_phys(s->as, 0);
+
+    /* Mask out bit 12 and instruction address */
+    cpu->env.psw.mask = spsw & 0xfff7ffff80000000UL;
+    cpu->env.psw.addr = spsw & 0x7fffffffUL;
+
+    if (!(spsw & 0x8000000000000UL)) {
+        s390_program_interrupt(&cpu->env, PGM_SPECIFICATION, 0, RA_IGNORED);
+    }
     s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
 }
 #endif
