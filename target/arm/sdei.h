@@ -38,4 +38,21 @@ void sdei_handle_request(CPUState *cs, struct kvm_run *run);
  */
 bool trigger_sdei_by_irq(int cpu, int irq);
 
+/*
+ * Notify callback prototype; the argument "bind" tells whether it is a bind
+ * operation or unbind one.
+ */
+typedef void QemuSDEIBindNotify(void *opaque, int irq,
+                                int32_t event, bool bind);
+/*
+ * Register a notify callback for a specific interrupt bind operation; the
+ * client will be both notified by bind and unbind operation.
+ */
+void qemu_register_sdei_bind_notifier(QemuSDEIBindNotify *func,
+                                      void *opaque, int irq);
+/*
+ * Unregister a notify callback for a specific interrupt bind operation.
+ */
+void qemu_unregister_sdei_bind_notifier(QemuSDEIBindNotify *func,
+                                        void *opaque, int irq);
 #endif
