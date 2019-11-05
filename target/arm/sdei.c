@@ -1147,6 +1147,26 @@ static void qemu_sde_init(QemuSDEState *s)
     qemu_private_sde_init(s);
 }
 
+static void qemu_sde_reset(void *opaque)
+{
+    int64_t         ret = 0;
+    CPUState        *cs;
+    QemuSDEState    *s = opaque;
+
+    CPU_FOREACH(cs) {
+        QemuSDECpu *sde_cpu = get_sde_cpu(s, cs);
+        ret |= sdei_private_reset_common(s, cs, true);
+        sde_cpu->masked = true;
+        sde_cpu->critical_running_event = SDEI_INVALID_EVENT_ID;
+        sde_cpu->normal_running_event = SDEI_INVALID_EVENT_ID;
+    }
+
+    ret |= sdei_shared_reset_common(s, first_cpu, true);
+    if (ret) {
+        error_report("SDEI system reset failed: 0x%lx", ret);
+    }
+}
+
 static void sde_array_save(QemuSDE **array, int count)
 {
     int i;
@@ -1299,6 +1319,7 @@ static void sdei_initfn(Object *obj)
     sde_state = s;
 
     qemu_sde_init(s);
+    qemu_register_reset(qemu_sde_reset, s);
 }
 
 static void qemu_sde_class_init(ObjectClass *klass, void *data)
