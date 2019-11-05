@@ -469,3 +469,7 @@ config ARMSSE_CPUID
 
 config ARMSSE_MHU
     bool
+
+config SDEI
+    bool
+    depends on KVM
