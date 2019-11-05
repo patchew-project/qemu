@@ -30,6 +30,7 @@
 #include "hw/boards.h"
 #include "hw/irq.h"
 #include "qemu/log.h"
+#include "sdei.h"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -691,6 +692,19 @@ MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
 }
 
 
+static void kvm_arm_handle_hypercall(CPUState *cs, struct kvm_run *run)
+{
+    uint32_t func_id = run->hypercall.args[0];
+
+    if (sdei_enabled &&
+        func_id >= SDEI_1_0_FN_BASE && func_id <= SDEI_MAX_REQ) {
+        sdei_handle_request(cs, run);
+        return;
+    }
+
+    run->hypercall.args[0] = -1;
+}
+
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
     int ret = 0;
@@ -700,6 +714,9 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         if (kvm_arm_handle_debug(cs, &run->debug.arch)) {
             ret = EXCP_DEBUG;
         } /* otherwise return to guest */
+        break;
+    case KVM_EXIT_HYPERCALL:
+        kvm_arm_handle_hypercall(cs, run);
         break;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: un-handled exit reason %d\n",
