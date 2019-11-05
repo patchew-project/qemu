@@ -32,6 +32,7 @@
 #include "trace.h"
 #include "hw/core/cpu.h"
 #include "target/arm/cpu.h"
+#include "target/arm/sdei.h"
 #include "hw/acpi/acpi-defs.h"
 #include "hw/acpi/acpi.h"
 #include "hw/nvram/fw_cfg.h"
@@ -475,6 +476,26 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
                  "IORT", table_data->len - iort_start, 0, NULL, NULL);
 }
 
+/*
+ * ACPI spec 6.2 Software Delegated Exception Interface (SDEI).
+ * (Revision 1.0)
+ * "SDEI" was reserved in ACPI 6.2. See "Links to ACPI-Related Documents"
+ * (http://uefi.org/acpi) under the heading "Software
+ * Delegated Exceptions Interface." The definition is under
+ * "10 Appendix C: ACPI table definitions for SDEI" in the linked document.
+ *
+ * This is a dummy table to expose platform SDEI capbility to OS.
+ */
+static void
+build_sdei(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
+{
+    int sdei_start = table_data->len;
+
+    (void)acpi_data_push(table_data, sizeof(AcpiTableHeader));
+    build_header(linker, table_data, (void *)(table_data->data + sdei_start),
+                 "SDEI", table_data->len - sdei_start, 1, NULL, NULL);
+}
+
 static void
 build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
@@ -824,6 +845,11 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
 
     acpi_add_table(table_offsets, tables_blob);
     build_spcr(tables_blob, tables->linker, vms);
+
+    if (sdei_enabled) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_sdei(tables_blob, tables->linker, vms);
+    }
 
     if (ms->numa_state->num_nodes > 0) {
         acpi_add_table(table_offsets, tables_blob);
