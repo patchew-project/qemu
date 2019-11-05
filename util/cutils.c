@@ -164,6 +164,53 @@ int qemu_fdatasync(int fd)
 #endif
 }
 
+/**
+ * Sync changes made to the memory mapped file back to the backing
+ * storage. For POSIX compliant systems this will simply fallback
+ * to regular msync call (thus the required alignment). Otherwise
+ * it will trigger whole file sync (including the metadata case
+ * there is no support to skip that otherwise)
+ *
+ * @addr   - start of the memory area to be synced
+ * @length - length of the are to be synced
+ * @align  - alignment (expected to be PAGE_SIZE)
+ * @fd     - file descriptor for the file to be synced
+ *           (mandatory only for POSIX non-compliant systems)
+ */
+int qemu_msync(void *addr, size_t length, size_t align, int fd)
+{
+#ifdef CONFIG_POSIX
+    size_t align_mask;
+
+    /* Bare minimum of sanity checks on the alignment */
+    /* The start address needs to be a multiple of PAGE_SIZE */
+    align = MAX(align, qemu_real_host_page_size);
+    align_mask = ~(qemu_real_host_page_size - 1);
+    align = (align + ~align_mask) & align_mask;
+
+    align_mask = ~(align - 1);
+    /**
+     * There are no strict reqs as per the length of mapping
+     * to be synced. Still the length needs to follow the address
+     * alignment changes. Additionally - round the size to the multiple
+     * of requested alignment (expected as PAGE_SIZE)
+     */
+    length += ((uintptr_t)addr & (align - 1));
+    length = (length + ~align_mask) & align_mask;
+
+    addr = (void *)((uintptr_t)addr & align_mask);
+
+    return msync(addr, length, MS_SYNC);
+#else /* CONFIG_POSIX */
+    /**
+     * Perform the sync based on the file descriptor
+     * The sync range will most probably be wider than the one
+     * requested - but it will still get the job done
+     */
+    return qemu_fdatasync(fd);
+#endif /* CONFIG_POSIX */
+}
+
 #ifndef _WIN32
 /* Sets a specific flag */
 int fcntl_setfl(int fd, int flag)
