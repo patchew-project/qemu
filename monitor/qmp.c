@@ -333,6 +333,7 @@ static void monitor_qmp_event(void *opaque, int event)
          * is closed.
          */
         monitor_qmp_cleanup_queues(mon);
+        mon->commands = &qmp_cap_negotiation_commands;
         json_message_parser_destroy(&mon->parser);
         json_message_parser_init(&mon->parser, handle_qmp_command,
                                  mon, NULL);
