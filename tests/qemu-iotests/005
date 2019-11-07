@@ -62,7 +62,7 @@ if [ "$IMGFMT" = "raw" ]; then
     if ! truncate --size=5T "$TEST_IMG"; then
         _notrun "file system on $TEST_DIR does not support large enough files"
     fi
-    rm "$TEST_IMG"
+    _rm_test_img "$TEST_IMG"
 fi
 
 echo
