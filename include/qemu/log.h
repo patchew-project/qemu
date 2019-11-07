@@ -3,9 +3,17 @@
 
 /* A small part of this API is split into its own header */
 #include "qemu/log-for-trace.h"
+#include "qemu/rcu.h"
+
+struct QemuLogFile {
+    struct rcu_head rcu;
+    FILE *fd;
+};
+typedef struct QemuLogFile QemuLogFile;
 
 /* Private global variable, don't use */
-extern FILE *qemu_logfile;
+extern QemuLogFile *qemu_logfile;
+
 
 /* 
  * The new API:
@@ -25,7 +33,17 @@ static inline bool qemu_log_enabled(void)
  */
 static inline bool qemu_log_separate(void)
 {
-    return qemu_logfile != NULL && qemu_logfile != stderr;
+    QemuLogFile *logfile;
+
+    if (qemu_log_enabled()) {
+        rcu_read_lock();
+        logfile = atomic_rcu_read(&qemu_logfile);
+        if (logfile && logfile->fd != stderr) {
+            return true;
+        }
+        rcu_read_unlock();
+    }
+    return false;
 }
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
@@ -55,12 +73,23 @@ static inline bool qemu_log_separate(void)
 
 static inline void qemu_log_lock(void)
 {
-    qemu_flockfile(qemu_logfile);
+    QemuLogFile *logfile;
+    rcu_read_lock();
+    logfile = atomic_rcu_read(&qemu_logfile);
+    if (logfile) {
+        qemu_flockfile(logfile->fd);
+    }
+    rcu_read_unlock();
 }
 
 static inline void qemu_log_unlock(void)
 {
-    qemu_funlockfile(qemu_logfile);
+    QemuLogFile *logfile;
+    logfile = atomic_rcu_read(&qemu_logfile);
+    if (logfile) {
+        qemu_funlockfile(logfile->fd);
+    }
+    rcu_read_unlock();
 }
 
 /* Logging functions: */
@@ -70,9 +99,14 @@ static inline void qemu_log_unlock(void)
 static inline void GCC_FMT_ATTR(1, 0)
 qemu_log_vprintf(const char *fmt, va_list va)
 {
-    if (qemu_logfile) {
-        vfprintf(qemu_logfile, fmt, va);
+    QemuLogFile *logfile;
+
+    rcu_read_lock();
+    logfile = atomic_rcu_read(&qemu_logfile);
+    if (logfile) {
+        vfprintf(logfile->fd, fmt, va);
     }
+    rcu_read_unlock();
 }
 
 /* log only if a bit is set on the current loglevel mask:
@@ -129,5 +163,6 @@ void qemu_print_log_usage(FILE *f);
 void qemu_log_flush(void);
 /* Close the log file */
 void qemu_log_close(void);
+void qemu_logfile_free(QemuLogFile *logfile);
 
 #endif
