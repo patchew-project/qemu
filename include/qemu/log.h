@@ -71,25 +71,25 @@ static inline bool qemu_log_separate(void)
  * qemu_loglevel is never set when qemu_logfile is unset.
  */
 
-static inline void qemu_log_lock(void)
+static inline FILE *qemu_log_lock(void)
 {
     QemuLogFile *logfile;
     rcu_read_lock();
     logfile = atomic_rcu_read(&qemu_logfile);
     if (logfile) {
         qemu_flockfile(logfile->fd);
+        return logfile->fd;
     }
     rcu_read_unlock();
+    return NULL;
 }
 
-static inline void qemu_log_unlock(void)
+static inline void qemu_log_unlock(FILE *fd)
 {
-    QemuLogFile *logfile;
-    logfile = atomic_rcu_read(&qemu_logfile);
-    if (logfile) {
-        qemu_funlockfile(logfile->fd);
+    if (fd) {
+        qemu_funlockfile(fd);
+        rcu_read_unlock();
     }
-    rcu_read_unlock();
 }
 
 /* Logging functions: */
