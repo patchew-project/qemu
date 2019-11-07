@@ -24,8 +24,11 @@
 #include "qapi/error.h"
 #include "qemu/cutils.h"
 #include "trace/control.h"
+#include "qemu/thread.h"
 
 static char *logfilename;
+static bool qemu_logfile_initialized;
+static QemuMutex qemu_logfile_mutex;
 FILE *qemu_logfile;
 int qemu_loglevel;
 static int log_append = 0;
@@ -49,6 +52,14 @@ int qemu_log(const char *fmt, ...)
     return ret;
 }
 
+static void qemu_logfile_init(void)
+{
+    if (!qemu_logfile_initialized) {
+        qemu_mutex_init(&qemu_logfile_mutex);
+        qemu_logfile_initialized = true;
+    }
+}
+
 static bool log_uses_own_buffers;
 
 /* enable or disable low levels log */
@@ -58,6 +69,12 @@ void qemu_set_log(int log_flags)
 #ifdef CONFIG_TRACE_LOG
     qemu_loglevel |= LOG_TRACE;
 #endif
+
+    /* Is there a better place to call this to init the logfile subsystem? */
+    if (!qemu_logfile_initialized) {
+        qemu_logfile_init();
+    }
+    qemu_mutex_lock(&qemu_logfile_mutex);
     if (!qemu_logfile &&
         (is_daemonized() ? logfilename != NULL : qemu_loglevel)) {
         if (logfilename) {
@@ -93,6 +110,7 @@ void qemu_set_log(int log_flags)
             log_append = 1;
         }
     }
+    qemu_mutex_unlock(&qemu_logfile_mutex);
     if (qemu_logfile &&
         (is_daemonized() ? logfilename == NULL : !qemu_loglevel)) {
         qemu_log_close();
@@ -113,6 +131,11 @@ void qemu_set_log_filename(const char *filename, Error **errp)
 {
     char *pidstr;
     g_free(logfilename);
+
+    /* Is there a better place to call this to init the logfile subsystem? */
+    if (!qemu_logfile_initialized) {
+        qemu_logfile_init();
+    }
 
     pidstr = strstr(filename, "%");
     if (pidstr) {
