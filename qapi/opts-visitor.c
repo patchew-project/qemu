@@ -526,6 +526,27 @@ opts_type_size(Visitor *v, const char *name, uint64_t *obj, Error **errp)
     processed(ov, name);
 }
 
+static void
+opts_type_time(Visitor *v, const char *name, uint64_t *obj, Error **errp)
+{
+    OptsVisitor *ov = to_ov(v);
+    const QemuOpt *opt;
+    int err;
+
+    opt = lookup_scalar(ov, name, errp);
+    if (!opt) {
+        return;
+    }
+
+    err = qemu_strtotime_ns(opt->str ? opt->str : "", NULL, obj);
+    if (err < 0) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE, opt->name,
+                   "a time value");
+        return;
+    }
+
+    processed(ov, name);
+}
 
 static void
 opts_optional(Visitor *v, const char *name, bool *present)
@@ -573,6 +594,7 @@ opts_visitor_new(const QemuOpts *opts)
     ov->visitor.type_int64  = &opts_type_int64;
     ov->visitor.type_uint64 = &opts_type_uint64;
     ov->visitor.type_size   = &opts_type_size;
+    ov->visitor.type_time   = &opts_type_time;
     ov->visitor.type_bool   = &opts_type_bool;
     ov->visitor.type_str    = &opts_type_str;
 
