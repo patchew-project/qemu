@@ -286,6 +286,20 @@ int qemu_strtosz_metric(const char *nptr, const char **end, uint64_t *result)
     return do_strtosz(nptr, end, "B", 1000, result);
 }
 
+/*
+ * Convert string to time, support time unit are ns for nanosecond, us for
+ * microsecond, ms for millisecond and s for second. End pointer will be
+ * returned in *end, if not NULL. Return -ERANGE on overflow, and -EINVAL on
+ * other error.
+ */
+int qemu_strtotime_ns(const char *nptr, const char **end, uint64_t *result)
+{
+    static const char *suffixes[] = { "ns", "us", "ms", "s" };
+
+    return do_strtomul(nptr, end, suffixes, ARRAY_SIZE(suffixes), "ns", 1000,
+                       result);
+}
+
 /**
  * Helper function for error checking after strtol() and the like
  */
