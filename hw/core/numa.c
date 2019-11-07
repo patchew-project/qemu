@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/numa.h"
 #include "sysemu/sysemu.h"
@@ -198,6 +199,128 @@ void parse_numa_distance(MachineState *ms, NumaDistOptions *dist, Error **errp)
     ms->numa_state->have_numa_distance = true;
 }
 
+void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,
+                        Error **errp)
+{
+    int first_bit, last_bit;
+    uint64_t max_latency, temp_base_la;
+    NodeInfo *numa_info = numa_state->nodes;
+    HMAT_LB_Info *hmat_lb =
+        numa_state->hmat_lb[node->hierarchy][node->data_type];
+    HMAT_LB_Data lb_data;
+
+    /* Error checking */
+    if (node->initiator >= numa_state->num_nodes) {
+        error_setg(errp, "Invalid initiator=%d, it should be less than %d.",
+                   node->initiator, numa_state->num_nodes);
+        return;
+    }
+    if (node->target >= numa_state->num_nodes) {
+        error_setg(errp, "Invalid target=%d, it should be less than %d.",
+                   node->target, numa_state->num_nodes);
+        return;
+    }
+    if (!numa_info[node->initiator].has_cpu) {
+        error_setg(errp, "Invalid initiator=%d, it isn't an "
+                   "initiator proximity domain.", node->initiator);
+        return;
+    }
+    if (!numa_info[node->target].present) {
+        error_setg(errp, "Invalid target=%d, it hasn't a valid NUMA node.",
+                   node->target);
+        return;
+    }
+
+    if (!hmat_lb) {
+        hmat_lb = g_malloc0(sizeof(*hmat_lb));
+        numa_state->hmat_lb[node->hierarchy][node->data_type] = hmat_lb;
+        hmat_lb->latency = g_array_new(false, true, sizeof(HMAT_LB_Data));
+        hmat_lb->bandwidth = g_array_new(false, true, sizeof(HMAT_LB_Data));
+    }
+    hmat_lb->hierarchy = node->hierarchy;
+    hmat_lb->data_type = node->data_type;
+    lb_data.initiator = node->initiator;
+    lb_data.target = node->target;
+
+    /* Input latency data */
+    if (node->data_type <= HMATLB_DATA_TYPE_WRITE_LATENCY) {
+        if (!node->has_latency) {
+            error_setg(errp, "Missing 'latency' option.");
+            return;
+        }
+        if (node->has_bandwidth) {
+            error_setg(errp, "Invalid option 'bandwidth' since "
+                       "the data type is latency.");
+            return;
+        }
+
+        if (hmat_lb->base_latency == 0) {
+            hmat_lb->base_latency = UINT64_MAX;
+        }
+
+        /* Calculate the temporary base and compressed latency */
+        max_latency = node->latency;
+        temp_base_la = 1;
+        while (QEMU_IS_ALIGNED(max_latency, 10)) {
+            max_latency /= 10;
+            temp_base_la *= 10;
+        }
+
+        /* Calculate the max compressed latency */
+        hmat_lb->base_latency = MIN(hmat_lb->base_latency, temp_base_la);
+        max_latency = node->latency / hmat_lb->base_latency;
+        hmat_lb->max_entry_la = MAX(hmat_lb->max_entry_la, max_latency);
+
+        if (hmat_lb->max_entry_la >= UINT16_MAX) {
+            error_setg(errp, "Latency %" PRIu64 " between initiator=%d and "
+                       "target=%d should not differ from previously entered "
+                       "values on more than %d.", node->latency,
+                       node->initiator, node->target, UINT16_MAX - 1);
+            return;
+        }
+
+        lb_data.rawdata = node->latency;
+        g_array_append_val(hmat_lb->latency, lb_data);
+    }
+
+    /* Input bandwidth data */
+    if (node->data_type >= HMATLB_DATA_TYPE_ACCESS_BANDWIDTH) {
+        if (!node->has_bandwidth) {
+            error_setg(errp, "Missing 'bandwidth' option.");
+            return;
+        }
+        if (node->has_latency) {
+            error_setg(errp, "Invalid option 'latency' since "
+                       "the data type is bandwidth.");
+            return;
+        }
+        if (!QEMU_IS_ALIGNED(node->bandwidth, MiB)) {
+            error_setg(errp, "Bandwidth %" PRIu64 " between initiator=%d and "
+                       "target=%d should be 1MB aligned.", node->bandwidth,
+                       node->initiator, node->target);
+            return;
+        }
+
+        hmat_lb->range_bitmap_bw |= node->bandwidth;
+
+        first_bit = ctz64(hmat_lb->range_bitmap_bw);
+        hmat_lb->base_bandwidth = UINT64_C(1) << first_bit;
+        last_bit = 64 - clz64(hmat_lb->range_bitmap_bw);
+        if ((last_bit - first_bit) > UINT16_BITS ||
+            (MAKE_64BIT_MASK(first_bit, UINT16_BITS) == node->bandwidth)) {
+            error_setg(errp, "Bandwidth %" PRIu64 " between initiator=%d and "
+                       "target=%d should not differ from previously entered "
+                       "values on more than %d.", node->bandwidth,
+                       node->initiator, node->target, UINT16_MAX - 1);
+            return;
+        }
+
+        hmat_lb->base_bandwidth = UINT64_C(1) << first_bit;
+        lb_data.rawdata = node->bandwidth;
+        g_array_append_val(hmat_lb->bandwidth, lb_data);
+    }
+}
+
 void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 {
     Error *err = NULL;
@@ -235,6 +358,19 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp)
 
         machine_set_cpu_numa_node(ms, qapi_NumaCpuOptions_base(&object->u.cpu),
                                   &err);
+        break;
+    case NUMA_OPTIONS_TYPE_HMAT_LB:
+        if (!ms->numa_state->hmat_enabled) {
+            error_setg(errp, "ACPI Heterogeneous Memory Attribute Table "
+                       "(HMAT) is disabled, enable it with -machine hmat=on "
+                       "before using any of hmat specific options.");
+            return;
+        }
+
+        parse_numa_hmat_lb(ms->numa_state, &object->u.hmat_lb, &err);
+        if (err) {
+            goto end;
+        }
         break;
     default:
         abort();
