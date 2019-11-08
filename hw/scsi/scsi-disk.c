@@ -229,6 +229,7 @@ static bool scsi_is_cmd_fua(SCSICommand *cmd)
     case WRITE_10:
     case WRITE_12:
     case WRITE_16:
+    case COMPARE_AND_WRITE:
         return (cmd->buf[1] & 8) != 0;
 
     case VERIFY_10:
@@ -1850,10 +1851,17 @@ static void scsi_compare_and_write_complete(void *opaque, int ret)
     }
 
     block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    if (r->need_fua_emulation) {
+        block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct, 0,
+                         BLOCK_ACCT_FLUSH);
+        r->req.aiocb = blk_aio_flush(s->qdev.conf.blk, scsi_aio_complete, r);
+        goto free;
+    }
     scsi_req_complete(&r->req, GOOD);
 
 done:
     scsi_req_unref(&r->req);
+free:
     qemu_vfree(data->iov.iov_base);
     g_free(data);
     aio_context_release(blk_get_aio_context(s->qdev.conf.blk));
@@ -1954,6 +1962,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    SCSIDiskClass *sdc = (SCSIDiskClass *) object_get_class(OBJECT(s));
     uint64_t nb_sectors;
     uint8_t *outbuf;
     int buflen;
@@ -2209,6 +2218,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         return 0;
     }
     assert(!r->req.aiocb);
+    r->need_fua_emulation = sdc->need_fua_emulation(&r->req.cmd);
     r->iov.iov_len = MIN(r->buflen, req->cmd.xfer);
     if (r->iov.iov_len == 0) {
         scsi_req_complete(&r->req, GOOD);
