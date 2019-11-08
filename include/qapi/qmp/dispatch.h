@@ -17,6 +17,8 @@
 #include "qemu/queue.h"
 #include "qapi/qmp/json-parser.h"
 
+typedef struct QmpReturn QmpReturn;
+
 typedef void (QmpCommandFunc)(QDict *, QObject **, Error **);
 
 typedef enum QmpCommandOptions
@@ -47,6 +49,37 @@ struct QmpSession {
     QmpDispatchReturn *return_cb;
 };
 
+struct QmpReturn {
+    QmpSession *session;
+    QDict *rsp;
+};
+
+/**
+ * qmp_return_new:
+ *
+ * Allocates and initializes a QmpReturn.
+ */
+QmpReturn *qmp_return_new(QmpSession *session, const QObject *req);
+
+/**
+ * qmp_return_free:
+ *
+ * Free a QmpReturn. This shouldn't be needed if you actually return
+ * with qmp_return{_error}.
+ */
+void qmp_return_free(QmpReturn *qret);
+
+/**
+ * qmp_return{_error}:
+ *
+ * Construct the command reply, and call the
+ * return_cb() associated with the session.
+ *
+ * Finally, free the QmpReturn.
+ */
+void qmp_return(QmpReturn *qret, QObject *rsp);
+void qmp_return_error(QmpReturn *qret, Error *err);
+
 void qmp_register_command(QmpCommandList *cmds, const char *name,
                           QmpCommandFunc *fn, QmpCommandOptions options);
 const QmpCommand *qmp_find_command(const QmpCommandList *cmds,
@@ -67,7 +100,6 @@ void qmp_enable_command(QmpCommandList *cmds, const char *name);
 bool qmp_command_is_enabled(const QmpCommand *cmd);
 const char *qmp_command_name(const QmpCommand *cmd);
 bool qmp_has_success_response(const QmpCommand *cmd);
-QDict *qmp_error_response(Error *err);
 void qmp_dispatch(QmpSession *session, QObject *request,
                   bool allow_oob);
 bool qmp_is_oob(const QDict *dict);
