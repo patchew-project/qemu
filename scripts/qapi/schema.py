@@ -128,7 +128,7 @@ class QAPISchemaVisitor(object):
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig,
-                      features):
+                      features, asyn):
         pass
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
@@ -678,7 +678,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
 
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
                  gen, success_response, boxed, allow_oob, allow_preconfig,
-                 features):
+                 features, asyn):
         QAPISchemaEntity.__init__(self, name, info, doc, ifcond, features)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -691,6 +691,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.boxed = boxed
         self.allow_oob = allow_oob
         self.allow_preconfig = allow_preconfig
+        self.asyn = asyn
 
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
@@ -733,7 +734,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
                               self.gen, self.success_response,
                               self.boxed, self.allow_oob,
                               self.allow_preconfig,
-                              self.features)
+                              self.features, self.asyn)
 
 
 class QAPISchemaEvent(QAPISchemaEntity):
@@ -1016,6 +1017,7 @@ class QAPISchema(object):
         allow_preconfig = expr.get('allow-preconfig', False)
         ifcond = expr.get('if')
         features = expr.get('features', [])
+        asyn = expr.get('async', False)
         if isinstance(data, OrderedDict):
             data = self._make_implicit_object_type(
                 name, info, ifcond, 'arg', self._make_members(data, info))
@@ -1025,7 +1027,8 @@ class QAPISchema(object):
         self._def_entity(QAPISchemaCommand(name, info, doc, ifcond, data, rets,
                                            gen, success_response,
                                            boxed, allow_oob, allow_preconfig,
-                                           self._make_features(features, info)))
+                                           self._make_features(features, info),
+                                           asyn))
 
     def _def_event(self, expr, info, doc):
         name = expr['event']
