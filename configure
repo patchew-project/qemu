@@ -1851,6 +1851,13 @@ python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0]
 # Suppress writing compiled files
 python="$python -B"
 
+# Some firmware binaries are compressed with bzip2
+if has bzip2; then
+  :
+else
+  error_exit "bzip2 program not found. Please install it"
+fi
+
 # Check that the C compiler works. Doing this here before testing
 # the host CPU ensures that we had a valid CC to autodetect the
 # $cpu var (and we should bail right here if that's not the case).
