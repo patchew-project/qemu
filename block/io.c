@@ -1186,6 +1186,26 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
         goto emulate_flags;
     }
 
+    if (drv->bdrv_aio_compare_and_write &&
+                              (flags & BDRV_REQ_COMPARE_AND_WRITE)) {
+        BlockAIOCB *acb;
+        CoroutineIOCompletion co = {
+            .coroutine = qemu_coroutine_self(),
+        };
+
+        acb = drv->bdrv_aio_compare_and_write(bs, offset, bytes, qiov,
+                                    flags & bs->supported_write_flags,
+                                    bdrv_co_io_em_complete, &co);
+        flags &= ~bs->supported_write_flags;
+        if (acb == NULL) {
+            ret = -EIO;
+        } else {
+            qemu_coroutine_yield();
+            ret = co.ret;
+        }
+        goto emulate_flags;
+    }
+
     if (drv->bdrv_aio_pwritev) {
         BlockAIOCB *acb;
         CoroutineIOCompletion co = {
