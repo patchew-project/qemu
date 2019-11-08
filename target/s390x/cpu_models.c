@@ -557,9 +557,14 @@ static void cpu_model_from_info(S390CPUModel *model, const CpuModelInfo *info,
     obj = object_new(object_class_get_name(oc));
     cpu = S390_CPU(obj);
 
-    if (!cpu->model) {
+    if (!cpu->model && !S390_CPU_CLASS(oc)->is_best) {
         error_setg(errp, "Details about the host CPU model are not available, "
                          "it cannot be used.");
+        object_unref(obj);
+        return;
+    } else if (!cpu->model) {
+        error_setg(errp, "There is not best CPU model that is runnable,"
+                         "therefore, it cannot be used.");
         object_unref(obj);
         return;
     }
@@ -933,7 +938,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
         return;
     }
 
-    if (!cpu->model) {
+    if (!cpu->model && !xcc->is_best) {
         /* no host model support -> perform compatibility stuff */
         apply_cpu_model(NULL, errp);
         return;
@@ -942,6 +947,11 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
     max_model = get_max_cpu_model(errp);
     if (*errp) {
         error_prepend(errp, "CPU models are not available: ");
+        return;
+    }
+
+    if (xcc->is_best && !cpu->model) {
+        error_setg(errp, "Selected CPU model is too new.");
         return;
     }
 
@@ -1157,6 +1167,58 @@ static void s390_qemu_cpu_model_initfn(Object *obj)
     memcpy(cpu->model, &s390_qemu_cpu_model, sizeof(*cpu->model));
 }
 
+static void s390_best_cpu_model_initfn(Object *obj)
+{
+    const S390CPUModel *max_model;
+    S390CPU *cpu = S390_CPU(obj);
+    S390CPUClass *xcc = S390_CPU_GET_CLASS(cpu);
+    Error *local_err = NULL;
+    int i;
+
+    if (kvm_enabled() && !kvm_s390_cpu_models_supported()) {
+        return;
+    }
+
+    max_model = get_max_cpu_model(&local_err);
+    if (local_err) {
+        /* we expect errors only under KVM, when actually querying the kernel */
+        g_assert(kvm_enabled());
+        error_report_err(local_err);
+        return;
+    }
+
+    /*
+     * Similar to baselining against the "max" model. However, features
+     * are handled differently and are not used for the search for a definition.
+     */
+    if (xcc->cpu_def->gen == max_model->def->gen) {
+        if (xcc->cpu_def->ec_ga > max_model->def->ec_ga) {
+            return;
+        }
+    } else if (xcc->cpu_def->gen > max_model->def->gen) {
+        return;
+    }
+
+    /* The model is theoretically runnable, construct the features. */
+    cpu->model = g_new(S390CPUModel, 1);
+    cpu->model->def = xcc->cpu_def;
+    bitmap_copy(cpu->model->features, xcc->cpu_def->full_feat, S390_FEAT_MAX);
+
+    /* Mask of features that are not available in the "max" model */
+    bitmap_and(cpu->model->features, cpu->model->features, max_model->features,
+               S390_FEAT_MAX);
+
+    /* Mask off deprecated features */
+    clear_bit(S390_FEAT_CONDITIONAL_SSKE, cpu->model->features);
+
+    /* Make sure every model passes consistency checks */
+    for (i = 0; i < ARRAY_SIZE(cpu_feature_dependencies); i++) {
+        if (!test_bit(cpu_feature_dependencies[i][1], cpu->model->features)) {
+            clear_bit(cpu_feature_dependencies[i][0], cpu->model->features);
+        }
+    }
+}
+
 static void s390_max_cpu_model_initfn(Object *obj)
 {
     const S390CPUModel *max_model;
@@ -1236,6 +1298,20 @@ static void s390_base_cpu_model_class_init(ObjectClass *oc, void *data)
     xcc->desc = xcc->cpu_def->desc;
 }
 
+static void s390_best_cpu_model_class_init(ObjectClass *oc, void *data)
+{
+    S390CPUClass *xcc = S390_CPU_CLASS(oc);
+
+    /*
+     * The "best" models are neither static nor migration safe, similar to
+     * the "max" model.
+     */
+    xcc->is_best = true;
+    xcc->cpu_def = (const S390CPUDef *) data;
+    xcc->desc = g_strdup_printf("%s with best features supported by the accelerator in the current host",
+                                xcc->cpu_def->desc);
+}
+
 static void s390_cpu_model_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *xcc = S390_CPU_CLASS(oc);
@@ -1279,6 +1355,12 @@ static char *s390_cpu_type_name(const char *model_name)
 static char *s390_base_cpu_type_name(const char *model_name)
 {
     return g_strdup_printf(S390_CPU_TYPE_NAME("%s-base"), model_name);
+}
+
+/* Generate type name for a best cpu model. Caller has to free the string. */
+static char *s390_best_cpu_type_name(const char *model_name)
+{
+    return g_strdup_printf(S390_CPU_TYPE_NAME("%s-best"), model_name);
 }
 
 ObjectClass *s390_cpu_class_by_name(const char *name)
@@ -1381,9 +1463,19 @@ static void register_types(void)
             .class_init = s390_cpu_model_class_init,
             .class_data = (void *) &s390_cpu_defs[i],
         };
+        char *best_name = s390_best_cpu_type_name(s390_cpu_defs[i].name);
+        TypeInfo ti_best = {
+            .name = best_name,
+            .parent = TYPE_S390_CPU,
+            .instance_init = s390_best_cpu_model_initfn,
+            .instance_finalize = s390_cpu_model_finalize,
+            .class_init = s390_best_cpu_model_class_init,
+            .class_data = (void *) &s390_cpu_defs[i],
+        };
 
         type_register_static(&ti_base);
         type_register_static(&ti);
+        type_register_static(&ti_best);
         g_free(base_name);
         g_free(name);
     }

@@ -52,6 +52,7 @@ typedef struct S390CPUClass {
     bool kvm_required;
     bool is_static;
     bool is_migration_safe;
+    bool is_best;
     const char *desc;
 
     DeviceRealize parent_realize;
