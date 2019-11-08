@@ -6,11 +6,36 @@
 Welcome to QEMU's documentation!
 ================================
 
+.. Non-rst documentation
+
+`QEMU User Documentation <qemu-doc.html>`_
+
+`QEMU QMP Reference Manual <qemu-doc.html>`_
+
+`QEMU Guest Agent Protocol Reference <qemu-doc.html>`_
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    interop/index
-   devel/index
    specs/index
 
+.. The QEMU Developer's Guide is not included in the main documentation because
+   users don't need it.
+.. toctree::
+   :hidden:
+
+   devel/index
+
+.. Hidden documents that still need to be reviewed and moved to the appropriate
+   section of the documentation.
+.. toctree::
+   :hidden:
+
+   arm-cpu-features
+   cpu-hotplug
+   microvm
+   pr-manager
+   virtio-net-failover
+   virtio-pmem
