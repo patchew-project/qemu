@@ -100,8 +100,7 @@ out_emit:
 }
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*emit)(void *opaque, QObject *json,
-                                           Error *err),
+                              JSONMessageEmit *emit,
                               void *opaque, va_list *ap)
 {
     parser->emit = emit;

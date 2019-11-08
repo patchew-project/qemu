@@ -14,6 +14,8 @@
 #ifndef QAPI_QMP_JSON_PARSER_H
 #define QAPI_QMP_JSON_PARSER_H
 
+typedef void (JSONMessageEmit)(void *opaque, QObject *json, Error *err);
+
 typedef struct JSONLexer {
     int start_state, state;
     GString *token;
@@ -21,7 +23,7 @@ typedef struct JSONLexer {
 } JSONLexer;
 
 typedef struct JSONMessageParser {
-    void (*emit)(void *opaque, QObject *json, Error *err);
+    JSONMessageEmit *emit;
     void *opaque;
     va_list *ap;
     JSONLexer lexer;
@@ -32,8 +34,7 @@ typedef struct JSONMessageParser {
 } JSONMessageParser;
 
 void json_message_parser_init(JSONMessageParser *parser,
-                              void (*emit)(void *opaque, QObject *json,
-                                           Error *err),
+                              JSONMessageEmit *emit,
                               void *opaque, va_list *ap);
 
 void json_message_parser_feed(JSONMessageParser *parser,
