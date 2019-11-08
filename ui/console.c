@@ -34,6 +34,7 @@
 #include "trace.h"
 #include "exec/memory.h"
 #include "io/channel-file.h"
+#include "monitor/monitor.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
@@ -118,6 +119,13 @@ typedef enum {
     TEXT_CONSOLE_FIXED_SIZE
 } console_type_t;
 
+struct qmp_screendump {
+    int fd;
+    gchar *filename;
+    QmpReturn *ret;
+    QLIST_ENTRY(qmp_screendump) link;
+};
+
 struct QemuConsole {
     Object parent;
 
@@ -167,6 +175,8 @@ struct QemuConsole {
     QEMUFIFO out_fifo;
     uint8_t out_fifo_buf[16];
     QEMUTimer *kbd_timer;
+
+    QLIST_HEAD(, qmp_screendump) qmp_screendumps;
 
     QTAILQ_ENTRY(QemuConsole) next;
 };
@@ -261,8 +271,51 @@ static void gui_setup_refresh(DisplayState *ds)
     ds->have_text = have_text;
 }
 
+static void qmp_screendump_finish(QemuConsole *con, struct qmp_screendump *dump)
+{
+    Error *err = NULL;
+    DisplaySurface *surface;
+
+    if (qmp_return_is_cancelled(dump->ret)) {
+        goto cleanup;
+    }
+
+    surface = qemu_console_surface(con);
+    if (!surface) {
+        error_setg(&err, "no surface");
+    } else {
+        /*
+         * FIXME: async save with coroutine? it would have to copy or
+         * lock the surface.
+         */
+        if (!ppm_save(dump->fd, surface, &err)) {
+            qemu_unlink(dump->filename);
+        }
+        dump->fd = -1;
+    }
+
+    if (err) {
+        qmp_return_error(dump->ret, err);
+    } else {
+        qmp_screendump_return(dump->ret);
+    }
+
+cleanup:
+    if (dump->fd != -1) {
+        qemu_close(dump->fd);
+    }
+    g_free(dump->filename);
+    QLIST_REMOVE(dump, link);
+    g_free(dump);
+}
+
 void graphic_hw_update_done(QemuConsole *con)
 {
+    struct qmp_screendump *dump, *next;
+
+    QLIST_FOREACH_SAFE(dump, &con->qmp_screendumps, link, next) {
+        qmp_screendump_finish(con, dump);
+    }
 }
 
 void graphic_hw_update(QemuConsole *con)
@@ -341,31 +394,42 @@ static bool ppm_save(int fd, DisplaySurface *ds, Error **errp)
     return true;
 }
 
-void qmp_screendump(const char *filename, bool has_device, const char *device,
-                    bool has_head, int64_t head, Error **errp)
+
+static QemuConsole *get_console(bool has_device, const char *device,
+                                bool has_head, int64_t head, Error **errp)
 {
-    QemuConsole *con;
-    DisplaySurface *surface;
-    int fd;
+    QemuConsole *con = NULL;
 
     if (has_device) {
         con = qemu_console_lookup_by_device_name(device, has_head ? head : 0,
                                                  errp);
-        if (!con) {
-            return;
-        }
     } else {
         if (has_head) {
             error_setg(errp, "'head' must be specified together with 'device'");
-            return;
+            return NULL;
         }
         con = qemu_console_lookup_by_index(0);
         if (!con) {
             error_setg(errp, "There is no console to take a screendump from");
-            return;
         }
     }
 
+    return con;
+}
+
+void hmp_screendump_sync(const char *filename,
+                         bool has_device, const char *device,
+                         bool has_head, int64_t head, Error **errp)
+{
+    DisplaySurface *surface;
+    QemuConsole *con = get_console(has_device, device, has_head, head, errp);
+    int fd;
+
+    if (!con) {
+        return;
+    }
+    /* This may not complete the drawing with Spice, you may have
+     * glitches or outdated dumps, use qmp instead! */
     graphic_hw_update(con);
     surface = qemu_console_surface(con);
     if (!surface) {
@@ -383,6 +447,38 @@ void qmp_screendump(const char *filename, bool has_device, const char *device,
     if (!ppm_save(fd, surface, errp)) {
         qemu_unlink(filename);
     }
+}
+
+void qmp_screendump(const char *filename,
+                    bool has_device, const char *device,
+                    bool has_head, int64_t head,
+                    QmpReturn *qret)
+{
+    Error *err = NULL;
+    struct qmp_screendump *dump = NULL;
+    QemuConsole *con = get_console(has_device, device, has_head, head, &err);
+    int fd;
+
+    if (!con) {
+        qmp_return_error(qret, err);
+        return;
+    }
+
+    fd = qemu_open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0666);
+    if (fd == -1) {
+        error_setg(&err, "failed to open file '%s': %s",
+                   filename, strerror(errno));
+        qmp_return_error(qret, err);
+        return;
+    }
+
+    dump = g_new(struct qmp_screendump, 1);
+    dump->fd = fd;
+    dump->filename = g_strdup(filename);
+    dump->ret = qret;
+    QLIST_INSERT_HEAD(&con->qmp_screendumps, dump, link);
+
+    graphic_hw_update(con);
 }
 
 void graphic_hw_text_update(QemuConsole *con, console_ch_t *chardata)
@@ -1295,6 +1391,7 @@ static QemuConsole *new_console(DisplayState *ds, console_type_t console_type,
     obj = object_new(TYPE_QEMU_CONSOLE);
     s = QEMU_CONSOLE(obj);
     s->head = head;
+    QLIST_INIT(&s->qmp_screendumps);
     object_property_add_link(obj, "device", TYPE_DEVICE,
                              (Object **)&s->device,
                              object_property_allow_set_link,
