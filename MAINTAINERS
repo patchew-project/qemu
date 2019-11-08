@@ -2714,6 +2714,23 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: scripts/git-submodule.sh
 
+GIT infrastructure
+M: Philippe Mathieu-Daudé <philmd@redhat.com>
+R: Alex Bennée <alex.bennee@linaro.org>
+S: Maintained
+F: .mailmap
+F: scripts/git.orderfile
+F: .gitignore
+F: tests/fp/.gitignore
+F: tests/fp/berkeley-softfloat-3/.gitignore
+F: tests/fp/berkeley-testfloat-3/.gitignore
+F: tests/migration/.gitignore
+F: tests/multiboot/.gitignore
+F: tests/qemu-iotests/.gitignore
+F: tests/tcg/.gitignore
+F: tests/uefi-test-tools/.gitignore
+F: ui/keycodemapdb/tests/.gitignore
+
 Sphinx documentation configuration and build machinery
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
