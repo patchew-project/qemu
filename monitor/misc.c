@@ -115,8 +115,8 @@ static QLIST_HEAD(, MonFdset) mon_fdsets;
 
 static HMPCommand hmp_info_cmds[];
 
-char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
-                                int64_t cpu_index, Error **errp)
+void qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
+                               int64_t cpu_index, QmpReturn *qret)
 {
     char *output = NULL;
     Monitor *old_mon;
@@ -130,15 +130,15 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     if (has_cpu_index) {
         int ret = monitor_set_cpu(cpu_index);
         if (ret < 0) {
-            cur_mon = old_mon;
-            error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+            Error *err = NULL;
+            error_setg(&err, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
                        "a CPU number");
+            qmp_return_error(qret, err);
             goto out;
         }
     }
 
     handle_hmp_command(&hmp, command_line);
-    cur_mon = old_mon;
 
     qemu_mutex_lock(&hmp.common.mon_lock);
     if (qstring_get_length(hmp.common.outbuf) > 0) {
@@ -148,9 +148,11 @@ char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
     }
     qemu_mutex_unlock(&hmp.common.mon_lock);
 
+    qmp_human_monitor_command_return(qret, output);
+
 out:
+    cur_mon = old_mon;
     monitor_data_destroy(&hmp.common);
-    return output;
 }
 
 /**
