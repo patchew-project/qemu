@@ -397,6 +397,23 @@ int qemu_fdt_setprop_string(void *fdt, const char *node_path,
     return r;
 }
 
+static size_t stringarr_length(const char *strings)
+{
+    size_t count = 1;
+    while (strings[count - 1] != '\0' || strings[count] != '\0') {
+        count++;
+    }
+    return count;
+}
+
+int qemu_fdt_setprop_strings(void *fdt, const char *node_path,
+                            const char *property, const char *strings)
+{
+    size_t length = stringarr_length(strings);
+    return qemu_fdt_setprop(fdt, node_path, property, strings, length);
+}
+
+
 const void *qemu_fdt_getprop(void *fdt, const char *node_path,
                              const char *property, int *lenp, Error **errp)
 {

@@ -70,6 +70,12 @@ int qemu_fdt_setprop_string(void *fdt, const char *node_path,
 int qemu_fdt_setprop_phandle(void *fdt, const char *node_path,
                              const char *property,
                              const char *target_node_path);
+/*
+ * This uses a particularly odd encoding: "strings" is a list of strings that
+ * must be terminated by two back-to-back '\0' characters.
+ */
+int qemu_fdt_setprop_strings(void *fdt, const char *node_path,
+                             const char *property, const char *strings);
 /**
  * qemu_fdt_getprop: retrieve the value of a given property
  * @fdt: pointer to the device tree blob
