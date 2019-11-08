@@ -1810,8 +1810,17 @@ static void handle_read_all_regs(GdbCmdContext *gdb_ctx, void *user_ctx)
     cpu_synchronize_state(gdb_ctx->s->g_cpu);
     len = 0;
     for (addr = 0; addr < gdb_ctx->s->g_cpu->gdb_num_g_regs; addr++) {
-        len += gdb_read_register(gdb_ctx->s->g_cpu, gdb_ctx->mem_buf + len,
-                                 addr);
+        int size = gdb_read_register(gdb_ctx->s->g_cpu, gdb_ctx->mem_buf + len,
+                                     addr);
+        if (len + size > MAX_PACKET_LENGTH / 2) {
+            /*
+             * Prevent gdb_ctx->str_buf overflow in memtohex() below.
+             * As a consequence, send only the first registers content.
+             * Gdb will query remaining ones if/when needed.
+             */
+            break;
+        }
+        len += size;
     }
 
     memtohex(gdb_ctx->str_buf, gdb_ctx->mem_buf, len);
