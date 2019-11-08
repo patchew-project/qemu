@@ -2060,6 +2060,11 @@ void kvmppc_set_mpic_proxy(PowerPCCPU *cpu, int mpic_proxy)
     }
 }
 
+bool kvmppc_check_smt_possible(void)
+{
+    return kvm_enabled() && cap_ppc_smt_possible;
+}
+
 int kvmppc_smt_threads(void)
 {
     return cap_ppc_smt ? cap_ppc_smt : 1;

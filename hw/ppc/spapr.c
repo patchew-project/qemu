@@ -2522,7 +2522,7 @@ static void spapr_set_vsmt_mode(SpaprMachineState *spapr, Error **errp)
             goto out;
         }
         /* In this case, spapr->vsmt has been set by the command line */
-    } else if (!smc->smp_threads_vsmt) {
+    } else if (!smc->smp_threads_vsmt || !kvmppc_check_smt_possible()) {
         /*
          * Default VSMT value is tricky, because we need it to be as
          * consistent as possible (for migration), but this requires
