@@ -120,6 +120,13 @@ _send_qemu_cmd $QEMU_HANDLE \
                       'top': '${TEST_IMG}.int' } }" \
     'return'
 
+# FIXME
+# Need to use filter-node-name in previous command, as it's omitting is
+# deprecated, as described by warning in test output. But if just put
+# filter-node-name into previous command the following reopen is failed with
+# messasge "Cannot change the option 'backing.detect-zeroes". It's a bug and
+# shoud be fixed.
+
 # Wait for block-commit to finish
 sleep 0.5
 

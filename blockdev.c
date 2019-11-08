@@ -3333,6 +3333,11 @@ void qmp_block_commit(bool has_job_id, const char *job_id, const char *device,
     BlockdevOnError on_error = BLOCKDEV_ON_ERROR_REPORT;
     int job_flags = JOB_DEFAULT;
 
+    if (!has_filter_node_name) {
+        warn_report("Omitting filter-node-name parameter is deprecated, it "
+                    "will be required in future");
+    }
+
     if (!has_speed) {
         speed = 0;
     }
@@ -3779,6 +3784,11 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    Error **errp)
 {
     int job_flags = JOB_DEFAULT;
+
+    if (!has_filter_node_name) {
+        warn_report("Omitting filter-node-name parameter is deprecated, it "
+                    "will be required in future");
+    }
 
     if (!has_speed) {
         speed = 0;

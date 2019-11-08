@@ -88,11 +88,12 @@ _send_qemu_cmd $QEMU_HANDLE \
     'return'
 
 echo
-echo '=== Run block-commit on base using the default filter node name'
+echo '=== Run block-commit on base using the valid filter node name'
 echo
 _send_qemu_cmd $QEMU_HANDLE \
     "{ 'execute': 'block-commit',
-       'arguments': {'job-id': 'job0', 'device': 'none1', 'top-node': 'int'}}" \
+       'arguments': {'job-id': 'job0', 'filter-node-name': 'filter0',
+                     'device': 'none1', 'top-node': 'int'}}" \
     'return'
 
 # Wait for block-commit to finish

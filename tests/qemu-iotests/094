@@ -61,6 +61,7 @@ _send_qemu_cmd $QEMU_HANDLE \
 _send_qemu_cmd $QEMU_HANDLE  \
     "{'execute': 'drive-mirror',
       'arguments': {'device': 'src',
+                    'filter-node-name': 'filter0',
                     'target': '$TEST_IMG',
                     'format': 'nbd',
                     'sync':'full',

@@ -204,6 +204,12 @@ and accurate ``query-qmp-schema'' command.
 Character devices creating sockets in client mode should not specify
 the 'wait' field, which is only applicable to sockets in server mode
 
+@subsection implicit filters in mirror and commit (since 4.2)
+
+Mirror and commit jobs insert filters, which becomes implicit if user
+omitted @option(filter-node-name) parameter. So omitting it is deprecated
+in ``blockdev-mirror'', ``drive-mirror'' and ``block-commit'', set it always.
+
 @section Human Monitor Protocol (HMP) commands
 
 @subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)

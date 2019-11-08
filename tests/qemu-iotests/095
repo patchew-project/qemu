@@ -69,8 +69,10 @@ h=$QEMU_HANDLE
 _send_qemu_cmd $h "{ 'execute': 'qmp_capabilities' }" "return"
 
 _send_qemu_cmd $h "{ 'execute': 'block-commit',
-                                 'arguments': { 'device': 'test',
-                                 'top': '"${TEST_IMG}.snp1"' } }" '"status": "null"'
+                     'arguments': { 'device': 'test',
+                                    'filter-node-name': 'filter0',
+                                    'top': '"${TEST_IMG}.snp1"' } }" \
+                  '"status": "null"'
 
 _cleanup_qemu
 

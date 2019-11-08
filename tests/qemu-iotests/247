@@ -53,9 +53,11 @@ TEST_IMG="$TEST_IMG.3" _make_test_img $size
 TEST_IMG="$TEST_IMG.4" _make_test_img $size
 
 (cat <<EOF
-{"execute":"qmp_capabilities"}
-{"execute":"block-commit",
- "arguments":{"device":"format-4", "top-node": "format-2", "base-node":"format-0", "job-id":"job0"}}
+{"execute": "qmp_capabilities"}
+{"execute": "block-commit",
+ "arguments": {"device": "format-4", "filter-node-name": "filter0",
+               "top-node": "format-2", "base-node":"format-0",
+               "job-id":"job0"}}
 EOF
 if [ "${VALGRIND_QEMU}" == "y" ]; then
     sleep 10

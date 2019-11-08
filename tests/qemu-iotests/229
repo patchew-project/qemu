@@ -69,6 +69,7 @@ echo
 _send_qemu_cmd $QEMU_HANDLE \
     "{'execute': 'drive-mirror',
                  'arguments': {'device': 'testdisk',
+                               'filter-node-name': 'filter0',
                                'format': '$IMGFMT',
                                'target': '$DEST_IMG',
                                'sync':   'full',
