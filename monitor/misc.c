@@ -253,7 +253,7 @@ CommandInfoList *qmp_query_commands(Error **errp)
     assert(monitor_is_qmp(cur_mon));
     mon = container_of(cur_mon, MonitorQMP, common);
 
-    qmp_for_each_command(mon->commands, query_commands_cb, &list);
+    qmp_for_each_command(mon->session.cmds, query_commands_cb, &list);
 
     return list;
 }
@@ -363,7 +363,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
     assert(monitor_is_qmp(cur_mon));
     mon = container_of(cur_mon, MonitorQMP, common);
 
-    if (mon->commands == &qmp_commands) {
+    if (mon->session.cmds == &qmp_commands) {
         error_set(errp, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "Capabilities negotiation is already complete, command "
                   "ignored");
@@ -374,7 +374,7 @@ void qmp_qmp_capabilities(bool has_enable, QMPCapabilityList *enable,
         return;
     }
 
-    mon->commands = &qmp_commands;
+    mon->session.cmds = &qmp_commands;
 }
 
 /* Set the current CPU defined by the user. Callers must hold BQL. */
