@@ -464,7 +464,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Read-only register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
 
     /* CPU Sync Barrier */
@@ -474,7 +474,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Read-only register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
 
     /* SDRAM and Device Address Decode */
@@ -516,7 +516,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented device register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
 
     /* ECC */
@@ -529,7 +529,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Read-only register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
 
     /* DMA Record */
@@ -566,7 +566,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented DMA register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
 
     /* Timer/Counter */
@@ -579,7 +579,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented timer register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
 
     /* PCI Internal */
@@ -623,7 +623,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_UNIMP,
                       "gt64120: Unimplemented timer register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
     case GT_PCI0_CFGADDR:
         phb->config_reg = val & 0x80fffffc;
@@ -642,19 +642,19 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         /* not really implemented */
         s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
         s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
-        trace_gt64120_write("INTRCAUSE", size << 1, val);
+        trace_gt64120_write("INTRCAUSE", size << 3, val);
         break;
     case GT_INTRMASK:
         s->regs[saddr] = val & 0x3c3ffffe;
-        trace_gt64120_write("INTRMASK", size << 1, val);
+        trace_gt64120_write("INTRMASK", size << 3, val);
         break;
     case GT_PCI0_ICMASK:
         s->regs[saddr] = val & 0x03fffffe;
-        trace_gt64120_write("ICMASK", size << 1, val);
+        trace_gt64120_write("ICMASK", size << 3, val);
         break;
     case GT_PCI0_SERR0MASK:
         s->regs[saddr] = val & 0x0000003f;
-        trace_gt64120_write("SERR0MASK", size << 1, val);
+        trace_gt64120_write("SERR0MASK", size << 3, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -683,7 +683,7 @@ static void gt64120_writel(void *opaque, hwaddr addr,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Illegal register write "
                       "reg:0x03%x size:%u value:0x%0*" PRIx64 "\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
     }
 }
@@ -930,19 +930,19 @@ static uint64_t gt64120_readl(void *opaque,
     /* Interrupts */
     case GT_INTRCAUSE:
         val = s->regs[saddr];
-        trace_gt64120_read("INTRCAUSE", size << 1, val);
+        trace_gt64120_read("INTRCAUSE", size << 3, val);
         break;
     case GT_INTRMASK:
         val = s->regs[saddr];
-        trace_gt64120_read("INTRMASK", size << 1, val);
+        trace_gt64120_read("INTRMASK", size << 3, val);
         break;
     case GT_PCI0_ICMASK:
         val = s->regs[saddr];
-        trace_gt64120_read("ICMASK", size << 1, val);
+        trace_gt64120_read("ICMASK", size << 3, val);
         break;
     case GT_PCI0_SERR0MASK:
         val = s->regs[saddr];
-        trace_gt64120_read("SERR0MASK", size << 1, val);
+        trace_gt64120_read("SERR0MASK", size << 3, val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
@@ -960,7 +960,7 @@ static uint64_t gt64120_readl(void *opaque,
         qemu_log_mask(LOG_GUEST_ERROR,
                       "gt64120: Illegal register read "
                       "reg:0x03%x size:%u value:0x%0*x\n",
-                      saddr << 2, size, size << 1, val);
+                      saddr << 2, size, size << 3, val);
         break;
     }
 
