@@ -55,6 +55,8 @@ struct QmpSession {
 struct QmpReturn {
     QmpSession *session;
     QDict *rsp;
+    bool oob;
+    bool finished;
     QTAILQ_ENTRY(QmpReturn) entry;
 };
 
