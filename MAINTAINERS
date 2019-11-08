@@ -976,9 +976,10 @@ S: Maintained
 F: hw/mips/mips_r4k.c
 
 Fulong 2E
-M: Aleksandar Markovic <amarkovic@wavecomp.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
-S: Odd Fixes
+M: Philippe Mathieu-Daudé <philmd@redhat.com>
+R: Hervé Poussineau <hpoussin@reactos.org>
+R: Aleksandar Markovic <amarkovic@wavecomp.com>
+S: Maintained
 F: hw/mips/mips_fulong2e.c
 F: hw/isa/vt82c686.c
 F: hw/pci-host/bonito.c
