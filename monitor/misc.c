@@ -115,46 +115,6 @@ static QLIST_HEAD(, MonFdset) mon_fdsets;
 
 static HMPCommand hmp_info_cmds[];
 
-void qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
-                               int64_t cpu_index, QmpReturn *qret)
-{
-    char *output = NULL;
-    Monitor *old_mon;
-    MonitorHMP hmp = {};
-
-    monitor_data_init(&hmp.common, false, true, false);
-
-    old_mon = cur_mon;
-    cur_mon = &hmp.common;
-
-    if (has_cpu_index) {
-        int ret = monitor_set_cpu(cpu_index);
-        if (ret < 0) {
-            Error *err = NULL;
-            error_setg(&err, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
-                       "a CPU number");
-            qmp_return_error(qret, err);
-            goto out;
-        }
-    }
-
-    handle_hmp_command(&hmp, command_line);
-
-    qemu_mutex_lock(&hmp.common.mon_lock);
-    if (qstring_get_length(hmp.common.outbuf) > 0) {
-        output = g_strdup(qstring_get_str(hmp.common.outbuf));
-    } else {
-        output = g_strdup("");
-    }
-    qemu_mutex_unlock(&hmp.common.mon_lock);
-
-    qmp_human_monitor_command_return(qret, output);
-
-out:
-    cur_mon = old_mon;
-    monitor_data_destroy(&hmp.common);
-}
-
 /**
  * Is @name in the '|' separated list of names @list?
  */
