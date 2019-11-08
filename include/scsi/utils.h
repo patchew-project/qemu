@@ -101,6 +101,8 @@ extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 extern const struct SCSISense sense_code_WRITE_PROTECTED;
 /* Data Protection, Space Allocation Failed Write Protect */
 extern const struct SCSISense sense_code_SPACE_ALLOC_FAILED;
+/* Miscompare, Miscompare During Verify Operation */
+extern const struct SCSISense sense_code_MISCOMPARE_DURING_VERIFY;
 
 #define SENSE_CODE(x) sense_code_ ## x
 

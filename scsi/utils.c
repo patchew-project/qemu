@@ -311,6 +311,11 @@ const struct SCSISense sense_code_SPACE_ALLOC_FAILED = {
     .key = DATA_PROTECT, .asc = 0x27, .ascq = 0x07
 };
 
+/* Miscompare, Miscompare During Verify Operation */
+const struct SCSISense sense_code_MISCOMPARE_DURING_VERIFY = {
+    .key = MISCOMPARE, .asc = 0x1d, .ascq = 0x00
+};
+
 /*
  * scsi_convert_sense
  *

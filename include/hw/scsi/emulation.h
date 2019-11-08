@@ -1,6 +1,9 @@
 #ifndef HW_SCSI_EMULATION_H
 #define HW_SCSI_EMULATION_H
 
+/* maximum compare and write length : 64kb */
+#define MAX_COMPARE_AND_WRITE_LENGTH 128
+
 typedef struct SCSIBlockLimits {
     bool wsnz;
     uint16_t min_io_size;
