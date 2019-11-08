@@ -304,9 +304,8 @@ static void fdt_add_timer_nodes(const VirtMachineState *vms)
 
     armcpu = ARM_CPU(qemu_get_cpu(0));
     if (arm_feature(&armcpu->env, ARM_FEATURE_V8)) {
-        const char compat[] = "arm,armv8-timer\0arm,armv7-timer";
-        qemu_fdt_setprop(vms->fdt, "/timer", "compatible",
-                         compat, sizeof(compat));
+        qemu_fdt_setprop_strings(vms->fdt, "/timer", "compatible",
+                                 "arm,armv8-timer\0arm,armv7-timer\0");
     } else {
         qemu_fdt_setprop_string(vms->fdt, "/timer", "compatible",
                                 "arm,armv7-timer");
