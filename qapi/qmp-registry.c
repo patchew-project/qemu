@@ -15,16 +15,37 @@
 #include "qemu/osdep.h"
 #include "qapi/qmp/dispatch.h"
 
-void qmp_register_command(QmpCommandList *cmds, const char *name,
-                          QmpCommandFunc *fn, QmpCommandOptions options)
+
+static QmpCommand *qmp_command_new(QmpCommandList *cmds, const char *name,
+                                   QmpCommandOptions options)
 {
     QmpCommand *cmd = g_malloc0(sizeof(*cmd));
 
     cmd->name = name;
-    cmd->fn = fn;
     cmd->enabled = true;
     cmd->options = options;
     QTAILQ_INSERT_TAIL(cmds, cmd, node);
+
+    return cmd;
+}
+
+
+void qmp_register_command(QmpCommandList *cmds, const char *name,
+                          QmpCommandFunc *fn, QmpCommandOptions options)
+{
+    QmpCommand *cmd = qmp_command_new(cmds, name, options);
+
+    assert(!(options & QCO_ASYNC));
+    cmd->fn = fn;
+}
+
+void qmp_register_async_command(QmpCommandList *cmds, const char *name,
+                            QmpCommandAsyncFunc *fn, QmpCommandOptions options)
+{
+    QmpCommand *cmd = qmp_command_new(cmds, name, options);
+
+    assert(options & QCO_ASYNC);
+    cmd->async_fn = fn;
 }
 
 const QmpCommand *qmp_find_command(const QmpCommandList *cmds, const char *name)
