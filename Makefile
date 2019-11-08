@@ -813,6 +813,7 @@ endef
 # for QEMU developers, and not interesting to our users.
 .PHONY: install-sphinxdocs
 install-sphinxdocs: sphinxdocs
+	$(call install-manual,_static)
 	$(call install-manual,interop)
 	$(call install-manual,specs)
 	$(INSTALL_DATA) "$(MANUAL_BUILDDIR)/index.html" "$(DESTDIR)$(qemu_docdir)/index.html"
