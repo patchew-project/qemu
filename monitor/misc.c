@@ -230,7 +230,7 @@ static void hmp_info_help(Monitor *mon, const QDict *qdict)
     help_cmd(mon, "info");
 }
 
-static void query_commands_cb(QmpCommand *cmd, void *opaque)
+static void query_commands_cb(const QmpCommand *cmd, void *opaque)
 {
     CommandInfoList *info, **list = opaque;
 
