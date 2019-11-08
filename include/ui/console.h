@@ -6,6 +6,7 @@
 #include "qemu/notify.h"
 #include "qemu/error-report.h"
 #include "qapi/qapi-types-ui.h"
+#include "qapi/qmp/dispatch.h"
 
 #ifdef CONFIG_OPENGL
 # include <epoxy/gl.h>
@@ -74,9 +75,7 @@ typedef struct MouseTransformInfo {
 } MouseTransformInfo;
 
 void hmp_mouse_set(Monitor *mon, const QDict *qdict);
-void hmp_screendump_sync(const char *filename,
-                         bool has_device, const char *device,
-                         bool has_head, int64_t head, Error **errp);
+void hmp_screendump_async(Monitor *mon, const QDict *qdict, QmpReturn *qret);
 
 /* keysym is a unicode code except for special keys (see QEMU_KEY_xxx
    constants) */
