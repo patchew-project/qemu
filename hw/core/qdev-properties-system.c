@@ -39,20 +39,20 @@ static void get_pointer(Object *obj, Visitor *v, Property *prop,
 }
 
 static void set_pointer(Object *obj, Visitor *v, Property *prop,
-                        void (*parse)(DeviceState *dev, const char *str,
-                                      void **ptr, const char *propname,
-                                      Error **errp),
+                        void (*parse_realized)(DeviceState *dev,
+                                               const char *str, void **ptr,
+                                               const char *propname,
+                                               Error **errp),
+                        void (*parse_unrealized)(DeviceState *dev,
+                                                 const char *str, void **ptr,
+                                                 const char *propname,
+                                                 Error **errp),
                         const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Error *local_err = NULL;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
-
-    if (dev->realized) {
-        qdev_prop_set_after_realize(dev, name, errp);
-        return;
-    }
 
     visit_type_str(v, name, &str, &local_err);
     if (local_err) {
@@ -64,7 +64,17 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
         *ptr = NULL;
         return;
     }
-    parse(dev, str, ptr, prop->name, errp);
+
+    if (dev->realized) {
+        if (parse_realized) {
+            parse_realized(dev, str, ptr, prop->name, errp);
+        } else {
+            qdev_prop_set_after_realize(dev, name, errp);
+        }
+    } else {
+        parse_unrealized(dev, str, ptr, prop->name, errp);
+    }
+
     g_free(str);
 }
 
@@ -179,13 +189,13 @@ static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
-    set_pointer(obj, v, opaque, parse_drive, name, errp);
+    set_pointer(obj, v, opaque, NULL, parse_drive, name, errp);
 }
 
 static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    set_pointer(obj, v, opaque, parse_drive_iothread, name, errp);
+    set_pointer(obj, v, opaque, NULL, parse_drive_iothread, name, errp);
 }
 
 const PropertyInfo qdev_prop_drive = {
