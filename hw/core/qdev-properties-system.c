@@ -80,8 +80,55 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
 
 /* --- drive --- */
 
-static void do_parse_drive(DeviceState *dev, const char *str, void **ptr,
-                           const char *propname, bool iothread, Error **errp)
+static void do_parse_drive_realized(DeviceState *dev, const char *str,
+                                    void **ptr, const char *propname,
+                                    bool iothread, Error **errp)
+{
+    BlockBackend *blk = *ptr;
+    BlockDriverState *bs = bdrv_lookup_bs(NULL, str, NULL);
+    int ret;
+    bool blk_created = false;
+
+    if (!bs) {
+        error_setg(errp, "Can't find blockdev '%s'", str);
+        return;
+    }
+
+    if (!blk) {
+        AioContext *ctx = iothread ? bdrv_get_aio_context(bs) :
+                                     qemu_get_aio_context();
+        blk = blk_new(ctx, BLK_PERM_ALL, BLK_PERM_ALL);
+        blk_created = true;
+    } else {
+        if (blk_bs(blk)) {
+            blk_remove_bs(blk);
+        }
+    }
+
+    ret = blk_insert_bs(blk, bs, errp);
+
+    if (!ret && blk_created) {
+        if (blk_attach_dev(blk, dev) < 0) {
+            /*
+             * Shouldn't be any errors here since we just created
+             * the new blk because the device doesn't have any.
+             * Leave the message here in case blk_attach_dev is changed
+             */
+             error_setg(errp, "Can't attach drive '%s' to device '%s'",
+                        str, object_get_typename(OBJECT(dev)));
+        } else {
+            *ptr = blk;
+        }
+    }
+
+    if (blk_created) {
+        blk_unref(blk);
+    }
+}
+
+static void do_parse_drive_unrealized(DeviceState *dev, const char *str,
+                                      void **ptr, const char *propname,
+                                      bool iothread, Error **errp)
 {
     BlockBackend *blk;
     bool blk_created = false;
@@ -138,17 +185,33 @@ fail:
     }
 }
 
-static void parse_drive(DeviceState *dev, const char *str, void **ptr,
-                        const char *propname, Error **errp)
-{
-    do_parse_drive(dev, str, ptr, propname, false, errp);
-}
-
-static void parse_drive_iothread(DeviceState *dev, const char *str, void **ptr,
+static void parse_drive_realized(DeviceState *dev, const char *str, void **ptr,
                                  const char *propname, Error **errp)
 {
-    do_parse_drive(dev, str, ptr, propname, true, errp);
+    do_parse_drive_realized(dev, str, ptr, propname, false, errp);
 }
+
+static void parse_drive_realized_iothread(DeviceState *dev, const char *str,
+                                          void **ptr, const char *propname,
+                                          Error **errp)
+{
+    do_parse_drive_realized(dev, str, ptr, propname, true, errp);
+}
+
+static void parse_drive_unrealized(DeviceState *dev, const char *str,
+                                   void **ptr, const char *propname,
+                                   Error **errp)
+{
+    do_parse_drive_unrealized(dev, str, ptr, propname, false, errp);
+}
+
+static void parse_drive_unrealized_iothread(DeviceState *dev, const char *str,
+                                            void **ptr, const char *propname,
+                                            Error **errp)
+{
+    do_parse_drive_unrealized(dev, str, ptr, propname, true, errp);
+}
+
 
 static void release_drive(Object *obj, const char *name, void *opaque)
 {
@@ -189,13 +252,15 @@ static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
 static void set_drive(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
-    set_pointer(obj, v, opaque, NULL, parse_drive, name, errp);
+    set_pointer(obj, v, opaque, parse_drive_realized, parse_drive_unrealized,
+                name, errp);
 }
 
 static void set_drive_iothread(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
-    set_pointer(obj, v, opaque, NULL, parse_drive_iothread, name, errp);
+    set_pointer(obj, v, opaque, parse_drive_realized_iothread,
+                parse_drive_unrealized_iothread, name, errp);
 }
 
 const PropertyInfo qdev_prop_drive = {
