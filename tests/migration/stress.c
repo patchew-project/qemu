@@ -31,7 +31,7 @@ const char *argv0;
 
 static int gettid(void)
 {
-    return syscall(SYS_gettid);
+    return qemu_get_thread_id();
 }
 
 static __attribute__((noreturn)) void exit_failure(void)
