@@ -8,7 +8,8 @@
     DEFINE_PROP_UINT32("cmb_size_mb", _state, _props.cmb_size_mb, 0), \
     DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 64), \
     DEFINE_PROP_UINT8("elpe", _state, _props.elpe, 24), \
-    DEFINE_PROP_UINT8("aerl", _state, _props.aerl, 3)
+    DEFINE_PROP_UINT8("aerl", _state, _props.aerl, 3), \
+    DEFINE_PROP_UINT8("mdts", _state, _props.mdts, 7)
 
 typedef struct NvmeParams {
     char     *serial;
@@ -16,6 +17,7 @@ typedef struct NvmeParams {
     uint32_t cmb_size_mb;
     uint8_t  elpe;
     uint8_t  aerl;
+    uint8_t  mdts;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
@@ -23,23 +25,124 @@ typedef struct NvmeAsyncEvent {
     NvmeAerResult result;
 } NvmeAsyncEvent;
 
-typedef struct NvmeRequest {
-    struct NvmeSQueue       *sq;
-    BlockAIOCB              *aiocb;
-    uint16_t                status;
-    uint16_t                cid;
-    bool                    is_cmb;
-    bool                    is_write;
-    NvmeCqe                 cqe;
-    BlockAcctCookie         acct;
-    QEMUSGList              qsg;
-    QEMUIOVector            iov;
-    NvmeCmd                 cmd;
-    QTAILQ_ENTRY(NvmeRequest)entry;
-} NvmeRequest;
+typedef enum NvmeAIOOp {
+    NVME_AIO_OPC_NONE         = 0x0,
+    NVME_AIO_OPC_FLUSH        = 0x1,
+    NVME_AIO_OPC_READ         = 0x2,
+    NVME_AIO_OPC_WRITE        = 0x3,
+    NVME_AIO_OPC_WRITE_ZEROES = 0x4,
+} NvmeAIOOp;
 
-typedef struct NvmeSQueue {
-    struct NvmeCtrl *ctrl;
+typedef struct NvmeRequest NvmeRequest;
+typedef struct NvmeAIO NvmeAIO;
+typedef void NvmeAIOCompletionFunc(NvmeAIO *aio, void *opaque);
+
+struct NvmeAIO {
+    NvmeRequest *req;
+
+    NvmeAIOOp       opc;
+    int64_t         offset;
+    BlockBackend    *blk;
+    BlockAIOCB      *aiocb;
+    BlockAcctCookie acct;
+
+    NvmeAIOCompletionFunc *cb;
+    void                  *cb_arg;
+
+    QEMUSGList   *qsg;
+    QEMUIOVector iov;
+
+    QTAILQ_ENTRY(NvmeAIO) tailq_entry;
+};
+
+static inline const char *nvme_aio_opc_str(NvmeAIO *aio)
+{
+    switch (aio->opc) {
+    case NVME_AIO_OPC_NONE:         return "NVME_AIO_OP_NONE";
+    case NVME_AIO_OPC_FLUSH:        return "NVME_AIO_OP_FLUSH";
+    case NVME_AIO_OPC_READ:         return "NVME_AIO_OP_READ";
+    case NVME_AIO_OPC_WRITE:        return "NVME_AIO_OP_WRITE";
+    case NVME_AIO_OPC_WRITE_ZEROES: return "NVME_AIO_OP_WRITE_ZEROES";
+    default:                        return "NVME_AIO_OP_UNKNOWN";
+    }
+}
+
+#define NVME_REQ_TRANSFER_DMA  0x1
+#define NVME_REQ_TRANSFER_CMB  0x2
+#define NVME_REQ_TRANSFER_MASK 0x3
+
+typedef struct NvmeSQueue    NvmeSQueue;
+typedef struct NvmeNamespace NvmeNamespace;
+typedef void NvmeRequestCompletionFunc(NvmeRequest *req, void *opaque);
+
+struct NvmeRequest {
+    NvmeSQueue    *sq;
+    NvmeNamespace *ns;
+    NvmeCqe       cqe;
+    NvmeCmd       cmd;
+
+    uint64_t slba;
+    uint32_t nlb;
+    uint16_t status;
+    uint16_t cid;
+    int      flags;
+
+    NvmeRequestCompletionFunc *cb;
+    void                      *cb_arg;
+
+    QEMUSGList qsg;
+
+    QTAILQ_HEAD(, NvmeAIO)    aio_tailq;
+    QTAILQ_ENTRY(NvmeRequest) entry;
+};
+
+static inline void nvme_req_set_cb(NvmeRequest *req,
+    NvmeRequestCompletionFunc *cb, void *cb_arg)
+{
+    req->cb = cb;
+    req->cb_arg = cb_arg;
+}
+
+static inline void nvme_req_clear_cb(NvmeRequest *req)
+{
+    req->cb = req->cb_arg = NULL;
+}
+
+static inline uint16_t nvme_cid(NvmeRequest *req)
+{
+    if (req) {
+        return req->cid;
+    }
+
+    return 0xffff;
+}
+
+static inline bool nvme_req_is_cmb(NvmeRequest *req)
+{
+    return (req->flags & NVME_REQ_TRANSFER_MASK) == NVME_REQ_TRANSFER_CMB;
+}
+
+static void nvme_req_set_cmb(NvmeRequest *req)
+{
+    req->flags = NVME_REQ_TRANSFER_CMB;
+}
+
+static inline bool nvme_req_is_write(NvmeRequest *req)
+{
+    switch (req->cmd.opcode) {
+    case NVME_CMD_WRITE:
+    case NVME_CMD_WRITE_UNCOR:
+    case NVME_CMD_WRITE_ZEROS:
+        return true;
+    default:
+        return false;
+    }
+}
+
+typedef struct NvmeCtrl NvmeCtrl;
+
+struct NvmeSQueue {
+    NvmeCtrl    *ctrl;
     uint16_t    sqid;
     uint16_t    cqid;
     uint32_t    head;
@@ -51,10 +154,12 @@ typedef struct NvmeSQueue {
     QTAILQ_HEAD(, NvmeRequest) req_list;
     QTAILQ_HEAD(, NvmeRequest) out_req_list;
     QTAILQ_ENTRY(NvmeSQueue) entry;
-} NvmeSQueue;
+};
 
-typedef struct NvmeCQueue {
-    struct NvmeCtrl *ctrl;
+typedef struct NvmeCQueue NvmeCQueue;
+
+struct NvmeCQueue {
+    NvmeCtrl    *ctrl;
     uint8_t     phase;
     uint16_t    cqid;
     uint16_t    irq_enabled;
@@ -66,11 +171,11 @@ typedef struct NvmeCQueue {
     QEMUTimer   *timer;
     QTAILQ_HEAD(, NvmeSQueue) sq_list;
     QTAILQ_HEAD(, NvmeRequest) req_list;
-} NvmeCQueue;
+};
 
-typedef struct NvmeNamespace {
+struct NvmeNamespace {
     NvmeIdNs        id_ns;
-} NvmeNamespace;
+};
 
 #define TYPE_NVME "nvme"
 #define NVME(obj) \
@@ -122,6 +227,17 @@ typedef struct NvmeCtrl {
     NvmeIdCtrl      id_ctrl;
 } NvmeCtrl;
 
+static inline NvmeCtrl *nvme_ctrl(NvmeRequest *req)
+{
+    return req->sq->ctrl;
+}
+
+static inline bool nvme_is_error(uint16_t status, uint16_t err)
+{
+    /* strip DNR and MORE */
+    return (status & 0xfff) == err;
+}
+
 static inline NvmeLBAF nvme_ns_lbaf(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
@@ -142,6 +258,5 @@ static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
 {
     return n->ns_size >> nvme_ns_lbads(ns);
 }
-
 
 #endif /* HW_NVME_H */
