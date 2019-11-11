@@ -65,9 +65,13 @@ typedef struct QuorumVotes {
     bool (*compare)(QuorumVoteValue *a, QuorumVoteValue *b);
 } QuorumVotes;
 
+typedef struct QuorumChild {
+    BdrvChild *child;
+} QuorumChild;
+
 /* the following structure holds the state of one quorum instance */
 typedef struct BDRVQuorumState {
-    BdrvChild **children;  /* children BlockDriverStates */
+    QuorumChild *children;
     int num_children;      /* children count */
     unsigned next_child_index;  /* the index of the next child that should
                                  * be added
@@ -264,7 +268,7 @@ static void quorum_report_bad_versions(BDRVQuorumState *s,
         }
         QLIST_FOREACH(item, &version->items, next) {
             quorum_report_bad(QUORUM_OP_TYPE_READ, acb->offset, acb->bytes,
-                              s->children[item->index]->bs->node_name, 0);
+                              s->children[item->index].child->bs->node_name, 0);
         }
     }
 }
@@ -279,7 +283,7 @@ static void quorum_rewrite_entry(void *opaque)
      * corrupted data.
      * Mask out BDRV_REQ_WRITE_UNCHANGED because this overwrites the
      * area with different data from the other children. */
-    bdrv_co_pwritev(s->children[co->idx], acb->offset, acb->bytes,
+    bdrv_co_pwritev(s->children[co->idx].child, acb->offset, acb->bytes,
                     acb->qiov, acb->flags & ~BDRV_REQ_WRITE_UNCHANGED);
 
     /* Wake up the caller after the last rewrite */
@@ -578,8 +582,8 @@ static void read_quorum_children_entry(void *opaque)
     int i = co->idx;
     QuorumChildRequest *sacb = &acb->qcrs[i];
 
-    sacb->bs = s->children[i]->bs;
-    sacb->ret = bdrv_co_preadv(s->children[i], acb->offset, acb->bytes,
+    sacb->bs = s->children[i].child->bs;
+    sacb->ret = bdrv_co_preadv(s->children[i].child, acb->offset, acb->bytes,
                                &acb->qcrs[i].qiov, 0);
 
     if (sacb->ret == 0) {
@@ -605,7 +609,8 @@ static int read_quorum_children(QuorumAIOCB *acb)
 
     acb->children_read = s->num_children;
     for (i = 0; i < s->num_children; i++) {
-        acb->qcrs[i].buf = qemu_blockalign(s->children[i]->bs, acb->qiov->size);
+        acb->qcrs[i].buf = qemu_blockalign(s->children[i].child->bs,
+                                           acb->qiov->size);
         qemu_iovec_init(&acb->qcrs[i].qiov, acb->qiov->niov);
         qemu_iovec_clone(&acb->qcrs[i].qiov, acb->qiov, acb->qcrs[i].buf);
     }
@@ -647,8 +652,8 @@ static int read_fifo_child(QuorumAIOCB *acb)
     /* We try to read the next child in FIFO order if we failed to read */
     do {
         n = acb->children_read++;
-        acb->qcrs[n].bs = s->children[n]->bs;
-        ret = bdrv_co_preadv(s->children[n], acb->offset, acb->bytes,
+        acb->qcrs[n].bs = s->children[n].child->bs;
+        ret = bdrv_co_preadv(s->children[n].child, acb->offset, acb->bytes,
                              acb->qiov, 0);
         if (ret < 0) {
             quorum_report_bad_acb(&acb->qcrs[n], ret);
@@ -688,8 +693,8 @@ static void write_quorum_entry(void *opaque)
     int i = co->idx;
     QuorumChildRequest *sacb = &acb->qcrs[i];
 
-    sacb->bs = s->children[i]->bs;
-    sacb->ret = bdrv_co_pwritev(s->children[i], acb->offset, acb->bytes,
+    sacb->bs = s->children[i].child->bs;
+    sacb->ret = bdrv_co_pwritev(s->children[i].child, acb->offset, acb->bytes,
                                 acb->qiov, acb->flags);
     if (sacb->ret == 0) {
         acb->success_count++;
@@ -743,12 +748,12 @@ static int64_t quorum_getlength(BlockDriverState *bs)
     int i;
 
     /* check that all file have the same length */
-    result = bdrv_getlength(s->children[0]->bs);
+    result = bdrv_getlength(s->children[0].child->bs);
     if (result < 0) {
         return result;
     }
     for (i = 1; i < s->num_children; i++) {
-        int64_t value = bdrv_getlength(s->children[i]->bs);
+        int64_t value = bdrv_getlength(s->children[i].child->bs);
         if (value < 0) {
             return value;
         }
@@ -774,10 +779,10 @@ static coroutine_fn int quorum_co_flush(BlockDriverState *bs)
     error_votes.compare = quorum_64bits_compare;
 
     for (i = 0; i < s->num_children; i++) {
-        result = bdrv_co_flush(s->children[i]->bs);
+        result = bdrv_co_flush(s->children[i].child->bs);
         if (result) {
             quorum_report_bad(QUORUM_OP_TYPE_FLUSH, 0, 0,
-                              s->children[i]->bs->node_name, result);
+                              s->children[i].child->bs->node_name, result);
             result_value.l = result;
             quorum_count_vote(&error_votes, &result_value, i);
         } else {
@@ -803,7 +808,7 @@ static bool quorum_recurse_is_first_non_filter(BlockDriverState *bs,
     int i;
 
     for (i = 0; i < s->num_children; i++) {
-        bool perm = bdrv_recurse_is_first_non_filter(s->children[i]->bs,
+        bool perm = bdrv_recurse_is_first_non_filter(s->children[i].child->bs,
                                                      candidate);
         if (perm) {
             return true;
@@ -932,7 +937,7 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     /* allocate the children array */
-    s->children = g_new0(BdrvChild *, s->num_children);
+    s->children = g_new0(QuorumChild, s->num_children);
     opened = g_new0(bool, s->num_children);
 
     for (i = 0; i < s->num_children; i++) {
@@ -940,8 +945,9 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
         ret = snprintf(indexstr, 32, "children.%d", i);
         assert(ret < 32);
 
-        s->children[i] = bdrv_open_child(NULL, options, indexstr, bs,
-                                         &child_format, false, &local_err);
+        s->children[i].child = bdrv_open_child(NULL, options, indexstr, bs,
+                                               &child_format, false,
+                                               &local_err);
         if (local_err) {
             ret = -EINVAL;
             goto close_exit;
@@ -962,7 +968,7 @@ close_exit:
         if (!opened[i]) {
             continue;
         }
-        bdrv_unref_child(bs, s->children[i]);
+        bdrv_unref_child(bs, s->children[i].child);
     }
     g_free(s->children);
     g_free(opened);
@@ -979,7 +985,7 @@ static void quorum_close(BlockDriverState *bs)
     int i;
 
     for (i = 0; i < s->num_children; i++) {
-        bdrv_unref_child(bs, s->children[i]);
+        bdrv_unref_child(bs, s->children[i].child);
     }
 
     g_free(s->children);
@@ -998,8 +1004,8 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
         return;
     }
 
-    assert(s->num_children <= INT_MAX / sizeof(BdrvChild *));
-    if (s->num_children == INT_MAX / sizeof(BdrvChild *) ||
+    assert(s->num_children <= INT_MAX / sizeof(QuorumChild));
+    if (s->num_children == INT_MAX / sizeof(QuorumChild) ||
         s->next_child_index == UINT_MAX) {
         error_setg(errp, "Too many children");
         return;
@@ -1022,8 +1028,10 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
         s->next_child_index--;
         goto out;
     }
-    s->children = g_renew(BdrvChild *, s->children, s->num_children + 1);
-    s->children[s->num_children++] = child;
+    s->children = g_renew(QuorumChild, s->children, s->num_children + 1);
+    s->children[s->num_children++] = (QuorumChild){
+        .child = child,
+    };
 
 out:
     bdrv_drained_end(bs);
@@ -1036,7 +1044,7 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
     int i;
 
     for (i = 0; i < s->num_children; i++) {
-        if (s->children[i] == child) {
+        if (s->children[i].child == child) {
             break;
         }
     }
@@ -1058,8 +1066,8 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
 
     /* We can safely remove this child now */
     memmove(&s->children[i], &s->children[i + 1],
-            (s->num_children - i - 1) * sizeof(BdrvChild *));
-    s->children = g_renew(BdrvChild *, s->children, --s->num_children);
+            (s->num_children - i - 1) * sizeof(QuorumChild));
+    s->children = g_renew(QuorumChild, s->children, --s->num_children);
     bdrv_unref_child(bs, child);
 
     bdrv_drained_end(bs);
@@ -1100,7 +1108,7 @@ static void quorum_gather_child_options(BlockDriverState *bs, QDict *target,
 
     for (i = 0; i < s->num_children; i++) {
         qlist_append(children_list,
-                     qobject_ref(s->children[i]->bs->full_open_options));
+                     qobject_ref(s->children[i].child->bs->full_open_options));
     }
 }
 
