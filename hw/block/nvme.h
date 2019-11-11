@@ -2,6 +2,10 @@
 #define HW_NVME_H
 
 #include "block/nvme.h"
+#include "nvme-ns.h"
+#include "trace.h"
+
+#define NVME_MAX_NAMESPACES 256
 
 #define DEFINE_NVME_PROPERTIES(_state, _props) \
     DEFINE_PROP_STRING("serial", _state, _props.serial), \
@@ -72,7 +76,6 @@ static inline const char *nvme_aio_opc_str(NvmeAIO *aio)
 #define NVME_REQ_TRANSFER_MASK 0x3
 
 typedef struct NvmeSQueue    NvmeSQueue;
-typedef struct NvmeNamespace NvmeNamespace;
 typedef void NvmeRequestCompletionFunc(NvmeRequest *req, void *opaque);
 
 struct NvmeRequest {
@@ -122,7 +125,7 @@ static inline bool nvme_req_is_cmb(NvmeRequest *req)
     return (req->flags & NVME_REQ_TRANSFER_MASK) == NVME_REQ_TRANSFER_CMB;
 }
 
-static void nvme_req_set_cmb(NvmeRequest *req)
+static inline void nvme_req_set_cmb(NvmeRequest *req)
 {
     req->flags = NVME_REQ_TRANSFER_CMB;
 }
@@ -173,9 +176,12 @@ struct NvmeCQueue {
     QTAILQ_HEAD(, NvmeRequest) req_list;
 };
 
-struct NvmeNamespace {
-    NvmeIdNs        id_ns;
-};
+#define TYPE_NVME_BUS "nvme-bus"
+#define NVME_BUS(obj) OBJECT_CHECK(NvmeBus, (obj), TYPE_NVME_BUS)
+
+typedef struct NvmeBus {
+    BusState parent_bus;
+} NvmeBus;
 
 #define TYPE_NVME "nvme"
 #define NVME(obj) \
@@ -186,8 +192,9 @@ typedef struct NvmeCtrl {
     MemoryRegion iomem;
     MemoryRegion ctrl_mem;
     NvmeBar      bar;
-    BlockConf    conf;
     NvmeParams   params;
+    NvmeBus      bus;
+    BlockConf    conf;
 
     uint32_t    page_size;
     uint16_t    page_bits;
@@ -197,7 +204,6 @@ typedef struct NvmeCtrl {
     uint32_t    reg_size;
     uint32_t    num_namespaces;
     uint32_t    max_q_ents;
-    uint64_t    ns_size;
     uint8_t     outstanding_aers;
     uint32_t    cmbsz;
     uint32_t    cmbloc;
@@ -217,7 +223,8 @@ typedef struct NvmeCtrl {
     NvmeRequest **aer_reqs;
     QTAILQ_HEAD(, NvmeAsyncEvent) aer_queue;
 
-    NvmeNamespace   *namespaces;
+    NvmeNamespace   namespace;
+    NvmeNamespace   *namespaces[NVME_MAX_NAMESPACES];
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;
     NvmeSQueue      admin_sq;
@@ -226,6 +233,26 @@ typedef struct NvmeCtrl {
     NvmeErrorLog    *elpes;
     NvmeIdCtrl      id_ctrl;
 } NvmeCtrl;
+
+static inline NvmeNamespace *nvme_ns(NvmeCtrl *n, uint32_t nsid)
+{
+    if (!nsid || nsid > n->num_namespaces) {
+        return NULL;
+    }
+
+    return n->namespaces[nsid - 1];
+}
+
+static inline uint16_t nvme_nsid_err(NvmeCtrl *n, uint32_t nsid)
+{
+    if (nsid && nsid < n->num_namespaces) {
+        trace_nvme_err_inactive_ns(nsid, n->num_namespaces);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    trace_nvme_err_invalid_ns(nsid, n->num_namespaces);
+    return NVME_INVALID_NSID | NVME_DNR;
+}
 
 static inline NvmeCtrl *nvme_ctrl(NvmeRequest *req)
 {
@@ -238,25 +265,6 @@ static inline bool nvme_is_error(uint16_t status, uint16_t err)
     return (status & 0xfff) == err;
 }
 
-static inline NvmeLBAF nvme_ns_lbaf(NvmeNamespace *ns)
-{
-    NvmeIdNs *id_ns = &ns->id_ns;
-    return id_ns->lbaf[NVME_ID_NS_FLBAS_INDEX(id_ns->flbas)];
-}
-
-static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
-{
-    return nvme_ns_lbaf(ns).ds;
-}
-
-static inline size_t nvme_ns_lbads_bytes(NvmeNamespace *ns)
-{
-    return 1 << nvme_ns_lbads(ns);
-}
-
-static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
-{
-    return n->ns_size >> nvme_ns_lbads(ns);
-}
+int nvme_register_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp);
 
 #endif /* HW_NVME_H */
