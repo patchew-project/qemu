@@ -71,26 +71,26 @@ static inline bool nvme_addr_is_cmb(NvmeCtrl *n, hwaddr addr)
     return addr >= low && addr < hi;
 }
 
-static inline void nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf,
+static inline int nvme_addr_read(NvmeCtrl *n, hwaddr addr, void *buf,
     int size)
 {
     if (n->cmbsz && nvme_addr_is_cmb(n, addr)) {
         memcpy(buf, (void *) &n->cmbuf[addr - n->ctrl_mem.addr], size);
-        return;
+        return 0;
     }
 
-    pci_dma_read(&n->parent_obj, addr, buf, size);
+    return pci_dma_read(&n->parent_obj, addr, buf, size);
 }
 
-static inline void nvme_addr_write(NvmeCtrl *n, hwaddr addr, void *buf,
+static inline int nvme_addr_write(NvmeCtrl *n, hwaddr addr, void *buf,
     int size)
 {
     if (n->cmbsz && nvme_addr_is_cmb(n, addr)) {
         memcpy((void *) &n->cmbuf[addr - n->ctrl_mem.addr], buf, size);
-        return;
+        return 0;
     }
 
-    pci_dma_write(&n->parent_obj, addr, buf, size);
+    return pci_dma_write(&n->parent_obj, addr, buf, size);
 }
 
 static int nvme_check_sqid(NvmeCtrl *n, uint16_t sqid)
@@ -228,7 +228,11 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, QEMUSGList *qsg, uint64_t prp1,
 
             nents = (len + n->page_size - 1) >> n->page_bits;
             prp_trans = MIN(n->max_prp_ents, nents) * sizeof(uint64_t);
-            nvme_addr_read(n, prp2, (void *) prp_list, prp_trans);
+            if (nvme_addr_read(n, prp2, (void *) prp_list, prp_trans)) {
+                trace_nvme_err_addr_read(prp2);
+                status = NVME_DATA_TRANSFER_ERROR;
+                goto unmap;
+            }
             while (len != 0) {
                 bool addr_is_cmb;
                 uint64_t prp_ent = le64_to_cpu(prp_list[i]);
@@ -250,7 +254,11 @@ static uint16_t nvme_map_prp(NvmeCtrl *n, QEMUSGList *qsg, uint64_t prp1,
                     i = 0;
                     nents = (len + n->page_size - 1) >> n->page_bits;
                     prp_trans = MIN(n->max_prp_ents, nents) * sizeof(uint64_t);
-                    nvme_addr_read(n, prp_ent, (void *) prp_list, prp_trans);
+                    if (nvme_addr_read(n, prp_ent, (void *) prp_list, prp_trans)) {
+                        trace_nvme_err_addr_read(prp_ent);
+                        status = NVME_DATA_TRANSFER_ERROR;
+                        goto unmap;
+                    }
                     prp_ent = le64_to_cpu(prp_list[i]);
                 }
 
@@ -402,7 +410,11 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg,
 
         /* read the segment in chunks of 256 descriptors (4k) */
         while (nsgld > MAX_NSGLD) {
-            nvme_addr_read(n, addr, segment, sizeof(segment));
+            if (nvme_addr_read(n, addr, segment, sizeof(segment))) {
+                trace_nvme_err_addr_read(addr);
+                status = NVME_DATA_TRANSFER_ERROR;
+                goto unmap;
+            }
 
             status = nvme_map_sgl_data(n, qsg, segment, MAX_NSGLD, &len, req);
             if (status) {
@@ -413,7 +425,11 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg,
             addr += MAX_NSGLD * sizeof(NvmeSglDescriptor);
         }
 
-        nvme_addr_read(n, addr, segment, nsgld * sizeof(NvmeSglDescriptor));
+        if (nvme_addr_read(n, addr, segment, nsgld * sizeof(NvmeSglDescriptor))) {
+            trace_nvme_err_addr_read(addr);
+            status = NVME_DATA_TRANSFER_ERROR;
+            goto unmap;
+        }
 
         sgl = segment[nsgld - 1];
         addr = le64_to_cpu(sgl.addr);
@@ -458,7 +474,11 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg,
     nsgld = le64_to_cpu(sgl.len) / sizeof(NvmeSglDescriptor);
 
     while (nsgld > MAX_NSGLD) {
-        nvme_addr_read(n, addr, segment, sizeof(segment));
+        if (nvme_addr_read(n, addr, segment, sizeof(segment))) {
+            trace_nvme_err_addr_read(addr);
+            status = NVME_DATA_TRANSFER_ERROR;
+            goto unmap;
+        }
 
         status = nvme_map_sgl_data(n, qsg, segment, MAX_NSGLD, &len, req);
         if (status) {
@@ -469,7 +489,11 @@ static uint16_t nvme_map_sgl(NvmeCtrl *n, QEMUSGList *qsg,
         addr += MAX_NSGLD * sizeof(NvmeSglDescriptor);
     }
 
-    nvme_addr_read(n, addr, segment, nsgld * sizeof(NvmeSglDescriptor));
+    if (nvme_addr_read(n, addr, segment, nsgld * sizeof(NvmeSglDescriptor))) {
+        trace_nvme_err_addr_read(addr);
+        status = NVME_DATA_TRANSFER_ERROR;
+        goto unmap;
+    }
 
     status = nvme_map_sgl_data(n, qsg, segment, nsgld, &len, req);
     if (status) {
@@ -819,8 +843,14 @@ static void nvme_post_cqes(void *opaque)
         req->cqe.sq_id = cpu_to_le16(sq->sqid);
         req->cqe.sq_head = cpu_to_le16(sq->head);
         addr = cq->dma_addr + cq->tail * n->cqe_size;
+        if (nvme_addr_write(n, addr, (void *) cqe, sizeof(*cqe))) {
+            trace_nvme_err_addr_write(addr);
+            QTAILQ_INSERT_TAIL(&cq->req_list, req, entry);
+            timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                100 * SCALE_MS);
+            break;
+        }
         nvme_inc_cq_tail(cq);
-        nvme_addr_write(n, addr, (void *) cqe, sizeof(*cqe));
         QTAILQ_INSERT_TAIL(&sq->req_list, req, entry);
     }
     if (cq->tail != cq->head) {
@@ -1934,7 +1964,12 @@ static void nvme_process_sq(void *opaque)
 
     while (!(nvme_sq_empty(sq) || QTAILQ_EMPTY(&sq->req_list))) {
         addr = sq->dma_addr + sq->head * n->sqe_size;
-        nvme_addr_read(n, addr, (void *)&cmd, sizeof(NvmeCmd));
+        if (nvme_addr_read(n, addr, (void *)&cmd, sizeof(NvmeCmd))) {
+            trace_nvme_err_addr_read(addr);
+            timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) +
+                100 * SCALE_MS);
+            break;
+        }
         nvme_inc_sq_head(sq);
 
         req = QTAILQ_FIRST(&sq->req_list);
