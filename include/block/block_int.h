@@ -1266,6 +1266,9 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
 bool bdrv_recurse_can_replace(BlockDriverState *bs,
                               BlockDriverState *to_replace);
 
+bool bdrv_is_child_of(BlockDriverState *child, BlockDriverState *parent,
+                      int min_level);
+
 /*
  * Default implementation for drivers to pass bdrv_co_block_status() to
  * their file.
