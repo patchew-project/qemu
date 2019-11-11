@@ -918,8 +918,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
         self.complete_and_wait(drive="job0")
         self.assert_has_block_node("repair0", quorum_repair_img)
-        # TODO: a better test requiring some QEMU infrastructure will be added
-        #       to check that this file is really driven by quorum
+        self.vm.assert_block_path('quorum0', '/children.1', 'repair0')
         self.vm.shutdown()
         self.assertTrue(iotests.compare_images(quorum_img2, quorum_repair_img),
                         'target image does not match source after mirroring')
@@ -1041,9 +1040,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
 
         self.complete_and_wait('job0')
         self.assert_has_block_node("repair0", quorum_repair_img)
-        # TODO: a better test requiring some QEMU infrastructure will be added
-        #       to check that this file is really driven by quorum
-        self.vm.shutdown()
+        self.vm.assert_block_path('quorum0', '/children.1', 'repair0')
 
 # Test mirroring with a source that does not have any parents (not even a
 # BlockBackend)
