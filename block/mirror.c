@@ -701,7 +701,24 @@ static int mirror_exit_common(Job *job)
          * there.
          */
         if (bdrv_recurse_can_replace(src, to_replace)) {
-            bdrv_replace_node(to_replace, target_bs, &local_err);
+            /*
+             * It is OK for @to_replace to be an immediate child of
+             * @target_bs, because that is what happens with
+             * drive-mirror sync=none mode=absolute-paths: target_bs's
+             * backing file will be the source node, which is also
+             * to_replace (by default).
+             * bdrv_replace_node() handles this case by not letting
+             * target_bs->backing point to itself, but to the source
+             * still.
+             */
+            if (!bdrv_is_child_of(to_replace, target_bs, 2)) {
+                bdrv_replace_node(to_replace, target_bs, &local_err);
+            } else {
+                error_setg(&local_err, "Can no longer replace '%s' by '%s', "
+                           "because the former is now a child of the latter, "
+                           "and doing so would thus create a loop",
+                           to_replace->node_name, target_bs->node_name);
+            }
         } else {
             error_setg(&local_err, "Can no longer replace '%s' by '%s', "
                        "because it can no longer be guaranteed that doing so "

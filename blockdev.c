@@ -3824,7 +3824,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
     }
 
     if (has_replaces) {
-        BlockDriverState *to_replace_bs;
+        BlockDriverState *to_replace_bs, *target_backing_bs;
         AioContext *replace_aio_context;
         int64_t bs_size, replace_size;
 
@@ -3836,6 +3836,52 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
 
         to_replace_bs = check_to_replace_node(bs, replaces, errp);
         if (!to_replace_bs) {
+            return;
+        }
+
+        if (bdrv_is_child_of(to_replace_bs, target, 1)) {
+            error_setg(errp, "Replacing %s by %s would result in a loop, "
+                       "because the former is a child of the latter",
+                       to_replace_bs->node_name, target->node_name);
+            return;
+        }
+
+        if (backing_mode == MIRROR_SOURCE_BACKING_CHAIN ||
+            backing_mode == MIRROR_OPEN_BACKING_CHAIN)
+        {
+            /*
+             * While we do not quite know what OPEN_BACKING_CHAIN
+             * (used for mode=existing) will yield, it is probably
+             * best to restrict it exactly like SOURCE_BACKING_CHAIN,
+             * because that is our best guess.
+             */
+            switch (sync) {
+            case MIRROR_SYNC_MODE_FULL:
+                target_backing_bs = NULL;
+                break;
+
+            case MIRROR_SYNC_MODE_TOP:
+                target_backing_bs = backing_bs(bs);
+                break;
+
+            case MIRROR_SYNC_MODE_NONE:
+                target_backing_bs = bs;
+                break;
+
+            default:
+                abort();
+            }
+        } else {
+            assert(backing_mode == MIRROR_LEAVE_BACKING_CHAIN);
+            target_backing_bs = backing_bs(target);
+        }
+
+        if (bdrv_is_child_of(to_replace_bs, target_backing_bs, 0)) {
+            error_setg(errp, "Replacing '%s' by '%s' with this sync mode would "
+                       "result in a loop, because the former would be a child "
+                       "of the latter's backing file ('%s') after the mirror "
+                       "job", to_replace_bs->node_name, target->node_name,
+                       target_backing_bs->node_name);
             return;
         }
 

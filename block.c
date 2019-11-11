@@ -6259,6 +6259,36 @@ out:
     return to_replace_bs;
 }
 
+/*
+ * Return true iff @child is a (recursive) child of @parent, with at
+ * least @min_level edges between them.
+ *
+ * (If @min_level == 0, return true if @child == @parent.  For
+ * @min_level == 1, @child needs to be at least a real child; for
+ * @min_level == 2, it needs to be at least a grand-child; and so on.)
+ */
+bool bdrv_is_child_of(BlockDriverState *child, BlockDriverState *parent,
+                      int min_level)
+{
+    BdrvChild *c;
+
+    if (child == parent && min_level <= 0) {
+        return true;
+    }
+
+    if (!parent) {
+        return false;
+    }
+
+    QLIST_FOREACH(c, &parent->children, next) {
+        if (bdrv_is_child_of(child, c->bs, min_level - 1)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /**
  * Iterates through the list of runtime option keys that are said to
  * be "strong" for a BDS.  An option is called "strong" if it changes
