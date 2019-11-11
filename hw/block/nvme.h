@@ -102,6 +102,7 @@ typedef struct NvmeCtrl {
     uint16_t    temperature;
     uint8_t     elp_index;
     uint64_t    error_count;
+    uint32_t    qs_created;
 
     QEMUTimer   *aer_timer;
     uint8_t     aer_mask;
