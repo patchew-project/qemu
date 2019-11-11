@@ -1246,6 +1246,241 @@ class TestReplaces(iotests.QMPTestCase):
 
         self.vm.assert_block_path('filter0', '/file', 'target')
 
+    """
+    See what happens when the @sync/@replaces configuration dictates
+    creating a loop.
+    """
+    @iotests.skip_if_unsupported(['throttle'])
+    def test_loop(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(1 * 1024 * 1024))
+
+        # Dummy group so we can create a NOP filter
+        result = self.vm.qmp('object-add', qom_type='throttle-group', id='tg0')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-add', **{
+                                 'driver': 'throttle',
+                                 'node-name': 'source',
+                                 'throttle-group': 'tg0',
+                                 'file': {
+                                     'driver': iotests.imgfmt,
+                                     'node-name': 'filtered',
+                                     'file': {
+                                         'driver': 'file',
+                                         'filename': test_img
+                                     }
+                                 }
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        # Block graph is now:
+        #   source[throttle] --file--> filtered[imgfmt] --file--> ...
+
+        result = self.vm.qmp('drive-mirror', job_id='mirror', device='source',
+                             target=target_img, format=iotests.imgfmt,
+                             node_name='target', sync='none',
+                             replaces='filtered')
+
+        """
+        Block graph before mirror exits would be (ignoring mirror_top):
+          source[throttle] --file--> filtered[imgfmt] --file--> ...
+          target[imgfmt] --file--> ...
+
+        Then, because of sync=none and drive-mirror in absolute-paths mode,
+        the source is attached to the target:
+          source[throttle] --file--> filtered[imgfmt] --file--> ...
+                 ^
+              backing
+                 |
+            target[imgfmt] --file--> ...
+
+        Replacing filtered by target would yield:
+          source[throttle] --file--> target[imgfmt] --file--> ...
+                 ^                        |
+                 +------- backing --------+
+
+        I.e., a loop.  bdrv_replace_node() detects this and simply
+        does not let source's file link point to target.  However,
+        that means that target cannot really replace source.
+
+        drive-mirror should detect this and not allow this case.
+        """
+
+        self.assert_qmp(result, 'error/desc',
+                        "Replacing 'filtered' by 'target' with this sync " + \
+                        "mode would result in a loop, because the former " + \
+                        "would be a child of the latter's backing file " + \
+                        "('source') after the mirror job")
+
+    """
+    Test what happens when there would be no loop with the pre-mirror
+    configuration, but something changes during the mirror job that asks
+    for a loop to be created during completion.
+    """
+    @iotests.skip_if_unsupported(['copy-on-read', 'quorum'])
+    def test_loop_during_mirror(self):
+        qemu_img('create', '-f', iotests.imgfmt, test_img, str(1 * 1024 * 1024))
+
+        """
+        In this test, we are going to mirror from a node that is a
+        filter above some file "common-base".  The target is a quorum
+        node (with just an unrelated null-co child).
+
+        We will ask the mirror job to replace common-base by the
+        target upon completion.  That is a completely valid
+        configuration so far.
+
+        However, while the job is running, we add common-base as an
+        (indirect[1]) child to the target quorum node.  This way,
+        completing the job as requested would yield a loop, because
+        the target would be supposed to replace common-base -- which
+        is its own (indirect) child.
+
+        [1] It needs to be an indirect child, because if it were a
+        direct child, the mirror job would simply end by effectively
+        injecting the target above common-base.  This is the same
+        effect as when using sync=none: The target ends up above the
+        source.
+
+        So only loops that have a length of more than one node are
+        forbidden, which means common-base must be an indirect child
+        of the target.
+
+        (Furthermore, we are going to use x-blockdev-change to add
+        common-base as a child to the target.  This command only
+        allows doing so for nodes that have no parent yet.
+        common-base will have a parent already, though, namely the
+        source node.  Therefore, this is another reason why we need at
+        least one node above common-base, so this parent can become
+        target's child during the mirror.)
+        """
+
+        result = self.vm.qmp('blockdev-add', **{
+                                 'driver': 'null-co',
+                                 'node-name': 'common-base',
+                                 'read-zeroes': True,
+                                 'size': 1 * 1024 * 1024
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('blockdev-add', **{
+                                 'driver': 'copy-on-read',
+                                 'node-name': 'source',
+                                 'file': 'common-base'
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        """
+        As explained above, we have to create a parent above
+        common-base.
+
+        We cannot use any parent that would forward the RESIZE
+        permission, because the job takes it on the target, but
+        unshares it on the source: After the x-blockdev-change
+        operation during the mirror job, this parent will be a child
+        of the target, so common-base will be an (indirect) child of
+        both the mirror's source and target.  Thus, the job would
+        conflict with itself.
+
+        Therefore, we make common-base a backing child of a $imgfmt
+        node.  Unfortunately, we cannot let the mirror job replace a
+        node that acts as a backing child somewhere (because of an op
+        blocker), so we put another raw node between the $imgfmt node
+        and common-base.
+        """
+        result = self.vm.qmp('blockdev-add', **{
+                                 'driver': iotests.imgfmt,
+                                 'node-name': 'base-parent',
+                                 'file': {
+                                     'driver': 'file',
+                                     'filename': test_img
+                                 },
+                                 'backing': {
+                                     'driver': 'raw',
+                                     'file': 'common-base'
+                                 }
+                             })
+
+        """
+        Add a quorum node with a single child, we will add base-parent
+        to prepare a loop later.
+        (We do not care about this single child at all, but it is
+        impossible to create a quorum node without any children.  We
+        will ignore this child from now on.)
+        """
+        result = self.vm.qmp('blockdev-add', **{
+                                 'driver': 'quorum',
+                                 'node-name': 'target',
+                                 'vote-threshold': 1,
+                                 'children': [
+                                     {
+                                         'driver': 'null-co',
+                                         'read-zeroes': True,
+                                         'size': 1 * 1024 * 1024
+                                     }
+                                 ]
+                             })
+        self.assert_qmp(result, 'return', {})
+
+        """
+        Current block graph:
+
+        base-parent[$imgfmt] --backing--> [raw]
+                                            |
+                                           file
+                                            v
+              source[COR] --file--> common-base[null-co]
+
+        target[quorum]
+
+
+        The following blockdev-mirror asks for this graph post-mirror:
+
+        base-parent[$imgfmt] --backing--> [raw]
+                                            |
+                                           file
+                                            v
+                source[COR] --file--> target[quorum]
+
+        That would be a valid configuration without any loops.
+        """
+
+        result = self.vm.qmp('blockdev-mirror', job_id='mirror',
+                             device='source', target='target', sync='full',
+                             replaces='common-base')
+        self.assert_qmp(result, 'return', {})
+
+        """
+        However, now we will make base-parent a child of target.
+        Before the mirror job completes, that is still completely
+        valid:
+
+                                             source
+                                               |
+                                               v
+        target -> base-parent -> [raw] -> common-base
+        """
+
+        result = self.vm.qmp('x-blockdev-change',
+                             parent='target', node='base-parent')
+        self.assert_qmp(result, 'return', {})
+
+        """
+        However, post-mirror, we thus ask for a loop:
+
+        source -> target (replaced common-base) -> base-parent
+                                  ^                    |
+                                  |                    v
+                                  +----------------- [raw]
+
+        bdrv_replace_node() would not allow such a configuration, but
+        we should not pretend we can create it, so the mirror job
+        should fail during completion.
+        """
+
+        self.complete_and_wait('mirror',
+                               completion_error='Operation not permitted')
+
 if __name__ == '__main__':
     iotests.main(supported_fmts=['qcow2', 'qed'],
                  supported_protocols=['file'])
