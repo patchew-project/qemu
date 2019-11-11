@@ -681,6 +681,65 @@ class VM(qtest.QEMUQtestMachine):
 
         return fields.items() <= ret.items()
 
+    """
+    Check whether the node under the given path in the block graph is
+    @expected_node.
+
+    @root is the node name of the node where the @path is rooted.
+
+    @path is a string that consists of child names separated by
+    slashes.  It must begin with a slash.
+
+    Examples for @root + @path:
+      - root="qcow2-node", path="/backing/file"
+      - root="quorum-node", path="/children.2/file"
+
+    Hypothetically, @path could be empty, in which case it would point
+    to @root.  However, in practice this case is not useful and hence
+    not allowed.
+
+    @expected_node may be None.
+
+    @graph may be None or the result of an x-debug-query-block-graph
+    call that has already been performed.
+    """
+    def assert_block_path(self, root, path, expected_node, graph=None):
+        if graph is None:
+            graph = self.qmp('x-debug-query-block-graph')['return']
+
+        iter_path = iter(path.split('/'))
+
+        # Must start with a /
+        assert next(iter_path) == ''
+
+        node = next((node for node in graph['nodes'] if node['name'] == root),
+                    None)
+
+        for path_node in iter_path:
+            assert node is not None, 'Cannot follow path %s' % path
+
+            try:
+                node_id = next(edge['child'] for edge in graph['edges'] \
+                                             if edge['parent'] == node['id'] and
+                                                edge['name'] == path_node)
+
+                node = next(node for node in graph['nodes'] \
+                                 if node['id'] == node_id)
+            except StopIteration:
+                node = None
+
+        assert node is not None or expected_node is None, \
+               'No node found under %s (but expected %s)' % \
+               (path, expected_node)
+
+        assert expected_node is not None or node is None, \
+               'Found node %s under %s (but expected none)' % \
+               (node['name'], path)
+
+        if node is not None and expected_node is not None:
+            assert node['name'] == expected_node, \
+                   'Found node %s under %s (but expected %s)' % \
+                   (node['name'], path, expected_node)
 
 index_re = re.compile(r'([^\[]+)\[([^\]]+)\]')
 
