@@ -902,6 +902,29 @@ struct vfio_iommu_type1_dma_unmap {
 #define VFIO_IOMMU_ENABLE	_IO(VFIO_TYPE, VFIO_BASE + 15)
 #define VFIO_IOMMU_DISABLE	_IO(VFIO_TYPE, VFIO_BASE + 16)
 
+/**
+ * VFIO_IOMMU_GET_DIRTY_BITMAP - _IOWR(VFIO_TYPE, VFIO_BASE + 17,
+ *                                     struct vfio_iommu_type1_dirty_bitmap)
+ *
+ * IOCTL to get dirty pages bitmap for IOMMU container during migration.
+ * Get dirty pages bitmap of given IO virtual addresses range using
+ * struct vfio_iommu_type1_dirty_bitmap. Caller sets argsz, which is size of
+ * struct vfio_iommu_type1_dirty_bitmap. User should allocate memory to get
+ * bitmap and should set size of allocated memory in bitmap_size field.
+ * One bit is used to represent per page consecutively starting from iova
+ * offset. Bit set indicates page at that offset from iova is dirty.
+ */
+struct vfio_iommu_type1_dirty_bitmap {
+	__u32        argsz;
+	__u32        flags;
+	__u64        iova;                      /* IO virtual address */
+	__u64        size;                      /* Size of iova range */
+	__u64        bitmap_size;               /* in bytes */
+	void        *bitmap;                    /* one bit per page */
+};
+
+#define VFIO_IOMMU_GET_DIRTY_BITMAP             _IO(VFIO_TYPE, VFIO_BASE + 17)
+
 /* -------- Additional API for SPAPR TCE (Server POWERPC) IOMMU -------- */
 
 /*
