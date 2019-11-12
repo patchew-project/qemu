@@ -25,6 +25,22 @@ process. However the project reserves the right to change or break the
 API should it need to do so. The best way to avoid this is to submit
 your plugin upstream so they can be updated if/when the API changes.
 
+API versioning
+--------------
+
+All plugins need to declare a symbol which exports the plugin API
+version they were built against. This is can be done simply by:
+
+::
+    QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+
+The core code will refuse to load a plugin that doesn't export a
+`qemu_plugin_version` symbol. Additionally the `qemu_info_t` structure
+which is passed to the `qemu_plugin_install` method of a plugin will
+detail the minimum and current API versions supported by QEMU. The API
+version will be incremented if new APIs are added. The minimum API
+version will be incremented if existing APIs are changed or removed.
+
 
 Exposure of QEMU internals
 --------------------------
