@@ -2377,6 +2377,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     uint64_t pc_start = tb->pc;
     uint64_t page_start = pc_start & TARGET_PAGE_MASK;
     int num_insns = 0;
+    FILE *logfile = NULL;
 
     dc->pc = pc_start;
     dc->mmuidx = 0;
@@ -2388,7 +2389,7 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     dc->zero = NULL;
 
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
-        qemu_log_lock();
+        logfile = qemu_log_lock();
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
     }
     gen_tb_start(tb);
@@ -2418,9 +2419,9 @@ void gen_intermediate_code(CPUState *cs, TranslationBlock *tb, int max_insns)
     tb->size = dc->pc - pc_start;
     tb->icount = num_insns;
 
-    if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
+    if (logfile) {
         qemu_log("\n");
-        qemu_log_unlock();
+        qemu_log_unlock(logfile);
     }
 }
 
