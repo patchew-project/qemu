@@ -180,6 +180,13 @@ Must be explicitly turned on for all Intel CPU models.
 Requires the host CPU microcode to support this feature before it
 can be used for guest CPUs.
 
+@item @code{flush_l1d}
+
+Required to enable strong Foreshadow-NG (VMM) (CVE-2018-3646) fixes in
+guests.
+
+Requires the host CPU microcode to support this feature before it
+can be used for guest CPUs.
 
 @item @code{ssbd}
 

@@ -1083,7 +1083,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL /* pconfig */, NULL,
             NULL, NULL, NULL, NULL,
             NULL, NULL, "spec-ctrl", "stibp",
-            NULL, "arch-capabilities", "core-capability", "ssbd",
+            "flush_l1d", "arch-capabilities", "core-capability", "ssbd",
         },
         .cpuid = {
             .eax = 7,
