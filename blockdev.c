@@ -1764,40 +1764,6 @@ typedef struct DriveBackupState {
 static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
                             Error **errp);
 
-static void drive_backup_prepare(BlkActionState *common, Error **errp)
-{
-    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
-    BlockDriverState *bs;
-    DriveBackup *backup;
-    AioContext *aio_context;
-    Error *local_err = NULL;
-
-    assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
-    backup = common->action->u.drive_backup.data;
-
-    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
-    if (!bs) {
-        return;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
-    /* Paired with .clean() */
-    bdrv_drained_begin(bs);
-
-    state->bs = bs;
-
-    state->job = do_drive_backup(backup, common->block_job_txn, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
-
-out:
-    aio_context_release(aio_context);
-}
-
 static void drive_backup_commit(BlkActionState *common)
 {
     DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
@@ -3587,13 +3553,13 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     return job;
 }
 
-static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
-                                 Error **errp)
+static void drive_backup_prepare(BlkActionState *common, Error **errp)
 {
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    DriveBackup *backup;
     BlockDriverState *bs;
     BlockDriverState *target_bs;
     BlockDriverState *source = NULL;
-    BlockJob *job = NULL;
     AioContext *aio_context;
     QDict *options;
     Error *local_err = NULL;
@@ -3601,22 +3567,28 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
     int64_t size;
     bool set_backing_hd = false;
 
+    assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
+    backup = common->action->u.drive_backup.data;
+
     if (!backup->has_mode) {
         backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
     }
 
     bs = bdrv_lookup_bs(backup->device, backup->device, errp);
     if (!bs) {
-        return NULL;
+        return;
     }
 
     if (!bs->drv) {
         error_setg(errp, "Device has no medium");
-        return NULL;
+        return;
     }
 
     aio_context = bdrv_get_aio_context(bs);
     aio_context_acquire(aio_context);
+
+    /* Paired with .clean() */
+    bdrv_drained_begin(bs);
 
     if (!backup->has_format) {
         backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
@@ -3687,14 +3659,16 @@ static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
         }
     }
 
-    job = do_backup_common(qapi_DriveBackup_base(backup),
-                           bs, target_bs, aio_context, txn, errp);
+    state->bs = bs;
+
+    state->job = do_backup_common(qapi_DriveBackup_base(backup),
+                                  bs, target_bs, aio_context,
+                                  common->block_job_txn, errp);
 
 unref:
     bdrv_unref(target_bs);
 out:
     aio_context_release(aio_context);
-    return job;
 }
 
 void qmp_drive_backup(DriveBackup *arg, Error **errp)
