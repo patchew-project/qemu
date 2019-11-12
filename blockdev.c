@@ -1761,8 +1761,131 @@ typedef struct DriveBackupState {
     BlockJob *job;
 } DriveBackupState;
 
-static BlockJob *do_drive_backup(DriveBackup *backup, JobTxn *txn,
-                            Error **errp);
+static BlockJob *do_backup_common(BackupCommon *backup,
+                                  BlockDriverState *bs,
+                                  BlockDriverState *target_bs,
+                                  AioContext *aio_context,
+                                  JobTxn *txn, Error **errp);
+
+static void drive_backup_prepare(BlkActionState *common, Error **errp)
+{
+    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
+    DriveBackup *backup;
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    BlockDriverState *source = NULL;
+    AioContext *aio_context;
+    QDict *options;
+    Error *local_err = NULL;
+    int flags;
+    int64_t size;
+    bool set_backing_hd = false;
+
+    assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
+    backup = common->action->u.drive_backup.data;
+
+    if (!backup->has_mode) {
+        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    }
+
+    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
+    if (!bs) {
+        return;
+    }
+
+    if (!bs->drv) {
+        error_setg(errp, "Device has no medium");
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+
+    /* Paired with .clean() */
+    bdrv_drained_begin(bs);
+
+    if (!backup->has_format) {
+        backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
+                         NULL : (char *) bs->drv->format_name;
+    }
+
+    /* Early check to avoid creating target */
+    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
+        goto out;
+    }
+
+    flags = bs->open_flags | BDRV_O_RDWR;
+
+    /*
+     * See if we have a backing HD we can use to create our new image
+     * on top of.
+     */
+    if (backup->sync == MIRROR_SYNC_MODE_TOP) {
+        source = backing_bs(bs);
+        if (!source) {
+            backup->sync = MIRROR_SYNC_MODE_FULL;
+        }
+    }
+    if (backup->sync == MIRROR_SYNC_MODE_NONE) {
+        source = bs;
+        flags |= BDRV_O_NO_BACKING;
+        set_backing_hd = true;
+    }
+
+    size = bdrv_getlength(bs);
+    if (size < 0) {
+        error_setg_errno(errp, -size, "bdrv_getlength failed");
+        goto out;
+    }
+
+    if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
+        assert(backup->format);
+        if (source) {
+            bdrv_refresh_filename(source);
+            bdrv_img_create(backup->target, backup->format, source->filename,
+                            source->drv->format_name, NULL,
+                            size, flags, false, &local_err);
+        } else {
+            bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
+                            size, flags, false, &local_err);
+        }
+    }
+
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto out;
+    }
+
+    options = qdict_new();
+    qdict_put_str(options, "discard", "unmap");
+    qdict_put_str(options, "detect-zeroes", "unmap");
+    if (backup->format) {
+        qdict_put_str(options, "driver", backup->format);
+    }
+
+    target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
+    if (!target_bs) {
+        goto out;
+    }
+
+    if (set_backing_hd) {
+        bdrv_set_backing_hd(target_bs, source, &local_err);
+        if (local_err) {
+            goto unref;
+        }
+    }
+
+    state->bs = bs;
+
+    state->job = do_backup_common(qapi_DriveBackup_base(backup),
+                                  bs, target_bs, aio_context,
+                                  common->block_job_txn, errp);
+
+unref:
+    bdrv_unref(target_bs);
+out:
+    aio_context_release(aio_context);
+}
 
 static void drive_backup_commit(BlkActionState *common)
 {
@@ -3551,126 +3674,6 @@ static BlockJob *do_backup_common(BackupCommon *backup,
                             backup->on_target_error,
                             job_flags, NULL, NULL, txn, errp);
     return job;
-}
-
-static void drive_backup_prepare(BlkActionState *common, Error **errp)
-{
-    DriveBackupState *state = DO_UPCAST(DriveBackupState, common, common);
-    DriveBackup *backup;
-    BlockDriverState *bs;
-    BlockDriverState *target_bs;
-    BlockDriverState *source = NULL;
-    AioContext *aio_context;
-    QDict *options;
-    Error *local_err = NULL;
-    int flags;
-    int64_t size;
-    bool set_backing_hd = false;
-
-    assert(common->action->type == TRANSACTION_ACTION_KIND_DRIVE_BACKUP);
-    backup = common->action->u.drive_backup.data;
-
-    if (!backup->has_mode) {
-        backup->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
-    }
-
-    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
-    if (!bs) {
-        return;
-    }
-
-    if (!bs->drv) {
-        error_setg(errp, "Device has no medium");
-        return;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-
-    /* Paired with .clean() */
-    bdrv_drained_begin(bs);
-
-    if (!backup->has_format) {
-        backup->format = backup->mode == NEW_IMAGE_MODE_EXISTING ?
-                         NULL : (char *) bs->drv->format_name;
-    }
-
-    /* Early check to avoid creating target */
-    if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
-        goto out;
-    }
-
-    flags = bs->open_flags | BDRV_O_RDWR;
-
-    /*
-     * See if we have a backing HD we can use to create our new image
-     * on top of.
-     */
-    if (backup->sync == MIRROR_SYNC_MODE_TOP) {
-        source = backing_bs(bs);
-        if (!source) {
-            backup->sync = MIRROR_SYNC_MODE_FULL;
-        }
-    }
-    if (backup->sync == MIRROR_SYNC_MODE_NONE) {
-        source = bs;
-        flags |= BDRV_O_NO_BACKING;
-        set_backing_hd = true;
-    }
-
-    size = bdrv_getlength(bs);
-    if (size < 0) {
-        error_setg_errno(errp, -size, "bdrv_getlength failed");
-        goto out;
-    }
-
-    if (backup->mode != NEW_IMAGE_MODE_EXISTING) {
-        assert(backup->format);
-        if (source) {
-            bdrv_refresh_filename(source);
-            bdrv_img_create(backup->target, backup->format, source->filename,
-                            source->drv->format_name, NULL,
-                            size, flags, false, &local_err);
-        } else {
-            bdrv_img_create(backup->target, backup->format, NULL, NULL, NULL,
-                            size, flags, false, &local_err);
-        }
-    }
-
-    if (local_err) {
-        error_propagate(errp, local_err);
-        goto out;
-    }
-
-    options = qdict_new();
-    qdict_put_str(options, "discard", "unmap");
-    qdict_put_str(options, "detect-zeroes", "unmap");
-    if (backup->format) {
-        qdict_put_str(options, "driver", backup->format);
-    }
-
-    target_bs = bdrv_open(backup->target, NULL, options, flags, errp);
-    if (!target_bs) {
-        goto out;
-    }
-
-    if (set_backing_hd) {
-        bdrv_set_backing_hd(target_bs, source, &local_err);
-        if (local_err) {
-            goto unref;
-        }
-    }
-
-    state->bs = bs;
-
-    state->job = do_backup_common(qapi_DriveBackup_base(backup),
-                                  bs, target_bs, aio_context,
-                                  common->block_job_txn, errp);
-
-unref:
-    bdrv_unref(target_bs);
-out:
-    aio_context_release(aio_context);
 }
 
 void qmp_drive_backup(DriveBackup *arg, Error **errp)
