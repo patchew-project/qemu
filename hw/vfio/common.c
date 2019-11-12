@@ -29,6 +29,7 @@
 #include "hw/vfio/vfio.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
+#include "exec/ram_addr.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -38,6 +39,7 @@
 #include "sysemu/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "migration/migration.h"
 
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -286,6 +288,28 @@ const MemoryRegionOps vfio_region_ops = {
         .max_access_size = 8,
     },
 };
+
+/*
+ * Device state interfaces
+ */
+
+static bool vfio_devices_are_stopped_and_saving(void)
+{
+    VFIOGroup *group;
+    VFIODevice *vbasedev;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if ((vbasedev->device_state & VFIO_DEVICE_STATE_SAVING) &&
+                !(vbasedev->device_state & VFIO_DEVICE_STATE_RUNNING)) {
+                continue;
+            } else {
+                return false;
+            }
+        }
+    }
+    return true;
+}
 
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
@@ -813,9 +837,88 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 }
 
+static int vfio_get_dirty_bitmap(VFIOContainer *container,
+                                 MemoryRegionSection *section)
+{
+    struct vfio_iommu_type1_dirty_bitmap range;
+    uint64_t bitmap_size;
+    int ret;
+
+    range.argsz = sizeof(range);
+
+    if (memory_region_is_iommu(section->mr)) {
+        VFIOGuestIOMMU *giommu;
+        IOMMUTLBEntry iotlb;
+
+        QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
+            if (MEMORY_REGION(giommu->iommu) == section->mr &&
+                giommu->n.start == section->offset_within_region) {
+                break;
+            }
+        }
+
+        if (!giommu) {
+            return -EINVAL;
+        }
+
+        iotlb = address_space_get_iotlb_entry(container->space->as,
+                       TARGET_PAGE_ALIGN(section->offset_within_address_space),
+                       true, MEMTXATTRS_UNSPECIFIED);
+        range.iova = iotlb.iova + giommu->iommu_offset;
+        range.size = iotlb.addr_mask + 1;
+    } else {
+        range.iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
+        range.size = int128_get64(section->size);
+    }
+
+    bitmap_size = BITS_TO_LONGS(range.size >> TARGET_PAGE_BITS) *
+                                                             sizeof(uint64_t);
+
+    range.bitmap = g_try_malloc0(bitmap_size);
+    if (!range.bitmap) {
+        error_report("%s: Error allocating bitmap buffer of size 0x%lx",
+                     __func__, bitmap_size);
+        return -ENOMEM;
+    }
+
+    range.bitmap_size = bitmap_size;
+
+    ret = ioctl(container->fd, VFIO_IOMMU_GET_DIRTY_BITMAP, &range);
+
+    if (!ret) {
+        cpu_physical_memory_set_dirty_lebitmap((uint64_t *)range.bitmap,
+                       TARGET_PAGE_ALIGN(section->offset_within_address_space),
+                       bitmap_size >> TARGET_PAGE_BITS);
+    } else {
+        error_report("VFIO_IOMMU_GET_DIRTY_BITMAP: %d %d", ret, errno);
+    }
+
+    trace_vfio_get_dirty_bitmap(container->fd, range.iova, range.size,
+                                bitmap_size);
+
+    g_free(range.bitmap);
+    return ret;
+}
+
+static void vfio_listerner_log_sync(MemoryListener *listener,
+        MemoryRegionSection *section)
+{
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+
+    if (memory_region_is_ram_device(section->mr)) {
+        return;
+    }
+
+    if (vfio_devices_are_stopped_and_saving()) {
+
+        vfio_get_dirty_bitmap(container, section);
+    }
+}
+
 static const MemoryListener vfio_memory_listener = {
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
+    .log_sync = vfio_listerner_log_sync,
 };
 
 static void vfio_listener_release(VFIOContainer *container)
