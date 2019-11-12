@@ -311,11 +311,30 @@ static bool vfio_devices_are_stopped_and_saving(void)
     return true;
 }
 
+static bool vfio_devices_are_running_and_saving(void)
+{
+    VFIOGroup *group;
+    VFIODevice *vbasedev;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if ((vbasedev->device_state & VFIO_DEVICE_STATE_SAVING) &&
+                (vbasedev->device_state & VFIO_DEVICE_STATE_RUNNING)) {
+                continue;
+            } else {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 /*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
 static int vfio_dma_unmap(VFIOContainer *container,
-                          hwaddr iova, ram_addr_t size)
+                          hwaddr iova, ram_addr_t size,
+                          VFIOGuestIOMMU *giommu)
 {
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
@@ -323,6 +342,44 @@ static int vfio_dma_unmap(VFIOContainer *container,
         .iova = iova,
         .size = size,
     };
+
+    if (giommu && vfio_devices_are_running_and_saving()) {
+        int ret;
+        uint64_t bitmap_size;
+        struct vfio_iommu_type1_dma_unmap_bitmap unmap_bitmap = {
+            .argsz = sizeof(unmap_bitmap),
+            .flags = VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP,
+            .iova = iova,
+            .size = size,
+        };
+
+        bitmap_size = BITS_TO_LONGS(size >> TARGET_PAGE_BITS) *
+                      sizeof(uint64_t);
+
+        unmap_bitmap.bitmap = g_try_malloc0(bitmap_size);
+        if (!unmap_bitmap.bitmap) {
+            error_report("%s: Error allocating bitmap buffer of size 0x%lx",
+                         __func__, bitmap_size);
+            return -ENOMEM;
+        }
+
+        unmap_bitmap.bitmap_size = bitmap_size;
+
+        ret = ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA_GET_BITMAP,
+                    &unmap_bitmap);
+
+        if (!ret) {
+            cpu_physical_memory_set_dirty_lebitmap(
+                                        (uint64_t *)unmap_bitmap.bitmap,
+                                        giommu->iommu_offset + giommu->n.start,
+                                        bitmap_size >> TARGET_PAGE_BITS);
+        } else {
+            error_report("VFIO_IOMMU_GET_DIRTY_BITMAP: %d %d", ret, errno);
+        }
+
+        g_free(unmap_bitmap.bitmap);
+        return ret;
+    }
 
     while (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
         /*
@@ -371,7 +428,7 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
      * the VGA ROM space.
      */
     if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0 ||
-        (errno == EBUSY && vfio_dma_unmap(container, iova, size) == 0 &&
+        (errno == EBUSY && vfio_dma_unmap(container, iova, size, NULL) == 0 &&
          ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0)) {
         return 0;
     }
@@ -511,7 +568,7 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
                          iotlb->addr_mask + 1, vaddr, ret);
         }
     } else {
-        ret = vfio_dma_unmap(container, iova, iotlb->addr_mask + 1);
+        ret = vfio_dma_unmap(container, iova, iotlb->addr_mask + 1, giommu);
         if (ret) {
             error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx") = %d (%m)",
@@ -814,7 +871,7 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 
     if (try_unmap) {
-        ret = vfio_dma_unmap(container, iova, int128_get64(llsize));
+        ret = vfio_dma_unmap(container, iova, int128_get64(llsize), NULL);
         if (ret) {
             error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
                          "0x%"HWADDR_PRIx") = %d (%m)",
