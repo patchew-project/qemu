@@ -1940,6 +1940,41 @@ typedef struct BlockdevBackupState {
     BlockJob *job;
 } BlockdevBackupState;
 
+static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
+{
+    BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
+    BlockdevBackup *backup;
+    BlockDriverState *bs;
+    BlockDriverState *target_bs;
+    AioContext *aio_context;
+
+    assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
+    backup = common->action->u.blockdev_backup.data;
+
+    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
+    if (!bs) {
+        return;
+    }
+
+    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
+    if (!target_bs) {
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+    state->bs = bs;
+
+    /* Paired with .clean() */
+    bdrv_drained_begin(state->bs);
+
+    state->job = do_backup_common(qapi_BlockdevBackup_base(backup),
+                                  bs, target_bs, aio_context,
+                                  common->block_job_txn, errp);
+
+    aio_context_release(aio_context);
+}
+
 static void blockdev_backup_commit(BlkActionState *common)
 {
     BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
@@ -3652,41 +3687,6 @@ BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
 XDbgBlockGraph *qmp_x_debug_query_block_graph(Error **errp)
 {
     return bdrv_get_xdbg_block_graph(errp);
-}
-
-static void blockdev_backup_prepare(BlkActionState *common, Error **errp)
-{
-    BlockdevBackupState *state = DO_UPCAST(BlockdevBackupState, common, common);
-    BlockdevBackup *backup;
-    BlockDriverState *bs;
-    BlockDriverState *target_bs;
-    AioContext *aio_context;
-
-    assert(common->action->type == TRANSACTION_ACTION_KIND_BLOCKDEV_BACKUP);
-    backup = common->action->u.blockdev_backup.data;
-
-    bs = bdrv_lookup_bs(backup->device, backup->device, errp);
-    if (!bs) {
-        return;
-    }
-
-    target_bs = bdrv_lookup_bs(backup->target, backup->target, errp);
-    if (!target_bs) {
-        return;
-    }
-
-    aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
-    state->bs = bs;
-
-    /* Paired with .clean() */
-    bdrv_drained_begin(state->bs);
-
-    state->job = do_backup_common(qapi_BlockdevBackup_base(backup),
-                                  bs, target_bs, aio_context,
-                                  common->block_job_txn, errp);
-
-    aio_context_release(aio_context);
 }
 
 void qmp_blockdev_backup(BlockdevBackup *arg, Error **errp)
