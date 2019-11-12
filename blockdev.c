@@ -3676,14 +3676,13 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     return job;
 }
 
-void qmp_drive_backup(DriveBackup *arg, Error **errp)
+void qmp_drive_backup(DriveBackup *backup, Error **errp)
 {
-
-    BlockJob *job;
-    job = do_drive_backup(arg, NULL, errp);
-    if (job) {
-        job_start(&job->job);
-    }
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_DRIVE_BACKUP,
+        .u.drive_backup.data = backup,
+    };
+    blockdev_do_action(&action, errp);
 }
 
 BlockDeviceInfoList *qmp_query_named_block_nodes(Error **errp)
