@@ -925,6 +925,39 @@ struct vfio_iommu_type1_dirty_bitmap {
 
 #define VFIO_IOMMU_GET_DIRTY_BITMAP             _IO(VFIO_TYPE, VFIO_BASE + 17)
 
+/**
+ * VFIO_IOMMU_UNMAP_DMA_GET_BITMAP - _IOWR(VFIO_TYPE, VFIO_BASE + 18,
+                                     struct vfio_iommu_type1_dma_unmap_bitmap)
+ *
+ * Unmap IO virtual addresses using the provided struct
+ * vfio_iommu_type1_dma_unmap_bitmap.  Caller sets argsz.
+ * VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP should be set to get dirty bitmap
+ * before unmapping IO virtual addresses. If this flag is not set, only IO
+ * virtual address are unmapped, that is, behave same as VFIO_IOMMU_UNMAP_DMA
+ * ioctl.
+ * User should allocate memory to get bitmap and should set size of allocated
+ * memory in bitmap_size field. One bit is used to represent per page
+ * consecutively starting from iova offset. Bit set indicates page at that
+ * offset from iova is dirty.
+ * The actual unmapped size is returned in the size field and bitmap of pages
+ * in the range of unmapped size is retuned in bitmap if flag
+ * VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP if set.
+ *
+ * No guarantee is made to the user that arbitrary unmaps of iova or size
+ * different from those used in the original mapping call will succeed.
+ */
+struct vfio_iommu_type1_dma_unmap_bitmap {
+	__u32        argsz;
+	__u32        flags;
+#define VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP (1 << 0)
+	__u64        iova;                        /* IO virtual address */
+	__u64        size;                        /* Size of mapping (bytes) */
+	__u64        bitmap_size;                 /* in bytes */
+	void        *bitmap;                      /* one bit per page */
+};
+
+#define VFIO_IOMMU_UNMAP_DMA_GET_BITMAP _IO(VFIO_TYPE, VFIO_BASE + 18)
+
 /* -------- Additional API for SPAPR TCE (Server POWERPC) IOMMU -------- */
 
 /*
