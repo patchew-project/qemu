@@ -29,6 +29,7 @@ use strict;
 use Getopt::Long ();
 use TAP::Parser;
 use Term::ANSIColor qw(:constants);
+use Time::HiRes qw( time );
 
 my $ME = "tap-driver.pl";
 my $VERSION = "2018-11-30";
@@ -111,7 +112,7 @@ sub decorate_result ($);
 sub extract_tap_comment ($);
 sub handle_tap_bailout ($);
 sub handle_tap_plan ($);
-sub handle_tap_result ($);
+sub handle_tap_result ($$);
 sub is_null_string ($);
 sub main ();
 sub report ($;$);
@@ -220,12 +221,18 @@ sub testsuite_error ($)
   report "ERROR", "- $_[0]";
 }
 
-sub handle_tap_result ($)
+sub handle_tap_result ($$)
 {
   $testno++;
   my $result_obj = shift;
+  my $time = shift;
 
   my $test_result = stringify_result_obj $result_obj;
+
+  if ($time > 1.0) {
+    $test_result = $test_result . sprintf(" (%0.1fs)", $time);
+  }
+
   my $string = $result_obj->number;
 
   my $description = $result_obj->description;
@@ -312,6 +319,9 @@ sub main ()
 {
   my $iterator = TAP::Parser::Iterator::Stream->new(\*STDIN);
   my $parser = TAP::Parser->new ({iterator => $iterator });
+  my ($start, $end);
+
+  $start = time();
 
   STDOUT->autoflush(1);
   while (defined (my $cur = $parser->next))
@@ -325,7 +335,9 @@ sub main ()
         }
       elsif ($cur->is_test)
         {
-          handle_tap_result ($cur);
+          $end = time();
+          handle_tap_result ($cur, $end - $start);
+          $start = time();
         }
       elsif ($cur->is_bailout)
         {
