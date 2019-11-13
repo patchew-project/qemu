@@ -971,8 +971,9 @@ F: hw/mips/mips_mipssim.c
 F: hw/net/mipsnet.c
 
 R4000
-M: Aurelien Jarno <aurelien@aurel32.net>
-R: Aleksandar Rikalo <aleksandar.rikalo@rt-rk.com>
+M: Hervé Poussineau <hpoussin@reactos.org>
+R: Aurelien Jarno <aurelien@aurel32.net>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
 S: Maintained
 F: hw/mips/mips_r4k.c
 
