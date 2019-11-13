@@ -2715,6 +2715,11 @@ M: Daniel P. Berrange <berrange@redhat.com>
 S: Odd Fixes
 F: scripts/git-submodule.sh
 
+UI translations
+M: Aleksandar Markovic <aleksandar.m.mail@gmail.com>
+R: Philippe Mathieu-Daudé <philmd@redhat.com>
+F: po/*.po
+
 Sphinx documentation configuration and build machinery
 M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
