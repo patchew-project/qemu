@@ -1,7 +1,10 @@
-Copyright (c) 2015-2016 Linaro Ltd.
+.. Copyright (c) 2015-2016 Linaro Ltd.
+.. This work is licensed under the terms of the GNU GPL, version 2 or
+.. later. See the COPYING file in the top-level directory.
 
-This work is licensed under the terms of the GNU GPL, version 2 or
-later. See the COPYING file in the top-level directory.
+==================
+Multi-threaded TCG
+==================
 
 Introduction
 ============
@@ -40,7 +43,7 @@ Main Run Loop
 Even when there is no code being generated there are a number of
 structures associated with the hot-path through the main run-loop.
 These are associated with looking up the next translation block to
-execute. These include:
+execute. These include::
 
     tb_jmp_cache (per-vCPU, cache of recent jumps)
     tb_ctx.htable (global hash table, phys address->tb lookup)
@@ -61,7 +64,9 @@ have their block-to-block jumps patched.
 Global TCG State
 ----------------
 
-### User-mode emulation
+User-mode emulation
+~~~~~~~~~~~~~~~~~~~
+
 We need to protect the entire code generation cycle including any post
 generation patching of the translated code. This also implies a shared
 translation buffer which contains code running on all cores. Any
@@ -78,7 +83,9 @@ patching.
 
 Code generation is serialised with mmap_lock().
 
-### !User-mode emulation
+System emulation
+~~~~~~~~~~~~~~~~
+
 Each vCPU has its own TCG context and associated TCG region, thereby
 requiring no locking.
 
@@ -125,10 +132,11 @@ linked list of all Translation Blocks in that page (see page_next).
 Both the jump patching and the page cache involve linked lists that
 the invalidated TranslationBlock needs to be removed from.
 
-DESIGN REQUIREMENT: Safely handle invalidation of TBs
-                      - safely patch/revert direct jumps
-                      - remove central PageDesc lookup entries
-                      - ensure lookup caches/hashes are safely updated
+DESIGN REQUIREMENTS:
+  - Safely handle invalidation of TBs
+     - safely patch/revert direct jumps
+     - remove central PageDesc lookup entries
+     - ensure lookup caches/hashes are safely updated
 
 (Current solution)
 
