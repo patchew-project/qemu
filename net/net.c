@@ -54,6 +54,7 @@
 #include "sysemu/sysemu.h"
 #include "net/filter.h"
 #include "qapi/string-output-visitor.h"
+#include "qapi/clone-visitor.h"
 
 /* Net bridge is currently not supported for W32. */
 #if !defined(_WIN32)
@@ -283,6 +284,7 @@ NICState *qemu_new_nic(NetClientInfo *info,
     NetClientState **peers = conf->peers.ncs;
     NICState *nic;
     int i, queues = MAX(1, conf->peers.queues);
+    NetLegacyNicOptions *stored;
 
     assert(info->type == NET_CLIENT_DRIVER_NIC);
     assert(info->size >= sizeof(NICState));
@@ -297,6 +299,22 @@ NICState *qemu_new_nic(NetClientInfo *info,
                               NULL);
         nic->ncs[i].queue_index = i;
     }
+
+    /* Store startup parameters */
+    nic->ncs[0].stored_config = g_new0(NetdevInfo, 1);
+    nic->ncs[0].stored_config->type = NET_CLIENT_DRIVER_NIC;
+    stored = &nic->ncs[0].stored_config->u.nic;
+
+    if (peers[0]) {
+        stored->has_netdev = true;
+        stored->netdev = g_strdup(peers[0]->name);
+    }
+
+    stored->has_macaddr = true;
+    stored->macaddr = g_strdup_printf(MAC_FMT, MAC_ARG(conf->macaddr.a));
+
+    stored->has_model = true;
+    stored->model = g_strdup(model);
 
     return nic;
 }
@@ -344,6 +362,7 @@ static void qemu_free_net_client(NetClientState *nc)
     }
     g_free(nc->name);
     g_free(nc->model);
+    qapi_free_NetdevInfo(nc->stored_config);
     if (nc->destructor) {
         nc->destructor(nc);
     }
@@ -1321,6 +1340,67 @@ RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
     }
 
     return filter_list;
+}
+
+NetdevInfoList *qmp_x_query_netdevs(Error **errp)
+{
+    NetdevInfoList *list = NULL;
+    NetClientState *nc;
+
+    QTAILQ_FOREACH(nc, &net_clients, next) {
+        /* Only look at netdevs, not for each queue */
+        if (nc->stored_config) {
+            NetdevInfoList *node = g_new0(NetdevInfoList, 1);
+
+            node->value = QAPI_CLONE(NetdevInfo, nc->stored_config);
+            g_free(node->value->id); /* Need to dealloc default empty id */
+            node->value->id = g_strdup(nc->name);
+
+            if (nc->info->type == NET_CLIENT_DRIVER_NIC) {
+                NICState *state = qemu_get_nic(nc);
+                assert(state);
+
+                /* NIC have explicit number of queues */
+                assert(state->conf);
+                node->value->queues_count = state->conf->peers.queues;
+            } else {
+                /* Not a NIC, but can have queues */
+                NetClientState *nc_iterable;
+
+                QTAILQ_FOREACH(nc_iterable, &net_clients, next) {
+                    if (strcmp(nc_iterable->name, nc->name) == 0) {
+                        node->value->queues_count++;
+                    }
+                }
+            }
+
+            node->value->has_peer = nc->peer != NULL;
+            if (node->value->has_peer) {
+                node->value->peer = g_strdup(nc->peer->name);
+            }
+
+            node->value->has_hub =
+                net_hub_id_for_client(nc, (int *)&node->value->hub) == 0;
+
+            /*
+             * Copy the current hubport peer id to connected netdev id,
+             * because it could have been changed at runtime
+             */
+            if (nc->info->type == NET_CLIENT_DRIVER_HUBPORT) {
+                if (node->value->has_peer) {
+                    g_free(node->value->u.hubport.netdev);
+
+                    node->value->u.hubport.has_netdev = true;
+                    node->value->u.hubport.netdev = g_strdup(nc->peer->name);
+                }
+            }
+
+            node->next = list;
+            list = node;
+        }
+    }
+
+    return list;
 }
 
 void hmp_info_network(Monitor *mon, const QDict *qdict)

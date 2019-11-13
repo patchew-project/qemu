@@ -754,3 +754,88 @@
 ##
 { 'event': 'FAILOVER_NEGOTIATED',
   'data': {'device-id': 'str'} }
+
+##
+# @NetdevInfo:
+#
+# Configuration of a network device.
+#
+# @id: Device identifier.
+#
+# @type: Specify the driver used for interpreting remaining arguments.
+#
+# @peer: Connected network device.
+#
+# @queues_count: Number of queues.
+#
+# @hub: hubid of hub, if connected to.
+#
+# Since: 4.2
+##
+{ 'union': 'NetdevInfo',
+  'base': { 'id': 'str',
+            'type': 'NetClientDriver',
+            '*peer': 'str',
+            'queues_count': 'int',
+            '*hub': 'int' },
+  'discriminator': 'type',
+  'data': {
+      'nic':        'NetLegacyNicOptions',
+      'user':       'NetdevUserOptions',
+      'tap':        'NetdevTapOptions',
+      'l2tpv3':     'NetdevL2TPv3Options',
+      'socket':     'NetdevSocketOptions',
+      'vde':        'NetdevVdeOptions',
+      'bridge':     'NetdevBridgeOptions',
+      'hubport':    'NetdevHubPortOptions',
+      'netmap':     'NetdevNetmapOptions',
+      'vhost-user': 'NetdevVhostUserOptions' } }
+
+##
+# @x-query-netdevs:
+#
+# Get a list of @NetdevInfo for all virtual network devices.
+#
+# Returns: a list of @NetdevInfo describing each virtual network device.
+#
+# Since: 4.2
+#
+# Example:
+#
+# -> { "execute": "x-query-netdevs" }
+# <- { "return": [
+#          {
+#              "peer": "netdev0",
+#              "netdev": "netdev0",
+#              "model": "virtio-net-pci",
+#              "macaddr": "52:54:00:12:34:56",
+#              "queues_count": 1,
+#              "type": "nic",
+#              "id": "net0"
+#          },
+#          {
+#              "peer": "net0",
+#              "ipv6": true,
+#              "ipv4": true,
+#              "host": "10.0.2.2",
+#              "queues_count": 1,
+#              "ipv6-dns": "fec0::3",
+#              "ipv6-prefix": "fec0::",
+#              "net": "10.0.2.0/255.255.255.0",
+#              "ipv6-host": "fec0::2",
+#              "type": "user",
+#              "dns": "10.0.2.3",
+#              "hostfwd": [
+#                  {
+#                      "str": "tcp::20004-:22"
+#                  }
+#              ],
+#              "ipv6-prefixlen": 64,
+#              "id": "netdev0",
+#              "restrict": false
+#          }
+#      ]
+#    }
+#
+##
+{ 'command': 'x-query-netdevs', 'returns': ['NetdevInfo'] }
