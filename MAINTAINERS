@@ -959,8 +959,10 @@ M: Philippe Mathieu-Daudé <philmd@redhat.com>
 R: Hervé Poussineau <hpoussin@reactos.org>
 R: Aurelien Jarno <aurelien@aurel32.net>
 S: Maintained
+F: hw/isa/piix4.c
 F: hw/mips/mips_malta.c
 F: hw/mips/gt64xxx_pci.c
+F: include/hw/southbridge/piix.h
 F: tests/acceptance/linux_ssh_mips_malta.py
 
 Mipssim
