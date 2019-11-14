@@ -18,6 +18,9 @@ import gdb
 
 import os, sys
 
+if sys.version_info[0] < 3:
+    int = long
+
 # Annoyingly, gdb doesn't put the directory of scripts onto the
 # module search path. Do it manually.
 
@@ -44,3 +47,58 @@ coroutine.CoroutinePCFunction()
 # Default to silently passing through SIGUSR1, because QEMU sends it
 # to itself a lot.
 gdb.execute('handle SIGUSR1 pass noprint nostop')
+
+
+def is_object(val):
+    def is_object_helper(type):
+        if str(type) == "Object":
+            return True
+
+        while type.code == gdb.TYPE_CODE_TYPEDEF:
+            type = type.target()
+
+        if type.code != gdb.TYPE_CODE_STRUCT:
+            return False
+
+        fields = type.fields()
+        if len (fields) < 1:
+            return False
+
+        first_field = fields[0]
+        return is_object_helper(first_field.type)
+
+    type = val.type
+    if type.code != gdb.TYPE_CODE_PTR:
+        return False
+    type = type.target()
+    return is_object_helper (type)
+
+
+def object_class_name(instance):
+    try:
+        inst = instance.cast(gdb.lookup_type("Object").pointer())
+        klass = inst["class"]
+        typ = klass["type"]
+        return typ["name"].string()
+    except RuntimeError:
+        pass
+
+
+class ObjectPrinter:
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        name = object_class_name(self.val)
+        if name:
+            return ("0x%x [%s]")% (int(self.val), name)
+        return  ("0x%x") % (int(self.val))
+
+
+def lookup_type(val):
+    if is_object(val):
+        return ObjectPrinter(val)
+    return None
+
+
+gdb.pretty_printers.append(lookup_type)
