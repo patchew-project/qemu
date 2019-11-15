@@ -76,6 +76,27 @@ struct HMAT_LB_Info {
 };
 typedef struct HMAT_LB_Info HMAT_LB_Info;
 
+struct HMAT_Cache_Info {
+    /* The memory proximity domain to which the memory belongs. */
+    uint32_t    proximity;
+
+    /* Size of memory side cache in bytes. */
+    uint64_t    size;
+
+    /* Cache level described in this structure. */
+    uint8_t     level;
+
+    /* Cache Associativity: None/Direct Mapped/Comple Cache Indexing */
+    uint8_t     associativity;
+
+    /* Write Policy: None/Write Back(WB)/Write Through(WT) */
+    uint8_t     write_policy;
+
+    /* Cache Line size in bytes. */
+    uint16_t    line_size;
+};
+typedef struct HMAT_Cache_Info HMAT_Cache_Info;
+
 struct NumaState {
     /* Number of NUMA nodes */
     int num_nodes;
@@ -91,6 +112,9 @@ struct NumaState {
 
     /* NUMA nodes HMAT Locality Latency and Bandwidth Information */
     HMAT_LB_Info *hmat_lb[HMAT_LB_LEVELS][HMAT_LB_TYPES];
+
+    /* Memory Side Cache Information Structure */
+    HMAT_Cache_Info *hmat_cache[MAX_NODES][HMAT_LB_LEVELS];
 };
 typedef struct NumaState NumaState;
 
@@ -98,6 +122,8 @@ void set_numa_options(MachineState *ms, NumaOptions *object, Error **errp);
 void parse_numa_opts(MachineState *ms);
 void parse_numa_hmat_lb(NumaState *numa_state, NumaHmatLBOptions *node,
                         Error **errp);
+void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
+                           Error **errp);
 void numa_complete_configuration(MachineState *ms);
 void query_numa_node_mem(NumaNodeMem node_mem[], MachineState *ms);
 extern QemuOptsList qemu_numa_opts;
