@@ -48,6 +48,7 @@ struct VFIOCCWDevice {
     uint64_t crw_region_offset;
     struct ccw_crw_region *crw_region;
     EventNotifier io_notifier;
+    EventNotifier crw_notifier;
     bool force_orb_pfch;
     bool warned_orb_pfch;
 };
@@ -259,6 +260,34 @@ static void vfio_ccw_reset(DeviceState *dev)
     ioctl(vcdev->vdev.fd, VFIO_DEVICE_RESET);
 }
 
+static void vfio_ccw_crw_notifier_handler(void *opaque)
+{
+    VFIOCCWDevice *vcdev = opaque;
+    struct ccw_crw_region *region = vcdev->crw_region;
+    CRW crw;
+    int size;
+    uint8_t erc;
+    uint16_t rsid;
+
+    if (!event_notifier_test_and_clear(&vcdev->crw_notifier)) {
+        return;
+    }
+
+    memset(region, 0, sizeof(*region));
+    size = pread(vcdev->vdev.fd, region, vcdev->crw_region_size,
+                 vcdev->crw_region_offset);
+
+    if (size == -1) {
+        error_report("vfio-ccw: Read crw region failed with errno=%d", errno);
+        return;
+    }
+
+    memcpy(&crw, &region->crw0, sizeof(CRW));
+    erc = crw.flags & 0x003f;
+    rsid = crw.rsid;
+    css_queue_crw(CRW_RSC_CHP, erc, 0, 0, rsid);
+}
+
 static void vfio_ccw_io_notifier_handler(void *opaque)
 {
     VFIOCCWDevice *vcdev = opaque;
@@ -349,6 +378,10 @@ static void vfio_ccw_register_irq_notifier(VFIOCCWDevice *vcdev, int irq,
         notifier = &vcdev->io_notifier;
         fd_read = vfio_ccw_io_notifier_handler;
         break;
+    case VFIO_CCW_CRW_IRQ_INDEX:
+        notifier = &vcdev->crw_notifier;
+        fd_read = vfio_ccw_crw_notifier_handler;
+        break;
     default:
         error_setg(errp, "vfio: Unsupported device irq(%d) fd: %m", irq);
         return;
@@ -397,6 +430,9 @@ static void vfio_ccw_unregister_irq_notifier(VFIOCCWDevice *vcdev, int irq)
     switch (irq) {
     case VFIO_CCW_IO_IRQ_INDEX:
         notifier = &vcdev->io_notifier;
+        break;
+    case VFIO_CCW_CRW_IRQ_INDEX:
+        notifier = &vcdev->crw_notifier;
         break;
     default:
         error_report("vfio: Unsupported device irq(%d) fd: %m", irq);
@@ -618,6 +654,14 @@ static void vfio_ccw_realize(DeviceState *dev, Error **errp)
         goto out_notifier_err;
     }
 
+    if (vcdev->crw_region) {
+        vfio_ccw_register_irq_notifier(vcdev, VFIO_CCW_CRW_IRQ_INDEX, &err);
+        if (err) {
+            vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX);
+            goto out_notifier_err;
+        }
+    }
+
     return;
 
 out_notifier_err:
@@ -642,6 +686,7 @@ static void vfio_ccw_unrealize(DeviceState *dev, Error **errp)
     S390CCWDeviceClass *cdc = S390_CCW_DEVICE_GET_CLASS(cdev);
     VFIOGroup *group = vcdev->vdev.group;
 
+    vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_CRW_IRQ_INDEX);
     vfio_ccw_unregister_irq_notifier(vcdev, VFIO_CCW_IO_IRQ_INDEX);
     vfio_ccw_put_region(vcdev);
     vfio_ccw_put_device(vcdev);
