@@ -26,6 +26,7 @@
 #define BLOCK_COPY_MAX_BUFFER (1 * MiB)
 #define BLOCK_COPY_MAX_MEM (128 * MiB)
 #define BLOCK_COPY_MAX_WORKERS 64
+#define BLOCK_COPY_SLICE_TIME 100000000ULL /* ns */
 
 typedef struct BlockCopyCallState {
     /* IN parameters */
@@ -34,11 +35,13 @@ typedef struct BlockCopyCallState {
     int64_t bytes;
     int max_workers;
     int64_t max_chunk;
+    bool ratelimit;
     BlockCopyAsyncCallbackFunc cb;
 
     /* State */
     bool failed;
     bool finished;
+    QemuCoSleepState *sleep_state;
 
     /* OUT parameters */
     bool error_is_read;
@@ -101,6 +104,9 @@ typedef struct BlockCopyState {
     void *progress_opaque;
 
     SharedResource *mem;
+
+    uint64_t speed;
+    RateLimit rate_limit;
 } BlockCopyState;
 
 static BlockCopyTask *block_copy_find_task(BlockCopyState *s,
@@ -575,6 +581,21 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
         }
         task->zeroes = ret & BDRV_BLOCK_ZERO;
 
+        if (s->speed) {
+            if (call_state->ratelimit) {
+                uint64_t ns = ratelimit_calculate_delay(&s->rate_limit, 0);
+                if (ns > 0) {
+                    block_copy_task_end(task, -EAGAIN);
+                    g_free(task);
+                    qemu_co_sleep_ns_wakeable(QEMU_CLOCK_REALTIME, ns,
+                                              &call_state->sleep_state);
+                    continue;
+                }
+            }
+
+            ratelimit_calculate_delay(&s->rate_limit, task->bytes);
+        }
+
         trace_block_copy_process(s, offset);
 
         co_get_from_shres(s->mem, task->bytes);
@@ -602,6 +623,13 @@ out:
     }
 
     return ret < 0 ? ret : found_dirty;
+}
+
+static void block_copy_kick(BlockCopyCallState *call_state)
+{
+    if (call_state->sleep_state) {
+        qemu_co_sleep_wake(call_state->sleep_state);
+    }
 }
 
 static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
@@ -688,6 +716,7 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
         .s = s,
         .offset = offset,
         .bytes = bytes,
+        .ratelimit = ratelimit,
         .cb = cb,
         .max_workers = max_workers ?: BLOCK_COPY_MAX_WORKERS,
         .max_chunk = max_chunk,
@@ -710,4 +739,19 @@ BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip)
 {
     s->skip_unallocated = skip;
+}
+
+void block_copy_set_speed(BlockCopyState *s, BlockCopyCallState *call_state,
+                          uint64_t speed)
+{
+    uint64_t old_speed = s->speed;
+
+    s->speed = speed;
+    if (speed > 0) {
+        ratelimit_set_speed(&s->rate_limit, speed, BLOCK_COPY_SLICE_TIME);
+    }
+
+    if (call_state && old_speed && (speed > old_speed || speed == 0)) {
+        block_copy_kick(call_state);
+    }
 }
