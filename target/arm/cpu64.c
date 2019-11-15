@@ -466,11 +466,18 @@ uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq)
      * We allow vq == ARM_MAX_VQ + 1 to be input because the caller may want
      * to find the maximum vq enabled, which may be ARM_MAX_VQ, but this
      * function always returns the next smaller than the input.
+     *
+     * Similarly, vq == 2 is the minimum input because 1 is the minimum
+     * output that makes sense.
      */
-    assert(vq && vq <= ARM_MAX_VQ + 1);
+    assert(vq >= 2 && vq <= ARM_MAX_VQ + 1);
 
     bitnum = find_last_bit(cpu->sve_vq_map, vq - 1);
-    return bitnum == vq - 1 ? 0 : bitnum + 1;
+
+    /* We always have vq == 1 present in sve_vq_map.  */
+    assert(bitnum < vq - 1);
+
+    return bitnum + 1;
 }
 
 static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,

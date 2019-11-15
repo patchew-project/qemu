@@ -190,7 +190,9 @@ uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq);
 # define ARM_MAX_VQ    1
 static inline void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp) { }
 static inline uint32_t arm_cpu_vq_map_next_smaller(ARMCPU *cpu, uint32_t vq)
-{ return 0; }
+{
+    g_assert_not_reached();
+}
 #endif
 
 typedef struct ARMVectorReg {
