@@ -18,6 +18,7 @@ accelerators.
 
 import logging
 import os
+import subprocess
 
 LOG = logging.getLogger(__name__)
 
@@ -27,6 +28,25 @@ ADDITIONAL_ARCHES = {
     "x86_64" : "i386",
     "aarch64" : "armhf"
 }
+
+def list_accel(qemu_bin):
+    """
+    List accelerators enabled in the QEMU binary.
+
+    @param qemu_bin (str): path to the QEMU binary.
+    @raise Exception: if failed to run `qemu -accel help`
+    @return a list of accelerator names.
+    """
+    if not qemu_bin:
+        return []
+    try:
+        out = subprocess.check_output("%s -accel help" % qemu_bin, shell=True)
+    except:
+        LOG.debug("Failed to get the list of accelerators in %s" % qemu_bin)
+        raise
+    lines = out.decode().splitlines()
+    # Skip the first line which is the header.
+    return [l.strip() for l in lines[1:] if l]
 
 def kvm_available(target_arch=None):
     host_arch = os.uname()[4]
