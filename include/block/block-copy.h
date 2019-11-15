@@ -47,6 +47,11 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
 /*
  * Run block-copy in a coroutine, return state pointer. If finished early
  * returns NULL (@cb is called anyway).
+ *
+ * @max_workers means maximum of parallel coroutines to execute sub-requests,
+ * must be > 0.
+ *
+ * @max_chunk means maximum length for one IO operation. Zero means unlimited.
  */
 BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t offset, int64_t bytes,

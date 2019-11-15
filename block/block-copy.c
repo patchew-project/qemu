@@ -32,6 +32,8 @@ typedef struct BlockCopyCallState {
     BlockCopyState *s;
     int64_t offset;
     int64_t bytes;
+    int max_workers;
+    int64_t max_chunk;
     BlockCopyAsyncCallbackFunc cb;
 
     /* State */
@@ -393,7 +395,7 @@ static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
 
     assert(bdrv_dirty_bitmap_get(s->copy_bitmap, offset));
 
-    bytes = MIN(bytes, s->copy_size);
+    bytes = MIN(bytes, MIN_NON_ZERO(s->copy_size, call_state->max_chunk));
     next_zero = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset, bytes);
     if (next_zero >= 0) {
         assert(next_zero > offset); /* offset is dirty */
@@ -578,7 +580,7 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
         co_get_from_shres(s->mem, task->bytes);
 
         if (!aio && task->bytes != bytes) {
-            aio = aio_task_pool_new(BLOCK_COPY_MAX_WORKERS);
+            aio = aio_task_pool_new(call_state->max_workers);
         }
 
         offset += task->bytes;
@@ -655,6 +657,7 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
         .s = s,
         .offset = start,
         .bytes = bytes,
+        .max_workers = BLOCK_COPY_MAX_WORKERS,
     };
 
     int ret = block_copy_common(&call_state);
@@ -686,6 +689,8 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
         .offset = offset,
         .bytes = bytes,
         .cb = cb,
+        .max_workers = max_workers ?: BLOCK_COPY_MAX_WORKERS,
+        .max_chunk = max_chunk,
     };
 
     qemu_coroutine_enter(co);
