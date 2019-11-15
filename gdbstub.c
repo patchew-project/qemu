@@ -374,6 +374,13 @@ static int sstep_flags = SSTEP_ENABLE|SSTEP_NOIRQ|SSTEP_NOTIMER;
 
 static GDBState *gdbserver_state;
 
+static GDBState *gdb_allocate_state(void)
+{
+    g_assert(!gdbserver_state);
+    gdbserver_state = g_new0(GDBState, 1);
+    return gdbserver_state;
+}
+
 bool gdb_has_xml;
 
 #ifdef CONFIG_USER_ONLY
@@ -3083,15 +3090,13 @@ static bool gdb_accept(void)
         return false;
     }
 
-    s = g_malloc0(sizeof(GDBState));
+    s = gdb_allocate_state();
     create_default_process(s);
     s->processes[0].attached = true;
     s->c_cpu = gdb_first_attached_cpu(s);
     s->g_cpu = s->c_cpu;
     s->fd = fd;
     gdb_has_xml = false;
-
-    gdbserver_state = s;
     return true;
 }
 
@@ -3359,8 +3364,7 @@ int gdbserver_start(const char *device)
 
     s = gdbserver_state;
     if (!s) {
-        s = g_malloc0(sizeof(GDBState));
-        gdbserver_state = s;
+        s = gdb_allocate_state();
 
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
