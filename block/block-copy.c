@@ -32,9 +32,11 @@ typedef struct BlockCopyCallState {
     BlockCopyState *s;
     int64_t offset;
     int64_t bytes;
+    BlockCopyAsyncCallbackFunc cb;
 
     /* State */
     bool failed;
+    bool finished;
 
     /* OUT parameters */
     bool error_is_read;
@@ -602,15 +604,17 @@ out:
 
 static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
 {
+    int ret = 0;
+
     while (true) {
-        int ret = block_copy_dirty_clusters(call_state);
+        ret = block_copy_dirty_clusters(call_state);
 
         if (ret < 0) {
             /*
              * IO operation failed, which means the whole block_copy request
              * failed.
              */
-            return ret;
+            break;
         }
         if (ret) {
             /*
@@ -634,7 +638,14 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
         }
     }
 
-    return 0;
+    if (call_state->cb) {
+        call_state->cb(ret, call_state->error_is_read,
+                       call_state->s->progress_opaque);
+    }
+
+    call_state->finished = true;
+
+    return ret;
 }
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
@@ -655,6 +666,37 @@ int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
     return ret;
 }
 
+static void coroutine_fn block_copy_async_co_entry(void *opaque)
+{
+    block_copy_common(opaque);
+}
+
+BlockCopyCallState *block_copy_async(BlockCopyState *s,
+                                     int64_t offset, int64_t bytes,
+                                     bool ratelimit, int max_workers,
+                                     int64_t max_chunk,
+                                     BlockCopyAsyncCallbackFunc cb)
+{
+    BlockCopyCallState *call_state = g_new(BlockCopyCallState, 1);
+    Coroutine *co = qemu_coroutine_create(block_copy_async_co_entry,
+                                          call_state);
+
+    *call_state = (BlockCopyCallState) {
+        .s = s,
+        .offset = offset,
+        .bytes = bytes,
+        .cb = cb,
+    };
+
+    qemu_coroutine_enter(co);
+
+    if (call_state->finished) {
+        g_free(call_state);
+        return NULL;
+    }
+
+    return call_state;
+}
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
 {
     return s->copy_bitmap;

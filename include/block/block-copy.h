@@ -20,7 +20,10 @@
 
 typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
 typedef void (*ProgressResetCallbackFunc)(void *opaque);
+typedef void (*BlockCopyAsyncCallbackFunc)(int ret, bool error_is_read,
+                                           void *opaque);
 typedef struct BlockCopyState BlockCopyState;
+typedef struct BlockCopyCallState BlockCopyCallState;
 
 BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size,
@@ -40,6 +43,16 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
                             bool *error_is_read);
+
+/*
+ * Run block-copy in a coroutine, return state pointer. If finished early
+ * returns NULL (@cb is called anyway).
+ */
+BlockCopyCallState *block_copy_async(BlockCopyState *s,
+                                     int64_t offset, int64_t bytes,
+                                     bool ratelimit, int max_workers,
+                                     int64_t max_chunk,
+                                     BlockCopyAsyncCallbackFunc cb);
 
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
