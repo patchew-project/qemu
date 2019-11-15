@@ -114,6 +114,7 @@ again:
         return IOINST_CC_BUSY;
     case -ENODEV:
     case -EACCES:
+    case -EIO:
         return IOINST_CC_NOT_OPERATIONAL;
     case -EFAULT:
     default:
