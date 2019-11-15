@@ -42,6 +42,8 @@ typedef struct BlockCopyCallState {
     bool failed;
     bool finished;
     QemuCoSleepState *sleep_state;
+    bool cancelled;
+    Coroutine *canceller;
 
     /* OUT parameters */
     bool error_is_read;
@@ -553,7 +555,7 @@ block_copy_dirty_clusters(BlockCopyCallState *call_state)
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(bytes, s->cluster_size));
 
-    while (bytes && aio_task_pool_status(aio) == 0) {
+    while (bytes && aio_task_pool_status(aio) == 0 && !call_state->cancelled) {
         BlockCopyTask *task;
         int64_t status_bytes;
 
@@ -639,7 +641,7 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
     while (true) {
         ret = block_copy_dirty_clusters(call_state);
 
-        if (ret < 0) {
+        if (ret < 0 || call_state->cancelled) {
             /*
              * IO operation failed, which means the whole block_copy request
              * failed.
@@ -671,6 +673,11 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
     if (call_state->cb) {
         call_state->cb(ret, call_state->error_is_read,
                        call_state->s->progress_opaque);
+    }
+
+    if (call_state->canceller) {
+        aio_co_wake(call_state->canceller);
+        call_state->canceller = NULL;
     }
 
     call_state->finished = true;
@@ -731,6 +738,15 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
 
     return call_state;
 }
+
+void block_copy_cancel(BlockCopyCallState *call_state)
+{
+    call_state->cancelled = true;
+    call_state->canceller = qemu_coroutine_self();
+    block_copy_kick(call_state);
+    qemu_coroutine_yield();
+}
+
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s)
 {
     return s->copy_bitmap;
