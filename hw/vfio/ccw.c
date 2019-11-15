@@ -230,6 +230,11 @@ static void vfio_ccw_io_notifier_handler(void *opaque)
         return;
     }
 
+    /* Virtual subchannel is not enabled */
+    if (!(schib->pmcw.flags & PMCW_FLAGS_MASK_ENA)) {
+        return;
+    }
+
     size = pread(vcdev->vdev.fd, region, vcdev->io_region_size,
                  vcdev->io_region_offset);
     if (size == -1) {
