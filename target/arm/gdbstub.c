@@ -170,12 +170,111 @@ int arm_gen_dynamic_sysreg_xml(CPUState *cs, int base_reg)
     return cpu->dyn_sysreg_xml.num;
 }
 
+struct TypeSize {
+    const char *gdb_type;
+    int  size;
+    const char *suffix;
+};
+
+static struct TypeSize vec_lanes[] = {
+    { "uint128", 128, "qu"},
+    { "int128", 128, "qs" },
+    { "uint64", 64, "lu"},
+    { "int64", 64, "ls" },
+    { "uint32", 32, "u"},
+    { "int32", 32, "s" },
+    { "uint16", 16, "hu"},
+    { "int16", 16, "hs" },
+    { "uint8", 8, "ub"},
+    { "int8", 8, "sb" },
+    { "ieee_double", 64, "df" },
+    { "ieee_single", 32, "sf" },
+    { "ieee_half", 16, "hf" },
+};
+
+
+int arm_gen_dynamic_svereg_xml(CPUState *cs, int base_reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    GString *s = g_string_new(NULL);
+    DynamicGDBXMLInfo *info = &cpu->dyn_svereg_xml;
+    g_autoptr(GString) ts = g_string_new("");
+    g_autoptr(GString) us = g_string_new("");
+    int i, j;
+    info->num = 0;
+    g_string_printf(s, "<?xml version=\"1.0\"?>");
+    g_string_append_printf(s, "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">");
+    g_string_append_printf(s, "<feature name=\"org.qemu.gdb.aarch64.sve\">");
+    /* first define types and the union they belong to */
+    for (i = 0; i < ARRAY_SIZE(vec_lanes); i++) {
+        int count = 128 / vec_lanes[i].size;
+        g_string_printf(ts, "vq%d%s", count, vec_lanes[i].suffix);
+        g_string_append_printf(s, "<vector id=\"%s\" type=\"%s\" count=\"%d\"/>",
+                               ts->str, vec_lanes[i].gdb_type, count);
+        g_string_append_printf(us, "<field name=\"%s\" type=\"%s\"/>",
+                               vec_lanes[i].suffix, ts->str);
+    }
+    /* wrap the union around define the overall vq type */
+    us = g_string_prepend(us, "<union id=\"vq\">");
+    us = g_string_append(us,"</union>");
+    g_string_append(s, us->str);
+
+    /* Then define each register in parts for each vq */
+    for (i = 0; i < 32; i++) {
+        for (j = 0; j < cpu->sve_max_vq; j++) {
+            g_string_append_printf(s,
+                                   "<reg name=\"z%dp%d\" bitsize=\"128\""
+                                   " regnum=\"%d\" group=\"vector\""
+                                   " type=\"vq\"/>",
+                                   i, j, base_reg++);
+            info->num++;
+        }
+    }
+    /* fpscr & status registers */
+    info->data.sve.fpsr_pos = info->num;
+    g_string_append_printf(s, "<reg name=\"fpsr\" bitsize=\"32\""
+                           " regnum=\"%d\" group=\"float\""
+                           " type=\"int\"/>", base_reg++);
+    g_string_append_printf(s, "<reg name=\"fpcr\" bitsize=\"32\""
+                           " regnum=\"%d\" group=\"float\""
+                           " type=\"int\"/>", base_reg++);
+    info->num += 2;
+    /*
+     * Predicate registers aren't so big they are worth splitting up
+     * but we do need to define a type to hold the array of quad
+     * references.
+     */
+    g_string_append_printf(s,
+                           "<vector id=\"vqp\" type=\"uint16\" count=\"%d\"/>",
+                           cpu->sve_max_vq);
+    for (i = 0; i < 16; i++) {
+        g_string_append_printf(s,
+                               "<reg name=\"p%d\" bitsize=\"%d\""
+                               " regnum=\"%d\" group=\"vector\""
+                               " type=\"vqp\"/>",
+                               i, cpu->sve_max_vq * 16, base_reg++);
+        info->num++;
+    }
+    g_string_append_printf(s,
+                           "<reg name=\"ffr\" bitsize=\"%d\""
+                           " regnum=\"%d\" group=\"vector\""
+                           " type=\"vqp\"/>",
+                           cpu->sve_max_vq * 16, base_reg++);
+    info->num++;
+    g_string_append_printf(s, "</feature>");
+    cpu->dyn_svereg_xml.desc = g_string_free(s, false);
+    return cpu->dyn_svereg_xml.num;
+}
+
+
 const char *arm_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname)
 {
     ARMCPU *cpu = ARM_CPU(cs);
 
     if (strcmp(xmlname, "system-registers.xml") == 0) {
         return cpu->dyn_sysreg_xml.desc;
+    } else if (strcmp(xmlname, "sve-registers.xml") == 0) {
+        return cpu->dyn_svereg_xml.desc;
     }
     return NULL;
 }
