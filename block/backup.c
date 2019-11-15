@@ -44,11 +44,16 @@ typedef struct BackupBlockJob {
     BlockdevOnError on_source_error;
     BlockdevOnError on_target_error;
     uint64_t len;
-    uint64_t bytes_read;
     int64_t cluster_size;
+    int max_workers;
+    int64_t max_chunk;
 
     BlockCopyState *bcs;
     BdrvDirtyBitmap *bcs_bitmap;
+
+    BlockCopyCallState *bcs_call;
+    int ret;
+    bool error_is_read;
 } BackupBlockJob;
 
 static const BlockJobDriver backup_job_driver;
@@ -57,7 +62,6 @@ static void backup_progress_bytes_callback(int64_t bytes, void *opaque)
 {
     BackupBlockJob *s = opaque;
 
-    s->bytes_read += bytes;
     job_progress_update(&s->common.job, bytes);
 }
 
@@ -67,25 +71,6 @@ static void backup_progress_reset_callback(void *opaque)
     uint64_t estimate = bdrv_get_dirty_count(s->bcs_bitmap);
 
     job_progress_set_remaining(&s->common.job, estimate);
-}
-
-static int coroutine_fn backup_do_cow(BackupBlockJob *job,
-                                      int64_t offset, uint64_t bytes,
-                                      bool *error_is_read)
-{
-    int ret = 0;
-    int64_t start, end; /* bytes */
-
-    start = QEMU_ALIGN_DOWN(offset, job->cluster_size);
-    end = QEMU_ALIGN_UP(bytes + offset, job->cluster_size);
-
-    trace_backup_do_cow_enter(job, start, offset, bytes);
-
-    ret = block_copy(job->bcs, start, end - start, error_is_read);
-
-    trace_backup_do_cow_return(job, offset, bytes, ret);
-
-    return ret;
 }
 
 static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
@@ -166,54 +151,58 @@ static BlockErrorAction backup_error_action(BackupBlockJob *job,
     }
 }
 
-static bool coroutine_fn yield_and_check(BackupBlockJob *job)
+static void coroutine_fn backup_block_copy_callback(int ret, bool error_is_read,
+                                                    void *opaque)
 {
-    uint64_t delay_ns;
+    BackupBlockJob *s = opaque;
 
-    if (job_is_cancelled(&job->common.job)) {
-        return true;
-    }
-
-    /*
-     * We need to yield even for delay_ns = 0 so that bdrv_drain_all() can
-     * return. Without a yield, the VM would not reboot.
-     */
-    delay_ns = block_job_ratelimit_get_delay(&job->common, job->bytes_read);
-    job->bytes_read = 0;
-    job_sleep_ns(&job->common.job, delay_ns);
-
-    if (job_is_cancelled(&job->common.job)) {
-        return true;
-    }
-
-    return false;
+    s->bcs_call = NULL;
+    s->ret = ret;
+    s->error_is_read = error_is_read;
+    job_enter(&s->common.job);
 }
 
 static int coroutine_fn backup_loop(BackupBlockJob *job)
 {
-    bool error_is_read;
-    int64_t offset;
-    BdrvDirtyBitmapIter *bdbi;
-    int ret = 0;
+    while (true) { /* retry loop */
+        assert(!job->bcs_call);
+        job->bcs_call = block_copy_async(job->bcs, 0,
+                                         QEMU_ALIGN_UP(job->len,
+                                                       job->cluster_size),
+                                         true, job->max_workers, job->max_chunk,
+                                         backup_block_copy_callback);
 
-    bdbi = bdrv_dirty_iter_new(job->bcs_bitmap);
-    while ((offset = bdrv_dirty_iter_next(bdbi)) != -1) {
-        do {
-            if (yield_and_check(job)) {
-                goto out;
+        while (job->bcs_call && !job->common.job.cancelled) {
+            /* wait and handle pauses */
+
+            job_pause_point(&job->common.job);
+
+            if (job->bcs_call && !job->common.job.cancelled) {
+                job_yield(&job->common.job);
             }
-            ret = backup_do_cow(job, offset, job->cluster_size, &error_is_read);
-            if (ret < 0 && backup_error_action(job, error_is_read, -ret) ==
-                           BLOCK_ERROR_ACTION_REPORT)
-            {
-                goto out;
+        }
+
+        if (!job->bcs_call && job->ret == 0) {
+            /* Success */
+            return 0;
+        }
+
+        if (job->common.job.cancelled) {
+            if (job->bcs_call) {
+                block_copy_cancel(job->bcs_call);
             }
-        } while (ret < 0);
+            return 0;
+        }
+
+        if (!job->bcs_call && job->ret < 0 &&
+            (backup_error_action(job, job->error_is_read, -job->ret) ==
+             BLOCK_ERROR_ACTION_REPORT))
+        {
+            return job->ret;
+        }
     }
 
- out:
-    bdrv_dirty_iter_free(bdbi);
-    return ret;
+    g_assert_not_reached();
 }
 
 static void backup_init_bcs_bitmap(BackupBlockJob *job)
@@ -253,9 +242,14 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
         int64_t count;
 
         for (offset = 0; offset < s->len; ) {
-            if (yield_and_check(s)) {
-                ret = -ECANCELED;
-                goto out;
+            if (job_is_cancelled(job)) {
+                return -ECANCELED;
+            }
+
+            job_pause_point(job);
+
+            if (job_is_cancelled(job)) {
+                return -ECANCELED;
             }
 
             ret = block_copy_reset_unallocated(s->bcs, offset, &count);
@@ -288,6 +282,25 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     return ret;
 }
 
+static void coroutine_fn backup_pause(Job *job)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
+
+    if (s->bcs_call) {
+        block_copy_cancel(s->bcs_call);
+    }
+}
+
+static void coroutine_fn backup_set_speed(BlockJob *job, int64_t speed)
+{
+    BackupBlockJob *s = container_of(job, BackupBlockJob, common);
+
+    if (s->bcs) {
+        /* In block_job_create we yet don't have bcs */
+        block_copy_set_speed(s->bcs, s->bcs_call, speed);
+    }
+}
+
 static const BlockJobDriver backup_job_driver = {
     .job_driver = {
         .instance_size          = sizeof(BackupBlockJob),
@@ -298,7 +311,9 @@ static const BlockJobDriver backup_job_driver = {
         .commit                 = backup_commit,
         .abort                  = backup_abort,
         .clean                  = backup_clean,
-    }
+        .pause                  = backup_pause,
+    },
+    .set_speed = backup_set_speed,
 };
 
 static int64_t backup_calculate_cluster_size(BlockDriverState *target,
@@ -343,6 +358,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   BitmapSyncMode bitmap_mode,
                   bool compress,
                   const char *filter_node_name,
+                  int max_workers,
+                  int64_t max_chunk,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   int creation_flags,
@@ -362,6 +379,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     /* QMP interface protects us from these cases */
     assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
     assert(sync_bitmap || sync_mode != MIRROR_SYNC_MODE_BITMAP);
+
+    if (max_workers < 1) {
+        error_setg(errp, "At least one worker needed");
+        return NULL;
+    }
+
+    if (max_chunk < 0) {
+        error_setg(errp, "max-chunk is negative");
+        return NULL;
+    }
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
@@ -418,6 +445,11 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     if (cluster_size < 0) {
         goto error;
     }
+    if (max_chunk && max_chunk < cluster_size) {
+        error_setg(errp, "Required max-chunk (%" PRIi64") is less than backup "
+                   "cluster size (%" PRIi64 ")", max_chunk, cluster_size);
+        return NULL;
+    }
 
     /*
      * If source is in backing chain of target assume that target is going to be
@@ -461,9 +493,12 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->bcs_bitmap = block_copy_dirty_bitmap(bcs);
     job->cluster_size = cluster_size;
     job->len = len;
+    job->max_workers = max_workers;
+    job->max_chunk = max_chunk;
 
     block_copy_set_callbacks(bcs, backup_progress_bytes_callback,
                              backup_progress_reset_callback, job);
+    block_copy_set_speed(bcs, NULL, speed);
 
     /* Required permissions are already taken by backup-top target */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,

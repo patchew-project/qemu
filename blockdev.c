@@ -3502,6 +3502,9 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     if (!backup->has_compress) {
         backup->compress = false;
     }
+    if (!backup->has_x_max_workers) {
+        backup->x_max_workers = 64;
+    }
 
     ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
     if (ret < 0) {
@@ -3581,6 +3584,8 @@ static BlockJob *do_backup_common(BackupCommon *backup,
                             backup->sync, bmap, backup->bitmap_mode,
                             backup->compress,
                             backup->filter_node_name,
+                            backup->x_max_workers,
+                            backup->x_max_chunk,
                             backup->on_source_error,
                             backup->on_target_error,
                             job_flags, NULL, NULL, txn, errp);

@@ -223,6 +223,7 @@ with iotests.FilePath('disk.img') as disk_path, \
                 'target': copy_path,
                 'sync': 'full',
                 'speed': 262144,
+                'x-max-chunk': 65536,
                 'auto-finalize': auto_finalize,
                 'auto-dismiss': auto_dismiss,
             })
