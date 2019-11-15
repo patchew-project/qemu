@@ -19,15 +19,27 @@
 #include "block/block-copy.h"
 #include "sysemu/block-backend.h"
 #include "qemu/units.h"
+#include "qemu/coroutine.h"
+#include "block/aio_task.h"
 
 #define BLOCK_COPY_MAX_COPY_RANGE (16 * MiB)
 #define BLOCK_COPY_MAX_BUFFER (1 * MiB)
 #define BLOCK_COPY_MAX_MEM (128 * MiB)
+#define BLOCK_COPY_MAX_WORKERS 64
+
+typedef struct BlockCopyCallState {
+    bool failed;
+    bool error_is_read;
+} BlockCopyCallState;
 
 typedef struct BlockCopyTask {
+    AioTask task;
+
     BlockCopyState *s;
+    BlockCopyCallState *call_state;
     int64_t offset;
     int64_t bytes;
+    bool zeroes;
     QLIST_ENTRY(BlockCopyTask) list;
     CoQueue wait_queue; /* coroutines blocked on this task */
 } BlockCopyTask;
@@ -217,6 +229,30 @@ void block_copy_set_callbacks(
     s->progress_opaque = progress_opaque;
 }
 
+/* Takes ownership on @task */
+static coroutine_fn int block_copy_task_run(AioTaskPool *pool,
+                                            BlockCopyTask *task)
+{
+    if (!pool) {
+        int ret = task->task.func(&task->task);
+
+        g_free(task);
+        return ret;
+    }
+
+    aio_task_pool_wait_slot(pool);
+    if (aio_task_pool_status(pool) < 0) {
+        co_put_to_shres(task->s->mem, task->bytes);
+        block_copy_task_end(task, -EAGAIN);
+        g_free(task);
+        return aio_task_pool_status(pool);
+    }
+
+    aio_task_pool_start_task(pool, &task->task);
+
+    return 0;
+}
+
 /*
  * block_copy_do_copy
  *
@@ -316,8 +352,31 @@ out:
     return ret;
 }
 
+static coroutine_fn int block_copy_task_entry(AioTask *task)
+{
+    BlockCopyTask *t = container_of(task, BlockCopyTask, task);
+    bool error_is_read;
+    int ret;
+
+    ret = block_copy_do_copy(t->s, t->offset, t->bytes, t->zeroes,
+                             &error_is_read);
+    if (ret < 0 && !t->call_state->failed) {
+        t->call_state->failed = true;
+        t->call_state->error_is_read = error_is_read;
+    } else {
+        t->s->progress_bytes_callback(t->bytes, t->s->progress_opaque);
+    }
+    co_put_to_shres(t->s->mem, t->bytes);
+    block_copy_task_end(t, ret);
+
+    return ret;
+}
+
+/* Called only on full-dirty region */
 static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
-                                             int64_t offset, int64_t bytes)
+                                             BlockCopyCallState *call_state,
+                                             int64_t offset,
+                                             int64_t bytes)
 {
     int64_t next_zero;
     BlockCopyTask *task = g_new(BlockCopyTask, 1);
@@ -338,7 +397,9 @@ static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
     bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
 
     *task = (BlockCopyTask) {
+        .task.func = block_copy_task_entry,
         .s = s,
+        .call_state = call_state,
         .offset = offset,
         .bytes = bytes,
     };
@@ -459,6 +520,8 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
 {
     int ret = 0;
     bool found_dirty = false;
+    AioTaskPool *aio = NULL;
+    BlockCopyCallState call_state = {false, false};
 
     /*
      * block_copy() user is responsible for keeping source and target in same
@@ -470,8 +533,8 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(bytes, s->cluster_size));
 
-    while (bytes) {
-        g_autofree BlockCopyTask *task = NULL;
+    while (bytes && aio_task_pool_status(aio) == 0) {
+        BlockCopyTask *task;
         int64_t status_bytes;
 
         if (!bdrv_dirty_bitmap_get(s->copy_bitmap, offset)) {
@@ -483,36 +546,51 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
 
         found_dirty = true;
 
-        task = block_copy_task_create(s, offset, bytes);
+        task = block_copy_task_create(s, &call_state, offset, bytes);
 
         ret = block_copy_block_status(s, offset, task->bytes, &status_bytes);
         block_copy_task_shrink(task, status_bytes);
         if (s->skip_unallocated && !(ret & BDRV_BLOCK_ALLOCATED)) {
             block_copy_task_end(task, 0);
+            g_free(task);
             s->progress_reset_callback(s->progress_opaque);
             trace_block_copy_skip_range(s, offset, status_bytes);
             offset += status_bytes;
             bytes -= status_bytes;
             continue;
         }
+        task->zeroes = ret & BDRV_BLOCK_ZERO;
 
         trace_block_copy_process(s, offset);
 
         co_get_from_shres(s->mem, task->bytes);
-        ret = block_copy_do_copy(s, offset, task->bytes, ret & BDRV_BLOCK_ZERO,
-                                 error_is_read);
-        co_put_to_shres(s->mem, task->bytes);
-        block_copy_task_end(task, ret);
-        if (ret < 0) {
-            return ret;
+
+        if (!aio && task->bytes != bytes) {
+            aio = aio_task_pool_new(BLOCK_COPY_MAX_WORKERS);
         }
 
-        s->progress_bytes_callback(task->bytes, s->progress_opaque);
         offset += task->bytes;
         bytes -= task->bytes;
+
+        ret = block_copy_task_run(aio, task);
+        if (ret < 0) {
+            goto out;
+        }
     }
 
-    return found_dirty;
+out:
+    if (aio) {
+        aio_task_pool_wait_all(aio);
+        if (ret == 0) {
+            ret = aio_task_pool_status(aio);
+        }
+        g_free(aio);
+    }
+    if (error_is_read && ret < 0) {
+        *error_is_read = call_state.error_is_read;
+    }
+
+    return ret < 0 ? ret : found_dirty;
 }
 
 int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
