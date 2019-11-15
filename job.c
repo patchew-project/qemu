@@ -557,6 +557,7 @@ void job_user_pause(Job *job, Error **errp)
     }
     job->user_paused = true;
     job_pause(job);
+    job_enter(job);
 }
 
 bool job_user_paused(Job *job)
