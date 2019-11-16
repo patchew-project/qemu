@@ -5363,9 +5363,13 @@ int sve_exception_el(CPUARMState *env, int el)
 
 static uint32_t sve_zcr_get_valid_len(ARMCPU *cpu, uint32_t start_len)
 {
-    uint32_t start_vq = (start_len & 0xf) + 1;
+    uint32_t end_len;
 
-    return arm_cpu_vq_map_next_smaller(cpu, start_vq + 1) - 1;
+    start_len &= 0xf;
+    end_len = find_last_bit(cpu->sve_vq_map, start_len + 1);
+
+    assert(end_len <= start_len);
+    return end_len;
 }
 
 /*
