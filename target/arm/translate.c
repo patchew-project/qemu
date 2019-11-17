@@ -8931,11 +8931,11 @@ static bool op_strex(DisasContext *s, arg_STREX *a, MemOp mop, bool rel)
     /* We UNDEF for these UNPREDICTABLE cases.  */
     if (a->rd == 15 || a->rn == 15 || a->rt == 15
         || a->rd == a->rn || a->rd == a->rt
-        || (s->thumb && (a->rd == 13 || a->rt == 13))
+        || (!ENABLE_ARCH_8 && s->thumb && (a->rd == 13 || a->rt == 13))
         || (mop == MO_64
             && (a->rt2 == 15
                 || a->rd == a->rt2
-                || (s->thumb && a->rt2 == 13)))) {
+                || (!ENABLE_ARCH_8 && s->thumb && a->rt2 == 13)))) {
         unallocated_encoding(s);
         return true;
     }
@@ -9087,10 +9087,10 @@ static bool op_ldrex(DisasContext *s, arg_LDREX *a, MemOp mop, bool acq)
 
     /* We UNDEF for these UNPREDICTABLE cases.  */
     if (a->rn == 15 || a->rt == 15
-        || (s->thumb && a->rt == 13)
+        || (!ENABLE_ARCH_8 && s->thumb && a->rt == 13)
         || (mop == MO_64
             && (a->rt2 == 15 || a->rt == a->rt2
-                || (s->thumb && a->rt2 == 13)))) {
+                || (!ENABLE_ARCH_8 && s->thumb && a->rt2 == 13)))) {
         unallocated_encoding(s);
         return true;
     }
