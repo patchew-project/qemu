@@ -206,6 +206,7 @@ class Event(object):
                       "\s*"
                       "(?:(?:(?P<fmt_trans>\".+),)?\s*(?P<fmt>\".+))?"
                       "\s*")
+    _DFWRE = re.compile(r"%[\d\.\- +#']*\*") # dynamic width precision
 
     _VALID_PROPS = set(["disable", "tcg", "tcg-trans", "tcg-exec", "vcpu"])
 
@@ -280,6 +281,8 @@ class Event(object):
         if fmt.endswith(r'\n"'):
             raise ValueError("Event format must not end with a newline "
                              "character")
+        if Event._DFWRE.search(fmt):
+            raise ValueError("Event format must not contain field width '%*'")
 
         if len(fmt_trans) > 0:
             fmt = [fmt_trans, fmt]

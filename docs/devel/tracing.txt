@@ -113,7 +113,8 @@ Format strings should reflect the types defined in the trace event.  Take
 special care to use PRId64 and PRIu64 for int64_t and uint64_t types,
 respectively.  This ensures portability between 32- and 64-bit platforms.
 Format strings must not end with a newline character.  It is the responsibility
-of backends to adapt line ending for proper logging.
+of backends to adapt line ending for proper logging.  Format strings must not
+use numeric field width dynamic precision (SystemTap does not support them).
 
 Each event declaration will start with the event name, then its arguments,
 finally a format string for pretty-printing. For example:
