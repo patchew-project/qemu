@@ -72,6 +72,14 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
        over a single host signal.  */
     [__SIGRTMIN] = __SIGRTMAX,
     [__SIGRTMAX] = __SIGRTMIN,
+#ifdef TARGET_HEXAGON
+    /*
+     * Hexagon uses the same signal for pthread cancel as the host pthreads,
+     * so cannot be overridden.
+     * Therefore, we map Hexagon signal to a different host signal.
+     */
+    [__SIGRTMAX - 1] = __SIGRTMIN + 1,
+#endif
 };
 static uint8_t target_to_host_signal_table[_NSIG];
 

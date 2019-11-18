@@ -1,0 +1,6 @@
+obj-y += \
+    cpu.o \
+    translate.o \
+    op_helper.o
+
+CFLAGS += -I$(SRC_PATH)/target/hexagon/imported
