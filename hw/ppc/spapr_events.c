@@ -358,7 +358,7 @@ static SpaprEventLogEntry *rtas_event_log_dequeue(SpaprMachineState *spapr,
             rtas_event_log_to_source(spapr,
                                      spapr_event_log_entry_type(entry));
 
-        if (source->mask & event_mask) {
+        if (source && (source->mask & event_mask)) {
             break;
         }
     }
