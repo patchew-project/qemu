@@ -38,8 +38,10 @@
 
 /* PBA BARs */
 #define P8_PBA_BAR0                     0x2013f00
+#define P8_PBA_BAR2                     0x2013f02
 #define P8_PBA_BAR3                     0x2013f03
 #define P8_PBA_BARMASK0                 0x2013f04
+#define P8_PBA_BARMASK2                 0x2013f06
 #define P8_PBA_BARMASK3                 0x2013f07
 #define P9_PBA_BAR0                     0x5012b00
 #define P9_PBA_BAR2                     0x5012b02
@@ -49,6 +51,7 @@
 /* Mask to calculate Homer/Occ size */
 #define HOMER_SIZE_MASK                 0x0000000000300000ull
 #define OCC_SIZE_MASK                   0x0000000000700000ull
+#define SLW_SIZE_MASK                   0x0
 
 static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
 {
@@ -115,6 +118,11 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
         }
         return 0;
 
+    case P8_PBA_BAR2: /* P8 slw image */
+        return PNV_SLW_IMAGE_BASE(chip);
+    case P8_PBA_BARMASK2: /* P8 slw image size is 1MB and mask is zero*/
+        return SLW_SIZE_MASK;
+
     case 0x1010c00:     /* PIBAM FIR */
     case 0x1010c03:     /* PIBAM FIR MASK */
 
@@ -135,9 +143,7 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
     case 0x202000f:     /* ADU stuff, receive status register*/
         return 0;
     case 0x2013f01:     /* PBA stuff */
-    case 0x2013f02:     /* PBA stuff */
     case 0x2013f05:     /* PBA stuff */
-    case 0x2013f06:     /* PBA stuff */
         return 0;
     case 0x2013028:     /* CAPP stuff */
     case 0x201302a:     /* CAPP stuff */

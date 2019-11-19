@@ -212,6 +212,10 @@ void pnv_bmc_powerdown(IPMIBmc *bmc);
 #define PNV_HOMER_BASE(chip)                                            \
     (0x7ffd800000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV_HOMER_SIZE)
 
+#define PNV_SLW_SIZE                0x0000000000100000ull
+#define PNV_SLW_IMAGE_BASE(chip)                                        \
+    (0x2ffda00000ull + ((uint64_t)PNV_CHIP_INDEX(chip)) * PNV_SLW_SIZE)
+
 
 /*
  * XSCOM 0x20109CA defines the ICP BAR:
