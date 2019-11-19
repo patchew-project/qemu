@@ -49,6 +49,7 @@ typedef struct I440FXState {
     uint64_t pci_hole64_size;
     bool pci_hole64_fix;
     uint32_t short_root_bus;
+    bool allow_hotplug;
 } I440FXState;
 
 #define I440FX_PCI_DEVICE(obj) \
@@ -354,6 +355,15 @@ PCIBus *find_i440fx(void)
     return s ? s->bus : NULL;
 }
 
+bool i440fx_allow_hotplug(void)
+{
+    I440FXState *s;
+
+    s = I440FX_PCI_HOST_BRIDGE(object_resolve_path("/machine/i440fx", NULL));
+
+    return s ? s->allow_hotplug : true;
+}
+
 static void i440fx_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -487,6 +497,7 @@ static Property i440fx_props[] = {
                      pci_hole64_size, I440FX_PCI_HOST_HOLE64_SIZE_DEFAULT),
     DEFINE_PROP_UINT32("short_root_bus", I440FXState, short_root_bus, 0),
     DEFINE_PROP_BOOL("x-pci-hole64-fix", I440FXState, pci_hole64_fix, true),
+    DEFINE_PROP_BOOL("allow-hotplug", I440FXState, allow_hotplug, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

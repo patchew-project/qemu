@@ -98,7 +98,7 @@ static void acpi_set_pci_info(void)
     bsel_is_set = true;
 
     bus = find_i440fx(); /* TODO: Q35 support */
-    if (bus) {
+    if (bus && i440fx_allow_hotplug()) {
         /* Scan all PCI buses. Set property to enable acpi based hotplug. */
         pci_for_each_bus_depth_first(bus, acpi_set_bsel, NULL, &bsel_alloc);
     }
