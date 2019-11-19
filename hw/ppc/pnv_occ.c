@@ -276,7 +276,7 @@ static void pnv_occ_realize(DeviceState *dev, Error **errp)
 
     /* XScom region for OCC SRAM registers */
     pnv_xscom_region_init(&occ->sram_regs, OBJECT(dev), poc->sram_ops,
-                          occ, "occ-common-area", poc->sram_size);
+                          occ, "occ-common-area", poc->sram_size >> 3);
 }
 
 static void pnv_occ_class_init(ObjectClass *klass, void *data)
