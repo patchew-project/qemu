@@ -46,6 +46,10 @@
 #define P9_PBA_BARMASK0                 0x5012b04
 #define P9_PBA_BARMASK2                 0x5012b06
 
+/* Mask to calculate Homer/Occ size */
+#define HOMER_SIZE_MASK                 0x0000000000300000ull
+#define OCC_SIZE_MASK                   0x0000000000700000ull
+
 static void xscom_complete(CPUState *cs, uint64_t hmer_bits)
 {
     /*
@@ -90,9 +94,8 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
         return PNV_HOMER_BASE(chip);
 
     case P9_PBA_BARMASK0: /* P9 homer region size */
-        return PNV9_HOMER_SIZE;
     case P8_PBA_BARMASK0: /* P8 homer region size */
-        return PNV_HOMER_SIZE;
+        return HOMER_SIZE_MASK;
 
     case P9_PBA_BAR2: /* P9 occ common area */
         return PNV9_OCC_COMMON_AREA(chip);
@@ -100,9 +103,8 @@ static uint64_t xscom_read_default(PnvChip *chip, uint32_t pcba)
         return PNV_OCC_COMMON_AREA(chip);
 
     case P9_PBA_BARMASK2: /* P9 occ common area size */
-        return PNV9_OCC_COMMON_AREA_SIZE;
     case P8_PBA_BARMASK2: /* P8 occ common area size */
-        return PNV_OCC_COMMON_AREA_SIZE;
+        return OCC_SIZE_MASK;
 
     case 0x1010c00:     /* PIBAM FIR */
     case 0x1010c03:     /* PIBAM FIR MASK */
