@@ -992,7 +992,7 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
     vq->shadow_avail_idx = vq->last_avail_idx = vq->inuse + vq->used_idx;
 
     if (vq->inuse) {
-        vq->resubmit_list = malloc(sizeof(VuVirtqInflightDesc) * vq->inuse);
+        vq->resubmit_list = g_malloc0(sizeof(VuVirtqInflightDesc) * vq->inuse);
         if (!vq->resubmit_list) {
             return -1;
         }
@@ -1605,10 +1605,8 @@ vu_deinit(VuDev *dev)
             vq->err_fd = -1;
         }
 
-        if (vq->resubmit_list) {
-            free(vq->resubmit_list);
-            vq->resubmit_list = NULL;
-        }
+        g_free(vq->resubmit_list);
+        vq->resubmit_list = NULL;
 
         vq->inflight = NULL;
     }
@@ -2263,7 +2261,7 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
         elem = vu_queue_map_desc(dev, vq, vq->resubmit_list[i].index, sz);
 
         if (!vq->resubmit_num) {
-            free(vq->resubmit_list);
+            g_free(vq->resubmit_list);
             vq->resubmit_list = NULL;
         }
 
