@@ -59,7 +59,6 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
     mc = MACHINE_GET_CLASS(current_machine);
     dinfo = drive_new(opts, mc->block_default_type, &err);
     if (err) {
-        error_report_err(err);
         qemu_opts_del(opts);
         goto err;
     }
@@ -73,7 +72,7 @@ void hmp_drive_add(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "OK\n");
         break;
     default:
-        monitor_printf(mon, "Can't hot-add drive to type %d\n", dinfo->type);
+        error_setg(&err, "Can't hot-add drive to type %d", dinfo->type);
         goto err;
     }
     return;
@@ -84,6 +83,7 @@ err:
         monitor_remove_blk(blk);
         blk_unref(blk);
     }
+    hmp_handle_error(mon, &err);
 }
 
 void hmp_drive_del(Monitor *mon, const QDict *qdict)
@@ -105,14 +105,14 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
 
     blk = blk_by_name(id);
     if (!blk) {
-        error_report("Device '%s' not found", id);
-        return;
+        error_setg(&local_err, "Device '%s' not found", id);
+        goto err;
     }
 
     if (!blk_legacy_dinfo(blk)) {
-        error_report("Deleting device added with blockdev-add"
-                     " is not supported");
-        return;
+        error_setg(&local_err,
+                   "Deleting device added with blockdev-add is not supported");
+        goto err;
     }
 
     aio_context = blk_get_aio_context(blk);
@@ -121,9 +121,8 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     bs = blk_bs(blk);
     if (bs) {
         if (bdrv_op_is_blocked(bs, BLOCK_OP_TYPE_DRIVE_DEL, &local_err)) {
-            error_report_err(local_err);
             aio_context_release(aio_context);
-            return;
+            goto err;
         }
 
         blk_remove_bs(blk);
@@ -144,12 +143,15 @@ void hmp_drive_del(Monitor *mon, const QDict *qdict)
     }
 
     aio_context_release(aio_context);
+err:
+    hmp_handle_error(mon, &local_err);
 }
 
 void hmp_commit(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_str(qdict, "device");
     BlockBackend *blk;
+    Error *local_err = NULL;
     int ret;
 
     if (!strcmp(device, "all")) {
@@ -160,12 +162,12 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
 
         blk = blk_by_name(device);
         if (!blk) {
-            error_report("Device '%s' not found", device);
-            return;
+            error_setg(&local_err, "Device '%s' not found", device);
+            goto err;
         }
         if (!blk_is_available(blk)) {
-            error_report("Device '%s' has no medium", device);
-            return;
+            error_setg(&local_err, "Device '%s' has no medium", device);
+            goto err;
         }
 
         bs = blk_bs(blk);
@@ -177,8 +179,13 @@ void hmp_commit(Monitor *mon, const QDict *qdict)
         aio_context_release(aio_context);
     }
     if (ret < 0) {
-        error_report("'commit' error for '%s': %s", device, strerror(-ret));
+        error_setg(&local_err,
+                   "'commit' error for '%s': %s", device, strerror(-ret));
+        goto err;
     }
+    return;
+err:
+    hmp_handle_error(mon, &local_err);
 }
 
 void hmp_drive_mirror(Monitor *mon, const QDict *qdict)
