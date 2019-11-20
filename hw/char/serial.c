@@ -34,6 +34,7 @@
 #include "sysemu/runstate.h"
 #include "qemu/error-report.h"
 #include "trace.h"
+#include "hw/qdev-properties.h"
 
 //#define DEBUG_SERIAL
 
@@ -988,7 +989,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 
     s->irq = irq;
     s->baudbase = baudbase;
-    qemu_chr_fe_init(&s->chr, chr, &error_abort);
+    qdev_prop_set_chr(dev, "chardev", chr);
     serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(dev, base, 2);
     qdev_init_nofail(dev);
@@ -999,12 +1000,18 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
     return s;
 }
 
-static void serial_class_init(ObjectClass *klass, void *data)
+static Property serial_properties[] = {
+    DEFINE_PROP_CHR("chardev", SerialState, chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void serial_class_init(ObjectClass *klass, void* data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->user_creatable = false;
     dc->vmsd = &vmstate_serial;
+    dc->props = serial_properties;
 }
 
 static const TypeInfo serial_info = {
@@ -1065,7 +1072,7 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     s->it_shift = it_shift;
     s->irq = irq;
     s->baudbase = baudbase;
-    qemu_chr_fe_init(&s->chr, chr, &error_abort);
+    qdev_prop_set_chr(dev, "chardev", chr);
 
     serial_realize_core(s, &error_fatal);
     qdev_set_legacy_instance_id(dev, base, 2);
