@@ -1309,16 +1309,6 @@ void hmp_set_link(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, &err);
 }
 
-void hmp_block_passwd(Monitor *mon, const QDict *qdict)
-{
-    const char *device = qdict_get_str(qdict, "device");
-    const char *password = qdict_get_str(qdict, "password");
-    Error *err = NULL;
-
-    qmp_block_passwd(true, device, false, NULL, password, &err);
-    hmp_handle_error(mon, &err);
-}
-
 void hmp_balloon(Monitor *mon, const QDict *qdict)
 {
     int64_t value = qdict_get_int(qdict, "value");
@@ -1327,17 +1317,6 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
     qmp_balloon(value, &err);
     hmp_handle_error(mon, &err);
 }
-
-void hmp_block_resize(Monitor *mon, const QDict *qdict)
-{
-    const char *device = qdict_get_str(qdict, "device");
-    int64_t size = qdict_get_int(qdict, "size");
-    Error *err = NULL;
-
-    qmp_block_resize(true, device, false, NULL, size, &err);
-    hmp_handle_error(mon, &err);
-}
-
 
 void hmp_loadvm(Monitor *mon, const QDict *qdict)
 {
@@ -1885,49 +1864,6 @@ void hmp_change(Monitor *mon, const QDict *qdict)
     }
 
     hmp_handle_error(mon, &err);
-}
-
-void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
-{
-    Error *err = NULL;
-    char *device = (char *) qdict_get_str(qdict, "device");
-    BlockIOThrottle throttle = {
-        .bps = qdict_get_int(qdict, "bps"),
-        .bps_rd = qdict_get_int(qdict, "bps_rd"),
-        .bps_wr = qdict_get_int(qdict, "bps_wr"),
-        .iops = qdict_get_int(qdict, "iops"),
-        .iops_rd = qdict_get_int(qdict, "iops_rd"),
-        .iops_wr = qdict_get_int(qdict, "iops_wr"),
-    };
-
-    /* qmp_block_set_io_throttle has separate parameters for the
-     * (deprecated) block device name and the qdev ID but the HMP
-     * version has only one, so we must decide which one to pass. */
-    if (blk_by_name(device)) {
-        throttle.has_device = true;
-        throttle.device = device;
-    } else {
-        throttle.has_id = true;
-        throttle.id = device;
-    }
-
-    qmp_block_set_io_throttle(&throttle, &err);
-    hmp_handle_error(mon, &err);
-}
-
-void hmp_block_stream(Monitor *mon, const QDict *qdict)
-{
-    Error *error = NULL;
-    const char *device = qdict_get_str(qdict, "device");
-    const char *base = qdict_get_try_str(qdict, "base");
-    int64_t speed = qdict_get_try_int(qdict, "speed", 0);
-
-    qmp_block_stream(true, device, device, base != NULL, base, false, NULL,
-                     false, NULL, qdict_haskey(qdict, "speed"), speed, true,
-                     BLOCKDEV_ON_ERROR_REPORT, false, false, false, false,
-                     &error);
-
-    hmp_handle_error(mon, &error);
 }
 
 typedef struct HMPMigrationStatus
