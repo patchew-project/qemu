@@ -102,12 +102,38 @@ Rationale:
 Naming
 ======
 
-Variables are lower_case_with_underscores; easy to type and read.  Structured
-type names are in CamelCase; harder to type but standing out.  Enum type
-names and function type names should also be in CamelCase.  Scalar type
-names are lower_case_with_underscores_ending_with_a_t, like the POSIX
-uint64_t and family.  Note that this last convention contradicts POSIX
-and is therefore likely to be changed.
+Variables are lower_case_with_underscores; easy to type and read.
+
+The most common naming for a variable is an abbreviation of the type
+name.  Some common examples:
+
+.. code-block:: c
+
+    Object *obj;
+    QVirtioSCSI *scsi;
+    SerialMM *smm;
+
+When writing QOM/OOP-style function, a "self" variable allows to refer
+without ambiguity to the instance of the method that is being
+implemented (this is not very common in QEMU code base, but it is
+often a good option to increase the readability and consistency,
+making further refactoring easier as well).  Example:
+
+.. code-block:: c
+
+    serial_mm_flush(SerialMM *self);
+
+    serial_mm_instance_init(Object *o) {
+        SerialMM *self = SERIAL_MM(o);
+        ..
+    }
+
+Structured type names are in CamelCase; harder to type but standing
+out.  Enum type names and function type names should also be in
+CamelCase.  Scalar type names are
+lower_case_with_underscores_ending_with_a_t, like the POSIX uint64_t
+and family.  Note that this last convention contradicts POSIX and is
+therefore likely to be changed.
 
 When wrapping standard library functions, use the prefix ``qemu_`` to alert
 readers that they are seeing a wrapped version; otherwise avoid this prefix.
