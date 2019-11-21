@@ -1054,6 +1054,12 @@ static void quorum_del_child(BlockDriverState *bs, BdrvChild *child,
     /* We know now that num_children > threshold, so blkverify must be false */
     assert(!s->is_blkverify);
 
+    unsigned child_id;
+    sscanf(child->name, "children.%u", &child_id);
+    if (child_id == s->next_child_index - 1) {
+        s->next_child_index--;
+    }
+
     bdrv_drained_begin(bs);
 
     /* We can safely remove this child now */
