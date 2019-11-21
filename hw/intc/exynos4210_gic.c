@@ -314,6 +314,14 @@ static void exynos4210_gic_realize(DeviceState *dev, Error **errp)
             EXYNOS4210_EXT_GIC_DIST_REGION_SIZE);
 
     for (i = 0; i < s->num_cpu; i++) {
+        /*
+         * This clues in gcc that our on-stack buffers do, in fact
+         * have enough room for the cpu numbers.  gcc 9.2.1 on 32-bit
+         * x86 doesn't figure this out, otherwise and gives spurious
+         * warnings.
+         */
+        assert(i <= EXYNOS4210_NCPUS);
+
         /* Map CPU interface per SMP Core */
         sprintf(cpu_alias_name, "%s%x", cpu_prefix, i);
         memory_region_init_alias(&s->cpu_alias[i], obj,
