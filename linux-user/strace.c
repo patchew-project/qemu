@@ -61,6 +61,7 @@ UNUSED static void print_open_flags(abi_long, int);
 UNUSED static void print_syscall_prologue(const struct syscallname *);
 UNUSED static void print_syscall_epilogue(const struct syscallname *);
 UNUSED static void print_string(abi_long, int);
+UNUSED static void print_encoded_string(abi_long addr, unsigned int maxlen, int last);
 UNUSED static void print_buf(abi_long addr, abi_long len, int last);
 UNUSED static void print_raw_param(const char *, abi_long, int);
 UNUSED static void print_timeval(abi_ulong, int);
@@ -1191,6 +1192,37 @@ print_syscall_epilogue(const struct syscallname *sc)
     gemu_log(")");
 }
 
+#define MAX_ENCODED_CHARS 32
+static void
+print_encoded_string(abi_long addr, unsigned int maxlen, int last)
+{
+    unsigned int maxout;
+    char *s, *str;
+
+    s = lock_user_string(addr);
+    if (s == NULL) {
+        /* can't get string out of it, so print it as pointer */
+        print_pointer(addr, last);
+        return;
+    }
+
+    str = s;
+    gemu_log("\"");
+    maxout = MIN(maxlen, MAX_ENCODED_CHARS);
+    while (maxout--) {
+        unsigned char c = *str++;
+        if (isprint(c)) {
+            gemu_log("%c", c);
+        } else {
+            gemu_log("\\%o", (unsigned int) c);
+        }
+    }
+    unlock_user(s, addr, 0);
+
+    gemu_log("\"%s%s", maxlen > MAX_ENCODED_CHARS ? "..." : "",
+                    get_comma(last));
+}
+
 static void
 print_string(abi_long addr, int last)
 {
@@ -1616,6 +1648,19 @@ print_futimesat(const struct syscallname *name,
     print_string(arg1, 0);
     print_timeval(arg2, 0);
     print_timeval(arg2 + sizeof (struct target_timeval), 1);
+    print_syscall_epilogue(name);
+}
+#endif
+
+#ifdef TARGET_NR_getcwd
+static void
+print_getcwd(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_string(arg0, 0);
+    print_raw_param("%u", arg1, 1);
     print_syscall_epilogue(name);
 }
 #endif
@@ -2413,6 +2458,20 @@ print_fstatat64(const struct syscallname *name,
     print_syscall_epilogue(name);
 }
 #define print_newfstatat    print_fstatat64
+#endif
+
+#ifdef TARGET_NR_read
+static void
+print_read(const struct syscallname *name,
+    abi_long arg0, abi_long arg1, abi_long arg2,
+    abi_long arg3, abi_long arg4, abi_long arg5)
+{
+    print_syscall_prologue(name);
+    print_raw_param("%d", arg0, 0);
+    print_encoded_string(arg1, arg2, 0);
+    print_raw_param("%u", arg2, 1);
+    print_syscall_epilogue(name);
+}
 #endif
 
 #ifdef TARGET_NR_readlink
