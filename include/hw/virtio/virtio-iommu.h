@@ -57,6 +57,8 @@ typedef struct VirtIOIOMMU {
     GHashTable *as_by_busptr;
     IOMMUPciBus *as_by_bus_num[IOMMU_PCI_BUS_MAX];
     PCIBus *primary_bus;
+    Interval *reserved_regions;
+    uint32_t nb_reserved_regions;
     GTree *domains;
     QemuMutex mutex;
     GTree *endpoints;
