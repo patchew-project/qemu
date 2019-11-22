@@ -50,6 +50,13 @@ typedef struct {
     int64_t rate;       /* Minimum time (in ns) between two events */
 } MonitorQAPIEventConf;
 
+/*
+ * The maximum buffer size which the monitor can process in one iteration
+ * of the main loop. We don't want to block the loop for a long time
+ * because of JSON parser, so use a reasonable value.
+ */
+#define MONITOR_READ_LEN_MAX 1024
+
 /* Shared monitor I/O thread */
 IOThread *mon_iothread;
 
@@ -498,7 +505,7 @@ int monitor_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return !atomic_mb_read(&mon->suspend_cnt);
+    return atomic_mb_read(&mon->suspend_cnt) ? 0 : MONITOR_READ_LEN_MAX;
 }
 
 void monitor_list_append(Monitor *mon)
