@@ -43,6 +43,7 @@ block-obj-y += crypto.o
 
 block-obj-y += aio_task.o
 block-obj-y += backup-top.o
+common-obj-y += monitor/
 
 common-obj-y += stream.o
 
