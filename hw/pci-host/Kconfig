@@ -1,6 +1,10 @@
 config PAM
     bool
 
+config INTEL_IGD_PASSTHROUGH
+    default y
+    bool
+
 config PREP_PCI
     bool
     select PCI
@@ -32,6 +36,7 @@ config PCI_I440FX
     bool
     select PCI
     select PAM
+    imply INTEL_IGD_PASSTHROUGH
 
 config PCI_EXPRESS_Q35
     bool

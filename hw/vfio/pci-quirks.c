@@ -1166,6 +1166,8 @@ static void vfio_probe_rtl8168_bar2_quirk(VFIOPCIDevice *vdev, int nr)
     trace_vfio_quirk_rtl8168_probe(vdev->vbasedev.name);
 }
 
+#ifdef CONFIG_INTEL_IGD_PASSTHROUGH
+
 /*
  * Intel IGD support
  *
@@ -1811,6 +1813,8 @@ out:
     g_free(lpc);
 }
 
+#endif /* CONFIG_INTEL_IGD_PASSTHROUGH */
+
 /*
  * Common quirk probe entry points.
  */
@@ -1860,7 +1864,9 @@ void vfio_bar_quirk_setup(VFIOPCIDevice *vdev, int nr)
     vfio_probe_nvidia_bar5_quirk(vdev, nr);
     vfio_probe_nvidia_bar0_quirk(vdev, nr);
     vfio_probe_rtl8168_bar2_quirk(vdev, nr);
+#ifdef CONFIG_INTEL_IGD_PASSTHROUGH
     vfio_probe_igd_bar4_quirk(vdev, nr);
+#endif /* CONFIG_INTEL_IGD_PASSTHROUGH */
 }
 
 void vfio_bar_quirk_exit(VFIOPCIDevice *vdev, int nr)
