@@ -3392,12 +3392,45 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
     if (ret < 0) {
         error_setg_errno(errp, -ret, "Could not refresh total sector count");
+        goto fail_refresh_total_sectors;
     } else {
         offset = bs->total_sectors * BDRV_SECTOR_SIZE;
     }
+
+    /*
+     * If the image has a backing file that is large enough that it would
+     * provide data for the new area, we cannot leave it unallocated because
+     * then the backing file content would become visible. Instead, zero-fill
+     * the area where backing file and new area overlap.
+     *
+     * Note that if the image has a backing file, but was opened without the
+     * backing file, taking care of keeping things consistent with that backing
+     * file is the user's responsibility.
+     */
+    if (new_bytes && bs->backing && prealloc == PREALLOC_MODE_OFF) {
+        int64_t backing_len;
+
+        backing_len = bdrv_getlength(backing_bs(bs));
+        if (backing_len < 0) {
+            ret = backing_len;
+            goto fail_refresh_total_sectors;
+        }
+
+        if (backing_len > old_size) {
+            ret = bdrv_co_do_pwrite_zeroes(
+                    bs, old_size, MIN(new_bytes, backing_len - old_size),
+                    BDRV_REQ_ZERO_WRITE | BDRV_REQ_MAY_UNMAP |
+                    (no_fallback ? BDRV_REQ_NO_FALLBACK : 0));
+            if (ret < 0) {
+                goto fail_refresh_total_sectors;
+            }
+        }
+    }
+
     /* It's possible that truncation succeeded but refresh_total_sectors
      * failed, but the latter doesn't affect how we should finish the request.
      * Pass 0 as the last parameter so that dirty bitmaps etc. are handled. */
+fail_refresh_total_sectors:
     bdrv_co_write_req_finish(child, offset - new_bytes, new_bytes, &req, 0);
 
 out:
