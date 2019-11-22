@@ -277,6 +277,18 @@ void visit_type_size(Visitor *v, const char *name, uint64_t *obj,
     }
 }
 
+void visit_type_time(Visitor *v, const char *name, uint64_t *obj,
+                     Error **errp)
+{
+    assert(obj);
+    trace_visit_type_time(v, name, obj);
+    if (v->type_time) {
+        v->type_time(v, name, obj, errp);
+    } else {
+        v->type_uint64(v, name, obj, errp);
+    }
+}
+
 void visit_type_bool(Visitor *v, const char *name, bool *obj, Error **errp)
 {
     assert(obj);
