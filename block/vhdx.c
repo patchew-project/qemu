@@ -1264,7 +1264,7 @@ static int vhdx_allocate_block(BlockDriverState *bs, BDRVVHDXState *s,
     }
 
     return bdrv_truncate(bs->file, *new_offset + s->block_size, false,
-                         PREALLOC_MODE_OFF, NULL);
+                         PREALLOC_MODE_OFF, false, NULL);
 }
 
 /*
@@ -1703,13 +1703,13 @@ static int vhdx_create_bat(BlockBackend *blk, BDRVVHDXState *s,
         /* All zeroes, so we can just extend the file - the end of the BAT
          * is the furthest thing we have written yet */
         ret = blk_truncate(blk, data_file_offset, false, PREALLOC_MODE_OFF,
-                           errp);
+                           false, errp);
         if (ret < 0) {
             goto exit;
         }
     } else if (type == VHDX_TYPE_FIXED) {
         ret = blk_truncate(blk, data_file_offset + image_size, false,
-                           PREALLOC_MODE_OFF, errp);
+                           PREALLOC_MODE_OFF, false, errp);
         if (ret < 0) {
             goto exit;
         }

@@ -347,9 +347,10 @@ BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
 void bdrv_refresh_filename(BlockDriverState *bs);
 
 int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
-                                  PreallocMode prealloc, Error **errp);
+                                  PreallocMode prealloc, bool no_fallback,
+                                  Error **errp);
 int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
-                  PreallocMode prealloc, Error **errp);
+                  PreallocMode prealloc, bool no_fallback, Error **errp);
 
 int64_t bdrv_nb_sectors(BlockDriverState *bs);
 int64_t bdrv_getlength(BlockDriverState *bs);

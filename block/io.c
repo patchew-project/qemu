@@ -3313,9 +3313,15 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs)
  * If 'exact' is true, the file must be resized to exactly the given
  * 'offset'.  Otherwise, it is sufficient for the node to be at least
  * 'offset' bytes in length.
+ *
+ * If 'no_fallback' is true, a possibly needed writte_zeroes operation to avoid
+ * making a longer backing file visible will use BDRV_REQ_NO_FALLBACK. If the
+ * zero write is necessary and this flag is set, bdrv_co_truncate() will fail
+ * if efficient zero writes cannot be provided.
  */
 int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
-                                  PreallocMode prealloc, Error **errp)
+                                  PreallocMode prealloc, bool no_fallback,
+                                  Error **errp)
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
@@ -3372,7 +3378,8 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
     if (drv->bdrv_co_truncate) {
         ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, errp);
     } else if (bs->file && drv->is_filter) {
-        ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
+        ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, no_fallback,
+                               errp);
     } else {
         error_setg(errp, "Image format driver does not support resize");
         ret = -ENOTSUP;
@@ -3405,6 +3412,7 @@ typedef struct TruncateCo {
     int64_t offset;
     bool exact;
     PreallocMode prealloc;
+    bool no_fallback;
     Error **errp;
     int ret;
 } TruncateCo;
@@ -3413,12 +3421,12 @@ static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
 {
     TruncateCo *tco = opaque;
     tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->exact,
-                                tco->prealloc, tco->errp);
+                                tco->prealloc, tco->no_fallback, tco->errp);
     aio_wait_kick();
 }
 
 int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
-                  PreallocMode prealloc, Error **errp)
+                  PreallocMode prealloc, bool no_fallback, Error **errp)
 {
     Coroutine *co;
     TruncateCo tco = {

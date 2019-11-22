@@ -2073,14 +2073,14 @@ int blk_pwrite_compressed(BlockBackend *blk, int64_t offset, const void *buf,
 }
 
 int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
-                 PreallocMode prealloc, Error **errp)
+                 PreallocMode prealloc, bool no_fallback, Error **errp)
 {
     if (!blk_is_available(blk)) {
         error_setg(errp, "No medium inserted");
         return -ENOMEDIUM;
     }
 
-    return bdrv_truncate(blk->root, offset, exact, prealloc, errp);
+    return bdrv_truncate(blk->root, offset, exact, prealloc, no_fallback, errp);
 }
 
 static void blk_pdiscard_entry(void *opaque)

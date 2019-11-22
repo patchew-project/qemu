@@ -114,7 +114,7 @@ static ssize_t block_crypto_init_func(QCryptoBlock *block,
      * which will be used by the crypto header
      */
     return blk_truncate(data->blk, data->size + headerlen, false,
-                        data->prealloc, errp);
+                        data->prealloc, false, errp);
 }
 
 
@@ -311,7 +311,7 @@ block_crypto_co_truncate(BlockDriverState *bs, int64_t offset, bool exact,
 
     offset += payload_offset;
 
-    return bdrv_co_truncate(bs->file, offset, exact, prealloc, errp);
+    return bdrv_co_truncate(bs->file, offset, exact, prealloc, false, errp);
 }
 
 static void block_crypto_close(BlockDriverState *bs)
