@@ -692,16 +692,6 @@ static void virtio_iommu_set_features(VirtIODevice *vdev, uint64_t val)
     trace_virtio_iommu_set_features(dev->acked_features);
 }
 
-/*
- * Migration is not yet supported: most of the state consists
- * of balanced binary trees which are not yet ready for getting
- * migrated
- */
-static const VMStateDescription vmstate_virtio_iommu_device = {
-    .name = "virtio-iommu-device",
-    .unmigratable = 1,
-};
-
 static gint int_cmp(gconstpointer a, gconstpointer b, gpointer user_data)
 {
     uint ua = GPOINTER_TO_UINT(a);
@@ -777,6 +767,123 @@ static void virtio_iommu_set_status(VirtIODevice *vdev, uint8_t status)
 static void virtio_iommu_instance_init(Object *obj)
 {
 }
+
+#define VMSTATE_INTERVAL                               \
+{                                                      \
+    .name = "interval",                                \
+    .version_id = 1,                                   \
+    .minimum_version_id = 1,                           \
+    .fields = (VMStateField[]) {                       \
+        VMSTATE_UINT64(low, viommu_interval),          \
+        VMSTATE_UINT64(high, viommu_interval),         \
+        VMSTATE_END_OF_LIST()                          \
+    }                                                  \
+}
+
+#define VMSTATE_MAPPING                               \
+{                                                     \
+    .name = "mapping",                                \
+    .version_id = 1,                                  \
+    .minimum_version_id = 1,                          \
+    .fields = (VMStateField[]) {                      \
+        VMSTATE_UINT64(phys_addr, viommu_mapping),    \
+        VMSTATE_UINT32(flags, viommu_mapping),        \
+        VMSTATE_END_OF_LIST()                         \
+    },                                                \
+}
+
+static const VMStateDescription vmstate_interval_mapping[2] = {
+    VMSTATE_MAPPING,   /* value */
+    VMSTATE_INTERVAL   /* key   */
+};
+
+static int domain_preload(void *opaque)
+{
+    viommu_domain *domain = opaque;
+
+    domain->mappings = g_tree_new_full((GCompareDataFunc)interval_cmp,
+                                       NULL, g_free, g_free);
+    return 0;
+}
+
+static const VMStateDescription vmstate_endpoint = {
+    .name = "endpoint",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(id, viommu_endpoint),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static const VMStateDescription vmstate_domain = {
+    .name = "domain",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .pre_load = domain_preload,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(id, viommu_domain),
+        VMSTATE_GTREE_V(mappings, viommu_domain, 1,
+                        vmstate_interval_mapping,
+                        viommu_interval, viommu_mapping),
+        VMSTATE_QLIST_V(endpoint_list, viommu_domain, 1,
+                        vmstate_endpoint, viommu_endpoint, next),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static gboolean reconstruct_ep_domain_link(gpointer key, gpointer value,
+                                           gpointer data)
+{
+    viommu_domain *d = (viommu_domain *)value;
+    viommu_endpoint *iter, *tmp;
+    viommu_endpoint *ep = (viommu_endpoint *)data;
+
+    QLIST_FOREACH_SAFE(iter, &d->endpoint_list, next, tmp) {
+        if (iter->id == ep->id) {
+            /* remove the ep */
+            QLIST_REMOVE(iter, next);
+            g_free(iter);
+            /* replace it with the good one */
+            QLIST_INSERT_HEAD(&d->endpoint_list, ep, next);
+            /* update the domain */
+            ep->domain = d;
+            return true; /* stop the search */
+        }
+    }
+    return false; /* continue the traversal */
+}
+
+static gboolean fix_endpoint(gpointer key, gpointer value, gpointer data)
+{
+    VirtIOIOMMU *s = (VirtIOIOMMU *)data;
+
+    g_tree_foreach(s->domains, reconstruct_ep_domain_link, value);
+    return false;
+}
+
+static int iommu_post_load(void *opaque, int version_id)
+{
+    VirtIOIOMMU *s = opaque;
+
+    g_tree_foreach(s->endpoints, fix_endpoint, s);
+    return 0;
+}
+
+static const VMStateDescription vmstate_virtio_iommu_device = {
+    .name = "virtio-iommu-device",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    .post_load = iommu_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_GTREE_DIRECT_KEY_V(domains, VirtIOIOMMU, 1,
+                                   &vmstate_domain, viommu_domain),
+        VMSTATE_GTREE_DIRECT_KEY_V(endpoints, VirtIOIOMMU, 1,
+                                   &vmstate_endpoint, viommu_endpoint),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 
 static const VMStateDescription vmstate_virtio_iommu = {
     .name = "virtio-iommu",
