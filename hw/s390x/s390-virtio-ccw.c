@@ -330,15 +330,7 @@ static void s390_machine_reset(MachineState *machine)
     s390_cmma_reset();
 
     switch (reset_type) {
-    case S390_RESET_EXTERNAL:
-    case S390_RESET_REIPL:
-        qemu_devices_reset();
-        s390_crypto_reset();
-
-        /* configure and start the ipl CPU only */
-        run_on_cpu(cs, s390_do_cpu_ipl, RUN_ON_CPU_NULL);
-        break;
-    case S390_RESET_MODIFIED_CLEAR:
+    case S390_RESET_MODIFIED_CLEAR: /* Subcode 0 */
         CPU_FOREACH(t) {
             run_on_cpu(t, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
         }
@@ -346,7 +338,7 @@ static void s390_machine_reset(MachineState *machine)
         s390_crypto_reset();
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
         break;
-    case S390_RESET_LOAD_NORMAL:
+    case S390_RESET_LOAD_NORMAL: /* Subcode 1 */
         CPU_FOREACH(t) {
             if (t == cs) {
                 continue;
@@ -356,6 +348,14 @@ static void s390_machine_reset(MachineState *machine)
         subsystem_reset();
         run_on_cpu(cs, s390_do_cpu_initial_reset, RUN_ON_CPU_NULL);
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
+        break;
+    case S390_RESET_EXTERNAL: /* Externally triggered reboot */
+    case S390_RESET_REIPL: /* Subcode 4 */
+        qemu_devices_reset();
+        s390_crypto_reset();
+
+        /* configure and start the ipl CPU only */
+        run_on_cpu(cs, s390_do_cpu_ipl, RUN_ON_CPU_NULL);
         break;
     default:
         g_assert_not_reached();
