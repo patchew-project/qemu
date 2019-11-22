@@ -13,6 +13,7 @@
 #include "qapi/visitor.h"
 #include "chardev/char.h"
 #include "qemu/uuid.h"
+#include "qemu/cutils.h"
 
 void qdev_prop_set_after_realize(DeviceState *dev, const char *name,
                                   Error **errp)
@@ -583,6 +584,95 @@ const PropertyInfo qdev_prop_macaddr = {
     .description = "Ethernet 6-byte MAC Address, example: 52:54:00:12:34:56",
     .get   = get_mac,
     .set   = set_mac,
+};
+
+/* --- Labelled Interval --- */
+
+/*
+ * accepted syntax versions:
+ *   <low address>,<high address>,<type>
+ *   where low/high addresses are uint64_t in hexa (feat. 0x prefix)
+ *   and type is an unsigned integer
+ */
+static void get_interval(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    Interval *interval = qdev_get_prop_ptr(dev, prop);
+    char buffer[64];
+    char *p = buffer;
+
+    snprintf(buffer, sizeof(buffer), "0x%"PRIx64",0x%"PRIx64",%d",
+             interval->low, interval->high, interval->type);
+
+    visit_type_str(v, name, &p, errp);
+}
+
+static void set_interval(Object *obj, Visitor *v, const char *name,
+                         void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    Interval *interval = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    unsigned int type;
+    gchar **fields;
+    uint64_t addr;
+    char *str;
+    int ret;
+
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_str(v, name, &str, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    fields = g_strsplit(str, ",", 3);
+
+    ret = qemu_strtou64(fields[0], NULL, 16, &addr);
+    if (!ret) {
+        interval->low = addr;
+    } else {
+        error_setg(errp, "Failed to decode interval low addr");
+        error_append_hint(errp,
+                          "should be an address in hexa with 0x prefix\n");
+        goto out;
+    }
+
+    ret = qemu_strtou64(fields[1], NULL, 16, &addr);
+    if (!ret) {
+        interval->high = addr;
+    } else {
+        error_setg(errp, "Failed to decode interval high addr");
+        error_append_hint(errp,
+                          "should be an address in hexa with 0x prefix\n");
+        goto out;
+    }
+
+    ret = qemu_strtoui(fields[2], NULL, 10, &type);
+    if (!ret) {
+        interval->type = type;
+    } else {
+        error_setg(errp, "Failed to decode interval type");
+        error_append_hint(errp, "should be an unsigned int in decimal\n");
+    }
+out:
+    g_free(str);
+    g_strfreev(fields);
+    return;
+}
+
+const PropertyInfo qdev_prop_interval = {
+    .name  = "labelled_interval",
+    .description = "Labelled interval, example: 0xFEE00000,0xFEEFFFFF,0",
+    .get   = get_interval,
+    .set   = set_interval,
 };
 
 /* --- on/off/auto --- */
