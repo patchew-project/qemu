@@ -146,6 +146,9 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
                   uint64_t *result);
 int qemu_strtod(const char *nptr, const char **endptr, double *result);
 int qemu_strtod_finite(const char *nptr, const char **endptr, double *result);
+int qemu_strtold(const char *nptr, const char **endptr, long double *result);
+int qemu_strtold_finite(const char *nptr, const char **endptr,
+                        long double *result);
 
 int parse_uint(const char *s, unsigned long long *value, char **endptr,
                int base);

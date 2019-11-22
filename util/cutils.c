@@ -553,7 +553,7 @@ int qemu_strtou64(const char *nptr, const char **endptr, int base,
 
 /**
  * Convert string @nptr to a double.
-  *
+ *
  * This is a wrapper around strtod() that is harder to misuse.
  * Semantics of @nptr and @endptr match strtod() with differences
  * noted below.
@@ -603,6 +603,52 @@ int qemu_strtod_finite(const char *nptr, const char **endptr, double *result)
     int ret;
 
     ret = qemu_strtod(nptr, endptr, &tmp);
+    if (!ret && !isfinite(tmp)) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        ret = -EINVAL;
+    }
+
+    if (ret != -EINVAL) {
+        *result = tmp;
+    }
+    return ret;
+}
+
+/*
+ * Convert string @nptr to a long double.
+ *
+ * Works like qemu_strtod(), except it stores long double.
+ */
+int qemu_strtold(const char *nptr, const char **endptr, long double *result)
+{
+    char *ep;
+
+    if (!nptr) {
+        if (endptr) {
+            *endptr = nptr;
+        }
+        return -EINVAL;
+    }
+
+    errno = 0;
+    *result = strtold(nptr, &ep);
+    return check_strtox_error(nptr, ep, endptr, errno);
+}
+
+/*
+ * Convert string @nptr to a finite long double.
+ *
+ * Works like qemu_strtod_finite(), except it stores long double.
+ */
+int qemu_strtold_finite(const char *nptr, const char **endptr,
+                        long double *result)
+{
+    long double tmp;
+    int ret;
+
+    ret = qemu_strtold(nptr, endptr, &tmp);
     if (!ret && !isfinite(tmp)) {
         if (endptr) {
             *endptr = nptr;
