@@ -2744,6 +2744,72 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     return true;
 }
 
+static inline void
+fill_iort_idmap(AcpiIortIdMapping *idmap, int i,
+                uint32_t input_base, uint32_t id_count,
+                uint32_t output_base, uint32_t output_reference)
+{
+    idmap[i].input_base = cpu_to_le32(input_base);
+    idmap[i].id_count = cpu_to_le32(id_count);
+    idmap[i].output_base = cpu_to_le32(output_base);
+    idmap[i].output_reference = cpu_to_le32(output_reference);
+}
+
+static void
+build_iort(GArray *table_data, BIOSLinker *linker, PCMachineState *pcms)
+{
+    size_t iommu_node_size, rc_node_size, iommu_node_offset;
+    int iort_start = table_data->len;
+    AcpiIortPVIommuPCI *iommu;
+    AcpiIortIdMapping *idmap;
+    AcpiIortTable *iort;
+    size_t iort_length;
+    AcpiIortRC *rc;
+
+    iort = acpi_data_push(table_data, sizeof(*iort));
+    iort_length = sizeof(*iort);
+    iort->node_count = cpu_to_le32(2);
+
+    /* virtio-iommu node */
+
+    iommu_node_offset = sizeof(*iort);
+    iort->node_offset = cpu_to_le32(iommu_node_offset);
+    iommu_node_size = sizeof(*iommu);
+    iort_length += iommu_node_offset;
+    iommu = acpi_data_push(table_data, iommu_node_size);
+    iommu->type = ACPI_IORT_NODE_PARAVIRT;
+    iommu->length = cpu_to_le16(iommu_node_size);
+    iommu->mapping_count = 0;
+    iommu->devid = cpu_to_le32(pcms->virtio_iommu_bdf);
+    iommu->model = cpu_to_le32(ACPI_IORT_NODE_PV_VIRTIO_IOMMU_PCI);
+
+    /* Root Complex Node */
+    rc_node_size = sizeof(*rc) + 2 * sizeof(*idmap);
+    iort_length += rc_node_size;
+    rc = acpi_data_push(table_data, rc_node_size);
+
+    rc->type = ACPI_IORT_NODE_PCI_ROOT_COMPLEX;
+    rc->length = cpu_to_le16(rc_node_size);
+    rc->mapping_count = cpu_to_le32(2);
+    rc->mapping_offset = cpu_to_le32(sizeof(*rc));
+
+    /* fully coherent device */
+    rc->memory_properties.cache_coherency = cpu_to_le32(1);
+    rc->memory_properties.memory_flags = 0x3; /* CCA = CPM = DCAS = 1 */
+    rc->pci_segment_number = 0; /* MCFG pci_segment */
+    fill_iort_idmap(rc->id_mapping_array, 0, 0, pcms->virtio_iommu_bdf, 0,
+                    iommu_node_offset);
+    fill_iort_idmap(rc->id_mapping_array, 1, pcms->virtio_iommu_bdf + 1,
+                    0xFFFF - pcms->virtio_iommu_bdf,
+                    pcms->virtio_iommu_bdf + 1, iommu_node_offset);
+
+    iort = (AcpiIortTable *)(table_data->data + iort_start);
+    iort->length = cpu_to_le32(iort_length);
+
+    build_header(linker, table_data, (void *)(table_data->data + iort_start),
+                 "IORT", table_data->len - iort_start, 0, NULL, NULL);
+}
+
 static
 void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 {
@@ -2835,6 +2901,12 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
             build_slit(tables_blob, tables->linker, machine);
         }
     }
+
+    if (pcms->virtio_iommu) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_iort(tables_blob, tables->linker, pcms);
+    }
+
     if (acpi_get_mcfg(&mcfg)) {
         acpi_add_table(table_offsets, tables_blob);
         build_mcfg(tables_blob, tables->linker, &mcfg);
