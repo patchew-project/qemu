@@ -216,13 +216,13 @@ static int do_strtosz(const char *nptr, const char **end,
     const char *endptr;
     unsigned char c;
     int mul_required = 0;
-    double val, mul, integral, fraction;
+    long double val, mul, integral, fraction;
 
-    retval = qemu_strtod_finite(nptr, &endptr, &val);
+    retval = qemu_strtold_finite(nptr, &endptr, &val);
     if (retval) {
         goto out;
     }
-    fraction = modf(val, &integral);
+    fraction = modfl(val, &integral);
     if (fraction != 0) {
         mul_required = 1;
     }
@@ -238,11 +238,8 @@ static int do_strtosz(const char *nptr, const char **end,
         retval = -EINVAL;
         goto out;
     }
-    /*
-     * Values >= 0xfffffffffffffc00 overflow uint64_t after their trip
-     * through double (53 bits of precision).
-     */
-    if ((val * mul >= 0xfffffffffffffc00) || val < 0) {
+    /* Values > UINT64_MAX overflow uint64_t */
+    if ((val * mul > UINT64_MAX) || val < 0) {
         retval = -ERANGE;
         goto out;
     }
