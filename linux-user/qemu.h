@@ -371,6 +371,10 @@ extern long safe_syscall_base(int *pending, long number, ...);
 int host_to_target_waitstatus(int status);
 
 /* strace.c */
+const struct syscallname *print_syscall_prologue_num(int num);
+void print_syscall_late(const struct syscallname *sc,
+              abi_long arg1, abi_long arg2, abi_long arg3,
+              abi_long arg4, abi_long arg5, abi_long arg6);
 void print_syscall(int num,
                    abi_long arg1, abi_long arg2, abi_long arg3,
                    abi_long arg4, abi_long arg5, abi_long arg6);

@@ -12069,6 +12069,21 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     return ret;
 }
 
+/*
+ * True if this syscall should be printed after having called the native
+ * syscall, so that values which are fed back to userspace gets printed.
+ */
+static int is_print_syscall_late(int syscall)
+{
+    switch (syscall) {
+    case TARGET_NR_getcwd:
+    case TARGET_NR_read:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg2, abi_long arg3, abi_long arg4,
                     abi_long arg5, abi_long arg6, abi_long arg7,
@@ -12095,9 +12110,20 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                          arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
     if (unlikely(do_strace)) {
-        print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+        const struct syscallname *sc;
+        int late_printing;
+
+        late_printing = is_print_syscall_late(num);
+        if (late_printing) {
+            sc = print_syscall_prologue_num(num);
+        } else {
+            print_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
         ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,
                           arg5, arg6, arg7, arg8);
+        if (late_printing) {
+            print_syscall_late(sc, arg1, arg2, arg3, arg4, arg5, arg6);
+        }
         print_syscall_ret(num, ret);
     } else {
         ret = do_syscall1(cpu_env, num, arg1, arg2, arg3, arg4,

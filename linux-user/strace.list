@@ -272,7 +272,7 @@
 { TARGET_NR_getcpu, "getcpu" , "%s(%p,%d)", NULL, NULL },
 #endif
 #ifdef TARGET_NR_getcwd
-{ TARGET_NR_getcwd, "getcwd" , "%s(%p,%d)", NULL, NULL },
+{ TARGET_NR_getcwd, "getcwd" , NULL, print_getcwd, NULL },
 #endif
 #ifdef TARGET_NR_getdents
 { TARGET_NR_getdents, "getdents" , NULL, NULL, NULL },
@@ -1080,7 +1080,7 @@
 { TARGET_NR_quotactl, "quotactl" , NULL, NULL, NULL },
 #endif
 #ifdef TARGET_NR_read
-{ TARGET_NR_read, "read" , "%s(%d,%#x,%d)", NULL, NULL },
+{ TARGET_NR_read, "read" , NULL, print_read, NULL },
 #endif
 #ifdef TARGET_NR_readahead
 { TARGET_NR_readahead, "readahead" , NULL, NULL, NULL },
