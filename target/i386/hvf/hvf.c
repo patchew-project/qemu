@@ -641,14 +641,18 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
         switch (idtvec_info & VMCS_IDT_VEC_TYPE) {
         case VMCS_IDT_VEC_HWINTR:
         case VMCS_IDT_VEC_SWINTR:
-            env->interrupt_injected = idtvec_info & VMCS_IDT_VEC_VECNUM;
+            /* Save event type as well so we can inject the correct type. */
+            env->interrupt_injected =
+                idtvec_info & (VMCS_IDT_VEC_TYPE | VMCS_IDT_VEC_VECNUM);
             break;
         case VMCS_IDT_VEC_NMI:
             env->nmi_injected = true;
             break;
         case VMCS_IDT_VEC_HWEXCEPTION:
         case VMCS_IDT_VEC_SWEXCEPTION:
-            env->exception_nr = idtvec_info & VMCS_IDT_VEC_VECNUM;
+            /* Save event type as well so we can inject the correct type. */
+            env->exception_nr =
+                idtvec_info & (VMCS_IDT_VEC_TYPE | VMCS_IDT_VEC_VECNUM);
             env->exception_injected = 1;
             break;
         case VMCS_IDT_VEC_PRIV_SWEXCEPTION:
@@ -658,10 +662,16 @@ static void hvf_store_events(CPUState *cpu, uint32_t ins_len, uint64_t idtvec_in
         if ((idtvec_info & VMCS_IDT_VEC_TYPE) == VMCS_IDT_VEC_SWEXCEPTION ||
             (idtvec_info & VMCS_IDT_VEC_TYPE) == VMCS_IDT_VEC_SWINTR) {
             env->ins_len = ins_len;
+        } else {
+            /* Clear ins_len when it isn't valid. */
+            env->ins_len = 0;
         }
-        if (idtvec_info & VMCS_INTR_DEL_ERRCODE) {
+        if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
             env->has_error_code = true;
             env->error_code = rvmcs(cpu->hvf_fd, VMCS_IDT_VECTORING_ERROR);
+        } else {
+            /* Clear has_error_code when error_code isn't valid. */
+            env->has_error_code = false;
         }
     }
     if ((rvmcs(cpu->hvf_fd, VMCS_GUEST_INTERRUPTIBILITY) &
@@ -942,7 +952,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             macvm_set_rip(cpu, rip + ins_len);
             break;
         case VMX_REASON_VMCALL:
-            env->exception_nr = EXCP0D_GPF;
+            env->exception_nr = VMCS_INTR_T_HWEXCEPTION | EXCP0D_GPF;
             env->exception_injected = 1;
             env->has_error_code = true;
             env->error_code = 0;
