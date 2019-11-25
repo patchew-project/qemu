@@ -166,6 +166,35 @@ void s390_feat_bitmap_to_ascii(const S390FeatBitmap features, void *opaque,
     };
 }
 
+#define DYN_FEAT_GROUP_INIT(_name, _group, _desc)    \
+    [S390_DYN_FEAT_GROUP_ ## _group] = {             \
+        .name = _name,                               \
+        .desc = _desc,                               \
+    }
+
+/*
+ * Dynamic feature groups can change between QEMU versions (or even for the
+ * same version on backports) and depend on the selected CPU definition. Most of
+ * them also depend on the selected accelerator and the host ("max" model). When
+ * used, they turn every model into a migration-unsafe model. Thus, they will
+ * never appear in expaneded CPU models.
+ *
+ * Indexed by dynamic feature group number.
+ */
+static S390DynFeatGroupDef s390_dyn_feature_groups[] = {
+    /* "all" corresponds to our "full" definitions */
+    DYN_FEAT_GROUP_INIT("all-features", ALL, "Features valid for a CPU definition"),
+    /* "recommended" does not include deprecated features. */
+    DYN_FEAT_GROUP_INIT("recommended-features", RECOMMENDED, "Available, recommended features supported by the accelerator in the current host for a CPU definition"),
+    /* "available" includes deprecated features. */
+    DYN_FEAT_GROUP_INIT("available-features", AVAILABLE, "Available features supported by the accelerator in the current host for a CPU definition"),
+};
+
+const S390DynFeatGroupDef *s390_dyn_feat_group_def(S390DynFeatGroup group)
+{
+    return &s390_dyn_feature_groups[group];
+}
+
 #define FEAT_GROUP_INIT(_name, _group, _desc)        \
     {                                                \
         .name = _name,                               \

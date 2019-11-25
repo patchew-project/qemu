@@ -76,7 +76,21 @@ typedef struct {
     S390FeatInit init;      /* used to init feat from generated data */
 } S390FeatGroupDef;
 
+/* Definition of a dynamic CPU feature group */
+typedef struct {
+    const char *name;       /* name exposed to the user */
+    const char *desc;       /* description exposed to the user */
+} S390DynFeatGroupDef;
+
+typedef enum {
+    S390_DYN_FEAT_GROUP_ALL,
+    S390_DYN_FEAT_GROUP_RECOMMENDED,
+    S390_DYN_FEAT_GROUP_AVAILABLE,
+    S390_DYN_FEAT_GROUP_MAX,
+} S390DynFeatGroup;
+
 const S390FeatGroupDef *s390_feat_group_def(S390FeatGroup group);
+const S390DynFeatGroupDef *s390_dyn_feat_group_def(S390DynFeatGroup group);
 
 #define BE_BIT_NR(BIT) (BIT ^ (BITS_PER_LONG - 1))
 

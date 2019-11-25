@@ -417,6 +417,7 @@ static gint s390_cpu_list_compare(gconstpointer a, gconstpointer b)
 
 void s390_cpu_list(void)
 {
+    S390DynFeatGroup dyn_group;
     S390FeatGroup group;
     S390Feat feat;
     GSList *list;
@@ -439,6 +440,14 @@ void s390_cpu_list(void)
 
         qemu_printf("%-20s %-50s\n", def->name, def->desc);
     }
+
+    qemu_printf("\nRecognized dyanmic feature groups:\n");
+    for (dyn_group = 0; dyn_group < S390_DYN_FEAT_GROUP_MAX; dyn_group++) {
+        const S390DynFeatGroupDef *def = s390_dyn_feat_group_def(dyn_group);
+
+        qemu_printf("%-20s %-50s\n", def->name, def->desc);
+    }
+
 }
 
 static S390CPUModel *get_max_cpu_model(Error **errp);
@@ -1081,8 +1090,118 @@ static void set_feature_group(Object *obj, Visitor *v, const char *name,
     }
 }
 
+static bool get_dyn_features(S390DynFeatGroup group, const S390CPUDef *def,
+                             S390FeatBitmap features)
+{
+    const S390CPUModel *max_model;
+    Error *local_err = NULL;
+    int i;
+
+    switch (group) {
+    case S390_DYN_FEAT_GROUP_ALL:
+        bitmap_copy(features, def->full_feat, S390_FEAT_MAX);
+        break;
+    case S390_DYN_FEAT_GROUP_RECOMMENDED:
+    case S390_DYN_FEAT_GROUP_AVAILABLE:
+        if (kvm_enabled() && kvm_s390_cpu_models_supported()) {
+            return false;
+        }
+        max_model = get_max_cpu_model(&local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            return false;
+        }
+
+        /*
+         * Start with "full" feature set and mask off features that are not
+         * available in the "max" model.
+         */
+        bitmap_and(features, def->full_feat, max_model->features,
+                   S390_FEAT_MAX);
+
+        if (group == S390_DYN_FEAT_GROUP_RECOMMENDED) {
+            /* Mask off deprecated (and experimental) features. */
+            clear_bit(S390_FEAT_CONDITIONAL_SSKE, features);
+            /*
+             * Make sure we pass consistency checks (relevant mostly
+             * for TCG where the "max" model will result in warnings).
+             */
+            for (i = 0; i < ARRAY_SIZE(cpu_feature_dependencies); i++) {
+                if (!test_bit(cpu_feature_dependencies[i][1], features)) {
+                    clear_bit(cpu_feature_dependencies[i][0], features);
+                }
+            }
+        }
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    return true;
+}
+
+static void get_dyn_feature_group(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    S390DynFeatGroup group = (S390DynFeatGroup) opaque;
+    S390FeatBitmap tmp, features = {};
+    S390CPU *cpu = S390_CPU(obj);
+    bool value;
+
+    if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                   "features cannot be queried.");
+        return;
+    } else if (!get_dyn_features(group, cpu->model->def, features)) {
+        error_setg(errp, "Details about the dynamic feature group '%s' "
+                   "are not available.", name);
+        return;
+    }
+
+    /* a group is enabled if all features are enabled */
+    bitmap_and(tmp, cpu->model->features, features, S390_FEAT_MAX);
+    value = bitmap_equal(tmp, features, S390_FEAT_MAX);
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void set_dyn_feature_group(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    S390DynFeatGroup group = (S390DynFeatGroup) opaque;
+    S390FeatBitmap features = {};
+    DeviceState *dev = DEVICE(obj);
+    S390CPU *cpu = S390_CPU(obj);
+    bool value;
+
+    if (dev->realized) {
+        error_setg(errp, "Attempt to set property '%s' on '%s' after "
+                   "it was realized", name, object_get_typename(obj));
+        return;
+    } else if (!cpu->model) {
+        error_setg(errp, "Details about the host CPU model are not available, "
+                   "features cannot be changed.");
+        return;
+    } else if (!get_dyn_features(group, cpu->model->def, features)) {
+        error_setg(errp, "Details about the dynamic feature group '%s' "
+                   "are not available.", name);
+        return;
+    }
+
+    visit_type_bool(v, name, &value, errp);
+    if (*errp) {
+        return;
+    }
+    if (value) {
+        bitmap_or(cpu->model->features, cpu->model->features, features,
+                  S390_FEAT_MAX);
+    } else {
+        bitmap_andnot(cpu->model->features, cpu->model->features, features,
+                      S390_FEAT_MAX);
+    }
+}
+
 void s390_cpu_model_register_props(Object *obj)
 {
+    S390DynFeatGroup dyn_group;
     S390FeatGroup group;
     S390Feat feat;
 
@@ -1096,6 +1215,14 @@ void s390_cpu_model_register_props(Object *obj)
         const S390FeatGroupDef *def = s390_feat_group_def(group);
         object_property_add(obj, def->name, "bool", get_feature_group,
                             set_feature_group, NULL, (void *) group, NULL);
+        object_property_set_description(obj, def->name, def->desc , NULL);
+    }
+    for (dyn_group = 0; dyn_group < S390_DYN_FEAT_GROUP_MAX; dyn_group++) {
+        const S390DynFeatGroupDef *def = s390_dyn_feat_group_def(dyn_group);
+
+        object_property_add(obj, def->name, "bool", get_dyn_feature_group,
+                            set_dyn_feature_group, NULL, (void *) dyn_group,
+                            NULL);
         object_property_set_description(obj, def->name, def->desc , NULL);
     }
 }
