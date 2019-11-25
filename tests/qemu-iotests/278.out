@@ -1,0 +1,197 @@
+QA output created by 278
+
+testing LUKS qcow2 encryption
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 512
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2078208
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/2048 = 0.05% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2079232
+
+== writing some more data ==
+wrote 1/1 bytes at offset 512
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/2048 = 0.10% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2079744
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 1024
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2075648
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/1024 = 0.10% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2077696
+
+== writing some more data ==
+wrote 1/1 bytes at offset 1024
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/1024 = 0.20% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2078720
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 2048
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2076672
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/512 = 0.20% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2080768
+
+== writing some more data ==
+wrote 1/1 bytes at offset 2048
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/512 = 0.39% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2082816
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 4096
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2084864
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/256 = 0.39% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2093056
+
+== writing some more data ==
+wrote 1/1 bytes at offset 4096
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/256 = 0.78% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2097152
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 8192
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2105344
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/128 = 0.78% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2121728
+
+== writing some more data ==
+wrote 1/1 bytes at offset 8192
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/128 = 1.56% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2129920
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 16384
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2146304
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/64 = 1.56% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2179072
+
+== writing some more data ==
+wrote 1/1 bytes at offset 16384
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/64 = 3.12% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2195456
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 32768
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2228224
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/32 = 3.12% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2293760
+
+== writing some more data ==
+wrote 1/1 bytes at offset 32768
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/32 = 6.25% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2326528
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 encrypt.format=luks encrypt.key-secret=sec0 encrypt.iter-time=10
+
+== cluster size 65536
+== checking image refcounts ==
+No errors were found on the image.
+Image end offset: 2359296
+
+== writing some data ==
+wrote 1/1 bytes at offset 0
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+1/16 = 6.25% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2490368
+
+== writing some more data ==
+wrote 1/1 bytes at offset 65536
+1 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== rechecking image refcounts ==
+No errors were found on the image.
+2/16 = 12.50% allocated, 0.00% fragmented, 0.00% compressed clusters
+Image end offset: 2555904
+*** done
