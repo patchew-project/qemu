@@ -281,11 +281,34 @@ struct virtio_net_ctrl_ebpf_prog {
 	uint8_t insns[0];
 };
 
+struct virtio_net_ctrl_ebpf_map {
+	__virtio32 buf_len;
+	__virtio32 cmd;
+	__virtio32 map_type;
+	__virtio32 key_size;
+	__virtio32 value_size;
+	__virtio32 max_entries;
+	__virtio32 map_flags;
+	__virtio32 map_fd;
+	__virtio64 flags;
+	uint8_t buf[0];
+};
+
 #define VIRTIO_NET_CTRL_EBPF 	6
  #define VIRTIO_NET_CTRL_EBPF_PROG 1
+ #define VIRTIO_NET_CTRL_EBPF_MAP 2
 
 /* Commands for VIRTIO_NET_CTRL_EBPF_PROG */
 #define VIRTIO_NET_BPF_CMD_SET_OFFLOAD 1
 #define VIRTIO_NET_BPF_CMD_UNSET_OFFLOAD 2
+
+/* Commands for VIRTIO_NET_CTRL_EBPF_MAP */
+#define VIRTIO_NET_BPF_CMD_CREATE_MAP 1
+#define VIRTIO_NET_BPF_CMD_FREE_MAP 2
+#define VIRTIO_NET_BPF_CMD_UPDATE_ELEM 3
+#define VIRTIO_NET_BPF_CMD_LOOKUP_ELEM 4
+#define VIRTIO_NET_BPF_CMD_DELETE_ELEM 5
+#define VIRTIO_NET_BPF_CMD_GET_FIRST 6
+#define VIRTIO_NET_BPF_CMD_GET_NEXT 7
 
 #endif /* _LINUX_VIRTIO_NET_H */

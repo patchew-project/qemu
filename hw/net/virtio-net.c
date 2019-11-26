@@ -1011,6 +1011,92 @@ static int virtio_net_handle_offloads(VirtIONet *n, uint8_t cmd,
     }
 }
 
+static int virtio_net_handle_ebpf_map(VirtIONet *n, struct iovec *iov,
+                                      unsigned int iov_cnt)
+{
+#ifdef CONFIG_LIBBPF
+    struct virtio_net_ctrl_ebpf_map *ctrl = NULL;
+    struct bpf_create_map_attr map_attr = {};
+    uint8_t *key, *val;
+    uint32_t buf_len;
+    int fd, err = 0;
+    size_t s;
+
+    s = iov_to_buf(iov, iov_cnt, 0, &buf_len, sizeof(buf_len));
+    if (s != sizeof(buf_len)) {
+        goto err;
+    }
+
+    ctrl = malloc(sizeof(*ctrl) + buf_len);
+    if (!ctrl) {
+        goto err;
+    }
+
+    s = iov_to_buf(iov, iov_cnt, 0, ctrl, sizeof(*ctrl) + buf_len);
+    if (s != (sizeof(*ctrl) + buf_len)) {
+        error_report("Invalid map control buffer");
+        goto err;
+    }
+
+    key = ctrl->buf;
+    val = ctrl->buf + ctrl->key_size;
+
+    switch (ctrl->cmd) {
+    case VIRTIO_NET_BPF_CMD_CREATE_MAP:
+        map_attr.map_type = ctrl->map_type;
+        map_attr.map_flags = ctrl->map_flags;
+        map_attr.key_size = ctrl->key_size;
+        map_attr.value_size = ctrl->value_size;
+        map_attr.max_entries = ctrl->max_entries;
+        fd = bpf_create_map_xattr(&map_attr);
+        if (fd < 0) {
+            goto err;
+        }
+        ctrl->map_fd = fd;
+        break;
+    case VIRTIO_NET_BPF_CMD_FREE_MAP:
+        close(ctrl->map_fd);
+        break;
+    case VIRTIO_NET_BPF_CMD_LOOKUP_ELEM:
+        err = bpf_map_lookup_elem(ctrl->map_fd, key, val);
+        break;
+    case VIRTIO_NET_BPF_CMD_GET_FIRST:
+        err = bpf_map_get_next_key(ctrl->map_fd, NULL, val);
+        break;
+    case VIRTIO_NET_BPF_CMD_GET_NEXT:
+        err = bpf_map_get_next_key(ctrl->map_fd, key, val);
+        break;
+    case VIRTIO_NET_BPF_CMD_UPDATE_ELEM:
+        err = bpf_map_update_elem(ctrl->map_fd, key, val, ctrl->flags);
+        break;
+    case VIRTIO_NET_BPF_CMD_DELETE_ELEM:
+        err = bpf_map_delete_elem(ctrl->map_fd, key);
+    default:
+        error_report("map operation not implemented %d", ctrl->cmd);
+        goto err;
+    }
+
+    if (err) {
+        goto err;
+    }
+
+    s = iov_from_buf(iov, iov_cnt, 0, ctrl, sizeof(*ctrl) + buf_len);
+    if (s != sizeof(*ctrl) + buf_len) {
+        error_report("failed to write map operation result");
+        goto err;
+    }
+
+    free(ctrl);
+    return VIRTIO_NET_OK;
+
+err:
+    if (ctrl) {
+        free(ctrl);
+    }
+#endif
+    return VIRTIO_NET_ERR;
+}
+
 static int virtio_net_handle_ebpf_prog(VirtIONet *n, struct iovec *iov,
                                        unsigned int iov_cnt)
 {
@@ -1053,6 +1139,8 @@ static int virtio_net_handle_ebpf(VirtIONet *n, uint8_t cmd,
 {
     if (cmd == VIRTIO_NET_CTRL_EBPF_PROG) {
         return virtio_net_handle_ebpf_prog(n, iov, iov_cnt);
+    } else if (cmd == VIRTIO_NET_CTRL_EBPF_MAP) {
+        return virtio_net_handle_ebpf_map(n, iov, iov_cnt);
     }
 
     return VIRTIO_NET_ERR;
