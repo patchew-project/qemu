@@ -504,6 +504,7 @@ debug_mutex="no"
 libpmem=""
 default_devices="yes"
 plugins="no"
+libbpf="no"
 
 supported_cpu="no"
 supported_os="no"
@@ -1539,6 +1540,8 @@ for opt do
   ;;
   --disable-plugins) plugins="no"
   ;;
+  --enable-libbpf) libbpf="yes"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1825,6 +1828,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   debug-mutex     mutex debugging support
   libpmem         libpmem support
   xkbcommon       xkbcommon support
+  libbpf      eBPF program support
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -6084,6 +6088,19 @@ case "$slirp" in
     ;;
 esac
 
+##########################################
+# Do we have libbpf
+if test "$libbpf" != "no" ; then
+  if $pkg_config libbpf; then
+    libbpf="yes"
+    libbpf_libs=$($pkg_config --libs libbpf)
+  else
+    if test "$libbpf" == "yes" ; then
+      feature_not_found "libbpf" "Install libbpf devel"
+    fi
+    libbpf="no"
+  fi
+fi
 
 ##########################################
 # End of CC checks
@@ -6599,6 +6616,7 @@ echo "libpmem support   $libpmem"
 echo "libudev           $libudev"
 echo "default devices   $default_devices"
 echo "plugin support    $plugins"
+echo "XDP offload support $libbpf"
 
 if test "$supported_cpu" = "no"; then
     echo
@@ -7455,6 +7473,11 @@ if test "$plugins" = "yes" ; then
 	    "If \$plugins=yes, either \$ld_dynamic_list or " \
 	    "\$ld_exported_symbols_list should have been set to 'yes'."
     fi
+fi
+
+if test "$libbpf" = "yes" ; then
+  echo "CONFIG_LIBBPF=y" >> $config_host_mak
+  echo "LIBBPF_LIBS=$libbpf_libs" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
