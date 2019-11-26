@@ -43,6 +43,11 @@
 #include "monitor/qdev.h"
 #include "hw/pci/pci.h"
 
+#ifdef CONFIG_LIBBPF
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
+#endif
+
 #define VIRTIO_NET_VM_VERSION    11
 
 #define MAC_TABLE_ENTRIES    64
@@ -628,6 +633,21 @@ static int peer_attach(VirtIONet *n, int index)
     return tap_enable(nc->peer);
 }
 
+static int peer_attach_ebpf(VirtIONet *n, int len, void *insns, uint8_t gpl)
+{
+    NetClientState *nc = qemu_get_subqueue(n->nic, 0);
+
+    if (!nc->peer) {
+        return 0;
+    }
+
+    if (nc->peer->info->type != NET_CLIENT_DRIVER_TAP) {
+        return 0;
+    }
+
+    return tap_attach_ebpf(nc->peer, len, insns, gpl);
+}
+
 static int peer_detach(VirtIONet *n, int index)
 {
     NetClientState *nc = qemu_get_subqueue(n->nic, index);
@@ -991,6 +1011,53 @@ static int virtio_net_handle_offloads(VirtIONet *n, uint8_t cmd,
     }
 }
 
+static int virtio_net_handle_ebpf_prog(VirtIONet *n, struct iovec *iov,
+                                       unsigned int iov_cnt)
+{
+#ifdef CONFIG_LIBBPF
+    struct bpf_insn prog[4096];
+    struct virtio_net_ctrl_ebpf_prog ctrl;
+    size_t s;
+    int err = VIRTIO_NET_ERR;
+
+    s = iov_to_buf(iov, iov_cnt, 0, &ctrl, sizeof(ctrl));
+    if (s != sizeof(ctrl)) {
+        error_report("Invalid ebpf prog control buffer");
+        goto err;
+    }
+
+    if (ctrl.cmd == VIRTIO_NET_BPF_CMD_SET_OFFLOAD) {
+        s = iov_to_buf(iov, iov_cnt, sizeof(ctrl), prog, sizeof(prog));
+        if (s != ctrl.len) {
+            error_report("Invalid ebpf prog control buffer");
+            goto err;
+        }
+
+        err = peer_attach_ebpf(n, s, prog, ctrl.gpl_compatible);
+            if (err) {
+                error_report("Failed to attach XDP program");
+                goto err;
+            }
+    } else if (ctrl.cmd == VIRTIO_NET_BPF_CMD_UNSET_OFFLOAD) {
+        err = peer_attach_ebpf(n, 0, NULL, 0);
+    }
+err:
+    return err ? VIRTIO_NET_ERR : VIRTIO_NET_OK;
+#else
+    return VIRTIO_NET_ERR;
+#endif
+}
+
+static int virtio_net_handle_ebpf(VirtIONet *n, uint8_t cmd,
+                                  struct iovec *iov, unsigned int iov_cnt)
+{
+    if (cmd == VIRTIO_NET_CTRL_EBPF_PROG) {
+        return virtio_net_handle_ebpf_prog(n, iov, iov_cnt);
+    }
+
+    return VIRTIO_NET_ERR;
+}
+
 static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
                                  struct iovec *iov, unsigned int iov_cnt)
 {
@@ -1208,6 +1275,8 @@ static void virtio_net_handle_ctrl(VirtIODevice *vdev, VirtQueue *vq)
             status = virtio_net_handle_mq(n, ctrl.cmd, iov, iov_cnt);
         } else if (ctrl.class == VIRTIO_NET_CTRL_GUEST_OFFLOADS) {
             status = virtio_net_handle_offloads(n, ctrl.cmd, iov, iov_cnt);
+        } else if (ctrl.class == VIRTIO_NET_CTRL_EBPF) {
+            status = virtio_net_handle_ebpf(n, ctrl.cmd, iov, iov_cnt);
         }
 
         s = iov_from_buf(elem->in_sg, elem->in_num, 0, &status, sizeof(status));

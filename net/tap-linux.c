@@ -31,6 +31,8 @@
 
 #include <net/if.h>
 #include <sys/ioctl.h>
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -313,4 +315,50 @@ int tap_fd_get_ifname(int fd, char *ifname)
 
     pstrcpy(ifname, sizeof(ifr.ifr_name), ifr.ifr_name);
     return 0;
+}
+
+int tap_fd_attach_ebpf(int fd, int len, void *insns, uint8_t gpl)
+{
+#ifdef CONFIG_LIBBPF
+    struct bpf_insn *prog = (struct bpf_insn *)insns;
+    static char log_buf[65536];
+    char license[16] = {0};
+    int num_insn;
+    int bpf_fd;
+    int ret;
+
+    if (!prog) {
+        bpf_fd = -1;
+        ret = ioctl(fd, TUNSETOFFLOADEDXDP, &bpf_fd);
+        if (ret) {
+            error_report("Failed to remove offloaded XDP: %s", strerror(errno));
+            return -EFAULT;
+        }
+        return ret;
+    }
+
+    num_insn = len / sizeof(prog[0]);
+    if (gpl) {
+        strncpy(license, "GPL", sizeof(license));
+    }
+
+    bpf_fd = bpf_load_program(BPF_PROG_TYPE_XDP, prog, num_insn, license,
+                              0, log_buf, sizeof(log_buf));
+    if (bpf_fd < 0) {
+        error_report("Failed to load XDP program: %s", strerror(errno));
+        error_report("ebpf verifier log: %s", log_buf);
+        return -EFAULT;
+    }
+
+    ret = ioctl(fd, TUNSETOFFLOADEDXDP, &bpf_fd);
+    if (ret) {
+        error_report("Failed to set offloaded XDP: %s", strerror(errno));
+        return -EFAULT;
+    }
+    close(bpf_fd);
+
+    return ret;
+#else
+    return -EINVAL;
+#endif
 }

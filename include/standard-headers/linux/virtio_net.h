@@ -261,4 +261,31 @@ struct virtio_net_ctrl_mq {
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS   5
 #define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET        0
 
+/*
+ * Control XDP offloads offloads
+ *
+ * When guest wants to offload XDP program to tap device, it calls
+ * VIRTIO_NET_CTRL_EBPF_PROG along with VIRTIO_NET_BPF_CMD_SET_OFFLOAD
+ * subcommands. When offloading is successful, the tap device run offloaded
+ * XDP program for each packet before sending it to the guest.
+ *
+ * VIRTIO_NET_BPF_CMD_UNSET_OFFLOAD removes the the offloaded program from
+ * the tap device, if exists.
+ */
+
+struct virtio_net_ctrl_ebpf_prog {
+	/* program length in bytes */
+	__virtio32 len;
+	__virtio16 cmd;
+	__virtio16 gpl_compatible;
+	uint8_t insns[0];
+};
+
+#define VIRTIO_NET_CTRL_EBPF 	6
+ #define VIRTIO_NET_CTRL_EBPF_PROG 1
+
+/* Commands for VIRTIO_NET_CTRL_EBPF_PROG */
+#define VIRTIO_NET_BPF_CMD_SET_OFFLOAD 1
+#define VIRTIO_NET_BPF_CMD_UNSET_OFFLOAD 2
+
 #endif /* _LINUX_VIRTIO_NET_H */
