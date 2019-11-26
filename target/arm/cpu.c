@@ -313,13 +313,30 @@ static void arm_cpu_reset(CPUState *s)
             initial_msp = ldl_p(rom);
             initial_pc = ldl_p(rom + 4);
         } else {
-            /* Address zero not covered by a ROM blob, or the ROM blob
-             * is in non-modifiable memory and this is a second reset after
-             * it got copied into memory. In the latter case, rom_ptr
-             * will return a NULL pointer and we should use ldl_phys instead.
-             */
-            initial_msp = ldl_phys(s->as, vecbase);
-            initial_pc = ldl_phys(s->as, vecbase + 4);
+            /* See if the ROM blob is aliased somewhere */
+            hwaddr len = 0, xlat = 0;
+            MemoryRegion *mr = address_space_translate(s->as, vecbase, &xlat,
+                    &len, false, MEMTXATTRS_UNSPECIFIED);
+
+            if (mr) {
+                rom = rom_ptr(mr->addr + xlat, 8);
+            }
+
+            if (rom) {
+                initial_msp = ldl_p(rom);
+                initial_pc = ldl_p(rom + 4);
+            } else {
+
+                /*
+                 * Address zero not covered by a ROM blob, or the ROM blob
+                 * is in non-modifiable memory and this is a second reset after
+                 * it got copied into memory. In the latter case, rom_ptr
+                 * will return a NULL pointer and we should use ldl_phys
+                 * instead.
+                 */
+                initial_msp = ldl_phys(s->as, vecbase);
+                initial_pc = ldl_phys(s->as, vecbase + 4);
+            }
         }
 
         env->regs[13] = initial_msp & 0xFFFFFFFC;
