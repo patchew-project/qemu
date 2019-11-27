@@ -977,8 +977,8 @@ static void bdrv_temp_snapshot_options(int *child_flags, QDict *child_options,
 }
 
 /*
- * Returns the options and flags that bs->file should get if a protocol driver
- * is expected, based on the given options and flags for the parent BDS
+ * Returns the options and flags that a generic child of a BDS should
+ * get, based on the given options and flags for the parent BDS.
  */
 static void bdrv_inherited_options(BdrvChildRole role,
                                    int *child_flags, QDict *child_options,
@@ -986,8 +986,16 @@ static void bdrv_inherited_options(BdrvChildRole role,
 {
     int flags = parent_flags;
 
-    /* Enable protocol handling, disable format probing for bs->file */
-    flags |= BDRV_O_PROTOCOL;
+    assert((role & (BDRV_CHILD_PROTOCOL | BDRV_CHILD_FORMAT))
+                != (BDRV_CHILD_PROTOCOL | BDRV_CHILD_FORMAT));
+
+    if (role & BDRV_CHILD_PROTOCOL) {
+        /* Enable protocol handling, disable format probing */
+        flags |= BDRV_O_PROTOCOL;
+    } else if (role & BDRV_CHILD_FORMAT) {
+        /* Enable format handling */
+        flags &= ~BDRV_O_PROTOCOL;
+    }
 
     /* If the cache mode isn't explicitly set, inherit direct and no-flush from
      * the parent. */
@@ -995,26 +1003,57 @@ static void bdrv_inherited_options(BdrvChildRole role,
     qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
     qdict_copy_default(child_options, parent_options, BDRV_OPT_FORCE_SHARE);
 
-    /* Inherit the read-only option from the parent if it's not set */
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_AUTO_READ_ONLY);
+    if (role & BDRV_CHILD_COW) {
+        /* backing files always opened read-only */
+        qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
+        qdict_set_default_str(child_options, BDRV_OPT_AUTO_READ_ONLY, "off");
+    } else {
+        /* Inherit the read-only option from the parent if it's not set */
+        qdict_copy_default(child_options, parent_options, BDRV_OPT_READ_ONLY);
+        qdict_copy_default(child_options, parent_options,
+                           BDRV_OPT_AUTO_READ_ONLY);
+    }
 
-    /* Our block drivers take care to send flushes and respect unmap policy,
-     * so we can default to enable both on lower layers regardless of the
-     * corresponding parent options. */
-    qdict_set_default_str(child_options, BDRV_OPT_DISCARD, "unmap");
+    if (role & BDRV_CHILD_PROTOCOL) {
+        /*
+         * Our format drivers (which expect protocol children underneath, hence
+         * the condition) take care to send flushes and respect unmap policy, so
+         * we can default to enable both on lower layers regardless of the
+         * corresponding parent options.
+         */
+        qdict_set_default_str(child_options, BDRV_OPT_DISCARD, "unmap");
+    }
 
     /* Clear flags that only apply to the top layer */
-    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ |
-               BDRV_O_NO_IO);
+    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_NO_BACKING | BDRV_O_COPY_ON_READ);
+
+    if (role & BDRV_CHILD_METADATA) {
+        flags &= ~BDRV_O_NO_IO;
+    }
+    if (role & BDRV_CHILD_COW) {
+        flags &= ~BDRV_O_TEMPORARY;
+    }
 
     *child_flags = flags;
+}
+
+/*
+ * Returns the options and flags that bs->file should get if a protocol driver
+ * is expected, based on the given options and flags for the parent BDS
+ */
+static void bdrv_inherited_file_options(BdrvChildRole role,
+                                        int *child_flags, QDict *child_options,
+                                        int parent_flags, QDict *parent_options)
+{
+    bdrv_inherited_options(BDRV_CHILD_IMAGE,
+                           child_flags, child_options,
+                           parent_flags, parent_options);
 }
 
 const BdrvChildClass child_file = {
     .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
-    .inherit_options = bdrv_inherited_options,
+    .inherit_options = bdrv_inherited_file_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
     .drained_end     = bdrv_child_cb_drained_end,
@@ -1034,10 +1073,9 @@ static void bdrv_inherited_fmt_options(BdrvChildRole role,
                                        int *child_flags, QDict *child_options,
                                        int parent_flags, QDict *parent_options)
 {
-    child_file.inherit_options(role, child_flags, child_options,
-                               parent_flags, parent_options);
-
-    *child_flags &= ~BDRV_O_PROTOCOL;
+    bdrv_inherited_options(BDRV_CHILD_DATA | BDRV_CHILD_FORMAT,
+                           child_flags, child_options,
+                           parent_flags, parent_options);
 }
 
 const BdrvChildClass child_format = {
@@ -1119,23 +1157,9 @@ static void bdrv_backing_options(BdrvChildRole role,
                                  int *child_flags, QDict *child_options,
                                  int parent_flags, QDict *parent_options)
 {
-    int flags = parent_flags;
-
-    /* The cache mode is inherited unmodified for backing files; except WCE,
-     * which is only applied on the top level (BlockBackend) */
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_DIRECT);
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_CACHE_NO_FLUSH);
-    qdict_copy_default(child_options, parent_options, BDRV_OPT_FORCE_SHARE);
-
-    /* backing files always opened read-only */
-    qdict_set_default_str(child_options, BDRV_OPT_READ_ONLY, "on");
-    qdict_set_default_str(child_options, BDRV_OPT_AUTO_READ_ONLY, "off");
-    flags &= ~BDRV_O_COPY_ON_READ;
-
-    /* snapshot=on is handled on the top layer */
-    flags &= ~(BDRV_O_SNAPSHOT | BDRV_O_TEMPORARY);
-
-    *child_flags = flags;
+    bdrv_inherited_options(BDRV_CHILD_COW,
+                           child_flags, child_options,
+                           parent_flags, parent_options);
 }
 
 static int bdrv_backing_update_filename(BdrvChild *c, BlockDriverState *base,
@@ -3021,7 +3045,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                    flags, options);
         /* Let bdrv_backing_options() override "read-only" */
         qdict_del(options, BDRV_OPT_READ_ONLY);
-        bdrv_backing_options(0, &flags, options, flags, options);
+        bdrv_inherited_options(BDRV_CHILD_COW, &flags, options, flags, options);
     }
 
     bs->open_flags = flags;
