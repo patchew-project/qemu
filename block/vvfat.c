@@ -3220,7 +3220,6 @@ err:
 }
 
 static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
-                             const BdrvChildClass *child_class,
                              BdrvChildRole role,
                              BlockReopenQueue *reopen_queue,
                              uint64_t perm, uint64_t shared,
@@ -3228,8 +3227,7 @@ static void vvfat_child_perm(BlockDriverState *bs, BdrvChild *c,
 {
     BDRVVVFATState *s = bs->opaque;
 
-    assert(c == s->qcow ||
-           (child_class == &child_of_bds && (role & BDRV_CHILD_COW)));
+    assert(c == s->qcow || (role & BDRV_CHILD_COW));
 
     if (c == s->qcow) {
         /* This is a private node, nobody should try to attach to it */

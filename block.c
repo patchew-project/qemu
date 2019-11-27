@@ -1744,13 +1744,13 @@ bool bdrv_is_writable(BlockDriverState *bs)
 }
 
 static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
-                            BdrvChild *c, const BdrvChildClass *child_class,
-                            BdrvChildRole role, BlockReopenQueue *reopen_queue,
+                            BdrvChild *c, BdrvChildRole role,
+                            BlockReopenQueue *reopen_queue,
                             uint64_t parent_perm, uint64_t parent_shared,
                             uint64_t *nperm, uint64_t *nshared)
 {
     assert(bs->drv && bs->drv->bdrv_child_perm);
-    bs->drv->bdrv_child_perm(bs, c, child_class, role, reopen_queue,
+    bs->drv->bdrv_child_perm(bs, c, role, reopen_queue,
                              parent_perm, parent_shared,
                              nperm, nshared);
     /* TODO Take force_share from reopen_queue */
@@ -1844,7 +1844,7 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
         uint64_t cur_perm, cur_shared;
         bool child_tighten_restr;
 
-        bdrv_child_perm(bs, c->bs, c, c->klass, c->role, q,
+        bdrv_child_perm(bs, c->bs, c, c->role, q,
                         cumulative_perms, cumulative_shared_perms,
                         &cur_perm, &cur_shared);
         ret = bdrv_child_check_perm(c, q, cur_perm, cur_shared, ignore_children,
@@ -1911,7 +1911,7 @@ static void bdrv_set_perm(BlockDriverState *bs, uint64_t cumulative_perms,
     /* Update all children */
     QLIST_FOREACH(c, &bs->children, next) {
         uint64_t cur_perm, cur_shared;
-        bdrv_child_perm(bs, c->bs, c, c->klass, c->role, NULL,
+        bdrv_child_perm(bs, c->bs, c, c->role, NULL,
                         cumulative_perms, cumulative_shared_perms,
                         &cur_perm, &cur_shared);
         bdrv_child_set_perm(c, cur_perm, cur_shared);
@@ -2138,14 +2138,13 @@ int bdrv_child_refresh_perms(BlockDriverState *bs, BdrvChild *c, Error **errp)
     uint64_t perms, shared;
 
     bdrv_get_cumulative_perm(bs, &parent_perms, &parent_shared);
-    bdrv_child_perm(bs, c->bs, c, c->klass, c->role, NULL,
+    bdrv_child_perm(bs, c->bs, c, c->role, NULL,
                     parent_perms, parent_shared, &perms, &shared);
 
     return bdrv_child_try_set_perm(c, perms, shared, errp);
 }
 
 static void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
-                                      const BdrvChildClass *child_class,
                                       BdrvChildRole role,
                                       BlockReopenQueue *reopen_queue,
                                       uint64_t perm, uint64_t shared,
@@ -2156,13 +2155,12 @@ static void bdrv_filter_default_perms(BlockDriverState *bs, BdrvChild *c,
 }
 
 static void bdrv_default_perms_for_backing(BlockDriverState *bs, BdrvChild *c,
-                                           const BdrvChildClass *child_class,
                                            BdrvChildRole role,
                                            BlockReopenQueue *reopen_queue,
                                            uint64_t perm, uint64_t shared,
                                            uint64_t *nperm, uint64_t *nshared)
 {
-    assert(child_class == &child_of_bds && (role & BDRV_CHILD_COW));
+    assert(role & BDRV_CHILD_COW);
 
     /*
      * We want consistent read from backing files if the parent needs it.
@@ -2193,7 +2191,6 @@ static void bdrv_default_perms_for_backing(BlockDriverState *bs, BdrvChild *c,
 }
 
 static void bdrv_default_perms_for_metadata(BlockDriverState *bs, BdrvChild *c,
-                                            const BdrvChildClass *child_class,
                                             BdrvChildRole role,
                                             BlockReopenQueue *reopen_queue,
                                             uint64_t perm, uint64_t shared,
@@ -2201,7 +2198,7 @@ static void bdrv_default_perms_for_metadata(BlockDriverState *bs, BdrvChild *c,
 {
     int flags;
 
-    assert(child_class == &child_of_bds && (role & BDRV_CHILD_METADATA));
+    assert(role & BDRV_CHILD_METADATA);
 
     flags = bdrv_reopen_get_flags(reopen_queue, bs);
 
@@ -2209,7 +2206,7 @@ static void bdrv_default_perms_for_metadata(BlockDriverState *bs, BdrvChild *c,
      * Apart from the modifications below, the same permissions are
      * forwarded and left alone as for filters
      */
-    bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
+    bdrv_filter_default_perms(bs, c, role, reopen_queue,
                               perm, shared, &perm, &shared);
 
     /* Format drivers may touch metadata even if the guest doesn't write */
@@ -2235,19 +2232,18 @@ static void bdrv_default_perms_for_metadata(BlockDriverState *bs, BdrvChild *c,
 }
 
 static void bdrv_default_perms_for_data(BlockDriverState *bs, BdrvChild *c,
-                                        const BdrvChildClass *child_class,
                                         BdrvChildRole role,
                                         BlockReopenQueue *reopen_queue,
                                         uint64_t perm, uint64_t shared,
                                         uint64_t *nperm, uint64_t *nshared)
 {
-    assert(child_class == &child_of_bds && (role & BDRV_CHILD_DATA));
+    assert(role & BDRV_CHILD_DATA);
 
     /*
      * Apart from the modifications below, the same permissions are
      * forwarded and left alone as for filters
      */
-    bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
+    bdrv_filter_default_perms(bs, c, role, reopen_queue,
                               perm, shared, &perm, &shared);
 
     /*
@@ -2267,24 +2263,21 @@ static void bdrv_default_perms_for_data(BlockDriverState *bs, BdrvChild *c,
 }
 
 void bdrv_default_perms(BlockDriverState *bs, BdrvChild *c,
-                        const BdrvChildClass *child_class, BdrvChildRole role,
-                        BlockReopenQueue *reopen_queue,
+                        BdrvChildRole role, BlockReopenQueue *reopen_queue,
                         uint64_t perm, uint64_t shared,
                         uint64_t *nperm, uint64_t *nshared)
 {
-    assert(child_class == &child_of_bds);
-
     if (role & BDRV_CHILD_FILTERED) {
-        bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
+        bdrv_filter_default_perms(bs, c, role, reopen_queue,
                                   perm, shared, nperm, nshared);
     } else if (role & BDRV_CHILD_COW) {
-        bdrv_default_perms_for_backing(bs, c, child_class, role, reopen_queue,
+        bdrv_default_perms_for_backing(bs, c, role, reopen_queue,
                                        perm, shared, nperm, nshared);
     } else if (role & BDRV_CHILD_METADATA) {
-        bdrv_default_perms_for_metadata(bs, c, child_class, role, reopen_queue,
+        bdrv_default_perms_for_metadata(bs, c, role, reopen_queue,
                                         perm, shared, nperm, nshared);
     } else if (role & BDRV_CHILD_DATA) {
-        bdrv_default_perms_for_data(bs, c, child_class, role, reopen_queue,
+        bdrv_default_perms_for_data(bs, c, role, reopen_queue,
                                     perm, shared, nperm, nshared);
     } else {
         g_assert_not_reached();
@@ -2527,7 +2520,7 @@ BdrvChild *bdrv_attach_child(BlockDriverState *parent_bs,
     bdrv_get_cumulative_perm(parent_bs, &perm, &shared_perm);
 
     assert(parent_bs->drv);
-    bdrv_child_perm(parent_bs, child_bs, NULL, child_class, child_role, NULL,
+    bdrv_child_perm(parent_bs, child_bs, NULL, child_role, NULL,
                     perm, shared_perm, &perm, &shared_perm);
 
     child = bdrv_root_attach_child(child_bs, child_name, child_class,
@@ -3582,7 +3575,7 @@ int bdrv_reopen_multiple(BlockReopenQueue *bs_queue, Error **errp)
         if (state->replace_backing_bs && state->new_backing_bs) {
             uint64_t nperm, nshared;
             bdrv_child_perm(state->bs, state->new_backing_bs,
-                            NULL, &child_of_bds, bdrv_backing_role(state->bs),
+                            NULL, bdrv_backing_role(state->bs),
                             bs_queue, state->perm, state->shared_perm,
                             &nperm, &nshared);
             ret = bdrv_check_update_perm(state->new_backing_bs, NULL,
@@ -3696,7 +3689,7 @@ static void bdrv_reopen_perm(BlockReopenQueue *q, BlockDriverState *bs,
         } else {
             uint64_t nperm, nshared;
 
-            bdrv_child_perm(parent->state.bs, bs, c, c->klass, c->role, q,
+            bdrv_child_perm(parent->state.bs, bs, c, c->role, q,
                             parent->state.perm, parent->state.shared_perm,
                             &nperm, &nshared);
 
