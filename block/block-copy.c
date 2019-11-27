@@ -39,29 +39,62 @@ static BlockCopyInFlightReq *block_copy_find_inflight_req(BlockCopyState *s,
     return NULL;
 }
 
-static void coroutine_fn block_copy_wait_inflight_reqs(BlockCopyState *s,
-                                                       int64_t offset,
-                                                       int64_t bytes)
+/*
+ * If there are no intersecting requests return false. Otherwise, wait for the
+ * first found intersecting request to finish and return true.
+ */
+static bool coroutine_fn block_copy_wait_one(BlockCopyState *s, int64_t start,
+                                             int64_t end)
 {
-    BlockCopyInFlightReq *req;
+    BlockCopyInFlightReq *req = block_copy_find_inflight_req(s, start, end);
 
-    while ((req = block_copy_find_inflight_req(s, offset, bytes))) {
-        qemu_co_queue_wait(&req->wait_queue, NULL);
+    if (!req) {
+        return false;
     }
+
+    qemu_co_queue_wait(&req->wait_queue, NULL);
+
+    return true;
 }
 
+/* Called only on full-dirty region */
 static void block_copy_inflight_req_begin(BlockCopyState *s,
                                           BlockCopyInFlightReq *req,
                                           int64_t offset, int64_t bytes)
 {
+    assert(!block_copy_find_inflight_req(s, offset, bytes));
+
+    bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
+
     req->offset = offset;
     req->bytes = bytes;
     qemu_co_queue_init(&req->wait_queue);
     QLIST_INSERT_HEAD(&s->inflight_reqs, req, list);
 }
 
-static void coroutine_fn block_copy_inflight_req_end(BlockCopyInFlightReq *req)
+static void coroutine_fn block_copy_inflight_req_shrink(BlockCopyState *s,
+        BlockCopyInFlightReq *req, int64_t new_bytes)
 {
+    if (new_bytes == req->bytes) {
+        return;
+    }
+
+    assert(new_bytes > 0 && new_bytes < req->bytes);
+
+    bdrv_set_dirty_bitmap(s->copy_bitmap,
+                          req->offset + new_bytes, req->bytes - new_bytes);
+
+    req->bytes = new_bytes;
+    qemu_co_queue_restart_all(&req->wait_queue);
+}
+
+static void coroutine_fn block_copy_inflight_req_end(BlockCopyState *s,
+                                                     BlockCopyInFlightReq *req,
+                                                     int ret)
+{
+    if (ret < 0) {
+        bdrv_set_dirty_bitmap(s->copy_bitmap, req->offset, req->bytes);
+    }
     QLIST_REMOVE(req, list);
     qemu_co_queue_restart_all(&req->wait_queue);
 }
@@ -344,12 +377,19 @@ int64_t block_copy_reset_unallocated(BlockCopyState *s,
     return ret;
 }
 
-int coroutine_fn block_copy(BlockCopyState *s,
-                            int64_t offset, uint64_t bytes,
-                            bool *error_is_read)
+/*
+ * block_copy_dirty_clusters
+ *
+ * Copy dirty clusters in @start/@bytes range.
+ * Returns 1 if dirty clusters found and successfully copied, 0 if no dirty
+ * clusters found and -errno on failure.
+ */
+static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
+                                                  int64_t offset, int64_t bytes,
+                                                  bool *error_is_read)
 {
     int ret = 0;
-    BlockCopyInFlightReq req;
+    bool found_dirty = false;
 
     /*
      * block_copy() user is responsible for keeping source and target in same
@@ -361,10 +401,8 @@ int coroutine_fn block_copy(BlockCopyState *s,
     assert(QEMU_IS_ALIGNED(offset, s->cluster_size));
     assert(QEMU_IS_ALIGNED(bytes, s->cluster_size));
 
-    block_copy_wait_inflight_reqs(s, offset, bytes);
-    block_copy_inflight_req_begin(s, &req, offset, bytes);
-
     while (bytes) {
+        BlockCopyInFlightReq req;
         int64_t next_zero, cur_bytes, status_bytes;
 
         if (!bdrv_dirty_bitmap_get(s->copy_bitmap, offset)) {
@@ -373,6 +411,8 @@ int coroutine_fn block_copy(BlockCopyState *s,
             bytes -= s->cluster_size;
             continue; /* already copied */
         }
+
+        found_dirty = true;
 
         cur_bytes = MIN(bytes, s->copy_size);
 
@@ -383,10 +423,12 @@ int coroutine_fn block_copy(BlockCopyState *s,
             assert(next_zero < offset + cur_bytes); /* no need to do MIN() */
             cur_bytes = next_zero - offset;
         }
+        block_copy_inflight_req_begin(s, &req, offset, cur_bytes);
 
         ret = block_copy_block_status(s, offset, cur_bytes, &status_bytes);
+        block_copy_inflight_req_shrink(s, &req, status_bytes);
         if (s->skip_unallocated && !(ret & BDRV_BLOCK_ALLOCATED)) {
-            bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, status_bytes);
+            block_copy_inflight_req_end(s, &req, 0);
             s->progress_reset_callback(s->progress_opaque);
             trace_block_copy_skip_range(s, offset, status_bytes);
             offset += status_bytes;
@@ -398,15 +440,13 @@ int coroutine_fn block_copy(BlockCopyState *s,
 
         trace_block_copy_process(s, offset);
 
-        bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, cur_bytes);
-
         co_get_from_shres(s->mem, cur_bytes);
         ret = block_copy_do_copy(s, offset, cur_bytes, ret & BDRV_BLOCK_ZERO,
                                  error_is_read);
         co_put_to_shres(s->mem, cur_bytes);
+        block_copy_inflight_req_end(s, &req, ret);
         if (ret < 0) {
-            bdrv_set_dirty_bitmap(s->copy_bitmap, offset, cur_bytes);
-            break;
+            return ret;
         }
 
         s->progress_bytes_callback(cur_bytes, s->progress_opaque);
@@ -414,7 +454,41 @@ int coroutine_fn block_copy(BlockCopyState *s,
         bytes -= cur_bytes;
     }
 
-    block_copy_inflight_req_end(&req);
+    return found_dirty;
+}
 
-    return ret;
+int coroutine_fn block_copy(BlockCopyState *s, int64_t start, uint64_t bytes,
+                            bool *error_is_read)
+{
+    while (true) {
+        int ret = block_copy_dirty_clusters(s, start, bytes, error_is_read);
+
+        if (ret < 0) {
+            /*
+             * IO operation failed, which means the whole block_copy request
+             * failed.
+             */
+            return ret;
+        }
+        if (ret) {
+            /*
+             * Something was copied, which means that there were yield points
+             * and some new dirty bits may appered (due to failed parallel
+             * block-copy requests).
+             */
+            continue;
+        }
+
+        /*
+         * Here ret == 0, which means that there is no dirty clusters in
+         * requested region.
+         */
+
+        if (!block_copy_wait_one(s, start, bytes)) {
+            /* No dirty bits and nothing to wait: the whole request is done */
+            break;
+        }
+    }
+
+    return 0;
 }
