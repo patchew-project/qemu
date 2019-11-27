@@ -2294,18 +2294,17 @@ static void bdrv_default_perms_for_backing(BlockDriverState *bs, BdrvChild *c,
     *nshared = shared;
 }
 
-static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
-                                           const BdrvChildClass *child_class,
-                                           BdrvChildRole role,
-                                           BlockReopenQueue *reopen_queue,
-                                           uint64_t perm, uint64_t shared,
-                                           uint64_t *nperm, uint64_t *nshared)
+static void bdrv_default_perms_for_metadata(BlockDriverState *bs, BdrvChild *c,
+                                            const BdrvChildClass *child_class,
+                                            BdrvChildRole role,
+                                            BlockReopenQueue *reopen_queue,
+                                            uint64_t perm, uint64_t shared,
+                                            uint64_t *nperm, uint64_t *nshared)
 {
     int flags;
 
     assert(child_class == &child_file ||
-           (child_class == &child_of_bds &&
-            (role & (BDRV_CHILD_METADATA | BDRV_CHILD_DATA))));
+           (child_class == &child_of_bds && (role & BDRV_CHILD_METADATA)));
 
     flags = bdrv_reopen_get_flags(reopen_queue, bs);
 
@@ -2338,6 +2337,40 @@ static void bdrv_default_perms_for_storage(BlockDriverState *bs, BdrvChild *c,
     *nshared = shared;
 }
 
+/* TODO: Use */
+static void __attribute__((unused))
+bdrv_default_perms_for_data(BlockDriverState *bs, BdrvChild *c,
+                            const BdrvChildClass *child_class,
+                            BdrvChildRole role,
+                            BlockReopenQueue *reopen_queue,
+                            uint64_t perm, uint64_t shared,
+                            uint64_t *nperm, uint64_t *nshared)
+{
+    assert(child_class == &child_of_bds && (role & BDRV_CHILD_DATA));
+
+    /*
+     * Apart from the modifications below, the same permissions are
+     * forwarded and left alone as for filters
+     */
+    bdrv_filter_default_perms(bs, c, child_class, role, reopen_queue,
+                              perm, shared, &perm, &shared);
+
+    /*
+     * We cannot allow other users to resize the file because the
+     * format driver might have some assumptions about the size
+     * (e.g. because it is stored in metadata, or because the file is
+     * split into fixed-size data files).
+     */
+    shared &= ~BLK_PERM_RESIZE;
+
+    if (bs->open_flags & BDRV_O_INACTIVE) {
+        shared |= BLK_PERM_WRITE | BLK_PERM_RESIZE;
+    }
+
+    *nperm = perm;
+    *nshared = shared;
+}
+
 void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
                                const BdrvChildClass *child_class,
                                BdrvChildRole role,
@@ -2349,8 +2382,8 @@ void bdrv_format_default_perms(BlockDriverState *bs, BdrvChild *c,
     assert(child_class == &child_backing || child_class == &child_file);
 
     if (!backing) {
-        bdrv_default_perms_for_storage(bs, c, child_class, role, reopen_queue,
-                                       perm, shared, nperm, nshared);
+        bdrv_default_perms_for_metadata(bs, c, child_class, role, reopen_queue,
+                                        perm, shared, nperm, nshared);
     } else {
         bdrv_default_perms_for_backing(bs, c, child_class, role, reopen_queue,
                                        perm, shared, nperm, nshared);
