@@ -218,7 +218,7 @@ matrix:
     # We manually include builds which we disable "make check" for
     - env:
         - CONFIG="--enable-debug --enable-tcg-interpreter"
-        - TEST_CMD=""
+        - TEST_CMD="make run-tcg-tests-x86_64-softmmu V=1"
 
 
     # We don't need to exercise every backend with every front-end
