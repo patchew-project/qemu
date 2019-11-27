@@ -163,6 +163,17 @@ S: Maintained
 F: hw/arm/smmu*
 F: include/hw/arm/smmu*
 
+AVR TCG CPUs
+M: Michael Rolnik <mrolnik@gmail.com>
+R: Sarah Harris <S.E.Harris@kent.ac.uk>
+S: Maintained
+F: target/avr/
+F: hw/misc/avr_mask.c
+F: hw/char/avr_usart.c
+F: hw/timer/avr_timer16.c
+F: hw/avr/
+F: tests/acceptance/machine_avr6.py
+
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
 S: Maintained
