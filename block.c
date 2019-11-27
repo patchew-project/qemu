@@ -1034,7 +1034,7 @@ static void bdrv_inherited_fmt_options(int *child_flags, QDict *child_options,
     child_file.inherit_options(child_flags, child_options,
                                parent_flags, parent_options);
 
-    *child_flags &= ~(BDRV_O_PROTOCOL | BDRV_O_NO_IO);
+    *child_flags &= ~BDRV_O_PROTOCOL;
 }
 
 const BdrvChildClass child_format = {
