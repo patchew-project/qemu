@@ -1536,7 +1536,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 
     /* Open external data file */
     s->data_file = bdrv_open_child(NULL, options, "data-file", bs, &child_file,
-                                   true, &local_err);
+                                   0, true, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         ret = -EINVAL;
@@ -1546,7 +1546,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
     if (s->incompatible_features & QCOW2_INCOMPAT_DATA_FILE) {
         if (!s->data_file && s->image_data_file) {
             s->data_file = bdrv_open_child(s->image_data_file, options,
-                                           "data-file", bs, &child_file,
+                                           "data-file", bs, &child_file, 0,
                                            false, errp);
             if (!s->data_file) {
                 ret = -EINVAL;
@@ -1805,7 +1805,7 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
         .ret = -EINPROGRESS
     };
 
-    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file,
+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_file, 0,
                                false, errp);
     if (!bs->file) {
         return -EINVAL;

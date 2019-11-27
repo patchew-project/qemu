@@ -199,7 +199,8 @@ BlockDriverState *bdrv_backup_top_append(BlockDriverState *source,
     top->opaque = state = g_new0(BDRVBackupTopState, 1);
 
     bdrv_ref(target);
-    state->target = bdrv_attach_child(top, target, "target", &child_file, errp);
+    state->target = bdrv_attach_child(top, target, "target", &child_file, 0,
+                                      errp);
     if (!state->target) {
         bdrv_unref(target);
         bdrv_unref(top);

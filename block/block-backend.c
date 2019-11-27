@@ -400,7 +400,7 @@ BlockBackend *blk_new_open(const char *filename, const char *reference,
         return NULL;
     }
 
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk->ctx,
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, 0, blk->ctx,
                                        perm, BLK_PERM_ALL, blk, errp);
     if (!blk->root) {
         blk_unref(blk);
@@ -811,7 +811,7 @@ int blk_insert_bs(BlockBackend *blk, BlockDriverState *bs, Error **errp)
 {
     ThrottleGroupMember *tgm = &blk->public.throttle_group_member;
     bdrv_ref(bs);
-    blk->root = bdrv_root_attach_child(bs, "root", &child_root, blk->ctx,
+    blk->root = bdrv_root_attach_child(bs, "root", &child_root, 0, blk->ctx,
                                        blk->perm, blk->shared_perm, blk, errp);
     if (blk->root == NULL) {
         return -EPERM;
