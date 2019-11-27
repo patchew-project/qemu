@@ -660,10 +660,6 @@ typedef struct BdrvAioNotifier {
 } BdrvAioNotifier;
 
 struct BdrvChildClass {
-    /* If true, bdrv_replace_node() doesn't change the node this BdrvChild
-     * points to. */
-    bool stay_at_node;
-
     /* If true, the parent is a BlockDriverState and bdrv_next_all_states()
      * will return it. This information is used for drain_all, where every node
      * will be drained separately, so the drain only needs to be propagated to

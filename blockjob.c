@@ -170,7 +170,6 @@ static const BdrvChildClass child_job = {
     .drained_end        = child_job_drained_end,
     .can_set_aio_ctx    = child_job_can_set_aio_ctx,
     .set_aio_ctx        = child_job_set_aio_ctx,
-    .stay_at_node       = true,
 };
 
 void block_job_remove_all_bdrv(BlockJob *job)
@@ -217,7 +216,7 @@ int block_job_add_bdrv(BlockJob *job, const char *name, BlockDriverState *bs,
     if (job->job.aio_context != qemu_get_aio_context()) {
         aio_context_release(job->job.aio_context);
     }
-    c = bdrv_root_attach_child(bs, name, &child_job, 0,
+    c = bdrv_root_attach_child(bs, name, &child_job, BDRV_CHILD_STAY_AT_NODE,
                                job->job.aio_context, perm, shared_perm, job,
                                errp);
     if (job->job.aio_context != qemu_get_aio_context()) {
