@@ -997,8 +997,10 @@ static int quorum_open(BlockDriverState *bs, QDict *options, int flags,
         assert(ret < 32);
 
         s->children[i].child = bdrv_open_child(NULL, options, indexstr, bs,
-                                               &child_format, 0, false,
-                                               &local_err);
+                                               &child_of_bds,
+                                               BDRV_CHILD_DATA |
+                                               BDRV_CHILD_FORMAT,
+                                               false, &local_err);
         if (local_err) {
             ret = -EINVAL;
             goto close_exit;
@@ -1074,7 +1076,8 @@ static void quorum_add_child(BlockDriverState *bs, BlockDriverState *child_bs,
     /* We can safely add the child now */
     bdrv_ref(child_bs);
 
-    child = bdrv_attach_child(bs, child_bs, indexstr, &child_format, 0, errp);
+    child = bdrv_attach_child(bs, child_bs, indexstr, &child_of_bds,
+                              BDRV_CHILD_DATA | BDRV_CHILD_FORMAT, errp);
     if (child == NULL) {
         s->next_child_index--;
         goto out;
