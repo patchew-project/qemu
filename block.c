@@ -921,6 +921,7 @@ static void bdrv_child_cb_drained_end(BdrvChild *child,
 }
 
 static void bdrv_backing_attach(BdrvChild *c);
+static void bdrv_backing_detach(BdrvChild *c);
 
 static void bdrv_child_cb_attach(BdrvChild *child)
 {
@@ -936,6 +937,11 @@ static void bdrv_child_cb_attach(BdrvChild *child)
 static void bdrv_child_cb_detach(BdrvChild *child)
 {
     BlockDriverState *bs = child->opaque;
+
+    if (child->role & BDRV_CHILD_COW) {
+        bdrv_backing_detach(child);
+    }
+
     bdrv_unapply_subtree_drain(child, bs);
 }
 
@@ -1159,7 +1165,14 @@ static void bdrv_backing_detach(BdrvChild *c)
     bdrv_op_unblock_all(c->bs, parent->backing_blocker);
     error_free(parent->backing_blocker);
     parent->backing_blocker = NULL;
+}
 
+/* XXX: Will be removed along with child_backing */
+static void bdrv_child_cb_detach_backing(BdrvChild *c)
+{
+    if (!(c->role & BDRV_CHILD_COW)) {
+        bdrv_backing_detach(c);
+    }
     bdrv_child_cb_detach(c);
 }
 
@@ -1207,7 +1220,7 @@ const BdrvChildClass child_backing = {
     .parent_is_bds   = true,
     .get_parent_desc = bdrv_child_get_parent_desc,
     .attach          = bdrv_child_cb_attach_backing,
-    .detach          = bdrv_backing_detach,
+    .detach          = bdrv_child_cb_detach_backing,
     .inherit_options = bdrv_backing_options,
     .drained_begin   = bdrv_child_cb_drained_begin,
     .drained_poll    = bdrv_child_cb_drained_poll,
