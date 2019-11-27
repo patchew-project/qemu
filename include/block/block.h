@@ -279,6 +279,44 @@ enum {
     DEFAULT_PERM_UNCHANGED      = BLK_PERM_ALL & ~DEFAULT_PERM_PASSTHROUGH,
 };
 
+typedef enum BdrvChildRole {
+    /*
+     * If present, bdrv_replace_node() will not change the node this
+     * BdrvChild points to.
+     */
+    BDRV_CHILD_STAY_AT_NODE = (1 << 0),
+
+    /* Child stores data */
+    BDRV_CHILD_DATA         = (1 << 1),
+
+    /* Child stores metadata */
+    BDRV_CHILD_METADATA     = (1 << 2),
+
+    /* Filtered child */
+    BDRV_CHILD_FILTERED     = (1 << 3),
+
+    /* Child to COW from (backing child) */
+    BDRV_CHILD_COW          = (1 << 4),
+
+    /* Child is expected to be a protocol node */
+    BDRV_CHILD_PROTOCOL     = (1 << 5),
+
+    /* Child is expected to be a format node */
+    BDRV_CHILD_FORMAT       = (1 << 6),
+
+    /*
+     * The primary child.  For most drivers, this is the child whose
+     * filename applies best to the parent node.
+     */
+    BDRV_CHILD_PRIMARY      = (1 << 7),
+
+    /* Useful combination of flags */
+    BDRV_CHILD_IMAGE        = BDRV_CHILD_DATA
+                              | BDRV_CHILD_METADATA
+                              | BDRV_CHILD_PROTOCOL
+                              | BDRV_CHILD_PRIMARY,
+} BdrvChildRole;
+
 char *bdrv_perm_names(uint64_t perm);
 uint64_t bdrv_qapi_perm_to_blk_perm(BlockPermission qapi_perm);
 
