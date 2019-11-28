@@ -149,6 +149,13 @@ int64_t qmp_guest_get_time(Error **errp)
    return tq.tv_sec * 1000000000LL + tq.tv_usec * 1000;
 }
 
+static int check_hwclock_available(const char *path)
+{
+    struct stat st;
+
+    return (stat(path, &st) < 0) ? 0 : 1;
+}
+
 void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 {
     int ret;
@@ -156,6 +163,17 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
     pid_t pid;
     Error *local_err = NULL;
     struct timeval tv;
+    const char *hwclock_path = "/sbin/hwclock";
+    static int hwclock_available = -1;
+
+    if (hwclock_available < 0) {
+        hwclock_available = check_hwclock_available(hwclock_path);
+    }
+
+    if (!hwclock_available) {
+        error_setg(errp, QERR_UNSUPPORTED);
+        return;
+    }
 
     /* If user has passed a time, validate and set it. */
     if (has_time) {
@@ -195,7 +213,7 @@ void qmp_guest_set_time(bool has_time, int64_t time_ns, Error **errp)
 
         /* Use '/sbin/hwclock -w' to set RTC from the system time,
          * or '/sbin/hwclock -s' to set the system time from RTC. */
-        execle("/sbin/hwclock", "hwclock", has_time ? "-w" : "-s",
+        execle(hwclock_path, "hwclock", has_time ? "-w" : "-s",
                NULL, environ);
         _exit(EXIT_FAILURE);
     } else if (pid < 0) {
