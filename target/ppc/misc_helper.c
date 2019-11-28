@@ -105,6 +105,28 @@ void helper_store_pcr(CPUPPCState *env, target_ulong value)
 
     env->spr[SPR_PCR] = value & pcc->pcr_mask;
 }
+
+target_ulong helper_load_dpdes(CPUPPCState *env)
+{
+    if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
+        return 1;
+    }
+    return 0;
+}
+
+void helper_store_dpdes(CPUPPCState *env, target_ulong val)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    CPUState *cs = CPU(cpu);
+
+    if (val) {
+        /* Only one cpu for now */
+        env->pending_interrupts |= 1 << PPC_INTERRUPT_DOORBELL;
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+    } else {
+        env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
+    }
+}
 #endif /* defined(TARGET_PPC64) */
 
 void helper_store_pidr(CPUPPCState *env, target_ulong val)
