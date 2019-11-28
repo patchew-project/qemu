@@ -17,7 +17,7 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu/osdep.h"
-
+#include "trace.h"
 #include "qemu.h"
 
 //#define DEBUG_MMAP
@@ -66,13 +66,14 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
     abi_ulong end, host_start, host_end, addr;
     int prot1, ret;
 
-#ifdef DEBUG_MMAP
-    printf("mprotect: start=0x" TARGET_ABI_FMT_lx
-           "len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c\n", start, len,
-           prot & PROT_READ ? 'r' : '-',
-           prot & PROT_WRITE ? 'w' : '-',
-           prot & PROT_EXEC ? 'x' : '-');
-#endif
+    if (TRACE_TARGET_MPROTECT_ENABLED) {
+        char prot_str[4];
+        prot_str[0] = prot & PROT_READ ? 'r' : '-';
+        prot_str[1] = prot & PROT_WRITE ? 'w' : '-';
+        prot_str[2] = prot & PROT_EXEC ? 'x' : '-';
+        prot_str[3] = 0;
+        trace_target_mprotect(start, len, prot_str);
+    }
 
     if ((start & ~TARGET_PAGE_MASK) != 0)
         return -TARGET_EINVAL;
