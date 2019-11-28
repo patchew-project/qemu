@@ -31,7 +31,7 @@ class AVR6Machine(Test):
     def test_freertos(self):
         """
         :avocado: tags=arch:avr
-        :avocado: tags=machine:sample
+        :avocado: tags=machine:arduino-mega-2560-v3
         """
         """
         https://github.com/seharris/qemu-avr-tests/raw/master/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf
@@ -43,7 +43,7 @@ class AVR6Machine(Test):
         rom_hash = '7eb521f511ca8f2622e0a3c5e8dd686efbb911d4'
         rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
 
-        self.vm.set_machine('sample')
+        self.vm.set_machine('arduino-mega-2560-v3')
         self.vm.add_args('-bios', rom_path)
         self.vm.add_args('-nographic')
         self.vm.launch()
