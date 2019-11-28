@@ -34,6 +34,7 @@
 #include "qemu/module.h"
 #include "sysemu/dma.h"
 #include "net/checksum.h"
+#include "net/eth.h"
 
 #ifdef CADENCE_GEM_ERR_DEBUG
 #define DB_PRINT(...) do { \
@@ -314,6 +315,12 @@
 #define DESC_1_RX_EOF 0x00008000
 
 #define GEM_MODID_VALUE 0x00020118
+
+/* IEEE has specified that the most significant bit of the most significant byte be used for
+ * distinguishing between Unicast and Multicast addresses.
+ * If its a 1, that means multicast, 0 means unicast.   */
+#define IS_MULTICAST(address)           is_multicast_ether_addr(address)
+#define IS_UNICAST(address)             is_unicast_ether_addr(address)
 
 static inline uint64_t tx_desc_get_buffer(CadenceGEMState *s, uint32_t *desc)
 {
@@ -601,7 +608,7 @@ static void gem_receive_updatestats(CadenceGEMState *s, const uint8_t *packet,
     }
 
     /* Error-free Multicast Frames counter */
-    if (packet[0] == 0x01) {
+    if (IS_MULTICAST(packet)) {
         s->regs[GEM_RXMULTICNT]++;
     }
 
@@ -690,21 +697,21 @@ static int gem_mac_address_filter(CadenceGEMState *s, const uint8_t *packet)
     }
 
     /* Accept packets -w- hash match? */
-    if ((packet[0] == 0x01 && (s->regs[GEM_NWCFG] & GEM_NWCFG_MCAST_HASH)) ||
-        (packet[0] != 0x01 && (s->regs[GEM_NWCFG] & GEM_NWCFG_UCAST_HASH))) {
+    if ((IS_MULTICAST(packet) && (s->regs[GEM_NWCFG] & GEM_NWCFG_MCAST_HASH)) ||
+        (IS_UNICAST(packet)   && (s->regs[GEM_NWCFG] & GEM_NWCFG_UCAST_HASH))) {
         unsigned hash_index;
 
         hash_index = calc_mac_hash(packet);
         if (hash_index < 32) {
             if (s->regs[GEM_HASHLO] & (1<<hash_index)) {
-                return packet[0] == 0x01 ? GEM_RX_MULTICAST_HASH_ACCEPT :
-                                           GEM_RX_UNICAST_HASH_ACCEPT;
+                return IS_MULTICAST(packet) ? GEM_RX_MULTICAST_HASH_ACCEPT :
+                                              GEM_RX_UNICAST_HASH_ACCEPT;
             }
         } else {
             hash_index -= 32;
             if (s->regs[GEM_HASHHI] & (1<<hash_index)) {
-                return packet[0] == 0x01 ? GEM_RX_MULTICAST_HASH_ACCEPT :
-                                           GEM_RX_UNICAST_HASH_ACCEPT;
+                return IS_MULTICAST(packet) ? GEM_RX_MULTICAST_HASH_ACCEPT :
+                                              GEM_RX_UNICAST_HASH_ACCEPT;
             }
         }
     }
