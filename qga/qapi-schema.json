@@ -1242,3 +1242,35 @@
 ##
 { 'command': 'guest-get-osinfo',
   'returns': 'GuestOSInfo' }
+
+##
+# @GuestDeviceInfo:
+#
+# @vendor-id: vendor ID
+# @device-id: device ID
+# @driver-name: name of the associated driver
+# @driver-date: driver release date in format YYYY-MM-DD
+# @driver-version: driver version
+#
+# Since: 4.3
+##
+{ 'struct': 'GuestDeviceInfo',
+  'data': {
+      'vendor-id': 'uint16',
+      'device-id': 'uint16',
+      'driver-name': 'str',
+      'driver-date': 'str',
+      'driver-version': 'str'
+      } }
+
+##
+# @guest-get-devices:
+#
+# Retrieve information about device drivers in Windows guest
+#
+# Returns: @GuestDeviceInfo
+#
+# Since: 4.3
+##
+{ 'command': 'guest-get-devices',
+  'returns': ['GuestDeviceInfo'] }
