@@ -72,6 +72,10 @@
 #include "qemu/mmap-alloc.h"
 #endif
 
+#ifdef CONFIG_POSIX
+#include "qemu/memfd.h"
+#endif
+
 #include "monitor/monitor.h"
 
 //#define DEBUG_SUBPAGE
@@ -2347,7 +2351,12 @@ RAMBlock *qemu_ram_alloc_from_file(ram_addr_t size, MemoryRegion *mr,
     bool created;
     RAMBlock *block;
 
-    fd = file_ram_open(mem_path, memory_region_name(mr), &created, errp);
+    if (mem_path) {
+        fd = file_ram_open(mem_path, memory_region_name(mr), &created, errp);
+    } else {
+        fd = qemu_memfd_open(mr->name, size,
+                             F_SEAL_GROW | F_SEAL_SHRINK | F_SEAL_SEAL, errp);
+    }
     if (fd < 0) {
         return NULL;
     }

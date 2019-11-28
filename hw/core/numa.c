@@ -493,7 +493,8 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
     if (mem_path) {
 #ifdef __linux__
         Error *err = NULL;
-        memory_region_init_ram_from_file(mr, owner, name, ram_size, 0, 0,
+        memory_region_init_ram_from_file(mr, owner, name, ram_size, 0,
+                                         mem_shared ? RAM_SHARED : 0,
                                          mem_path, &err);
         if (err) {
             error_report_err(err);
@@ -512,6 +513,19 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
         }
 #else
         fprintf(stderr, "-mem-path not supported on this host\n");
+        exit(1);
+#endif
+    } else if (mem_shared) {
+#ifdef CONFIG_POSIX
+        Error *err = NULL;
+        memory_region_init_ram_from_file(mr, owner, NULL, ram_size, 0,
+                                         RAM_SHARED, NULL, &err);
+        if (err) {
+            error_report_err(err);
+            exit(1);
+        }
+#else
+        fprintf(stderr, "-mem-shared not supported on this host\n");
         exit(1);
 #endif
     } else {

@@ -394,6 +394,16 @@ STEXI
 Preallocate memory when using -mem-path.
 ETEXI
 
+DEF("mem-shared", 0, QEMU_OPTION_mem_shared,
+    "-mem-shared     allocate shared memory\n", QEMU_ARCH_ALL)
+STEXI
+@item -mem-shared
+@findex -mem-shared
+Allocate guest RAM with shared mapping.  Whether the allocation is
+anonymous or not (with -mem-path), QEMU will allocate a shared memory that
+can be shared by unrelated processes, such as vhost-user backends.
+ETEXI
+
 DEF("k", HAS_ARG, QEMU_OPTION_k,
     "-k language     use keyboard layout (for example 'fr' for French)\n",
     QEMU_ARCH_ALL)
