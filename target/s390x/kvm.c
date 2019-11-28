@@ -1170,7 +1170,14 @@ static int kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
-    r = sclp_service_call(env, sccb, code);
+    switch (run->s390_sieic.icptcode) {
+    case ICPT_PV_INSTR:
+        r = sclp_service_call_protected(env, sccb, code);
+        break;
+    default:
+        r = sclp_service_call(env, sccb, code);
+        break;
+    }
     if (r < 0) {
         kvm_s390_program_interrupt(cpu, -r);
     } else {
@@ -1575,6 +1582,47 @@ static int kvm_s390_handle_sigp(S390CPU *cpu, uint8_t ipa1, uint32_t ipb)
     return 0;
 }
 
+static int handle_secure_notification(S390CPU *cpu, struct kvm_run *run)
+{
+    unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
+    uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
+
+    switch (ipa0) {
+    case IPA0_SIGP: /* We get the notification that the guest stop */
+        kvm_s390_handle_sigp(cpu, ipa1, run->s390_sieic.ipb);
+        break;
+    case IPA0_B2: /* We accept but do nothing for B2 notifications */
+        break;
+    default: /* We do not expect other instruction's notification */
+        kvm_s390_program_interrupt(cpu, PGM_OPERATION);
+        break;
+    }
+    return 0;
+}
+
+static int handle_secure_instruction(S390CPU *cpu, struct kvm_run *run)
+{
+    unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
+    uint8_t ipa1 = run->s390_sieic.ipa & 0x00ff;
+    int r = -1;
+
+    switch (ipa0) {
+    case IPA0_B2:
+        r = handle_b2(cpu, run, ipa1);
+        break;
+    case IPA0_DIAG:
+        r = handle_diag(cpu, run, run->s390_sieic.ipb);
+        break;
+    }
+
+    if (r < 0) {
+        r = 0;
+        kvm_s390_program_interrupt(cpu, PGM_OPERATION);
+    }
+
+    return r;
+}
+
 static int handle_instruction(S390CPU *cpu, struct kvm_run *run)
 {
     unsigned int ipa0 = (run->s390_sieic.ipa & 0xff00);
@@ -1665,6 +1713,12 @@ static int handle_intercept(S390CPU *cpu)
     DPRINTF("intercept: 0x%x (at 0x%lx)\n", icpt_code,
             (long)cs->kvm_run->psw_addr);
     switch (icpt_code) {
+         case ICPT_PV_INSTR_NOT:
+            r = handle_secure_notification(cpu, run);
+            break;
+        case ICPT_PV_INSTR:
+            r = handle_secure_instruction(cpu, run);
+            break;
         case ICPT_INSTRUCTION:
             r = handle_instruction(cpu, run);
             break;
