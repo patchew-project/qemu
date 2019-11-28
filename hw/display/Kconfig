@@ -123,7 +123,7 @@ config VHOST_USER_VGA
 
 config DPCD
     bool
-    select AUX
+
 
 config ATI_VGA
     bool
@@ -132,6 +132,13 @@ config ATI_VGA
     select VGA
     select BITBANG_I2C
     select DDC
+
+    config RAD_VGA
+        bool
+        default y if PCI_DEVICES
+        depends on PCI
+        select VGA
+        select DDC
 
 config MACFB
     bool
