@@ -430,6 +430,14 @@ static inline uint32_t syn_simd_access_trap(int cv, int cond, bool is_16bit)
         | (cv << 24) | (cond << 20) | (1 << 5);
 }
 
+static inline uint32_t syn_vmrs_trap(int rt, int reg)
+{
+    return (EC_FPIDTRAP << ARM_EL_EC_SHIFT)
+        | ARM_EL_IL
+        | (1 << 24) | (0xe << 20) | (7 << 14)
+        | (reg << 10) | (rt << 5) | 1;
+}
+
 static inline uint32_t syn_sve_access_trap(void)
 {
     return EC_SVEACCESSTRAP << ARM_EL_EC_SHIFT;

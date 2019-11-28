@@ -759,15 +759,21 @@ static bool trans_VMSR_VMRS(DisasContext *s, arg_VMSR_VMRS *a)
     }
 
     if (a->l) {
+        TCGv_i32 tcg_rt, tcg_reg;
+
         /* VMRS, move VFP special register to gp register */
         switch (a->reg) {
-        case ARM_VFP_FPSID:
-        case ARM_VFP_FPEXC:
-        case ARM_VFP_FPINST:
-        case ARM_VFP_FPINST2:
         case ARM_VFP_MVFR0:
         case ARM_VFP_MVFR1:
         case ARM_VFP_MVFR2:
+        case ARM_VFP_FPSID:
+            tcg_rt = tcg_const_i32(a->rt);
+            tcg_reg = tcg_const_i32(a->reg);
+            gen_helper_check_hcr_el2_trap(cpu_env, tcg_rt, tcg_reg);
+            /* fall through */
+        case ARM_VFP_FPEXC:
+        case ARM_VFP_FPINST:
+        case ARM_VFP_FPINST2:
             tmp = load_cpu_field(vfp.xregs[a->reg]);
             break;
         case ARM_VFP_FPSCR:

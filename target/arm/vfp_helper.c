@@ -1322,4 +1322,31 @@ float64 HELPER(frint64_d)(float64 f, void *fpst)
     return frint_d(f, fpst, 64);
 }
 
+void HELPER(check_hcr_el2_trap)(CPUARMState *env, int rt, int reg)
+{
+    if (arm_current_el(env) != 1) {
+        return;
+    }
+
+    switch (reg) {
+    case ARM_VFP_MVFR0:
+    case ARM_VFP_MVFR1:
+    case ARM_VFP_MVFR2:
+        if (!(arm_hcr_el2_eff(env) & HCR_TID3)) {
+            return;
+        }
+        break;
+    case ARM_VFP_FPSID:
+        if (!(arm_hcr_el2_eff(env) & HCR_TID0)) {
+            return;
+        }
+        break;
+    default:
+        /* Shouldn't be here... */
+        return;
+    }
+
+    raise_exception(env, EXCP_HYP_TRAP, syn_vmrs_trap(rt, reg), 2);
+}
+
 #endif
