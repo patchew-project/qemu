@@ -1891,6 +1891,11 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = nbd_client_connect(bs, errp);
     if (ret < 0) {
+        object_unref(OBJECT(s->tlscreds));
+        qapi_free_SocketAddress(s->saddr);
+        g_free(s->export);
+        g_free(s->tlscredsid);
+        g_free(s->x_dirty_bitmap);
         return ret;
     }
     /* successfully connected */
