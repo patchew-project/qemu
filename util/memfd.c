@@ -104,10 +104,9 @@ err:
  * memfd with sealing, but may fallback on other methods without
  * sealing.
  */
-void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
-                       int *fd, Error **errp)
+int qemu_memfd_open(const char *name, size_t size, unsigned int seals,
+                    Error **errp)
 {
-    void *ptr;
     int mfd = qemu_memfd_create(name, size, false, 0, seals, NULL);
 
     /* some systems have memfd without sealing */
@@ -124,26 +123,38 @@ void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
         unlink(fname);
         g_free(fname);
 
-        if (mfd == -1 ||
-            ftruncate(mfd, size) == -1) {
-            goto err;
+        if (mfd != -1 && ftruncate(mfd, size) == -1) {
+            close(mfd);
+            mfd = -1;
         }
+    }
+
+    if (mfd == -1) {
+        error_setg_errno(errp, errno, "qemu_memfd_open() failed");
+    }
+
+    return mfd;
+}
+
+void *qemu_memfd_alloc(const char *name, size_t size, unsigned int seals,
+                       int *fd, Error **errp)
+{
+    int mfd = qemu_memfd_open(name, size, seals, errp);
+    void *ptr;
+
+    if (mfd == -1) {
+        return NULL;
     }
 
     ptr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, mfd, 0);
     if (ptr == MAP_FAILED) {
-        goto err;
+        error_setg_errno(errp, errno, "failed to allocate shared memory");
+        close(mfd);
+        return NULL;
     }
 
     *fd = mfd;
     return ptr;
-
-err:
-    error_setg_errno(errp, errno, "failed to allocate shared memory");
-    if (mfd >= 0) {
-        close(mfd);
-    }
-    return NULL;
 }
 
 void qemu_memfd_free(void *ptr, size_t size, int fd)
