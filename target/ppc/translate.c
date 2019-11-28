@@ -6652,6 +6652,8 @@ static void gen_msgclrp(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_SV;
+    gen_hfscr_facility_check(ctx, SPR_HFSCR, HFSCR_MSGP, 0,
+                             HFSCR_IC_MSGP);
     gen_helper_book3s_msgclrp(cpu_env, cpu_gpr[rB(ctx->opcode)]);
 #endif /* defined(CONFIG_USER_ONLY) */
 }
@@ -6662,6 +6664,8 @@ static void gen_msgsndp(DisasContext *ctx)
     GEN_PRIV;
 #else
     CHK_SV;
+    gen_hfscr_facility_check(ctx, SPR_HFSCR, HFSCR_MSGP, 0,
+                             HFSCR_IC_MSGP);
     gen_helper_book3s_msgsndp(cpu_gpr[rB(ctx->opcode)]);
 #endif /* defined(CONFIG_USER_ONLY) */
 }

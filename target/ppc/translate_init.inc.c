@@ -468,11 +468,15 @@ static void spr_write_pcr(DisasContext *ctx, int sprn, int gprn)
 /* DPDES */
 static void spr_read_dpdes(DisasContext *ctx, int gprn, int sprn)
 {
+    gen_hfscr_facility_check(ctx, SPR_HFSCR, HFSCR_MSGP, sprn,
+                             HFSCR_IC_MSGP);
     gen_helper_load_dpdes(cpu_gpr[gprn], cpu_env);
 }
 
 static void spr_write_dpdes(DisasContext *ctx, int sprn, int gprn)
 {
+    gen_hfscr_facility_check(ctx, SPR_HFSCR, HFSCR_MSGP, sprn,
+                             HFSCR_IC_MSGP);
     gen_helper_store_dpdes(cpu_env, cpu_gpr[gprn]);
 }
 #endif
@@ -7522,6 +7526,20 @@ POWERPC_FAMILY(e600)(ObjectClass *oc, void *data)
 #else
 #define POWERPC970_HID5_INIT 0x00000000
 #endif
+
+void gen_hfscr_facility_check(DisasContext *ctx, int facility_sprn, int bit,
+                              int sprn, int cause)
+{
+    TCGv_i32 t1 = tcg_const_i32(bit);
+    TCGv_i32 t2 = tcg_const_i32(sprn);
+    TCGv_i32 t3 = tcg_const_i32(cause);
+
+    gen_helper_hfscr_facility_check(cpu_env, t1, t2, t3);
+
+    tcg_temp_free_i32(t3);
+    tcg_temp_free_i32(t2);
+    tcg_temp_free_i32(t1);
+}
 
 static void gen_fscr_facility_check(DisasContext *ctx, int facility_sprn,
                                     int bit, int sprn, int cause)
