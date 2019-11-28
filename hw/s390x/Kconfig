@@ -10,3 +10,6 @@ config S390_CCW_VIRTIO
     select SCLPCONSOLE
     select VIRTIO_CCW
     select MSI_NONBROKEN
+
+config CCW_TESTDEV
+    default y if TEST_DEVICES
