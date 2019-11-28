@@ -1,3 +1,2 @@
-obj-y += sample.o
 obj-y += atmega.o
 obj-y += arduino.o
