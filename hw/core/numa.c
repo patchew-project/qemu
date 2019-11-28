@@ -494,7 +494,7 @@ static void allocate_system_memory_nonnuma(MemoryRegion *mr, Object *owner,
 #ifdef __linux__
         Error *err = NULL;
         memory_region_init_ram_from_file(mr, owner, name, ram_size, 0, 0,
-                                         mem_path, &err);
+                                         mem_path, 0, &err);
         if (err) {
             error_report_err(err);
             if (mem_prealloc) {

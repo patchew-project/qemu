@@ -690,6 +690,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
                                       uint64_t align,
                                       uint32_t ram_flags,
                                       const char *path,
+                                      off_t offset,
                                       Error **errp);
 
 /**

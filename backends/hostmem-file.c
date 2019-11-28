@@ -34,6 +34,7 @@ struct HostMemoryBackendFile {
     HostMemoryBackend parent_obj;
 
     char *mem_path;
+    uint64_t offset;
     uint64_t align;
     bool discard_data;
     bool is_pmem;
@@ -57,6 +58,10 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
         error_setg(errp, "mem-path property not set");
         return;
     }
+    if (fb->align && fb->offset && (fb->offset % fb->align)) {
+        error_setg(errp, "offset doesn't match align");
+        return;
+    }
 
     backend->force_prealloc = mem_prealloc;
     name = host_memory_backend_get_name(backend);
@@ -65,7 +70,7 @@ file_backend_memory_alloc(HostMemoryBackend *backend, Error **errp)
                                      backend->size, fb->align,
                                      (backend->share ? RAM_SHARED : 0) |
                                      (fb->is_pmem ? RAM_PMEM : 0),
-                                     fb->mem_path, errp);
+                                     fb->mem_path, fb->offset, errp);
     g_free(name);
 #endif
 }
@@ -137,6 +142,41 @@ static void file_memory_backend_set_align(Object *o, Visitor *v,
     error_propagate(errp, local_err);
 }
 
+static void file_memory_backend_get_offset(Object *o, Visitor *v,
+                                           const char *name, void *opaque,
+                                           Error **errp)
+{
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+    uint64_t val = fb->offset;
+
+    visit_type_size(v, name, &val, errp);
+}
+
+static void file_memory_backend_set_offset(Object *o, Visitor *v,
+                                           const char *name, void *opaque,
+                                           Error **errp)
+{
+    HostMemoryBackend *backend = MEMORY_BACKEND(o);
+    HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
+    Error *local_err = NULL;
+    uint64_t val;
+
+    if (host_memory_backend_mr_inited(backend)) {
+        error_setg(&local_err, "cannot change property '%s' of %s",
+                   name, object_get_typename(o));
+        goto out;
+    }
+
+    visit_type_size(v, name, &val, &local_err);
+    if (local_err) {
+        goto out;
+    }
+    fb->offset = val;
+
+ out:
+    error_propagate(errp, local_err);
+}
+
 static bool file_memory_backend_get_pmem(Object *o, Error **errp)
 {
     return MEMORY_BACKEND_FILE(o)->is_pmem;
@@ -197,6 +237,10 @@ file_backend_class_init(ObjectClass *oc, void *data)
     object_class_property_add_str(oc, "mem-path",
         get_mem_path, set_mem_path,
         &error_abort);
+    object_class_property_add(oc, "offset", "uint64",
+        file_memory_backend_get_offset,
+        file_memory_backend_set_offset,
+        NULL, NULL, &error_abort);
     object_class_property_add(oc, "align", "int",
         file_memory_backend_get_align,
         file_memory_backend_set_align,
