@@ -94,4 +94,6 @@ typedef struct {
     qemu_irq dre_irq;
 } AVRUsartState;
 
+typedef AVRUsartState AvrUsartState;
+
 #endif /* HW_AVR_USART_H */
