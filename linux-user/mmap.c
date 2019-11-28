@@ -60,6 +60,15 @@ void mmap_fork_end(int child)
         pthread_mutex_unlock(&mmap_mutex);
 }
 
+/* mmap prot pretty printer */
+static void pp_prot(char (*str)[4], int prot)
+{
+    (*str)[0] = prot & PROT_READ ? 'r' : '-';
+    (*str)[1] = prot & PROT_WRITE ? 'w' : '-';
+    (*str)[2] = prot & PROT_EXEC ? 'x' : '-';
+    (*str)[3] = 0;
+}
+
 /* NOTE: all the constants are the HOST ones, but addresses are target. */
 int target_mprotect(abi_ulong start, abi_ulong len, int prot)
 {
@@ -68,10 +77,7 @@ int target_mprotect(abi_ulong start, abi_ulong len, int prot)
 
     if (TRACE_TARGET_MPROTECT_ENABLED) {
         char prot_str[4];
-        prot_str[0] = prot & PROT_READ ? 'r' : '-';
-        prot_str[1] = prot & PROT_WRITE ? 'w' : '-';
-        prot_str[2] = prot & PROT_EXEC ? 'x' : '-';
-        prot_str[3] = 0;
+        pp_prot(&prot_str, prot);
         trace_target_mprotect(start, len, prot_str);
     }
 
@@ -370,32 +376,33 @@ abi_long target_mmap(abi_ulong start, abi_ulong len, int prot,
     abi_ulong ret, end, real_start, real_end, retaddr, host_offset, host_len;
 
     mmap_lock();
-#ifdef DEBUG_MMAP
-    {
-        printf("mmap: start=0x" TARGET_ABI_FMT_lx
-               " len=0x" TARGET_ABI_FMT_lx " prot=%c%c%c flags=",
-               start, len,
-               prot & PROT_READ ? 'r' : '-',
-               prot & PROT_WRITE ? 'w' : '-',
-               prot & PROT_EXEC ? 'x' : '-');
-        if (flags & MAP_FIXED)
-            printf("MAP_FIXED ");
-        if (flags & MAP_ANONYMOUS)
-            printf("MAP_ANON ");
-        switch(flags & MAP_TYPE) {
+    if (TRACE_TARGET_MMAP_ENABLED) {
+        char prot_str[4];
+        g_autoptr(GString) flag_str = g_string_new(NULL);
+
+        pp_prot(&prot_str, prot);
+
+        if (flags & MAP_FIXED) {
+            g_string_append(flag_str, "MAP_FIXED ");
+        }
+        if (flags & MAP_ANONYMOUS) {
+            g_string_append(flag_str, "MAP_ANON ");
+        }
+
+        switch (flags & MAP_TYPE) {
         case MAP_PRIVATE:
-            printf("MAP_PRIVATE ");
+            g_string_append(flag_str, "MAP_PRIVATE ");
             break;
         case MAP_SHARED:
-            printf("MAP_SHARED ");
+            g_string_append(flag_str, "MAP_SHARED ");
             break;
         default:
-            printf("[MAP_TYPE=0x%x] ", flags & MAP_TYPE);
+            g_string_append_printf(flag_str, "[MAP_TYPE=0x%x] ",
+                                   flags & MAP_TYPE);
             break;
         }
-        printf("fd=%d offset=" TARGET_ABI_FMT_lx "\n", fd, offset);
+        trace_target_mmap(start, len, prot_str, flag_str->str, fd, offset);
     }
-#endif
 
     if (!len) {
         errno = EINVAL;
