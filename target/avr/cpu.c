@@ -129,7 +129,7 @@ static void avr_cpu_initfn(Object *obj)
 
 #ifndef CONFIG_USER_ONLY
     /* Set the number of interrupts supported by the CPU. */
-    qdev_init_gpio_in(DEVICE(cpu), avr_cpu_set_int, 57);
+    qdev_init_gpio_in(DEVICE(cpu), avr_cpu_set_int, 64);
 #endif
 }
 
