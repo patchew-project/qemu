@@ -257,6 +257,29 @@ static const VMStateDescription vmstate_imx_eth = {
 static void imx_eth_update(IMXFECState *s);
 
 /*
+ * Function to check if the MAC is configured to run in loopback mode.
+ * If so, invoke the "receive" routine.
+ * Else write to the output.
+ * */
+static void send_pkt(IMXFECState *s, uint8_t *frame, int frame_size)
+{
+    NetClientState *nc = qemu_get_queue(s->nic);
+
+    /*
+     * Loopback or Normal mode ?
+     * Per the FEC Manual: If loopback is enabled, the MII_MODE
+     * should be SET and the RMII_MODE should be cleared. Loopback
+     * will only work if this criterion is met. If not met,
+     * we will send the frame on the output queue. */
+    if ((s->regs[ENET_RCR] & ENET_RCR_LOOP) && (s->regs[ENET_RCR] & ENET_RCR_MII_MODE)
+            && !(s->regs[ENET_RCR] & ENET_RCR_RMII_MODE)) {
+        nc->info->receive(nc, frame, frame_size);
+    } else {
+        qemu_send_packet(nc, frame, frame_size);
+    }
+}
+
+/*
  * The MII phy could raise a GPIO to the processor which in turn
  * could be handled as an interrpt by the OS.
  * For now we don't handle any GPIO/interrupt line, so the OS will
@@ -488,7 +511,7 @@ static void imx_fec_do_tx(IMXFECState *s)
         frame_size += len;
         if (bd.flags & ENET_BD_L) {
             /* Last buffer in frame.  */
-            qemu_send_packet(qemu_get_queue(s->nic), s->frame, frame_size);
+            send_pkt(s, (uint8_t *)&s->frame, frame_size);
             ptr = s->frame;
             frame_size = 0;
             s->regs[ENET_EIR] |= ENET_INT_TXF;
@@ -586,7 +609,7 @@ static void imx_enet_do_tx(IMXFECState *s, uint32_t index)
             }
             /* Last buffer in frame.  */
 
-            qemu_send_packet(qemu_get_queue(s->nic), s->frame, frame_size);
+            send_pkt(s, (uint8_t *)&s->frame, frame_size);
             ptr = s->frame;
 
             frame_size = 0;
