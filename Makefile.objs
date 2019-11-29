@@ -86,6 +86,8 @@ common-obj-$(CONFIG_FDT) += device_tree.o
 # qapi
 
 common-obj-y += qapi/
+
+softmmu-main-y = main.o
 endif
 
 #######################################################################
