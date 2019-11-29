@@ -51,7 +51,7 @@ void flush_events(QTestState *s)
 static QTestState *qtest_setup(void)
 {
     qtest_server_set_send_handler(&qtest_client_inproc_recv, &fuzz_qts);
-    return qtest_inproc_init(&fuzz_qts, false fuzz_arch,
+    return qtest_inproc_init(&fuzz_qts, false, fuzz_arch,
             &qtest_server_inproc_recv);
 }
 
