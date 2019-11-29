@@ -130,6 +130,15 @@ GENERATED_QAPI_FILES += qapi/qapi-doc.texi
 
 generated-files-y += $(GENERATED_QAPI_FILES)
 
+GENERATED_QGA_FILES := qga-qapi-types.c qga-qapi-types.h
+GENERATED_QGA_FILES += qga-qapi-visit.c qga-qapi-visit.h
+GENERATED_QGA_FILES += qga-qapi-commands.h qga-qapi-commands.c
+GENERATED_QGA_FILES += qga-qapi-init-commands.h qga-qapi-init-commands.c
+GENERATED_QGA_FILES += qga-qapi-doc.texi
+GENERATED_QGA_FILES := $(addprefix qga/qapi-generated/, $(GENERATED_QGA_FILES))
+
+generated-files-y += $(GENERATED_QGA_FILES)
+
 generated-files-y += trace/generated-tcg-tracers.h
 
 generated-files-y += trace/generated-helpers-wrappers.h
@@ -608,12 +617,7 @@ $(SRC_PATH)/scripts/qapi/types.py \
 $(SRC_PATH)/scripts/qapi/visit.py \
 $(SRC_PATH)/scripts/qapi-gen.py
 
-qga/qapi-generated/qga-qapi-types.c qga/qapi-generated/qga-qapi-types.h \
-qga/qapi-generated/qga-qapi-visit.c qga/qapi-generated/qga-qapi-visit.h \
-qga/qapi-generated/qga-qapi-commands.h qga/qapi-generated/qga-qapi-commands.c \
-qga/qapi-generated/qga-qapi-init-commands.h qga/qapi-generated/qga-qapi-init-commands.c \
-qga/qapi-generated/qga-qapi-doc.texi: \
-qga/qapi-generated/qapi-gen-timestamp ;
+$(GENERATED_QGA_FILES): qga/qapi-generated/qapi-gen-timestamp ;
 qga/qapi-generated/qapi-gen-timestamp: $(SRC_PATH)/qga/qapi-schema.json $(qapi-py)
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-gen.py \
 		-o qga/qapi-generated -p "qga-" $<, \
@@ -629,9 +633,6 @@ qapi-gen-timestamp: $(qapi-modules) $(qapi-py)
 		-o "qapi" -b $<, \
 		"GEN","$(@:%-timestamp=%)")
 	@>$@
-
-QGALIB_GEN=$(addprefix qga/qapi-generated/, qga-qapi-types.h qga-qapi-visit.h qga-qapi-commands.h qga-qapi-init-commands.h)
-$(qga-obj-y): $(QGALIB_GEN)
 
 qemu-ga$(EXESUF): $(qga-obj-y) $(COMMON_LDADDS)
 	$(call LINK, $^)
@@ -722,7 +723,7 @@ clean: recurse-clean
 	rm -f trace/generated-tracers-dtrace.h*
 	rm -f $(foreach f,$(generated-files-y),$(f) $(f)-timestamp)
 	rm -f qapi-gen-timestamp
-	rm -rf qga/qapi-generated
+	rm -f qga/qapi-generated/qapi-gen-timestamp
 	rm -f config-all-devices.mak
 
 VERSION ?= $(shell cat VERSION)
