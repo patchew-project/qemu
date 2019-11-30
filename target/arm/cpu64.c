@@ -703,6 +703,9 @@ static void aarch64_max_initfn(Object *obj)
          */
         cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
         cpu->dcz_blocksize = 7; /*  512 bytes */
+
+        /* Default sve-max-vq to a reasonable numer */
+        cpu->sve_max_vq = 4;
 #endif
     }
 
