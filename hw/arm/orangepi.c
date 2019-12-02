@@ -39,6 +39,10 @@ typedef struct OrangePiState {
 static void orangepi_init(MachineState *machine)
 {
     OrangePiState *s = g_new(OrangePiState, 1);
+    DriveInfo *di;
+    BlockBackend *blk;
+    BusState *bus;
+    DeviceState *carddev;
     Error *err = NULL;
 
     s->h3 = AW_H3(object_new(TYPE_AW_H3));
@@ -64,6 +68,18 @@ static void orangepi_init(MachineState *machine)
         exit(1);
     }
 
+    /* Create and plug in the SD card */
+    di = drive_get_next(IF_SD);
+    blk = di ? blk_by_legacy_dinfo(di) : NULL;
+    bus = qdev_get_child_bus(DEVICE(s->h3), "sd-bus");
+    if (bus == NULL) {
+        error_report("No SD/MMC found in H3 object");
+        exit(1);
+    }
+    carddev = qdev_create(bus, TYPE_SD_CARD);
+    qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+    object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
+
     /* RAM */
     memory_region_allocate_system_memory(&s->sdram, NULL, "orangepi.ram",
                                          machine->ram_size);
@@ -80,6 +96,7 @@ static void orangepi_machine_init(MachineClass *mc)
 {
     mc->desc = "Orange Pi PC";
     mc->init = orangepi_init;
+    mc->block_default_type = IF_SD;
     mc->units_per_default_bus = 1;
     mc->min_cpus = AW_H3_NUM_CPUS;
     mc->max_cpus = AW_H3_NUM_CPUS;

@@ -50,6 +50,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "sid", &s->sid, sizeof(s->sid),
                           TYPE_AW_H3_SID);
+
+    sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
+                          TYPE_AW_H3_SDHOST);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -216,6 +219,23 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, AW_H3_SID_BASE);
+
+    /* SD/MMC */
+    object_property_set_bool(OBJECT(&s->mmc0), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbusdev = SYS_BUS_DEVICE(&s->mmc0);
+    sysbus_mmio_map(sysbusdev, 0, AW_H3_MMC0_BASE);
+    sysbus_connect_irq(sysbusdev, 0, s->irq[AW_H3_GIC_SPI_MMC0]);
+
+    object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
+                              "sd-bus", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI0_BASE,
