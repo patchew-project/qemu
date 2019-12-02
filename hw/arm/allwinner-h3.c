@@ -41,6 +41,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
                           TYPE_AW_H3_CLK);
+
+    sysbus_init_child_obj(obj, "syscon", &s->syscon, sizeof(s->syscon),
+                          TYPE_AW_H3_SYSCON);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -183,6 +186,14 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, AW_H3_CCU_BASE);
+
+    /* System Control */
+    object_property_set_bool(OBJECT(&s->syscon), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->syscon), 0, AW_H3_SYSCON_BASE);
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI0_BASE,
