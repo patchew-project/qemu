@@ -642,7 +642,11 @@ fi
 python_usable=false
 if $PYTHON -c 'import sys; sys.exit(0 if sys.version_info >= (3,6) else 1)'
 then
-    python_usable=true
+    # Our python framework also requires virtio-blk
+    if "$QEMU_PROG" -M none -device help | grep -q virtio-blk >/dev/null 2>&1
+    then
+        python_usable=true
+    fi
 fi
 
 default_machine=$($QEMU_PROG -machine help | sed -n '/(default)/ s/ .*//p')
@@ -830,7 +834,7 @@ do
                 run_command="$PYTHON $seq"
             else
                 run_command="false"
-                echo "Unsupported Python version" > $seq.notrun
+                echo "Unsupported Python version or missing virtio-blk" > $seq.notrun
             fi
         else
             run_command="./$seq"
