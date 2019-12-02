@@ -44,6 +44,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "syscon", &s->syscon, sizeof(s->syscon),
                           TYPE_AW_H3_SYSCON);
+
+    sysbus_init_child_obj(obj, "cpucfg", &s->cpucfg, sizeof(s->cpucfg),
+                          TYPE_AW_H3_CPUCFG);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -194,6 +197,14 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->syscon), 0, AW_H3_SYSCON_BASE);
+
+    /* CPU Configuration */
+    object_property_set_bool(OBJECT(&s->cpucfg), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->cpucfg), 0, AW_H3_CPUCFG_BASE);
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI0_BASE,

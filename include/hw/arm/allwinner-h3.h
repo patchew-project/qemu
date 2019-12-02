@@ -27,6 +27,7 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/arm_gic.h"
 #include "hw/misc/allwinner-h3-clk.h"
+#include "hw/misc/allwinner-h3-cpucfg.h"
 #include "hw/misc/allwinner-h3-syscon.h"
 #include "target/arm/cpu.h"
 
@@ -112,6 +113,7 @@ typedef struct AwH3State {
     qemu_irq irq[AW_H3_GIC_NUM_SPI];
     AwA10PITState timer;
     AwH3ClockState ccu;
+    AwH3CpuCfgState cpucfg;
     AwH3SysconState syscon;
     GICState gic;
     MemoryRegion sram_a1;
