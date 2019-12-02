@@ -37,6 +37,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "timer", &s->timer, sizeof(s->timer),
                           TYPE_AW_A10_PIT);
+
+    sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
+                          TYPE_AW_H3_CLK);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -171,6 +174,14 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
                                 &s->sram_a2);
     memory_region_add_subregion(get_system_memory(), AW_H3_SRAM_C_BASE,
                                 &s->sram_c);
+
+    /* Clock Control Unit */
+    object_property_set_bool(OBJECT(&s->ccu), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, AW_H3_CCU_BASE);
 
     /* UART */
     if (serial_hd(0)) {
