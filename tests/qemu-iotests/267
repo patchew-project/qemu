@@ -44,6 +44,8 @@ _supported_os Linux
 # Internal snapshots are (currently) impossible with refcount_bits=1
 _unsupported_imgopts 'refcount_bits=1[^0-9]'
 
+_require_devices virtio-blk
+
 do_run_qemu()
 {
     echo Testing: "$@"
