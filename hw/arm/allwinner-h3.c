@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "hw/arm/allwinner-h3.h"
 #include "hw/misc/unimp.h"
+#include "hw/usb/hcd-ehci.h"
 #include "sysemu/sysemu.h"
 
 static void aw_h3_init(Object *obj)
@@ -182,6 +183,25 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
         return;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, AW_H3_CCU_BASE);
+
+    /* Universal Serial Bus */
+    sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI0_BASE,
+                         s->irq[AW_H3_GIC_SPI_EHCI0]);
+    sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI1_BASE,
+                         s->irq[AW_H3_GIC_SPI_EHCI1]);
+    sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI2_BASE,
+                         s->irq[AW_H3_GIC_SPI_EHCI2]);
+    sysbus_create_simple(TYPE_AW_H3_EHCI, AW_H3_EHCI3_BASE,
+                         s->irq[AW_H3_GIC_SPI_EHCI3]);
+
+    sysbus_create_simple("sysbus-ohci", AW_H3_OHCI0_BASE,
+                         s->irq[AW_H3_GIC_SPI_OHCI0]);
+    sysbus_create_simple("sysbus-ohci", AW_H3_OHCI1_BASE,
+                         s->irq[AW_H3_GIC_SPI_OHCI1]);
+    sysbus_create_simple("sysbus-ohci", AW_H3_OHCI2_BASE,
+                         s->irq[AW_H3_GIC_SPI_OHCI2]);
+    sysbus_create_simple("sysbus-ohci", AW_H3_OHCI3_BASE,
+                         s->irq[AW_H3_GIC_SPI_OHCI3]);
 
     /* UART */
     if (serial_hd(0)) {
