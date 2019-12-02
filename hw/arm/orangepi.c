@@ -61,6 +61,13 @@ static void orangepi_init(MachineState *machine)
         exit(1);
     }
 
+    /* Setup EMAC properties */
+    object_property_set_int(OBJECT(&s->h3->emac), 1, "phy-addr", &err);
+    if (err != NULL) {
+        error_reportf_err(err, "Couldn't set phy address: ");
+        exit(1);
+    }
+
     /* Mark H3 object realized */
     object_property_set_bool(OBJECT(s->h3), true, "realized", &err);
     if (err != NULL) {

@@ -31,6 +31,7 @@
 #include "hw/misc/allwinner-h3-syscon.h"
 #include "hw/misc/allwinner-h3-sid.h"
 #include "hw/sd/allwinner-h3-sdhost.h"
+#include "hw/net/allwinner-h3-emac.h"
 #include "target/arm/cpu.h"
 
 #define AW_H3_SRAM_A1_BASE     (0x00000000)
@@ -119,6 +120,7 @@ typedef struct AwH3State {
     AwH3SysconState syscon;
     AwH3SidState sid;
     AwH3SDHostState mmc0;
+    AwH3EmacState emac;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;
