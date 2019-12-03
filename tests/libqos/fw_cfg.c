@@ -57,7 +57,14 @@ uint64_t qfw_cfg_get_u64(QFWCFG *fw_cfg, uint16_t key)
 
 static void mm_fw_cfg_select(QFWCFG *fw_cfg, uint16_t key)
 {
-    qtest_writew(fw_cfg->qts, fw_cfg->base, key);
+    const char *arch = qtest_get_arch();
+    uint64_t offset = 0;
+
+    if (!strcmp(arch, "aarch64")) {
+        offset = 8;
+    }
+
+    qtest_writew(fw_cfg->qts, fw_cfg->base + offset, cpu_to_be16(key));
 }
 
 /*
@@ -108,9 +115,15 @@ static void mm_fw_cfg_read(QFWCFG *fw_cfg, void *data, size_t len)
 {
     uint8_t *ptr = data;
     int i;
+    uint64_t offset = 2;
+    const char *arch = qtest_get_arch();
+
+    if (!strcmp(arch, "aarch64")) {
+        offset = 0;
+    }
 
     for (i = 0; i < len; i++) {
-        ptr[i] = qtest_readb(fw_cfg->qts, fw_cfg->base + 2);
+        ptr[i] = qtest_readb(fw_cfg->qts, fw_cfg->base + offset);
     }
 }
 
