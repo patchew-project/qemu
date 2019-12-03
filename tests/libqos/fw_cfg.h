@@ -39,14 +39,26 @@ void mm_fw_cfg_uninit(QFWCFG *fw_cfg);
 QFWCFG *io_fw_cfg_init(QTestState *qts, uint16_t base);
 void io_fw_cfg_uninit(QFWCFG *fw_cfg);
 
-static inline QFWCFG *pc_fw_cfg_init(QTestState *qts)
+static inline QFWCFG *fw_cfg_init(QTestState *qts)
 {
-    return io_fw_cfg_init(qts, 0x510);
+    const char *arch = qtest_get_arch();
+
+    if (!strcmp(arch, "aarch64")) {
+        return mm_fw_cfg_init(qts, 0x09020000);
+    } else {
+        return io_fw_cfg_init(qts, 0x510);
+    }
 }
 
-static inline void pc_fw_cfg_uninit(QFWCFG *fw_cfg)
+static inline void fw_cfg_uninit(QFWCFG *fw_cfg)
 {
-    io_fw_cfg_uninit(fw_cfg);
+    const char *arch = qtest_get_arch();
+
+    if (!strcmp(arch, "aarch64")) {
+        mm_fw_cfg_uninit(fw_cfg);
+    } else {
+        io_fw_cfg_uninit(fw_cfg);
+    }
 }
 
 #endif
