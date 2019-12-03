@@ -831,6 +831,13 @@ static void virtio_balloon_device_unrealize(DeviceState *dev, Error **errp)
     }
     balloon_stats_destroy_timer(s);
     qemu_remove_balloon_handler(s);
+
+    virtio_del_queue(vdev, 0);
+    virtio_del_queue(vdev, 1);
+    virtio_del_queue(vdev, 2);
+    if (s->free_page_vq) {
+        virtio_del_queue(vdev, 3);
+    }
     virtio_cleanup(vdev);
 }
 
