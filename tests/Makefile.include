@@ -276,6 +276,7 @@ check-qtest-aarch64-y += tests/arm-cpu-features$(EXESUF)
 check-qtest-aarch64-y += tests/numa-test$(EXESUF)
 check-qtest-aarch64-y += tests/boot-serial-test$(EXESUF)
 check-qtest-aarch64-y += tests/migration-test$(EXESUF)
+check-qtest-aarch64-y += tests/fw_cfg-test$(EXESUF)
 # TODO: once aarch64 TCG is fixed on ARM 32 bit host, make test unconditional
 ifneq ($(ARCH),arm)
 check-qtest-aarch64-y += tests/bios-tables-test$(EXESUF)
