@@ -3740,6 +3740,15 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
+    /*
+     * If we are running with E2&0 regime, then the ASID is active.
+     * Flush if that changes.
+     */
+    if ((arm_hcr_el2_eff(env) & HCR_E2H) &&
+        extract64(raw_read(env, ri) ^ value, 48, 16)) {
+        tlb_flush_by_mmuidx(env_cpu(env),
+                            ARMMMUIdxBit_EL20_2 | ARMMMUIdxBit_EL20_0);
+    }
     raw_write(env, ri, value);
 }
 
