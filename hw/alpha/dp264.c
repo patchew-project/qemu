@@ -85,9 +85,9 @@ static void clipper_init(MachineState *machine)
     /* VGA setup.  Don't bother loading the bios.  */
     pci_vga_init(pci_bus);
 
-    /* Network setup.  e1000 is good enough, failing Tulip support.  */
+    /* Network setup */
     for (i = 0; i < nb_nics; i++) {
-        pci_nic_init_nofail(&nd_table[i], pci_bus, "e1000", NULL);
+        pci_nic_init_nofail(&nd_table[i], pci_bus, "tulip", NULL);
     }
 
     /* 2 82C37 (dma) */
