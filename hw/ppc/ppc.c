@@ -1510,3 +1510,11 @@ PowerPCCPU *ppc_get_vcpu_by_pir(int pir)
 
     return NULL;
 }
+
+void ppc_irq_reset(PowerPCCPU *cpu)
+{
+    CPUPPCState *env = &cpu->env;
+
+    env->irq_input_state = 0;
+    kvmppc_set_interrupt(cpu, PPC_INTERRUPT_EXT, 0);
+}
