@@ -2936,7 +2936,7 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
                      (uint32_t)e->index, (uint64_t)e->data);
     }
 
-    assert(ret == cpu->kvm_msr_buf->nmsrs);
+    assert(ret <= cpu->kvm_msr_buf->nmsrs);
     return 0;
 }
 
