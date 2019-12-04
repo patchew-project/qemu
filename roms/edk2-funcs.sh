@@ -135,35 +135,27 @@ qemu_edk2_get_toolchain()
     return 1
   fi
 
-  case "$emulation_target" in
-    (arm|aarch64)
-      printf 'GCC5\n'
+  if ! cross_prefix=$(qemu_edk2_get_cross_prefix "$emulation_target"); then
+    return 1
+  fi
+
+  gcc_version=$("${cross_prefix}gcc" -v 2>&1 | tail -1 | awk '{print $3}')
+  # Run "git-blame" on "OvmfPkg/build.sh" in edk2 for more information on
+  # the mapping below.
+  case "$gcc_version" in
+    ([1-3].*|4.[0-7].*)
+      printf '%s: unsupported gcc version "%s"\n' \
+        "$program_name" "$gcc_version" >&2
+      return 1
       ;;
-
-    (i386|x86_64)
-      if ! cross_prefix=$(qemu_edk2_get_cross_prefix "$emulation_target"); then
-        return 1
-      fi
-
-      gcc_version=$("${cross_prefix}gcc" -v 2>&1 | tail -1 | awk '{print $3}')
-      # Run "git-blame" on "OvmfPkg/build.sh" in edk2 for more information on
-      # the mapping below.
-      case "$gcc_version" in
-        ([1-3].*|4.[0-7].*)
-          printf '%s: unsupported gcc version "%s"\n' \
-            "$program_name" "$gcc_version" >&2
-          return 1
-          ;;
-        (4.8.*)
-          printf 'GCC48\n'
-          ;;
-        (4.9.*|6.[0-2].*)
-          printf 'GCC49\n'
-          ;;
-        (*)
-          printf 'GCC5\n'
-          ;;
-      esac
+    (4.8.*)
+      printf 'GCC48\n'
+      ;;
+    (4.9.*|6.[0-2].*)
+      printf 'GCC49\n'
+      ;;
+    (*)
+      printf 'GCC5\n'
       ;;
   esac
 }
