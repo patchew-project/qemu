@@ -103,7 +103,9 @@
 
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
-GlobalProperty pc_compat_4_1[] = {};
+GlobalProperty pc_compat_4_1[] = {
+    { "mch", "smbase-smram", "off" },
+};
 const size_t pc_compat_4_1_len = G_N_ELEMENTS(pc_compat_4_1);
 
 GlobalProperty pc_compat_4_0[] = {};
