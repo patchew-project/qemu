@@ -505,6 +505,9 @@ static gboolean tcp_chr_read(QIOChannel *chan, GIOCondition cond, void *opaque)
     uint8_t buf[CHR_READ_BUF_LEN];
     int len, size;
 
+    if(s->is_websock)
+        /* Greedy reader does not have event loop refresh by tcp_chr_read_poll */
+        s->max_size = qemu_chr_be_can_write(chr);
     if ((s->state != TCP_CHARDEV_STATE_CONNECTED) ||
         s->max_size <= 0) {
         return TRUE;
