@@ -50,9 +50,12 @@ static inline void log_disas(void *code, unsigned long size)
 
 #if defined(CONFIG_USER_ONLY)
 /* page_dump() output to the log file: */
-static inline void log_page_dump(void)
+static inline void log_page_dump(const char *operation)
 {
+    qemu_log_lock();
+    qemu_log("page layout changed following %s\n", operation);
     page_dump(qemu_logfile);
+    qemu_log_unlock();
 }
 #endif
 #endif
