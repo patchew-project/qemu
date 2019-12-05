@@ -174,9 +174,6 @@ enum {
 #define QEMU_PCI_CAP_MULTIFUNCTION_BITNR        3
     QEMU_PCI_CAP_MULTIFUNCTION = (1 << QEMU_PCI_CAP_MULTIFUNCTION_BITNR),
 
-    /* command register SERR bit enabled */
-#define QEMU_PCI_CAP_SERR_BITNR 4
-    QEMU_PCI_CAP_SERR = (1 << QEMU_PCI_CAP_SERR_BITNR),
     /* Standard hot plug controller. */
 #define QEMU_PCI_SHPC_BITNR 5
     QEMU_PCI_CAP_SHPC = (1 << QEMU_PCI_SHPC_BITNR),
