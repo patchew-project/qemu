@@ -206,11 +206,6 @@ the 'wait' field, which is only applicable to sockets in server mode
 
 @section Human Monitor Protocol (HMP) commands
 
-@subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (since 3.1)
-
-The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
-'hostfwd_remove' HMP commands has been replaced by @option{netdev_id}.
-
 @subsection cpu-add (since 4.0)
 
 Use ``device_add'' for hotplugging vCPUs instead of ``cpu-add''.  See
@@ -381,6 +376,14 @@ command.
 What follows is a record of recently removed, formerly deprecated
 features that serves as a record for users who have encountered
 trouble after a recent upgrade.
+
+@section Human Monitor Protocol (HMP) commands
+
+@subsection The hub_id parameter of 'hostfwd_add' / 'hostfwd_remove' (removed in 5.0)
+
+The @option{[hub_id name]} parameter tuple of the 'hostfwd_add' and
+'hostfwd_remove' HMP commands has been replaced by the single option
+@option{netdev_id}.
 
 @section QEMU Machine Protocol (QMP) commands
 
