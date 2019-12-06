@@ -469,13 +469,12 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
     dc->props = s390x_cpu_properties;
     dc->user_creatable = true;
 
-    scc->parent_reset = cc->reset;
+    cpu_class_set_parent_reset(cc, s390_cpu_full_reset, &scc->parent_reset);
 #if !defined(CONFIG_USER_ONLY)
     scc->load_normal = s390_cpu_load_normal;
 #endif
     scc->cpu_reset = s390_cpu_reset;
     scc->initial_cpu_reset = s390_cpu_initial_reset;
-    cc->reset = s390_cpu_full_reset;
     cc->class_by_name = s390_cpu_class_by_name,
     cc->has_work = s390_cpu_has_work;
 #ifdef CONFIG_TCG
