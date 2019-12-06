@@ -328,7 +328,7 @@ static void create_secure_ram(SBSAMachineState *sms,
     memory_region_add_subregion(secure_sysmem, base, secram);
 }
 
-static void create_gic(SBSAMachineState *sms, qemu_irq *pic)
+static DeviceState *create_gic(SBSAMachineState *sms)
 {
     unsigned int smp_cpus = MACHINE(sms)->smp.cpus;
     DeviceState *gicdev;
@@ -403,12 +403,10 @@ static void create_gic(SBSAMachineState *sms, qemu_irq *pic)
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
 
-    for (i = 0; i < NUM_IRQS; i++) {
-        pic[i] = qdev_get_gpio_in(gicdev, i);
-    }
+    return gicdev;
 }
 
-static void create_uart(const SBSAMachineState *sms, qemu_irq *pic, int uart,
+static void create_uart(const SBSAMachineState *sms, DeviceState *gic, int uart,
                         MemoryRegion *mem, Chardev *chr)
 {
     hwaddr base = sbsa_ref_memmap[uart].base;
@@ -420,15 +418,15 @@ static void create_uart(const SBSAMachineState *sms, qemu_irq *pic, int uart,
     qdev_init_nofail(dev);
     memory_region_add_subregion(mem, base,
                                 sysbus_mmio_get_region(s, 0));
-    sysbus_connect_irq(s, 0, pic[irq]);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(gic, irq));
 }
 
-static void create_rtc(const SBSAMachineState *sms, qemu_irq *pic)
+static void create_rtc(const SBSAMachineState *sms, DeviceState *gic)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_RTC].base;
     int irq = sbsa_ref_irqmap[SBSA_RTC];
 
-    sysbus_create_simple("pl031", base, pic[irq]);
+    sysbus_create_simple("pl031", base, qdev_get_gpio_in(gic, irq));
 }
 
 static DeviceState *gpio_key_dev;
@@ -442,13 +440,13 @@ static Notifier sbsa_ref_powerdown_notifier = {
     .notify = sbsa_ref_powerdown_req
 };
 
-static void create_gpio(const SBSAMachineState *sms, qemu_irq *pic)
+static void create_gpio(const SBSAMachineState *sms, DeviceState *gic)
 {
     DeviceState *pl061_dev;
     hwaddr base = sbsa_ref_memmap[SBSA_GPIO].base;
     int irq = sbsa_ref_irqmap[SBSA_GPIO];
 
-    pl061_dev = sysbus_create_simple("pl061", base, pic[irq]);
+    pl061_dev = sysbus_create_simple("pl061", base, qdev_get_gpio_in(gic, irq));
 
     gpio_key_dev = sysbus_create_simple("gpio-key", -1,
                                         qdev_get_gpio_in(pl061_dev, 3));
@@ -457,7 +455,7 @@ static void create_gpio(const SBSAMachineState *sms, qemu_irq *pic)
     qemu_register_powerdown_notifier(&sbsa_ref_powerdown_notifier);
 }
 
-static void create_ahci(const SBSAMachineState *sms, qemu_irq *pic)
+static void create_ahci(const SBSAMachineState *sms, DeviceState *gic)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_AHCI].base;
     int irq = sbsa_ref_irqmap[SBSA_AHCI];
@@ -471,7 +469,7 @@ static void create_ahci(const SBSAMachineState *sms, qemu_irq *pic)
     qdev_prop_set_uint32(dev, "num-ports", NUM_SATA_PORTS);
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
-    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic[irq]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(gic, irq));
 
     sysahci = SYSBUS_AHCI(dev);
     ahci = &sysahci->ahci;
@@ -484,15 +482,15 @@ static void create_ahci(const SBSAMachineState *sms, qemu_irq *pic)
     }
 }
 
-static void create_ehci(const SBSAMachineState *sms, qemu_irq *pic)
+static void create_ehci(const SBSAMachineState *sms, DeviceState *gic)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_EHCI].base;
     int irq = sbsa_ref_irqmap[SBSA_EHCI];
 
-    sysbus_create_simple("platform-ehci-usb", base, pic[irq]);
+    sysbus_create_simple("platform-ehci-usb", base, qdev_get_gpio_in(gic, irq));
 }
 
-static void create_smmu(const SBSAMachineState *sms, qemu_irq *pic,
+static void create_smmu(const SBSAMachineState *sms, DeviceState *gic,
                         PCIBus *bus)
 {
     hwaddr base = sbsa_ref_memmap[SBSA_SMMU].base;
@@ -507,11 +505,12 @@ static void create_smmu(const SBSAMachineState *sms, qemu_irq *pic,
     qdev_init_nofail(dev);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
     for (i = 0; i < NUM_SMMU_IRQS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(gic, irq + 1));
     }
 }
 
-static void create_pcie(SBSAMachineState *sms, qemu_irq *pic)
+static void create_pcie(SBSAMachineState *sms, DeviceState *gic)
 {
     hwaddr base_ecam = sbsa_ref_memmap[SBSA_PCIE_ECAM].base;
     hwaddr size_ecam = sbsa_ref_memmap[SBSA_PCIE_ECAM].size;
@@ -555,7 +554,8 @@ static void create_pcie(SBSAMachineState *sms, qemu_irq *pic)
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 2, base_pio);
 
     for (i = 0; i < GPEX_NUM_IRQS; i++) {
-        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i, pic[irq + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(dev), i,
+                           qdev_get_gpio_in(gic, irq + 1));
         gpex_set_irq_num(GPEX_HOST(dev), i, irq + i);
     }
 
@@ -574,7 +574,7 @@ static void create_pcie(SBSAMachineState *sms, qemu_irq *pic)
 
     pci_create_simple(pci->bus, -1, "VGA");
 
-    create_smmu(sms, pic, pci->bus);
+    create_smmu(sms, gic, pci->bus);
 }
 
 static void *sbsa_ref_dtb(const struct arm_boot_info *binfo, int *fdt_size)
@@ -598,7 +598,7 @@ static void sbsa_ref_init(MachineState *machine)
     bool firmware_loaded;
     const CPUArchIdList *possible_cpus;
     int n, sbsa_max_cpus;
-    qemu_irq pic[NUM_IRQS];
+    DeviceState *gic;
 
     if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a57"))) {
         error_report("sbsa-ref: CPU type other than the built-in "
@@ -695,22 +695,22 @@ static void sbsa_ref_init(MachineState *machine)
 
     create_secure_ram(sms, secure_sysmem);
 
-    create_gic(sms, pic);
+    gic = create_gic(sms);
 
-    create_uart(sms, pic, SBSA_UART, sysmem, serial_hd(0));
-    create_uart(sms, pic, SBSA_SECURE_UART, secure_sysmem, serial_hd(1));
+    create_uart(sms, gic, SBSA_UART, sysmem, serial_hd(0));
+    create_uart(sms, gic, SBSA_SECURE_UART, secure_sysmem, serial_hd(1));
     /* Second secure UART for RAS and MM from EL0 */
-    create_uart(sms, pic, SBSA_SECURE_UART_MM, secure_sysmem, serial_hd(2));
+    create_uart(sms, gic, SBSA_SECURE_UART_MM, secure_sysmem, serial_hd(2));
 
-    create_rtc(sms, pic);
+    create_rtc(sms, gic);
 
-    create_gpio(sms, pic);
+    create_gpio(sms, gic);
 
-    create_ahci(sms, pic);
+    create_ahci(sms, gic);
 
-    create_ehci(sms, pic);
+    create_ehci(sms, gic);
 
-    create_pcie(sms, pic);
+    create_pcie(sms, gic);
 
     sms->bootinfo.ram_size = machine->ram_size;
     sms->bootinfo.nb_cpus = smp_cpus;
