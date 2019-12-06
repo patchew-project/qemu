@@ -1242,6 +1242,7 @@ S: Supported
 F: include/hw/i386/
 F: hw/i386/
 F: hw/pci-host/i440fx.c
+F: hw/pci-host/igd_pt.c
 F: hw/pci-host/q35.c
 F: hw/pci-host/pam.c
 F: include/hw/pci-host/i440fx.h
