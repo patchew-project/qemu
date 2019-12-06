@@ -3377,7 +3377,7 @@ void spapr_do_system_reset_on_cpu(CPUState *cs, run_on_cpu_data arg)
     ppc_cpu_do_system_reset(cs);
 }
 
-static void spapr_nmi(NMIState *n, int cpu_index, Error **errp)
+static void spapr_nmi(Object *parent, int cpu_index, Error **errp)
 {
     CPUState *cs;
 

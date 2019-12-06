@@ -38,7 +38,7 @@ typedef struct NMIState NMIState;
 typedef struct NMIClass {
     InterfaceClass parent_class;
 
-    void (*nmi_monitor_handler)(NMIState *n, int cpu_index, Error **errp);
+    void (*nmi_monitor_handler)(Object *parent, int cpu_index, Error **errp);
 } NMIClass;
 
 void nmi_monitor_handle(int cpu_index, Error **errp);

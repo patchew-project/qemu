@@ -431,7 +431,7 @@ static void s390_hot_add_cpu(MachineState *machine,
     s390x_new_cpu(object_class_get_name(oc), id, errp);
 }
 
-static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
+static void s390_nmi(Object *parent, int cpu_index, Error **errp)
 {
     CPUState *cs = qemu_get_cpu(cpu_index);
 

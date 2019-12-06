@@ -37,13 +37,13 @@ static void nmi_children(Object *o, struct do_nmi_s *ns);
 static int do_nmi(Object *o, void *opaque)
 {
     struct do_nmi_s *ns = opaque;
-    NMIState *n = (NMIState *) object_dynamic_cast(o, TYPE_NMI);
+    Object *parent = object_dynamic_cast(o, TYPE_NMI);
 
-    if (n) {
-        NMIClass *nc = NMI_GET_CLASS(n);
+    if (parent) {
+        NMIClass *nc = NMI_GET_CLASS(parent);
 
         ns->handled = true;
-        nc->nmi_monitor_handler(n, ns->cpu_index, &ns->err);
+        nc->nmi_monitor_handler(parent, ns->cpu_index, &ns->err);
         if (ns->err) {
             return -1;
         }
