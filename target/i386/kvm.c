@@ -2572,6 +2572,14 @@ static void kvm_msr_entry_add_vmx(X86CPU *cpu, FeatureWordArray f)
     uint64_t kvm_vmx_basic =
         kvm_arch_get_supported_msr_feature(kvm_state,
                                            MSR_IA32_VMX_BASIC);
+    if (!kvm_vmx_basic) {
+        /* If the kernel does't support VMX feature(nested=0 in kvm)
+         * and kvm_vmx_basic will be 0. This will set 0 value to
+         * MSR_IA32_VMX_BASIC MSR.
+         */
+        return;
+    }
+
     uint64_t kvm_vmx_misc =
         kvm_arch_get_supported_msr_feature(kvm_state,
                                            MSR_IA32_VMX_MISC);
