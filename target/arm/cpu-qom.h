@@ -51,7 +51,7 @@ typedef struct ARMCPUClass {
 
     const ARMCPUInfo *info;
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    CPUReset parent_reset;
 } ARMCPUClass;
 
 typedef struct ARMCPU ARMCPU;

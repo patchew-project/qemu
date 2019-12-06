@@ -45,7 +45,7 @@ typedef struct CRISCPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    CPUReset parent_reset;
 
     uint32_t vr;
 } CRISCPUClass;

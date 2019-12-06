@@ -51,7 +51,7 @@ typedef struct SuperHCPUClass {
     /*< public >*/
 
     DeviceRealize parent_realize;
-    void (*parent_reset)(CPUState *cpu);
+    CPUReset parent_reset;
 
     uint32_t pvr;
     uint32_t prr;
