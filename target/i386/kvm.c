@@ -2632,8 +2632,13 @@ static void kvm_msr_entry_add_vmx(X86CPU *cpu, FeatureWordArray f)
                                          f[FEAT_VMX_SECONDARY_CTLS]));
     kvm_msr_entry_add(cpu, MSR_IA32_VMX_EPT_VPID_CAP,
                       f[FEAT_VMX_EPT_VPID_CAPS] | fixed_vmx_ept_vpid);
-    kvm_msr_entry_add(cpu, MSR_IA32_VMX_BASIC,
+
+    if (kvm_vmx_basic) {
+	/* Only add the entry when host supports it */
+        kvm_msr_entry_add(cpu, MSR_IA32_VMX_BASIC,
                       f[FEAT_VMX_BASIC] | fixed_vmx_basic);
+    }
+
     kvm_msr_entry_add(cpu, MSR_IA32_VMX_MISC,
                       f[FEAT_VMX_MISC] | fixed_vmx_misc);
     if (has_msr_vmx_vmfunc) {
