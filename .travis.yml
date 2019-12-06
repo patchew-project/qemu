@@ -277,6 +277,8 @@ matrix:
             - python3.5-venv
             - tesseract-ocr
             - tesseract-ocr-eng
+            # Additional kernel build dependencies
+            - libelf-dev
 
 
     # Using newer GCC with sanitizers
