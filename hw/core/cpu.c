@@ -239,6 +239,14 @@ void cpu_dump_statistics(CPUState *cpu, int flags)
     }
 }
 
+void cpu_class_set_parent_reset(CPUClass *cc,
+                                CPUReset child_reset,
+                                CPUReset *parent_reset)
+{
+    *parent_reset = cc->reset;
+    cc->reset = child_reset;
+}
+
 void cpu_reset(CPUState *cpu)
 {
     CPUClass *klass = CPU_GET_CLASS(cpu);

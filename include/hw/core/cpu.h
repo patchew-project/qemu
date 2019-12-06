@@ -1137,6 +1137,10 @@ void cpu_exec_unrealizefn(CPUState *cpu);
  */
 bool target_words_bigendian(void);
 
+void cpu_class_set_parent_reset(CPUClass *cc,
+                                CPUReset child_reset,
+                                CPUReset *parent_reset);
+
 #ifdef NEED_CPU_H
 
 #ifdef CONFIG_SOFTMMU
