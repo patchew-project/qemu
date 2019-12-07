@@ -419,6 +419,80 @@ static void imx_enet_write_bd(IMXENETBufDesc *bd, dma_addr_t addr)
     dma_memory_write(&address_space_memory, addr, bd, sizeof(*bd));
 }
 
+/*
+ * Calculate a FEC MAC Address hash index
+ */
+static unsigned calc_mac_hash(const uint8_t *mac, uint8_t mac_length)
+{
+    uint32_t crc = -1;
+    int i;
+
+    while (mac_length --) {
+        crc ^= *mac++;
+        for (i = 0; i < 8; i++) {
+            crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
+        }
+    }
+
+    /* only upper 6 bits (FEC_HASH_BITS) are used
+     * which point to specific bit in the hash registers
+     */
+    return ((crc >> (32 - FEC_HASH_BITS)) & 0x3f);
+}
+
+/*
+ * fec_mac_address_filter:
+ * Accept or reject this destination address?
+ */
+static int fec_mac_address_filter(IMXFECState *s, const uint8_t *packet)
+{
+    const uint8_t broadcast_addr[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+    uint32_t addr1, addr2;
+    uint8_t  hash;
+
+    /* Promiscuous mode? */
+    if (s->regs[ENET_RCR] & ENET_RCR_PROM) {
+        return (FEC_RX_PROMISCUOUS_ACCEPT); /* Accept all packets in promiscuous mode (even if bc_rej is set). */
+    }
+
+    /* Broadcast packet? */
+    if (!memcmp(packet, broadcast_addr, 6)) {
+        /* Reject broadcast packets? */
+        if (s->regs[ENET_RCR] & ENET_RCR_BC_REJ) {
+            return (FEC_RX_REJECT);
+        }
+        return (FEC_RX_BROADCAST_ACCEPT); /* Accept packets from broadcast address. */
+    }
+
+    /* Accept packets -w- hash match? */
+    hash = calc_mac_hash(packet, 6);
+
+    /* Accept packets -w- multicast hash match? */
+    if ((packet[0] & 0x01) == 0x01) {
+        /* See if the computed hash matches a set bit in either GAUR / GALR register. */
+        if (((hash < 32) && (s->regs[ENET_GALR] & (1 << hash)))
+                || ((hash > 31) && (s->regs[ENET_GAUR] & (1 << (hash-32))))) {
+            return (FEC_RX_MULTICAST_HASH_ACCEPT); /* Accept multicast hash enabled address. */
+        }
+    } else {
+        /* See if the computed hash matches a set bit in either IAUR / IALR register. */
+        if (((hash < 32) && (s->regs[ENET_IALR] & (1 << hash)))
+                || ((hash > 31) && (s->regs[ENET_IAUR] & (1 << (hash-32))))) {
+            return (FEC_RX_UNICAST_HASH_ACCEPT); /* Accept multicast hash enabled address. */
+        }
+    }
+
+    /* Match Unicast address. */
+    addr1  = g_htonl(s->regs[ENET_PALR]);
+    addr2  = g_htonl(s->regs[ENET_PAUR]);
+    if (!(memcmp(packet, (uint8_t *) &addr1, 4) || memcmp(packet+4, (uint8_t *) &addr2, 2))) {
+        return (FEC_RX_UNICAST_ACCEPT); /* Accept packet because it matches my unicast address. */
+    }
+
+    /* Return -1 because we do NOT support MAC address filtering.. */
+    return (FEC_RX_REJECT);
+}
+
 static void imx_eth_update(IMXFECState *s)
 {
     /*
@@ -984,7 +1058,7 @@ static void imx_eth_write(void *opaque, hwaddr offset, uint64_t value,
     case ENET_IALR:
     case ENET_GAUR:
     case ENET_GALR:
-        /* TODO: implement MAC hash filtering.  */
+        s->regs[index] |= value;
         break;
     case ENET_TFWR:
         if (s->is_fec) {
@@ -1066,7 +1140,15 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
     uint32_t buf_addr;
     uint8_t *crc_ptr;
     unsigned int buf_len;
+    int maf;
     size_t size = len;
+
+    /* Is this destination MAC address "for us" ? */
+    maf = fec_mac_address_filter(s, buf);
+    if (maf == FEC_RX_REJECT)
+    {
+        return (FEC_RX_REJECT);
+    }
 
     FEC_PRINTF("len %d\n", (int)size);
 
@@ -1133,6 +1215,14 @@ static ssize_t imx_fec_receive(NetClientState *nc, const uint8_t *buf,
         } else {
             s->regs[ENET_EIR] |= ENET_INT_RXB;
         }
+
+        /* Update descriptor based on the "maf" flag. */
+        if (maf == FEC_RX_BROADCAST_ACCEPT) {
+            bd.flags |= ENET_BD_BC; /* The packet is destined for the "broadcast" address. */
+        } else if (maf == FEC_RX_MULTICAST_HASH_ACCEPT) {
+            bd.flags |= ENET_BD_MC; /* The packet is destined for a "multicast" address. */
+        }
+
         imx_fec_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
         if ((bd.flags & ENET_BD_W) != 0) {
@@ -1159,7 +1249,15 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
     uint8_t *crc_ptr;
     unsigned int buf_len;
     size_t size = len;
+    int maf;
     bool shift16 = s->regs[ENET_RACC] & ENET_RACC_SHIFT16;
+
+    /* Is this destination MAC address "for us" ? */
+    maf = fec_mac_address_filter(s, buf);
+    if (maf == FEC_RX_REJECT)
+    {
+        return (FEC_RX_REJECT);
+    }
 
     FEC_PRINTF("len %d\n", (int)size);
 
@@ -1254,6 +1352,14 @@ static ssize_t imx_enet_receive(NetClientState *nc, const uint8_t *buf,
                 s->regs[ENET_EIR] |= ENET_INT_RXB;
             }
         }
+
+        /* Update descriptor based on the "maf" flag. */
+        if (maf == FEC_RX_BROADCAST_ACCEPT) {
+            bd.flags |= ENET_BD_BC; /* The packet is destined for the "broadcast" address. */
+        } else if (maf == FEC_RX_MULTICAST_HASH_ACCEPT) {
+            bd.flags |= ENET_BD_MC; /* The packet is destined for a "multicast" address. */
+        }
+
         imx_enet_write_bd(&bd, addr);
         /* Advance to the next descriptor.  */
         if ((bd.flags & ENET_BD_W) != 0) {
