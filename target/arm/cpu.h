@@ -2250,6 +2250,7 @@ static inline uint64_t cpreg_to_kvm_id(uint32_t cpregid)
 #define ARM_CP_NOP               (ARM_CP_SPECIAL | 0x0100)
 #define ARM_CP_WFI               (ARM_CP_SPECIAL | 0x0200)
 #define ARM_CP_NZCV              (ARM_CP_SPECIAL | 0x0300)
+/* Re-read the current EL, don't use cached values */
 #define ARM_CP_CURRENTEL         (ARM_CP_SPECIAL | 0x0400)
 #define ARM_CP_DC_ZVA            (ARM_CP_SPECIAL | 0x0500)
 #define ARM_LAST_SPECIAL         ARM_CP_DC_ZVA
