@@ -1126,8 +1126,16 @@ static void virtio_serial_device_unrealize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSerial *vser = VIRTIO_SERIAL(dev);
+    int i;
 
     QLIST_REMOVE(vser, next);
+
+    virtio_queue_cleanup(vser->c_ivq);
+    virtio_queue_cleanup(vser->c_ovq);
+    for (i = 0; i < vser->bus.max_nr_ports; i++) {
+        virtio_queue_cleanup(vser->ivqs[i]);
+        virtio_queue_cleanup(vser->ovqs[i]);
+    }
 
     g_free(vser->ivqs);
     g_free(vser->ovqs);
