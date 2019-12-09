@@ -35,9 +35,27 @@
 #include <linux/userfaultfd.h>
 #endif
 
-#define VHOST_MEMORY_MAX_NREGIONS    8
+#define VHOST_MEMORY_LEGACY_NREGIONS    8
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
 #define VHOST_USER_SLAVE_MAX_FDS     8
+
+/*
+ * Set maximum number of RAM slots supported to
+ * the maximum number supported by the target
+ * hardware plaform.
+ */
+#if defined(TARGET_X86) || defined(TARGET_X86_64) || \
+    defined(TARGET_ARM) || defined(TARGET_ARM_64)
+#include "hw/acpi/acpi.h"
+#define VHOST_USER_MAX_RAM_SLOTS ACPI_MAX_RAM_SLOTS
+
+#elif defined(TARGET_PPC) || defined(TARGET_PPC_64)
+#include "hw/ppc/spapr.h"
+#define VHOST_USER_MAX_RAM_SLOTS SPAPR_MAX_RAM_SLOTS
+
+#else
+#define VHOST_USER_MAX_RAM_SLOTS 512
+#endif
 
 /*
  * Maximum size of virtio device config space
@@ -58,6 +76,7 @@ enum VhostUserProtocolFeature {
     VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD = 10,
     VHOST_USER_PROTOCOL_F_HOST_NOTIFIER = 11,
     VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD = 12,
+    VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS = 13,
     VHOST_USER_PROTOCOL_F_MAX
 };
 
@@ -98,6 +117,9 @@ typedef enum VhostUserRequest {
     VHOST_USER_GET_INFLIGHT_FD = 31,
     VHOST_USER_SET_INFLIGHT_FD = 32,
     VHOST_USER_GPU_SET_SOCKET = 33,
+    VHOST_USER_GET_MAX_MEM_SLOTS = 34,
+    VHOST_USER_ADD_MEM_REG = 35,
+    VHOST_USER_REM_MEM_REG = 36,
     VHOST_USER_MAX
 } VhostUserRequest;
 
@@ -119,8 +141,13 @@ typedef struct VhostUserMemoryRegion {
 typedef struct VhostUserMemory {
     uint32_t nregions;
     uint32_t padding;
-    VhostUserMemoryRegion regions[VHOST_MEMORY_MAX_NREGIONS];
+    VhostUserMemoryRegion regions[VHOST_MEMORY_LEGACY_NREGIONS];
 } VhostUserMemory;
+
+typedef struct VhostUserMemRegMsg {
+    uint32_t padding;
+    VhostUserMemoryRegion region;
+} VhostUserMemRegMsg;
 
 typedef struct VhostUserLog {
     uint64_t mmap_size;
@@ -180,6 +207,7 @@ typedef union {
         struct vhost_vring_state state;
         struct vhost_vring_addr addr;
         VhostUserMemory memory;
+        VhostUserMemRegMsg mem_reg;
         VhostUserLog log;
         struct vhost_iotlb_msg iotlb;
         VhostUserConfig config;
@@ -208,7 +236,7 @@ struct vhost_user {
     int slave_fd;
     NotifierWithReturn postcopy_notifier;
     struct PostCopyFD  postcopy_fd;
-    uint64_t           postcopy_client_bases[VHOST_MEMORY_MAX_NREGIONS];
+    uint64_t           postcopy_client_bases[VHOST_USER_MAX_RAM_SLOTS];
     /* Length of the region_rb and region_rb_offset arrays */
     size_t             region_rb_len;
     /* RAMBlock associated with a given region */
@@ -220,6 +248,10 @@ struct vhost_user {
 
     /* True once we've entered postcopy_listen */
     bool               postcopy_listen;
+
+    /* Our current regions */
+    int num_shadow_regions;
+    VhostUserMemoryRegion shadow_regions[VHOST_USER_MAX_RAM_SLOTS];
 };
 
 static bool ioeventfd_enabled(void)
@@ -368,7 +400,7 @@ int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd)
 static int vhost_user_set_log_base(struct vhost_dev *dev, uint64_t base,
                                    struct vhost_log *log)
 {
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_USER_MAX_RAM_SLOTS];
     size_t fd_num = 0;
     bool shmfd = virtio_has_feature(dev->protocol_features,
                                     VHOST_USER_PROTOCOL_F_LOG_SHMFD);
@@ -426,7 +458,7 @@ static int vhost_user_fill_set_mem_table_msg(struct vhost_user *u,
                                      &offset);
         fd = memory_region_get_fd(mr);
         if (fd > 0) {
-            if (*fd_num == VHOST_MEMORY_MAX_NREGIONS) {
+            if (*fd_num == VHOST_MEMORY_LEGACY_NREGIONS) {
                 error_report("Failed preparing vhost-user memory table msg");
                 return -1;
             }
@@ -472,7 +504,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
                                              struct vhost_memory *mem)
 {
     struct vhost_user *u = dev->opaque;
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_MEMORY_LEGACY_NREGIONS];
     size_t fd_num = 0;
     VhostUserMsg msg_reply;
     int region_i, msg_i;
@@ -521,7 +553,7 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
     }
 
     memset(u->postcopy_client_bases, 0,
-           sizeof(uint64_t) * VHOST_MEMORY_MAX_NREGIONS);
+           sizeof(uint64_t) * VHOST_USER_MAX_RAM_SLOTS);
 
     /* They're in the same order as the regions that were sent
      * but some of the regions were skipped (above) if they
@@ -562,18 +594,151 @@ static int vhost_user_set_mem_table_postcopy(struct vhost_dev *dev,
     return 0;
 }
 
+static inline bool reg_equal(VhostUserMemoryRegion *shadow_reg,
+                             struct vhost_memory_region *vdev_reg)
+{
+    if (shadow_reg->guest_phys_addr == vdev_reg->guest_phys_addr &&
+        shadow_reg->userspace_addr == vdev_reg->userspace_addr &&
+        shadow_reg->memory_size == vdev_reg->memory_size) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static int vhost_user_send_add_remove_regions(struct vhost_dev *dev,
+                                              struct vhost_memory *mem,
+                                              VhostUserMsg *msg)
+{
+    struct vhost_user *u = dev->opaque;
+    int i, j, fd;
+    bool found[VHOST_USER_MAX_RAM_SLOTS] = {};
+    bool matching = false;
+    struct vhost_memory_region *reg;
+    ram_addr_t offset;
+    MemoryRegion *mr;
+
+    /*
+     * Ensure the VHOST_USER_PROTOCOL_F_REPLY_ACK has not been
+     * negotiated and no postcopy migration is in progress.
+     */
+    assert(!virtio_has_feature(dev->protocol_features,
+                               VHOST_USER_PROTOCOL_F_REPLY_ACK));
+    if (u->postcopy_listen && u->postcopy_fd.handler) {
+        error_report("Postcopy migration is not supported when the "
+                     "VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS feature "
+                     "has been negotiated");
+        return -1;
+    }
+
+    msg->hdr.size = sizeof(msg->payload.mem_reg.padding);
+    msg->hdr.size += sizeof(VhostUserMemoryRegion);
+
+    /*
+     * Send VHOST_USER_REM_MEM_REG for memory regions in our shadow state
+     * which are not found not in the device's memory state.
+     */
+    for (i = 0; i < u->num_shadow_regions; ++i) {
+        reg = dev->mem->regions;
+
+        for (j = 0; j < dev->mem->nregions; j++) {
+            reg = dev->mem->regions + j;
+
+            assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+            mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                         &offset);
+            fd = memory_region_get_fd(mr);
+
+            if (reg_equal(&u->shadow_regions[i], reg)) {
+                matching = true;
+                found[j] = true;
+                break;
+            }
+        }
+
+        if (fd > 0 && !matching) {
+            msg->hdr.request = VHOST_USER_REM_MEM_REG;
+            msg->payload.mem_reg.region.userspace_addr = reg->userspace_addr;
+            msg->payload.mem_reg.region.memory_size = reg->memory_size;
+            msg->payload.mem_reg.region.guest_phys_addr =
+                reg->guest_phys_addr;
+            msg->payload.mem_reg.region.mmap_offset = offset;
+
+            if (vhost_user_write(dev, msg, &fd, 1) < 0) {
+                return -1;
+            }
+        }
+    }
+
+    /*
+     * Send messages to add regions present in the device which are not
+     * in our shadow state.
+     */
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        reg = dev->mem->regions + i;
+
+        /*
+         * If the region was in both the shadow and vdev state we don't
+         * need to send a VHOST_USER_ADD_MEM_REG message for it.
+         */
+        if (found[i]) {
+            continue;
+        }
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        mr = memory_region_from_host((void *)(uintptr_t)reg->userspace_addr,
+                                     &offset);
+        fd = memory_region_get_fd(mr);
+
+        if (fd > 0) {
+            msg->hdr.request = VHOST_USER_ADD_MEM_REG;
+            msg->payload.mem_reg.region.userspace_addr = reg->userspace_addr;
+            msg->payload.mem_reg.region.memory_size = reg->memory_size;
+            msg->payload.mem_reg.region.guest_phys_addr =
+                reg->guest_phys_addr;
+            msg->payload.mem_reg.region.mmap_offset = offset;
+
+            if (vhost_user_write(dev, msg, &fd, 1) < 0) {
+                return -1;
+            }
+        }
+    }
+
+    /* Make our shadow state match the updated device state. */
+    u->num_shadow_regions = dev->mem->nregions;
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        reg = dev->mem->regions + i;
+        u->shadow_regions[i].guest_phys_addr = reg->guest_phys_addr;
+        u->shadow_regions[i].userspace_addr = reg->userspace_addr;
+        u->shadow_regions[i].memory_size = reg->memory_size;
+    }
+
+    return 0;
+}
+
 static int vhost_user_set_mem_table(struct vhost_dev *dev,
                                     struct vhost_memory *mem)
 {
     struct vhost_user *u = dev->opaque;
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_MEMORY_LEGACY_NREGIONS];
     size_t fd_num = 0;
     bool do_postcopy = u->postcopy_listen && u->postcopy_fd.handler;
     bool reply_supported = virtio_has_feature(dev->protocol_features,
                                               VHOST_USER_PROTOCOL_F_REPLY_ACK);
+    bool config_slots =
+        virtio_has_feature(dev->protocol_features,
+                           VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS);
 
     if (do_postcopy) {
-        /* Postcopy has enough differences that it's best done in it's own
+        if (config_slots) {
+            error_report("Postcopy migration not supported with "
+                          "VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS feature "
+                          "enabled.");
+            return -1;
+        }
+
+        /*
+         * Postcopy has enough differences that it's best done in it's own
          * version
          */
         return vhost_user_set_mem_table_postcopy(dev, mem);
@@ -587,17 +752,22 @@ static int vhost_user_set_mem_table(struct vhost_dev *dev,
         msg.hdr.flags |= VHOST_USER_NEED_REPLY_MASK;
     }
 
-    if (vhost_user_fill_set_mem_table_msg(u, dev, &msg, fds, &fd_num,
-                                          false) < 0) {
-        return -1;
-    }
+    if (config_slots && !reply_supported) {
+        if (vhost_user_send_add_remove_regions(dev, mem, &msg) < 0) {
+            return -1;
+        }
+    } else {
+        if (vhost_user_fill_set_mem_table_msg(u, dev, &msg, fds, &fd_num,
+                                              false) < 0) {
+            return -1;
+        }
+        if (vhost_user_write(dev, &msg, fds, fd_num) < 0) {
+            return -1;
+        }
 
-    if (vhost_user_write(dev, &msg, fds, fd_num) < 0) {
-        return -1;
-    }
-
-    if (reply_supported) {
-        return process_message_reply(dev, &msg);
+        if (reply_supported) {
+            return process_message_reply(dev, &msg);
+        }
     }
 
     return 0;
@@ -762,7 +932,7 @@ static int vhost_set_vring_file(struct vhost_dev *dev,
                                 VhostUserRequest request,
                                 struct vhost_vring_file *file)
 {
-    int fds[VHOST_MEMORY_MAX_NREGIONS];
+    int fds[VHOST_USER_MAX_RAM_SLOTS];
     size_t fd_num = 0;
     VhostUserMsg msg = {
         .hdr.request = request,
@@ -1496,7 +1666,46 @@ static int vhost_user_get_vq_index(struct vhost_dev *dev, int idx)
 
 static int vhost_user_memslots_limit(struct vhost_dev *dev)
 {
-    return VHOST_MEMORY_MAX_NREGIONS;
+    VhostUserMsg msg = {
+        .hdr.request = VHOST_USER_GET_MAX_MEM_SLOTS,
+        .hdr.flags = VHOST_USER_VERSION,
+    };
+
+    if (!virtio_has_feature(dev->protocol_features,
+                            VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS)) {
+        return VHOST_MEMORY_LEGACY_NREGIONS;
+    }
+
+    if (virtio_has_feature(dev->protocol_features,
+                           VHOST_USER_PROTOCOL_F_REPLY_ACK)) {
+        error_report("The VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol "
+                     "feature is not supported when the "
+                     "VHOST_USER_PROTOCOL_F_REPLY_ACK features has also "
+                     "been negotiated");
+        return -1;
+    }
+
+    if (vhost_user_write(dev, &msg, NULL, 0) < 0) {
+        return -1;
+    }
+
+    if (vhost_user_read(dev, &msg) < 0) {
+        return -1;
+    }
+
+    if (msg.hdr.request != VHOST_USER_GET_MAX_MEM_SLOTS) {
+        error_report("Received unexpected msg type. Expected %d received %d",
+                     VHOST_USER_GET_MAX_MEM_SLOTS, msg.hdr.request);
+        return -1;
+    }
+
+    if (msg.hdr.size != sizeof(msg.payload.u64)) {
+        error_report("Received bad msg size");
+        return -1;
+    }
+
+    return MIN(MAX(msg.payload.u64, VHOST_MEMORY_LEGACY_NREGIONS),
+               VHOST_USER_MAX_RAM_SLOTS);
 }
 
 static bool vhost_user_requires_shm_log(struct vhost_dev *dev)

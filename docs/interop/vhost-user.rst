@@ -785,6 +785,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_SLAVE_SEND_FD  10
   #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
   #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
+  #define VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS   13
 
 Master message types
 --------------------
@@ -1189,6 +1190,48 @@ Master message types
   Sets the GPU protocol socket file descriptor, which is passed as
   ancillary data. The GPU protocol is used to inform the master of
   rendering state and updates. See vhost-user-gpu.rst for details.
+
+``VHOST_USER_GET_MAX_MEM_SLOTS``
+  :id: 34
+  :equivalent ioctl: N/A
+  :slave payload: u64
+
+  When the VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been
+  successfully negotiated, this message is submitted by master to the
+  slave. The slave should return the message with a u64 payload
+  containing the maximum number of memory slots for QEMU to expose to
+  the guest. This message is not supported with postcopy migration or if
+  the VHOST_USER_PROTOCOL_F_REPLY_ACK feature has also been negotiated.
+
+``VHOST_USER_ADD_MEM_REG``
+  :id: 35
+  :equivalent ioctl: N/A
+  :slave payload: memory region
+
+  When the VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been
+  successfully negotiated, this message is submitted by master to the slave.
+  The message payload contains a memory region descriptor struct, describing
+  a region of guest memory which the slave device must map in. When the
+  VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been successfully
+  negotiated, along with the VHOST_USER_REM_MEM_REG message, this message is
+  used to set and update the memory tables of the slave device. This message
+  is not supported with postcopy migration or if the
+  VHOST_USER_PROTOCOL_F_REPLY_ACK feature has also been negotiated.
+
+``VHOST_USER_REM_MEM_REG``
+  :id: 36
+  :equivalent ioctl: N/A
+  :slave payload: memory region
+
+  When the VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been
+  successfully negotiated, this message is submitted by master to the slave.
+  The message payload contains a memory region descriptor struct, describing
+  a region of guest memory which the slave device must unmap. When the
+  VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been successfully
+  negotiated, along with the VHOST_USER_ADD_MEM_REG message, this message is
+  used to set and update the memory tables of the slave device. This message
+  is not supported with postcopy migration or if the
+  VHOST_USER_PROTOCOL_F_REPLY_ACK feature has also been negotiated.
 
 Slave message types
 -------------------
