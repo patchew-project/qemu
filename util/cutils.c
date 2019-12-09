@@ -212,19 +212,39 @@ static int do_strtosz(const char *nptr, const char **end,
                       const char default_suffix, int64_t unit,
                       uint64_t *result)
 {
-    int retval;
-    const char *endptr;
+    int retval, retd, retu;
+    const char *endptr, *suffixd, *suffixu;
     unsigned char c;
     int mul_required = 0;
-    double val, mul, integral, fraction;
+    bool use_strtod;
+    uint64_t valu;
+    int64_t mul;
+    double vald, integral, fraction;
 
-    retval = qemu_strtod_finite(nptr, &endptr, &val);
+    /*
+     * Parse @nptr both as a double and as a uint64_t, then use the method
+     * which consumes more characters.
+     */
+    retd = qemu_strtod_finite(nptr, &suffixd, &vald);
+    retu = qemu_strtou64(nptr, &suffixu, 0, &valu);
+    use_strtod = strlen(suffixd) < strlen(suffixu);
+
+    if (use_strtod) {
+        endptr = suffixd;
+        retval = retd;
+    } else {
+        endptr = suffixu;
+        retval = retu;
+    }
+
     if (retval) {
         goto out;
     }
-    fraction = modf(val, &integral);
-    if (fraction != 0) {
-        mul_required = 1;
+    if (use_strtod) {
+        fraction = modf(vald, &integral);
+        if (fraction != 0) {
+            mul_required = 1;
+        }
     }
     c = *endptr;
     mul = suffix_mul(c, unit);
@@ -238,17 +258,30 @@ static int do_strtosz(const char *nptr, const char **end,
         retval = -EINVAL;
         goto out;
     }
-    /*
-     * Values near UINT64_MAX overflow to 2**64 when converting to double
-     * precision.  Compare against the maximum representable double precision
-     * value below 2**64, computed as "the next value after 2**64 (0x1p64) in
-     * the direction of 0".
-     */
-    if ((val * mul > nextafter(0x1p64, 0)) || val < 0) {
-        retval = -ERANGE;
-        goto out;
+
+    if (use_strtod) {
+        /*
+         * Values near UINT64_MAX overflow to 2**64 when converting to double
+         * precision. Compare against the maximum representable double precision
+         * value below 2**64, computed as "the next value after 2**64 (0x1p64)
+         * in the direction of 0".
+         */
+        if ((vald * mul > nextafter(0x1p64, 0)) || vald < 0) {
+            retval = -ERANGE;
+            goto out;
+        }
+        *result = vald * mul;
+    } else {
+        /* Reject negative input and overflow output */
+        while (qemu_isspace(*nptr)) {
+            nptr++;
+        }
+        if (*nptr == '-' || UINT64_MAX / mul < valu) {
+            retval = -ERANGE;
+            goto out;
+        }
+        *result = valu * mul;
     }
-    *result = val * mul;
     retval = 0;
 
 out:
