@@ -127,6 +127,10 @@ struct CPURISCVState {
 
     target_ulong mip;
 
+#ifdef TARGET_RISCV32
+    target_ulong *mstatush;
+#endif
+
     uint32_t miclaim;
 
     target_ulong mie;
@@ -153,6 +157,9 @@ struct CPURISCVState {
      * required to handle the Hypervisor register swapping.
      */
     target_ulong mstatus_novirt;
+#ifdef TARGET_RISCV32
+    target_ulong mstatush_novirt;
+#endif
 
     /* Hypervisor CSRs */
     target_ulong hstatus;
