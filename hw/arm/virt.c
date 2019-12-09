@@ -1721,6 +1721,12 @@ static void machvirt_init(MachineState *machine)
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
         create_uart(vms, pic, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
+    } else {
+        /*
+         * If secure mode is disabled then let's setup the "secure"
+         * UART so that normal world can use it.
+         */
+        create_uart(vms, pic, VIRT_SECURE_UART, sysmem, serial_hd(1));
     }
 
     vms->highmem_ecam &= vms->highmem && (!firmware_loaded || aarch64);
