@@ -122,7 +122,7 @@ struct CPURISCVState {
     target_ulong resetvec;
 
     target_ulong mhartid;
-    target_ulong mstatus;
+    target_ulong *mstatus;
 
     target_ulong mip;
     uint32_t miclaim;
@@ -144,6 +144,13 @@ struct CPURISCVState {
     target_ulong mepc;
     target_ulong mcause;
     target_ulong mtval;  /* since: priv-1.10.0 */
+
+    /* The following registers are the "real" versions that the pointer
+     * versions point to. These should never be used unless you know what you
+     * are doing. To access these use the pointer versions instead. This is
+     * required to handle the Hypervisor register swapping.
+     */
+    target_ulong mstatus_novirt;
 
     /* Hypervisor CSRs */
     target_ulong hstatus;
