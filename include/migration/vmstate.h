@@ -1176,7 +1176,6 @@ void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
 
 struct MemoryRegion;
 void vmstate_register_ram(struct MemoryRegion *memory, DeviceState *dev);
-void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
 
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd);

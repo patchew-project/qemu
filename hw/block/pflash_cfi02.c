@@ -810,7 +810,6 @@ static void pflash_cfi02_realize(DeviceState *dev, Error **errp)
     if (pfl->blk) {
         if (!blk_check_size_and_read_all(pfl->blk, pfl->storage,
                                          pfl->chip_len, errp)) {
-            vmstate_unregister_ram(&pfl->orig_mem, DEVICE(pfl));
             return;
         }
     }

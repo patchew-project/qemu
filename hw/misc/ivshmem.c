@@ -973,8 +973,6 @@ static void ivshmem_exit(PCIDevice *dev)
             fd = memory_region_get_fd(s->ivshmem_bar2);
             close(fd);
         }
-
-        vmstate_unregister_ram(s->ivshmem_bar2, DEVICE(dev));
     }
 
     if (s->hostmem) {

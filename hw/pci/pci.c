@@ -2371,7 +2371,6 @@ static void pci_del_option_rom(PCIDevice *pdev)
     if (!pdev->has_rom)
         return;
 
-    vmstate_unregister_ram(&pdev->rom, &pdev->qdev);
     pdev->has_rom = false;
 }
 
