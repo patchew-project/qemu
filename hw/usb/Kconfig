@@ -96,3 +96,13 @@ config USB_STORAGE_MTP
     bool
     default y
     depends on USB
+
+config CCID_PASSTHRU
+    bool
+    default y
+    depends on USB_SMARTCARD
+
+config CCID_EMULATED
+    bool
+    default y
+    depends on USB_SMARTCARD
