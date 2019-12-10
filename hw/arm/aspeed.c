@@ -272,6 +272,19 @@ static void aspeed_board_init(MachineState *machine,
         object_property_set_bool(OBJECT(card), true, "realized", &error_fatal);
     }
 
+    if (bmc->soc.emmc.num_slots) {
+        SDHCIState *emmc = &bmc->soc.emmc.slots[0];
+        DriveInfo *dinfo = drive_get_next(IF_SD);
+        BlockBackend *blk;
+        DeviceState *card;
+
+        blk = dinfo ? blk_by_legacy_dinfo(dinfo) : NULL;
+        card = qdev_create(qdev_get_child_bus(DEVICE(emmc), "sd-bus"),
+                           TYPE_SD_CARD);
+        qdev_prop_set_drive(card, "drive", blk, &error_fatal);
+        object_property_set_bool(OBJECT(card), true, "realized", &error_fatal);
+    }
+
     arm_load_kernel(ARM_CPU(first_cpu), machine, &aspeed_board_binfo);
 }
 
