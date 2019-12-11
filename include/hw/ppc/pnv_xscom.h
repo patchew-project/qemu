@@ -22,9 +22,7 @@
 
 #include "qom/object.h"
 
-typedef struct PnvXScomInterface {
-    Object parent;
-} PnvXScomInterface;
+typedef struct PnvXScomInterface PnvXScomInterface;
 
 #define TYPE_PNV_XSCOM_INTERFACE "pnv-xscom-interface"
 #define PNV_XSCOM_INTERFACE(obj) \
