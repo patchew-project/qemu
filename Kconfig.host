@@ -35,3 +35,6 @@ config VIRTFS
 
 config PVRDMA
     bool
+
+config SMARTCARD
+    bool

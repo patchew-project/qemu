@@ -27,13 +27,12 @@ common-obj-$(CONFIG_USB_SERIAL)       += dev-serial.o
 common-obj-$(CONFIG_USB_NETWORK)      += dev-network.o
 common-obj-$(CONFIG_USB_BLUETOOTH)    += dev-bluetooth.o
 
-ifeq ($(CONFIG_USB_SMARTCARD),y)
-common-obj-y                          += dev-smartcard-reader.o
-common-obj-$(CONFIG_SMARTCARD)        += smartcard.mo
-smartcard.mo-objs := ccid-card-passthru.o ccid-card-emulated.o
+common-obj-$(CONFIG_USB_SMARTCARD)    += dev-smartcard-reader.o
+common-obj-$(call lor,$(CONFIG_CCID_PASSTHRU),$(CONFIG_CCID_EMULATED)) += smartcard.mo
+smartcard.mo-objs := $(call lif,$(CONFIG_CCID_PASSTHRU),ccid-card-passthru.o) \
+                     $(call lif,$(CONFIG_CCID_EMULATED),ccid-card-emulated.o)
 smartcard.mo-cflags := $(SMARTCARD_CFLAGS)
 smartcard.mo-libs := $(SMARTCARD_LIBS)
-endif
 
 ifeq ($(CONFIG_POSIX),y)
 common-obj-$(CONFIG_USB_STORAGE_MTP)  += dev-mtp.o
