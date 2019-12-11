@@ -2037,7 +2037,7 @@ static int vmdk_pwritev(BlockDriverState *bs, uint64_t offset,
         /* update CID on the first write every time the virtual disk is
          * opened */
         if (!s->cid_updated) {
-            ret = vmdk_write_cid(bs, g_random_int());
+            ret = vmdk_write_cid(bs, g_test_rand_int());
             if (ret < 0) {
                 return ret;
             }
@@ -2499,7 +2499,7 @@ static int coroutine_fn vmdk_co_do_create(int64_t size,
 
     /* generate descriptor file */
     desc = g_strdup_printf(desc_template,
-                           g_random_int(),
+                           g_test_rand_int(),
                            parent_cid,
                            BlockdevVmdkSubformat_str(subformat),
                            parent_desc_line,

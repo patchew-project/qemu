@@ -1504,7 +1504,7 @@ static int vhdx_create_new_headers(BlockBackend *blk, uint64_t image_size,
     hdr = g_new0(VHDXHeader, 1);
 
     hdr->signature       = VHDX_HEADER_SIGNATURE;
-    hdr->sequence_number = g_random_int();
+    hdr->sequence_number = g_test_rand_int();
     hdr->log_version     = 0;
     hdr->version         = 1;
     hdr->log_length      = log_size;
