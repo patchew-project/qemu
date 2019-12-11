@@ -2599,6 +2599,11 @@ bool kvm_arm_supports_user_irq(void)
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
+bool kvm_has_guest_debug_singlestep(CPUState *cs)
+{
+    return kvm_arch_has_guest_debug_singlestep(cs);
+}
+
 struct kvm_sw_breakpoint *kvm_find_sw_breakpoint(CPUState *cpu,
                                                  target_ulong pc)
 {
@@ -2645,6 +2650,15 @@ int kvm_update_guest_debug(CPUState *cpu, unsigned long reinject_trap)
     run_on_cpu(cpu, kvm_invoke_set_guest_debug,
                RUN_ON_CPU_HOST_PTR(&data));
     return data.err;
+}
+
+void kvm_set_singlestep(CPUState *cs, int enabled)
+{
+    if (kvm_has_guest_debug_singlestep(cs)) {
+        kvm_update_guest_debug(cs, 0);
+    } else {
+        kvm_arch_set_singlestep(cs, enabled);
+    }
 }
 
 int kvm_insert_breakpoint(CPUState *cpu, target_ulong addr,
