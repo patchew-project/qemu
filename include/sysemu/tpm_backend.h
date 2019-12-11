@@ -200,8 +200,10 @@ size_t tpm_backend_get_buffer_size(TPMBackend *s);
  *
  * Finish the pending command synchronously (this will call aio_poll()
  * on qemu main AIOContext until it ends)
+ *
+ * Returns true in case there was a pending command, false otherwise.
  */
-void tpm_backend_finish_sync(TPMBackend *s);
+bool tpm_backend_finish_sync(TPMBackend *s);
 
 /**
  * tpm_backend_query_tpm:
