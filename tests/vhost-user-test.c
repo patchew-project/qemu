@@ -717,6 +717,8 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
     guint64 size;
 
     if (!wait_for_fds(s)) {
+        g_free(uri);
+        test_server_free(dest);
         return;
     }
 
