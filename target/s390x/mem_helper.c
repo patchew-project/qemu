@@ -43,6 +43,11 @@
 #define HELPER_LOG(x...)
 #endif
 
+#define cpu_ldl_real_ra(e, p, r)    cpu_ldl_mmuidx_ra(e, p, MMU_REAL_IDX, r)
+#define cpu_ldq_real_ra(e, p, r)    cpu_ldq_mmuidx_ra(e, p, MMU_REAL_IDX, r)
+#define cpu_stl_real_ra(e, p, v, r) cpu_stl_mmuidx_ra(e, p, v, MMU_REAL_IDX, r)
+#define cpu_stq_real_ra(e, p, v, r) cpu_stq_mmuidx_ra(e, p, v, MMU_REAL_IDX, r)
+
 static inline bool psw_key_valid(CPUS390XState *env, uint8_t psw_key)
 {
     uint16_t pkm = env->cregs[3] >> 16;
