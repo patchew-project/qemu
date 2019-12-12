@@ -1661,6 +1661,21 @@ static void spapr_machine_reset(MachineState *machine)
     void *fdt;
     int rc;
 
+    /*
+     * KVM_PPC_SVM_OFF ioctl can fail for secure guests, check and
+     * exit in that case. However check for -ENOTTY explicitly
+     * to ensure that we don't terminate normal guests that are
+     * running on kernels which don't support this ioctl.
+     *
+     * Also, this ioctl returns 0 for normal guests on kernels where
+     * this ioctl is supported.
+     */
+    rc = kvmppc_svm_off();
+    if (rc && rc != -ENOTTY) {
+        error_report("Reset of secure guest failed, exiting...");
+        exit(EXIT_FAILURE);
+    }
+
     spapr_caps_apply(spapr);
 
     first_ppc_cpu = POWERPC_CPU(first_cpu);

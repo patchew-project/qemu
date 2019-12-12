@@ -37,6 +37,7 @@ int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu);
 target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
                                      bool radix, bool gtse,
                                      uint64_t proc_tbl);
+int kvmppc_svm_off(void);
 #ifndef CONFIG_USER_ONLY
 bool kvmppc_spapr_use_multitce(void);
 int kvmppc_spapr_enable_inkernel_multitce(void);
@@ -197,6 +198,11 @@ static inline int kvmppc_booke_watchdog_enable(PowerPCCPU *cpu)
 static inline target_ulong kvmppc_configure_v3_mmu(PowerPCCPU *cpu,
                                      bool radix, bool gtse,
                                      uint64_t proc_tbl)
+{
+    return 0;
+}
+
+static inline int kvmppc_svm_off(void)
 {
     return 0;
 }
