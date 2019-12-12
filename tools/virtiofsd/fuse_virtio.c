@@ -671,6 +671,8 @@ static void fv_queue_set_started(VuDev *dev, int qidx, bool started)
         }
         close(ourqi->kill_fd);
         ourqi->kick_fd = -1;
+        free(vud->qi[qidx]);
+        vud->qi[qidx] = NULL;
     }
 }
 
@@ -878,6 +880,13 @@ int virtio_session_mount(struct fuse_session *se)
 void virtio_session_close(struct fuse_session *se)
 {
     close(se->vu_socketfd);
+
+    if (!se->virtio_dev) {
+        return;
+    }
+
+    close(se->vu_socketfd);
+    free(se->virtio_dev->qi);
     free(se->virtio_dev);
     se->virtio_dev = NULL;
 }
