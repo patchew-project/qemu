@@ -12,6 +12,7 @@
 #include "fuse_lowlevel.h"
 #include "fuse_misc.h"
 #include "standard-headers/linux/fuse.h"
+#include "fuse_virtio.h"
 
 #include <assert.h>
 #include <errno.h>
