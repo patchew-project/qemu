@@ -821,6 +821,15 @@ struct ARMCPU {
     /* KVM init features for this CPU */
     uint32_t kvm_init_features[7];
 
+    /* KVM CPU features */
+    bool kvm_adjvtime;
+
+    /* VCPU virtual counter value used with kvm_adjvtime */
+    uint64_t kvm_vtime;
+
+    /* True if the run state is, or transitioning from, RUN_STATE_PAUSED */
+    bool runstate_paused;
+
     /* Uniprocessor system with MP extensions */
     bool mp_is_up;
 

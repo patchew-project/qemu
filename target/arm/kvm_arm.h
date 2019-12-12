@@ -233,6 +233,24 @@ void kvm_arm_sve_get_vls(CPUState *cs, unsigned long *map);
 void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
 
 /**
+ * void kvm_arm_get_virtual_time:
+ * @cs: CPUState
+ * @cnt: the virtual counter to fill in
+ *
+ * Gets the VCPU's virtual counter and stores it in @cnt.
+ */
+void kvm_arm_get_virtual_time(CPUState *cs, uint64_t *cnt);
+
+/**
+ * void kvm_arm_set_virtual_time:
+ * @cs: CPUState
+ * @cnt: new virtual counter value
+ *
+ * Sets the VCPU's virtual counter to @cnt.
+ */
+void kvm_arm_set_virtual_time(CPUState *cs, uint64_t cnt);
+
+/**
  * kvm_arm_aarch32_supported:
  * @cs: CPUState
  *
@@ -288,6 +306,8 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
 void kvm_arm_pmu_init(CPUState *cs);
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
+void kvm_arm_vm_state_change(void *opaque, int running, RunState state);
+
 #else
 
 static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
@@ -323,6 +343,9 @@ static inline int kvm_arm_vgic_probe(void)
 {
     return 0;
 }
+
+static inline void kvm_arm_get_virtual_time(CPUState *cs, uint64_t *cnt) {}
+static inline void kvm_arm_set_virtual_time(CPUState *cs, uint64_t cnt) {}
 
 static inline void kvm_arm_pmu_set_irq(CPUState *cs, int irq) {}
 static inline void kvm_arm_pmu_init(CPUState *cs) {}

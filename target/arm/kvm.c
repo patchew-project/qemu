@@ -348,6 +348,24 @@ void kvm_arm_register_device(MemoryRegion *mr, uint64_t devid, uint64_t group,
     memory_region_ref(kd->mr);
 }
 
+void kvm_arm_vm_state_change(void *opaque, int running, RunState state)
+{
+    CPUState *cs = opaque;
+    ARMCPU *cpu = ARM_CPU(cs);
+
+    if (running) {
+        if (cpu->kvm_adjvtime && cpu->runstate_paused) {
+            kvm_arm_set_virtual_time(cs, cpu->kvm_vtime);
+        }
+        cpu->runstate_paused = false;
+    } else if (state == RUN_STATE_PAUSED) {
+        cpu->runstate_paused = true;
+        if (cpu->kvm_adjvtime) {
+            kvm_arm_get_virtual_time(cs, &cpu->kvm_vtime);
+        }
+    }
+}
+
 static int compare_u64(const void *a, const void *b)
 {
     if (*(uint64_t *)a > *(uint64_t *)b) {
@@ -577,6 +595,36 @@ int kvm_arm_sync_mpstate_to_qemu(ARMCPU *cpu)
     }
 
     return 0;
+}
+
+void kvm_arm_get_virtual_time(CPUState *cs, uint64_t *cnt)
+{
+    struct kvm_one_reg reg = {
+        .id = KVM_REG_ARM_TIMER_CNT,
+        .addr = (uintptr_t)cnt,
+    };
+    int ret;
+
+    ret = kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &reg);
+    if (ret) {
+        error_report("Failed to get KVM_REG_ARM_TIMER_CNT");
+        abort();
+    }
+}
+
+void kvm_arm_set_virtual_time(CPUState *cs, uint64_t cnt)
+{
+    struct kvm_one_reg reg = {
+        .id = KVM_REG_ARM_TIMER_CNT,
+        .addr = (uintptr_t)&cnt,
+    };
+    int ret;
+
+    ret = kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &reg);
+    if (ret) {
+        error_report("Failed to set KVM_REG_ARM_TIMER_CNT");
+        abort();
+    }
 }
 
 int kvm_put_vcpu_events(ARMCPU *cpu)
