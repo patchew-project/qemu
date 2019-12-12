@@ -28,6 +28,11 @@
     {                                               \
         t, offsetof(struct fuse_cmdline_opts, p), 1 \
     }
+#define FUSE_HELPER_OPT_VALUE(t, p, v)              \
+    {                                               \
+        t, offsetof(struct fuse_cmdline_opts, p), v \
+    }
+
 
 static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_HELPER_OPT("-h", show_help),
@@ -41,6 +46,7 @@ static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_OPT_KEY("-d", FUSE_OPT_KEY_KEEP),
     FUSE_OPT_KEY("debug", FUSE_OPT_KEY_KEEP),
     FUSE_HELPER_OPT("-f", foreground),
+    FUSE_HELPER_OPT_VALUE("--daemonize", foreground, 0),
     FUSE_HELPER_OPT("-s", singlethread),
     FUSE_HELPER_OPT("fsname=", nodefault_subtype),
     FUSE_OPT_KEY("fsname=", FUSE_OPT_KEY_KEEP),
@@ -132,6 +138,7 @@ void fuse_cmdline_help(void)
            "    -V   --version             print version\n"
            "    -d   -o debug              enable debug output (implies -f)\n"
            "    -f                         foreground operation\n"
+           "    --daemonize                run in background\n"
            "    -s                         disable multi-threaded operation\n"
            "    -o clone_fd                use separate fuse device fd for "
            "each thread\n"
@@ -163,6 +170,7 @@ int fuse_parse_cmdline(struct fuse_args *args, struct fuse_cmdline_opts *opts)
     memset(opts, 0, sizeof(struct fuse_cmdline_opts));
 
     opts->max_idle_threads = 10;
+    opts->foreground = 1;
 
     if (fuse_opt_parse(args, opts, fuse_helper_opts, fuse_helper_opt_proc) ==
         -1) {
