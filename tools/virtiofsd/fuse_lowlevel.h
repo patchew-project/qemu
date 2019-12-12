@@ -31,10 +31,6 @@
 #include <sys/statvfs.h>
 #include <sys/uio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ----------------------------------------------------------- *
  * Miscellaneous definitions				       *
  * ----------------------------------------------------------- */
@@ -2081,9 +2077,5 @@ void fuse_session_process_buf(struct fuse_session *se,
  * @return the actual size of the raw request, or -errno on error
  */
 int fuse_session_receive_buf(struct fuse_session *se, struct fuse_buf *buf);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FUSE_LOWLEVEL_H_ */

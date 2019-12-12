@@ -25,10 +25,6 @@
 #include <sys/statvfs.h>
 #include <sys/uio.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* ----------------------------------------------------------- *
  * Basic FUSE API					       *
  * ----------------------------------------------------------- */
@@ -1267,9 +1263,5 @@ struct fuse_session *fuse_get_session(struct fuse *f);
  * @return the FUSE file descriptor or -1 upon error
  */
 int fuse_open_channel(const char *mountpoint, const char *options);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* FUSE_H_ */

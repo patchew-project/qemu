@@ -28,10 +28,6 @@
 #define FUSE_MAKE_VERSION(maj, min)  ((maj) * 10 + (min))
 #define FUSE_VERSION FUSE_MAKE_VERSION(FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
  * Information about an open file.
  *
@@ -800,10 +796,6 @@ void fuse_remove_signal_handlers(struct fuse_session *se);
 
 #if !defined(FUSE_USE_VERSION) || FUSE_USE_VERSION < 30
 #  error only API version 30 or greater is supported
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 
