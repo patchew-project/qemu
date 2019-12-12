@@ -35,6 +35,8 @@
  * \include passthrough_ll.c
  */
 
+#include "qemu/osdep.h"
+#include "qemu/timer.h"
 #include "fuse_virtio.h"
 #include "fuse_log.h"
 #include "fuse_lowlevel.h"
@@ -2258,7 +2260,12 @@ static void log_func(enum fuse_log_level level, const char *_fmt, va_list ap)
     }
 
     if (current_log_level == FUSE_LOG_DEBUG) {
-        fmt = g_strdup_printf("[ID: %08ld] %s", syscall(__NR_gettid), _fmt);
+        if (!use_syslog) {
+            fmt = g_strdup_printf("[%ld] [ID: %08ld] %s", get_clock(),
+                                  syscall(__NR_gettid), _fmt);
+        } else {
+            fmt = g_strdup_printf("[ID: %08ld] %s", syscall(__NR_gettid), _fmt);
+        }
     }
 
     if (use_syslog) {
