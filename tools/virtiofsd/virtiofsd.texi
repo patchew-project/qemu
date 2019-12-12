@@ -1,0 +1,85 @@
+@example
+@c man begin SYNOPSIS
+@command{virtiofsd} [OPTION] @option{--socket-path=}@var{path}|@option{--fd=}@var{fdnum} @option{-o source=}@var{path}
+@c man end
+@end example
+
+@c man begin DESCRIPTION
+
+Share a host directory tree with a guest through a virtio-fs device.  This
+program is a vhost-user backend that implements the virtio-fs device.  Each
+virtio-fs device instance requires its own virtiofsd process.
+
+This program is designed to work with QEMU's @code{--device vhost-user-fs-pci}
+but should work with any virtual machine monitor (VMM) that supports
+vhost-user.  See the EXAMPLES section below.
+
+This program must be run as the root user.  Upon startup the program will
+switch into a new file system namespace with the shared directory tree as its
+root.  This prevents "file system escapes" due to symlinks and other file
+system objects that might lead to files outside the shared directory.  The
+program also sandboxes itself using seccomp(2) to prevent ptrace(2) and other
+vectors that could allow an attacker to compromise the system after gaining
+control of the virtiofsd process.
+
+@c man end
+
+@c man begin OPTIONS
+@table @option
+@item -h, --help
+Print help.
+@item -V, --version
+Print version.
+@item -d, -o debug
+Enable debug output.
+@item --syslog
+Print log messages to syslog instead of stderr.
+@item -o log_level=@var{level}
+Print only log messages matching @var{level} or more severe.  @var{level} is
+one of @code{err}, @code{warn}, @code{info}, or @code{debug}.  The default is
+@var{info}.
+@item -o source=@var{path}
+Share host directory tree located at @var{path}.  This option is required.
+@item --socket-path=@var{path}, -o vhost_user_socket=@var{path}
+Listen on vhost-user UNIX domain socket at @var{path}.
+@item --fd=@var{fdnum}
+Accept connections from vhost-user UNIX domain socket file descriptor @var{fdnum}.  The file descriptor must already be listening for connections.
+@item --thread-pool-size=@var{num}
+Restrict the number of worker threads per request queue to @var{num}.  The default is 64.
+@item --cache=@code{none}|@code{auto}|@code{always}
+Select the desired trade-off between coherency and performance.  @code{none}
+forbids the FUSE client from caching to achieve best coherency at the cost of
+performance.  @code{auto} acts similar to NFS with a 1 second metadata cache
+timeout.  @code{always} sets a long cache lifetime at the expense of coherency.
+@item --writeback
+Enable writeback cache, allowing the FUSE client to buffer and merge write requests.
+@end table
+@c man end
+
+@c man begin EXAMPLES
+Export @code{/var/lib/fs/vm001/} on vhost-user UNIX domain socket @code{/var/run/vm001-vhost-fs.sock}:
+
+@example
+host# virtiofsd --socket-path=/var/run/vm001-vhost-fs.sock -o source=/var/lib/fs/vm001
+host# qemu-system-x86_64 \
+    -chardev socket,id=char0,path=/var/run/vm001-vhost-fs.sock \
+    -device vhost-user-fs-pci,chardev=char0,tag=myfs \
+    -object memory-backend-file,id=mem,size=4G,mem-path=/dev/shm,share=on \
+    -numa node,memdev=mem \
+    ...
+guest# mount -t virtio_fs \
+    -o default_permissions,allow_other,user_id=0,group_id=0,rootmode=040000,dax \
+    myfs /mnt
+@end example
+@c man end
+
+@ignore
+@setfilename virtiofsd
+@settitle QEMU virtio-fs shared file system daemon
+
+@c man begin AUTHOR
+Copyright (C) 2019 Red Hat, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+@c man end
+@end ignore
