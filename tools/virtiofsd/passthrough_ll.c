@@ -1297,7 +1297,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     if (opts.show_help) {
-        printf("usage: %s [options] <mountpoint>\n\n", argv[0]);
+        printf("usage: %s [options]\n\n", argv[0]);
         fuse_cmdline_help();
         fuse_lowlevel_help();
         ret = 0;
@@ -1306,13 +1306,6 @@ int main(int argc, char *argv[])
         printf("FUSE library version %s\n", fuse_pkgversion());
         fuse_lowlevel_version();
         ret = 0;
-        goto err_out1;
-    }
-
-    if (opts.mountpoint == NULL) {
-        printf("usage: %s [options] <mountpoint>\n", argv[0]);
-        printf("       %s --help\n", argv[0]);
-        ret = 1;
         goto err_out1;
     }
 
@@ -1375,7 +1368,7 @@ int main(int argc, char *argv[])
         goto err_out2;
     }
 
-    if (fuse_session_mount(se, opts.mountpoint) != 0) {
+    if (fuse_session_mount(se) != 0) {
         goto err_out3;
     }
 
@@ -1394,7 +1387,6 @@ err_out3:
 err_out2:
     fuse_session_destroy(se);
 err_out1:
-    free(opts.mountpoint);
     fuse_opt_free_args(&args);
 
     if (lo.root.fd >= 0) {
