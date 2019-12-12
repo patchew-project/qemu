@@ -8,6 +8,10 @@
  * See the file COPYING.LIB
  */
 
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdarg.h>
+#include <syslog.h>
 #include "fuse_log.h"
 
 #include <stdarg.h>
