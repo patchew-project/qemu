@@ -37,37 +37,62 @@
 # define LOG_PCALL_STATE(cpu) do { } while (0)
 #endif
 
-#ifdef CONFIG_USER_ONLY
-#define MEMSUFFIX _kernel
-#define DATA_SIZE 1
-#include "exec/cpu_ldst_useronly_template.h"
+static inline uint32_t cpu_ldub_kernel_ra(CPUX86State *env, abi_ptr ptr,
+                                          uintptr_t ra)
+{
+    return cpu_ldub_mmuidx_ra(env, ptr, cpu_mmu_index_kernel(env), ra);
+}
 
-#define DATA_SIZE 2
-#include "exec/cpu_ldst_useronly_template.h"
+static inline uint32_t cpu_lduw_kernel_ra(CPUX86State *env, abi_ptr ptr,
+                                          uintptr_t ra)
+{
+    return cpu_lduw_mmuidx_ra(env, ptr, cpu_mmu_index_kernel(env), ra);
+}
 
-#define DATA_SIZE 4
-#include "exec/cpu_ldst_useronly_template.h"
+static inline uint32_t cpu_ldl_kernel_ra(CPUX86State *env, abi_ptr ptr,
+                                         uintptr_t ra)
+{
+    return cpu_ldl_mmuidx_ra(env, ptr, cpu_mmu_index_kernel(env), ra);
+}
 
-#define DATA_SIZE 8
-#include "exec/cpu_ldst_useronly_template.h"
-#undef MEMSUFFIX
-#else
-#define CPU_MMU_INDEX (cpu_mmu_index_kernel(env))
-#define MEMSUFFIX _kernel
-#define DATA_SIZE 1
-#include "exec/cpu_ldst_template.h"
+static inline uint64_t cpu_ldq_kernel_ra(CPUX86State *env, abi_ptr ptr,
+                                         uintptr_t ra)
+{
+    return cpu_ldq_mmuidx_ra(env, ptr, cpu_mmu_index_kernel(env), ra);
+}
 
-#define DATA_SIZE 2
-#include "exec/cpu_ldst_template.h"
+static inline void cpu_stb_kernel_ra(CPUX86State *env, target_ulong ptr,
+                                     uint32_t val, uintptr_t ra)
+{
+    cpu_stb_mmuidx_ra(env, ptr, val, cpu_mmu_index_kernel(env), ra);
+}
 
-#define DATA_SIZE 4
-#include "exec/cpu_ldst_template.h"
+static inline void cpu_stw_kernel_ra(CPUX86State *env, target_ulong ptr,
+                                     uint32_t val, uintptr_t ra)
+{
+    cpu_stw_mmuidx_ra(env, ptr, val, cpu_mmu_index_kernel(env), ra);
+}
 
-#define DATA_SIZE 8
-#include "exec/cpu_ldst_template.h"
-#undef CPU_MMU_INDEX
-#undef MEMSUFFIX
-#endif
+static inline void cpu_stl_kernel_ra(CPUX86State *env, target_ulong ptr,
+                                     uint32_t val, uintptr_t ra)
+{
+    cpu_stl_mmuidx_ra(env, ptr, val, cpu_mmu_index_kernel(env), ra);
+}
+
+static inline void cpu_stq_kernel_ra(CPUX86State *env, target_ulong ptr,
+                                     uint64_t val, uintptr_t ra)
+{
+    cpu_stq_mmuidx_ra(env, ptr, val, cpu_mmu_index_kernel(env), ra);
+}
+
+#define cpu_ldub_kernel(e, p)    cpu_ldub_kernel_ra(e, p, 0)
+#define cpu_lduw_kernel(e, p)    cpu_lduw_kernel_ra(e, p, 0)
+#define cpu_ldl_kernel(e, p)     cpu_ldl_kernel_ra(e, p, 0)
+#define cpu_ldq_kernel(e, p)     cpu_ldq_kernel_ra(e, p, 0)
+#define cpu_stb_kernel(e, p, v)  cpu_stb_kernel_ra(e, p, v, 0)
+#define cpu_stw_kernel(e, p, v)  cpu_stw_kernel_ra(e, p, v, 0)
+#define cpu_stl_kernel(e, p, v)  cpu_stl_kernel_ra(e, p, v, 0)
+#define cpu_stq_kernel(e, p, v)  cpu_stq_kernel_ra(e, p, v, 0)
 
 /* return non zero if error */
 static inline int load_segment_ra(CPUX86State *env, uint32_t *e1_ptr,
