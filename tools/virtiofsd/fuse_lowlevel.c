@@ -9,14 +9,10 @@
  * See the file COPYING.LIB
  */
 
-#define _GNU_SOURCE
-
-#include "config.h"
 #include "fuse_i.h"
-#include "fuse_kernel.h"
+#include "standard-headers/linux/fuse.h"
 #include "fuse_misc.h"
 #include "fuse_opt.h"
-#include "mount_util.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -2093,7 +2089,6 @@ static struct {
     [FUSE_RENAME2] = { do_rename2, "RENAME2" },
     [FUSE_COPY_FILE_RANGE] = { do_copy_file_range, "COPY_FILE_RANGE" },
     [FUSE_LSEEK] = { do_lseek, "LSEEK" },
-    [CUSE_INIT] = { cuse_lowlevel_init, "CUSE_INIT" },
 };
 
 #define FUSE_MAXOP (sizeof(fuse_ll_ops) / sizeof(fuse_ll_ops[0]))
@@ -2220,7 +2215,6 @@ void fuse_lowlevel_version(void)
 {
     printf("using FUSE kernel interface version %i.%i\n", FUSE_KERNEL_VERSION,
            FUSE_KERNEL_MINOR_VERSION);
-    fuse_mount_version();
 }
 
 void fuse_lowlevel_help(void)
@@ -2308,10 +2302,6 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
         }
         fuse_log(FUSE_LOG_ERR, "%s'\n", args->argv[i]);
         goto out4;
-    }
-
-    if (se->debug) {
-        fuse_log(FUSE_LOG_DEBUG, "FUSE library version: %s\n", PACKAGE_VERSION);
     }
 
     se->bufsize = FUSE_MAX_MAX_PAGES * getpagesize() + FUSE_BUFFER_HEADER_SIZE;
