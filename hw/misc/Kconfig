@@ -125,4 +125,7 @@ config MAC_VIA
     select MOS6522
     select ADB
 
+config DJMEMC
+    bool
+
 source macio/Kconfig
