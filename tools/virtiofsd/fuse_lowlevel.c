@@ -2030,6 +2030,7 @@ static void do_init(fuse_req_t req, fuse_ino_t nodeid,
     }
 
     se->got_init = 1;
+    se->got_destroy = 0;
     if (se->op.init) {
         se->op.init(se->userdata, &se->conn);
     }
@@ -2132,6 +2133,7 @@ static void do_destroy(fuse_req_t req, fuse_ino_t nodeid,
     (void)iter;
 
     se->got_destroy = 1;
+    se->got_init = 0;
     if (se->op.destroy) {
         se->op.destroy(se->userdata);
     }
