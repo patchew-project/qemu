@@ -205,7 +205,13 @@ void HELPER(m68k_movec_to)(CPUM68KState *env, uint32_t reg, uint32_t val)
         return;
     /* MC680[234]0 */
     case M68K_CR_CACR:
-        env->cacr = val;
+        if (m68k_feature(env, M68K_FEATURE_MMU68040)) {
+            env->cacr = val & 0x80008000;
+        } else if (m68k_feature(env, M68K_FEATURE_MMU68030)) {
+            env->cacr = val & 0x00003fff;
+        } else if (m68k_feature(env, M68K_FEATURE_MMU68851)) {
+            env->cacr = val & 0x0000000f;
+        }
         m68k_switch_sp(env);
         return;
     /* MC680[34]0 */
@@ -261,7 +267,13 @@ uint32_t HELPER(m68k_movec_from)(CPUM68KState *env, uint32_t reg)
         return env->vbr;
     /* MC680[234]0 */
     case M68K_CR_CACR:
-        return env->cacr;
+        if (m68k_feature(env, M68K_FEATURE_MMU68040)) {
+            return env->cacr & 0x80008000;
+        } else if (m68k_feature(env, M68K_FEATURE_MMU68030)) {
+            return env->cacr & 0x00003fff;
+        } else if (m68k_feature(env, M68K_FEATURE_MMU68851)) {
+            return env->cacr & 0x0000000f;
+        }
     /* MC680[34]0 */
     case M68K_CR_TC:
         return env->mmu.tcr;
