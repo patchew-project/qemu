@@ -1828,6 +1828,7 @@ struct fuse_cmdline_opts {
     int show_help;
     int print_capabilities;
     int clone_fd;
+    int syslog;
     unsigned int max_idle_threads;
 };
 

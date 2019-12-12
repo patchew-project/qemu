@@ -55,6 +55,7 @@ static const struct fuse_opt fuse_helper_opts[] = {
     FUSE_OPT_KEY("subtype=", FUSE_OPT_KEY_KEEP),
     FUSE_HELPER_OPT("clone_fd", clone_fd),
     FUSE_HELPER_OPT("max_idle_threads=%u", max_idle_threads),
+    FUSE_HELPER_OPT("--syslog", syslog),
     FUSE_OPT_END
 };
 
@@ -139,6 +140,7 @@ void fuse_cmdline_help(void)
            "    -V   --version             print version\n"
            "    --print-capabilities       print vhost-user.json\n"
            "    -d   -o debug              enable debug output (implies -f)\n"
+           "    --syslog                   log to syslog (default stderr)\n"
            "    -f                         foreground operation\n"
            "    --daemonize                run in background\n"
            "    -s                         disable multi-threaded operation\n"
