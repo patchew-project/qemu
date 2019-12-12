@@ -33,9 +33,7 @@ size_t fuse_buf_size(const struct fuse_bufvec *bufv)
     return size;
 }
 
-__attribute__((unused))
-static ssize_t fuse_buf_writev(fuse_req_t req,
-                               struct fuse_buf *out_buf,
+static ssize_t fuse_buf_writev(struct fuse_buf *out_buf,
                                struct fuse_bufvec *in_buf)
 {
     ssize_t res, i, j;
@@ -334,10 +332,27 @@ static int fuse_bufvec_advance(struct fuse_bufvec *bufv, size_t len)
 ssize_t fuse_buf_copy(struct fuse_bufvec *dstv, struct fuse_bufvec *srcv,
                       enum fuse_buf_copy_flags flags)
 {
-    size_t copied = 0;
+    size_t copied = 0, i;
 
     if (dstv == srcv) {
         return fuse_buf_size(dstv);
+    }
+
+    /*
+     * use writev to improve bandwidth when all the
+     * src buffers already mapped by the daemon
+     * process
+     */
+    for (i = 0; i < srcv->count; i++) {
+        if (srcv->buf[i].flags & FUSE_BUF_IS_FD) {
+            break;
+        }
+    }
+    if ((i == srcv->count) && (dstv->count == 1) &&
+        (dstv->idx == 0) &&
+        (dstv->buf[0].flags & FUSE_BUF_IS_FD)) {
+        dstv->buf[0].pos += dstv->off;
+        return fuse_buf_writev(&dstv->buf[0], srcv);
     }
 
     for (;;) {
