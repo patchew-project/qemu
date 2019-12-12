@@ -636,21 +636,20 @@ int virtio_loop(struct fuse_session *se)
     return 0;
 }
 
-int virtio_session_mount(struct fuse_session *se)
+static int fv_create_listen_socket(struct fuse_session *se)
 {
     struct sockaddr_un un;
     mode_t old_umask;
+
+    /* Nothing to do if fd is already initialized */
+    if (se->vu_listen_fd >= 0) {
+        return 0;
+    }
 
     if (strlen(se->vu_socket_path) >= sizeof(un.sun_path)) {
         fuse_log(FUSE_LOG_ERR, "Socket path too long\n");
         return -1;
     }
-
-    /*
-     * Poison the fuse FD so we spot if we accidentally use it;
-     * DO NOT check for this value, check for fuse_lowlevel_is_virtio()
-     */
-    se->fd = 0xdaff0d11;
 
     /*
      * Create the Unix socket to communicate with qemu
@@ -684,15 +683,35 @@ int virtio_session_mount(struct fuse_session *se)
         return -1;
     }
 
+    se->vu_listen_fd = listen_sock;
+    return 0;
+}
+
+int virtio_session_mount(struct fuse_session *se)
+{
+    int ret;
+
+    ret = fv_create_listen_socket(se);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /*
+     * Poison the fuse FD so we spot if we accidentally use it;
+     * DO NOT check for this value, check fuse_lowlevel_is_virtio()
+     */
+    se->fd = 0xdaff0d11;
+
     fuse_log(FUSE_LOG_INFO, "%s: Waiting for vhost-user socket connection...\n",
              __func__);
-    int data_sock = accept(listen_sock, NULL, NULL);
+    int data_sock = accept(se->vu_listen_fd, NULL, NULL);
     if (data_sock == -1) {
         fuse_log(FUSE_LOG_ERR, "vhost socket accept: %m\n");
-        close(listen_sock);
+        close(se->vu_listen_fd);
         return -1;
     }
-    close(listen_sock);
+    close(se->vu_listen_fd);
+    se->vu_listen_fd = -1;
     fuse_log(FUSE_LOG_INFO, "%s: Received vhost-user socket connection\n",
              __func__);
 

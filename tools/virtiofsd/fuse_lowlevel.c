@@ -2134,6 +2134,7 @@ static const struct fuse_opt fuse_ll_opts[] = {
     LL_OPTION("allow_root", deny_others, 1),
     LL_OPTION("--socket-path=%s", vu_socket_path, 0),
     LL_OPTION("vhost_user_socket=%s", vu_socket_path, 0),
+    LL_OPTION("--fd=%d", vu_listen_fd, 0),
     FUSE_OPT_END
 };
 
@@ -2154,6 +2155,7 @@ void fuse_lowlevel_help(void)
         "    -o allow_root              allow access by root\n"
         "    --socket-path=PATH         path for the vhost-user socket\n"
         "    -o vhost_user_socket=PATH  path for the vhost-user socket\n"
+        "    --fd=FDNUM                 fd number of vhost-user socket\n"
         "    -o auto_unmount            auto unmount on process termination\n");
 }
 
@@ -2198,6 +2200,7 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
         goto out1;
     }
     se->fd = -1;
+    se->vu_listen_fd = -1;
     se->conn.max_write = UINT_MAX;
     se->conn.max_readahead = UINT_MAX;
 
@@ -2233,8 +2236,13 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
         goto out4;
     }
 
-    if (!se->vu_socket_path) {
-        fprintf(stderr, "fuse: missing -o vhost_user_socket option\n");
+    if (!se->vu_socket_path && se->vu_listen_fd < 0) {
+        fuse_log(FUSE_LOG_ERR, "fuse: missing --socket-path or --fd option\n");
+        goto out4;
+    }
+    if (se->vu_socket_path && se->vu_listen_fd >= 0) {
+        fuse_log(FUSE_LOG_ERR,
+                 "fuse: --socket-path and --fd cannot be given together\n");
         goto out4;
     }
 
@@ -2274,7 +2282,7 @@ void fuse_session_unmount(struct fuse_session *se)
 
 int fuse_lowlevel_is_virtio(struct fuse_session *se)
 {
-    return se->vu_socket_path != NULL;
+    return !!se->virtio_dev;
 }
 
 #ifdef linux
