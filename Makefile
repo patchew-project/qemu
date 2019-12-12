@@ -323,6 +323,7 @@ HELPERS-$(call land,$(CONFIG_SOFTMMU),$(CONFIG_LINUX)) = qemu-bridge-helper$(EXE
 
 ifdef CONFIG_LINUX
 HELPERS-y += virtiofsd$(EXESUF)
+vhost-user-json-y += tools/virtiofsd/50-qemu-virtiofsd.json
 
 ifdef CONFIG_VIRGL
 ifdef CONFIG_GBM
