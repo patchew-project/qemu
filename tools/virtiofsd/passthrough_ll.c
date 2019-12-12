@@ -1317,11 +1317,28 @@ static void lo_readlink(fuse_req_t req, fuse_ino_t ino)
 }
 
 struct lo_dirp {
+    gint refcount;
     DIR *dp;
     struct dirent *entry;
     off_t offset;
 };
 
+static void lo_dirp_put(struct lo_dirp **dp)
+{
+    struct lo_dirp *d = *dp;
+
+    if (!d) {
+        return;
+    }
+    *dp = NULL;
+
+    if (g_atomic_int_dec_and_test(&d->refcount)) {
+        closedir(d->dp);
+        free(d);
+    }
+}
+
+/* Call lo_dirp_put() on the return value when no longer needed */
 static struct lo_dirp *lo_dirp(fuse_req_t req, struct fuse_file_info *fi)
 {
     struct lo_data *lo = lo_data(req);
@@ -1329,6 +1346,9 @@ static struct lo_dirp *lo_dirp(fuse_req_t req, struct fuse_file_info *fi)
 
     pthread_mutex_lock(&lo->mutex);
     elem = lo_map_get(&lo->dirp_map, fi->fh);
+    if (elem) {
+        g_atomic_int_inc(&elem->dirp->refcount);
+    }
     pthread_mutex_unlock(&lo->mutex);
     if (!elem) {
         return NULL;
@@ -1364,6 +1384,7 @@ static void lo_opendir(fuse_req_t req, fuse_ino_t ino,
     d->offset = 0;
     d->entry = NULL;
 
+    g_atomic_int_set(&d->refcount, 1); /* paired with lo_releasedir() */
     pthread_mutex_lock(&lo->mutex);
     fh = lo_add_dirp_mapping(req, d);
     pthread_mutex_unlock(&lo->mutex);
@@ -1397,7 +1418,7 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
                           off_t offset, struct fuse_file_info *fi, int plus)
 {
     struct lo_data *lo = lo_data(req);
-    struct lo_dirp *d;
+    struct lo_dirp *d = NULL;
     struct lo_inode *dinode;
     char *buf = NULL;
     char *p;
@@ -1487,6 +1508,8 @@ static void lo_do_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
     err = 0;
 error:
+    lo_dirp_put(&d);
+
     /*
      * If there's an error, we can only signal it if we haven't stored
      * any entries yet - otherwise we'd end up with wrong lookup
@@ -1517,22 +1540,25 @@ static void lo_releasedir(fuse_req_t req, fuse_ino_t ino,
                           struct fuse_file_info *fi)
 {
     struct lo_data *lo = lo_data(req);
+    struct lo_map_elem *elem;
     struct lo_dirp *d;
 
     (void)ino;
 
-    d = lo_dirp(req, fi);
-    if (!d) {
+    pthread_mutex_lock(&lo->mutex);
+    elem = lo_map_get(&lo->dirp_map, fi->fh);
+    if (!elem) {
+        pthread_mutex_unlock(&lo->mutex);
         fuse_reply_err(req, EBADF);
         return;
     }
 
-    pthread_mutex_lock(&lo->mutex);
+    d = elem->dirp;
     lo_map_remove(&lo->dirp_map, fi->fh);
     pthread_mutex_unlock(&lo->mutex);
 
-    closedir(d->dp);
-    free(d);
+    lo_dirp_put(&d); /* paired with lo_opendir() */
+
     fuse_reply_err(req, 0);
 }
 
@@ -1743,6 +1769,9 @@ static void lo_fsyncdir(fuse_req_t req, fuse_ino_t ino, int datasync,
     } else {
         res = fsync(fd);
     }
+
+    lo_dirp_put(&d);
+
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
 
