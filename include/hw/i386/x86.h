@@ -95,4 +95,6 @@ void x86_load_linux(X86MachineState *x86ms,
                     bool pvh_enabled,
                     bool linuxboot_dma_enabled);
 
+qemu_irq x86_machine_allocate_cpu_irq(void);
+
 #endif
