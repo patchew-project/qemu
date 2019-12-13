@@ -87,10 +87,9 @@ static const MemoryRegionOps piix_bmdma_ops = {
 
 static void bmdma_setup_bar(PCIIDEState *d)
 {
-    int i;
-
     memory_region_init(&d->bmdma_bar, OBJECT(d), "piix-bmdma-container", 16);
-    for(i = 0;i < 2; i++) {
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->bmdma); i++) {
         BMDMAState *bm = &d->bmdma[i];
 
         memory_region_init_io(&bm->extra_io, OBJECT(d), &piix_bmdma_ops, bm,
@@ -107,9 +106,8 @@ static void piix_ide_reset(DeviceState *dev)
     PCIIDEState *d = PCI_IDE(dev);
     PCIDevice *pd = PCI_DEVICE(d);
     uint8_t *pci_conf = pd->config;
-    int i;
 
-    for (i = 0; i < 2; i++) {
+    for (size_t i = 0; i < ARRAY_SIZE(d->bus); i++) {
         ide_bus_reset(&d->bus[i]);
     }
 
@@ -132,10 +130,10 @@ static void pci_piix_init_ports(PCIIDEState *d) {
         {0x1f0, 0x3f6, 14},
         {0x170, 0x376, 15},
     };
-    int i;
 
-    for (i = 0; i < 2; i++) {
-        ide_bus_new(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i, 2);
+    for (size_t i = 0; i < ARRAY_SIZE(d->bus); i++) {
+        ide_bus_new(&d->bus[i], sizeof(d->bus[i]), DEVICE(d), i,
+                    ARRAY_SIZE(d->bus[0].ifs));
         ide_init_ioport(&d->bus[i], NULL, port_info[i].iobase,
                         port_info[i].iobase2);
         ide_init2(&d->bus[i], isa_get_irq(NULL, port_info[i].isairq));
@@ -163,14 +161,13 @@ static void pci_piix_ide_realize(PCIDevice *dev, Error **errp)
 
 int pci_piix3_xen_ide_unplug(DeviceState *dev, bool aux)
 {
-    PCIIDEState *pci_ide;
+    PCIIDEState *pci_ide = PCI_IDE(dev);
     DriveInfo *di;
-    int i;
     IDEDevice *idedev;
+    const size_t idedev_max = ARRAY_SIZE(pci_ide->bus)
+                            * ARRAY_SIZE(pci_ide->bus[0].ifs);
 
-    pci_ide = PCI_IDE(dev);
-
-    for (i = aux ? 1 : 0; i < 4; i++) {
+    for (size_t i = aux ? 1 : 0; i < idedev_max; i++) {
         di = drive_get_by_index(IF_IDE, i);
         if (di != NULL && !di->media_cd) {
             BlockBackend *blk = blk_by_legacy_dinfo(di);
@@ -210,9 +207,8 @@ PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 static void pci_piix_ide_exitfn(PCIDevice *dev)
 {
     PCIIDEState *d = PCI_IDE(dev);
-    unsigned i;
 
-    for (i = 0; i < 2; ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(d->bmdma); ++i) {
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].extra_io);
         memory_region_del_subregion(&d->bmdma_bar, &d->bmdma[i].addr_ioport);
     }
