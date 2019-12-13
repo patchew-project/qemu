@@ -33,6 +33,7 @@
 #include "hw/sysbus.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/pc_internal.h"
 #include "hw/loader.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"

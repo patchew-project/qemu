@@ -64,6 +64,7 @@
 #include "hw/acpi/pci.h"
 
 #include "qom/qom-qobject.h"
+#include "hw/i386/pc_internal.h"
 #include "hw/i386/amd_iommu.h"
 #include "hw/i386/intel_iommu.h"
 

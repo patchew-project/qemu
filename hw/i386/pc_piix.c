@@ -29,6 +29,7 @@
 #include "hw/loader.h"
 #include "hw/i386/x86.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/pc_internal.h"
 #include "hw/i386/apic.h"
 #include "hw/pci-host/i440fx.h"
 #include "hw/southbridge/piix.h"

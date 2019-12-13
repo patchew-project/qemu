@@ -14,6 +14,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
 #include "hw/i386/pc.h"
+#include "hw/i386/pc_internal.h"
 #include "hw/southbridge/piix.h"
 #include "hw/irq.h"
 #include "hw/hw.h"
