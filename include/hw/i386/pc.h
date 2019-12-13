@@ -224,7 +224,10 @@ int cmos_get_fd_drive_type(FloppyDriveType fd0);
 
 #define FW_CFG_IO_BASE     0x510
 
+/* port92.c */
 #define PORT92_A20_LINE "a20"
+
+#define TYPE_PORT92 "port92"
 
 /* hpet.c */
 extern int no_hpet;
