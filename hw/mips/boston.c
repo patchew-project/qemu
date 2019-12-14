@@ -412,10 +412,10 @@ xilinx_pcie_init(MemoryRegion *sys_mem, uint32_t bus_nr,
     qdev_init_nofail(dev);
 
     cfg = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
-    memory_region_add_subregion_overlap(sys_mem, cfg_base, cfg, 0);
+    memory_region_add_subregion(sys_mem, cfg_base, cfg);
 
     mmio = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 1);
-    memory_region_add_subregion_overlap(sys_mem, 0, mmio, 0);
+    memory_region_add_subregion(sys_mem, 0, mmio);
 
     qdev_connect_gpio_out_named(dev, "interrupt_out", 0, irq);
 
@@ -471,17 +471,17 @@ static void boston_mach_init(MachineState *machine)
 
     flash =  g_new(MemoryRegion, 1);
     memory_region_init_rom(flash, NULL, "boston.flash", 128 * MiB, &err);
-    memory_region_add_subregion_overlap(sys_mem, 0x18000000, flash, 0);
+    memory_region_add_subregion(sys_mem, 0x18000000, flash);
 
     ddr = g_new(MemoryRegion, 1);
     memory_region_allocate_system_memory(ddr, NULL, "boston.ddr",
                                          machine->ram_size);
-    memory_region_add_subregion_overlap(sys_mem, 0x80000000, ddr, 0);
+    memory_region_add_subregion(sys_mem, 0x80000000, ddr);
 
     ddr_low_alias = g_new(MemoryRegion, 1);
     memory_region_init_alias(ddr_low_alias, NULL, "boston_low.ddr",
                              ddr, 0, MIN(machine->ram_size, (256 * MiB)));
-    memory_region_add_subregion_overlap(sys_mem, 0, ddr_low_alias, 0);
+    memory_region_add_subregion(sys_mem, 0, ddr_low_alias);
 
     xilinx_pcie_init(sys_mem, 0,
                      0x10000000, 32 * MiB,
@@ -501,7 +501,7 @@ static void boston_mach_init(MachineState *machine)
     platreg = g_new(MemoryRegion, 1);
     memory_region_init_io(platreg, NULL, &boston_platreg_ops, s,
                           "boston-platregs", 0x1000);
-    memory_region_add_subregion_overlap(sys_mem, 0x17ffd000, platreg, 0);
+    memory_region_add_subregion(sys_mem, 0x17ffd000, platreg);
 
     s->uart = serial_mm_init(sys_mem, 0x17ffe000, 2,
                              get_cps_irq(&s->cps, 3), 10000000,
@@ -509,7 +509,7 @@ static void boston_mach_init(MachineState *machine)
 
     lcd = g_new(MemoryRegion, 1);
     memory_region_init_io(lcd, NULL, &boston_lcd_ops, s, "boston-lcd", 0x8);
-    memory_region_add_subregion_overlap(sys_mem, 0x17fff000, lcd, 0);
+    memory_region_add_subregion(sys_mem, 0x17fff000, lcd);
 
     chr = qemu_chr_new("lcd", "vc:320x240", NULL);
     qemu_chr_fe_init(&s->lcd_display, chr, NULL);
