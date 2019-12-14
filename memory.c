@@ -2390,6 +2390,7 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
 {
     assert(!subregion->container);
     subregion->container = mr;
+    assert(offset + memory_region_size(subregion) <= memory_region_size(mr));
     subregion->addr = offset;
     memory_region_update_container_subregions(subregion);
 }
