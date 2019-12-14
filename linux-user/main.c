@@ -544,7 +544,7 @@ static void usage(int exitcode)
     exit(exitcode);
 }
 
-static int parse_args(int argc, char **argv)
+static int parse_args(int argc, char **argv, int assume_P_flag)
 {
     const char *r;
     int optind;
@@ -560,7 +560,17 @@ static int parse_args(int argc, char **argv)
             arginfo->handle_opt(r);
         }
     }
-
+    if (assume_P_flag) {
+        /* Assume started by binmisc and binfmt P flag is set */
+        if (argc < 3) {
+            fprintf(stderr, "%s: Please use me through binfmt with P flag\n",
+                    argv[0]);
+            exit(1);
+        }
+        exec_path = argv[1];
+        /* Next argv must be argv0 for the app */
+        return 2;
+    }
     optind = 1;
     for (;;) {
         if (optind >= argc) {
@@ -659,7 +669,8 @@ int main(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_trace_opts);
     qemu_plugin_add_opts();
 
-    optind = parse_args(argc, argv);
+    execfd = qemu_getauxval(AT_EXECFD);
+    optind = parse_args(argc, argv,  execfd > 0);
 
     if (!trace_init_backends()) {
         exit(1);
@@ -682,7 +693,6 @@ int main(int argc, char **argv, char **envp)
 
     init_qemu_uname_release();
 
-    execfd = qemu_getauxval(AT_EXECFD);
     if (execfd == 0) {
         execfd = open(exec_path, O_RDONLY);
         if (execfd < 0) {
