@@ -1095,8 +1095,7 @@ static void vfio_sub_page_bar_update_mapping(PCIDevice *pdev, int bar)
     memory_region_set_size(mmap_mr, size);
     if (size != vdev->bars[bar].size && memory_region_is_mapped(base_mr)) {
         memory_region_del_subregion(r->address_space, base_mr);
-        memory_region_add_subregion_overlap(r->address_space,
-                                            bar_addr, base_mr, 0);
+        memory_region_add_subregion(r->address_space, bar_addr, base_mr);
     }
 
     memory_region_transaction_commit();
