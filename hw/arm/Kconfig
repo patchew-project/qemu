@@ -317,6 +317,9 @@ config STM32F405_SOC
     select STM32F4XX_SYSCFG
     select STM32F4XX_EXTI
 
+config STM32F405_SOC
+    bool
+
 config XLNX_ZYNQMP_ARM
     bool
     select AHCI
