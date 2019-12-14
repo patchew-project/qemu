@@ -2081,7 +2081,7 @@ static void register_smram_listener(Notifier *n, void *unused)
      */
     memory_region_init_alias(&smram_as_mem, OBJECT(kvm_state), "mem-smram",
                              get_system_memory(), 0, ~0ull);
-    memory_region_add_subregion_overlap(&smram_as_root, 0, &smram_as_mem, 0);
+    memory_region_add_subregion(&smram_as_root, 0, &smram_as_mem);
     memory_region_set_enabled(&smram_as_mem, true);
 
     if (smram) {
