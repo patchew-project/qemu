@@ -157,6 +157,7 @@ typedef struct dp8393xState {
     /* Hardware */
     uint8_t it_shift;
     bool big_endian;
+    bool last_rba_is_full;
     qemu_irq irq;
 #ifdef DEBUG_SONIC
     int irq_level;
@@ -311,6 +312,12 @@ static void dp8393x_do_read_rra(dp8393xState *s)
 {
     int width, size;
 
+    /* Already on the last RBA? */
+    s->last_rba_is_full = s->regs[SONIC_ISR] & SONIC_ISR_RBE;
+    if (s->last_rba_is_full) {
+        return;
+    }
+
     /* Read memory */
     width = (s->regs[SONIC_DCR] & SONIC_DCR_DW) ? 2 : 1;
     size = sizeof(uint16_t) * 4 * width;
@@ -334,7 +341,7 @@ static void dp8393x_do_read_rra(dp8393xState *s)
         s->regs[SONIC_RRP] = s->regs[SONIC_RSA];
     }
 
-    /* Check resource exhaustion */
+    /* Warn the host if this entry is the last one */
     if (s->regs[SONIC_RRP] == s->regs[SONIC_RWP])
     {
         s->regs[SONIC_ISR] |= SONIC_ISR_RBE;
@@ -703,8 +710,9 @@ static int dp8393x_can_receive(NetClientState *nc)
 
     if (!(s->regs[SONIC_CR] & SONIC_CR_RXEN))
         return 0;
-    if (s->regs[SONIC_ISR] & SONIC_ISR_RBE)
+    if (s->last_rba_is_full) {
         return 0;
+    }
     return 1;
 }
 
