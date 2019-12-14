@@ -437,8 +437,7 @@ static void versal_virt_init(MachineState *machine)
 
     /* Make the APU cpu address space visible to virtio and other
      * modules unaware of muliple address-spaces.  */
-    memory_region_add_subregion_overlap(get_system_memory(),
-                                        0, &s->soc.fpd.apu.mr, 0);
+    memory_region_add_subregion(get_system_memory(), 0, &s->soc.fpd.apu.mr);
 
     s->binfo.ram_size = machine->ram_size;
     s->binfo.loader_start = 0x0;

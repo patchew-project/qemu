@@ -281,8 +281,8 @@ static void versal_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->lpd.mr_ocm, OBJECT(s), "ocm",
                            MM_OCM_SIZE, &error_fatal);
 
-    memory_region_add_subregion_overlap(&s->mr_ps, MM_OCM, &s->lpd.mr_ocm, 0);
-    memory_region_add_subregion_overlap(&s->fpd.apu.mr, 0, &s->mr_ps, 0);
+    memory_region_add_subregion(&s->mr_ps, MM_OCM, &s->lpd.mr_ocm);
+    memory_region_add_subregion(&s->fpd.apu.mr, 0, &s->mr_ps);
 }
 
 static void versal_init(Object *obj)
