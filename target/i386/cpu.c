@@ -5983,7 +5983,7 @@ static void x86_cpu_machine_done(Notifier *n, void *unused)
         memory_region_init_alias(cpu->smram, OBJECT(cpu), "smram",
                                  smram, 0, 1ull << 32);
         memory_region_set_enabled(cpu->smram, true);
-        memory_region_add_subregion_overlap(cpu->cpu_as_root, 0, cpu->smram, 1);
+        memory_region_add_subregion_overlap(cpu->cpu_mr_root, 0, cpu->smram, 1);
     }
 }
 #else
@@ -6471,24 +6471,24 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
 
 #ifndef CONFIG_USER_ONLY
     if (tcg_enabled()) {
-        cpu->cpu_as_mem = g_new(MemoryRegion, 1);
-        cpu->cpu_as_root = g_new(MemoryRegion, 1);
+        cpu->cpu_mr_mem = g_new(MemoryRegion, 1);
+        cpu->cpu_mr_root = g_new(MemoryRegion, 1);
 
         /* Outer container... */
-        memory_region_init(cpu->cpu_as_root, OBJECT(cpu), "memory", ~0ull);
-        memory_region_set_enabled(cpu->cpu_as_root, true);
+        memory_region_init(cpu->cpu_mr_root, OBJECT(cpu), "memory", ~0ull);
+        memory_region_set_enabled(cpu->cpu_mr_root, true);
 
         /* ... with two regions inside: normal system memory with low
          * priority, and...
          */
-        memory_region_init_alias(cpu->cpu_as_mem, OBJECT(cpu), "memory",
+        memory_region_init_alias(cpu->cpu_mr_mem, OBJECT(cpu), "memory",
                                  get_system_memory(), 0, ~0ull);
-        memory_region_add_subregion(cpu->cpu_as_root, 0, cpu->cpu_as_mem);
-        memory_region_set_enabled(cpu->cpu_as_mem, true);
+        memory_region_add_subregion(cpu->cpu_mr_root, 0, cpu->cpu_mr_mem);
+        memory_region_set_enabled(cpu->cpu_mr_mem, true);
 
         cs->num_ases = 2;
         cpu_address_space_init(cs, 0, "cpu-memory", cs->memory);
-        cpu_address_space_init(cs, 1, "cpu-smm", cpu->cpu_as_root);
+        cpu_address_space_init(cs, 1, "cpu-smm", cpu->cpu_mr_root);
 
         /* ... SMRAM with higher priority, linked from /machine/smram.  */
         cpu->machine_done.notify = x86_cpu_machine_done;
