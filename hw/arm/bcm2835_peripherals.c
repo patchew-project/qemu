@@ -160,8 +160,8 @@ static void bcm2835_peripherals_realize(DeviceState *dev, Error **errp)
     for (n = 0; n < 4; n++) {
         memory_region_init_alias(&s->ram_alias[n], OBJECT(s),
                                  "bcm2835-gpu-ram-alias[*]", ram, 0, ram_size);
-        memory_region_add_subregion_overlap(&s->gpu_bus_mr, (hwaddr)n << 30,
-                                            &s->ram_alias[n], 0);
+        memory_region_add_subregion(&s->gpu_bus_mr, (hwaddr)n << 30,
+                                    &s->ram_alias[n]);
     }
 
     /* Interrupt Controller */
