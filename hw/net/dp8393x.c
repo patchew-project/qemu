@@ -39,7 +39,7 @@ static const char* reg_names[] = {
     "CR", "DCR", "RCR", "TCR", "IMR", "ISR", "UTDA", "CTDA",
     "TPS", "TFC", "TSA0", "TSA1", "TFS", "URDA", "CRDA", "CRBA0",
     "CRBA1", "RBWC0", "RBWC1", "EOBC", "URRA", "RSA", "REA", "RRP",
-    "RWP", "TRBA0", "TRBA1", "0x1b", "0x1c", "0x1d", "0x1e", "LLFA",
+    "RWP", "TRBA0", "TRBA1", "TBWC0", "TBWC1", "0x1d", "0x1e", "LLFA",
     "TTDA", "CEP", "CAP2", "CAP1", "CAP0", "CE", "CDP", "CDC",
     "SR", "WT0", "WT1", "RSC", "CRCT", "FAET", "MPT", "MDT",
     "0x30", "0x31", "0x32", "0x33", "0x34", "0x35", "0x36", "0x37",
@@ -78,6 +78,8 @@ do { printf("sonic ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } while (0)
 #define SONIC_RWP    0x18
 #define SONIC_TRBA0  0x19
 #define SONIC_TRBA1  0x1a
+#define SONIC_TBWC0  0x1b
+#define SONIC_TBWC1  0x1c
 #define SONIC_LLFA   0x1f
 #define SONIC_TTDA   0x20
 #define SONIC_CEP    0x21
@@ -777,6 +779,8 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     /* Save current position */
     s->regs[SONIC_TRBA1] = s->regs[SONIC_CRBA1];
     s->regs[SONIC_TRBA0] = s->regs[SONIC_CRBA0];
+    s->regs[SONIC_TBWC1] = s->regs[SONIC_RBWC1];
+    s->regs[SONIC_TBWC0] = s->regs[SONIC_RBWC0];
 
     /* Calculate the ethernet checksum */
     checksum = cpu_to_le32(crc32(0, buf, rx_len));
@@ -827,6 +831,12 @@ static ssize_t dp8393x_receive(NetClientState *nc, const uint8_t * buf,
     if (s->regs[SONIC_LLFA] & 0x1) {
         /* EOL detected */
         s->regs[SONIC_ISR] |= SONIC_ISR_RDE;
+
+        /* Restore buffer state */
+        s->regs[SONIC_CRBA1] = s->regs[SONIC_TRBA1];
+        s->regs[SONIC_CRBA0] = s->regs[SONIC_TRBA0];
+        s->regs[SONIC_RBWC1] = s->regs[SONIC_TBWC1];
+        s->regs[SONIC_RBWC0] = s->regs[SONIC_TBWC0];
     } else {
         /* Clear in_use */
         int offset = dp8393x_crda(s) + sizeof(uint16_t) * 6 * width;
