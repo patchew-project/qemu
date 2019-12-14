@@ -3363,11 +3363,9 @@ VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn)
          * switch between DMAR & noDMAR by enable/disable
          * corresponding sub-containers
          */
-        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
-                                            MEMORY_REGION(&vtd_dev_as->iommu),
-                                            0);
-        memory_region_add_subregion_overlap(&vtd_dev_as->root, 0,
-                                            &vtd_dev_as->nodmar, 0);
+        memory_region_add_subregion(&vtd_dev_as->root, 0,
+                                    MEMORY_REGION(&vtd_dev_as->iommu));
+        memory_region_add_subregion(&vtd_dev_as->root, 0, &vtd_dev_as->nodmar);
 
         vtd_switch_address_space(vtd_dev_as);
     }
@@ -3764,8 +3762,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     memory_region_init_alias(&s->mr_sys_alias, OBJECT(s),
                              "vtd-sys-alias", get_system_memory(), 0,
                              memory_region_size(get_system_memory()));
-    memory_region_add_subregion_overlap(&s->mr_nodmar, 0,
-                                        &s->mr_sys_alias, 0);
+    memory_region_add_subregion(&s->mr_nodmar, 0, &s->mr_sys_alias);
     memory_region_add_subregion_overlap(&s->mr_nodmar,
                                         VTD_INTERRUPT_ADDR_FIRST,
                                         &s->mr_ir, 1);
