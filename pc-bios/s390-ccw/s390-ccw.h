@@ -46,6 +46,8 @@ typedef unsigned long long __u64;
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
+#define LINUX_MAGIC_ADDR  0x010008UL
+
 #include "cio.h"
 #include "iplb.h"
 

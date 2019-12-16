@@ -49,6 +49,56 @@ static inline bool is_iso_vd_valid(IsoVolDesc *vd)
            vd->type <= VOL_DESC_TYPE_PARTITION;
 }
 
+/**
+ * The ZIPL boot loader adds a BOOT_IMAGE=x to the kernel parameters
+ * (where x is the number of the selected boot entry). Since some
+ * programs might rely on this parameter, we mimic this behavior here.
+ */
+static void add_boot_image_param(uint64_t start_addr, int index)
+{
+    /* "BOOT_IMAGE=00" in EBCDIC */
+    char bootimg_str[15] = {
+        0xc2, 0xd6, 0xd6, 0xe3, 0x6d, 0xc9, 0xd4, 0xc1, 0xc7, 0xc5, 0x7e,
+        0xf0, 0xf0, 0
+    };
+
+    /* Only do it for Linux images */
+    if (memcmp((char *)LINUX_MAGIC_ADDR, "S390EP", 6) != 0) {
+        return;
+    }
+
+    if (index < 10) {
+        bootimg_str[11] = 0xf0 + index;  /* 0xf0 is '0' in EBCDIC */
+        bootimg_str[12] = 0;
+    } else if (index < 100) {
+        bootimg_str[11] = 0xf0 + index / 10;
+        bootimg_str[12] = 0xf0 + index % 10;
+    } else {
+        /* This should never happen since index should be < MAX_BOOT_ENTRIES */
+        panic("BOOT_IMAGE index too big");
+    }
+
+    /*
+     * Now write the parameter to the COMMAND_LINE_EXTRA area of the zipl
+     * stage3 boot loader that we are going to run. Unfortunately, the
+     * location of this area changed in the course of time, but we can
+     * use the stage3 start address to determine which area we have to
+     * use (unless it is zipl v2.9 - the start address already has changed
+     * there but the area has not been moved yet ... so for this version
+     * we are writing the parameters into the unused stack area instead
+     * and thus the BOOT_PARAM won't show up there)
+     */
+    if ((start_addr & 0x7fffffff) == 0xa050) {
+        *(uint64_t *)0xa020 = true;
+        memcpy((char *)0xa000 - 0x400, bootimg_str, sizeof(bootimg_str));
+    } else if ((start_addr & 0x7fffffff) == 0xa000) {
+        *(uint64_t *)0x9020 = true;
+        memcpy((char *)0xe000, bootimg_str, sizeof(bootimg_str));
+    } else {
+        sclp_print("\nWarning: Unsupported ZIPL stage 3 start address.\n");
+    }
+}
+
 /***********************************************************************
  * IPL an ECKD DASD (CDL or LDL/CMS format)
  */
@@ -480,7 +530,7 @@ static void zipl_load_segment(ComponentEntry *entry)
 }
 
 /* Run a zipl program */
-static void zipl_run(ScsiBlockPtr *pte)
+static void zipl_run(ScsiBlockPtr *pte, int loadparm)
 {
     ComponentHeader *header;
     ComponentEntry *entry;
@@ -514,6 +564,8 @@ static void zipl_run(ScsiBlockPtr *pte)
     }
 
     IPL_assert(entry->component_type == ZIPL_COMP_ENTRY_EXEC, "No EXEC entry");
+
+    add_boot_image_param(entry->load_address, loadparm);
 
     /* should not return */
     jump_to_IPL_code(entry->load_address);
@@ -565,7 +617,7 @@ static void ipl_scsi(void)
     IPL_assert(loadparm < MAX_BOOT_ENTRIES, "loadparm value greater than"
                " maximum number of boot entries allowed");
 
-    zipl_run(&prog_table->entry[loadparm].scsi); /* no return */
+    zipl_run(&prog_table->entry[loadparm].scsi, loadparm); /* no return */
 }
 
 /***********************************************************************
