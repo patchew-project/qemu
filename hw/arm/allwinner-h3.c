@@ -186,6 +186,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "timer", &s->timer, sizeof(s->timer),
                           TYPE_AW_A10_PIT);
+
+    sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
+                          TYPE_AW_H3_CLK);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -309,6 +312,10 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
                                 &s->sram_a2);
     memory_region_add_subregion(get_system_memory(), s->memmap[AW_H3_SRAM_C],
                                 &s->sram_c);
+
+    /* Clock Control Unit */
+    qdev_init_nofail(DEVICE(&s->ccu));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_H3_CCU]);
 
     /* UART0 */
     serial_mm_init(get_system_memory(), s->memmap[AW_H3_UART0], 2,
