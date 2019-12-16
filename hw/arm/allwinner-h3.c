@@ -190,6 +190,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "ccu", &s->ccu, sizeof(s->ccu),
                           TYPE_AW_H3_CLK);
+
+    sysbus_init_child_obj(obj, "syscon", &s->syscon, sizeof(s->syscon),
+                          TYPE_AW_H3_SYSCON);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -317,6 +320,10 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
     /* Clock Control Unit */
     qdev_init_nofail(DEVICE(&s->ccu));
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_H3_CCU]);
+
+    /* System Control */
+    qdev_init_nofail(DEVICE(&s->syscon));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->syscon), 0, s->memmap[AW_H3_SYSCON]);
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, s->memmap[AW_H3_EHCI0],
