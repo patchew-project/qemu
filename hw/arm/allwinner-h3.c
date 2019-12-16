@@ -202,6 +202,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
                           TYPE_AW_H3_SDHOST);
+
+    sysbus_init_child_obj(obj, "emac", &s->emac, sizeof(s->emac),
+                          TYPE_AW_H3_EMAC);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -354,6 +357,16 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, error_abort);
         return;
     }
+
+    /* EMAC */
+    if (nd_table[0].used) {
+        qemu_check_nic_model(&nd_table[0], TYPE_AW_H3_EMAC);
+        qdev_set_nic_properties(DEVICE(&s->emac), &nd_table[0]);
+    }
+    qdev_init_nofail(DEVICE(&s->emac));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->emac), 0, s->memmap[AW_H3_EMAC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->emac), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_EMAC));
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, s->memmap[AW_H3_EHCI0],

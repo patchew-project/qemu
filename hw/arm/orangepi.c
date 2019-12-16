@@ -70,6 +70,13 @@ static void orangepi_init(MachineState *machine)
     qdev_prop_set_string(DEVICE(&s->h3->sid), "identifier",
                          "8100c002-0001-0002-0003-000044556677");
 
+    /* Setup EMAC properties */
+    object_property_set_int(OBJECT(&s->h3->emac), 1, "phy-addr", &error_abort);
+    if (error_abort != NULL) {
+        error_reportf_err(error_abort, "Couldn't set phy address: ");
+        exit(1);
+    }
+
     /* Mark H3 object realized */
     object_property_set_bool(OBJECT(s->h3), true, "realized", &error_abort);
     if (error_abort != NULL) {

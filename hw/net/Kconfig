@@ -74,6 +74,9 @@ config MIPSNET
 config ALLWINNER_EMAC
     bool
 
+config ALLWINNER_H3_EMAC
+    bool
+
 config IMX_FEC
     bool
 
