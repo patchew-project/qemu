@@ -30,6 +30,7 @@
 #include "hw/misc/allwinner-h3-cpucfg.h"
 #include "hw/misc/allwinner-h3-syscon.h"
 #include "hw/misc/allwinner-h3-sid.h"
+#include "hw/sd/allwinner-h3-sdhost.h"
 #include "target/arm/cpu.h"
 
 enum {
@@ -79,6 +80,7 @@ typedef struct AwH3State {
     AwH3CpuCfgState cpucfg;
     AwH3SysconState syscon;
     AwH3SidState sid;
+    AwH3SDHostState mmc0;
     GICState gic;
     MemoryRegion sram_a1;
     MemoryRegion sram_a2;

@@ -38,6 +38,10 @@ typedef struct OrangePiState {
 static void orangepi_init(MachineState *machine)
 {
     OrangePiState *s = g_new(OrangePiState, 1);
+    DriveInfo *di;
+    BlockBackend *blk;
+    BusState *bus;
+    DeviceState *carddev;
 
     /* Only allow Cortex-A7 for this board */
     if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("cortex-a7")) != 0) {
@@ -73,6 +77,16 @@ static void orangepi_init(MachineState *machine)
         exit(1);
     }
 
+    /* Retrieve SD bus */
+    di = drive_get_next(IF_SD);
+    blk = di ? blk_by_legacy_dinfo(di) : NULL;
+    bus = qdev_get_child_bus(DEVICE(s->h3), "sd-bus");
+
+    /* Plug in SD card */
+    carddev = qdev_create(bus, TYPE_SD_CARD);
+    qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+    object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
+
     /* RAM */
     if (machine->ram_size > 1 * GiB) {
         error_report("Requested ram size is too large for this machine: "
@@ -95,6 +109,7 @@ static void orangepi_machine_init(MachineClass *mc)
 {
     mc->desc = "Orange Pi PC";
     mc->init = orangepi_init;
+    mc->block_default_type = IF_SD;
     mc->units_per_default_bus = 1;
     mc->min_cpus = AW_H3_NUM_CPUS;
     mc->max_cpus = AW_H3_NUM_CPUS;

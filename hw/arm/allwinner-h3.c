@@ -199,6 +199,9 @@ static void aw_h3_init(Object *obj)
 
     sysbus_init_child_obj(obj, "sid", &s->sid, sizeof(s->sid),
                           TYPE_AW_H3_SID);
+
+    sysbus_init_child_obj(obj, "mmc0", &s->mmc0, sizeof(s->mmc0),
+                          TYPE_AW_H3_SDHOST);
 }
 
 static void aw_h3_realize(DeviceState *dev, Error **errp)
@@ -338,6 +341,19 @@ static void aw_h3_realize(DeviceState *dev, Error **errp)
     /* Security Identifier */
     qdev_init_nofail(DEVICE(&s->sid));
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, s->memmap[AW_H3_SID]);
+
+    /* SD/MMC */
+    qdev_init_nofail(DEVICE(&s->mmc0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc0), 0, s->memmap[AW_H3_MMC0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc0), 0,
+                       qdev_get_gpio_in(DEVICE(&s->gic), AW_H3_GIC_SPI_MMC0));
+
+    object_property_add_alias(OBJECT(s), "sd-bus", OBJECT(&s->mmc0),
+                              "sd-bus", &error_abort);
+    if (error_abort) {
+        error_propagate(errp, error_abort);
+        return;
+    }
 
     /* Universal Serial Bus */
     sysbus_create_simple(TYPE_AW_H3_EHCI, s->memmap[AW_H3_EHCI0],
