@@ -2411,6 +2411,7 @@ static void help_all(void)
     const cmdinfo_t *ct;
 
     for (ct = cmdtab; ct < &cmdtab[ncmds]; ct++) {
+        assert(ct->name);
         help_oneline(ct->name, ct);
     }
     printf("\nUse 'help commandname' for extended help.\n");
