@@ -171,6 +171,9 @@ static void cryptodev_vhost_user_event(void *opaque, int event)
         b->ready = false;
         cryptodev_vhost_user_stop(queues, s);
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
