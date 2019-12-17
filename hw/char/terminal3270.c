@@ -166,6 +166,9 @@ static void chr_event(void *opaque, int event)
         sch->curr_status.scsw.dstat = SCSW_DSTAT_DEVICE_END;
         css_conditional_io_interrupt(sch);
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
