@@ -479,6 +479,9 @@ static void usb_serial_event(void *opaque, int event)
                 usb_device_detach(&s->dev);
             }
             break;
+        default:
+            /* Ignore */
+            break;
     }
 }
 
