@@ -14045,6 +14045,7 @@ static void disas_a64_insn(CPUARMState *env, DisasContext *s)
     s->pc_curr = s->base.pc_next;
     insn = arm_ldl_code(env, s->base.pc_next, s->sctlr_b);
     s->insn = insn;
+    s->is_16bit = false;
     s->base.pc_next += 4;
 
     s->fp_access_checked = false;

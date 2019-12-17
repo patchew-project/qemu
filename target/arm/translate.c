@@ -8555,7 +8555,7 @@ static ISSInfo make_issinfo(DisasContext *s, int rd, bool p, bool w)
 
     /* ISS not valid if writeback */
     if (p && !w) {
-        ret = rd;
+        ret = rd | (s->is_16bit ? ISSIs16Bit : 0);
     } else {
         ret = ISSInvalid;
     }
@@ -11057,6 +11057,7 @@ static void arm_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     dc->pc_curr = dc->base.pc_next;
     insn = arm_ldl_code(env, dc->base.pc_next, dc->sctlr_b);
     dc->insn = insn;
+    dc->is_16bit = false;
     dc->base.pc_next += 4;
     disas_arm_insn(dc, insn);
 
@@ -11126,6 +11127,7 @@ static void thumb_tr_translate_insn(DisasContextBase *dcbase, CPUState *cpu)
     dc->pc_curr = dc->base.pc_next;
     insn = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
     is_16bit = thumb_insn_is_16bit(dc, dc->base.pc_next, insn);
+    dc->is_16bit = is_16bit;
     dc->base.pc_next += 2;
     if (!is_16bit) {
         uint32_t insn2 = arm_lduw_code(env, dc->base.pc_next, dc->sctlr_b);
