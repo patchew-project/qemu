@@ -383,6 +383,7 @@ vhost_scsi=""
 vhost_vsock=""
 vhost_user=""
 vhost_user_fs=""
+awd="no"
 kvm="no"
 hax="no"
 hvf="no"
@@ -1304,6 +1305,10 @@ for opt do
   ;;
   --enable-vhost-user-fs) vhost_user_fs="yes"
   ;;
+  --disable-awd) awd="no"
+  ;;
+  --enable-awd) awd="yes"
+  ;;
   --disable-opengl) opengl="no"
   ;;
   --enable-opengl) opengl="yes"
@@ -1780,6 +1785,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   vhost-crypto    vhost-user-crypto backend support
   vhost-kernel    vhost kernel backend support
   vhost-user      vhost-user backend support
+  awd             Advanced Watch Dog support
   spice           spice
   rbd             rados block device (rbd)
   libiscsi        iscsi support
@@ -7026,6 +7032,9 @@ if test "$vhost_kernel" = "yes" ; then
 fi
 if test "$vhost_user" = "yes" ; then
   echo "CONFIG_VHOST_USER=y" >> $config_host_mak
+fi
+if test "$awd" = "yes" ; then
+  echo "CONFIG_AWD=y" >> $config_host_mak
 fi
 if test "$vhost_user_fs" = "yes" ; then
   echo "CONFIG_VHOST_USER_FS=y" >> $config_host_mak

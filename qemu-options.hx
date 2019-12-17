@@ -4579,6 +4579,26 @@ Dump the network traffic on netdev @var{dev} to the file specified by
 The file format is libpcap, so it can be analyzed with tools such as tcpdump
 or Wireshark.
 
+@item -object advanced-watchdog,id=@var{id},awd_node=@var{chardevid},notification_node=@var{chardevid},server=@var{server},iothread=@var{id},opt_script=@var{path}[,pulse_interval=@var{time_ms},timeout=@var{time_ms}]
+
+Advanced Watch Dog is an universal monitoring module on VMM side, it can be used
+to detect network down(VMM to guest, VMM to VMM, VMM to another remote server)
+and do previously set operation. AWD(Advanced WatchDog) use awd_node
+@var{chardevid} parameter to connect with a -chardev node for heartbeat
+service, and the service use the server @var{server} parameter to divided into
+server side and client side. The iothread @var{id} parameter make AWD attach to
+iothread and run independently of the main loop. The pulse_interval @var{time_ms}
+and timeout @var{time_ms} are heartbeat service property, default property are
+pulse_interval=5000, timeout=2000. AWD use the notification_node @var{chardevid}
+attach another -chardev socket node to do previously set operation, user can
+setup the operation(user command) in opt_script file, AWD will open this script
+and send it to notification_node. It make user have basic VM/Host network
+monitoring tools and basic false tolerance and recovery solution.
+
+Usage cases:
+Send message to admin, notify another VMM, send qmp command to qemu do some
+operation like restart the VM, build VMM heartbeat system, etc.
+
 @item -object colo-compare,id=@var{id},primary_in=@var{chardevid},secondary_in=@var{chardevid},outdev=@var{chardevid},iothread=@var{id}[,vnet_hdr_support][,notify_dev=@var{id}]
 
 Colo-compare gets packet from primary_in@var{chardevid} and secondary_in@var{chardevid}, than compare primary packet with
