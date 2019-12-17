@@ -1370,6 +1370,9 @@ static void usbredir_chardev_event(void *opaque, int event)
         DPRINTF("chardev close\n");
         qemu_bh_schedule(dev->chardev_close_bh);
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
