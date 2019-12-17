@@ -383,6 +383,9 @@ static void vhost_user_blk_event(void *opaque, int event)
             s->watch = 0;
         }
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
