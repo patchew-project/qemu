@@ -435,6 +435,10 @@ static void chr_event(void *opaque, int event)
             k->handle_rsp(s, ibe->outbuf[0], ibe->inbuf + 1, 3);
         }
         break;
+
+    default:
+        /* Ignore */
+        break;
     }
 }
 
