@@ -162,6 +162,9 @@ static void chr_event(void *opaque, int event)
         }
         virtio_serial_close(port);
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
