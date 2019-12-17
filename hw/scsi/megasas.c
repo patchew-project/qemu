@@ -2382,7 +2382,8 @@ static void megasas_scsi_realize(PCIDevice *dev, Error **errp)
     if (!s->hba_serial) {
         s->hba_serial = g_strdup(MEGASAS_HBA_SERIAL);
     }
-    if (s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
+    if (MEGASAS_MAX_SGE > 128
+        && s->fw_sge >= MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE) {
         s->fw_sge = MEGASAS_MAX_SGE - MFI_PASS_FRAME_SIZE;
     } else if (s->fw_sge >= 128 - MFI_PASS_FRAME_SIZE) {
         s->fw_sge = 128 - MFI_PASS_FRAME_SIZE;
