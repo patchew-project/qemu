@@ -1,0 +1,88 @@
+Advanced Watch Dog (AWD)
+========================
+Copyright (c) 2019 Intel Corporation.
+Author: Zhang Chen <chen.zhang@intel.com>
+
+This work is licensed under the terms of the GNU GPL, version 2 or later.
+See the COPYING file in the top-level directory.
+
+Introduction
+------------
+
+Advanced Watch Dog is an universal monitoring module on VMM side, it can be used
+to detect network issues(VMM to guest, VMM to VMM, VMM to another remote server)
+and do previously set operation. Current AWD accept any input as the signal
+to refresh the watchdog timer, and we can also make a certain interactive
+protocol here. Users can pre-write some command or some messages in the
+AWD opt-script as the notification output. We noticed that there is no way
+for VMM communicate directly, so we engaged with real customer found that they
+need a lightweight and efficient mechanism to solve some practical problems,
+for example Edge Computing cases(they think high level software is too heavy
+to use in Edge or it is hard to manage and combine with VM instance).
+It make user have basic VM/Host network monitoring tools and basic false
+tolerance and recovery solution.
+
+Use case
+--------
+
+1. Monitor local guest status.
+Running a simple application in guest for send signal to the local AWD module,
+if timeout occur, AWD will notify high level admin or do some previously set
+operation. For example send exit command to local QMP interface or qemu monitor.
+
+2. Monitor other VMM.
+AWD module can be connected to each other to build heartbeat service.
+
+3. Monitor other remote service.
+In some cases, remote service have certain relationship with current VM. If
+network connection have some issue, AWD can do some urgent operation like reboot
+local VM. etc...
+
+AWD usage
+---------
+
+User must "--enable-awd" in Qemu configuration.
+
+1. Monitor local guest status.
+
+-chardev socket,id=detection,host=0.0.0.0,port=9009,server,nowait
+-chardev socket,id=notification,host=127.0.0.1,port=4445
+-object iothread,id=iothread1
+-object advanced-watchdog,id=awd1,server=on,awd_node=detection,notification_node=notification,opt_script=colo_opt_script,iothread=iothread1,pulse_interval=1000,timeout=5000
+-monitor tcp::4445,server,nowait
+
+qemu_opt_script:
+quit
+
+Guest service need connect to detection node, admin can check notification node
+to get message when timeout occur.
+
+2. Monitor other VMM.
+
+Demo usage(for COLO heartbeat service):
+
+In primary node:
+
+-chardev socket,id=h1,host=3.3.3.3,port=9009,server,nowait
+-chardev socket,id=heartbeat0,host=3.3.3.3,port=4445
+-object iothread,id=iothread1
+-object advanced-watchdog,id=heart1,server=on,awd_node=h1,notification_node=heartbeat0,opt_script=colo_primary_opt_script,iothread=iothread1,pulse_interval=1000,timeout=5000
+
+colo_primary_opt_script:
+x_colo_lost_heartbeat
+
+In secondary node:
+
+-monitor tcp::4445,server,nowait
+-chardev socket,id=h1,host=3.3.3.3,port=9009,reconnect=1
+-chardev socket,id=heart1,host=3.3.3.8,port=4445
+-object iothread,id=iothread1
+-object advanced-watchdog,id=heart1,server=off,awd_node=h1,notification_node=heart1,opt_script=colo_secondary_opt_script,iothread=iothread1,timeout=10000
+
+colo_secondary_opt_script:
+nbd_server_stop
+x_colo_lost_heartbeat
+
+3. Monitor other remote service.
+
+Same like monitor local guest except detection node and notification node.
