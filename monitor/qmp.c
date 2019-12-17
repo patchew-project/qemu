@@ -365,6 +365,9 @@ static void monitor_qmp_event(void *opaque, int event)
         mon_refcount--;
         monitor_fdsets_cleanup();
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
