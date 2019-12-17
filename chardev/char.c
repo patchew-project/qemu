@@ -69,6 +69,9 @@ void qemu_chr_be_event(Chardev *s, int event)
         case CHR_EVENT_CLOSED:
             s->be_open = 0;
             break;
+    default:
+        /* Ignore */
+        break;
     }
 
     CHARDEV_GET_CLASS(s)->chr_be_event(s, event);
