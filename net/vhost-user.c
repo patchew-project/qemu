@@ -294,6 +294,9 @@ static void net_vhost_user_event(void *opaque, int event)
             aio_bh_schedule_oneshot(ctx, chr_closed_bh, opaque);
         }
         break;
+    default:
+        /* Ignore */
+        break;
     }
 
     if (err) {
