@@ -318,6 +318,9 @@ static void ccid_card_vscard_event(void *opaque, int event)
     case CHR_EVENT_OPENED:
         DPRINTF(card, D_INFO, "%s: CHR_EVENT_OPENED\n", __func__);
         break;
+    default:
+        /* Ignore */
+        break;
     }
 }
 
