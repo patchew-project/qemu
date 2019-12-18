@@ -2576,7 +2576,14 @@ static int postcopy_start(MigrationState *ms)
     QEMUFile *fb;
     int64_t time_at_stop = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     int64_t bandwidth = migrate_max_postcopy_bandwidth();
-    bool restart_block = false;
+
+    /*
+     * recoverable_failure
+     * A failure happened early enough that we know the destination hasn't
+     * accessed block devices, so we're safe to recover.
+     */
+    bool recoverable_failure = true;
+    bool inactivated = false;
     int cur_state = MIGRATION_STATUS_ACTIVE;
     if (!migrate_pause_before_switchover()) {
         migrate_set_state(&ms->state, MIGRATION_STATUS_ACTIVE,
@@ -2600,11 +2607,11 @@ static int postcopy_start(MigrationState *ms)
         goto fail;
     }
 
+    inactivated = true;
     ret = bdrv_inactivate_all();
     if (ret < 0) {
         goto fail;
     }
-    restart_block = true;
 
     /*
      * Cause any non-postcopiable, but iterative devices to
@@ -2682,7 +2689,7 @@ static int postcopy_start(MigrationState *ms)
         goto fail_closefb;
     }
 
-    restart_block = false;
+    recoverable_failure = false;
 
     /* Now send that blob */
     if (qemu_savevm_send_packaged(ms->to_dst_file, bioc->data, bioc->usage)) {
@@ -2716,26 +2723,28 @@ static int postcopy_start(MigrationState *ms)
     ret = qemu_file_get_error(ms->to_dst_file);
     if (ret) {
         error_report("postcopy_start: Migration stream errored");
-        migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                              MIGRATION_STATUS_FAILED);
+        goto fail;
     }
 
-    return ret;
+    return 0;
 
 fail_closefb:
     qemu_fclose(fb);
 fail:
     migrate_set_state(&ms->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
-                          MIGRATION_STATUS_FAILED);
-    if (restart_block) {
-        /* A failure happened early enough that we know the destination hasn't
-         * accessed block devices, so we're safe to recover.
-         */
+                      recoverable_failure ? MIGRATION_STATUS_FAILED :
+                      MIGRATION_STATUS_FAILED_UNRECOVERABLE);
+    if (recoverable_failure && inactivated) {
         Error *local_err = NULL;
 
         bdrv_invalidate_cache_all(&local_err);
         if (local_err) {
             error_report_err(local_err);
+            /*
+             * We failed to invalidate, so we must not start vm automatically.
+             * User may retry invalidation and start by cont qmp command.
+             */
+            ms->vm_was_running = false;
         }
     }
     qemu_mutex_unlock_iothread();
@@ -3194,9 +3203,12 @@ static void migration_iteration_finish(MigrationState *s)
         s->vm_was_running = true;
         /* Fallthrough */
     case MIGRATION_STATUS_FAILED:
+    case MIGRATION_STATUS_FAILED_UNRECOVERABLE:
     case MIGRATION_STATUS_CANCELLED:
     case MIGRATION_STATUS_CANCELLING:
-        if (s->vm_was_running) {
+        if (s->vm_was_running &&
+            s->state != MIGRATION_STATUS_FAILED_UNRECOVERABLE)
+        {
             vm_start();
         } else {
             if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {

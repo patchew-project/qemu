@@ -125,6 +125,9 @@
 #
 # @failed: some error occurred during migration process.
 #
+# @failed-unrecoverable: postcopy failed after no return point, when disks may
+#                        already be accessed by target Qemu process. (since 5.0)
+#
 # @colo: VM is in the process of fault tolerance, VM can not get into this
 #        state unless colo capability is enabled for migration. (since 2.8)
 #
@@ -142,8 +145,8 @@
 { 'enum': 'MigrationStatus',
   'data': [ 'none', 'setup', 'cancelling', 'cancelled',
             'active', 'postcopy-active', 'postcopy-paused',
-            'postcopy-recover', 'completed', 'failed', 'colo',
-            'pre-switchover', 'device', 'wait-unplug' ] }
+            'postcopy-recover', 'completed', 'failed', 'failed-unrecoverable',
+            'colo', 'pre-switchover', 'device', 'wait-unplug' ] }
 
 ##
 # @MigrationInfo:
