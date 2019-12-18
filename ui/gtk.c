@@ -33,6 +33,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-commands-monitor.h"
 #include "qemu/cutils.h"
 
 #include "ui/console.h"
