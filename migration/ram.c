@@ -29,6 +29,9 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include <zlib.h>
+#ifdef CONFIG_ZSTD
+#include <zstd.h>
+#endif
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
@@ -584,6 +587,7 @@ exit:
 #define MULTIFD_FLAG_SYNC (1 << 0)
 #define MULTIFD_FLAG_NOCOMP (1 << 1)
 #define MULTIFD_FLAG_ZLIB (1 << 2)
+#define MULTIFD_FLAG_ZSTD (1 << 3)
 
 /* This value needs to be a multiple of qemu_target_page_size() */
 #define MULTIFD_PACKET_SIZE (512 * 1024)
@@ -634,6 +638,22 @@ struct zlib_data {
     /* size of compressed buffer */
     uint32_t zbuff_len;
 };
+
+#ifdef CONFIG_ZSTD
+struct zstd_data {
+    /* stream for compression */
+    ZSTD_CStream *zcs;
+    /* stream for decompression */
+    ZSTD_DStream *zds;
+    /* buffers */
+    ZSTD_inBuffer in;
+    ZSTD_outBuffer out;
+    /* compressed buffer */
+    uint8_t *zbuff;
+    /* size of compressed buffer */
+    uint32_t zbuff_len;
+};
+#endif
 
 typedef struct {
     /* this fields are not changed once the thread is created */
@@ -1109,9 +1129,277 @@ static MultiFDMethods multifd_zlib_ops = {
     .recv_pages = zlib_recv_pages
 };
 
+#ifdef CONFIG_ZSTD
+/* Multifd zstd compression */
+
+/**
+ * zstd_send_setup: setup send side
+ *
+ * Setup each channel with zstd compression.
+ *
+ * Returns 0 for success or -1 for error
+ *
+ * @p: Params for the channel that we are using
+ * @errp: pointer to an error
+ */
+static int zstd_send_setup(MultiFDSendParams *p, Error **errp)
+{
+    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    struct zstd_data *z = g_new0(struct zstd_data, 1);
+    int res;
+
+    p->data = z;
+    z->zcs = ZSTD_createCStream();
+    if (!z->zcs) {
+        g_free(z);
+        error_setg(errp, "multifd %d: zstd createCStream failed", p->id);
+        return -1;
+    }
+
+    res = ZSTD_initCStream(z->zcs, migrate_compress_level());
+    if (ZSTD_isError(res)) {
+        ZSTD_freeCStream(z->zcs);
+        g_free(z);
+        error_setg(errp, "multifd %d: initCStream failed", p->id);
+        return -1;
+    }
+    /* We will never have more than page_count pages */
+    z->zbuff_len = page_count * qemu_target_page_size();
+    z->zbuff_len *= 2;
+    z->zbuff = g_try_malloc(z->zbuff_len);
+    if (!z->zbuff) {
+        ZSTD_freeCStream(z->zcs);
+        g_free(z);
+        error_setg(errp, "multifd %d: out of memory for zbuff", p->id);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * zstd_send_cleanup: cleanup send side
+ *
+ * Close the channel and return memory.
+ *
+ * @p: Params for the channel that we are using
+ */
+static void zstd_send_cleanup(MultiFDSendParams *p, Error **errp)
+{
+    struct zstd_data *z = p->data;
+
+    ZSTD_freeCStream(z->zcs);
+    z->zcs = NULL;
+    g_free(z->zbuff);
+    z->zbuff = NULL;
+    g_free(p->data);
+    p->data = NULL;
+}
+
+/**
+ * zstd_send_prepare: prepare date to be able to send
+ *
+ * Create a compressed buffer with all the pages that we are going to
+ * send.
+ *
+ * Returns 0 for success or -1 for error
+ *
+ * @p: Params for the channel that we are using
+ * @used: number of pages used
+ */
+static int zstd_send_prepare(MultiFDSendParams *p, uint32_t used, Error **errp)
+{
+    struct iovec *iov = p->pages->iov;
+    struct zstd_data *z = p->data;
+    int ret;
+    uint32_t i;
+
+    z->out.dst = z->zbuff;
+    z->out.size = z->zbuff_len;
+    z->out.pos = 0;
+
+    for (i = 0; i < used; i++) {
+        ZSTD_EndDirective flush = ZSTD_e_continue;
+
+        if (i == used - 1) {
+            flush = ZSTD_e_flush;
+        }
+        z->in.src = iov[i].iov_base;
+        z->in.size = iov[i].iov_len;
+        z->in.pos = 0;
+
+        ret = ZSTD_compressStream2(z->zcs, &z->out, &z->in, flush);
+        if (ZSTD_isError(ret)) {
+            error_setg(errp, "multifd %d: compressStream error %s",
+                       p->id, ZSTD_getErrorName(ret));
+            return -1;
+        }
+    }
+    p->next_packet_size = z->out.pos;
+    p->flags |= MULTIFD_FLAG_ZSTD;
+
+    return 0;
+}
+
+/**
+ * zstd_send_write: do the actual write of the data
+ *
+ * Do the actual write of the comprresed buffer.
+ *
+ * Returns 0 for success or -1 for error
+ *
+ * @p: Params for the channel that we are using
+ * @used: number of pages used
+ * @errp: pointer to an error
+ */
+static int zstd_send_write(MultiFDSendParams *p, uint32_t used, Error **errp)
+{
+    struct zstd_data *z = p->data;
+
+    return qio_channel_write_all(p->c, (void *)z->zbuff, p->next_packet_size,
+                                 errp);
+}
+
+/**
+ * zstd_recv_setup: setup receive side
+ *
+ * Create the compressed channel and buffer.
+ *
+ * Returns 0 for success or -1 for error
+ *
+ * @p: Params for the channel that we are using
+ * @errp: pointer to an error
+ */
+static int zstd_recv_setup(MultiFDRecvParams *p, Error **errp)
+{
+    uint32_t page_count = MULTIFD_PACKET_SIZE / qemu_target_page_size();
+    struct zstd_data *z = g_new0(struct zstd_data, 1);
+    int res;
+
+    p->data = z;
+    z->zds = ZSTD_createDStream();
+    if (!z->zds) {
+        g_free(z);
+        error_setg(errp, "multifd %d: zstd createDStream failed", p->id);
+        return -1;
+    }
+
+    res = ZSTD_initDStream(z->zds);
+    if (ZSTD_isError(res)) {
+        ZSTD_freeDStream(z->zds);
+        g_free(z);
+        error_setg(errp, "multifd %d: initDStream failed", p->id);
+        return -1;
+    }
+
+    /* We will never have more than page_count pages */
+    z->zbuff_len = page_count * qemu_target_page_size();
+    /* We know compression "could" use more space */
+    z->zbuff_len *= 2;
+    z->zbuff = g_try_malloc(z->zbuff_len);
+    if (!z->zbuff) {
+        ZSTD_freeDStream(z->zds);
+        g_free(z);
+        error_setg(errp, "multifd %d: out of memory for zbuff", p->id);
+        return -1;
+    }
+    return 0;
+}
+
+/**
+ * zstd_recv_cleanup: setup receive side
+ *
+ * For no compression this function does nothing.
+ *
+ * @p: Params for the channel that we are using
+ */
+static void zstd_recv_cleanup(MultiFDRecvParams *p)
+{
+    struct zstd_data *z = p->data;
+
+    ZSTD_freeDStream(z->zds);
+    z->zds = NULL;
+    g_free(z->zbuff);
+    z->zbuff = NULL;
+    g_free(p->data);
+    p->data = NULL;
+}
+
+/**
+ * zstd_recv_pages: read the data from the channel into actual pages
+ *
+ * Read the compressed buffer, and uncompress it into the actual
+ * pages.
+ *
+ * Returns 0 for success or -1 for error
+ *
+ * @p: Params for the channel that we are using
+ * @used: number of pages used
+ * @errp: pointer to an error
+ */
+static int zstd_recv_pages(MultiFDRecvParams *p, uint32_t used, Error **errp)
+{
+    uint32_t in_size = p->next_packet_size;
+    uint32_t out_size = 0;
+    uint32_t expected_size = used * qemu_target_page_size();
+    struct zstd_data *z = p->data;
+    int ret;
+    int i;
+
+    if (p->flags != MULTIFD_FLAG_ZSTD) {
+        error_setg(errp, "multifd %d: flags received %x flags expected %x",
+                   p->id, MULTIFD_FLAG_ZSTD, p->flags);
+        return -1;
+    }
+    ret = qio_channel_read_all(p->c, (void *)z->zbuff, in_size, errp);
+
+    if (ret != 0) {
+        return ret;
+    }
+
+    z->in.src = z->zbuff;
+    z->in.size = in_size;
+    z->in.pos = 0;
+
+    for (i = 0; i < used; i++) {
+        struct iovec *iov = &p->pages->iov[i];
+
+        z->out.dst = iov->iov_base;
+        z->out.size = iov->iov_len;
+        z->out.pos = 0;
+
+        ret = ZSTD_decompressStream(z->zds, &z->out, &z->in);
+        if (ZSTD_isError(ret)) {
+            error_setg(errp, "multifd %d: decompressStream returned %s",
+                       p->id, ZSTD_getErrorName(ret));
+            return ret;
+        }
+        out_size += iov->iov_len;
+    }
+    if (out_size != expected_size) {
+        error_setg(errp, "multifd %d: packet size received %d size expected %d",
+                   p->id, out_size, expected_size);
+        return -1;
+    }
+    return 0;
+}
+
+static MultiFDMethods multifd_zstd_ops = {
+    .send_setup = zstd_send_setup,
+    .send_cleanup = zstd_send_cleanup,
+    .send_prepare = zstd_send_prepare,
+    .send_write = zstd_send_write,
+    .recv_setup = zstd_recv_setup,
+    .recv_cleanup = zstd_recv_cleanup,
+    .recv_pages = zstd_recv_pages
+};
+#endif /* CONFIG_ZSTD */
+
 static MultiFDMethods *multifd_ops[MULTIFD_COMPRESS__MAX] = {
     [MULTIFD_COMPRESS_NONE] = &multifd_nocomp_ops,
     [MULTIFD_COMPRESS_ZLIB] = &multifd_zlib_ops,
+#ifdef CONFIG_ZSTD
+    [MULTIFD_COMPRESS_ZSTD] = &multifd_zstd_ops,
+#endif
 };
 
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
