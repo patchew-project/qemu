@@ -654,7 +654,7 @@ const PropertyInfo qdev_prop_fdc_drive_type = {
 const PropertyInfo qdev_prop_multifd_compress = {
     .name = "MultifdCompress",
     .description = "multifd_compress values, "
-                   "none",
+                   "none/zlib",
     .enum_table = &MultifdCompress_lookup,
     .get = get_enum,
     .set = set_enum,
