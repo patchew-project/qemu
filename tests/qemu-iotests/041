@@ -871,6 +871,7 @@ class TestRepairQuorum(iotests.QMPTestCase):
     image_len = 1 * 1024 * 1024 # MB
     IMAGES = [ quorum_img1, quorum_img2, quorum_img3 ]
 
+    @iotests.skip_if_unsupported(['quorum'])
     def setUp(self):
         self.vm = iotests.VM()
 

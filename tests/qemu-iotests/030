@@ -530,6 +530,7 @@ class TestQuorum(iotests.QMPTestCase):
     children = []
     backing = []
 
+    @iotests.skip_if_unsupported(['quorum'])
     def setUp(self):
         opts = ['driver=quorum', 'vote-threshold=2']
 
