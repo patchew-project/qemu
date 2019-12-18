@@ -2034,9 +2034,6 @@ if test "$pie" != "no" ; then
     QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
     LDFLAGS="-pie $LDFLAGS"
     pie="yes"
-    if compile_prog "" "-Wl,-z,relro -Wl,-z,now" ; then
-      LDFLAGS="-Wl,-z,relro -Wl,-z,now $LDFLAGS"
-    fi
   else
     if test "$pie" = "yes"; then
       error_exit "PIE not available due to missing toolchain support"
@@ -2045,6 +2042,16 @@ if test "$pie" != "no" ; then
       pie="no"
     fi
   fi
+fi
+
+# Detect support for DT_BIND_NOW.
+if compile_prog "" "-Wl,-z,now" ; then
+  LDFLAGS="-Wl,-z,now $LDFLAGS"
+fi
+
+# Detect support for PT_GNU_RELRO.
+if compile_prog "" "-Wl,-z,relro" ; then
+  LDFLAGS="-Wl,-z,relro $LDFLAGS"
 fi
 
 ##########################################
