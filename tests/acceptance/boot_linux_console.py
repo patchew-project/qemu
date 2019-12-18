@@ -51,11 +51,7 @@ class BootLinuxConsole(Test):
         os.chdir(cwd)
         return self.workdir + path
 
-    def test_x86_64_pc(self):
-        """
-        :avocado: tags=arch:x86_64
-        :avocado: tags=machine:pc
-        """
+    def do_test_x86_64_pc(self):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
                       '/vmlinuz')
@@ -69,6 +65,22 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_x86_64_pc_kvm(self):
+        """
+        :avocado: tags=arch:x86_64
+        :avocado: tags=machine:pc
+        :avocado: tags=accel:kvm
+        """
+        self.do_test_x86_64_pc()
+
+    def test_x86_64_pc_tcg(self):
+        """
+        :avocado: tags=arch:x86_64
+        :avocado: tags=machine:pc
+        :avocado: tags=accel:tcg
+        """
+        self.do_test_x86_64_pc()
 
     def test_mips_malta(self):
         """
@@ -258,11 +270,7 @@ class BootLinuxConsole(Test):
         kernel_hash = '18d1c68f2e23429e266ca39ba5349ccd0aeb7180'
         self.do_test_mips_malta32el_nanomips(kernel_url, kernel_hash)
 
-    def test_aarch64_virt(self):
-        """
-        :avocado: tags=arch:aarch64
-        :avocado: tags=machine:virt
-        """
+    def do_test_aarch64_virt(self):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
                       '/vmlinuz')
@@ -278,6 +286,22 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_aarch64_virt_kvm(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:virt
+        :avocado: tags=accel:kvm
+        """
+        self.do_test_aarch64_virt()
+
+    def test_aarch64_virt_tcg(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:virt
+        :avocado: tags=accel:tcg
+        """
+        self.do_test_aarch64_virt()
 
     def test_arm_virt(self):
         """
@@ -400,11 +424,7 @@ class BootLinuxConsole(Test):
         self.wait_for_console_pattern('Boot successful.')
         # TODO user command, for now the uart is stuck
 
-    def test_s390x_s390_ccw_virtio(self):
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
-        """
+    def do_test_s390x_s390_ccw_virtio(self):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/29/Everything/s390x/os/images'
                       '/kernel.img')
@@ -419,6 +439,22 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_s390x_s390_ccw_virtio_kvm(self):
+        """
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=accel:kvm
+        """
+        self.do_test_s390x_s390_ccw_virtio()
+
+    def test_s390x_s390_ccw_virtio_tcg(self):
+        """
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=accel:tcg
+        """
+        self.do_test_s390x_s390_ccw_virtio()
 
     def test_alpha_clipper(self):
         """
@@ -441,11 +477,7 @@ class BootLinuxConsole(Test):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
-    def test_ppc64_pseries(self):
-        """
-        :avocado: tags=arch:ppc64
-        :avocado: tags=machine:pseries
-        """
+    def do_test_ppc64_pseries(self):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/29/Everything/ppc64le/os'
                       '/ppc/ppc64/vmlinuz')
@@ -459,6 +491,22 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_ppc64le_pseries_kvm(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        :avocado: tags=accel:kvm
+        """
+        self.do_test_ppc64_pseries()
+
+    def test_ppc64le_pseries_tcg(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        :avocado: tags=accel:tcg
+        """
+        self.do_test_ppc64_pseries()
 
     def test_m68k_q800(self):
         """
