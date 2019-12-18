@@ -1,5 +1,5 @@
 # Add Python module requirements, one per line, to be installed
 # in the tests/venv Python virtual environment. For more info,
 # refer to: https://pip.pypa.io/en/stable/user_guide/#id1
-avocado-framework==73.0
+-e git+https://github.com/clebergnu/avocado@vmimage_lazy_no_snapshot#egg=avocado_framework
 pycdlib==1.8.0
