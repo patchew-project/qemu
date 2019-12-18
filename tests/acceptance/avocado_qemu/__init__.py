@@ -20,6 +20,7 @@ SRC_ROOT_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..')
 sys.path.append(os.path.join(SRC_ROOT_DIR, 'python'))
 
 from qemu.machine import QEMUMachine
+from qemu.accel import kvm_available, tcg_available
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)
@@ -111,6 +112,8 @@ class Test(avocado.Test):
 
     def setUp(self):
         self._vms = {}
+        # VM argumments that are mapped from parameters
+        self._param_to_vm_args = []
 
         self.arch = self.params.get('arch',
                                     default=self._get_unique_tag_val('arch'))
@@ -124,10 +127,30 @@ class Test(avocado.Test):
         if self.qemu_bin is None:
             self.cancel("No QEMU binary defined or found in the source tree")
 
+        self.accel = self.params.get('accel',
+                                     default=self._get_unique_tag_val('accel'))
+        if self.accel:
+            avail = False
+            if self.accel == 'kvm':
+                if kvm_available(self.arch, self.qemu_bin):
+                    self._param_to_vm_args.append('-enable-kvm')
+                    avail = True
+            elif self.accel == 'tcg':
+                if tcg_available(self.qemu_bin):
+                    self._param_to_vm_args.extend(['--accel', 'tcg'])
+                    avail = True
+            else:
+                self.cancel("Unknown accelerator: %s" % self.accel)
+
+            if not avail:
+                self.cancel("%s is not available" % self.accel)
+
     def _new_vm(self, *args):
         vm = QEMUMachine(self.qemu_bin, sock_dir=tempfile.mkdtemp())
         if args:
             vm.add_args(*args)
+        if self._param_to_vm_args:
+            vm.add_args(*self._param_to_vm_args)
         return vm
 
     @property

@@ -757,6 +757,17 @@ name.  If one is not given explicitly, it will either be set to
 ``None``, or, if the test is tagged with one (and only one)
 ``:avocado: tags=machine:VALUE`` tag, it will be set to ``VALUE``.
 
+accel
+~~~~~
+The accelerator that will be set to all QEMUMachine instances created
+by the test.
+
+The ``accel`` attribute will be set to the test parameter of the same
+name.  If one is not given explicitly, it will either be set to
+``None``, or, if the test is tagged with one (and only one)
+``:avocado: tags=accel:VALUE`` tag, it will be set to ``VALUE``. Currently
+``VALUE`` should be either ``kvm`` or ``tcg``.
+
 qemu_bin
 ~~~~~~~~
 
@@ -798,6 +809,11 @@ machine
 The machine type that will be set to all QEMUMachine instances created
 by the test.
 
+accel
+~~~~~
+The accelerator that will be set to all QEMUMachine instances created
+by the test. In case the accelerator is not available (both QEMU
+binary and the host system are checked) then the test is canceled.
 
 qemu_bin
 ~~~~~~~~
