@@ -482,7 +482,6 @@ static void migrate_check_parameter_str(QTestState *who, const char *parameter,
     g_free(result);
 }
 
-__attribute__((unused))
 static void migrate_set_parameter_str(QTestState *who, const char *parameter,
                                       const char *value)
 {
@@ -1393,7 +1392,7 @@ static void test_migrate_auto_converge(void)
     test_migrate_end(from, to, true);
 }
 
-static void test_multifd_tcp(void)
+static void test_multifd_tcp(const char *method)
 {
     MigrateStart *args = migrate_start_new();
     QTestState *from, *to;
@@ -1416,6 +1415,9 @@ static void test_multifd_tcp(void)
 
     migrate_set_parameter_int(from, "multifd-channels", 16);
     migrate_set_parameter_int(to, "multifd-channels", 16);
+
+    migrate_set_parameter_str(from, "multifd-compress", method);
+    migrate_set_parameter_str(to, "multifd-compress", method);
 
     migrate_set_capability(from, "multifd", "true");
     migrate_set_capability(to, "multifd", "true");
@@ -1446,6 +1448,11 @@ static void test_multifd_tcp(void)
     wait_for_migration_complete(from);
     test_migrate_end(from, to, true);
     free(uri);
+}
+
+static void test_multifd_tcp_none(void)
+{
+    test_multifd_tcp("none");
 }
 
 int main(int argc, char **argv)
@@ -1512,7 +1519,7 @@ int main(int argc, char **argv)
                    test_validate_uuid_dst_not_set);
 
     qtest_add_func("/migration/auto_converge", test_migrate_auto_converge);
-    qtest_add_func("/migration/multifd/tcp", test_multifd_tcp);
+    qtest_add_func("/migration/multifd/tcp/none", test_multifd_tcp_none);
 
     ret = g_test_run();
 
