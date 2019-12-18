@@ -316,7 +316,8 @@ static int glue(load_elf, SZ)(const char *name, int fd,
                               void *translate_opaque,
                               int must_swab, uint64_t *pentry,
                               uint64_t *lowaddr, uint64_t *highaddr,
-                              int elf_machine, int clear_lsb, int data_swab,
+                              uint32_t *pe_flags, int elf_machine,
+                              int clear_lsb, int data_swab,
                               AddressSpace *as, bool load_rom,
                               symbol_fn_t sym_cb)
 {
@@ -594,6 +595,9 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         }
     }
 
+    if (pe_flags) {
+        *pe_flags = (uint32_t)(elf_sword)ehdr.e_flags;
+    }
     if (lowaddr)
         *lowaddr = (uint64_t)(elf_sword)low;
     if (highaddr)
