@@ -120,6 +120,8 @@ class Test(avocado.Test):
 
         self.machine = self.params.get('machine',
                                        default=self._get_unique_tag_val('machine'))
+        if self.machine:
+            self._param_to_vm_args.extend(['-M', self.machine])
 
         default_qemu_bin = pick_default_qemu_bin(arch=self.arch)
         self.qemu_bin = self.params.get('qemu_bin',
@@ -162,8 +164,6 @@ class Test(avocado.Test):
             name = str(uuid.uuid4())
         if self._vms.get(name) is None:
             self._vms[name] = self._new_vm(*args)
-            if self.machine is not None:
-                self._vms[name].set_machine(self.machine)
         return self._vms[name]
 
     def tearDown(self):
