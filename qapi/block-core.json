@@ -3657,6 +3657,8 @@
 #
 # @pool:               Ceph pool name.
 #
+# @nspace:             Rados namespace name in the Ceph pool.
+#
 # @image:              Image name in the Ceph pool.
 #
 # @conf:               path to Ceph configuration file.  Values
@@ -3683,6 +3685,7 @@
 ##
 { 'struct': 'BlockdevOptionsRbd',
   'data': { 'pool': 'str',
+            'nspace': 'str',
             'image': 'str',
             '*conf': 'str',
             '*snapshot': 'str',
