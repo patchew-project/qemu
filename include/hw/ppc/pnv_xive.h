@@ -30,6 +30,8 @@ typedef struct PnvXive {
     /* Owning chip */
     struct PnvChip *chip;
 
+    MemoryRegion *system_memory;
+
     /* XSCOM addresses giving access to the controller registers */
     MemoryRegion  xscom_regs;
 

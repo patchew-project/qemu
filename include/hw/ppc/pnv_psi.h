@@ -35,6 +35,7 @@ typedef struct PnvPsi {
 
     MemoryRegion regs_mr;
     uint64_t bar;
+    MemoryRegion *system_memory;
 
     /* FSP region not supported */
     /* MemoryRegion fsp_mr; */

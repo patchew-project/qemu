@@ -126,7 +126,7 @@
 static void pnv_psi_set_bar(PnvPsi *psi, uint64_t bar)
 {
     PnvPsiClass *ppc = PNV_PSI_GET_CLASS(psi);
-    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *sysmem = psi->system_memory;
     uint64_t old = psi->regs[PSIHB_XSCOM_BAR];
 
     psi->regs[PSIHB_XSCOM_BAR] = bar & (ppc->bar_mask | PSIHB_BAR_EN);
@@ -489,6 +489,8 @@ static void pnv_psi_power8_realize(DeviceState *dev, Error **errp)
     Error *err = NULL;
     unsigned int i;
 
+    assert(psi->system_memory);
+
     obj = object_property_get_link(OBJECT(dev), "xics", &err);
     if (!obj) {
         error_setg(errp, "%s: required link 'xics' not found: %s",
@@ -562,6 +564,8 @@ static int pnv_psi_dt_xscom(PnvXScomInterface *dev, void *fdt, int xscom_offset)
 static Property pnv_psi_properties[] = {
     DEFINE_PROP_UINT64("bar", PnvPsi, bar, 0),
     DEFINE_PROP_UINT64("fsp-bar", PnvPsi, fsp_bar, 0),
+    DEFINE_PROP_LINK("system-memory", PnvPsi, system_memory,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -701,7 +705,7 @@ static void pnv_psi_p9_mmio_write(void *opaque, hwaddr addr,
     PnvPsi *psi = PNV_PSI(opaque);
     Pnv9Psi *psi9 = PNV9_PSI(psi);
     uint32_t reg = PSIHB_REG(addr);
-    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *sysmem = psi->system_memory;
 
     switch (addr) {
     case PSIHB9_CR:
@@ -819,11 +823,12 @@ static void pnv_psi_power9_irq_set(PnvPsi *psi, int irq, bool state)
 static void pnv_psi_power9_reset(void *dev)
 {
     Pnv9Psi *psi = PNV9_PSI(dev);
+    MemoryRegion *sysmem = PNV_PSI(psi)->system_memory;
 
     pnv_psi_reset(dev);
 
     if (memory_region_is_mapped(&psi->source.esb_mmio)) {
-        memory_region_del_subregion(get_system_memory(), &psi->source.esb_mmio);
+        memory_region_del_subregion(sysmem, &psi->source.esb_mmio);
     }
 }
 
@@ -841,6 +846,8 @@ static void pnv_psi_power9_realize(DeviceState *dev, Error **errp)
     XiveSource *xsrc = &PNV9_PSI(psi)->source;
     Error *local_err = NULL;
     int i;
+
+    assert(psi->system_memory);
 
     /* This is the only device with 4k ESB pages */
     object_property_set_int(OBJECT(xsrc), XIVE_ESB_4K, "shift",
