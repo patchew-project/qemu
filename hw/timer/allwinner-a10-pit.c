@@ -51,8 +51,8 @@
 
 #define AW_A10_PIT_DEFAULT_CLOCK    0x4
 
-#define AW_A10_PIT(obj) \
-    OBJECT_CHECK(AllwinnerTmrCtrlState, (obj), TYPE_AW_A10_PIT)
+#define AW_TIMER_CTRL(obj) \
+    OBJECT_CHECK(AllwinnerTmrCtrlState, (obj), TYPE_AW_COMMON_PIT)
 
 typedef struct AllwinnerTmrCtrlClass {
     /*< private >*/
@@ -80,7 +80,7 @@ static void a10_pit_update_irq(AllwinnerTmrCtrlState *s)
 
 static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
 {
-    AllwinnerTmrCtrlState *s = AW_A10_PIT(opaque);
+    AllwinnerTmrCtrlState *s = AW_TIMER_CTRL(opaque);
     uint8_t index;
 
     switch (offset) {
@@ -144,7 +144,7 @@ static void a10_pit_set_freq(AllwinnerTmrCtrlState *s, int index)
 static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
                             unsigned size)
 {
-     AllwinnerTmrCtrlState *s = AW_A10_PIT(opaque);
+     AllwinnerTmrCtrlState *s = AW_TIMER_CTRL(opaque);
      uint8_t index;
 
     switch (offset) {
@@ -278,7 +278,7 @@ static const VMStateDescription vmstate_a10_pit = {
 
 static void a10_pit_reset(DeviceState *dev)
 {
-    AllwinnerTmrCtrlState *s = AW_A10_PIT(dev);
+    AllwinnerTmrCtrlState *s = AW_TIMER_CTRL(dev);
     uint8_t i;
 
     s->irq_enable = 0;
@@ -319,7 +319,7 @@ static void a10_pit_timer_cb(void *opaque)
 
 static void aw_pit_instance_init(Object *obj)
 {
-    AllwinnerTmrCtrlState *s = AW_A10_PIT(obj);
+    AllwinnerTmrCtrlState *s = AW_TIMER_CTRL(obj);
     AllwinnerTmrCtrlClass *c = AW_TIMER_GET_CLASS(s);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     uint8_t i;
@@ -330,7 +330,7 @@ static void aw_pit_instance_init(Object *obj)
         sysbus_init_irq(sbd, &s->timer[i].irq);
     }
     memory_region_init_io(&s->iomem, OBJECT(s), &a10_pit_ops, s,
-                          TYPE_AW_A10_PIT, c->region_size);
+                          TYPE_AW_COMMON_PIT, c->region_size);
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < s->timer_count; i++) {
