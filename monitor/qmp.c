@@ -311,6 +311,13 @@ static void handle_qmp_command(void *opaque, QObject *req, Error *err)
     qemu_bh_schedule(qmp_dispatcher_bh);
 }
 
+static int monitor_qmp_can_read(void *opaque)
+{
+    Monitor *mon = opaque;
+
+    return !atomic_mb_read(&mon->suspend_cnt);
+}
+
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     MonitorQMP *mon = opaque;
@@ -384,7 +391,7 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     assert(mon->common.use_io_thread);
     context = iothread_get_g_main_context(mon_iothread);
     assert(context);
-    qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read,
+    qemu_chr_fe_set_handlers(&mon->common.chr, monitor_qmp_can_read,
                              monitor_qmp_read, monitor_qmp_event,
                              NULL, &mon->common, context, true);
     monitor_list_append(&mon->common);
@@ -422,7 +429,7 @@ void monitor_init_qmp(Chardev *chr, bool pretty)
                                 monitor_qmp_setup_handlers_bh, mon);
         /* The bottom half will add @mon to @mon_list */
     } else {
-        qemu_chr_fe_set_handlers(&mon->common.chr, monitor_can_read,
+        qemu_chr_fe_set_handlers(&mon->common.chr, monitor_qmp_can_read,
                                  monitor_qmp_read, monitor_qmp_event,
                                  NULL, &mon->common, NULL, true);
         monitor_list_append(&mon->common);

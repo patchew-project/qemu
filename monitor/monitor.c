@@ -494,13 +494,6 @@ void monitor_resume(Monitor *mon)
     trace_monitor_suspend(mon, -1);
 }
 
-int monitor_can_read(void *opaque)
-{
-    Monitor *mon = opaque;
-
-    return !atomic_mb_read(&mon->suspend_cnt);
-}
-
 void monitor_list_append(Monitor *mon)
 {
     qemu_mutex_lock(&monitor_lock);

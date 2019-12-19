@@ -1322,6 +1322,13 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
     cur_mon = old_mon;
 }
 
+static int monitor_can_read(void *opaque)
+{
+    Monitor *mon = opaque;
+
+    return !atomic_mb_read(&mon->suspend_cnt);
+}
+
 static void monitor_event(void *opaque, int event)
 {
     Monitor *mon = opaque;
