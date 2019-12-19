@@ -45,6 +45,7 @@
 
 #define NVME_SPEC_VER 0x00010201
 #define NVME_MAX_QS PCI_MSIX_FLAGS_QSIZE
+#define NVME_TEMPERATURE 0x143
 
 #define NVME_GUEST_ERR(trace, fmt, ...) \
     do { \
@@ -801,6 +802,27 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t result;
 
     switch (dw10) {
+    case NVME_TEMPERATURE_THRESHOLD:
+        result = 0;
+
+        /*
+         * The controller only implements the Composite Temperature sensor, so
+         * return 0 for all other sensors.
+         */
+        if (NVME_TEMP_TMPSEL(dw10)) {
+            break;
+        }
+
+        switch (NVME_TEMP_THSEL(dw10)) {
+        case 0x0:
+            result = cpu_to_le16(n->features.temp_thresh_hi);
+            break;
+        case 0x1:
+            result = cpu_to_le16(n->features.temp_thresh_low);
+            break;
+        }
+
+        break;
     case NVME_VOLATILE_WRITE_CACHE:
         result = blk_enable_write_cache(n->conf.blk);
         trace_nvme_dev_getfeat_vwcache(result ? "enabled" : "disabled");
@@ -845,6 +867,23 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
 
     switch (dw10) {
+    case NVME_TEMPERATURE_THRESHOLD:
+        if (NVME_TEMP_TMPSEL(dw11)) {
+            break;
+        }
+
+        switch (NVME_TEMP_THSEL(dw11)) {
+        case 0x0:
+            n->features.temp_thresh_hi = NVME_TEMP_TMPTH(dw11);
+            break;
+        case 0x1:
+            n->features.temp_thresh_low = NVME_TEMP_TMPTH(dw11);
+            break;
+        default:
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
+        break;
     case NVME_VOLATILE_WRITE_CACHE:
         blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
         break;
@@ -1366,6 +1405,9 @@ static void nvme_init_state(NvmeCtrl *n)
     n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
     n->sq = g_new0(NvmeSQueue *, n->params.num_queues);
     n->cq = g_new0(NvmeCQueue *, n->params.num_queues);
+
+    n->temperature = NVME_TEMPERATURE;
+    n->features.temp_thresh_hi = le16_to_cpu(n->id_ctrl.wctemp);
 }
 
 static void nvme_init_cmb(NvmeCtrl *n, PCIDevice *pci_dev)
@@ -1447,6 +1489,11 @@ static void nvme_init_ctrl(NvmeCtrl *n)
     id->acl = 3;
     id->frmw = 7 << 1;
     id->lpa = 1 << 0;
+
+    /* recommended default value (~70 C) */
+    id->wctemp = cpu_to_le16(0x157);
+    id->cctemp = cpu_to_le16(0x175);
+
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);
