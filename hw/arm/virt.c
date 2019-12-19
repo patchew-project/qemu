@@ -71,6 +71,8 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/acpi/generic_event_device.h"
+#include "hw/nmi.h"
+#include "hw/intc/arm_gicv3.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1980,6 +1982,25 @@ static void virt_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
                " type: %s", object_get_typename(OBJECT(dev)));
 }
 
+static void virt_nmi(NMIState *n, int cpu_index, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(n);
+    ARMGICv3CommonClass *agcc;
+
+    if (vms->gic_version != 3) {
+        error_setg(errp, "NMI is only supported by GICv3");
+        return;
+    }
+
+    agcc = ARM_GICV3_COMMON_GET_CLASS(vms->gic);
+    if (agcc->inject_nmi) {
+        agcc->inject_nmi(vms->gic, cpu_index, errp);
+    } else {
+        error_setg(errp, "NMI injection isn't supported by %s",
+                   object_get_typename(OBJECT(vms->gic)));
+    }
+}
+
 static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
                                                         DeviceState *dev)
 {
@@ -2025,6 +2046,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     mc->init = machvirt_init;
     /* Start with max_cpus set to 512, which is the maximum supported by KVM.
@@ -2051,6 +2073,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     hc->pre_plug = virt_machine_device_pre_plug_cb;
     hc->plug = virt_machine_device_plug_cb;
     hc->unplug_request = virt_machine_device_unplug_request_cb;
+    nc->nmi_monitor_handler = virt_nmi;
     mc->numa_mem_supported = true;
     mc->auto_enable_numa_with_memhp = true;
 }
@@ -2136,6 +2159,7 @@ static const TypeInfo virt_machine_info = {
     .instance_init = virt_instance_init,
     .interfaces = (InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
+         { TYPE_NMI },
          { }
     },
 };

@@ -225,6 +225,7 @@ struct GICv3State {
 
     int dev_fd; /* kvm device fd if backed by kvm vgic support */
     Error *migration_blocker;
+    int last_nmi_index;
 
     /* Distributor */
 
@@ -291,6 +292,7 @@ typedef struct ARMGICv3CommonClass {
     SysBusDeviceClass parent_class;
     /*< public >*/
 
+    void (*inject_nmi)(DeviceState *dev, int cpu_index, Error **errp);
     void (*pre_save)(GICv3State *s);
     void (*post_load)(GICv3State *s);
 } ARMGICv3CommonClass;

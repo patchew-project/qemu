@@ -338,6 +338,81 @@ static void gicv3_set_irq(void *opaque, int irq, int level)
     }
 }
 
+static bool arm_gicv3_inject_nmi_once(GICv3State*s, int start, int end)
+{
+    GICv3CPUState *cs;
+    int irq_count = (s->num_irq + (GIC_INTERNAL * (s->num_cpu - 1)));
+    int i, cpu, irq;
+
+    /* SPIs */
+    for (i = start; (i < end) && (i < (s->num_irq - GIC_INTERNAL)); i++) {
+        if (gicv3_gicd_enabled_test(s, i + GIC_INTERNAL) &&
+            s->gicd_ipriority[i + GIC_INTERNAL] == 0x20) {
+
+            /*
+             * Reset the level and toggling the pending bit will ensure
+             * the interrupt is queued.
+             */
+            if (gicv3_gicd_level_test(s, i + GIC_INTERNAL)) {
+                gicv3_set_irq(s, i, false);
+            }
+
+            gicv3_gicd_pending_set(s, i + GIC_INTERNAL);
+            gicv3_set_irq(s, i, true);
+
+            s->last_nmi_index = (i + 1);
+            return true;
+        }
+    }
+
+    /* PPIs */
+    if (start < (s->num_irq - GIC_INTERNAL)) {
+        start = (s->num_irq - GIC_INTERNAL);
+    }
+
+    for (i = start; (i < end) && (i < irq_count); i++) {
+        cpu = (i - ((s->num_irq - GIC_INTERNAL))) / GIC_INTERNAL;
+        irq = (i - ((s->num_irq - GIC_INTERNAL))) % GIC_INTERNAL;
+        cs = &s->cpu[cpu];
+
+        if ((cs->gicr_ienabler0 & (1 << irq)) &&
+            cs->gicr_ipriorityr[irq] == 0x20) {
+
+            if (extract32(cs->level, irq, 1)) {
+                gicv3_set_irq(s, i, false);
+            }
+
+            deposit32(cs->gicr_ipendr0, irq, 1, 1);
+            gicv3_set_irq(s, i, true);
+
+            s->last_nmi_index = (i + 1);
+            if (s->last_nmi_index > irq_count) {
+                s->last_nmi_index = 0;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void arm_gicv3_inject_nmi(DeviceState *dev, int cpu_index, Error **errp)
+{
+    GICv3State *s = ARM_GICV3(dev);
+    int irq_count = (s->num_irq + (GIC_INTERNAL * (s->num_cpu - 1)));
+    bool injected;
+
+    injected = arm_gicv3_inject_nmi_once(s, s->last_nmi_index, irq_count);
+    if (!injected) {
+        injected = arm_gicv3_inject_nmi_once(s, 0, s->last_nmi_index);
+    }
+
+    if (!injected) {
+        error_setg(errp, "No NMI found");
+    }
+}
+
 static void arm_gicv3_post_load(GICv3State *s)
 {
     /* Recalculate our cached idea of the current highest priority
@@ -395,6 +470,7 @@ static void arm_gicv3_class_init(ObjectClass *klass, void *data)
     ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
     ARMGICv3Class *agc = ARM_GICV3_CLASS(klass);
 
+    agcc->inject_nmi = arm_gicv3_inject_nmi;
     agcc->post_load = arm_gicv3_post_load;
     device_class_set_parent_realize(dc, arm_gic_realize, &agc->parent_realize);
 }

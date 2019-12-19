@@ -31,6 +31,7 @@
 #include "gicv3_internal.h"
 #include "vgic_common.h"
 #include "migration/blocker.h"
+#include "sysemu/cpus.h"
 
 #ifdef DEBUG_GICV3_KVM
 #define DPRINTF(fmt, ...) \
@@ -506,6 +507,96 @@ static void kvm_arm_gicv3_put(GICv3State *s)
     }
 }
 
+static bool kvm_arm_gicv3_inject_nmi_once(GICv3State *s, int start, int end)
+{
+    GICv3CPUState *cs;
+    int irq_count = (s->num_irq + (GIC_INTERNAL * (s->num_cpu - 1)));
+    int i, cpu, irq;
+
+    /* SPIs */
+    for (i = start; (i < end) && (i < (s->num_irq - GIC_INTERNAL)); i++) {
+        if (gicv3_gicd_enabled_test(s, i + GIC_INTERNAL) &&
+            s->gicd_ipriority[i + GIC_INTERNAL] == 0x20) {
+            kvm_arm_gicv3_set_irq(s, i, true);
+
+            s->last_nmi_index = (i + 1);
+            return true;
+        }
+    }
+
+    /* PPIs */
+    if (start < (s->num_irq - GIC_INTERNAL)) {
+        start = (s->num_irq - GIC_INTERNAL);
+    }
+
+    for (i = start; (i < end) && (i < irq_count); i++) {
+        cpu = (i - ((s->num_irq - GIC_INTERNAL))) / GIC_INTERNAL;
+        irq = (i - ((s->num_irq - GIC_INTERNAL))) % GIC_INTERNAL;
+        cs = &s->cpu[cpu];
+
+        if ((cs->gicr_ienabler0 & (1 << irq)) &&
+            cs->gicr_ipriorityr[irq] == 0x20) {
+            kvm_arm_gicv3_set_irq(s, i, true);
+
+            s->last_nmi_index = (i + 1);
+            if (s->last_nmi_index > irq_count) {
+                s->last_nmi_index = 0;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void kvm_arm_gicv3_snapshot(GICv3State *s)
+{
+    GICv3CPUState *c;
+    uint32_t val;
+    int i, j;
+
+    pause_all_vcpus();
+
+    kvm_dist_getbmp(s, GICD_ISENABLER, s->enabled);
+    kvm_dist_get_priority(s, GICD_IPRIORITYR, s->gicd_ipriority);
+    for (i = 0; i < s->num_cpu; i++) {
+        c = &s->cpu[i];
+
+        kvm_gicr_access(s, GICR_ISENABLER0, i, &val, false);
+        c->gicr_ienabler0 = val;
+
+        for (j = 0; j < GIC_INTERNAL; j += 4) {
+            kvm_gicr_access(s, GICR_IPRIORITYR + j, i, &val, false);
+            c->gicr_ipriorityr[j] = extract32(val, 0, 8);
+            c->gicr_ipriorityr[j + 1] = extract32(val, 8, 8);
+            c->gicr_ipriorityr[j + 2] = extract32(val, 16, 8);
+            c->gicr_ipriorityr[j + 3] = extract32(val, 24, 8);
+        }
+    }
+
+    resume_all_vcpus();
+}
+
+static void kvm_arm_gicv3_inject_nmi(DeviceState *dev,
+                                     int cpu_index, Error **errp)
+{
+    GICv3State *s = KVM_ARM_GICV3(dev);
+    int irq_count = (s->num_irq + (GIC_INTERNAL * (s->num_cpu - 1)));
+    bool injected;
+
+    kvm_arm_gicv3_snapshot(s);
+
+    injected = kvm_arm_gicv3_inject_nmi_once(s, s->last_nmi_index, irq_count);
+    if (!injected) {
+        injected = kvm_arm_gicv3_inject_nmi_once(s, 0, s->last_nmi_index);
+    }
+
+    if (!injected) {
+        error_setg(errp, "No NMI found");
+    }
+}
+
 static void kvm_arm_gicv3_get(GICv3State *s)
 {
     uint32_t regl, regh, reg;
@@ -882,6 +973,7 @@ static void kvm_arm_gicv3_class_init(ObjectClass *klass, void *data)
     ARMGICv3CommonClass *agcc = ARM_GICV3_COMMON_CLASS(klass);
     KVMARMGICv3Class *kgc = KVM_ARM_GICV3_CLASS(klass);
 
+    agcc->inject_nmi = kvm_arm_gicv3_inject_nmi;
     agcc->pre_save = kvm_arm_gicv3_get;
     agcc->post_load = kvm_arm_gicv3_put;
     device_class_set_parent_realize(dc, kvm_arm_gicv3_realize,
