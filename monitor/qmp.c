@@ -315,14 +315,27 @@ static int monitor_qmp_can_read(void *opaque)
 {
     Monitor *mon = opaque;
 
-    return !atomic_mb_read(&mon->suspend_cnt);
+    return sizeof(mon->inbuf) - mon->inbuf_len;
+}
+
+void monitor_qmp_handle_inbuf(Monitor *mon)
+{
+    MonitorQMP *mon_qmp = container_of(mon, MonitorQMP, common);
+    char ch;
+
+    /* Handle only one byte at a time, because monitor may become suspened */
+    while (!atomic_mb_read(&mon->suspend_cnt) &&
+           monitor_inbuf_read(mon, &ch, 1)) {
+        json_message_parser_feed(&mon_qmp->parser, &ch, 1);
+    }
 }
 
 static void monitor_qmp_read(void *opaque, const uint8_t *buf, int size)
 {
     MonitorQMP *mon = opaque;
 
-    json_message_parser_feed(&mon->parser, (const char *) buf, size);
+    monitor_inbuf_write(&mon->common, (const char *)buf, size);
+    monitor_qmp_handle_inbuf(&mon->common);
 }
 
 static QDict *qmp_greeting(MonitorQMP *mon)

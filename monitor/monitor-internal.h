@@ -32,6 +32,8 @@
 #include "qemu/readline.h"
 #include "sysemu/iothread.h"
 
+#define MON_INPUT_BUFFER_SIZE   1024
+
 /*
  * Supported types:
  *
@@ -92,6 +94,11 @@ struct Monitor {
 
     gchar *mon_cpu_path;
     QTAILQ_ENTRY(Monitor) entry;
+
+    /* Must be accessed only by monitor's iothread */
+    char inbuf[MON_INPUT_BUFFER_SIZE];
+    int inbuf_pos;
+    int inbuf_len;
 
     /*
      * The per-monitor lock. We can't access guest memory when holding
@@ -169,9 +176,13 @@ void monitor_data_destroy(Monitor *mon);
 void monitor_list_append(Monitor *mon);
 void monitor_fdsets_cleanup(void);
 
+void monitor_inbuf_write(Monitor *mon, const char *buf, int size);
+int monitor_inbuf_read(Monitor *mon, char *buf, int size);
+
 void qmp_send_response(MonitorQMP *mon, const QDict *rsp);
 void monitor_data_destroy_qmp(MonitorQMP *mon);
 void monitor_qmp_bh_dispatcher(void *data);
+void monitor_qmp_handle_inbuf(Monitor *mon);
 
 int get_monitor_def(int64_t *pval, const char *name);
 void help_cmd(Monitor *mon, const char *name);

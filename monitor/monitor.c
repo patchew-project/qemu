@@ -440,6 +440,29 @@ static gboolean qapi_event_throttle_equal(const void *a, const void *b)
     return TRUE;
 }
 
+void monitor_inbuf_write(Monitor *mon, const char *buf, int size)
+{
+    int pos = mon->inbuf_pos + mon->inbuf_len;
+
+    assert(size <= sizeof(mon->inbuf) - mon->inbuf_len);
+    while (size-- > 0) {
+        mon->inbuf[pos++ % sizeof(mon->inbuf)] = *buf++;
+        mon->inbuf_len++;
+    }
+}
+
+int monitor_inbuf_read(Monitor *mon, char *buf, int size)
+{
+    int read_bytes = 0;
+
+    while (read_bytes < size && mon->inbuf_len > 0) {
+        buf[read_bytes++] = mon->inbuf[mon->inbuf_pos++];
+        mon->inbuf_pos %= sizeof(mon->inbuf);
+        mon->inbuf_len--;
+    }
+    return read_bytes;
+}
+
 int monitor_suspend(Monitor *mon)
 {
     if (monitor_is_hmp_non_interactive(mon)) {
@@ -465,6 +488,10 @@ static void monitor_accept_input(void *opaque)
     Monitor *mon = opaque;
 
     qemu_chr_fe_accept_input(&mon->chr);
+
+    if (mon->is_qmp) {
+        monitor_qmp_handle_inbuf(mon);
+    }
 }
 
 void monitor_resume(Monitor *mon)
