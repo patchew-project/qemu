@@ -999,8 +999,6 @@ static void pnv_chip_power8_instance_init(Object *obj)
 
     object_initialize_child(obj, "psi",  &chip8->psi, sizeof(chip8->psi),
                             TYPE_PNV8_PSI, &error_abort, NULL);
-    object_property_add_const_link(OBJECT(&chip8->psi), "xics",
-                                   OBJECT(qdev_get_machine()), &error_abort);
 
     object_initialize_child(obj, "lpc",  &chip8->lpc, sizeof(chip8->lpc),
                             TYPE_PNV8_LPC, &error_abort, NULL);
@@ -1069,6 +1067,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
                             "bar", &error_fatal);
     object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip->system_memory),
                              "system-memory", &error_abort);
+    object_property_set_link(OBJECT(&chip8->psi), OBJECT(qdev_get_machine()),
+                             ICS_PROP_XICS, &error_abort);
     object_property_set_bool(OBJECT(&chip8->psi), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
