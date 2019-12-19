@@ -10830,7 +10830,7 @@ static void ppc_disas_set_info(CPUState *cs, disassemble_info *info)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *env = &cpu->env;
 
-    if ((env->hflags >> MSR_LE) & 1) {
+    if (msr_le) {
         info->endian = BFD_ENDIAN_LITTLE;
     }
     info->mach = env->bfd_mach;
