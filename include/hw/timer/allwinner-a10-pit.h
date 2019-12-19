@@ -10,8 +10,6 @@
 #define AW_PIT_TIMER_MAX        6
 
 #define AW_A10_PIT_TIMER_NR    6
-#define AW_A10_PIT_TIMER_IRQ   0x1
-#define AW_A10_PIT_WDOG_IRQ    0x100
 
 #define AW_A10_PIT_TIMER_IRQ_EN    0
 #define AW_A10_PIT_TIMER_IRQ_ST    0x4
