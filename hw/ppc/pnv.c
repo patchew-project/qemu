@@ -674,6 +674,7 @@ static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
 
 static void pnv_init(MachineState *machine)
 {
+    MemoryRegion *sysmem = get_system_memory();
     PnvMachineState *pnv = PNV_MACHINE(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *ram;
@@ -692,7 +693,7 @@ static void pnv_init(MachineState *machine)
     ram = g_new(MemoryRegion, 1);
     memory_region_allocate_system_memory(ram, NULL, "pnv.ram",
                                          machine->ram_size);
-    memory_region_add_subregion(get_system_memory(), 0, ram);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     /*
      * Create our simple PNOR device
@@ -790,6 +791,12 @@ static void pnv_init(MachineState *machine)
                                 &error_fatal);
         object_property_set_int(chip, machine->smp.cores,
                                 "nr-cores", &error_fatal);
+        /*
+         * TODO: Only the MMIO range should be of interest for the
+         * controllers
+         */
+        object_property_set_link(chip, OBJECT(sysmem), "system-memory",
+                                 &error_abort);
         object_property_set_bool(chip, true, "realized", &error_fatal);
     }
     g_free(chip_typename);
@@ -1060,6 +1067,8 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip8->psi), PNV_PSIHB_BASE(chip),
                             "bar", &error_fatal);
+    object_property_set_link(OBJECT(&chip8->psi), OBJECT(chip->system_memory),
+                             "system-memory", &error_abort);
     object_property_set_bool(OBJECT(&chip8->psi), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1100,7 +1109,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV_XSCOM_OCC_BASE, &chip8->occ.xscom_regs);
 
     /* OCC SRAM model */
-    memory_region_add_subregion(get_system_memory(), PNV_OCC_SENSOR_BASE(chip),
+    memory_region_add_subregion(chip->system_memory, PNV_OCC_SENSOR_BASE(chip),
                                 &chip8->occ.sram_regs);
 
     /* HOMER */
@@ -1116,7 +1125,7 @@ static void pnv_chip_power8_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV_XSCOM_PBA_BASE, &chip8->homer.pba_regs);
 
     /* Homer mmio region */
-    memory_region_add_subregion(get_system_memory(), PNV_HOMER_BASE(chip),
+    memory_region_add_subregion(chip->system_memory, PNV_HOMER_BASE(chip),
                                 &chip8->homer.regs);
 }
 
@@ -1280,6 +1289,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
                             "tm-bar", &error_fatal);
     object_property_set_link(OBJECT(&chip9->xive), OBJECT(chip), "chip",
                              &error_abort);
+    object_property_set_link(OBJECT(&chip9->xive), OBJECT(chip->system_memory),
+                             "system-memory", &error_abort);
     object_property_set_bool(OBJECT(&chip9->xive), true, "realized",
                              &local_err);
     if (local_err) {
@@ -1292,6 +1303,8 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
                             "bar", &error_fatal);
+    object_property_set_link(OBJECT(&chip9->psi), OBJECT(chip->system_memory),
+                             "system-memory", &error_abort);
     object_property_set_bool(OBJECT(&chip9->psi), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1308,7 +1321,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    memory_region_add_subregion(get_system_memory(), PNV9_LPCM_BASE(chip),
+    memory_region_add_subregion(chip->system_memory, PNV9_LPCM_BASE(chip),
                                 &chip9->lpc.xscom_regs);
 
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
@@ -1325,7 +1338,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_OCC_BASE, &chip9->occ.xscom_regs);
 
     /* OCC SRAM model */
-    memory_region_add_subregion(get_system_memory(), PNV9_OCC_SENSOR_BASE(chip),
+    memory_region_add_subregion(chip->system_memory, PNV9_OCC_SENSOR_BASE(chip),
                                 &chip9->occ.sram_regs);
 
     /* HOMER */
@@ -1341,7 +1354,7 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     pnv_xscom_add_subregion(chip, PNV9_XSCOM_PBA_BASE, &chip9->homer.pba_regs);
 
     /* Homer mmio region */
-    memory_region_add_subregion(get_system_memory(), PNV9_HOMER_BASE(chip),
+    memory_region_add_subregion(chip->system_memory, PNV9_HOMER_BASE(chip),
                                 &chip9->homer.regs);
 }
 
@@ -1408,6 +1421,8 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip10->psi), PNV10_PSIHB_BASE(chip),
                             "bar", &error_fatal);
+    object_property_set_link(OBJECT(&chip10->psi), OBJECT(chip->system_memory),
+                             "system-memory", &error_abort);
     object_property_set_bool(OBJECT(&chip10->psi), true, "realized",
                              &local_err);
     if (local_err) {
@@ -1426,7 +1441,7 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
-    memory_region_add_subregion(get_system_memory(), PNV10_LPCM_BASE(chip),
+    memory_region_add_subregion(chip->system_memory, PNV10_LPCM_BASE(chip),
                                 &chip10->lpc.xscom_regs);
 
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
@@ -1556,6 +1571,8 @@ static void pnv_chip_realize(DeviceState *dev, Error **errp)
     PnvChip *chip = PNV_CHIP(dev);
     Error *error = NULL;
 
+    assert(chip->system_memory);
+
     /* Cores */
     pnv_chip_core_realize(chip, &error);
     if (error) {
@@ -1570,6 +1587,8 @@ static Property pnv_chip_properties[] = {
     DEFINE_PROP_UINT64("ram-size", PnvChip, ram_size, 0),
     DEFINE_PROP_UINT32("nr-cores", PnvChip, nr_cores, 1),
     DEFINE_PROP_UINT64("cores-mask", PnvChip, cores_mask, 0x0),
+    DEFINE_PROP_LINK("system-memory", PnvChip, system_memory,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

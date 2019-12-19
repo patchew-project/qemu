@@ -853,7 +853,7 @@ static void pnv_xive_ic_reg_write(void *opaque, hwaddr offset,
                                   uint64_t val, unsigned size)
 {
     PnvXive *xive = PNV_XIVE(opaque);
-    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *sysmem = xive->system_memory;
     uint32_t reg = offset >> 3;
     bool is_chip0 = xive->chip->chip_id == 0;
 
@@ -1821,6 +1821,7 @@ static void pnv_xive_realize(DeviceState *dev, Error **errp)
     Error *local_err = NULL;
 
     assert(xive->chip);
+    assert(xive->system_memory);
 
     /*
      * The XiveSource and XiveENDSource objects are realized with the
@@ -1937,6 +1938,8 @@ static Property pnv_xive_properties[] = {
     DEFINE_PROP_UINT64("tm-bar", PnvXive, tm_base, 0),
     /* The PnvChip id identifies the XIVE interrupt controller. */
     DEFINE_PROP_LINK("chip", PnvXive, chip, TYPE_PNV_CHIP, PnvChip *),
+    DEFINE_PROP_LINK("system-memory", PnvXive, system_memory,
+                     TYPE_MEMORY_REGION, MemoryRegion *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -56,6 +56,8 @@ typedef struct PnvChip {
     AddressSpace xscom_as;
 
     gchar        *dt_isa_nodename;
+
+    MemoryRegion *system_memory;
 } PnvChip;
 
 #define TYPE_PNV8_CHIP "pnv8-chip"
