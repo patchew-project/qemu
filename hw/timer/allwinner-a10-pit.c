@@ -301,7 +301,7 @@ static void a10_pit_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
-        AwA10TimerContext *tc = &s->timer_context[i];
+        AwA10TimerContext *tc = &s->timer[i];
 
         tc->container = s;
         tc->index = i;

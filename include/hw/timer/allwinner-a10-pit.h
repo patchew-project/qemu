@@ -21,7 +21,7 @@ struct AwA10PITState {
     /*< public >*/
     qemu_irq irq[AW_PIT_TIMER_MAX];
     ptimer_state * ptimer[AW_PIT_TIMER_MAX];
-    AwA10TimerContext timer_context[AW_PIT_TIMER_MAX];
+    AwA10TimerContext timer[AW_PIT_TIMER_MAX];
     MemoryRegion iomem;
     uint32_t clk_freq[4];
 
