@@ -651,6 +651,9 @@ class VM(qtest.QEMUQtestMachine):
             log(event, filters=[filter_qmp_event])
             if event['data']['status'] == 'completed':
                 break
+        # The event may occur in finish-migrate, so wait for postmigrate
+        while self.qmp('query-status')['return']['status'] != 'postmigrate':
+            pass
 
     def node_info(self, node_name):
         nodes = self.qmp('query-named-block-nodes')
