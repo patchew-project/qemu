@@ -30,7 +30,7 @@ typedef struct AwA10State {
 
     ARMCPU cpu;
     qemu_irq irq[AW_A10_PIC_INT_NR];
-    AwA10PITState timer;
+    AllwinnerTmrCtrlState timer;
     AwA10PICState intc;
     AwEmacState emac;
     AllwinnerAHCIState sata;

@@ -52,9 +52,9 @@
 #define AW_A10_PIT_DEFAULT_CLOCK    0x4
 
 #define AW_A10_PIT(obj) \
-    OBJECT_CHECK(AwA10PITState, (obj), TYPE_AW_A10_PIT)
+    OBJECT_CHECK(AllwinnerTmrCtrlState, (obj), TYPE_AW_A10_PIT)
 
-static void a10_pit_update_irq(AwA10PITState *s)
+static void a10_pit_update_irq(AllwinnerTmrCtrlState *s)
 {
     int i;
 
@@ -66,7 +66,7 @@ static void a10_pit_update_irq(AwA10PITState *s)
 
 static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
 {
-    AwA10PITState *s = AW_A10_PIT(opaque);
+    AllwinnerTmrCtrlState *s = AW_A10_PIT(opaque);
     uint8_t index;
 
     switch (offset) {
@@ -111,7 +111,7 @@ static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
 }
 
 /* Must be called inside a ptimer transaction block for s->timer[idx].ptimer */
-static void a10_pit_set_freq(AwA10PITState *s, int index)
+static void a10_pit_set_freq(AllwinnerTmrCtrlState *s, int index)
 {
     uint32_t prescaler, source, source_freq;
 
@@ -130,7 +130,7 @@ static void a10_pit_set_freq(AwA10PITState *s, int index)
 static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
                             unsigned size)
 {
-     AwA10PITState *s = AW_A10_PIT(opaque);
+     AllwinnerTmrCtrlState *s = AW_A10_PIT(opaque);
      uint8_t index;
 
     switch (offset) {
@@ -222,10 +222,10 @@ static const MemoryRegionOps a10_pit_ops = {
 };
 
 static Property a10_pit_properties[] = {
-    DEFINE_PROP_UINT32("clk0-freq", AwA10PITState, clk_freq[0], 0),
-    DEFINE_PROP_UINT32("clk1-freq", AwA10PITState, clk_freq[1], 0),
-    DEFINE_PROP_UINT32("clk2-freq", AwA10PITState, clk_freq[2], 0),
-    DEFINE_PROP_UINT32("clk3-freq", AwA10PITState, clk_freq[3], 0),
+    DEFINE_PROP_UINT32("clk0-freq", AllwinnerTmrCtrlState, clk_freq[0], 0),
+    DEFINE_PROP_UINT32("clk1-freq", AllwinnerTmrCtrlState, clk_freq[1], 0),
+    DEFINE_PROP_UINT32("clk2-freq", AllwinnerTmrCtrlState, clk_freq[2], 0),
+    DEFINE_PROP_UINT32("clk3-freq", AllwinnerTmrCtrlState, clk_freq[3], 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -247,24 +247,24 @@ static const VMStateDescription vmstate_a10_pit = {
     .version_id = 2,
     .minimum_version_id = 2,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(irq_enable, AwA10PITState),
-        VMSTATE_UINT32(irq_status, AwA10PITState),
-        VMSTATE_STRUCT_ARRAY(timer, AwA10PITState,
+        VMSTATE_UINT32(irq_enable, AllwinnerTmrCtrlState),
+        VMSTATE_UINT32(irq_status, AllwinnerTmrCtrlState),
+        VMSTATE_STRUCT_ARRAY(timer, AllwinnerTmrCtrlState,
                              AW_PIT_TIMER_MAX,
                              0, vmstate_aw_timer,
                              AllwinnerTmrState),
-        VMSTATE_UINT32(watch_dog_mode, AwA10PITState),
-        VMSTATE_UINT32(watch_dog_control, AwA10PITState),
-        VMSTATE_UINT32(count_lo, AwA10PITState),
-        VMSTATE_UINT32(count_hi, AwA10PITState),
-        VMSTATE_UINT32(count_ctl, AwA10PITState),
+        VMSTATE_UINT32(watch_dog_mode, AllwinnerTmrCtrlState),
+        VMSTATE_UINT32(watch_dog_control, AllwinnerTmrCtrlState),
+        VMSTATE_UINT32(count_lo, AllwinnerTmrCtrlState),
+        VMSTATE_UINT32(count_hi, AllwinnerTmrCtrlState),
+        VMSTATE_UINT32(count_ctl, AllwinnerTmrCtrlState),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static void a10_pit_reset(DeviceState *dev)
 {
-    AwA10PITState *s = AW_A10_PIT(dev);
+    AllwinnerTmrCtrlState *s = AW_A10_PIT(dev);
     uint8_t i;
 
     s->irq_enable = 0;
@@ -290,7 +290,7 @@ static void a10_pit_reset(DeviceState *dev)
 static void a10_pit_timer_cb(void *opaque)
 {
     AllwinnerTmrState *tc = opaque;
-    AwA10PITState *s = tc->container;
+    AllwinnerTmrCtrlState *s = tc->container;
     uint8_t i = tc->index;
 
     if (s->timer[i].control & AW_A10_PIT_TIMER_EN) {
@@ -305,7 +305,7 @@ static void a10_pit_timer_cb(void *opaque)
 
 static void a10_pit_init(Object *obj)
 {
-    AwA10PITState *s = AW_A10_PIT(obj);
+    AllwinnerTmrCtrlState *s = AW_A10_PIT(obj);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     uint8_t i;
 
@@ -341,7 +341,7 @@ static void a10_pit_class_init(ObjectClass *klass, void *data)
 static const TypeInfo a10_pit_info = {
     .name = TYPE_AW_A10_PIT,
     .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AwA10PITState),
+    .instance_size = sizeof(AllwinnerTmrCtrlState),
     .instance_init = a10_pit_init,
     .class_init = a10_pit_class_init,
 };

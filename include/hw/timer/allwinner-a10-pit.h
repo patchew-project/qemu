@@ -8,10 +8,10 @@
 
 #define AW_PIT_TIMER_MAX        6
 
-typedef struct AwA10PITState AwA10PITState;
+typedef struct AllwinnerTmrCtrlState AllwinnerTmrCtrlState;
 
 typedef struct AllwinnerTmrState {
-    AwA10PITState *container;
+    AllwinnerTmrCtrlState *container;
     int index;
     ptimer_state *ptimer;
     qemu_irq irq;
@@ -20,7 +20,7 @@ typedef struct AllwinnerTmrState {
     uint32_t count;
 } AllwinnerTmrState;
 
-struct AwA10PITState {
+struct AllwinnerTmrCtrlState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
