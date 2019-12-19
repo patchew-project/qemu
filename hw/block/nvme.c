@@ -2605,6 +2605,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     if (n->namespace.blk) {
         ns = &n->namespace;
         ns->params.nsid = 1;
+        ns->params.lbads = BDRV_SECTOR_BITS;
 
         if (nvme_ns_setup(n, ns, &local_err)) {
             error_propagate_prepend(errp, local_err, "nvme_ns_setup: ");

@@ -18,7 +18,7 @@ static int nvme_ns_init(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
 
-    id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
+    id_ns->lbaf[0].ds = ns->params.lbads;
     id_ns->nuse = id_ns->ncap = id_ns->nsze =
         cpu_to_le64(nvme_ns_nlbas(ns));
 
