@@ -10,7 +10,7 @@
 
 typedef struct AwA10PITState AwA10PITState;
 
-typedef struct AwA10TimerContext {
+typedef struct AllwinnerTmrState {
     AwA10PITState *container;
     int index;
     ptimer_state *ptimer;
@@ -18,14 +18,14 @@ typedef struct AwA10TimerContext {
     uint32_t control;
     uint32_t interval;
     uint32_t count;
-} AwA10TimerContext;
+} AllwinnerTmrState;
 
 struct AwA10PITState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
     size_t timer_count;
-    AwA10TimerContext timer[AW_PIT_TIMER_MAX];
+    AllwinnerTmrState timer[AW_PIT_TIMER_MAX];
     MemoryRegion iomem;
     uint32_t clk_freq[4];
 

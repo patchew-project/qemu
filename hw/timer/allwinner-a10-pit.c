@@ -234,10 +234,10 @@ static const VMStateDescription vmstate_aw_timer = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(control, AwA10TimerContext),
-        VMSTATE_UINT32(interval, AwA10TimerContext),
-        VMSTATE_UINT32(count, AwA10TimerContext),
-        VMSTATE_PTIMER(ptimer, AwA10TimerContext),
+        VMSTATE_UINT32(control, AllwinnerTmrState),
+        VMSTATE_UINT32(interval, AllwinnerTmrState),
+        VMSTATE_UINT32(count, AllwinnerTmrState),
+        VMSTATE_PTIMER(ptimer, AllwinnerTmrState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -252,7 +252,7 @@ static const VMStateDescription vmstate_a10_pit = {
         VMSTATE_STRUCT_ARRAY(timer, AwA10PITState,
                              AW_PIT_TIMER_MAX,
                              0, vmstate_aw_timer,
-                             AwA10TimerContext),
+                             AllwinnerTmrState),
         VMSTATE_UINT32(watch_dog_mode, AwA10PITState),
         VMSTATE_UINT32(watch_dog_control, AwA10PITState),
         VMSTATE_UINT32(count_lo, AwA10PITState),
@@ -289,7 +289,7 @@ static void a10_pit_reset(DeviceState *dev)
 
 static void a10_pit_timer_cb(void *opaque)
 {
-    AwA10TimerContext *tc = opaque;
+    AllwinnerTmrState *tc = opaque;
     AwA10PITState *s = tc->container;
     uint8_t i = tc->index;
 
@@ -319,7 +319,7 @@ static void a10_pit_init(Object *obj)
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < s->timer_count; i++) {
-        AwA10TimerContext *tc = &s->timer[i];
+        AllwinnerTmrState *tc = &s->timer[i];
 
         tc->container = s;
         tc->index = i;
