@@ -255,7 +255,8 @@
 
 # @bitmap: Also export the dirty bitmap reachable from @device, so the
 #          NBD client can use NBD_OPT_SET_META_CONTEXT with
-#          "qemu:dirty-bitmap:NAME" to inspect the bitmap. (since 4.0)
+#          "qemu:dirty-bitmap:BITMAP" to inspect the bitmap (BITMAP here
+#          matches @bitmap parameter). (since 4.0)
 #
 # Returns: error if the server is not running, or export with the same name
 #          already exists.
