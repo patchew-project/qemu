@@ -4,6 +4,7 @@
 #include "hw/ptimer.h"
 #include "hw/sysbus.h"
 
+#define TYPE_AW_COMMON_PIT "allwinner-timer-controller"
 #define TYPE_AW_A10_PIT "allwinner-A10-timer"
 
 #define AW_PIT_TIMER_MAX        6

@@ -54,6 +54,20 @@
 #define AW_A10_PIT(obj) \
     OBJECT_CHECK(AllwinnerTmrCtrlState, (obj), TYPE_AW_A10_PIT)
 
+typedef struct AllwinnerTmrCtrlClass {
+    /*< private >*/
+    SysBusDeviceClass parent_class;
+    /*< public >*/
+
+    size_t timer_count;
+    size_t region_size;
+} AllwinnerTmrCtrlClass;
+
+#define AW_TIMER_CLASS(klass) \
+     OBJECT_CLASS_CHECK(AllwinnerTmrCtrlClass, (klass), TYPE_AW_COMMON_PIT)
+#define AW_TIMER_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(AllwinnerTmrCtrlClass, (obj), TYPE_AW_COMMON_PIT)
+
 static void a10_pit_update_irq(AllwinnerTmrCtrlState *s)
 {
     int i;
@@ -303,19 +317,20 @@ static void a10_pit_timer_cb(void *opaque)
     }
 }
 
-static void a10_pit_init(Object *obj)
+static void aw_pit_instance_init(Object *obj)
 {
     AllwinnerTmrCtrlState *s = AW_A10_PIT(obj);
+    AllwinnerTmrCtrlClass *c = AW_TIMER_GET_CLASS(s);
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     uint8_t i;
 
-    s->timer_count = AW_A10_PIT_TIMER_NR;
+    s->timer_count = c->timer_count;
 
     for (i = 0; i < s->timer_count; i++) {
         sysbus_init_irq(sbd, &s->timer[i].irq);
     }
     memory_region_init_io(&s->iomem, OBJECT(s), &a10_pit_ops, s,
-                          TYPE_AW_A10_PIT, 0x400);
+                          TYPE_AW_A10_PIT, c->region_size);
     sysbus_init_mmio(sbd, &s->iomem);
 
     for (i = 0; i < s->timer_count; i++) {
@@ -328,26 +343,45 @@ static void a10_pit_init(Object *obj)
     }
 }
 
-static void a10_pit_class_init(ObjectClass *klass, void *data)
+static void aw_timer_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->reset = a10_pit_reset;
     dc->props = a10_pit_properties;
-    dc->desc = "allwinner a10 timer";
+    dc->desc = "Allwinner Timer Controller";
     dc->vmsd = &vmstate_a10_pit;
+}
+
+static const TypeInfo allwinner_pit_info = {
+    .name = TYPE_AW_COMMON_PIT,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_init = aw_pit_instance_init,
+    .instance_size = sizeof(AllwinnerTmrCtrlState),
+    .class_init = aw_timer_class_init,
+    .class_size = sizeof(AllwinnerTmrCtrlClass),
+    .abstract   = true,
+};
+
+static void a10_pit_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    AllwinnerTmrCtrlClass *atc = AW_TIMER_CLASS(klass);
+
+    dc->desc = "Allwinner A10 Timer Controller";
+    atc->timer_count = AW_A10_PIT_TIMER_NR;
+    atc->region_size = 0x400;
 }
 
 static const TypeInfo a10_pit_info = {
     .name = TYPE_AW_A10_PIT,
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AllwinnerTmrCtrlState),
-    .instance_init = a10_pit_init,
+    .parent = TYPE_AW_COMMON_PIT,
     .class_init = a10_pit_class_init,
 };
 
 static void a10_register_types(void)
 {
+    type_register_static(&allwinner_pit_info);
     type_register_static(&a10_pit_info);
 }
 
