@@ -61,7 +61,7 @@ exports available: 2
   max block: 33554432
   available meta contexts: 2
    base:allocation
-   qemu:dirty-bitmap:b
+   qemu:dirty-bitmap:n
  export: 'n2'
   size:  4194304
   flags: 0xced ( flush fua trim zeroes df cache fast-zero )
@@ -70,7 +70,7 @@ exports available: 2
   max block: 33554432
   available meta contexts: 2
    base:allocation
-   qemu:dirty-bitmap:b2
+   qemu:dirty-bitmap:n2
 
 === Contrast normal status to large granularity dirty-bitmap ===
 
@@ -141,7 +141,7 @@ exports available: 2
   max block: 33554432
   available meta contexts: 2
    base:allocation
-   qemu:dirty-bitmap:b
+   qemu:dirty-bitmap:n
  export: 'n2'
   size:  4194304
   flags: 0xced ( flush fua trim zeroes df cache fast-zero )
@@ -150,7 +150,7 @@ exports available: 2
   max block: 33554432
   available meta contexts: 2
    base:allocation
-   qemu:dirty-bitmap:b2
+   qemu:dirty-bitmap:n2
 
 === Contrast normal status to large granularity dirty-bitmap ===
 

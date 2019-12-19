@@ -167,7 +167,7 @@ $QEMU_IO -r -c 'r -P 0x22 512 512' -c 'r -P 0 512k 512k' -c 'r -P 0x11 1m 1m' \
 $QEMU_IMG map --output=json --image-opts \
   "$IMG" | _filter_qemu_img_map
 $QEMU_IMG map --output=json --image-opts \
-  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b" | _filter_qemu_img_map
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:n" | _filter_qemu_img_map
 
 echo
 echo "=== Contrast to small granularity dirty-bitmap ==="
@@ -175,7 +175,7 @@ echo
 
 IMG="driver=nbd,export=n2,server.type=unix,server.path=$SOCK_DIR/nbd"
 $QEMU_IMG map --output=json --image-opts \
-  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:n2" | _filter_qemu_img_map
 
 echo
 echo "=== End qemu NBD server ==="
@@ -199,15 +199,15 @@ echo
 echo "=== Use qemu-nbd as server ==="
 echo
 
-nbd_server_start_unix_socket -r -f $IMGFMT -B b "$TEST_IMG"
-IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
+nbd_server_start_unix_socket -r -f $IMGFMT -x n -B b "$TEST_IMG"
+IMG="driver=nbd,export=n,server.type=unix,server.path=$nbd_unix_socket"
 $QEMU_IMG map --output=json --image-opts \
-  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b" | _filter_qemu_img_map
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:n" | _filter_qemu_img_map
 
-nbd_server_start_unix_socket -f $IMGFMT -B b2 "$TEST_IMG"
-IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
+nbd_server_start_unix_socket -f $IMGFMT -x n -B b2 "$TEST_IMG"
+IMG="driver=nbd,export=n,server.type=unix,server.path=$nbd_unix_socket"
 $QEMU_IMG map --output=json --image-opts \
-  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
+  "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:n" | _filter_qemu_img_map
 
 # success, all done
 echo '*** done'
