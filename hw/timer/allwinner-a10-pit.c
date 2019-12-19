@@ -58,7 +58,7 @@ static void a10_pit_update_irq(AwA10PITState *s)
 {
     int i;
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+    for (i = 0; i < s->timer_count; i++) {
         qemu_set_irq(s->timer[i].irq,
                      !!(s->irq_status & s->irq_enable & (1 << i)));
     }
@@ -271,7 +271,7 @@ static void a10_pit_reset(DeviceState *dev)
     s->irq_status = 0;
     a10_pit_update_irq(s);
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+    for (i = 0; i < s->timer_count; i++) {
         s->timer[i].control = AW_A10_PIT_DEFAULT_CLOCK;
         s->timer[i].interval = 0;
         s->timer[i].count = 0;
@@ -309,14 +309,16 @@ static void a10_pit_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     uint8_t i;
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+    s->timer_count = AW_A10_PIT_TIMER_NR;
+
+    for (i = 0; i < s->timer_count; i++) {
         sysbus_init_irq(sbd, &s->timer[i].irq);
     }
     memory_region_init_io(&s->iomem, OBJECT(s), &a10_pit_ops, s,
                           TYPE_AW_A10_PIT, 0x400);
     sysbus_init_mmio(sbd, &s->iomem);
 
-    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
+    for (i = 0; i < s->timer_count; i++) {
         AwA10TimerContext *tc = &s->timer[i];
 
         tc->container = s;

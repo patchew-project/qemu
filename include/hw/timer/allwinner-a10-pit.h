@@ -24,6 +24,7 @@ struct AwA10PITState {
     /*< private >*/
     SysBusDevice parent_obj;
     /*< public >*/
+    size_t timer_count;
     AwA10TimerContext timer[AW_PIT_TIMER_MAX];
     MemoryRegion iomem;
     uint32_t clk_freq[4];
