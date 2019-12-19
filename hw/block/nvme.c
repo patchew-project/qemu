@@ -9,7 +9,7 @@
  */
 
 /**
- * Reference Specification: NVM Express 1.2.1
+ * Reference Specification: NVM Express 1.3d
  *
  *   https://nvmexpress.org/resources/specifications/
  */
@@ -43,7 +43,7 @@
 #include "trace.h"
 #include "nvme.h"
 
-#define NVME_SPEC_VER 0x00010201
+#define NVME_SPEC_VER 0x00010300
 #define NVME_MAX_QS PCI_MSIX_FLAGS_QSIZE
 #define NVME_TEMPERATURE 0x143
 
@@ -733,6 +733,7 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw12 = le32_to_cpu(cmd->cdw12);
     uint32_t dw13 = le32_to_cpu(cmd->cdw13);
     uint8_t  lid = dw10 & 0xff;
+    uint8_t  lsp = (dw10 >> 8) & 0xf;
     uint8_t  rae = (dw10 >> 15) & 0x1;
     uint32_t numdl, numdu;
     uint64_t off, lpol, lpou;
@@ -750,7 +751,7 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    trace_nvme_dev_get_log(nvme_cid(req), lid, rae, len, off);
+    trace_nvme_dev_get_log(nvme_cid(req), lid, lsp, rae, len, off);
 
     switch (lid) {
     case NVME_LOG_ERROR_INFO:
@@ -861,6 +862,8 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
     cq = g_malloc0(sizeof(*cq));
     nvme_init_cq(cq, n, prp1, cqid, vector, qsize + 1,
         NVME_CQ_FLAGS_IEN(qflags));
+
+    n->qs_created = true;
     return NVME_SUCCESS;
 }
 
@@ -922,6 +925,47 @@ static uint16_t nvme_identify_ns_list(NvmeCtrl *n, NvmeIdentify *c)
     return ret;
 }
 
+static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeCmd *c)
+{
+    static const int len = 4096;
+
+    struct ns_descr {
+        uint8_t nidt;
+        uint8_t nidl;
+        uint8_t rsvd2[2];
+        uint8_t nid[16];
+    };
+
+    uint32_t nsid = le32_to_cpu(c->nsid);
+    uint64_t prp1 = le64_to_cpu(c->prp1);
+    uint64_t prp2 = le64_to_cpu(c->prp2);
+
+    struct ns_descr *list;
+    uint16_t ret;
+
+    trace_nvme_dev_identify_ns_descr_list(nsid);
+
+    if (unlikely(nsid == 0 || nsid > n->num_namespaces)) {
+        trace_nvme_dev_err_invalid_ns(nsid, n->num_namespaces);
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    /*
+     * Because the NGUID and EUI64 fields are 0 in the Identify Namespace data
+     * structure, a Namespace UUID (nidt = 0x3) must be reported in the
+     * Namespace Identification Descriptor. Add a very basic Namespace UUID
+     * here.
+     */
+    list = g_malloc0(len);
+    list->nidt = 0x3;
+    list->nidl = 0x10;
+    *(uint32_t *) &list->nid[12] = cpu_to_be32(nsid);
+
+    ret = nvme_dma_read_prp(n, (uint8_t *) list, len, prp1, prp2);
+    g_free(list);
+    return ret;
+}
+
 static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
 {
     NvmeIdentify *c = (NvmeIdentify *)cmd;
@@ -933,6 +977,8 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
         return nvme_identify_ctrl(n, c);
     case 0x02:
         return nvme_identify_ns_list(n, c);
+    case 0x03:
+        return nvme_identify_ns_descr_list(n, cmd);
     default:
         trace_nvme_dev_err_invalid_identify_cns(le32_to_cpu(c->cns));
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -1131,6 +1177,10 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
         break;
     case NVME_NUMBER_OF_QUEUES:
+        if (n->qs_created) {
+            return NVME_CMD_SEQ_ERROR | NVME_DNR;
+        }
+
         if ((dw11 & 0xffff) == 0xffff || ((dw11 >> 16) & 0xffff) == 0xffff) {
             return NVME_INVALID_FIELD | NVME_DNR;
         }
@@ -1265,6 +1315,7 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
 
     n->aer_queued = 0;
     n->outstanding_aers = 0;
+    n->qs_created = false;
 
     blk_flush(n->conf.blk);
     n->bar.cc = 0;
