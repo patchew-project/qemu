@@ -83,7 +83,7 @@ static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
         case AW_A10_PIT_TIMER_INTERVAL:
             return s->interval[index];
         case AW_A10_PIT_TIMER_COUNT:
-            s->count[index] = ptimer_get_count(s->timer[index]);
+            s->count[index] = ptimer_get_count(s->ptimer[index]);
             return s->count[index];
         default:
             qemu_log_mask(LOG_GUEST_ERROR,
@@ -109,7 +109,7 @@ static uint64_t a10_pit_read(void *opaque, hwaddr offset, unsigned size)
     return 0;
 }
 
-/* Must be called inside a ptimer transaction block for s->timer[index] */
+/* Must be called inside a ptimer transaction block for s->ptimer[index] */
 static void a10_pit_set_freq(AwA10PITState *s, int index)
 {
     uint32_t prescaler, source, source_freq;
@@ -119,7 +119,7 @@ static void a10_pit_set_freq(AwA10PITState *s, int index)
     source_freq = s->clk_freq[source];
 
     if (source_freq) {
-        ptimer_set_freq(s->timer[index], source_freq / prescaler);
+        ptimer_set_freq(s->ptimer[index], source_freq / prescaler);
     } else {
         qemu_log_mask(LOG_GUEST_ERROR, "%s: Invalid clock source %u\n",
                       __func__, source);
@@ -148,27 +148,27 @@ static void a10_pit_write(void *opaque, hwaddr offset, uint64_t value,
         switch (offset & 0x0f) {
         case AW_A10_PIT_TIMER_CONTROL:
             s->control[index] = value;
-            ptimer_transaction_begin(s->timer[index]);
+            ptimer_transaction_begin(s->ptimer[index]);
             a10_pit_set_freq(s, index);
             if (s->control[index] & AW_A10_PIT_TIMER_RELOAD) {
-                ptimer_set_count(s->timer[index], s->interval[index]);
+                ptimer_set_count(s->ptimer[index], s->interval[index]);
             }
             if (s->control[index] & AW_A10_PIT_TIMER_EN) {
                 int oneshot = 0;
                 if (s->control[index] & AW_A10_PIT_TIMER_MODE) {
                     oneshot = 1;
                 }
-                ptimer_run(s->timer[index], oneshot);
+                ptimer_run(s->ptimer[index], oneshot);
             } else {
-                ptimer_stop(s->timer[index]);
+                ptimer_stop(s->ptimer[index]);
             }
-            ptimer_transaction_commit(s->timer[index]);
+            ptimer_transaction_commit(s->ptimer[index]);
             break;
         case AW_A10_PIT_TIMER_INTERVAL:
             s->interval[index] = value;
-            ptimer_transaction_begin(s->timer[index]);
-            ptimer_set_limit(s->timer[index], s->interval[index], 1);
-            ptimer_transaction_commit(s->timer[index]);
+            ptimer_transaction_begin(s->ptimer[index]);
+            ptimer_set_limit(s->ptimer[index], s->interval[index], 1);
+            ptimer_transaction_commit(s->ptimer[index]);
             break;
         case AW_A10_PIT_TIMER_COUNT:
             s->count[index] = value;
@@ -241,7 +241,7 @@ static const VMStateDescription vmstate_a10_pit = {
         VMSTATE_UINT32(count_lo, AwA10PITState),
         VMSTATE_UINT32(count_hi, AwA10PITState),
         VMSTATE_UINT32(count_ctl, AwA10PITState),
-        VMSTATE_PTIMER_ARRAY(timer, AwA10PITState, AW_PIT_TIMER_MAX),
+        VMSTATE_PTIMER_ARRAY(ptimer, AwA10PITState, AW_PIT_TIMER_MAX),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -259,10 +259,10 @@ static void a10_pit_reset(DeviceState *dev)
         s->control[i] = AW_A10_PIT_DEFAULT_CLOCK;
         s->interval[i] = 0;
         s->count[i] = 0;
-        ptimer_transaction_begin(s->timer[i]);
-        ptimer_stop(s->timer[i]);
+        ptimer_transaction_begin(s->ptimer[i]);
+        ptimer_stop(s->ptimer[i]);
         a10_pit_set_freq(s, i);
-        ptimer_transaction_commit(s->timer[i]);
+        ptimer_transaction_commit(s->ptimer[i]);
     }
     s->watch_dog_mode = 0;
     s->watch_dog_control = 0;
@@ -280,7 +280,7 @@ static void a10_pit_timer_cb(void *opaque)
     if (s->control[i] & AW_A10_PIT_TIMER_EN) {
         s->irq_status |= 1 << i;
         if (s->control[i] & AW_A10_PIT_TIMER_MODE) {
-            ptimer_stop(s->timer[i]);
+            ptimer_stop(s->ptimer[i]);
             s->control[i] &= ~AW_A10_PIT_TIMER_EN;
         }
         a10_pit_update_irq(s);
@@ -305,7 +305,7 @@ static void a10_pit_init(Object *obj)
 
         tc->container = s;
         tc->index = i;
-        s->timer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_DEFAULT);
+        s->ptimer[i] = ptimer_init(a10_pit_timer_cb, tc, PTIMER_POLICY_DEFAULT);
     }
 }
 
