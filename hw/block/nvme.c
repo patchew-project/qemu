@@ -1131,6 +1131,10 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
         break;
     case NVME_NUMBER_OF_QUEUES:
+        if ((dw11 & 0xffff) == 0xffff || ((dw11 >> 16) & 0xffff) == 0xffff) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
         trace_nvme_dev_setfeat_numq((dw11 & 0xFFFF) + 1,
             ((dw11 >> 16) & 0xFFFF) + 1, n->params.num_queues - 1,
             n->params.num_queues - 1);
