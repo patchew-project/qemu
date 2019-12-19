@@ -386,8 +386,8 @@ enum NvmeAsyncEventRequest {
     NVME_AER_TYPE_SMART                     = 1,
     NVME_AER_TYPE_IO_SPECIFIC               = 6,
     NVME_AER_TYPE_VENDOR_SPECIFIC           = 7,
-    NVME_AER_INFO_ERR_INVALID_SQ            = 0,
-    NVME_AER_INFO_ERR_INVALID_DB            = 1,
+    NVME_AER_INFO_ERR_INVALID_DB_REGISTER   = 0,
+    NVME_AER_INFO_ERR_INVALID_DB_VALUE      = 1,
     NVME_AER_INFO_ERR_DIAG_FAIL             = 2,
     NVME_AER_INFO_ERR_PERS_INTERNAL_ERR     = 3,
     NVME_AER_INFO_ERR_TRANS_INTERNAL_ERR    = 4,
@@ -639,6 +639,10 @@ typedef struct NvmeFeatureVal {
 #define NVME_TEMP_THSEL(temp)  ((temp >> 20) & 0x3)
 #define NVME_TEMP_TMPSEL(temp) ((temp >> 16) & 0xf)
 #define NVME_TEMP_TMPTH(temp)  (temp & 0xffff)
+
+#define NVME_AEC_SMART(aec)         (aec & 0xff)
+#define NVME_AEC_NS_ATTR(aec)       ((aec >> 8) & 0x1)
+#define NVME_AEC_FW_ACTIVATION(aec) ((aec >> 9) & 0x1)
 
 enum NvmeFeatureIds {
     NVME_ARBITRATION                = 0x1,
