@@ -225,7 +225,7 @@ static void a10_pit_reset(DeviceState *dev)
     s->irq_status = 0;
     a10_pit_update_irq(s);
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AW_A10_PIT_TIMER_NR; i++) {
         s->control[i] = AW_A10_PIT_DEFAULT_CLOCK;
         s->interval[i] = 0;
         s->count[i] = 0;
