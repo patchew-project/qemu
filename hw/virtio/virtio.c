@@ -3096,7 +3096,7 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
     bool backend_run = running && virtio_device_started(vdev, vdev->status);
     vdev->vm_running = running;
 
-    if (backend_run) {
+    if (!backend_run) {
         virtio_set_status(vdev, vdev->status);
     }
 
@@ -3104,7 +3104,7 @@ static void virtio_vmstate_change(void *opaque, int running, RunState state)
         k->vmstate_change(qbus->parent, backend_run);
     }
 
-    if (!backend_run) {
+    if (backend_run) {
         virtio_set_status(vdev, vdev->status);
     }
 }
