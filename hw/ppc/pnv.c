@@ -1706,7 +1706,8 @@ static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
     PnvMachineState *pnv = PNV_MACHINE(obj);
-    uint32_t num_chips;
+    MachineState *ms = MACHINE(pnv);
+    uint32_t num_chips, num_cpus;
     Error *local_err = NULL;
 
     visit_type_uint32(v, name, &num_chips, &local_err);
@@ -1721,6 +1722,13 @@ static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
      */
     if (!is_power_of_2(num_chips) || num_chips > 4) {
         error_setg(errp, "invalid number of chips: '%d'", num_chips);
+        return;
+    }
+
+    num_cpus = num_chips * ms->smp.cores * ms->smp.threads;
+    if (num_cpus > ms->smp.max_cpus) {
+        error_setg(errp, "%d chips don't fit in the CPU topology", num_chips);
+        error_append_hint(errp, "Try -smp sockets=%d.\n", num_chips);
         return;
     }
 
