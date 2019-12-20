@@ -340,7 +340,7 @@ static void dp8393x_do_read_rra(dp8393xState *s)
     s->regs[SONIC_RRP] += size;
 
     /* Handle wrap */
-    if (s->regs[SONIC_RRP] == s->regs[SONIC_REA]) {
+    if (s->regs[SONIC_RRP] == s->regs[SONIC_REA] + size) {
         s->regs[SONIC_RRP] = s->regs[SONIC_RSA];
     }
 
