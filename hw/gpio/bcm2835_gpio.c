@@ -260,9 +260,9 @@ err_out:
             __func__, offset);
 }
 
-static void bcm2835_gpio_reset(DeviceState *dev)
+static void bcm2835_gpio_reset_enter(Object *obj, ResetType type)
 {
-    BCM2835GpioState *s = BCM2835_GPIO(dev);
+    BCM2835GpioState *s = BCM2835_GPIO(obj);
 
     int i;
     /*
@@ -272,11 +272,20 @@ static void bcm2835_gpio_reset(DeviceState *dev)
     for (i = 0; i < 6; i++) {
         gpfsel_set(s, i, 0);
     }
-    /* Update s->sd_fsel and move the sd card */
-    gpfsel_update_sdbus(s);
 
     s->lev0 = 0;
     s->lev1 = 0;
+}
+
+static void bcm2835_gpio_reset_hold(Object *obj)
+{
+    BCM2835GpioState *s = BCM2835_GPIO(obj);
+
+    /*
+     * Update s->sd_fsel and move the sd card according to the config set in
+     * bcm2835_gpio_reset_enter().
+     */
+    gpfsel_update_sdbus(s);
 }
 
 static const MemoryRegionOps bcm2835_gpio_ops = {
@@ -336,10 +345,12 @@ static void bcm2835_gpio_realize(DeviceState *dev, Error **errp)
 static void bcm2835_gpio_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    ResettableClass *rc = RESETTABLE_CLASS(klass);
 
     dc->vmsd = &vmstate_bcm2835_gpio;
     dc->realize = &bcm2835_gpio_realize;
-    dc->reset = &bcm2835_gpio_reset;
+    rc->phases.enter = &bcm2835_gpio_reset_enter;
+    rc->phases.hold  = &bcm2835_gpio_reset_hold;
 }
 
 static const TypeInfo bcm2835_gpio_info = {
