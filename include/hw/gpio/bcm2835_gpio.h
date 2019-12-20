@@ -23,7 +23,6 @@ typedef struct BCM2835GpioState {
     MemoryRegion iomem;
 
     /* SDBus selector */
-    SDBus sdbus;
     SDBus *sdbus_sdhci;
     SDBus *sdbus_sdhost;
 
