@@ -75,7 +75,10 @@ static void gpfsel_set(BCM2835GpioState *s, uint8_t reg, uint32_t value)
             s->fsel[index] = fsel;
         }
     }
+}
 
+static void gpfsel_update_sdbus(BCM2835GpioState *s)
+{
     /* SD controller selection (48-53) */
     if (s->sd_fsel != 0
             && (s->fsel[48] == 0) /* SD_CLK_R */
@@ -210,6 +213,7 @@ static void bcm2835_gpio_write(void *opaque, hwaddr offset,
     case GPFSEL4:
     case GPFSEL5:
         gpfsel_set(s, offset / 4, value);
+        gpfsel_update_sdbus(s);
         break;
     case GPSET0:
         gpset(s, value, 0, 32, &s->lev0);
@@ -261,11 +265,15 @@ static void bcm2835_gpio_reset(DeviceState *dev)
     BCM2835GpioState *s = BCM2835_GPIO(dev);
 
     int i;
+    /*
+     * Initialize the gpfsel registers. In particular, it selects the SDHCI bus
+     * for the sd card.
+     */
     for (i = 0; i < 6; i++) {
         gpfsel_set(s, i, 0);
     }
-
-    s->sd_fsel = 0;
+    /* Update s->sd_fsel and move the sd card */
+    gpfsel_update_sdbus(s);
 
     s->lev0 = 0;
     s->lev1 = 0;
