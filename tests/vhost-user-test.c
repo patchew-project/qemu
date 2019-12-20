@@ -717,7 +717,7 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
     guint64 size;
 
     if (!wait_for_fds(s)) {
-        return;
+        goto cleanup;
     }
 
     size = get_log_size(s);
@@ -776,8 +776,11 @@ static void test_migrate(void *obj, void *arg, QGuestAllocator *alloc)
     g_source_unref(source);
 
     qtest_quit(to);
+
+ cleanup:
     test_server_free(dest);
     g_free(uri);
+    g_string_free(dest_cmdline, true);
 }
 
 static void wait_for_rings_started(TestServer *s, size_t count)
