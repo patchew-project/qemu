@@ -2195,12 +2195,27 @@ static void do_kvm_cpu_synchronize_state(CPUState *cpu, run_on_cpu_data arg)
     }
 }
 
+static void do_kvm_cpu_synchronize_state_force(CPUState *cpu,
+                                               run_on_cpu_data arg)
+{
+    kvm_arch_get_registers(cpu);
+    cpu->vcpu_dirty = true;
+}
+
+
 void kvm_cpu_synchronize_state(CPUState *cpu)
 {
     if (!cpu->vcpu_dirty) {
         run_on_cpu(cpu, do_kvm_cpu_synchronize_state, RUN_ON_CPU_NULL);
     }
 }
+
+void kvm_cpu_synchronize_state_force(CPUState *cpu)
+{
+    /* Force the sync */
+    run_on_cpu(cpu, do_kvm_cpu_synchronize_state_force, RUN_ON_CPU_NULL);
+}
+
 
 static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg)
 {

@@ -792,6 +792,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     /* Check whether user space can specify guest syndrome value */
     kvm_arm_init_serror_injection(cs);
 
+    /* Set status for supporting the extarnal dabt injection */
+    kvm_arm_init_ext_dabt_injection(cs);
+
     return kvm_arm_init_cpreg_list(cpu);
 }
 

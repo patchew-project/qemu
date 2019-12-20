@@ -144,6 +144,14 @@ void kvm_arm_reset_vcpu(ARMCPU *cpu);
 void kvm_arm_init_serror_injection(CPUState *cs);
 
 /**
+ * kvm_arm_init_ext_dabt_injection
+ * @cs: CPUState
+ *
+ * Set status for KVM support for Ext DABT injection
+ */
+void kvm_arm_init_ext_dabt_injection(CPUState *cs);
+
+/**
  * kvm_get_vcpu_events:
  * @cpu: ARMCPU
  *
@@ -371,6 +379,17 @@ static inline const char *gicv3_class_name(void)
  */
 bool kvm_arm_handle_debug(CPUState *cs, struct kvm_debug_exit_arch *debug_exit);
 
+/**
+ * kvm_arm_handle_dabt_nisv
+ * @cs: CPUState
+ * @esr_iss: ISS encoding (limited) for the exception from Data Abort
+ *           ISV bit set to '0b0' -> no valid instruction syndrome
+ * @fault_ipa: faulting address for the synch data abort
+ *
+ * Returns: 0 if the exception has been handled
+ */
+int kvm_arm_handle_dabt_nisv(CPUState *cs, uint64_t esr_iss,
+                             uint64_t fault_ipa);
 /**
  * kvm_arm_hw_debug_active:
  * @cs: CPU State
