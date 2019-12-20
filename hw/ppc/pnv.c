@@ -768,6 +768,19 @@ static void pnv_init(MachineState *machine)
         exit(1);
     }
 
+    if (!pnv->num_chips) {
+        uint32_t num_chips =
+            machine->smp.max_cpus / (machine->smp.cores * machine->smp.threads);
+        Error *local_err = NULL;
+
+        object_property_set_uint(OBJECT(pnv), num_chips, "num-chips",
+                                 &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            exit(1);
+        }
+    }
+
     pnv->chips = g_new0(PnvChip *, pnv->num_chips);
     for (i = 0; i < pnv->num_chips; i++) {
         char chip_name[32];
@@ -1722,6 +1735,9 @@ static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
      */
     if (!is_power_of_2(num_chips) || num_chips > 4) {
         error_setg(errp, "invalid number of chips: '%d'", num_chips);
+        error_append_hint(errp,
+                          "Set 'num-chips' implicitely with '-smp sockets=N'. "
+                          "Valid values are : 1, 2 or 4.\n");
         return;
     }
 
@@ -1733,12 +1749,6 @@ static void pnv_set_num_chips(Object *obj, Visitor *v, const char *name,
     }
 
     pnv->num_chips = num_chips;
-}
-
-static void pnv_machine_instance_init(Object *obj)
-{
-    PnvMachineState *pnv = PNV_MACHINE(obj);
-    pnv->num_chips = 1;
 }
 
 static void pnv_machine_class_props_init(ObjectClass *oc)
@@ -1874,7 +1884,6 @@ static const TypeInfo types[] = {
         .parent        = TYPE_MACHINE,
         .abstract       = true,
         .instance_size = sizeof(PnvMachineState),
-        .instance_init = pnv_machine_instance_init,
         .class_init    = pnv_machine_class_init,
         .class_size    = sizeof(PnvMachineClass),
         .interfaces = (InterfaceInfo[]) {
