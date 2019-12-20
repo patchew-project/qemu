@@ -15,6 +15,11 @@
 #include "hw/resettable.h"
 #include "trace.h"
 
+void resettable_state_clear(ResettableState *state)
+{
+    memset(state, 0, sizeof(ResettableState));
+}
+
 /**
  * resettable_phase_enter/hold/exit:
  * Function executing a phase recursively in a resettable object and its
