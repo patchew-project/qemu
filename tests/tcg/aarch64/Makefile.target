@@ -32,4 +32,10 @@ run-plugin-semihosting-with-%:
 		 $(call strip-plugin,$<) 2> $<.err, \
 		"$< on $(TARGET_NAME) with $*")
 
+ifneq ($(DOCKER_IMAGE)$(CROSS_CC_HAS_SVE),)
+# System Registers Tests
+AARCH64_TESTS += sysregs
+sysregs: CFLAGS+=-march=armv8.1-a+sve
+endif
+
 TESTS += $(AARCH64_TESTS)
