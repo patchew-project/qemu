@@ -534,6 +534,7 @@ static void rc4030_reset(DeviceState *dev)
 
     memset(s->dma_regs, 0, sizeof(s->dma_regs));
 
+    s->dma_tl_base = s->dma_tl_limit = 0;
     s->remote_failed_address = s->memory_failed_address = 0;
     s->cache_maint = 0;
     s->cache_ptag = s->cache_ltag = 0;
