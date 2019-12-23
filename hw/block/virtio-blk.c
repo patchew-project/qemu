@@ -18,6 +18,8 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/blockdev.h"
@@ -1119,7 +1121,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIOBlock *s = VIRTIO_BLK(dev);
     VirtIOBlkConf *conf = &s->conf;
     Error *err = NULL;
-    unsigned i;
+    unsigned i,cpus;
 
     if (!conf->conf.blk) {
         error_setg(errp, "drive property not set");
@@ -1131,6 +1133,13 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     }
     if (!conf->num_queues) {
         error_setg(errp, "num-queues property must be larger than 0");
+        return;
+    }
+    cpus = qemu_opt_get_number(qemu_opts_find(qemu_find_opts("smp-opts"), NULL),
+                               "cpus", 0);
+    if (conf->num_queues > cpus ) {
+        error_setg(errp, "virtio-blk: the queue number should be equal "
+                "or less than vcpu number");
         return;
     }
     if (!is_power_of_2(conf->queue_size) ||

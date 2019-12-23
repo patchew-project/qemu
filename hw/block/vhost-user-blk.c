@@ -23,6 +23,8 @@
 #include "qom/object.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/vhost-user-blk.h"
 #include "hw/virtio/virtio.h"
@@ -391,6 +393,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
     Error *err = NULL;
+    unsigned cpus;
     int i, ret;
 
     if (!s->chardev.chr) {
@@ -400,6 +403,14 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 
     if (!s->num_queues || s->num_queues > VIRTIO_QUEUE_MAX) {
         error_setg(errp, "vhost-user-blk: invalid number of IO queues");
+        return;
+    }
+
+    cpus = qemu_opt_get_number(qemu_opts_find(qemu_find_opts("smp-opts"), NULL),
+                               "cpus", 0);
+    if (s->num_queues > cpus ) {
+        error_setg(errp, "vhost-user-blk: the queue number should be equal "
+                "or less than vcpu number");
         return;
     }
 

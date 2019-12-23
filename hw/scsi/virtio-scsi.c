@@ -21,6 +21,8 @@
 #include "qemu/error-report.h"
 #include "qemu/iov.h"
 #include "qemu/module.h"
+#include "qemu/option.h"
+#include "qemu/config-file.h"
 #include "sysemu/block-backend.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
@@ -880,6 +882,7 @@ void virtio_scsi_common_realize(DeviceState *dev,
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(dev);
+    unsigned cpus;
     int i;
 
     virtio_init(vdev, "virtio-scsi", VIRTIO_ID_SCSI,
@@ -893,6 +896,15 @@ void virtio_scsi_common_realize(DeviceState *dev,
         virtio_cleanup(vdev);
         return;
     }
+
+    cpus = qemu_opt_get_number(qemu_opts_find(qemu_find_opts("smp-opts"), NULL),
+                               "cpus", 0);
+    if (s->conf.num_queues > cpus ) {
+        error_setg(errp, "virtio-scsi: the queue number should be equal "
+                "or less than vcpu number");
+        return;
+    }
+
     s->cmd_vqs = g_new0(VirtQueue *, s->conf.num_queues);
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
