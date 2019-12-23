@@ -2779,7 +2779,7 @@ static void configure_accelerators(const char *progname)
         for (tmp = accel_list; !accel_initialised && tmp && *tmp; tmp++) {
             /*
              * Filter invalid accelerators here, to prevent obscenities
-             * such as "-machine accel=tcg,,thread=single".
+             * such as "-machine accel=tcg,thread=single".
              */
             if (accel_find(*tmp)) {
                 qemu_opts_parse_noisily(qemu_find_opts("accel"), *tmp, true);
