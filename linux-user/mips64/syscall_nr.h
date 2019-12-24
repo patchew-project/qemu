@@ -674,6 +674,19 @@
 #define TARGET_NR_statx                 (TARGET_NR_Linux + 326)
 #define TARGET_NR_rseq                  (TARGET_NR_Linux + 327)
 #define TARGET_NR_io_pgetevents         (TARGET_NR_Linux + 328)
+/* 329 through 423 are reserved to sync up with other architectures */
+#define TARGET_NR_pidfd_send_signal     (TARGET_NR_Linux + 424)
+#define TARGET_NR_io_uring_setup        (TARGET_NR_Linux + 425)
+#define TARGET_NR_io_uring_enter        (TARGET_NR_Linux + 426)
+#define TARGET_NR_io_uring_register     (TARGET_NR_Linux + 427)
+#define TARGET_NR_open_tree             (TARGET_NR_Linux + 428)
+#define TARGET_NR_move_mount            (TARGET_NR_Linux + 429)
+#define TARGET_NR_fsopen                (TARGET_NR_Linux + 430)
+#define TARGET_NR_fsconfig              (TARGET_NR_Linux + 431)
+#define TARGET_NR_fsmount               (TARGET_NR_Linux + 432)
+#define TARGET_NR_fspick                (TARGET_NR_Linux + 433)
+#define TARGET_NR_pidfd_open            (TARGET_NR_Linux + 434)
+#define TARGET_NR_clone3                (TARGET_NR_Linux + 435)
 #endif
 
 #endif

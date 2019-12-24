@@ -390,6 +390,47 @@ static const uint8_t mips_syscall_args[] = {
         MIPS_SYS(sys_copy_file_range, 6) /* 360 */
         MIPS_SYS(sys_preadv2, 6)
         MIPS_SYS(sys_pwritev2, 6)
+        MIPS_SYS(sys_pkey_mprotect, 4)
+        MIPS_SYS(sys_pkey_alloc, 2)
+        MIPS_SYS(sys_pkey_free, 1)      /* 365 */
+        MIPS_SYS(sys_statx, 5)
+        MIPS_SYS(sys_rseq, 4)
+        MIPS_SYS(sys_io_pgetevents, 6)
+
+        MIPS_SYS(clock_gettime64, 2)
+        MIPS_SYS(clock_settime64, 2)
+        MIPS_SYS(clock_adjtime64, 2)
+        MIPS_SYS(clock_getres_time64, 2)
+        MIPS_SYS(clock_nanosleep_time64, 4)
+        MIPS_SYS(timer_gettime64, 2)
+        MIPS_SYS(timer_settime64, 4)
+        MIPS_SYS(timerfd_gettime64, 2)
+        MIPS_SYS(timerfd_settime64, 4)
+        MIPS_SYS(utimensat_time64, 4)
+        MIPS_SYS(pselect6_time64, 6)
+        MIPS_SYS(ppoll_time64, 5)
+        MIPS_SYS(io_pgetevents_time64, 6)
+        MIPS_SYS(recvmmsg_time64, 5)
+        MIPS_SYS(mq_timedsend_time64, 5)
+        MIPS_SYS(mq_timedreceive_time64, 5)
+        MIPS_SYS(semtimedop_time64, 4)
+        MIPS_SYS(rt_sigtimedwait_time64, 4)
+        MIPS_SYS(futex_time64, 6)
+        MIPS_SYS(sched_rr_get_interval_time64, 2)
+
+        MIPS_SYS(pidfd_send_signal, 4)
+        MIPS_SYS(io_uring_setup, 2)
+        MIPS_SYS(io_uring_enter, 6)
+        MIPS_SYS(io_uring_register, 4)
+        MIPS_SYS(open_tree, 3)
+        MIPS_SYS(move_mount, 5)
+        MIPS_SYS(fsopen, 2)
+        MIPS_SYS(fsconfig, 5)
+        MIPS_SYS(fsmount, 3)
+        MIPS_SYS(fspick, 3)
+        MIPS_SYS(pidfd_open, 2)
+        MIPS_SYS(clone3, 2)
+
 };
 #  undef MIPS_SYS
 # endif /* O32 */
