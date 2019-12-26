@@ -392,14 +392,18 @@ static int nbd_negotiate_send_rep_list(NBDClient *client, NBDExport *exp,
         return -EINVAL;
     }
 
-    if (nbd_write(ioc, name, name_len, errp) < 0) {
-        error_prepend(errp, "write failed (name buffer): ");
-        return -EINVAL;
+    if (name_len > 0) {
+        if (nbd_write(ioc, name, name_len, errp) < 0) {
+            error_prepend(errp, "write failed (name buffer): ");
+            return -EINVAL;
+        }
     }
 
-    if (nbd_write(ioc, desc, desc_len, errp) < 0) {
-        error_prepend(errp, "write failed (description buffer): ");
-        return -EINVAL;
+    if (desc_len > 0) {
+        if (nbd_write(ioc, desc, desc_len, errp) < 0) {
+            error_prepend(errp, "write failed (description buffer): ");
+            return -EINVAL;
+        }
     }
 
     return 0;
