@@ -2340,6 +2340,11 @@ void virtio_del_queue(VirtIODevice *vdev, int n)
     vdev->vq[n].vring.num_default = 0;
     vdev->vq[n].handle_output = NULL;
     vdev->vq[n].handle_aio_output = NULL;
+    /*
+     * with vring.num = 0 the queue will be ignored
+     * in later loops of region cache reset
+     */
+    virtio_virtqueue_reset_region_cache(&vdev->vq[n]);
     g_free(vdev->vq[n].used_elems);
 }
 
