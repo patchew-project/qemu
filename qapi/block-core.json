@@ -176,6 +176,209 @@
            '*backing-image': 'ImageInfo',
            '*format-specific': 'ImageInfoSpecific' } }
 
+
+##
+# @Qcow2Metadata:
+#
+# Encapsulates QCOW2 metadata information
+#
+# @qcow2-header: QCOW2 header info
+#
+# @active-l1: L1 active table info
+#
+# @refcount-table: refcount table info
+#
+# @crypt-header: encryption header info
+#
+# @bitmaps: bitmap tables info
+#
+# @snapshot-table: snapshot tables info
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2Metadata',
+  'data': { 'qcow2-header': 'Qcow2Header',
+            'refcount-table': 'Qcow2RefcountTable',
+            'active-l1': 'Qcow2L1Table',
+            '*crypt-header': 'Qcow2EncryptionHeader',
+            '*bitmaps': 'Qcow2Bitmaps',
+            '*snapshot-table': 'Qcow2SnapshotsTable' } }
+
+##
+# @Qcow2Header:
+#
+# QCOW2 header information
+#
+# @version: version number
+#
+# @location: header offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2Header',
+  'data': {'version': 'int',
+           'location': 'Qcow2Allocation' } }
+
+##
+# @Qcow2EncryptionHeader:
+#
+# QCOW2 encryption header information
+#
+# @location: header offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2EncryptionHeader',
+  'data': {'location': 'Qcow2Allocation' } }
+
+##
+# @Qcow2RefcountTable:
+#
+# QCOW2 refcount table information
+#
+# @location: refcount table offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2RefcountTable',
+  'data': {'location': 'Qcow2Allocation' } }
+
+##
+# @Qcow2L1Table:
+#
+# L1 table information
+#
+# @l2-list: list of L2 table locations
+#
+# @location: L1 table offset and size in image
+#
+# @name: entity name the table relates to
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2L1Table',
+  'data': {'l2-list': ['Qcow2Allocation'],
+           'location': 'Qcow2Allocation',
+           'name': 'str'} }
+
+##
+# @Qcow2Allocation:
+#
+# QCOW2 data location in image
+#
+# @offset: data offset
+#
+# @size: data size
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2Allocation',
+  'data': {'offset': 'uint64', 'size': 'uint64' } }
+
+##
+# @Qcow2Bitmaps:
+#
+# QCOW2 bitmaps information
+#
+# @nb-bitmaps: the number of bitmaps contained in the image
+#
+# @bitmap-dir: bitmap directory information
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2Bitmaps',
+  'data': {'nb-bitmaps': 'int',
+           'bitmap-dir': 'Qcow2BitmapDir' } }
+
+##
+# @Qcow2BitmapDir:
+#
+# QCOW2 bitmap directory information
+#
+# @dir-entries: list of bitmap directory entries
+#
+# @location: bitmap directory offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2BitmapDir',
+  'data': {'dir-entries': ['Qcow2BitmapDirectoryEntry'],
+           'location': 'Qcow2Allocation' } }
+
+##
+# @Qcow2BitmapDirectoryEntry:
+#
+# QCOW2 bitmap directory entry information
+#
+# @bitmap-table: bitmap table offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2BitmapDirectoryEntry',
+  'data': {'bitmap-table': 'Qcow2BitmapTbl',
+           'bitmap-name': 'str' } }
+
+##
+# @Qcow2BitmapTbl:
+#
+# QCOW2 bitmap table information
+#
+# @table-entries: list of bitmap table entries
+#
+# @location: bitmap table offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2BitmapTbl',
+  'data': {'table-entries': ['Qcow2BitmapTblEntry'],
+           'location': 'Qcow2Allocation' } }
+
+##
+# @Qcow2BitmapTblEntry:
+#
+# QCOW2 bitmap table entry information
+#
+# @type: bitmap table entry type
+#
+# @cluster: bitmap table entry offset and size in image
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2BitmapTblEntry',
+  'data': {'type': 'Qcow2BitmapTblEntryType',
+           '*cluster': 'Qcow2Allocation' } }
+
+##
+# @Qcow2BitmapTblEntryType:
+#
+# An enumeration of cluster types in bitmap table
+#
+# @all-zeros: cluster should be read as all zeros
+#
+# @all-ones: cluster should be read as all ones
+#
+# @serialized: cluster data are written on disk
+#
+# Since: 5.0
+##
+{ 'enum': 'Qcow2BitmapTblEntryType',
+  'data': ['all-zeros', 'all-ones', 'serialized'] }
+
+##
+# @Qcow2SnapshotsTable:
+#
+# Snapshots table location in image file.
+#
+# @location: offset and size of snapshot table
+#
+# @l1-list: list of snapshots L1 tables
+#
+# Since: 5.0
+##
+{ 'struct': 'Qcow2SnapshotsTable',
+  'data': {'location': 'Qcow2Allocation',
+           'l1-list': ['Qcow2L1Table'] } }
+
 ##
 # @ImageCheck:
 #
@@ -215,6 +418,8 @@
 #                       field is present if the driver for the image format
 #                       supports it
 #
+# @viscera: encapsulates QCOW2 tables allocation information
+#
 # Since: 1.4
 #
 ##
@@ -223,7 +428,8 @@
            '*image-end-offset': 'int', '*corruptions': 'int', '*leaks': 'int',
            '*corruptions-fixed': 'int', '*leaks-fixed': 'int',
            '*total-clusters': 'int', '*allocated-clusters': 'int',
-           '*fragmented-clusters': 'int', '*compressed-clusters': 'int' } }
+           '*fragmented-clusters': 'int', '*compressed-clusters': 'int',
+           '*viscera': 'Qcow2Metadata' } }
 
 ##
 # @MapEntry:
