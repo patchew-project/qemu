@@ -373,7 +373,6 @@ int bdrv_freeze_backing_chain(BlockDriverState *bs, BlockDriverState *base,
                               Error **errp);
 void bdrv_unfreeze_backing_chain(BlockDriverState *bs, BlockDriverState *base);
 
-
 typedef struct BdrvCheckResult {
     int corruptions;
     int leaks;
@@ -382,11 +381,13 @@ typedef struct BdrvCheckResult {
     int leaks_fixed;
     int64_t image_end_offset;
     BlockFragInfo bfi;
+    Qcow2Metadata *viscera;
 } BdrvCheckResult;
 
 typedef enum {
     BDRV_FIX_LEAKS    = 1,
     BDRV_FIX_ERRORS   = 2,
+    BDRV_DUMP_META    = 4,
 } BdrvCheckMode;
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res, BdrvCheckMode fix);

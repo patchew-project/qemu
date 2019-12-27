@@ -173,6 +173,7 @@ static void QEMU_NORETURN help(void)
            "       '-r leaks' repairs only cluster leaks, whereas '-r all' fixes all\n"
            "       kinds of errors, with a higher risk of choosing the wrong fix or\n"
            "       hiding corruption that has already occurred.\n"
+           "  '-M' Dump QCOW2 metadata to stdout in JSON format.\n"
            "\n"
            "Parameters to convert subcommand:\n"
            "  '-m' specifies how many coroutines work in parallel during the convert\n"
@@ -659,6 +660,14 @@ static int collect_image_check(BlockDriverState *bs,
     check->has_fragmented_clusters  = result.bfi.fragmented_clusters != 0;
     check->compressed_clusters      = result.bfi.compressed_clusters;
     check->has_compressed_clusters  = result.bfi.compressed_clusters != 0;
+    check->viscera                  = result.viscera;
+    check->has_viscera              = !!(result.viscera);
+
+    if (check->has_viscera) {
+        check->viscera->has_crypt_header = !!(check->viscera->crypt_header);
+        check->viscera->has_bitmaps = !!(check->viscera->bitmaps);
+        check->viscera->has_snapshot_table = !!(check->viscera->snapshot_table);
+    }
 
     return 0;
 }
@@ -701,9 +710,10 @@ static int img_check(int argc, char **argv)
             {"object", required_argument, 0, OPTION_OBJECT},
             {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
             {"force-share", no_argument, 0, 'U'},
+            {"dump-meta", no_argument, 0, 'M'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:r:T:qU",
+        c = getopt_long(argc, argv, ":hf:r:T:qU:M",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -745,6 +755,9 @@ static int img_check(int argc, char **argv)
         case 'U':
             force_share = true;
             break;
+        case 'M':
+            fix |= BDRV_DUMP_META;
+            break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
@@ -772,6 +785,11 @@ static int img_check(int argc, char **argv)
         return 1;
     }
 
+    if ((fix & BDRV_DUMP_META) && output_format != OFORMAT_JSON) {
+        error_report("Metadata output in JSON format only");
+        return 1;
+    }
+
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           qemu_img_object_print_help, &error_fatal)) {
@@ -792,6 +810,15 @@ static int img_check(int argc, char **argv)
     bs = blk_bs(blk);
 
     check = g_new0(ImageCheck, 1);
+
+    if (fix & BDRV_DUMP_META) {
+        if (strcmp(bs->drv->format_name, "qcow2")) {
+            error_report("Metadata output supported for QCOW2 format only");
+            ret = -ENOTSUP;
+            goto fail;
+        }
+    }
+
     ret = collect_image_check(bs, check, filename, fmt, fix);
 
     if (ret == -ENOTSUP) {

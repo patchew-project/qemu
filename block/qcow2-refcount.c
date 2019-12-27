@@ -1521,7 +1521,8 @@ static int realloc_refcount_array(BDRVQcow2State *s, void **array,
 int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
                              void **refcount_table,
                              int64_t *refcount_table_size,
-                             int64_t offset, int64_t size)
+                             int64_t offset, int64_t size,
+                             Qcow2Allocation *qcow2_alloc)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t start, last, cluster_offset, k, refcount;
@@ -1548,6 +1549,11 @@ int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
                 " size 0x%" PRIx64 "\n", offset, size);
         res->corruptions++;
         return 0;
+    }
+
+    if (qcow2_alloc) {
+        qcow2_alloc->offset = offset;
+        qcow2_alloc->size = size;
     }
 
     start = start_of_cluster(s, offset);
@@ -1643,7 +1649,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             ret = qcow2_inc_refcounts_imrt(
                 bs, res, refcount_table, refcount_table_size,
                 l2_entry & QCOW2_COMPRESSED_SECTOR_MASK,
-                nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE);
+                nb_csectors * QCOW2_COMPRESSED_SECTOR_SIZE, NULL);
             if (ret < 0) {
                 goto fail;
             }
@@ -1731,7 +1737,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             if (!has_data_file(bs)) {
                 ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table,
                                                refcount_table_size,
-                                               offset, s->cluster_size);
+                                               offset, s->cluster_size, NULL);
                 if (ret < 0) {
                     goto fail;
                 }
@@ -1769,17 +1775,20 @@ static int check_refcounts_l1(BlockDriverState *bs,
                               void **refcount_table,
                               int64_t *refcount_table_size,
                               int64_t l1_table_offset, int l1_size,
-                              int flags, BdrvCheckMode fix, bool active)
+                              int flags, BdrvCheckMode fix, bool active,
+                              Qcow2L1Table *l1t)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t *l1_table = NULL, l2_offset, l1_size2;
+    Qcow2AllocationList **plist = l1t ? &l1t->l2_list : NULL;
     int i, ret;
 
     l1_size2 = l1_size * sizeof(uint64_t);
 
     /* Mark L1 table as used */
     ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, refcount_table_size,
-                                   l1_table_offset, l1_size2);
+                                   l1_table_offset, l1_size2,
+                                   l1t ? l1t->location : NULL);
     if (ret < 0) {
         goto fail;
     }
@@ -1808,9 +1817,19 @@ static int check_refcounts_l1(BlockDriverState *bs,
         if (l2_offset) {
             /* Mark L2 table as used */
             l2_offset &= L1E_OFFSET_MASK;
+
+            Qcow2Allocation *l2t = NULL;
+            if (l1t) {
+                l2t = g_new0(Qcow2Allocation, 1);
+                Qcow2AllocationList *obj = g_new0(Qcow2AllocationList, 1);
+                obj->value = l2t;
+                *plist = obj;
+                plist = &obj->next;
+            }
+
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
-                                           l2_offset, s->cluster_size);
+                                           l2_offset, s->cluster_size, l2t);
             if (ret < 0) {
                 goto fail;
             }
@@ -2047,7 +2066,7 @@ static int check_refblocks(BlockDriverState *bs, BdrvCheckResult *res,
                 res->corruptions_fixed++;
                 ret = qcow2_inc_refcounts_imrt(bs, res,
                                                refcount_table, nb_clusters,
-                                               offset, s->cluster_size);
+                                               offset, s->cluster_size, NULL);
                 if (ret < 0) {
                     return ret;
                 }
@@ -2066,7 +2085,7 @@ resize_fail:
 
         if (offset != 0) {
             ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
-                                           offset, s->cluster_size);
+                                           offset, s->cluster_size, NULL);
             if (ret < 0) {
                 return ret;
             }
@@ -2093,6 +2112,9 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     BDRVQcow2State *s = bs->opaque;
     int64_t i;
     QCowSnapshot *sn;
+    bool has_snapshots = res->viscera && res->viscera->snapshot_table;
+    Qcow2L1TableList **plist = has_snapshots ?
+        &res->viscera->snapshot_table->l1_list : NULL;
     int ret;
 
     if (!*refcount_table) {
@@ -2106,16 +2128,25 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     }
 
     /* header */
+    if (res->viscera) {
+        res->viscera->qcow2_header->version = s->qcow_version;
+    }
     ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
-                                   0, s->cluster_size);
+                                   0, s->cluster_size,
+                                   res->viscera ?
+                                   res->viscera->qcow2_header->location : NULL);
     if (ret < 0) {
         return ret;
     }
 
     /* current L1 table */
+    if (res->viscera) {
+        res->viscera->active_l1->name = g_strdup("L1 active table");
+    }
     ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
                              s->l1_table_offset, s->l1_size, CHECK_FRAG_INFO,
-                             fix, true);
+                             fix, true,
+                             res->viscera ? res->viscera->active_l1 : NULL);
     if (ret < 0) {
         return ret;
     }
@@ -2143,15 +2174,30 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
             res->corruptions++;
             continue;
         }
+
+        Qcow2L1Table *l1t = NULL;
+        if (has_snapshots) {
+            l1t = g_new0(Qcow2L1Table, 1);
+            l1t->location = g_new0(Qcow2Allocation, 1);
+            l1t->name = g_strdup(sn->name);
+            Qcow2L1TableList *obj = g_new0(Qcow2L1TableList, 1);
+            obj->value = l1t;
+            *plist = obj;
+            plist = &obj->next;
+        }
+
         ret = check_refcounts_l1(bs, res, refcount_table, nb_clusters,
                                  sn->l1_table_offset, sn->l1_size, 0, fix,
-                                 false);
+                                 false, l1t);
         if (ret < 0) {
             return ret;
         }
     }
     ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
-                                   s->snapshots_offset, s->snapshots_size);
+                                   s->snapshots_offset, s->snapshots_size,
+                                   has_snapshots ?
+                                   res->viscera->snapshot_table->location
+                                   : NULL);
     if (ret < 0) {
         return ret;
     }
@@ -2159,7 +2205,10 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     /* refcount data */
     ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
                                    s->refcount_table_offset,
-                                   s->refcount_table_size * sizeof(uint64_t));
+                                   s->refcount_table_size * sizeof(uint64_t),
+                                   res->viscera ?
+                                   res->viscera->refcount_table->location
+                                   : NULL);
     if (ret < 0) {
         return ret;
     }
@@ -2168,14 +2217,19 @@ static int calculate_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
     if (s->crypto_header.length) {
         ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, nb_clusters,
                                        s->crypto_header.offset,
-                                       s->crypto_header.length);
+                                       s->crypto_header.length,
+                                       res->viscera ?
+                                       res->viscera->crypt_header->location
+                                       : NULL);
         if (ret < 0) {
             return ret;
         }
     }
 
     /* bitmaps */
-    ret = qcow2_check_bitmaps_refcounts(bs, res, refcount_table, nb_clusters);
+    ret = qcow2_check_bitmaps_refcounts(bs, res, refcount_table, nb_clusters,
+                                        res->viscera ? res->viscera->bitmaps
+                                        : NULL);
     if (ret < 0) {
         return ret;
     }

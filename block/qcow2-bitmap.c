@@ -659,20 +659,29 @@ fail:
 
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                   void **refcount_table,
-                                  int64_t *refcount_table_size)
+                                  int64_t *refcount_table_size,
+                                  Qcow2Bitmaps *bitmaps)
 {
     int ret;
     BDRVQcow2State *s = bs->opaque;
     Qcow2BitmapList *bm_list;
     Qcow2Bitmap *bm;
+    Qcow2BitmapDirectoryEntryList **pp_dir =
+        bitmaps ? &bitmaps->bitmap_dir->dir_entries : NULL;
 
     if (s->nb_bitmaps == 0) {
         return 0;
     }
 
+    if (bitmaps) {
+        bitmaps->nb_bitmaps = s->nb_bitmaps;
+    }
+
     ret = qcow2_inc_refcounts_imrt(bs, res, refcount_table, refcount_table_size,
                                    s->bitmap_directory_offset,
-                                   s->bitmap_directory_size);
+                                   s->bitmap_directory_size,
+                                   bitmaps ? bitmaps->bitmap_dir->location
+                                   : NULL);
     if (ret < 0) {
         return ret;
     }
@@ -686,12 +695,28 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
 
     QSIMPLEQ_FOREACH(bm, bm_list, entry) {
         uint64_t *bitmap_table = NULL;
+        Qcow2BitmapTblEntryList **pp_table;
         int i;
+
+        Qcow2BitmapDirectoryEntry *bmde = NULL;
+        if (bitmaps) {
+            bmde = g_new0(Qcow2BitmapDirectoryEntry, 1);
+            bmde->bitmap_name = g_strdup(bm->name);
+            bmde->bitmap_table = g_new0(Qcow2BitmapTbl, 1);
+            bmde->bitmap_table->location = g_new0(Qcow2Allocation, 1);
+            Qcow2BitmapDirectoryEntryList *obj =
+                g_new0(Qcow2BitmapDirectoryEntryList, 1);
+            obj->value = bmde;
+            *pp_dir = obj;
+            pp_dir = &obj->next;
+        }
 
         ret = qcow2_inc_refcounts_imrt(bs, res,
                                        refcount_table, refcount_table_size,
                                        bm->table.offset,
-                                       bm->table.size * sizeof(uint64_t));
+                                       bm->table.size * sizeof(uint64_t),
+                                       bmde ? bmde->bitmap_table->location
+                                       : NULL);
         if (ret < 0) {
             goto out;
         }
@@ -702,6 +727,8 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
             goto out;
         }
 
+        pp_table = bmde ? &bmde->bitmap_table->table_entries : NULL;
+
         for (i = 0; i < bm->table.size; ++i) {
             uint64_t entry = bitmap_table[i];
             uint64_t offset = entry & BME_TABLE_ENTRY_OFFSET_MASK;
@@ -711,13 +738,31 @@ int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                 continue;
             }
 
+            Qcow2BitmapTblEntry *bmte = NULL;
+            if (bmde) {
+                bmte = g_new0(Qcow2BitmapTblEntry, 1);
+                bmte->type = offset ? QCOW2_BITMAP_TBL_ENTRY_TYPE_SERIALIZED :
+                    entry & BME_TABLE_ENTRY_FLAG_ALL_ONES;
+                if (offset) {
+                    bmte->cluster = g_new0(Qcow2Allocation, 1);
+                }
+                bmte->has_cluster = !!(bmte->cluster);
+                Qcow2BitmapTblEntryList *elem =
+                    g_new0(Qcow2BitmapTblEntryList, 1);
+                elem->value = bmte;
+                *pp_table = elem;
+                pp_table = &elem->next;
+            }
+
             if (offset == 0) {
                 continue;
             }
 
             ret = qcow2_inc_refcounts_imrt(bs, res,
                                            refcount_table, refcount_table_size,
-                                           offset, s->cluster_size);
+                                           offset, s->cluster_size,
+                                           bmte && bmte->cluster ? bmte->cluster
+                                           : NULL);
             if (ret < 0) {
                 g_free(bitmap_table);
                 goto out;
