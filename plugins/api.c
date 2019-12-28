@@ -46,6 +46,8 @@
 #include "qemu/plugin-memory.h"
 #include "hw/boards.h"
 #endif
+#include "trace-root.h"
+#include "trace/mem.h"
 
 /* Uninstall and Reset handlers */
 
