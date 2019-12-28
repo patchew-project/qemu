@@ -2070,6 +2070,8 @@ static int kvm_init(MachineState *ms)
         goto err;
     }
 
+    s->kernel_irqchip_split = mc->default_kernel_irqchip_split;
+
     if (s->kernel_irqchip_allowed) {
         kvm_irqchip_create(s);
     }
@@ -3046,6 +3048,7 @@ static void kvm_accel_instance_init(Object *obj)
     KVMState *s = KVM_STATE(obj);
 
     s->kvm_shadow_mem = -1;
+    s->kernel_irqchip_allowed = true;
 }
 
 static void kvm_accel_class_init(ObjectClass *oc, void *data)
