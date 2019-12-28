@@ -3044,8 +3044,11 @@ bool kvm_kernel_irqchip_split(void)
 static void kvm_accel_instance_init(Object *obj)
 {
     KVMState *s = KVM_STATE(obj);
+    MachineClass *mc = MACHINE_GET_CLASS(current_machine);
 
     s->kvm_shadow_mem = -1;
+    s->kernel_irqchip_allowed = true;
+    s->kernel_irqchip_split = mc->default_kernel_irqchip_split;
 }
 
 static void kvm_accel_class_init(ObjectClass *oc, void *data)
