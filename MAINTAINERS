@@ -2383,7 +2383,6 @@ F: plugins/
 F: tests/plugin
 
 AArch64 TCG target
-M: Claudio Fontana <claudio.fontana@huawei.com>
 M: Claudio Fontana <claudio.fontana@gmail.com>
 S: Maintained
 L: qemu-arm@nongnu.org
