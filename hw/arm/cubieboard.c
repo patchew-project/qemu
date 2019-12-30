@@ -22,10 +22,34 @@
 #include "hw/sysbus.h"
 #include "hw/boards.h"
 #include "hw/arm/allwinner-a10.h"
+#include <libfdt.h>
+
+static void cubieboard_modify_dtb(const struct arm_boot_info *info, void *fdt)
+{
+    static const char unsupported_compat[] = "allwinner,sun4i-a10-musb";
+    char node_path[72];
+    int offset;
+
+    offset = fdt_node_offset_by_compatible(fdt, -1, unsupported_compat);
+    while (offset >= 0) {
+        int r = fdt_get_path(fdt, offset, node_path, sizeof(node_path));
+        assert(r >= 0);
+        r = fdt_setprop_string(fdt, offset, "status", "disabled");
+        if (r < 0) {
+            error_report("%s: Couldn't disable %s: %s", __func__,
+                         unsupported_compat, fdt_strerror(r));
+            exit(1);
+        }
+        warn_report("cubieboard: disabled unsupported node %s (%s) "
+                    "in device tree", node_path, unsupported_compat);
+        offset = fdt_node_offset_by_compatible(fdt, offset, unsupported_compat);
+    }
+}
 
 static struct arm_boot_info cubieboard_binfo = {
     .loader_start = AW_A10_SDRAM_BASE,
     .board_id = 0x1008,
+    .modify_dtb = cubieboard_modify_dtb,
 };
 
 typedef struct CubieBoardState {
