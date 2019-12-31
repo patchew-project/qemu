@@ -20,20 +20,23 @@
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,
-    .ram_size = 0x20000000,
 };
 
 static void collie_init(MachineState *machine)
 {
     StrongARMState *s;
     DriveInfo *dinfo;
-    MemoryRegion *sdram = g_new(MemoryRegion, 1);
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
+
+    if (machine->ram_size != mc->default_ram_size) {
+        error_report("Invalid RAM size, should be %" PRIi64 " Bytes",
+                     mc->default_ram_size);
+        exit(EXIT_FAILURE);
+    }
 
     s = sa1110_init(machine->cpu_type);
 
-    memory_region_allocate_system_memory(sdram, NULL, "strongarm.sdram",
-                                         collie_binfo.ram_size);
-    memory_region_add_subregion(get_system_memory(), SA_SDCS0, sdram);
+    memory_region_add_subregion(get_system_memory(), SA_SDCS0, machine->ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(SA_CS0, "collie.fl1", 0x02000000,
@@ -57,6 +60,8 @@ static void collie_machine_init(MachineClass *mc)
     mc->init = collie_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("sa1110");
+    mc->default_ram_size = 0x20000000;
+    mc->default_ram_id = "strongarm.sdram";
 }
 
 DEFINE_MACHINE("collie", collie_machine_init)
