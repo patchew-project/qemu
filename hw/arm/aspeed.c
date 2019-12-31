@@ -391,7 +391,6 @@ static void aspeed_machine_class_init(ObjectClass *oc, void *data)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_parallel = 1;
-    mc->default_ram_id = "ram";
 }
 
 static void aspeed_machine_palmetto_class_init(ObjectClass *oc, void *data)
