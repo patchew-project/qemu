@@ -673,11 +673,10 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
  * The 4xx SDRAM controller supports a small number of banks, and each bank
  * must be one of a small set of sizes. The number of banks and the supported
  * sizes varies by SoC. */
-ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
-                               MemoryRegion ram_memories[],
-                               hwaddr ram_bases[],
-                               hwaddr ram_sizes[],
-                               const ram_addr_t sdram_bank_sizes[])
+void ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
+                         MemoryRegion ram_memories[],
+                         hwaddr ram_bases[], hwaddr ram_sizes[],
+                         const ram_addr_t sdram_bank_sizes[])
 {
     MemoryRegion *ram = g_malloc0(sizeof(*ram));
     ram_addr_t size_left = ram_size;
@@ -699,10 +698,19 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
         }
     }
 
-    ram_size -= size_left;
     if (size_left) {
-        error_report("Truncating memory to %" PRId64 " MiB to fit SDRAM"
-                     " controller limits", ram_size / MiB);
+        char *s = g_strdup("");
+        for (i = 0; sdram_bank_sizes[i]; i++) {
+            char *t = g_strdup_printf("%s%" PRIi64 "%s", s, sdram_bank_sizes[i],
+                                      sdram_bank_sizes[i + 1] ? " ," : "");
+            g_free(s);
+            s = t;
+        }
+        error_report("Invalid RAM size, unable to fit all RAM into RAM banks"
+                     " (unassigned RAM: %" PRIi64 ")",  size_left);
+        error_report("Supported: %d banks and sizes/bank: %s", nr_banks, s);
+        g_free(s);
+        exit(EXIT_FAILURE);
     }
 
     memory_region_allocate_system_memory(ram, NULL, "ppc4xx.sdram", ram_size);
@@ -725,8 +733,6 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
             }
         }
     }
-
-    return ram_size;
 }
 
 /*****************************************************************************/
