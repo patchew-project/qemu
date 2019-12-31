@@ -213,14 +213,7 @@ static void aspeed_machine_init(MachineState *machine)
                                 "hw-prot-key", &error_abort);
     }
     object_property_set_bool(OBJECT(&bmc->soc), true, "realized",
-                             &error_abort);
-
-    /*
-     * Allocate RAM after the memory controller has checked the size
-     * was valid. If not, a default value is used.
-     */
-    ram_size = object_property_get_uint(OBJECT(&bmc->soc), "ram-size",
-                                        &error_abort);
+                             &error_fatal);
 
     memory_region_allocate_system_memory(&bmc->ram, NULL, "ram", ram_size);
     memory_region_add_subregion(&bmc->ram_container, 0, &bmc->ram);

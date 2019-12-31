@@ -165,6 +165,11 @@ static void aspeed_sdmc_realize(DeviceState *dev, Error **errp)
     AspeedSDMCState *s = ASPEED_SDMC(dev);
     AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
 
+    if (!g_hash_table_contains(asc->ram2feat,
+                               GINT_TO_POINTER(s->ram_size >> 20))) {
+        error_setg(errp, "Invalid RAM size 0x%" PRIx64, s->ram_size);
+        return;
+    }
     s->max_ram_size = asc->max_ram_size;
 
     memory_region_init_io(&s->iomem, OBJECT(s), &aspeed_sdmc_ops, s,
