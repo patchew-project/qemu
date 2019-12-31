@@ -168,14 +168,14 @@ If any on the three values is given, the total number of CPUs @var{n} can be omi
 ETEXI
 
 DEF("numa", HAS_ARG, QEMU_OPTION_numa,
-    "-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
-    "-numa node[,memdev=id][,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
+    "-numa node,mem=size[,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
+    "-numa node,memdev=id[,cpus=firstcpu[-lastcpu]][,nodeid=node]\n"
     "-numa dist,src=source,dst=destination,val=distance\n"
     "-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -numa node[,mem=@var{size}][,cpus=@var{firstcpu}[-@var{lastcpu}]][,nodeid=@var{node}]
-@itemx -numa node[,memdev=@var{id}][,cpus=@var{firstcpu}[-@var{lastcpu}]][,nodeid=@var{node}]
+@item -numa node,mem=@var{size}[,cpus=@var{firstcpu}[-@var{lastcpu}]][,nodeid=@var{node}]
+@itemx -numa node,memdev=@var{id}[,cpus=@var{firstcpu}[-@var{lastcpu}]][,nodeid=@var{node}]
 @itemx -numa dist,src=@var{source},dst=@var{destination},val=@var{distance}
 @itemx -numa cpu,node-id=@var{node}[,socket-id=@var{x}][,core-id=@var{y}][,thread-id=@var{z}]
 @findex -numa
@@ -193,7 +193,7 @@ split between them.
 For example, the following option assigns VCPUs 0, 1, 2 and 5 to
 a NUMA node:
 @example
--numa node,cpus=0-2,cpus=5
+-numa node,cpus=0-2,cpus=5,memdev=ram-backend-id
 @end example
 
 @samp{cpu} option is a new alternative to @samp{cpus} option
@@ -210,14 +210,14 @@ For example:
 @example
 -M pc \
 -smp 1,sockets=2,maxcpus=2 \
--numa node,nodeid=0 -numa node,nodeid=1 \
+-m 512M -object memory-backend-ram,id=mem,size=512M \
+-numa node,nodeid=0,memdev=mem -numa node,nodeid=1 \
 -numa cpu,node-id=0,socket-id=0 -numa cpu,node-id=1,socket-id=1
 @end example
 
 Legacy @samp{mem} assigns a given RAM amount to a node (not supported for 5.0
 and newer machine types). @samp{memdev} assigns RAM from a given memory backend
-device to a node. If @samp{mem} and @samp{memdev} are omitted in all nodes, RAM
-is split equally between them.
+device to a node.
 
 @samp{mem} and @samp{memdev} are mutually exclusive. Furthermore,
 if one node uses @samp{memdev}, all of them have to use it.

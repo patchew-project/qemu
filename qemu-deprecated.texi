@@ -89,14 +89,6 @@ error in the future.
 The @code{-realtime mlock=on|off} argument has been replaced by the
 @code{-overcommit mem-lock=on|off} argument.
 
-@subsection -numa node (without memory specified) (since 4.1)
-
-Splitting RAM by default between NUMA nodes has the same issues as @option{mem}
-parameter described above with the difference that the role of the user plays
-QEMU using implicit generic or board specific splitting rule.
-Use @option{memdev} with @var{memory-backend-ram} backend or @option{mem} (if
-it's supported by used machine type) to define mapping explictly instead.
-
 @subsection RISC-V -bios (since 4.1)
 
 QEMU 4.1 introduced support for the -bios option in QEMU for RISC-V for the
