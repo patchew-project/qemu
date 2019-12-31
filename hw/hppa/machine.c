@@ -70,7 +70,6 @@ static void machine_hppa_init(MachineState *machine)
     uint64_t kernel_entry = 0, kernel_low, kernel_high;
     MemoryRegion *addr_space = get_system_memory();
     MemoryRegion *rom_region;
-    MemoryRegion *ram_region;
     MemoryRegion *cpu_region;
     long i;
     unsigned int smp_cpus = machine->smp.cpus;
@@ -96,11 +95,7 @@ static void machine_hppa_init(MachineState *machine)
         exit(EXIT_FAILURE);
     }
 
-    /* Main memory region. */
-    ram_region = g_new(MemoryRegion, 1);
-    memory_region_allocate_system_memory(ram_region, OBJECT(machine),
-                                         "ram", ram_size);
-    memory_region_add_subregion(addr_space, 0, ram_region);
+    memory_region_add_subregion(addr_space, 0, machine->ram);
 
     /* Init Dino (PCI host bus chip).  */
     pci_bus = dino_init(addr_space, &rtc_irq, &serial_irq);
@@ -284,6 +279,7 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->is_default = 1;
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
+    mc->default_ram_id = "ram";
 }
 
 DEFINE_MACHINE("hppa", machine_hppa_machine_init)
