@@ -219,17 +219,8 @@ static int aspeed_get_ram_feat(AspeedSDMCState *s)
 {
     AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
     int ram_mb = s->ram_size >> 20;
-    gpointer val;
+    gpointer val = g_hash_table_lookup(asc->ram2feat, GINT_TO_POINTER(ram_mb));
 
-    if (g_hash_table_contains(asc->ram2feat, GINT_TO_POINTER(ram_mb))) {
-        val = g_hash_table_lookup(asc->ram2feat, GINT_TO_POINTER(ram_mb));
-        return GPOINTER_TO_INT(val);
-    }
-
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default %dM",
-                 s->ram_size, asc->fallback_ram_size);
-    s->ram_size = asc->fallback_ram_size << 20;
-    val = g_hash_table_lookup(asc->ram2feat, &asc->fallback_ram_size);
     return GPOINTER_TO_INT(val);
 }
 
