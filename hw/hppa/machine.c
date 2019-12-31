@@ -92,7 +92,8 @@ static void machine_hppa_init(MachineState *machine)
 
     /* Limit main memory. */
     if (ram_size > FIRMWARE_START) {
-        machine->ram_size = ram_size = FIRMWARE_START;
+        error_report("RAM size more than %d is not supported", FIRMWARE_START);
+        exit(EXIT_FAILURE);
     }
 
     /* Main memory region. */
