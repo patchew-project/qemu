@@ -148,72 +148,6 @@ static const MemoryRegionOps aspeed_sdmc_ops = {
     .valid.max_access_size = 4,
 };
 
-static int ast2400_rambits(AspeedSDMCState *s)
-{
-    switch (s->ram_size >> 20) {
-    case 64:
-        return ASPEED_SDMC_DRAM_64MB;
-    case 128:
-        return ASPEED_SDMC_DRAM_128MB;
-    case 256:
-        return ASPEED_SDMC_DRAM_256MB;
-    case 512:
-        return ASPEED_SDMC_DRAM_512MB;
-    default:
-        break;
-    }
-
-    /* use a common default */
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 256M",
-                s->ram_size);
-    s->ram_size = 256 << 20;
-    return ASPEED_SDMC_DRAM_256MB;
-}
-
-static int ast2500_rambits(AspeedSDMCState *s)
-{
-    switch (s->ram_size >> 20) {
-    case 128:
-        return ASPEED_SDMC_AST2500_128MB;
-    case 256:
-        return ASPEED_SDMC_AST2500_256MB;
-    case 512:
-        return ASPEED_SDMC_AST2500_512MB;
-    case 1024:
-        return ASPEED_SDMC_AST2500_1024MB;
-    default:
-        break;
-    }
-
-    /* use a common default */
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 512M",
-                s->ram_size);
-    s->ram_size = 512 << 20;
-    return ASPEED_SDMC_AST2500_512MB;
-}
-
-static int ast2600_rambits(AspeedSDMCState *s)
-{
-    switch (s->ram_size >> 20) {
-    case 256:
-        return ASPEED_SDMC_AST2600_256MB;
-    case 512:
-        return ASPEED_SDMC_AST2600_512MB;
-    case 1024:
-        return ASPEED_SDMC_AST2600_1024MB;
-    case 2048:
-        return ASPEED_SDMC_AST2600_2048MB;
-    default:
-        break;
-    }
-
-    /* use a common default */
-    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default 1024M",
-                s->ram_size);
-    s->ram_size = 1024 << 20;
-    return ASPEED_SDMC_AST2600_1024MB;
-}
-
 static void aspeed_sdmc_reset(DeviceState *dev)
 {
     AspeedSDMCState *s = ASPEED_SDMC(dev);
@@ -257,11 +191,14 @@ static Property aspeed_sdmc_properties[] = {
 static void aspeed_sdmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    AspeedSDMCClass *asc = ASPEED_SDMC_CLASS(klass);
+
     dc->realize = aspeed_sdmc_realize;
     dc->reset = aspeed_sdmc_reset;
     dc->desc = "ASPEED SDRAM Memory Controller";
     dc->vmsd = &vmstate_aspeed_sdmc;
     dc->props = aspeed_sdmc_properties;
+    asc->ram2feat = g_hash_table_new(g_direct_hash, g_direct_equal);
 }
 
 static const TypeInfo aspeed_sdmc_info = {
@@ -273,10 +210,28 @@ static const TypeInfo aspeed_sdmc_info = {
     .abstract   = true,
 };
 
+static int aspeed_get_ram_feat(AspeedSDMCState *s)
+{
+    AspeedSDMCClass *asc = ASPEED_SDMC_GET_CLASS(s);
+    int ram_mb = s->ram_size >> 20;
+    gpointer val;
+
+    if (g_hash_table_contains(asc->ram2feat, GINT_TO_POINTER(ram_mb))) {
+        val = g_hash_table_lookup(asc->ram2feat, GINT_TO_POINTER(ram_mb));
+        return GPOINTER_TO_INT(val);
+    }
+
+    warn_report("Invalid RAM size 0x%" PRIx64 ". Using default %dM",
+                 s->ram_size, asc->fallback_ram_size);
+    s->ram_size = asc->fallback_ram_size << 20;
+    val = g_hash_table_lookup(asc->ram2feat, &asc->fallback_ram_size);
+    return GPOINTER_TO_INT(val);
+}
+
 static uint32_t aspeed_2400_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
-    uint32_t fixed_conf = ASPEED_SDMC_VGA_COMPAT |
-        ASPEED_SDMC_DRAM_SIZE(ast2400_rambits(s));
+    int ram_f = aspeed_get_ram_feat(s);
+    uint32_t fixed_conf = ASPEED_SDMC_VGA_COMPAT | ASPEED_SDMC_DRAM_SIZE(ram_f);
 
     /* Make sure readonly bits are kept */
     data &= ~ASPEED_SDMC_READONLY_MASK;
@@ -298,6 +253,9 @@ static void aspeed_2400_sdmc_write(AspeedSDMCState *s, uint32_t reg,
     s->regs[reg] = data;
 }
 
+#define REGISTER_RAM_SIZE(h, k, v) \
+    g_hash_table_insert(h->ram2feat, GINT_TO_POINTER(k), GINT_TO_POINTER(v))
+
 static void aspeed_2400_sdmc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -307,6 +265,11 @@ static void aspeed_2400_sdmc_class_init(ObjectClass *klass, void *data)
     asc->max_ram_size = 512 << 20;
     asc->compute_conf = aspeed_2400_sdmc_compute_conf;
     asc->write = aspeed_2400_sdmc_write;
+    asc->fallback_ram_size = 256;
+    REGISTER_RAM_SIZE(asc, 64, ASPEED_SDMC_DRAM_64MB);
+    REGISTER_RAM_SIZE(asc, 128, ASPEED_SDMC_DRAM_128MB);
+    REGISTER_RAM_SIZE(asc, 256, ASPEED_SDMC_DRAM_256MB);
+    REGISTER_RAM_SIZE(asc, 512, ASPEED_SDMC_DRAM_512MB);
 }
 
 static const TypeInfo aspeed_2400_sdmc_info = {
@@ -317,10 +280,10 @@ static const TypeInfo aspeed_2400_sdmc_info = {
 
 static uint32_t aspeed_2500_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
+    int ram_f = aspeed_get_ram_feat(s);
     uint32_t fixed_conf = ASPEED_SDMC_HW_VERSION(1) |
         ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
-        ASPEED_SDMC_CACHE_INITIAL_DONE |
-        ASPEED_SDMC_DRAM_SIZE(ast2500_rambits(s));
+        ASPEED_SDMC_CACHE_INITIAL_DONE | ASPEED_SDMC_DRAM_SIZE(ram_f);
 
     /* Make sure readonly bits are kept */
     data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
@@ -360,6 +323,11 @@ static void aspeed_2500_sdmc_class_init(ObjectClass *klass, void *data)
     asc->max_ram_size = 1024 << 20;
     asc->compute_conf = aspeed_2500_sdmc_compute_conf;
     asc->write = aspeed_2500_sdmc_write;
+    asc->fallback_ram_size = 512;
+    REGISTER_RAM_SIZE(asc, 128, ASPEED_SDMC_AST2500_128MB);
+    REGISTER_RAM_SIZE(asc, 256, ASPEED_SDMC_AST2500_256MB);
+    REGISTER_RAM_SIZE(asc, 512, ASPEED_SDMC_AST2500_512MB);
+    REGISTER_RAM_SIZE(asc, 1024, ASPEED_SDMC_AST2500_1024MB);
 }
 
 static const TypeInfo aspeed_2500_sdmc_info = {
@@ -370,9 +338,10 @@ static const TypeInfo aspeed_2500_sdmc_info = {
 
 static uint32_t aspeed_2600_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
+    int ram_f = aspeed_get_ram_feat(s);
     uint32_t fixed_conf = ASPEED_SDMC_HW_VERSION(3) |
         ASPEED_SDMC_VGA_APERTURE(ASPEED_SDMC_VGA_64MB) |
-        ASPEED_SDMC_DRAM_SIZE(ast2600_rambits(s));
+        ASPEED_SDMC_DRAM_SIZE(ram_f);
 
     /* Make sure readonly bits are kept (use ast2500 mask) */
     data &= ~ASPEED_SDMC_AST2500_READONLY_MASK;
@@ -413,6 +382,11 @@ static void aspeed_2600_sdmc_class_init(ObjectClass *klass, void *data)
     asc->max_ram_size = 2048 << 20;
     asc->compute_conf = aspeed_2600_sdmc_compute_conf;
     asc->write = aspeed_2600_sdmc_write;
+    asc->fallback_ram_size = 512;
+    REGISTER_RAM_SIZE(asc, 256, ASPEED_SDMC_AST2600_256MB);
+    REGISTER_RAM_SIZE(asc, 512, ASPEED_SDMC_AST2600_512MB);
+    REGISTER_RAM_SIZE(asc, 1024, ASPEED_SDMC_AST2600_1024MB);
+    REGISTER_RAM_SIZE(asc, 2048, ASPEED_SDMC_AST2600_2048MB);
 }
 
 static const TypeInfo aspeed_2600_sdmc_info = {
