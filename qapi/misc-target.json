@@ -41,7 +41,7 @@
 #
 ##
 { 'command': 'rtc-reset-reinjection',
-  'if': 'defined(TARGET_I386)' }
+  'if': 'defined(TARGET_I386) && defined(CONFIG_MC146818RTC)' }
 
 
 ##
