@@ -339,6 +339,7 @@ static void q800_init(MachineState *machine)
         BOOTINFO1(cs->as, parameters_base, BI_MAC_VROW,
                   (graphic_width * graphic_depth + 7) / 8);
         BOOTINFO1(cs->as, parameters_base, BI_MAC_SCCBASE, SCC_BASE);
+        BOOTINFO1(cs->as, parameters_base, BI_MAC_ROMBASE, 0x7248);
 
         if (kernel_cmdline) {
             BOOTINFOSTR(cs->as, parameters_base, BI_COMMAND_LINE,
