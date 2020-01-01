@@ -153,7 +153,7 @@ static inline void clear_helper_retaddr(void)
 #else
 
 /* The memory helpers for tcg-generated code need tcg_target_long etc.  */
-#include "tcg.h"
+#include "tcg/tcg.h"
 
 static inline target_ulong tlb_addr_write(const CPUTLBEntry *entry)
 {
