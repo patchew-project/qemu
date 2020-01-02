@@ -1198,6 +1198,30 @@ static int hyperv_handle_properties(CPUState *cs,
         }
 
         if (!r) {
+            /*
+             * Certain VMX controls are unsupported when enlightened VMCS is
+             * enabled, filter them out here so we don't attempt to set them
+             * with KVM_SET_MSR even if they are supported by CPU model.
+             * The list below is for eVMCS version 1.
+             */
+            env->features[FEAT_VMX_PINBASED_CTLS] &=
+                ~(VMX_PIN_BASED_VMX_PREEMPTION_TIMER |
+                  VMX_PIN_BASED_POSTED_INTR);
+            env->features[FEAT_VMX_SECONDARY_CTLS] &=
+                ~(VMX_SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
+                  VMX_SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+                  VMX_SECONDARY_EXEC_APIC_REGISTER_VIRT |
+                  VMX_SECONDARY_EXEC_ENABLE_PML |
+                  VMX_SECONDARY_EXEC_ENABLE_VMFUNC |
+                  VMX_SECONDARY_EXEC_SHADOW_VMCS |
+                  /* VMX_SECONDARY_EXEC_TSC_SCALING | */
+                  VMX_SECONDARY_EXEC_PAUSE_LOOP_EXITING);
+            env->features[FEAT_VMX_ENTRY_CTLS] &=
+                ~VMX_VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+            env->features[FEAT_VMX_EXIT_CTLS] &=
+                ~VMX_VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+            env->features[FEAT_VMX_VMFUNC] &= ~MSR_VMX_VMFUNC_EPT_SWITCHING;
+
             env->features[FEAT_HV_RECOMM_EAX] |=
                 HV_ENLIGHTENED_VMCS_RECOMMENDED;
             env->features[FEAT_HV_NESTED_EAX] = evmcs_version;
