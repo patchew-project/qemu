@@ -502,6 +502,12 @@ static void cap_fwnmi_mce_apply(SpaprMachineState *spapr, uint8_t val,
     if (!val) {
         return; /* Disabled by default */
     }
+
+    if (!spapr->fwnmi_calls_registered && !kvmppc_set_fwnmi()) {
+        /* Register ibm,nmi-register and ibm,nmi-interlock RTAS calls */
+        spapr_fwnmi_register();
+        spapr->fwnmi_calls_registered = true;
+    }
 }
 
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
