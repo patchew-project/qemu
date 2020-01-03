@@ -1157,6 +1157,26 @@ static void rom_reset(void *unused)
     }
 }
 
+bool rom_intersect(uint64_t start, uint64_t size)
+{
+    Rom *rom;
+
+    QTAILQ_FOREACH(rom, &roms, next) {
+        if (rom->fw_file) {
+            continue;
+        }
+        if (rom->data == NULL) {
+            continue;
+        }
+        if ((rom->addr <= start && start < rom->addr + rom->datasize) ||
+            (start <= rom->addr && rom->addr < start + size)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int rom_check_and_register_reset(void)
 {
     hwaddr addr = 0;

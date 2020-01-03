@@ -1660,15 +1660,12 @@ static bool spapr_hotplugged_dev_before_cas(void)
     return false;
 }
 
-static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
-                                                  SpaprMachineState *spapr,
-                                                  target_ulong opcode,
-                                                  target_ulong *args)
+target_ulong do_client_architecture_support(PowerPCCPU *cpu,
+                                            SpaprMachineState *spapr,
+                                            target_ulong addr,
+                                            target_ulong fdt_buf,
+                                            target_ulong fdt_bufsize)
 {
-    /* Working address in data buffer */
-    target_ulong addr = ppc64_phys_to_real(args[0]);
-    target_ulong fdt_buf = args[1];
-    target_ulong fdt_bufsize = args[2];
     target_ulong ov_table;
     uint32_t cas_pvr;
     SpaprOptionVector *ov1_guest, *ov5_guest, *ov5_cas_old;
@@ -1836,10 +1833,12 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
         fdt = spapr_build_fdt(spapr, false, fdt_bufsize);
         _FDT((fdt_pack(fdt)));
 
-        cpu_physical_memory_write(fdt_buf, &hdr, sizeof(hdr));
-        cpu_physical_memory_write(fdt_buf + sizeof(hdr), fdt,
-                                  fdt_totalsize(fdt));
-        trace_spapr_cas_continue(fdt_totalsize(fdt) + sizeof(hdr));
+        if (spapr->bios_enabled) {
+            cpu_physical_memory_write(fdt_buf, &hdr, sizeof(hdr));
+            cpu_physical_memory_write(fdt_buf + sizeof(hdr), fdt,
+                                      fdt_totalsize(fdt));
+            trace_spapr_cas_continue(fdt_totalsize(fdt) + sizeof(hdr));
+        }
 
         g_free(spapr->fdt_blob);
         spapr->fdt_size = fdt_totalsize(fdt);
@@ -1852,6 +1851,20 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
     }
 
     return H_SUCCESS;
+}
+
+static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
+                                                  SpaprMachineState *spapr,
+                                                  target_ulong opcode,
+                                                  target_ulong *args)
+{
+    /* Working address in data buffer */
+    target_ulong addr = ppc64_phys_to_real(args[0]);
+    target_ulong fdt_buf = args[1];
+    target_ulong fdt_bufsize = args[2];
+
+    return do_client_architecture_support(cpu, spapr, addr, fdt_buf,
+                                          fdt_bufsize);
 }
 
 static target_ulong h_home_node_associativity(PowerPCCPU *cpu,
@@ -1998,6 +2011,14 @@ static target_ulong h_update_dt(PowerPCCPU *cpu, SpaprMachineState *spapr,
     return H_SUCCESS;
 }
 
+static target_ulong h_client(PowerPCCPU *cpu, SpaprMachineState *spapr,
+                             target_ulong opcode, target_ulong *args)
+{
+    target_ulong client_args = ppc64_phys_to_real(args[0]);
+
+    return spapr_h_client(spapr, client_args);
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 static spapr_hcall_fn svm_hypercall_table[(SVM_HCALL_MAX - SVM_HCALL_BASE) / 4 + 1];
@@ -2120,6 +2141,8 @@ static void hypercall_register_types(void)
     spapr_register_hypercall(KVMPPC_H_CAS, h_client_architecture_support);
 
     spapr_register_hypercall(KVMPPC_H_UPDATE_DT, h_update_dt);
+
+    spapr_register_hypercall(KVMPPC_H_CLIENT, h_client);
 
     /* Virtual Processor Home Node */
     spapr_register_hypercall(H_HOME_NODE_ASSOCIATIVITY,
