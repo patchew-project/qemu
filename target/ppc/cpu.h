@@ -26,8 +26,6 @@
 #include "exec/cpu-defs.h"
 #include "cpu-qom.h"
 
-/* #define PPC_EMULATE_32BITS_HYPV */
-
 #define TCG_GUEST_DEFAULT_MO 0
 
 #define TARGET_PAGE_BITS_64K 16
@@ -450,13 +448,8 @@ typedef struct ppc_v3_pate_t {
 #define MSR_HVB (1ULL << MSR_SHV)
 #define msr_hv  msr_shv
 #else
-#if defined(PPC_EMULATE_32BITS_HYPV)
-#define MSR_HVB (1ULL << MSR_THV)
-#define msr_hv  msr_thv
-#else
 #define MSR_HVB (0ULL)
 #define msr_hv  (0)
-#endif
 #endif
 
 /* DSISR */
