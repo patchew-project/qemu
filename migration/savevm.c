@@ -2910,6 +2910,11 @@ err_drain:
 
 void vmstate_register_ram(MemoryRegion *mr, DeviceState *dev)
 {
+    RAMBlock *rb = mr->ram_block;
+
+    assert(QEMU_PTR_IS_ALIGNED(qemu_ram_get_host_addr(rb),
+                               qemu_ram_pagesize(rb)));
+
     qemu_ram_set_idstr(mr->ram_block,
                        memory_region_name(mr), dev);
     qemu_ram_set_migratable(mr->ram_block);
