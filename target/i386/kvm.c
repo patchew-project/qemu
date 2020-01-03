@@ -1916,6 +1916,8 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
     }
 
     if (!kvm_check_extension(s, KVM_CAP_GET_MSR_FEATURES)) {
+        info_report("ioctl(KVM_CAP_GET_MSR_FEATURES) is "
+                    "not supported by this kernel.");
         return 0;
     }
 
