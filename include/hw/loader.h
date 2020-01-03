@@ -262,6 +262,7 @@ MemoryRegion *rom_add_blob(const char *name, const void *blob, size_t len,
 int rom_add_elf_program(const char *name, GMappedFile *mapped_file, void *data,
                         size_t datasize, size_t romsize, hwaddr addr,
                         AddressSpace *as);
+bool rom_intersect(uint64_t start, uint64_t size);
 int rom_check_and_register_reset(void);
 void rom_set_fw(FWCfgState *f);
 void rom_set_order_override(int order);
