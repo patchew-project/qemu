@@ -217,7 +217,7 @@ main(int argc, char *argv[])
     if (sigemptyset(&sa.sa_mask) == -1 ||
         sigaction(SIGPIPE, &sa, 0) == -1) {
         perror("failed to ignore SIGPIPE; sigaction");
-        goto err;
+        return 1;
     }
 
     sa_quit.sa_handler = ivshmem_server_quit_cb;
@@ -226,7 +226,7 @@ main(int argc, char *argv[])
         sigaction(SIGTERM, &sa_quit, 0) == -1 ||
         sigaction(SIGINT, &sa_quit, 0) == -1) {
         perror("failed to add signal handler; sigaction");
-        goto err;
+        return 1;
     }
 
     /* init the ivshms structure */
@@ -234,13 +234,13 @@ main(int argc, char *argv[])
                             args.shm_path, args.use_shm_open,
                             args.shm_size, args.n_vectors, args.verbose) < 0) {
         fprintf(stderr, "cannot init server\n");
-        goto err;
+        return 1;
     }
 
     /* start the ivshmem server (open shm & unix socket) */
     if (ivshmem_server_start(&server) < 0) {
         fprintf(stderr, "cannot bind\n");
-        goto err;
+        return 1;
     }
 
     /* daemonize if asked to */
@@ -269,6 +269,5 @@ main(int argc, char *argv[])
 
 err_close:
     ivshmem_server_close(&server);
-err:
     return ret;
 }
