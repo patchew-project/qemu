@@ -1511,7 +1511,6 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
 {
     EHCIqh qh;
     int i = 0;
-    int again = 0;
     uint32_t entry = ehci->asynclistaddr;
 
     /* set reclamation flag at start event (4.8.6) */
@@ -1536,8 +1535,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
 
             ehci_set_fetch_addr(ehci, async, entry);
             ehci_set_state(ehci, async, EST_FETCHENTRY);
-            again = 1;
-            goto out;
+            return 1;
         }
 
         entry = qh.next;
@@ -1550,8 +1548,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
 
     ehci_set_state(ehci, async, EST_ACTIVE);
 
-out:
-    return again;
+    return 0;
 }
 
 
@@ -1565,7 +1562,7 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
 
     if (NLPTR_TBIT(entry)) {
         ehci_set_state(ehci, async, EST_ACTIVE);
-        goto out;
+        return 0;
     }
 
     /* section 4.8, only QH in async schedule */
@@ -1597,7 +1594,6 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
         return -1;
     }
 
-out:
     return again;
 }
 
@@ -1617,14 +1613,12 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     if (q->seen > 1) {
         /* we are going in circles -- stop processing */
         ehci_set_state(ehci, async, EST_ACTIVE);
-        q = NULL;
-        goto out;
+        return NULL;
     }
 
     if (get_dwords(ehci, NLPTR_GET(q->qhaddr),
                    (uint32_t *) &qh, sizeof(EHCIqh) >> 2) < 0) {
-        q = NULL;
-        goto out;
+        return NULL;
     }
     ehci_trace_qh(q, NLPTR_GET(q->qhaddr), &qh);
 
@@ -1658,8 +1652,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
             DPRINTF("FETCHQH:  QH 0x%08x. H-bit set, reclamation status reset"
                        " - done processing\n", q->qhaddr);
             ehci_set_state(ehci, async, EST_ACTIVE);
-            q = NULL;
-            goto out;
+            return NULL;
         }
     }
 
@@ -1688,7 +1681,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
         ehci_set_state(ehci, async, EST_ADVANCEQUEUE);
     }
 
-out:
     return q;
 }
 
@@ -1932,8 +1924,7 @@ static int ehci_state_execute(EHCIQueue *q)
     /* 4.10.3, bottom of page 82, go horizontal on transaction counter == 0 */
     if (!q->async && q->transact_ctr == 0) {
         ehci_set_state(q->ehci, q->async, EST_HORIZONTALQH);
-        again = 1;
-        goto out;
+        return 1;
     }
 
     if (q->async) {
@@ -1942,7 +1933,7 @@ static int ehci_state_execute(EHCIQueue *q)
 
     again = ehci_execute(p, "process");
     if (again == -1) {
-        goto out;
+        return -1;
     }
     if (p->packet.status == USB_RET_ASYNC) {
         ehci_flush_qh(q);
@@ -1954,14 +1945,11 @@ static int ehci_state_execute(EHCIQueue *q)
         } else {
             again = 1;
         }
-        goto out;
+        return again;
     }
 
     ehci_set_state(q->ehci, q->async, EST_EXECUTING);
-    again = 1;
-
-out:
-    return again;
+    return 1;
 }
 
 static int ehci_state_executing(EHCIQueue *q)
