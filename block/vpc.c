@@ -839,13 +839,13 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 
     ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
     if (ret < 0) {
-        goto fail;
+        return ret;
     }
 
     offset = 1536 + ((num_bat_entries * 4 + 511) & ~511);
     ret = blk_pwrite(blk, offset, buf, HEADER_SIZE, 0);
     if (ret < 0) {
-        goto fail;
+        return ret;
     }
 
     /* Write the initial BAT */
@@ -855,7 +855,7 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
     for (i = 0; i < DIV_ROUND_UP(num_bat_entries * 4, 512); i++) {
         ret = blk_pwrite(blk, offset, buf, 512, 0);
         if (ret < 0) {
-            goto fail;
+            return ret;
         }
         offset += 512;
     }
@@ -882,12 +882,10 @@ static int create_dynamic_disk(BlockBackend *blk, uint8_t *buf,
 
     ret = blk_pwrite(blk, offset, buf, 1024, 0);
     if (ret < 0) {
-        goto fail;
+        return ret;
     }
 
-    ret = 0;
- fail:
-    return ret;
+    return 0;
 }
 
 static int create_fixed_disk(BlockBackend *blk, uint8_t *buf,
