@@ -774,7 +774,7 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
     int r, i, idx;
     r = vhost_dev_set_features(dev, enable_log);
     if (r < 0) {
-        goto err_features;
+        return r;
     }
     for (i = 0; i < dev->nvqs; ++i) {
         idx = dev->vhost_ops->vhost_get_vq_index(dev, dev->vq_index + i);
@@ -792,7 +792,6 @@ err_vq:
                                  dev->log_enabled);
     }
     vhost_dev_set_features(dev, dev->log_enabled);
-err_features:
     return r;
 }
 
@@ -938,7 +937,7 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
             trace_vhost_iotlb_miss(dev, 3);
             error_report("Fail to lookup the translated address "
                          "%"PRIx64, iotlb.translated_addr);
-            goto out;
+            return ret;
         }
 
         len = MIN(iotlb.addr_mask + 1, len);
@@ -949,13 +948,12 @@ int vhost_device_iotlb_miss(struct vhost_dev *dev, uint64_t iova, int write)
         if (ret) {
             trace_vhost_iotlb_miss(dev, 4);
             error_report("Fail to update device iotlb");
-            goto out;
+            return ret;
         }
     }
 
     trace_vhost_iotlb_miss(dev, 2);
 
-out:
     return ret;
 }
 
@@ -1356,7 +1354,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     r = virtio_device_grab_ioeventfd(vdev);
     if (r < 0) {
         error_report("binding does not support host notifiers");
-        goto fail;
+        return r;
     }
 
     for (i = 0; i < hdev->nvqs; ++i) {
@@ -1380,7 +1378,6 @@ fail_vq:
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i);
     }
     virtio_device_release_ioeventfd(vdev);
-fail:
     return r;
 }
 
