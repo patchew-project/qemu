@@ -14,12 +14,19 @@ build-edk2:
    - edk2-stdout.log
    - edk2-stderr.log
  image: ubuntu:16.04 # Use Ubuntu Xenial
+ variables:
+   CCACHE_DIR: ${CI_PROJECT_DIR}/.ccache
+ cache: # Use the same cache for all EDK2 jobs
+   key: ubuntu16.04-edk2-ccache
+   paths:
+   - ${CCACHE_DIR}
  before_script: # Install packages requiered to build EDK2
  - apt-get update --quiet --quiet
  - DEBIAN_FRONTEND=noninteractive
    apt-get install --assume-yes --no-install-recommends --quiet --quiet
      build-essential
      ca-certificates
+     ccache
      dos2unix
      gcc-aarch64-linux-gnu
      gcc-arm-linux-gnueabi
@@ -29,9 +36,13 @@ build-edk2:
      nasm
      python
      uuid-dev
+ - export PATH=/usr/lib/ccache:$PATH
+ - ccache --zero-stats
  script: # Clone the required submodules and build EDK2
  - git submodule update --init roms/edk2
  - git -C roms/edk2 submodule update --init
  - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
  - echo "=== Using ${JOBS} simultaneous jobs ==="
  - make -j${JOBS} -C roms efi 1>edk2-stdout.log 2> >(tee -a edk2-stderr.log >&2)
+ after_script:
+ - ccache --show-stats
