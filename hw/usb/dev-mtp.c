@@ -1576,16 +1576,11 @@ static char *utf16_to_str(uint8_t len, uint8_t *str16)
 /* Wrapper around write, returns 0 on failure */
 static uint64_t write_retry(int fd, void *buf, uint64_t size, off_t offset)
 {
-        uint64_t ret = 0;
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+        return 0;
+    }
 
-        if (lseek(fd, offset, SEEK_SET) < 0) {
-            goto done;
-        }
-
-        ret = qemu_write_full(fd, buf, size);
-
-done:
-        return ret;
+    return qemu_write_full(fd, buf, size);
 }
 
 static int usb_mtp_update_object(MTPObject *parent, char *name)
