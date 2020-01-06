@@ -2265,9 +2265,8 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
     /* Create file */
     fd = qemu_open(file_opts->filename, O_RDWR | O_CREAT | O_BINARY, 0644);
     if (fd < 0) {
-        result = -errno;
-        error_setg_errno(errp, -result, "Could not create file");
-        goto out;
+        error_setg_errno(errp, errno, "Could not create file");
+        return -errno;
     }
 
     /* Take permissions: We want to discard everything, so we need
@@ -2342,7 +2341,7 @@ out_close:
         result = -errno;
         error_setg_errno(errp, -result, "Could not close the new file");
     }
-out:
+
     return result;
 }
 
@@ -3554,7 +3553,7 @@ static int cdrom_probe_device(const char *filename)
 
     fd = qemu_open(filename, O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
-        goto out;
+        return prio;
     }
     ret = fstat(fd, &st);
     if (ret == -1 || !S_ISBLK(st.st_mode)) {
@@ -3568,7 +3567,6 @@ static int cdrom_probe_device(const char *filename)
 
 outc:
     qemu_close(fd);
-out:
     return prio;
 }
 
