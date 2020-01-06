@@ -111,12 +111,10 @@ static int module_load_file(const char *fname)
 
     if (len <= suf_len || strcmp(&fname[len - suf_len], dsosuf)) {
         /* wrong suffix */
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
     if (access(fname, F_OK)) {
-        ret = -ENOENT;
-        goto out;
+        return -ENOENT;
     }
 
     assert(QTAILQ_EMPTY(&dso_init_list));
@@ -125,8 +123,7 @@ static int module_load_file(const char *fname)
     if (!g_module) {
         fprintf(stderr, "Failed to open module: %s\n",
                 g_module_error());
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
     if (!g_module_symbol(g_module, DSO_STAMP_FUN_STR, (gpointer *)&sym)) {
         fprintf(stderr, "Failed to initialize module: %s\n",
@@ -151,7 +148,7 @@ static int module_load_file(const char *fname)
         QTAILQ_REMOVE(&dso_init_list, e, node);
         g_free(e);
     }
-out:
+
     return ret;
 }
 #endif
