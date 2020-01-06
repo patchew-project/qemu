@@ -388,7 +388,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
     ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
     if (ret < 0) {
-        goto fail;
+        return ret;
     }
 
     vdi_header_to_cpu(&header);
@@ -400,8 +400,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
         error_setg(errp, "Unsupported VDI image size (size is 0x%" PRIx64
                           ", max supported is 0x%" PRIx64 ")",
                           header.disk_size, VDI_DISK_SIZE_MAX);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     }
 
     uuid_link = header.uuid_link;
@@ -418,58 +417,48 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     if (header.signature != VDI_SIGNATURE) {
         error_setg(errp, "Image not in VDI format (bad signature %08" PRIx32
                    ")", header.signature);
-        ret = -EINVAL;
-        goto fail;
+        return -EINVAL;
     } else if (header.version != VDI_VERSION_1_1) {
         error_setg(errp, "unsupported VDI image (version %" PRIu32 ".%" PRIu32
                    ")", header.version >> 16, header.version & 0xffff);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (header.offset_bmap % SECTOR_SIZE != 0) {
         /* We only support block maps which start on a sector boundary. */
         error_setg(errp, "unsupported VDI image (unaligned block map offset "
                    "0x%" PRIx32 ")", header.offset_bmap);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (header.offset_data % SECTOR_SIZE != 0) {
         /* We only support data blocks which start on a sector boundary. */
         error_setg(errp, "unsupported VDI image (unaligned data offset 0x%"
                    PRIx32 ")", header.offset_data);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (header.sector_size != SECTOR_SIZE) {
         error_setg(errp, "unsupported VDI image (sector size %" PRIu32
                    " is not %u)", header.sector_size, SECTOR_SIZE);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (header.block_size != DEFAULT_CLUSTER_SIZE) {
         error_setg(errp, "unsupported VDI image (block size %" PRIu32
                          " is not %" PRIu32 ")",
                    header.block_size, DEFAULT_CLUSTER_SIZE);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (header.disk_size >
                (uint64_t)header.blocks_in_image * header.block_size) {
         error_setg(errp, "unsupported VDI image (disk size %" PRIu64 ", "
                    "image bitmap has room for %" PRIu64 ")",
                    header.disk_size,
                    (uint64_t)header.blocks_in_image * header.block_size);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (!qemu_uuid_is_null(&uuid_link)) {
         error_setg(errp, "unsupported VDI image (non-NULL link UUID)");
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (!qemu_uuid_is_null(&uuid_parent)) {
         error_setg(errp, "unsupported VDI image (non-NULL parent UUID)");
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     } else if (header.blocks_in_image > VDI_BLOCKS_IN_IMAGE_MAX) {
         error_setg(errp, "unsupported VDI image "
                          "(too many blocks %u, max is %u)",
                           header.blocks_in_image, VDI_BLOCKS_IN_IMAGE_MAX);
-        ret = -ENOTSUP;
-        goto fail;
+        return -ENOTSUP;
     }
 
     bs->total_sectors = header.disk_size / SECTOR_SIZE;
@@ -482,8 +471,7 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
     bmap_size = DIV_ROUND_UP(bmap_size, SECTOR_SIZE);
     s->bmap = qemu_try_blockalign(bs->file->bs, bmap_size * SECTOR_SIZE);
     if (s->bmap == NULL) {
-        ret = -ENOMEM;
-        goto fail;
+        return -ENOMEM;
     }
 
     ret = bdrv_pread(bs->file, header.offset_bmap, s->bmap,
@@ -509,8 +497,6 @@ static int vdi_open(BlockDriverState *bs, QDict *options, int flags,
 
  fail_free_bmap:
     qemu_vfree(s->bmap);
-
- fail:
     return ret;
 }
 
