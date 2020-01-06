@@ -85,12 +85,12 @@ int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp)
     s->hsend = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hsend) {
         error_setg(errp, "Failed CreateEvent");
-        goto fail;
+        return -1;
     }
     s->hrecv = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hrecv) {
         error_setg(errp, "Failed CreateEvent");
-        goto fail;
+        return -1;
     }
 
     s->file = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0, NULL,
@@ -98,12 +98,12 @@ int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp)
     if (s->file == INVALID_HANDLE_VALUE) {
         error_setg(errp, "Failed CreateFile (%lu)", GetLastError());
         s->file = NULL;
-        goto fail;
+        return -1;
     }
 
     if (!SetupComm(s->file, NRECVBUF, NSENDBUF)) {
         error_setg(errp, "Failed SetupComm");
-        goto fail;
+        return -1;
     }
 
     ZeroMemory(&comcfg, sizeof(COMMCONFIG));
@@ -114,29 +114,26 @@ int win_chr_serial_init(Chardev *chr, const char *filename, Error **errp)
 
     if (!SetCommState(s->file, &comcfg.dcb)) {
         error_setg(errp, "Failed SetCommState");
-        goto fail;
+        return -1;
     }
 
     if (!SetCommMask(s->file, EV_ERR)) {
         error_setg(errp, "Failed SetCommMask");
-        goto fail;
+        return -1;
     }
 
     cto.ReadIntervalTimeout = MAXDWORD;
     if (!SetCommTimeouts(s->file, &cto)) {
         error_setg(errp, "Failed SetCommTimeouts");
-        goto fail;
+        return -1;
     }
 
     if (!ClearCommError(s->file, &err, &comstat)) {
         error_setg(errp, "Failed ClearCommError");
-        goto fail;
+        return -1;
     }
     qemu_add_polling_cb(win_chr_serial_poll, chr);
     return 0;
-
- fail:
-    return -1;
 }
 
 int win_chr_pipe_poll(void *opaque)
