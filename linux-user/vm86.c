@@ -403,16 +403,14 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
     case TARGET_VM86_GET_IRQ_BITS:
     case TARGET_VM86_GET_AND_RESET_IRQ:
         gemu_log("qemu: unsupported vm86 subfunction (%ld)\n", subfunction);
-        ret = -TARGET_EINVAL;
-        goto out;
+        return -TARGET_EINVAL;
     case TARGET_VM86_PLUS_INSTALL_CHECK:
         /* NOTE: on old vm86 stuff this will return the error
            from verify_area(), because the subfunction is
            interpreted as (invalid) address to vm86_struct.
            So the installation check works.
             */
-        ret = 0;
-        goto out;
+        return 0;
     }
 
     /* save current CPU regs */
@@ -485,6 +483,5 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
     LOG_VM86("do_vm86: cs:ip=%04x:%04x\n",
              env->segs[R_CS].selector, env->eip);
     /* now the virtual CPU is ready for vm86 execution ! */
- out:
     return ret;
 }
