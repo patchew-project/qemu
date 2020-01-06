@@ -64,8 +64,7 @@ static int vhdx_log_peek_hdr(BlockDriverState *bs, VHDXLogEntries *log,
 
     /* peek is only supported on sector boundaries */
     if (log->read % VHDX_LOG_SECTOR_SIZE) {
-        ret = -EFAULT;
-        goto exit;
+        return -EFAULT;
     }
 
     read = log->read;
@@ -77,19 +76,17 @@ static int vhdx_log_peek_hdr(BlockDriverState *bs, VHDXLogEntries *log,
     }
 
     if (read == log->write) {
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
 
     offset = log->offset + read;
 
     ret = bdrv_pread(bs->file, offset, hdr, sizeof(VHDXLogEntryHeader));
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
     vhdx_log_entry_hdr_le_import(hdr);
 
-exit:
     return ret;
 }
 
@@ -179,7 +176,7 @@ static int vhdx_log_write_sectors(BlockDriverState *bs, VHDXLogEntries *log,
 
     ret = vhdx_user_visible_write(bs, s);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
 
     write = log->write;
@@ -196,7 +193,7 @@ static int vhdx_log_write_sectors(BlockDriverState *bs, VHDXLogEntries *log,
         ret = bdrv_pwrite(bs->file, offset, buffer_tmp,
                           VHDX_LOG_SECTOR_SIZE);
         if (ret < 0) {
-            goto exit;
+            return ret;
         }
         buffer_tmp += VHDX_LOG_SECTOR_SIZE;
 
@@ -205,7 +202,6 @@ static int vhdx_log_write_sectors(BlockDriverState *bs, VHDXLogEntries *log,
         num_sectors--;
     }
 
-exit:
     return ret;
 }
 
@@ -214,42 +210,37 @@ exit:
 static bool vhdx_log_hdr_is_valid(VHDXLogEntries *log, VHDXLogEntryHeader *hdr,
                                   BDRVVHDXState *s)
 {
-    int valid = false;
-
     if (hdr->signature != VHDX_LOG_SIGNATURE) {
-        goto exit;
+        return false;
     }
 
     /* if the individual entry length is larger than the whole log
      * buffer, that is obviously invalid */
     if (log->length < hdr->entry_length) {
-        goto exit;
+        return false;
     }
 
     /* length of entire entry must be in units of 4KB (log sector size) */
     if (hdr->entry_length % (VHDX_LOG_SECTOR_SIZE)) {
-        goto exit;
+        return false;
     }
 
     /* per spec, sequence # must be > 0 */
     if (hdr->sequence_number == 0) {
-        goto exit;
+        return false;
     }
 
     /* log entries are only valid if they match the file-wide log guid
      * found in the active header */
     if (!guid_eq(hdr->log_guid, s->headers[s->curr_header]->log_guid)) {
-        goto exit;
+        return false;
     }
 
     if (hdr->descriptor_count * sizeof(VHDXLogDescriptor) > hdr->entry_length) {
-        goto exit;
+        return false;
     }
 
-    valid = true;
-
-exit:
-    return valid;
+    return true;
 }
 
 /*
@@ -274,10 +265,10 @@ static bool vhdx_log_desc_is_valid(VHDXLogDescriptor *desc,
     bool ret = false;
 
     if (desc->sequence_number != hdr->sequence_number) {
-        goto exit;
+        return false;
     }
     if (desc->file_offset % VHDX_LOG_SECTOR_SIZE) {
-        goto exit;
+        return false;
     }
 
     if (desc->signature == VHDX_LOG_ZERO_SIGNATURE) {
@@ -290,7 +281,6 @@ static bool vhdx_log_desc_is_valid(VHDXLogDescriptor *desc,
             ret = true;
     }
 
-exit:
     return ret;
 }
 
@@ -347,20 +337,18 @@ static int vhdx_log_read_desc(BlockDriverState *bs, BDRVVHDXState *s,
 
     ret = vhdx_log_peek_hdr(bs, log, &hdr);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
 
     if (vhdx_log_hdr_is_valid(log, &hdr, s) == false) {
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
 
     desc_sectors = vhdx_compute_desc_sectors(hdr.descriptor_count);
     desc_entries = qemu_try_blockalign(bs->file->bs,
                                        desc_sectors * VHDX_LOG_SECTOR_SIZE);
     if (desc_entries == NULL) {
-        ret = -ENOMEM;
-        goto exit;
+        return -ENOMEM;
     }
 
     ret = vhdx_log_read_sectors(bs, log, &sectors_read, desc_entries,
@@ -390,11 +378,10 @@ static int vhdx_log_read_desc(BlockDriverState *bs, BDRVVHDXState *s,
     }
 
     *buffer = desc_entries;
-    goto exit;
+    return ret;
 
 free_and_exit:
     qemu_vfree(desc_entries);
-exit:
     return ret;
 }
 
@@ -688,7 +675,7 @@ static int vhdx_log_search(BlockDriverState *bs, BDRVVHDXState *s,
         ret = vhdx_validate_log_entry(bs, s, &curr_log, curr_seq,
                                       &seq_valid, &hdr);
         if (ret < 0) {
-            goto exit;
+            return ret;
         }
 
         if (seq_valid) {
@@ -704,7 +691,7 @@ static int vhdx_log_search(BlockDriverState *bs, BDRVVHDXState *s,
                 ret = vhdx_validate_log_entry(bs, s, &curr_log, curr_seq,
                                               &seq_valid, &hdr);
                 if (ret < 0) {
-                    goto exit;
+                    return ret;
                 }
                 if (seq_valid == false) {
                     break;
@@ -735,8 +722,6 @@ static int vhdx_log_search(BlockDriverState *bs, BDRVVHDXState *s,
         s->log.sequence = candidate.hdr.sequence_number + 1;
     }
 
-
-exit:
     return ret;
 }
 
@@ -766,29 +751,26 @@ int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
 
     if (s->log.offset < VHDX_LOG_MIN_SIZE ||
         s->log.offset % VHDX_LOG_MIN_SIZE) {
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
 
     /* per spec, only log version of 0 is supported */
     if (hdr->log_version != 0) {
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
 
     /* If either the log guid, or log length is zero,
      * then a replay log is not present */
     if (guid_eq(hdr->log_guid, zero_guid)) {
-        goto exit;
+        return 0;
     }
 
     if (hdr->log_length == 0) {
-        goto exit;
+        return 0;
     }
 
     if (hdr->log_length % VHDX_LOG_MIN_SIZE) {
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
 
 
@@ -797,13 +779,12 @@ int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
 
     ret = vhdx_log_search(bs, s, &logs);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
 
     if (logs.valid) {
         if (bs->read_only) {
             bdrv_refresh_filename(bs);
-            ret = -EPERM;
             error_setg(errp,
                        "VHDX image file '%s' opened read-only, but "
                        "contains a log that needs to be replayed",
@@ -811,18 +792,16 @@ int vhdx_parse_log(BlockDriverState *bs, BDRVVHDXState *s, bool *flushed,
             error_append_hint(errp,  "To replay the log, run:\n"
                               "qemu-img check -r all '%s'\n",
                               bs->filename);
-            goto exit;
+            return -EPERM;
         }
         /* now flush the log */
         ret = vhdx_log_flush(bs, s, &logs);
         if (ret < 0) {
-            goto exit;
+            return ret;
         }
         *flushed = true;
     }
 
-
-exit:
     return ret;
 }
 
@@ -1048,29 +1027,28 @@ int vhdx_log_write_and_flush(BlockDriverState *bs, BDRVVHDXState *s,
      * on disk, before creating log entry */
     ret = bdrv_flush(bs);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
 
     ret = vhdx_log_write(bs, s, data, length, offset);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
     logs.log = s->log;
 
     /* Make sure log is stable on disk */
     ret = bdrv_flush(bs);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
 
     ret = vhdx_log_flush(bs, s, &logs);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
 
     s->log = logs.log;
 
-exit:
     return ret;
 }
 
