@@ -258,7 +258,7 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
     assert(!flags);
     ret = replication_get_io_status(s);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
     if (ret == 0) {
@@ -280,7 +280,7 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
                                       remaining_sectors * BDRV_SECTOR_SIZE,
                                       &count);
         if (ret < 0) {
-            goto out1;
+            goto out;
         }
 
         assert(QEMU_IS_ALIGNED(count, BDRV_SECTOR_SIZE));
@@ -292,7 +292,7 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
         ret = bdrv_co_pwritev(target, sector_num * BDRV_SECTOR_SIZE,
                               n * BDRV_SECTOR_SIZE, &hd_qiov, 0);
         if (ret < 0) {
-            goto out1;
+            goto out;
         }
 
         remaining_sectors -= n;
@@ -300,9 +300,8 @@ static coroutine_fn int replication_co_writev(BlockDriverState *bs,
         bytes_done += count;
     }
 
-out1:
-    qemu_iovec_destroy(&hd_qiov);
 out:
+    qemu_iovec_destroy(&hd_qiov);
     return ret;
 }
 
