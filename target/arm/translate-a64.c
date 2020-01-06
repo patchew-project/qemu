@@ -13564,8 +13564,8 @@ static void disas_crypto_three_reg_sha512(DisasContext *s, uint32_t insn)
     int rm = extract32(insn, 16, 5);
     int rn = extract32(insn, 5, 5);
     int rd = extract32(insn, 0, 5);
-    bool feature;
-    CryptoThreeOpFn *genfn;
+    bool feature = false;
+    CryptoThreeOpFn *genfn = NULL;
 
     if (o == 0) {
         switch (opcode) {
