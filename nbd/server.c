@@ -2310,7 +2310,7 @@ static coroutine_fn int nbd_handle_request(NBDClient *client,
                                            NBDRequest *request,
                                            uint8_t *data, Error **errp)
 {
-    int ret;
+    int ret = 0;
     int flags;
     NBDExport *exp = client->exp;
     char *msg;
