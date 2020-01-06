@@ -1381,7 +1381,7 @@ static int find_allocation(BlockDriverState *bs, off_t start,
     BDRVGlusterState *s = bs->opaque;
 
     if (!s->supports_seek_data) {
-        goto exit;
+        return -ENOTSUP;
     }
 
 #if defined SEEK_HOLE && defined SEEK_DATA
@@ -1466,7 +1466,6 @@ static int find_allocation(BlockDriverState *bs, off_t start,
     return -EBUSY;
 #endif
 
-exit:
     return -ENOTSUP;
 }
 
