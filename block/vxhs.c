@@ -96,7 +96,7 @@ static void vxhs_iio_callback(void *ctx, uint32_t opcode, uint32_t error)
             acb = ctx;
         } else {
             trace_vxhs_iio_callback(error);
-            goto out;
+            return;
         }
 
         if (error) {
@@ -122,8 +122,6 @@ static void vxhs_iio_callback(void *ctx, uint32_t opcode, uint32_t error)
         }
         break;
     }
-out:
-    return;
 }
 
 static QemuOptsList runtime_opts = {
