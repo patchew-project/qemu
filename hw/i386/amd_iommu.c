@@ -1268,7 +1268,7 @@ static int amdvi_int_remap_msi(AMDVIState *iommu,
         trace_amdvi_ir_delivery_mode("fixed/arbitrated");
         ret = __amdvi_int_remap_msi(iommu, origin, translated, dte, &irq, sid);
         if (ret < 0) {
-            goto remap_fail;
+            return ret;
         } else {
             /* Translate IRQ to MSI messages */
             x86_iommu_irq_to_msi_message(&irq, translated);
@@ -1298,7 +1298,7 @@ static int amdvi_int_remap_msi(AMDVIState *iommu,
     }
 
     if (ret < 0) {
-        goto remap_fail;
+        return ret;
     }
 
     /*
@@ -1309,25 +1309,20 @@ static int amdvi_int_remap_msi(AMDVIState *iommu,
     dest_mode = (origin->address >> MSI_ADDR_DEST_MODE_SHIFT) & 1;
     if (dest_mode) {
         trace_amdvi_ir_err("invalid dest_mode");
-        ret = -AMDVI_IR_ERR;
-        goto remap_fail;
+        return -AMDVI_IR_ERR;
     }
 
     if (pass) {
         memcpy(translated, origin, sizeof(*origin));
     } else {
         trace_amdvi_ir_err("passthrough is not enabled");
-        ret = -AMDVI_IR_ERR;
-        goto remap_fail;
+        return -AMDVI_IR_ERR;
     }
 
 out:
     trace_amdvi_ir_remap_msi(origin->address, origin->data,
                              translated->address, translated->data);
     return 0;
-
-remap_fail:
-    return ret;
 }
 
 static int amdvi_int_remap(X86IOMMUState *iommu,
