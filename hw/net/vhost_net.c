@@ -230,7 +230,7 @@ static int vhost_net_start_one(struct vhost_net *net,
 
     r = vhost_dev_enable_notifiers(&net->dev, dev);
     if (r < 0) {
-        goto fail_notifiers;
+        return r;
     }
 
     r = vhost_dev_start(&net->dev, dev);
@@ -278,7 +278,6 @@ fail:
     vhost_dev_stop(&net->dev, dev);
 fail_start:
     vhost_dev_disable_notifiers(&net->dev, dev);
-fail_notifiers:
     return r;
 }
 
@@ -331,7 +330,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     r = k->set_guest_notifiers(qbus->parent, total_queues * 2, true);
     if (r < 0) {
         error_report("Error binding guest notifier: %d", -r);
-        goto err;
+        return r;
     }
 
     for (i = 0; i < total_queues; i++) {
@@ -362,7 +361,7 @@ err_start:
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", e);
         fflush(stderr);
     }
-err:
+
     return r;
 }
 
