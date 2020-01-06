@@ -121,7 +121,7 @@ static int aio_epoll(AioContext *ctx, GPollFD *pfds,
                          ARRAY_SIZE(events),
                          timeout);
         if (ret <= 0) {
-            goto out;
+            return ret;
         }
         for (i = 0; i < ret; i++) {
             int ev = events[i].events;
@@ -132,7 +132,6 @@ static int aio_epoll(AioContext *ctx, GPollFD *pfds,
                 (ev & EPOLLERR ? G_IO_ERR : 0);
         }
     }
-out:
     return ret;
 }
 
