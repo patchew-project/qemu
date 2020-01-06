@@ -2941,7 +2941,7 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
              */
             msg.msg_name = (void *)-1;
         } else if (ret) {
-            goto out2;
+            return ret;
         }
     } else {
         msg.msg_name = NULL;
@@ -2960,15 +2960,13 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
         /* sendrcvmsg returns a different errno for this condition than
          * readv/writev, so we must catch it here before lock_iovec() does.
          */
-        ret = -TARGET_EMSGSIZE;
-        goto out2;
+        return -TARGET_EMSGSIZE;
     }
 
     vec = lock_iovec(send ? VERIFY_READ : VERIFY_WRITE,
                      target_vec, count, send);
     if (vec == NULL) {
-        ret = -host_to_target_errno(errno);
-        goto out2;
+        return -host_to_target_errno(errno);
     }
     msg.msg_iovlen = count;
     msg.msg_iov = vec;
@@ -3020,7 +3018,6 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
 
 out:
     unlock_iovec(vec, target_vec, count, !send);
-out2:
     return ret;
 }
 
@@ -4952,7 +4949,6 @@ static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     int target_size;
     const argtype *arg_type = ie->arg_type;
     const argtype part_arg_type[] = { MK_STRUCT(STRUCT_blkpg_partition) };
-    abi_long ret;
 
     struct blkpg_ioctl_arg *host_blkpg = (void*)buf_temp;
     struct blkpg_partition host_part;
@@ -4962,8 +4958,7 @@ static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     target_size = thunk_type_size(arg_type, 0);
     argptr = lock_user(VERIFY_READ, arg, target_size, 1);
     if (!argptr) {
-        ret = -TARGET_EFAULT;
-        goto out;
+        return -TARGET_EFAULT;
     }
     thunk_convert(buf_temp, argptr, arg_type, THUNK_HOST);
     unlock_user(argptr, arg, 0);
@@ -4975,8 +4970,7 @@ static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
         break;
     default:
         /* Unknown opcode */
-        ret = -TARGET_EINVAL;
-        goto out;
+        return -TARGET_EINVAL;
     }
 
     /* Read and convert blkpg->data */
@@ -4984,18 +4978,14 @@ static abi_long do_ioctl_blkpg(const IOCTLEntry *ie, uint8_t *buf_temp, int fd,
     target_size = thunk_type_size(part_arg_type, 0);
     argptr = lock_user(VERIFY_READ, arg, target_size, 1);
     if (!argptr) {
-        ret = -TARGET_EFAULT;
-        goto out;
+        return -TARGET_EFAULT;
     }
     thunk_convert(&host_part, argptr, part_arg_type, THUNK_HOST);
     unlock_user(argptr, arg, 0);
 
     /* Swizzle the data pointer to our local copy and call! */
     host_blkpg->data = &host_part;
-    ret = get_errno(safe_ioctl(fd, ie->host_cmd, host_blkpg));
-
-out:
-    return ret;
+    return get_errno(safe_ioctl(fd, ie->host_cmd, host_blkpg));
 }
 
 static abi_long do_ioctl_rt(const IOCTLEntry *ie, uint8_t *buf_temp,
