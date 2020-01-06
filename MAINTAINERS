@@ -2346,6 +2346,7 @@ F: roms/edk2
 F: roms/edk2-*
 F: tests/data/uefi-boot-images/
 F: tests/uefi-test-tools/
+F: .gitlab-ci-edk2.yml
 
 Usermode Emulation
 ------------------
@@ -2689,7 +2690,7 @@ W: https://cirrus-ci.com/github/qemu/qemu
 GitLab Continuous Integration
 M: Thomas Huth <thuth@redhat.com>
 S: Maintained
-F: .gitlab-ci.yml
+F: .gitlab-ci*.yml
 
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
