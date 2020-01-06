@@ -1346,8 +1346,7 @@ static int img_compare(int argc, char **argv)
             opts = qemu_opts_parse_noisily(&qemu_object_opts,
                                            optarg, true);
             if (!opts) {
-                ret = 2;
-                goto out4;
+                return 2;
             }
         }   break;
         case OPTION_IMAGE_OPTS:
@@ -1371,8 +1370,7 @@ static int img_compare(int argc, char **argv)
     if (qemu_opts_foreach(&qemu_object_opts,
                           user_creatable_add_opts_foreach,
                           qemu_img_object_print_help, &error_fatal)) {
-        ret = 2;
-        goto out4;
+        return 2;
     }
 
     /* Initialize before goto out */
@@ -1559,7 +1557,6 @@ out2:
     blk_unref(blk1);
 out3:
     qemu_progress_end();
-out4:
     return ret;
 }
 
