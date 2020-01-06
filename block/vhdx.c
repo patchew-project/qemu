@@ -229,7 +229,6 @@ void vhdx_guid_generate(MSGUID *guid)
 /* Check for region overlaps inside the VHDX image */
 static int vhdx_region_check(BDRVVHDXState *s, uint64_t start, uint64_t length)
 {
-    int ret = 0;
     uint64_t end;
     VHDXRegionEntry *r;
 
@@ -239,13 +238,11 @@ static int vhdx_region_check(BDRVVHDXState *s, uint64_t start, uint64_t length)
             error_report("VHDX region %" PRIu64 "-%" PRIu64 " overlaps with "
                          "region %" PRIu64 "-%." PRIu64, start, end, r->start,
                          r->end);
-            ret = -EINVAL;
-            goto exit;
+            return -EINVAL;
         }
     }
 
-exit:
-    return ret;
+    return 0;
 }
 
 /* Register a region for future checks */
@@ -390,11 +387,10 @@ static int vhdx_update_header(BlockDriverState *bs, BDRVVHDXState *s,
 
     ret = vhdx_write_header(bs->file, inactive_header, header_offset, true);
     if (ret < 0) {
-        goto exit;
+        return ret;
     }
     s->curr_header = hdr_idx;
 
-exit:
     return ret;
 }
 
