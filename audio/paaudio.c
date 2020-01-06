@@ -484,7 +484,7 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
         );
     if (!pa->stream) {
         qpa_logerr (error, "pa_simple_new for playback failed\n");
-        goto fail1;
+        return -1;
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
@@ -493,9 +493,6 @@ static int qpa_init_out(HWVoiceOut *hw, struct audsettings *as,
         &obt_as, ppdo->buffer_length);
 
     return 0;
-
- fail1:
-    return -1;
 }
 
 static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
@@ -532,7 +529,7 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         );
     if (!pa->stream) {
         qpa_logerr (error, "pa_simple_new for capture failed\n");
-        goto fail1;
+        return -1;
     }
 
     audio_pcm_init_info (&hw->info, &obt_as);
@@ -541,9 +538,6 @@ static int qpa_init_in(HWVoiceIn *hw, struct audsettings *as, void *drv_opaque)
         &obt_as, ppdo->buffer_length);
 
     return 0;
-
- fail1:
-    return -1;
 }
 
 static void qpa_simple_disconnect(PAConnection *c, pa_stream *stream)
