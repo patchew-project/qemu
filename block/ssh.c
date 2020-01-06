@@ -276,7 +276,6 @@ static void ssh_parse_filename(const char *filename, QDict *options,
 
 static int check_host_key_knownhosts(BDRVSSHState *s, Error **errp)
 {
-    int ret;
 #ifdef HAVE_LIBSSH_0_8
     enum ssh_known_hosts_e state;
     int r;
@@ -295,7 +294,6 @@ static int check_host_key_knownhosts(BDRVSSHState *s, Error **errp)
         trace_ssh_check_host_key_knownhosts();
         break;
     case SSH_KNOWN_HOSTS_CHANGED:
-        ret = -EINVAL;
         r = ssh_get_server_publickey(s->session, &pubkey);
         if (r == 0) {
             r = ssh_get_publickey_hash(pubkey, SSH_PUBLICKEY_HASH_SHA256,
@@ -320,28 +318,23 @@ static int check_host_key_knownhosts(BDRVSSHState *s, Error **errp)
                        "host key does not match the one in known_hosts; this "
                        "may be a possible attack");
         }
-        goto out;
+        return -EINVAL;
     case SSH_KNOWN_HOSTS_OTHER:
-        ret = -EINVAL;
         error_setg(errp,
                    "host key for this server not found, another type exists");
-        goto out;
+        return -EINVAL;
     case SSH_KNOWN_HOSTS_UNKNOWN:
-        ret = -EINVAL;
         error_setg(errp, "no host key was found in known_hosts");
-        goto out;
+        return -EINVAL;
     case SSH_KNOWN_HOSTS_NOT_FOUND:
-        ret = -ENOENT;
         error_setg(errp, "known_hosts file not found");
-        goto out;
+        return -ENOENT;
     case SSH_KNOWN_HOSTS_ERROR:
-        ret = -EINVAL;
         error_setg(errp, "error while checking the host");
-        goto out;
+        return -EINVAL;
     default:
-        ret = -EINVAL;
         error_setg(errp, "error while checking for known server (%d)", state);
-        goto out;
+        return -EINVAL;
     }
 #else /* !HAVE_LIBSSH_0_8 */
     int state;
@@ -355,40 +348,31 @@ static int check_host_key_knownhosts(BDRVSSHState *s, Error **errp)
         trace_ssh_check_host_key_knownhosts();
         break;
     case SSH_SERVER_KNOWN_CHANGED:
-        ret = -EINVAL;
         error_setg(errp,
                    "host key does not match the one in known_hosts; this "
                    "may be a possible attack");
-        goto out;
+        return -EINVAL;
     case SSH_SERVER_FOUND_OTHER:
-        ret = -EINVAL;
         error_setg(errp,
                    "host key for this server not found, another type exists");
-        goto out;
+        return -EINVAL;
     case SSH_SERVER_FILE_NOT_FOUND:
-        ret = -ENOENT;
         error_setg(errp, "known_hosts file not found");
-        goto out;
+        return -ENOENT;
     case SSH_SERVER_NOT_KNOWN:
-        ret = -EINVAL;
         error_setg(errp, "no host key was found in known_hosts");
-        goto out;
+        return -EINVAL;
     case SSH_SERVER_ERROR:
-        ret = -EINVAL;
         error_setg(errp, "server error");
-        goto out;
+        return -EINVAL;
     default:
-        ret = -EINVAL;
         error_setg(errp, "error while checking for known server (%d)", state);
-        goto out;
+        return -EINVAL;
     }
 #endif /* !HAVE_LIBSSH_0_8 */
 
     /* known_hosts checking successful. */
-    ret = 0;
-
- out:
-    return ret;
+    return 0;
 }
 
 static unsigned hex2decimal(char ch)
@@ -501,20 +485,18 @@ static int check_host_key(BDRVSSHState *s, SshHostKeyCheck *hkc, Error **errp)
 
 static int authenticate(BDRVSSHState *s, Error **errp)
 {
-    int r, ret;
+    int r;
     int method;
 
     /* Try to authenticate with the "none" method. */
     r = ssh_userauth_none(s->session, NULL);
     if (r == SSH_AUTH_ERROR) {
-        ret = -EPERM;
         session_error_setg(errp, s, "failed to authenticate using none "
                                     "authentication");
-        goto out;
+        return -EPERM;
     } else if (r == SSH_AUTH_SUCCESS) {
         /* Authenticated! */
-        ret = 0;
-        goto out;
+        return 0;
     }
 
     method = ssh_userauth_list(s->session, NULL);
@@ -527,23 +509,18 @@ static int authenticate(BDRVSSHState *s, Error **errp)
     if (method & SSH_AUTH_METHOD_PUBLICKEY) {
         r = ssh_userauth_publickey_auto(s->session, NULL, NULL);
         if (r == SSH_AUTH_ERROR) {
-            ret = -EINVAL;
             session_error_setg(errp, s, "failed to authenticate using "
                                         "publickey authentication");
-            goto out;
+            return -EINVAL;
         } else if (r == SSH_AUTH_SUCCESS) {
             /* Authenticated! */
-            ret = 0;
-            goto out;
+            return 0;
         }
     }
 
-    ret = -EPERM;
     error_setg(errp, "failed to authenticate using publickey authentication "
                "and the identities held by your ssh-agent");
-
- out:
-    return ret;
+    return -EPERM;
 }
 
 static QemuOptsList ssh_runtime_opts = {
