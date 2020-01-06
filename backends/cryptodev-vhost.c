@@ -201,7 +201,7 @@ int cryptodev_vhost_start(VirtIODevice *dev, int total_queues)
     r = k->set_guest_notifiers(qbus->parent, total_queues, true);
     if (r < 0) {
         error_report("error binding guest notifier: %d", -r);
-        goto err;
+        return r;
     }
 
     for (i = 0; i < total_queues; i++) {
@@ -236,7 +236,7 @@ err_start:
     if (e < 0) {
         error_report("vhost guest notifier cleanup failed: %d", e);
     }
-err:
+
     return r;
 }
 
