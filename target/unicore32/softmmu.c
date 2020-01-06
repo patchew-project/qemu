@@ -125,7 +125,6 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         target_ulong *page_size)
 {
     CPUState *cs = env_cpu(env);
-    int code;
     uint32_t table;
     uint32_t desc;
     uint32_t phys_addr;
@@ -135,13 +134,11 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
     table = env->cp0.c2_base & 0xfffff000;
     table |= (address >> 20) & 0xffc;
     desc = ldl_phys(cs->as, table);
-    code = 0;
     switch (PAGETABLE_TYPE(desc)) {
     case 3:
         /* Superpage  */
         if (!(desc & UC32_PAGETABLE_EXIST)) {
-            code = 0x0b; /* superpage miss */
-            goto do_fault;
+            return 0x0b; /* superpage miss */
         }
         phys_addr = (desc & 0xffc00000) | (address & 0x003fffff);
         *page_size = SUPERPAGE_SIZE;
@@ -152,8 +149,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
             DPRINTF("PGD address %x, desc %x\n", table, desc);
         }
         if (!(desc & UC32_PAGETABLE_EXIST)) {
-            code = 0x05; /* second pagetable miss */
-            goto do_fault;
+            return 0x05; /* second pagetable miss */
         }
         table = (desc & 0xfffff000) | ((address >> 10) & 0xffc);
         desc = ldl_phys(cs->as, table);
@@ -162,8 +158,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
             DPRINTF("PTE address %x, desc %x\n", table, desc);
         }
         if (!(desc & UC32_PAGETABLE_EXIST)) {
-            code = 0x08; /* page miss */
-            goto do_fault;
+            return 0x08; /* page miss */
         }
         switch (PAGETABLE_TYPE(desc)) {
         case 0:
@@ -185,8 +180,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         *prot |= PAGE_READ;
     } else {
         if (is_user && (access_type == 0)) {
-            code = 0x11; /* access unreadable area */
-            goto do_fault;
+            return 0x11; /* access unreadable area */
         }
     }
 
@@ -194,8 +188,7 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         *prot |= PAGE_WRITE;
     } else {
         if (is_user && (access_type == 1)) {
-            code = 0x12; /* access unwritable area */
-            goto do_fault;
+            return 0x12; /* access unwritable area */
         }
     }
 
@@ -203,13 +196,11 @@ static int get_phys_addr_ucv2(CPUUniCore32State *env, uint32_t address,
         *prot |= PAGE_EXEC;
     } else {
         if (is_user && (access_type == 2)) {
-            code = 0x13; /* access unexecutable area */
-            goto do_fault;
+            return 0x13; /* access unexecutable area */
         }
     }
 
-do_fault:
-    return code;
+    return 0;
 }
 
 bool uc32_cpu_tlb_fill(CPUState *cs, vaddr address, int size,
