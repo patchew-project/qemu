@@ -1335,8 +1335,7 @@ int rdma_backend_init(RdmaBackendDev *backend_dev, PCIDevice *pdev,
     if (!backend_dev->context) {
         rdma_error_report("Failed to open IB device %s",
                           ibv_get_device_name(backend_dev->ib_dev));
-        ret = -EIO;
-        goto out;
+        return -EIO;
     }
 
     backend_dev->channel = ibv_create_comp_channel(backend_dev->context);
@@ -1377,7 +1376,6 @@ out_close_device:
 out_free_dev_list:
     ibv_free_device_list(dev_list);
 
-out:
     return ret;
 }
 
