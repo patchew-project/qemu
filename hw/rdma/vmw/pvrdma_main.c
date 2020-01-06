@@ -94,8 +94,7 @@ static int init_dev_ring(PvrdmaRing *ring, struct pvrdma_ring **ring_state,
     dir = rdma_pci_dma_map(pci_dev, dir_addr, TARGET_PAGE_SIZE);
     if (!dir) {
         rdma_error_report("Failed to map to page directory (ring %s)", name);
-        rc = -ENOMEM;
-        goto out;
+        return -ENOMEM;
     }
     tbl = rdma_pci_dma_map(pci_dev, dir[0], TARGET_PAGE_SIZE);
     if (!tbl) {
@@ -134,7 +133,6 @@ out_free_tbl:
 out_free_dir:
     rdma_pci_dma_unmap(pci_dev, dir, TARGET_PAGE_SIZE);
 
-out:
     return rc;
 }
 
@@ -177,8 +175,7 @@ static int load_dsr(PVRDMADev *dev)
                               sizeof(struct pvrdma_device_shared_region));
     if (!dev->dsr_info.dsr) {
         rdma_error_report("Failed to map to DSR");
-        rc = -ENOMEM;
-        goto out;
+        return -ENOMEM;
     }
 
     /* Shortcuts */
@@ -221,7 +218,7 @@ static int load_dsr(PVRDMADev *dev)
         goto out_free_rsp;
     }
 
-    goto out;
+    return rc;
 
 out_free_rsp:
     rdma_pci_dma_unmap(pci_dev, dsr_info->rsp, sizeof(union pvrdma_cmd_resp));
@@ -234,7 +231,6 @@ out_free_dsr:
                        sizeof(struct pvrdma_device_shared_region));
     dsr_info->dsr = NULL;
 
-out:
     return rc;
 }
 
