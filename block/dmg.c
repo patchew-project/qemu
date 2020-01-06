@@ -217,7 +217,6 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
                                uint8_t *buffer, uint32_t count)
 {
     uint32_t type, i;
-    int ret;
     size_t new_size;
     uint32_t chunk_count;
     int64_t offset = 0;
@@ -273,8 +272,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
             error_report("sector count %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
                          s->sectorcounts[i], i, DMG_SECTORCOUNTS_MAX);
-            ret = -EINVAL;
-            goto fail;
+            return -EINVAL;
         }
 
         /* offset in (compressed) data fork */
@@ -288,8 +286,7 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
             error_report("length %" PRIu64 " for chunk %" PRIu32
                          " is larger than max (%u)",
                          s->lengths[i], i, DMG_LENGTHS_MAX);
-            ret = -EINVAL;
-            goto fail;
+            return -EINVAL;
         }
 
         update_max_chunk_size(s, i, &ds->max_compressed_size,
@@ -298,9 +295,6 @@ static int dmg_read_mish_block(BDRVDMGState *s, DmgHeaderState *ds,
     }
     s->n_chunks += chunk_count;
     return 0;
-
-fail:
-    return ret;
 }
 
 static int dmg_read_resource_fork(BlockDriverState *bs, DmgHeaderState *ds,
