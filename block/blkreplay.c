@@ -24,23 +24,19 @@ static int blkreplay_open(BlockDriverState *bs, QDict *options, int flags,
                           Error **errp)
 {
     Error *local_err = NULL;
-    int ret;
 
     /* Open the image file */
     bs->file = bdrv_open_child(NULL, options, "image",
                                bs, &child_file, false, &local_err);
     if (local_err) {
-        ret = -EINVAL;
         error_propagate(errp, local_err);
-        goto fail;
+        return -EINVAL;
     }
 
     bs->supported_write_flags = BDRV_REQ_WRITE_UNCHANGED;
     bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED;
 
-    ret = 0;
-fail:
-    return ret;
+    return 0;
 }
 
 static int64_t blkreplay_getlength(BlockDriverState *bs)
