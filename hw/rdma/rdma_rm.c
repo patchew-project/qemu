@@ -161,16 +161,13 @@ int rdma_rm_alloc_pd(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
                      uint32_t *pd_handle, uint32_t ctx_handle)
 {
     RdmaRmPD *pd;
-    int ret = -ENOMEM;
 
     pd = rdma_res_tbl_alloc(&dev_res->pd_tbl, pd_handle);
     if (!pd) {
-        goto out;
+        return -ENOMEM;
     }
 
-    ret = rdma_backend_create_pd(backend_dev, &pd->backend_pd);
-    if (ret) {
-        ret = -EIO;
+    if (rdma_backend_create_pd(backend_dev, &pd->backend_pd)) {
         goto out_tbl_dealloc;
     }
 
@@ -180,9 +177,7 @@ int rdma_rm_alloc_pd(RdmaDeviceResources *dev_res, RdmaBackendDev *backend_dev,
 
 out_tbl_dealloc:
     rdma_res_tbl_dealloc(&dev_res->pd_tbl, *pd_handle);
-
-out:
-    return ret;
+    return -EIO;
 }
 
 RdmaRmPD *rdma_rm_get_pd(RdmaDeviceResources *dev_res, uint32_t pd_handle)
