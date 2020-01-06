@@ -329,26 +329,24 @@ int kvm_destroy_vcpu(CPUState *cpu)
 
     ret = kvm_arch_destroy_vcpu(cpu);
     if (ret < 0) {
-        goto err;
+        return ret;
     }
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
-        ret = mmap_size;
         DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
-        goto err;
+        return mmap_size;
     }
 
     ret = munmap(cpu->kvm_run, mmap_size);
     if (ret < 0) {
-        goto err;
+        return ret;
     }
 
     vcpu = g_malloc0(sizeof(*vcpu));
     vcpu->vcpu_id = kvm_arch_vcpu_id(cpu);
     vcpu->kvm_fd = cpu->kvm_fd;
     QLIST_INSERT_HEAD(&kvm_state->kvm_parked_vcpus, vcpu, node);
-err:
     return ret;
 }
 
@@ -381,7 +379,7 @@ int kvm_init_vcpu(CPUState *cpu)
     ret = kvm_get_vcpu(s, kvm_arch_vcpu_id(cpu));
     if (ret < 0) {
         DPRINTF("kvm_create_vcpu failed\n");
-        goto err;
+        return ret;
     }
 
     cpu->kvm_fd = ret;
@@ -390,17 +388,15 @@ int kvm_init_vcpu(CPUState *cpu)
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
-        ret = mmap_size;
         DPRINTF("KVM_GET_VCPU_MMAP_SIZE failed\n");
-        goto err;
+        return mmap_size;
     }
 
     cpu->kvm_run = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED,
                         cpu->kvm_fd, 0);
     if (cpu->kvm_run == MAP_FAILED) {
-        ret = -errno;
         DPRINTF("mmap'ing vcpu state failed\n");
-        goto err;
+        return -errno;
     }
 
     if (s->coalesced_mmio && !s->coalesced_mmio_ring) {
@@ -408,9 +404,7 @@ int kvm_init_vcpu(CPUState *cpu)
             (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
     }
 
-    ret = kvm_arch_init_vcpu(cpu);
-err:
-    return ret;
+    return kvm_arch_init_vcpu(cpu);
 }
 
 /*
@@ -565,7 +559,6 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
     KVMSlot *mem;
     hwaddr start_addr, size;
     hwaddr slot_size, slot_offset = 0;
-    int ret = 0;
 
     size = kvm_align_section(section, &start_addr);
     while (size) {
@@ -575,7 +568,7 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
         mem = kvm_lookup_matching_slot(kml, start_addr, slot_size);
         if (!mem) {
             /* We don't have a slot if we want to trap every access. */
-            goto out;
+            return 0;
         }
 
         if (!mem->dirty_bmap) {
@@ -587,8 +580,7 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
         d.slot = mem->slot | (kml->as_id << 16);
         if (kvm_vm_ioctl(s, KVM_GET_DIRTY_LOG, &d) == -1) {
             DPRINTF("ioctl failed %d\n", errno);
-            ret = -1;
-            goto out;
+            return -1;
         }
 
         subsection.offset_within_region += slot_offset;
@@ -599,8 +591,8 @@ static int kvm_physical_sync_dirty_bitmap(KVMMemoryListener *kml,
         start_addr += slot_size;
         size -= slot_size;
     }
-out:
-    return ret;
+
+    return 0;
 }
 
 /* Alignment requirement for KVM_CLEAR_DIRTY_LOG - 64 pages */
