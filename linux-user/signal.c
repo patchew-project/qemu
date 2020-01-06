@@ -708,7 +708,6 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
 /* compare linux/kernel/signal.c:do_sigaltstack() */
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
 {
-    int ret;
     struct target_sigaltstack oss;
     TaskState *ts = (TaskState *)thread_cpu->opaque;
 
@@ -734,32 +733,28 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
         }
 #endif
 
-        ret = -TARGET_EFAULT;
         if (!lock_user_struct(VERIFY_READ, uss, uss_addr, 1)) {
-            goto out;
+            return -TARGET_EFAULT;
         }
         __get_user(ss.ss_sp, &uss->ss_sp);
         __get_user(ss.ss_size, &uss->ss_size);
         __get_user(ss.ss_flags, &uss->ss_flags);
         unlock_user_struct(uss, uss_addr, 0);
 
-        ret = -TARGET_EPERM;
         if (on_sig_stack(sp))
-            goto out;
+            return -TARGET_EPERM;
 
-        ret = -TARGET_EINVAL;
         if (ss.ss_flags != TARGET_SS_DISABLE
             && ss.ss_flags != TARGET_SS_ONSTACK
             && ss.ss_flags != 0)
-            goto out;
+            return -TARGET_EINVAL;
 
         if (ss.ss_flags == TARGET_SS_DISABLE) {
             ss.ss_size = 0;
             ss.ss_sp = 0;
         } else {
-            ret = -TARGET_ENOMEM;
             if (ss.ss_size < minstacksize) {
-                goto out;
+                return -TARGET_ENOMEM;
             }
         }
 
@@ -768,14 +763,11 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp)
     }
 
     if (uoss_addr) {
-        ret = -TARGET_EFAULT;
         if (copy_to_user(uoss_addr, &oss, sizeof(oss)))
-            goto out;
+            return -TARGET_EFAULT;
     }
 
-    ret = 0;
-out:
-    return ret;
+    return 0;
 }
 
 /* do_sigaction() return target values and host errnos */
