@@ -28,7 +28,6 @@ int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
                      size_t elem_sz, dma_addr_t *tbl, uint32_t npages)
 {
     int i;
-    int rc = 0;
 
     strncpy(ring->name, name, MAX_RING_NAME_SZ);
     ring->name[MAX_RING_NAME_SZ - 1] = 0;
@@ -51,14 +50,13 @@ int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
 
         ring->pages[i] = rdma_pci_dma_map(dev, tbl[i], TARGET_PAGE_SIZE);
         if (!ring->pages[i]) {
-            rc = -ENOMEM;
             rdma_error_report("Failed to map to page %d in ring %s", i, name);
             goto out_free;
         }
         memset(ring->pages[i], 0, TARGET_PAGE_SIZE);
     }
 
-    goto out;
+    return 0;
 
 out_free:
     while (i--) {
@@ -66,8 +64,7 @@ out_free:
     }
     g_free(ring->pages);
 
-out:
-    return rc;
+    return -ENOMEM;
 }
 
 void *pvrdma_ring_next_elem_read(PvrdmaRing *ring)
