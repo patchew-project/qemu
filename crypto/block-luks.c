@@ -1057,7 +1057,7 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
                                          opaque,
                                          errp);
         if (rv < 0) {
-            goto error;
+            return -1;
         }
         if (rv == 1) {
             return 0;
@@ -1065,7 +1065,6 @@ qcrypto_block_luks_find_key(QCryptoBlock *block,
     }
 
     error_setg(errp, "Invalid password, cannot unlock any keyslot");
- error:
     return -1;
 }
 
