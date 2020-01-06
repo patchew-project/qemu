@@ -1222,14 +1222,12 @@ out:
 static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
                                QDict *options, Error **errp)
 {
-    int ret;
     char ct[128];
     BDRVVmdkState *s = bs->opaque;
 
     if (vmdk_parse_description(buf, "createType", ct, sizeof(ct))) {
         error_setg(errp, "invalid VMDK image descriptor");
-        ret = -EINVAL;
-        goto exit;
+        return -EINVAL;
     }
     if (strcmp(ct, "monolithicFlat") &&
         strcmp(ct, "vmfs") &&
@@ -1238,14 +1236,11 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags, char *buf,
         strcmp(ct, "twoGbMaxExtentSparse") &&
         strcmp(ct, "twoGbMaxExtentFlat")) {
         error_setg(errp, "Unsupported image type '%s'", ct);
-        ret = -ENOTSUP;
-        goto exit;
+        return -ENOTSUP;
     }
     s->create_type = g_strdup(ct);
     s->desc_offset = 0;
-    ret = vmdk_parse_extents(buf, bs, options, errp);
-exit:
-    return ret;
+    return vmdk_parse_extents(buf, bs, options, errp);
 }
 
 static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
@@ -2738,7 +2733,6 @@ static BlockBackend *vmdk_co_create_cb(int64_t size, int idx,
 static int coroutine_fn vmdk_co_create(BlockdevCreateOptions *create_options,
                                        Error **errp)
 {
-    int ret;
     BlockdevCreateOptionsVmdk *opts;
 
     opts = &create_options->u.vmdk;
@@ -2746,23 +2740,18 @@ static int coroutine_fn vmdk_co_create(BlockdevCreateOptions *create_options,
     /* Validate options */
     if (!QEMU_IS_ALIGNED(opts->size, BDRV_SECTOR_SIZE)) {
         error_setg(errp, "Image size must be a multiple of 512 bytes");
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
-    ret = vmdk_co_do_create(opts->size,
-                            opts->subformat,
-                            opts->adapter_type,
-                            opts->backing_file,
-                            opts->hwversion,
-                            false,
-                            opts->zeroed_grain,
-                            vmdk_co_create_cb,
-                            opts, errp);
-    return ret;
-
-out:
-    return ret;
+    return vmdk_co_do_create(opts->size,
+                             opts->subformat,
+                             opts->adapter_type,
+                             opts->backing_file,
+                             opts->hwversion,
+                             false,
+                             opts->zeroed_grain,
+                             vmdk_co_create_cb,
+                             opts, errp);
 }
 
 static void vmdk_close(BlockDriverState *bs)
