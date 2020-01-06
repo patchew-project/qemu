@@ -54,12 +54,12 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     s->hsend = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hsend) {
         error_setg(errp, "Failed CreateEvent");
-        goto fail;
+        return -1;
     }
     s->hrecv = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (!s->hrecv) {
         error_setg(errp, "Failed CreateEvent");
-        goto fail;
+        return -1;
     }
 
     openname = g_strdup_printf("\\\\.\\pipe\\%s", filename);
@@ -72,7 +72,7 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     if (s->file == INVALID_HANDLE_VALUE) {
         error_setg(errp, "Failed CreateNamedPipe (%lu)", GetLastError());
         s->file = NULL;
-        goto fail;
+        return -1;
     }
 
     ZeroMemory(&ov, sizeof(ov));
@@ -80,7 +80,7 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     ret = ConnectNamedPipe(s->file, &ov);
     if (ret) {
         error_setg(errp, "Failed ConnectNamedPipe");
-        goto fail;
+        return -1;
     }
 
     ret = GetOverlappedResult(s->file, &ov, &size, TRUE);
@@ -90,7 +90,7 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
             CloseHandle(ov.hEvent);
             ov.hEvent = NULL;
         }
-        goto fail;
+        return -1;
     }
 
     if (ov.hEvent) {
@@ -99,9 +99,6 @@ static int win_chr_pipe_init(Chardev *chr, const char *filename,
     }
     qemu_add_polling_cb(win_chr_pipe_poll, chr);
     return 0;
-
- fail:
-    return -1;
 }
 
 static void qemu_chr_open_pipe(Chardev *chr,
