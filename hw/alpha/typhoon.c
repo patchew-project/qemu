@@ -34,7 +34,7 @@ typedef struct TyphoonWindow {
     uint64_t wsm;
     uint64_t tba;
 } TyphoonWindow;
- 
+
 typedef struct TyphoonPchip {
     MemoryRegion region;
     MemoryRegion reg_iack;
@@ -190,7 +190,7 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
     case 0x0780:
         /* PWR: Power Management Control.   */
         break;
-    
+
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -442,7 +442,7 @@ static MemTxResult cchip_write(void *opaque, hwaddr addr,
     case 0x0780:
         /* PWR: Power Management Control.   */
         break;
-    
+
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -694,14 +694,14 @@ static IOMMUTLBEntry typhoon_translate_iommu(IOMMUMemoryRegion *iommu,
         /* Check the first three windows.  */
         for (i = 0; i < 3; ++i) {
             if (window_translate(&pchip->win[i], addr, &ret)) {
-                goto success;
+                return ret;
             }
         }
 
         /* Check the fourth window for DAC disable.  */
         if ((pchip->win[3].wba & 0x80000000000ull) == 0
             && window_translate(&pchip->win[3], addr, &ret)) {
-            goto success;
+            return ret;
         }
     } else {
         /* Double-address cycle.  */
@@ -711,7 +711,7 @@ static IOMMUTLBEntry typhoon_translate_iommu(IOMMUMemoryRegion *iommu,
             if (pchip->ctl & 0x40) {
                 /* See 10.1.4.4; in particular <39:35> is ignored.  */
                 make_iommu_tlbe(0, 0x007ffffffffull, &ret);
-                goto success;
+                return ret;
             }
         }
 
@@ -723,16 +723,14 @@ static IOMMUTLBEntry typhoon_translate_iommu(IOMMUMemoryRegion *iommu,
                 pte_addr  = pchip->win[3].tba & 0x7ffc00000ull;
                 pte_addr |= (addr & 0xffffe000u) >> 10;
                 if (pte_translate(pte_addr, &ret)) {
-                        goto success;
+                    return ret;
                 }
             }
         }
     }
 
  failure:
-    ret = (IOMMUTLBEntry) { .perm = IOMMU_NONE };
- success:
-    return ret;
+    return (IOMMUTLBEntry) { .perm = IOMMU_NONE };
 }
 
 static AddressSpace *typhoon_pci_dma_iommu(PCIBus *bus, void *opaque, int devfn)
