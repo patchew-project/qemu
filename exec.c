@@ -3898,7 +3898,7 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
     if ((uintptr_t)host_startaddr & (rb->page_size - 1)) {
         error_report("ram_block_discard_range: Unaligned start address: %p",
                      host_startaddr);
-        goto err;
+        return ret;
     }
 
     if ((start + length) <= rb->used_length) {
@@ -3906,7 +3906,7 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
         if (length & (rb->page_size - 1)) {
             error_report("ram_block_discard_range: Unaligned length: %zx",
                          length);
-            goto err;
+            return ret;
         }
 
         errno = ENOTSUP; /* If we are missing MADVISE etc */
@@ -3930,14 +3930,14 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
                 error_report("ram_block_discard_range: Failed to fallocate "
                              "%s:%" PRIx64 " +%zx (%d)",
                              rb->idstr, start, length, ret);
-                goto err;
+                return ret;
             }
 #else
             ret = -ENOSYS;
             error_report("ram_block_discard_range: fallocate not available/file"
                          "%s:%" PRIx64 " +%zx (%d)",
                          rb->idstr, start, length, ret);
-            goto err;
+            return ret;
 #endif
         }
         if (need_madvise) {
@@ -3953,14 +3953,14 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
                 error_report("ram_block_discard_range: Failed to discard range "
                              "%s:%" PRIx64 " +%zx (%d)",
                              rb->idstr, start, length, ret);
-                goto err;
+                return ret;
             }
 #else
             ret = -ENOSYS;
             error_report("ram_block_discard_range: MADVISE not available"
                          "%s:%" PRIx64 " +%zx (%d)",
                          rb->idstr, start, length, ret);
-            goto err;
+            return ret;
 #endif
         }
         trace_ram_block_discard_range(rb->idstr, host_startaddr, length,
@@ -3971,7 +3971,6 @@ int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length)
                      rb->idstr, start, length, rb->used_length);
     }
 
-err:
     return ret;
 }
 
