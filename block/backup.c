@@ -254,13 +254,12 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
 
         for (offset = 0; offset < s->len; ) {
             if (yield_and_check(s)) {
-                ret = -ECANCELED;
-                goto out;
+                return -ECANCELED;
             }
 
             ret = block_copy_reset_unallocated(s->bcs, offset, &count);
             if (ret < 0) {
-                goto out;
+                return ret;
             }
 
             offset += count;
@@ -284,7 +283,6 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
         ret = backup_loop(s);
     }
 
- out:
     return ret;
 }
 
