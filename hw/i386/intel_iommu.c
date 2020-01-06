@@ -304,11 +304,10 @@ static VTDIOTLBEntry *vtd_lookup_iotlb(IntelIOMMUState *s, uint16_t source_id,
                                 source_id, level);
         entry = g_hash_table_lookup(s->iotlb, &key);
         if (entry) {
-            goto out;
+            return entry;
         }
     }
 
-out:
     return entry;
 }
 
@@ -2435,12 +2434,12 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
 
     vtd_bus = vtd_find_as_from_bus_num(s, bus_num);
     if (!vtd_bus) {
-        goto done;
+        return true;
     }
 
     vtd_dev_as = vtd_bus->dev_as[devfn];
     if (!vtd_dev_as) {
-        goto done;
+        return true;
     }
 
     /* According to ATS spec table 2.4:
@@ -2465,7 +2464,6 @@ static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
     entry.translated_addr = 0;
     memory_region_notify_iommu(&vtd_dev_as->iommu, 0, entry);
 
-done:
     return true;
 }
 
