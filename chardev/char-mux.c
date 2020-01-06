@@ -140,7 +140,7 @@ static int mux_proc_byte(Chardev *chr, MuxChardev *d, int ch)
     if (d->term_got_escape) {
         d->term_got_escape = 0;
         if (ch == term_escape_char) {
-            goto send_char;
+            return 1;
         }
         switch (ch) {
         case '?':
@@ -174,7 +174,6 @@ static int mux_proc_byte(Chardev *chr, MuxChardev *d, int ch)
     } else if (ch == term_escape_char) {
         d->term_got_escape = 1;
     } else {
-    send_char:
         return 1;
     }
     return 0;
