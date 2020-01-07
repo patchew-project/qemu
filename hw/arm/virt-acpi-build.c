@@ -520,7 +520,8 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiSystemResourceAffinityTable *srat;
     AcpiSratProcessorGiccAffinity *core;
     AcpiSratMemoryAffinity *numamem;
-    int i, srat_start;
+    int i, j, srat_start;
+    uint32_t node_id;
     uint64_t mem_base;
     MachineClass *mc = MACHINE_GET_CLASS(vms);
     MachineState *ms = MACHINE(vms);
@@ -530,13 +531,19 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     srat = acpi_data_push(table_data, sizeof(*srat));
     srat->reserved1 = cpu_to_le32(1);
 
-    for (i = 0; i < cpu_list->len; ++i) {
-        core = acpi_data_push(table_data, sizeof(*core));
-        core->type = ACPI_SRAT_PROCESSOR_GICC;
-        core->length = sizeof(*core);
-        core->proximity = cpu_to_le32(cpu_list->cpus[i].props.node_id);
-        core->acpi_processor_uid = cpu_to_le32(i);
-        core->flags = cpu_to_le32(1);
+    for (i = 0; i < ms->numa_state->num_nodes; ++i) {
+        for (j = 0; j < cpu_list->len; ++j) {
+            node_id = cpu_to_le32(cpu_list->cpus[j].props.node_id);
+            if (node_id != i) {
+                continue;
+            }
+            core = acpi_data_push(table_data, sizeof(*core));
+            core->type = ACPI_SRAT_PROCESSOR_GICC;
+            core->length = sizeof(*core);
+            core->proximity = node_id;
+            core->acpi_processor_uid = cpu_to_le32(j);
+            core->flags = cpu_to_le32(1);
+        }
     }
 
     mem_base = vms->memmap[VIRT_MEM].base;
