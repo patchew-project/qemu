@@ -13,6 +13,7 @@ RUN apt update \
     apt install --assume-yes --no-install-recommends \
         build-essential \
         ca-certificates \
+        ccache \
         dos2unix \
         gcc-aarch64-linux-gnu \
         gcc-arm-linux-gnueabi \
@@ -25,3 +26,5 @@ RUN apt update \
     && \
     \
     rm -rf /var/lib/apt/lists/*
+
+ENV PATH /usr/lib/ccache:$PATH

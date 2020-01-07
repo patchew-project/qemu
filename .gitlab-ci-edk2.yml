@@ -10,7 +10,7 @@ docker-edk2:
  - docker:19.03.1-dind
  variables:
   GIT_DEPTH: 3
-  IMAGE_TAG: $CI_REGISTRY_IMAGE:edk2-cross-build
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:edk2-cross-build-ccache
   # We don't use TLS
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
@@ -38,12 +38,21 @@ build-edk2:
    - pc-bios/edk2-licenses.txt
    - edk2-stdout.log
    - edk2-stderr.log
- image: $CI_REGISTRY_IMAGE:edk2-cross-build
+ image: $CI_REGISTRY_IMAGE:edk2-cross-build-ccache
  variables:
    GIT_DEPTH: 3
+   CCACHE_DIR: ${CI_PROJECT_DIR}/.ccache
+ cache: # Use the same cache for all EDK2 jobs
+   key: edk2-cross-build-ccache
+   paths:
+   - ${CCACHE_DIR}
+ before_script:
+ - ccache --zero-stats
  script: # Clone the required submodules and build EDK2
  - git submodule update --init roms/edk2
  - git -C roms/edk2 submodule update --init
  - export JOBS=$(($(getconf _NPROCESSORS_ONLN) + 1))
  - echo "=== Using ${JOBS} simultaneous jobs ==="
  - make -j${JOBS} -C roms efi 2>&1 1>edk2-stdout.log | tee -a edk2-stderr.log >&2
+ after_script:
+ - ccache --show-stats
