@@ -57,6 +57,7 @@ addons:
       - glib
       - pixman
       - gnu-sed
+      - python
     update: true
 
 
