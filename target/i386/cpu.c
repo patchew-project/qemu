@@ -2278,10 +2278,9 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "Nehalem-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Core i7 9xx (Nehalem Core i7, IBRS update)" },
                     { /* end of list */ }
                 }
             },
@@ -2359,10 +2358,9 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "Westmere-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Westmere E56xx/L56xx/X56xx (IBRS update)" },
                     { /* end of list */ }
                 }
             },
@@ -2445,10 +2443,9 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "SandyBridge-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Xeon E312xx (Sandy Bridge, IBRS update)" },
                     { /* end of list */ }
                 }
             },
@@ -2537,10 +2534,9 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "IvyBridge-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Xeon E3-12xx v2 (Ivy Bridge, IBRS)" },
                     { /* end of list */ }
                 }
             },
@@ -2634,17 +2630,18 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "Haswell-noTSX",
+                .note = "no TSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
                     { "stepping", "1" },
-                    { "model-id", "Intel Core Processor (Haswell, no TSX)", },
                     { /* end of list */ }
                 },
             },
             {
                 .version = 3,
                 .alias = "Haswell-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     /* Restore TSX features removed by -v2 above */
                     { "hle", "on" },
@@ -2655,21 +2652,18 @@ static X86CPUDefinition builtin_x86_defs[] = {
                      */
                     { "stepping", "4" },
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Core Processor (Haswell, IBRS)" },
                     { /* end of list */ }
                 }
             },
             {
                 .version = 4,
                 .alias = "Haswell-noTSX-IBRS",
+                .note = "no TSX, IBRS",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
                     /* spec-ctrl was already enabled by -v3 above */
                     { "stepping", "1" },
-                    { "model-id",
-                      "Intel Core Processor (Haswell, no TSX, IBRS)" },
                     { /* end of list */ }
                 }
             },
@@ -2765,35 +2759,33 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "Broadwell-noTSX",
+                .note = "no TSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
-                    { "model-id", "Intel Core Processor (Broadwell, no TSX)", },
                     { /* end of list */ }
                 },
             },
             {
                 .version = 3,
                 .alias = "Broadwell-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     /* Restore TSX features removed by -v2 above */
                     { "hle", "on" },
                     { "rtm", "on" },
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Core Processor (Broadwell, IBRS)" },
                     { /* end of list */ }
                 }
             },
             {
                 .version = 4,
                 .alias = "Broadwell-noTSX-IBRS",
+                .note = "no TSX, IBRS",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
                     /* spec-ctrl was already enabled by -v3 above */
-                    { "model-id",
-                      "Intel Core Processor (Broadwell, no TSX, IBRS)" },
                     { /* end of list */ }
                 }
             },
@@ -2893,17 +2885,17 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "IBRS",
                 .alias = "Skylake-Client-IBRS",
                 .props = (PropValue[]) {
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Core Processor (Skylake, IBRS)" },
                     { /* end of list */ }
                 }
             },
             {
                 .version = 3,
                 .alias = "Skylake-Client-noTSX-IBRS",
+                .note = "no TSX, IBRS",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
@@ -3014,19 +3006,19 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "Skylake-Server-IBRS",
+                .note = "IBRS",
                 .props = (PropValue[]) {
                     /* clflushopt was not added to Skylake-Server-IBRS */
                     /* TODO: add -v3 including clflushopt */
                     { "clflushopt", "off" },
                     { "spec-ctrl", "on" },
-                    { "model-id",
-                      "Intel Xeon Processor (Skylake, IBRS)" },
                     { /* end of list */ }
                 }
             },
             {
                 .version = 3,
                 .alias = "Skylake-Server-noTSX-IBRS",
+                .note = "no TSX, IBRS",
                 .props = (PropValue[]) {
                     { "hle", "off" },
                     { "rtm", "off" },
@@ -3138,6 +3130,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .versions = (X86CPUVersionDefinition[]) {
             { .version = 1 },
             { .version = 2,
+              .note = "ARCH_CAPABILITIES",
               .props = (PropValue[]) {
                   { "arch-capabilities", "on" },
                   { "rdctl-no", "on" },
@@ -3149,6 +3142,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             },
             { .version = 3,
               .alias = "Cascadelake-Server-noTSX",
+              .note = "ARCH_CAPABILITIES, no TSX",
               .props = (PropValue[]) {
                   { "hle", "off" },
                   { "rtm", "off" },
@@ -3321,6 +3315,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "no TSX",
                 .alias = "Icelake-Client-noTSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
@@ -3438,6 +3433,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "no TSX",
                 .alias = "Icelake-Server-noTSX",
                 .props = (PropValue[]) {
                     { "hle", "off" },
@@ -3545,6 +3541,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "no MPX, no MONITOR",
                 .props = (PropValue[]) {
                     { "monitor", "off" },
                     { "mpx", "off" },
@@ -3674,14 +3671,15 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "no MPX",
                 .props = (PropValue[]) {
                     { "mpx", "off" },
-                    { "model-id", "Intel Atom Processor (Snowridge, no MPX)" },
                     { /* end of list */ },
                 },
             },
             {
                 .version = 3,
+                .note = "no MPX, no MONITOR",
                 .props = (PropValue[]) {
                     /* mpx was already removed by -v2 above */
                     { "monitor", "off" },
@@ -3803,6 +3801,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "no MONITOR",
                 .props = (PropValue[]) {
                     { "monitor", "off" },
                     { /* end of list */ },
@@ -3927,15 +3926,15 @@ static X86CPUDefinition builtin_x86_defs[] = {
             {
                 .version = 2,
                 .alias = "EPYC-IBPB",
+                .note = "IBPB",
                 .props = (PropValue[]) {
                     { "ibpb", "on" },
-                    { "model-id",
-                      "AMD EPYC Processor (with IBPB)" },
                     { /* end of list */ }
                 }
             },
             {
                 .version = 3,
+                .note = "IBPB, no MONITOR",
                 .props = (PropValue[]) {
                     /* ibpb was already enabled by -v2 above */
                     { "monitor", "off" },
@@ -3998,6 +3997,7 @@ static X86CPUDefinition builtin_x86_defs[] = {
             { .version = 1 },
             {
                 .version = 2,
+                .note = "no MONITOR",
                 .props = (PropValue[]) {
                     { "monitor", "off" },
                     { /* end of list */ },
