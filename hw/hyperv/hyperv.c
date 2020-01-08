@@ -95,12 +95,14 @@ static void synic_realize(DeviceState *dev, Error **errp)
     msgp_name = g_strdup_printf("synic-%u-msg-page", vp_index);
     eventp_name = g_strdup_printf("synic-%u-event-page", vp_index);
 
-    memory_region_init_ram(&synic->msg_page_mr, obj, msgp_name,
-                           sizeof(*synic->msg_page), &error_abort);
-    memory_region_init_ram(&synic->event_page_mr, obj, eventp_name,
-                           sizeof(*synic->event_page), &error_abort);
-    synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
-    synic->event_page = memory_region_get_ram_ptr(&synic->event_page_mr);
+    synic->msg_page = qemu_memalign(qemu_real_host_page_size,
+                                    sizeof(*synic->msg_page));
+    synic->event_page = qemu_memalign(qemu_real_host_page_size,
+                                      sizeof(*synic->event_page));
+    memory_region_init_ram_device_ptr(&synic->msg_page_mr, obj, msgp_name,
+                           sizeof(*synic->msg_page), synic->msg_page);
+    memory_region_init_ram_device_ptr(&synic->event_page_mr, obj, eventp_name,
+                           sizeof(*synic->event_page), synic->event_page);
 
     g_free(msgp_name);
     g_free(eventp_name);
