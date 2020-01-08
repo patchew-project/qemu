@@ -64,6 +64,7 @@ struct SpaprVioDevice {
     DeviceState qdev;
     uint32_t reg;
     uint32_t irq;
+    uint32_t phandle;
     uint64_t signal_state;
     SpaprVioCrq crq;
     AddressSpace as;
@@ -78,10 +79,12 @@ struct SpaprVioDevice {
 struct SpaprVioBus {
     BusState bus;
     uint32_t next_reg;
+    uint32_t next_phandle;
 };
 
 SpaprVioBus *spapr_vio_bus_init(void);
 SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg);
+SpaprVioDevice *spapr_vio_find_by_phandle(SpaprVioBus *bus, uint32_t phandle);
 void spapr_dt_vdevice(SpaprVioBus *bus, void *fdt);
 gchar *spapr_vio_stdout_path(SpaprVioBus *bus);
 
@@ -128,6 +131,8 @@ static inline int spapr_vio_dma_set(SpaprVioDevice *dev, uint64_t taddr,
 int spapr_vio_send_crq(SpaprVioDevice *dev, uint8_t *crq);
 
 SpaprVioDevice *vty_lookup(SpaprMachineState *spapr, target_ulong reg);
+SpaprVioDevice *vty_lookup_phandle(SpaprMachineState *spapr,
+                                   uint32_t phandle);
 void vty_putchars(SpaprVioDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(SpaprVioBus *bus, Chardev *chardev);
 void spapr_vlan_create(SpaprVioBus *bus, NICInfo *nd);

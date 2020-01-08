@@ -896,6 +896,52 @@ out:
     return ret;
 }
 
+/*
+ * Below is a compiled version of RTAS blob and OF client interface entry point.
+ *
+ * gcc -nostdlib  -mbig -o spapr-rtas.img spapr-rtas.S
+ * objcopy  -O binary -j .text  spapr-rtas.img spapr-rtas.bin
+ *
+ *   .globl  _start
+ *   _start:
+ *           mr      4,3
+ *           lis     3,KVMPPC_H_RTAS@h
+ *           ori     3,3,KVMPPC_H_RTAS@l
+ *           sc      1
+ *           blr
+ *           mr      4,3
+ *           lis     3,KVMPPC_H_CLIENT@h
+ *           ori     3,3,KVMPPC_H_CLIENT@l
+ *           sc      1
+ *           blr
+ */
+static struct {
+    uint8_t rtas[20], client[20];
+} QEMU_PACKED rtas_client_blob = {
+    .rtas = {
+        0x7c, 0x64, 0x1b, 0x78,
+        0x3c, 0x60, 0x00, 0x00,
+        0x60, 0x63, 0xf0, 0x00,
+        0x44, 0x00, 0x00, 0x22,
+        0x4e, 0x80, 0x00, 0x20
+    },
+    .client = {
+        0x7c, 0x64, 0x1b, 0x78,
+        0x3c, 0x60, 0x00, 0x00,
+        0x60, 0x63, 0xf0, 0x05,
+        0x44, 0x00, 0x00, 0x22,
+        0x4e, 0x80, 0x00, 0x20
+    }
+};
+
+void spapr_instantiate_rtas(SpaprMachineState *spapr, uint32_t base)
+{
+    /* The client should have claimed RTAS memory */
+    spapr->rtas_base = base;
+    cpu_physical_memory_write(base, rtas_client_blob.rtas,
+                              sizeof(rtas_client_blob.rtas));
+}
+
 static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
 {
     MachineState *ms = MACHINE(spapr);
@@ -980,6 +1026,11 @@ static void spapr_dt_rtas(SpaprMachineState *spapr, void *fdt)
     _FDT(fdt_setprop(fdt, rtas, "ibm,lrdr-capacity",
                      lrdr_capacity, sizeof(lrdr_capacity)));
 
+    if (!spapr->bios_enabled) {
+        _FDT(fdt_setprop_cell(fdt, rtas, "rtas-size",
+                              sizeof(rtas_client_blob.rtas)));
+    }
+
     spapr_dt_rtas_tokens(fdt, rtas);
 }
 
@@ -1057,7 +1108,7 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
     }
 
     if (spapr->kernel_size) {
-        uint64_t kprop[2] = { cpu_to_be64(KERNEL_LOAD_ADDR),
+        uint64_t kprop[2] = { cpu_to_be64(spapr->kernel_addr),
                               cpu_to_be64(spapr->kernel_size) };
 
         _FDT(fdt_setprop(fdt, chosen, "qemu,boot-kernel",
@@ -1105,6 +1156,17 @@ static void spapr_dt_chosen(SpaprMachineState *spapr, void *fdt)
     }
 
     spapr_dt_ov5_platform_support(spapr, fdt, chosen);
+
+    if (!spapr->bios_enabled) {
+        int offset = fdt_path_offset(fdt, stdout_path);
+
+        if (offset >= 0) {
+            uint32_t stdout_phandle = fdt_get_phandle(fdt, offset);
+
+            _FDT(fdt_setprop_cell(fdt, chosen, "stdout",
+                                  spapr_of_client_open(spapr, stdout_phandle)));
+        }
+    }
 
     g_free(stdout_path);
     g_free(bootlist);
@@ -1245,7 +1307,8 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
     /* Build memory reserve map */
     if (reset) {
         if (spapr->kernel_size) {
-            _FDT((fdt_add_mem_rsv(fdt, KERNEL_LOAD_ADDR, spapr->kernel_size)));
+            _FDT((fdt_add_mem_rsv(fdt, spapr->kernel_addr,
+                                  spapr->kernel_size)));
         }
         if (spapr->initrd_size) {
             _FDT((fdt_add_mem_rsv(fdt, spapr->initrd_base,
@@ -1268,12 +1331,56 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
         }
     }
 
+    if (!spapr->bios_enabled) {
+        uint32_t phandle;
+        int i, offset, proplen = 0;
+        const void *prop;
+        bool found = false;
+        GArray *phandles = g_array_new(false, false, sizeof(uint32_t));
+
+        /* Find all predefined phandles */
+        for (offset = fdt_next_node(fdt, -1, NULL);
+             offset >= 0;
+             offset = fdt_next_node(fdt, offset, NULL)) {
+            prop = fdt_getprop_namelen(fdt, offset, "phandle", 7, &proplen);
+            if (prop && proplen == sizeof(uint32_t)) {
+                phandle = fdt32_ld(prop);
+                g_array_append_val(phandles, phandle);
+            }
+        }
+
+        /* Assign phandles skipping the predefined ones */
+        for (offset = fdt_next_node(fdt, -1, NULL), phandle = 1;
+             offset >= 0;
+             offset = fdt_next_node(fdt, offset, NULL), ++phandle) {
+            prop = fdt_getprop_namelen(fdt, offset, "phandle", 7, &proplen);
+            if (prop) {
+                continue;
+            }
+            /* Check if the current phandle is not allocated already */
+            for ( ; ; ++phandle) {
+                for (i = 0, found = false; i < phandles->len; ++i) {
+                    if (phandle == g_array_index(phandles, uint32_t, i)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    break;
+                }
+            }
+            _FDT(fdt_setprop_cell(fdt, offset, "phandle", phandle));
+        }
+        g_array_unref(phandles);
+    }
+
     return fdt;
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 {
-    return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
+    SpaprMachineState *spapr = opaque;
+    return (addr & 0x0fffffff) + spapr->kernel_addr;
 }
 
 static void emulate_spapr_hypercall(PPCVirtualHypervisor *vhyp,
@@ -1659,12 +1766,63 @@ static void spapr_machine_reset(MachineState *machine)
      */
     fdt_addr = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FDT_MAX_SIZE;
 
+    /* Set up the entry state */
+    if (!spapr->bios_enabled) {
+        if (spapr->claimed) {
+            g_array_unref(spapr->claimed);
+        }
+        if (spapr->of_instances) {
+            g_hash_table_unref(spapr->of_instances);
+        }
+
+        spapr->claimed = g_array_new(false, false, sizeof(SpaprOfClaimed));
+        spapr->of_instances = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+        spapr->claimed_base = 0x10000; /* Avoid using the first system page */
+
+        spapr_cpu_set_entry_state(first_ppc_cpu, spapr->kernel_addr,
+                                  spapr->initrd_base);
+        first_ppc_cpu->env.gpr[4] = spapr->initrd_size;
+
+        if (spapr_do_of_client_claim(spapr, spapr->kernel_addr,
+                                  spapr->kernel_size, 0) == -1) {
+            error_report("Memory for kernel is in use");
+            exit(1);
+        }
+        if (spapr_do_of_client_claim(spapr, spapr->initrd_base,
+                                  spapr->initrd_size, 0) == -1) {
+            error_report("Memory for initramdisk is in use");
+            exit(1);
+        }
+        first_ppc_cpu->env.gpr[1] = spapr_do_of_client_claim(spapr, 0, 0x40000,
+                                                             0x10000);
+        if (first_ppc_cpu->env.gpr[1] == -1) {
+            error_report("Memory for stack is in use");
+            exit(1);
+        }
+
+        first_ppc_cpu->env.gpr[5] =
+            spapr_do_of_client_claim(spapr, 0, sizeof(rtas_client_blob.client),
+                                     sizeof(rtas_client_blob.client));
+        if (first_ppc_cpu->env.gpr[5] == -1) {
+            error_report("Memory for OF client is in use");
+            exit(1);
+        }
+        cpu_physical_memory_write(first_ppc_cpu->env.gpr[5],
+                                  rtas_client_blob.client,
+                                  sizeof(rtas_client_blob.client));
+    } else {
+        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, fdt_addr);
+        first_ppc_cpu->env.gpr[5] = 0; /* 0 = kexec !0 = prom_init */
+    }
+
     fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
 
-    rc = fdt_pack(fdt);
-
-    /* Should only fail if we've built a corrupted tree */
-    assert(rc == 0);
+    if (spapr->bios_enabled) {
+        rc = fdt_pack(fdt);
+        /* Should only fail if we've built a corrupted tree */
+        assert(rc == 0);
+    }
 
     /* Load the fdt */
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
@@ -1673,10 +1831,6 @@ static void spapr_machine_reset(MachineState *machine)
     spapr->fdt_size = fdt_totalsize(fdt);
     spapr->fdt_initial_size = spapr->fdt_size;
     spapr->fdt_blob = fdt;
-
-    /* Set up the entry state */
-    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, fdt_addr);
-    first_ppc_cpu->env.gpr[5] = 0;
 
     spapr->cas_reboot = false;
 }
@@ -2896,12 +3050,12 @@ static void spapr_machine_init(MachineState *machine)
         uint64_t lowaddr = 0;
 
         spapr->kernel_size = load_elf(kernel_filename, NULL,
-                                      translate_kernel_address, NULL,
+                                      translate_kernel_address, spapr,
                                       NULL, &lowaddr, NULL, 1,
                                       PPC_ELF_MACHINE, 0, 0);
         if (spapr->kernel_size == ELF_LOAD_WRONG_ENDIAN) {
             spapr->kernel_size = load_elf(kernel_filename, NULL,
-                                          translate_kernel_address, NULL, NULL,
+                                          translate_kernel_address, spapr, NULL,
                                           &lowaddr, NULL, 0, PPC_ELF_MACHINE,
                                           0, 0);
             spapr->kernel_le = spapr->kernel_size > 0;
@@ -2917,7 +3071,7 @@ static void spapr_machine_init(MachineState *machine)
             /* Try to locate the initrd in the gap between the kernel
              * and the firmware. Add a bit of space just in case
              */
-            spapr->initrd_base = (KERNEL_LOAD_ADDR + spapr->kernel_size
+            spapr->initrd_base = (spapr->kernel_addr + spapr->kernel_size
                                   + 0x1ffff) & ~0xffff;
             spapr->initrd_size = load_image_targphys(initrd_filename,
                                                      spapr->initrd_base,
@@ -2931,20 +3085,22 @@ static void spapr_machine_init(MachineState *machine)
         }
     }
 
-    if (bios_name == NULL) {
-        bios_name = FW_FILE_NAME;
+    if (spapr->bios_enabled) {
+        if (bios_name == NULL) {
+            bios_name = FW_FILE_NAME;
+        }
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (!filename) {
+            error_report("Could not find LPAR firmware '%s'", bios_name);
+            exit(1);
+        }
+        fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
+        if (fw_size <= 0) {
+            error_report("Could not load LPAR firmware '%s'", filename);
+            exit(1);
+        }
+        g_free(filename);
     }
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_report("Could not find LPAR firmware '%s'", bios_name);
-        exit(1);
-    }
-    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
-    if (fw_size <= 0) {
-        error_report("Could not load LPAR firmware '%s'", filename);
-        exit(1);
-    }
-    g_free(filename);
 
     /* FIXME: Should register things through the MachineState's qdev
      * interface, this is a legacy from the sPAPREnvironment structure
@@ -3161,6 +3317,32 @@ static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
+static void spapr_get_kernel_addr(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    visit_type_uint64(v, name, (uint64_t *)opaque, errp);
+}
+
+static void spapr_set_kernel_addr(Object *obj, Visitor *v, const char *name,
+                                  void *opaque, Error **errp)
+{
+    visit_type_uint64(v, name, (uint64_t *)opaque, errp);
+}
+
+static bool spapr_get_bios_enabled(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->bios_enabled;
+}
+
+static void spapr_set_bios_enabled(Object *obj, bool value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->bios_enabled = value;
+}
+
 static char *spapr_get_ic_mode(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3265,6 +3447,20 @@ static void spapr_instance_init(Object *obj)
                                     " the host's SMT mode", &error_abort);
     object_property_add_bool(obj, "vfio-no-msix-emulation",
                              spapr_get_msix_emulation, NULL, NULL);
+
+    object_property_add(obj, "kernel-addr", "uint64", spapr_get_kernel_addr,
+                        spapr_set_kernel_addr, NULL, &spapr->kernel_addr,
+                        &error_abort);
+    object_property_set_description(obj, "kernel-addr",
+                                    stringify(KERNEL_LOAD_ADDR)
+                                    " for -kernel is the default",
+                                    NULL);
+    spapr->kernel_addr = KERNEL_LOAD_ADDR;
+    object_property_add_bool(obj, "bios", spapr_get_bios_enabled,
+                            spapr_set_bios_enabled, NULL);
+    object_property_set_description(obj, "bios", "Conrols whether to load bios",
+                                    NULL);
+    spapr->bios_enabled = true;
 
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;

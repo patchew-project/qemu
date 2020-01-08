@@ -262,6 +262,20 @@ SpaprVioDevice *vty_lookup(SpaprMachineState *spapr, target_ulong reg)
     return sdev;
 }
 
+SpaprVioDevice *vty_lookup_phandle(SpaprMachineState *spapr,
+                                   uint32_t phandle)
+{
+    SpaprVioDevice *sdev;
+
+    sdev = spapr_vio_find_by_phandle(spapr->vio_bus, phandle);
+    if (!sdev ||
+        !object_dynamic_cast(OBJECT(sdev), TYPE_VIO_SPAPR_VTY_DEVICE)) {
+        return NULL;
+    }
+
+    return sdev;
+}
+
 static void spapr_vty_register_types(void)
 {
     spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
