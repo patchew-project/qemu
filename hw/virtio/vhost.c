@@ -402,6 +402,7 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
     bool log_dirty = memory_region_get_dirty_log_mask(section->mr) &
                      ~(1 << DIRTY_MEMORY_MIGRATION);
     result = memory_region_is_ram(section->mr) &&
+        !memory_region_is_ram_device(section->mr) &&
         !memory_region_is_rom(section->mr);
 
     /* Vhost doesn't handle any block which is doing dirty-tracking other
