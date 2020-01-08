@@ -76,6 +76,9 @@ typedef struct {
 
     unsigned char buffer[TPM_SPAPR_BUFFER_MAX];
 
+    uint32_t numbytes; /* number of bytes in suspend_buffer */
+    unsigned char *suspend_buffer;
+
     TPMBackendCmd cmd;
 
     TPMBackend *be_driver;
@@ -240,6 +243,13 @@ static void tpm_spapr_request_completed(TPMIf *ti, int ret)
 
     /* a max. of be_buffer_size bytes can be transported */
     len = MIN(tpm_cmd_get_size(s->buffer), s->be_buffer_size);
+
+    if (runstate_check(RUN_STATE_FINISH_MIGRATE)) {
+        /* defer delivery of response until .post_load */
+        s->numbytes = len;
+        return;
+    }
+
     rc = spapr_vio_dma_write(&s->vdev, be32_to_cpu(crq->data),
                              s->buffer, len);
 
@@ -288,11 +298,13 @@ static void tpm_spapr_reset(SpaprVioDevice *dev)
     SpaprTpmState *s = VIO_SPAPR_VTPM(dev);
 
     s->state = SPAPR_VTPM_STATE_NONE;
+    s->numbytes = 0;
 
     s->be_tpm_version = tpm_backend_get_tpm_version(s->be_driver);
 
     s->be_buffer_size = MIN(tpm_backend_get_buffer_size(s->be_driver),
                             TPM_SPAPR_BUFFER_MAX);
+    s->suspend_buffer = g_realloc(s->suspend_buffer, s->be_buffer_size);
 
     tpm_backend_reset(s->be_driver);
     tpm_spapr_do_startup_tpm(s, s->be_buffer_size);
@@ -309,9 +321,62 @@ static enum TPMVersion tpm_spapr_get_version(TPMIf *ti)
     return tpm_backend_get_tpm_version(s->be_driver);
 }
 
+/* persistent state handling */
+
+static int tpm_spapr_pre_save(void *opaque)
+{
+    SpaprTpmState *s = opaque;
+
+    tpm_backend_finish_sync(s->be_driver);
+
+    if (s->numbytes) {
+        memcpy(s->suspend_buffer, s->buffer, s->numbytes);
+    }
+
+    trace_tpm_spapr_pre_save(s->numbytes);
+    /*
+     * we cannot deliver the results to the VM since DMA would touch VM memory
+     */
+
+    return 0;
+}
+
+static int tpm_spapr_post_load(void *opaque, int version_id)
+{
+    SpaprTpmState *s = opaque;
+
+    if (s->numbytes) {
+        trace_tpm_spapr_post_load();
+
+        memcpy(s->buffer, s->suspend_buffer,
+               MIN(s->numbytes, s->be_buffer_size));
+        /* deliver the results to the VM via DMA */
+        tpm_spapr_request_completed(TPM_IF(s), 0);
+        s->numbytes = 0;
+    }
+
+    return 0;
+}
+
 static const VMStateDescription vmstate_spapr_vtpm = {
     .name = "tpm-spapr",
-    .unmigratable = 1,
+    .version_id = 1,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .pre_save = tpm_spapr_pre_save,
+    .post_load = tpm_spapr_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_SPAPR_VIO(vdev, SpaprTpmState),
+
+        VMSTATE_UINT8(state, SpaprTpmState),
+        VMSTATE_UINT32(numbytes, SpaprTpmState),
+        VMSTATE_VBUFFER_ALLOC_UINT32(suspend_buffer,
+                                     SpaprTpmState, 0, NULL,
+                                     numbytes),
+        /* remember DMA address */
+        VMSTATE_UINT32(crq.data, SpaprTpmState),
+        VMSTATE_END_OF_LIST(),
+    }
 };
 
 static Property tpm_spapr_properties[] = {
