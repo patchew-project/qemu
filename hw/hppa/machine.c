@@ -90,16 +90,15 @@ static void machine_hppa_init(MachineState *machine)
         g_free(name);
     }
 
-    /* Limit main memory. */
-    if (ram_size > FIRMWARE_START) {
-        machine->ram_size = ram_size = FIRMWARE_START;
-    }
-
     /* Main memory region. */
+    if (machine->ram_size > 4 * GiB) {
+        error_report("RAM size of 4GB or more is not supported");
+        exit(EXIT_FAILURE);
+    }
     ram_region = g_new(MemoryRegion, 1);
     memory_region_allocate_system_memory(ram_region, OBJECT(machine),
                                          "ram", ram_size);
-    memory_region_add_subregion(addr_space, 0, ram_region);
+    memory_region_add_subregion_overlap(addr_space, 0, ram_region, -1);
 
     /* Init Dino (PCI host bus chip).  */
     pci_bus = dino_init(addr_space, &rtc_irq, &serial_irq);
