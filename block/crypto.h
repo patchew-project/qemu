@@ -94,4 +94,9 @@ block_crypto_create_opts_init(QDict *opts, Error **errp);
 QCryptoBlockOpenOptions *
 block_crypto_open_opts_init(QDict *opts, Error **errp);
 
+bool block_crypto_calculate_payload_offset(QemuOpts *opts,
+                                           const char *optprefix,
+                                           size_t *len,
+                                           Error **errp);
+
 #endif /* BLOCK_CRYPTO_H */

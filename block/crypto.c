@@ -185,6 +185,70 @@ block_crypto_create_opts_init(QDict *opts, Error **errp)
 }
 
 
+static ssize_t block_crypto_headerlen_hdr_init_func(QCryptoBlock *block,
+        size_t headerlen, void *opaque, Error **errp)
+{
+    size_t *headerlenp = opaque;
+
+    /* Stash away the payload size */
+    *headerlenp = headerlen;
+    return 0;
+}
+
+
+static ssize_t block_crypto_headerlen_hdr_write_func(QCryptoBlock *block,
+        size_t offset, const uint8_t *buf, size_t buflen,
+        void *opaque, Error **errp)
+{
+    /* Discard the bytes, we're not actually writing to an image */
+    return buflen;
+}
+
+
+/* Determine the number of bytes for the crypto header */
+bool block_crypto_calculate_payload_offset(QemuOpts *opts,
+                                           const char *optprefix,
+                                           size_t *len,
+                                           Error **errp)
+{
+    QDict *cryptoopts_qdict;
+    QCryptoBlockCreateOptions *cryptoopts;
+    QCryptoBlock *crypto;
+
+    /* Extract options into a qdict */
+    if (optprefix) {
+        QDict *opts_qdict = qemu_opts_to_qdict(opts, NULL);
+
+        qdict_extract_subqdict(opts_qdict, &cryptoopts_qdict, optprefix);
+        qobject_unref(opts_qdict);
+    } else {
+        cryptoopts_qdict = qemu_opts_to_qdict(opts, NULL);
+    }
+
+    /* Build QCryptoBlockCreateOptions object from qdict */
+    qdict_put_str(cryptoopts_qdict, "format", "luks");
+
+    cryptoopts = block_crypto_create_opts_init(cryptoopts_qdict, errp);
+    qobject_unref(cryptoopts_qdict);
+    if (!cryptoopts) {
+        return false;
+    }
+
+    /* Fake LUKS creation in order to determine the payload size */
+    crypto = qcrypto_block_create(cryptoopts, optprefix,
+                                  block_crypto_headerlen_hdr_init_func,
+                                  block_crypto_headerlen_hdr_write_func,
+                                  len, errp);
+    qapi_free_QCryptoBlockCreateOptions(cryptoopts);
+    if (!crypto) {
+        return false;
+    }
+
+    qcrypto_block_free(crypto);
+    return true;
+}
+
+
 static int block_crypto_open_generic(QCryptoBlockFormat format,
                                      QemuOptsList *opts_spec,
                                      BlockDriverState *bs,
