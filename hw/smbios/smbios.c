@@ -630,7 +630,7 @@ static void smbios_build_type_11_table(void)
 
 #define MAX_T16_STD_SZ 0x80000000 /* 2T in Kilobytes */
 
-static void smbios_build_type_16_table(unsigned dimm_cnt)
+static void smbios_build_type_16_table(ram_addr_t ram_size, unsigned dimm_cnt)
 {
     uint64_t size_kb;
 
@@ -847,6 +847,7 @@ void smbios_get_tables(MachineState *ms,
                        uint8_t **anchor, size_t *anchor_len)
 {
     unsigned i, dimm_cnt;
+    ram_addr_t ram_size = ms->ram_size;
 
     if (smbios_legacy) {
         *tables = *anchor = NULL;
@@ -876,7 +877,7 @@ void smbios_get_tables(MachineState *ms,
 
         dimm_cnt = QEMU_ALIGN_UP(ram_size, MAX_DIMM_SZ) / MAX_DIMM_SZ;
 
-        smbios_build_type_16_table(dimm_cnt);
+        smbios_build_type_16_table(ram_size, dimm_cnt);
 
         for (i = 0; i < dimm_cnt; i++) {
             smbios_build_type_17_table(i, GET_DIMM_SZ);
