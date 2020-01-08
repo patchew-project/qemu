@@ -9,6 +9,7 @@
 #include "hw/net/allwinner_emac.h"
 #include "hw/sd/allwinner-sdhost.h"
 #include "hw/ide/ahci.h"
+#include "hw/rtc/allwinner-rtc.h"
 
 #include "target/arm/cpu.h"
 
@@ -18,7 +19,7 @@
 #define AW_A10_UART0_REG_BASE   0x01c28000
 #define AW_A10_EMAC_BASE        0x01c0b000
 #define AW_A10_SATA_BASE        0x01c18000
-
+#define AW_A10_RTC_BASE         0x01c20d00
 #define AW_A10_SDRAM_BASE       0x40000000
 
 #define TYPE_AW_A10 "allwinner-a10"
@@ -36,6 +37,7 @@ typedef struct AwA10State {
     AwEmacState emac;
     AllwinnerAHCIState sata;
     AwSdHostState mmc0;
+    AwRtcState rtc;
     MemoryRegion sram_a;
 } AwA10State;
 
