@@ -7,11 +7,12 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/allwinner-a10-pic.h"
 #include "hw/net/allwinner_emac.h"
+#include "hw/sd/allwinner-sdhost.h"
 #include "hw/ide/ahci.h"
 
 #include "target/arm/cpu.h"
 
-
+#define AW_A10_MMC0_BASE        0x01c0f000
 #define AW_A10_PIC_REG_BASE     0x01c20400
 #define AW_A10_PIT_REG_BASE     0x01c20c00
 #define AW_A10_UART0_REG_BASE   0x01c28000
@@ -34,6 +35,7 @@ typedef struct AwA10State {
     AwA10PICState intc;
     AwEmacState emac;
     AllwinnerAHCIState sata;
+    AwSdHostState mmc0;
     MemoryRegion sram_a;
 } AwA10State;
 
