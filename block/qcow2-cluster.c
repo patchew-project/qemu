@@ -219,7 +219,7 @@ static int l2_load(BlockDriverState *bs, uint64_t offset,
  * Writes one sector of the L1 table to the disk (can't update single entries
  * and we really don't want bdrv_pread to perform a read-modify-write)
  */
-#define L1_ENTRIES_PER_SECTOR (512 / 8)
+#define L1_ENTRIES_PER_SECTOR (BDRV_SECTOR_SIZE / 8)
 int qcow2_write_l1_entry(BlockDriverState *bs, int l1_index)
 {
     BDRVQcow2State *s = bs->opaque;
