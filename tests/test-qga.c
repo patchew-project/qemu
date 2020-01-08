@@ -17,17 +17,17 @@ typedef struct {
 
 static int connect_qga(char *path)
 {
-    int s, ret, len, i = 0;
+    int s, ret, i = 0;
     struct sockaddr_un remote;
 
     s = socket(AF_UNIX, SOCK_STREAM, 0);
     g_assert(s != -1);
 
+    memset(&remote, 0, sizeof(struct sockaddr_un));
     remote.sun_family = AF_UNIX;
     do {
-        strcpy(remote.sun_path, path);
-        len = strlen(remote.sun_path) + sizeof(remote.sun_family);
-        ret = connect(s, (struct sockaddr *)&remote, len);
+        strncpy(remote.sun_path, path, sizeof(remote.sun_path) - 1);
+        ret = connect(s, (struct sockaddr *)&remote, sizeof(struct sockaddr_un));
         if (ret == -1) {
             g_usleep(G_USEC_PER_SEC);
         }
@@ -305,6 +305,7 @@ static void test_qga_info(gconstpointer fix)
     qobject_unref(ret);
 }
 
+#if defined(CONFIG_LINUX)
 static void test_qga_get_vcpus(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -324,7 +325,9 @@ static void test_qga_get_vcpus(gconstpointer fix)
 
     qobject_unref(ret);
 }
+#endif
 
+#if defined(CONFIG_LINUX)
 static void test_qga_get_fsinfo(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -348,6 +351,7 @@ static void test_qga_get_fsinfo(gconstpointer fix)
 
     qobject_unref(ret);
 }
+#endif
 
 static void test_qga_get_memory_block_info(gconstpointer fix)
 {
@@ -394,6 +398,7 @@ static void test_qga_get_memory_blocks(gconstpointer fix)
     qobject_unref(ret);
 }
 
+#if defined(CONFIG_LINUX)
 static void test_qga_network_get_interfaces(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -412,6 +417,7 @@ static void test_qga_network_get_interfaces(gconstpointer fix)
 
     qobject_unref(ret);
 }
+#endif
 
 static void test_qga_file_ops(gconstpointer fix)
 {
@@ -682,7 +688,7 @@ static void test_qga_blacklist(gconstpointer data)
     qobject_unref(ret);
 
     /* check something work */
-    ret = qmp_fd(fix.fd, "{'execute': 'guest-get-fsinfo'}");
+    ret = qmp_fd(fix.fd, "{'execute': 'guest-info'}");
     qmp_assert_no_error(ret);
     qobject_unref(ret);
 
@@ -766,6 +772,7 @@ static void test_qga_config(gconstpointer data)
     g_key_file_free(kf);
 }
 
+#if defined(CONFIG_LINUX)
 static void test_qga_fsfreeze_status(gconstpointer fix)
 {
     const TestFixture *fixture = fix;
@@ -781,6 +788,7 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
 
     qobject_unref(ret);
 }
+#endif
 
 static void test_qga_guest_exec(gconstpointer fix)
 {
@@ -976,12 +984,17 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/sync", &fix, test_qga_sync);
     g_test_add_data_func("/qga/ping", &fix, test_qga_ping);
     g_test_add_data_func("/qga/info", &fix, test_qga_info);
+#if defined(CONFIG_LINUX)
     g_test_add_data_func("/qga/network-get-interfaces", &fix,
                          test_qga_network_get_interfaces);
     if (!access("/sys/devices/system/cpu/cpu0", F_OK)) {
         g_test_add_data_func("/qga/get-vcpus", &fix, test_qga_get_vcpus);
     }
     g_test_add_data_func("/qga/get-fsinfo", &fix, test_qga_get_fsinfo);
+    g_test_add_data_func("/qga/fsfreeze-status", &fix,
+                         test_qga_fsfreeze_status);
+#endif
+
     g_test_add_data_func("/qga/get-memory-block-info", &fix,
                          test_qga_get_memory_block_info);
     g_test_add_data_func("/qga/get-memory-blocks", &fix,
@@ -993,8 +1006,6 @@ int main(int argc, char **argv)
     g_test_add_data_func("/qga/invalid-oob", &fix, test_qga_invalid_oob);
     g_test_add_data_func("/qga/invalid-cmd", &fix, test_qga_invalid_cmd);
     g_test_add_data_func("/qga/invalid-args", &fix, test_qga_invalid_args);
-    g_test_add_data_func("/qga/fsfreeze-status", &fix,
-                         test_qga_fsfreeze_status);
 
     g_test_add_data_func("/qga/blacklist", NULL, test_qga_blacklist);
     g_test_add_data_func("/qga/config", NULL, test_qga_config);
