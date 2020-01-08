@@ -41,6 +41,7 @@
 #include <libfdt.h>
 
 #define SPAPR_VIO_REG_BASE 0x71000000
+#define PHANDLE_SPAPR_VIO_BASE 0x0000F000
 
 static char *spapr_vio_get_dev_name(DeviceState *qdev)
 {
@@ -81,6 +82,21 @@ SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg)
     return NULL;
 }
 
+SpaprVioDevice *spapr_vio_find_by_phandle(SpaprVioBus *bus, uint32_t phandle)
+{
+    BusChild *kid;
+    SpaprVioDevice *dev = NULL;
+
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        dev = (SpaprVioDevice *)kid->child;
+        if (dev->phandle && dev->phandle == phandle) {
+            return dev;
+        }
+    }
+
+    return NULL;
+}
+
 static int vio_make_devnode(SpaprVioDevice *dev,
                             void *fdt)
 {
@@ -101,6 +117,11 @@ static int vio_make_devnode(SpaprVioDevice *dev,
     }
 
     ret = fdt_setprop_cell(fdt, node_off, "reg", dev->reg);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = fdt_setprop_cell(fdt, node_off, "phandle", dev->phandle);
     if (ret < 0) {
         return ret;
     }
@@ -468,6 +489,7 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
     SpaprVioDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
     char *id;
     Error *local_err = NULL;
+    SpaprVioBus *bus = SPAPR_VIO_BUS(dev->qdev.parent_bus);
 
     if (dev->reg != -1) {
         /*
@@ -487,12 +509,12 @@ static void spapr_vio_busdev_realize(DeviceState *qdev, Error **errp)
         }
     } else {
         /* Need to assign an address */
-        SpaprVioBus *bus = SPAPR_VIO_BUS(dev->qdev.parent_bus);
-
         do {
             dev->reg = bus->next_reg++;
         } while (reg_conflict(dev));
     }
+
+    dev->phandle = bus->next_phandle++;
 
     /* Don't overwrite ids assigned on the command line */
     if (!dev->qdev.id) {
@@ -576,6 +598,7 @@ SpaprVioBus *spapr_vio_bus_init(void)
     qbus = qbus_create(TYPE_SPAPR_VIO_BUS, dev, "spapr-vio");
     bus = SPAPR_VIO_BUS(qbus);
     bus->next_reg = SPAPR_VIO_REG_BASE;
+    bus->next_phandle = PHANDLE_SPAPR_VIO_BASE;
 
     /* hcall-vio */
     spapr_register_hypercall(H_VIO_SIGNAL, h_vio_signal);
