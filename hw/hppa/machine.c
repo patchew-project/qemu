@@ -159,6 +159,10 @@ static void machine_hppa_init(MachineState *machine)
         exit(1);
     }
     g_free(firmware_filename);
+    if (machine->ram_size > 4095 * MiB) {
+        /* FIXME As we use 32-bit registers, 4GiB is truncated to 0 */
+        warn_report("Firmware might misbehave with 4GB of RAM");
+    }
 
     rom_region = g_new(MemoryRegion, 1);
     memory_region_init_ram(rom_region, NULL, "firmware",
