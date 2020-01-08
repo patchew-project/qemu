@@ -49,6 +49,7 @@ header_size=104
 
 offset_backing_file_offset=8
 offset_backing_file_size=16
+offset_virtual_size=24
 offset_l1_size=36
 offset_l1_table_offset=40
 offset_refcount_table_offset=48
@@ -197,6 +198,12 @@ poke_file "$TEST_IMG" "$offset_snap1_l1_size" "\x10\x00\x00\x00"
 { $QEMU_IMG snapshot -a test $TEST_IMG; } 2>&1 | _filter_testdir
 { $QEMU_IMG snapshot -d test $TEST_IMG; } 2>&1 | _filter_testdir
 _check_test_img
+
+echo
+echo "== Image size not a multiple of the sector size =="
+_make_test_img 64k
+poke_file "$TEST_IMG" "$offset_virtual_size" "\x00\x00\x00\x00\x00\x00\xff\xff"
+{ $QEMU_IO -c "write 65530 1" $TEST_IMG; } 2>&1 | _filter_qemu_io | _filter_testdir
 
 # success, all done
 echo "*** done"
