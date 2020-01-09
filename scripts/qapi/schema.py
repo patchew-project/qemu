@@ -128,7 +128,7 @@ class QAPISchemaVisitor(object):
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig,
-                      features):
+                      coroutine, features):
         pass
 
     def visit_event(self, name, info, ifcond, arg_type, boxed):
@@ -678,7 +678,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
 
     def __init__(self, name, info, doc, ifcond, arg_type, ret_type,
                  gen, success_response, boxed, allow_oob, allow_preconfig,
-                 features):
+                 coroutine, features):
         QAPISchemaEntity.__init__(self, name, info, doc, ifcond, features)
         assert not arg_type or isinstance(arg_type, str)
         assert not ret_type or isinstance(ret_type, str)
@@ -691,6 +691,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
         self.boxed = boxed
         self.allow_oob = allow_oob
         self.allow_preconfig = allow_preconfig
+        self.coroutine = coroutine
 
     def check(self, schema):
         QAPISchemaEntity.check(self, schema)
@@ -732,7 +733,7 @@ class QAPISchemaCommand(QAPISchemaEntity):
                               self.arg_type, self.ret_type,
                               self.gen, self.success_response,
                               self.boxed, self.allow_oob,
-                              self.allow_preconfig,
+                              self.allow_preconfig, self.coroutine,
                               self.features)
 
 
@@ -1014,6 +1015,7 @@ class QAPISchema(object):
         boxed = expr.get('boxed', False)
         allow_oob = expr.get('allow-oob', False)
         allow_preconfig = expr.get('allow-preconfig', False)
+        coroutine = expr.get('coroutine', False)
         ifcond = expr.get('if')
         features = expr.get('features', [])
         if isinstance(data, OrderedDict):
@@ -1025,6 +1027,7 @@ class QAPISchema(object):
         self._def_entity(QAPISchemaCommand(name, info, doc, ifcond, data, rets,
                                            gen, success_response,
                                            boxed, allow_oob, allow_preconfig,
+                                           coroutine,
                                            self._make_features(features, info)))
 
     def _def_event(self, expr, info, doc):
