@@ -471,6 +471,15 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
         env->spr[SPR_FSCR] |= ((target_ulong)env->error_code << 56);
 #endif
         break;
+    case POWERPC_EXCP_HV_FU:     /* Hypervisor Facility Unavailable Exception */
+#ifdef TARGET_PPC64
+        env->spr[SPR_HFSCR] |= ((target_ulong)env->error_code << FSCR_IC_POS);
+        srr0 = SPR_HSRR0;
+        srr1 = SPR_HSRR1;
+        new_msr |= (target_ulong)MSR_HVB;
+        new_msr |= env->msr & ((target_ulong)1 << MSR_RI);
+#endif
+        break;
     case POWERPC_EXCP_PIT:       /* Programmable interval timer interrupt    */
         LOG_EXCP("PIT exception\n");
         break;
@@ -1285,6 +1294,8 @@ void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
 {
     int irq = book3s_dbell2irq(rb, false);
 
+    helper_hfscr_facility_check(env, HFSCR_MSGP, "msgclrp", HFSCR_IC_MSGP);
+
     if (irq < 0) {
         return;
     }
@@ -1300,6 +1311,8 @@ void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
 {
     int irq = book3s_dbell2irq(rb, false);
     int pir = env->spr_cb[SPR_PIR].default_value;
+
+    helper_hfscr_facility_check(env, HFSCR_MSGP, "msgsndp", HFSCR_IC_MSGP);
 
     if (irq < 0) {
         return;
