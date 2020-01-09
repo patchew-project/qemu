@@ -2748,7 +2748,6 @@ static int do_configure_accelerator(void *opaque, QemuOpts *opts, Error **errp)
 static void configure_accelerators(const char *progname)
 {
     const char *accel;
-    char **accel_list, **tmp;
     bool init_failed = false;
 
     qemu_opts_foreach(qemu_find_opts("icount"),
@@ -2756,6 +2755,8 @@ static void configure_accelerators(const char *progname)
 
     accel = qemu_opt_get(qemu_get_machine_opts(), "accel");
     if (QTAILQ_EMPTY(&qemu_accel_opts.head)) {
+        char **accel_list, **tmp;
+
         if (accel == NULL) {
             /* Select the default accelerator */
             if (!accel_find("tcg") && !accel_find("kvm")) {
@@ -2787,6 +2788,7 @@ static void configure_accelerators(const char *progname)
                 error_report("invalid accelerator %s", *tmp);
             }
         }
+        g_strfreev(accel_list);
     } else {
         if (accel != NULL) {
             error_report("The -accel and \"-machine accel=\" options are incompatible");
