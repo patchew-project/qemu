@@ -751,6 +751,7 @@ qos-test-obj-y += tests/libqos/virtio-net.o
 qos-test-obj-y += tests/libqos/virtio-pci.o
 qos-test-obj-y += tests/libqos/virtio-pci-modern.o
 qos-test-obj-y += tests/libqos/virtio-rng.o
+qos-test-obj-y += tests/libqos/virtio-iommu.o
 qos-test-obj-y += tests/libqos/virtio-scsi.o
 qos-test-obj-y += tests/libqos/virtio-serial.o
 
@@ -790,6 +791,7 @@ qos-test-obj-$(CONFIG_VIRTFS) += tests/virtio-9p-test.o
 qos-test-obj-y += tests/virtio-blk-test.o
 qos-test-obj-y += tests/virtio-net-test.o
 qos-test-obj-y += tests/virtio-rng-test.o
+qos-test-obj-y += tests/virtio-iommu-test.o
 qos-test-obj-y += tests/virtio-scsi-test.o
 qos-test-obj-y += tests/virtio-serial-test.o
 qos-test-obj-y += tests/vmxnet3-test.o
