@@ -439,6 +439,10 @@ struct {
     MultiRDMASendParams *params;
     /* number of created threads */
     int count;
+    /* this mutex protects the following parameters */
+    QemuMutex mutex_sync;
+    /* number of registered multiRDMA channels */
+    unsigned int reg_mr_channels;
     /* syncs main thread and channels */
     QemuSemaphore sem_sync;
 } *multiRDMA_send_state;
@@ -3998,6 +4002,11 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
                     rdma->dest_blocks[i].remote_host_addr;
             local->block[i].remote_rkey = rdma->dest_blocks[i].remote_rkey;
         }
+
+        /* Wait for all multiRDMA channels to complete registration */
+        if (migrate_use_multiRDMA()) {
+            qemu_sem_wait(&multiRDMA_send_state->sem_sync);
+        }
     }
 
     trace_qemu_rdma_registration_stop(flags);
@@ -4562,6 +4571,17 @@ static void *multiRDMA_send_thread(void *opaque)
         }
     }
 
+    /*
+     * Inform the main RDMA thread to run when multiRDMA
+     * threads have completed registration.
+     */
+    qemu_mutex_lock(&multiRDMA_send_state->mutex_sync);
+    if (++multiRDMA_send_state->reg_mr_channels ==
+        migrate_multiRDMA_channels()) {
+        qemu_sem_post(&multiRDMA_send_state->sem_sync);
+    }
+    qemu_mutex_unlock(&multiRDMA_send_state->mutex_sync);
+
     while (true) {
         qemu_sem_wait(&p->sem);
 
@@ -4616,6 +4636,8 @@ static int multiRDMA_save_setup(const char *host_port, Error **errp)
     multiRDMA_send_state->params = g_new0(MultiRDMASendParams,
                                           thread_count);
     atomic_set(&multiRDMA_send_state->count, 0);
+    atomic_set(&multiRDMA_send_state->reg_mr_channels, 0);
+    qemu_mutex_init(&multiRDMA_send_state->mutex_sync);
     qemu_sem_init(&multiRDMA_send_state->sem_sync, 0);
 
     for (i = 0; i < thread_count; i++) {
@@ -4714,6 +4736,7 @@ int multiRDMA_save_cleanup(void)
         g_free(multiRDMA_send_state->params[i].rdma);
     }
 
+    qemu_mutex_destroy(&multiRDMA_send_state->mutex_sync);
     qemu_sem_destroy(&multiRDMA_send_state->sem_sync);
     g_free(multiRDMA_send_state);
     multiRDMA_send_state = NULL;
