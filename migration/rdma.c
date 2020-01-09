@@ -116,6 +116,16 @@ static uint32_t known_capabilities = RDMA_CAPABILITY_PIN_ALL;
 
 #define RDMA_WRID_CHUNK_MASK (~RDMA_WRID_BLOCK_MASK & ~RDMA_WRID_TYPE_MASK)
 
+/* Define magic to distinguish multiRDMA and main RDMA */
+#define MULTIRDMA_MAGIC 0x11223344U
+#define MAINRDMA_MAGIC 0x55667788U
+#define ERROR_MAGIC 0xFFFFFFFFU
+
+#define MULTIRDMA_VERSION 1
+#define MAINRDMA_VERSION 1
+
+#define UNUSED_ID 0xFFU
+
 /*
  * RDMA migration protocol:
  * 1. RDMA Writes (data messages, i.e. RAM)
@@ -167,6 +177,14 @@ enum {
     RDMA_CONTROL_UNREGISTER_FINISHED, /* unpinning finished */
 };
 
+/*
+ * Identify the MultiRDAM channel info
+ */
+typedef struct {
+    uint32_t magic;
+    uint32_t version;
+    uint8_t id;
+} __attribute__((packed)) RDMAChannelInit_t;
 
 /*
  * Memory and MR structures used to represent an IB Send/Recv work request.
@@ -3430,7 +3448,7 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         int i;
         RDMAContext *multi_rdma = NULL;
         thread_count = migrate_multiRDMA_channels();
-        /* create the multi Thread RDMA channels */
+        /* create the multiRDMA channels */
         for (i = 0; i < thread_count; i++) {
             if (multiRDMA_recv_state->params[i].rdma->cm_id == NULL) {
                 multi_rdma = multiRDMA_recv_state->params[i].rdma;
@@ -4058,6 +4076,48 @@ static QEMUFile *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
     return rioc->file;
 }
 
+static RDMAChannelInit_t migration_rdma_recv_initial_packet(QEMUFile *f,
+                                                            Error **errp)
+{
+    RDMAChannelInit_t msg;
+    int thread_count = migrate_multiRDMA_channels();
+    qemu_get_buffer(f, (uint8_t *)&msg, sizeof(msg));
+    be32_to_cpus(&msg.magic);
+    be32_to_cpus(&msg.version);
+
+    if (msg.magic != MULTIRDMA_MAGIC &&
+        msg.magic != MAINRDMA_MAGIC) {
+        error_setg(errp, "multiRDMA: received unrecognized "
+                   "packet magic %x", msg.magic);
+        goto err;
+    }
+
+    if (msg.magic == MULTIRDMA_MAGIC
+        && msg.version != MULTIRDMA_VERSION) {
+        error_setg(errp, "multiRDMA: received packet version "
+                   "%d expected %d", msg.version, MULTIRDMA_VERSION);
+        goto err;
+    }
+
+    if (msg.magic == MAINRDMA_MAGIC && msg.version != MAINRDMA_VERSION) {
+        error_setg(errp, "multiRDMA: received packet version "
+                   "%d expected %d", msg.version, MAINRDMA_VERSION);
+        goto err;
+    }
+
+    if (msg.magic == MULTIRDMA_MAGIC && msg.id > thread_count) {
+        error_setg(errp, "multiRDMA: received channel version %d "
+                   "expected %d", msg.version, MULTIRDMA_VERSION);
+        goto err;
+    }
+
+    return msg;
+err:
+    msg.magic = ERROR_MAGIC;
+    msg.id = UNUSED_ID;
+    return msg;
+}
+
 static void *multiRDMA_recv_thread(void *opaque)
 {
     MultiRDMARecvParams *p = opaque;
@@ -4100,13 +4160,34 @@ static void multiRDMA_recv_new_channel(QEMUFile *f, int id)
 static void migration_multiRDMA_process_incoming(QEMUFile *f, RDMAContext *rdma)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
+    Error *local_err = NULL;
+    RDMAChannelInit_t msg = migration_rdma_recv_initial_packet(f, &local_err);
 
-    if (!mis->from_src_file) {
-        rdma->migration_started_on_destination = 1;
-        migration_incoming_setup(f);
-        migration_incoming_process();
-    } else {
-        multiRDMA_recv_new_channel(f, multiRDMA_recv_state->count);
+    switch (msg.magic) {
+    case MAINRDMA_MAGIC:
+        if (!mis->from_src_file) {
+            rdma->migration_started_on_destination = 1;
+            migration_incoming_setup(f);
+            migration_incoming_process();
+        }
+        break;
+
+    case MULTIRDMA_MAGIC:
+        multiRDMA_recv_new_channel(f, msg.id);
+        break;
+
+    case ERROR_MAGIC:
+    default:
+        if (local_err) {
+            MigrationState *s = migrate_get_current();
+            migrate_set_error(s, local_err);
+            if (s->state == MIGRATION_STATUS_SETUP ||
+                    s->state == MIGRATION_STATUS_ACTIVE) {
+                migrate_set_state(&s->state, s->state,
+                        MIGRATION_STATUS_FAILED);
+            }
+        }
+        break;
     }
 }
 
@@ -4245,9 +4326,25 @@ err:
     multiRDMA_load_cleanup();
 }
 
+static void migration_rdma_send_initial_packet(QEMUFile *f, uint8_t id)
+{
+    RDMAChannelInit_t msg;
+
+    msg.magic = cpu_to_be32(id == UNUSED_ID ?
+                            MAINRDMA_MAGIC : MULTIRDMA_MAGIC);
+    msg.version = cpu_to_be32(id == UNUSED_ID ?
+                              MAINRDMA_VERSION : MULTIRDMA_VERSION);
+    msg.id = id;
+    qemu_put_buffer(f, (uint8_t *)&msg, sizeof(msg));
+    qemu_fflush(f);
+}
+
 static void *multiRDMA_send_thread(void *opaque)
 {
     MultiRDMASendParams *p = opaque;
+
+    /* send the multiRDMA channels magic */
+    migration_rdma_send_initial_packet(p->file, p->id);
 
     while (true) {
         qemu_mutex_lock(&p->mutex);
@@ -4579,6 +4676,9 @@ void rdma_start_outgoing_migration(void *opaque,
     s->to_dst_file = qemu_fopen_rdma(rdma, "wb");
     /* create multiRDMA channel */
     if (migrate_use_multiRDMA()) {
+        /* send the main RDMA channel magic */
+        migration_rdma_send_initial_packet(s->to_dst_file, UNUSED_ID);
+
         if (multiRDMA_save_setup(host_port, errp) != 0) {
             ERROR(errp, "init multiRDMA channels failure!");
             goto err;
