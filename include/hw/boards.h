@@ -59,8 +59,6 @@ void memory_region_allocate_system_memory(MemoryRegion *mr, Object *owner,
 #define MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(MachineClass, (klass), TYPE_MACHINE)
 
-extern MachineState *current_machine;
-
 void machine_run_board_init(MachineState *machine);
 bool machine_usb(MachineState *machine);
 int machine_phandle_start(MachineState *machine);

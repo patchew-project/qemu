@@ -214,6 +214,8 @@ static int default_sdcard = 1;
 static int default_vga = 1;
 static int default_net = 1;
 
+static MachineState *current_machine;
+
 static struct {
     const char *driver;
     int *flag;
@@ -1163,8 +1165,6 @@ static int usb_parse(const char *cmdline)
 
 /***********************************************************/
 /* machine registration */
-
-MachineState *current_machine;
 
 static MachineClass *find_machine(const char *name, GSList *machines)
 {
