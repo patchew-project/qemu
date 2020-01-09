@@ -271,6 +271,7 @@ void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);
 void migration_incoming_process(void);
 
 bool  migration_has_all_channels(void);
+int migrate_multiRDMA_channels(void);
 
 uint64_t migrate_max_downtime(void);
 

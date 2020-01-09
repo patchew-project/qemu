@@ -88,6 +88,9 @@
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY (200 * 100)
 #define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
 
+/* Define default MultiRDMA thread number */
+#define DEFAULT_MIGRATE_MULTIRDMA_CHANNELS 2
+
 /* Background transfer rate for postcopy, 0 means unlimited, note
  * that page requests can still exceed this limit.
  */
@@ -788,6 +791,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->announce_rounds = s->parameters.announce_rounds;
     params->has_announce_step = true;
     params->announce_step = s->parameters.announce_step;
+    params->has_multi_rdma_channels = true;
+    params->multi_rdma_channels = s->parameters.multi_rdma_channels;
 
     return params;
 }
@@ -1171,6 +1176,14 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
         return false;
     }
 
+    if (params->has_multi_rdma_channels
+        && (params->multi_rdma_channels < 1)) {
+        error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
+                   "multi_rdma_channels",
+                   "is invalid, it should be in the range of 1 to 5");
+        return false;
+    }
+
     if (params->has_xbzrle_cache_size &&
         (params->xbzrle_cache_size < qemu_target_page_size() ||
          !is_power_of_2(params->xbzrle_cache_size))) {
@@ -1302,6 +1315,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_announce_step) {
         dest->announce_step = params->announce_step;
     }
+    if (params->has_multi_rdma_channels) {
+        dest->multi_rdma_channels = params->multi_rdma_channels;
+    }
 }
 
 static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
@@ -1402,6 +1418,9 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_announce_step) {
         s->parameters.announce_step = params->announce_step;
+    }
+    if (params->has_multi_rdma_channels) {
+        s->parameters.multi_rdma_channels = params->multi_rdma_channels;
     }
 }
 
@@ -2220,6 +2239,15 @@ int migrate_multifd_channels(void)
     s = migrate_get_current();
 
     return s->parameters.multifd_channels;
+}
+
+int migrate_multiRDMA_channels(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.multi_rdma_channels;
 }
 
 int migrate_use_xbzrle(void)
@@ -3513,6 +3541,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_SIZE("announce-step", MigrationState,
                       parameters.announce_step,
                       DEFAULT_MIGRATE_ANNOUNCE_STEP),
+    DEFINE_PROP_UINT8("multiRDMA-channels", MigrationState,
+                      parameters.multi_rdma_channels,
+                      DEFAULT_MIGRATE_MULTIRDMA_CHANNELS),
 
     /* Migration capabilities */
     DEFINE_PROP_MIG_CAP("x-xbzrle", MIGRATION_CAPABILITY_XBZRLE),
@@ -3591,6 +3622,7 @@ static void migration_instance_init(Object *obj)
     params->has_announce_max = true;
     params->has_announce_rounds = true;
     params->has_announce_step = true;
+    params->has_multi_rdma_channels = true;
 
     qemu_sem_init(&ms->postcopy_pause_sem, 0);
     qemu_sem_init(&ms->postcopy_pause_rp_sem, 0);

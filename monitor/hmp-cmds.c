@@ -456,6 +456,9 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, " %s: '%s'\n",
             MigrationParameter_str(MIGRATION_PARAMETER_TLS_AUTHZ),
             params->has_tls_authz ? params->tls_authz : "");
+        monitor_printf(mon, "%s: %u\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_MULTI_RDMA_CHANNELS),
+            params->multi_rdma_channels);
     }
 
     qapi_free_MigrationParameters(params);
@@ -1854,6 +1857,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_ANNOUNCE_STEP:
         p->has_announce_step = true;
         visit_type_size(v, param, &p->announce_step, &err);
+        break;
+    case MIGRATION_PARAMETER_MULTI_RDMA_CHANNELS:
+        p->has_multi_rdma_channels = true;
+        visit_type_int(v, param, &p->multi_rdma_channels, &err);
         break;
     default:
         assert(0);

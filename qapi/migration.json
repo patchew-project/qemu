@@ -588,6 +588,10 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    Defaults to 99. (Since 3.1)
 #
+# @multi-rdma-channels: Number of channels used to migrate data in
+#                       parallel. This is the same number that the
+#                       number of multiRDMA used for migration.  The
+#                       default value is 2 (since 4.2)
 # Since: 2.4
 ##
 { 'enum': 'MigrationParameter',
@@ -600,7 +604,8 @@
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
-           'max-cpu-throttle' ] }
+           'max-cpu-throttle',
+           'multi-rdma-channels'] }
 
 ##
 # @MigrateSetParameters:
@@ -690,6 +695,10 @@
 # @max-cpu-throttle: maximum cpu throttle percentage.
 #                    The default value is 99. (Since 3.1)
 #
+# @multi-rdma-channels: Number of channels used to migrate data in
+#                       parallel. This is the same number that the
+#                       number of multiRDMA used for migration.  The
+#                       default value is 2 (since 4.2)
 # Since: 2.4
 ##
 # TODO either fuse back into MigrationParameters, or make
@@ -715,7 +724,8 @@
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
             '*max-postcopy-bandwidth': 'size',
-	    '*max-cpu-throttle': 'int' } }
+     	    '*max-cpu-throttle': 'int',
+            '*multi-rdma-channels': 'int'} }
 
 ##
 # @migrate-set-parameters:
@@ -825,6 +835,10 @@
 #                    Defaults to 99.
 #                     (Since 3.1)
 #
+# @multi-rdma-channels: Number of channels used to migrate data in
+#                       parallel. This is the same number that the
+#                       number of multiRDMA used for migration.  The
+#                       default value is 2 (since 4.2)
 # Since: 2.4
 ##
 { 'struct': 'MigrationParameters',
@@ -847,8 +861,9 @@
             '*block-incremental': 'bool' ,
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
-	    '*max-postcopy-bandwidth': 'size',
-            '*max-cpu-throttle':'uint8'} }
+     	    '*max-postcopy-bandwidth': 'size',
+            '*max-cpu-throttle':'uint8',
+            '*multi-rdma-channels':'uint8'} }
 
 ##
 # @query-migrate-parameters:
