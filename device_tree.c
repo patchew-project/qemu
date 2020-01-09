@@ -466,7 +466,9 @@ uint32_t qemu_fdt_alloc_phandle(void *fdt)
      * which phandle id to start allocating phandles.
      */
     if (!phandle) {
-        phandle = machine_phandle_start(current_machine);
+        MachineState *ms = MACHINE(qdev_get_machine());
+
+        phandle = machine_phandle_start(ms);
     }
 
     if (!phandle) {
