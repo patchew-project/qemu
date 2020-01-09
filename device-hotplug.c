@@ -45,7 +45,7 @@ static DriveInfo *add_init_drive(const char *optstr)
     if (!opts)
         return NULL;
 
-    mc = MACHINE_GET_CLASS(current_machine);
+    mc = MACHINE_GET_CLASS(qdev_get_machine());
     dinfo = drive_new(opts, mc->block_default_type, &err);
     if (err) {
         error_report_err(err);
