@@ -65,7 +65,9 @@ int accel_init_machine(AccelState *accel, MachineState *ms)
 
 AccelState *current_accel(void)
 {
-    return current_machine->accelerator;
+    MachineState *ms = MACHINE(qdev_get_machine());
+
+    return ms->accelerator;
 }
 
 void accel_setup_post(MachineState *ms)
