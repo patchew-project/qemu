@@ -548,6 +548,87 @@ static int64_t block_crypto_getlength(BlockDriverState *bs)
 }
 
 
+static BlockMeasureInfo *block_crypto_measure(QemuOpts *opts,
+                                              BlockDriverState *in_bs,
+                                              Error **errp)
+{
+    Error *local_err = NULL;
+    BlockMeasureInfo *info;
+    uint64_t required = 0; /* bytes that contribute to required size */
+    uint64_t virtual_size; /* disk size as seen by guest */
+    size_t luks_payload_size;
+    char *optstr;
+    PreallocMode prealloc;
+
+    optstr = qemu_opt_get_del(opts, BLOCK_OPT_PREALLOC);
+    prealloc = qapi_enum_parse(&PreallocMode_lookup, optstr,
+                               PREALLOC_MODE_OFF, &local_err);
+    g_free(optstr);
+    if (local_err) {
+        goto err;
+    }
+
+    virtual_size = qemu_opt_get_size_del(opts, BLOCK_OPT_SIZE, 0);
+
+    if (!block_crypto_calculate_payload_offset(opts, NULL, &luks_payload_size,
+                                               &local_err)) {
+        goto err;
+    }
+
+    if (in_bs) {
+        int64_t ssize;
+        int64_t offset;
+        int64_t pnum = 0;
+
+        ssize = bdrv_getlength(in_bs);
+        if (ssize < 0) {
+            error_setg_errno(&local_err, -ssize,
+                             "Unable to get image virtual_size");
+            goto err;
+        }
+
+        virtual_size = ssize;
+
+        for (offset = 0; offset < ssize; offset += pnum) {
+            int ret;
+
+            ret = bdrv_block_status_above(in_bs, NULL, offset,
+                                          ssize - offset, &pnum, NULL,
+                                          NULL);
+            if (ret < 0) {
+                error_setg_errno(&local_err, -ret,
+                                 "Unable to get block status");
+                goto err;
+            }
+
+            if (ret & BDRV_BLOCK_ZERO) {
+                /* Skip zero regions */
+            } else if ((ret & (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) ==
+                       (BDRV_BLOCK_DATA | BDRV_BLOCK_ALLOCATED)) {
+                /* Count clusters we've seen */
+                required += pnum;
+            }
+        }
+    }
+
+    /* Take into account preallocation.  Nothing special is needed for
+     * PREALLOC_MODE_METADATA since metadata is always counted.
+     */
+    if (prealloc == PREALLOC_MODE_FULL || prealloc == PREALLOC_MODE_FALLOC) {
+        required = virtual_size;
+    }
+
+    info = g_new(BlockMeasureInfo, 1);
+    info->fully_allocated = luks_payload_size + virtual_size;
+    info->required = luks_payload_size + required;
+    return info;
+
+err:
+    error_propagate(errp, local_err);
+    return NULL;
+}
+
+
 static int block_crypto_probe_luks(const uint8_t *buf,
                                    int buf_size,
                                    const char *filename) {
@@ -734,6 +815,7 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_co_preadv     = block_crypto_co_preadv,
     .bdrv_co_pwritev    = block_crypto_co_pwritev,
     .bdrv_getlength     = block_crypto_getlength,
+    .bdrv_measure       = block_crypto_measure,
     .bdrv_get_info      = block_crypto_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
 
