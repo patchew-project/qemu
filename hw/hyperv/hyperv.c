@@ -53,8 +53,8 @@ static void synic_update(SynICState *synic, bool enable,
                                         &synic->msg_page_mr);
         }
         if (msg_page_addr) {
-            memory_region_add_subregion(get_system_memory(), msg_page_addr,
-                                        &synic->msg_page_mr);
+            memory_region_add_subregion_overlap(get_system_memory(), msg_page_addr,
+                                                &synic->msg_page_mr, 2);
         }
         synic->msg_page_addr = msg_page_addr;
     }
@@ -64,8 +64,8 @@ static void synic_update(SynICState *synic, bool enable,
                                         &synic->event_page_mr);
         }
         if (event_page_addr) {
-            memory_region_add_subregion(get_system_memory(), event_page_addr,
-                                        &synic->event_page_mr);
+            memory_region_add_subregion_overlap(get_system_memory(), event_page_addr,
+                                                &synic->event_page_mr, 2);
         }
         synic->event_page_addr = event_page_addr;
     }
