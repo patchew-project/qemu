@@ -136,7 +136,8 @@ CpuModelExpansionInfo *qmp_query_cpu_model_expansion(CpuModelExpansionType type,
     }
 
     if (kvm_enabled()) {
-        const char *cpu_type = current_machine->cpu_type;
+        MachineState *ms = MACHINE(qdev_get_machine());
+        const char *cpu_type = ms->cpu_type;
         int len = strlen(cpu_type) - strlen(ARM_CPU_TYPE_SUFFIX);
         bool supported = false;
 
