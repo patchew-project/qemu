@@ -2462,6 +2462,11 @@ struct target_snd_timer_gstatus {
     unsigned char reserved[32];
 };
 
+struct target_snd_timer_select {
+    struct target_snd_timer_id id;
+    unsigned char reserved[32];
+};
+
 /* alsa timer ioctls */
 #define TARGET_SNDRV_TIMER_IOCTL_PVERSION     TARGET_IOR('T', 0x00, int)
 #define TARGET_SNDRV_TIMER_IOCTL_NEXT_DEVICE  TARGET_IOWR('T', 0x01,                     \
@@ -2473,6 +2478,8 @@ struct target_snd_timer_gstatus {
                                                          struct target_snd_timer_gparams)
 #define TARGET_SNDRV_TIMER_IOCTL_GSTATUS      TARGET_IOWR('T', 0x05,                     \
                                                           struct target_snd_timer_gstatus)
+#define TARGET_SNDRV_TIMER_IOCTL_SELECT       TARGET_IOW('T', 0x10,                      \
+                                                         struct target_snd_timer_select)
 
 /* vfat ioctls */
 #define TARGET_VFAT_IOCTL_READDIR_BOTH    TARGET_IORU('r', 1)
