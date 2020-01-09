@@ -3004,6 +3004,7 @@ static void mtree_print_flatview(gpointer key, gpointer value,
     int n = view->nr;
     int i;
     AddressSpace *as;
+    MachineState *ms;
 
     qemu_printf("FlatView #%d\n", fvi->counter);
     ++fvi->counter;
@@ -3026,6 +3027,7 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         return;
     }
 
+    ms = MACHINE(qdev_get_machine());
     while (n--) {
         mr = range->mr;
         if (range->offset_in_region) {
@@ -3057,7 +3059,7 @@ static void mtree_print_flatview(gpointer key, gpointer value,
         if (fvi->ac) {
             for (i = 0; i < fv_address_spaces->len; ++i) {
                 as = g_array_index(fv_address_spaces, AddressSpace*, i);
-                if (fvi->ac->has_memory(current_machine, as,
+                if (fvi->ac->has_memory(ms, as,
                                         int128_get64(range->addr.start),
                                         MR_SIZE(range->addr.size) + 1)) {
                     qemu_printf(" %s", fvi->ac->name);
