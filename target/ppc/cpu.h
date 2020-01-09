@@ -935,6 +935,7 @@ enum {
 #define DBELL_PIRTAG_MASK              0x3fff
 
 #define DBELL_PROCIDTAG_MASK           PPC_BITMASK(44, 63)
+#define DBELL_TIRTAG_MASK              PPC_BITMASK(57, 63)
 
 #define PPC_PAGE_SIZES_MAX_SZ   8
 

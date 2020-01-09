@@ -898,7 +898,11 @@ static void ppc_hw_interrupt(CPUPPCState *env)
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_DOORBELL)) {
             env->pending_interrupts &= ~(1 << PPC_INTERRUPT_DOORBELL);
-            powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DOORI);
+            if (env->insns_flags & PPC_SEGMENT_64B) {
+                powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_SDOOR);
+            } else {
+                powerpc_excp(cpu, env->excp_model, POWERPC_EXCP_DOORI);
+            }
             return;
         }
         if (env->pending_interrupts & (1 << PPC_INTERRUPT_HDOORBELL)) {
@@ -1219,7 +1223,7 @@ void helper_msgsnd(target_ulong rb)
 }
 
 /* Server Processor Control */
-static int book3s_dbell2irq(target_ulong rb)
+static int book3s_dbell2irq(target_ulong rb, bool hv_dbell)
 {
     int msg = rb & DBELL_TYPE_MASK;
 
@@ -1228,12 +1232,16 @@ static int book3s_dbell2irq(target_ulong rb)
      * message type is 5. All other types are reserved and the
      * instruction is a no-op
      */
-    return msg == DBELL_TYPE_DBELL_SERVER ? PPC_INTERRUPT_HDOORBELL : -1;
+    if (msg == DBELL_TYPE_DBELL_SERVER) {
+        return hv_dbell ? PPC_INTERRUPT_HDOORBELL : PPC_INTERRUPT_DOORBELL;
+    }
+
+    return -1;
 }
 
 void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
 {
-    int irq = book3s_dbell2irq(rb);
+    int irq = book3s_dbell2irq(rb, true);
 
     if (irq < 0) {
         return;
@@ -1242,15 +1250,9 @@ void helper_book3s_msgclr(CPUPPCState *env, target_ulong rb)
     env->pending_interrupts &= ~(1 << irq);
 }
 
-void helper_book3s_msgsnd(target_ulong rb)
+static void book3s_msgsnd_common(int pir, int irq)
 {
-    int irq = book3s_dbell2irq(rb);
-    int pir = rb & DBELL_PROCIDTAG_MASK;
     CPUState *cs;
-
-    if (irq < 0) {
-        return;
-    }
 
     qemu_mutex_lock_iothread();
     CPU_FOREACH(cs) {
@@ -1265,6 +1267,50 @@ void helper_book3s_msgsnd(target_ulong rb)
     }
     qemu_mutex_unlock_iothread();
 }
+
+void helper_book3s_msgsnd(target_ulong rb)
+{
+    int pir = rb & DBELL_PROCIDTAG_MASK;
+    int irq = book3s_dbell2irq(rb, true);
+
+    if (irq < 0) {
+        return;
+    }
+
+    book3s_msgsnd_common(pir, irq);
+}
+
+#if defined(TARGET_PPC64)
+void helper_book3s_msgclrp(CPUPPCState *env, target_ulong rb)
+{
+    int irq = book3s_dbell2irq(rb, false);
+
+    if (irq < 0) {
+        return;
+    }
+
+    env->pending_interrupts &= ~(1 << irq);
+}
+
+/*
+ * sends a message to other threads that are on the same
+ * multi-threaded processor
+ */
+void helper_book3s_msgsndp(CPUPPCState *env, target_ulong rb)
+{
+    int irq = book3s_dbell2irq(rb, false);
+    int pir = env->spr_cb[SPR_PIR].default_value;
+
+    if (irq < 0) {
+        return;
+    }
+
+    pir &= ~DBELL_TIRTAG_MASK;
+    pir |= rb & DBELL_TIRTAG_MASK;
+
+    book3s_msgsnd_common(pir, irq);
+}
+#endif
 #endif
 
 void ppc_cpu_do_unaligned_access(CPUState *cs, vaddr vaddr,
