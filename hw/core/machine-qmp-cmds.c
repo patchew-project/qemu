@@ -280,9 +280,9 @@ void qmp_cpu_add(int64_t id, Error **errp)
 {
     MachineClass *mc;
 
-    mc = MACHINE_GET_CLASS(current_machine);
+    mc = MACHINE_GET_CLASS(qdev_get_machine());
     if (mc->hot_add_cpu) {
-        mc->hot_add_cpu(current_machine, id, errp);
+        mc->hot_add_cpu(MACHINE(qdev_get_machine()), id, errp);
     } else {
         error_setg(errp, "Not supported");
     }
