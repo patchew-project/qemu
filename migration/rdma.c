@@ -4076,6 +4076,38 @@ static QEMUFile *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
     return rioc->file;
 }
 
+static bool multiRDMA_send_all_channels_created(void)
+{
+    int thread_count = migrate_multiRDMA_channels();
+
+    return thread_count == atomic_read(&multiRDMA_send_state->count);
+}
+
+static bool multiRDMA_recv_all_channels_created(void)
+{
+    int thread_count = migrate_multiRDMA_channels();
+
+    return thread_count == atomic_read(&multiRDMA_recv_state->count);
+}
+
+static bool migration_has_all_rdma_channels(void)
+{
+    bool all_channels;
+    if (multiRDMA_send_state) {
+        MigrationState *ms = migrate_get_current();
+        all_channels = multiRDMA_send_all_channels_created();
+
+        return all_channels && ms->to_dst_file != NULL;
+    } else {
+        MigrationIncomingState *mis = migration_incoming_get_current();
+        all_channels = multiRDMA_recv_all_channels_created();
+
+        return all_channels && mis->from_src_file != NULL;
+    }
+
+    return false;
+}
+
 static RDMAChannelInit_t migration_rdma_recv_initial_packet(QEMUFile *f,
                                                             Error **errp)
 {
@@ -4168,7 +4200,6 @@ static void migration_multiRDMA_process_incoming(QEMUFile *f, RDMAContext *rdma)
         if (!mis->from_src_file) {
             rdma->migration_started_on_destination = 1;
             migration_incoming_setup(f);
-            migration_incoming_process();
         }
         break;
 
@@ -4188,6 +4219,11 @@ static void migration_multiRDMA_process_incoming(QEMUFile *f, RDMAContext *rdma)
             }
         }
         break;
+    }
+
+    /* wait for all channels to be established */
+    if (migration_has_all_rdma_channels()) {
+        migration_incoming_process();
     }
 }
 
@@ -4683,7 +4719,11 @@ void rdma_start_outgoing_migration(void *opaque,
             ERROR(errp, "init multiRDMA channels failure!");
             goto err;
         }
-        migrate_fd_connect(s, NULL);
+
+        /* wait for all channels to be established */
+        if (migration_has_all_rdma_channels()) {
+            migrate_fd_connect(s, NULL);
+        }
     } else {
         migrate_fd_connect(s, NULL);
     }
