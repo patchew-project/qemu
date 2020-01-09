@@ -1326,6 +1326,13 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
         goto fail;
     }
 
+    if (!QEMU_IS_ALIGNED(header.size, BDRV_SECTOR_SIZE)) {
+        error_setg(errp, "Virtual size is not a multiple of %u",
+                   (unsigned) BDRV_SECTOR_SIZE);
+        ret = -EINVAL;
+        goto fail;
+    }
+
     if (header.header_length > sizeof(header)) {
         s->unknown_header_fields_size = header.header_length - sizeof(header);
         s->unknown_header_fields = g_malloc(s->unknown_header_fields_size);

@@ -40,7 +40,8 @@ The first cluster of a qcow2 image contains the file header:
                     with larger cluster sizes.
 
          24 - 31:   size
-                    Virtual disk size in bytes.
+                    Virtual disk size in bytes. qemu can only handle
+                    sizes that are a multiple of 512 bytes.
 
                     Note: qemu has an implementation limit of 32 MB as
                     the maximum L1 table size.  With a 2 MB cluster

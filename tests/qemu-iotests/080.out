@@ -104,4 +104,9 @@ Data may be corrupted, or further writes to the image may corrupt it.
 
 3 leaked clusters were found on the image.
 This means waste of disk space, but no harm to data.
+
+== Image size not a multiple of the sector size ==
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=65536
+Modifying virtual size to 65535 bytes
+qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Virtual size is not a multiple of 512
 *** done
