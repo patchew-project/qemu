@@ -272,6 +272,8 @@ void migration_incoming_process(void);
 
 bool  migration_has_all_channels(void);
 int migrate_multiRDMA_channels(void);
+int multiRDMA_save_cleanup(void);
+int multiRDMA_load_cleanup(void);
 
 uint64_t migrate_max_downtime(void);
 
