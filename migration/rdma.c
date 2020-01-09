@@ -2084,8 +2084,7 @@ static int qemu_rdma_write_one(QEMUFile *f, RDMAContext *rdma,
                                .repeat = 1,
                              };
 
-    if (migrate_use_multiRDMA() &&
-        migrate_use_rdma_pin_all()) {
+    if (migrate_use_multiRDMA()) {
         /* The multiRDMA threads only send ram block */
         if (strcmp(block->block_name, "mach-virt.ram") == 0) {
             int channel = get_multiRDMA_channel();
@@ -2311,8 +2310,7 @@ static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
     }
 
     if (ret == 0) {
-        if (migrate_use_multiRDMA() &&
-            migrate_use_rdma_pin_all()) {
+        if (migrate_use_multiRDMA()) {
             /* The multiRDMA threads only send ram block */
             RDMALocalBlock *block = NULL;
             block = &(rdma->local_ram_blocks.block[rdma->current_index]);
@@ -4234,12 +4232,24 @@ err:
 
 static int qemu_multiRDMA_registration_handle(void *opaque)
 {
+    RDMAControlHeader reg_resp = { .len = sizeof(RDMARegisterResult),
+                                   .type = RDMA_CONTROL_REGISTER_RESULT,
+                                   .repeat = 0,
+                                 };
     RDMAControlHeader blocks = { .type = RDMA_CONTROL_RAM_BLOCKS_RESULT,
                                  .repeat = 1 };
     MultiRDMARecvParams *p = opaque;
     RDMAContext *rdma = p->rdma;
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
     RDMAControlHeader head;
+    RDMARegister *reg, *registers;
+    RDMACompress *comp;
+    RDMARegisterResult *reg_result;
+    static RDMARegisterResult results[RDMA_CONTROL_MAX_COMMANDS_PER_MESSAGE];
+    RDMALocalBlock *block;
+    void *host_addr;
+    int idx = 0;
+    int count = 0;
     int ret = 0;
     int i = 0;
 
@@ -4260,8 +4270,28 @@ static int qemu_multiRDMA_registration_handle(void *opaque)
         }
 
         switch (head.type) {
+        case RDMA_CONTROL_COMPRESS:
+            comp = (RDMACompress *) rdma->wr_data[idx].control_curr;
+            network_to_compress(comp);
+
+            if (comp->block_idx >= rdma->local_ram_blocks.nb_blocks) {
+                error_report("rdma: 'compress' bad block index %u (vs %d)",
+                        (unsigned int)comp->block_idx,
+                        rdma->local_ram_blocks.nb_blocks);
+                ret = -EIO;
+                goto out;
+            }
+            block = &(rdma->local_ram_blocks.block[comp->block_idx]);
+
+            host_addr = block->local_host_addr +
+                (comp->offset - block->offset);
+
+            ram_handle_compressed(host_addr, comp->value, comp->length);
+            break;
+
         case RDMA_CONTROL_REGISTER_FINISHED:
             goto out;
+
         case RDMA_CONTROL_RAM_BLOCKS_REQUEST:
             qsort(rdma->local_ram_blocks.block,
                   rdma->local_ram_blocks.nb_blocks,
@@ -4310,8 +4340,79 @@ static int qemu_multiRDMA_registration_handle(void *opaque)
                 error_report("rdma migration: error sending remote info");
                 goto out;
             }
-
             break;
+
+        case RDMA_CONTROL_REGISTER_REQUEST:
+            reg_resp.repeat = head.repeat;
+            registers = (RDMARegister *) rdma->wr_data[idx].control_curr;
+
+            for (count = 0; count < head.repeat; count++) {
+                uint64_t chunk;
+                uint8_t *chunk_start, *chunk_end;
+
+                reg = &registers[count];
+                network_to_register(reg);
+
+                reg_result = &results[count];
+
+                if (reg->current_index >= rdma->local_ram_blocks.nb_blocks) {
+                    error_report("rdma: 'register' bad block index %u (vs %d)",
+                            (unsigned int)reg->current_index,
+                            rdma->local_ram_blocks.nb_blocks);
+                    ret = -ENOENT;
+                    goto out;
+                }
+                block = &(rdma->local_ram_blocks.block[reg->current_index]);
+                if (block->is_ram_block) {
+                    if (block->offset > reg->key.current_addr) {
+                        error_report("rdma: bad register address for block %s"
+                                " offset: %" PRIx64 " current_addr: %" PRIx64,
+                                block->block_name, block->offset,
+                                reg->key.current_addr);
+                        ret = -ERANGE;
+                        goto out;
+                    }
+                    host_addr = (block->local_host_addr +
+                            (reg->key.current_addr - block->offset));
+                    chunk = ram_chunk_index(block->local_host_addr,
+                            (uint8_t *) host_addr);
+                } else {
+                    chunk = reg->key.chunk;
+                    host_addr = block->local_host_addr +
+                        (reg->key.chunk * (1UL << RDMA_REG_CHUNK_SHIFT));
+                    /* Check for particularly bad chunk value */
+                    if (host_addr < (void *)block->local_host_addr) {
+                        error_report("rdma: bad chunk for block %s"
+                                " chunk: %" PRIx64,
+                                block->block_name, reg->key.chunk);
+                        ret = -ERANGE;
+                        goto out;
+                    }
+                }
+                chunk_start = ram_chunk_start(block, chunk);
+                chunk_end = ram_chunk_end(block, chunk + reg->chunks);
+                if (qemu_rdma_register_and_get_keys(rdma, block,
+                            (uintptr_t)host_addr, NULL, &reg_result->rkey,
+                            chunk, chunk_start, chunk_end)) {
+                    error_report("cannot get rkey");
+                    ret = -EINVAL;
+                    goto out;
+                }
+
+                reg_result->host_addr = (uintptr_t)block->local_host_addr;
+
+                result_to_network(reg_result);
+            }
+
+            ret = qemu_rdma_post_send_control(rdma,
+                    (uint8_t *) results, &reg_resp);
+
+            if (ret < 0) {
+                error_report("Failed to send control buffer");
+                goto out;
+            }
+            break;
+
         default:
             error_report("Unknown control message %s", control_desc(head.type));
             ret = -EIO;
