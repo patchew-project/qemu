@@ -618,7 +618,9 @@ const char *print_wrid(int wrid);
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma));
+                                   int (*callback)(RDMAContext *rdma,
+                                   uint8_t id),
+                                   uint8_t id);
 
 static inline uint64_t ram_chunk_index(const uint8_t *start,
                                        const uint8_t *host)
@@ -1198,24 +1200,81 @@ static int qemu_rdma_alloc_qp(RDMAContext *rdma)
     return 0;
 }
 
-static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
+/*
+ * Parameters:
+ *    @id == UNUSED_ID :
+ *    This means that we register memory for the main RDMA channel,
+ *    the main RDMA channel don't register the mach-virt.ram block
+ *    when we use multiRDMA method to migrate.
+ *
+ *    @id == 0 or id == 1 or ... :
+ *    This means that we register memory for the multiRDMA channels,
+ *    the multiRDMA channels only register memory for the mach-virt.ram
+ *    block when we use multiRDAM method to migrate.
+ */
+static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma, uint8_t id)
 {
     int i;
     RDMALocalBlocks *local = &rdma->local_ram_blocks;
 
-    for (i = 0; i < local->nb_blocks; i++) {
-        local->block[i].mr =
-            ibv_reg_mr(rdma->pd,
-                    local->block[i].local_host_addr,
-                    local->block[i].length,
-                    IBV_ACCESS_LOCAL_WRITE |
-                    IBV_ACCESS_REMOTE_WRITE
-                    );
-        if (!local->block[i].mr) {
-            perror("Failed to register local dest ram block!\n");
-            break;
+    if (migrate_use_multiRDMA()) {
+        if (id == UNUSED_ID) {
+            for (i = 0; i < local->nb_blocks; i++) {
+                /* main RDMA channel don't register the mach-virt.ram block */
+                if (strcmp(local->block[i].block_name, "mach-virt.ram") == 0) {
+                    continue;
+                }
+
+                local->block[i].mr =
+                    ibv_reg_mr(rdma->pd,
+                            local->block[i].local_host_addr,
+                            local->block[i].length,
+                            IBV_ACCESS_LOCAL_WRITE |
+                            IBV_ACCESS_REMOTE_WRITE
+                            );
+                if (!local->block[i].mr) {
+                    perror("Failed to register local dest ram block!\n");
+                    break;
+                }
+                rdma->total_registrations++;
+            }
+        } else {
+            for (i = 0; i < local->nb_blocks; i++) {
+                /*
+                 * The multiRDAM channels only register
+                 * the mach-virt.ram block
+                 */
+                if (strcmp(local->block[i].block_name, "mach-virt.ram") == 0) {
+                    local->block[i].mr =
+                        ibv_reg_mr(rdma->pd,
+                                local->block[i].local_host_addr,
+                                local->block[i].length,
+                                IBV_ACCESS_LOCAL_WRITE |
+                                IBV_ACCESS_REMOTE_WRITE
+                                );
+                    if (!local->block[i].mr) {
+                        perror("Failed to register local dest ram block!\n");
+                        break;
+                    }
+                    rdma->total_registrations++;
+                }
+            }
         }
-        rdma->total_registrations++;
+    } else {
+        for (i = 0; i < local->nb_blocks; i++) {
+            local->block[i].mr =
+                ibv_reg_mr(rdma->pd,
+                        local->block[i].local_host_addr,
+                        local->block[i].length,
+                        IBV_ACCESS_LOCAL_WRITE |
+                        IBV_ACCESS_REMOTE_WRITE
+                        );
+            if (!local->block[i].mr) {
+                perror("Failed to register local dest ram block!\n");
+                break;
+            }
+            rdma->total_registrations++;
+        }
     }
 
     if (i >= local->nb_blocks) {
@@ -1223,8 +1282,10 @@ static int qemu_rdma_reg_whole_ram_blocks(RDMAContext *rdma)
     }
 
     for (i--; i >= 0; i--) {
-        ibv_dereg_mr(local->block[i].mr);
-        rdma->total_registrations--;
+        if (local->block[i].mr) {
+            ibv_dereg_mr(local->block[i].mr);
+            rdma->total_registrations--;
+        }
     }
 
     return -1;
@@ -1446,7 +1507,7 @@ static int qemu_rdma_unregister_waiting(RDMAContext *rdma)
         reg.key.chunk = chunk;
         register_to_network(rdma, &reg);
         ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                &resp, NULL, NULL);
+                                      &resp, NULL, NULL, UNUSED_ID);
         if (ret < 0) {
             return ret;
         }
@@ -1915,11 +1976,17 @@ static void qemu_rdma_move_header(RDMAContext *rdma, int idx,
  * The extra (optional) response is used during registration to us from having
  * to perform an *additional* exchange of message just to provide a response by
  * instead piggy-backing on the acknowledgement.
+ *
+ * Parameters:
+ *    @id : callback function need two parameters, id is the second parameter.
+ *
  */
 static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                                    uint8_t *data, RDMAControlHeader *resp,
                                    int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma))
+                                   int (*callback)(RDMAContext *rdma,
+                                   uint8_t id),
+                                   uint8_t id)
 {
     int ret = 0;
 
@@ -1973,7 +2040,7 @@ static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
     if (resp) {
         if (callback) {
             trace_qemu_rdma_exchange_send_issue_callback();
-            ret = callback(rdma);
+            ret = callback(rdma, id);
             if (ret < 0) {
                 return ret;
             }
@@ -2168,7 +2235,7 @@ retry:
 
                 compress_to_network(rdma, &comp);
                 ret = qemu_rdma_exchange_send(rdma, &head,
-                                (uint8_t *) &comp, NULL, NULL, NULL);
+                                (uint8_t *) &comp, NULL, NULL, NULL, UNUSED_ID);
 
                 if (ret < 0) {
                     return -EIO;
@@ -2195,7 +2262,7 @@ retry:
 
             register_to_network(rdma, &reg);
             ret = qemu_rdma_exchange_send(rdma, &head, (uint8_t *) &reg,
-                                    &resp, &reg_result_idx, NULL);
+                                    &resp, &reg_result_idx, NULL, UNUSED_ID);
             if (ret < 0) {
                 return ret;
             }
@@ -2828,7 +2895,8 @@ static ssize_t qio_channel_rdma_writev(QIOChannel *ioc,
             head.len = len;
             head.type = RDMA_CONTROL_QEMU_FILE;
 
-            ret = qemu_rdma_exchange_send(rdma, &head, data, NULL, NULL, NULL);
+            ret = qemu_rdma_exchange_send(rdma, &head, data, NULL,
+                                          NULL, NULL, UNUSED_ID);
 
             if (ret < 0) {
                 rdma->error_state = ret;
@@ -3660,7 +3728,7 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
             }
 
             if (rdma->pin_all) {
-                ret = qemu_rdma_reg_whole_ram_blocks(rdma);
+                ret = qemu_rdma_reg_whole_ram_blocks(rdma, UNUSED_ID);
                 if (ret) {
                     error_report("rdma migration: error dest "
                                     "registering ram blocks");
@@ -3675,6 +3743,15 @@ static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
              * their "local" descriptions with what was sent.
              */
             for (i = 0; i < local->nb_blocks; i++) {
+                /*
+                 * use the main RDMA channel to deliver the block of device
+                 * use the multiRDMA channels to deliver the RAMBlock
+                 */
+                if (migrate_use_multiRDMA() &&
+                    strcmp(local->block[i].block_name, "mach-virt.ram") == 0) {
+                        continue;
+                }
+
                 rdma->dest_blocks[i].remote_host_addr =
                     (uintptr_t)(local->block[i].local_host_addr);
 
@@ -3992,7 +4069,7 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
          */
         ret = qemu_rdma_exchange_send(rdma, &head, NULL, &resp,
                     &reg_result_idx, rdma->pin_all ?
-                    qemu_rdma_reg_whole_ram_blocks : NULL);
+                    qemu_rdma_reg_whole_ram_blocks : NULL, UNUSED_ID);
         if (ret < 0) {
             ERROR(errp, "receiving remote info!");
             return ret;
@@ -4025,6 +4102,11 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
         memcpy(rdma->dest_blocks,
             rdma->wr_data[reg_result_idx].control_curr, resp.len);
         for (i = 0; i < nb_dest_blocks; i++) {
+            if (migrate_use_multiRDMA() &&
+                strcmp(local->block[i].block_name, "mach-virt.ram") == 0) {
+                continue;
+            }
+
             network_to_dest_block(&rdma->dest_blocks[i]);
 
             /* We require that the blocks are in the same order */
@@ -4050,7 +4132,8 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
     trace_qemu_rdma_registration_stop(flags);
 
     head.type = RDMA_CONTROL_REGISTER_FINISHED;
-    ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL);
+    ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL,
+                                  NULL, NULL, UNUSED_ID);
 
     if (migrate_use_multiRDMA()) {
         /*
@@ -4298,7 +4381,7 @@ static int qemu_multiRDMA_registration_handle(void *opaque)
                   sizeof(RDMALocalBlock), dest_ram_sort_func);
 
             if (rdma->pin_all) {
-                ret = qemu_rdma_reg_whole_ram_blocks(rdma);
+                ret = qemu_rdma_reg_whole_ram_blocks(rdma, p->id);
                 if (ret) {
                     error_report("rdma migration: error dest "
                                  "registering ram blocks");
@@ -4680,7 +4763,7 @@ static void *multiRDMA_send_thread(void *opaque)
 
     ret = qemu_rdma_exchange_send(rdma, &head, NULL, &resp,
             &reg_result_idx, rdma->pin_all ?
-            qemu_rdma_reg_whole_ram_blocks : NULL);
+            qemu_rdma_reg_whole_ram_blocks : NULL, p->id);
     if (ret < 0) {
         return NULL;
     }
@@ -4749,7 +4832,8 @@ static void *multiRDMA_send_thread(void *opaque)
 
         /* Send FINISHED to the destination */
         head.type = RDMA_CONTROL_REGISTER_FINISHED;
-        ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL, NULL, NULL);
+        ret = qemu_rdma_exchange_send(rdma, &head, NULL, NULL,
+                                      NULL, NULL, p->id);
         if (ret < 0) {
             return NULL;
         }
