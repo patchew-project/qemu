@@ -518,7 +518,7 @@ fail:
     exit(EXIT_FAILURE);
 }
 
-static void migration_incoming_setup(QEMUFile *f)
+void migration_incoming_setup(QEMUFile *f)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
 
@@ -2183,6 +2183,15 @@ bool migrate_use_multiRDMA(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_MULTIRDMA];
+}
+
+bool migrate_use_rdma_pin_all(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->enabled_capabilities[MIGRATION_CAPABILITY_RDMA_PIN_ALL];
 }
 
 bool migrate_use_multifd(void)

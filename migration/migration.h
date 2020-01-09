@@ -265,6 +265,7 @@ struct MigrationState
 
 void migrate_set_state(int *state, int old_state, int new_state);
 
+void migration_incoming_setup(QEMUFile *f);
 void migration_fd_process_incoming(QEMUFile *f);
 void migration_ioc_process_incoming(QIOChannel *ioc, Error **errp);
 void migration_incoming_process(void);
@@ -297,6 +298,7 @@ bool migrate_validate_uuid(void);
 
 bool migrate_auto_converge(void);
 bool migrate_use_multiRDMA(void);
+bool migrate_use_rdma_pin_all(void);
 bool migrate_use_multifd(void);
 bool migrate_pause_before_switchover(void);
 int migrate_multifd_channels(void);
