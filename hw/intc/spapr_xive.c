@@ -762,7 +762,7 @@ static void spapr_xive_class_init(ObjectClass *klass, void *data)
     XivePresenterClass *xpc = XIVE_PRESENTER_CLASS(klass);
 
     dc->desc    = "sPAPR XIVE Interrupt Controller";
-    dc->props   = spapr_xive_properties;
+    device_class_set_props(dc, spapr_xive_properties);
     dc->realize = spapr_xive_realize;
     dc->vmsd    = &vmstate_spapr_xive;
 
