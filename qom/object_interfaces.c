@@ -158,6 +158,25 @@ int user_creatable_add_opts_foreach(void *opaque, QemuOpts *opts, Error **errp)
     return 0;
 }
 
+char *object_property_help(const char *name, const char *type,
+                           const char *defval, const char *description)
+{
+    GString *str = g_string_new(NULL);
+
+    g_string_append_printf(str, "  %s=<%s>", name, type);
+    if (defval) {
+        g_string_append_printf(str, " (default: %s)", defval);
+    }
+    if (description) {
+        if (str->len < 24) {
+            g_string_append_printf(str, "%*s", 24 - (int)str->len, "");
+        }
+        g_string_append_printf(str, " - %s", description);
+    }
+
+    return g_string_free(str, false);
+}
+
 bool user_creatable_print_help(const char *type, QemuOpts *opts)
 {
     ObjectClass *klass;
@@ -184,27 +203,15 @@ bool user_creatable_print_help(const char *type, QemuOpts *opts)
 
         object_class_property_iter_init(&iter, klass);
         while ((prop = object_property_iter_next(&iter))) {
-            GString *str;
-            char *defval;
+            g_autofree char *defval = object_property_get_default(prop);
 
             if (!prop->set) {
                 continue;
             }
 
-            str = g_string_new(NULL);
-            g_string_append_printf(str, "  %s=<%s>", prop->name, prop->type);
-            defval = object_property_get_default(prop);
-            if (defval) {
-                g_string_append_printf(str, " (default: %s)", defval);
-                g_free(defval);
-            }
-            if (prop->description) {
-                if (str->len < 24) {
-                    g_string_append_printf(str, "%*s", 24 - (int)str->len, "");
-                }
-                g_string_append_printf(str, " - %s", prop->description);
-            }
-            g_ptr_array_add(array, g_string_free(str, false));
+            g_ptr_array_add(array,
+                            object_property_help(prop->name, prop->type,
+                                                 defval, prop->description));
         }
         g_ptr_array_sort(array, (GCompareFunc)qemu_pstrcmp0);
         if (array->len > 0) {
