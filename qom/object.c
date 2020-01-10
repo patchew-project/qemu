@@ -1429,6 +1429,15 @@ int64_t object_property_get_int(Object *obj, const char *name,
     return retval;
 }
 
+char *object_property_get_default(ObjectProperty *prop)
+{
+    if (!prop->get_default) {
+        return NULL;
+    }
+
+    return prop->get_default(prop);
+}
+
 void object_property_set_uint(Object *obj, uint64_t value,
                               const char *name, Error **errp)
 {

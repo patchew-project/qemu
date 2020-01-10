@@ -367,6 +367,13 @@ typedef void (ObjectPropertyRelease)(Object *obj,
  */
 typedef void (ObjectPropertyInit)(Object *obj, ObjectProperty *prop);
 
+/**
+ * ObjectPropertyGetDefault:
+ *
+ * Get an allocated string representation of the default value.
+ */
+typedef char *(ObjectPropertyGetDefault)(ObjectProperty *prop);
+
 struct ObjectProperty
 {
     gchar *name;
@@ -377,6 +384,7 @@ struct ObjectProperty
     ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
     ObjectPropertyInit *init;
+    ObjectPropertyGetDefault *get_default;
     void *opaque;
 };
 
@@ -1232,6 +1240,15 @@ bool object_property_get_bool(Object *obj, const char *name,
  */
 void object_property_set_int(Object *obj, int64_t value,
                              const char *name, Error **errp);
+
+/**
+ * object_property_get_defaut:
+ * @prop: the property to get default value
+ *
+ * Return an allocated string that represents the default property
+ * value or NULL.
+ */
+char *object_property_get_default(ObjectProperty *prop);
 
 /**
  * object_property_get_int:
