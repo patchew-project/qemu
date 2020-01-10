@@ -360,6 +360,7 @@ void nbd_server_start(SocketAddress *addr, const char *tls_creds,
 static inline int nbd_read(QIOChannel *ioc, void *buffer, size_t size,
                            const char *desc, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     int ret = qio_channel_read_all(ioc, buffer, size, errp) < 0 ? -EIO : 0;
 
     if (ret < 0) {
