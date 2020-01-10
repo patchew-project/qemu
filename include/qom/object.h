@@ -1531,6 +1531,7 @@ typedef enum {
 
     /* private */
     OBJ_PROP_LINK_DIRECT = 0x2,
+    OBJ_PROP_LINK_CLASS = 0x4,
 } ObjectPropertyLinkFlags;
 
 /**
@@ -1574,6 +1575,14 @@ void object_property_allow_set_link(const Object *, const char *,
  */
 void object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **targetp,
+                              void (*check)(const Object *obj, const char *name,
+                                            Object *val, Error **errp),
+                              ObjectPropertyLinkFlags flags,
+                              Error **errp);
+
+ObjectProperty *object_class_property_add_link(ObjectClass *oc,
+                              const char *name,
+                              const char *type, ptrdiff_t offset,
                               void (*check)(const Object *obj, const char *name,
                                             Object *val, Error **errp),
                               ObjectPropertyLinkFlags flags,
