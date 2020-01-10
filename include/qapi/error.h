@@ -78,7 +78,7 @@
  * Call a function treating errors as fatal:
  *     foo(arg, &error_fatal);
  *
- * Receive an error and pass it on to the caller:
+ * Receive an error and pass it on to the caller (DEPRECATED*):
  *     Error *err = NULL;
  *     foo(arg, &err);
  *     if (err) {
@@ -97,6 +97,50 @@
  * But when all you do with the error is pass it on, please use
  *     foo(arg, errp);
  * for readability.
+ *
+ * DEPRECATED* This pattern is deprecated now, use ERRP_AUTO_PROPAGATE macro
+ * instead (defined below).
+ * It's deprecated because of two things:
+ *
+ * 1. Issue with error_abort & error_propagate: when we wrap error_abort by
+ * local_err+error_propagate, resulting coredump will refer to error_propagate
+ * and not to the place where error happened.
+ *
+ * 2. A lot of extra code of the same pattern
+ *
+ * How to update old code to use ERRP_AUTO_PROPAGATE?
+ *
+ * All you need is to add ERRP_AUTO_PROPAGATE() invocation at function start,
+ * than you may safely dereference errp to check errors and do not need any
+ * additional local Error variables or calls to error_propagate().
+ *
+ * Example:
+ *
+ * old code
+ *
+ *     void fn(..., Error **errp) {
+ *         Error *err = NULL;
+ *         foo(arg, &err);
+ *         if (err) {
+ *             handle the error...
+ *             error_propagate(errp, err);
+ *             return;
+ *         }
+ *         ...
+ *     }
+ *
+ * updated code
+ *
+ *     void fn(..., Error **errp) {
+ *         ERRP_AUTO_PROPAGATE();
+ *         foo(arg, errp);
+ *         if (*errp) {
+ *             handle the error...
+ *             return;
+ *         }
+ *         ...
+ *     }
+ *
  *
  * Receive and accumulate multiple errors (first one wins):
  *     Error *err = NULL, *local_err = NULL;
@@ -347,6 +391,44 @@ void error_set_internal(Error **errp,
                         const char *src, int line, const char *func,
                         ErrorClass err_class, const char *fmt, ...)
     GCC_FMT_ATTR(6, 7);
+
+typedef struct ErrorPropagator {
+    Error *local_err;
+    Error **errp;
+} ErrorPropagator;
+
+static inline void error_propagator_cleanup(ErrorPropagator *prop)
+{
+    error_propagate(prop->errp, prop->local_err);
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagator, error_propagator_cleanup);
+
+/*
+ * ERRP_AUTO_PROPAGATE
+ *
+ * This macro is created to be the first line of a function which use
+ * Error **errp parameter to report error. It's needed only in cases where we
+ * want to use error_prepend, error_append_hint or dereference *errp. It's
+ * still safe (but useless) in other cases.
+ *
+ * If errp is NULL or points to error_fatal, it is rewritten to point to a
+ * local Error object, which will be automatically propagated to the original
+ * errp on function exit (see error_propagator_cleanup).
+ *
+ * After invocation of this macro it is always safe to dereference errp
+ * (as it's not NULL anymore) and to add information (by error_prepend or
+ * error_append_hint)
+ * (as, if it was error_fatal, we swapped it with a local_error to be
+ * propagated on cleanup).
+ *
+ * Note: we don't wrap the error_abort case, as we want resulting coredump
+ * to point to the place where the error happened, not to error_propagate.
+ */
+#define ERRP_AUTO_PROPAGATE()                                  \
+    g_auto(ErrorPropagator) _auto_errp_prop = {.errp = errp};  \
+    errp = ((errp == NULL || *errp == error_fatal)             \
+            ? &_auto_errp_prop.local_err : errp)
 
 /*
  * Special error destination to abort on error.
