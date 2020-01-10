@@ -784,6 +784,21 @@ static inline void powerpc_excp(PowerPCCPU *cpu, int excp_model, int excp)
     check_tlb_flush(env, false);
 }
 
+target_ulong ppc_get_trace_int_handler_addr(CPUState *cs, bool mmu_on)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    int ail = AIL_NONE;
+
+    /* AIL is only used if translation is enabled */
+    if (mmu_on) {
+        ail = (env->spr[SPR_LPCR] & LPCR_AIL) >> LPCR_AIL_SHIFT;
+    }
+
+    return env->excp_vectors[POWERPC_EXCP_TRACE] |
+        ppc_excp_vector_offset(cs, ail);
+}
+
 void ppc_cpu_do_interrupt(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);

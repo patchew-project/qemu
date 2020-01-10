@@ -1540,6 +1540,202 @@ void kvm_arch_remove_all_hw_breakpoints(void)
     nb_hw_breakpoint = nb_hw_watchpoint = 0;
 }
 
+static uint32_t ppc_gdb_read_insn(CPUState *cs, target_ulong addr)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    uint32_t insn;
+
+    cpu_memory_rw_debug(cs, addr, (uint8_t *)&insn, sizeof(insn), 0);
+
+    if (msr_le) {
+        return ldl_le_p(&insn);
+    } else {
+        return ldl_be_p(&insn);
+    }
+}
+
+static uint32_t ppc_gdb_get_op(uint32_t insn)
+{
+    return extract32(insn, 26, 6);
+}
+
+static uint32_t ppc_gdb_get_xop(uint32_t insn)
+{
+    return extract32(insn, 1, 10);
+}
+
+static uint32_t ppc_gdb_get_spr(uint32_t insn)
+{
+    return extract32(insn, 11, 5) << 5 | extract32(insn, 16, 5);
+}
+
+static uint32_t ppc_gdb_get_rt(uint32_t insn)
+{
+    return extract32(insn, 21, 5);
+}
+
+static void kvm_insert_singlestep_breakpoint(CPUState *cs, bool mmu_on)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    target_ulong bp_addr;
+    target_ulong saved_msr = env->msr;
+
+    bp_addr = ppc_get_trace_int_handler_addr(cs, mmu_on);
+    if (env->nip == bp_addr) {
+        /*
+         * We are trying to step the interrupt handler address itself;
+         * move the breakpoint to the next instruction.
+         */
+        bp_addr += 4;
+    }
+
+    /*
+     * The actual access by the guest might be made in a mode
+     * different than we are now (due to rfid) so temporarily set the
+     * MSR to reflect that during the breakpoint placement.
+     *
+     * Note: we need this because breakpoints currently use
+     * cpu_memory_rw_debug, which does the memory accesses from the
+     * guest point of view.
+     */
+    if ((msr_ir & msr_dr) != mmu_on) {
+        if (mmu_on) {
+            env->msr |= (1ULL << MSR_IR | 1ULL << MSR_DR);
+        } else {
+            env->msr &= ~(1ULL << MSR_IR | 1ULL << MSR_DR);
+        }
+    }
+
+    kvm_insert_breakpoint(cs, bp_addr, 4, GDB_BREAKPOINT_SW);
+    env->trace_handler_addr = bp_addr;
+    env->msr = saved_msr;
+}
+
+/*
+ * The emulated singlestep works by forcing a Trace Interrupt inside
+ * the guest by setting its MSR_SE bit.  When the guest executes the
+ * instruction, the Trace Interrupt triggers and the step is done. We
+ * then need to hide the fact that the interrupt ever happened before
+ * returning into the guest.
+ *
+ * Since the Trace Interrupt does not set MSR_HV (the whole point of
+ * having to emulate the step), we set a breakpoint at the interrupt
+ * handler address (0xd00) so that it reaches KVM (this is treated by
+ * KVM like an ordinary breakpoint) and control is returned to QEMU.
+ *
+ * There are things to consider before the step (this function):
+ *
+ * - The breakpoint location depends on where the interrupt vectors are,
+ *   which in turn depends on the LPCR_AIL and MSR_IR|DR bits;
+ *
+ * - If the stepped instruction changes the LPCR_AIL, the breakpoint
+ *   location needs to be updated mid-step;
+ *
+ * - If the stepped instruction is rfid, the MSR bits after the step
+ *   will come from SRR1.
+ *
+ *
+ * There are some fixups needed after the step, before returning to
+ * the guest (kvm_handle_singlestep):
+ *
+ * - The interrupt will set SRR0 and SRR1, so we need to restore them
+ *   to what they were before the interrupt;
+ *
+ * - If the stepped instruction wrote to the SRRs, we need to avoid
+ *   undoing that;
+ *
+ * - We set the MSR_SE bit, so it needs to be cleared.
+ *
+ */
+void kvm_arch_emulate_singlestep(CPUState *cs, int enabled)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    uint32_t insn;
+    bool rfid, mmu_on;
+
+    if (!enabled) {
+        return;
+    }
+
+    if (env->sstep_kind != SSTEP_PENDING) {
+        env->sstep_kind = SSTEP_REGULAR;
+    }
+
+    cpu_synchronize_state(cs);
+    insn = ppc_gdb_read_insn(cs, env->nip);
+
+    /*
+     * rfid needs special handling because it:
+     *   - overwrites NIP with SRR0;
+     *   - overwrites MSR with SRR1;
+     *   - cannot be single stepped.
+     */
+    rfid = ppc_gdb_get_op(insn) == OP_RFID && ppc_gdb_get_xop(insn) == XOP_RFID;
+
+    if (rfid && (kvm_find_sw_breakpoint(cs, env->spr[SPR_SRR0]) ||
+                 env->sstep_kind == SSTEP_PENDING)) {
+        /*
+         * There is a breakpoint at the next instruction address or a
+         * pending step. It will already cause the vm exit we need for
+         * the single step, so there's nothing to be done.
+         */
+        env->sstep_kind = SSTEP_REGULAR;
+        return;
+    }
+
+    /*
+     * Save the registers that will be affected by the single step
+     * mechanism. These will be used after the step.
+     */
+    env->sstep_srr0 = env->spr[SPR_SRR0];
+    env->sstep_srr1 = env->spr[SPR_SRR1];
+    env->sstep_insn = insn;
+
+    /*
+     * MSR_SE = 1 will cause a Trace Interrupt in the guest after the
+     * next instruction executes. If this is a rfid, use SRR1 instead
+     * of MSR.
+     */
+    if (rfid) {
+        if ((env->spr[SPR_SRR1] >> MSR_SE) & 1) {
+            /*
+             * The guest is doing a single step itself. Make sure we
+             * restore it later.
+             */
+            env->sstep_kind = SSTEP_GUEST;
+        }
+
+        env->spr[SPR_SRR1] |= (1ULL << MSR_SE);
+        mmu_on = srr1_ir & srr1_dr;
+    } else {
+        env->msr |= (1ULL << MSR_SE);
+        mmu_on = msr_ir & msr_dr;
+    }
+
+    kvm_insert_singlestep_breakpoint(cs, mmu_on);
+}
+
+void kvm_singlestep_ail_change(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (kvm_arch_can_singlestep(cs)) {
+        return;
+    }
+
+    /*
+     * The instruction being stepped altered the interrupt vectors
+     * location (AIL). Re-insert the single step breakpoint at the new
+     * location
+     */
+    kvm_remove_breakpoint(cs, env->trace_handler_addr, 4, GDB_BREAKPOINT_SW);
+    kvm_insert_singlestep_breakpoint(cs, (msr_ir & msr_dr));
+}
+
 void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
 {
     int n;
@@ -1579,6 +1775,98 @@ void kvm_arch_update_guest_debug(CPUState *cs, struct kvm_guest_debug *dbg)
     }
 }
 
+/* Revert any side-effects caused during single step */
+static void restore_singlestep_env(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+    uint32_t insn = env->sstep_insn;
+    int reg;
+    int spr;
+
+    env->spr[SPR_SRR0] = env->sstep_srr0;
+    env->spr[SPR_SRR1] = env->sstep_srr1;
+
+    if (ppc_gdb_get_op(insn) != OP_MOV) {
+        return;
+    }
+
+    reg = ppc_gdb_get_rt(insn);
+
+    switch (ppc_gdb_get_xop(insn)) {
+    case XOP_MTSPR:
+        /*
+         * mtspr: the guest altered the SRR, so do not use the
+         *        pre-step value.
+         */
+        spr = ppc_gdb_get_spr(insn);
+        if (spr == SPR_SRR0 || spr == SPR_SRR1) {
+            env->spr[spr] = env->gpr[reg];
+        }
+        break;
+    case XOP_MFMSR:
+        /*
+         * mfmsr: clear MSR_SE bit to avoid the guest knowing
+         *         that it is being single-stepped.
+         */
+        env->gpr[reg] &= ~(1ULL << MSR_SE);
+        break;
+    }
+}
+
+static int kvm_handle_singlestep(CPUState *cs, target_ulong address)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (kvm_arch_can_singlestep(cs)) {
+        return DEBUG_RETURN_GDB;
+    }
+
+    cpu_synchronize_state(cs);
+
+    if (address == env->trace_handler_addr) {
+        kvm_remove_breakpoint(cs, env->trace_handler_addr, 4,
+                              GDB_BREAKPOINT_SW);
+
+        if (env->sstep_kind == SSTEP_GUEST) {
+            /*
+             * The guest expects the last instruction to have caused a
+             * single step, go back into the interrupt handler.
+             */
+            env->sstep_kind = SSTEP_REGULAR;
+            return DEBUG_RETURN_GDB;
+        }
+
+        env->nip = env->spr[SPR_SRR0];
+        /* Bits 33-36, 43-47 are set by the interrupt */
+        env->msr = env->spr[SPR_SRR1] & ~(1ULL << MSR_SE |
+                                          PPC_BITMASK(33, 36) |
+                                          PPC_BITMASK(43, 47));
+        restore_singlestep_env(cs);
+
+    } else if (address == env->trace_handler_addr + 4) {
+        /*
+         * A step at trace_handler_addr would interfere with the
+         * single step mechanism itself, so we have previously
+         * displaced the breakpoint to the next instruction.
+         */
+        kvm_remove_breakpoint(cs, env->trace_handler_addr + 4, 4,
+                              GDB_BREAKPOINT_SW);
+        restore_singlestep_env(cs);
+    } else {
+        /*
+         * Another interrupt (e.g. system call, program interrupt)
+         * took us somewhere else in the code and we hit a breakpoint
+         * there. Mark the step as pending.
+         */
+        env->sstep_kind = SSTEP_PENDING;
+    }
+
+    cs->singlestep_enabled = false;
+    return DEBUG_RETURN_GDB;
+}
+
 static int kvm_handle_hw_breakpoint(CPUState *cs,
                                     struct kvm_debug_exit_arch *arch_info)
 {
@@ -1606,13 +1894,41 @@ static int kvm_handle_hw_breakpoint(CPUState *cs,
     return handle;
 }
 
-static int kvm_handle_singlestep(void)
+static int kvm_handle_sw_breakpoint(CPUState *cs, target_ulong address)
 {
-    return DEBUG_RETURN_GDB;
-}
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
 
-static int kvm_handle_sw_breakpoint(void)
-{
+    if (kvm_arch_can_singlestep(cs)) {
+        return DEBUG_RETURN_GDB;
+    }
+
+    cpu_synchronize_state(cs);
+
+    if (address == env->trace_handler_addr) {
+        if (env->sstep_kind == SSTEP_PENDING) {
+            /*
+             * Although we have singlestep_enabled == false by now,
+             * the original step still wasn't handled (is pending).
+             */
+            cs->singlestep_enabled = true;
+            env->sstep_kind = SSTEP_REGULAR;
+
+            return kvm_handle_singlestep(cs, address);
+        }
+
+        CPU_FOREACH(cs) {
+            if (cs->singlestep_enabled) {
+                /*
+                 * We hit this breakpoint while another cpu is doing a
+                 * software single step. Go back into the guest to
+                 * give chance for the single step to finish.
+                 */
+                return DEBUG_RETURN_GUEST;
+            }
+        }
+    }
+
     return DEBUG_RETURN_GDB;
 }
 
@@ -1623,7 +1939,7 @@ static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
     struct kvm_debug_exit_arch *arch_info = &run->debug.arch;
 
     if (cs->singlestep_enabled) {
-        return kvm_handle_singlestep();
+        return kvm_handle_singlestep(cs, arch_info->address);
     }
 
     if (arch_info->status) {
@@ -1631,7 +1947,7 @@ static int kvm_handle_debug(PowerPCCPU *cpu, struct kvm_run *run)
     }
 
     if (kvm_find_sw_breakpoint(cs, arch_info->address)) {
-        return kvm_handle_sw_breakpoint();
+        return kvm_handle_sw_breakpoint(cs, arch_info->address);
     }
 
     /*

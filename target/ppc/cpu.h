@@ -440,6 +440,10 @@ typedef struct ppc_v3_pate_t {
 #define msr_ts   ((env->msr >> MSR_TS1)  & 3)
 #define msr_tm   ((env->msr >> MSR_TM)   & 1)
 
+#define srr1_ir ((env->spr[SPR_SRR1] >> MSR_IR) & 1)
+#define srr1_dr ((env->spr[SPR_SRR1] >> MSR_DR) & 1)
+#define srr1_se ((env->spr[SPR_SRR1] >> MSR_SE) & 1)
+
 #define DBCR0_ICMP (1 << 27)
 #define DBCR0_BRT (1 << 26)
 #define DBSR_ICMP (1 << 27)
@@ -1158,6 +1162,16 @@ struct CPUPPCState {
     uint32_t tm_vscr;
     uint64_t tm_dscr;
     uint64_t tm_tar;
+
+    /* Used for software single step */
+    target_ulong sstep_srr0;
+    target_ulong sstep_srr1;
+    target_ulong sstep_insn;
+    target_ulong trace_handler_addr;
+    int sstep_kind;
+#define SSTEP_REGULAR 0
+#define SSTEP_PENDING 1
+#define SSTEP_GUEST   2
 };
 
 #define SET_FIT_PERIOD(a_, b_, c_, d_)          \
@@ -1251,6 +1265,7 @@ struct PPCVirtualHypervisorClass {
     OBJECT_GET_CLASS(PPCVirtualHypervisorClass, (obj), \
                      TYPE_PPC_VIRTUAL_HYPERVISOR)
 
+target_ulong ppc_get_trace_int_handler_addr(CPUState *cs, bool mmu_on);
 void ppc_cpu_do_interrupt(CPUState *cpu);
 bool ppc_cpu_exec_interrupt(CPUState *cpu, int int_req);
 void ppc_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
@@ -2219,6 +2234,12 @@ enum {
                         PPC2_FP_CVT_S64 | PPC2_TM | PPC2_PM_ISA206 | \
                         PPC2_ISA300)
 };
+
+#define OP_RFID 19
+#define XOP_RFID 18
+#define OP_MOV 31
+#define XOP_MFMSR 83
+#define XOP_MTSPR 467
 
 /*****************************************************************************/
 /*

@@ -1382,6 +1382,7 @@ static target_ulong h_set_mode_resource_addr_trans_mode(PowerPCCPU *cpu,
                                                         target_ulong value1,
                                                         target_ulong value2)
 {
+    CPUState *cs = CPU(cpu);
     PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
 
     if (!(pcc->insns_flags2 & PPC2_ISA207S)) {
@@ -1399,6 +1400,10 @@ static target_ulong h_set_mode_resource_addr_trans_mode(PowerPCCPU *cpu,
     }
 
     spapr_set_all_lpcrs(mflags << LPCR_AIL_SHIFT, LPCR_AIL);
+
+    if (cs->singlestep_enabled && kvm_enabled()) {
+        kvm_singlestep_ail_change(cs);
+    }
 
     return H_SUCCESS;
 }
