@@ -19,8 +19,10 @@
 #include "qapi/visitor.h"
 #include "qapi/string-input-visitor.h"
 #include "qapi/string-output-visitor.h"
+#include "qapi/qobject-input-visitor.h"
 #include "qapi/qapi-builtin-visit.h"
 #include "qapi/qmp/qerror.h"
+#include "qapi/qmp/qjson.h"
 #include "trace.h"
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
@@ -264,6 +266,10 @@ static void object_property_free(gpointer data)
 {
     ObjectProperty *prop = data;
 
+    if (prop->defval) {
+        qobject_unref(prop->defval);
+        prop->defval = NULL;
+    }
     g_free(prop->name);
     g_free(prop->type);
     g_free(prop->description);
@@ -1438,6 +1444,52 @@ char *object_property_get_default(ObjectProperty *prop)
     return prop->get_default(prop);
 }
 
+static void object_property_init_defval(Object *obj, ObjectProperty *prop)
+{
+    Visitor *v = qobject_input_visitor_new(prop->defval);
+
+    assert(prop->set != NULL);
+    prop->set(obj, v, prop->name, prop->opaque, &error_abort);
+
+    visit_free(v);
+}
+
+static char *object_property_get_defval(ObjectProperty *prop)
+{
+    return qstring_free(qobject_to_json(prop->defval), TRUE);
+}
+
+static void object_property_set_defaut(ObjectProperty *prop, QObject *defval)
+{
+    assert(!prop->defval);
+    assert(!prop->init);
+    assert(!prop->get_default);
+
+    prop->defval = defval;
+    prop->init = object_property_init_defval;
+    prop->get_default = object_property_get_defval;
+}
+
+void object_property_set_defaut_bool(ObjectProperty *prop, bool value)
+{
+    object_property_set_defaut(prop, QOBJECT(qbool_from_bool(value)));
+}
+
+void object_property_set_defaut_str(ObjectProperty *prop, const char *value)
+{
+    object_property_set_defaut(prop, QOBJECT(qstring_from_str(value)));
+}
+
+void object_property_set_defaut_int(ObjectProperty *prop, int64_t value)
+{
+    object_property_set_defaut(prop, QOBJECT(qnum_from_int(value)));
+}
+
+void object_property_set_defaut_uint(ObjectProperty *prop, uint64_t value)
+{
+    object_property_set_defaut(prop, QOBJECT(qnum_from_uint(value)));
+}
+
 void object_property_set_uint(Object *obj, uint64_t value,
                               const char *name, Error **errp)
 {
@@ -2549,6 +2601,10 @@ void object_property_add_alias(Object *obj, const char *name,
         goto out;
     }
     op->resolve = property_resolve_alias;
+    if (target_prop->get_default) {
+        op->get_default = target_prop->get_default;
+        op->defval = qobject_ref(target_prop->defval);
+    }
 
     object_property_set_description(obj, op->name,
                                     target_prop->description,

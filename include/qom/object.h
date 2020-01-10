@@ -386,6 +386,7 @@ struct ObjectProperty
     ObjectPropertyInit *init;
     ObjectPropertyGetDefault *get_default;
     void *opaque;
+    QObject *defval;
 };
 
 /**
@@ -1062,6 +1063,42 @@ ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           ObjectPropertyAccessor *set,
                                           ObjectPropertyRelease *release,
                                           void *opaque, Error **errp);
+
+/**
+ * object_property_set_defaut_bool:
+ * @prop: the property to set
+ * @value: the value to be written to the property
+ *
+ * Set the property default value.
+ */
+void object_property_set_defaut_bool(ObjectProperty *prop, bool value);
+
+/**
+ * object_property_set_defaut_str:
+ * @prop: the property to set
+ * @value: the value to be written to the property
+ *
+ * Set the property default value.
+ */
+void object_property_set_defaut_str(ObjectProperty *prop, const char *value);
+
+/**
+ * object_property_set_defaut_int:
+ * @prop: the property to set
+ * @value: the value to be written to the property
+ *
+ * Set the property default value.
+ */
+void object_property_set_defaut_int(ObjectProperty *prop, int64_t value);
+
+/**
+ * object_property_set_defaut_uint:
+ * @prop: the property to set
+ * @value: the value to be written to the property
+ *
+ * Set the property default value.
+ */
+void object_property_set_defaut_uint(ObjectProperty *prop, uint64_t value);
 
 /**
  * object_property_find:
