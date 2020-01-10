@@ -286,16 +286,11 @@ int qdev_device_help(QemuOpts *opts)
         qemu_printf("There are no options for %s.\n", driver);
     }
     for (prop = prop_list; prop; prop = prop->next) {
-        int len;
-        qemu_printf("  %s=<%s>%n", prop->value->name, prop->value->type, &len);
-        if (prop->value->has_description) {
-            if (len < 24) {
-                qemu_printf("%*s", 24 - len, "");
-            }
-            qemu_printf(" - %s\n", prop->value->description);
-        } else {
-            qemu_printf("\n");
-        }
+        g_autofree char *help = object_property_help(prop->value->name,
+                                                     prop->value->type,
+                                                     prop->value->default_value,
+                                                     prop->value->description);
+        qemu_printf("%s\n", help);
     }
 
     qapi_free_ObjectPropertyInfoList(prop_list);
