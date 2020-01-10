@@ -1720,7 +1720,7 @@ void object_property_allow_set_link(const Object *obj, const char *name,
 }
 
 typedef struct {
-    Object **child;
+    Object **targetp;
     void (*check)(const Object *, const char *, Object *, Error **);
     ObjectPropertyLinkFlags flags;
 } LinkProperty;
@@ -1730,11 +1730,11 @@ static void object_get_link_property(Object *obj, Visitor *v,
                                      Error **errp)
 {
     LinkProperty *lprop = opaque;
-    Object **child = lprop->child;
+    Object **targetp = lprop->targetp;
     gchar *path;
 
-    if (*child) {
-        path = object_get_canonical_path(*child);
+    if (*targetp) {
+        path = object_get_canonical_path(*targetp);
         visit_type_str(v, name, &path, errp);
         g_free(path);
     } else {
@@ -1789,8 +1789,8 @@ static void object_set_link_property(Object *obj, Visitor *v,
 {
     Error *local_err = NULL;
     LinkProperty *prop = opaque;
-    Object **child = prop->child;
-    Object *old_target = *child;
+    Object **targetp = prop->targetp;
+    Object *old_target = *targetp;
     Object *new_target = NULL;
     char *path = NULL;
 
@@ -1812,7 +1812,7 @@ static void object_set_link_property(Object *obj, Visitor *v,
         return;
     }
 
-    *child = new_target;
+    *targetp = new_target;
     if (prop->flags & OBJ_PROP_LINK_STRONG) {
         object_ref(new_target);
         object_unref(old_target);
@@ -1823,7 +1823,7 @@ static Object *object_resolve_link_property(Object *parent, void *opaque, const 
 {
     LinkProperty *lprop = opaque;
 
-    return *lprop->child;
+    return *lprop->targetp;
 }
 
 static void object_release_link_property(Object *obj, const char *name,
@@ -1831,14 +1831,14 @@ static void object_release_link_property(Object *obj, const char *name,
 {
     LinkProperty *prop = opaque;
 
-    if ((prop->flags & OBJ_PROP_LINK_STRONG) && *prop->child) {
-        object_unref(*prop->child);
+    if ((prop->flags & OBJ_PROP_LINK_STRONG) && *prop->targetp) {
+        object_unref(*prop->targetp);
     }
     g_free(prop);
 }
 
 void object_property_add_link(Object *obj, const char *name,
-                              const char *type, Object **child,
+                              const char *type, Object **targetp,
                               void (*check)(const Object *, const char *,
                                             Object *, Error **),
                               ObjectPropertyLinkFlags flags,
@@ -1849,7 +1849,7 @@ void object_property_add_link(Object *obj, const char *name,
     gchar *full_type;
     ObjectProperty *op;
 
-    prop->child = child;
+    prop->targetp = targetp;
     prop->check = check;
     prop->flags = flags;
 
