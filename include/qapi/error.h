@@ -310,6 +310,32 @@ void error_reportf_err(Error *err, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 
 /*
+ * Functions to clean Error **errp: call corresponding Error *err cleaning
+ * function an set pointer to NULL
+ */
+static inline void error_free_errp(Error **errp)
+{
+    assert(errp && *errp);
+    error_free(*errp);
+    *errp = NULL;
+}
+
+static inline void error_report_errp(Error **errp)
+{
+    assert(errp && *errp);
+    error_report_err(*errp);
+    *errp = NULL;
+}
+
+static inline void warn_report_errp(Error **errp)
+{
+    assert(errp && *errp);
+    warn_report_err(*errp);
+    *errp = NULL;
+}
+
+
+/*
  * Just like error_setg(), except you get to specify the error class.
  * Note: use of error classes other than ERROR_CLASS_GENERIC_ERROR is
  * strongly discouraged.
