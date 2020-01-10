@@ -933,7 +933,7 @@ static GList *split_list(const gchar *str, const gchar *delim)
     for (i = 0; strv[i]; i++) {
         list = g_list_prepend(list, strv[i]);
     }
-    g_free(strv);
+    g_strfreev(strv);
 
     return list;
 }
