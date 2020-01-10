@@ -88,6 +88,7 @@ static int cap_ppc_safe_indirect_branch;
 static int cap_ppc_count_cache_flush_assist;
 static int cap_ppc_nested_kvm_hv;
 static int cap_large_decr;
+static int cap_ppc_singlestep;
 
 static uint32_t debug_inst_opcode;
 
@@ -136,6 +137,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     kvmppc_get_cpu_characteristics(s);
     cap_ppc_nested_kvm_hv = kvm_vm_check_extension(s, KVM_CAP_PPC_NESTED_HV);
     cap_large_decr = kvmppc_get_dec_bits();
+    cap_ppc_singlestep = kvm_vm_check_extension(s, KVM_CAP_PPC_GUEST_DEBUG_SSTEP);
     /*
      * Note: setting it to false because there is not such capability
      * in KVM at this moment.
@@ -1375,6 +1377,19 @@ static int kvmppc_handle_dcr_write(CPUPPCState *env,
     }
 
     return 0;
+}
+
+bool kvm_arch_can_singlestep(CPUState *cs)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(cs);
+    CPUPPCState *env = &cpu->env;
+
+    if (cap_ppc_singlestep) {
+        return true;
+    }
+
+    /* Fallback for when the capability is not available */
+    return env->excp_model == POWERPC_EXCP_BOOKE || kvmppc_is_pr(kvm_state);
 }
 
 int kvm_arch_insert_sw_breakpoint(CPUState *cs, struct kvm_sw_breakpoint *bp)
