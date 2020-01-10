@@ -2481,6 +2481,9 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         } else {
             /* Next transition is when we hit cval */
             nexttick = gt->cval + offset;
+            if (nexttick < gt->cval) {
+                nexttick = UINT64_MAX;
+            }
         }
         /* Note that the desired next expiry time might be beyond the
          * signed-64-bit range of a QEMUTimer -- in this case we just
