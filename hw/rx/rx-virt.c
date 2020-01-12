@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -56,6 +57,7 @@ static void rx_load_image(RXCPU *cpu, const char *filename,
 
 static void rxvirt_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     RX62NState *s = g_new(RX62NState, 1);
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *sdram = g_new(MemoryRegion, 1);
@@ -63,6 +65,12 @@ static void rxvirt_init(MachineState *machine)
     const char *dtb_filename = machine->dtb;
     void *dtb = NULL;
     int dtb_size;
+
+    if (strcmp(machine->cpu_type, mc->default_cpu_type) != 0) {
+        error_report("This board can only be used with CPU %s",
+                     mc->default_cpu_type);
+        exit(1);
+    }
 
     /* Allocate memory space */
     memory_region_init_ram(sdram, NULL, "sdram", 16 * MiB,
