@@ -95,6 +95,7 @@ config MAC_NEWWORLD
     select MACIO_GPIO
     select MAC_PMU
     select UNIN_PCI
+    select SCREAMER
 
 config E500
     bool
