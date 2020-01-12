@@ -1,0 +1,14 @@
+config RX
+    bool
+
+config RX62N
+    bool
+    select RX
+    select RX_ICU
+    select RENESAS_TMR8
+    select RENESAS_CMT
+    select RENESAS_SCI
+
+config RX_VIRT
+    bool
+    select RX62N
