@@ -2136,6 +2136,21 @@ void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile)
     }
 }
 
+void memory_region_set_no_vhost(MemoryRegion *mr, bool no_vhost)
+{
+    if (mr->no_vhost != no_vhost) {
+        memory_region_transaction_begin();
+        mr->no_vhost = no_vhost;
+        memory_region_update_pending |= mr->enabled;
+        memory_region_transaction_commit();
+    }
+}
+
+bool memory_region_get_no_vhost(const MemoryRegion *mr)
+{
+    return mr->no_vhost;
+}
+
 void memory_region_rom_device_set_romd(MemoryRegion *mr, bool romd_mode)
 {
     if (mr->romd_mode != romd_mode) {

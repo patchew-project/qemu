@@ -394,6 +394,7 @@ struct MemoryRegion {
     bool ram_device;
     bool enabled;
     bool warning_printed; /* For reservations */
+    bool no_vhost;
     uint8_t vga_logging_count;
     MemoryRegion *alias;
     hwaddr alias_offset;
@@ -1623,6 +1624,26 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
  * @nonvolatile: whether rhe region is to be non-volatile.
  */
 void memory_region_set_nonvolatile(MemoryRegion *mr, bool nonvolatile);
+
+/**
+ * memory_region_set_no_vhost: Make vhost ignore a memory region
+ *
+ * Makes vhost ignore a memory region, useful if it isn't real
+ * DMAble memory and is at inconvenient addresses
+ *
+ * @mr: the region being updated.
+ * @no_vhost: true to ignore
+ */
+void memory_region_set_no_vhost(MemoryRegion *mr, bool no_vhost);
+
+/**
+ * memory_region_set_no_vhost: Test if memory region is marked no vhost
+ *
+ * Test if the no_vhost flag is set on the memory region
+ *
+ * @mr: the region being tested.
+ */
+bool memory_region_get_no_vhost(const MemoryRegion *mr);
 
 /**
  * memory_region_rom_device_set_romd: enable/disable ROMD mode
