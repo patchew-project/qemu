@@ -273,6 +273,18 @@ STRUCT(floppy_max_errors,
        TYPE_INT, /* recal */
        TYPE_INT) /* reporting */
 
+STRUCT(target_floppy_fdc_state,
+       TYPE_INT, /* spec1 */
+       TYPE_INT, /* spec2 */
+       TYPE_INT, /* dtr */
+       TYPE_CHAR, /* version */
+       TYPE_CHAR, /* dor */
+       TYPE_ULONG, /* address */
+       TYPE_INT, /* bit field for rawcmd:2, reset:1, need_configure:1, */
+                 /* perp_mode:2, and has_fifo:1 */
+       TYPE_INT, /* driver_version */
+       MK_ARRAY(TYPE_CHAR, 4)) /* track */
+
 #if defined(CONFIG_USBFS)
 /* usb device ioctls */
 STRUCT(usbdevfs_ctrltransfer,
