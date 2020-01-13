@@ -230,7 +230,7 @@ specified as well.
 For write tests, by default a buffer filled with zeros is written. This can be
 overridden with a pattern byte specified by @var{pattern}.
 
-@item check [--object @var{objectdef}] [--image-opts] [-q] [-f @var{fmt}] [--output=@var{ofmt}] [-r [leaks | all]] [-T @var{src_cache}] [-U] @var{filename}
+@item check [--object @var{objectdef}] [--image-opts] [-M] [-q] [-f @var{fmt}] [--output=@var{ofmt}] [-r [leaks | all]] [-T @var{src_cache}] [-U] @var{filename}
 
 Perform a consistency check on the disk image @var{filename}. The command can
 output in the format @var{ofmt} which is either @code{human} or @code{json}.
@@ -240,6 +240,10 @@ If @code{-r} is specified, qemu-img tries to repair any inconsistencies found
 during the check. @code{-r leaks} repairs only cluster leaks, whereas
 @code{-r all} fixes all kinds of errors, with a higher risk of choosing the
 wrong fix or hiding corruption that has already occurred.
+
+If @code{-M} is specified, qemu-img dumps metadata allocations in the image.
+This option works with @code{json} format output and is effective for the
+@code{qcow2} format only.
 
 Only the formats @code{qcow2}, @code{qed} and @code{vdi} support
 consistency checks.
