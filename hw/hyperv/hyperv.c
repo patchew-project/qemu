@@ -99,6 +99,14 @@ static void synic_realize(DeviceState *dev, Error **errp)
                            sizeof(*synic->msg_page), &error_abort);
     memory_region_init_ram(&synic->event_page_mr, obj, eventp_name,
                            sizeof(*synic->event_page), &error_abort);
+    /*
+     * The guest can put the synic pages anywhere, including
+     * fragmenting something the host might want to keep as a huge
+     * page.
+     */
+    memory_region_set_no_vhost(&synic->msg_page_mr, true);
+    memory_region_set_no_vhost(&synic->event_page_mr, true);
+
     synic->msg_page = memory_region_get_ram_ptr(&synic->msg_page_mr);
     synic->event_page = memory_region_get_ram_ptr(&synic->event_page_mr);
 
