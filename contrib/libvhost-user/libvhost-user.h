@@ -34,6 +34,9 @@ typedef enum VhostSetConfigType {
     VHOST_SET_CONFIG_TYPE_MIGRATION = 1,
 } VhostSetConfigType;
 
+
+#define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
+
 /*
  * Maximum size of virtio device config space
  */
@@ -200,12 +203,22 @@ typedef uint64_t (*vu_get_features_cb) (VuDev *dev);
 typedef void (*vu_set_features_cb) (VuDev *dev, uint64_t features);
 typedef int (*vu_process_msg_cb) (VuDev *dev, VhostUserMsg *vmsg,
                                   int *do_reply);
+typedef bool (*vu_read_msg_cb) (VuDev *dev, int sock, VhostUserMsg *vmsg);
 typedef void (*vu_queue_set_started_cb) (VuDev *dev, int qidx, bool started);
 typedef bool (*vu_queue_is_processed_in_order_cb) (VuDev *dev, int qidx);
 typedef int (*vu_get_config_cb) (VuDev *dev, uint8_t *config, uint32_t len);
 typedef int (*vu_set_config_cb) (VuDev *dev, const uint8_t *data,
                                  uint32_t offset, uint32_t size,
                                  uint32_t flags);
+
+typedef struct vu_watch_cb_data {
+   long index;
+   VuDev *vu_dev;
+} vu_watch_cb_data;
+typedef void (*vu_watch_cb_packed_data) (void *packed_data);
+
+typedef void (*vu_set_watch_cb_packed_data) (VuDev *dev, int fd, int condition,
+                                 vu_watch_cb_packed_data cb, void *data);
 
 typedef struct VuDevIface {
     /* called by VHOST_USER_GET_FEATURES to get the features bitmask */
@@ -220,8 +233,11 @@ typedef struct VuDevIface {
     /* process_msg is called for each vhost-user message received */
     /* skip libvhost-user processing if return value != 0 */
     vu_process_msg_cb process_msg;
+    vu_read_msg_cb read_msg;
+    vu_watch_cb_packed_data kick_callback;
     /* tells when queues can be processed */
     vu_queue_set_started_cb queue_set_started;
+
     /*
      * If the queue is processed in order, in which case it will be
      * resumed to vring.used->idx. This can help to support resuming
@@ -366,7 +382,8 @@ struct VuDev {
     /* @set_watch: add or update the given fd to the watch set,
      * call cb when condition is met */
     vu_set_watch_cb set_watch;
-
+    /* AIO dispatch will only one data pointer to callback function */
+    vu_set_watch_cb_packed_data set_watch_packed_data;
     /* @remove_watch: remove the given fd from the watch set */
     vu_remove_watch_cb remove_watch;
 
@@ -398,7 +415,7 @@ typedef struct VuVirtqElement {
  * @remove_watch: a remove_watch callback
  * @iface: a VuDevIface structure with vhost-user device callbacks
  *
- * Intializes a VuDev vhost-user context.
+ * Initializes a VuDev vhost-user context.
  *
  * Returns: true on success, false on failure.
  **/
@@ -411,6 +428,21 @@ bool vu_init(VuDev *dev,
              const VuDevIface *iface);
 
 
+/**
+ * vu_init_packed_data:
+ * Same as vu_init except for set_watch_packed_data which will pack
+ * two parameters into a struct thus QEMU aio_dispatch can pass the
+ * required data to callback function.
+ *
+ * Returns: true on success, false on failure.
+ **/
+bool vu_init_packed_data(VuDev *dev,
+             uint16_t max_queues,
+             int socket,
+             vu_panic_cb panic,
+             vu_set_watch_cb_packed_data set_watch_packed_data,
+             vu_remove_watch_cb remove_watch,
+             const VuDevIface *iface);
 /**
  * vu_deinit:
  * @dev: a VuDev context
