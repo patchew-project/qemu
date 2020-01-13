@@ -746,6 +746,7 @@ qos-test-obj-y += tests/libqos/virtio.o
 qos-test-obj-$(CONFIG_VIRTFS) += tests/libqos/virtio-9p.o
 qos-test-obj-y += tests/libqos/virtio-balloon.o
 qos-test-obj-y += tests/libqos/virtio-blk.o
+qos-test-obj-y += tests/libqos/vhost-user-blk.o
 qos-test-obj-y += tests/libqos/virtio-mmio.o
 qos-test-obj-y += tests/libqos/virtio-net.o
 qos-test-obj-y += tests/libqos/virtio-pci.o
@@ -788,6 +789,7 @@ qos-test-obj-$(CONFIG_VHOST_NET_USER) += tests/vhost-user-test.o $(chardev-obj-y
 qos-test-obj-y += tests/virtio-test.o
 qos-test-obj-$(CONFIG_VIRTFS) += tests/virtio-9p-test.o
 qos-test-obj-y += tests/virtio-blk-test.o
+qos-test-obj-y += tests/vhost-user-blk-test.o
 qos-test-obj-y += tests/virtio-net-test.o
 qos-test-obj-y += tests/virtio-rng-test.o
 qos-test-obj-y += tests/virtio-scsi-test.o
@@ -935,7 +937,8 @@ endef
 $(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: %-softmmu/all $(check-qtest-y)
 	$(call do_test_human,$(check-qtest-$*-y) $(check-qtest-generic-y), \
 	  QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
-	  QTEST_QEMU_IMG=qemu-img$(EXESUF))
+	  QTEST_QEMU_IMG=./qemu-img$(EXESUF) \
+	  QTEST_QEMU_VU_BINARY=./qemu-vu$(EXESUF))
 
 check-unit: $(check-unit-y)
 	$(call do_test_human, $^)
