@@ -82,6 +82,9 @@ static void ioh3420_interrupts_uninit(PCIDevice *d)
     msi_uninit(d);
 }
 
+static const VMStateDescription vmstate_ioh3420_deffered_unplug =
+    VMSTATE_DEFFERED_UNPLUG("ioh-3240-express-root-port");
+
 static const VMStateDescription vmstate_ioh3420 = {
     .name = "ioh-3240-express-root-port",
     .priority = MIG_PRI_PCI_BUS,
@@ -93,6 +96,10 @@ static const VMStateDescription vmstate_ioh3420 = {
         VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
                        PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_ioh3420_deffered_unplug,
+        NULL
     }
 };
 

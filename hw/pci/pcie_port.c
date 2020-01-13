@@ -23,6 +23,9 @@
 #include "hw/qdev-properties.h"
 #include "qemu/module.h"
 #include "hw/hotplug.h"
+#include "sysemu/runstate.h"
+#include "migration/migration.h"
+#include "migration/misc.h"
 
 void pcie_port_init_reg(PCIDevice *d)
 {
@@ -150,6 +153,48 @@ static Property pcie_slot_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+bool vmstate_deffered_unplug_needed(void *opaque)
+{
+    PCIESlot *slot = opaque;
+
+    return slot->unplug_is_deferred;
+}
+
+static void pcie_slot_migration_notifier_cb(Notifier *notifier, void *data)
+{
+    PCIESlot *slot = container_of(notifier, PCIESlot, migration_notifier);
+
+    pcie_cap_slot_deferred_unplug(PCI_DEVICE(slot));
+}
+
+static void pcie_slot_vm_state_change(void *opaque, int running, RunState state)
+{
+    PCIESlot *slot = opaque;
+
+    pcie_cap_slot_deferred_unplug(PCI_DEVICE(slot));
+}
+
+static void pcie_slot_init(Object *obj)
+{
+    PCIESlot *slot = PCIE_SLOT(obj);
+
+    slot->unplug_is_deferred = false;
+    slot->migration_notifier = (Notifier) {
+        .notify = pcie_slot_migration_notifier_cb
+    };
+    add_migration_state_change_notifier(&slot->migration_notifier);
+    slot->vmstate_change =
+        qemu_add_vm_change_state_handler(pcie_slot_vm_state_change, slot);
+}
+
+static void pcie_slot_finalize(Object *obj)
+{
+    PCIESlot *slot = PCIE_SLOT(obj);
+
+    remove_migration_state_change_notifier(&slot->migration_notifier);
+    qemu_del_vm_change_state_handler(slot->vmstate_change);
+}
+
 static void pcie_slot_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -166,6 +211,8 @@ static const TypeInfo pcie_slot_type_info = {
     .name = TYPE_PCIE_SLOT,
     .parent = TYPE_PCIE_PORT,
     .instance_size = sizeof(PCIESlot),
+    .instance_init = pcie_slot_init,
+    .instance_finalize = pcie_slot_finalize,
     .abstract = true,
     .class_init = pcie_slot_class_init,
     .interfaces = (InterfaceInfo[]) {

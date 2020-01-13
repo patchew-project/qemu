@@ -28,6 +28,8 @@
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_port.h"
 #include "qemu/range.h"
+#include "sysemu/sysemu.h"
+#include "migration/misc.h"
 
 //#define DEBUG_PCIE
 #ifdef DEBUG_PCIE
@@ -575,6 +577,7 @@ void pcie_cap_slot_reset(PCIDevice *dev)
 
     if (dev->cap_present & QEMU_PCIE_SLTCAP_PCP) {
         /* Downstream ports enforce device number 0. */
+        PCIESlot *slot = PCIE_SLOT(dev);
         bool populated = pci_bridge_get_sec_bus(PCI_BRIDGE(dev))->devices[0];
         uint16_t pic;
 
@@ -588,6 +591,7 @@ void pcie_cap_slot_reset(PCIDevice *dev)
 
         pic = populated ? PCI_EXP_SLTCTL_PIC_ON : PCI_EXP_SLTCTL_PIC_OFF;
         pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTCTL, pic);
+        slot->unplug_is_deferred = false;
     }
 
     pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
@@ -608,13 +612,42 @@ void pcie_cap_slot_get(PCIDevice *dev, uint16_t *slt_ctl, uint16_t *slt_sta)
     *slt_sta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 }
 
+static void pcie_cap_slot_unplug(PCIDevice *dev)
+{
+    uint32_t pos = dev->exp.exp_cap;
+    uint8_t *exp_cap = dev->config + pos;
+    PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
+
+    pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
+                        pcie_unplug_device, NULL);
+    pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA, PCI_EXP_SLTSTA_PDS);
+    if (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA) {
+        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
+                                     PCI_EXP_LNKSTA_DLLLA);
+    }
+    pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA, PCI_EXP_SLTSTA_PDC);
+    hotplug_event_notify(dev);
+}
+
+void pcie_cap_slot_deferred_unplug(PCIDevice *dev)
+{
+    PCIESlot *slot = PCIE_SLOT(dev);
+
+    if (migration_is_idle() && slot->unplug_is_deferred) {
+        pcie_cap_slot_unplug(dev);
+        slot->unplug_is_deferred = false;
+    }
+}
+
 void pcie_cap_slot_write_config(PCIDevice *dev,
                                 uint16_t old_slt_ctl, uint16_t old_slt_sta,
                                 uint32_t addr, uint32_t val, int len)
 {
+    PCIESlot *slot = PCIE_SLOT(dev);
     uint32_t pos = dev->exp.exp_cap;
     uint8_t *exp_cap = dev->config + pos;
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
+    bool may_unplug;
 
     if (ranges_overlap(addr, len, pos + PCI_EXP_SLTSTA, 2)) {
         /*
@@ -660,22 +693,17 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
      * this is a work around for guests that overwrite
      * control of powered off slots before powering them on.
      */
-    if ((sltsta & PCI_EXP_SLTSTA_PDS) && (val & PCI_EXP_SLTCTL_PCC) &&
-        (val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF &&
+    may_unplug = (val & PCI_EXP_SLTCTL_PCC) &&
+                 (val & PCI_EXP_SLTCTL_PIC_OFF) == PCI_EXP_SLTCTL_PIC_OFF;
+    if (may_unplug && (sltsta & PCI_EXP_SLTSTA_PDS) &&
         (!(old_slt_ctl & PCI_EXP_SLTCTL_PCC) ||
         (old_slt_ctl & PCI_EXP_SLTCTL_PIC_OFF) != PCI_EXP_SLTCTL_PIC_OFF)) {
-        PCIBus *sec_bus = pci_bridge_get_sec_bus(PCI_BRIDGE(dev));
-        pci_for_each_device(sec_bus, pci_bus_num(sec_bus),
-                            pcie_unplug_device, NULL);
-
-        pci_word_test_and_clear_mask(exp_cap + PCI_EXP_SLTSTA,
-                                     PCI_EXP_SLTSTA_PDS);
-        if (dev->cap_present & QEMU_PCIE_LNKSTA_DLLLA) {
-            pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
-                                         PCI_EXP_LNKSTA_DLLLA);
+        slot->unplug_is_deferred = !migration_is_idle();
+        if (!slot->unplug_is_deferred) {
+            pcie_cap_slot_unplug(dev);
         }
-        pci_word_test_and_set_mask(exp_cap + PCI_EXP_SLTSTA,
-                                       PCI_EXP_SLTSTA_PDC);
+    } else if (!may_unplug) {
+        slot->unplug_is_deferred = false;
     }
 
     hotplug_event_notify(dev);

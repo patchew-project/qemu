@@ -139,6 +139,9 @@ static Property xio3130_downstream_props[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
+static const VMStateDescription vmstate_xio3130_downstream_deffered_unplug =
+    VMSTATE_DEFFERED_UNPLUG("xio3130-express-downstream-port");
+
 static const VMStateDescription vmstate_xio3130_downstream = {
     .name = "xio3130-express-downstream-port",
     .priority = MIG_PRI_PCI_BUS,
@@ -150,6 +153,10 @@ static const VMStateDescription vmstate_xio3130_downstream = {
         VMSTATE_STRUCT(parent_obj.parent_obj.parent_obj.exp.aer_log,
                        PCIESlot, 0, vmstate_pcie_aer_log, PCIEAERLog),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_xio3130_downstream_deffered_unplug,
+        NULL
     }
 };
 

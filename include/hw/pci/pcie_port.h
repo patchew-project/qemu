@@ -23,6 +23,9 @@
 
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pci_bus.h"
+#include "qemu/notify.h"
+#include "sysemu/sysemu.h"
+#include "migration/vmstate.h"
 
 #define TYPE_PCIE_PORT "pcie-port"
 #define PCIE_PORT(obj) OBJECT_CHECK(PCIEPort, (obj), TYPE_PCIE_PORT)
@@ -44,6 +47,10 @@ void pcie_port_init_reg(PCIDevice *d);
 struct PCIESlot {
     /*< private >*/
     PCIEPort    parent_obj;
+    bool        unplug_is_deferred;
+    Notifier    migration_notifier;
+    VMChangeStateEntry *vmstate_change;
+
     /*< public >*/
 
     /* pci express switch port with slot */
@@ -57,6 +64,19 @@ struct PCIESlot {
     bool        disable_acs;
     QLIST_ENTRY(PCIESlot) next;
 };
+
+bool vmstate_deffered_unplug_needed(void *opaque);
+
+#define VMSTATE_DEFFERED_UNPLUG(parent_section_name) {            \
+    .name = parent_section_name "/deffered-unplug",               \
+    .version_id = 1,                                              \
+    .minimum_version_id = 1,                                      \
+    .needed = vmstate_deffered_unplug_needed,                     \
+    .fields = (VMStateField[]) {                                  \
+        VMSTATE_BOOL(unplug_is_deferred, PCIESlot),               \
+        VMSTATE_END_OF_LIST()                                     \
+    }                                                             \
+}
 
 void pcie_chassis_create(uint8_t chassis_number);
 PCIESlot *pcie_chassis_find_slot(uint8_t chassis, uint16_t slot);

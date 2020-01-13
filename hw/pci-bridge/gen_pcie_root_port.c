@@ -100,6 +100,9 @@ static void gen_rp_realize(DeviceState *dev, Error **errp)
     }
 }
 
+static const VMStateDescription vmstate_rp_deffered_unplug =
+    VMSTATE_DEFFERED_UNPLUG("pcie-root-port");
+
 static const VMStateDescription vmstate_rp_dev = {
     .name = "pcie-root-port",
     .priority = MIG_PRI_PCI_BUS,
@@ -114,6 +117,10 @@ static const VMStateDescription vmstate_rp_dev = {
                           GenPCIERootPort,
                           gen_rp_test_migrate_msix),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_rp_deffered_unplug,
+        NULL
     }
 };
 
