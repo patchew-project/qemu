@@ -2426,6 +2426,7 @@ static void coroutine_fn v9fs_readdir(void *opaque)
     int32_t count;
     uint32_t max_count;
     V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
 
     retval = pdu_unmarshal(pdu, offset, "dqd", &fid,
                            &initial_offset, &max_count);
@@ -2433,6 +2434,13 @@ static void coroutine_fn v9fs_readdir(void *opaque)
         goto out_nofid;
     }
     trace_v9fs_readdir(pdu->tag, pdu->id, fid, initial_offset, max_count);
+
+    if (max_count > s->msize - P9_IOHDRSZ) {
+        max_count = s->msize - P9_IOHDRSZ;
+        warn_report_once(
+            "9p: bad client: T_readdir with count > msize - P9_IOHDRSZ"
+        );
+    }
 
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
