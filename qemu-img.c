@@ -703,7 +703,7 @@ static int img_check(int argc, char **argv)
             {"force-share", no_argument, 0, 'U'},
             {0, 0, 0, 0}
         };
-        c = getopt_long(argc, argv, ":hf:r:T:qU",
+        c = getopt_long(argc, argv, ":f:hqr:T:U",
                         long_options, &option_index);
         if (c == -1) {
             break;
@@ -715,11 +715,14 @@ static int img_check(int argc, char **argv)
         case '?':
             unrecognized_option(argv[optind - 1]);
             break;
+        case 'f':
+            fmt = optarg;
+            break;
         case 'h':
             help();
             break;
-        case 'f':
-            fmt = optarg;
+        case 'q':
+            quiet = true;
             break;
         case 'r':
             flags |= BDRV_O_RDWR;
@@ -733,17 +736,14 @@ static int img_check(int argc, char **argv)
                            "(expecting 'leaks' or 'all'): %s", optarg);
             }
             break;
-        case OPTION_OUTPUT:
-            output = optarg;
-            break;
         case 'T':
             cache = optarg;
             break;
-        case 'q':
-            quiet = true;
-            break;
         case 'U':
             force_share = true;
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
             break;
         case OPTION_OBJECT: {
             QemuOpts *opts;
@@ -753,8 +753,8 @@ static int img_check(int argc, char **argv)
                 return 1;
             }
         }   break;
-        case OPTION_IMAGE_OPTS:
-            image_opts = true;
+        case OPTION_OUTPUT:
+            output = optarg;
             break;
         }
     }
