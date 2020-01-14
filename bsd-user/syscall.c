@@ -321,12 +321,13 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
     void *p;
 
 #ifdef DEBUG
-    gemu_log("freebsd syscall %d\n", num);
+    qemu_log("freebsd syscall %d\n", num);
 #endif
     record_syscall_start(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, 0, 0);
 
-    if(do_strace)
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_freebsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
 
     switch(num) {
     case TARGET_FREEBSD_NR_exit:
@@ -401,10 +402,12 @@ abi_long do_freebsd_syscall(void *cpu_env, int num, abi_long arg1,
     }
  fail:
 #ifdef DEBUG
-    gemu_log(" = %ld\n", ret);
+    qemu_log(" = %ld\n", ret);
 #endif
-    if (do_strace)
+
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_freebsd_syscall_ret(num, ret);
+    }
 
     record_syscall_return(cpu, num, ret);
     return ret;
@@ -422,13 +425,14 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
     void *p;
 
 #ifdef DEBUG
-    gemu_log("netbsd syscall %d\n", num);
+    qemu_log("netbsd syscall %d\n", num);
 #endif
 
     record_syscall_start(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, 0, 0);
 
-    if(do_strace)
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_netbsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
 
     switch(num) {
     case TARGET_NETBSD_NR_exit:
@@ -480,10 +484,11 @@ abi_long do_netbsd_syscall(void *cpu_env, int num, abi_long arg1,
     }
  fail:
 #ifdef DEBUG
-    gemu_log(" = %ld\n", ret);
+    qemu_log(" = %ld\n", ret);
 #endif
-    if (do_strace)
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_netbsd_syscall_ret(num, ret);
+    }
 
     record_syscall_return(cpu, num, ret);
     return ret;
@@ -501,13 +506,14 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
     void *p;
 
 #ifdef DEBUG
-    gemu_log("openbsd syscall %d\n", num);
+    qemu_log("openbsd syscall %d\n", num);
 #endif
 
     record_syscall_start(cpu, num, arg1, arg2, arg3, arg4, arg5, arg6, 0, 0);
 
-    if(do_strace)
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_openbsd_syscall(num, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
 
     switch(num) {
     case TARGET_OPENBSD_NR_exit:
@@ -559,10 +565,11 @@ abi_long do_openbsd_syscall(void *cpu_env, int num, abi_long arg1,
     }
  fail:
 #ifdef DEBUG
-    gemu_log(" = %ld\n", ret);
+    qemu_log(" = %ld\n", ret);
 #endif
-    if (do_strace)
+    if (unlikely(qemu_loglevel_mask(LOG_STRACE))) {
         print_openbsd_syscall_ret(num, ret);
+    }
 
     record_syscall_return(cpu, num, ret);
     return ret;
