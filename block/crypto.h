@@ -41,6 +41,10 @@
 #define BLOCK_CRYPTO_OPT_LUKS_IVGEN_HASH_ALG "ivgen-hash-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_HASH_ALG "hash-alg"
 #define BLOCK_CRYPTO_OPT_LUKS_ITER_TIME "iter-time"
+#define BLOCK_CRYPTO_OPT_LUKS_KEYSLOT "keyslot"
+#define BLOCK_CRYPTO_OPT_LUKS_OLD_SECRET "old-secret"
+#define BLOCK_CRYPTO_OPT_LUKS_NEW_SECRET "new-secret"
+
 
 #define BLOCK_CRYPTO_OPT_DEF_LUKS_KEY_SECRET(prefix)                    \
     BLOCK_CRYPTO_OPT_DEF_KEY_SECRET(prefix,                             \
@@ -87,6 +91,33 @@
         .type = QEMU_OPT_NUMBER,                              \
         .help = "Time to spend in PBKDF in milliseconds",     \
     }
+
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_KEYSLOT(prefix)           \
+    {                                                       \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_KEYSLOT,       \
+        .type = QEMU_OPT_NUMBER,                            \
+        .help = "Select keyslot to modify explicitly",      \
+    }
+
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_OLD_SECRET(prefix)            \
+    {                                                           \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_OLD_SECRET,        \
+        .type = QEMU_OPT_STRING,                                \
+        .help = "Modify all keyslots that match this password", \
+    }
+
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_NEW_SECRET(prefix)            \
+    {                                                           \
+        .name = prefix BLOCK_CRYPTO_OPT_LUKS_NEW_SECRET,        \
+        .type = QEMU_OPT_STRING,                                \
+        .help = "New secret to set in the matching keyslots",   \
+    }
+
+#define BLOCK_CRYPTO_OPT_DEF_LUKS_KEYSLOT_UPDATE(prefix)  \
+    BLOCK_CRYPTO_OPT_DEF_LUKS_KEYSLOT(prefix),            \
+    BLOCK_CRYPTO_OPT_DEF_LUKS_OLD_SECRET(prefix),         \
+    BLOCK_CRYPTO_OPT_DEF_LUKS_NEW_SECRET(prefix),         \
+    BLOCK_CRYPTO_OPT_DEF_LUKS_ITER_TIME(prefix)           \
 
 QCryptoBlockCreateOptions *
 block_crypto_create_opts_init(QDict *opts, Error **errp);
