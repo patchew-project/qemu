@@ -2981,7 +2981,6 @@ static const TypeInfo scsi_disk_base_info = {
 };
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                   \
-    DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),  \
     DEFINE_BLOCK_PROPERTIES_BASE(SCSIDiskState, qdev.conf),             \
     DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),            \
     DEFINE_PROP_STRING("ver", SCSIDiskState, version),                  \
@@ -2992,6 +2991,7 @@ static const TypeInfo scsi_disk_base_info = {
 
 
 static Property scsi_hd_properties[] = {
+    DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_BIT("removable", SCSIDiskState, features,
                     SCSI_DISK_F_REMOVABLE, false),
@@ -3047,6 +3047,7 @@ static const TypeInfo scsi_hd_info = {
 };
 
 static Property scsi_cd_properties[] = {
+    DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_UINT64("wwn", SCSIDiskState, qdev.wwn, 0),
     DEFINE_PROP_UINT64("port_wwn", SCSIDiskState, qdev.port_wwn, 0),
@@ -3079,9 +3080,8 @@ static const TypeInfo scsi_cd_info = {
 
 #ifdef __linux__
 static Property scsi_block_properties[] = {
-    DEFINE_BLOCK_ERROR_PROPERTIES(SCSIDiskState, qdev.conf),         \
+    DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_DRIVE("drive", SCSIDiskState, qdev.conf.blk),
-    DEFINE_PROP_BOOL("share-rw", SCSIDiskState, qdev.conf.share_rw, false),
     DEFINE_PROP_UINT16("rotation_rate", SCSIDiskState, rotation_rate, 0),
     DEFINE_PROP_UINT64("max_unmap_size", SCSIDiskState, max_unmap_size,
                        DEFAULT_MAX_UNMAP_SIZE),
@@ -3099,6 +3099,7 @@ static void scsi_block_class_initfn(ObjectClass *klass, void *data)
     SCSIDiskClass *sdc = SCSI_DISK_BASE_CLASS(klass);
 
     sc->realize      = scsi_block_realize;
+    sc->unrealize    = scsi_unrealize;
     sc->alloc_req    = scsi_block_new_request;
     sc->parse_cdb    = scsi_block_parse_cdb;
     sdc->dma_readv   = scsi_block_dma_readv;
@@ -3118,6 +3119,7 @@ static const TypeInfo scsi_block_info = {
 #endif
 
 static Property scsi_disk_properties[] = {
+    DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),
     DEFINE_SCSI_DISK_PROPERTIES(),
     DEFINE_PROP_BIT("removable", SCSIDiskState, features,
                     SCSI_DISK_F_REMOVABLE, false),
