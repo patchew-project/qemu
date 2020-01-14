@@ -697,32 +697,21 @@ block_crypto_get_specific_info_luks(BlockDriverState *bs, Error **errp)
 }
 
 static int
-block_crypto_amend_options(BlockDriverState *bs,
-                           QemuOpts *opts,
-                           BlockDriverAmendStatusCB *status_cb,
-                           void *cb_opaque,
-                           bool force,
-                           Error **errp)
+block_crypto_amend_options_generic(BlockDriverState *bs,
+                                   QCryptoBlockAmendOptions *amend_options,
+                                   bool force,
+                                   Error **errp)
 {
     BlockCrypto *crypto = bs->opaque;
-    QDict *cryptoopts = NULL;
-    QCryptoBlockAmendOptions *amend_options = NULL;
     int ret;
 
     assert(crypto);
     assert(crypto->block);
+
+    /* apply for exclusive read/write permissions to the underlying file*/
     crypto->updating_keys = true;
-
     ret = bdrv_child_refresh_perms(bs, bs->file, errp);
-    if (ret < 0) {
-        goto cleanup;
-    }
-
-    cryptoopts = qemu_opts_to_qdict(opts, NULL);
-    qdict_put_str(cryptoopts, "format", "luks");
-    amend_options = block_crypto_amend_opts_init(cryptoopts, errp);
-    if (!amend_options) {
-        ret = -EINVAL;
+    if (ret) {
         goto cleanup;
     }
 
@@ -734,13 +723,55 @@ block_crypto_amend_options(BlockDriverState *bs,
                                       force,
                                       errp);
 cleanup:
+    /* release exclusive read/write permissions to the underlying file*/
     crypto->updating_keys = false;
     bdrv_child_refresh_perms(bs, bs->file, errp);
-    qapi_free_QCryptoBlockAmendOptions(amend_options);
-    qobject_unref(cryptoopts);
     return ret;
 }
 
+static int
+block_crypto_amend_options(BlockDriverState *bs,
+                           QemuOpts *opts,
+                           BlockDriverAmendStatusCB *status_cb,
+                           void *cb_opaque,
+                           bool force,
+                           Error **errp)
+{
+    BlockCrypto *crypto = bs->opaque;
+    QDict *cryptoopts = NULL;
+    QCryptoBlockAmendOptions *amend_options = NULL;
+    int ret = -EINVAL;
+
+    assert(crypto);
+    assert(crypto->block);
+
+    cryptoopts = qemu_opts_to_qdict(opts, NULL);
+    qdict_put_str(cryptoopts, "format", "luks");
+    amend_options = block_crypto_amend_opts_init(cryptoopts, errp);
+    qobject_unref(cryptoopts);
+    if (!amend_options) {
+        goto cleanup;
+    }
+    ret = block_crypto_amend_options_generic(bs, amend_options, force, errp);
+cleanup:
+    qapi_free_QCryptoBlockAmendOptions(amend_options);
+    return ret;
+}
+
+static int
+coroutine_fn block_crypto_co_amend(BlockDriverState *bs,
+                                   BlockdevAmendOptions *opts,
+                                   bool force,
+                                   Error **errp)
+{
+    QCryptoBlockAmendOptions amend_opts;
+
+    amend_opts = (QCryptoBlockAmendOptions) {
+        .format = Q_CRYPTO_BLOCK_FORMAT_LUKS,
+        .u.luks = *qapi_BlockdevAmendOptionsLUKS_base(&opts->u.luks),
+    };
+    return block_crypto_amend_options_generic(bs, &amend_opts, force, errp);
+}
 
 static void
 block_crypto_child_perms(BlockDriverState *bs, BdrvChild *c,
@@ -812,6 +843,7 @@ static BlockDriver bdrv_crypto_luks = {
     .bdrv_get_info      = block_crypto_get_info_luks,
     .bdrv_get_specific_info = block_crypto_get_specific_info_luks,
     .bdrv_amend_options = block_crypto_amend_options,
+    .bdrv_co_amend      = block_crypto_co_amend,
 
     .strong_runtime_opts = block_crypto_strong_runtime_opts,
 };
