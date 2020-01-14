@@ -331,6 +331,8 @@ const QEMULogItem qemu_log_items[] = {
     { LOG_USER, "user_mode",
       "log when QEMU encounters errors in the user-mode emulation layer.\n"
       "For example, when a socket option or syscall is not implemented" },
+    { LOG_STRACE, "strace",
+      "log every user-mode syscall, its input, and its result" },
     { 0, NULL, NULL },
 };
 

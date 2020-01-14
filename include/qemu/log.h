@@ -64,6 +64,7 @@ static inline bool qemu_log_separate(void)
 #define CPU_LOG_PLUGIN     (1 << 18)
 /* LOG_USER is used for some informational user-mode logging. */
 #define LOG_USER           (1 << 19)
+#define LOG_STRACE         (1 << 20)
 
 /* Lock output for a series of related logs.  Since this is not needed
  * for a single qemu_log / qemu_log_mask / qemu_log_mask_and_addr, we
@@ -153,6 +154,18 @@ void qemu_set_log_filename(const char *filename, Error **errp);
 void qemu_set_dfilter_ranges(const char *ranges, Error **errp);
 bool qemu_log_in_addr_range(uint64_t addr);
 int qemu_str_to_log_mask(const char *str);
+
+/* Add (union) the given "log_flags" to the current log mask. */
+static inline void qemu_add_log(int log_flags)
+{
+    qemu_set_log(qemu_loglevel | log_flags);
+}
+
+/* Remove (subtract) the given log flags from the current log mask. */
+static inline void qemu_del_log(int log_flags)
+{
+    qemu_set_log(qemu_loglevel & ~(log_flags));
+}
 
 /* Print a usage message listing all the valid logging categories
  * to the specified FILE*.

@@ -64,6 +64,12 @@ int have_guest_base;
 static bool force_user_mode_logging = true;
 
 /*
+ * Used to implement backwards-compatibility for the `-strace`, and
+ * QEMU_STRACE options.
+ */
+static bool enable_strace;
+
+/*
  * When running 32-on-64 we should make sure we can fit all of the possible
  * guest address space into a contiguous chunk of virtual host memory.
  *
@@ -378,7 +384,7 @@ static void handle_arg_singlestep(const char *arg)
 
 static void handle_arg_strace(const char *arg)
 {
-    do_strace = 1;
+    enable_strace = true;
 }
 
 static void handle_arg_version(const char *arg)
@@ -672,6 +678,15 @@ int main(int argc, char **argv, char **envp)
     qemu_plugin_add_opts();
 
     optind = parse_args(argc, argv);
+    /*
+     * Backwards Compatability: If handle_arg_strace just enabled strace
+     * logging directly, then it could be accidentally turned off by a
+     * QEMU_LOG/-d option. To make sure that strace logging is always enabled
+     * when QEMU_STRACE/-strace is set, re-enable LOG_STRACE here.
+     */
+    if (enable_strace) {
+        qemu_add_log(LOG_STRACE);
+    }
 
     if (force_user_mode_logging) {
         /*
