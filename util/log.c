@@ -328,6 +328,9 @@ const QEMULogItem qemu_log_items[] = {
 #ifdef CONFIG_PLUGIN
     { CPU_LOG_PLUGIN, "plugin", "output from TCG plugins\n"},
 #endif
+    { LOG_USER, "user_mode",
+      "log when QEMU encounters errors in the user-mode emulation layer.\n"
+      "For example, when a socket option or syscall is not implemented" },
     { 0, NULL, NULL },
 };
 

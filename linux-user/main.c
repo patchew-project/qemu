@@ -60,6 +60,9 @@ unsigned long mmap_min_addr;
 unsigned long guest_base;
 int have_guest_base;
 
+/* Used to implement backwards-compatibility for user-mode logging. */
+static bool force_user_mode_logging = true;
+
 /*
  * When running 32-on-64 we should make sure we can fit all of the possible
  * guest address space into a contiguous chunk of virtual host memory.
@@ -399,6 +402,11 @@ static void handle_arg_abi_call0(const char *arg)
 }
 #endif
 
+static void handle_arg_no_force_user_mode_logging(const char *arg)
+{
+    force_user_mode_logging = false;
+}
+
 static QemuPluginList plugins = QTAILQ_HEAD_INITIALIZER(plugins);
 
 #ifdef CONFIG_PLUGIN
@@ -469,6 +477,10 @@ static const struct qemu_argument arg_table[] = {
     {"xtensa-abi-call0", "QEMU_XTENSA_ABI_CALL0", false, handle_arg_abi_call0,
      "",           "assume CALL0 Xtensa ABI"},
 #endif
+    {"no-force-user-mode-logging", "", false,
+      handle_arg_no_force_user_mode_logging,
+      "",          "disable forced user-mode logging, other logging options "
+                   "will be used exactly as provided" },
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
@@ -660,6 +672,18 @@ int main(int argc, char **argv, char **envp)
     qemu_plugin_add_opts();
 
     optind = parse_args(argc, argv);
+
+    if (force_user_mode_logging) {
+        /*
+         * Backwards Compatibility: gemu_log for non-strace messages was not
+         * configurable, and was always on. Unless the user explicitly disables
+         * forced LOG_USER, force LOG_USER into the mask.
+         */
+        qemu_add_log(LOG_USER);
+    }
+
+    qemu_log_mask(LOG_USER, "--> from user\n");
+    qemu_log_mask(LOG_STRACE, "--> from strace\n");
 
     if (!trace_init_backends()) {
         exit(1);
