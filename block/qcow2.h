@@ -662,7 +662,8 @@ int qcow2_pre_write_overlap_check(BlockDriverState *bs, int ign, int64_t offset,
 int qcow2_inc_refcounts_imrt(BlockDriverState *bs, BdrvCheckResult *res,
                              void **refcount_table,
                              int64_t *refcount_table_size,
-                             int64_t offset, int64_t size);
+                             int64_t offset, int64_t size,
+                             Qcow2Allocation *qcow2_alloc);
 
 int qcow2_change_refcount_order(BlockDriverState *bs, int refcount_order,
                                 BlockDriverAmendStatusCB *status_cb,
@@ -751,7 +752,8 @@ void qcow2_cache_discard(Qcow2Cache *c, void *table);
 /* qcow2-bitmap.c functions */
 int qcow2_check_bitmaps_refcounts(BlockDriverState *bs, BdrvCheckResult *res,
                                   void **refcount_table,
-                                  int64_t *refcount_table_size);
+                                  int64_t *refcount_table_size,
+                                  Qcow2Bitmaps *bitmaps);
 bool qcow2_load_dirty_bitmaps(BlockDriverState *bs, Error **errp);
 Qcow2BitmapInfoList *qcow2_get_bitmap_info_list(BlockDriverState *bs,
                                                 Error **errp);

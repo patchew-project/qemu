@@ -590,6 +590,7 @@ static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
                                               BdrvCheckResult *result,
                                               BdrvCheckMode fix)
 {
+    BDRVQcow2State *s = bs->opaque;
     BdrvCheckResult snapshot_res = {};
     BdrvCheckResult refcount_res = {};
     int ret;
@@ -600,6 +601,35 @@ static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
     if (ret < 0) {
         qcow2_add_check_result(result, &snapshot_res, false);
         return ret;
+    }
+
+    if (fix & BDRV_DUMP_META) {
+        result->metadata = g_new0(Qcow2Metadata, 1);
+        result->metadata->qcow2_header = g_new0(Qcow2Header, 1);
+        result->metadata->qcow2_header->location = g_new0(Qcow2Allocation, 1);
+        result->metadata->active_l1 = g_new0(Qcow2L1Table, 1);
+        result->metadata->active_l1->location = g_new0(Qcow2Allocation, 1);
+        result->metadata->refcount_table = g_new0(Qcow2RefcountTable, 1);
+        result->metadata->refcount_table->location = g_new0(Qcow2Allocation, 1);
+
+        refcount_res.metadata = result->metadata;
+
+        if (s->crypto_header.length) {
+            result->metadata->crypt_header = g_new0(Qcow2EncryptionHeader, 1);
+            result->metadata->crypt_header->location =
+                g_new0(Qcow2Allocation, 1);
+        }
+        if (s->nb_bitmaps) {
+            result->metadata->bitmaps = g_new0(Qcow2Bitmaps, 1);
+            result->metadata->bitmaps->bitmap_dir = g_new0(Qcow2BitmapDir, 1);
+            result->metadata->bitmaps->bitmap_dir->location =
+                g_new0(Qcow2Allocation, 1);
+        }
+        if (s->nb_snapshots) {
+            result->metadata->snapshot_table = g_new0(Qcow2SnapshotsTable, 1);
+            result->metadata->snapshot_table->location =
+                g_new0(Qcow2Allocation, 1);
+        }
     }
 
     ret = qcow2_check_refcounts(bs, &refcount_res, fix);
