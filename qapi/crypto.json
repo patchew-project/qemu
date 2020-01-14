@@ -1,6 +1,8 @@
 # -*- Mode: Python -*-
 #
 
+{ 'include': 'common.json' }
+
 ##
 # = Cryptography
 ##
@@ -310,6 +312,52 @@
   'discriminator': 'format',
   'data': { 'luks': 'QCryptoBlockInfoLUKS' } }
 
+##
+# @LUKSKeyslotUpdate:
+#
+# @keyslot:         If specified, will update only keyslot with this index
+#
+# @old-secret:      If specified, will only update keyslots that
+#                   can be opened with password which is contained in
+#                   QCryptoSecret with @old-secret ID
+#
+#                   If neither @keyslot nor @old-secret is specified,
+#                   first empty keyslot is selected for the update
+#
+# @new-secret:      The ID of a QCryptoSecret object providing a new decryption
+#                   key to place in all matching keyslots.
+#                   null/empty string erases all matching keyslots unless
+#                   last valid keyslot is erased.
+#
+# @iter-time:       number of milliseconds to spend in
+#                   PBKDF passphrase processing
+# Since: 5.0
+##
+{ 'struct': 'LUKSKeyslotUpdate',
+  'data': {
+           '*keyslot': 'int',
+           '*old-secret': 'str',
+           'new-secret' : 'StrOrNull',
+           '*iter-time' : 'int' } }
+
+
+##
+# @QCryptoBlockAmendOptionsLUKS:
+#
+# The options that can be changed on existing luks encrypted device
+# @keys:           list of keyslot updates to perform
+#                  (updates are performed in order)
+# @unlock-secret:  use this secret to retrieve the current master key
+#                  if not given will use the same secret as one
+#                  that was used to open the image
+#
+# Since: 5.0
+##
+{ 'struct': 'QCryptoBlockAmendOptionsLUKS',
+  'data' : {
+            'keys': ['LUKSKeyslotUpdate'],
+             '*unlock-secret' : 'str' } }
+
 
 
 ##
@@ -324,4 +372,4 @@
   'base': 'QCryptoBlockOptionsBase',
   'discriminator': 'format',
   'data': {
-            } }
+          'luks': 'QCryptoBlockAmendOptionsLUKS' } }
