@@ -457,6 +457,7 @@ Syntax:
                 '*gen': false,
                 '*allow-oob': true,
                 '*allow-preconfig': true,
+                '*coroutine': true,
                 '*if': COND,
                 '*features': FEATURES }
 
@@ -580,6 +581,9 @@ before the machine is built.  It defaults to false.  For example:
 
 QMP is available before the machine is built only when QEMU was
 started with --preconfig.
+
+Member 'coroutine' tells the QMP dispatcher whether the command handler
+is safe to be run in a coroutine. It defaults to false.
 
 The optional 'if' member specifies a conditional.  See "Configuring
 the schema" below for more on this.
