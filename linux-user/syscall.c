@@ -107,6 +107,7 @@
 #include <netpacket/packet.h>
 #include <linux/netlink.h>
 #include <linux/if_alg.h>
+#include <linux/rtc.h>
 #include "linux_loop.h"
 #include "uname.h"
 
