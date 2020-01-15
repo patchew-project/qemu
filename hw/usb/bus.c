@@ -587,8 +587,10 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 static char *usb_get_dev_path(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
-    DeviceState *hcd = qdev->parent_bus->parent;
+    DeviceState *hcd = qdev_get_bus_device(qdev);
     char *id = NULL;
+
+    g_assert(hcd);
 
     if (dev->flags & (1 << USB_DEV_FLAG_FULL_PATH)) {
         id = qdev_get_dev_path(hcd);

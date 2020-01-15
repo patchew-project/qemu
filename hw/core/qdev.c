@@ -114,6 +114,11 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
     }
 }
 
+DeviceState *qdev_get_bus_device(const DeviceState *dev)
+{
+    return dev->parent_bus ? dev->parent_bus->parent : NULL;
+}
+
 /* Create a new device.  This only initializes the device state
    structure and allows properties to be set.  The device still needs
    to be realized.  See qdev-core.h.  */

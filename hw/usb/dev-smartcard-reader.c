@@ -1185,9 +1185,11 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
                                   uint8_t *apdu, uint32_t len)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
     Answer *answer;
+
+    g_assert(dev);
 
     if (!ccid_has_pending_answers(s)) {
         DPRINTF(s, 1, "CCID ERROR: got an APDU without pending answers\n");
@@ -1208,8 +1210,10 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
 void ccid_card_card_removed(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
+
+    g_assert(dev);
 
     ccid_on_slot_change(s, false);
     ccid_flush_pending_answers(s);
@@ -1219,8 +1223,10 @@ void ccid_card_card_removed(CCIDCardState *card)
 int ccid_card_ccid_attach(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
+
+    g_assert(dev);
 
     DPRINTF(s, 1, "CCID Attach\n");
     return 0;
@@ -1229,8 +1235,10 @@ int ccid_card_ccid_attach(CCIDCardState *card)
 void ccid_card_ccid_detach(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
+
+    g_assert(dev);
 
     DPRINTF(s, 1, "CCID Detach\n");
     if (ccid_card_inserted(s)) {
@@ -1242,8 +1250,10 @@ void ccid_card_ccid_detach(CCIDCardState *card)
 void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
+
+    g_assert(dev);
 
     s->bmCommandStatus = COMMAND_STATUS_FAILED;
     s->last_answer_error = error;
@@ -1261,8 +1271,10 @@ void ccid_card_card_error(CCIDCardState *card, uint64_t error)
 void ccid_card_card_inserted(CCIDCardState *card)
 {
     DeviceState *qdev = DEVICE(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
+
+    g_assert(dev);
 
     s->bmCommandStatus = COMMAND_STATUS_NO_ERROR;
     ccid_flush_pending_answers(s);
@@ -1273,9 +1285,11 @@ static void ccid_card_unrealize(DeviceState *qdev, Error **errp)
 {
     CCIDCardState *card = CCID_CARD(qdev);
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
     Error *local_err = NULL;
+
+    g_assert(dev);
 
     if (ccid_card_inserted(s)) {
         ccid_card_card_removed(card);
@@ -1294,9 +1308,11 @@ static void ccid_card_realize(DeviceState *qdev, Error **errp)
 {
     CCIDCardState *card = CCID_CARD(qdev);
     CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
-    USBDevice *dev = USB_DEVICE(qdev->parent_bus->parent);
+    USBDevice *dev = USB_DEVICE(qdev_get_bus_device(qdev));
     USBCCIDState *s = USB_CCID_DEV(dev);
     Error *local_err = NULL;
+
+    g_assert(dev);
 
     if (card->slot != 0) {
         error_setg(errp, "usb-ccid supports one slot, can't add %d",

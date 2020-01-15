@@ -1558,9 +1558,11 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 static char *scsibus_get_dev_path(DeviceState *dev)
 {
     SCSIDevice *d = SCSI_DEVICE(dev);
-    DeviceState *hba = dev->parent_bus->parent;
+    DeviceState *hba = qdev_get_bus_device(dev);
     char *id;
     char *path;
+
+    g_assert(hba);
 
     id = qdev_get_dev_path(hba);
     if (id) {

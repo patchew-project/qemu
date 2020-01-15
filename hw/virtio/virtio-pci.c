@@ -1317,9 +1317,21 @@ static uint64_t virtio_pci_notify_read(void *opaque, hwaddr addr,
 static void virtio_pci_notify_write(void *opaque, hwaddr addr,
                                     uint64_t val, unsigned size)
 {
+    DeviceState *dev = DEVICE(opaque);
     VirtIODevice *vdev = opaque;
-    VirtIOPCIProxy *proxy = VIRTIO_PCI(DEVICE(vdev)->parent_bus->parent);
-    unsigned queue = addr / virtio_pci_queue_mem_mult(proxy);
+    VirtIOPCIProxy *proxy = VIRTIO_PCI(qdev_get_bus_device(dev));
+    unsigned queue;
+
+    /*
+     * During unplug virtio device may have
+     * already been disconnected from the bus
+     */
+    if (!proxy) {
+        warn_report("Device %s doesn't have parent bus", vdev->name);
+        return;
+    }
+
+    queue = addr / virtio_pci_queue_mem_mult(proxy);
 
     if (queue < VIRTIO_QUEUE_MAX) {
         virtio_queue_notify(vdev, queue);

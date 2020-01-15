@@ -125,8 +125,10 @@ static char *pxb_host_ofw_unit_address(const SysBusDevice *dev)
     assert(position >= 0);
 
     pxb_dev_base = DEVICE(pxb_dev);
-    main_host = PCI_HOST_BRIDGE(pxb_dev_base->parent_bus->parent);
+    main_host = PCI_HOST_BRIDGE(qdev_get_bus_device(pxb_dev_base));
     main_host_sbd = SYS_BUS_DEVICE(main_host);
+
+    g_assert(main_host);
 
     if (main_host_sbd->num_mmio > 0) {
         return g_strdup_printf(TARGET_FMT_plx ",%x",
