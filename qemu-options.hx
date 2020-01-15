@@ -223,10 +223,10 @@ For example:
 -numa cpu,node-id=0,socket-id=0 -numa cpu,node-id=1,socket-id=1
 @end example
 
-@samp{mem} assigns a given RAM amount to a node. @samp{memdev}
-assigns RAM from a given memory backend device to a node. If
-@samp{mem} and @samp{memdev} are omitted in all nodes, RAM is
-split equally between them.
+Legacy @samp{mem} assigns a given RAM amount to a node (not supported for 5.0
+and newer machine types). @samp{memdev} assigns RAM from a given memory backend
+device to a node. If @samp{mem} and @samp{memdev} are omitted in all nodes, RAM
+is split equally between them.
 
 @samp{mem} and @samp{memdev} are mutually exclusive. Furthermore,
 if one node uses @samp{memdev}, all of them have to use it.

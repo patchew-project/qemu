@@ -363,6 +363,7 @@ static void pc_q35_4_2_machine_options(MachineClass *m)
 {
     pc_q35_5_0_machine_options(m);
     m->alias = NULL;
+    m->numa_mem_supported = true;
     compat_props_add(m->compat_props, hw_compat_4_2, hw_compat_4_2_len);
     compat_props_add(m->compat_props, pc_compat_4_2, pc_compat_4_2_len);
 }
