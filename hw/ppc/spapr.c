@@ -1959,6 +1959,31 @@ static const VMStateDescription vmstate_spapr_dtb = {
     },
 };
 
+static bool spapr_cas_reboot_needed(void *opaque)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(opaque);
+
+    /*
+     * This causes the "spapr_cas_reboot" subsection to always be
+     * sent if migration raced with CAS. This causes older QEMUs
+     * that don't know about the subsection to fail migration but
+     * it is still better than end up with a broken guest on the
+     * destination.
+     */
+    return spapr->cas_reboot;
+}
+
+static const VMStateDescription vmstate_spapr_cas_reboot = {
+    .name = "spapr_cas_reboot",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_cas_reboot_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(cas_reboot, SpaprMachineState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_spapr = {
     .name = "spapr",
     .version_id = 3,
@@ -1992,6 +2017,7 @@ static const VMStateDescription vmstate_spapr = {
         &vmstate_spapr_dtb,
         &vmstate_spapr_cap_large_decr,
         &vmstate_spapr_cap_ccf_assist,
+        &vmstate_spapr_cas_reboot,
         NULL
     }
 };
@@ -2577,6 +2603,21 @@ static PCIHostState *spapr_create_default_phb(void)
     return PCI_HOST_BRIDGE(dev);
 }
 
+static void spapr_change_state_handler(void *opaque, int running,
+                                       RunState state)
+{
+    SpaprMachineState *spapr = opaque;
+
+    if (running && spapr->cas_reboot) {
+        /*
+         * This happens when resuming from migration if the source
+         * processed a CAS but didn't have time to trigger the CAS
+         * reboot. Do it now.
+         */
+        qemu_system_reset_request(SHUTDOWN_CAUSE_SUBSYSTEM_RESET);
+    }
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void spapr_machine_init(MachineState *machine)
 {
@@ -2970,6 +3011,8 @@ static void spapr_machine_init(MachineState *machine)
 
         kvmppc_spapr_enable_inkernel_multitce();
     }
+
+    qemu_add_vm_change_state_handler(spapr_change_state_handler, spapr);
 }
 
 static int spapr_kvm_type(MachineState *machine, const char *vm_type)
