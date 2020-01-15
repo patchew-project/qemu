@@ -718,7 +718,7 @@ void numa_complete_configuration(MachineState *ms)
         /* Report large node IDs first, to make mistakes easier to spot */
         if (!numa_info[i].present) {
             error_report("numa: Node ID missing: %d", i);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -759,7 +759,7 @@ void numa_complete_configuration(MachineState *ms)
             error_report("total memory for NUMA nodes (0x%" PRIx64 ")"
                          " should equal RAM size (0x" RAM_ADDR_FMT ")",
                          numa_total, ram_size);
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         if (!numa_uses_legacy_mem()) {
