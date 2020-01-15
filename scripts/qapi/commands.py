@@ -15,6 +15,7 @@ See the COPYING file in the top-level directory.
 
 from qapi.common import *
 from qapi.gen import QAPIGenCCode, QAPISchemaModularCVisitor, ifcontext
+from typing import List
 
 
 def gen_command_decl(name, arg_type, boxed, ret_type):
@@ -194,8 +195,9 @@ out:
     return ret
 
 
-def gen_register_command(name, success_response, allow_oob, allow_preconfig):
-    options = []
+def gen_register_command(name: str, success_response: bool, allow_oob: bool,
+                         allow_preconfig: bool, coroutine: bool) -> str:
+    options = [] # type: List[str]
 
     if not success_response:
         options += ['QCO_NO_SUCCESS_RESP']
@@ -203,18 +205,20 @@ def gen_register_command(name, success_response, allow_oob, allow_preconfig):
         options += ['QCO_ALLOW_OOB']
     if allow_preconfig:
         options += ['QCO_ALLOW_PRECONFIG']
+    if coroutine:
+        options += ['QCO_COROUTINE']
 
     if not options:
         options = ['QCO_NO_OPTIONS']
 
-    options = " | ".join(options)
+    options_str = " | ".join(options)
 
     ret = mcgen('''
     qmp_register_command(cmds, "%(name)s",
                          qmp_marshal_%(c_name)s, %(opts)s);
 ''',
                 name=name, c_name=c_name(name),
-                opts=options)
+                opts=options_str)
     return ret
 
 
@@ -285,7 +289,7 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
 
     def visit_command(self, name, info, ifcond, arg_type, ret_type, gen,
                       success_response, boxed, allow_oob, allow_preconfig,
-                      features):
+                      coroutine, features):
         if not gen:
             return
         # FIXME: If T is a user-defined type, the user is responsible
@@ -303,7 +307,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
             self._genh.add(gen_marshal_decl(name))
             self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
             self._regy.add(gen_register_command(name, success_response,
-                                                allow_oob, allow_preconfig))
+                                                allow_oob, allow_preconfig,
+                                                coroutine))
 
 
 def gen_commands(schema, output_dir, prefix):
