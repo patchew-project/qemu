@@ -55,7 +55,6 @@ typedef struct {
     MachineState parent;
 
     ARMv7MState armv7m;
-    MemoryRegion psram;
     MemoryRegion ssram1;
     MemoryRegion ssram1_m;
     MemoryRegion ssram23;
@@ -118,6 +117,12 @@ static void mps2_common_init(MachineState *machine)
         exit(1);
     }
 
+    if (machine->ram_size != mc->default_ram_size) {
+        error_report("Invalid RAM size, should be " RAM_ADDR_UFMT " Bytes",
+                     mc->default_ram_size);
+        exit(EXIT_FAILURE);
+    }
+
     /* The FPGA images have an odd combination of different RAMs,
      * because in hardware they are different implementations and
      * connected to different buses, giving varying performance/size
@@ -146,9 +151,7 @@ static void mps2_common_init(MachineState *machine)
      * This is of no use for QEMU so we don't implement it (as if
      * zbt_boot_ctrl is always zero).
      */
-    memory_region_allocate_system_memory(&mms->psram,
-                                         NULL, "mps.ram", 16 * MiB);
-    memory_region_add_subregion(system_memory, 0x21000000, &mms->psram);
+    memory_region_add_subregion(system_memory, 0x21000000, machine->ram);
 
     switch (mmc->fpga_type) {
     case FPGA_AN385:
@@ -338,6 +341,8 @@ static void mps2_class_init(ObjectClass *oc, void *data)
 
     mc->init = mps2_common_init;
     mc->max_cpus = 1;
+    mc->default_ram_size = 16 * MiB;
+    mc->default_ram_id = "mps.ram";
 }
 
 static void mps2_an385_class_init(ObjectClass *oc, void *data)
