@@ -756,7 +756,7 @@ void numa_complete_configuration(MachineState *ms)
             exit(1);
         }
 
-        if (!numa_uses_legacy_mem() && mc->default_ram_id) {
+        if (!numa_uses_legacy_mem()) {
             ms->ram = g_new(MemoryRegion, 1);
             memory_region_init(ms->ram, OBJECT(ms), mc->default_ram_id,
                                ram_size);

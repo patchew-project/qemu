@@ -277,7 +277,6 @@ static void machine_hppa_machine_init(MachineClass *mc)
     mc->is_default = 1;
     mc->default_ram_size = 512 * MiB;
     mc->default_boot_order = "cd";
-    mc->default_ram_id = "ram";
 }
 
 DEFINE_MACHINE("hppa", machine_hppa_machine_init)

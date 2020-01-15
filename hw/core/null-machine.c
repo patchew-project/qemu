@@ -49,7 +49,6 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->init = machine_none_init;
     mc->max_cpus = 1;
     mc->default_ram_size = 0;
-    mc->default_ram_id = "ram";
 }
 
 DEFINE_MACHINE("none", machine_none_machine_init)

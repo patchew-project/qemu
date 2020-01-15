@@ -743,6 +743,7 @@ static void machine_class_init(ObjectClass *oc, void *data)
 
     /* Default 128 MB as guest ram size */
     mc->default_ram_size = 128 * MiB;
+    mc->default_ram_id = "ram";
     mc->rom_file_has_mr = true;
     mc->smp_parse = smp_parse;
 

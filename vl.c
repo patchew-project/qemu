@@ -4305,7 +4305,6 @@ int main(int argc, char **argv, char **envp)
 
     if (numa_uses_legacy_mem() &&
         machine_class->default_ram_size &&
-        machine_class->default_ram_id &&
         !current_machine->ram_memdev) {
         create_default_memdev(current_machine, mem_path, mem_prealloc);
     }
