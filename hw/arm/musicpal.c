@@ -1589,16 +1589,20 @@ static void musicpal_init(MachineState *machine)
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
+
+    /* For now we use a fixed - the original - RAM size */
+    if (machine->ram_size != mc->default_ram_size) {
+        error_report("Invalid RAM size, should be " RAM_ADDR_UFMT " Bytes",
+                     mc->default_ram_size);
+        exit(EXIT_FAILURE);
+    }
 
     cpu = ARM_CPU(cpu_create(machine->cpu_type));
 
-    /* For now we use a fixed - the original - RAM size */
-    memory_region_allocate_system_memory(ram, NULL, "musicpal.ram",
-                                         MP_RAM_DEFAULT_SIZE);
-    memory_region_add_subregion(address_space_mem, 0, ram);
+    memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
     memory_region_init_ram(sram, NULL, "musicpal.sram", MP_SRAM_SIZE,
                            &error_fatal);
@@ -1714,6 +1718,8 @@ static void musicpal_machine_init(MachineClass *mc)
     mc->init = musicpal_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
+    mc->default_ram_size = MP_RAM_DEFAULT_SIZE;
+    mc->default_ram_id = "musicpal.ram";
 }
 
 DEFINE_MACHINE("musicpal", musicpal_machine_init)
