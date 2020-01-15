@@ -39,6 +39,8 @@ typedef struct AspeedSDMCState {
 typedef struct AspeedSDMCClass {
     SysBusDeviceClass parent_class;
 
+    GHashTable *ram2feat;
+    int fallback_ram_size;
     uint64_t max_ram_size;
     uint32_t (*compute_conf)(AspeedSDMCState *s, uint32_t data);
     void (*write)(AspeedSDMCState *s, uint32_t reg, uint32_t data);
