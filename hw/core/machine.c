@@ -747,12 +747,6 @@ static void machine_class_init(ObjectClass *oc, void *data)
     mc->rom_file_has_mr = true;
     mc->smp_parse = smp_parse;
 
-    /* numa node memory size aligned on 8MB by default.
-     * On Linux, each node's border has to be 8MB aligned
-     */
-    mc->numa_mem_align_shift = 23;
-    mc->numa_auto_assign_ram = numa_default_auto_assign_ram;
-
     object_class_property_add_str(oc, "kernel",
         machine_get_kernel, machine_set_kernel, &error_abort);
     object_class_property_set_description(oc, "kernel",

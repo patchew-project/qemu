@@ -192,12 +192,9 @@ struct MachineClass {
     int minimum_page_bits;
     bool has_hotpluggable_cpus;
     bool ignore_memory_transaction_failures;
-    int numa_mem_align_shift;
     const char **valid_cpu_types;
     strList *allowed_dynamic_sysbus_devices;
     bool auto_enable_numa_with_memhp;
-    void (*numa_auto_assign_ram)(MachineClass *mc, NodeInfo *nodes,
-                                 int nb_nodes, ram_addr_t size);
     bool ignore_boot_device_suffixes;
     bool smbus_no_migration_support;
     bool nvdimm_supported;

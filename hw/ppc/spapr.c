@@ -4378,11 +4378,6 @@ static void spapr_machine_class_init(ObjectClass *oc, void *data)
     xic->ics_resend = spapr_ics_resend;
     xic->icp_get = spapr_icp_get;
     ispc->print_info = spapr_pic_print_info;
-    /* Force NUMA node memory size to be a multiple of
-     * SPAPR_MEMORY_BLOCK_SIZE (256M) since that's the granularity
-     * in which LMBs are represented and hot-added
-     */
-    mc->numa_mem_align_shift = 28;
     mc->auto_enable_numa = true;
 
     smc->default_caps.caps[SPAPR_CAP_HTM] = SPAPR_CAP_OFF;
@@ -4635,7 +4630,6 @@ static void spapr_machine_2_9_class_options(MachineClass *mc)
     spapr_machine_2_10_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_9, hw_compat_2_9_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-    mc->numa_auto_assign_ram = numa_legacy_auto_assign_ram;
     smc->pre_2_10_has_unused_icps = true;
     smc->resize_hpt_default = SPAPR_RESIZE_HPT_DISABLED;
 }
@@ -4655,7 +4649,6 @@ static void spapr_machine_2_8_class_options(MachineClass *mc)
     spapr_machine_2_9_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
-    mc->numa_mem_align_shift = 23;
 }
 
 DEFINE_SPAPR_MACHINE(2_8, "2.8", false);
