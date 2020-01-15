@@ -717,11 +717,18 @@ static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
                                              VIRTIO_BALLOON_PFN_SHIFT);
 }
 
-static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
+static void virtio_balloon_to_target(void *opaque, ram_addr_t target,
+                                     Error **errp)
 {
+    DeviceState *bus_dev = qdev_get_bus_device(DEVICE(opaque));
     VirtIOBalloon *dev = VIRTIO_BALLOON(opaque);
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     ram_addr_t vm_ram_size = get_current_ram_size();
+
+    if (bus_dev && bus_dev->pending_deleted_event) {
+        error_setg(errp, "Hot-unplug of %s is in progress", vdev->name);
+        return;
+    }
 
     if (target > vm_ram_size) {
         target = vm_ram_size;

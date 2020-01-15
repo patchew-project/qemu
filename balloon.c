@@ -119,5 +119,5 @@ void qmp_balloon(int64_t target, Error **errp)
     }
 
     trace_balloon_event(balloon_opaque, target);
-    balloon_event_fn(balloon_opaque, target);
+    balloon_event_fn(balloon_opaque, target, errp);
 }

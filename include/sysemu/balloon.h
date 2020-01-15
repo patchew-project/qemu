@@ -17,7 +17,7 @@
 #include "exec/cpu-common.h"
 #include "qapi/qapi-types-misc.h"
 
-typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
+typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target, Error **errp);
 typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
 
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
