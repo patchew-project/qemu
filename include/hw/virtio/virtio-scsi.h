@@ -50,6 +50,7 @@ typedef struct virtio_scsi_config VirtIOSCSIConfig;
 
 struct VirtIOSCSIConf {
     uint32_t num_queues;
+    bool auto_num_queues;
     uint32_t virtqueue_size;
     bool seg_max_adjust;
     uint32_t max_sectors;

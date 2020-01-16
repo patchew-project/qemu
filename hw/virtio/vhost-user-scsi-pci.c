@@ -53,10 +53,10 @@ static void vhost_user_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostUserSCSIPCI *dev = VHOST_USER_SCSI_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = vs->conf.num_queues + 3;
+        vpci_dev->nvectors = vdc->get_num_virtqueues(VIRTIO_DEVICE(vdev)) + 1;
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));

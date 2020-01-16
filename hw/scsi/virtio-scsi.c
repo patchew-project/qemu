@@ -16,6 +16,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "standard-headers/linux/virtio_ids.h"
+#include "hw/boards.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "migration/qemu-file-types.h"
 #include "qemu/error-report.h"
@@ -878,6 +879,18 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .load_request = virtio_scsi_load_request,
 };
 
+static uint32_t virtio_scsi_get_num_virtqueues(VirtIODevice *vdev)
+{
+    VirtIOSCSICommon *s = VIRTIO_SCSI_COMMON(vdev);
+    uint32_t request_queues = s->conf.num_queues;
+
+    if (s->conf.num_queues == 1 && s->conf.auto_num_queues) {
+        request_queues = current_machine->smp.cpus;
+    }
+
+    return VIRTIO_SCSI_VQ_NUM_FIXED + request_queues;
+}
+
 void virtio_scsi_common_realize(DeviceState *dev,
                                 VirtIOHandleOutput ctrl,
                                 VirtIOHandleOutput evt,
@@ -905,6 +918,8 @@ void virtio_scsi_common_realize(DeviceState *dev,
                    "must be > 2", s->conf.virtqueue_size);
         return;
     }
+    s->conf.num_queues = virtio_scsi_get_num_virtqueues(vdev) -
+                         VIRTIO_SCSI_VQ_NUM_FIXED;
     s->cmd_vqs = g_new0(VirtQueue *, s->conf.num_queues);
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
@@ -959,6 +974,8 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 
 static Property virtio_scsi_properties[] = {
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_BOOL("auto_num_queues", VirtIOSCSI,
+                     parent_obj.conf.auto_num_queues, true),
     DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSI,
                                          parent_obj.conf.virtqueue_size, 128),
     DEFINE_PROP_BOOL("seg_max_adjust", VirtIOSCSI,
@@ -1011,6 +1028,7 @@ static void virtio_scsi_class_init(ObjectClass *klass, void *data)
     vdc->reset = virtio_scsi_reset;
     vdc->start_ioeventfd = virtio_scsi_dataplane_start;
     vdc->stop_ioeventfd = virtio_scsi_dataplane_stop;
+    vdc->get_num_virtqueues = virtio_scsi_get_num_virtqueues;
     hc->pre_plug = virtio_scsi_pre_hotplug;
     hc->plug = virtio_scsi_hotplug;
     hc->unplug = virtio_scsi_hotunplug;
