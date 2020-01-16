@@ -1701,9 +1701,18 @@ static target_ulong h_client_architecture_support(PowerPCCPU *cpu,
 
     /* For the future use: here @ov_table points to the first option vector */
     ov_table = addr;
+    if (!ov_table) {
+        return H_PARAMETER;
+    }
 
     ov1_guest = spapr_ovec_parse_vector(ov_table, 1);
+    if (!ov1_guest) {
+        return H_PARAMETER;
+    }
     ov5_guest = spapr_ovec_parse_vector(ov_table, 5);
+    if (!ov5_guest) {
+        return H_PARAMETER;
+    }
     if (spapr_ovec_test(ov5_guest, OV5_MMU_BOTH)) {
         error_report("guest requested hash and radix MMU, which is invalid.");
         exit(EXIT_FAILURE);
