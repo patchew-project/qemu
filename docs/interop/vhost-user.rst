@@ -786,6 +786,7 @@ Protocol features
   #define VHOST_USER_PROTOCOL_F_HOST_NOTIFIER  11
   #define VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD 12
   #define VHOST_USER_PROTOCOL_F_RESET_DEVICE   13
+  #define VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS   14
 
 Master message types
 --------------------
@@ -1204,6 +1205,48 @@ Master message types
 
   Only valid if the ``VHOST_USER_PROTOCOL_F_RESET_DEVICE`` protocol
   feature is set by the backend.
+
+``VHOST_USER_GET_MAX_MEM_SLOTS``
+  :id: 35
+  :equivalent ioctl: N/A
+  :slave payload: u64
+
+  When the VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been
+  successfully negotiated, this message is submitted by master to the
+  slave. The slave should return the message with a u64 payload
+  containing the maximum number of memory slots for QEMU to expose to
+  the guest. This message is not supported with postcopy migration or if
+  the VHOST_USER_PROTOCOL_F_REPLY_ACK feature has also been negotiated.
+
+``VHOST_USER_ADD_MEM_REG``
+  :id: 36
+  :equivalent ioctl: N/A
+  :slave payload: memory region
+
+  When the VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been
+  successfully negotiated, this message is submitted by master to the slave.
+  The message payload contains a memory region descriptor struct, describing
+  a region of guest memory which the slave device must map in. When the
+  VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been successfully
+  negotiated, along with the VHOST_USER_REM_MEM_REG message, this message is
+  used to set and update the memory tables of the slave device. This message
+  is not supported with postcopy migration or if the
+  VHOST_USER_PROTOCOL_F_REPLY_ACK feature has also been negotiated.
+
+``VHOST_USER_REM_MEM_REG``
+  :id: 37
+  :equivalent ioctl: N/A
+  :slave payload: memory region
+
+  When the VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been
+  successfully negotiated, this message is submitted by master to the slave.
+  The message payload contains a memory region descriptor struct, describing
+  a region of guest memory which the slave device must unmap. When the
+  VHOST_USER_PROTOCOL_F_CONFIGURE_SLOTS protocol feature has been successfully
+  negotiated, along with the VHOST_USER_ADD_MEM_REG message, this message is
+  used to set and update the memory tables of the slave device. This message
+  is not supported with postcopy migration or if the
+  VHOST_USER_PROTOCOL_F_REPLY_ACK feature has also been negotiated.
 
 Slave message types
 -------------------
