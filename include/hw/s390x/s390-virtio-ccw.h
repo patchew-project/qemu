@@ -21,6 +21,9 @@
 #define S390_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(S390CcwMachineClass, (klass), TYPE_S390_CCW_MACHINE)
 
+#define S390_CCW_MACHINE_OBJ_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(S390CcwMachineClass, obj, TYPE_S390_CCW_MACHINE)
+
 typedef struct S390CcwMachineState {
     /*< private >*/
     MachineState parent_obj;
@@ -40,6 +43,7 @@ typedef struct S390CcwMachineClass {
     bool cpu_model_allowed;
     bool css_migration_enabled;
     bool hpage_1m_allowed;
+    bool kvm_ais_allowed;
 } S390CcwMachineClass;
 
 /* runtime-instrumentation allowed by the machine */
