@@ -219,7 +219,7 @@ struct SpaprMachineState {
     unsigned gpu_numa_id;
     SpaprTpmProxy *tpm_proxy;
 
-    bool fwnmi_calls_registered;
+    Error *fwnmi_migration_blocker;
 };
 
 #define H_SUCCESS         0
