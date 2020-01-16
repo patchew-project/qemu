@@ -226,6 +226,11 @@ STRUCT(dm_target_versions,
 STRUCT(dm_target_msg,
        TYPE_ULONGLONG) /* sector */
 
+STRUCT(fstrim_range,
+       TYPE_LONGLONG, /* start */
+       TYPE_LONGLONG, /* len */
+       TYPE_LONGLONG) /* minlen */
+
 STRUCT(file_clone_range,
        TYPE_LONGLONG, /* src_fd */
        TYPE_ULONGLONG, /* src_offset */
