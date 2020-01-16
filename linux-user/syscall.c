@@ -7006,6 +7006,15 @@ static int open_self_maps(void *cpu_env, int fd)
         }
     }
 
+#ifdef TARGET_X86_64
+    /*
+     * We only support execution from the vsyscall page.
+     * This is as if CONFIG_LEGACY_VSYSCALL_XONLY=y from v5.3.
+     */
+    dprintf(fd, "ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0"
+                "          [vsyscall]\n");
+#endif
+
     free(line);
     fclose(fp);
 
