@@ -163,6 +163,13 @@ typedef struct VirtioDeviceClass {
     int (*post_load)(VirtIODevice *vdev);
     const VMStateDescription *vmsd;
     bool (*primary_unplug_pending)(void *opaque);
+
+    /*
+     * Return the number of virtqueues.  Called by transports that need to
+     * allocate per-virtqueue interrupt resources.  This function may be called
+     * before the device is realized.
+     */
+    uint32_t (*get_num_virtqueues)(VirtIODevice *vdev);
 } VirtioDeviceClass;
 
 void virtio_instance_init_common(Object *proxy_obj, void *data,
