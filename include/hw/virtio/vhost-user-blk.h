@@ -31,6 +31,7 @@ typedef struct VHostUserBlk {
     int32_t bootindex;
     struct virtio_blk_config blkcfg;
     uint16_t num_queues;
+    bool auto_num_queues;
     uint32_t queue_size;
     uint32_t config_wce;
     struct vhost_dev dev;

@@ -21,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/cutils.h"
 #include "qom/object.h"
+#include "hw/boards.h"
 #include "hw/qdev-core.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost.h"
@@ -391,6 +392,17 @@ static void vhost_user_blk_event(void *opaque, QEMUChrEvent event)
     }
 }
 
+static uint32_t vhost_user_blk_get_num_virtqueues(VirtIODevice *vdev)
+{
+    VHostUserBlk *s = VHOST_USER_BLK(vdev);
+
+    if (s->num_queues == 1 && s->auto_num_queues) {
+        return current_machine->smp.cpus;
+    }
+
+    return s->num_queues;
+}
+
 static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -403,6 +415,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    s->num_queues = vhost_user_blk_get_num_virtqueues(vdev);
     if (!s->num_queues || s->num_queues > VIRTIO_QUEUE_MAX) {
         error_setg(errp, "vhost-user-blk: invalid number of IO queues");
         return;
@@ -501,6 +514,7 @@ static const VMStateDescription vmstate_vhost_user_blk = {
 static Property vhost_user_blk_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserBlk, chardev),
     DEFINE_PROP_UINT16("num-queues", VHostUserBlk, num_queues, 1),
+    DEFINE_PROP_BOOL("auto-num-queues", VHostUserBlk, auto_num_queues, true),
     DEFINE_PROP_UINT32("queue-size", VHostUserBlk, queue_size, 128),
     DEFINE_PROP_BIT("config-wce", VHostUserBlk, config_wce, 0, true),
     DEFINE_PROP_END_OF_LIST(),
@@ -514,6 +528,7 @@ static void vhost_user_blk_class_init(ObjectClass *klass, void *data)
     dc->props = vhost_user_blk_properties;
     dc->vmsd = &vmstate_vhost_user_blk;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    vdc->get_num_virtqueues = vhost_user_blk_get_num_virtqueues;
     vdc->realize = vhost_user_blk_device_realize;
     vdc->unrealize = vhost_user_blk_device_unrealize;
     vdc->get_config = vhost_user_blk_update_config;

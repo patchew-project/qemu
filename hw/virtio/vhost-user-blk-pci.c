@@ -53,9 +53,10 @@ static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    VirtioDeviceClass *vdc = VIRTIO_DEVICE_GET_CLASS(vdev);
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = dev->vdev.num_queues + 1;
+        vpci_dev->nvectors = vdc->get_num_virtqueues(VIRTIO_DEVICE(vdev)) + 1;
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
