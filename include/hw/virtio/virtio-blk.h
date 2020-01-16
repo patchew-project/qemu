@@ -37,6 +37,7 @@ struct VirtIOBlkConf
     char *serial;
     uint32_t request_merging;
     uint16_t num_queues;
+    bool auto_num_queues;
     uint16_t queue_size;
     bool seg_max_adjust;
     uint32_t max_discard_sectors;

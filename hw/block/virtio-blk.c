@@ -18,6 +18,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
+#include "hw/boards.h"
 #include "hw/block/block.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/blockdev.h"
@@ -1119,6 +1120,18 @@ static const BlockDevOps virtio_block_ops = {
     .resize_cb = virtio_blk_resize,
 };
 
+static uint32_t virtio_blk_get_num_virtqueues(VirtIODevice *vdev)
+{
+    VirtIOBlock *s = VIRTIO_BLK(vdev);
+    VirtIOBlkConf *conf = &s->conf;
+
+    if (conf->num_queues == 1 && conf->auto_num_queues) {
+        return current_machine->smp.cpus;
+    }
+
+    return conf->num_queues;
+}
+
 static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
@@ -1135,6 +1148,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "Device needs media, but drive is empty");
         return;
     }
+    conf->num_queues = virtio_blk_get_num_virtqueues(vdev);
     if (!conf->num_queues) {
         error_setg(errp, "num-queues property must be larger than 0");
         return;
@@ -1272,6 +1286,8 @@ static Property virtio_blk_properties[] = {
     DEFINE_PROP_BIT("request-merging", VirtIOBlock, conf.request_merging, 0,
                     true),
     DEFINE_PROP_UINT16("num-queues", VirtIOBlock, conf.num_queues, 1),
+    DEFINE_PROP_BOOL("auto-num-queues", VirtIOBlock,
+                     conf.auto_num_queues, true),
     DEFINE_PROP_UINT16("queue-size", VirtIOBlock, conf.queue_size, 128),
     DEFINE_PROP_BOOL("seg-max-adjust", VirtIOBlock, conf.seg_max_adjust, true),
     DEFINE_PROP_LINK("iothread", VirtIOBlock, conf.iothread, TYPE_IOTHREAD,
@@ -1297,6 +1313,7 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     dc->props = virtio_blk_properties;
     dc->vmsd = &vmstate_virtio_blk;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+    vdc->get_num_virtqueues = virtio_blk_get_num_virtqueues;
     vdc->realize = virtio_blk_device_realize;
     vdc->unrealize = virtio_blk_device_unrealize;
     vdc->get_config = virtio_blk_update_config;
