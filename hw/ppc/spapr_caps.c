@@ -502,6 +502,13 @@ static void cap_fwnmi_mce_apply(SpaprMachineState *spapr, uint8_t val,
     if (!val) {
         return; /* Disabled by default */
     }
+
+    if (kvm_enabled()) {
+        if (kvmppc_set_fwnmi() < 0) {
+            error_report("Could not enable fwnmi capability");
+            exit(1);
+        }
+    }
 }
 
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
