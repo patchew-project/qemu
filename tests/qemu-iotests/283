@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+#
+# Test for backup-top filter permission activation failure
+#
+# Copyright (c) 2019 Virtuozzo International GmbH.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import iotests
+
+# The test is unrelated to formats, restrict it to qcow2 to avoid extra runs
+iotests.verify_image_format(supported_fmts=['qcow2'])
+
+size = 1024 * 1024
+
+"""
+On activation, backup-top is going to unshare write permission on its
+source child. It will be impossible for the following configuration:
+
+    ┌────────┐  target  ┌─────────────┐
+    │ target │ ◀─────── │ backup_top  │
+    └────────┘          └─────────────┘
+                            │
+                            │ backing
+                            ▼
+                        ┌─────────────┐
+                        │   source    │
+                        └─────────────┘
+                            │
+                            │ file
+                            ▼
+                        ┌─────────────┐  write perm   ┌───────┐
+                        │    base     │ ◀──────────── │ other │
+                        └─────────────┘               └───────┘
+
+Write unsharing will be propagated to the "source->base"link and will
+conflict with other node write permission.
+
+(Note, that we can't just consider source to be direct child of other,
+as in this case this link will be broken, when backup_top is appended)
+"""
+
+vm = iotests.VM()
+vm.launch()
+
+vm.qmp_log('blockdev-add', **{'node-name': 'target', 'driver': 'null-co'})
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'source',
+    'driver': 'blkdebug',
+    'image': {'node-name': 'base', 'driver': 'null-co', 'size': size}
+})
+
+vm.qmp_log('blockdev-add', **{
+    'node-name': 'other',
+    'driver': 'blkdebug',
+    'image': 'base',
+    'take-child-perms': ['write']
+})
+
+vm.qmp_log('blockdev-backup', sync='full', device='source', target='target')
+
+vm.shutdown()
