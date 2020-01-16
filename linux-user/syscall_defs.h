@@ -897,6 +897,23 @@ struct target_pollfd {
 
 /* From <linux/fd.h> */
 
+struct target_floppy_fdc_state {
+    int spec1;                      /* spec1 value last used */
+    int spec2;                      /* spec2 value last used */
+    int dtr;
+    unsigned char version;          /* FDC version code */
+    unsigned char dor;
+    abi_ulong address;              /* io address */
+    unsigned int rawcmd:2;
+    unsigned int reset:1;
+    unsigned int need_configure:1;
+    unsigned int perp_mode:2;
+    unsigned int has_fifo:1;
+    unsigned int driver_version;    /* version code for floppy driver */
+    unsigned char track[4];
+};
+
+
 #define TARGET_FDMSGON        TARGET_IO(2, 0x45)
 #define TARGET_FDMSGOFF       TARGET_IO(2, 0x46)
 #define TARGET_FDFMTBEG       TARGET_IO(2, 0x47)
@@ -907,6 +924,7 @@ struct target_pollfd {
 #define TARGET_FDSETMAXERRS  TARGET_IOW(2, 0x4c, struct floppy_max_errors)
 #define TARGET_FDGETMAXERRS  TARGET_IOR(2, 0x0e, struct floppy_max_errors)
 #define TARGET_FDRESET        TARGET_IO(2, 0x54)
+#define TARGET_FDGETFDCSTAT  TARGET_IOR(2, 0x15, struct target_floppy_fdc_state)
 #define TARGET_FDRAWCMD       TARGET_IO(2, 0x58)
 #define TARGET_FDTWADDLE      TARGET_IO(2, 0x59)
 #define TARGET_FDEJECT        TARGET_IO(2, 0x5a)
