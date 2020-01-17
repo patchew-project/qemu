@@ -23,8 +23,6 @@
 
 #include "qemu.h"
 
-int do_strace;
-
 /*
  * Utility functions
  */
@@ -36,17 +34,17 @@ static void print_sysctl(const struct syscallname *name, abi_long arg1,
     uint32_t i;
     int32_t *namep;
 
-    gemu_log("%s({ ", name->name);
+    qemu_log("%s({ ", name->name);
     namep = lock_user(VERIFY_READ, arg1, sizeof(int32_t) * arg2, 1);
     if (namep) {
         int32_t *p = namep;
 
         for (i = 0; i < (uint32_t)arg2; i++) {
-            gemu_log("%d ", tswap32(*p++));
+            qemu_log("%d ", tswap32(*p++));
         }
         unlock_user(namep, arg1, 0);
     }
-    gemu_log("}, %u, 0x" TARGET_ABI_FMT_lx ", 0x" TARGET_ABI_FMT_lx ", 0x"
+    qemu_log("}, %u, 0x" TARGET_ABI_FMT_lx ", 0x" TARGET_ABI_FMT_lx ", 0x"
         TARGET_ABI_FMT_lx ", 0x" TARGET_ABI_FMT_lx ")",
         (uint32_t)arg2, arg3, arg4, arg5, arg6);
 }
@@ -62,7 +60,7 @@ static void print_execve(const struct syscallname *name, abi_long arg1,
     if (s == NULL) {
         return;
     }
-    gemu_log("%s(\"%s\",{", name->name, s);
+    qemu_log("%s(\"%s\",{", name->name, s);
     unlock_user(s, arg1, 0);
 
     for (arg_ptr_addr = arg2; ; arg_ptr_addr += sizeof(abi_ulong)) {
@@ -78,11 +76,11 @@ static void print_execve(const struct syscallname *name, abi_long arg1,
             break;
         }
         if ((s = lock_user_string(arg_addr))) {
-            gemu_log("\"%s\",", s);
+            qemu_log("\"%s\",", s);
             unlock_user(s, arg_addr, 0);
         }
     }
-    gemu_log("NULL})");
+    qemu_log("NULL})");
 }
 
 static void print_ioctl(const struct syscallname *name,
@@ -90,7 +88,7 @@ static void print_ioctl(const struct syscallname *name,
         abi_long arg5, abi_long arg6)
 {
     /* Decode the ioctl request */
-    gemu_log("%s(%d, 0x%0lx { IO%s%s GRP:0x%x('%c') CMD:%d LEN:%d }, 0x"
+    qemu_log("%s(%d, 0x%0lx { IO%s%s GRP:0x%x('%c') CMD:%d LEN:%d }, 0x"
             TARGET_ABI_FMT_lx ", ...)",
             name->name,
             (int)arg1,
@@ -111,9 +109,9 @@ static void print_ioctl(const struct syscallname *name,
 static void print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
 {
     if (ret == -1) {
-        gemu_log(" = -1 errno=%d (%s)\n", errno, strerror(errno));
+        qemu_log(" = -1 errno=%d (%s)\n", errno, strerror(errno));
     } else {
-        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
+        qemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
     }
 }
 
@@ -121,7 +119,7 @@ static void print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
 static void
 print_syscall_ret_raw(struct syscallname *name, abi_long ret)
 {
-        gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
+        qemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
 }
 #endif
 
@@ -148,7 +146,7 @@ static void print_syscall(int num, const struct syscallname *scnames,
         TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld "," TARGET_ABI_FMT_ld ","
         TARGET_ABI_FMT_ld ")";
 
-    gemu_log("%d ", getpid() );
+    qemu_log("%d ", getpid());
 
     for (i = 0; i < nscnames; i++) {
         if (scnames[i].nr == num) {
@@ -161,13 +159,13 @@ static void print_syscall(int num, const struct syscallname *scnames,
                 if (scnames[i].format != NULL) {
                     format = scnames[i].format;
                 }
-                gemu_log(format, scnames[i].name, arg1, arg2, arg3, arg4, arg5,
+                qemu_log(format, scnames[i].name, arg1, arg2, arg3, arg4, arg5,
                         arg6);
             }
             return;
         }
     }
-    gemu_log("Unknown syscall %d\n", num);
+    qemu_log("Unknown syscall %d\n", num);
 }
 
 static void print_syscall_ret(int num, abi_long ret,
@@ -181,10 +179,10 @@ static void print_syscall_ret(int num, abi_long ret,
                 scnames[i].result(&scnames[i], ret);
             } else {
                 if (ret < 0) {
-                    gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n", -ret,
+                    qemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n", -ret,
                              strerror(-ret));
                 } else {
-                    gemu_log(" = " TARGET_ABI_FMT_ld "\n", ret);
+                    qemu_log(" = " TARGET_ABI_FMT_ld "\n", ret);
                 }
             }
             break;

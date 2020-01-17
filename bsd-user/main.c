@@ -55,15 +55,6 @@ enum BSDType bsd_type;
    by remapping the process stack directly at the right place */
 unsigned long x86_stack_size = 512 * 1024;
 
-void gemu_log(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}
-
 #if defined(TARGET_I386)
 int cpu_get_pic_interrupt(CPUX86State *env)
 {
@@ -845,7 +836,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "singlestep")) {
             singlestep = 1;
         } else if (!strcmp(r, "strace")) {
-            do_strace = 1;
+            qemu_add_log(LOG_STRACE);
         } else if (!strcmp(r, "trace")) {
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
@@ -917,7 +908,7 @@ int main(int argc, char **argv)
     thread_cpu = cpu;
 
     if (getenv("QEMU_STRACE")) {
-        do_strace = 1;
+        qemu_add_log(LOG_STRACE);
     }
 
     target_environ = envlist_to_environ(envlist, NULL);
