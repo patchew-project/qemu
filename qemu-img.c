@@ -70,6 +70,7 @@ enum {
     OPTION_PREALLOCATION = 265,
     OPTION_SHRINK = 266,
     OPTION_SALVAGE = 267,
+    OPTION_TARGET_IS_ZERO = 268,
 };
 
 typedef enum OutputFormat {
@@ -1593,6 +1594,7 @@ typedef struct ImgConvertState {
     bool copy_range;
     bool salvage;
     bool quiet;
+    bool target_is_zero;
     int min_sparse;
     int alignment;
     size_t cluster_sectors;
@@ -1984,10 +1986,11 @@ static int convert_do_copy(ImgConvertState *s)
     int64_t sector_num = 0;
 
     /* Check whether we have zero initialisation or can get it efficiently */
-    if (s->target_is_new && s->min_sparse && !s->target_has_backing) {
+    s->has_zero_init = s->target_is_zero;
+
+    if (!s->has_zero_init && s->target_is_new && s->min_sparse &&
+        !s->target_has_backing) {
         s->has_zero_init = bdrv_has_zero_init(blk_bs(s->target));
-    } else {
-        s->has_zero_init = false;
     }
 
     if (!s->has_zero_init && !s->target_has_backing &&
@@ -2076,6 +2079,7 @@ static int img_convert(int argc, char **argv)
         .buf_sectors        = IO_BUF_SIZE / BDRV_SECTOR_SIZE,
         .wr_in_order        = true,
         .num_coroutines     = 8,
+        .target_is_zero     = false,
     };
 
     for(;;) {
@@ -2086,6 +2090,7 @@ static int img_convert(int argc, char **argv)
             {"force-share", no_argument, 0, 'U'},
             {"target-image-opts", no_argument, 0, OPTION_TARGET_IMAGE_OPTS},
             {"salvage", no_argument, 0, OPTION_SALVAGE},
+            {"target-is-zero", no_argument, 0, OPTION_TARGET_IS_ZERO},
             {0, 0, 0, 0}
         };
         c = getopt_long(argc, argv, ":hf:O:B:Cco:l:S:pt:T:qnm:WU",
@@ -2209,6 +2214,9 @@ static int img_convert(int argc, char **argv)
         case OPTION_TARGET_IMAGE_OPTS:
             tgt_image_opts = true;
             break;
+        case OPTION_TARGET_IS_ZERO:
+            s.target_is_zero = true;
+            break;
         }
     }
 
@@ -2245,6 +2253,11 @@ static int img_convert(int argc, char **argv)
     if (skip_create && options) {
         warn_report("-o has no effect when skipping image creation");
         warn_report("This will become an error in future QEMU versions.");
+    }
+
+    if (s.target_is_zero && !skip_create) {
+        error_report("--target-is-zero requires use of -n flag");
+        goto fail_getopt;
     }
 
     s.src_num = argc - optind - 1;
