@@ -31,8 +31,9 @@ struct RAMBlock {
     uint8_t *host;
     uint8_t *colo_cache; /* For colo, VM's ram cache */
     ram_addr_t offset;
-    ram_addr_t used_length;
-    ram_addr_t max_length;
+    ram_addr_t req_length; /* Original requested size, used if RAM_RESIZEABLE */
+    ram_addr_t used_length; /* aligned to qemu_host_page_size */
+    ram_addr_t max_length; /*  aligned to qemu_host_page_size */
     void (*resized)(const char*, uint64_t length, void *host);
     uint32_t flags;
     /* Protected by iothread lock.  */

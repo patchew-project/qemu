@@ -2123,15 +2123,17 @@ static int memory_try_enable_merging(void *addr, size_t len)
  * resize callback to update device state and/or add assertions to detect
  * misuse, if necessary.
  */
-int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
+int qemu_ram_resize(RAMBlock *block, ram_addr_t size, Error **errp)
 {
+    ram_addr_t newsize;
+
     assert(block);
 
-    newsize = HOST_PAGE_ALIGN(newsize);
-
-    if (block->used_length == newsize) {
+    if (block->req_length == size) {
         return 0;
     }
+
+    newsize = HOST_PAGE_ALIGN(size);
 
     if (!(block->flags & RAM_RESIZEABLE)) {
         error_setg_errno(errp, EINVAL,
@@ -2149,13 +2151,19 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
         return -EINVAL;
     }
 
-    cpu_physical_memory_clear_dirty_range(block->offset, block->used_length);
-    block->used_length = newsize;
-    cpu_physical_memory_set_dirty_range(block->offset, block->used_length,
-                                        DIRTY_CLIENTS_ALL);
-    memory_region_set_size(block->mr, newsize);
+    block->req_length = size;
+
+    if (newsize != block->used_length) {
+        cpu_physical_memory_clear_dirty_range(block->offset,
+                                              block->used_length);
+        block->used_length = newsize;
+        cpu_physical_memory_set_dirty_range(block->offset, block->used_length,
+                                            DIRTY_CLIENTS_ALL);
+        memory_region_set_size(block->mr, newsize);
+    }
+
     if (block->resized) {
-        block->resized(block->idstr, newsize, block->host);
+        block->resized(block->idstr, block->req_length, block->host);
     }
     return 0;
 }
@@ -2412,16 +2420,18 @@ RAMBlock *qemu_ram_alloc_internal(ram_addr_t size, ram_addr_t max_size,
                                   MemoryRegion *mr, Error **errp)
 {
     RAMBlock *new_block;
+    ram_addr_t newsize;
     Error *local_err = NULL;
 
-    size = HOST_PAGE_ALIGN(size);
+    newsize = HOST_PAGE_ALIGN(size);
     max_size = HOST_PAGE_ALIGN(max_size);
     new_block = g_malloc0(sizeof(*new_block));
     new_block->mr = mr;
     new_block->resized = resized;
-    new_block->used_length = size;
+    new_block->req_length = size;
+    new_block->used_length = newsize;
     new_block->max_length = max_size;
-    assert(max_size >= size);
+    assert(max_size >= newsize);
     new_block->fd = -1;
     new_block->page_size = qemu_real_host_page_size;
     new_block->host = host;
