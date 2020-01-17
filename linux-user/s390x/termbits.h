@@ -128,8 +128,8 @@ struct target_ktermios {
 #define TARGET_B9600	0000015
 #define TARGET_B19200	0000016
 #define TARGET_B38400	0000017
-#define TARGET_EXTA B19200
-#define TARGET_EXTB B38400
+#define TARGET_EXTA     TARGET_B19200
+#define TARGET_EXTB     TARGET_B38400
 #define TARGET_CSIZE	0000060
 #define TARGET_CS5	0000000
 #define TARGET_CS6	0000020
@@ -234,7 +234,7 @@ struct target_ktermios {
 #define TARGET_TIOCGSOFTCAR	0x5419
 #define TARGET_TIOCSSOFTCAR	0x541A
 #define TARGET_FIONREAD	0x541B
-#define TARGET_TIOCINQ		FIONREAD
+#define TARGET_TIOCINQ      TARGET_FIONREAD
 #define TARGET_TIOCLINUX	0x541C
 #define TARGET_TIOCCONS	0x541D
 #define TARGET_TIOCGSERIAL	0x541E
@@ -248,14 +248,18 @@ struct target_ktermios {
 #define TARGET_TIOCSBRK	0x5427  /* BSD compatibility */
 #define TARGET_TIOCCBRK	0x5428  /* BSD compatibility */
 #define TARGET_TIOCGSID	0x5429  /* Return the session ID of FD */
-#define TARGET_TCGETS2		_IOR('T',0x2A, struct termios2)
-#define TARGET_TCSETS2		_IOW('T',0x2B, struct termios2)
-#define TARGET_TCSETSW2	_IOW('T',0x2C, struct termios2)
-#define TARGET_TCSETSF2	_IOW('T',0x2D, struct termios2)
-#define TARGET_TIOCGPTN	_IOR('T',0x30, unsigned int) /* Get Pty Number (of pty-mux device) */
-#define TARGET_TIOCSPTLCK	_IOW('T',0x31, int)  /* Lock/unlock Pty */
-#define TARGET_TIOCGDEV	_IOR('T',0x32, unsigned int) /* Get real dev no below /dev/console */
-#define TARGET_TIOCGPTPEER      TARGET_IO('T', 0x41) /* Safely open the slave */
+#define TARGET_TCGETS2          TARGET_IOR('T', 0x2A, struct target_termios2)
+#define TARGET_TCSETS2          TARGET_IOW('T', 0x2B, struct target_termios2)
+#define TARGET_TCSETSW2         TARGET_IOW('T', 0x2C, struct target_termios2)
+#define TARGET_TCSETSF2         TARGET_IOW('T', 0x2D, struct target_termios2)
+/* Get Pty Number (of pty-mux device) */
+#define TARGET_TIOCGPTN         TARGET_IOR('T', 0x30, unsigned int)
+/* Lock/unlock Pty */
+#define TARGET_TIOCSPTLCK       TARGET_IOW('T', 0x31, int)
+/* Get real dev no below /dev/console */
+#define TARGET_TIOCGDEV         TARGET_IOR('T', 0x32, unsigned int)
+/* Safely open the slave */
+#define TARGET_TIOCGPTPEER      TARGET_IO('T', 0x41)
 
 #define TARGET_FIONCLEX	0x5450  /* these numbers need to be adjusted. */
 #define TARGET_FIOCLEX		0x5451

@@ -109,8 +109,8 @@ struct target_termios {
 #define  TARGET_B9600	  0x0000000d
 #define  TARGET_B19200	  0x0000000e
 #define  TARGET_B38400	  0x0000000f
-#define TARGET_EXTA      B19200
-#define TARGET_EXTB      B38400
+#define TARGET_EXTA       TARGET_B19200
+#define TARGET_EXTB       TARGET_B38400
 #define  TARGET_CSIZE    0x00000030
 #define   TARGET_CS5	  0x00000000
 #define   TARGET_CS6	  0x00000010

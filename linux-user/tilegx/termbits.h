@@ -224,10 +224,14 @@ struct target_termios2 {
 #define TARGET_TIOCSBRK                 0x5427
 #define TARGET_TIOCCBRK                 0x5428
 #define TARGET_TIOCGSID                 0x5429
-#define TARGET_TCGETS2                  TARGET_IOR('T', 0x2A, struct termios2)
-#define TARGET_TCSETS2                  TARGET_IOW('T', 0x2B, struct termios2)
-#define TARGET_TCSETSW2                 TARGET_IOW('T', 0x2C, struct termios2)
-#define TARGET_TCSETSF2                 TARGET_IOW('T', 0x2D, struct termios2)
+#define TARGET_TCGETS2                  TARGET_IOR('T', 0x2A,                  \
+                                                   struct target_termios2)
+#define TARGET_TCSETS2                  TARGET_IOW('T', 0x2B,                  \
+                                                   struct target_termios2)
+#define TARGET_TCSETSW2                 TARGET_IOW('T', 0x2C,                  \
+                                                   struct target_termios2)
+#define TARGET_TCSETSF2                 TARGET_IOW('T', 0x2D,                  \
+                                                   struct target_termios2)
 #define TARGET_TIOCGRS485               0x542E
 #define TARGET_TIOCSRS485               0x542F
 #define TARGET_TIOCGPTN                 TARGET_IOR('T', 0x30, unsigned int)
