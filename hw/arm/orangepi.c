@@ -61,6 +61,10 @@ static void orangepi_init(MachineState *machine)
     object_property_set_int(OBJECT(s->h3), 24 * 1000 * 1000, "clk1-freq",
                             &error_abort);
 
+    /* Setup SID properties */
+    qdev_prop_set_string(DEVICE(s->h3), "identifier",
+                         "8100c002-0001-0002-0003-000044556677");
+
     /* Mark H3 object realized */
     object_property_set_bool(OBJECT(s->h3), true, "realized", &error_abort);
 
