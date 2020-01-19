@@ -591,6 +591,10 @@ static uint64_t dp8393x_read(void *opaque, hwaddr addr, unsigned int size)
                 val |= s->cam[s->regs[SONIC_CEP] & 0xf][2* (SONIC_CAP0 - reg)];
             }
             break;
+        /* Read-only */
+        case SONIC_SR:
+            val = 4; /* only revision recognized by Linux/mips */
+            break;
         /* All other registers have no special contrainst */
         default:
             val = s->regs[reg];
@@ -971,7 +975,6 @@ static void dp8393x_realize(DeviceState *dev, Error **errp)
     qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->watchdog = timer_new_ns(QEMU_CLOCK_VIRTUAL, dp8393x_watchdog, s);
-    s->regs[SONIC_SR] = 0x0004; /* only revision recognized by Linux */
 
     memory_region_init_ram(&s->prom, OBJECT(dev),
                            "dp8393x-prom", SONIC_PROM_SIZE, &local_err);
