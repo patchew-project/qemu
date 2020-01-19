@@ -7,6 +7,7 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/intc/allwinner-a10-pic.h"
 #include "hw/net/allwinner_emac.h"
+#include "hw/sd/allwinner-sdhost.h"
 #include "hw/ide/ahci.h"
 
 #include "target/arm/cpu.h"
@@ -27,6 +28,7 @@ typedef struct AwA10State {
     AwA10PICState intc;
     AwEmacState emac;
     AllwinnerAHCIState sata;
+    AwSdHostState mmc0;
     MemoryRegion sram_a;
 } AwA10State;
 
