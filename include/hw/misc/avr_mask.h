@@ -26,7 +26,6 @@
 #define HW_avr_mask_H
 
 #include "hw/sysbus.h"
-#include "chardev/char-fe.h"
 #include "hw/hw.h"
 
 
