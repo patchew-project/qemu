@@ -16,6 +16,7 @@ import shutil
 from avocado import skipUnless
 from avocado_qemu import Test
 from avocado_qemu import exec_command_and_wait_for_pattern
+from avocado_qemu import interrupt_interactive_console_until_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
@@ -484,6 +485,33 @@ class BootLinuxConsole(Test):
                                                 'sda')
         exec_command_and_wait_for_pattern(self, 'reboot',
                                                 'reboot: Restarting system')
+
+    def test_arm_raspi2_uboot(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi2
+        :avocado: tags=u-boot
+        """
+        deb_url = ('https://snapshot.debian.org/archive/debian/'
+                   '20190514T084354Z/pool/main/u/u-boot/'
+                   'u-boot-rpi_2019.01%2Bdfsg-7_armhf.deb')
+        deb_hash = 'ad858cf3afe623b6c3fa2e20dcdd1768fcb9ae83'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        uboot_path = '/usr/lib/u-boot/rpi_2/uboot.elf'
+        uboot_path = self.extract_from_deb(deb_path, uboot_path)
+
+        self.vm.set_console()
+        self.vm.add_args('-kernel', uboot_path,
+                         # VideoCore starts CPU with only 1 core enabled
+                         '-global', 'bcm2836.enabled-cpus=1',
+                         '-no-reboot')
+        self.vm.launch()
+        interrupt_interactive_console_until_pattern(self,
+                                       'Hit any key to stop autoboot:',
+                                       'Config file not found')
+        exec_command_and_wait_for_pattern(self, 'bdinfo', 'U-Boot')
+        exec_command_and_wait_for_pattern(self, 'version', 'U-Boot')
+        exec_command_and_wait_for_pattern(self, 'reset', 'resetting ...')
 
     def test_s390x_s390_ccw_virtio(self):
         """
