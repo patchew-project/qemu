@@ -1,6 +1,9 @@
-config AVR_SAMPLE
+config ATMEL_ATMEGA_MCU
     bool
     select ATMEL_TIMER16
     select ATMEL_USART
     select ATMEL_POWER
+
+config AVR_SAMPLE
+    select ATMEL_ATMEGA_MCU
     select UNIMP
