@@ -168,7 +168,6 @@ M: Michael Rolnik <mrolnik@gmail.com>
 R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: target/avr/
-F: tests/acceptance/machine_avr6.py
 F: default-configs/avr-softmmu.mak
 F: gdb-xml/avr-cpu.xml
 
@@ -501,6 +500,7 @@ F: hw/timer/avr_timer16.c
 F: include/hw/timer/avr_timer16.h
 F: hw/misc/avr_mask.c
 F: include/hw/misc/avr_mask.h
+F: tests/acceptance/machine_avr6.py
 
 ARM PrimeCell and CMSDK devices
 M: Peter Maydell <peter.maydell@linaro.org>
