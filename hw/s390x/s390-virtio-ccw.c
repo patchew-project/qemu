@@ -452,6 +452,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->cpu_model_allowed = true;
     s390mc->css_migration_enabled = true;
     s390mc->hpage_1m_allowed = true;
+    s390mc->kvm_ais_allowed = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -505,6 +506,14 @@ static inline void machine_set_dea_key_wrap(Object *obj, bool value,
 
 static S390CcwMachineClass *current_mc;
 
+/*
+ * Get the class of the s390-ccw-virtio machine that is currently in use.
+ * Note: libvirt is using the "none" machine to probe for the features of the
+ * host CPU, so in case this is called with the "none" machine, the function
+ * returns the TYPE_S390_CCW_MACHINE base class. In this base class, all the
+ * various "*_allowed" variables are enabled, so that the *_allowed() wrappers
+ * below return the correct default value for the "none" machine.
+ */
 static S390CcwMachineClass *get_machine_class(void)
 {
     if (unlikely(!current_mc)) {
@@ -521,20 +530,22 @@ static S390CcwMachineClass *get_machine_class(void)
 
 bool ri_allowed(void)
 {
-    /* for "none" machine this results in true */
     return get_machine_class()->ri_allowed;
 }
 
 bool cpu_model_allowed(void)
 {
-    /* for "none" machine this results in true */
     return get_machine_class()->cpu_model_allowed;
 }
 
 bool hpage_1m_allowed(void)
 {
-    /* for "none" machine this results in true */
     return get_machine_class()->hpage_1m_allowed;
+}
+
+bool kvm_ais_allowed(void)
+{
+    return get_machine_class()->kvm_ais_allowed;
 }
 
 static char *machine_get_loadparm(Object *obj, Error **errp)
@@ -658,6 +669,9 @@ static void ccw_machine_4_2_instance_options(MachineState *machine)
 
 static void ccw_machine_4_2_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
+    s390mc->kvm_ais_allowed = false;
     ccw_machine_5_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
