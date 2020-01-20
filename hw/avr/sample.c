@@ -44,7 +44,7 @@
 #include "qemu/error-report.h"
 #include "exec/address-spaces.h"
 #include "include/hw/sysbus.h"
-#include "include/hw/char/avr_usart.h"
+#include "include/hw/char/atmel_usart.h"
 #include "include/hw/timer/avr_timer16.h"
 #include "include/hw/misc/avr_mask.h"
 #include "elf.h"

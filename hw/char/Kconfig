@@ -47,5 +47,5 @@ config SCLPCONSOLE
 config TERMINAL3270
     bool
 
-config AVR_USART
+config ATMEL_USART
     bool

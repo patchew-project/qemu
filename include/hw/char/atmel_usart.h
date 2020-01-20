@@ -1,5 +1,5 @@
 /*
- * AVR USART
+ * Atmel AVR USART
  *
  * Copyright (c) 2018 University of Kent
  * Author: Sarah Harris
@@ -19,8 +19,8 @@
  * <http://www.gnu.org/licenses/lgpl-2.1.html>
  */
 
-#ifndef HW_AVR_USART_H
-#define HW_AVR_USART_H
+#ifndef HW_CHAR_ATMEL_USART_H
+#define HW_CHAR_ATMEL_USART_H
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
@@ -56,7 +56,7 @@
 #define USART_CSRC_CSZ1   (1 << 2)
 #define USART_CSRC_CSZ0   (1 << 1)
 
-#define TYPE_AVR_USART "avr-usart"
+#define TYPE_AVR_USART "atmel-usart"
 #define AVR_USART(obj) \
     OBJECT_CHECK(AVRUsartState, (obj), TYPE_AVR_USART)
 
@@ -90,4 +90,4 @@ typedef struct {
     qemu_irq dre_irq;
 } AVRUsartState;
 
-#endif /* HW_AVR_USART_H */
+#endif /* HW_CHAR_ATMEL_USART_H */
