@@ -513,6 +513,31 @@ class BootLinuxConsole(Test):
         exec_command_and_wait_for_pattern(self, 'version', 'U-Boot')
         exec_command_and_wait_for_pattern(self, 'reset', 'resetting ...')
 
+    def test_aarch64_raspi3_uboot(self):
+        """
+        :avocado: tags=arch:aarch64
+        :avocado: tags=machine:raspi3
+        :avocado: tags=u-boot
+        """
+        deb_url = ('https://snapshot.debian.org/archive/debian/'
+                   '20200108T145233Z/pool/main/u/u-boot/'
+                   'u-boot-rpi_2020.01%2Bdfsg-1_arm64.deb')
+        deb_hash = 'f394386e02469d52f2eb3c07a2325b1c95aeb00b'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        uboot_path = '/usr/lib/u-boot/rpi_3/u-boot.bin'
+        uboot_path = self.extract_from_deb(deb_path, uboot_path)
+
+        self.vm.set_console(console_index=1)
+        self.vm.add_args('-kernel', uboot_path,
+                         '-no-reboot')
+        self.vm.launch()
+        interrupt_interactive_console_until_pattern(self,
+                                       'Hit any key to stop autoboot:',
+                                       'Config file not found')
+        exec_command_and_wait_for_pattern(self, 'bdinfo', 'U-Boot')
+        exec_command_and_wait_for_pattern(self, 'version', 'U-Boot')
+        exec_command_and_wait_for_pattern(self, 'reset', 'resetting ...')
+
     def test_s390x_s390_ccw_virtio(self):
         """
         :avocado: tags=arch:s390x
