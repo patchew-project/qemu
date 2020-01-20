@@ -4,6 +4,10 @@ config ATMEL_ATMEGA_MCU
     select ATMEL_USART
     select ATMEL_POWER
 
+config ARDUINO
+    select ATMEL_ATMEGA_MCU
+    select UNIMP
+
 config AVR_SAMPLE
     select ATMEL_ATMEGA_MCU
     select UNIMP
