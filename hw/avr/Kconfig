@@ -2,5 +2,5 @@ config AVR_SAMPLE
     bool
     select ATMEL_TIMER16
     select ATMEL_USART
-    select AVR_MASK
+    select ATMEL_POWER
     select UNIMP

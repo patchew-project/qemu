@@ -46,7 +46,7 @@
 #include "include/hw/sysbus.h"
 #include "include/hw/char/atmel_usart.h"
 #include "include/hw/timer/atmel_timer16.h"
-#include "include/hw/misc/avr_mask.h"
+#include "include/hw/misc/atmel_power.h"
 #include "elf.h"
 #include "hw/misc/unimp.h"
 

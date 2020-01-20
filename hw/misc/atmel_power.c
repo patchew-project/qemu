@@ -1,5 +1,5 @@
 /*
- * AVR Power Reduction
+ * Atmel AVR Power Reduction Management
  *
  * Copyright (c) 2019 Michael Rolnik
  *
@@ -23,7 +23,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/misc/avr_mask.h"
+#include "hw/misc/atmel_power.h"
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"

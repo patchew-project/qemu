@@ -900,8 +900,8 @@ F: hw/char/atmel_usart.c
 F: include/hw/char/atmel_usart.h
 F: hw/timer/atmel_timer16.c
 F: include/hw/timer/atmel_timer16.h
-F: hw/misc/avr_mask.c
-F: include/hw/misc/avr_mask.h
+F: hw/misc/atmel_power.c
+F: include/hw/misc/atmel_power.h
 F: tests/acceptance/machine_avr6.py
 
 CRIS Machines

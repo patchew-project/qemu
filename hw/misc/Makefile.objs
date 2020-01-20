@@ -86,4 +86,4 @@ obj-$(CONFIG_MAC_VIA) += mac_via.o
 
 common-obj-$(CONFIG_GRLIB) += grlib_ahb_apb_pnp.o
 
-obj-$(CONFIG_AVR_MASK) += avr_mask.o
+obj-$(CONFIG_ATMEL_POWER) += atmel_power.o

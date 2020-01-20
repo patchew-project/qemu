@@ -1,5 +1,5 @@
 /*
- * AVR Power Reduction
+ * Atmel AVR Power Reduction Management
  *
  * Copyright (c) 2019 Michael Rolnik
  *
@@ -22,14 +22,14 @@
  * THE SOFTWARE.
  */
 
-#ifndef HW_avr_mask_H
-#define HW_avr_mask_H
+#ifndef HW_MISC_ATMEL_POWER_H
+#define HW_MISC_ATMEL_POWER_H
 
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 
 
-#define TYPE_AVR_MASK "avr-mask"
+#define TYPE_AVR_MASK "atmel-power"
 #define AVR_MASK(obj) OBJECT_CHECK(AVRMaskState, (obj), TYPE_AVR_MASK)
 
 typedef struct {
@@ -43,4 +43,4 @@ typedef struct {
     qemu_irq irq[8];
 } AVRMaskState;
 
-#endif /* HW_avr_mask_H */
+#endif /* HW_MISC_ATMEL_POWER_H */
