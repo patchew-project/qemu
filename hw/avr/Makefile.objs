@@ -1,3 +1,2 @@
 obj-$(CONFIG_ATMEL_ATMEGA_MCU) += atmel_atmega.o
 obj-$(CONFIG_ARDUINO) += arduino.o
-obj-$(CONFIG_AVR_SAMPLE) += sample.o
