@@ -1,5 +1,5 @@
 /*
- * AVR 16 bit timer
+ * Atmel AVR 16 bit timer
  *
  * Copyright (c) 2018 University of Kent
  * Author: Ed Robbins
@@ -25,8 +25,8 @@
  * On ATmega640/V-1280/V-1281/V-2560/V-2561/V timers 1, 3, 4 and 5 are 16 bit
  */
 
-#ifndef AVR_TIMER16_H
-#define AVR_TIMER16_H
+#ifndef HW_TIMER_ATMEL_TIMER16_H
+#define HW_TIMER_ATMEL_TIMER16_H
 
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
@@ -40,7 +40,7 @@ enum NextInterrupt {
     CAPT
 };
 
-#define TYPE_AVR_TIMER16 "avr-timer16"
+#define TYPE_AVR_TIMER16 "atmel-timer16"
 #define AVR_TIMER16(obj) \
     OBJECT_CHECK(AVRTimer16State, (obj), TYPE_AVR_TIMER16)
 
@@ -91,4 +91,4 @@ typedef struct AVRTimer16State {
     enum NextInterrupt next_interrupt;
 } AVRTimer16State;
 
-#endif /* AVR_TIMER16_H */
+#endif /* HW_TIMER_ATMEL_TIMER16_H */

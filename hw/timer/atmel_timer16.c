@@ -1,5 +1,5 @@
 /*
- * AVR 16 bit timer
+ * Atmel AVR 16 bit timer
  *
  * Copyright (c) 2018 University of Kent
  * Author: Ed Robbins
@@ -32,7 +32,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/timer/avr_timer16.h"
+#include "hw/timer/atmel_timer16.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"

@@ -36,5 +36,5 @@ config CMSDK_APB_DUALTIMER
     bool
     select PTIMER
 
-config AVR_TIMER16
+config ATMEL_TIMER16
     bool
