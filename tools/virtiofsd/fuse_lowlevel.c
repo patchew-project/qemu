@@ -27,6 +27,7 @@
 #include <sys/file.h>
 #include <unistd.h>
 
+#define THREAD_POOL_SIZE 64
 
 #define OFFSET_MAX 0x7fffffffffffffffLL
 
@@ -2521,6 +2522,7 @@ static const struct fuse_opt fuse_ll_opts[] = {
     LL_OPTION("allow_root", deny_others, 1),
     LL_OPTION("--socket-path=%s", vu_socket_path, 0),
     LL_OPTION("--fd=%d", vu_listen_fd, 0),
+    LL_OPTION("--thread-pool-size=%d", thread_pool_size, 0),
     FUSE_OPT_END
 };
 
@@ -2541,7 +2543,9 @@ void fuse_lowlevel_help(void)
         "    -o allow_root              allow access by root\n"
         "    --socket-path=PATH         path for the vhost-user socket\n"
         "    --fd=FDNUM                 fd number of vhost-user socket\n"
-        "    -o auto_unmount            auto unmount on process termination\n");
+        "    -o auto_unmount            auto unmount on process termination\n"
+        "    --thread-pool-size=NUM     thread pool size limit (default %d)\n",
+        THREAD_POOL_SIZE);
 }
 
 void fuse_session_destroy(struct fuse_session *se)
@@ -2595,6 +2599,7 @@ struct fuse_session *fuse_session_new(struct fuse_args *args,
     }
     se->fd = -1;
     se->vu_listen_fd = -1;
+    se->thread_pool_size = THREAD_POOL_SIZE;
     se->conn.max_write = UINT_MAX;
     se->conn.max_readahead = UINT_MAX;
 
