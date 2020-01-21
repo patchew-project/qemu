@@ -1143,6 +1143,7 @@ Object *qdev_get_machine(void)
 
     if (dev == NULL) {
         dev = container_get(object_get_root(), "/machine");
+        g_assert(dev != NULL);
     }
 
     return dev;
