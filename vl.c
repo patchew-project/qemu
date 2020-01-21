@@ -2812,7 +2812,7 @@ static void configure_accelerators(const char *progname)
     }
 
     if (init_failed) {
-        AccelClass *ac = ACCEL_GET_CLASS(current_machine->accelerator);
+        AccelClass *ac = ACCEL_GET_CLASS(current_accel());
         error_report("falling back to %s", ac->name);
     }
 
