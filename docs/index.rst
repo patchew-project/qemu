@@ -13,4 +13,5 @@ Welcome to QEMU's documentation!
    interop/index
    devel/index
    specs/index
+   tools/index
 
