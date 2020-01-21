@@ -72,14 +72,25 @@ between machines, if live migration compatibility is required, use the newest
 CPU model that is compatible across all desired hosts.
 
 @table @option
+
+@item @code{Cascadelake-Server}
+@item @code{Cascadelake-Server-noTSX}
+
+Intel Xeon Processor (Cascade Lake, 2019), with "stepping" levels
+6 or 7 only.  (The Cascade Lake Xeon processor with @b{stepping 5 is
+vulnerable to MDS variants}.)
+
+
 @item @code{Skylake-Server}
 @item @code{Skylake-Server-IBRS}
+@item @code{Skylake-Server-noTSX-IBRS}
 
 Intel Xeon Processor (Skylake, 2016)
 
 
 @item @code{Skylake-Client}
 @item @code{Skylake-Client-IBRS}
+@item @code{Skylake-Client-noTSX-IBRS}
 
 Intel Core Processor (Skylake, 2015)
 
@@ -214,8 +225,48 @@ Must be explicitly turned on for all Intel CPU models.
 
 Requires the host CPU microcode to support this feature before it
 can be used for guest CPUs.
-@end table
 
+@item @code{mds-no}
+
+Recommended to inform the guest OS that the host is @i{not} vulnerable
+to any of the MDS variants ([MFBDS] CVE-2018-12130, [MLPDS]
+CVE-2018-12127, [MSBDS] CVE-2018-12126).
+
+This is an MSR (Model-Specific Register) feature rather than a CPUID
+feature, so it will not appear in the Linux @code{/proc/cpuinfo} in the
+host or guest.  Instead, the host kernel uses it to populate the MDS
+vulnerability file in @code{sysfs}.
+
+So it should only be enabled for VMs if the host reports @code{Not
+affected} in the @code{/sys/devices/system/cpu/vulnerabilities/mds}
+file.
+
+@item @code{taa-no}
+
+Recommended to inform that the guest that the host is @i{not} vulnerable
+to CVE-2019-11135, TSX Asyncrnous Abort (TAA).
+
+This too is an MSR feature, so it does not show up in the Linux
+@code{/proc/cpuinfo} in the host or guest.
+
+It should only be enabled for VMs if the host reports @code{Not
+affected} in the
+@code{/sys/devices/system/cpu/vulnerabilities/tsx_async_abort} file.
+
+@item @code{tsx-ctrl}
+
+Recommended to inform the guest to @i{disable} the Intel TSX
+(Transactional Synchronization Extensions) feature.  Expose this to the
+guest OS if and only if: (a) the host has TSX enabled; and (b) the guest
+has @code{rtm} CPU flag enabled.
+
+By disabling TSX, KVM-based guests can avoid paying the price of
+mitigting TSX-based attacks.
+
+Note that too is an MSR feature, so it does not show up in the Linux
+@code{/proc/cpuinfo} in the host or guest.
+
+@end table
 
 @node preferred_cpu_models_amd_x86
 @subsubsection Preferred CPU models for AMD x86 hosts
