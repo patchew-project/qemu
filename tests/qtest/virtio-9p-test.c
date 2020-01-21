@@ -578,6 +578,7 @@ static bool fs_dirents_contain_name(struct V9fsDirent *e, const char* name)
     return false;
 }
 
+/* basic readdir test where reply fits into a single response message */
 static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
 {
     QVirtio9P *v9p = obj;
@@ -628,6 +629,95 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     }
 
     v9fs_free_dirents(entries);
+    g_free(wnames[0]);
+}
+
+/* readdir test where overall request is splitted over several messages */
+static void fs_readdir_split(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DIR) };
+    uint16_t nqid;
+    v9fs_qid qid;
+    uint32_t count, nentries, npartialentries;
+    struct V9fsDirent *entries, *tail, *partialentries;
+    P9Req *req;
+    int subtest;
+    int fid;
+    uint64_t offset;
+    /* the Treaddir 'count' parameter values to be tested */
+    const uint32_t vcount[] = { 512, 256 };
+    const int nvcount = sizeof(vcount) / sizeof(uint32_t);
+
+    fs_attach(v9p, NULL, t_alloc);
+
+    /* iterate over all 'count' parameter values to be tested with Treaddir */
+    for (subtest = 0; subtest < nvcount; ++subtest) {
+        fid = subtest + 1;
+        offset = 0;
+        entries = NULL;
+        nentries = 0;
+        tail = NULL;
+
+        req = v9fs_twalk(v9p, 0, fid, 1, wnames, 0);
+        v9fs_req_wait_for_reply(req, NULL);
+        v9fs_rwalk(req, &nqid, NULL);
+        g_assert_cmpint(nqid, ==, 1);
+
+        req = v9fs_tlopen(v9p, fid, O_DIRECTORY, 0);
+        v9fs_req_wait_for_reply(req, NULL);
+        v9fs_rlopen(req, &qid, NULL);
+
+        /*
+         * send as many Treaddir requests as required to get all directory
+         * entries
+         */
+        while (true) {
+            npartialentries = 0;
+            partialentries = NULL;
+
+            req = v9fs_treaddir(v9p, fid, offset, vcount[subtest], 0);
+            v9fs_req_wait_for_reply(req, NULL);
+            v9fs_rreaddir(req, &count, &npartialentries, &partialentries);
+            if (npartialentries > 0 && partialentries) {
+                if (!entries) {
+                    entries = partialentries;
+                    nentries = npartialentries;
+                    tail = partialentries;
+                } else {
+                    tail->next = partialentries;
+                    nentries += npartialentries;
+                }
+                while (tail->next) {
+                    tail = tail->next;
+                }
+                offset = tail->offset;
+            } else {
+                break;
+            }
+        }
+
+        g_assert_cmpint(
+            nentries, ==,
+            QTEST_V9FS_SYNTH_READDIR_NFILES + 2 /* "." and ".." */
+        );
+
+        /*
+         * Check all file names exist in returned entries, ignore their order
+         * though.
+         */
+        g_assert_cmpint(fs_dirents_contain_name(entries, "."), ==, true);
+        g_assert_cmpint(fs_dirents_contain_name(entries, ".."), ==, true);
+        for (int i = 0; i < QTEST_V9FS_SYNTH_READDIR_NFILES; ++i) {
+            char *name = g_strdup_printf(QTEST_V9FS_SYNTH_READDIR_FILE, i);
+            g_assert_cmpint(fs_dirents_contain_name(entries, name), ==, true);
+            g_free(name);
+        }
+
+        v9fs_free_dirents(entries);
+    }
+
     g_free(wnames[0]);
 }
 
@@ -810,6 +900,7 @@ static void register_virtio_9p_test(void)
     qos_add_test("fs/flush/ignored", "virtio-9p", fs_flush_ignored,
                  NULL);
     qos_add_test("fs/readdir/basic", "virtio-9p", fs_readdir, NULL);
+    qos_add_test("fs/readdir/split", "virtio-9p", fs_readdir_split, NULL);
 }
 
 libqos_init(register_virtio_9p_test);
