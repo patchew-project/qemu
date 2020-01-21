@@ -327,7 +327,7 @@ HELPERS-y += vhost-user-gpu$(EXESUF)
 vhost-user-json-y += contrib/vhost-user-gpu/50-qemu-gpu.json
 endif
 
-ifeq ($(CONFIG_LINUX)$(CONFIG_SECCOMP),yy)
+ifeq ($(CONFIG_LINUX)$(CONFIG_SECCOMP)$(CONFIG_LIBCAP_NG),yyy)
 HELPERS-y += virtiofsd$(EXESUF)
 vhost-user-json-y += tools/virtiofsd/50-qemu-virtiofsd.json
 endif
