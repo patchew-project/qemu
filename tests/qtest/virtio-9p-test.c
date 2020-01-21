@@ -647,13 +647,14 @@ static void fs_readdir_split(void *obj, void *data, QGuestAllocator *t_alloc)
     int fid;
     uint64_t offset;
     /* the Treaddir 'count' parameter values to be tested */
-    const uint32_t vcount[] = { 512, 256 };
+    const uint32_t vcount[] = { 512, 256, 128 };
     const int nvcount = sizeof(vcount) / sizeof(uint32_t);
 
     fs_attach(v9p, NULL, t_alloc);
 
     /* iterate over all 'count' parameter values to be tested with Treaddir */
     for (subtest = 0; subtest < nvcount; ++subtest) {
+        printf("\nsubtest[%d] with count=%d\n", subtest, vcount[subtest]);
         fid = subtest + 1;
         offset = 0;
         entries = NULL;
@@ -674,12 +675,16 @@ static void fs_readdir_split(void *obj, void *data, QGuestAllocator *t_alloc)
          * entries
          */
         while (true) {
+            printf("\toffset=%ld\n", offset);
             npartialentries = 0;
             partialentries = NULL;
 
+            printf("Treaddir fid=%d offset=%ld count=%d\n",
+                   fid, offset, vcount[subtest]);
             req = v9fs_treaddir(v9p, fid, offset, vcount[subtest], 0);
             v9fs_req_wait_for_reply(req, NULL);
             v9fs_rreaddir(req, &count, &npartialentries, &partialentries);
+            printf("\t\tnpartial=%d nentries=%d\n", npartialentries, nentries);
             if (npartialentries > 0 && partialentries) {
                 if (!entries) {
                     entries = partialentries;
@@ -716,6 +721,8 @@ static void fs_readdir_split(void *obj, void *data, QGuestAllocator *t_alloc)
         }
 
         v9fs_free_dirents(entries);
+
+        printf("PASSED subtest[%d]\n", subtest);
     }
 
     g_free(wnames[0]);
