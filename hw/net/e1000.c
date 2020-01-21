@@ -206,13 +206,14 @@ enum { NPHYWRITEOPS = ARRAY_SIZE(phyreg_writeops) };
 
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
-    [PHY_STATUS]      = PHY_R,     [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
-    [PHY_ID1]         = PHY_R,     [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
-    [PHY_CTRL]        = PHY_RW,    [PHY_1000T_CTRL]             = PHY_RW,
-    [PHY_LP_ABILITY]  = PHY_R,     [PHY_1000T_STATUS]           = PHY_R,
-    [PHY_AUTONEG_ADV] = PHY_RW,    [M88E1000_RX_ERR_CNTR]       = PHY_R,
-    [PHY_ID2]         = PHY_R,     [M88E1000_PHY_SPEC_STATUS]   = PHY_R,
-    [PHY_AUTONEG_EXP] = PHY_R,
+    [PHY_CTRL]                 = PHY_RW, [PHY_1000T_CTRL]             = PHY_RW,
+    [PHY_STATUS]               = PHY_R,  [PHY_ID1]                    = PHY_R,
+    [PHY_ID2]                  = PHY_R,  [PHY_AUTONEG_ADV]            = PHY_RW,
+    [PHY_LP_ABILITY]           = PHY_R,  [PHY_AUTONEG_EXP]            = PHY_R,
+    [PHY_1000T_STATUS]         = PHY_R,  [M88E1000_PHY_SPEC_CTRL]     = PHY_RW,
+    [M88E1000_PHY_SPEC_STATUS] = PHY_R,  [M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
+    [M88E1000_RX_ERR_CNTR]     = PHY_R,  [M88E1000_PHY_PAGE_SELECT]   = PHY_RW,
+    [M88E1000_PHY_GEN_CONTROL] = PHY_RW,
 };
 
 /* PHY_ID2 documented in 8254x_GBe_SDM.pdf, pp. 250 */
