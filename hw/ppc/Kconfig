@@ -12,6 +12,7 @@ config PSERIES
     select MSI_NONBROKEN
     select FDT_PPC
     select CHRP_NVRAM
+    select TPM_SPAPR
 
 config SPAPR_RNG
     bool
