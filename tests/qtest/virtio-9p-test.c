@@ -15,6 +15,18 @@
 #include "libqos/virtio-9p.h"
 #include "libqos/qgraph.h"
 
+/*
+ * to benchmark the real time (not CPU time) that elapsed between start of
+ * a request and arrival of its response
+ */
+static double wall_time(void)
+{
+    struct timeval t;
+    struct timezone tz;
+    gettimeofday(&t, &tz);
+    return t.tv_sec + t.tv_usec * 0.000001;
+}
+
 #define QVIRTIO_9P_TIMEOUT_US (10 * 1000 * 1000)
 static QGuestAllocator *alloc;
 
@@ -36,7 +48,7 @@ static void pci_config(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(tag);
 }
 
-#define P9_MAX_SIZE 4096 /* Max size of a T-message or R-message */
+#define P9_MAX_SIZE (256 * 1024) /* Max size of a T-message or R-message */
 
 typedef struct {
     QTestState *qts;
@@ -600,12 +612,35 @@ static void fs_readdir(void *obj, void *data, QGuestAllocator *t_alloc)
     v9fs_req_wait_for_reply(req, NULL);
     v9fs_rlopen(req, &qid, NULL);
 
+    const double start = wall_time();
+
     /*
      * submit count = msize - 11, because 11 is the header size of Rreaddir
      */
     req = v9fs_treaddir(v9p, 1, 0, P9_MAX_SIZE - 11, 0);
+    const double treaddir = wall_time();
     v9fs_req_wait_for_reply(req, NULL);
+    const double waitforreply = wall_time();
     v9fs_rreaddir(req, &count, &nentries, &entries);
+    const double end = wall_time();
+
+    printf("\nTime client spent on sending T_readdir: %fs\n\n",
+           treaddir - start);
+
+    printf("Time client spent for waiting for reply from server: %fs "
+           "[MOST IMPORTANT]\n", waitforreply - start);
+    printf("(This is the most important value, because it reflects the time\n"
+           "the 9p server required to process and return the result of the\n"
+           "T_readdir request.)\n\n");
+
+    printf("Total client time: %fs\n", end - start);
+    printf("(NOTE: this time is not relevant; this huge time comes from\n"
+           "inefficient qtest_memread() calls. So you can discard this\n"
+           "value as a problem of this test client implementation while\n"
+           "processing the received server T_readdir reply.)\n\n");
+
+    printf("Details of response message data: R_readddir nentries=%d "
+           "rbytes=%d\n", nentries, count);
 
     /*
      * Assuming msize (P9_MAX_SIZE) is large enough so we can retrieve all
