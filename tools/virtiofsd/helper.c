@@ -154,6 +154,9 @@ void fuse_cmdline_help(void)
            "                               allowed (default: 10)\n"
            "    -o norace                  disable racy fallback\n"
            "                               default: false\n"
+           "    -o readdirplus|no_readdirplus\n"
+           "                               enable/disable readirplus\n"
+           "                               default: readdirplus\n"
           );
 }
 
