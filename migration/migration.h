@@ -331,6 +331,7 @@ void migrate_send_rp_recv_bitmap(MigrationIncomingState *mis,
 void migrate_send_rp_resume_ack(MigrationIncomingState *mis, uint32_t value);
 
 void dirty_bitmap_mig_before_vm_start(void);
+void dirty_bitmap_mig_cancel_incoming(void);
 void init_dirty_bitmap_incoming_migration(void);
 void migrate_add_address(SocketAddress *address);
 
