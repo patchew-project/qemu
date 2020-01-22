@@ -368,6 +368,7 @@ static bool trans_fmv_w_x(DisasContext *ctx, arg_fmv_w_x *a)
 
 #if defined(TARGET_RISCV64)
     tcg_gen_mov_i64(cpu_fpr[a->rd], t0);
+    tcg_gen_ori_i64(cpu_fpr[a->rd], cpu_fpr[a->rd], 0xffffffff00000000ULL);
 #else
     tcg_gen_extu_i32_i64(cpu_fpr[a->rd], t0);
 #endif
