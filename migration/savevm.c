@@ -1832,6 +1832,9 @@ static void *postcopy_ram_listen_thread(void *opaque)
     MigrationIncomingState *mis = migration_incoming_get_current();
     QEMUFile *f = mis->from_src_file;
     int load_res;
+    MigrationState *migr = migrate_get_current();
+
+    object_ref(OBJECT(migr));
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_ACTIVE,
                                    MIGRATION_STATUS_POSTCOPY_ACTIVE);
@@ -1897,6 +1900,8 @@ static void *postcopy_ram_listen_thread(void *opaque)
     rcu_unregister_thread();
     mis->have_listen_thread = false;
     postcopy_state_set(POSTCOPY_INCOMING_END);
+
+    object_unref(OBJECT(migr));
 
     return NULL;
 }
@@ -2457,12 +2462,14 @@ static bool postcopy_pause_incoming(MigrationIncomingState *mis)
     qemu_fclose(mis->from_src_file);
     mis->from_src_file = NULL;
 
-    assert(mis->to_src_file);
-    qemu_file_shutdown(mis->to_src_file);
-    qemu_mutex_lock(&mis->rp_mutex);
-    qemu_fclose(mis->to_src_file);
-    mis->to_src_file = NULL;
-    qemu_mutex_unlock(&mis->rp_mutex);
+    if (migrate_postcopy_ram()) {
+        assert(mis->to_src_file);
+        qemu_file_shutdown(mis->to_src_file);
+        qemu_mutex_lock(&mis->rp_mutex);
+        qemu_fclose(mis->to_src_file);
+        mis->to_src_file = NULL;
+        qemu_mutex_unlock(&mis->rp_mutex);
+    }
 
     migrate_set_state(&mis->state, MIGRATION_STATUS_POSTCOPY_ACTIVE,
                       MIGRATION_STATUS_POSTCOPY_PAUSED);
