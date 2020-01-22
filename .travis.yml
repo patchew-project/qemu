@@ -2,6 +2,7 @@
 # Additional builds with specific requirements for a full VM need to
 # be added as additional matrix: entries later on
 dist: xenial
+sudo: true
 language: c
 compiler:
   - gcc
@@ -83,6 +84,9 @@ git:
 
 before_script:
   - if command -v ccache ; then ccache --zero-stats ; fi
+  - if [[ -e /dev/kvm ]] && ! [[ -r /dev/kvm && -w /dev/kvm ]]; then
+        sudo chmod o+rw /dev/kvm ;
+    fi
   - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
   - ${SRC_DIR}/configure ${BASE_CONFIG} ${CONFIG} || { cat config.log && exit 1; }
 script:
@@ -272,12 +276,13 @@ matrix:
         - TEST_CMD="make check-acceptance"
       after_script:
         - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP")]' | xargs cat
+      dist: bionic
       addons:
         apt:
           packages:
             - python3-pil
             - python3-pip
-            - python3.5-venv
+            - python3.6-venv
             - tesseract-ocr
             - tesseract-ocr-eng
 
