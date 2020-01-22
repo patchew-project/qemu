@@ -526,6 +526,10 @@ static void dirty_bitmap_load_complete(QEMUFile *f)
 
     qemu_mutex_lock(&dbm_load_state.lock);
 
+    if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
+        bdrv_reclaim_dirty_bitmap(s->bitmap, &error_abort);
+    }
+
     for (item = dbm_load_state.enabled_bitmaps; item;
          item = g_slist_next(item))
     {
@@ -535,27 +539,6 @@ static void dirty_bitmap_load_complete(QEMUFile *f)
             b->migrated = true;
             break;
         }
-    }
-
-    if (bdrv_dirty_bitmap_has_successor(s->bitmap)) {
-        bdrv_dirty_bitmap_lock(s->bitmap);
-        if (dbm_load_state.enabled_bitmaps == NULL) {
-            /* in postcopy */
-            bdrv_reclaim_dirty_bitmap_locked(s->bitmap, &error_abort);
-            bdrv_enable_dirty_bitmap_locked(s->bitmap);
-        } else {
-            /* target not started, successor must be empty */
-            int64_t count = bdrv_get_dirty_count(s->bitmap);
-            BdrvDirtyBitmap *ret = bdrv_reclaim_dirty_bitmap_locked(s->bitmap,
-                                                                    NULL);
-            /* bdrv_reclaim_dirty_bitmap can fail only on no successor (it
-             * must be) or on merge fail, but merge can't fail when second
-             * bitmap is empty
-             */
-            assert(ret == s->bitmap &&
-                   count == bdrv_get_dirty_count(s->bitmap));
-        }
-        bdrv_dirty_bitmap_unlock(s->bitmap);
     }
 
     qemu_mutex_unlock(&dbm_load_state.lock);
