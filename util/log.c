@@ -151,22 +151,25 @@ void qemu_log_needs_buffers(void)
  */
 void qemu_set_log_filename(const char *filename, Error **errp)
 {
-    char *pidstr;
     g_free(logfilename);
     logfilename = NULL;
 
-    pidstr = strstr(filename, "%");
-    if (pidstr) {
-        /* We only accept one %d, no other format strings */
-        if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
-            error_setg(errp, "Bad logfile format: %s", filename);
-            return;
-        } else {
-            logfilename = g_strdup_printf(filename, getpid());
-        }
-    } else {
-        logfilename = g_strdup(filename);
+    if (filename) {
+            char *pidstr = strstr(filename, "%");
+            if (pidstr) {
+                /* We only accept one %d, no other format strings */
+                if (pidstr[1] != 'd' || strchr(pidstr + 2, '%')) {
+                    error_setg(errp, "Bad logfile format: %s", filename);
+                    return;
+                } else {
+                    logfilename = g_strdup_printf(filename, getpid());
+                }
+            } else {
+                logfilename = g_strdup(filename);
+            }
     }
+    /* else, let logfilename be NULL indicating we want to use stderr */
+
     qemu_log_close();
     qemu_set_log(qemu_loglevel);
 }
