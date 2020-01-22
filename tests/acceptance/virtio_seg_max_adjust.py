@@ -118,6 +118,8 @@ class VirtioMaxSegSettingsCheck(Test):
 
     def test_machine_types(self):
         EXCLUDED_MACHINES = ['none', 'isapc', 'microvm']
+        if os.geteuid() != 0:
+            EXCLUDED_MACHINES += ['xenfv', 'xenpv']
         # collect all machine types except the ones in EXCLUDED_MACHINES
         with QEMUMachine(self.qemu_bin) as vm:
             vm.launch()
