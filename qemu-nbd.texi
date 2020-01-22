@@ -55,11 +55,6 @@ Force the use of the block driver for format @var{fmt} instead of
 auto-detecting.
 @item -r, --read-only
 Export the disk as read-only.
-@item -P, --partition=@var{num}
-Deprecated: Only expose MBR partition @var{num}.  Understands physical
-partitions 1-4 and logical partition 5. New code should instead use
-@option{--image-opts} with the raw driver wrapping a subset of the
-original image.
 @item -B, --bitmap=@var{name}
 If @var{filename} has a qcow2 persistent bitmap @var{name}, expose
 that bitmap via the ``qemu:dirty-bitmap:@var{name}'' context
@@ -161,13 +156,13 @@ qemu-nbd \
   --image-opts driver=raw,offset=1M,size=1M,file.driver=file,file.filename=file.raw
 @end example
 
-Serve a read-only copy of just the first MBR partition of a guest
-image over a Unix socket with as many as 5 simultaneous readers, with
-a persistent process forked as a daemon:
+Serve a read-only copy of a guest image over a Unix socket with as
+many as 5 simultaneous readers, with a persistent process forked as a
+daemon:
 
 @example
 qemu-nbd --fork --persistent --shared=5 --socket=/path/to/sock \
-  --partition=1 --read-only --format=qcow2 file.qcow2
+  --read-only --format=qcow2 file.qcow2
 @end example
 
 Expose the guest-visible contents of a qcow2 file via a block device
