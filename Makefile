@@ -1197,7 +1197,7 @@ endif
 	@echo  '  vm-help         - Help about targets running tests inside VM'
 	@echo  ''
 	@echo  'Documentation targets:'
-	@echo  '  html info pdf txt'
+	@echo  '  html info pdf txt sphinxdocs'
 	@echo  '                  - Build documentation in specified format'
 ifdef CONFIG_GCOV
 	@echo  '  coverage-report - Create code coverage report'
