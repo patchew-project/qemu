@@ -26,6 +26,7 @@ import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
 from avocado_qemu import Test
+from avocado.core.exceptions import TestSkipError
 
 #list of machine types and virtqueue properties to test
 VIRTIO_SCSI_PROPS = {'seg_max_adjust': 'seg_max_adjust'}
@@ -117,12 +118,22 @@ class VirtioMaxSegSettingsCheck(Test):
         return False
 
     def test_machine_types(self):
+        """
+        :avocado: tags=arch:i386
+        :avocado: tags=arch:x86_64
+        """
         EXCLUDED_MACHINES = ['none', 'isapc', 'microvm']
         if os.geteuid() != 0:
             EXCLUDED_MACHINES += ['xenfv', 'xenpv']
         # collect all machine types except the ones in EXCLUDED_MACHINES
         with QEMUMachine(self.qemu_bin) as vm:
             vm.launch()
+            # Skip test if target is not X86
+            # TODO: Move this check to Avocado (based on the test tags)
+            target_arch = vm.command('query-target')['arch']
+            if target_arch not in ['i386', 'x86_64']:
+                errmsg = "Architecture '%s' unsupported" % target_arch
+                raise TestSkipError(errmsg)
             machines = [m['name'] for m in vm.command('query-machines')]
             vm.shutdown()
         for m in EXCLUDED_MACHINES:
