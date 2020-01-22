@@ -27,6 +27,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
 from avocado_qemu import Test
 from avocado.core.exceptions import TestSkipError
+from avocado import skipUnless
 
 #list of machine types and virtqueue properties to test
 VIRTIO_SCSI_PROPS = {'seg_max_adjust': 'seg_max_adjust'}
@@ -117,6 +118,8 @@ class VirtioMaxSegSettingsCheck(Test):
             return True
         return False
 
+
+    @skipUnless(sys.platform.startswith('linux'), 'Host OS is not Linux')
     def test_machine_types(self):
         """
         :avocado: tags=arch:i386
