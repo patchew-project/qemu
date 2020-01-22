@@ -109,14 +109,15 @@ class VirtioMaxSegSettingsCheck(Test):
         return False
 
     def test_machine_types(self):
-        # collect all machine types except 'none', 'isapc', 'microvm'
+        EXCLUDED_MACHINES = ['none', 'isapc', 'microvm']
+        # collect all machine types except the ones in EXCLUDED_MACHINES
         with QEMUMachine(self.qemu_bin) as vm:
             vm.launch()
             machines = [m['name'] for m in vm.command('query-machines')]
             vm.shutdown()
-        machines.remove('none')
-        machines.remove('isapc')
-        machines.remove('microvm')
+        for m in EXCLUDED_MACHINES:
+            if m in machines:
+                machines.remove(m)
 
         for dev_type in DEV_TYPES:
             # create the list of machine types and their parameters.
