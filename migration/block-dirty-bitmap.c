@@ -141,13 +141,13 @@ typedef struct DirtyBitmapLoadState {
     BdrvDirtyBitmap *bitmap;
 
     GSList *enabled_bitmaps;
-    QemuMutex finish_lock;
+    QemuMutex lock; /* protect enabled_bitmaps */
 } DirtyBitmapLoadState;
 static DirtyBitmapLoadState dbm_load_state;
 
 void init_dirty_bitmap_incoming_migration(void)
 {
-    qemu_mutex_init(&dbm_load_state.finish_lock);
+    qemu_mutex_init(&dbm_load_state.lock);
 }
 
 static uint32_t qemu_get_bitmap_flags(QEMUFile *f)
@@ -495,7 +495,7 @@ void dirty_bitmap_mig_before_vm_start(void)
 {
     GSList *item;
 
-    qemu_mutex_lock(&dbm_load_state.finish_lock);
+    qemu_mutex_lock(&dbm_load_state.lock);
 
     for (item = dbm_load_state.enabled_bitmaps; item;
          item = g_slist_next(item))
@@ -514,7 +514,7 @@ void dirty_bitmap_mig_before_vm_start(void)
     g_slist_free(dbm_load_state.enabled_bitmaps);
     dbm_load_state.enabled_bitmaps = NULL;
 
-    qemu_mutex_unlock(&dbm_load_state.finish_lock);
+    qemu_mutex_unlock(&dbm_load_state.lock);
 }
 
 static void dirty_bitmap_load_complete(QEMUFile *f)
@@ -524,7 +524,7 @@ static void dirty_bitmap_load_complete(QEMUFile *f)
     trace_dirty_bitmap_load_complete();
     bdrv_dirty_bitmap_deserialize_finish(s->bitmap);
 
-    qemu_mutex_lock(&dbm_load_state.finish_lock);
+    qemu_mutex_lock(&dbm_load_state.lock);
 
     for (item = dbm_load_state.enabled_bitmaps; item;
          item = g_slist_next(item))
@@ -558,7 +558,7 @@ static void dirty_bitmap_load_complete(QEMUFile *f)
         bdrv_dirty_bitmap_unlock(s->bitmap);
     }
 
-    qemu_mutex_unlock(&dbm_load_state.finish_lock);
+    qemu_mutex_unlock(&dbm_load_state.lock);
 }
 
 static int dirty_bitmap_load_bits(QEMUFile *f)
