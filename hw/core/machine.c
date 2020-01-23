@@ -886,6 +886,15 @@ static void machine_initfn(Object *obj)
                                         "Table (HMAT)", NULL);
     }
 
+    object_property_add_link(obj, "memory-backend", TYPE_MEMORY_BACKEND,
+                             (Object **)&ms->ram_memdev,
+                             object_property_allow_set_link,
+                             OBJ_PROP_LINK_STRONG, &error_abort);
+    object_property_set_description(obj, "memory-backend",
+                                    "Set RAM backend"
+                                    "Valid value is ID of hostmem based backend",
+                                     &error_abort);
+
     /* Register notifier when init is done for sysbus sanity checks */
     ms->sysbus_notifier.notify = machine_init_notify;
     qemu_add_machine_init_done_notifier(&ms->sysbus_notifier);
