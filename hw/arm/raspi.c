@@ -32,11 +32,6 @@
 /* Table of Linux board IDs for different Pi versions */
 static const int raspi_boardid[] = {[1] = 0xc42, [2] = 0xc43, [3] = 0xc44};
 
-typedef struct RasPiState {
-    BCM283XState soc;
-    MemoryRegion ram;
-} RasPiState;
-
 static void write_smpboot(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     static const uint32_t smpboot[] = {
@@ -166,7 +161,7 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
 
 static void raspi_init(MachineState *machine, int version)
 {
-    RasPiState *s = g_new0(RasPiState, 1);
+    Object *soc;
     uint32_t vcram_size;
     DriveInfo *di;
     BlockBackend *blk;
@@ -179,30 +174,26 @@ static void raspi_init(MachineState *machine, int version)
         exit(1);
     }
 
-    object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
-                            version == 3 ? TYPE_BCM2837 : TYPE_BCM2836,
-                            &error_abort, NULL);
+    soc = object_new(version == 3 ? TYPE_BCM2837 : TYPE_BCM2836);
+    object_property_add_child(OBJECT(machine), "soc", soc, &error_fatal);
 
-    /* Allocate and map RAM */
-    memory_region_allocate_system_memory(&s->ram, OBJECT(machine), "ram",
-                                         machine->ram_size);
     /* FIXME: Remove when we have custom CPU address space support */
-    memory_region_add_subregion_overlap(get_system_memory(), 0, &s->ram, 0);
+    memory_region_add_subregion_overlap(get_system_memory(), 0,
+                                        machine->ram, 0);
 
     /* Setup the SOC */
-    object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(&s->ram),
+    object_property_add_const_link(soc, "ram", OBJECT(machine->ram),
                                    &error_abort);
-    object_property_set_int(OBJECT(&s->soc), machine->smp.cpus, "enabled-cpus",
+    object_property_set_int(soc, machine->smp.cpus, "enabled-cpus",
                             &error_abort);
     int board_rev = version == 3 ? 0xa02082 : 0xa21041;
-    object_property_set_int(OBJECT(&s->soc), board_rev, "board-rev",
-                            &error_abort);
-    object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
+    object_property_set_int(soc, board_rev, "board-rev", &error_abort);
+    object_property_set_bool(soc, true, "realized", &error_abort);
 
     /* Create and plug in the SD cards */
     di = drive_get_next(IF_SD);
     blk = di ? blk_by_legacy_dinfo(di) : NULL;
-    bus = qdev_get_child_bus(DEVICE(&s->soc), "sd-bus");
+    bus = qdev_get_child_bus(DEVICE(soc), "sd-bus");
     if (bus == NULL) {
         error_report("No SD bus found in SOC object");
         exit(1);
@@ -211,8 +202,7 @@ static void raspi_init(MachineState *machine, int version)
     qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
     object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
 
-    vcram_size = object_property_get_uint(OBJECT(&s->soc), "vcram-size",
-                                          &error_abort);
+    vcram_size = object_property_get_uint(soc, "vcram-size", &error_abort);
     setup_boot(machine, version, machine->ram_size - vcram_size);
 }
 
@@ -233,6 +223,7 @@ static void raspi2_machine_init(MachineClass *mc)
     mc->min_cpus = BCM283X_NCPUS;
     mc->default_cpus = BCM283X_NCPUS;
     mc->default_ram_size = 1 * GiB;
+    mc->default_ram_id = "ram";
     mc->ignore_memory_transaction_failures = true;
 };
 DEFINE_MACHINE("raspi2", raspi2_machine_init)
@@ -255,6 +246,7 @@ static void raspi3_machine_init(MachineClass *mc)
     mc->min_cpus = BCM283X_NCPUS;
     mc->default_cpus = BCM283X_NCPUS;
     mc->default_ram_size = 1 * GiB;
+    mc->default_ram_id = "ram";
 }
 DEFINE_MACHINE("raspi3", raspi3_machine_init)
 #endif
