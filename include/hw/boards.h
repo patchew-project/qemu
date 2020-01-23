@@ -73,7 +73,12 @@ void machine_set_cpu_numa_node(MachineState *machine,
                                Error **errp);
 
 void machine_class_allow_dynamic_sysbus_dev(MachineClass *mc, const char *type);
-
+/*
+ * Checks that backend isn't used, preps it for exclusive usage and
+ * returns migratable MemoryRegion provided by backend.
+ */
+MemoryRegion *machine_consume_memdev(MachineState *machine,
+                                     HostMemoryBackend *backend);
 
 /**
  * CPUArchId:
@@ -292,6 +297,8 @@ struct MachineState {
     bool enable_graphics;
     char *memory_encryption;
     HostMemoryBackend *ram_memdev;
+    /* convenience alias to ram_memdev memory region or numa container */
+    MemoryRegion *ram;
     DeviceMemoryState *device_memory;
 
     ram_addr_t ram_size;
