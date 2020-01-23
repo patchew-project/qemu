@@ -3891,10 +3891,7 @@ int main(int argc, char **argv, char **envp)
 
     /* Open the logfile at this point and set the log mask if necessary.
      */
-    if (log_file) {
-        qemu_set_log_filename(log_file, &error_fatal);
-    }
-
+    qemu_set_log_filename(log_file, &error_fatal);
     if (log_mask) {
         int mask;
         mask = qemu_str_to_log_mask(log_mask);
