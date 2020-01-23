@@ -1256,6 +1256,12 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
                    "is invalid, it must be in the range of 1 to 10000 ms");
        return false;
     }
+    if (params->has_multifd_compress &&
+       params->multifd_compress == MULTIFD_COMPRESS_ZSTD &&
+       !multifd_compress_zstd_is_enabled()) {
+        error_setg(errp, "The multifd compression method zstd is compiled out");
+        return false;
+    }
     return true;
 }
 

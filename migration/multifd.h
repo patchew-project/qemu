@@ -27,6 +27,7 @@ int multifd_queue_page(QEMUFile *f, RAMBlock *block, ram_addr_t offset);
 #define MULTIFD_FLAG_SYNC (1 << 0)
 #define MULTIFD_FLAG_NOCOMP (1 << 1)
 #define MULTIFD_FLAG_ZLIB (1 << 2)
+#define MULTIFD_FLAG_ZSTD (1 << 3)
 
 /* This value needs to be a multiple of qemu_target_page_size() */
 #define MULTIFD_PACKET_SIZE (512 * 1024)
@@ -161,5 +162,24 @@ typedef struct {
 
 void multifd_register_ops(int method, MultiFDMethods *ops);
 
+
+/*
+ * This is gross, but we don't want to have ifdefs in migration.h
+ * And we need to know if ZSTD is compiled in to be able to know
+ * if we can setup multifd_compress with that parameter.
+ *
+ * As far as I can see there is no way to convince qapi that the value
+ * of multifd_compress is none/zlib if zstd is compiled out, or
+ * none/zlib/zstd when zstd is compiled in.
+ */
+
+static inline bool multifd_compress_zstd_is_enabled(void)
+{
+#ifdef CONFIG_ZSTD
+    return true;
+#else
+    return false;
+#endif
+}
 #endif
 
