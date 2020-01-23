@@ -188,6 +188,17 @@ static void test_machine(const void *data)
     const uint8_t *code = NULL;
     QTestState *qts;
     int ser_fd;
+    bool shutdown;
+
+    /*
+     * This test uses SeaBIOS on HPPA, and expects to read the
+     * "SeaBIOS wants SYSTEM HALT" string. A 'SYSTEM HALT' really
+     * halts the CPU. If SeaBIOS does not use the expected serial
+     * port but another device, we might poll the console
+     * indefinitely while the machine is halted.
+     * Keep using this option for all the other tests.
+     */
+    shutdown = !strcmp(test->expect, "SeaBIOS wants SYSTEM HALT");
 
     ser_fd = mkstemp(serialtmp);
     g_assert(ser_fd != -1);
@@ -215,10 +226,11 @@ static void test_machine(const void *data)
      * Make sure that this test uses tcg if available: It is used as a
      * fast-enough smoketest for that.
      */
-    qts = qtest_initf("%s %s -M %s -no-shutdown "
+    qts = qtest_initf("%s %s -M %s %s "
                       "-chardev file,id=serial0,path=%s "
                       "-serial chardev:serial0 -accel tcg -accel kvm %s",
                       codeparam, code ? codetmp : "", test->machine,
+                      shutdown ? "" : "-no-shutdown",
                       serialtmp, test->extra);
     if (code) {
         unlink(codetmp);
