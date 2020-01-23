@@ -6435,6 +6435,8 @@ static DisasJumpType translate_one(CPUS390XState *env, DisasContext *s)
     }
 #endif
 
+    s->fields = NULL;
+
     /* Advance to the next instruction.  */
     s->base.pc_next = s->pc_tmp;
     return ret;
