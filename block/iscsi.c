@@ -752,7 +752,7 @@ retry:
     }
 
     lbas = scsi_datain_unmarshall(iTask.task);
-    if (lbas == NULL) {
+    if (lbas == NULL || lbas->num_descriptors == 0) {
         ret = -EIO;
         goto out_unlock;
     }
