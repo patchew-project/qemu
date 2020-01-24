@@ -27,6 +27,8 @@
 #include "exec/memop.h"
 #include "sysemu/kvm.h"
 #include "fpu/softfloat.h"
+#include "qemu/crc32c.h"
+#include <zlib.h>
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
@@ -285,6 +287,23 @@ target_ulong helper_rotx(target_ulong rs, uint32_t shift, uint32_t shiftx,
     }
 
     return (int64_t)(int32_t)(uint32_t)tmp5;
+}
+
+/* these crc32 functions are based on target/arm/helper-a64.c */
+target_ulong helper_crc32(target_ulong val, target_ulong m, uint32_t sz)
+{
+    uint8_t buf[8];
+
+    stq_le_p(buf, m);
+    return (int32_t) (crc32(val ^ 0xffffffff, buf, sz) ^ 0xffffffff);
+}
+
+target_ulong helper_crc32c(target_ulong val, target_ulong m, uint32_t sz)
+{
+    uint8_t buf[8];
+
+    stq_le_p(buf, m);
+    return (int32_t) (crc32c(val, buf, sz) ^ 0xffffffff);
 }
 
 #ifndef CONFIG_USER_ONLY

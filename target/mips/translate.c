@@ -451,6 +451,7 @@ enum {
     OPC_LWE            = 0x2F | OPC_SPECIAL3,
 
     /* R6 */
+    OPC_CRC32          = 0x0F | OPC_SPECIAL3,
     R6_OPC_PREF        = 0x35 | OPC_SPECIAL3,
     R6_OPC_CACHE       = 0x25 | OPC_SPECIAL3,
     R6_OPC_LL          = 0x36 | OPC_SPECIAL3,
@@ -2547,6 +2548,7 @@ typedef struct DisasContext {
     bool nan2008;
     bool abs2008;
     bool saar;
+    bool crcp;
 } DisasContext;
 
 #define DISAS_STOP       DISAS_TARGET_0
@@ -27117,11 +27119,96 @@ static void decode_opc_special2_legacy(CPUMIPSState *env, DisasContext *ctx)
     }
 }
 
+static void gen_crc32(DisasContext *ctx, int rd, int rs, int rt, int sz,
+                      int crc32c)
+{
+    TCGv t0;
+    TCGv t1;
+    TCGv_i32 tsz = tcg_const_i32(1 << sz);
+    uint64_t mask = 0;
+
+    if (rd == 0) {
+        /* Treat as NOP. */
+        return;
+    }
+    t0 = tcg_temp_new();
+    t1 = tcg_temp_new();
+
+    gen_load_gpr(t0, rt);
+    gen_load_gpr(t1, rs);
+
+    if (sz != 3) {
+        switch (sz) {
+        case 0:
+            mask = 0xFF;
+            break;
+        case 1:
+            mask = 0xFFFF;
+            break;
+        case 2:
+            mask = 0xFFFFFFFF;
+            break;
+        }
+        tcg_gen_andi_tl(t1, t1, mask);
+    }
+
+    if (crc32c) {
+        gen_helper_crc32c(cpu_gpr[rd], t0, t1, tsz);
+    } else {
+        gen_helper_crc32(cpu_gpr[rd], t0, t1, tsz);
+    }
+
+    tcg_temp_free(t0);
+    tcg_temp_free(t1);
+    tcg_temp_free_i32(tsz);
+}
+
+static void gen_crc32b(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 0, 0);
+}
+
+static void gen_crc32h(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 1, 0);
+}
+
+static void gen_crc32w(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 2, 0);
+}
+
+static void gen_crc32d(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 3, 0);
+}
+
+static void gen_crc32cb(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 0, 1);
+}
+
+static void gen_crc32ch(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 1, 1);
+}
+
+static void gen_crc32cw(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 2, 1);
+}
+
+static void gen_crc32cd(DisasContext *ctx, int rd, int rs, int rt)
+{
+    gen_crc32(ctx, rd, rs, rt, 3, 1);
+}
+
 static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
 {
     int rs, rt, rd, sa;
     uint32_t op1, op2;
     int16_t imm;
+    int sz, crc32c;
 
     rs = (ctx->opcode >> 21) & 0x1f;
     rt = (ctx->opcode >> 16) & 0x1f;
@@ -27131,6 +27218,45 @@ static void decode_opc_special3_r6(CPUMIPSState *env, DisasContext *ctx)
 
     op1 = MASK_SPECIAL3(ctx->opcode);
     switch (op1) {
+    case OPC_CRC32:
+        sz = extract32(ctx->opcode, 6, 2);
+        crc32c = extract32(ctx->opcode, 8, 3);
+        if (unlikely(!ctx->crcp) ||
+            unlikely((sz == 3) && (!(ctx->hflags & MIPS_HFLAG_64))) ||
+            unlikely((crc32c >= 2))) {
+            generate_exception_end(ctx, EXCP_RI);
+        }
+        switch (sz) {
+        case 0:
+            if (crc32c) {
+                gen_crc32cb(ctx, rt, rs, rt);
+            } else {
+                gen_crc32b(ctx, rt, rs, rt);
+            }
+            break;
+        case 1:
+            if (crc32c) {
+                gen_crc32ch(ctx, rt, rs, rt);
+            } else {
+                gen_crc32h(ctx, rt, rs, rt);
+            }
+            break;
+        case 2:
+            if (crc32c) {
+                gen_crc32cw(ctx, rt, rs, rt);
+            } else {
+                gen_crc32w(ctx, rt, rs, rt);
+            }
+            break;
+        case 3:
+            if (crc32c) {
+                gen_crc32cd(ctx, rt, rs, rt);
+            } else {
+                gen_crc32d(ctx, rt, rs, rt);
+            }
+            break;
+        }
+        break;
     case R6_OPC_PREF:
         if (rt >= 24) {
             /* hint codes 24-31 are reserved and signal RI */
@@ -30727,6 +30853,7 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->mrp = (env->CP0_Config5 >> CP0C5_MRP) & 1;
     ctx->nan2008 = (env->active_fpu.fcr31 >> FCR31_NAN2008) & 1;
     ctx->abs2008 = (env->active_fpu.fcr31 >> FCR31_ABS2008) & 1;
+    ctx->crcp = (env->CP0_Config5 >> CP0C5_CRCP) & 1;
     restore_cpu_state(env, ctx);
 #ifdef CONFIG_USER_ONLY
         ctx->mem_idx = MIPS_HFLAG_UM;
