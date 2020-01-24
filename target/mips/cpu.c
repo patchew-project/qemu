@@ -132,6 +132,10 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
         info->print_insn = print_insn_nanomips;
 #endif
     }
+
+    if ((env->insn_flags & ASE_MICROMIPS) && (env->insn_flags & ISA_MIPS32R6)) {
+        info->print_insn = print_insn_micromips_r6;
+    }
 }
 
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
