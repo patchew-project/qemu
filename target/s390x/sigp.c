@@ -347,7 +347,7 @@ static void sigp_sense_running(S390CPU *dst_cpu, SigpInfo *si)
     }
 
     /* If halted (which includes also STOPPED), it is not running */
-    if (CPU(dst_cpu)->halted) {
+    if (!CPU(dst_cpu)->halted) {
         si->cc = SIGP_CC_ORDER_CODE_ACCEPTED;
     } else {
         set_sigp_status(si, SIGP_STAT_NOT_RUNNING);
