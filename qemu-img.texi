@@ -179,6 +179,10 @@ information.
 Try to ignore I/O errors when reading.  Unless in quiet mode (@code{-q}), errors
 will still be printed.  Areas that cannot be read from the source will be
 treated as containing only zeroes.
+@item --target-is-zero
+Assume that the destination is filled with zeros. This parameter is
+mutually exclusive with the use of a backing file. It is required to
+also use the @code{-n} parameter to skip image creation.
 @end table
 
 Parameters to dd subcommand:
