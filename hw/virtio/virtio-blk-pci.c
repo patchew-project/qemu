@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 
+#include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/virtio-blk.h"
 #include "virtio-pci.h"
@@ -50,9 +51,15 @@ static void virtio_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VirtIOBlkPCI *dev = VIRTIO_BLK_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+    VirtIOBlkConf *conf = &dev->vdev.conf;
+
+    /* 1:1 vq to vcpu mapping is ideal because it avoids IPIs */
+    if (conf->num_queues == VIRTIO_BLK_AUTO_NUM_QUEUES) {
+        conf->num_queues = current_machine->smp.cpus;
+    }
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = dev->vdev.conf.num_queues + 1;
+        vpci_dev->nvectors = conf->num_queues + 1;
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
