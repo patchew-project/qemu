@@ -30,8 +30,11 @@
 GlobalProperty hw_compat_4_2[] = {
     { "virtio-blk-device", "x-enable-wce-if-config-wce", "off" },
     { "virtio-blk-device", "seg-max-adjust", "off"},
+    { "virtio-scsi-device", "num_queues", "1"},
     { "virtio-scsi-device", "seg_max_adjust", "off"},
     { "vhost-blk-device", "seg_max_adjust", "off"},
+    { "vhost-scsi", "num_queues", "1"},
+    { "vhost-user-scsi", "num_queues", "1"},
     { "usb-host", "suppress-remote-wake", "off" },
     { "usb-redir", "suppress-remote-wake", "off" },
 };

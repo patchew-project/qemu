@@ -17,6 +17,7 @@
 #include "qemu/osdep.h"
 
 #include "standard-headers/linux/virtio_pci.h"
+#include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "hw/virtio/vhost-scsi.h"
 #include "qapi/error.h"
@@ -47,10 +48,15 @@ static void vhost_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostSCSIPCI *dev = VHOST_SCSI_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
-    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(vdev);
+    VirtIOSCSIConf *conf = &dev->vdev.parent_obj.parent_obj.conf;
+
+    /* 1:1 vq to vcpu mapping is ideal because it avoids IPIs */
+    if (conf->num_queues == VIRTIO_SCSI_AUTO_NUM_QUEUES) {
+        conf->num_queues = current_machine->smp.cpus;
+    }
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
-        vpci_dev->nvectors = vs->conf.num_queues + 3;
+        vpci_dev->nvectors = conf->num_queues + VIRTIO_SCSI_VQ_NUM_FIXED + 1;
     }
 
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
