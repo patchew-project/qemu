@@ -491,7 +491,7 @@ static void flush_windows(CPUSPARCState *env)
 void cpu_loop(CPUSPARCState *env)
 {
     CPUState *cs = env_cpu(env);
-    int trapnr, ret, syscall_nr;
+    int trapnr, ret, syscall_nr, syscall_flags;
     //target_siginfo_t info;
 
     while (1) {
@@ -511,21 +511,29 @@ void cpu_loop(CPUSPARCState *env)
         case 0x100:
 #endif
             syscall_nr = env->gregs[1];
-            if (bsd_type == target_freebsd)
+            if (bsd_type == target_freebsd) {
                 ret = do_freebsd_syscall(env, syscall_nr,
                                          env->regwptr[0], env->regwptr[1],
                                          env->regwptr[2], env->regwptr[3],
                                          env->regwptr[4], env->regwptr[5], 0, 0);
-            else if (bsd_type == target_netbsd)
+            }
+            else if (bsd_type == target_netbsd) {
+                syscall_flags = syscall_nr & (TARGET_NETBSD_SYSCALL_G7RFLAG |
+                                              TARGET_NETBSD_SYSCALL_G5RFLAG |
+                                              TARGET_NETBSD_SYSCALL_G2RFLAG);
+                syscall_nr &= ~(TARGET_NETBSD_SYSCALL_G7RFLAG |
+                                TARGET_NETBSD_SYSCALL_G5RFLAG |
+                                TARGET_NETBSD_SYSCALL_G2RFLAG);
                 ret = do_netbsd_syscall(env, syscall_nr,
                                         env->regwptr[0], env->regwptr[1],
                                         env->regwptr[2], env->regwptr[3],
                                         env->regwptr[4], env->regwptr[5]);
+            }
             else { //if (bsd_type == target_openbsd)
-#if defined(TARGET_SPARC64)
-                syscall_nr &= ~(TARGET_OPENBSD_SYSCALL_G7RFLAG |
-                                TARGET_OPENBSD_SYSCALL_G2RFLAG);
-#endif
+                syscall_flags = syscall_nr & (TARGET_OPENBSD_SYSCALL_G2RFLAG |
+                                              TARGET_OPENBSD_SYSCALL_G7RFLAG);
+                syscall_nr &= ~(TARGET_OPENBSD_SYSCALL_G2RFLAG |
+                                TARGET_OPENBSD_SYSCALL_G7RFLAG);
                 ret = do_openbsd_syscall(env, syscall_nr,
                                          env->regwptr[0], env->regwptr[1],
                                          env->regwptr[2], env->regwptr[3],
@@ -547,23 +555,39 @@ void cpu_loop(CPUSPARCState *env)
             }
             env->regwptr[0] = ret;
             /* next instruction */
-#if defined(TARGET_SPARC64)
-            if (bsd_type == target_openbsd &&
-                env->gregs[1] & TARGET_OPENBSD_SYSCALL_G2RFLAG) {
-                env->pc = env->gregs[2];
-                env->npc = env->pc + 4;
-            } else if (bsd_type == target_openbsd &&
-                       env->gregs[1] & TARGET_OPENBSD_SYSCALL_G7RFLAG) {
-                env->pc = env->gregs[7];
-                env->npc = env->pc + 4;
-            } else {
-                env->pc = env->npc;
-                env->npc = env->npc + 4;
+            if (bsd_type == target_openbsd) {
+                switch (syscall_flags) {
+                case 0:
+                    env->pc = env->npc;
+                    break;
+                case TARGET_OPENBSD_SYSCALL_G7RFLAG:
+                    env->pc = env->gregs[7];
+                    break;
+                default: /* G2 or G2|G7 */
+                    env->pc = env->gregs[2];
+                    break;
+                }
             }
-#else
-            env->pc = env->npc;
-            env->npc = env->npc + 4;
-#endif
+            else if (bsd_type == target_netbsd) {
+                switch (syscall_flags) {
+                case 0:
+                    env->pc = env->npc;
+                    break;
+                case TARGET_NETBSD_SYSCALL_G7RFLAG:
+                    env->pc = env->gregs[7];
+                    break;
+                case TARGET_NETBSD_SYSCALL_G5RFLAG:
+                    env->pc = env->gregs[5];
+                    break;
+                case TARGET_NETBSD_SYSCALL_G2RFLAG:
+                    env->pc = env->gregs[2];
+                    break;
+                }
+            }
+            else  {
+                env->pc = env->npc;
+            }
+            env->npc = env->pc + 4;
             break;
         case 0x83: /* flush windows */
 #ifdef TARGET_ABI32
