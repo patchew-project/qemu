@@ -31,6 +31,7 @@ import tempfile
 import shutil
 import multiprocessing
 import traceback
+import yaml
 
 SSH_KEY_FILE = os.path.join(os.path.dirname(__file__),
                "..", "keys", "id_rsa")
@@ -396,6 +397,61 @@ class BaseVM(object):
     def qmp(self, *args, **kwargs):
         return self._guest.qmp(*args, **kwargs)
 
+
+def parse_config(config, args):
+    """ Parse yaml config and populate our config structure.
+        The yaml config allows the user to override the
+        defaults for VM parameters.  In many cases these
+        defaults can be overridden without rebuilding the VM."""
+    if args.config:
+        config_file = args.config
+    elif 'QEMU_CONFIG' in os.environ:
+        config_file = os.environ['QEMU_CONFIG']
+    else:
+        return config
+    if not os.path.exists(config_file):
+        raise Exception("config file {} does not exist".format(config_file))
+    with open(config_file) as f:
+        yaml_dict = yaml.safe_load(f)
+    if 'target-conf' in yaml_dict:
+        target_dict = yaml_dict['target-conf']
+        if 'username' in target_dict and target_dict['username'] != 'root':
+            config['guest_user'] = target_dict['username']
+        if 'password' in target_dict:
+            config['root_pass'] = target_dict['password']
+            config['guest_pass'] = target_dict['password']
+        if any (k in target_dict for k in ("ssh_key","ssh_pub_key")) and \
+           not all (k in target_dict for k in ("ssh_key","ssh_pub_key")):
+            missing_key = "ssh_pub_key" \
+              if 'ssh_key' in target_dict else "ssh_key"
+            raise Exception("both ssh_key and ssh_pub_key required. "
+                            "{} key is missing.".format(missing_key))
+        if 'ssh_key' in target_dict:
+            config['ssh_key_file'] = target_dict['ssh_key']
+            if not os.path.exists(config['ssh_key_file']):
+                raise Exception("ssh key file not found.")
+        if 'ssh_pub_key' in target_dict:
+            config['ssh_pub_key_file'] = target_dict['ssh_pub_key']
+            if not os.path.exists(config['ssh_pub_key_file']):
+                raise Exception("ssh pub key file not found.")
+        if 'machine' in target_dict:
+            config['machine'] = target_dict['machine']
+        if 'qemu_args' in target_dict:
+            qemu_args = target_dict['qemu_args']
+            qemu_args = qemu_args.replace('\n', ' ').replace('\r', '')
+            config['extra_args'] = qemu_args.split(' ')
+        if 'memory' in target_dict:
+            config['memory'] = target_dict['memory']
+        if 'dns' in target_dict:
+            config['dns'] = target_dict['dns']
+        if 'cpu' in target_dict:
+            config['cpu'] = target_dict['cpu']
+        if 'ssh_port' in target_dict:
+            config['ssh_port'] = target_dict['ssh_port']
+        if 'install_cmds' in target_dict:
+            config['install_cmds'] = target_dict['install_cmds']
+    return config
+
 def parse_args(vmcls):
 
     def get_default_jobs():
@@ -430,6 +486,9 @@ def parse_args(vmcls):
                       help="Interactively run command")
     parser.add_option("--snapshot", "-s", action="store_true",
                       help="run tests with a snapshot")
+    parser.add_option("--config", "-c", default=None,
+                      help="Provide config yaml for configuration. "\
+                           "See config_example.yaml for example.")
     parser.disable_interspersed_args()
     return parser.parse_args()
 
@@ -441,6 +500,7 @@ def main(vmcls, config=None):
         if not argv and not args.build_qemu and not args.build_image:
             print("Nothing to do?")
             return 1
+        config = parse_config(config, args)
         logging.basicConfig(level=(logging.DEBUG if args.debug
                                    else logging.WARN))
         vm = vmcls(debug=args.debug, vcpus=args.jobs, config=config)
