@@ -94,6 +94,8 @@ write access:
                register in QEMU
             2: following writes to 'Command data' register set OST status
                register in QEMU
+            3: following reads from 'Command data' and 'Command data 2' return
+               architecture specific CPU ID value for currently selected CPU.
             other values: reserved
     [0x6-0x7] reserved
     [0x8] Command data: (DWORD access)
@@ -147,3 +149,16 @@ Typical usecases:
       11. Otherwise store 0x0 to the 'CPU selector' register, to put it
           into a valid state and exit.
           The iterator at this point equals "max_cpus".
+
+    - Enumerate present/non present CPUs architecture specific IDs
+      (in case of x86: ACPIC IDs)
+      01: Use "Enumerate CPUs present/non present CPUs" to get max_cpus
+      02: Store 0x3 in the 'Command field' register
+      03: Set 'current cpu selector' iterator to 0x0
+      04: Store the iterator to the 'CPU selector' register
+      05: Read from registers 'Command data' and 'Command data 2' parts of ID,
+          combine them into ID like following:
+             'Command data 2' << 32 | 'Command data'
+          and store pair 'current cpu selector' : ID for further processing
+      06: Increment the iterator and if the iterator < max_cpus go to step 4
+      07: Otherwise store 0x0 to the 'CPU selector' register and exit.
