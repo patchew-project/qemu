@@ -19,6 +19,7 @@
 #include "qemu/osdep.h"
 
 #include "standard-headers/linux/virtio_pci.h"
+#include "hw/boards.h"
 #include "hw/virtio/virtio.h"
 #include "hw/virtio/vhost-user-blk.h"
 #include "hw/pci/pci.h"
@@ -53,6 +54,11 @@ static void vhost_user_blk_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
 {
     VHostUserBlkPCI *dev = VHOST_USER_BLK_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
+
+    /* 1:1 vq to vcpu mapping is ideal because it avoids IPIs */
+    if (dev->vdev.num_queues == VHOST_USER_BLK_AUTO_NUM_QUEUES) {
+        dev->vdev.num_queues = current_machine->smp.cpus;
+    }
 
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
         vpci_dev->nvectors = dev->vdev.num_queues + 1;
