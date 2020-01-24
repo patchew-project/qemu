@@ -904,6 +904,12 @@ F: hw/misc/atmel_power.c
 F: include/hw/misc/atmel_power.h
 F: tests/acceptance/machine_avr6.py
 
+Arduino
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Maintained
+F: hw/avr/arduino.c
+F: hw/avr/atmel_atmega.*
+
 CRIS Machines
 -------------
 Axis Dev88
