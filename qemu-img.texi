@@ -74,13 +74,13 @@ keys.
 @item --image-opts
 Indicates that the source @var{filename} parameter is to be interpreted as a
 full option string, not a plain filename. This parameter is mutually
-exclusive with the @var{-f} parameter.
+exclusive with the @code{-f} parameter.
 
 @item --target-image-opts
 Indicates that the @var{output_filename} parameter(s) are to be interpreted as
 a full option string, not a plain filename. This parameter is mutually
-exclusive with the @var{-O} parameters. It is currently required to also use
-the @var{-n} parameter to skip image creation. This restriction may be relaxed
+exclusive with the @code{-O} parameters. It is currently required to also use
+the @code{-n} parameter to skip image creation. This restriction may be relaxed
 in a future release.
 
 @item --force-share (-U)
@@ -103,13 +103,13 @@ with or without a command shows help and lists the supported formats
 
 @item -p
 display progress bar (compare, convert and rebase commands only).
-If the @var{-p} option is not used for a command that supports it, the
+If the @code{-p} option is not used for a command that supports it, the
 progress is reported when the process receives a @code{SIGUSR1} or
 @code{SIGINFO} signal.
 
 @item -q
 Quiet mode - do not print any output (except errors). There's no progress bar
-in case both @var{-q} and @var{-p} options are used.
+in case both @code{-q} and @code{-p} options are used.
 
 @item -S @var{size}
 indicates the consecutive number of bytes that must contain only zeros
@@ -298,14 +298,14 @@ the top image stays valid).
 Check if two images have the same content. You can compare images with
 different format or settings.
 
-The format is probed unless you specify it by @var{-f} (used for
-@var{filename1}) and/or @var{-F} (used for @var{filename2}) option.
+The format is probed unless you specify it by @code{-f} (used for
+@var{filename1}) and/or @code{-F} (used for @var{filename2}) option.
 
 By default, images with different size are considered identical if the larger
 image contains only unallocated and/or zeroed sectors in the area after the end
 of the other image. In addition, if any sector is not allocated in one image
 and contains only zero bytes in the second one, it is evaluated as equal. You
-can use Strict mode by specifying the @var{-s} option. When compare runs in
+can use Strict mode by specifying the @code{-s} option. When compare runs in
 Strict mode, it fails in case image size differs or a sector is allocated in
 one image and is not allocated in the second one.
 
