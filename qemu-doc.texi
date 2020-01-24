@@ -1723,6 +1723,7 @@ differences are mentioned in the following sections.
 * Microblaze System emulator::
 * SH4 System emulator::
 * Xtensa System emulator::
+* AVR System emulator::
 @end menu
 
 @node PowerPC System emulator
@@ -2495,6 +2496,56 @@ so should only be used with trusted guest OS.
 @end table
 
 @c man end
+
+@node AVR System emulator
+@section AVR System emulator
+@cindex system emulation (AVR)
+
+Use the executable @file{qemu-system-avr} to emulates a AVR 8 bit based machine
+having one for the following cores: avr1, avr2, avr25, avr3, avr31, avr35, avr4,
+avr5, avr51, avr6, avrtiny, xmega2, xmega3, xmega4, xmega5, xmega6 and xmega7.
+
+As for now it supports few Arduino boards for educational and testing purposes.
+These boards use a ATmega controller, which model is limited to USART & 16 bit
+timer devices, enought to run FreeRTOS based applications (like this @url{https://github.com/seharris/qemu-avr-tests/blob/master/free-rtos/Demo/AVR_ATMega2560_GCC/demo.elf,,demo})
+
+Following are examples of possible usages, assuming program.elf is compiled for
+AVR cpu
+@itemize
+
+@item Continuous non interrupted execution
+@example
+qemu-system-avr -kernel program.elf
+@end example
+
+@item Continuous non interrupted execution with serial output into telnet window
+@example
+qemu-system-avr -kernel program.elf -serial tcp::5678,server,nowait -nographic
+@end example
+and then in another shell
+@example
+telnet localhost 5678
+@end example
+
+@item Debugging wit GDB debugger
+@example
+qemu-system-avr -kernel program.elf -s -S
+@end example
+and then in another shell
+@example
+avr-gdb program.elf
+@end example
+and then within GDB shell
+@example
+target remote :1234
+@end example
+
+@item Print out executed instructions
+@example
+qemu-system-avr -kernel program.elf -d in_asm
+@end example
+
+@end itemize
 
 @node QEMU User space emulator
 @chapter QEMU User space emulator
