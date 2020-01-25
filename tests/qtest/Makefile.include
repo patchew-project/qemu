@@ -189,6 +189,7 @@ qos-test-obj-y += tests/qtest/libqos/virtio-pci-modern.o
 qos-test-obj-y += tests/qtest/libqos/virtio-rng.o
 qos-test-obj-y += tests/qtest/libqos/virtio-scsi.o
 qos-test-obj-y += tests/qtest/libqos/virtio-serial.o
+qos-test-obj-y += tests/qtest/libqos/virtio-iommu.o
 
 # qos machines:
 qos-test-obj-y += tests/qtest/libqos/aarch64-xlnx-zcu102-machine.o
@@ -228,6 +229,7 @@ qos-test-obj-y += tests/qtest/virtio-net-test.o
 qos-test-obj-y += tests/qtest/virtio-rng-test.o
 qos-test-obj-y += tests/qtest/virtio-scsi-test.o
 qos-test-obj-y += tests/qtest/virtio-serial-test.o
+qos-test-obj-y += tests/qtest/virtio-iommu-test.o
 qos-test-obj-y += tests/qtest/vmxnet3-test.o
 
 check-unit-y += tests/test-qgraph$(EXESUF)
