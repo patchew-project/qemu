@@ -212,6 +212,7 @@ static void avr_cpu_class_init(ObjectClass *oc, void *data)
     cc->handle_mmu_fault = avr_cpu_handle_mmu_fault;
 #else
     cc->get_phys_page_debug = avr_cpu_get_phys_page_debug;
+    cc->vmsd = &vms_avr_cpu;
 #endif
     cc->disas_set_info = avr_cpu_disas_set_info;
     cc->tlb_fill = avr_cpu_tlb_fill;
