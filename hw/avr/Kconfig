@@ -3,3 +3,7 @@ config ATMEL_ATMEGA_MCU
     select ATMEL_TIMER16
     select ATMEL_USART
     select ATMEL_POWER
+
+config ARDUINO
+    select ATMEL_ATMEGA_MCU
+    select UNIMP
