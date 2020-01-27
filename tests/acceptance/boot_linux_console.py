@@ -51,10 +51,9 @@ class BootLinuxConsole(Test):
         os.chdir(cwd)
         return self.workdir + path
 
-    def test_x86_64_pc(self):
+    def do_test_x86_64_machine(self):
         """
         :avocado: tags=arch:x86_64
-        :avocado: tags=machine:pc
         """
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
                       '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
@@ -69,6 +68,18 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_x86_64_pc(self):
+        """
+        :avocado: tags=machine:pc
+        """
+        self.do_test_x86_64_machine()
+
+    def test_x86_64_microvm(self):
+        """
+        :avocado: tags=machine:microvm
+        """
+        self.do_test_x86_64_machine()
 
     def test_mips_malta(self):
         """
