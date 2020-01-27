@@ -79,6 +79,7 @@
 #include "sysemu/cpus.h"
 #include "qemu/cutils.h"
 #include "tcg/tcg.h"
+#include "block/block-hmp-commands.h"
 
 #if defined(TARGET_S390X)
 #include "hw/s390x/storage-keys.h"
