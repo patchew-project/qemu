@@ -65,15 +65,26 @@ class BootLinuxConsole(Test):
         os.chdir(cwd)
         return self.workdir + '/' + path
 
-    def do_test_x86_64_machine(self):
+    def do_test_x86_64_machine(self, pvh=False):
         """
         :avocado: tags=arch:x86_64
         """
-        kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora'
-                      '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
-                      '/vmlinuz')
-        kernel_hash = '23bebd2680757891cf7adedb033532163a792495'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        if pvh:
+            rpm_url = ('https://yum.oracle.com/repo/OracleLinux/'
+                       'OL7/olcne/x86_64/getPackage/'
+                       'kernel-uek-container-4.14.35-1902.6.6.1.el7.x86_64.rpm')
+            rpm_hash = '4c781711a9d32dcb8e81da2b397cb98926744e23'
+            rpm_path = self.fetch_asset(rpm_url, asset_hash=rpm_hash)
+            kernel_path = self.extract_from_rpm(rpm_path,
+                                                './usr/share/kata-containers/'
+                                    'vmlinux-4.14.35-1902.6.6.1.el7.container')
+        else:
+            kernel_url = ('https://archives.fedoraproject.org/pub/archive/'
+                          'fedora/linux/releases/29/Everything/x86_64/os/'
+                          'images/pxeboot/vmlinuz')
+            kernel_hash = '23bebd2680757891cf7adedb033532163a792495'
+            kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         self.vm.add_args('-kernel', kernel_path,
@@ -95,6 +106,19 @@ class BootLinuxConsole(Test):
         self.vm.add_args('-bios', 'pc-bios/bios-microvm.bin')
         self.do_test_x86_64_machine()
 
+    def test_x86_64_pc_pvh(self):
+        """
+        :avocado: tags=machine:pc
+        """
+        self.do_test_x86_64_machine(pvh=True)
+
+    def test_x86_64_pc_qboot_pvh(self):
+        """
+        :avocado: tags=machine:pc
+        """
+        self.vm.add_args('-bios', 'pc-bios/bios-microvm.bin')
+        self.do_test_x86_64_machine(pvh=True)
+
     def test_x86_64_microvm(self):
         """
         :avocado: tags=machine:microvm
@@ -107,6 +131,19 @@ class BootLinuxConsole(Test):
         """
         self.vm.add_args('-bios', 'pc-bios/bios-microvm.bin')
         self.do_test_x86_64_machine()
+
+    def test_x86_64_microvm_pvh(self):
+        """
+        :avocado: tags=machine:microvm
+        """
+        self.do_test_x86_64_machine(pvh=True)
+
+    def test_x86_64_microvm_qboot_pvh(self):
+        """
+        :avocado: tags=machine:microvm
+        """
+        self.vm.add_args('-bios', 'pc-bios/bios-microvm.bin')
+        self.do_test_x86_64_machine(pvh=True)
 
     def test_mips_malta(self):
         """
