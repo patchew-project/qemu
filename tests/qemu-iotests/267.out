@@ -6,11 +6,11 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing:
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
-Error: No block device can accept snapshots
+error: No block device can accept snapshots
 (qemu) info snapshots
 No available block device supports snapshots
 (qemu) loadvm snap0
-Error: No block device supports snapshots
+error: No block device supports snapshots
 (qemu) quit
 
 
@@ -20,11 +20,11 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing: -drive driver=file,file=TEST_DIR/t.IMGFMT,if=none
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
-Error: Device 'none0' is writable but does not support snapshots
+error: Device 'none0' is writable but does not support snapshots
 (qemu) info snapshots
 No available block device supports snapshots
 (qemu) loadvm snap0
-Error: Device 'none0' is writable but does not support snapshots
+error: Device 'none0' is writable but does not support snapshots
 (qemu) quit
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
@@ -56,11 +56,11 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing: -drive driver=file,file=TEST_DIR/t.IMGFMT,if=virtio
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
-Error: Device 'virtio0' is writable but does not support snapshots
+error: Device 'virtio0' is writable but does not support snapshots
 (qemu) info snapshots
 No available block device supports snapshots
 (qemu) loadvm snap0
-Error: Device 'virtio0' is writable but does not support snapshots
+error: Device 'virtio0' is writable but does not support snapshots
 (qemu) quit
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
@@ -81,11 +81,11 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Testing: -blockdev driver=file,filename=TEST_DIR/t.IMGFMT,node-name=file
 QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) savevm snap0
-Error: Device '' is writable but does not support snapshots
+error: Device '' is writable but does not support snapshots
 (qemu) info snapshots
 No available block device supports snapshots
 (qemu) loadvm snap0
-Error: Device '' is writable but does not support snapshots
+error: Device '' is writable but does not support snapshots
 (qemu) quit
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728

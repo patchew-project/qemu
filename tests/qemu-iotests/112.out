@@ -2,13 +2,13 @@ QA output created by 112
 
 === refcount_bits limits ===
 
-qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+qemu-img: error: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+qemu-img: error: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 refcount_bits=-1
-qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+qemu-img: error: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
+qemu-img: error: TEST_DIR/t.IMGFMT: Refcount width must be a power of two and may not exceed 64 bits
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 1
@@ -21,9 +21,9 @@ refcount bits: 16
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 16
-qemu-img: TEST_DIR/t.IMGFMT: Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)
+qemu-img: error: TEST_DIR/t.IMGFMT: Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: TEST_DIR/t.IMGFMT: Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)
+qemu-img: error: TEST_DIR/t.IMGFMT: Different refcount widths than 16 bits require compatibility level 1.1 or above (use version=v3 or greater)
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 
 === Snapshot limit on refcount_bits=1 ===
@@ -32,7 +32,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 1
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'foo': -22 (Invalid argument)
+qemu-img: error: Could not create snapshot 'foo': -22 (Invalid argument)
 Leaked cluster 6 refcount=1 reference=0
 
 1 leaked clusters were found on the image.
@@ -44,7 +44,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 2
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'baz': -22 (Invalid argument)
+qemu-img: error: Could not create snapshot 'baz': -22 (Invalid argument)
 Leaked cluster 7 refcount=1 reference=0
 
 1 leaked clusters were found on the image.
@@ -75,7 +75,7 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 refcount bits: 64
 wrote 512/512 bytes at offset 0
 512 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Could not create snapshot 'foo': -22 (Invalid argument)
+qemu-img: error: Could not create snapshot 'foo': -22 (Invalid argument)
 Leaked cluster 5 refcount=18446744073709551615 reference=1
 Leaked cluster 6 refcount=1 reference=0
 
@@ -98,19 +98,19 @@ refcount bits: 64
 
 === Amend to compat=0.10 ===
 
-qemu-img: compat=0.10 requires refcount_bits=16
+qemu-img: error: compat=0.10 requires refcount_bits=16
 refcount bits: 64
 No errors were found on the image.
 refcount bits: 16
 refcount bits: 16
-qemu-img: Refcount widths other than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
+qemu-img: error: Refcount widths other than 16 bits require compatibility level 1.1 or above (use compat=1.1 or greater)
 refcount bits: 16
 
 === Amend with snapshot ===
 
 wrote 16777216/16777216 bytes at offset 0
 16 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Cannot decrease refcount entry width to 1 bits: Cluster at offset 0x50000 has a refcount of 2
+qemu-img: error: Cannot decrease refcount entry width to 1 bits: Cluster at offset 0x50000 has a refcount of 2
 No errors were found on the image.
 refcount bits: 16
 No errors were found on the image.

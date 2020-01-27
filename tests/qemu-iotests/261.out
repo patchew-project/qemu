@@ -162,12 +162,12 @@ Snapshots in TEST_DIR/t.IMGFMT:
 
 === Reject too much unknown extra data ===
 
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Too much extra metadata in snapshot table entry 3
+qemu-img: error: Could not open 'TEST_DIR/t.IMGFMT': Too much extra metadata in snapshot table entry 3
 You can force-remove this extra metadata with qemu-img check -r all
 
-qemu-img: ERROR failed to read the snapshot table: Too much extra metadata in snapshot table entry 3
+qemu-img: error: ERROR failed to read the snapshot table: Too much extra metadata in snapshot table entry 3
 You can force-remove this extra metadata with qemu-img check -r all
-qemu-img: Check failed: File too large
+qemu-img: error: Check failed: File too large
 
 Discarding too much extra metadata in snapshot table entry 3 (65536 > 1024)
 ERROR cluster 10 refcount=0 reference=1
@@ -185,12 +185,12 @@ No errors were found on the image.
 === Snapshot table too big ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Snapshot table is too big
+qemu-img: error: Could not open 'TEST_DIR/t.IMGFMT': Snapshot table is too big
 You can force-remove all 1 overhanging snapshots with qemu-img check -r all
 
-qemu-img: ERROR failed to read the snapshot table: Snapshot table is too big
+qemu-img: error: ERROR failed to read the snapshot table: Snapshot table is too big
 You can force-remove all 1 overhanging snapshots with qemu-img check -r all
-qemu-img: Check failed: File too large
+qemu-img: error: Check failed: File too large
 
 Discarding 1 overhanging snapshots (snapshot table is too big)
 Leaked cluster 14 refcount=1 reference=0
@@ -217,12 +217,12 @@ No errors were found on the image.
 
 Snapshot table size should equal 67108872: 67108872
 
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Too much extra metadata in snapshot table entry 505
+qemu-img: error: Could not open 'TEST_DIR/t.IMGFMT': Too much extra metadata in snapshot table entry 505
 You can force-remove this extra metadata with qemu-img check -r all
 
-qemu-img: ERROR failed to read the snapshot table: Too much extra metadata in snapshot table entry 505
+qemu-img: error: ERROR failed to read the snapshot table: Too much extra metadata in snapshot table entry 505
 You can force-remove this extra metadata with qemu-img check -r all
-qemu-img: Check failed: File too large
+qemu-img: error: Check failed: File too large
 
 Discarding too much extra metadata in snapshot table entry 505 (116944 > 1024)
 Discarding 1 overhanging snapshots (snapshot table is too big)
@@ -241,11 +241,11 @@ No errors were found on the image.
 === Too many snapshots ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Snapshot table too large
+qemu-img: error: Could not open 'TEST_DIR/t.IMGFMT': Snapshot table too large
 
-qemu-img: ERROR snapshot table too large
+qemu-img: error: ERROR snapshot table too large
 You can force-remove all 65536 overhanging snapshots with qemu-img check -r all
-qemu-img: Check failed: File too large
+qemu-img: error: Check failed: File too large
 
 Discarding 65536 overhanging snapshots
 Leaked cluster 14 refcount=1 reference=0

@@ -58,7 +58,7 @@ _filter_imgfmt()
 _filter_qemu_img_check()
 {
     $SED -e '/allocated.*fragmented.*compressed clusters/d' \
-        -e 's/qemu-img: This image format does not support checks/No errors were found on the image./' \
+        -e 's/qemu-img: error: This image format does not support checks/No errors were found on the image./' \
         -e '/Image end offset: [0-9]\+/d'
 }
 

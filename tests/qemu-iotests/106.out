@@ -40,10 +40,10 @@ Image resized.
 === Testing image shrinking ===
 
 --- growth_mode=falloc ---
-qemu-img: Preallocation can only be used for growing images
+qemu-img: error: Preallocation can only be used for growing images
 
 --- growth_mode=full ---
-qemu-img: Preallocation can only be used for growing images
+qemu-img: error: Preallocation can only be used for growing images
 
 --- growth_mode=off ---
 Image resized.

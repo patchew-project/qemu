@@ -143,7 +143,7 @@ Test 5
 {"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 16384, "name": "bitmap-0", "node": "drive0", "persistent": true}}
 {"return": {}}
 Write an unknown bitmap flag '0x4' into a new QCOW2 image at offset 327695
-qemu-img: Could not open 'TEST_IMG': Bitmap 'bitmap-0' doesn't satisfy the constraints
+qemu-img: error: Could not open 'TEST_IMG': Bitmap 'bitmap-0' doesn't satisfy the constraints
 
 Unset the unknown bitmap flag '0x4' in the bitmap directory entry:
 

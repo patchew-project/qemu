@@ -349,20 +349,20 @@ No errors were found on the image.
 === Testing invalid configurations ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
-qemu-img: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
-qemu-img: Unknown compatibility level 0.42
-qemu-img: Invalid parameter 'foo'
-qemu-img: Changing the cluster size is not supported
-qemu-img: Changing the encryption flag is not supported
-qemu-img: Cannot change preallocation mode
+qemu-img: error: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
+qemu-img: error: Lazy refcounts only supported with compatibility level 1.1 and above (use compat=1.1 or greater)
+qemu-img: error: Unknown compatibility level 0.42
+qemu-img: error: Invalid parameter 'foo'
+qemu-img: error: Changing the cluster size is not supported
+qemu-img: error: Changing the encryption flag is not supported
+qemu-img: error: Cannot change preallocation mode
 
 === Testing correct handling of unset value ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
 Should work:
 Should not work:
-qemu-img: Changing the cluster size is not supported
+qemu-img: error: Changing the cluster size is not supported
 
 === Testing zero expansion on inactive clusters ===
 
@@ -484,7 +484,7 @@ No errors were found on the image.
 === Testing version downgrade with external data file ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
-qemu-img: Cannot downgrade an image with a data file
+qemu-img: error: Cannot downgrade an image with a data file
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)
@@ -501,10 +501,10 @@ No errors were found on the image.
 === Try changing the external data file ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
-qemu-img: data-file can only be set for images that use an external data file
+qemu-img: error: data-file can only be set for images that use an external data file
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 data_file=TEST_DIR/t.IMGFMT.data
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'foo': No such file or directory
+qemu-img: error: Could not open 'TEST_DIR/t.IMGFMT': Could not open 'foo': No such file or directory
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)
@@ -517,7 +517,7 @@ Format specific information:
     data file raw: false
     corrupt: false
 
-qemu-img: Could not open 'TEST_DIR/t.IMGFMT': 'data-file' is required for this image
+qemu-img: error: Could not open 'TEST_DIR/t.IMGFMT': 'data-file' is required for this image
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)
@@ -556,7 +556,7 @@ Format specific information:
     data file raw: false
     corrupt: false
 No errors were found on the image.
-qemu-img: data-file-raw cannot be set on existing images
+qemu-img: error: data-file-raw cannot be set on existing images
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)

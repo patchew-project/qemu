@@ -60,7 +60,7 @@
 void hmp_handle_error(Monitor *mon, Error *err)
 {
     if (err) {
-        error_reportf_err(err, "Error: ");
+        error_report_err(err);
     }
 }
 

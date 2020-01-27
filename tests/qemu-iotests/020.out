@@ -1093,5 +1093,5 @@ Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 backing_file=json:{'driv
                              }}}
 wrote 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
-qemu-img: Block job failed: No space left on device
+qemu-img: error: Block job failed: No space left on device
 *** done

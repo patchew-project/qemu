@@ -233,13 +233,13 @@ Testing: create -f qcow2 -u -o backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2
 Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=134217728 backing_file=TEST_DIR/t.qcow2,,? cluster_size=65536 lazy_refcounts=off refcount_bits=16
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2, -o help TEST_DIR/t.qcow2 128M
-qemu-img: Invalid option list: backing_file=TEST_DIR/t.qcow2,
+qemu-img: error: Invalid option list: backing_file=TEST_DIR/t.qcow2,
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,help TEST_DIR/t.qcow2 128M
-qemu-img: Invalid option list: ,help
+qemu-img: error: Invalid option list: ,help
 
 Testing: create -f qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,, -o help TEST_DIR/t.qcow2 128M
-qemu-img: Invalid option list: ,,
+qemu-img: error: Invalid option list: ,,
 
 Testing: create -f qcow2 -o help
 Supported qcow2 options:
@@ -274,7 +274,7 @@ The protocol level may support further options.
 Specify the target filename to include those options.
 
 Testing: create -f bochs -o help
-qemu-img: Format driver 'bochs' does not support image creation
+qemu-img: error: Format driver 'bochs' does not support image creation
 
 === convert: Options specified more than once ===
 
@@ -507,19 +507,19 @@ Supported options:
   size=<size>            - Virtual disk size
 
 Testing: convert -O qcow2 -o backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,help': No such file or directory
+qemu-img: error: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,help': No such file or directory
 
 Testing: convert -O qcow2 -o backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,?': No such file or directory
+qemu-img: error: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,?': No such file or directory
 
 Testing: convert -O qcow2 -o backing_file=TEST_DIR/t.qcow2, -o help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Invalid option list: backing_file=TEST_DIR/t.qcow2,
+qemu-img: error: Invalid option list: backing_file=TEST_DIR/t.qcow2,
 
 Testing: convert -O qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Invalid option list: ,help
+qemu-img: error: Invalid option list: ,help
 
 Testing: convert -O qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,, -o help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Invalid option list: ,,
+qemu-img: error: Invalid option list: ,,
 
 Testing: convert -O qcow2 -o help
 Supported qcow2 options:
@@ -554,21 +554,21 @@ The protocol level may support further options.
 Specify the target filename to include those options.
 
 Testing: convert -O bochs -o help
-qemu-img: Format driver 'bochs' does not support image creation
+qemu-img: error: Format driver 'bochs' does not support image creation
 
 === convert: -C and other options ===
 
 Testing: convert -C -S 4k -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
-qemu-img: Cannot enable copy offloading when -S is used
+qemu-img: error: Cannot enable copy offloading when -S is used
 
 Testing: convert -C -S 8k -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
-qemu-img: Cannot enable copy offloading when -S is used
+qemu-img: error: Cannot enable copy offloading when -S is used
 
 Testing: convert -C -c -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
-qemu-img: Cannot enable copy offloading when -c is used
+qemu-img: error: Cannot enable copy offloading when -c is used
 
 Testing: convert -C --salvage -O qcow2 TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.target
-qemu-img: Cannot use copy offloading in salvaging mode
+qemu-img: error: Cannot use copy offloading in salvaging mode
 
 === amend: Options specified more than once ===
 
@@ -814,13 +814,13 @@ Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2
 Testing: rebase -u -b  -f qcow2 TEST_DIR/t.qcow2
 
 Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2, -o help TEST_DIR/t.qcow2
-qemu-img: Invalid option list: backing_file=TEST_DIR/t.qcow2,
+qemu-img: error: Invalid option list: backing_file=TEST_DIR/t.qcow2,
 
 Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,help TEST_DIR/t.qcow2
-qemu-img: Invalid option list: ,help
+qemu-img: error: Invalid option list: ,help
 
 Testing: amend -f qcow2 -o backing_file=TEST_DIR/t.qcow2 -o ,, -o help TEST_DIR/t.qcow2
-qemu-img: Invalid option list: ,,
+qemu-img: error: Invalid option list: ,,
 
 Testing: amend -f qcow2 -o help
 Creation options for 'qcow2':
@@ -847,8 +847,8 @@ Creation options for 'qcow2':
 Note that not all of these options may be amendable.
 
 Testing: amend -o help
-qemu-img: Expecting one image file name
+qemu-img: error: Expecting one image file name
 
 Testing: amend -f bochs -o help
-qemu-img: Format driver 'bochs' does not support option amendment
+qemu-img: error: Format driver 'bochs' does not support option amendment
 *** done

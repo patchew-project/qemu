@@ -10,7 +10,7 @@ Snapshot list:
 (Snapshot filtered)
 
 qcow2_free_clusters failed: Input/output error
-qemu-img: Could not delete snapshot 'foo': Failed to free the cluster and L1 table: Input/output error
+qemu-img: error: Could not delete snapshot 'foo': Failed to free the cluster and L1 table: Input/output error
 
 --- Checking test image ---
 Leaked cluster 4 refcount=2 reference=1

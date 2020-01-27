@@ -12,7 +12,7 @@ read 65536/65536 bytes at offset 0
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 { 'execute': 'eject', 'arguments': { 'device': 'drv' }}
 {"return": {}}
-qemu-io: can't open device nbd+unix:///drv?socket=SOCK_DIR/nbd: Requested export not available
+qemu-io: error: can't open device nbd+unix:///drv?socket=SOCK_DIR/nbd: Requested export not available
 server reported: export 'drv' not present
 { 'execute': 'quit' }
 {"return": {}}

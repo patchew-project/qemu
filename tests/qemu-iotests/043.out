@@ -2,19 +2,19 @@ QA output created by 043
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 
 == backing file references self ==
-qemu-img: Backing file 'TEST_DIR/t.IMGFMT' creates an infinite loop.
+qemu-img: error: Backing file 'TEST_DIR/t.IMGFMT' creates an infinite loop.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.base
 
 == parent references self ==
-qemu-img: Backing file 'TEST_DIR/t.IMGFMT' creates an infinite loop.
+qemu-img: error: Backing file 'TEST_DIR/t.IMGFMT' creates an infinite loop.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.1.base
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.2.base
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.3.base
 
 == ancestor references another ancestor ==
-qemu-img: Backing file 'TEST_DIR/t.IMGFMT.2.base' creates an infinite loop.
+qemu-img: error: Backing file 'TEST_DIR/t.IMGFMT.2.base' creates an infinite loop.
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.1.base
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 backing_file=TEST_DIR/t.IMGFMT.2.base
