@@ -166,6 +166,12 @@ static MultiFDMethods *multifd_ops[MULTIFD_METHOD__MAX] = {
     [MULTIFD_METHOD_NONE] = &multifd_nocomp_ops,
 };
 
+void multifd_register_ops(int method, MultiFDMethods *ops)
+{
+    assert(0 < method && method < MULTIFD_METHOD__MAX);
+    multifd_ops[method] = ops;
+}
+
 static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
 {
     MultiFDInit_t msg = {};
