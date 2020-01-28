@@ -532,6 +532,15 @@ void riscv_cpu_do_interrupt(CPUState *cs)
         [PRV_M] = RISCV_EXCP_M_ECALL
     };
 
+    if  (cause == RISCV_EXCP_SEMIHOST) {
+        if (env->priv >= PRV_S) {
+            env->gpr[xA0] = do_riscv_semihosting(env);
+            env->pc += 4;
+            return;
+        }
+        cause = RISCV_EXCP_BREAKPOINT;
+    }
+
     if (!async) {
         /* set tval to badaddr for traps with address information */
         switch (cause) {
