@@ -24,3 +24,4 @@ Contents:
    tcg
    tcg-plugins
    bitops
+   s390-dasd-ipl
