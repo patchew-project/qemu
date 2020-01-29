@@ -1179,7 +1179,49 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
+static int vfio_ds_iommu_pasid_alloc(DualStageIOMMUObject *dsi_obj,
+                         uint32_t min, uint32_t max, uint32_t *pasid)
+{
+    VFIOContainer *container = container_of(dsi_obj, VFIOContainer, dsi_obj);
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flags = VFIO_IOMMU_PASID_ALLOC;
+    req.alloc_pasid.min = min;
+    req.alloc_pasid.max = max;
+
+    if (ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req)) {
+        error_report("%s: %d, alloc failed", __func__, -errno);
+        return -errno;
+    }
+    *pasid = req.alloc_pasid.result;
+    return 0;
+}
+
+static int vfio_ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj,
+                                     uint32_t pasid)
+{
+    VFIOContainer *container = container_of(dsi_obj, VFIOContainer, dsi_obj);
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flags = VFIO_IOMMU_PASID_FREE;
+    req.free_pasid = pasid;
+
+    if (ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req)) {
+        error_report("%s: %d, free failed", __func__, -errno);
+        return -errno;
+    }
+    return 0;
+}
+
 static struct DualStageIOMMUOps vfio_ds_iommu_ops = {
+    .pasid_alloc = vfio_ds_iommu_pasid_alloc,
+    .pasid_free = vfio_ds_iommu_pasid_free,
 };
 
 static int vfio_get_iommu_info(VFIOContainer *container,
