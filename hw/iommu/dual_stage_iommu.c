@@ -48,9 +48,12 @@ int ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj, uint32_t pasid)
 }
 
 void ds_iommu_object_init(DualStageIOMMUObject *dsi_obj,
-                          DualStageIOMMUOps *ops)
+                          DualStageIOMMUOps *ops,
+                          DualStageIOMMUInfo *uinfo)
 {
     dsi_obj->ops = ops;
+
+    dsi_obj->uinfo.pasid_format = uinfo->pasid_format;
 }
 
 void ds_iommu_object_destroy(DualStageIOMMUObject *dsi_obj)

@@ -1182,10 +1182,84 @@ static int vfio_get_iommu_type(VFIOContainer *container,
 static struct DualStageIOMMUOps vfio_ds_iommu_ops = {
 };
 
+static int vfio_get_iommu_info(VFIOContainer *container,
+                         struct vfio_iommu_type1_info **info)
+{
+
+    size_t argsz = sizeof(struct vfio_iommu_type1_info);
+
+
+    *info = g_malloc0(argsz);
+
+retry:
+    (*info)->argsz = argsz;
+
+    if (ioctl(container->fd, VFIO_IOMMU_GET_INFO, *info)) {
+        g_free(*info);
+        *info = NULL;
+        return -errno;
+    }
+
+    if (((*info)->argsz > argsz)) {
+        argsz = (*info)->argsz;
+        *info = g_realloc(*info, argsz);
+        goto retry;
+    }
+
+    return 0;
+}
+
+static struct vfio_info_cap_header *
+vfio_get_iommu_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
+{
+    struct vfio_info_cap_header *hdr;
+    void *ptr = info;
+
+    if (!(info->flags & VFIO_IOMMU_INFO_CAPS)) {
+        return NULL;
+    }
+
+    for (hdr = ptr + info->cap_offset; hdr != ptr; hdr = ptr + hdr->next) {
+        if (hdr->id == id) {
+            return hdr;
+        }
+    }
+
+    return NULL;
+}
+
+static int vfio_get_nesting_iommu_format(VFIOContainer *container,
+                                         uint32_t *pasid_format)
+{
+    struct vfio_iommu_type1_info *info;
+    struct vfio_info_cap_header *hdr;
+    struct vfio_iommu_type1_info_cap_nesting *cap;
+
+    if (vfio_get_iommu_info(container, &info)) {
+        return -errno;
+    }
+
+    hdr = vfio_get_iommu_info_cap(info,
+                        VFIO_IOMMU_TYPE1_INFO_CAP_NESTING);
+    if (!hdr) {
+        g_free(info);
+        return -errno;
+    }
+
+    cap = container_of(hdr,
+                struct vfio_iommu_type1_info_cap_nesting, header);
+    *pasid_format = cap->pasid_format;
+
+    g_free(info);
+    return 0;
+}
+
 static int vfio_init_container(VFIOContainer *container, int group_fd,
                                Error **errp)
 {
     int iommu_type, ret;
+    uint32_t format;
+    DualStageIOMMUInfo uinfo;
 
     iommu_type = vfio_get_iommu_type(container, errp);
     if (iommu_type < 0) {
@@ -1214,7 +1288,16 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
     }
 
     if (iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
-        ds_iommu_object_init(&container->dsi_obj, &vfio_ds_iommu_ops);
+        if (vfio_get_nesting_iommu_format(container, &format)) {
+            error_setg_errno(errp, errno,
+                             "Failed to get nesting iommu format");
+            return -errno;
+        }
+
+        uinfo.pasid_format = format;
+        ds_iommu_object_init(&container->dsi_obj,
+                             &vfio_ds_iommu_ops, &uinfo);
+
         if (iommu_context_register_ds_iommu(container->iommu_ctx,
                                             &container->dsi_obj)) {
             /*

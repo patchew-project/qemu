@@ -23,12 +23,14 @@
 #define HW_DS_IOMMU_H
 
 #include "qemu/queue.h"
+#include <linux/iommu.h>
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
 
 typedef struct DualStageIOMMUObject DualStageIOMMUObject;
 typedef struct DualStageIOMMUOps DualStageIOMMUOps;
+typedef struct DualStageIOMMUInfo DualStageIOMMUInfo;
 
 struct DualStageIOMMUOps {
     /* Allocate pasid from DualStageIOMMU (a.k.a. host IOMMU) */
@@ -41,11 +43,16 @@ struct DualStageIOMMUOps {
                       uint32_t pasid);
 };
 
+struct DualStageIOMMUInfo {
+    uint32_t pasid_format;
+};
+
 /*
  * This is an abstraction of Dual-stage IOMMU.
  */
 struct DualStageIOMMUObject {
     DualStageIOMMUOps *ops;
+    DualStageIOMMUInfo uinfo;
 };
 
 int ds_iommu_pasid_alloc(DualStageIOMMUObject *dsi_obj, uint32_t min,
@@ -53,7 +60,8 @@ int ds_iommu_pasid_alloc(DualStageIOMMUObject *dsi_obj, uint32_t min,
 int ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj, uint32_t pasid);
 
 void ds_iommu_object_init(DualStageIOMMUObject *dsi_obj,
-                          DualStageIOMMUOps *ops);
+                          DualStageIOMMUOps *ops,
+                          DualStageIOMMUInfo *uinfo);
 void ds_iommu_object_destroy(DualStageIOMMUObject *dsi_obj);
 
 #endif
