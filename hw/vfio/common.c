@@ -1453,7 +1453,8 @@ static void vfio_disconnect_container(VFIOGroup *group)
     }
 }
 
-VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+VFIOGroup *vfio_get_group(int groupid, AddressSpace *as,
+                          IOMMUContext *iommu_ctx, Error **errp)
 {
     VFIOGroup *group;
     char path[32];

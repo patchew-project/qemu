@@ -2782,7 +2782,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
 
     trace_vfio_realize(vdev->vbasedev.name, groupid);
 
-    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev), errp);
+    group = vfio_get_group(groupid, pci_device_iommu_address_space(pdev),
+                           pci_device_iommu_context(pdev), errp);
     if (!group) {
         goto error;
     }
