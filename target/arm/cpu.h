@@ -558,6 +558,8 @@ typedef struct CPUARMState {
         uint8_t has_esr;
         uint64_t esr;
     } serror;
+    /* Status field for pending external dabt */
+    uint8_t ext_dabt_pending;
 
     /* State of our input IRQ/FIQ/VIRQ/VFIQ lines */
     uint32_t irq_line_state;
