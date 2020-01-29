@@ -68,6 +68,7 @@ typedef union VTD_IR_TableEntry VTD_IR_TableEntry;
 typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 typedef struct VTDPASIDDirEntry VTDPASIDDirEntry;
 typedef struct VTDPASIDEntry VTDPASIDEntry;
+typedef struct VTDIOMMUContext VTDIOMMUContext;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -116,9 +117,20 @@ struct VTDAddressSpace {
     IOVATree *iova_tree;          /* Traces mapped IOVA ranges */
 };
 
+struct VTDIOMMUContext {
+    VTDBus *vtd_bus;
+    uint8_t devfn;
+    IOMMUContext iommu_context;
+    DualStageIOMMUObject *dsi_obj;
+    IntelIOMMUState *iommu_state;
+};
+
 struct VTDBus {
     PCIBus* bus;		/* A reference to the bus to provide translation for */
-    VTDAddressSpace *dev_as[0];	/* A table of VTDAddressSpace objects indexed by devfn */
+    /* A table of VTDAddressSpace objects indexed by devfn */
+    VTDAddressSpace *dev_as[PCI_DEVFN_MAX];
+    /* A table of VTDIOMMUContext objects indexed by devfn */
+    VTDIOMMUContext *dev_icx[PCI_DEVFN_MAX];
 };
 
 struct VTDIOTLBEntry {
@@ -282,5 +294,6 @@ struct IntelIOMMUState {
  * create a new one if none exists
  */
 VTDAddressSpace *vtd_find_add_as(IntelIOMMUState *s, PCIBus *bus, int devfn);
+VTDIOMMUContext *vtd_find_add_icx(IntelIOMMUState *s, PCIBus *bus, int devfn);
 
 #endif
