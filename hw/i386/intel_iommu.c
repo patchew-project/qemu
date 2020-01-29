@@ -3290,6 +3290,17 @@ static bool vtd_process_inv_iec_desc(IntelIOMMUState *s,
     return true;
 }
 
+static bool vtd_process_device_piotlb_desc(IntelIOMMUState *s,
+                                           VTDInvDesc *inv_desc)
+{
+    /*
+     * no need to handle it for passthru device, for emulated
+     * devices with device tlb, it may be required, but for now,
+     * return is enough
+     */
+    return true;
+}
+
 static bool vtd_process_device_iotlb_desc(IntelIOMMUState *s,
                                           VTDInvDesc *inv_desc)
 {
@@ -3407,6 +3418,13 @@ static bool vtd_process_inv_desc(IntelIOMMUState *s)
     case VTD_INV_DESC_IEC:
         trace_vtd_inv_desc("iec", inv_desc.hi, inv_desc.lo);
         if (!vtd_process_inv_iec_desc(s, &inv_desc)) {
+            return false;
+        }
+        break;
+
+    case VTD_INV_DESC_DEV_PIOTLB:
+        trace_vtd_inv_desc("device-piotlb", inv_desc.hi, inv_desc.lo);
+        if (!vtd_process_device_piotlb_desc(s, &inv_desc)) {
             return false;
         }
         break;
