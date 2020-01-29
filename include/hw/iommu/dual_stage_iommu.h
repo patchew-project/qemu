@@ -31,6 +31,7 @@
 typedef struct DualStageIOMMUObject DualStageIOMMUObject;
 typedef struct DualStageIOMMUOps DualStageIOMMUOps;
 typedef struct DualStageIOMMUInfo DualStageIOMMUInfo;
+typedef struct DualIOMMUStage1BindData DualIOMMUStage1BindData;
 
 struct DualStageIOMMUOps {
     /* Allocate pasid from DualStageIOMMU (a.k.a. host IOMMU) */
@@ -41,6 +42,16 @@ struct DualStageIOMMUOps {
     /* Reclaim a pasid from DualStageIOMMU (a.k.a. host IOMMU) */
     int (*pasid_free)(DualStageIOMMUObject *dsi_obj,
                       uint32_t pasid);
+    /*
+     * Bind stage-1 page table to a DualStageIOMMU (a.k.a. host
+     * IOMMU which has dual stage DMA translation capability.
+     * @bind_data specifies the bind configurations.
+     */
+    int (*bind_stage1_pgtbl)(DualStageIOMMUObject *dsi_obj,
+                            DualIOMMUStage1BindData *bind_data);
+    /* Undo a previous bind. @bind_data specifies the unbind info. */
+    int (*unbind_stage1_pgtbl)(DualStageIOMMUObject *dsi_obj,
+                              DualIOMMUStage1BindData *bind_data);
 };
 
 struct DualStageIOMMUInfo {
@@ -55,9 +66,20 @@ struct DualStageIOMMUObject {
     DualStageIOMMUInfo uinfo;
 };
 
+struct DualIOMMUStage1BindData {
+    uint32_t pasid;
+    union {
+        struct iommu_gpasid_bind_data gpasid_bind;
+    } bind_data;
+};
+
 int ds_iommu_pasid_alloc(DualStageIOMMUObject *dsi_obj, uint32_t min,
                          uint32_t max, uint32_t *pasid);
 int ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj, uint32_t pasid);
+int ds_iommu_bind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
+                               DualIOMMUStage1BindData *bind_data);
+int ds_iommu_unbind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
+                                 DualIOMMUStage1BindData *bind_data);
 
 void ds_iommu_object_init(DualStageIOMMUObject *dsi_obj,
                           DualStageIOMMUOps *ops,

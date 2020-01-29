@@ -47,6 +47,32 @@ int ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj, uint32_t pasid)
     return -ENOENT;
 }
 
+int ds_iommu_bind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
+                               DualIOMMUStage1BindData *data)
+{
+    if (!dsi_obj) {
+        return -ENOENT;
+    }
+
+    if (dsi_obj->ops && dsi_obj->ops->bind_stage1_pgtbl) {
+        return dsi_obj->ops->bind_stage1_pgtbl(dsi_obj, data);
+    }
+    return -ENOENT;
+}
+
+int ds_iommu_unbind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
+                                 DualIOMMUStage1BindData *data)
+{
+    if (!dsi_obj) {
+        return -ENOENT;
+    }
+
+    if (dsi_obj->ops && dsi_obj->ops->unbind_stage1_pgtbl) {
+        return dsi_obj->ops->unbind_stage1_pgtbl(dsi_obj, data);
+    }
+    return -ENOENT;
+}
+
 void ds_iommu_object_init(DualStageIOMMUObject *dsi_obj,
                           DualStageIOMMUOps *ops,
                           DualStageIOMMUInfo *uinfo)

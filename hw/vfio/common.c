@@ -1219,9 +1219,57 @@ static int vfio_ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj,
     return 0;
 }
 
+static int vfio_ds_iommu_bind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
+                                           DualIOMMUStage1BindData *bind_data)
+{
+    VFIOContainer *container = container_of(dsi_obj, VFIOContainer, dsi_obj);
+    struct vfio_iommu_type1_bind *bind;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(*bind) + sizeof(bind_data->bind_data);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->flags = VFIO_IOMMU_BIND_GUEST_PGTBL;
+    memcpy(&bind->data, &bind_data->bind_data, sizeof(bind_data->bind_data));
+
+    if (ioctl(container->fd, VFIO_IOMMU_BIND, bind)) {
+        error_report("%s: pasid (%u) bind failed: %d",
+                      __func__, bind_data->pasid, -errno);
+        ret = -errno;
+    }
+    g_free(bind);
+    return ret;
+}
+
+static int vfio_ds_iommu_unbind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
+                                        DualIOMMUStage1BindData *bind_data)
+{
+    VFIOContainer *container = container_of(dsi_obj, VFIOContainer, dsi_obj);
+    struct vfio_iommu_type1_bind *bind;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(*bind) + sizeof(bind_data->bind_data);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->flags = VFIO_IOMMU_UNBIND_GUEST_PGTBL;
+    memcpy(&bind->data, &bind_data->bind_data, sizeof(bind_data->bind_data));
+
+    if (ioctl(container->fd, VFIO_IOMMU_BIND, bind)) {
+        error_report("%s: pasid (%u) unbind failed: %d",
+                      __func__, bind_data->pasid, -errno);
+        ret = -errno;
+    }
+    g_free(bind);
+    return ret;
+}
+
 static struct DualStageIOMMUOps vfio_ds_iommu_ops = {
     .pasid_alloc = vfio_ds_iommu_pasid_alloc,
     .pasid_free = vfio_ds_iommu_pasid_free,
+    .bind_stage1_pgtbl = vfio_ds_iommu_bind_stage1_pgtbl,
+    .unbind_stage1_pgtbl = vfio_ds_iommu_unbind_stage1_pgtbl,
 };
 
 static int vfio_get_iommu_info(VFIOContainer *container,
