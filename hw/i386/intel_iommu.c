@@ -41,6 +41,7 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "qemu/jhash.h"
+#include <linux/iommu.h>
 
 /* context entry operations */
 #define VTD_CE_GET_RID2PASID(ce) \
@@ -693,6 +694,16 @@ static inline bool vtd_pe_type_check(X86IOMMUState *x86_iommu,
 static inline uint16_t vtd_pe_get_domain_id(VTDPASIDEntry *pe)
 {
     return VTD_SM_PASID_ENTRY_DID((pe)->val[1]);
+}
+
+static inline uint32_t vtd_pe_get_fl_aw(VTDPASIDEntry *pe)
+{
+    return 48 + ((pe->val[2] >> 2) & VTD_SM_PASID_ENTRY_FLPM) * 9;
+}
+
+static inline dma_addr_t vtd_pe_get_flpt_base(VTDPASIDEntry *pe)
+{
+    return pe->val[2] & VTD_SM_PASID_ENTRY_FLPTPTR;
 }
 
 static inline bool vtd_pdire_present(VTDPASIDDirEntry *pdire)
@@ -1854,6 +1865,68 @@ static void vtd_context_global_invalidate(IntelIOMMUState *s)
     vtd_iommu_replay_all(s);
 }
 
+static int vtd_bind_guest_pasid(IntelIOMMUState *s, VTDBus *vtd_bus,
+              int devfn, int pasid, VTDPASIDEntry *pe, VTDPASIDOp op)
+{
+    VTDIOMMUContext *vtd_icx;
+    DualIOMMUStage1BindData bind_data;
+    struct iommu_gpasid_bind_data *g_bind_data;
+    int ret = -1;
+
+    vtd_icx = vtd_bus->dev_icx[devfn];
+    if (!vtd_icx) {
+        return ret;
+    }
+
+    if (vtd_icx->dsi_obj->uinfo.pasid_format
+             != IOMMU_PASID_FORMAT_INTEL_VTD)
+    {
+        error_report_once("Dual Stage IOMMU is not compatible!!\n");
+    }
+
+    bind_data.pasid = pasid;
+    g_bind_data = &bind_data.bind_data.gpasid_bind;
+
+    g_bind_data->flags = 0;
+    g_bind_data->vtd.flags = 0;
+    switch (op) {
+    case VTD_PASID_BIND:
+    case VTD_PASID_UPDATE:
+        g_bind_data->version = IOMMU_UAPI_VERSION;
+        g_bind_data->format = IOMMU_PASID_FORMAT_INTEL_VTD;
+        g_bind_data->gpgd = vtd_pe_get_flpt_base(pe);
+        g_bind_data->addr_width = vtd_pe_get_fl_aw(pe);
+        g_bind_data->hpasid = pasid;
+        g_bind_data->gpasid = pasid;
+        g_bind_data->flags |= IOMMU_SVA_GPASID_VAL;
+        g_bind_data->vtd.flags =
+                             (VTD_SM_PASID_ENTRY_SRE_BIT(pe->val[2]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_EAFE_BIT(pe->val[2]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_PCD_BIT(pe->val[1]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_PWT_BIT(pe->val[1]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_EMTE_BIT(pe->val[1]) ? 1 : 0)
+                           | (VTD_SM_PASID_ENTRY_CD_BIT(pe->val[1]) ? 1 : 0);
+        g_bind_data->vtd.pat = VTD_SM_PASID_ENTRY_PAT(pe->val[1]);
+        g_bind_data->vtd.emt = VTD_SM_PASID_ENTRY_EMT(pe->val[1]);
+        ret = ds_iommu_bind_stage1_pgtbl(vtd_icx->dsi_obj, &bind_data);
+        break;
+    case VTD_PASID_UNBIND:
+        g_bind_data->version = IOMMU_UAPI_VERSION;
+        g_bind_data->format = IOMMU_PASID_FORMAT_INTEL_VTD;
+        g_bind_data->gpgd = 0;
+        g_bind_data->addr_width = 0;
+        g_bind_data->hpasid = pasid;
+        g_bind_data->gpasid = pasid;
+        g_bind_data->flags |= IOMMU_SVA_GPASID_VAL;
+        ret = ds_iommu_unbind_stage1_pgtbl(vtd_icx->dsi_obj, &bind_data);
+        break;
+    default:
+        error_report_once("Unknown VTDPASIDOp!!\n");
+        break;
+    }
+    return ret;
+}
+
 /* Do a context-cache device-selective invalidation.
  * @func_mask: FM field after shifting
  */
@@ -2532,18 +2605,20 @@ static gboolean vtd_flush_pasid(gpointer key, gpointer value,
         /* pasid entry was updated, thus update the pasid cache */
         pc_entry->pasid_entry = pe;
         pc_entry->pasid_cache_gen = s->pasid_cache_gen;
+        vtd_bind_guest_pasid(s, vtd_bus, devfn,
+                             pasid, &pe, VTD_PASID_UPDATE);
         /*
          * TODO:
-         * - send pasid bind to host for passthru devices
          * - when pasid-base-iotlb(piotlb) infrastructure is ready,
          *   should invalidate QEMU piotlb togehter with this change.
          */
     }
     return false;
 remove:
+    vtd_bind_guest_pasid(s, vtd_bus, devfn,
+                         pasid, NULL, VTD_PASID_UNBIND);
     /*
      * TODO:
-     * - send pasid unbind to host for passthru devices
      * - when pasid-base-iotlb(piotlb) infrastructure is ready,
      *   should invalidate QEMU piotlb togehter with this change.
      */
@@ -2634,6 +2709,10 @@ static inline void vtd_fill_in_pe_cache(
 
     pc_entry->pasid_entry = *pe;
     pc_entry->pasid_cache_gen = s->pasid_cache_gen;
+    vtd_bind_guest_pasid(s, vtd_pasid_as->vtd_bus,
+                         vtd_pasid_as->devfn,
+                         vtd_pasid_as->pasid,
+                         pe, VTD_PASID_BIND);
 }
 
 static int vtd_pasid_cache_psi(IntelIOMMUState *s,
