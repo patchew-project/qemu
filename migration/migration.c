@@ -2245,6 +2245,15 @@ int migrate_multifd_channels(void)
     return s->parameters.multifd_channels;
 }
 
+MultiFDMethod migrate_multifd_method(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.multifd_method;
+}
+
 int migrate_use_xbzrle(void)
 {
     MigrationState *s;
