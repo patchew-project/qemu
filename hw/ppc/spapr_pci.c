@@ -1336,7 +1336,23 @@ static int spapr_dt_pci_bus(SpaprPhbState *sphb, PCIBus *bus,
     if (pci_bus_is_root(bus)) {
         owner = OBJECT(sphb);
     } else {
-        owner = OBJECT(pci_bridge_get_device(bus));
+        PCIDevice *pdev = pci_bridge_get_device(bus);
+        uint8_t pri = pci_default_read_config(pdev, PCI_PRIMARY_BUS, 1);
+        uint8_t sec  = pci_default_read_config(pdev, PCI_SECONDARY_BUS, 1);
+        uint8_t sub  = pci_default_read_config(pdev, PCI_SUBORDINATE_BUS, 1);
+        uint32_t range[] = { cpu_to_be32(sec), cpu_to_be32(sub) };
+
+        /*
+         * Create these to get existing Linux kernels proceed far enough to
+         * trigger resource reassignment. We creates these for vPHB already.
+         */
+        _FDT(fdt_setprop_cell(fdt, offset, "primary-bus", pri));
+        _FDT(fdt_setprop_cell(fdt, offset, "secondary-bus", sec));
+        _FDT(fdt_setprop_cell(fdt, offset, "subordinate-bus", sub));
+        _FDT(fdt_setprop(fdt, offset, "bus-range", range, sizeof(range)));
+        _FDT(fdt_setprop_string(fdt, offset, "device_type", "pci"));
+        _FDT(fdt_setprop(fdt, offset, "ranges", NULL, 0));
+        owner = OBJECT(pdev);
     }
 
     ret = spapr_dt_drc(fdt, offset, owner,
