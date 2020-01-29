@@ -1043,15 +1043,15 @@ int kvm_arch_put_registers(CPUState *cs, int level)
         return ret;
     }
 
-    ret = kvm_put_vcpu_events(cpu);
-    if (ret) {
-        return ret;
-    }
-
     write_cpustate_to_list(cpu, true);
 
     if (!write_list_to_kvmstate(cpu, level)) {
         return -EINVAL;
+    }
+
+    ret = kvm_put_vcpu_events(cpu);
+    if (ret) {
+        return ret;
     }
 
     kvm_arm_sync_mpstate_to_kvm(cpu);
@@ -1251,11 +1251,6 @@ int kvm_arch_get_registers(CPUState *cs)
     }
     vfp_set_fpcr(env, fpr);
 
-    ret = kvm_get_vcpu_events(cpu);
-    if (ret) {
-        return ret;
-    }
-
     if (!write_kvmstate_to_list(cpu)) {
         return -EINVAL;
     }
@@ -1263,6 +1258,11 @@ int kvm_arch_get_registers(CPUState *cs)
      * so we can ignore a failure return here.
      */
     write_list_to_cpustate(cpu);
+
+    ret = kvm_get_vcpu_events(cpu);
+    if (ret) {
+        return ret;
+    }
 
     kvm_arm_sync_mpstate_to_qemu(cpu);
 
