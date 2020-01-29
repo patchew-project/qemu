@@ -1179,6 +1179,9 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
+static struct DualStageIOMMUOps vfio_ds_iommu_ops = {
+};
+
 static int vfio_init_container(VFIOContainer *container, int group_fd,
                                Error **errp)
 {
@@ -1210,12 +1213,29 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
         return -errno;
     }
 
+    if (iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
+        ds_iommu_object_init(&container->dsi_obj, &vfio_ds_iommu_ops);
+        if (iommu_context_register_ds_iommu(container->iommu_ctx,
+                                            &container->dsi_obj)) {
+            /*
+             * Here just need an info to indicate that there is no
+             * DualStageIOMMUObject instance registered to vIOMMU
+             * due to either no IOMMUContext support in vIOMMU or
+             * vIOMMU internal failure. Neither is fatal error to
+             * VFIO as it is not mandatory requirement to use such
+             * capability in vIOMMU.
+             */
+            printf("No Dual Stage IOMMU for container(0x%p)\n", container);
+            ds_iommu_object_destroy(&container->dsi_obj);
+        }
+    }
+
     container->iommu_type = iommu_type;
     return 0;
 }
 
 static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
-                                  Error **errp)
+                                  IOMMUContext *iommu_ctx, Error **errp)
 {
     VFIOContainer *container;
     int ret, fd;
@@ -1277,6 +1297,7 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     container = g_malloc0(sizeof(*container));
     container->space = space;
     container->fd = fd;
+    container->iommu_ctx = iommu_ctx;
     container->error = NULL;
     QLIST_INIT(&container->giommu_list);
     QLIST_INIT(&container->hostwin_list);
@@ -1457,6 +1478,11 @@ static void vfio_disconnect_container(VFIOGroup *group)
 
         trace_vfio_disconnect_container(container->fd);
         close(container->fd);
+        if (container->iommu_ctx) {
+            iommu_context_unregister_ds_iommu(container->iommu_ctx,
+                                              &container->dsi_obj);
+        }
+        ds_iommu_object_destroy(&container->dsi_obj);
         g_free(container);
 
         vfio_put_address_space(space);
@@ -1508,7 +1534,7 @@ VFIOGroup *vfio_get_group(int groupid, AddressSpace *as,
     group->groupid = groupid;
     QLIST_INIT(&group->device_list);
 
-    if (vfio_connect_container(group, as, errp)) {
+    if (vfio_connect_container(group, as, iommu_ctx, errp)) {
         error_prepend(errp, "failed to setup container for group %d: ",
                       groupid);
         goto close_fd_exit;

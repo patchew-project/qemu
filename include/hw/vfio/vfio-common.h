@@ -72,6 +72,8 @@ typedef struct VFIOContainer {
     MemoryListener listener;
     MemoryListener prereg_listener;
     unsigned iommu_type;
+    IOMMUContext *iommu_ctx;
+    DualStageIOMMUObject dsi_obj;
     Error *error;
     bool initialized;
     unsigned long pgsizes;
