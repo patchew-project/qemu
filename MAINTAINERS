@@ -561,6 +561,7 @@ S: Odd Fixes
 F: include/hw/arm/digic.h
 F: hw/*/digic*
 F: include/hw/*/digic*
+F: tests/acceptance/machine_arm_canona1100.py
 
 Gumstix
 M: Peter Maydell <peter.maydell@linaro.org>
