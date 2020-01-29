@@ -32,6 +32,7 @@ typedef struct DualStageIOMMUObject DualStageIOMMUObject;
 typedef struct DualStageIOMMUOps DualStageIOMMUOps;
 typedef struct DualStageIOMMUInfo DualStageIOMMUInfo;
 typedef struct DualIOMMUStage1BindData DualIOMMUStage1BindData;
+typedef struct DualIOMMUStage1Cache DualIOMMUStage1Cache;
 
 struct DualStageIOMMUOps {
     /* Allocate pasid from DualStageIOMMU (a.k.a. host IOMMU) */
@@ -52,6 +53,12 @@ struct DualStageIOMMUOps {
     /* Undo a previous bind. @bind_data specifies the unbind info. */
     int (*unbind_stage1_pgtbl)(DualStageIOMMUObject *dsi_obj,
                               DualIOMMUStage1BindData *bind_data);
+    /*
+     * Propagate stage-1 cache flush to DualStageIOMMU (a.k.a.
+     * host IOMMU), cache info specifid in @cache
+     */
+    int (*flush_stage1_cache)(DualStageIOMMUObject *dsi_obj,
+                              DualIOMMUStage1Cache *cache);
 };
 
 struct DualStageIOMMUInfo {
@@ -73,6 +80,11 @@ struct DualIOMMUStage1BindData {
     } bind_data;
 };
 
+struct DualIOMMUStage1Cache {
+    uint32_t pasid;
+    struct iommu_cache_invalidate_info cache_info;
+};
+
 int ds_iommu_pasid_alloc(DualStageIOMMUObject *dsi_obj, uint32_t min,
                          uint32_t max, uint32_t *pasid);
 int ds_iommu_pasid_free(DualStageIOMMUObject *dsi_obj, uint32_t pasid);
@@ -80,6 +92,8 @@ int ds_iommu_bind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
                                DualIOMMUStage1BindData *bind_data);
 int ds_iommu_unbind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
                                  DualIOMMUStage1BindData *bind_data);
+int ds_iommu_flush_stage1_cache(DualStageIOMMUObject *dsi_obj,
+                                DualIOMMUStage1Cache *cache);
 
 void ds_iommu_object_init(DualStageIOMMUObject *dsi_obj,
                           DualStageIOMMUOps *ops,

@@ -73,6 +73,19 @@ int ds_iommu_unbind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
     return -ENOENT;
 }
 
+int ds_iommu_flush_stage1_cache(DualStageIOMMUObject *dsi_obj,
+                                DualIOMMUStage1Cache *cache)
+{
+    if (!dsi_obj) {
+        return -ENOENT;
+    }
+
+    if (dsi_obj->ops && dsi_obj->ops->flush_stage1_cache) {
+        return dsi_obj->ops->flush_stage1_cache(dsi_obj, cache);
+    }
+    return -ENOENT;
+}
+
 void ds_iommu_object_init(DualStageIOMMUObject *dsi_obj,
                           DualStageIOMMUOps *ops,
                           DualStageIOMMUInfo *uinfo)

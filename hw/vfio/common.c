@@ -1265,11 +1265,35 @@ static int vfio_ds_iommu_unbind_stage1_pgtbl(DualStageIOMMUObject *dsi_obj,
     return ret;
 }
 
+static int vfio_ds_iommu_flush_stage1_cache(DualStageIOMMUObject *dsi_obj,
+                                            DualIOMMUStage1Cache *cache)
+{
+    VFIOContainer *container = container_of(dsi_obj, VFIOContainer, dsi_obj);
+    struct vfio_iommu_type1_cache_invalidate *cache_inv;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(*cache_inv) + sizeof(cache->cache_info);
+    cache_inv = g_malloc0(argsz);
+    cache_inv->argsz = argsz;
+    cache_inv->flags = 0;
+    memcpy(&cache_inv->cache_info, &cache->cache_info,
+           sizeof(cache->cache_info));
+
+    if (ioctl(container->fd, VFIO_IOMMU_CACHE_INVALIDATE, cache_inv)) {
+        error_report("%s: iommu cache flush failed: %d", __func__, -errno);
+        ret = -errno;
+    }
+    g_free(cache_inv);
+    return ret;
+}
+
 static struct DualStageIOMMUOps vfio_ds_iommu_ops = {
     .pasid_alloc = vfio_ds_iommu_pasid_alloc,
     .pasid_free = vfio_ds_iommu_pasid_free,
     .bind_stage1_pgtbl = vfio_ds_iommu_bind_stage1_pgtbl,
     .unbind_stage1_pgtbl = vfio_ds_iommu_unbind_stage1_pgtbl,
+    .flush_stage1_cache = vfio_ds_iommu_flush_stage1_cache,
 };
 
 static int vfio_get_iommu_info(VFIOContainer *container,
