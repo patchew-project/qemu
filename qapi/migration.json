@@ -494,12 +494,13 @@
 # An enumeration of multifd compression.
 #
 # @none: no compression.
+# @zlib: use zlib compression method.
 #
 # Since: 5.0
 #
 ##
 { 'enum': 'MultiFDMethod',
-  'data': [ 'none' ] }
+  'data': [ 'none', 'zlib' ] }
 
 ##
 # @MigrationParameter:

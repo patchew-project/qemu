@@ -2265,6 +2265,15 @@ MultiFDMethod migrate_multifd_method(void)
     return s->parameters.multifd_method;
 }
 
+int migrate_multifd_zlib_level(void)
+{
+    MigrationState *s;
+
+    s = migrate_get_current();
+
+    return s->parameters.multifd_zlib_level;
+}
+
 int migrate_use_xbzrle(void)
 {
     MigrationState *s;
