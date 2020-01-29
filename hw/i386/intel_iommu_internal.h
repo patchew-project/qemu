@@ -504,13 +504,17 @@ struct VTDPASIDCacheInfo {
 #define VTD_PASID_CACHE_GLOBAL   (1ULL << 0)
 #define VTD_PASID_CACHE_DOMSI    (1ULL << 1)
 #define VTD_PASID_CACHE_PASIDSI  (1ULL << 2)
+#define VTD_PASID_CACHE_DEVSI    (1ULL << 3)
     uint32_t flags;
     uint16_t domain_id;
     uint32_t pasid;
+    VTDBus *vtd_bus;
+    uint16_t devfn;
 };
 #define VTD_PASID_CACHE_INFO_MASK    (VTD_PASID_CACHE_GLOBAL | \
                                       VTD_PASID_CACHE_DOMSI  | \
-                                      VTD_PASID_CACHE_PASIDSI)
+                                      VTD_PASID_CACHE_PASIDSI | \
+                                      VTD_PASID_CACHE_DEVSI)
 typedef struct VTDPASIDCacheInfo VTDPASIDCacheInfo;
 
 /* Masks for struct VTDRootEntry */
