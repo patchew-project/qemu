@@ -1324,6 +1324,13 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
     assert(bdrv_min_mem_align(bs) != 0);
     assert(is_power_of_2(bs->bl.request_alignment));
 
+    if (bs->bl.request_alignment > 512 &&
+        !QEMU_IS_ALIGNED(bs->total_sectors, bs->bl.request_alignment / 512))
+    {
+        error_setg(errp, "File size is unaligned to request alignment");
+        return -EINVAL;
+    }
+
     for (i = 0; i < bs->quiesce_counter; i++) {
         if (drv->bdrv_co_drain_begin) {
             drv->bdrv_co_drain_begin(bs);
