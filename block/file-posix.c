@@ -178,7 +178,21 @@ typedef struct BDRVRawReopenState {
 } BDRVRawReopenState;
 
 static int fd_open(BlockDriverState *bs);
-static int64_t raw_getlength(BlockDriverState *bs);
+static int64_t raw_getlength_fd(BlockDriverState *bs, int fd);
+
+static int64_t raw_getlength(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+    int ret;
+
+    ret = fd_open(bs);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return raw_getlength_fd(bs, s->fd);
+}
+
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
@@ -2063,10 +2077,8 @@ static int coroutine_fn raw_co_truncate(BlockDriverState *bs, int64_t offset,
 }
 
 #ifdef __OpenBSD__
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_fd(BlockDriverState *bs, int fd)
 {
-    BDRVRawState *s = bs->opaque;
-    int fd = s->fd;
     struct stat st;
 
     if (fstat(fd, &st))
@@ -2082,10 +2094,8 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__NetBSD__)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_fd(BlockDriverState *bs, int fd)
 {
-    BDRVRawState *s = bs->opaque;
-    int fd = s->fd;
     struct stat st;
 
     if (fstat(fd, &st))
@@ -2107,22 +2117,16 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return st.st_size;
 }
 #elif defined(__sun__)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_fd(BlockDriverState *bs, int fd)
 {
-    BDRVRawState *s = bs->opaque;
     struct dk_minfo minfo;
     int ret;
     int64_t size;
 
-    ret = fd_open(bs);
-    if (ret < 0) {
-        return ret;
-    }
-
     /*
      * Use the DKIOCGMEDIAINFO ioctl to read the size.
      */
-    ret = ioctl(s->fd, DKIOCGMEDIAINFO, &minfo);
+    ret = ioctl(fd, DKIOCGMEDIAINFO, &minfo);
     if (ret != -1) {
         return minfo.dki_lbsize * minfo.dki_capacity;
     }
@@ -2131,17 +2135,16 @@ static int64_t raw_getlength(BlockDriverState *bs)
      * There are reports that lseek on some devices fails, but
      * irc discussion said that contingency on contingency was overkill.
      */
-    size = lseek(s->fd, 0, SEEK_END);
+    size = lseek(fd, 0, SEEK_END);
     if (size < 0) {
         return -errno;
     }
     return size;
 }
 #elif defined(CONFIG_BSD)
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_fd(BlockDriverState *bs, int fd)
 {
     BDRVRawState *s = bs->opaque;
-    int fd = s->fd;
     int64_t size;
     struct stat sb;
 #if defined (__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -2212,9 +2215,8 @@ again:
     return size;
 }
 #else
-static int64_t raw_getlength(BlockDriverState *bs)
+static int64_t raw_getlength_fd(BlockDriverState *bs, int fd)
 {
-    BDRVRawState *s = bs->opaque;
     int ret;
     int64_t size;
 
@@ -2223,7 +2225,7 @@ static int64_t raw_getlength(BlockDriverState *bs)
         return ret;
     }
 
-    size = lseek(s->fd, 0, SEEK_END);
+    size = lseek(fd, 0, SEEK_END);
     if (size < 0) {
         return -errno;
     }
