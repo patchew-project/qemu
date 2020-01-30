@@ -385,11 +385,25 @@ static void raw_probe_alignment(BlockDriverState *bs, int fd, Error **errp)
             align = alignments[i];
             if (raw_is_io_aligned(fd, buf, align)) {
                 /* Fallback to safe value. */
-                bs->bl.request_alignment = (align != 1) ? align : max_align;
+                bs->bl.request_alignment = align;
                 break;
             }
         }
         qemu_vfree(buf);
+
+        if (bs->bl.request_alignment == 1) {
+            /*
+             * Succeed to read with alignment = 1. But it may be unallocated
+             * area on XFS, and we'll fail later if keep request_alignment = 1.
+             *
+             * Chose safer alignment, keeping in mind file size if possible.
+             */
+
+            int64_t len = raw_getlength_fd(bs, fd);
+
+            bs->bl.request_alignment =
+                    len <= 0 ? max_align : MIN(max_align, len & ~(len - 1));
+        }
     }
 
     if (!s->buf_align) {
