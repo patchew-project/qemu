@@ -905,6 +905,13 @@ F: include/hw/timer/avr_timer16.h
 F: hw/misc/avr_power.c
 F: include/hw/misc/avr_power.h
 F: tests/acceptance/machine_avr6.py
+F: hw/avr/atmega.*
+
+Arduino
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+R: Sarah Harris <S.E.Harris@kent.ac.uk>
+S: Maintained
+F: hw/avr/arduino.c
 
 CRIS Machines
 -------------
