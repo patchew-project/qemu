@@ -36,6 +36,7 @@
 #include "qemu/log.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
+#include "trace.h"
 
 /* Register offsets */
 #define T16_CRA     0x0
@@ -104,7 +105,6 @@
 /* Helper macros */
 #define VAL16(l, h) ((h << 8) | l)
 #define DB_PRINT(fmt, args...) /* Nothing */
-/*#define DB_PRINT(fmt, args...) printf("%s: " fmt "\n", __func__, ## args)*/
 
 static inline int64_t avr_timer16_ns_to_ticks(AVRTimer16State *t16, int64_t t)
 {
@@ -168,8 +168,8 @@ static void avr_timer16_clksrc_update(AVRTimer16State *t16)
     if (divider) {
         t16->freq_hz = t16->cpu_freq_hz / divider;
         t16->period_ns = NANOSECONDS_PER_SECOND / t16->freq_hz;
-        DB_PRINT("Timer frequency %" PRIu64 " hz, period %" PRIu64 " ns (%f s)",
-                 t16->freq_hz, t16->period_ns, 1 / (double)t16->freq_hz);
+        trace_avr_timer16_clksrc_update(t16->freq_hz, t16->period_ns,
+                                        (uint64_t)(1e6 / t16->freq_hz));
     }
 }
 
@@ -235,8 +235,7 @@ static void avr_timer16_set_alarm(AVRTimer16State *t16)
         t16->reset_time_ns + ((CNT(t16) + alarm_offset) * t16->period_ns);
     timer_mod(t16->timer, alarm_ns);
 
-    DB_PRINT("next alarm %" PRIu64 " ns from now",
-        alarm_offset * t16->period_ns);
+    trace_avr_timer16_next_alarm(alarm_offset * t16->period_ns);
 }
 
 static void avr_timer16_interrupt(void *opaque)
@@ -253,11 +252,11 @@ static void avr_timer16_interrupt(void *opaque)
         return;
     }
 
-    DB_PRINT("interrupt, cnt = %d", CNT(t16));
+    trace_avr_timer16_interrupt_count(CNT(t16));
 
     /* Counter overflow */
     if (t16->next_interrupt == OVERFLOW) {
-        DB_PRINT("0xffff overflow");
+        trace_avr_timer16_interrupt_overflow("counter 0xffff");
         avr_timer16_clock_reset(t16);
         if (t16->imsk & T16_INT_TOV) {
             t16->ifr |= T16_INT_TOV;
@@ -266,12 +265,12 @@ static void avr_timer16_interrupt(void *opaque)
     }
     /* Check for ocra overflow in CTC mode */
     if (mode == T16_MODE_CTC_OCRA && t16->next_interrupt == COMPA) {
-        DB_PRINT("CTC OCRA overflow");
+        trace_avr_timer16_interrupt_overflow("CTC OCRA");
         avr_timer16_clock_reset(t16);
     }
     /* Check for icr overflow in CTC mode */
     if (mode == T16_MODE_CTC_ICR && t16->next_interrupt == CAPT) {
-        DB_PRINT("CTC ICR overflow");
+        trace_avr_timer16_interrupt_overflow("CTC ICR");
         avr_timer16_clock_reset(t16);
         if (t16->imsk & T16_INT_IC) {
             t16->ifr |= T16_INT_IC;
@@ -367,6 +366,8 @@ static uint64_t avr_timer16_read(void *opaque, hwaddr offset, unsigned size)
     default:
         break;
     }
+    trace_avr_timer16_read(offset, retval);
+
     return (uint64_t)retval;
 }
 
@@ -378,7 +379,7 @@ static void avr_timer16_write(void *opaque, hwaddr offset,
     uint8_t val8 = (uint8_t)val64;
     uint8_t prev_clk_src = CLKSRC(t16);
 
-    DB_PRINT("write %d to offset %d", val8, (uint8_t)offset);
+    trace_avr_timer16_write(offset, val8);
 
     switch (offset) {
     case T16_CRA:
@@ -475,6 +476,7 @@ static uint64_t avr_timer16_imsk_read(void *opaque,
 {
     assert(size == 1);
     AVRTimer16State *t16 = opaque;
+    trace_avr_timer16_read_imsk(offset ? 0 : t16->imsk);
     if (offset != 0) {
         return 0;
     }
@@ -486,6 +488,7 @@ static void avr_timer16_imsk_write(void *opaque, hwaddr offset,
 {
     assert(size == 1);
     AVRTimer16State *t16 = opaque;
+    trace_avr_timer16_write_imsk(val64);
     if (offset != 0) {
         return;
     }
@@ -498,6 +501,7 @@ static uint64_t avr_timer16_ifr_read(void *opaque,
 {
     assert(size == 1);
     AVRTimer16State *t16 = opaque;
+    trace_avr_timer16_read_ifr(offset ? 0 : t16->ifr);
     if (offset != 0) {
         return 0;
     }
@@ -509,6 +513,7 @@ static void avr_timer16_ifr_write(void *opaque, hwaddr offset,
 {
     assert(size == 1);
     AVRTimer16State *t16 = opaque;
+    trace_avr_timer16_write_imsk(val64);
     if (offset != 0) {
         return;
     }
