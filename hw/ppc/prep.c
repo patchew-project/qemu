@@ -400,7 +400,6 @@ static int PPC_NVRAM_set_params (Nvram *nvram, uint16_t NVRAM_size,
 /* PowerPC PREP hardware initialisation */
 static void ppc_prep_init(MachineState *machine)
 {
-    ram_addr_t ram_size = machine->ram_size;
     const char *kernel_filename = machine->kernel_filename;
     const char *kernel_cmdline = machine->kernel_cmdline;
     const char *initrd_filename = machine->initrd_filename;
@@ -413,7 +412,6 @@ static void ppc_prep_init(MachineState *machine)
     MemoryRegion *xcsr = g_new(MemoryRegion, 1);
 #endif
     int linux_boot, i, nb_nics1;
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     DeviceState *dev;
@@ -444,15 +442,14 @@ static void ppc_prep_init(MachineState *machine)
         qemu_register_reset(ppc_prep_reset, cpu);
     }
 
-    /* allocate RAM */
-    memory_region_allocate_system_memory(ram, NULL, "ppc_prep.ram", ram_size);
-    memory_region_add_subregion(sysmem, 0, ram);
+    /* map RAM */
+    memory_region_add_subregion(sysmem, 0, machine->ram);
 
     if (linux_boot) {
         kernel_base = KERNEL_LOAD_ADDR;
         /* now we can load the kernel */
         kernel_size = load_image_targphys(kernel_filename, kernel_base,
-                                          ram_size - kernel_base);
+                                          machine->ram_size - kernel_base);
         if (kernel_size < 0) {
             error_report("could not load kernel '%s'", kernel_filename);
             exit(1);
@@ -461,7 +458,7 @@ static void ppc_prep_init(MachineState *machine)
         if (initrd_filename) {
             initrd_base = INITRD_LOAD_ADDR;
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
-                                              ram_size - initrd_base);
+                                              machine->ram_size - initrd_base);
             if (initrd_size < 0) {
                 error_report("could not load initial ram disk '%s'",
                              initrd_filename);
@@ -576,7 +573,7 @@ static void ppc_prep_init(MachineState *machine)
     sysctrl->nvram = m48t59;
 
     /* Initialise NVRAM */
-    PPC_NVRAM_set_params(m48t59, NVRAM_SIZE, "PREP", ram_size,
+    PPC_NVRAM_set_params(m48t59, NVRAM_SIZE, "PREP", machine->ram_size,
                          ppc_boot_device,
                          kernel_base, kernel_size,
                          kernel_cmdline,
@@ -596,6 +593,7 @@ static void prep_machine_init(MachineClass *mc)
     mc->default_boot_order = "cad";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("602");
     mc->default_display = "std";
+    mc->default_ram_id = "ppc_prep.ram";
 }
 
 static int prep_set_cmos_checksum(DeviceState *dev, void *opaque)
@@ -814,6 +812,7 @@ static void ibm_40p_machine_init(MachineClass *mc)
     mc->init = ibm_40p_init;
     mc->max_cpus = 1;
     mc->default_ram_size = 128 * MiB;
+    mc->default_ram_id = "ppc_prep.ram";
     mc->block_default_type = IF_SCSI;
     mc->default_boot_order = "c";
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("604");
