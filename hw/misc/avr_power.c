@@ -27,9 +27,7 @@
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
 #include "hw/irq.h"
-
-#define DB_PRINT(fmt, args...) /* Nothing */
-/*#define DB_PRINT(fmt, args...) printf("%s: " fmt "\n", __func__, ## args)*/
+#include "trace.h"
 
 static void avr_mask_reset(DeviceState *dev)
 {
@@ -48,19 +46,20 @@ static uint64_t avr_mask_read(void *opaque, hwaddr offset, unsigned size)
     assert(offset == 0);
     AVRMaskState *s = opaque;
 
+    trace_avr_power_read(s->val);
+
     return (uint64_t)s->val;
 }
 
 static void avr_mask_write(void *opaque, hwaddr offset,
-                              uint64_t val64, unsigned size)
+                           uint64_t val64, unsigned size)
 {
     assert(size == 1);
     assert(offset == 0);
     AVRMaskState *s = opaque;
     uint8_t val8 = val64;
 
-    DB_PRINT("write %d to offset %d", val8, (uint8_t)offset);
-
+    trace_avr_power_write(val8);
     s->val = val8;
     for (int i = 0; i < 8; i++) {
         qemu_set_irq(s->irq[i], (val8 & (1 << i)) != 0);
@@ -71,7 +70,9 @@ static const MemoryRegionOps avr_mask_ops = {
     .read = avr_mask_read,
     .write = avr_mask_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
-    .impl = {.max_access_size = 1}
+    .impl = {
+        .max_access_size = 1,
+    },
 };
 
 static void avr_mask_init(Object *dev)
@@ -80,7 +81,7 @@ static void avr_mask_init(Object *dev)
     SysBusDevice *busdev = SYS_BUS_DEVICE(dev);
 
     memory_region_init_io(&s->iomem, dev, &avr_mask_ops, s, TYPE_AVR_MASK,
-            0x01);
+                          0x01);
     sysbus_init_mmio(busdev, &s->iomem);
 
     for (int i = 0; i < 8; i++) {
