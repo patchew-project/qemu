@@ -990,10 +990,10 @@ static int nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t handle,
                                         uint64_t offset, QEMUIOVector *qiov,
                                         int *request_ret, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NBDReplyChunkIter iter;
     NBDReply reply;
     void *payload = NULL;
-    Error *local_err = NULL;
 
     NBD_FOREACH_REPLY_CHUNK(s, iter, handle, s->info.structured_reply,
                             qiov, &reply, &payload)
@@ -1012,20 +1012,20 @@ static int nbd_co_receive_cmdread_reply(BDRVNBDState *s, uint64_t handle,
             break;
         case NBD_REPLY_TYPE_OFFSET_HOLE:
             ret = nbd_parse_offset_hole_payload(s, &reply.structured, payload,
-                                                offset, qiov, &local_err);
+                                                offset, qiov, errp);
             if (ret < 0) {
                 nbd_channel_error(s, ret);
-                nbd_iter_channel_error(&iter, ret, &local_err);
+                nbd_iter_channel_error(&iter, ret, errp);
             }
             break;
         default:
             if (!nbd_reply_type_is_error(chunk->type)) {
                 /* not allowed reply type */
                 nbd_channel_error(s, -EINVAL);
-                error_setg(&local_err,
+                error_setg(errp,
                            "Unexpected reply type: %d (%s) for CMD_READ",
                            chunk->type, nbd_reply_type_lookup(chunk->type));
-                nbd_iter_channel_error(&iter, -EINVAL, &local_err);
+                nbd_iter_channel_error(&iter, -EINVAL, errp);
             }
         }
 
@@ -1043,10 +1043,10 @@ static int nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
                                             NBDExtent *extent,
                                             int *request_ret, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     NBDReplyChunkIter iter;
     NBDReply reply;
     void *payload = NULL;
-    Error *local_err = NULL;
     bool received = false;
 
     assert(!extent->length);
@@ -1060,27 +1060,27 @@ static int nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
         case NBD_REPLY_TYPE_BLOCK_STATUS:
             if (received) {
                 nbd_channel_error(s, -EINVAL);
-                error_setg(&local_err, "Several BLOCK_STATUS chunks in reply");
-                nbd_iter_channel_error(&iter, -EINVAL, &local_err);
+                error_setg(errp, "Several BLOCK_STATUS chunks in reply");
+                nbd_iter_channel_error(&iter, -EINVAL, errp);
             }
             received = true;
 
             ret = nbd_parse_blockstatus_payload(s, &reply.structured,
                                                 payload, length, extent,
-                                                &local_err);
+                                                errp);
             if (ret < 0) {
                 nbd_channel_error(s, ret);
-                nbd_iter_channel_error(&iter, ret, &local_err);
+                nbd_iter_channel_error(&iter, ret, errp);
             }
             break;
         default:
             if (!nbd_reply_type_is_error(chunk->type)) {
                 nbd_channel_error(s, -EINVAL);
-                error_setg(&local_err,
+                error_setg(errp,
                            "Unexpected reply type: %d (%s) "
                            "for CMD_BLOCK_STATUS",
                            chunk->type, nbd_reply_type_lookup(chunk->type));
-                nbd_iter_channel_error(&iter, -EINVAL, &local_err);
+                nbd_iter_channel_error(&iter, -EINVAL, errp);
             }
         }
 
@@ -1089,8 +1089,8 @@ static int nbd_co_receive_blockstatus_reply(BDRVNBDState *s,
     }
 
     if (!extent->length && !iter.request_ret) {
-        error_setg(&local_err, "Server did not reply with any status extents");
-        nbd_iter_channel_error(&iter, -EIO, &local_err);
+        error_setg(errp, "Server did not reply with any status extents");
+        nbd_iter_channel_error(&iter, -EIO, errp);
     }
 
     error_propagate(errp, iter.err);
@@ -1385,16 +1385,15 @@ static void nbd_client_close(BlockDriverState *bs)
 static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
                                                   Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     QIOChannelSocket *sioc;
-    Error *local_err = NULL;
 
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "nbd-client");
 
-    qio_channel_socket_connect_sync(sioc, saddr, &local_err);
-    if (local_err) {
+    qio_channel_socket_connect_sync(sioc, saddr, errp);
+    if (*errp) {
         object_unref(OBJECT(sioc));
-        error_propagate(errp, local_err);
         return NULL;
     }
 
@@ -1698,10 +1697,10 @@ static bool nbd_process_legacy_socket_options(QDict *output_options,
 static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options,
                                  Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     SocketAddress *saddr = NULL;
     QDict *addr = NULL;
     Visitor *iv = NULL;
-    Error *local_err = NULL;
 
     qdict_extract_subqdict(options, &addr, "server.");
     if (!qdict_size(addr)) {
@@ -1714,9 +1713,8 @@ static SocketAddress *nbd_config(BDRVNBDState *s, QDict *options,
         goto done;
     }
 
-    visit_type_SocketAddress(iv, NULL, &saddr, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_SocketAddress(iv, NULL, &saddr, errp);
+    if (*errp) {
         goto done;
     }
 
@@ -1809,15 +1807,14 @@ static QemuOptsList nbd_runtime_opts = {
 static int nbd_process_options(BlockDriverState *bs, QDict *options,
                                Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     BDRVNBDState *s = bs->opaque;
     QemuOpts *opts;
-    Error *local_err = NULL;
     int ret = -EINVAL;
 
     opts = qemu_opts_create(&nbd_runtime_opts, NULL, 0, &error_abort);
-    qemu_opts_absorb_qdict(opts, options, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    qemu_opts_absorb_qdict(opts, options, errp);
+    if (*errp) {
         goto error;
     }
 
