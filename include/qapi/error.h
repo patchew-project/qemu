@@ -141,6 +141,9 @@
  *         ...
  *     }
  *
+ * For mass conversion use script
+ *   scripts/coccinelle/auto-propagated-errp.cocci
+ *
  *
  * Receive and accumulate multiple errors (first one wins):
  *     Error *err = NULL, *local_err = NULL;
