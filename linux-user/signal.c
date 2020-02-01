@@ -66,12 +66,6 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGPWR] = TARGET_SIGPWR,
     [SIGSYS] = TARGET_SIGSYS,
     /* next signals stay the same */
-    /* Nasty hack: Reverse SIGRTMIN and SIGRTMAX to avoid overlap with
-       host libpthread signals.  This assumes no one actually uses SIGRTMAX :-/
-       To fix this properly we need to do manual signal delivery multiplexed
-       over a single host signal.  */
-    [__SIGRTMIN] = __SIGRTMAX,
-    [__SIGRTMAX] = __SIGRTMIN,
 };
 static uint8_t target_to_host_signal_table[_NSIG];
 
@@ -480,13 +474,18 @@ static int core_dump_signal(int sig)
     }
 }
 
-void signal_init(void)
+static void signal_table_init(void)
 {
-    TaskState *ts = (TaskState *)thread_cpu->opaque;
-    struct sigaction act;
-    struct sigaction oact;
     int i, j;
-    int host_sig;
+
+    /*
+     * Nasty hack: Reverse SIGRTMIN and SIGRTMAX to avoid overlap with
+     * host libpthread signals.  This assumes no one actually uses SIGRTMAX :-/
+     * To fix this properly we need to do manual signal delivery multiplexed
+     * over a single host signal.
+     */
+    host_to_target_signal_table[__SIGRTMIN] = __SIGRTMAX;
+    host_to_target_signal_table[__SIGRTMAX] = __SIGRTMIN;
 
     /* generate signal conversion tables */
     for(i = 1; i < _NSIG; i++) {
@@ -497,13 +496,21 @@ void signal_init(void)
         j = host_to_target_signal_table[i];
         target_to_host_signal_table[j] = i;
     }
+}
+
+void signal_init(void)
+{
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct sigaction act;
+    struct sigaction oact;
+    int i;
+    int host_sig;
+
+    /* initialize signal conversion tables */
+    signal_table_init();
 
     /* Set the signal mask from the host mask. */
     sigprocmask(0, 0, &ts->signal_mask);
-
-    /* set all host signal handlers. ALL signals are blocked during
-       the handlers to serialize them. */
-    memset(sigact_table, 0, sizeof(sigact_table));
 
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
