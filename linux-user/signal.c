@@ -501,15 +501,20 @@ static void signal_table_init(void)
     int i, j;
 
     /*
-     * Nasty hack: Reverse SIGRTMIN and SIGRTMAX to avoid overlap with
-     * host libpthread signals.  This assumes no one actually uses SIGRTMAX :-/
-     * To fix this properly we need to do manual signal delivery multiplexed
-     * over a single host signal.
+     * some RT signals can be in use by glibc,
+     * it's why SIGRTMIN (34) is generally greater than __SIGRTMIN (32)
      */
-    host_to_target_signal_table[__SIGRTMIN] = __SIGRTMAX;
-    host_to_target_signal_table[__SIGRTMAX] = __SIGRTMIN;
+    for (i = SIGRTMIN; i <= SIGRTMAX; i++) {
+        j = i - SIGRTMIN + TARGET_SIGRTMIN;
+        if (j <= TARGET_NSIG) {
+            host_to_target_signal_table[i] = j;
+        }
+    }
 
     /* generate signal conversion tables */
+    for (i = 1; i <= TARGET_NSIG; i++) {
+        target_to_host_signal_table[i] = _NSIG; /* poison */
+    }
     for (i = 1; i < _NSIG; i++) {
         if (host_to_target_signal_table[i] == 0) {
             host_to_target_signal_table[i] = i;
@@ -518,6 +523,15 @@ static void signal_table_init(void)
         if (j <= TARGET_NSIG) {
             target_to_host_signal_table[j] = i;
         }
+    }
+
+    if (TRACE_SIGNAL_TABLE_INIT_BACKEND_DSTATE()) {
+        for (i = 1, j = 0; i <= TARGET_NSIG; i++) {
+            if (target_to_host_signal_table[i] == _NSIG) {
+                j++;
+            }
+        }
+        trace_signal_table_init(j);
     }
 }
 
@@ -817,6 +831,8 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     int host_sig;
     int ret = 0;
 
+    trace_signal_do_sigaction_guest(sig, TARGET_NSIG);
+
     if (sig < 1 || sig > TARGET_NSIG || sig == TARGET_SIGKILL || sig == TARGET_SIGSTOP) {
         return -TARGET_EINVAL;
     }
@@ -847,6 +863,12 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 
         /* we update the host linux signal state */
         host_sig = target_to_host_signal(sig);
+        trace_signal_do_sigaction_host(host_sig, TARGET_NSIG);
+        if (host_sig > SIGRTMAX) {
+            /* we don't have enough host signals to map all target signals */
+            qemu_log_mask(LOG_UNIMP, "Unsupported target signal #%d\n", sig);
+            return -TARGET_EINVAL;
+        }
         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
             sigfillset(&act1.sa_mask);
             act1.sa_flags = SA_SIGINFO;
