@@ -30,6 +30,15 @@ static struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc);
 
+
+/*
+ * System includes define _NSIG as SIGRTMAX + 1,
+ * but qemu (like the kernel) defines TARGET_NSIG as TARGET_SIGRTMAX
+ * and the first signal is SIGHUP defined as 1
+ * Signal number 0 is reserved for use as kill(pid, 0), to test whether
+ * a process exists without sending it a signal.
+ */
+QEMU_BUILD_BUG_ON(__SIGRTMAX + 1 != _NSIG);
 static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGHUP] = TARGET_SIGHUP,
     [SIGINT] = TARGET_SIGINT,
@@ -67,19 +76,24 @@ static uint8_t host_to_target_signal_table[_NSIG] = {
     [SIGSYS] = TARGET_SIGSYS,
     /* next signals stay the same */
 };
-static uint8_t target_to_host_signal_table[_NSIG];
 
+static uint8_t target_to_host_signal_table[TARGET_NSIG + 1];
+
+/* valid sig is between 1 and _NSIG - 1 */
 int host_to_target_signal(int sig)
 {
-    if (sig < 0 || sig >= _NSIG)
+    if (sig < 1 || sig >= _NSIG) {
         return sig;
+    }
     return host_to_target_signal_table[sig];
 }
 
+/* valid sig is between 1 and TARGET_NSIG */
 int target_to_host_signal(int sig)
 {
-    if (sig < 0 || sig >= _NSIG)
+    if (sig < 1 || sig > TARGET_NSIG) {
         return sig;
+    }
     return target_to_host_signal_table[sig];
 }
 
@@ -100,11 +114,15 @@ static inline int target_sigismember(const target_sigset_t *set, int signum)
 void host_to_target_sigset_internal(target_sigset_t *d,
                                     const sigset_t *s)
 {
-    int i;
+    int i, j;
     target_sigemptyset(d);
-    for (i = 1; i <= TARGET_NSIG; i++) {
+    for (i = 1; i < _NSIG; i++) {
+        j = host_to_target_signal(i);
+        if (j < 1 || j > TARGET_NSIG) {
+            continue;
+        }
         if (sigismember(s, i)) {
-            target_sigaddset(d, host_to_target_signal(i));
+            target_sigaddset(d, j);
         }
     }
 }
@@ -122,11 +140,15 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
 void target_to_host_sigset_internal(sigset_t *d,
                                     const target_sigset_t *s)
 {
-    int i;
+    int i, j;
     sigemptyset(d);
     for (i = 1; i <= TARGET_NSIG; i++) {
+        j = target_to_host_signal(i);
+        if (j < 1 || j >= _NSIG) {
+            continue;
+        }
         if (target_sigismember(s, i)) {
-            sigaddset(d, target_to_host_signal(i));
+            sigaddset(d, j);
         }
     }
 }
@@ -488,13 +510,14 @@ static void signal_table_init(void)
     host_to_target_signal_table[__SIGRTMAX] = __SIGRTMIN;
 
     /* generate signal conversion tables */
-    for(i = 1; i < _NSIG; i++) {
-        if (host_to_target_signal_table[i] == 0)
+    for (i = 1; i < _NSIG; i++) {
+        if (host_to_target_signal_table[i] == 0) {
             host_to_target_signal_table[i] = i;
-    }
-    for(i = 1; i < _NSIG; i++) {
+        }
         j = host_to_target_signal_table[i];
-        target_to_host_signal_table[j] = i;
+        if (j <= TARGET_NSIG) {
+            target_to_host_signal_table[j] = i;
+        }
     }
 }
 
@@ -517,7 +540,7 @@ void signal_init(void)
     act.sa_sigaction = host_signal_handler;
     for(i = 1; i <= TARGET_NSIG; i++) {
 #ifdef TARGET_GPROF
-        if (i == SIGPROF) {
+        if (i == TARGET_SIGPROF) {
             continue;
         }
 #endif
