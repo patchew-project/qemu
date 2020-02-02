@@ -1037,6 +1037,9 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
         if (!cpu_isar_feature(aa64_pan, env_archcpu(env))) {
             spsr &= ~PSTATE_PAN;
         }
+        if (!cpu_isar_feature(aa64_uao, env_archcpu(env))) {
+            spsr &= ~PSTATE_UAO;
+        }
         pstate_write(env, spsr);
         if (!arm_singlestep_active(env)) {
             env->pstate &= ~PSTATE_SS;
