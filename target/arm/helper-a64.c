@@ -1014,6 +1014,9 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
          * will sort the register banks out for us, and we've already
          * caught all the bad-mode cases in el_from_spsr().
          */
+        if (!cpu_isar_feature(aa32_pan, env_archcpu(env))) {
+            spsr &= ~CPSR_PAN;
+        }
         cpsr_write(env, spsr, ~0, CPSRWriteRaw);
         if (!arm_singlestep_active(env)) {
             env->uncached_cpsr &= ~PSTATE_SS;
@@ -1031,6 +1034,9 @@ void HELPER(exception_return)(CPUARMState *env, uint64_t new_pc)
                       cur_el, new_el, env->regs[15]);
     } else {
         env->aarch64 = 1;
+        if (!cpu_isar_feature(aa64_pan, env_archcpu(env))) {
+            spsr &= ~PSTATE_PAN;
+        }
         pstate_write(env, spsr);
         if (!arm_singlestep_active(env)) {
             env->pstate &= ~PSTATE_SS;

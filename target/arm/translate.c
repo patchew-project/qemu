@@ -2760,13 +2760,17 @@ static uint32_t msr_mask(DisasContext *s, int flags, int spsr)
     if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
         mask &= ~CPSR_IT;
     }
+    if (!dc_isar_feature(aa32_pan, s)) {
+        mask &= ~CPSR_PAN;
+    }
     /* Mask out execution state and reserved bits.  */
     if (!spsr) {
         mask &= ~(CPSR_EXEC | CPSR_RESERVED);
     }
     /* Mask out privileged bits.  */
-    if (IS_USER(s))
+    if (IS_USER(s)) {
         mask &= CPSR_USER;
+    }
     return mask;
 }
 
