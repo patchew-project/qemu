@@ -20,6 +20,7 @@ from __future__ import print_function
 import errno
 import os
 import re
+import socket
 import subprocess
 import string
 import unittest
@@ -73,6 +74,69 @@ socket_scm_helper = os.environ.get('SOCKET_SCM_HELPER', 'socket_scm_helper')
 luks_default_secret_object = 'secret,id=keysec0,data=' + \
                              os.environ.get('IMGKEYSECRET', '')
 luks_default_key_secret_opt = 'key-secret=keysec0'
+
+
+def is_port_free(port, address):
+    """
+    Return True if the given port is available for use.
+
+    Currently we only check for TCP/UDP connections on IPv4/6
+    Backported from avocado.utils.network
+
+    :param port: Port number
+    :param address: Socket address to bind or connect
+    """
+    families = (socket.AF_INET, socket.AF_INET6)
+    if address == "localhost" or not address:
+        localhost = True
+        protocols = (socket.SOCK_STREAM, socket.SOCK_DGRAM)
+    else:
+        localhost = False
+        # sock.connect always connects for UDP
+        protocols = (socket.SOCK_STREAM, )
+    sock = None
+    try:
+        for family in families:
+            for protocol in protocols:
+                try:
+                    sock = socket.socket(family, protocol)
+                    if localhost:
+                        sock.bind(("", port))
+                    else:
+                        sock.connect((address, port))
+                        return False
+                except socket.error as exc:
+                    if exc.errno in (93, 94):   # Unsupported combinations
+                        continue
+                    if localhost:
+                        return False
+                sock.close()
+        return True
+    finally:
+        if sock is not None:
+            sock.close()
+
+
+def find_free_ports(start_port, end_port, count, address="localhost"):
+    """
+    Return count of host free ports in the range [start_port, end_port].
+
+    Backported from avocado.utils.network
+
+    :param start_port: header of candidate port range
+    :param end_port: ender of candidate port range
+    :param count: Initial number of ports known to be free in the range.
+    :param address: Socket address to bind or connect
+    """
+    ports = []
+    port_range = range(start_port, end_port)
+    for i in port_range:
+        if is_port_free(i, address):
+            ports.append(i)
+        if len(ports) >= count:
+            break
+
+    return ports
 
 
 def qemu_img(*args):

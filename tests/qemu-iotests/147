@@ -26,10 +26,8 @@ import time
 import iotests
 from iotests import cachemode, aiomode, imgfmt, qemu_img, qemu_nbd, qemu_nbd_early_pipe
 
-NBD_PORT_START      = 32768
-NBD_PORT_END        = NBD_PORT_START + 1024
-NBD_IPV6_PORT_START = NBD_PORT_END
-NBD_IPV6_PORT_END   = NBD_IPV6_PORT_START + 1024
+NBD_PORTS = iotests.find_free_ports(32768, 65536, 1024)
+NBD_IPV6_PORTS = iotests.find_free_ports(NBD_PORTS[-1] + 1, 65536, 1024)
 
 test_img = os.path.join(iotests.test_dir, 'test.img')
 unix_socket = os.path.join(iotests.sock_dir, 'nbd.socket')
@@ -104,11 +102,15 @@ class QemuNBD(NBDBlockdevAddBase):
         self.assertTrue(self._try_server_up(*args))
 
     def test_inet(self):
-        while True:
-            nbd_port = random.randrange(NBD_PORT_START, NBD_PORT_END)
+        nbd_port = None
+        nbd_ports = NBD_PORTS[:]
+        random.shuffle(nbd_ports)
+        for nbd_port in nbd_ports:
             if self._try_server_up('-b', 'localhost', '-p', str(nbd_port)):
                 break
-
+        else:
+            raise AssertionError("NBD not listening on any port: %s"
+                                 % NBD_PORTS)
         address = { 'type': 'inet',
                     'data': {
                         'host': 'localhost',
@@ -178,8 +180,10 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self.assert_qmp(result, 'return', {})
 
     def do_test_inet(self, export_name=None):
-        while True:
-            nbd_port = random.randrange(NBD_PORT_START, NBD_PORT_END)
+        nbd_port = None
+        nbd_ports = NBD_PORTS[:]
+        random.shuffle(nbd_ports)
+        for nbd_port in nbd_ports:
             address = { 'type': 'inet',
                         'data': {
                             'host': 'localhost',
@@ -187,6 +191,9 @@ class BuiltinNBD(NBDBlockdevAddBase):
                         } }
             if self._try_server_up(address, export_name):
                 break
+        else:
+            raise AssertionError("NBD not listening on any port: %s"
+                                 % NBD_PORTS)
 
         export_name = export_name or 'nbd-export'
         self.client_test('nbd://localhost:%i/%s' % (nbd_port, export_name),
@@ -203,8 +210,10 @@ class BuiltinNBD(NBDBlockdevAddBase):
         self.do_test_inet('shadow')
 
     def test_inet_two_exports(self):
-        while True:
-            nbd_port = random.randrange(NBD_PORT_START, NBD_PORT_END)
+        nbd_port = None
+        nbd_ports = NBD_PORTS[:]
+        random.shuffle(nbd_ports)
+        for nbd_port in nbd_ports:
             address = { 'type': 'inet',
                         'data': {
                             'host': 'localhost',
@@ -212,6 +221,9 @@ class BuiltinNBD(NBDBlockdevAddBase):
                         } }
             if self._try_server_up(address, 'exp1', 'exp2'):
                 break
+        else:
+            raise AssertionError("NBD not listening on any port: %s"
+                                 % NBD_PORTS)
 
         self.client_test('nbd://localhost:%i/%s' % (nbd_port, 'exp1'),
                          flatten_sock_addr(address), 'exp1', 'node1', False)
@@ -232,8 +244,10 @@ class BuiltinNBD(NBDBlockdevAddBase):
             # IPv6 not available, skip
             return
 
-        while True:
-            nbd_port = random.randrange(NBD_IPV6_PORT_START, NBD_IPV6_PORT_END)
+        nbd_port = None
+        nbd_ports = NBD_IPV6_PORTS[:]
+        random.shuffle(nbd_ports)
+        for nbd_port in nbd_ports:
             address = { 'type': 'inet',
                         'data': {
                             'host': '::1',
@@ -243,6 +257,9 @@ class BuiltinNBD(NBDBlockdevAddBase):
                         } }
             if self._try_server_up(address):
                 break
+        else:
+            raise AssertionError("NBD not listening on any port: %s"
+                                 % NBD_IPV6_PORTS)
 
         filename = { 'driver': 'raw',
                      'file': {
