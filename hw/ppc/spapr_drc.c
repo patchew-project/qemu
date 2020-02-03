@@ -455,6 +455,22 @@ void spapr_drc_reset(SpaprDrc *drc)
     }
 }
 
+static bool spapr_drc_unplug_requested_needed(void *opaque)
+{
+    return spapr_drc_unplug_requested(opaque);
+}
+
+static const VMStateDescription vmstate_spapr_drc_unplug_requested = {
+    .name = "spapr_drc/unplug_requested",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = spapr_drc_unplug_requested_needed,
+    .fields  = (VMStateField []) {
+        VMSTATE_BOOL(unplug_requested, SpaprDrc),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool spapr_drc_needed(void *opaque)
 {
     SpaprDrc *drc = (SpaprDrc *)opaque;
@@ -467,8 +483,11 @@ static bool spapr_drc_needed(void *opaque)
     /*
      * We need to migrate the state if it's not equal to the expected
      * long-term state, which is the same as the coldplugged initial
-     * state */
-    return !spapr_drc_device_ready(drc);
+     * state, or if an unplug request is pending.
+     */
+    return
+        spapr_drc_unplug_requested_needed(drc) ||
+        !spapr_drc_device_ready(drc);
 }
 
 static const VMStateDescription vmstate_spapr_drc = {
@@ -479,6 +498,10 @@ static const VMStateDescription vmstate_spapr_drc = {
     .fields  = (VMStateField []) {
         VMSTATE_UINT32(state, SpaprDrc),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_spapr_drc_unplug_requested,
+        NULL
     }
 };
 
