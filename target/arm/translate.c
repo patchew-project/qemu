@@ -2747,22 +2747,11 @@ static uint32_t msr_mask(DisasContext *s, int flags, int spsr)
         mask |= 0xff000000;
 
     /* Mask out undefined bits.  */
-    mask &= ~CPSR_RESERVED;
-    if (!arm_dc_feature(s, ARM_FEATURE_V4T)) {
-        mask &= ~CPSR_T;
-    }
-    if (!arm_dc_feature(s, ARM_FEATURE_V5)) {
-        mask &= ~CPSR_Q; /* V5TE in reality*/
-    }
-    if (!arm_dc_feature(s, ARM_FEATURE_V6)) {
-        mask &= ~(CPSR_E | CPSR_GE);
-    }
-    if (!arm_dc_feature(s, ARM_FEATURE_THUMB2)) {
-        mask &= ~CPSR_IT;
-    }
+    mask &= aarch32_cpsr_valid_mask(s->features, s->isar);
+
     /* Mask out execution state and reserved bits.  */
     if (!spsr) {
-        mask &= ~(CPSR_EXEC | CPSR_RESERVED);
+        mask &= ~CPSR_EXEC;
     }
     /* Mask out privileged bits.  */
     if (IS_USER(s))
