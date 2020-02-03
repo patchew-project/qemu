@@ -36,6 +36,39 @@ typedef struct RasPiState {
     MemoryRegion ram;
 } RasPiState;
 
+typedef struct RaspiBoardInfo {
+    /*
+     * Board revision codes:
+     * www.raspberrypi.org/documentation/hardware/raspberrypi/revision-codes/
+     */
+    uint32_t board_rev;
+} RaspiBoardInfo;
+
+enum { BOARD_PI2, BOARD_PI3 };
+
+static const RaspiBoardInfo raspi_boards[] = {
+    [BOARD_PI2] =
+    {
+        .board_rev = 0xa21041,
+    },
+#ifdef TARGET_AARCH64
+    [BOARD_PI3] =
+    {
+        .board_rev = 0xa02082,
+    },
+#endif
+};
+
+static int board_chip_id(const RaspiBoardInfo *config)
+{
+    return extract32(config->board_rev, 12, 4);
+}
+
+static int board_version(const RaspiBoardInfo *config)
+{
+    return board_chip_id(config) + 1;
+}
+
 static void write_smpboot(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     static const uint32_t smpboot[] = {
@@ -163,9 +196,10 @@ static void setup_boot(MachineState *machine, int version, size_t ram_size)
     arm_load_kernel(ARM_CPU(first_cpu), machine, &binfo);
 }
 
-static void raspi_init(MachineState *machine, int version)
+static void raspi_init(MachineState *machine, const RaspiBoardInfo *config)
 {
     RasPiState *s = g_new0(RasPiState, 1);
+    int version = board_version(config);
     uint32_t vcram_size;
     DriveInfo *di;
     BlockBackend *blk;
@@ -191,9 +225,8 @@ static void raspi_init(MachineState *machine, int version)
     /* Setup the SOC */
     object_property_add_const_link(OBJECT(&s->soc), "ram", OBJECT(&s->ram),
                                    &error_abort);
-    int board_rev = version == 3 ? 0xa02082 : 0xa21041;
-    object_property_set_int(OBJECT(&s->soc), board_rev, "board-rev",
-                            &error_abort);
+    object_property_set_int(OBJECT(&s->soc), config->board_rev,
+                            "board-rev", &error_abort);
     object_property_set_bool(OBJECT(&s->soc), true, "realized", &error_abort);
 
     /* Create and plug in the SD cards */
@@ -215,7 +248,7 @@ static void raspi_init(MachineState *machine, int version)
 
 static void raspi2_init(MachineState *machine)
 {
-    raspi_init(machine, 2);
+    raspi_init(machine, &raspi_boards[BOARD_PI2]);
 }
 
 static void raspi2_machine_init(MachineClass *mc)
@@ -237,7 +270,7 @@ DEFINE_MACHINE("raspi2", raspi2_machine_init)
 #ifdef TARGET_AARCH64
 static void raspi3_init(MachineState *machine)
 {
-    raspi_init(machine, 3);
+    raspi_init(machine, &raspi_boards[BOARD_PI3]);
 }
 
 static void raspi3_machine_init(MachineClass *mc)
