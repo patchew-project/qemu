@@ -83,12 +83,12 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
 }
 
 /*
- * Reserve a new memory region of the requested size to be used for mapping
- * from the given fd (if any).
+ * Reserve a new memory region of the requested size or re-reserve parts
+ * of an existing region to be used for mapping from the given fd (if any).
  */
-static void *mmap_reserve(size_t size, int fd)
+static void *mmap_reserve(void *ptr, size_t size, int fd)
 {
-    int flags = MAP_PRIVATE;
+    int flags = MAP_PRIVATE | (ptr ? MAP_FIXED : 0);
 
 #if defined(__powerpc64__) && defined(__linux__)
     /*
@@ -111,18 +111,22 @@ static void *mmap_reserve(size_t size, int fd)
     flags |= MAP_ANONYMOUS;
 #endif
 
-    return mmap(0, size, PROT_NONE, flags, fd, 0);
+    return mmap(ptr, size, PROT_NONE, flags, fd, 0);
 }
 
 /*
  * Populate memory in a reserved region from the given fd (if any).
  */
-static void *mmap_populate(void *ptr, size_t size, int fd, bool shared,
-                           bool is_pmem)
+static void *mmap_populate(void *ptr, size_t size, int fd, size_t fd_offset,
+                           bool shared, bool is_pmem)
 {
     int map_sync_flags = 0;
     int flags = MAP_FIXED;
     void *new_ptr;
+
+    if (fd == -1) {
+        fd_offset = 0;
+    }
 
     flags |= fd == -1 ? MAP_ANONYMOUS : 0;
     flags |= shared ? MAP_SHARED : MAP_PRIVATE;
@@ -131,7 +135,7 @@ static void *mmap_populate(void *ptr, size_t size, int fd, bool shared,
     }
 
     new_ptr = mmap(ptr, size, PROT_READ | PROT_WRITE, flags | map_sync_flags,
-                   fd, 0);
+                   fd, fd_offset);
     if (new_ptr == MAP_FAILED && map_sync_flags) {
         if (errno == ENOTSUP) {
             char *proc_link = g_strdup_printf("/proc/self/fd/%d", fd);
@@ -153,7 +157,7 @@ static void *mmap_populate(void *ptr, size_t size, int fd, bool shared,
          * If mmap failed with MAP_SHARED_VALIDATE | MAP_SYNC, we will try
          * again without these flags to handle backwards compatibility.
          */
-        new_ptr = mmap(ptr, size, PROT_READ | PROT_WRITE, flags, fd, 0);
+        new_ptr = mmap(ptr, size, PROT_READ | PROT_WRITE, flags, fd, fd_offset);
     }
     return new_ptr;
 }
@@ -178,13 +182,16 @@ void *qemu_ram_mmap(int fd,
     size_t offset, total;
     void *ptr, *guardptr;
 
+    /* we can only map whole pages */
+    size = QEMU_ALIGN_UP(size, pagesize);
+
     /*
      * Note: this always allocates at least one extra page of virtual address
      * space, even if size is already aligned.
      */
     total = size + align;
 
-    guardptr = mmap_reserve(total, fd);
+    guardptr = mmap_reserve(0, total, fd);
     if (guardptr == MAP_FAILED) {
         return MAP_FAILED;
     }
@@ -195,7 +202,7 @@ void *qemu_ram_mmap(int fd,
 
     offset = QEMU_ALIGN_UP((uintptr_t)guardptr, align) - (uintptr_t)guardptr;
 
-    ptr = mmap_populate(guardptr + offset, size, fd, shared, is_pmem);
+    ptr = mmap_populate(guardptr + offset, size, fd, 0, shared, is_pmem);
     if (ptr == MAP_FAILED) {
         munmap(guardptr, total);
         return MAP_FAILED;
@@ -220,6 +227,9 @@ void *qemu_ram_mmap(int fd,
 void qemu_ram_munmap(int fd, void *ptr, size_t size)
 {
     const size_t pagesize = mmap_pagesize(fd);
+
+    /* we can only map whole pages */
+    size = QEMU_ALIGN_UP(size, pagesize);
 
     if (ptr) {
         /* Unmap both the RAM block and the guard page */
