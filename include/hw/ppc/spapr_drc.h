@@ -269,7 +269,13 @@ int spapr_dt_drc(void *fdt, int offset, Object *owner, uint32_t drc_type_mask);
 
 void spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp);
 void spapr_drc_detach(SpaprDrc *drc);
-bool spapr_drc_needed(void *opaque);
+
+static inline bool spapr_drc_device_ready(SpaprDrc *drc)
+{
+    SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
+
+    return drc->state == drck->ready_state;
+}
 
 static inline bool spapr_drc_unplug_requested(SpaprDrc *drc)
 {
