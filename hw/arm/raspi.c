@@ -39,9 +39,10 @@ enum BoardIdChip {
 
 static const struct {
     const char *soc_name;
+    int cores_count;
 } soc_config[] = {
-    [C_BCM2836] = {TYPE_BCM2836},
-    [C_BCM2837] = {TYPE_BCM2837},
+    [C_BCM2836] = {TYPE_BCM2836, BCM283X_NCPUS},
+    [C_BCM2837] = {TYPE_BCM2837, BCM283X_NCPUS},
 };
 
 typedef struct RaspiMachineState {
@@ -111,6 +112,11 @@ static int board_version(const RaspiBoardInfo *config)
 static const char *board_soc_name(const RaspiBoardInfo *config)
 {
     return soc_config[board_chip_id(config)].soc_name;
+}
+
+static int cpu_cores_count(const RaspiBoardInfo *config)
+{
+    return soc_config[board_chip_id(config)].cores_count;
 }
 
 static void write_smpboot(ARMCPU *cpu, const struct arm_boot_info *info)
@@ -312,9 +318,7 @@ static void raspi_machine_class_init(ObjectClass *oc, void *data)
     mc->no_parallel = 1;
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
-    mc->max_cpus = BCM283X_NCPUS;
-    mc->min_cpus = BCM283X_NCPUS;
-    mc->default_cpus = BCM283X_NCPUS;
+    mc->default_cpus = mc->min_cpus = mc->max_cpus = cpu_cores_count(config);
     mc->default_ram_size = board_ram_size(config);
     mc->ignore_memory_transaction_failures = true;
 }
