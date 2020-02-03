@@ -395,11 +395,24 @@ static void qemu_vfio_ram_block_removed(RAMBlockNotifier *n,
     }
 }
 
+static void qemu_vfio_ram_block_resized(RAMBlockNotifier *n, void *host,
+                                        size_t oldsize, size_t newsize)
+{
+    QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);
+    if (host) {
+        trace_qemu_vfio_ram_block_resized(s, host, oldsize, newsize);
+        /* Note: Not atomic - we need a new ioctl for that. */
+        qemu_vfio_ram_block_removed(n, host, oldsize);
+        qemu_vfio_ram_block_added(n, host, newsize);
+    }
+}
+
 static void qemu_vfio_open_common(QEMUVFIOState *s)
 {
     qemu_mutex_init(&s->lock);
     s->ram_notifier.ram_block_added = qemu_vfio_ram_block_added;
     s->ram_notifier.ram_block_removed = qemu_vfio_ram_block_removed;
+    s->ram_notifier.ram_block_resized = qemu_vfio_ram_block_resized;
     s->low_water_mark = QEMU_VFIO_IOVA_MIN;
     s->high_water_mark = QEMU_VFIO_IOVA_MAX;
     ram_block_notifier_add(&s->ram_notifier);
