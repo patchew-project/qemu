@@ -2552,8 +2552,7 @@ void qemu_ram_remap(ram_addr_t addr, ram_addr_t length)
                                  length, addr);
                     exit(1);
                 }
-                memory_try_enable_merging(vaddr, length);
-                qemu_ram_setup_dump(vaddr, length);
+                qemu_ram_apply_settings(vaddr, length);
             }
         }
     }
