@@ -33,6 +33,7 @@
 #define MACH_TYPE_BCM2708   3138 /* Linux board IDs */
 
 enum BoardIdChip {
+    C_BCM2835 = 0,
     C_BCM2836 = 1,
     C_BCM2837 = 2,
 };
@@ -41,6 +42,7 @@ static const struct {
     const char *soc_name;
     int cores_count;
 } soc_config[] = {
+    [C_BCM2835] = {TYPE_BCM2835, 1},
     [C_BCM2836] = {TYPE_BCM2836, BCM283X_NCPUS},
     [C_BCM2837] = {TYPE_BCM2837, BCM283X_NCPUS},
 };
@@ -80,6 +82,11 @@ typedef struct RaspiMachineClass {
      OBJECT_GET_CLASS(RaspiMachineClass, (obj), TYPE_RASPI_MACHINE)
 
 static const RaspiBoardInfo raspi_boards[] = {
+    {
+        .name = MACHINE_TYPE_NAME("raspi0"),
+        .desc = "Raspberry Pi Zero W",
+        .board_rev = 0x9000c1,
+    },
     {
         .name = MACHINE_TYPE_NAME("raspi2"),
         .desc = "Raspberry Pi 2B",
