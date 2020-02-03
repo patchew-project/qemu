@@ -21,13 +21,21 @@ struct BCM283XInfo {
     const char *cpu_type;
     hwaddr peri_base; /* Peripheral base address seen by the CPU */
     hwaddr ctrl_base; /* Interrupt controller and mailboxes etc. */
+    int core_count;
     int clusterid;
 };
 
 static const BCM283XInfo bcm283x_socs[] = {
     {
+        .name = TYPE_BCM2835,
+        .cpu_type = ARM_CPU_TYPE_NAME("arm1176"),
+        .core_count = 1,
+        .peri_base = 0x20000000,
+    },
+    {
         .name = TYPE_BCM2836,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-a7"),
+        .core_count = 4,
         .peri_base = 0x3f000000,
         .ctrl_base = 0x40000000,
         .clusterid = 0xf,
@@ -36,6 +44,7 @@ static const BCM283XInfo bcm283x_socs[] = {
     {
         .name = TYPE_BCM2837,
         .cpu_type = ARM_CPU_TYPE_NAME("cortex-a53"),
+        .core_count = 4,
         .peri_base = 0x3f000000,
         .ctrl_base = 0x40000000,
         .clusterid = 0x0,
@@ -50,14 +59,16 @@ static void bcm2836_init(Object *obj)
     const BCM283XInfo *info = bc->info;
     int n;
 
-    for (n = 0; n < BCM283X_NCPUS; n++) {
+    for (n = 0; n < info->core_count; n++) {
         object_initialize_child(obj, "cpu[*]", &s->cpu[n].core,
                                 sizeof(s->cpu[n].core), info->cpu_type,
                                 &error_abort, NULL);
     }
 
-    sysbus_init_child_obj(obj, "control", &s->control, sizeof(s->control),
-                          TYPE_BCM2836_CONTROL);
+    if (info->ctrl_base) {
+        sysbus_init_child_obj(obj, "control", &s->control, sizeof(s->control),
+                              TYPE_BCM2836_CONTROL);
+    }
 
     sysbus_init_child_obj(obj, "peripherals", &s->peripherals,
                           sizeof(s->peripherals), TYPE_BCM2835_PERIPHERALS);
@@ -107,6 +118,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->peripherals), 0,
                             info->peri_base, 1);
 
+    if (info->ctrl_base) {
     /* bcm2836 interrupt controller (and mailboxes, etc.) */
     object_property_set_bool(OBJECT(&s->control), true, "realized", &err);
     if (err) {
@@ -120,8 +132,22 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-irq", 0));
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
         qdev_get_gpio_in_named(DEVICE(&s->control), "gpu-fiq", 0));
+    }
 
-    for (n = 0; n < BCM283X_NCPUS; n++) {
+    if (!info->ctrl_base) {
+        object_property_set_bool(OBJECT(&s->cpu[0].core), true,
+                                 "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+        /* Connect irq/fiq outputs from the interrupt controller. */
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 0,
+                qdev_get_gpio_in(DEVICE(&s->cpu[0].core), ARM_CPU_IRQ));
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->peripherals), 1,
+                qdev_get_gpio_in(DEVICE(&s->cpu[0].core), ARM_CPU_FIQ));
+    } else {
+    for (n = 0; n < info->core_count; n++) {
         /* TODO: this should be converted to a property of ARM_CPU */
         s->cpu[n].core.mp_affinity = (info->clusterid << 8) | n;
 
@@ -164,6 +190,7 @@ static void bcm2836_realize(DeviceState *dev, Error **errp)
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cnthpirq", n));
         qdev_connect_gpio_out(DEVICE(&s->cpu[n].core), GTIMER_SEC,
                 qdev_get_gpio_in_named(DEVICE(&s->control), "cntpsirq", n));
+    }
     }
 }
 
