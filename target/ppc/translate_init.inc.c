@@ -10710,12 +10710,6 @@ static void ppc_cpu_reset(CPUState *s)
 #endif
 #endif
 
-#if defined(TARGET_PPC64)
-    if (env->mmu_model & POWERPC_MMU_64) {
-        msr |= (1ULL << MSR_SF);
-    }
-#endif
-
     hreg_store_msr(env, msr, 1);
 
 #if !defined(CONFIG_USER_ONLY)
