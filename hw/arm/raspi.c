@@ -31,6 +31,18 @@
 
 #define MACH_TYPE_BCM2708   3138 /* Linux board IDs */
 
+enum BoardIdChip {
+    C_BCM2836 = 1,
+    C_BCM2837 = 2,
+};
+
+static const struct {
+    const char *soc_name;
+} soc_config[] = {
+    [C_BCM2836] = {TYPE_BCM2836},
+    [C_BCM2837] = {TYPE_BCM2837},
+};
+
 typedef struct RasPiState {
     BCM283XState soc;
     MemoryRegion ram;
@@ -67,6 +79,11 @@ static int board_chip_id(const RaspiBoardInfo *config)
 static int board_version(const RaspiBoardInfo *config)
 {
     return board_chip_id(config) + 1;
+}
+
+static const char *board_soc_name(const RaspiBoardInfo *config)
+{
+    return soc_config[board_chip_id(config)].soc_name;
 }
 
 static void write_smpboot(ARMCPU *cpu, const struct arm_boot_info *info)
@@ -213,8 +230,7 @@ static void raspi_init(MachineState *machine, const RaspiBoardInfo *config)
     }
 
     object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
-                            version == 3 ? TYPE_BCM2837 : TYPE_BCM2836,
-                            &error_abort, NULL);
+                            board_soc_name(config), &error_abort, NULL);
 
     /* Allocate and map RAM */
     memory_region_allocate_system_memory(&s->ram, OBJECT(machine), "ram",
