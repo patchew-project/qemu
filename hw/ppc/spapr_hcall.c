@@ -1659,7 +1659,7 @@ static bool spapr_hotplugged_dev_before_cas(void)
         if (!drc->dev) {
             continue;
         }
-        if (!spapr_drc_device_ready(drc)) {
+        if (spapr_drc_unplug_requested(drc) || !spapr_drc_device_ready(drc)) {
             return true;
         }
     }
