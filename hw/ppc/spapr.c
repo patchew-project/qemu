@@ -3203,18 +3203,6 @@ static void spapr_set_resize_hpt(Object *obj, const char *value, Error **errp)
     }
 }
 
-static void spapr_get_vsmt(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
-}
-
-static void spapr_set_vsmt(Object *obj, Visitor *v, const char *name,
-                                   void *opaque, Error **errp)
-{
-    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
-}
-
 static char *spapr_get_ic_mode(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3312,8 +3300,10 @@ static void spapr_instance_init(Object *obj)
     object_property_set_description(obj, "resize-hpt",
                                     "Resizing of the Hash Page Table (enabled, disabled, required)",
                                     NULL);
-    object_property_add(obj, "vsmt", "uint32", spapr_get_vsmt,
-                        spapr_set_vsmt, NULL, &spapr->vsmt, &error_abort);
+    object_property_add_uint32_ptr(obj, "vsmt",
+                                   &spapr->vsmt, OBJ_PROP_FLAG_READWRITE,
+                                   &error_abort);
+
     object_property_set_description(obj, "vsmt",
                                     "Virtual SMT: KVM behaves as if this were"
                                     " the host's SMT mode", &error_abort);
