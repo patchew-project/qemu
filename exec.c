@@ -2053,6 +2053,16 @@ void qemu_ram_unset_migratable(RAMBlock *rb)
     rb->flags &= ~RAM_MIGRATABLE;
 }
 
+bool qemu_ram_is_resizable(RAMBlock *rb)
+{
+    return rb->flags & RAM_RESIZEABLE;
+}
+
+bool qemu_ram_is_resizable_alloc(RAMBlock *rb)
+{
+    return rb->flags & RAM_RESIZEABLE_ALLOC;
+}
+
 /* Called with iothread lock held.  */
 void qemu_ram_set_idstr(RAMBlock *new_block, const char *name, DeviceState *dev)
 {
@@ -2139,6 +2149,8 @@ static void qemu_ram_apply_settings(void *host, size_t length)
  */
 int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
 {
+    const uint64_t oldsize = block->used_length;
+
     assert(block);
 
     newsize = HOST_PAGE_ALIGN(newsize);
@@ -2147,7 +2159,7 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
         return 0;
     }
 
-    if (!(block->flags & RAM_RESIZEABLE)) {
+    if (!qemu_ram_is_resizable(block)) {
         error_setg_errno(errp, EINVAL,
                          "Length mismatch: %s: 0x" RAM_ADDR_FMT
                          " in != 0x" RAM_ADDR_FMT, block->idstr,
@@ -2163,10 +2175,26 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
         return -EINVAL;
     }
 
+    if (qemu_ram_is_resizable_alloc(block)) {
+        g_assert(ram_block_notifiers_support_resize());
+        if (qemu_anon_ram_resize(block->host, block->used_length,
+                                 newsize, block->flags & RAM_SHARED) == NULL) {
+            error_setg_errno(errp, -ENOMEM,
+                             "Could not allocate enough memory.");
+            return -ENOMEM;
+        }
+    }
+
     cpu_physical_memory_clear_dirty_range(block->offset, block->used_length);
     block->used_length = newsize;
     cpu_physical_memory_set_dirty_range(block->offset, block->used_length,
                                         DIRTY_CLIENTS_ALL);
+    if (block->host && qemu_ram_is_resizable_alloc(block)) {
+        /* re-apply settings that might have been overriden by the resize */
+        qemu_ram_apply_settings(block->host, block->max_length);
+        ram_block_notify_resized(block->host, oldsize, block->used_length);
+    }
+
     memory_region_set_size(block->mr, newsize);
     if (block->resized) {
         block->resized(block->idstr, newsize, block->host);
@@ -2249,6 +2277,28 @@ static void dirty_memory_extend(ram_addr_t old_ram_size,
     }
 }
 
+static void ram_block_alloc_ram(RAMBlock *rb)
+{
+    const bool shared = qemu_ram_is_shared(rb);
+
+    /*
+     * If we can, try to allocate actually resizable ram. Will also fail
+     * if qemu_anon_ram_alloc_resizable() is not implemented.
+     */
+    if (phys_mem_alloc == qemu_anon_ram_alloc &&
+        qemu_ram_is_resizable(rb) &&
+        ram_block_notifiers_support_resize()) {
+        rb->host = qemu_anon_ram_alloc_resizable(rb->used_length,
+                                                 rb->max_length, &rb->mr->align,
+                                                 shared);
+        if (rb->host) {
+            rb->flags |= RAM_RESIZEABLE_ALLOC;
+            return;
+        }
+    }
+    rb->host = phys_mem_alloc(rb->max_length, &rb->mr->align, shared);
+}
+
 static void ram_block_add(RAMBlock *new_block, Error **errp)
 {
     RAMBlock *block;
@@ -2271,9 +2321,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
                 return;
             }
         } else {
-            new_block->host = phys_mem_alloc(new_block->max_length,
-                                             &new_block->mr->align,
-                                             qemu_ram_is_shared(new_block));
+            ram_block_alloc_ram(new_block);
             if (!new_block->host) {
                 error_setg_errno(errp, errno,
                                  "cannot set up guest memory '%s'",
@@ -2319,7 +2367,11 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 
     if (new_block->host) {
         qemu_ram_apply_settings(new_block->host, new_block->max_length);
-        ram_block_notify_add(new_block->host, new_block->max_length);
+        if (qemu_ram_is_resizable_alloc(new_block)) {
+            ram_block_notify_add(new_block->host, new_block->used_length);
+        } else {
+            ram_block_notify_add(new_block->host, new_block->max_length);
+        }
     }
 }
 
@@ -2502,7 +2554,11 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     if (block->host) {
-        ram_block_notify_remove(block->host, block->max_length);
+        if (qemu_ram_is_resizable_alloc(block)) {
+            ram_block_notify_remove(block->host, block->used_length);
+        } else {
+            ram_block_notify_remove(block->host, block->max_length);
+        }
     }
 
     qemu_mutex_lock_ramlist();

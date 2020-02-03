@@ -901,12 +901,16 @@ void query_numa_node_mem(NumaNodeMem node_mem[], MachineState *ms)
 
 static int ram_block_notify_add_single(RAMBlock *rb, void *opaque)
 {
-    ram_addr_t size = qemu_ram_get_max_length(rb);
     void *host = qemu_ram_get_host_addr(rb);
     RAMBlockNotifier *notifier = opaque;
 
-    if (host) {
-        notifier->ram_block_added(notifier, host, size);
+    if (!host) {
+        return 0;
+    }
+    if (qemu_ram_is_resizable_alloc(rb)) {
+        notifier->ram_block_added(notifier, host, qemu_ram_get_used_length(rb));
+    } else {
+        notifier->ram_block_added(notifier, host, qemu_ram_get_max_length(rb));
     }
     return 0;
 }
