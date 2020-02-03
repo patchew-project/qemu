@@ -1266,6 +1266,10 @@ void *spapr_build_fdt(SpaprMachineState *spapr, bool reset, size_t space)
         }
     }
 
+    if (spapr->vof) {
+        spapr_of_client_dt(spapr, fdt);
+    }
+
     return fdt;
 }
 
@@ -1273,6 +1277,14 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
 {
     SpaprMachineState *spapr = opaque;
 
+    if (spapr->vof) {
+        /*
+         * Having no SLOF means we can load kernel at 0 and avoid the hack
+         * and for everything else (such as "grub") just do the usual thing
+         * and load it where it is linked to run.
+         */
+        return addr & 0xffffffff;
+    }
     return (addr & 0x0fffffff) + spapr->kernel_addr;
 }
 
@@ -1660,24 +1672,41 @@ static void spapr_machine_reset(MachineState *machine)
      */
     fdt_addr = MIN(spapr->rma_size, RTAS_MAX_ADDR) - FDT_MAX_SIZE;
 
+    /* Set up the entry state */
+    if (spapr->vof) {
+        target_ulong stack_ptr = 0;
+        target_ulong prom_entry = 0;
+
+        spapr_setup_of_client(spapr, &stack_ptr, &prom_entry);
+        spapr_cpu_set_entry_state(first_ppc_cpu, spapr->kernel_addr,
+                                  stack_ptr, spapr->initrd_base,
+                                  spapr->initrd_size, prom_entry);
+    } else {
+        spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                                  0, fdt_addr, 0, 0);
+    }
+
     fdt = spapr_build_fdt(spapr, true, FDT_MAX_SIZE);
 
-    rc = fdt_pack(fdt);
-
-    /* Should only fail if we've built a corrupted tree */
-    assert(rc == 0);
-
-    /* Load the fdt */
-    qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
-    cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
     g_free(spapr->fdt_blob);
     spapr->fdt_size = fdt_totalsize(fdt);
     spapr->fdt_initial_size = spapr->fdt_size;
     spapr->fdt_blob = fdt;
 
-    /* Set up the entry state */
-    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
-                              0, fdt_addr, 0, 0);
+    if (spapr->vof) {
+        spapr_of_client_dt_finalize(spapr);
+    } else {
+        /* Load the fdt */
+        rc = fdt_pack(spapr->fdt_blob);
+        /* Should only fail if we've built a corrupted tree */
+        assert(rc == 0);
+
+        spapr->fdt_size = fdt_totalsize(spapr->fdt_blob);
+        spapr->fdt_initial_size = spapr->fdt_size;
+        cpu_physical_memory_write(fdt_addr, spapr->fdt_blob, spapr->fdt_size);
+    }
+
+    qemu_fdt_dumpdtb(spapr->fdt_blob, spapr->fdt_size);
 
     spapr->cas_reboot = false;
 
@@ -2986,20 +3015,24 @@ static void spapr_machine_init(MachineState *machine)
         }
     }
 
-    if (bios_name == NULL) {
-        bios_name = FW_FILE_NAME;
+    if (spapr->vof) {
+        spapr_of_client_machine_init(spapr);
+    } else {
+        if (bios_name == NULL) {
+            bios_name = FW_FILE_NAME;
+        }
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (!filename) {
+            error_report("Could not find LPAR firmware '%s'", bios_name);
+            exit(1);
+        }
+        fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
+        if (fw_size <= 0) {
+            error_report("Could not load LPAR firmware '%s'", filename);
+            exit(1);
+        }
+        g_free(filename);
     }
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (!filename) {
-        error_report("Could not find LPAR firmware '%s'", bios_name);
-        exit(1);
-    }
-    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
-    if (fw_size <= 0) {
-        error_report("Could not load LPAR firmware '%s'", filename);
-        exit(1);
-    }
-    g_free(filename);
 
     /* FIXME: Should register things through the MachineState's qdev
      * interface, this is a legacy from the sPAPREnvironment structure
@@ -3230,6 +3263,20 @@ static void spapr_set_kernel_addr(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, (uint64_t *)opaque, errp);
 }
 
+static bool spapr_get_vof(Object *obj, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    return spapr->vof;
+}
+
+static void spapr_set_vof(Object *obj, bool value, Error **errp)
+{
+    SpaprMachineState *spapr = SPAPR_MACHINE(obj);
+
+    spapr->vof = value;
+}
+
 static char *spapr_get_ic_mode(Object *obj, Error **errp)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
@@ -3343,6 +3390,11 @@ static void spapr_instance_init(Object *obj)
                                     " for -kernel is the default",
                                     NULL);
     spapr->kernel_addr = KERNEL_LOAD_ADDR;
+    object_property_add_bool(obj, "vof", spapr_get_vof, spapr_set_vof, NULL);
+    object_property_set_description(obj, "vof", "Enable Virtual Oepn Firmware",
+                                    NULL);
+    spapr->vof = false;
+
     /* The machine class defines the default interrupt controller mode */
     spapr->irq = smc->irq;
     object_property_add_str(obj, "ic-mode", spapr_get_ic_mode,

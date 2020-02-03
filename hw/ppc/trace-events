@@ -21,6 +21,30 @@ spapr_update_dt(unsigned cb) "New blob %u bytes"
 spapr_update_dt_failed_size(unsigned cbold, unsigned cbnew, unsigned magic) "Old blob %u bytes, new blob %u bytes, magic 0x%x"
 spapr_update_dt_failed_check(unsigned cbold, unsigned cbnew, unsigned magic) "Old blob %u bytes, new blob %u bytes, magic 0x%x"
 
+# spapr_client.c
+spapr_of_client_error_str_truncated(const char *s, int len) "%s truncated to %d"
+spapr_of_client_error_param(const char *method, int nargscheck, int nretcheck, int nargs, int nret) "%s takes/returns %d/%d, not %d/%d"
+spapr_of_client_error_unknown_service(const char *service, int nargs, int nret) "\"%s\" args=%d rets=%d"
+spapr_of_client_error_unknown_method(const char *method) "\"%s\""
+spapr_of_client_error_unknown_ihandle_close(uint32_t ih) "ih=0x%x"
+spapr_of_client_error_unknown_path(const char *path) "\"%s\""
+spapr_of_client_finddevice(const char *path, uint32_t ph) "\"%s\" => ph=0x%x"
+spapr_of_client_claim(uint32_t virt, uint32_t size, uint32_t align, uint32_t ret) "virt=0x%x size=0x%x align=0x%x => 0x%x"
+spapr_of_client_release(uint32_t virt, uint32_t size, uint32_t ret) "virt=0x%x size=0x%x => 0x%x"
+spapr_of_client_method(uint32_t ihandle, const char *method, uint32_t param, uint32_t ret, uint32_t ret2) "ih=0x%x \"%s\"(0x%x) => 0x%x 0x%x"
+spapr_of_client_getprop(uint32_t ph, const char *prop, uint32_t ret, const char *val) "ph=0x%x \"%s\" => len=%d [%s]"
+spapr_of_client_getproplen(uint32_t ph, const char *prop, uint32_t ret) "ph=0x%x \"%s\" => len=%d"
+spapr_of_client_setprop(uint32_t ph, const char *prop, const char *val, uint32_t ret) "ph=0x%x \"%s\" [%s] => len=%d"
+spapr_of_client_open(const char *path, uint32_t ph, uint32_t ih) "%s ph=0x%x => ih=0x%x"
+spapr_of_client_interpret(const char *cmd, uint32_t param1, uint32_t param2, uint32_t ret, uint32_t ret2) "[%s] 0x%x 0x%x => 0x%x 0x%x"
+spapr_of_client_blk_write(uint32_t ih, uint32_t len) "0x%x => len=%d"
+spapr_of_client_blk_read(uint32_t ih, uint64_t pos, uint32_t len, uint32_t ret) "ih=0x%x @0x%"PRIx64" size=%d => %d"
+spapr_of_client_blk_seek(uint32_t ih, uint64_t pos, uint32_t ret) "ih=0x%x 0x%"PRIx64" => %d"
+spapr_of_client_blk_bootloader_read(uint64_t offset, uint64_t size) "0x%"PRIx64" size=0x%"PRIx64
+spapr_of_client_package_to_path(uint32_t ph, const char *tmp, uint32_t ret) "ph=0x%x => %s len=%d"
+spapr_of_client_instance_to_path(uint32_t ih, uint32_t ph, const char *tmp, uint32_t ret) "ih=0x%x ph=0x%x => %s len=%d"
+spapr_of_client_instance_to_package(uint32_t ih, uint32_t ph) "ih=0x%x => ph=0x%x"
+
 # spapr_hcall_tpm.c
 spapr_h_tpm_comm(const char *device_path, uint64_t operation) "tpm_device_path=%s operation=0x%"PRIu64
 spapr_tpm_execute(uint64_t data_in, uint64_t data_in_sz, uint64_t data_out, uint64_t data_out_sz) "data_in=0x%"PRIx64", data_in_sz=%"PRIu64", data_out=0x%"PRIx64", data_out_sz=%"PRIu64
