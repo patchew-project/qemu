@@ -67,6 +67,8 @@ void qemu_mutex_unlock_ramlist(void);
 struct RAMBlockNotifier {
     void (*ram_block_added)(RAMBlockNotifier *n, void *host, size_t size);
     void (*ram_block_removed)(RAMBlockNotifier *n, void *host, size_t size);
+    void (*ram_block_resized)(RAMBlockNotifier *n, void *host, size_t oldsize,
+                              size_t newsize);
     QLIST_ENTRY(RAMBlockNotifier) next;
 };
 
@@ -74,6 +76,8 @@ void ram_block_notifier_add(RAMBlockNotifier *n);
 void ram_block_notifier_remove(RAMBlockNotifier *n);
 void ram_block_notify_add(void *host, size_t size);
 void ram_block_notify_remove(void *host, size_t size);
+void ram_block_notify_resized(void *host, size_t oldsize, size_t newsize);
+bool ram_block_notifiers_support_resize(void);
 
 void ram_block_dump(Monitor *mon);
 

@@ -940,3 +940,24 @@ void ram_block_notify_remove(void *host, size_t size)
         notifier->ram_block_removed(notifier, host, size);
     }
 }
+
+void ram_block_notify_resized(void *host, size_t oldsize, size_t newsize)
+{
+    RAMBlockNotifier *notifier;
+
+    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+        notifier->ram_block_resized(notifier, host, oldsize, newsize);
+    }
+}
+
+bool ram_block_notifiers_support_resize(void)
+{
+    RAMBlockNotifier *notifier;
+
+    QLIST_FOREACH(notifier, &ram_list.ramblock_notifiers, next) {
+        if (!notifier->ram_block_resized) {
+            return false;
+        }
+    }
+    return true;
+}
