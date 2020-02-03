@@ -1674,8 +1674,8 @@ static void spapr_machine_reset(MachineState *machine)
     spapr->fdt_blob = fdt;
 
     /* Set up the entry state */
-    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT, fdt_addr);
-    first_ppc_cpu->env.gpr[5] = 0;
+    spapr_cpu_set_entry_state(first_ppc_cpu, SPAPR_ENTRY_POINT,
+                              0, fdt_addr, 0, 0);
 
     spapr->cas_reboot = false;
 
