@@ -13,6 +13,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "cpu.h"
 #include "hw/arm/bcm2836.h"
@@ -70,6 +71,11 @@ static const RaspiBoardInfo raspi_boards[] = {
     },
 #endif
 };
+
+static uint64_t board_ram_size(const RaspiBoardInfo *config)
+{
+    return 1 * MiB << extract32(config->board_rev, 20, 4);
+}
 
 static int board_chip_id(const RaspiBoardInfo *config)
 {
@@ -222,10 +228,13 @@ static void raspi_init(MachineState *machine, const RaspiBoardInfo *config)
     BlockBackend *blk;
     BusState *bus;
     DeviceState *carddev;
+    uint64_t ram_size;
 
-    if (machine->ram_size > 1 * GiB) {
-        error_report("Requested ram size is too large for this machine: "
-                     "maximum is 1GB");
+    ram_size = board_ram_size(config);
+    if (machine->ram_size != ram_size) {
+        char *size_str = size_to_str(ram_size);
+        error_report("This machine can only be used with %s", size_str);
+        g_free(size_str);
         exit(1);
     }
 
