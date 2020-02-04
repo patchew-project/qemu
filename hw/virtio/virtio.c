@@ -2163,6 +2163,11 @@ void virtio_queue_set_rings(VirtIODevice *vdev, int n, hwaddr desc,
     vdev->vq[n].vring.avail = avail;
     vdev->vq[n].vring.used = used;
     virtio_init_region_cache(vdev, n);
+    if (vdev->broken) {
+        vdev->vq[n].vring.desc = 0;
+        vdev->vq[n].vring.avail = 0;
+        vdev->vq[n].vring.used = 0;
+    }
 }
 
 void virtio_queue_set_num(VirtIODevice *vdev, int n, int num)
