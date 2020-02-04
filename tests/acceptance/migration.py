@@ -17,6 +17,9 @@ from avocado.utils import wait
 
 
 class Migration(Test):
+    """
+    :avocado: tags=migration
+    """
 
     timeout = 10
 
