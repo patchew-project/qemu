@@ -1655,6 +1655,7 @@ L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/nvme*
 F: tests/qtest/nvme-test.c
+F: docs/specs/nvme.txt
 
 megasas
 M: Hannes Reinecke <hare@suse.com>
