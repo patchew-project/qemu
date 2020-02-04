@@ -55,15 +55,6 @@ enum BSDType bsd_type;
    by remapping the process stack directly at the right place */
 unsigned long x86_stack_size = 512 * 1024;
 
-void gemu_log(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-}
-
 #if defined(TARGET_I386)
 int cpu_get_pic_interrupt(CPUX86State *env)
 {
@@ -731,6 +722,7 @@ int main(int argc, char **argv)
     const char *cpu_type;
     const char *log_file = NULL;
     const char *log_mask = NULL;
+    bool enable_strace = false;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
@@ -845,7 +837,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(r, "singlestep")) {
             singlestep = 1;
         } else if (!strcmp(r, "strace")) {
-            do_strace = 1;
+            enable_strace = true;
         } else if (!strcmp(r, "trace")) {
             g_free(trace_file);
             trace_file = trace_opt_parse(optarg);
@@ -854,17 +846,26 @@ int main(int argc, char **argv)
         }
     }
 
+    if (getenv("QEMU_STRACE")) {
+        enable_strace = true;
+    }
+
     /* init debug */
     qemu_log_needs_buffers();
     qemu_set_log_filename(log_file, &error_fatal);
-    if (log_mask) {
+    if (log_mask || enable_strace) {
         int mask;
 
         mask = qemu_str_to_log_mask(log_mask);
-        if (!mask) {
+        if (log_mask && !mask) {
             qemu_print_log_usage(stdout);
             exit(1);
         }
+
+        if (enable_strace) {
+            mask |= LOG_STRACE;
+        }
+
         qemu_set_log(mask);
     }
 
@@ -915,10 +916,6 @@ int main(int argc, char **argv)
     cpu_reset(cpu);
 #endif
     thread_cpu = cpu;
-
-    if (getenv("QEMU_STRACE")) {
-        do_strace = 1;
-    }
 
     target_environ = envlist_to_environ(envlist, NULL);
     envlist_free(envlist);
