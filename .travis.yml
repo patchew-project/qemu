@@ -161,7 +161,7 @@ matrix:
       addons:
         apt:
           packages:
-            - python-sphinx
+            - python3-sphinx
             - texinfo
             - perl
 
