@@ -917,6 +917,7 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
                                     struct Object *owner,
                                     const char *name,
                                     uint64_t size,
+                                    uint64_t mmap_offset,
                                     bool share,
                                     int fd,
                                     Error **errp);
