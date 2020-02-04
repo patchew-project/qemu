@@ -190,7 +190,11 @@ static void pl031_init(Object *obj)
     qemu_get_timedate(&tm, 0);
     s->tick_offset = mktimegm(&tm) -
         qemu_clock_get_ns(rtc_clock) / NANOSECONDS_PER_SECOND;
+}
 
+static void pl031_realize(DeviceState *dev, Error **errp)
+{
+    PL031State *s = PL031(dev);
     s->timer = timer_new_ns(rtc_clock, pl031_interrupt, s);
 }
 
@@ -321,6 +325,7 @@ static void pl031_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_pl031;
+    dc->realize = pl031_realize;
     device_class_set_props(dc, pl031_properties);
 }
 
