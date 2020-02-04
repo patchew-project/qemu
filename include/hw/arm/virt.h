@@ -76,6 +76,7 @@ enum {
     VIRT_PLATFORM_BUS,
     VIRT_GPIO,
     VIRT_SECURE_UART,
+    VIRT_MEMEXPOSE,
     VIRT_SECURE_MEM,
     VIRT_PCDIMM_ACPI,
     VIRT_ACPI_GED,
@@ -86,6 +87,8 @@ enum {
 enum {
     VIRT_HIGH_GIC_REDIST2 =  VIRT_LOWMEMMAP_LAST,
     VIRT_HIGH_PCIE_ECAM,
+    VIRT_HIGH_MEMEXPOSE_MMIO,
+    VIRT_HIGH_MEMEXPOSE,
     VIRT_HIGH_PCIE_MMIO,
 };
 
@@ -124,6 +127,8 @@ typedef struct {
     bool its;
     bool virt;
     int32_t gic_version;
+    char *memexpose_ep;
+    uint64_t memexpose_size;
     VirtIOMMUType iommu;
     struct arm_boot_info bootinfo;
     MemMapEntry *memmap;
