@@ -1915,6 +1915,25 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size);
 
 /**
+ * memory_region_find_flat_range: translate an address/size relative to
+ * a MemoryRegion into a FlatRange containing it.
+ *
+ * Returns a #MemoryRegionSection that describes this FlatRange.
+ * It will have the following characteristics:
+ *    .@size = 0 iff no containing FlatRange was found
+ *    .@mr is non-%NULL iff a containing FlatRange was found
+ *
+ * Remember that in the return value the @offset_within_region is
+ * relative to the returned region (in the .@mr field), not to the
+ * @mr argument.
+ *
+ * @mr: a MemoryRegion within which @addr is a relative address
+ * @addr: start of the area within @as to be searched
+ * @size: size of the area to be searched
+ */
+MemoryRegionSection memory_region_find_flat_range(MemoryRegion *mr,
+                                                  hwaddr addr, uint64_t size);
+/**
  * memory_global_dirty_log_sync: synchronize the dirty log for all memory
  *
  * Synchronizes the dirty page log for all address spaces.
