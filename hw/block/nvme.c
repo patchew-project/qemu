@@ -298,23 +298,21 @@ unmap:
 static uint16_t nvme_dma_prp(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
     uint64_t prp1, uint64_t prp2, DMADirection dir, NvmeRequest *req)
 {
-    QEMUSGList qsg;
-    QEMUIOVector iov;
     uint16_t status = NVME_SUCCESS;
     size_t bytes;
 
-    status = nvme_map_prp(n, &qsg, &iov, prp1, prp2, len, req);
+    status = nvme_map_prp(n, &req->qsg, &req->iov, prp1, prp2, len, req);
     if (status) {
         return status;
     }
 
-    if (qsg.nsg > 0) {
+    if (req->qsg.nsg > 0) {
         uint64_t residual;
 
         if (dir == DMA_DIRECTION_TO_DEVICE) {
-            residual = dma_buf_write(ptr, len, &qsg);
+            residual = dma_buf_write(ptr, len, &req->qsg);
         } else {
-            residual = dma_buf_read(ptr, len, &qsg);
+            residual = dma_buf_read(ptr, len, &req->qsg);
         }
 
         if (unlikely(residual)) {
@@ -322,23 +320,19 @@ static uint16_t nvme_dma_prp(NvmeCtrl *n, uint8_t *ptr, uint32_t len,
             status = NVME_INVALID_FIELD | NVME_DNR;
         }
 
-        qemu_sglist_destroy(&qsg);
-
         return status;
     }
 
     if (dir == DMA_DIRECTION_TO_DEVICE) {
-        bytes = qemu_iovec_to_buf(&iov, 0, ptr, len);
+        bytes = qemu_iovec_to_buf(&req->iov, 0, ptr, len);
     } else {
-        bytes = qemu_iovec_from_buf(&iov, 0, ptr, len);
+        bytes = qemu_iovec_from_buf(&req->iov, 0, ptr, len);
     }
 
     if (unlikely(bytes != len)) {
         trace_nvme_dev_err_invalid_dma();
         status = NVME_INVALID_FIELD | NVME_DNR;
     }
-
-    qemu_iovec_destroy(&iov);
 
     return status;
 }
