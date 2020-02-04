@@ -27,11 +27,11 @@ typedef struct NvmeRequest {
     struct NvmeSQueue       *sq;
     BlockAIOCB              *aiocb;
     uint16_t                status;
-    bool                    has_sg;
     NvmeCqe                 cqe;
     BlockAcctCookie         acct;
     QEMUSGList              qsg;
     QEMUIOVector            iov;
+    NvmeCmd                 cmd;
     QTAILQ_ENTRY(NvmeRequest)entry;
 } NvmeRequest;
 
