@@ -906,6 +906,7 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
  * @owner: the object that tracks the region's reference count
  * @name: the name of the region.
  * @size: size of the region.
+ * @mmap_offset: offset at which the fd is to be mapped.
  * @share: %true if memory must be mmaped with the MAP_SHARED flag
  * @fd: the fd to mmap.
  * @errp: pointer to Error*, to store an error if it happens.
@@ -917,6 +918,7 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
                                     struct Object *owner,
                                     const char *name,
                                     uint64_t size,
+                                    uint64_t mmap_offset,
                                     bool share,
                                     int fd,
                                     Error **errp);

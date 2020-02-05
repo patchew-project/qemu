@@ -23,6 +23,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path);
  */
 void *qemu_ram_mmap(int fd,
                     size_t size,
+                    size_t mmap_offset,
                     size_t align,
                     bool shared,
                     bool is_pmem);
