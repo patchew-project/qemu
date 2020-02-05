@@ -61,7 +61,6 @@ class BootLinuxConsole(Test):
                       '/vmlinuz')
         kernel_hash = '23bebd2680757891cf7adedb033532163a792495'
         kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
-
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         self.vm.add_args('-kernel', kernel_path,
@@ -77,11 +76,27 @@ class BootLinuxConsole(Test):
         """
         self.do_test_x86_64_machine()
 
+    def test_x86_64_pc_qboot(self):
+        """
+        :avocado: tags=arch:x86_64
+        :avocado: tags=machine:pc
+        """
+        self.vm.add_args('-bios', 'pc-bios/bios-microvm.bin')
+        self.do_test_x86_64_machine()
+
     def test_x86_64_microvm(self):
         """
         :avocado: tags=arch:x86_64
         :avocado: tags=machine:microvm
         """
+        self.do_test_x86_64_machine()
+
+    def test_x86_64_microvm_seabios(self):
+        """
+        :avocado: tags=arch:x86_64
+        :avocado: tags=machine:microvm
+        """
+        self.vm.add_args('-bios', 'pc-bios/bios.bin')
         self.do_test_x86_64_machine()
 
     def test_mips_malta(self):
