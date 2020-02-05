@@ -1639,6 +1639,11 @@ F: hw/virtio/virtio-crypto.c
 F: hw/virtio/virtio-crypto-pci.c
 F: include/hw/virtio/virtio-crypto.h
 
+memexpose
+M: Igor Kotrasinski <i.kotrasinsk@partner.samsung.com>
+S: Maintained
+F: docs/specs/memexpose-spec.txt
+
 nvme
 M: Keith Busch <keith.busch@intel.com>
 L: qemu-block@nongnu.org
