@@ -15,6 +15,7 @@
 
 #include "qemu/osdep.h"
 #include <sys/ioctl.h>
+#include <poll.h>
 
 #include <linux/kvm.h>
 
@@ -75,6 +76,47 @@ struct KVMParkedVcpu {
     QLIST_ENTRY(KVMParkedVcpu) node;
 };
 
+enum KVMReaperState {
+    KVM_REAPER_NONE = 0,
+    /* The reaper is sleeping */
+    KVM_REAPER_WAIT,
+    /* The reaper is reaping for dirty pages */
+    KVM_REAPER_REAPING,
+};
+
+/*
+ * KVM reaper instance, responsible for collecting the KVM dirty bits
+ * via the dirty ring.
+ */
+struct KVMDirtyRingReaper {
+    /* The reaper thread */
+    QemuThread reaper_thr;
+    /*
+     * Telling the reaper thread to wakeup.  This should be used as a
+     * generic interface to kick the reaper thread, like, in vcpu
+     * threads where it gets a exit due to ring full.
+     */
+    EventNotifier reaper_event;
+    /*
+     * This should only be used when someone wants to do synchronous
+     * flush of the dirty ring buffers.  Logically we can achieve this
+     * even with the reaper_event only, however that'll make things
+     * complicated.  This extra event can make the sync procedure easy
+     * and clean.
+     */
+    EventNotifier reaper_flush_event;
+    /*
+     * Used in pair with reaper_flush_event, that the sem will be
+     * posted to notify that the previous flush event is handled by
+     * the reaper thread.
+     */
+    QemuSemaphore reaper_flush_sem;
+    /* Iteration number of the reaper thread */
+    volatile uint64_t reaper_iteration;
+    /* Status of the reaper thread */
+    volatile enum KVMReaperState reaper_state;
+};
+
 struct KVMState
 {
     AccelState parent_obj;
@@ -121,7 +163,6 @@ struct KVMState
     void *memcrypt_handle;
     int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
 
-    /* For "info mtree -f" to tell if an MR is registered in KVM */
     int nr_as;
     struct KVMAs {
         KVMMemoryListener *ml;
@@ -129,6 +170,7 @@ struct KVMState
     } *as;
     int kvm_dirty_ring_size;
     int kvm_dirty_gfn_count;    /* If nonzero, then kvm dirty ring enabled */
+    struct KVMDirtyRingReaper reaper;
 };
 
 KVMState *kvm_state;
@@ -348,6 +390,11 @@ int kvm_destroy_vcpu(CPUState *cpu)
         goto err;
     }
 
+    ret = munmap(cpu->kvm_dirty_gfns, s->kvm_dirty_ring_size);
+    if (ret < 0) {
+        goto err;
+    }
+
     vcpu = g_malloc0(sizeof(*vcpu));
     vcpu->vcpu_id = kvm_arch_vcpu_id(cpu);
     vcpu->kvm_fd = cpu->kvm_fd;
@@ -391,6 +438,7 @@ int kvm_init_vcpu(CPUState *cpu)
     cpu->kvm_fd = ret;
     cpu->kvm_state = s;
     cpu->vcpu_dirty = true;
+    qemu_sem_init(&cpu->kvm_dirty_ring_avail, 0);
 
     mmap_size = kvm_ioctl(s, KVM_GET_VCPU_MMAP_SIZE, 0);
     if (mmap_size < 0) {
@@ -410,6 +458,18 @@ int kvm_init_vcpu(CPUState *cpu)
     if (s->coalesced_mmio && !s->coalesced_mmio_ring) {
         s->coalesced_mmio_ring =
             (void *)cpu->kvm_run + s->coalesced_mmio * PAGE_SIZE;
+    }
+
+    if (s->kvm_dirty_gfn_count) {
+        cpu->kvm_dirty_gfns = mmap(NULL, s->kvm_dirty_ring_size,
+                                   PROT_READ | PROT_WRITE, MAP_SHARED,
+                                   cpu->kvm_fd,
+                                   PAGE_SIZE * KVM_DIRTY_LOG_PAGE_OFFSET);
+        if (cpu->kvm_dirty_gfns == MAP_FAILED) {
+            ret = -errno;
+            DPRINTF("mmap'ing vcpu dirty gfns failed\n");
+            goto err;
+        }
     }
 
     ret = kvm_arch_init_vcpu(cpu);
@@ -523,6 +583,11 @@ static void kvm_slot_sync_dirty_pages(KVMSlot *slot)
     ram_addr_t pages = slot->memory_size / qemu_real_host_page_size;
 
     cpu_physical_memory_set_dirty_lebitmap(slot->dirty_bmap, start, pages);
+}
+
+static void kvm_slot_reset_dirty_pages(KVMSlot *slot)
+{
+    memset(slot->dirty_bmap, 0, slot->dirty_bmap_size);
 }
 
 #define ALIGN(x, y)  (((x)+(y)-1) & ~((y)-1))
@@ -1100,6 +1165,305 @@ out:
     kvm_slots_unlock(kml);
 }
 
+static void kvm_dirty_ring_reaper_kick(void)
+{
+    trace_kvm_dirty_ring_reaper_kick("any");
+    event_notifier_set(&kvm_state->reaper.reaper_event);
+}
+
+static void kvm_dirty_ring_reaper_kick_flush(void)
+{
+    trace_kvm_dirty_ring_reaper_kick("flush");
+    event_notifier_set(&kvm_state->reaper.reaper_flush_event);
+}
+
+/* Should be with all slots_lock held for the address spaces */
+static void kvm_dirty_ring_mark_page(KVMState *s, uint32_t as_id,
+                                     uint32_t slot_id, uint64_t offset)
+{
+    KVMMemoryListener *kml;
+    KVMSlot *mem;
+
+    assert(as_id < s->nr_as);
+    /* These fields shouldn't change after VM inits */
+    kml = s->as[as_id].ml;
+    mem = &kml->slots[slot_id];
+    set_bit(offset, mem->dirty_bmap);
+}
+
+static bool dirty_gfn_is_dirtied(struct kvm_dirty_gfn *gfn)
+{
+    return gfn->flags == KVM_DIRTY_GFN_F_DIRTY;
+}
+
+static void dirty_gfn_set_collected(struct kvm_dirty_gfn *gfn)
+{
+    gfn->flags = KVM_DIRTY_GFN_F_RESET;
+}
+
+/* Should be with all slots_lock held for the address spaces */
+static uint32_t kvm_dirty_ring_reap_one(KVMState *s, CPUState *cpu)
+{
+    struct kvm_dirty_gfn *dirty_gfns = cpu->kvm_dirty_gfns, *cur;
+    uint32_t gfn_count = s->kvm_dirty_gfn_count;
+    uint32_t count = 0, fetch = cpu->kvm_fetch_index;
+
+    assert(dirty_gfns && gfn_count);
+
+    trace_kvm_dirty_ring_reap_vcpu(cpu->cpu_index);
+
+    while (true) {
+        cur = &dirty_gfns[fetch % gfn_count];
+        if (!dirty_gfn_is_dirtied(cur)) {
+            break;
+        }
+        trace_kvm_dirty_ring_page(cpu->cpu_index, fetch, cur->offset);
+        kvm_dirty_ring_mark_page(s, cur->slot >> 16, cur->slot & 0xffff,
+                                 cur->offset);
+        dirty_gfn_set_collected(cur);
+        fetch++;
+        count++;
+    }
+    cpu->kvm_fetch_index = fetch;
+
+    return count;
+}
+
+static uint64_t kvm_dirty_ring_reap(KVMState *s)
+{
+    KVMMemoryListener *kml;
+    int ret, i, locked_count = s->nr_as;
+    CPUState *cpu;
+    uint64_t total = 0;
+
+    /*
+     * We need to lock all kvm slots for all address spaces here,
+     * because:
+     *
+     * (1) We need to mark dirty for dirty bitmaps in multiple slots
+     *     and for tons of pages, so it's better to take the lock here
+     *     once rather than once per page.  And more importantly,
+     *
+     * (2) We must _NOT_ publish dirty bits to the other threads
+     *     (e.g., the migration thread) via the kvm memory slot dirty
+     *     bitmaps before correctly re-protect those dirtied pages.
+     *     Otherwise we can have potential risk of data corruption if
+     *     the page data is read in the other thread before we do
+     *     reset below.
+     */
+    for (i = 0; i < s->nr_as; i++) {
+        kml = s->as[i].ml;
+        if (!kml) {
+            /*
+             * This is tricky - we grow s->as[] dynamically now.  Take
+             * care of that case.  We also assumed the as[] will fill
+             * one by one starting from zero.  Without this, we race
+             * with register_smram_listener.
+             *
+             * TODO: make all these prettier...
+             */
+            locked_count = i;
+            break;
+        }
+        kvm_slots_lock(kml);
+    }
+
+    CPU_FOREACH(cpu) {
+        total += kvm_dirty_ring_reap_one(s, cpu);
+    }
+
+    if (total) {
+        ret = kvm_vm_ioctl(s, KVM_RESET_DIRTY_RINGS);
+        assert(ret == total);
+    }
+
+    /* Unlock whatever locks that we have locked */
+    for (i = 0; i < locked_count; i++) {
+        kvm_slots_unlock(s->as[i].ml);
+    }
+
+    CPU_FOREACH(cpu) {
+        if (cpu->kvm_dirty_ring_full) {
+            qemu_sem_post(&cpu->kvm_dirty_ring_avail);
+        }
+    }
+
+    return total;
+}
+
+static void do_kvm_cpu_synchronize_kick(CPUState *cpu, run_on_cpu_data arg)
+{
+    /* No need to do anything */
+}
+
+/*
+ * Kick all vcpus out in a synchronized way.  When returned, we
+ * guarantee that every vcpu has been kicked and at least returned to
+ * userspace once.
+ */
+static void kvm_cpu_synchronize_kick_all(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        run_on_cpu(cpu, do_kvm_cpu_synchronize_kick, RUN_ON_CPU_NULL);
+    }
+}
+
+/*
+ * Flush all the existing dirty pages to the KVM slot buffers.  When
+ * this call returns, we guarantee that all the touched dirty pages
+ * before calling this function have been put into the per-kvmslot
+ * dirty bitmap.
+ *
+ * To achieve this, we need to:
+ *
+ * (1) Kick all vcpus out, this will make sure that we flush all the
+ *     dirty buffers that potentially in the hardware (PML) into the
+ *     dirty rings, after that,
+ *
+ * (2) Kick the reaper thread and make sure it reaps all the dirty
+ *     page that is in the dirty rings.
+ *
+ * This function must be called with BQL held.
+ */
+static void kvm_dirty_ring_flush(struct KVMDirtyRingReaper *r)
+{
+    uint64_t iteration;
+
+    trace_kvm_dirty_ring_flush(0);
+
+    /*
+     * The function needs to be serialized.  Since this function
+     * should always be with BQL held, serialization is guaranteed.
+     * However, let's be sure of it.
+     */
+    assert(qemu_mutex_iothread_locked());
+
+    /*
+     * First make sure to flush the hardware buffers by kicking all
+     * vcpus out in a synchronous way.
+     */
+    kvm_cpu_synchronize_kick_all();
+
+    iteration = r->reaper_iteration;
+
+    /*
+     * Kick the reaper to collect data.  Here we must make sure that
+     * it goes over a complete WAIT->REAPING->WAIT period so that we
+     * know the reaper has collected all the dirty pages even in the
+     * hardware buffers we just flushed.  To achieve this, we kick the
+     * flush_event.
+     */
+    kvm_dirty_ring_reaper_kick_flush();
+    qemu_sem_wait(&r->reaper_flush_sem);
+
+    /* When reach here, we must have finished at least one iteration */
+    assert(r->reaper_iteration > iteration);
+
+    trace_kvm_dirty_ring_flush(1);
+}
+
+static void *kvm_dirty_ring_reaper_thread(void *data)
+{
+    KVMState *s = data;
+    struct KVMDirtyRingReaper *r = &s->reaper;
+    struct pollfd *pfd = g_new0(struct pollfd, 2);
+    uint64_t count;
+    int64_t stamp;
+    int ret;
+
+    rcu_register_thread();
+
+    trace_kvm_dirty_ring_reaper("init");
+
+    pfd[0].fd = event_notifier_get_fd(&r->reaper_event);
+    pfd[0].events = POLLIN;
+    pfd[1].fd = event_notifier_get_fd(&r->reaper_flush_event);
+    pfd[1].events = POLLIN;
+
+    while (true) {
+        bool flush_requested = false;
+
+        r->reaper_state = KVM_REAPER_WAIT;
+        trace_kvm_dirty_ring_reaper("wait");
+        /*
+         * TODO: provide a smarter timeout rather than a constant?  If
+         * this timeout is too small it could eat a lot of CPU
+         * resource, however if too big then VGA could be less
+         * responsive.  30ms is a value that is not too small so it
+         * won't eat much CPU, while the VGA can still get ~30Hz
+         * refresh rate.
+         */
+        ret = poll(pfd, 2, 30);
+        trace_kvm_dirty_ring_reaper("wakeup");
+        r->reaper_state = KVM_REAPER_REAPING;
+
+        if (ret == -1) {
+            error_report("%s: poll() failed: %s", __func__, strerror(errno));
+            break;
+        }
+
+        /*
+         * Note: we only handle one request at a time.  Also, we'll
+         * clear the event flag before we reap, so each SET to the
+         * event will guarantee that another full-reap procedure will
+         * happen.
+         */
+        if (pfd[0].revents) {
+            ret = event_notifier_test_and_clear(&r->reaper_event);
+            assert(ret);
+        } else if (pfd[1].revents) {
+            ret = event_notifier_test_and_clear(&r->reaper_flush_event);
+            assert(ret);
+            flush_requested = true;
+        }
+
+        stamp = get_clock();
+        count = kvm_dirty_ring_reap(s);
+        stamp = get_clock() - stamp;
+
+        r->reaper_iteration++;
+
+        if (count) {
+            trace_kvm_dirty_ring_reaper_iterate(r->reaper_iteration,
+                                                count, stamp / 1000);
+        }
+
+        /*
+         * If this iteration is to handle a flush event, wakeup the
+         * requester of the flush
+         */
+        if (flush_requested) {
+            qemu_sem_post(&r->reaper_flush_sem);
+        }
+    }
+
+    trace_kvm_dirty_ring_reaper("exit");
+
+    rcu_unregister_thread();
+
+    return NULL;
+}
+
+static int kvm_dirty_ring_reaper_init(KVMState *s)
+{
+    struct KVMDirtyRingReaper *r = &s->reaper;
+    int ret;
+
+    ret = event_notifier_init(&r->reaper_event, false);
+    assert(ret == 0);
+    ret = event_notifier_init(&r->reaper_flush_event, false);
+    assert(ret == 0);
+    qemu_sem_init(&r->reaper_flush_sem, 0);
+
+    qemu_thread_create(&r->reaper_thr, "kvm-reaper",
+                       kvm_dirty_ring_reaper_thread,
+                       s, QEMU_THREAD_JOINABLE);
+
+    return 0;
+}
+
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -1125,6 +1489,36 @@ static void kvm_log_sync(MemoryListener *listener,
 
     kvm_slots_lock(kml);
     kvm_physical_sync_dirty_bitmap(kml, section);
+    kvm_slots_unlock(kml);
+}
+
+static void kvm_log_sync_global(MemoryListener *l)
+{
+    KVMMemoryListener *kml = container_of(l, KVMMemoryListener, listener);
+    KVMState *s = kvm_state;
+    KVMSlot *mem;
+    int i;
+
+    /* Flush all kernel dirty addresses into KVMSlot dirty bitmap */
+    kvm_dirty_ring_flush(&s->reaper);
+
+    /*
+     * TODO: make this faster when nr_slots is big while there are
+     * only a few used slots (small VMs).
+     */
+    kvm_slots_lock(kml);
+    for (i = 0; i < s->nr_slots; i++) {
+        mem = &kml->slots[i];
+        if (mem->memory_size && mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
+            kvm_slot_sync_dirty_pages(mem);
+            /*
+             * This is not needed by KVM_GET_DIRTY_LOG because the
+             * ioctl will unconditionally overwrite the whole region.
+             * However kvm dirty ring has no such side effect.
+             */
+            kvm_slot_reset_dirty_pages(mem);
+        }
+    }
     kvm_slots_unlock(kml);
 }
 
@@ -1234,9 +1628,16 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
     kml->listener.region_del = kvm_region_del;
     kml->listener.log_start = kvm_log_start;
     kml->listener.log_stop = kvm_log_stop;
-    kml->listener.log_sync = kvm_log_sync;
-    kml->listener.log_clear = kvm_log_clear;
     kml->listener.priority = 10;
+
+    if (s->kvm_dirty_gfn_count) {
+        /* KVM dirty ring enabled */
+        kml->listener.log_sync_global = kvm_log_sync_global;
+    } else {
+        /* KVM dirty logging enabled */
+        kml->listener.log_sync = kvm_log_sync;
+        kml->listener.log_clear = kvm_log_clear;
+    }
 
     memory_listener_register(&kml->listener, as);
 
@@ -2120,6 +2521,13 @@ static int kvm_init(MachineState *ms)
         qemu_balloon_inhibit(true);
     }
 
+    if (s->kvm_dirty_gfn_count) {
+        ret = kvm_dirty_ring_reaper_init(s);
+        if (ret) {
+            goto err;
+        }
+    }
+
     return 0;
 
 err:
@@ -2426,6 +2834,18 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         case KVM_EXIT_INTERNAL_ERROR:
             ret = kvm_handle_internal_error(cpu, run);
+            break;
+        case KVM_EXIT_DIRTY_RING_FULL:
+            /*
+             * We shouldn't continue if the dirty ring of this vcpu is
+             * still full.  Got kicked by KVM_RESET_DIRTY_RINGS.
+             */
+            trace_kvm_dirty_ring_full(cpu->cpu_index);
+            cpu->kvm_dirty_ring_full = true;
+            kvm_dirty_ring_reaper_kick();
+            qemu_sem_wait(&cpu->kvm_dirty_ring_avail);
+            cpu->kvm_dirty_ring_full = false;
+            ret = 0;
             break;
         case KVM_EXIT_SYSTEM_EVENT:
             switch (run->system_event.type) {
