@@ -18,7 +18,7 @@
 typedef struct ResetInfo {
     uint64_t ipl_psw;
     uint32_t ipl_continue;
-} ResetInfo;
+} __attribute__((packed)) ResetInfo;
 
 static ResetInfo save;
 
