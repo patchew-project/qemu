@@ -19,6 +19,8 @@ from avocado_qemu import exec_command_and_wait_for_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
+from avocado.utils.cpu import get_cpu_vendor_name
+from avocado.utils.path import find_command
 
 
 class BootLinuxConsole(Test):
@@ -551,11 +553,7 @@ class BootLinuxConsole(Test):
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
 
-    def test_ppc64_pseries(self):
-        """
-        :avocado: tags=arch:ppc64
-        :avocado: tags=machine:pseries
-        """
+    def do_test_ppc64_pseries(self):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/29/Everything/ppc64le/os'
                       '/ppc/ppc64/vmlinuz')
@@ -569,6 +567,37 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    @skipUnless(find_command('ppc64_cpu', default=False))
+    def test_ppc64_pseries_kvm(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        :avocado: tags=accel:kvm
+
+        It assumes running on POWER8 or greater, otherwise skip the test.
+        If on POWER8 then SMT should be off, otherwise skip the test.
+        """
+        cpu = get_cpu_vendor_name()
+        if not cpu.startswith('power'):
+            self.cancel('do not test with %s cpu' % cpu)
+        else:
+            version = int(cpu.replace('power', ''))
+            if version < 8:
+                self.cancel('cpu %s is not >= POWER8')
+            elif version == 8:
+                smt = process.run('ppc64_cpu --smt -n').stdout_text.strip()
+                if smt != 'SMT=1':
+                    self.cancel('%s on POWER8' % smt)
+        self.do_test_ppc64_pseries()
+
+    def test_ppc64_pseries_tcg(self):
+        """
+        :avocado: tags=arch:ppc64
+        :avocado: tags=machine:pseries
+        :avocado: tags=accel:tcg
+        """
+        self.do_test_ppc64_pseries()
 
     def test_m68k_q800(self):
         """
