@@ -4974,8 +4974,33 @@ The polling parameters can be modified at run-time using the @code{qom-set} comm
 
 @end table
 
-ETEXI
+@item -object file-fence,id=@var{id},file=@var{file},qtimeout=@var{qtimeout},ktimeout=@var{ktimeout},signal=@{signal}
 
+Self-fence Qemu if @var{file} is not modified within a given timeout.
+
+Qemu will watch @var{file} for attribute changes. Touching the file works as a
+heartbeat. This parameter is mandatory.
+
+Fencing happens after @var{qtimeout} or @var{ktimeout} seconds elapse
+without a heartbeat. At least one of these must be specified. Both may be used.
+
+When using @var{qtimeout}, an internal Qemu timer is used. Fencing with
+this method gives Qemu a chance to write a log message indicating which file
+caused the event. If Qemu's main loop is hung for whatever reason, this method
+won't successfully kill Qemu.
+
+When using @var{ktimeout}, a kernel timer is used. In this case, @var{signal}
+can be 'kill' (for SIGKILL, default) or 'quit' (for SIGQUIT). Using SIGQUIT may
+be preferred for obtaining core dumps. If Qemu is hung (eg. uninterruptable
+sleep), this method won't successfully kill Qemu.
+
+It is worth noting that even successfully killing Qemu may not be sufficient to
+completely fence a VM as certain operations like network packets or block
+commands may be pending in the kernel. If that is a concern, systems should
+consider using further fencing mechanisms like hardware watchdogs either in
+addition or in conjunction with this feature for additional protection.
+
+ETEXI
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

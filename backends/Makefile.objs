@@ -9,6 +9,8 @@ common-obj-$(CONFIG_POSIX) += hostmem-file.o
 common-obj-y += cryptodev.o
 common-obj-y += cryptodev-builtin.o
 
+common-obj-y += file-fence.o
+
 ifeq ($(CONFIG_VIRTIO_CRYPTO),y)
 common-obj-y += cryptodev-vhost.o
 common-obj-$(CONFIG_VHOST_CRYPTO) += cryptodev-vhost-user.o
