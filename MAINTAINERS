@@ -1650,6 +1650,7 @@ F: hw/misc/memexpose/memexpose-msg.c
 F: hw/misc/memexpose/memexpose-pci.c
 F: hw/misc/memexpose/memexpose-memregion.h
 F: hw/misc/memexpose/memexpose-memregion.c
+F: tests/qtest/memexpose-test.c
 
 nvme
 M: Keith Busch <keith.busch@intel.com>
