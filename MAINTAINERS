@@ -1647,6 +1647,7 @@ F: hw/misc/memexpose/memexpose-core.h
 F: hw/misc/memexpose/memexpose-core.c
 F: hw/misc/memexpose/memexpose-msg.h
 F: hw/misc/memexpose/memexpose-msg.c
+F: hw/misc/memexpose/memexpose-pci.c
 
 nvme
 M: Keith Busch <keith.busch@intel.com>

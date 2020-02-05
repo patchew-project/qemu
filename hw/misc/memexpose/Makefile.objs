@@ -1,2 +1,3 @@
 common-obj-y += memexpose-msg.o
 common-obj-y += memexpose-core.o
+common-obj-$(CONFIG_PCI) += memexpose-pci.o
