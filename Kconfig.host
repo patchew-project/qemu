@@ -20,6 +20,9 @@ config SPICE
 config IVSHMEM
     bool
 
+config MEMEXPOSE
+    bool
+
 config TPM
     bool
 
