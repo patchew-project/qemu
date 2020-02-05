@@ -15,6 +15,7 @@
 #include "elf.h"
 #include "hw/ppc/ppc.h"
 #include "hw/loader.h"
+#include "net/net.h"
 #include "trace.h"
 
 #define ALIGN(x, a) (((x) + (a) - 1) & ~((a) - 1))
@@ -211,12 +212,23 @@ static const uint8_t of_client_blob[] = {
     0x4e, 0x80, 0x00, 0x20
 };
 
+typedef uint8_t SpaprOfNetBuffer[2048];
+typedef struct {
+    int head, tail, used;
+    SpaprOfNetBuffer b[32];
+} SpaprOfNetBuffers;
+
 typedef struct {
     DeviceState *dev;
     CharBackend *cbe;
     BlockBackend *blk;
     uint64_t blk_pos;
     uint16_t blk_physical_block_size;
+    NICState *nic;
+    NICConf nicconf;
+    SpaprOfNetBuffers *netbufs;
+    NetClientState *ncpeer;
+    char *params;
     char *path; /* the path used to open the instance */
     uint32_t phandle;
 } SpaprOfInstance;
@@ -612,6 +624,75 @@ static DeviceState *of_client_find_qom_dev(BusState *bus, const char *path)
     return NULL;
 }
 
+static bool network_device_get_mac(DeviceState *qdev, MACAddr *mac)
+{
+    const char *macstr;
+
+    macstr = object_property_get_str(OBJECT(qdev), "mac", NULL);
+    if (!macstr) {
+        return false;
+    }
+
+    return sscanf(macstr, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx",
+                  &mac->a[0], &mac->a[1], &mac->a[2],
+                  &mac->a[3], &mac->a[4], &mac->a[5]) == 6;
+}
+
+static int of_client_net_can_receive(NetClientState *nc)
+{
+    SpaprOfInstance *inst = qemu_get_nic_opaque(nc);
+    SpaprOfNetBuffers *nb = inst->netbufs;
+
+    return nb->used < ARRAY_SIZE(nb->b);
+}
+
+static ssize_t of_client_net_receive(NetClientState *nc, const uint8_t *buf,
+                                     size_t size)
+{
+    SpaprOfInstance *inst = qemu_get_nic_opaque(nc);
+    SpaprOfNetBuffers *nb = inst->netbufs;
+    int next;
+
+    next = (nb->head + 1) % ARRAY_SIZE(nb->b);
+    g_assert(next != nb->tail);
+    g_assert(size <= ARRAY_SIZE(nb->b[0]));
+
+    memcpy(nb->b[next], buf, size);
+    nb->head = next;
+    ++nb->used;
+
+    return size;
+}
+
+static ssize_t of_client_net_read(SpaprOfInstance *inst, uint8_t *buf,
+                                  size_t size)
+{
+    SpaprOfNetBuffers *nb = inst->netbufs;
+
+    if (!nb->used) {
+        return 0;
+    }
+    g_assert(nb->head != nb->tail);
+    memcpy(buf, nb->b[nb->tail], size);
+    nb->tail = (nb->tail + 1) % ARRAY_SIZE(nb->b);
+    --nb->used;
+
+    return size;
+}
+
+static ssize_t of_client_net_write(SpaprOfInstance *inst, uint8_t *buf,
+                                   size_t size)
+{
+    return qemu_send_packet(qemu_get_queue(inst->nic), buf, size);
+}
+
+static NetClientInfo of_client_net_info = {
+    .type = NET_CLIENT_DRIVER_NIC,
+    .size = sizeof(NICState),
+    .can_receive = of_client_net_can_receive,
+    .receive = of_client_net_receive,
+};
+
 static uint32_t spapr_of_client_open(SpaprMachineState *spapr, const char *path)
 {
     int offset;
@@ -625,11 +706,6 @@ static uint32_t spapr_of_client_open(SpaprMachineState *spapr, const char *path)
     }
 
     split_path(path, &node, &unit, &part);
-    if (part && strcmp(part, "0")) {
-        error_report("Error: Do not do partitions now");
-        g_free(part);
-        part = NULL;
-    }
 
     offset = of_client_fdt_path_offset(spapr->fdt_blob, node, unit);
     if (offset < 0) {
@@ -649,6 +725,7 @@ static uint32_t spapr_of_client_open(SpaprMachineState *spapr, const char *path)
         g_free(tmp);
     }
     inst->path = g_strdup(path);
+    inst->params = part;
     g_hash_table_insert(spapr->of_instances,
                         GINT_TO_POINTER(spapr->of_instance_last),
                         inst);
@@ -659,6 +736,8 @@ static uint32_t spapr_of_client_open(SpaprMachineState *spapr, const char *path)
                                                       "chardev", NULL);
         const char *blkstr = object_property_get_str(OBJECT(inst->dev),
                                                      "drive", NULL);
+        const char *ncstr = object_property_get_str(OBJECT(inst->dev),
+                                                    "netdev", NULL);
 
         if (cdevstr) {
             Chardev *cdev = qemu_chr_find(cdevstr);
@@ -673,6 +752,28 @@ static uint32_t spapr_of_client_open(SpaprMachineState *spapr, const char *path)
             conf.blk = inst->blk;
             blkconf_blocksizes(&conf);
             inst->blk_physical_block_size = conf.physical_block_size;
+        } else if (ncstr && network_device_get_mac(inst->dev,
+                                                   &inst->nicconf.macaddr)) {
+            /*
+             * We already have a NIC hooked to a netdev bachend. To bypass
+             * the NIC, we temporarily replace the netdev's peer to our
+             * OF NIC and revert it back when the instance is closed.
+             */
+            inst->nicconf.peers.ncs[0] = qemu_find_netdev(ncstr);
+            if (inst->nicconf.peers.ncs[0]) {
+                inst->nicconf.peers.queues = 1;
+                inst->ncpeer = inst->nicconf.peers.ncs[0]->peer;
+                qemu_flush_queued_packets(inst->ncpeer);
+                inst->nicconf.peers.ncs[0]->peer = NULL;
+                inst->nic = qemu_new_nic(&of_client_net_info, &inst->nicconf,
+                                         "OF1275-CI", "ofnet", inst);
+                qemu_purge_queued_packets(inst->nicconf.peers.ncs[0]);
+            }
+            if (inst->nic) {
+                qemu_format_nic_info_str(qemu_get_queue(inst->nic),
+                                         inst->nicconf.macaddr.a);
+                inst->netbufs = g_malloc0(sizeof(inst->netbufs[0]));
+            }
         }
     }
 
@@ -680,7 +781,6 @@ trace_exit:
     trace_spapr_of_client_open(path, inst ? inst->phandle : 0, ret);
     g_free(node);
     g_free(unit);
-    g_free(part);
 
     return ret;
 }
@@ -760,7 +860,7 @@ static uint32_t of_client_instance_to_path(SpaprMachineState *spapr,
 static uint32_t of_client_write(SpaprMachineState *spapr, uint32_t ihandle,
                                 uint32_t buf, uint32_t len)
 {
-    char tmp[256];
+    char tmp[1025];
     int toread, toprint, cb = MIN(len, 1024);
     SpaprOfInstance *inst = (SpaprOfInstance *)
         g_hash_table_lookup(spapr->of_instances, GINT_TO_POINTER(ihandle));
@@ -777,6 +877,8 @@ static uint32_t of_client_write(SpaprMachineState *spapr, uint32_t ihandle,
                                                 toprint);
             } else if (inst->blk) {
                 trace_spapr_of_client_blk_write(ihandle, len);
+            } else if (inst->nic) {
+                toprint = of_client_net_write(inst, (uint8_t *) tmp, toread);
             }
         } else {
             /* We normally open stdout so this is fallback */
@@ -822,6 +924,8 @@ static uint32_t of_client_read(SpaprMachineState *spapr, uint32_t ihandle,
                 if (rc > 0) {
                     inst->blk_pos += rc;
                 }
+            } else if (inst->nic) {
+                ret = of_client_net_read(inst, buf, len);
             }
         }
     }
@@ -1214,6 +1318,15 @@ static void of_instance_free(gpointer data)
 {
     SpaprOfInstance *inst = (SpaprOfInstance *) data;
 
+    if (inst->ncpeer) {
+        qemu_flush_queued_packets(inst->nicconf.peers.ncs[0]->peer);
+        inst->nicconf.peers.ncs[0]->peer = inst->ncpeer;
+        qemu_flush_queued_packets(inst->nicconf.peers.ncs[0]->peer);
+
+        qemu_del_nic(inst->nic);
+    }
+    g_free(inst->netbufs);
+    g_free(inst->params);
     g_free(inst->path);
     g_free(inst);
 }
@@ -1355,7 +1468,7 @@ void spapr_of_client_dt(SpaprMachineState *spapr, void *fdt)
         _FDT(fdt_setprop_cell(fdt, offset, "real-mode?", 1));
     }
 
-    /* Add "disk" nodes to SCSI hosts */
+    /* Add "disk" nodes to SCSI hosts, same for "network" */
     for (offset = fdt_next_node(fdt, -1, NULL), phandle = 1;
          offset >= 0;
          offset = fdt_next_node(fdt, offset, NULL), ++phandle) {
@@ -1366,6 +1479,27 @@ void spapr_of_client_dt(SpaprMachineState *spapr, void *fdt)
             int disk_node_off = fdt_add_subnode(fdt, offset, "disk");
 
             fdt_setprop_string(fdt, disk_node_off, "device_type", "block");
+        } else if (strncmp(nodename, "ethernet@", 9) == 0 ||
+                   strncmp(nodename, "l-lan@", 6) == 0) {
+
+            char devpath[1024];
+            DeviceState *qdev;
+            MACAddr mac;
+
+            if (fdt_get_path(fdt, offset, devpath, sizeof(devpath) - 1) < 0) {
+                continue;
+            }
+
+            qdev = of_client_find_qom_dev(sysbus_get_default(), devpath);
+            if (!qdev) {
+                continue;
+            }
+            if (network_device_get_mac(qdev, &mac)) {
+                fdt_setprop(fdt, offset, "local-mac-address", mac.a,
+                            sizeof(mac));
+            }
+            fdt_setprop_string(fdt, offset, "device_type", "network");
+            fdt_setprop_cell(fdt, offset, "max-frame-size", 1024);
         }
     }
 
