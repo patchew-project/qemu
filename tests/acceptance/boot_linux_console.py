@@ -512,11 +512,7 @@ class BootLinuxConsole(Test):
         exec_command_and_wait_for_pattern(self, 'reboot',
                                                 'reboot: Restarting system')
 
-    def test_s390x_s390_ccw_virtio(self):
-        """
-        :avocado: tags=arch:s390x
-        :avocado: tags=machine:s390-ccw-virtio
-        """
+    def do_test_s390x_s390_ccw_virtio(self):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive'
                       '/fedora-secondary/releases/29/Everything/s390x/os/images'
                       '/kernel.img')
@@ -531,6 +527,22 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_s390x_s390_ccw_virtio_kvm(self):
+        """
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=accel:kvm
+        """
+        self.do_test_s390x_s390_ccw_virtio()
+
+    def test_s390x_s390_ccw_virtio_tcg(self):
+        """
+        :avocado: tags=arch:s390x
+        :avocado: tags=machine:s390-ccw-virtio
+        :avocado: tags=accel:tcg
+        """
+        self.do_test_s390x_s390_ccw_virtio()
 
     def test_alpha_clipper(self):
         """
