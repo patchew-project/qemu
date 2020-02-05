@@ -31,11 +31,16 @@ import tempfile
 import shutil
 import multiprocessing
 import traceback
+from socket_thread import SocketThread
 
 SSH_KEY = open(os.path.join(os.path.dirname(__file__),
                "..", "keys", "id_rsa")).read()
 SSH_PUB_KEY = open(os.path.join(os.path.dirname(__file__),
                    "..", "keys", "id_rsa.pub")).read()
+
+class ConsoleTimeoutException(Exception):
+    """Raise this exception when read from console times out."""
+    pass
 
 class BaseVM(object):
     GUEST_USER = "qemu"
@@ -59,12 +64,18 @@ class BaseVM(object):
     poweroff = "poweroff"
     # enable IPv6 networking
     ipv6 = True
+    # This is the timeout on the wait for console bytes.
+    socket_timeout = 120
     # Scale up some timeouts under TCG.
     # 4 is arbitrary, but greater than 2,
     # since we found we need to wait more than twice as long.
     tcg_ssh_timeout_multiplier = 4
+    console_logfile = "console.log"
     def __init__(self, debug=False, vcpus=None):
         self._guest = None
+        self._console_fd = None
+        self._socket_thread = None
+        self._console_timeout_sec = self.socket_timeout
         self._tmpdir = os.path.realpath(tempfile.mkdtemp(prefix="vm-test-",
                                                          suffix=".tmp",
                                                          dir="."))
@@ -179,6 +190,15 @@ class BaseVM(object):
                             "-device",
                             "virtio-blk,drive=%s,serial=%s,bootindex=1" % (name, name)]
 
+    def init_console(self, socket):
+        """Init the thread to dump console to a file.
+           Also open the file descriptor we will use to
+           read from the console."""
+        self._socket_thread = SocketThread(socket, self.console_logfile)
+        self._console_fd = open(self.console_logfile, "r")
+        self._socket_thread.start()
+        print("console logfile is: {}".format(self.console_logfile))
+
     def boot(self, img, extra_args=[]):
         args = self._args + [
             "-device", "VGA",
@@ -201,6 +221,7 @@ class BaseVM(object):
             raise
         atexit.register(self.shutdown)
         self._guest = guest
+        self.init_console(guest.console_socket)
         usernet_info = guest.qmp("human-monitor-command",
                                  command_line="info usernet")
         self.ssh_port = None
@@ -212,9 +233,10 @@ class BaseVM(object):
             raise Exception("Cannot find ssh port from 'info usernet':\n%s" % \
                             usernet_info)
 
-    def console_init(self, timeout = 120):
-        vm = self._guest
-        vm.console_socket.settimeout(timeout)
+    def console_init(self, timeout = None):
+        if timeout == None:
+            timeout = self.socket_timeout
+        self._console_timeout_sec = timeout
 
     def console_log(self, text):
         for line in re.split("[\r\n]", text):
@@ -230,13 +252,27 @@ class BaseVM(object):
             # log console line
             sys.stderr.write("con recv: %s\n" % line)
 
+    def console_recv(self, n):
+        """Read n chars from the console_logfile being dumped to
+           by the socket thread we created earlier."""
+        start_time = time.time()
+        while True:
+            data = self._console_fd.read(1)
+            if data != "":
+                break
+            time.sleep(0.1)
+            elapsed_sec = time.time() - start_time
+            if elapsed_sec > self._console_timeout_sec:
+                raise ConsoleTimeoutException
+        return data.encode('latin1')
+
     def console_wait(self, expect, expectalt = None):
         vm = self._guest
         output = ""
         while True:
             try:
-                chars = vm.console_socket.recv(1)
-            except socket.timeout:
+                chars = self.console_recv(1)
+            except ConsoleTimeoutException:
                 sys.stderr.write("console: *** read timeout ***\n")
                 sys.stderr.write("console: waiting for: '%s'\n" % expect)
                 if not expectalt is None:
@@ -335,6 +371,8 @@ class BaseVM(object):
             raise Exception("Timeout while waiting for guest ssh")
 
     def shutdown(self):
+        self._socket_thread.join()
+        self._console_fd.close()
         self._guest.shutdown()
     def wait(self):
         self._guest.wait()
