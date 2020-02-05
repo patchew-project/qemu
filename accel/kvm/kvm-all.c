@@ -127,6 +127,8 @@ struct KVMState
         KVMMemoryListener *ml;
         AddressSpace *as;
     } *as;
+    int kvm_dirty_ring_size;
+    int kvm_dirty_gfn_count;    /* If nonzero, then kvm dirty ring enabled */
 };
 
 KVMState *kvm_state;
@@ -2077,6 +2079,33 @@ static int kvm_init(MachineState *ms)
     s->memory_listener.listener.coalesced_io_add = kvm_coalesce_mmio_region;
     s->memory_listener.listener.coalesced_io_del = kvm_uncoalesce_mmio_region;
 
+    /*
+     * Enable KVM dirty ring if supported, otherwise fall back to
+     * dirty logging mode
+     */
+    if (s->kvm_dirty_ring_size > 0) {
+        /* Read the max supported pages */
+        ret = kvm_vm_check_extension(kvm_state, KVM_CAP_DIRTY_LOG_RING);
+        if (ret > 0) {
+            if (s->kvm_dirty_ring_size > ret) {
+                error_report("KVM dirty ring size %d too big (maximum is %d). "
+                             "Please use a smaller value.",
+                             s->kvm_dirty_ring_size, ret);
+                goto err;
+            }
+
+            ret = kvm_vm_enable_cap(s, KVM_CAP_DIRTY_LOG_RING, 0,
+                                    s->kvm_dirty_ring_size);
+            if (ret) {
+                error_report("Enabling of KVM dirty ring failed: %d", ret);
+                goto err;
+            }
+
+            s->kvm_dirty_gfn_count =
+                s->kvm_dirty_ring_size / sizeof(struct kvm_dirty_gfn);
+        }
+    }
+
     kvm_memory_listener_register(s, &s->memory_listener,
                                  &address_space_memory, 0);
     memory_listener_register(&kvm_io_listener,
@@ -3037,6 +3066,33 @@ bool kvm_kernel_irqchip_split(void)
     return kvm_state->kernel_irqchip_split == ON_OFF_AUTO_ON;
 }
 
+static void kvm_get_dirty_ring_size(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    int64_t value = s->kvm_dirty_ring_size;
+
+    visit_type_int(v, name, &value, errp);
+}
+
+static void kvm_set_dirty_ring_size(Object *obj, Visitor *v,
+                                    const char *name, void *opaque,
+                                    Error **errp)
+{
+    KVMState *s = KVM_STATE(obj);
+    Error *error = NULL;
+    int64_t value;
+
+    visit_type_int(v, name, &value, &error);
+    if (error) {
+        error_propagate(errp, error);
+        return;
+    }
+
+    s->kvm_dirty_ring_size = value;
+}
+
 static void kvm_accel_instance_init(Object *obj)
 {
     KVMState *s = KVM_STATE(obj);
@@ -3044,6 +3100,8 @@ static void kvm_accel_instance_init(Object *obj)
     s->kvm_shadow_mem = -1;
     s->kernel_irqchip_allowed = true;
     s->kernel_irqchip_split = ON_OFF_AUTO_AUTO;
+    /* By default off */
+    s->kvm_dirty_ring_size = 0;
 }
 
 static void kvm_accel_class_init(ObjectClass *oc, void *data)
@@ -3065,6 +3123,12 @@ static void kvm_accel_class_init(ObjectClass *oc, void *data)
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, "kvm-shadow-mem",
         "KVM shadow MMU size", &error_abort);
+
+    object_class_property_add(oc, "dirty-ring-size", "int",
+        kvm_get_dirty_ring_size, kvm_set_dirty_ring_size,
+        NULL, NULL, &error_abort);
+    object_class_property_set_description(oc, "dirty-ring-size",
+        "KVM dirty ring size (<=0 to disable)", &error_abort);
 }
 
 static const TypeInfo kvm_accel_type = {
