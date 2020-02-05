@@ -110,7 +110,7 @@ typedef enum MemOp {
 } MemOp;
 
 /* MemOp to size in bytes.  */
-static inline unsigned memop_size(MemOp op)
+static inline unsigned QEMU_ALWAYS_INLINE memop_size(MemOp op)
 {
     return 1 << (op & MO_SIZE);
 }
