@@ -5,6 +5,9 @@ config DIMM
 config MEM_DEVICE
     bool
 
+config MEM_EXPOSE
+    bool
+
 config NVDIMM
     bool
     default y
