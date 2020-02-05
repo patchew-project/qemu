@@ -71,6 +71,8 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/acpi/generic_event_device.h"
+#include "hw/misc/memexpose/memexpose-core.h"
+#include "hw/misc/memexpose/memexpose-memregion.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -168,6 +170,8 @@ static MemMapEntry extended_memmap[] = {
     /* Additional 64 MB redist region (can contain up to 512 redistributors) */
     [VIRT_HIGH_GIC_REDIST2] =   { 0x0, 64 * MiB },
     [VIRT_HIGH_PCIE_ECAM] =     { 0x0, 256 * MiB },
+    [VIRT_HIGH_MEMEXPOSE_MMIO] =     { 0x0, 256 * MiB },
+    [VIRT_HIGH_MEMEXPOSE] =     { 0x0, 32 * GiB },
     /* Second PCIe window */
     [VIRT_HIGH_PCIE_MMIO] =     { 0x0, 512 * GiB },
 };
@@ -179,6 +183,7 @@ static const int a15irqmap[] = {
     [VIRT_GPIO] = 7,
     [VIRT_SECURE_UART] = 8,
     [VIRT_ACPI_GED] = 9,
+    [VIRT_MEMEXPOSE] = 10,
     [VIRT_MMIO] = 16, /* ...to 16 + NUM_VIRTIO_TRANSPORTS - 1 */
     [VIRT_GIC_V2M] = 48, /* ...to 48 + NUM_GICV2M_SPIS - 1 */
     [VIRT_SMMU] = 74,    /* ...to 74 + NUM_SMMU_IRQS - 1 */
@@ -760,6 +765,67 @@ static void create_uart(const VirtMachineState *vms, int uart,
                                 nodename);
     }
 
+    g_free(nodename);
+}
+
+static void create_memexpose(const VirtMachineState *vms, MemoryRegion *mem,
+                             Error **errp)
+{
+    if (!vms->memexpose_size) {
+        error_setg(errp, "For memexpose support, memexpose_size "
+                         "needs to be greater than zero");
+        return;
+    }
+    if (!strcmp("", vms->memexpose_ep)) {
+        error_setg(errp, "For memexpose support, memexpose_ep "
+                         "needs to be non-empty");
+        return;
+    }
+
+    DeviceState *dev = qdev_create(NULL, "memexpose-memdev");
+
+    hwaddr base = vms->memmap[VIRT_HIGH_MEMEXPOSE].base;
+    hwaddr size = vms->memexpose_size;
+    hwaddr mmio_base = vms->memmap[VIRT_HIGH_MEMEXPOSE_MMIO].base;
+    hwaddr mmio_size = MEMEXPOSE_INTR_MEM_SIZE;
+    int irq = vms->irqmap[VIRT_MEMEXPOSE];
+
+    qdev_prop_set_uint64(dev, "shm_size", size);
+
+    char *intr_ep = g_strdup_printf("%s-intr", vms->memexpose_ep);
+    char *mem_ep = g_strdup_printf("%s-mem", vms->memexpose_ep);
+    Chardev *c = qemu_chr_find(mem_ep);
+    if (!c) {
+        error_setg(errp, "Failed to find memexpose memory endpoint");
+        return;
+    }
+    qdev_prop_set_chr(dev, "mem_chardev", c);
+    c = qemu_chr_find(intr_ep);
+    if (!c) {
+        error_setg(errp, "Failed to find memexpose interrupt endpoint");
+        return;
+    }
+    qdev_prop_set_chr(dev, "intr_chardev", c);
+    g_free(intr_ep);
+    g_free(mem_ep);
+
+    qdev_init_nofail(dev);
+    MemexposeMemdev *mdev = MEMEXPOSE_MEMDEV(dev);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+    memory_region_add_subregion(mem, mmio_base, &mdev->intr.shmem);
+    memory_region_add_subregion(mem, base, &mdev->mem.shmem);
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(vms->gic, irq));
+
+    char *nodename = g_strdup_printf("/memexpose@%" PRIx64, mmio_base);
+    qemu_fdt_add_subnode(vms->fdt, nodename);
+    qemu_fdt_setprop_string(vms->fdt, nodename, "compatible",
+                            "memexpose-memregion");
+    qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
+                                 2, mmio_base, 2, mmio_size,
+                                 2, base, 2, size);
+    qemu_fdt_setprop_cells(vms->fdt, nodename, "interrupts",
+                               GIC_FDT_IRQ_TYPE_SPI, irq,
+                               GIC_FDT_IRQ_FLAGS_LEVEL_HI);
     g_free(nodename);
 }
 
@@ -1572,7 +1638,6 @@ static void machvirt_init(MachineState *machine)
                            UINT64_MAX);
         memory_region_add_subregion_overlap(secure_sysmem, 0, sysmem, -1);
     }
-
     firmware_loaded = virt_firmware_init(vms, sysmem,
                                          secure_sysmem ?: sysmem);
 
@@ -1721,6 +1786,8 @@ static void machvirt_init(MachineState *machine)
     fdt_add_pmu_nodes(vms);
 
     create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
+    if (vms->memexpose_size > 0)
+        create_memexpose(vms, sysmem, &error_abort);
 
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
@@ -1847,6 +1914,32 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
         error_setg(errp, "Invalid gic-version value");
         error_append_hint(errp, "Valid values are 3, 2, host, max.\n");
     }
+}
+
+static char *virt_get_memexpose_ep(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    return g_strdup(vms->memexpose_ep);
+}
+
+static void virt_set_memexpose_ep(Object *obj, const char *value, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    g_free(vms->memexpose_ep);
+    vms->memexpose_ep = g_strdup(value);
+}
+
+static char *virt_get_memexpose_size(Object *obj, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    return g_strdup_printf("%" PRIx64, vms->memexpose_size);
+}
+
+static void virt_set_memexpose_size(Object *obj, const char *value,
+                                    Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(obj);
+    parse_option_size("memexpose-size", value, &vms->memexpose_size, errp);
 }
 
 static char *virt_get_iommu(Object *obj, Error **errp)
@@ -2103,6 +2196,21 @@ static void virt_instance_init(Object *obj)
                                     "Set GIC version. "
                                     "Valid values are 2, 3 and host", NULL);
 
+    /* Memexpose disabled by default */
+    vms->memexpose_ep = g_strdup("");
+    object_property_add_str(obj, "memexpose-ep", virt_get_memexpose_ep,
+                            virt_set_memexpose_ep, NULL);
+    object_property_set_description(obj, "memexpose-ep",
+                                    "Set path to memexpose server socket. "
+                                    "Sockets used for communication will be "
+                                    "<name>-intr and <name>-mem. Set to empty "
+                                    "to disable memexpose.", NULL);
+    vms->memexpose_size = 0;
+    object_property_add_str(obj, "memexpose-size", virt_get_memexpose_size,
+                            virt_set_memexpose_size, NULL);
+    object_property_set_description(obj, "memexpose-size",
+                                    "Size of the memexpose region to access.",
+                                    NULL);
     vms->highmem_ecam = !vmc->no_highmem_ecam;
 
     if (vmc->no_its) {
