@@ -2523,6 +2523,25 @@ static FlatRange *flatview_lookup(FlatView *view, AddrRange addr)
                    sizeof(FlatRange), cmp_flatrange_addr);
 }
 
+static int cmp_flatrange_addr_containing(const void *addr_, const void *fr_)
+{
+    const AddrRange *addr = addr_;
+    const FlatRange *fr = fr_;
+
+    if (int128_le(addr->start, fr->addr.start)) {
+        return -1;
+    } else if (int128_ge(addrrange_end(*addr), addrrange_end(fr->addr))) {
+        return 1;
+    }
+    return 0;
+}
+
+static FlatRange *flatview_lookup_containing(FlatView *view, AddrRange addr)
+{
+    return bsearch(&addr, view->ranges, view->nr,
+                   sizeof(FlatRange), cmp_flatrange_addr_containing);
+}
+
 bool memory_region_is_mapped(MemoryRegion *mr)
 {
     return mr->container ? true : false;
@@ -2532,7 +2551,8 @@ bool memory_region_is_mapped(MemoryRegion *mr)
  * returned region.  It must be called from an RCU critical section.
  */
 static MemoryRegionSection memory_region_find_rcu(MemoryRegion *mr,
-                                                  hwaddr addr, uint64_t size)
+                                                  hwaddr addr,
+                                                  uint64_t size)
 {
     MemoryRegionSection ret = { .mr = NULL };
     MemoryRegion *root;
@@ -2576,6 +2596,50 @@ static MemoryRegionSection memory_region_find_rcu(MemoryRegion *mr,
     return ret;
 }
 
+/*
+ * Same as memory_region_find_flat_range, but it does not add a reference to
+ * the returned region.  It must be called from an RCU critical section.
+ */
+static MemoryRegionSection memory_region_find_flat_range_rcu(MemoryRegion *mr,
+                                                             hwaddr addr,
+                                                             uint64_t size)
+{
+    MemoryRegionSection ret = { .mr = NULL, .size = 0 };
+    MemoryRegion *root;
+    AddressSpace *as;
+    AddrRange range;
+    FlatView *view;
+    FlatRange *fr;
+
+    addr += mr->addr;
+    for (root = mr; root->container; ) {
+        root = root->container;
+        addr += root->addr;
+    }
+
+    as = memory_region_to_address_space(root);
+    if (!as) {
+        return ret;
+    }
+    range = addrrange_make(int128_make64(addr), int128_make64(size));
+
+    view = address_space_to_flatview(as);
+    fr = flatview_lookup_containing(view, range);
+    if (!fr) {
+        return ret;
+    }
+
+    ret.mr = fr->mr;
+    ret.fv = view;
+    range = fr->addr;
+    ret.offset_within_region = fr->offset_in_region;
+    ret.size = range.size;
+    ret.offset_within_address_space = int128_get64(range.start);
+    ret.readonly = fr->readonly;
+    ret.nonvolatile = fr->nonvolatile;
+    return ret;
+}
+
 MemoryRegionSection memory_region_find(MemoryRegion *mr,
                                        hwaddr addr, uint64_t size)
 {
@@ -2585,6 +2649,19 @@ MemoryRegionSection memory_region_find(MemoryRegion *mr,
     if (ret.mr) {
         memory_region_ref(ret.mr);
     }
+    return ret;
+}
+
+MemoryRegionSection memory_region_find_flat_range(MemoryRegion *mr,
+                                                  hwaddr addr, uint64_t size)
+{
+    MemoryRegionSection ret;
+    rcu_read_lock();
+    ret = memory_region_find_flat_range_rcu(mr, addr, size);
+    if (ret.mr) {
+        memory_region_ref(ret.mr);
+    }
+    rcu_read_unlock();
     return ret;
 }
 
