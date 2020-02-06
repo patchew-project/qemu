@@ -21,6 +21,7 @@ Contents:
    qemu-ga-ref
    qemu-img
    qemu-nbd
+   qemu-qmp-ref
    qemu-trace-stap
    vhost-user
    vhost-user-gpu
