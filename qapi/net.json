@@ -447,7 +447,7 @@
 #
 # Since: 2.7
 #
-# 'dump': dropped in 2.12
+# Notes: 'dump': dropped in 2.12
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
@@ -464,7 +464,7 @@
 #
 # Since: 1.2
 #
-# 'l2tpv3' - since 2.1
+# Notes: 'l2tpv3' - since 2.1
 ##
 { 'union': 'Netdev',
   'base': { 'id': 'str', 'type': 'NetClientDriver' },
@@ -494,7 +494,7 @@
 #
 # Since: 1.2
 #
-# 'vlan': dropped in 3.0
+# Notes: 'vlan': dropped in 3.0
 ##
 { 'struct': 'NetLegacy',
   'data': {

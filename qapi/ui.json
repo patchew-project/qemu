@@ -776,7 +776,6 @@
 # @ac_forward: since 2.10
 # @ac_refresh: since 2.10
 # @ac_bookmarks: since 2.10
-# altgr, altgr_r: dropped in 2.10
 #
 # @muhenkan: since 2.12
 # @katakanahiragana: since 2.12
@@ -790,6 +789,8 @@
 #
 # Since: 1.3.0
 #
+# Notes: - 'altgr': dropped in 2.10
+#        - 'altgr_r': dropped in 2.10
 ##
 { 'enum': 'QKeyCode',
   'data': [ 'unmapped',
