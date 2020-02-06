@@ -194,10 +194,7 @@ static void kvm_no_adjvtime_set(Object *obj, bool value, Error **errp)
 /* KVM VCPU properties should be prefixed with "kvm-". */
 void kvm_arm_add_vcpu_properties(Object *obj)
 {
-    if (!kvm_enabled()) {
-        return;
-    }
-
+    assert(kvm_enabled());
     ARM_CPU(obj)->kvm_adjvtime = true;
     object_property_add_bool(obj, "kvm-no-adjvtime", kvm_no_adjvtime_get,
                              kvm_no_adjvtime_set, &error_abort);
