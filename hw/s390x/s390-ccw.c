@@ -51,6 +51,34 @@ int s390_ccw_clear(SubchDev *sch)
     return cdc->handle_clear(sch);
 }
 
+IOInstEnding s390_ccw_store(SubchDev *sch)
+{
+    S390CCWDeviceClass *cdc = NULL;
+    int ret = IOINST_CC_EXPECTED;
+
+    /*
+     * This only applies to passthrough devices, so we can't unconditionally
+     * set this variable like we would for halt/clear.
+     *
+     * TODO from Conny on v1:
+     *   "We have a generic ccw_cb in the subchannel structure for ccw
+     *    interpretation; would it make sense to add a generic callback
+     *    for stsch there as well?
+     *
+     *   "(This works fine, though. Might want to add the check for
+     *    halt/clear as well, but that might be a bit overkill.)"
+     */
+    if (object_dynamic_cast(OBJECT(sch->driver_data), TYPE_S390_CCW)) {
+        cdc = S390_CCW_DEVICE_GET_CLASS(sch->driver_data);
+    }
+
+    if (cdc && cdc->handle_store) {
+        ret = cdc->handle_store(sch);
+    }
+
+    return ret;
+}
+
 static void s390_ccw_get_dev_info(S390CCWDevice *cdev,
                                   char *sysfsdev,
                                   Error **errp)
