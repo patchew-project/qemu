@@ -1,0 +1,17 @@
+# .readthedocs.yml
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+# Required
+version: 2
+
+# Build documentation in the docs/ directory with Sphinx
+sphinx:
+  configuration: docs/conf.py
+
+# We want all the document formats
+formats: all
+
+# We need at least 3.4 for enum, but we enforce 3.5+ for sphinx
+python:
+  version: 3.5
