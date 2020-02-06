@@ -247,6 +247,7 @@ static void gd_update_cursor(VirtualConsole *vc)
 {
     GtkDisplayState *s = vc->s;
     GdkWindow *window;
+    bool allow_hide_cursor = true;
 
     if (vc->type != GD_VC_GFX ||
         !qemu_console_is_graphic(vc->gfx.dcl.con)) {
@@ -257,8 +258,13 @@ static void gd_update_cursor(VirtualConsole *vc)
         return;
     }
 
+    if (s->opts->has_show_cursor && s->opts->show_cursor) {
+        allow_hide_cursor = false;
+    }
+
     window = gtk_widget_get_window(GTK_WIDGET(vc->gfx.drawing_area));
-    if (s->full_screen || qemu_input_is_absolute() || s->ptr_owner == vc) {
+    if (allow_hide_cursor &&
+        (s->full_screen || qemu_input_is_absolute() || s->ptr_owner == vc)) {
         gdk_window_set_cursor(window, s->null_cursor);
     } else {
         gdk_window_set_cursor(window, NULL);
