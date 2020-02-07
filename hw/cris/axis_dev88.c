@@ -349,7 +349,7 @@ static void axisdev88_machine_init(MachineClass *mc)
 {
     mc->desc = "AXIS devboard 88";
     mc->init = axisdev88_init;
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_cpu_type = CRIS_CPU_TYPE_NAME("crisv32");
 }
 

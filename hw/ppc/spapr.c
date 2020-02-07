@@ -4493,7 +4493,7 @@ static const TypeInfo spapr_machine_info = {
         spapr_machine_##suffix##_class_options(mc);                  \
         if (latest) {                                                \
             mc->alias = "pseries";                                   \
-            mc->is_default = 1;                                      \
+            mc->is_default = true;                                   \
         }                                                            \
     }                                                                \
     static const TypeInfo spapr_machine_##suffix##_info = {          \
