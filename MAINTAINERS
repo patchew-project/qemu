@@ -1680,6 +1680,7 @@ F: tests/qtest/vmxnet3-test.c
 Rocker
 M: Jiri Pirko <jiri@resnulli.us>
 S: Maintained
+F: qapi/rocker.json
 F: hw/net/rocker/
 F: tests/rocker/
 F: docs/specs/rocker.txt
