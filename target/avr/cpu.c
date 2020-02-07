@@ -217,77 +217,6 @@ static void avr_cpu_class_init(ObjectClass *oc, void *data)
 }
 
 /*
- * Setting features of AVR core type avr1
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * at90s1200, attiny11, attiny12, attiny15, attiny28
- */
-static void avr_avr1_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUAVRState *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_SP);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_PC);
-}
-
-/*
- * Setting features of AVR core type avr2
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * at90s2313, at90s2323, at90s2333, at90s2343, attiny22, attiny26, at90s4414,
- * at90s4433, at90s4434, at90s8515, at90c8534, at90s8535
- */
-static void avr_avr2_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUAVRState *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_IJMP_ICALL);
-    set_avr_feature(env, AVR_FEATURE_ADIW_SBIW);
-    set_avr_feature(env, AVR_FEATURE_SRAM);
-    set_avr_feature(env, AVR_FEATURE_BREAK);
-
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_PC);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_SP);
-}
-
-/*
- * Setting features of AVR core type avr25
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * ata5272, ata6616c, attiny13, attiny13a, attiny2313, attiny2313a, attiny24,
- * attiny24a, attiny4313, attiny44, attiny44a, attiny441, attiny84, attiny84a,
- * attiny25, attiny45, attiny85, attiny261, attiny261a, attiny461, attiny461a,
- * attiny861, attiny861a, attiny43u, attiny87, attiny48, attiny88, attiny828,
- * attiny841, at86rf401
- */
-static void avr_avr25_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUAVRState *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_IJMP_ICALL);
-    set_avr_feature(env, AVR_FEATURE_ADIW_SBIW);
-    set_avr_feature(env, AVR_FEATURE_SRAM);
-    set_avr_feature(env, AVR_FEATURE_BREAK);
-
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_PC);
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_SP);
-    set_avr_feature(env, AVR_FEATURE_LPMX);
-    set_avr_feature(env, AVR_FEATURE_MOVW);
-}
-
-/*
  * Setting features of AVR core type avr3
  * --------------------------------------
  *
@@ -497,27 +426,6 @@ static void avr_avr6_initfn(Object *obj)
     set_avr_feature(env, AVR_FEATURE_LPMX);
     set_avr_feature(env, AVR_FEATURE_MOVW);
     set_avr_feature(env, AVR_FEATURE_MUL);
-}
-
-/*
- * Setting features of AVR core type avrtiny
- * --------------------------------------
- *
- * This type of AVR core is present in the following AVR MCUs:
- *
- * attiny4, attiny5, attiny9, attiny10, attiny20, attiny40
- */
-static void avr_avrtiny_initfn(Object *obj)
-{
-    AVRCPU *cpu = AVR_CPU(obj);
-    CPUAVRState *env = &cpu->env;
-
-    set_avr_feature(env, AVR_FEATURE_LPM);
-    set_avr_feature(env, AVR_FEATURE_IJMP_ICALL);
-    set_avr_feature(env, AVR_FEATURE_BREAK);
-
-    set_avr_feature(env, AVR_FEATURE_2_BYTE_PC);
-    set_avr_feature(env, AVR_FEATURE_1_BYTE_SP);
 }
 
 /*
@@ -754,10 +662,6 @@ static const TypeInfo avr_cpu_type_info[] = {
         .class_init = avr_cpu_class_init,
         .abstract = true,
     },
-    DEFINE_AVR_CPU_TYPE("avrtiny", avr_avrtiny_initfn),
-    DEFINE_AVR_CPU_TYPE("avr1", avr_avr1_initfn),
-    DEFINE_AVR_CPU_TYPE("avr2", avr_avr2_initfn),
-    DEFINE_AVR_CPU_TYPE("avr25", avr_avr25_initfn),
     DEFINE_AVR_CPU_TYPE("avr3", avr_avr3_initfn),
     DEFINE_AVR_CPU_TYPE("avr31", avr_avr31_initfn),
     DEFINE_AVR_CPU_TYPE("avr35", avr_avr35_initfn),
