@@ -170,7 +170,7 @@ static void niagara_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Sun4v platform, Niagara";
     mc->init = niagara_init;
-    mc->max_cpus = 1; /* XXX for now */
+    mc->max_cpus = true; /* XXX for now */
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
 }

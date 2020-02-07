@@ -816,7 +816,7 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
     mc->init = sun4u_init;
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 1; /* XXX for now */
-    mc->is_default = 1;
+    mc->is_default = true;
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
     mc->ignore_boot_device_suffixes = true;
@@ -841,7 +841,7 @@ static void sun4v_class_init(ObjectClass *oc, void *data)
     mc->desc = "Sun4v platform";
     mc->init = sun4v_init;
     mc->block_default_type = IF_IDE;
-    mc->max_cpus = 1; /* XXX for now */
+    mc->max_cpus = true; /* XXX for now */
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
     mc->default_display = "std";
