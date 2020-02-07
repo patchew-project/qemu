@@ -2354,6 +2354,8 @@ static MachineClass *machine_parse(const char *name, GSList *machines)
     GSList *el;
 
     if (is_help_option(name)) {
+        int default_count = 0;
+
         printf("Supported machines are:\n");
         machines = g_slist_sort(machines, machine_class_cmp);
         for (el = machines; el; el = el->next) {
@@ -2364,7 +2366,9 @@ static MachineClass *machine_parse(const char *name, GSList *machines)
             printf("%-20s %s%s%s\n", mc->name, mc->desc,
                    mc->is_default ? " (default)" : "",
                    mc->deprecation_reason ? " (deprecated)" : "");
+            default_count += !!mc->is_default;
         }
+        assert(default_count <= 1);
         exit(0);
     }
 
