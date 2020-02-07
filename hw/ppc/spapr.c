@@ -65,6 +65,7 @@
 
 #include "hw/pci/pci.h"
 #include "hw/scsi/scsi.h"
+#include "hw/virtio/virtio-pci.h"
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost-scsi-common.h"
 
@@ -4512,7 +4513,14 @@ static const TypeInfo spapr_machine_info = {
  */
 static void spapr_machine_5_0_class_options(MachineClass *mc)
 {
-    /* Defaults for the latest behaviour inherited from the base class */
+    /* Most defaults for the latest behaviour are inherited from the
+     * base class, but we need to override the (non ppc specific)
+     * default behaviour for virtio */
+    static GlobalProperty compat[] = {
+        { TYPE_VIRTIO_PCI, "disable-legacy", "on", },
+    };
+
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(5_0, "5.0", true);
@@ -4523,11 +4531,15 @@ DEFINE_SPAPR_MACHINE(5_0, "5.0", true);
 static void spapr_machine_4_2_class_options(MachineClass *mc)
 {
     SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
+    static GlobalProperty compat[] = {
+        { TYPE_VIRTIO_PCI, "disable-legacy", "auto" },
+    };
 
     spapr_machine_5_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
     smc->default_caps.caps[SPAPR_CAP_CCF_ASSIST] = SPAPR_CAP_OFF;
     smc->default_caps.caps[SPAPR_CAP_FWNMI_MCE] = SPAPR_CAP_OFF;
+    compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
 }
 
 DEFINE_SPAPR_MACHINE(4_2, "4.2", false);
