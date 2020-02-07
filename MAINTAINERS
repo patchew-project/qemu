@@ -172,6 +172,7 @@ F: target/avr/cpu-param.h
 F: target/avr/cpu-qom.h
 F: target/avr/cpu.h
 F: target/avr/cpu.c
+F: target/avr/disas.c
 F: target/avr/helper.h
 F: target/avr/helper.c
 F: target/avr/gdbstub.c
