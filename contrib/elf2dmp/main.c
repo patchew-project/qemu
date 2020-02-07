@@ -76,6 +76,7 @@ static KDDEBUGGER_DATA64 *get_kdbg(uint64_t KernBase, struct pdb_reader *pdb,
     DBGKD_DEBUG_DATA_HEADER64 kdbg_hdr;
     bool decode = false;
     uint64_t kwn, kwa, KdpDataBlockEncoded;
+    uint64_t KiWaitNever, KiWaitAlways;
 
     if (va_space_rw(vs,
                 KdDebuggerDataBlock + offsetof(KDDEBUGGER_DATA64, Header),
@@ -84,21 +85,19 @@ static KDDEBUGGER_DATA64 *get_kdbg(uint64_t KernBase, struct pdb_reader *pdb,
         return NULL;
     }
 
+    if (!SYM_RESOLVE(KernBase, pdb, KiWaitNever) ||
+            !SYM_RESOLVE(KernBase, pdb, KiWaitAlways) ||
+            !SYM_RESOLVE(KernBase, pdb, KdpDataBlockEncoded)) {
+        return NULL;
+    }
+
+    if (va_space_rw(vs, KiWaitNever, &kwn, sizeof(kwn), 0) ||
+            va_space_rw(vs, KiWaitAlways, &kwa, sizeof(kwa), 0)) {
+        return NULL;
+    }
+
     if (memcmp(&kdbg_hdr.OwnerTag, OwnerTag, sizeof(OwnerTag))) {
-        uint64_t KiWaitNever, KiWaitAlways;
-
         decode = true;
-
-        if (!SYM_RESOLVE(KernBase, pdb, KiWaitNever) ||
-                !SYM_RESOLVE(KernBase, pdb, KiWaitAlways) ||
-                !SYM_RESOLVE(KernBase, pdb, KdpDataBlockEncoded)) {
-            return NULL;
-        }
-
-        if (va_space_rw(vs, KiWaitNever, &kwn, sizeof(kwn), 0) ||
-                va_space_rw(vs, KiWaitAlways, &kwa, sizeof(kwa), 0)) {
-            return NULL;
-        }
 
         printf("[KiWaitNever] = 0x%016"PRIx64"\n", kwn);
         printf("[KiWaitAlways] = 0x%016"PRIx64"\n", kwa);
