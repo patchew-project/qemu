@@ -167,19 +167,9 @@ AVR TCG CPUs
 M: Michael Rolnik <mrolnik@gmail.com>
 R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
+F: target/avr/
+F: default-configs/avr-softmmu.mak
 F: gdb-xml/avr-cpu.xml
-F: target/avr/Makefile.objs
-F: target/avr/cpu-param.h
-F: target/avr/cpu-qom.h
-F: target/avr/cpu.h
-F: target/avr/cpu.c
-F: target/avr/disas.c
-F: target/avr/helper.h
-F: target/avr/helper.c
-F: target/avr/gdbstub.c
-F: target/avr/machine.c
-F: target/avr/translate.c
-F: target/avr/insn.decode
 F: tests/acceptance/machine_avr6.py
 
 CRIS TCG CPUs
@@ -914,13 +904,7 @@ AVR MCUs
 M: Michael Rolnik <mrolnik@gmail.com>
 R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
-F: default-configs/avr-softmmu.mak
-F: hw/avr/Kconfig
-F: hw/avr/Makefile.objs
-F: hw/avr/boot.h
-F: hw/avr/boot.c
-F: hw/avr/atmega.h
-F: hw/avr/atmega.c
+F: hw/avr/
 F: include/hw/char/avr_usart.h
 F: hw/char/avr_usart.c
 F: include/hw/timer/avr_timer16.h
