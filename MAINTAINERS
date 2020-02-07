@@ -176,6 +176,7 @@ F: target/avr/helper.h
 F: target/avr/helper.c
 F: target/avr/gdbstub.c
 F: target/avr/machine.c
+F: target/avr/translate.c
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
