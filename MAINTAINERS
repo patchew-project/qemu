@@ -180,6 +180,7 @@ F: target/avr/gdbstub.c
 F: target/avr/machine.c
 F: target/avr/translate.c
 F: target/avr/insn.decode
+F: tests/acceptance/machine_avr6.py
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
