@@ -172,6 +172,7 @@ F: target/avr/cpu-qom.h
 F: target/avr/cpu.h
 F: target/avr/cpu.c
 F: target/avr/helper.c
+F: target/avr/machine.c
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
