@@ -4518,6 +4518,7 @@ static void spapr_machine_5_0_class_options(MachineClass *mc)
      * default behaviour for virtio */
     static GlobalProperty compat[] = {
         { TYPE_VIRTIO_PCI, "disable-legacy", "on", },
+        { TYPE_VIRTIO_DEVICE, "iommu_platform", "on", },
     };
 
     compat_props_add(mc->compat_props, compat, G_N_ELEMENTS(compat));
@@ -4533,6 +4534,7 @@ static void spapr_machine_4_2_class_options(MachineClass *mc)
     SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(mc);
     static GlobalProperty compat[] = {
         { TYPE_VIRTIO_PCI, "disable-legacy", "auto" },
+        { TYPE_VIRTIO_DEVICE, "iommu_platform", "off", },
     };
 
     spapr_machine_5_0_class_options(mc);
