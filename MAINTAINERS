@@ -168,7 +168,9 @@ M: Michael Rolnik <mrolnik@gmail.com>
 R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: target/avr/cpu-param.h
+F: target/avr/cpu-qom.h
 F: target/avr/cpu.h
+F: target/avr/cpu.c
 
 CRIS TCG CPUs
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
