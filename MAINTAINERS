@@ -1842,6 +1842,8 @@ S: Supported
 F: block*
 F: block/
 F: hw/block/
+F: qapi/block.json
+F: qapi/block-core.json
 F: include/block/
 F: qemu-img*
 F: docs/interop/qemu-img.rst
