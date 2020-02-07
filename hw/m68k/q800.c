@@ -441,7 +441,6 @@ static void q800_machine_class_init(ObjectClass *oc, void *data)
     mc->init = q800_init;
     mc->default_cpu_type = M68K_CPU_TYPE_NAME("m68040");
     mc->max_cpus = 1;
-    mc->is_default = 0;
     mc->block_default_type = IF_SCSI;
 }
 
