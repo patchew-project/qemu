@@ -14,6 +14,7 @@
 #include "virtio-pci.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/qdev-properties.h"
+#include "qapi/error.h"
 
 typedef struct VirtIOIOMMUPCI VirtIOIOMMUPCI;
 
@@ -27,10 +28,12 @@ typedef struct VirtIOIOMMUPCI VirtIOIOMMUPCI;
 struct VirtIOIOMMUPCI {
     VirtIOPCIProxy parent_obj;
     VirtIOIOMMU vdev;
+    bool dt_binding;
 };
 
 static Property virtio_iommu_pci_properties[] = {
     DEFINE_PROP_UINT32("class", VirtIOPCIProxy, class_code, 0),
+    DEFINE_PROP_BOOL("x-dt-binding", VirtIOIOMMUPCI, dt_binding, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -39,6 +42,21 @@ static void virtio_iommu_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     VirtIOIOMMUPCI *dev = VIRTIO_IOMMU_PCI(vpci_dev);
     DeviceState *vdev = DEVICE(&dev->vdev);
 
+    if (!dev->dt_binding) {
+        error_setg(errp,
+                   "Instantiation currently only is possible if the machine "
+                   "creates device tree iommu-map bindings, ie. ACPI is not "
+                   "yet supported");
+        error_append_hint(errp, "use -virtio-iommu-pci,x-dt-binding\n");
+        return;
+    }
+
+    if (!qdev_get_machine_hotplug_handler(DEVICE(vpci_dev))) {
+        error_setg(errp,
+                   "The machine does not implement a virtio-iommu-pci hotplug "
+                   " handler that creates the device tree iommu-map bindings");
+       return;
+    }
     qdev_set_parent_bus(vdev, BUS(&vpci_dev->bus));
     object_property_set_link(OBJECT(dev),
                              OBJECT(pci_get_bus(&vpci_dev->pci_dev)),
