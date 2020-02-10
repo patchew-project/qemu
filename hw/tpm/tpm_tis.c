@@ -30,6 +30,7 @@
 
 #include "hw/acpi/tpm.h"
 #include "hw/pci/pci_ids.h"
+#include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "sysemu/tpm_backend.h"
@@ -65,7 +66,11 @@ typedef struct TPMLocality {
 } TPMLocality;
 
 typedef struct TPMState {
+#ifdef CONFIG_ISA_BUS
     ISADevice busdev;
+#else
+    SysBusDevice busdev;
+#endif
     MemoryRegion mmio;
 
     unsigned char buffer[TPM_TIS_BUFFER_MAX];
@@ -967,6 +972,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "'tpmdev' property is required");
         return;
     }
+#ifdef CONFIG_ISA_BUS
     if (s->irq_num > 15) {
         error_setg(errp, "IRQ %d is outside valid range of 0 to 15",
                    s->irq_num);
@@ -982,6 +988,7 @@ static void tpm_tis_realizefn(DeviceState *dev, Error **errp)
         tpm_ppi_init(&s->ppi, isa_address_space(ISA_DEVICE(dev)),
                      TPM_PPI_ADDR_BASE, OBJECT(s));
     }
+#endif
 }
 
 static void tpm_tis_initfn(Object *obj)
@@ -991,6 +998,10 @@ static void tpm_tis_initfn(Object *obj)
     memory_region_init_io(&s->mmio, OBJECT(s), &tpm_tis_memory_ops,
                           s, "tpm-tis-mmio",
                           TPM_TIS_NUM_LOCALITIES << TPM_TIS_LOCALITY_SHIFT);
+#ifndef CONFIG_ISA_BUS
+    sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
+    sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->irq);
+#endif
 }
 
 static void tpm_tis_class_init(ObjectClass *klass, void *data)
@@ -1002,6 +1013,7 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, tpm_tis_properties);
     dc->reset = tpm_tis_reset;
     dc->vmsd  = &vmstate_tpm_tis;
+    dc->user_creatable = true;
     tc->model = TPM_MODEL_TPM_TIS;
     tc->get_version = tpm_tis_get_tpm_version;
     tc->request_completed = tpm_tis_request_completed;
@@ -1009,7 +1021,11 @@ static void tpm_tis_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo tpm_tis_info = {
     .name = TYPE_TPM_TIS,
+#ifdef CONFIG_ISA_BUS
     .parent = TYPE_ISA_DEVICE,
+#else
+    .parent = TYPE_SYS_BUS_DEVICE,
+#endif
     .instance_size = sizeof(TPMState),
     .instance_init = tpm_tis_initfn,
     .class_init  = tpm_tis_class_init,

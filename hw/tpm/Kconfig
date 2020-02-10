@@ -4,7 +4,7 @@ config TPMDEV
 
 config TPM_TIS
     bool
-    depends on TPM && ISA_BUS
+    depends on TPM
     select TPMDEV
 
 config TPM_CRB
