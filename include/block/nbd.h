@@ -200,6 +200,15 @@ enum {
 #define NBD_INFO_NAME           1
 #define NBD_INFO_DESCRIPTION    2
 #define NBD_INFO_BLOCK_SIZE     3
+#define NBD_INFO_INIT_STATE     4
+
+/* Initial state bits, when replying to NBD_INFO_INIT_STATE */
+enum {
+    NBD_INIT_SPARSE_BIT       = 0,
+    NBD_INIT_ZERO_BIT         = 1,
+};
+#define NBD_INIT_SPARSE         (1 << NBD_INIT_SPARSE_BIT)
+#define NBD_INIT_ZERO           (1 << NBD_INIT_ZERO_BIT)
 
 /* Request flags, sent from client to server during transmission phase */
 #define NBD_CMD_FLAG_FUA        (1 << 0) /* 'force unit access' during write */
