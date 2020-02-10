@@ -1204,6 +1204,7 @@ static int nbd_client_co_pwritev(BlockDriverState *bs, uint64_t offset,
     };
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
+    s->info.modified = true;
     if (flags & BDRV_REQ_FUA) {
         assert(s->info.flags & NBD_FLAG_SEND_FUA);
         request.flags |= NBD_CMD_FLAG_FUA;
@@ -1276,6 +1277,7 @@ static int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset,
     };
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
+    s->info.modified = true;
     if (!(s->info.flags & NBD_FLAG_SEND_TRIM) || !bytes) {
         return 0;
     }
@@ -1909,6 +1911,16 @@ static int nbd_co_flush(BlockDriverState *bs)
     return nbd_client_co_flush(bs);
 }
 
+static int nbd_known_zeroes(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+
+    if (!s->info.modified && s->info.init_state & NBD_INIT_ZERO) {
+        return BDRV_ZERO_OPEN;
+    }
+    return 0;
+}
+
 static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
@@ -2027,6 +2039,7 @@ static BlockDriver bdrv_nbd = {
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
+    .bdrv_known_zeroes          = nbd_known_zeroes,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
@@ -2052,6 +2065,7 @@ static BlockDriver bdrv_nbd_tcp = {
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
+    .bdrv_known_zeroes          = nbd_known_zeroes,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,
@@ -2077,6 +2091,7 @@ static BlockDriver bdrv_nbd_unix = {
     .bdrv_close                 = nbd_close,
     .bdrv_co_flush_to_os        = nbd_co_flush,
     .bdrv_co_pdiscard           = nbd_client_co_pdiscard,
+    .bdrv_known_zeroes          = nbd_known_zeroes,
     .bdrv_refresh_limits        = nbd_refresh_limits,
     .bdrv_getlength             = nbd_getlength,
     .bdrv_detach_aio_context    = nbd_client_detach_aio_context,

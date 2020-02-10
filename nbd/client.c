@@ -350,16 +350,17 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
 
     assert(opt == NBD_OPT_GO || opt == NBD_OPT_INFO);
     trace_nbd_opt_info_go_start(nbd_opt_lookup(opt), info->name);
-    buf = g_malloc(4 + len + 2 + 2 * info->request_sizes + 1);
+    buf = g_malloc(4 + len + 2 + 2 * (info->request_sizes + 1) + 1);
     stl_be_p(buf, len);
     memcpy(buf + 4, info->name, len);
-    /* At most one request, everything else up to server */
-    stw_be_p(buf + 4 + len, info->request_sizes);
+    /* One or two requests, everything else up to server */
+    stw_be_p(buf + 4 + len, info->request_sizes + 1);
     if (info->request_sizes) {
         stw_be_p(buf + 4 + len + 2, NBD_INFO_BLOCK_SIZE);
     }
+    stw_be_p(buf + 4 + len + 2 + 2 * info->request_sizes, NBD_INFO_INIT_STATE);
     error = nbd_send_option_request(ioc, opt,
-                                    4 + len + 2 + 2 * info->request_sizes,
+                                    4 + len + 2 + 2 * (info->request_sizes + 1),
                                     buf, errp);
     g_free(buf);
     if (error < 0) {
@@ -482,6 +483,21 @@ static int nbd_opt_info_or_go(QIOChannel *ioc, uint32_t opt,
             }
             trace_nbd_opt_info_block_size(info->min_block, info->opt_block,
                                           info->max_block);
+            break;
+
+        case NBD_INFO_INIT_STATE:
+            if (len != sizeof(info->init_state)) {
+                error_setg(errp, "remaining export info len %" PRIu32
+                           " is unexpected size", len);
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            if (nbd_read16(ioc, &info->init_state, "info init state",
+                           errp) < 0) {
+                nbd_send_opt_abort(ioc);
+                return -1;
+            }
+            trace_nbd_opt_info_init_state(info->init_state);
             break;
 
         default:

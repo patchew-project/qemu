@@ -307,6 +307,7 @@ struct NBDExportInfo {
     uint32_t min_block;
     uint32_t opt_block;
     uint32_t max_block;
+    uint16_t init_state;
 
     uint32_t context_id;
 
@@ -314,6 +315,9 @@ struct NBDExportInfo {
     char *description;
     int n_contexts;
     char **contexts;
+
+    /* Set during runtime to track if init_state is still trustworthy. */
+    bool modified;
 };
 typedef struct NBDExportInfo NBDExportInfo;
 

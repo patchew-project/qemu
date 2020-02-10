@@ -220,6 +220,19 @@ static int qemu_nbd_client_list(SocketAddress *saddr, QCryptoTLSCreds *tls,
             printf("  opt block: %u\n", list[i].opt_block);
             printf("  max block: %u\n", list[i].max_block);
         }
+        {
+            static const char *const init_names[] = {
+                [NBD_INIT_SPARSE_BIT]            = "sparse",
+                [NBD_INIT_ZERO_BIT]              = "zero",
+            };
+            printf("  init state: 0x%x (", list[i].init_state);
+            for (size_t bit = 0; bit < ARRAY_SIZE(init_names); bit++) {
+                if (init_names[bit] && (list[i].init_state & (1 << bit))) {
+                    printf(" %s", init_names[bit]);
+                }
+            }
+            printf(" )\n");
+        }
         if (list[i].n_contexts) {
             printf("  available meta contexts: %d\n", list[i].n_contexts);
             for (j = 0; j < list[i].n_contexts; j++) {
