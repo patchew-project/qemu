@@ -93,9 +93,22 @@ typedef struct CPURISCVState CPURISCVState;
 
 #include "pmp.h"
 
+#define RV_VLEN_MAX 512
+
 struct CPURISCVState {
     target_ulong gpr[32];
     uint64_t fpr[32]; /* assume both F and D extensions */
+
+    /* vector coprocessor state. */
+    struct {
+         uint64_t vreg[32 * RV_VLEN_MAX / 64] QEMU_ALIGNED(16);
+         target_ulong vxrm;
+         target_ulong vxsat;
+         target_ulong vl;
+         target_ulong vstart;
+         target_ulong vtype;
+    } vext;
+
     target_ulong pc;
     target_ulong load_res;
     target_ulong load_val;
