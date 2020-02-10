@@ -661,6 +661,17 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
         return rc;
     }
 
+    /* Send NBD_INFO_INIT_STATE always */
+    trace_nbd_negotiate_new_style_size_flags(exp->size, myflags);
+    /* Is it worth using blk_probe_blocksizes for setting NBD_INIT_SPARSE? */
+    stw_be_p(buf, ((blk_known_zeroes(exp->blk) & BDRV_ZERO_OPEN)
+                   ? NBD_INIT_ZERO : 0));
+    rc = nbd_negotiate_send_info(client, NBD_INFO_INIT_STATE,
+                                 sizeof(uint16_t), buf, errp);
+    if (rc < 0) {
+        return rc;
+    }
+
     /*
      * If the client is just asking for NBD_OPT_INFO, but forgot to
      * request block sizes in a situation that would impact

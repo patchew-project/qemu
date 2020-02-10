@@ -2127,6 +2127,15 @@ int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
     return bdrv_load_vmstate(blk_bs(blk), buf, pos, size);
 }
 
+int blk_known_zeroes(BlockBackend *blk)
+{
+    if (!blk_is_available(blk)) {
+        return 0;
+    }
+
+    return bdrv_known_zeroes(blk_bs(blk));
+}
+
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
 {
     if (!blk_is_available(blk)) {
