@@ -1327,4 +1327,109 @@
 #define fWRAP_J2_endloop1(GENHLPR, SHORTCODE) \
     gen_endloop1()
 
+/*
+ * Compound compare and jump instructions
+ * Here is a primer to understand the tag names
+ *
+ * Comparison
+ *      cmpeqi   compare equal to an immediate
+ *      cmpgti   compare greater than an immediate
+ *      cmpgtiu  compare greater than an unsigned immediate
+ *      cmpeqn1  compare equal to negative 1
+ *      cmpgtn1  compare greater than negative 1
+ *      cmpeq    compare equal (two registers)
+ *
+ * Condition
+ *      tp0      p0 is true     p0 = cmp.eq(r0,#5); if (p0.new) jump:nt address
+ *      fp0      p0 is false    p0 = cmp.eq(r0,#5); if (!p0.new) jump:nt address
+ *      tp1      p1 is true     p1 = cmp.eq(r0,#5); if (p1.new) jump:nt address
+ *      fp1      p1 is false    p1 = cmp.eq(r0,#5); if (!p1.new) jump:nt address
+ *
+ * Prediction (not modelled in qemu)
+ *      _nt      not taken
+ *      _t       taken
+ */
+#define fWRAP_J4_cmpeqi_tp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_fp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_tp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_fp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_EQ, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_tp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_fp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_tp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqi_fp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_EQ, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_tp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_fp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_tp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_fp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GT, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_tp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_fp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_tp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgti_fp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GT, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_tp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_fp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_tp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_fp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(0, TCG_COND_GTU, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_tp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_fp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_tp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, true, RsV, UiV, riV)
+#define fWRAP_J4_cmpgtui_fp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmpi_jmp(1, TCG_COND_GTU, false, RsV, UiV, riV)
+#define fWRAP_J4_cmpeqn1_tp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_EQ, true, RsV, riV)
+#define fWRAP_J4_cmpeqn1_fp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_EQ, false, RsV, riV)
+#define fWRAP_J4_cmpeqn1_tp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_EQ, true, RsV, riV)
+#define fWRAP_J4_cmpeqn1_fp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_EQ, false, RsV, riV)
+#define fWRAP_J4_cmpeqn1_tp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_EQ, true, RsV, riV)
+#define fWRAP_J4_cmpeqn1_fp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_EQ, false, RsV, riV)
+#define fWRAP_J4_cmpeqn1_tp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_EQ, true, RsV, riV)
+#define fWRAP_J4_cmpeqn1_fp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_EQ, false, RsV, riV)
+#define fWRAP_J4_cmpgtn1_tp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_GT, true, RsV, riV)
+#define fWRAP_J4_cmpgtn1_fp0_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_GT, false, RsV, riV)
+#define fWRAP_J4_cmpgtn1_tp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_GT, true, RsV, riV)
+#define fWRAP_J4_cmpgtn1_fp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(0, TCG_COND_GT, false, RsV, riV)
+#define fWRAP_J4_cmpgtn1_tp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_GT, true, RsV, riV)
+#define fWRAP_J4_cmpgtn1_fp1_jump_nt(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_GT, false, RsV, riV)
+#define fWRAP_J4_cmpgtn1_tp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_GT, true, RsV, riV)
+#define fWRAP_J4_cmpgtn1_fp1_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_n1_jmp(1, TCG_COND_GT, false, RsV, riV)
+#define fWRAP_J4_cmpeq_tp0_jump_t(GENHLPR, SHORTCODE) \
+    gen_cmpnd_cmp_jmp(0, TCG_COND_EQ, true, RsV, RtV, riV)
+
 #endif
