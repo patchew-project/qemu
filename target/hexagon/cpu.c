@@ -104,6 +104,39 @@ static void print_reg(FILE *f, CPUHexagonState *env, int regnum)
                     : env->gpr[regnum]);
 }
 
+static void print_vreg(FILE *f, CPUHexagonState *env, int regnum)
+{
+    int i;
+    fprintf(f, "  v%d = (", regnum);
+    fprintf(f, "0x%02x", env->VRegs[regnum].ub[MAX_VEC_SIZE_BYTES - 1]);
+    for (i = MAX_VEC_SIZE_BYTES - 2; i >= 0; i--) {
+        fprintf(f, ", 0x%02x", env->VRegs[regnum].ub[i]);
+    }
+    fprintf(f, ")\n");
+}
+
+void hexagon_debug_vreg(CPUHexagonState *env, int regnum)
+{
+    print_vreg(stdout, env, regnum);
+}
+
+static void print_qreg(FILE *f, CPUHexagonState *env, int regnum)
+{
+    int i;
+    fprintf(f, "  q%d = (", regnum);
+    fprintf(f, ", 0x%02x",
+                env->QRegs[regnum].ub[MAX_VEC_SIZE_BYTES / 8 - 1]);
+    for (i = MAX_VEC_SIZE_BYTES / 8 - 2; i >= 0; i--) {
+        fprintf(f, ", 0x%02x", env->QRegs[regnum].ub[i]);
+    }
+    fprintf(f, ")\n");
+}
+
+void hexagon_debug_qreg(CPUHexagonState *env, int regnum)
+{
+    print_qreg(stdout, env, regnum);
+}
+
 static void hexagon_dump(CPUHexagonState *env, FILE *f)
 {
     static target_ulong last_pc;
@@ -148,6 +181,22 @@ static void hexagon_dump(CPUHexagonState *env, FILE *f)
     print_reg(f, env, HEX_REG_CS1);
 #endif
     fprintf(f, "}\n");
+
+/*
+ * The HVX register dump takes up a ton of space in the log
+ * Don't print it unless it is needed
+ */
+#define DUMP_HVX 0
+#if DUMP_HVX
+    fprintf(f, "Vector Registers = {\n");
+    for (i = 0; i < NUM_VREGS; i++) {
+        print_vreg(f, env, i);
+    }
+    for (i = 0; i < NUM_QREGS; i++) {
+        print_qreg(f, env, i);
+    }
+    fprintf(f, "}\n");
+#endif
 }
 
 static void hexagon_dump_state(CPUState *cs, FILE *f, int flags)
@@ -273,7 +322,7 @@ static void hexagon_cpu_class_init(ObjectClass *c, void *data)
     cc->gdb_core_xml_file = "hexagon-core.xml";
     cc->gdb_read_register = hexagon_gdb_read_register;
     cc->gdb_write_register = hexagon_gdb_write_register;
-    cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS;
+    cc->gdb_num_core_regs = TOTAL_PER_THREAD_REGS + NUM_VREGS + NUM_QREGS;
     cc->gdb_stop_before_watchpoint = true;
     cc->disas_set_info = hexagon_cpu_disas_set_info;
 #ifdef CONFIG_TCG
