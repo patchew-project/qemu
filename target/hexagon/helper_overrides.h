@@ -1432,4 +1432,123 @@
 #define fWRAP_J4_cmpeq_tp0_jump_t(GENHLPR, SHORTCODE) \
     gen_cmpnd_cmp_jmp(0, TCG_COND_EQ, true, RsV, RtV, riV)
 
+/* p0 = cmp.eq(r0, #7) */
+#define fWRAP_SA1_cmpeqi(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        gen_comparei(TCG_COND_EQ, tmp, RsV, uiV); \
+        gen_log_pred_write(0, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 = add(r29,#8) */
+#define fWRAP_SA1_addsp(GENHLPR, SHORTCODE) \
+    tcg_gen_addi_tl(RdV, hex_gpr[HEX_REG_SP], IMMNO(0))
+
+/* r0 = add(r0, r1) */
+#define fWRAP_SA1_addrx(GENHLPR, SHORTCODE) \
+    tcg_gen_add_tl(RxV, RxV, RsV)
+
+#define fWRAP_A2_add(GENHLPR, SHORTCODE) \
+    tcg_gen_add_tl(RdV, RsV, RtV)
+
+#define fWRAP_A2_sub(GENHLPR, SHORTCODE) \
+    tcg_gen_sub_tl(RdV, RtV, RsV)
+
+/* r0 = sub(#10, r1) */
+#define fWRAP_A2_subri(GENHLPR, SHORTCODE) \
+    tcg_gen_subfi_tl(RdV, siV, RsV)
+
+#define fWRAP_A2_addi(GENHLPR, SHORTCODE) \
+    tcg_gen_addi_tl(RdV, RsV, siV)
+
+#define fWRAP_A2_and(GENHLPR, SHORTCODE) \
+    tcg_gen_and_tl(RdV, RsV, RtV)
+
+#define fWRAP_A2_andir(GENHLPR, SHORTCODE) \
+    tcg_gen_andi_tl(RdV, RsV, siV)
+
+#define fWRAP_A2_xor(GENHLPR, SHORTCODE) \
+    tcg_gen_xor_tl(RdV, RsV, RtV)
+
+/* Transfer instructions */
+#define fWRAP_A2_tfr(GENHLPR, SHORTCODE) \
+    tcg_gen_mov_tl(RdV, RsV)
+#define fWRAP_SA1_tfr(GENHLPR, SHORTCODE) \
+    tcg_gen_mov_tl(RdV, RsV)
+#define fWRAP_A2_tfrsi(GENHLPR, SHORTCODE) \
+    tcg_gen_movi_tl(RdV, siV)
+#define fWRAP_A2_tfrcrr(GENHLPR, SHORTCODE) \
+    tcg_gen_mov_tl(RdV, CsV)
+#define fWRAP_A2_tfrrcr(GENHLPR, SHORTCODE) \
+    tcg_gen_mov_tl(CdV, RsV)
+
+#define fWRAP_A2_nop(GENHLPR, SHORTCODE) \
+    do { } while (0)
+
+/* Compare instructions */
+#define fWRAP_C2_cmpeq(GENHLPR, SHORTCODE) \
+    gen_compare(TCG_COND_EQ, PdV, RsV, RtV)
+#define fWRAP_C4_cmpneq(GENHLPR, SHORTCODE) \
+    gen_compare(TCG_COND_NE, PdV, RsV, RtV)
+#define fWRAP_C2_cmpgt(GENHLPR, SHORTCODE) \
+    gen_compare(TCG_COND_GT, PdV, RsV, RtV)
+#define fWRAP_C2_cmpgtu(GENHLPR, SHORTCODE) \
+    gen_compare(TCG_COND_GTU, PdV, RsV, RtV)
+#define fWRAP_C4_cmplte(GENHLPR, SHORTCODE) \
+    gen_compare(TCG_COND_LE, PdV, RsV, RtV)
+#define fWRAP_C4_cmplteu(GENHLPR, SHORTCODE) \
+    gen_compare(TCG_COND_LEU, PdV, RsV, RtV)
+#define fWRAP_C2_cmpeqp(GENHLPR, SHORTCODE) \
+    gen_compare_i64(TCG_COND_EQ, PdV, RssV, RttV)
+#define fWRAP_C2_cmpgtp(GENHLPR, SHORTCODE) \
+    gen_compare_i64(TCG_COND_GT, PdV, RssV, RttV)
+#define fWRAP_C2_cmpgtup(GENHLPR, SHORTCODE) \
+    gen_compare_i64(TCG_COND_GTU, PdV, RssV, RttV)
+#define fWRAP_C2_cmpeqi(GENHLPR, SHORTCODE) \
+    gen_comparei(TCG_COND_EQ, PdV, RsV, siV)
+#define fWRAP_C2_cmpgti(GENHLPR, SHORTCODE) \
+    gen_comparei(TCG_COND_GT, PdV, RsV, siV)
+#define fWRAP_C2_cmpgtui(GENHLPR, SHORTCODE) \
+    gen_comparei(TCG_COND_GTU, PdV, RsV, uiV)
+
+#define fWRAP_SA1_zxtb(GENHLPR, SHORTCODE) \
+    tcg_gen_ext8u_tl(RdV, RsV)
+
+#define fWRAP_J2_jump(GENHLPR, SHORTCODE) \
+    gen_jump(riV)
+#define fWRAP_J2_jumpr(GENHLPR, SHORTCODE) \
+    gen_write_new_pc(RsV)
+
+#define fWRAP_cond_jump(COND) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        COND; \
+        gen_cond_jump(LSB, riV); \
+        tcg_temp_free(LSB); \
+    } while (0)
+
+#define fWRAP_J2_jumpt(GENHLPR, SHORTCODE) \
+    fWRAP_cond_jump(fLSBOLD(PuV))
+#define fWRAP_J2_jumpf(GENHLPR, SHORTCODE) \
+    fWRAP_cond_jump(fLSBOLDNOT(PuV))
+#define fWRAP_J2_jumpfnewpt(GENHLPR, SHORTCODE) \
+    fWRAP_cond_jump(fLSBNEWNOT(PuN))
+#define fWRAP_J2_jumpfnew(GENHLPR, SHORTCODE) \
+    fWRAP_cond_jump(fLSBNEWNOT(PuN))
+
+#define fWRAP_J2_jumprfnew(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        tcg_gen_andi_tl(LSB, PuN, 1); \
+        tcg_gen_xori_tl(LSB, LSB, 1); \
+        gen_cond_jumpr(LSB, RsV); \
+        tcg_temp_free(LSB); \
+    } while (0)
+
+#define fWRAP_J2_jumptnew(GENHLPR, SHORTCODE) \
+    gen_cond_jump(PuN, riV)
+#define fWRAP_J2_jumptnewpt(GENHLPR, SHORTCODE) \
+    gen_cond_jump(PuN, riV)
+
 #endif
