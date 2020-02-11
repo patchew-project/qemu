@@ -28,12 +28,13 @@ extern void __gcov_dump(void);
 
 void preexit_cleanup(CPUArchState *env, int code)
 {
+    rcu_unregister_thread();
 #ifdef TARGET_GPROF
-        _mcleanup();
+    _mcleanup();
 #endif
 #ifdef CONFIG_GCOV
-        __gcov_dump();
+    __gcov_dump();
 #endif
-        gdb_exit(env, code);
-        qemu_plugin_atexit_cb();
+    gdb_exit(env, code);
+    qemu_plugin_atexit_cb();
 }
