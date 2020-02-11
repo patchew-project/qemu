@@ -830,4 +830,193 @@ static inline void gen_lshiftr_4_4u(TCGv dst, TCGv src, int32_t shift_amt)
     }
 }
 
+static inline uint32_t new_temp_vreg_offset(DisasContext *ctx, int num)
+{
+    uint32_t offset =
+        offsetof(CPUHexagonState, temp_vregs[ctx->ctx_temp_vregs_idx]);
+
+    HEX_DEBUG_LOG("new_temp_vreg_offset: %d\n", ctx->ctx_temp_vregs_idx);
+    g_assert(ctx->ctx_temp_vregs_idx + num - 1 < TEMP_VECTORS_MAX);
+    ctx->ctx_temp_vregs_idx += num;
+    return offset;
+}
+
+static inline uint32_t new_temp_qreg_offset(DisasContext *ctx)
+{
+    uint32_t offset =
+        offsetof(CPUHexagonState, temp_qregs[ctx->ctx_temp_qregs_idx]);
+
+    HEX_DEBUG_LOG("new_temp_qreg_offset: %d\n", ctx->ctx_temp_qregs_idx);
+    g_assert(ctx->ctx_temp_qregs_idx < TEMP_VECTORS_MAX);
+    ctx->ctx_temp_qregs_idx++;
+    return offset;
+}
+
+static inline void gen_read_qreg(TCGv_ptr var, int num, int vtmp)
+{
+    uint32_t offset = offsetof(CPUHexagonState, QRegs[(num)]);
+    TCGv_ptr src = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(src, cpu_env, offset);
+    gen_memcpy(var, src, sizeof(mmqreg_t));
+    tcg_temp_free_ptr(src);
+}
+
+static inline void gen_read_vreg(TCGv_ptr var, int num, int vtmp)
+{
+    TCGv zero = tcg_const_tl(0);
+    TCGv offset_future =
+        tcg_const_tl(offsetof(CPUHexagonState, future_VRegs[num]));
+    TCGv offset_vregs =
+        tcg_const_tl(offsetof(CPUHexagonState, VRegs[num]));
+    TCGv offset_tmp_vregs =
+        tcg_const_tl(offsetof(CPUHexagonState, tmp_VRegs[num]));
+    TCGv offset = tcg_temp_new();
+    TCGv_ptr offset_ptr = tcg_temp_new_ptr();
+    TCGv_ptr ptr_src = tcg_temp_new_ptr();
+    TCGv new_written = tcg_temp_new();
+    TCGv tmp_written = tcg_temp_new();
+
+    /*
+     *  new_written = (hex_VRegs_select >> num) & 1;
+     *  offset = new_written ? offset_future, offset_vregs;
+     */
+    tcg_gen_shri_tl(new_written, hex_VRegs_select, num);
+    tcg_gen_andi_tl(new_written, new_written, 1);
+    tcg_gen_movcond_tl(TCG_COND_NE, offset, new_written, zero,
+                       offset_future, offset_vregs);
+
+    /*
+     * tmp_written = (hex_VRegs_updated_tmp >> num) & 1;
+     * if (tmp_written) offset = offset_tmp_vregs;
+     */
+    tcg_gen_shri_tl(tmp_written, hex_VRegs_updated_tmp, num);
+    tcg_gen_andi_tl(tmp_written, tmp_written, 1);
+    tcg_gen_movcond_tl(TCG_COND_NE, offset, tmp_written, zero,
+                       offset_tmp_vregs, offset);
+
+    if (vtmp == EXT_TMP) {
+        TCGv vregs_updated = tcg_temp_new();
+        TCGv temp = tcg_temp_new();
+
+        /*
+         * vregs_updated = hex_VRegs_updates & (1 << num);
+         * if (vregs_updated) {
+         *     offset = offset_future;
+         *     hex_VRegs_updated ^= (1 << num);
+         * }
+         */
+        tcg_gen_andi_tl(vregs_updated, hex_VRegs_updated, 1 << num);
+        tcg_gen_movcond_tl(TCG_COND_NE, offset, vregs_updated, zero,
+                           offset_future, offset);
+        tcg_gen_xori_tl(temp, hex_VRegs_updated, 1 << num);
+        tcg_gen_movcond_tl(TCG_COND_NE, hex_VRegs_updated, vregs_updated, zero,
+                           temp, hex_VRegs_updated);
+
+        tcg_temp_free(vregs_updated);
+        tcg_temp_free(temp);
+    }
+
+    tcg_gen_ext_i32_ptr(offset_ptr, offset);
+    tcg_gen_add_ptr(ptr_src, cpu_env, offset_ptr);
+    gen_memcpy(var, ptr_src, sizeof(mmvector_t));
+
+    tcg_temp_free(zero);
+    tcg_temp_free(offset_future);
+    tcg_temp_free(offset_vregs);
+    tcg_temp_free(offset_tmp_vregs);
+    tcg_temp_free(offset);
+    tcg_temp_free_ptr(offset_ptr);
+    tcg_temp_free_ptr(ptr_src);
+    tcg_temp_free(new_written);
+    tcg_temp_free(tmp_written);
+}
+
+static inline void gen_read_vreg_pair(TCGv_ptr var, int num, int vtmp)
+{
+    TCGv_ptr v0 = tcg_temp_new_ptr();
+    TCGv_ptr v1 = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(v0, var, offsetof(mmvector_pair_t, v[0]));
+    gen_read_vreg(v0, num ^ 0, vtmp);
+    tcg_gen_addi_ptr(v1, var, offsetof(mmvector_pair_t, v[1]));
+    gen_read_vreg(v1, num ^ 1, vtmp);
+    tcg_temp_free_ptr(v0);
+    tcg_temp_free_ptr(v1);
+}
+
+static inline void gen_log_vreg_write(TCGv_ptr var, int num, int vnew,
+                                      int slot_num)
+{
+    TCGv cancelled = tcg_temp_local_new();
+    TCGLabel *label_end = gen_new_label();
+
+    /* Don't do anything if the slot was cancelled */
+    gen_slot_cancelled_check(cancelled, slot_num);
+    tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
+    {
+        TCGv mask = tcg_const_tl(1 << num);
+        TCGv_ptr dst = tcg_temp_new_ptr();
+        if (vnew != EXT_TMP) {
+            tcg_gen_or_tl(hex_VRegs_updated, hex_VRegs_updated, mask);
+        }
+        if (vnew == EXT_NEW) {
+            tcg_gen_or_tl(hex_VRegs_select, hex_VRegs_select, mask);
+        }
+        if (vnew == EXT_TMP) {
+            tcg_gen_or_tl(hex_VRegs_updated_tmp, hex_VRegs_updated_tmp, mask);
+        }
+        tcg_gen_addi_ptr(dst, cpu_env,
+                         offsetof(CPUHexagonState, future_VRegs[num]));
+        gen_memcpy(dst, var, sizeof(mmvector_t));
+        if (vnew == EXT_TMP) {
+            TCGv_ptr src = tcg_temp_new_ptr();
+            tcg_gen_addi_ptr(dst, cpu_env,
+                             offsetof(CPUHexagonState, tmp_VRegs[num]));
+            tcg_gen_addi_ptr(src, cpu_env,
+                             offsetof(CPUHexagonState, future_VRegs[num]));
+            gen_memcpy(dst, src, sizeof(mmvector_t));
+            tcg_temp_free_ptr(src);
+        }
+        tcg_temp_free(mask);
+        tcg_temp_free_ptr(dst);
+    }
+    gen_set_label(label_end);
+
+    tcg_temp_free(cancelled);
+}
+
+static inline void gen_log_vreg_write_pair(TCGv_ptr var, int num, int vnew,
+                                           int slot_num)
+{
+    TCGv_ptr v0 = tcg_temp_local_new_ptr();
+    TCGv_ptr v1 = tcg_temp_local_new_ptr();
+    tcg_gen_addi_ptr(v0, var, offsetof(mmvector_pair_t, v[0]));
+    gen_log_vreg_write(v0, num ^ 0, vnew, slot_num);
+    tcg_gen_addi_ptr(v1, var, offsetof(mmvector_pair_t, v[1]));
+    gen_log_vreg_write(v1, num ^ 1, vnew, slot_num);
+    tcg_temp_free_ptr(v0);
+    tcg_temp_free_ptr(v1);
+}
+
+static inline void gen_log_qreg_write(TCGv_ptr var, int num, int vnew,
+                                          int slot_num)
+{
+    TCGv cancelled = tcg_temp_local_new();
+    TCGLabel *label_end = gen_new_label();
+
+    /* Don't do anything if the slot was cancelled */
+    gen_slot_cancelled_check(cancelled, slot_num);
+    tcg_gen_brcondi_tl(TCG_COND_NE, cancelled, 0, label_end);
+    {
+        TCGv_ptr dst = tcg_temp_new_ptr();
+        tcg_gen_addi_ptr(dst, cpu_env,
+                         offsetof(CPUHexagonState, future_QRegs[num]));
+        gen_memcpy(dst, var, sizeof(mmqreg_t));
+        tcg_gen_ori_tl(hex_QRegs_updated, hex_QRegs_updated, 1 << num);
+        tcg_temp_free_ptr(dst);
+    }
+    gen_set_label(label_end);
+
+    tcg_temp_free(cancelled);
+}
+
 #endif
