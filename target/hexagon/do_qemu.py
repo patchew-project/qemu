@@ -810,3 +810,89 @@ realf.write(f.getvalue())
 realf.close()
 f.close()
 
+##
+## Generate the op_regs_generated.h file
+##     Lists the register and immediate operands for each instruction
+##
+def calculate_regid_reg(tag):
+    def letter_inc(x): return chr(ord(x)+1)
+    ordered_implregs = [ 'SP','FP','LR' ]
+    srcdst_lett = 'X'
+    src_lett = 'S'
+    dst_lett = 'D'
+    retstr = ""
+    mapdict = {}
+    for reg in ordered_implregs:
+        reg_rd = 0
+        reg_wr = 0
+        if ('A_IMPLICIT_READS_'+reg) in attribdict[tag]: reg_rd = 1
+        if ('A_IMPLICIT_WRITES_'+reg) in attribdict[tag]: reg_wr = 1
+        if reg_rd and reg_wr:
+            retstr += srcdst_lett
+            mapdict[srcdst_lett] = reg
+            srcdst_lett = letter_inc(srcdst_lett)
+        elif reg_rd:
+            retstr += src_lett
+            mapdict[src_lett] = reg
+            src_lett = letter_inc(src_lett)
+        elif reg_wr:
+            retstr += dst_lett
+            mapdict[dst_lett] = reg
+            dst_lett = letter_inc(dst_lett)
+    return retstr,mapdict
+
+def calculate_regid_letters(tag):
+    retstr,mapdict = calculate_regid_reg(tag)
+    return retstr
+
+def strip_verif_info_in_regs(x):
+    y=x.replace('UREG.','')
+    y=y.replace('MREG.','')
+    return y.replace('GREG.','')
+
+f = StringIO()
+
+for tag in tags:
+    regs = tagregs[tag]
+    rregs = []
+    wregs = []
+    regids = ""
+    for regtype,regid,toss,numregs in regs:
+        if is_read(regid):
+            if regid[0] not in regids: regids += regid[0]
+            rregs.append(regtype+regid+numregs)
+        if is_written(regid):
+            wregs.append(regtype+regid+numregs)
+            if regid[0] not in regids: regids += regid[0]
+    for attrib in attribdict[tag]:
+        if attribinfo[attrib]['rreg']:
+            rregs.append(strip_verif_info_in_regs(attribinfo[attrib]['rreg']))
+        if attribinfo[attrib]['wreg']:
+            wregs.append(strip_verif_info_in_regs(attribinfo[attrib]['wreg']))
+    regids += calculate_regid_letters(tag)
+    f.write('REGINFO(%s,"%s",\t/*RD:*/\t"%s",\t/*WR:*/\t"%s")\n' % \
+        (tag,regids,",".join(rregs),",".join(wregs)))
+
+for tag in tags:
+    imms = tagimms[tag]
+    f.write( 'IMMINFO(%s' % tag)
+    if not imms:
+        f.write(''','u',0,0,'U',0,0''')
+    for sign,size,shamt in imms:
+        if sign == 'r': sign = 's'
+        if not shamt:
+            shamt = "0"
+        f.write(''','%s',%s,%s''' % (sign,size,shamt))
+    if len(imms) == 1:
+        if sign.isupper():
+            myu = 'u'
+        else:
+            myu = 'U'
+        f.write(''','%s',0,0''' % myu)
+    f.write(')\n')
+
+realf = open('op_regs_generated.h','w')
+realf.write(f.getvalue())
+realf.close()
+f.close()
+
