@@ -636,4 +636,245 @@
 #define fWRAP_L4_ploadrdfnew_abs(GENHLPR, SHORTCODE) \
     fWRAP_PRED_LOAD_PAIR(fEA_IMM(uiV), fLSBNEWNOT(PtN))
 
+/* load-locked and store-locked */
+#define fWRAP_L2_loadw_locked(GENHLPR, SHORTCODE) \
+    SHORTCODE
+#define fWRAP_L4_loadd_locked(GENHLPR, SHORTCODE) \
+    SHORTCODE
+#define fWRAP_S2_storew_locked(GENHLPR, SHORTCODE) \
+    do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
+#define fWRAP_S4_stored_locked(GENHLPR, SHORTCODE) \
+    do { SHORTCODE; READ_PREG(PdV, PdN); } while (0)
+
+#define fWRAP_STORE(SHORTCODE) \
+    do { \
+        TCGv HALF = tcg_temp_new(); \
+        TCGv BYTE = tcg_temp_new(); \
+        TCGv NEWREG_ST = tcg_temp_new(); \
+        TCGv tmp = tcg_temp_new(); \
+        SHORTCODE; \
+        tcg_temp_free(HALF); \
+        tcg_temp_free(BYTE); \
+        tcg_temp_free(NEWREG_ST); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_STORE_ap(STORE) \
+    do { \
+        TCGv HALF = tcg_temp_new(); \
+        TCGv BYTE = tcg_temp_new(); \
+        TCGv NEWREG_ST = tcg_temp_new(); \
+        { \
+            fEA_IMM(UiV); \
+            STORE; \
+            tcg_gen_movi_tl(ReV, UiV); \
+        } \
+        tcg_temp_free(HALF); \
+        tcg_temp_free(BYTE); \
+        tcg_temp_free(NEWREG_ST); \
+    } while (0)
+
+#define fWRAP_STORE_pcr(SHIFT, STORE) \
+    do { \
+        TCGv ireg = tcg_temp_new(); \
+        TCGv HALF = tcg_temp_new(); \
+        TCGv BYTE = tcg_temp_new(); \
+        TCGv NEWREG_ST = tcg_temp_new(); \
+        TCGv tmp = tcg_temp_new(); \
+        fEA_REG(RxV); \
+        fPM_CIRR(RxV, fREAD_IREG(MuV, SHIFT), MuV); \
+        STORE; \
+        tcg_temp_free(ireg); \
+        tcg_temp_free(HALF); \
+        tcg_temp_free(BYTE); \
+        tcg_temp_free(NEWREG_ST); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_S2_storerb_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerb_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerb_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 1, EA, fGETBYTE(0, RtV)))
+#define fWRAP_S2_storerb_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerb_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerb_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerb_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerb_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, RtV)))
+#define fWRAP_S4_storerb_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerbnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storeirb_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerbgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS1_storeb_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_storebi0(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storerh_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerh_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerh_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 2, EA, fGETHALF(0, RtV)))
+#define fWRAP_S2_storerh_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerh_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerh_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerh_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerh_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, RtV)))
+#define fWRAP_S4_storerh_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storeirh_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerhgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_storeh_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storerf_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerf_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerf_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 2, EA, fGETHALF(1, RtV)))
+#define fWRAP_S2_storerf_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerf_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerf_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerf_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerf_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(1, RtV)))
+#define fWRAP_S4_storerf_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerfgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storeri_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storeri_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storeri_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 4, EA, RtV))
+#define fWRAP_S2_storeri_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storeri_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storeri_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storeri_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storeri_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(2, fSTORE(1, 4, EA, RtV))
+#define fWRAP_S4_storeri_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerinew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storeiri_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerigp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS1_storew_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_storew_sp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_storewi0(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storerd_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerd_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerd_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 8, EA, RttV))
+#define fWRAP_S2_storerd_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerd_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerd_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerd_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerd_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(3, fSTORE(1, 8, EA, RttV))
+#define fWRAP_S4_storerd_rr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerdgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_SS2_stored_sp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storerbnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerbnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerbnew_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 1, EA, fGETBYTE(0, fNEWREG_ST(NtN))))
+#define fWRAP_S2_storerbnew_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerbnew_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerbnew_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerbnew_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerbnew_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(0, fSTORE(1, 1, EA, fGETBYTE(0, fNEWREG_ST(NtN))))
+#define fWRAP_S2_storerbnewgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storerhnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerhnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerhnew_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 2, EA, fGETHALF(0, fNEWREG_ST(NtN))))
+#define fWRAP_S2_storerhnew_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerhnew_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerhnew_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerhnew_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerhnew_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(1, fSTORE(1, 2, EA, fGETHALF(0, fNEWREG_ST(NtN))))
+#define fWRAP_S2_storerhnewgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
+#define fWRAP_S2_storerinew_io(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerinew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerinew_ap(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_ap(fSTORE(1, 4, EA, fNEWREG_ST(NtN)))
+#define fWRAP_S2_storerinew_pr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S4_storerinew_ur(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerinew_pbr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerinew_pci(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+#define fWRAP_S2_storerinew_pcr(GENHLPR, SHORTCODE) \
+    fWRAP_STORE_pcr(2, fSTORE(1, 4, EA, fNEWREG_ST(NtN)))
+#define fWRAP_S2_storerinewgp(GENHLPR, SHORTCODE) \
+    fWRAP_STORE(SHORTCODE)
+
 #endif
