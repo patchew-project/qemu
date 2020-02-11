@@ -43,7 +43,7 @@ VM_DEV_PARAMS = {'virtio-scsi-pci': ['-device', 'virtio-scsi-pci,id=scsi0'],
 EXCLUDED_MACHINES = ['none', 'isapc', 'microvm']
 
 
-class VirtioMaxSegSettingsCheck(Test):
+class VirtioParamsCheck(Test):
     @staticmethod
     def make_pattern(props):
         pattern_items = ['{0} = \w+'.format(prop) for prop in props]
@@ -75,12 +75,12 @@ class VirtioMaxSegSettingsCheck(Test):
                 props[p[0]] = p[1]
         return query_ok, props, error
 
-    def check_mt(self, mt, dev_type_name):
-        mt['device'] = dev_type_name # Only for the debug() call.
+    def check_mt(self, mt, expected_vals, dev_type_name):
+        msg = "mt: %s dev: %s" % (mt, dev_type_name) # For debug() call only.
         logger = logging.getLogger('machine')
-        logger.debug(mt)
+        logger.debug(msg)
         with QEMUMachine(self.qemu_bin) as vm:
-            vm.set_machine(mt["name"])
+            vm.set_machine(mt)
             vm.add_args('-nodefaults')
             for s in VM_DEV_PARAMS[dev_type_name]:
                 vm.add_args(s)
@@ -92,11 +92,15 @@ class VirtioMaxSegSettingsCheck(Test):
                 error = sys.exc_info()[0]
 
         if not query_ok:
-            self.fail('machine type {0}: {1}'.format(mt['name'], error))
+            self.fail('machine type {0}: {1}'.format(mt, error))
 
         for prop_name, prop_val in props.items():
-            expected_val = mt[prop_name]
-            self.assertEqual(expected_val, prop_val)
+            expected_val = expected_vals[prop_name]
+            msg = 'Property value mismatch for (MT: {0}, '\
+                  'property name: {1}): expected value: "{2}" '\
+                  'actual value: "{3}"'\
+                  .format(mt, prop_name, expected_val, prop_val)
+            self.assertEqual(expected_val, prop_val, msg)
 
     @staticmethod
     def seg_max_adjust_enabled(mt):
@@ -128,25 +132,27 @@ class VirtioMaxSegSettingsCheck(Test):
 
     @skip("break multi-arch CI")
     def test_machine_types(self):
-        # collect all machine types except 'none', 'isapc', 'microvm'
+        # collect all machine types
         with QEMUMachine(self.qemu_bin) as vm:
             vm.launch()
             machines = [m['name'] for m in vm.command('query-machines')]
             vm.shutdown()
 
+        # ..and exclude non-relevant ones
         machines = self.filter_machines(machines)
 
         for dev_type in DEV_TYPES:
-            # create the list of machine types and their parameters.
-            mtypes = list()
+            # define expected parameters for each machine type
+            mt_expected_vals = dict()
             for m in machines:
                 if self.seg_max_adjust_enabled(m):
                     enabled = 'true'
                 else:
                     enabled = 'false'
-                mtypes.append({'name': m,
-                               DEV_TYPES[dev_type]['seg_max_adjust']: enabled})
 
-            # test each machine type for a device type
-            for mt in mtypes:
-                self.check_mt(mt, dev_type)
+                mt_expected_vals[m] = {
+                    DEV_TYPES[dev_type]['seg_max_adjust']: enabled }
+
+            # test each machine type
+            for mt in mt_expected_vals:
+                self.check_mt(mt, mt_expected_vals[mt], dev_type)
