@@ -164,27 +164,35 @@ static void tulip_copy_rx_bytes(TULIPState *s, struct tulip_descriptor *desc)
     int len2 = (desc->control >> RDES1_BUF2_SIZE_SHIFT) & RDES1_BUF2_SIZE_MASK;
     int len;
 
-    if (s->rx_frame_len && len1) {
-        if (s->rx_frame_len > len1) {
-            len = len1;
-        } else {
-            len = s->rx_frame_len;
-        }
-        pci_dma_write(&s->dev, desc->buf_addr1, s->rx_frame +
-            (s->rx_frame_size - s->rx_frame_len), len);
-        s->rx_frame_len -= len;
+    if (!len1 || !len2 || !s->rx_frame_len) {
+        return;
     }
 
-    if (s->rx_frame_len && len2) {
-        if (s->rx_frame_len > len2) {
-            len = len2;
-        } else {
-            len = s->rx_frame_len;
-        }
-        pci_dma_write(&s->dev, desc->buf_addr2, s->rx_frame +
-            (s->rx_frame_size - s->rx_frame_len), len);
-        s->rx_frame_len -= len;
+    if (s->rx_frame_len > len1) {
+        len = len1;
+    } else {
+        len = s->rx_frame_len;
     }
+
+    if (s->rx_frame_len + len >= sizeof(s->rx_frame)) {
+        return;
+    }
+    pci_dma_write(&s->dev, desc->buf_addr1, s->rx_frame +
+        (s->rx_frame_size - s->rx_frame_len), len);
+    s->rx_frame_len -= len;
+
+    if (s->rx_frame_len > len2) {
+        len = len2;
+    } else {
+        len = s->rx_frame_len;
+    }
+
+    if (s->rx_frame_len + len >= sizeof(s->rx_frame)) {
+        return;
+    }
+    pci_dma_write(&s->dev, desc->buf_addr2, s->rx_frame +
+        (s->rx_frame_size - s->rx_frame_len), len);
+    s->rx_frame_len -= len;
 }
 
 static bool tulip_filter_address(TULIPState *s, const uint8_t *addr)
@@ -227,7 +235,8 @@ static ssize_t tulip_receive(TULIPState *s, const uint8_t *buf, size_t size)
 
     trace_tulip_receive(buf, size);
 
-    if (size < 14 || size > 2048 || s->rx_frame_len || tulip_rx_stopped(s)) {
+    if (size < 14 || size > sizeof(s->rx_frame) - 4
+        || s->rx_frame_len || tulip_rx_stopped(s)) {
         return 0;
     }
 
@@ -558,7 +567,7 @@ static void tulip_tx(TULIPState *s, struct tulip_descriptor *desc)
         if ((s->csr[6] >> CSR6_OM_SHIFT) & CSR6_OM_MASK) {
             /* Internal or external Loopback */
             tulip_receive(s, s->tx_frame, s->tx_frame_len);
-        } else {
+        } else if (s->tx_frame_len < sizeof(s->tx_frame)) {
             qemu_send_packet(qemu_get_queue(s->nic),
                 s->tx_frame, s->tx_frame_len);
         }
@@ -575,12 +584,18 @@ static void tulip_copy_tx_buffers(TULIPState *s, struct tulip_descriptor *desc)
     int len1 = (desc->control >> TDES1_BUF1_SIZE_SHIFT) & TDES1_BUF1_SIZE_MASK;
     int len2 = (desc->control >> TDES1_BUF2_SIZE_SHIFT) & TDES1_BUF2_SIZE_MASK;
 
+    if (s->tx_frame_len + len1 >= sizeof(s->tx_frame)) {
+        return;
+    }
     if (len1) {
         pci_dma_read(&s->dev, desc->buf_addr1,
             s->tx_frame + s->tx_frame_len, len1);
         s->tx_frame_len += len1;
     }
 
+    if (s->tx_frame_len + len2 >= sizeof(s->tx_frame)) {
+        return;
+    }
     if (len2) {
         pci_dma_read(&s->dev, desc->buf_addr2,
             s->tx_frame + s->tx_frame_len, len2);
