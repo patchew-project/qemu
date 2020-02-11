@@ -40,6 +40,8 @@ VM_DEV_PARAMS = {'virtio-scsi-pci': ['-device', 'virtio-scsi-pci,id=scsi0'],
                                     '-drive',
                                     'driver=null-co,id=drive0,if=none']}
 
+EXCLUDED_MACHINES = ['none', 'isapc', 'microvm']
+
 
 class VirtioMaxSegSettingsCheck(Test):
     @staticmethod
@@ -117,6 +119,13 @@ class VirtioMaxSegSettingsCheck(Test):
             return True
         return False
 
+    @staticmethod
+    def filter_machines(machines):
+        for mt in EXCLUDED_MACHINES:
+            if mt in machines:
+                machines.remove(mt)
+        return machines
+
     @skip("break multi-arch CI")
     def test_machine_types(self):
         # collect all machine types except 'none', 'isapc', 'microvm'
@@ -124,9 +133,8 @@ class VirtioMaxSegSettingsCheck(Test):
             vm.launch()
             machines = [m['name'] for m in vm.command('query-machines')]
             vm.shutdown()
-        machines.remove('none')
-        machines.remove('isapc')
-        machines.remove('microvm')
+
+        machines = self.filter_machines(machines)
 
         for dev_type in DEV_TYPES:
             # create the list of machine types and their parameters.
