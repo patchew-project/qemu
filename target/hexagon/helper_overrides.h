@@ -931,4 +931,64 @@
     fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBNEWNOT(PvN), \
                      fGETBYTE(0, hex_new_value[NtX]), 1, NOINC)
 
+/* We have to brute force memops because they have C math in the semantics */
+#define fWRAP_MEMOP(GENHLPR, SHORTCODE, SIZE, OP) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        fEA_RI(RsV, uiV); \
+        fLOAD(1, SIZE, s, EA, tmp); \
+        OP; \
+        fSTORE(1, SIZE, EA, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_L4_add_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_add_tl(tmp, tmp, RtV))
+#define fWRAP_L4_add_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_add_tl(tmp, tmp, RtV))
+#define fWRAP_L4_add_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_add_tl(tmp, tmp, RtV))
+#define fWRAP_L4_sub_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_sub_tl(tmp, tmp, RtV))
+#define fWRAP_L4_sub_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_sub_tl(tmp, tmp, RtV))
+#define fWRAP_L4_sub_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_sub_tl(tmp, tmp, RtV))
+#define fWRAP_L4_and_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_and_tl(tmp, tmp, RtV))
+#define fWRAP_L4_and_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_and_tl(tmp, tmp, RtV))
+#define fWRAP_L4_and_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_and_tl(tmp, tmp, RtV))
+#define fWRAP_L4_or_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_or_tl(tmp, tmp, RtV))
+#define fWRAP_L4_or_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_or_tl(tmp, tmp, RtV))
+#define fWRAP_L4_or_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_or_tl(tmp, tmp, RtV))
+#define fWRAP_L4_iadd_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_addi_tl(tmp, tmp, UiV))
+#define fWRAP_L4_iadd_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_addi_tl(tmp, tmp, UiV))
+#define fWRAP_L4_iadd_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_addi_tl(tmp, tmp, UiV))
+#define fWRAP_L4_isub_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_subi_tl(tmp, tmp, UiV))
+#define fWRAP_L4_isub_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_subi_tl(tmp, tmp, UiV))
+#define fWRAP_L4_isub_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_subi_tl(tmp, tmp, UiV))
+#define fWRAP_L4_iand_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_andi_tl(tmp, tmp, ~(1 << UiV)))
+#define fWRAP_L4_iand_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_andi_tl(tmp, tmp, ~(1 << UiV)))
+#define fWRAP_L4_iand_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_andi_tl(tmp, tmp, ~(1 << UiV)))
+#define fWRAP_L4_ior_memopw_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 4, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
+#define fWRAP_L4_ior_memopb_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 1, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
+#define fWRAP_L4_ior_memoph_io(GENHLPR, SHORTCODE) \
+    fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
+
 #endif
