@@ -25,7 +25,7 @@ import logging
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qemu.machine import QEMUMachine
 from avocado_qemu import Test
-from avocado import skip
+from avocado import skipIf
 
 #list of machine types and virtqueue properties to test
 VIRTIO_SCSI_PROPS = {'seg_max_adjust': 'seg_max_adjust'}
@@ -117,7 +117,7 @@ class VirtioMaxSegSettingsCheck(Test):
             return True
         return False
 
-    @skip("break multi-arch CI")
+    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Break multi-arch CI')
     def test_machine_types(self):
         # collect all machine types except 'none', 'isapc', 'microvm'
         with QEMUMachine(self.qemu_bin) as vm:
