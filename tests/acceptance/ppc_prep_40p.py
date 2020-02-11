@@ -61,6 +61,7 @@ class IbmPrep40pMachine(Test):
         wait_for_console_pattern(self, '>> CPU type PowerPC,604')
 
     @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
+    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_openbios_and_netbsd(self):
         """
         :avocado: tags=arch:ppc
