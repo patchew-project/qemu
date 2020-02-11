@@ -87,6 +87,15 @@ int main(int argc, char *argv[])
 #include "imported/macros.def"
 #undef DEF_MACRO
 
+/*
+ * Process the macros for HVX
+ */
+#define DEF_MACRO(MNAME, PARAMS, SDESC, LDESC, BEH, ATTRS) \
+    fprintf(outfile, "MACROATTRIB(\"%s\",\"\"\"%s\"\"\",\"%s\",\"%s\")\n", \
+            #MNAME, STRINGIZE(BEH), STRINGIZE(ATTRS), EXTSTR);
+#include "imported/allext_macros.def"
+#undef DEF_MACRO
+
     fclose(outfile);
     return 0;
 }
