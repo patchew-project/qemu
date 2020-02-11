@@ -462,7 +462,7 @@ sub top_of_kernel_tree {
 	my @tree_check = (
 		"COPYING", "MAINTAINERS", "Makefile",
 		"README.rst", "docs", "VERSION",
-		"vl.c"
+		"softmmu", "linux-user"
 	);
 
 	foreach my $check (@tree_check) {
