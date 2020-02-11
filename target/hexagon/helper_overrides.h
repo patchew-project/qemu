@@ -1551,4 +1551,300 @@
 #define fWRAP_J2_jumptnewpt(GENHLPR, SHORTCODE) \
     gen_cond_jump(PuN, riV)
 
+/*
+ * New value compare & jump instructions
+ * if ([!]COND(r0.new, r1) jump:t address
+ * if ([!]COND(r0.new, #7) jump:t address
+ */
+#define fWRAP_J4_cmpgt_f_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_LE, NsX, RtV, riV)
+#define fWRAP_J4_cmpeq_f_jumpnv_nt(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_NE, NsX, RtV, riV)
+#define fWRAP_J4_cmpgt_t_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_GT, NsX, RtV, riV)
+#define fWRAP_J4_cmpeqi_t_jumpnv_nt(GENHLPR, SHORTCODE) \
+    gen_cmpi_jumpnv(TCG_COND_EQ, NsX, UiV, riV)
+#define fWRAP_J4_cmpltu_f_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_GEU, NsX, RtV, riV)
+#define fWRAP_J4_cmpgtui_t_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmpi_jumpnv(TCG_COND_GTU, NsX, UiV, riV)
+#define fWRAP_J4_cmpeq_f_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_NE, NsX, RtV, riV)
+#define fWRAP_J4_cmpeqi_f_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmpi_jumpnv(TCG_COND_NE, NsX, UiV, riV)
+#define fWRAP_J4_cmpgtu_t_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_GTU, NsX, RtV, riV)
+#define fWRAP_J4_cmpgtu_f_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_LEU, NsX, RtV, riV)
+#define fWRAP_J4_cmplt_t_jumpnv_t(GENHLPR, SHORTCODE) \
+    gen_cmp_jumpnv(TCG_COND_LT, NsX, RtV, riV)
+
+/* r0 = r1 ; jump address */
+#define fWRAP_J4_jumpsetr(GENHLPR, SHORTCODE) \
+    do { \
+        tcg_gen_mov_tl(RdV, RsV); \
+        gen_jump(riV); \
+    } while (0)
+
+/* r0 = lsr(r1, #5) */
+#define fWRAP_S2_lsr_i_r(GENHLPR, SHORTCODE) \
+    fLSHIFTR(RdV, RsV, IMMNO(0), 4_4)
+
+/* r0 += lsr(r1, #5) */
+#define fWRAP_S2_lsr_i_r_acc(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        fLSHIFTR(tmp, RsV, IMMNO(0), 4_4); \
+        tcg_gen_add_tl(RxV, RxV, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 ^= lsr(r1, #5) */
+#define fWRAP_S2_lsr_i_r_xacc(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        fLSHIFTR(tmp, RsV, IMMNO(0), 4_4); \
+        tcg_gen_xor_tl(RxV, RxV, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 = asr(r1, #5) */
+#define fWRAP_S2_asr_i_r(GENHLPR, SHORTCODE) \
+    fASHIFTR(RdV, RsV, IMMNO(0), 4_4)
+
+/* r0 = addasl(r1, r2, #3) */
+#define fWRAP_S2_addasl_rrri(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        fASHIFTL(tmp, RsV, IMMNO(0), 4_4); \
+        tcg_gen_add_tl(RdV, RtV, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 |= asl(r1, r2) */
+#define fWRAP_S2_asl_r_r_or(GENHLPR, SHORTCODE) \
+    gen_asl_r_r_or(RxV, RsV, RtV)
+
+/* r0 = asl(r1, #5) */
+#define fWRAP_S2_asl_i_r(GENHLPR, SHORTCODE) \
+    fASHIFTL(RdV, RsV, IMMNO(0), 4_4)
+
+/* r0 |= asl(r1, #5) */
+#define fWRAP_S2_asl_i_r_or(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        fASHIFTL(tmp, RsV, IMMNO(0), 4_4); \
+        tcg_gen_or_tl(RxV, RxV, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 = vsplatb(r1) */
+#define fWRAP_S2_vsplatrb(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        int i; \
+        tcg_gen_movi_tl(RdV, 0); \
+        tcg_gen_andi_tl(tmp, RsV, 0xff); \
+        for (i = 0; i < 4; i++) { \
+            tcg_gen_shli_tl(RdV, RdV, 8); \
+            tcg_gen_or_tl(RdV, RdV, tmp); \
+        } \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_SA1_seti(GENHLPR, SHORTCODE) \
+    tcg_gen_movi_tl(RdV, IMMNO(0))
+
+#define fWRAP_S2_insert(GENHLPR, SHORTCODE) \
+    tcg_gen_deposit_i32(RxV, RxV, RsV, IMMNO(1), IMMNO(0))
+
+#define fWRAP_S2_extractu(GENHLPR, SHORTCODE) \
+    tcg_gen_extract_i32(RdV, RsV, IMMNO(1), IMMNO(0))
+
+#define fWRAP_A2_combinew(GENHLPR, SHORTCODE) \
+    tcg_gen_concat_i32_i64(RddV, RtV, RsV)
+#define fWRAP_A2_combineii(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp_lo = tcg_const_tl(SiV); \
+        TCGv tmp_hi = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, tmp_hi); \
+        tcg_temp_free(tmp_lo); \
+        tcg_temp_free(tmp_hi); \
+    } while (0)
+#define fWRAP_A4_combineri(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp_lo = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, RsV); \
+        tcg_temp_free(tmp_lo); \
+    } while (0)
+#define fWRAP_A4_combineir(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp_hi = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, RsV, tmp_hi); \
+        tcg_temp_free(tmp_hi); \
+    } while (0)
+#define fWRAP_A4_combineii(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp_lo = tcg_const_tl(UiV); \
+        TCGv tmp_hi = tcg_const_tl(siV); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, tmp_hi); \
+        tcg_temp_free(tmp_lo); \
+        tcg_temp_free(tmp_hi); \
+    } while (0)
+
+#define fWRAP_SA1_combine0i(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp_lo = tcg_const_tl(uiV); \
+        TCGv zero = tcg_const_tl(0); \
+        tcg_gen_concat_i32_i64(RddV, tmp_lo, zero); \
+        tcg_temp_free(tmp_lo); \
+        tcg_temp_free(zero); \
+    } while (0)
+
+/* r0 = or(#8, asl(r1, #5)) */
+#define fWRAP_S4_ori_asl_ri(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_shli_tl(tmp, RxV, IMMNO(1)); \
+        tcg_gen_ori_tl(RxV, tmp, IMMNO(0)); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 = add(r1, sub(#6, r2)) */
+#define fWRAP_S4_subaddi(GENHLPR, SHORTCODE) \
+    do { \
+        tcg_gen_sub_tl(RdV, RsV, RuV); \
+        tcg_gen_addi_tl(RdV, RdV, IMMNO(0)); \
+    } while (0)
+
+#define fWRAP_SA1_inc(GENHLPR, SHORTCODE) \
+    tcg_gen_addi_tl(RdV, RsV, 1)
+
+#define fWRAP_SA1_dec(GENHLPR, SHORTCODE) \
+    tcg_gen_subi_tl(RdV, RsV, 1)
+
+/* if (p0.new) r0 = #0 */
+#define fWRAP_SA1_clrtnew(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv mask = tcg_temp_new(); \
+        TCGv zero = tcg_const_tl(0); \
+        tcg_gen_movi_tl(RdV, 0); \
+        tcg_gen_movi_tl(mask, 1 << insn->slot); \
+        tcg_gen_or_tl(mask, hex_slot_cancelled, mask); \
+        tcg_gen_movcond_tl(TCG_COND_EQ, hex_slot_cancelled, \
+                           hex_new_pred_value[0], zero, \
+                           mask, hex_slot_cancelled); \
+        tcg_temp_free(mask); \
+        tcg_temp_free(zero); \
+    } while (0)
+
+/* r0 = add(r1 , mpyi(#6, r2)) */
+#define fWRAP_M4_mpyri_addr_u2(GENHLPR, SHORTCODE) \
+    do { \
+        tcg_gen_muli_tl(RdV, RsV, IMMNO(0)); \
+        tcg_gen_add_tl(RdV, RuV, RdV); \
+    } while (0)
+
+/* Predicated add instructions */
+#define WRAP_padd(PRED, ADD) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGv mask = tcg_temp_new(); \
+        TCGv zero = tcg_const_tl(0); \
+        PRED; \
+        ADD; \
+        tcg_gen_movi_tl(mask, 1 << insn->slot); \
+        tcg_gen_or_tl(mask, hex_slot_cancelled, mask); \
+        tcg_gen_movcond_tl(TCG_COND_NE, hex_slot_cancelled, LSB, zero, \
+                           hex_slot_cancelled, mask); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free(mask); \
+        tcg_temp_free(zero); \
+    } while (0)
+
+#define fWRAP_A2_paddt(GENHLPR, SHORTCODE) \
+    WRAP_padd(fLSBOLD(PuV), tcg_gen_add_tl(RdV, RsV, RtV))
+#define fWRAP_A2_paddf(GENHLPR, SHORTCODE) \
+    WRAP_padd(fLSBOLDNOT(PuV), tcg_gen_add_tl(RdV, RsV, RtV))
+#define fWRAP_A2_paddit(GENHLPR, SHORTCODE) \
+    WRAP_padd(fLSBOLD(PuV), tcg_gen_addi_tl(RdV, RsV, IMMNO(0)))
+#define fWRAP_A2_paddif(GENHLPR, SHORTCODE) \
+    WRAP_padd(fLSBOLDNOT(PuV), tcg_gen_addi_tl(RdV, RsV, IMMNO(0)))
+#define fWRAP_A2_padditnew(GENHLPR, SHORTCODE) \
+    WRAP_padd(fLSBNEW(PuN), tcg_gen_addi_tl(RdV, RsV, IMMNO(0)))
+
+/* Conditional move instructions */
+#define fWRAP_COND_MOVE(VAL, COND) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGv zero = tcg_const_tl(0); \
+        TCGv mask = tcg_temp_new(); \
+        TCGv value = tcg_const_tl(siV); \
+        VAL; \
+        tcg_gen_movcond_tl(COND, RdV, LSB, zero, value, zero); \
+        tcg_gen_movi_tl(mask, 1 << insn->slot); \
+        tcg_gen_movcond_tl(TCG_COND_EQ, mask, LSB, zero, mask, zero); \
+        tcg_gen_or_tl(hex_slot_cancelled, hex_slot_cancelled, mask); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free(zero); \
+        tcg_temp_free(mask); \
+        tcg_temp_free(value); \
+    } while (0)
+
+#define fWRAP_C2_cmoveit(GENHLPR, SHORTCODE) \
+    fWRAP_COND_MOVE(fLSBOLD(PuV), TCG_COND_NE)
+#define fWRAP_C2_cmovenewit(GENHLPR, SHORTCODE) \
+    fWRAP_COND_MOVE(fLSBNEW(PuN), TCG_COND_NE)
+#define fWRAP_C2_cmovenewif(GENHLPR, SHORTCODE) \
+    fWRAP_COND_MOVE(fLSBNEWNOT(PuN), TCG_COND_NE)
+
+/* p0 = tstbit(r0, #5) */
+#define fWRAP_S2_tstbit_i(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_andi_tl(tmp, RsV, (1 << IMMNO(0))); \
+        gen_8bitsof(PdV, tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* p0 = !tstbit(r0, #5) */
+#define fWRAP_S4_ntstbit_i(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_andi_tl(tmp, RsV, (1 << IMMNO(0))); \
+        gen_8bitsof(PdV, tmp); \
+        tcg_gen_xori_tl(PdV, PdV, 0xff); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r0 = setbit(r1, #5) */
+#define fWRAP_S2_setbit_i(GENHLPR, SHORTCODE) \
+    tcg_gen_ori_tl(RdV, RsV, 1 << IMMNO(0))
+
+/* r0 += add(r1, #8) */
+#define fWRAP_M2_accii(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_add_tl(tmp, RxV, RsV); \
+        tcg_gen_addi_tl(RxV, tmp, IMMNO(0)); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* p0 = bitsclr(r1, #6) */
+#define fWRAP_C2_bitsclri(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv zero = tcg_const_tl(0); \
+        tcg_gen_andi_tl(tmp, RsV, IMMNO(0)); \
+        gen_compare(TCG_COND_EQ, PdV, tmp, zero); \
+        tcg_temp_free(tmp); \
+        tcg_temp_free(zero); \
+    } while (0)
+
+#define fWRAP_SL2_jumpr31(GENHLPR, SHORTCODE) \
+    gen_write_new_pc(hex_gpr[HEX_REG_LR])
+
+#define fWRAP_SL2_jumpr31_tnew(GENHLPR, SHORTCODE) \
+    gen_cond_jumpr(hex_new_pred_value[0], hex_gpr[HEX_REG_LR])
+
 #endif
