@@ -1,5 +1,5 @@
 include:
-  - local: '/.gitlab-ci-edk2.yml'
+  - local: '/.gitlab-ci.d/edk2.yml'
 
 before_script:
  - apt-get update -qq
