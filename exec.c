@@ -2120,6 +2120,15 @@ static int memory_try_enable_merging(void *addr, size_t len)
     return qemu_madvise(addr, len, QEMU_MADV_MERGEABLE);
 }
 
+static void qemu_ram_apply_settings(void *host, size_t length)
+{
+    memory_try_enable_merging(host, length);
+    qemu_ram_setup_dump(host, length);
+    qemu_madvise(host, length, QEMU_MADV_HUGEPAGE);
+    /* MADV_DONTFORK is also needed by KVM in absence of synchronous MMU */
+    qemu_madvise(host, length, QEMU_MADV_DONTFORK);
+}
+
 /* Only legal before guest might have detected the memory size: e.g. on
  * incoming migration, or right after reset.
  *
@@ -2270,7 +2279,6 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
                 qemu_mutex_unlock_ramlist();
                 return;
             }
-            memory_try_enable_merging(new_block->host, new_block->max_length);
         }
     }
 
@@ -2308,10 +2316,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
                                         DIRTY_CLIENTS_ALL);
 
     if (new_block->host) {
-        qemu_ram_setup_dump(new_block->host, new_block->max_length);
-        qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_HUGEPAGE);
-        /* MADV_DONTFORK is also needed by KVM in absence of synchronous MMU */
-        qemu_madvise(new_block->host, new_block->max_length, QEMU_MADV_DONTFORK);
+        qemu_ram_apply_settings(new_block->host, new_block->max_length);
         ram_block_notify_add(new_block->host, new_block->max_length);
     }
 }
