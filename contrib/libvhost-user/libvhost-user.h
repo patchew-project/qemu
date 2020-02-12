@@ -30,6 +30,8 @@
 
 #define VHOST_MEMORY_MAX_NREGIONS 8
 
+#define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
+
 typedef enum VhostSetConfigType {
     VHOST_SET_CONFIG_TYPE_MASTER = 0,
     VHOST_SET_CONFIG_TYPE_MIGRATION = 1,
@@ -201,12 +203,27 @@ typedef uint64_t (*vu_get_features_cb) (VuDev *dev);
 typedef void (*vu_set_features_cb) (VuDev *dev, uint64_t features);
 typedef int (*vu_process_msg_cb) (VuDev *dev, VhostUserMsg *vmsg,
                                   int *do_reply);
+typedef bool (*vu_read_msg_cb) (VuDev *dev, int sock, VhostUserMsg *vmsg);
 typedef void (*vu_queue_set_started_cb) (VuDev *dev, int qidx, bool started);
 typedef bool (*vu_queue_is_processed_in_order_cb) (VuDev *dev, int qidx);
 typedef int (*vu_get_config_cb) (VuDev *dev, uint8_t *config, uint32_t len);
 typedef int (*vu_set_config_cb) (VuDev *dev, const uint8_t *data,
                                  uint32_t offset, uint32_t size,
                                  uint32_t flags);
+
+typedef void (*vu_watch_cb_packed_data) (void *packed_data);
+
+typedef void (*vu_set_watch_cb_packed_data) (VuDev *dev, int fd, int condition,
+                                             vu_watch_cb_packed_data cb,
+                                             void *data);
+/*
+ * allowing vu_read_msg_cb and kick_callback to be replaced so QEMU
+ * can run them as coroutines
+ */
+typedef struct CoIface {
+    vu_read_msg_cb read_msg;
+    vu_watch_cb_packed_data kick_callback;
+} CoIface;
 
 typedef struct VuDevIface {
     /* called by VHOST_USER_GET_FEATURES to get the features bitmask */
@@ -372,7 +389,8 @@ struct VuDev {
     /* @set_watch: add or update the given fd to the watch set,
      * call cb when condition is met */
     vu_set_watch_cb set_watch;
-
+    /* AIO dispatch will only one data pointer to callback function */
+    vu_set_watch_cb_packed_data set_watch_packed_data;
     /* @remove_watch: remove the given fd from the watch set */
     vu_remove_watch_cb remove_watch;
 
@@ -380,7 +398,7 @@ struct VuDev {
      * re-initialize */
     vu_panic_cb panic;
     const VuDevIface *iface;
-
+    const CoIface *co_iface;
     /* Postcopy data */
     int postcopy_ufd;
     bool postcopy_listening;
@@ -417,6 +435,22 @@ bool vu_init(VuDev *dev,
              const VuDevIface *iface);
 
 
+/**
+ * vu_init_packed_data:
+ * Same as vu_init except for set_watch_packed_data which will pack
+ * two parameters into a struct thus QEMU aio_dispatch can pass the
+ * required data to callback function.
+ *
+ * Returns: true on success, false on failure.
+ **/
+bool vu_init_packed_data(VuDev *dev,
+                         uint16_t max_queues,
+                         int socket,
+                         vu_panic_cb panic,
+                         vu_set_watch_cb_packed_data set_watch_packed_data,
+                         vu_remove_watch_cb remove_watch,
+                         const VuDevIface *iface,
+                         const CoIface *co_iface);
 /**
  * vu_deinit:
  * @dev: a VuDev context

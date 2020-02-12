@@ -67,8 +67,6 @@
 /* The version of inflight buffer */
 #define INFLIGHT_VERSION 1
 
-#define VHOST_USER_HDR_SIZE offsetof(VhostUserMsg, payload.u64)
-
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION 1
 #define LIBVHOST_USER_DEBUG 0
@@ -260,7 +258,7 @@ have_userfault(void)
 }
 
 static bool
-vu_message_read(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
+vu_message_read_(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
 {
     char control[CMSG_SPACE(VHOST_MEMORY_MAX_NREGIONS * sizeof(int))] = { };
     struct iovec iov = {
@@ -326,6 +324,17 @@ fail:
     vmsg_close_fds(vmsg);
 
     return false;
+}
+
+static bool vu_message_read(VuDev *dev, int conn_fd, VhostUserMsg *vmsg)
+{
+    vu_read_msg_cb read_msg;
+    if (dev->co_iface) {
+        read_msg = dev->co_iface->read_msg;
+    } else {
+        read_msg = vu_message_read_;
+    }
+    return read_msg(dev, conn_fd, vmsg);
 }
 
 static bool
@@ -1075,9 +1084,14 @@ vu_set_vring_kick_exec(VuDev *dev, VhostUserMsg *vmsg)
     }
 
     if (dev->vq[index].kick_fd != -1 && dev->vq[index].handler) {
+        if (dev->set_watch_packed_data) {
+            dev->set_watch_packed_data(dev, dev->vq[index].kick_fd, VU_WATCH_IN,
+                                       dev->co_iface->kick_callback,
+                                       (void *)(long)index);
+        } else {
         dev->set_watch(dev, dev->vq[index].kick_fd, VU_WATCH_IN,
                        vu_kick_cb, (void *)(long)index);
-
+        }
         DPRINT("Waiting for kicks on fd: %d for vq: %d\n",
                dev->vq[index].kick_fd, index);
     }
@@ -1097,8 +1111,14 @@ void vu_set_queue_handler(VuDev *dev, VuVirtq *vq,
     vq->handler = handler;
     if (vq->kick_fd >= 0) {
         if (handler) {
+            if (dev->set_watch_packed_data) {
+                dev->set_watch_packed_data(dev, vq->kick_fd, VU_WATCH_IN,
+                                           dev->co_iface->kick_callback,
+                                           (void *)(long)qidx);
+            } else {
             dev->set_watch(dev, vq->kick_fd, VU_WATCH_IN,
                            vu_kick_cb, (void *)(long)qidx);
+            }
         } else {
             dev->remove_watch(dev, vq->kick_fd);
         }
@@ -1627,6 +1647,12 @@ vu_deinit(VuDev *dev)
         }
 
         if (vq->kick_fd != -1) {
+            /* remove watch for kick_fd
+             * When client process is running in gdb and
+             * quit command is run in gdb, QEMU will still dispatch the event
+             * which will cause segment fault in the callback function
+             */
+            dev->remove_watch(dev, vq->kick_fd);
             close(vq->kick_fd);
             vq->kick_fd = -1;
         }
@@ -1682,7 +1708,7 @@ vu_init(VuDev *dev,
 
     assert(max_queues > 0);
     assert(socket >= 0);
-    assert(set_watch);
+    /* assert(set_watch); */
     assert(remove_watch);
     assert(iface);
     assert(panic);
@@ -1713,6 +1739,24 @@ vu_init(VuDev *dev,
     }
 
     return true;
+}
+
+bool
+vu_init_packed_data(VuDev *dev,
+        uint16_t max_queues,
+        int socket,
+        vu_panic_cb panic,
+        vu_set_watch_cb_packed_data set_watch_packed_data,
+        vu_remove_watch_cb remove_watch,
+        const VuDevIface *iface,
+        const CoIface *co_iface)
+{
+    if (vu_init(dev, max_queues, socket, panic, NULL, remove_watch, iface)) {
+        dev->set_watch_packed_data = set_watch_packed_data;
+        dev->co_iface = co_iface;
+        return true;
+    }
+    return false;
 }
 
 VuVirtq *
