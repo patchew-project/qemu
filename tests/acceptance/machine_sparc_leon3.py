@@ -5,6 +5,9 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later. See the COPYING file in the top-level directory.
 
+import os
+
+from avocado import skipUnless
 from avocado_qemu import Test
 from avocado_qemu import wait_for_console_pattern
 
@@ -13,6 +16,7 @@ class Leon3Machine(Test):
 
     timeout = 60
 
+    @skipUnless(os.getenv('AVOCADO_TIMEOUT_EXPECTED'), 'Test might timeout')
     def test_leon3_helenos_uimage(self):
         """
         :avocado: tags=arch:sparc
