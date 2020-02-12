@@ -2138,6 +2138,8 @@ static void qemu_ram_apply_settings(void *host, size_t length)
  */
 int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
 {
+    const ram_addr_t oldsize = block->used_length;
+
     assert(block);
 
     newsize = HOST_PAGE_ALIGN(newsize);
@@ -2166,6 +2168,11 @@ int qemu_ram_resize(RAMBlock *block, ram_addr_t newsize, Error **errp)
     block->used_length = newsize;
     cpu_physical_memory_set_dirty_range(block->offset, block->used_length,
                                         DIRTY_CLIENTS_ALL);
+
+    if (block->host) {
+        ram_block_notify_resized(block->host, oldsize, newsize);
+    }
+
     memory_region_set_size(block->mr, newsize);
     if (block->resized) {
         block->resized(block->idstr, newsize, block->host);
@@ -2318,7 +2325,8 @@ static void ram_block_add(RAMBlock *new_block, Error **errp)
 
     if (new_block->host) {
         qemu_ram_apply_settings(new_block->host, new_block->max_length);
-        ram_block_notify_add(new_block->host, new_block->max_length);
+        ram_block_notify_add(new_block->host, new_block->used_length,
+                             new_block->max_length);
     }
 }
 
@@ -2501,7 +2509,8 @@ void qemu_ram_free(RAMBlock *block)
     }
 
     if (block->host) {
-        ram_block_notify_remove(block->host, block->max_length);
+        ram_block_notify_remove(block->host, block->used_length,
+                                block->max_length);
     }
 
     qemu_mutex_lock_ramlist();
