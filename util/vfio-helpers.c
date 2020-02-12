@@ -540,8 +540,7 @@ static int qemu_vfio_do_mapping(QEMUVFIOState *s, void *host, size_t size,
 /**
  * Undo the DMA mapping from @s with VFIO, and remove from mapping list.
  */
-static void qemu_vfio_undo_mapping(QEMUVFIOState *s, IOVAMapping *mapping,
-                                   Error **errp)
+static void qemu_vfio_undo_mapping(QEMUVFIOState *s, IOVAMapping *mapping)
 {
     int index;
     struct vfio_iommu_type1_dma_unmap unmap = {
@@ -556,7 +555,7 @@ static void qemu_vfio_undo_mapping(QEMUVFIOState *s, IOVAMapping *mapping,
     assert(QEMU_IS_ALIGNED(mapping->size, qemu_real_host_page_size));
     assert(index >= 0 && index < s->nr_mappings);
     if (ioctl(s->container, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
-        error_setg(errp, "VFIO_UNMAP_DMA failed: %d", -errno);
+        error_report("VFIO_UNMAP_DMA failed: %d", -errno);
     }
     memmove(mapping, &s->mappings[index + 1],
             sizeof(s->mappings[0]) * (s->nr_mappings - index - 1));
@@ -621,7 +620,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
             assert(qemu_vfio_verify_mappings(s));
             ret = qemu_vfio_do_mapping(s, host, size, iova0);
             if (ret) {
-                qemu_vfio_undo_mapping(s, mapping, NULL);
+                qemu_vfio_undo_mapping(s, mapping);
                 goto out;
             }
             s->low_water_mark += size;
@@ -681,7 +680,7 @@ void qemu_vfio_dma_unmap(QEMUVFIOState *s, void *host)
     if (!m) {
         goto out;
     }
-    qemu_vfio_undo_mapping(s, m, NULL);
+    qemu_vfio_undo_mapping(s, m);
 out:
     qemu_mutex_unlock(&s->lock);
 }
@@ -698,7 +697,7 @@ void qemu_vfio_close(QEMUVFIOState *s)
         return;
     }
     while (s->nr_mappings) {
-        qemu_vfio_undo_mapping(s, &s->mappings[s->nr_mappings - 1], NULL);
+        qemu_vfio_undo_mapping(s, &s->mappings[s->nr_mappings - 1]);
     }
     ram_block_notifier_remove(&s->ram_notifier);
     qemu_vfio_reset(s);
