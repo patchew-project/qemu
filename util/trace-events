@@ -46,8 +46,10 @@ qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
 # oslib-posix.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
 qemu_anon_ram_alloc(size_t size, void *ptr) "size %zu ptr %p"
+qemu_anon_ram_alloc_resizable(size_t size, size_t max_size, void *ptr) "size %zu max_size %zu ptr %p"
+qemu_anon_ram_resize(size_t old_size, size_t new_size, void *ptr) "old_size %zu new_size %zu ptr %p"
 qemu_vfree(void *ptr) "ptr %p"
-qemu_anon_ram_free(void *ptr, size_t size) "ptr %p size %zu"
+qemu_anon_ram_free(void *ptr, size_t max_size) "ptr %p max_size %zu"
 
 # hbitmap.c
 hbitmap_iter_skip_words(const void *hb, void *hbi, uint64_t pos, unsigned long cur) "hb %p hbi %p pos %"PRId64" cur 0x%lx"

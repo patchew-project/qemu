@@ -219,16 +219,47 @@ void *qemu_anon_ram_alloc(size_t size, uint64_t *alignment, bool shared)
     return ptr;
 }
 
+void *qemu_anon_ram_alloc_resizable(size_t size, size_t max_size,
+                                    uint64_t *alignment, bool shared)
+{
+    size_t align = QEMU_VMALLOC_ALIGN;
+    void *ptr = qemu_ram_mmap_resizable(-1, size, max_size, align, shared,
+                                        false);
+
+    if (ptr == MAP_FAILED) {
+        return NULL;
+    }
+
+    if (alignment) {
+        *alignment = align;
+    }
+
+    trace_qemu_anon_ram_alloc_resizable(size, max_size, ptr);
+    return ptr;
+}
+
+bool qemu_anon_ram_resize(void *ptr, size_t old_size, size_t new_size,
+                          bool shared)
+{
+    bool resized = qemu_ram_mmap_resize(ptr, -1, old_size, new_size, shared,
+                                        false);
+
+    if (resized) {
+        trace_qemu_anon_ram_resize(old_size, new_size, ptr);
+    }
+    return resized;
+}
+
 void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);
     free(ptr);
 }
 
-void qemu_anon_ram_free(void *ptr, size_t size)
+void qemu_anon_ram_free(void *ptr, size_t max_size)
 {
-    trace_qemu_anon_ram_free(ptr, size);
-    qemu_ram_munmap(-1, ptr, size);
+    trace_qemu_anon_ram_free(ptr, max_size);
+    qemu_ram_munmap(-1, ptr, max_size);
 }
 
 void qemu_set_block(int fd)

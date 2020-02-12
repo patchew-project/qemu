@@ -90,6 +90,20 @@ void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared)
     return ptr;
 }
 
+void *qemu_anon_ram_alloc_resizable(size_t size, size_t max_size,
+                                    uint64_t *align, bool shared)
+{
+    /* resizable ram not implemented yet */
+    return NULL;
+}
+
+bool qemu_anon_ram_resize(void *ptr, size_t old_size, size_t new_size,
+                          bool shared)
+{
+    /* resizable ram not implemented yet */
+    return false;
+}
+
 void qemu_vfree(void *ptr)
 {
     trace_qemu_vfree(ptr);

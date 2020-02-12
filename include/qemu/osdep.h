@@ -311,8 +311,12 @@ int qemu_daemon(int nochdir, int noclose);
 void *qemu_try_memalign(size_t alignment, size_t size);
 void *qemu_memalign(size_t alignment, size_t size);
 void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared);
+void *qemu_anon_ram_alloc_resizable(size_t size, size_t max_size,
+                                    uint64_t *align, bool shared);
+bool qemu_anon_ram_resize(void *ptr, size_t old_size, size_t new_size,
+                          bool shared);
 void qemu_vfree(void *ptr);
-void qemu_anon_ram_free(void *ptr, size_t size);
+void qemu_anon_ram_free(void *ptr, size_t max_size);
 
 #define QEMU_MADV_INVALID -1
 
