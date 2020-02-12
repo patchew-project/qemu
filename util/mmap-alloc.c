@@ -173,23 +173,22 @@ static inline size_t mmap_pagesize(int fd)
 #endif
 }
 
-void *qemu_ram_mmap(int fd,
-                    size_t size,
-                    size_t align,
-                    bool shared,
-                    bool is_pmem)
+void *qemu_ram_mmap_resizable(int fd, size_t size, size_t max_size,
+                              size_t align, bool shared, bool is_pmem)
 {
     const size_t pagesize = mmap_pagesize(fd);
     size_t offset, total;
     void *ptr, *guardptr;
 
     g_assert(QEMU_IS_ALIGNED(size, pagesize));
+    g_assert(QEMU_IS_ALIGNED(max_size, pagesize));
 
     /*
      * Note: this always allocates at least one extra page of virtual address
-     * space, even if size is already aligned.
+     * space, even if the size is already aligned. We will reserve an area of
+     * at least max_size, but only populate the requested part of it.
      */
-    total = size + align;
+    total = max_size + align;
 
     guardptr = mmap_reserve(0, total, fd);
     if (guardptr == MAP_FAILED) {
@@ -217,21 +216,40 @@ void *qemu_ram_mmap(int fd,
      * a guard page guarding against potential buffer overflows.
      */
     total -= offset;
-    if (total > size + pagesize) {
-        munmap(ptr + size + pagesize, total - size - pagesize);
+    if (total > max_size + pagesize) {
+        munmap(ptr + max_size + pagesize, total - max_size - pagesize);
     }
 
     return ptr;
 }
 
-void qemu_ram_munmap(int fd, void *ptr, size_t size)
+bool qemu_ram_mmap_resize(void *ptr, int fd, size_t old_size, size_t new_size,
+                          bool shared, bool is_pmem)
 {
     const size_t pagesize = mmap_pagesize(fd);
 
-    g_assert(QEMU_IS_ALIGNED(size, pagesize));
+    g_assert(QEMU_IS_ALIGNED(old_size, pagesize));
+    g_assert(QEMU_IS_ALIGNED(new_size, pagesize));
+
+    if (old_size < new_size) {
+        /* populate the missing piece into the reserved area */
+        ptr = mmap_populate(ptr + old_size, new_size - old_size, fd, old_size,
+                            shared, is_pmem);
+    } else if (old_size > new_size) {
+        /* discard this piece, marking it reserved */
+        ptr = mmap_reserve(ptr + new_size, old_size - new_size, fd);
+    }
+    return ptr != MAP_FAILED;
+}
+
+void qemu_ram_munmap(int fd, void *ptr, size_t max_size)
+{
+    const size_t pagesize = mmap_pagesize(fd);
+
+    g_assert(QEMU_IS_ALIGNED(max_size, pagesize));
 
     if (ptr) {
         /* Unmap both the RAM block and the guard page */
-        munmap(ptr, size + pagesize);
+        munmap(ptr, max_size + pagesize);
     }
 }
