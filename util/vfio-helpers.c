@@ -372,14 +372,20 @@ fail_container:
     return ret;
 }
 
+static int qemu_vfio_dma_map_resizable(QEMUVFIOState *s, void *host,
+                                       size_t size, size_t max_size,
+                                       bool temporary, uint64_t *iova);
+static void qemu_vfio_dma_map_resize(QEMUVFIOState *s, void *host,
+                                     size_t old_size, size_t new_size);
+
 static void qemu_vfio_ram_block_added(RAMBlockNotifier *n, void *host,
                                       size_t size, size_t max_size)
 {
     QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);
     int ret;
 
-    trace_qemu_vfio_ram_block_added(s, host, max_size);
-    ret = qemu_vfio_dma_map(s, host, max_size, false, NULL);
+    trace_qemu_vfio_ram_block_added(s, host, size, max_size);
+    ret = qemu_vfio_dma_map_resizable(s, host, size, max_size, false, NULL);
     if (ret) {
         error_report("qemu_vfio_dma_map(%p, %zu) failed: %d", host,
                      max_size, ret);
@@ -391,8 +397,19 @@ static void qemu_vfio_ram_block_removed(RAMBlockNotifier *n, void *host,
 {
     QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);
     if (host) {
-        trace_qemu_vfio_ram_block_removed(s, host, max_size);
+        trace_qemu_vfio_ram_block_removed(s, host, size, max_size);
         qemu_vfio_dma_unmap(s, host);
+    }
+}
+
+static void qemu_vfio_ram_block_resized(RAMBlockNotifier *n, void *host,
+                                        size_t old_size, size_t new_size)
+{
+    QEMUVFIOState *s = container_of(n, QEMUVFIOState, ram_notifier);
+
+    if (host) {
+        trace_qemu_vfio_ram_block_resized(s, host, old_size, new_size);
+        qemu_vfio_dma_map_resize(s, host, old_size, new_size);
     }
 }
 
@@ -401,6 +418,7 @@ static void qemu_vfio_open_common(QEMUVFIOState *s)
     qemu_mutex_init(&s->lock);
     s->ram_notifier.ram_block_added = qemu_vfio_ram_block_added;
     s->ram_notifier.ram_block_removed = qemu_vfio_ram_block_removed;
+    s->ram_notifier.ram_block_resized = qemu_vfio_ram_block_resized;
     s->low_water_mark = QEMU_VFIO_IOVA_MIN;
     s->high_water_mark = QEMU_VFIO_IOVA_MAX;
     ram_block_notifier_add(&s->ram_notifier);
@@ -597,9 +615,14 @@ static bool qemu_vfio_verify_mappings(QEMUVFIOState *s)
  * the result in @iova if not NULL. The caller need to make sure the area is
  * aligned to page size, and mustn't overlap with existing mapping areas (split
  * mapping status within this area is not allowed).
+ *
+ * If size < max_size, a region of max_size in IOVA address is reserved, such
+ * that the mapping can later be resized. Resizable mappings are only allowed
+ * for !temporary mappings.
  */
-int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
-                      bool temporary, uint64_t *iova)
+static int qemu_vfio_dma_map_resizable(QEMUVFIOState *s, void *host,
+                                       size_t size, size_t max_size,
+                                       bool temporary, uint64_t *iova)
 {
     int ret = 0;
     int index;
@@ -608,13 +631,17 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
 
     assert(QEMU_PTR_IS_ALIGNED(host, qemu_real_host_page_size));
     assert(QEMU_IS_ALIGNED(size, qemu_real_host_page_size));
+    assert(QEMU_IS_ALIGNED(max_size, qemu_real_host_page_size));
+    assert(size == max_size || !temporary);
+    assert(size <= max_size);
+
     trace_qemu_vfio_dma_map(s, host, size, temporary, iova);
     qemu_mutex_lock(&s->lock);
     mapping = qemu_vfio_find_mapping(s, host, &index);
     if (mapping) {
         iova0 = mapping->iova + ((uint8_t *)host - (uint8_t *)mapping->host);
     } else {
-        if (s->high_water_mark - s->low_water_mark + 1 < size) {
+        if (s->high_water_mark - s->low_water_mark + 1 < max_size) {
             ret = -ENOMEM;
             goto out;
         }
@@ -631,7 +658,7 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
                 qemu_vfio_remove_mapping(s, mapping);
                 goto out;
             }
-            s->low_water_mark += size;
+            s->low_water_mark += max_size;
             qemu_vfio_dump_mappings(s);
         } else {
             iova0 = s->high_water_mark - size;
@@ -648,6 +675,12 @@ int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
 out:
     qemu_mutex_unlock(&s->lock);
     return ret;
+}
+
+int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
+                      bool temporary, uint64_t *iova)
+{
+    return qemu_vfio_dma_map_resizable(s, host, size, size, temporary, iova);
 }
 
 /* Reset the high watermark and free all "temporary" mappings. */
@@ -691,6 +724,29 @@ void qemu_vfio_dma_unmap(QEMUVFIOState *s, void *host)
     qemu_vfio_undo_mapping(s, m->size, m->iova);
     qemu_vfio_remove_mapping(s, m);
 out:
+    qemu_mutex_unlock(&s->lock);
+}
+
+static void qemu_vfio_dma_map_resize(QEMUVFIOState *s, void *host,
+                                     size_t old_size, size_t new_size)
+{
+    IOVAMapping *m;
+    int index = 0;
+
+    qemu_mutex_lock(&s->lock);
+    m = qemu_vfio_find_mapping(s, host, &index);
+    if (!m) {
+        return;
+    }
+    assert(m->size == old_size);
+
+    /* Note: Not atomic - we need a new ioctl for that. */
+    qemu_vfio_undo_mapping(s, m->iova, m->size);
+    qemu_vfio_do_mapping(s, host, m->iova, new_size);
+
+    m->size = new_size;
+    assert(qemu_vfio_verify_mappings(s));
+
     qemu_mutex_unlock(&s->lock);
 }
 
