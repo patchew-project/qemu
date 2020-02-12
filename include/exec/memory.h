@@ -129,6 +129,14 @@ typedef struct IOMMUNotifier IOMMUNotifier;
 /* RAM is a persistent kind memory */
 #define RAM_PMEM (1 << 5)
 
+/*
+ * Implies RAM_RESIZEABLE. Memory beyond the used_length is inaccessible
+ * (esp. initially and after resizing). For such memory blocks, only the
+ * used_length is reserved in the OS - resizing might fail. Will only be
+ * used with host OS support and if all ram block notifiers support resizing.
+ */
+#define RAM_RESIZEABLE_ALLOC (1 << 6)
+
 static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
                                        IOMMUNotifierFlag flags,
                                        hwaddr start, hwaddr end,

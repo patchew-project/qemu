@@ -907,6 +907,13 @@ static int ram_block_notify_add_single(RAMBlock *rb, void *opaque)
     RAMBlockNotifier *notifier = opaque;
 
     if (host) {
+        /*
+         * Dynamically adding notifiers that don't support resizes is forbidden
+         * when dealing with resizable ram blocks that have actually resizable
+         * allocations.
+         */
+        g_assert(!qemu_ram_is_resizable_alloc(rb) ||
+                 notifier->ram_block_resized);
         notifier->ram_block_added(notifier, host, size, max_size);
     }
     return 0;
