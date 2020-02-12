@@ -694,13 +694,11 @@ static void qemu_vfio_reset(QEMUVFIOState *s)
 /* Close and free the VFIO resources. */
 void qemu_vfio_close(QEMUVFIOState *s)
 {
-    int i;
-
     if (!s) {
         return;
     }
-    for (i = 0; i < s->nr_mappings; ++i) {
-        qemu_vfio_undo_mapping(s, &s->mappings[i], NULL);
+    while (s->nr_mappings) {
+        qemu_vfio_undo_mapping(s, &s->mappings[s->nr_mappings - 1], NULL);
     }
     ram_block_notifier_remove(&s->ram_notifier);
     qemu_vfio_reset(s);
