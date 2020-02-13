@@ -364,6 +364,9 @@ Aml *aml_qword_memory(AmlDecode dec, AmlMinFixed min_fixed,
 Aml *aml_dma(AmlDmaType typ, AmlDmaBusMaster bm, AmlTransferSize sz,
              uint8_t channel);
 Aml *aml_sleep(uint64_t msec);
+Aml *aml_generic_register(AmlRegionSpace rs, uint8_t reg_width,
+                          uint8_t reg_offset, AmlAccessType type,
+                          uint64_t addr);
 Aml *aml_i2c_serial_bus_device(uint16_t address, const char *resource_source);
 
 /* Block AML object primitives */
