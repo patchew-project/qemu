@@ -519,12 +519,27 @@ static void *multifd_rdma_send_thread(void *opaque)
         }
         qemu_mutex_unlock(&p->mutex);
 
+        /* To complete polling(CQE) */
+        while (p->rdma->nb_sent) {
+            ret = qemu_rdma_block_for_wrid(p->rdma, RDMA_WRID_RDMA_WRITE, NULL);
+            if (ret < 0) {
+                error_report("multifd RDMA migration: "
+                             "complete polling error!");
+                return NULL;
+            }
+        }
+
         /* Send FINISHED to the destination */
         head.type = RDMA_CONTROL_REGISTER_FINISHED;
         ret = qemu_rdma_exchange_send(p->rdma, &head, NULL, NULL, NULL, NULL);
         if (ret < 0) {
+            error_report("multifd RDMA migration: "
+                         "receiving remote info!");
             return NULL;
         }
+
+        /* sync main thread */
+        qemu_sem_post(&p->sem);
     }
 
 out:
