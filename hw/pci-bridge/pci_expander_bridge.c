@@ -15,6 +15,7 @@
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pci_host.h"
+#include "hw/pci/pcie_port.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci_bridge.h"
 #include "qemu/range.h"
@@ -233,7 +234,15 @@ static void pxb_dev_realize_common(PCIDevice *dev, bool pcie, Error **errp)
 
     ds = qdev_create(NULL, TYPE_PXB_HOST);
     if (pcie) {
+#ifdef __aarch64__
+        bus = pci_root_bus_new(ds, "pxb-pcie-internal",
+                               NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
+        bds = qdev_create(BUS(bus), "pcie-root-port");
+        bds->id = dev_name;
+        qdev_prop_set_uint8(bds, PCIE_ROOT_PORT_PROP_CHASSIS, pxb->bus_nr);
+#else
         bus = pci_root_bus_new(ds, dev_name, NULL, NULL, 0, TYPE_PXB_PCIE_BUS);
+#endif
     } else {
         bus = pci_root_bus_new(ds, "pxb-internal", NULL, NULL, 0, TYPE_PXB_BUS);
         bds = qdev_create(BUS(bus), "pci-bridge");

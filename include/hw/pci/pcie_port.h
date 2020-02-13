@@ -64,6 +64,7 @@ int pcie_chassis_add_slot(struct PCIESlot *slot);
 void pcie_chassis_del_slot(PCIESlot *s);
 
 #define TYPE_PCIE_ROOT_PORT         "pcie-root-port-base"
+#define PCIE_ROOT_PORT_PROP_CHASSIS "chassis"
 #define PCIE_ROOT_PORT_CLASS(klass) \
      OBJECT_CLASS_CHECK(PCIERootPortClass, (klass), TYPE_PCIE_ROOT_PORT)
 #define PCIE_ROOT_PORT_GET_CLASS(obj) \
