@@ -236,7 +236,6 @@ struct rcu_stress {
 
 struct rcu_stress rcu_stress_array[RCU_STRESS_PIPE_LEN] = { { 0 } };
 struct rcu_stress *rcu_stress_current;
-int rcu_stress_idx;
 int n_mberror;
 
 /* Updates protected by counts_mutex */
@@ -288,29 +287,48 @@ static void *rcu_read_stress_test(void *arg)
     return NULL;
 }
 
+/*
+ * Stress Test Updater
+ *
+ * The updater cycles around updating rcu_stress_current to point at
+ * one of the rcu_stress_array_entries and resets it's pipe_count. It
+ * then increments pipe_count of all the other entries. The pipe_count
+ * will be read under an rcu_read_lock() and distribution of values
+ * calculated. The final result gives an indication of how many
+ * previously current rcu_stress entries are in flight until the RCU
+ * cycle complete.
+ */
 static void *rcu_update_stress_test(void *arg)
 {
-    int i;
-    struct rcu_stress *p;
+    int i, rcu_stress_idx = 0;
+    struct rcu_stress *cp = atomic_read(&rcu_stress_current);
 
     rcu_register_thread();
-
     *(struct rcu_reader_data **)arg = &rcu_reader;
+
     while (goflag == GOFLAG_INIT) {
         g_usleep(1000);
     }
+
     while (goflag == GOFLAG_RUN) {
-        i = rcu_stress_idx + 1;
-        if (i >= RCU_STRESS_PIPE_LEN) {
-            i = 0;
+        struct rcu_stress *p;
+        rcu_stress_idx++;
+        if (rcu_stress_idx >= RCU_STRESS_PIPE_LEN) {
+            rcu_stress_idx = 0;
         }
-        p = &rcu_stress_array[i];
+        p = &rcu_stress_array[rcu_stress_idx];
+        /* catching up with ourselves would be a bug */
+        assert(p != cp);
         p->mbtest = 0;
         smp_mb();
         p->pipe_count = 0;
         p->mbtest = 1;
         atomic_rcu_set(&rcu_stress_current, p);
-        rcu_stress_idx = i;
+        cp = p;
+        /*
+         * New RCU structure is now live, update pipe counts on old
+         * ones.
+         */
         for (i = 0; i < RCU_STRESS_PIPE_LEN; i++) {
             if (i != rcu_stress_idx) {
                 rcu_stress_array[i].pipe_count++;
