@@ -67,6 +67,7 @@ enum {
     VIRT_SMMU,
     VIRT_UART,
     VIRT_MMIO,
+    VIRT_CPUFREQ,
     VIRT_RTC,
     VIRT_FW_CFG,
     VIRT_PCIE,
