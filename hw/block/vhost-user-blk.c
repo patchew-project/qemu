@@ -420,9 +420,10 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, "virtio-blk", VIRTIO_ID_BLOCK,
                 sizeof(struct virtio_blk_config));
 
+    s->virtqs = g_new0(VirtQueue *, s->num_queues);
     for (i = 0; i < s->num_queues; i++) {
-        virtio_add_queue(vdev, s->queue_size,
-                         vhost_user_blk_handle_output);
+        s->virtqs[i] = virtio_add_queue(vdev, s->queue_size,
+                                        vhost_user_blk_handle_output);
     }
 
     s->inflight = g_new0(struct vhost_inflight, 1);
@@ -461,8 +462,9 @@ virtio_err:
     g_free(s->vqs);
     g_free(s->inflight);
     for (i = 0; i < s->num_queues; i++) {
-        virtio_del_queue(vdev, i);
+        virtio_delete_queue(s->virtqs[i]);
     }
+    g_free(s->virtqs);
     virtio_cleanup(vdev);
     vhost_user_cleanup(&s->vhost_user);
 }
@@ -482,8 +484,9 @@ static void vhost_user_blk_device_unrealize(DeviceState *dev, Error **errp)
     g_free(s->inflight);
 
     for (i = 0; i < s->num_queues; i++) {
-        virtio_del_queue(vdev, i);
+        virtio_delete_queue(s->virtqs[i]);
     }
+    g_free(s->virtqs);
     virtio_cleanup(vdev);
     vhost_user_cleanup(&s->vhost_user);
 }
