@@ -41,6 +41,7 @@
 #include "hw/acpi/pci.h"
 #include "hw/acpi/memory_hotplug.h"
 #include "hw/acpi/generic_event_device.h"
+#include "hw/acpi/acpi-defs.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
 #include "hw/arm/virt.h"
@@ -51,7 +52,70 @@
 
 #define ARM_SPI_BASE 32
 
-static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
+
+static void acpi_dsdt_add_psd(Aml *dev, int cpus)
+{
+    Aml *pkg;
+    Aml *sub;
+
+    sub = aml_package(5);
+    aml_append(sub, aml_int(5));
+    aml_append(sub, aml_int(0));
+    /* Assume all vCPUs belong to the same domain */
+    aml_append(sub, aml_int(0));
+    /* SW_ANY: OSPM coordinate, initiate on any processor */
+    aml_append(sub, aml_int(0xFD));
+    aml_append(sub, aml_int(cpus));
+
+    pkg = aml_package(1);
+    aml_append(pkg, sub);
+
+    aml_append(dev, aml_name_decl("_PSD", pkg));
+}
+
+static void acpi_dsdt_add_cppc(Aml *dev, uint64_t cpu_base)
+{
+    Aml *cpc;
+    int i;
+
+    /* ACPI 6.3 8.4.7.1, version 3 of the CPPC table is used */
+    cpc = aml_package(23);
+    aml_append(cpc, aml_int(23));
+    aml_append(cpc, aml_int(3));
+
+    for (i = 0; i < CPPC_REG_COUNT; i++) {
+        Aml *res;
+        uint8_t reg_width;
+        uint8_t acc_type;
+        uint64_t addr;
+        /* Only some necessary registers are emulated */
+        if ((i >= MIN_PERF && i < REFERENCE_CTR) ||
+            (i >= ENABLE && i < LOWEST_FREQ)) {
+            reg_width = 0;
+            acc_type = AML_ANY_ACC;
+            addr = 0;
+        } else {
+            addr = cpu_base + i * 4;
+            if (i == REFERENCE_CTR || i == DELIVERED_CTR) {
+                reg_width = 64;
+                acc_type = AML_QWORD_ACC;
+            } else {
+                reg_width = 32;
+                acc_type = AML_DWORD_ACC;
+            }
+        }
+
+        res = aml_resource_template();
+        aml_append(res, aml_generic_register(AML_SYSTEM_MEMORY, reg_width, 0,
+                                             acc_type, addr));
+        aml_append(cpc, res);
+    }
+
+    aml_append(dev, aml_name_decl("_CPC", cpc));
+}
+
+static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus,
+                               const MemMapEntry *cppc_memmap)
 {
     uint16_t i;
 
@@ -60,6 +124,12 @@ static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
         aml_append(dev, aml_name_decl("_HID", aml_string("ACPI0007")));
         aml_append(dev, aml_name_decl("_UID", aml_int(i)));
         aml_append(scope, dev);
+        /*
+         * Append _CPC and _PSD to show CPU frequency
+         */
+        acpi_dsdt_add_cppc(dev,
+                           cppc_memmap->base + i * CPPC_REG_PER_CPU_STRIDE);
+        acpi_dsdt_add_psd(dev, smp_cpus);
     }
 }
 
@@ -736,7 +806,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
      * the RTC ACPI device at all when using UEFI.
      */
     scope = aml_scope("\\_SB");
-    acpi_dsdt_add_cpus(scope, vms->smp_cpus);
+    acpi_dsdt_add_cpus(scope, vms->smp_cpus, &memmap[VIRT_CPUFREQ]);
     acpi_dsdt_add_uart(scope, &memmap[VIRT_UART],
                        (irqmap[VIRT_UART] + ARM_SPI_BASE));
     acpi_dsdt_add_flash(scope, &memmap[VIRT_FLASH]);

@@ -634,4 +634,36 @@ struct AcpiIortRC {
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 
+/*
+ * CPPC register definition from kernel header
+ * include/acpi/cppc_acpi.h
+ * The last element is newly added for easy use
+ */
+enum cppc_regs {
+    HIGHEST_PERF,
+    NOMINAL_PERF,
+    LOW_NON_LINEAR_PERF,
+    LOWEST_PERF,
+    GUARANTEED_PERF,
+    DESIRED_PERF,
+    MIN_PERF,
+    MAX_PERF,
+    PERF_REDUC_TOLERANCE,
+    TIME_WINDOW,
+    CTR_WRAP_TIME,
+    REFERENCE_CTR,
+    DELIVERED_CTR,
+    PERF_LIMITED,
+    ENABLE,
+    AUTO_SEL_ENABLE,
+    AUTO_ACT_WINDOW,
+    ENERGY_PERF,
+    REFERENCE_PERF,
+    LOWEST_FREQ,
+    NOMINAL_FREQ,
+    CPPC_REG_COUNT,
+};
+
+#define CPPC_REG_PER_CPU_STRIDE     0x40
+
 #endif
