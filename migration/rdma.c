@@ -1749,7 +1749,7 @@ static int qemu_rdma_write_one(QEMUFile *f, RDMAContext *rdma,
                              };
 
     /* use multifd to send data */
-    if (migrate_use_multifd() && migrate_use_rdma_pin_all()) {
+    if (migrate_use_multifd()) {
         int channel = get_multifd_RDMA_channel();
         int ret = 0;
         MultiFDSendParams *multifd_send_param = NULL;
@@ -1979,7 +1979,7 @@ static int qemu_rdma_write_flush(QEMUFile *f, RDMAContext *rdma)
     }
 
     if (ret == 0) {
-        if (migrate_use_multifd() && migrate_use_rdma_pin_all()) {
+        if (migrate_use_multifd()) {
             /* The multifd RDMA threads send data */
             MultiFDSendParams *multifd_send_param = NULL;
             ret = get_multifd_send_param(current_RDMA_index,
