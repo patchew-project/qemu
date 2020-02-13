@@ -1502,8 +1502,8 @@ void spapr_free_hpt(SpaprMachineState *spapr)
     close_htab_fd(spapr);
 }
 
-void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
-                          Error **errp)
+static void spapr_reallocate_hpt(SpaprMachineState *spapr, int shift,
+                                 Error **errp)
 {
     long rc;
 
