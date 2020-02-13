@@ -248,6 +248,11 @@ void qemu_fflush(QEMUFile *f)
     f->iovcnt = 0;
 }
 
+void *getQIOChannel(QEMUFile *f)
+{
+    return f->opaque;
+}
+
 void ram_control_before_iterate(QEMUFile *f, uint64_t flags)
 {
     int ret = 0;

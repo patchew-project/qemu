@@ -17,6 +17,9 @@
 #ifndef QEMU_MIGRATION_RDMA_H
 #define QEMU_MIGRATION_RDMA_H
 
+void *multifd_rdma_recv_thread(void *opaque);
+void *multifd_rdma_send_thread(void *opaque);
+
 void rdma_start_outgoing_migration(void *opaque, const char *host_port,
                                    Error **errp);
 

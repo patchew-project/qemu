@@ -424,7 +424,7 @@ void multifd_send_sync_main(QEMUFile *f)
 {
     int i;
 
-    if (!migrate_use_multifd()) {
+    if (!migrate_use_multifd() || migrate_use_rdma()) {
         return;
     }
     if (multifd_send_state->pages->used) {
@@ -562,6 +562,20 @@ out:
     return NULL;
 }
 
+static void rdma_send_channel_create(MultiFDSendParams *p)
+{
+    Error *local_err = NULL;
+
+    if (p->quit) {
+        error_setg(&local_err, "multifd: send id %d already quit", p->id);
+        return ;
+    }
+    p->running = true;
+
+    qemu_thread_create(&p->thread, p->name, multifd_rdma_send_thread, p,
+                       QEMU_THREAD_JOINABLE);
+}
+
 static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
 {
     MultiFDSendParams *p = opaque;
@@ -621,7 +635,11 @@ int multifd_save_setup(Error **errp)
         p->packet->magic = cpu_to_be32(MULTIFD_MAGIC);
         p->packet->version = cpu_to_be32(MULTIFD_VERSION);
         p->name = g_strdup_printf("multifdsend_%d", i);
-        socket_send_channel_create(multifd_new_send_channel_async, p);
+        if (!migrate_use_rdma()) {
+            socket_send_channel_create(multifd_new_send_channel_async, p);
+        } else {
+            rdma_send_channel_create(p);
+        }
     }
     return 0;
 }
@@ -720,7 +738,7 @@ void multifd_recv_sync_main(void)
 {
     int i;
 
-    if (!migrate_use_multifd()) {
+    if (!migrate_use_multifd() || migrate_use_rdma()) {
         return;
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -890,8 +908,13 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     p->num_packets = 1;
 
     p->running = true;
-    qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
-                       QEMU_THREAD_JOINABLE);
+    if (!migrate_use_rdma()) {
+        qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
+                           QEMU_THREAD_JOINABLE);
+    } else {
+        qemu_thread_create(&p->thread, p->name, multifd_rdma_recv_thread, p,
+                           QEMU_THREAD_JOINABLE);
+    }
     atomic_inc(&multifd_recv_state->count);
     return atomic_read(&multifd_recv_state->count) ==
            migrate_multifd_channels();
