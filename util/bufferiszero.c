@@ -187,12 +187,54 @@ buffer_zero_avx2(const void *buf, size_t len)
 #pragma GCC pop_options
 #endif /* CONFIG_AVX2_OPT */
 
+#ifdef CONFIG_AVX512F_OPT
+#pragma GCC push_options
+#pragma GCC target("avx512f")
+#include <immintrin.h>
+
+static bool
+buffer_zero_avx512(const void *buf, size_t len)
+{
+    __m512i t;
+    __m512i *p, *e;
+
+    if (unlikely(len < 64)) { /*buff less than 512 bits, unlikely*/
+        return buffer_zero_int(buf, len);
+    }
+    /* Begin with an unaligned head of 64 bytes.  */
+    t = _mm512_loadu_si512(buf);
+    p = (__m512i *)(((uintptr_t)buf + 5 * 64) & -64);
+    e = (__m512i *)(((uintptr_t)buf + len) & -64);
+
+    /* Loop over 64-byte aligned blocks of 256.  */
+    while (p < e) {
+        __builtin_prefetch(p);
+        if (unlikely(_mm512_test_epi64_mask(t, t))) {
+            return false;
+        }
+        t = p[-4] | p[-3] | p[-2] | p[-1];
+        p += 4;
+    }
+
+    t |= _mm512_loadu_si512(buf + len - 4 * 64);
+    t |= _mm512_loadu_si512(buf + len - 3 * 64);
+    t |= _mm512_loadu_si512(buf + len - 2 * 64);
+    t |= _mm512_loadu_si512(buf + len - 1 * 64);
+
+    return !_mm512_test_epi64_mask(t, t);
+
+}
+#pragma GCC pop_options
+#endif
+
+
 /* Note that for test_buffer_is_zero_next_accel, the most preferred
  * ISA must have the least significant bit.
  */
-#define CACHE_AVX2    1
-#define CACHE_SSE4    2
-#define CACHE_SSE2    4
+#define CACHE_AVX512F 1
+#define CACHE_AVX2    2
+#define CACHE_SSE4    4
+#define CACHE_SSE2    6
 
 /* Make sure that these variables are appropriately initialized when
  * SSE2 is enabled on the compiler command-line, but the compiler is
@@ -226,6 +268,11 @@ static void init_accel(unsigned cache)
         fn = buffer_zero_avx2;
     }
 #endif
+#ifdef CONFIG_AVX512F_OPT
+    if (cache & CACHE_AVX512F) {
+        fn = buffer_zero_avx512;
+    }
+#endif
     buffer_accel = fn;
 }
 
@@ -254,6 +301,9 @@ static void __attribute__((constructor)) init_cpuid_cache(void)
             __cpuid_count(7, 0, a, b, c, d);
             if ((bv & 6) == 6 && (b & bit_AVX2)) {
                 cache |= CACHE_AVX2;
+            }
+            if ((bv & 6) == 6 && (b & bit_AVX512F)) {
+                cache |= CACHE_AVX512F;
             }
         }
     }
