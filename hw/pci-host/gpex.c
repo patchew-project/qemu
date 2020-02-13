@@ -36,6 +36,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
+#include "hw/arm/virt.h"
 
 /****************************************************************************
  * GPEX host
@@ -98,6 +99,9 @@ static void gpex_host_realize(DeviceState *dev, Error **errp)
                                      pci_swizzle_map_irq_fn, s, &s->io_mmio,
                                      &s->io_ioport, 0, 4, TYPE_PCIE_BUS);
 
+#ifdef __aarch64__
+    VIRT_MACHINE(qdev_get_machine())->bus = pci->bus;
+#endif
     qdev_set_parent_bus(DEVICE(&s->gpex_root), BUS(pci->bus));
     pci_bus_set_route_irq_fn(pci->bus, gpex_route_intx_pin_to_irq);
     qdev_init_nofail(DEVICE(&s->gpex_root));
