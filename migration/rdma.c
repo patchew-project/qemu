@@ -3733,6 +3733,23 @@ static int qemu_rdma_registration_stop(QEMUFile *f, void *opaque,
                     rdma->dest_blocks[i].remote_host_addr;
             local->block[i].remote_rkey = rdma->dest_blocks[i].remote_rkey;
         }
+
+        /* Wait for all multifd channels to complete registration */
+        if (migrate_use_multifd()) {
+            int i;
+            int thread_count = migrate_multifd_channels();
+            MultiFDSendParams *multifd_send_param = NULL;
+            for (i = 0; i < thread_count; i++) {
+                ret = get_multifd_send_param(i, &multifd_send_param);
+                if (ret) {
+                    ERROR(errp, "rdma: error"
+                          "getting multifd_send_param(%d)", i);
+                    return ret;
+                }
+
+                qemu_sem_wait(&multifd_send_param->sem);
+            }
+        }
     }
 
     trace_qemu_rdma_registration_stop(flags);

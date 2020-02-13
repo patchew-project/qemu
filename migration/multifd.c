@@ -389,6 +389,7 @@ static void multifd_send_terminate_threads(Error *err)
         qemu_mutex_lock(&p->mutex);
         p->quit = true;
         if (migrate_use_rdma()) {
+            qemu_sem_post(&p->sem);
             qemu_sem_post(&p->sem_sync);
         } else {
             qemu_sem_post(&p->sem);
@@ -502,6 +503,11 @@ static void *multifd_rdma_send_thread(void *opaque)
     if (qemu_rdma_registration(p->rdma) < 0) {
         goto out;
     }
+    /*
+     * Inform the main RDMA thread to run when multifd
+     * RDMA thread have completed registration.
+     */
+    qemu_sem_post(&p->sem);
 
     while (true) {
         qemu_sem_wait(&p->sem_sync);
