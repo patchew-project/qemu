@@ -18,6 +18,7 @@ Contents:
    live-block-operations
    pr-helper
    qemu-ga
+   qemu-ga-ref
    qemu-img
    qemu-nbd
    qemu-trace-stap
