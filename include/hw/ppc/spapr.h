@@ -912,4 +912,5 @@ void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
 
 void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
 hwaddr spapr_get_rtas_addr(void);
+void spapr_reset_patb_entry(SpaprMachineState *spapr);
 #endif /* HW_SPAPR_H */

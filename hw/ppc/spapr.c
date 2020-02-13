@@ -1556,9 +1556,19 @@ void spapr_setup_hpt_and_vrma(SpaprMachineState *spapr)
 {
     int hpt_shift;
 
+    /*
+     * HPT resizing is a bit of a special case, because when enabled
+     * we assume an HPT guest will support it until it says it
+     * doesn't, instead of assuming it won't support it until it says
+     * it does.  Strictly speaking that approach could break for
+     * guests which don't make a CAS call, but those are so old we
+     * don't care about them.  Without that assumption we'd have to
+     * make at least a temporary allocation of an HPT sized for max
+     * memory, which could be impossibly difficult under KVM HV if
+     * maxram is large.
+     */
     if ((spapr->resize_hpt == SPAPR_RESIZE_HPT_DISABLED)
-        || (spapr->cas_reboot
-            && !spapr_ovec_test(spapr->ov5_cas, OV5_HPT_RESIZE))) {
+        || !spapr_ovec_test(spapr->ov5_cas, OV5_HPT_RESIZE)) {
         hpt_shift = spapr_hpt_shift_for_ramsize(MACHINE(spapr)->maxram_size);
     } else {
         uint64_t current_ram_size;
@@ -1587,6 +1597,12 @@ static int spapr_reset_drcs(Object *child, void *opaque)
     return 0;
 }
 
+void spapr_reset_patb_entry(SpaprMachineState *spapr)
+{
+    spapr->patb_entry = PATE1_GR;
+    spapr_set_all_lpcrs(LPCR_HR | LPCR_UPRT, LPCR_HR | LPCR_UPRT);
+}
+
 static void spapr_machine_reset(MachineState *machine)
 {
     SpaprMachineState *spapr = SPAPR_MACHINE(machine);
@@ -1607,10 +1623,7 @@ static void spapr_machine_reset(MachineState *machine)
          * without a HPT because KVM will start them in radix mode.
          * Set the GR bit in PATE so that we know there is no HPT.
          */
-        spapr->patb_entry = PATE1_GR;
-        spapr_set_all_lpcrs(LPCR_HR | LPCR_UPRT, LPCR_HR | LPCR_UPRT);
-    } else {
-        spapr_setup_hpt_and_vrma(spapr);
+        spapr_reset_patb_entry(spapr);
     }
 
     qemu_devices_reset();
