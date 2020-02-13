@@ -170,17 +170,6 @@ static void network_to_dest_block(RDMADestBlock *db)
     db->remote_rkey = ntohl(db->remote_rkey);
 }
 
-/*
- * Main structure for IB Send/Recv control messages.
- * This gets prepended at the beginning of every Send/Recv.
- */
-typedef struct QEMU_PACKED {
-    uint32_t len;     /* Total length of data portion */
-    uint32_t type;    /* which control command to perform */
-    uint32_t repeat;  /* number of commands in data portion of same type */
-    uint32_t padding;
-} RDMAControlHeader;
-
 static void control_to_network(RDMAControlHeader *control)
 {
     control->type = htonl(control->type);
@@ -289,10 +278,6 @@ static void network_to_result(RDMARegisterResult *result)
 };
 
 const char *print_wrid(int wrid);
-static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
-                                   uint8_t *data, RDMAControlHeader *resp,
-                                   int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma));
 
 static inline uint64_t ram_chunk_index(const uint8_t *start,
                                        const uint8_t *host)
@@ -1590,10 +1575,10 @@ static void qemu_rdma_move_header(RDMAContext *rdma, int idx,
  * to perform an *additional* exchange of message just to provide a response by
  * instead piggy-backing on the acknowledgement.
  */
-static int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
-                                   uint8_t *data, RDMAControlHeader *resp,
-                                   int *resp_idx,
-                                   int (*callback)(RDMAContext *rdma))
+int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
+                            uint8_t *data, RDMAControlHeader *resp,
+                            int *resp_idx,
+                            int (*callback)(RDMAContext *rdma))
 {
     int ret = 0;
 
@@ -3210,7 +3195,7 @@ static int dest_ram_sort_func(const void *a, const void *b)
  *
  * Keep doing this until the source tells us to stop.
  */
-static int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
+int qemu_rdma_registration_handle(QEMUFile *f, void *opaque)
 {
     RDMAControlHeader reg_resp = { .len = sizeof(RDMARegisterResult),
                                .type = RDMA_CONTROL_REGISTER_RESULT,

@@ -145,6 +145,17 @@ typedef struct QEMU_PACKED RDMADestBlock {
 } RDMADestBlock;
 
 /*
+ * Main structure for IB Send/Recv control messages.
+ * This gets prepended at the beginning of every Send/Recv.
+ */
+typedef struct QEMU_PACKED {
+    uint32_t len;     /* Total length of data portion */
+    uint32_t type;    /* which control command to perform */
+    uint32_t repeat;  /* number of commands in data portion of same type */
+    uint32_t padding;
+} RDMAControlHeader;
+
+/*
  * Virtual address of the above structures used for transmitting
  * the RAMBlock descriptions at connection-time.
  * This structure is *not* transmitted.
@@ -264,6 +275,11 @@ struct QIOChannelRDMA {
 };
 
 int multifd_channel_rdma_connect(void *opaque);
+int qemu_rdma_registration_handle(QEMUFile *f, void *opaque);
+int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
+                            uint8_t *data, RDMAControlHeader *resp,
+                            int *resp_idx,
+                            int (*callback)(RDMAContext *rdma));
 
 void rdma_start_outgoing_migration(void *opaque, const char *host_port,
                                    Error **errp);
