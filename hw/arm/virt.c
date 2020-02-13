@@ -764,6 +764,17 @@ static void create_uart(const VirtMachineState *vms, int uart,
     g_free(nodename);
 }
 
+static void create_cpufreq(const VirtMachineState *vms, MemoryRegion *mem)
+{
+    hwaddr base = vms->memmap[VIRT_CPUFREQ].base;
+    DeviceState *dev = qdev_create(NULL, "cpufreq");
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+    qdev_init_nofail(dev);
+    memory_region_add_subregion(mem, base, sysbus_mmio_get_region(s, 0));
+}
+
+
 static void create_rtc(const VirtMachineState *vms)
 {
     char *nodename;
@@ -1722,6 +1733,8 @@ static void machvirt_init(MachineState *machine)
     fdt_add_pmu_nodes(vms);
 
     create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
+
+    create_cpufreq(vms, sysmem);
 
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
