@@ -38,3 +38,7 @@ config ACPI_VMGENID
     depends on PC
 
 config ACPI_HW_REDUCED
+
+config CPUFREQ
+    bool
+    default y
