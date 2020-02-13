@@ -280,6 +280,7 @@ int qemu_rdma_exchange_send(RDMAContext *rdma, RDMAControlHeader *head,
                             uint8_t *data, RDMAControlHeader *resp,
                             int *resp_idx,
                             int (*callback)(RDMAContext *rdma));
+int qemu_rdma_registration(void *opaque);
 
 void rdma_start_outgoing_migration(void *opaque, const char *host_port,
                                    Error **errp);
