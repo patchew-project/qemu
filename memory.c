@@ -34,6 +34,7 @@
 #include "sysemu/accel.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
+#include "migration/misc.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -2203,6 +2204,17 @@ ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
 void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp)
 {
     assert(mr->ram_block);
+
+    /*
+     * Resizing RAM while migrating is not possible, as the used_length of
+     * RAM blocks must neither change on the source (precopy), nor on the
+     * target (postcopy) as long as migration code is active.
+     */
+    if (HOST_PAGE_ALIGN(newsize) != mr->ram_block->used_length &&
+        !migration_is_idle()) {
+        error_setg(errp, "Cannot resize RAM while migrating.");
+        return;
+    }
 
     qemu_ram_resize(mr->ram_block, newsize, errp);
 }
