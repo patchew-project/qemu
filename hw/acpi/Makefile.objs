@@ -16,6 +16,7 @@ common-obj-y += bios-linker-loader.o
 common-obj-y += aml-build.o utils.o
 common-obj-$(CONFIG_ACPI_PCI) += pci.o
 common-obj-$(CONFIG_TPM) += tpm.o
+common-obj-$(CONFIG_CPUFREQ) += cpufreq.o
 
 common-obj-$(CONFIG_IPMI) += ipmi.o
 common-obj-$(call lnot,$(CONFIG_IPMI)) += ipmi-stub.o
