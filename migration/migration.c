@@ -107,6 +107,7 @@ static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
 
 static bool deferred_incoming;
+static bool enabled_rdma_migration;
 
 /* Messages sent on the return path from destination to source */
 enum mig_rp_message_type {
@@ -354,6 +355,7 @@ void migrate_add_address(SocketAddress *address)
 void qemu_start_incoming_migration(const char *uri, Error **errp)
 {
     const char *p;
+    enabled_rdma_migration = false;
 
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
     if (!strcmp(uri, "defer")) {
@@ -362,6 +364,7 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
         tcp_start_incoming_migration(p, errp);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
+        enabled_rdma_migration = true;
         rdma_start_incoming_migration(p, errp);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
@@ -1982,6 +1985,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     Error *local_err = NULL;
     MigrationState *s = migrate_get_current();
     const char *p;
+    enabled_rdma_migration = false;
 
     if (!migrate_prepare(s, has_blk && blk, has_inc && inc,
                          has_resume && resume, errp)) {
@@ -1993,6 +1997,7 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         tcp_start_outgoing_migration(s, p, &local_err);
 #ifdef CONFIG_RDMA
     } else if (strstart(uri, "rdma:", &p)) {
+        enabled_rdma_migration = true;
         rdma_start_outgoing_migration(s, p, &local_err);
 #endif
     } else if (strstart(uri, "exec:", &p)) {
@@ -2206,6 +2211,11 @@ bool migrate_use_events(void)
     s = migrate_get_current();
 
     return s->enabled_capabilities[MIGRATION_CAPABILITY_EVENTS];
+}
+
+bool migrate_use_rdma(void)
+{
+    return enabled_rdma_migration;
 }
 
 bool migrate_use_rdma_pin_all(void)
