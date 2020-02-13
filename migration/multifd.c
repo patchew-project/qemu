@@ -429,6 +429,9 @@ void multifd_save_cleanup(void)
         g_free(p->packet);
         p->packet = NULL;
         if (migrate_use_rdma()) {
+            p->rdma->listen_id = NULL;
+            p->rdma->channel = NULL;
+            qemu_rdma_cleanup(p->rdma);
             g_free(p->rdma);
         }
     }
@@ -835,6 +838,9 @@ int multifd_load_cleanup(Error **errp)
         g_free(p->packet);
         p->packet = NULL;
         if (migrate_use_rdma()) {
+            p->rdma->listen_id = NULL;
+            p->rdma->channel = NULL;
+            qemu_rdma_cleanup(p->rdma);
             g_free(p->rdma);
         }
     }

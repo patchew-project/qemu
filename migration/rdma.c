@@ -2096,11 +2096,11 @@ static int qemu_rdma_write(QEMUFile *f, RDMAContext *rdma,
     return 0;
 }
 
-static void qemu_rdma_cleanup(RDMAContext *rdma)
+void qemu_rdma_cleanup(RDMAContext *rdma)
 {
     int idx;
 
-    if (rdma->cm_id && rdma->connected) {
+    if (rdma->channel && rdma->cm_id && rdma->connected) {
         if ((rdma->error_state ||
              migrate_get_current()->state == MIGRATION_STATUS_CANCELLING) &&
             !rdma->received_error) {
@@ -2180,7 +2180,6 @@ static void qemu_rdma_cleanup(RDMAContext *rdma)
     g_free(rdma->host);
     rdma->host = NULL;
 }
-
 
 static int qemu_rdma_source_init(RDMAContext *rdma, bool pin_all, Error **errp)
 {
