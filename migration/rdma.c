@@ -4003,6 +4003,8 @@ int multifd_channel_rdma_connect(void *opaque)
         goto out;
     }
 
+    p->c = QIO_CHANNEL(getQIOChannel(p->file));
+
 out:
     if (local_err) {
         trace_multifd_send_error(p->id);

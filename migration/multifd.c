@@ -483,6 +483,13 @@ void multifd_send_sync_main(QEMUFile *f)
 static void *multifd_rdma_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
+    Error *local_err = NULL;
+
+    trace_multifd_send_thread_start(p->id);
+
+    if (multifd_send_initial_packet(p, &local_err) < 0) {
+        goto out;
+    }
 
     while (true) {
         qemu_mutex_lock(&p->mutex);
@@ -492,6 +499,12 @@ static void *multifd_rdma_send_thread(void *opaque)
         }
         qemu_mutex_unlock(&p->mutex);
         qemu_sem_wait(&p->sem);
+    }
+
+out:
+    if (local_err) {
+        trace_multifd_send_error(p->id);
+        multifd_send_terminate_threads(local_err);
     }
 
     qemu_mutex_lock(&p->mutex);
@@ -964,18 +977,14 @@ bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     Error *local_err = NULL;
     int id;
 
-    if (migrate_use_rdma()) {
-        id = multifd_recv_state->count;
-    } else {
-        id = multifd_recv_initial_packet(ioc, &local_err);
-        if (id < 0) {
-            multifd_recv_terminate_threads(local_err);
-            error_propagate_prepend(errp, local_err,
-                    "failed to receive packet"
-                    " via multifd channel %d: ",
-                    atomic_read(&multifd_recv_state->count));
-            return false;
-        }
+    id = multifd_recv_initial_packet(ioc, &local_err);
+    if (id < 0) {
+        multifd_recv_terminate_threads(local_err);
+        error_propagate_prepend(errp, local_err,
+                "failed to receive packet"
+                " via multifd channel %d: ",
+                atomic_read(&multifd_recv_state->count));
+        return false;
     }
 
     trace_multifd_recv_new_channel(id);
