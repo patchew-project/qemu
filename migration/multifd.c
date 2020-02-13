@@ -388,7 +388,11 @@ static void multifd_send_terminate_threads(Error *err)
 
         qemu_mutex_lock(&p->mutex);
         p->quit = true;
-        qemu_sem_post(&p->sem);
+        if (migrate_use_rdma()) {
+            qemu_sem_post(&p->sem_sync);
+        } else {
+            qemu_sem_post(&p->sem);
+        }
         qemu_mutex_unlock(&p->mutex);
     }
 }
@@ -484,6 +488,8 @@ static void *multifd_rdma_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
     Error *local_err = NULL;
+    int ret = 0;
+    RDMAControlHeader head = { .len = 0, .repeat = 1 };
 
     trace_multifd_send_thread_start(p->id);
 
@@ -491,14 +497,28 @@ static void *multifd_rdma_send_thread(void *opaque)
         goto out;
     }
 
+    /* wait for semaphore notification to register memory */
+    qemu_sem_wait(&p->sem_sync);
+    if (qemu_rdma_registration(p->rdma) < 0) {
+        goto out;
+    }
+
     while (true) {
+        qemu_sem_wait(&p->sem_sync);
+
         qemu_mutex_lock(&p->mutex);
         if (p->quit) {
             qemu_mutex_unlock(&p->mutex);
             break;
         }
         qemu_mutex_unlock(&p->mutex);
-        qemu_sem_wait(&p->sem);
+
+        /* Send FINISHED to the destination */
+        head.type = RDMA_CONTROL_REGISTER_FINISHED;
+        ret = qemu_rdma_exchange_send(p->rdma, &head, NULL, NULL, NULL, NULL);
+        if (ret < 0) {
+            return NULL;
+        }
     }
 
 out:
@@ -836,15 +856,23 @@ void multifd_recv_sync_main(void)
 static void *multifd_rdma_recv_thread(void *opaque)
 {
     MultiFDRecvParams *p = opaque;
+    int ret = 0;
 
     while (true) {
+        qemu_sem_wait(&p->sem_sync);
+
         qemu_mutex_lock(&p->mutex);
         if (p->quit) {
             qemu_mutex_unlock(&p->mutex);
             break;
         }
         qemu_mutex_unlock(&p->mutex);
-        qemu_sem_wait(&p->sem_sync);
+
+        ret = qemu_rdma_registration_handle(p->file, p->c);
+        if (ret < 0) {
+            qemu_file_set_error(p->file, ret);
+            break;
+        }
     }
 
     qemu_mutex_lock(&p->mutex);
