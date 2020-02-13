@@ -94,6 +94,8 @@ static const char *wrid_desc[] = {
     [RDMA_WRID_RECV_CONTROL] = "CONTROL RECV",
 };
 
+static const char *rdma_host_port;
+
 /*
  * Negotiate RDMA capabilities during connection-setup time.
  */
@@ -3122,6 +3124,33 @@ static int qemu_rdma_accept(RDMAContext *rdma)
         qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
                             NULL,
                             (void *)(intptr_t)rdma->return_path);
+    } else if (migrate_use_multifd()) {
+        int thread_count;
+        int i;
+        MultiFDRecvParams *multifd_recv_param;
+        RDMAContext *multifd_rdma = NULL;
+        thread_count = migrate_multifd_channels();
+        /* create the multifd channels for RDMA */
+        for (i = 0; i < thread_count; i++) {
+            if (get_multifd_recv_param(i, &multifd_recv_param) < 0) {
+                error_report("rdma: error getting multifd_recv_param(%d)", i);
+                goto err_rdma_dest_wait;
+            }
+
+            if (multifd_recv_param->rdma->cm_id == NULL) {
+                multifd_rdma = multifd_recv_param->rdma;
+                break;
+            }
+        }
+
+        if (multifd_rdma) {
+            qemu_set_fd_handler(rdma->channel->fd,
+                                rdma_accept_incoming_migration,
+                                NULL, (void *)(intptr_t)multifd_rdma);
+        } else {
+            qemu_set_fd_handler(rdma->channel->fd, rdma_cm_poll_handler,
+                                NULL, rdma);
+        }
     } else {
         qemu_set_fd_handler(rdma->channel->fd, rdma_cm_poll_handler,
                             NULL, rdma);
@@ -3744,7 +3773,7 @@ static void migration_rdma_process_incoming(QEMUFile *f, Error **errp)
         mis->from_src_file = f;
         qemu_file_set_blocking(f, false);
 
-        start_migration = migrate_use_multifd();
+        start_migration = !migrate_use_multifd();
     } else {
         ioc = QIO_CHANNEL(getQIOChannel(f));
         /* Multiple connections */
@@ -3847,6 +3876,30 @@ void rdma_start_incoming_migration(const char *host_port, Error **errp)
         goto err;
     }
 
+    if (migrate_use_multifd()) {
+        int thread_count;
+        int i;
+        int idx;
+        MultiFDRecvParams *multifd_recv_param;
+        thread_count = migrate_multifd_channels();
+        for (i = 0; i < thread_count; i++) {
+            if (get_multifd_recv_param(i, &multifd_recv_param) < 0) {
+                error_report("rdma: error getting multifd_recv_param(%d)", i);
+                goto err;
+            }
+
+            multifd_recv_param->rdma = qemu_rdma_data_init(host_port,
+                                                           &local_err);
+            for (idx = 0; idx < RDMA_WRID_MAX; idx++) {
+                multifd_recv_param->rdma->wr_data[idx].control_len = 0;
+                multifd_recv_param->rdma->wr_data[idx].control_curr = NULL;
+            }
+            /* the CM channel and CM id is shared */
+            multifd_recv_param->rdma->channel = rdma->channel;
+            multifd_recv_param->rdma->listen_id = rdma->listen_id;
+        }
+    }
+
     qemu_set_fd_handler(rdma->channel->fd, rdma_accept_incoming_migration,
                         NULL, (void *)(intptr_t)rdma);
     return;
@@ -3866,6 +3919,10 @@ void rdma_start_outgoing_migration(void *opaque,
 
     if (rdma == NULL) {
         goto err;
+    }
+
+    if (migrate_use_multifd()) {
+        rdma_host_port = g_strdup(host_port);
     }
 
     ret = qemu_rdma_source_init(rdma,
@@ -3918,44 +3975,38 @@ err:
     g_free(rdma_return_path);
 }
 
-void *multifd_rdma_recv_thread(void *opaque)
-{
-    MultiFDRecvParams *p = opaque;
-
-    while (true) {
-        qemu_mutex_lock(&p->mutex);
-        if (p->quit) {
-            qemu_mutex_unlock(&p->mutex);
-            break;
-        }
-        qemu_mutex_unlock(&p->mutex);
-        qemu_sem_wait(&p->sem_sync);
-    }
-
-    qemu_mutex_lock(&p->mutex);
-    p->running = false;
-    qemu_mutex_unlock(&p->mutex);
-
-    return NULL;
-}
-
-void *multifd_rdma_send_thread(void *opaque)
+int multifd_channel_rdma_connect(void *opaque)
 {
     MultiFDSendParams *p = opaque;
+    Error *local_err = NULL;
+    int ret = 0;
 
-    while (true) {
-        qemu_mutex_lock(&p->mutex);
-        if (p->quit) {
-            qemu_mutex_unlock(&p->mutex);
-            break;
-        }
-        qemu_mutex_unlock(&p->mutex);
-        qemu_sem_wait(&p->sem);
+    p->rdma = qemu_rdma_data_init(rdma_host_port, &local_err);
+    if (p->rdma == NULL) {
+        goto out;
     }
 
-    qemu_mutex_lock(&p->mutex);
-    p->running = false;
-    qemu_mutex_unlock(&p->mutex);
+    ret = qemu_rdma_source_init(p->rdma,
+                                migrate_use_rdma_pin_all(),
+                                &local_err);
+    if (ret) {
+        goto out;
+    }
 
-    return NULL;
+    ret = qemu_rdma_connect(p->rdma, &local_err);
+    if (ret) {
+        goto out;
+    }
+
+    p->file = qemu_fopen_rdma(p->rdma, "wb");
+    if (p->file == NULL) {
+        goto out;
+    }
+
+out:
+    if (local_err) {
+        trace_multifd_send_error(p->id);
+    }
+
+    return ret;
 }

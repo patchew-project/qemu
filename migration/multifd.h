@@ -67,6 +67,10 @@ typedef struct {
     char *name;
     /* channel thread id */
     QemuThread thread;
+    /* RDMAContext channel */
+    RDMAContext *rdma;
+    /* communication channel */
+    QEMUFile *file;
     /* communication channel */
     QIOChannel *c;
     /* sem where to wait for more work */
@@ -108,6 +112,10 @@ typedef struct {
     char *name;
     /* channel thread id */
     QemuThread thread;
+    /* RDMAContext channel */
+    RDMAContext *rdma;
+    /* communication channel */
+    QEMUFile *file;
     /* communication channel */
     QIOChannel *c;
     /* this mutex protects the following parameters */
@@ -137,5 +145,7 @@ typedef struct {
     QemuSemaphore sem_sync;
 } MultiFDRecvParams;
 
+int get_multifd_send_param(int id, MultiFDSendParams **param);
+int get_multifd_recv_param(int id, MultiFDRecvParams **param);
 #endif
 

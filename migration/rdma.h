@@ -263,9 +263,7 @@ struct QIOChannelRDMA {
     bool blocking; /* XXX we don't actually honour this yet */
 };
 
-
-void *multifd_rdma_recv_thread(void *opaque);
-void *multifd_rdma_send_thread(void *opaque);
+int multifd_channel_rdma_connect(void *opaque);
 
 void rdma_start_outgoing_migration(void *opaque, const char *host_port,
                                    Error **errp);
