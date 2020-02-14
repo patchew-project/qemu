@@ -1224,6 +1224,11 @@ static void kvm_sclp_service_call(S390CPU *cpu, struct kvm_run *run,
     sccb = env->regs[ipbh0 & 0xf];
     code = env->regs[(ipbh0 & 0xf0) >> 4];
 
+    if (run->s390_sieic.icptcode == ICPT_PV_INSTR) {
+        sclp_service_call_protected(env, sccb, code);
+        return;
+    }
+
     r = sclp_service_call(env, sccb, code);
     if (r < 0) {
         kvm_s390_program_interrupt(cpu, -r);
