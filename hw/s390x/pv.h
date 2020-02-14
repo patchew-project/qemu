@@ -19,6 +19,7 @@ void s390_pv_vm_destroy(void);
 void s390_pv_vcpu_destroy(CPUState *cs);
 int s390_pv_vcpu_create(CPUState *cs);
 int s390_pv_set_sec_parms(uint64_t origin, uint64_t length);
+void s390_pv_set_ipl_psw(CPUState *cs);
 int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak);
 void s390_pv_perf_clear_reset(void);
 int s390_pv_verify(void);
@@ -29,6 +30,7 @@ void s390_pv_vm_destroy(void) {}
 void s390_pv_vcpu_destroy(CPUState *cs) {}
 int s390_pv_vcpu_create(CPUState *cs) { return 0; }
 int s390_pv_set_sec_parms(uint64_t origin, uint64_t length) { return 0; }
+void s390_pv_set_ipl_psw(CPUState *cs) {}
 int s390_pv_unpack(uint64_t addr, uint64_t size, uint64_t tweak) { return 0: }
 void s390_pv_perf_clear_reset(void) {}
 int s390_pv_verify(void) { return 0; }

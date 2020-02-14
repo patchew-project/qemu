@@ -28,6 +28,7 @@ const char* cmd_names[] = {
     "VM_UNSHARE_ALL",
     "VCPU_CREATE",
     "VCPU_DESTROY",
+    "VCPU_SET_IPL_PSW",
     NULL
 };
 
@@ -122,6 +123,11 @@ int s390_pv_set_sec_parms(uint64_t origin, uint64_t length)
     };
 
     return s390_pv_cmd(KVM_PV_VM_SET_SEC_PARMS, &args);
+}
+
+void s390_pv_set_ipl_psw(CPUState *cs)
+{
+    s390_pv_cmd_vcpu_exit(cs, KVM_PV_VCPU_SET_IPL_PSW, NULL);
 }
 
 /*
