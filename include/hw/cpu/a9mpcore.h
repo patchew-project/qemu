@@ -28,6 +28,7 @@ typedef struct A9MPPrivState {
     uint32_t num_cpu;
     MemoryRegion container;
     uint32_t num_irq;
+    uint32_t n_prio_bits;
 
     A9SCUState scu;
     GICState gic;
