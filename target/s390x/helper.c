@@ -246,6 +246,10 @@ int s390_store_status(S390CPU *cpu, hwaddr addr, bool store_arch)
     hwaddr len = sizeof(*sa);
     int i;
 
+    if (cpu->env.pv) {
+        return 0;
+    }
+
     sa = cpu_physical_memory_map(addr, &len, 1);
     if (!sa) {
         return -EFAULT;
