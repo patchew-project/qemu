@@ -538,13 +538,54 @@ static bool is_virtio_scsi_device(IplParameterBlock *iplb)
     return is_virtio_ccw_device_of_type(iplb, VIRTIO_ID_SCSI);
 }
 
+int s390_ipl_pv_check_components(IplParameterBlock *iplb)
+{
+    int i;
+    IPLBlockPV *ipib_pv = &iplb->pv;
+
+    if (ipib_pv->num_comp == 0) {
+        return -EINVAL;
+    }
+
+    for (i = 0; i < ipib_pv->num_comp; i++) {
+
+        /* Addr must be 4k aligned */
+        if (ipib_pv->components[i].addr & ~TARGET_PAGE_MASK) {
+            return -EINVAL;
+        }
+
+        /* Tweak prefix is monotonously increasing with each component */
+        if (i < ipib_pv->num_comp - 1 &&
+            ipib_pv->components[i].tweak_pref >
+            ipib_pv->components[i + 1].tweak_pref) {
+            return -EINVAL;
+        }
+    }
+    return 1;
+}
+
 void s390_ipl_update_diag308(IplParameterBlock *iplb)
 {
     S390IPLState *ipl = get_ipl_device();
 
-    ipl->iplb = *iplb;
-    ipl->iplb_valid = true;
+    if (iplb->pbt == 5) {
+        ipl->iplb_pbt5 = *iplb;
+        ipl->iplb_valid_pbt5 = true;
+    } else {
+        ipl->iplb = *iplb;
+        ipl->iplb_valid = true;
+    }
     ipl->netboot = is_virtio_net_device(iplb);
+}
+
+IplParameterBlock *s390_ipl_get_iplb_secure(void)
+{
+    S390IPLState *ipl = get_ipl_device();
+
+    if (!ipl->iplb_valid_pbt5) {
+        return NULL;
+    }
+    return &ipl->iplb_pbt5;
 }
 
 IplParameterBlock *s390_ipl_get_iplb(void)
@@ -561,7 +602,8 @@ void s390_ipl_reset_request(CPUState *cs, enum s390_reset reset_type)
 {
     S390IPLState *ipl = get_ipl_device();
 
-    if (reset_type == S390_RESET_EXTERNAL || reset_type == S390_RESET_REIPL) {
+    if (reset_type == S390_RESET_EXTERNAL || reset_type == S390_RESET_REIPL ||
+        reset_type == S390_RESET_PV) {
         /* use CPU 0 for full resets */
         ipl->reset_cpu_index = 0;
     } else {
