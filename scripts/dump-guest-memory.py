@@ -539,7 +539,12 @@ shape and this command should mostly work."""
 
             while left > 0:
                 chunk_size = min(TARGET_PAGE_SIZE, left)
-                chunk = qemu_core.read_memory(cur, chunk_size)
+                try:
+                    chunk = qemu_core.read_memory(cur, chunk_size)
+                except gdb.MemoryError:
+                    # Consider blocks of memory absent from a core file
+                    # as being zeroed.
+                    chunk = bytes(chunk_size)
                 vmcore.write(chunk)
                 cur += chunk_size
                 left -= chunk_size
