@@ -33,6 +33,7 @@
 #include "qemu/cutils.h"
 #include "qemu/option.h"
 #include "exec/exec-all.h"
+#include "pv.h"
 
 #define KERN_IMAGE_START                0x010000UL
 #define LINUX_MAGIC_ADDR                0x010008UL
@@ -675,6 +676,37 @@ static void s390_ipl_prepare_qipl(S390CPU *cpu)
     }
     memcpy(addr + QIPL_ADDRESS, &ipl->qipl, sizeof(QemuIplParameters));
     cpu_physical_memory_unmap(addr, len, 1, len);
+}
+
+int s390_ipl_prepare_pv_header(void)
+{
+    S390IPLState *ipl = get_ipl_device();
+    IPLBlockPV *ipib_pv = &ipl->iplb_pbt5.pv;
+    void *hdr = g_malloc(ipib_pv->pv_header_len);
+    int rc;
+
+    cpu_physical_memory_read(ipib_pv->pv_header_addr, hdr,
+                             ipib_pv->pv_header_len);
+    rc = s390_pv_set_sec_parms((uint64_t)hdr,
+                          ipib_pv->pv_header_len);
+    g_free(hdr);
+    return rc;
+}
+
+int s390_ipl_pv_unpack(void)
+{
+    int i, rc;
+    S390IPLState *ipl = get_ipl_device();
+    IPLBlockPV *ipib_pv = &ipl->iplb_pbt5.pv;
+
+    for (i = 0; i < ipib_pv->num_comp; i++) {
+        rc = s390_pv_unpack(ipib_pv->components[i].addr,
+                            TARGET_PAGE_ALIGN(ipib_pv->components[i].size),
+                            ipib_pv->components[i].tweak_pref);
+        if (rc)
+            return rc;
+    }
+    return 0;
 }
 
 void s390_ipl_prepare_cpu(S390CPU *cpu)
