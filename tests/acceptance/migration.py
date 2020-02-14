@@ -94,3 +94,11 @@ class Migration(Test):
         dest_uri = 'exec:nc -l localhost %u' % free_port
         src_uri = 'exec:nc localhost %u' % free_port
         self.do_migrate(dest_uri, src_uri)
+
+    @skipUnless(_if_rdma_enable(None), "Unit rdma.service could not be found")
+    @skipUnless(_get_ip_rdma(None), 'RoCE(RDMA) service or interface not configured')
+    def test_migration_with_rdma_localhost(self):
+        ip = self._get_ip_rdma()
+        free_port = self._get_free_port(address=ip)
+        dest_uri = 'rdma:%s:%u' % (ip, free_port)
+        self.do_migrate(dest_uri)
