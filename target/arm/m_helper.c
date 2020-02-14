@@ -2211,6 +2211,14 @@ void arm_v7m_cpu_do_interrupt(CPUState *cs)
          * v7m_preserve_fp_state() helper function.
          */
         break;
+    case EXCP_SERROR:
+        env->v7m.cfsr[M_REG_NS] |=
+            (R_V7M_CFSR_PRECISERR_MASK | R_V7M_CFSR_BFARVALID_MASK);
+        env->v7m.bfar = env->exception.vaddress;
+        qemu_log_mask(CPU_LOG_INT,
+                      "...with CFSR.PRECISERR and BFAR 0x%x\n",
+                      env->v7m.bfar);
+        break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */

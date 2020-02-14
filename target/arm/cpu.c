@@ -78,7 +78,7 @@ static bool arm_cpu_has_work(CPUState *cs)
         && cs->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
          | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ
-         | CPU_INTERRUPT_EXITTB);
+         | ARM_CPU_SERROR | CPU_INTERRUPT_EXITTB);
 }
 
 void arm_register_pre_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
@@ -449,6 +449,9 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
             return false;
         }
         return !(env->daif & PSTATE_I);
+    case EXCP_SERROR:
+       pstate_unmasked = !(env->daif & PSTATE_A);
+       break;
     default:
         g_assert_not_reached();
     }
@@ -570,6 +573,16 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             goto found;
         }
     }
+
+    if (interrupt_request & CPU_INTERRUPT_SERROR) {
+        excp_idx = EXCP_SERROR;
+        target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
+        if (arm_excp_unmasked(cs, excp_idx, target_el,
+                              cur_el, secure, hcr_el2)) {
+            goto found;
+        }
+    }
+
     return false;
 
  found:
@@ -585,7 +598,7 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
     CPUClass *cc = CPU_GET_CLASS(cs);
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
-    bool ret = false;
+    uint32_t excp_idx;
 
     /* ARMv7-M interrupt masking works differently than -A or -R.
      * There is no FIQ/IRQ distinction. Instead of I and F bits
@@ -594,13 +607,26 @@ static bool arm_v7m_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
      * (which depends on state like BASEPRI, FAULTMASK and the
      * currently active exception).
      */
-    if (interrupt_request & CPU_INTERRUPT_HARD
-        && (armv7m_nvic_can_take_pending_exception(env->nvic))) {
-        cs->exception_index = EXCP_IRQ;
-        cc->do_interrupt(cs);
-        ret = true;
+    if (!armv7m_nvic_can_take_pending_exception(env->nvic)) {
+        return false;
     }
-    return ret;
+
+    if (interrupt_request & CPU_INTERRUPT_HARD) {
+        excp_idx = EXCP_IRQ;
+        goto found;
+    }
+
+    if (interrupt_request & CPU_INTERRUPT_SERROR) {
+        excp_idx = EXCP_SERROR;
+        goto found;
+    }
+
+    return false;
+
+found:
+    cs->exception_index = excp_idx;
+    cc->do_interrupt(cs);
+    return true;
 }
 #endif
 
@@ -656,7 +682,8 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         [ARM_CPU_IRQ] = CPU_INTERRUPT_HARD,
         [ARM_CPU_FIQ] = CPU_INTERRUPT_FIQ,
         [ARM_CPU_VIRQ] = CPU_INTERRUPT_VIRQ,
-        [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ
+        [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ,
+        [ARM_CPU_SERROR] = CPU_INTERRUPT_SERROR,
     };
 
     if (level) {
@@ -676,6 +703,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         break;
     case ARM_CPU_IRQ:
     case ARM_CPU_FIQ:
+    case ARM_CPU_SERROR:
         if (level) {
             cpu_interrupt(cs, mask[irq]);
         } else {
@@ -693,8 +721,10 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
     ARMCPU *cpu = opaque;
     CPUARMState *env = &cpu->env;
     CPUState *cs = CPU(cpu);
+    struct kvm_vcpu_events events;
     uint32_t linestate_bit;
     int irq_id;
+    bool inject_irq = true;
 
     switch (irq) {
     case ARM_CPU_IRQ:
@@ -705,6 +735,14 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
         irq_id = KVM_ARM_IRQ_CPU_FIQ;
         linestate_bit = CPU_INTERRUPT_FIQ;
         break;
+    case ARM_CPU_SERROR:
+        if (!kvm_has_vcpu_events()) {
+            return;
+        }
+
+        inject_irq = false;
+        linestate_bit = CPU_INTERRUPT_SERROR;
+        break;
     default:
         g_assert_not_reached();
     }
@@ -714,7 +752,14 @@ static void arm_cpu_kvm_set_irq(void *opaque, int irq, int level)
     } else {
         env->irq_line_state &= ~linestate_bit;
     }
-    kvm_arm_set_irq(cs->cpu_index, KVM_ARM_IRQ_TYPE_CPU, irq_id, !!level);
+
+    if (inject_irq) {
+        kvm_arm_set_irq(cs->cpu_index, KVM_ARM_IRQ_TYPE_CPU, irq_id, !!level);
+    } else if (level) {
+        memset(&events, 0, sizeof(events));
+        events.exception.serror_pending = 1;
+        kvm_vcpu_ioctl(cs, KVM_SET_VCPU_EVENTS, &events);
+    }
 #endif
 }
 
@@ -1064,9 +1109,9 @@ static void arm_cpu_initfn(Object *obj)
         /* VIRQ and VFIQ are unused with KVM but we add them to maintain
          * the same interface as non-KVM CPUs.
          */
-        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_kvm_set_irq, 4);
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_kvm_set_irq, 5);
     } else {
-        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 4);
+        qdev_init_gpio_in(DEVICE(cpu), arm_cpu_set_irq, 5);
     }
 
     qdev_init_gpio_out(DEVICE(cpu), cpu->gt_timer_outputs,
