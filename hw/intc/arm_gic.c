@@ -43,6 +43,9 @@
         }                                                               \
     } while (0)
 
+#define UMASK(n) \
+    ((((1 << n) - 1) << (8 - n)) & 0xFF)
+
 static const uint8_t gic_id_11mpcore[] = {
     0x00, 0x00, 0x00, 0x00, 0x90, 0x13, 0x04, 0x00, 0x0d, 0xf0, 0x05, 0xb1
 };
@@ -652,9 +655,9 @@ void gic_dist_set_priority(GICState *s, int cpu, int irq, uint8_t val,
     }
 
     if (irq < GIC_INTERNAL) {
-        s->priority1[irq][cpu] = val;
+        s->priority1[irq][cpu] = val & UMASK(s->n_prio_bits) ;
     } else {
-        s->priority2[(irq) - GIC_INTERNAL] = val;
+        s->priority2[(irq) - GIC_INTERNAL] = val & UMASK(s->n_prio_bits);
     }
 }
 
@@ -684,7 +687,7 @@ static void gic_set_priority_mask(GICState *s, int cpu, uint8_t pmask,
             return;
         }
     }
-    s->priority_mask[cpu] = pmask;
+    s->priority_mask[cpu] = pmask & UMASK(s->n_prio_bits);
 }
 
 static uint32_t gic_get_priority_mask(GICState *s, int cpu, MemTxAttrs attrs)
