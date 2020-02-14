@@ -42,6 +42,9 @@
 #include "hw/s390x/tod.h"
 #include "sysemu/sysemu.h"
 #include "hw/s390x/pv.h"
+#include "migration/blocker.h"
+
+static Error *pv_mig_blocker;
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -373,6 +376,7 @@ static void s390_machine_reset(MachineState *machine)
     CPUState *cs, *t;
     S390CPU *cpu;
     S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
+    static Error *local_err;
 
     /* get the reset parameters, reset them once done */
     s390_ipl_get_reset_request(&cs, &reset_type);
@@ -422,6 +426,17 @@ static void s390_machine_reset(MachineState *machine)
         }
         run_on_cpu(cs, s390_do_cpu_reset, RUN_ON_CPU_NULL);
 
+        if (!pv_mig_blocker) {
+            error_setg(&pv_mig_blocker,
+                       "protected VMs are currently not migrateable.");
+        }
+        migrate_add_blocker(pv_mig_blocker, &local_err);
+        if (local_err) {
+            error_report_err(local_err);
+            error_free(pv_mig_blocker);
+            exit(1);
+        }
+
         if (s390_machine_pv_secure(ms)) {
             CPU_FOREACH(t) {
                 s390_pv_vcpu_destroy(t);
@@ -430,6 +445,7 @@ static void s390_machine_reset(MachineState *machine)
             ms->pv = false;
 
             s390_machine_inject_pv_error(cs);
+            migrate_del_blocker(pv_mig_blocker);
             s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
             return;
         }
