@@ -75,3 +75,5 @@ class Migration(Test):
         """
         free_port = self._get_free_port()
         dest_uri = 'exec:nc -l localhost %u' % free_port
+        src_uri = 'exec:nc localhost %u' % free_port
+        self.do_migrate(dest_uri, src_uri)
