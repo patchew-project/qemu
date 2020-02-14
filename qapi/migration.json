@@ -532,6 +532,12 @@
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
 #
+# @cpu-throttle-tailslow: Make throttle slower at tail stage
+#                         At the tail stage of throttle, VM is very sensitive to
+#                         CPU percentage. We just throttle 30% of remaining CPU
+#                         when throttle is more than 80 percentage. The default
+#                         value is false. (Since 4.1)
+#
 # @tls-creds: ID of the 'tls-creds' object that provides credentials for
 #             establishing a TLS connection over the migration data channel.
 #             On the outgoing side of the migration, the credentials must
@@ -594,6 +600,7 @@
            'compress-level', 'compress-threads', 'decompress-threads',
            'compress-wait-thread',
            'cpu-throttle-initial', 'cpu-throttle-increment',
+           'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
            'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
            'multifd-channels',
@@ -633,6 +640,12 @@
 # @cpu-throttle-increment: throttle percentage increase each time
 #                          auto-converge detects that migration is not making
 #                          progress. The default value is 10. (Since 2.7)
+#
+# @cpu-throttle-tailslow: Make throttle slower at tail stage
+#                         At the tail stage of throttle, VM is very sensitive to
+#                         CPU percentage. We just throttle 30% of remaining CPU
+#                         when throttle is more than 80 percentage. The default
+#                         value is false. (Since 4.1)
 #
 # @tls-creds: ID of the 'tls-creds' object that provides credentials
 #             for establishing a TLS connection over the migration data
@@ -703,6 +716,7 @@
             '*decompress-threads': 'int',
             '*cpu-throttle-initial': 'int',
             '*cpu-throttle-increment': 'int',
+            '*cpu-throttle-tailslow': 'bool',
             '*tls-creds': 'StrOrNull',
             '*tls-hostname': 'StrOrNull',
             '*tls-authz': 'StrOrNull',
@@ -766,6 +780,12 @@
 # @cpu-throttle-increment: throttle percentage increase each time
 #                          auto-converge detects that migration is not making
 #                          progress. (Since 2.7)
+#
+# @cpu-throttle-tailslow: Make throttle slower at tail stage
+#                         At the tail stage of throttle, VM is very sensitive to
+#                         CPU percentage. We just throttle 30% of remaining CPU
+#                         when throttle is more than 80 percentage. The default
+#                         value is false. (Since 4.1)
 #
 # @tls-creds: ID of the 'tls-creds' object that provides credentials
 #             for establishing a TLS connection over the migration data
@@ -836,6 +856,7 @@
             '*decompress-threads': 'uint8',
             '*cpu-throttle-initial': 'uint8',
             '*cpu-throttle-increment': 'uint8',
+            '*cpu-throttle-tailslow': 'bool',
             '*tls-creds': 'str',
             '*tls-hostname': 'str',
             '*tls-authz': 'str',

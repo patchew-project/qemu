@@ -29,6 +29,7 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include <zlib.h>
+#include <math.h>
 #include "qemu/cutils.h"
 #include "qemu/bitops.h"
 #include "qemu/bitmap.h"
@@ -620,15 +621,28 @@ static void mig_throttle_guest_down(void)
 {
     MigrationState *s = migrate_get_current();
     uint64_t pct_initial = s->parameters.cpu_throttle_initial;
-    uint64_t pct_icrement = s->parameters.cpu_throttle_increment;
+    uint64_t pct_increment = s->parameters.cpu_throttle_increment;
+    bool pct_tailslow = s->parameters.cpu_throttle_tailslow;
     int pct_max = s->parameters.max_cpu_throttle;
+
+    const uint64_t cpu_throttle_now = cpu_throttle_get_percentage();
+    uint64_t cpu_throttle_inc;
 
     /* We have not started throttling yet. Let's start it. */
     if (!cpu_throttle_active()) {
         cpu_throttle_set(pct_initial);
     } else {
         /* Throttling already on, just increase the rate */
-        cpu_throttle_set(MIN(cpu_throttle_get_percentage() + pct_icrement,
+        if (cpu_throttle_now >= 80 && pct_tailslow) {
+            /* Eat some scale of CPU from remaining */
+            cpu_throttle_inc = ceil((100 - cpu_throttle_now) * 0.3);
+            if (cpu_throttle_inc > pct_increment) {
+                cpu_throttle_inc = pct_increment;
+            }
+        } else {
+            cpu_throttle_inc = pct_increment;
+        }
+        cpu_throttle_set(MIN(cpu_throttle_now + cpu_throttle_inc,
                          pct_max));
     }
 }
