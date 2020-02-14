@@ -1806,8 +1806,10 @@ static bool trans_VFM_sp(DisasContext *s, arg_VFM_sp *a)
      * In v7A, UNPREDICTABLE with non-zero vector length/stride; from
      * v8A, must UNDEF. We choose to UNDEF for both v7A and v8A.
      */
-    if (!arm_dc_feature(s, ARM_FEATURE_VFP4) ||
-        (s->vec_len != 0 || s->vec_stride != 0)) {
+    if (!dc_isar_feature(aa32_simdfmac, s)) {
+        return false;
+    }
+    if (s->vec_len != 0 || s->vec_stride != 0) {
         return false;
     }
 
@@ -1864,8 +1866,10 @@ static bool trans_VFM_dp(DisasContext *s, arg_VFM_dp *a)
      * In v7A, UNPREDICTABLE with non-zero vector length/stride; from
      * v8A, must UNDEF. We choose to UNDEF for both v7A and v8A.
      */
-    if (!arm_dc_feature(s, ARM_FEATURE_VFP4) ||
-        (s->vec_len != 0 || s->vec_stride != 0)) {
+    if (!dc_isar_feature(aa32_simdfmac, s)) {
+        return false;
+    }
+    if (s->vec_len != 0 || s->vec_stride != 0) {
         return false;
     }
 
