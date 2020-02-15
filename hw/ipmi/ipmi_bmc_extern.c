@@ -463,6 +463,15 @@ static void ipmi_bmc_extern_realize(DeviceState *dev, Error **errp)
 
     qemu_chr_fe_set_handlers(&ibe->chr, can_receive, receive,
                              chr_event, NULL, ibe, NULL, true);
+
+    ibe->extern_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, extern_timeout, ibe);
+}
+
+static void ipmi_bmc_extern_unrealize(DeviceState *dev, Error **errp)
+{
+    IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(dev);
+
+    timer_del(ibe->extern_timer);
 }
 
 static int ipmi_bmc_extern_post_migrate(void *opaque, int version_id)
@@ -502,7 +511,6 @@ static void ipmi_bmc_extern_init(Object *obj)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
 
-    ibe->extern_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, extern_timeout, ibe);
     vmstate_register(NULL, 0, &vmstate_ipmi_bmc_extern, ibe);
 }
 
@@ -510,7 +518,6 @@ static void ipmi_bmc_extern_finalize(Object *obj)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
 
-    timer_del(ibe->extern_timer);
     timer_free(ibe->extern_timer);
 }
 
@@ -528,6 +535,7 @@ static void ipmi_bmc_extern_class_init(ObjectClass *oc, void *data)
     bk->handle_reset = ipmi_bmc_extern_handle_reset;
     dc->hotpluggable = false;
     dc->realize = ipmi_bmc_extern_realize;
+    dc->unrealize = ipmi_bmc_extern_unrealize;
     device_class_set_props(dc, ipmi_bmc_extern_properties);
 }
 
