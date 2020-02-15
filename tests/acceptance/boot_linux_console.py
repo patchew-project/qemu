@@ -355,13 +355,16 @@ class BootLinuxConsole(Test):
         """
         serial_kernel_cmdline = {
             'pl011': {
+                1: 'earlycon=pl011,0x20201000 console=ttyAMA0',
                 2: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
             },
         }
         kernel = {
+            1: '/boot/kernel.img',
             2: '/boot/kernel7.img',
         }
         dtb = {
+            1: '/boot/bcm2708-rpi-b.dtb',
             2: '/boot/bcm2709-rpi-2-b.dtb',
         }
         deb_url = ('http://archive.raspberrypi.org/debian/'
@@ -381,6 +384,15 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_arm_raspi1_uart0(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi1
+        :avocado: tags=cpu:arm1176
+        :avocado: tags=device:pl011
+        """
+        self.do_test_arm_raspi(1, 'pl011')
 
     def test_arm_raspi2_uart0(self):
         """
