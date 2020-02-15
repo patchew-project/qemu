@@ -12,6 +12,7 @@ import os
 import lzma
 import gzip
 import shutil
+import logging
 
 from avocado import skipUnless
 from avocado_qemu import Test
@@ -20,6 +21,19 @@ from avocado_qemu import interrupt_interactive_console_until_pattern
 from avocado_qemu import wait_for_console_pattern
 from avocado.utils import process
 from avocado.utils import archive
+
+
+NUMPY_AVAILABLE = True
+try:
+    import numpy as np
+except ImportError:
+    NUMPY_AVAILABLE = False
+
+CV2_AVAILABLE = True
+try:
+    import cv2
+except ImportError:
+    CV2_AVAILABLE = False
 
 
 class BootLinuxConsole(Test):
@@ -450,6 +464,54 @@ class BootLinuxConsole(Test):
         :avocado: tags=device:bcm2835_aux
         """
         self.do_test_arm_raspi(2, 'bcm2835_aux')
+
+    @skipUnless(NUMPY_AVAILABLE, 'Python NumPy not installed')
+    @skipUnless(CV2_AVAILABLE, 'Python OpenCV not installed')
+    def test_arm_raspi2_framebuffer_logo(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi2
+        :avocado: tags=device:bcm2835-fb
+        """
+        screendump_path = os.path.join(self.workdir, 'screendump.pbm')
+        rpilogo_url = ('https://github.com/raspberrypi/linux/raw/'
+                       'raspberrypi-kernel_1.20190517-1/'
+                       'drivers/video/logo/logo_linux_clut224.ppm')
+        rpilogo_hash = 'fff3cc20c6030acce0953147f9baac43f44ed6b0'
+        rpilogo_path = self.fetch_asset(rpilogo_url, asset_hash=rpilogo_hash)
+        deb_url = ('http://archive.raspberrypi.org/debian/'
+                   'pool/main/r/raspberrypi-firmware/'
+                   'raspberrypi-kernel_1.20190215-1_armhf.deb')
+        deb_hash = 'cd284220b32128c5084037553db3c482426f3972'
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
+        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
+
+        self.vm.set_console()
+        kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
+                               'earlycon=pl011,0x3f201000 console=ttyAMA0')
+        self.vm.add_args('-kernel', kernel_path,
+                         '-dtb', dtb_path,
+                         '-append', kernel_command_line)
+        self.vm.launch()
+        framebuffer_ready = 'Console: switching to colour frame buffer device'
+        wait_for_console_pattern(self, framebuffer_ready)
+        self.vm.command('human-monitor-command', command_line='stop')
+        self.vm.command('human-monitor-command',
+                        command_line='screendump %s' % screendump_path)
+        logger = logging.getLogger('framebuffer')
+
+        cpu_cores_count = 4
+        match_threshold = 0.95
+        screendump_bgr = cv2.imread(screendump_path, cv2.IMREAD_COLOR)
+        rpilogo_bgr = cv2.imread(rpilogo_path, cv2.IMREAD_COLOR)
+        result = cv2.matchTemplate(screendump_bgr, rpilogo_bgr,
+                                   cv2.TM_CCOEFF_NORMED)
+        loc = np.where(result >= match_threshold)
+        rpilogo_count = 0
+        for rpilogo_count, pt in enumerate(zip(*loc[::-1]), start=1):
+            logger.debug('found raspberry at position (x, y) = %s', pt)
+        self.assertGreaterEqual(rpilogo_count, cpu_cores_count)
 
     def test_arm_exynos4210_initrd(self):
         """
