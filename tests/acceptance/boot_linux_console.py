@@ -359,6 +359,14 @@ class BootLinuxConsole(Test):
                 1: 'earlycon=pl011,0x20201000 console=ttyAMA0',
                 2: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
             },
+            'bcm2835_aux': {
+                0: 'earlycon=uart8250,mmio32,0x20215040 console=ttyS1,115200',
+                1: 'earlycon=uart8250,mmio32,0x20215040 console=ttyS1,115200',
+                2: 'earlycon=uart8250,mmio32,0x3f215040 console=ttyS1,115200',
+            },
+        }
+        uart_id = {
+            'pl011': 0, 'bcm2835_aux': 1,
         }
         kernel = {
             0: '/boot/kernel.img',
@@ -378,7 +386,7 @@ class BootLinuxConsole(Test):
         kernel_path = self.extract_from_deb(deb_path, kernel[version])
         dtb_path = self.extract_from_deb(deb_path, dtb[version])
 
-        self.vm.set_console()
+        self.vm.set_console(console_index=uart_id[uart_model])
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                serial_kernel_cmdline[uart_model][version])
         self.vm.add_args('-kernel', kernel_path,
@@ -397,6 +405,15 @@ class BootLinuxConsole(Test):
         """
         self.do_test_arm_raspi(0, 'pl011')
 
+    def test_arm_raspi0_uart1(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi0
+        :avocado: tags=cpu:arm1176
+        :avocado: tags=device:bcm2835_aux
+        """
+        self.do_test_arm_raspi(0, 'bcm2835_aux')
+
     def test_arm_raspi1_uart0(self):
         """
         :avocado: tags=arch:arm
@@ -406,6 +423,15 @@ class BootLinuxConsole(Test):
         """
         self.do_test_arm_raspi(1, 'pl011')
 
+    def test_arm_raspi1_uart1(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi1
+        :avocado: tags=cpu:arm1176
+        :avocado: tags=device:bcm2835_aux
+        """
+        self.do_test_arm_raspi(1, 'bcm2835_aux')
+
     def test_arm_raspi2_uart0(self):
         """
         :avocado: tags=arch:arm
@@ -414,6 +440,15 @@ class BootLinuxConsole(Test):
         :avocado: tags=device:pl011
         """
         self.do_test_arm_raspi(2, 'pl011')
+
+    def test_arm_raspi2_uart1(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi2
+        :avocado: tags=cpu:cortex-a7
+        :avocado: tags=device:bcm2835_aux
+        """
+        self.do_test_arm_raspi(2, 'bcm2835_aux')
 
     def test_arm_exynos4210_initrd(self):
         """
