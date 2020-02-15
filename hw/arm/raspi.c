@@ -324,6 +324,15 @@ static void raspi_machine_class_common_init(MachineClass *mc,
     mc->default_ram_size = board_ram_size(board_rev);
 };
 
+static void raspi1_machine_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    RaspiMachineClass *rmc = RASPI_MACHINE_CLASS(oc);
+
+    rmc->board_rev = 0x900032;
+    raspi_machine_class_common_init(mc, rmc->board_rev);
+};
+
 static void raspi2_machine_class_init(ObjectClass *oc, void *data)
 {
     RaspiMachineClass *rmc = RASPI_MACHINE_CLASS(oc);
@@ -344,6 +353,10 @@ static void raspi3_machine_class_init(ObjectClass *oc, void *data)
 
 static const TypeInfo raspi_machine_types[] = {
     {
+        .name           = MACHINE_TYPE_NAME("raspi1"),
+        .parent         = TYPE_RASPI_MACHINE,
+        .class_init     = raspi1_machine_class_init,
+    }, {
         .name           = MACHINE_TYPE_NAME("raspi2"),
         .parent         = TYPE_RASPI_MACHINE,
         .class_init     = raspi2_machine_class_init,
