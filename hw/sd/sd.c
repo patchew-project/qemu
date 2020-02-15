@@ -2058,14 +2058,12 @@ static void sd_instance_init(Object *obj)
     SDState *sd = SD_CARD(obj);
 
     sd->enable = true;
-    sd->ocr_power_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sd_ocr_powerup, sd);
 }
 
 static void sd_instance_finalize(Object *obj)
 {
     SDState *sd = SD_CARD(obj);
 
-    timer_del(sd->ocr_power_timer);
     timer_free(sd->ocr_power_timer);
 }
 
@@ -2098,6 +2096,15 @@ static void sd_realize(DeviceState *dev, Error **errp)
         }
         blk_set_dev_ops(sd->blk, &sd_block_ops, sd);
     }
+
+    sd->ocr_power_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, sd_ocr_powerup, sd);
+}
+
+static void sd_unrealize(DeviceState *dev, Error **errp)
+{
+    SDState *sd = SD_CARD(dev);
+
+    timer_del(sd->ocr_power_timer);
 }
 
 static Property sd_properties[] = {
@@ -2118,6 +2125,7 @@ static void sd_class_init(ObjectClass *klass, void *data)
     SDCardClass *sc = SD_CARD_CLASS(klass);
 
     dc->realize = sd_realize;
+    dc->unrealize = sd_unrealize;
     device_class_set_props(dc, sd_properties);
     dc->vmsd = &sd_vmstate;
     dc->reset = sd_reset;
