@@ -347,26 +347,34 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         self.wait_for_console_pattern('init started: BusyBox')
 
-    def do_test_arm_raspi2(self, uart_model):
+    def do_test_arm_raspi(self, version, uart_model):
         """
         The kernel can be rebuilt using the kernel source referenced
         and following the instructions on the on:
         https://www.raspberrypi.org/documentation/linux/kernel/building.md
         """
         serial_kernel_cmdline = {
-            'pl011': 'earlycon=pl011,0x3f201000 console=ttyAMA0',
+            'pl011': {
+                2: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
+            },
+        }
+        kernel = {
+            2: '/boot/kernel7.img',
+        }
+        dtb = {
+            2: '/boot/bcm2709-rpi-2-b.dtb',
         }
         deb_url = ('http://archive.raspberrypi.org/debian/'
                    'pool/main/r/raspberrypi-firmware/'
                    'raspberrypi-kernel_1.20190215-1_armhf.deb')
         deb_hash = 'cd284220b32128c5084037553db3c482426f3972'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
-        kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
-        dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
+        kernel_path = self.extract_from_deb(deb_path, kernel[version])
+        dtb_path = self.extract_from_deb(deb_path, dtb[version])
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               serial_kernel_cmdline[uart_model])
+                               serial_kernel_cmdline[uart_model][version])
         self.vm.add_args('-kernel', kernel_path,
                          '-dtb', dtb_path,
                          '-append', kernel_command_line)
@@ -378,9 +386,10 @@ class BootLinuxConsole(Test):
         """
         :avocado: tags=arch:arm
         :avocado: tags=machine:raspi2
+        :avocado: tags=cpu:cortex-a7
         :avocado: tags=device:pl011
         """
-        self.do_test_arm_raspi2('pl011')
+        self.do_test_arm_raspi(2, 'pl011')
 
     def test_arm_exynos4210_initrd(self):
         """
