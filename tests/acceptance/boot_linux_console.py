@@ -355,15 +355,18 @@ class BootLinuxConsole(Test):
         """
         serial_kernel_cmdline = {
             'pl011': {
+                0: 'earlycon=pl011,0x20201000 console=ttyAMA0',
                 1: 'earlycon=pl011,0x20201000 console=ttyAMA0',
                 2: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
             },
         }
         kernel = {
+            0: '/boot/kernel.img',
             1: '/boot/kernel.img',
             2: '/boot/kernel7.img',
         }
         dtb = {
+            0: '/boot/bcm2708-rpi-0-w.dtb',
             1: '/boot/bcm2708-rpi-b.dtb',
             2: '/boot/bcm2709-rpi-2-b.dtb',
         }
@@ -384,6 +387,15 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         console_pattern = 'Kernel command line: %s' % kernel_command_line
         self.wait_for_console_pattern(console_pattern)
+
+    def test_arm_raspi0_uart0(self):
+        """
+        :avocado: tags=arch:arm
+        :avocado: tags=machine:raspi0
+        :avocado: tags=cpu:arm1176
+        :avocado: tags=device:pl011
+        """
+        self.do_test_arm_raspi(0, 'pl011')
 
     def test_arm_raspi1_uart0(self):
         """
