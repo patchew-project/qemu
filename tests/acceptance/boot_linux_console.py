@@ -347,14 +347,14 @@ class BootLinuxConsole(Test):
         self.vm.launch()
         self.wait_for_console_pattern('init started: BusyBox')
 
-    def do_test_arm_raspi2(self, uart_id):
+    def do_test_arm_raspi2(self, uart_model):
         """
         The kernel can be rebuilt using the kernel source referenced
         and following the instructions on the on:
         https://www.raspberrypi.org/documentation/linux/kernel/building.md
         """
         serial_kernel_cmdline = {
-            0: 'earlycon=pl011,0x3f201000 console=ttyAMA0',
+            'pl011': 'earlycon=pl011,0x3f201000 console=ttyAMA0',
         }
         deb_url = ('http://archive.raspberrypi.org/debian/'
                    'pool/main/r/raspberrypi-firmware/'
@@ -366,7 +366,7 @@ class BootLinuxConsole(Test):
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
-                               serial_kernel_cmdline[uart_id])
+                               serial_kernel_cmdline[uart_model])
         self.vm.add_args('-kernel', kernel_path,
                          '-dtb', dtb_path,
                          '-append', kernel_command_line)
@@ -380,7 +380,7 @@ class BootLinuxConsole(Test):
         :avocado: tags=machine:raspi2
         :avocado: tags=device:pl011
         """
-        self.do_test_arm_raspi2(0)
+        self.do_test_arm_raspi2('pl011')
 
     def test_arm_exynos4210_initrd(self):
         """
