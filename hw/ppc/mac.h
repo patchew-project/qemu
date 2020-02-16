@@ -34,6 +34,8 @@
 #include "hw/misc/mos6522.h"
 #include "hw/pci/pci_host.h"
 #include "hw/pci-host/uninorth.h"
+#include "hw/ppc/mac_dbdma.h"
+#include "audio/audio.h"
 
 /* SMP is not enabled, for now */
 #define MAX_CPUS 1
@@ -68,6 +70,9 @@
 #define NEWWORLD_IDE1_DMA_IRQ  0x3
 #define NEWWORLD_EXTING_GPIO1  0x2f
 #define NEWWORLD_EXTING_GPIO9  0x37
+#define NEWWORLD_SCREAMER_IRQ  0x18
+#define NEWWORLD_SCREAMER_DMA_IRQ 0x9
+#define NEWWORLD_SCREAMER_RX_IRQ 0xa
 
 /* Core99 machine */
 #define TYPE_CORE99_MACHINE MACHINE_TYPE_NAME("mac99")

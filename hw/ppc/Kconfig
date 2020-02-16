@@ -104,6 +104,7 @@ config MAC_NEWWORLD
     select MAC_PMU
     select UNIN_PCI
     select FW_CFG_PPC
+    select SCREAMER
 
 config E500
     bool
