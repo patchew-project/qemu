@@ -608,7 +608,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     gicd->type = ACPI_APIC_GENERIC_DISTRIBUTOR;
     gicd->length = sizeof(*gicd);
     gicd->base_address = cpu_to_le64(memmap[VIRT_GIC_DIST].base);
-    gicd->version = vms->gic_version;
+    gicd->version = ams->gic_version;
 
     for (i = 0; i < ams->smp_cpus; i++) {
         AcpiMadtGenericCpuInterface *gicc = acpi_data_push(table_data,
@@ -617,7 +617,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 
         gicc->type = ACPI_APIC_GENERIC_CPU_INTERFACE;
         gicc->length = sizeof(*gicc);
-        if (vms->gic_version == 2) {
+        if (ams->gic_version == 2) {
             gicc->base_address = cpu_to_le64(memmap[VIRT_GIC_CPU].base);
             gicc->gich_base_address = cpu_to_le64(memmap[VIRT_GIC_HYP].base);
             gicc->gicv_base_address = cpu_to_le64(memmap[VIRT_GIC_VCPU].base);
@@ -635,9 +635,9 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         }
     }
 
-    if (vms->gic_version == 3) {
+    if (ams->gic_version == 3) {
         AcpiMadtGenericTranslator *gic_its;
-        int nb_redist_regions = virt_gicv3_redist_region_count(vms);
+        int nb_redist_regions = virt_gicv3_redist_region_count(ams);
         AcpiMadtGenericRedistributor *gicr = acpi_data_push(table_data,
                                                          sizeof *gicr);
 

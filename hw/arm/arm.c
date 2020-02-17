@@ -39,6 +39,32 @@
 #include "hw/intc/arm_gic.h"
 #include "kvm_arm.h"
 
+static char *virt_get_gic_version(Object *obj, Error **errp)
+{
+    ArmMachineState *ams = ARM_MACHINE(obj);
+    const char *val = ams->gic_version == 3 ? "3" : "2";
+
+    return g_strdup(val);
+}
+
+static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
+{
+    ArmMachineState *ams = ARM_MACHINE(obj);
+
+    if (!strcmp(value, "3")) {
+        ams->gic_version = 3;
+    } else if (!strcmp(value, "2")) {
+        ams->gic_version = 2;
+    } else if (!strcmp(value, "host")) {
+        ams->gic_version = 0; /* Will probe later */
+    } else if (!strcmp(value, "max")) {
+        ams->gic_version = -1; /* Will probe later */
+    } else {
+        error_setg(errp, "Invalid gic-version value");
+        error_append_hint(errp, "Valid values are 3, 2, host, max.\n");
+    }
+}
+
 static void arm_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -55,6 +81,15 @@ static void arm_machine_class_init(ObjectClass *oc, void *data)
 
 static void arm_instance_init(Object *obj)
 {
+    ArmMachineState *ams = ARM_MACHINE(obj);
+    /* Default GIC type is v2 */
+    ams->gic_version = 2;
+    object_property_add_str(obj, "gic-version", virt_get_gic_version,
+                        virt_set_gic_version, NULL);
+    object_property_set_description(obj, "gic-version",
+                                    "Set GIC version. "
+                                    "Valid values are 2, 3 and host", NULL);
+
 }
 
 static const TypeInfo arm_machine_info = {

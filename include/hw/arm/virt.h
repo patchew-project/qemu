@@ -68,16 +68,13 @@ typedef struct {
     bool highmem_ecam;
     bool its;
     bool virt;
-    int32_t gic_version;
     VirtIOMMUType iommu;
     struct arm_boot_info bootinfo;
     uint32_t clock_phandle;
-    uint32_t gic_phandle;
     uint32_t msi_phandle;
     uint32_t iommu_phandle;
     int psci_conduit;
     hwaddr highest_gpa;
-    DeviceState *gic;
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;
 } VirtMachineState;
@@ -93,17 +90,5 @@ typedef struct {
     OBJECT_CLASS_CHECK(VirtMachineClass, klass, TYPE_VIRT_MACHINE)
 
 void virt_acpi_setup(VirtMachineState *vms);
-
-/* Return the number of used redistributor regions  */
-static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
-{
-    ArmMachineState *ams = ARM_MACHINE(vms);
-    uint32_t redist0_capacity =
-                ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
-
-    assert(vms->gic_version == 3);
-
-    return ams->smp_cpus > redist0_capacity ? 2 : 1;
-}
 
 #endif /* QEMU_ARM_VIRT_H */

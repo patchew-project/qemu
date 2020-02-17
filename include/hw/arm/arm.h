@@ -74,6 +74,9 @@ enum {
     VIRT_HIGH_PCIE_MMIO,
 };
 
+/* Number of external interrupt lines to configure the GIC with */
+#define NUM_IRQS 256
+
 /* indices of IO regions located after the RAM */
 
 typedef struct MemMapEntry {
@@ -87,11 +90,14 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
+    int32_t gic_version;
     MemMapEntry *memmap;
     const int *irqmap;
     int smp_cpus;
     void *fdt;
     int fdt_size;
+    uint32_t gic_phandle;
+    DeviceState *gic;
 } ArmMachineState;
 
 #define TYPE_ARM_MACHINE   MACHINE_TYPE_NAME("arm")
@@ -101,5 +107,16 @@ typedef struct {
     OBJECT_GET_CLASS(ArmMachineClass, obj, TYPE_ARM_MACHINE)
 #define ARM_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(ArmMachineClass, klass, TYPE_ARM_MACHINE)
+
+/* Return the number of used redistributor regions  */
+static inline int virt_gicv3_redist_region_count(ArmMachineState *ams)
+{
+    uint32_t redist0_capacity =
+                ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
+
+    assert(ams->gic_version == 3);
+
+    return ams->smp_cpus > redist0_capacity ? 2 : 1;
+}
 
 #endif /* QEMU_ARM_ARM_H */
