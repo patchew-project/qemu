@@ -627,6 +627,14 @@ static void gic_set_msi_interrupt(VirtMachineState *vms)
     }
 }
 
+static void qdev_gic_set_secure_bit(VirtMachineState *vms)
+{
+    if (!kvm_irqchip_in_kernel()) {
+        qdev_prop_set_bit(vms->gic, "has-security-extensions",
+                          vms->secure);
+    }
+}
+
 static void qdev_gic_set_virt_bit(VirtMachineState *vms)
 {
     if (vms->gic_version != 3 && !kvm_irqchip_in_kernel()) {
@@ -681,9 +689,6 @@ static void create_gic(VirtMachineState *vms)
      * interrupts; there are always 32 of the former (mandated by GIC spec).
      */
     qdev_prop_set_uint32(vms->gic, "num-irq", NUM_IRQS + 32);
-    if (!kvm_irqchip_in_kernel()) {
-        qdev_prop_set_bit(vms->gic, "has-security-extensions", vms->secure);
-    }
 
     if (type == 3) {
         uint32_t redist0_capacity =
@@ -704,6 +709,7 @@ static void create_gic(VirtMachineState *vms)
                 MIN(smp_cpus - redist0_count, redist1_capacity));
         }
     }
+    qdev_gic_set_secure_bit(vms);
     qdev_gic_set_virt_bit(vms);
     qdev_init_nofail(vms->gic);
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
