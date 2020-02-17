@@ -47,7 +47,6 @@ typedef enum VirtIOMMUType {
 
 typedef struct {
     ArmMachineClass parent;
-    bool disallow_affinity_adjustment;
     bool no_its;
     bool no_pmu;
     bool smbios_old_sys_ver;

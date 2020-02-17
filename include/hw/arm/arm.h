@@ -86,6 +86,7 @@ typedef struct MemMapEntry {
 
 typedef struct {
     MachineClass parent;
+    bool disallow_affinity_adjustment;
     bool claim_edge_triggered_timers;
 } ArmMachineClass;
 
@@ -111,6 +112,8 @@ typedef struct {
     OBJECT_GET_CLASS(ArmMachineClass, obj, TYPE_ARM_MACHINE)
 #define ARM_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(ArmMachineClass, klass, TYPE_ARM_MACHINE)
+
+bool cpu_type_valid(const char *cpu);
 
 void create_fdt(ArmMachineState *ams);
 
