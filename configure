@@ -7682,6 +7682,7 @@ case "$target_name" in
   ;;
   alpha)
     mttcg="yes"
+    TARGET_SYSTBL_ABI=common
   ;;
   arm|armeb)
     TARGET_ARCH=arm
