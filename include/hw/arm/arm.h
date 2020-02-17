@@ -111,6 +111,14 @@ typedef struct {
 #define ARM_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(ArmMachineClass, klass, TYPE_ARM_MACHINE)
 
+void create_fdt(ArmMachineState *ams);
+
+void fdt_add_timer_nodes(const ArmMachineState *ams);
+
+void fdt_add_cpu_nodes(const ArmMachineState *ams);
+
+void fdt_add_gic_node(ArmMachineState *ams);
+
 void qdev_create_gic(ArmMachineState *ams);
 
 void init_gic_sysbus(ArmMachineState *ams);
