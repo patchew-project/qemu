@@ -7678,6 +7678,7 @@ case "$target_name" in
   ;;
   x86_64)
     TARGET_BASE_ARCH=i386
+    TARGET_SYSTBL_ABI=common,64
     mttcg="yes"
 	gdb_xml_files="i386-64bit.xml"
   ;;
