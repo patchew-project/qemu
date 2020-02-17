@@ -9,6 +9,7 @@
 #include "hw/net/allwinner_emac.h"
 #include "hw/sd/allwinner-sdhost.h"
 #include "hw/ide/ahci.h"
+#include "hw/rtc/allwinner-rtc.h"
 
 #include "target/arm/cpu.h"
 
@@ -29,6 +30,7 @@ typedef struct AwA10State {
     AwEmacState emac;
     AllwinnerAHCIState sata;
     AwSdHostState mmc0;
+    AwRtcState rtc;
     MemoryRegion sram_a;
 } AwA10State;
 
