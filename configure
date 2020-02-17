@@ -7788,14 +7788,17 @@ case "$target_name" in
     bflt="yes"
   ;;
   sparc)
+    TARGET_SYSTBL_ABI=common,32
   ;;
   sparc64)
     TARGET_BASE_ARCH=sparc
+    TARGET_SYSTBL_ABI=common,64
   ;;
   sparc32plus)
     TARGET_ARCH=sparc64
     TARGET_BASE_ARCH=sparc
     TARGET_ABI_DIR=sparc
+    TARGET_SYSTBL_ABI=common,32
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   s390x)
