@@ -2986,7 +2986,6 @@ int colo_init_ram_cache(void)
                 }
                 return -errno;
             }
-            memcpy(block->colo_cache, block->host, block->used_length);
         }
     }
 
@@ -3005,12 +3004,16 @@ int colo_init_ram_cache(void)
             bitmap_set(block->bmap, 0, pages);
         }
     }
+
+    return 0;
+}
+
+void colo_incoming_start_dirty_log(void)
+{
     ram_state = g_new0(RAMState, 1);
     ram_state->migration_dirty_pages = 0;
     qemu_mutex_init(&ram_state->bitmap_mutex);
     memory_global_dirty_log_start();
-
-    return 0;
 }
 
 /* It is need to hold the global lock to call this helper */
@@ -3348,7 +3351,7 @@ static int ram_load_precopy(QEMUFile *f)
 
     while (!ret && !(flags & RAM_SAVE_FLAG_EOS)) {
         ram_addr_t addr, total_ram_bytes;
-        void *host = NULL;
+        void *host = NULL, *host_bak = NULL;
         uint8_t ch;
 
         /*
@@ -3378,13 +3381,26 @@ static int ram_load_precopy(QEMUFile *f)
         if (flags & (RAM_SAVE_FLAG_ZERO | RAM_SAVE_FLAG_PAGE |
                      RAM_SAVE_FLAG_COMPRESS_PAGE | RAM_SAVE_FLAG_XBZRLE)) {
             RAMBlock *block = ram_block_from_stream(f, flags);
-
             /*
-             * After going into COLO, we should load the Page into colo_cache.
+             * After going into COLO, we should load the Page into colo_cache
+             * NOTE: We need to keep a copy of SVM's ram in colo_cache.
+             * Privously, we copied all these memory in preparing stage of COLO
+             * while we need to stop VM, which is a time-consuming process.
+             * Here we optimize it by a trick, back-up every page while in
+             * migration process while COLO is enabled, though it affects the
+             * speed of the migration, but it obviously reduce the downtime of
+             * back-up all SVM'S memory in COLO preparing stage.
              */
-            if (migration_incoming_in_colo_state()) {
+            if (migration_incoming_colo_enabled()) {
                 host = colo_cache_from_block_offset(block, addr);
-            } else {
+                /*
+                 * After going into COLO, load the Page into colo_cache.
+                 */
+                if (!migration_incoming_in_colo_state()) {
+                    host_bak = host;
+                }
+            }
+            if (!migration_incoming_in_colo_state()) {
                 host = host_from_ram_block_offset(block, addr);
             }
             if (!host) {
@@ -3505,6 +3521,9 @@ static int ram_load_precopy(QEMUFile *f)
         }
         if (!ret) {
             ret = qemu_file_get_error(f);
+        }
+        if (!ret && host_bak && host) {
+            memcpy(host_bak, host, TARGET_PAGE_SIZE);
         }
     }
 
