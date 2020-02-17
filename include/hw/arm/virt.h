@@ -71,7 +71,6 @@ typedef struct {
     int32_t gic_version;
     VirtIOMMUType iommu;
     struct arm_boot_info bootinfo;
-    MemMapEntry *memmap;
     const int *irqmap;
     int smp_cpus;
     uint32_t clock_phandle;
@@ -100,8 +99,9 @@ void virt_acpi_setup(VirtMachineState *vms);
 /* Return the number of used redistributor regions  */
 static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
 {
+    ArmMachineState *ams = ARM_MACHINE(vms);
     uint32_t redist0_capacity =
-                vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
+                ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
 
     assert(vms->gic_version == 3);
 

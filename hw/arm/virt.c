@@ -395,14 +395,14 @@ static void fdt_add_its_gic_node(VirtMachineState *vms)
 
     vms->msi_phandle = qemu_fdt_alloc_phandle(ams->fdt);
     nodename = g_strdup_printf("/intc/its@%" PRIx64,
-                               vms->memmap[VIRT_GIC_ITS].base);
+                               ams->memmap[VIRT_GIC_ITS].base);
     qemu_fdt_add_subnode(ams->fdt, nodename);
     qemu_fdt_setprop_string(ams->fdt, nodename, "compatible",
                             "arm,gic-v3-its");
     qemu_fdt_setprop(ams->fdt, nodename, "msi-controller", NULL, 0);
     qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                 2, vms->memmap[VIRT_GIC_ITS].base,
-                                 2, vms->memmap[VIRT_GIC_ITS].size);
+                                 2, ams->memmap[VIRT_GIC_ITS].base,
+                                 2, ams->memmap[VIRT_GIC_ITS].size);
     qemu_fdt_setprop_cell(ams->fdt, nodename, "phandle", vms->msi_phandle);
     g_free(nodename);
 }
@@ -413,15 +413,15 @@ static void fdt_add_v2m_gic_node(VirtMachineState *vms)
     ArmMachineState *ams = ARM_MACHINE(vms);
 
     nodename = g_strdup_printf("/intc/v2m@%" PRIx64,
-                               vms->memmap[VIRT_GIC_V2M].base);
+                               ams->memmap[VIRT_GIC_V2M].base);
     vms->msi_phandle = qemu_fdt_alloc_phandle(ams->fdt);
     qemu_fdt_add_subnode(ams->fdt, nodename);
     qemu_fdt_setprop_string(ams->fdt, nodename, "compatible",
                             "arm,gic-v2m-frame");
     qemu_fdt_setprop(ams->fdt, nodename, "msi-controller", NULL, 0);
     qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                 2, vms->memmap[VIRT_GIC_V2M].base,
-                                 2, vms->memmap[VIRT_GIC_V2M].size);
+                                 2, ams->memmap[VIRT_GIC_V2M].base,
+                                 2, ams->memmap[VIRT_GIC_V2M].size);
     qemu_fdt_setprop_cell(ams->fdt, nodename, "phandle", vms->msi_phandle);
     g_free(nodename);
 }
@@ -435,7 +435,7 @@ static void fdt_add_gic_node(VirtMachineState *vms)
     qemu_fdt_setprop_cell(ams->fdt, "/", "interrupt-parent", vms->gic_phandle);
 
     nodename = g_strdup_printf("/intc@%" PRIx64,
-                               vms->memmap[VIRT_GIC_DIST].base);
+                               ams->memmap[VIRT_GIC_DIST].base);
     qemu_fdt_add_subnode(ams->fdt, nodename);
     qemu_fdt_setprop_cell(ams->fdt, nodename, "#interrupt-cells", 3);
     qemu_fdt_setprop(ams->fdt, nodename, "interrupt-controller", NULL, 0);
@@ -453,18 +453,18 @@ static void fdt_add_gic_node(VirtMachineState *vms)
 
         if (nb_redist_regions == 1) {
             qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                         2, vms->memmap[VIRT_GIC_DIST].base,
-                                         2, vms->memmap[VIRT_GIC_DIST].size,
-                                         2, vms->memmap[VIRT_GIC_REDIST].base,
-                                         2, vms->memmap[VIRT_GIC_REDIST].size);
+                                         2, ams->memmap[VIRT_GIC_DIST].base,
+                                         2, ams->memmap[VIRT_GIC_DIST].size,
+                                         2, ams->memmap[VIRT_GIC_REDIST].base,
+                                         2, ams->memmap[VIRT_GIC_REDIST].size);
         } else {
             qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                 2, vms->memmap[VIRT_GIC_DIST].base,
-                                 2, vms->memmap[VIRT_GIC_DIST].size,
-                                 2, vms->memmap[VIRT_GIC_REDIST].base,
-                                 2, vms->memmap[VIRT_GIC_REDIST].size,
-                                 2, vms->memmap[VIRT_HIGH_GIC_REDIST2].base,
-                                 2, vms->memmap[VIRT_HIGH_GIC_REDIST2].size);
+                                 2, ams->memmap[VIRT_GIC_DIST].base,
+                                 2, ams->memmap[VIRT_GIC_DIST].size,
+                                 2, ams->memmap[VIRT_GIC_REDIST].base,
+                                 2, ams->memmap[VIRT_GIC_REDIST].size,
+                                 2, ams->memmap[VIRT_HIGH_GIC_REDIST2].base,
+                                 2, ams->memmap[VIRT_HIGH_GIC_REDIST2].size);
         }
 
         if (vms->virt) {
@@ -478,20 +478,20 @@ static void fdt_add_gic_node(VirtMachineState *vms)
                                 "arm,cortex-a15-gic");
         if (!vms->virt) {
             qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                         2, vms->memmap[VIRT_GIC_DIST].base,
-                                         2, vms->memmap[VIRT_GIC_DIST].size,
-                                         2, vms->memmap[VIRT_GIC_CPU].base,
-                                         2, vms->memmap[VIRT_GIC_CPU].size);
+                                         2, ams->memmap[VIRT_GIC_DIST].base,
+                                         2, ams->memmap[VIRT_GIC_DIST].size,
+                                         2, ams->memmap[VIRT_GIC_CPU].base,
+                                         2, ams->memmap[VIRT_GIC_CPU].size);
         } else {
             qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                         2, vms->memmap[VIRT_GIC_DIST].base,
-                                         2, vms->memmap[VIRT_GIC_DIST].size,
-                                         2, vms->memmap[VIRT_GIC_CPU].base,
-                                         2, vms->memmap[VIRT_GIC_CPU].size,
-                                         2, vms->memmap[VIRT_GIC_HYP].base,
-                                         2, vms->memmap[VIRT_GIC_HYP].size,
-                                         2, vms->memmap[VIRT_GIC_VCPU].base,
-                                         2, vms->memmap[VIRT_GIC_VCPU].size);
+                                         2, ams->memmap[VIRT_GIC_DIST].base,
+                                         2, ams->memmap[VIRT_GIC_DIST].size,
+                                         2, ams->memmap[VIRT_GIC_CPU].base,
+                                         2, ams->memmap[VIRT_GIC_CPU].size,
+                                         2, ams->memmap[VIRT_GIC_HYP].base,
+                                         2, ams->memmap[VIRT_GIC_HYP].size,
+                                         2, ams->memmap[VIRT_GIC_VCPU].base,
+                                         2, ams->memmap[VIRT_GIC_VCPU].size);
             qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
                                    GIC_FDT_IRQ_TYPE_PPI, ARCH_GIC_MAINT_IRQ,
                                    GIC_FDT_IRQ_FLAGS_LEVEL_HI);
@@ -543,6 +543,7 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
 {
     DeviceState *dev;
     MachineState *ms = MACHINE(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
     int irq = vms->irqmap[VIRT_ACPI_GED];
     uint32_t event = ACPI_GED_PWR_DOWN_EVT;
 
@@ -553,8 +554,8 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
     dev = qdev_create(NULL, TYPE_ACPI_GED);
     qdev_prop_set_uint32(dev, "ged-event", event);
 
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_ACPI_GED].base);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, vms->memmap[VIRT_PCDIMM_ACPI].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ams->memmap[VIRT_ACPI_GED].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 1, ams->memmap[VIRT_PCDIMM_ACPI].base);
     sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, qdev_get_gpio_in(vms->gic, irq));
 
     qdev_init_nofail(dev);
@@ -564,6 +565,7 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
 
 static void create_its(VirtMachineState *vms)
 {
+    ArmMachineState *ams = ARM_MACHINE(vms);
     const char *itsclass = its_class_name();
     DeviceState *dev;
 
@@ -577,7 +579,7 @@ static void create_its(VirtMachineState *vms)
     object_property_set_link(OBJECT(dev), OBJECT(vms->gic), "parent-gicv3",
                              &error_abort);
     qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_GIC_ITS].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ams->memmap[VIRT_GIC_ITS].base);
 
     fdt_add_its_gic_node(vms);
 }
@@ -585,11 +587,12 @@ static void create_its(VirtMachineState *vms)
 static void create_v2m(VirtMachineState *vms)
 {
     int i;
+    ArmMachineState *ams = ARM_MACHINE(vms);
     int irq = vms->irqmap[VIRT_GIC_V2M];
     DeviceState *dev;
 
     dev = qdev_create(NULL, "arm-gicv2m");
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, vms->memmap[VIRT_GIC_V2M].base);
+    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, ams->memmap[VIRT_GIC_V2M].base);
     qdev_prop_set_uint32(dev, "base-spi", irq);
     qdev_prop_set_uint32(dev, "num-spi", NUM_GICV2M_SPIS);
     qdev_init_nofail(dev);
@@ -605,6 +608,7 @@ static void create_v2m(VirtMachineState *vms)
 static void create_gic(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
     /* We create a standalone GIC */
     SysBusDevice *gicbusdev;
     const char *gictype;
@@ -627,7 +631,7 @@ static void create_gic(VirtMachineState *vms)
 
     if (type == 3) {
         uint32_t redist0_capacity =
-                    vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
+                    ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
         uint32_t redist0_count = MIN(smp_cpus, redist0_capacity);
 
         nb_redist_regions = virt_gicv3_redist_region_count(vms);
@@ -638,7 +642,7 @@ static void create_gic(VirtMachineState *vms)
 
         if (nb_redist_regions == 2) {
             uint32_t redist1_capacity =
-                    vms->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
+                    ams->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
 
             qdev_prop_set_uint32(vms->gic, "redist-region-count[1]",
                 MIN(smp_cpus - redist0_count, redist1_capacity));
@@ -651,18 +655,18 @@ static void create_gic(VirtMachineState *vms)
     }
     qdev_init_nofail(vms->gic);
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
-    sysbus_mmio_map(gicbusdev, 0, vms->memmap[VIRT_GIC_DIST].base);
+    sysbus_mmio_map(gicbusdev, 0, ams->memmap[VIRT_GIC_DIST].base);
     if (type == 3) {
-        sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_REDIST].base);
+        sysbus_mmio_map(gicbusdev, 1, ams->memmap[VIRT_GIC_REDIST].base);
         if (nb_redist_regions == 2) {
             sysbus_mmio_map(gicbusdev, 2,
-                            vms->memmap[VIRT_HIGH_GIC_REDIST2].base);
+                            ams->memmap[VIRT_HIGH_GIC_REDIST2].base);
         }
     } else {
-        sysbus_mmio_map(gicbusdev, 1, vms->memmap[VIRT_GIC_CPU].base);
+        sysbus_mmio_map(gicbusdev, 1, ams->memmap[VIRT_GIC_CPU].base);
         if (vms->virt) {
-            sysbus_mmio_map(gicbusdev, 2, vms->memmap[VIRT_GIC_HYP].base);
-            sysbus_mmio_map(gicbusdev, 3, vms->memmap[VIRT_GIC_VCPU].base);
+            sysbus_mmio_map(gicbusdev, 2, ams->memmap[VIRT_GIC_HYP].base);
+            sysbus_mmio_map(gicbusdev, 3, ams->memmap[VIRT_GIC_VCPU].base);
         }
     }
 
@@ -728,8 +732,8 @@ static void create_uart(const VirtMachineState *vms, int uart,
 {
     char *nodename;
     const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = vms->memmap[uart].base;
-    hwaddr size = vms->memmap[uart].size;
+    hwaddr base = ams->memmap[uart].base;
+    hwaddr size = ams->memmap[uart].size;
     int irq = vms->irqmap[uart];
     const char compat[] = "arm,pl011\0arm,primecell";
     const char clocknames[] = "uartclk\0apb_pclk";
@@ -776,8 +780,8 @@ static void create_rtc(const VirtMachineState *vms)
 {
     char *nodename;
     const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = vms->memmap[VIRT_RTC].base;
-    hwaddr size = vms->memmap[VIRT_RTC].size;
+    hwaddr base = ams->memmap[VIRT_RTC].base;
+    hwaddr size = ams->memmap[VIRT_RTC].size;
     int irq = vms->irqmap[VIRT_RTC];
     const char compat[] = "arm,pl031\0arm,primecell";
 
@@ -814,8 +818,8 @@ static void create_gpio(const VirtMachineState *vms)
     char *nodename;
     DeviceState *pl061_dev;
     const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = vms->memmap[VIRT_GPIO].base;
-    hwaddr size = vms->memmap[VIRT_GPIO].size;
+    hwaddr base = ams->memmap[VIRT_GPIO].base;
+    hwaddr size = ams->memmap[VIRT_GPIO].size;
     int irq = vms->irqmap[VIRT_GPIO];
     const char compat[] = "arm,pl061\0arm,primecell";
 
@@ -858,7 +862,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
 {
     int i;
     const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr size = vms->memmap[VIRT_MMIO].size;
+    hwaddr size = ams->memmap[VIRT_MMIO].size;
 
     /* We create the transports in forwards order. Since qbus_realize()
      * prepends (not appends) new child buses, the incrementing loop below will
@@ -889,7 +893,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
      */
     for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
         int irq = vms->irqmap[VIRT_MMIO] + i;
-        hwaddr base = vms->memmap[VIRT_MMIO].base + i * size;
+        hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
 
         sysbus_create_simple("virtio-mmio", base,
                              qdev_get_gpio_in(vms->gic, irq));
@@ -905,7 +909,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
     for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
         char *nodename;
         int irq = vms->irqmap[VIRT_MMIO] + i;
-        hwaddr base = vms->memmap[VIRT_MMIO].base + i * size;
+        hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
 
         nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
         qemu_fdt_add_subnode(ams->fdt, nodename);
@@ -975,6 +979,7 @@ static void virt_flash_map(VirtMachineState *vms,
                            MemoryRegion *sysmem,
                            MemoryRegion *secure_sysmem)
 {
+    ArmMachineState *ams = ARM_MACHINE(vms);
     /*
      * Map two flash devices to fill the VIRT_FLASH space in the memmap.
      * sysmem is the system memory space. secure_sysmem is the secure view
@@ -983,8 +988,8 @@ static void virt_flash_map(VirtMachineState *vms,
      * If sysmem == secure_sysmem this means there is no separate Secure
      * address space and both flash devices are generally visible.
      */
-    hwaddr flashsize = vms->memmap[VIRT_FLASH].size / 2;
-    hwaddr flashbase = vms->memmap[VIRT_FLASH].base;
+    hwaddr flashsize = ams->memmap[VIRT_FLASH].size / 2;
+    hwaddr flashbase = ams->memmap[VIRT_FLASH].base;
 
     virt_flash_map1(vms->flash[0], flashbase, flashsize,
                     secure_sysmem);
@@ -997,8 +1002,8 @@ static void virt_flash_fdt(VirtMachineState *vms,
                            MemoryRegion *secure_sysmem)
 {
     ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr flashsize = vms->memmap[VIRT_FLASH].size / 2;
-    hwaddr flashbase = vms->memmap[VIRT_FLASH].base;
+    hwaddr flashsize = ams->memmap[VIRT_FLASH].size / 2;
+    hwaddr flashbase = ams->memmap[VIRT_FLASH].base;
     char *nodename;
 
     if (sysmem == secure_sysmem) {
@@ -1088,8 +1093,8 @@ static FWCfgState *create_fw_cfg(const VirtMachineState *vms, AddressSpace *as)
 {
     MachineState *ms = MACHINE(vms);
     const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = vms->memmap[VIRT_FW_CFG].base;
-    hwaddr size = vms->memmap[VIRT_FW_CFG].size;
+    hwaddr base = ams->memmap[VIRT_FW_CFG].base;
+    hwaddr size = ams->memmap[VIRT_FW_CFG].size;
     FWCfgState *fw_cfg;
     char *nodename;
 
@@ -1152,8 +1157,8 @@ static void create_smmu(const VirtMachineState *vms,
     const char compat[] = "arm,smmu-v3";
     int irq =  vms->irqmap[VIRT_SMMU];
     int i;
-    hwaddr base = vms->memmap[VIRT_SMMU].base;
-    hwaddr size = vms->memmap[VIRT_SMMU].size;
+    hwaddr base = ams->memmap[VIRT_SMMU].base;
+    hwaddr size = ams->memmap[VIRT_SMMU].size;
     const char irq_names[] = "eventq\0priq\0cmdq-sync\0gerror";
     DeviceState *dev;
 
@@ -1199,12 +1204,12 @@ static void create_smmu(const VirtMachineState *vms,
 static void create_pcie(VirtMachineState *vms)
 {
     ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base_mmio = vms->memmap[VIRT_PCIE_MMIO].base;
-    hwaddr size_mmio = vms->memmap[VIRT_PCIE_MMIO].size;
-    hwaddr base_mmio_high = vms->memmap[VIRT_HIGH_PCIE_MMIO].base;
-    hwaddr size_mmio_high = vms->memmap[VIRT_HIGH_PCIE_MMIO].size;
-    hwaddr base_pio = vms->memmap[VIRT_PCIE_PIO].base;
-    hwaddr size_pio = vms->memmap[VIRT_PCIE_PIO].size;
+    hwaddr base_mmio = ams->memmap[VIRT_PCIE_MMIO].base;
+    hwaddr size_mmio = ams->memmap[VIRT_PCIE_MMIO].size;
+    hwaddr base_mmio_high = ams->memmap[VIRT_HIGH_PCIE_MMIO].base;
+    hwaddr size_mmio_high = ams->memmap[VIRT_HIGH_PCIE_MMIO].size;
+    hwaddr base_pio = ams->memmap[VIRT_PCIE_PIO].base;
+    hwaddr size_pio = ams->memmap[VIRT_PCIE_PIO].size;
     hwaddr base_ecam, size_ecam;
     hwaddr base = base_mmio;
     int nr_pcie_buses;
@@ -1222,8 +1227,8 @@ static void create_pcie(VirtMachineState *vms)
     qdev_init_nofail(dev);
 
     ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
-    base_ecam = vms->memmap[ecam_id].base;
-    size_ecam = vms->memmap[ecam_id].size;
+    base_ecam = ams->memmap[ecam_id].base;
+    size_ecam = ams->memmap[ecam_id].size;
     nr_pcie_buses = size_ecam / PCIE_MMCFG_SIZE_MIN;
     /* Map only the first size_ecam bytes of ECAM space */
     ecam_alias = g_new0(MemoryRegion, 1);
@@ -1333,11 +1338,12 @@ static void create_platform_bus(VirtMachineState *vms)
     SysBusDevice *s;
     int i;
     MemoryRegion *sysmem = get_system_memory();
+    ArmMachineState *ams = ARM_MACHINE(vms);
 
     dev = qdev_create(NULL, TYPE_PLATFORM_BUS_DEVICE);
     dev->id = TYPE_PLATFORM_BUS_DEVICE;
     qdev_prop_set_uint32(dev, "num_irqs", PLATFORM_BUS_NUM_IRQS);
-    qdev_prop_set_uint32(dev, "mmio_size", vms->memmap[VIRT_PLATFORM_BUS].size);
+    qdev_prop_set_uint32(dev, "mmio_size", ams->memmap[VIRT_PLATFORM_BUS].size);
     qdev_init_nofail(dev);
     vms->platform_bus_dev = dev;
 
@@ -1348,7 +1354,7 @@ static void create_platform_bus(VirtMachineState *vms)
     }
 
     memory_region_add_subregion(sysmem,
-                                vms->memmap[VIRT_PLATFORM_BUS].base,
+                                ams->memmap[VIRT_PLATFORM_BUS].base,
                                 sysbus_mmio_get_region(s, 0));
 }
 
@@ -1358,8 +1364,8 @@ static void create_secure_ram(VirtMachineState *vms,
     MemoryRegion *secram = g_new(MemoryRegion, 1);
     char *nodename;
     ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = vms->memmap[VIRT_SECURE_MEM].base;
-    hwaddr size = vms->memmap[VIRT_SECURE_MEM].size;
+    hwaddr base = ams->memmap[VIRT_SECURE_MEM].base;
+    hwaddr size = ams->memmap[VIRT_SECURE_MEM].size;
 
     memory_region_init_ram(secram, NULL, "virt.secure-ram", size,
                            &error_fatal);
@@ -1432,8 +1438,8 @@ void virt_machine_done(Notifier *notifier, void *data)
      */
     if (info->dtb_filename == NULL) {
         platform_bus_add_all_fdt_nodes(ams->fdt, "/intc",
-                                       vms->memmap[VIRT_PLATFORM_BUS].base,
-                                       vms->memmap[VIRT_PLATFORM_BUS].size,
+                                       ams->memmap[VIRT_PLATFORM_BUS].base,
+                                       ams->memmap[VIRT_PLATFORM_BUS].size,
                                        vms->irqmap[VIRT_PLATFORM_BUS]);
     }
     if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
@@ -1470,13 +1476,14 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
 static void virt_set_memmap(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
     hwaddr base, device_memory_base, device_memory_size;
     int i;
 
-    vms->memmap = extended_memmap;
+    ams->memmap = extended_memmap;
 
     for (i = 0; i < ARRAY_SIZE(base_memmap); i++) {
-        vms->memmap[i] = base_memmap[i];
+        ams->memmap[i] = base_memmap[i];
     }
 
     if (ms->ram_slots > ACPI_MAX_RAM_SLOTS) {
@@ -1493,7 +1500,7 @@ static void virt_set_memmap(VirtMachineState *vms)
      * The device region size assumes 1GiB page max alignment per slot.
      */
     device_memory_base =
-        ROUND_UP(vms->memmap[VIRT_MEM].base + ms->ram_size, GiB);
+        ROUND_UP(ams->memmap[VIRT_MEM].base + ms->ram_size, GiB);
     device_memory_size = ms->maxram_size - ms->ram_size + ms->ram_slots * GiB;
 
     /* Base address of the high IO region */
@@ -1502,16 +1509,16 @@ static void virt_set_memmap(VirtMachineState *vms)
         error_report("maxmem/slots too huge");
         exit(EXIT_FAILURE);
     }
-    if (base < vms->memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES) {
-        base = vms->memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES;
+    if (base < ams->memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES) {
+        base = ams->memmap[VIRT_MEM].base + LEGACY_RAMLIMIT_BYTES;
     }
 
     for (i = VIRT_LOWMEMMAP_LAST; i < ARRAY_SIZE(extended_memmap); i++) {
         hwaddr size = extended_memmap[i].size;
 
         base = ROUND_UP(base, size);
-        vms->memmap[i].base = base;
-        vms->memmap[i].size = size;
+        ams->memmap[i].base = base;
+        ams->memmap[i].size = size;
         base += size;
     }
     vms->highest_gpa = base - 1;
@@ -1526,6 +1533,7 @@ static void virt_set_memmap(VirtMachineState *vms)
 static void machvirt_init(MachineState *machine)
 {
     VirtMachineState *vms = VIRT_MACHINE(machine);
+    ArmMachineState *ams = ARM_MACHINE(vms);
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(machine);
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     const CPUArchIdList *possible_cpus;
@@ -1543,7 +1551,7 @@ static void machvirt_init(MachineState *machine)
      * In accelerated mode, the memory map is computed earlier in kvm_type()
      * to create a VM with the right number of IPA bits.
      */
-    if (!vms->memmap) {
+    if (!ams->memmap) {
         virt_set_memmap(vms);
     }
 
@@ -1619,9 +1627,9 @@ static void machvirt_init(MachineState *machine)
      */
     if (vms->gic_version == 3) {
         virt_max_cpus =
-            vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
+            ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
         virt_max_cpus +=
-            vms->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
+            ams->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
     } else {
         virt_max_cpus = GIC_NCPU;
     }
@@ -1693,7 +1701,7 @@ static void machvirt_init(MachineState *machine)
         }
 
         if (object_property_find(cpuobj, "reset-cbar", NULL)) {
-            object_property_set_int(cpuobj, vms->memmap[VIRT_CPUPERIPHS].base,
+            object_property_set_int(cpuobj, ams->memmap[VIRT_CPUPERIPHS].base,
                                     "reset-cbar", &error_abort);
         }
 
@@ -1728,7 +1736,7 @@ static void machvirt_init(MachineState *machine)
 
     memory_region_allocate_system_memory(ram, NULL, "mach-virt.ram",
                                          machine->ram_size);
-    memory_region_add_subregion(sysmem, vms->memmap[VIRT_MEM].base, ram);
+    memory_region_add_subregion(sysmem, ams->memmap[VIRT_MEM].base, ram);
     if (machine->device_memory) {
         memory_region_add_subregion(sysmem, machine->device_memory->base,
                                     &machine->device_memory->mr);
@@ -1777,7 +1785,7 @@ static void machvirt_init(MachineState *machine)
     vms->bootinfo.ram_size = machine->ram_size;
     vms->bootinfo.nb_cpus = smp_cpus;
     vms->bootinfo.board_id = -1;
-    vms->bootinfo.loader_start = vms->memmap[VIRT_MEM].base;
+    vms->bootinfo.loader_start = ams->memmap[VIRT_MEM].base;
     vms->bootinfo.get_dtb = machvirt_dtb;
     vms->bootinfo.skip_dtb_autoload = true;
     vms->bootinfo.firmware_loaded = firmware_loaded;

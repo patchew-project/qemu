@@ -43,6 +43,7 @@
 #include "hw/acpi/generic_event_device.h"
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pci.h"
+#include "hw/arm/arm.h"
 #include "hw/arm/virt.h"
 #include "sysemu/numa.h"
 #include "sysemu/reset.h"
@@ -370,6 +371,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiIortSmmu3 *smmu;
     size_t node_size, iort_node_offset, iort_length, smmu_offset = 0;
     AcpiIortRC *rc;
+    ArmMachineState *ams = ARM_MACHINE(vms);
 
     iort = acpi_data_push(table_data, sizeof(*iort));
 
@@ -411,7 +413,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         smmu->length = cpu_to_le16(node_size);
         smmu->mapping_count = cpu_to_le32(1);
         smmu->mapping_offset = cpu_to_le32(sizeof(*smmu));
-        smmu->base_address = cpu_to_le64(vms->memmap[VIRT_SMMU].base);
+        smmu->base_address = cpu_to_le64(ams->memmap[VIRT_SMMU].base);
         smmu->flags = cpu_to_le32(ACPI_IORT_SMMU_V3_COHACC_OVERRIDE);
         smmu->event_gsiv = cpu_to_le32(irq);
         smmu->pri_gsiv = cpu_to_le32(irq + 1);
@@ -471,7 +473,8 @@ static void
 build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
     AcpiSerialPortConsoleRedirection *spcr;
-    const MemMapEntry *uart_memmap = &vms->memmap[VIRT_UART];
+    ArmMachineState *ams = ARM_MACHINE(vms);
+    const MemMapEntry *uart_memmap = &ams->memmap[VIRT_UART];
     int irq = vms->irqmap[VIRT_UART] + ARM_SPI_BASE;
     int spcr_start = table_data->len;
 
@@ -511,6 +514,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     uint64_t mem_base;
     MachineClass *mc = MACHINE_GET_CLASS(vms);
     MachineState *ms = MACHINE(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
     const CPUArchIdList *cpu_list = mc->possible_cpu_arch_ids(ms);
 
     srat_start = table_data->len;
@@ -526,7 +530,7 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
         core->flags = cpu_to_le32(1);
     }
 
-    mem_base = vms->memmap[VIRT_MEM].base;
+    mem_base = ams->memmap[VIRT_MEM].base;
     for (i = 0; i < ms->numa_state->num_nodes; ++i) {
         if (ms->numa_state->nodes[i].node_mem > 0) {
             numamem = acpi_data_push(table_data, sizeof(*numamem));
@@ -589,8 +593,9 @@ static void
 build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
     int madt_start = table_data->len;
-    const MemMapEntry *memmap = vms->memmap;
+    const MemMapEntry *memmap = ams->memmap;
     const int *irqmap = vms->irqmap;
     AcpiMultipleApicTable *madt;
     AcpiMadtGenericDistributor *gicd;
@@ -710,7 +715,8 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
     Aml *scope, *dsdt;
     MachineState *ms = MACHINE(vms);
-    const MemMapEntry *memmap = vms->memmap;
+    ArmMachineState *ams = ARM_MACHINE(vms);
+    const MemMapEntry *memmap = ams->memmap;
     const int *irqmap = vms->irqmap;
 
     dsdt = init_aml_allocator();
@@ -783,6 +789,7 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     unsigned dsdt, xsdt;
     GArray *tables_blob = tables->table_data;
     MachineState *ms = MACHINE(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
 
     table_offsets = g_array_new(false, true /* clear */,
                                         sizeof(uint32_t));
@@ -808,8 +815,8 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
     acpi_add_table(table_offsets, tables_blob);
     {
         AcpiMcfgInfo mcfg = {
-           .base = vms->memmap[VIRT_ECAM_ID(vms->highmem_ecam)].base,
-           .size = vms->memmap[VIRT_ECAM_ID(vms->highmem_ecam)].size,
+           .base = ams->memmap[VIRT_ECAM_ID(vms->highmem_ecam)].base,
+           .size = ams->memmap[VIRT_ECAM_ID(vms->highmem_ecam)].size,
         };
         build_mcfg(tables_blob, tables->linker, &mcfg);
     }
