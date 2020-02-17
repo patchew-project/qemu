@@ -215,7 +215,7 @@ matrix:
       compiler: clang
       before_script:
         - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
-        - ${SRC_DIR}/configure ${CONFIG} --extra-cflags="-fsanitize=undefined -Werror" || { cat config.log && exit 1; }
+        - ${SRC_DIR}/configure ${CONFIG} --cc=clang --cxx=clang++ --extra-cflags="-fsanitize=undefined -Werror" || { cat config.log && exit 1; }
 
 
     - name: "Clang (other-softmmu)"
