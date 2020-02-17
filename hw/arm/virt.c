@@ -605,6 +605,15 @@ static void create_v2m(VirtMachineState *vms)
     fdt_add_v2m_gic_node(vms);
 }
 
+static void gic_set_msi_interrupt(VirtMachineState *vms)
+{
+    if (vms->gic_version == 3 && vms->its) {
+        create_its(vms);
+    } else if (vms->gic_version == 2) {
+        create_v2m(vms);
+    }
+}
+
 static void create_gic(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
@@ -719,12 +728,7 @@ static void create_gic(VirtMachineState *vms)
     }
 
     fdt_add_gic_node(vms);
-
-    if (type == 3 && vms->its) {
-        create_its(vms);
-    } else if (type == 2) {
-        create_v2m(vms);
-    }
+    gic_set_msi_interrupt(vms);
 }
 
 static void create_uart(const VirtMachineState *vms, int uart,
