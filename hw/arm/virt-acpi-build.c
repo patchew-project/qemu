@@ -557,12 +557,12 @@ build_srat(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 static void
 build_gtdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 {
-    VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    ArmMachineClass *amc = ARM_MACHINE_GET_CLASS(ARM_MACHINE(vms));
     int gtdt_start = table_data->len;
     AcpiGenericTimerTable *gtdt;
     uint32_t irqflags;
 
-    if (vmc->claim_edge_triggered_timers) {
+    if (amc->claim_edge_triggered_timers) {
         irqflags = ACPI_GTDT_INTERRUPT_MODE_EDGE;
     } else {
         irqflags = ACPI_GTDT_INTERRUPT_MODE_LEVEL;
@@ -683,6 +683,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
 static void build_fadt_rev5(GArray *table_data, BIOSLinker *linker,
                             VirtMachineState *vms, unsigned dsdt_tbl_offset)
 {
+    ArmMachineState *ams = ARM_MACHINE(vms);
     /* ACPI v5.1 */
     AcpiFadtData fadt = {
         .rev = 5,
@@ -691,7 +692,7 @@ static void build_fadt_rev5(GArray *table_data, BIOSLinker *linker,
         .xdsdt_tbl_offset = &dsdt_tbl_offset,
     };
 
-    switch (vms->psci_conduit) {
+    switch (ams->psci_conduit) {
     case QEMU_PSCI_CONDUIT_DISABLED:
         fadt.arm_boot_arch = 0;
         break;

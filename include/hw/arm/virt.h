@@ -50,7 +50,6 @@ typedef struct {
     bool disallow_affinity_adjustment;
     bool no_its;
     bool no_pmu;
-    bool claim_edge_triggered_timers;
     bool smbios_old_sys_ver;
     bool no_highmem_ecam;
     bool no_ged;   /* Machines < 4.2 has no support for ACPI GED device */
@@ -73,7 +72,6 @@ typedef struct {
     uint32_t clock_phandle;
     uint32_t msi_phandle;
     uint32_t iommu_phandle;
-    int psci_conduit;
     hwaddr highest_gpa;
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;

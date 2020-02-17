@@ -1576,11 +1576,11 @@ static void machvirt_init(MachineState *machine)
      * because if we're using KVM then we must use HVC).
      */
     if (vms->secure && firmware_loaded) {
-        vms->psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
+        ams->psci_conduit = QEMU_PSCI_CONDUIT_DISABLED;
     } else if (vms->virt) {
-        vms->psci_conduit = QEMU_PSCI_CONDUIT_SMC;
+        ams->psci_conduit = QEMU_PSCI_CONDUIT_SMC;
     } else {
-        vms->psci_conduit = QEMU_PSCI_CONDUIT_HVC;
+        ams->psci_conduit = QEMU_PSCI_CONDUIT_HVC;
     }
 
     /* The maximum number of CPUs depends on the GIC version, or on how
@@ -1641,8 +1641,8 @@ static void machvirt_init(MachineState *machine)
             object_property_set_bool(cpuobj, false, "has_el2", NULL);
         }
 
-        if (vms->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED) {
-            object_property_set_int(cpuobj, vms->psci_conduit,
+        if (ams->psci_conduit != QEMU_PSCI_CONDUIT_DISABLED) {
+            object_property_set_int(cpuobj, ams->psci_conduit,
                                     "psci-conduit", NULL);
 
             /* Secondary CPUs start in PSCI powered-down state */
@@ -2186,14 +2186,14 @@ DEFINE_VIRT_MACHINE(2, 9)
 
 static void virt_machine_2_8_options(MachineClass *mc)
 {
-    VirtMachineClass *vmc = VIRT_MACHINE_CLASS(OBJECT_CLASS(mc));
+    ArmMachineClass *amc = ARM_MACHINE_CLASS(OBJECT_CLASS(mc));
 
     virt_machine_2_9_options(mc);
     compat_props_add(mc->compat_props, hw_compat_2_8, hw_compat_2_8_len);
     /* For 2.8 and earlier we falsely claimed in the DT that
      * our timers were edge-triggered, not level-triggered.
      */
-    vmc->claim_edge_triggered_timers = true;
+    amc->claim_edge_triggered_timers = true;
 }
 DEFINE_VIRT_MACHINE(2, 8)
 

@@ -86,6 +86,7 @@ typedef struct MemMapEntry {
 
 typedef struct {
     MachineClass parent;
+    bool claim_edge_triggered_timers;
 } ArmMachineClass;
 
 typedef struct {
@@ -97,6 +98,7 @@ typedef struct {
     void *fdt;
     int fdt_size;
     uint32_t gic_phandle;
+    int psci_conduit;
     DeviceState *gic;
 } ArmMachineState;
 
