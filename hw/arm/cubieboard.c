@@ -21,6 +21,7 @@
 #include "cpu.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h"
+#include "hw/qdev-properties.h"
 #include "hw/arm/allwinner-a10.h"
 
 static struct arm_boot_info cubieboard_binfo = {
@@ -37,6 +38,10 @@ static void cubieboard_init(MachineState *machine)
 {
     CubieBoardState *s = g_new(CubieBoardState, 1);
     Error *err = NULL;
+    DriveInfo *di;
+    BlockBackend *blk;
+    BusState *bus;
+    DeviceState *carddev;
 
     s->a10 = AW_A10(object_new(TYPE_AW_A10));
 
@@ -64,6 +69,16 @@ static void cubieboard_init(MachineState *machine)
         error_reportf_err(err, "Couldn't realize Allwinner A10: ");
         exit(1);
     }
+
+    /* Retrieve SD bus */
+    di = drive_get_next(IF_SD);
+    blk = di ? blk_by_legacy_dinfo(di) : NULL;
+    bus = qdev_get_child_bus(DEVICE(s->a10), "sd-bus");
+
+    /* Plug in SD card */
+    carddev = qdev_create(bus, TYPE_SD_CARD);
+    qdev_prop_set_drive(carddev, "drive", blk, &error_fatal);
+    object_property_set_bool(OBJECT(carddev), true, "realized", &error_fatal);
 
     memory_region_allocate_system_memory(&s->sdram, NULL, "cubieboard.ram",
                                          machine->ram_size);
