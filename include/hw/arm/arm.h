@@ -97,6 +97,7 @@ typedef struct {
     int smp_cpus;
     void *fdt;
     int fdt_size;
+    uint32_t clock_phandle;
     uint32_t gic_phandle;
     int psci_conduit;
     DeviceState *gic;
@@ -113,6 +114,13 @@ typedef struct {
 void qdev_create_gic(ArmMachineState *ams);
 
 void init_gic_sysbus(ArmMachineState *ams);
+
+void create_uart(const ArmMachineState *ams, int uart,
+                 MemoryRegion *mem, Chardev *chr);
+
+void create_rtc(const ArmMachineState *ams);
+
+void create_virtio_devices(const ArmMachineState *ams);
 
 /* Return the number of used redistributor regions  */
 static inline int virt_gicv3_redist_region_count(ArmMachineState *ams)

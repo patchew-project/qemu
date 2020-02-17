@@ -69,7 +69,6 @@ typedef struct {
     bool virt;
     VirtIOMMUType iommu;
     struct arm_boot_info bootinfo;
-    uint32_t clock_phandle;
     uint32_t msi_phandle;
     uint32_t iommu_phandle;
     hwaddr highest_gpa;

@@ -145,6 +145,143 @@ void init_gic_sysbus(ArmMachineState *ams)
     }
 }
 
+void create_uart(const ArmMachineState *ams, int uart,
+                        MemoryRegion *mem, Chardev *chr)
+{
+    char *nodename;
+    hwaddr base = ams->memmap[uart].base;
+    hwaddr size = ams->memmap[uart].size;
+    int irq = ams->irqmap[uart];
+    const char compat[] = "arm,pl011\0arm,primecell";
+    const char clocknames[] = "uartclk\0apb_pclk";
+    DeviceState *dev = qdev_create(NULL, "pl011");
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+    qdev_prop_set_chr(dev, "chardev", chr);
+    qdev_init_nofail(dev);
+    memory_region_add_subregion(mem, base,
+                                sysbus_mmio_get_region(s, 0));
+    sysbus_connect_irq(s, 0, qdev_get_gpio_in(ams->gic, irq));
+
+    nodename = g_strdup_printf("/pl011@%" PRIx64, base);
+    qemu_fdt_add_subnode(ams->fdt, nodename);
+    /* Note that we can't use setprop_string because of the embedded NUL */
+    qemu_fdt_setprop(ams->fdt, nodename, "compatible",
+                         compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
+                                     2, base, 2, size);
+    qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
+                               GIC_FDT_IRQ_TYPE_SPI, irq,
+                               GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cells(ams->fdt, nodename, "clocks",
+                               ams->clock_phandle, ams->clock_phandle);
+    qemu_fdt_setprop(ams->fdt, nodename, "clock-names",
+                         clocknames, sizeof(clocknames));
+
+    if (uart == VIRT_UART) {
+        qemu_fdt_setprop_string(ams->fdt, "/chosen", "stdout-path", nodename);
+    } else {
+        /* Mark as not usable by the normal world */
+        qemu_fdt_setprop_string(ams->fdt, nodename, "status", "disabled");
+        qemu_fdt_setprop_string(ams->fdt, nodename, "secure-status", "okay");
+
+        qemu_fdt_add_subnode(ams->fdt, "/secure-chosen");
+        qemu_fdt_setprop_string(ams->fdt, "/secure-chosen", "stdout-path",
+                                nodename);
+    }
+
+    g_free(nodename);
+}
+
+void create_rtc(const ArmMachineState *ams)
+{
+    char *nodename;
+    hwaddr base = ams->memmap[VIRT_RTC].base;
+    hwaddr size = ams->memmap[VIRT_RTC].size;
+    int irq = ams->irqmap[VIRT_RTC];
+    const char compat[] = "arm,pl031\0arm,primecell";
+
+    sysbus_create_simple("pl031", base, qdev_get_gpio_in(ams->gic, irq));
+
+    nodename = g_strdup_printf("/pl031@%" PRIx64, base);
+    qemu_fdt_add_subnode(ams->fdt, nodename);
+    qemu_fdt_setprop(ams->fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
+                                 2, base, 2, size);
+    qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
+                           GIC_FDT_IRQ_TYPE_SPI, irq,
+                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cell(ams->fdt, nodename, "clocks", ams->clock_phandle);
+    qemu_fdt_setprop_string(ams->fdt, nodename, "clock-names", "apb_pclk");
+    g_free(nodename);
+}
+
+void create_virtio_devices(const ArmMachineState *ams)
+{
+    int i;
+    hwaddr size = ams->memmap[VIRT_MMIO].size;
+
+    /* We create the transports in forwards order. Since qbus_realize()
+     * prepends (not appends) new child buses, the incrementing loop below will
+     * create a list of virtio-mmio buses with decreasing base addresses.
+     *
+     * When a -device option is processed from the command line,
+     * qbus_find_recursive() picks the next free virtio-mmio bus in forwards
+     * order. The upshot is that -device options in increasing command line
+     * order are mapped to virtio-mmio buses with decreasing base addresses.
+     *
+     * When this code was originally written, that arrangement ensured that the
+     * guest Linux kernel would give the lowest "name" (/dev/vda, eth0, etc) to
+     * the first -device on the command line. (The end-to-end order is a
+     * function of this loop, qbus_realize(), qbus_find_recursive(), and the
+     * guest kernel's name-to-address assignment strategy.)
+     *
+     * Meanwhile, the kernel's traversal seems to have been reversed; see eg.
+     * the message, if not necessarily the code, of commit 70161ff336.
+     * Therefore the loop now establishes the inverse of the original intent.
+     *
+     * Unfortunately, we can't counteract the kernel change by reversing the
+     * loop; it would break existing command lines.
+     *
+     * In any case, the kernel makes no guarantee about the stability of
+     * enumeration order of virtio devices (as demonstrated by it changing
+     * between kernel versions). For reliable and stable identification
+     * of disks users must use UUIDs or similar mechanisms.
+     */
+    for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
+        int irq = ams->irqmap[VIRT_MMIO] + i;
+        hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
+
+        sysbus_create_simple("virtio-mmio", base,
+                             qdev_get_gpio_in(ams->gic, irq));
+    }
+
+    /* We add dtb nodes in reverse order so that they appear in the finished
+     * device tree lowest address first.
+     *
+     * Note that this mapping is independent of the loop above. The previous
+     * loop influences virtio device to virtio transport assignment, whereas
+     * this loop controls how virtio transports are laid out in the dtb.
+     */
+    for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
+        char *nodename;
+        int irq = ams->irqmap[VIRT_MMIO] + i;
+        hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
+
+        nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
+        qemu_fdt_add_subnode(ams->fdt, nodename);
+        qemu_fdt_setprop_string(ams->fdt, nodename,
+                                "compatible", "virtio,mmio");
+        qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
+                                     2, base, 2, size);
+        qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
+                               GIC_FDT_IRQ_TYPE_SPI, irq,
+                               GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
+        qemu_fdt_setprop(ams->fdt, nodename, "dma-coherent", NULL, 0);
+        g_free(nodename);
+    }
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     ArmMachineState *ams = ARM_MACHINE(obj);

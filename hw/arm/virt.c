@@ -231,14 +231,14 @@ static void create_fdt(VirtMachineState *vms)
      * optional but in practice if you omit them the kernel refuses to
      * probe for the device.
      */
-    vms->clock_phandle = qemu_fdt_alloc_phandle(fdt);
+    ams->clock_phandle = qemu_fdt_alloc_phandle(fdt);
     qemu_fdt_add_subnode(fdt, "/apb-pclk");
     qemu_fdt_setprop_string(fdt, "/apb-pclk", "compatible", "fixed-clock");
     qemu_fdt_setprop_cell(fdt, "/apb-pclk", "#clock-cells", 0x0);
     qemu_fdt_setprop_cell(fdt, "/apb-pclk", "clock-frequency", 24000000);
     qemu_fdt_setprop_string(fdt, "/apb-pclk", "clock-output-names",
                                 "clk24mhz");
-    qemu_fdt_setprop_cell(fdt, "/apb-pclk", "phandle", vms->clock_phandle);
+    qemu_fdt_setprop_cell(fdt, "/apb-pclk", "phandle", ams->clock_phandle);
 
     if (nb_numa_nodes > 0 && ms->numa_state->have_numa_distance) {
         int size = nb_numa_nodes * nb_numa_nodes * 3 * sizeof(uint32_t);
@@ -687,79 +687,6 @@ static void create_gic(VirtMachineState *vms)
     gic_set_msi_interrupt(vms);
 }
 
-static void create_uart(const VirtMachineState *vms, int uart,
-                        MemoryRegion *mem, Chardev *chr)
-{
-    char *nodename;
-    const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = ams->memmap[uart].base;
-    hwaddr size = ams->memmap[uart].size;
-    int irq = ams->irqmap[uart];
-    const char compat[] = "arm,pl011\0arm,primecell";
-    const char clocknames[] = "uartclk\0apb_pclk";
-    DeviceState *dev = qdev_create(NULL, "pl011");
-    SysBusDevice *s = SYS_BUS_DEVICE(dev);
-
-    qdev_prop_set_chr(dev, "chardev", chr);
-    qdev_init_nofail(dev);
-    memory_region_add_subregion(mem, base,
-                                sysbus_mmio_get_region(s, 0));
-    sysbus_connect_irq(s, 0, qdev_get_gpio_in(ams->gic, irq));
-
-    nodename = g_strdup_printf("/pl011@%" PRIx64, base);
-    qemu_fdt_add_subnode(ams->fdt, nodename);
-    /* Note that we can't use setprop_string because of the embedded NUL */
-    qemu_fdt_setprop(ams->fdt, nodename, "compatible",
-                         compat, sizeof(compat));
-    qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                     2, base, 2, size);
-    qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
-                               GIC_FDT_IRQ_TYPE_SPI, irq,
-                               GIC_FDT_IRQ_FLAGS_LEVEL_HI);
-    qemu_fdt_setprop_cells(ams->fdt, nodename, "clocks",
-                               vms->clock_phandle, vms->clock_phandle);
-    qemu_fdt_setprop(ams->fdt, nodename, "clock-names",
-                         clocknames, sizeof(clocknames));
-
-    if (uart == VIRT_UART) {
-        qemu_fdt_setprop_string(ams->fdt, "/chosen", "stdout-path", nodename);
-    } else {
-        /* Mark as not usable by the normal world */
-        qemu_fdt_setprop_string(ams->fdt, nodename, "status", "disabled");
-        qemu_fdt_setprop_string(ams->fdt, nodename, "secure-status", "okay");
-
-        qemu_fdt_add_subnode(ams->fdt, "/secure-chosen");
-        qemu_fdt_setprop_string(ams->fdt, "/secure-chosen", "stdout-path",
-                                nodename);
-    }
-
-    g_free(nodename);
-}
-
-static void create_rtc(const VirtMachineState *vms)
-{
-    char *nodename;
-    const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr base = ams->memmap[VIRT_RTC].base;
-    hwaddr size = ams->memmap[VIRT_RTC].size;
-    int irq = ams->irqmap[VIRT_RTC];
-    const char compat[] = "arm,pl031\0arm,primecell";
-
-    sysbus_create_simple("pl031", base, qdev_get_gpio_in(ams->gic, irq));
-
-    nodename = g_strdup_printf("/pl031@%" PRIx64, base);
-    qemu_fdt_add_subnode(ams->fdt, nodename);
-    qemu_fdt_setprop(ams->fdt, nodename, "compatible", compat, sizeof(compat));
-    qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                 2, base, 2, size);
-    qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
-                           GIC_FDT_IRQ_TYPE_SPI, irq,
-                           GIC_FDT_IRQ_FLAGS_LEVEL_HI);
-    qemu_fdt_setprop_cell(ams->fdt, nodename, "clocks", vms->clock_phandle);
-    qemu_fdt_setprop_string(ams->fdt, nodename, "clock-names", "apb_pclk");
-    g_free(nodename);
-}
-
 static DeviceState *gpio_key_dev;
 static void virt_powerdown_req(Notifier *n, void *opaque)
 {
@@ -797,7 +724,7 @@ static void create_gpio(const VirtMachineState *vms)
     qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
                            GIC_FDT_IRQ_TYPE_SPI, irq,
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
-    qemu_fdt_setprop_cell(ams->fdt, nodename, "clocks", vms->clock_phandle);
+    qemu_fdt_setprop_cell(ams->fdt, nodename, "clocks", ams->clock_phandle);
     qemu_fdt_setprop_string(ams->fdt, nodename, "clock-names", "apb_pclk");
     qemu_fdt_setprop_cell(ams->fdt, nodename, "phandle", phandle);
 
@@ -816,73 +743,6 @@ static void create_gpio(const VirtMachineState *vms)
     qemu_fdt_setprop_cells(ams->fdt, "/gpio-keys/poweroff",
                            "gpios", phandle, 3, 0);
     g_free(nodename);
-}
-
-static void create_virtio_devices(const VirtMachineState *vms)
-{
-    int i;
-    const ArmMachineState *ams = ARM_MACHINE(vms);
-    hwaddr size = ams->memmap[VIRT_MMIO].size;
-
-    /* We create the transports in forwards order. Since qbus_realize()
-     * prepends (not appends) new child buses, the incrementing loop below will
-     * create a list of virtio-mmio buses with decreasing base addresses.
-     *
-     * When a -device option is processed from the command line,
-     * qbus_find_recursive() picks the next free virtio-mmio bus in forwards
-     * order. The upshot is that -device options in increasing command line
-     * order are mapped to virtio-mmio buses with decreasing base addresses.
-     *
-     * When this code was originally written, that arrangement ensured that the
-     * guest Linux kernel would give the lowest "name" (/dev/vda, eth0, etc) to
-     * the first -device on the command line. (The end-to-end order is a
-     * function of this loop, qbus_realize(), qbus_find_recursive(), and the
-     * guest kernel's name-to-address assignment strategy.)
-     *
-     * Meanwhile, the kernel's traversal seems to have been reversed; see eg.
-     * the message, if not necessarily the code, of commit 70161ff336.
-     * Therefore the loop now establishes the inverse of the original intent.
-     *
-     * Unfortunately, we can't counteract the kernel change by reversing the
-     * loop; it would break existing command lines.
-     *
-     * In any case, the kernel makes no guarantee about the stability of
-     * enumeration order of virtio devices (as demonstrated by it changing
-     * between kernel versions). For reliable and stable identification
-     * of disks users must use UUIDs or similar mechanisms.
-     */
-    for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
-        int irq = ams->irqmap[VIRT_MMIO] + i;
-        hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
-
-        sysbus_create_simple("virtio-mmio", base,
-                             qdev_get_gpio_in(ams->gic, irq));
-    }
-
-    /* We add dtb nodes in reverse order so that they appear in the finished
-     * device tree lowest address first.
-     *
-     * Note that this mapping is independent of the loop above. The previous
-     * loop influences virtio device to virtio transport assignment, whereas
-     * this loop controls how virtio transports are laid out in the dtb.
-     */
-    for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
-        char *nodename;
-        int irq = ams->irqmap[VIRT_MMIO] + i;
-        hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
-
-        nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
-        qemu_fdt_add_subnode(ams->fdt, nodename);
-        qemu_fdt_setprop_string(ams->fdt, nodename,
-                                "compatible", "virtio,mmio");
-        qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                     2, base, 2, size);
-        qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
-                               GIC_FDT_IRQ_TYPE_SPI, irq,
-                               GIC_FDT_IRQ_FLAGS_EDGE_LO_HI);
-        qemu_fdt_setprop(ams->fdt, nodename, "dma-coherent", NULL, 0);
-        g_free(nodename);
-    }
 }
 
 #define VIRT_FLASH_SECTOR_SIZE (256 * KiB)
@@ -1151,7 +1011,7 @@ static void create_smmu(const VirtMachineState *vms,
     qemu_fdt_setprop(ams->fdt, node, "interrupt-names", irq_names,
                      sizeof(irq_names));
 
-    qemu_fdt_setprop_cell(ams->fdt, node, "clocks", vms->clock_phandle);
+    qemu_fdt_setprop_cell(ams->fdt, node, "clocks", ams->clock_phandle);
     qemu_fdt_setprop_string(ams->fdt, node, "clock-names", "apb_pclk");
     qemu_fdt_setprop(ams->fdt, node, "dma-coherent", NULL, 0);
 
@@ -1709,16 +1569,16 @@ static void machvirt_init(MachineState *machine)
 
     fdt_add_pmu_nodes(vms);
 
-    create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
+    create_uart(ams, VIRT_UART, sysmem, serial_hd(0));
 
     if (vms->secure) {
         create_secure_ram(vms, secure_sysmem);
-        create_uart(vms, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
+        create_uart(ams, VIRT_SECURE_UART, secure_sysmem, serial_hd(1));
     }
 
     vms->highmem_ecam &= vms->highmem && (!firmware_loaded || aarch64);
 
-    create_rtc(vms);
+    create_rtc(ams);
 
     create_pcie(vms);
 
@@ -1736,7 +1596,7 @@ static void machvirt_init(MachineState *machine)
      * (which will be automatically plugged in to the transports). If
      * no backend is created the transport will just sit harmlessly idle.
      */
-    create_virtio_devices(vms);
+    create_virtio_devices(ams);
 
     vms->fw_cfg = create_fw_cfg(vms, &address_space_memory);
     rom_set_fw(vms->fw_cfg);
