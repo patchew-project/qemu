@@ -544,7 +544,7 @@ static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
     DeviceState *dev;
     MachineState *ms = MACHINE(vms);
     ArmMachineState *ams = ARM_MACHINE(vms);
-    int irq = vms->irqmap[VIRT_ACPI_GED];
+    int irq = ams->irqmap[VIRT_ACPI_GED];
     uint32_t event = ACPI_GED_PWR_DOWN_EVT;
 
     if (ms->ram_slots) {
@@ -588,7 +588,7 @@ static void create_v2m(VirtMachineState *vms)
 {
     int i;
     ArmMachineState *ams = ARM_MACHINE(vms);
-    int irq = vms->irqmap[VIRT_GIC_V2M];
+    int irq = ams->irqmap[VIRT_GIC_V2M];
     DeviceState *dev;
 
     dev = qdev_create(NULL, "arm-gicv2m");
@@ -734,7 +734,7 @@ static void create_uart(const VirtMachineState *vms, int uart,
     const ArmMachineState *ams = ARM_MACHINE(vms);
     hwaddr base = ams->memmap[uart].base;
     hwaddr size = ams->memmap[uart].size;
-    int irq = vms->irqmap[uart];
+    int irq = ams->irqmap[uart];
     const char compat[] = "arm,pl011\0arm,primecell";
     const char clocknames[] = "uartclk\0apb_pclk";
     DeviceState *dev = qdev_create(NULL, "pl011");
@@ -782,7 +782,7 @@ static void create_rtc(const VirtMachineState *vms)
     const ArmMachineState *ams = ARM_MACHINE(vms);
     hwaddr base = ams->memmap[VIRT_RTC].base;
     hwaddr size = ams->memmap[VIRT_RTC].size;
-    int irq = vms->irqmap[VIRT_RTC];
+    int irq = ams->irqmap[VIRT_RTC];
     const char compat[] = "arm,pl031\0arm,primecell";
 
     sysbus_create_simple("pl031", base, qdev_get_gpio_in(vms->gic, irq));
@@ -820,7 +820,7 @@ static void create_gpio(const VirtMachineState *vms)
     const ArmMachineState *ams = ARM_MACHINE(vms);
     hwaddr base = ams->memmap[VIRT_GPIO].base;
     hwaddr size = ams->memmap[VIRT_GPIO].size;
-    int irq = vms->irqmap[VIRT_GPIO];
+    int irq = ams->irqmap[VIRT_GPIO];
     const char compat[] = "arm,pl061\0arm,primecell";
 
     pl061_dev = sysbus_create_simple("pl061", base,
@@ -892,7 +892,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
      * of disks users must use UUIDs or similar mechanisms.
      */
     for (i = 0; i < NUM_VIRTIO_TRANSPORTS; i++) {
-        int irq = vms->irqmap[VIRT_MMIO] + i;
+        int irq = ams->irqmap[VIRT_MMIO] + i;
         hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
 
         sysbus_create_simple("virtio-mmio", base,
@@ -908,7 +908,7 @@ static void create_virtio_devices(const VirtMachineState *vms)
      */
     for (i = NUM_VIRTIO_TRANSPORTS - 1; i >= 0; i--) {
         char *nodename;
-        int irq = vms->irqmap[VIRT_MMIO] + i;
+        int irq = ams->irqmap[VIRT_MMIO] + i;
         hwaddr base = ams->memmap[VIRT_MMIO].base + i * size;
 
         nodename = g_strdup_printf("/virtio_mmio@%" PRIx64, base);
@@ -1155,7 +1155,7 @@ static void create_smmu(const VirtMachineState *vms,
     char *node;
     const ArmMachineState *ams = ARM_MACHINE(vms);
     const char compat[] = "arm,smmu-v3";
-    int irq =  vms->irqmap[VIRT_SMMU];
+    int irq = ams->irqmap[VIRT_SMMU];
     int i;
     hwaddr base = ams->memmap[VIRT_SMMU].base;
     hwaddr size = ams->memmap[VIRT_SMMU].size;
@@ -1213,7 +1213,7 @@ static void create_pcie(VirtMachineState *vms)
     hwaddr base_ecam, size_ecam;
     hwaddr base = base_mmio;
     int nr_pcie_buses;
-    int irq = vms->irqmap[VIRT_PCIE];
+    int irq = ams->irqmap[VIRT_PCIE];
     MemoryRegion *mmio_alias;
     MemoryRegion *mmio_reg;
     MemoryRegion *ecam_alias;
@@ -1349,7 +1349,7 @@ static void create_platform_bus(VirtMachineState *vms)
 
     s = SYS_BUS_DEVICE(dev);
     for (i = 0; i < PLATFORM_BUS_NUM_IRQS; i++) {
-        int irq = vms->irqmap[VIRT_PLATFORM_BUS] + i;
+        int irq = ams->irqmap[VIRT_PLATFORM_BUS] + i;
         sysbus_connect_irq(s, i, qdev_get_gpio_in(vms->gic, irq));
     }
 
@@ -1440,7 +1440,7 @@ void virt_machine_done(Notifier *notifier, void *data)
         platform_bus_add_all_fdt_nodes(ams->fdt, "/intc",
                                        ams->memmap[VIRT_PLATFORM_BUS].base,
                                        ams->memmap[VIRT_PLATFORM_BUS].size,
-                                       vms->irqmap[VIRT_PLATFORM_BUS]);
+                                       ams->irqmap[VIRT_PLATFORM_BUS]);
     }
     if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
         exit(1);
@@ -2084,6 +2084,7 @@ static void virt_instance_init(Object *obj)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
     VirtMachineClass *vmc = VIRT_MACHINE_GET_CLASS(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
 
     /* EL3 is disabled by default on virt: this makes us consistent
      * between KVM and TCG for this board, and it also allows us to
@@ -2146,7 +2147,7 @@ static void virt_instance_init(Object *obj)
                                     "Valid values are none and smmuv3",
                                     NULL);
 
-    vms->irqmap = a15irqmap;
+    ams->irqmap = a15irqmap;
 
     virt_flash_create(vms);
 }

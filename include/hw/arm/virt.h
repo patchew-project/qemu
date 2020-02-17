@@ -71,7 +71,6 @@ typedef struct {
     int32_t gic_version;
     VirtIOMMUType iommu;
     struct arm_boot_info bootinfo;
-    const int *irqmap;
     int smp_cpus;
     uint32_t clock_phandle;
     uint32_t gic_phandle;

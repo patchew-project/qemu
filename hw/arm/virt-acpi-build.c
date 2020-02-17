@@ -401,7 +401,7 @@ build_iort(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     its->identifiers[0] = 0; /* MADT translation_id */
 
     if (vms->iommu == VIRT_IOMMU_SMMUV3) {
-        int irq =  vms->irqmap[VIRT_SMMU] + ARM_SPI_BASE;
+        int irq =  ams->irqmap[VIRT_SMMU] + ARM_SPI_BASE;
 
         /* SMMUv3 node */
         smmu_offset = iort_node_offset + node_size;
@@ -475,7 +475,7 @@ build_spcr(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     AcpiSerialPortConsoleRedirection *spcr;
     ArmMachineState *ams = ARM_MACHINE(vms);
     const MemMapEntry *uart_memmap = &ams->memmap[VIRT_UART];
-    int irq = vms->irqmap[VIRT_UART] + ARM_SPI_BASE;
+    int irq = ams->irqmap[VIRT_UART] + ARM_SPI_BASE;
     int spcr_start = table_data->len;
 
     spcr = acpi_data_push(table_data, sizeof(*spcr));
@@ -596,7 +596,7 @@ build_madt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     ArmMachineState *ams = ARM_MACHINE(vms);
     int madt_start = table_data->len;
     const MemMapEntry *memmap = ams->memmap;
-    const int *irqmap = vms->irqmap;
+    const int *irqmap = ams->irqmap;
     AcpiMultipleApicTable *madt;
     AcpiMadtGenericDistributor *gicd;
     AcpiMadtGenericMsiFrame *gic_msi;
@@ -717,7 +717,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     MachineState *ms = MACHINE(vms);
     ArmMachineState *ams = ARM_MACHINE(vms);
     const MemMapEntry *memmap = ams->memmap;
-    const int *irqmap = vms->irqmap;
+    const int *irqmap = ams->irqmap;
 
     dsdt = init_aml_allocator();
     /* Reserve space for header */

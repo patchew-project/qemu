@@ -88,6 +88,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
     MemMapEntry *memmap;
+    const int *irqmap;
     void *fdt;
     int fdt_size;
 } ArmMachineState;
