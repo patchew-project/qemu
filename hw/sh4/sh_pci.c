@@ -143,8 +143,6 @@ static void sh_pci_device_realize(DeviceState *dev, Error **errp)
                           "sh_pci", 0x224);
     memory_region_init_alias(&s->memconfig_a7, OBJECT(s), "sh_pci.2",
                              &s->memconfig_p4, 0, 0x224);
-    memory_region_init_alias(&s->isa, OBJECT(s), "sh_pci.isa",
-                             get_system_io(), 0, 0x40000);
     sysbus_init_mmio(sbd, &s->memconfig_p4);
     sysbus_init_mmio(sbd, &s->memconfig_a7);
     s->iobr = 0xfe240000;
