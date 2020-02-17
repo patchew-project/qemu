@@ -39,6 +39,112 @@
 #include "hw/intc/arm_gic.h"
 #include "kvm_arm.h"
 
+void qdev_create_gic(ArmMachineState *ams)
+{
+    MachineState *ms = MACHINE(ams);
+    /* We create a standalone GIC */
+    const char *gictype;
+    int type = ams->gic_version;
+    unsigned int smp_cpus = ms->smp.cpus;
+    uint32_t nb_redist_regions = 0;
+
+    gictype = (type == 3) ? gicv3_class_name() : gic_class_name();
+
+    ams->gic = qdev_create(NULL, gictype);
+    qdev_prop_set_uint32(ams->gic, "revision", type);
+    qdev_prop_set_uint32(ams->gic, "num-cpu", smp_cpus);
+    /* Note that the num-irq property counts both internal and external
+     * interrupts; there are always 32 of the former (mandated by GIC spec).
+     */
+    qdev_prop_set_uint32(ams->gic, "num-irq", NUM_IRQS + 32);
+
+    if (type == 3) {
+        uint32_t redist0_capacity =
+                    ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
+        uint32_t redist0_count = MIN(smp_cpus, redist0_capacity);
+
+        nb_redist_regions = virt_gicv3_redist_region_count(ams);
+
+        qdev_prop_set_uint32(ams->gic, "len-redist-region-count",
+                             nb_redist_regions);
+        qdev_prop_set_uint32(ams->gic, "redist-region-count[0]", redist0_count);
+
+        if (nb_redist_regions == 2) {
+            uint32_t redist1_capacity =
+                    ams->memmap[VIRT_HIGH_GIC_REDIST2].size / GICV3_REDIST_SIZE;
+
+            qdev_prop_set_uint32(ams->gic, "redist-region-count[1]",
+                MIN(smp_cpus - redist0_count, redist1_capacity));
+        }
+    }
+}
+
+void init_gic_sysbus(ArmMachineState *ams)
+{
+    MachineState *ms = MACHINE(ams);
+    /* We create a standalone GIC */
+    SysBusDevice *gicbusdev;
+    int type = ams->gic_version, i;
+    unsigned int smp_cpus = ms->smp.cpus;
+    uint32_t nb_redist_regions = 0;
+
+    gicbusdev = SYS_BUS_DEVICE(ams->gic);
+    sysbus_mmio_map(gicbusdev, 0, ams->memmap[VIRT_GIC_DIST].base);
+    if (type == 3) {
+        sysbus_mmio_map(gicbusdev, 1, ams->memmap[VIRT_GIC_REDIST].base);
+        if (nb_redist_regions == 2) {
+            sysbus_mmio_map(gicbusdev, 2,
+                            ams->memmap[VIRT_HIGH_GIC_REDIST2].base);
+        }
+    } else {
+        sysbus_mmio_map(gicbusdev, 1, ams->memmap[VIRT_GIC_CPU].base);
+    }
+
+    /* Wire the outputs from each CPU's generic timer and the GICv3
+     * maintenance interrupt signal to the appropriate GIC PPI inputs,
+     * and the GIC's IRQ/FIQ/VIRQ/VFIQ interrupt outputs to the CPU's inputs.
+     */
+    for (i = 0; i < smp_cpus; i++) {
+        DeviceState *cpudev = DEVICE(qemu_get_cpu(i));
+        int ppibase = NUM_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
+        int irq;
+        /* Mapping from the output timer irq lines from the CPU to the
+         * GIC PPI inputs we use for the virt board.
+         */
+        const int timer_irq[] = {
+            [GTIMER_PHYS] = ARCH_TIMER_NS_EL1_IRQ,
+            [GTIMER_VIRT] = ARCH_TIMER_VIRT_IRQ,
+            [GTIMER_HYP]  = ARCH_TIMER_NS_EL2_IRQ,
+            [GTIMER_SEC]  = ARCH_TIMER_S_EL1_IRQ,
+        };
+
+        for (irq = 0; irq < ARRAY_SIZE(timer_irq); irq++) {
+            qdev_connect_gpio_out(cpudev, irq,
+                                  qdev_get_gpio_in(ams->gic,
+                                                   ppibase + timer_irq[irq]));
+        }
+
+        if (type == 3) {
+            qemu_irq irq = qdev_get_gpio_in(ams->gic,
+                                            ppibase + ARCH_GIC_MAINT_IRQ);
+            qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt",
+                                        0, irq);
+        }
+
+        qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
+                                    qdev_get_gpio_in(ams->gic, ppibase
+                                                     + VIRTUAL_PMU_IRQ));
+
+        sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
+        sysbus_connect_irq(gicbusdev, i + smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_FIQ));
+        sysbus_connect_irq(gicbusdev, i + 2 * smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
+        sysbus_connect_irq(gicbusdev, i + 3 * smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
+    }
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     ArmMachineState *ams = ARM_MACHINE(obj);

@@ -108,6 +108,10 @@ typedef struct {
 #define ARM_MACHINE_CLASS(klass) \
     OBJECT_CLASS_CHECK(ArmMachineClass, klass, TYPE_ARM_MACHINE)
 
+void qdev_create_gic(ArmMachineState *ams);
+
+void init_gic_sysbus(ArmMachineState *ams);
+
 /* Return the number of used redistributor regions  */
 static inline int virt_gicv3_redist_region_count(ArmMachineState *ams)
 {
