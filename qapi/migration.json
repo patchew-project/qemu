@@ -977,12 +977,14 @@
 #
 # @vmstate-loaded: VM's state has been loaded by SVM.
 #
+# @migrate-ram-background: Send some dirty pages during the gap of COLO checkpoint
+#
 # Since: 2.8
 ##
 { 'enum': 'COLOMessage',
   'data': [ 'checkpoint-ready', 'checkpoint-request', 'checkpoint-reply',
             'vmstate-send', 'vmstate-size', 'vmstate-received',
-            'vmstate-loaded' ] }
+            'vmstate-loaded', 'migrate-ram-background' ] }
 
 ##
 # @COLOMode:
