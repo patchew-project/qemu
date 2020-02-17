@@ -7803,6 +7803,7 @@ case "$target_name" in
   ;;
   xtensa|xtensaeb)
     TARGET_ARCH=xtensa
+    TARGET_SYSTBL_ABI=common
     bflt="yes"
     mttcg="yes"
   ;;
