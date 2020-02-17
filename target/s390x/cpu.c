@@ -170,7 +170,12 @@ static void s390_cpu_realizefn(DeviceState *dev, Error **errp)
     S390CPUClass *scc = S390_CPU_GET_CLASS(dev);
 #if !defined(CONFIG_USER_ONLY)
     S390CPU *cpu = S390_CPU(dev);
+    cpu->env.tod_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
+    cpu->env.cpu_timer =
+        timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
 #endif
+
     Error *err = NULL;
 
     /* the model has to be realized before qemu_init_vcpu() due to kvm */
@@ -227,6 +232,16 @@ out:
     error_propagate(errp, err);
 }
 
+static void s390_cpu_unrealizefn(DeviceState *dev, Error **errp)
+{
+#if !defined(CONFIG_USER_ONLY)
+    S390CPU *cpu = S390_CPU(dev);
+
+    timer_del(cpu->env.tod_timer);
+    timer_del(cpu->env.cpu_timer);
+#endif
+}
+
 static GuestPanicInformation *s390_cpu_get_crash_info(CPUState *cs)
 {
     GuestPanicInformation *panic_info;
@@ -279,10 +294,6 @@ static void s390_cpu_initfn(Object *obj)
                         s390_cpu_get_crash_info_qom, NULL, NULL, NULL, NULL);
     s390_cpu_model_register_props(obj);
 #if !defined(CONFIG_USER_ONLY)
-    cpu->env.tod_timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_tod_timer, cpu);
-    cpu->env.cpu_timer =
-        timer_new_ns(QEMU_CLOCK_VIRTUAL, s390x_cpu_timer, cpu);
     s390_cpu_set_state(S390_CPU_STATE_STOPPED, cpu);
 #endif
 }
@@ -294,6 +305,8 @@ static void s390_cpu_finalize(Object *obj)
 
     qemu_unregister_reset(s390_cpu_machine_reset_cb, cpu);
     g_free(cpu->irqstate);
+    timer_free(cpu->env.tod_timer);
+    timer_free(cpu->env.cpu_timer);
 #endif
 }
 
@@ -453,6 +466,7 @@ static void s390_cpu_class_init(ObjectClass *oc, void *data)
 
     device_class_set_parent_realize(dc, s390_cpu_realizefn,
                                     &scc->parent_realize);
+    dc->unrealize = s390_cpu_unrealizefn;
     device_class_set_props(dc, s390x_cpu_properties);
     dc->user_creatable = true;
 
