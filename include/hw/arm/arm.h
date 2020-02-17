@@ -87,6 +87,8 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
+    void *fdt;
+    int fdt_size;
 } ArmMachineState;
 
 #define TYPE_ARM_MACHINE   MACHINE_TYPE_NAME("arm")
