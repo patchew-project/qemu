@@ -7731,12 +7731,14 @@ case "$target_name" in
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN32=y" >> $config_target_mak
     echo "TARGET_ABI32=y" >> $config_target_mak
+    TARGET_SYSTBL_ABI=n32
   ;;
   mips64|mips64el)
     mttcg="yes"
     TARGET_ARCH=mips64
     TARGET_BASE_ARCH=mips
     echo "TARGET_ABI_MIPSN64=y" >> $config_target_mak
+    TARGET_SYSTBL_ABI=n64
   ;;
   moxie)
   ;;

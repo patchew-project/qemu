@@ -1,0 +1,9 @@
+generated-files-y += linux-user/$(TARGET_ABI_DIR)/syscall32_nr.h
+generated-files-y += linux-user/$(TARGET_ABI_DIR)/syscall64_nr.h
+
+syshdr := $(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)/syscallhdr.sh
+
+%/syscall32_nr.h: $(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)/syscall_n32.tbl $(syshdr)
+	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI) "" 6000,,"GEN","$@")
+%/syscall64_nr.h: $(SRC_PATH)/linux-user/$(TARGET_ABI_DIR)/syscall_n64.tbl $(syshdr)
+	$(call quiet-command, sh $(syshdr) $< $@ $(TARGET_SYSTBL_ABI) "" 5000,,"GEN","$@")
