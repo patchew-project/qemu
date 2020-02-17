@@ -1,7 +1,7 @@
-# The current Travis default is a VM based 16.04 Xenial on GCE
+# The current Travis default is a VM based 18.04 Xenial on GCE
 # Additional builds with specific requirements for a full VM need to
 # be added as additional matrix: entries later on
-dist: xenial
+dist: bionic
 language: c
 compiler:
   - gcc
@@ -9,7 +9,7 @@ cache:
   # There is one cache per branch and compiler version.
   # characteristics of each job are used to identify the cache:
   # - OS name (currently, linux, osx, or windows)
-  # - OS distribution (for Linux, xenial, trusty, or precise)
+  # - OS distribution (for Linux, bionic, xenial, trusty, or precise)
   # - macOS image name (e.g., xcode7.2)
   # - Names and values of visible environment variables set in .travis.yml or Settings panel
   timeout: 1200
@@ -43,7 +43,9 @@ addons:
       - libseccomp-dev
       - libspice-protocol-dev
       - libspice-server-dev
-      - libssh-dev
+# It should not install libssh-dev until the following bug is fixed:
+# https://bugs.launchpad.net/qemu/+bug/1838763
+#     - libssh-dev
       - liburcu-dev
       - libusb-1.0-0-dev
       - libvdeplug-dev
@@ -184,8 +186,7 @@ matrix:
 
 
     # Check we can build docs and tools (out of tree)
-    - name: "tools and docs (bionic)"
-      dist: bionic
+    - name: "tools and docs"
       env:
         - BUILD_DIR="out-of-tree/build/dir" SRC_DIR="../../.."
         - BASE_CONFIG="--enable-tools --enable-docs"
@@ -480,7 +481,6 @@ matrix:
 
     - name: "[s390x] GCC check-tcg"
       arch: s390x
-      dist: bionic
       addons:
         apt_packages:
           - libaio-dev
