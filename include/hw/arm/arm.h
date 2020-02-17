@@ -92,6 +92,7 @@ typedef struct {
 typedef struct {
     MachineState parent;
     int32_t gic_version;
+    struct arm_boot_info bootinfo;
     MemMapEntry *memmap;
     const int *irqmap;
     int smp_cpus;
@@ -129,6 +130,8 @@ void create_uart(const ArmMachineState *ams, int uart,
 void create_rtc(const ArmMachineState *ams);
 
 void create_virtio_devices(const ArmMachineState *ams);
+
+void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size);
 
 /* Return the number of used redistributor regions  */
 static inline int virt_gicv3_redist_region_count(ArmMachineState *ams)

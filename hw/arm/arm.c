@@ -508,6 +508,15 @@ void create_virtio_devices(const ArmMachineState *ams)
     }
 }
 
+void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
+{
+    const ArmMachineState *board = container_of(binfo, ArmMachineState,
+                                                 bootinfo);
+
+    *fdt_size = board->fdt_size;
+    return board->fdt;
+}
+
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     ArmMachineState *ams = ARM_MACHINE(obj);

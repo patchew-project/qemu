@@ -971,16 +971,6 @@ static void create_secure_ram(VirtMachineState *vms,
     g_free(nodename);
 }
 
-static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
-{
-    const VirtMachineState *vms = container_of(binfo, VirtMachineState,
-                                                 bootinfo);
-
-    ArmMachineState *board = ARM_MACHINE(vms);
-    *fdt_size = board->fdt_size;
-    return board->fdt;
-}
-
 static void virt_build_smbios(VirtMachineState *vms)
 {
     MachineClass *mc = MACHINE_GET_CLASS(vms);
@@ -1016,7 +1006,7 @@ void virt_machine_done(Notifier *notifier, void *data)
     MachineState *ms = MACHINE(vms);
     ArmMachineState *ams = ARM_MACHINE(vms);
     ARMCPU *cpu = ARM_CPU(first_cpu);
-    struct arm_boot_info *info = &vms->bootinfo;
+    struct arm_boot_info *info = &ams->bootinfo;
     AddressSpace *as = arm_boot_address_space(cpu, info);
 
     /*
@@ -1373,14 +1363,14 @@ static void machvirt_init(MachineState *machine)
 
     create_platform_bus(vms);
 
-    vms->bootinfo.ram_size = machine->ram_size;
-    vms->bootinfo.nb_cpus = smp_cpus;
-    vms->bootinfo.board_id = -1;
-    vms->bootinfo.loader_start = ams->memmap[VIRT_MEM].base;
-    vms->bootinfo.get_dtb = machvirt_dtb;
-    vms->bootinfo.skip_dtb_autoload = true;
-    vms->bootinfo.firmware_loaded = firmware_loaded;
-    arm_load_kernel(ARM_CPU(first_cpu), machine, &vms->bootinfo);
+    ams->bootinfo.ram_size = machine->ram_size;
+    ams->bootinfo.nb_cpus = smp_cpus;
+    ams->bootinfo.board_id = -1;
+    ams->bootinfo.loader_start = ams->memmap[VIRT_MEM].base;
+    ams->bootinfo.get_dtb = machvirt_dtb;
+    ams->bootinfo.skip_dtb_autoload = true;
+    ams->bootinfo.firmware_loaded = firmware_loaded;
+    arm_load_kernel(ARM_CPU(first_cpu), machine, &ams->bootinfo);
 
     vms->machine_done.notify = virt_machine_done;
     qemu_add_machine_init_done_notifier(&vms->machine_done);
