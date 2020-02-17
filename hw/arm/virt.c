@@ -426,6 +426,45 @@ static void fdt_add_v2m_gic_node(VirtMachineState *vms)
     g_free(nodename);
 }
 
+static void fdt_gic_set_virt_extension(VirtMachineState *vms)
+{
+    char *nodename;
+    ArmMachineState *ams = ARM_MACHINE(vms);
+
+    nodename = g_strdup_printf("/intc@%" PRIx64,
+                               ams->memmap[VIRT_GIC_DIST].base);
+
+
+    if (vms->gic_version == 3) {
+        if (vms->virt) {
+            qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
+                                   GIC_FDT_IRQ_TYPE_PPI, ARCH_GIC_MAINT_IRQ,
+                                   GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+        }
+    } else {
+        if (!vms->virt) {
+            qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
+                                         2, ams->memmap[VIRT_GIC_DIST].base,
+                                         2, ams->memmap[VIRT_GIC_DIST].size,
+                                         2, ams->memmap[VIRT_GIC_CPU].base,
+                                         2, ams->memmap[VIRT_GIC_CPU].size);
+        } else {
+            qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
+                                         2, ams->memmap[VIRT_GIC_DIST].base,
+                                         2, ams->memmap[VIRT_GIC_DIST].size,
+                                         2, ams->memmap[VIRT_GIC_CPU].base,
+                                         2, ams->memmap[VIRT_GIC_CPU].size,
+                                         2, ams->memmap[VIRT_GIC_HYP].base,
+                                         2, ams->memmap[VIRT_GIC_HYP].size,
+                                         2, ams->memmap[VIRT_GIC_VCPU].base,
+                                         2, ams->memmap[VIRT_GIC_VCPU].size);
+            qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
+                                   GIC_FDT_IRQ_TYPE_PPI, ARCH_GIC_MAINT_IRQ,
+                                   GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+        }
+    }
+}
+
 static void fdt_add_gic_node(VirtMachineState *vms)
 {
     char *nodename;
@@ -466,36 +505,10 @@ static void fdt_add_gic_node(VirtMachineState *vms)
                                  2, ams->memmap[VIRT_HIGH_GIC_REDIST2].base,
                                  2, ams->memmap[VIRT_HIGH_GIC_REDIST2].size);
         }
-
-        if (vms->virt) {
-            qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
-                                   GIC_FDT_IRQ_TYPE_PPI, ARCH_GIC_MAINT_IRQ,
-                                   GIC_FDT_IRQ_FLAGS_LEVEL_HI);
-        }
     } else {
         /* 'cortex-a15-gic' means 'GIC v2' */
         qemu_fdt_setprop_string(ams->fdt, nodename, "compatible",
                                 "arm,cortex-a15-gic");
-        if (!vms->virt) {
-            qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                         2, ams->memmap[VIRT_GIC_DIST].base,
-                                         2, ams->memmap[VIRT_GIC_DIST].size,
-                                         2, ams->memmap[VIRT_GIC_CPU].base,
-                                         2, ams->memmap[VIRT_GIC_CPU].size);
-        } else {
-            qemu_fdt_setprop_sized_cells(ams->fdt, nodename, "reg",
-                                         2, ams->memmap[VIRT_GIC_DIST].base,
-                                         2, ams->memmap[VIRT_GIC_DIST].size,
-                                         2, ams->memmap[VIRT_GIC_CPU].base,
-                                         2, ams->memmap[VIRT_GIC_CPU].size,
-                                         2, ams->memmap[VIRT_GIC_HYP].base,
-                                         2, ams->memmap[VIRT_GIC_HYP].size,
-                                         2, ams->memmap[VIRT_GIC_VCPU].base,
-                                         2, ams->memmap[VIRT_GIC_VCPU].size);
-            qemu_fdt_setprop_cells(ams->fdt, nodename, "interrupts",
-                                   GIC_FDT_IRQ_TYPE_PPI, ARCH_GIC_MAINT_IRQ,
-                                   GIC_FDT_IRQ_FLAGS_LEVEL_HI);
-        }
     }
 
     qemu_fdt_setprop_cell(ams->fdt, nodename, "phandle", vms->gic_phandle);
@@ -614,6 +627,40 @@ static void gic_set_msi_interrupt(VirtMachineState *vms)
     }
 }
 
+static void qdev_gic_set_virt_bit(VirtMachineState *vms)
+{
+    if (vms->gic_version != 3 && !kvm_irqchip_in_kernel()) {
+        qdev_prop_set_bit(vms->gic, "has-virtualization-extensions",
+                          vms->virt);
+    }
+}
+
+static void set_gic_virt_sysbus(VirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    ArmMachineState *ams = ARM_MACHINE(vms);
+    SysBusDevice *gicbusdev;
+    int type = vms->gic_version, i;
+    unsigned int smp_cpus = ms->smp.cpus;
+
+    if (!vms->virt) {
+        return;
+    }
+
+    gicbusdev = SYS_BUS_DEVICE(vms->gic);
+    if (type != 3) {
+        sysbus_mmio_map(gicbusdev, 2, ams->memmap[VIRT_GIC_HYP].base);
+        sysbus_mmio_map(gicbusdev, 3, ams->memmap[VIRT_GIC_VCPU].base);
+    }
+
+    for (i = 0; i < smp_cpus; i++) {
+        int ppibase = NUM_IRQS + i * GIC_INTERNAL + GIC_NR_SGIS;
+        qemu_irq irq = qdev_get_gpio_in(vms->gic,
+                                        ppibase + ARCH_GIC_MAINT_IRQ);
+        sysbus_connect_irq(gicbusdev, i + 4 * smp_cpus, irq);
+    }
+}
+
 static void create_gic(VirtMachineState *vms)
 {
     MachineState *ms = MACHINE(vms);
@@ -656,12 +703,8 @@ static void create_gic(VirtMachineState *vms)
             qdev_prop_set_uint32(vms->gic, "redist-region-count[1]",
                 MIN(smp_cpus - redist0_count, redist1_capacity));
         }
-    } else {
-        if (!kvm_irqchip_in_kernel()) {
-            qdev_prop_set_bit(vms->gic, "has-virtualization-extensions",
-                              vms->virt);
-        }
     }
+    qdev_gic_set_virt_bit(vms);
     qdev_init_nofail(vms->gic);
     gicbusdev = SYS_BUS_DEVICE(vms->gic);
     sysbus_mmio_map(gicbusdev, 0, ams->memmap[VIRT_GIC_DIST].base);
@@ -673,10 +716,6 @@ static void create_gic(VirtMachineState *vms)
         }
     } else {
         sysbus_mmio_map(gicbusdev, 1, ams->memmap[VIRT_GIC_CPU].base);
-        if (vms->virt) {
-            sysbus_mmio_map(gicbusdev, 2, ams->memmap[VIRT_GIC_HYP].base);
-            sysbus_mmio_map(gicbusdev, 3, ams->memmap[VIRT_GIC_VCPU].base);
-        }
     }
 
     /* Wire the outputs from each CPU's generic timer and the GICv3
@@ -708,10 +747,6 @@ static void create_gic(VirtMachineState *vms)
                                             ppibase + ARCH_GIC_MAINT_IRQ);
             qdev_connect_gpio_out_named(cpudev, "gicv3-maintenance-interrupt",
                                         0, irq);
-        } else if (vms->virt) {
-            qemu_irq irq = qdev_get_gpio_in(vms->gic,
-                                            ppibase + ARCH_GIC_MAINT_IRQ);
-            sysbus_connect_irq(gicbusdev, i + 4 * smp_cpus, irq);
         }
 
         qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
@@ -727,7 +762,10 @@ static void create_gic(VirtMachineState *vms)
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
     }
 
+    set_gic_virt_sysbus(vms);
     fdt_add_gic_node(vms);
+    fdt_gic_set_virt_extension(vms);
+
     gic_set_msi_interrupt(vms);
 }
 
