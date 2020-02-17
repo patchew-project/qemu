@@ -7701,6 +7701,7 @@ case "$target_name" in
   ;;
   hppa)
     mttcg="yes"
+    TARGET_SYSTBL_ABI=common,64
   ;;
   lm32)
   ;;
