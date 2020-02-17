@@ -71,7 +71,6 @@ typedef struct {
     int32_t gic_version;
     VirtIOMMUType iommu;
     struct arm_boot_info bootinfo;
-    int smp_cpus;
     uint32_t clock_phandle;
     uint32_t gic_phandle;
     uint32_t msi_phandle;
@@ -104,7 +103,7 @@ static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
 
     assert(vms->gic_version == 3);
 
-    return vms->smp_cpus > redist0_capacity ? 2 : 1;
+    return ams->smp_cpus > redist0_capacity ? 2 : 1;
 }
 
 #endif /* QEMU_ARM_VIRT_H */

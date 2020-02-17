@@ -89,6 +89,7 @@ typedef struct {
     MachineState parent;
     MemMapEntry *memmap;
     const int *irqmap;
+    int smp_cpus;
     void *fdt;
     int fdt_size;
 } ArmMachineState;
