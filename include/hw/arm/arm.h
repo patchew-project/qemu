@@ -92,6 +92,7 @@ typedef struct {
 
 typedef struct {
     MachineState parent;
+    Notifier machine_done;
     int32_t gic_version;
     struct arm_boot_info bootinfo;
     MemMapEntry *memmap;
@@ -102,6 +103,7 @@ typedef struct {
     uint32_t clock_phandle;
     uint32_t gic_phandle;
     int psci_conduit;
+    hwaddr highest_gpa;
     DeviceState *gic;
 } ArmMachineState;
 

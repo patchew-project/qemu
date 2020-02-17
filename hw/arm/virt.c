@@ -979,10 +979,10 @@ static void virt_build_smbios(VirtMachineState *vms)
 static
 void virt_machine_done(Notifier *notifier, void *data)
 {
-    VirtMachineState *vms = container_of(notifier, VirtMachineState,
+    ArmMachineState *ams = container_of(notifier, ArmMachineState,
                                          machine_done);
-    MachineState *ms = MACHINE(vms);
-    ArmMachineState *ams = ARM_MACHINE(vms);
+    MachineState *ms = MACHINE(ams);
+    VirtMachineState *vms = VIRT_MACHINE(ams);
     ARMCPU *cpu = ARM_CPU(first_cpu);
     struct arm_boot_info *info = &ams->bootinfo;
     AddressSpace *as = arm_boot_address_space(cpu, info);
@@ -1056,7 +1056,7 @@ static void virt_set_memmap(VirtMachineState *vms)
         ams->memmap[i].size = size;
         base += size;
     }
-    vms->highest_gpa = base - 1;
+    ams->highest_gpa = base - 1;
     if (device_memory_size > 0) {
         ms->device_memory = g_malloc0(sizeof(*ms->device_memory));
         ms->device_memory->base = device_memory_base;
@@ -1260,7 +1260,7 @@ static void machvirt_init(MachineState *machine)
         if (aarch64 && vms->highmem) {
             int requested_pa_size, pamax = arm_pamax(cpu);
 
-            requested_pa_size = 64 - clz64(vms->highest_gpa);
+            requested_pa_size = 64 - clz64(ams->highest_gpa);
             if (pamax < requested_pa_size) {
                 error_report("VCPU supports less PA bits (%d) than requested "
                             "by the memory map (%d)", pamax, requested_pa_size);
@@ -1326,8 +1326,8 @@ static void machvirt_init(MachineState *machine)
     ams->bootinfo.firmware_loaded = firmware_loaded;
     arm_load_kernel(ARM_CPU(first_cpu), machine, &ams->bootinfo);
 
-    vms->machine_done.notify = virt_machine_done;
-    qemu_add_machine_init_done_notifier(&vms->machine_done);
+    ams->machine_done.notify = virt_machine_done;
+    qemu_add_machine_init_done_notifier(&ams->machine_done);
 }
 
 static bool virt_get_secure(Object *obj, Error **errp)
@@ -1501,13 +1501,14 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
 static int virt_kvm_type(MachineState *ms, const char *type_str)
 {
     VirtMachineState *vms = VIRT_MACHINE(ms);
+    ArmMachineState *ams = ARM_MACHINE(ms);
     int max_vm_pa_size = kvm_arm_get_max_vm_ipa_size(ms);
     int requested_pa_size;
 
     /* we freeze the memory map to compute the highest gpa */
     virt_set_memmap(vms);
 
-    requested_pa_size = 64 - clz64(vms->highest_gpa);
+    requested_pa_size = 64 - clz64(ams->highest_gpa);
 
     if (requested_pa_size > max_vm_pa_size) {
         error_report("-m and ,maxmem option values "

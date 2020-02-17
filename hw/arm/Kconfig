@@ -25,6 +25,13 @@ config ARM_VIRT
     select ACPI_MEMORY_HOTPLUG
     select ACPI_HW_REDUCED
 
+config ARM_MICROVM
+    bool
+    select A15MPCORE
+    select PL011 # UART
+    select PL031 # RTC
+    select VIRTIO_MMIO
+
 config CHEETAH
     bool
     select OMAP

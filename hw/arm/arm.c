@@ -306,6 +306,14 @@ void qdev_create_gic(ArmMachineState *ams)
      */
     qdev_prop_set_uint32(ams->gic, "num-irq", NUM_IRQS + 32);
 
+    if (!kvm_irqchip_in_kernel()) {
+        qdev_prop_set_bit(ams->gic, "has-security-extensions", false);
+        if (type != 3) {
+            qdev_prop_set_bit(ams->gic, "has-virtualization-extensions",
+                              false);
+        }
+    }
+
     if (type == 3) {
         uint32_t redist0_capacity =
                     ams->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;

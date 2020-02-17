@@ -69,7 +69,6 @@ typedef struct {
     VirtIOMMUType iommu;
     uint32_t msi_phandle;
     uint32_t iommu_phandle;
-    hwaddr highest_gpa;
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;
 } VirtMachineState;
