@@ -7778,6 +7778,7 @@ case "$target_name" in
   ;;
   sh4|sh4eb)
     TARGET_ARCH=sh4
+    TARGET_SYSTBL_ABI=common
     bflt="yes"
   ;;
   sparc)
