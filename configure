@@ -7723,6 +7723,7 @@ case "$target_name" in
     mttcg="yes"
     TARGET_ARCH=mips
     echo "TARGET_ABI_MIPSO32=y" >> $config_target_mak
+    TARGET_SYSTBL_ABI=o32
   ;;
   mipsn32|mipsn32el)
     mttcg="yes"
