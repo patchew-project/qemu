@@ -286,6 +286,7 @@ qapi-schema += missing-type.json
 qapi-schema += nested-struct-data.json
 qapi-schema += nested-struct-data-invalid-dict.json
 qapi-schema += non-objects.json
+qapi-schema += oob-coroutine.json
 qapi-schema += oob-test.json
 qapi-schema += allow-preconfig-test.json
 qapi-schema += pragma-doc-required-crap.json
