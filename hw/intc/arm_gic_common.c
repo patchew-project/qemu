@@ -155,6 +155,9 @@ void gic_init_irqs_and_mmio(GICState *s, qemu_irq_handler handler,
     for (i = 0; i < s->num_cpu; i++) {
         sysbus_init_irq(sbd, &s->parent_vfiq[i]);
     }
+    for (i = 0; i < s->num_cpu; i++) {
+        sysbus_init_irq(sbd, &s->parent_serror[i]);
+    }
     if (s->virt_extn) {
         for (i = 0; i < s->num_cpu; i++) {
             sysbus_init_irq(sbd, &s->maintenance_irq[i]);

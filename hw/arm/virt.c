@@ -71,6 +71,8 @@
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "hw/acpi/generic_event_device.h"
+#include "sysemu/hw_accel.h"
+#include "hw/nmi.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -690,7 +692,7 @@ static void create_gic(VirtMachineState *vms)
         } else if (vms->virt) {
             qemu_irq irq = qdev_get_gpio_in(vms->gic,
                                             ppibase + ARCH_GIC_MAINT_IRQ);
-            sysbus_connect_irq(gicbusdev, i + 4 * smp_cpus, irq);
+            sysbus_connect_irq(gicbusdev, i + 5 * smp_cpus, irq);
         }
 
         qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
@@ -704,6 +706,8 @@ static void create_gic(VirtMachineState *vms)
                            qdev_get_gpio_in(cpudev, ARM_CPU_VIRQ));
         sysbus_connect_irq(gicbusdev, i + 3 * smp_cpus,
                            qdev_get_gpio_in(cpudev, ARM_CPU_VFIQ));
+        sysbus_connect_irq(gicbusdev, i + 4 * smp_cpus,
+                           qdev_get_gpio_in(cpudev, ARM_CPU_SERROR));
     }
 
     fdt_add_gic_node(vms);
@@ -2026,10 +2030,36 @@ static int virt_kvm_type(MachineState *ms, const char *type_str)
     return requested_pa_size > 40 ? requested_pa_size : 0;
 }
 
+
+static void do_inject_serror(CPUState *cpu, run_on_cpu_data data)
+{
+    VirtMachineState *vms = data.host_ptr;
+    GICv3State *gicv3;
+    GICState *gicv2;
+
+    cpu_synchronize_state(cpu);
+
+    if (vms->gic_version == 3) {
+        gicv3 = ARM_GICV3_COMMON(OBJECT(vms->gic));
+        qemu_irq_raise(gicv3->cpu[0].parent_serror);
+    } else {
+        gicv2 = ARM_GIC_COMMON(OBJECT(vms->gic));
+        qemu_irq_raise(gicv2->parent_serror[0]);
+    }
+}
+
+static void virt_inject_serror(NMIState *n, int cpu_index, Error **errp)
+{
+    VirtMachineState *vms = VIRT_MACHINE(n);
+
+    async_run_on_cpu(first_cpu, do_inject_serror, RUN_ON_CPU_HOST_PTR(vms));
+}
+
 static void virt_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(oc);
+    NMIClass *nc = NMI_CLASS(oc);
 
     mc->init = machvirt_init;
     /* Start with max_cpus set to 512, which is the maximum supported by KVM.
@@ -2058,6 +2088,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     hc->unplug_request = virt_machine_device_unplug_request_cb;
     mc->numa_mem_supported = true;
     mc->auto_enable_numa_with_memhp = true;
+    nc->nmi_monitor_handler = virt_inject_serror;
 }
 
 static void virt_instance_init(Object *obj)
@@ -2141,6 +2172,7 @@ static const TypeInfo virt_machine_info = {
     .instance_init = virt_instance_init,
     .interfaces = (InterfaceInfo[]) {
          { TYPE_HOTPLUG_HANDLER },
+         { TYPE_NMI },
          { }
     },
 };
