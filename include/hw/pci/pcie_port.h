@@ -55,6 +55,7 @@ struct PCIESlot {
 
     /* Disable ACS (really for a pcie_root_port) */
     bool        disable_acs;
+    bool        disable_hotplug;
     QLIST_ENTRY(PCIESlot) next;
 };
 

@@ -94,7 +94,7 @@ static void rp_realize(PCIDevice *d, Error **errp)
 
     pcie_cap_arifwd_init(d);
     pcie_cap_deverr_init(d);
-    pcie_cap_slot_init(d, s->slot);
+    pcie_cap_slot_init(d, s);
     pcie_cap_root_init(d);
 
     pcie_chassis_create(s->chassis);
@@ -147,6 +147,7 @@ static Property rp_props[] = {
     DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
                     QEMU_PCIE_SLTCAP_PCP_BITNR, true),
     DEFINE_PROP_BOOL("disable-acs", PCIESlot, disable_acs, false),
+    DEFINE_PROP_BOOL("disable-hotplug", PCIESlot, disable_hotplug, false),
     DEFINE_PROP_END_OF_LIST()
 };
 
