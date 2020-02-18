@@ -271,7 +271,7 @@ matrix:
 
     - name: "OSX Xcode 10.3"
       env:
-        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu"
+        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu --extra-cflags=-I/usr/local/opt/ncurses/include --extra-ldflags=-L/usr/local/opt/ncurses/lib"
       os: osx
       osx_image: xcode10.3
       compiler: clang
@@ -288,6 +288,7 @@ matrix:
             - gettext
             - glib
             - gnu-sed
+            - ncurses
             - pixman
             - python
             - snappy
