@@ -269,11 +269,45 @@ matrix:
 
     # MacOSX builds - cirrus.yml also tests some MacOS builds including latest Xcode
 
+    # On macOS Mojave, the SDK comes bundled with Xcode 10.
     - name: "OSX Xcode 10.3"
       env:
-        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu,x86_64-softmmu --extra-cflags=-I/usr/local/opt/ncurses/include --extra-ldflags=-L/usr/local/opt/ncurses/lib"
+        - CONFIG="--target-list=i386-softmmu,ppc-softmmu,ppc64-softmmu,m68k-softmmu --extra-cflags=-I/usr/local/opt/ncurses/include --extra-ldflags=-L/usr/local/opt/ncurses/lib"
       os: osx
       osx_image: xcode10.3
+      compiler: clang
+      addons:
+        homebrew:
+          packages:
+            - ccache
+            - libgcrypt
+            - libiscsi
+            - libssh2
+            - libusb
+            - lzfse
+            - lzo
+            - gettext
+            - glib
+            - gnu-sed
+            - ncurses
+            - pixman
+            - python
+            - snappy
+            - vde
+          update: true
+      before_script:
+        - brew link --overwrite python
+        - export PATH="/usr/local/opt/ccache/libexec:$PATH"
+        - mkdir -p ${BUILD_DIR} && cd ${BUILD_DIR}
+        - ${SRC_DIR}/configure ${BASE_CONFIG} ${CONFIG} || { cat config.log && exit 1; }
+
+
+    # On macOS Catalina, the SDK comes bundled with Xcode 11.
+    - name: "OSX Xcode 11.3"
+      env:
+        - CONFIG="--target-list=arm-softmmu,ppc64-softmmu,x86_64-softmmu --extra-cflags=-I/usr/local/opt/ncurses/include --extra-ldflags=-L/usr/local/opt/ncurses/lib"
+      os: osx
+      osx_image: xcode11.3
       compiler: clang
       addons:
         homebrew:
