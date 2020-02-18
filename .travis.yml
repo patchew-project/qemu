@@ -279,10 +279,19 @@ matrix:
         homebrew:
           packages:
             - ccache
+            - libgcrypt
+            - libiscsi
+            - libssh2
+            - libusb
+            - lzfse
+            - lzo
+            - gettext
             - glib
-            - pixman
             - gnu-sed
+            - pixman
             - python
+            - snappy
+            - vde
           update: true
       before_script:
         - brew link --overwrite python
