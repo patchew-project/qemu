@@ -37,6 +37,7 @@
 #include "hw/intc/heathrow_pic.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
+#include "include/hw/audio/screamer.h"
 
 /* Note: this code is strongly inspirated from the corresponding code
  * in PearPC */
@@ -109,7 +110,10 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     SysBusDevice *sysbus_dev;
     Error *err = NULL;
 
-    object_property_set_bool(OBJECT(&s->dbdma), true, "realized", &err);
+    const char *realized_property = "realized";
+    bool new_value = true;
+    object_property_set_bool(OBJECT(&s->dbdma), new_value, realized_property,
+                             &err);
     if (err) {
         error_propagate(errp, err);
         return;
@@ -117,6 +121,19 @@ static void macio_common_realize(PCIDevice *d, Error **errp)
     sysbus_dev = SYS_BUS_DEVICE(&s->dbdma);
     memory_region_add_subregion(&s->bar, 0x08000,
                                 sysbus_mmio_get_region(sysbus_dev, 0));
+    object_property_set_bool(OBJECT(&s->screamer), true, "realized", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    /* Add the screamer sound chip */
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    const int offset = 0x14000; /* Offset from base address register (bar) */
+    const int region_number = 0; /* which memory region to use */
+    memory_region_add_subregion(&s->bar, offset,
+                                sysbus_mmio_get_region(sysbus_dev,
+                                                       region_number));
 
     qdev_prop_set_uint32(DEVICE(&s->escc), "disabled", 0);
     qdev_prop_set_uint32(DEVICE(&s->escc), "frequency", ESCC_CLOCK);
@@ -386,6 +403,19 @@ static void macio_newworld_realize(PCIDevice *d, Error **errp)
         memory_region_add_subregion(&s->bar, 0x16000,
                                     sysbus_mmio_get_region(sysbus_dev, 0));
     }
+
+    /* Screamer Sound Chip */
+    const int gpio_0 = 0;
+    const int gpio_1 = 1;
+    const int transmit_channel = 0x10;
+    const int receive_channel = 0x12;
+    sysbus_dev = SYS_BUS_DEVICE(&s->screamer);
+    sysbus_connect_irq(sysbus_dev, gpio_0, qdev_get_gpio_in(pic_dev,
+                                           NEWWORLD_SCREAMER_IRQ));
+    sysbus_connect_irq(sysbus_dev, gpio_1, qdev_get_gpio_in(pic_dev,
+                                           NEWWORLD_SCREAMER_DMA_IRQ));
+    screamer_register_dma_functions(SCREAMER(sysbus_dev), &s->dbdma,
+                                    transmit_channel, receive_channel);
 }
 
 static void macio_newworld_init(Object *obj)
@@ -420,6 +450,9 @@ static void macio_instance_init(Object *obj)
                          TYPE_MAC_DBDMA);
 
     macio_init_child_obj(s, "escc", &s->escc, sizeof(s->escc), TYPE_ESCC);
+
+    macio_init_child_obj(s, SOUND_CHIP_NAME, &s->screamer, sizeof(s->screamer),
+                         TYPE_SCREAMER);
 }
 
 static const VMStateDescription vmstate_macio_oldworld = {
