@@ -3770,6 +3770,10 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    BlockDriverState *target,
                                    bool has_replaces, const char *replaces,
                                    enum MirrorSyncMode sync,
+                                   bool has_bitmap,
+                                   const char *bitmap_name,
+                                   bool has_bitmap_mode,
+                                   BitmapSyncMode bitmap_mode,
                                    BlockMirrorBackingMode backing_mode,
                                    bool zero_target,
                                    bool has_speed, int64_t speed,
@@ -3788,6 +3792,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                    Error **errp)
 {
     int job_flags = JOB_DEFAULT;
+    BdrvDirtyBitmap *bitmap = NULL;
 
     if (!has_speed) {
         speed = 0;
@@ -3842,6 +3847,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
         sync = MIRROR_SYNC_MODE_FULL;
     }
 
+    if (has_bitmap) {
+        if (granularity) {
+            error_setg(errp, "Granularity and bitmap cannot both be set");
+            return;
+        }
+
+        if (!has_bitmap_mode) {
+            error_setg(errp, "bitmap-mode must be specified if"
+                       " a bitmap is provided");
+            return;
+        }
+
+        bitmap = bdrv_find_dirty_bitmap(bs, bitmap_name);
+        if (!bitmap) {
+            error_setg(errp, "Dirty bitmap '%s' not found", bitmap_name);
+            return;
+        }
+
+        if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
+            return;
+        }
+    }
+
     if (has_replaces) {
         BlockDriverState *to_replace_bs;
         AioContext *replace_aio_context;
@@ -3879,8 +3907,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
      * and will allow to check whether the node still exist at mirror completion
      */
     mirror_start(job_id, bs, target,
-                 has_replaces ? replaces : NULL, job_flags,
-                 speed, granularity, buf_size, sync, backing_mode, zero_target,
+                 has_replaces ? replaces : NULL, job_flags, speed, granularity,
+                 buf_size, sync, bitmap, bitmap_mode, backing_mode, zero_target,
                  on_source_error, on_target_error, unmap, filter_node_name,
                  copy_mode, errp);
 }
@@ -4021,6 +4049,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
 
     blockdev_mirror_common(arg->has_job_id ? arg->job_id : NULL, bs, target_bs,
                            arg->has_replaces, arg->replaces, arg->sync,
+                           arg->has_bitmap, arg->bitmap,
+                           arg->has_bitmap_mode, arg->bitmap_mode,
                            backing_mode, zero_target,
                            arg->has_speed, arg->speed,
                            arg->has_granularity, arg->granularity,
@@ -4043,6 +4073,8 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
                          const char *device, const char *target,
                          bool has_replaces, const char *replaces,
                          MirrorSyncMode sync,
+                         bool has_bitmap, const char *bitmap,
+                         bool has_bitmap_mode, BitmapSyncMode bitmap_mode,
                          bool has_speed, int64_t speed,
                          bool has_granularity, uint32_t granularity,
                          bool has_buf_size, int64_t buf_size,
@@ -4093,7 +4125,8 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     }
 
     blockdev_mirror_common(has_job_id ? job_id : NULL, bs, target_bs,
-                           has_replaces, replaces, sync, backing_mode,
+                           has_replaces, replaces, sync, has_bitmap,
+                           bitmap, has_bitmap_mode, bitmap_mode, backing_mode,
                            zero_target, has_speed, speed,
                            has_granularity, granularity,
                            has_buf_size, buf_size,
