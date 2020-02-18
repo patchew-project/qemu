@@ -1366,6 +1366,7 @@ static Error *hv_no_nonarch_cs_mig_blocker;
 static int hyperv_init_vcpu(X86CPU *cpu)
 {
     CPUState *cs = CPU(cpu);
+    CPUX86State *env = &cpu->env;
     Error *local_err = NULL;
     int ret;
 
@@ -1430,6 +1431,9 @@ static int hyperv_init_vcpu(X86CPU *cpu)
                          strerror(-ret));
             return ret;
         }
+
+        /* When SynIC is enabled, APICv controls become unavailable */
+        env->features[FEAT_VMX_PINBASED_CTLS] &= ~VMX_PIN_BASED_POSTED_INTR;
 
         if (!cpu->hyperv_synic_kvm_only) {
             ret = hyperv_x86_synic_add(cpu);
@@ -1845,12 +1849,12 @@ int kvm_arch_init_vcpu(CPUState *cs)
         has_msr_tsc_aux = false;
     }
 
-    kvm_init_msrs(cpu);
-
     r = hyperv_init_vcpu(cpu);
     if (r) {
         goto fail;
     }
+
+    kvm_init_msrs(cpu);
 
     return 0;
 
