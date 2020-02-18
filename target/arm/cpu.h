@@ -49,6 +49,7 @@
 #define EXCP_LAZYFP         20   /* v7M fault during lazy FP stacking */
 #define EXCP_LSERR          21   /* v8M LSERR SecureFault */
 #define EXCP_UNALIGNED      22   /* v7M UNALIGNED UsageFault */
+#define EXCP_SERROR         23   /* SError Interrupt */
 /* NB: add new EXCP_ defines to the array in arm_log_exception() too */
 
 #define ARMV7M_EXCP_RESET   1
@@ -79,9 +80,10 @@ enum {
 };
 
 /* ARM-specific interrupt pending bits.  */
-#define CPU_INTERRUPT_FIQ   CPU_INTERRUPT_TGT_EXT_1
-#define CPU_INTERRUPT_VIRQ  CPU_INTERRUPT_TGT_EXT_2
-#define CPU_INTERRUPT_VFIQ  CPU_INTERRUPT_TGT_EXT_3
+#define CPU_INTERRUPT_FIQ     CPU_INTERRUPT_TGT_EXT_1
+#define CPU_INTERRUPT_VIRQ    CPU_INTERRUPT_TGT_EXT_2
+#define CPU_INTERRUPT_VFIQ    CPU_INTERRUPT_TGT_EXT_3
+#define CPU_INTERRUPT_SERROR  CPU_INTERRUPT_TGT_EXT_4
 
 /* The usual mapping for an AArch64 system register to its AArch32
  * counterpart is for the 32 bit world to have access to the lower
@@ -97,11 +99,13 @@ enum {
 #define offsetofhigh32(S, M) (offsetof(S, M) + sizeof(uint32_t))
 #endif
 
-/* Meanings of the ARMCPU object's four inbound GPIO lines */
-#define ARM_CPU_IRQ 0
-#define ARM_CPU_FIQ 1
-#define ARM_CPU_VIRQ 2
-#define ARM_CPU_VFIQ 3
+/* ARMCPU object's inbound GPIO lines */
+#define ARM_CPU_IRQ     0
+#define ARM_CPU_FIQ     1
+#define ARM_CPU_VIRQ    2
+#define ARM_CPU_VFIQ    3
+#define ARM_CPU_SERROR  4
+#define ARM_CPU_NUM_IRQ 5
 
 /* ARM-specific extra insn start words:
  * 1: Conditional execution bits

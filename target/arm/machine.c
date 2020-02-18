@@ -714,7 +714,8 @@ static int cpu_post_load(void *opaque, int version_id)
 
         env->irq_line_state = cs->interrupt_request &
             (CPU_INTERRUPT_HARD | CPU_INTERRUPT_FIQ |
-             CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VFIQ);
+             CPU_INTERRUPT_VIRQ | CPU_INTERRUPT_VFIQ |
+             CPU_INTERRUPT_SERROR);
     }
 
     /* Update the values list from the incoming migration data.

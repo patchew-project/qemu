@@ -1969,6 +1969,12 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         }
     }
 
+    if (!allow_virt || !(hcr_el2 & HCR_AMO)) {
+        if (cs->interrupt_request & CPU_INTERRUPT_SERROR) {
+            ret |= CPSR_A;
+        }
+    }
+
     /* External aborts are not possible in QEMU so A bit is always clear */
     return ret;
 }
@@ -8598,6 +8604,7 @@ void arm_log_exception(int idx)
             [EXCP_LAZYFP] = "v7M exception during lazy FP stacking",
             [EXCP_LSERR] = "v8M LSERR UsageFault",
             [EXCP_UNALIGNED] = "v7M UNALIGNED UsageFault",
+            [EXCP_SERROR] = "SError Interrupt",
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
@@ -8923,6 +8930,7 @@ static void arm_cpu_do_interrupt_aarch32_hyp(CPUState *cs)
         addr = 0x0c;
         break;
     case EXCP_DATA_ABORT:
+    case EXCP_SERROR:
         env->cp15.dfar_s = env->exception.vaddress;
         qemu_log_mask(CPU_LOG_INT, "...with HDFAR 0x%x\n",
                       (uint32_t)env->exception.vaddress);
@@ -9051,6 +9059,7 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
         offset = 4;
         break;
     case EXCP_DATA_ABORT:
+    case EXCP_SERROR:
         A32_BANKED_CURRENT_REG_SET(env, dfsr, env->exception.fsr);
         A32_BANKED_CURRENT_REG_SET(env, dfar, env->exception.vaddress);
         qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
@@ -9212,6 +9221,9 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
     case EXCP_FIQ:
     case EXCP_VFIQ:
         addr += 0x100;
+        break;
+    case EXCP_SERROR:
+        addr += 0x180;
         break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
