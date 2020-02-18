@@ -78,7 +78,8 @@ static bool arm_cpu_has_work(CPUState *cs)
         && cs->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD
          | CPU_INTERRUPT_VFIQ | CPU_INTERRUPT_VIRQ
-         | CPU_INTERRUPT_SERROR | CPU_INTERRUPT_EXITTB);
+         | CPU_INTERRUPT_SERROR | CPU_INTERRUPT_VSERROR
+         | CPU_INTERRUPT_EXITTB);
 }
 
 void arm_register_pre_el_change_hook(ARMCPU *cpu, ARMELChangeHookFn *hook,
@@ -452,6 +453,12 @@ static inline bool arm_excp_unmasked(CPUState *cs, unsigned int excp_idx,
     case EXCP_SERROR:
        pstate_unmasked = !(env->daif & PSTATE_A);
        break;
+    case EXCP_VSERROR:
+        if (secure || !(hcr_el2 & HCR_AMO) || (hcr_el2 & HCR_TGE)) {
+            /* VSError is only taken when hypervized and non-secure.  */
+            return false;
+        }
+        return !(env->daif & PSTATE_A);
     default:
         g_assert_not_reached();
     }
@@ -550,6 +557,15 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
         }
     }
 
+    if (interrupt_request & CPU_INTERRUPT_VSERROR) {
+        excp_idx = EXCP_VSERROR;
+        target_el = 1;
+        if (arm_excp_unmasked(cs, excp_idx, target_el,
+                              cur_el, secure, hcr_el2)) {
+            goto found;
+        }
+    }
+
     if (interrupt_request & CPU_INTERRUPT_FIQ) {
         excp_idx = EXCP_FIQ;
         target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
@@ -558,6 +574,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             goto found;
         }
     }
+
     if (interrupt_request & CPU_INTERRUPT_HARD) {
         excp_idx = EXCP_IRQ;
         target_el = arm_phys_excp_target_el(cs, excp_idx, cur_el, secure);
@@ -566,6 +583,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             goto found;
         }
     }
+
     if (interrupt_request & CPU_INTERRUPT_VIRQ) {
         excp_idx = EXCP_VIRQ;
         target_el = 1;
@@ -574,6 +592,7 @@ bool arm_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
             goto found;
         }
     }
+
     if (interrupt_request & CPU_INTERRUPT_VFIQ) {
         excp_idx = EXCP_VFIQ;
         target_el = 1;
@@ -672,6 +691,28 @@ void arm_cpu_update_vfiq(ARMCPU *cpu)
     }
 }
 
+void arm_cpu_update_vserror(ARMCPU *cpu)
+{
+    /*
+     * Update the interrupt level for virtual SError, which is the logical
+     * OR of the HCR_EL2.VSE bit and the input line level from the GIC.
+     */
+    CPUARMState *env = &cpu->env;
+    CPUState *cs = CPU(cpu);
+
+    bool new_state = (env->cp15.hcr_el2 & HCR_VSE) ||
+        (env->irq_line_state & CPU_INTERRUPT_VSERROR);
+
+    if (new_state != ((cs->interrupt_request & CPU_INTERRUPT_VSERROR) != 0)) {
+        if (new_state) {
+            cpu_interrupt(cs, CPU_INTERRUPT_VSERROR);
+        } else {
+            cpu_reset_interrupt(cs, CPU_INTERRUPT_VSERROR);
+        }
+    }
+}
+
+
 #ifndef CONFIG_USER_ONLY
 static void arm_cpu_set_irq(void *opaque, int irq, int level)
 {
@@ -684,6 +725,7 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         [ARM_CPU_VIRQ] = CPU_INTERRUPT_VIRQ,
         [ARM_CPU_VFIQ] = CPU_INTERRUPT_VFIQ,
         [ARM_CPU_SERROR] = CPU_INTERRUPT_SERROR,
+        [ARM_CPU_VSERROR] = CPU_INTERRUPT_VSERROR,
     };
 
     if (level) {
@@ -709,6 +751,10 @@ static void arm_cpu_set_irq(void *opaque, int irq, int level)
         } else {
             cpu_reset_interrupt(cs, mask[irq]);
         }
+        break;
+    case ARM_CPU_VSERROR:
+        assert(arm_feature(env, ARM_FEATURE_EL2));
+        arm_cpu_update_vserror(cpu);
         break;
     default:
         g_assert_not_reached();

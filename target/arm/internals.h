@@ -1024,6 +1024,16 @@ void arm_cpu_update_virq(ARMCPU *cpu);
 void arm_cpu_update_vfiq(ARMCPU *cpu);
 
 /**
+ * arm_cpu_update_vserror: Update CPU_INTERRUPT_VSERROR interrupt
+ *
+ * Update the CPU_INTERRUPT_VSERROR bit in cs->interrupt_request, following
+ * a change to either the input virtual SError line from the GIC or the
+ * HCR_EL2.VSE bit. Must be called with the iothread lock held.
+ */
+void arm_cpu_update_vserror(ARMCPU *cpu);
+
+
+/**
  * arm_mmu_idx_el:
  * @env: The cpu environment
  * @el: The EL to use.

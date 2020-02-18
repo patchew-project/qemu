@@ -1969,7 +1969,11 @@ static uint64_t isr_read(CPUARMState *env, const ARMCPRegInfo *ri)
         }
     }
 
-    if (!allow_virt || !(hcr_el2 & HCR_AMO)) {
+    if (allow_virt && (hcr_el2 & HCR_AMO)) {
+        if (cs->interrupt_request & CPU_INTERRUPT_VSERROR) {
+            ret |= CPSR_A;
+        }
+    } else {
         if (cs->interrupt_request & CPU_INTERRUPT_SERROR) {
             ret |= CPSR_A;
         }
@@ -5103,6 +5107,7 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     g_assert(qemu_mutex_iothread_locked());
     arm_cpu_update_virq(cpu);
     arm_cpu_update_vfiq(cpu);
+    arm_cpu_update_vserror(cpu);
 }
 
 static void hcr_writehigh(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -8605,6 +8610,7 @@ void arm_log_exception(int idx)
             [EXCP_LSERR] = "v8M LSERR UsageFault",
             [EXCP_UNALIGNED] = "v7M UNALIGNED UsageFault",
             [EXCP_SERROR] = "SError Interrupt",
+            [EXCP_VSERROR] = "Virtual SError Interrupt",
         };
 
         if (idx >= 0 && idx < ARRAY_SIZE(excnames)) {
@@ -9113,6 +9119,17 @@ static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
         mask = CPSR_A | CPSR_I | CPSR_F;
         offset = 0;
         break;
+    case EXCP_VSERROR:
+        A32_BANKED_CURRENT_REG_SET(env, dfsr, env->exception.fsr);
+        A32_BANKED_CURRENT_REG_SET(env, dfar, env->exception.vaddress);
+        qemu_log_mask(CPU_LOG_INT, "...with DFSR 0x%x DFAR 0x%x\n",
+                      env->exception.fsr,
+                      (uint32_t)env->exception.vaddress);
+        new_mode = ARM_CPU_MODE_ABT;
+        addr = 0x10;
+        mask = CPSR_A | CPSR_I;
+        offset = 8;
+        break;
     default:
         cpu_abort(cs, "Unhandled exception 0x%x\n", cs->exception_index);
         return; /* Never happens.  Keep compiler happy.  */
@@ -9223,6 +9240,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
         addr += 0x100;
         break;
     case EXCP_SERROR:
+    case EXCP_VSERROR:
         addr += 0x180;
         break;
     default:
