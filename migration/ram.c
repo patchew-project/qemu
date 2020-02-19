@@ -52,6 +52,7 @@
 #include "migration/colo.h"
 #include "block.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "savevm.h"
 #include "qemu/iov.h"
 #include "multifd.h"
@@ -3710,8 +3711,48 @@ static SaveVMHandlers savevm_ram_handlers = {
     .resume_prepare = ram_resume_prepare,
 };
 
+static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
+                                      size_t old_size, size_t new_size)
+{
+    ram_addr_t offset;
+    Error *err = NULL;
+    RAMBlock *rb = qemu_ram_block_from_host(host, false, &offset);
+
+    if (ramblock_is_ignored(rb)) {
+        return;
+    }
+
+    /*
+     * Some resizes are triggered on the migration target by precopy code,
+     * when synchronizing RAM block sizes. In these cases, the VM is not
+     * running and migration is not idle. We have to ignore these resizes,
+     * as we only care about resizes during precopy on the migration source.
+     * This handler is always registered, so ignore when migration is idle.
+     */
+    if (migration_is_idle() || !runstate_is_running() ||
+        postcopy_is_running()) {
+        return;
+    }
+
+    /*
+     * Precopy code cannot deal with the size of ram blocks changing at
+     * random points in time. We're still running on the source, abort
+     * the migration and continue running here. Make sure to wait until
+     * migration was canceled.
+     */
+    error_setg(&err, "RAM block '%s' resized during precopy.", rb->idstr);
+    migrate_set_error(migrate_get_current(), err);
+    error_free(err);
+    migration_cancel();
+}
+
+static RAMBlockNotifier ram_mig_ram_notifier = {
+    .ram_block_resized = ram_mig_ram_block_resized,
+};
+
 void ram_mig_init(void)
 {
     qemu_mutex_init(&XBZRLE.lock);
     register_savevm_live("ram", 0, 4, &savevm_ram_handlers, &ram_state);
+    ram_block_notifier_add(&ram_mig_ram_notifier);
 }
