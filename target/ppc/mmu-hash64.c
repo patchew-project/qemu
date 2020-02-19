@@ -760,12 +760,12 @@ static target_ulong rmls_limit(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
     /*
-     * This is the full 4 bits encoding of POWER8. Previous
-     * CPUs only support a subset of these but the filtering
-     * is done when writing LPCR
+     * In theory the meanings of RMLS values are implementation
+     * dependent.  In practice, this seems to have been the set from
+     * POWER4+..POWER8, and RMLS is no longer supported in POWER9.
      */
     const target_ulong rma_sizes[] = {
-        [0] = 0,
+        [0] = 256 * GiB,
         [1] = 16 * GiB,
         [2] = 1 * GiB,
         [3] = 64 * MiB,
