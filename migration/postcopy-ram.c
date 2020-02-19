@@ -506,6 +506,13 @@ static int cleanup_range(RAMBlock *rb, void *opaque)
     range_struct.start = (uintptr_t)host_addr;
     range_struct.len = length;
 
+    /*
+     * In case the mapping was partially changed since we enabled userfault
+     * (esp. when whrinking RAM blocks and we have resizable allocations, or
+     * via qemu_ram_remap()), the userfaultfd handler was already removed for
+     * the mappings that changed. Unregistering will, however, still work and
+     * ignore mappings without a registered handler.
+     */
     if (ioctl(mis->userfault_fd, UFFDIO_UNREGISTER, &range_struct)) {
         error_report("%s: userfault unregister %s", __func__, strerror(errno));
 
@@ -1239,10 +1246,28 @@ int postcopy_place_page(MigrationIncomingState *mis, void *host, void *from,
      */
     if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, from, pagesize, rb)) {
         int e = errno;
-        error_report("%s: %s copy host: %p from: %p (size: %zd)",
-                     __func__, strerror(e), host, from, pagesize);
 
-        return -e;
+        /*
+         * When the mapping gets partially changed before we try to place a page
+         * (esp. when whrinking RAM blocks and we have resizable allocations, or
+         * via qemu_ram_remap()), the userfaultfd handler will be removed and
+         * placing pages will fail. In that case, any waiter was already woken
+         * up when the mapping was changed. We can safely ignore this, as
+         * mappings that change once we're running on the destination imply
+         * that memory of these mappings vanishes. Let's still print a warning
+         * for now.
+         *
+         * Old kernels report EINVAL, new kernels report ENOENT.
+         */
+        if (e == ENOENT || e == EINVAL) {
+            warn_report("%s: %s copy host: %p from: %p (size: %zd)",
+                        __func__, strerror(e), host, from, pagesize);
+        } else {
+            error_report("%s: %s copy host: %p from: %p (size: %zd)",
+                         __func__, strerror(e), host, from, pagesize);
+
+            return -e;
+        }
     }
 
     trace_postcopy_place_page(host);
@@ -1266,10 +1291,16 @@ int postcopy_place_page_zero(MigrationIncomingState *mis, void *host,
     if (qemu_ram_is_uf_zeroable(rb)) {
         if (qemu_ufd_copy_ioctl(mis->userfault_fd, host, NULL, pagesize, rb)) {
             int e = errno;
-            error_report("%s: %s zero host: %p",
-                         __func__, strerror(e), host);
 
-            return -e;
+            /* See the comment in postcopy_place_page() */
+            if (e == ENOENT || e == EINVAL) {
+                warn_report("%s: %s zero host: %p", __func__, strerror(e),
+                            host);
+            } else {
+                error_report("%s: %s zero host: %p", __func__, strerror(e),
+                             host);
+                return -e;
+            }
         }
         return postcopy_notify_shared_wake(rb,
                                            qemu_ram_block_host_offset(rb,
