@@ -10,7 +10,10 @@
 # later.  See the COPYING file in the top-level directory.
 
 
+import os
 import tempfile
+from socket import socketpair, AF_UNIX, SOCK_STREAM
+
 from avocado_qemu import Test
 from avocado import skipUnless
 
@@ -75,3 +78,20 @@ class Migration(Test):
         """
         free_port = self._get_free_port()
         dest_uri = 'exec:nc -l localhost %u' % free_port
+
+    def test_migration_with_fd(self):
+        opaque = 'fd-migration'
+        data_to_send = b"{\"execute\": \"getfd\",  \"arguments\": {\"fdname\": \"fd-migration\"}}"
+        send_socket, recv_socket = socketpair(AF_UNIX, SOCK_STREAM)
+        fd1 = send_socket.fileno()
+        fd2 = recv_socket.fileno()
+        os.set_inheritable(fd2, True)
+
+        source_vm = self.get_vm()
+        source_vm.launch()
+        source_vm.send_fd_scm(fd=fd1, data=data_to_send)
+
+        dest_vm = self.get_vm('-incoming', 'fd:%s' % fd2)
+        dest_vm.launch()
+        source_vm.qmp('migrate', uri='fd:%s' % opaque)
+        self.assert_migration(source_vm, dest_vm)
