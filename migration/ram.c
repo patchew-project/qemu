@@ -3723,6 +3723,25 @@ static void ram_mig_ram_block_resized(RAMBlockNotifier *n, void *host,
     }
 
     /*
+     * Especially at the start of precopy on the migration target, before
+     * starting postcopy, we synchronize the RAM block sizes. Let's make sure
+     * that any resizes before starting the guest are properly handled by
+     * postcopy. Note: All other postcopy handling (e.g., registering handlers,
+     * disabling THP) happens after all resizes (e.g., during precopy) were
+     * performed.
+     */
+    if (postcopy_is_advised() && !runstate_is_running()) {
+        /* Update what ram_postcopy_incoming_init()->init_range() does. */
+        if (old_size < new_size) {
+            if (ram_discard_range(rb->idstr, old_size, new_size - old_size)) {
+                error_report("RAM block '%s' discard of resized RAM failed",
+                             rb->idstr);
+            }
+        }
+        return;
+    }
+
+    /*
      * Some resizes are triggered on the migration target by precopy code,
      * when synchronizing RAM block sizes. In these cases, the VM is not
      * running and migration is not idle. We have to ignore these resizes,
