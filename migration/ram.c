@@ -3119,7 +3119,6 @@ static int ram_load_postcopy(QEMUFile *f)
         ram_addr_t addr;
         void *host = NULL;
         void *page_buffer = NULL;
-        void *place_source = NULL;
         RAMBlock *block = NULL;
         uint8_t ch;
         int len;
@@ -3188,7 +3187,6 @@ static int ram_load_postcopy(QEMUFile *f)
                 place_needed = true;
                 target_pages = 0;
             }
-            place_source = postcopy_host_page;
         }
 
         switch (flags & ~RAM_SAVE_FLAG_CONTINUE) {
@@ -3220,7 +3218,7 @@ static int ram_load_postcopy(QEMUFile *f)
                  * buffer to make sure the buffer is valid when
                  * placing the page.
                  */
-                qemu_get_buffer_in_place(f, (uint8_t **)&place_source,
+                qemu_get_buffer_in_place(f, (uint8_t **)&postcopy_host_page,
                                          TARGET_PAGE_SIZE);
             }
             break;
@@ -3265,8 +3263,8 @@ static int ram_load_postcopy(QEMUFile *f)
                 ret = postcopy_place_page_zero(mis, place_dest,
                                                block);
             } else {
-                ret = postcopy_place_page(mis, place_dest,
-                                          place_source, block);
+                ret = postcopy_place_page(mis, place_dest, postcopy_host_page,
+                                          block);
             }
         }
     }
