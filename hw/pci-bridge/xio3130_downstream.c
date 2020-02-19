@@ -94,7 +94,7 @@ static void xio3130_downstream_realize(PCIDevice *d, Error **errp)
     }
     pcie_cap_flr_init(d);
     pcie_cap_deverr_init(d);
-    pcie_cap_slot_init(d, s->slot);
+    pcie_cap_slot_init(d, s);
     pcie_cap_arifwd_init(d);
 
     pcie_chassis_create(s->chassis);
@@ -136,6 +136,7 @@ static void xio3130_downstream_exitfn(PCIDevice *d)
 static Property xio3130_downstream_props[] = {
     DEFINE_PROP_BIT(COMPAT_PROP_PCP, PCIDevice, cap_present,
                     QEMU_PCIE_SLTCAP_PCP_BITNR, true),
+    DEFINE_PROP_BOOL("enable-hotplug", PCIESlot, enable_hotplug, true),
     DEFINE_PROP_END_OF_LIST()
 };
 
