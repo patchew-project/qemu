@@ -59,6 +59,15 @@ struct RAMBlock {
      */
     unsigned long *clear_bmap;
     uint8_t clear_bmap_shift;
+
+    /*
+     * RAM block used_length before the guest started running while postcopy
+     * was active. Once the guest is running, used_length can change. Used to
+     * register/unregister uffd handlers and as the size of the recv bitmap.
+     * Receiving any page beyond this length will bail out, as it could not have
+     * been valid on the source.
+     */
+    ram_addr_t postcopy_length;
 };
 #endif
 #endif
