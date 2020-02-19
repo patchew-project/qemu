@@ -842,8 +842,10 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
             goto skip_slb_search;
         } else {
+            target_ulong limit = rmls_limit(cpu);
+
             /* Emulated old-style RMO mode, bounds check against RMLS */
-            if (raddr >= env->rmls) {
+            if (raddr >= limit) {
                 if (rwx == 2) {
                     ppc_hash64_set_isi(cs, SRR1_PROTFAULT);
                 } else {
@@ -1005,8 +1007,9 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
                 return -1;
             }
         } else {
+            target_ulong limit = rmls_limit(cpu);
             /* Emulated old-style RMO mode, bounds check against RMLS */
-            if (raddr >= env->rmls) {
+            if (raddr >= limit) {
                 return -1;
             }
             return raddr | env->spr[SPR_RMOR];
@@ -1096,7 +1099,6 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
-    env->rmls = rmls_limit(cpu);
     ppc_hash64_update_vrma(cpu);
 }
 
