@@ -24,6 +24,7 @@ import subprocess
 import shutil
 import socket
 import tempfile
+import array
 
 from . import qmp
 
@@ -154,6 +155,23 @@ class QEMUMachine(object):
         self._args.append('-add-fd')
         self._args.append(','.join(options))
         return self
+
+    def _recv_fds(self, sock, msglen=8192, maxfds=4096):
+        """
+        Function from https://docs.python.org/3/library/socket.html#socket.socket.recvmsg
+        """
+        fds = array.array("i")
+        msg, ancdata, flags, addr = sock.recvmsg(msglen, socket.CMSG_LEN(maxfds * fds.itemsize))
+        for cmsg_level, cmsg_type, cmsg_data in ancdata:
+            if cmsg_level == socket.SOL_SOCKET and cmsg_type == socket.SCM_RIGHTS:
+                fds.frombytes(cmsg_data[:len(cmsg_data) - (len(cmsg_data) % fds.itemsize)])
+        return msg, list(fds)
+
+    def _send_fds(self, sock, msg, fds):
+        """
+        Function from https://docs.python.org/3/library/socket.html#socket.socket.sendmsg
+        """
+        return sock.sendmsg([msg], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array("i", fds))])
 
     def send_fd_scm(self, fd=None, file_path=None):
         """
