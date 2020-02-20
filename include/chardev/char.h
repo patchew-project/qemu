@@ -65,6 +65,7 @@ struct Chardev {
     char *filename;
     int logfd;
     int be_open;
+    int retries;
     GSource *gsource;
     GMainContext *gcontext;
     DECLARE_BITMAP(features, QEMU_CHAR_FEATURE_LAST);
@@ -221,8 +222,9 @@ void qemu_chr_set_feature(Chardev *chr,
                           ChardevFeature feature);
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename,
                                 bool permit_mux_mon);
-int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all);
-#define qemu_chr_write_all(s, buf, len) qemu_chr_write(s, buf, len, true)
+int qemu_chr_write(Chardev *s, const uint8_t *buf, int len,
+                   bool write_all, bool best_effort);
+#define qemu_chr_write_all(s, buf, len) qemu_chr_write(s, buf, len, true, false)
 int qemu_chr_wait_connected(Chardev *chr, Error **errp);
 
 #define TYPE_CHARDEV "chardev"

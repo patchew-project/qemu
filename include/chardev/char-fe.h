@@ -221,6 +221,20 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len);
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len);
 
 /**
+ * qemu_chr_fe_try_write_all:
+ * @buf: the data
+ * @len: the number of bytes to send
+ *
+ * Write data to a character backend from the front end.  This function will
+ * send data from the front end to the back end. It provides function as to
+ * @qemu_chr_fe_write_all, except the data will be dropped after 50 attempts
+ * of transmissions are done.
+ *
+ * Returns: the number of bytes consumed (0 if no associated Chardev)
+ */
+int qemu_chr_fe_try_write_all(CharBackend *be, const uint8_t *buf, int len);
+
+/**
  * qemu_chr_fe_read_all:
  * @buf: the data buffer
  * @len: the number of bytes to read

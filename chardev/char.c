@@ -106,9 +106,8 @@ static void qemu_chr_write_log(Chardev *s, const uint8_t *buf, size_t len)
     }
 }
 
-static int qemu_chr_write_buffer(Chardev *s,
-                                 const uint8_t *buf, int len,
-                                 int *offset, bool write_all)
+static int qemu_chr_write_buffer(Chardev *s, const uint8_t *buf, int len,
+                                 int *offset, bool write_all, bool best_effort)
 {
     ChardevClass *cc = CHARDEV_GET_CLASS(s);
     int res = 0;
@@ -119,7 +118,14 @@ static int qemu_chr_write_buffer(Chardev *s,
     retry:
         res = cc->chr_write(s, buf + *offset, len - *offset);
         if (res < 0 && errno == EAGAIN && write_all) {
+            if (best_effort && s->retries > 50) {
+                break;
+            }
+
             g_usleep(100);
+            if (best_effort) {
+                s->retries++;
+            }
             goto retry;
         }
 
@@ -127,6 +133,7 @@ static int qemu_chr_write_buffer(Chardev *s,
             break;
         }
 
+        s->retries = 0;
         *offset += res;
         if (!write_all) {
             break;
@@ -140,7 +147,8 @@ static int qemu_chr_write_buffer(Chardev *s,
     return res;
 }
 
-int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
+int qemu_chr_write(Chardev *s, const uint8_t *buf, int len,
+                   bool write_all, bool best_effort)
 {
     int offset = 0;
     int res;
@@ -148,11 +156,11 @@ int qemu_chr_write(Chardev *s, const uint8_t *buf, int len, bool write_all)
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_PLAY) {
         replay_char_write_event_load(&res, &offset);
         assert(offset <= len);
-        qemu_chr_write_buffer(s, buf, offset, &offset, true);
+        qemu_chr_write_buffer(s, buf, offset, &offset, true, false);
         return res;
     }
 
-    res = qemu_chr_write_buffer(s, buf, len, &offset, write_all);
+    res = qemu_chr_write_buffer(s, buf, len, &offset, write_all, best_effort);
 
     if (qemu_chr_replay(s) && replay_mode == REPLAY_MODE_RECORD) {
         replay_char_write_event_save(res, offset);

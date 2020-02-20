@@ -39,7 +39,7 @@ int qemu_chr_fe_write(CharBackend *be, const uint8_t *buf, int len)
         return 0;
     }
 
-    return qemu_chr_write(s, buf, len, false);
+    return qemu_chr_write(s, buf, len, false, false);
 }
 
 int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
@@ -50,7 +50,18 @@ int qemu_chr_fe_write_all(CharBackend *be, const uint8_t *buf, int len)
         return 0;
     }
 
-    return qemu_chr_write(s, buf, len, true);
+    return qemu_chr_write(s, buf, len, true, false);
+}
+
+int qemu_chr_fe_try_write_all(CharBackend *be, const uint8_t *buf, int len)
+{
+    Chardev *s = be->chr;
+
+    if (!s) {
+        return 0;
+    }
+
+    return qemu_chr_write(s, buf, len, true, true);
 }
 
 int qemu_chr_fe_read_all(CharBackend *be, uint8_t *buf, int len)
