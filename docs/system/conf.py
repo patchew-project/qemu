@@ -18,5 +18,8 @@ html_theme_options['description'] = u'System Emulation User''s Guide'
 man_pages = [
     ('qemu-block-drivers', 'qemu-block-drivers',
      u'QEMU block drivers reference',
+     ['Fabrice Bellard and the QEMU Project developers'], 7),
+    ('qemu-cpu-models', 'qemu-cpu-models',
+     u'QEMU CPU Models',
      ['Fabrice Bellard and the QEMU Project developers'], 7)
 ]
