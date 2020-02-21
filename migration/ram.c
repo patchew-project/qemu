@@ -901,6 +901,11 @@ static void migration_bitmap_sync(RAMState *rs)
     RAMBlock *block;
     int64_t end_time;
     uint64_t bytes_xfer_now;
+    uint64_t bytes_dirty_period;
+    uint64_t bytes_xfer_period;
+    uint64_t bytes_dirty_thres;
+    uint64_t throttle_trig_thres;
+    MigrationState *s = migrate_get_current();
 
     ram_counters.dirty_sync_count++;
 
@@ -934,13 +939,17 @@ static void migration_bitmap_sync(RAMState *rs)
          * throttling logic during the bulk phase of block migration. */
         if (migrate_auto_converge() && !blk_mig_bulk_active()) {
             /* The following detection logic can be refined later. For now:
-               Check to see if the dirtied bytes is 50% more than the approx.
-               amount of bytes that just got transferred since the last time we
-               were in this routine. If that happens twice, start or increase
-               throttling */
+               Check to see if the ratio between dirtied bytes and the approx.
+               amount of bytes that just got transferred since the last time
+               we were in this routine reaches the threshold. If that happens
+               twice, start or increase throttling. */
 
-            if ((rs->num_dirty_pages_period * TARGET_PAGE_SIZE >
-                   (bytes_xfer_now - rs->bytes_xfer_prev) / 2) &&
+            bytes_dirty_period = rs->num_dirty_pages_period * TARGET_PAGE_SIZE;
+            bytes_xfer_period = bytes_xfer_now - rs->bytes_xfer_prev;
+            throttle_trig_thres = s->parameters.throttle_trig_thres;
+            bytes_dirty_thres = bytes_xfer_period * throttle_trig_thres / 100;
+
+            if ((bytes_dirty_period > bytes_dirty_thres) &&
                 (++rs->dirty_rate_high_cnt >= 2)) {
                     trace_migration_throttle();
                     rs->dirty_rate_high_cnt = 0;

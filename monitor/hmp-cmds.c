@@ -409,6 +409,10 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_DECOMPRESS_THREADS),
             params->decompress_threads);
+        assert(params->has_throttle_trig_thres);
+        monitor_printf(mon, "%s: %u\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_THROTTLE_TRIG_THRES),
+            params->throttle_trig_thres);
         assert(params->has_cpu_throttle_initial);
         monitor_printf(mon, "%s: %u\n",
             MigrationParameter_str(MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL),
@@ -1764,6 +1768,9 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
         p->has_decompress_threads = true;
         visit_type_int(v, param, &p->decompress_threads, &err);
         break;
+    case MIGRATION_PARAMETER_THROTTLE_TRIG_THRES:
+        p->has_throttle_trig_thres = true;
+        visit_type_int(v, param, &p->throttle_trig_thres, &err);
     case MIGRATION_PARAMETER_CPU_THROTTLE_INITIAL:
         p->has_cpu_throttle_initial = true;
         visit_type_int(v, param, &p->cpu_throttle_initial, &err);
