@@ -83,6 +83,11 @@ typedef struct NvmeCtrl {
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
 
     char            *serial;
+    char            *pmr_file;
+    FILE            *f_pmr;
+    uint64_t        f_pmr_size;
+    uint8_t         *pmrbuf;
+
     NvmeNamespace   *namespaces;
     NvmeSQueue      **sq;
     NvmeCQueue      **cq;

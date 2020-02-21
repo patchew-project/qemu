@@ -19,10 +19,14 @@
  *      -drive file=<file>,if=none,id=<drive_id>
  *      -device nvme,drive=<drive_id>,serial=<serial>,id=<id[optional]>, \
  *              cmb_size_mb=<cmb_size_mb[optional]>, \
+ *              [pmr_file=<pmr_file_path>,] \
  *              num_queues=<N[optional]>
  *
  * Note cmb_size_mb denotes size of CMB in MB. CMB is assumed to be at
  * offset 0 in BAR2 and supports only WDS, RDS and SQS for now.
+ *
+ * Either cmb or pmr - due to limitation in avaialbe BAR indexes.
+ * pmr_file file needs to be preallocated and power of two in size.
  */
 
 #include "qemu/osdep.h"
@@ -1141,6 +1145,28 @@ static void nvme_write_bar(NvmeCtrl *n, hwaddr offset, uint64_t data,
         NVME_GUEST_ERR(nvme_ub_mmiowr_cmbsz_readonly,
                        "invalid write to read only CMBSZ, ignored");
         return;
+#ifndef _WIN32
+    case 0xE00: /* PMRCAP */
+        NVME_GUEST_ERR(nvme_ub_mmiowr_pmrcap_readonly,
+                       "invalid write to PMRCAP register, ignored");
+        return;
+    case 0xE04: /* TODO PMRCTL */
+        break;
+    case 0xE08: /* PMRSTS */
+        NVME_GUEST_ERR(nvme_ub_mmiowr_pmrsts_readonly,
+                       "invalid write to PMRSTS register, ignored");
+        return;
+    case 0xE0C: /* PMREBS */
+        NVME_GUEST_ERR(nvme_ub_mmiowr_pmrebs_readonly,
+                       "invalid write to PMREBS register, ignored");
+        return;
+    case 0xE10: /* PMRSWTP */
+        NVME_GUEST_ERR(nvme_ub_mmiowr_pmrswtp_readonly,
+                       "invalid write to PMRSWTP register, ignored");
+        return;
+    case 0xE14: /* TODO PMRMSC */
+         break;
+#endif /* !_WIN32 */
     default:
         NVME_GUEST_ERR(nvme_ub_mmiowr_invalid,
                        "invalid MMIO write,"
@@ -1169,6 +1195,22 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
     }
 
     if (addr < sizeof(n->bar)) {
+#ifndef _WIN32
+        /*
+         * When PMRWBM bit 1 is set then read from
+         * from PMRSTS should ensure prior writes
+         * made it to persistent media
+         */
+        if (addr == 0xE08 &&
+            (NVME_PMRCAP_PMRWBM(n->bar.pmrcap) & 0x02) >> 1) {
+            int ret;
+            ret = msync(n->pmrbuf, n->f_pmr_size, MS_SYNC);
+            if (!ret) {
+                NVME_GUEST_ERR(nvme_ub_mmiord_pmrread_barrier,
+                       "error while persisting data");
+            }
+        }
+#endif /* !_WIN32 */
         memcpy(&val, ptr + addr, size);
     } else {
         NVME_GUEST_ERR(nvme_ub_mmiord_invalid_ofs,
@@ -1303,6 +1345,31 @@ static const MemoryRegionOps nvme_cmb_ops = {
     },
 };
 
+#ifndef _WIN32
+static void nvme_pmr_write(void *opaque, hwaddr addr, uint64_t data,
+    unsigned size)
+{
+    NvmeCtrl *n = (NvmeCtrl *)opaque;
+    stn_le_p(&n->pmrbuf[addr], size, data);
+}
+
+static uint64_t nvme_pmr_read(void *opaque, hwaddr addr, unsigned size)
+{
+    NvmeCtrl *n = (NvmeCtrl *)opaque;
+    return ldn_le_p(&n->pmrbuf[addr], size);
+}
+
+static const MemoryRegionOps nvme_pmr_ops = {
+    .read = nvme_pmr_read,
+    .write = nvme_pmr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+#endif /* !_WIN32 */
+
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
@@ -1332,6 +1399,39 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         error_setg(errp, "serial property not set");
         return;
     }
+
+#ifndef _WIN32
+    if (!n->cmb_size_mb && n->pmr_file) {
+        int fd;
+
+        n->f_pmr = fopen(n->pmr_file, "r+b");
+        if (!n->f_pmr) {
+            error_setg(errp, "pmr backend file open error");
+            return;
+        }
+
+        fseek(n->f_pmr, 0L, SEEK_END);
+        n->f_pmr_size = ftell(n->f_pmr);
+        fseek(n->f_pmr, 0L, SEEK_SET);
+
+        /* pmr file size needs to be power of 2 in size */
+        if (!n->f_pmr_size || !is_power_of_2(n->f_pmr_size)) {
+            error_setg(errp, "pmr backend file size needs to be greater than 0"
+                             "and power of 2 in size");
+            return;
+        }
+
+        fd = fileno(n->f_pmr);
+        n->pmrbuf = mmap(NULL, n->f_pmr_size,
+                         (PROT_READ | PROT_WRITE), MAP_SHARED, fd, 0);
+
+        if (n->pmrbuf == MAP_FAILED) {
+            error_setg(errp, "pmr backend file mmap error");
+            return;
+        }
+    }
+#endif /* !_WIN32 */
+
     blkconf_blocksizes(&n->conf);
     if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
                                        false, errp)) {
@@ -1393,7 +1493,6 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     n->bar.intmc = n->bar.intms = 0;
 
     if (n->cmb_size_mb) {
-
         NVME_CMBLOC_SET_BIR(n->bar.cmbloc, 2);
         NVME_CMBLOC_SET_OFST(n->bar.cmbloc, 0);
 
@@ -1415,6 +1514,55 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
             PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 |
             PCI_BASE_ADDRESS_MEM_PREFETCH, &n->ctrl_mem);
 
+#ifndef _WIN32
+    } else if (n->pmr_file) {
+        /* Controller Capabilities register */
+        NVME_CAP_SET_PMRS(n->bar.cap, 1);
+
+        /* PMR Capabities register */
+        n->bar.pmrcap = 0;
+        NVME_PMRCAP_SET_RDS(n->bar.pmrcap, 0);
+        NVME_PMRCAP_SET_WDS(n->bar.pmrcap, 0);
+        NVME_PMRCAP_SET_BIR(n->bar.pmrcap, 2);
+        NVME_PMRCAP_SET_PMRTU(n->bar.pmrcap, 0);
+        /* Turn on bit 1 support */
+        NVME_PMRCAP_SET_PMRWBM(n->bar.pmrcap, 0x02);
+        NVME_PMRCAP_SET_PMRTO(n->bar.pmrcap, 0);
+        NVME_PMRCAP_SET_CMSS(n->bar.pmrcap, 0);
+
+        /* PMR Control register */
+        n->bar.pmrctl = 0;
+        NVME_PMRCTL_SET_EN(n->bar.pmrctl, 0);
+
+        /* PMR Status register */
+        n->bar.pmrsts = 0;
+        NVME_PMRSTS_SET_ERR(n->bar.pmrsts, 0);
+        NVME_PMRSTS_SET_NRDY(n->bar.pmrsts, 0);
+        NVME_PMRSTS_SET_HSTS(n->bar.pmrsts, 0);
+        NVME_PMRSTS_SET_CBAI(n->bar.pmrsts, 0);
+
+        /* PMR Elasticity Buffer Size register */
+        n->bar.pmrebs = 0;
+        NVME_PMREBS_SET_PMRSZU(n->bar.pmrebs, 0);
+        NVME_PMREBS_SET_RBB(n->bar.pmrebs, 0);
+        NVME_PMREBS_SET_PMRWBZ(n->bar.pmrebs, 0);
+
+        /* PMR Sustained Write Throughput register */
+        n->bar.pmrswtp = 0;
+        NVME_PMRSWTP_SET_PMRSWTU(n->bar.pmrswtp, 0);
+        NVME_PMRSWTP_SET_PMRSWTV(n->bar.pmrswtp, 0);
+
+        /* PMR Memory Space Control register */
+        n->bar.pmrmsc = 0;
+        NVME_PMRMSC_SET_CMSE(n->bar.pmrmsc, 0);
+        NVME_PMRMSC_SET_CBA(n->bar.pmrmsc, 0);
+
+        memory_region_init_io(&n->ctrl_mem, OBJECT(n), &nvme_pmr_ops, n,
+                              "nvme-pmr", n->f_pmr_size);
+        pci_register_bar(pci_dev, NVME_PMRCAP_BIR(n->bar.pmrcap),
+            PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_TYPE_64 |
+            PCI_BASE_ADDRESS_MEM_PREFETCH, &n->ctrl_mem);
+#endif /* !_WIN32 */
     }
 
     for (i = 0; i < n->num_namespaces; i++) {
@@ -1445,11 +1593,26 @@ static void nvme_exit(PCIDevice *pci_dev)
     if (n->cmb_size_mb) {
         g_free(n->cmbuf);
     }
+
+#ifndef _WIN32
+    if (n->pmr_file) {
+        if (n->pmrbuf) {
+            munmap(n->pmrbuf, n->f_pmr_size);
+        }
+
+        if (n->f_pmr) {
+            fclose(n->f_pmr);
+        }
+    }
+#endif /* !_WIN32 */
     msix_uninit_exclusive_bar(pci_dev);
 }
 
 static Property nvme_props[] = {
     DEFINE_BLOCK_PROPERTIES(NvmeCtrl, conf),
+#ifndef _WIN32
+    DEFINE_PROP_STRING("pmr_file", NvmeCtrl, pmr_file),
+#endif /* !_WIN32 */
     DEFINE_PROP_STRING("serial", NvmeCtrl, serial),
     DEFINE_PROP_UINT32("cmb_size_mb", NvmeCtrl, cmb_size_mb, 0),
     DEFINE_PROP_UINT32("num_queues", NvmeCtrl, num_queues, 64),
