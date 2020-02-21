@@ -1568,7 +1568,7 @@ struct exec
                                  ~(abi_ulong)(TARGET_ELF_EXEC_PAGESIZE-1))
 #define TARGET_ELF_PAGEOFFSET(_v) ((_v) & (TARGET_ELF_EXEC_PAGESIZE-1))
 
-#define DLINFO_ITEMS 15
+#define DLINFO_ITEMS 17
 
 static inline void memcpy_fromfs(void * to, const void * from, unsigned long n)
 {
@@ -1888,11 +1888,14 @@ static abi_ulong loader_build_fdpic_loadmap(struct image_info *info, abi_ulong s
     return sp;
 }
 
-static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
+static abi_ulong create_elf_tables(struct linux_binprm *bprm,
                                    struct elfhdr *exec,
                                    struct image_info *info,
                                    struct image_info *interp_info)
 {
+    abi_ulong p = bprm->p;
+    int argc = bprm->argc;
+    int envc = bprm->envc;
     abi_ulong sp;
     abi_ulong u_argc, u_argv, u_envp, u_auxv;
     int size;
@@ -2032,6 +2035,8 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     NEW_AUX_ENT(AT_CLKTCK, (abi_ulong) sysconf(_SC_CLK_TCK));
     NEW_AUX_ENT(AT_RANDOM, (abi_ulong) u_rand_bytes);
     NEW_AUX_ENT(AT_SECURE, (abi_ulong) qemu_getauxval(AT_SECURE));
+    NEW_AUX_ENT(AT_EXECFN, info->file_string);
+    NEW_AUX_ENT(AT_EXECFD, bprm->fd);
 
 #ifdef ELF_HWCAP2
     NEW_AUX_ENT(AT_HWCAP2, (abi_ulong) ELF_HWCAP2);
@@ -2870,8 +2875,8 @@ int load_elf_binary(struct linux_binprm *bprm, struct image_info *info)
 #endif
     }
 
-    bprm->p = create_elf_tables(bprm->p, bprm->argc, bprm->envc, &elf_ex,
-                                info, (elf_interpreter ? &interp_info : NULL));
+    bprm->p = create_elf_tables(bprm, &elf_ex, info,
+                                (elf_interpreter ? &interp_info : NULL));
     info->start_stack = bprm->p;
 
     /* If we have an interpreter, set that as the program's entry point.
