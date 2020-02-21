@@ -506,6 +506,12 @@ static int cleanup_range(RAMBlock *rb, void *opaque)
     range_struct.start = (uintptr_t)host_addr;
     range_struct.len = length;
 
+    /*
+     * In case the mapping was partially changed since we enabled userfault
+     * (e.g., via qemu_ram_remap()), the userfaultfd handler was already removed
+     * for the mappings that changed. Unregistering will, however, still work
+     * and ignore mappings without a registered handler.
+     */
     if (ioctl(mis->userfault_fd, UFFDIO_UNREGISTER, &range_struct)) {
         error_report("%s: userfault unregister %s", __func__, strerror(errno));
 
@@ -1180,6 +1186,17 @@ int postcopy_ram_incoming_setup(MigrationIncomingState *mis)
     return 0;
 }
 
+static int qemu_ufd_wake_ioctl(int userfault_fd, void *host_addr,
+                               uint64_t pagesize)
+{
+    struct uffdio_range range = {
+        .start = (uint64_t)(uintptr_t)host_addr,
+        .len = pagesize,
+    };
+
+    return ioctl(userfault_fd, UFFDIO_WAKE, &range);
+}
+
 static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
                                void *from_addr, uint64_t pagesize, RAMBlock *rb)
 {
@@ -1197,6 +1214,26 @@ static int qemu_ufd_copy_ioctl(int userfault_fd, void *host_addr,
         zero_struct.range.len = pagesize;
         zero_struct.mode = 0;
         ret = ioctl(userfault_fd, UFFDIO_ZEROPAGE, &zero_struct);
+    }
+
+    /*
+     * When the mapping gets partially changed (e.g., qemu_ram_remap()) before
+     * we try to place a page, the userfaultfd handler will be removed for the
+     * changed mappings and placing pages will fail. We can safely ignore this,
+     * because mappings that changed on the destination don't need data from the
+     * source (e.g., qemu_ram_remap()). Wake up any waiter waiting for that page
+     * (unlikely but possible). Waking up waiters is always possible, even
+     * without a registered userfaultfd handler.
+     *
+     * Old kernels report EINVAL, new kernels report ENOENT in case there is
+     * no longer a userfaultfd handler for a mapping.
+     */
+    if (ret && (errno == ENOENT || errno == EINVAL)) {
+        if (errno == EINVAL) {
+            warn_report("%s: Failed to place page %p. Waking up any waiters.",
+                         __func__, host_addr);
+        }
+        ret = qemu_ufd_wake_ioctl(userfault_fd, host_addr, pagesize);
     }
     if (!ret) {
         ramblock_recv_bitmap_set_range(rb, host_addr,
