@@ -305,14 +305,14 @@ static inline void pcnet_tmd_load(PCNetState *s, struct pcnet_TMD *tmd,
             int16_t length;
             int16_t status;
         } xda;
-        s->phys_mem_read(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        s->phys_mem_read(s->dma_opaque, addr, &xda, sizeof(xda), false);
         tmd->tbadr = le32_to_cpu(xda.tbadr) & 0xffffff;
         tmd->length = le16_to_cpu(xda.length);
         tmd->status = (le32_to_cpu(xda.tbadr) >> 16) & 0xff00;
         tmd->misc = le16_to_cpu(xda.status) << 16;
         tmd->res = 0;
     } else {
-        s->phys_mem_read(s->dma_opaque, addr, (void *)tmd, sizeof(*tmd), 0);
+        s->phys_mem_read(s->dma_opaque, addr, tmd, sizeof(*tmd), false);
         le32_to_cpus(&tmd->tbadr);
         le16_to_cpus((uint16_t *)&tmd->length);
         le16_to_cpus((uint16_t *)&tmd->status);
@@ -339,7 +339,7 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
                                 ((tmd->status & 0xff00) << 16));
         xda.length = cpu_to_le16(tmd->length);
         xda.status = cpu_to_le16(tmd->misc >> 16);
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, &xda, sizeof(xda), false);
     } else {
         struct {
             uint32_t tbadr;
@@ -358,7 +358,7 @@ static inline void pcnet_tmd_store(PCNetState *s, const struct pcnet_TMD *tmd,
             xda.tbadr = xda.misc;
             xda.misc = tmp;
         }
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&xda, sizeof(xda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, &xda, sizeof(xda), false);
     }
 }
 
@@ -371,14 +371,14 @@ static inline void pcnet_rmd_load(PCNetState *s, struct pcnet_RMD *rmd,
             int16_t buf_length;
             int16_t msg_length;
 	} rda;
-        s->phys_mem_read(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        s->phys_mem_read(s->dma_opaque, addr, &rda, sizeof(rda), false);
         rmd->rbadr = le32_to_cpu(rda.rbadr) & 0xffffff;
         rmd->buf_length = le16_to_cpu(rda.buf_length);
         rmd->status = (le32_to_cpu(rda.rbadr) >> 16) & 0xff00;
         rmd->msg_length = le16_to_cpu(rda.msg_length);
         rmd->res = 0;
     } else {
-        s->phys_mem_read(s->dma_opaque, addr, (void *)rmd, sizeof(*rmd), 0);
+        s->phys_mem_read(s->dma_opaque, addr, rmd, sizeof(*rmd), false);
         le32_to_cpus(&rmd->rbadr);
         le16_to_cpus((uint16_t *)&rmd->buf_length);
         le16_to_cpus((uint16_t *)&rmd->status);
@@ -405,7 +405,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
                                 ((rmd->status & 0xff00) << 16));
         rda.buf_length = cpu_to_le16(rmd->buf_length);
         rda.msg_length = cpu_to_le16(rmd->msg_length);
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, &rda, sizeof(rda), false);
     } else {
         struct {
             uint32_t rbadr;
@@ -424,7 +424,7 @@ static inline void pcnet_rmd_store(PCNetState *s, struct pcnet_RMD *rmd,
             rda.rbadr = rda.msg_length;
             rda.msg_length = tmp;
         }
-        s->phys_mem_write(s->dma_opaque, addr, (void *)&rda, sizeof(rda), 0);
+        s->phys_mem_write(s->dma_opaque, addr, &rda, sizeof(rda), false);
     }
 }
 

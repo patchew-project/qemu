@@ -47,9 +47,9 @@ struct PCNetState_st {
     uint8_t buffer[4096];
     qemu_irq irq;
     void (*phys_mem_read)(void *dma_opaque, hwaddr addr,
-                         uint8_t *buf, int len, int do_bswap);
+                          void *buf, size_t len, bool do_bswap);
     void (*phys_mem_write)(void *dma_opaque, hwaddr addr,
-                          uint8_t *buf, int len, int do_bswap);
+                           const void *buf, size_t len, bool do_bswap);
     DeviceState *dma_opaque;
     int tx_busy;
     int looptest;

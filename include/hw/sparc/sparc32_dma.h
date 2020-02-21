@@ -58,8 +58,8 @@ typedef struct SPARC32DMAState {
 
 /* sparc32_dma.c */
 void ledma_memory_read(void *opaque, hwaddr addr,
-                       uint8_t *buf, int len, int do_bswap);
+                       void *buf, size_t len, bool do_bswap);
 void ledma_memory_write(void *opaque, hwaddr addr,
-                        uint8_t *buf, int len, int do_bswap);
+                        const void *buf, size_t len, bool do_bswap);
 
 #endif

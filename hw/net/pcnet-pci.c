@@ -167,13 +167,14 @@ static const MemoryRegionOps pcnet_mmio_ops = {
 };
 
 static void pci_physical_memory_write(void *dma_opaque, hwaddr addr,
-                                      uint8_t *buf, int len, int do_bswap)
+                                      const void *buf, size_t len,
+                                      bool do_bswap)
 {
     pci_dma_write(dma_opaque, addr, buf, len);
 }
 
 static void pci_physical_memory_read(void *dma_opaque, hwaddr addr,
-                                     uint8_t *buf, int len, int do_bswap)
+                                     void *buf, size_t len, bool do_bswap)
 {
     pci_dma_read(dma_opaque, addr, buf, len);
 }

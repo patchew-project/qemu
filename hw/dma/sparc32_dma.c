@@ -72,7 +72,7 @@ enum {
 
 /* Note: on sparc, the lance 16 bit bus is swapped */
 void ledma_memory_read(void *opaque, hwaddr addr,
-                       uint8_t *buf, int len, int do_bswap)
+                       void *buf, size_t len, bool do_bswap)
 {
     DMADeviceState *s = opaque;
     IOMMUState *is = (IOMMUState *)s->iommu;
@@ -93,7 +93,7 @@ void ledma_memory_read(void *opaque, hwaddr addr,
 }
 
 void ledma_memory_write(void *opaque, hwaddr addr,
-                        uint8_t *buf, int len, int do_bswap)
+                        const void *buf, size_t len, bool do_bswap)
 {
     DMADeviceState *s = opaque;
     IOMMUState *is = (IOMMUState *)s->iommu;
