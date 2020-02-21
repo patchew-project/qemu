@@ -189,6 +189,7 @@ static int mmap_frag(abi_ulong real_start,
 # define TASK_UNMAPPED_BASE  0x40000000
 #endif
 abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
+abi_ulong mmap_base = TASK_UNMAPPED_BASE;
 
 unsigned long last_brk;
 
@@ -299,7 +300,7 @@ abi_ulong mmap_find_vma(abi_ulong start, abi_ulong size, abi_ulong align)
 
             if ((addr & (align - 1)) == 0) {
                 /* Success.  */
-                if (start == mmap_next_start && addr >= TASK_UNMAPPED_BASE) {
+                if (start == mmap_next_start && addr >= mmap_base) {
                     mmap_next_start = addr + size;
                 }
                 return addr;

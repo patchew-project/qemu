@@ -336,6 +336,16 @@ static void handle_arg_guest_base(const char *arg)
     have_guest_base = 1;
 }
 
+static void handle_arg_mmap_base(const char *arg)
+{
+    mmap_base = strtoul(arg, NULL, 0);
+    if (mmap_base == 0) {
+        fprintf(stderr, "Invalid mmap_base: %s\n", arg);
+        exit(EXIT_FAILURE);
+    }
+    mmap_next_start = mmap_base;
+}
+
 static void handle_arg_reserved_va(const char *arg)
 {
     char *p;
@@ -440,6 +450,8 @@ static const struct qemu_argument arg_table[] = {
      "uname",      "set qemu uname release string to 'uname'"},
     {"B",          "QEMU_GUEST_BASE",  true,  handle_arg_guest_base,
      "address",    "set guest_base address to 'address'"},
+    {"mmap_base",  "QEMU_MMAP_BASE",   true,  handle_arg_mmap_base,
+     "",           "begin allocating guest pages at this host address"},
     {"R",          "QEMU_RESERVED_VA", true,  handle_arg_reserved_va,
      "size",       "reserve 'size' bytes for guest virtual address space"},
     {"d",          "QEMU_LOG",         true,  handle_arg_log,
