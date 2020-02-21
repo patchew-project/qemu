@@ -48,7 +48,7 @@ static void puv3_intc_cpu_handler(void *opaque, int irq, int level)
     }
 }
 
-static void puv3_soc_init(CPUUniCore32State *env)
+static void puv3_soc_init(UniCore32CPU *cpu)
 {
     qemu_irq cpu_intc, irqs[PUV3_IRQS_NR];
     DeviceState *dev;
@@ -56,8 +56,7 @@ static void puv3_soc_init(CPUUniCore32State *env)
     int i;
 
     /* Initialize interrupt controller */
-    cpu_intc = qemu_allocate_irq(puv3_intc_cpu_handler,
-                                 env_archcpu(env), 0);
+    cpu_intc = qemu_allocate_irq(puv3_intc_cpu_handler, cpu, 0);
     dev = sysbus_create_simple("puv3_intc", PUV3_INTC_BASE, cpu_intc);
     for (i = 0; i < PUV3_IRQS_NR; i++) {
         irqs[i] = qdev_get_gpio_in(dev, i);
@@ -131,7 +130,7 @@ static void puv3_init(MachineState *machine)
     cpu = UNICORE32_CPU(cpu_create(machine->cpu_type));
     env = &cpu->env;
 
-    puv3_soc_init(env);
+    puv3_soc_init(cpu);
     puv3_board_init(env, ram_size);
     puv3_load_kernel(kernel_filename);
 }
