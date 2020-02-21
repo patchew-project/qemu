@@ -91,17 +91,31 @@ void cpu_set_ignne(void)
 }
 #endif
 
+static inline void set_fpstt(CPUX86State *env, unsigned int fpstt,
+                             bool pop, bool full)
+{
+    env->foverflow = (fpstt > 7) && full; /* clear the original flag */
+    if (pop) {
+        if (full) {
+            env->fptags[env->fpstt] = 1; /* invalidate stack entry */
+        }
+        env->fpstt = fpstt & 7;
+    } else {
+        env->fpstt = fpstt & 7;
+        if (full) {
+            env->fptags[env->fpstt] = 0; /* validate stack entry */
+        }
+    }
+}
 
 static inline void fpush(CPUX86State *env)
 {
-    env->fpstt = (env->fpstt - 1) & 7;
-    env->fptags[env->fpstt] = 0; /* validate stack entry */
+    set_fpstt(env, env->fpstt - 1, false, true);
 }
 
 static inline void fpop(CPUX86State *env)
 {
-    env->fptags[env->fpstt] = 1; /* invalidate stack entry */
-    env->fpstt = (env->fpstt + 1) & 7;
+    set_fpstt(env, env->fpstt + 1, true, true);
 }
 
 static inline floatx80 helper_fldt(CPUX86State *env, target_ulong ptr,
@@ -211,11 +225,10 @@ void helper_flds_ST0(CPUX86State *env, uint32_t val)
         uint32_t i;
     } u;
 
-    new_fpstt = (env->fpstt - 1) & 7;
+    new_fpstt = env->fpstt - 1;
     u.i = val;
-    env->fpregs[new_fpstt].d = float32_to_floatx80(u.f, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    env->fpregs[new_fpstt & 7].d = float32_to_floatx80(u.f, &env->fp_status);
+    set_fpstt(env, new_fpstt, false, true);
 }
 
 void helper_fldl_ST0(CPUX86State *env, uint64_t val)
@@ -226,31 +239,28 @@ void helper_fldl_ST0(CPUX86State *env, uint64_t val)
         uint64_t i;
     } u;
 
-    new_fpstt = (env->fpstt - 1) & 7;
+    new_fpstt = env->fpstt - 1;
     u.i = val;
-    env->fpregs[new_fpstt].d = float64_to_floatx80(u.f, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    env->fpregs[new_fpstt & 7].d = float64_to_floatx80(u.f, &env->fp_status);
+    set_fpstt(env, new_fpstt, false, true);
 }
 
 void helper_fildl_ST0(CPUX86State *env, int32_t val)
 {
     int new_fpstt;
 
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = int32_to_floatx80(val, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    new_fpstt = env->fpstt - 1;
+    env->fpregs[new_fpstt & 7].d = int32_to_floatx80(val, &env->fp_status);
+    set_fpstt(env, new_fpstt, false, true);
 }
 
 void helper_fildll_ST0(CPUX86State *env, int64_t val)
 {
     int new_fpstt;
 
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = int64_to_floatx80(val, &env->fp_status);
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    new_fpstt = env->fpstt - 1;
+    env->fpregs[new_fpstt & 7].d = int64_to_floatx80(val, &env->fp_status);
+    set_fpstt(env, new_fpstt, false, true);
 }
 
 uint32_t helper_fsts_ST0(CPUX86State *env)
@@ -345,10 +355,9 @@ void helper_fldt_ST0(CPUX86State *env, target_ulong ptr)
 {
     int new_fpstt;
 
-    new_fpstt = (env->fpstt - 1) & 7;
-    env->fpregs[new_fpstt].d = helper_fldt(env, ptr, GETPC());
-    env->fpstt = new_fpstt;
-    env->fptags[new_fpstt] = 0; /* validate stack entry */
+    new_fpstt = env->fpstt - 1;
+    env->fpregs[new_fpstt & 7].d = helper_fldt(env, ptr, GETPC());
+    set_fpstt(env, new_fpstt, false, true);
 }
 
 void helper_fstt_ST0(CPUX86State *env, target_ulong ptr)
@@ -368,13 +377,13 @@ void helper_fpop(CPUX86State *env)
 
 void helper_fdecstp(CPUX86State *env)
 {
-    env->fpstt = (env->fpstt - 1) & 7;
+    set_fpstt(env, env->fpstt - 1, false, false);
     env->fpus &= ~0x4700;
 }
 
 void helper_fincstp(CPUX86State *env)
 {
-    env->fpstt = (env->fpstt + 1) & 7;
+    set_fpstt(env, env->fpstt + 1, true, false);
     env->fpus &= ~0x4700;
 }
 
@@ -382,6 +391,7 @@ void helper_fincstp(CPUX86State *env)
 
 void helper_ffree_STN(CPUX86State *env, int st_index)
 {
+    set_fpstt(env, env->fpstt + st_index, true, false);
     env->fptags[(env->fpstt + st_index) & 7] = 1;
 }
 
@@ -644,6 +654,7 @@ void helper_fninit(CPUX86State *env)
 {
     env->fpus = 0;
     env->fpstt = 0;
+    env->foverflow = false;
     cpu_set_fpuc(env, 0x37f);
     env->fptags[0] = 1;
     env->fptags[1] = 1;
@@ -1007,6 +1018,11 @@ void helper_fxam_ST0(CPUX86State *env)
         }
     } else {
         env->fpus |= 0x400;
+    }
+
+    if (env->foverflow) {
+        env->fpus |= 0x4100;
+        env->fpus &= ~0x400;
     }
 }
 
@@ -1636,7 +1652,7 @@ void helper_ldmxcsr(CPUX86State *env, uint32_t val)
 
 void helper_enter_mmx(CPUX86State *env)
 {
-    env->fpstt = 0;
+    set_fpstt(env, 0, true, false);
     *(uint32_t *)(env->fptags) = 0;
     *(uint32_t *)(env->fptags + 4) = 0;
 }

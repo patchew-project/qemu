@@ -1394,6 +1394,7 @@ typedef struct CPUX86State {
     struct {} start_init_save;
 
     /* FPU state */
+    bool foverflow;
     unsigned int fpstt; /* top of stack index */
     uint16_t fpus;
     uint16_t fpuc;
