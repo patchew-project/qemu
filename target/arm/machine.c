@@ -9,9 +9,8 @@
 static bool vfp_needed(void *opaque)
 {
     ARMCPU *cpu = opaque;
-    CPUARMState *env = &cpu->env;
 
-    return arm_feature(env, ARM_FEATURE_VFP);
+    return cpu_isar_feature(aa32_simd_r16, cpu);
 }
 
 static int get_fpscr(QEMUFile *f, void *opaque, size_t size,
