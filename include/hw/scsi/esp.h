@@ -6,7 +6,7 @@
 
 /* esp.c */
 #define ESP_MAX_DEVS 7
-typedef void (*ESPDMAMemoryReadWriteFunc)(void *opaque, uint8_t *buf, int len);
+typedef void (*ESPDMAMemoryReadWriteFunc)(void *opaque, void *buf, size_t len);
 
 #define ESP_REGS 16
 #define TI_BUFSZ 16

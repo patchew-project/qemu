@@ -242,7 +242,7 @@ static uint64_t esp_pci_io_read(void *opaque, hwaddr addr,
     return ret;
 }
 
-static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
+static void esp_pci_dma_memory_rw(PCIESPState *pci, void *buf, size_t len,
                                   DMADirection dir)
 {
     dma_addr_t addr;
@@ -278,13 +278,13 @@ static void esp_pci_dma_memory_rw(PCIESPState *pci, uint8_t *buf, int len,
     }
 }
 
-static void esp_pci_dma_memory_read(void *opaque, uint8_t *buf, int len)
+static void esp_pci_dma_memory_read(void *opaque, void *buf, size_t len)
 {
     PCIESPState *pci = opaque;
     esp_pci_dma_memory_rw(pci, buf, len, DMA_DIRECTION_TO_DEVICE);
 }
 
-static void esp_pci_dma_memory_write(void *opaque, uint8_t *buf, int len)
+static void esp_pci_dma_memory_write(void *opaque, void *buf, size_t len)
 {
     PCIESPState *pci = opaque;
     esp_pci_dma_memory_rw(pci, buf, len, DMA_DIRECTION_FROM_DEVICE);

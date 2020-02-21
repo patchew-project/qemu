@@ -142,7 +142,7 @@ static void dma_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static void espdma_memory_read(void *opaque, uint8_t *buf, int len)
+static void espdma_memory_read(void *opaque, void *buf, size_t len)
 {
     DMADeviceState *s = opaque;
     IOMMUState *is = (IOMMUState *)s->iommu;
@@ -152,7 +152,7 @@ static void espdma_memory_read(void *opaque, uint8_t *buf, int len)
     s->dmaregs[1] += len;
 }
 
-static void espdma_memory_write(void *opaque, uint8_t *buf, int len)
+static void espdma_memory_write(void *opaque, void *buf, size_t len)
 {
     DMADeviceState *s = opaque;
     IOMMUState *is = (IOMMUState *)s->iommu;
