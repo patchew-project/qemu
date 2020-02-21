@@ -2210,7 +2210,6 @@ uint32_t ide_ioport_read(void *opaque, uint32_t addr)
         } else {
             ret = s->status;
         }
-        qemu_irq_lower(bus->irq);
         break;
     }
 
