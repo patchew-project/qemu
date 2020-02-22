@@ -1179,10 +1179,15 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
+static struct HostIOMMUOps vfio_host_icx_ops = {
+/* To be added later */
+};
+
 static int vfio_init_container(VFIOContainer *container, int group_fd,
                                Error **errp)
 {
     int iommu_type, ret;
+    uint64_t flags = 0;
 
     iommu_type = vfio_get_iommu_type(container, errp);
     if (iommu_type < 0) {
@@ -1208,6 +1213,11 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
         }
         error_setg_errno(errp, errno, "Failed to set iommu for container");
         return -errno;
+    }
+
+    if (iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
+        host_iommu_ctx_init(&container->host_icx,
+                            flags, &vfio_host_icx_ops);
     }
 
     container->iommu_type = iommu_type;
@@ -1456,6 +1466,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         }
 
         trace_vfio_disconnect_container(container->fd);
+        host_iommu_ctx_destroy(&container->host_icx);
         close(container->fd);
         g_free(container);
 
