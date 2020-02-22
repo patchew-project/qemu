@@ -61,6 +61,16 @@ int host_iommu_ctx_unbind_stage1_pgtbl(HostIOMMUContext *host_icx,
     return -ENOENT;
 }
 
+int host_iommu_ctx_flush_stage1_cache(HostIOMMUContext *host_icx,
+                                DualIOMMUStage1Cache *cache)
+{
+    if (host_icx && (host_icx->flags & HOST_IOMMU_NESTING) &&
+        host_icx && host_icx->ops && host_icx->ops->flush_stage1_cache) {
+        return host_icx->ops->flush_stage1_cache(host_icx, cache);
+    }
+    return -ENOENT;
+}
+
 void host_iommu_ctx_init(HostIOMMUContext *host_icx,
                          uint64_t flags, HostIOMMUOps *ops,
                          HostIOMMUInfo *uinfo)
