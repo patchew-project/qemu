@@ -161,6 +161,11 @@ void task_settid(TaskState *);
 void stop_all_tasks(void);
 extern const char *qemu_uname_release;
 extern unsigned long mmap_min_addr;
+/*
+ * mmap_base is minimum address to use when allocating guest pages. All guest
+ * pages will be allocated at this (guest) address or higher addresses.
+ */
+extern abi_ulong mmap_base;
 
 /* ??? See if we can avoid exposing so much of the loader internals.  */
 
