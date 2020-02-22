@@ -2695,6 +2695,16 @@ void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
     bus->iommu_opaque = opaque;
 }
 
+void pci_device_setup_iommu(PCIDevice *dev, PCIHostIOMMUFunc fn)
+{
+    dev->host_iommu_fn = fn;
+}
+
+void pci_device_unset_iommu(PCIDevice *dev)
+{
+    dev->host_iommu_fn = NULL;
+}
+
 static void pci_dev_get_w64(PCIBus *b, PCIDevice *dev, void *opaque)
 {
     Range *range = opaque;

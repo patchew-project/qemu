@@ -8,6 +8,7 @@
 #include "hw/isa/isa.h"
 
 #include "hw/pci/pcie.h"
+#include "hw/iommu/host_iommu_context.h"
 
 extern bool pci_available;
 
@@ -248,6 +249,7 @@ typedef void (*MSIVectorReleaseNotifier)(PCIDevice *dev, unsigned int vector);
 typedef void (*MSIVectorPollNotifier)(PCIDevice *dev,
                                       unsigned int vector_start,
                                       unsigned int vector_end);
+typedef HostIOMMUContext *(*PCIHostIOMMUFunc)(PCIDevice *);
 
 enum PCIReqIDType {
     PCI_REQ_ID_INVALID = 0,
@@ -356,6 +358,8 @@ struct PCIDevice {
 
     /* ID of standby device in net_failover pair */
     char *failover_pair_id;
+    /* Callback to get host iommu context */
+    PCIHostIOMMUFunc host_iommu_fn;
 };
 
 void pci_register_bar(PCIDevice *pci_dev, int region_num,
@@ -488,6 +492,8 @@ typedef AddressSpace *(*PCIIOMMUFunc)(PCIBus *, void *, int);
 
 AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
+void pci_device_setup_iommu(PCIDevice *dev, PCIHostIOMMUFunc fn);
+void pci_device_unset_iommu(PCIDevice *dev);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
