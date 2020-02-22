@@ -41,6 +41,26 @@ int host_iommu_ctx_pasid_free(HostIOMMUContext *host_icx, uint32_t pasid)
     return -ENOENT;
 }
 
+int host_iommu_ctx_bind_stage1_pgtbl(HostIOMMUContext *host_icx,
+                                     DualIOMMUStage1BindData *data)
+{
+    if (host_icx && (host_icx->flags & HOST_IOMMU_NESTING) &&
+        host_icx->ops && host_icx->ops->bind_stage1_pgtbl) {
+        return host_icx->ops->bind_stage1_pgtbl(host_icx, data);
+    }
+    return -ENOENT;
+}
+
+int host_iommu_ctx_unbind_stage1_pgtbl(HostIOMMUContext *host_icx,
+                                       DualIOMMUStage1BindData *data)
+{
+    if (host_icx && (host_icx->flags & HOST_IOMMU_NESTING) &&
+        host_icx->ops && host_icx->ops->unbind_stage1_pgtbl) {
+        return host_icx->ops->unbind_stage1_pgtbl(host_icx, data);
+    }
+    return -ENOENT;
+}
+
 void host_iommu_ctx_init(HostIOMMUContext *host_icx,
                          uint64_t flags, HostIOMMUOps *ops,
                          HostIOMMUInfo *uinfo)
