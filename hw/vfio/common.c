@@ -1179,8 +1179,53 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
+static int vfio_host_icx_pasid_alloc(HostIOMMUContext *host_icx,
+                                  uint32_t min, uint32_t max, uint32_t *pasid)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int ret;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flags = VFIO_IOMMU_PASID_ALLOC;
+    req.alloc_pasid.min = min;
+    req.alloc_pasid.max = max;
+
+    if (ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req)) {
+        ret = -errno;
+        error_report("%s: %d, alloc failed", __func__, ret);
+        return ret;
+    }
+    *pasid = req.alloc_pasid.result;
+    return 0;
+}
+
+static int vfio_host_icx_pasid_free(HostIOMMUContext *host_icx,
+                                    uint32_t pasid)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int ret;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flags = VFIO_IOMMU_PASID_FREE;
+    req.free_pasid = pasid;
+
+    if (ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req)) {
+        ret = -errno;
+        error_report("%s: %d, free failed", __func__, ret);
+        return ret;
+    }
+    return 0;
+}
+
 static struct HostIOMMUOps vfio_host_icx_ops = {
-/* To be added later */
+    .pasid_alloc = vfio_host_icx_pasid_alloc,
+    .pasid_free = vfio_host_icx_pasid_free,
 };
 
 /**
