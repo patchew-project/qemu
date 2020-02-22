@@ -2689,6 +2689,14 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev)
     return &address_space_memory;
 }
 
+HostIOMMUContext *pci_device_host_iommu_context(PCIDevice *dev)
+{
+    if (dev && dev->host_iommu_fn) {
+        return dev->host_iommu_fn(dev);
+    }
+    return NULL;
+}
+
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque)
 {
     bus->iommu_fn = fn;

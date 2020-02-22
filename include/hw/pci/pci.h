@@ -494,6 +494,7 @@ AddressSpace *pci_device_iommu_address_space(PCIDevice *dev);
 void pci_setup_iommu(PCIBus *bus, PCIIOMMUFunc fn, void *opaque);
 void pci_device_setup_iommu(PCIDevice *dev, PCIHostIOMMUFunc fn);
 void pci_device_unset_iommu(PCIDevice *dev);
+HostIOMMUContext *pci_device_host_iommu_context(PCIDevice *dev);
 
 static inline void
 pci_set_byte(uint8_t *config, uint8_t val)
