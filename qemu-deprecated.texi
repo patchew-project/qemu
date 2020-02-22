@@ -318,6 +318,18 @@ The above, converted to the current supported format:
 
 @section Related binaries
 
+@subsection qemu-img backing file without format (since 5.0.0)
+
+The use of @command{qemu-img create} or @command{qemu-img rebase} to
+modify an image that depends on a backing file now recommends that an
+explicit backing format be provided.  This is for safety - if qemu
+probes a different format than what you thought, the data presented to
+the guest will be corrupt; similarly, presenting a raw image to a
+guest allows the guest a potential security exploit if a future probe
+sees non-raw.  To avoid warning messages, or even future refusal to
+create an unsafe image, you must pass @option{-F} to specify the
+intended backing format.
+
 @subsection qemu-img convert -n -o (since 4.2.0)
 
 All options specified in @option{-o} are image creation options, so

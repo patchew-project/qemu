@@ -6013,6 +6013,15 @@ void bdrv_img_create(const char *filename, const char *fmt,
                               "Could not open backing image to determine size.\n");
             goto out;
         } else {
+            if (!backing_fmt && !strstart(backing_file, "json:", NULL)) {
+                backing_fmt = bs->drv->format_name;
+                qemu_opt_set(opts, BLOCK_OPT_BACKING_FMT, backing_fmt, NULL);
+                if (bs->drv != &bdrv_raw) {
+                    warn_report("Deprecated use of non-raw backing file "
+                                "without explicit backing format, using "
+                                "detected format of %s", backing_fmt);
+                }
+            }
             if (size == -1) {
                 /* Opened BS, have no size */
                 size = bdrv_getlength(bs);
@@ -6026,7 +6035,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
             }
             bdrv_unref(bs);
         }
-    } /* (backing_file && !(flags & BDRV_O_NO_BACKING)) */
+        /* (backing_file && !(flags & BDRV_O_NO_BACKING)) */
+    } else if (backing_file && !backing_fmt &&
+               !strstart(backing_file, "json:", NULL)) {
+        warn_report("Deprecated use of unopened backing file without "
+                    "explicit backing format, use of this image requires "
+                    "potentially unsafe format probing");
+    }
 
     if (size == -1) {
         error_setg(errp, "Image creation needs a size parameter");

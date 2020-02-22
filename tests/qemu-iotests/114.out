@@ -1,5 +1,6 @@
 QA output created by 114
 Formatting 'TEST_DIR/t.IMGFMT.base', fmt=IMGFMT size=67108864
+qemu-img: warning: Deprecated use of unopened backing file without explicit backing format, use of this image requires potentially unsafe format probing
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 backing_file=TEST_DIR/t.IMGFMT.base
 image: TEST_DIR/t.IMGFMT
 file format: IMGFMT
