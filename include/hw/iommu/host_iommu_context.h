@@ -23,12 +23,14 @@
 #define HW_IOMMU_CONTEXT_H
 
 #include "qemu/queue.h"
+#include <linux/iommu.h>
 #ifndef CONFIG_USER_ONLY
 #include "exec/hwaddr.h"
 #endif
 
 typedef struct HostIOMMUContext HostIOMMUContext;
 typedef struct HostIOMMUOps HostIOMMUOps;
+typedef struct HostIOMMUInfo HostIOMMUInfo;
 
 struct HostIOMMUOps {
     /* Allocate pasid from HostIOMMUContext (a.k.a. host software) */
@@ -41,6 +43,10 @@ struct HostIOMMUOps {
                       uint32_t pasid);
 };
 
+struct HostIOMMUInfo {
+    uint32_t stage1_format;
+};
+
 /*
  * This is an abstraction of host IOMMU with dual-stage capability
  */
@@ -48,6 +54,7 @@ struct HostIOMMUContext {
 #define HOST_IOMMU_PASID_REQUEST (1ULL << 0)
     uint64_t flags;
     HostIOMMUOps *ops;
+    HostIOMMUInfo uinfo;
 };
 
 int host_iommu_ctx_pasid_alloc(HostIOMMUContext *host_icx, uint32_t min,
@@ -55,7 +62,8 @@ int host_iommu_ctx_pasid_alloc(HostIOMMUContext *host_icx, uint32_t min,
 int host_iommu_ctx_pasid_free(HostIOMMUContext *host_icx, uint32_t pasid);
 
 void host_iommu_ctx_init(HostIOMMUContext *host_icx,
-                         uint64_t flags, HostIOMMUOps *ops);
+                         uint64_t flags, HostIOMMUOps *ops,
+                         HostIOMMUInfo *uinfo);
 void host_iommu_ctx_destroy(HostIOMMUContext *host_icx);
 
 #endif

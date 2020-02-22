@@ -42,10 +42,13 @@ int host_iommu_ctx_pasid_free(HostIOMMUContext *host_icx, uint32_t pasid)
 }
 
 void host_iommu_ctx_init(HostIOMMUContext *host_icx,
-                         uint64_t flags, HostIOMMUOps *ops)
+                         uint64_t flags, HostIOMMUOps *ops,
+                         HostIOMMUInfo *uinfo)
 {
     host_icx->flags = flags;
     host_icx->ops = ops;
+
+    host_icx->uinfo.stage1_format = uinfo->stage1_format;
 }
 
 void host_iommu_ctx_destroy(HostIOMMUContext *host_icx)
