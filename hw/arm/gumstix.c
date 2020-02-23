@@ -35,6 +35,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qemu/error-report.h"
 #include "hw/arm/pxa.h"
 #include "net/net.h"
@@ -45,18 +46,14 @@
 #include "sysemu/qtest.h"
 #include "cpu.h"
 
-static const int sector_len = 128 * 1024;
+static const int sector_len = 128 * KiB;
 
 static void connex_init(MachineState *machine)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
-    MemoryRegion *address_space_mem = get_system_memory();
 
-    uint32_t connex_rom = 0x01000000;
-    uint32_t connex_ram = 0x04000000;
-
-    cpu = pxa255_init(address_space_mem, connex_ram);
+    cpu = pxa255_init(get_system_memory(), 64 * MiB);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo && !qtest_enabled()) {
@@ -65,7 +62,8 @@ static void connex_init(MachineState *machine)
         exit(1);
     }
 
-    if (!pflash_cfi01_register(0x00000000, "connext.rom", connex_rom,
+    /* Numonyx RC28F128J3F75 */
+    if (!pflash_cfi01_register(0x00000000, "connext.rom", 16 * MiB,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                sector_len, 2, 0, 0, 0, 0, 0)) {
         error_report("Error registering flash memory");
@@ -81,12 +79,8 @@ static void verdex_init(MachineState *machine)
 {
     PXA2xxState *cpu;
     DriveInfo *dinfo;
-    MemoryRegion *address_space_mem = get_system_memory();
 
-    uint32_t verdex_rom = 0x02000000;
-    uint32_t verdex_ram = 0x10000000;
-
-    cpu = pxa270_init(address_space_mem, verdex_ram, machine->cpu_type);
+    cpu = pxa270_init(get_system_memory(), 256 * MiB, machine->cpu_type);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo && !qtest_enabled()) {
@@ -95,7 +89,8 @@ static void verdex_init(MachineState *machine)
         exit(1);
     }
 
-    if (!pflash_cfi01_register(0x00000000, "verdex.rom", verdex_rom,
+    /* Micron RC28F256P30TFA */
+    if (!pflash_cfi01_register(0x00000000, "verdex.rom", 32 * MiB,
                                dinfo ? blk_by_legacy_dinfo(dinfo) : NULL,
                                sector_len, 2, 0, 0, 0, 0, 0)) {
         error_report("Error registering flash memory");
@@ -126,7 +121,7 @@ static void verdex_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "Gumstix Verdex (PXA270)";
+    mc->desc = "Gumstix Verdex Pro XL6P COMs (PXA270)";
     mc->init = verdex_init;
     mc->ignore_memory_transaction_failures = true;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("pxa270-c0");
