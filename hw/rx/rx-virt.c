@@ -17,6 +17,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "qemu-common.h"
 #include "cpu.h"
@@ -56,6 +57,7 @@ static void rx_load_image(RXCPU *cpu, const char *filename,
 
 static void rxvirt_init(MachineState *machine)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(machine);
     RX62NState *s = g_new(RX62NState, 1);
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *sdram = g_new(MemoryRegion, 1);
