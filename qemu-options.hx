@@ -4598,7 +4598,7 @@ Dump the network traffic on netdev @var{dev} to the file specified by
 The file format is libpcap, so it can be analyzed with tools such as tcpdump
 or Wireshark.
 
-@item -object colo-compare,id=@var{id},primary_in=@var{chardevid},secondary_in=@var{chardevid},outdev=@var{chardevid},iothread=@var{id}[,vnet_hdr_support][,notify_dev=@var{id}][,compare_timeout=@var{ms}]
+@item -object colo-compare,id=@var{id},primary_in=@var{chardevid},secondary_in=@var{chardevid},outdev=@var{chardevid},iothread=@var{id}[,vnet_hdr_support][,notify_dev=@var{id}][,compare_timeout=@var{ms}][,expired_scan_cycle=@var{ms}]
 
 Colo-compare gets packet from primary_in@var{chardevid} and secondary_in@var{chardevid}, than compare primary packet with
 secondary packet. If the packets are same, we will output primary
@@ -4608,6 +4608,7 @@ In order to improve efficiency, we need to put the task of comparison
 in another thread. If it has the vnet_hdr_support flag, colo compare
 will send/recv packet with vnet_hdr_len. The compare_timeout=@var{ms}
 determines the maximum time colo-compare wait for primary packet.
+The expired_scan_cycle=@var{ms} to set the expired packet scan cycle.
 If you want to use Xen COLO, will need the notify_dev to notify Xen
 colo-frame to do checkpoint.
 
