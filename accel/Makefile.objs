@@ -3,3 +3,5 @@ obj-$(call land,$(CONFIG_SOFTMMU),$(CONFIG_POSIX)) += qtest.o
 obj-$(CONFIG_KVM) += kvm/
 obj-$(CONFIG_TCG) += tcg/
 obj-y += stubs/
+
+remote-pci-obj-$(CONFIG_MPQEMU) += accel.o

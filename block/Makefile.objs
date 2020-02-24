@@ -71,3 +71,5 @@ io_uring.o-cflags  := $(LINUX_IO_URING_CFLAGS)
 io_uring.o-libs    := $(LINUX_IO_URING_LIBS)
 parallels.o-cflags := $(LIBXML2_CFLAGS)
 parallels.o-libs   := $(LIBXML2_LIBS)
+
+remote-pci-obj-$(CONFIG_MPQEMU) += stream.o

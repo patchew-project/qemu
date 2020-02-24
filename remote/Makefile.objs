@@ -1,0 +1,1 @@
+remote-pci-obj-$(CONFIG_MPQEMU) += remote-main.o
