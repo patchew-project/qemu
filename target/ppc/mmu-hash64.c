@@ -791,6 +791,35 @@ static target_ulong rmls_limit(PowerPCCPU *cpu)
     }
 }
 
+static int build_vrma_slbe(PowerPCCPU *cpu, ppc_slb_t *slb)
+{
+    CPUPPCState *env = &cpu->env;
+    target_ulong lpcr = env->spr[SPR_LPCR];
+    uint32_t vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
+    target_ulong vsid = SLB_VSID_VRMA | ((vrmasd << 4) & SLB_VSID_LLP_MASK);
+    int i;
+
+    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
+        const PPCHash64SegmentPageSizes *sps = &cpu->hash64_opts->sps[i];
+
+        if (!sps->page_shift) {
+            break;
+        }
+
+        if ((vsid & SLB_VSID_LLP_MASK) == sps->slb_enc) {
+            slb->esid = SLB_ESID_V;
+            slb->vsid = vsid;
+            slb->sps = sps;
+            return 0;
+        }
+    }
+
+    error_report("Bad page size encoding in LPCR[VRMASD]; LPCR=0x"
+                 TARGET_FMT_lx"\n", lpcr);
+
+    return -1;
+}
+
 int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
                                 int rwx, int mmu_idx)
 {
@@ -844,8 +873,10 @@ int ppc_hash64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr,
 
             goto skip_slb_search;
         } else {
+            target_ulong limit = rmls_limit(cpu);
+
             /* Emulated old-style RMO mode, bounds check against RMLS */
-            if (raddr >= env->rmls) {
+            if (raddr >= limit) {
                 if (rwx == 2) {
                     ppc_hash64_set_isi(cs, SRR1_PROTFAULT);
                 } else {
@@ -1007,8 +1038,9 @@ hwaddr ppc_hash64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong addr)
                 return -1;
             }
         } else {
+            target_ulong limit = rmls_limit(cpu);
             /* Emulated old-style RMO mode, bounds check against RMLS */
-            if (raddr >= env->rmls) {
+            if (raddr >= limit) {
                 return -1;
             }
             return raddr | env->spr[SPR_RMOR];
@@ -1043,53 +1075,18 @@ void ppc_hash64_tlb_flush_hpte(PowerPCCPU *cpu, target_ulong ptex,
 static void ppc_hash64_update_vrma(PowerPCCPU *cpu)
 {
     CPUPPCState *env = &cpu->env;
-    const PPCHash64SegmentPageSizes *sps = NULL;
-    target_ulong esid, vsid, lpcr;
     ppc_slb_t *slb = &env->vrma_slb;
-    uint32_t vrmasd;
-    int i;
-
-    /* First clear it */
-    slb->esid = slb->vsid = 0;
-    slb->sps = NULL;
 
     /* Is VRMA enabled ? */
-    if (!ppc_hash64_use_vrma(env)) {
-        return;
-    }
-
-    /*
-     * Make one up. Mostly ignore the ESID which will not be needed
-     * for translation
-     */
-    lpcr = env->spr[SPR_LPCR];
-    vsid = SLB_VSID_VRMA;
-    vrmasd = (lpcr & LPCR_VRMASD) >> LPCR_VRMASD_SHIFT;
-    vsid |= (vrmasd << 4) & (SLB_VSID_L | SLB_VSID_LP);
-    esid = SLB_ESID_V;
-
-    for (i = 0; i < PPC_PAGE_SIZES_MAX_SZ; i++) {
-        const PPCHash64SegmentPageSizes *sps1 = &cpu->hash64_opts->sps[i];
-
-        if (!sps1->page_shift) {
-            break;
-        }
-
-        if ((vsid & SLB_VSID_LLP_MASK) == sps1->slb_enc) {
-            sps = sps1;
-            break;
+    if (ppc_hash64_use_vrma(env)) {
+        if (build_vrma_slbe(cpu, slb) == 0) {
+            return;
         }
     }
 
-    if (!sps) {
-        error_report("Bad page size encoding esid 0x"TARGET_FMT_lx
-                     " vsid 0x"TARGET_FMT_lx, esid, vsid);
-        return;
-    }
-
-    slb->vsid = vsid;
-    slb->esid = esid;
-    slb->sps = sps;
+    /* Otherwise, clear it to indicate error */
+    slb->esid = slb->vsid = 0;
+    slb->sps = NULL;
 }
 
 void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
@@ -1098,7 +1095,6 @@ void ppc_store_lpcr(PowerPCCPU *cpu, target_ulong val)
     CPUPPCState *env = &cpu->env;
 
     env->spr[SPR_LPCR] = val & pcc->lpcr_mask;
-    env->rmls = rmls_limit(cpu);
     ppc_hash64_update_vrma(cpu);
 }
 
