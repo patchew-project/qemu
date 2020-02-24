@@ -67,5 +67,6 @@ int ram_dirty_bitmap_reload(MigrationState *s, RAMBlock *rb);
 int colo_init_ram_cache(void);
 void colo_release_ram_cache(void);
 void colo_incoming_start_dirty_log(void);
+void colo_flush_ram_cache(void);
 
 #endif
