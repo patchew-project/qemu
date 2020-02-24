@@ -62,6 +62,7 @@ typedef enum {
     RET_PCI_INFO,
     PROXY_PING,
     MMIO_RETURN,
+    DEVICE_RESET,
     MAX,
 } mpqemu_cmd_t;
 
