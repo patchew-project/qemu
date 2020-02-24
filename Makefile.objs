@@ -40,6 +40,7 @@ remote-pci-obj-$(CONFIG_MPQEMU) += blockdev.o
 remote-pci-obj-$(CONFIG_MPQEMU) += qdev-monitor.o
 remote-pci-obj-$(CONFIG_MPQEMU) += bootdevice.o
 remote-pci-obj-$(CONFIG_MPQEMU) += iothread.o
+remote-pci-obj-$(CONFIG_MPQEMU) += runstate.o
 
 ##############################################################
 # remote-lsi-obj-y is code used to implement remote LSI device
@@ -103,6 +104,7 @@ qemu-seccomp.o-libs := $(SECCOMP_LIBS)
 common-obj-$(CONFIG_FDT) += device_tree.o
 
 common-obj-y += vl-parse.o
+common-obj-y += runstate.o
 
 #######################################################################
 # qapi

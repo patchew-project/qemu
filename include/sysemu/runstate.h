@@ -4,6 +4,8 @@
 #include "qapi/qapi-types-run-state.h"
 #include "qemu/notify.h"
 
+extern RunState current_run_state;
+
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
