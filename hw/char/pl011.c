@@ -169,6 +169,73 @@ static void pl011_set_read_trigger(PL011State *s)
         s->read_trigger = 1;
 }
 
+static gboolean pl011_xmit(GIOChannel *chan, GIOCondition cond, void *opaque)
+{
+    PL011State *s = (PL011State *)opaque;
+    int ret;
+
+    /* Drain FIFO if there is no backend */
+    if (!qemu_chr_fe_backend_connected(&s->chr)) {
+        s->write_count = 0;
+        s->flags &= ~PL011_FLAG_TXFF;
+        s->flags |= PL011_FLAG_TXFE;
+        return FALSE;
+    }
+
+    /* Nothing to do */
+    if (!s->write_count) {
+        return FALSE;
+    }
+
+    ret = qemu_chr_fe_write(&s->chr, s->write_fifo, s->write_count);
+    if (ret > 0) {
+        s->write_count -= ret;
+        memmove(s->write_fifo, s->write_fifo + ret, s->write_count);
+        s->flags &= ~PL011_FLAG_TXFF;
+        if (!s->write_count) {
+            s->flags |= PL011_FLAG_TXFE;
+        }
+    }
+
+    if (s->write_count) {
+        s->watch_tag = qemu_chr_fe_add_watch(&s->chr, G_IO_OUT | G_IO_HUP,
+                                             pl011_xmit, s);
+        if (!s->watch_tag) {
+            s->write_count = 0;
+            s->flags &= ~PL011_FLAG_TXFF;
+            s->flags |= PL011_FLAG_TXFE;
+            return FALSE;
+        }
+    }
+
+    s->int_level |= PL011_INT_TX;
+    pl011_update(s);
+    return FALSE;
+}
+
+static void pl011_write_fifo(void *opaque, const unsigned char *buf, int size)
+{
+    PL011State *s = (PL011State *)opaque;
+    int depth = (s->lcr & 0x10) ? 16 : 1;
+
+    if (size >= (depth - s->write_count)) {
+        size = depth - s->write_count;
+    }
+
+    if (size > 0) {
+        memcpy(s->write_fifo + s->write_count, buf, size);
+        s->write_count += size;
+        if (s->write_count >= depth) {
+            s->flags |= PL011_FLAG_TXFF;
+        }
+        s->flags &= ~PL011_FLAG_TXFE;
+    }
+
+    if (!s->watch_tag) {
+        pl011_xmit(NULL, G_IO_OUT, s);
+    }
+}
+
 static void pl011_write(void *opaque, hwaddr offset,
                         uint64_t value, unsigned size)
 {
@@ -179,13 +246,8 @@ static void pl011_write(void *opaque, hwaddr offset,
 
     switch (offset >> 2) {
     case 0: /* UARTDR */
-        /* ??? Check if transmitter is enabled.  */
         ch = value;
-        /* XXX this blocks entire thread. Rewrite to use
-         * qemu_chr_fe_write and background I/O callbacks */
-        qemu_chr_fe_write_all(&s->chr, &ch, 1);
-        s->int_level |= PL011_INT_TX;
-        pl011_update(s);
+        pl011_write_fifo(opaque, &ch, 1);
         break;
     case 1: /* UARTRSR/UARTECR */
         s->rsr = 0;
@@ -207,7 +269,16 @@ static void pl011_write(void *opaque, hwaddr offset,
         if ((s->lcr ^ value) & 0x10) {
             s->read_count = 0;
             s->read_pos = 0;
+
+            if (s->watch_tag) {
+                g_source_remove(s->watch_tag);
+                s->watch_tag = 0;
+            }
+            s->write_count = 0;
+            s->flags &= ~PL011_FLAG_TXFF;
+            s->flags |= PL011_FLAG_TXFE;
         }
+
         s->lcr = value;
         pl011_set_read_trigger(s);
         break;
@@ -292,6 +363,24 @@ static const MemoryRegionOps pl011_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static bool pl011_write_fifo_needed(void *opaque)
+{
+    PL011State *s = (PL011State *)opaque;
+    return s->write_count > 0;
+}
+
+static const VMStateDescription vmstate_pl011_write_fifo = {
+    .name = "pl011/write_fifo",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = pl011_write_fifo_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(write_count, PL011State),
+        VMSTATE_UINT8_ARRAY(write_fifo, PL011State, 16),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_pl011 = {
     .name = "pl011",
     .version_id = 2,
@@ -314,6 +403,10 @@ static const VMStateDescription vmstate_pl011 = {
         VMSTATE_INT32(read_count, PL011State),
         VMSTATE_INT32(read_trigger, PL011State),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (const VMStateDescription * []) {
+        &vmstate_pl011_write_fifo,
+        NULL
     }
 };
 
