@@ -135,4 +135,11 @@ void mpqemu_link_set_callback(MPQemuLinkState *s,
                               mpqemu_link_callback callback);
 void mpqemu_start_coms(MPQemuLinkState *s);
 
+#define GET_REMOTE_WAIT eventfd(0, EFD_CLOEXEC)
+#define PUT_REMOTE_WAIT(wait) close(wait)
+#define PROXY_LINK_WAIT_DONE 1
+
+uint64_t wait_for_remote(int efd);
+void notify_proxy(int fd, uint64_t val);
+
 #endif
