@@ -64,7 +64,6 @@ struct MilkymistSoftUsbState {
     MemoryRegion dmem;
     qemu_irq irq;
 
-    void *pmem_ptr;
     void *dmem_ptr;
 
     /* device properties */
@@ -263,7 +262,6 @@ static void milkymist_softusb_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram_nomigrate(&s->pmem, OBJECT(s), "milkymist-softusb.pmem",
                            s->pmem_size, &error_fatal);
     vmstate_register_ram_global(&s->pmem);
-    s->pmem_ptr = memory_region_get_ram_ptr(&s->pmem);
     sysbus_init_mmio(sbd, &s->pmem);
     memory_region_init_ram_nomigrate(&s->dmem, OBJECT(s), "milkymist-softusb.dmem",
                            s->dmem_size, &error_fatal);
