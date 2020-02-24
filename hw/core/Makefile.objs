@@ -49,3 +49,4 @@ remote-pci-obj-$(CONFIG_MPQEMU) += numa.o
 remote-pci-obj-$(CONFIG_MPQEMU) += cpu.o
 remote-pci-obj-$(CONFIG_MPQEMU) += vmstate-if.o
 remote-pci-obj-$(CONFIG_MPQEMU) += resettable.o
+remote-pci-obj-$(CONFIG_MPQEMU) += machine-qmp-cmds.o
