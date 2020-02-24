@@ -392,6 +392,8 @@ BusState *qdev_get_parent_bus(DeviceState *dev);
 
 DeviceState *qdev_find_recursive(BusState *bus, const char *id);
 
+DeviceState *find_device_state(const char *id, Error **errp);
+
 /* Returns 0 to walk children, > 0 to skip walk, < 0 to terminate walk. */
 typedef int (qbus_walkerfn)(BusState *bus, void *opaque);
 typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
