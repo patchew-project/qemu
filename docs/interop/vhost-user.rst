@@ -1409,6 +1409,10 @@ The backend program must end (as quickly and cleanly as possible) when
 the SIGTERM signal is received. Eventually, it may receive SIGKILL by
 the management layer after a few seconds.
 
+By default, the backend program terminates after the client disconnects.
+This is useful to keep the backend program's lifetime synchronized with
+its client process.
+
 The following command line options have an expected behaviour. They
 are mandatory, unless explicitly said differently:
 
@@ -1422,6 +1426,14 @@ are mandatory, unless explicitly said differently:
   When this argument is given, the backend program is started with the
   vhost-user socket as file descriptor FDNUM. It is incompatible with
   --socket-path.
+
+--keep-listening
+
+  When this option is provided, the backend program must keep listening
+  after the client disconnects. It accepts only 1 connection at a time
+  on each UNIX domain socket. This prevents the management layer from
+  having to spawn a new backend program each and every time the client
+  disconnects.
 
 --print-capabilities
 
