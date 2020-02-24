@@ -2942,3 +2942,30 @@ bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 
     return !(vmsd && vmsd->unmigratable);
 }
+
+int qemu_remote_savevm(QEMUFile *f)
+{
+    SaveStateEntry *se;
+    int ret;
+
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+        if (!se->vmsd || !vmstate_save_needed(se->vmsd, se->opaque)) {
+            continue;
+        }
+
+        save_section_header(f, se, QEMU_VM_SECTION_FULL);
+
+        ret = vmstate_save(f, se, NULL);
+        if (ret) {
+            qemu_file_set_error(f, ret);
+            return ret;
+        }
+
+        save_section_footer(f, se);
+    }
+
+    qemu_put_byte(f, QEMU_VM_EOF);
+    qemu_fflush(f);
+
+    return 0;
+}

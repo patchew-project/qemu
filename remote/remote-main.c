@@ -53,6 +53,16 @@
 #include "qemu/log.h"
 #include "qemu/cutils.h"
 #include "remote-opts.h"
+#include "qapi/error.h"
+#include "io/channel-util.h"
+
+#include "io/channel.h"
+#include "io/channel-socket.h"
+#include "migration/qemu-file-types.h"
+#include "migration/savevm.h"
+#include "migration/qemu-file-channel.h"
+#include "migration/qemu-file.h"
+
 #include "monitor/monitor.h"
 #include "chardev/char.h"
 #include "sysemu/reset.h"
@@ -322,6 +332,36 @@ static int setup_device(MPQemuMsg *msg, Error **errp)
 
 }
 
+static void process_start_mig_out(MPQemuMsg *msg)
+{
+    int wait = msg->fds[1];
+    Error *err = NULL;
+    QIOChannel *ioc;
+    QEMUFile *f;
+
+    ioc = qio_channel_new_fd(msg->fds[0], &err);
+    if (err) {
+        error_report_err(err);
+        return;
+    }
+
+    qio_channel_set_name(QIO_CHANNEL(ioc), "remote-migration-channel");
+
+    f = qemu_fopen_channel_output(ioc);
+
+    bdrv_drain_all();
+    (void)bdrv_flush_all();
+
+    (void)qemu_remote_savevm(f);
+
+    qemu_fflush(f);
+
+    notify_proxy(wait, (uint64_t)qemu_ftell(f));
+    PUT_REMOTE_WAIT(wait);
+
+    qemu_fclose(f);
+}
+
 static void process_msg(GIOCondition cond, MPQemuChannel *chan)
 {
     MPQemuMsg *msg = NULL;
@@ -410,6 +450,9 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         if (msg->num_fds == 1) {
             notify_proxy(msg->fds[0], 0);
         }
+        break;
+    case START_MIG_OUT:
+        process_start_mig_out(msg);
         break;
     default:
         error_setg(&err, "Unknown command");
