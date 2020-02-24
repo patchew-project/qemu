@@ -112,13 +112,7 @@ int qemu_openpty_raw(int *aslave, char *pty_name)
 {
     int amaster;
     struct termios tty;
-#if defined(__OpenBSD__) || defined(__DragonFly__)
-    char pty_buf[PATH_MAX];
-#define q_ptsname(x) pty_buf
-#else
-    char *pty_buf = NULL;
-#define q_ptsname(x) ptsname(x)
-#endif
+    char pty_buf[PATH_MAX] = { 0 };
 
     if (openpty(&amaster, aslave, pty_buf, NULL, NULL) < 0) {
         return -1;
@@ -130,7 +124,7 @@ int qemu_openpty_raw(int *aslave, char *pty_name)
     tcsetattr(*aslave, TCSAFLUSH, &tty);
 
     if (pty_name) {
-        strcpy(pty_name, q_ptsname(amaster));
+        strcpy(pty_name, pty_buf);
     }
 
     return amaster;
