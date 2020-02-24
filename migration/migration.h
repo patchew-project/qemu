@@ -219,6 +219,7 @@ struct MigrationState
     QemuSemaphore colo_checkpoint_sem;
     int64_t colo_checkpoint_time;
     QEMUTimer *colo_delay_timer;
+    QEMUTimer *pending_ram_check_timer;
 
     /* The first error that has occurred.
        We used the mutex to be able to return the 1st error message */
