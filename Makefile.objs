@@ -31,6 +31,7 @@ remote-pci-obj-$(CONFIG_MPQEMU) += block/
 remote-pci-obj-$(CONFIG_MPQEMU) += migration/
 remote-pci-obj-$(CONFIG_MPQEMU) += remote/
 remote-pci-obj-$(CONFIG_MPQEMU) += accel/
+remote-pci-obj-$(CONFIG_MPQEMU) += util/
 
 remote-pci-obj-$(CONFIG_MPQEMU) += cpus-common.o
 remote-pci-obj-$(CONFIG_MPQEMU) += dma-helpers.o
