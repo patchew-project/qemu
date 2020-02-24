@@ -96,6 +96,11 @@ qemu-seccomp.o-libs := $(SECCOMP_LIBS)
 
 common-obj-$(CONFIG_FDT) += device_tree.o
 
+common-obj-y += vl-parse.o
+
+#######################################################################
+# qapi
+
 common-obj-y += qapi/
 
 endif # CONFIG_SOFTMMU
