@@ -54,6 +54,7 @@
 #include "qemu/cutils.h"
 #include "remote-opts.h"
 #include "monitor/monitor.h"
+#include "chardev/char.h"
 #include "sysemu/reset.h"
 
 static MPQemuLinkState *mpqemu_link;

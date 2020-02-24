@@ -1189,4 +1189,18 @@ static void register_types(void)
     qemu_add_machine_init_done_notifier(&chardev_machine_done_notify);
 }
 
+int chardev_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (!qemu_chr_new_from_opts(opts, NULL, &local_err)) {
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return -1;
+        }
+        exit(0);
+    }
+    return 0;
+}
+
 type_init(register_types);
