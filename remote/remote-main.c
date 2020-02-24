@@ -34,6 +34,7 @@
 #include "block/block.h"
 #include "exec/ramlist.h"
 #include "exec/memattrs.h"
+#include "exec/address-spaces.h"
 
 static MPQemuLinkState *mpqemu_link;
 PCIDevice *remote_pci_dev;
@@ -157,6 +158,16 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         break;
     case BAR_READ:
         process_bar_read(msg, &err);
+        if (err) {
+            goto finalize_loop;
+        }
+        break;
+    case SYNC_SYSMEM:
+        /*
+         * TODO: ensure no active DMA is happening when
+         * sysmem is being updated
+         */
+        remote_sysmem_reconfig(msg, &err);
         if (err) {
             goto finalize_loop;
         }

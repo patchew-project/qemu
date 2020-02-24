@@ -16,6 +16,8 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
 #include "hw/proxy/qemu-proxy.h"
+#include "hw/proxy/memory-sync.h"
+#include "qom/object.h"
 
 static void pci_proxy_dev_realize(PCIDevice *dev, Error **errp);
 
@@ -243,6 +245,8 @@ static void init_proxy(PCIDevice *dev, char *command, char *exec_name,
 
     mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->com,
                         pdev->socket);
+
+    configure_memory_sync(pdev->sync, pdev->mpqemu_link);
 }
 
 static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
@@ -261,6 +265,7 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     dev->set_proxy_sock = set_proxy_sock;
     dev->get_proxy_sock = get_proxy_sock;
     dev->init_proxy = init_proxy;
+    dev->sync = REMOTE_MEM_SYNC(object_new(TYPE_MEMORY_LISTENER));
 }
 
 static void send_bar_access_msg(PCIProxyDev *dev, MemoryRegion *mr,
