@@ -2,6 +2,9 @@
 #include "qemu-common.h"
 #include "net/net.h"
 
+#include "qapi/qapi-commands-net.h"
+#include "qapi/qapi-commands-rocker.h"
+
 int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
                                  NetClientDriver type, int max)
 {
@@ -29,3 +32,69 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
     return -ENOSYS;
 }
 
+void qmp_set_link(const char *name, bool up, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+void qmp_netdev_del(const char *id, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+RxFilterInfoList *qmp_query_rx_filter(bool has_name, const char *name,
+                                      Error **errp)
+{
+    qemu_debug_assert(0);
+
+    return NULL;
+}
+
+void qmp_announce_self(AnnounceParameters *params, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+RockerSwitch *qmp_query_rocker(const char *name, Error **errp)
+{
+    qemu_debug_assert(0);
+
+    return NULL;
+}
+
+RockerPortList *qmp_query_rocker_ports(const char *name, Error **errp)
+{
+    qemu_debug_assert(0);
+
+    return NULL;
+}
+
+RockerOfDpaFlowList *qmp_query_rocker_of_dpa_flows(const char *name,
+                                                   bool has_tbl_id,
+                                                   uint32_t tbl_id,
+                                                   Error **errp)
+{
+    qemu_debug_assert(0);
+
+    return NULL;
+}
+
+RockerOfDpaGroupList *qmp_query_rocker_of_dpa_groups(const char *name,
+                                                     bool has_type,
+                                                     uint8_t type,
+                                                     Error **errp)
+{
+    qemu_debug_assert(0);
+
+    return NULL;
+}
+
+void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+void netdev_add(QemuOpts *opts, Error **errp)
+{
+    qemu_debug_assert(0);
+}

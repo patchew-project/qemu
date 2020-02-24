@@ -119,3 +119,13 @@ page_collection_lock(tb_page_addr_t start, tb_page_addr_t end)
 void page_collection_unlock(struct page_collection *set)
 {
 }
+
+void dump_exec_info(void)
+{
+    qemu_debug_assert(0);
+}
+
+void dump_opcount_info(void)
+{
+    qemu_debug_assert(0);
+}
