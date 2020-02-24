@@ -473,9 +473,9 @@ static void milkymist_minimac2_realize(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->regs_region);
 
     /* register buffers memory */
-    memory_region_init_ram_nomigrate(&s->buffers, OBJECT(dev), "milkymist-minimac2.buffers",
+    memory_region_init_ram(&s->buffers, OBJECT(dev),
+                           "milkymist-minimac2.buffers",
                            buffers_size, &error_fatal);
-    vmstate_register_ram_global(&s->buffers);
     s->rx0_buf = memory_region_get_ram_ptr(&s->buffers);
     s->rx1_buf = s->rx0_buf + MINIMAC2_BUFFER_SIZE;
     s->tx_buf = s->rx1_buf + MINIMAC2_BUFFER_SIZE;
@@ -506,8 +506,8 @@ static const VMStateDescription vmstate_milkymist_minimac2_mdio = {
 
 static const VMStateDescription vmstate_milkymist_minimac2 = {
     .name = "milkymist-minimac2",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32_ARRAY(regs, MilkymistMinimac2State, R_MAX),
         VMSTATE_UINT16_ARRAY(phy_regs, MilkymistMinimac2State, R_PHY_MAX),
