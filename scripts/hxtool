@@ -10,7 +10,14 @@ hxtoh()
             STEXI*|ETEXI*|SRST*|ERST*) flag=$(($flag^1))
             ;;
             *)
-            test $flag -eq 1 && printf "%s\n" "$str"
+            # Skip line that has ".targets" as it is for multi-process targets based hmp
+            # commands generation.
+            echo $str | grep -q '.targets'
+            if [ $? -eq 0 ]; then
+                continue
+            else
+                test $flag -eq 1 && printf "%s\n" "$str"
+            fi
             ;;
         esac
     done
@@ -84,16 +91,49 @@ hxtotexi()
             print_texi_heading "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
             ;;
             *)
-            test $flag -eq 1 && printf '%s\n' "$str"
+            # Skip line that has ".targets" as it is for multi-process targets based hmp
+            # commands generation.
+            echo $str | grep -q '.targetss'
+            if [ $? -eq 0 ]; then
+                continue
+            else
+                test $flag -eq 1 && printf '%s\n' "$str"
+            fi
             ;;
         esac
         line=$((line+1))
     done
 }
 
+hxtoh_tgt()
+{
+    section=""
+    flag=1
+    use_section=0
+    while read -r str; do
+        # Print section if it has ".targets" and the second argument passed to the
+        # script, such as "scsi".
+        echo "$str" | grep -q -E ".targets.*$1"
+        if [ $? -eq 0 ]; then
+            use_section=1
+            continue
+        fi
+        case $str in
+            HXCOMM*)
+            ;;
+            STEXI*|ETEXI*) flag=$(($flag^1)); test $use_section -eq 1 && printf '%s' "$section"; section=""; use_section=0
+            ;;
+            *)
+            test $flag -eq 1 && section="${section} ${str} ${IFS}"
+            ;;
+        esac
+    done
+}
+
 case "$1" in
 "-h") hxtoh ;;
 "-t") hxtotexi ;;
+"-tgt") hxtoh_tgt $2 ;;
 *) exit 1 ;;
 esac
 
