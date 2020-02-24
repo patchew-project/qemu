@@ -1427,17 +1427,6 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (arm_feature(env, ARM_FEATURE_AARCH64) &&
-        cpu->has_vfp != cpu->has_neon) {
-        /*
-         * This is an architectural requirement for AArch64; AArch32 is
-         * more flexible and permits VFP-no-Neon and Neon-no-VFP.
-         */
-        error_setg(errp,
-                   "AArch64 CPUs must have both VFP and Neon or neither");
-        return;
-    }
-
     if (!cpu->has_vfp) {
         uint64_t t;
         uint32_t u;
@@ -1535,6 +1524,18 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         u = cpu->isar.mvfr0;
         u = FIELD_DP32(u, MVFR0, SIMDREG, 0);
         cpu->isar.mvfr0 = u;
+    }
+
+    if (arm_feature(env, ARM_FEATURE_AARCH64) &&
+        FIELD_EX64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, FP) !=
+        FIELD_EX64(cpu->isar.id_aa64pfr0, ID_AA64PFR0, ADVSIMD)) {
+        /*
+         * This is an architectural requirement for AArch64.  Not only
+         * both vfp and advsimd or neither, but further both must
+         * support fp16 or neither.
+         */
+        error_setg(errp, "AArch64 CPUs must match VFP and NEON");
+        return;
     }
 
     if (arm_feature(env, ARM_FEATURE_M) && !cpu->has_dsp) {
