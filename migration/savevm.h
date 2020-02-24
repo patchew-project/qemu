@@ -66,5 +66,6 @@ int qemu_loadvm_state_main(QEMUFile *f, MigrationIncomingState *mis);
 int qemu_load_device_state(QEMUFile *f);
 
 int qemu_remote_savevm(QEMUFile *f);
+int qemu_remote_loadvm(QEMUFile *f);
 
 #endif

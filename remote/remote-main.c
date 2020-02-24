@@ -68,6 +68,7 @@
 #include "chardev/char.h"
 #include "sysemu/reset.h"
 #include "vl.h"
+#include "migration/misc.h"
 
 static MPQemuLinkState *mpqemu_link;
 
@@ -363,6 +364,30 @@ static void process_start_mig_out(MPQemuMsg *msg)
     qemu_fclose(f);
 }
 
+static int process_start_mig_in(MPQemuMsg *msg)
+{
+    Error *err = NULL;
+    QIOChannel *ioc;
+    QEMUFile *f;
+    int rc = -EINVAL;
+
+    ioc = qio_channel_new_fd(msg->fds[0], &err);
+    if (err) {
+        error_report_err(err);
+        return rc;
+    }
+
+    qio_channel_set_name(QIO_CHANNEL(ioc), "remote-migration-channel");
+
+    f = qemu_fopen_channel_input(ioc);
+
+    rc = qemu_remote_loadvm(f);
+
+    qemu_fclose(f);
+
+    return rc;
+}
+
 static void process_msg(GIOCondition cond, MPQemuChannel *chan)
 {
     MPQemuMsg *msg = NULL;
@@ -455,6 +480,12 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
     case START_MIG_OUT:
         process_start_mig_out(msg);
         break;
+    case START_MIG_IN:
+        if (process_start_mig_in(msg)) {
+            error_setg(&err, "Incoming migration failed.");
+            goto finalize_loop;
+        }
+        break;
     case RUNSTATE_SET:
         remote_runstate_set(msg->data1.runstate.state);
         notify_proxy(msg->fds[0], 0);
@@ -531,6 +562,8 @@ int main(int argc, char *argv[])
         return -EINVAL;
     }
     mpqemu_init_channel(mpqemu_link, &mpqemu_link->mmio, fd);
+
+    migration_object_init();
 
     parse_cmdline(argc - 3, argv + 3, NULL);
 

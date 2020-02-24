@@ -2969,3 +2969,39 @@ int qemu_remote_savevm(QEMUFile *f)
 
     return 0;
 }
+
+int qemu_remote_loadvm(QEMUFile *f)
+{
+    uint8_t section_type;
+    int ret = 0;
+
+    qemu_mutex_lock_iothread();
+
+    while (true) {
+        section_type = qemu_get_byte(f);
+
+        if (qemu_file_get_error(f)) {
+            ret = qemu_file_get_error(f);
+            break;
+        }
+
+        switch (section_type) {
+        case QEMU_VM_SECTION_FULL:
+            ret = qemu_loadvm_section_start_full(f, NULL);
+            if (ret < 0) {
+                break;
+            }
+            break;
+        case QEMU_VM_EOF:
+            goto out;
+        default:
+            ret = -EINVAL;
+            goto out;
+        }
+    }
+
+out:
+    qemu_mutex_unlock_iothread();
+
+    return ret;
+}
