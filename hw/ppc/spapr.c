@@ -296,20 +296,6 @@ static void spapr_populate_pa_features(SpaprMachineState *spapr,
     _FDT((fdt_setprop(fdt, offset, "ibm,pa-features", pa_features, pa_size)));
 }
 
-static hwaddr spapr_node0_size(MachineState *machine)
-{
-    if (machine->numa_state->num_nodes) {
-        int i;
-        for (i = 0; i < machine->numa_state->num_nodes; ++i) {
-            if (machine->numa_state->nodes[i].node_mem) {
-                return MIN(pow2floor(machine->numa_state->nodes[i].node_mem),
-                           machine->ram_size);
-            }
-        }
-    }
-    return machine->ram_size;
-}
-
 static void add_str(GString *s, const gchar *s1)
 {
     g_string_append_len(s, s1, strlen(s1) + 1);
@@ -2652,10 +2638,24 @@ static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
 {
     MachineState *machine = MACHINE(spapr);
     hwaddr rma_size = machine->ram_size;
-    hwaddr node0_size = spapr_node0_size(machine);
 
     /* RMA has to fit in the first NUMA node */
-    rma_size = MIN(rma_size, node0_size);
+    if (machine->numa_state->num_nodes) {
+        /*
+         * It's possible for there to be some zero-memory nodes first
+         * in the list.  We need the RMA to fit inside the memory of
+         * the first node which actually has some memory.
+         */
+        int i;
+
+        for (i = 0; i < machine->numa_state->num_nodes; ++i) {
+            if (machine->numa_state->nodes[i].node_mem != 0) {
+                rma_size = MIN(rma_size,
+                               machine->numa_state->nodes[i].node_mem);
+                break;
+            }
+        }
+    }
 
     /*
      * VRMA access is via a special 1TiB SLB mapping, so the RMA can
@@ -2671,6 +2671,11 @@ static hwaddr spapr_rma_size(SpaprMachineState *spapr, Error **errp)
     if (smc->rma_limit) {
         spapr->rma_size = MIN(spapr->rma_size, smc->rma_limit);
     }
+
+    /*
+     * RMA size must be a power of 2
+     */
+    rma_size = pow2floor(rma_size);
 
     if (rma_size < (MIN_RMA_SLOF * MiB)) {
         error_setg(errp,
