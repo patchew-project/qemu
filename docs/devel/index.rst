@@ -25,3 +25,4 @@ Contents:
    tcg-plugins
    bitops
    reset
+   multi-process
