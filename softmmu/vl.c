@@ -35,6 +35,11 @@
 #include "sysemu/runstate.h"
 #include "sysemu/seccomp.h"
 #include "sysemu/tcg.h"
+#include "qapi/qmp/qdict.h"
+#include "block/qdict.h"
+#include "qapi/qmp/qstring.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qlist.h"
 
 #include "qemu/error-report.h"
 #include "qemu/sockets.h"
@@ -2065,9 +2070,34 @@ static int device_help_func(void *opaque, QemuOpts *opts, Error **errp)
     return qdev_device_help(opts);
 }
 
+#if defined(CONFIG_MPQEMU)
+static int rdevice_init_func(void *opaque, QemuOpts *opts, Error **errp)
+{
+    DeviceState *dev;
+
+    dev = qdev_remote_add(opts, errp);
+    if (!dev) {
+        error_setg(errp, "qdev_remote_add failed for device.");
+        return -1;
+    }
+    object_unref(OBJECT(dev));
+    return 0;
+}
+#endif
+
 static int device_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     DeviceState *dev;
+
+#if defined(CONFIG_MPQEMU)
+    const char *remote;
+
+    remote = qemu_opt_get(opts, "remote");
+    if (remote) {
+        /* This will be a remote process */
+        return rdevice_init_func(opaque, opts, errp);
+    }
+#endif
 
     dev = qdev_device_add(opts, errp);
     if (!dev && *errp) {
@@ -4307,6 +4337,9 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_register_reset(resettable_cold_reset_fn, sysbus_get_default());
     qemu_run_machine_init_done_notifiers();
 
+#if defined(CONFIG_MPQEMU)
+    qdev_proxy_fire();
+#endif
     if (rom_check_and_register_reset() != 0) {
         error_report("rom check and register reset failed");
         exit(1);
