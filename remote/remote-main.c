@@ -126,6 +126,23 @@ fail:
     PUT_REMOTE_WAIT(wait);
 }
 
+static void process_get_pci_info_msg(PCIDevice *pci_dev, MPQemuMsg *msg)
+{
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+    MPQemuMsg ret = { 0 };
+
+    ret.cmd = RET_PCI_INFO;
+
+    ret.data1.ret_pci_info.vendor_id = pc->vendor_id;
+    ret.data1.ret_pci_info.device_id = pc->device_id;
+    ret.data1.ret_pci_info.class_id = pc->class_id;
+    ret.data1.ret_pci_info.subsystem_id = pc->subsystem_id;
+
+    ret.size = sizeof(ret.data1);
+
+    mpqemu_msg_send(&ret, mpqemu_link->com);
+}
+
 static void process_msg(GIOCondition cond, MPQemuChannel *chan)
 {
     MPQemuMsg *msg = NULL;
@@ -144,6 +161,9 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
 
     switch (msg->cmd) {
     case INIT:
+        break;
+    case GET_PCI_INFO:
+        process_get_pci_info_msg(remote_pci_dev, msg);
         break;
     case PCI_CONFIG_WRITE:
         process_config_write(msg);

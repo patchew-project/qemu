@@ -26,12 +26,91 @@
 
 static void pci_proxy_dev_realize(PCIDevice *dev, Error **errp);
 static void setup_irqfd(PCIProxyDev *dev);
+static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
+                          unsigned int op);
+
+static void probe_pci_info(PCIDevice *dev)
+{
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+    DeviceClass *dc = DEVICE_CLASS(pc);
+    PCIProxyDev *pdev = PCI_PROXY_DEV(dev);
+    MPQemuLinkState *mpqemu_link = pdev->mpqemu_link;
+    MPQemuMsg msg, ret;
+    uint32_t orig_val, new_val, class;
+    uint8_t type;
+    int i, size;
+    char *name;
+
+    memset(&msg, 0, sizeof(MPQemuMsg));
+    msg.bytestream = 0;
+    msg.size = 0;
+    msg.cmd = GET_PCI_INFO;
+    mpqemu_msg_send(&msg, mpqemu_link->com);
+
+    mpqemu_msg_recv(&ret, mpqemu_link->com);
+
+    pc->vendor_id = ret.data1.ret_pci_info.vendor_id;
+    pc->device_id = ret.data1.ret_pci_info.device_id;
+    pc->class_id = ret.data1.ret_pci_info.class_id;
+    pc->subsystem_id = ret.data1.ret_pci_info.subsystem_id;
+
+    config_op_send(pdev, 11, &class, 1, PCI_CONFIG_READ);
+    switch (class) {
+    case PCI_BASE_CLASS_BRIDGE:
+        set_bit(DEVICE_CATEGORY_BRIDGE, dc->categories);
+        break;
+    case PCI_BASE_CLASS_STORAGE:
+        set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
+        break;
+    case PCI_BASE_CLASS_NETWORK:
+        set_bit(DEVICE_CATEGORY_NETWORK, dc->categories);
+        break;
+    case PCI_BASE_CLASS_INPUT:
+        set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
+        break;
+    case PCI_BASE_CLASS_DISPLAY:
+        set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+        break;
+    case PCI_BASE_CLASS_PROCESSOR:
+        set_bit(DEVICE_CATEGORY_CPU, dc->categories);
+        break;
+    default:
+        set_bit(DEVICE_CATEGORY_MISC, dc->categories);
+        break;
+    }
+
+    for (i = 0; i < 6; i++) {
+        config_op_send(pdev, 0x10 + (4 * i), &orig_val, 4, PCI_CONFIG_READ);
+        new_val = 0xffffffff;
+        config_op_send(pdev, 0x10 + (4 * i), &new_val, 4, PCI_CONFIG_WRITE);
+        config_op_send(pdev, 0x10 + (4 * i), &new_val, 4, PCI_CONFIG_READ);
+        size = (~(new_val & 0xFFFFFFF0)) + 1;
+        config_op_send(pdev, 0x10 + (4 * i), &orig_val, 4, PCI_CONFIG_WRITE);
+        type = (new_val & 0x1) ?
+                   PCI_BASE_ADDRESS_SPACE_IO : PCI_BASE_ADDRESS_SPACE_MEMORY;
+
+        if (size) {
+            pdev->region[i].dev = pdev;
+            pdev->region[i].present = true;
+            if (type == PCI_BASE_ADDRESS_SPACE_MEMORY) {
+                pdev->region[i].memory = true;
+            }
+            name = g_strdup_printf("bar-region-%d", i);
+            memory_region_init_io(&pdev->region[i].mr, OBJECT(pdev),
+                                  &proxy_default_ops, &pdev->region[i],
+                                  name, size);
+            pci_register_bar(dev, i, type, &pdev->region[i].mr);
+            g_free(name);
+        }
+    }
+}
 
 static void proxy_ready(PCIDevice *dev)
 {
     PCIProxyDev *pdev = PCI_PROXY_DEV(dev);
 
     setup_irqfd(pdev);
+    probe_pci_info(dev);
 }
 
 static int set_remote_opts(PCIDevice *dev, QDict *qdict, unsigned int cmd)
@@ -254,7 +333,6 @@ static const TypeInfo pci_proxy_dev_type_info = {
     .name          = TYPE_PCI_PROXY_DEV,
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCIProxyDev),
-    .abstract      = true,
     .class_size    = sizeof(PCIProxyDevClass),
     .class_init    = pci_proxy_dev_class_init,
     .interfaces = (InterfaceInfo[]) {
@@ -355,7 +433,11 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
 {
     PCIProxyDev *dev = PCI_PROXY_DEV(device);
     PCIProxyDevClass *k = PCI_PROXY_DEV_GET_CLASS(dev);
+    uint8_t *pci_conf = device->config;
     Error *local_err = NULL;
+
+    pci_conf[PCI_LATENCY_TIMER] = 0xff;
+    pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
     if (k->realize) {
         k->realize(dev, &local_err);
