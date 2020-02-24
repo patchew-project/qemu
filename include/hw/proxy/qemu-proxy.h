@@ -58,6 +58,7 @@ struct PCIProxyDev {
     EventNotifier en_ping;
 
     int socket;
+    int mmio_sock;
 
     char *rid;
     char *dev_id;

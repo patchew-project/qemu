@@ -283,13 +283,14 @@ static int remote_spawn(PCIProxyDev *pdev, const char *opts,
                         const char *exec_name, Error **errp)
 {
     pid_t rpid;
-    int fd[2] = {-1, -1};
+    int fd[2], mmio[2];
     Error *local_error = NULL;
     char *argv[64];
     int argc = 0;
     char *sfd;
     char *exec_dir;
     int rc = -EINVAL;
+    struct timeval timeout = {.tv_sec = 10, .tv_usec = 0};
 
     if (pdev->managed) {
         /* Child is forked by external program (such as libvirt). */
@@ -302,13 +303,16 @@ static int remote_spawn(PCIProxyDev *pdev, const char *opts,
         return rc;
     }
 
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd)) {
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd) ||
+        socketpair(AF_UNIX, SOCK_STREAM, 0, mmio)) {
         error_setg(errp, "Unable to create unix socket.");
         return rc;
     }
     exec_dir = g_strdup_printf("%s/%s", qemu_get_exec_dir(), exec_name);
     argc = add_argv(exec_dir, argv, argc);
     sfd = g_strdup_printf("%d", fd[1]);
+    argc = add_argv(sfd, argv, argc);
+    sfd = g_strdup_printf("%d", mmio[1]);
     argc = add_argv(sfd, argv, argc);
     argc = make_argv((char *)opts, argv, argc);
 
@@ -318,24 +322,35 @@ static int remote_spawn(PCIProxyDev *pdev, const char *opts,
     if (rpid == -1) {
         error_setg(errp, "Unable to spawn emulation program.");
         close(fd[0]);
-        goto fail;
+        close(fd[1]);
+        close(mmio[0]);
+        close(mmio[1]);
+        return rc;
     }
 
     if (rpid == 0) {
         close(fd[0]);
+        close(mmio[0]);
 
         rc = execv(argv[0], (char *const *)argv);
         exit(1);
     }
     pdev->remote_pid = rpid;
     pdev->socket = fd[0];
+    pdev->mmio_sock = mmio[0];
 
-    rc = 0;
+    rc = setsockopt(mmio[0], SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+                   sizeof(timeout));
+    if (rc < 0) {
+        close(fd[0]);
+        close(mmio[0]);
 
-fail:
-    close(fd[1]);
+        error_setg(errp, "Unable to set timeout for socket");
 
-    return rc;
+        return rc;
+    }
+
+    return 0;
 }
 
 static int get_proxy_sock(PCIDevice *dev)
@@ -523,6 +538,9 @@ static void init_proxy(PCIDevice *dev, char *command, char *exec_name,
     mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->com,
                         pdev->socket);
 
+    mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->mmio,
+                        pdev->mmio_sock);
+
     configure_memory_sync(pdev->sync, pdev->mpqemu_link);
 }
 
@@ -575,10 +593,10 @@ static void send_bar_access_msg(PCIProxyDev *dev, MemoryRegion *mr,
                                 unsigned size, bool memory)
 {
     MPQemuLinkState *mpqemu_link = dev->mpqemu_link;
-    MPQemuMsg msg;
-    int wait;
+    MPQemuMsg msg, ret;
 
     memset(&msg, 0, sizeof(MPQemuMsg));
+    memset(&ret, 0, sizeof(MPQemuMsg));
 
     msg.bytestream = 0;
     msg.size = sizeof(msg.data1);
@@ -590,19 +608,18 @@ static void send_bar_access_msg(PCIProxyDev *dev, MemoryRegion *mr,
         msg.cmd = BAR_WRITE;
         msg.data1.bar_access.val = *val;
     } else {
-        wait = GET_REMOTE_WAIT;
-
         msg.cmd = BAR_READ;
-        msg.num_fds = 1;
-        msg.fds[0] = wait;
     }
 
-    mpqemu_msg_send(&msg, mpqemu_link->com);
+    mpqemu_msg_send(&msg, mpqemu_link->mmio);
 
-    if (!write) {
-        *val = wait_for_remote(wait);
-        PUT_REMOTE_WAIT(wait);
+    if (write) {
+        return;
     }
+
+    mpqemu_msg_recv(&ret, mpqemu_link->mmio);
+
+    *val = ret.data1.mmio_ret.val;
 }
 
 void proxy_default_bar_write(void *opaque, hwaddr addr, uint64_t val,

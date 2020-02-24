@@ -61,6 +61,7 @@ typedef enum {
     GET_PCI_INFO,
     RET_PCI_INFO,
     PROXY_PING,
+    MMIO_RETURN,
     MAX,
 } mpqemu_cmd_t;
 
@@ -107,6 +108,10 @@ typedef struct {
 } ret_pci_info_msg_t;
 
 typedef struct {
+    uint64_t val;
+} mmio_ret_msg_t;
+
+typedef struct {
     mpqemu_cmd_t cmd;
     int bytestream;
     size_t size;
@@ -117,6 +122,7 @@ typedef struct {
         bar_access_msg_t bar_access;
         set_irqfd_msg_t set_irqfd;
         ret_pci_info_msg_t ret_pci_info;
+        mmio_ret_msg_t mmio_ret;
     } data1;
 
     int fds[REMOTE_MAX_FDS];
@@ -171,6 +177,7 @@ typedef struct MPQemuLinkState {
     GMainLoop *loop;
 
     MPQemuChannel *com;
+    MPQemuChannel *mmio;
 
     mpqemu_link_callback callback;
 } MPQemuLinkState;

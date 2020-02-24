@@ -57,6 +57,7 @@ void mpqemu_link_finalize(MPQemuLinkState *s)
     g_main_loop_quit(s->loop);
 
     mpqemu_destroy_channel(s->com);
+    mpqemu_destroy_channel(s->mmio);
 
     object_unref(OBJECT(s));
 }
@@ -330,6 +331,7 @@ void mpqemu_start_coms(MPQemuLinkState *s)
 {
 
     g_assert(g_source_attach(&s->com->gsrc, s->ctx));
+    g_assert(g_source_attach(&s->mmio->gsrc, s->ctx));
 
     g_main_loop_run(s->loop);
 }

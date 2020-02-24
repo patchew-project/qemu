@@ -104,8 +104,8 @@ static void process_bar_write(MPQemuMsg *msg, Error **errp)
 static void process_bar_read(MPQemuMsg *msg, Error **errp)
 {
     bar_access_msg_t *bar_access = &msg->data1.bar_access;
+    MPQemuMsg ret = { 0 };
     AddressSpace *as;
-    int wait = msg->fds[0];
     MemTxResult res;
     uint64_t val = 0;
 
@@ -139,9 +139,10 @@ static void process_bar_read(MPQemuMsg *msg, Error **errp)
     }
 
 fail:
-    notify_proxy(wait, val);
-
-    PUT_REMOTE_WAIT(wait);
+    ret.cmd = MMIO_RETURN;
+    ret.data1.mmio_ret.val = val;
+    ret.size = sizeof(ret.data1);
+    mpqemu_msg_send(&ret, mpqemu_link->mmio);
 }
 
 static void process_get_pci_info_msg(PCIDevice *pci_dev, MPQemuMsg *msg)
@@ -456,7 +457,14 @@ int main(int argc, char *argv[])
 
     mpqemu_init_channel(mpqemu_link, &mpqemu_link->com, fd);
 
-    parse_cmdline(argc - 2, argv + 2, NULL);
+    fd = qemu_parse_fd(argv[2]);
+    if (fd == -1) {
+        printf("Failed to parse fd for remote process.\n");
+        return -EINVAL;
+    }
+    mpqemu_init_channel(mpqemu_link, &mpqemu_link->mmio, fd);
+
+    parse_cmdline(argc - 3, argv + 3, NULL);
 
     mpqemu_link_set_callback(mpqemu_link, process_msg);
 
