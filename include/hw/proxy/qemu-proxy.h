@@ -43,6 +43,9 @@ extern const MemoryRegionOps proxy_default_ops;
 struct PCIProxyDev {
     PCIDevice parent_dev;
 
+    uint64_t id;
+    uint64_t nr_devices;
+
     int n_mr_sections;
     MemoryRegionSection *mr_sections;
 

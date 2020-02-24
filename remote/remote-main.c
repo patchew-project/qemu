@@ -72,15 +72,23 @@
 
 static MPQemuLinkState *mpqemu_link;
 
-PCIDevice *remote_pci_dev;
+PCIDevice **remote_pci_devs;
+uint64_t nr_devices;
+#define MAX_REMOTE_DEVICES 256
+
 bool create_done;
 
 static void process_config_write(MPQemuMsg *msg)
 {
     struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
 
+    if (msg->id > nr_devices) {
+        return;
+    }
+
     qemu_mutex_lock_iothread();
-    pci_default_write_config(remote_pci_dev, conf->addr, conf->val, conf->l);
+    pci_default_write_config(remote_pci_devs[msg->id], conf->addr, conf->val,
+                             conf->l);
     qemu_mutex_unlock_iothread();
 }
 
@@ -92,8 +100,13 @@ static void process_config_read(MPQemuMsg *msg)
 
     wait = msg->fds[0];
 
+    if (msg->id > nr_devices) {
+        return;
+    }
+
     qemu_mutex_lock_iothread();
-    val = pci_default_read_config(remote_pci_dev, conf->addr, conf->l);
+    val = pci_default_read_config(remote_pci_devs[msg->id], conf->addr,
+                                  conf->l);
     qemu_mutex_unlock_iothread();
 
     notify_proxy(wait, val);
@@ -282,6 +295,13 @@ static int setup_device(MPQemuMsg *msg, Error **errp)
     }
 
     if (!msg->data2) {
+        error_setg(errp, "Message data is empty");
+        return rc;
+    }
+
+    if (msg->id > MAX_REMOTE_DEVICES) {
+        error_setg(errp, "id of the device is larger than max number of "\
+                         "devices per remote process.");
         return rc;
     }
 
@@ -319,8 +339,15 @@ static int setup_device(MPQemuMsg *msg, Error **errp)
                    qstring_get_str(qobject_to_json(QOBJECT(qdict))));
         goto device_failed;
     }
+
     if (object_dynamic_cast(OBJECT(dev), TYPE_PCI_DEVICE)) {
-        remote_pci_dev = PCI_DEVICE(dev);
+        if (nr_devices <= msg->id) {
+            nr_devices = msg->id + 1;
+            remote_pci_devs = g_realloc(remote_pci_devs,
+                                        nr_devices * sizeof(PCIDevice *));
+        }
+
+        remote_pci_devs[msg->id] = PCI_DEVICE(dev);
     }
 
     notify_proxy(wait, (uint32_t)REMOTE_OK);
@@ -405,11 +432,17 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         goto finalize_loop;
     }
 
+    if (msg->id > MAX_REMOTE_DEVICES) {
+        error_setg(&err, "id of the device is larger than max number of "\
+                         "devices per remote process.");
+        goto finalize_loop;
+    }
+
     switch (msg->cmd) {
     case INIT:
         break;
     case GET_PCI_INFO:
-        process_get_pci_info_msg(remote_pci_dev, msg);
+        process_get_pci_info_msg(remote_pci_devs[msg->id], msg);
         break;
     case PCI_CONFIG_WRITE:
         if (create_done) {
@@ -449,12 +482,19 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         }
         break;
     case SET_IRQFD:
-        process_set_irqfd_msg(remote_pci_dev, msg);
-        qdev_machine_creation_done();
-        qemu_mutex_lock_iothread();
-        qemu_run_machine_init_done_notifiers();
-        qemu_mutex_unlock_iothread();
-        create_done = true;
+        if (msg->id > nr_devices) {
+            error_setg(&err, "incorrect device id in the message");
+            goto finalize_loop;
+        }
+        process_set_irqfd_msg(remote_pci_devs[msg->id], msg);
+
+        if (!create_done) {
+            qdev_machine_creation_done();
+            qemu_mutex_lock_iothread();
+            qemu_run_machine_init_done_notifiers();
+            qemu_mutex_unlock_iothread();
+            create_done = true;
+        }
         break;
     case DEV_OPTS:
         if (setup_device(msg, &err)) {

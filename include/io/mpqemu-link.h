@@ -124,6 +124,7 @@ typedef struct {
 typedef struct {
     mpqemu_cmd_t cmd;
     int bytestream;
+    uint64_t id;
     size_t size;
 
     union {
