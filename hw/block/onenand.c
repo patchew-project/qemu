@@ -173,8 +173,8 @@ static int onenand_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_onenand = {
     .name = "onenand",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .pre_save = onenand_pre_save,
     .post_load = onenand_post_load,
     .fields = (VMStateField[]) {
@@ -809,9 +809,8 @@ static void onenand_realize(DeviceState *dev, Error **errp)
     }
     s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
-    memory_region_init_ram_nomigrate(&s->ram, OBJECT(s), "onenand.ram",
+    memory_region_init_ram(&s->ram, OBJECT(s), "onenand.ram",
                            0xc000 << s->shift, &error_fatal);
-    vmstate_register_ram_global(&s->ram);
     ram = memory_region_get_ram_ptr(&s->ram);
     s->boot[0] = ram + (0x0000 << s->shift);
     s->boot[1] = ram + (0x8000 << s->shift);
