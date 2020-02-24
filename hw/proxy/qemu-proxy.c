@@ -23,6 +23,14 @@
 #include "util/event_notifier-posix.c"
 #include "hw/boards.h"
 #include "include/qemu/log.h"
+#include "io/channel.h"
+#include "migration/qemu-file-types.h"
+#include "qapi/error.h"
+#include "io/channel-util.h"
+#include "migration/qemu-file-channel.h"
+#include "migration/qemu-file.h"
+#include "migration/migration.h"
+#include "migration/vmstate.h"
 
 QEMUTimer *hb_timer;
 static void pci_proxy_dev_realize(PCIDevice *dev, Error **errp);
@@ -34,6 +42,9 @@ static void childsig_handler(int sig, siginfo_t *siginfo, void *ctx);
 static void broadcast_init(void);
 static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
                           unsigned int op);
+
+#define PAGE_SIZE qemu_real_host_page_size
+uint8_t *mig_data;
 
 static void childsig_handler(int sig, siginfo_t *siginfo, void *ctx)
 {
@@ -460,6 +471,129 @@ static void pci_proxy_dev_inst_init(Object *obj)
     dev->mem_init = false;
 }
 
+typedef struct {
+    QEMUFile *rem;
+    PCIProxyDev *dev;
+} proxy_mig_data;
+
+static void *proxy_mig_out(void *opaque)
+{
+    proxy_mig_data *data = opaque;
+    PCIProxyDev *dev = data->dev;
+    uint8_t byte;
+    uint64_t data_size = PAGE_SIZE;
+
+    mig_data = g_malloc(data_size);
+
+    while (true) {
+        byte = qemu_get_byte(data->rem);
+
+        if (qemu_file_get_error(data->rem)) {
+            break;
+        }
+
+        mig_data[dev->migsize++] = byte;
+        if (dev->migsize == data_size) {
+            data_size += PAGE_SIZE;
+            mig_data = g_realloc(mig_data, data_size);
+        }
+    }
+
+    return NULL;
+}
+
+static int proxy_pre_save(void *opaque)
+{
+    PCIProxyDev *pdev = opaque;
+    proxy_mig_data *mig_data;
+    QEMUFile *f_remote;
+    MPQemuMsg msg = {0};
+    QemuThread thread;
+    Error *err = NULL;
+    QIOChannel *ioc;
+    uint64_t size;
+    int fd[2];
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd)) {
+        return -1;
+    }
+
+    ioc = qio_channel_new_fd(fd[0], &err);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
+
+    qio_channel_set_name(QIO_CHANNEL(ioc), "PCIProxyDevice-mig");
+
+    f_remote = qemu_fopen_channel_input(ioc);
+
+    pdev->migsize = 0;
+
+    mig_data = g_malloc0(sizeof(proxy_mig_data));
+    mig_data->rem = f_remote;
+    mig_data->dev = pdev;
+
+    qemu_thread_create(&thread, "Proxy MIG_OUT", proxy_mig_out, mig_data,
+                       QEMU_THREAD_DETACHED);
+
+    msg.cmd = START_MIG_OUT;
+    msg.bytestream = 0;
+    msg.num_fds = 2;
+    msg.fds[0] = fd[1];
+    msg.fds[1] = GET_REMOTE_WAIT;
+
+    mpqemu_msg_send(&msg, pdev->mpqemu_link->com);
+    size = wait_for_remote(msg.fds[1]);
+    PUT_REMOTE_WAIT(msg.fds[1]);
+
+    assert(size != ULLONG_MAX);
+
+    /*
+     * migsize is being update by a separate thread. Using volatile to
+     * instruct the compiler to fetch the value of this variable from
+     * memory during every read
+     */
+    while (*((volatile uint64_t *)&pdev->migsize) < size) {
+    }
+
+    qemu_file_shutdown(f_remote);
+
+    qemu_fclose(f_remote);
+    close(fd[1]);
+
+    return 0;
+}
+
+static int proxy_post_save(void *opaque)
+{
+    MigrationState *ms = migrate_get_current();
+    PCIProxyDev *pdev = opaque;
+    uint64_t pos = 0;
+
+    while (pos < pdev->migsize) {
+        qemu_put_byte(ms->to_dst_file, mig_data[pos]);
+        pos++;
+    }
+
+    qemu_fflush(ms->to_dst_file);
+
+    return 0;
+}
+
+const VMStateDescription vmstate_pci_proxy_device = {
+    .name = "PCIProxyDevice",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .pre_save = proxy_pre_save,
+    .post_save = proxy_post_save,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(parent_dev, PCIProxyDev),
+        VMSTATE_UINT64(migsize, PCIProxyDev),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -471,6 +605,7 @@ static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
     k->config_write = pci_proxy_write_config;
 
     dc->reset = proxy_device_reset;
+    dc->vmsd = &vmstate_pci_proxy_device;
 }
 
 static const TypeInfo pci_proxy_dev_type_info = {

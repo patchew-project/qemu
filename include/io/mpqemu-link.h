@@ -63,6 +63,7 @@ typedef enum {
     PROXY_PING,
     MMIO_RETURN,
     DEVICE_RESET,
+    START_MIG_OUT,
     MAX,
 } mpqemu_cmd_t;
 
