@@ -55,6 +55,8 @@ struct PCIProxyDev {
     EventNotifier resample;
 
     pid_t remote_pid;
+    EventNotifier en_ping;
+
     int socket;
 
     char *rid;
