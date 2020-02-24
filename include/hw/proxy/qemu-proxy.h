@@ -9,8 +9,11 @@
 #ifndef QEMU_PROXY_H
 #define QEMU_PROXY_H
 
+#include <linux/kvm.h>
+
 #include "io/mpqemu-link.h"
 #include "hw/proxy/memory-sync.h"
+#include "qemu/event_notifier.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
@@ -44,6 +47,11 @@ struct PCIProxyDev {
     MPQemuLinkState *mpqemu_link;
 
     RemoteMemSync *sync;
+    struct kvm_irqfd irqfd;
+
+    EventNotifier intr;
+    EventNotifier resample;
+
     pid_t remote_pid;
     int socket;
 
