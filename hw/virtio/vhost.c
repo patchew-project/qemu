@@ -219,6 +219,10 @@ static struct vhost_log *vhost_log_get(uint64_t size, bool share)
 
     if (!log || log->size != size) {
         log = vhost_log_alloc(size, share);
+        if (!log) {
+            return NULL;
+        }
+
         if (share) {
             vhost_log_shm = log;
         } else {
@@ -270,9 +274,16 @@ static bool vhost_dev_log_is_shared(struct vhost_dev *dev)
 
 static inline void vhost_dev_log_resize(struct vhost_dev *dev, uint64_t size)
 {
-    struct vhost_log *log = vhost_log_get(size, vhost_dev_log_is_shared(dev));
-    uint64_t log_base = (uintptr_t)log->log;
+    struct vhost_log *log;
+    uint64_t log_base;
     int r;
+
+    log = vhost_log_get(size, vhost_dev_log_is_shared(dev));
+    if (!log) {
+        return;
+    }
+
+    log_base = (uintptr_t)log->log;
 
     /* inform backend of log switching, this must be done before
        releasing the current log, to ensure no logging is lost */
@@ -1650,6 +1661,10 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
         hdev->log_size = vhost_get_log_size(hdev);
         hdev->log = vhost_log_get(hdev->log_size,
                                   vhost_dev_log_is_shared(hdev));
+        if (!hdev->log) {
+            goto fail_vq;
+        }
+
         log_base = (uintptr_t)hdev->log->log;
         r = hdev->vhost_ops->vhost_set_log_base(hdev,
                                                 hdev->log_size ? log_base : 0,
