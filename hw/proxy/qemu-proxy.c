@@ -19,19 +19,50 @@
 
 static void pci_proxy_dev_realize(PCIDevice *dev, Error **errp);
 
+static int add_argv(char *opts_str, char **argv, int argc)
+{
+    int max_args = 64;
+
+    if (argc < max_args - 1) {
+        argv[argc++] = opts_str;
+        argv[argc] = 0;
+    } else {
+        return 0;
+    }
+
+    return argc;
+}
+
+static int make_argv(char *opts_str, char **argv, int argc)
+{
+    int max_args = 64;
+
+    char *p2 = strtok(opts_str, " ");
+    while (p2 && argc < max_args - 1) {
+        argv[argc++] = p2;
+        p2 = strtok(0, " ");
+    }
+    argv[argc] = 0;
+
+    return argc;
+}
+
 static int remote_spawn(PCIProxyDev *pdev, const char *opts,
                         const char *exec_name, Error **errp)
 {
-    char *args[3];
     pid_t rpid;
     int fd[2] = {-1, -1};
     Error *local_error = NULL;
+    char *argv[64];
+    int argc = 0;
+    char *sfd;
+    char *exec_dir;
     int rc = -EINVAL;
 
     if (pdev->managed) {
         /* Child is forked by external program (such as libvirt). */
         error_setg(errp, "Remote processed is managed and launched by external program");
-        return -1;
+        return rc;
     }
 
     if (!exec_name) {
@@ -41,32 +72,38 @@ static int remote_spawn(PCIProxyDev *pdev, const char *opts,
 
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd)) {
         error_setg(errp, "Unable to create unix socket.");
-        return -1;
+        return rc;
     }
+    exec_dir = g_strdup_printf("%s/%s", qemu_get_exec_dir(), exec_name);
+    argc = add_argv(exec_dir, argv, argc);
+    sfd = g_strdup_printf("%d", fd[1]);
+    argc = add_argv(sfd, argv, argc);
+    argc = make_argv((char *)opts, argv, argc);
+
     /* TODO: Restrict the forked process' permissions and capabilities. */
     rpid = qemu_fork(&local_error);
 
     if (rpid == -1) {
         error_setg(errp, "Unable to spawn emulation program.");
         close(fd[0]);
-        close(fd[1]);
-        return -1;
+        goto fail;
     }
 
     if (rpid == 0) {
         close(fd[0]);
 
-        args[0] = g_strdup(exec_name);
-        args[1] = g_strdup_printf("%d", fd[1]);
-        args[2] = NULL;
-        execvp(args[0], (char *const *)args);
+        rc = execv(argv[0], (char *const *)argv);
         exit(1);
     }
     pdev->remote_pid = rpid;
+    pdev->socket = fd[0];
 
+    rc = 0;
+
+fail:
     close(fd[1]);
 
-    return 0;
+    return rc;
 }
 
 static int get_proxy_sock(PCIDevice *dev)
@@ -177,16 +214,17 @@ static void pci_proxy_dev_register_types(void)
 type_init(pci_proxy_dev_register_types)
 
 static void init_proxy(PCIDevice *dev, char *command, char *exec_name,
-                       Error **errp)
+                       bool need_spawn, Error **errp)
 {
     PCIProxyDev *pdev = PCI_PROXY_DEV(dev);
     Error *local_error = NULL;
 
     if (!pdev->managed) {
-        if (command) {
-            remote_spawn(pdev, command, exec_name, &local_error);
-        } else {
-            return;
+        if (need_spawn) {
+            if (remote_spawn(pdev, command, exec_name, &local_error)) {
+                error_propagate(errp, local_error);
+                return;
+            }
         }
     } else {
         pdev->remote_pid = atoi(pdev->rid);

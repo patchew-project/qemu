@@ -39,7 +39,7 @@ typedef struct PCIProxyDev {
 
     void (*proxy_ready) (PCIDevice *dev);
     void (*init_proxy) (PCIDevice *dev, char *command, char *exec_name,
-                        Error **errp);
+                        bool need_spawn, Error **errp);
 
 } PCIProxyDev;
 
