@@ -581,12 +581,62 @@ static int proxy_post_save(void *opaque)
     return 0;
 }
 
+static int proxy_post_load(void *opaque, int version_id)
+{
+    MigrationIncomingState *mis = migration_incoming_get_current();
+    PCIProxyDev *pdev = opaque;
+    QEMUFile *f_remote;
+    MPQemuMsg msg = {0};
+    Error *err = NULL;
+    QIOChannel *ioc;
+    uint64_t size;
+    uint8_t byte;
+    int fd[2];
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd)) {
+        return -1;
+    }
+
+    ioc = qio_channel_new_fd(fd[0], &err);
+    if (err) {
+        error_report_err(err);
+        return -1;
+    }
+
+    qio_channel_set_name(QIO_CHANNEL(ioc), "proxy-migration-channel");
+
+    f_remote = qemu_fopen_channel_output(ioc);
+
+    msg.cmd = START_MIG_IN;
+    msg.bytestream = 0;
+    msg.num_fds = 1;
+    msg.fds[0] = fd[1];
+
+    mpqemu_msg_send(&msg, pdev->mpqemu_link->com);
+
+    size = pdev->migsize;
+
+    while (size) {
+        byte = qemu_get_byte(mis->from_src_file);
+        qemu_put_byte(f_remote, byte);
+        size--;
+    }
+
+    qemu_fflush(f_remote);
+    qemu_fclose(f_remote);
+
+    close(fd[1]);
+
+    return 0;
+}
+
 const VMStateDescription vmstate_pci_proxy_device = {
     .name = "PCIProxyDevice",
     .version_id = 2,
     .minimum_version_id = 1,
     .pre_save = proxy_pre_save,
     .post_save = proxy_post_save,
+    .post_load = proxy_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(parent_dev, PCIProxyDev),
         VMSTATE_UINT64(migsize, PCIProxyDev),

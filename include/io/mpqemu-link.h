@@ -64,6 +64,7 @@ typedef enum {
     MMIO_RETURN,
     DEVICE_RESET,
     START_MIG_OUT,
+    START_MIG_IN,
     MAX,
 } mpqemu_cmd_t;
 
