@@ -14,6 +14,7 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 
+#include "sys/eventfd.h"
 #include "qom/object.h"
 #include "qemu/thread.h"
 #include "exec/cpu-common.h"
