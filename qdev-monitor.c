@@ -38,6 +38,15 @@
 #include "migration/misc.h"
 #include "migration/migration.h"
 #include "qemu/cutils.h"
+#include "hw/boards.h"
+#include "hw/proxy/qemu-proxy.h"
+#include "qapi/qmp/qjson.h"
+#include "qapi/qmp/qstring.h"
+#include "sysemu/sysemu.h"
+#include "include/qemu/log.h"
+#include "qapi/qmp/qlist.h"
+#include "hw/proxy/qemu-proxy.h"
+#include "io/mpqemu-link.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -49,6 +58,8 @@ typedef struct QDevAlias
     const char *alias;
     uint32_t arch_mask;
 } QDevAlias;
+
+proxy_dev_list_t proxy_dev_list;
 
 /* Please keep this table sorted by typename. */
 static const QDevAlias qdev_alias_table[] = {
@@ -591,6 +602,240 @@ static bool should_hide_device(QemuOpts *opts)
     }
     return true;
 }
+
+static QLIST_HEAD(, remote_process) remote_processes;
+
+void remote_process_register(struct remote_process *p)
+{
+    QLIST_INSERT_HEAD(&remote_processes, p, next);
+}
+
+struct remote_process *get_remote_process_rid(unsigned int rid)
+{
+    struct remote_process *p;
+
+    QLIST_FOREACH(p, &remote_processes, next) {
+        if (rid == p->rid) {
+            return p;
+        }
+    }
+    return NULL;
+}
+
+struct remote_process *get_remote_process_type(unsigned int type)
+{
+    struct remote_process *p;
+
+    QLIST_FOREACH(p, &remote_processes, next) {
+        if (type == p->type) {
+            return p;
+        }
+    }
+    return NULL;
+}
+
+#if defined(CONFIG_MPQEMU)
+
+static PCIProxyDev *get_proxy_object_rid(const char *rid)
+{
+    PCIProxyDev *entry;
+
+    QLIST_FOREACH(entry, &proxy_dev_list.devices, next) {
+        if (strncmp(entry->rid, rid, strlen(entry->rid)) == 0) {
+            return entry;
+        }
+    }
+
+    return NULL;
+}
+
+#define MAX_RID_LENGTH 10
+void qdev_proxy_fire(void)
+{
+    PCIProxyDev *entry;
+
+    QLIST_FOREACH(entry, &proxy_dev_list.devices, next) {
+        if (entry->proxy_ready) {
+            entry->proxy_ready(PCI_DEVICE(entry));
+        }
+    }
+}
+
+DeviceState *qdev_proxy_add(const char *rid, const char *id, char *bus,
+                            char *cmd, char *exec_name, int socket,
+                            bool managed, Error **errp)
+{
+    DeviceState *ds;
+    PCIProxyDev *pdev, *old_pdev;
+    QemuOpts *proxy_opts;
+    const char *proxy_type;
+    Error *local_err = NULL;
+    QDict *qdict;
+    const char *str;
+    bool need_spawn = false;
+    bool remote_exists = false;
+
+    if (strlen(rid) > MAX_RID_LENGTH) {
+        error_setg(errp, "rid %s is too long.", rid);
+        return NULL;
+    }
+
+    old_pdev = get_proxy_object_rid(rid);
+    if (old_pdev) {
+        remote_exists = true;
+        if (old_pdev->dev_id) {
+            if (id) {
+                if (strncmp(id, old_pdev->dev_id,
+                            strlen(old_pdev->dev_id)) == 0) {
+                    return DEVICE(old_pdev);
+                }
+            } else {
+            /* check if device belongs to this proxy, use bus */
+                if (bus) {
+                    if (strncmp(bus, old_pdev->dev_id,
+                                strlen(old_pdev->dev_id)) == 0) {
+                        return DEVICE(old_pdev);
+                    }
+                }
+            }
+        }
+    }
+
+    proxy_opts = qemu_opts_create(&qemu_device_opts, NULL, 0,
+                                  errp);
+
+    proxy_type = TYPE_PCI_PROXY_DEV;
+
+    qemu_opts_set_id(proxy_opts, (char *)rid);
+    qemu_opt_set(proxy_opts, "driver", proxy_type, &local_err);
+
+    qdict = qemu_opts_to_qdict(proxy_opts, NULL);
+    str = qstring_get_str(qobject_to_json(QOBJECT(qdict)));
+
+    ds = qdev_device_add(proxy_opts, &local_err);
+    if (!ds) {
+        error_setg(errp, "Could not create proxy device"
+                      " with opts %s.", str);
+        qemu_opts_del(proxy_opts);
+        return NULL;
+    }
+    qdev_set_id(ds, qemu_opts_id(proxy_opts));
+
+    pdev = PCI_PROXY_DEV(ds);
+    if (!pdev) {
+        error_setg(errp, "qdev_device_add failed.");
+        qemu_opts_del(proxy_opts);
+        return NULL;
+    }
+    pdev->rid = g_strdup(rid);
+    if (old_pdev) {
+        pdev->socket = old_pdev->socket;
+        pdev->remote_pid = old_pdev->remote_pid;
+    } else {
+        pdev->socket = managed ? socket : -1;
+
+    }
+    pdev->managed = managed;
+
+    /* With no libvirt, we will need to spawn. For now, every time. */
+    if (!remote_exists) {
+        need_spawn = true;
+    }
+
+    pdev->init_proxy(PCI_DEVICE(ds), cmd, exec_name, need_spawn, errp);
+
+    QLIST_INSERT_HEAD(&proxy_dev_list.devices, pdev, next);
+
+    qemu_opts_del(proxy_opts);
+    return ds;
+}
+
+DeviceState *qdev_remote_add(QemuOpts *opts, Error **errp)
+{
+    PCIProxyDev *pdev = NULL;
+    DeviceState *dev;
+    const char *rid, *socket = NULL, *command = NULL;
+    QDict *qdict_new;
+    const char *id = NULL;
+    const char *driver = NULL;
+    const char *bus = NULL;
+    const char *exec_name = NULL;
+
+    rid = qemu_opt_get(opts, "rid");
+    if (!rid) {
+        error_setg(errp, "rdevice option needs rid specified.");
+        return NULL;
+    }
+
+    driver = qemu_opt_get(opts, "driver");
+    /* TODO: properly identify the device class. */
+    if (strncmp(driver, "lsi", 3) == 0) {
+        id = qemu_opts_id(opts);
+        if (!id) {
+            error_setg(errp, "qdev_remote_add option needs id specified.");
+            return NULL;
+        }
+    }
+
+    socket = qemu_opt_get(opts, "socket");
+    if (socket) {
+        if (strlen(socket) > MAX_RID_LENGTH) {
+            error_setg(errp, "Socket number is incorrect.");
+            return NULL;
+        }
+    }
+    /*
+     * TODO: verify command with known commands and on remote end.
+     * How else can we verify the binary we launch without libvirtd support?
+     */
+    command = qemu_opt_get(opts, "command");
+    if (!socket && !command) {
+        error_setg(errp, "remote device needs socket or command specified.");
+        return NULL;
+    }
+
+    exec_name = qemu_opt_get(opts, "exec");
+    if (!exec_name && !socket) {
+        error_setg(errp, "exec name is not specified.");
+        return NULL;
+    }
+
+    bus = qemu_opt_get(opts, "bus");
+    dev = qdev_proxy_add(rid, id, (char *)bus, (char *)command,
+                         (char *)exec_name,
+                         socket ? atoi(socket) : -1,
+                         socket ? true : false, errp);
+    if (!dev) {
+        error_setg(errp, "qdev_proxy_add error.");
+        return NULL;
+    }
+
+    qdict_new = qemu_opts_to_qdict(opts, NULL);
+
+    if (!qdict_new) {
+        error_setg(errp, "Could not parse rdevice options.");
+        return NULL;
+    }
+
+    pdev = PCI_PROXY_DEV(dev);
+    if (!pdev->set_remote_opts) {
+        /* TODO: destroy proxy? */
+        error_setg(errp, "set_remote_opts failed.");
+        return NULL;
+    } else {
+        if (id && !pdev->dev_id) {
+            pdev->dev_id = g_strdup(id);
+        }
+        if (pdev->set_remote_opts(PCI_DEVICE(pdev), qdict_new,
+                                  DEV_OPTS)) {
+            error_setg(errp, "Remote process was unable to set options");
+            return NULL;
+        }
+    }
+
+    return dev;
+}
+#endif /*defined(CONFIG_MPQEMU)*/
 
 DeviceState *qdev_device_add(QemuOpts *opts, Error **errp)
 {
