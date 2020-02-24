@@ -14,6 +14,8 @@
 #include "io/mpqemu-link.h"
 #include "hw/proxy/memory-sync.h"
 #include "qemu/event_notifier.h"
+#include "hw/pci/pci.h"
+#include "block/qdict.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
@@ -62,6 +64,7 @@ struct PCIProxyDev {
     void (*set_proxy_sock) (PCIDevice *dev, int socket);
     int (*get_proxy_sock) (PCIDevice *dev);
 
+    int (*set_remote_opts) (PCIDevice *dev, QDict *qdict, unsigned int cmd);
     void (*proxy_ready) (PCIDevice *dev);
     void (*init_proxy) (PCIDevice *dev, char *command, char *exec_name,
                         bool need_spawn, Error **errp);

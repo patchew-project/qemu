@@ -54,8 +54,17 @@ typedef enum {
     BAR_WRITE,
     BAR_READ,
     SET_IRQFD,
+    DEV_OPTS,
+    DRIVE_OPTS,
+    DEVICE_ADD,
+    DEVICE_DEL,
     MAX,
 } mpqemu_cmd_t;
+
+typedef enum {
+    REMOTE_OK = 0,
+    REMOTE_FAIL,
+} mpqemu_reply_t;
 
 /**
  * MPQemuMsg:
