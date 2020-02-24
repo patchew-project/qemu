@@ -213,4 +213,6 @@ void mpqemu_start_coms(MPQemuLinkState *s);
 uint64_t wait_for_remote(int efd);
 void notify_proxy(int fd, uint64_t val);
 
+bool mpqemu_msg_valid(MPQemuMsg *msg);
+
 #endif

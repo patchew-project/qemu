@@ -435,6 +435,10 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
     if (msg->id > MAX_REMOTE_DEVICES) {
         error_setg(&err, "id of the device is larger than max number of "\
                          "devices per remote process.");
+    }
+
+    if (!mpqemu_msg_valid(msg)) {
+        error_setg(&err, "Message is not valid");
         goto finalize_loop;
     }
 

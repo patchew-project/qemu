@@ -868,7 +868,11 @@ static void send_bar_access_msg(PCIProxyDev *dev, MemoryRegion *mr,
 
     mpqemu_msg_recv(&ret, mpqemu_link->mmio);
 
-    *val = ret.data1.mmio_ret.val;
+    if (!mpqemu_msg_valid(&ret)) {
+        *val = 0;
+    } else {
+        *val = ret.data1.mmio_ret.val;
+    }
 }
 
 void proxy_default_bar_write(void *opaque, hwaddr addr, uint64_t val,

@@ -65,7 +65,7 @@ void mpqemu_link_finalize(MPQemuLinkState *s)
 void mpqemu_msg_send(MPQemuMsg *msg, MPQemuChannel *chan)
 {
     int rc;
-    uint8_t *data;
+    uint8_t *data = NULL;
     union {
         char control[CMSG_SPACE(REMOTE_MAX_FDS * sizeof(int))];
         struct cmsghdr align;
@@ -334,4 +334,77 @@ void mpqemu_start_coms(MPQemuLinkState *s)
     g_assert(g_source_attach(&s->mmio->gsrc, s->ctx));
 
     g_main_loop_run(s->loop);
+}
+
+bool mpqemu_msg_valid(MPQemuMsg *msg)
+{
+    if (msg->cmd >= MAX) {
+        return false;
+    }
+
+    if (msg->bytestream) {
+        if (!msg->data2) {
+            return false;
+        }
+    } else {
+        if (msg->data2) {
+            return false;
+        }
+    }
+
+    /* Verify FDs. */
+    if (msg->num_fds >= REMOTE_MAX_FDS) {
+        return false;
+    }
+    if (msg->num_fds > 0) {
+        for (int i = 0; i < msg->num_fds; i++) {
+            if (fcntl(msg->fds[i], F_GETFL) == -1) {
+                return false;
+            }
+        }
+    }
+
+    /* Verify ID size. */
+    if (msg->id >= UINT64_MAX) {
+        return false;
+    }
+
+    /* Verify message specific fields. */
+    switch (msg->cmd) {
+    case SYNC_SYSMEM:
+        if (msg->num_fds == 0 || msg->bytestream != 0) {
+            return false;
+        }
+        if (msg->size != sizeof(msg->data1)) {
+            return false;
+        }
+        break;
+    case PCI_CONFIG_WRITE:
+    case PCI_CONFIG_READ:
+        if (msg->size != sizeof(struct conf_data_msg)) {
+            return false;
+        }
+        break;
+    case BAR_WRITE:
+    case BAR_READ:
+    case SET_IRQFD:
+    case MMIO_RETURN:
+    case DEVICE_RESET:
+    case RUNSTATE_SET:
+        if (msg->size != sizeof(msg->data1)) {
+            return false;
+        }
+        break;
+    case PROXY_PING:
+    case START_MIG_OUT:
+    case START_MIG_IN:
+        if (msg->size != 0) {
+            return false;
+        }
+        break;
+    default:
+        break;
+    }
+
+    return true;
 }
