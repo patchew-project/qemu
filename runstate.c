@@ -34,3 +34,8 @@ bool runstate_check(RunState state)
 {
     return current_run_state == state;
 }
+
+void remote_runstate_set(RunState state)
+{
+    current_run_state = state;
+}

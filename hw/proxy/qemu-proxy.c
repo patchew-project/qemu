@@ -15,6 +15,7 @@
 #include "hw/pci/pci.h"
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qstring.h"
+#include "sysemu/runstate.h"
 #include "hw/proxy/qemu-proxy.h"
 #include "hw/proxy/memory-sync.h"
 #include "qom/object.h"
@@ -765,6 +766,27 @@ static void init_proxy(PCIDevice *dev, char *command, char *exec_name,
     }
 }
 
+static void proxy_vm_state_change(void *opaque, int running, RunState state)
+{
+    PCIProxyDev *dev = opaque;
+    MPQemuMsg msg = { 0 };
+    int wait = -1;
+
+    msg.cmd = RUNSTATE_SET;
+    msg.bytestream = 0;
+    msg.size = sizeof(msg.data1);
+    msg.data1.runstate.state = state;
+
+    wait = eventfd(0, EFD_CLOEXEC);
+    msg.num_fds = 1;
+    msg.fds[0] = wait;
+
+    mpqemu_msg_send(&msg, dev->mpqemu_link->com);
+
+    wait_for_remote(wait);
+    close(wait);
+}
+
 static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
 {
     PCIProxyDev *dev = PCI_PROXY_DEV(device);
@@ -781,6 +803,8 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
             error_propagate(errp, local_err);
         }
     }
+
+    dev->vmcse = qemu_add_vm_change_state_handler(proxy_vm_state_change, dev);
 
     dev->set_proxy_sock = set_proxy_sock;
     dev->get_proxy_sock = get_proxy_sock;
@@ -807,6 +831,8 @@ static void pci_dev_exit(PCIDevice *pdev)
     if (!QLIST_EMPTY(&proxy_dev_list.devices)) {
         start_broadcast_timer();
     }
+
+    qemu_del_vm_change_state_handler(dev->vmcse);
 }
 
 static void send_bar_access_msg(PCIProxyDev *dev, MemoryRegion *mr,

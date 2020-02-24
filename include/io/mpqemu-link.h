@@ -20,6 +20,8 @@
 #include "exec/cpu-common.h"
 #include "exec/hwaddr.h"
 
+#include "qapi/qapi-types-run-state.h"
+
 #define TYPE_MPQEMU_LINK "mpqemu-link"
 #define MPQEMU_LINK(obj) \
     OBJECT_CHECK(MPQemuLinkState, (obj), TYPE_MPQEMU_LINK)
@@ -65,6 +67,7 @@ typedef enum {
     DEVICE_RESET,
     START_MIG_OUT,
     START_MIG_IN,
+    RUNSTATE_SET,
     MAX,
 } mpqemu_cmd_t;
 
@@ -115,6 +118,10 @@ typedef struct {
 } mmio_ret_msg_t;
 
 typedef struct {
+    RunState state;
+} runstate_msg_t;
+
+typedef struct {
     mpqemu_cmd_t cmd;
     int bytestream;
     size_t size;
@@ -126,6 +133,7 @@ typedef struct {
         set_irqfd_msg_t set_irqfd;
         ret_pci_info_msg_t ret_pci_info;
         mmio_ret_msg_t mmio_ret;
+        runstate_msg_t runstate;
     } data1;
 
     int fds[REMOTE_MAX_FDS];

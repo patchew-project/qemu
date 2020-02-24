@@ -31,6 +31,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/config-file.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/runstate.h"
 #include "block/block.h"
 #include "exec/ramlist.h"
 #include "exec/memattrs.h"
@@ -453,6 +454,10 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         break;
     case START_MIG_OUT:
         process_start_mig_out(msg);
+        break;
+    case RUNSTATE_SET:
+        remote_runstate_set(msg->data1.runstate.state);
+        notify_proxy(msg->fds[0], 0);
         break;
     default:
         error_setg(&err, "Unknown command");

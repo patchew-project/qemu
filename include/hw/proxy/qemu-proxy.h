@@ -76,6 +76,8 @@ struct PCIProxyDev {
 
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
 
+    VMChangeStateEntry *vmcse;
+
     uint64_t migsize;
 };
 
