@@ -5,6 +5,8 @@
 #include "qapi/qapi-commands-net.h"
 #include "qapi/qapi-commands-rocker.h"
 
+#pragma weak qmp_announce_self
+
 int qemu_find_net_clients_except(const char *id, NetClientState **ncs,
                                  NetClientDriver type, int max)
 {
@@ -95,6 +97,25 @@ void qmp_netdev_add(QDict *qdict, QObject **ret, Error **errp)
 }
 
 void netdev_add(QemuOpts *opts, Error **errp)
+{
+    qemu_debug_assert(0);
+}
+
+NetClientState *qemu_get_queue(NICState *nic)
+{
+    qemu_debug_assert(0);
+
+    return NULL;
+}
+
+ssize_t qemu_send_packet_raw(NetClientState *nc, const uint8_t *buf, int size)
+{
+    qemu_debug_assert(0);
+
+    return 0;
+}
+
+void qemu_foreach_nic(qemu_nic_foreach func, void *opaque)
 {
     qemu_debug_assert(0);
 }

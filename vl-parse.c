@@ -27,6 +27,9 @@
 
 #include "vl.h"
 
+int only_migratable; /* turn it off unless user states otherwise */
+bool enable_mlock;
+
 /***********************************************************/
 /* QEMU Block devices */
 

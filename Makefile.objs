@@ -74,6 +74,8 @@ common-obj-y += qdev-monitor.o device-hotplug.o
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
 
+remote-pci-obj-$(CONFIG_POSIX) += os-posix.o
+
 common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += accel/
@@ -104,11 +106,11 @@ common-obj-y += vl-parse.o
 
 #######################################################################
 # qapi
-
 common-obj-y += qapi/
 
 endif # CONFIG_SOFTMMU
 
+remote-pci-obj-$(CONFIG_MPQEMU) += net/
 remote-pci-obj-$(CONFIG_MPQEMU) += qapi/
 remote-pci-obj-$(CONFIG_MPQEMU) += blockdev-nbd.o
 remote-pci-obj-$(CONFIG_MPQEMU) += job-qmp.o

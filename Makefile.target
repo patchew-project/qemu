@@ -240,6 +240,7 @@ all-remote-pci-obj-y += exec.o
 all-remote-pci-obj-y += exec-vary.o
 all-remote-pci-obj-y += ioport.o
 all-remote-pci-obj-y += cpus.o
+all-remote-pci-obj-y += migration/ram.o
 endif
 
 remote-pci-obj-y :=

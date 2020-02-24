@@ -15,4 +15,15 @@ common-obj-$(CONFIG_LIVE_BLOCK_MIGRATION) += block.o
 
 rdma.o-libs := $(RDMA_LIBS)
 
-remote-pci-obj-$(CONFIG_MPQEMU) += qemu-file.o vmstate.o qjson.o vmstate-types.o
+remote-pci-obj-$(CONFIG_MPQEMU) += migration.o socket.o fd.o exec.o
+remote-pci-obj-$(CONFIG_MPQEMU) += tls.o channel.o savevm.o
+remote-pci-obj-$(CONFIG_MPQEMU) += colo.o colo-failover.o
+remote-pci-obj-$(CONFIG_MPQEMU) += vmstate.o vmstate-types.o page_cache.o
+remote-pci-obj-$(CONFIG_MPQEMU) += qemu-file.o global_state.o
+remote-pci-obj-$(CONFIG_MPQEMU) += qemu-file-channel.o
+remote-pci-obj-$(CONFIG_MPQEMU) += xbzrle.o postcopy-ram.o
+remote-pci-obj-$(CONFIG_MPQEMU) += qjson.o
+remote-pci-obj-$(CONFIG_MPQEMU) += block-dirty-bitmap.o
+remote-pci-obj-$(CONFIG_RDMA) += rdma.o
+remote-pci-obj-$(CONFIG_MPQEMU) += block.o
+remote-pci-obj-$(CONFIG_MPQEMU) += multifd.o

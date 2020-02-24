@@ -30,3 +30,5 @@ common-obj-$(CONFIG_WIN32) += tap-win32.o
 vde.o-libs = $(VDE_LIBS)
 
 common-obj-$(CONFIG_CAN_BUS) += can/
+
+remote-pci-obj-$(CONFIG_MPQEMU) += announce.o

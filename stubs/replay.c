@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "sysemu/replay.h"
 
 ReplayMode replay_mode;
@@ -105,4 +106,11 @@ void replay_account_executed_instructions(void)
 
 void replay_add_blocker(Error *reason)
 {
+}
+
+bool replay_can_snapshot(void)
+{
+    qemu_debug_assert(0);
+
+    return false;
 }

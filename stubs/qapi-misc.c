@@ -5,6 +5,8 @@
 #include "./qapi/qapi-types-dump.h"
 #include "qapi/qapi-commands-dump.h"
 
+#pragma weak qmp_xen_load_devices_state
+
 void qmp_dump_guest_memory(bool paging, const char *file,
                            bool has_detach, bool detach,
                            bool has_begin, int64_t begin, bool has_length,

@@ -14,6 +14,8 @@
 #include "disas/disas.h"
 #include "audio/audio.h"
 
+#pragma weak qemu_add_exit_notifier
+
 bool tcg_allowed;
 bool xen_allowed;
 bool boot_strict;
@@ -168,4 +170,26 @@ int wav_start_capture(AudioState *state, CaptureState *s, const char *path,
     qemu_debug_assert(0);
 
     return -1;
+}
+
+void qemu_system_killed(int signal, pid_t pid)
+{
+    qemu_debug_assert(0);
+}
+
+void qemu_system_reset(ShutdownCause reason)
+{
+    qemu_debug_assert(0);
+}
+
+bool runstate_store(char *str, size_t size)
+{
+    qemu_debug_assert(0);
+
+    return false;
+}
+
+void qemu_add_exit_notifier(Notifier *notify)
+{
+    qemu_debug_assert(0);
 }
