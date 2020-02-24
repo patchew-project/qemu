@@ -51,6 +51,7 @@
 #include "block/qdict.h"
 #include "qapi/qmp/qlist.h"
 #include "qemu/log.h"
+#include "qemu/cutils.h"
 
 static MPQemuLinkState *mpqemu_link;
 PCIDevice *remote_pci_dev;
@@ -400,6 +401,7 @@ finalize_loop:
 int main(int argc, char *argv[])
 {
     Error *err = NULL;
+    int fd = -1;
 
     module_call_init(MODULE_INIT_QOM);
 
@@ -424,7 +426,13 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    mpqemu_init_channel(mpqemu_link, &mpqemu_link->com, STDIN_FILENO);
+    fd = qemu_parse_fd(argv[1]);
+    if (fd == -1) {
+        printf("Failed to parse fd for remote process.\n");
+        return -EINVAL;
+    }
+
+    mpqemu_init_channel(mpqemu_link, &mpqemu_link->com, fd);
     mpqemu_link_set_callback(mpqemu_link, process_msg);
 
     mpqemu_start_coms(mpqemu_link);
