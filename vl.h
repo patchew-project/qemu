@@ -36,6 +36,7 @@ int device_init_func(void *opaque, QemuOpts *opts, Error **errp);
 
 #if defined(CONFIG_MPQEMU)
 int rdevice_init_func(void *opaque, QemuOpts *opts, Error **errp);
+int device_remote_add(void *opaque, QemuOpts *opts, Error **errp);
 #endif
 
 #endif /* VL_H */

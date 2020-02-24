@@ -23,6 +23,7 @@ struct remote_process {
     unsigned int type;
     int socket;
     char *command;
+    char *exec;
     QemuOpts *opts;
 
     QLIST_ENTRY(remote_process) next;

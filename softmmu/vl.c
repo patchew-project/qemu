@@ -253,6 +253,32 @@ static QemuOptsList qemu_option_rom_opts = {
     },
 };
 
+static QemuOptsList qemu_remote_opts = {
+    .name = "remote",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_remote_opts.head),
+    .desc = {
+        {
+            .name = "rid",
+            .type = QEMU_OPT_NUMBER,
+            .help = "id of the remote process"
+        },{
+            .name = "socket",
+            .type = QEMU_OPT_NUMBER,
+            .help = "Socket for remote",
+        },{
+            .name = "command",
+            .type = QEMU_OPT_STRING,
+            .help = "command to run",
+        },{
+            .name = "exec",
+            .type = QEMU_OPT_STRING,
+            .help = "exec name",
+        },
+        { /* end of list */ }
+    },
+};
+
+
 static QemuOptsList qemu_machine_opts = {
     .name = "machine",
     .implied_opt_name = "type",
@@ -313,6 +339,71 @@ static QemuOptsList qemu_boot_opts = {
         { /*End of list */ }
     },
 };
+
+#if defined(CONFIG_MPQEMU)
+static int parse_remote(void *opaque, QemuOpts *opts, Error **errp)
+{
+    int rid;
+    int socket;
+    char  *c_sock = NULL;
+    char *command = NULL;
+    char *exec = NULL;
+    struct remote_process r_proc;
+
+    rid = atoi(qemu_opt_get(opts, "rid"));
+    if (rid < 0) {
+        error_setg(errp, "rid is required.");
+        return -1;
+    }
+    if (get_remote_process_rid(rid)) {
+        error_setg(errp, "There is already process with rid %d", rid);
+        goto cont_devices;
+    }
+
+    c_sock = (char *)qemu_opt_get(opts, "socket");
+    if (c_sock) {
+        socket = atoi(c_sock);
+    } else {
+        socket = -1;
+    }
+    if (socket <= STDERR_FILENO && socket != -1) {
+        socket = -1;
+    }
+
+    exec = (char *)qemu_opt_get(opts, "exec");
+
+    if (!exec && socket < 0) {
+        error_setg(errp, "No socket or exec defined for remote.");
+        return -1;
+    }
+    if (exec && (socket != -1)) {
+        error_setg(errp, "Both socket and exec are specified, " \
+                         "need only one of those.");
+        return -1;
+    }
+
+    command = (char *)qemu_opt_get(opts, "command");
+    if (!command && socket < 0) {
+        error_setg(errp, "Remote process command option is not specified.");
+        return -1;
+    }
+
+    r_proc.rid = rid;
+    r_proc.socket = socket;
+    r_proc.command = g_strdup(command);
+    r_proc.exec = g_strdup(exec);
+    remote_process_register(&r_proc);
+
+ cont_devices:
+    if (qemu_opts_foreach(qemu_find_opts("device"), device_remote_add,
+                          &rid, NULL)) {
+        error_setg(errp, "Could not process some of the remote devices.");
+        return -EINVAL;
+    }
+
+    return 0;
+}
+#endif
 
 static QemuOptsList qemu_add_fd_opts = {
     .name = "add-fd",
@@ -2751,6 +2842,7 @@ void qemu_init(int argc, char **argv, char **envp)
     qemu_add_opts(&qemu_icount_opts);
     qemu_add_opts(&qemu_semihosting_config_opts);
     qemu_add_opts(&qemu_fw_cfg_opts);
+    qemu_add_opts(&qemu_remote_opts);
     module_call_init(MODULE_INIT_OPTS);
 
     runstate_init();
@@ -3575,6 +3667,14 @@ void qemu_init(int argc, char **argv, char **envp)
                 exit(1);
 #endif
                 break;
+            case QEMU_OPTION_remote:
+                opts = qemu_opts_parse_noisily(qemu_find_opts("remote"),
+                                               optarg, false);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
+
             case QEMU_OPTION_object:
                 opts = qemu_opts_parse_noisily(qemu_find_opts("object"),
                                                optarg, true);
@@ -4169,6 +4269,11 @@ void qemu_init(int argc, char **argv, char **envp)
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
     qemu_opts_foreach(qemu_find_opts("device"),
                       device_init_func, NULL, &error_fatal);
+
+#ifdef CONFIG_MPQEMU
+    qemu_opts_foreach(qemu_find_opts("remote"),
+                      parse_remote, NULL, &error_fatal);
+#endif
 
     cpu_synchronize_all_post_init();
 

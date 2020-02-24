@@ -85,6 +85,37 @@ const QEMUOption *lookup_opt(int argc, char **argv,
     return popt;
 }
 
+#if defined(CONFIG_MPQEMU)
+int device_remote_add(void *opaque, QemuOpts *opts, Error **errp)
+{
+    unsigned int rid = 0;
+    const char *opt_rid = NULL;
+    struct remote_process *p = NULL;
+
+    if (opaque) {
+        rid = *(unsigned int *)opaque;
+    }
+    opt_rid = qemu_opt_get(opts, "rid");
+    if (!opt_rid) {
+        return 0;
+    }
+
+    p = get_remote_process_rid(rid);
+    if (!p) {
+        error_setg(errp, "No process for rid %d", rid);
+        return -EINVAL;
+    }
+
+    if (atoi(opt_rid) == rid) {
+        qemu_opt_set(opts, "command", p->command, errp);
+        qemu_opt_set(opts, "exec", p->exec, errp);
+        rdevice_init_func(opaque, opts, errp);
+        qemu_opts_del(opts);
+    }
+    return 0;
+}
+#endif
+
 int drive_init_func(void *opaque, QemuOpts *opts, Error **errp)
 {
     BlockInterfaceType *block_default_type = opaque;
