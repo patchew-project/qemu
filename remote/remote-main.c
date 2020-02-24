@@ -315,6 +315,7 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
 {
     MPQemuMsg *msg = NULL;
     Error *err = NULL;
+    int wait;
 
     if ((cond & G_IO_HUP) || (cond & G_IO_ERR)) {
         goto finalize_loop;
@@ -388,6 +389,10 @@ static void process_msg(GIOCondition cond, MPQemuChannel *chan)
         break;
     case DEVICE_DEL:
         process_device_del_msg(msg);
+        break;
+    case PROXY_PING:
+        wait = msg->fds[0];
+        notify_proxy(wait, (uint32_t)getpid());
         break;
     default:
         error_setg(&err, "Unknown command");
