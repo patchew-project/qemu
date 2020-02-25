@@ -937,7 +937,6 @@ static void blizzard_draw_line16_32(uint32_t *dest,
         g = (data & 0x3f) << 2;
         data >>= 6;
         r = (data & 0x1f) << 3;
-        data >>= 5;
         *dest++ = rgb_to_pixel32(r, g, b);
     }
 }
