@@ -391,7 +391,6 @@ static void init_qxl_rom(PCIQXLDevice *d)
             sizeof(rom->client_monitors_config));
     }
 
-    d->shadow_rom = *rom;
     d->rom        = rom;
     d->modes      = modes;
 }
@@ -403,7 +402,7 @@ static void init_qxl_ram(PCIQXLDevice *d)
     QXLReleaseRing *ring;
 
     buf = d->vga.vram_ptr;
-    d->ram = (QXLRam *)(buf + le32_to_cpu(d->shadow_rom.ram_header_offset));
+    d->ram = (QXLRam *)(buf + le32_to_cpu(d->rom->ram_header_offset));
     d->ram->magic       = cpu_to_le32(QXL_RAM_MAGIC);
     d->ram->int_pending = cpu_to_le32(0);
     d->ram->int_mask    = cpu_to_le32(0);
@@ -446,7 +445,7 @@ static void qxl_ram_set_dirty(PCIQXLDevice *qxl, void *ptr)
 /* can be called from spice server thread context */
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl)
 {
-    ram_addr_t addr = qxl->shadow_rom.ram_header_offset;
+    ram_addr_t addr = qxl->rom->ram_header_offset;
     ram_addr_t end  = qxl->vga.vram_size;
     qxl_set_dirty(&qxl->vga.vram, addr, end);
 }
@@ -529,7 +528,6 @@ static void interface_set_compression_level(QXLInstance *sin, int level)
     PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
 
     trace_qxl_interface_set_compression_level(qxl->id, level);
-    qxl->shadow_rom.compression_level = cpu_to_le32(level);
     qxl->rom->compression_level = cpu_to_le32(level);
     qxl_rom_set_dirty(qxl);
 }
@@ -561,7 +559,7 @@ static void interface_get_init_info(QXLInstance *sin, QXLDevInitInfo *info)
     info->num_memslots_groups = NUM_MEMSLOTS_GROUPS;
     info->internal_groupslot_id = 0;
     info->qxl_ram_size =
-        le32_to_cpu(qxl->shadow_rom.num_pages) << QXL_PAGE_BITS;
+        le32_to_cpu(qxl->rom->num_pages) << QXL_PAGE_BITS;
     info->n_surfaces = qxl->ssd.num_surfaces;
 }
 
@@ -1035,9 +1033,6 @@ static void interface_set_client_capabilities(QXLInstance *sin,
         return;
     }
 
-    qxl->shadow_rom.client_present = client_present;
-    memcpy(qxl->shadow_rom.client_capabilities, caps,
-           sizeof(qxl->shadow_rom.client_capabilities));
     qxl->rom->client_present = client_present;
     memcpy(qxl->rom->client_capabilities, caps,
            sizeof(qxl->rom->client_capabilities));
@@ -1232,11 +1227,8 @@ static void qxl_check_state(PCIQXLDevice *d)
 
 static void qxl_reset_state(PCIQXLDevice *d)
 {
-    QXLRom *rom = d->rom;
-
     qxl_check_state(d);
-    d->shadow_rom.update_id = cpu_to_le32(0);
-    *rom = d->shadow_rom;
+    d->rom->update_id = cpu_to_le32(0);
     qxl_rom_set_dirty(d);
     init_qxl_ram(d);
     d->num_free_res = 0;
@@ -1600,7 +1592,7 @@ static void qxl_set_mode(PCIQXLDevice *d, unsigned int modenr, int loadvm)
         .format     = SPICE_SURFACE_FMT_32_xRGB,
         .flags      = loadvm ? QXL_SURF_FLAG_KEEP_DATA : 0,
         .mouse_mode = true,
-        .mem        = devmem + d->shadow_rom.draw_area_offset,
+        .mem        = devmem + d->rom->draw_area_offset,
     };
 
     trace_qxl_set_mode(d->id, modenr, mode->x_res, mode->y_res, mode->bits,
@@ -1620,7 +1612,6 @@ static void qxl_set_mode(PCIQXLDevice *d, unsigned int modenr, int loadvm)
     if (mode->bits == 16) {
         d->cmdflags |= QXL_COMMAND_FLAG_COMPAT_16BPP;
     }
-    d->shadow_rom.mode = cpu_to_le32(modenr);
     d->rom->mode = cpu_to_le32(modenr);
     qxl_rom_set_dirty(d);
 }
@@ -2277,6 +2268,7 @@ static int qxl_pre_save(void *opaque)
         d->last_release_offset = (uint8_t *)d->last_release - ram_start;
     }
     assert(d->last_release_offset < d->vga.vram_size);
+    d->rom_mode = d->rom->mode;
 
     return 0;
 }
@@ -2316,6 +2308,7 @@ static int qxl_post_load(void *opaque, int version)
     } else {
         d->last_release = (QXLReleaseInfo *)(ram_start + d->last_release_offset);
     }
+    d->rom->mode = d->rom_mode;
 
     d->modes = (QXLModes*)((uint8_t*)d->rom + d->rom->modes_offset);
 
@@ -2361,7 +2354,7 @@ static int qxl_post_load(void *opaque, int version)
     case QXL_MODE_COMPAT:
         /* note: no need to call qxl_create_memslots, qxl_set_mode
          * creates the mem slot. */
-        qxl_set_mode(d, d->shadow_rom.mode, 1);
+        qxl_set_mode(d, d->rom->mode, 1);
         break;
     }
     return 0;
@@ -2428,7 +2421,7 @@ static VMStateDescription qxl_vmstate = {
     .fields = (VMStateField[]) {
         VMSTATE_PCI_DEVICE(pci, PCIQXLDevice),
         VMSTATE_STRUCT(vga, PCIQXLDevice, 0, vmstate_vga_common, VGACommonState),
-        VMSTATE_UINT32(shadow_rom.mode, PCIQXLDevice),
+        VMSTATE_UINT32(rom_mode, PCIQXLDevice),
         VMSTATE_UINT32(num_free_res, PCIQXLDevice),
         VMSTATE_UINT32(last_release_offset, PCIQXLDevice),
         VMSTATE_UINT32(mode, PCIQXLDevice),

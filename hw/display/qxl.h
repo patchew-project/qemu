@@ -95,11 +95,11 @@ typedef struct PCIQXLDevice {
     uint32_t           vgamem_size;
 
     /* rom pci bar */
-    QXLRom             shadow_rom;
     QXLRom             *rom;
     QXLModes           *modes;
     uint32_t           rom_size;
     MemoryRegion       rom_bar;
+    uint32_t           rom_mode;
 #if SPICE_SERVER_VERSION >= 0x000c06 /* release 0.12.6 */
     uint16_t           max_outputs;
 #endif
