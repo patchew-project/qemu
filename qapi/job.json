@@ -22,7 +22,7 @@
 # Since: 1.7
 ##
 { 'enum': 'JobType',
-  'data': ['commit', 'stream', 'mirror', 'backup', 'create'] }
+  'data': ['commit', 'stream', 'mirror', 'backup', 'create', 'bitmap-populate'] }
 
 ##
 # @JobStatus:
