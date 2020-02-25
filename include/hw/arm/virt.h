@@ -140,6 +140,13 @@ typedef struct {
     DeviceState *gic;
     DeviceState *acpi_dev;
     Notifier powerdown_notifier;
+    /*
+     * pointer to devices and objects
+     * Via going through the bus, all
+     * pci devices and related objectes
+     * could be gained.
+     */
+    PCIBus *bus;
 } VirtMachineState;
 
 #define VIRT_ECAM_ID(high) (high ? VIRT_HIGH_PCIE_ECAM : VIRT_PCIE_ECAM)

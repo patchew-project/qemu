@@ -49,6 +49,8 @@
 #include "kvm_arm.h"
 #include "migration/vmstate.h"
 
+#include "hw/arm/virt.h"
+#include "hw/pci/pci_bus.h"
 #define ARM_SPI_BASE 32
 
 static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
@@ -266,19 +268,116 @@ static void acpi_dsdt_add_pci_osc(Aml *dev, Aml *scope)
 }
 
 static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
-                              uint32_t irq, bool use_highmem, bool highmem_ecam)
+                              uint32_t irq, bool use_highmem, bool highmem_ecam,
+                              VirtMachineState *vms)
 {
     int ecam_id = VIRT_ECAM_ID(highmem_ecam);
-    Aml *method, *crs;
+    Aml *method, *crs, *dev;
+    int count = 0;
     hwaddr base_mmio = memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = memmap[VIRT_PCIE_MMIO].size;
     hwaddr base_pio = memmap[VIRT_PCIE_PIO].base;
     hwaddr size_pio = memmap[VIRT_PCIE_PIO].size;
     hwaddr base_ecam = memmap[ecam_id].base;
     hwaddr size_ecam = memmap[ecam_id].size;
+    /*
+     * 0x600000 would be enough for pxb device
+     * if it is too small, there is no enough space
+     * for a pcie device plugged in a pcie-root port
+     */
+    hwaddr size_addr = 0x600000;
+    hwaddr size_io = 0x4000;
     int nr_pcie_buses = size_ecam / PCIE_MMCFG_SIZE_MIN;
+    PCIBus *bus = VIRT_MACHINE(vms)->bus;
 
-    Aml *dev = aml_device("%s", "PCI0");
+    if (bus) {
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            uint8_t bus_num = pci_bus_num(bus);
+            uint8_t numa_node = pci_bus_numa_node(bus);
+
+            if (!pci_bus_is_root(bus)) {
+                continue;
+            }
+            /*
+             * Coded up the MIN of the busNr defined for pxb-pcie,
+             * the MIN - 1 would be the MAX bus number for the main
+             * host bridge.
+             */
+            if (bus_num < nr_pcie_buses) {
+                nr_pcie_buses = bus_num;
+            }
+            count++;
+            dev = aml_device("PC%.02X", bus_num);
+            aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A08")));
+            aml_append(dev, aml_name_decl("_CID", aml_string("PNP0A03")));
+            aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
+            aml_append(dev, aml_name_decl("_CCA", aml_int(1)));
+            aml_append(dev, aml_name_decl("_SEG", aml_int(0)));
+            aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
+            aml_append(dev, aml_name_decl("_UID", aml_int(bus_num)));
+            aml_append(dev, aml_name_decl("_STR", aml_unicode("pxb Device")));
+            if (numa_node != NUMA_NODE_UNASSIGNED) {
+                method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
+                aml_append(method, aml_return(aml_int(numa_node)));
+                aml_append(dev, method);
+            }
+
+            acpi_dsdt_add_pci_route_table(dev, scope, irq);
+
+            method = aml_method("_CBA", 0, AML_NOTSERIALIZED);
+            aml_append(method, aml_return(aml_int(base_ecam)));
+            aml_append(dev, method);
+
+            method = aml_method("_CRS", 0, AML_NOTSERIALIZED);
+            Aml *rbuf = aml_resource_template();
+            aml_append(rbuf,
+                       aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED,
+                                           AML_POS_DECODE, 0x0000,
+                                           bus_num, bus_num + 1, 0x0000,
+                                           2));
+            aml_append(rbuf,
+                       aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                        AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                        AML_READ_WRITE, 0x0000,
+                                        base_mmio + size_mmio -
+                                        size_addr * count,
+                                        base_mmio + size_mmio - 1 -
+                                        size_addr * (count - 1),
+                                        0x0000, size_addr));
+            aml_append(rbuf,
+                       aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED,
+                       AML_POS_DECODE, AML_ENTIRE_RANGE,
+                       0x0000, size_pio - size_io * count,
+                       size_pio - 1 - size_io * (count - 1),
+                       base_pio, size_io));
+
+            if (use_highmem) {
+                hwaddr base_mmio_high = memmap[VIRT_HIGH_PCIE_MMIO].base;
+                hwaddr size_mmio_high = memmap[VIRT_HIGH_PCIE_MMIO].size;
+
+                aml_append(rbuf,
+                       aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED,
+                                        AML_MAX_FIXED, AML_NON_CACHEABLE,
+                                        AML_READ_WRITE, 0x0000,
+                                        base_mmio_high + size_mmio_high -
+                                        size_addr * count,
+                                        base_mmio_high + size_mmio_high -
+                                        1 - size_addr * (count - 1),
+                                        0x0000, size_addr));
+            }
+
+            aml_append(method, aml_name_decl("RBUF", rbuf));
+            aml_append(method, aml_return(rbuf));
+            aml_append(dev, method);
+
+            acpi_dsdt_add_pci_osc(dev, scope);
+
+            aml_append(scope, dev);
+
+        }
+    }
+
+    dev = aml_device("%s", "PCI0");
     aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A08")));
     aml_append(dev, aml_name_decl("_CID", aml_string("PNP0A03")));
     aml_append(dev, aml_name_decl("_SEG", aml_int(0)));
@@ -302,11 +401,13 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
     aml_append(rbuf,
         aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
                          AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000, base_mmio,
-                         base_mmio + size_mmio - 1, 0x0000, size_mmio));
+                         base_mmio + size_mmio - 1 - size_addr * count,
+                         0x0000, size_mmio - size_addr * count));
     aml_append(rbuf,
         aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
-                     AML_ENTIRE_RANGE, 0x0000, 0x0000, size_pio - 1, base_pio,
-                     size_pio));
+                     AML_ENTIRE_RANGE, 0x0000, 0x0000,
+                     size_pio - 1 - size_io * count, base_pio,
+                     size_pio - size_io * count));
 
     if (use_highmem) {
         hwaddr base_mmio_high = memmap[VIRT_HIGH_PCIE_MMIO].base;
@@ -746,7 +847,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
                     (irqmap[VIRT_MMIO] + ARM_SPI_BASE), NUM_VIRTIO_TRANSPORTS);
     acpi_dsdt_add_pci(scope, memmap, (irqmap[VIRT_PCIE] + ARM_SPI_BASE),
-                      vms->highmem, vms->highmem_ecam);
+                      vms->highmem, vms->highmem_ecam, vms);
     if (vms->acpi_dev) {
         build_ged_aml(scope, "\\_SB."GED_DEVICE,
                       HOTPLUG_HANDLER(vms->acpi_dev),

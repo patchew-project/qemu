@@ -1246,6 +1246,9 @@ static void create_pcie(VirtMachineState *vms)
     }
 
     pci = PCI_HOST_BRIDGE(dev);
+
+    VIRT_MACHINE(qdev_get_machine())->bus = pci->bus;
+
     if (pci->bus) {
         for (i = 0; i < nb_nics; i++) {
             NICInfo *nd = &nd_table[i];
