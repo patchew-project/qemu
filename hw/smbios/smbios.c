@@ -94,6 +94,8 @@ static struct {
 
 static struct {
     const char *sock_pfx, *manufacturer, *version, *serial, *asset, *part;
+    uint32_t max_speed;
+    uint32_t current_speed;
 } type4;
 
 static struct {
@@ -272,6 +274,14 @@ static const QemuOptDesc qemu_smbios_type4_opts[] = {
         .name = "version",
         .type = QEMU_OPT_STRING,
         .help = "version number",
+    },{
+        .name = "max_speed",
+        .type = QEMU_OPT_NUMBER,
+        .help = "max speed in MHz",
+    },{
+        .name = "current_speed",
+        .type = QEMU_OPT_NUMBER,
+        .help = "speed at system boot in MHz",
     },{
         .name = "serial",
         .type = QEMU_OPT_STRING,
@@ -586,9 +596,8 @@ static void smbios_build_type_4_table(MachineState *ms, unsigned instance)
     SMBIOS_TABLE_SET_STR(4, processor_version_str, type4.version);
     t->voltage = 0;
     t->external_clock = cpu_to_le16(0); /* Unknown */
-    /* SVVP requires max_speed and current_speed to not be unknown. */
-    t->max_speed = cpu_to_le16(2000); /* 2000 MHz */
-    t->current_speed = cpu_to_le16(2000); /* 2000 MHz */
+    t->max_speed = cpu_to_le16(type4.max_speed);
+    t->current_speed = cpu_to_le16(type4.current_speed);
     t->status = 0x41; /* Socket populated, CPU enabled */
     t->processor_upgrade = 0x01; /* Other */
     t->l1_cache_handle = cpu_to_le16(0xFFFF); /* N/A */
@@ -1129,6 +1138,13 @@ void smbios_entry_add(QemuOpts *opts, Error **errp)
             save_opt(&type4.serial, opts, "serial");
             save_opt(&type4.asset, opts, "asset");
             save_opt(&type4.part, opts, "part");
+            /*
+             * SVVP requires max_speed and current_speed to not be unknown, and
+             * we set the default value to 2000MHz as we did before.
+             */
+            type4.max_speed = qemu_opt_get_number(opts, "max_speed", 2000);
+            type4.current_speed = qemu_opt_get_number(opts, "current_speed",
+                                                      2000);
             return;
         case 11:
             qemu_opts_validate(opts, qemu_smbios_type11_opts, &err);
