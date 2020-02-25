@@ -11,12 +11,22 @@
 
 
 import tempfile
+import re
 from avocado_qemu import Test
 from avocado import skipUnless
 
 from avocado.utils import network
 from avocado.utils import wait
 from avocado.utils.path import find_command
+from avocado.utils import service
+from avocado.utils import process
+
+
+NET_AVAILABLE = True
+try:
+    import netifaces
+except ImportError:
+    NET_AVAILABLE = False
 
 
 class Migration(Test):
@@ -57,6 +67,22 @@ class Migration(Test):
         if port is None:
             self.cancel('Failed to find a free port')
         return port
+
+    def _if_rdma_enable(self):
+        rdma_stat = service.ServiceManager()
+        rdma = rdma_stat.status('rdma')
+        return rdma
+
+    def _get_ip_rdma(self):
+        get_ip_rdma = process.run('rdma link show').stdout.decode()
+        for line in get_ip_rdma.split('\n'):
+            if re.search(r"ACTIVE", line):
+                interface = line.split(" ")[-2]
+                try:
+                     return netifaces.ifaddresses(interface)[netifaces \
+                                                 .AF_INET][0]['addr']
+                except (IndexError, KeyError):
+                    return None
 
 
     def test_migration_with_tcp_localhost(self):
