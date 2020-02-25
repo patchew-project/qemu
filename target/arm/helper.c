@@ -5089,8 +5089,13 @@ static const ARMCPRegInfo el3_no_el2_v8_cp_reginfo[] = {
 static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
 {
     ARMCPU *cpu = env_archcpu(env);
-    /* Begin with bits defined in base ARMv8.0.  */
-    uint64_t valid_mask = MAKE_64BIT_MASK(0, 34);
+    uint64_t valid_mask;
+
+    if (arm_feature(env, ARM_FEATURE_V8)) {
+        valid_mask = MAKE_64BIT_MASK(0, 34);  /* ARMv8.0 */
+    } else {
+        valid_mask = MAKE_64BIT_MASK(0, 28);  /* ARMv7VE */
+    }
 
     if (arm_feature(env, ARM_FEATURE_EL3)) {
         valid_mask &= ~HCR_HCD;
@@ -5112,6 +5117,14 @@ static void hcr_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value)
     }
     if (cpu_isar_feature(aa64_pauth, cpu)) {
         valid_mask |= HCR_API | HCR_APK;
+    }
+
+    if (ri->state == ARM_CP_STATE_AA32) {
+        /*
+         * Writes from aarch32 mode have more RES0 bits.
+         * This includes TDZ, RW, E2H, and more.
+         */
+        valid_mask &= ~0xff80ff8c90000000ull;
     }
 
     /* Clear RES0 bits.  */
