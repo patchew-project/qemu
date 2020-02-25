@@ -525,23 +525,27 @@ class VM(qtest.QEMUQtestMachine):
         self._args.append(addr)
         return self
 
+    def hmp(self, command_line, log=False):
+        cmd = 'human-monitor-command'
+        kwargs = { 'command-line': command_line }
+        if log:
+            return self.qmp_log(cmd, **kwargs)
+        return self.qmp(cmd, **kwargs)
+
     def pause_drive(self, drive, event=None):
         '''Pause drive r/w operations'''
         if not event:
             self.pause_drive(drive, "read_aio")
             self.pause_drive(drive, "write_aio")
             return
-        self.qmp('human-monitor-command',
-                    command_line='qemu-io %s "break %s bp_%s"' % (drive, event, drive))
+        self.hmp('qemu-io %s "break %s bp_%s"' % (drive, event, drive))
 
     def resume_drive(self, drive):
-        self.qmp('human-monitor-command',
-                    command_line='qemu-io %s "remove_break bp_%s"' % (drive, drive))
+        self.hmp('qemu-io %s "remove_break bp_%s"' % (drive, drive))
 
-    def hmp_qemu_io(self, drive, cmd):
+    def hmp_qemu_io(self, drive, cmd, log=False):
         '''Write to a given drive using an HMP command'''
-        return self.qmp('human-monitor-command',
-                        command_line='qemu-io %s "%s"' % (drive, cmd))
+        return self.hmp('qemu-io %s "%s"' % (drive, cmd), log=log)
 
     def flatten_qmp_object(self, obj, output=None, basestr=''):
         if output is None:
