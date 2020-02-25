@@ -360,8 +360,8 @@ void qemu_edid_generate(uint8_t *edid, size_t size,
     edid[20] = 0xa5;
 
     /* screen size: undefined */
-    edid[21] = info->prefx * info->dpi / 2540;
-    edid[22] = info->prefy * info->dpi / 2540;
+    edid[21] = (uint8_t) ((float) info->prefx / info->dpi * 2.54);
+    edid[22] = (uint8_t) ((float) info->prefy / info->dpi * 2.54);
 
     /* display gamma: 2.2 */
     edid[23] = 220 - 100;
