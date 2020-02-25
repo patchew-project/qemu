@@ -183,7 +183,6 @@ static int coroutine_fn stream_run(Job *job, Error **errp)
                 break;
             }
         }
-        ret = 0;
 
         /* Publish progress */
         job_progress_update(&s->common.job, n);
