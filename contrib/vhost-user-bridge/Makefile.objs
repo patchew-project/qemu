@@ -1,0 +1,1 @@
+vhost-user-bridge-obj-y = main.o

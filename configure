@@ -6288,6 +6288,9 @@ if test "$want_tools" = "yes" ; then
   if [ "$curl" = "yes" ]; then
       tools="elf2dmp\$(EXESUF) $tools"
   fi
+  if [ "$vhost_user" = "yes" ]; then
+      tools="vhost-user-bridge\$(EXESUF) $tools"
+  fi
 fi
 if test "$softmmu" = yes ; then
   if test "$linux" = yes; then

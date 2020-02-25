@@ -807,7 +807,7 @@ The Linux kernel userfault support works on `/dev/shm` memory and on `hugetlbfs`
 for hugetlbfs which may be a problem in some configurations).
 
 The vhost-user code in QEMU supports clients that have Postcopy support,
-and the `vhost-user-bridge` (in `tests/`) and the DPDK package have changes
+and the `vhost-user-bridge` (in `contrib/`) and the DPDK package have changes
 to support postcopy.
 
 The client needs to open a userfaultfd and register the areas
