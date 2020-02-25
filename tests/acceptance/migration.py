@@ -52,8 +52,8 @@ class Migration(Test):
         source_vm.qmp('migrate', uri=src_uri)
         self.assert_migration(source_vm, dest_vm)
 
-    def _get_free_port(self):
-        port = network.find_free_port()
+    def _get_free_port(self, address='localhost'):
+        port = network.find_free_port(address=address)
         if port is None:
             self.cancel('Failed to find a free port')
         return port
