@@ -639,6 +639,8 @@ static int collect_image_check(BlockDriverState *bs,
         return ret;
     }
 
+    g_free(check->filename);
+    g_free(check->format);
     check->filename                 = g_strdup(filename);
     check->format                   = g_strdup(bdrv_get_format_name(bs));
     check->check_errors             = result.check_errors;
