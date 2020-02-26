@@ -1917,7 +1917,6 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         if (ret < 0) {
             goto out;
         }
-        flags &= ~BDRV_O_RDWR;
     }
 
     iscsi_readcapacity_sync(iscsilun, &local_err);
