@@ -159,8 +159,61 @@ static const KVMCapabilityInfo kvm_required_capabilites[] = {
 static NotifierList kvm_irqchip_change_notifiers =
     NOTIFIER_LIST_INITIALIZER(kvm_irqchip_change_notifiers);
 
+struct KVMResampleFd {
+    int gsi;
+    EventNotifier *resample_event;
+    QLIST_ENTRY(KVMResampleFd) node;
+};
+typedef struct KVMResampleFd KVMResampleFd;
+
+/*
+ * Only used with split irqchip where we need to do the resample fd
+ * kick for the kernel from userspace.
+ */
+static QLIST_HEAD(, KVMResampleFd) kvm_resample_fd_list =
+    QLIST_HEAD_INITIALIZER(kvm_resample_fd_list);
+
 #define kvm_slots_lock(kml)      qemu_mutex_lock(&(kml)->slots_lock)
 #define kvm_slots_unlock(kml)    qemu_mutex_unlock(&(kml)->slots_lock)
+
+static inline void kvm_resample_fd_remove(int gsi)
+{
+    KVMResampleFd *rfd;
+
+    QLIST_FOREACH(rfd, &kvm_resample_fd_list, node) {
+        if (rfd->gsi == gsi) {
+            QLIST_REMOVE(rfd, node);
+            break;
+        }
+    }
+}
+
+static inline void kvm_resample_fd_insert(int gsi, EventNotifier *event)
+{
+    KVMResampleFd *rfd = g_new0(KVMResampleFd, 1);
+
+    rfd->gsi = gsi;
+    rfd->resample_event = event;
+
+    QLIST_INSERT_HEAD(&kvm_resample_fd_list, rfd, node);
+}
+
+void kvm_resample_fd_notify(int gsi)
+{
+    KVMResampleFd *rfd;
+
+    if (!kvm_irqchip_is_split()) {
+        return;
+    }
+
+    QLIST_FOREACH(rfd, &kvm_resample_fd_list, node) {
+        if (rfd->gsi == gsi) {
+            event_notifier_set(rfd->resample_event);
+            trace_kvm_resample_fd_notify(gsi);
+            break;
+        }
+    }
+}
 
 int kvm_get_max_memslots(void)
 {
@@ -1644,6 +1697,20 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, EventNotifier *event,
     if (rfd != -1) {
         irqfd.flags |= KVM_IRQFD_FLAG_RESAMPLE;
         irqfd.resamplefd = rfd;
+
+        /*
+         * When the slow irqchip (e.g. IOAPIC) is in the userspace,
+         * resamplefd will not work because the EOI of the level
+         * triggered interrupt will be delivered to userspace
+         * instead.  The userspace needs to remember the resamplefd
+         * too and kick it when we receive EOI of this IRQ.
+         */
+        assert(assign);
+        kvm_resample_fd_insert(virq, resample);
+    }
+
+    if (!assign) {
+        kvm_resample_fd_remove(virq);
     }
 
     if (!kvm_irqfds_enabled()) {

@@ -236,8 +236,15 @@ void ioapic_eoi_broadcast(int vector)
         for (n = 0; n < IOAPIC_NUM_PINS; n++) {
             entry = s->ioredtbl[n];
 
-            if ((entry & IOAPIC_VECTOR_MASK) != vector ||
-                ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) != IOAPIC_TRIGGER_LEVEL) {
+            if ((entry & IOAPIC_VECTOR_MASK) != vector) {
+                continue;
+            }
+
+            /* Kick resamplefd if KVM is bypassed */
+            kvm_resample_fd_notify(n);
+
+            if (((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) !=
+                IOAPIC_TRIGGER_LEVEL) {
                 continue;
             }
 
