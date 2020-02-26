@@ -139,7 +139,8 @@ irqchip completely is not recommended except for debugging purposes.
 @item kvm-shadow-mem=size
 Defines the size of the KVM shadow MMU.
 @item tb-size=@var{n}
-Controls the size (in MiB) of the TCG translation block cache.
+Controls the size (in MiB) of the TCG translation block cache. It has no effect on
+32 bit linux-user binaries.
 @item thread=single|multi
 Controls number of TCG threads. When the TCG is multi-threaded there will be one
 thread per vCPU therefor taking advantage of additional host cores. The default
