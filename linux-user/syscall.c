@@ -112,6 +112,7 @@
 #include <linux/if_alg.h>
 #include <linux/rtc.h>
 #include <sound/asound.h>
+#include <libdrm/drm.h>
 #include "linux_loop.h"
 #include "uname.h"
 
@@ -5195,6 +5196,139 @@ static abi_long do_ioctl_tiocgptpeer(const IOCTLEntry *ie, uint8_t *buf_temp,
     return get_errno(safe_ioctl(fd, ie->host_cmd, flags));
 }
 #endif
+
+static inline void free_drmversion(struct drm_version *host)
+{
+    if (!host) {
+        return;
+    }
+    if (host->name) {
+        free(host->name);
+    }
+    if (host->date) {
+        free(host->date);
+    }
+    if (host->desc) {
+        free(host->desc);
+    }
+}
+
+static inline bool t2h_drmversion_str(unsigned long *hlen,
+                                      char **h, abi_ulong *glen)
+{
+    __get_user(*hlen, glen);
+    if (*hlen) {
+        *h = malloc(*hlen + 1);
+        if (!*h) {
+            return false;
+        }
+        (*h)[*hlen] = '\0';
+    } else {
+        *h = NULL;
+    }
+    return true;
+}
+
+static inline abi_long target_to_host_drmversion(struct drm_version *host_ver,
+                                                abi_long target_addr)
+{
+    struct target_drm_version *target_ver;
+
+    if (!lock_user_struct(VERIFY_READ, target_ver, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+    __get_user(host_ver->name_len, &target_ver->name_len);
+    if (!t2h_drmversion_str(&host_ver->name_len,
+                            &host_ver->name, &target_ver->name_len)) {
+        goto err;
+    }
+    if (!t2h_drmversion_str(&host_ver->date_len,
+                            &host_ver->date, &target_ver->date_len)) {
+        goto err;
+    }
+    if (!t2h_drmversion_str(&host_ver->desc_len,
+                            &host_ver->desc, &target_ver->desc_len)) {
+        goto err;
+    }
+    unlock_user_struct(target_ver, target_addr, 0);
+    return 0;
+
+err:
+    free_drmversion(host_ver);
+    return -TARGET_ENOMEM;
+}
+
+static inline bool h2t_drmversion_str(int hlen, char *h,
+                                      abi_ulong *glen, abi_ulong g)
+{
+    char *target_str;
+
+    if ((hlen > 0) && h) {
+        target_str = lock_user(VERIFY_WRITE, g, hlen, 0);
+        if (!target_str) {
+            return false;
+        }
+        memcpy(target_str, h, hlen);
+        unlock_user(target_str, g, hlen);
+    }
+    __put_user(hlen, glen);
+    return true;
+}
+
+static inline abi_long host_to_target_drmversion(abi_ulong target_addr,
+                                                 struct drm_version *host_ver)
+{
+    struct target_drm_version *target_ver;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_ver, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+    __put_user(host_ver->version_major, &target_ver->version_major);
+    __put_user(host_ver->version_minor, &target_ver->version_minor);
+    __put_user(host_ver->version_patchlevel, &target_ver->version_patchlevel);
+    if (!h2t_drmversion_str(host_ver->name_len, host_ver->name,
+                            &target_ver->name_len, target_ver->name)) {
+        return -TARGET_EFAULT;
+    }
+    if (!h2t_drmversion_str(host_ver->date_len, host_ver->date,
+                            &target_ver->date_len, target_ver->date)) {
+        return -TARGET_EFAULT;
+    }
+    if (!h2t_drmversion_str(host_ver->desc_len, host_ver->desc,
+                            &target_ver->desc_len, target_ver->desc)) {
+        return -TARGET_EFAULT;
+    }
+
+    unlock_user_struct(target_ver, target_addr, 0);
+    return 0;
+}
+
+static abi_long do_ioctl_drm(const IOCTLEntry *ie, uint8_t *buf_temp,
+                             int fd, int cmd, abi_long arg)
+{
+    struct drm_version *ver;
+    abi_long ret;
+
+    switch (ie->host_cmd) {
+    case DRM_IOCTL_VERSION:
+        ver = (struct drm_version *)buf_temp;
+        memset(ver, 0, sizeof(*ver));
+        ret = target_to_host_drmversion(ver, arg);
+        if (is_error(ret)) {
+            return ret;
+        }
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, ver));
+        if (is_error(ret)) {
+            free_drmversion(ver);
+            return ret;
+        }
+        ret = host_to_target_drmversion(arg, ver);
+        free_drmversion(ver);
+        return ret;
+        break;
+    }
+    return -TARGET_EFAULT;
+}
 
 static IOCTLEntry ioctl_entries[] = {
 #define IOCTL(cmd, access, ...) \
