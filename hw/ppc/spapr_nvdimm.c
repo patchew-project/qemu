@@ -44,7 +44,7 @@ void spapr_nvdimm_validate_opts(NVDIMMDevice *nvdimm, uint64_t size,
     }
 
     uuidstr = object_property_get_str(OBJECT(nvdimm), NVDIMM_UUID_PROP, NULL);
-    qemu_uuid_parse(uuidstr, &uuid);
+    g_assert(qemu_uuid_parse(uuidstr, &uuid) == 0);
     g_free(uuidstr);
 
     if (qemu_uuid_is_null(&uuid)) {
