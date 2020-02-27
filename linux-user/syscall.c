@@ -7282,17 +7282,14 @@ static int do_openat(void *cpu_env, int dirfd, const char *pathname, int flags, 
     }
 
     if (fake_open->filename) {
-        const char *tmpdir;
-        char filename[PATH_MAX];
+        g_autoptr(GError) gerr = NULL;
+        g_autofree gchar *filename = NULL;
         int fd, r;
 
         /* create temporary file to map stat to */
-        tmpdir = getenv("TMPDIR");
-        if (!tmpdir)
-            tmpdir = "/tmp";
-        snprintf(filename, sizeof(filename), "%s/qemu-open.XXXXXX", tmpdir);
-        fd = mkstemp(filename);
+        fd = g_file_open_tmp("qemu-open.XXXXXX", &filename, &gerr);
         if (fd < 0) {
+            fprintf(stderr, "Error opening %s: %s\n", filename, gerr->message);
             return fd;
         }
         unlink(filename);
