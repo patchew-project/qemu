@@ -1,5 +1,5 @@
 /* We adjust linker script modification to place all of the stuff that needs to
- * persist across fuzzing runs into a contiguous seciton of memory. Then, it is
+ * persist across fuzzing runs into a contiguous section of memory. Then, it is
  * easy to re-map the counter-related memory as shared.
 */
 
@@ -32,6 +32,6 @@ SECTIONS
       __FUZZ_COUNTERS_END = .;
   }
 }
-/* Dont overwrite the SECTIONS in the default linker script. Instead insert the
+/* Don't overwrite the SECTIONS in the default linker script. Instead insert the
  * above into the default script */
 INSERT AFTER .data;
