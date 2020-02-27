@@ -53,6 +53,43 @@ poke_file()
     printf "$3" | dd "of=$1" bs=1 "seek=$2" conv=notrunc &>/dev/null
 }
 
+# poke_file_le 'test.img' 512 2 65534
+poke_file_le()
+{
+    local img=$1 ofs=$2 len=$3 val=$4 str=''
+
+    for i in $(seq 0 $((len - 1))); do
+        byte=$((val & 0xff))
+        if [ $byte != 0 ]; then
+            chr="$(printf "\x$(printf %x $byte)")"
+        else
+            chr="\0"
+        fi
+        str+="$chr"
+        val=$((val >> 8))
+    done
+
+    poke_file "$img" "$ofs" "$str"
+}
+
+# poke_file_be 'test.img' 512 2 65279
+poke_file_be()
+{
+    local img=$1 ofs=$2 len=$3 val=$4 str=''
+
+    for i in $(seq 0 $((len - 1))); do
+        byte=$(((val >> ((len - 1 - i) * 8)) & 0xff))
+        if [ $byte != 0 ]; then
+            chr="$(printf "\x$(printf %x $byte)")"
+        else
+            chr="\0"
+        fi
+        str+=$chr
+    done
+
+    poke_file "$img" "$ofs" "$str"
+}
+
 # peek_file_le 'test.img' 512 2 => 65534
 peek_file_le()
 {
