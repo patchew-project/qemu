@@ -209,6 +209,8 @@ version 2.
                     Available compression type values:
                         0: zlib <https://www.zlib.net/>
 
+          105 - m:  Zero padding to round up the header size to the next
+                    multiple of 8.
 
 === Header padding ===
 
