@@ -984,6 +984,9 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
  * @include_abstract: Whether to include abstract classes.
  *
  * Returns: A singly-linked list of the classes in reverse hashtable order.
+ *
+ * The returned list must be released with g_slist_free()
+ * when no longer required.
  */
 GSList *object_class_get_list(const char *implements_type,
                               bool include_abstract);
@@ -995,6 +998,9 @@ GSList *object_class_get_list(const char *implements_type,
  *
  * Returns: A singly-linked list of the classes in alphabetical
  * case-insensitive order.
+ *
+ * The returned list must be released with g_slist_free()
+ * when no longer required.
  */
 GSList *object_class_get_list_sorted(const char *implements_type,
                               bool include_abstract);
