@@ -46,7 +46,8 @@
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
-        fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
+        g_autofree gchar *emsg = g_win32_error_message(GetLastError());
+        fprintf(stderr, "Failed to allocate memory: %s\n", emsg);
         abort();
     }
     return ptr;
