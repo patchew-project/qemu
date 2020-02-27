@@ -3637,7 +3637,13 @@ static int img_rebase(int argc, char **argv)
      * doesn't change when we switch the backing file.
      */
     if (out_baseimg && *out_baseimg) {
-        ret = bdrv_change_backing_file(bs, out_baseimg, out_basefmt, false);
+        if (blk_new_backing && !out_basefmt) {
+            out_basefmt = blk_bs(blk_new_backing)->drv->format_name;
+            warn_report("Deprecated use of backing file "
+                        "without explicit backing format, using "
+                        "detected format of %s", out_basefmt);
+        }
+        ret = bdrv_change_backing_file(bs, out_baseimg, out_basefmt, true);
     } else {
         ret = bdrv_change_backing_file(bs, NULL, NULL, false);
     }
