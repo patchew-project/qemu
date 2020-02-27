@@ -16,11 +16,11 @@
 # individual target constants are not documented here, for the time
 # being.
 #
+# Since: 3.0
+#
 # Notes: The resulting QMP strings can be appended to the "qemu-system-"
 #        prefix to produce the corresponding QEMU executable name. This
 #        is true even for "qemu-system-x86_64".
-#
-# Since: 3.0
 ##
 { 'enum' : 'SysEmuTarget',
   'data' : [ 'aarch64', 'alpha', 'arm', 'cris', 'hppa', 'i386', 'lm32',
@@ -820,13 +820,13 @@
 # @die-id: die number within node/board the CPU belongs to (Since 4.1)
 # @core-id: core number within die the CPU belongs to# @thread-id: thread number within core the CPU belongs to
 #
+# Since: 2.7
+#
 # Note: currently there are 5 properties that could be present
 #       but management should be prepared to pass through other
 #       properties with device_add command to allow for future
 #       interface extension. This also requires the filed names to be kept in
 #       sync with the properties passed to -device/device_add.
-#
-# Since: 2.7
 ##
 { 'struct': 'CpuInstanceProperties',
   'data': { '*node-id': 'int',
