@@ -444,6 +444,7 @@ opengl_dmabuf="no"
 cpuid_h="no"
 avx2_opt=""
 zlib="yes"
+zstd=""
 capstone=""
 lzo=""
 snappy=""
@@ -1371,6 +1372,10 @@ for opt do
   ;;
   --disable-lzfse) lzfse="no"
   ;;
+  --enable-zstd) zstd="yes"
+  ;;
+  --disable-zstd) zstd="no"
+  ;;
   --enable-guest-agent) guest_agent="yes"
   ;;
   --disable-guest-agent) guest_agent="no"
@@ -1829,6 +1834,7 @@ disabled with --disable-FEATURE, default is enabled if available:
                   (for reading bzip2-compressed dmg images)
   lzfse           support of lzfse compression library
                   (for reading lzfse-compressed dmg images)
+  zstd            support of zstd compression library
   seccomp         seccomp support
   coroutine-pool  coroutine freelist (better performance)
   glusterfs       GlusterFS backend
@@ -2450,6 +2456,25 @@ EOF
             feature_not_found "lzfse" "Install lzfse devel"
         fi
         lzfse="no"
+    fi
+fi
+
+#########################################
+# zstd check
+
+if test "$zstd" != "no" ; then
+    cat > $TMPC << EOF
+#include <zstd.h>
+int main(void) { ZSTD_versionNumber(); return 0; }
+EOF
+    if compile_prog "" "-lzstd" ; then
+        LIBS="$LIBS -lzstd"
+        zstd="yes"
+    else
+        if test "$zstd" = "yes"; then
+            feature_not_found "zstd" "Install libzstd-devel"
+        fi
+        zstd="no"
     fi
 fi
 
@@ -6668,6 +6693,7 @@ echo "lzo support       $lzo"
 echo "snappy support    $snappy"
 echo "bzip2 support     $bzip2"
 echo "lzfse support     $lzfse"
+echo "zstd support      $zstd"
 echo "NUMA host support $numa"
 echo "libxml2           $libxml2"
 echo "tcmalloc support  $tcmalloc"
@@ -7558,6 +7584,9 @@ if test "$plugins" = "yes" ; then
 	    "If \$plugins=yes, either \$ld_dynamic_list or " \
 	    "\$ld_exported_symbols_list should have been set to 'yes'."
     fi
+fi
+if test "$zstd" = "yes" ; then
+  echo "CONFIG_ZSTD=y" >> $config_host_mak
 fi
 
 if test "$tcg_interpreter" = "yes"; then
