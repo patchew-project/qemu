@@ -136,7 +136,7 @@ def qemu_img_log(*args):
     log(result, filters=[filter_testfiles])
     return result
 
-def img_info_log(filename, filter_path=None, imgopts=False, extra_args=[]):
+def img_info_log(filename, filter_path=None, imgopts=False, extra_args=()):
     args = ['info']
     if imgopts:
         args.append('--image-opts')
@@ -351,7 +351,7 @@ def filter_qmp_imgfmt(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
-def log(msg, filters=[], indent=None):
+def log(msg, filters=(), indent=None):
     '''Logs either a string message or a JSON serializable message (like QMP).
     If indent is provided, JSON serializable messages are pretty-printed.'''
     for flt in filters:
@@ -566,7 +566,7 @@ class VM(qtest.QEMUQtestMachine):
             result.append(filter_qmp_event(ev))
         return result
 
-    def qmp_log(self, cmd, filters=[], indent=None, **kwargs):
+    def qmp_log(self, cmd, filters=(), indent=None, **kwargs):
         full_cmd = OrderedDict((
             ("execute", cmd),
             ("arguments", ordered_qmp(kwargs))
@@ -968,7 +968,7 @@ def case_notrun(reason):
     open('%s/%s.casenotrun' % (output_dir, seq), 'a').write(
         '    [case not run] ' + reason + '\n')
 
-def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
+def verify_image_format(supported_fmts=(), unsupported_fmts=()):
     assert not (supported_fmts and unsupported_fmts)
 
     if 'generic' in supported_fmts and \
@@ -982,7 +982,7 @@ def verify_image_format(supported_fmts=[], unsupported_fmts=[]):
     if not_sup or (imgfmt in unsupported_fmts):
         notrun('not suitable for this image format: %s' % imgfmt)
 
-def verify_protocol(supported=[], unsupported=[]):
+def verify_protocol(supported=(), unsupported=()):
     assert not (supported and unsupported)
 
     if 'generic' in supported:
@@ -1000,11 +1000,11 @@ def verify_platform(supported=(), unsupported=()):
         if not any((sys.platform.startswith(x) for x in supported)):
             notrun('not suitable for this OS: %s' % sys.platform)
 
-def verify_cache_mode(supported_cache_modes=[]):
+def verify_cache_mode(supported_cache_modes=()):
     if supported_cache_modes and (cachemode not in supported_cache_modes):
         notrun('not suitable for this cache mode: %s' % cachemode)
 
-def verify_aio_mode(supported_aio_modes=[]):
+def verify_aio_mode(supported_aio_modes=()):
     if supported_aio_modes and (aiomode not in supported_aio_modes):
         notrun('not suitable for this aio mode: %s' % aiomode)
 
@@ -1044,7 +1044,7 @@ def supported_formats(read_only=False):
 
     return supported_formats.formats[read_only]
 
-def skip_if_unsupported(required_formats=[], read_only=False):
+def skip_if_unsupported(required_formats=(), read_only=False):
     '''Skip Test Decorator
        Runs the test if all the required formats are whitelisted'''
     def skip_test_decorator(func):
