@@ -29,6 +29,7 @@
 #include <pthread.h>
 #include "qemu-common.h"
 #include "qemu/coroutine_int.h"
+#include "qemu/error-report.h"
 
 typedef struct {
     Coroutine base;
@@ -80,7 +81,7 @@ static void __attribute__((constructor)) coroutine_init(void)
 
     ret = pthread_key_create(&thread_state_key, qemu_coroutine_thread_cleanup);
     if (ret != 0) {
-        fprintf(stderr, "unable to create leader key: %s\n", strerror(errno));
+        error_report("unable to create leader key: %s", strerror(errno));
         abort();
     }
 }

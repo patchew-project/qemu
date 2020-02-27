@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "trace.h"
+#include "qemu/error-report.h"
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/coroutine.h"
@@ -125,14 +126,13 @@ void qemu_aio_coroutine_enter(AioContext *ctx, Coroutine *co)
          * cause us to enter it twice, potentially even after the coroutine has
          * been deleted */
         if (scheduled) {
-            fprintf(stderr,
-                    "%s: Co-routine was already scheduled in '%s'\n",
-                    __func__, scheduled);
+            error_report("%s: Co-routine was already scheduled in '%s'",
+                         __func__, scheduled);
             abort();
         }
 
         if (to->caller) {
-            fprintf(stderr, "Co-routine re-entered recursively\n");
+            error_report("Co-routine re-entered recursively");
             abort();
         }
 
@@ -185,7 +185,7 @@ void coroutine_fn qemu_coroutine_yield(void)
     trace_qemu_coroutine_yield(self, to);
 
     if (!to) {
-        fprintf(stderr, "Co-routine is yielding to no one\n");
+        error_report("Co-routine is yielding to no one");
         abort();
     }
 

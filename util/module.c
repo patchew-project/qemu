@@ -19,6 +19,7 @@
 #endif
 #include "qemu/queue.h"
 #include "qemu/module.h"
+#include "qemu/error-report.h"
 
 typedef struct ModuleEntry
 {
@@ -130,19 +131,17 @@ static int module_load_file(const char *fname)
 
     g_module = g_module_open(fname, G_MODULE_BIND_LAZY | G_MODULE_BIND_LOCAL);
     if (!g_module) {
-        fprintf(stderr, "Failed to open module: %s\n",
-                g_module_error());
+        error_report("Failed to open module: %s", g_module_error());
         ret = -EINVAL;
         goto out;
     }
     if (!g_module_symbol(g_module, DSO_STAMP_FUN_STR, (gpointer *)&sym)) {
-        fprintf(stderr, "Failed to initialize module: %s\n",
-                fname);
+        error_report("Failed to initialize module: %s", fname);
         /* Print some info if this is a QEMU module (but from different build),
          * this will make debugging user problems easier. */
         if (g_module_symbol(g_module, "qemu_module_dummy", (gpointer *)&sym)) {
-            fprintf(stderr,
-                    "Note: only modules from the same build can be loaded.\n");
+            error_report("Note: "
+                         "only modules from the same build can be loaded.");
         }
         g_module_close(g_module);
         ret = -EINVAL;
@@ -178,7 +177,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
     static GHashTable *loaded_modules;
 
     if (!g_module_supported()) {
-        fprintf(stderr, "Module is not supported by system.\n");
+        error_report("Module is not supported by system.");
         return false;
     }
 

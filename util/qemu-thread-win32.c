@@ -15,6 +15,7 @@
 #include "qemu-common.h"
 #include "qemu/thread.h"
 #include "qemu/notify.h"
+#include "qemu/error-report.h"
 #include "qemu-thread-common.h"
 #include <process.h>
 
@@ -25,7 +26,7 @@ void qemu_thread_naming(bool enable)
     /* But note we don't actually name them on Windows yet */
     name_threads = enable;
 
-    fprintf(stderr, "qemu: thread naming not supported on this host\n");
+    error_report("qemu: thread naming not supported on this host");
 }
 
 static void error_exit(int err, const char *msg)
@@ -34,7 +35,7 @@ static void error_exit(int err, const char *msg)
 
     FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
                   NULL, err, 0, (LPTSTR)&pstr, 2, NULL);
-    fprintf(stderr, "qemu: %s: %s\n", msg, pstr);
+    error_report("qemu: %s: %s", msg, pstr);
     LocalFree(pstr);
     abort();
 }

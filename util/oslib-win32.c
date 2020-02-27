@@ -39,6 +39,7 @@
 #include "trace.h"
 #include "qemu/sockets.h"
 #include "qemu/cutils.h"
+#include "qemu/error-report.h"
 
 /* this must come after including "trace.h" */
 #include <shlobj.h>
@@ -46,7 +47,7 @@
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
-        fprintf(stderr, "Failed to allocate memory: %lu\n", GetLastError());
+        error_report("Failed to allocate memory: %lu", GetLastError());
         abort();
     }
     return ptr;

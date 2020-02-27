@@ -14,6 +14,7 @@
 #include "qemu/thread.h"
 #include "qemu/atomic.h"
 #include "qemu/notify.h"
+#include "qemu/error-report.h"
 #include "qemu-thread-common.h"
 
 static bool name_threads;
@@ -25,14 +26,14 @@ void qemu_thread_naming(bool enable)
 #ifndef CONFIG_THREAD_SETNAME_BYTHREAD
     /* This is a debugging option, not fatal */
     if (enable) {
-        fprintf(stderr, "qemu: thread naming not supported on this host\n");
+        error_report("qemu: thread naming not supported on this host");
     }
 #endif
 }
 
 static void error_exit(int err, const char *msg)
 {
-    fprintf(stderr, "qemu: %s: %s\n", msg, strerror(err));
+    error_report("qemu: %s: %s", msg, strerror(err));
     abort();
 }
 

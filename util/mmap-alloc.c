@@ -18,6 +18,7 @@
 #endif /* CONFIG_LINUX */
 
 #include "qemu/osdep.h"
+#include "qemu/error-report.h"
 #include "qemu/mmap-alloc.h"
 #include "qemu/host-utils.h"
 
@@ -63,7 +64,7 @@ size_t qemu_mempath_getpagesize(const char *mem_path)
         } while (ret != 0 && errno == EINTR);
 
         if (ret != 0) {
-            fprintf(stderr, "Couldn't statfs() memory path: %s\n",
+            error_report("Couldn't statfs() memory path: %s",
                     strerror(errno));
             exit(1);
         }
@@ -160,10 +161,10 @@ void *qemu_ram_mmap(int fd,
                 len = 0;
             }
             file_name[len] = '\0';
-            fprintf(stderr, "Warning: requesting persistence across crashes "
-                    "for backend file %s failed. Proceeding without "
-                    "persistence, data might become corrupted in case of host "
-                    "crash.\n", file_name);
+            error_report("Warning: requesting persistence across crashes "
+                         "for backend file %s failed. Proceeding without "
+                         "persistence, data might become corrupted in case "
+                         "of host crash.", file_name);
             g_free(proc_link);
             g_free(file_name);
         }
