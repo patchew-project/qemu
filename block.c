@@ -5994,7 +5994,7 @@ void bdrv_img_create(const char *filename, const char *fmt,
             /* Couldn't open BS, but we have a size, so it's nonfatal */
             warn_reportf_err(local_err,
                             "Could not verify backing image. "
-                            "This may become an error in future versions.\n");
+                            "This may become an error in future versions.");
             local_err = NULL;
         } else if (!bs) {
             /* Couldn't open bs, do not have size */
