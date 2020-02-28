@@ -530,4 +530,318 @@ static inline void gen_cond_return(TCGv pred, TCGv addr)
     tcg_temp_free(zero);
 }
 
+static inline void gen_loop0r(TCGv RsV, int riV, insn_t *insn)
+{
+    TCGv tmp = tcg_temp_new();
+    fIMMEXT(riV);
+    fPCALIGN(riV);
+    /* fWRITE_LOOP_REGS0( fREAD_PC()+riV, RsV); */
+    tcg_gen_addi_tl(tmp, hex_gpr[HEX_REG_PC], riV);
+    gen_log_reg_write(HEX_REG_LC0, RsV, insn->slot, 0);
+    gen_log_reg_write(HEX_REG_SA0, tmp, insn->slot, 0);
+    fSET_LPCFG(0);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_loop1r(TCGv RsV, int riV, insn_t *insn)
+{
+    TCGv tmp = tcg_temp_new();
+    fIMMEXT(riV);
+    fPCALIGN(riV);
+    /* fWRITE_LOOP_REGS1( fREAD_PC()+riV, RsV); */
+    tcg_gen_addi_tl(tmp, hex_gpr[HEX_REG_PC], riV);
+    gen_log_reg_write(HEX_REG_LC1, RsV, insn->slot, 0);
+    gen_log_reg_write(HEX_REG_SA1, tmp, insn->slot, 0);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_compare(TCGCond cond, TCGv res, TCGv arg1, TCGv arg2)
+{
+    TCGv one = tcg_const_tl(0xff);
+    TCGv zero = tcg_const_tl(0);
+
+    tcg_gen_movcond_tl(cond, res, arg1, arg2, one, zero);
+
+    tcg_temp_free(one);
+    tcg_temp_free(zero);
+}
+
+static inline void gen_comparei(TCGCond cond, TCGv res, TCGv arg1, int arg2)
+{
+    TCGv tmp = tcg_const_tl(arg2);
+    gen_compare(cond, res, arg1, tmp);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_compare_i64(TCGCond cond, TCGv res,
+                                   TCGv_i64 arg1, TCGv_i64 arg2)
+{
+    TCGv_i64 one = tcg_const_i64(0xff);
+    TCGv_i64 zero = tcg_const_i64(0);
+    TCGv_i64 temp = tcg_temp_new_i64();
+
+    tcg_gen_movcond_i64(cond, temp, arg1, arg2, one, zero);
+    tcg_gen_extrl_i64_i32(res, temp);
+    tcg_gen_andi_tl(res, res, 0xff);
+
+    tcg_temp_free_i64(one);
+    tcg_temp_free_i64(zero);
+    tcg_temp_free_i64(temp);
+}
+
+static inline void gen_cmpnd_cmp_jmp(int pnum, TCGCond cond, bool sense,
+                                     TCGv arg1, TCGv arg2, int pc_off)
+{
+    TCGv new_pc = tcg_temp_new();
+    TCGv pred = tcg_temp_new();
+    TCGv zero = tcg_const_tl(0);
+    TCGv one = tcg_const_tl(1);
+
+    tcg_gen_addi_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
+    gen_compare(cond, pred, arg1, arg2);
+    gen_log_pred_write(pnum, pred);
+    if (!sense) {
+        tcg_gen_xori_tl(pred, pred, 0xff);
+    }
+
+    /* If there are multiple branches in a packet, ignore the second one */
+    tcg_gen_movcond_tl(TCG_COND_NE, pred, hex_branch_taken, zero, zero, pred);
+
+    tcg_gen_movcond_tl(TCG_COND_NE, hex_next_PC, pred, zero,
+                       new_pc, hex_next_PC);
+    tcg_gen_movcond_tl(TCG_COND_NE, hex_branch_taken, pred, zero,
+                       one, hex_branch_taken);
+
+    tcg_temp_free(new_pc);
+    tcg_temp_free(pred);
+    tcg_temp_free(zero);
+    tcg_temp_free(one);
+}
+
+static inline void gen_cmpnd_cmpi_jmp(int pnum, TCGCond cond, bool sense,
+                                      TCGv arg1, int arg2, int pc_off)
+{
+    TCGv tmp = tcg_const_tl(arg2);
+    gen_cmpnd_cmp_jmp(pnum, cond, sense, arg1, tmp, pc_off);
+    tcg_temp_free(tmp);
+
+}
+
+static inline void gen_cmpnd_cmp_n1_jmp(int pnum, TCGCond cond, bool sense,
+                                        TCGv arg, int pc_off)
+{
+    gen_cmpnd_cmpi_jmp(pnum, cond, sense, arg, -1, pc_off);
+}
+
+
+static inline void gen_jump(int pc_off)
+{
+    TCGv new_pc = tcg_temp_new();
+    tcg_gen_addi_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
+    gen_write_new_pc(new_pc);
+    tcg_temp_free(new_pc);
+}
+
+static inline void gen_cond_jumpr(TCGv pred, TCGv dst_pc)
+{
+    TCGv zero = tcg_const_tl(0);
+    TCGv one = tcg_const_tl(1);
+    TCGv new_pc = tcg_temp_new();
+
+    tcg_gen_movcond_tl(TCG_COND_EQ, new_pc, pred, zero, hex_next_PC, dst_pc);
+
+    /* If there are multiple jumps in a packet, only the first one is taken */
+    tcg_gen_movcond_tl(TCG_COND_NE, hex_next_PC, hex_branch_taken, zero,
+                       hex_next_PC, new_pc);
+    tcg_gen_movcond_tl(TCG_COND_EQ, hex_branch_taken, pred, zero,
+                       hex_branch_taken, one);
+
+    tcg_temp_free(zero);
+    tcg_temp_free(one);
+    tcg_temp_free(new_pc);
+}
+
+static inline void gen_cond_jump(TCGv pred, int pc_off)
+{
+    TCGv new_pc = tcg_temp_new();
+
+    tcg_gen_addi_tl(new_pc, hex_gpr[HEX_REG_PC], pc_off);
+    gen_cond_jumpr(pred, new_pc);
+
+    tcg_temp_free(new_pc);
+}
+
+static inline void gen_call(int pc_off)
+{
+    gen_log_reg_write(HEX_REG_LR, hex_next_PC, 4, false);
+    gen_jump(pc_off);
+}
+
+static inline void gen_callr(TCGv new_pc)
+{
+    gen_log_reg_write(HEX_REG_LR, hex_next_PC, 4, false);
+    gen_write_new_pc(new_pc);
+}
+
+static inline void gen_endloop0(void)
+{
+    TCGv lpcfg = tcg_temp_local_new();
+
+    GET_USR_FIELD(USR_LPCFG, lpcfg);
+
+    /*
+     *    if (lpcfg == 1) {
+     *        hex_new_pred_value[3] = 0xff;
+     *        hex_pred_written |= 1 << 3;
+     *    }
+     */
+    TCGLabel *label1 = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_NE, lpcfg, 1, label1);
+    {
+        tcg_gen_movi_tl(hex_new_pred_value[3], 0xff);
+        tcg_gen_ori_tl(hex_pred_written, hex_pred_written, 1 << 3);
+    }
+    gen_set_label(label1);
+
+    /*
+     *    if (lpcfg) {
+     *        SET_USR_FIELD(USR_LPCFG, lpcfg - 1);
+     *    }
+     */
+    TCGLabel *label2 = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_EQ, lpcfg, 0, label2);
+    {
+        tcg_gen_subi_tl(lpcfg, lpcfg, 1);
+        SET_USR_FIELD(USR_LPCFG, lpcfg);
+    }
+    gen_set_label(label2);
+
+    /*
+     *    if (hex_gpr[HEX_REG_LC0] > 1) {
+     *        hex_next_PC = hex_gpr[HEX_REG_SA0];
+     *        hex_branch_taken = 1;
+     *        hex_gpr[HEX_REG_LC0] = hex_gpr[HEX_REG_LC0] - 1;
+     *    }
+     */
+    TCGLabel *label3 = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC0], 1, label3);
+    {
+        tcg_gen_mov_tl(hex_next_PC, hex_gpr[HEX_REG_SA0]);
+        tcg_gen_movi_tl(hex_branch_taken, 1);
+        TCGv lc0 = tcg_temp_local_new();
+        tcg_gen_mov_tl(lc0, hex_gpr[HEX_REG_LC0]);
+        tcg_gen_subi_tl(lc0, lc0, 1);
+        tcg_gen_mov_tl(hex_new_value[HEX_REG_LC0], lc0);
+        tcg_temp_free(lc0);
+    }
+    gen_set_label(label3);
+
+    tcg_temp_free(lpcfg);
+}
+
+static inline void gen_endloop1(void)
+{
+    /*
+     *    if (hex_gpr[HEX_REG_LC1] > 1) {
+     *        hex_next_PC = hex_gpr[HEX_REG_SA1];
+     *        hex_branch_taken = 1;
+     *        hex_gpr[HEX_REG_LC1] = hex_gpr[HEX_REG_LC1] - 1;
+     *    }
+     */
+    TCGLabel *label = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_LEU, hex_gpr[HEX_REG_LC1], 1, label);
+    {
+        tcg_gen_mov_tl(hex_next_PC, hex_gpr[HEX_REG_SA1]);
+        tcg_gen_movi_tl(hex_branch_taken, 1);
+        TCGv lc1 = tcg_temp_local_new();
+        tcg_gen_mov_tl(lc1, hex_gpr[HEX_REG_LC1]);
+        tcg_gen_subi_tl(lc1, lc1, 1);
+        tcg_gen_mov_tl(hex_new_value[HEX_REG_LC1], lc1);
+        tcg_temp_free(lc1);
+    }
+    gen_set_label(label);
+}
+
+static inline void gen_ashiftr_4_4s(TCGv dst, TCGv src, int32_t shift_amt)
+{
+    tcg_gen_sari_tl(dst, src, shift_amt);
+}
+
+static inline void gen_ashiftl_4_4s(TCGv dst, TCGv src, int32_t shift_amt)
+{
+    if (shift_amt >= 64) {
+        tcg_gen_movi_tl(dst, 0);
+    } else {
+        tcg_gen_shli_tl(dst, src, shift_amt);
+    }
+}
+
+static inline void gen_cmp_jumpnv(TCGCond cond, int rnum, TCGv src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcond_tl(cond, pred, hex_new_value[rnum], src);
+    gen_cond_jump(pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static inline void gen_cmpi_jumpnv(TCGCond cond, int rnum, int src, int pc_off)
+{
+    TCGv pred = tcg_temp_new();
+    tcg_gen_setcondi_tl(cond, pred, hex_new_value[rnum], src);
+    gen_cond_jump(pred, pc_off);
+    tcg_temp_free(pred);
+}
+
+static inline void gen_asl_r_r_or(TCGv RxV, TCGv RsV, TCGv RtV)
+{
+    TCGv zero = tcg_const_tl(0);
+    TCGv shift_amt = tcg_temp_new();
+    TCGv_i64 shift_amt_i64 = tcg_temp_new_i64();
+    TCGv_i64 shift_left_val_i64 = tcg_temp_new_i64();
+    TCGv shift_left_val = tcg_temp_new();
+    TCGv_i64 shift_right_val_i64 = tcg_temp_new_i64();
+    TCGv shift_right_val = tcg_temp_new();
+    TCGv or_val = tcg_temp_new();
+
+    /* Sign extend 7->32 bits */
+    tcg_gen_shli_tl(shift_amt, RtV, 32 - 7);
+    tcg_gen_sari_tl(shift_amt, shift_amt, 32 - 7);
+    tcg_gen_ext_i32_i64(shift_amt_i64, shift_amt);
+
+    tcg_gen_ext_i32_i64(shift_left_val_i64, RsV);
+    tcg_gen_shl_i64(shift_left_val_i64, shift_left_val_i64, shift_amt_i64);
+    tcg_gen_extrl_i64_i32(shift_left_val, shift_left_val_i64);
+
+    /* ((-(SHAMT)) - 1) */
+    tcg_gen_neg_i64(shift_amt_i64, shift_amt_i64);
+    tcg_gen_subi_i64(shift_amt_i64, shift_amt_i64, 1);
+
+    tcg_gen_ext_i32_i64(shift_right_val_i64, RsV);
+    tcg_gen_sar_i64(shift_right_val_i64, shift_right_val_i64, shift_amt_i64);
+    tcg_gen_sari_i64(shift_right_val_i64, shift_right_val_i64, 1);
+    tcg_gen_extrl_i64_i32(shift_right_val, shift_right_val_i64);
+
+    tcg_gen_movcond_tl(TCG_COND_GE, or_val, shift_amt, zero,
+                       shift_left_val, shift_right_val);
+    tcg_gen_or_tl(RxV, RxV, or_val);
+
+    tcg_temp_free(zero);
+    tcg_temp_free(shift_amt);
+    tcg_temp_free_i64(shift_amt_i64);
+    tcg_temp_free_i64(shift_left_val_i64);
+    tcg_temp_free(shift_left_val);
+    tcg_temp_free_i64(shift_right_val_i64);
+    tcg_temp_free(shift_right_val);
+    tcg_temp_free(or_val);
+}
+
+static inline void gen_lshiftr_4_4u(TCGv dst, TCGv src, int32_t shift_amt)
+{
+    if (shift_amt >= 64) {
+        tcg_gen_movi_tl(dst, 0);
+    } else {
+        tcg_gen_shri_tl(dst, src, shift_amt);
+    }
+}
+
 #endif
