@@ -51,6 +51,10 @@ TCGv llsc_val;
 TCGv_i64 llsc_val_i64;
 TCGv hex_is_gather_store_insn;
 TCGv hex_gather_issued;
+TCGv hex_VRegs_updated_tmp;
+TCGv hex_VRegs_updated;
+TCGv hex_VRegs_select;
+TCGv hex_QRegs_updated;
 
 static const char * const hexagon_prednames[] = {
   "p0", "p1", "p2", "p3"
@@ -137,6 +141,10 @@ static void gen_start_packet(DisasContext *ctx, packet_t *pkt)
     /* Clear out the disassembly context */
     ctx->ctx_reg_log_idx = 0;
     ctx->ctx_preg_log_idx = 0;
+    ctx->ctx_temp_vregs_idx = 0;
+    ctx->ctx_temp_qregs_idx = 0;
+    ctx->ctx_vreg_log_idx = 0;
+    ctx->ctx_qreg_log_idx = 0;
     for (i = 0; i < STORES_MAX; i++) {
         ctx->ctx_store_width[i] = 0;
     }
@@ -155,6 +163,15 @@ static void gen_start_packet(DisasContext *ctx, packet_t *pkt)
         tcg_gen_movi_tl(hex_next_PC, next_PC);
     }
     tcg_gen_movi_tl(hex_pred_written, 0);
+
+    if (pkt->pkt_has_hvx) {
+        tcg_gen_movi_tl(hex_VRegs_updated_tmp, 0);
+        tcg_gen_movi_tl(hex_VRegs_updated, 0);
+        tcg_gen_movi_tl(hex_VRegs_select, 0);
+        tcg_gen_movi_tl(hex_QRegs_updated, 0);
+        tcg_gen_movi_tl(hex_is_gather_store_insn, 0);
+        tcg_gen_movi_tl(hex_gather_issued, 0);
+    }
 }
 
 static int is_gather_store_insn(insn_t *insn)
@@ -445,10 +462,163 @@ static bool process_change_of_flow(DisasContext *ctx, packet_t *pkt)
     return false;
 }
 
+void gen_memcpy(TCGv_ptr dest, TCGv_ptr src, size_t n)
+{
+    TCGv_ptr d = tcg_temp_new_ptr();
+    TCGv_ptr s = tcg_temp_new_ptr();
+    int i;
+
+    tcg_gen_addi_ptr(d, dest, 0);
+    tcg_gen_addi_ptr(s, src, 0);
+    if (n % 8 == 0) {
+        TCGv_i64 temp = tcg_temp_new_i64();
+        for (i = 0; i < n / 8; i++) {
+            tcg_gen_ld_i64(temp, s, 0);
+            tcg_gen_st_i64(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 8);
+            tcg_gen_addi_ptr(d, d, 8);
+        }
+        tcg_temp_free_i64(temp);
+    } else if (n % 4 == 0) {
+        TCGv temp = tcg_temp_new();
+        for (i = 0; i < n / 4; i++) {
+            tcg_gen_ld32u_tl(temp, s, 0);
+            tcg_gen_st32_tl(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 4);
+            tcg_gen_addi_ptr(d, d, 4);
+        }
+        tcg_temp_free(temp);
+    } else if (n % 2 == 0) {
+        TCGv temp = tcg_temp_new();
+        for (i = 0; i < n / 2; i++) {
+            tcg_gen_ld16u_tl(temp, s, 0);
+            tcg_gen_st16_tl(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 2);
+            tcg_gen_addi_ptr(d, d, 2);
+        }
+        tcg_temp_free(temp);
+    } else {
+        TCGv temp = tcg_temp_new();
+        for (i = 0; i < n; i++) {
+            tcg_gen_ld8u_tl(temp, s, 0);
+            tcg_gen_st8_tl(temp, d, 0);
+            tcg_gen_addi_ptr(s, s, 1);
+            tcg_gen_addi_ptr(d, d, 1);
+        }
+        tcg_temp_free(temp);
+    }
+
+    tcg_temp_free_ptr(d);
+    tcg_temp_free_ptr(s);
+}
+
+static inline void gen_vec_copy(intptr_t dstoff, intptr_t srcoff, size_t size)
+{
+    TCGv_ptr src = tcg_temp_new_ptr();
+    TCGv_ptr dst = tcg_temp_new_ptr();
+    tcg_gen_addi_ptr(src, cpu_env, srcoff);
+    tcg_gen_addi_ptr(dst, cpu_env, dstoff);
+    gen_memcpy(dst, src, size);
+    tcg_temp_free_ptr(src);
+    tcg_temp_free_ptr(dst);
+}
+
+static inline bool pkt_has_hvx_store(packet_t *pkt)
+{
+    int i;
+    for (i = 0; i < pkt->num_insns; i++) {
+        int opcode = pkt->insn[i].opcode;
+        if (GET_ATTRIB(opcode, A_CVI) && GET_ATTRIB(opcode, A_STORE)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void gen_commit_hvx(DisasContext *ctx, packet_t *pkt)
+{
+    int i;
+
+    /*
+     *    for (i = 0; i < ctx->ctx_vreg_log_idx; i++) {
+     *        int rnum = ctx->ctx_vreg_log[i];
+     *        if (ctx->ctx_vreg_is_predicated[i]) {
+     *            if (env->VRegs_updated & (1 << rnum)) {
+     *                env->VRegs[rnum] = env->future_VRegs[rnum];
+     *            }
+     *        } else {
+     *            env->VRegs[rnum] = env->future_VRegs[rnum];
+     *        }
+     *    }
+     */
+    for (i = 0; i < ctx->ctx_vreg_log_idx; i++) {
+        int rnum = ctx->ctx_vreg_log[i];
+        int is_predicated = ctx->ctx_vreg_is_predicated[i];
+        intptr_t dstoff = offsetof(CPUHexagonState, VRegs[rnum]);
+        intptr_t srcoff = offsetof(CPUHexagonState, future_VRegs[rnum]);
+        size_t size = sizeof(mmvector_t);
+
+        if (is_predicated) {
+            TCGv cmp = tcg_temp_local_new();
+            TCGLabel *label_skip = gen_new_label();
+
+            tcg_gen_andi_tl(cmp, hex_VRegs_updated, 1 << rnum);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cmp, 0, label_skip);
+            {
+                gen_vec_copy(dstoff, srcoff, size);
+            }
+            gen_set_label(label_skip);
+            tcg_temp_free(cmp);
+        } else {
+            gen_vec_copy(dstoff, srcoff, size);
+        }
+    }
+
+    /*
+     *    for (i = 0; i < ctx-_ctx_qreg_log_idx; i++) {
+     *        int rnum = ctx->ctx_qreg_log[i];
+     *        if (ctx->ctx_qreg_is_predicated[i]) {
+     *            if (env->QRegs_updated) & (1 << rnum)) {
+     *                env->QRegs[rnum] = env->future_QRegs[rnum];
+     *            }
+     *        } else {
+     *            env->QRegs[rnum] = env->future_QRegs[rnum];
+     *        }
+     *    }
+     */
+    for (i = 0; i < ctx->ctx_qreg_log_idx; i++) {
+        int rnum = ctx->ctx_qreg_log[i];
+        int is_predicated = ctx->ctx_qreg_is_predicated[i];
+        intptr_t dstoff = offsetof(CPUHexagonState, QRegs[rnum]);
+        intptr_t srcoff = offsetof(CPUHexagonState, future_QRegs[rnum]);
+        size_t size = sizeof(mmqreg_t);
+
+        if (is_predicated) {
+            TCGv cmp = tcg_temp_local_new();
+            TCGLabel *label_skip = gen_new_label();
+
+            tcg_gen_andi_tl(cmp, hex_QRegs_updated, 1 << rnum);
+            tcg_gen_brcondi_tl(TCG_COND_EQ, cmp, 0, label_skip);
+            {
+                gen_vec_copy(dstoff, srcoff, size);
+            }
+            gen_set_label(label_skip);
+            tcg_temp_free(cmp);
+        } else {
+            gen_vec_copy(dstoff, srcoff, size);
+        }
+    }
+
+    if (pkt_has_hvx_store(pkt)) {
+        gen_helper_commit_hvx_stores(cpu_env);
+    }
+}
+
 static void gen_exec_counters(packet_t *pkt)
 {
     int num_insns = pkt->num_insns;
     int num_real_insns = 0;
+    int num_hvx_insns = 0;
     int i;
 
     for (i = 0; i < num_insns; i++) {
@@ -457,6 +627,9 @@ static void gen_exec_counters(packet_t *pkt)
             !GET_ATTRIB(pkt->insn[i].opcode, A_IT_NOP)) {
             num_real_insns++;
         }
+        if (pkt->insn[i].hvx_resource) {
+            num_hvx_insns++;
+        }
     }
 
     tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_PKT_CNT],
@@ -464,6 +637,10 @@ static void gen_exec_counters(packet_t *pkt)
     if (num_real_insns) {
         tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_INSN_CNT],
                         hex_gpr[HEX_REG_QEMU_INSN_CNT], num_real_insns);
+    }
+    if (num_hvx_insns) {
+        tcg_gen_addi_tl(hex_gpr[HEX_REG_QEMU_HVX_CNT],
+                        hex_gpr[HEX_REG_QEMU_HVX_CNT], num_hvx_insns);
     }
 }
 
@@ -476,6 +653,9 @@ static void gen_commit_packet(DisasContext *ctx, packet_t *pkt)
     process_store_log(ctx, pkt);
     process_dczeroa(ctx, pkt);
     end_tb |= process_change_of_flow(ctx, pkt);
+    if (pkt->pkt_has_hvx) {
+        gen_commit_hvx(ctx, pkt);
+    }
     gen_exec_counters(pkt);
 #if HEX_DEBUG
     {
@@ -702,6 +882,14 @@ void hexagon_translate_init(void)
         "is_gather_store_insn");
     hex_gather_issued = tcg_global_mem_new(cpu_env,
         offsetof(CPUHexagonState, gather_issued), "gather_issued");
+    hex_VRegs_updated_tmp = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, VRegs_updated_tmp), "VRegs_updated_tmp");
+    hex_VRegs_updated = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, VRegs_updated), "VRegs_updated");
+    hex_VRegs_select = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, VRegs_select), "VRegs_select");
+    hex_QRegs_updated = tcg_global_mem_new(cpu_env,
+        offsetof(CPUHexagonState, QRegs_updated), "QRegs_updated");
     for (i = 0; i < STORES_MAX; i++) {
         sprintf(store_addr_names[i], "store_addr_%d", i);
         hex_store_addr[i] = tcg_global_mem_new(cpu_env,

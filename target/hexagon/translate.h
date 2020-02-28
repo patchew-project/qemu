@@ -32,6 +32,14 @@ typedef struct DisasContext {
     int ctx_preg_log[PRED_WRITES_MAX];
     int ctx_preg_log_idx;
     uint8_t ctx_store_width[STORES_MAX];
+    int ctx_temp_vregs_idx;
+    int ctx_temp_qregs_idx;
+    int ctx_vreg_log[NUM_VREGS];
+    int ctx_vreg_is_predicated[NUM_VREGS];
+    int ctx_vreg_log_idx;
+    int ctx_qreg_log[NUM_QREGS];
+    int ctx_qreg_is_predicated[NUM_QREGS];
+    int ctx_qreg_log_idx;
 } DisasContext;
 
 static inline void ctx_log_reg_write(DisasContext *ctx, int rnum)
@@ -54,6 +62,22 @@ static inline void ctx_log_pred_write(DisasContext *ctx, int pnum)
     ctx->ctx_preg_log_idx++;
 }
 
+static inline void ctx_log_vreg_write(DisasContext *ctx,
+                                      int rnum, int is_predicated)
+{
+    ctx->ctx_vreg_log[ctx->ctx_vreg_log_idx] = rnum;
+    ctx->ctx_vreg_is_predicated[ctx->ctx_vreg_log_idx] = is_predicated;
+    ctx->ctx_vreg_log_idx++;
+}
+
+static inline void ctx_log_qreg_write(DisasContext *ctx,
+                                      int rnum, int is_predicated)
+{
+    ctx->ctx_qreg_log[ctx->ctx_qreg_log_idx] = rnum;
+    ctx->ctx_qreg_is_predicated[ctx->ctx_qreg_log_idx] = is_predicated;
+    ctx->ctx_qreg_log_idx++;
+}
+
 extern TCGv hex_gpr[TOTAL_PER_THREAD_REGS];
 extern TCGv hex_pred[NUM_PREGS];
 extern TCGv hex_next_PC;
@@ -74,9 +98,15 @@ extern TCGv llsc_val;
 extern TCGv_i64 llsc_val_i64;
 extern TCGv hex_is_gather_store_insn;
 extern TCGv hex_gather_issued;
+extern TCGv hex_VRegs_updated_tmp;
+extern TCGv hex_VRegs_updated;
+extern TCGv hex_VRegs_select;
+extern TCGv hex_QRegs_updated;
 
 void hexagon_translate_init(void);
 extern void gen_exception(int excp);
 extern void gen_exception_debug(void);
+
+extern void gen_memcpy(TCGv_ptr dest, TCGv_ptr src, size_t n);
 
 #endif
