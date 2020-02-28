@@ -26,6 +26,7 @@
 #include "translate.h"
 #include "macros.h"
 #include "genptr_helpers.h"
+#include "helper_overrides.h"
 
 #include "qemu_wrap_generated.h"
 
