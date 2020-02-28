@@ -402,12 +402,16 @@ static int vfio_enable_vectors(VFIOPCIDevice *vdev, bool msix)
          * MSI-X mask and pending bits are emulated, so we want to use the
          * KVM signaling path only when configured and unmasked.
          */
-        if (vdev->msi_vectors[i].use) {
-            if (vdev->msi_vectors[i].virq < 0 ||
-                (msix && msix_is_masked(&vdev->pdev, i))) {
-                fd = event_notifier_get_fd(&vdev->msi_vectors[i].interrupt);
+        VFIOMSIVector *vector = &vdev->msi_vectors[i];
+        if (vector->use) {
+            if (vector->virq < 0 ||
+                (msix && msix_is_masked(&vdev->pdev, i)))
+            {
+                vector->kvm_path_active = false;
+                fd = event_notifier_get_fd(&vector->interrupt);
             } else {
-                fd = event_notifier_get_fd(&vdev->msi_vectors[i].kvm_interrupt);
+                vector->kvm_path_active = true;
+                fd = event_notifier_get_fd(&vector->kvm_interrupt);
             }
         }
 
@@ -521,17 +525,23 @@ static int vfio_msix_vector_do_use(PCIDevice *pdev, unsigned int nr,
     } else {
         Error *err = NULL;
         int32_t fd;
+        bool kvm_path;
 
         if (vector->virq >= 0) {
             fd = event_notifier_get_fd(&vector->kvm_interrupt);
+            kvm_path = true;
         } else {
             fd = event_notifier_get_fd(&vector->interrupt);
+            kvm_path = false;
         }
 
-        if (vfio_set_irq_signaling(&vdev->vbasedev,
-                                     VFIO_PCI_MSIX_IRQ_INDEX, nr,
-                                     VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
-            error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        if (vector->kvm_path_active != kvm_path) {
+            if (vfio_set_irq_signaling(&vdev->vbasedev,
+                                       VFIO_PCI_MSIX_IRQ_INDEX, nr,
+                                       VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
+                error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+            }
+            vector->kvm_path_active = kvm_path;
         }
     }
 
@@ -567,13 +577,15 @@ static void vfio_msix_vector_release(PCIDevice *pdev, unsigned int nr)
      * core will mask the interrupt and set pending bits, allowing it to
      * be re-asserted on unmask.  Nothing to do if already using QEMU mode.
      */
-    if (vector->virq >= 0) {
+    if (vector->virq >= 0 && vector->kvm_path_active) {
         int32_t fd = event_notifier_get_fd(&vector->interrupt);
         Error *err = NULL;
 
         if (vfio_set_irq_signaling(&vdev->vbasedev, VFIO_PCI_MSIX_IRQ_INDEX, nr,
                                    VFIO_IRQ_SET_ACTION_TRIGGER, fd, &err)) {
             error_reportf_err(err, VFIO_MSG_PREFIX, vdev->vbasedev.name);
+        } else {
+            vector->kvm_path_active = false;
         }
     }
 }

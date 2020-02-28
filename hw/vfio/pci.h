@@ -91,6 +91,8 @@ typedef struct VFIOMSIVector {
      */
     EventNotifier interrupt;
     EventNotifier kvm_interrupt;
+    /* Set when the trigger action is set to the KVM bypass FD */
+    bool kvm_path_active;
     struct VFIOPCIDevice *vdev; /* back pointer to device */
     int virq;
     bool use;
