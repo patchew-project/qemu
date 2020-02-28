@@ -107,6 +107,16 @@ def SEMANTICS(tag, beh, sem):
     attribdict[tag] = set()
     tags.append(tag)        # dicts have no order, this is for order
 
+def EXT_SEMANTICS(ext, tag, beh, sem):
+    #print tag,beh,sem
+    extnames[ext] = True
+    extdict[tag] = ext
+    behdict[tag] = beh
+    semdict[tag] = sem
+    attribdict[tag] = set()
+    tags.append(tag)        # dicts have no order, this is for order
+
+
 def ATTRIBUTES(tag, attribstring):
     attribstring = \
         attribstring.replace("ATTRIBS","").replace("(","").replace(")","")
@@ -170,6 +180,9 @@ def compute_tag_immediates(tag):
 ##          P                predicate register
 ##          R                GPR register
 ##          M                modifier register
+##          Q                HVX predicate vector
+##          V                HVX vector register
+##          O                HVX new vector register
 ##      regid can be one of the following
 ##          d, e             destination register
 ##          dd               destination register pair
@@ -201,6 +214,9 @@ def is_readwrite(regid):
 def is_scalar_reg(regtype):
     return regtype in "RPC"
 
+def is_hvx_reg(regtype):
+    return regtype in "VQ"
+
 def is_old_val(regtype, regid, tag):
     return regtype+regid+'V' in semdict[tag]
 
@@ -211,7 +227,8 @@ tagimms = dict(zip(tags, list(map(compute_tag_immediates, tags))))
 
 def need_slot(tag):
     if ('A_CONDEXEC' in attribdict[tag] or
-        'A_STORE' in attribdict[tag]):
+        'A_STORE' in attribdict[tag] or
+        'A_CVI' in attribdict[tag]):
         return 1
     else:
         return 0
@@ -297,19 +314,32 @@ def gen_helper_prototype(f, tag, regs, imms):
             f.write('DEF_HELPER_%s(%s' % (def_helper_size, tag))
 
         ## Generate the qemu DEF_HELPER type for each result
+        ## Iterate over this list twice
+        ## - Emit the scalar result
+        ## - Emit the vector result
         i=0
         for regtype,regid,toss,numregs in regs:
             if (is_written(regid)):
-                gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                if (not is_hvx_reg(regtype)):
+                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
                 i += 1
 
         ## Put the env between the outputs and inputs
         f.write(', env' )
         i += 1
 
+        # Second pass
+        for regtype,regid,toss,numregs in regs:
+            if (is_written(regid)):
+                if (is_hvx_reg(regtype)):
+                    gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
+                    i += 1
+
         ## Generate the qemu type for each input operand (regs and immediates)
         for regtype,regid,toss,numregs in regs:
             if (is_read(regid)):
+                if (is_hvx_reg(regtype) and is_readwrite(regid)):
+                    continue
                 gen_def_helper_opn(f, tag, regtype, regid, toss, numregs, i)
                 i += 1
         for immlett,bits,immshift in imms:
@@ -437,11 +467,33 @@ def genptr_dst_write(f,regtype, regid):
     macro = "WRITE_%sREG_%s" % (regtype, regid)
     f.write("%s(%s%sN, %s%sV);\n" % (macro, regtype, regid, regtype, regid))
 
+def genptr_dst_write_ext(f, regtype, regid, newv="0"):
+    macro = "WRITE_%sREG_%s" % (regtype, regid)
+    f.write("%s(%s%sN, %s%sV,%s);\n" % \
+            (macro, regtype, regid, regtype, regid, newv))
+
 def genptr_dst_write_opn(f,regtype, regid, tag):
     if (is_pair(regid)):
-        genptr_dst_write(f, regtype, regid)
+        if (is_hvx_reg(regtype)):
+            if ('A_CVI_TMP' in attribdict[tag] or
+                'A_CVI_TMP_DST' in attribdict[tag]):
+                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
+            else:
+                genptr_dst_write_ext(f, regtype, regid)
+        else:
+            genptr_dst_write(f, regtype, regid)
     elif (is_single(regid)):
-        genptr_dst_write(f, regtype, regid)
+        if (is_hvx_reg(regtype)):
+            if 'A_CVI_NEW' in attribdict[tag]:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_NEW")
+            elif 'A_CVI_TMP' in attribdict[tag]:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
+            elif 'A_CVI_TMP_DST' in attribdict[tag]:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_TMP")
+            else:
+                genptr_dst_write_ext(f, regtype, regid, "EXT_DFL")
+        else:
+            genptr_dst_write(f, regtype, regid)
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
@@ -504,13 +556,23 @@ def gen_tcg_func(f, tag, regs, imms):
     ## If there is a scalar result, it is the return type
     for regtype,regid,toss,numregs in regs:
         if (is_written(regid)):
+            if (is_hvx_reg(regtype)):
+                continue
             gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i)
             i += 1
     if (i > 0): f.write(", ")
     f.write("cpu_env")
     i=1
     for regtype,regid,toss,numregs in regs:
+        if (is_written(regid)):
+            if (not is_hvx_reg(regtype)):
+                continue
+            gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i)
+            i += 1
+    for regtype,regid,toss,numregs in regs:
         if (is_read(regid)):
+            if (is_hvx_reg(regtype) and is_readwrite(regid)):
+                continue
             gen_helper_call_opn(f, tag, regtype, regid, toss, numregs, i)
             i += 1
     for immlett,bits,immshift in imms:
@@ -573,12 +635,26 @@ def gen_helper_arg_pair(f,regtype,regid,regno):
     if regno >= 0 : f.write(", ")
     f.write("int64_t %s%sV" % (regtype,regid))
 
+def gen_helper_arg_ext(f,regtype,regid,regno):
+    if regno > 0 : f.write(", ")
+    f.write("void *%s%sV_void" % (regtype,regid))
+
+def gen_helper_arg_ext_pair(f,regtype,regid,regno):
+    if regno > 0 : f.write(", ")
+    f.write("void *%s%sV_void" % (regtype,regid))
+
 def gen_helper_arg_opn(f,regtype,regid,i):
     if (is_pair(regid)):
-        gen_helper_arg_pair(f,regtype,regid,i)
+        if (is_hvx_reg(regtype)):
+            gen_helper_arg_ext_pair(f,regtype,regid,i)
+        else:
+            gen_helper_arg_pair(f,regtype,regid,i)
     elif (is_single(regid)):
         if is_old_val(regtype, regid, tag):
-            gen_helper_arg(f,regtype,regid,i)
+            if (is_hvx_reg(regtype)):
+                gen_helper_arg_ext(f,regtype,regid,i)
+            else:
+                gen_helper_arg(f,regtype,regid,i)
         elif is_new_val(regtype, regid, tag):
             gen_helper_arg_new(f,regtype,regid,i)
         else:
@@ -597,13 +673,35 @@ def gen_helper_dest_decl_pair(f,regtype,regid,regno,subfield=""):
     f.write("int64_t %s%sV%s = 0;\n" % \
         (regtype,regid,subfield))
 
+def gen_helper_dest_decl_ext(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_t*)(%s%sV_void) */\n" % \
+        (regtype,regid,regtype,regid))
+
+def gen_helper_dest_decl_ext_pair(f,regtype,regid,regno):
+    f.write("/* %s%sV is *(mmvector_pair_t*))%s%sV_void) */\n" % \
+        (regtype,regid,regtype, regid))
+
 def gen_helper_dest_decl_opn(f,regtype,regid,i):
     if (is_pair(regid)):
-        gen_helper_dest_decl_pair(f,regtype,regid,i)
+        if (is_hvx_reg(regtype)):
+            gen_helper_dest_decl_ext_pair(f,regtype,regid, i)
+        else:
+            gen_helper_dest_decl_pair(f,regtype,regid,i)
     elif (is_single(regid)):
-        gen_helper_dest_decl(f,regtype,regid,i)
+        if (is_hvx_reg(regtype)):
+            gen_helper_dest_decl_ext(f,regtype,regid)
+        else:
+            gen_helper_dest_decl(f,regtype,regid,i)
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
+
+def gen_helper_src_var_ext(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_t*)(%s%sV_void) */\n" % \
+        (regtype,regid,regtype,regid))
+
+def gen_helper_src_var_ext_pair(f,regtype,regid,regno):
+    f.write("/* %s%sV%s is *(mmvector_pair_t*)(%s%sV%s_void) */\n" % \
+        (regtype,regid,regno,regtype,regid,regno))
 
 def gen_helper_return(f,regtype,regid,regno):
     f.write("return %s%sV;\n" % (regtype,regid))
@@ -611,11 +709,25 @@ def gen_helper_return(f,regtype,regid,regno):
 def gen_helper_return_pair(f,regtype,regid,regno):
     f.write("return %s%sV;\n" % (regtype,regid))
 
+def gen_helper_dst_write_ext(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_t*)%s%sV_void */\n" % \
+        (regtype,regid,regtype,regid))
+
+def gen_helper_dst_write_ext_pair(f,regtype,regid):
+    f.write("/* %s%sV is *(mmvector_pair_t*)%s%sV_void */\n" % \
+        (regtype,regid, regtype,regid))
+
 def gen_helper_return_opn(f, regtype, regid, i):
     if (is_pair(regid)):
-        gen_helper_return_pair(f,regtype,regid,i)
+        if (is_hvx_reg(regtype)):
+            gen_helper_dst_write_ext_pair(f,regtype,regid)
+        else:
+            gen_helper_return_pair(f,regtype,regid,i)
     elif (is_single(regid)):
-        gen_helper_return(f,regtype,regid,i)
+        if (is_hvx_reg(regtype)):
+            gen_helper_dst_write_ext(f,regtype,regid)
+        else:
+            gen_helper_return(f,regtype,regid,i)
     else:
         print("Bad register parse: ",regtype,regid,toss,numregs)
 
@@ -654,14 +766,20 @@ def gen_helper_definition(f, tag, regs, imms):
                 % (tag, tag))
     else:
         ## The return type of the function is the type of the destination
-        ## register
+        ## register (if scalar)
         i=0
         for regtype,regid,toss,numregs in regs:
             if (is_written(regid)):
                 if (is_pair(regid)):
-                    gen_helper_return_type_pair(f,regtype,regid,i)
+                    if (is_hvx_reg(regtype)):
+                        continue
+                    else:
+                        gen_helper_return_type_pair(f,regtype,regid,i)
                 elif (is_single(regid)):
-                    gen_helper_return_type(f,regtype,regid,i)
+                    if (is_hvx_reg(regtype)):
+                            continue
+                    else:
+                        gen_helper_return_type(f,regtype,regid,i)
                 else:
                     print("Bad register parse: ",regtype,regid,toss,numregs)
             i += 1
@@ -670,10 +788,30 @@ def gen_helper_definition(f, tag, regs, imms):
             f.write("void")
         f.write(" HELPER(%s)(CPUHexagonState *env" % tag)
 
+        ## Arguments include the vector destination operands
         i = 1
+        for regtype,regid,toss,numregs in regs:
+            if (is_written(regid)):
+                if (is_pair(regid)):
+                    if (is_hvx_reg(regtype)):
+                        gen_helper_arg_ext_pair(f,regtype,regid,i)
+                    else:
+                        continue
+                elif (is_single(regid)):
+                    if (is_hvx_reg(regtype)):
+                        gen_helper_arg_ext(f,regtype,regid,i)
+                    else:
+                        # This is the return value of the function
+                        continue
+                else:
+                    print("Bad register parse: ",regtype,regid,toss,numregs)
+                i += 1
+
         ## Arguments to the helper function are the source regs and immediates
         for regtype,regid,toss,numregs in regs:
             if (is_read(regid)):
+                if (is_hvx_reg(regtype) and is_readwrite(regid)):
+                    continue
                 gen_helper_arg_opn(f,regtype,regid,i)
                 i += 1
         for immlett,bits,immshift in imms:
@@ -695,6 +833,17 @@ def gen_helper_definition(f, tag, regs, imms):
             if (is_writeonly(regid)):
                 gen_helper_dest_decl_opn(f,regtype,regid,i)
             i += 1
+
+        for regtype,regid,toss,numregs in regs:
+            if (is_read(regid)):
+                if (is_pair(regid)):
+                    if (is_hvx_reg(regtype)):
+                        gen_helper_src_var_ext_pair(f,regtype,regid,i)
+                elif (is_single(regid)):
+                    if (is_hvx_reg(regtype)):
+                        gen_helper_src_var_ext(f,regtype,regid)
+                else:
+                    print("Bad register parse: ",regtype,regid,toss,numregs)
 
         if 'A_FPOP' in attribdict[tag]:
             f.write('fFPOP_START();\n');
