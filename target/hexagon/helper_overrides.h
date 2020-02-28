@@ -401,4 +401,239 @@
 #define fWRAP_L2_loadalignb_pi(GENHLPR, SHORTCODE) \
     fWRAP_loadalignb(GET_EA_pi)
 
+/*
+ * Predicated loads
+ * Here is a primer to understand the tag names
+ *
+ * Predicate used
+ *      t        true "old" value                  if (p0) r0 = memb(r2+#0)
+ *      f        false "old" value                 if (!p0) r0 = memb(r2+#0)
+ *      tnew     true "new" value                  if (p0.new) r0 = memb(r2+#0)
+ *      fnew     false "new" value                 if (!p0.new) r0 = memb(r2+#0)
+ */
+#define fWRAP_PRED_LOAD(GET_EA, PRED, SIZE, SIGN) \
+    do { \
+        TCGv LSB = tcg_temp_local_new(); \
+        TCGLabel *label = gen_new_label(); \
+        GET_EA; \
+        PRED;  \
+        PRED_LOAD_CANCEL(LSB, EA); \
+        tcg_gen_movi_tl(RdV, 0); \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
+            fLOAD(1, SIZE, SIGN, EA, RdV); \
+        gen_set_label(label); \
+        tcg_temp_free(LSB); \
+    } while (0)
+
+#define fWRAP_L2_ploadrubt_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLD(PtV), 1, u)
+#define fWRAP_L2_ploadrubt_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLD(PtV), 1, u)
+#define fWRAP_L2_ploadrubf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLDNOT(PtV), 1, u)
+#define fWRAP_L2_ploadrubf_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLDNOT(PtV), 1, u)
+#define fWRAP_L2_ploadrubtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEW(PtN), 1, u)
+#define fWRAP_L2_ploadrubfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEWNOT(PtN), 1, u)
+#define fWRAP_L4_ploadrubt_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLD(PvV), 1, u)
+#define fWRAP_L4_ploadrubf_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLDNOT(PvV), 1, u)
+#define fWRAP_L4_ploadrubtnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEW(PvN), 1, u)
+#define fWRAP_L4_ploadrubfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEWNOT(PvN), 1, u)
+#define fWRAP_L2_ploadrubtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEW(PtN), 1, u)
+#define fWRAP_L2_ploadrubfnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEWNOT(PtN), 1, u)
+#define fWRAP_L4_ploadrubt_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLD(PtV), 1, u)
+#define fWRAP_L4_ploadrubf_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLDNOT(PtV), 1, u)
+#define fWRAP_L4_ploadrubtnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEW(PtN), 1, u)
+#define fWRAP_L4_ploadrubfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEWNOT(PtN), 1, u)
+#define fWRAP_L2_ploadrbt_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLD(PtV), 1, s)
+#define fWRAP_L2_ploadrbt_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLD(PtV), 1, s)
+#define fWRAP_L2_ploadrbf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLDNOT(PtV), 1, s)
+#define fWRAP_L2_ploadrbf_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLDNOT(PtV), 1, s)
+#define fWRAP_L2_ploadrbtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEW(PtN), 1, s)
+#define fWRAP_L2_ploadrbfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEWNOT(PtN), 1, s)
+#define fWRAP_L4_ploadrbt_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLD(PvV), 1, s)
+#define fWRAP_L4_ploadrbf_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLDNOT(PvV), 1, s)
+#define fWRAP_L4_ploadrbtnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEW(PvN), 1, s)
+#define fWRAP_L4_ploadrbfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEWNOT(PvN), 1, s)
+#define fWRAP_L2_ploadrbtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEW(PtN), 1, s)
+#define fWRAP_L2_ploadrbfnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD({ fEA_REG(RxV); fPM_I(RxV, siV); }, fLSBNEWNOT(PtN), 1, s)
+#define fWRAP_L4_ploadrbt_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLD(PtV), 1, s)
+#define fWRAP_L4_ploadrbf_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLDNOT(PtV), 1, s)
+#define fWRAP_L4_ploadrbtnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEW(PtN), 1, s)
+#define fWRAP_L4_ploadrbfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEWNOT(PtN), 1, s)
+
+#define fWRAP_L2_ploadruht_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLD(PtV), 2, u)
+#define fWRAP_L2_ploadruht_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLD(PtV), 2, u)
+#define fWRAP_L2_ploadruhf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLDNOT(PtV), 2, u)
+#define fWRAP_L2_ploadruhf_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLDNOT(PtV), 2, u)
+#define fWRAP_L2_ploadruhtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEW(PtN), 2, u)
+#define fWRAP_L2_ploadruhfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEWNOT(PtN), 2, u)
+#define fWRAP_L4_ploadruht_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLD(PvV), 2, u)
+#define fWRAP_L4_ploadruhf_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLDNOT(PvV), 2, u)
+#define fWRAP_L4_ploadruhtnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEW(PvN), 2, u)
+#define fWRAP_L4_ploadruhfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEWNOT(PvN), 2, u)
+#define fWRAP_L2_ploadruhtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEW(PtN), 2, u)
+#define fWRAP_L2_ploadruhfnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEWNOT(PtN), 2, u)
+#define fWRAP_L4_ploadruht_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLD(PtV), 2, u)
+#define fWRAP_L4_ploadruhf_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLDNOT(PtV), 2, u)
+#define fWRAP_L4_ploadruhtnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEW(PtN), 2, u)
+#define fWRAP_L4_ploadruhfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEWNOT(PtN), 2, u)
+#define fWRAP_L2_ploadrht_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLD(PtV), 2, s)
+#define fWRAP_L2_ploadrht_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLD(PtV), 2, s)
+#define fWRAP_L2_ploadrhf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLDNOT(PtV), 2, s)
+#define fWRAP_L2_ploadrhf_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLDNOT(PtV), 2, s)
+#define fWRAP_L2_ploadrhtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEW(PtN), 2, s)
+#define fWRAP_L2_ploadrhfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEWNOT(PtN), 2, s)
+#define fWRAP_L4_ploadrht_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLD(PvV), 2, s)
+#define fWRAP_L4_ploadrhf_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLDNOT(PvV), 2, s)
+#define fWRAP_L4_ploadrhtnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEW(PvN), 2, s)
+#define fWRAP_L4_ploadrhfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEWNOT(PvN), 2, s)
+#define fWRAP_L2_ploadrhtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEW(PtN), 2, s)
+#define fWRAP_L2_ploadrhfnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEWNOT(PtN), 2, s)
+#define fWRAP_L4_ploadrht_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLD(PtV), 2, s)
+#define fWRAP_L4_ploadrhf_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLDNOT(PtV), 2, s)
+#define fWRAP_L4_ploadrhtnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEW(PtN), 2, s)
+#define fWRAP_L4_ploadrhfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEWNOT(PtN), 2, s)
+
+#define fWRAP_L2_ploadrit_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLD(PtV), 4, u)
+#define fWRAP_L2_ploadrit_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLD(PtV), 4, u)
+#define fWRAP_L2_ploadrif_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBOLDNOT(PtV), 4, u)
+#define fWRAP_L2_ploadrif_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBOLDNOT(PtV), 4, u)
+#define fWRAP_L2_ploadritnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEW(PtN), 4, u)
+#define fWRAP_L2_ploadrifnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RI(RsV, uiV), fLSBNEWNOT(PtN), 4, u)
+#define fWRAP_L4_ploadrit_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLD(PvV), 4, u)
+#define fWRAP_L4_ploadrif_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBOLDNOT(PvV), 4, u)
+#define fWRAP_L4_ploadritnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEW(PvN), 4, u)
+#define fWRAP_L4_ploadrifnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_RRs(RsV, RtV, uiV), fLSBNEWNOT(PvN), 4, u)
+#define fWRAP_L2_ploadritnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEW(PtN), 4, u)
+#define fWRAP_L2_ploadrifnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(GET_EA_pi, fLSBNEWNOT(PtN), 4, u)
+#define fWRAP_L4_ploadrit_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLD(PtV), 4, u)
+#define fWRAP_L4_ploadrif_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBOLDNOT(PtV), 4, u)
+#define fWRAP_L4_ploadritnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEW(PtN), 4, u)
+#define fWRAP_L4_ploadrifnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD(fEA_IMM(uiV), fLSBNEWNOT(PtN), 4, u)
+
+/* Predicated loads into a register pair */
+#define fWRAP_PRED_LOAD_PAIR(GET_EA, PRED) \
+    do { \
+        TCGv LSB = tcg_temp_local_new(); \
+        TCGLabel *label = gen_new_label(); \
+        GET_EA; \
+        PRED;  \
+        PRED_LOAD_CANCEL(LSB, EA); \
+        tcg_gen_movi_i64(RddV, 0); \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
+            fLOAD(1, 8, u, EA, RddV); \
+        gen_set_label(label); \
+        tcg_temp_free(LSB); \
+    } while (0)
+
+#define fWRAP_L2_ploadrdt_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RI(RsV, uiV), fLSBOLD(PtV))
+#define fWRAP_L2_ploadrdt_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(GET_EA_pi, fLSBOLD(PtV))
+#define fWRAP_L2_ploadrdf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RI(RsV, uiV), fLSBOLDNOT(PtV))
+#define fWRAP_L2_ploadrdf_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(GET_EA_pi, fLSBOLDNOT(PtV))
+#define fWRAP_L2_ploadrdtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RI(RsV, uiV), fLSBNEW(PtN))
+#define fWRAP_L2_ploadrdfnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RI(RsV, uiV), fLSBNEWNOT(PtN))
+#define fWRAP_L4_ploadrdt_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RRs(RsV, RtV, uiV), fLSBOLD(PvV))
+#define fWRAP_L4_ploadrdf_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RRs(RsV, RtV, uiV), fLSBOLDNOT(PvV))
+#define fWRAP_L4_ploadrdtnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RRs(RsV, RtV, uiV), fLSBNEW(PvN))
+#define fWRAP_L4_ploadrdfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_RRs(RsV, RtV, uiV), fLSBNEWNOT(PvN))
+#define fWRAP_L2_ploadrdtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(GET_EA_pi, fLSBNEW(PtN))
+#define fWRAP_L2_ploadrdfnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(GET_EA_pi, fLSBNEWNOT(PtN))
+#define fWRAP_L4_ploadrdt_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_IMM(uiV), fLSBOLD(PtV))
+#define fWRAP_L4_ploadrdf_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_IMM(uiV), fLSBOLDNOT(PtV))
+#define fWRAP_L4_ploadrdtnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_IMM(uiV), fLSBNEW(PtN))
+#define fWRAP_L4_ploadrdfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_LOAD_PAIR(fEA_IMM(uiV), fLSBNEWNOT(PtN))
+
 #endif
