@@ -98,7 +98,8 @@ typedef struct {
 } MaltaState;
 
 static struct _loaderparams {
-    int ram_size, ram_low_size;
+    unsigned int ram_low_size;
+    ram_addr_t ram_size;
     const char *kernel_filename;
     const char *kernel_cmdline;
     const char *initrd_filename;
@@ -1023,6 +1024,7 @@ static int64_t load_kernel(void)
 {
     int64_t kernel_entry, kernel_high, initrd_size;
     long kernel_size;
+    char mem_cmdline[128];
     ram_addr_t initrd_offset;
     int big_endian;
     uint32_t *prom_buf;
@@ -1099,20 +1101,28 @@ static int64_t load_kernel(void)
     prom_buf = g_malloc(prom_size);
 
     prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_filename);
+
+    /*
+     * Always use cmdline to overwrite mem layout
+     * as kernel may reject large emesize.
+     */
+    sprintf(&mem_cmdline[0],
+        "mem=0x10000000@0x00000000 mem=0x%" PRIx64 "@0x90000000",
+        loaderparams.ram_size - 0x10000000);
     if (initrd_size > 0) {
         prom_set(prom_buf, prom_index++,
-                 "rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
-                 xlate_to_kseg0(NULL, initrd_offset),
+                 "%s rd_start=0x%" PRIx64 " rd_size=%" PRId64 " %s",
+                 &mem_cmdline[0], xlate_to_kseg0(NULL, initrd_offset),
                  initrd_size, loaderparams.kernel_cmdline);
     } else {
-        prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_cmdline);
+        prom_set(prom_buf, prom_index++, "%s %s",&mem_cmdline[0] ,loaderparams.kernel_cmdline);
     }
 
     prom_set(prom_buf, prom_index++, "memsize");
     prom_set(prom_buf, prom_index++, "%u", loaderparams.ram_low_size);
 
     prom_set(prom_buf, prom_index++, "ememsize");
-    prom_set(prom_buf, prom_index++, "%u", loaderparams.ram_size);
+    prom_set(prom_buf, prom_index++, "%lu", loaderparams.ram_size);
 
     prom_set(prom_buf, prom_index++, "modetty0");
     prom_set(prom_buf, prom_index++, "38400n8r");
@@ -1253,12 +1263,14 @@ void mips_malta_init(MachineState *machine)
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
 
-    /* allocate RAM */
+#ifdef TARGET_MIPS32
+    /* MIPS32 won't accept more than 2GiB RAM due to limited address space */
     if (ram_size > 2 * GiB) {
         error_report("Too much memory for this machine: %" PRId64 "MB,"
                      " maximum 2048MB", ram_size / MiB);
         exit(1);
     }
+#endif
 
     /* register RAM at high address where it is undisturbed by IO */
     memory_region_add_subregion(system_memory, 0x80000000, machine->ram);
