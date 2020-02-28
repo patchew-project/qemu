@@ -30,6 +30,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #include "qemu-common.h"
 #include "exec/cpu-defs.h"
 #include "hex_regs.h"
+#include "mmvec/mmvec.h"
 
 #define NUM_PREGS 4
 #ifdef CONFIG_USER_ONLY
@@ -42,6 +43,7 @@ typedef struct CPUHexagonState CPUHexagonState;
 #define STORES_MAX 2
 #define REG_WRITES_MAX 32
 #define PRED_WRITES_MAX 5                   /* 4 insns + endloop */
+#define VSTORES_MAX 2
 
 #define TYPE_HEXAGON_CPU "hexagon-cpu"
 
@@ -60,6 +62,19 @@ struct MemLog {
     uint64_t data64;
 };
 
+typedef struct {
+    target_ulong va;
+    int size;
+    mmvector_t mask;
+    mmvector_t data;
+} vstorelog_t;
+
+typedef struct {
+    unsigned char cdata[256];
+    uint32_t range;
+    uint8_t format;
+} mem_access_info_t;
+
 #define EXEC_STATUS_OK          0x0000
 #define EXEC_STATUS_STOP        0x0002
 #define EXEC_STATUS_REPLAY      0x0010
@@ -71,6 +86,9 @@ struct MemLog {
 #define REPLAY_DETECTED         (env->status & EXEC_STATUS_REPLAY)
 #define CLEAR_EXCEPTION         (env->status &= (~EXEC_STATUS_EXCEPTION))
 #define SET_EXCEPTION           (env->status |= EXEC_STATUS_EXCEPTION)
+
+/* This needs to be large enough for all the reads and writes in a packet */
+#define TEMP_VECTORS_MAX        25
 
 struct CPUHexagonState {
     target_ulong gpr[TOTAL_PER_THREAD_REGS];
@@ -110,6 +128,30 @@ struct CPUHexagonState {
 
     target_ulong is_gather_store_insn;
     target_ulong gather_issued;
+
+    mmvector_t VRegs[NUM_VREGS];
+    mmvector_t future_VRegs[NUM_VREGS];
+    mmvector_t tmp_VRegs[NUM_VREGS];
+
+    VRegMask VRegs_updated_tmp;
+    VRegMask VRegs_updated;
+    VRegMask VRegs_select;
+
+    mmqreg_t QRegs[NUM_QREGS];
+    mmqreg_t future_QRegs[NUM_QREGS];
+    QRegMask QRegs_updated;
+
+    vstorelog_t vstore[VSTORES_MAX];
+    uint8_t store_pending[VSTORES_MAX];
+    uint8_t vstore_pending[VSTORES_MAX];
+    uint8_t vtcm_pending;
+    vtcm_storelog_t vtcm_log;
+    mem_access_info_t mem_access[SLOTS_MAX];
+
+    int status;
+
+    mmvector_t temp_vregs[TEMP_VECTORS_MAX];
+    mmqreg_t temp_qregs[TEMP_VECTORS_MAX];
 };
 
 #define HEXAGON_CPU_CLASS(klass) \

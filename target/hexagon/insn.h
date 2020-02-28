@@ -49,12 +49,16 @@ struct Instruction {
     size4u_t is_dcfetch:1;   /* Has an A_DCFETCH attribute */
     size4u_t is_load:1;      /* Has A_LOAD attribute */
     size4u_t is_store:1;     /* Has A_STORE attribute */
+    size4u_t is_vmem_ld:1;   /* Has an A_LOAD and an A_VMEM attribute */
+    size4u_t is_vmem_st:1;   /* Has an A_STORE and an A_VMEM attribute */
+    size4u_t is_scatgath:1;  /* Has an A_CVI_GATHER or A_CVI_SCATTER attr */
     size4u_t is_memop:1;     /* Has A_MEMOP attribute */
     size4u_t is_dealloc:1;   /* Is a dealloc return or dealloc frame */
     size4u_t is_aia:1;       /* Is a post increment */
     size4u_t is_endloop:1;   /* This is an end of loop */
     size4u_t is_2nd_jump:1;  /* This is the second jump of a dual-jump packet */
     size4u_t new_value_producer_slot:4;
+    size4u_t hvx_resource:8;
     size4s_t immed[IMMEDS_MAX];    /* immediate field */
 };
 
@@ -121,9 +125,21 @@ struct Packet {
 
     /* Misc */
     size8u_t num_rops:4;            /* Num risc ops in the packet */
+    size8u_t pkt_has_vtcm_access:1; /* Is a vmem access going to VTCM */
     size8u_t pkt_access_count:2;    /* Is a vmem access going to VTCM */
     size8u_t pkt_ldaccess_l2:2;     /* vmem ld access to l2 */
     size8u_t pkt_ldaccess_vtcm:2;   /* vmem ld access to vtcm */
+
+    /* Count the types of HVX instructions */
+    size8u_t pkt_hvx_va:4;
+    size8u_t pkt_hvx_vx:4;
+    size8u_t pkt_hvx_vp:4;
+    size8u_t pkt_hvx_vs:4;
+    size8u_t pkt_hvx_all:4;
+    size8u_t pkt_hvx_none:4;
+
+    size8u_t pkt_has_hvx:1;
+    size8u_t pkt_has_extension:1;
 
     insn_t insn[INSTRUCTIONS_MAX];
 };
