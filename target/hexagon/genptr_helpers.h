@@ -334,4 +334,56 @@ static inline TCGv gen_set_bit(int i, TCGv result, TCGv src)
     return result;
 }
 
+static inline void gen_load_locked4u(TCGv dest, TCGv vaddr, int mem_index)
+{
+    tcg_gen_qemu_ld32u(dest, vaddr, mem_index);
+    tcg_gen_mov_tl(llsc_addr, vaddr);
+    tcg_gen_mov_tl(llsc_val, dest);
+}
+
+static inline void gen_load_locked8u(TCGv_i64 dest, TCGv vaddr, int mem_index)
+{
+    tcg_gen_qemu_ld64(dest, vaddr, mem_index);
+    tcg_gen_mov_tl(llsc_addr, vaddr);
+    tcg_gen_mov_i64(llsc_val_i64, dest);
+}
+
+static inline void gen_store_conditional4(CPUHexagonState *env,
+                                          DisasContext *ctx, int prednum,
+                                          TCGv pred, TCGv vaddr, TCGv src)
+{
+    TCGv tmp = tcg_temp_new();
+    TCGLabel *fail = gen_new_label();
+
+    tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPUHexagonState, llsc_addr));
+    tcg_gen_brcond_tl(TCG_COND_NE, vaddr, tmp, fail);
+    tcg_gen_movi_tl(tmp, prednum);
+    tcg_gen_st_tl(tmp, cpu_env, offsetof(CPUHexagonState, llsc_reg));
+    tcg_gen_st_tl(src, cpu_env, offsetof(CPUHexagonState, llsc_newval));
+    gen_exception(HEX_EXCP_SC4);
+
+    gen_set_label(fail);
+    tcg_gen_movi_tl(pred, 0);
+    tcg_temp_free(tmp);
+}
+
+static inline void gen_store_conditional8(CPUHexagonState *env,
+                                          DisasContext *ctx, int prednum,
+                                          TCGv pred, TCGv vaddr, TCGv_i64 src)
+{
+    TCGv tmp = tcg_temp_new();
+    TCGLabel *fail = gen_new_label();
+
+    tcg_gen_ld_tl(tmp, cpu_env, offsetof(CPUHexagonState, llsc_addr));
+    tcg_gen_brcond_tl(TCG_COND_NE, vaddr, tmp, fail);
+    tcg_gen_movi_tl(tmp, prednum);
+    tcg_gen_st_tl(tmp, cpu_env, offsetof(CPUHexagonState, llsc_reg));
+    tcg_gen_st_i64(src, cpu_env, offsetof(CPUHexagonState, llsc_newval_i64));
+    gen_exception(HEX_EXCP_SC8);
+
+    gen_set_label(fail);
+    tcg_gen_movi_tl(pred, 0);
+    tcg_temp_free(tmp);
+}
+
 #endif
