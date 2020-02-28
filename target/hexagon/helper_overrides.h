@@ -877,4 +877,58 @@
 #define fWRAP_S2_storerinewgp(GENHLPR, SHORTCODE) \
     fWRAP_STORE(SHORTCODE)
 
+/* Predicated stores */
+#define fWRAP_PRED_STORE(GET_EA, PRED, SRC, SIZE, INC) \
+    do { \
+        TCGv LSB = tcg_temp_local_new(); \
+        TCGv NEWREG_ST = tcg_temp_local_new(); \
+        TCGv BYTE = tcg_temp_local_new(); \
+        TCGv HALF = tcg_temp_local_new(); \
+        TCGLabel *label = gen_new_label(); \
+        GET_EA; \
+        PRED;  \
+        PRED_STORE_CANCEL(LSB, EA); \
+        tcg_gen_brcondi_tl(TCG_COND_EQ, LSB, 0, label); \
+            INC; \
+            fSTORE(1, SIZE, EA, SRC); \
+        gen_set_label(label); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free(NEWREG_ST); \
+        tcg_temp_free(BYTE); \
+        tcg_temp_free(HALF); \
+    } while (0)
+
+#define NOINC    do {} while (0)
+
+#define fWRAP_S4_pstorerinewfnew_rr(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RRs(RsV, RuV, uiV), fLSBNEWNOT(PvN), \
+                     hex_new_value[NtX], 4, NOINC)
+#define fWRAP_S2_pstorerdtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
+                     RttV, 8, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
+#define fWRAP_S4_pstorerdtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
+                     RttV, 8, NOINC)
+#define fWRAP_S4_pstorerbtnew_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBNEW(PvN), \
+                     fGETBYTE(0, RtV), 1, NOINC)
+#define fWRAP_S2_pstorerhtnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
+                     fGETHALF(0, RtV), 2, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
+#define fWRAP_S2_pstoreritnew_pi(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_REG(RxV), fLSBNEW(PvN), \
+                     RtV, 4, tcg_gen_addi_tl(RxV, RxV, IMMNO(0)))
+#define fWRAP_S2_pstorerif_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
+                     RtV, 4, NOINC)
+#define fWRAP_S4_pstorerit_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBOLD(PvV), \
+                     RtV, 4, NOINC)
+#define fWRAP_S2_pstorerinewf_io(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_RI(RsV, uiV), fLSBOLDNOT(PvV), \
+                     hex_new_value[NtX], 4, NOINC)
+#define fWRAP_S4_pstorerbnewfnew_abs(GENHLPR, SHORTCODE) \
+    fWRAP_PRED_STORE(fEA_IMM(uiV), fLSBNEWNOT(PvN), \
+                     fGETBYTE(0, hex_new_value[NtX]), 1, NOINC)
+
 #endif
