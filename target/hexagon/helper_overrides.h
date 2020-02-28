@@ -1230,4 +1230,101 @@
         gen_helper_vacsh_pred(PeV, cpu_env, RxxV, RssV, RttV); \
     } while (0)
 
+/*
+ * The following fWRAP macros are to speed up qemu
+ * We can add more over time
+ */
+
+/*
+ * Add or subtract with carry.
+ * Predicate register is used as an extra input and output.
+ * r5:4 = add(r1:0, r3:2, p1):carry
+ */
+#define fWRAP_A4_addp_c(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGv_i64 LSB_i64 = tcg_temp_new_i64(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_add_i64(RddV, RssV, RttV); \
+        fLSBOLD(PxV); \
+        tcg_gen_extu_i32_i64(LSB_i64, LSB); \
+        tcg_gen_add_i64(RddV, RddV, LSB_i64); \
+        fCARRY_FROM_ADD(RssV, RttV, LSB_i64); \
+        tcg_gen_extrl_i64_i32(tmp, RssV); \
+        f8BITSOF(PxV, tmp); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free_i64(LSB_i64); \
+        tcg_temp_free_i64(tmp_i64); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* r5:4 = sub(r1:0, r3:2, p1):carry */
+#define fWRAP_A4_subp_c(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGv_i64 LSB_i64 = tcg_temp_new_i64(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        TCGv tmp = tcg_temp_new(); \
+        tcg_gen_not_i64(tmp_i64, RttV); \
+        tcg_gen_add_i64(RddV, RssV, tmp_i64); \
+        fLSBOLD(PxV); \
+        tcg_gen_extu_i32_i64(LSB_i64, LSB); \
+        tcg_gen_add_i64(RddV, RddV, LSB_i64); \
+        fCARRY_FROM_ADD(RssV, tmp_i64, LSB_i64); \
+        tcg_gen_extrl_i64_i32(tmp, RssV); \
+        f8BITSOF(PxV, tmp); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free_i64(LSB_i64); \
+        tcg_temp_free_i64(tmp_i64); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/*
+ * Compare each of the 8 unsigned bytes
+ * The minimum is places in each byte of the destination.
+ * Each bit of the predicate is set true if the bit from the first operand
+ * is greater than the bit from the second operand.
+ * r5:4,p1 = vminub(r1:0, r3:2)
+ */
+#define fWRAP_A6_vminub_RdP(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv BYTE = tcg_temp_new(); \
+        TCGv left = tcg_temp_new(); \
+        TCGv right = tcg_temp_new(); \
+        TCGv tmp = tcg_temp_new(); \
+        int i; \
+        tcg_gen_movi_tl(PeV, 0); \
+        tcg_gen_movi_i64(RddV, 0); \
+        for (i = 0; i < 8; i++) { \
+            fGETUBYTE(i, RttV); \
+            tcg_gen_mov_tl(left, BYTE); \
+            fGETUBYTE(i, RssV); \
+            tcg_gen_mov_tl(right, BYTE); \
+            tcg_gen_setcond_tl(TCG_COND_GT, tmp, left, right); \
+            fSETBIT(i, PeV, tmp); \
+            fMIN(tmp, left, right); \
+            fSETBYTE(i, RddV, tmp); \
+        } \
+        tcg_temp_free(BYTE); \
+        tcg_temp_free(left); \
+        tcg_temp_free(right); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_J2_call(GENHLPR, SHORTCODE) \
+    gen_call(riV)
+#define fWRAP_J2_callr(GENHLPR, SHORTCODE) \
+    gen_callr(RsV)
+
+#define fWRAP_J2_loop0r(GENHLPR, SHORTCODE) \
+    gen_loop0r(RsV, riV, insn)
+#define fWRAP_J2_loop1r(GENHLPR, SHORTCODE) \
+    gen_loop1r(RsV, riV, insn)
+
+#define fWRAP_J2_endloop0(GENHLPR, SHORTCODE) \
+    gen_endloop0()
+#define fWRAP_J2_endloop1(GENHLPR, SHORTCODE) \
+    gen_endloop1()
+
 #endif
