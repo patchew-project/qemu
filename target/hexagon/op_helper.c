@@ -26,6 +26,8 @@
 #include "arch.h"
 #include "fma_emu.h"
 #include "conv_emu.h"
+#include "mmvec/mmvec.h"
+#include "mmvec/macros.h"
 
 #if COUNT_HEX_HELPERS
 #include "opcodes.h"
@@ -196,6 +198,51 @@ void HELPER(debug_check_store_width)(CPUHexagonState *env, int slot, int check)
         HEX_DEBUG_LOG("ERROR: %d != %d\n",
                       env->mem_log_stores[slot].width, check);
         g_assert_not_reached();
+    }
+}
+
+void HELPER(commit_hvx_stores)(CPUHexagonState *env)
+{
+    int i;
+
+    /* Normal (possibly masked) vector store */
+    for (i = 0; i < VSTORES_MAX; i++) {
+        if (env->vstore_pending[i]) {
+            env->vstore_pending[i] = 0;
+            target_ulong va = env->vstore[i].va;
+            int size = env->vstore[i].size;
+            for (int j = 0; j < size; j++) {
+                if (env->vstore[i].mask.ub[j]) {
+                    put_user_u8(env->vstore[i].data.ub[j], va + j);
+                }
+            }
+        }
+    }
+
+    /* Scatter store */
+    if (env->vtcm_pending) {
+        env->vtcm_pending = 0;
+        if (env->vtcm_log.op) {
+            /* Need to perform the scatter read/modify/write at commit time */
+            if (env->vtcm_log.op_size == 2) {
+                SCATTER_OP_WRITE_TO_MEM(size2u_t);
+            } else if (env->vtcm_log.op_size == 4) {
+                /* Word Scatter += */
+                SCATTER_OP_WRITE_TO_MEM(size4u_t);
+            } else {
+                g_assert_not_reached();
+            }
+        } else {
+            for (int i = 0; i < env->vtcm_log.size; i++) {
+                if (env->vtcm_log.mask.ub[i] != 0) {
+                    put_user_u8(env->vtcm_log.data.ub[i], env->vtcm_log.va[i]);
+                    env->vtcm_log.mask.ub[i] = 0;
+                    env->vtcm_log.data.ub[i] = 0;
+                    env->vtcm_log.offsets.ub[i] = 0;
+                }
+
+            }
+        }
     }
 }
 
@@ -413,6 +460,34 @@ void HELPER(debug_value)(CPUHexagonState *env, int32_t value)
 void HELPER(debug_value_i64)(CPUHexagonState *env, int64_t value)
 {
     HEX_DEBUG_LOG("value = 0x%lx\n", value);
+}
+
+/* Log a write to HVX vector */
+static inline void log_vreg_write(CPUHexagonState *env, int num, void *var,
+                                      int vnew, uint32_t slot)
+{
+    HEX_DEBUG_LOG("log_vreg_write[%d]", num);
+    if (env->slot_cancelled & (1 << slot)) {
+        HEX_DEBUG_LOG(" CANCELLED");
+    }
+    HEX_DEBUG_LOG("\n");
+
+    if (!(env->slot_cancelled & (1 << slot))) {
+        VRegMask regnum_mask = ((VRegMask)1) << num;
+        env->VRegs_updated |=      (vnew != EXT_TMP) ? regnum_mask : 0;
+        env->VRegs_select |=       (vnew == EXT_NEW) ? regnum_mask : 0;
+        env->VRegs_updated_tmp  |= (vnew == EXT_TMP) ? regnum_mask : 0;
+        env->future_VRegs[num] = *(mmvector_t *)var;
+        if (vnew == EXT_TMP) {
+            env->tmp_VRegs[num] = env->future_VRegs[num];
+        }
+    }
+}
+
+static inline void log_mmvector_write(CPUHexagonState *env, int num,
+                                      mmvector_t var, int vnew, uint32_t slot)
+{
+    log_vreg_write(env, num, &var, vnew, slot);
 }
 
 static void cancel_slot(CPUHexagonState *env, uint32_t slot)
