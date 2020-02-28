@@ -161,6 +161,13 @@ decode_insns_tablewalk(insn_t *insn, dectree_table_t *table, size4u_t encoding)
         }
         decode_op(insn, opc, encoding);
         return 1;
+    } else if (table->table[i].type == DECTREE_EXTSPACE) {
+        size4u_t active_ext;
+        /*
+         * For now, HVX will be the only coproc
+         */
+        active_ext = 4;
+        return decode_insns_tablewalk(insn, ext_trees[active_ext], encoding);
     } else {
         return 0;
     }
@@ -356,10 +363,13 @@ static int do_decode_packet(int max_words, const size4u_t *words, packet_t *pkt)
             pkt->pkt_has_payload = 1;
         }
     }
+    pkt->pkt_has_extension = 0;
     pkt->pkt_has_initloop = 0;
     pkt->pkt_has_initloop0 = 0;
     pkt->pkt_has_initloop1 = 0;
     for (i = 0; i < num_insns; i++) {
+        pkt->pkt_has_extension |=
+            GET_ATTRIB(pkt->insn[i].opcode, A_EXTENSION);
         pkt->pkt_has_initloop0 |=
             GET_ATTRIB(pkt->insn[i].opcode, A_HWLOOP0_SETUP);
         pkt->pkt_has_initloop1 |=
@@ -390,6 +400,10 @@ static int do_decode_packet(int max_words, const size4u_t *words, packet_t *pkt)
     errors += decode_remove_extenders(pkt);
     errors += decode_set_slot_number(pkt);
     errors += decode_fill_newvalue_regno(pkt);
+
+    if (pkt->pkt_has_extension) {
+        errors += mmvec_ext_decode_checks(pkt);
+    }
 
     errors += decode_shuffle_for_execution(pkt);
     errors += decode_split_cmpjump(pkt);
