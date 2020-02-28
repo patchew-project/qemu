@@ -1200,4 +1200,34 @@
 #define fWRAP_SL2_return_fnew(GENHLPR, SHORTCODE) \
     fWRAP_COND_RETURN_SUBINSN(fLSBNEW0NOT)
 
+/*
+ * Mathematical operations with more than one definition require
+ * special handling
+ */
+/*
+ * Approximate reciprocal
+ * r3,p1 = sfrecipa(r0, r1)
+ */
+#define fWRAP_F2_sfrecipa(GENHLPR, SHORTCODE) \
+    do { \
+        gen_helper_sfrecipa_val(RdV, cpu_env, RsV, RtV);  \
+        gen_helper_sfrecipa_pred(PeV, cpu_env, RsV, RtV);  \
+    } while (0)
+
+/*
+ * Approximation of the reciprocal square root
+ * r1,p0 = sfinvsqrta(r0)
+ */
+#define fWRAP_F2_sfinvsqrta(GENHLPR, SHORTCODE) \
+    do { \
+        gen_helper_sfinvsqrta_val(RdV, cpu_env, RsV); \
+        gen_helper_sfinvsqrta_pred(PeV, cpu_env, RsV); \
+    } while (0)
+
+#define fWRAP_A5_ACS(GENHLPR, SHORTCODE) \
+    do { \
+        gen_helper_vacsh_val(RxxV, cpu_env, RxxV, RssV, RttV); \
+        gen_helper_vacsh_pred(PeV, cpu_env, RxxV, RssV, RttV); \
+    } while (0)
+
 #endif
