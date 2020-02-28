@@ -991,4 +991,213 @@
 #define fWRAP_L4_ior_memoph_io(GENHLPR, SHORTCODE) \
     fWRAP_MEMOP(GENHLPR, SHORTCODE, 2, tcg_gen_ori_tl(tmp, tmp, 1 << UiV))
 
+/* dczeroa clears the 32 byte cache line at the address given */
+#define fWRAP_Y2_dczeroa(GENHLPR, SHORTCODE) SHORTCODE
+
+/* We have to brute force allocframe because it has C math in the semantics */
+#define fWRAP_S2_allocframe(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv_i64 scramble_tmp = tcg_temp_new_i64(); \
+        TCGv tmp = tcg_temp_new(); \
+        { fEA_RI(RxV, -8); \
+          fSTORE(1, 8, EA, fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | \
+                                           fCAST4_4u(fREAD_FP()))); \
+          fWRITE_FP(EA); \
+          fFRAMECHECK(EA - uiV, EA); \
+          tcg_gen_subi_tl(RxV, EA, uiV); \
+        } \
+        tcg_temp_free_i64(scramble_tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_SS2_allocframe(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv_i64 scramble_tmp = tcg_temp_new_i64(); \
+        TCGv tmp = tcg_temp_new(); \
+        { fEA_RI(fREAD_SP(), -8); \
+          fSTORE(1, 8, EA, fFRAME_SCRAMBLE((fCAST8_8u(fREAD_LR()) << 32) | \
+                                           fCAST4_4u(fREAD_FP()))); \
+          fWRITE_FP(EA); \
+          fFRAMECHECK(EA - uiV, EA); \
+          tcg_gen_subi_tl(tmp, EA, uiV); \
+          fWRITE_SP(tmp); \
+        } \
+        tcg_temp_free_i64(scramble_tmp); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+/* Also have to brute force the deallocframe variants */
+#define fWRAP_L2_deallocframe(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        { \
+          fEA_REG(RsV); \
+          fLOAD(1, 8, u, EA, tmp_i64); \
+          tcg_gen_mov_i64(RddV, fFRAME_UNSCRAMBLE(tmp_i64)); \
+          tcg_gen_addi_tl(tmp, EA, 8); \
+          fWRITE_SP(tmp); \
+        } \
+        tcg_temp_free(tmp); \
+        tcg_temp_free_i64(tmp_i64); \
+    } while (0)
+
+#define fWRAP_SL2_deallocframe(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv WORD = tcg_temp_new(); \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        { \
+          fEA_REG(fREAD_FP()); \
+          fLOAD(1, 8, u, EA, tmp_i64); \
+          fFRAME_UNSCRAMBLE(tmp_i64); \
+          fWRITE_LR(fGETWORD(1, tmp_i64)); \
+          fWRITE_FP(fGETWORD(0, tmp_i64)); \
+          tcg_gen_addi_tl(tmp, EA, 8); \
+          fWRITE_SP(tmp); \
+        } \
+        tcg_temp_free(WORD); \
+        tcg_temp_free(tmp); \
+        tcg_temp_free_i64(tmp_i64); \
+    } while (0)
+
+#define fWRAP_L4_return(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        TCGv WORD = tcg_temp_new(); \
+        { \
+          fEA_REG(RsV); \
+          fLOAD(1, 8, u, EA, tmp_i64); \
+          tcg_gen_mov_i64(RddV, fFRAME_UNSCRAMBLE(tmp_i64)); \
+          tcg_gen_addi_tl(tmp, EA, 8); \
+          fWRITE_SP(tmp); \
+          fJUMPR(REG_LR, fGETWORD(1, RddV), COF_TYPE_JUMPR);\
+        } \
+        tcg_temp_free(tmp); \
+        tcg_temp_free_i64(tmp_i64); \
+        tcg_temp_free(WORD); \
+    } while (0)
+
+#define fWRAP_SL2_return(GENHLPR, SHORTCODE) \
+    do { \
+        TCGv tmp = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        TCGv WORD = tcg_temp_new(); \
+        { \
+          fEA_REG(fREAD_FP()); \
+          fLOAD(1, 8, u, EA, tmp_i64); \
+          fFRAME_UNSCRAMBLE(tmp_i64); \
+          fWRITE_LR(fGETWORD(1, tmp_i64)); \
+          fWRITE_FP(fGETWORD(0, tmp_i64)); \
+          tcg_gen_addi_tl(tmp, EA, 8); \
+          fWRITE_SP(tmp); \
+          fJUMPR(REG_LR, fGETWORD(1, tmp_i64), COF_TYPE_JUMPR);\
+        } \
+        tcg_temp_free(tmp); \
+        tcg_temp_free_i64(tmp_i64); \
+        tcg_temp_free(WORD); \
+    } while (0)
+
+/*
+ * Conditional returns follow the same predicate naming convention as
+ * predicated loads above
+ */
+#define fWRAP_COND_RETURN(PRED) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGv_i64 LSB_i64 = tcg_temp_new_i64(); \
+        TCGv zero = tcg_const_tl(0); \
+        TCGv_i64 zero_i64 = tcg_const_i64(0); \
+        TCGv_i64 unscramble = tcg_temp_new_i64(); \
+        TCGv WORD = tcg_temp_new(); \
+        TCGv SP = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        TCGv tmp = tcg_temp_new(); \
+        fEA_REG(RsV); \
+        PRED; \
+        tcg_gen_extu_i32_i64(LSB_i64, LSB); \
+        fLOAD(1, 8, u, EA, tmp_i64); \
+        tcg_gen_mov_i64(unscramble, fFRAME_UNSCRAMBLE(tmp_i64)); \
+        READ_REG_PAIR(RddV, HEX_REG_FP); \
+        tcg_gen_movcond_i64(TCG_COND_NE, RddV, LSB_i64, zero_i64, \
+                            unscramble, RddV); \
+        tcg_gen_mov_tl(SP, hex_gpr[HEX_REG_SP]); \
+        tcg_gen_addi_tl(tmp, EA, 8); \
+        tcg_gen_movcond_tl(TCG_COND_NE, SP, LSB, zero, tmp, SP); \
+        fWRITE_SP(SP); \
+        gen_cond_return(LSB, fGETWORD(1, RddV)); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free_i64(LSB_i64); \
+        tcg_temp_free(zero); \
+        tcg_temp_free_i64(zero_i64); \
+        tcg_temp_free_i64(unscramble); \
+        tcg_temp_free(WORD); \
+        tcg_temp_free(SP); \
+        tcg_temp_free_i64(tmp_i64); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_L4_return_t(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBOLD(PvV))
+#define fWRAP_L4_return_f(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBOLDNOT(PvV))
+#define fWRAP_L4_return_tnew_pt(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBNEW(PvN))
+#define fWRAP_L4_return_fnew_pt(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBNEWNOT(PvN))
+#define fWRAP_L4_return_tnew_pnt(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBNEW(PvN))
+#define fWRAP_L4_return_tnew_pnt(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBNEW(PvN))
+#define fWRAP_L4_return_fnew_pnt(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN(fLSBNEWNOT(PvN))
+
+#define fWRAP_COND_RETURN_SUBINSN(PRED) \
+    do { \
+        TCGv LSB = tcg_temp_new(); \
+        TCGv_i64 LSB_i64 = tcg_temp_new_i64(); \
+        TCGv zero = tcg_const_tl(0); \
+        TCGv_i64 zero_i64 = tcg_const_i64(0); \
+        TCGv_i64 unscramble = tcg_temp_new_i64(); \
+        TCGv_i64 RddV = tcg_temp_new_i64(); \
+        TCGv WORD = tcg_temp_new(); \
+        TCGv SP = tcg_temp_new(); \
+        TCGv_i64 tmp_i64 = tcg_temp_new_i64(); \
+        TCGv tmp = tcg_temp_new(); \
+        fEA_REG(fREAD_FP()); \
+        PRED; \
+        tcg_gen_extu_i32_i64(LSB_i64, LSB); \
+        fLOAD(1, 8, u, EA, tmp_i64); \
+        tcg_gen_mov_i64(unscramble, fFRAME_UNSCRAMBLE(tmp_i64)); \
+        READ_REG_PAIR(RddV, HEX_REG_FP); \
+        tcg_gen_movcond_i64(TCG_COND_NE, RddV, LSB_i64, zero_i64, \
+                            unscramble, RddV); \
+        tcg_gen_mov_tl(SP, hex_gpr[HEX_REG_SP]); \
+        tcg_gen_addi_tl(tmp, EA, 8); \
+        tcg_gen_movcond_tl(TCG_COND_NE, SP, LSB, zero, tmp, SP); \
+        fWRITE_SP(SP); \
+        WRITE_REG_PAIR(HEX_REG_FP, RddV); \
+        gen_cond_return(LSB, fGETWORD(1, RddV)); \
+        tcg_temp_free(LSB); \
+        tcg_temp_free_i64(LSB_i64); \
+        tcg_temp_free(zero); \
+        tcg_temp_free_i64(zero_i64); \
+        tcg_temp_free_i64(unscramble); \
+        tcg_temp_free_i64(RddV); \
+        tcg_temp_free(WORD); \
+        tcg_temp_free(SP); \
+        tcg_temp_free_i64(tmp_i64); \
+        tcg_temp_free(tmp); \
+    } while (0)
+
+#define fWRAP_SL2_return_t(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN_SUBINSN(fLSBOLD(fREAD_P0()))
+#define fWRAP_SL2_return_f(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN_SUBINSN(fLSBOLDNOT(fREAD_P0()))
+#define fWRAP_SL2_return_tnew(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN_SUBINSN(fLSBNEW0)
+#define fWRAP_SL2_return_fnew(GENHLPR, SHORTCODE) \
+    fWRAP_COND_RETURN_SUBINSN(fLSBNEW0NOT)
+
 #endif
