@@ -236,8 +236,27 @@ void ioapic_eoi_broadcast(int vector)
         for (n = 0; n < IOAPIC_NUM_PINS; n++) {
             entry = s->ioredtbl[n];
 
-            if ((entry & IOAPIC_VECTOR_MASK) != vector ||
-                ((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) != IOAPIC_TRIGGER_LEVEL) {
+            if ((entry & IOAPIC_VECTOR_MASK) != vector) {
+                continue;
+            }
+
+            /*
+             * When IOAPIC is in the userspace while APIC is still in
+             * the kernel (i.e., split irqchip), we have a trick to
+             * kick the resamplefd logic for registered irqfds from
+             * userspace to deactivate the IRQ.  When that happens, it
+             * means the irq bypassed userspace IOAPIC (so the irr and
+             * remote-irr of the table entry should be bypassed too
+             * even if interrupt come), then we don't need to clear
+             * the remote-IRR and check irr again because they'll
+             * always be zeros.
+             */
+            if (kvm_resample_fd_notify(n)) {
+                continue;
+            }
+
+            if (((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) !=
+                IOAPIC_TRIGGER_LEVEL) {
                 continue;
             }
 
