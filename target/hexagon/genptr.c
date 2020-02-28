@@ -25,6 +25,7 @@
 #include "opcodes.h"
 #include "translate.h"
 #include "macros.h"
+#include "mmvec/macros.h"
 #include "genptr_helpers.h"
 #include "helper_overrides.h"
 
