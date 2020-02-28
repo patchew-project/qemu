@@ -463,4 +463,71 @@ static inline void gen_store8i(TCGv_env cpu_env, TCGv vaddr, int64_t src,
     tcg_temp_free_i64(tmp);
 }
 
+static inline TCGv_i64 gen_carry_from_add64(TCGv_i64 result, TCGv_i64 a,
+                                            TCGv_i64 b, TCGv_i64 c)
+{
+    TCGv_i64 WORD = tcg_temp_new_i64();
+    TCGv_i64 tmpa = tcg_temp_new_i64();
+    TCGv_i64 tmpb = tcg_temp_new_i64();
+    TCGv_i64 tmpc = tcg_temp_new_i64();
+
+    tcg_gen_mov_i64(tmpa, fGETUWORD(0, a));
+    tcg_gen_mov_i64(tmpb, fGETUWORD(0, b));
+    tcg_gen_add_i64(tmpc, tmpa, tmpb);
+    tcg_gen_add_i64(tmpc, tmpc, c);
+    tcg_gen_mov_i64(tmpa, fGETUWORD(1, a));
+    tcg_gen_mov_i64(tmpb, fGETUWORD(1, b));
+    tcg_gen_add_i64(tmpc, tmpa, tmpb);
+    tcg_gen_add_i64(tmpc, tmpc, fGETUWORD(1, tmpc));
+    tcg_gen_mov_i64(result, fGETUWORD(1, tmpc));
+
+    tcg_temp_free_i64(WORD);
+    tcg_temp_free_i64(tmpa);
+    tcg_temp_free_i64(tmpb);
+    tcg_temp_free_i64(tmpc);
+    return result;
+}
+
+static inline TCGv gen_8bitsof(TCGv result, TCGv value)
+{
+    TCGv zero = tcg_const_tl(0);
+    TCGv ones = tcg_const_tl(0xff);
+    tcg_gen_movcond_tl(TCG_COND_NE, result, value, zero, ones, zero);
+    tcg_temp_free(zero);
+    tcg_temp_free(ones);
+
+    return result;
+}
+
+static inline void gen_write_new_pc(TCGv addr)
+{
+    /* If there are multiple branches in a packet, ignore the second one */
+    TCGv zero = tcg_const_tl(0);
+    tcg_gen_movcond_tl(TCG_COND_NE, hex_next_PC, hex_branch_taken, zero,
+                       hex_next_PC, addr);
+    tcg_gen_movi_tl(hex_branch_taken, 1);
+    tcg_temp_free(zero);
+}
+
+static inline void gen_set_usr_field(int field, TCGv val)
+{
+    tcg_gen_deposit_tl(hex_gpr[HEX_REG_USR], hex_gpr[HEX_REG_USR], val,
+                       reg_field_info[field].offset,
+                       reg_field_info[field].width);
+}
+
+static inline void gen_set_usr_fieldi(int field, int x)
+{
+    TCGv val = tcg_const_tl(x);
+    gen_set_usr_field(field, val);
+    tcg_temp_free(val);
+}
+
+static inline void gen_cond_return(TCGv pred, TCGv addr)
+{
+    TCGv zero = tcg_const_tl(0);
+    tcg_gen_movcond_tl(TCG_COND_NE, hex_next_PC, pred, zero, addr, hex_next_PC);
+    tcg_temp_free(zero);
+}
+
 #endif
