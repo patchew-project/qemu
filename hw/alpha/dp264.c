@@ -102,7 +102,7 @@ static void clipper_init(MachineState *machine)
         DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
         ide_drive_get(hd, ARRAY_SIZE(hd));
 
-        pci_cmd646_ide_init(pci_bus, hd, 0);
+        pci_cmd646_ide_init(pci_bus, hd, -1, false);
     }
 
     /* Load PALcode.  Given that this is not "real" cpu palcode,
