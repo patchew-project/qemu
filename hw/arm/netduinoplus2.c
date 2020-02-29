@@ -36,6 +36,7 @@ static void netduinoplus2_init(MachineState *machine)
 
     dev = qdev_create(NULL, TYPE_STM32F405_SOC);
     qdev_prop_set_string(dev, "cpu-type", ARM_CPU_TYPE_NAME("cortex-m4"));
+    qdev_prop_set_uint32(dev, "hse-frequency", 25000000);
     object_property_set_bool(OBJECT(dev), true, "realized", &error_fatal);
 
     armv7m_load_kernel(ARM_CPU(first_cpu),

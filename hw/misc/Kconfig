@@ -79,6 +79,9 @@ config IMX
     select SSI
     select USB_EHCI_SYSBUS
 
+config STM32F4XX_RCC
+    bool
+
 config STM32F2XX_SYSCFG
     bool
 
