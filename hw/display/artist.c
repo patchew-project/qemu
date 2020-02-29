@@ -340,14 +340,13 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
 {
     struct vram_buffer *buf;
     uint32_t vram_bitmask = s->vram_bitmask;
-    int mask, i, pix_count, pix_length, offset, height, width;
+    int mask, i, pix_count, pix_length, offset, width;
     uint8_t *data8, *p;
 
     pix_count = vram_write_pix_per_transfer(s);
     pix_length = vram_pixel_length(s);
 
     buf = vram_write_buffer(s);
-    height = buf->height;
     width = buf->width;
 
     if (s->cmap_bm_access) {
@@ -367,20 +366,13 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
         pix_count = size * 8;
     }
 
-    if (posy * width + posx + pix_count > buf->size) {
-        qemu_log("write outside bounds: wants %dx%d, max size %dx%d\n",
-                 posx, posy, width, height);
-        return;
-    }
-
-
     switch (pix_length) {
     case 0:
         if (s->image_bitmap_op & 0x20000000) {
             data &= vram_bitmask;
         }
 
-        for (i = 0; i < pix_count; i++) {
+        for (i = 0; i < pix_count && offset + i < buf->size; i++) {
             artist_rop8(s, p + offset + pix_count - 1 - i,
                         (data & 1) ? (s->plane_mask >> 24) : 0);
             data >>= 1;
@@ -398,7 +390,9 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
         for (i = 3; i >= 0; i--) {
             if (!(s->image_bitmap_op & 0x20000000) ||
                 s->vram_bitmask & (1 << (28 + i))) {
-                artist_rop8(s, p + offset + 3 - i, data8[ROP8OFF(i)]);
+                if (offset + 3 - i < buf->size) {
+                    artist_rop8(s, p + offset + 3 - i, data8[ROP8OFF(i)]);
+                }
             }
         }
         memory_region_set_dirty(&buf->mr, offset, 3);
@@ -420,7 +414,7 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
             break;
         }
 
-        for (i = 0; i < pix_count; i++) {
+        for (i = 0; i < pix_count && offset + i < buf->size; i++) {
             mask = 1 << (pix_count - 1 - i);
 
             if (!(s->image_bitmap_op & 0x20000000) ||
