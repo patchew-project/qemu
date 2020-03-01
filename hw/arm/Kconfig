@@ -411,6 +411,7 @@ config FSL_IMX6UL
     select IMX_FEC
     select IMX_I2C
     select SDHCI
+    select STMP
     select UNIMP
 
 config MICROBIT
