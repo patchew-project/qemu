@@ -22,6 +22,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/arm/fsl-imx6.h"
+#include "hw/misc/stmp.h"
+#include "hw/misc/unimp.h"
 #include "hw/boards.h"
 #include "hw/qdev-properties.h"
 #include "sysemu/sysemu.h"
@@ -84,6 +86,12 @@ static void fsl_imx6_init(Object *obj)
         snprintf(name, NAME_SIZE, "sdhc%d", i + 1);
         sysbus_init_child_obj(obj, name, &s->esdhc[i], sizeof(s->esdhc[i]),
                               TYPE_IMX_USDHC);
+    }
+
+    for (i = 0; i < FSL_IMX6_NUM_USBS; i++) {
+        snprintf(name, NAME_SIZE, "usb%d", i);
+        sysbus_init_child_obj(obj, name, &s->usb[i], sizeof(s->usb[i]),
+                              TYPE_CHIPIDEA);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_ECSPIS; i++) {
@@ -348,6 +356,34 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
                            qdev_get_gpio_in(DEVICE(&s->a9mpcore),
                                             esdhc_table[i].irq));
     }
+
+    /* USB */
+    for (i = 0; i < FSL_IMX6_NUM_USBS; i++) {
+        static const int FSL_IMX6_USBn_IRQ[] = {
+            FSL_IMX6_USB_OTG_IRQ,
+            FSL_IMX6_USB_HOST1_IRQ,
+            FSL_IMX6_USB_HOST2_IRQ,
+            FSL_IMX6_USB_HOST3_IRQ,
+        };
+
+        object_property_set_bool(OBJECT(&s->usb[i]), true, "realized",
+                                 &error_abort);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->usb[i]), 0,
+                        FSL_IMX6_USBOH3_USB_ADDR + i * 0x200);
+
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->usb[i]), 0,
+                           qdev_get_gpio_in(DEVICE(&s->a9mpcore),
+                                            FSL_IMX6_USBn_IRQ[i]));
+
+    }
+    create_unimplemented_device("usbmisc", FSL_IMX6_USBOH3_USB_ADDR + 0x800,
+                                0x200);
+    create_unimplemented_device("usbphy1", FSL_IMX6_USBPHY1_ADDR,
+                                FSL_IMX6_USBPHY1_SIZE);
+    create_stmp_device("usbphy1-stmp", true, FSL_IMX6_USBPHY1_ADDR + 0x30);
+    create_unimplemented_device("usbphy2", FSL_IMX6_USBPHY2_ADDR,
+                                FSL_IMX6_USBPHY2_SIZE);
+    create_stmp_device("usbphy2-stmp", true, FSL_IMX6_USBPHY2_ADDR + 0x30);
 
     /* Initialize all ECSPI */
     for (i = 0; i < FSL_IMX6_NUM_ECSPIS; i++) {
