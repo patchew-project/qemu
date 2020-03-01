@@ -95,6 +95,11 @@ typedef enum VirtIOMMUType {
     VIRT_IOMMU_VIRTIO,
 } VirtIOMMUType;
 
+#define VIRT_GIC_VERSION_MAX    (-1)
+#define VIRT_GIC_VERSION_HOST   0
+#define VIRT_GIC_VERSION_2      2
+#define VIRT_GIC_VERSION_3      3
+
 typedef struct MemMapEntry {
     hwaddr base;
     hwaddr size;
@@ -162,7 +167,7 @@ static inline int virt_gicv3_redist_region_count(VirtMachineState *vms)
     uint32_t redist0_capacity =
                 vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
 
-    assert(vms->gic_version == 3);
+    assert(vms->gic_version == VIRT_GIC_VERSION_3);
 
     return vms->smp_cpus > redist0_capacity ? 2 : 1;
 }

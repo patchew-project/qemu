@@ -298,7 +298,7 @@ static void fdt_add_timer_nodes(const VirtMachineState *vms)
         irqflags = GIC_FDT_IRQ_FLAGS_EDGE_LO_HI;
     }
 
-    if (vms->gic_version == 2) {
+    if (vms->gic_version == VIRT_GIC_VERSION_2) {
         irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
                              GIC_FDT_IRQ_PPI_CPU_WIDTH,
                              (1 << vms->smp_cpus) - 1);
@@ -439,7 +439,7 @@ static void fdt_add_gic_node(VirtMachineState *vms)
     qemu_fdt_setprop_cell(vms->fdt, nodename, "#address-cells", 0x2);
     qemu_fdt_setprop_cell(vms->fdt, nodename, "#size-cells", 0x2);
     qemu_fdt_setprop(vms->fdt, nodename, "ranges", NULL, 0);
-    if (vms->gic_version == 3) {
+    if (vms->gic_version == VIRT_GIC_VERSION_3) {
         int nb_redist_regions = virt_gicv3_redist_region_count(vms);
 
         qemu_fdt_setprop_string(vms->fdt, nodename, "compatible",
@@ -518,7 +518,7 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
         }
     }
 
-    if (vms->gic_version == 2) {
+    if (vms->gic_version == VIRT_GIC_VERSION_2) {
         irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
                              GIC_FDT_IRQ_PPI_CPU_WIDTH,
                              (1 << vms->smp_cpus) - 1);
@@ -1469,7 +1469,7 @@ static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
          * purposes are to make TCG consistent (with 64-bit KVM hosts)
          * and to improve SGI efficiency.
          */
-        if (vms->gic_version == 3) {
+        if (vms->gic_version == VIRT_GIC_VERSION_3) {
             clustersz = GICV3_TARGETLIST_BITS;
         } else {
             clustersz = GIC_TARGETLIST_BITS;
@@ -1560,15 +1560,15 @@ static void machvirt_init(MachineState *machine)
     /* We can probe only here because during property set
      * KVM is not available yet
      */
-    if (vms->gic_version <= 0) {
-        /* "host" or "max" */
+    if (vms->gic_version == VIRT_GIC_VERSION_HOST ||
+        vms->gic_version == VIRT_GIC_VERSION_MAX) {
         if (!kvm_enabled()) {
-            if (vms->gic_version == 0) {
+            if (vms->gic_version == VIRT_GIC_VERSION_HOST) {
                 error_report("gic-version=host requires KVM");
                 exit(1);
             } else {
                 /* "max": currently means 3 for TCG */
-                vms->gic_version = 3;
+                vms->gic_version = VIRT_GIC_VERSION_3;
             }
         } else {
             vms->gic_version = kvm_arm_vgic_probe();
@@ -1627,7 +1627,7 @@ static void machvirt_init(MachineState *machine)
     /* The maximum number of CPUs depends on the GIC version, or on how
      * many redistributors we can fit into the memory map.
      */
-    if (vms->gic_version == 3) {
+    if (vms->gic_version == VIRT_GIC_VERSION_3) {
         virt_max_cpus =
             vms->memmap[VIRT_GIC_REDIST].size / GICV3_REDIST_SIZE;
         virt_max_cpus +=
@@ -1855,7 +1855,7 @@ static void virt_set_its(Object *obj, bool value, Error **errp)
 static char *virt_get_gic_version(Object *obj, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
-    const char *val = vms->gic_version == 3 ? "3" : "2";
+    const char *val = vms->gic_version == VIRT_GIC_VERSION_3 ? "3" : "2";
 
     return g_strdup(val);
 }
@@ -1865,13 +1865,13 @@ static void virt_set_gic_version(Object *obj, const char *value, Error **errp)
     VirtMachineState *vms = VIRT_MACHINE(obj);
 
     if (!strcmp(value, "3")) {
-        vms->gic_version = 3;
+        vms->gic_version = VIRT_GIC_VERSION_3;
     } else if (!strcmp(value, "2")) {
-        vms->gic_version = 2;
+        vms->gic_version = VIRT_GIC_VERSION_2;
     } else if (!strcmp(value, "host")) {
-        vms->gic_version = 0; /* Will probe later */
+        vms->gic_version = VIRT_GIC_VERSION_HOST; /* Will probe later */
     } else if (!strcmp(value, "max")) {
-        vms->gic_version = -1; /* Will probe later */
+        vms->gic_version = VIRT_GIC_VERSION_MAX; /* Will probe later */
     } else {
         error_setg(errp, "Invalid gic-version value");
         error_append_hint(errp, "Valid values are 3, 2, host, max.\n");
@@ -2139,7 +2139,7 @@ static void virt_instance_init(Object *obj)
                                     "physical address space above 32 bits",
                                     NULL);
     /* Default GIC type is v2 */
-    vms->gic_version = 2;
+    vms->gic_version = VIRT_GIC_VERSION_2;
     object_property_add_str(obj, "gic-version", virt_get_gic_version,
                         virt_set_gic_version, NULL);
     object_property_set_description(obj, "gic-version",
