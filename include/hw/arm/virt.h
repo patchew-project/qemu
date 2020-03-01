@@ -95,6 +95,7 @@ typedef enum VirtIOMMUType {
     VIRT_IOMMU_VIRTIO,
 } VirtIOMMUType;
 
+#define VIRT_GIC_VERSION_NOSEL  (-2)
 #define VIRT_GIC_VERSION_MAX    (-1)
 #define VIRT_GIC_VERSION_HOST   0
 #define VIRT_GIC_VERSION_2      2
