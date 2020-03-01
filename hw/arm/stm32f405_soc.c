@@ -30,6 +30,7 @@
 #include "hw/arm/stm32f405_soc.h"
 #include "hw/misc/unimp.h"
 
+#define FLASHIF_ADDR                   0x40023C00
 #define SYSCFG_ADD                     0x40013800
 static const uint32_t usart_addr[] = { 0x40011000, 0x40004400, 0x40004800,
                                        0x40004C00, 0x40005000, 0x40011400,
@@ -58,6 +59,9 @@ static void stm32f405_soc_initfn(Object *obj)
 
     sysbus_init_child_obj(obj, "armv7m", &s->armv7m, sizeof(s->armv7m),
                           TYPE_ARMV7M);
+
+    sysbus_init_child_obj(obj, "flashif", &s->flashif, sizeof(s->flashif),
+                          TYPE_STM32F4XX_FLASHIF);
 
     sysbus_init_child_obj(obj, "syscfg", &s->syscfg, sizeof(s->syscfg),
                           TYPE_STM32F4XX_SYSCFG);
@@ -129,6 +133,16 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
         error_propagate(errp, err);
         return;
     }
+
+    /* Flash interface */
+    dev = DEVICE(&s->flashif);
+    object_property_set_bool(OBJECT(&s->flashif), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
+    busdev = SYS_BUS_DEVICE(dev);
+    sysbus_mmio_map(busdev, 0, FLASHIF_ADDR);
 
     /* System configuration controller */
     dev = DEVICE(&s->syscfg);
@@ -261,7 +275,6 @@ static void stm32f405_soc_realize(DeviceState *dev_soc, Error **errp)
     create_unimplemented_device("GPIOI",       0x40022000, 0x400);
     create_unimplemented_device("CRC",         0x40023000, 0x400);
     create_unimplemented_device("RCC",         0x40023800, 0x400);
-    create_unimplemented_device("Flash Int",   0x40023C00, 0x400);
     create_unimplemented_device("BKPSRAM",     0x40024000, 0x400);
     create_unimplemented_device("DMA1",        0x40026000, 0x400);
     create_unimplemented_device("DMA2",        0x40026400, 0x400);
