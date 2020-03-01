@@ -1542,6 +1542,8 @@ static void virt_set_memmap(VirtMachineState *vms)
  */
 static void finalize_gic_version(VirtMachineState *vms)
 {
+    unsigned int max_cpus = MACHINE(vms)->smp.max_cpus;
+
     if (kvm_enabled()) {
         int probe_bitmap = kvm_arm_vgic_probe();
 
@@ -1552,7 +1554,17 @@ static void finalize_gic_version(VirtMachineState *vms)
 
         switch (vms->gic_version) {
         case VIRT_GIC_VERSION_NOSEL:
-            vms->gic_version = VIRT_GIC_VERSION_2;
+            if ((probe_bitmap & KVM_ARM_VGIC_V2 && max_cpus <= GIC_NCPU) ||
+                !kvm_irqchip_in_kernel()) {
+                vms->gic_version = VIRT_GIC_VERSION_2;
+            } else {
+                /*
+                 * in case the host does not support v2 in-kernel emulation or
+                 * the end-user requested more than 8 VCPUs we now default
+                 * to v3. In any case defaulting to v2 would be broken.
+                 */
+                vms->gic_version = VIRT_GIC_VERSION_3;
+            }
             break;
         case VIRT_GIC_VERSION_HOST:
         case VIRT_GIC_VERSION_MAX:
