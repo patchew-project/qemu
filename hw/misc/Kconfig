@@ -123,6 +123,9 @@ config AUX
     bool
     select I2C
 
+config STMP
+    bool
+
 config UNIMP
     bool
 
