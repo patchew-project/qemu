@@ -170,7 +170,7 @@ typedef struct XHCIInterrupter {
     uint32_t erdp_low;
     uint32_t erdp_high;
 
-    bool msix_used, er_pcs;
+    bool er_pcs;
 
     dma_addr_t er_start;
     uint32_t er_size;
@@ -185,10 +185,7 @@ typedef struct XHCIInterrupter {
 } XHCIInterrupter;
 
 struct XHCIState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
+    DeviceState parent;
     USBBus bus;
     MemoryRegion mem;
     AddressSpace *as;
@@ -204,8 +201,9 @@ struct XHCIState {
     uint32_t numslots;
     uint32_t flags;
     uint32_t max_pstreams_mask;
-    OnOffAuto msi;
-    OnOffAuto msix;
+    void (*intr_update)(void *opaque, int n, bool enable);
+    void (*intr_raise)(void *opaque, int n, bool level);
+    DeviceState *hostOpaque;
 
     /* Operational Registers */
     uint32_t usbcmd;
