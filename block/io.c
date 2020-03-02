@@ -1752,15 +1752,26 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     int head = 0;
     int tail = 0;
 
-    int max_write_zeroes = MIN_NON_ZERO((flags & BDRV_REQ_NO_FALLBACK) ?
-                                        bs->bl.max_pwrite_zeroes_no_fallback :
-                                        bs->bl.max_pwrite_zeroes, INT_MAX);
+    int max_write_zeroes;
     int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
                         bs->bl.request_alignment);
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer, MAX_BOUNCE_BUFFER);
+    bool auto_no_fallback;
 
     if (!drv) {
         return -ENOMEDIUM;
+    }
+
+    if (!(flags & BDRV_REQ_NO_FALLBACK) &&
+        (bs->supported_zero_flags & BDRV_REQ_NO_FALLBACK) &&
+        bs->bl.max_pwrite_zeroes &&
+        bs->bl.max_pwrite_zeroes < bytes &&
+        (bs->bl.max_pwrite_zeroes < bs->bl.max_pwrite_zeroes_no_fallback ||
+         bs->bl.max_pwrite_zeroes_no_fallback == 0))
+    {
+        assert(drv->bdrv_co_pwrite_zeroes);
+        flags |= BDRV_REQ_NO_FALLBACK;
+        auto_no_fallback = true;
     }
 
     if ((flags & ~bs->supported_zero_flags) & BDRV_REQ_NO_FALLBACK) {
@@ -1770,7 +1781,11 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     assert(alignment % bs->bl.request_alignment == 0);
     head = offset % alignment;
     tail = (offset + bytes) % alignment;
-    max_write_zeroes = QEMU_ALIGN_DOWN(max_write_zeroes, alignment);
+    max_write_zeroes =
+        QEMU_ALIGN_DOWN(MIN_NON_ZERO((flags & BDRV_REQ_NO_FALLBACK) ?
+                                     bs->bl.max_pwrite_zeroes_no_fallback :
+                                     bs->bl.max_pwrite_zeroes, INT_MAX),
+                        alignment);
     assert(max_write_zeroes >= bs->bl.request_alignment);
 
     while (bytes > 0 && !ret) {
@@ -1801,6 +1816,13 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
         if (drv->bdrv_co_pwrite_zeroes) {
             ret = drv->bdrv_co_pwrite_zeroes(bs, offset, num,
                                              flags & bs->supported_zero_flags);
+            if (ret == -ENOTSUP && auto_no_fallback) {
+                flags &= ~BDRV_REQ_NO_FALLBACK;
+                max_write_zeroes =
+                    QEMU_ALIGN_DOWN(MIN_NON_ZERO(bs->bl.max_pwrite_zeroes,
+                                                 INT_MAX), alignment);
+                continue;
+            }
             if (ret != -ENOTSUP && (flags & BDRV_REQ_FUA) &&
                 !(bs->supported_zero_flags & BDRV_REQ_FUA)) {
                 need_flush = true;
