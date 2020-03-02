@@ -13,6 +13,7 @@
 #include "trace-root.h"
 #include "qemu/thread.h"
 #include "qemu/main-loop.h"
+#include "sysemu/cpus.h"
 
 /* #define DEBUG_IOMMU */
 
@@ -139,16 +140,64 @@ static void dma_blk_cb(void *opaque, int ret)
     dma_blk_unmap(dbs);
 
     while (dbs->sg_cur_index < dbs->sg->nsg) {
+        bool skip = false;
         cur_addr = dbs->sg->sg[dbs->sg_cur_index].base + dbs->sg_cur_byte;
         cur_len = dbs->sg->sg[dbs->sg_cur_index].len - dbs->sg_cur_byte;
-        mem = dma_memory_map(dbs->sg->as, cur_addr, &cur_len, dbs->dir);
-        if (!mem)
-            break;
-        qemu_iovec_add(&dbs->iov, mem, cur_len);
+
+        /*
+         * Make reads deterministic in icount mode.
+         * Windows sometimes issues disk read requests with
+         * overlapping SGs. It leads to non-determinism, because
+         * resulting buffer contents may be mixed from several
+         * sectors.
+         * This code crops SGs that were already read in this request.
+         */
+        if (use_icount
+            && dbs->dir == DMA_DIRECTION_FROM_DEVICE) {
+            int i;
+            for (i = 0 ; i < dbs->sg_cur_index ; ++i) {
+                if (dbs->sg->sg[i].base <= cur_addr
+                    && dbs->sg->sg[i].base + dbs->sg->sg[i].len > cur_addr) {
+                    cur_len = MIN(cur_len,
+                        dbs->sg->sg[i].base + dbs->sg->sg[i].len - cur_addr);
+                    skip = true;
+                    break;
+                } else if (cur_addr <= dbs->sg->sg[i].base
+                    && cur_addr + cur_len > dbs->sg->sg[i].base) {
+                    cur_len = dbs->sg->sg[i].base - cur_addr;
+                    break;
+                }
+            }
+        }
+
+        assert(cur_len);
+        if (!skip) {
+            mem = dma_memory_map(dbs->sg->as, cur_addr, &cur_len, dbs->dir);
+            if (!mem)
+                break;
+            qemu_iovec_add(&dbs->iov, mem, cur_len);
+        } else {
+            if (dbs->iov.size != 0) {
+                break;
+            }
+            /* skip this SG */
+            dbs->offset += cur_len;
+        }
+
         dbs->sg_cur_byte += cur_len;
         if (dbs->sg_cur_byte == dbs->sg->sg[dbs->sg_cur_index].len) {
             dbs->sg_cur_byte = 0;
             ++dbs->sg_cur_index;
+        }
+
+        /*
+         * All remaining SGs were skipped.
+         * This is not reschedule case, because we already
+         * performed the reads, and the last SGs were skipped.
+         */
+        if (dbs->sg_cur_index == dbs->sg->nsg && dbs->iov.size == 0) {
+            dma_complete(dbs, ret);
+            return;
         }
     }
 
