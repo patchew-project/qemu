@@ -623,6 +623,14 @@ typedef struct BlockLimits {
      * pwrite_zeroes_alignment. May be 0 if no inherent 32-bit limit */
     int32_t max_pwrite_zeroes;
 
+    /*
+     * Maximum number of bytes that can zeroized at once if flag
+     * BDRV_REQ_NO_FALLBACK specified (since it is signed, it must be < 2G, if
+     * set). Must be multiple of pwrite_zeroes_alignment. May be 0 if no
+     * inherent 32-bit limit.
+     */
+    int32_t max_pwrite_zeroes_no_fallback;
+
     /* Optimal alignment for write zeroes requests in bytes. A power
      * of 2 is best but not mandatory.  Must be a multiple of
      * bl.request_alignment, and must be less than max_pwrite_zeroes

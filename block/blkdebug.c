@@ -692,7 +692,11 @@ static int coroutine_fn blkdebug_co_pwrite_zeroes(BlockDriverState *bs,
     }
     assert(QEMU_IS_ALIGNED(offset, align));
     assert(QEMU_IS_ALIGNED(bytes, align));
-    if (bs->bl.max_pwrite_zeroes) {
+    if ((flags & BDRV_REQ_NO_FALLBACK) &&
+        bs->bl.max_pwrite_zeroes_no_fallback)
+    {
+        assert(bytes <= bs->bl.max_pwrite_zeroes_no_fallback);
+    } else if (bs->bl.max_pwrite_zeroes) {
         assert(bytes <= bs->bl.max_pwrite_zeroes);
     }
 
@@ -977,6 +981,7 @@ static void blkdebug_refresh_limits(BlockDriverState *bs, Error **errp)
     }
     if (s->max_write_zero) {
         bs->bl.max_pwrite_zeroes = s->max_write_zero;
+        bs->bl.max_pwrite_zeroes_no_fallback = s->max_write_zero;
     }
     if (s->opt_discard) {
         bs->bl.pdiscard_alignment = s->opt_discard;
