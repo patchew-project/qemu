@@ -1955,7 +1955,6 @@ static void nbd_refresh_limits(BlockDriverState *bs, Error **errp)
     }
 
     bs->bl.request_alignment = min;
-    bs->bl.max_pdiscard = max;
     bs->bl.max_pwrite_zeroes = max;
     bs->bl.max_transfer = max;
 
