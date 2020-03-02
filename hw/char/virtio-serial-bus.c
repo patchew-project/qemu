@@ -957,13 +957,13 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     if (find_port_by_id(port->vser, port->id)) {
         error_setg(errp, "virtio-serial-bus: A port already exists at id %u",
                    port->id);
-        return;
+        goto fail;
     }
 
     if (port->name != NULL && find_port_by_name(port->name)) {
         error_setg(errp, "virtio-serial-bus: A port already exists by name %s",
                    port->name);
-        return;
+        goto fail;
     }
 
     if (port->id == VIRTIO_CONSOLE_BAD_ID) {
@@ -974,7 +974,7 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
             if (port->id == VIRTIO_CONSOLE_BAD_ID) {
                 error_setg(errp, "virtio-serial-bus: Maximum port limit for "
                                  "this device reached");
-                return;
+                goto fail;
             }
         }
     }
@@ -983,16 +983,20 @@ static void virtser_port_device_realize(DeviceState *dev, Error **errp)
     if (port->id >= max_nr_ports) {
         error_setg(errp, "virtio-serial-bus: Out-of-range port id specified, "
                          "max. allowed: %u", max_nr_ports - 1);
-        return;
+        goto fail;
     }
 
     vsc->realize(dev, &err);
     if (err != NULL) {
         error_propagate(errp, err);
-        return;
+        goto fail;
     }
 
     port->elem = NULL;
+    return;
+
+fail:
+    qemu_bh_delete(port->bh);
 }
 
 static void virtser_port_device_plug(HotplugHandler *hotplug_dev,
