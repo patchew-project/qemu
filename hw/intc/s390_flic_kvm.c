@@ -68,7 +68,7 @@ static int flic_get_all_irqs(KVMS390FLICState *flic,
     };
     int rc;
 
-    rc = ioctl(flic->fd, KVM_GET_DEVICE_ATTR, &attr);
+    rc = kvm_device_ioctl(flic->fd, KVM_GET_DEVICE_ATTR, &attr);
 
     return rc == -1 ? -errno : rc;
 }
@@ -80,7 +80,7 @@ static void flic_enable_pfault(KVMS390FLICState *flic)
     };
     int rc;
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     if (rc) {
         fprintf(stderr, "flic: couldn't enable pfault\n");
@@ -94,7 +94,7 @@ static void flic_disable_wait_pfault(KVMS390FLICState *flic)
     };
     int rc;
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     if (rc) {
         fprintf(stderr, "flic: couldn't disable pfault\n");
@@ -118,7 +118,7 @@ static int flic_enqueue_irqs(void *buf, uint64_t len,
         .attr = len,
     };
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     return rc ? -errno : 0;
 }
@@ -197,7 +197,7 @@ static int kvm_s390_clear_io_flic(S390FLICState *fs, uint16_t subchannel_id,
     if (unlikely(!flic->clear_io_supported)) {
         return -ENOSYS;
     }
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
     return rc ? -errno : 0;
 }
 
@@ -218,7 +218,7 @@ static int kvm_s390_modify_ais_mode(S390FLICState *fs, uint8_t isc,
         return -ENOSYS;
     }
 
-    return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
+    return kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
 }
 
 static int kvm_s390_inject_airq(S390FLICState *fs, uint8_t type,
@@ -235,7 +235,7 @@ static int kvm_s390_inject_airq(S390FLICState *fs, uint8_t type,
         return -ENOSYS;
     }
 
-    return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
+    return kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
 }
 
 /**
@@ -296,7 +296,7 @@ static int kvm_s390_register_io_adapter(S390FLICState *fs, uint32_t id,
         return 0;
     }
 
-    r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    r = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
 
     return r ? -errno : 0;
 }
@@ -321,7 +321,7 @@ static int kvm_s390_io_adapter_map(S390FLICState *fs, uint32_t id,
         return 0;
     }
 
-    r = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    r = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
     return r ? -errno : 0;
 }
 
@@ -519,7 +519,7 @@ static int kvm_flic_ais_post_load(void *opaque, int version_id)
         return -ENOSYS;
     }
 
-    return ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
+    return kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr) ? -errno : 0;
 }
 
 static const VMStateDescription kvm_s390_flic_ais_tmp = {
@@ -636,7 +636,7 @@ static void kvm_s390_flic_reset(DeviceState *dev)
         }
     }
 
-    rc = ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
+    rc = kvm_device_ioctl(flic->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (rc) {
         trace_flic_reset_failed(errno);
     }
