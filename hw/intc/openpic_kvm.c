@@ -70,7 +70,7 @@ static void kvm_openpic_write(void *opaque, hwaddr addr, uint64_t val,
     attr.attr = addr;
     attr.addr = (uint64_t)(unsigned long)&val32;
 
-    ret = ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
+    ret = kvm_device_ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (ret < 0) {
         qemu_log_mask(LOG_UNIMP, "%s: %s %" PRIx64 "\n", __func__,
                       strerror(errno), attr.attr);
@@ -96,7 +96,7 @@ static uint64_t kvm_openpic_read(void *opaque, hwaddr addr, unsigned size)
     attr.attr = addr;
     attr.addr = (uint64_t)(unsigned long)&val;
 
-    ret = ioctl(opp->fd, KVM_GET_DEVICE_ATTR, &attr);
+    ret = kvm_device_ioctl(opp->fd, KVM_GET_DEVICE_ATTR, &attr);
     if (ret < 0) {
         qemu_log_mask(LOG_UNIMP, "%s: %s %" PRIx64 "\n", __func__,
                       strerror(errno), attr.attr);
@@ -145,7 +145,7 @@ static void kvm_openpic_region_add(MemoryListener *listener,
     attr.attr = KVM_DEV_MPIC_BASE_ADDR;
     attr.addr = (uint64_t)(unsigned long)&reg_base;
 
-    ret = ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
+    ret = kvm_device_ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (ret < 0) {
         fprintf(stderr, "%s: %s %" PRIx64 "\n", __func__,
                 strerror(errno), reg_base);
@@ -179,7 +179,7 @@ static void kvm_openpic_region_del(MemoryListener *listener,
     attr.attr = KVM_DEV_MPIC_BASE_ADDR;
     attr.addr = (uint64_t)(unsigned long)&reg_base;
 
-    ret = ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
+    ret = kvm_device_ioctl(opp->fd, KVM_SET_DEVICE_ATTR, &attr);
     if (ret < 0) {
         fprintf(stderr, "%s: %s %" PRIx64 "\n", __func__,
                 strerror(errno), reg_base);
