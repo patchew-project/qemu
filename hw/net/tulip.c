@@ -229,6 +229,18 @@ static bool tulip_filter_address(TULIPState *s, const uint8_t *addr)
     return ret;
 }
 
+static int
+tulip_can_receive(NetClientState *nc)
+{
+    TULIPState *s = qemu_get_nic_opaque(nc);
+
+    if (s->rx_frame_len || tulip_rx_stopped(s)) {
+        return false;
+    }
+
+    return true;
+}
+
 static ssize_t tulip_receive(TULIPState *s, const uint8_t *buf, size_t size)
 {
     struct tulip_descriptor desc;
@@ -236,7 +248,7 @@ static ssize_t tulip_receive(TULIPState *s, const uint8_t *buf, size_t size)
     trace_tulip_receive(buf, size);
 
     if (size < 14 || size > sizeof(s->rx_frame) - 4
-        || s->rx_frame_len || tulip_rx_stopped(s)) {
+        || !tulip_can_receive(s->nic->ncs)) {
         return 0;
     }
 
@@ -288,6 +300,7 @@ static NetClientInfo net_tulip_info = {
     .type = NET_CLIENT_DRIVER_NIC,
     .size = sizeof(NICState),
     .receive = tulip_receive_nc,
+    .can_receive = tulip_can_receive,
 };
 
 static const char *tulip_reg_name(const hwaddr addr)
