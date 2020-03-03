@@ -1933,11 +1933,10 @@ void memory_region_notify_one(IOMMUNotifier *notifier,
      * Skip the notification if the notification does not overlap
      * with registered range.
      */
-    if (notifier->start > entry_end || notifier->end < entry->iova) {
+    if (notifier->start > entry_end || notifier->end < entry->iova ||
+        entry->iova < notifier->start || entry_end > notifier->end) {
         return;
     }
-
-    assert(entry->iova >= notifier->start && entry_end <= notifier->end);
 
     if (entry->perm & IOMMU_RW) {
         request_flags = IOMMU_NOTIFIER_MAP;
