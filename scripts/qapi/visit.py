@@ -56,12 +56,19 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
                      c_type=base.c_name())
 
     for memb in members:
+        deprecated = 'deprecated' in [f.name for f in memb.features]
         ret += gen_if(memb.ifcond)
         if memb.optional:
             ret += mcgen('''
     if (visit_optional(v, "%(name)s", &obj->has_%(c_name)s)) {
 ''',
                          name=memb.name, c_name=c_name(memb.name))
+            push_indent()
+        if deprecated:
+            ret += mcgen('''
+    if (visit_deprecated(v, "%(name)s")) {
+''',
+                         name=memb.name)
             push_indent()
         ret += mcgen('''
     visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, &err);
@@ -71,6 +78,11 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
 ''',
                      c_type=memb.type.c_name(), name=memb.name,
                      c_name=c_name(memb.name))
+        if deprecated:
+            pop_indent()
+            ret += mcgen('''
+    }
+''')
         if memb.optional:
             pop_indent()
             ret += mcgen('''
