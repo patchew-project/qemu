@@ -149,6 +149,21 @@ bool kvm_msi_use_devid;
 static bool kvm_immediate_exit;
 static hwaddr kvm_max_slot_size = ~0;
 
+/*
+ * While holding this lock in write, no new KVM ioctls can be started, but
+ * kvm ioctl inhibitors will have to wait for existing ones to finish
+ * (indicated by cpu->in_ioctl and kvm_in_ioctl, both updated with this lock
+ * held in read when entering the ioctl).
+ */
+pthread_rwlock_t kvm_ioctl_lock;
+/*
+ * Atomic counter of active KVM ioctls except
+ * - The KVM ioctl inhibitor is doing an ioctl
+ * - kvm_ioctl(): Harmless and not interesting for inhibitors.
+ * - kvm_vcpu_ioctl(): Tracked via cpu->in_ioctl.
+ */
+static int kvm_in_ioctl;
+
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
     KVM_CAP_INFO(DESTROY_MEMORY_REGION_WORKS),
@@ -1023,6 +1038,7 @@ void kvm_set_max_memslot_size(hwaddr max_slot_size)
     kvm_max_slot_size = max_slot_size;
 }
 
+/* Called with KVMMemoryListener.slots_lock held */
 static void kvm_set_phys_mem(KVMMemoryListener *kml,
                              MemoryRegionSection *section, bool add)
 {
@@ -1052,14 +1068,12 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
     ram = memory_region_get_ram_ptr(mr) + section->offset_within_region +
           (start_addr - section->offset_within_address_space);
 
-    kvm_slots_lock(kml);
-
     if (!add) {
         do {
             slot_size = MIN(kvm_max_slot_size, size);
             mem = kvm_lookup_matching_slot(kml, start_addr, slot_size);
             if (!mem) {
-                goto out;
+                return;
             }
             if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
                 kvm_physical_sync_dirty_bitmap(kml, section);
@@ -1079,7 +1093,7 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
             start_addr += slot_size;
             size -= slot_size;
         } while (size);
-        goto out;
+        return;
     }
 
     /* register the new slot */
@@ -1108,9 +1122,6 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
         ram += slot_size;
         size -= slot_size;
     } while (size);
-
-out:
-    kvm_slots_unlock(kml);
 }
 
 static void kvm_region_add(MemoryListener *listener,
@@ -1119,7 +1130,9 @@ static void kvm_region_add(MemoryListener *listener,
     KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
 
     memory_region_ref(section->mr);
+    kvm_slots_lock(kml);
     kvm_set_phys_mem(kml, section, true);
+    kvm_slots_unlock(kml);
 }
 
 static void kvm_region_del(MemoryListener *listener,
@@ -1127,8 +1140,66 @@ static void kvm_region_del(MemoryListener *listener,
 {
     KVMMemoryListener *kml = container_of(listener, KVMMemoryListener, listener);
 
+    kvm_slots_lock(kml);
     kvm_set_phys_mem(kml, section, false);
+    kvm_slots_unlock(kml);
     memory_region_unref(section->mr);
+}
+
+/*
+ * Certain updates (e.g., resizing memory regions) require temporarily removing
+ * kvm memory slots. Make sure any ioctl sees a consistent memory slot state.
+ */
+static void kvm_ioctl_inhibit_begin(void)
+{
+    CPUState *cpu;
+
+    /*
+     * We allow to inhibit only when holding the BQL, so we can identify
+     * when an inhibitor wants to issue an ioctl easily.
+     */
+    g_assert(qemu_mutex_iothread_locked());
+
+    pthread_rwlock_wrlock(&kvm_ioctl_lock);
+
+    /* Inhibiting happens rarely, we can keep things simple and spin here. */
+    while (true) {
+        bool any_cpu_in_ioctl = false;
+
+        CPU_FOREACH(cpu) {
+            if (atomic_read(&cpu->in_ioctl)) {
+                any_cpu_in_ioctl = true;
+                qemu_cpu_kick(cpu);
+            }
+        }
+        if (!any_cpu_in_ioctl && !atomic_read(&kvm_in_ioctl)) {
+            break;
+        }
+        g_usleep(100);
+    }
+}
+
+static void kvm_ioctl_inhibit_end(void)
+{
+    pthread_rwlock_unlock(&kvm_ioctl_lock);
+}
+
+static void kvm_region_resize(MemoryListener *listener,
+                              MemoryRegionSection *section, Int128 new)
+{
+    KVMMemoryListener *kml = container_of(listener, KVMMemoryListener,
+                                          listener);
+    MemoryRegionSection new_section = *section;
+
+    new_section.size = new;
+
+    kvm_slots_lock(kml);
+    /* Inhibit KVM ioctls while temporarily removing slots. */
+    kvm_ioctl_inhibit_begin();
+    kvm_set_phys_mem(kml, section, false);
+    kvm_set_phys_mem(kml, &new_section, true);
+    kvm_ioctl_inhibit_end();
+    kvm_slots_unlock(kml);
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -1249,6 +1320,7 @@ void kvm_memory_listener_register(KVMState *s, KVMMemoryListener *kml,
 
     kml->listener.region_add = kvm_region_add;
     kml->listener.region_del = kvm_region_del;
+    kml->listener.region_resize = kvm_region_resize;
     kml->listener.log_start = kvm_log_start;
     kml->listener.log_stop = kvm_log_stop;
     kml->listener.log_sync = kvm_log_sync;
@@ -1894,6 +1966,7 @@ static int kvm_init(MachineState *ms)
     assert(TARGET_PAGE_SIZE <= qemu_real_host_page_size);
 
     s->sigmask_len = 8;
+    pthread_rwlock_init(&kvm_ioctl_lock, NULL);
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
@@ -2304,6 +2377,34 @@ static void kvm_eat_signals(CPUState *cpu)
     } while (sigismember(&chkset, SIG_IPI));
 }
 
+static void kvm_cpu_set_in_ioctl(CPUState *cpu, bool in_ioctl)
+{
+    if (unlikely(qemu_mutex_iothread_locked())) {
+        return;
+    }
+    if (in_ioctl) {
+        pthread_rwlock_rdlock(&kvm_ioctl_lock);
+        atomic_set(&cpu->in_ioctl, true);
+        pthread_rwlock_unlock(&kvm_ioctl_lock);
+    } else {
+        atomic_set(&cpu->in_ioctl, false);
+    }
+}
+
+static void kvm_set_in_ioctl(bool in_ioctl)
+{
+    if (likely(qemu_mutex_iothread_locked())) {
+        return;
+    }
+    if (in_ioctl) {
+        pthread_rwlock_rdlock(&kvm_ioctl_lock);
+        atomic_inc(&kvm_in_ioctl);
+        pthread_rwlock_unlock(&kvm_ioctl_lock);
+    } else {
+        atomic_dec(&kvm_in_ioctl);
+    }
+}
+
 int kvm_cpu_exec(CPUState *cpu)
 {
     struct kvm_run *run = cpu->kvm_run;
@@ -2488,7 +2589,9 @@ int kvm_vm_ioctl(KVMState *s, int type, ...)
     va_end(ap);
 
     trace_kvm_vm_ioctl(type, arg);
+    kvm_set_in_ioctl(true);
     ret = ioctl(s->vmfd, type, arg);
+    kvm_set_in_ioctl(false);
     if (ret == -1) {
         ret = -errno;
     }
@@ -2506,7 +2609,9 @@ int kvm_vcpu_ioctl(CPUState *cpu, int type, ...)
     va_end(ap);
 
     trace_kvm_vcpu_ioctl(cpu->cpu_index, type, arg);
+    kvm_cpu_set_in_ioctl(cpu, true);
     ret = ioctl(cpu->kvm_fd, type, arg);
+    kvm_cpu_set_in_ioctl(cpu, false);
     if (ret == -1) {
         ret = -errno;
     }
@@ -2524,7 +2629,9 @@ int kvm_device_ioctl(int fd, int type, ...)
     va_end(ap);
 
     trace_kvm_device_ioctl(fd, type, arg);
+    kvm_set_in_ioctl(true);
     ret = ioctl(fd, type, arg);
+    kvm_set_in_ioctl(false);
     if (ret == -1) {
         ret = -errno;
     }

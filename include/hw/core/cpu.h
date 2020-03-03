@@ -431,6 +431,9 @@ struct CPUState {
     /* shared by kvm, hax and hvf */
     bool vcpu_dirty;
 
+    /* kvm only for now: CPU is in kvm_vcpu_ioctl() (esp. KVM_RUN) */
+    bool in_ioctl;
+
     /* Used to keep track of an outstanding cpu throttle thread for migration
      * autoconverge
      */
