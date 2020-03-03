@@ -3360,6 +3360,27 @@ STEXI
 @table @option
 ETEXI
 
+DEF("compat", HAS_ARG, QEMU_OPTION_compat,
+    "-compat [deprecated-input=accept|reject][,deprecated-output=accept|hide]\n"
+    "                Policy for handling deprecated management interfaces\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -compat [deprecated-input=@var{input-policy}][,deprecated-output=@var{output-policy}]
+@findex -compat
+Set policy for handling deprecated management interfaces (experimental):
+@table @option
+@item deprecated-input=accept (default)
+Accept deprecated commands and arguments
+@item deprecated-input=reject
+Reject deprecated commands and arguments
+@item deprecated-output=accept (default)
+Emit deprecated command results and events
+@item deprecated-output=hide
+Suppress deprecated command results and events
+@end table
+Limitation: covers only syntactic aspects of QMP.
+ETEXI
+
 DEF("fw_cfg", HAS_ARG, QEMU_OPTION_fwcfg,
     "-fw_cfg [name=]<name>,file=<file>\n"
     "                add named fw_cfg entry with contents from file\n"
