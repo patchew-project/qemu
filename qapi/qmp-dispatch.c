@@ -20,7 +20,7 @@
 #include "qapi/qmp/qbool.h"
 
 static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
-                                     Error **errp)
+                                     QObject **id, Error **errp)
 {
     const char *exec_key = NULL;
     const QDictEntry *ent;
@@ -30,9 +30,12 @@ static QDict *qmp_dispatch_check_obj(const QObject *request, bool allow_oob,
 
     dict = qobject_to(QDict, request);
     if (!dict) {
+        *id = NULL;
         error_setg(errp, "QMP input must be a JSON object");
         return NULL;
     }
+
+    *id = qdict_get(dict, "id");
 
     for (ent = qdict_first(dict); ent;
          ent = qdict_next(dict, ent)) {
@@ -103,12 +106,12 @@ QDict *qmp_dispatch(QmpCommandList *cmds, QObject *request,
     const char *command;
     QDict *args;
     QmpCommand *cmd;
-    QDict *dict = qobject_to(QDict, request);
-    QObject *id = dict ? qdict_get(dict, "id") : NULL;
+    QDict *dict;
+    QObject *id;
     QObject *ret = NULL;
     QDict *rsp = NULL;
 
-    dict = qmp_dispatch_check_obj(request, allow_oob, &err);
+    dict = qmp_dispatch_check_obj(request, allow_oob, &id, &err);
     if (!dict) {
         goto out;
     }
