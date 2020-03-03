@@ -185,14 +185,17 @@
 ##
 # @eject:
 #
-# Ejects a device from a removable drive.
+# Ejects the medium from a removable block device.
 #
-# @device: Block device name (deprecated, use @id instead)
+# @device: Block device name
 #
 # @id: The name or QOM path of the guest device (since: 2.8)
 #
 # @force: If true, eject regardless of whether the drive is locked.
 #         If not specified, the default value is false.
+#
+# Features:
+# @deprecated: Member @device is deprecated.  Use @id instead.
 #
 # Returns: - Nothing on success
 #          - If @device is not a valid block device, DeviceNotFound
@@ -206,7 +209,7 @@
 # <- { "return": {} }
 ##
 { 'command': 'eject',
-  'data': { '*device': 'str',
+  'data': { '*device': { 'type': 'str', 'features': [ 'deprecated' ] },
             '*id': 'str',
             '*force': 'bool' } }
 
