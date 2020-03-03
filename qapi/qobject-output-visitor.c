@@ -201,7 +201,8 @@ static void qobject_output_type_null(Visitor *v, const char *name,
     qobject_output_add(qov, name, qnull());
 }
 
-static bool qobject_output_deprecated(Visitor *v, const char *name)
+static bool qobject_output_deprecated(Visitor *v, const char *name,
+                                      Error **errp)
 {
     QObjectOutputVisitor *qov = to_qov(v);
 
