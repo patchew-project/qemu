@@ -21,11 +21,11 @@
 #include "quirks-pl2303-ids.h"
 
 struct usb_device_id {
-    int vendor_id;
-    int product_id;
-    int interface_class;
-    int interface_subclass;
-    int interface_protocol;
+    int16_t vendor_id;
+    int16_t product_id;
+    int8_t interface_class;
+    int8_t interface_subclass;
+    int8_t interface_protocol;
 };
 
 #define USB_DEVICE(vendor, product) \
