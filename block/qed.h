@@ -103,7 +103,7 @@ typedef struct {
 } QEMU_PACKED QEDHeader;
 
 typedef struct {
-    uint64_t offsets[0];            /* in bytes */
+    uint64_t offsets[];             /* in bytes */
 } QEDTable;
 
 /* The L2 cache is a simple write-through cache for L2 structures */
