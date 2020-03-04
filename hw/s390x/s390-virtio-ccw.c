@@ -43,6 +43,9 @@
 #include "sysemu/sysemu.h"
 #include "hw/s390x/pv.h"
 #include <linux/kvm.h>
+#include "migration/blocker.h"
+
+static Error *pv_mig_blocker;
 
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr)
 {
@@ -324,19 +327,30 @@ static void s390_machine_unprotect(S390CcwMachineState *ms)
 {
     CPUState *t;
 
-    if (!ms->pv)
-        return;
-    s390_pv_vm_disable();
-    CPU_FOREACH(t) {
-        S390_CPU(t)->env.pv = false;
+    if (ms->pv) {
+        s390_pv_vm_disable();
+        CPU_FOREACH(t) {
+            S390_CPU(t)->env.pv = false;
+        }
+        ms->pv = false;
     }
-    ms->pv = false;
+    migrate_del_blocker(pv_mig_blocker);
 }
 
 static int s390_machine_protect(S390CcwMachineState *ms)
 {
+    static Error *local_err;
     CPUState *t;
-    int rc;
+    int rc = -1;
+
+    if (!pv_mig_blocker) {
+        error_setg(&pv_mig_blocker,
+                   "protected VMs are currently not migrateable.");
+    }
+    migrate_add_blocker(pv_mig_blocker, &local_err);
+    if (local_err) {
+        goto out_err;
+    }
 
     /* Create SE VM */
     rc = s390_pv_vm_enable();
@@ -440,11 +454,12 @@ static void s390_machine_reset(MachineState *machine)
 
         if (s390_machine_protect(ms)) {
             s390_machine_inject_pv_error(cs);
-            s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
-            return;
+            goto pv_err;
         }
 
         run_on_cpu(cs, s390_do_cpu_load_normal, RUN_ON_CPU_NULL);
+pv_err:
+        s390_cpu_set_state(S390_CPU_STATE_OPERATING, cpu);
         break;
     default:
         g_assert_not_reached();
