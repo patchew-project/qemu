@@ -16,3 +16,4 @@ Contents:
 
    qemu-block-drivers
    vfio-ap
+   protvirt
