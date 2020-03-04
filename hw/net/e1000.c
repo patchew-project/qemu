@@ -1095,7 +1095,7 @@ mac_writereg(E1000State *s, int index, uint32_t val)
     if (index == RA + 1) {
         macaddr[0] = cpu_to_le32(s->mac_reg[RA]);
         macaddr[1] = cpu_to_le32(s->mac_reg[RA + 1]);
-        qemu_format_nic_info_str(qemu_get_queue(s->nic), (uint8_t *)macaddr);
+        qemu_update_nic_macaddr(qemu_get_queue(s->nic), (uint8_t *)macaddr);
     }
 }
 
@@ -1711,7 +1711,7 @@ static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)
     d->nic = qemu_new_nic(&net_e1000_info, &d->conf,
                           object_get_typename(OBJECT(d)), dev->id, d);
 
-    qemu_format_nic_info_str(qemu_get_queue(d->nic), macaddr);
+    qemu_update_nic_macaddr(qemu_get_queue(d->nic), macaddr);
 
     d->autoneg_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, e1000_autoneg_timer, d);
     d->mit_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, e1000_mit_timer, d);

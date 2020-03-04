@@ -240,8 +240,8 @@ FpPort *fp_port_alloc(Rocker *r, char *sw_name,
 
     port->nic = qemu_new_nic(&fp_port_info, &port->conf,
                              sw_name, NULL, port);
-    qemu_format_nic_info_str(qemu_get_queue(port->nic),
-                             port->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(port->nic),
+                            port->conf.macaddr.a);
 
     fp_port_reset(port);
 

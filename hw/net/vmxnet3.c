@@ -366,7 +366,7 @@ static void vmxnet3_set_variable_mac(VMXNET3State *s, uint32_t h, uint32_t l)
 
     VMW_CFPRN("Variable MAC: " MAC_FMT, MAC_ARG(s->conf.macaddr.a));
 
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static uint64_t vmxnet3_get_mac_low(MACAddr *addr)
@@ -2069,7 +2069,7 @@ static void vmxnet3_net_init(VMXNET3State *s)
         qemu_using_vnet_hdr(qemu_get_queue(s->nic)->peer, 1);
     }
 
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static void

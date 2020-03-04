@@ -174,8 +174,8 @@ static void set_individual_address(I82596State *s, uint32_t addr)
     m = s->conf.macaddr.a;
     address_space_read(&address_space_memory, addr + 8,
                        MEMTXATTRS_UNSPECIFIED, m, ETH_ALEN);
-    qemu_format_nic_info_str(nc, m);
-    trace_i82596_new_mac(nc->info_str);
+    qemu_update_nic_macaddr(nc, m);
+    trace_i82596_new_mac(nc->stored_config->u.nic.macaddr);
 }
 
 static void set_multicast_list(I82596State *s, uint32_t addr)
@@ -723,7 +723,7 @@ void i82596_common_init(DeviceState *dev, I82596State *s, NetClientInfo *info)
     }
     s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)),
                 dev->id, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     if (USE_TIMER) {
         s->flush_queue_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL,

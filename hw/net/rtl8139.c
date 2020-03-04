@@ -1227,7 +1227,7 @@ static void rtl8139_reset(DeviceState *d)
 
     /* restore MAC address */
     memcpy(s->phys, s->conf.macaddr.a, 6);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->phys);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->phys);
 
     /* reset interrupt mask */
     s->IntrStatus = 0;
@@ -2676,7 +2676,7 @@ static void rtl8139_io_writeb(void *opaque, uint8_t addr, uint32_t val)
             break;
         case MAC0+5:
             s->phys[addr - MAC0] = val;
-            qemu_format_nic_info_str(qemu_get_queue(s->nic), s->phys);
+            qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->phys);
             break;
         case MAC0+6 ... MAC0+7:
             /* reserved */
@@ -3398,7 +3398,7 @@ static void pci_rtl8139_realize(PCIDevice *dev, Error **errp)
 
     s->nic = qemu_new_nic(&net_rtl8139_info, &s->conf,
                           object_get_typename(OBJECT(dev)), d->id, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 
     s->cplus_txbuffer = NULL;
     s->cplus_txbuffer_len = 0;

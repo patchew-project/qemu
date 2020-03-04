@@ -1867,8 +1867,9 @@ static void e100_nic_realize(PCIDevice *pci_dev, Error **errp)
     s->nic = qemu_new_nic(&net_eepro100_info, &s->conf,
                           object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
 
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
-    TRACE(OTHER, logout("%s\n", qemu_get_queue(s->nic)->info_str));
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    TRACE(OTHER, logout("macaddr=%s\n",
+                        qemu_get_queue(s->nic)->stored_config->u.nic.macaddr));
 
     qemu_register_reset(nic_reset, s);
 

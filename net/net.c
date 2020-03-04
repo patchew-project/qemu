@@ -127,19 +127,13 @@ char *qemu_mac_strdup_printf(const uint8_t *macaddr)
                            macaddr[3], macaddr[4], macaddr[5]);
 }
 
-void qemu_format_nic_info_str(NetClientState *nc, uint8_t macaddr[6])
+void qemu_update_nic_macaddr(NetClientState *nc, uint8_t macaddr[6])
 {
     g_assert(nc->stored_config);
 
     g_free(nc->stored_config->u.nic.macaddr);
     nc->stored_config->u.nic.macaddr = g_strdup_printf(MAC_FMT,
                                                        MAC_ARG(macaddr));
-
-    snprintf(nc->info_str, sizeof(nc->info_str),
-             "model=%s,macaddr=%02x:%02x:%02x:%02x:%02x:%02x",
-             nc->model,
-             macaddr[0], macaddr[1], macaddr[2],
-             macaddr[3], macaddr[4], macaddr[5]);
 }
 
 static int mac_table[256] = {0};

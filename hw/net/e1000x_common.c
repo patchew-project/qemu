@@ -145,7 +145,7 @@ void e1000x_reset_mac_addr(NICState *nic, uint32_t *mac_regs,
             (i < 2) ? mac_addr[i + 4] << (8 * i) : 0;
     }
 
-    qemu_format_nic_info_str(qemu_get_queue(nic), mac_addr);
+    qemu_update_nic_macaddr(qemu_get_queue(nic), mac_addr);
     trace_e1000x_mac_indicate(MAC_ARG(mac_addr));
 }
 

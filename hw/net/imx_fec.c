@@ -1323,7 +1323,7 @@ static void imx_eth_realize(DeviceState *dev, Error **errp)
                           object_get_typename(OBJECT(dev)),
                           DEVICE(dev)->id, s);
 
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static Property imx_eth_properties[] = {

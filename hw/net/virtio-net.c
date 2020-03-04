@@ -152,7 +152,7 @@ static void virtio_net_set_config(VirtIODevice *vdev, const uint8_t *config)
         !virtio_vdev_has_feature(vdev, VIRTIO_F_VERSION_1) &&
         memcmp(netcfg.mac, n->mac, ETH_ALEN)) {
         memcpy(n->mac, netcfg.mac, ETH_ALEN);
-        qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
+        qemu_update_nic_macaddr(qemu_get_queue(n->nic), n->mac);
     }
 }
 
@@ -521,7 +521,7 @@ static void virtio_net_reset(VirtIODevice *vdev)
     n->mac_table.uni_overflow = 0;
     memset(n->mac_table.macs, 0, MAC_TABLE_ENTRIES * ETH_ALEN);
     memcpy(&n->mac[0], &n->nic->conf->macaddr, sizeof(n->mac));
-    qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
+    qemu_update_nic_macaddr(qemu_get_queue(n->nic), n->mac);
     memset(n->vlans, 0, MAX_VLAN >> 3);
 
     /* Flush any async TX */
@@ -1009,7 +1009,7 @@ static int virtio_net_handle_mac(VirtIONet *n, uint8_t cmd,
         }
         s = iov_to_buf(iov, iov_cnt, 0, &n->mac, sizeof(n->mac));
         assert(s == sizeof(n->mac));
-        qemu_format_nic_info_str(qemu_get_queue(n->nic), n->mac);
+        qemu_update_nic_macaddr(qemu_get_queue(n->nic), n->mac);
         rxfilter_notify(nc);
 
         return VIRTIO_NET_OK;
@@ -3056,7 +3056,7 @@ static void virtio_net_device_realize(DeviceState *dev, Error **errp)
         n->host_hdr_len = 0;
     }
 
-    qemu_format_nic_info_str(qemu_get_queue(n->nic), n->nic_conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(n->nic), n->nic_conf.macaddr.a);
 
     n->vqs[0].tx_waiting = 0;
     n->tx_burst = n->net_conf.txburst;

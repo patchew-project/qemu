@@ -333,7 +333,7 @@ e1000e_init_net_peer(E1000EState *s, PCIDevice *pci_dev, uint8_t *macaddr)
     trace_e1000e_mac_set_permanent(MAC_ARG(macaddr));
     memcpy(s->core.permanent_mac, macaddr, sizeof(s->core.permanent_mac));
 
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), macaddr);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), macaddr);
 
     /* Setup virtio headers */
     if (s->disable_vnet) {

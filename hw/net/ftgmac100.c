@@ -1037,7 +1037,7 @@ static void ftgmac100_realize(DeviceState *dev, Error **errp)
     s->nic = qemu_new_nic(&net_ftgmac100_info, &s->conf,
                           object_get_typename(OBJECT(dev)), DEVICE(dev)->id,
                           s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static const VMStateDescription vmstate_ftgmac100 = {

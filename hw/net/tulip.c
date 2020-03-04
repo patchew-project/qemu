@@ -964,7 +964,7 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
     s->nic = qemu_new_nic(&net_tulip_info, &s->c,
                           object_get_typename(OBJECT(pci_dev)),
                           pci_dev->qdev.id, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->c.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->c.macaddr.a);
 }
 
 static void pci_tulip_exit(PCIDevice *pci_dev)

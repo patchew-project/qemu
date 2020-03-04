@@ -641,7 +641,7 @@ static void mcf_fec_realize(DeviceState *dev, Error **errp)
 
     s->nic = qemu_new_nic(&net_mcf_fec_info, &s->conf,
                           object_get_typename(OBJECT(dev)), dev->id, s);
-    qemu_format_nic_info_str(qemu_get_queue(s->nic), s->conf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(s->nic), s->conf.macaddr.a);
 }
 
 static void mcf_fec_instance_init(Object *obj)

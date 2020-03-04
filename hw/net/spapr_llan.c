@@ -314,7 +314,7 @@ static void spapr_vlan_reset(SpaprVioDevice *sdev)
 
     memcpy(&dev->nicconf.macaddr.a, &dev->perm_mac.a,
            sizeof(dev->nicconf.macaddr.a));
-    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 }
 
 static void spapr_vlan_realize(SpaprVioDevice *sdev, Error **errp)
@@ -327,7 +327,7 @@ static void spapr_vlan_realize(SpaprVioDevice *sdev, Error **errp)
 
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
                             object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
-    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
     dev->rxp_timer = timer_new_us(QEMU_CLOCK_VIRTUAL, spapr_vlan_flush_rx_queue,
                                   dev);
@@ -775,7 +775,7 @@ static target_ulong h_change_logical_lan_mac(PowerPCCPU *cpu,
         macaddr >>= 8;
     }
 
-    qemu_format_nic_info_str(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
+    qemu_update_nic_macaddr(qemu_get_queue(dev->nic), dev->nicconf.macaddr.a);
 
     return H_SUCCESS;
 }
