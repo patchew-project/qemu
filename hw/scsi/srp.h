@@ -112,7 +112,7 @@ struct srp_direct_buf {
 struct srp_indirect_buf {
     struct srp_direct_buf    table_desc;
     uint32_t                 len;
-    struct srp_direct_buf    desc_list[0];
+    struct srp_direct_buf    desc_list[];
 } QEMU_PACKED;
 
 enum {
@@ -211,7 +211,7 @@ struct srp_cmd {
     uint8_t    reserved4;
     uint8_t    add_cdb_len;
     uint8_t    cdb[16];
-    uint8_t    add_data[0];
+    uint8_t    add_data[];
 } QEMU_PACKED;
 
 enum {
@@ -241,7 +241,7 @@ struct srp_rsp {
     uint32_t   data_in_res_cnt;
     uint32_t   sense_data_len;
     uint32_t   resp_data_len;
-    uint8_t    data[0];
+    uint8_t    data[];
 } QEMU_PACKED;
 
 #endif /* SCSI_SRP_H */
