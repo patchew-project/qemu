@@ -41,6 +41,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/s390x/tod.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/balloon.h"
 #include "hw/s390x/pv.h"
 #include <linux/kvm.h>
 #include "migration/blocker.h"
@@ -335,6 +336,7 @@ static void s390_machine_unprotect(S390CcwMachineState *ms)
         ms->pv = false;
     }
     migrate_del_blocker(pv_mig_blocker);
+    qemu_balloon_inhibit(false);
 }
 
 static int s390_machine_protect(S390CcwMachineState *ms)
@@ -343,6 +345,7 @@ static int s390_machine_protect(S390CcwMachineState *ms)
     CPUState *t;
     int rc = -1;
 
+    qemu_balloon_inhibit(true);
     if (!pv_mig_blocker) {
         error_setg(&pv_mig_blocker,
                    "protected VMs are currently not migrateable.");
