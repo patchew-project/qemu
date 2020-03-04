@@ -46,6 +46,9 @@ int main(int argc, char *argv[])
 #ifdef CONFIG_AUDIO_SDL
         "audio-", "sdl",
 #endif
+#ifdef CONFIG_AUDIO_SNDIO
+        "audio-", "sndio",
+#endif
 #ifdef CONFIG_CURSES
         "ui-", "curses",
 #endif

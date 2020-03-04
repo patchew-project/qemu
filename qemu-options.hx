@@ -566,6 +566,9 @@ DEF("audiodev", HAS_ARG, QEMU_OPTION_audiodev,
 #ifdef CONFIG_AUDIO_SDL
     "-audiodev sdl,id=id[,prop[=value][,...]]\n"
 #endif
+#ifdef CONFIG_AUDIO_SNDIO
+    "-audiodev sndio,id=id[,prop[=value][,...]]\n"
+#endif
 #ifdef CONFIG_SPICE
     "-audiodev spice,id=id[,prop[=value][,...]]\n"
 #endif
@@ -746,6 +749,10 @@ value but actual latencies may be lower or higher.
 Creates a backend using SDL.  This backend is available on most systems,
 but you should use your platform's native backend if possible.  This
 backend has no backend specific properties.
+
+@item -audiodev sndio,id=@var{id}[,@var{prop}[=@var{value}][,...]]
+Creates a backend using SNDIO.  This backend is available on OpenBSD and most
+other Unix-like systems.  This backend has no backend specific properties.
 
 @item -audiodev spice,id=@var{id}[,@var{prop}[=@var{value}][,...]]
 Creates a backend that sends audio through SPICE.  This backend requires

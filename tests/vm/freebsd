@@ -58,6 +58,9 @@ class FreeBSDVM(basevm.BaseVM):
 
         # libs: migration
         "zstd",
+
+        # libs: sndio
+        "sndio",
     ]
 
     BUILD_SCRIPT = """
