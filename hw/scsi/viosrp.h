@@ -49,8 +49,8 @@ union srp_iu {
     struct srp_tsk_mgmt tsk_mgmt;
     struct srp_cmd cmd;
     struct srp_rsp rsp;
-    uint8_t reserved[SRP_MAX_IU_LEN];
 };
+_Static_assert(sizeof(union srp_iu) <= SRP_MAX_IU_LEN, "srp_iu size incorrect");
 
 enum viosrp_crq_formats {
     VIOSRP_SRP_FORMAT = 0x01,
