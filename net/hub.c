@@ -148,6 +148,7 @@ static NetHubPort *net_hub_port_new(NetHub *hub, const char *name,
     NetHubPort *port;
     int id = hub->num_ports++;
     char default_name[128];
+    NetdevHubPortOptions *stored;
 
     if (!name) {
         snprintf(default_name, sizeof(default_name),
@@ -159,6 +160,13 @@ static NetHubPort *net_hub_port_new(NetHub *hub, const char *name,
     port = DO_UPCAST(NetHubPort, nc, nc);
     port->id = id;
     port->hub = hub;
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_CLIENT_DRIVER_HUBPORT;
+    stored = &nc->stored_config->u.hubport;
+
+    stored->hubid = hub->id;
 
     QLIST_INSERT_HEAD(&hub->ports, port, next);
 
