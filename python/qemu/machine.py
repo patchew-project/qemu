@@ -391,7 +391,7 @@ class QEMUMachine(object):
             self._qmp_set = False
             self._qmp = None
 
-    def qmp(self, cmd, conv_keys=True, **args):
+    def qmp(self, cmd, conv_keys=True, vm_name=None, **args):
         """
         Invoke a QMP command and return the response dict
         """
@@ -402,15 +402,15 @@ class QEMUMachine(object):
             else:
                 qmp_args[key] = value
 
-        return self._qmp.cmd(cmd, args=qmp_args)
+        return self._qmp.cmd(cmd, args=qmp_args, vm_name=vm_name)
 
-    def command(self, cmd, conv_keys=True, **args):
+    def command(self, cmd, conv_keys=True, vm_name=None, **args):
         """
         Invoke a QMP command.
         On success return the response dict.
         On failure raise an exception.
         """
-        reply = self.qmp(cmd, conv_keys, **args)
+        reply = self.qmp(cmd, conv_keys, vm_name, **args)
         if reply is None:
             raise qmp.QMPError("Monitor is closed")
         if "error" in reply:

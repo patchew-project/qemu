@@ -180,11 +180,12 @@ class QEMUMonitorProtocol:
         self.__sockfile = self.__sock.makefile()
         return self.__negotiate_capabilities()
 
-    def cmd_obj(self, qmp_cmd):
+    def cmd_obj(self, qmp_cmd, vm_name=None):
         """
         Send a QMP command to the QMP Monitor.
 
         @param qmp_cmd: QMP command to be sent as a Python dict
+        @param vm_name: name for the virtual machine (string)
         @return QMP response as a Python dict or None if the connection has
                 been closed
         """
@@ -196,10 +197,12 @@ class QEMUMonitorProtocol:
                 return None
             raise err
         resp = self.__json_read()
+        if vm_name:
+            self.logger.debug("<<< {'vm_name' : %s }",  vm_name)
         self.logger.debug("<<< %s", resp)
         return resp
 
-    def cmd(self, name, args=None, cmd_id=None):
+    def cmd(self, name, args=None, cmd_id=None, vm_name=None):
         """
         Build a QMP command and send it to the QMP Monitor.
 
@@ -212,7 +215,7 @@ class QEMUMonitorProtocol:
             qmp_cmd['arguments'] = args
         if cmd_id:
             qmp_cmd['id'] = cmd_id
-        return self.cmd_obj(qmp_cmd)
+        return self.cmd_obj(qmp_cmd, vm_name)
 
     def command(self, cmd, **kwds):
         """
