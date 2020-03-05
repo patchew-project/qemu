@@ -651,6 +651,12 @@ int target_munmap(abi_ulong start, abi_ulong len)
     return ret;
 }
 
+#ifdef TARGET_HPPA
+#define STACK_GROWS_DOWN 0
+#else
+#define STACK_GROWS_DOWN 1
+#endif
+
 abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_size, unsigned long flags,
                        abi_ulong new_addr)
@@ -663,6 +669,26 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
          !guest_range_valid(new_addr, new_size))) {
         errno = ENOMEM;
         return -1;
+    }
+
+    /* Check that we're not overlapping with the stack guard. */
+    if (reserved_va) {
+        abi_ulong guard_size, guard_start;
+
+        guard_size = TARGET_PAGE_SIZE < qemu_real_host_page_size ?
+            qemu_real_host_page_size : TARGET_PAGE_SIZE;
+
+        if (STACK_GROWS_DOWN) {
+            guard_start = reserved_va - guest_stack_size - guard_size;
+        } else {
+            guard_start = reserved_va - guard_size;
+        }
+
+        if (guard_start < old_addr + old_size &&
+             old_addr < guard_start + guard_size) {
+            errno = EFAULT;
+            return -1;
+        }
     }
 
     mmap_lock();
