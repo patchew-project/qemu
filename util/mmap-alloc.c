@@ -10,6 +10,8 @@
  * later.  See the COPYING file in the top-level directory.
  */
 
+#include "config-host.h"
+
 #ifdef CONFIG_LINUX
 #include <linux/mman.h>
 #else  /* !CONFIG_LINUX */
