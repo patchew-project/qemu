@@ -947,6 +947,7 @@ static int coroutine_fn qcow_co_create_opts(const char *filename,
 
     static const QDictRenames opt_renames[] = {
         { BLOCK_OPT_BACKING_FILE,       "backing-file" },
+        { BLOCK_OPT_BACKING_FMT,        "backing-fmt" },
         { BLOCK_OPT_ENCRYPT,            BLOCK_OPT_ENCRYPT_FORMAT },
         { NULL, NULL },
     };
@@ -1150,6 +1151,11 @@ static QemuOptsList qcow_create_opts = {
             .name = BLOCK_OPT_BACKING_FILE,
             .type = QEMU_OPT_STRING,
             .help = "File name of a base image"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FMT,
+            .type = QEMU_OPT_STRING,
+            .help = "Ignored (use raw backing files with caution)",
         },
         {
             .name = BLOCK_OPT_ENCRYPT,

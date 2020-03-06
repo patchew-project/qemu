@@ -2187,6 +2187,7 @@ static int coroutine_fn sd_co_create_opts(const char *filename, QemuOpts *opts,
     /* Change legacy command line options into QMP ones */
     static const QDictRenames opt_renames[] = {
         { BLOCK_OPT_BACKING_FILE,       "backing-file" },
+        { BLOCK_OPT_BACKING_FMT,        "backing-fmt" },
         { BLOCK_OPT_OBJECT_SIZE,        "object-size" },
         { NULL, NULL },
     };
@@ -3188,6 +3189,11 @@ static QemuOptsList sd_create_opts = {
             .name = BLOCK_OPT_BACKING_FILE,
             .type = QEMU_OPT_STRING,
             .help = "File name of a base image"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FMT,
+            .type = QEMU_OPT_STRING,
+            .help = "Ignored (use raw backing files with caution)",
         },
         {
             .name = BLOCK_OPT_PREALLOC,

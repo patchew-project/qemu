@@ -3006,6 +3006,11 @@ static QemuOptsList vmdk_create_opts = {
             .help = "File name of a base image"
         },
         {
+            .name = BLOCK_OPT_BACKING_FMT,
+            .type = QEMU_OPT_STRING,
+            .help = "Ignored (base image must be vmdk format)",
+        },
+        {
             .name = BLOCK_OPT_COMPAT6,
             .type = QEMU_OPT_BOOL,
             .help = "VMDK version 6 image",
