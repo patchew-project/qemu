@@ -470,6 +470,8 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     char *addr = area;
     int i = 0;
 
+    qemu_cond_init(&page_cond);
+    qemu_mutex_init(&page_mutex);
     memset_thread_failed = false;
     threads_created_flag = false;
     memset_num_threads = get_memset_num_threads(smp_cpus);
