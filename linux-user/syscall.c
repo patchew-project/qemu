@@ -245,7 +245,12 @@ static type name (type1 arg1,type2 arg2,type3 arg3,type4 arg4,type5 arg5,	\
 #define __NR_sys_rt_sigqueueinfo __NR_rt_sigqueueinfo
 #define __NR_sys_rt_tgsigqueueinfo __NR_rt_tgsigqueueinfo
 #define __NR_sys_syslog __NR_syslog
-#define __NR_sys_futex __NR_futex
+#if defined(__NR_futex)
+# define __NR_sys_futex __NR_futex
+#endif
+#if defined(__NR_futex_time64)
+# define __NR_sys_futex_time64 __NR_futex_time64
+#endif
 #define __NR_sys_inotify_init __NR_inotify_init
 #define __NR_sys_inotify_add_watch __NR_inotify_add_watch
 #define __NR_sys_inotify_rm_watch __NR_inotify_rm_watch
@@ -295,8 +300,13 @@ _syscall1(int,exit_group,int,error_code)
 #if defined(TARGET_NR_set_tid_address) && defined(__NR_set_tid_address)
 _syscall1(int,set_tid_address,int *,tidptr)
 #endif
-#if defined(TARGET_NR_futex) && defined(__NR_futex)
+#if (defined(TARGET_NR_futex) || defined(TARGET_NR_futex_time64)) && \
+    defined(__NR_futex)
 _syscall6(int,sys_futex,int *,uaddr,int,op,int,val,
+          const struct timespec *,timeout,int *,uaddr2,int,val3)
+#endif
+#if defined(TARGET_NR_futex_time64) && defined(__NR_futex_time64)
+_syscall6(int,sys_futex_time64,int *,uaddr,int,op,int,val,
           const struct timespec *,timeout,int *,uaddr2,int,val3)
 #endif
 #define __NR_sys_sched_getaffinity __NR_sched_getaffinity
@@ -762,8 +772,12 @@ safe_syscall5(int, ppoll, struct pollfd *, ufds, unsigned int, nfds,
 safe_syscall6(int, epoll_pwait, int, epfd, struct epoll_event *, events,
               int, maxevents, int, timeout, const sigset_t *, sigmask,
               size_t, sigsetsize)
-#ifdef TARGET_NR_futex
+#if defined(__NR_futex)
 safe_syscall6(int,futex,int *,uaddr,int,op,int,val, \
+              const struct timespec *,timeout,int *,uaddr2,int,val3)
+#endif
+#if defined(__NR_futex_time64)
+safe_syscall6(int,futex_time64,int *,uaddr,int,op,int,val, \
               const struct timespec *,timeout,int *,uaddr2,int,val3)
 #endif
 safe_syscall2(int, rt_sigsuspend, sigset_t *, newset, size_t, sigsetsize)
@@ -1210,7 +1224,7 @@ static inline abi_long copy_to_user_timeval64(abi_ulong target_tv_addr,
     return 0;
 }
 
-#if defined(TARGET_NR_futex) || \
+#if defined(TARGET_NR_futex) || defined(TARGET_NR_futex_time64) || \
     defined(TARGET_NR_rt_sigtimedwait) || \
     defined(TARGET_NR_pselect6) || defined(TARGET_NR_pselect6) || \
     defined(TARGET_NR_nanosleep) || defined(TARGET_NR_clock_settime) || \
@@ -6898,12 +6912,12 @@ static inline abi_long host_to_target_statx(struct target_statx *host_stx,
    futexes locally would make futexes shared between multiple processes
    tricky.  However they're probably useless because guest atomic
    operations won't work either.  */
-#if defined(TARGET_NR_futex)
+#if defined(TARGET_NR_futex) || defined(TARGET_NR_futex_time64)
 static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
                     target_ulong uaddr2, int val3)
 {
     struct timespec ts, *pts;
-    int base_op;
+    int base_op, err = -ENOSYS;
 
     /* ??? We assume FUTEX_* constants are the same on both host
        and target.  */
@@ -6915,18 +6929,49 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
     switch (base_op) {
     case FUTEX_WAIT:
     case FUTEX_WAIT_BITSET:
+#ifdef __NR_futex_time64
+        struct __kernel_timespec ts64, *pts64;
+
         if (timeout) {
-            pts = &ts;
-            target_to_host_timespec(pts, timeout);
+            pts64 = &ts64;
+            target_to_host_timespec64(pts64, timeout);
         } else {
-            pts = NULL;
+            pts64 = NULL;
         }
-        return get_errno(safe_futex(g2h(uaddr), op, tswap32(val),
-                         pts, NULL, val3));
+
+        err = get_errno(safe_futex_time64(g2h(uaddr), op, tswap32(val),
+                         pts64, NULL, val3));
+#endif
+#ifdef __NR_futex
+        if (err == -ENOSYS) {
+            if (timeout) {
+                pts = &ts;
+                target_to_host_timespec(pts, timeout);
+            } else {
+                pts = NULL;
+            }
+            return get_errno(safe_futex(g2h(uaddr), op, tswap32(val),
+                             pts, NULL, val3));
+        }
+#endif
     case FUTEX_WAKE:
-        return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+#ifdef __NR_futex_time64
+        err = get_errno(safe_futex_time64(g2h(uaddr), op, val, NULL, NULL, 0));
+#endif
+#ifdef __NR_futex
+        if (err == -ENOSYS) {
+            return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+        }
+#endif
     case FUTEX_FD:
-        return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+#ifdef __NR_futex_time64
+        err = get_errno(safe_futex_time64(g2h(uaddr), op, val, NULL, NULL, 0));
+#endif
+#ifdef __NR_futex
+        if (err == -ENOSYS) {
+            return get_errno(safe_futex(g2h(uaddr), op, val, NULL, NULL, 0));
+        }
+#endif
     case FUTEX_REQUEUE:
     case FUTEX_CMP_REQUEUE:
     case FUTEX_WAKE_OP:
@@ -6935,12 +6980,25 @@ static int do_futex(target_ulong uaddr, int op, int val, target_ulong timeout,
            But the prototype takes a `struct timespec *'; insert casts
            to satisfy the compiler.  We do not need to tswap TIMEOUT
            since it's not compared to guest memory.  */
+#ifdef __NR_futex_time64
+        struct __kernel_timespec *pts64;
+        pts64 = (struct __kernel_timespec *)(uintptr_t) timeout;
+        ret = get_errno(safe_futex_time64(g2h(uaddr), op, val, pts64,
+                                   g2h(uaddr2),
+                                   (base_op == FUTEX_CMP_REQUEUE
+                                    ? tswap32(val3)
+                                    : val3)));
+#endif
+#ifdef __NR_futex
         pts = (struct timespec *)(uintptr_t) timeout;
-        return get_errno(safe_futex(g2h(uaddr), op, val, pts,
-                                    g2h(uaddr2),
-                                    (base_op == FUTEX_CMP_REQUEUE
-                                     ? tswap32(val3)
-                                     : val3)));
+        if (err == -ENOSYS) {
+            return get_errno(safe_futex(g2h(uaddr), op, val, pts,
+                                      g2h(uaddr2),
+                                      (base_op == FUTEX_CMP_REQUEUE
+                                       ? tswap32(val3)
+                                       : val3)));
+        }
+#endif
     default:
         return -TARGET_ENOSYS;
     }
@@ -11597,6 +11655,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_futex
     case TARGET_NR_futex:
+        return do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
+#endif
+#ifdef TARGET_NR_futex_time64
+    case TARGET_NR_futex_time64:
         return do_futex(arg1, arg2, arg3, arg4, arg5, arg6);
 #endif
 #if defined(TARGET_NR_inotify_init) && defined(__NR_inotify_init)
