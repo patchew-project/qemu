@@ -211,6 +211,9 @@
  *         }
  *         ...
  *     }
+ *
+ * For mass conversion use script
+ *   scripts/coccinelle/auto-propagated-errp.cocci
  */
 
 #ifndef ERROR_H
