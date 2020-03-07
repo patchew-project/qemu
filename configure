@@ -2341,6 +2341,32 @@ if test "$vhost_net" = ""; then
 fi
 
 ##########################################
+# iovec probe
+cat > $TMPC <<EOF
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+int main(void) { return sizeof(struct iovec); }
+EOF
+iovec=no
+if compile_prog "" "" ; then
+  iovec=yes
+fi
+
+##########################################
+# preadv probe
+cat > $TMPC <<EOF
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <unistd.h>
+int main(void) { return preadv(0, 0, 0, 0); }
+EOF
+preadv=no
+if compile_prog "" "" ; then
+  preadv=yes
+fi
+
+##########################################
 # MinGW / Mingw-w64 localtime_r/gmtime_r check
 
 if test "$mingw32" = "yes"; then
@@ -4143,32 +4169,6 @@ EOF
     fi
     attr=no
   fi
-fi
-
-##########################################
-# iovec probe
-cat > $TMPC <<EOF
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
-int main(void) { return sizeof(struct iovec); }
-EOF
-iovec=no
-if compile_prog "" "" ; then
-  iovec=yes
-fi
-
-##########################################
-# preadv probe
-cat > $TMPC <<EOF
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <unistd.h>
-int main(void) { return preadv(0, 0, 0, 0); }
-EOF
-preadv=no
-if compile_prog "" "" ; then
-  preadv=yes
 fi
 
 ##########################################
