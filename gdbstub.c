@@ -2105,6 +2105,12 @@ static void handle_query_supported(GdbCmdContext *gdb_ctx, void *user_ctx)
         pstrcat(gdb_ctx->str_buf, sizeof(gdb_ctx->str_buf),
                 ";qXfer:features:read+");
     }
+#ifdef CONFIG_USER_ONLY
+    if (gdb_ctx->s->c_cpu->opaque) {
+        pstrcat(gdb_ctx->str_buf, sizeof(gdb_ctx->str_buf),
+                ";qXfer:auxv:read+");
+    }
+#endif
 
     if (gdb_ctx->num_params &&
         strstr(gdb_ctx->params[0].data, "multiprocess+")) {
@@ -2165,6 +2171,42 @@ static void handle_query_xfer_features(GdbCmdContext *gdb_ctx, void *user_ctx)
 
     put_packet_binary(gdb_ctx->s, gdb_ctx->str_buf, len + 1, true);
 }
+
+#ifdef CONFIG_USER_ONLY
+static void handle_query_xfer_auxv(GdbCmdContext *gdb_ctx, void *user_ctx)
+{
+    TaskState *ts;
+    unsigned long offset, len, saved_auxv, auxv_len;
+    const char *mem;
+
+    if (gdb_ctx->num_params < 2) {
+        put_packet(gdb_ctx->s, "E22");
+        return;
+    }
+
+    offset = gdb_ctx->params[0].val_ul;
+    len = gdb_ctx->params[1].val_ul;
+
+    ts = gdb_ctx->s->c_cpu->opaque;
+    saved_auxv = ts->info->saved_auxv;
+    auxv_len = ts->info->auxv_len;
+    mem = (const char *)(saved_auxv + offset);
+
+    if (len > (MAX_PACKET_LENGTH - 5) / 2) {
+        len = (MAX_PACKET_LENGTH - 5) / 2;
+    }
+
+    if (len < auxv_len - offset) {
+        gdb_ctx->str_buf[0] = 'm';
+        len = memtox(gdb_ctx->str_buf + 1, mem, len);
+    } else {
+        gdb_ctx->str_buf[0] = 'l';
+        len = memtox(gdb_ctx->str_buf + 1, mem, auxv_len - offset);
+    }
+
+    put_packet_binary(gdb_ctx->s, gdb_ctx->str_buf, len + 1, true);
+}
+#endif
 
 static void handle_query_attached(GdbCmdContext *gdb_ctx, void *user_ctx)
 {
@@ -2271,6 +2313,14 @@ static GdbCmdParseEntry gdb_gen_query_table[] = {
         .cmd_startswith = 1,
         .schema = "s:l,l0"
     },
+#ifdef CONFIG_USER_ONLY
+    {
+        .handler = handle_query_xfer_auxv,
+        .cmd = "Xfer:auxv:read:",
+        .cmd_startswith = 1,
+        .schema = "l,l0"
+    },
+#endif
     {
         .handler = handle_query_attached,
         .cmd = "Attached:",
