@@ -3375,7 +3375,13 @@ if test "$vnc" = "yes" && test "$vnc_sasl" != "no" ; then
 int main(void) { sasl_server_init(NULL, "qemu"); return 0; }
 EOF
   # Assuming Cyrus-SASL installed in /usr prefix
-  vnc_sasl_cflags=""
+  if test "$mingw32" = "yes" && test "$iovec" != "yes"; then
+    # QEMU defines struct iovec in "qemu/osdep.h",
+    # we don't want libsasl to redefine it in <sasl/sasl.h>.
+    vnc_sasl_cflags="-DSTRUCT_IOVEC_DEFINED"
+  else
+    vnc_sasl_cflags=""
+  fi
   vnc_sasl_libs="-lsasl2"
   if compile_prog "$vnc_sasl_cflags" "$vnc_sasl_libs" ; then
     vnc_sasl=yes
