@@ -247,8 +247,8 @@ void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp)
     QDict *pdict;
     Visitor *v;
     Object *obj;
-    const char *type;
-    const char *id;
+    g_autofree const char *type = NULL;
+    g_autofree const char *id = NULL;
 
     type = qdict_get_try_str(qdict, "qom-type");
     if (!type) {
