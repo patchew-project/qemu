@@ -13,6 +13,8 @@ class Leon3Machine(Test):
 
     timeout = 60
 
+    # FIXME: why does this keep timing out on Travis?
+    @skipIf(os.getenv('CONTINUOUS_INTEGRATION'), 'Running on Travis-CI')
     def test_leon3_helenos_uimage(self):
         """
         :avocado: tags=arch:sparc
