@@ -157,6 +157,22 @@ static uint32_t vmport_cmd_time(void *opaque, uint32_t addr)
     return (uint32_t)tv.tv_sec;
 }
 
+static uint32_t vmport_cmd_time_full(void *opaque, uint32_t addr)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    qemu_timeval tv;
+
+    if (qemu_gettimeofday(&tv) < 0) {
+        return UINT32_MAX;
+    }
+
+    cpu->env.regs[R_ESI] = (uint32_t)((uint64_t)tv.tv_sec >> 32);
+    cpu->env.regs[R_EDX] = (uint32_t)tv.tv_sec;
+    cpu->env.regs[R_EBX] = (uint32_t)tv.tv_usec;
+    cpu->env.regs[R_ECX] = port_state->max_time_lag_us;
+    return VMPORT_MAGIC;
+}
+
 /* vmmouse helpers */
 void vmmouse_get_data(uint32_t *data)
 {
@@ -202,6 +218,7 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     vmport_register(VMPORT_CMD_GETBIOSUUID, vmport_cmd_get_bios_uuid, NULL);
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
     vmport_register(VMPORT_CMD_GETTIME, vmport_cmd_time, NULL);
+    vmport_register(VMPORT_CMD_GETTIMEFULL, vmport_cmd_time_full, NULL);
 }
 
 static Property vmport_properties[] = {
