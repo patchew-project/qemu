@@ -259,10 +259,10 @@ qemu_check_systemd() {
 
 qemu_generate_register() {
     flags=""
-    if [ "$CREDENTIAL" = "yes" ]; then
+    if [ "x$CREDENTIAL" = "xyes" ]; then
         flags="OC"
     fi
-    if [ "$PERSISTENT" = "yes" ]; then
+    if [ "x$PERSISTENT" = "xyes" ]; then
         flags="${flags}F"
     fi
 
@@ -300,18 +300,18 @@ qemu_set_binfmts() {
         mask=$(eval echo \$${cpu}_mask)
         family=$(eval echo \$${cpu}_family)
 
-        if [ "$magic" = "" ] || [ "$mask" = "" ] || [ "$family" = "" ]; then
+        if [ "x$magic" = "x" ] || [ "x$mask" = "x" ] || [ "x$family" = "x" ]; then
             echo "INTERNAL ERROR: unknown cpu $cpu" 1>&2
             continue
         fi
 
         qemu="$QEMU_PATH/qemu-$cpu"
-        if [ "$cpu" = "i486" ]; then
+        if [ "x$cpu" = "xi486" ]; then
             qemu="$QEMU_PATH/qemu-i386"
         fi
 
         qemu="$qemu$QEMU_SUFFIX"
-        if [ "$host_family" != "$family" ]; then
+        if [ "x$host_family" != "x$family" ]; then
             $BINFMT_SET
         fi
     done
