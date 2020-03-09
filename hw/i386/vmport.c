@@ -26,6 +26,7 @@
 #include "hw/i386/pc.h"
 #include "hw/input/i8042.h"
 #include "hw/qdev-properties.h"
+#include "sysemu/sysemu.h"
 #include "sysemu/hw_accel.h"
 #include "qemu/log.h"
 #include "trace.h"
@@ -121,6 +122,18 @@ static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
     return port_state->vmx_version;
 }
 
+static uint32_t vmport_cmd_get_bios_uuid(void *opaque, uint32_t addr)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    uint32_t *uuid_parts = (uint32_t*)(qemu_uuid.data);
+
+    cpu->env.regs[R_EAX] = uuid_parts[0];
+    cpu->env.regs[R_EBX] = uuid_parts[1];
+    cpu->env.regs[R_ECX] = uuid_parts[2];
+    cpu->env.regs[R_EDX] = uuid_parts[3];
+    return cpu->env.regs[R_EAX];
+}
+
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
     X86CPU *cpu = X86_CPU(current_cpu);
@@ -171,6 +184,7 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     port_state = s;
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);
+    vmport_register(VMPORT_CMD_GETBIOSUUID, vmport_cmd_get_bios_uuid, NULL);
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
 }
 
