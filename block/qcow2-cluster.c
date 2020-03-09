@@ -1154,7 +1154,7 @@ static int handle_dependencies(BlockDriverState *bs, uint64_t guest_offset,
  *  -errno: in error cases
  */
 static int handle_copied(BlockDriverState *bs, uint64_t guest_offset,
-    uint64_t *host_offset, uint64_t *bytes, QCowL2Meta **m)
+    uint64_t *host_offset, uint64_t *bytes)
 {
     BDRVQcow2State *s = bs->opaque;
     int l2_index;
@@ -1567,7 +1567,7 @@ again:
         /*
          * 2. Count contiguous COPIED clusters.
          */
-        ret = handle_copied(bs, start, &cluster_offset, &cur_bytes, m);
+        ret = handle_copied(bs, start, &cluster_offset, &cur_bytes);
         if (ret < 0) {
             return ret;
         } else if (ret) {
