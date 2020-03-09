@@ -215,7 +215,7 @@ EOF
 }
 
 qemu_check_access() {
-    if [ ! -w "$1" ] ; then
+    if [ ! -w "$1" ]; then
         echo "ERROR: cannot write to $1" 1>&2
         exit 1
     fi
@@ -224,12 +224,12 @@ qemu_check_access() {
 qemu_check_bintfmt_misc() {
     # load the binfmt_misc module
     if [ ! -d /proc/sys/fs/binfmt_misc ]; then
-      if ! /sbin/modprobe binfmt_misc ; then
+      if ! /sbin/modprobe binfmt_misc; then
           exit 1
       fi
     fi
     if [ ! -f /proc/sys/fs/binfmt_misc/register ]; then
-      if ! mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc ; then
+      if ! mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc; then
           exit 1
       fi
     fi
@@ -242,16 +242,16 @@ installed_dpkg() {
 }
 
 qemu_check_debian() {
-    if [ ! -e /etc/debian_version ] ; then
+    if [ ! -e /etc/debian_version ]; then
         echo "WARNING: your system is not a Debian based distro" 1>&2
-    elif ! installed_dpkg binfmt-support ; then
+    elif ! installed_dpkg binfmt-support; then
         echo "WARNING: package binfmt-support is needed" 1>&2
     fi
     qemu_check_access "$EXPORTDIR"
 }
 
 qemu_check_systemd() {
-    if ! systemctl -q is-enabled systemd-binfmt.service ; then
+    if ! systemctl -q is-enabled systemd-binfmt.service; then
         echo "WARNING: systemd-binfmt.service is missing or disabled" 1>&2
     fi
     qemu_check_access "$EXPORTDIR"
@@ -259,10 +259,10 @@ qemu_check_systemd() {
 
 qemu_generate_register() {
     flags=""
-    if [ "$CREDENTIAL" = "yes" ] ; then
+    if [ "x$CREDENTIAL" = "xyes" ]; then
         flags="OC"
     fi
-    if [ "$PERSISTENT" = "yes" ] ; then
+    if [ "x$PERSISTENT" = "xyes" ]; then
         flags="${flags}F"
     fi
 
@@ -295,23 +295,23 @@ qemu_set_binfmts() {
 
     # register the interpreter for each cpu except for the native one
 
-    for cpu in ${qemu_target_list} ; do
+    for cpu in ${qemu_target_list}; do
         magic=$(eval echo \$${cpu}_magic)
         mask=$(eval echo \$${cpu}_mask)
         family=$(eval echo \$${cpu}_family)
 
-        if [ "$magic" = "" ] || [ "$mask" = "" ] || [ "$family" = "" ] ; then
+        if [ "x$magic" = "x" ] || [ "x$mask" = "x" ] || [ "x$family" = "x" ]; then
             echo "INTERNAL ERROR: unknown cpu $cpu" 1>&2
             continue
         fi
 
         qemu="$QEMU_PATH/qemu-$cpu"
-        if [ "$cpu" = "i486" ] ; then
+        if [ "x$cpu" = "xi486" ]; then
             qemu="$QEMU_PATH/qemu-i386"
         fi
 
         qemu="$qemu$QEMU_SUFFIX"
-        if [ "$host_family" != "$family" ] ; then
+        if [ "x$host_family" != "x$family" ]; then
             $BINFMT_SET
         fi
     done
@@ -331,7 +331,7 @@ QEMU_SUFFIX=""
 options=$(getopt -o ds:Q:S:e:hc:p: -l debian,systemd:,qemu-path:,qemu-suffix:,exportdir:,help,credential:,persistent: -- "$@")
 eval set -- "$options"
 
-while true ; do
+while true; do
     case "$1" in
     -d|--debian)
         CHECK=qemu_check_debian
@@ -344,14 +344,14 @@ while true ; do
         EXPORTDIR=${EXPORTDIR:-$SYSTEMDDIR}
         shift
         # check given cpu is in the supported CPU list
-        if [ "$1" != "ALL" ] ; then
-            for cpu in ${qemu_target_list} ; do
-                if [ "$cpu" = "$1" ] ; then
+        if [ "$1" != "ALL" ]; then
+            for cpu in ${qemu_target_list}; do
+                if [ "$cpu" = "$1" ]; then
                     break
                 fi
             done
 
-            if [ "$cpu" = "$1" ] ; then
+            if [ "$cpu" = "$1" ]; then
                 qemu_target_list="$1"
             else
                 echo "ERROR: unknown CPU \"$1\"" 1>&2
