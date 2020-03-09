@@ -209,6 +209,7 @@ struct VirtIONet {
         uint16_t indirections[VIRTIO_NET_RSS_MAX_TABLE_LEN];
         uint16_t indirections_len;
         uint16_t default_queue;
+        struct NetRxPkt *pkt;
     } rss_data;
 };
 
