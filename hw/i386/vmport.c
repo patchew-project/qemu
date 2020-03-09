@@ -72,25 +72,36 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
 
     eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC) {
-        return eax;
+        goto out;
     }
 
     command = env->regs[R_ECX];
     trace_vmport_command(command);
     if (command >= VMPORT_ENTRIES || !s->func[command]) {
         qemu_log_mask(LOG_UNIMP, "vmport: unknown command %x\n", command);
-        return eax;
+        goto out;
     }
 
-    return s->func[command](s->opaque[command], addr);
+    eax = s->func[command](s->opaque[command], addr);
+
+out:
+    /*
+     * The call above to cpu_synchronize_state() gets vCPU registers values
+     * to QEMU but also cause QEMU to write QEMU vCPU registers values to
+     * vCPU implementation (e.g. Accelerator such as KVM) just before
+     * resuming guest.
+     *
+     * Therefore, in order to make IOPort return value propagate to
+     * guest EAX, we need to explicitly update QEMU EAX register value.
+     */
+    cpu->env.regs[R_EAX] = eax;
+    return eax;
 }
 
 static void vmport_ioport_write(void *opaque, hwaddr addr,
                                 uint64_t val, unsigned size)
 {
-    X86CPU *cpu = X86_CPU(current_cpu);
-
-    cpu->env.regs[R_EAX] = vmport_ioport_read(opaque, addr, 4);
+    vmport_ioport_read(opaque, addr, 4);
 }
 
 static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
