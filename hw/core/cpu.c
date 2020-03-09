@@ -251,6 +251,7 @@ void cpu_reset(CPUState *cpu)
 {
     CPUClass *klass = CPU_GET_CLASS(cpu);
 
+    assert(cpu->created);
     if (klass->reset != NULL) {
         (*klass->reset)(cpu);
     }
