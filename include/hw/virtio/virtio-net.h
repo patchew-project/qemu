@@ -126,6 +126,9 @@ typedef struct VirtioNetRscChain {
 /* Maximum packet size we can receive from tap device: header + 64k */
 #define VIRTIO_NET_MAX_BUFSIZE (sizeof(struct virtio_net_hdr) + (64 * KiB))
 
+#define VIRTIO_NET_RSS_MAX_KEY_SIZE     40
+#define VIRTIO_NET_RSS_MAX_TABLE_LEN    128
+
 typedef struct VirtIONetQueue {
     VirtQueue *rx_vq;
     VirtQueue *tx_vq;
@@ -199,6 +202,14 @@ struct VirtIONet {
     bool failover;
     DeviceListener primary_listener;
     Notifier migration_state;
+    struct {
+        bool    enabled;
+        uint32_t hash_types;
+        uint8_t key[VIRTIO_NET_RSS_MAX_KEY_SIZE];
+        uint16_t indirections[VIRTIO_NET_RSS_MAX_TABLE_LEN];
+        uint16_t indirections_len;
+        uint16_t default_queue;
+    } rss_data;
 };
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
