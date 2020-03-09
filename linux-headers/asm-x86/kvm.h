@@ -446,4 +446,8 @@ struct kvm_pmu_event_filter {
 #define KVM_PMU_EVENT_ALLOW 0
 #define KVM_PMU_EVENT_DENY 1
 
+/* From arch/x86/kvm/lapic.h */
+#define KVM_APIC_BUS_CYCLE_NS       1
+#define KVM_APIC_BUS_FREQUENCY      (1000000000ULL / KVM_APIC_BUS_CYCLE_NS)
+
 #endif /* _ASM_X86_KVM_H */
