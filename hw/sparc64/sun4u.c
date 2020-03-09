@@ -50,8 +50,7 @@
 #include "hw/sparc/sparc64.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/sysbus.h"
-#include "hw/ide.h"
-#include "hw/ide/pci.h"
+#include "hw/ide/internal.h"
 #include "hw/loader.h"
 #include "hw/fw-path-provider.h"
 #include "elf.h"
@@ -664,11 +663,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
 
     ide_drive_get(hd, ARRAY_SIZE(hd));
-
-    pci_dev = pci_create(pci_busA, PCI_DEVFN(3, 0), "cmd646-ide");
-    qdev_prop_set_uint32(&pci_dev->qdev, "secondary", 1);
-    qdev_init_nofail(&pci_dev->qdev);
-    pci_ide_create_devs(pci_dev, hd);
+    pci_cmd646_ide_init(pci_busA, hd, PCI_DEVFN(3, 0), true);
 
     /* Map NVRAM into I/O (ebus) space */
     nvram = m48t59_init(NULL, 0, 0, NVRAM_SIZE, 1968, 59);
