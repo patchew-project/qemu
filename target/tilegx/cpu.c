@@ -91,8 +91,8 @@ static void tilegx_cpu_realizefn(DeviceState *dev, Error **errp)
         return;
     }
 
-    cpu_reset(cs);
     qemu_init_vcpu(cs);
+    cpu_reset(cs);
 
     tcc->parent_realize(dev, errp);
 }
