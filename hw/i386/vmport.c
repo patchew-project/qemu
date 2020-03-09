@@ -44,6 +44,8 @@ typedef struct VMPortState {
     MemoryRegion io;
     VMPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
+
+    uint32_t vmx_version;
 } VMPortState;
 
 static VMPortState *port_state;
@@ -112,7 +114,7 @@ static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
     X86CPU *cpu = X86_CPU(current_cpu);
 
     cpu->env.regs[R_EBX] = VMPORT_MAGIC;
-    return 6;
+    return port_state->vmx_version;
 }
 
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
@@ -169,6 +171,8 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property vmport_properties[] = {
+    /* Default value taken from open-vm-tools code VERSION_MAGIC definition */
+    DEFINE_PROP_UINT32("vmx-version", VMPortState, vmx_version, 6),
     DEFINE_PROP_END_OF_LIST(),
 };
 
