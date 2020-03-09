@@ -37,6 +37,7 @@
 #include "qapi/qapi-events-migration.h"
 #include "hw/virtio/virtio-access.h"
 #include "migration/misc.h"
+#include "migration/blocker.h"
 #include "standard-headers/linux/ethtool.h"
 #include "sysemu/sysemu.h"
 #include "trace.h"
@@ -627,6 +628,12 @@ static void virtio_net_reset(VirtIODevice *vdev)
     n->announce_timer.round = 0;
     n->status &= ~VIRTIO_NET_S_ANNOUNCE;
 
+    if (n->migration_blocker) {
+        migrate_del_blocker(n->migration_blocker);
+        error_free(n->migration_blocker);
+        n->migration_blocker = NULL;
+    }
+
     /* Flush any MAC and VLAN filter table state */
     n->mac_table.in_use = 0;
     n->mac_table.first_multi = 0;
@@ -1001,6 +1008,17 @@ static void virtio_net_set_features(VirtIODevice *vdev, uint64_t features)
             continue;
         }
         vhost_net_ack_features(get_vhost_net(nc->peer), features);
+    }
+
+    if (virtio_has_feature(features, VIRTIO_NET_F_RSS)) {
+        if (!n->migration_blocker) {
+            error_setg(&n->migration_blocker, "virtio-net: RSS negotiated");
+            migrate_add_blocker(n->migration_blocker, &err);
+            if (err) {
+                error_report_err(err);
+                err = NULL;
+            }
+        }
     }
 
     if (virtio_has_feature(features, VIRTIO_NET_F_CTRL_VLAN)) {

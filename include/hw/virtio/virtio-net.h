@@ -180,6 +180,7 @@ struct VirtIONet {
     virtio_net_conf net_conf;
     NICConf nic_conf;
     DeviceState *qdev;
+    Error *migration_blocker;
     int multiqueue;
     uint16_t max_queues;
     uint16_t curr_queues;
