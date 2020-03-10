@@ -75,17 +75,23 @@ static uint64_t vmport_ioport_read(void *opaque, hwaddr addr,
 
     eax = env->regs[R_EAX];
     if (eax != VMPORT_MAGIC) {
-        goto out;
+        goto err;
     }
 
     command = env->regs[R_ECX];
     trace_vmport_command(command);
     if (command >= VMPORT_ENTRIES || !s->func[command]) {
         qemu_log_mask(LOG_UNIMP, "vmport: unknown command %x\n", command);
-        goto out;
+        goto err;
     }
 
     eax = s->func[command](s->opaque[command], addr);
+    goto out;
+
+err:
+    if (s->version > 1) {
+        eax = UINT32_MAX;
+    }
 
 out:
     /*
