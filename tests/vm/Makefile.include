@@ -2,7 +2,7 @@
 
 .PHONY: vm-build-all vm-clean-all
 
-IMAGES := freebsd netbsd openbsd centos fedora
+IMAGES := freebsd netbsd openbsd fedora
 ifneq ($(GENISOIMAGE),)
 IMAGES += ubuntu.i386 centos
 endif
@@ -49,9 +49,20 @@ vm-build-all: $(addprefix vm-build-, $(IMAGES))
 vm-clean-all:
 	rm -f $(IMAGE_FILES)
 
+# Validate the target since some targets will not
+# be valid if their software dependencies are not installed.
+define validate_target
+	@echo $(1) | grep $(2) || \
+	(echo "Invalid target ($(2))"; \
+	echo "Valid Targets are: $(1)"; \
+	echo "See make vm-help for more information."; \
+	exit 1;)
+endef
+
 $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 			$(SRC_PATH)/tests/vm/basevm.py \
 			$(SRC_PATH)/tests/vm/Makefile.include
+	$(call validate_target,${IMAGES},$*)
 	@mkdir -p $(IMAGES_DIR)
 	$(call quiet-command, \
 		$(PYTHON) $< \
@@ -64,6 +75,7 @@ $(IMAGES_DIR)/%.img:	$(SRC_PATH)/tests/vm/% \
 
 # Build in VM $(IMAGE)
 vm-build-%: $(IMAGES_DIR)/%.img
+	$(call validate_target,${IMAGES},$*)
 	$(call quiet-command, \
 		$(PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(V)$(DEBUG), --debug) \
@@ -79,6 +91,7 @@ vm-build-%: $(IMAGES_DIR)/%.img
 		"  VM-BUILD $*")
 
 vm-boot-serial-%: $(IMAGES_DIR)/%.img
+	$(call validate_target,${IMAGES},$*)
 	qemu-system-x86_64 -enable-kvm -m 4G -smp 2 -nographic \
 		-drive if=none,id=vblk,cache=writeback,file="$<" \
 		-netdev user,id=vnet \
@@ -87,6 +100,7 @@ vm-boot-serial-%: $(IMAGES_DIR)/%.img
 	|| true
 
 vm-boot-ssh-%: $(IMAGES_DIR)/%.img
+	$(call validate_target,${IMAGES},$*)
 	$(call quiet-command, \
 		$(PYTHON) $(SRC_PATH)/tests/vm/$* \
 		$(if $(J),--jobs $(J)) \
