@@ -1857,10 +1857,30 @@ static bool all_vcpus_paused(void)
     return true;
 }
 
+static bool all_vcpus_resumed(void)
+{
+    CPUState *cpu;
+
+    CPU_FOREACH(cpu) {
+        if (cpu->stopped) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void pause_all_vcpus(void)
 {
     CPUState *cpu;
 
+    /* We need to drop the replay_lock so any vCPU threads woken up
+     * can finish their replay tasks
+     */
+retry_unlock:
+    replay_mutex_unlock();
+
+retry_pause:
     qemu_clock_enable(QEMU_CLOCK_VIRTUAL, false);
     CPU_FOREACH(cpu) {
         if (qemu_cpu_is_self(cpu)) {
@@ -1871,13 +1891,17 @@ void pause_all_vcpus(void)
         }
     }
 
-    /* We need to drop the replay_lock so any vCPU threads woken up
-     * can finish their replay tasks
-     */
-    replay_mutex_unlock();
-
     while (!all_vcpus_paused()) {
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
+        /*
+         * All of the vcpus maybe resumed due to the race with other
+         * threads that doing pause && resume, and we'll stuck as a
+         * result. So we need to request again if the race occurs.
+         */
+        if (all_vcpus_resumed()) {
+            goto retry_pause;
+        }
+
         CPU_FOREACH(cpu) {
             qemu_cpu_kick(cpu);
         }
@@ -1886,6 +1910,13 @@ void pause_all_vcpus(void)
     qemu_mutex_unlock_iothread();
     replay_mutex_lock();
     qemu_mutex_lock_iothread();
+    /*
+     * The vcpus maybe resumed during the mutex is unlocking, we must
+     * make sure all of the vcpus are paused before return.
+     */
+    if (!all_vcpus_paused()) {
+        goto retry_unlock;
+    }
 }
 
 void cpu_resume(CPUState *cpu)
