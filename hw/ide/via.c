@@ -1,9 +1,10 @@
 /*
- * QEMU IDE Emulation: PCI VIA82C686B support.
+ * QEMU VIA southbridge IDE emulation (VT82C686B, VT8231)
  *
  * Copyright (c) 2003 Fabrice Bellard
  * Copyright (c) 2006 Openedhand Ltd.
  * Copyright (c) 2010 Huacai Chen <zltjiangshi@gmail.com>
+ * Copyright (c) 2019-2020 BALATON Zoltan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +26,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
@@ -111,11 +113,18 @@ static void via_ide_set_irq(void *opaque, int n, int level)
     } else {
         d->config[0x70 + n * 8] &= ~0x80;
     }
-
     level = (d->config[0x70] & 0x80) || (d->config[0x78] & 0x80);
-    n = pci_get_byte(d->config + PCI_INTERRUPT_LINE);
-    if (n) {
-        qemu_set_irq(isa_get_irq(NULL, n), level);
+
+    /*
+     * Some machines operate in "non 100% native mode" where PCI_INTERRUPT_LINE
+     * is not used but IDE always uses ISA IRQ 14 and 15 even in native mode.
+     * Some guest drivers expect this, often without checking.
+     */
+    if (!(pci_get_byte(d->config + PCI_CLASS_PROG) & (n ? 4 : 1)) ||
+        PCI_IDE(d)->flags & BIT(PCI_IDE_LEGACY_IRQ)) {
+        qemu_set_irq(isa_get_irq(NULL, (n ? 15 : 14)), level);
+    } else {
+        qemu_set_irq(isa_get_irq(NULL, 14), level);
     }
 }
 
@@ -169,7 +178,9 @@ static void via_ide_realize(PCIDevice *dev, Error **errp)
 
     pci_config_set_prog_interface(pci_conf, 0x8f); /* native PCI ATA mode */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x000000c0);
-    dev->wmask[PCI_INTERRUPT_LINE] = 0xf;
+    /* Bits 0 and 4 of CLASS_PROG select native mode and are writable */
+    dev->wmask[PCI_CLASS_PROG] = 5;
+    dev->wmask[PCI_INTERRUPT_LINE] = 0;
 
     memory_region_init_io(&d->data_bar[0], OBJECT(d), &pci_ide_data_le_ops,
                           &d->bus[0], "via-ide0-data", 8);
@@ -213,6 +224,12 @@ static void via_ide_exitfn(PCIDevice *dev)
     }
 }
 
+static Property via_ide_properties[] = {
+    DEFINE_PROP_BIT("legacy-irq", PCIIDEState, flags, PCI_IDE_LEGACY_IRQ,
+                    false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void via_ide_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -225,6 +242,7 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_IDE;
     k->revision = 0x06;
     k->class_id = PCI_CLASS_STORAGE_IDE;
+    device_class_set_props(dc, via_ide_properties);
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
