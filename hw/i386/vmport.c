@@ -44,6 +44,8 @@ typedef struct VMPortState {
     MemoryRegion io;
     VMPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
+
+    uint8_t version;
 } VMPortState;
 
 static VMPortState *port_state;
@@ -156,6 +158,12 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property vmport_properties[] = {
+    /*
+     * Used to enforce compatibility for migration.
+     * On every guest-visible change, should make changes conditioned on
+     * version and define proper version for previous machine-types.
+     */
+    DEFINE_PROP_UINT8("version", VMPortState, version, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
