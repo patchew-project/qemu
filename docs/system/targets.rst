@@ -9,11 +9,13 @@ Contents:
 
 .. toctree::
 
+   target-arm
    target-i386
+   target-m68k
+   target-mips
    target-ppc
+   target-rx
    target-sparc
    target-sparc64
-   target-mips
-   target-arm
-   target-m68k
    target-xtensa
+
