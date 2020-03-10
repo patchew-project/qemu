@@ -1172,7 +1172,7 @@ static int megasas_dcmd_ld_list_query(MegasasState *s, MegasasCmd *cmd)
     uint16_t flags;
     struct mfi_ld_targetid_list info;
     size_t dcmd_size = sizeof(info), resid;
-    uint32_t num_ld_disks = 0, max_ld_disks = s->fw_luns;
+    uint32_t num_ld_disks = 0, max_ld_disks;
     BusChild *kid;
 
     /* mbox0 contains flags */
@@ -1180,7 +1180,6 @@ static int megasas_dcmd_ld_list_query(MegasasState *s, MegasasCmd *cmd)
     trace_megasas_dcmd_ld_list_query(cmd->index, flags);
     if (flags != MR_LD_QUERY_TYPE_ALL &&
         flags != MR_LD_QUERY_TYPE_EXPOSED_TO_HOST) {
-        max_ld_disks = 0;
     }
 
     memset(&info, 0, dcmd_size);
