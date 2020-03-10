@@ -859,16 +859,17 @@ static uint64_t vfio_rom_read(void *opaque, hwaddr addr, unsigned size)
         uint16_t word;
         uint32_t dword;
         uint64_t qword;
-    } val;
-    uint64_t data = 0;
+    } val = { 0 };
+    uint64_t data;
 
     /* Load the ROM lazily when the guest tries to read it */
     if (unlikely(!vdev->rom && !vdev->rom_read_failed)) {
         vfio_pci_load_rom(vdev);
     }
 
-    memcpy(&val, vdev->rom + addr,
-           (addr < vdev->rom_size) ? MIN(size, vdev->rom_size - addr) : 0);
+    if (addr < vdev->rom_size) {
+        memcpy(&val, vdev->rom + addr, MIN(size, vdev->rom_size - addr));
+    }
 
     switch (size) {
     case 1:
