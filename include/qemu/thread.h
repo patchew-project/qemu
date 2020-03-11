@@ -119,6 +119,32 @@ static inline void (qemu_mutex_unlock)(QemuMutex *mutex)
     qemu_mutex_unlock(mutex);
 }
 
+static inline QemuMutex *qemu_mutex_auto_lock(QemuMutex *mutex)
+{
+    qemu_mutex_lock(mutex);
+    return mutex;
+}
+
+static inline void qemu_mutex_auto_unlock(QemuMutex *mutex)
+{
+    if (mutex) {
+        qemu_mutex_unlock(mutex);
+    }
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuMutex, qemu_mutex_auto_unlock)
+
+#define WITH_QEMU_MUTEX_LOCK_GUARD_(mutex, var) \
+    for (g_autoptr(QemuMutex) var = qemu_mutex_auto_lock((mutex)); \
+         var; qemu_mutex_auto_unlock(var), var = NULL)
+
+#define WITH_QEMU_MUTEX_LOCK_GUARD(mutex) \
+    WITH_QEMU_MUTEX_LOCK_GUARD_(mutex, qemu_mutex_auto##__COUNTER__)
+
+#define QEMU_MUTEX_LOCK_GUARD(mutex) \
+    g_autoptr(QemuMutex) qemu_mutex_auto##__COUNTER__ = \
+            qemu_mutex_auto_lock((mutex))
+
 static inline void (qemu_rec_mutex_lock)(QemuRecMutex *mutex)
 {
     qemu_rec_mutex_lock(mutex);
