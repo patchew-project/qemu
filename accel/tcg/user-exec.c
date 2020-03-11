@@ -190,12 +190,11 @@ static inline int handle_cpu_signal(uintptr_t pc, siginfo_t *info,
     g_assert_not_reached();
 }
 
-void *probe_access(CPUArchState *env, target_ulong addr, int size,
-                   MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+int probe_access_flags(CPUArchState *env, target_ulong addr,
+                       MMUAccessType access_type, int mmu_idx,
+                       bool nonfault, void **phost, uintptr_t retaddr)
 {
     int flags;
-
-    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
 
     switch (access_type) {
     case MMU_DATA_STORE:
@@ -211,15 +210,30 @@ void *probe_access(CPUArchState *env, target_ulong addr, int size,
         g_assert_not_reached();
     }
 
-    if (!guest_addr_valid(addr) || page_check_range(addr, size, flags) < 0) {
-        CPUState *cpu = env_cpu(env);
-        CPUClass *cc = CPU_GET_CLASS(cpu);
-        cc->tlb_fill(cpu, addr, size, access_type, MMU_USER_IDX, false,
-                     retaddr);
-        g_assert_not_reached();
+    if (!guest_addr_valid(addr) || page_check_range(addr, 1, flags) < 0) {
+        if (nonfault) {
+            *phost = NULL;
+            return TLB_INVALID_MASK;
+        } else {
+            CPUState *cpu = env_cpu(env);
+            CPUClass *cc = CPU_GET_CLASS(cpu);
+            cc->tlb_fill(cpu, addr, 0, access_type, MMU_USER_IDX, false, retaddr);
+            g_assert_not_reached();
+        }
     }
 
-    return size ? g2h(addr) : NULL;
+    *phost = g2h(addr);
+    return 0;
+}
+
+void *probe_access(CPUArchState *env, target_ulong addr, int size,
+                   MMUAccessType access_type, int mmu_idx, uintptr_t retaddr)
+{
+    void *host;
+
+    g_assert(-(addr | TARGET_PAGE_MASK) >= size);
+    probe_access_flags(env, addr, access_type, mmu_idx, false, &host, retaddr);
+    return host;
 }
 
 #if defined(__i386__)
