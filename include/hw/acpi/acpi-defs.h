@@ -634,4 +634,29 @@ struct AcpiIortRC {
 } QEMU_PACKED;
 typedef struct AcpiIortRC AcpiIortRC;
 
+/*
+ * Windows ACPI Emulated Devices Table.
+ * Specification:
+ * http://download.microsoft.com/download/7/E/7/7E7662CF-CBEA-470B-A97E-CE7CE0D98DC2/WAET.docx
+ */
+
+/*
+ * Indicates whether the RTC has been enhanced not to require acknowledgment
+ * after it asserts an interrupt. With this bit set, an interrupt handler can
+ * bypass reading the RTC register C to unlatch the pending interrupt.
+ */
+#define ACPI_WAET_RTC_GOOD      (1 << 0)
+/*
+ * Indicates whether the ACPI PM timer has been enhanced not to require
+ * multiple reads. With this bit set, only one read of the ACPI PM timer is
+ * necessary to obtain a reliable value.
+ */
+#define ACPI_WAET_PM_TIMER_GOOD (1 << 1)
+
+struct AcpiTableWaet {
+    ACPI_TABLE_HEADER_DEF
+    uint32_t emulated_device_flags;
+} QEMU_PACKED;
+typedef struct AcpiTableWaet AcpiTableWaet;
+
 #endif

@@ -95,6 +95,7 @@ typedef struct PCMachineClass {
     int legacy_acpi_table_size;
     unsigned acpi_data_size;
     bool do_not_add_smb_acpi;
+    bool do_not_add_waet_acpi;
 
     /* SMBIOS compat: */
     bool smbios_defaults;

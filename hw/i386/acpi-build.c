@@ -2513,6 +2513,19 @@ build_dmar_q35(GArray *table_data, BIOSLinker *linker)
     build_header(linker, table_data, (void *)(table_data->data + dmar_start),
                  "DMAR", table_data->len - dmar_start, 1, NULL, NULL);
 }
+
+static void
+build_waet(GArray *table_data, BIOSLinker *linker)
+{
+    AcpiTableWaet *waet;
+
+    waet = acpi_data_push(table_data, sizeof(*waet));
+    waet->emulated_device_flags = cpu_to_le32(ACPI_WAET_PM_TIMER_GOOD);
+
+    build_header(linker, table_data,
+                 (void *)waet, "WAET", sizeof(*waet), 1, NULL, NULL);
+}
+
 /*
  *   IVRS table as specified in AMD IOMMU Specification v2.62, Section 5.2
  *   accessible here http://support.amd.com/TechDocs/48882_IOMMU.pdf
@@ -2858,6 +2871,11 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     if (machine->nvdimms_state->is_enabled) {
         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
                           machine->nvdimms_state, machine->ram_slots);
+    }
+
+    if (!pcmc->do_not_add_waet_acpi) {
+        acpi_add_table(table_offsets, tables_blob);
+        build_waet(tables_blob, tables->linker);
     }
 
     /* Add tables supplied by user (if any) */
