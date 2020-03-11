@@ -34,3 +34,4 @@ Contents:
    deprecated
    build-platforms
    license
+   protvirt
