@@ -150,11 +150,11 @@ do_plugin_register_cb(qemu_plugin_id_t id, enum qemu_plugin_event ev,
 {
     struct qemu_plugin_ctx *ctx;
 
-    qemu_rec_mutex_lock(&plugin.lock);
+    QEMU_REC_MUTEX_LOCK_GUARD(&plugin.lock);
     ctx = plugin_id_to_ctx_locked(id);
     /* if the plugin is on its way out, ignore this request */
     if (unlikely(ctx->uninstalling)) {
-        goto out_unlock;
+        return;
     }
     if (func) {
         struct qemu_plugin_cb *cb = ctx->callbacks[ev];
@@ -178,8 +178,6 @@ do_plugin_register_cb(qemu_plugin_id_t id, enum qemu_plugin_event ev,
     } else {
         plugin_unregister_cb__locked(ctx, ev);
     }
- out_unlock:
-    qemu_rec_mutex_unlock(&plugin.lock);
 }
 
 void plugin_register_cb(qemu_plugin_id_t id, enum qemu_plugin_event ev,

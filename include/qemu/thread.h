@@ -132,6 +132,32 @@ static inline int (qemu_rec_mutex_trylock)(QemuRecMutex *mutex)
 /* Prototypes for other functions are in thread-posix.h/thread-win32.h.  */
 void qemu_rec_mutex_init(QemuRecMutex *mutex);
 
+static inline QemuRecMutex *qemu_rec_mutex_auto_lock(QemuRecMutex *mutex)
+{
+    qemu_rec_mutex_lock(mutex);
+    return mutex;
+}
+
+static inline void qemu_rec_mutex_auto_unlock(QemuRecMutex *mutex)
+{
+    if (mutex) {
+        qemu_rec_mutex_unlock(mutex);
+    }
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QemuRecMutex, qemu_rec_mutex_auto_unlock)
+
+#define WITH_QEMU_REC_MUTEX_LOCK_GUARD_(mutex, var) \
+    for (g_autoptr(QemuRecMutex) var = qemu_rec_mutex_auto_lock((mutex)); \
+         var; qemu_rec_mutex_auto_unlock(var), var = NULL)
+
+#define WITH_QEMU_REC_MUTEX_LOCK_GUARD(mutex) \
+    WITH_QEMU_REC_MUTEX_LOCK_GUARD_((mutex), qemu_rec_mutex_auto##__COUNTER__)
+
+#define QEMU_REC_MUTEX_LOCK_GUARD(mutex) \
+    g_autoptr(QemuRecMutex) qemu_rec_mutex_auto##__COUNTER__ = \
+            qemu_rec_mutex_auto_lock((mutex))
+
 void qemu_cond_init(QemuCond *cond);
 void qemu_cond_destroy(QemuCond *cond);
 

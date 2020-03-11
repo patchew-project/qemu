@@ -367,15 +367,14 @@ void plugin_reset_uninstall(qemu_plugin_id_t id,
     struct qemu_plugin_reset_data *data;
     struct qemu_plugin_ctx *ctx;
 
-    qemu_rec_mutex_lock(&plugin.lock);
-    ctx = plugin_id_to_ctx_locked(id);
-    if (ctx->uninstalling || (reset && ctx->resetting)) {
-        qemu_rec_mutex_unlock(&plugin.lock);
-        return;
+    WITH_QEMU_REC_MUTEX_LOCK_GUARD(&plugin.lock) {
+        ctx = plugin_id_to_ctx_locked(id);
+        if (ctx->uninstalling || (reset && ctx->resetting)) {
+            return;
+        }
+        ctx->resetting = reset;
+        ctx->uninstalling = !reset;
     }
-    ctx->resetting = reset;
-    ctx->uninstalling = !reset;
-    qemu_rec_mutex_unlock(&plugin.lock);
 
     data = g_new(struct qemu_plugin_reset_data, 1);
     data->ctx = ctx;
