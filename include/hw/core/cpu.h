@@ -1088,6 +1088,12 @@ static inline void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
 {
 }
 
+static inline bool cpu_probe_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
+                                        int flags)
+{
+    return false;
+}
+
 static inline int cpu_watchpoint_address_matches(CPUState *cpu,
                                                  vaddr addr, vaddr len)
 {
@@ -1102,6 +1108,7 @@ void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint);
 void cpu_watchpoint_remove_all(CPUState *cpu, int mask);
 void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
                           MemTxAttrs attrs, int flags, uintptr_t ra);
+bool cpu_probe_watchpoint(CPUState *cpu, vaddr addr, vaddr len, int flags);
 int cpu_watchpoint_address_matches(CPUState *cpu, vaddr addr, vaddr len);
 #endif
 

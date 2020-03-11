@@ -2748,6 +2748,25 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
     }
 }
 
+bool cpu_probe_watchpoint(CPUState *cpu, vaddr addr, vaddr len, int flags)
+{
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    CPUWatchpoint *wp;
+
+    assert(tcg_enabled());
+
+    addr = cc->adjust_watchpoint_address(cpu, addr, len);
+    QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
+        if (watchpoint_address_matches(wp, addr, len) && 
+            (wp->flags & flags) &&
+            (!(wp->flags & BP_CPU) ||
+             !cc->debug_check_watchpoint(cpu, wp))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
                                  MemTxAttrs attrs, void *buf, hwaddr len);
 static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
