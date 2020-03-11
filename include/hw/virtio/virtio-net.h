@@ -215,6 +215,7 @@ struct VirtIONet {
         VirtioNetRssData rss_data;
         uint8_t rss_data_migration[sizeof(VirtioNetRssData)];
     };
+    struct NetRxPkt *rx_pkt;
 };
 
 void virtio_net_set_netclient_name(VirtIONet *n, const char *name,
