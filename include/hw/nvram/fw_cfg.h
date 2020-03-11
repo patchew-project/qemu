@@ -53,6 +53,12 @@ struct FWCfgState {
     dma_addr_t dma_addr;
     AddressSpace *dma_as;
     MemoryRegion dma_iomem;
+
+    /* restore during migration */
+    bool acpi_mr_restore;
+    size_t table_mr_size;
+    size_t linker_mr_size;
+    size_t rsdp_mr_size;
 };
 
 struct FWCfgIoState {
