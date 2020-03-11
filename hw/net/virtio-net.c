@@ -71,6 +71,101 @@
 #define VIRTIO_NET_IP6_ADDR_SIZE   32      /* ipv6 saddr + daddr */
 #define VIRTIO_NET_MAX_IP6_PAYLOAD VIRTIO_NET_MAX_TCP_PAYLOAD
 
+/* TODO: remove after virtio-net header update */
+#if !defined(VIRTIO_NET_RSS_HASH_TYPE_IPv4)
+#define VIRTIO_NET_F_HASH_REPORT    57  /* Supports hash report */
+#define VIRTIO_NET_F_RSS            60  /* Supports RSS RX steering */
+
+/* supported/enabled hash types */
+#define VIRTIO_NET_RSS_HASH_TYPE_IPv4          (1 << 0)
+#define VIRTIO_NET_RSS_HASH_TYPE_TCPv4         (1 << 1)
+#define VIRTIO_NET_RSS_HASH_TYPE_UDPv4         (1 << 2)
+#define VIRTIO_NET_RSS_HASH_TYPE_IPv6          (1 << 3)
+#define VIRTIO_NET_RSS_HASH_TYPE_TCPv6         (1 << 4)
+#define VIRTIO_NET_RSS_HASH_TYPE_UDPv6         (1 << 5)
+#define VIRTIO_NET_RSS_HASH_TYPE_IP_EX         (1 << 6)
+#define VIRTIO_NET_RSS_HASH_TYPE_TCP_EX        (1 << 7)
+#define VIRTIO_NET_RSS_HASH_TYPE_UDP_EX        (1 << 8)
+
+#define __le16 uint16_t
+#define __le32 uint32_t
+#define __u8   uint8_t
+#define __u16  uint16_t
+#define __u32  uint32_t
+
+struct virtio_net_config_with_rss {
+    /* The config defining mac address (if VIRTIO_NET_F_MAC) */
+    __u8 mac[ETH_ALEN];
+    /* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
+    __u16 status;
+    /*
+     * Maximum number of each of transmit and receive queues;
+     * see VIRTIO_NET_F_MQ and VIRTIO_NET_CTRL_MQ.
+     * Legal values are between 1 and 0x8000
+     */
+    __u16 max_virtqueue_pairs;
+    /* Default maximum transmit unit advice */
+    __u16 mtu;
+    /*
+     * speed, in units of 1Mb. All values 0 to INT_MAX are legal.
+     * Any other value stands for unknown.
+     */
+    __u32 speed;
+    /*
+     * 0x00 - half duplex
+     * 0x01 - full duplex
+     * Any other value stands for unknown.
+     */
+    __u8 duplex;
+    /* maximum size of RSS key */
+    __u8 rss_max_key_size;
+    /* maximum number of indirection table entries */
+    __le16 rss_max_indirection_table_length;
+    /* bitmask of supported VIRTIO_NET_RSS_HASH_ types */
+    __le32 supported_hash_types;
+} __attribute__((packed));
+
+#define virtio_net_config virtio_net_config_with_rss
+
+struct virtio_net_hdr_v1_hash {
+    struct virtio_net_hdr_v1 hdr;
+    __le32 hash_value;
+#define VIRTIO_NET_HASH_REPORT_NONE            0
+#define VIRTIO_NET_HASH_REPORT_IPv4            1
+#define VIRTIO_NET_HASH_REPORT_TCPv4           2
+#define VIRTIO_NET_HASH_REPORT_UDPv4           3
+#define VIRTIO_NET_HASH_REPORT_IPv6            4
+#define VIRTIO_NET_HASH_REPORT_TCPv6           5
+#define VIRTIO_NET_HASH_REPORT_UDPv6           6
+#define VIRTIO_NET_HASH_REPORT_IPv6_EX         7
+#define VIRTIO_NET_HASH_REPORT_TCPv6_EX        8
+#define VIRTIO_NET_HASH_REPORT_UDPv6_EX        9
+    __le16 hash_report;
+    __le16 padding;
+};
+
+/*
+ * The command VIRTIO_NET_CTRL_MQ_RSS_CONFIG has the same effect as
+ * VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET does and additionally configures
+ * the receive steering to use a hash calculated for incoming packet
+ * to decide on receive virtqueue to place the packet. The command
+ * also provides parameters to calculate a hash and receive virtqueue.
+ */
+struct virtio_net_rss_config {
+    __le32 hash_types;
+    __le16 indirection_table_mask;
+    __le16 unclassified_queue;
+    __le16 indirection_table[1/* + indirection_table_mask */];
+    __le16 max_tx_vq;
+    __u8 hash_key_length;
+    __u8 hash_key_data[/* hash_key_length */];
+};
+
+#define VIRTIO_NET_CTRL_MQ_RSS_CONFIG          1
+#define VIRTIO_NET_CTRL_MQ_HASH_CONFIG         2
+
+#endif
+
 /* Purge coalesced packets timer interval, This value affects the performance
    a lot, and should be tuned carefully, '300000'(300us) is the recommended
    value to pass the WHQL test, '50000' can gain 2x netperf throughput with
