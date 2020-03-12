@@ -340,37 +340,49 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
         while (iov_to_buf(elem->out_sg, elem->out_num, offset, &pfn, 4) == 4) {
             unsigned int p = virtio_ldl_p(vdev, &pfn);
             hwaddr pa;
+            size_t handle_size = BALLOON_PAGE_SIZE;
 
             pa = (hwaddr) p << VIRTIO_BALLOON_PFN_SHIFT;
             offset += 4;
 
-            section = memory_region_find(get_system_memory(), pa,
-                                         BALLOON_PAGE_SIZE);
-            if (!section.mr) {
-                trace_virtio_balloon_bad_addr(pa);
-                continue;
-            }
-            if (!memory_region_is_ram(section.mr) ||
-                memory_region_is_rom(section.mr) ||
-                memory_region_is_romd(section.mr)) {
-                trace_virtio_balloon_bad_addr(pa);
-                memory_region_unref(section.mr);
-                continue;
-            }
+            if (virtio_has_feature(s->host_features,
+                                   VIRTIO_BALLOON_F_THP_ORDER))
+                handle_size = BALLOON_PAGE_SIZE << VIRTIO_BALLOON_THP_ORDER;
 
-            trace_virtio_balloon_handle_output(memory_region_name(section.mr),
-                                               pa);
-            if (!qemu_balloon_is_inhibited()) {
-                if (vq == s->ivq) {
-                    balloon_inflate_page(s, section.mr,
-                                         section.offset_within_region, &pbp);
-                } else if (vq == s->dvq) {
-                    balloon_deflate_page(s, section.mr, section.offset_within_region);
-                } else {
-                    g_assert_not_reached();
+            while (handle_size > 0) {
+                section = memory_region_find(get_system_memory(), pa,
+                                             BALLOON_PAGE_SIZE);
+                if (!section.mr) {
+                    trace_virtio_balloon_bad_addr(pa);
+                    continue;
                 }
+                if (!memory_region_is_ram(section.mr) ||
+                    memory_region_is_rom(section.mr) ||
+                    memory_region_is_romd(section.mr)) {
+                    trace_virtio_balloon_bad_addr(pa);
+                    memory_region_unref(section.mr);
+                    continue;
+                }
+
+                trace_virtio_balloon_handle_output(memory_region_name(section.mr),
+                                                   pa);
+                if (!qemu_balloon_is_inhibited()) {
+                    if (vq == s->ivq) {
+                        balloon_inflate_page(s, section.mr,
+                                             section.offset_within_region,
+                                             &pbp);
+                    } else if (vq == s->dvq) {
+                        balloon_deflate_page(s, section.mr,
+                                             section.offset_within_region);
+                    } else {
+                        g_assert_not_reached();
+                    }
+                }
+                memory_region_unref(section.mr);
+
+                pa += BALLOON_PAGE_SIZE;
+                handle_size -= BALLOON_PAGE_SIZE;
             }
-            memory_region_unref(section.mr);
         }
 
         virtqueue_push(vq, elem, offset);
@@ -693,6 +705,8 @@ static void virtio_balloon_set_config(VirtIODevice *vdev,
 
     memcpy(&config, config_data, virtio_balloon_config_size(dev));
     dev->actual = le32_to_cpu(config.actual);
+    if (virtio_has_feature(vdev->host_features, VIRTIO_BALLOON_F_THP_ORDER))
+        dev->actual <<= VIRTIO_BALLOON_THP_ORDER;
     if (dev->actual != oldactual) {
         qapi_event_send_balloon_change(vm_ram_size -
                         ((ram_addr_t) dev->actual << VIRTIO_BALLOON_PFN_SHIFT));
@@ -728,6 +742,9 @@ static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
     }
     if (target) {
         dev->num_pages = (vm_ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
+        if (virtio_has_feature(dev->host_features,
+                               VIRTIO_BALLOON_F_THP_ORDER))
+            dev->num_pages >>= VIRTIO_BALLOON_THP_ORDER;
         virtio_notify_config(vdev);
     }
     trace_virtio_balloon_to_target(target, dev->num_pages);
@@ -916,6 +933,8 @@ static Property virtio_balloon_properties[] = {
                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
     DEFINE_PROP_BIT("free-page-hint", VirtIOBalloon, host_features,
                     VIRTIO_BALLOON_F_FREE_PAGE_HINT, false),
+    DEFINE_PROP_BIT("thp-order", VirtIOBalloon, host_features,
+                    VIRTIO_BALLOON_F_THP_ORDER, false),
     /* QEMU 4.0 accidentally changed the config size even when free-page-hint
      * is disabled, resulting in QEMU 3.1 migration incompatibility.  This
      * property retains this quirk for QEMU 4.1 machine types.
