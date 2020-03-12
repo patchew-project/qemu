@@ -66,6 +66,7 @@ typedef struct VMPortState {
 
     uint32_t vmware_vmx_version;
     uint8_t vmware_vmx_type;
+    uint32_t max_time_lag_us;
 
     uint32_t compat_flags;
 } VMPortState;
@@ -168,6 +169,20 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
     return ram_size;
 }
 
+static uint32_t vmport_cmd_time(void *opaque, uint32_t addr)
+{
+    X86CPU *cpu = X86_CPU(current_cpu);
+    qemu_timeval tv;
+
+    if (qemu_gettimeofday(&tv) < 0) {
+        return UINT32_MAX;
+    }
+
+    cpu->env.regs[R_EBX] = (uint32_t)tv.tv_usec;
+    cpu->env.regs[R_ECX] = port_state->max_time_lag_us;
+    return (uint32_t)tv.tv_sec;
+}
+
 /* vmmouse helpers */
 void vmmouse_get_data(uint32_t *data)
 {
@@ -214,6 +229,7 @@ static void vmport_realizefn(DeviceState *dev, Error **errp)
     vmport_register(VMPORT_CMD_GETRAMSIZE, vmport_cmd_ram_size, NULL);
     if (s->compat_flags & VMPORT_COMPAT_CMDS_V2) {
         vmport_register(VMPORT_CMD_GETBIOSUUID, vmport_cmd_get_bios_uuid, NULL);
+        vmport_register(VMPORT_CMD_GETTIME, vmport_cmd_time, NULL);
     }
 }
 
@@ -249,6 +265,11 @@ static Property vmport_properties[] = {
      * 5 - ACE 1.x (Deprecated)
      */
     DEFINE_PROP_UINT8("vmware-vmx-type", VMPortState, vmware_vmx_type, 2),
+    /*
+     * Max amount of time lag that can go uncorrected.
+     * Value taken from VMware Workstation 5.5.
+     **/
+    DEFINE_PROP_UINT32("max-time-lag", VMPortState, max_time_lag_us, 1000000),
 
     DEFINE_PROP_END_OF_LIST(),
 };
