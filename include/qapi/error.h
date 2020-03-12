@@ -15,6 +15,8 @@
 /*
  * Error reporting system loosely patterned after Glib's GError.
  *
+ * = Deal with Error object =
+ *
  * Create an error:
  *     error_setg(&err, "situation normal, all fouled up");
  *
@@ -47,27 +49,90 @@
  * reporting it (primarily useful in testsuites):
  *     error_free_or_abort(&err);
  *
- * Pass an existing error to the caller:
+ * = Deal with Error ** function parameter =
+ *
+ * A function may use the error system to return errors. In this case, the
+ * function defines an Error **errp parameter, by convention the last one (with
+ * exceptions for functions using ... or va_list).
+ *
+ * The caller may then pass in the following errp values:
+ *
+ * 1. &error_abort
+ *    Any error will result in abort().
+ * 2. &error_fatal
+ *    Any error will result in exit() with a non-zero status.
+ * 3. NULL
+ *    No error reporting through errp parameter.
+ * 4. The address of a NULL-initialized Error *err
+ *    Any error will populate errp with an error object.
+ *
+ * The following rules then implement the correct semantics desired by the
+ * caller.
+ *
+ * Create a new error to pass to the caller:
+ *     error_setg(errp, "situation normal, all fouled up");
+ *
+ * Calling another errp-based function:
+ *     f(..., errp);
+ *
+ * == Checking success of subcall ==
+ *
+ * If a function returns a value indicating an error in addition to setting
+ * errp (which is recommended), then you don't need any additional code, just
+ * do:
+ *
+ *     int ret = f(..., errp);
+ *     if (ret < 0) {
+ *         ... handle error ...
+ *         return ret;
+ *     }
+ *
+ * If a function returns nothing (not recommended for new code), the only way
+ * to check success is by consulting errp; doing this safely requires the use
+ * of the ERRP_AUTO_PROPAGATE macro, like this:
+ *
+ *     int our_func(..., Error **errp) {
+ *         ERRP_AUTO_PROPAGATE();
+ *         ...
+ *         subcall(..., errp);
+ *         if (*errp) {
+ *             ...
+ *             return -EINVAL;
+ *         }
+ *         ...
+ *     }
+ *
+ * ERRP_AUTO_PROPAGATE takes care of wrapping the original errp as needed, so
+ * that the rest of the function can directly use errp (including
+ * dereferencing), where any errors will then be propagated on to the original
+ * errp when leaving the function.
+ *
+ * In some cases, we need to check result of subcall, but do not want to
+ * propagate the Error object to our caller. In such cases we don't need
+ * ERRP_AUTO_PROPAGATE, but just a local Error object:
+ *
+ * Receive an error and not pass it:
+ *     Error *err = NULL;
+ *     subcall(arg, &err);
+ *     if (err) {
+ *         handle the error...
+ *         error_free(err);
+ *     }
+ *
+ * Note that older code that did not use ERRP_AUTO_PROPAGATE would instead need
+ * a local Error * variable and the use of error_propagate() to properly handle
+ * all possible caller values of errp. Now this is DEPRECATED* (see below).
+ *
+ * Note that any function that wants to modify an error object, such as by
+ * calling error_append_hint or error_prepend, must use ERRP_AUTO_PROPAGATE, in
+ * order for a caller's use of &error_fatal to see the additional information.
+ *
+ * In rare cases, we need to pass existing Error object to the caller by hand:
  *     error_propagate(errp, err);
- * where Error **errp is a parameter, by convention the last one.
  *
  * Pass an existing error to the caller with the message modified:
  *     error_propagate_prepend(errp, err);
  *
- * Avoid
- *     error_propagate(errp, err);
- *     error_prepend(errp, "Could not frobnicate '%s': ", name);
- * because this fails to prepend when @errp is &error_fatal.
- *
- * Create a new error and pass it to the caller:
- *     error_setg(errp, "situation normal, all fouled up");
- *
- * Call a function and receive an error from it:
- *     Error *err = NULL;
- *     foo(arg, &err);
- *     if (err) {
- *         handle the error...
- *     }
  *
  * Call a function ignoring errors:
  *     foo(arg, NULL);
@@ -77,26 +142,6 @@
  *
  * Call a function treating errors as fatal:
  *     foo(arg, &error_fatal);
- *
- * Receive an error and pass it on to the caller:
- *     Error *err = NULL;
- *     foo(arg, &err);
- *     if (err) {
- *         handle the error...
- *         error_propagate(errp, err);
- *     }
- * where Error **errp is a parameter, by convention the last one.
- *
- * Do *not* "optimize" this to
- *     foo(arg, errp);
- *     if (*errp) { // WRONG!
- *         handle the error...
- *     }
- * because errp may be NULL!
- *
- * But when all you do with the error is pass it on, please use
- *     foo(arg, errp);
- * for readability.
  *
  * Receive and accumulate multiple errors (first one wins):
  *     Error *err = NULL, *local_err = NULL;
@@ -114,6 +159,61 @@
  *         handle the error...
  *     }
  * because this may pass a non-null err to bar().
+ *
+ * DEPRECATED*
+ *
+ * The following pattern of receiving, checking, and then forwarding an error
+ * to the caller by hand is now deprecated:
+ *
+ *     Error *err = NULL;
+ *     foo(arg, &err);
+ *     if (err) {
+ *         handle the error...
+ *         error_propagate(errp, err);
+ *     }
+ *
+ * Instead, use ERRP_AUTO_PROPAGATE macro.
+ *
+ * The old pattern is deprecated because of two things:
+ *
+ * 1. Issue with error_abort and error_propagate: when we wrap error_abort by
+ * local_err+error_propagate, the resulting coredump will refer to
+ * error_propagate and not to the place where error happened.
+ *
+ * 2. A lot of extra code of the same pattern
+ *
+ * How to update old code to use ERRP_AUTO_PROPAGATE?
+ *
+ * All you need is to add ERRP_AUTO_PROPAGATE() invocation at function start,
+ * than you may safely dereference errp to check errors and do not need any
+ * additional local Error variables or calls to error_propagate().
+ *
+ * Example:
+ *
+ * old code
+ *
+ *     void fn(..., Error **errp) {
+ *         Error *err = NULL;
+ *         foo(arg, &err);
+ *         if (err) {
+ *             handle the error...
+ *             error_propagate(errp, err);
+ *             return;
+ *         }
+ *         ...
+ *     }
+ *
+ * updated code
+ *
+ *     void fn(..., Error **errp) {
+ *         ERRP_AUTO_PROPAGATE();
+ *         foo(arg, errp);
+ *         if (*errp) {
+ *             handle the error...
+ *             return;
+ *         }
+ *         ...
+ *     }
  */
 
 #ifndef ERROR_H
@@ -321,6 +421,47 @@ void error_set_internal(Error **errp,
                         const char *src, int line, const char *func,
                         ErrorClass err_class, const char *fmt, ...)
     GCC_FMT_ATTR(6, 7);
+
+typedef struct ErrorPropagator {
+    Error *local_err;
+    Error **errp;
+} ErrorPropagator;
+
+static inline void error_propagator_cleanup(ErrorPropagator *prop)
+{
+    error_propagate(prop->errp, prop->local_err);
+}
+
+G_DEFINE_AUTO_CLEANUP_CLEAR_FUNC(ErrorPropagator, error_propagator_cleanup);
+
+/*
+ * ERRP_AUTO_PROPAGATE
+ *
+ * This macro exists to assist with proper error handling in a function which
+ * uses an Error **errp parameter.  It must be used as the first line of a
+ * function which modifies an error (with error_prepend, error_append_hint, or
+ * similar) or which wants to dereference *errp.  It is still safe (but
+ * useless) to use in other functions.
+ *
+ * If errp is NULL or points to error_fatal, it is rewritten to point to a
+ * local Error object, which will be automatically propagated to the original
+ * errp on function exit (see error_propagator_cleanup).
+ *
+ * After invocation of this macro it is always safe to dereference errp
+ * (as it's not NULL anymore) and to add information by error_prepend or
+ * error_append_hint (as, if it was error_fatal, we swapped it with a
+ * local_error to be propagated on cleanup).
+ *
+ * Note: we don't wrap the error_abort case, as we want resulting coredump
+ * to point to the place where the error happened, not to error_propagate.
+ */
+#define ERRP_AUTO_PROPAGATE() \
+    g_auto(ErrorPropagator) _auto_errp_prop = {.errp = errp}; \
+    do { \
+        if (!errp || errp == &error_fatal) { \
+            errp = &_auto_errp_prop.local_err; \
+        } \
+    } while (0)
 
 /*
  * Special error destination to abort on error.
