@@ -1505,3 +1505,19 @@ static bool opivx_vmerge_check(DisasContext *s, arg_rmrr *a)
 GEN_OPIVX_TRANS(vmerge_vxm, opivx_vmerge_check)
 
 GEN_OPIVI_TRANS(vmerge_vim, 0, vmerge_vxm, opivx_vmerge_check)
+
+/*
+ *** Vector Fixed-Point Arithmetic Instructions
+ */
+
+/* Vector Single-Width Saturating Add and Subtract */
+GEN_OPIVV_GVEC_TRANS(vsaddu_vv, usadd)
+GEN_OPIVV_GVEC_TRANS(vsadd_vv,  ssadd)
+GEN_OPIVV_GVEC_TRANS(vssubu_vv, ussub)
+GEN_OPIVV_GVEC_TRANS(vssub_vv,  sssub)
+GEN_OPIVX_TRANS(vsaddu_vx,  opivx_check)
+GEN_OPIVX_TRANS(vsadd_vx,  opivx_check)
+GEN_OPIVX_TRANS(vssubu_vx,  opivx_check)
+GEN_OPIVX_TRANS(vssub_vx,  opivx_check)
+GEN_OPIVI_TRANS(vsaddu_vi, 1, vsaddu_vx, opivx_check)
+GEN_OPIVI_TRANS(vsadd_vi, 0, vsadd_vx, opivx_check)
