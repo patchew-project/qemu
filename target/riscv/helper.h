@@ -1106,3 +1106,8 @@ DEF_HELPER_3(vext_x_v_b, tl, ptr, tl, env)
 DEF_HELPER_3(vext_x_v_h, tl, ptr, tl, env)
 DEF_HELPER_3(vext_x_v_w, tl, ptr, tl, env)
 DEF_HELPER_3(vext_x_v_d, tl, ptr, tl, env)
+
+DEF_HELPER_3(vmv_s_x_b, void, ptr, tl, env)
+DEF_HELPER_3(vmv_s_x_h, void, ptr, tl, env)
+DEF_HELPER_3(vmv_s_x_w, void, ptr, tl, env)
+DEF_HELPER_3(vmv_s_x_d, void, ptr, tl, env)

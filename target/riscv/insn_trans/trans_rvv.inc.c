@@ -2243,3 +2243,29 @@ static bool trans_vext_x_v(DisasContext *s, arg_r *a)
     }
     return false;
 }
+
+/* Integer Scalar Move Instruction */
+typedef void (* gen_helper_vmv_s_x)(TCGv_ptr, TCGv, TCGv_env);
+static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
+{
+    if (vext_check_isa_ill(s, RVV)) {
+        TCGv_ptr dest;
+        TCGv src1;
+        gen_helper_vmv_s_x fns[4] = {
+            gen_helper_vmv_s_x_b, gen_helper_vmv_s_x_h,
+            gen_helper_vmv_s_x_w, gen_helper_vmv_s_x_d
+        };
+
+        src1 = tcg_temp_new();
+        dest = tcg_temp_new_ptr();
+        gen_get_gpr(src1, a->rs1);
+        tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, a->rd));
+
+        fns[s->sew](dest, src1, cpu_env);
+
+        tcg_temp_free(src1);
+        tcg_temp_free_ptr(dest);
+        return true;
+    }
+    return false;
+}
