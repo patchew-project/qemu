@@ -2269,3 +2269,50 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
     }
     return false;
 }
+
+/* Floating-Point Scalar Move Instructions */
+typedef void (* gen_helper_vfmv_f_s)(TCGv_i64, TCGv_ptr, TCGv_env);
+static bool trans_vfmv_f_s(DisasContext *s, arg_vfmv_f_s *a)
+{
+    if (vext_check_isa_ill(s, RVV)) {
+        TCGv_ptr src2;
+        gen_helper_vfmv_f_s fns[4] = {
+            gen_helper_vfmv_f_s_b, gen_helper_vfmv_f_s_h,
+            gen_helper_vfmv_f_s_w, gen_helper_vfmv_f_s_d
+        };
+
+        src2 = tcg_temp_new_ptr();
+        tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, a->rs2));
+
+        fns[s->sew](cpu_fpr[a->rd], src2, cpu_env);
+
+        tcg_temp_free_ptr(src2);
+        return true;
+    }
+    return false;
+}
+
+typedef void (* gen_helper_vfmv_s_f)(TCGv_ptr, TCGv_i64, TCGv_env);
+static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
+{
+    if (vext_check_isa_ill(s, RVV | RVF) ||
+        vext_check_isa_ill(s, RVV | RVD)) {
+        TCGv_ptr dest;
+        TCGv_i64 src1;
+        gen_helper_vfmv_s_f fns[4] = {
+            gen_helper_vfmv_s_f_b, gen_helper_vfmv_s_f_h,
+            gen_helper_vfmv_s_f_w, gen_helper_vfmv_s_f_d
+        };
+
+        src1 = tcg_temp_new_i64();
+        dest = tcg_temp_new_ptr();
+        tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, a->rd));
+
+        fns[s->sew](dest, src1, cpu_env);
+
+        tcg_temp_free_i64(src1);
+        tcg_temp_free_ptr(dest);
+        return true;
+    }
+    return false;
+}

@@ -4475,3 +4475,39 @@ GEN_VEXT_VMV_S_X(vmv_s_x_b, uint8_t, H1, clearb)
 GEN_VEXT_VMV_S_X(vmv_s_x_h, uint16_t, H2, clearh)
 GEN_VEXT_VMV_S_X(vmv_s_x_w, uint32_t, H4, clearl)
 GEN_VEXT_VMV_S_X(vmv_s_x_d, uint64_t, H8, clearq)
+
+/* Floating-Point Scalar Move Instructions */
+#define GEN_VEXT_VFMV_S_F(NAME, ETYPE, H, CLEAR_FN)                     \
+void HELPER(NAME)(void *vd, uint64_t s1, CPURISCVState *env)            \
+{                                                                       \
+    if (env->vl == 0) {                                                 \
+        return;                                                         \
+    }                                                                   \
+    *((ETYPE *)vd + H(0)) = s1;                                         \
+    CLEAR_FN(vd, 1, sizeof(ETYPE), env_archcpu(env)->cfg.vlen / 8);     \
+}
+GEN_VEXT_VFMV_S_F(vfmv_s_f_b, uint8_t, H1, clearb)
+GEN_VEXT_VFMV_S_F(vfmv_s_f_h, uint16_t, H2, clearh)
+GEN_VEXT_VFMV_S_F(vfmv_s_f_w, uint32_t, H4, clearl)
+GEN_VEXT_VFMV_S_F(vfmv_s_f_d, uint64_t, H8, clearq)
+
+uint64_t HELPER(vfmv_f_s_b)(void *vs2, CPURISCVState *env)
+{
+    return deposit64(-1ULL, 0, 8, *((uint8_t *)vs2 + H1(0)));
+}
+uint64_t HELPER(vfmv_f_s_h)(void *vs2, CPURISCVState *env)
+{
+    return deposit64(-1ULL, 0, 16, *((uint16_t *)vs2 + H2(0)));
+}
+uint64_t HELPER(vfmv_f_s_w)(void *vs2, CPURISCVState *env)
+{
+    return deposit64(-1ULL, 0, 32, *((uint32_t *)vs2 + H4(0)));
+}
+uint64_t HELPER(vfmv_f_s_d)(void *vs2, CPURISCVState *env)
+{
+    if (env->misa & RVD) {
+        return *((uint64_t *)vs2);
+    } else {
+        return deposit64(*((uint64_t *)vs2), 32, 32, 0xffffffff);
+    }
+}
