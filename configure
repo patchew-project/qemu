@@ -947,6 +947,20 @@ do
     fi
 done
 
+# Check for files needed by aarch64 VMs.
+# Allow user to override the path for efi also.
+qemu_efi_aarch64=
+for fd in $QEMU_EFI_PATH /usr/share/qemu-efi-aarch64/QEMU_EFI.fd
+do
+    if has $fd
+    then
+        if [ -f  $fd ]; then
+            qemu_efi_aarch64=$fd
+        fi
+        break
+    fi
+done
+
 # Check for existence of python3 yaml, needed to
 # import yaml config files into vm-build.
 python_yaml="no"
@@ -6591,6 +6605,7 @@ if test "$docs" != "no"; then
     echo "sphinx-build      $sphinx_build"
 fi
 echo "genisoimage       $genisoimage"
+echo "qemu_efi_aarch64  $qemu_efi_aarch64"
 echo "python_yaml       $python_yaml"
 echo "slirp support     $slirp $(echo_version $slirp $slirp_version)"
 if test "$slirp" != "no" ; then
@@ -7642,6 +7657,7 @@ echo "INSTALL_LIB=$install -c -m 0644" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "SPHINX_BUILD=$sphinx_build" >> $config_host_mak
 echo "GENISOIMAGE=$genisoimage" >> $config_host_mak
+echo "QEMU_EFI_AARCH64=$qemu_efi_aarch64" >> $config_host_mak
 echo "PYTHON_YAML=$python_yaml" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 if $iasl -h > /dev/null 2>&1; then
