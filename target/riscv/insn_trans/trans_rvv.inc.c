@@ -1933,3 +1933,9 @@ static bool opfvf_vfmerge_check(DisasContext *s, arg_rmrr *a)
             (s->sew != 0));
 }
 GEN_OPFVF_TRANS(vfmerge_vfm, opfvf_vfmerge_check)
+
+/* Single-Width Floating-Point/Integer Type-Convert Instructions */
+GEN_OPFV_TRANS(vfcvt_xu_f_v, opfv_check)
+GEN_OPFV_TRANS(vfcvt_x_f_v, opfv_check)
+GEN_OPFV_TRANS(vfcvt_f_xu_v, opfv_check)
+GEN_OPFV_TRANS(vfcvt_f_x_v, opfv_check)
