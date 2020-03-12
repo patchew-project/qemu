@@ -38,10 +38,6 @@
 #include "qemu/log.h"
 #include "trace.h"
 
-#define VMPORT_CMD_GETVERSION 0x0a
-#define VMPORT_CMD_GETRAMSIZE 0x14
-
-#define VMPORT_ENTRIES 0x2c
 #define VMPORT_MAGIC   0x564D5868
 
 /* Compatibility flags for migration */
@@ -72,12 +68,9 @@ typedef struct VMPortState {
 
 static VMPortState *port_state;
 
-void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque)
+void vmport_register(VMPortCommand command, VMPortReadFunc *func, void *opaque)
 {
-    if (command >= VMPORT_ENTRIES) {
-        return;
-    }
-
+    assert(command < VMPORT_ENTRIES);
     trace_vmport_register(command, func, opaque);
     port_state->func[command] = func;
     port_state->opaque[command] = opaque;
