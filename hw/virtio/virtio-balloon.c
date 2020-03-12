@@ -81,7 +81,8 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
     if (rb_page_size == BALLOON_PAGE_SIZE) {
         /* Easy case */
 
-        ram_block_discard_range(rb, rb_offset, rb_page_size);
+        __ram_block_discard_range(rb, rb_offset, rb_page_size,
+                                  balloon->do_mprotect);
         /* We ignore errors from ram_block_discard_range(), because it
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
@@ -120,8 +121,9 @@ static void balloon_inflate_page(VirtIOBalloon *balloon,
         /* We've accumulated a full host page, we can actually discard
          * it now */
 
-        ram_block_discard_range(rb, rb_aligned_offset, rb_page_size);
-        /* We ignore errors from ram_block_discard_range(), because it
+        __ram_block_discard_range(rb, rb_aligned_offset, rb_page_size,
+                                  balloon->do_mprotect);
+        /* We ignore errors from __ram_block_discard_range(), because it
          * has already reported them, and failing to discard a balloon
          * page is not fatal */
         virtio_balloon_pbp_free(pbp);
@@ -144,6 +146,9 @@ static void balloon_deflate_page(VirtIOBalloon *balloon,
     rb_page_size = qemu_ram_pagesize(rb);
 
     host_addr = (void *)((uintptr_t)addr & ~(rb_page_size - 1));
+
+    if (balloon->do_mprotect)
+        g_assert(qemu_mprotect_rw(host_addr, rb_page_size) == 0);
 
     /* When a page is deflated, we hint the whole host page it lives
      * on, since we can't do anything smaller */
@@ -780,6 +785,14 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
     virtio_init(vdev, "virtio-balloon", VIRTIO_ID_BALLOON,
                 virtio_balloon_config_size(s));
 
+    if (s->do_mprotect
+        && virtio_has_feature(s->host_features,
+                              VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+        error_setg(errp, "mprotect and free-page-hint cannot work together");
+        virtio_cleanup(vdev);
+        return;
+    }
+
     ret = qemu_add_balloon_handler(virtio_balloon_to_target,
                                    virtio_balloon_stat, s);
 
@@ -924,6 +937,7 @@ static Property virtio_balloon_properties[] = {
                      qemu_4_0_config_size, false),
     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
                      IOThread *),
+    DEFINE_PROP_BOOL("mprotect", VirtIOBalloon, do_mprotect, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

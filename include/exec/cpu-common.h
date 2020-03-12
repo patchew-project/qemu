@@ -104,6 +104,8 @@ typedef int (RAMBlockIterFunc)(RAMBlock *rb, void *opaque);
 
 int qemu_ram_foreach_block(RAMBlockIterFunc func, void *opaque);
 int ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length);
+int __ram_block_discard_range(RAMBlock *rb, uint64_t start, size_t length,
+                              bool do_mprotect);
 
 #endif
 
