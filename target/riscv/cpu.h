@@ -369,6 +369,12 @@ typedef CPURISCVState CPUArchState;
 typedef RISCVCPU ArchCPU;
 #include "exec/cpu-all.h"
 
+/* share data between vector helpers and decode code */
+FIELD(VDATA, MLEN, 0, 8)
+FIELD(VDATA, VM, 8, 1)
+FIELD(VDATA, LMUL, 9, 2)
+FIELD(VDATA, NF, 11, 4)
+
 FIELD(TB_FLAGS, VL_EQ_VLMAX, 2, 1)
 FIELD(TB_FLAGS, LMUL, 3, 2)
 FIELD(TB_FLAGS, SEW, 5, 3)
