@@ -3639,7 +3639,7 @@ static int img_rebase(int argc, char **argv)
      * doesn't change when we switch the backing file.
      */
     if (out_baseimg && *out_baseimg) {
-        ret = bdrv_change_backing_file(bs, out_baseimg, out_basefmt, false);
+        ret = bdrv_change_backing_file(bs, out_baseimg, out_basefmt, true);
     } else {
         ret = bdrv_change_backing_file(bs, NULL, NULL, false);
     }
