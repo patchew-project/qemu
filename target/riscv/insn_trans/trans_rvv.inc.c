@@ -1223,3 +1223,47 @@ GEN_OPIVX_GVEC_TRANS(vxor_vx, xors)
 GEN_OPIVI_GVEC_TRANS(vand_vi, 0, vand_vx, andi)
 GEN_OPIVI_GVEC_TRANS(vor_vi, 0, vor_vx,  ori)
 GEN_OPIVI_GVEC_TRANS(vxor_vi, 0, vxor_vx, xori)
+
+/* Vector Single-Width Bit Shift Instructions */
+GEN_OPIVV_GVEC_TRANS(vsll_vv,  shlv)
+GEN_OPIVV_GVEC_TRANS(vsrl_vv,  shrv)
+GEN_OPIVV_GVEC_TRANS(vsra_vv,  sarv)
+
+#define GEN_OPIVX_GVEC_SHIFT_TRANS(NAME, GVSUF)                               \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a)                        \
+{                                                                             \
+    if (!opivx_check(s, a)) {                                                 \
+        return false;                                                         \
+    }                                                                         \
+                                                                              \
+    if (a->vm && s->vl_eq_vlmax) {                                            \
+        TCGv_i32 src1 = tcg_temp_new_i32();                                   \
+        TCGv tmp = tcg_temp_new();                                            \
+        gen_get_gpr(tmp, a->rs1);                                             \
+        tcg_gen_trunc_tl_i32(src1, tmp);                                      \
+        tcg_gen_gvec_##GVSUF(8 << s->sew, vreg_ofs(s, a->rd),                 \
+            vreg_ofs(s, a->rs2), src1, MAXSZ(s), MAXSZ(s));                   \
+        tcg_temp_free_i32(src1);                                              \
+        tcg_temp_free(tmp);                                                   \
+        return true;                                                          \
+    } else {                                                                  \
+        uint32_t data = 0;                                                    \
+        static gen_helper_opivx const fns[4] = {                              \
+            gen_helper_##NAME##_b, gen_helper_##NAME##_h,                     \
+            gen_helper_##NAME##_w, gen_helper_##NAME##_d,                     \
+        };                                                                    \
+                                                                              \
+        data = FIELD_DP32(data, VDATA, MLEN, s->mlen);                        \
+        data = FIELD_DP32(data, VDATA, VM, a->vm);                            \
+        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);                        \
+        return opivx_trans(a->rd, a->rs1, a->rs2, data, fns[s->sew], s);      \
+    }                                                                         \
+    return true;                                                              \
+}
+GEN_OPIVX_GVEC_SHIFT_TRANS(vsll_vx,  shls)
+GEN_OPIVX_GVEC_SHIFT_TRANS(vsrl_vx,  shrs)
+GEN_OPIVX_GVEC_SHIFT_TRANS(vsra_vx,  sars)
+
+GEN_OPIVI_GVEC_TRANS(vsll_vi, 1, vsll_vx,  shli)
+GEN_OPIVI_GVEC_TRANS(vsrl_vi, 1, vsrl_vx,  shri)
+GEN_OPIVI_GVEC_TRANS(vsra_vi, 1, vsra_vx,  sari)
