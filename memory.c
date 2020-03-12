@@ -246,6 +246,17 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
         && a->nonvolatile == b->nonvolatile;
 }
 
+static bool flatrange_resized(FlatRange *a, FlatRange *b)
+{
+    return a->mr == b->mr
+        && int128_eq(a->addr.start, b->addr.start)
+        && int128_ne(a->addr.size, b->addr.size)
+        && a->offset_in_region == b->offset_in_region
+        && a->romd_mode == b->romd_mode
+        && a->readonly == b->readonly
+        && a->nonvolatile == b->nonvolatile;
+}
+
 static FlatView *flatview_new(MemoryRegion *mr_root)
 {
     FlatView *view;
@@ -887,6 +898,45 @@ static void flat_range_coalesced_io_add(FlatRange *fr, AddressSpace *as)
     }
 }
 
+static void memory_listener_resize_region(FlatRange *fr, AddressSpace *as,
+                                          Int128 new, bool adding)
+{
+    FlatView *as_view = address_space_to_flatview(as);
+    MemoryRegionSection old_mrs = section_from_flat_range(fr, as_view);
+    MemoryRegionSection new_mrs = old_mrs;
+    MemoryListener *listener;
+
+    new_mrs.size = new;
+
+    if (adding) {
+        QTAILQ_FOREACH(listener, &as->listeners, link_as) {
+            if (listener->region_resize) {
+                /* Grow in the adding phase. */
+                if (int128_lt(fr->addr.size, new)) {
+                    listener->region_resize(listener, &old_mrs, new);
+                }
+                continue;
+            }
+            if (listener->region_add) {
+                listener->region_add(listener, &new_mrs);
+            }
+        }
+    } else {
+        QTAILQ_FOREACH_REVERSE(listener, &as->listeners, link_as) {
+            if (listener->region_resize) {
+                /* Shrink in the removal phase. */
+                if (int128_gt(fr->addr.size, new)) {
+                    listener->region_resize(listener, &old_mrs, new);
+                }
+                continue;
+            }
+            if (listener->region_del) {
+                listener->region_del(listener, &old_mrs);
+            }
+        }
+    }
+}
+
 static void address_space_update_topology_pass(AddressSpace *as,
                                                const FlatView *old_view,
                                                const FlatView *new_view,
@@ -911,11 +961,23 @@ static void address_space_update_topology_pass(AddressSpace *as,
             frnew = NULL;
         }
 
-        if (frold
-            && (!frnew
-                || int128_lt(frold->addr.start, frnew->addr.start)
-                || (int128_eq(frold->addr.start, frnew->addr.start)
-                    && !flatrange_equal(frold, frnew)))) {
+        if (frold && frnew && flatrange_resized(frold, frnew)) {
+            /* In both and only the size (+ eventually logging) changed. */
+
+            memory_listener_resize_region(frold, as, frnew->addr.size,
+                                          adding);
+            if (adding) {
+                flat_range_coalesced_io_add(frnew, as);
+            } else {
+                flat_range_coalesced_io_del(frold, as);
+            }
+
+            ++iold;
+            ++inew;
+        } else if (frold && (!frnew
+                             || int128_lt(frold->addr.start, frnew->addr.start)
+                             || (int128_eq(frold->addr.start, frnew->addr.start)
+                                 && !flatrange_equal(frold, frnew)))) {
             /* In old but not in new, or in both but attributes changed. */
 
             if (!adding) {

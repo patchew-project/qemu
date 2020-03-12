@@ -485,6 +485,24 @@ struct MemoryListener {
     void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
 
     /**
+     * @region_resize:
+     *
+     * Called during an address space update transaction,
+     * for a section of the address space that is in the same place in the
+     * address space as in the last transaction, however, the size changed.
+     * Dirty memory logging can change as well.
+     *
+     * Note: If this callback is not implemented, the resize is communicated
+     *       via a region_del(), followed by a region_add() instead.
+     *
+     * @listener: The #MemoryListener.
+     * @section: The old #MemoryRegionSection.
+     * @new: The new size.
+     */
+    void (*region_resize)(MemoryListener *listener,
+                          MemoryRegionSection *section, Int128 new);
+
+    /**
      * @log_start:
      *
      * Called during an address space update transaction, after
