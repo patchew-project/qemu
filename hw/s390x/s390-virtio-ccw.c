@@ -382,7 +382,6 @@ out_err:
     return rc;
 }
 
-#define DIAG_308_RC_INVAL_FOR_PV    0x0a02
 static void s390_machine_inject_pv_error(CPUState *cs)
 {
     int r1 = (cs->kvm_run->s390_sieic.ipa & 0x00f0) >> 4;
