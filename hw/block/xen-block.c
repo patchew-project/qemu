@@ -195,6 +195,7 @@ static const BlockDevOps xen_block_dev_ops = {
 
 static void xen_block_realize(XenDevice *xendev, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     XenBlockDeviceClass *blockdev_class =
         XEN_BLOCK_DEVICE_GET_CLASS(xendev);
@@ -202,7 +203,6 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     XenBlockVdev *vdev = &blockdev->props.vdev;
     BlockConf *conf = &blockdev->props.conf;
     BlockBackend *blk = conf->blk;
-    Error *local_err = NULL;
 
     if (vdev->type == XEN_BLOCK_VDEV_TYPE_INVALID) {
         error_setg(errp, "vdev property not set");
@@ -212,9 +212,8 @@ static void xen_block_realize(XenDevice *xendev, Error **errp)
     trace_xen_block_realize(type, vdev->disk, vdev->partition);
 
     if (blockdev_class->realize) {
-        blockdev_class->realize(blockdev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        blockdev_class->realize(blockdev, errp);
+        if (*errp) {
             return;
         }
     }
@@ -284,8 +283,8 @@ static void xen_block_frontend_changed(XenDevice *xendev,
                                        enum xenbus_state frontend_state,
                                        Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     enum xenbus_state backend_state = xen_device_backend_get_state(xendev);
-    Error *local_err = NULL;
 
     switch (frontend_state) {
     case XenbusStateInitialised:
@@ -294,15 +293,13 @@ static void xen_block_frontend_changed(XenDevice *xendev,
             break;
         }
 
-        xen_block_disconnect(xendev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        xen_block_disconnect(xendev, errp);
+        if (*errp) {
             break;
         }
 
-        xen_block_connect(xendev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        xen_block_connect(xendev, errp);
+        if (*errp) {
             break;
         }
 
@@ -315,9 +312,8 @@ static void xen_block_frontend_changed(XenDevice *xendev,
 
     case XenbusStateClosed:
     case XenbusStateUnknown:
-        xen_block_disconnect(xendev, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        xen_block_disconnect(xendev, errp);
+        if (*errp) {
             break;
         }
 
@@ -404,10 +400,10 @@ static int vbd_name_to_disk(const char *name, const char **endp,
 static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     XenBlockVdev *vdev = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
     char *str, *p;
     const char *end;
 
@@ -416,9 +412,8 @@ static void xen_block_set_vdev(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    visit_type_str(v, name, &str, errp);
+    if (*errp) {
         return;
     }
 
@@ -672,9 +667,9 @@ static void xen_block_blockdev_del(const char *node_name, Error **errp)
 static char *xen_block_blockdev_add(const char *id, QDict *qdict,
                                     Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const char *driver = qdict_get_try_str(qdict, "driver");
     BlockdevOptions *options = NULL;
-    Error *local_err = NULL;
     char *node_name;
     Visitor *v;
 
@@ -689,18 +684,16 @@ static char *xen_block_blockdev_add(const char *id, QDict *qdict,
     trace_xen_block_blockdev_add(node_name);
 
     v = qobject_input_visitor_new(QOBJECT(qdict));
-    visit_type_BlockdevOptions(v, NULL, &options, &local_err);
+    visit_type_BlockdevOptions(v, NULL, &options, errp);
     visit_free(v);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         goto fail;
     }
 
-    qmp_blockdev_add(options, &local_err);
+    qmp_blockdev_add(options, errp);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         goto fail;
     }
 
@@ -719,14 +712,12 @@ fail:
 
 static void xen_block_drive_destroy(XenBlockDrive *drive, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     char *node_name = drive->node_name;
 
     if (node_name) {
-        Error *local_err = NULL;
-
-        xen_block_blockdev_del(node_name, &local_err);
-        if (local_err) {
-            error_propagate(errp, local_err);
+        xen_block_blockdev_del(node_name, errp);
+        if (*errp) {
             return;
         }
         g_free(node_name);
@@ -740,6 +731,7 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
                                              const char *device_type,
                                              QDict *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     const char *params = qdict_get_try_str(opts, "params");
     const char *mode = qdict_get_try_str(opts, "mode");
     const char *direct_io_safe = qdict_get_try_str(opts, "direct-io-safe");
@@ -747,7 +739,6 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
     char *driver = NULL;
     char *filename = NULL;
     XenBlockDrive *drive = NULL;
-    Error *local_err = NULL;
     QDict *file_layer;
     QDict *driver_layer;
 
@@ -826,13 +817,12 @@ static XenBlockDrive *xen_block_drive_create(const char *id,
 
     g_assert(!drive->node_name);
     drive->node_name = xen_block_blockdev_add(drive->id, driver_layer,
-                                              &local_err);
+                                              errp);
 
     qobject_unref(driver_layer);
 
 done:
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (*errp) {
         xen_block_drive_destroy(drive, NULL);
         return NULL;
     }
@@ -857,8 +847,8 @@ static void xen_block_iothread_destroy(XenBlockIOThread *iothread,
 static XenBlockIOThread *xen_block_iothread_create(const char *id,
                                                    Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XenBlockIOThread *iothread = g_new(XenBlockIOThread, 1);
-    Error *local_err = NULL;
     QDict *opts;
     QObject *ret_data;
 
@@ -867,13 +857,11 @@ static XenBlockIOThread *xen_block_iothread_create(const char *id,
     opts = qdict_new();
     qdict_put_str(opts, "qom-type", TYPE_IOTHREAD);
     qdict_put_str(opts, "id", id);
-    qmp_object_add(opts, &ret_data, &local_err);
+    qmp_object_add(opts, &ret_data, errp);
     qobject_unref(opts);
     qobject_unref(ret_data);
 
-    if (local_err) {
-        error_propagate(errp, local_err);
-
+    if (*errp) {
         g_free(iothread->id);
         g_free(iothread);
         return NULL;
@@ -885,6 +873,7 @@ static XenBlockIOThread *xen_block_iothread_create(const char *id,
 static void xen_block_device_create(XenBackendInstance *backend,
                                     QDict *opts, Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XenBus *xenbus = xen_backend_get_bus(backend);
     const char *name = xen_backend_get_name(backend);
     unsigned long number;
@@ -892,7 +881,6 @@ static void xen_block_device_create(XenBackendInstance *backend,
     XenBlockDrive *drive = NULL;
     XenBlockIOThread *iothread = NULL;
     XenDevice *xendev = NULL;
-    Error *local_err = NULL;
     const char *type;
     XenBlockDevice *blockdev;
 
@@ -924,52 +912,48 @@ static void xen_block_device_create(XenBackendInstance *backend,
         goto fail;
     }
 
-    drive = xen_block_drive_create(vdev, device_type, opts, &local_err);
+    drive = xen_block_drive_create(vdev, device_type, opts, errp);
     if (!drive) {
-        error_propagate_prepend(errp, local_err, "failed to create drive: ");
+        error_prepend(errp, "failed to create drive: ");
         goto fail;
     }
 
-    iothread = xen_block_iothread_create(vdev, &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to create iothread: ");
+    iothread = xen_block_iothread_create(vdev, errp);
+    if (*errp) {
+        error_prepend(errp, "failed to create iothread: ");
         goto fail;
     }
 
     xendev = XEN_DEVICE(qdev_create(BUS(xenbus), type));
     blockdev = XEN_BLOCK_DEVICE(xendev);
 
-    object_property_set_str(OBJECT(xendev), vdev, "vdev", &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err, "failed to set 'vdev': ");
+    object_property_set_str(OBJECT(xendev), vdev, "vdev", errp);
+    if (*errp) {
+        error_prepend(errp, "failed to set 'vdev': ");
         goto fail;
     }
 
     object_property_set_str(OBJECT(xendev),
                             xen_block_drive_get_node_name(drive), "drive",
-                            &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err, "failed to set 'drive': ");
+                            errp);
+    if (*errp) {
+        error_prepend(errp, "failed to set 'drive': ");
         goto fail;
     }
 
     object_property_set_str(OBJECT(xendev), iothread->id, "iothread",
-                            &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "failed to set 'iothread': ");
+                            errp);
+    if (*errp) {
+        error_prepend(errp, "failed to set 'iothread': ");
         goto fail;
     }
 
     blockdev->iothread = iothread;
     blockdev->drive = drive;
 
-    object_property_set_bool(OBJECT(xendev), true, "realized", &local_err);
-    if (local_err) {
-        error_propagate_prepend(errp, local_err,
-                                "realization of device %s failed: ",
-                                type);
+    object_property_set_bool(OBJECT(xendev), true, "realized", errp);
+    if (*errp) {
+        error_prepend(errp, "realization of device %s failed: ", type);
         goto fail;
     }
 
@@ -993,6 +977,7 @@ fail:
 static void xen_block_device_destroy(XenBackendInstance *backend,
                                      Error **errp)
 {
+    ERRP_AUTO_PROPAGATE();
     XenDevice *xendev = xen_backend_get_device(backend);
     XenBlockDevice *blockdev = XEN_BLOCK_DEVICE(xendev);
     XenBlockVdev *vdev = &blockdev->props.vdev;
@@ -1004,23 +989,17 @@ static void xen_block_device_destroy(XenBackendInstance *backend,
     object_unparent(OBJECT(xendev));
 
     if (iothread) {
-        Error *local_err = NULL;
-
-        xen_block_iothread_destroy(iothread, &local_err);
-        if (local_err) {
-            error_propagate_prepend(errp, local_err,
-                                "failed to destroy iothread: ");
+        xen_block_iothread_destroy(iothread, errp);
+        if (*errp) {
+            error_prepend(errp, "failed to destroy iothread: ");
             return;
         }
     }
 
     if (drive) {
-        Error *local_err = NULL;
-
-        xen_block_drive_destroy(drive, &local_err);
-        if (local_err) {
-            error_propagate_prepend(errp, local_err,
-                                "failed to destroy drive: ");
+        xen_block_drive_destroy(drive, errp);
+        if (*errp) {
+            error_prepend(errp, "failed to destroy drive: ");
         }
     }
 }
