@@ -2291,3 +2291,132 @@ GEN_VEXT_VX_ENV(vssub_vx_b, 1, 1, clearb)
 GEN_VEXT_VX_ENV(vssub_vx_h, 2, 2, clearh)
 GEN_VEXT_VX_ENV(vssub_vx_w, 4, 4, clearl)
 GEN_VEXT_VX_ENV(vssub_vx_d, 8, 8, clearq)
+
+/* Vector Single-Width Averaging Add and Subtract */
+static inline uint8_t get_round(CPURISCVState *env, uint64_t v, uint8_t shift)
+{
+    uint8_t d = extract64(v, shift, 1);
+    uint8_t d1;
+    uint64_t D1, D2;
+    int mod = env->vxrm;
+
+    if (shift == 0 || shift > 64) {
+        return 0;
+    }
+
+    d1 = extract64(v, shift - 1, 1);
+    D1 = extract64(v, 0, shift);
+    if (mod == 0) { /* round-to-nearest-up (add +0.5 LSB) */
+        return d1;
+    } else if (mod == 1) { /* round-to-nearest-even */
+        if (shift > 1) {
+            D2 = extract64(v, 0, shift - 1);
+            return d1 & ((D2 != 0) | d);
+        } else {
+            return d1 & d;
+        }
+    } else if (mod == 3) { /* round-to-odd (OR bits into LSB, aka "jam") */
+        return !d & (D1 != 0);
+    }
+    return 0; /* round-down (truncate) */
+}
+
+static inline int8_t aadd8(CPURISCVState *env, int8_t a, int8_t b)
+{
+    int16_t res = (int16_t)a + (int16_t)b;
+    uint8_t round = get_round(env, res, 1);
+    res   = (res >> 1) + round;
+    return res;
+}
+static inline int16_t aadd16(CPURISCVState *env, int16_t a, int16_t b)
+{
+    int32_t res = (int32_t)a + (int32_t)b;
+    uint8_t round = get_round(env, res, 1);
+    res   = (res >> 1) + round;
+    return res;
+}
+static inline int32_t aadd32(CPURISCVState *env, int32_t a, int32_t b)
+{
+    int64_t res = (int64_t)a + (int64_t)b;
+    uint8_t round = get_round(env, res, 1);
+    res   = (res >> 1) + round;
+    return res;
+}
+static inline int64_t aadd64(CPURISCVState *env, int64_t a, int64_t b)
+{
+    int64_t res = (int64_t)a + (int64_t)b;
+    uint8_t round = get_round(env, res, 1); /* get_round only need v[d : 0] */
+    if (((res ^ a) & (res ^ b)) >> 63 == -1LL) { /* overflow */
+        res = ((res >> 1) ^ INT64_MIN) + round;
+    } else {
+        res   = (res >> 1) + round;
+    }
+    return res;
+}
+RVVCALL(OPIVV2_ENV, vaadd_vv_b, OP_SSS_B, H1, H1, H1, aadd8)
+RVVCALL(OPIVV2_ENV, vaadd_vv_h, OP_SSS_H, H2, H2, H2, aadd16)
+RVVCALL(OPIVV2_ENV, vaadd_vv_w, OP_SSS_W, H4, H4, H4, aadd32)
+RVVCALL(OPIVV2_ENV, vaadd_vv_d, OP_SSS_D, H8, H8, H8, aadd64)
+GEN_VEXT_VV_ENV(vaadd_vv_b, 1, 1, clearb)
+GEN_VEXT_VV_ENV(vaadd_vv_h, 2, 2, clearh)
+GEN_VEXT_VV_ENV(vaadd_vv_w, 4, 4, clearl)
+GEN_VEXT_VV_ENV(vaadd_vv_d, 8, 8, clearq)
+
+RVVCALL(OPIVX2_ENV, vaadd_vx_b, OP_SSS_B, H1, H1, aadd8)
+RVVCALL(OPIVX2_ENV, vaadd_vx_h, OP_SSS_H, H2, H2, aadd16)
+RVVCALL(OPIVX2_ENV, vaadd_vx_w, OP_SSS_W, H4, H4, aadd32)
+RVVCALL(OPIVX2_ENV, vaadd_vx_d, OP_SSS_D, H8, H8, aadd64)
+GEN_VEXT_VX_ENV(vaadd_vx_b, 1, 1, clearb)
+GEN_VEXT_VX_ENV(vaadd_vx_h, 2, 2, clearh)
+GEN_VEXT_VX_ENV(vaadd_vx_w, 4, 4, clearl)
+GEN_VEXT_VX_ENV(vaadd_vx_d, 8, 8, clearq)
+
+static inline int8_t asub8(CPURISCVState *env, int8_t a, int8_t b)
+{
+    int16_t res = (int16_t)a - (int16_t)b;
+    uint8_t round = get_round(env, res, 1);
+    res   = (res >> 1) + round;
+    return res;
+}
+static inline int16_t asub16(CPURISCVState *env, int16_t a, int16_t b)
+{
+    int32_t res = (int32_t)a - (int32_t)b;
+    uint8_t round = get_round(env, res, 1);
+    res   = (res >> 1) + round;
+    return res;
+}
+static inline int32_t asub32(CPURISCVState *env, int32_t a, int32_t b)
+{
+    int64_t res = (int64_t)a - (int64_t)b;
+    uint8_t round = get_round(env, res, 1);
+    res   = (res >> 1) + round;
+    return res;
+}
+static inline int64_t asub64(CPURISCVState *env, int64_t a, int64_t b)
+{
+    int64_t res = (int64_t)a - (int64_t)b;
+    uint8_t round = get_round(env, res, 1); /* get_round only need v[d : 0] */
+    if (((res ^ a) & (a ^ b)) >> 63 == -1LL) { /* overflow */
+        res = ((res >> 1) ^ INT64_MIN) + round;
+    } else {
+        res   = (res >> 1) + round;
+    }
+    return res;
+}
+RVVCALL(OPIVV2_ENV, vasub_vv_b, OP_SSS_B, H1, H1, H1, asub8)
+RVVCALL(OPIVV2_ENV, vasub_vv_h, OP_SSS_H, H2, H2, H2, asub16)
+RVVCALL(OPIVV2_ENV, vasub_vv_w, OP_SSS_W, H4, H4, H4, asub32)
+RVVCALL(OPIVV2_ENV, vasub_vv_d, OP_SSS_D, H8, H8, H8, asub64)
+GEN_VEXT_VV_ENV(vasub_vv_b, 1, 1, clearb)
+GEN_VEXT_VV_ENV(vasub_vv_h, 2, 2, clearh)
+GEN_VEXT_VV_ENV(vasub_vv_w, 4, 4, clearl)
+GEN_VEXT_VV_ENV(vasub_vv_d, 8, 8, clearq)
+
+RVVCALL(OPIVX2_ENV, vasub_vx_b, OP_SSS_B, H1, H1, asub8)
+RVVCALL(OPIVX2_ENV, vasub_vx_h, OP_SSS_H, H2, H2, asub16)
+RVVCALL(OPIVX2_ENV, vasub_vx_w, OP_SSS_W, H4, H4, asub32)
+RVVCALL(OPIVX2_ENV, vasub_vx_d, OP_SSS_D, H8, H8, asub64)
+GEN_VEXT_VX_ENV(vasub_vx_b, 1, 1, clearb)
+GEN_VEXT_VX_ENV(vasub_vx_h, 2, 2, clearh)
+GEN_VEXT_VX_ENV(vasub_vx_w, 4, 4, clearl)
+GEN_VEXT_VX_ENV(vasub_vx_d, 8, 8, clearq)
