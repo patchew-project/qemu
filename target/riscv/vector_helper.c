@@ -4440,3 +4440,23 @@ GEN_VEXT_VID_V(vid_v_b, uint8_t, H1, clearb)
 GEN_VEXT_VID_V(vid_v_h, uint16_t, H2, clearh)
 GEN_VEXT_VID_V(vid_v_w, uint32_t, H4, clearl)
 GEN_VEXT_VID_V(vid_v_d, uint64_t, H8, clearq)
+
+/*
+ *** Vector Permutation Instructions
+ */
+/* Integer Extract Instruction */
+#define GEN_VEXT_X_V(NAME, ETYPE, H)                    \
+target_ulong HELPER(NAME)(void *vs2, target_ulong s1,   \
+        CPURISCVState *env)                             \
+{                                                       \
+    uint32_t vlen = env_archcpu(env)->cfg.vlen / 8;     \
+                                                        \
+    if (s1 >= vlen / sizeof(ETYPE)) {                   \
+        return 0;                                       \
+    }                                                   \
+    return *((ETYPE *)vs2 + s1);                        \
+}
+GEN_VEXT_X_V(vext_x_v_b, uint8_t, H1)
+GEN_VEXT_X_V(vext_x_v_h, uint16_t, H2)
+GEN_VEXT_X_V(vext_x_v_w, uint32_t, H4)
+GEN_VEXT_X_V(vext_x_v_d, uint64_t, H8)

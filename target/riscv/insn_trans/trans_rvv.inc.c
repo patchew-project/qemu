@@ -2210,3 +2210,36 @@ static bool trans_vid_v(DisasContext *s, arg_vid_v *a)
     }
     return false;
 }
+
+/*
+ *** Vector Permutation Instructions
+ */
+/* Integer Extract Instruction */
+typedef void (* gen_helper_vext_x_v)(TCGv, TCGv_ptr, TCGv, TCGv_env);
+static bool trans_vext_x_v(DisasContext *s, arg_r *a)
+{
+    if (vext_check_isa_ill(s, RVV)) {
+        TCGv_ptr src2;
+        TCGv dest, src1;
+        gen_helper_vext_x_v fns[4] = {
+            gen_helper_vext_x_v_b, gen_helper_vext_x_v_h,
+            gen_helper_vext_x_v_w, gen_helper_vext_x_v_d
+        };
+
+        dest = tcg_temp_new();
+        src1 = tcg_temp_new();
+        src2 = tcg_temp_new_ptr();
+
+        gen_get_gpr(src1, a->rs1);
+        tcg_gen_addi_ptr(src2, cpu_env, vreg_ofs(s, a->rs2));
+
+        fns[s->sew](dest, src2, src1, cpu_env);
+        gen_set_gpr(a->rd, dest);
+
+        tcg_temp_free(dest);
+        tcg_temp_free(src1);
+        tcg_temp_free_ptr(src2);
+        return true;
+    }
+    return false;
+}

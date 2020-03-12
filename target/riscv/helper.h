@@ -1101,3 +1101,8 @@ DEF_HELPER_4(vid_v_b, void, ptr, ptr, env, i32)
 DEF_HELPER_4(vid_v_h, void, ptr, ptr, env, i32)
 DEF_HELPER_4(vid_v_w, void, ptr, ptr, env, i32)
 DEF_HELPER_4(vid_v_d, void, ptr, ptr, env, i32)
+
+DEF_HELPER_3(vext_x_v_b, tl, ptr, tl, env)
+DEF_HELPER_3(vext_x_v_h, tl, ptr, tl, env)
+DEF_HELPER_3(vext_x_v_w, tl, ptr, tl, env)
+DEF_HELPER_3(vext_x_v_d, tl, ptr, tl, env)
