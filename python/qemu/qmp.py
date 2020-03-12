@@ -46,7 +46,7 @@ class QEMUMonitorProtocol:
     #: Logger object for debugging messages
     logger = logging.getLogger('QMP')
 
-    def __init__(self, address, server=False):
+    def __init__(self, address, server=False, nickname=None):
         """
         Create a QEMUMonitorProtocol class.
 
@@ -62,6 +62,7 @@ class QEMUMonitorProtocol:
         self.__address = address
         self.__sock = self.__get_sock()
         self.__sockfile = None
+        self._nickname = nickname
         if server:
             self.__sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.__sock.bind(self.__address)
@@ -188,6 +189,8 @@ class QEMUMonitorProtocol:
         @return QMP response as a Python dict or None if the connection has
                 been closed
         """
+        if self._nickname:
+            self.logger.name = 'QMP.{}'.format(self._nickname)
         self.logger.debug(">>> %s", qmp_cmd)
         try:
             self.__sock.sendall(json.dumps(qmp_cmd).encode('utf-8'))
