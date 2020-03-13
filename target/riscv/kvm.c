@@ -38,6 +38,7 @@
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "kvm_riscv.h"
+#include "chardev/char-fe.h"
 
 static __u64 kvm_riscv_reg_id(__u64 type, __u64 idx)
 {
@@ -60,6 +61,19 @@ static __u64 kvm_riscv_reg_id(__u64 type, __u64 idx)
 #define RISCV_FP_F_REG(idx)  kvm_riscv_reg_id(KVM_REG_RISCV_FP_F, idx)
 
 #define RISCV_FP_D_REG(idx)  kvm_riscv_reg_id(KVM_REG_RISCV_FP_D, idx)
+
+enum sbi_ext_id {
+    SBI_EXT_0_1_SET_TIMER = 0x0,
+    SBI_EXT_0_1_CONSOLE_PUTCHAR = 0x1,
+    SBI_EXT_0_1_CONSOLE_GETCHAR = 0x2,
+    SBI_EXT_0_1_CLEAR_IPI = 0x3,
+    SBI_EXT_0_1_SEND_IPI = 0x4,
+    SBI_EXT_0_1_REMOTE_FENCE_I = 0x5,
+    SBI_EXT_0_1_REMOTE_SFENCE_VMA = 0x6,
+    SBI_EXT_0_1_REMOTE_SFENCE_VMA_ASID = 0x7,
+    SBI_EXT_0_1_SHUTDOWN = 0x8,
+    SBI_EXT_BASE = 0x10,
+};
 
 static int kvm_riscv_get_regs_core(CPUState *cs)
 {
@@ -423,9 +437,47 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cs)
     return true;
 }
 
+static int kvm_riscv_handle_sbi(struct kvm_run *run)
+{
+    int ret = 0;
+    unsigned char ch;
+    switch (run->riscv_sbi.extension_id) {
+    case SBI_EXT_0_1_CONSOLE_PUTCHAR:
+        ch = run->riscv_sbi.args[0];
+        qemu_chr_fe_write(serial_hd(0)->be, &ch, sizeof(ch));
+        break;
+    case SBI_EXT_0_1_CONSOLE_GETCHAR:
+        ret = qemu_chr_fe_read_all(serial_hd(0)->be, &ch, sizeof(ch));
+        if (ret == sizeof(ch)) {
+            run->riscv_sbi.args[0] = ch;
+        } else {
+            run->riscv_sbi.args[0] = -1;
+        }
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP,
+                      "%s: un-handled SBI EXIT, specific reasons is %lu\n",
+                      __func__, run->riscv_sbi.extension_id);
+        ret = -1;
+        break;
+    }
+    return ret;
+}
+
 int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
 {
-    return 0;
+    int ret = 0;
+    switch (run->exit_reason) {
+    case KVM_EXIT_RISCV_SBI:
+        ret = kvm_riscv_handle_sbi(run);
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "%s: un-handled exit reason %d\n",
+                      __func__, run->exit_reason);
+        ret = -1;
+        break;
+    }
+    return ret;
 }
 
 void kvm_riscv_reset_vcpu(RISCVCPU *cpu)
