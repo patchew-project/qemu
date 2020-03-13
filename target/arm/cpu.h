@@ -958,6 +958,11 @@ void arm_cpu_post_init(Object *obj);
 uint64_t arm_cpu_mp_affinity(int idx, uint8_t clustersz);
 
 #ifndef CONFIG_USER_ONLY
+int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
+                             int cpuid, void *opaque);
+int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
+                             int cpuid, void *opaque);
+
 extern const VMStateDescription vmstate_arm_cpu;
 #endif
 
@@ -981,11 +986,6 @@ int arm_gen_dynamic_xml(CPUState *cpu);
  * if the XML name doesn't match the predefined one.
  */
 const char *arm_gdb_get_dynamic_xml(CPUState *cpu, const char *xmlname);
-
-int arm_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque);
-int arm_cpu_write_elf32_note(WriteCoreDumpFunction f, CPUState *cs,
-                             int cpuid, void *opaque);
 
 #ifdef TARGET_AARCH64
 int aarch64_cpu_gdb_read_register(CPUState *cpu, uint8_t *buf, int reg);
