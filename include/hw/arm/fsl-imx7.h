@@ -113,6 +113,9 @@ enum FslIMX7MemoryMap {
     FSL_IMX7_IOMUXC_GPR_ADDR      = 0x30340000,
     FSL_IMX7_IOMUXCn_SIZE         = 0x1000,
 
+    FSL_IMX7_OCOTP_ADDR           = 0x30350000,
+    FSL_IMX7_OCOTP_SIZE           = 0x10000,
+
     FSL_IMX7_ANALOG_ADDR          = 0x30360000,
     FSL_IMX7_SNVS_ADDR            = 0x30370000,
     FSL_IMX7_CCM_ADDR             = 0x30380000,
@@ -176,6 +179,9 @@ enum FslIMX7MemoryMap {
 
     FSL_IMX7_A7MPCORE_ADDR        = 0x31000000,
     FSL_IMX7_A7MPCORE_DAP_ADDR    = 0x30000000,
+
+    FSL_IMX7_APBH_DMA_ADDR        = 0x33000000,
+    FSL_IMX7_APBH_DMA_SIZE        = 0x2000,
 
     FSL_IMX7_PCIE_REG_ADDR        = 0x33800000,
     FSL_IMX7_PCIE_REG_SIZE        = 16 * 1024,

@@ -459,6 +459,17 @@ static void fsl_imx7_realize(DeviceState *dev, Error **errp)
      */
     create_unimplemented_device("sdma", FSL_IMX7_SDMA_ADDR, FSL_IMX7_SDMA_SIZE);
 
+    /*
+     * OCOTP
+     */
+    create_unimplemented_device("octop", FSL_IMX7_OCOTP_ADDR,
+                                FSL_IMX7_OCOTP_SIZE);
+
+    /*
+     * APBH_DMA
+     */
+    create_unimplemented_device("apbh_dma", FSL_IMX7_APBH_DMA_ADDR,
+                                FSL_IMX7_APBH_DMA_SIZE);
 
     object_property_set_bool(OBJECT(&s->gpr), true, "realized",
                              &error_abort);
