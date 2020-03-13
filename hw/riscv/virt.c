@@ -42,6 +42,7 @@
 #include "exec/address-spaces.h"
 #include "hw/pci/pci.h"
 #include "hw/pci-host/gpex.h"
+#include "sysemu/kvm.h"
 
 #include <libfdt.h>
 
@@ -480,6 +481,9 @@ static void riscv_virt_board_init(MachineState *machine)
     target_ulong start_addr = memmap[VIRT_DRAM].base;
     int i;
     unsigned int smp_cpus = machine->smp.cpus;
+    uint64_t kernel_entry = 0;
+    hwaddr start_fdt;
+    CPUState *cs;
 
     /* Initialize SOC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, sizeof(s->soc),
@@ -510,7 +514,7 @@ static void riscv_virt_board_init(MachineState *machine)
                                  memmap[VIRT_DRAM].base);
 
     if (machine->kernel_filename) {
-        uint64_t kernel_entry = riscv_load_kernel(machine->kernel_filename,
+        kernel_entry = riscv_load_kernel(machine->kernel_filename,
                                                   NULL);
 
         if (machine->initrd_filename) {
@@ -564,9 +568,16 @@ static void riscv_virt_board_init(MachineState *machine)
         exit(1);
     }
     qemu_fdt_dumpdtb(s->fdt, fdt_totalsize(s->fdt));
+    start_fdt = memmap[VIRT_MROM].base + sizeof(reset_vec);
     rom_add_blob_fixed_as("mrom.fdt", s->fdt, fdt_totalsize(s->fdt),
-                          memmap[VIRT_MROM].base + sizeof(reset_vec),
+                          start_fdt,
                           &address_space_memory);
+
+    for (cs = first_cpu; cs; cs = CPU_NEXT(cs)) {
+        RISCVCPU *riscv_cpu = RISCV_CPU(cs);
+        riscv_cpu->env.loader_start = kernel_entry;
+        riscv_cpu->env.fdt_start = start_fdt;
+    }
 
     /* create PLIC hart topology configuration string */
     plic_hart_config_len = (strlen(VIRT_PLIC_HART_CONFIG) + 1) * smp_cpus;
