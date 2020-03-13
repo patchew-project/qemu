@@ -854,14 +854,17 @@ static void imx_enet_write(IMXFECState *s, uint32_t index, uint32_t value)
         s->regs[index] = value & 0x00007f7f;
         break;
     case ENET_TGSR:
-        /* implement clear timer flag */
-        value = value & 0x0000000f;
+        /* implement clear timer flag, 0-3 bits W1C, reserved bits write zero */
+        s->regs[index] &= ~(value & 0x0000000f) & 0x0000000f;
         break;
     case ENET_TCSR0:
     case ENET_TCSR1:
     case ENET_TCSR2:
     case ENET_TCSR3:
-        value = value & 0x000000fd;
+        /* 7 bits W1C, reserved bits write zero */
+        s->regs[index] &= ~(value & 0x00000080) & 0x000000ff;
+        s->regs[index] &= ~0x0000007d; /* writable fields */
+        s->regs[index] |= (value & 0x0000007d);
         break;
     case ENET_TCCR0:
     case ENET_TCCR1:
