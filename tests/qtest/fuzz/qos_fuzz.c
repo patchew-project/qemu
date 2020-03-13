@@ -57,8 +57,7 @@ static void qos_set_machines_devices_available(void)
     QList *lst;
     Error *err = NULL;
 
-    qmp_marshal_query_machines(NULL, &response, &err);
-    assert(!err);
+    qmp_marshal_query_machines(NULL, &response, &error_abort);
     lst = qobject_to(QList, response);
     apply_to_qlist(lst, true);
 
@@ -70,8 +69,7 @@ static void qos_set_machines_devices_available(void)
     qdict_put_bool(args, "abstract", true);
     qdict_put_obj(req, "arguments", (QObject *) args);
 
-    qmp_marshal_qom_list_types(args, &response, &err);
-    assert(!err);
+    qmp_marshal_qom_list_types(args, &response, &error_abort);
     lst = qobject_to(QList, response);
     apply_to_qlist(lst, false);
     qobject_unref(response);
