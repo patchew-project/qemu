@@ -226,9 +226,10 @@ static inline hwaddr decode_basedisp_s(CPUS390XState *env, uint32_t ipb,
 #define decode_basedisp_rs decode_basedisp_s
 
 /* arch_dump.c */
+#if !defined(CONFIG_USER_ONLY)
 int s390_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
                               int cpuid, void *opaque);
-
+#endif
 
 /* cc_helper.c */
 const char *cc_name(enum cc_op cc_op);
