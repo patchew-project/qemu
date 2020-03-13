@@ -5,11 +5,40 @@ util-obj-y += opts-visitor.o qapi-clone-visitor.o
 util-obj-y += qmp-event.o
 util-obj-y += qapi-util.o
 
-QAPI_COMMON_MODULES = audio authz block-core block char common control crypto
-QAPI_COMMON_MODULES += dump error introspect job machine migration misc
-QAPI_COMMON_MODULES += net pragma qdev qom rdma rocker run-state sockets tpm
-QAPI_COMMON_MODULES += trace transaction ui
+QAPI_COMMON_MODULES = common
+QAPI_COMMON_MODULES += introspect
+QAPI_COMMON_MODULES += misc
+
+ifeq ($(CONFIG_SOFTMMU),y)
+QAPI_COMMON_MODULES += audio
+QAPI_COMMON_MODULES += dump
+QAPI_COMMON_MODULES += machine
+QAPI_COMMON_MODULES += migration
+QAPI_COMMON_MODULES += net rocker
+QAPI_COMMON_MODULES += qdev
+QAPI_COMMON_MODULES += rdma
+QAPI_COMMON_MODULES += tpm
+QAPI_COMMON_MODULES += trace
+QAPI_COMMON_MODULES += ui
 QAPI_TARGET_MODULES = machine-target misc-target
+endif # CONFIG_SOFTMMU
+
+ifeq ($(call lor,$(CONFIG_SOFTMMU),$(CONFIG_TOOLS)),y)
+QAPI_COMMON_MODULES += authz
+QAPI_COMMON_MODULES += block
+QAPI_COMMON_MODULES += block-core
+QAPI_COMMON_MODULES += char
+QAPI_COMMON_MODULES += control
+QAPI_COMMON_MODULES += crypto
+QAPI_COMMON_MODULES += error
+QAPI_COMMON_MODULES += job
+QAPI_COMMON_MODULES += pragma
+QAPI_COMMON_MODULES += qom
+QAPI_COMMON_MODULES += run-state
+QAPI_COMMON_MODULES += sockets
+QAPI_COMMON_MODULES += transaction
+endif # CONFIG_SOFTMMU || CONFIG_TOOLS
+
 QAPI_MODULES = $(QAPI_COMMON_MODULES) $(QAPI_TARGET_MODULES)
 
 util-obj-y += qapi-builtin-types.o
