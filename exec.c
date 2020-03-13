@@ -185,10 +185,6 @@ struct DirtyBitmapSnapshot {
     unsigned long dirty[];
 };
 
-#endif
-
-#if !defined(CONFIG_USER_ONLY)
-
 static void phys_map_node_reserve(PhysPageMap *map, unsigned nodes)
 {
     static unsigned alloc_hint = 16;
