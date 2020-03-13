@@ -287,8 +287,8 @@ void qmp_object_add(QDict *qdict, QObject **ret_data, Error **errp)
     visit_free(v);
     if (obj) {
         object_unref(obj);
+        *ret_data = QOBJECT(qdict_new());
     }
-    *ret_data = QOBJECT(qdict_new());
 }
 
 void qmp_object_del(const char *id, Error **errp)
