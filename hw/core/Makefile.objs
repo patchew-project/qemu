@@ -8,6 +8,7 @@ common-obj-y += vmstate-if.o
 # irq.o needed for qdev GPIO handling:
 common-obj-y += irq.o
 
+common-obj-$(call lnot,$(CONFIG_SOFTMMU)) += qdev-stubs.o
 common-obj-$(CONFIG_SOFTMMU) += reset.o
 common-obj-$(CONFIG_SOFTMMU) += qdev-fw.o
 common-obj-$(CONFIG_SOFTMMU) += fw-path-provider.o
