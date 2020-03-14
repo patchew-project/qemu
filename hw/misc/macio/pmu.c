@@ -43,6 +43,7 @@
 #include "qemu/cutils.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qapi/error.h"
 #include "trace.h"
 
 
@@ -741,11 +742,17 @@ static void pmu_realize(DeviceState *dev, Error **errp)
     PMUState *s = VIA_PMU(dev);
     SysBusDevice *sbd;
     MOS6522State *ms;
-    DeviceState *d;
+    DeviceState *d = DEVICE(&s->mos6522_pmu);;
     struct tm tm;
+    Error *err = NULL;
+
+    object_property_set_bool(OBJECT(d), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* Pass IRQ from 6522 */
-    d = DEVICE(&s->mos6522_pmu);
     ms = MOS6522(d);
     sbd = SYS_BUS_DEVICE(s);
     sysbus_pass_irq(sbd, SYS_BUS_DEVICE(ms));
