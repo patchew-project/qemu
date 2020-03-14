@@ -871,24 +871,24 @@ static void mac_via_reset(DeviceState *dev)
 static void mac_via_realize(DeviceState *dev, Error **errp)
 {
     MacVIAState *m = MAC_VIA(dev);
-    MOS6522State *ms;
     struct tm tm;
     int ret;
+    Error *err = NULL;
 
-    /* Init VIAs 1 and 2 */
-    sysbus_init_child_obj(OBJECT(dev), "via1", &m->mos6522_via1,
-                          sizeof(m->mos6522_via1), TYPE_MOS6522_Q800_VIA1);
+    qdev_set_parent_bus(DEVICE(&m->mos6522_via1), sysbus_get_default());
+    qdev_set_parent_bus(DEVICE(&m->mos6522_via2), sysbus_get_default());
 
-    sysbus_init_child_obj(OBJECT(dev), "via2", &m->mos6522_via2,
-                          sizeof(m->mos6522_via2), TYPE_MOS6522_Q800_VIA2);
+    object_property_set_bool(OBJECT(&m->mos6522_via1), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
-    /* Pass through mos6522 output IRQs */
-    ms = MOS6522(&m->mos6522_via1);
-    object_property_add_alias(OBJECT(dev), "irq[0]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]", &error_abort);
-    ms = MOS6522(&m->mos6522_via2);
-    object_property_add_alias(OBJECT(dev), "irq[1]", OBJECT(ms),
-                              SYSBUS_DEVICE_GPIO_IRQ "[0]", &error_abort);
+    object_property_set_bool(OBJECT(&m->mos6522_via2), true, "realized", &err);
+    if (err != NULL) {
+        error_propagate(errp, err);
+        return;
+    }
 
     /* Pass through mos6522 input IRQs */
     qdev_pass_gpios(DEVICE(&m->mos6522_via1), dev, "via1-irq");
@@ -951,6 +951,20 @@ static void mac_via_init(Object *obj)
     /* ADB */
     qbus_create_inplace((BusState *)&m->adb_bus, sizeof(m->adb_bus),
                         TYPE_ADB_BUS, DEVICE(obj), "adb.0");
+
+    /* Init VIAs 1 and 2 */
+    object_initialize_child(OBJECT(m), "via1", &m->mos6522_via1,
+                            sizeof(m->mos6522_via1), TYPE_MOS6522_Q800_VIA1,
+                            &error_abort, NULL);
+    object_initialize_child(OBJECT(m), "via2", &m->mos6522_via2,
+                            sizeof(m->mos6522_via2), TYPE_MOS6522_Q800_VIA2,
+                            &error_abort, NULL);
+
+    /* Pass through mos6522 output IRQs */
+    object_property_add_alias(OBJECT(m), "irq[0]", OBJECT(&m->mos6522_via1),
+                              SYSBUS_DEVICE_GPIO_IRQ "[0]", &error_abort);
+    object_property_add_alias(OBJECT(m), "irq[1]", OBJECT(&m->mos6522_via2),
+                              SYSBUS_DEVICE_GPIO_IRQ "[0]", &error_abort);
 }
 
 static void postload_update_cb(void *opaque, int running, RunState state)
