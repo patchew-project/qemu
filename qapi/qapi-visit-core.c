@@ -137,11 +137,11 @@ bool visit_optional(Visitor *v, const char *name, bool *present)
     return *present;
 }
 
-bool visit_deprecated(Visitor *v, const char *name)
+bool visit_deprecated(Visitor *v, const char *name, Error **errp)
 {
     trace_visit_deprecated(v, name);
     if (v->deprecated) {
-        return v->deprecated(v, name);
+        return v->deprecated(v, name, errp);
     }
     return true;
 }
