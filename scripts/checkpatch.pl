@@ -35,6 +35,8 @@ my $summary_file = 0;
 my $root;
 my %debug;
 my $help = 0;
+my $testexpected;
+my $nontestexpected;
 
 sub help {
 	my ($exitcode) = @_;
@@ -1256,6 +1258,26 @@ sub WARN {
 	}
 }
 
+# According to tests/qtest/bios-tables-test.c: do not
+# change expected file in the same commit with adding test
+sub checkfilename {
+	my ($name) = @_;
+        if ($name =~ m#^tests/data/acpi/# and
+            # make exception for a shell script that rebuilds the files
+            not $name =~ m#^\.sh$# or
+            $name =~ m#^tests/qtest/bios-tables-test-allowed-diff.h$#) {
+            $testexpected = $name;
+        } else {
+            $nontestexpected = $name;
+        }
+        if (defined $testexpected and defined $nontestexpected) {
+            ERROR("Do not add expected files together with tests, " .
+                  "follow instructions in " .
+                  "tests/qtest/bios-tables-test.c: both " .
+                  $testexpected . " and " . $nontestexpected . " found\n");
+        }
+}
+
 sub process {
 	my $filename = shift;
 
@@ -1431,9 +1453,11 @@ sub process {
 		if ($line =~ /^diff --git.*?(\S+)$/) {
 			$realfile = $1;
 			$realfile =~ s@^([^/]*)/@@ if (!$file);
+                        checkfilename($realfile);
 		} elsif ($line =~ /^\+\+\+\s+(\S+)/) {
 			$realfile = $1;
 			$realfile =~ s@^([^/]*)/@@ if (!$file);
+                        checkfilename($realfile);
 
 			$p1_prefix = $1;
 			if (!$file && $tree && $p1_prefix ne '' &&
