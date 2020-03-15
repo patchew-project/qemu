@@ -26,6 +26,8 @@
 #include "hw/loader.h"
 #include "fpu/softfloat.h"
 
+#define CPU_RESET_VECTOR 0xfffffffc
+
 static void rx_cpu_set_pc(CPUState *cs, vaddr value)
 {
     RXCPU *cpu = RXCPU(cs);
@@ -51,17 +53,13 @@ static void rx_cpu_reset(CPUState *s)
     RXCPU *cpu = RXCPU(s);
     RXCPUClass *rcc = RXCPU_GET_CLASS(cpu);
     CPURXState *env = &cpu->env;
-    uint32_t *resetvec;
 
     rcc->parent_reset(s);
 
     memset(env, 0, offsetof(CPURXState, end_reset_fields));
 
-    resetvec = rom_ptr(0xfffffffc, 4);
-    if (resetvec) {
-        /* In the case of kernel, it is ignored because it is not set. */
-        env->pc = ldl_p(resetvec);
-    }
+    env->pc = address_space_ldl(cpu_get_address_space(s, 0),
+                                CPU_RESET_VECTOR, MEMTXATTRS_UNSPECIFIED, NULL);
     rx_cpu_unpack_psw(env, 0, 1);
     env->regs[0] = env->isp = env->usp = 0;
     env->fpsw = 0;
