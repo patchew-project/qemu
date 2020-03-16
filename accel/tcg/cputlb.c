@@ -1412,7 +1412,7 @@ static void *atomic_mmu_lookup(CPUArchState *env, target_ulong addr,
     retaddr -= GETPC_ADJ;
 
     /* Enforce guest required alignment.  */
-    if (unlikely(a_bits > 0 && (addr & ((1 << a_bits) - 1)))) {
+    if (unlikely(a_bits > 0 && (addr & (((target_ulong)1 << a_bits) - 1)))) {
         /* ??? Maybe indicate atomic op to cpu_unaligned_access */
         cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
@@ -1522,7 +1522,7 @@ load_helper(CPUArchState *env, target_ulong addr, TCGMemOpIdx oi,
     size_t size = memop_size(op);
 
     /* Handle CPU specific unaligned behaviour */
-    if (addr & ((1 << a_bits) - 1)) {
+    if (addr & (((target_ulong)1 << a_bits) - 1)) {
         cpu_unaligned_access(env_cpu(env), addr, access_type,
                              mmu_idx, retaddr);
     }
@@ -1911,7 +1911,7 @@ store_helper(CPUArchState *env, target_ulong addr, uint64_t val,
     size_t size = memop_size(op);
 
     /* Handle CPU specific unaligned behaviour */
-    if (addr & ((1 << a_bits) - 1)) {
+    if (addr & (((target_ulong)1 << a_bits) - 1)) {
         cpu_unaligned_access(env_cpu(env), addr, MMU_DATA_STORE,
                              mmu_idx, retaddr);
     }
