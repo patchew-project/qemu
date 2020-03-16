@@ -17,6 +17,7 @@ obj-$(CONFIG_HAX) += hax-all.o hax-mem.o hax-posix.o
 endif
 obj-$(CONFIG_HVF) += hvf/
 obj-$(CONFIG_WHPX) += whpx-all.o
-endif
+endif # CONFIG_SOFTMMU
 obj-$(CONFIG_SEV) += sev.o
 obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o
+obj-$(call lnot,$(CONFIG_SOFTMMU)) += machine-stub.o
