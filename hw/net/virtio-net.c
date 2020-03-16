@@ -2842,6 +2842,13 @@ static int virtio_net_post_load_device(void *opaque, int version_id)
         }
     }
 
+    if (n->rss_data.enabled) {
+        trace_virtio_net_rss_enable(n->rss_data.hash_types,
+                                    n->rss_data.indirections_len,
+                                    sizeof(n->rss_data.key));
+    } else {
+        trace_virtio_net_rss_disable();
+    }
     return 0;
 }
 
@@ -3019,6 +3026,24 @@ static const VMStateDescription vmstate_virtio_net_has_vnet = {
     },
 };
 
+static const VMStateDescription vmstate_rss = {
+    .name      = "vmstate_rss",
+    .fields = (VMStateField[]) {
+        VMSTATE_BOOL(enabled, VirtioNetRssData),
+        VMSTATE_BOOL(redirect, VirtioNetRssData),
+        VMSTATE_BOOL(populate_hash, VirtioNetRssData),
+        VMSTATE_UINT32(hash_types, VirtioNetRssData),
+        VMSTATE_UINT32(indirections_len, VirtioNetRssData),
+        VMSTATE_UINT16(default_queue, VirtioNetRssData),
+        VMSTATE_UINT8_ARRAY(key, VirtioNetRssData,
+                            VIRTIO_NET_RSS_MAX_KEY_SIZE),
+        VMSTATE_VARRAY_UINT32_ALLOC(indirections_table, VirtioNetRssData,
+                                    indirections_len, 0,
+                                    vmstate_info_uint16, uint16_t),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
 static const VMStateDescription vmstate_virtio_net_device = {
     .name = "virtio-net-device",
     .version_id = VIRTIO_NET_VM_VERSION,
@@ -3067,6 +3092,7 @@ static const VMStateDescription vmstate_virtio_net_device = {
                          vmstate_virtio_net_tx_waiting),
         VMSTATE_UINT64_TEST(curr_guest_offloads, VirtIONet,
                             has_ctrl_guest_offloads),
+        VMSTATE_STRUCT(rss_data, VirtIONet, 1, vmstate_rss, VirtioNetRssData),
         VMSTATE_END_OF_LIST()
    },
 };
