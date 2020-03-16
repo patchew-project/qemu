@@ -760,6 +760,7 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw12 = le32_to_cpu(cmd->cdw12);
     uint32_t dw13 = le32_to_cpu(cmd->cdw13);
     uint8_t  lid = dw10 & 0xff;
+    uint8_t  lsp = (dw10 >> 8) & 0xf;
     uint8_t  rae = (dw10 >> 15) & 0x1;
     uint32_t numdl, numdu;
     uint64_t off, lpol, lpou;
@@ -777,7 +778,7 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         return NVME_INVALID_FIELD | NVME_DNR;
     }
 
-    trace_nvme_dev_get_log(nvme_cid(req), lid, rae, len, off);
+    trace_nvme_dev_get_log(nvme_cid(req), lid, lsp, rae, len, off);
 
     switch (lid) {
     case NVME_LOG_ERROR_INFO:
