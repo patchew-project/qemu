@@ -69,6 +69,7 @@ obj-y += iwmmxt_helper.o vec_helper.o neon_helper.o
 obj-y += m_helper.o
 
 obj-$(CONFIG_ARM_V4) += cpu_v4.o
+obj-$(CONFIG_ARM_V5) += cpu_v5.o
 
 obj-$(CONFIG_SOFTMMU) += psci.o
 
