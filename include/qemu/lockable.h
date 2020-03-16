@@ -50,6 +50,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
 #define QEMU_LOCK_FUNC(x) ((QemuLockUnlockFunc *)    \
     QEMU_GENERIC(x,                                  \
                  (QemuMutex *, qemu_mutex_lock),     \
+                 (QemuRecMutex *, qemu_rec_mutex_lock), \
                  (CoMutex *, qemu_co_mutex_lock),    \
                  (QemuSpin *, qemu_spin_lock),       \
                  unknown_lock_type))
@@ -57,6 +58,7 @@ qemu_make_lockable(void *x, QemuLockable *lockable)
 #define QEMU_UNLOCK_FUNC(x) ((QemuLockUnlockFunc *)  \
     QEMU_GENERIC(x,                                  \
                  (QemuMutex *, qemu_mutex_unlock),   \
+                 (QemuRecMutex *, qemu_rec_mutex_unlock), \
                  (CoMutex *, qemu_co_mutex_unlock),  \
                  (QemuSpin *, qemu_spin_unlock),     \
                  unknown_lock_type))
