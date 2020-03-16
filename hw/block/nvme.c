@@ -505,6 +505,17 @@ static inline uint16_t nvme_check_mdts(NvmeCtrl *n, size_t len,
     return NVME_SUCCESS;
 }
 
+static inline uint16_t nvme_check_prinfo(NvmeCtrl *n, NvmeNamespace *ns,
+                                         uint16_t ctrl, NvmeRequest *req)
+{
+    if ((ctrl & NVME_RW_PRINFO_PRACT) && !(ns->id_ns.dps & DPS_TYPE_MASK)) {
+        trace_nvme_dev_err_prinfo(nvme_cid(req), ctrl);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    return NVME_SUCCESS;
+}
+
 static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
                                          uint64_t slba, uint32_t nlb,
                                          NvmeRequest *req)
@@ -564,11 +575,22 @@ static uint16_t nvme_write_zeros(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     uint32_t nlb  = le16_to_cpu(rw->nlb) + 1;
     uint64_t offset = slba << data_shift;
     uint32_t count = nlb << data_shift;
+    uint16_t ctrl = le16_to_cpu(rw->control);
     uint16_t status;
+
+    status = nvme_check_prinfo(n, ns, ctrl, req);
+    if (status) {
+        goto invalid;
+    }
+
+    if (ctrl & NVME_RW_PRINFO_PRCHK_MASK) {
+        status = NVME_INVALID_PROT_INFO | NVME_DNR;
+        goto invalid;
+    }
 
     status = nvme_check_bounds(n, ns, slba, nlb, req);
     if (status) {
-        return status;
+        goto invalid;
     }
 
     block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
@@ -576,6 +598,10 @@ static uint16_t nvme_write_zeros(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     req->aiocb = blk_aio_pwrite_zeroes(n->conf.blk, offset, count,
                                         BDRV_REQ_MAY_UNMAP, nvme_rw_cb, req);
     return NVME_NO_COMPLETE;
+
+invalid:
+    block_acct_invalid(blk_get_stats(n->conf.blk), BLOCK_ACCT_WRITE);
+    return status;
 }
 
 static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
@@ -584,6 +610,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     NvmeRwCmd *rw = (NvmeRwCmd *)cmd;
     uint32_t nlb  = le32_to_cpu(rw->nlb) + 1;
     uint64_t slba = le64_to_cpu(rw->slba);
+    uint16_t ctrl = le16_to_cpu(rw->control);
 
     uint8_t lba_index  = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
     uint8_t data_shift = ns->id_ns.lbaf[lba_index].ds;
@@ -597,19 +624,22 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
 
     status = nvme_check_mdts(n, data_size, req);
     if (status) {
-        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
-        return status;
+        goto invalid;
+    }
+
+    status = nvme_check_prinfo(n, ns, ctrl, req);
+    if (status) {
+        goto invalid;
     }
 
     status = nvme_check_bounds(n, ns, slba, nlb, req);
     if (status) {
-        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
-        return status;
+        goto invalid;
     }
 
-    if (nvme_map(n, cmd, &req->qsg, &req->iov, data_size, req)) {
-        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
-        return NVME_INVALID_FIELD | NVME_DNR;
+    status = nvme_map(n, cmd, &req->qsg, &req->iov, data_size, req);
+    if (status) {
+        goto invalid;
     }
 
     if (req->qsg.nsg > 0) {
@@ -633,6 +663,10 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     }
 
     return NVME_NO_COMPLETE;
+
+invalid:
+    block_acct_invalid(blk_get_stats(n->conf.blk), acct);
+    return status;
 }
 
 static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
