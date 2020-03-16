@@ -447,12 +447,12 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     }
 }
 
-static inline void set_feature(uint64_t *features, int feature)
+static inline void kvm_set_feature(uint64_t *features, int feature)
 {
     *features |= 1ULL << feature;
 }
 
-static inline void unset_feature(uint64_t *features, int feature)
+static inline void kvm_unset_feature(uint64_t *features, int feature)
 {
     *features &= ~(1ULL << feature);
 }
@@ -648,11 +648,11 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      * with VFPv4+Neon; this in turn implies most of the other
      * feature bits.
      */
-    set_feature(&features, ARM_FEATURE_V8);
-    set_feature(&features, ARM_FEATURE_NEON);
-    set_feature(&features, ARM_FEATURE_AARCH64);
-    set_feature(&features, ARM_FEATURE_PMU);
-    set_feature(&features, ARM_FEATURE_GENERIC_TIMER);
+    kvm_set_feature(&features, ARM_FEATURE_V8);
+    kvm_set_feature(&features, ARM_FEATURE_NEON);
+    kvm_set_feature(&features, ARM_FEATURE_AARCH64);
+    kvm_set_feature(&features, ARM_FEATURE_PMU);
+    kvm_set_feature(&features, ARM_FEATURE_GENERIC_TIMER);
 
     ahcf->features = features;
 
@@ -802,7 +802,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (cpu->has_pmu) {
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_PMU_V3;
     } else {
-        unset_feature(&env->features, ARM_FEATURE_PMU);
+        kvm_unset_feature(&env->features, ARM_FEATURE_PMU);
     }
     if (cpu_isar_feature(aa64_sve, cpu)) {
         assert(kvm_arm_sve_supported(cs));
