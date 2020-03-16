@@ -109,6 +109,7 @@ typedef struct NvmeCtrl {
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint16_t    temperature;
+    uint64_t    starttime_ms;
 
     NvmeNamespace   *namespaces;
     NvmeSQueue      **sq;
@@ -122,6 +123,15 @@ typedef struct NvmeCtrl {
 static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
 {
     return n->ns_size >> nvme_ns_lbads(ns);
+}
+
+static inline uint16_t nvme_cid(NvmeRequest *req)
+{
+    if (req) {
+        return le16_to_cpu(req->cqe.cid);
+    }
+
+    return 0xffff;
 }
 
 #endif /* HW_NVME_H */
