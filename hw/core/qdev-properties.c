@@ -1,4 +1,5 @@
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "net/net.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -532,7 +533,8 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
     MACAddr *mac = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
     int i, pos;
-    char *str, *p;
+    char *str;
+    const char *p;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
@@ -546,6 +548,8 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
     }
 
     for (i = 0, pos = 0; i < 6; i++, pos += 3) {
+        long val;
+
         if (!qemu_isxdigit(str[pos])) {
             goto inval;
         }
@@ -561,7 +565,10 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
                 goto inval;
             }
         }
-        mac->a[i] = strtol(str+pos, &p, 16);
+        if (qemu_strtol(str + pos, &p, 16, &val) < 0 || val > 0xff) {
+            goto inval;
+        }
+        mac->a[i] = val;
     }
     g_free(str);
     return;
