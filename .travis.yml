@@ -450,6 +450,38 @@ jobs:
         - TEST_CMD="make check check-tcg V=1"
         - CONFIG="--disable-containers --target-list=${MAIN_SOFTMMU_TARGETS}"
 
+    - name: "[aarch64] GCC check (KVM)"
+      arch: arm64
+      dist: xenial
+      addons:
+        apt_packages:
+          - libaio-dev
+          - libattr1-dev
+          - libcap-ng-dev
+          - libgcrypt20-dev
+          - libgnutls28-dev
+          - libiscsi-dev
+          - liblttng-ust-dev
+          - libnfs-dev
+          - libnss3-dev
+          - libpixman-1-dev
+          - libpng-dev
+          - librados-dev
+          - libseccomp-dev
+          - liburcu-dev
+          - libusb-1.0-0-dev
+          - libvdeplug-dev
+          - libvte-2.91-dev
+          # Tests dependencies
+          - genisoimage
+      env:
+        - CONFIG="--disable-containers --disable-tcg --enable-kvm --enable-fdt --disable-tools"
+        - TEST_CMD="make check-unit"
+      script:
+        # Only select the 'virt' machine.
+        - echo CONFIG_ARM_VIRT=y > ${SRC_DIR}/default-configs/aarch64-softmmu.mak
+        - make -j3 && travis_retry ${TEST_CMD}
+
     - name: "[ppc64] GCC check-tcg"
       arch: ppc64le
       dist: xenial
