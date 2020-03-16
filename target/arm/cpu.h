@@ -1278,7 +1278,14 @@ void pmu_init(ARMCPU *cpu);
 /* Write a new value to v7m.exception, thus transitioning into or out
  * of Handler mode; this may result in a change of active stack pointer.
  */
+#if !defined(CONFIG_TCG)
+static inline void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
+{
+    g_assert_not_reached();
+}
+#else
 void write_v7m_exception(CPUARMState *env, uint32_t new_exc);
+#endif
 
 /* Map EL and handler into a PSTATE_MODE.  */
 static inline unsigned int aarch64_pstate_mode(unsigned int el, bool handler)
