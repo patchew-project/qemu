@@ -70,6 +70,7 @@ obj-y += m_helper.o
 
 obj-$(CONFIG_ARM_V4) += cpu_v4.o
 obj-$(CONFIG_ARM_V5) += cpu_v5.o
+obj-$(CONFIG_ARM_V6) += cpu_v6.o
 
 obj-$(CONFIG_SOFTMMU) += psci.o
 
