@@ -68,6 +68,8 @@ obj-y += crypto_helper.o
 obj-y += iwmmxt_helper.o vec_helper.o neon_helper.o
 obj-y += m_helper.o
 
+obj-$(CONFIG_ARM_V4) += cpu_v4.o
+
 obj-$(CONFIG_SOFTMMU) += psci.o
 
 obj-$(TARGET_AARCH64) += translate-a64.o helper-a64.o

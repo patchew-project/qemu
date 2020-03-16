@@ -1,2 +1,6 @@
+config ARM_V4
+    depends on TCG
+    bool
+
 config ARM_V7M
     bool
