@@ -30,7 +30,7 @@
 #include "sysemu/balloon.h"
 #include "trace-root.h"
 #include "qapi/error.h"
-#include "qapi/qapi-commands-misc.h"
+#include "qapi/qapi-commands-machine.h"
 #include "qapi/qmp/qerror.h"
 
 static QEMUBalloonEvent *balloon_event_fn;
