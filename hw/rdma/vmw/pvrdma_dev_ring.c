@@ -14,6 +14,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "hw/pci/pci.h"
 #include "cpu.h"
 
@@ -30,8 +31,7 @@ int pvrdma_ring_init(PvrdmaRing *ring, const char *name, PCIDevice *dev,
     int i;
     int rc = 0;
 
-    strncpy(ring->name, name, MAX_RING_NAME_SZ);
-    ring->name[MAX_RING_NAME_SZ - 1] = 0;
+    pstrcpy(ring->name, MAX_RING_NAME_SZ, name);
     ring->dev = dev;
     ring->ring_state = ring_state;
     ring->max_elems = max_elems;
