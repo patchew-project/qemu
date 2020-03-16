@@ -9,7 +9,8 @@
     DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 0), \
     DEFINE_PROP_UINT32("max_ioqpairs", _state, _props.max_ioqpairs, 64), \
     DEFINE_PROP_UINT8("aerl", _state, _props.aerl, 3), \
-    DEFINE_PROP_UINT32("aer_max_queued", _state, _props.aer_max_queued, 64)
+    DEFINE_PROP_UINT32("aer_max_queued", _state, _props.aer_max_queued, 64), \
+    DEFINE_PROP_UINT8("mdts", _state, _props.mdts, 7)
 
 typedef struct NvmeParams {
     char     *serial;
@@ -18,6 +19,7 @@ typedef struct NvmeParams {
     uint32_t cmb_size_mb;
     uint8_t  aerl;
     uint32_t aer_max_queued;
+    uint8_t  mdts;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
