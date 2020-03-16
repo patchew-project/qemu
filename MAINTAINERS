@@ -184,7 +184,7 @@ F: include/hw/net/lasi_82596.h
 
 LM32 TCG CPUs
 M: Michael Walle <michael@walle.cc>
-S: Maintained
+S: Orphan
 F: target/lm32/
 F: disas/lm32.c
 F: hw/lm32/
