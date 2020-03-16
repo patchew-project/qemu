@@ -942,6 +942,42 @@ static uint16_t nvme_identify_nslist(NvmeCtrl *n, NvmeIdentify *c)
     return ret;
 }
 
+static uint16_t nvme_identify_ns_descr_list(NvmeCtrl *n, NvmeIdentify *c)
+{
+    uint32_t nsid = le32_to_cpu(c->nsid);
+    uint64_t prp1 = le64_to_cpu(c->prp1);
+    uint64_t prp2 = le64_to_cpu(c->prp2);
+
+    void *list;
+    uint16_t ret;
+    NvmeIdNsDescr *ns_descr;
+
+    trace_nvme_dev_identify_ns_descr_list(nsid);
+
+    if (unlikely(nsid == 0 || nsid > n->num_namespaces)) {
+        trace_nvme_dev_err_invalid_ns(nsid, n->num_namespaces);
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    list = g_malloc0(NVME_IDENTIFY_DATA_SIZE);
+    ns_descr = list;
+
+    /*
+     * Because the NGUID and EUI64 fields are 0 in the Identify Namespace data
+     * structure, a Namespace UUID (nidt = 0x3) must be reported in the
+     * Namespace Identification Descriptor. Add a very basic Namespace UUID
+     * here.
+     */
+    ns_descr->nidt = NVME_NIDT_UUID;
+    ns_descr->nidl = NVME_NIDT_UUID_LEN;
+    stl_be_p(ns_descr + sizeof(*ns_descr), nsid);
+
+    ret = nvme_dma_read_prp(n, (uint8_t *) list, NVME_IDENTIFY_DATA_SIZE, prp1,
+                            prp2);
+    g_free(list);
+    return ret;
+}
+
 static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
 {
     NvmeIdentify *c = (NvmeIdentify *)cmd;
@@ -953,6 +989,8 @@ static uint16_t nvme_identify(NvmeCtrl *n, NvmeCmd *cmd)
         return nvme_identify_ctrl(n, c);
     case NVME_ID_CNS_NS_ACTIVE_LIST:
         return nvme_identify_nslist(n, c);
+    case NVME_ID_CNS_NS_DESCR_LIST:
+        return nvme_identify_ns_descr_list(n, c);
     default:
         trace_nvme_dev_err_invalid_identify_cns(le32_to_cpu(c->cns));
         return NVME_INVALID_FIELD | NVME_DNR;
