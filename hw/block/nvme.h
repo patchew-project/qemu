@@ -13,7 +13,8 @@
     DEFINE_PROP_UINT32("max_ioqpairs", _state, _props.max_ioqpairs, 64), \
     DEFINE_PROP_UINT8("aerl", _state, _props.aerl, 3), \
     DEFINE_PROP_UINT32("aer_max_queued", _state, _props.aer_max_queued, 64), \
-    DEFINE_PROP_UINT8("mdts", _state, _props.mdts, 7)
+    DEFINE_PROP_UINT8("mdts", _state, _props.mdts, 7), \
+    DEFINE_PROP_BOOL("x-use-intel-id", _state, _props.use_intel_id, false)
 
 typedef struct NvmeParams {
     char     *serial;
@@ -23,6 +24,7 @@ typedef struct NvmeParams {
     uint8_t  aerl;
     uint32_t aer_max_queued;
     uint8_t  mdts;
+    bool     use_intel_id;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
