@@ -1667,7 +1667,7 @@ print_linkat(const struct syscallname *name,
 }
 #endif
 
-#ifdef TARGET_NR__llseek
+#ifdef defined(TARGET_NR__llseek) || defined(TARGET_NR_llseek)
 static void
 print__llseek(const struct syscallname *name,
     abi_long arg0, abi_long arg1, abi_long arg2,
