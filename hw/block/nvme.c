@@ -881,6 +881,8 @@ static uint16_t nvme_create_cq(NvmeCtrl *n, NvmeCmd *cmd)
     cq = g_malloc0(sizeof(*cq));
     nvme_init_cq(cq, n, prp1, cqid, vector, qsize + 1,
         NVME_CQ_FLAGS_IEN(qflags));
+
+    n->qs_created = true;
     return NVME_SUCCESS;
 }
 
@@ -1194,6 +1196,10 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
         blk_set_enable_write_cache(n->conf.blk, dw11 & 1);
         break;
     case NVME_NUMBER_OF_QUEUES:
+        if (n->qs_created) {
+            return NVME_CMD_SEQ_ERROR | NVME_DNR;
+        }
+
         /*
          * NVMe v1.3, Section 5.21.1.7: 0xffff is not an allowed value for NCQR
          * and NSQR.
@@ -1332,6 +1338,7 @@ static void nvme_clear_ctrl(NvmeCtrl *n)
 
     n->aer_queued = 0;
     n->outstanding_aers = 0;
+    n->qs_created = false;
 
     blk_flush(n->conf.blk);
     n->bar.cc = 0;
