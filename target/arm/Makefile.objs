@@ -60,8 +60,6 @@ ifeq ($(CONFIG_TCG),y)
 obj-$(CONFIG_SEMIHOSTING) += arm-semi.o
 obj-$(call lnot,$(CONFIG_SEMIHOSTING)) += arm-semi-stub.o
 
-endif # CONFIG_TCG
-
 obj-y += tlb_helper.o debug_helper.o
 obj-y += translate.o op_helper.o
 obj-y += crypto_helper.o
@@ -80,3 +78,5 @@ obj-$(CONFIG_SOFTMMU) += psci.o
 obj-$(TARGET_AARCH64) += translate-a64.o helper-a64.o
 obj-$(TARGET_AARCH64) += translate-sve.o sve_helper.o
 obj-$(TARGET_AARCH64) += pauth_helper.o
+
+endif # CONFIG_TCG
