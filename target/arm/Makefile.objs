@@ -57,7 +57,8 @@ target/arm/translate.o: target/arm/decode-t16.inc.c
 
 ifeq ($(CONFIG_TCG),y)
 
-obj-y += arm-semi.o
+obj-$(CONFIG_SEMIHOSTING) += arm-semi.o
+obj-$(call lnot,$(CONFIG_SEMIHOSTING)) += arm-semi-stub.o
 
 endif # CONFIG_TCG
 
