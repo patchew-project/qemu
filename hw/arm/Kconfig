@@ -1,5 +1,6 @@
 config ARM_VIRT
     bool
+    depends on !XEN
     default y if KVM
     imply PCI_DEVICES
     imply TEST_DEVICES
