@@ -483,7 +483,7 @@ void tcg_gen_abs_vec(unsigned vece, TCGv_vec r, TCGv_vec a)
             tcg_gen_smax_vec(vece, r, a, t);
         } else {
             if (tcg_can_emit_vec_op(INDEX_op_sari_vec, type, vece) > 0) {
-                tcg_gen_sari_vec(vece, t, a, (8 << vece) - 1);
+                tcg_gen_sari_vec(vece, t, a, ((int64_t)8 << vece) - 1);
             } else {
                 do_dupi_vec(t, MO_REG, 0);
                 tcg_gen_cmp_vec(TCG_COND_LT, vece, t, a, t);
@@ -508,7 +508,7 @@ static void do_shifti(TCGOpcode opc, unsigned vece,
     int can;
 
     tcg_debug_assert(at->base_type == type);
-    tcg_debug_assert(i >= 0 && i < (8 << vece));
+    tcg_debug_assert(i >= 0 && i < ((int64_t)8 << vece));
     tcg_assert_listed_vecop(opc);
 
     if (i == 0) {

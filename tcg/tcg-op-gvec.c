@@ -2219,7 +2219,7 @@ static void gen_absv_mask(TCGv_i64 d, TCGv_i64 b, unsigned vece)
     /* Create -1 for each negative element.  */
     tcg_gen_shri_i64(t, b, nbit - 1);
     tcg_gen_andi_i64(t, t, dup_const(vece, 1));
-    tcg_gen_muli_i64(t, t, (1 << nbit) - 1);
+    tcg_gen_muli_i64(t, t, ((int64_t)1 << nbit) - 1);
 
     /*
      * Invert (via xor -1) and add one (via sub -1).
@@ -2528,7 +2528,7 @@ void tcg_gen_gvec_shli(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
 
     tcg_debug_assert(vece <= MO_64);
-    tcg_debug_assert(shift >= 0 && shift < (8 << vece));
+    tcg_debug_assert(shift >= 0 && shift < ((int64_t)8 << vece));
     if (shift == 0) {
         tcg_gen_gvec_mov(vece, dofs, aofs, oprsz, maxsz);
     } else {
@@ -2579,7 +2579,7 @@ void tcg_gen_gvec_shri(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
 
     tcg_debug_assert(vece <= MO_64);
-    tcg_debug_assert(shift >= 0 && shift < (8 << vece));
+    tcg_debug_assert(shift >= 0 && shift < ((int64_t)8 << vece));
     if (shift == 0) {
         tcg_gen_gvec_mov(vece, dofs, aofs, oprsz, maxsz);
     } else {
@@ -2595,7 +2595,7 @@ void tcg_gen_vec_sar8i_i64(TCGv_i64 d, TCGv_i64 a, int64_t c)
 
     tcg_gen_shri_i64(d, a, c);
     tcg_gen_andi_i64(s, d, s_mask);  /* isolate (shifted) sign bit */
-    tcg_gen_muli_i64(s, s, (2 << c) - 2); /* replicate isolated signs */
+    tcg_gen_muli_i64(s, s, ((int64_t)2 << c) - 2); /* replicate isolated signs */
     tcg_gen_andi_i64(d, d, c_mask);  /* clear out bits above sign  */
     tcg_gen_or_i64(d, d, s);         /* include sign extension */
     tcg_temp_free_i64(s);
@@ -2610,7 +2610,7 @@ void tcg_gen_vec_sar16i_i64(TCGv_i64 d, TCGv_i64 a, int64_t c)
     tcg_gen_shri_i64(d, a, c);
     tcg_gen_andi_i64(s, d, s_mask);  /* isolate (shifted) sign bit */
     tcg_gen_andi_i64(d, d, c_mask);  /* clear out bits above sign  */
-    tcg_gen_muli_i64(s, s, (2 << c) - 2); /* replicate isolated signs */
+    tcg_gen_muli_i64(s, s, ((int64_t)2 << c) - 2); /* replicate isolated signs */
     tcg_gen_or_i64(d, d, s);         /* include sign extension */
     tcg_temp_free_i64(s);
 }
@@ -2644,7 +2644,7 @@ void tcg_gen_gvec_sari(unsigned vece, uint32_t dofs, uint32_t aofs,
     };
 
     tcg_debug_assert(vece <= MO_64);
-    tcg_debug_assert(shift >= 0 && shift < (8 << vece));
+    tcg_debug_assert(shift >= 0 && shift < ((int64_t)8 << vece));
     if (shift == 0) {
         tcg_gen_gvec_mov(vece, dofs, aofs, oprsz, maxsz);
     } else {
@@ -2881,7 +2881,7 @@ static void tcg_gen_shlv_mod_vec(unsigned vece, TCGv_vec d,
 {
     TCGv_vec t = tcg_temp_new_vec_matching(d);
 
-    tcg_gen_dupi_vec(vece, t, (8 << vece) - 1);
+    tcg_gen_dupi_vec(vece, t, ((uint64_t)8 << vece) - 1);
     tcg_gen_and_vec(vece, t, t, b);
     tcg_gen_shlv_vec(vece, d, a, t);
     tcg_temp_free_vec(t);
@@ -2944,7 +2944,7 @@ static void tcg_gen_shrv_mod_vec(unsigned vece, TCGv_vec d,
 {
     TCGv_vec t = tcg_temp_new_vec_matching(d);
 
-    tcg_gen_dupi_vec(vece, t, (8 << vece) - 1);
+    tcg_gen_dupi_vec(vece, t, ((uint64_t)8 << vece) - 1);
     tcg_gen_and_vec(vece, t, t, b);
     tcg_gen_shrv_vec(vece, d, a, t);
     tcg_temp_free_vec(t);
@@ -3007,7 +3007,7 @@ static void tcg_gen_sarv_mod_vec(unsigned vece, TCGv_vec d,
 {
     TCGv_vec t = tcg_temp_new_vec_matching(d);
 
-    tcg_gen_dupi_vec(vece, t, (8 << vece) - 1);
+    tcg_gen_dupi_vec(vece, t, ((uint64_t)8 << vece) - 1);
     tcg_gen_and_vec(vece, t, t, b);
     tcg_gen_sarv_vec(vece, d, a, t);
     tcg_temp_free_vec(t);
