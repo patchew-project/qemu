@@ -420,6 +420,12 @@ F: accel/stubs/hax-stub.c
 F: target/i386/hax-all.c
 F: include/sysemu/hax.h
 
+HVF Accelerator
+S: Orphan
+F: accel/stubs/hvf-stub.c
+F: target/i386/hvf/hvf.c
+F: include/sysemu/hvf.h
+
 WHPX CPUs
 M: Sunil Muthuswamy <sunilmut@microsoft.com>
 S: Supported
