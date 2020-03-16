@@ -15,4 +15,5 @@ config ARM_V7R
     bool
 
 config ARM_V7M
+    depends on TCG
     bool
