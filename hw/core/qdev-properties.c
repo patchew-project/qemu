@@ -275,12 +275,14 @@ static void set_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
     visit_type_uint8(v, name, ptr, errp);
 }
 
-static void set_default_value_int(ObjectProperty *op, const Property *prop)
+void qdev_propinfo_set_default_value_int(ObjectProperty *op,
+                                         const Property *prop)
 {
     object_property_set_default_int(op, prop->defval.i);
 }
 
-static void set_default_value_uint(ObjectProperty *op, const Property *prop)
+void qdev_propinfo_set_default_value_uint(ObjectProperty *op,
+                                          const Property *prop)
 {
     object_property_set_default_uint(op, prop->defval.u);
 }
@@ -289,13 +291,13 @@ const PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
     .get   = get_uint8,
     .set   = set_uint8,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- 16bit integer --- */
 
-static void get_uint16(Object *obj, Visitor *v, const char *name,
-                       void *opaque, Error **errp)
+void qdev_propinfo_get_uint16(Object *obj, Visitor *v, const char *name,
+                              void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -321,9 +323,9 @@ static void set_uint16(Object *obj, Visitor *v, const char *name,
 
 const PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
-    .get   = get_uint16,
+    .get   = qdev_propinfo_get_uint16,
     .set   = set_uint16,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- 32bit integer --- */
@@ -353,8 +355,8 @@ static void set_uint32(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, ptr, errp);
 }
 
-static void get_int32(Object *obj, Visitor *v, const char *name, void *opaque,
-                      Error **errp)
+void qdev_propinfo_get_int32(Object *obj, Visitor *v, const char *name,
+                             void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
@@ -382,14 +384,14 @@ const PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
     .get   = get_uint32,
     .set   = set_uint32,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 const PropertyInfo qdev_prop_int32 = {
     .name  = "int32",
-    .get   = get_int32,
+    .get   = qdev_propinfo_get_int32,
     .set   = set_int32,
-    .set_default_value = set_default_value_int,
+    .set_default_value = qdev_propinfo_set_default_value_int,
 };
 
 /* --- 64bit integer --- */
@@ -448,14 +450,14 @@ const PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
     .get   = get_uint64,
     .set   = set_uint64,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 const PropertyInfo qdev_prop_int64 = {
     .name  = "int64",
     .get   = get_int64,
     .set   = set_int64,
-    .set_default_value = set_default_value_int,
+    .set_default_value = qdev_propinfo_set_default_value_int,
 };
 
 /* --- string --- */
@@ -739,9 +741,9 @@ const PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .description = "Slot and optional function number, example: 06.0 or 06",
     .print = print_pci_devfn,
-    .get   = get_int32,
+    .get   = qdev_propinfo_get_int32,
     .set   = set_pci_devfn,
-    .set_default_value = set_default_value_int,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- blocksize --- */
@@ -787,9 +789,9 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
 const PropertyInfo qdev_prop_blocksize = {
     .name  = "uint16",
     .description = "A power of two between 512 and 32768",
-    .get   = get_uint16,
+    .get   = qdev_propinfo_get_uint16,
     .set   = set_blocksize,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- pci host address --- */
@@ -1071,7 +1073,7 @@ const PropertyInfo qdev_prop_arraylen = {
     .name = "uint32",
     .get = get_uint32,
     .set = set_prop_arraylen,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- public helpers --- */
@@ -1265,7 +1267,7 @@ const PropertyInfo qdev_prop_size = {
     .name  = "size",
     .get = get_size,
     .set = set_size,
-    .set_default_value = set_default_value_uint,
+    .set_default_value = qdev_propinfo_set_default_value_uint,
 };
 
 /* --- object link property --- */
