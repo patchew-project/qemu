@@ -1,3 +1,5 @@
 
 config SEMIHOSTING
-       bool
+    bool
+    depends on TCG
+    default n
