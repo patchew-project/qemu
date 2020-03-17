@@ -1790,12 +1790,20 @@ static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
          * TODO We might want to use bdrv_block_status(bs) here, but we're
          * holding s->lock, so that doesn't work today.
          *
-         * If full_discard is true, the sector should not read back as zeroes,
+         * If full_discard is true, the cluster should not read back as zeroes,
          * but rather fall through to the backing file.
          */
         switch (qcow2_get_cluster_type(bs, old_l2_entry)) {
         case QCOW2_CLUSTER_UNALLOCATED:
-            if (full_discard || !bs->backing) {
+            if (full_discard) {
+                /* If the image has extended L2 entries we can only
+                 * skip this operation if the L2 bitmap is zero. */
+                uint64_t bitmap = has_subclusters(s) ?
+                    get_l2_bitmap(s, l2_slice, l2_index + i) : 0;
+                if (bitmap == 0) {
+                    continue;
+                }
+            } else if (!bs->backing) {
                 continue;
             }
             break;
@@ -1817,7 +1825,11 @@ static int discard_in_l2_slice(BlockDriverState *bs, uint64_t offset,
 
         /* First remove L2 entries */
         qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_slice);
-        if (!full_discard && s->qcow_version >= 3) {
+        if (has_subclusters(s)) {
+            set_l2_entry(s, l2_slice, l2_index + i, 0);
+            set_l2_bitmap(s, l2_slice, l2_index + i,
+                          full_discard ? 0 : QCOW_L2_BITMAP_ALL_ZEROES);
+        } else if (!full_discard && s->qcow_version >= 3) {
             set_l2_entry(s, l2_slice, l2_index + i, QCOW_OFLAG_ZERO);
         } else {
             set_l2_entry(s, l2_slice, l2_index + i, 0);
