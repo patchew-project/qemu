@@ -2553,3 +2553,130 @@ GEN_OPIVI_TRANS(vslideup_vi, 1, vslideup_vx, slideup_check)
 GEN_OPIVX_TRANS(vslidedown_vx, opivx_check)
 GEN_OPIVX_TRANS(vslide1down_vx, opivx_check)
 GEN_OPIVI_TRANS(vslidedown_vi, 1, vslidedown_vx, opivx_check)
+
+/* Vector Register Gather Instruction */
+static bool vrgather_vv_check(DisasContext *s, arg_rmrr *a)
+{
+    return (vext_check_isa_ill(s) &&
+            vext_check_overlap_mask(s, a->rd, a->vm, true) &&
+            vext_check_reg(s, a->rd, false) &&
+            vext_check_reg(s, a->rs1, false) &&
+            vext_check_reg(s, a->rs2, false) &&
+            (a->rd != a->rs2) && (a->rd != a->rs1));
+}
+
+GEN_OPIVV_TRANS(vrgather_vv, vrgather_vv_check)
+
+static bool vrgather_vx_check(DisasContext *s, arg_rmrr *a)
+{
+    return (vext_check_isa_ill(s) &&
+            vext_check_overlap_mask(s, a->rd, a->vm, true) &&
+            vext_check_reg(s, a->rd, false) &&
+            vext_check_reg(s, a->rs2, false) &&
+            (a->rd != a->rs2));
+}
+
+static void gather_element(TCGv_i64 dest, TCGv_ptr base,
+                           int ofs, int sew)
+{
+    switch (sew) {
+    case MO_8:
+        tcg_gen_ld8u_i64(dest, base, ofs);
+        break;
+    case MO_16:
+        tcg_gen_ld16u_i64(dest, base, ofs);
+        break;
+    case MO_32:
+        tcg_gen_ld32u_i64(dest, base, ofs);
+        break;
+    default:
+        tcg_gen_ld_i64(dest, base, ofs);
+        break;
+    }
+}
+
+static bool trans_vrgather_vx(DisasContext *s, arg_rmrr *a)
+{
+    if (!vrgather_vx_check(s, a)) {
+        return false;
+    }
+
+    if (a->vm && s->vl_eq_vlmax) {
+        int vlmax = s->vlen / s->mlen;
+        TCGv_i32 ofs = tcg_temp_new_i32();
+        TCGv_ptr base = tcg_temp_new_ptr();
+        TCGv_i64 t_vlmax, t_zero, dest = tcg_temp_new_i64();
+        TCGv s1 = tcg_temp_new();
+        TCGv_i64 s1_i64 = tcg_temp_new_i64();
+
+        /* Expand x[rs1] to TCGv_i64 */
+        gen_get_gpr(s1, a->rs1);
+        tcg_gen_extu_tl_i64(s1_i64, s1);
+        tcg_temp_free(s1);
+
+        /*
+         * Mask the index to the length so that we do
+         * not produce an out-of-range load.
+         */
+        tcg_gen_extrl_i64_i32(ofs, s1_i64);
+        tcg_gen_andi_i32(ofs, ofs, vlmax - 1);
+
+        /* Convert the index to an offset. */
+        endian_adjust(ofs, s->sew);
+        tcg_gen_shli_i32(ofs, ofs, s->sew);
+
+        /* Convert the index to a pointer. */
+        tcg_gen_ext_i32_ptr(base, ofs);
+        tcg_gen_add_ptr(base, base, cpu_env);
+
+        /* Perform the load. */
+        gather_element(dest, base,
+                       vreg_ofs(s, a->rs2), s->sew);
+        tcg_temp_free_ptr(base);
+        tcg_temp_free_i32(ofs);
+
+        /* Flush out-of-range indexing to zero.  */
+        t_vlmax = tcg_const_i64(vlmax);
+        t_zero = tcg_const_i64(0);
+        tcg_gen_movcond_i64(TCG_COND_LTU, dest, s1_i64,
+                            t_vlmax, dest, t_zero);
+        tcg_temp_free_i64(t_vlmax);
+        tcg_temp_free_i64(t_zero);
+        tcg_temp_free_i64(s1_i64);
+
+        tcg_gen_gvec_dup_i64(s->sew, vreg_ofs(s, a->rd),
+                             MAXSZ(s), MAXSZ(s), dest);
+        tcg_temp_free_i64(dest);
+    } else {
+        static gen_helper_opivx * const fns[4] = {
+            gen_helper_vrgather_vx_b, gen_helper_vrgather_vx_h,
+            gen_helper_vrgather_vx_w, gen_helper_vrgather_vx_d
+        };
+        return opivx_trans(a->rd, a->rs1, a->rs2, a->vm, fns[s->sew], s);
+    }
+    return true;
+}
+
+static bool trans_vrgather_vi(DisasContext *s, arg_rmrr *a)
+{
+    if (!vrgather_vx_check(s, a)) {
+        return false;
+    }
+
+    if (a->vm && s->vl_eq_vlmax) {
+        if (a->rs1 >= s->vlen / s->mlen) {
+            tcg_gen_gvec_dup64i(vreg_ofs(s, a->rd), MAXSZ(s), MAXSZ(s), 0);
+        } else {
+            tcg_gen_gvec_dup_mem(s->sew, vreg_ofs(s, a->rd),
+                                 endian_ofs(s, a->rs2, a->rs1),
+                                 MAXSZ(s), MAXSZ(s));
+        }
+    } else {
+        static gen_helper_opivx * const fns[4] = {
+            gen_helper_vrgather_vx_b, gen_helper_vrgather_vx_h,
+            gen_helper_vrgather_vx_w, gen_helper_vrgather_vx_d
+        };
+        opivi_trans(a->rd, a->rs1, a->rs2, a->vm, fns[s->sew], s, 1);
+    }
+    return true;
+}
