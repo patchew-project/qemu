@@ -2588,3 +2588,107 @@ GEN_VEXT_VX_RM(vasub_vx_b, 1, 1, clearb)
 GEN_VEXT_VX_RM(vasub_vx_h, 2, 2, clearh)
 GEN_VEXT_VX_RM(vasub_vx_w, 4, 4, clearl)
 GEN_VEXT_VX_RM(vasub_vx_d, 8, 8, clearq)
+
+/* Vector Single-Width Fractional Multiply with Rounding and Saturation */
+static inline int8_t vsmul8(CPURISCVState *env, int vxrm, int8_t a, int8_t b)
+{
+    uint8_t round;
+    int16_t res;
+
+    res = (int16_t)a * (int16_t)b;
+    round = get_round(vxrm, res, 7);
+    res   = (res >> 7) + round;
+
+    if (res > INT8_MAX) {
+        env->vxsat = 0x1;
+        return INT8_MAX;
+    } else if (res < INT8_MIN) {
+        env->vxsat = 0x1;
+        return INT8_MIN;
+    } else {
+        return res;
+    }
+}
+static int16_t vsmul16(CPURISCVState *env, int vxrm, int16_t a, int16_t b)
+{
+    uint8_t round;
+    int32_t res;
+
+    res = (int32_t)a * (int32_t)b;
+    round = get_round(vxrm, res, 15);
+    res   = (res >> 15) + round;
+
+    if (res > INT16_MAX) {
+        env->vxsat = 0x1;
+        return INT16_MAX;
+    } else if (res < INT16_MIN) {
+        env->vxsat = 0x1;
+        return INT16_MIN;
+    } else {
+        return res;
+    }
+}
+static int32_t vsmul32(CPURISCVState *env, int vxrm, int32_t a, int32_t b)
+{
+    uint8_t round;
+    int64_t res;
+
+    res = (int64_t)a * (int64_t)b;
+    round = get_round(vxrm, res, 31);
+    res   = (res >> 31) + round;
+
+    if (res > INT32_MAX) {
+        env->vxsat = 0x1;
+        return INT32_MAX;
+    } else if (res < INT32_MIN) {
+        env->vxsat = 0x1;
+        return INT32_MIN;
+    } else {
+        return res;
+    }
+}
+static int64_t vsmul64(CPURISCVState *env, int vxrm, int64_t a, int64_t b)
+{
+    uint8_t round;
+    uint64_t hi_64, lo_64, Hi62;
+    uint8_t hi62, hi63, lo63;
+
+    muls64(&lo_64, &hi_64, a, b);
+    hi62 = extract64(hi_64, 62, 1);
+    lo63 = extract64(lo_64, 63, 1);
+    hi63 = extract64(hi_64, 63, 1);
+    Hi62 = extract64(hi_64, 0, 62);
+    if (hi62 != hi63) {
+        env->vxsat = 0x1;
+        return INT64_MAX;
+    }
+    round = get_round(vxrm, lo_64, 63);
+    if (round && (Hi62 == 0x3fffffff) && lo63) {
+        env->vxsat = 0x1;
+        return hi62 ? INT64_MIN : INT64_MAX;
+    } else {
+        if (lo63 && round) {
+            return (hi_64 + 1) << 1;
+        } else {
+            return (hi_64 << 1) | lo63 | round;
+        }
+    }
+}
+
+RVVCALL(OPIVV2_RM, vsmul_vv_b, OP_SSS_B, H1, H1, H1, vsmul8)
+RVVCALL(OPIVV2_RM, vsmul_vv_h, OP_SSS_H, H2, H2, H2, vsmul16)
+RVVCALL(OPIVV2_RM, vsmul_vv_w, OP_SSS_W, H4, H4, H4, vsmul32)
+RVVCALL(OPIVV2_RM, vsmul_vv_d, OP_SSS_D, H8, H8, H8, vsmul64)
+GEN_VEXT_VV_RM(vsmul_vv_b, 1, 1, clearb)
+GEN_VEXT_VV_RM(vsmul_vv_h, 2, 2, clearh)
+GEN_VEXT_VV_RM(vsmul_vv_w, 4, 4, clearl)
+GEN_VEXT_VV_RM(vsmul_vv_d, 8, 8, clearq)
+
+RVVCALL(OPIVX2_RM, vsmul_vx_b, OP_SSS_B, H1, H1, vsmul8)
+RVVCALL(OPIVX2_RM, vsmul_vx_h, OP_SSS_H, H2, H2, vsmul16)
+RVVCALL(OPIVX2_RM, vsmul_vx_w, OP_SSS_W, H4, H4, vsmul32)
+RVVCALL(OPIVX2_RM, vsmul_vx_d, OP_SSS_D, H8, H8, vsmul64)
+GEN_VEXT_VX_RM(vsmul_vx_b, 1, 1, clearb)
+GEN_VEXT_VX_RM(vsmul_vx_h, 2, 2, clearh)
+GEN_VEXT_VX_RM(vsmul_vx_w, 4, 4, clearl)
+GEN_VEXT_VX_RM(vsmul_vx_d, 8, 8, clearq)
