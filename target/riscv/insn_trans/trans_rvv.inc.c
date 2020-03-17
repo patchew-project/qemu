@@ -2464,3 +2464,75 @@ static bool trans_vmv_s_x(DisasContext *s, arg_vmv_s_x *a)
     }
     return false;
 }
+
+/* Floating-Point Scalar Move Instructions */
+static bool trans_vfmv_f_s(DisasContext *s, arg_vfmv_f_s *a)
+{
+    if (!s->vill && has_ext(s, RVF) &&
+        (s->mstatus_fs != 0) && (s->sew != 0)) {
+#ifdef HOST_WORDS_BIGENDIAN
+        int ofs = vreg_ofs(s, a->rs2) + ((7 >> s->sew) << s->sew);
+#else
+        int ofs = vreg_ofs(s, a->rs2);
+#endif
+        switch (s->sew) {
+        case MO_8:
+            tcg_gen_ld8u_i64(cpu_fpr[a->rd], cpu_env, ofs);
+            tcg_gen_ori_i64(cpu_fpr[a->rd], cpu_fpr[a->rd],
+                            0xffffffffffffff00ULL);
+            break;
+        case MO_16:
+            tcg_gen_ld16u_i64(cpu_fpr[a->rd], cpu_env, ofs);
+            tcg_gen_ori_i64(cpu_fpr[a->rd], cpu_fpr[a->rd],
+                            0xffffffffffff0000ULL);
+            break;
+        case MO_32:
+            tcg_gen_ld32u_i64(cpu_fpr[a->rd], cpu_env, ofs);
+            tcg_gen_ori_i64(cpu_fpr[a->rd], cpu_fpr[a->rd],
+                            0xffffffff00000000ULL);
+            break;
+        default:
+            if (has_ext(s, RVD)) {
+                tcg_gen_ld_i64(cpu_fpr[a->rd], cpu_env, ofs);
+            } else {
+                tcg_gen_ld32u_i64(cpu_fpr[a->rd], cpu_env, ofs);
+                tcg_gen_ori_i64(cpu_fpr[a->rd], cpu_fpr[a->rd],
+                                0xffffffff00000000ULL);
+            }
+            break;
+        }
+        mark_fs_dirty(s);
+        return true;
+    }
+    return false;
+}
+
+typedef void gen_helper_vfmv_s_f(TCGv_ptr, TCGv_i64, TCGv_env);
+static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
+{
+    if (!s->vill && has_ext(s, RVF) && (s->sew != 0)) {
+        TCGv_ptr dest;
+        TCGv_i64 src1;
+        static gen_helper_vfmv_s_f * const fns[3] = {
+            gen_helper_vfmv_s_f_h,
+            gen_helper_vfmv_s_f_w,
+            gen_helper_vfmv_s_f_d
+        };
+
+        src1 = tcg_temp_new_i64();
+        dest = tcg_temp_new_ptr();
+        if (s->sew == MO_64 && !has_ext(s, RVD)) {
+            tcg_gen_ori_i64(src1, cpu_fpr[a->rs1], 0xffffffff00000000ULL);
+        } else {
+            tcg_gen_mov_i64(src1, cpu_fpr[a->rs1]);
+        }
+        tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, a->rd));
+
+        fns[s->sew - 1](dest, src1, cpu_env);
+
+        tcg_temp_free_i64(src1);
+        tcg_temp_free_ptr(dest);
+        return true;
+    }
+    return false;
+}

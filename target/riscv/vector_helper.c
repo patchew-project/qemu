@@ -4691,3 +4691,18 @@ GEN_VEXT_VMV_S_X(vmv_s_x_b, uint8_t, H1, clearb)
 GEN_VEXT_VMV_S_X(vmv_s_x_h, uint16_t, H2, clearh)
 GEN_VEXT_VMV_S_X(vmv_s_x_w, uint32_t, H4, clearl)
 GEN_VEXT_VMV_S_X(vmv_s_x_d, uint64_t, H8, clearq)
+
+/* Floating-Point Scalar Move Instructions */
+#define GEN_VEXT_VFMV_S_F(NAME, ETYPE, H, CLEAR_FN)                     \
+void HELPER(NAME)(void *vd, uint64_t s1, CPURISCVState *env)            \
+{                                                                       \
+    if (env->vl == 0) {                                                 \
+        return;                                                         \
+    }                                                                   \
+    *((ETYPE *)vd + H(0)) = s1;                                         \
+    CLEAR_FN(vd, 1, sizeof(ETYPE), env_archcpu(env)->cfg.vlen / 8);     \
+}
+
+GEN_VEXT_VFMV_S_F(vfmv_s_f_h, uint16_t, H2, clearh)
+GEN_VEXT_VFMV_S_F(vfmv_s_f_w, uint32_t, H4, clearl)
+GEN_VEXT_VFMV_S_F(vfmv_s_f_d, uint64_t, H8, clearq)

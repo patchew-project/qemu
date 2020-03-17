@@ -1114,3 +1114,7 @@ DEF_HELPER_3(vmv_s_x_b, void, ptr, tl, env)
 DEF_HELPER_3(vmv_s_x_h, void, ptr, tl, env)
 DEF_HELPER_3(vmv_s_x_w, void, ptr, tl, env)
 DEF_HELPER_3(vmv_s_x_d, void, ptr, tl, env)
+
+DEF_HELPER_3(vfmv_s_f_h, void, ptr, i64, env)
+DEF_HELPER_3(vfmv_s_f_w, void, ptr, i64, env)
+DEF_HELPER_3(vfmv_s_f_d, void, ptr, i64, env)
