@@ -1181,6 +1181,16 @@ static void test_migrate_auto_converge(void)
     MigrateStart *args = migrate_start_new();
     QTestState *from, *to;
     int64_t remaining, percentage;
+    char *travis_arch;
+
+    /*
+     * This test does not work reliably on Travis s390x.
+     */
+    travis_arch = getenv("TRAVIS_CPU_ARCH");
+    if (travis_arch && g_str_equal(travis_arch, "s390x")) {
+        g_test_skip("Test does not work reliably on s390x Travis containers.");
+        return;
+    }
 
     /*
      * We want the test to be stable and as fast as possible.
