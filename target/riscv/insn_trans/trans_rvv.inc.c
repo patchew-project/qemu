@@ -2347,3 +2347,94 @@ static bool trans_vid_v(DisasContext *s, arg_vid_v *a)
     }
     return false;
 }
+
+/*
+ *** Vector Permutation Instructions
+ */
+/* Integer Extract Instruction */
+static void extract_element(TCGv dest, TCGv_ptr base,
+                            int ofs, int sew)
+{
+    switch (sew) {
+    case MO_8:
+        tcg_gen_ld8u_tl(dest, base, ofs);
+        break;
+    case MO_16:
+        tcg_gen_ld16u_tl(dest, base, ofs);
+        break;
+    default:
+        tcg_gen_ld32u_tl(dest, base, ofs);
+        break;
+#if TARGET_LONG_BITS == 64
+    case MO_64:
+        tcg_gen_ld_i64(dest, base, ofs);
+        break;
+#endif
+    }
+}
+
+/* offset of the idx element with base regsiter r */
+static uint32_t endian_ofs(DisasContext *s, int r, int idx)
+{
+#ifdef HOST_WORDS_BIGENDIAN
+    return vreg_ofs(s, r) + ((idx ^ (7 >> s->sew)) << s->sew);
+#else
+    return vreg_ofs(s, r) + (idx << s->sew);
+#endif
+}
+
+/* adjust the index according to the endian */
+static void endian_adjust(TCGv_i32 ofs, int sew)
+{
+#ifdef HOST_WORDS_BIGENDIAN
+    tcg_gen_xori_i32(ofs, ofs, 7 >> sew);
+#endif
+}
+
+static bool trans_vext_x_v(DisasContext *s, arg_r *a)
+{
+    TCGv dest = tcg_temp_new();
+
+    if (a->rs1 == 0) {
+        /* Special case vmv.x.s rd, vs2. */
+        extract_element(dest, cpu_env,
+                        endian_ofs(s, a->rs2, 0), s->sew);
+    } else {
+        int vlen = s->vlen >> (3 + s->sew);
+        TCGv_i32 ofs = tcg_temp_new_i32();
+        TCGv_ptr  base = tcg_temp_new_ptr();
+        TCGv t_vlen, t_zero;
+
+        /*
+         * Mask the index to the length so that we do
+         * not produce an out-of-range load.
+         */
+        tcg_gen_trunc_tl_i32(ofs, cpu_gpr[a->rs1]);
+        tcg_gen_andi_i32(ofs, ofs, vlen - 1);
+
+        /* Convert the index to an offset. */
+        endian_adjust(ofs, s->sew);
+        tcg_gen_shli_i32(ofs, ofs, s->sew);
+
+        /* Convert the index to a pointer. */
+        tcg_gen_ext_i32_ptr(base, ofs);
+        tcg_gen_add_ptr(base, base, cpu_env);
+
+        /* Perform the load. */
+        extract_element(dest, base,
+                        vreg_ofs(s, a->rs2), s->sew);
+        tcg_temp_free_ptr(base);
+        tcg_temp_free_i32(ofs);
+
+        /* Flush out-of-range indexing to zero.  */
+        t_vlen = tcg_const_tl(vlen);
+        t_zero = tcg_const_tl(0);
+        tcg_gen_movcond_tl(TCG_COND_LTU, dest, cpu_gpr[a->rs1],
+                           t_vlen, dest, t_zero);
+        tcg_temp_free(t_vlen);
+        tcg_temp_free(t_zero);
+    }
+    gen_set_gpr(a->rd, dest);
+    tcg_temp_free(dest);
+    return true;
+}
