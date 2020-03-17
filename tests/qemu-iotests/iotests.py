@@ -22,6 +22,7 @@ import subprocess
 import unittest
 import sys
 import struct
+from typing import Optional
 import json
 import signal
 import logging
@@ -350,18 +351,17 @@ def filter_qmp_imgfmt(qmsg):
         return value
     return filter_qmp(qmsg, _filter)
 
-def log(msg, filters=(), indent=None):
-    '''Logs either a string message or a JSON serializable message (like QMP).
-    If indent is provided, JSON serializable messages are pretty-printed.'''
+def log(msg, filters=(), indent: Optional[int] = None) -> None:
+    """
+    Logs either a string message or a JSON serializable message (like QMP).
+    If indent is provided, JSON serializable messages are pretty-printed.
+    """
     for flt in filters:
         msg = flt(msg)
     if isinstance(msg, (dict, list)):
-        # Python < 3.4 needs to know not to add whitespace when pretty-printing:
-        separators = (', ', ': ') if indent is None else (',', ': ')
         # Don't sort if it's already sorted
         do_sort = not isinstance(msg, OrderedDict)
-        print(json.dumps(msg, sort_keys=do_sort,
-                         indent=indent, separators=separators))
+        print(json.dumps(msg, sort_keys=do_sort, indent=indent))
     else:
         print(msg)
 
