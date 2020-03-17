@@ -66,21 +66,23 @@ void visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             push_indent()
         if deprecated:
             ret += mcgen('''
-    if (visit_deprecated(v, "%(name)s")) {
+    if (visit_deprecated(v, "%(name)s", &err)) {
 ''',
                          name=memb.name)
             push_indent()
         ret += mcgen('''
     visit_type_%(c_type)s(v, "%(name)s", &obj->%(c_name)s, &err);
-    if (err) {
-        goto out;
-    }
 ''',
                      c_type=memb.type.c_name(), name=memb.name,
                      c_name=c_name(memb.name))
         if deprecated:
             pop_indent()
             ret += mcgen('''
+    }
+''')
+        ret += mcgen('''
+    if (err) {
+        goto out;
     }
 ''')
         if memb.optional:

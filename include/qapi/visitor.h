@@ -456,7 +456,7 @@ bool visit_optional(Visitor *v, const char *name, bool *present);
  * visit_start_struct() and visit_end_struct(), since only objects
  * have deprecated members.
  */
-bool visit_deprecated(Visitor *v, const char *name);
+bool visit_deprecated(Visitor *v, const char *name, Error **errp);
 
 /*
  * Visit an enum value.

@@ -111,7 +111,7 @@ struct Visitor
     void (*optional)(Visitor *v, const char *name, bool *present);
 
     /* Optional */
-    bool (*deprecated)(Visitor *v, const char *name);
+    bool (*deprecated)(Visitor *v, const char *name, Error **errp);
 
     /* Must be set */
     VisitorType type;
