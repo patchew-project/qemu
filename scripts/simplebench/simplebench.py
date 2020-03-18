@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Simple benchmarking framework
 #
 # Copyright (c) 2019 Virtuozzo International GmbH.
