@@ -1277,7 +1277,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BdrvChild *child,
      * modifying the image file.  This is critical for zero-copy guest I/O
      * where anything might happen inside guest memory.
      */
-    void *bounce_buffer = NULL;
+    char *bounce_buffer = NULL;
 
     BlockDriver *drv = bs->drv;
     int64_t cluster_offset;
