@@ -37,6 +37,7 @@ typedef struct IOMMUDevice {
     int           devfn;
     IOMMUMemoryRegion  iommu_mr;
     AddressSpace  as;
+    QLIST_ENTRY(IOMMUDevice) next;
 } IOMMUDevice;
 
 typedef struct IOMMUPciBus {
@@ -56,6 +57,7 @@ typedef struct VirtIOIOMMU {
     GTree *domains;
     QemuMutex mutex;
     GTree *endpoints;
+    QLIST_HEAD(, IOMMUDevice) notifiers_list;
 } VirtIOIOMMU;
 
 #endif
