@@ -78,6 +78,7 @@ typedef struct PIIX4PMState {
 
     AcpiPciHpState acpi_pci_hotplug;
     bool use_acpi_pci_hotplug;
+    bool use_acpi_system_hotplug;
 
     uint8_t disable_s3;
     uint8_t disable_s4;
@@ -503,8 +504,10 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
     s->machine_ready.notify = piix4_pm_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);
 
-    piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
-                                   pci_get_bus(dev), s);
+    if (s->use_acpi_system_hotplug) {
+        piix4_acpi_system_hot_add_init(pci_address_space_io(dev),
+                                       pci_get_bus(dev), s);
+    }
     qbus_set_hotplug_handler(BUS(pci_get_bus(dev)), OBJECT(s), &error_abort);
 
     piix4_pm_add_propeties(s);
@@ -635,6 +638,8 @@ static Property piix4_pm_properties[] = {
                      use_acpi_pci_hotplug, true),
     DEFINE_PROP_BOOL("memory-hotplug-support", PIIX4PMState,
                      acpi_memory_hotplug.is_enabled, true),
+    DEFINE_PROP_BOOL("system-hotplug-support", PIIX4PMState,
+                     use_acpi_system_hotplug, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
