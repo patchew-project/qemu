@@ -515,7 +515,8 @@ static void piix4_pm_realize(PCIDevice *dev, Error **errp)
 
 I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
                       qemu_irq sci_irq, qemu_irq smi_irq,
-                      int smm_enabled, DeviceState **piix4_pm)
+                      int smm_enabled, bool system_hotplug_enabled,
+                      DeviceState **piix4_pm)
 {
     DeviceState *dev;
     PIIX4PMState *s;
@@ -533,6 +534,7 @@ I2CBus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
     if (xen_enabled()) {
         s->use_acpi_pci_hotplug = false;
     }
+    s->use_acpi_system_hotplug = system_hotplug_enabled;
 
     qdev_init_nofail(dev);
 

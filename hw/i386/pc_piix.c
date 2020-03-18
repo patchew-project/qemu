@@ -283,6 +283,7 @@ else {
         pcms->smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
                                     x86ms->gsi[9], smi_irq,
                                     x86_machine_is_smm_enabled(x86ms),
+                                    true,
                                     &piix4_pm);
         smbus_eeprom_init(pcms->smbus, 8, NULL, 0);
 

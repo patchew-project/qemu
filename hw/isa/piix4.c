@@ -262,7 +262,7 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus,
     pci_create_simple(pci_bus, pci->devfn + 2, "piix4-usb-uhci");
     if (smbus) {
         *smbus = piix4_pm_init(pci_bus, pci->devfn + 3, 0x1100,
-                               isa_get_irq(NULL, 9), NULL, 0, NULL);
+                               isa_get_irq(NULL, 9), NULL, 0, false, NULL);
    }
 
     return dev;
