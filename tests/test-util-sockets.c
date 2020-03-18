@@ -231,10 +231,17 @@ static void test_socket_fd_pass_num_nocli(void)
 int main(int argc, char **argv)
 {
     bool has_ipv4, has_ipv6;
+    char *travis_arch;
 
     socket_init();
 
     g_test_init(&argc, &argv, NULL);
+
+    travis_arch = getenv("TRAVIS_CPU_ARCH");
+    if (travis_arch && !g_str_equal(travis_arch, "x86_64")) {
+        g_printerr("Test does not work on non-x86 Travis containers.");
+        goto end;
+    }
 
     /* We're creating actual IPv4/6 sockets, so we should
      * check if the host running tests actually supports
