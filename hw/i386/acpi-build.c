@@ -2755,7 +2755,7 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     return true;
 }
 
-static void acpi_dsdt_add_virtio(Aml *scope)
+static void acpi_dsdt_add_virtio(Aml *scope, MicrovmMachineState *mms)
 {
     gchar *separator;
     long int index;
@@ -2783,7 +2783,7 @@ static void acpi_dsdt_add_virtio(Aml *scope)
                 continue;
             }
 
-            uint32_t irq = VIRTIO_IRQ_BASE + index;
+            uint32_t irq = mms->virtio_irq_base + index;
             hwaddr base = VIRTIO_MMIO_BASE + index * 512;
             hwaddr size = 512;
 
@@ -2825,7 +2825,7 @@ build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
         aml_append(sb_scope, build_com_device_aml(1, false));
     }
     acpi_dsdt_add_fw_cfg(sb_scope, OBJECT(x86ms->fw_cfg));
-    acpi_dsdt_add_virtio(sb_scope);
+    acpi_dsdt_add_virtio(sb_scope, mms);
     aml_append(dsdt, sb_scope);
 
     scope = aml_scope("\\");
