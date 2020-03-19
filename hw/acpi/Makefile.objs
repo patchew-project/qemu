@@ -14,6 +14,7 @@ common-obj-$(call lnot,$(CONFIG_PC)) += acpi-x86-stub.o
 common-obj-y += acpi_interface.o
 common-obj-y += bios-linker-loader.o
 common-obj-y += aml-build.o utils.o
+common-obj-$(CONFIG_PC) += isa-acpi.o
 common-obj-$(CONFIG_ACPI_PCI) += pci.o
 common-obj-$(CONFIG_TPM) += tpm.o
 
