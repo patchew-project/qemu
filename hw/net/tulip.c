@@ -287,6 +287,8 @@ static ssize_t tulip_receive(TULIPState *s, const uint8_t *buf, size_t size)
         tulip_desc_write(s, s->current_rx_desc, &desc);
         tulip_next_rx_descriptor(s, &desc);
     } while (s->rx_frame_len);
+
+    qemu_flush_queued_packets(qemu_get_queue(s->nic));
     return size;
 }
 
