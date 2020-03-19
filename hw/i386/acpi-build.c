@@ -1226,7 +1226,7 @@ static Aml *build_lpt_device_aml(void)
     return dev;
 }
 
-static Aml *build_com_device_aml(uint8_t uid)
+static Aml *build_com_device_aml(uint8_t uid, bool sta)
 {
     Aml *dev;
     Aml *crs;
@@ -1250,19 +1250,22 @@ static Aml *build_com_device_aml(uint8_t uid)
     aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0501")));
     aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
 
-    method = aml_method("_STA", 0, AML_NOTSERIALIZED);
-    aml_append(method, aml_store(aml_name("%s", enabled_field), is_present));
-    if_ctx = aml_if(aml_equal(is_present, zero));
-    {
-        aml_append(if_ctx, aml_return(aml_int(0x00)));
+    if (sta) {
+        method = aml_method("_STA", 0, AML_NOTSERIALIZED);
+        aml_append(method, aml_store(aml_name("%s", enabled_field),
+                                         is_present));
+        if_ctx = aml_if(aml_equal(is_present, zero));
+        {
+            aml_append(if_ctx, aml_return(aml_int(0x00)));
+        }
+        aml_append(method, if_ctx);
+        else_ctx = aml_else();
+        {
+            aml_append(else_ctx, aml_return(aml_int(0x0f)));
+        }
+        aml_append(method, else_ctx);
+        aml_append(dev, method);
     }
-    aml_append(method, if_ctx);
-    else_ctx = aml_else();
-    {
-        aml_append(else_ctx, aml_return(aml_int(0x0f)));
-    }
-    aml_append(method, else_ctx);
-    aml_append(dev, method);
 
     crs = aml_resource_template();
     aml_append(crs, aml_io(AML_DECODE16, io_port, io_port, 0x00, 0x08));
@@ -1287,8 +1290,8 @@ static void build_isa_devices_aml(Aml *table)
         aml_append(scope, build_fdc_device_aml(fdc));
     }
     aml_append(scope, build_lpt_device_aml());
-    aml_append(scope, build_com_device_aml(1));
-    aml_append(scope, build_com_device_aml(2));
+    aml_append(scope, build_com_device_aml(1, true));
+    aml_append(scope, build_com_device_aml(2, true));
 
     if (ambiguous) {
         error_report("Multiple ISA busses, unable to define IPMI ACPI data");
@@ -2817,6 +2820,9 @@ build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
     sb_scope = aml_scope("_SB");
     if (mms->rtc_state) {
         aml_append(sb_scope, build_rtc_device_aml());
+    }
+    if (mms->isa_serial) {
+        aml_append(sb_scope, build_com_device_aml(1, false));
     }
     acpi_dsdt_add_fw_cfg(sb_scope, OBJECT(x86ms->fw_cfg));
     acpi_dsdt_add_virtio(sb_scope);
