@@ -26,6 +26,7 @@
 #include "sysemu/cpus.h"
 #include "sysemu/numa.h"
 #include "sysemu/reset.h"
+#include "acpi-build.h"
 
 #include "hw/loader.h"
 #include "hw/irq.h"
@@ -41,6 +42,7 @@
 #include "hw/i386/e820_memory_layout.h"
 #include "hw/i386/fw_cfg.h"
 #include "hw/virtio/virtio-mmio.h"
+#include "hw/acpi/acpi.h"
 
 #include "cpu.h"
 #include "elf.h"
@@ -128,6 +130,10 @@ static void microvm_devices_init(MicrovmMachineState *mms)
     }
 
     /* Optional and legacy devices */
+    if (acpi_enabled) {
+        ISADevice *acpi = isa_create_simple(isa_bus, "isa-acpi" /* FIXME */);
+        mms->acpi_dev = ACPI_DEVICE_IF(acpi);
+    }
 
     if (mms->pic == ON_OFF_AUTO_ON || mms->pic == ON_OFF_AUTO_AUTO) {
         qemu_irq *i8259;
@@ -468,6 +474,11 @@ static void microvm_machine_set_auto_kernel_cmdline(Object *obj, bool value,
     mms->auto_kernel_cmdline = value;
 }
 
+static void microvm_machine_done(Notifier *notifier, void *data)
+{
+    acpi_setup();
+}
+
 static void microvm_machine_initfn(Object *obj)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
@@ -482,6 +493,9 @@ static void microvm_machine_initfn(Object *obj)
 
     /* State */
     mms->kernel_cmdline_fixed = false;
+
+    mms->machine_done.notify = microvm_machine_done;
+    qemu_add_machine_init_done_notifier(&mms->machine_done);
 }
 
 static void microvm_class_init(ObjectClass *oc, void *data)

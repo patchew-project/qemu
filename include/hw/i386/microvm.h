@@ -24,6 +24,7 @@
 
 #include "hw/boards.h"
 #include "hw/i386/x86.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 /* Platform virtio definitions */
 #define VIRTIO_MMIO_BASE      0xc0000000
@@ -58,6 +59,8 @@ typedef struct {
 
     /* Machine state */
     bool kernel_cmdline_fixed;
+    Notifier machine_done;
+    AcpiDeviceIf *acpi_dev;
 } MicrovmMachineState;
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")

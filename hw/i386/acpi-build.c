@@ -59,6 +59,7 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci-host/q35.h"
 #include "hw/i386/x86-iommu.h"
+#include "hw/i386/microvm.h"
 
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/utils.h"
@@ -2749,12 +2750,103 @@ static bool acpi_get_mcfg(AcpiMcfgInfo *mcfg)
     return true;
 }
 
+static void
+build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
+                   MicrovmMachineState *mms)
+{
+    X86MachineState *x86ms = X86_MACHINE(mms);
+    Aml *dsdt, *sb_scope, *scope, *pkg;
+
+    dsdt = init_aml_allocator();
+
+    /* Reserve space for header */
+    acpi_data_push(dsdt->buf, sizeof(AcpiTableHeader));
+
+    build_dbg_aml(dsdt);
+
+    sb_scope = aml_scope("_SB");
+    acpi_dsdt_add_fw_cfg(sb_scope, OBJECT(x86ms->fw_cfg));
+    aml_append(dsdt, sb_scope);
+
+    scope = aml_scope("\\");
+    pkg = aml_package(4);
+    aml_append(pkg, aml_int(0)); /* PM1a_CNT.SLP_TYP */
+    aml_append(pkg, aml_int(0)); /* PM1b_CNT.SLP_TYP not impl. */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(pkg, aml_int(0)); /* reserved */
+    aml_append(scope, aml_name_decl("_S5", pkg));
+    aml_append(dsdt, scope);
+
+    /* copy AML table into ACPI tables blob and patch header there */
+    g_array_append_vals(table_data, dsdt->buf->data, dsdt->buf->len);
+    build_header(linker, table_data,
+        (void *)(table_data->data + table_data->len - dsdt->buf->len),
+        "DSDT", dsdt->buf->len, 1, NULL, NULL);
+    free_aml_allocator();
+}
+
+static
+void acpi_build_microvm(AcpiBuildTables *tables, MachineState *machine)
+{
+    MicrovmMachineState *mms = MICROVM_MACHINE(machine);
+    GArray *table_offsets;
+    GArray *tables_blob = tables->table_data;
+    AcpiFadtData pmfadt;
+    unsigned facs, dsdt, rsdt;
+
+    init_common_fadt_data(machine, OBJECT(mms->acpi_dev), &pmfadt);
+    pmfadt.smi_cmd = 0;
+
+    table_offsets = g_array_new(false, true /* clear */,
+                                        sizeof(uint32_t));
+    bios_linker_loader_alloc(tables->linker,
+                             ACPI_BUILD_TABLE_FILE, tables_blob,
+                             64 /* Ensure FACS is aligned */,
+                             false /* high memory */);
+
+    facs = tables_blob->len;
+    build_facs(tables_blob);
+
+    dsdt = tables_blob->len;
+    build_dsdt_microvm(tables_blob, tables->linker, mms);
+
+    pmfadt.facs_tbl_offset = &facs;
+    pmfadt.dsdt_tbl_offset = &dsdt;
+    pmfadt.xdsdt_tbl_offset = &dsdt;
+    acpi_add_table(table_offsets, tables_blob);
+    build_fadt(tables_blob, tables->linker, &pmfadt, NULL, NULL);
+
+    acpi_add_table(table_offsets, tables_blob);
+    build_madt(tables_blob, tables->linker, X86_MACHINE(machine),
+               mms->acpi_dev);
+
+    rsdt = tables_blob->len;
+    build_rsdt(tables_blob, tables->linker, table_offsets, NULL, NULL);
+
+    /* RSDP is in FSEG memory, so allocate it separately */
+    {
+        AcpiRsdpData rsdp_data = {
+            .revision = 0,
+            .oem_id = ACPI_BUILD_APPNAME6,
+            .xsdt_tbl_offset = NULL,
+            .rsdt_tbl_offset = &rsdt,
+        };
+        build_rsdp(tables->rsdp, tables->linker, &rsdp_data);
+    }
+
+    acpi_align_size(tables_blob, ACPI_BUILD_TABLE_SIZE);
+    acpi_align_size(tables->linker->cmd_blob, ACPI_BUILD_ALIGN_SIZE);
+
+    /* Cleanup memory that's no longer used. */
+    g_array_free(table_offsets, true);
+}
+
 static
 void acpi_build(AcpiBuildTables *tables, MachineState *machine)
 {
-    PCMachineState *pcms = PC_MACHINE(machine);
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
     X86MachineState *x86ms = X86_MACHINE(machine);
+    PCMachineState *pcms;
+    PCMachineClass *pcmc;
     GArray *table_offsets;
     unsigned facs, dsdt, rsdt, fadt;
     AcpiPmInfo pm;
@@ -2766,6 +2858,14 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
     GArray *tables_blob = tables->table_data;
     AcpiSlicOem slic_oem = { .id = NULL, .table_id = NULL };
     Object *vmgenid_dev;
+
+    if (strcmp(object_get_typename(OBJECT(x86ms)), TYPE_MICROVM_MACHINE) == 0) {
+        acpi_build_microvm(tables, machine);
+        return;
+    } else {
+        pcms = PC_MACHINE(machine);
+        pcmc = PC_MACHINE_GET_CLASS(pcms);
+    }
 
     acpi_get_pm_info(machine, &pm);
     acpi_get_misc_info(&misc);
@@ -3009,21 +3109,29 @@ static const VMStateDescription vmstate_acpi_build = {
 
 void acpi_setup(void)
 {
-    PCMachineState *pcms = PC_MACHINE(qdev_get_machine());
-    PCMachineClass *pcmc = PC_MACHINE_GET_CLASS(pcms);
-    X86MachineState *x86ms = X86_MACHINE(pcms);
+    X86MachineState *x86ms = X86_MACHINE(qdev_get_machine());
+    PCMachineState *pcms;
+    PCMachineClass *pcmc;
     AcpiBuildTables tables;
     AcpiBuildState *build_state;
     Object *vmgenid_dev;
     TPMIf *tpm;
     static FwCfgTPMConfig tpm_config;
 
+    if (strcmp(object_get_typename(OBJECT(x86ms)), TYPE_MICROVM_MACHINE) == 0) {
+        pcms = NULL;
+        pcmc = NULL;
+    } else {
+        pcms = PC_MACHINE(x86ms);
+        pcmc = PC_MACHINE_GET_CLASS(pcms);
+    }
+
     if (!x86ms->fw_cfg) {
         ACPI_BUILD_DPRINTF("No fw cfg. Bailing out.\n");
         return;
     }
 
-    if (!pcms->acpi_build_enabled) {
+    if (pcms && !pcms->acpi_build_enabled) {
         ACPI_BUILD_DPRINTF("ACPI build disabled. Bailing out.\n");
         return;
     }
@@ -3036,7 +3144,7 @@ void acpi_setup(void)
     build_state = g_malloc0(sizeof *build_state);
 
     acpi_build_tables_init(&tables);
-    acpi_build(&tables, MACHINE(pcms));
+    acpi_build(&tables, MACHINE(x86ms));
 
     /* Now expose it all to Guest */
     build_state->table_mr = acpi_add_rom_blob(acpi_build_update,
@@ -3069,7 +3177,7 @@ void acpi_setup(void)
                            tables.vmgenid);
     }
 
-    if (!pcmc->rsdp_in_ram) {
+    if (pcmc && !pcmc->rsdp_in_ram) {
         /*
          * Keep for compatibility with old machine types.
          * Though RSDP is small, its contents isn't immutable, so
