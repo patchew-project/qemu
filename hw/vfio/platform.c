@@ -216,7 +216,7 @@ static void vfio_intp_interrupt(VFIOINTp *intp)
     VFIOPlatformDevice *vdev = intp->vdev;
     bool delay_handling = false;
 
-    qemu_mutex_lock(&vdev->intp_mutex);
+    QEMU_LOCK_GUARD(&vdev->intp_mutex);
     if (intp->state == VFIO_IRQ_INACTIVE) {
         QLIST_FOREACH(tmp, &vdev->intp_list, next) {
             if (tmp->state == VFIO_IRQ_ACTIVE ||
@@ -236,7 +236,6 @@ static void vfio_intp_interrupt(VFIOINTp *intp)
         QSIMPLEQ_INSERT_TAIL(&vdev->pending_intp_queue,
                              intp, pqnext);
         ret = event_notifier_test_and_clear(intp->interrupt);
-        qemu_mutex_unlock(&vdev->intp_mutex);
         return;
     }
 
@@ -266,7 +265,6 @@ static void vfio_intp_interrupt(VFIOINTp *intp)
                   qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) +
                       vdev->mmap_timeout);
     }
-    qemu_mutex_unlock(&vdev->intp_mutex);
 }
 
 /**

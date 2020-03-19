@@ -1086,23 +1086,21 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     acb->task->expxferlen = acb->ioh->dxfer_len;
 
     data.size = 0;
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
     if (acb->task->xfer_dir == SCSI_XFER_WRITE) {
         if (acb->ioh->iovec_count == 0) {
             data.data = acb->ioh->dxferp;
             data.size = acb->ioh->dxfer_len;
         } else {
             scsi_task_set_iov_out(acb->task,
-                                 (struct scsi_iovec *) acb->ioh->dxferp,
-                                 acb->ioh->iovec_count);
+                                  (struct scsi_iovec *)acb->ioh->dxferp,
+                                  acb->ioh->iovec_count);
         }
     }
 
     if (iscsi_scsi_command_async(iscsi, iscsilun->lun, acb->task,
                                  iscsi_aio_ioctl_cb,
-                                 (data.size > 0) ? &data : NULL,
-                                 acb) != 0) {
-        qemu_mutex_unlock(&iscsilun->mutex);
+                                 (data.size > 0) ? &data : NULL, acb) != 0) {
         scsi_free_scsi_task(acb->task);
         qemu_aio_unref(acb);
         return NULL;
@@ -1111,18 +1109,16 @@ static BlockAIOCB *iscsi_aio_ioctl(BlockDriverState *bs,
     /* tell libiscsi to read straight into the buffer we got from ioctl */
     if (acb->task->xfer_dir == SCSI_XFER_READ) {
         if (acb->ioh->iovec_count == 0) {
-            scsi_task_add_data_in_buffer(acb->task,
-                                         acb->ioh->dxfer_len,
+            scsi_task_add_data_in_buffer(acb->task, acb->ioh->dxfer_len,
                                          acb->ioh->dxferp);
         } else {
             scsi_task_set_iov_in(acb->task,
-                                 (struct scsi_iovec *) acb->ioh->dxferp,
+                                 (struct scsi_iovec *)acb->ioh->dxferp,
                                  acb->ioh->iovec_count);
         }
     }
 
     iscsi_set_events(iscsilun);
-    qemu_mutex_unlock(&iscsilun->mutex);
 
     return &acb->common;
 }
@@ -1395,20 +1391,17 @@ static void iscsi_nop_timed_event(void *opaque)
 {
     IscsiLun *iscsilun = opaque;
 
-    qemu_mutex_lock(&iscsilun->mutex);
+    QEMU_LOCK_GUARD(&iscsilun->mutex);
     if (iscsi_get_nops_in_flight(iscsilun->iscsi) >= MAX_NOP_FAILURES) {
         error_report("iSCSI: NOP timeout. Reconnecting...");
         iscsilun->request_timed_out = true;
     } else if (iscsi_nop_out_async(iscsilun->iscsi, NULL, NULL, 0, NULL) != 0) {
         error_report("iSCSI: failed to sent NOP-Out. Disabling NOP messages.");
-        goto out;
+        return;
     }
 
     timer_mod(iscsilun->nop_timer, qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + NOP_INTERVAL);
     iscsi_set_events(iscsilun);
-
-out:
-    qemu_mutex_unlock(&iscsilun->mutex);
 }
 
 static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
