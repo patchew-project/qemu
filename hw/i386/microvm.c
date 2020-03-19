@@ -101,7 +101,6 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 {
     X86MachineState *x86ms = X86_MACHINE(mms);
     ISABus *isa_bus;
-    ISADevice *rtc_state;
     GSIState *gsi_state;
     int i;
 
@@ -155,8 +154,8 @@ static void microvm_devices_init(MicrovmMachineState *mms)
 
     if (mms->rtc == ON_OFF_AUTO_ON ||
         (mms->rtc == ON_OFF_AUTO_AUTO && !kvm_enabled())) {
-        rtc_state = mc146818_rtc_init(isa_bus, 2000, NULL);
-        microvm_set_rtc(mms, rtc_state);
+        mms->rtc_state = mc146818_rtc_init(isa_bus, 2000, NULL);
+        microvm_set_rtc(mms, mms->rtc_state);
     }
 
     if (mms->isa_serial) {

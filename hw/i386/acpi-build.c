@@ -2815,6 +2815,9 @@ build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
     build_dbg_aml(dsdt);
 
     sb_scope = aml_scope("_SB");
+    if (mms->rtc_state) {
+        aml_append(sb_scope, build_rtc_device_aml());
+    }
     acpi_dsdt_add_fw_cfg(sb_scope, OBJECT(x86ms->fw_cfg));
     acpi_dsdt_add_virtio(sb_scope);
     aml_append(dsdt, sb_scope);

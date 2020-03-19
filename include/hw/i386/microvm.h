@@ -57,6 +57,9 @@ typedef struct {
     bool option_roms;
     bool auto_kernel_cmdline;
 
+    /* built-in devices */
+    ISADevice *rtc_state;
+
     /* Machine state */
     bool kernel_cmdline_fixed;
     Notifier machine_done;
