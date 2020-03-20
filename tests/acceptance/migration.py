@@ -105,3 +105,15 @@ class Migration(Test):
         """
         free_port = self._get_free_port()
         dest_uri = 'exec:nc -l localhost %u' % free_port
+
+    @skipUnless(_if_rdma_enable(None), "Unit rdma.service could not be found")
+    @skipUnless(_get_interface_rdma(None), 'RDMA service or interface not configured')
+    def test_migration_with_rdma_localhost(self):
+        iface = self._get_interface_rdma()
+        ip = self._get_ip_rdma(iface)
+        if ip:
+            free_port = self._get_free_port(address=ip)
+        else:
+            self.cancel("Ip address isn't configured")
+        dest_uri = 'rdma:%s:%u' % (ip, free_port)
+        self.do_migrate(dest_uri)
