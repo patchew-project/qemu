@@ -1515,6 +1515,9 @@ static int smmuv3_get_attr(IOMMUMemoryRegion *iommu,
     if (attr == IOMMU_ATTR_VFIO_NESTED) {
         *(bool *) data = true;
         return 0;
+    } else if (attr == IOMMU_ATTR_MSI_TRANSLATE) {
+        *(bool *) data = true;
+        return 0;
     }
     return -EINVAL;
 }
