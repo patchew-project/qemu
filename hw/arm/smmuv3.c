@@ -838,6 +838,7 @@ static void smmuv3_notify_iova(IOMMUMemoryRegion *mr,
     entry.iova = iova;
     entry.addr_mask = (1 << tt->granule_sz) - 1;
     entry.perm = IOMMU_NONE;
+    entry.arch_id = asid;
 
     memory_region_notify_one(n, &entry);
 }
