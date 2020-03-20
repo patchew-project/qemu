@@ -11,12 +11,17 @@
 
 
 import tempfile
+import json
 from avocado_qemu import Test
 from avocado import skipUnless
 
 from avocado.utils import network
 from avocado.utils import wait
 from avocado.utils.path import find_command
+from avocado.utils.network.interfaces import NetworkInterface
+from avocado.utils.network.hosts import LocalHost
+from avocado.utils import service
+from avocado.utils import process
 
 
 class Migration(Test):
@@ -57,6 +62,31 @@ class Migration(Test):
         if port is None:
             self.cancel('Failed to find a free port')
         return port
+
+    def _if_rdma_enable(self):
+        rdma_stat = service.ServiceManager()
+        rdma = rdma_stat.status('rdma')
+        return rdma
+
+    def _get_interface_rdma(self):
+        cmd = 'rdma link show -j'
+        out = json.loads(process.getoutput(cmd))
+        try:
+            for i in out:
+                if i['state'] == 'ACTIVE':
+                    return i['netdev']
+        except KeyError:
+            return None
+
+    def _get_ip_rdma(self, interface):
+        local = LocalHost()
+        network_in = NetworkInterface(interface, local)
+        try:
+            ip = network_in._get_interface_details()
+            if ip:
+                return ip[0]['addr_info'][0]['local']
+        except:
+            self.cancel("Incorrect interface configuration or device name")
 
 
     def test_migration_with_tcp_localhost(self):
