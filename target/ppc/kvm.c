@@ -88,6 +88,7 @@ static int cap_ppc_safe_indirect_branch;
 static int cap_ppc_count_cache_flush_assist;
 static int cap_ppc_nested_kvm_hv;
 static int cap_large_decr;
+static int cap_ppc_secure_guest;
 
 static uint32_t debug_inst_opcode;
 
@@ -135,6 +136,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     cap_resize_hpt = kvm_vm_check_extension(s, KVM_CAP_SPAPR_RESIZE_HPT);
     kvmppc_get_cpu_characteristics(s);
     cap_ppc_nested_kvm_hv = kvm_vm_check_extension(s, KVM_CAP_PPC_NESTED_HV);
+    cap_ppc_secure_guest = kvm_vm_check_extension(s, KVM_CAP_PPC_SECURE_GUEST);
     cap_large_decr = kvmppc_get_dec_bits();
     /*
      * Note: setting it to false because there is not such capability
@@ -2530,6 +2532,16 @@ int kvmppc_enable_cap_large_decr(PowerPCCPU *cpu, int enable)
     }
 
     return 0;
+}
+
+bool kvmppc_has_cap_secure_guest(void)
+{
+    return !!cap_ppc_secure_guest;
+}
+
+int kvmppc_enable_cap_secure_guest(void)
+{
+    return kvm_vm_enable_cap(kvm_state, KVM_CAP_PPC_SECURE_GUEST, 0, 1);
 }
 
 PowerPCCPUClass *kvm_ppc_get_host_cpu_class(void)

@@ -524,6 +524,27 @@ static void cap_fwnmi_apply(SpaprMachineState *spapr, uint8_t val,
     }
 }
 
+static void cap_secure_guest_apply(SpaprMachineState *spapr,
+                                   uint8_t val, Error **errp)
+{
+    if (!val) {
+        /* capability disabled by default */
+        return;
+    }
+
+    if (!kvm_enabled()) {
+        error_setg(errp, "No PEF support in tcg, try cap-svm=off");
+        return;
+    }
+
+    if (!kvmppc_has_cap_secure_guest()) {
+        error_setg(errp, "KVM implementation does not support secure guests, "
+                   "try cap-svm=off");
+    } else if (kvmppc_enable_cap_secure_guest() < 0) {
+        error_setg(errp, "Error enabling cap-svm, try cap-svm=off");
+    }
+}
+
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -631,6 +652,15 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_fwnmi_apply,
+    },
+    [SPAPR_CAP_SECURE_GUEST] = {
+        .name = "svm",
+        .description = "Allow the guest to become a Secure Guest",
+        .index = SPAPR_CAP_SECURE_GUEST,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_secure_guest_apply,
     },
 };
 
