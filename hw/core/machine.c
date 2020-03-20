@@ -31,6 +31,7 @@
 GlobalProperty hw_compat_4_2[] = {
     { "virtio-blk-device", "queue-size", "128"},
     { "virtio-scsi-device", "virtqueue_size", "128"},
+    { "virtio-blk-device", "num-queues", "1"},
     { "virtio-blk-device", "x-enable-wce-if-config-wce", "off" },
     { "virtio-blk-device", "seg-max-adjust", "off"},
     { "virtio-scsi-device", "num_queues", "1"},
