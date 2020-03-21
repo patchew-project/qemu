@@ -125,7 +125,7 @@ static uint64_t sii3112_reg_read(void *opaque, hwaddr addr,
         val = (uint32_t)d->regs[1].sien << 16;
         break;
     default:
-        val = 0;
+        break;
     }
     trace_sii3112_read(size, addr, val);
     return val;
