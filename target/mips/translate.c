@@ -5529,6 +5529,8 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 {
     uint32_t opc, shift_max;
     TCGv_i64 t0, t1;
+    TCGCond cond;
+    TCGLabel *lab;
 
     opc = MASK_LMI(ctx->opcode);
     switch (opc) {
@@ -5816,7 +5818,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
     case OPC_DADD_CP2:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGLabel *lab = gen_new_label();
+            lab = gen_new_label();
 
             tcg_gen_mov_i64(t2, t0);
             tcg_gen_add_i64(t0, t1, t2);
@@ -5837,7 +5839,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
     case OPC_DSUB_CP2:
         {
             TCGv_i64 t2 = tcg_temp_new_i64();
-            TCGLabel *lab = gen_new_label();
+            lab = gen_new_label();
 
             tcg_gen_mov_i64(t2, t0);
             tcg_gen_sub_i64(t0, t1, t2);
@@ -5862,14 +5864,39 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 
     case OPC_SEQU_CP2:
     case OPC_SEQ_CP2:
+        cond = TCG_COND_EQ;
+        goto do_cc_cond;
+        break;
+
     case OPC_SLTU_CP2:
+        cond = TCG_COND_LTU;
+        goto do_cc_cond;
+        break;
+
     case OPC_SLT_CP2:
+        cond = TCG_COND_LT;
+        goto do_cc_cond;
+        break;
+
     case OPC_SLEU_CP2:
+        cond = TCG_COND_LEU;
+        goto do_cc_cond;
+        break;
+
     case OPC_SLE_CP2:
-        /*
-         * ??? Document is unclear: Set FCC[CC].  Does that mean the
-         * FD field is the CC field?
-         */
+        cond = TCG_COND_LE;
+    do_cc_cond:
+        {
+            int cc = (ctx->opcode >> 8) & 0x7;
+            lab = gen_new_label();
+            tcg_gen_ori_i32(fpu_fcr31, fpu_fcr31, 1 << get_fp_bit(cc));
+            tcg_gen_brcond_i64(cond, t0, t1, lab);
+            tcg_gen_xori_i32(fpu_fcr31, fpu_fcr31, 1 << get_fp_bit(cc));
+            gen_set_label(lab);
+        }
+        goto no_rd;
+        break;
+
     default:
         MIPS_INVAL("loongson_cp2");
         generate_exception_end(ctx, EXCP_RI);
@@ -5878,6 +5905,7 @@ static void gen_loongson_multimedia(DisasContext *ctx, int rd, int rs, int rt)
 
     gen_store_fpr64(ctx, t0, rd);
 
+no_rd:
     tcg_temp_free_i64(t0);
     tcg_temp_free_i64(t1);
 }
