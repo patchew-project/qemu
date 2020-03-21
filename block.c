@@ -3164,7 +3164,7 @@ static BlockDriverState *bdrv_open_inherit(const char *filename,
                                     parent->open_flags, parent->options);
     }
 
-    ret = bdrv_fill_options(&options, filename, &flags, &local_err);
+    bdrv_fill_options(&options, filename, &flags, &local_err);
     if (local_err) {
         goto fail;
     }
