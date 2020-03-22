@@ -307,6 +307,7 @@ typedef enum VTDFaultReason {
     VTD_FR_IR_SID_ERR = 0x26,   /* Invalid Source-ID */
 
     VTD_FR_PASID_TABLE_INV = 0x58,  /*Invalid PASID table entry */
+    VTD_FR_PASID_ENTRY_P = 0x59, /* The Present(P) field of pasidt-entry is 0 */
 
     /* This is not a normal fault reason. We use this to indicate some faults
      * that are not referenced by the VT-d specification.
@@ -514,6 +515,19 @@ typedef struct VTDRootEntry VTDRootEntry;
 #define VTD_SM_CONTEXT_ENTRY_RID2PASID_MASK 0xfffff
 #define VTD_SM_CONTEXT_ENTRY_RSVD_VAL0(aw)  (0x1e0ULL | ~VTD_HAW_MASK(aw))
 #define VTD_SM_CONTEXT_ENTRY_RSVD_VAL1      0xffffffffffe00000ULL
+
+struct VTDPASIDCacheInfo {
+#define VTD_PASID_CACHE_GLOBAL   (1ULL << 0)
+#define VTD_PASID_CACHE_DOMSI    (1ULL << 1)
+#define VTD_PASID_CACHE_PASIDSI  (1ULL << 2)
+    uint32_t flags;
+    uint16_t domain_id;
+    uint32_t pasid;
+};
+#define VTD_PASID_CACHE_INFO_MASK    (VTD_PASID_CACHE_GLOBAL | \
+                                      VTD_PASID_CACHE_DOMSI  | \
+                                      VTD_PASID_CACHE_PASIDSI)
+typedef struct VTDPASIDCacheInfo VTDPASIDCacheInfo;
 
 /* PASID Table Related Definitions */
 #define VTD_PASID_DIR_BASE_ADDR_MASK  (~0xfffULL)
