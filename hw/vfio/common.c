@@ -1269,6 +1269,29 @@ static int vfio_host_icx_unbind_stage1_pgtbl(HostIOMMUContext *host_icx,
     return ret;
 }
 
+static int vfio_host_icx_flush_stage1_cache(HostIOMMUContext *host_icx,
+                                            DualIOMMUStage1Cache *cache)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_cache_invalidate *cache_inv;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(*cache_inv) + sizeof(cache->cache_info);
+    cache_inv = g_malloc0(argsz);
+    cache_inv->argsz = argsz;
+    cache_inv->flags = 0;
+    memcpy(&cache_inv->cache_info, &cache->cache_info,
+           sizeof(cache->cache_info));
+
+    if (ioctl(container->fd, VFIO_IOMMU_CACHE_INVALIDATE, cache_inv)) {
+        error_report("%s: iommu cache flush failed: %d", __func__, -errno);
+        ret = -errno;
+    }
+    g_free(cache_inv);
+    return ret;
+}
+
 /**
  * Get iommu info from host. Caller of this funcion should free
  * the memory pointed by the returned pointer stored in @info
@@ -1996,6 +2019,7 @@ static void vfio_host_iommu_context_class_init(ObjectClass *klass,
     hicxc->pasid_free = vfio_host_icx_pasid_free;
     hicxc->bind_stage1_pgtbl = vfio_host_icx_bind_stage1_pgtbl;
     hicxc->unbind_stage1_pgtbl = vfio_host_icx_unbind_stage1_pgtbl;
+    hicxc->flush_stage1_cache = vfio_host_icx_flush_stage1_cache;
 }
 
 static const TypeInfo vfio_host_iommu_context_info = {
