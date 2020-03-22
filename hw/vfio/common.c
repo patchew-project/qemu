@@ -1179,10 +1179,55 @@ static int vfio_get_iommu_type(VFIOContainer *container,
     return -EINVAL;
 }
 
+static int vfio_host_icx_pasid_alloc(HostIOMMUContext *host_icx,
+                                  uint32_t min, uint32_t max, uint32_t *pasid)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int ret;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flags = VFIO_IOMMU_PASID_ALLOC;
+    req.alloc_pasid.min = min;
+    req.alloc_pasid.max = max;
+
+    if (ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req)) {
+        ret = -errno;
+        error_report("%s: %d, alloc failed", __func__, ret);
+        return ret;
+    }
+    *pasid = req.alloc_pasid.result;
+    return 0;
+}
+
+static int vfio_host_icx_pasid_free(HostIOMMUContext *host_icx,
+                                    uint32_t pasid)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_pasid_request req;
+    unsigned long argsz;
+    int ret;
+
+    argsz = sizeof(req);
+    req.argsz = argsz;
+    req.flags = VFIO_IOMMU_PASID_FREE;
+    req.free_pasid = pasid;
+
+    if (ioctl(container->fd, VFIO_IOMMU_PASID_REQUEST, &req)) {
+        ret = -errno;
+        error_report("%s: %d, free failed", __func__, ret);
+        return ret;
+    }
+    return 0;
+}
+
 static int vfio_init_container(VFIOContainer *container, int group_fd,
                                Error **errp)
 {
     int iommu_type, ret;
+    uint64_t flags = 0;
 
     iommu_type = vfio_get_iommu_type(container, errp);
     if (iommu_type < 0) {
@@ -1208,6 +1253,18 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
         }
         error_setg_errno(errp, errno, "Failed to set iommu for container");
         return -errno;
+    }
+
+    if (iommu_type == VFIO_TYPE1_NESTING_IOMMU) {
+        /*
+         * TODO: config flags per host IOMMU nesting capability
+         * e.g. check if VFIO_TYPE1_NESTING_IOMMU supports PASID
+         * alloc/free
+         */
+        host_iommu_ctx_init(&container->host_icx,
+                            sizeof(container->host_icx),
+                            TYPE_VFIO_HOST_IOMMU_CONTEXT,
+                            flags);
     }
 
     container->iommu_type = iommu_type;
@@ -1456,6 +1513,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
         }
 
         trace_vfio_disconnect_container(container->fd);
+        host_iommu_ctx_destroy(&container->host_icx);
         close(container->fd);
         g_free(container);
 
@@ -1791,3 +1849,25 @@ int vfio_eeh_as_op(AddressSpace *as, uint32_t op)
     }
     return vfio_eeh_container_op(container, op);
 }
+
+static void vfio_host_iommu_context_class_init(ObjectClass *klass,
+                                                       void *data)
+{
+    HostIOMMUContextClass *hicxc = HOST_IOMMU_CONTEXT_CLASS(klass);
+
+    hicxc->pasid_alloc = vfio_host_icx_pasid_alloc;
+    hicxc->pasid_free = vfio_host_icx_pasid_free;
+}
+
+static const TypeInfo vfio_host_iommu_context_info = {
+    .parent = TYPE_HOST_IOMMU_CONTEXT,
+    .name = TYPE_VFIO_HOST_IOMMU_CONTEXT,
+    .class_init = vfio_host_iommu_context_class_init,
+};
+
+static void vfio_register_types(void)
+{
+    type_register_static(&vfio_host_iommu_context_info);
+}
+
+type_init(vfio_register_types)
