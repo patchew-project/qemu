@@ -1223,6 +1223,52 @@ static int vfio_host_icx_pasid_free(HostIOMMUContext *host_icx,
     return 0;
 }
 
+static int vfio_host_icx_bind_stage1_pgtbl(HostIOMMUContext *host_icx,
+                                           DualIOMMUStage1BindData *bind_data)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_bind *bind;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(*bind) + sizeof(bind_data->bind_data);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->flags = VFIO_IOMMU_BIND_GUEST_PGTBL;
+    memcpy(&bind->data, &bind_data->bind_data, sizeof(bind_data->bind_data));
+
+    if (ioctl(container->fd, VFIO_IOMMU_BIND, bind)) {
+        ret = -errno;
+        error_report("%s: pasid (%u) bind failed: %d",
+                      __func__, bind_data->pasid, ret);
+    }
+    g_free(bind);
+    return ret;
+}
+
+static int vfio_host_icx_unbind_stage1_pgtbl(HostIOMMUContext *host_icx,
+                                        DualIOMMUStage1BindData *bind_data)
+{
+    VFIOContainer *container = container_of(host_icx, VFIOContainer, host_icx);
+    struct vfio_iommu_type1_bind *bind;
+    unsigned long argsz;
+    int ret = 0;
+
+    argsz = sizeof(*bind) + sizeof(bind_data->bind_data);
+    bind = g_malloc0(argsz);
+    bind->argsz = argsz;
+    bind->flags = VFIO_IOMMU_UNBIND_GUEST_PGTBL;
+    memcpy(&bind->data, &bind_data->bind_data, sizeof(bind_data->bind_data));
+
+    if (ioctl(container->fd, VFIO_IOMMU_BIND, bind)) {
+        ret = -errno;
+        error_report("%s: pasid (%u) unbind failed: %d",
+                      __func__, bind_data->pasid, ret);
+    }
+    g_free(bind);
+    return ret;
+}
+
 /**
  * Get iommu info from host. Caller of this funcion should free
  * the memory pointed by the returned pointer stored in @info
@@ -1337,6 +1383,7 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
         struct vfio_iommu_type1_info_cap_nesting nesting = {
                                          .nesting_capabilities = 0x0,
                                          .stage1_formats = 0, };
+        uint32_t stage1_formats;
 
         ret = vfio_get_nesting_iommu_cap(container, &nesting);
         if (ret) {
@@ -1347,10 +1394,14 @@ static int vfio_init_container(VFIOContainer *container, int group_fd,
 
         flags |= (nesting.nesting_capabilities & VFIO_IOMMU_PASID_REQS) ?
                  HOST_IOMMU_PASID_REQUEST : 0;
+        flags |= HOST_IOMMU_NESTING;
+        stage1_formats = nesting.stage1_formats;
+
         host_iommu_ctx_init(&container->host_icx,
                             sizeof(container->host_icx),
                             TYPE_VFIO_HOST_IOMMU_CONTEXT,
-                            flags);
+                            flags,
+                            stage1_formats);
     }
 
     container->iommu_type = iommu_type;
@@ -1943,6 +1994,8 @@ static void vfio_host_iommu_context_class_init(ObjectClass *klass,
 
     hicxc->pasid_alloc = vfio_host_icx_pasid_alloc;
     hicxc->pasid_free = vfio_host_icx_pasid_free;
+    hicxc->bind_stage1_pgtbl = vfio_host_icx_bind_stage1_pgtbl;
+    hicxc->unbind_stage1_pgtbl = vfio_host_icx_unbind_stage1_pgtbl;
 }
 
 static const TypeInfo vfio_host_iommu_context_info = {

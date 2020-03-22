@@ -69,21 +69,67 @@ int host_iommu_ctx_pasid_free(HostIOMMUContext *host_icx, uint32_t pasid)
     return hicxc->pasid_free(host_icx, pasid);
 }
 
+int host_iommu_ctx_bind_stage1_pgtbl(HostIOMMUContext *host_icx,
+                                     DualIOMMUStage1BindData *data)
+{
+    HostIOMMUContextClass *hicxc;
+
+    if (!host_icx) {
+        return -EINVAL;
+    }
+
+    hicxc = HOST_IOMMU_CONTEXT_GET_CLASS(host_icx);
+    if (!hicxc) {
+        return -EINVAL;
+    }
+
+    if (!(host_icx->flags & HOST_IOMMU_NESTING) ||
+        !hicxc->bind_stage1_pgtbl) {
+        return -EINVAL;
+    }
+
+    return hicxc->bind_stage1_pgtbl(host_icx, data);
+}
+
+int host_iommu_ctx_unbind_stage1_pgtbl(HostIOMMUContext *host_icx,
+                                       DualIOMMUStage1BindData *data)
+{
+    HostIOMMUContextClass *hicxc;
+
+    if (!host_icx) {
+        return -EINVAL;
+    }
+
+    hicxc = HOST_IOMMU_CONTEXT_GET_CLASS(host_icx);
+    if (!hicxc) {
+        return -EINVAL;
+    }
+
+    if (!(host_icx->flags & HOST_IOMMU_NESTING) ||
+        !hicxc->unbind_stage1_pgtbl) {
+        return -EINVAL;
+    }
+
+    return hicxc->unbind_stage1_pgtbl(host_icx, data);
+}
+
 void host_iommu_ctx_init(void *_host_icx, size_t instance_size,
                          const char *mrtypename,
-                         uint64_t flags)
+                         uint64_t flags, uint32_t formats)
 {
     HostIOMMUContext *host_icx;
 
     object_initialize(_host_icx, instance_size, mrtypename);
     host_icx = HOST_IOMMU_CONTEXT(_host_icx);
     host_icx->flags = flags;
+    host_icx->stage1_formats = formats;
     host_icx->initialized = true;
 }
 
 void host_iommu_ctx_destroy(HostIOMMUContext *host_icx)
 {
     host_icx->flags = 0x0;
+    host_icx->stage1_formats = 0x0;
     host_icx->initialized = false;
 }
 
@@ -92,6 +138,7 @@ static void host_icx_init_fn(Object *obj)
     HostIOMMUContext *host_icx = HOST_IOMMU_CONTEXT(obj);
 
     host_icx->flags = 0x0;
+    host_icx->stage1_formats = 0x0;
     host_icx->initialized = false;
 }
 
