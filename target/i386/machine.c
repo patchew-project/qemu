@@ -1252,6 +1252,25 @@ static const VMStateDescription vmstate_msr_virt_ssbd = {
     }
 };
 
+static bool msr_test_ctrl_needed(void *opaque)
+{
+    X86CPU *cpu = opaque;
+    CPUX86State *env = &cpu->env;
+
+    return env->msr_test_ctrl != 0;
+}
+
+static const VMStateDescription vmstate_msr_test_ctrl = {
+    .name = "cpu/msr_test_ctrl",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = msr_test_ctrl_needed,
+    .fields = (VMStateField[]){
+        VMSTATE_UINT64(env.msr_test_ctrl, X86CPU),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static bool svm_npt_needed(void *opaque)
 {
     X86CPU *cpu = opaque;
@@ -1439,6 +1458,7 @@ VMStateDescription vmstate_x86_cpu = {
         &vmstate_mcg_ext_ctl,
         &vmstate_msr_intel_pt,
         &vmstate_msr_virt_ssbd,
+        &vmstate_msr_test_ctrl,
         &vmstate_svm_npt,
 #ifndef TARGET_X86_64
         &vmstate_efer32,
