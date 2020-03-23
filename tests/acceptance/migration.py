@@ -11,12 +11,44 @@
 
 
 import tempfile
+import json
 from avocado_qemu import Test
 from avocado import skipUnless
 
 from avocado.utils import network
 from avocado.utils import wait
 from avocado.utils.path import find_command
+from avocado.utils.network.interfaces import NetworkInterface
+from avocado.utils.network.hosts import LocalHost
+from avocado.utils import service
+from avocado.utils import process
+
+
+def _if_rdma_enable():
+    rdma_stat = service.ServiceManager()
+    return bool(rdma_stat.status('rdma'))
+
+def _get_interface_rdma():
+    cmd = 'rdma link show -j'
+    out = json.loads(process.getoutput(cmd))
+    try:
+        for i in out:
+            if i['state'] == 'ACTIVE':
+                return i['netdev']
+    except KeyError:
+        return False
+    return False
+
+def _get_ip_rdma(interface):
+    local = LocalHost()
+    network_in = NetworkInterface(interface, local)
+    try:
+        ip = network_in._get_interface_details()
+        if ip:
+            return ip[0]['addr_info'][0]['local']
+    except (KeyError, process.CmdError):
+        return False
+    return False
 
 
 class Migration(Test):
