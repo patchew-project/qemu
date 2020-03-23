@@ -35,6 +35,7 @@ typedef struct IOMMUDevice {
     void         *viommu;
     PCIBus       *bus;
     int           devfn;
+    uint64_t      page_size_mask;
     IOMMUMemoryRegion  iommu_mr;
     AddressSpace  as;
 } IOMMUDevice;
