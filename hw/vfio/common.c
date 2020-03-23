@@ -635,6 +635,9 @@ static void vfio_listener_region_add(MemoryListener *listener,
                             int128_get64(llend),
                             iommu_idx);
 
+        memory_region_iommu_set_page_size_mask(giommu->iommu,
+                                               container->pgsizes);
+
         ret = memory_region_register_iommu_notifier(section->mr, &giommu->n,
                                                     &err);
         if (ret) {
