@@ -199,6 +199,14 @@ void virtqueue_fill(VirtQueue *vq, const VirtQueueElement *elem,
                     unsigned int len, unsigned int idx);
 
 void virtqueue_map(VirtIODevice *vdev, VirtQueueElement *elem);
+/**
+ * virtqueue_pop:
+ * @vq: a VirtQueue queue
+ * @sz: the size of struct to return (must be >= VirtQueueElement)
+ *
+ * Returns: a VirtQueueElement filled from the queue or NULL.
+ * The returned element must be free()-d by the caller.
+ */
 void *virtqueue_pop(VirtQueue *vq, size_t sz);
 unsigned int virtqueue_drop_all(VirtQueue *vq);
 void *qemu_get_virtqueue_element(VirtIODevice *vdev, QEMUFile *f, size_t sz);
