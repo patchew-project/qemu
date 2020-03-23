@@ -4464,8 +4464,15 @@ int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
         ret = -1;
         break;
     case KVM_EXIT_EXCEPTION:
-        fprintf(stderr, "KVM: exception %d exit (error code 0x%x)\n",
-                run->ex.exception, run->ex.error_code);
+        if (run->ex.exception == AC_VECTOR) {
+            fprintf(stderr, "Guest encounters an #AC due to split lock. Because "
+                    "guest doesn't expect this split lock #AC (it doesn't set "
+                    "msr_test_ctrl.split_lock_detect) and host sets "
+                    "split_lock_detect=fatal, guest has to be killed.\n");
+        } else {
+            fprintf(stderr, "KVM: exception %d exit (error code 0x%x)\n",
+                    run->ex.exception, run->ex.error_code);
+        }
         ret = -1;
         break;
     case KVM_EXIT_DEBUG:
