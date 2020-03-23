@@ -349,7 +349,7 @@ typedef enum X86Seg {
 #define MSR_VIRT_SSBD                   0xc001011f
 #define MSR_IA32_PRED_CMD               0x49
 #define MSR_IA32_UCODE_REV              0x8b
-#define MSR_IA32_CORE_CAPABILITY        0xcf
+#define MSR_IA32_CORE_CAPABILITIES      0xcf
 
 #define MSR_IA32_ARCH_CAPABILITIES      0x10a
 #define ARCH_CAP_TSX_CTRL_MSR		(1<<7)
@@ -526,7 +526,7 @@ typedef enum FeatureWord {
     FEAT_XSAVE_COMP_LO, /* CPUID[EAX=0xd,ECX=0].EAX */
     FEAT_XSAVE_COMP_HI, /* CPUID[EAX=0xd,ECX=0].EDX */
     FEAT_ARCH_CAPABILITIES,
-    FEAT_CORE_CAPABILITY,
+    FEAT_CORE_CAPABILITIES,
     FEAT_VMX_PROCBASED_CTLS,
     FEAT_VMX_SECONDARY_CTLS,
     FEAT_VMX_PINBASED_CTLS,
@@ -777,7 +777,7 @@ typedef uint64_t FeatureWordArray[FEATURE_WORDS];
 /* Arch Capabilities */
 #define CPUID_7_0_EDX_ARCH_CAPABILITIES (1U << 29)
 /* Core Capability */
-#define CPUID_7_0_EDX_CORE_CAPABILITY   (1U << 30)
+#define CPUID_7_0_EDX_CORE_CAPABILITIES (1U << 30)
 /* Speculative Store Bypass Disable */
 #define CPUID_7_0_EDX_SPEC_CTRL_SSBD    (1U << 31)
 

@@ -1216,7 +1216,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             .index = MSR_IA32_ARCH_CAPABILITIES,
         },
     },
-    [FEAT_CORE_CAPABILITY] = {
+    [FEAT_CORE_CAPABILITIES] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
             NULL, NULL, NULL, NULL,
@@ -1229,7 +1229,7 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
             NULL, NULL, NULL, NULL,
         },
         .msr = {
-            .index = MSR_IA32_CORE_CAPABILITY,
+            .index = MSR_IA32_CORE_CAPABILITIES,
         },
     },
 
@@ -1406,8 +1406,8 @@ static FeatureDep feature_dependencies[] = {
         .to = { FEAT_ARCH_CAPABILITIES,     ~0ull },
     },
     {
-        .from = { FEAT_7_0_EDX,             CPUID_7_0_EDX_CORE_CAPABILITY },
-        .to = { FEAT_CORE_CAPABILITY,       ~0ull },
+        .from = { FEAT_7_0_EDX,             CPUID_7_0_EDX_CORE_CAPABILITIES },
+        .to = { FEAT_CORE_CAPABILITIES,     ~0ull },
     },
     {
         .from = { FEAT_1_ECX,               CPUID_EXT_VMX },
@@ -3709,8 +3709,8 @@ static X86CPUDefinition builtin_x86_defs[] = {
         .features[FEAT_7_0_EDX] =
             CPUID_7_0_EDX_SPEC_CTRL |
             CPUID_7_0_EDX_ARCH_CAPABILITIES | CPUID_7_0_EDX_SPEC_CTRL_SSBD |
-            CPUID_7_0_EDX_CORE_CAPABILITY,
-        .features[FEAT_CORE_CAPABILITY] =
+            CPUID_7_0_EDX_CORE_CAPABILITIES,
+        .features[FEAT_CORE_CAPABILITIES] =
             MSR_CORE_CAP_SPLIT_LOCK_DETECT,
         /*
          * Missing: XSAVES (not supported by some Linux versions,

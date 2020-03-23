@@ -2051,7 +2051,7 @@ static int kvm_get_supported_msrs(KVMState *s)
             case MSR_IA32_ARCH_CAPABILITIES:
                 has_msr_arch_capabs = true;
                 break;
-            case MSR_IA32_CORE_CAPABILITY:
+            case MSR_IA32_CORE_CAPABILITIES:
                 has_msr_core_capabs = true;
                 break;
             case MSR_IA32_VMX_VMFUNC:
@@ -2696,8 +2696,8 @@ static void kvm_init_msrs(X86CPU *cpu)
     }
 
     if (has_msr_core_capabs) {
-        kvm_msr_entry_add(cpu, MSR_IA32_CORE_CAPABILITY,
-                          env->features[FEAT_CORE_CAPABILITY]);
+        kvm_msr_entry_add(cpu, MSR_IA32_CORE_CAPABILITIES,
+                          env->features[FEAT_CORE_CAPABILITIES]);
     }
 
     if (has_msr_ucode_rev) {
