@@ -835,7 +835,7 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
                 fprintf(stderr, "inflight: %3d (+)\r", g->inflight);
             }
         } else {
-            g_free(cmd);
+            free(cmd);
         }
     }
 }
@@ -921,7 +921,7 @@ static void virtio_gpu_handle_cursor(VirtIODevice *vdev, VirtQueue *vq)
         }
         virtqueue_push(vq, elem, 0);
         virtio_notify(vdev, vq);
-        g_free(elem);
+        free(elem);
     }
 }
 
@@ -1157,14 +1157,14 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
     while (!QTAILQ_EMPTY(&g->cmdq)) {
         cmd = QTAILQ_FIRST(&g->cmdq);
         QTAILQ_REMOVE(&g->cmdq, cmd, next);
-        g_free(cmd);
+        free(cmd);
     }
 
     while (!QTAILQ_EMPTY(&g->fenceq)) {
         cmd = QTAILQ_FIRST(&g->fenceq);
         QTAILQ_REMOVE(&g->fenceq, cmd, next);
         g->inflight--;
-        g_free(cmd);
+        free(cmd);
     }
 
 #ifdef CONFIG_VIRGL
