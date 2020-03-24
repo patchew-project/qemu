@@ -123,6 +123,7 @@ typedef struct VFIODevice {
     VMChangeStateEntry *vm_state;
     uint32_t device_state;
     int vm_running;
+    Notifier migration_state;
 } VFIODevice;
 
 struct VFIODeviceOps {
