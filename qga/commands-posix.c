@@ -493,7 +493,13 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
         gfh->state = RW_STATE_NEW;
     }
 
-    buf = g_malloc0(count+1);
+    buf = g_try_malloc0(count + 1);
+    if (!buf) {
+        error_setg(errp,
+                   "failed to allocate sufficient memory "
+                   "to complete the requested service");
+        return NULL;
+    }
     read_count = fread(buf, 1, count, fh);
     if (ferror(fh)) {
         error_setg_errno(errp, errno, "failed to read file");
