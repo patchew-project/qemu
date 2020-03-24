@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: quick
 #
 # Test hot plugging and unplugging with iothreads
 #

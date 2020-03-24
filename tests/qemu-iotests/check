@@ -155,6 +155,14 @@ export VALGRIND_QEMU=
 export IMGKEYSECRET=
 export IMGOPTSSYNTAX=false
 
+all_tests() {
+    ls ??? | grep '^[0-9]\{3\}'
+}
+
+find_tests() {
+    all_tests | xargs grep -l "^# group: .*$1"
+}
+
 # Save current tty settings, since an aborting qemu call may leave things
 # screwed up
 STTY_RESTORE=
@@ -168,9 +176,7 @@ do
     if $group
     then
         # arg after -g
-        group_list=$(sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
-s/ .*//p
-}')
+        group_list=$(find_tests "$r")
         if [ -z "$group_list" ]
         then
             echo "Group \"$r\" is empty or not defined?"
@@ -193,10 +199,8 @@ s/ .*//p
     then
         # arg after -x
         # Populate $tmp.list with all tests
-        awk '/^[0-9]{3,}/ {print $1}' "${source_iotests}/group" > $tmp.list 2>/dev/null
-        group_list=$(sed -n <"$source_iotests/group" -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
-s/ .*//p
-}')
+        all_tests > $tmp.list 2>/dev/null
+        group_list=$(find_tests "$r")
         if [ -z "$group_list" ]
         then
             echo "Group \"$r\" is empty or not defined?"
@@ -504,7 +508,7 @@ testlist options
 BEGIN        { for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
         | while read id
         do
-            if grep -s "^$id\( \|\$\)" "$source_iotests/group" >/dev/null
+            if test -f "$id";
             then
                 # in group file ... OK
                 echo $id >>$tmp.list
@@ -566,7 +570,7 @@ else
         touch $tmp.list
     else
         # no test numbers, do everything from group file
-        sed -n -e '/^[0-9][0-9][0-9]*/s/^\([0-9]*\).*/\1/p' <"$source_iotests/group" >$tmp.list
+        all_tests > $tmp.list
     fi
 fi
 

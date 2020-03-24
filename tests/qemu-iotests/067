@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw quick
 #
 # Test automatic deletion of BDSes created by -drive/drive_add
 #
