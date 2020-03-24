@@ -355,6 +355,17 @@ typedef struct IOMMUMemoryRegionClass {
      * @iommu: the IOMMUMemoryRegion
      */
     int (*num_indexes)(IOMMUMemoryRegion *iommu);
+
+    /*
+     * Return address limit this IOMMU supports.
+     *
+     * Optional method: if this method is not provided, then
+     * memory_region_iommu_address_limit() will return the limit which input
+     * argument to this function.
+     *
+     * @iommu: the IOMMUMemoryRegion
+     */
+    hwaddr (*get_address_limit)(IOMMUMemoryRegion *iommu);
 } IOMMUMemoryRegionClass;
 
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
@@ -1363,6 +1374,14 @@ int memory_region_iommu_attrs_to_index(IOMMUMemoryRegion *iommu_mr,
  */
 int memory_region_iommu_num_indexes(IOMMUMemoryRegion *iommu_mr);
 
+/**
+ * memory_region_iommu_get_address_limit : return the maximum address limit
+ * that this IOMMU supports.
+ *
+ * @iommu_mr: the memory region
+ */
+hwaddr memory_region_iommu_get_address_limit(IOMMUMemoryRegion *iommu_mr,
+                                             hwaddr limit);
 /**
  * memory_region_name: get a memory region's name
  *
