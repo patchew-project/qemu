@@ -63,6 +63,7 @@ void rdma_protected_qlist_init(RdmaProtectedQList *list)
 void rdma_protected_qlist_destroy(RdmaProtectedQList *list)
 {
     if (list->list) {
+        qemu_mutex_lock(&list->lock);
         qlist_destroy_obj(QOBJECT(list->list));
         qemu_mutex_destroy(&list->lock);
         list->list = NULL;
