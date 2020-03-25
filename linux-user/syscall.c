@@ -109,7 +109,9 @@
 #include <linux/blkpg.h>
 #include <netpacket/packet.h>
 #include <linux/netlink.h>
+#if defined(CONFIG_AF_ALG)
 #include <linux/if_alg.h>
+#endif
 #include <linux/rtc.h>
 #include <sound/asound.h>
 #include "linux_loop.h"
