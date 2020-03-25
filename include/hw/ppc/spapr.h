@@ -929,4 +929,7 @@ void spapr_check_pagesize(SpaprMachineState *spapr, hwaddr pagesize,
 
 void spapr_set_all_lpcrs(target_ulong value, target_ulong mask);
 hwaddr spapr_get_rtas_addr(void);
+
+void spapr_mce_inject(CPUState *cs, uint64_t srr1_mask, uint32_t dsisr,
+                      uint64_t dar, bool recovered);
 #endif /* HW_SPAPR_H */
