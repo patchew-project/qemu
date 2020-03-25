@@ -106,39 +106,6 @@ static bool coroutine_fn block_copy_wait_one(BlockCopyState *s, int64_t offset,
     return true;
 }
 
-static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
-                                             int64_t offset, int64_t bytes)
-{
-    int64_t next_zero;
-    BlockCopyTask *task = g_new(BlockCopyTask, 1);
-
-    assert(bdrv_dirty_bitmap_get(s->copy_bitmap, offset));
-
-    bytes = MIN(bytes, s->copy_size);
-    next_zero = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset, bytes);
-    if (next_zero >= 0) {
-        assert(next_zero > offset); /* offset is dirty */
-        assert(next_zero < offset + bytes); /* no need to do MIN() */
-        bytes = next_zero - offset;
-    }
-
-    /* region is dirty, so no existent tasks possible in it */
-    assert(!find_conflicting_task(s, offset, bytes));
-
-    bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
-    s->in_flight_bytes += bytes;
-
-    *task = (BlockCopyTask) {
-        .s = s,
-        .offset = offset,
-        .bytes = bytes,
-    };
-    qemu_co_queue_init(&task->wait_queue);
-    QLIST_INSERT_HEAD(&s->tasks, task, list);
-
-    return task;
-}
-
 /*
  * block_copy_task_shrink
  *
@@ -359,6 +326,39 @@ out:
     qemu_vfree(bounce_buffer);
 
     return ret;
+}
+
+static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
+                                             int64_t offset, int64_t bytes)
+{
+    int64_t next_zero;
+    BlockCopyTask *task = g_new(BlockCopyTask, 1);
+
+    assert(bdrv_dirty_bitmap_get(s->copy_bitmap, offset));
+
+    bytes = MIN(bytes, s->copy_size);
+    next_zero = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset, bytes);
+    if (next_zero >= 0) {
+        assert(next_zero > offset); /* offset is dirty */
+        assert(next_zero < offset + bytes); /* no need to do MIN() */
+        bytes = next_zero - offset;
+    }
+
+    /* region is dirty, so no existent tasks possible in it */
+    assert(!find_conflicting_task(s, offset, bytes));
+
+    bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
+    s->in_flight_bytes += bytes;
+
+    *task = (BlockCopyTask) {
+        .s = s,
+        .offset = offset,
+        .bytes = bytes,
+    };
+    qemu_co_queue_init(&task->wait_queue);
+    QLIST_INSERT_HEAD(&s->tasks, task, list);
+
+    return task;
 }
 
 static int block_copy_block_status(BlockCopyState *s, int64_t offset,
