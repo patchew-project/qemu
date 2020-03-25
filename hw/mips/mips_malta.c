@@ -1183,18 +1183,27 @@ static void create_cpu_without_cps(MachineState *ms,
 }
 
 static void create_cps(MachineState *ms, MaltaState *s,
-                       qemu_irq *cbus_irq, qemu_irq *i8259_irq)
+                       qemu_irq *cbus_irq, qemu_irq *i8259_irq,
+                       Error **errp)
 {
     Error *err = NULL;
 
     sysbus_init_child_obj(OBJECT(s), "cps", OBJECT(&s->cps), sizeof(s->cps),
                           TYPE_MIPS_CPS);
     object_property_set_str(OBJECT(&s->cps), ms->cpu_type, "cpu-type", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_int(OBJECT(&s->cps), ms->smp.cpus, "num-vp", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_bool(OBJECT(&s->cps), true, "realized", &err);
-    if (err != NULL) {
-        error_report("%s", error_get_pretty(err));
-        exit(1);
+    if (err) {
+        error_propagate(errp, err);
+        return;
     }
 
     sysbus_mmio_map_overlap(SYS_BUS_DEVICE(&s->cps), 0, 0, 1);
@@ -1207,7 +1216,7 @@ static void mips_create_cpu(MachineState *ms, MaltaState *s,
                             qemu_irq *cbus_irq, qemu_irq *i8259_irq)
 {
     if ((ms->smp.cpus > 1) && cpu_supports_cps_smp(ms->cpu_type)) {
-        create_cps(ms, s, cbus_irq, i8259_irq);
+        create_cps(ms, s, cbus_irq, i8259_irq, &error_fatal);
     } else {
         create_cpu_without_cps(ms, cbus_irq, i8259_irq);
     }
