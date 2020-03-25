@@ -86,3 +86,64 @@ static void nmi_register_types(void)
 }
 
 type_init(nmi_register_types)
+
+struct do_mce_s {
+    const QDict *qdict;
+    Error *err;
+    bool handled;
+};
+
+static void mce_children(Object *o, struct do_mce_s *ns);
+
+static int do_mce(Object *o, void *opaque)
+{
+    struct do_mce_s *ms = opaque;
+    MCEState *m = (MCEState *) object_dynamic_cast(o, TYPE_MCE);
+
+    if (m) {
+        MCEClass *mc = MCE_GET_CLASS(m);
+
+        ms->handled = true;
+        mc->mce_monitor_handler(m, ms->qdict, &ms->err);
+        if (ms->err) {
+            return -1;
+        }
+    }
+    mce_children(o, ms);
+
+    return 0;
+}
+
+static void mce_children(Object *o, struct do_mce_s *ms)
+{
+    object_child_foreach(o, do_mce, ms);
+}
+
+void mce_monitor_handle(const QDict *qdict, Error **errp)
+{
+    struct do_mce_s ms = {
+        .qdict = qdict,
+        .err = NULL,
+        .handled = false
+    };
+
+    mce_children(object_get_root(), &ms);
+    if (ms.handled) {
+        error_propagate(errp, ms.err);
+    } else {
+        error_setg(errp, QERR_UNSUPPORTED);
+    }
+}
+
+static const TypeInfo mce_info = {
+    .name          = TYPE_MCE,
+    .parent        = TYPE_INTERFACE,
+    .class_size    = sizeof(MCEClass),
+};
+
+static void mce_register_types(void)
+{
+    type_register_static(&mce_info);
+}
+
+type_init(mce_register_types)

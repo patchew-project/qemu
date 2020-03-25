@@ -1581,11 +1581,29 @@ ERST
         .cmd        = hmp_mce,
     },
 
-#endif
 SRST
 ``mce`` *cpu* *bank* *status* *mcgstatus* *addr* *misc*
   Inject an MCE on the given CPU (x86 only).
 ERST
+
+#endif
+
+#if defined(TARGET_PPC)
+
+    {
+        .name       = "mce",
+        .args_type  = "cpu_index:i,srr1_mask:l,dsisr:i,dar:l,recovered:i",
+        .params     = "cpu srr1_mask dsisr dar recovered",
+        .help       = "inject a MCE on the given CPU",
+        .cmd        = hmp_mce,
+    },
+
+SRST
+``mce`` *cpu* *srr1_mask* *dsisr* *dar* *recovered*
+  Inject an MCE on the given CPU (PPC only).
+ERST
+
+#endif
 
     {
         .name       = "getfd",
