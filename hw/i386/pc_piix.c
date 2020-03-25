@@ -948,11 +948,26 @@ DEFINE_PC_MACHINE(isapc, "isapc", pc_init_isa,
 
 
 #ifdef CONFIG_XEN
+static void xenfv_qemu_4_x_machine_options(MachineClass *m)
+{
+    m->desc = "Xen Fully-virtualized PC (qemu 4.x compat)";
+    m->max_cpus = HVM_MAX_VCPUS;
+    m->default_machine_opts = "accel=xen";
+    m->smbus_no_migration_support = false;
+}
+
+DEFINE_PC_MACHINE(xenfv_qemu4, "xenfv-qemu4", pc_xen_hvm_init,
+                  xenfv_qemu_4_x_machine_options);
+
 static void xenfv_machine_options(MachineClass *m)
 {
+    PCMachineClass *pcmc = PC_MACHINE_CLASS(m);
+
     m->desc = "Xen Fully-virtualized PC";
     m->max_cpus = HVM_MAX_VCPUS;
     m->default_machine_opts = "accel=xen";
+    m->smbus_no_migration_support = true;
+    pcmc->pvh_enabled = false;
 }
 
 DEFINE_PC_MACHINE(xenfv, "xenfv", pc_xen_hvm_init,
