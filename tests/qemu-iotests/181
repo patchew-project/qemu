@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# group: rw auto migration
 #
 # Test postcopy live migration with shared storage
 #
