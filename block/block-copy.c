@@ -106,12 +106,23 @@ static bool coroutine_fn block_copy_wait_one(BlockCopyState *s, int64_t offset,
     return true;
 }
 
-/* Called only on full-dirty region */
 static BlockCopyTask *block_copy_task_create(BlockCopyState *s,
                                              int64_t offset, int64_t bytes)
 {
+    int64_t next_zero;
     BlockCopyTask *task = g_new(BlockCopyTask, 1);
 
+    assert(bdrv_dirty_bitmap_get(s->copy_bitmap, offset));
+
+    bytes = MIN(bytes, s->copy_size);
+    next_zero = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset, bytes);
+    if (next_zero >= 0) {
+        assert(next_zero > offset); /* offset is dirty */
+        assert(next_zero < offset + bytes); /* no need to do MIN() */
+        bytes = next_zero - offset;
+    }
+
+    /* region is dirty, so no existent tasks possible in it */
     assert(!find_conflicting_task(s, offset, bytes));
 
     bdrv_reset_dirty_bitmap(s->copy_bitmap, offset, bytes);
@@ -480,7 +491,7 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
 
     while (bytes) {
         g_autofree BlockCopyTask *task = NULL;
-        int64_t next_zero, cur_bytes, status_bytes;
+        int64_t status_bytes;
 
         if (!bdrv_dirty_bitmap_get(s->copy_bitmap, offset)) {
             trace_block_copy_skip(s, offset);
@@ -491,21 +502,13 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
 
         found_dirty = true;
 
-        cur_bytes = MIN(bytes, s->copy_size);
+        task = block_copy_task_create(s, offset, bytes);
 
-        next_zero = bdrv_dirty_bitmap_next_zero(s->copy_bitmap, offset,
-                                                cur_bytes);
-        if (next_zero >= 0) {
-            assert(next_zero > offset); /* offset is dirty */
-            assert(next_zero < offset + cur_bytes); /* no need to do MIN() */
-            cur_bytes = next_zero - offset;
-        }
-        task = block_copy_task_create(s, offset, cur_bytes);
-
-        ret = block_copy_block_status(s, offset, cur_bytes, &status_bytes);
+        ret = block_copy_block_status(s, offset, task->bytes, &status_bytes);
         assert(ret >= 0); /* never fail */
-        cur_bytes = MIN(cur_bytes, status_bytes);
-        block_copy_task_shrink(task, cur_bytes);
+        if (status_bytes < task->bytes) {
+            block_copy_task_shrink(task, status_bytes);
+        }
         if (s->skip_unallocated && !(ret & BDRV_BLOCK_ALLOCATED)) {
             block_copy_task_end(task, 0);
             progress_set_remaining(s->progress,
@@ -519,19 +522,19 @@ static int coroutine_fn block_copy_dirty_clusters(BlockCopyState *s,
 
         trace_block_copy_process(s, offset);
 
-        co_get_from_shres(s->mem, cur_bytes);
-        ret = block_copy_do_copy(s, offset, cur_bytes, ret & BDRV_BLOCK_ZERO,
+        co_get_from_shres(s->mem, task->bytes);
+        ret = block_copy_do_copy(s, offset, task->bytes, ret & BDRV_BLOCK_ZERO,
                                  error_is_read);
-        co_put_to_shres(s->mem, cur_bytes);
+        co_put_to_shres(s->mem, task->bytes);
         block_copy_task_end(task, ret);
         if (ret < 0) {
             return ret;
         }
 
-        progress_work_done(s->progress, cur_bytes);
-        s->progress_bytes_callback(cur_bytes, s->progress_opaque);
-        offset += cur_bytes;
-        bytes -= cur_bytes;
+        progress_work_done(s->progress, task->bytes);
+        s->progress_bytes_callback(task->bytes, s->progress_opaque);
+        offset += task->bytes;
+        bytes -= task->bytes;
     }
 
     return found_dirty;
