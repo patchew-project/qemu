@@ -125,6 +125,12 @@ static const char *colo_mode[] = {
     [SECONDARY_IN] = "secondary",
 };
 
+enum {
+    QUEUE_INSERT_ERR = -1,
+    QUEUE_INSERT_OK = 0,
+    QUEUE_INSERT_FULL = 1,
+};
+
 static int compare_chr_send(CompareState *s,
                             const uint8_t *buf,
                             uint32_t size,
@@ -211,8 +217,10 @@ static int colo_insert_packet(GQueue *queue, Packet *pkt, uint32_t *max_ack)
 }
 
 /*
- * Return 0 on success, if return -1 means the pkt
- * is unsupported(arp and ipv6) and will be sent later
+ * Return QUEUE_INSERT_OK on success.
+ * If return QUEUE_INSERT_FULL means list is full, and
+ * QUEUE_INSERT_ERR means the pkt is unsupported(arp and ipv6) and
+ * will be sent later
  */
 static int packet_enqueue(CompareState *s, int mode, Connection **con)
 {
@@ -234,7 +242,7 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
     if (parse_packet_early(pkt)) {
         packet_destroy(pkt, NULL);
         pkt = NULL;
-        return -1;
+        return QUEUE_INSERT_ERR;
     }
     fill_connection_key(pkt, &key);
 
@@ -258,11 +266,12 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
                      "drop packet", colo_mode[mode]);
         packet_destroy(pkt, NULL);
         pkt = NULL;
+        return QUEUE_INSERT_FULL;
     }
 
     *con = conn;
 
-    return 0;
+    return QUEUE_INSERT_OK;
 }
 
 static inline bool after(uint32_t seq1, uint32_t seq2)
@@ -995,17 +1004,22 @@ static void compare_pri_rs_finalize(SocketReadState *pri_rs)
 {
     CompareState *s = container_of(pri_rs, CompareState, pri_rs);
     Connection *conn = NULL;
+    int ret;
 
-    if (packet_enqueue(s, PRIMARY_IN, &conn)) {
+    ret = packet_enqueue(s, PRIMARY_IN, &conn);
+    if (ret == QUEUE_INSERT_OK) {
+        /* compare packet in the specified connection */
+        colo_compare_connection(conn, s);
+    } else if (ret == QUEUE_INSERT_FULL) {
+        g_queue_foreach(&s->conn_list, colo_flush_packets, s);
+        colo_compare_inconsistency_notify(s);
+    } else {
         trace_colo_compare_main("primary: unsupported packet in");
         compare_chr_send(s,
                          pri_rs->buf,
                          pri_rs->packet_len,
                          pri_rs->vnet_hdr_len,
                          false);
-    } else {
-        /* compare packet in the specified connection */
-        colo_compare_connection(conn, s);
     }
 }
 
@@ -1013,12 +1027,17 @@ static void compare_sec_rs_finalize(SocketReadState *sec_rs)
 {
     CompareState *s = container_of(sec_rs, CompareState, sec_rs);
     Connection *conn = NULL;
+    int ret;
 
-    if (packet_enqueue(s, SECONDARY_IN, &conn)) {
-        trace_colo_compare_main("secondary: unsupported packet in");
-    } else {
+    ret = packet_enqueue(s, SECONDARY_IN, &conn);
+    if (ret == QUEUE_INSERT_OK) {
         /* compare packet in the specified connection */
         colo_compare_connection(conn, s);
+    } else if (ret == QUEUE_INSERT_FULL) {
+        g_queue_foreach(&s->conn_list, colo_flush_packets, s);
+        colo_compare_inconsistency_notify(s);
+    } else {
+        trace_colo_compare_main("secondary: unsupported packet in");
     }
 }
 
