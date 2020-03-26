@@ -156,6 +156,7 @@ void spapr_phb_nvgpu_free(SpaprPhbState *sphb);
 void spapr_phb_nvgpu_populate_dt(SpaprPhbState *sphb, void *fdt, int bus_off,
                                  Error **errp);
 void spapr_phb_nvgpu_ram_populate_dt(SpaprPhbState *sphb, void *fdt);
+bool spapr_phb_is_nvlink_dev(PCIDevice *dev, SpaprPhbState *sphb);
 void spapr_phb_nvgpu_populate_pcidev_dt(PCIDevice *dev, void *fdt, int offset,
                                         SpaprPhbState *sphb);
 #else

@@ -449,6 +449,11 @@ static bool is_nvnpu(PCIDevice *dev, SpaprPhbState *sphb, int *slot, int *link)
     return false;
 }
 
+bool spapr_phb_is_nvlink_dev(PCIDevice *dev, SpaprPhbState *sphb)
+{
+    return is_nvgpu(dev, sphb, NULL) || is_nvnpu(dev, sphb, NULL, NULL);
+}
+
 void spapr_phb_nvgpu_populate_pcidev_dt(PCIDevice *dev, void *fdt, int offset,
                                         SpaprPhbState *sphb)
 {
