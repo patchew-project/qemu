@@ -2162,7 +2162,7 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
 
 static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
                                                   V9fsFidState *fidp,
-                                                  uint32_t max_count)
+                                                  uint32_t maxsize)
 {
     V9fsPath path;
     V9fsStat v9stat;
@@ -2199,7 +2199,7 @@ static int coroutine_fn v9fs_do_readdir_with_stat(V9fsPDU *pdu,
         if (err < 0) {
             break;
         }
-        if ((count + v9stat.size + 2) > max_count) {
+        if ((count + v9stat.size + 2) > maxsize) {
             v9fs_readdir_unlock(&fidp->fs.dir);
 
             /* Ran out of buffer. Set dir back to old position and return */
@@ -2332,7 +2332,7 @@ static size_t v9fs_readdir_data_size(V9fsString *name)
 }
 
 static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
-                                        int32_t max_count)
+                                        int32_t maxsize)
 {
     size_t size;
     V9fsQID qid;
@@ -2357,7 +2357,7 @@ static int coroutine_fn v9fs_do_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
         }
         v9fs_string_init(&name);
         v9fs_string_sprintf(&name, "%s", dent->d_name);
-        if ((count + v9fs_readdir_data_size(&name)) > max_count) {
+        if ((count + v9fs_readdir_data_size(&name)) > maxsize) {
             v9fs_readdir_unlock(&fidp->fs.dir);
 
             /* Ran out of buffer. Set dir back to old position and return */
@@ -2432,20 +2432,20 @@ static void coroutine_fn v9fs_readdir(void *opaque)
     size_t offset = 7;
     uint64_t initial_offset;
     int32_t count;
-    uint32_t max_count;
+    uint32_t maxsize;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
     retval = pdu_unmarshal(pdu, offset, "dqd", &fid,
-                           &initial_offset, &max_count);
+                           &initial_offset, &maxsize);
     if (retval < 0) {
         goto out_nofid;
     }
-    trace_v9fs_readdir(pdu->tag, pdu->id, fid, initial_offset, max_count);
+    trace_v9fs_readdir(pdu->tag, pdu->id, fid, initial_offset, maxsize);
 
     /* Enough space for a R_readdir header: size[4] Rreaddir tag[2] count[4] */
-    if (max_count > s->msize - 11) {
-        max_count = s->msize - 11;
+    if (maxsize > s->msize - 11) {
+        maxsize = s->msize - 11;
         warn_report_once(
             "9p: bad client: T_readdir with count > msize - 11"
         );
@@ -2465,7 +2465,7 @@ static void coroutine_fn v9fs_readdir(void *opaque)
     } else {
         v9fs_co_seekdir(pdu, fidp, initial_offset);
     }
-    count = v9fs_do_readdir(pdu, fidp, max_count);
+    count = v9fs_do_readdir(pdu, fidp, maxsize);
     if (count < 0) {
         retval = count;
         goto out;
