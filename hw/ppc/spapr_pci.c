@@ -1666,6 +1666,11 @@ static void spapr_pci_unplug_request(HotplugHandler *plug_handler,
             return;
         }
 
+        if (spapr_phb_is_nvlink_dev(pdev, phb)) {
+            error_setg(errp, "PCI: Cannot unplug NVLink2 devices");
+            return;
+        }
+
         /* ensure any other present functions are pending unplug */
         if (PCI_FUNC(pdev->devfn) == 0) {
             for (i = 1; i < 8; i++) {
