@@ -2062,10 +2062,10 @@ static void handle_query_thread_extra(GdbCmdContext *gdb_ctx, void *user_ctx)
         g_autofree char *cpu_name =
             object_get_canonical_path_component(OBJECT(cpu));
         g_string_printf(rs, "%s %s [%s]", cpu_model, cpu_name,
-                        cpu->halted ? "halted " : "running");
+                        cpu_halted(cpu) ? "halted " : "running");
     } else {
         g_string_printf(rs, "CPU#%d [%s]", cpu->cpu_index,
-                        cpu->halted ? "halted " : "running");
+                                   cpu_halted(cpu) ? "halted " : "running");
     }
     trace_gdbstub_op_extra_info(rs->str);
     memtohex(gdbserver_state.str_buf, (uint8_t *)rs->str, rs->len);
