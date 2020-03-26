@@ -283,6 +283,13 @@ BlockDriver *bdrv_find_format(const char *format_name);
 int bdrv_create(BlockDriver *drv, const char* filename,
                 QemuOpts *opts, Error **errp);
 int bdrv_create_file(const char *filename, QemuOpts *opts, Error **errp);
+
+int coroutine_fn bdrv_co_create_opts_simple(BlockDriver *drv,
+                                           const char *filename,
+                                           QemuOpts *opts,
+                                           Error **errp);
+extern QemuOptsList bdrv_create_opts_simple;
+
 BlockDriverState *bdrv_new(void);
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top,
                  Error **errp);
