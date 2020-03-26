@@ -390,13 +390,12 @@ void spapr_phb_nvgpu_ram_populate_dt(SpaprPhbState *sphb, void *fdt)
 
 }
 
-void spapr_phb_nvgpu_populate_pcidev_dt(PCIDevice *dev, void *fdt, int offset,
-                                        SpaprPhbState *sphb)
+static bool is_nvgpu(PCIDevice *dev, SpaprPhbState *sphb, int *slot)
 {
-    int i, j;
+    int i;
 
     if (!sphb->nvgpus) {
-        return;
+        return false;
     }
 
     for (i = 0; i < sphb->nvgpus->num; ++i) {
@@ -406,47 +405,91 @@ void spapr_phb_nvgpu_populate_pcidev_dt(PCIDevice *dev, void *fdt, int offset,
         if (!nvslot->gpdev) {
             continue;
         }
+
         if (dev == nvslot->gpdev) {
-            uint32_t npus[nvslot->linknum];
-
-            for (j = 0; j < nvslot->linknum; ++j) {
-                PCIDevice *npdev = nvslot->links[j].npdev;
-
-                npus[j] = cpu_to_be32(PHANDLE_PCIDEV(sphb, npdev));
+            if (slot) {
+                *slot = i;
             }
-            _FDT(fdt_setprop(fdt, offset, "ibm,npu", npus,
-                             j * sizeof(npus[0])));
-            _FDT((fdt_setprop_cell(fdt, offset, "phandle",
-                                   PHANDLE_PCIDEV(sphb, dev))));
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool is_nvnpu(PCIDevice *dev, SpaprPhbState *sphb, int *slot, int *link)
+{
+    int i, j;
+
+    if (!sphb->nvgpus) {
+        return false;
+    }
+
+    for (i = 0; i < sphb->nvgpus->num; ++i) {
+        SpaprPhbPciNvGpuSlot *nvslot = &sphb->nvgpus->slots[i];
+
+        /* Skip "slot" without attached GPU */
+        if (!nvslot->gpdev) {
             continue;
         }
 
         for (j = 0; j < nvslot->linknum; ++j) {
-            if (dev != nvslot->links[j].npdev) {
-                continue;
+            if (dev == nvslot->links[j].npdev) {
+                if (slot) {
+                    *slot = i;
+                }
+                if (link) {
+                    *link = j;
+                }
+                return true;
             }
-
-            _FDT((fdt_setprop_cell(fdt, offset, "phandle",
-                                   PHANDLE_PCIDEV(sphb, dev))));
-            _FDT(fdt_setprop_cell(fdt, offset, "ibm,gpu",
-                                  PHANDLE_PCIDEV(sphb, nvslot->gpdev)));
-            _FDT((fdt_setprop_cell(fdt, offset, "ibm,nvlink",
-                                   PHANDLE_NVLINK(sphb, i, j))));
-            /*
-             * If we ever want to emulate GPU RAM at the same location as on
-             * the host - here is the encoding GPA->TGT:
-             *
-             * gta  = ((sphb->nv2_gpa >> 42) & 0x1) << 42;
-             * gta |= ((sphb->nv2_gpa >> 45) & 0x3) << 43;
-             * gta |= ((sphb->nv2_gpa >> 49) & 0x3) << 45;
-             * gta |= sphb->nv2_gpa & ((1UL << 43) - 1);
-             */
-            _FDT(fdt_setprop_cell(fdt, offset, "memory-region",
-                                  PHANDLE_GPURAM(sphb, i)));
-            _FDT(fdt_setprop_u64(fdt, offset, "ibm,device-tgt-addr",
-                                 nvslot->tgt));
-            _FDT(fdt_setprop_cell(fdt, offset, "ibm,nvlink-speed",
-                                  nvslot->links[j].link_speed));
         }
+    }
+
+    return false;
+}
+
+void spapr_phb_nvgpu_populate_pcidev_dt(PCIDevice *dev, void *fdt, int offset,
+                                        SpaprPhbState *sphb)
+{
+    int slot, link;
+
+    if (is_nvgpu(dev, sphb, &slot)) {
+        SpaprPhbPciNvGpuSlot *nvslot = &sphb->nvgpus->slots[slot];
+        uint32_t npus[nvslot->linknum];
+
+        for (link = 0; link < nvslot->linknum; ++link) {
+            PCIDevice *npdev = nvslot->links[link].npdev;
+
+            npus[link] = cpu_to_be32(PHANDLE_PCIDEV(sphb, npdev));
+        }
+        _FDT(fdt_setprop(fdt, offset, "ibm,npu", npus,
+                         link * sizeof(npus[0])));
+        _FDT((fdt_setprop_cell(fdt, offset, "phandle",
+                               PHANDLE_PCIDEV(sphb, dev))));
+    } else if (is_nvnpu(dev, sphb, &slot, &link)) {
+        SpaprPhbPciNvGpuSlot *nvslot = &sphb->nvgpus->slots[slot];
+
+        _FDT((fdt_setprop_cell(fdt, offset, "phandle",
+                               PHANDLE_PCIDEV(sphb, dev))));
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,gpu",
+                              PHANDLE_PCIDEV(sphb, nvslot->gpdev)));
+        _FDT((fdt_setprop_cell(fdt, offset, "ibm,nvlink",
+                               PHANDLE_NVLINK(sphb, slot, link))));
+        /*
+         * If we ever want to emulate GPU RAM at the same location as
+         * on the host - here is the encoding GPA->TGT:
+         *
+         * gta  = ((sphb->nv2_gpa >> 42) & 0x1) << 42;
+         * gta |= ((sphb->nv2_gpa >> 45) & 0x3) << 43;
+         * gta |= ((sphb->nv2_gpa >> 49) & 0x3) << 45;
+         * gta |= sphb->nv2_gpa & ((1UL << 43) - 1);
+         */
+        _FDT(fdt_setprop_cell(fdt, offset, "memory-region",
+                              PHANDLE_GPURAM(sphb, slot)));
+        _FDT(fdt_setprop_u64(fdt, offset, "ibm,device-tgt-addr",
+                             nvslot->tgt));
+        _FDT(fdt_setprop_cell(fdt, offset, "ibm,nvlink-speed",
+                              nvslot->links[link].link_speed));
     }
 }
