@@ -11,7 +11,6 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/boards.h"
 #include "hw/s390x/storage-keys.h"
 #include "qapi/error.h"
 #include "qapi/qapi-commands-misc-target.h"
@@ -174,9 +173,8 @@ out:
 static void qemu_s390_skeys_init(Object *obj)
 {
     QEMUS390SKeysState *skeys = QEMU_S390_SKEYS(obj);
-    MachineState *machine = MACHINE(qdev_get_machine());
 
-    skeys->key_count = machine->maxram_size / TARGET_PAGE_SIZE;
+    skeys->key_count = ram_size / TARGET_PAGE_SIZE;
     skeys->keydata = g_malloc0(skeys->key_count);
 }
 

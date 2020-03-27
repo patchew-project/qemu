@@ -326,8 +326,7 @@ out:
 
 static void sclp_memory_init(SCLPDevice *sclp)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
-    ram_addr_t initial_mem = machine->ram_size;
+    uint64_t initial_mem = ram_size;
     int increment_size = 20;
 
     /* The storage increment size is a multiple of 1M and is a power of 2.
@@ -339,15 +338,17 @@ static void sclp_memory_init(SCLPDevice *sclp)
     }
     sclp->increment_size = increment_size;
 
-    /* The core memory area needs to be aligned with the increment size.
-     * In effect, this can cause the user-specified memory size to be rounded
-     * down to align with the nearest increment boundary. */
+    /*
+     * The core memory area needs to be aligned to the increment size. In
+     * case it's not aligned, bail out.
+     */
     initial_mem = initial_mem >> increment_size << increment_size;
-
-    machine->ram_size = initial_mem;
-    machine->maxram_size = initial_mem;
-    /* let's propagate the changed ram size into the global variable. */
-    ram_size = initial_mem;
+    if (initial_mem != ram_size) {
+        error_report("RAM size not aligned to storage increments."
+                     " Possible aligned RAM size: %" PRIu64 " MB",
+                     initial_mem / MiB);
+        exit(1);
+    }
 }
 
 static void sclp_init(Object *obj)
