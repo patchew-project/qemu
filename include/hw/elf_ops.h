@@ -170,8 +170,13 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
         }
         i++;
     }
-    syms = g_realloc(syms, nsyms * sizeof(*syms));
 
+    /* check we have symbols left */
+    if (nsyms == 0) {
+        goto fail;
+    }
+
+    syms = g_realloc(syms, nsyms * sizeof(*syms));
     qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
     for (i = 0; i < nsyms - 1; i++) {
         if (syms[i].st_size == 0) {
