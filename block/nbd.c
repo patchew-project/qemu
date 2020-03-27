@@ -1402,6 +1402,7 @@ static void nbd_client_close(BlockDriverState *bs)
 
     if (s->ioc) {
         nbd_send_request(s->ioc, &request);
+        qio_channel_shutdown(s->ioc, QIO_CHANNEL_SHUTDOWN_WRITE, NULL);
     }
 
     nbd_teardown_connection(bs);

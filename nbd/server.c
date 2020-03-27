@@ -1168,6 +1168,8 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                                    "Option 0x%" PRIx32
                                    " not permitted before TLS", option);
                 if (option == NBD_OPT_ABORT) {
+                    qio_channel_shutdown(client->ioc,
+                                         QIO_CHANNEL_SHUTDOWN_WRITE, NULL);
                     return 1;
                 }
                 break;
@@ -1187,6 +1189,8 @@ static int nbd_negotiate_options(NBDClient *client, Error **errp)
                  * disconnecting, but that we must also tolerate
                  * guests that don't wait for our reply. */
                 nbd_negotiate_send_rep(client, NBD_REP_ACK, NULL);
+                qio_channel_shutdown(client->ioc,
+                                     QIO_CHANNEL_SHUTDOWN_WRITE, NULL);
                 return 1;
 
             case NBD_OPT_EXPORT_NAME:

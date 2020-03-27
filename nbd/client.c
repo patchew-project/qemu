@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2016-2019 Red Hat, Inc.
+ *  Copyright (C) 2016-2020 Red Hat, Inc.
  *  Copyright (C) 2005  Anthony Liguori <anthony@codemonkey.ws>
  *
  *  Network Block Device Client Side
@@ -103,6 +103,7 @@ static void nbd_send_opt_abort(QIOChannel *ioc)
      * even care if the request makes it to the server, let alone
      * waiting around for whether the server replies. */
     nbd_send_option_request(ioc, NBD_OPT_ABORT, 0, NULL, NULL);
+    qio_channel_shutdown(ioc, QIO_CHANNEL_SHUTDOWN_WRITE, NULL);
 }
 
 
