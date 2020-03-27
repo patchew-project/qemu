@@ -594,9 +594,11 @@ void aio_context_unref(AioContext *ctx)
 void aio_context_acquire(AioContext *ctx)
 {
     qemu_rec_mutex_lock(&ctx->lock);
+    ctx->lock_count++;
 }
 
 void aio_context_release(AioContext *ctx)
 {
+    ctx->lock_count--;
     qemu_rec_mutex_unlock(&ctx->lock);
 }

@@ -125,6 +125,7 @@ struct AioContext {
 
     /* Used by AioContext users to protect from multi-threaded access.  */
     QemuRecMutex lock;
+    int lock_count;
 
     /* The list of registered AIO handlers.  Protected by ctx->list_lock. */
     AioHandlerList aio_handlers;

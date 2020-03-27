@@ -82,6 +82,8 @@ extern AioWait global_aio_wait;
     atomic_inc(&wait_->num_waiters);                               \
     if (ctx_ && in_aio_context_home_thread(ctx_)) {                \
         while ((cond)) {                                           \
+            printf("AIO_WAIT_WHILE %p %d\n", ctx, ctx_->lock_count);     \
+            assert(ctx_->lock_count == 1);                   \
             aio_poll(ctx_, true);                                  \
             waited_ = true;                                        \
         }                                                          \
