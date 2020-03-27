@@ -1181,8 +1181,14 @@ void hmp_migrate_pause(Monitor *mon, const QDict *qdict)
 /* Kept for backwards compatibility */
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict)
 {
+    Error *err = NULL;
+
     double value = qdict_get_double(qdict, "value");
-    qmp_migrate_set_downtime(value, NULL);
+    qmp_migrate_set_downtime(value, &err);
+
+    if (err) {
+        hmp_handle_error(mon, err);
+    }
 }
 
 void hmp_migrate_set_cache_size(Monitor *mon, const QDict *qdict)
