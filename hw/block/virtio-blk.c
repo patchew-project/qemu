@@ -1204,8 +1204,7 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
     virtio_blk_data_plane_create(vdev, conf, &s->dataplane, &err);
     if (err != NULL) {
         error_propagate(errp, err);
-        virtio_cleanup(vdev);
-        return;
+        goto fail;
     }
 
     s->change = qemu_add_vm_change_state_handler(virtio_blk_dma_restart_cb, s);
@@ -1218,6 +1217,11 @@ static void virtio_blk_device_realize(DeviceState *dev, Error **errp)
                          conf->conf.lcyls,
                          conf->conf.lheads,
                          conf->conf.lsecs);
+fail:
+    for (i = 0; i < conf->num_queues; i++) {
+        virtio_del_queue(vdev, i);
+    }
+    virtio_cleanup(vdev);
 }
 
 static void virtio_blk_device_unrealize(DeviceState *dev, Error **errp)
