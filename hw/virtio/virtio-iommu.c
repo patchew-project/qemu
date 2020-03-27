@@ -696,7 +696,10 @@ static void virtio_iommu_device_unrealize(DeviceState *dev, Error **errp)
     g_tree_destroy(s->domains);
     g_tree_destroy(s->endpoints);
 
+    virtio_delete_queue(s->req_vq);
+    virtio_delete_queue(s->event_vq);
     virtio_cleanup(vdev);
+    g_hash_table_destroy(s->as_by_busptr);
 }
 
 static void virtio_iommu_device_reset(VirtIODevice *vdev)
