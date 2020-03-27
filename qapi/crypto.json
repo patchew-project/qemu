@@ -120,6 +120,21 @@
   'data': ['plain', 'plain64', 'essiv']}
 
 ##
+# @QCryptoShutdownMode:
+#
+# The supported modes for requesting shutdown of a crypto
+# communication channel.
+#
+# @shut-wr: No more writes will be sent, but the remote end can still send
+#           data to be read.
+# @shut-rdwr: No more reads or writes should occur.
+# Since: 5.1
+##
+{ 'enum': 'QCryptoShutdownMode',
+  'prefix': 'QCRYPTO',
+  'data': ['shut-wr', 'shut-rdwr']}
+
+##
 # @QCryptoBlockFormat:
 #
 # The supported full disk encryption formats

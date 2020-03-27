@@ -521,6 +521,33 @@ qcrypto_tls_session_get_handshake_status(QCryptoTLSSession *session)
 }
 
 
+int qcrypto_tls_session_shutdown(QCryptoTLSSession *session,
+                                 QCryptoShutdownMode how)
+{
+    gnutls_close_request_t mode;
+    int ret;
+
+    assert(session->handshakeComplete);
+    switch (how) {
+    case QCRYPTO_SHUT_WR:
+        mode = GNUTLS_SHUT_WR;
+        break;
+    case QCRYPTO_SHUT_RDWR:
+        mode = GNUTLS_SHUT_RDWR;
+        break;
+    default:
+        abort();
+    }
+
+    ret = gnutls_bye(session->handle, mode);
+    if (ret == GNUTLS_E_INTERRUPTED ||
+        ret == GNUTLS_E_AGAIN) {
+        return -EAGAIN;
+    }
+    return 0;
+}
+
+
 int
 qcrypto_tls_session_get_key_size(QCryptoTLSSession *session,
                                  Error **errp)

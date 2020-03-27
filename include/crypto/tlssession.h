@@ -321,4 +321,28 @@ int qcrypto_tls_session_get_key_size(QCryptoTLSSession *sess,
  */
 char *qcrypto_tls_session_get_peer_name(QCryptoTLSSession *sess);
 
+/**
+ * qcrypto_tls_shutdown:
+ * @sess: the TLS session object
+ * @how: the desired shutdown mode
+ *
+ * Prepare to terminate the session.  If @how is QCRYPTO_SHUT_WR, this
+ * side will no longer write data, but should still process reads
+ * until EOF; if @how is QCRYPTO_SHUT_RDWR, then the entire session
+ * should shut down.  Use of this function is optional, since closing
+ * the session implies QCRYPTO_SHUT_RDWR.  However, using this
+ * function prior to terminating the underlying transport layer makes
+ * it possible for the remote endpoint to distinguish between a
+ * malicious party prematurely terminating the the connection and
+ * normal termination.
+ *
+ * This function should only be used after a successful
+ * qcrypto_tls_session_handshake().
+ *
+ * Returns: 0 for success, or -EAGAIN if more underlying I/O is
+ * required to finish proper session shutdown.
+ */
+int qcrypto_tls_session_shutdown(QCryptoTLSSession *sess,
+                                 QCryptoShutdownMode how);
+
 #endif /* QCRYPTO_TLSSESSION_H */
