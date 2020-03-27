@@ -3834,9 +3834,14 @@ void normalizeFloatx80Subnormal(uint64_t aSig, int32_t *zExpPtr,
 {
     int8_t shiftCount;
 
-    shiftCount = clz64(aSig);
-    *zSigPtr = aSig<<shiftCount;
-    *zExpPtr = 1 - shiftCount;
+    if (aSig) {
+        shiftCount = clz64(aSig);
+        *zSigPtr = aSig << shiftCount;
+        *zExpPtr = 1 - shiftCount;
+    } else {
+        *zSigPtr = 0;
+        *zExpPtr = 1 - 64;
+    }
 }
 
 /*----------------------------------------------------------------------------
