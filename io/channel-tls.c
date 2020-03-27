@@ -360,10 +360,35 @@ static int qio_channel_tls_shutdown(QIOChannel *ioc,
                                     Error **errp)
 {
     QIOChannelTLS *tioc = QIO_CHANNEL_TLS(ioc);
+    int ret = 0;
 
     tioc->shutdown |= how;
 
-    return qio_channel_shutdown(tioc->master, how, errp);
+    do {
+        switch (how) {
+        case QIO_CHANNEL_SHUTDOWN_READ:
+            /* No TLS counterpart */
+            break;
+        case QIO_CHANNEL_SHUTDOWN_WRITE:
+            ret = qcrypto_tls_session_shutdown(tioc->session, QCRYPTO_SHUT_WR);
+            break;
+        case QIO_CHANNEL_SHUTDOWN_BOTH:
+            ret = qcrypto_tls_session_shutdown(tioc->session,
+                                               QCRYPTO_SHUT_RDWR);
+            break;
+        default:
+            abort();
+        }
+    } while (ret == -EAGAIN);
+    if (ret < 0) {
+        error_setg_errno(errp, -ret, "Cannot shut down TLS channel");
+        return -1;
+    }
+
+    if (qio_channel_has_feature(tioc->master, QIO_CHANNEL_FEATURE_SHUTDOWN)) {
+        return qio_channel_shutdown(tioc->master, how, errp);
+    }
+    return 0;
 }
 
 static int qio_channel_tls_close(QIOChannel *ioc,
