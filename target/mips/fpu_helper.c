@@ -1357,7 +1357,7 @@ FLOAT_MINMAX(mina_d, 64, minnummag)
     }                                                                \
 }
 
-/* FMA based operations */
+/* FMA based operations (both unfused and fused) */
 #define FLOAT_FMA(name, type)                                        \
 uint64_t helper_float_ ## name ## _d(CPUMIPSState *env,              \
                                      uint64_t fdt0, uint64_t fdt1,   \
@@ -1392,32 +1392,51 @@ uint64_t helper_float_ ## name ## _ps(CPUMIPSState *env,             \
     UNFUSED_FMA(float32, fsth0, fsth1, fsth2, type);                 \
     update_fcr31(env, GETPC());                                      \
     return ((uint64_t)fsth0 << 32) | fst0;                           \
+}                                                                    \
+uint64_t helper_float_ ## name ## f_d(CPUMIPSState *env,             \
+                                     uint64_t fdt0, uint64_t fdt1,   \
+                                     uint64_t fdt2)                  \
+{                                                                    \
+    fdt0 = float64_muladd(fdt0, fdt1, fdt2, type,                    \
+                            &env->active_fpu.fp_status);             \
+    update_fcr31(env, GETPC());                                      \
+    return fdt0;                                                     \
+}                                                                    \
+                                                                     \
+uint32_t helper_float_ ## name ## f_s(CPUMIPSState *env,             \
+                                     uint32_t fst0, uint32_t fst1,   \
+                                     uint32_t fst2)                  \
+{                                                                    \
+    fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
+                            &env->active_fpu.fp_status);             \
+    update_fcr31(env, GETPC());                                      \
+    return fst0;                                                     \
+}                                                                    \
+                                                                     \
+uint64_t helper_float_ ## name ## f_ps(CPUMIPSState *env,            \
+                                      uint64_t fdt0, uint64_t fdt1,  \
+                                      uint64_t fdt2)                 \
+{                                                                    \
+    uint32_t fst0 = fdt0 & 0XFFFFFFFF;                               \
+    uint32_t fsth0 = fdt0 >> 32;                                     \
+    uint32_t fst1 = fdt1 & 0XFFFFFFFF;                               \
+    uint32_t fsth1 = fdt1 >> 32;                                     \
+    uint32_t fst2 = fdt2 & 0XFFFFFFFF;                               \
+    uint32_t fsth2 = fdt2 >> 32;                                     \
+                                                                     \
+    fst0 = float32_muladd(fst0, fst1, fst2, type,                    \
+                            &env->active_fpu.fp_status);             \
+    fsth0 = float32_muladd(fsth0, fsth1, fsth2, type,                \
+                            &env->active_fpu.fp_status);             \
+    update_fcr31(env, GETPC());                                      \
+    return ((uint64_t)fsth0 << 32) | fst0;                           \
 }
+
 FLOAT_FMA(madd, 0)
 FLOAT_FMA(msub, float_muladd_negate_c)
 FLOAT_FMA(nmadd, float_muladd_negate_result)
 FLOAT_FMA(nmsub, float_muladd_negate_result | float_muladd_negate_c)
 #undef FLOAT_FMA
-
-#define FLOAT_FMADDSUB(name, bits, muladd_arg)                          \
-uint ## bits ## _t helper_float_ ## name(CPUMIPSState *env,             \
-                                         uint ## bits ## _t fs,         \
-                                         uint ## bits ## _t ft,         \
-                                         uint ## bits ## _t fd)         \
-{                                                                       \
-    uint ## bits ## _t fdret;                                           \
-                                                                        \
-    fdret = float ## bits ## _muladd(fs, ft, fd, muladd_arg,            \
-                                     &env->active_fpu.fp_status);       \
-    update_fcr31(env, GETPC());                                         \
-    return fdret;                                                       \
-}
-
-FLOAT_FMADDSUB(maddf_s, 32, 0)
-FLOAT_FMADDSUB(maddf_d, 64, 0)
-FLOAT_FMADDSUB(msubf_s, 32, float_muladd_negate_product)
-FLOAT_FMADDSUB(msubf_d, 64, float_muladd_negate_product)
-#undef FLOAT_FMADDSUB
 
 /* compare operations */
 #define FOP_COND_D(op, cond)                                   \

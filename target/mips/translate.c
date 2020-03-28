@@ -2547,6 +2547,7 @@ typedef struct DisasContext {
     bool mrp;
     bool nan2008;
     bool abs2008;
+    bool mac2008;
     bool saar;
     bool mi;
     int gi;
@@ -12776,7 +12777,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
             gen_load_fpr32(ctx, fp2, fr);
-            gen_helper_float_madd_s(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_madd_s(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_maddf_s(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
             gen_store_fpr32(ctx, fp2, fd);
@@ -12794,7 +12799,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_madd_d(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_madd_d(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_maddf_d(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12811,7 +12820,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_madd_ps(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_madd_ps(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_maddf_ps(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12828,7 +12841,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
             gen_load_fpr32(ctx, fp2, fr);
-            gen_helper_float_msub_s(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_msub_s(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_msubf_s(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
             gen_store_fpr32(ctx, fp2, fd);
@@ -12846,7 +12863,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_msub_d(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_msub_d(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_msubf_d(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12863,7 +12884,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_msub_ps(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_msub_ps(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_msubf_ps(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12880,7 +12905,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
             gen_load_fpr32(ctx, fp2, fr);
-            gen_helper_float_nmadd_s(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_nmadd_s(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_nmaddf_s(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
             gen_store_fpr32(ctx, fp2, fd);
@@ -12898,7 +12927,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_nmadd_d(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_nmadd_d(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_nmaddf_d(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12915,7 +12948,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_nmadd_ps(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_nmadd_ps(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_nmaddf_ps(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12932,7 +12969,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr32(ctx, fp0, fs);
             gen_load_fpr32(ctx, fp1, ft);
             gen_load_fpr32(ctx, fp2, fr);
-            gen_helper_float_nmsub_s(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_nmsub_s(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_nmsubf_s(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i32(fp0);
             tcg_temp_free_i32(fp1);
             gen_store_fpr32(ctx, fp2, fd);
@@ -12950,7 +12991,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_nmsub_d(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_nmsub_d(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_nmsubf_d(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -12967,7 +13012,11 @@ static void gen_flt3_arith(DisasContext *ctx, uint32_t opc,
             gen_load_fpr64(ctx, fp0, fs);
             gen_load_fpr64(ctx, fp1, ft);
             gen_load_fpr64(ctx, fp2, fr);
-            gen_helper_float_nmsub_ps(fp2, cpu_env, fp0, fp1, fp2);
+            if (ctx->mac2008) {
+                gen_helper_float_nmsub_ps(fp2, cpu_env, fp0, fp1, fp2);
+            } else {
+                gen_helper_float_nmsubf_ps(fp2, cpu_env, fp0, fp1, fp2);
+            }
             tcg_temp_free_i64(fp0);
             tcg_temp_free_i64(fp1);
             gen_store_fpr64(ctx, fp2, fd);
@@ -30807,6 +30856,7 @@ static void mips_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->mrp = (env->CP0_Config5 >> CP0C5_MRP) & 1;
     ctx->nan2008 = (env->active_fpu.fcr31 >> FCR31_NAN2008) & 1;
     ctx->abs2008 = (env->active_fpu.fcr31 >> FCR31_ABS2008) & 1;
+    ctx->mac2008 = (env->active_fpu.fcr31 >> FCR31_MAC2008) & 1;
     ctx->mi = (env->CP0_Config5 >> CP0C5_MI) & 1;
     ctx->gi = (env->CP0_Config5 >> CP0C5_GI) & 3;
     restore_cpu_state(env, ctx);

@@ -63,6 +63,7 @@ struct CPUMIPSFPUContext {
     uint32_t fcr31_rw_bitmask;
     uint32_t fcr31;
 #define FCR31_FS 24
+#define FCR31_MAC2008 20
 #define FCR31_ABS2008 19
 #define FCR31_NAN2008 18
 #define SET_FP_COND(num, env)     do { ((env).fcr31) |=                 \
