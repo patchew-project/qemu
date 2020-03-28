@@ -31,6 +31,8 @@
 typedef struct QCryptoSecret QCryptoSecret;
 typedef struct QCryptoSecretClass QCryptoSecretClass;
 
+typedef int32_t key_serial_t;
+
 /**
  * QCryptoSecret:
  *
@@ -125,6 +127,7 @@ struct QCryptoSecret {
     QCryptoSecretFormat format;
     char *data;
     char *file;
+    key_serial_t syskey;
     char *keyid;
     char *iv;
 };

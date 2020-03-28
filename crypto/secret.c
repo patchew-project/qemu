@@ -19,6 +19,8 @@
  */
 
 #include "qemu/osdep.h"
+#include <asm/unistd.h>
+#include <linux/keyctl.h>
 #include "crypto/secret.h"
 #include "crypto/cipher.h"
 #include "qapi/error.h"
@@ -27,6 +29,40 @@
 #include "qemu/module.h"
 #include "trace.h"
 
+
+static inline
+long keyctl_read(key_serial_t key, uint8_t *buffer, size_t buflen)
+{
+#ifdef __NR_keyctl
+    return syscall(__NR_keyctl, KEYCTL_READ, key, buffer, buflen, 0);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
+}
+
+static
+long keyctl_read_alloc(key_serial_t key, uint8_t **buffer)
+{
+    uint8_t *loc_buf;
+    long retcode = keyctl_read(key, NULL, 0);
+    if (retcode < 0) {
+        return retcode;
+    }
+    loc_buf = g_malloc(retcode + 1);
+    retcode = keyctl_read(key, loc_buf, retcode + 1);
+   /*
+    * We don't have key operations locks between syscalls.
+    * For example, the key could have been removed or expired.
+    */
+    if (retcode >= 0) {
+        loc_buf[retcode] = '\0';
+        *buffer = loc_buf;
+    } else {
+        g_free(loc_buf);
+    }
+    return retcode;
+}
 
 static void
 qcrypto_secret_load_data(QCryptoSecret *secret,
@@ -41,10 +77,28 @@ qcrypto_secret_load_data(QCryptoSecret *secret,
     *output = NULL;
     *outputlen = 0;
 
-    if (secret->file) {
+    if (secret->syskey) {
+        uint8_t *buffer = NULL;
+        long retcode;
+        if (secret->data || secret->file) {
+            error_setg(errp,
+                       "'syskey', 'file' and 'data' are mutually exclusive");
+            return;
+        }
+        retcode = keyctl_read_alloc(secret->syskey, &buffer);
+        if (retcode < 0) {
+            error_setg_errno(errp, errno,
+                       "Unable to read serial key %08x",
+                       secret->syskey);
+            return;
+        } else {
+            *outputlen = retcode;
+            *output = buffer;
+        }
+    } else if (secret->file) {
         if (secret->data) {
             error_setg(errp,
-                       "'file' and 'data' are mutually exclusive");
+                       "'syskey', 'file' and 'data' are mutually exclusive");
             return;
         }
         if (!g_file_get_contents(secret->file, &data, &length, &gerr)) {
@@ -60,7 +114,8 @@ qcrypto_secret_load_data(QCryptoSecret *secret,
         *outputlen = strlen(secret->data);
         *output = (uint8_t *)g_strdup(secret->data);
     } else {
-        error_setg(errp, "Either 'file' or 'data' must be provided");
+        error_setg(errp,
+                   "Either 'syskey' or 'file' or 'data' must be provided");
     }
 }
 
@@ -299,6 +354,29 @@ qcrypto_secret_prop_get_file(Object *obj,
 
 
 static void
+qcrypto_secret_prop_set_syskey(Object *obj, Visitor *v,
+                               const char *name, void *opaque,
+                               Error **errp)
+{
+    QCryptoSecret *secret = QCRYPTO_SECRET(obj);
+    int32_t value;
+    visit_type_int32(v, name, &value, errp);
+    secret->syskey = value;
+}
+
+
+static void
+qcrypto_secret_prop_get_syskey(Object *obj, Visitor *v,
+                               const char *name, void *opaque,
+                               Error **errp)
+{
+    QCryptoSecret *secret = QCRYPTO_SECRET(obj);
+    int32_t value = secret->syskey;
+    visit_type_int32(v, name, &value, errp);
+}
+
+
+static void
 qcrypto_secret_prop_set_iv(Object *obj,
                            const char *value,
                            Error **errp)
@@ -384,6 +462,10 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
                                   qcrypto_secret_prop_get_file,
                                   qcrypto_secret_prop_set_file,
                                   NULL);
+    object_class_property_add(oc, "syskey", "key_serial_t",
+                                  qcrypto_secret_prop_get_syskey,
+                                  qcrypto_secret_prop_set_syskey,
+                                  NULL, NULL, NULL);
     object_class_property_add_str(oc, "keyid",
                                   qcrypto_secret_prop_get_keyid,
                                   qcrypto_secret_prop_set_keyid,
