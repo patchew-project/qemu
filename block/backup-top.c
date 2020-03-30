@@ -42,7 +42,7 @@ typedef struct BDRVBackupTopState {
 } BDRVBackupTopState;
 
 static coroutine_fn int backup_top_co_preadv(
-        BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+        BlockDriverState *bs, int64_t offset, int64_t bytes,
         QEMUIOVector *qiov, int flags)
 {
     return bdrv_co_preadv(bs->backing, offset, bytes, qiov, flags);
@@ -87,8 +87,7 @@ static int coroutine_fn backup_top_co_pwrite_zeroes(BlockDriverState *bs,
 }
 
 static coroutine_fn int backup_top_co_pwritev(BlockDriverState *bs,
-                                              uint64_t offset,
-                                              uint64_t bytes,
+                                              int64_t offset, int64_t bytes,
                                               QEMUIOVector *qiov, int flags)
 {
     int ret = backup_top_cbw(bs, offset, bytes, flags);
