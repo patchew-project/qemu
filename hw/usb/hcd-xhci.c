@@ -2739,6 +2739,9 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
     case 0x00: /* HCIVERSION, CAPLENGTH */
         ret = 0x01000000 | LEN_CAP;
         break;
+    case 0x02: /* HCIVERSION */
+        ret = 0x0100;
+        break;
     case 0x04: /* HCSPARAMS 1 */
         ret = ((xhci->numports_2+xhci->numports_3)<<24)
             | (xhci->numintrs<<8) | xhci->numslots;
