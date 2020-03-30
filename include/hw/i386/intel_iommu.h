@@ -65,6 +65,8 @@ typedef union VTD_IR_MSIAddress VTD_IR_MSIAddress;
 typedef struct VTDPASIDDirEntry VTDPASIDDirEntry;
 typedef struct VTDPASIDEntry VTDPASIDEntry;
 typedef struct VTDHostIOMMUContext VTDHostIOMMUContext;
+typedef struct VTDPASIDCacheEntry VTDPASIDCacheEntry;
+typedef struct VTDPASIDAddressSpace VTDPASIDAddressSpace;
 
 /* Context-Entry */
 struct VTDContextEntry {
@@ -95,6 +97,26 @@ struct VTDPASIDDirEntry {
 /* PASID Table Entry */
 struct VTDPASIDEntry {
     uint64_t val[8];
+};
+
+struct pasid_key {
+    uint32_t pasid;
+    uint16_t sid;
+};
+
+struct VTDPASIDCacheEntry {
+    struct VTDPASIDEntry pasid_entry;
+};
+
+struct VTDPASIDAddressSpace {
+    VTDBus *vtd_bus;
+    uint8_t devfn;
+    AddressSpace as;
+    uint32_t pasid;
+    IntelIOMMUState *iommu_state;
+    VTDContextCacheEntry context_cache_entry;
+    QLIST_ENTRY(VTDPASIDAddressSpace) next;
+    VTDPASIDCacheEntry pasid_cache_entry;
 };
 
 struct VTDAddressSpace {
@@ -267,6 +289,7 @@ struct IntelIOMMUState {
 
     GHashTable *vtd_as_by_busptr;   /* VTDBus objects indexed by PCIBus* reference */
     VTDBus *vtd_as_by_bus_num[VTD_PCI_BUS_MAX]; /* VTDBus objects indexed by bus number */
+    GHashTable *vtd_pasid_as;       /* VTDPASIDAddressSpace instances */
     /* list of registered notifiers */
     QLIST_HEAD(, VTDAddressSpace) vtd_as_with_notifiers;
 
@@ -292,6 +315,7 @@ struct IntelIOMMUState {
      * - per-IOMMU IOTLB caches
      * - context entry cache in VTDAddressSpace
      * - HostIOMMUContext pointer cached in vIOMMU
+     * - PASID cache in VTDPASIDAddressSpace
      */
     QemuMutex iommu_lock;
 };
