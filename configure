@@ -3,6 +3,19 @@
 # qemu configure script (c) 2003 Fabrice Bellard
 #
 
+BUILDDIR=$(pwd)
+SRCDIR=$(dirname "$0")
+
+ABS_BUILDDIR=$(realpath $BUILDDIR)
+ABS_SRCDIR=$(realpath $SRCDIR)
+
+in_srcdir=no
+if [ "$ABS_SRCDIR" == "$ABS_BUILDDIR" ]
+then
+    in_srcdir=yes
+fi
+
+
 # Unset some variables known to interfere with behavior of common tools,
 # just as autoconf does.
 CLICOLOR_FORCE= GREP_OPTIONS=
@@ -6797,6 +6810,23 @@ if test "$supported_os" = "no"; then
     echo "configure has succeeded and you can continue to build, but"
     echo "if you care about QEMU on this platform you should contact"
     echo "us upstream at qemu-devel@nongnu.org."
+fi
+
+if test "$in_srcdir" = "yes"; then
+    echo
+    echo "WARNING: SUPPORT FOR IN SOURCE DIR BUILDS IS DEPRECATED"
+    echo
+    echo "Support for running the 'configure' script directly from the"
+    echo "source directory is deprecated and will go away in a future"
+    echo "release. In source dir builds are not covered by automated"
+    echo "testing and are liable to break without warning. Users are"
+    echo "strongly recommended to switch to a separate build directory:"
+    echo
+    echo "  $ mkdir build"
+    echo "  $ cd build"
+    echo "  $ ../configure"
+    echo "  $ make"
+    echo
 fi
 
 config_host_mak="config-host.mak"
