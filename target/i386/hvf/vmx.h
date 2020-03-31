@@ -121,6 +121,7 @@ static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
     uint64_t pdpte[4] = {0, 0, 0, 0};
     uint64_t efer = rvmcs(vcpu, VMCS_GUEST_IA32_EFER);
     uint64_t old_cr0 = rvmcs(vcpu, VMCS_GUEST_CR0);
+    uint64_t changed_cr0 = old_cr0 ^ cr0;
     uint64_t mask = CR0_PG_MASK | CR0_CD_MASK | CR0_NW_MASK |
                     CR0_NE_MASK | CR0_ET_MASK;
 
@@ -139,11 +140,12 @@ static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
     wvmcs(vcpu, VMCS_CR0_SHADOW, cr0);
 
     if (efer & MSR_EFER_LME) {
-        if (!(old_cr0 & CR0_PG_MASK) && (cr0 & CR0_PG_MASK)) {
-            enter_long_mode(vcpu, cr0, efer);
-        }
-        if (!(cr0 & CR0_PG_MASK)) {
-            exit_long_mode(vcpu, cr0, efer);
+        if (changed_cr0 & CR0_PG_MASK) {
+            if (cr0 & CR0_PG_MASK) {
+                enter_long_mode(vcpu, cr0, efer);
+            } else {
+                exit_long_mode(vcpu, cr0, efer);
+            }
         }
     }
 
