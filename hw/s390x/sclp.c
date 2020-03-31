@@ -21,6 +21,7 @@
 #include "hw/s390x/sclp.h"
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 #include "hw/s390x/ipl.h"
 
 static inline SCLPDevice *get_sclp_device(void)
@@ -312,7 +313,7 @@ static void sclp_realize(DeviceState *dev, Error **errp)
      */
     qdev_set_parent_bus(DEVICE(sclp->event_facility), sysbus_get_default());
 
-    ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
+    ret = s390_set_memory_limit(machine->ram_size, &hw_limit);
     if (ret == -E2BIG) {
         error_setg(&err, "host supports a maximum of %" PRIu64 " GB",
                    hw_limit / GiB);
@@ -331,23 +332,15 @@ static void sclp_memory_init(SCLPDevice *sclp)
     int increment_size = 20;
 
     /* The storage increment size is a multiple of 1M and is a power of 2.
-     * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer.
+     * The number of storage increments must be MAX_STORAGE_INCREMENTS or fewer
+     * for some machine types.
      * The variable 'increment_size' is an exponent of 2 that can be
      * used to calculate the size (in bytes) of an increment. */
-    while ((initial_mem >> increment_size) > MAX_STORAGE_INCREMENTS) {
+    while (mem_inc_1020() &&
+           (initial_mem >> increment_size) > MAX_STORAGE_INCREMENTS) {
         increment_size++;
     }
     sclp->increment_size = increment_size;
-
-    /* The core memory area needs to be aligned with the increment size.
-     * In effect, this can cause the user-specified memory size to be rounded
-     * down to align with the nearest increment boundary. */
-    initial_mem = initial_mem >> increment_size << increment_size;
-
-    machine->ram_size = initial_mem;
-    machine->maxram_size = initial_mem;
-    /* let's propagate the changed ram size into the global variable. */
-    ram_size = initial_mem;
 }
 
 static void sclp_init(Object *obj)

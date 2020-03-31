@@ -439,6 +439,16 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     s390_cpu_restart(S390_CPU(cs));
 }
 
+static ram_addr_t s390_align_ram(ram_addr_t sz)
+{
+    /* same logic as in sclp.c */
+    int increment_size = 20;
+    while ((sz >> increment_size) > 1020) {
+        increment_size++;
+    }
+    return sz >> increment_size << increment_size;
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -450,6 +460,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->cpu_model_allowed = true;
     s390mc->css_migration_enabled = true;
     s390mc->hpage_1m_allowed = true;
+    s390mc->mem_inc_1020 = false;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -544,6 +555,11 @@ bool cpu_model_allowed(void)
 bool hpage_1m_allowed(void)
 {
     return get_machine_class()->hpage_1m_allowed;
+}
+
+bool mem_inc_1020(void)
+{
+    return get_machine_class()->mem_inc_1020;
 }
 
 static char *machine_get_loadparm(Object *obj, Error **errp)
@@ -667,7 +683,11 @@ static void ccw_machine_4_2_instance_options(MachineState *machine)
 
 static void ccw_machine_4_2_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
     ccw_machine_5_0_class_options(mc);
+    mc->machine_align_ram = s390_align_ram;
+    s390mc->mem_inc_1020 = true;
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
 DEFINE_CCW_MACHINE(4_2, "4.2", false);

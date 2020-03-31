@@ -2601,6 +2601,9 @@ static bool set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
     }
 
     sz = QEMU_ALIGN_UP(sz, 8192);
+    if (mc->machine_align_ram) {
+        sz = mc->machine_align_ram(sz);
+    }
     ram_size = sz;
     if (ram_size != sz) {
         error_report("ram size too large");
