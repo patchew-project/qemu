@@ -199,11 +199,16 @@ CPUArchState *cpu_copy(CPUArchState *env)
     CPUArchState *new_env = new_cpu->env_ptr;
     CPUBreakpoint *bp;
     CPUWatchpoint *wp;
+    int size = sizeof(uint64_t) * TARGET_GDT_ENTRIES;
 
     /* Reset non arch specific state */
     cpu_reset(new_cpu);
 
     memcpy(new_env, env, sizeof(CPUArchState));
+
+    new_env->gdt.base = target_mmap(0, size, PROT_READ | PROT_WRITE,
+                                     MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+    memcpy(g2h(new_env->gdt.base), g2h(env->gdt.base), size);
 
     /* Clone all break/watchpoints.
        Note: Once we support ptrace with hw-debug register access, make sure
