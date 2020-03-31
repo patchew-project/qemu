@@ -439,6 +439,17 @@ static void s390_nmi(NMIState *n, int cpu_index, Error **errp)
     s390_cpu_restart(S390_CPU(cs));
 }
 
+#define MAX_STORAGE_INCREMENTS                  1020
+static ram_addr_t s390_align_ram(ram_addr_t sz)
+{
+    /* same logic as in sclp.c */
+    int increment_size = 20;
+    while ((sz >> increment_size) > MAX_STORAGE_INCREMENTS) {
+        increment_size++;
+    }
+    return sz >> increment_size << increment_size;
+}
+
 static void ccw_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -668,6 +679,7 @@ static void ccw_machine_4_2_instance_options(MachineState *machine)
 static void ccw_machine_4_2_class_options(MachineClass *mc)
 {
     ccw_machine_5_0_class_options(mc);
+    mc->machine_align_ram = s390_align_ram;
     compat_props_add(mc->compat_props, hw_compat_4_2, hw_compat_4_2_len);
 }
 DEFINE_CCW_MACHINE(4_2, "4.2", false);
