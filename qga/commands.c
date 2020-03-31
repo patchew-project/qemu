@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "guest-agent-core.h"
 #include "qga-qapi-commands.h"
 #include "qapi/error.h"
@@ -18,11 +19,14 @@
 #include "qemu/base64.h"
 #include "qemu/cutils.h"
 #include "qemu/atomic.h"
+#include "commands-common.h"
 
 /* Maximum captured guest-exec out_data/err_data - 16MB */
 #define GUEST_EXEC_MAX_OUTPUT (16*1024*1024)
 /* Allocation and I/O buffer for reading guest-exec out_data/err_data - 4KB */
 #define GUEST_EXEC_IO_SIZE (4*1024)
+/* Maximum file size to read - 10MB */
+#define GUEST_FILE_READ_COUNT_MAX (10 * MiB)
 
 /* Note: in some situations, like with the fsfreeze, logging may be
  * temporarilly disabled. if it is necessary that a command be able
@@ -559,7 +563,7 @@ GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
     }
     if (!has_count) {
         count = QGA_READ_COUNT_DEFAULT;
-    } else if (count < 0 || count >= UINT32_MAX) {
+    } else if (count < 0 || count > GUEST_FILE_READ_COUNT_MAX) {
         error_setg(errp, "value '%" PRId64 "' is invalid for argument count",
                    count);
         return NULL;
