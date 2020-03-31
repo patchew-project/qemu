@@ -157,12 +157,19 @@ static inline void macvm_set_cr0(hv_vcpuid_t vcpu, uint64_t cr0)
     hv_vcpu_flush(vcpu);
 }
 
-static inline void macvm_set_cr4(hv_vcpuid_t vcpu, uint64_t cr4)
+static inline void macvm_set_cr4(CPUX86State *env, hv_vcpuid_t vcpu,
+                                 uint64_t cr4)
 {
     uint64_t guest_cr4 = cr4 | CR4_VMXE_MASK;
 
     wvmcs(vcpu, VMCS_GUEST_CR4, guest_cr4);
     wvmcs(vcpu, VMCS_CR4_SHADOW, cr4);
+
+    /*
+     * Track whether OSXSAVE is enabled so we can properly return it
+     * for CPUID 1.
+     */
+    env->osxsave_enabled = ((cr4 & CR4_OSXSAVE_MASK) != 0);
 
     hv_vcpu_invalidate_tlb(vcpu);
     hv_vcpu_flush(vcpu);

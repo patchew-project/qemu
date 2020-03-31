@@ -1591,6 +1591,7 @@ typedef struct CPUX86State {
     struct kvm_nested_state *nested_state;
 #endif
 #if defined(CONFIG_HVF)
+    bool osxsave_enabled;
     HVFX86EmulatorState *hvf_emul;
 #endif
 

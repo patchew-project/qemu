@@ -65,6 +65,7 @@
 
 #include <Hypervisor/hv.h>
 #include <Hypervisor/hv_vmx.h>
+#include <mach/mach.h>
 
 #include "exec/address-spaces.h"
 #include "hw/i386/apic_internal.h"
@@ -458,7 +459,7 @@ void hvf_reset_vcpu(CPUState *cpu) {
     macvm_set_cr0(cpu->hvf_fd, CR0_CD_MASK | CR0_NW_MASK | CR0_ET_MASK);
     macvm_set_cr0(cpu->hvf_fd, 0x60000010);
 
-    wvmcs(cpu->hvf_fd, VMCS_CR4_MASK, CR4_VMXE_MASK);
+    wvmcs(cpu->hvf_fd, VMCS_CR4_MASK, CR4_VMXE_MASK | CR4_OSXSAVE_MASK);
     wvmcs(cpu->hvf_fd, VMCS_CR4_SHADOW, 0x0);
     wvmcs(cpu->hvf_fd, VMCS_GUEST_CR4, CR4_VMXE_MASK);
 
@@ -539,6 +540,55 @@ void hvf_vcpu_destroy(CPUState *cpu)
 
 static void dummy_signal(int sig)
 {
+}
+
+static bool enable_avx512_thread_state(void)
+{
+    x86_avx512_state_t state;
+    uint32_t ebx;
+    kern_return_t ret;
+    unsigned int count;
+
+    /*
+     * macOS lazily enables AVX512 support.  Enable it explicitly if the
+     * processor supports it.
+     */
+
+    host_cpuid(7, 0, NULL, &ebx, NULL, NULL);
+    if ((ebx & CPUID_7_0_EBX_AVX512F) == 0) {
+        return false;
+    }
+
+    memset(&state, 0, sizeof(x86_avx512_state_t));
+
+    /* Get AVX state */
+    count = x86_AVX_STATE_COUNT;
+    ret = thread_get_state(mach_thread_self(),
+                           x86_AVX_STATE,
+                           (thread_state_t) &state,
+                           &count);
+    if (ret != KERN_SUCCESS) {
+        return false;
+    }
+    if (count != x86_AVX_STATE_COUNT) {
+        return false;
+    }
+    if (state.ash.flavor != x86_AVX_STATE64) {
+        return false;
+    }
+    state.ash.flavor = x86_AVX512_STATE64;
+    state.ash.count = x86_AVX512_STATE64_COUNT;
+
+    /* Now set as AVX512 */
+    ret = thread_set_state(mach_thread_self(),
+                           state.ash.flavor,
+                           (thread_state_t) &state.ufs.as64,
+                           state.ash.count);
+    if (ret != KERN_SUCCESS) {
+        return false;
+    }
+
+    return true;
 }
 
 int hvf_init_vcpu(CPUState *cpu)
@@ -826,6 +876,18 @@ int hvf_vcpu_exec(CPUState *cpu)
 
             cpu_x86_cpuid(env, rax, rcx, &rax, &rbx, &rcx, &rdx);
 
+            if (rax == 1) {
+                /*
+                 * cpu_x86_cpuid tries to handle OSXSAVE but refers to
+                 * env->cr[4] for the guest copy of CR4.  This isn't
+                 * updated regularly so we track it ourselves in
+                 * env->osxsave_enabled.
+                 */
+                if ((rcx & CPUID_EXT_XSAVE) && env->osxsave_enabled) {
+                    rcx |= CPUID_EXT_OSXSAVE;
+                }
+            }
+
             wreg(cpu->hvf_fd, HV_X86_RAX, rax);
             wreg(cpu->hvf_fd, HV_X86_RBX, rbx);
             wreg(cpu->hvf_fd, HV_X86_RCX, rcx);
@@ -889,7 +951,7 @@ int hvf_vcpu_exec(CPUState *cpu)
                 break;
             }
             case 4: {
-                macvm_set_cr4(cpu->hvf_fd, RRX(env, reg));
+                macvm_set_cr4(env, cpu->hvf_fd, RRX(env, reg));
                 break;
             }
             case 8: {
@@ -965,6 +1027,8 @@ static int hvf_accel_init(MachineState *ms)
     int x;
     hv_return_t ret;
     HVFState *s;
+
+    enable_avx512_thread_state();
 
     ret = hv_vm_create(HV_VM_DEFAULT);
     assert_hvf_ok(ret);

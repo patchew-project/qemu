@@ -100,7 +100,7 @@ void hvf_put_segments(CPUState *cpu_state)
     vmx_update_tpr(cpu_state);
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_IA32_EFER, env->efer);
 
-    macvm_set_cr4(cpu_state->hvf_fd, env->cr[4]);
+    macvm_set_cr4(env, cpu_state->hvf_fd, env->cr[4]);
     macvm_set_cr0(cpu_state->hvf_fd, env->cr[0]);
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_CS], false);
