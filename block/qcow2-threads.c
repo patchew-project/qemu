@@ -28,6 +28,11 @@
 #define ZLIB_CONST
 #include <zlib.h>
 
+#ifdef CONFIG_ZSTD
+#include <zstd.h>
+#include <zstd_errors.h>
+#endif
+
 #include "qcow2.h"
 #include "block/thread-pool.h"
 #include "crypto.h"
@@ -166,6 +171,115 @@ static ssize_t qcow2_zlib_decompress(void *dest, size_t dest_size,
     return ret;
 }
 
+#ifdef CONFIG_ZSTD
+
+/*
+ * qcow2_zstd_compress()
+ *
+ * Compress @src_size bytes of data using zstd compression method
+ *
+ * @dest - destination buffer, @dest_size bytes
+ * @src - source buffer, @src_size bytes
+ *
+ * Returns: compressed size on success
+ *          -ENOMEM destination buffer is not enough to store compressed data
+ *          -EIO    on any other error
+ */
+static ssize_t qcow2_zstd_compress(void *dest, size_t dest_size,
+                                   const void *src, size_t src_size)
+{
+    size_t ret;
+    ZSTD_outBuffer output = { dest, dest_size, 0 };
+    ZSTD_inBuffer input = { src, src_size, 0 };
+    ZSTD_CCtx *cctx;
+
+    /* make sure we can safely return compressed buffer size with ssize_t */
+    assert(dest_size <= SSIZE_MAX);
+
+    cctx = ZSTD_createCCtx();
+    if (!cctx) {
+        return -EIO;
+    }
+    /*
+     * ZSTD spec: "You must continue calling ZSTD_compressStream2()
+     * with ZSTD_e_end until it returns 0, at which point you are
+     * free to start a new frame".
+     * In the loop, we try to compress all the data into one zstd frame.
+     * ZSTD_compressStream2 potentially can finish a frame earlier
+     * than the full input data is consumed. That's why we are looping
+     * until all the input data is consumed.
+     */
+    do {
+        /*
+         * We want to use zstd streamed interface on decompression,
+         * as we won't know the exact size of the compressed data.
+         */
+        ret = ZSTD_compressStream2(cctx, &output, &input, ZSTD_e_end);
+        if (ZSTD_isError(ret)) {
+            ret = -EIO;
+            goto out;
+        }
+        /* Dest buffer isn't big enough to store compressed content */
+        if (output.pos + ret > output.size) {
+            ret = -ENOMEM;
+            goto out;
+        }
+    } while (ret || input.pos < input.size);
+
+    ret = output.pos;
+
+out:
+    ZSTD_freeCCtx(cctx);
+    return ret;
+}
+
+/*
+ * qcow2_zstd_decompress()
+ *
+ * Decompress some data (not more than @src_size bytes) to produce exactly
+ * @dest_size bytes using zstd compression method
+ *
+ * @dest - destination buffer, @dest_size bytes
+ * @src - source buffer, @src_size bytes
+ *
+ * Returns: 0 on success
+ *          -EIO on any error
+ */
+static ssize_t qcow2_zstd_decompress(void *dest, size_t dest_size,
+                                     const void *src, size_t src_size)
+{
+    size_t ret = 0;
+    ZSTD_outBuffer output = { dest, dest_size, 0 };
+    ZSTD_inBuffer input = { src, src_size, 0 };
+    ZSTD_DCtx *dctx = ZSTD_createDCtx();
+
+    if (!dctx) {
+        return -EIO;
+    }
+
+    /*
+     * The compressed stream from input buffer may consist from more
+     * than one zstd frames. So we iterate until we get a fully
+     * uncompressed cluster.
+     */
+    while (output.pos < output.size) {
+        ret = ZSTD_decompressStream(dctx, &output, &input);
+        /*
+         * if we don't fully populate the output but have read
+         * all the frames from the input, we end up with error
+         * here
+         */
+        if (ZSTD_isError(ret)) {
+            ret = -EIO;
+            break;
+        }
+    }
+
+    ZSTD_freeDCtx(dctx);
+    return 0;
+}
+#endif
+
 static int qcow2_compress_pool_func(void *opaque)
 {
     Qcow2CompressData *data = opaque;
@@ -217,6 +331,11 @@ qcow2_co_compress(BlockDriverState *bs, void *dest, size_t dest_size,
         fn = qcow2_zlib_compress;
         break;
 
+#ifdef CONFIG_ZSTD
+    case QCOW2_COMPRESSION_TYPE_ZSTD:
+        fn = qcow2_zstd_compress;
+        break;
+#endif
     default:
         abort();
     }
@@ -249,6 +368,11 @@ qcow2_co_decompress(BlockDriverState *bs, void *dest, size_t dest_size,
         fn = qcow2_zlib_decompress;
         break;
 
+#ifdef CONFIG_ZSTD
+    case QCOW2_COMPRESSION_TYPE_ZSTD:
+        fn = qcow2_zstd_decompress;
+        break;
+#endif
     default:
         abort();
     }
