@@ -285,6 +285,16 @@ then
   error_exit "main directory cannot contain spaces nor colons"
 fi
 
+canon_build_path=$(realpath -- "$PWD")
+canon_source_path=$(realpath -- "$source_path")
+
+in_srcdir=no
+if [ "$canon_build_path" = "$canon_source_path" ]
+then
+    in_srcdir=yes
+fi
+
+
 # default parameters
 cpu=""
 iasl="iasl"
@@ -6749,6 +6759,23 @@ if test "$supported_os" = "no"; then
     echo "configure has succeeded and you can continue to build, but"
     echo "if you care about QEMU on this platform you should contact"
     echo "us upstream at qemu-devel@nongnu.org."
+fi
+
+if test "$in_srcdir" = "yes"; then
+    echo
+    echo "WARNING: SUPPORT FOR IN SOURCE DIR BUILDS IS DEPRECATED"
+    echo
+    echo "Support for running the 'configure' script directly from the"
+    echo "source directory is deprecated and will go away in a future"
+    echo "release. In source dir builds are not covered by automated"
+    echo "testing and are liable to break without warning. Users are"
+    echo "strongly recommended to switch to a separate build directory:"
+    echo
+    echo "  $ mkdir build"
+    echo "  $ cd build"
+    echo "  $ ../configure"
+    echo "  $ make"
+    echo
 fi
 
 config_host_mak="config-host.mak"
