@@ -1924,8 +1924,9 @@ retry:
         if (status == BLK_DATA && !copy_range) {
             ret = convert_co_read(s, sector_num, n, buf);
             if (ret < 0) {
-                error_report("error while reading sector %" PRId64
-                             ": %s", sector_num, strerror(-ret));
+                error_report("error while reading at byte %" PRId64
+                             ": %s", sector_num * BDRV_SECTOR_SIZE,
+                             strerror(-ret));
                 s->ret = ret;
             }
         } else if (!s->min_sparse && status == BLK_ZERO) {
@@ -1953,8 +1954,9 @@ retry:
                 ret = convert_co_write(s, sector_num, n, buf, status);
             }
             if (ret < 0) {
-                error_report("error while writing sector %" PRId64
-                             ": %s", sector_num, strerror(-ret));
+                error_report("error while writing at byte %" PRId64
+                             ": %s", sector_num * BDRV_SECTOR_SIZE,
+                             strerror(-ret));
                 s->ret = ret;
             }
         }
