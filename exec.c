@@ -1736,6 +1736,42 @@ static int64_t get_file_size(int fd)
     return size;
 }
 
+static int64_t get_file_align(int fd)
+{
+    int64_t align = -1;
+#if defined(__linux__)
+    struct stat st;
+
+    if (fstat(fd, &st) < 0) {
+        return -errno;
+    }
+
+    /* Special handling for devdax character devices */
+    if (S_ISCHR(st.st_mode)) {
+        g_autofree char *subsystem_path = NULL;
+        g_autofree char *subsystem = NULL;
+
+        subsystem_path = g_strdup_printf("/sys/dev/char/%d:%d/subsystem",
+                                         major(st.st_rdev), minor(st.st_rdev));
+        subsystem = g_file_read_link(subsystem_path, NULL);
+
+        if (subsystem && g_str_has_suffix(subsystem, "/dax")) {
+            g_autofree char *align_path = NULL;
+            g_autofree char *align_str = NULL;
+
+            align_path = g_strdup_printf("/sys/dev/char/%d:%d/device/align",
+                                    major(st.st_rdev), minor(st.st_rdev));
+
+            if (g_file_get_contents(align_path, &align_str, NULL, NULL)) {
+                return g_ascii_strtoll(align_str, NULL, 0);
+            }
+        }
+    }
+#endif /* defined(__linux__) */
+
+    return align;
+}
+
 static int file_ram_open(const char *path,
                          const char *region_name,
                          bool *created,
@@ -2275,7 +2311,7 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
 {
     RAMBlock *new_block;
     Error *local_err = NULL;
-    int64_t file_size;
+    int64_t file_size, file_align;
 
     /* Just support these ram flags by now. */
     assert((ram_flags & ~(RAM_SHARED | RAM_PMEM)) == 0);
@@ -2308,6 +2344,14 @@ RAMBlock *qemu_ram_alloc_from_fd(ram_addr_t size, MemoryRegion *mr,
         error_setg(errp, "backing store size 0x%" PRIx64
                    " does not match 'size' option 0x" RAM_ADDR_FMT,
                    file_size, size);
+        return NULL;
+    }
+
+    file_align = get_file_align(fd);
+    if (file_align > 0 && mr && file_align > mr->align) {
+        error_setg(errp, "backing store align 0x%" PRIx64
+                   " is larger than 'align' option 0x" RAM_ADDR_FMT,
+                   file_align, mr->align);
         return NULL;
     }
 
