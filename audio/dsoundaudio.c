@@ -280,8 +280,10 @@ static int dsound_get_status_out (LPDIRECTSOUNDBUFFER dsb, DWORD *statusp,
     }
 
     if (*statusp & DSERR_BUFFERLOST) {
-        dsound_restore_out(dsb, s);
-        return -1;
+        if (dsound_restore_out(dsb, s)) {
+            return -1;
+        }
+        *statusp &= ~DSERR_BUFFERLOST;
     }
 
     return 0;
