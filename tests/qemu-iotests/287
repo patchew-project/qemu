@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+#
+# Test case for an image using zstd compression
+#
+# Copyright (c) 2020 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=dplotnikov@virtuozzo.com
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+# standard environment
+. ./common.rc
+. ./common.filter
+
+# This tests qocw2-specific low-level functionality
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+
+COMPR_IMG="$TEST_IMG.compressed"
+RAND_FILE="$TEST_DIR/rand_data"
+
+_cleanup()
+{
+	_cleanup_test_img
+	rm -f $COMPR_IMG
+	rm -f $RAND_FILE
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# for all the cases
+CLUSTER_SIZE=65536
+
+# Check if we can run this test.
+if IMGOPTS='compression_type=zstd' _make_test_img 64M |
+    grep "Invalid parameter 'zstd'"; then
+    _notrun "ZSTD is disabled"
+fi
+
+# Test: when compression is zlib the incompatible bit is unset
+echo
+echo "=== Testing compression type incompatible bit setting for zlib ==="
+echo
+
+IMGOPTS='compression_type=zlib' _make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+
+# Test: when compression differs from zlib the incompatible bit is set
+echo
+echo "=== Testing compression type incompatible bit setting for zstd ==="
+echo
+
+IMGOPTS='compression_type=zstd' _make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+
+# Test: an image can't be opened if compression type is zlib and
+#       incompatible feature compression type is set
+echo
+echo "=== Testing zlib with incompatible bit set ==="
+echo
+
+IMGOPTS='compression_type=zlib' _make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" set-feature-bit incompatible 3
+# to make sure the bit was actually set
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$QEMU_IMG info "$TEST_IMG" 2>1 1>/dev/null
+if (($?==0)); then
+    echo "Error: The image opened successfully. The image must not be opened"
+fi
+
+# Test: an image can't be opened if compression type is NOT zlib and
+#       incompatible feature compression type is UNSET
+echo
+echo "=== Testing zstd with incompatible bit unset ==="
+echo
+
+IMGOPTS='compression_type=zstd' _make_test_img 64M
+$PYTHON qcow2.py "$TEST_IMG" set-header incompatible_features 0
+# to make sure the bit was actually unset
+$PYTHON qcow2.py "$TEST_IMG" dump-header | grep incompatible_features
+$QEMU_IMG info "$TEST_IMG" 2>1 1>/dev/null
+if (($?==0)); then
+    echo "Error: The image opened successfully. The image must not be opened"
+fi
+# Test: check compression type values
+echo
+echo "=== Testing compression type values ==="
+echo
+# zlib=0
+IMGOPTS='compression_type=zlib' _make_test_img 64M
+od -j104 -N1 -An -vtu1 "$TEST_IMG"
+
+# zstd=1
+IMGOPTS='compression_type=zstd' _make_test_img 64M
+od -j104 -N1 -An -vtu1 "$TEST_IMG"
+
+# Test: using zstd compression, write to and read from an image
+echo
+echo "=== Testing simple reading and writing with zstd ==="
+echo
+
+IMGOPTS='compression_type=zstd' _make_test_img 64M
+$QEMU_IO -c "write -c -P 0xAC 64K 64K " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xAC 64K 64K " "$TEST_IMG" | _filter_qemu_io
+# read on the cluster boundaries
+$QEMU_IO -c "read -v 131070 8 " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -v 65534 8" "$TEST_IMG" | _filter_qemu_io
+
+# Test: using zstd compression, write and verify three adjacent
+#       compressed clusters
+echo
+echo "=== Testing adjacent clusters reading and writing with zstd ==="
+echo
+
+IMGOPTS='compression_type=zstd' _make_test_img 64M
+$QEMU_IO -c "write -c -P 0xAB 0 64K " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xAC 64K 64K " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xAD 128K 64K " "$TEST_IMG" | _filter_qemu_io
+
+$QEMU_IO -c "read -P 0xAB 0 64k " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xAC 64K 64k " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "read -P 0xAD 128K 64k " "$TEST_IMG" | _filter_qemu_io
+
+# Test: create an image, write 1M likely uncompressible data from urandom,
+#       write 1M of compressible data, convert the image with zstd
+#       and compare these two images - their data should be identical
+echo
+echo "=== Testing incompressible cluster processing with zstd ==="
+echo
+
+dd if=/dev/urandom of=$RAND_FILE bs=1M count=1
+
+_make_test_img 64M
+# fill the image with likely incompressible and compressible clusters
+$QEMU_IO -c "write -c -s $RAND_FILE 0 1M " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IO -c "write -c -P 0xFA 1M 1M " "$TEST_IMG" | _filter_qemu_io
+$QEMU_IMG convert -O $IMGFMT -c -o compression_type=zstd \
+                  "$TEST_IMG" "$COMPR_IMG"
+$QEMU_IMG compare "$TEST_IMG" "$COMPR_IMG"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
