@@ -863,6 +863,15 @@ static coroutine_fn int nbd_co_receive_one_chunk(
     if (ret < 0) {
         memset(reply, 0, sizeof(*reply));
         nbd_channel_error(s, ret);
+    } else if (s->reconnect_delay && *request_ret == -ESHUTDOWN) {
+        /*
+         * Special case: if we support reconnect and server is warning
+         * us that it wants to shut down, then treat this like an
+         * abrupt connection loss.
+         */
+        memset(reply, 0, sizeof(*reply));
+        *request_ret = 0;
+        nbd_channel_error(s, -EIO);
     } else {
         /* For assert at loop start in nbd_connection_entry */
         *reply = s->reply;
