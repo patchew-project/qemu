@@ -16,6 +16,7 @@
 #include "hw/pci/pcie_host.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_utils.h" /* SETFIELD() and GETFIELD() macros */
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 
@@ -171,11 +172,11 @@ static void pnv_phb3_check_m64(PnvPHB3 *phb, uint32_t index)
     }
 
     /* Grab geometry from registers */
-    base = GETFIELD(IODA2_M64BT_BASE, m64) << 20;
+    base = PNV_GETFIELD(IODA2_M64BT_BASE, m64) << 20;
     if (m64 & IODA2_M64BT_SINGLE_PE) {
         base &= ~0x1ffffffull;
     }
-    size = GETFIELD(IODA2_M64BT_MASK, m64) << 20;
+    size = PNV_GETFIELD(IODA2_M64BT_MASK, m64) << 20;
     size |= 0xfffc000000000000ull;
     size = ~size + 1;
     start = base | (phb->regs[PHB_M64_UPPER_BITS >> 3]);
@@ -217,8 +218,8 @@ static void pnv_phb3_lxivt_write(PnvPHB3 *phb, unsigned idx, uint64_t val)
     phb->ioda_LXIVT[idx] = val & (IODA2_LXIVT_SERVER |
                                   IODA2_LXIVT_PRIORITY |
                                   IODA2_LXIVT_NODE_ID);
-    server = GETFIELD(IODA2_LXIVT_SERVER, val);
-    prio = GETFIELD(IODA2_LXIVT_PRIORITY, val);
+    server = PNV_GETFIELD(IODA2_LXIVT_SERVER, val);
+    prio = PNV_GETFIELD(IODA2_LXIVT_PRIORITY, val);
 
     /*
      * The low order 2 bits are the link pointer (Type II interrupts).
@@ -233,8 +234,8 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
                                       unsigned *out_table, unsigned *out_idx)
 {
     uint64_t adreg = phb->regs[PHB_IODA_ADDR >> 3];
-    unsigned int index = GETFIELD(PHB_IODA_AD_TADR, adreg);
-    unsigned int table = GETFIELD(PHB_IODA_AD_TSEL, adreg);
+    unsigned int index = PNV_GETFIELD(PHB_IODA_AD_TADR, adreg);
+    unsigned int table = PNV_GETFIELD(PHB_IODA_AD_TSEL, adreg);
     unsigned int mask;
     uint64_t *tptr = NULL;
 
@@ -297,7 +298,7 @@ static uint64_t *pnv_phb3_ioda_access(PnvPHB3 *phb,
     }
     if (adreg & PHB_IODA_AD_AUTOINC) {
         index = (index + 1) & mask;
-        adreg = SETFIELD(PHB_IODA_AD_TADR, adreg, index);
+        adreg = PNV_SETFIELD(PHB_IODA_AD_TADR, adreg, index);
     }
     phb->regs[PHB_IODA_ADDR >> 3] = adreg;
     return tptr;
@@ -363,10 +364,11 @@ void pnv_phb3_remap_irqs(PnvPHB3 *phb)
     }
 
     /* Grab local LSI source ID */
-    local = GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]) << 3;
+    local = PNV_GETFIELD(PHB_LSI_SRC_ID,
+                         phb->regs[PHB_LSI_SOURCE_ID >> 3]) << 3;
 
     /* Grab global one and compare */
-    global = GETFIELD(PBCQ_NEST_LSI_SRC,
+    global = PNV_GETFIELD(PBCQ_NEST_LSI_SRC,
                       pbcq->nest_regs[PBCQ_NEST_LSI_SRC_ID]) << 3;
     if (global != local) {
         /*
@@ -378,9 +380,9 @@ void pnv_phb3_remap_irqs(PnvPHB3 *phb)
     }
 
     /* Get the base on the powerbus */
-    comp = GETFIELD(PBCQ_NEST_IRSN_COMP,
+    comp = PNV_GETFIELD(PBCQ_NEST_IRSN_COMP,
                     pbcq->nest_regs[PBCQ_NEST_IRSN_COMPARE]);
-    mask = GETFIELD(PBCQ_NEST_IRSN_COMP,
+    mask = PNV_GETFIELD(PBCQ_NEST_IRSN_COMP,
                     pbcq->nest_regs[PBCQ_NEST_IRSN_MASK]);
     count = ((~mask) + 1) & 0x7ffff;
     phb->total_irq = count;
@@ -735,10 +737,10 @@ static void pnv_phb3_translate_tve(PnvPhb3DMASpace *ds, hwaddr addr,
                                    bool is_write, uint64_t tve,
                                    IOMMUTLBEntry *tlb)
 {
-    uint64_t tta = GETFIELD(IODA2_TVT_TABLE_ADDR, tve);
-    int32_t  lev = GETFIELD(IODA2_TVT_NUM_LEVELS, tve);
-    uint32_t tts = GETFIELD(IODA2_TVT_TCE_TABLE_SIZE, tve);
-    uint32_t tps = GETFIELD(IODA2_TVT_IO_PSIZE, tve);
+    uint64_t tta = PNV_GETFIELD(IODA2_TVT_TABLE_ADDR, tve);
+    int32_t  lev = PNV_GETFIELD(IODA2_TVT_NUM_LEVELS, tve);
+    uint32_t tts = PNV_GETFIELD(IODA2_TVT_TCE_TABLE_SIZE, tve);
+    uint32_t tps = PNV_GETFIELD(IODA2_TVT_IO_PSIZE, tve);
     PnvPHB3 *phb = ds->phb;
 
     /* Invalid levels */

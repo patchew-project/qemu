@@ -13,6 +13,7 @@
 #include "hw/pci-host/pnv_phb3_regs.h"
 #include "hw/pci-host/pnv_phb3.h"
 #include "hw/ppc/pnv.h"
+#include "hw/ppc/pnv_utils.h" /* SETFIELD() and GETFIELD() macros */
 #include "hw/pci/msi.h"
 #include "monitor/monitor.h"
 #include "hw/irq.h"
@@ -105,14 +106,15 @@ static void phb3_msi_try_send(Phb3MsiState *msi, int srcno, bool force)
         return;
     }
 
-    server = GETFIELD(IODA2_IVT_SERVER, ive);
-    prio = GETFIELD(IODA2_IVT_PRIORITY, ive);
+    server = PNV_GETFIELD(IODA2_IVT_SERVER, ive);
+    prio = PNV_GETFIELD(IODA2_IVT_PRIORITY, ive);
     if (!force) {
-        pq = GETFIELD(IODA2_IVT_Q, ive) | (GETFIELD(IODA2_IVT_P, ive) << 1);
+        pq = PNV_GETFIELD(IODA2_IVT_Q, ive) |
+            (PNV_GETFIELD(IODA2_IVT_P, ive) << 1);
     } else {
         pq = 0;
     }
-    gen = GETFIELD(IODA2_IVT_GEN, ive);
+    gen = PNV_GETFIELD(IODA2_IVT_GEN, ive);
 
     /*
      * The low order 2 bits are the link pointer (Type II interrupts).
@@ -169,7 +171,7 @@ void pnv_phb3_msi_send(Phb3MsiState *msi, uint64_t addr, uint16_t data,
         if (!phb3_msi_read_ive(msi->phb, src, &ive)) {
             return;
         }
-        pe = GETFIELD(IODA2_IVT_PE, ive);
+        pe = PNV_GETFIELD(IODA2_IVT_PE, ive);
         if (pe != dev_pe) {
             qemu_log_mask(LOG_GUEST_ERROR,
                           "MSI %d send by PE#%d but assigned to PE#%d",
@@ -334,16 +336,16 @@ void pnv_phb3_msi_pic_print_info(Phb3MsiState *msi, Monitor *mon)
             return;
         }
 
-        if (GETFIELD(IODA2_IVT_PRIORITY, ive) == 0xff) {
+        if (PNV_GETFIELD(IODA2_IVT_PRIORITY, ive) == 0xff) {
             continue;
         }
 
         monitor_printf(mon, "  %4x %c%c server=%04x prio=%02x gen=%d\n",
                        ics->offset + i,
-                       GETFIELD(IODA2_IVT_P, ive) ? 'P' : '-',
-                       GETFIELD(IODA2_IVT_Q, ive) ? 'Q' : '-',
-                       (uint32_t) GETFIELD(IODA2_IVT_SERVER, ive) >> 2,
-                       (uint32_t) GETFIELD(IODA2_IVT_PRIORITY, ive),
-                       (uint32_t) GETFIELD(IODA2_IVT_GEN, ive));
+                       PNV_GETFIELD(IODA2_IVT_P, ive) ? 'P' : '-',
+                       PNV_GETFIELD(IODA2_IVT_Q, ive) ? 'Q' : '-',
+                       (uint32_t) PNV_GETFIELD(IODA2_IVT_SERVER, ive) >> 2,
+                       (uint32_t) PNV_GETFIELD(IODA2_IVT_PRIORITY, ive),
+                       (uint32_t) PNV_GETFIELD(IODA2_IVT_GEN, ive));
     }
 }

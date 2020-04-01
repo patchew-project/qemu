@@ -21,6 +21,7 @@
 #include "hw/ppc/pnv_core.h"
 #include "hw/ppc/pnv_xscom.h"
 #include "hw/ppc/pnv_xive.h"
+#include "hw/ppc/pnv_utils.h" /* SETFIELD() and GETFIELD() macros */
 #include "hw/ppc/xive_regs.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/ppc.h"
@@ -66,26 +67,6 @@ static const XiveVstInfo vst_infos[] = {
                   (xive)->chip->chip_id, ## __VA_ARGS__);
 
 /*
- * QEMU version of the GETFIELD/SETFIELD macros
- *
- * TODO: It might be better to use the existing extract64() and
- * deposit64() but this means that all the register definitions will
- * change and become incompatible with the ones found in skiboot.
- *
- * Keep it as it is for now until we find a common ground.
- */
-static inline uint64_t GETFIELD(uint64_t mask, uint64_t word)
-{
-    return (word & mask) >> ctz64(mask);
-}
-
-static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
-                                uint64_t value)
-{
-    return (word & ~mask) | ((value << ctz64(mask)) & mask);
-}
-
-/*
  * When PC_TCTXT_CHIPID_OVERRIDE is configured, the PC_TCTXT_CHIPID
  * field overrides the hardwired chip ID in the Powerbus operations
  * and for CAM compares
@@ -96,7 +77,7 @@ static uint8_t pnv_xive_block_id(PnvXive *xive)
     uint64_t cfg_val = xive->regs[PC_TCTXT_CFG >> 3];
 
     if (cfg_val & PC_TCTXT_CHIPID_OVERRIDE) {
-        blk = GETFIELD(PC_TCTXT_CHIPID, cfg_val);
+        blk = PNV_GETFIELD(PC_TCTXT_CHIPID, cfg_val);
     }
 
     return blk;
@@ -145,7 +126,7 @@ static uint64_t pnv_xive_vst_addr_direct(PnvXive *xive, uint32_t type,
 {
     const XiveVstInfo *info = &vst_infos[type];
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
-    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
+    uint64_t vst_tsize = 1ull << (PNV_GETFIELD(VSD_TSIZE, vsd) + 12);
     uint32_t idx_max;
 
     idx_max = vst_tsize / info->size - 1;
@@ -180,7 +161,7 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
         return 0;
     }
 
-    page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+    page_shift = PNV_GETFIELD(VSD_TSIZE, vsd) + 12;
 
     if (!pnv_xive_vst_page_size_allowed(page_shift)) {
         xive_error(xive, "VST: invalid %s page shift %d", info->name,
@@ -207,7 +188,7 @@ static uint64_t pnv_xive_vst_addr_indirect(PnvXive *xive, uint32_t type,
          * Check that the pages have a consistent size across the
          * indirect table
          */
-        if (page_shift != GETFIELD(VSD_TSIZE, vsd) + 12) {
+        if (page_shift != PNV_GETFIELD(VSD_TSIZE, vsd) + 12) {
             xive_error(xive, "VST: %s entry %x indirect page size differ !?",
                        info->name, idx);
             return 0;
@@ -232,7 +213,7 @@ static uint64_t pnv_xive_vst_addr(PnvXive *xive, uint32_t type, uint8_t blk,
     vsd = xive->vsds[type][blk];
 
     /* Remote VST access */
-    if (GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
+    if (PNV_GETFIELD(VSD_MODE, vsd) == VSD_MODE_FORWARD) {
         xive = pnv_xive_get_remote(blk);
 
         return xive ? pnv_xive_vst_addr(xive, type, blk, idx) : 0;
@@ -295,9 +276,9 @@ static int pnv_xive_write_end(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
 
 static int pnv_xive_end_update(PnvXive *xive)
 {
-    uint8_t  blk = GETFIELD(VC_EQC_CWATCH_BLOCKID,
+    uint8_t  blk = PNV_GETFIELD(VC_EQC_CWATCH_BLOCKID,
                            xive->regs[(VC_EQC_CWATCH_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(VC_EQC_CWATCH_OFFSET,
+    uint32_t idx = PNV_GETFIELD(VC_EQC_CWATCH_OFFSET,
                            xive->regs[(VC_EQC_CWATCH_SPEC >> 3)]);
     int i;
     uint64_t eqc_watch[4];
@@ -312,9 +293,9 @@ static int pnv_xive_end_update(PnvXive *xive)
 
 static void pnv_xive_end_cache_load(PnvXive *xive)
 {
-    uint8_t  blk = GETFIELD(VC_EQC_CWATCH_BLOCKID,
+    uint8_t  blk = PNV_GETFIELD(VC_EQC_CWATCH_BLOCKID,
                            xive->regs[(VC_EQC_CWATCH_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(VC_EQC_CWATCH_OFFSET,
+    uint32_t idx = PNV_GETFIELD(VC_EQC_CWATCH_OFFSET,
                            xive->regs[(VC_EQC_CWATCH_SPEC >> 3)]);
     uint64_t eqc_watch[4] = { 0 };
     int i;
@@ -343,9 +324,9 @@ static int pnv_xive_write_nvt(XiveRouter *xrtr, uint8_t blk, uint32_t idx,
 
 static int pnv_xive_nvt_update(PnvXive *xive)
 {
-    uint8_t  blk = GETFIELD(PC_VPC_CWATCH_BLOCKID,
+    uint8_t  blk = PNV_GETFIELD(PC_VPC_CWATCH_BLOCKID,
                            xive->regs[(PC_VPC_CWATCH_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(PC_VPC_CWATCH_OFFSET,
+    uint32_t idx = PNV_GETFIELD(PC_VPC_CWATCH_OFFSET,
                            xive->regs[(PC_VPC_CWATCH_SPEC >> 3)]);
     int i;
     uint64_t vpc_watch[8];
@@ -360,9 +341,9 @@ static int pnv_xive_nvt_update(PnvXive *xive)
 
 static void pnv_xive_nvt_cache_load(PnvXive *xive)
 {
-    uint8_t  blk = GETFIELD(PC_VPC_CWATCH_BLOCKID,
+    uint8_t  blk = PNV_GETFIELD(PC_VPC_CWATCH_BLOCKID,
                            xive->regs[(PC_VPC_CWATCH_SPEC >> 3)]);
-    uint32_t idx = GETFIELD(PC_VPC_CWATCH_OFFSET,
+    uint32_t idx = PNV_GETFIELD(PC_VPC_CWATCH_OFFSET,
                            xive->regs[(PC_VPC_CWATCH_SPEC >> 3)]);
     uint64_t vpc_watch[8] = { 0 };
     int i;
@@ -518,7 +499,7 @@ static uint64_t pnv_xive_pc_size(PnvXive *xive)
 static uint32_t pnv_xive_nr_ipis(PnvXive *xive, uint8_t blk)
 {
     uint64_t vsd = xive->vsds[VST_TSEL_SBE][blk];
-    uint64_t vst_tsize = 1ull << (GETFIELD(VSD_TSIZE, vsd) + 12);
+    uint64_t vst_tsize = 1ull << (PNV_GETFIELD(VSD_TSIZE, vsd) + 12);
 
     return VSD_INDIRECT & vsd ? 0 : vst_tsize * SBE_PER_BYTE;
 }
@@ -550,7 +531,7 @@ static uint64_t pnv_xive_vst_per_subpage(PnvXive *xive, uint32_t type)
         return 0;
     }
 
-    page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+    page_shift = PNV_GETFIELD(VSD_TSIZE, vsd) + 12;
 
     if (!pnv_xive_vst_page_size_allowed(page_shift)) {
         xive_error(xive, "VST: invalid %s page shift %d", info->name,
@@ -582,7 +563,7 @@ static uint64_t pnv_xive_edt_size(PnvXive *xive, uint64_t type)
     int i;
 
     for (i = 0; i < XIVE_TABLE_EDT_MAX; i++) {
-        uint64_t edt_type = GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[i]);
+        uint64_t edt_type = PNV_GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[i]);
 
         if (edt_type == type) {
             size += edt_size;
@@ -604,7 +585,7 @@ static uint64_t pnv_xive_edt_offset(PnvXive *xive, uint64_t vc_offset,
     uint64_t edt_offset = vc_offset;
 
     for (i = 0; i < XIVE_TABLE_EDT_MAX && (i * edt_size) < vc_offset; i++) {
-        uint64_t edt_type = GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[i]);
+        uint64_t edt_type = PNV_GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[i]);
 
         if (edt_type != type) {
             edt_offset -= edt_size;
@@ -632,7 +613,8 @@ static void pnv_xive_edt_resize(PnvXive *xive)
 static int pnv_xive_table_set_data(PnvXive *xive, uint64_t val)
 {
     uint64_t tsel = xive->regs[CQ_TAR >> 3] & CQ_TAR_TSEL;
-    uint8_t tsel_index = GETFIELD(CQ_TAR_TSEL_INDEX, xive->regs[CQ_TAR >> 3]);
+    uint8_t tsel_index = PNV_GETFIELD(CQ_TAR_TSEL_INDEX,
+                                      xive->regs[CQ_TAR >> 3]);
     uint64_t *xive_table;
     uint8_t max_index;
 
@@ -667,7 +649,8 @@ static int pnv_xive_table_set_data(PnvXive *xive, uint64_t val)
 
     if (xive->regs[CQ_TAR >> 3] & CQ_TAR_TBL_AUTOINC) {
         xive->regs[CQ_TAR >> 3] =
-            SETFIELD(CQ_TAR_TSEL_INDEX, xive->regs[CQ_TAR >> 3], ++tsel_index);
+            PNV_SETFIELD(CQ_TAR_TSEL_INDEX, xive->regs[CQ_TAR >> 3],
+                         ++tsel_index);
     }
 
     /*
@@ -690,7 +673,7 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
     XiveENDSource *end_xsrc = &xive->end_source;
     XiveSource *xsrc = &xive->ipi_source;
     const XiveVstInfo *info = &vst_infos[type];
-    uint32_t page_shift = GETFIELD(VSD_TSIZE, vsd) + 12;
+    uint32_t page_shift = PNV_GETFIELD(VSD_TSIZE, vsd) + 12;
     uint64_t vst_tsize = 1ull << page_shift;
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
 
@@ -777,10 +760,10 @@ static void pnv_xive_vst_set_exclusive(PnvXive *xive, uint8_t type,
  */
 static void pnv_xive_vst_set_data(PnvXive *xive, uint64_t vsd, bool pc_engine)
 {
-    uint8_t mode = GETFIELD(VSD_MODE, vsd);
-    uint8_t type = GETFIELD(VST_TABLE_SELECT,
+    uint8_t mode = PNV_GETFIELD(VSD_MODE, vsd);
+    uint8_t type = PNV_GETFIELD(VST_TABLE_SELECT,
                             xive->regs[VC_VSD_TABLE_ADDR >> 3]);
-    uint8_t blk = GETFIELD(VST_TABLE_BLOCK,
+    uint8_t blk = PNV_GETFIELD(VST_TABLE_BLOCK,
                            xive->regs[VC_VSD_TABLE_ADDR >> 3]);
     uint64_t vst_addr = vsd & VSD_ADDRESS_MASK;
 
@@ -1456,7 +1439,8 @@ static XiveTCTX *pnv_xive_get_indirect_tctx(PnvXive *xive)
         return NULL;
     }
 
-    pir = (chip->chip_id << 8) | GETFIELD(PC_TCTXT_INDIR_THRDID, tctxt_indir);
+    pir = (chip->chip_id << 8) |
+        PNV_GETFIELD(PC_TCTXT_INDIR_THRDID, tctxt_indir);
     cpu = pnv_chip_find_cpu(chip, pir);
     if (!cpu) {
         xive_error(xive, "IC: invalid PIR %x for indirect access", pir);
@@ -1583,7 +1567,7 @@ static uint64_t pnv_xive_vc_read(void *opaque, hwaddr offset,
     uint64_t ret = -1;
 
     if (edt_index < XIVE_TABLE_EDT_MAX) {
-        edt_type = GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[edt_index]);
+        edt_type = PNV_GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[edt_index]);
     }
 
     switch (edt_type) {
@@ -1625,7 +1609,7 @@ static void pnv_xive_vc_write(void *opaque, hwaddr offset,
     AddressSpace *edt_as = NULL;
 
     if (edt_index < XIVE_TABLE_EDT_MAX) {
-        edt_type = GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[edt_index]);
+        edt_type = PNV_GETFIELD(CQ_TDR_EDT_TYPE, xive->edt[edt_index]);
     }
 
     switch (edt_type) {

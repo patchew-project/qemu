@@ -19,28 +19,13 @@
 #include "hw/pci/pcie_port.h"
 #include "hw/ppc/pnv.h"
 #include "hw/ppc/pnv_xscom.h"
+#include "hw/ppc/pnv_utils.h" /* SETFIELD() and GETFIELD() macros */
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 
 #define phb_error(phb, fmt, ...)                                        \
     qemu_log_mask(LOG_GUEST_ERROR, "phb4[%d:%d]: " fmt "\n",            \
                   (phb)->chip_id, (phb)->phb_id, ## __VA_ARGS__)
-
-/*
- * QEMU version of the GETFIELD/SETFIELD macros
- *
- * These are common with the PnvXive model.
- */
-static inline uint64_t GETFIELD(uint64_t mask, uint64_t word)
-{
-    return (word & mask) >> ctz64(mask);
-}
-
-static inline uint64_t SETFIELD(uint64_t mask, uint64_t word,
-                                uint64_t value)
-{
-    return (word & ~mask) | ((value << ctz64(mask)) & mask);
-}
 
 static PCIDevice *pnv_phb4_find_cfg_dev(PnvPHB4 *phb)
 {
@@ -196,8 +181,8 @@ static void pnv_phb4_check_mbt(PnvPHB4 *phb, uint32_t index)
     }
 
     /* Grab geometry from registers */
-    base = GETFIELD(IODA3_MBT0_BASE_ADDR, mbe0) << 12;
-    size = GETFIELD(IODA3_MBT1_MASK, mbe1) << 12;
+    base = PNV_GETFIELD(IODA3_MBT0_BASE_ADDR, mbe0) << 12;
+    size = PNV_GETFIELD(IODA3_MBT1_MASK, mbe1) << 12;
     size |= 0xff00000000000000ull;
     size = ~size + 1;
 
@@ -252,8 +237,8 @@ static uint64_t *pnv_phb4_ioda_access(PnvPHB4 *phb,
                                       unsigned *out_table, unsigned *out_idx)
 {
     uint64_t adreg = phb->regs[PHB_IODA_ADDR >> 3];
-    unsigned int index = GETFIELD(PHB_IODA_AD_TADR, adreg);
-    unsigned int table = GETFIELD(PHB_IODA_AD_TSEL, adreg);
+    unsigned int index = PNV_GETFIELD(PHB_IODA_AD_TADR, adreg);
+    unsigned int table = PNV_GETFIELD(PHB_IODA_AD_TSEL, adreg);
     unsigned int mask;
     uint64_t *tptr = NULL;
 
@@ -318,7 +303,7 @@ static uint64_t *pnv_phb4_ioda_access(PnvPHB4 *phb,
     }
     if (adreg & PHB_IODA_AD_AUTOINC) {
         index = (index + 1) & mask;
-        adreg = SETFIELD(PHB_IODA_AD_TADR, adreg, index);
+        adreg = PNV_SETFIELD(PHB_IODA_AD_TADR, adreg, index);
     }
 
     phb->regs[PHB_IODA_ADDR >> 3] = adreg;
@@ -369,7 +354,7 @@ static void pnv_phb4_ioda_write(PnvPHB4 *phb, uint64_t val)
     case IODA3_TBL_MIST: {
         /* Special mask for MIST partial write */
         uint64_t adreg = phb->regs[PHB_IODA_ADDR >> 3];
-        uint32_t mmask = GETFIELD(PHB_IODA_AD_MIST_PWV, adreg);
+        uint32_t mmask = PNV_GETFIELD(PHB_IODA_AD_MIST_PWV, adreg);
         uint64_t v = *tptr;
         if (mmask == 0) {
             mmask = 0xf;
@@ -476,7 +461,7 @@ static void pnv_phb4_update_xsrc(PnvPHB4 *phb)
     phb->xsrc.esb_shift = shift;
     phb->xsrc.esb_flags = flags;
 
-    lsi_base = GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]);
+    lsi_base = PNV_GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]);
     lsi_base <<= 3;
 
     /* TODO: handle reset values of PHB_LSI_SRC_ID */
@@ -747,12 +732,13 @@ static uint64_t pnv_phb4_xscom_read(void *opaque, hwaddr addr, unsigned size)
             return ~0ull;
         }
         size = (phb->scom_hv_ind_addr_reg & PHB_SCOM_HV_IND_ADDR_4B) ? 4 : 8;
-        offset = GETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR, phb->scom_hv_ind_addr_reg);
+        offset = PNV_GETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR,
+                              phb->scom_hv_ind_addr_reg);
         val = pnv_phb4_reg_read(phb, offset, size);
         if (phb->scom_hv_ind_addr_reg & PHB_SCOM_HV_IND_ADDR_AUTOINC) {
             offset += size;
             offset &= 0x3fff;
-            phb->scom_hv_ind_addr_reg = SETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR,
+            phb->scom_hv_ind_addr_reg = PNV_SETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR,
                                                  phb->scom_hv_ind_addr_reg,
                                                  offset);
         }
@@ -799,12 +785,13 @@ static void pnv_phb4_xscom_write(void *opaque, hwaddr addr,
             break;
         }
         size = (phb->scom_hv_ind_addr_reg & PHB_SCOM_HV_IND_ADDR_4B) ? 4 : 8;
-        offset = GETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR, phb->scom_hv_ind_addr_reg);
+        offset = PNV_GETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR,
+                              phb->scom_hv_ind_addr_reg);
         pnv_phb4_reg_write(phb, offset, val, size);
         if (phb->scom_hv_ind_addr_reg & PHB_SCOM_HV_IND_ADDR_AUTOINC) {
             offset += size;
             offset &= 0x3fff;
-            phb->scom_hv_ind_addr_reg = SETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR,
+            phb->scom_hv_ind_addr_reg = PNV_SETFIELD(PHB_SCOM_HV_IND_ADDR_ADDR,
                                                  phb->scom_hv_ind_addr_reg,
                                                  offset);
         }
@@ -860,7 +847,7 @@ static void pnv_phb4_set_irq(void *opaque, int irq_num, int level)
     if (irq_num > 3) {
         phb_error(phb, "IRQ %x is not an LSI", irq_num);
     }
-    lsi_base = GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]);
+    lsi_base = PNV_GETFIELD(PHB_LSI_SRC_ID, phb->regs[PHB_LSI_SOURCE_ID >> 3]);
     lsi_base <<= 3;
     qemu_set_irq(phb->qirqs[lsi_base + irq_num], level);
 }
@@ -910,10 +897,10 @@ static void pnv_phb4_translate_tve(PnvPhb4DMASpace *ds, hwaddr addr,
                                    bool is_write, uint64_t tve,
                                    IOMMUTLBEntry *tlb)
 {
-    uint64_t tta = GETFIELD(IODA3_TVT_TABLE_ADDR, tve);
-    int32_t  lev = GETFIELD(IODA3_TVT_NUM_LEVELS, tve);
-    uint32_t tts = GETFIELD(IODA3_TVT_TCE_TABLE_SIZE, tve);
-    uint32_t tps = GETFIELD(IODA3_TVT_IO_PSIZE, tve);
+    uint64_t tta = PNV_GETFIELD(IODA3_TVT_TABLE_ADDR, tve);
+    int32_t  lev = PNV_GETFIELD(IODA3_TVT_NUM_LEVELS, tve);
+    uint32_t tts = PNV_GETFIELD(IODA3_TVT_TCE_TABLE_SIZE, tve);
+    uint32_t tps = PNV_GETFIELD(IODA3_TVT_IO_PSIZE, tve);
 
     /* Invalid levels */
     if (lev > 4) {
