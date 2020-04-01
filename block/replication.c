@@ -144,12 +144,18 @@ fail:
 static void replication_close(BlockDriverState *bs)
 {
     BDRVReplicationState *s = bs->opaque;
+    Job *commit_job;
+    AioContext *commit_ctx;
 
     if (s->stage == BLOCK_REPLICATION_RUNNING) {
         replication_stop(s->rs, false, NULL);
     }
     if (s->stage == BLOCK_REPLICATION_FAILOVER) {
-        job_cancel_sync(&s->commit_job->job);
+        commit_job = &s->commit_job->job;
+        commit_ctx = commit_job->aio_context;
+        aio_context_acquire(commit_ctx);
+        job_cancel_sync(commit_job);
+        aio_context_release(commit_ctx);
     }
 
     if (s->mode == REPLICATION_MODE_SECONDARY) {
