@@ -71,18 +71,17 @@ void rdma_protected_qlist_destroy(RdmaProtectedQList *list)
 
 void rdma_protected_qlist_append_int64(RdmaProtectedQList *list, int64_t value)
 {
-    qemu_mutex_lock(&list->lock);
+    QEMU_LOCK_GUARD(&list->lock);
     qlist_append_int(list->list, value);
-    qemu_mutex_unlock(&list->lock);
 }
 
 int64_t rdma_protected_qlist_pop_int64(RdmaProtectedQList *list)
 {
     QObject *obj;
 
-    qemu_mutex_lock(&list->lock);
-    obj = qlist_pop(list->list);
-    qemu_mutex_unlock(&list->lock);
+    WITH_QEMU_LOCK_GUARD(&list->lock) {
+        obj = qlist_pop(list->list);
+    }
 
     if (!obj) {
         return -ENOENT;
@@ -107,15 +106,13 @@ void rdma_protected_gslist_destroy(RdmaProtectedGSList *list)
 void rdma_protected_gslist_append_int32(RdmaProtectedGSList *list,
                                         int32_t value)
 {
-    qemu_mutex_lock(&list->lock);
+    QEMU_LOCK_GUARD(&list->lock);
     list->list = g_slist_prepend(list->list, GINT_TO_POINTER(value));
-    qemu_mutex_unlock(&list->lock);
 }
 
 void rdma_protected_gslist_remove_int32(RdmaProtectedGSList *list,
                                         int32_t value)
 {
-    qemu_mutex_lock(&list->lock);
+    QEMU_LOCK_GUARD(&list->lock);
     list->list = g_slist_remove(list->list, GINT_TO_POINTER(value));
-    qemu_mutex_unlock(&list->lock);
 }
