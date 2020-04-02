@@ -117,3 +117,101 @@
   'data': { 'path': 'str' },
   'returns': 'VirtioStatus'
 }
+
+##
+# @VirtQueueStatus:
+#
+# Status of a VirtQueue
+#
+# @queue_index: VirtQueue queue_index
+#
+# @inuse: VirtQueue inuse
+#
+# @vring_num: VirtQueue vring.num
+#
+# @vring_num_default: VirtQueue vring.num_default
+#
+# @vring_align: VirtQueue vring.align
+#
+# @vring_desc: VirtQueue vring.desc
+#
+# @vring_avail: VirtQueue vring.avail
+#
+# @vring_used: VirtQueue vring.used
+#
+# @last_avail_idx: VirtQueue last_avail_idx
+#
+# @shadow_avail_idx: VirtQueue shadow_avail_idx
+#
+# @used_idx: VirtQueue used_idx
+#
+# @signalled_used: VirtQueue signalled_used
+#
+# @signalled_used_valid: VirtQueue signalled_used_valid
+#
+# Since: 5.1
+#
+##
+
+{ 'struct': 'VirtQueueStatus',
+  'data': {
+    'queue_index': 'uint16',
+    'inuse': 'uint32',
+    'vring_num': 'int',
+    'vring_num_default': 'int',
+    'vring_align': 'int',
+    'vring_desc': 'uint64',
+    'vring_avail': 'uint64',
+    'vring_used': 'uint64',
+    'last_avail_idx': 'uint16',
+    'shadow_avail_idx': 'uint16',
+    'used_idx': 'uint16',
+    'signalled_used': 'uint16',
+    'signalled_used_valid': 'uint16'
+  }
+}
+
+##
+# @virtio-queue-status:
+#
+# Return the status of a given VirtQueue
+#
+# @path: QOBject path of the VirtIODevice
+#
+# @queue: queue number to examine
+#
+# Returns: Status of the VirtQueue
+#
+# Since: 5.1
+#
+# Example:
+#
+# -> { "execute": "virtio-queue-status",
+#      "arguments": {
+#          "path": "/machine/peripheral-anon/device[3]/virtio-backend",
+#          "queue": 0
+#      }
+#   }
+# <- { "return": {
+#      "signalled_used": 373,
+#      "inuse": 0,
+#      "vring_desc": 864411648,
+#      "vring_num_default": 256,
+#      "signalled_used_valid": 1,
+#      "vring_avail": 864415744,
+#      "last_avail_idx": 373,
+#      "queue_index": 0,
+#      "vring_used": 864416320,
+#      "shadow_avail_idx": 619,
+#      "used_idx": 373,
+#      "vring_num": 256,
+#      "vring_align": 4096
+#      }
+#    }
+#
+##
+
+{ 'command': 'virtio-queue-status',
+  'data': { 'path': 'str', 'queue': 'uint16' },
+  'returns': 'VirtQueueStatus'
+}
