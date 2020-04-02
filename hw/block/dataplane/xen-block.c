@@ -123,15 +123,19 @@ static void xen_block_finish_request(XenBlockRequest *request)
     dataplane->requests_inflight--;
 }
 
-static void xen_block_release_request(XenBlockRequest *request)
+static void xen_block_release_request(XenBlockRequest *request, bool finish)
 {
     XenBlockDataPlane *dataplane = request->dataplane;
 
-    QLIST_REMOVE(request, list);
+    if (!finish) {
+        QLIST_REMOVE(request, list);
+    }
     reset_request(request);
     request->dataplane = dataplane;
     QLIST_INSERT_HEAD(&dataplane->freelist, request, list);
-    dataplane->requests_inflight--;
+    if (!finish) {
+        dataplane->requests_inflight--;
+    }
 }
 
 /*
@@ -316,7 +320,7 @@ static void xen_block_complete_aio(void *opaque, int ret)
             error_report_err(local_err);
         }
     }
-    xen_block_release_request(request);
+    xen_block_release_request(request, true);
 
     if (dataplane->more_work) {
         qemu_bh_schedule(dataplane->bh);
@@ -585,7 +589,7 @@ static bool xen_block_handle_requests(XenBlockDataPlane *dataplane)
                     error_report_err(local_err);
                 }
             }
-            xen_block_release_request(request);
+            xen_block_release_request(request, false);
             continue;
         }
 
