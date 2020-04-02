@@ -1,0 +1,54 @@
+##
+# = Virtio devices
+##
+
+##
+# @VirtioInfo:
+#
+# Information about a given VirtIODevice
+#
+# @type: VirtIO device type.
+#
+# @path: VirtIO device canonical path.
+#
+# Since: 5.1
+#
+##
+{ 'struct': 'VirtioInfo',
+  'data': {
+    'path': 'str',
+    'type': 'str'
+  }
+}
+
+##
+# @query-virtio:
+#
+# Return the list of all VirtIO devices
+#
+# Returns: list of @VirtioInfo
+#
+# Since: 5.1
+#
+# Example:
+#
+# -> { "execute": "query-virtio" }
+# <- { "return": [
+#        {
+#            "path": "/machine/peripheral-anon/device[3]/virtio-backend",
+#            "type": "virtio-net"
+#        },
+#        {
+#            "path": "/machine/peripheral-anon/device[1]/virtio-backend",
+#            "type": "virtio-serial"
+#        },
+#        {
+#            "path": "/machine/peripheral-anon/device[0]/virtio-backend",
+#            "type": "virtio-blk"
+#        }
+#      ]
+#    }
+#
+##
+
+{ 'command': 'query-virtio', 'returns': ['VirtioInfo'] }
