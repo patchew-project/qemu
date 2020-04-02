@@ -52,3 +52,68 @@
 ##
 
 { 'command': 'query-virtio', 'returns': ['VirtioInfo'] }
+
+##
+# @VirtioStatus:
+#
+# @device_id: VirtIODevice status
+#
+# @device_endian: VirtIODevice device_endian
+#
+# @guest_features: VirtIODevice guest_features
+#
+# @host_features: VirtIODevice host_features
+#
+# @backend_features: VirtIODevice backend_features
+#
+# @num_vqs: number of VirtIODevice queues
+#
+# Since: 5.1
+#
+##
+
+{ 'struct': 'VirtioStatus',
+  'data': {
+    'device_id': 'int',
+    'device_endian': 'str',
+    'guest_features': 'uint64',
+    'host_features': 'uint64',
+    'backend_features': 'uint64',
+    'num_vqs': 'uint16'
+  }
+}
+
+##
+# @virtio-status:
+#
+# Return the status of virtio device
+#
+# @path: QOBject path of the VirtIODevice
+#
+# Returns: status of the VirtIODevice
+#
+# Since: 5.1
+#
+# Example:
+#
+# -> { "execute": "virtio-status",
+#      "arguments": {
+#          "path": "/machine/peripheral-anon/device[3]/virtio-backend"
+#      }
+#   }
+# <- { "return": {
+#          "backend_features": 0,
+#          "guest_features": 5111807911,
+#          "num_vqs": 3,
+#          "host_features": 6337593319,
+#          "device_endian": "little",
+#          "device_id": 1
+#      }
+#    }
+#
+##
+
+{ 'command': 'virtio-status',
+  'data': { 'path': 'str' },
+  'returns': 'VirtioStatus'
+}
