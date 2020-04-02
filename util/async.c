@@ -251,6 +251,7 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 
     atomic_or(&ctx->notify_me, 1);
 
+    smp_mb();
     /* We assume there is no timeout already supplied */
     *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
 
