@@ -3925,6 +3925,91 @@ VirtioStatus *qmp_virtio_status(const char* path, Error **errp)
     return status;
 }
 
+VirtioQueueElement *qmp_virtio_queue_element(const char* path, uint16_t queue,
+                                             bool has_index, uint16_t index,
+                                             Error **errp)
+{
+    VirtIODevice *vdev;
+    VirtQueue *vq;
+    VirtioQueueElement *element;
+
+    vdev = virtio_device_find(path);
+    if (vdev == NULL) {
+        error_setg(errp, "Path %s is not a VirtIO device", path);
+        return NULL;
+    }
+
+    if (queue >= VIRTIO_QUEUE_MAX || !virtio_queue_get_num(vdev, queue)) {
+        error_setg(errp, "Invalid virtqueue number %d", queue);
+        return NULL;
+    }
+    vq = &vdev->vq[queue];
+
+    if (virtio_vdev_has_feature(vdev, VIRTIO_F_RING_PACKED)) {
+        error_setg(errp, "Packed ring not supported");
+        return NULL;
+    } else {
+        unsigned int head, i, max;
+        VRingMemoryRegionCaches *caches;
+        MemoryRegionCache *desc_cache;
+        VRingDesc desc;
+
+        RCU_READ_LOCK_GUARD();
+        if (virtio_queue_empty_rcu(vq)) {
+            error_setg(errp, "Queue is empty");
+            return NULL;
+        }
+        /*
+         * Needed after virtio_queue_empty(), see comment in
+         * virtqueue_num_heads().
+         */
+        smp_rmb();
+
+        max = vq->vring.num;
+
+        if (vq->inuse >= vq->vring.num) {
+            error_setg(errp, "Queue size exceeded");
+            return NULL;
+        }
+
+        if (!has_index) {
+            head = vring_avail_ring(vq, vq->last_avail_idx % vq->vring.num);
+        } else {
+            head = vring_avail_ring(vq, index % vq->vring.num);
+        }
+        i = head;
+
+        caches = vring_get_region_caches(vq);
+        if (!caches) {
+            error_setg(errp, "Region caches not initialized");
+            return NULL;
+        }
+
+        if (caches->desc.len < max * sizeof(VRingDesc)) {
+            error_setg(errp, "Cannot map descriptor ring");
+            return NULL;
+        }
+
+        desc_cache = &caches->desc;
+        vring_split_desc_read(vdev, &desc, desc_cache, i);
+        if (desc.flags & VRING_DESC_F_INDIRECT) {
+            error_setg(errp, "Unsupported indirect buffer feature");
+            return NULL;
+        }
+
+        element = g_new0(VirtioQueueElement, 1);
+        element->index = head;
+        element->ndescs = 1;
+        element->descs = g_new0(VirtioRingDescList, 1);
+        element->descs->value = g_new0(VirtioRingDesc, 1);
+        element->descs->value->addr = desc.addr;
+        element->descs->value->len = desc.len;
+        element->descs->value->flags = desc.flags;
+    }
+
+    return element;
+}
+
 static const TypeInfo virtio_device_info = {
     .name = TYPE_VIRTIO_DEVICE,
     .parent = TYPE_DEVICE,
