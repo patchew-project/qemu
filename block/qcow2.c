@@ -4345,7 +4345,7 @@ qcow2_co_pwritev_compressed_part(BlockDriverState *bs,
         return bdrv_co_truncate(bs->file, len, false, PREALLOC_MODE_OFF, NULL);
     }
 
-    if (offset_into_cluster(s, offset)) {
+    if (offset_into_cluster(s, offset | bytes)) {
         return -EINVAL;
     }
 
