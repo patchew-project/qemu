@@ -906,6 +906,13 @@ get-vm-image-fedora-31-%: check-venv
 # download all vm images, according to defined targets
 get-vm-images: check-venv $(patsubst %,get-vm-image-fedora-31-%, $(FEDORA_31_DOWNLOAD))
 
+fetch-acceptance-assets: check-venv
+	$(call quiet-command, \
+            $(TESTS_VENV_DIR)/bin/python -m avocado \
+            --show=$(if $(DEBUG),avocado.test,$(AVOCADO_SHOW)) assets fetch \
+            tests/acceptance/*py, \
+            "AVOCADO", "tests/acceptance")
+
 check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
 	$(call quiet-command, \
             $(TESTS_VENV_DIR)/bin/python -m avocado \
