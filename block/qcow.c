@@ -940,11 +940,12 @@ static int coroutine_fn qcow_co_create_opts(BlockDriver *drv,
 {
     BlockdevCreateOptions *create_options = NULL;
     BlockDriverState *bs = NULL;
-    QDict *qdict;
+    QDict *qdict = NULL;
     Visitor *v;
     const char *val;
     Error *local_err = NULL;
     int ret;
+    char *backing_fmt;
 
     static const QDictRenames opt_renames[] = {
         { BLOCK_OPT_BACKING_FILE,       "backing-file" },
@@ -953,6 +954,13 @@ static int coroutine_fn qcow_co_create_opts(BlockDriver *drv,
     };
 
     /* Parse options and convert legacy syntax */
+    backing_fmt = qemu_opt_get_del(opts, BLOCK_OPT_BACKING_FMT);
+    if (backing_fmt && !strcmp(backing_fmt, "raw")) {
+        error_setg(errp, "qcow cannot store backing format; an explicit "
+                   "backing format of raw is unsafe");
+        ret = -EINVAL;
+        goto fail;
+    }
     qdict = qemu_opts_to_qdict_filtered(opts, NULL, &qcow_create_opts, true);
 
     val = qdict_get_try_str(qdict, BLOCK_OPT_ENCRYPT);
@@ -1018,6 +1026,7 @@ static int coroutine_fn qcow_co_create_opts(BlockDriver *drv,
 
     ret = 0;
 fail:
+    g_free(backing_fmt);
     qobject_unref(qdict);
     bdrv_unref(bs);
     qapi_free_BlockdevCreateOptions(create_options);
@@ -1151,6 +1160,11 @@ static QemuOptsList qcow_create_opts = {
             .name = BLOCK_OPT_BACKING_FILE,
             .type = QEMU_OPT_STRING,
             .help = "File name of a base image"
+        },
+        {
+            .name = BLOCK_OPT_BACKING_FMT,
+            .type = QEMU_OPT_STRING,
+            .help = "Format of the backing image (caution: raw backing is unsafe)",
         },
         {
             .name = BLOCK_OPT_ENCRYPT,
