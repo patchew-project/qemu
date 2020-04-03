@@ -1154,8 +1154,6 @@ int coroutine_fn blk_co_preadv(BlockBackend *blk, int64_t offset,
     int ret;
     BlockDriverState *bs;
 
-    blk_wait_while_drained(blk);
-
     /* Call blk_bs() only after waiting, the graph may have changed */
     bs = blk_bs(blk);
     trace_blk_co_preadv(blk, bs, offset, bytes, flags);
@@ -1185,8 +1183,6 @@ int coroutine_fn blk_co_pwritev_part(BlockBackend *blk, int64_t offset,
 {
     int ret;
     BlockDriverState *bs;
-
-    blk_wait_while_drained(blk);
 
     /* Call blk_bs() only after waiting, the graph may have changed */
     bs = blk_bs(blk);
@@ -1234,6 +1230,7 @@ static void blk_read_entry(void *opaque)
     BlkRwCo *rwco = opaque;
     QEMUIOVector *qiov = rwco->iobuf;
 
+    blk_wait_while_drained(rwco->blk);
     rwco->ret = blk_co_preadv(rwco->blk, rwco->offset, qiov->size,
                               qiov, rwco->flags);
     aio_wait_kick();
@@ -1244,6 +1241,7 @@ static void blk_write_entry(void *opaque)
     BlkRwCo *rwco = opaque;
     QEMUIOVector *qiov = rwco->iobuf;
 
+    blk_wait_while_drained(rwco->blk);
     rwco->ret = blk_co_pwritev(rwco->blk, rwco->offset, qiov->size,
                                qiov, rwco->flags);
     aio_wait_kick();
