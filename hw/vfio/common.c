@@ -190,6 +190,11 @@ void vfio_region_write(void *opaque, hwaddr addr,
         uint64_t qword;
     } buf;
 
+    if (!(region->flags & VFIO_REGION_INFO_FLAG_WRITE)) {
+        trace_vfio_region_write(vbasedev->name, region->nr,
+                                   addr, data, size, true);
+        return;
+    }
     switch (size) {
     case 1:
         buf.byte = data;
@@ -215,7 +220,8 @@ void vfio_region_write(void *opaque, hwaddr addr,
                      addr, data, size);
     }
 
-    trace_vfio_region_write(vbasedev->name, region->nr, addr, data, size);
+    trace_vfio_region_write(vbasedev->name, region->nr, addr, data, size,
+                            false);
 
     /*
      * A read or write to a BAR always signals an INTx EOI.  This will
