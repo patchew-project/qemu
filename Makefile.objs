@@ -185,6 +185,7 @@ trace-events-subdirs += hw/watchdog
 trace-events-subdirs += hw/xen
 trace-events-subdirs += hw/gpio
 trace-events-subdirs += hw/riscv
+trace-events-subdirs += hw/vmbus
 trace-events-subdirs += migration
 trace-events-subdirs += net
 trace-events-subdirs += ui
