@@ -1143,7 +1143,9 @@ static int blk_check_byte_request(BlockBackend *blk, int64_t offset,
 static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
 {
     if (blk->quiesce_counter && !blk->disable_request_queuing) {
+        blk_dec_in_flight(blk);
         qemu_co_queue_wait(&blk->queued_requests, NULL);
+        blk_inc_in_flight(blk);
     }
 }
 
@@ -1260,6 +1262,7 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
         .ret    = NOT_DONE,
     };
 
+    blk_inc_in_flight(blk);
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         co_entry(&rwco);
@@ -1268,6 +1271,7 @@ static int blk_prw(BlockBackend *blk, int64_t offset, uint8_t *buf,
         bdrv_coroutine_enter(blk_bs(blk), co);
         BDRV_POLL_WHILE(blk_bs(blk), rwco.ret == NOT_DONE);
     }
+    blk_dec_in_flight(blk);
 
     return rwco.ret;
 }
@@ -1386,9 +1390,7 @@ static void blk_aio_read_entry(void *opaque)
     QEMUIOVector *qiov = rwco->iobuf;
 
     if (rwco->blk->quiesce_counter) {
-        blk_dec_in_flight(rwco->blk);
         blk_wait_while_drained(rwco->blk);
-        blk_inc_in_flight(rwco->blk);
     }
 
     assert(qiov->size == acb->bytes);
@@ -1404,9 +1406,7 @@ static void blk_aio_write_entry(void *opaque)
     QEMUIOVector *qiov = rwco->iobuf;
 
     if (rwco->blk->quiesce_counter) {
-        blk_dec_in_flight(rwco->blk);
         blk_wait_while_drained(rwco->blk);
-        blk_inc_in_flight(rwco->blk);
     }
 
     assert(!qiov || qiov->size == acb->bytes);
