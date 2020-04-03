@@ -32,7 +32,6 @@ struct Aml {
     uint8_t op;
     AmlBlockFlags block_flags;
 };
-typedef struct Aml Aml;
 
 typedef enum {
     AML_COMPATIBILITY = 0,
