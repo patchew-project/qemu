@@ -656,6 +656,7 @@ e1000e_tx_pkt_send(E1000ECore *core, struct e1000e_tx *tx, int queue_index)
     NetClientState *queue = qemu_get_subqueue(core->owner_nic, target_queue);
 
     e1000e_setup_tx_offloads(core, tx);
+    net_tx_pkt_fix_ip6_payload_len(tx->tx_pkt);
 
     net_tx_pkt_dump(tx->tx_pkt);
 
