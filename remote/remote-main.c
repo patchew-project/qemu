@@ -34,7 +34,47 @@
 #include "block/block.h"
 #include "exec/ramlist.h"
 
+static void process_msg(GIOCondition cond, MPQemuLinkState *link,
+                        MPQemuChannel *chan);
+
 static MPQemuLinkState *mpqemu_link;
+
+#define LINK_TO_DEV(link) ((PCIDevice *)link->opaque)
+
+static gpointer dev_thread(gpointer data)
+{
+    MPQemuLinkState *link = data;
+
+    mpqemu_start_coms(link, link->dev);
+
+    return NULL;
+}
+
+static void process_connect_dev_msg(MPQemuMsg *msg)
+{
+    char *devid = (char *)msg->data2;
+    MPQemuLinkState *link = NULL;
+    DeviceState *dev = NULL;
+    int wait = msg->fds[0];
+    int ret = 0;
+
+    dev = qdev_find_recursive(sysbus_get_default(), devid);
+    if (!dev) {
+        ret = 0xff;
+        goto exit;
+    }
+
+    link = mpqemu_link_create();
+    link->opaque = (void *)PCI_DEVICE(dev);
+
+    mpqemu_init_channel(link, &link->dev, msg->fds[1]);
+    mpqemu_link_set_callback(link, process_msg);
+    qemu_thread_create(&link->thread, "dev_thread", dev_thread, link,
+                       QEMU_THREAD_JOINABLE);
+
+exit:
+    notify_proxy(wait, ret);
+}
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan)
@@ -55,6 +95,9 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
 
     switch (msg->cmd) {
     case INIT:
+        break;
+    case CONNECT_DEV:
+        process_connect_dev_msg(msg);
         break;
     default:
         error_setg(&err, "Unknown command");
