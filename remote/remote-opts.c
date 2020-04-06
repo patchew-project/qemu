@@ -15,6 +15,7 @@
 #include "qemu-options.h"
 #include "qemu-parse.h"
 #include "remote-opts.h"
+#include "monitor/monitor.h"
 
 /*
  * In remote process, we parse only subset of options. The code
@@ -64,6 +65,16 @@ void parse_cmdline(int argc, char **argv, char **envp)
                     exit(1);
                 }
             break;
+            case QEMU_OPTION_qmp:
+                monitor_parse(optarg, "control", false);
+                break;
+            case QEMU_OPTION_monitor:
+                if (!strncmp(optarg, "stdio", 5)) {
+                    warn_report("STDIO not supported in remote process");
+                } else if (strncmp(optarg, "none", 4)) {
+                    monitor_parse(optarg, "readline", false);
+                }
+                break;
             default:
                 break;
             }
