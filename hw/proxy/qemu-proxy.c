@@ -13,6 +13,8 @@
 #include "io/mpqemu-link.h"
 #include "hw/proxy/qemu-proxy.h"
 #include "hw/pci/pci.h"
+#include "hw/proxy/memory-sync.h"
+#include "qom/object.h"
 
 static int config_op_send(PCIProxyDev *dev, uint32_t addr, uint32_t *val, int l,
                           unsigned int op)
@@ -138,6 +140,10 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
             error_propagate(errp, local_err);
         }
     }
+
+    dev->sync = REMOTE_MEM_SYNC(object_new(TYPE_MEMORY_LISTENER));
+
+    configure_memory_sync(dev->sync, dev->mpqemu_link);
 }
 
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
