@@ -2059,6 +2059,7 @@ F: scripts/coccinelle/error-use-after-free.cocci
 F: scripts/coccinelle/error_propagate_null.cocci
 F: scripts/coccinelle/remove_local_err.cocci
 F: scripts/coccinelle/simplify-init-realize-error_propagate.cocci
+F: scripts/coccinelle/use-error_abort-in-instance_init.cocci
 F: scripts/coccinelle/use-error_fatal.cocci
 F: scripts/coccinelle/use-error_propagate-in-realize.cocci
 
