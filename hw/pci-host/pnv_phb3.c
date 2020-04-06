@@ -970,6 +970,8 @@ static void pnv_phb3_instance_init(Object *obj)
     /* LSI sources */
     object_initialize_child(obj, "lsi", &phb->lsis, sizeof(phb->lsis),
                              TYPE_ICS, &error_abort, NULL);
+    object_property_set_int(OBJECT(&phb->lsis), PNV_PHB3_NUM_LSI, "nr-irqs",
+                            &error_abort);
 
     /* Default init ... will be fixed by HW inits */
     phb->lsis.offset = 0;
@@ -977,6 +979,8 @@ static void pnv_phb3_instance_init(Object *obj)
     /* MSI sources */
     object_initialize_child(obj, "msi", &phb->msis, sizeof(phb->msis),
                             TYPE_PHB3_MSI, &error_abort, NULL);
+    object_property_set_int(OBJECT(&phb->msis), PHB3_MAX_MSI, "nr-irqs",
+                            &error_abort);
 
     /* Power Bus Common Queue */
     object_initialize_child(obj, "pbcq", &phb->pbcq, sizeof(phb->pbcq),
@@ -1005,8 +1009,6 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
     /* LSI sources */
     object_property_set_link(OBJECT(&phb->lsis), OBJECT(pnv), "xics",
                                    &error_abort);
-    object_property_set_int(OBJECT(&phb->lsis), PNV_PHB3_NUM_LSI, "nr-irqs",
-                            &error_abort);
     object_property_set_bool(OBJECT(&phb->lsis), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1024,8 +1026,6 @@ static void pnv_phb3_realize(DeviceState *dev, Error **errp)
                                    &error_abort);
     object_property_set_link(OBJECT(&phb->msis), OBJECT(pnv), "xics",
                                    &error_abort);
-    object_property_set_int(OBJECT(&phb->msis), PHB3_MAX_MSI, "nr-irqs",
-                            &error_abort);
     object_property_set_bool(OBJECT(&phb->msis), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
