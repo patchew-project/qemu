@@ -385,15 +385,13 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         object_property_set_bool(OBJECT(&s->apu_cpu[i]), true, "realized",
                                  &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
     }
 
     object_property_set_bool(OBJECT(&s->gic), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
 
     assert(ARRAY_SIZE(xlnx_zynqmp_gic_regions) == XLNX_ZYNQMP_GIC_REGIONS);
@@ -462,8 +460,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     xlnx_zynqmp_create_rpu(ms, s, boot_cpu, &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
 
     if (!s->boot_cpu_ptr) {
@@ -488,8 +485,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                                 &error_abort);
         object_property_set_bool(OBJECT(&s->gem[i]), true, "realized", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gem[i]), 0, gem_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->gem[i]), 0,
@@ -500,8 +496,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
         qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
         object_property_set_bool(OBJECT(&s->uart[i]), true, "realized", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, uart_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0,
@@ -512,8 +507,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
                             &error_abort);
     object_property_set_bool(OBJECT(&s->sata), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
 
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sata), 0, SATA_ADDR);
@@ -531,23 +525,19 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
          */
         object_property_set_uint(sdhci, 3, "sd-spec-version", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         object_property_set_uint(sdhci, SDHCI_CAPABILITIES, "capareg", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         object_property_set_uint(sdhci, UHS_I, "uhs", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         object_property_set_bool(sdhci, true, "realized", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         sysbus_mmio_map(sbd, 0, sdhci_addr[i]);
         sysbus_connect_irq(sbd, 0, gic_spi[sdhci_intr[i]]);
@@ -564,8 +554,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
         object_property_set_bool(OBJECT(&s->spi[i]), true, "realized", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[i]), 0, spi_addr[i]);
@@ -582,8 +571,7 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     object_property_set_bool(OBJECT(&s->qspi), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 0, QSPI_ADDR);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->qspi), 1, LQSPI_ADDR);
@@ -605,16 +593,14 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     object_property_set_bool(OBJECT(&s->dp), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->dp), 0, DP_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->dp), 0, gic_spi[DP_IRQ]);
 
     object_property_set_bool(OBJECT(&s->dpdma), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
     object_property_set_link(OBJECT(&s->dp), OBJECT(&s->dpdma), "dpdma",
                              &error_abort);
@@ -623,16 +609,14 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
 
     object_property_set_bool(OBJECT(&s->ipi), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ipi), 0, IPI_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->ipi), 0, gic_spi[IPI_IRQ]);
 
     object_property_set_bool(OBJECT(&s->rtc), true, "realized", &err);
     if (err) {
-        error_propagate(errp, err);
-        return;
+        goto out_propagate_error;
     }
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->rtc), 0, RTC_ADDR);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->rtc), 0, gic_spi[RTC_IRQ]);
@@ -640,13 +624,11 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_GDMA_CH; i++) {
         object_property_set_uint(OBJECT(&s->gdma[i]), 128, "bus-width", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
         object_property_set_bool(OBJECT(&s->gdma[i]), true, "realized", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->gdma[i]), 0, gdma_ch_addr[i]);
@@ -657,14 +639,17 @@ static void xlnx_zynqmp_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < XLNX_ZYNQMP_NUM_ADMA_CH; i++) {
         object_property_set_bool(OBJECT(&s->adma[i]), true, "realized", &err);
         if (err) {
-            error_propagate(errp, err);
-            return;
+            goto out_propagate_error;
         }
 
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->adma[i]), 0, adma_ch_addr[i]);
         sysbus_connect_irq(SYS_BUS_DEVICE(&s->adma[i]), 0,
                            gic_spi[adma_ch_intr[i]]);
     }
+    return;
+
+out_propagate_error:
+    error_propagate(errp, err);
 }
 
 static Property xlnx_zynqmp_props[] = {
