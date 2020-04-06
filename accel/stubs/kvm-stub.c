@@ -31,6 +31,7 @@ bool kvm_allowed;
 bool kvm_readonly_mem_allowed;
 bool kvm_ioeventfd_any_length_allowed;
 bool kvm_msi_use_devid;
+bool kvm_halt_in_kernel_allowed;
 
 int kvm_destroy_vcpu(CPUState *cpu)
 {
@@ -55,6 +56,10 @@ void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 }
 
 void kvm_cpu_synchronize_post_init(CPUState *cpu)
+{
+}
+
+void kvm_cpu_synchronize_pre_loadvm(CPUState *cpu)
 {
 }
 

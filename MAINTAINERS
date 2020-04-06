@@ -449,6 +449,7 @@ F: hw/pci-host/xen_igd_pt.c
 F: include/hw/block/dataplane/xen*
 F: include/hw/xen/
 F: include/sysemu/xen-mapcache.h
+F: stubs/xen-mapcache.c
 
 Guest CPU Cores (HAXM)
 ---------------------
@@ -1914,6 +1915,7 @@ F: include/hw/audio/
 F: tests/qtest/ac97-test.c
 F: tests/qtest/es1370-test.c
 F: tests/qtest/intel-hda-test.c
+F: stubs/audio.c
 
 Block layer core
 M: Kevin Wolf <kwolf@redhat.com>
@@ -2135,6 +2137,7 @@ F: include/net/
 F: qemu-bridge-helper.c
 T: git https://github.com/jasowang/qemu.git net
 F: qapi/net.json
+F: stubs/net-stub.c
 
 Netmap network backend
 M: Luigi Rizzo <rizzo@iet.unipi.it>
