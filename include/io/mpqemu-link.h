@@ -48,6 +48,8 @@ typedef enum {
     BAR_WRITE,
     BAR_READ,
     SET_IRQFD,
+    GET_PCI_INFO,
+    RET_PCI_INFO,
     MAX,
 } mpqemu_cmd_t;
 
@@ -69,6 +71,13 @@ typedef struct {
     unsigned size;
     bool memory;
 } bar_access_msg_t;
+
+typedef struct {
+    uint16_t vendor_id;
+    uint16_t device_id;
+    uint16_t class_id;
+    uint16_t subsystem_id;
+} ret_pci_info_msg_t;
 
 /**
  * MPQemuMsg:
@@ -98,6 +107,7 @@ typedef struct {
         sync_sysmem_msg_t sync_sysmem;
         bar_access_msg_t bar_access;
         set_irqfd_msg_t set_irqfd;
+        ret_pci_info_msg_t ret_pci_info;
     } data1;
 
     int fds[REMOTE_MAX_FDS];
