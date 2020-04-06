@@ -14,6 +14,25 @@
 #include "hw/proxy/qemu-proxy.h"
 #include "hw/pci/pci.h"
 
+static void proxy_set_socket(Object *obj, const char *str, Error **errp)
+{
+    PCIProxyDev *pdev = PCI_PROXY_DEV(obj);
+
+    pdev->socket = atoi(str);
+
+    mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->com,
+                        pdev->socket);
+}
+
+static void proxy_init(Object *obj)
+{
+    PCIProxyDev *pdev = PCI_PROXY_DEV(obj);
+
+    pdev->mpqemu_link = mpqemu_link_create();
+
+    object_property_add_str(obj, "socket", NULL, proxy_set_socket, NULL);
+}
+
 static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
 {
     PCIProxyDev *dev = PCI_PROXY_DEV(device);
@@ -41,6 +60,7 @@ static const TypeInfo pci_proxy_dev_type_info = {
     .instance_size = sizeof(PCIProxyDev),
     .class_size    = sizeof(PCIProxyDevClass),
     .class_init    = pci_proxy_dev_class_init,
+    .instance_init = proxy_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
