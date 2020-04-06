@@ -76,3 +76,6 @@ parallels.o-cflags := $(LIBXML2_CFLAGS)
 parallels.o-libs   := $(LIBXML2_LIBS)
 
 remote-pci-obj-$(CONFIG_MPQEMU) += stream.o
+remote-pci-obj-$(CONFIG_MPQEMU) += qapi-sysemu.o
+
+remote-lsi-obj-$(CONFIG_MPQEMU) += monitor/

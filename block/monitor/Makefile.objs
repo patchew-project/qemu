@@ -1,1 +1,3 @@
 common-obj-y += block-hmp-cmds.o
+
+remote-lsi-obj-$(CONFIG_MPQEMU) += block-hmp-cmds.o
