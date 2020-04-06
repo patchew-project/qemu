@@ -23,6 +23,7 @@ ERST
         .params     = "",
         .help       = "show the version of QEMU",
         .cmd        = hmp_info_version,
+        .targets    = "scsi",
         .flags      = "p",
     },
 
@@ -50,6 +51,7 @@ ERST
         .params     = "",
         .help       = "show the character devices",
         .cmd        = hmp_info_chardev,
+        .targets    = "scsi",
         .flags      = "p",
     },
 
@@ -65,6 +67,7 @@ ERST
         .help       = "show info of one block device or all block devices "
                       "(-n: show named nodes; -v: show details)",
         .cmd        = hmp_info_block,
+        .targets    = "scsi",
     },
 
 SRST
@@ -78,6 +81,7 @@ ERST
         .params     = "",
         .help       = "show block device statistics",
         .cmd        = hmp_info_blockstats,
+        .targets    = "scsi",
     },
 
 SRST
@@ -91,6 +95,7 @@ ERST
         .params     = "",
         .help       = "show progress of ongoing block device operations",
         .cmd        = hmp_info_block_jobs,
+        .targets    = "scsi",
     },
 
 SRST
@@ -161,6 +166,7 @@ ERST
         .params     = "",
         .help       = "show the command line history",
         .cmd        = hmp_info_history,
+        .targets    = "scsi",
         .flags      = "p",
     },
 
@@ -214,6 +220,7 @@ ERST
         .params     = "",
         .help       = "show PCI info",
         .cmd        = hmp_info_pci,
+        .targets    = "scsi",
     },
 
 SRST
@@ -598,6 +605,7 @@ ERST
         .params     = "",
         .help       = "show device tree",
         .cmd        = hmp_info_qtree,
+        .targets    = "scsi",
     },
 
 SRST
@@ -611,6 +619,7 @@ ERST
         .params     = "",
         .help       = "show qdev device model list",
         .cmd        = hmp_info_qdm,
+        .targets    = "scsi",
     },
 
 SRST
@@ -624,6 +633,7 @@ ERST
         .params     = "[path]",
         .help       = "show QOM composition tree",
         .cmd        = hmp_info_qom_tree,
+        .targets    = "scsi",
         .flags      = "p",
     },
 

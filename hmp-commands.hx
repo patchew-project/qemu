@@ -45,6 +45,7 @@ ERST
         .params     = "",
         .help       = "quit the emulator",
         .cmd        = hmp_quit,
+        .targets    = "scsi",
     },
 
 SRST
@@ -76,6 +77,7 @@ ERST
         .params     = "device size",
         .help       = "resize a block image",
         .cmd        = hmp_block_resize,
+        .targets    = "scsi",
     },
 
 SRST
@@ -92,6 +94,7 @@ ERST
         .params     = "device [speed [base]]",
         .help       = "copy data from a backing file into a block device",
         .cmd        = hmp_block_stream,
+        .targets    = "scsi",
     },
 
 SRST
@@ -105,6 +108,7 @@ ERST
         .params     = "device speed",
         .help       = "set maximum speed for a background block operation",
         .cmd        = hmp_block_job_set_speed,
+        .targets    = "scsi",
     },
 
 SRST
@@ -120,6 +124,7 @@ ERST
                       "\n\t\t\t if you want to abort the operation immediately"
                       "\n\t\t\t instead of keep running until data is in sync)",
         .cmd        = hmp_block_job_cancel,
+        .targets    = "scsi",
     },
 
 SRST
@@ -133,6 +138,7 @@ ERST
         .params     = "device",
         .help       = "stop an active background block operation",
         .cmd        = hmp_block_job_complete,
+        .targets    = "scsi",
     },
 
 SRST
@@ -147,6 +153,7 @@ ERST
         .params     = "device",
         .help       = "pause an active background block operation",
         .cmd        = hmp_block_job_pause,
+        .targets    = "scsi",
     },
 
 SRST
@@ -160,6 +167,7 @@ ERST
         .params     = "device",
         .help       = "resume a paused background block operation",
         .cmd        = hmp_block_job_resume,
+        .targets    = "scsi",
     },
 
 SRST
@@ -173,6 +181,7 @@ ERST
         .params     = "[-f] device",
         .help       = "eject a removable medium (use -f to force it)",
         .cmd        = hmp_eject,
+        .targets    = "scsi",
     },
 
 SRST
@@ -186,6 +195,7 @@ ERST
         .params     = "device",
         .help       = "remove host block device",
         .cmd        = hmp_drive_del,
+        .targets    = "scsi",
     },
 
 SRST
@@ -204,6 +214,7 @@ ERST
         .params     = "device filename [format [read-only-mode]]",
         .help       = "change a removable medium, optional format",
         .cmd        = hmp_change,
+        .targets    = "scsi",
     },
 
 SRST
@@ -671,6 +682,7 @@ ERST
         .help       = "add device, like -device on the command line",
         .cmd        = hmp_device_add,
         .command_completion = device_add_completion,
+        .targets    = "scsi",
     },
 
 SRST
@@ -685,6 +697,7 @@ ERST
         .help       = "remove device",
         .cmd        = hmp_device_del,
         .command_completion = device_del_completion,
+        .targets    = "scsi",
     },
 
 SRST
@@ -1264,6 +1277,7 @@ ERST
                       "The -c flag requests QEMU to compress backup data\n\t\t\t"
                       "(if the target format supports it).\n\t\t\t",
         .cmd        = hmp_drive_backup,
+        .targets    = "scsi",
     },
 SRST
 ``drive_backup``
@@ -1280,6 +1294,7 @@ ERST
                       "[,readonly=on|off][,copy-on-read=on|off]",
         .help       = "add drive to PCI storage controller",
         .cmd        = hmp_drive_add,
+        .targets    = "scsi",
     },
 
 SRST
@@ -1697,6 +1712,7 @@ ERST
         .help       = "add chardev",
         .cmd        = hmp_chardev_add,
         .command_completion = chardev_add_completion,
+        .targets    = "scsi",
     },
 
 SRST
@@ -1710,6 +1726,7 @@ ERST
         .params     = "id args",
         .help       = "change chardev",
         .cmd        = hmp_chardev_change,
+        .targets    = "scsi",
     },
 
 SRST
@@ -1725,6 +1742,7 @@ ERST
         .help       = "remove chardev",
         .cmd        = hmp_chardev_remove,
         .command_completion = chardev_remove_completion,
+        .targets    = "scsi",
     },
 
 SRST
@@ -1739,6 +1757,7 @@ ERST
         .help       = "send a break on chardev",
         .cmd        = hmp_chardev_send_break,
         .command_completion = chardev_remove_completion,
+        .targets    = "scsi",
     },
 
 SRST
@@ -1810,6 +1829,7 @@ ERST
         .params     = "[subcommand]",
         .help       = "show various information about the system state",
         .cmd        = hmp_info_help,
+        .targets    = "scsi",
         .sub_table  = hmp_info_cmds,
         .flags      = "p",
     },
