@@ -894,7 +894,7 @@ static void machine_initfn(Object *obj)
                                  &error_abort);
         object_property_set_description(obj, "nvdimm",
                                         "Set on/off to enable/disable "
-                                        "NVDIMM instantiation", NULL);
+                                        "NVDIMM instantiation", &error_abort);
 
         object_property_add_str(obj, "nvdimm-persistence",
                                 machine_get_nvdimm_persistence,
@@ -903,7 +903,7 @@ static void machine_initfn(Object *obj)
         object_property_set_description(obj, "nvdimm-persistence",
                                         "Set NVDIMM persistence"
                                         "Valid values are cpu, mem-ctrl",
-                                        NULL);
+                                        &error_abort);
     }
 
     if (mc->cpu_index_to_instance_props && mc->get_default_cpu_node_id) {
@@ -914,7 +914,7 @@ static void machine_initfn(Object *obj)
         object_property_set_description(obj, "hmat",
                                         "Set on/off to enable/disable "
                                         "ACPI Heterogeneous Memory Attribute "
-                                        "Table (HMAT)", NULL);
+                                        "Table (HMAT)", &error_abort);
     }
 
     object_property_add_str(obj, "memory-backend",

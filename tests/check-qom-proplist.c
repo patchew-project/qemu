@@ -255,13 +255,14 @@ static void dummy_dev_init(Object *obj)
     DummyBus *bus = DUMMY_BUS(object_new(TYPE_DUMMY_BUS));
     DummyBackend *backend = DUMMY_BACKEND(object_new(TYPE_DUMMY_BACKEND));
 
-    object_property_add_child(obj, "bus", OBJECT(bus), NULL);
+    object_property_add_child(obj, "bus", OBJECT(bus), &error_abort);
     dev->bus = bus;
-    object_property_add_child(OBJECT(bus), "backend", OBJECT(backend), NULL);
+    object_property_add_child(OBJECT(bus), "backend", OBJECT(backend),
+                              &error_abort);
     bus->backend = backend;
 
     object_property_add_link(obj, "backend", TYPE_DUMMY_BACKEND,
-                             (Object **)&bus->backend, NULL, 0, NULL);
+                             (Object **)&bus->backend, NULL, 0, &error_abort);
 }
 
 static void dummy_dev_unparent(Object *obj)

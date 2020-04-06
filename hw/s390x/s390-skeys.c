@@ -400,8 +400,8 @@ static void s390_skeys_instance_init(Object *obj)
 {
     object_property_add_bool(obj, "migration-enabled",
                              s390_skeys_get_migration_enabled,
-                             s390_skeys_set_migration_enabled, NULL);
-    object_property_set_bool(obj, true, "migration-enabled", NULL);
+                             s390_skeys_set_migration_enabled, &error_abort);
+    object_property_set_bool(obj, true, "migration-enabled", &error_abort);
 }
 
 static void s390_skeys_class_init(ObjectClass *oc, void *data)

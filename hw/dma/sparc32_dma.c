@@ -264,7 +264,7 @@ static void sparc32_dma_device_init(Object *obj)
     object_property_add_link(OBJECT(dev), "iommu", TYPE_SUN4M_IOMMU,
                              (Object **) &s->iommu,
                              qdev_prop_allow_set_link_before_realize,
-                             0, NULL);
+                             0, &error_abort);
 
     qdev_init_gpio_in(dev, dma_set_irq, 1);
     qdev_init_gpio_out(dev, s->gpio, 2);

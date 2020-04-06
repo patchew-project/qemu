@@ -1249,11 +1249,11 @@ static void xlnx_dp_init(Object *obj)
      * Initialize DPCD and EDID..
      */
     s->dpcd = DPCD(aux_create_slave(s->aux_bus, "dpcd"));
-    object_property_add_child(OBJECT(s), "dpcd", OBJECT(s->dpcd), NULL);
+    object_property_add_child(OBJECT(s), "dpcd", OBJECT(s->dpcd), &error_abort);
 
     s->edid = I2CDDC(qdev_create(BUS(aux_get_i2c_bus(s->aux_bus)), "i2c-ddc"));
     i2c_set_slave_address(I2C_SLAVE(s->edid), 0x50);
-    object_property_add_child(OBJECT(s), "edid", OBJECT(s->edid), NULL);
+    object_property_add_child(OBJECT(s), "edid", OBJECT(s->edid), &error_abort);
 
     fifo8_create(&s->rx_fifo, 16);
     fifo8_create(&s->tx_fifo, 16);

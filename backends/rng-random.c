@@ -111,7 +111,7 @@ static void rng_random_init(Object *obj)
     object_property_add_str(obj, "filename",
                             rng_random_get_filename,
                             rng_random_set_filename,
-                            NULL);
+                            &error_abort);
 
     s->filename = g_strdup("/dev/urandom");
     s->fd = -1;

@@ -782,11 +782,11 @@ static void aarch64_cpu_set_aarch64(Object *obj, bool value, Error **errp)
 static void aarch64_cpu_initfn(Object *obj)
 {
     object_property_add_bool(obj, "aarch64", aarch64_cpu_get_aarch64,
-                             aarch64_cpu_set_aarch64, NULL);
+                             aarch64_cpu_set_aarch64, &error_abort);
     object_property_set_description(obj, "aarch64",
                                     "Set on/off to enable/disable aarch64 "
                                     "execution state ",
-                                    NULL);
+                                    &error_abort);
 }
 
 static void aarch64_cpu_finalizefn(Object *obj)

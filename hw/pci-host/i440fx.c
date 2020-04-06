@@ -212,19 +212,19 @@ static void i440fx_pcihost_initfn(Object *obj)
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
                         i440fx_pcihost_get_pci_hole_start,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
                         i440fx_pcihost_get_pci_hole_end,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
                         i440fx_pcihost_get_pci_hole64_start,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
                         i440fx_pcihost_get_pci_hole64_end,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 }
 
 static void i440fx_pcihost_realize(DeviceState *dev, Error **errp)

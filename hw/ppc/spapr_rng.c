@@ -104,7 +104,7 @@ static void spapr_rng_instance_init(Object *obj)
 
     object_property_set_description(obj, "rng",
                                     "ID of the random number generator backend",
-                                    NULL);
+                                    &error_abort);
 }
 
 static void spapr_rng_realize(DeviceState *dev, Error **errp)

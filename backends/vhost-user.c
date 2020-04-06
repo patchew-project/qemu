@@ -177,7 +177,8 @@ static char *get_chardev(Object *obj, Error **errp)
 
 static void vhost_user_backend_init(Object *obj)
 {
-    object_property_add_str(obj, "chardev", get_chardev, set_chardev, NULL);
+    object_property_add_str(obj, "chardev", get_chardev, set_chardev,
+                            &error_abort);
 }
 
 static void vhost_user_backend_finalize(Object *obj)

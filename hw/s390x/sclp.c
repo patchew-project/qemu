@@ -349,7 +349,7 @@ static void sclp_init(Object *obj)
     Object *new;
 
     new = object_new(TYPE_SCLP_EVENT_FACILITY);
-    object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new, NULL);
+    object_property_add_child(obj, TYPE_SCLP_EVENT_FACILITY, new, &error_abort);
     object_unref(new);
     sclp->event_facility = EVENT_FACILITY(new);
 

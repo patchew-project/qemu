@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "qemu/module.h"
@@ -189,7 +190,7 @@ static void pxa2xx_pcmcia_initfn(Object *obj)
     object_property_add_link(obj, "card", TYPE_PCMCIA_CARD,
                              (Object **)&s->card,
                              NULL, /* read-only property */
-                             0, NULL);
+                             0, &error_abort);
 }
 
 /* Insert a new card into a slot */

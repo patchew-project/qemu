@@ -753,8 +753,8 @@ static void usb_msd_instance_init(Object *obj)
 {
     object_property_add(obj, "bootindex", "int32",
                         usb_msd_get_bootindex,
-                        usb_msd_set_bootindex, NULL, NULL, NULL);
-    object_property_set_int(obj, -1, "bootindex", NULL);
+                        usb_msd_set_bootindex, NULL, NULL, &error_abort);
+    object_property_set_int(obj, -1, "bootindex", &error_abort);
 }
 
 static void usb_msd_class_bot_initfn(ObjectClass *klass, void *data)

@@ -1361,7 +1361,7 @@ static void xlnx_zynqmp_qspips_init(Object *obj)
                              (Object **)&rq->dma,
                              object_property_allow_set_link,
                              OBJ_PROP_LINK_STRONG,
-                             NULL);
+                             &error_abort);
 }
 
 static int xilinx_spips_post_load(void *opaque, int version_id)

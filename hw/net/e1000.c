@@ -26,6 +26,7 @@
 
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
@@ -1774,7 +1775,7 @@ static void e1000_instance_init(Object *obj)
     E1000State *n = E1000(obj);
     device_add_bootindex_property(obj, &n->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(n), NULL);
+                                  DEVICE(n), &error_abort);
 }
 
 static const TypeInfo e1000_base_info = {

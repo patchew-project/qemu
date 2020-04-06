@@ -584,11 +584,11 @@ static void spapr_dr_connector_instance_init(Object *obj)
     SpaprDrcClass *drck = SPAPR_DR_CONNECTOR_GET_CLASS(drc);
 
     object_property_add_uint32_ptr(obj, "id", &drc->id, OBJ_PROP_FLAG_READ,
-                                   NULL);
+                                   &error_abort);
     object_property_add(obj, "index", "uint32", prop_get_index,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
     object_property_add(obj, "fdt", "struct", prop_get_fdt,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
     drc->state = drck->empty_state;
 }
 

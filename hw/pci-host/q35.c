@@ -222,38 +222,43 @@ static void q35_host_initfn(Object *obj)
                          Q35_PCI_HOST_HOLE64_SIZE_DEFAULT);
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_START, "uint32",
                         q35_host_get_pci_hole_start,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE_END, "uint32",
                         q35_host_get_pci_hole_end,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_START, "uint64",
                         q35_host_get_pci_hole64_start,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, PCI_HOST_PROP_PCI_HOLE64_END, "uint64",
                         q35_host_get_pci_hole64_end,
-                        NULL, NULL, NULL, NULL);
+                        NULL, NULL, NULL, &error_abort);
 
     object_property_add_uint64_ptr(obj, PCIE_HOST_MCFG_SIZE,
-                                   &pehb->size, OBJ_PROP_FLAG_READ, NULL);
+                                   &pehb->size, OBJ_PROP_FLAG_READ,
+                                   &error_abort);
 
     object_property_add_link(obj, MCH_HOST_PROP_RAM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.ram_memory,
-                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+                             qdev_prop_allow_set_link_before_realize, 0,
+                             &error_abort);
 
     object_property_add_link(obj, MCH_HOST_PROP_PCI_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.pci_address_space,
-                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+                             qdev_prop_allow_set_link_before_realize, 0,
+                             &error_abort);
 
     object_property_add_link(obj, MCH_HOST_PROP_SYSTEM_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.system_memory,
-                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+                             qdev_prop_allow_set_link_before_realize, 0,
+                             &error_abort);
 
     object_property_add_link(obj, MCH_HOST_PROP_IO_MEM, TYPE_MEMORY_REGION,
                              (Object **) &s->mch.address_space_io,
-                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+                             qdev_prop_allow_set_link_before_realize, 0,
+                             &error_abort);
 }
 
 static const TypeInfo q35_host_info = {

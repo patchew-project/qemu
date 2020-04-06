@@ -311,7 +311,7 @@ static void raven_pcihost_initfn(Object *obj)
     pci_dev = DEVICE(&s->pci_dev);
     qdev_set_parent_bus(pci_dev, BUS(&s->pci_bus));
     object_property_set_int(OBJECT(&s->pci_dev), PCI_DEVFN(0, 0), "addr",
-                            NULL);
+                            &error_abort);
     qdev_prop_set_bit(pci_dev, "multifunction", false);
 }
 

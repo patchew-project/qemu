@@ -10,6 +10,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "trace.h"
 #include "colo.h"
 #include "net/filter.h"
@@ -413,7 +414,7 @@ static void filter_rewriter_init(Object *obj)
     s->failover_mode = FAILOVER_MODE_OFF;
     object_property_add_bool(obj, "vnet_hdr_support",
                              filter_rewriter_get_vnet_hdr,
-                             filter_rewriter_set_vnet_hdr, NULL);
+                             filter_rewriter_set_vnet_hdr, &error_abort);
 }
 
 static void colo_rewriter_class_init(ObjectClass *oc, void *data)

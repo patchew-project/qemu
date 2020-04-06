@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "hw/sysbus.h"
 #include "net/eth.h"
@@ -152,7 +153,7 @@ static void lasi_82596_instance_init(Object *obj)
 
     device_add_bootindex_property(obj, &s->conf.bootindex,
                                   "bootindex", "/ethernet-phy@0",
-                                  DEVICE(obj), NULL);
+                                  DEVICE(obj), &error_abort);
 }
 
 static Property lasi_82596_properties[] = {

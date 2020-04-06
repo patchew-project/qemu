@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "qemu/units.h"
 #include "hw/pci/pci.h"
 #include "hw/hw.h"
@@ -403,7 +404,7 @@ static void edu_instance_init(Object *obj)
     edu->dma_mask = (1UL << 28) - 1;
     object_property_add_uint64_ptr(obj, "dma_mask",
                                    &edu->dma_mask, OBJ_PROP_FLAG_READWRITE,
-                                   NULL);
+                                   &error_abort);
 }
 
 static void edu_class_init(ObjectClass *class, void *data)

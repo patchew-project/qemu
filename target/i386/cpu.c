@@ -6905,28 +6905,32 @@ static void x86_cpu_initfn(Object *obj)
 
     object_property_add(obj, "family", "int",
                         x86_cpuid_version_get_family,
-                        x86_cpuid_version_set_family, NULL, NULL, NULL);
+                        x86_cpuid_version_set_family, NULL, NULL,
+                        &error_abort);
     object_property_add(obj, "model", "int",
                         x86_cpuid_version_get_model,
-                        x86_cpuid_version_set_model, NULL, NULL, NULL);
+                        x86_cpuid_version_set_model, NULL, NULL,
+                        &error_abort);
     object_property_add(obj, "stepping", "int",
                         x86_cpuid_version_get_stepping,
-                        x86_cpuid_version_set_stepping, NULL, NULL, NULL);
+                        x86_cpuid_version_set_stepping, NULL, NULL,
+                        &error_abort);
     object_property_add_str(obj, "vendor",
                             x86_cpuid_get_vendor,
-                            x86_cpuid_set_vendor, NULL);
+                            x86_cpuid_set_vendor, &error_abort);
     object_property_add_str(obj, "model-id",
                             x86_cpuid_get_model_id,
-                            x86_cpuid_set_model_id, NULL);
+                            x86_cpuid_set_model_id, &error_abort);
     object_property_add(obj, "tsc-frequency", "int",
                         x86_cpuid_get_tsc_freq,
-                        x86_cpuid_set_tsc_freq, NULL, NULL, NULL);
+                        x86_cpuid_set_tsc_freq, NULL, NULL, &error_abort);
     object_property_add(obj, "feature-words", "X86CPUFeatureWordInfo",
                         x86_cpu_get_feature_words,
-                        NULL, NULL, (void *)env->features, NULL);
+                        NULL, NULL, (void *)env->features, &error_abort);
     object_property_add(obj, "filtered-features", "X86CPUFeatureWordInfo",
                         x86_cpu_get_feature_words,
-                        NULL, NULL, (void *)cpu->filtered_features, NULL);
+                        NULL, NULL, (void *)cpu->filtered_features,
+                        &error_abort);
     /*
      * The "unavailable-features" property has the same semantics as
      * CpuDefinitionInfo.unavailable-features on the "query-cpu-definitions"
@@ -6938,7 +6942,8 @@ static void x86_cpu_initfn(Object *obj)
                         NULL, NULL, NULL, &error_abort);
 
     object_property_add(obj, "crash-information", "GuestPanicInformation",
-                        x86_cpu_get_crash_info_qom, NULL, NULL, NULL, NULL);
+                        x86_cpu_get_crash_info_qom, NULL, NULL, NULL,
+                        &error_abort);
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         int bitnr;

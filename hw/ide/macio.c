@@ -24,6 +24,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/ppc/mac.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/qdev-properties.h"
@@ -459,7 +460,8 @@ static void macio_ide_initfn(Object *obj)
 
     object_property_add_link(obj, "dbdma", TYPE_MAC_DBDMA,
                              (Object **) &s->dbdma,
-                             qdev_prop_allow_set_link_before_realize, 0, NULL);
+                             qdev_prop_allow_set_link_before_realize, 0,
+                             &error_abort);
 }
 
 static Property macio_ide_properties[] = {

@@ -266,8 +266,8 @@ static void ide_dev_instance_init(Object *obj)
 {
     object_property_add(obj, "bootindex", "int32",
                         ide_dev_get_bootindex,
-                        ide_dev_set_bootindex, NULL, NULL, NULL);
-    object_property_set_int(obj, -1, "bootindex", NULL);
+                        ide_dev_set_bootindex, NULL, NULL, &error_abort);
+    object_property_set_int(obj, -1, "bootindex", &error_abort);
 }
 
 static void ide_hd_realize(IDEDevice *dev, Error **errp)
