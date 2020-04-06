@@ -30925,6 +30925,10 @@ static void mips_tr_translate_insn(DisasContextBase *dcbase, CPUState *cs)
         }
     }
     if (is_slot) {
+        if (ctx->base.is_jmp == DISAS_NORETURN) {
+            error_report("Exception in delay slot is UNPREDICTABLE");
+            exit(1);
+        }
         gen_branch(ctx, insn_bytes);
     }
     ctx->base.pc_next += insn_bytes;
