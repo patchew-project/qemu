@@ -249,7 +249,14 @@ aio_ctx_prepare(GSource *source, gint    *timeout)
 {
     AioContext *ctx = (AioContext *) source;
 
-    atomic_or(&ctx->notify_me, 1);
+    atomic_set(&ctx->notify_me, atomic_read(&ctx->notify_me) | 1);
+
+    /*
+     * Write ctx->notify_me before computing the timeout
+     * (reading bottom half flags, etc.).  Pairs with
+     * atomic_xchg in aio_notify().
+     */
+    smp_mb();
 
     /* We assume there is no timeout already supplied */
     *timeout = qemu_timeout_ns_to_ms(aio_compute_timeout(ctx));
@@ -414,7 +421,7 @@ void aio_notify(AioContext *ctx)
      * with atomic_or in aio_ctx_prepare or atomic_add in aio_poll.
      */
     smp_mb();
-    if (ctx->notify_me) {
+    if (atomic_read(&ctx->notify_me)) {
         event_notifier_set(&ctx->notifier);
         atomic_mb_set(&ctx->notified, true);
     }

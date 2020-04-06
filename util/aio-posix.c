@@ -569,7 +569,13 @@ bool aio_poll(AioContext *ctx, bool blocking)
      * so disable the optimization now.
      */
     if (blocking) {
-        atomic_add(&ctx->notify_me, 2);
+        atomic_set(&ctx->notify_me, atomic_read(&ctx->notify_me) + 2);
+        /*
+         * Write ctx->notify_me before computing the timeout
+         * (reading bottom half flags, etc.).  Pairs with
+         * atomic_xchg in aio_notify().
+         */
+        smp_mb();
     }
 
     qemu_lockcnt_inc(&ctx->list_lock);
@@ -590,6 +596,7 @@ bool aio_poll(AioContext *ctx, bool blocking)
     }
 
     if (blocking) {
+        /* Finish the poll before clearing the flag.  */
         atomic_sub(&ctx->notify_me, 2);
         aio_notify_accept(ctx);
     }
