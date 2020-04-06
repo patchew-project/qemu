@@ -129,6 +129,7 @@ obj-y += disas.o
 obj-$(call notempty,$(TARGET_XML_FILES)) += gdbstub-xml.o
 ifeq ($(TARGET_NAME)-$(CONFIG_MPQEMU)-$(CONFIG_USER_ONLY), x86_64-y-)
 obj-$(CONFIG_MPQEMU) += hw/proxy/memory-sync.o
+obj-$(CONFIG_MPQEMU) += hw/proxy/qemu-proxy.o
 endif
 LIBS := $(libs_cpu) $(LIBS)
 

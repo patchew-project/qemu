@@ -35,6 +35,7 @@
 #include "exec/ramlist.h"
 #include "exec/memattrs.h"
 #include "exec/address-spaces.h"
+#include "remote/iohub.h"
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan);
@@ -214,6 +215,9 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
         if (err) {
             goto finalize_loop;
         }
+        break;
+    case SET_IRQFD:
+        process_set_irqfd_msg(LINK_TO_DEV(link), msg);
         break;
     default:
         error_setg(&err, "Unknown command");
