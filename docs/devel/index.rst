@@ -26,3 +26,4 @@ Contents:
    bitops
    reset
    s390-dasd-ipl
+   multi-process
