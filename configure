@@ -4276,6 +4276,14 @@ EOF
           git_submodules="${git_submodules} dtc"
       fi
       if test -d "${source_path}/dtc/libfdt" || test -e "${source_path}/.git" ; then
+          for binary in ${BISON:-bison} ${LEX:-flex} ; do
+              if ! has $binary ; then
+                  error_exit "DTC (libfdt) version >= 1.4.2 not present on the system,\n" \
+                             "and using the dtc submodule replacement requires '${binary}'.\n" \
+                             "Please install the DTC (libfdt) devel package,\n" \
+                             "or the required binary '${binary}' to use the dtc submodule instead.\n"
+              fi
+          done
           fdt=git
           mkdir -p dtc
           if [ "$pwd_is_source_path" != "y" ] ; then
