@@ -66,6 +66,8 @@ int kvm_hv_handle_exit(X86CPU *cpu, struct kvm_hyperv_exit *exit)
         case HV_X64_MSR_SIEFP:
             env->msr_hv_synic_evt_page = exit->u.synic.evt_page;
             break;
+        case HV_X64_MSR_EOM:
+            return hyperv_synic_eom(CPU(cpu));
         default:
             return -1;
         }
