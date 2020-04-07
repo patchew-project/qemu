@@ -40,6 +40,29 @@ void hmp_qom_list(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+void hmp_qom_get(Monitor *mon, const QDict *qdict)
+{
+    const char *path = qdict_get_str(qdict, "path");
+    const char *property = qdict_get_str(qdict, "property");
+    Error *err = NULL;
+    Object *obj;
+    char *value;
+
+    obj = object_resolve_path(path, NULL);
+    if (obj == NULL) {
+        error_set(&err, ERROR_CLASS_DEVICE_NOT_FOUND,
+                  "Device '%s' not found", path);
+        hmp_handle_error(mon, err);
+        return;
+    }
+    value = object_property_print(obj, property, true, &err);
+    if (err == NULL) {
+        monitor_printf(mon, "%s\n", value);
+        g_free(value);
+    }
+    hmp_handle_error(mon, err);
+}
+
 void hmp_qom_set(Monitor *mon, const QDict *qdict)
 {
     const char *path = qdict_get_str(qdict, "path");
