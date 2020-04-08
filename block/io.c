@@ -2828,20 +2828,6 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb)
 /**************************************************************/
 /* Coroutine block device emulation */
 
-typedef struct FlushCo {
-    BlockDriverState *bs;
-    int ret;
-} FlushCo;
-
-
-static void coroutine_fn bdrv_flush_co_entry(void *opaque)
-{
-    FlushCo *rwco = opaque;
-
-    rwco->ret = bdrv_co_flush(rwco->bs);
-    aio_wait_kick();
-}
-
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
     int current_gen;
@@ -2954,6 +2940,19 @@ early_exit:
     return ret;
 }
 
+typedef struct FlushCo {
+    BlockDriverState *bs;
+    int ret;
+} FlushCo;
+
+static void coroutine_fn bdrv_flush_co_entry(void *opaque)
+{
+    FlushCo *rwco = opaque;
+
+    rwco->ret = bdrv_co_flush(rwco->bs);
+    aio_wait_kick();
+}
+
 int bdrv_flush(BlockDriverState *bs)
 {
     Coroutine *co;
@@ -2972,20 +2971,6 @@ int bdrv_flush(BlockDriverState *bs)
     }
 
     return flush_co.ret;
-}
-
-typedef struct DiscardCo {
-    BdrvChild *child;
-    int64_t offset;
-    int64_t bytes;
-    int ret;
-} DiscardCo;
-static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
-{
-    DiscardCo *rwco = opaque;
-
-    rwco->ret = bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
-    aio_wait_kick();
 }
 
 int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
@@ -3100,6 +3085,21 @@ out:
     tracked_request_end(&req);
     bdrv_dec_in_flight(bs);
     return ret;
+}
+
+typedef struct DiscardCo {
+    BdrvChild *child;
+    int64_t offset;
+    int64_t bytes;
+    int ret;
+} DiscardCo;
+
+static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
+{
+    DiscardCo *rwco = opaque;
+
+    rwco->ret = bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
+    aio_wait_kick();
 }
 
 int bdrv_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes)
