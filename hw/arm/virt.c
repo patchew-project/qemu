@@ -77,6 +77,7 @@
 #include "hw/acpi/generic_event_device.h"
 #include "hw/virtio/virtio-iommu.h"
 #include "hw/char/pl011.h"
+#include "hw/pci/pci_bus.h"
 
 #define DEFINE_VIRT_MACHINE_LATEST(major, minor, latest) \
     static void virt_##major##_##minor##_class_init(ObjectClass *oc, \
@@ -1435,6 +1436,12 @@ void virt_machine_done(Notifier *notifier, void *data)
     ARMCPU *cpu = ARM_CPU(first_cpu);
     struct arm_boot_info *info = &vms->bootinfo;
     AddressSpace *as = arm_boot_address_space(cpu, info);
+    PCIHostState *s = OBJECT_CHECK(PCIHostState,
+                                   object_resolve_path_type("",
+                                   "pcie-host-bridge", NULL),
+                                   TYPE_PCI_HOST_BRIDGE);
+
+    PCIBus *bus = s->bus;
 
     /*
      * If the user provided a dtb, we assume the dynamic sysbus nodes
@@ -1451,6 +1458,22 @@ void virt_machine_done(Notifier *notifier, void *data)
     }
     if (arm_load_dtb(info->dtb_start, info, info->dtb_limit, as, ms) < 0) {
         exit(1);
+    }
+
+    if (bus) {
+        int extra_hosts = 0;
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            /* look for expander root buses */
+            if (pci_bus_is_root(bus)) {
+                extra_hosts++;
+            }
+        }
+        if (extra_hosts && vms->fw_cfg) {
+            uint64_t *val = g_malloc(sizeof(*val));
+            *val = cpu_to_le64(extra_hosts);
+            fw_cfg_add_file(vms->fw_cfg,
+                   "etc/extra-pci-roots", val, sizeof(*val));
+        }
     }
 
     virt_acpi_setup(vms);
