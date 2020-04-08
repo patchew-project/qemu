@@ -2302,6 +2302,10 @@ int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
  * _ZERO where possible; otherwise, the result favors larger 'pnum',
  * with a focus on accurate BDRV_BLOCK_ALLOCATED.
  *
+ * If 'inc_in_flight' is true, in_flight counter will be increased for bs during
+ * the operation. All nested block_status calls will increase the counter for
+ * corresponding bs anyway.
+ *
  * If 'offset' is beyond the end of the disk image the return value is
  * BDRV_BLOCK_EOF and 'pnum' is set to 0.
  *
@@ -2320,7 +2324,7 @@ int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
  * set to the host mapping and BDS corresponding to the guest offset.
  */
 static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
-                                             bool want_zero,
+                                             bool want_zero, bool inc_in_flight,
                                              int64_t offset, int64_t bytes,
                                              int64_t *pnum, int64_t *map,
                                              BlockDriverState **file)
@@ -2371,7 +2375,9 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
         goto early_out;
     }
 
-    bdrv_inc_in_flight(bs);
+    if (inc_in_flight) {
+        bdrv_inc_in_flight(bs);
+    }
 
     /* Round out to request_alignment boundaries */
     align = bs->bl.request_alignment;
@@ -2408,7 +2414,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
 
     if (ret & BDRV_BLOCK_RAW) {
         assert(ret & BDRV_BLOCK_OFFSET_VALID && local_file);
-        ret = bdrv_co_block_status(local_file, want_zero, local_map,
+        ret = bdrv_co_block_status(local_file, want_zero, true, local_map,
                                    *pnum, pnum, &local_map, &local_file);
         goto out;
     }
@@ -2435,7 +2441,7 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
         int64_t file_pnum;
         int ret2;
 
-        ret2 = bdrv_co_block_status(local_file, want_zero, local_map,
+        ret2 = bdrv_co_block_status(local_file, want_zero, true, local_map,
                                     *pnum, &file_pnum, NULL, NULL);
         if (ret2 >= 0) {
             /* Ignore errors.  This is just providing extra information, it
@@ -2458,7 +2464,9 @@ static int coroutine_fn bdrv_co_block_status(BlockDriverState *bs,
     }
 
 out:
-    bdrv_dec_in_flight(bs);
+    if (inc_in_flight) {
+        bdrv_dec_in_flight(bs);
+    }
     if (ret >= 0 && offset + *pnum == total_size) {
         ret |= BDRV_BLOCK_EOF;
     }
@@ -2472,9 +2480,15 @@ early_out:
     return ret;
 }
 
+/*
+ * If 'inc_in_flight' is true, in_flight counter will be increased for bs during
+ * the operation. All block_status calls to the backing chain of bs will
+ * increase the counter for corresponding bs anyway.
+ */
 static int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
                                                    BlockDriverState *base,
                                                    bool want_zero,
+                                                   bool inc_in_flight,
                                                    int64_t offset,
                                                    int64_t bytes,
                                                    int64_t *pnum,
@@ -2487,11 +2501,13 @@ static int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
 
     assert(bs != base);
     for (p = bs; p != base; p = backing_bs(p)) {
-        ret = bdrv_co_block_status(p, want_zero, offset, bytes, pnum, map,
-                                   file);
+        ret = bdrv_co_block_status(p, want_zero, inc_in_flight,
+                                   offset, bytes, pnum, map, file);
         if (ret < 0) {
             break;
         }
+        inc_in_flight = true;
+
         if (ret & BDRV_BLOCK_ZERO && ret & BDRV_BLOCK_EOF && !first) {
             /*
              * Reading beyond the end of the file continues to read
@@ -2513,15 +2529,16 @@ static int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
 }
 
 static int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs,
+                                             bool inc_in_flight,
                                              int64_t offset, int64_t bytes,
                                              int64_t *pnum)
 {
     int ret;
     int64_t dummy;
 
-    ret = bdrv_co_block_status_above(bs, backing_bs(bs), false, offset,
-                                     bytes, pnum ? pnum : &dummy, NULL,
-                                     NULL);
+    ret = bdrv_co_block_status_above(bs, backing_bs(bs), false, inc_in_flight,
+                                     offset, bytes, pnum ? pnum : &dummy,
+                                     NULL, NULL);
     if (ret < 0) {
         return ret;
     }
@@ -2534,7 +2551,7 @@ static void coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
     BdrvCoBlockStatusData *data = opaque;
 
     data->ret = bdrv_co_block_status_above(data->bs, data->base,
-                                           data->want_zero,
+                                           data->want_zero, false,
                                            data->offset, data->bytes,
                                            data->pnum, data->map, data->file);
     data->done = true;
@@ -2566,6 +2583,8 @@ static int bdrv_common_block_status_above(BlockDriverState *bs,
         .done = false,
     };
 
+    bdrv_inc_in_flight(bs);
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_block_status_above_co_entry(&data);
@@ -2574,6 +2593,9 @@ static int bdrv_common_block_status_above(BlockDriverState *bs,
         bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, !data.done);
     }
+
+    bdrv_dec_in_flight(bs);
+
     return data.ret;
 }
 
@@ -2623,15 +2645,19 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
  * words, the result is not necessarily the maximum possible range);
  * but 'pnum' will only be 0 when end of file is reached.
  *
+ * To be called between exactly one pair of bdrv_inc/dec_in_flight() for top bs.
+ * bdrv_do_is_allocated_above takes care of increasing in_fligth for other block
+ * driver states from bs backing chain.
  */
 static int coroutine_fn
-bdrv_co_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+bdrv_do_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
                            bool include_base, int64_t offset, int64_t bytes,
                            int64_t *pnum)
 {
     BlockDriverState *intermediate;
     int ret;
     int64_t n = bytes;
+    bool inc_in_flight = false;
 
     assert(base || !include_base);
 
@@ -2641,10 +2667,12 @@ bdrv_co_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
         int64_t size_inter;
 
         assert(intermediate);
-        ret = bdrv_co_is_allocated(intermediate, offset, bytes, &pnum_inter);
+        ret = bdrv_co_is_allocated(intermediate, inc_in_flight, offset, bytes,
+                                   &pnum_inter);
         if (ret < 0) {
             return ret;
         }
+        inc_in_flight = true;
         if (ret) {
             *pnum = pnum_inter;
             return 1;
@@ -2685,7 +2713,7 @@ static void coroutine_fn bdrv_is_allocated_above_co_entry(void *opaque)
 {
     BdrvCoIsAllocatedAboveData *data = opaque;
 
-    data->ret = bdrv_co_is_allocated_above(data->top, data->base,
+    data->ret = bdrv_do_is_allocated_above(data->top, data->base,
                                            data->include_base,
                                            data->offset, data->bytes,
                                            data->pnum);
@@ -2709,6 +2737,8 @@ bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
         .done = false,
     };
 
+    bdrv_inc_in_flight(top);
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_is_allocated_above_co_entry(&data);
@@ -2717,6 +2747,8 @@ bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
         bdrv_coroutine_enter(top, co);
         BDRV_POLL_WHILE(top, !data.done);
     }
+
+    bdrv_inc_in_flight(top);
 
     return data.ret;
 }
