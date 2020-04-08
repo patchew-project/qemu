@@ -2016,8 +2016,10 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     return ret;
 }
 
-int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
-                                       int bytes, BdrvRequestFlags flags)
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
+static int coroutine_fn
+bdrv_do_pwrite_zeroes(BdrvChild *child, int64_t offset, int bytes,
+                      BdrvRequestFlags flags)
 {
     trace_bdrv_co_pwrite_zeroes(child->bs, offset, bytes, flags);
 
@@ -2025,8 +2027,21 @@ int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
         flags &= ~BDRV_REQ_MAY_UNMAP;
     }
 
-    return bdrv_co_pwritev(child, offset, bytes, NULL,
-                           BDRV_REQ_ZERO_WRITE | flags);
+    return bdrv_do_pwritev_part(child, offset, bytes, NULL, 0,
+                                BDRV_REQ_ZERO_WRITE | flags);
+}
+
+int coroutine_fn
+bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset, int bytes,
+                      BdrvRequestFlags flags)
+{
+    int ret;
+
+    bdrv_inc_in_flight(child->bs);
+    ret = bdrv_do_pwrite_zeroes(child, offset, bytes, flags);
+    bdrv_dec_in_flight(child->bs);
+
+    return ret;
 }
 
 typedef struct RwCo {
