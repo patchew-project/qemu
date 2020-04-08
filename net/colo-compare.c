@@ -32,6 +32,9 @@
 #include "migration/migration.h"
 #include "util.h"
 
+#include "block/aio-wait.h"
+#include "qemu/coroutine.h"
+
 #define TYPE_COLO_COMPARE "colo-compare"
 #define COLO_COMPARE(obj) \
     OBJECT_CHECK(CompareState, (obj), TYPE_COLO_COMPARE)
@@ -77,6 +80,17 @@ static int event_unhandled_count;
  *                    |packet  |  |packet  +    |packet  | |packet  +
  *                    +--------+  +--------+    +--------+ +--------+
  */
+
+typedef struct SendCo {
+    Coroutine *co;
+    uint8_t *buf;
+    uint32_t size;
+    uint32_t vnet_hdr_len;
+    bool notify_remote_frame;
+    bool done;
+    int ret;
+} SendCo;
+
 typedef struct CompareState {
     Object parent;
 
@@ -91,6 +105,7 @@ typedef struct CompareState {
     SocketReadState pri_rs;
     SocketReadState sec_rs;
     SocketReadState notify_rs;
+    SendCo sendco;
     bool vnet_hdr;
     uint32_t compare_timeout;
     uint32_t expired_scan_cycle;
@@ -699,18 +714,16 @@ static void colo_compare_connection(void *opaque, void *user_data)
     }
 }
 
-static int compare_chr_send(CompareState *s,
-                            const uint8_t *buf,
-                            uint32_t size,
-                            uint32_t vnet_hdr_len,
-                            bool notify_remote_frame)
+static void coroutine_fn _compare_chr_send(void *opaque)
 {
+    CompareState *s = opaque;
+    SendCo *sendco = &s->sendco;
+    const uint8_t *buf = sendco->buf;
+    uint32_t size = sendco->size;
+    uint32_t vnet_hdr_len = sendco->vnet_hdr_len;
+    bool notify_remote_frame = sendco->notify_remote_frame;
     int ret = 0;
     uint32_t len = htonl(size);
-
-    if (!size) {
-        return 0;
-    }
 
     if (notify_remote_frame) {
         ret = qemu_chr_fe_write_all(&s->chr_notify_dev,
@@ -754,10 +767,50 @@ static int compare_chr_send(CompareState *s,
         goto err;
     }
 
-    return 0;
+    sendco->ret = 0;
+    goto out;
 
 err:
-    return ret < 0 ? ret : -EIO;
+    sendco->ret = ret < 0 ? ret : -EIO;
+out:
+    sendco->co = NULL;
+    g_free(sendco->buf);
+    sendco->buf = NULL;
+    sendco->done = true;
+    aio_wait_kick();
+}
+
+static int compare_chr_send(CompareState *s,
+                            const uint8_t *buf,
+                            uint32_t size,
+                            uint32_t vnet_hdr_len,
+                            bool notify_remote_frame)
+{
+    SendCo *sendco = &s->sendco;
+
+    if (!size) {
+        return 0;
+    }
+
+    if (sendco->done) {
+        sendco->co = qemu_coroutine_create(_compare_chr_send, s);
+        sendco->buf = g_malloc(size);
+        sendco->size = size;
+        sendco->vnet_hdr_len = vnet_hdr_len;
+        sendco->notify_remote_frame = notify_remote_frame;
+        sendco->done = false;
+        memcpy(sendco->buf, buf, size);
+        qemu_coroutine_enter(sendco->co);
+        if (sendco->done) {
+            /* report early errors */
+            return sendco->ret;
+        } else {
+            /* else assume success */
+            return 0;
+        }
+    }
+
+    return -ENOBUFS;
 }
 
 static int compare_chr_can_read(void *opaque)
@@ -1146,6 +1199,8 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
     CompareState *s = COLO_COMPARE(uc);
     Chardev *chr;
 
+    s->sendco.done = true;
+
     if (!s->pri_indev || !s->sec_indev || !s->outdev || !s->iothread) {
         error_setg(errp, "colo compare needs 'primary_in' ,"
                    "'secondary_in','outdev','iothread' property set");
@@ -1280,6 +1335,11 @@ static void colo_compare_finalize(Object *obj)
 {
     CompareState *s = COLO_COMPARE(obj);
     CompareState *tmp = NULL;
+
+    AioContext *ctx = iothread_get_aio_context(s->iothread);
+    aio_context_acquire(ctx);
+    AIO_WAIT_WHILE(ctx, !s->sendco.done);
+    aio_context_release(ctx);
 
     qemu_chr_fe_deinit(&s->chr_pri_in, false);
     qemu_chr_fe_deinit(&s->chr_sec_in, false);
