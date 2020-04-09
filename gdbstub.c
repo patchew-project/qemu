@@ -911,17 +911,22 @@ static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
     CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = cpu->env_ptr;
     GDBRegisterState *r;
+    int len = 0, orig_len = buf->len;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cc->gdb_read_register(cpu, buf, reg);
+        len = cc->gdb_read_register(cpu, buf, reg);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {
         if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
-            return r->get_reg(env, buf, reg - r->base_reg);
+            len = r->get_reg(env, buf, reg - r->base_reg);
+            break;
         }
     }
-    return 0;
+
+    assert(len == buf->len - orig_len);
+
+    return len;
 }
 
 static int gdb_write_register(CPUState *cpu, uint8_t *mem_buf, int reg)
