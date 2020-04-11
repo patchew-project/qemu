@@ -109,6 +109,7 @@ check-qtest-ppc64-$(CONFIG_VGA) += display-vga-test
 check-qtest-ppc64-y += numa-test
 check-qtest-ppc64-$(CONFIG_IVSHMEM_DEVICE) += ivshmem-test
 check-qtest-ppc64-y += cpu-plug-test
+check-qtest-ppc64-$(CONFIG_SM501) += sm501-test
 
 check-qtest-sh4-$(CONFIG_ISA_TESTDEV) = endianness-test
 
@@ -253,6 +254,7 @@ tests/qtest/pflash-cfi02$(EXESUF): tests/qtest/pflash-cfi02-test.o
 tests/qtest/endianness-test$(EXESUF): tests/qtest/endianness-test.o
 tests/qtest/prom-env-test$(EXESUF): tests/qtest/prom-env-test.o $(libqos-obj-y)
 tests/qtest/rtas-test$(EXESUF): tests/qtest/rtas-test.o $(libqos-spapr-obj-y)
+tests/qtest/sm501-test$(EXESUF): tests/qtest/sm501-test.o $(libqos-spapr-obj-y)
 tests/qtest/fdc-test$(EXESUF): tests/qtest/fdc-test.o
 tests/qtest/ide-test$(EXESUF): tests/qtest/ide-test.o $(libqos-pc-obj-y)
 tests/qtest/ahci-test$(EXESUF): tests/qtest/ahci-test.o $(libqos-pc-obj-y) qemu-img$(EXESUF)
