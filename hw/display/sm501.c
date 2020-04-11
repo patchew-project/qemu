@@ -726,6 +726,12 @@ static void sm501_2d_operation(SM501State *s)
     int crt = (s->dc_crt_control & SM501_DC_CRT_CONTROL_SEL) ? 1 : 0;
     int fb_len = get_width(s, crt) * get_height(s, crt) * get_bpp(s, crt);
 
+    if (rtl && (src_x < operation_width || src_y < operation_height)) {
+        qemu_log_mask(LOG_GUEST_ERROR, "sm501: Illegal RTL address (%i, %i)\n",
+                      src_x, src_y);
+        return;
+    }
+
     if (addressing != 0x0) {
         printf("%s: only XY addressing is supported.\n", __func__);
         abort();
