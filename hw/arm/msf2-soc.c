@@ -93,7 +93,11 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     MemoryRegion *system_memory = get_system_memory();
 
     memory_region_init_rom(&s->nvm, OBJECT(dev_soc), "MSF2.eNVM", s->envm_size,
-                           &error_fatal);
+                           &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     /*
      * On power-on, the eNVM region 0x60000000 is automatically
      * remapped to the Cortex-M3 processor executable region
@@ -107,7 +111,11 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion(system_memory, 0, &s->nvm_alias);
 
     memory_region_init_ram(&s->sram, NULL, "MSF2.eSRAM", s->esram_size,
-                           &error_fatal);
+                           &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     memory_region_add_subregion(system_memory, SRAM_BASE_ADDRESS, &s->sram);
 
     armv7m = DEVICE(&s->armv7m);
@@ -115,7 +123,11 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
     qdev_prop_set_string(armv7m, "cpu-type", s->cpu_type);
     qdev_prop_set_bit(armv7m, "enable-bitband", true);
     object_property_set_link(OBJECT(&s->armv7m), OBJECT(get_system_memory()),
-                                     "memory", &error_abort);
+                                     "memory", &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
     object_property_set_bool(OBJECT(&s->armv7m), true, "realized", &err);
     if (err != NULL) {
         error_propagate(errp, err);
@@ -184,8 +196,12 @@ static void m2sxxx_soc_realize(DeviceState *dev_soc, Error **errp)
         bus_name = g_strdup_printf("spi%d", i);
         object_property_add_alias(OBJECT(s), bus_name,
                                   OBJECT(&s->spi[i]), "spi",
-                                  &error_abort);
+                                  &err);
         g_free(bus_name);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
     }
 
     /* Below devices are not modelled yet. */
