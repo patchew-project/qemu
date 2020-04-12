@@ -48,10 +48,29 @@ static void fsl_imx6_init(Object *obj)
         object_initialize_child(obj, name, &s->cpu[i], sizeof(s->cpu[i]),
                                 ARM_CPU_TYPE_NAME("cortex-a9"),
                                 &error_abort, NULL);
+
+        /* On uniprocessor, the CBAR is set to 0 */
+        if (smp_cpus > 1) {
+            object_property_set_int(OBJECT(&s->cpu[i]), FSL_IMX6_A9MPCORE_ADDR,
+                                    "reset-cbar", &error_abort);
+        }
+
+        /* All CPU but CPU 0 start in power off mode */
+        if (i) {
+            object_property_set_bool(OBJECT(&s->cpu[i]), true,
+                                     "start-powered-off", &error_abort);
+        }
     }
 
     sysbus_init_child_obj(obj, "a9mpcore", &s->a9mpcore, sizeof(s->a9mpcore),
                           TYPE_A9MPCORE_PRIV);
+
+    object_property_set_int(OBJECT(&s->a9mpcore), smp_cpus, "num-cpu",
+                            &error_abort);
+
+    object_property_set_int(OBJECT(&s->a9mpcore),
+                            FSL_IMX6_MAX_IRQ + GIC_INTERNAL, "num-irq",
+                            &error_abort);
 
     sysbus_init_child_obj(obj, "ccm", &s->ccm, sizeof(s->ccm), TYPE_IMX6_CCM);
 
@@ -81,6 +100,10 @@ static void fsl_imx6_init(Object *obj)
         snprintf(name, NAME_SIZE, "gpio%d", i + 1);
         sysbus_init_child_obj(obj, name, &s->gpio[i], sizeof(s->gpio[i]),
                               TYPE_IMX_GPIO);
+        object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-edge-sel",
+                                 &error_abort);
+        object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-upper-pin-irq",
+                                 &error_abort);
     }
 
     for (i = 0; i < FSL_IMX6_NUM_ESDHCS; i++) {
@@ -124,32 +147,12 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
     unsigned int smp_cpus = ms->smp.cpus;
 
     for (i = 0; i < smp_cpus; i++) {
-
-        /* On uniprocessor, the CBAR is set to 0 */
-        if (smp_cpus > 1) {
-            object_property_set_int(OBJECT(&s->cpu[i]), FSL_IMX6_A9MPCORE_ADDR,
-                                    "reset-cbar", &error_abort);
-        }
-
-        /* All CPU but CPU 0 start in power off mode */
-        if (i) {
-            object_property_set_bool(OBJECT(&s->cpu[i]), true,
-                                     "start-powered-off", &error_abort);
-        }
-
         object_property_set_bool(OBJECT(&s->cpu[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
             return;
         }
     }
-
-    object_property_set_int(OBJECT(&s->a9mpcore), smp_cpus, "num-cpu",
-                            &error_abort);
-
-    object_property_set_int(OBJECT(&s->a9mpcore),
-                            FSL_IMX6_MAX_IRQ + GIC_INTERNAL, "num-irq",
-                            &error_abort);
 
     object_property_set_bool(OBJECT(&s->a9mpcore), true, "realized", &err);
     if (err) {
@@ -310,10 +313,6 @@ static void fsl_imx6_realize(DeviceState *dev, Error **errp)
             },
         };
 
-        object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-edge-sel",
-                                 &error_abort);
-        object_property_set_bool(OBJECT(&s->gpio[i]), true, "has-upper-pin-irq",
-                                 &error_abort);
         object_property_set_bool(OBJECT(&s->gpio[i]), true, "realized", &err);
         if (err) {
             error_propagate(errp, err);
