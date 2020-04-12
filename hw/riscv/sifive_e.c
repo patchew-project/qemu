@@ -118,7 +118,9 @@ static void riscv_sifive_e_init(MachineState *machine)
 static void riscv_sifive_e_soc_init(Object *obj)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
+    const struct MemmapEntry *memmap = sifive_e_memmap;
     SiFiveESoCState *s = RISCV_E_SOC(obj);
+    MemoryRegion *sys_mem = get_system_memory();
 
     object_initialize_child(obj, "cpus", &s->cpus,
                             sizeof(s->cpus), TYPE_RISCV_HART_ARRAY,
@@ -130,6 +132,18 @@ static void riscv_sifive_e_soc_init(Object *obj)
     sysbus_init_child_obj(obj, "riscv.sifive.e.gpio0",
                           &s->gpio, sizeof(s->gpio),
                           TYPE_SIFIVE_GPIO);
+
+    /* Mask ROM */
+    memory_region_init_rom(&s->mask_rom, obj, "riscv.sifive.e.mrom",
+                           memmap[SIFIVE_E_MROM].size, &error_fatal);
+    memory_region_add_subregion(sys_mem,
+        memmap[SIFIVE_E_MROM].base, &s->mask_rom);
+
+    /* Flash memory */
+    memory_region_init_rom(&s->xip_mem, obj, "riscv.sifive.e.xip",
+                           memmap[SIFIVE_E_XIP].size, &error_fatal);
+    memory_region_add_subregion(sys_mem, memmap[SIFIVE_E_XIP].base,
+        &s->xip_mem);
 }
 
 static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
@@ -143,12 +157,6 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
 
     object_property_set_bool(OBJECT(&s->cpus), true, "realized",
                             &error_abort);
-
-    /* Mask ROM */
-    memory_region_init_rom(&s->mask_rom, OBJECT(dev), "riscv.sifive.e.mrom",
-                           memmap[SIFIVE_E_MROM].size, &error_fatal);
-    memory_region_add_subregion(sys_mem,
-        memmap[SIFIVE_E_MROM].base, &s->mask_rom);
 
     /* MMIO */
     s->plic = sifive_plic_create(memmap[SIFIVE_E_PLIC].base,
@@ -206,12 +214,6 @@ static void riscv_sifive_e_soc_realize(DeviceState *dev, Error **errp)
         memmap[SIFIVE_E_QSPI2].base, memmap[SIFIVE_E_QSPI2].size);
     create_unimplemented_device("riscv.sifive.e.pwm2",
         memmap[SIFIVE_E_PWM2].base, memmap[SIFIVE_E_PWM2].size);
-
-    /* Flash memory */
-    memory_region_init_rom(&s->xip_mem, OBJECT(dev), "riscv.sifive.e.xip",
-                           memmap[SIFIVE_E_XIP].size, &error_fatal);
-    memory_region_add_subregion(sys_mem, memmap[SIFIVE_E_XIP].base,
-        &s->xip_mem);
 }
 
 static void riscv_sifive_e_machine_init(MachineClass *mc)
