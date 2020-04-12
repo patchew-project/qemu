@@ -60,10 +60,18 @@ static void aw_a10_init(Object *obj)
         int i;
 
         for (i = 0; i < AW_A10_NUM_USB; i++) {
+            char bus[16];
+
             sysbus_init_child_obj(obj, "ehci[*]", OBJECT(&s->ehci[i]),
                                   sizeof(s->ehci[i]), TYPE_PLATFORM_EHCI);
             sysbus_init_child_obj(obj, "ohci[*]", OBJECT(&s->ohci[i]),
                                   sizeof(s->ohci[i]), TYPE_SYSBUS_OHCI);
+            object_property_set_bool(OBJECT(&s->ehci[i]), true,
+                                     "companion-enable", &error_fatal);
+
+            sprintf(bus, "usb-bus.%d", i);
+            object_property_set_str(OBJECT(&s->ohci[i]), bus, "masterbus",
+                                    &error_fatal);
         }
     }
 
@@ -72,6 +80,11 @@ static void aw_a10_init(Object *obj)
 
     sysbus_init_child_obj(obj, "rtc", &s->rtc, sizeof(s->rtc),
                           TYPE_AW_RTC_SUN4I);
+
+    memory_region_init_ram(&s->sram_a, obj, "sram A", 48 * KiB,
+                           &error_fatal);
+    memory_region_add_subregion(get_system_memory(), 0x00000000, &s->sram_a);
+    create_unimplemented_device("a10-sram-ctrl", 0x01c00000, 4 * KiB);
 }
 
 static void aw_a10_realize(DeviceState *dev, Error **errp)
@@ -113,11 +126,6 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
     sysbus_connect_irq(sysbusdev, 4, qdev_get_gpio_in(dev, 67));
     sysbus_connect_irq(sysbusdev, 5, qdev_get_gpio_in(dev, 68));
 
-    memory_region_init_ram(&s->sram_a, OBJECT(dev), "sram A", 48 * KiB,
-                           &error_fatal);
-    memory_region_add_subregion(get_system_memory(), 0x00000000, &s->sram_a);
-    create_unimplemented_device("a10-sram-ctrl", 0x01c00000, 4 * KiB);
-
     /* FIXME use qdev NIC properties instead of nd_table[] */
     if (nd_table[0].used) {
         qemu_check_nic_model(&nd_table[0], TYPE_AW_EMAC);
@@ -149,12 +157,6 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
         int i;
 
         for (i = 0; i < AW_A10_NUM_USB; i++) {
-            char bus[16];
-
-            sprintf(bus, "usb-bus.%d", i);
-
-            object_property_set_bool(OBJECT(&s->ehci[i]), true,
-                                     "companion-enable", &error_fatal);
             object_property_set_bool(OBJECT(&s->ehci[i]), true, "realized",
                                      &error_fatal);
             sysbus_mmio_map(SYS_BUS_DEVICE(&s->ehci[i]), 0,
@@ -162,8 +164,6 @@ static void aw_a10_realize(DeviceState *dev, Error **errp)
             sysbus_connect_irq(SYS_BUS_DEVICE(&s->ehci[i]), 0,
                                qdev_get_gpio_in(dev, 39 + i));
 
-            object_property_set_str(OBJECT(&s->ohci[i]), bus, "masterbus",
-                                    &error_fatal);
             object_property_set_bool(OBJECT(&s->ohci[i]), true, "realized",
                                      &error_fatal);
             sysbus_mmio_map(SYS_BUS_DEVICE(&s->ohci[i]), 0,
