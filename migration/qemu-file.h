@@ -103,6 +103,14 @@ typedef QEMUFile *(QEMURetPathFunc)(void *opaque);
 typedef int (QEMUFileShutdownFunc)(void *opaque, bool rd, bool wr,
                                    Error **errp);
 
+/*
+ * Enables or disables the buffered mode
+ * Existing blocking reads/writes must be woken
+ * Returns true if the buffered mode has to be enabled,
+ * false if it has to be disabled.
+ */
+typedef bool (QEMUFileEnableBufferedFunc)(void *opaque);
+
 typedef struct QEMUFileOps {
     QEMUFileGetBufferFunc *get_buffer;
     QEMUFileCloseFunc *close;
@@ -110,6 +118,7 @@ typedef struct QEMUFileOps {
     QEMUFileWritevBufferFunc *writev_buffer;
     QEMURetPathFunc *get_return_path;
     QEMUFileShutdownFunc *shut_down;
+    QEMUFileEnableBufferedFunc *enable_buffered;
 } QEMUFileOps;
 
 typedef struct QEMUFileHooks {
