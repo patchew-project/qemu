@@ -141,6 +141,8 @@ cscope.*
 tags
 TAGS
 docker-src.*
+build
+builds
 *~
 *.ast_raw
 *.depend_raw
