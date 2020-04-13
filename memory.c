@@ -1312,7 +1312,11 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
 {
     MemoryRegion *mr = opaque;
 
-    trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data, size);
+    trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data,
+                                         size, mr->readonly);
+    if (mr->readonly) {
+        return;
+    }
 
     switch (size) {
     case 1:
