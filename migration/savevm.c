@@ -63,6 +63,7 @@
 #include "migration/colo.h"
 #include "qemu/bitmap.h"
 #include "net/announce.h"
+#include "block/block_int.h"
 
 const unsigned int postcopy_ram_discard_version = 0;
 
@@ -153,6 +154,12 @@ static int bdrv_fclose(void *opaque, Error **errp)
     return bdrv_flush(opaque);
 }
 
+static bool qemu_file_is_buffered(void *opaque)
+{
+    BlockDriverState *bs = (BlockDriverState *) opaque;
+    return !!(bs->open_flags & BDRV_O_NOCACHE);
+}
+
 static const QEMUFileOps bdrv_read_ops = {
     .get_buffer = block_get_buffer,
     .close =      bdrv_fclose
@@ -160,7 +167,8 @@ static const QEMUFileOps bdrv_read_ops = {
 
 static const QEMUFileOps bdrv_write_ops = {
     .writev_buffer  = block_writev_buffer,
-    .close          = bdrv_fclose
+    .close          = bdrv_fclose,
+    .enable_buffered = qemu_file_is_buffered
 };
 
 static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
@@ -2624,7 +2632,7 @@ int qemu_load_device_state(QEMUFile *f)
     return 0;
 }
 
-int save_snapshot(const char *name, Error **errp)
+static int coroutine_fn save_snapshot_fn(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -2745,6 +2753,32 @@ int save_snapshot(const char *name, Error **errp)
         vm_start();
     }
     return ret;
+}
+
+ typedef struct SaveVMParams {
+     const char *name;
+     Error **errp;
+     int ret;
+ } SaveVMParams;
+
+static void coroutine_fn save_snapshot_entry(void *opaque)
+{
+    SaveVMParams *p = (SaveVMParams *) opaque;
+    p->ret = save_snapshot_fn(p->name, p->errp);
+}
+
+int save_snapshot(const char *name, Error **errp)
+{
+    SaveVMParams p = (SaveVMParams) {
+        .name = name,
+        .errp = errp,
+        .ret = -EINPROGRESS,
+    };
+
+    Coroutine *co = qemu_coroutine_create(save_snapshot_entry, &p);
+    aio_co_enter(qemu_get_aio_context(), co);
+    AIO_WAIT_WHILE(qemu_get_aio_context(), p.ret == -EINPROGRESS);
+    return p.ret;
 }
 
 void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
