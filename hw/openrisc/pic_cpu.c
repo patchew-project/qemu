@@ -52,10 +52,9 @@ static void openrisc_pic_cpu_handler(void *opaque, int irq, int level)
 void cpu_openrisc_pic_init(OpenRISCCPU *cpu)
 {
     int i;
-    qemu_irq *qi;
-    qi = qemu_allocate_irqs(openrisc_pic_cpu_handler, cpu, NR_IRQS);
+    qdev_init_gpio_in(DEVICE(cpu), openrisc_pic_cpu_handler, NR_IRQS);
 
     for (i = 0; i < NR_IRQS; i++) {
-        cpu->env.irq[i] = qi[i];
+        cpu->env.irq[i] = qdev_get_gpio_in(DEVICE(cpu), i);
     }
 }
