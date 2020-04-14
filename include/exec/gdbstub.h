@@ -125,6 +125,15 @@ static inline int gdb_get_reg128(GByteArray *buf, uint64_t val_hi,
     return 16;
 }
 
+static inline int gdb_get_zeroes(GByteArray *array, size_t len)
+{
+    for (size_t i = 0; i < len; i++) {
+        gdb_get_reg8(array, '\0');
+    }
+
+    return len;
+}
+
 /**
  * gdb_get_reg_ptr: get pointer to start of last element
  * @len: length of element
