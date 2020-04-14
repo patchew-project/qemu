@@ -6,14 +6,14 @@
      notice and this notice are preserved.  -->
 <!DOCTYPE feature SYSTEM "gdb-target.dtd">
 <feature name="org.gnu.gdb.coldfire.fp">
-  <reg name="fp0" bitsize="96" type="float" group="float"/>
-  <reg name="fp1" bitsize="96" type="float" group="float"/>
-  <reg name="fp2" bitsize="96" type="float" group="float"/>
-  <reg name="fp3" bitsize="96" type="float" group="float"/>
-  <reg name="fp4" bitsize="96" type="float" group="float"/>
-  <reg name="fp5" bitsize="96" type="float" group="float"/>
-  <reg name="fp6" bitsize="96" type="float" group="float"/>
-  <reg name="fp7" bitsize="96" type="float" group="float"/>
+  <reg name="fp0" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp1" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp2" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp3" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp4" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp5" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp6" bitsize="80" type="i387_ext" group="float"/>
+  <reg name="fp7" bitsize="80" type="i387_ext" group="float"/>
 
   <reg name="fpcontrol" bitsize="32" group="float"/>
   <reg name="fpstatus" bitsize="32" group="float"/>,
