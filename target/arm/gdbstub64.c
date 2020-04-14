@@ -20,22 +20,22 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int aarch64_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
     if (n < 31) {
         /* Core integer register.  */
-        return gdb_get_reg64(mem_buf, env->xregs[n]);
+        return gdb_get_reg64(array, env->xregs[n]);
     }
     switch (n) {
     case 31:
-        return gdb_get_reg64(mem_buf, env->xregs[31]);
+        return gdb_get_reg64(array, env->xregs[31]);
     case 32:
-        return gdb_get_reg64(mem_buf, env->pc);
+        return gdb_get_reg64(array, env->pc);
     case 33:
-        return gdb_get_reg32(mem_buf, pstate_read(env));
+        return gdb_get_reg32(array, pstate_read(env));
     }
     /* Unknown register.  */
     return 0;

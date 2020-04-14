@@ -27,7 +27,7 @@
 #include "sysemu/hw_accel.h"
 #include "sysemu/tcg.h"
 
-int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     S390CPU *cpu = S390_CPU(cs);
     CPUS390XState *env = &cpu->env;
@@ -40,13 +40,13 @@ int s390_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
             cc_op = calc_cc(env, env->cc_op, env->cc_src, env->cc_dst,
                             env->cc_vr);
             val = deposit64(env->psw.mask, 44, 2, cc_op);
-            return gdb_get_regl(mem_buf, val);
+            return gdb_get_regl(array, val);
         }
-        return gdb_get_regl(mem_buf, env->psw.mask);
+        return gdb_get_regl(array, env->psw.mask);
     case S390_PSWA_REGNUM:
-        return gdb_get_regl(mem_buf, env->psw.addr);
+        return gdb_get_regl(array, env->psw.addr);
     case S390_R0_REGNUM ... S390_R15_REGNUM:
-        return gdb_get_regl(mem_buf, env->regs[n - S390_R0_REGNUM]);
+        return gdb_get_regl(array, env->regs[n - S390_R0_REGNUM]);
     }
     return 0;
 }
@@ -223,25 +223,25 @@ static int cpu_write_c_reg(CPUS390XState *env, uint8_t *mem_buf, int n)
 /* total number of registers in s390-virt.xml */
 #define S390_NUM_VIRT_REGS 8
 
-static int cpu_read_virt_reg(CPUS390XState *env, GByteArray *mem_buf, int n)
+static int cpu_read_virt_reg(CPUS390XState *env, GByteArray *array, int n)
 {
     switch (n) {
     case S390_VIRT_CKC_REGNUM:
-        return gdb_get_regl(mem_buf, env->ckc);
+        return gdb_get_regl(array, env->ckc);
     case S390_VIRT_CPUTM_REGNUM:
-        return gdb_get_regl(mem_buf, env->cputm);
+        return gdb_get_regl(array, env->cputm);
     case S390_VIRT_BEA_REGNUM:
-        return gdb_get_regl(mem_buf, env->gbea);
+        return gdb_get_regl(array, env->gbea);
     case S390_VIRT_PREFIX_REGNUM:
-        return gdb_get_regl(mem_buf, env->psa);
+        return gdb_get_regl(array, env->psa);
     case S390_VIRT_PP_REGNUM:
-        return gdb_get_regl(mem_buf, env->pp);
+        return gdb_get_regl(array, env->pp);
     case S390_VIRT_PFT_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_token);
+        return gdb_get_regl(array, env->pfault_token);
     case S390_VIRT_PFS_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_select);
+        return gdb_get_regl(array, env->pfault_select);
     case S390_VIRT_PFC_REGNUM:
-        return gdb_get_regl(mem_buf, env->pfault_compare);
+        return gdb_get_regl(array, env->pfault_compare);
     default:
         return 0;
     }

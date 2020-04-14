@@ -33,21 +33,21 @@ typedef struct RegisterSysregXmlParam {
    We hack round this by giving the FPA regs zero size when talking to a
    newer gdb.  */
 
-int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     ARMCPU *cpu = ARM_CPU(cs);
     CPUARMState *env = &cpu->env;
 
     if (n < 16) {
         /* Core integer register.  */
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32(array, env->regs[n]);
     }
     if (n < 24) {
         /* FPA registers.  */
         if (gdb_has_xml) {
             return 0;
         }
-        return gdb_get_zeroes(mem_buf, 12);
+        return gdb_get_zeroes(array, 12);
     }
     switch (n) {
     case 24:
@@ -55,10 +55,10 @@ int arm_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         if (gdb_has_xml) {
             return 0;
         }
-        return gdb_get_reg32(mem_buf, 0);
+        return gdb_get_reg32(array, 0);
     case 25:
         /* CPSR */
-        return gdb_get_reg32(mem_buf, cpsr_read(env));
+        return gdb_get_reg32(array, cpsr_read(env));
     }
     /* Unknown register.  */
     return 0;

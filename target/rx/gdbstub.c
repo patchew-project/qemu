@@ -20,32 +20,32 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int rx_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int rx_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     RXCPU *cpu = RXCPU(cs);
     CPURXState *env = &cpu->env;
 
     switch (n) {
     case 0 ... 15:
-        return gdb_get_regl(mem_buf, env->regs[n]);
+        return gdb_get_regl(array, env->regs[n]);
     case 16:
-        return gdb_get_regl(mem_buf, (env->psw_u) ? env->regs[0] : env->usp);
+        return gdb_get_regl(array, (env->psw_u) ? env->regs[0] : env->usp);
     case 17:
-        return gdb_get_regl(mem_buf, (!env->psw_u) ? env->regs[0] : env->isp);
+        return gdb_get_regl(array, (!env->psw_u) ? env->regs[0] : env->isp);
     case 18:
-        return gdb_get_regl(mem_buf, rx_cpu_pack_psw(env));
+        return gdb_get_regl(array, rx_cpu_pack_psw(env));
     case 19:
-        return gdb_get_regl(mem_buf, env->pc);
+        return gdb_get_regl(array, env->pc);
     case 20:
-        return gdb_get_regl(mem_buf, env->intb);
+        return gdb_get_regl(array, env->intb);
     case 21:
-        return gdb_get_regl(mem_buf, env->bpsw);
+        return gdb_get_regl(array, env->bpsw);
     case 22:
-        return gdb_get_regl(mem_buf, env->bpc);
+        return gdb_get_regl(array, env->bpc);
     case 23:
-        return gdb_get_regl(mem_buf, env->fintv);
+        return gdb_get_regl(array, env->fintv);
     case 24:
-        return gdb_get_regl(mem_buf, env->fpsw);
+        return gdb_get_regl(array, env->fpsw);
     case 25:
         return 0;
     }

@@ -124,7 +124,7 @@ static void nios2_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
 #endif
 }
 
-static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     Nios2CPU *cpu = NIOS2_CPU(cs);
     CPUClass *cc = CPU_GET_CLASS(cs);
@@ -135,11 +135,11 @@ static int nios2_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     }
 
     if (n < 32) {          /* GP regs */
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32(array, env->regs[n]);
     } else if (n == 32) {    /* PC */
-        return gdb_get_reg32(mem_buf, env->regs[R_PC]);
+        return gdb_get_reg32(array, env->regs[R_PC]);
     } else if (n < 49) {     /* Status regs */
-        return gdb_get_reg32(mem_buf, env->regs[n - 1]);
+        return gdb_get_reg32(array, env->regs[n - 1]);
     }
 
     /* Invalid regs */

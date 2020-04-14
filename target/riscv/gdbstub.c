@@ -270,15 +270,15 @@ static int csr_register_map[] = {
     CSR_MHCOUNTEREN,
 };
 
-int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int riscv_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     RISCVCPU *cpu = RISCV_CPU(cs);
     CPURISCVState *env = &cpu->env;
 
     if (n < 32) {
-        return gdb_get_regl(mem_buf, env->gpr[n]);
+        return gdb_get_regl(array, env->gpr[n]);
     } else if (n == 32) {
-        return gdb_get_regl(mem_buf, env->pc);
+        return gdb_get_regl(array, env->pc);
     }
     return 0;
 }

@@ -63,7 +63,7 @@ void xtensa_count_regs(const XtensaConfig *config,
     }
 }
 
-int xtensa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int xtensa_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     XtensaCPU *cpu = XTENSA_CPU(cs);
     CPUXtensaState *env = &cpu->env;
@@ -81,40 +81,40 @@ int xtensa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
     switch (reg->type) {
     case xtRegisterTypeVirtual: /*pc*/
-        return gdb_get_reg32(mem_buf, env->pc);
+        return gdb_get_reg32(array, env->pc);
 
     case xtRegisterTypeArRegfile: /*ar*/
         xtensa_sync_phys_from_window(env);
-        return gdb_get_reg32(mem_buf, env->phys_regs[(reg->targno & 0xff)
+        return gdb_get_reg32(array, env->phys_regs[(reg->targno & 0xff)
                                                      % env->config->nareg]);
 
     case xtRegisterTypeSpecialReg: /*SR*/
-        return gdb_get_reg32(mem_buf, env->sregs[reg->targno & 0xff]);
+        return gdb_get_reg32(array, env->sregs[reg->targno & 0xff]);
 
     case xtRegisterTypeUserReg: /*UR*/
-        return gdb_get_reg32(mem_buf, env->uregs[reg->targno & 0xff]);
+        return gdb_get_reg32(array, env->uregs[reg->targno & 0xff]);
 
     case xtRegisterTypeTieRegfile: /*f*/
         i = reg->targno & 0x0f;
         switch (reg->size) {
         case 4:
-            return gdb_get_reg32(mem_buf,
+            return gdb_get_reg32(array,
                                  float32_val(env->fregs[i].f32[FP_F32_LOW]));
         case 8:
-            return gdb_get_reg64(mem_buf, float64_val(env->fregs[i].f64));
+            return gdb_get_reg64(array, float64_val(env->fregs[i].f64));
         default:
             qemu_log_mask(LOG_UNIMP, "%s from reg %d of unsupported size %d\n",
                           __func__, n, reg->size);
-            return gdb_get_zeroes(mem_buf, reg->size);
+            return gdb_get_zeroes(array, reg->size);
         }
 
     case xtRegisterTypeWindow: /*a*/
-        return gdb_get_reg32(mem_buf, env->regs[reg->targno & 0x0f]);
+        return gdb_get_reg32(array, env->regs[reg->targno & 0x0f]);
 
     default:
         qemu_log_mask(LOG_UNIMP, "%s from reg %d of unsupported type %d\n",
                       __func__, n, reg->type);
-        return gdb_get_zeroes(mem_buf, reg->size);
+        return gdb_get_zeroes(array, reg->size);
     }
 }
 

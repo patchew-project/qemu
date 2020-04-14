@@ -21,15 +21,15 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int mb_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     MicroBlazeCPU *cpu = MICROBLAZE_CPU(cs);
     CPUMBState *env = &cpu->env;
 
     if (n < 32) {
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32(array, env->regs[n]);
     } else {
-        return gdb_get_reg32(mem_buf, env->sregs[n - 32]);
+        return gdb_get_reg32(array, env->sregs[n - 32]);
     }
     return 0;
 }

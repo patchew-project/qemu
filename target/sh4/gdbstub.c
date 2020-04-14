@@ -24,7 +24,7 @@
 /* Hint: Use "set architecture sh4" in GDB to see fpu registers */
 /* FIXME: We should use XML for this.  */
 
-int superh_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int superh_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     SuperHCPU *cpu = SUPERH_CPU(cs);
     CPUSH4State *env = &cpu->env;
@@ -32,43 +32,43 @@ int superh_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     switch (n) {
     case 0 ... 7:
         if ((env->sr & (1u << SR_MD)) && (env->sr & (1u << SR_RB))) {
-            return gdb_get_regl(mem_buf, env->gregs[n + 16]);
+            return gdb_get_regl(array, env->gregs[n + 16]);
         } else {
-            return gdb_get_regl(mem_buf, env->gregs[n]);
+            return gdb_get_regl(array, env->gregs[n]);
         }
     case 8 ... 15:
-        return gdb_get_regl(mem_buf, env->gregs[n]);
+        return gdb_get_regl(array, env->gregs[n]);
     case 16:
-        return gdb_get_regl(mem_buf, env->pc);
+        return gdb_get_regl(array, env->pc);
     case 17:
-        return gdb_get_regl(mem_buf, env->pr);
+        return gdb_get_regl(array, env->pr);
     case 18:
-        return gdb_get_regl(mem_buf, env->gbr);
+        return gdb_get_regl(array, env->gbr);
     case 19:
-        return gdb_get_regl(mem_buf, env->vbr);
+        return gdb_get_regl(array, env->vbr);
     case 20:
-        return gdb_get_regl(mem_buf, env->mach);
+        return gdb_get_regl(array, env->mach);
     case 21:
-        return gdb_get_regl(mem_buf, env->macl);
+        return gdb_get_regl(array, env->macl);
     case 22:
-        return gdb_get_regl(mem_buf, cpu_read_sr(env));
+        return gdb_get_regl(array, cpu_read_sr(env));
     case 23:
-        return gdb_get_regl(mem_buf, env->fpul);
+        return gdb_get_regl(array, env->fpul);
     case 24:
-        return gdb_get_regl(mem_buf, env->fpscr);
+        return gdb_get_regl(array, env->fpscr);
     case 25 ... 40:
         if (env->fpscr & FPSCR_FR) {
-            return gdb_get_freg32(mem_buf, env->fregs[n - 9]);
+            return gdb_get_freg32(array, env->fregs[n - 9]);
         }
-        return gdb_get_freg32(mem_buf, env->fregs[n - 25]);
+        return gdb_get_freg32(array, env->fregs[n - 25]);
     case 41:
-        return gdb_get_regl(mem_buf, env->ssr);
+        return gdb_get_regl(array, env->ssr);
     case 42:
-        return gdb_get_regl(mem_buf, env->spc);
+        return gdb_get_regl(array, env->spc);
     case 43 ... 50:
-        return gdb_get_regl(mem_buf, env->gregs[n - 43]);
+        return gdb_get_regl(array, env->gregs[n - 43]);
     case 51 ... 58:
-        return gdb_get_regl(mem_buf, env->gregs[n - (51 - 16)]);
+        return gdb_get_regl(array, env->gregs[n - (51 - 16)]);
     }
 
     return 0;

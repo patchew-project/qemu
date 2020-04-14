@@ -79,7 +79,7 @@ static const int gpr_map32[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
 #endif
 
 
-int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -93,25 +93,25 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     if (n < CPU_NB_REGS) {
         if (TARGET_LONG_BITS == 64) {
             if (env->hflags & HF_CS64_MASK) {
-                return gdb_get_reg64(mem_buf, env->regs[gpr_map[n]]);
+                return gdb_get_reg64(array, env->regs[gpr_map[n]]);
             } else if (n < CPU_NB_REGS32) {
-                return gdb_get_reg64(mem_buf,
+                return gdb_get_reg64(array,
                                      env->regs[gpr_map[n]] & 0xffffffffUL);
             } else {
-                return gdb_get_regl(mem_buf, 0);
+                return gdb_get_regl(array, 0);
             }
         } else {
-            return gdb_get_reg32(mem_buf, env->regs[gpr_map32[n]]);
+            return gdb_get_reg32(array, env->regs[gpr_map32[n]]);
         }
     } else if (n >= IDX_FP_REGS && n < IDX_FP_REGS + 8) {
         floatx80 *fp = (floatx80 *) &env->fpregs[n - IDX_FP_REGS];
-        int len = gdb_get_reg64(mem_buf, cpu_to_le64(fp->low));
-        len += gdb_get_reg16(mem_buf + len, cpu_to_le16(fp->high));
+        int len = gdb_get_reg64(array, cpu_to_le64(fp->low));
+        len += gdb_get_reg16(array + len, cpu_to_le16(fp->high));
         return len;
     } else if (n >= IDX_XMM_REGS && n < IDX_XMM_REGS + CPU_NB_REGS) {
         n -= IDX_XMM_REGS;
         if (n < CPU_NB_REGS32 || TARGET_LONG_BITS == 64) {
-            return gdb_get_reg128(mem_buf,
+            return gdb_get_reg128(array,
                                   env->xmm_regs[n].ZMM_Q(0),
                                   env->xmm_regs[n].ZMM_Q(1));
         }
@@ -120,95 +120,95 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
         case IDX_IP_REG:
             if (TARGET_LONG_BITS == 64) {
                 if (env->hflags & HF_CS64_MASK) {
-                    return gdb_get_reg64(mem_buf, env->eip);
+                    return gdb_get_reg64(array, env->eip);
                 } else {
-                    return gdb_get_reg64(mem_buf, env->eip & 0xffffffffUL);
+                    return gdb_get_reg64(array, env->eip & 0xffffffffUL);
                 }
             } else {
-                return gdb_get_reg32(mem_buf, env->eip);
+                return gdb_get_reg32(array, env->eip);
             }
         case IDX_FLAGS_REG:
-            return gdb_get_reg32(mem_buf, env->eflags);
+            return gdb_get_reg32(array, env->eflags);
 
         case IDX_SEG_REGS:
-            return gdb_get_reg32(mem_buf, env->segs[R_CS].selector);
+            return gdb_get_reg32(array, env->segs[R_CS].selector);
         case IDX_SEG_REGS + 1:
-            return gdb_get_reg32(mem_buf, env->segs[R_SS].selector);
+            return gdb_get_reg32(array, env->segs[R_SS].selector);
         case IDX_SEG_REGS + 2:
-            return gdb_get_reg32(mem_buf, env->segs[R_DS].selector);
+            return gdb_get_reg32(array, env->segs[R_DS].selector);
         case IDX_SEG_REGS + 3:
-            return gdb_get_reg32(mem_buf, env->segs[R_ES].selector);
+            return gdb_get_reg32(array, env->segs[R_ES].selector);
         case IDX_SEG_REGS + 4:
-            return gdb_get_reg32(mem_buf, env->segs[R_FS].selector);
+            return gdb_get_reg32(array, env->segs[R_FS].selector);
         case IDX_SEG_REGS + 5:
-            return gdb_get_reg32(mem_buf, env->segs[R_GS].selector);
+            return gdb_get_reg32(array, env->segs[R_GS].selector);
 
         case IDX_SEG_REGS + 6:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->segs[R_FS].base);
+                return gdb_get_reg64(array, env->segs[R_FS].base);
             }
-            return gdb_get_reg32(mem_buf, env->segs[R_FS].base);
+            return gdb_get_reg32(array, env->segs[R_FS].base);
 
         case IDX_SEG_REGS + 7:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->segs[R_GS].base);
+                return gdb_get_reg64(array, env->segs[R_GS].base);
             }
-            return gdb_get_reg32(mem_buf, env->segs[R_GS].base);
+            return gdb_get_reg32(array, env->segs[R_GS].base);
 
         case IDX_SEG_REGS + 8:
 #ifdef TARGET_X86_64
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->kernelgsbase);
+                return gdb_get_reg64(array, env->kernelgsbase);
             }
-            return gdb_get_reg32(mem_buf, env->kernelgsbase);
+            return gdb_get_reg32(array, env->kernelgsbase);
 #else
-            return gdb_get_reg32(mem_buf, 0);
+            return gdb_get_reg32(array, 0);
 #endif
 
         case IDX_FP_REGS + 8:
-            return gdb_get_reg32(mem_buf, env->fpuc);
+            return gdb_get_reg32(array, env->fpuc);
         case IDX_FP_REGS + 9:
-            return gdb_get_reg32(mem_buf, (env->fpus & ~0x3800) |
+            return gdb_get_reg32(array, (env->fpus & ~0x3800) |
                                           (env->fpstt & 0x7) << 11);
         case IDX_FP_REGS + 10:
-            return gdb_get_reg32(mem_buf, 0); /* ftag */
+            return gdb_get_reg32(array, 0); /* ftag */
         case IDX_FP_REGS + 11:
-            return gdb_get_reg32(mem_buf, 0); /* fiseg */
+            return gdb_get_reg32(array, 0); /* fiseg */
         case IDX_FP_REGS + 12:
-            return gdb_get_reg32(mem_buf, 0); /* fioff */
+            return gdb_get_reg32(array, 0); /* fioff */
         case IDX_FP_REGS + 13:
-            return gdb_get_reg32(mem_buf, 0); /* foseg */
+            return gdb_get_reg32(array, 0); /* foseg */
         case IDX_FP_REGS + 14:
-            return gdb_get_reg32(mem_buf, 0); /* fooff */
+            return gdb_get_reg32(array, 0); /* fooff */
         case IDX_FP_REGS + 15:
-            return gdb_get_reg32(mem_buf, 0); /* fop */
+            return gdb_get_reg32(array, 0); /* fop */
 
         case IDX_MXCSR_REG:
-            return gdb_get_reg32(mem_buf, env->mxcsr);
+            return gdb_get_reg32(array, env->mxcsr);
 
         case IDX_CTL_CR0_REG:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->cr[0]);
+                return gdb_get_reg64(array, env->cr[0]);
             }
-            return gdb_get_reg32(mem_buf, env->cr[0]);
+            return gdb_get_reg32(array, env->cr[0]);
 
         case IDX_CTL_CR2_REG:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->cr[2]);
+                return gdb_get_reg64(array, env->cr[2]);
             }
-            return gdb_get_reg32(mem_buf, env->cr[2]);
+            return gdb_get_reg32(array, env->cr[2]);
 
         case IDX_CTL_CR3_REG:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->cr[3]);
+                return gdb_get_reg64(array, env->cr[3]);
             }
-            return gdb_get_reg32(mem_buf, env->cr[3]);
+            return gdb_get_reg32(array, env->cr[3]);
 
         case IDX_CTL_CR4_REG:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->cr[4]);
+                return gdb_get_reg64(array, env->cr[4]);
             }
-            return gdb_get_reg32(mem_buf, env->cr[4]);
+            return gdb_get_reg32(array, env->cr[4]);
 
         case IDX_CTL_CR8_REG:
 #ifdef CONFIG_SOFTMMU
@@ -217,15 +217,15 @@ int x86_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
             tpr = 0;
 #endif
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, tpr);
+                return gdb_get_reg64(array, tpr);
             }
-            return gdb_get_reg32(mem_buf, tpr);
+            return gdb_get_reg32(array, tpr);
 
         case IDX_CTL_EFER_REG:
             if ((env->hflags & HF_CS64_MASK) || GDB_FORCE_64) {
-                return gdb_get_reg64(mem_buf, env->efer);
+                return gdb_get_reg64(array, env->efer);
             }
-            return gdb_get_reg32(mem_buf, env->efer);
+            return gdb_get_reg32(array, env->efer);
         }
     }
     return 0;

@@ -906,19 +906,19 @@ static const char *get_feature_xml(const char *p, const char **newp,
     return name ? xml_builtin[i][1] : NULL;
 }
 
-static int gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
+static int gdb_read_register(CPUState *cpu, GByteArray *array, int reg)
 {
     CPUClass *cc = CPU_GET_CLASS(cpu);
     CPUArchState *env = cpu->env_ptr;
     GDBRegisterState *r;
 
     if (reg < cc->gdb_num_core_regs) {
-        return cc->gdb_read_register(cpu, buf, reg);
+        return cc->gdb_read_register(cpu, array, reg);
     }
 
     for (r = cpu->gdb_regs; r; r = r->next) {
         if (r->base_reg <= reg && reg < r->base_reg + r->num_regs) {
-            return r->get_reg(env, buf, reg - r->base_reg);
+            return r->get_reg(env, array, reg - r->base_reg);
         }
     }
     return 0;

@@ -22,30 +22,30 @@
 #include "exec/gdbstub.h"
 #include "hw/lm32/lm32_pic.h"
 
-int lm32_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int lm32_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     LM32CPU *cpu = LM32_CPU(cs);
     CPULM32State *env = &cpu->env;
 
     if (n < 32) {
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32(array, env->regs[n]);
     } else {
         switch (n) {
         case 32:
-            return gdb_get_reg32(mem_buf, env->pc);
+            return gdb_get_reg32(array, env->pc);
         /* FIXME: put in right exception ID */
         case 33:
-            return gdb_get_reg32(mem_buf, 0);
+            return gdb_get_reg32(array, 0);
         case 34:
-            return gdb_get_reg32(mem_buf, env->eba);
+            return gdb_get_reg32(array, env->eba);
         case 35:
-            return gdb_get_reg32(mem_buf, env->deba);
+            return gdb_get_reg32(array, env->deba);
         case 36:
-            return gdb_get_reg32(mem_buf, env->ie);
+            return gdb_get_reg32(array, env->ie);
         case 37:
-            return gdb_get_reg32(mem_buf, lm32_pic_get_im(env->pic_state));
+            return gdb_get_reg32(array, lm32_pic_get_im(env->pic_state));
         case 38:
-            return gdb_get_reg32(mem_buf, lm32_pic_get_ip(env->pic_state));
+            return gdb_get_reg32(array, lm32_pic_get_ip(env->pic_state));
         }
     }
     return 0;

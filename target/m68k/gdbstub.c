@@ -21,24 +21,24 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int m68k_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int m68k_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     M68kCPU *cpu = M68K_CPU(cs);
     CPUM68KState *env = &cpu->env;
 
     if (n < 8) {
         /* D0-D7 */
-        return gdb_get_reg32(mem_buf, env->dregs[n]);
+        return gdb_get_reg32(array, env->dregs[n]);
     } else if (n < 16) {
         /* A0-A7 */
-        return gdb_get_reg32(mem_buf, env->aregs[n - 8]);
+        return gdb_get_reg32(array, env->aregs[n - 8]);
     } else {
         switch (n) {
         case 16:
             /* SR is made of SR+CCR, CCR is many 1bit flags so uses helper */
-            return gdb_get_reg32(mem_buf, env->sr | cpu_m68k_get_ccr(env));
+            return gdb_get_reg32(array, env->sr | cpu_m68k_get_ccr(env));
         case 17:
-            return gdb_get_reg32(mem_buf, env->pc);
+            return gdb_get_reg32(array, env->pc);
         }
     }
     /*

@@ -27,78 +27,78 @@
 #define gdb_get_rega(buf, val) gdb_get_regl(buf, val)
 #endif
 
-int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int sparc_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
 
     if (n < 8) {
         /* g0..g7 */
-        return gdb_get_rega(mem_buf, env->gregs[n]);
+        return gdb_get_rega(array, env->gregs[n]);
     }
     if (n < 32) {
         /* register window */
-        return gdb_get_rega(mem_buf, env->regwptr[n - 8]);
+        return gdb_get_rega(array, env->regwptr[n - 8]);
     }
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
     if (n < 64) {
         /* fprs */
         if (n & 1) {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(array, env->fpr[(n - 32) / 2].l.lower);
         } else {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(array, env->fpr[(n - 32) / 2].l.upper);
         }
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     switch (n) {
     case 64:
-        return gdb_get_rega(mem_buf, env->y);
+        return gdb_get_rega(array, env->y);
     case 65:
-        return gdb_get_rega(mem_buf, cpu_get_psr(env));
+        return gdb_get_rega(array, cpu_get_psr(env));
     case 66:
-        return gdb_get_rega(mem_buf, env->wim);
+        return gdb_get_rega(array, env->wim);
     case 67:
-        return gdb_get_rega(mem_buf, env->tbr);
+        return gdb_get_rega(array, env->tbr);
     case 68:
-        return gdb_get_rega(mem_buf, env->pc);
+        return gdb_get_rega(array, env->pc);
     case 69:
-        return gdb_get_rega(mem_buf, env->npc);
+        return gdb_get_rega(array, env->npc);
     case 70:
-        return gdb_get_rega(mem_buf, env->fsr);
+        return gdb_get_rega(array, env->fsr);
     case 71:
-        return gdb_get_rega(mem_buf, 0); /* csr */
+        return gdb_get_rega(array, 0); /* csr */
     default:
-        return gdb_get_rega(mem_buf, 0);
+        return gdb_get_rega(array, 0);
     }
 #else
     if (n < 64) {
         /* f0-f31 */
         if (n & 1) {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.lower);
+            return gdb_get_reg32(array, env->fpr[(n - 32) / 2].l.lower);
         } else {
-            return gdb_get_reg32(mem_buf, env->fpr[(n - 32) / 2].l.upper);
+            return gdb_get_reg32(array, env->fpr[(n - 32) / 2].l.upper);
         }
     }
     if (n < 80) {
         /* f32-f62 (double width, even numbers only) */
-        return gdb_get_reg64(mem_buf, env->fpr[(n - 32) / 2].ll);
+        return gdb_get_reg64(array, env->fpr[(n - 32) / 2].ll);
     }
     switch (n) {
     case 80:
-        return gdb_get_regl(mem_buf, env->pc);
+        return gdb_get_regl(array, env->pc);
     case 81:
-        return gdb_get_regl(mem_buf, env->npc);
+        return gdb_get_regl(array, env->npc);
     case 82:
-        return gdb_get_regl(mem_buf, (cpu_get_ccr(env) << 32) |
+        return gdb_get_regl(array, (cpu_get_ccr(env) << 32) |
                                      ((env->asi & 0xff) << 24) |
                                      ((env->pstate & 0xfff) << 8) |
                                      cpu_get_cwp64(env));
     case 83:
-        return gdb_get_regl(mem_buf, env->fsr);
+        return gdb_get_regl(array, env->fsr);
     case 84:
-        return gdb_get_regl(mem_buf, env->fprs);
+        return gdb_get_regl(array, env->fprs);
     case 85:
-        return gdb_get_regl(mem_buf, env->y);
+        return gdb_get_regl(array, env->y);
     }
 #endif
     return 0;

@@ -21,23 +21,23 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int openrisc_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int openrisc_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     OpenRISCCPU *cpu = OPENRISC_CPU(cs);
     CPUOpenRISCState *env = &cpu->env;
 
     if (n < 32) {
-        return gdb_get_reg32(mem_buf, cpu_get_gpr(env, n));
+        return gdb_get_reg32(array, cpu_get_gpr(env, n));
     } else {
         switch (n) {
         case 32:    /* PPC */
-            return gdb_get_reg32(mem_buf, env->ppc);
+            return gdb_get_reg32(array, env->ppc);
 
         case 33:    /* NPC (equals PC) */
-            return gdb_get_reg32(mem_buf, env->pc);
+            return gdb_get_reg32(array, env->pc);
 
         case 34:    /* SR */
-            return gdb_get_reg32(mem_buf, cpu_get_sr(env));
+            return gdb_get_reg32(array, cpu_get_sr(env));
 
         default:
             break;

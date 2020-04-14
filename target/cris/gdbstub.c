@@ -21,31 +21,31 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int crisv10_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int crisv10_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
 
     if (n < 15) {
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32(array, env->regs[n]);
     }
 
     if (n == 15) {
-        return gdb_get_reg32(mem_buf, env->pc);
+        return gdb_get_reg32(array, env->pc);
     }
 
     if (n < 32) {
         switch (n) {
         case 16:
-            return gdb_get_reg8(mem_buf, env->pregs[n - 16]);
+            return gdb_get_reg8(array, env->pregs[n - 16]);
         case 17:
-            return gdb_get_reg8(mem_buf, env->pregs[n - 16]);
+            return gdb_get_reg8(array, env->pregs[n - 16]);
         case 20:
         case 21:
-            return gdb_get_reg16(mem_buf, env->pregs[n - 16]);
+            return gdb_get_reg16(array, env->pregs[n - 16]);
         default:
             if (n >= 23) {
-                return gdb_get_reg32(mem_buf, env->pregs[n - 16]);
+                return gdb_get_reg32(array, env->pregs[n - 16]);
             }
             break;
         }
@@ -53,7 +53,7 @@ int crisv10_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     return 0;
 }
 
-int cris_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int cris_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     CRISCPU *cpu = CRIS_CPU(cs);
     CPUCRISState *env = &cpu->env;
@@ -61,28 +61,28 @@ int cris_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
 
     srs = env->pregs[PR_SRS];
     if (n < 16) {
-        return gdb_get_reg32(mem_buf, env->regs[n]);
+        return gdb_get_reg32(array, env->regs[n]);
     }
 
     if (n >= 21 && n < 32) {
-        return gdb_get_reg32(mem_buf, env->pregs[n - 16]);
+        return gdb_get_reg32(array, env->pregs[n - 16]);
     }
     if (n >= 33 && n < 49) {
-        return gdb_get_reg32(mem_buf, env->sregs[srs][n - 33]);
+        return gdb_get_reg32(array, env->sregs[srs][n - 33]);
     }
     switch (n) {
     case 16:
-        return gdb_get_reg8(mem_buf, env->pregs[0]);
+        return gdb_get_reg8(array, env->pregs[0]);
     case 17:
-        return gdb_get_reg8(mem_buf, env->pregs[1]);
+        return gdb_get_reg8(array, env->pregs[1]);
     case 18:
-        return gdb_get_reg32(mem_buf, env->pregs[2]);
+        return gdb_get_reg32(array, env->pregs[2]);
     case 19:
-        return gdb_get_reg8(mem_buf, srs);
+        return gdb_get_reg8(array, srs);
     case 20:
-        return gdb_get_reg16(mem_buf, env->pregs[4]);
+        return gdb_get_reg16(array, env->pregs[4]);
     case 32:
-        return gdb_get_reg32(mem_buf, env->pc);
+        return gdb_get_reg32(array, env->pc);
     }
 
     return 0;

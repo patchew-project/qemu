@@ -177,7 +177,8 @@ static int cpu_common_write_elf64_note(WriteCoreDumpFunction f,
 }
 
 
-static int cpu_common_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg)
+static int cpu_common_gdb_read_register(CPUState *cpu, GByteArray *array,
+                                        int reg)
 {
     return 0;
 }

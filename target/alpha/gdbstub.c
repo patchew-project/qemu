@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     AlphaCPU *cpu = ALPHA_CPU(cs);
     CPUAlphaState *env = &cpu->env;
@@ -54,7 +54,7 @@ int alpha_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     default:
         return 0;
     }
-    return gdb_get_regl(mem_buf, val);
+    return gdb_get_regl(array, val);
 }
 
 int alpha_cpu_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)

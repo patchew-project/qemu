@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "exec/gdbstub.h"
 
-int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     HPPACPU *cpu = HPPA_CPU(cs);
     CPUHPPAState *env = &cpu->env;
@@ -140,9 +140,9 @@ int hppa_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
     }
 
     if (TARGET_REGISTER_BITS == 64) {
-        return gdb_get_reg64(mem_buf, val);
+        return gdb_get_reg64(array, val);
     } else {
-        return gdb_get_reg32(mem_buf, val);
+        return gdb_get_reg32(array, val);
     }
 }
 

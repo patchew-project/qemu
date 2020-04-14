@@ -22,54 +22,54 @@
 #include "internal.h"
 #include "exec/gdbstub.h"
 
-int mips_cpu_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+int mips_cpu_gdb_read_register(CPUState *cs, GByteArray *array, int n)
 {
     MIPSCPU *cpu = MIPS_CPU(cs);
     CPUMIPSState *env = &cpu->env;
 
     if (n < 32) {
-        return gdb_get_regl(mem_buf, env->active_tc.gpr[n]);
+        return gdb_get_regl(array, env->active_tc.gpr[n]);
     }
     if (env->CP0_Config1 & (1 << CP0C1_FP) && n >= 38 && n < 72) {
         switch (n) {
         case 70:
-            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr31);
+            return gdb_get_regl(array, (int32_t)env->active_fpu.fcr31);
         case 71:
-            return gdb_get_regl(mem_buf, (int32_t)env->active_fpu.fcr0);
+            return gdb_get_regl(array, (int32_t)env->active_fpu.fcr0);
         default:
             if (env->CP0_Status & (1 << CP0St_FR)) {
-                return gdb_get_regl(mem_buf,
+                return gdb_get_regl(array,
                     env->active_fpu.fpr[n - 38].d);
             } else {
-                return gdb_get_regl(mem_buf,
+                return gdb_get_regl(array,
                     env->active_fpu.fpr[n - 38].w[FP_ENDIAN_IDX]);
             }
         }
     }
     switch (n) {
     case 32:
-        return gdb_get_regl(mem_buf, (int32_t)env->CP0_Status);
+        return gdb_get_regl(array, (int32_t)env->CP0_Status);
     case 33:
-        return gdb_get_regl(mem_buf, env->active_tc.LO[0]);
+        return gdb_get_regl(array, env->active_tc.LO[0]);
     case 34:
-        return gdb_get_regl(mem_buf, env->active_tc.HI[0]);
+        return gdb_get_regl(array, env->active_tc.HI[0]);
     case 35:
-        return gdb_get_regl(mem_buf, env->CP0_BadVAddr);
+        return gdb_get_regl(array, env->CP0_BadVAddr);
     case 36:
-        return gdb_get_regl(mem_buf, (int32_t)env->CP0_Cause);
+        return gdb_get_regl(array, (int32_t)env->CP0_Cause);
     case 37:
-        return gdb_get_regl(mem_buf, env->active_tc.PC |
+        return gdb_get_regl(array, env->active_tc.PC |
                                      !!(env->hflags & MIPS_HFLAG_M16));
     case 72:
-        return gdb_get_regl(mem_buf, 0); /* fp */
+        return gdb_get_regl(array, 0); /* fp */
     case 89:
-        return gdb_get_regl(mem_buf, (int32_t)env->CP0_PRid);
+        return gdb_get_regl(array, (int32_t)env->CP0_PRid);
     default:
         if (n > 89) {
             return 0;
         }
         /* 16 embedded regs.  */
-        return gdb_get_regl(mem_buf, 0);
+        return gdb_get_regl(array, 0);
     }
 
     return 0;
