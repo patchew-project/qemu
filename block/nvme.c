@@ -163,6 +163,7 @@ static void nvme_init_queue(BlockDriverState *bs, NVMeQueue *q,
     }
     r = qemu_vfio_dma_map(s->vfio, q->queue, bytes, false, &q->iova);
     if (r) {
+        qemu_vfree(q->queue);
         error_setg(errp, "Cannot map queue");
     }
 }
