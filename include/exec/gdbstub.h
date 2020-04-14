@@ -137,6 +137,18 @@ static inline int gdb_get_float32(GByteArray *array, float32 val)
     return sizeof(buf);
 }
 
+static inline int gdb_get_float64(GByteArray *array, float64 val)
+{
+    uint8_t buf[8];
+
+    QEMU_BUILD_BUG_ON(sizeof(CPU_DoubleU) != sizeof(buf));
+
+    stfq_p(buf, val);
+    g_byte_array_append(array, buf, sizeof(buf));
+
+    return sizeof(buf);
+}
+
 static inline int gdb_get_zeroes(GByteArray *array, size_t len)
 {
     for (size_t i = 0; i < len; i++) {
