@@ -1422,32 +1422,11 @@ static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev)
     }
 }
 
-static void nvme_realize(PCIDevice *pci_dev, Error **errp)
+static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 {
-    NvmeCtrl *n = NVME(pci_dev);
     NvmeIdCtrl *id = &n->id_ctrl;
-    Error *err = NULL;
+    uint8_t *pci_conf = pci_dev->config;
 
-    int i;
-    uint8_t *pci_conf;
-
-    nvme_check_constraints(n, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
-    nvme_init_state(n);
-
-    nvme_init_blk(n, &err);
-    if (err) {
-        error_propagate(errp, err);
-        return;
-    }
-
-    nvme_init_pci(n, pci_dev);
-
-    pci_conf = pci_dev->config;
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
     strpadcpy((char *)id->mn, sizeof(id->mn), "QEMU NVMe Ctrl", ' ');
@@ -1480,6 +1459,33 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 
     n->bar.vs = 0x00010200;
     n->bar.intmc = n->bar.intms = 0;
+
+
+}
+
+static void nvme_realize(PCIDevice *pci_dev, Error **errp)
+{
+    NvmeCtrl *n = NVME(pci_dev);
+    Error *err = NULL;
+
+    int i;
+
+    nvme_check_constraints(n, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+
+    nvme_init_state(n);
+    nvme_init_blk(n, &err);
+    if (err) {
+        error_propagate(errp, err);
+        return;
+    }
+
+    nvme_init_pci(n, pci_dev);
+    nvme_init_ctrl(n, pci_dev);
 
     for (i = 0; i < n->num_namespaces; i++) {
         nvme_init_namespace(n, &n->namespaces[i], &err);
