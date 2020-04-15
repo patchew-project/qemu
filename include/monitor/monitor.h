@@ -47,5 +47,6 @@ int monitor_fdset_get_fd(int64_t fdset_id, int flags);
 int monitor_fdset_dup_fd_add(int64_t fdset_id, int dup_fd);
 void monitor_fdset_dup_fd_remove(int dup_fd);
 int64_t monitor_fdset_dup_fd_find(int dup_fd);
+void monitor_qmp_respond_later(void *_mon, QDict *rsp);
 
 #endif /* MONITOR_H */

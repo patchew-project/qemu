@@ -32,6 +32,7 @@
 #include "qapi/qmp/qjson.h"
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
+#include "sysemu/vmi-intercept.h"
 #include "trace.h"
 
 struct QMPRequest {
@@ -157,6 +158,16 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
                           " with 'qmp_capabilities'");
         }
     }
+
+    if (!vm_introspection_qmp_delay(mon, rsp)) {
+        monitor_qmp_respond(mon, rsp);
+        qobject_unref(rsp);
+    }
+}
+
+void monitor_qmp_respond_later(void *_mon, QDict *rsp)
+{
+    MonitorQMP *mon = _mon;
 
     monitor_qmp_respond(mon, rsp);
     qobject_unref(rsp);
