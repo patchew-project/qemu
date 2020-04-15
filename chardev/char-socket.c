@@ -1499,6 +1499,21 @@ static bool char_socket_get_reconnecting(Object *obj, Error **errp)
     return s->reconnect_time > 0;
 }
 
+static void
+char_socket_get_fd(Object *obj, Visitor *v, const char *name, void *opaque,
+                   Error **errp)
+{
+    int fd = -1;
+    SocketChardev *s = SOCKET_CHARDEV(obj);
+    QIOChannelSocket *sock = QIO_CHANNEL_SOCKET(s->sioc);
+
+    if (sock) {
+        fd = sock->fd;
+    }
+
+    visit_type_int32(v, name, &fd, errp);
+}
+
 static int tcp_chr_reconnect_time(Chardev *chr, int secs)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -1539,6 +1554,9 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     object_class_property_add_bool(oc, "reconnecting",
                                    char_socket_get_reconnecting,
                                    NULL, &error_abort);
+
+    object_class_property_add(oc, "fd", "int32", char_socket_get_fd,
+                              NULL, NULL, NULL, &error_abort);
 }
 
 static const TypeInfo char_socket_type_info = {
