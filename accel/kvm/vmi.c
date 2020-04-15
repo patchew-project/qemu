@@ -73,6 +73,7 @@ static const char *action_string[] = {
     "none",
     "suspend",
     "resume",
+    "force-reset",
 };
 
 static bool suspend_pending;
@@ -677,6 +678,8 @@ static bool record_intercept_action(VMI_intercept_command action)
     case VMI_INTERCEPT_RESUME:
         suspend_pending = false;
         break;
+    case VMI_INTERCEPT_FORCE_RESET:
+        break;
     default:
         return false;
     }
@@ -693,6 +696,9 @@ static bool intercept_action(VMIntrospection *i,
     }
 
     switch (action) {
+    case VMI_INTERCEPT_FORCE_RESET:
+        disconnect_and_unhook_kvmi(i);
+        return false;
     case VMI_INTERCEPT_RESUME:
         enable_socket_reconnect(i);
         return false;

@@ -14,8 +14,10 @@ typedef enum {
     VMI_INTERCEPT_NONE = 0,
     VMI_INTERCEPT_SUSPEND,
     VMI_INTERCEPT_RESUME,
+    VMI_INTERCEPT_FORCE_RESET,
 } VMI_intercept_command;
 
 bool vm_introspection_intercept(VMI_intercept_command ic, Error **errp);
+bool vm_introspection_qmp_delay(void *mon, QObject *id, bool resume);
 
 #endif /* QEMU_VMI_INTERCEPT_H */
