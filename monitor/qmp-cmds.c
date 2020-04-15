@@ -107,6 +107,10 @@ void qmp_system_reset(Error **errp)
 
 void qmp_system_powerdown(Error **errp)
 {
+    if (vm_introspection_intercept(VMI_INTERCEPT_SHUTDOWN, errp)) {
+        return;
+    }
+
     qemu_system_powerdown_request();
 }
 

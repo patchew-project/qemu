@@ -85,10 +85,12 @@ static const char *action_string[] = {
     "resume",
     "force-reset",
     "migrate",
+    "shutdown",
 };
 
 static bool suspend_pending;
 static bool migrate_pending;
+static bool shutdown_pending;
 
 #define TYPE_VM_INTROSPECTION "introspection"
 
@@ -511,6 +513,17 @@ static void enable_socket_reconnect(VMIntrospection *i)
 
 static void maybe_disable_socket_reconnect(VMIntrospection *i)
 {
+    if (shutdown_pending) {
+        /*
+         * We've got the shutdown notification, but the guest might not stop.
+         * We already caused the introspection tool to unhook
+         * because shutdown_pending was set.
+         * Let the socket connect again just in case the guest doesn't stop.
+         */
+        shutdown_pending = false;
+        return;
+    }
+
     if (i->reconnect_time == 0) {
         info_report("VMI: disable socket reconnect");
         i->reconnect_time = qemu_chr_fe_reconnect_time(&i->sock, 0);
@@ -525,6 +538,9 @@ static void continue_with_the_intercepted_action(VMIntrospection *i)
         break;
     case VMI_INTERCEPT_MIGRATE:
         start_live_migration_thread(migrate_get_current());
+        break;
+    case VMI_INTERCEPT_SHUTDOWN:
+        qemu_system_powerdown_request();
         break;
     default:
         error_report("VMI: %s: unexpected action %d",
@@ -625,9 +641,10 @@ static void chr_event_open(VMIntrospection *i)
 {
     Error *local_err = NULL;
 
-    if (suspend_pending || migrate_pending) {
-        info_report("VMI: %s: too soon (suspend=%d, migrate=%d)",
-                    __func__, suspend_pending, migrate_pending);
+    if (suspend_pending || migrate_pending || shutdown_pending) {
+        info_report("VMI: %s: too soon (suspend=%d, migrate=%d, shutdown=%d)",
+                    __func__, suspend_pending, migrate_pending,
+                    shutdown_pending);
         maybe_disable_socket_reconnect(i);
         qemu_chr_fe_disconnect(&i->sock);
         return;
@@ -662,7 +679,7 @@ static void chr_event_close(VMIntrospection *i)
     cancel_unhook_timer(i);
     cancel_handshake_timer(i);
 
-    if (suspend_pending || migrate_pending) {
+    if (suspend_pending || migrate_pending || shutdown_pending) {
         maybe_disable_socket_reconnect(i);
 
         if (i->intercepted_action != VMI_INTERCEPT_NONE) {
@@ -752,6 +769,9 @@ static bool record_intercept_action(VMI_intercept_command action)
     case VMI_INTERCEPT_MIGRATE:
         migrate_pending = true;
         break;
+    case VMI_INTERCEPT_SHUTDOWN:
+        shutdown_pending = true;
+        break;
     default:
         return false;
     }
@@ -839,6 +859,9 @@ static void vm_introspection_reset(void *opaque)
     }
 
     update_vm_start_time(i);
+
+    /* warm reset triggered by user */
+    shutdown_pending = false;
 }
 
 static bool make_cookie_hash(const char *key_id, uint8_t *cookie_hash,
