@@ -73,6 +73,9 @@ typedef struct VMIntrospection {
     QDict *qmp_rsp;
 
     bool kvmi_hooked;
+
+    GArray *allowed_commands;
+    GArray *allowed_events;
 } VMIntrospection;
 
 typedef struct VMIntrospectionClass {
@@ -93,6 +96,8 @@ static const char *action_string[] = {
 static bool suspend_pending;
 static bool migrate_pending;
 static bool shutdown_pending;
+
+static __s32 all_IDs = -1;
 
 #define TYPE_VM_INTROSPECTION "introspection"
 
@@ -239,6 +244,25 @@ static void prop_set_uint32(Object *obj, Visitor *v, const char *name,
     }
 }
 
+static void prop_add_to_array(Object *obj, Visitor *v,
+                              const char *name, void *opaque,
+                              Error **errp)
+{
+    Error *local_err = NULL;
+    GArray *arr = opaque;
+    uint32_t value;
+
+    visit_type_uint32(v, name, &value, &local_err);
+    if (!local_err && value == (uint32_t)all_IDs) {
+        error_setg(&local_err, "VMI: add %s: invalid id %d", name, value);
+    }
+    if (local_err) {
+        error_propagate(errp, local_err);
+    } else {
+        g_array_append_val(arr, value);
+    }
+}
+
 static bool chardev_is_connected(VMIntrospection *i, Error **errp)
 {
     Object *obj = OBJECT(i->chr);
@@ -285,6 +309,15 @@ static void instance_init(Object *obj)
 
     object_property_add_str(obj, "chardev", NULL, prop_set_chardev, NULL);
     object_property_add_str(obj, "key", NULL, prop_set_key, NULL);
+
+    i->allowed_commands = g_array_new(FALSE, FALSE, sizeof(uint32_t));
+    object_property_add(obj, "command", "uint32",
+                        prop_add_to_array, NULL,
+                        NULL, i->allowed_commands, NULL);
+    i->allowed_events = g_array_new(FALSE, FALSE, sizeof(uint32_t));
+    object_property_add(obj, "event", "uint32",
+                        prop_add_to_array, NULL,
+                        NULL, i->allowed_events, NULL);
 
     i->handshake_timeout = HANDSHAKE_TIMEOUT_SEC;
     object_property_add(obj, "handshake_timeout", "uint32",
@@ -367,6 +400,13 @@ static void instance_finalize(Object *obj)
 {
     VMIntrospectionClass *ic = VM_INTROSPECTION_CLASS(obj->class);
     VMIntrospection *i = VM_INTROSPECTION(obj);
+
+    if (i->allowed_commands) {
+        g_array_free(i->allowed_commands, TRUE);
+    }
+    if (i->allowed_events) {
+        g_array_free(i->allowed_events, TRUE);
+    }
 
     g_free(i->chardevid);
     g_free(i->keyid);
@@ -531,11 +571,39 @@ static bool validate_handshake(VMIntrospection *i, Error **errp)
     return true;
 }
 
+static bool set_allowed_features(int ioctl, GArray *allowed, Error **errp)
+{
+    struct kvm_introspection_feature feature;
+    gint i;
+
+    feature.allow = 1;
+
+    if (allowed->len == 0) {
+        feature.id = all_IDs;
+        if (kvm_vm_ioctl(kvm_state, ioctl, &feature)) {
+            goto out_err;
+        }
+    } else {
+        for (i = 0; i < allowed->len; i++) {
+            feature.id = g_array_index(allowed, uint32_t, i);
+            if (kvm_vm_ioctl(kvm_state, ioctl, &feature)) {
+                goto out_err;
+            }
+        }
+    }
+
+    return true;
+
+out_err:
+    error_setg_errno(errp, -errno,
+                     "VMI: feature %d with id %d failed",
+                     ioctl, feature.id);
+    return false;
+}
+
 static bool connect_kernel(VMIntrospection *i, Error **errp)
 {
-    struct kvm_introspection_feature commands, events;
     struct kvm_introspection_hook kernel;
-    const __s32 all_ids = -1;
 
     memset(&kernel, 0, sizeof(kernel));
     memcpy(kernel.uuid, &qemu_uuid, sizeof(kernel.uuid));
@@ -553,20 +621,14 @@ static bool connect_kernel(VMIntrospection *i, Error **errp)
 
     i->kvmi_hooked = true;
 
-    commands.allow = 1;
-    commands.id = all_ids;
-    if (kvm_vm_ioctl(kvm_state, KVM_INTROSPECTION_COMMAND, &commands)) {
-        error_setg_errno(errp, -errno,
-                         "VMI: ioctl/KVM_INTROSPECTION_COMMAND failed");
+    if (!set_allowed_features(KVM_INTROSPECTION_COMMAND,
+                             i->allowed_commands, errp)) {
         unhook_kvmi(i);
         return false;
     }
 
-    events.allow = 1;
-    events.id = all_ids;
-    if (kvm_vm_ioctl(kvm_state, KVM_INTROSPECTION_EVENT, &events)) {
-        error_setg_errno(errp, -errno,
-                         "VMI: ioctl/KVM_INTROSPECTION_EVENT failed");
+    if (!set_allowed_features(KVM_INTROSPECTION_EVENT,
+                             i->allowed_events, errp)) {
         unhook_kvmi(i);
         return false;
     }
