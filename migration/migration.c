@@ -55,6 +55,8 @@
 #include "qemu/queue.h"
 #include "multifd.h"
 
+#include "sysemu/vmi-intercept.h"
+
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
 /* Amount of time to allocate to each "chunk" of bandwidth-throttled
@@ -3471,6 +3473,13 @@ static void *migration_thread(void *opaque)
     return NULL;
 }
 
+void start_live_migration_thread(MigrationState *s)
+{
+    qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
+                    QEMU_THREAD_JOINABLE);
+    s->migration_thread_running = true;
+}
+
 void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
@@ -3534,9 +3543,12 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         migrate_fd_cleanup(s);
         return;
     }
-    qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
-                       QEMU_THREAD_JOINABLE);
-    s->migration_thread_running = true;
+
+    if (vm_introspection_intercept(VMI_INTERCEPT_MIGRATE, &error_in)) {
+        return;
+    }
+
+    start_live_migration_thread(s);
 }
 
 void migration_global_dump(Monitor *mon)

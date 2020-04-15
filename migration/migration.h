@@ -263,6 +263,8 @@ struct MigrationState
     uint8_t clear_bitmap_shift;
 };
 
+void start_live_migration_thread(MigrationState *s);
+
 void migrate_set_state(int *state, int old_state, int new_state);
 
 void migration_fd_process_incoming(QEMUFile *f, Error **errp);

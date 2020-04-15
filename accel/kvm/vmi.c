@@ -21,6 +21,8 @@
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "migration/vmstate.h"
+#include "migration/migration.h"
+#include "migration/misc.h"
 
 #include "sysemu/vmi-intercept.h"
 #include "sysemu/vmi-handshake.h"
@@ -58,6 +60,7 @@ typedef struct VMIntrospection {
     int64_t vm_start_time;
 
     Notifier machine_ready;
+    Notifier migration_state_change;
     bool created_from_command_line;
 
     bool kvmi_hooked;
@@ -74,9 +77,11 @@ static const char *action_string[] = {
     "suspend",
     "resume",
     "force-reset",
+    "migrate",
 };
 
 static bool suspend_pending;
+static bool migrate_pending;
 
 #define TYPE_VM_INTROSPECTION "introspection"
 
@@ -87,6 +92,15 @@ static bool suspend_pending;
 
 static Error *vm_introspection_init(VMIntrospection *i);
 static void vm_introspection_reset(void *opaque);
+
+static void migration_state_notifier(Notifier *notifier, void *data)
+{
+    MigrationState *s = data;
+
+    if (migration_has_failed(s)) {
+        migrate_pending = false;
+    }
+}
 
 static void machine_ready(Notifier *notifier, void *data)
 {
@@ -143,6 +157,9 @@ static void complete(UserCreatable *uc, Error **errp)
     }
 
     ic->uniq = i;
+
+    i->migration_state_change.notify = migration_state_notifier;
+    add_migration_state_change_notifier(&i->migration_state_change);
 
     qemu_register_reset(vm_introspection_reset, i);
 }
@@ -478,6 +495,9 @@ static void continue_with_the_intercepted_action(VMIntrospection *i)
     case VMI_INTERCEPT_SUSPEND:
         vm_stop(RUN_STATE_PAUSED);
         break;
+    case VMI_INTERCEPT_MIGRATE:
+        start_live_migration_thread(migrate_get_current());
+        break;
     default:
         error_report("VMI: %s: unexpected action %d",
                      __func__, i->intercepted_action);
@@ -571,9 +591,9 @@ static void chr_event_open(VMIntrospection *i)
 {
     Error *local_err = NULL;
 
-    if (suspend_pending) {
-        info_report("VMI: %s: too soon (suspend=%d)",
-                    __func__, suspend_pending);
+    if (suspend_pending || migrate_pending) {
+        info_report("VMI: %s: too soon (suspend=%d, migrate=%d)",
+                    __func__, suspend_pending, migrate_pending);
         maybe_disable_socket_reconnect(i);
         qemu_chr_fe_disconnect(&i->sock);
         return;
@@ -608,7 +628,7 @@ static void chr_event_close(VMIntrospection *i)
     cancel_unhook_timer(i);
     cancel_handshake_timer(i);
 
-    if (suspend_pending) {
+    if (suspend_pending || migrate_pending) {
         maybe_disable_socket_reconnect(i);
 
         if (i->intercepted_action != VMI_INTERCEPT_NONE) {
@@ -679,6 +699,9 @@ static bool record_intercept_action(VMI_intercept_command action)
         suspend_pending = false;
         break;
     case VMI_INTERCEPT_FORCE_RESET:
+        break;
+    case VMI_INTERCEPT_MIGRATE:
+        migrate_pending = true;
         break;
     default:
         return false;

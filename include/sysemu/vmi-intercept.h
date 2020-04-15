@@ -15,6 +15,7 @@ typedef enum {
     VMI_INTERCEPT_SUSPEND,
     VMI_INTERCEPT_RESUME,
     VMI_INTERCEPT_FORCE_RESET,
+    VMI_INTERCEPT_MIGRATE,
 } VMI_intercept_command;
 
 bool vm_introspection_intercept(VMI_intercept_command ic, Error **errp);
