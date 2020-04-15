@@ -18,7 +18,7 @@ static int nvme_ns_init(NvmeNamespace *ns)
 {
     NvmeIdNs *id_ns = &ns->id_ns;
 
-    id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
+    id_ns->lbaf[0].ds = ns->params.lbads;
     id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(ns));
 
     /* no thin provisioning */
@@ -76,6 +76,11 @@ static int nvme_ns_check_constraints(NvmeNamespace *ns, Error **errp)
     if (!ns->blk) {
         error_setg(errp, "block backend not configured");
         return -1;
+    }
+
+    if (ns->params.lbads < 9 || ns->params.lbads > 12) {
+        error_setg(errp, "unsupported lbads (supported: 9-12)");
+        return 1;
     }
 
     return 0;
