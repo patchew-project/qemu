@@ -19,7 +19,8 @@
  *      -drive file=<file>,if=none,id=<drive_id>
  *      -device nvme,drive=<drive_id>,serial=<serial>,id=<id[optional]>, \
  *              cmb_size_mb=<cmb_size_mb[optional]>, \
- *              max_ioqpairs=<N[optional]>
+ *              max_ioqpairs=<N[optional]>, \
+ *              mdts=<mdts[optional]>
  *
  * Note cmb_size_mb denotes size of CMB in MB. CMB is assumed to be at
  * offset 0 in BAR2 and supports only WDS, RDS and SQS for now.
@@ -499,6 +500,19 @@ static void nvme_clear_events(NvmeCtrl *n, uint8_t event_type)
     }
 }
 
+static inline uint16_t nvme_check_mdts(NvmeCtrl *n, size_t len,
+                                       NvmeRequest *req)
+{
+    uint8_t mdts = n->params.mdts;
+
+    if (mdts && len > n->page_size << mdts) {
+        trace_nvme_dev_err_mdts(nvme_cid(req), n->page_size << mdts, len);
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    return NVME_SUCCESS;
+}
+
 static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
                                          uint64_t slba, uint32_t nlb,
                                          NvmeRequest *req)
@@ -592,6 +606,12 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     uint16_t status;
 
     trace_nvme_dev_rw(is_write ? "write" : "read", nlb, data_size, slba);
+
+    status = nvme_check_mdts(n, data_size, req);
+    if (status) {
+        block_acct_invalid(blk_get_stats(n->conf.blk), acct);
+        return status;
+    }
 
     status = nvme_check_bounds(n, ns, slba, nlb, req);
     if (status) {
@@ -884,6 +904,7 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t numdl, numdu;
     uint64_t off, lpol, lpou;
     size_t   len;
+    uint16_t status;
 
     numdl = (dw10 >> 16);
     numdu = (dw11 & 0xffff);
@@ -898,6 +919,11 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     }
 
     trace_nvme_dev_get_log(nvme_cid(req), lid, lsp, rae, len, off);
+
+    status = nvme_check_mdts(n, len, req);
+    if (status) {
+        return status;
+    }
 
     switch (lid) {
     case NVME_LOG_ERROR_INFO:
@@ -2033,6 +2059,7 @@ static void nvme_init_ctrl(NvmeCtrl *n)
     id->ieee[0] = 0x00;
     id->ieee[1] = 0x02;
     id->ieee[2] = 0xb3;
+    id->mdts = params->mdts;
     id->ver = cpu_to_le32(NVME_SPEC_VER);
     id->oacs = cpu_to_le16(0);
 
