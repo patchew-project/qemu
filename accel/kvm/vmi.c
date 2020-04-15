@@ -20,6 +20,7 @@
 #include "crypto/hash.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
+#include "migration/vmstate.h"
 
 #include "sysemu/vmi-intercept.h"
 #include "sysemu/vmi-handshake.h"
@@ -203,6 +204,16 @@ static void class_init(ObjectClass *oc, void *data)
     uc->can_be_deleted = introspection_can_be_deleted;
 }
 
+static const VMStateDescription vmstate_introspection = {
+    .name = "vm_introspection",
+    .minimum_version_id = 1,
+    .version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT64(vm_start_time, VMIntrospection),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void instance_init(Object *obj)
 {
     VMIntrospectionClass *ic = VM_INTROSPECTION_CLASS(obj->class);
@@ -227,6 +238,8 @@ static void instance_init(Object *obj)
     object_property_add(obj, "unhook_timeout", "uint32",
                         prop_set_uint32, prop_get_uint32,
                         NULL, &i->unhook_timeout, NULL);
+
+    vmstate_register(NULL, 0, &vmstate_introspection, i);
 }
 
 static void disconnect_chardev(VMIntrospection *i)
