@@ -1471,6 +1471,19 @@ char_socket_get_connected(Object *obj, Error **errp)
     return s->state == TCP_CHARDEV_STATE_CONNECTED;
 }
 
+static int tcp_chr_reconnect_time(Chardev *chr, int secs)
+{
+    SocketChardev *s = SOCKET_CHARDEV(chr);
+
+    int old = s->reconnect_time;
+
+    if (secs >= 0) {
+        s->reconnect_time = secs;
+    }
+
+    return old;
+}
+
 static void char_socket_class_init(ObjectClass *oc, void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
@@ -1481,6 +1494,7 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
     cc->chr_write = tcp_chr_write;
     cc->chr_sync_read = tcp_chr_sync_read;
     cc->chr_disconnect = tcp_chr_disconnect;
+    cc->chr_reconnect_time = tcp_chr_reconnect_time;
     cc->get_msgfds = tcp_get_msgfds;
     cc->set_msgfds = tcp_set_msgfds;
     cc->chr_add_client = tcp_chr_add_client;

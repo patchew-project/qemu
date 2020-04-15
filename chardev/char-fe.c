@@ -384,3 +384,14 @@ void qemu_chr_fe_disconnect(CharBackend *be)
         CHARDEV_GET_CLASS(chr)->chr_disconnect(chr);
     }
 }
+
+int qemu_chr_fe_reconnect_time(CharBackend *be, int secs)
+{
+    Chardev *chr = be->chr;
+
+    if (chr && CHARDEV_GET_CLASS(chr)->chr_reconnect_time) {
+        return CHARDEV_GET_CLASS(chr)->chr_reconnect_time(chr, secs);
+    }
+
+    return -1;
+}

@@ -270,6 +270,7 @@ typedef struct ChardevClass {
     int (*chr_add_client)(Chardev *chr, int fd);
     int (*chr_wait_connected)(Chardev *chr, Error **errp);
     void (*chr_disconnect)(Chardev *chr);
+    int (*chr_reconnect_time)(Chardev *be, int secs);
     void (*chr_accept_input)(Chardev *chr);
     void (*chr_set_echo)(Chardev *chr, bool echo);
     void (*chr_set_fe_open)(Chardev *chr, int fe_open);

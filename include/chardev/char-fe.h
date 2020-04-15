@@ -136,6 +136,13 @@ void qemu_chr_fe_accept_input(CharBackend *be);
 void qemu_chr_fe_disconnect(CharBackend *be);
 
 /**
+ * qemu_chr_fe_reconnect_time:
+ *
+ * Change the reconnect time and return the old value.
+ */
+int qemu_chr_fe_reconnect_time(CharBackend *be, int secs);
+
+/**
  * qemu_chr_fe_wait_connected:
  *
  * Wait for characted backend to be connected, return < 0 on error or
