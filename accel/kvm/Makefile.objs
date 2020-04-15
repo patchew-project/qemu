@@ -1,2 +1,3 @@
 obj-y += kvm-all.o
+obj-y += vmi.o
 obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o
