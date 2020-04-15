@@ -211,6 +211,19 @@ $QEMU_IMG amend -f $IMGFMT -o "data_file=blkdebug::$TEST_IMG.data" "$TEST_IMG"
 $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
 $QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
 
+echo
+echo "=== Using and repairing an image with backing file and the data_file_raw bit ==="
+echo
+
+# Create an image with a backing file and an external data file
+TEST_IMG_FILE="$TEST_IMG.base" _make_test_img 1M
+_make_test_img -o "data_file=$TEST_IMG.data" -b "$TEST_IMG.base"
+# Set 'data_file_raw' directly on the header (qemu-img amend won't let us)
+poke_file "$TEST_IMG" 95 "\x02"
+# Trying to open the image should produce an error
+$QEMU_IMG info "$TEST_IMG" 2>&1 | _filter_testdir
+_check_test_img -r all
+
 # success, all done
 echo "*** done"
 rm -f $seq.full

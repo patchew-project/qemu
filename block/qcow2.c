@@ -588,15 +588,48 @@ static void qcow2_add_check_result(BdrvCheckResult *out,
     }
 }
 
+static int qcow2_check_header(BlockDriverState *bs, BdrvCheckResult *result,
+                              BdrvCheckMode fix)
+{
+    BDRVQcow2State *s = bs->opaque;
+    int ret;
+
+    if (bs->backing && data_file_is_raw(bs)) {
+        fprintf(stderr, "%s header: data-file-raw cannot be set "
+                "when there is a backing file.\n",
+                fix & BDRV_FIX_ERRORS ? "Repairing" : "ERROR in");
+        if (fix & BDRV_FIX_ERRORS) {
+            s->autoclear_features &= ~QCOW2_AUTOCLEAR_DATA_FILE_RAW;
+            ret = qcow2_update_header(bs);
+            if (ret < 0) {
+                result->check_errors++;
+                return ret;
+            }
+            result->corruptions_fixed++;
+        } else {
+            result->corruptions++;
+        }
+    }
+
+    return 0;
+}
+
 static int coroutine_fn qcow2_co_check_locked(BlockDriverState *bs,
                                               BdrvCheckResult *result,
                                               BdrvCheckMode fix)
 {
+    BdrvCheckResult header_res = {};
     BdrvCheckResult snapshot_res = {};
     BdrvCheckResult refcount_res = {};
     int ret;
 
     memset(result, 0, sizeof(*result));
+
+    ret = qcow2_check_header(bs, &header_res, fix);
+    qcow2_add_check_result(result, &header_res, false);
+    if (ret < 0) {
+        return ret;
+    }
 
     ret = qcow2_check_read_snapshot_table(bs, &snapshot_res, fix);
     if (ret < 0) {
@@ -1604,6 +1637,12 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
+        if (data_file_is_raw(bs) && (!(flags & BDRV_O_CHECK))) {
+            error_setg(errp, "data-file-raw cannot be set when "
+                       "there is a backing file");
+            ret = -EINVAL;
+            goto fail;
+        }
         len = header.backing_file_size;
         if (len > MIN(1023, s->cluster_size - header.backing_file_offset) ||
             len >= sizeof(bs->backing_file)) {
