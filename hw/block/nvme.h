@@ -6,11 +6,13 @@
 #define DEFINE_NVME_PROPERTIES(_state, _props) \
     DEFINE_PROP_STRING("serial", _state, _props.serial), \
     DEFINE_PROP_UINT32("cmb_size_mb", _state, _props.cmb_size_mb, 0), \
-    DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 64)
+    DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 0), \
+    DEFINE_PROP_UINT32("max_ioqpairs", _state, _props.max_ioqpairs, 64)
 
 typedef struct NvmeParams {
     char     *serial;
     uint32_t num_queues;
+    uint32_t max_ioqpairs;
     uint32_t cmb_size_mb;
 } NvmeParams;
 
