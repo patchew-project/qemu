@@ -1492,6 +1492,13 @@ char_socket_get_connected(Object *obj, Error **errp)
     return s->state == TCP_CHARDEV_STATE_CONNECTED;
 }
 
+static bool char_socket_get_reconnecting(Object *obj, Error **errp)
+{
+    SocketChardev *s = SOCKET_CHARDEV(obj);
+
+    return s->reconnect_time > 0;
+}
+
 static int tcp_chr_reconnect_time(Chardev *chr, int secs)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
@@ -1527,6 +1534,10 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
                               NULL, NULL, &error_abort);
 
     object_class_property_add_bool(oc, "connected", char_socket_get_connected,
+                                   NULL, &error_abort);
+
+    object_class_property_add_bool(oc, "reconnecting",
+                                   char_socket_get_reconnecting,
                                    NULL, &error_abort);
 }
 
