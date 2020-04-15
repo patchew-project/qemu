@@ -1363,7 +1363,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     pcie_endpoint_cap_init(pci_dev, 0x80);
 
     n->num_namespaces = 1;
-    n->reg_size = pow2ceil(0x1004 + 2 * (n->params.num_queues + 1) * 4);
+    n->reg_size = pow2ceil(0x1000 + 2 * n->params.num_queues * 4);
     n->ns_size = bs_size / (uint64_t)n->num_namespaces;
 
     n->namespaces = g_new0(NvmeNamespace, n->num_namespaces);
