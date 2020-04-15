@@ -7,17 +7,21 @@
     DEFINE_PROP_STRING("serial", _state, _props.serial), \
     DEFINE_PROP_UINT32("cmb_size_mb", _state, _props.cmb_size_mb, 0), \
     DEFINE_PROP_UINT32("num_queues", _state, _props.num_queues, 0), \
-    DEFINE_PROP_UINT32("max_ioqpairs", _state, _props.max_ioqpairs, 64)
+    DEFINE_PROP_UINT32("max_ioqpairs", _state, _props.max_ioqpairs, 64), \
+    DEFINE_PROP_UINT8("aerl", _state, _props.aerl, 3), \
+    DEFINE_PROP_UINT32("aer_max_queued", _state, _props.aer_max_queued, 64)
 
 typedef struct NvmeParams {
     char     *serial;
     uint32_t num_queues;
     uint32_t max_ioqpairs;
     uint32_t cmb_size_mb;
+    uint8_t  aerl;
+    uint32_t aer_max_queued;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
-    QSIMPLEQ_ENTRY(NvmeAsyncEvent) entry;
+    QTAILQ_ENTRY(NvmeAsyncEvent) entry;
     NvmeAerResult result;
 } NvmeAsyncEvent;
 
@@ -104,12 +108,18 @@ typedef struct NvmeCtrl {
     uint32_t    num_namespaces;
     uint32_t    max_q_ents;
     uint64_t    ns_size;
+    uint8_t     outstanding_aers;
     uint8_t     *cmbuf;
     uint64_t    irq_status;
     uint64_t    host_timestamp;                 /* Timestamp sent by the host */
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint64_t    starttime_ms;
     uint16_t    temperature;
+
+    uint8_t     aer_mask;
+    NvmeRequest **aer_reqs;
+    QTAILQ_HEAD(, NvmeAsyncEvent) aer_queue;
+    int         aer_queued;
 
     NvmeNamespace   *namespaces;
     NvmeSQueue      **sq;
