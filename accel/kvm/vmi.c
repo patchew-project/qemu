@@ -14,6 +14,8 @@
 #include "qom/object_interfaces.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/kvm.h"
+#include "crypto/secret.h"
+#include "crypto/hash.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 
@@ -30,6 +32,11 @@ typedef struct VMIntrospection {
     Chardev *chr;
     CharBackend sock;
     int sock_fd;
+
+    char *keyid;
+    Object *key;
+    uint8_t cookie_hash[QEMU_VMI_COOKIE_HASH_SIZE];
+    bool key_with_cookie;
 
     qemu_vmi_from_introspector hsk_in;
     uint64_t hsk_in_read_pos;
@@ -109,6 +116,14 @@ static void prop_set_chardev(Object *obj, const char *value, Error **errp)
     i->chardevid = g_strdup(value);
 }
 
+static void prop_set_key(Object *obj, const char *value, Error **errp)
+{
+    VMIntrospection *i = VM_INTROSPECTION(obj);
+
+    g_free(i->keyid);
+    i->keyid = g_strdup(value);
+}
+
 static void prop_get_uint32(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
@@ -153,6 +168,7 @@ static void instance_init(Object *obj)
     update_vm_start_time(i);
 
     object_property_add_str(obj, "chardev", NULL, prop_set_chardev, NULL);
+    object_property_add_str(obj, "key", NULL, prop_set_key, NULL);
 
     i->handshake_timeout = HANDSHAKE_TIMEOUT_SEC;
     object_property_add(obj, "handshake_timeout", "uint32",
@@ -213,6 +229,7 @@ static void instance_finalize(Object *obj)
     VMIntrospection *i = VM_INTROSPECTION(obj);
 
     g_free(i->chardevid);
+    g_free(i->keyid);
 
     cancel_handshake_timer(i);
 
@@ -276,6 +293,16 @@ static bool send_handshake_info(VMIntrospection *i, Error **errp)
     return true;
 }
 
+static bool validate_handshake_cookie(VMIntrospection *i)
+{
+    if (!i->key_with_cookie) {
+        return true;
+    }
+
+    return 0 == memcmp(&i->cookie_hash, &i->hsk_in.cookie_hash,
+                       sizeof(i->cookie_hash));
+}
+
 static bool validate_handshake(VMIntrospection *i, Error **errp)
 {
     uint32_t min_accepted_size;
@@ -285,6 +312,11 @@ static bool validate_handshake(VMIntrospection *i, Error **errp)
 
     if (i->hsk_in.struct_size < min_accepted_size) {
         error_setg(errp, "VMI: not enough or invalid handshake data");
+        return false;
+    }
+
+    if (!validate_handshake_cookie(i)) {
+        error_setg(errp, "VMI: received cookie doesn't match");
         return false;
     }
 
@@ -468,6 +500,31 @@ static void chr_event(void *opaque, QEMUChrEvent event)
     }
 }
 
+static bool make_cookie_hash(const char *key_id, uint8_t *cookie_hash,
+                             Error **errp)
+{
+    uint8_t *cookie = NULL, *hash = NULL;
+    size_t cookie_size, hash_size = 0;
+    bool done = false;
+
+    if (qcrypto_secret_lookup(key_id, &cookie, &cookie_size, errp) == 0
+            && qcrypto_hash_bytes(QCRYPTO_HASH_ALG_SHA1,
+                                  (const char *)cookie, cookie_size,
+                                  &hash, &hash_size, errp) == 0) {
+        if (hash_size == QEMU_VMI_COOKIE_HASH_SIZE) {
+            memcpy(cookie_hash, hash, QEMU_VMI_COOKIE_HASH_SIZE);
+            done = true;
+        } else {
+            error_setg(errp, "VMI: hash algorithm size mismatch");
+        }
+    }
+
+    g_free(cookie);
+    g_free(hash);
+
+    return done;
+}
+
 static Error *vm_introspection_init(VMIntrospection *i)
 {
     Error *err = NULL;
@@ -484,6 +541,15 @@ static Error *vm_introspection_init(VMIntrospection *i)
         error_setg(&err,
                    "VMI: missing kernel built with CONFIG_KVM_INTROSPECTION");
         return err;
+    }
+
+    if (i->keyid) {
+        if (!make_cookie_hash(i->keyid, i->cookie_hash, &err)) {
+            return err;
+        }
+        i->key_with_cookie = true;
+    } else {
+        warn_report("VMI: the introspection tool won't be 'authenticated'");
     }
 
     chr = qemu_chr_find(i->chardevid);
