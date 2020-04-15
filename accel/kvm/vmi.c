@@ -151,11 +151,19 @@ static bool chardev_is_connected(VMIntrospection *i, Error **errp)
     return obj && object_property_get_bool(obj, "connected", errp);
 }
 
+static bool introspection_can_be_deleted(UserCreatable *uc)
+{
+    VMIntrospection *i = VM_INTROSPECTION(uc);
+
+    return !chardev_is_connected(i, NULL);
+}
+
 static void class_init(ObjectClass *oc, void *data)
 {
     UserCreatableClass *uc = USER_CREATABLE_CLASS(oc);
 
     uc->complete = complete;
+    uc->can_be_deleted = introspection_can_be_deleted;
 }
 
 static void instance_init(Object *obj)
