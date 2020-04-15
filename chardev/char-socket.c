@@ -1310,7 +1310,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
-    bool is_listen      = sock->has_server  ? sock->server  : true;
+    bool is_listen      = sock->has_server  ? sock->server  : false;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
     bool is_waitconnect = sock->has_wait    ? sock->wait    : false;
