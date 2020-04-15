@@ -25,6 +25,7 @@
 #include "sysemu/vmi-handshake.h"
 
 #define HANDSHAKE_TIMEOUT_SEC 10
+#define UNHOOK_TIMEOUT_SEC 60
 
 typedef struct VMIntrospection {
     Object parent_obj;
@@ -48,6 +49,8 @@ typedef struct VMIntrospection {
     uint32_t handshake_timeout;
 
     int intercepted_action;
+    GSource *unhook_timer;
+    uint32_t unhook_timeout;
 
     int reconnect_time;
 
@@ -219,6 +222,11 @@ static void instance_init(Object *obj)
     object_property_add(obj, "handshake_timeout", "uint32",
                         prop_set_uint32, prop_get_uint32,
                         NULL, &i->handshake_timeout, NULL);
+
+    i->unhook_timeout = UNHOOK_TIMEOUT_SEC;
+    object_property_add(obj, "unhook_timeout", "uint32",
+                        prop_set_uint32, prop_get_uint32,
+                        NULL, &i->unhook_timeout, NULL);
 }
 
 static void disconnect_chardev(VMIntrospection *i)
@@ -269,6 +277,12 @@ static void cancel_handshake_timer(VMIntrospection *i)
     i->hsk_timer = NULL;
 }
 
+static void cancel_unhook_timer(VMIntrospection *i)
+{
+    cancel_timer(i->unhook_timer);
+    i->unhook_timer = NULL;
+}
+
 static void instance_finalize(Object *obj)
 {
     VMIntrospectionClass *ic = VM_INTROSPECTION_CLASS(obj->class);
@@ -277,6 +291,7 @@ static void instance_finalize(Object *obj)
     g_free(i->chardevid);
     g_free(i->keyid);
 
+    cancel_unhook_timer(i);
     cancel_handshake_timer(i);
 
     if (i->chr) {
@@ -576,6 +591,7 @@ static void chr_event_close(VMIntrospection *i)
         disconnect_and_unhook_kvmi(i);
     }
 
+    cancel_unhook_timer(i);
     cancel_handshake_timer(i);
 
     if (suspend_pending) {
@@ -602,6 +618,19 @@ static void chr_event(void *opaque, QEMUChrEvent event)
     default:
         break;
     }
+}
+
+static gboolean unhook_timeout_cbk(gpointer opaque)
+{
+    VMIntrospection *i = opaque;
+
+    warn_report("VMI: the introspection tool is too slow");
+
+    g_source_unref(i->unhook_timer);
+    i->unhook_timer = NULL;
+
+    disconnect_and_unhook_kvmi(i);
+    return FALSE;
 }
 
 static VMIntrospection *vm_introspection_object(void)
@@ -662,6 +691,10 @@ static bool intercept_action(VMIntrospection *i,
         disconnect_and_unhook_kvmi(i);
         return false;
     }
+
+    i->unhook_timer = qemu_chr_timeout_add_ms(i->chr,
+                                              i->unhook_timeout * 1000,
+                                              unhook_timeout_cbk, i);
 
     i->intercepted_action = action;
     return true;
