@@ -303,8 +303,6 @@ static int vhost_user_blk_connect(DeviceState *dev)
     if (s->connected) {
         return 0;
     }
-    s->connected = true;
-
     s->dev.nvqs = s->num_queues;
     s->dev.vqs = s->vhost_vqs;
     s->dev.vq_index = 0;
@@ -318,6 +316,11 @@ static int vhost_user_blk_connect(DeviceState *dev)
                      strerror(-ret));
         return ret;
     }
+    /*
+     * set true util vhost_dev_init return ok, because CLOSE event may happen
+     * in vhost_dev_init routine.
+     */
+    s->connected = true;
 
     /* restore vhost state */
     if (virtio_device_started(vdev, vdev->status)) {
@@ -401,6 +404,7 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
     Error *err = NULL;
     int i, ret;
+    bool reconnect;
 
     if (!s->chardev.chr) {
         error_setg(errp, "vhost-user-blk: chardev is mandatory");
@@ -433,27 +437,26 @@ static void vhost_user_blk_device_realize(DeviceState *dev, Error **errp)
     s->inflight = g_new0(struct vhost_inflight, 1);
     s->vhost_vqs = g_new0(struct vhost_virtqueue, s->num_queues);
     s->connected = false;
+    reconnect = false;
 
-    qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL, vhost_user_blk_event,
-                             NULL, (void *)dev, NULL, true);
-
-reconnect:
-    if (qemu_chr_fe_wait_connected(&s->chardev, &err) < 0) {
-        error_report_err(err);
-        goto virtio_err;
-    }
-
-    /* check whether vhost_user_blk_connect() failed or not */
-    if (!s->connected) {
-        goto reconnect;
-    }
-
-    ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
-                               sizeof(struct virtio_blk_config));
-    if (ret < 0) {
-        error_report("vhost-user-blk: get block config failed");
-        goto reconnect;
-    }
+    do {
+        if (qemu_chr_fe_wait_connected(&s->chardev, &err) < 0) {
+            error_report_err(err);
+            goto virtio_err;
+        }
+        qemu_chr_fe_set_handlers(&s->chardev,  NULL, NULL, vhost_user_blk_event,
+                                 NULL, (void *)dev, NULL, true);
+        if (s->connected) {
+            ret = vhost_dev_get_config(&s->dev, (uint8_t *)&s->blkcfg,
+                                       sizeof(struct virtio_blk_config));
+            if (ret < 0) {
+                error_report("vhost-user-blk: get block config failed");
+                reconnect = true;
+            } else {
+                reconnect = false;
+            }
+        }
+    } while (!s->connected || reconnect);
 
     if (s->blkcfg.num_queues != s->num_queues) {
         s->blkcfg.num_queues = s->num_queues;
