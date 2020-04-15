@@ -1308,6 +1308,37 @@ static const MemoryRegionOps nvme_cmb_ops = {
     },
 };
 
+static int nvme_check_constraints(NvmeCtrl *n, Error **errp)
+{
+    NvmeParams *params = &n->params;
+
+    if (params->num_queues) {
+        warn_report("num_queues is deprecated; please use max_ioqpairs "
+                    "instead");
+
+        params->max_ioqpairs = params->num_queues - 1;
+    }
+
+    if (params->max_ioqpairs < 1 ||
+        params->max_ioqpairs > PCI_MSIX_FLAGS_QSIZE) {
+        error_setg(errp, "max_ioqpairs must be between 1 and %d",
+                   PCI_MSIX_FLAGS_QSIZE);
+        return -1;
+    }
+
+    if (!n->conf.blk) {
+        error_setg(errp, "drive property not set");
+        return -1;
+    }
+
+    if (!params->serial) {
+        error_setg(errp, "serial property not set");
+        return -1;
+    }
+
+    return 0;
+}
+
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
@@ -1317,22 +1348,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     int64_t bs_size;
     uint8_t *pci_conf;
 
-    if (n->params.num_queues) {
-        warn_report("num_queues is deprecated; please use max_ioqpairs "
-                    "instead");
-
-        n->params.max_ioqpairs = n->params.num_queues - 1;
-    }
-
-    if (n->params.max_ioqpairs < 1 ||
-        n->params.max_ioqpairs > PCI_MSIX_FLAGS_QSIZE) {
-        error_setg(errp, "max_ioqpairs must be between 1 and %d",
-                   PCI_MSIX_FLAGS_QSIZE);
-        return;
-    }
-
-    if (!n->conf.blk) {
-        error_setg(errp, "drive property not set");
+    if (nvme_check_constraints(n, errp)) {
         return;
     }
 
@@ -1342,10 +1358,6 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         return;
     }
 
-    if (!n->params.serial) {
-        error_setg(errp, "serial property not set");
-        return;
-    }
     blkconf_blocksizes(&n->conf);
     if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
                                        false, errp)) {
