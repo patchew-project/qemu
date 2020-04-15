@@ -1348,6 +1348,17 @@ static void nvme_init_state(NvmeCtrl *n)
     n->cq = g_new0(NvmeCQueue *, n->params.max_ioqpairs + 1);
 }
 
+static int nvme_init_blk(NvmeCtrl *n, Error **errp)
+{
+    blkconf_blocksizes(&n->conf);
+    if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
+                                       false, errp)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static void nvme_realize(PCIDevice *pci_dev, Error **errp)
 {
     NvmeCtrl *n = NVME(pci_dev);
@@ -1369,9 +1380,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
         return;
     }
 
-    blkconf_blocksizes(&n->conf);
-    if (!blkconf_apply_backend_options(&n->conf, blk_is_read_only(n->conf.blk),
-                                       false, errp)) {
+    if (nvme_init_blk(n, errp)) {
         return;
     }
 
