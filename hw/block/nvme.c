@@ -320,6 +320,8 @@ static void nvme_post_cqes(void *opaque)
 static void nvme_enqueue_req_completion(NvmeCQueue *cq, NvmeRequest *req)
 {
     assert(cq->cqid == req->sq->cqid);
+    trace_nvme_dev_enqueue_req_completion(nvme_cid(req), cq->cqid,
+                                          req->status);
     QTAILQ_REMOVE(&req->sq->out_req_list, req, entry);
     QTAILQ_INSERT_TAIL(&cq->req_list, req, entry);
     timer_mod(cq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
@@ -411,6 +413,8 @@ static void nvme_rw_cb(void *opaque, int ret)
     NvmeCtrl *n = sq->ctrl;
     NvmeCQueue *cq = n->cq[sq->cqid];
 
+    trace_nvme_dev_rw_cb(nvme_cid(req));
+
     if (!ret) {
         block_acct_done(blk_get_stats(n->conf.blk), &req->acct);
         req->status = NVME_SUCCESS;
@@ -445,6 +449,8 @@ static uint16_t nvme_write_zeros(NvmeCtrl *n, NvmeNamespace *ns, NvmeCmd *cmd,
     uint32_t nlb  = le16_to_cpu(rw->nlb) + 1;
     uint64_t offset = slba << data_shift;
     uint32_t count = nlb << data_shift;
+
+    trace_nvme_dev_write_zeroes(nvme_cid(req), slba, nlb);
 
     if (unlikely(slba + nlb > ns->id_ns.nsze)) {
         trace_nvme_dev_err_invalid_lba_range(slba, nlb, ns->id_ns.nsze);
@@ -512,6 +518,9 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     NvmeNamespace *ns;
     uint32_t nsid = le32_to_cpu(cmd->nsid);
+
+    trace_nvme_dev_io_cmd(nvme_cid(req), nsid, le16_to_cpu(req->sq->sqid),
+                          cmd->opcode);
 
     if (unlikely(nsid == 0 || nsid > n->num_namespaces)) {
         trace_nvme_dev_err_invalid_ns(nsid, n->num_namespaces);
@@ -1200,6 +1209,9 @@ static uint16_t nvme_aer(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
 static uint16_t nvme_admin_cmd(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
+    trace_nvme_dev_admin_cmd(nvme_cid(req), le16_to_cpu(req->sq->sqid),
+                             cmd->opcode);
+
     switch (cmd->opcode) {
     case NVME_ADM_CMD_DELETE_SQ:
         return nvme_del_sq(n, cmd);
@@ -1525,6 +1537,8 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
     uint8_t *ptr = (uint8_t *)&n->bar;
     uint64_t val = 0;
 
+    trace_nvme_dev_mmio_read(addr);
+
     if (unlikely(addr & (sizeof(uint32_t) - 1))) {
         NVME_GUEST_ERR(nvme_dev_ub_mmiord_misaligned32,
                        "MMIO read not 32-bit aligned,"
@@ -1599,6 +1613,8 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
             return;
         }
 
+        trace_nvme_dev_mmio_doorbell_cq(cq->cqid, new_head);
+
         start_sqs = nvme_cq_full(cq) ? 1 : 0;
         cq->head = new_head;
         if (start_sqs) {
@@ -1651,6 +1667,8 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
             return;
         }
 
+        trace_nvme_dev_mmio_doorbell_sq(sq->sqid, new_tail);
+
         sq->tail = new_tail;
         timer_mod(sq->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 500);
     }
@@ -1659,6 +1677,8 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
 static void nvme_mmio_write(void *opaque, hwaddr addr, uint64_t data,
     unsigned size)
 {
+    trace_nvme_dev_mmio_write(addr, data);
+
     NvmeCtrl *n = (NvmeCtrl *)opaque;
     if (addr < sizeof(n->bar)) {
         nvme_write_bar(n, addr, data, size);
