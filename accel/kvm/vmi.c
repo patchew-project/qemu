@@ -19,6 +19,8 @@
 
 #include "sysemu/vmi-handshake.h"
 
+#define HANDSHAKE_TIMEOUT_SEC 10
+
 typedef struct VMIntrospection {
     Object parent_obj;
 
@@ -32,6 +34,8 @@ typedef struct VMIntrospection {
     qemu_vmi_from_introspector hsk_in;
     uint64_t hsk_in_read_pos;
     uint64_t hsk_in_read_size;
+    GSource *hsk_timer;
+    uint32_t handshake_timeout;
 
     int64_t vm_start_time;
 
@@ -105,6 +109,26 @@ static void prop_set_chardev(Object *obj, const char *value, Error **errp)
     i->chardevid = g_strdup(value);
 }
 
+static void prop_get_uint32(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    uint32_t *value = opaque;
+
+    visit_type_uint32(v, name, value, errp);
+}
+
+static void prop_set_uint32(Object *obj, Visitor *v, const char *name,
+                            void *opaque, Error **errp)
+{
+    uint32_t *value = opaque;
+    Error *local_err = NULL;
+
+    visit_type_uint32(v, name, value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+    }
+}
+
 static bool chardev_is_connected(VMIntrospection *i, Error **errp)
 {
     Object *obj = OBJECT(i->chr);
@@ -129,6 +153,11 @@ static void instance_init(Object *obj)
     update_vm_start_time(i);
 
     object_property_add_str(obj, "chardev", NULL, prop_set_chardev, NULL);
+
+    i->handshake_timeout = HANDSHAKE_TIMEOUT_SEC;
+    object_property_add(obj, "handshake_timeout", "uint32",
+                        prop_set_uint32, prop_get_uint32,
+                        NULL, &i->handshake_timeout, NULL);
 }
 
 static void disconnect_chardev(VMIntrospection *i)
@@ -165,11 +194,27 @@ static void disconnect_and_unhook_kvmi(VMIntrospection *i)
     unhook_kvmi(i);
 }
 
+static void cancel_timer(GSource *timer)
+{
+    if (timer) {
+        g_source_destroy(timer);
+        g_source_unref(timer);
+    }
+}
+
+static void cancel_handshake_timer(VMIntrospection *i)
+{
+    cancel_timer(i->hsk_timer);
+    i->hsk_timer = NULL;
+}
+
 static void instance_finalize(Object *obj)
 {
     VMIntrospection *i = VM_INTROSPECTION(obj);
 
     g_free(i->chardevid);
+
+    cancel_handshake_timer(i);
 
     if (i->chr) {
         shutdown_socket_fd(i);
@@ -303,7 +348,7 @@ static int chr_can_read(void *opaque)
 {
     VMIntrospection *i = opaque;
 
-    if (i->sock_fd == -1) {
+    if (i->hsk_timer == NULL || i->sock_fd == -1) {
         return 0;
     }
 
@@ -356,8 +401,22 @@ static void chr_read(void *opaque, const uint8_t *buf, int size)
     }
 
     if (enough_bytes_for_handshake(i)) {
+        cancel_handshake_timer(i);
         validate_and_connect(i);
     }
+}
+
+static gboolean chr_timeout(gpointer opaque)
+{
+    VMIntrospection *i = opaque;
+
+    warn_report("VMI: the handshake takes too long");
+
+    g_source_unref(i->hsk_timer);
+    i->hsk_timer = NULL;
+
+    disconnect_and_unhook_kvmi(i);
+    return FALSE;
 }
 
 static void chr_event_open(VMIntrospection *i)
@@ -378,6 +437,9 @@ static void chr_event_open(VMIntrospection *i)
     memset(&i->hsk_in, 0, sizeof(i->hsk_in));
     i->hsk_in_read_pos = 0;
     i->hsk_in_read_size = 0;
+    i->hsk_timer = qemu_chr_timeout_add_ms(i->chr,
+                                           i->handshake_timeout * 1000,
+                                           chr_timeout, i);
 }
 
 static void chr_event_close(VMIntrospection *i)
@@ -386,6 +448,8 @@ static void chr_event_close(VMIntrospection *i)
         warn_report("VMI: introspection tool disconnected");
         disconnect_and_unhook_kvmi(i);
     }
+
+    cancel_handshake_timer(i);
 }
 
 static void chr_event(void *opaque, QEMUChrEvent event)
