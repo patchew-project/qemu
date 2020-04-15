@@ -476,6 +476,11 @@ static void tcp_chr_disconnect_locked(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     bool emit_close = s->state == TCP_CHARDEV_STATE_CONNECTED;
 
+    /* avoid re-enter when socket read/write error and disconnect event. */
+    if (s->state == TCP_CHARDEV_STATE_DISCONNECTED) {
+        return;
+    }
+
     tcp_chr_free_connection(chr);
 
     if (s->listener) {
