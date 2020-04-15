@@ -36,6 +36,8 @@ int e820_add_entry(uint64_t address, uint64_t length, uint32_t type);
 int e820_get_num_entries(void);
 bool e820_get_entry(int index, uint32_t type,
                     uint64_t *address, uint64_t *length);
+bool e820_get_entry2(int index, uint32_t *type,
+                     uint64_t *address, uint64_t *length);
 
 
 

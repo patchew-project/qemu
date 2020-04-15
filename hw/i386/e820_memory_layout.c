@@ -57,3 +57,15 @@ bool e820_get_entry(int idx, uint32_t type, uint64_t *address, uint64_t *length)
     }
     return false;
 }
+
+bool e820_get_entry2(int idx, uint32_t *type, uint64_t *address,
+                     uint64_t *length)
+{
+    if (idx < e820_entries) {
+        *type = le32_to_cpu(e820_table[idx].type);
+        *address = le64_to_cpu(e820_table[idx].address);
+        *length = le64_to_cpu(e820_table[idx].length);
+        return true;
+    }
+    return false;
+}
