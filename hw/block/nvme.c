@@ -651,6 +651,25 @@ static inline uint16_t nvme_check_bounds(NvmeCtrl *n, uint64_t slba,
     return NVME_SUCCESS;
 }
 
+static uint16_t nvme_check_rw(NvmeCtrl *n, NvmeRequest *req)
+{
+    NvmeNamespace *ns = req->ns;
+    size_t len = req->nlb << nvme_ns_lbads(ns);
+    uint16_t status;
+
+    status = nvme_check_mdts(n, len, req);
+    if (status) {
+        return status;
+    }
+
+    status = nvme_check_bounds(n, req->slba, req->nlb, req);
+    if (status) {
+        return status;
+    }
+
+    return NVME_SUCCESS;
+}
+
 static void nvme_rw_cb(NvmeRequest *req, void *opaque)
 {
     NvmeSQueue *sq = req->sq;
@@ -810,12 +829,7 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req)
     trace_nvme_dev_rw(nvme_req_is_write(req) ? "write" : "read", req->nlb,
                       req->nlb << nvme_ns_lbads(req->ns), req->slba);
 
-    status = nvme_check_mdts(n, len, req);
-    if (status) {
-        goto invalid;
-    }
-
-    status = nvme_check_bounds(n, req->slba, req->nlb, req);
+    status = nvme_check_rw(n, req);
     if (status) {
         goto invalid;
     }
