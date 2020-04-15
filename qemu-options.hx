@@ -5017,6 +5017,82 @@ SRST
         ::
 
             (qemu) qom-set /objects/iothread1 poll-max-ns 100000
+
+    ``-object introspection,id=id,chardev=id[,key=id][,handshake_timeout=seconds][,unhook_timeout=seconds][,command=id[,...]][,event=id[,...]]``
+        Defines a VM Introspection (VMI) object that will connect to
+        an introspection tool, initiate the handshake and hand over the connection
+        file descriptor to KVM. The introspection channel will be used by
+        the introspection tool to talk directly with KVM. If the VM is paused
+        or migrated, QEMU will delay the action, signal KVM, which in turn will
+        signal the introspection tool to remove its hooks (e.g. breakpoints
+        placed inside the guest).
+
+        The ``chardev`` parameter provides the introspection channel.
+        This is the id of a previously created chardev socket,
+        with a non-zero reconnect parameter.
+
+        The ``key`` parameter is an optional secret object used to
+        authenticate the instrospection tool.
+
+        The ``handshake_timeout`` parameter specify how long will QEMU
+        wait for the introspection tool during handshake (default is
+        10 seconds).
+
+        The ``unhook_timeout` parameter specify how long will QEMU
+        wait for the introspection tool on pause/migrate (default is
+        60 seconds).
+
+        The ``command`` parameter specify an allowed introspection command.
+        It can be used multiple times. If omitted, all commands are
+        allowed. For example, ``command=10,command=8`` will allow the
+        introspection tool to use two commands, KVMI_VCPU_PAUSE(10) and
+        KVMI_VM_WRITE_PHYSICAL(8), in addition to those that are used
+        to query the API, which are always allowed (KVMI_GET_VERSION,
+        KVMI_VM_CHECK_COMMAND and KVMI_VM_CHECK_EVENT).
+
+        The ``event` parameter specify an allowed introspection event.
+        It can be used multiple times. If omitted, all events
+        are allowed. For example, ``event=1,event=3`` will
+        allow the introspection tool to receive only two events,
+        KVMI_EVENT_PAUSE_VCPU(1) and KVMI_EVENT_BREAKPOINT(3).
+
+        VM introspected through a unix socket:
+
+        .. parsed-literal::
+
+             # |qemu_system_x86| \
+                 ......
+                 -chardev socket,id=vmi_chardev,type=unix,path=/tmp/vmi-guest1.sock,reconnect=10 \
+                 -object introspection,id=vmi,chardev=vmi_chardev
+
+        VM introspected by an authenticated introspection tool:
+
+        .. parsed-literal::
+
+             # |qemu_system_x86| \
+                 ......
+                 -chardev socket,id=vmi_chardev,type=unix,path=/tmp/vmi-guest1.sock,reconnect=10 \
+                 -object secret,id=vmi_key,file=/etc/secret \
+                 -object introspection,id=vmi,chardev=vmi_chardev,key=vmi_key
+
+        VM introspected through a virtual socket, with the introspection tool
+        listening on port 4321 from another VM started with cid=1234:
+
+        .. parsed-literal::
+
+             # |qemu_system_x86| \
+                 ......
+                 -chardev socket,id=vmi_chardev,type=vsock,cid=1234,port=4321,reconnect=10 \
+                 -object introspection,id=vmi,chardev=vmi_chardev
+
+        VM running the introspection tool:
+
+        .. parsed-literal::
+
+             # |qemu_system_x86| \
+                 ......
+                 -device vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=1234
+
 ERST
 
 
