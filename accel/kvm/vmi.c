@@ -26,6 +26,7 @@
 #include "migration/misc.h"
 #include "qapi/qmp/qobject.h"
 #include "monitor/monitor.h"
+#include "hw/i386/e820_memory_layout.h"
 
 #include "sysemu/vmi-intercept.h"
 #include "sysemu/vmi-handshake.h"
@@ -412,23 +413,74 @@ static void register_types(void)
 
 type_init(register_types);
 
+static uint8_t handshake_cpu_type(void)
+{
+#ifdef TARGET_X86_64
+    return QEMU_VMI_CPU_TYPE_X86_64;
+#elif TARGET_I386
+    return QEMU_VMI_CPU_TYPE_I386;
+#else
+    return QEMU_VMI_CPU_TYPE_UNKNOWN;
+#endif
+}
+
+static int cmp_address(const void *a, const void *b)
+{
+    uint64_t addr_a = ((qemu_vmi_e820_entry *)a)->address;
+    uint64_t addr_b = ((qemu_vmi_e820_entry *)b)->address;
+
+    return (addr_a > addr_b) - (addr_a < addr_b);
+}
+
+static void fill_e820_info(qemu_vmi_e820_entry *dest, int n)
+{
+    int idx;
+
+    for (idx = 0; idx < n; idx++)
+        e820_get_entry2(idx, &dest[idx].type, &dest[idx].address,
+                        &dest[idx].length);
+
+    qsort(dest, n, sizeof(*dest), cmp_address);
+}
+
 static bool send_handshake_info(VMIntrospection *i, Error **errp)
 {
-    qemu_vmi_to_introspector send = {};
+    qemu_vmi_to_introspector *send;
+    int max_n_e820, n_e820;
     const char *vm_name;
+    size_t send_sz;
     int r;
 
-    send.struct_size = sizeof(send);
-    send.start_time = i->vm_start_time;
-    memcpy(&send.uuid, &qemu_uuid, sizeof(send.uuid));
-    vm_name = qemu_get_vm_name();
-    if (vm_name) {
-        snprintf(send.name, sizeof(send.name), "%s", vm_name);
-        send.name[sizeof(send.name) - 1] = 0;
+    max_n_e820 = 8 * sizeof(((qemu_vmi_to_introspector *)0)->arch.e820_count);
+    n_e820 = e820_get_num_entries();
+
+    if (n_e820 < 0 || n_e820 > max_n_e820) {
+        warn_report("VMI: discard e820 info (size %d, max %d)",
+                    n_e820, max_n_e820);
+        n_e820 = 0;
     }
 
-    r = qemu_chr_fe_write_all(&i->sock, (uint8_t *)&send, sizeof(send));
-    if (r != sizeof(send)) {
+    send_sz = sizeof(*send) + n_e820 * sizeof(qemu_vmi_e820_entry);
+
+    send = g_malloc0(send_sz);
+
+    send->struct_size = send_sz;
+    send->start_time = i->vm_start_time;
+    send->cpu_type = handshake_cpu_type();
+    memcpy(&send->uuid, &qemu_uuid, sizeof(send->uuid));
+    vm_name = qemu_get_vm_name();
+    if (vm_name) {
+        snprintf(send->name, sizeof(send->name), "%s", vm_name);
+        send->name[sizeof(send->name) - 1] = 0;
+    }
+    send->arch.e820_count = n_e820;
+    if (n_e820) {
+        fill_e820_info(send->arch.e820_entries, n_e820);
+    }
+
+    r = qemu_chr_fe_write_all(&i->sock, (uint8_t *)send, send_sz);
+    g_free(send);
+    if (r != send_sz) {
         error_setg_errno(errp, errno, "VMI: error writing to '%s'",
                          i->chardevid);
         return false;

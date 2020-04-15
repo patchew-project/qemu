@@ -9,6 +9,25 @@
 enum { QEMU_VMI_NAME_SIZE = 64 };
 enum { QEMU_VMI_COOKIE_HASH_SIZE = 20};
 
+enum {
+    QEMU_VMI_CPU_TYPE_I386 = 0,
+    QEMU_VMI_CPU_TYPE_X86_64 = 1,
+    QEMU_VMI_CPU_TYPE_UNKNOWN = 255
+};
+
+typedef struct qemu_vmi_e820_entry {
+    uint64_t address;
+    uint64_t length;
+    uint32_t type;
+    uint32_t padding;
+} qemu_vmi_e820_entry;
+
+typedef struct qemu_vmi_to_introspector_x86 {
+   uint8_t e820_count;
+   uint8_t padding[3];
+   qemu_vmi_e820_entry e820_entries[0];
+} qemu_vmi_to_introspector_x86;
+
 /**
  * qemu_vmi_to_introspector:
  *
@@ -22,9 +41,11 @@ enum { QEMU_VMI_COOKIE_HASH_SIZE = 20};
 typedef struct qemu_vmi_to_introspector {
     uint32_t struct_size;
     uint8_t  uuid[16];
-    uint32_t padding;
+    uint8_t  cpu_type;
+    uint8_t  padding[3];
     int64_t  start_time;
     char     name[QEMU_VMI_NAME_SIZE];
+    qemu_vmi_to_introspector_x86 arch;
     /* ... */
 } qemu_vmi_to_introspector;
 
