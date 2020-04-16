@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+#
+# Test qemu-img convert --bitmaps
+#
+# Copyright (C) 2018-2020 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+seq="$(basename $0)"
+echo "QA output created by $seq"
+
+status=1 # failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    nbd_server_stop
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.nbd
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+_require_command QEMU_NBD
+
+do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp \
+                          | _filter_qemu | _filter_imgfmt \
+                          | _filter_actual_image_size | _filter_qemu_io
+}
+
+# Create initial image and populate two bitmaps: one active, one inactive
+_make_test_img 10M
+run_qemu <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "blockdev-add",
+  "arguments": {
+    "driver": "$IMGFMT",
+    "node-name": "n",
+    "file": {
+      "driver": "file",
+      "filename": "$TEST_IMG"
+    }
+  }
+}
+{ "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io n "write 0 1M"'
+    }
+}
+{ "execute": "block-dirty-bitmap-add",
+  "arguments": {
+    "node": "n",
+    "name": "b1",
+    "persistent": true,
+    "granularity": 65536
+  }
+}
+{ "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io n "write 1M 1M"'
+    }
+}
+{ "execute": "transaction",
+  "arguments": {
+    "actions": [
+      { "type": "block-dirty-bitmap-disable",
+        "data": {
+          "node": "n",
+          "name": "b1"
+        } },
+      { "type": "block-dirty-bitmap-add",
+        "data": {
+          "node": "n",
+          "name": "b2",
+          "persistent": true
+       } }
+    ]
+  }
+}
+{ "execute": "human-monitor-command",
+    "arguments": {
+        "command-line": 'qemu-io n "write 2M 1M"'
+    }
+}
+{ "execute": "quit" }
+EOF
+
+echo
+echo "=== Bitmap preservation not possible to non-qcow2 ==="
+echo
+
+mv "$TEST_IMG" "$TEST_IMG.orig"
+$QEMU_IMG convert --bitmaps -O raw "$TEST_IMG.orig" "$TEST_IMG"
+
+echo
+echo "=== convert with bitmap preservation ==="
+echo
+
+$QEMU_IMG convert --bitmaps -O qcow2 "$TEST_IMG.orig" "$TEST_IMG"
+$QEMU_IMG info "$TEST_IMG" | _filter_img_info --format-specific
+
+echo
+echo "=== check bitmap contents ==="
+echo
+
+IMG="driver=nbd,server.type=unix,server.path=$nbd_unix_socket"
+nbd_server_start_unix_socket -r -f qcow2 -B b1 "$TEST_IMG"
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b1" | _filter_qemu_img_map
+nbd_server_start_unix_socket -r -f qcow2 -B b2 "$TEST_IMG"
+$QEMU_IMG map --output=json --image-opts \
+    "$IMG,x-dirty-bitmap=qemu:dirty-bitmap:b2" | _filter_qemu_img_map
+
+# success, all done
+echo '*** done'
+rm -f $seq.full
+status=0
