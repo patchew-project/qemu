@@ -4657,6 +4657,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     PreallocMode prealloc;
     bool has_backing_file;
     bool has_luks;
+    uint64_t bitmaps_size = 0; /* size occupied by bitmaps in in_bs */
 
     /* Parse image creation options */
     cluster_size = qcow2_opt_get_cluster_size_del(opts, &local_err);
@@ -4732,12 +4733,34 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
 
     /* Account for input image */
     if (in_bs) {
+        BdrvDirtyBitmap *bm;
+        size_t bitmap_overhead = 0;
         int64_t ssize = bdrv_getlength(in_bs);
         if (ssize < 0) {
             error_setg_errno(&local_err, -ssize,
                              "Unable to get image virtual_size");
             goto err;
         }
+
+        FOR_EACH_DIRTY_BITMAP(in_bs, bm) {
+            if (bdrv_dirty_bitmap_get_persistence(bm)) {
+                uint64_t bmsize = bdrv_dirty_bitmap_size(bm);
+                uint32_t granularity = bdrv_dirty_bitmap_granularity(bm);
+                const char *name = bdrv_dirty_bitmap_name(bm);
+                uint64_t bmclusters = DIV_ROUND_UP(bmsize / granularity
+                                                   / CHAR_BIT, cluster_size);
+
+                /* Assume the entire bitmap is allocated */
+                bitmaps_size += bmclusters * cluster_size;
+                /* Also reserve space for the bitmap table entries */
+                bitmaps_size += ROUND_UP(bmclusters * sizeof(uint64_t),
+                                         cluster_size);
+                /* Guess at contribution to bitmap directory size */
+                bitmap_overhead += ROUND_UP(strlen(name) + 24,
+                                            sizeof(uint64_t));
+            }
+        }
+        bitmaps_size += ROUND_UP(bitmap_overhead, cluster_size);
 
         virtual_size = ROUND_UP(ssize, cluster_size);
 
@@ -4795,6 +4818,8 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
      * still counted.
      */
     info->required = info->fully_allocated - virtual_size + required;
+    info->has_bitmaps = !!bitmaps_size;
+    info->bitmaps = bitmaps_size;
     return info;
 
 err:
