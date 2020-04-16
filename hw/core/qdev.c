@@ -983,7 +983,7 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
     }
 
     assert(local_err == NULL);
-    dev->realized = value;
+    atomic_set(&dev->realized, value);
     return;
 
 child_realize_fail:
