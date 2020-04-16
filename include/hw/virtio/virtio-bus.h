@@ -128,8 +128,11 @@ void virtio_bus_set_vdev_config(VirtioBusState *bus, uint8_t *config);
 static inline VirtIODevice *virtio_bus_get_device(VirtioBusState *bus)
 {
     BusState *qbus = &bus->parent_obj;
-    BusChild *kid = QTAILQ_FIRST(&qbus->children);
-    DeviceState *qdev = kid ? kid->child : NULL;
+    BusChild *kid;
+    DeviceState *qdev;
+
+    kid = QTAILQ_FIRST(&qbus->children);
+    qdev = kid ? kid->child : NULL;
 
     /* This is used on the data path, the cast is guaranteed
      * to succeed by the qdev machinery.

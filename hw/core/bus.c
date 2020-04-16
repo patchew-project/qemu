@@ -49,12 +49,14 @@ int qbus_walk_children(BusState *bus,
         }
     }
 
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
-        err = qdev_walk_children(kid->child,
-                                 pre_devfn, pre_busfn,
-                                 post_devfn, post_busfn, opaque);
-        if (err < 0) {
-            return err;
+    WITH_RCU_READ_LOCK_GUARD(){
+        QTAILQ_FOREACH_RCU(kid, &bus->children, sibling) {
+            err = qdev_walk_children(kid->child,
+                                     pre_devfn, pre_busfn,
+                                     post_devfn, post_busfn, opaque);
+            if (err < 0) {
+                return err;
+            }
         }
     }
 
@@ -90,9 +92,13 @@ static void bus_reset_child_foreach(Object *obj, ResettableChildCallback cb,
     BusState *bus = BUS(obj);
     BusChild *kid;
 
-    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+    rcu_read_lock();
+
+    QTAILQ_FOREACH_RCU(kid, &bus->children, sibling) {
         cb(OBJECT(kid->child), opaque, type);
     }
+
+    rcu_read_unlock();
 }
 
 static void qbus_realize(BusState *bus, DeviceState *parent, const char *name)
@@ -138,10 +144,15 @@ static void bus_unparent(Object *obj)
     /* Only the main system bus has no parent, and that bus is never freed */
     assert(bus->parent);
 
-    while ((kid = QTAILQ_FIRST(&bus->children)) != NULL) {
+    rcu_read_lock();
+
+    while ((kid = QTAILQ_FIRST_RCU(&bus->children)) != NULL) {
         DeviceState *dev = kid->child;
         object_unparent(OBJECT(dev));
     }
+
+    rcu_read_unlock();
+
     QLIST_REMOVE(bus, sibling);
     bus->parent->num_child_bus--;
     bus->parent = NULL;
@@ -185,14 +196,18 @@ static void bus_set_realized(Object *obj, bool value, Error **errp)
 
         /* TODO: recursive realization */
     } else if (!value && bus->realized) {
-        QTAILQ_FOREACH(kid, &bus->children, sibling) {
-            DeviceState *dev = kid->child;
-            object_property_set_bool(OBJECT(dev), false, "realized",
-                                     &local_err);
-            if (local_err != NULL) {
-                break;
+
+        WITH_RCU_READ_LOCK_GUARD(){
+            QTAILQ_FOREACH_RCU(kid, &bus->children, sibling) {
+                DeviceState *dev = kid->child;
+                object_property_set_bool(OBJECT(dev), false, "realized",
+                                         &local_err);
+                if (local_err != NULL) {
+                    break;
+                }
             }
         }
+
         if (bc->unrealize && local_err == NULL) {
             bc->unrealize(bus, &local_err);
         }
