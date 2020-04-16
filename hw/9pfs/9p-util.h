@@ -37,9 +37,14 @@ static inline int openat_file(int dirfd, const char *name, int flags,
 {
     int fd, serrno, ret;
 
+again:
     fd = openat(dirfd, name, flags | O_NOFOLLOW | O_NOCTTY | O_NONBLOCK,
                 mode);
     if (fd == -1) {
+        if (errno == EPERM && (flags & O_NOATIME)) {
+            flags &= ~O_NOATIME;
+            goto again;
+        }
         return -1;
     }
 
