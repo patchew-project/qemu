@@ -2,7 +2,7 @@
 #
 # qemu-img measure sub-command tests on huge qcow2 files
 #
-# Copyright (C) 2017 Red Hat, Inc.
+# Copyright (C) 2017-2020 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,10 +42,56 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 _supported_fmt qcow2
 _supported_proto file
 
-echo "== Huge file =="
+do_run_qemu()
+{
+    echo Testing: "$@"
+    $QEMU -nographic -qmp stdio -serial none "$@"
+    echo
+}
+
+run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qmp
+}
+
+echo "== Huge file without bitmaps =="
 echo
 
 _make_test_img -o 'cluster_size=2M' 2T
+
+$QEMU_IMG measure -O raw -f qcow2 "$TEST_IMG"
+$QEMU_IMG measure -O qcow2 -o cluster_size=64k -f qcow2 "$TEST_IMG"
+$QEMU_IMG measure -O qcow2 -o cluster_size=2M -f qcow2 "$TEST_IMG"
+
+echo
+echo "== Huge file with bitmaps =="
+echo
+
+run_qemu -blockdev \
+    driver=qcow2,node-name=n,file.driver=file,file.filename="$TEST_IMG" <<EOF
+{ "execute": "qmp_capabilities" }
+{ "execute": "transaction",
+  "arguments": {
+    "actions": [
+      { "type": "block-dirty-bitmap-add",
+        "data": {
+          "node": "n",
+          "name": "b1",
+          "persistent": true,
+          "granularity": 512
+        } },
+      { "type": "block-dirty-bitmap-add",
+        "data": {
+          "node": "n",
+          "name": "b2",
+          "persistent": true,
+          "granularity": 2097152
+       } }
+    ]
+  }
+}
+{ "execute": "quit" }
+EOF
 
 $QEMU_IMG measure -O raw -f qcow2 "$TEST_IMG"
 $QEMU_IMG measure -O qcow2 -o cluster_size=64k -f qcow2 "$TEST_IMG"

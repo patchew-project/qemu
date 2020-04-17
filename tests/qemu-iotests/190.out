@@ -1,5 +1,5 @@
 QA output created by 190
-== Huge file ==
+== Huge file without bitmaps ==
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2199023255552
 required size: 2199023255552
@@ -8,4 +8,22 @@ required size: 335806464
 fully allocated size: 2199359062016
 required size: 18874368
 fully allocated size: 2199042129920
+
+== Huge file with bitmaps ==
+
+Testing: -blockdev driver=qcow2,node-name=n,file.driver=file,file.filename=TEST_DIR/t.qcow2
+QMP_VERSION
+{"return": {}}
+{"return": {}}
+{"return": {}}
+{"timestamp": {"seconds":  TIMESTAMP, "microseconds":  TIMESTAMP}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+
+required size: 2199023255552
+fully allocated size: 2199023255552
+required size: 335806464
+fully allocated size: 2199359062016
+bitmaps size: 537198592
+required size: 18874368
+fully allocated size: 2199042129920
+bitmaps size: 545259520
 *** done
