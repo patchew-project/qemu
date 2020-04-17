@@ -5830,11 +5830,17 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
             *eax = cpu->phys_bits;
         }
         *ebx = env->features[FEAT_8000_0008_EBX];
-        *ecx = 0;
-        *edx = 0;
         if (cs->nr_cores * cs->nr_threads > 1) {
-            *ecx |= (cs->nr_cores * cs->nr_threads) - 1;
+            unsigned int max_apicids, bits_required;
+
+            max_apicids = (cs->nr_cores * cs->nr_threads) - 1;
+            /* Find out the number of bits to represent all the apicids */
+            bits_required = 32 - clz32(max_apicids);
+            *ecx = bits_required << 12 | max_apicids;
+        } else {
+            *ecx = 0;
         }
+        *edx = 0;
         break;
     case 0x8000000A:
         if (env->features[FEAT_8000_0001_ECX] & CPUID_EXT3_SVM) {
