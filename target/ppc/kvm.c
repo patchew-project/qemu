@@ -466,15 +466,27 @@ int kvm_arch_init_vcpu(CPUState *cs)
     PowerPCCPU *cpu = POWERPC_CPU(cs);
     CPUPPCState *cenv = &cpu->env;
     int ret;
+    SpaprMachineState *spapr;
 
     /* Synchronize sregs with kvm */
     ret = kvm_arch_sync_sregs(cpu);
     if (ret) {
         if (ret == -EINVAL) {
             error_report("Register sync failed... If you're using kvm-hv.ko,"
-                         " only \"-cpu host\" is possible");
+                         " only \"-cpu host\" is supported");
         }
-        return ret;
+        /*
+         * The user chose not to set PVR which makes sense if we are running
+         * on a CPU with known ISA level but unknown PVR.
+         */
+        spapr = (SpaprMachineState *)
+            object_dynamic_cast(OBJECT(qdev_get_machine()), TYPE_SPAPR_MACHINE);
+
+        if (spapr && spapr->eff.caps[SPAPR_CAP_PVR] == SPAPR_CAP_OFF) {
+            ret = 0;
+        } else {
+            return ret;
+        }
     }
 
     switch (cenv->mmu_model) {

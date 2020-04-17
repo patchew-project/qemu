@@ -525,6 +525,14 @@ static void cap_fwnmi_apply(SpaprMachineState *spapr, uint8_t val,
     }
 }
 
+static void cap_pvr_apply(SpaprMachineState *spapr, uint8_t val, Error **errp)
+{
+    if (val) {
+        return;
+    }
+    warn_report("If you're uing kvm-hv.ko, only \"-cpu host\" is supported");
+}
+
 SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
     [SPAPR_CAP_HTM] = {
         .name = "htm",
@@ -632,6 +640,15 @@ SpaprCapabilityInfo capability_table[SPAPR_CAP_NUM] = {
         .set = spapr_cap_set_bool,
         .type = "bool",
         .apply = cap_fwnmi_apply,
+    },
+    [SPAPR_CAP_PVR] = {
+        .name = "pvr",
+        .description = "Enforce PVR in KVM",
+        .index = SPAPR_CAP_PVR,
+        .get = spapr_cap_get_bool,
+        .set = spapr_cap_set_bool,
+        .type = "bool",
+        .apply = cap_pvr_apply,
     },
 };
 
@@ -773,6 +790,7 @@ SPAPR_CAP_MIG_STATE(nested_kvm_hv, SPAPR_CAP_NESTED_KVM_HV);
 SPAPR_CAP_MIG_STATE(large_decr, SPAPR_CAP_LARGE_DECREMENTER);
 SPAPR_CAP_MIG_STATE(ccf_assist, SPAPR_CAP_CCF_ASSIST);
 SPAPR_CAP_MIG_STATE(fwnmi, SPAPR_CAP_FWNMI);
+SPAPR_CAP_MIG_STATE(pvr, SPAPR_CAP_PVR);
 
 void spapr_caps_init(SpaprMachineState *spapr)
 {
