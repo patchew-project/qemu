@@ -1115,7 +1115,7 @@ err:
     return;
 }
 
-static int vhost_setup_slave_channel(struct vhost_dev *dev)
+int vhost_setup_slave_channel(struct vhost_dev *dev)
 {
     VhostUserMsg msg = {
         .hdr.request = VHOST_USER_SET_SLAVE_REQ_FD,

@@ -138,6 +138,12 @@ static int vhost_user_blk_start(VirtIODevice *vdev)
             error_report("Error get inflight: %d", -ret);
             goto err_guest_notifiers;
         }
+    } else {
+        ret = vhost_setup_slave_channel(&s->dev);
+        if (ret < 0) {
+            error_report("Error setting vhost slave channel: %d", -ret);
+            return ret;
+        }
     }
 
     ret = vhost_dev_set_inflight(&s->dev, s->inflight);

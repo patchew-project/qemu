@@ -100,6 +100,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev);
 void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev);
 int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev);
 void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev);
+int vhost_setup_slave_channel(struct vhost_dev *hdev);
 
 /* Test and clear masked event pending status.
  * Should be called after unmask to avoid losing events.
