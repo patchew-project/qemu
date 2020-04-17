@@ -549,11 +549,13 @@ static int tcp_chr_sync_read(Chardev *chr, const uint8_t *buf, int len)
 
     qio_channel_set_blocking(s->ioc, true, NULL);
     size = tcp_chr_recv(chr, (void *) buf, len);
-    qio_channel_set_blocking(s->ioc, false, NULL);
     if (size == 0) {
         /* connection closed */
         tcp_chr_disconnect(chr);
+        return 0;
     }
+    /* Connection is good */
+    qio_channel_set_blocking(s->ioc, false, NULL);
 
     return size;
 }
