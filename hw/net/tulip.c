@@ -962,6 +962,8 @@ static void pci_tulip_realize(PCIDevice *pci_dev, Error **errp)
 
     pci_conf = s->dev.config;
     pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
+    /* Anything with revision < 0x20 is DC21142, anything >= 0x20 is DC21143 */
+    pci_conf[PCI_REVISION_ID] = 0x20;
 
     s->eeprom = eeprom93xx_new(&pci_dev->qdev, 64);
     tulip_fill_eeprom(s);
