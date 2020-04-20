@@ -1726,6 +1726,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 
     bs->supported_zero_flags = header.version >= 3 ?
                                BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK : 0;
+    bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
 
     /* Repair image if dirty */
     if (!(flags & (BDRV_O_CHECK | BDRV_O_INACTIVE)) && !bs->read_only &&
@@ -4211,6 +4212,14 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 
     default:
         g_assert_not_reached();
+    }
+
+    if ((flags & BDRV_REQ_ZERO_WRITE) && offset > old_length) {
+        ret = qcow2_cluster_zeroize(bs, old_length, offset - old_length, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to zero out the new area");
+            goto fail;
+        }
     }
 
     if (prealloc != PREALLOC_MODE_OFF) {
