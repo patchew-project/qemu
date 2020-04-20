@@ -17,3 +17,9 @@ VirtioStatus *qmp_virtio_status(const char* path, Error **errp)
 {
     return qmp_virtio_unsupported(errp);
 }
+
+VirtQueueStatus *qmp_virtio_queue_status(const char *path, uint16_t queue,
+                                         Error **errp)
+{
+    return qmp_virtio_unsupported(errp);
+}
