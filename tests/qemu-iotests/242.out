@@ -6,7 +6,7 @@ wrote 262144/262144 bytes at offset 0
 
 qemu-img info dump:
 
-image: TEST_IMG
+image: TEST_DIR/PID-disk
 file format: IMGFMT
 virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
@@ -26,7 +26,7 @@ wrote 262144/262144 bytes at offset 262144
 
 qemu-img info dump:
 
-image: TEST_IMG
+image: TEST_DIR/PID-disk
 file format: IMGFMT
 virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
@@ -58,7 +58,7 @@ wrote 262144/262144 bytes at offset 524288
 
 qemu-img info dump:
 
-image: TEST_IMG
+image: TEST_DIR/PID-disk
 file format: IMGFMT
 virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
@@ -98,7 +98,7 @@ Test 4
 Checking "in-use" flag...
 qemu-img info dump:
 
-image: TEST_IMG
+image: TEST_DIR/PID-disk
 file format: IMGFMT
 virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536
@@ -143,11 +143,11 @@ Test 5
 {"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 16384, "name": "bitmap-0", "node": "drive0", "persistent": true}}
 {"return": {}}
 Write an unknown bitmap flag '0x4' into a new QCOW2 image at offset 327695
-qemu-img: Could not open 'TEST_IMG': Bitmap 'bitmap-0' doesn't satisfy the constraints
+qemu-img: Could not open 'TEST_DIR/PID-disk': Bitmap 'bitmap-0' doesn't satisfy the constraints
 
 Unset the unknown bitmap flag '0x4' in the bitmap directory entry:
 
-image: TEST_IMG
+image: TEST_DIR/PID-disk
 file format: IMGFMT
 virtual size: 1 MiB (1048576 bytes)
 cluster_size: 65536

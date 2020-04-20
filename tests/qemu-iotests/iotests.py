@@ -152,7 +152,10 @@ def img_info_log(filename, filter_path=None, imgopts=False, extra_args=[]):
     output = qemu_img_pipe(*args)
     if not filter_path:
         filter_path = filename
-    log(filter_img_info(output, filter_path))
+
+    output = filter_testfiles(output)
+    output = filter_img_info(output, filter_path)
+    log(output)
 
 def qemu_io(*args):
     '''Run qemu-io and return the stdout data'''

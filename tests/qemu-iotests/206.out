@@ -12,7 +12,7 @@
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: TEST_IMG
+image: TEST_DIR/PID-t.IMGFMT
 file format: IMGFMT
 virtual size: 128 MiB (134217728 bytes)
 cluster_size: 65536
@@ -34,7 +34,7 @@ Format specific information:
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: TEST_IMG
+image: TEST_DIR/PID-t.IMGFMT
 file format: IMGFMT
 virtual size: 64 MiB (67108864 bytes)
 cluster_size: 65536
@@ -56,7 +56,7 @@ Format specific information:
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: TEST_IMG
+image: TEST_DIR/PID-t.IMGFMT
 file format: IMGFMT
 virtual size: 32 MiB (33554432 bytes)
 cluster_size: 2097152
@@ -78,11 +78,11 @@ Format specific information:
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: TEST_IMG
+image: TEST_DIR/PID-t.IMGFMT
 file format: IMGFMT
 virtual size: 32 MiB (33554432 bytes)
 cluster_size: 512
-backing file: TEST_IMG.base
+backing file: TEST_DIR/PID-t.IMGFMT.base
 backing file format: IMGFMT
 Format specific information:
     compat: 0.10
@@ -95,7 +95,7 @@ Format specific information:
 {"execute": "job-dismiss", "arguments": {"id": "job0"}}
 {"return": {}}
 
-image: TEST_IMG
+image: TEST_DIR/PID-t.IMGFMT
 file format: IMGFMT
 virtual size: 32 MiB (33554432 bytes)
 encrypted: yes
