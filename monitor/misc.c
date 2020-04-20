@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "config-devices.h"
 #include "monitor-internal.h"
 #include "cpu.h"
 #include "monitor/qdev.h"
@@ -230,6 +231,15 @@ static void hmp_trace_file(Monitor *mon, const QDict *qdict)
 static void hmp_info_help(Monitor *mon, const QDict *qdict)
 {
     help_cmd(mon, "info");
+}
+
+static void hmp_virtio_help(Monitor *mon, const QDict *qdict)
+{
+#if defined(CONFIG_VIRTIO)
+    help_cmd(mon, "virtio");
+#else
+    monitor_printf(mon, "Virtio is disabled\n");
+#endif
 }
 
 static void monitor_init_qmp_commands(void)
@@ -1680,6 +1690,13 @@ int monitor_fd_param(Monitor *mon, const char *fdname, Error **errp)
 /* Please update hmp-commands.hx when adding or changing commands */
 static HMPCommand hmp_info_cmds[] = {
 #include "hmp-commands-info.h"
+    { NULL, NULL, },
+};
+
+static HMPCommand hmp_virtio_cmds[] = {
+#if defined(CONFIG_VIRTIO)
+#include "hmp-commands-virtio.h"
+#endif
     { NULL, NULL, },
 };
 
