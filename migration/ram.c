@@ -677,7 +677,7 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
                             ram_addr_t current_addr, RAMBlock *block,
                             ram_addr_t offset, bool last_stage)
 {
-    int encoded_len = 0, bytes_xbzrle;
+    int encoded_size = 0, bytes_xbzrle;
     uint8_t *prev_cached_page;
 
     if (!cache_is_cached(XBZRLE.cache, current_addr,
@@ -702,7 +702,7 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     memcpy(XBZRLE.current_buf, *current_data, TARGET_PAGE_SIZE);
 
     /* XBZRLE encoding (if there is no overflow) */
-    encoded_len = xbzrle_encode_buffer(prev_cached_page, XBZRLE.current_buf,
+    encoded_size = xbzrle_encode_buffer(prev_cached_page, XBZRLE.current_buf,
                                        TARGET_PAGE_SIZE, XBZRLE.encoded_buf,
                                        TARGET_PAGE_SIZE);
 
@@ -710,7 +710,7 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
      * Update the cache contents, so that it corresponds to the data
      * sent, in all cases except where we skip the page.
      */
-    if (!last_stage && encoded_len != 0) {
+    if (!last_stage && encoded_size != 0) {
         memcpy(prev_cached_page, XBZRLE.current_buf, TARGET_PAGE_SIZE);
         /*
          * In the case where we couldn't compress, ensure that the caller
@@ -720,10 +720,10 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
         *current_data = prev_cached_page;
     }
 
-    if (encoded_len == 0) {
+    if (encoded_size == 0) {
         trace_save_xbzrle_page_skipping();
         return 0;
-    } else if (encoded_len == -1) {
+    } else if (encoded_size == -1) {
         trace_save_xbzrle_page_overflow();
         xbzrle_counters.overflow++;
         return -1;
@@ -733,11 +733,11 @@ static int save_xbzrle_page(RAMState *rs, uint8_t **current_data,
     bytes_xbzrle = save_page_header(rs, rs->f, block,
                                     offset | RAM_SAVE_FLAG_XBZRLE);
     qemu_put_byte(rs->f, ENCODING_FLAG_XBZRLE);
-    qemu_put_be16(rs->f, encoded_len);
-    qemu_put_buffer(rs->f, XBZRLE.encoded_buf, encoded_len);
-    bytes_xbzrle += encoded_len + 1 + 2;
+    qemu_put_be16(rs->f, encoded_size);
+    qemu_put_buffer(rs->f, XBZRLE.encoded_buf, encoded_size);
+    bytes_xbzrle += encoded_size + 1 + 2;
     xbzrle_counters.pages++;
-    xbzrle_counters.bytes += bytes_xbzrle;
+    xbzrle_counters.encoded_size += encoded_size;
     ram_counters.transferred += bytes_xbzrle;
 
     return 1;
