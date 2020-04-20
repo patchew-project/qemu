@@ -297,6 +297,21 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     dc->vmsd = &vmstate_m68k_cpu;
 }
 
+static void m68k_cpu_class_init_m68k_core(ObjectClass *c, void *data)
+{
+    CPUClass *cc = CPU_CLASS(c);
+
+    cc->gdb_core_xml_file = "m68k-core.xml";
+}
+
+#define DEFINE_M68K_CPU_TYPE_WITH_CLASS(cpu_model, initfn, classinit)      \
+    {                                                                      \
+        .name = M68K_CPU_TYPE_NAME(cpu_model),                             \
+        .instance_init = initfn,                                           \
+        .parent = TYPE_M68K_CPU,                                           \
+        .class_init = classinit,                                           \
+    }
+
 #define DEFINE_M68K_CPU_TYPE(cpu_model, initfn) \
     {                                           \
         .name = M68K_CPU_TYPE_NAME(cpu_model),  \
@@ -314,11 +329,16 @@ static const TypeInfo m68k_cpus_type_infos[] = {
         .class_size = sizeof(M68kCPUClass),
         .class_init = m68k_cpu_class_init,
     },
-    DEFINE_M68K_CPU_TYPE("m68000", m68000_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68020", m68020_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68030", m68030_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68040", m68040_cpu_initfn),
-    DEFINE_M68K_CPU_TYPE("m68060", m68060_cpu_initfn),
+    DEFINE_M68K_CPU_TYPE_WITH_CLASS("m68000", m68000_cpu_initfn,
+                                    m68k_cpu_class_init_m68k_core),
+    DEFINE_M68K_CPU_TYPE_WITH_CLASS("m68020", m68020_cpu_initfn,
+                                    m68k_cpu_class_init_m68k_core),
+    DEFINE_M68K_CPU_TYPE_WITH_CLASS("m68030", m68030_cpu_initfn,
+                                    m68k_cpu_class_init_m68k_core),
+    DEFINE_M68K_CPU_TYPE_WITH_CLASS("m68040", m68040_cpu_initfn,
+                                    m68k_cpu_class_init_m68k_core),
+    DEFINE_M68K_CPU_TYPE_WITH_CLASS("m68060", m68060_cpu_initfn,
+                                    m68k_cpu_class_init_m68k_core),
     DEFINE_M68K_CPU_TYPE("m5206", m5206_cpu_initfn),
     DEFINE_M68K_CPU_TYPE("m5208", m5208_cpu_initfn),
     DEFINE_M68K_CPU_TYPE("cfv4e", cfv4e_cpu_initfn),
