@@ -871,6 +871,51 @@ typedef struct {
     bool fd_pass;
 } CharSocketClientTestConfig;
 
+static void char_socket_client_dupid_test(gconstpointer opaque)
+{
+    const CharSocketClientTestConfig *config = opaque;
+    QIOChannelSocket *ioc;
+    char *optstr;
+    Chardev *chr1, *chr2;
+    SocketAddress *addr;
+    QemuOpts *opts;
+    Error *local_err = NULL;
+
+    /*
+     * Setup a listener socket and determine get its address
+     * so we know the TCP port for the client later
+     */
+    ioc = qio_channel_socket_new();
+    g_assert_nonnull(ioc);
+    qio_channel_socket_listen_sync(ioc, config->addr, 1, &error_abort);
+    addr = qio_channel_socket_get_local_address(ioc, &error_abort);
+    g_assert_nonnull(addr);
+
+    /*
+     * Populate the chardev address based on what the server
+     * is actually listening on
+     */
+    optstr = char_socket_addr_to_opt_str(addr,
+                                         config->fd_pass,
+                                         config->reconnect,
+                                         false);
+
+    opts = qemu_opts_parse_noisily(qemu_find_opts("chardev"),
+                                   optstr, true);
+    g_assert_nonnull(opts);
+    chr1 = qemu_chr_new_from_opts(opts, NULL, &error_abort);
+    g_assert_nonnull(chr1);
+
+    chr2 = qemu_chr_new_from_opts(opts, NULL, &local_err);
+    g_assert_null(chr2);
+    error_free_or_abort(&local_err);
+
+    object_unref(OBJECT(ioc));
+    qemu_opts_del(opts);
+    object_unparent(OBJECT(chr1));
+    qapi_free_SocketAddress(addr);
+    g_free(optstr);
+}
 
 static void char_socket_client_test(gconstpointer opaque)
 {
@@ -1433,6 +1478,8 @@ int main(int argc, char **argv)
         { addr, NULL, false, true };                                    \
     static CharSocketClientTestConfig client6 ## name =                 \
         { addr, NULL, true, true };                                     \
+    static CharSocketClientTestConfig client7 ## name =                 \
+        { addr, ",reconnect=1", false, false };                         \
     g_test_add_data_func("/char/socket/client/mainloop/" # name,        \
                          &client1 ##name, char_socket_client_test);     \
     g_test_add_data_func("/char/socket/client/wait-conn/" # name,       \
@@ -1444,7 +1491,9 @@ int main(int argc, char **argv)
     g_test_add_data_func("/char/socket/client/mainloop-fdpass/" # name, \
                          &client5 ##name, char_socket_client_test);     \
     g_test_add_data_func("/char/socket/client/wait-conn-fdpass/" # name, \
-                         &client6 ##name, char_socket_client_test)
+                         &client6 ##name, char_socket_client_test);     \
+    g_test_add_data_func("/char/socket/client/dupid-reconnect/" # name, \
+                         &client7 ##name, char_socket_client_dupid_test)
 
     if (has_ipv4) {
         SOCKET_SERVER_TEST(tcp, &tcpaddr);
