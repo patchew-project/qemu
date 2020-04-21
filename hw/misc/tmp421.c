@@ -30,6 +30,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
+#include "hw/misc/temp-sensor.h"
 
 /* Manufacturer / Device ID's */
 #define TMP421_MANUFACTURER_ID          0x55
@@ -136,6 +137,21 @@ static void set_temp_mC(TMP421State *s, unsigned int id,
     }
 
     s->temperature[id] = (int16_t) ((temp * 256 - 128) / 1000) + offset;
+}
+
+static float tmp421_get_temp(TempSensor *obj, unsigned sensor_id)
+{
+    TMP421State *s = TMP421(obj);
+
+    return get_temp_mC(s, sensor_id) / 1000.f;
+}
+
+static void tmp421_set_temp(TempSensor *obj, unsigned sensor_id,
+                            float temp_C, Error **errp)
+{
+    TMP421State *s = TMP421(obj);
+
+    set_temp_mC(s, sensor_id, temp_C * 1000.f, errp);
 }
 
 static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
@@ -380,6 +396,7 @@ static void tmp421_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
     TMP421Class *sc = TMP421_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     dc->realize = tmp421_realize;
     k->event = tmp421_event;
@@ -387,6 +404,9 @@ static void tmp421_class_init(ObjectClass *klass, void *data)
     k->send = tmp421_tx;
     dc->vmsd = &vmstate_tmp421;
     sc->dev = (DeviceInfo *) data;
+    tc->sensor_count = SENSORS_COUNT;
+    tc->set_temperature = tmp421_set_temp;
+    tc->get_temperature = tmp421_get_temp;
 }
 
 static const TypeInfo tmp421_info = {
@@ -396,6 +416,10 @@ static const TypeInfo tmp421_info = {
     .class_size    = sizeof(TMP421Class),
     .instance_init = tmp421_initfn,
     .abstract      = true,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static void tmp421_register_types(void)
