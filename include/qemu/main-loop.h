@@ -303,6 +303,13 @@ void qemu_mutex_unlock_iothread(void);
  */
 void qemu_cond_wait_iothread(QemuCond *cond);
 
+/*
+ * qemu_cond_timedwait_iothread: Wait on condition for the main loop mutex
+ *
+ * This is the same as qemu_cond_wait_iothread() but allows a timeout.
+ */
+void qemu_cond_timedwait_iothread(QemuCond *cond, int ms);
+
 /* internal interfaces */
 
 void qemu_fd_register(int fd);

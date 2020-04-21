@@ -726,8 +726,8 @@ static void cpu_throttle_thread(CPUState *cpu, run_on_cpu_data opaque)
     endtime_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + sleeptime_ns;
     while (sleeptime_ns > 0 && !cpu->stop) {
         if (sleeptime_ns > SCALE_MS) {
-            qemu_cond_timedwait(cpu->halt_cond, &qemu_global_mutex,
-                                sleeptime_ns / SCALE_MS);
+            qemu_cond_timedwait_iothread(cpu->halt_cond,
+                                         sleeptime_ns / SCALE_MS);
         } else {
             qemu_mutex_unlock_iothread();
             g_usleep(sleeptime_ns / SCALE_US);
@@ -1842,6 +1842,11 @@ void qemu_mutex_unlock_iothread(void)
 void qemu_cond_wait_iothread(QemuCond *cond)
 {
     qemu_cond_wait(cond, &qemu_global_mutex);
+}
+
+void qemu_cond_timedwait_iothread(QemuCond *cond, int ms)
+{
+    qemu_cond_timedwait(cond, &qemu_global_mutex, ms);
 }
 
 static bool all_vcpus_paused(void)
