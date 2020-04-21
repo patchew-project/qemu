@@ -112,12 +112,19 @@ typedef struct TMP421Class {
 static const int32_t mins[2] = { -40000, -55000 };
 static const int32_t maxs[2] = { 127000, 150000 };
 
+static int64_t get_temp_mC(TMP421State *s, unsigned int id)
+{
+    bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
+    int offset = ext_range * 64 * 256;
+
+    assert(id < SENSORS_COUNT);
+
+    return ((s->temperature[id] - offset) * 1000 + 128) / 256;
+}
+
 static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    TMP421State *s = TMP421(obj);
-    bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
-    int offset = ext_range * 64 * 256;
     int64_t value;
     int tempid;
 
@@ -131,7 +138,7 @@ static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    value = ((s->temperature[tempid] - offset) * 1000 + 128) / 256;
+    value = get_temp_mC(TMP421(obj), tempid);
 
     visit_type_int(v, name, &value, errp);
 }
