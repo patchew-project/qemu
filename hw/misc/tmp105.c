@@ -56,11 +56,28 @@ static void tmp105_alarm_update(TMP105State *s)
     tmp105_interrupt_update(s);
 }
 
+static int64_t get_temp_mC(TMP105State *s)
+{
+    return s->temperature * 1000 / 256;
+}
+
+static void set_temp_mC(TMP105State *s, int64_t temp_mC, Error **errp)
+{
+    if (temp_mC >= 128000 || temp_mC < -128000) {
+        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " C is out of range",
+                   temp_mC / 1000, temp_mC % 1000);
+        return;
+    }
+
+    s->temperature = (int16_t) (temp_mC * 256 / 1000);
+
+    tmp105_alarm_update(s);
+}
+
 static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    TMP105State *s = TMP105(obj);
-    int64_t value = s->temperature * 1000 / 256;
+    int64_t value = get_temp_mC(TMP105(obj));
 
     visit_type_int(v, name, &value, errp);
 }
@@ -71,7 +88,6 @@ static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
 static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    TMP105State *s = TMP105(obj);
     Error *local_err = NULL;
     int64_t temp;
 
@@ -80,15 +96,8 @@ static void tmp105_set_temperature(Object *obj, Visitor *v, const char *name,
         error_propagate(errp, local_err);
         return;
     }
-    if (temp >= 128000 || temp < -128000) {
-        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " C is out of range",
-                   temp / 1000, temp % 1000);
-        return;
-    }
 
-    s->temperature = (int16_t) (temp * 256 / 1000);
-
-    tmp105_alarm_update(s);
+    set_temp_mC(TMP105(obj), temp, errp);
 }
 
 static const int tmp105_faultq[4] = { 1, 2, 4, 6 };
