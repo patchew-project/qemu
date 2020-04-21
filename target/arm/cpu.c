@@ -2735,7 +2735,6 @@ static const ARMCPUInfo arm_cpus[] = {
     { .name = "any",         .initfn = arm_max_initfn },
 #endif
 #endif
-    { .name = NULL }
 };
 
 static Property arm_cpu_properties[] = {
@@ -2883,14 +2882,13 @@ static const TypeInfo idau_interface_type_info = {
 
 static void arm_cpu_register_types(void)
 {
-    const ARMCPUInfo *info = arm_cpus;
+    size_t i;
 
     type_register_static(&arm_cpu_type_info);
     type_register_static(&idau_interface_type_info);
 
-    while (info->name) {
-        arm_cpu_register(info);
-        info++;
+    for (i = 0; i < ARRAY_SIZE(arm_cpus); ++i) {
+        arm_cpu_register(&arm_cpus[i]);
     }
 
 #ifdef CONFIG_KVM
