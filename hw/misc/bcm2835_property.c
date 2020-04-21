@@ -12,6 +12,7 @@
 #include "migration/vmstate.h"
 #include "hw/irq.h"
 #include "hw/misc/bcm2835_mbox_defs.h"
+#include "hw/misc/temp-sensor.h"
 #include "sysemu/dma.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -372,6 +373,27 @@ static const VMStateDescription vmstate_bcm2835_property = {
     }
 };
 
+static const char *bcm2835_property_get_temp_sensor_name(TempSensor *obj,
+                                                         unsigned sensor_id)
+{
+    return "videocore";
+}
+
+static float bcm2835_property_get_temp(TempSensor *obj, unsigned sensor_id)
+{
+    BCM2835PropertyState *s = BCM2835_PROPERTY(obj);
+
+    return s->temp_mC / 1000;
+}
+
+static void bcm2835_property_set_temp(TempSensor *obj, unsigned sensor_id,
+                                      float temp_C, Error **errp)
+{
+    BCM2835PropertyState *s = BCM2835_PROPERTY(obj);
+
+    s->temp_mC = temp_C * 1000;
+}
+
 static void bcm2835_property_init(Object *obj)
 {
     BCM2835PropertyState *s = BCM2835_PROPERTY(obj);
@@ -429,10 +451,15 @@ static Property bcm2835_property_props[] = {
 static void bcm2835_property_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     device_class_set_props(dc, bcm2835_property_props);
     dc->realize = bcm2835_property_realize;
     dc->vmsd = &vmstate_bcm2835_property;
+    tc->sensor_count = 1;
+    tc->get_name = bcm2835_property_get_temp_sensor_name;
+    tc->set_temperature = bcm2835_property_set_temp;
+    tc->get_temperature = bcm2835_property_get_temp;
 }
 
 static TypeInfo bcm2835_property_info = {
@@ -441,6 +468,10 @@ static TypeInfo bcm2835_property_info = {
     .instance_size = sizeof(BCM2835PropertyState),
     .class_init    = bcm2835_property_class_init,
     .instance_init = bcm2835_property_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static void bcm2835_property_register_types(void)
