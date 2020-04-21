@@ -16,6 +16,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "ui/console.h"
+#include "hw/misc/temp-sensor.h"
 
 typedef struct {
     SSISlave ssidev;
@@ -52,6 +53,12 @@ typedef struct {
 #define ADS_YPOS(x, y)	(Y_AXIS_MIN + ((Y_AXIS_DMAX * (y)) >> 15))
 #define ADS_Z1POS(x, y)	600
 #define ADS_Z2POS(x, y)	(600 + 6000 / ADS_XPOS(x, y))
+
+/* TI Datasheet SBAS125H "TEMP DIODE VOLTAGE vs TEMPERATURE (2.7V SUPPLY)" */
+#define ADS_TEMP0_OFS_MILLIV    666.f
+#define ADS_TEMP1_OFS_MILLIV    761.f
+#define ADS_TEMP0_COEFF         2.08f
+#define ADS_TEMP1_COEFF         1.60f
 
 static void ads7846_int_update(ADS7846State *s)
 {
@@ -157,12 +164,39 @@ static void ads7846_realize(SSISlave *d, Error **errp)
     vmstate_register(NULL, VMSTATE_INSTANCE_ID_ANY, &vmstate_ads7846, s);
 }
 
+static float ads7846_get_temp(TempSensor *obj, unsigned sensor_id)
+{
+    ADS7846State *s = (ADS7846State *)obj;
+
+    if (sensor_id) {
+        return (ADS_TEMP1_OFS_MILLIV - s->input[7]) / ADS_TEMP1_COEFF;
+    } else {
+        return (ADS_TEMP0_OFS_MILLIV - s->input[0]) / ADS_TEMP0_COEFF;
+    }
+}
+
+static void ads7846_set_temp(TempSensor *obj, unsigned sensor_id,
+                             float temp_C, Error **errp)
+{
+    ADS7846State *s = (ADS7846State *)obj;
+
+    if (sensor_id) {
+        s->input[7] = ADS_TEMP1_OFS_MILLIV - ADS_TEMP1_COEFF * temp_C;
+    } else {
+        s->input[0] = ADS_TEMP0_OFS_MILLIV - ADS_TEMP0_COEFF * temp_C;
+    }
+}
+
 static void ads7846_class_init(ObjectClass *klass, void *data)
 {
     SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     k->realize = ads7846_realize;
     k->transfer = ads7846_transfer;
+    tc->sensor_count = 2;
+    tc->set_temperature = ads7846_set_temp;
+    tc->get_temperature = ads7846_get_temp;
 }
 
 static const TypeInfo ads7846_info = {
@@ -170,6 +204,10 @@ static const TypeInfo ads7846_info = {
     .parent        = TYPE_SSI_SLAVE,
     .instance_size = sizeof(ADS7846State),
     .class_init    = ads7846_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static void ads7846_register_types(void)
