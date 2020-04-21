@@ -12,6 +12,7 @@
 #include "hw/misc/bcm2835_thermal.h"
 #include "hw/registerfields.h"
 #include "migration/vmstate.h"
+#include "hw/misc/temp-sensor.h"
 
 REG32(CTL, 0)
 FIELD(CTL, POWER_DOWN, 0, 1)
@@ -31,6 +32,21 @@ FIELD(STAT, INTERRUPT, 11, 1)
 
 #define THERMAL_OFFSET_C 412
 #define THERMAL_COEFF  (-0.538f)
+
+static void bcm2835_set_temperature(TempSensor *obj, unsigned int sensor_id,
+                                    float temp, Error **errp)
+{
+    Bcm2835ThermalState *s = BCM2835_THERMAL(obj);
+
+    s->temp = temp;
+}
+
+static float bcm2835_get_temperature(TempSensor *obj, unsigned int sensor_id)
+{
+    Bcm2835ThermalState *s = BCM2835_THERMAL(obj);
+
+    return s->temp;
+}
 
 static uint16_t bcm2835_thermal_temp2adc(float64 temp_C)
 {
@@ -121,10 +137,14 @@ static const VMStateDescription bcm2835_thermal_vmstate = {
 static void bcm2835_thermal_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     dc->realize = bcm2835_thermal_realize;
     dc->reset = bcm2835_thermal_reset;
     dc->vmsd = &bcm2835_thermal_vmstate;
+    tc->sensor_count = 1;
+    tc->set_temperature = bcm2835_set_temperature;
+    tc->get_temperature = bcm2835_get_temperature;
 }
 
 static const TypeInfo bcm2835_thermal_info = {
@@ -133,6 +153,10 @@ static const TypeInfo bcm2835_thermal_info = {
     .instance_size = sizeof(Bcm2835ThermalState),
     .instance_init = bcm2835_thermal_init,
     .class_init = bcm2835_thermal_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static void bcm2835_thermal_register_types(void)
