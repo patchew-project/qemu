@@ -1550,3 +1550,27 @@
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
 
+##
+# @TemperatureSensor:
+#
+# Temperature sensor information.
+#
+# @name: the name of the sensor
+#
+# @temperature: the current temperature of the sensor (in C)
+#
+# Since: 5.1
+##
+{ 'struct': 'TemperatureSensor',
+  'data': { 'name': 'str',
+            'temperature': 'number' } }
+
+##
+# @query-temperature-sensors:
+#
+# Return a list of TemperatureSensor for devices that support
+# the TYPE_TEMPSENSOR_INTERFACE.
+#
+# Since: 5.1
+##
+{ 'command': 'query-temperature-sensors', 'returns': ['TemperatureSensor']}

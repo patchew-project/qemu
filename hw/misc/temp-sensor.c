@@ -10,6 +10,54 @@
 
 #include "qemu/osdep.h"
 #include "hw/misc/temp-sensor.h"
+#include "qapi/qapi-commands-misc.h"
+#include "qapi/error.h"
+
+static int query_temperature_sensors_foreach(Object *obj, void *opaque)
+{
+    TemperatureSensorList **list = opaque;
+    TempSensor *sensor;
+    TempSensorClass *k;
+
+    if (!object_dynamic_cast(obj, TYPE_TEMPSENSOR_INTERFACE)) {
+        return 0;
+    }
+
+    k = TEMPSENSOR_INTERFACE_GET_CLASS(obj);
+    if (!k->get_temperature) {
+        return 0;
+    }
+
+    sensor = TEMPSENSOR_INTERFACE(obj);
+    for (size_t i = 0; i < k->sensor_count; i++) {
+        TemperatureSensorList *info = g_malloc0(sizeof(*info));
+        TemperatureSensor *value = g_malloc0(sizeof(*value));
+
+        if (k->get_name) {
+            value->name = g_strdup(k->get_name(sensor, i));
+        } else {
+            value->name = g_strdup_printf("%s-%zu",
+                                          object_get_typename(obj), i);
+        }
+        value->temperature = k->get_temperature(sensor, i);
+
+        info->value = value;
+        info->next = *list;
+        *list = info;
+    }
+
+    return 0;
+}
+
+TemperatureSensorList *qmp_query_temperature_sensors(Error **errp)
+{
+    TemperatureSensorList *list = NULL;
+
+    object_child_foreach_recursive(object_get_root(),
+                                   query_temperature_sensors_foreach,
+                                   &list);
+    return list;
+}
 
 static TypeInfo tempsensor_interface_type_info = {
     .name = TYPE_TEMPSENSOR_INTERFACE,
