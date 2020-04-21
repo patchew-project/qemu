@@ -41,11 +41,26 @@ static void qmp_tmp105_set_temperature(const char *id, int value)
     qobject_unref(response);
 }
 
+static char *hmp_info_temperature(const char *id)
+{
+    QDict *response;
+    char *output;
+
+    response = qmp("{'execute': 'human-monitor-command',"
+                   " 'arguments': {'command-line': 'info temp'}}");
+    g_assert(qdict_haskey(response, "return"));
+    output = g_strdup(qdict_get_try_str(response, "return"));
+    qobject_unref(response);
+
+    return output;
+}
+
 #define TMP105_PRECISION (1000/16)
 static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
 {
     uint16_t value;
     QI2CDevice *i2cdev = (QI2CDevice *)obj;
+    g_autofree char *s = NULL;
 
     value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
     g_assert_cmpuint(value, ==, 0);
@@ -56,6 +71,9 @@ static void send_and_receive(void *obj, void *data, QGuestAllocator *alloc)
     qmp_tmp105_set_temperature(TMP105_TEST_ID, 20000);
     value = qmp_tmp105_get_temperature(TMP105_TEST_ID);
     g_assert_cmpuint(value, ==, 20000);
+    /* Test TempSensorClass via 'info temp' */
+    s = hmp_info_temperature(TMP105_TEST_ID);
+    g_assert(strstr(s, "tmp105-0                           20.00"));
 
     value = i2c_get16(i2cdev, TMP105_REG_TEMPERATURE);
     g_assert_cmphex(value, ==, 0x1400);
