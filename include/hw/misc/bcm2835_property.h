@@ -31,6 +31,7 @@ typedef struct {
     uint32_t board_rev;
     uint32_t addr;
     bool pending;
+    float64 temp_mC;
 } BCM2835PropertyState;
 
 #endif

@@ -143,7 +143,7 @@ static void bcm2835_property_mbox_push(BCM2835PropertyState *s, uint32_t value)
         /* Temperature */
 
         case 0x00030006: /* Get temperature */
-            stl_le_phys(&s->dma_as, value + 16, 25000);
+            stl_le_phys(&s->dma_as, value + 16, s->temp_mC);
             resplen = 8;
             break;
 
@@ -361,12 +361,13 @@ static const MemoryRegionOps bcm2835_property_ops = {
 
 static const VMStateDescription vmstate_bcm2835_property = {
     .name = TYPE_BCM2835_PROPERTY,
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields      = (VMStateField[]) {
         VMSTATE_MACADDR(macaddr, BCM2835PropertyState),
         VMSTATE_UINT32(addr, BCM2835PropertyState),
         VMSTATE_BOOL(pending, BCM2835PropertyState),
+        VMSTATE_FLOAT64(temp_mC, BCM2835PropertyState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -375,6 +376,7 @@ static void bcm2835_property_init(Object *obj)
 {
     BCM2835PropertyState *s = BCM2835_PROPERTY(obj);
 
+    s->temp_mC = 25e3;
     memory_region_init_io(&s->iomem, OBJECT(s), &bcm2835_property_ops, s,
                           TYPE_BCM2835_PROPERTY, 0x10);
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
