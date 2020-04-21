@@ -37,6 +37,8 @@
 #define TMP422_DEVICE_ID                0x22
 #define TMP423_DEVICE_ID                0x23
 
+#define SENSORS_COUNT       4
+
 typedef struct DeviceInfo {
     int model;
     const char *name;
@@ -53,7 +55,7 @@ typedef struct TMP421State {
     I2CSlave i2c;
     /*< public >*/
 
-    int16_t temperature[4];
+    int16_t temperature[SENSORS_COUNT];
 
     uint8_t status;
     uint8_t config[2];
@@ -124,7 +126,7 @@ static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (tempid >= 4 || tempid < 0) {
+    if (tempid >= SENSORS_COUNT || tempid < 0) {
         error_setg(errp, "error reading %s", name);
         return;
     }
@@ -164,7 +166,7 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (tempid >= 4 || tempid < 0) {
+    if (tempid >= SENSORS_COUNT || tempid < 0) {
         error_setg(errp, "error reading %s", name);
         return;
     }
