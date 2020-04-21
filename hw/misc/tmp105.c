@@ -26,6 +26,7 @@
 #include "qapi/error.h"
 #include "qapi/visitor.h"
 #include "qemu/module.h"
+#include "hw/misc/temp-sensor.h"
 
 static void tmp105_interrupt_update(TMP105State *s)
 {
@@ -72,6 +73,17 @@ static void set_temp_mC(TMP105State *s, int64_t temp_mC, Error **errp)
     s->temperature = (int16_t) (temp_mC * 256 / 1000);
 
     tmp105_alarm_update(s);
+}
+
+static float tmp105_get_temp(TempSensor *obj, unsigned sensor_id)
+{
+    return get_temp_mC(TMP105(obj)) / 1000.f;
+}
+
+static void tmp105_set_temp(TempSensor *obj, unsigned sensor_id,
+                            float temp_C, Error **errp)
+{
+    set_temp_mC(TMP105(obj), temp_C * 1000.f, errp);
 }
 
 static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
@@ -261,12 +273,16 @@ static void tmp105_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     dc->realize = tmp105_realize;
     k->event = tmp105_event;
     k->recv = tmp105_rx;
     k->send = tmp105_tx;
     dc->vmsd = &vmstate_tmp105;
+    tc->sensor_count = 1;
+    tc->set_temperature = tmp105_set_temp;
+    tc->get_temperature = tmp105_get_temp;
 }
 
 static const TypeInfo tmp105_info = {
@@ -275,6 +291,10 @@ static const TypeInfo tmp105_info = {
     .instance_size = sizeof(TMP105State),
     .instance_init = tmp105_initfn,
     .class_init    = tmp105_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static void tmp105_register_types(void)
