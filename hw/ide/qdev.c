@@ -32,6 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "qapi/visitor.h"
+#include "hw/misc/temp-sensor.h"
 
 /* --------------------------------- */
 
@@ -270,6 +271,12 @@ static void ide_dev_instance_init(Object *obj)
     object_property_set_int(obj, -1, "bootindex", NULL);
 }
 
+static float ide_hd_get_temp(TempSensor *obj, unsigned sensor_id)
+{
+    /* See airflow-temperature-celsius in smart_attributes[] */
+    return 100.f - 0x45;
+}
+
 static void ide_hd_realize(IDEDevice *dev, Error **errp)
 {
     ide_dev_initfn(dev, IDE_HD, errp);
@@ -315,11 +322,14 @@ static void ide_hd_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     k->realize  = ide_hd_realize;
     dc->fw_name = "drive";
     dc->desc    = "virtual IDE disk";
     device_class_set_props(dc, ide_hd_properties);
+    tc->sensor_count = 1;
+    tc->get_temperature = ide_hd_get_temp;
 }
 
 static const TypeInfo ide_hd_info = {
@@ -327,6 +337,10 @@ static const TypeInfo ide_hd_info = {
     .parent        = TYPE_IDE_DEVICE,
     .instance_size = sizeof(IDEDrive),
     .class_init    = ide_hd_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static Property ide_cd_properties[] = {
