@@ -43,6 +43,7 @@
 #include "sysemu/hvf.h"
 #include "sysemu/whpx.h"
 #include "exec/exec-all.h"
+#include "exec/memory-internal.h"
 
 #include "qemu/thread.h"
 #include "qemu/plugin.h"
@@ -1834,6 +1835,7 @@ void qemu_mutex_lock_iothread_impl(const char *file, int line)
 
 static void qemu_mutex_unlock_iothread_prepare(void)
 {
+    assert(!memory_region_has_pending_transaction());
 }
 
 void qemu_mutex_unlock_iothread(void)
