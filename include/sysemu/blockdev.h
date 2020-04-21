@@ -57,4 +57,18 @@ QemuOpts *drive_add(BlockInterfaceType type, int index, const char *file,
 DriveInfo *drive_new(QemuOpts *arg, BlockInterfaceType block_default_type,
                      Error **errp);
 
+BdrvDirtyBitmap *block_dirty_bitmap_lookup(const char *node,
+                                           const char *name,
+                                           BlockDriverState **pbs,
+                                           Error **errp);
+BdrvDirtyBitmap *do_block_dirty_bitmap_remove(const char *node,
+                                              const char *name, bool release,
+                                              BlockDriverState **bitmap_bs,
+                                              Error **errp);
+BdrvDirtyBitmap *do_block_dirty_bitmap_merge(const char *node,
+                                             const char *target,
+                                             BlockDirtyBitmapMergeSourceList *bitmaps,
+                                             HBitmap **backup, Error **errp);
+
+
 #endif
