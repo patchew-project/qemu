@@ -12,6 +12,8 @@
 #include "hw/misc/temp-sensor.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/error.h"
+#include "monitor/monitor.h"
+#include "monitor/hmp.h"
 
 static int query_temperature_sensors_foreach(Object *obj, void *opaque)
 {
@@ -57,6 +59,33 @@ TemperatureSensorList *qmp_query_temperature_sensors(Error **errp)
                                    query_temperature_sensors_foreach,
                                    &list);
     return list;
+}
+
+void hmp_info_temp(Monitor *mon, const QDict *qdict)
+{
+    TemperatureSensorList *list, *sensor;
+    Error *err = NULL;
+
+    list = qmp_query_temperature_sensors(&err);
+    if (!list) {
+        monitor_printf(mon, "No temperature sensors\n");
+        return;
+    }
+    if (err) {
+        monitor_printf(mon, "Error while getting temperatures: %s\n",
+                       error_get_pretty(err));
+        error_free(err);
+        goto out;
+    }
+
+    monitor_printf(mon, "Temperatures (in C):\n");
+    for (sensor = list; sensor; sensor = sensor->next) {
+        monitor_printf(mon, "%-33s %6.2f\n", sensor->value->name,
+                       sensor->value->temperature);
+    }
+
+out:
+    qapi_free_TemperatureSensorList(list);
 }
 
 static TypeInfo tempsensor_interface_type_info = {

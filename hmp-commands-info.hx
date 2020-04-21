@@ -880,4 +880,15 @@ SRST
     Show SEV information.
 ERST
 
+    {
+        .name       = "temp",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show device temperatures",
+        .cmd        = hmp_info_temp,
+    },
 
+SRST
+  ``info temp``
+    Show device temperatures.
+ERST
