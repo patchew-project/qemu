@@ -1575,6 +1575,12 @@ F: hw/sd/sd*
 F: hw/sd/ssi-sd.c
 F: tests/qtest/sd*
 
+Temperature Sensors
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: hw/misc/temp-sensor.c
+F: include/hw/misc/temp-sensor.h
+
 USB
 M: Gerd Hoffmann <kraxel@redhat.com>
 S: Maintained
