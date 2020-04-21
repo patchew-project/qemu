@@ -61,20 +61,9 @@ struct DWC2State {
     qemu_irq irq;
     MemoryRegion *dma_mr;
     AddressSpace dma_as;
-    MemoryRegion mem;
-    MemoryRegion mem_glbreg;
-    MemoryRegion mem_fszreg;
-    MemoryRegion mem_hreg0;
-    MemoryRegion mem_hreg1;
-    MemoryRegion mem_pcgreg;
-    MemoryRegion mem_hreg2;
-
-    uint16_t glbregbase;
-    uint16_t fszregbase;
-    uint16_t hreg0base;
-    uint16_t hreg1base;
-    uint16_t pcgregbase;
-    uint16_t hfifobase;
+    MemoryRegion container;
+    MemoryRegion hsotg;
+    MemoryRegion fifos;
 
     union {
 #define DWC2_GLBREG_SIZE    0x70

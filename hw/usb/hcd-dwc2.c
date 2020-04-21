@@ -28,6 +28,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "hw/usb/dwc2-regs.h"
 #include "hw/usb/hcd-dwc2.h"
@@ -655,7 +656,7 @@ static const char *glbregnm[] = {
 static uint64_t dwc2_glbreg_read(void *ptr, hwaddr addr, unsigned size)
 {
     DWC2State *s = ptr;
-    uint32_t reg = s->glbregbase + addr;
+    uint32_t reg = addr;
     uint32_t val;
 
     assert(reg <= GINTSTS2);
@@ -681,7 +682,7 @@ static void dwc2_glbreg_write(void *ptr, hwaddr addr, uint64_t val,
 {
     DWC2State *s = ptr;
     uint64_t orig = val;
-    uint32_t reg = s->glbregbase + addr;
+    uint32_t reg = addr;
     uint32_t *mmio;
     uint32_t old;
     int iflg = 0;
@@ -762,10 +763,9 @@ static void dwc2_glbreg_write(void *ptr, hwaddr addr, uint64_t val,
 static uint64_t dwc2_fszreg_read(void *ptr, hwaddr addr, unsigned size)
 {
     DWC2State *s = ptr;
-    uint32_t reg = s->fszregbase + addr;
     uint32_t val;
 
-    assert(reg <= HPTXFSIZ);
+    assert(addr <= HPTXFSIZ);
     val = s->fszreg[addr >> 2];
 
     trace_usb_dwc2_fszreg_read(addr, val);
@@ -777,11 +777,10 @@ static void dwc2_fszreg_write(void *ptr, hwaddr addr, uint64_t val,
 {
     DWC2State *s = ptr;
     uint64_t orig = val;
-    uint32_t reg = s->fszregbase + addr;
     uint32_t *mmio;
     uint32_t old;
 
-    assert(reg <= HPTXFSIZ);
+    assert(addr <= HPTXFSIZ);
     mmio = &s->fszreg[addr >> 2];
     old = *mmio;
 
@@ -800,13 +799,12 @@ static const char *hreg0nm[] = {
 static uint64_t dwc2_hreg0_read(void *ptr, hwaddr addr, unsigned size)
 {
     DWC2State *s = ptr;
-    uint32_t reg = s->hreg0base + addr;
     uint32_t val;
 
-    assert(reg <= HPRT0);
+    assert(addr <= HPRT0);
     val = s->hreg0[addr >> 2];
 
-    switch (reg) {
+    switch (addr) {
     case HFNUM:
         val = (dwc2_get_frame_remaining(s) << HFNUM_FRREM_SHIFT) |
               (s->hfnum << HFNUM_FRNUM_SHIFT);
@@ -825,17 +823,16 @@ static void dwc2_hreg0_write(void *ptr, hwaddr addr, uint64_t val,
     DWC2State *s = ptr;
     USBDevice *dev = s->uport.dev;
     uint64_t orig = val;
-    uint32_t reg = s->hreg0base + addr;
     uint32_t *mmio;
     uint32_t tval, told, old;
     int prst = 0;
     int iflg = 0;
 
-    assert(reg <= HPRT0);
+    assert(addr <= HPRT0);
     mmio = &s->hreg0[addr >> 2];
     old = *mmio;
 
-    switch (reg) {
+    switch (addr) {
     case HFIR:
         break;
     case HFNUM:
@@ -915,14 +912,13 @@ static const char *hreg1nm[] = {
 static uint64_t dwc2_hreg1_read(void *ptr, hwaddr addr, unsigned size)
 {
     DWC2State *s = ptr;
-    uint32_t reg = s->hreg1base + addr;
     uint32_t val;
 
-    assert(reg <= HCDMAB(DWC2_NB_CHAN - 1));
+    assert(addr <= HCDMAB(DWC2_NB_CHAN - 1));
     val = s->hreg1[addr >> 2];
 
     trace_usb_dwc2_hreg1_read(addr, hreg1nm[(addr >> 2) & 7], addr >> 5, val);
-    assert(s->hreg1base + (addr & 0x1c) <= HCDMAB(DWC2_NB_CHAN));
+    assert((addr & 0x1c) <= HCDMAB(DWC2_NB_CHAN));
     return val;
 }
 
@@ -931,18 +927,17 @@ static void dwc2_hreg1_write(void *ptr, hwaddr addr, uint64_t val,
 {
     DWC2State *s = ptr;
     uint64_t orig = val;
-    uint32_t reg = s->hreg1base + addr;
     uint32_t *mmio;
     uint32_t old;
     int iflg = 0;
     int enflg = 0;
     int disflg = 0;
 
-    assert(reg <= HCDMAB(DWC2_NB_CHAN - 1));
+    assert(addr <= HCDMAB(DWC2_NB_CHAN - 1));
     mmio = &s->hreg1[addr >> 2];
     old = *mmio;
 
-    switch (s->hreg1base + (addr & 0x1c)) {
+    switch (addr & 0x1c) {
     case HCCHAR(0):
         if ((val & HCCHAR_CHDIS) && !(old & HCCHAR_CHDIS)) {
             val &= ~(HCCHAR_CHENA | HCCHAR_CHDIS);
@@ -1002,10 +997,9 @@ static const char *pcgregnm[] = {
 static uint64_t dwc2_pcgreg_read(void *ptr, hwaddr addr, unsigned size)
 {
     DWC2State *s = ptr;
-    uint32_t reg = s->pcgregbase + addr;
     uint32_t val;
 
-    assert(reg <= PCGCCTL1);
+    assert(addr <= PCGCCTL1);
     val = s->pcgreg[addr >> 2];
 
     trace_usb_dwc2_pcgreg_read(addr, pcgregnm[addr >> 2], val);
@@ -1017,11 +1011,10 @@ static void dwc2_pcgreg_write(void *ptr, hwaddr addr, uint64_t val,
 {
     DWC2State *s = ptr;
     uint64_t orig = val;
-    uint32_t reg = s->pcgregbase + addr;
     uint32_t *mmio;
     uint32_t old;
 
-    assert(reg <= PCGCCTL1);
+    assert(addr <= PCGCCTL1);
     mmio = &s->pcgreg[addr >> 2];
     old = *mmio;
 
@@ -1029,6 +1022,65 @@ static void dwc2_pcgreg_write(void *ptr, hwaddr addr, uint64_t val,
     trace_usb_dwc2_pcgreg_write(addr, pcgregnm[addr >> 2], orig, old, val);
     *mmio = val;
 }
+
+static uint64_t dwc2_hsotg_read(void *ptr, hwaddr addr, unsigned size)
+{
+    uint64_t val;
+
+    switch (addr) {
+    case HSOTG_REG(0x000) ... HSOTG_REG(0x0fc):
+        val = dwc2_glbreg_read(ptr, addr - HSOTG_REG(0x000), size);
+        break;
+    case HSOTG_REG(0x100) ... HSOTG_REG(0x3fc):
+        val = dwc2_fszreg_read(ptr, addr - HSOTG_REG(0x100), size);
+        break;
+    case HSOTG_REG(0x400) ... HSOTG_REG(0x4fc):
+        val = dwc2_hreg0_read(ptr, addr - HSOTG_REG(0x400), size);
+        break;
+    case HSOTG_REG(0x500) ... HSOTG_REG(0xdfc):
+        val = dwc2_hreg1_read(ptr, addr - HSOTG_REG(0x500), size);
+        break;
+    case HSOTG_REG(0xe00) ... HSOTG_REG(0xffc):
+        val = dwc2_pcgreg_read(ptr, addr - HSOTG_REG(0xe00), size);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return val;
+}
+
+static void dwc2_hsotg_write(void *ptr, hwaddr addr, uint64_t val,
+                             unsigned size)
+{
+    switch (addr) {
+    case HSOTG_REG(0x000) ... HSOTG_REG(0x0fc):
+        dwc2_glbreg_write(ptr, addr - HSOTG_REG(0x000), val, size);
+        break;
+    case HSOTG_REG(0x100) ... HSOTG_REG(0x3fc):
+        dwc2_fszreg_write(ptr, addr - HSOTG_REG(0x100), val, size);
+        break;
+    case HSOTG_REG(0x400) ... HSOTG_REG(0x4fc):
+        dwc2_hreg0_write(ptr, addr - HSOTG_REG(0x400), val, size);
+        break;
+    case HSOTG_REG(0x500) ... HSOTG_REG(0xdfc):
+        dwc2_hreg1_write(ptr, addr - HSOTG_REG(0x500), val, size);
+        break;
+    case HSOTG_REG(0xe00) ... HSOTG_REG(0xffc):
+        dwc2_pcgreg_write(ptr, addr - HSOTG_REG(0xe00), val, size);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
+static const MemoryRegionOps dwc2_mmio_hsotg_ops = {
+    .read = dwc2_hsotg_read,
+    .write = dwc2_hsotg_write,
+    .valid.min_access_size = 4,
+    .valid.max_access_size = 4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static uint64_t dwc2_hreg2_read(void *ptr, hwaddr addr, unsigned size)
 {
@@ -1046,46 +1098,6 @@ static void dwc2_hreg2_write(void *ptr, hwaddr addr, uint64_t val,
     val &= 0xffffffff;
     trace_usb_dwc2_hreg2_write(addr, addr >> 12, orig, 0, val);
 }
-
-static const MemoryRegionOps dwc2_mmio_glbreg_ops = {
-    .read = dwc2_glbreg_read,
-    .write = dwc2_glbreg_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps dwc2_mmio_fszreg_ops = {
-    .read = dwc2_fszreg_read,
-    .write = dwc2_fszreg_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps dwc2_mmio_hreg0_ops = {
-    .read = dwc2_hreg0_read,
-    .write = dwc2_hreg0_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps dwc2_mmio_hreg1_ops = {
-    .read = dwc2_hreg1_read,
-    .write = dwc2_hreg1_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps dwc2_mmio_pcgreg_ops = {
-    .read = dwc2_pcgreg_read,
-    .write = dwc2_pcgreg_write,
-    .valid.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
 
 static const MemoryRegionOps dwc2_mmio_hreg2_ops = {
     .read = dwc2_hreg2_read,
@@ -1219,7 +1231,7 @@ static void dwc2_realize(DeviceState *dev, Error **errp)
     }
 
     s->dma_mr = MEMORY_REGION(obj);
-    address_space_init(&s->dma_as, s->dma_mr, NULL);
+    address_space_init(&s->dma_as, s->dma_mr, "dwc2");
 
     usb_bus_new(&s->bus, sizeof(s->bus), &dwc2_bus_ops, dev);
     usb_register_port(&s->bus, &s->uport, s, 0, &dwc2_port_ops,
@@ -1247,35 +1259,17 @@ static void dwc2_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     DWC2State *s = DWC2_USB(obj);
 
-    s->glbregbase = 0;
-    s->fszregbase = 0x0100;
-    s->hreg0base = 0x0400;
-    s->hreg1base = 0x0500;
-    s->pcgregbase = 0x0e00;
-    s->hfifobase = 0x1000;
+    memory_region_init(&s->container, obj, "dwc2", DWC2_MMIO_SIZE);
+    sysbus_init_mmio(sbd, &s->container);
 
-    memory_region_init(&s->mem, obj, "dwc2", DWC2_MMIO_SIZE);
-    memory_region_init_io(&s->mem_glbreg, obj, &dwc2_mmio_glbreg_ops, s,
-                          "global", DWC2_GLBREG_SIZE);
-    memory_region_init_io(&s->mem_fszreg, obj, &dwc2_mmio_fszreg_ops, s,
-                          "hptxfsiz", DWC2_FSZREG_SIZE);
-    memory_region_init_io(&s->mem_hreg0, obj, &dwc2_mmio_hreg0_ops, s,
-                          "host", DWC2_HREG0_SIZE);
-    memory_region_init_io(&s->mem_hreg1, obj, &dwc2_mmio_hreg1_ops, s,
-                          "host channels", DWC2_HREG1_SIZE);
-    memory_region_init_io(&s->mem_pcgreg, obj, &dwc2_mmio_pcgreg_ops, s,
-                          "power/clock", DWC2_PCGREG_SIZE);
-    memory_region_init_io(&s->mem_hreg2, obj, &dwc2_mmio_hreg2_ops, s,
-                          "host fifos", DWC2_HFIFO_SIZE);
+    memory_region_init_io(&s->hsotg, obj, &dwc2_mmio_hsotg_ops, s,
+                          "dwc2-io", 4 * KiB);
+    memory_region_add_subregion(&s->container, 0x0000, &s->hsotg);
 
-    memory_region_add_subregion(&s->mem, s->glbregbase, &s->mem_glbreg);
-    memory_region_add_subregion(&s->mem, s->fszregbase, &s->mem_fszreg);
-    memory_region_add_subregion(&s->mem, s->hreg0base, &s->mem_hreg0);
-    memory_region_add_subregion(&s->mem, s->hreg1base, &s->mem_hreg1);
-    memory_region_add_subregion(&s->mem, s->pcgregbase, &s->mem_pcgreg);
-    memory_region_add_subregion(&s->mem, s->hfifobase, &s->mem_hreg2);
+    memory_region_init_io(&s->fifos, obj, &dwc2_mmio_hreg2_ops, s,
+                          "dwc2-fifo", 64 * KiB);
+    memory_region_add_subregion(&s->container, 0x1000, &s->fifos);
 
-    sysbus_init_mmio(sbd, &s->mem);
 }
 
 static const VMStateDescription vmstate_dwc2_state_packet = {
@@ -1303,13 +1297,6 @@ const VMStateDescription vmstate_dwc2_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT16(glbregbase, DWC2State),
-        VMSTATE_UINT16(fszregbase, DWC2State),
-        VMSTATE_UINT16(hreg0base, DWC2State),
-        VMSTATE_UINT16(hreg1base, DWC2State),
-        VMSTATE_UINT16(pcgregbase, DWC2State),
-        VMSTATE_UINT16(hfifobase, DWC2State),
-
         VMSTATE_UINT32_ARRAY(glbreg, DWC2State,
                              DWC2_GLBREG_SIZE / sizeof(uint32_t)),
         VMSTATE_UINT32_ARRAY(fszreg, DWC2State,
@@ -1343,6 +1330,8 @@ const VMStateDescription vmstate_dwc2_state = {
 
 static Property dwc2_usb_properties[] = {
     DEFINE_PROP_UINT32("usb_version", DWC2State, usb_version, 2),
+    /* FIXME isn't 'usb_version=2' const? */
+    DEFINE_PROP_END_OF_LIST()
 };
 
 static void dwc2_class_init(ObjectClass *klass, void *data)
