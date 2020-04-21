@@ -281,6 +281,30 @@ Command description:
   For write tests, by default a buffer filled with zeros is written. This can be
   overridden with a pattern byte specified by *PATTERN*.
 
+.. option:: bitmap {--add [-g GRANULARITY] [--disabled] | --remove | --clear | --enable | --disable | --merge SOURCE_BITMAP [-b SOURCE_FILE [-F SOURCE_FMT]]} [--object OBJECTDEF] [--image-opts] [-f FMT] FILENAME BITMAP
+
+  Perform a modification of the persistent bitmap *BITMAP* in the disk
+  image *FILENAME*.  The various modifications are:
+
+  ``--add`` to create *BITMAP*, with additional options ``-g`` to
+  specify a non-default *GRANULARITY*, or whether the bitmap should be
+  ``--disabled`` instead of enabled.
+
+  ``--remove`` to remove *BITMAP*.
+
+  ``--clear`` to clear *BITMAP*.
+
+  ``--enable`` to change *BITMAP* to start recording future edits.
+
+  ``--disable`` to change *BITMAP* to stop recording future edits.
+
+  ``--merge`` to merge the contents of *SOURCE_BITMAP* into *BITMAP*.
+  This defaults to requiring a source bitmap from the same *FILENAME*,
+  but can also be used for cross-image merge by supplying ``-b`` to
+  specify a different *SOURCE_FILE*.
+
+  To see what bitmaps are present in an image, use ``qemu-img info``.
+
 .. option:: check [--object OBJECTDEF] [--image-opts] [-q] [-f FMT] [--output=OFMT] [-r [leaks | all]] [-T SRC_CACHE] [-U] FILENAME
 
   Perform a consistency check on the disk image *FILENAME*. The command can

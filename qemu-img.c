@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 #include "qemu-version.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-block-core.h"
 #include "qapi/qapi-visit-block-core.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/qmp/qjson.h"
@@ -71,6 +72,12 @@ enum {
     OPTION_SHRINK = 266,
     OPTION_SALVAGE = 267,
     OPTION_TARGET_IS_ZERO = 268,
+    OPTION_ADD = 269,
+    OPTION_REMOVE = 270,
+    OPTION_CLEAR = 271,
+    OPTION_ENABLE = 272,
+    OPTION_DISABLE = 273,
+    OPTION_MERGE = 274,
 };
 
 typedef enum OutputFormat {
@@ -4455,6 +4462,197 @@ out:
     qemu_vfree(data.buf);
     blk_unref(blk);
 
+    if (ret) {
+        return 1;
+    }
+    return 0;
+}
+
+static int img_bitmap(int argc, char **argv)
+{
+    Error *err = NULL;
+    int c, ret = -1;
+    QemuOpts *opts = NULL;
+    const char *fmt = NULL, *src_fmt = NULL, *src_filename = NULL;
+    const char *filename, *bitmap;
+    BlockBackend *blk = NULL, *src = NULL;
+    BlockDriverState *bs = NULL, *src_bs = NULL;
+    bool image_opts = false;
+    unsigned long granularity = 0;
+    bool add = false, remove = false, clear = false;
+    bool enable = false, disable = false, add_disabled = false;
+    const char *merge = NULL;
+
+    for (;;) {
+        static const struct option long_options[] = {
+            {"help", no_argument, 0, 'h'},
+            {"object", required_argument, 0, OPTION_OBJECT},
+            {"image-opts", no_argument, 0, OPTION_IMAGE_OPTS},
+            {"add", no_argument, 0, OPTION_ADD},
+            {"remove", no_argument, 0, OPTION_REMOVE},
+            {"clear", no_argument, 0, OPTION_CLEAR},
+            {"enable", no_argument, 0, OPTION_ENABLE},
+            {"disable", no_argument, 0, OPTION_DISABLE},
+            {"disabled", no_argument, 0, OPTION_DISABLE},
+            {"merge", required_argument, 0, OPTION_MERGE},
+            {"granularity", required_argument, 0, 'g'},
+            {"source-file", required_argument, 0, 'b'},
+            {"source-format", required_argument, 0, 'F'},
+            {0, 0, 0, 0}
+        };
+        c = getopt_long(argc, argv, ":b:f:F:g:h", long_options, NULL);
+        if (c == -1) {
+            break;
+        }
+
+        switch (c) {
+        case ':':
+            missing_argument(argv[optind - 1]);
+            break;
+        case '?':
+            unrecognized_option(argv[optind - 1]);
+            break;
+        case 'h':
+            help();
+            break;
+        case 'b':
+            src_filename = optarg;
+            break;
+        case 'f':
+            fmt = optarg;
+            break;
+        case 'F':
+            src_fmt = optarg;
+            break;
+        case 'g':
+            if (qemu_strtosz(optarg, NULL, &granularity)) {
+                error_report("Invalid granularity specified");
+                return 1;
+            }
+            break;
+        case OPTION_ADD:
+            add = true;
+            break;
+        case OPTION_REMOVE:
+            remove = true;
+            break;
+        case OPTION_CLEAR:
+            clear = true;
+            break;
+        case OPTION_ENABLE:
+            enable = true;
+            break;
+        case OPTION_DISABLE:
+            disable = true;
+            break;
+        case OPTION_MERGE:
+            merge = optarg;
+            break;
+        case OPTION_OBJECT:
+            opts = qemu_opts_parse_noisily(&qemu_object_opts,
+                                           optarg, true);
+            if (!opts) {
+                goto out;
+            }
+            break;
+        case OPTION_IMAGE_OPTS:
+            image_opts = true;
+            break;
+        }
+    }
+
+    if (qemu_opts_foreach(&qemu_object_opts,
+                          user_creatable_add_opts_foreach,
+                          qemu_img_object_print_help, &error_fatal)) {
+        goto out;
+    }
+
+    if (add && disable) {
+        disable = false;
+        add_disabled = true;
+    }
+    if (add + remove + clear + enable + disable + !!merge != 1) {
+        error_report("Need exactly one mode of --add, --remove, --clear, "
+                     "--enable, --disable, or --merge");
+        goto out;
+    }
+    if (granularity && !add) {
+        error_report("granularity only supported with --add");
+        goto out;
+    }
+    if (src_fmt && !src_filename) {
+        error_report("-F only supported with -b");
+        goto out;
+    }
+    if (src_filename && !merge) {
+        error_report("alternate source file only supported with --merge");
+        goto out;
+    }
+
+    if (optind != argc - 2) {
+        error_report("Expecting filename and bitmap name");
+        goto out;
+    }
+
+    filename = argv[optind];
+    bitmap = argv[optind + 1];
+
+    blk = img_open(image_opts, filename, fmt, BDRV_O_RDWR, false, false,
+                   false);
+    if (!blk) {
+        goto out;
+    }
+    bs = blk_bs(blk);
+
+    if (add) {
+        qmp_block_dirty_bitmap_add(bs->node_name, bitmap,
+                                   !!granularity, granularity, true, true,
+                                   true, add_disabled, &err);
+    } else if (remove) {
+        qmp_block_dirty_bitmap_remove(bs->node_name, bitmap, &err);
+    } else if (clear) {
+        qmp_block_dirty_bitmap_clear(bs->node_name, bitmap, &err);
+    } else if (enable) {
+        qmp_block_dirty_bitmap_enable(bs->node_name, bitmap, &err);
+    } else if (disable) {
+        qmp_block_dirty_bitmap_disable(bs->node_name, bitmap, &err);
+    } else if (merge) {
+        BlockDirtyBitmapMergeSource *merge_src;
+        BlockDirtyBitmapMergeSourceList *list;
+
+        if (src_filename) {
+            src = img_open(NULL, src_filename, src_fmt, 0, false, false,
+                           false);
+            if (!src) {
+                goto out;
+            }
+            src_bs = blk_bs(src);
+        } else {
+            src_bs = bs;
+        }
+
+        merge_src = g_new0(BlockDirtyBitmapMergeSource, 1);
+        merge_src->type = QTYPE_QDICT;
+        merge_src->u.external.node = g_strdup(src_bs->node_name);
+        merge_src->u.external.name = g_strdup(merge);
+        list = g_new0(BlockDirtyBitmapMergeSourceList, 1);
+        list->value = merge_src;
+        qmp_block_dirty_bitmap_merge(bs->node_name, bitmap, list, &err);
+        qapi_free_BlockDirtyBitmapMergeSourceList(list);
+    }
+
+    if (err) {
+        error_reportf_err(err, "Bitmap %s operation failed", bitmap);
+        ret = -1;
+        goto out;
+    }
+
+    ret = 0;
+
+ out:
+    blk_unref(src);
+    blk_unref(blk);
+    qemu_opts_del(opts);
     if (ret) {
         return 1;
     }

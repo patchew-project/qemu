@@ -20,6 +20,13 @@ DEF("bench", img_bench,
 SRST
 .. option:: bench [-c COUNT] [-d DEPTH] [-f FMT] [--flush-interval=FLUSH_INTERVAL] [-i AIO] [-n] [--no-drain] [-o OFFSET] [--pattern=PATTERN] [-q] [-s BUFFER_SIZE] [-S STEP_SIZE] [-t CACHE] [-w] [-U] FILENAME
 ERST
+
+DEF("bitmap", img_bitmap,
+    "bitmap {--add [-g granularity] [--disabled] | --remove | --clear | --enable | --disable | --merge source_bitmap [-b source_file [-F source_fmt]]} [--object objectdef] [--image-opts] [-f fmt] filename bitmap")
+SRST
+.. option:: bitmap {--add [-g GRANULARITY] [--disabled] | --remove | --clear | --enable | --disable | --merge SOURCE_BITMAP [-b SOURCE_FILE [-F SOURCE_FMT]]} [--object OBJECTDEF] [--image-opts] [-f FMT] FILENAME BITMAP
+ERST
+
 DEF("check", img_check,
     "check [--object objectdef] [--image-opts] [-q] [-f fmt] [--output=ofmt] [-r [leaks | all]] [-T src_cache] [-U] filename")
 SRST
