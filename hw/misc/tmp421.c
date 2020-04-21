@@ -122,6 +122,22 @@ static int64_t get_temp_mC(TMP421State *s, unsigned int id)
     return ((s->temperature[id] - offset) * 1000 + 128) / 256;
 }
 
+static void set_temp_mC(TMP421State *s, unsigned int id,
+                        int64_t temp, Error **errp)
+{
+    bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
+    int offset = ext_range * 64 * 256;
+
+    assert(id < SENSORS_COUNT);
+    if (temp >= maxs[ext_range] || temp < mins[ext_range]) {
+        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " C is out of range",
+                   temp / 1000, temp % 1000);
+        return;
+    }
+
+    s->temperature[id] = (int16_t) ((temp * 256 - 128) / 1000) + offset;
+}
+
 static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -149,22 +165,13 @@ static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
 static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
-    TMP421State *s = TMP421(obj);
     Error *local_err = NULL;
     int64_t temp;
-    bool ext_range = (s->config[0] & TMP421_CONFIG_RANGE);
-    int offset = ext_range * 64 * 256;
     int tempid;
 
     visit_type_int(v, name, &temp, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
-    }
-
-    if (temp >= maxs[ext_range] || temp < mins[ext_range]) {
-        error_setg(errp, "value %" PRId64 ".%03" PRIu64 " C is out of range",
-                   temp / 1000, temp % 1000);
         return;
     }
 
@@ -178,7 +185,7 @@ static void tmp421_set_temperature(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    s->temperature[tempid] = (int16_t) ((temp * 256 - 128) / 1000) + offset;
+    set_temp_mC(TMP421(obj), tempid, temp, errp);
 }
 
 static void tmp421_read(TMP421State *s)
