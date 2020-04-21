@@ -16,6 +16,7 @@
 #include "hw/misc/imx6ul_ccm.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/misc/temp-sensor.h"
 
 #include "trace.h"
 
@@ -864,12 +865,14 @@ static void imx6ul_ccm_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     IMXCCMClass *ccm = IMX_CCM_CLASS(klass);
+    TempSensorClass *tc = TEMPSENSOR_INTERFACE_CLASS(klass);
 
     dc->reset = imx6ul_ccm_reset;
     dc->vmsd = &vmstate_imx6ul_ccm;
     dc->desc = "i.MX6UL Clock Control Module";
 
     ccm->get_clock_frequency = imx6ul_ccm_get_clock_frequency;
+    tc->sensor_count = 3;
 }
 
 static const TypeInfo imx6ul_ccm_info = {
@@ -878,6 +881,10 @@ static const TypeInfo imx6ul_ccm_info = {
     .instance_size = sizeof(IMX6ULCCMState),
     .instance_init = imx6ul_ccm_init,
     .class_init    = imx6ul_ccm_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_TEMPSENSOR_INTERFACE },
+        { }
+    },
 };
 
 static void imx6ul_ccm_register_types(void)
