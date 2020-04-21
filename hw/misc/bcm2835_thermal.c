@@ -32,7 +32,7 @@ FIELD(STAT, INTERRUPT, 11, 1)
 #define THERMAL_OFFSET_C 412
 #define THERMAL_COEFF  (-0.538f)
 
-static uint16_t bcm2835_thermal_temp2adc(int temp_C)
+static uint16_t bcm2835_thermal_temp2adc(float64 temp_C)
 {
     return (temp_C - THERMAL_OFFSET_C) / THERMAL_COEFF;
 }
@@ -47,8 +47,7 @@ static uint64_t bcm2835_thermal_read(void *opaque, hwaddr addr, unsigned size)
         val = s->ctl;
         break;
     case A_STAT:
-        /* Temperature is constantly 25°C. */
-        val = FIELD_DP32(bcm2835_thermal_temp2adc(25), STAT, VALID, true);
+        val = FIELD_DP32(bcm2835_thermal_temp2adc(s->temp), STAT, VALID, true);
         break;
     default:
         /* MemoryRegionOps are aligned, so this can not happen. */
@@ -85,6 +84,13 @@ static const MemoryRegionOps bcm2835_thermal_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void bcm2835_thermal_init(Object *obj)
+{
+    Bcm2835ThermalState *s = BCM2835_THERMAL(obj);
+
+    s->temp = 25.0;
+}
+
 static void bcm2835_thermal_reset(DeviceState *dev)
 {
     Bcm2835ThermalState *s = BCM2835_THERMAL(dev);
@@ -103,10 +109,11 @@ static void bcm2835_thermal_realize(DeviceState *dev, Error **errp)
 
 static const VMStateDescription bcm2835_thermal_vmstate = {
     .name = "bcm2835_thermal",
-    .version_id = 1,
-    .minimum_version_id = 1,
+    .version_id = 2,
+    .minimum_version_id = 2,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(ctl, Bcm2835ThermalState),
+        VMSTATE_FLOAT64(temp, Bcm2835ThermalState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -124,6 +131,7 @@ static const TypeInfo bcm2835_thermal_info = {
     .name = TYPE_BCM2835_THERMAL,
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(Bcm2835ThermalState),
+    .instance_init = bcm2835_thermal_init,
     .class_init = bcm2835_thermal_class_init,
 };
 

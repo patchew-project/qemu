@@ -22,6 +22,7 @@ typedef struct {
     /*< public >*/
     MemoryRegion iomem;
     uint32_t ctl;
+    float64 temp;
 } Bcm2835ThermalState;
 
 #endif
