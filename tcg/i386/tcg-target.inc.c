@@ -3255,6 +3255,7 @@ static const TCGTargetOpDef *tcg_target_op_def(TCGOpcode op)
     case INDEX_op_shls_vec:
     case INDEX_op_shrs_vec:
     case INDEX_op_sars_vec:
+    case INDEX_op_rotls_vec:
     case INDEX_op_cmp_vec:
     case INDEX_op_x86_shufps_vec:
     case INDEX_op_x86_blend_vec:
@@ -3293,6 +3294,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     case INDEX_op_xor_vec:
     case INDEX_op_andc_vec:
         return 1;
+    case INDEX_op_rotli_vec:
     case INDEX_op_cmp_vec:
     case INDEX_op_cmpsel_vec:
         return -1;
@@ -3316,6 +3318,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
 
     case INDEX_op_shls_vec:
     case INDEX_op_shrs_vec:
+    case INDEX_op_rotls_vec:
         return vece >= MO_16;
     case INDEX_op_sars_vec:
         return vece >= MO_16 && vece <= MO_32;
@@ -3353,7 +3356,7 @@ int tcg_can_emit_vec_op(TCGOpcode opc, TCGType type, unsigned vece)
     }
 }
 
-static void expand_vec_shi(TCGType type, unsigned vece, bool shr,
+static void expand_vec_shi(TCGType type, unsigned vece, TCGOpcode opc,
                            TCGv_vec v0, TCGv_vec v1, TCGArg imm)
 {
     TCGv_vec t1, t2;
@@ -3363,26 +3366,31 @@ static void expand_vec_shi(TCGType type, unsigned vece, bool shr,
     t1 = tcg_temp_new_vec(type);
     t2 = tcg_temp_new_vec(type);
 
-    /* Unpack to W, shift, and repack.  Tricky bits:
-       (1) Use punpck*bw x,x to produce DDCCBBAA,
-           i.e. duplicate in other half of the 16-bit lane.
-       (2) For right-shift, add 8 so that the high half of
-           the lane becomes zero.  For left-shift, we must
-           shift up and down again.
-       (3) Step 2 leaves high half zero such that PACKUSWB
-           (pack with unsigned saturation) does not modify
-           the quantity.  */
+    /*
+     * Unpack to W, shift, and repack.  Tricky bits:
+     * (1) Use punpck*bw x,x to produce DDCCBBAA,
+     *     i.e. duplicate in other half of the 16-bit lane.
+     * (2) For right-shift, add 8 so that the high half of the lane
+     *     becomes zero.  For left-shift, and left-rotate, we must
+     *     shift up and down again.
+     * (3) Step 2 leaves high half zero such that PACKUSWB
+     *     (pack with unsigned saturation) does not modify
+     *     the quantity.
+     */
     vec_gen_3(INDEX_op_x86_punpckl_vec, type, MO_8,
               tcgv_vec_arg(t1), tcgv_vec_arg(v1), tcgv_vec_arg(v1));
     vec_gen_3(INDEX_op_x86_punpckh_vec, type, MO_8,
               tcgv_vec_arg(t2), tcgv_vec_arg(v1), tcgv_vec_arg(v1));
 
-    if (shr) {
-        tcg_gen_shri_vec(MO_16, t1, t1, imm + 8);
-        tcg_gen_shri_vec(MO_16, t2, t2, imm + 8);
+    if (opc != INDEX_op_rotli_vec) {
+        imm += 8;
+    }
+    if (opc == INDEX_op_shri_vec) {
+        tcg_gen_shri_vec(MO_16, t1, t1, imm);
+        tcg_gen_shri_vec(MO_16, t2, t2, imm);
     } else {
-        tcg_gen_shli_vec(MO_16, t1, t1, imm + 8);
-        tcg_gen_shli_vec(MO_16, t2, t2, imm + 8);
+        tcg_gen_shli_vec(MO_16, t1, t1, imm);
+        tcg_gen_shli_vec(MO_16, t2, t2, imm);
         tcg_gen_shri_vec(MO_16, t1, t1, 8);
         tcg_gen_shri_vec(MO_16, t2, t2, 8);
     }
@@ -3447,6 +3455,43 @@ static void expand_vec_sari(TCGType type, unsigned vece,
     default:
         g_assert_not_reached();
     }
+}
+
+static void expand_vec_rotli(TCGType type, unsigned vece,
+                             TCGv_vec v0, TCGv_vec v1, TCGArg imm)
+{
+    TCGv_vec t;
+
+    if (vece == MO_8) {
+        expand_vec_shi(type, vece, INDEX_op_rotli_vec, v0, v1, imm);
+        return;
+    }
+
+    t = tcg_temp_new_vec(type);
+    tcg_gen_shli_vec(vece, t, v1, imm);
+    tcg_gen_shri_vec(vece, v0, v1, (8 << vece) - imm);
+    tcg_gen_or_vec(vece, v0, v0, t);
+    tcg_temp_free_vec(t);
+}
+
+static void expand_vec_rotls(TCGType type, unsigned vece,
+                             TCGv_vec v0, TCGv_vec v1, TCGv_i32 lsh)
+{
+    TCGv_i32 rsh;
+    TCGv_vec t;
+
+    tcg_debug_assert(vece != MO_8);
+
+    t = tcg_temp_new_vec(type);
+    rsh = tcg_temp_new_i32();
+
+    tcg_gen_neg_i32(rsh, lsh);
+    tcg_gen_andi_i32(rsh, rsh, (8 << vece) - 1);
+    tcg_gen_shls_vec(vece, t, v1, lsh);
+    tcg_gen_shrs_vec(vece, v0, v1, rsh);
+    tcg_gen_or_vec(vece, v0, v0, t);
+    tcg_temp_free_vec(t);
+    tcg_temp_free_i32(rsh);
 }
 
 static void expand_vec_mul(TCGType type, unsigned vece,
@@ -3658,11 +3703,19 @@ void tcg_expand_vec_op(TCGOpcode opc, TCGType type, unsigned vece,
     switch (opc) {
     case INDEX_op_shli_vec:
     case INDEX_op_shri_vec:
-        expand_vec_shi(type, vece, opc == INDEX_op_shri_vec, v0, v1, a2);
+        expand_vec_shi(type, vece, opc, v0, v1, a2);
         break;
 
     case INDEX_op_sari_vec:
         expand_vec_sari(type, vece, v0, v1, a2);
+        break;
+
+    case INDEX_op_rotli_vec:
+        expand_vec_rotli(type, vece, v0, v1, a2);
+        break;
+
+    case INDEX_op_rotls_vec:
+        expand_vec_rotls(type, vece, v0, v1, temp_tcgv_i32(arg_temp(a2)));
         break;
 
     case INDEX_op_mul_vec:
