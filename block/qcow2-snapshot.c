@@ -23,6 +23,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "sysemu/block-backend.h"
 #include "qapi/error.h"
 #include "qcow2.h"
 #include "qemu/bswap.h"
@@ -775,10 +776,22 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     }
 
     if (sn->disk_size != bs->total_sectors * BDRV_SECTOR_SIZE) {
-        error_report("qcow2: Loading snapshots with different disk "
-            "size is not implemented");
-        ret = -ENOTSUP;
-        goto fail;
+        BlockBackend *blk = blk_new(bdrv_get_aio_context(bs),
+                                    BLK_PERM_RESIZE, BLK_PERM_ALL);
+        ret = blk_insert_bs(blk, bs, &local_err);
+        if (ret < 0) {
+            blk_unref(blk);
+            error_report_err(local_err);
+            goto fail;
+        }
+
+        ret = blk_truncate(blk, sn->disk_size, true, PREALLOC_MODE_OFF,
+                           &local_err);
+        blk_unref(blk);
+        if (ret < 0) {
+            error_report_err(local_err);
+            goto fail;
+        }
     }
 
     /*

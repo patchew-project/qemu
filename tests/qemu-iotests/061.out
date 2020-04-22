@@ -271,6 +271,150 @@ read 65536/65536 bytes at offset 44040192
 64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 No errors were found on the image.
 
+=== Testing resize with snapshots ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=33554432
+wrote 65536/65536 bytes at offset 25165824
+64 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-img: Can't resize a v2 image which has snapshots
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      33554432
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              1
+snapshot_offset           0x70000
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
+refcount_order            4
+header_length             72
+
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      134217728
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              1
+snapshot_offset           0x70000
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
+refcount_order            4
+header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    288
+data                      <binary>
+
+Image resized.
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              2
+snapshot_offset           0x90000
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
+refcount_order            4
+header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    288
+data                      <binary>
+
+qemu-img: Internal snapshots prevent downgrade of image
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      33554432
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              2
+snapshot_offset           0x90000
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
+refcount_order            4
+header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    288
+data                      <binary>
+
+magic                     0x514649fb
+version                   3
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      134217728
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              2
+snapshot_offset           0x90000
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
+refcount_order            4
+header_length             104
+
+Header extension:
+magic                     0x6803f857
+length                    288
+data                      <binary>
+
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      33554432
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              1
+snapshot_offset           0x70000
+incompatible_features     []
+compatible_features       []
+autoclear_features        []
+refcount_order            4
+header_length             72
+
+No errors were found on the image.
+
 === Testing dirty lazy_refcounts=off ===
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864
