@@ -1726,6 +1726,7 @@ static int coroutine_fn qcow2_do_open(BlockDriverState *bs, QDict *options,
 
     bs->supported_zero_flags = header.version >= 3 ?
                                BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK : 0;
+    bs->supported_truncate_flags = BDRV_REQ_ZERO_WRITE;
 
     /* Repair image if dirty */
     if (!(flags & (BDRV_O_CHECK | BDRV_O_INACTIVE)) && !bs->read_only &&
@@ -4212,6 +4213,35 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
 
     default:
         g_assert_not_reached();
+    }
+
+    if ((flags & BDRV_REQ_ZERO_WRITE) && offset > old_length) {
+        uint64_t zero_start = QEMU_ALIGN_UP(old_length, s->cluster_size);
+        uint64_t zero_end = QEMU_ALIGN_UP(offset, s->cluster_size);
+
+        /* Use zero clusters as much as we can */
+        ret = qcow2_cluster_zeroize(bs, zero_start, zero_end - zero_start, 0);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to zero out the new area");
+            goto fail;
+        }
+
+        /* Write explicit zeros for the unaligned head */
+        if (zero_start > old_length) {
+            uint8_t *buf = qemu_blockalign0(bs, s->cluster_size);
+            QEMUIOVector qiov;
+            qemu_iovec_init_buf(&qiov, buf, zero_start - old_length);
+
+            qemu_co_mutex_unlock(&s->lock);
+            ret = qcow2_co_pwritev_part(bs, old_length, qiov.size, &qiov, 0, 0);
+            qemu_co_mutex_lock(&s->lock);
+
+            qemu_vfree(buf);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "Failed to zero out the new area");
+                goto fail;
+            }
+        }
     }
 
     if (prealloc != PREALLOC_MODE_OFF) {
