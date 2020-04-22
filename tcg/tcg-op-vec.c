@@ -209,6 +209,23 @@ static void vec_gen_op3(TCGOpcode opc, unsigned vece,
     vec_gen_3(opc, type, vece, temp_arg(rt), temp_arg(at), temp_arg(bt));
 }
 
+TCGv_vec tcg_constant_vec(TCGType type, unsigned vece, int64_t val)
+{
+    val = dup_const(vece, val);
+
+    /*
+     * For MO_64 constants that can't be represented in tcg_target_long,
+     * we must use INDEX_op_dup2_vec, which requires a non-const temporary.
+     */
+    if (TCG_TARGET_REG_BITS == 32 &&
+        val != deposit64(val, 32, 32, val) &&
+        val != (uint64_t)(int32_t)val) {
+        g_assert_not_reached();
+    }
+
+    return temp_tcgv_vec(tcg_constant_internal(type, val));
+}
+
 void tcg_gen_mov_vec(TCGv_vec r, TCGv_vec a)
 {
     if (r != a) {
