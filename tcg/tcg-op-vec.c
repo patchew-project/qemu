@@ -129,6 +129,17 @@ bool tcg_can_emit_vecop_list(const TCGOpcode *list,
                 continue;
             }
             break;
+        case INDEX_op_rotlv_vec:
+        case INDEX_op_rotrv_vec:
+            if (tcg_can_emit_vec_op(opc == INDEX_op_rotlv_vec
+                                    ? INDEX_op_rotrv_vec
+                                    : INDEX_op_rotlv_vec, type, vece)) {
+                continue;
+            }
+            if (tcg_can_emit_vec_op(INDEX_op_shlv_vec, type, vece) &&
+                tcg_can_emit_vec_op(INDEX_op_shrv_vec, type, vece)) {
+                continue;
+            }
         default:
             break;
         }
@@ -695,6 +706,78 @@ void tcg_gen_shrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 void tcg_gen_sarv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
 {
     do_op3_nofail(vece, r, a, b, INDEX_op_sarv_vec);
+}
+
+static void do_rotv(unsigned vece, TCGv_vec r, TCGv_vec a,
+                    TCGv_vec b, bool right)
+{
+    TCGTemp *rt = tcgv_vec_temp(r);
+    TCGTemp *at = tcgv_vec_temp(a);
+    TCGTemp *bt = tcgv_vec_temp(b);
+    TCGArg ri = temp_arg(rt);
+    TCGArg ai = temp_arg(at);
+    TCGArg bi = temp_arg(bt);
+    TCGType type = rt->base_type;
+    TCGOpcode opc = right ? INDEX_op_rotrv_vec : INDEX_op_rotlv_vec;
+    const TCGOpcode *hold_list;
+    TCGv_vec t;
+    int can;
+
+    tcg_debug_assert(at->base_type >= type);
+    tcg_debug_assert(bt->base_type >= type);
+    tcg_assert_listed_vecop(opc);
+
+    /* Try the requested shift. */
+    can = tcg_can_emit_vec_op(opc, type, vece);
+    if (can) {
+        if (can > 0) {
+            vec_gen_3(opc, type, vece, ri, ai, bi);
+        } else {
+            hold_list = tcg_swap_vecop_list(NULL);
+            tcg_expand_vec_op(opc, type, vece, ri, ai, bi);
+            tcg_swap_vecop_list(hold_list);
+        }
+        return;
+    }
+
+    hold_list = tcg_swap_vecop_list(NULL);
+    t = tcg_temp_new_vec(type);
+    tcg_gen_neg_vec(vece, t, b);
+    tcg_gen_and_vec(vece, t, t, tcg_constant_vec(type, vece, (8 << vece) - 1));
+
+    /* Try the reverse shift. */
+    opc = right ? INDEX_op_rotlv_vec : INDEX_op_rotrv_vec;
+    can = tcg_can_emit_vec_op(opc, type, vece);
+    if (can) {
+        if (can > 0) {
+            vec_gen_3(opc, type, vece, ri, ai, tcgv_vec_arg(t));
+        } else {
+            tcg_expand_vec_op(opc, type, vece, ri, ai, tcgv_vec_arg(t));
+        }
+    } else {
+        /* Fall back to shifts. */
+        if (right) {
+            tcg_gen_shlv_vec(vece, t, a, t);
+            tcg_gen_shrv_vec(vece, r, a, b);
+        } else {
+            tcg_gen_shrv_vec(vece, t, a, t);
+            tcg_gen_shlv_vec(vece, r, a, b);
+        }
+        tcg_gen_or_vec(vece, r, r, t);
+    }
+
+    tcg_temp_free_vec(t);
+    tcg_swap_vecop_list(hold_list);
+}
+
+void tcg_gen_rotlv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_rotv(vece, r, a, b, false);
+}
+
+void tcg_gen_rotrv_vec(unsigned vece, TCGv_vec r, TCGv_vec a, TCGv_vec b)
+{
+    do_rotv(vece, r, a, b, true);
 }
 
 static void do_shifts(unsigned vece, TCGv_vec r, TCGv_vec a,
