@@ -2857,6 +2857,8 @@ M: John G Johnson <john.g.johnson@oracle.com>
 S: Maintained
 F: remote/Makefile.objs
 F: remote/remote-main.c
+F: include/io/mpqemu-link.h
+F: io/mpqemu-link.c
 
 Build and test automation
 -------------------------
