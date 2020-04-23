@@ -109,11 +109,9 @@ const VhostDevConfigOps blk_ops = {
 static int vhost_user_blk_start(VirtIODevice *vdev)
 {
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int i, ret;
 
-    if (!k->set_guest_notifiers) {
+    if (!virtio_device_guest_notifiers_initialized(vdev)) {
         error_report("binding does not support guest notifiers");
         return -ENOSYS;
     }
@@ -124,9 +122,8 @@ static int vhost_user_blk_start(VirtIODevice *vdev)
         return ret;
     }
 
-    ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, true);
+    ret = vhost_dev_assign_guest_notifiers(&s->dev, vdev, s->dev.nvqs);
     if (ret < 0) {
-        error_report("Error binding guest notifier: %d", -ret);
         goto err_host_notifiers;
     }
 
@@ -163,7 +160,7 @@ static int vhost_user_blk_start(VirtIODevice *vdev)
     return ret;
 
 err_guest_notifiers:
-    k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
+    vhost_dev_drop_guest_notifiers(&s->dev, vdev, s->dev.nvqs);
 err_host_notifiers:
     vhost_dev_disable_notifiers(&s->dev, vdev);
     return ret;
@@ -172,17 +169,15 @@ err_host_notifiers:
 static void vhost_user_blk_stop(VirtIODevice *vdev)
 {
     VHostUserBlk *s = VHOST_USER_BLK(vdev);
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
 
-    if (!k->set_guest_notifiers) {
+    if (!virtio_device_guest_notifiers_initialized(vdev)) {
         return;
     }
 
     vhost_dev_stop(&s->dev, vdev);
 
-    ret = k->set_guest_notifiers(qbus->parent, s->dev.nvqs, false);
+    ret = vhost_dev_drop_guest_notifiers(&s->dev, vdev, s->dev.nvqs);
     if (ret < 0) {
         error_report("vhost guest notifier cleanup failed: %d", ret);
         return;

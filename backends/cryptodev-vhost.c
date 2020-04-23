@@ -169,16 +169,13 @@ vhost_set_vring_enable(CryptoDevBackendClient *cc,
 int cryptodev_vhost_start(VirtIODevice *dev, int total_queues)
 {
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(dev);
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     int r, e;
     int i;
     CryptoDevBackend *b = vcrypto->cryptodev;
     CryptoDevBackendVhost *vhost_crypto;
     CryptoDevBackendClient *cc;
 
-    if (!k->set_guest_notifiers) {
+    if (!virtio_device_guest_notifiers_initialized(dev)) {
         error_report("binding does not support guest notifiers");
         return -ENOSYS;
     }
@@ -198,9 +195,13 @@ int cryptodev_vhost_start(VirtIODevice *dev, int total_queues)
         }
      }
 
-    r = k->set_guest_notifiers(qbus->parent, total_queues, true);
+    /*
+     * Since all the states are handled by one vhost device,
+     * use the first one in array.
+     */
+    vhost_crypto = cryptodev_get_vhost(b->conf.peers.ccs[0], b, 0);
+    r = vhost_dev_assign_guest_notifiers(&vhost_crypto->dev, dev, total_queues);
     if (r < 0) {
-        error_report("error binding guest notifier: %d", -r);
         goto err;
     }
 
@@ -232,7 +233,8 @@ err_start:
         vhost_crypto = cryptodev_get_vhost(cc, b, i);
         cryptodev_vhost_stop_one(vhost_crypto, dev);
     }
-    e = k->set_guest_notifiers(qbus->parent, total_queues, false);
+    vhost_crypto = cryptodev_get_vhost(b->conf.peers.ccs[0], b, 0);
+    e = vhost_dev_drop_guest_notifiers(&vhost_crypto->dev, dev, total_queues);
     if (e < 0) {
         error_report("vhost guest notifier cleanup failed: %d", e);
     }
@@ -242,9 +244,6 @@ err:
 
 void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues)
 {
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(dev)));
-    VirtioBusState *vbus = VIRTIO_BUS(qbus);
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(vbus);
     VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(dev);
     CryptoDevBackend *b = vcrypto->cryptodev;
     CryptoDevBackendVhost *vhost_crypto;
@@ -259,7 +258,12 @@ void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues)
         cryptodev_vhost_stop_one(vhost_crypto, dev);
     }
 
-    r = k->set_guest_notifiers(qbus->parent, total_queues, false);
+    /*
+     * Since all the states are handled by one vhost device,
+     * use the first one in array.
+     */
+    vhost_crypto = cryptodev_get_vhost(b->conf.peers.ccs[0], b, 0);
+    r = vhost_dev_drop_guest_notifiers(&vhost_crypto->dev, dev, total_queues);
     if (r < 0) {
         error_report("vhost guest notifier cleanup failed: %d", r);
     }

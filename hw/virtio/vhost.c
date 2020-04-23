@@ -1419,6 +1419,44 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     virtio_device_release_ioeventfd(vdev);
 }
 
+/*
+ * Assign guest notifiers.
+ * Should be called after vhost_dev_enable_notifiers.
+ */
+int vhost_dev_assign_guest_notifiers(struct vhost_dev *hdev,
+                                     VirtIODevice *vdev, int nvqs)
+{
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    int ret;
+
+    ret = k->set_guest_notifiers(qbus->parent, nvqs, true);
+    if (ret < 0) {
+        error_report("Error binding guest notifier: %d", -ret);
+    }
+
+    return ret;
+}
+
+/*
+ * Drop guest notifiers.
+ * Should be called before vhost_dev_disable_notifiers.
+ */
+int vhost_dev_drop_guest_notifiers(struct vhost_dev *hdev,
+                                   VirtIODevice *vdev, int nvqs)
+{
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+    int ret;
+
+    ret = k->set_guest_notifiers(qbus->parent, nvqs, false);
+    if (ret < 0) {
+        error_report("Error reset guest notifier: %d", -ret);
+    }
+
+    return ret;
+}
+
 /* Test and clear event pending status.
  * Should be called after unmask to avoid losing events.
  */
