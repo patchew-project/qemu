@@ -24,6 +24,7 @@
 #include "io/mpqemu-link.h"
 #include "qapi/error.h"
 #include "qemu/main-loop.h"
+#include "qemu/cutils.h"
 #include "sysemu/cpus.h"
 #include "qemu-common.h"
 #include "hw/pci/pci.h"
@@ -37,6 +38,7 @@
 #include "exec/memattrs.h"
 #include "exec/address-spaces.h"
 #include "remote/iohub.h"
+#include "remote-opts.h"
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan);
@@ -289,6 +291,7 @@ finalize_loop:
 int main(int argc, char *argv[])
 {
     Error *err = NULL;
+    int fd = -1;
 
     module_call_init(MODULE_INIT_QOM);
 
@@ -307,6 +310,13 @@ int main(int argc, char *argv[])
 
     current_machine = MACHINE(REMOTE_MACHINE(object_new(TYPE_REMOTE_MACHINE)));
 
+    qemu_add_opts(&qemu_device_opts);
+    qemu_add_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&qemu_legacy_drive_opts);
+    qemu_add_drive_opts(&qemu_common_drive_opts);
+    qemu_add_drive_opts(&qemu_drive_opts);
+    qemu_add_drive_opts(&bdrv_runtime_opts);
+
     mpqemu_link = mpqemu_link_create();
     if (!mpqemu_link) {
         printf("Could not create MPQemu link pid %d, exec_name %s",
@@ -314,7 +324,16 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    mpqemu_init_channel(mpqemu_link, &mpqemu_link->com, STDIN_FILENO);
+    fd = qemu_parse_fd(argv[1]);
+    if (fd == -1) {
+        printf("Failed to parse fd for remote process pid %d, exec_name %s\n",
+               getpid(), __progname);
+        return -EINVAL;
+    }
+
+    parse_cmdline(argc - 2, argv + 2, NULL);
+
+    mpqemu_init_channel(mpqemu_link, &mpqemu_link->com, fd);
 
     mpqemu_link_set_callback(mpqemu_link, process_msg);
 

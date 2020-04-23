@@ -2873,6 +2873,8 @@ F: include/hw/proxy/memory-sync.h
 F: hw/proxy/memory-sync.c
 F: include/remote/iohub.h
 F: remote/iohub.c
+F: remote/remote-opts.h
+F: remote/remote-opts.c
 
 Build and test automation
 -------------------------
