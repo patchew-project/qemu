@@ -158,7 +158,7 @@ static void tulip_next_rx_descriptor(TULIPState *s,
     s->current_rx_desc &= ~3ULL;
 }
 
-static void tulip_copy_rx_bytes(TULIPState *s, struct tulip_descriptor *desc)
+static int tulip_copy_rx_bytes(TULIPState *s, struct tulip_descriptor *desc)
 {
     int len1 = (desc->control >> RDES1_BUF1_SIZE_SHIFT) & RDES1_BUF1_SIZE_MASK;
     int len2 = (desc->control >> RDES1_BUF2_SIZE_SHIFT) & RDES1_BUF2_SIZE_MASK;
@@ -177,7 +177,8 @@ static void tulip_copy_rx_bytes(TULIPState *s, struct tulip_descriptor *desc)
                           "(ofs: %u, len:%d, size:%zu)\n",
                           __func__, s->rx_frame_len, len,
                           sizeof(s->rx_frame));
-            return;
+            s->rx_frame_len = 0;
+            return -1;
         }
         pci_dma_write(&s->dev, desc->buf_addr1, s->rx_frame +
             (s->rx_frame_size - s->rx_frame_len), len);
@@ -197,12 +198,15 @@ static void tulip_copy_rx_bytes(TULIPState *s, struct tulip_descriptor *desc)
                           "(ofs: %u, len:%d, size:%zu)\n",
                           __func__, s->rx_frame_len, len,
                           sizeof(s->rx_frame));
-            return;
+            s->rx_frame_len = 0;
+            return -1;
         }
         pci_dma_write(&s->dev, desc->buf_addr2, s->rx_frame +
             (s->rx_frame_size - s->rx_frame_len), len);
         s->rx_frame_len -= len;
     }
+
+    return 0;
 }
 
 static bool tulip_filter_address(TULIPState *s, const uint8_t *addr)
@@ -274,7 +278,11 @@ static ssize_t tulip_receive(TULIPState *s, const uint8_t *buf, size_t size)
             s->rx_frame_len = s->rx_frame_size;
         }
 
-        tulip_copy_rx_bytes(s, &desc);
+        if (tulip_copy_rx_bytes(s, &desc)) {
+            desc.status |= RDES0_ES | RDES0_TL; /* Error: frame too long */
+            s->csr[5] |= CSR5_RPS; /* Receive process stopped */
+            tulip_update_int(s);
+        }
 
         if (!s->rx_frame_len) {
             desc.status |= s->rx_status;
