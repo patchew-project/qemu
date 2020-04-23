@@ -40,6 +40,9 @@
 #include "remote/iohub.h"
 #include "remote-opts.h"
 #include "sysemu/reset.h"
+#include "qemu-parse.h"
+#include "monitor/monitor.h"
+#include "chardev/char.h"
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan);
@@ -313,6 +316,8 @@ int main(int argc, char *argv[])
 
     module_call_init(MODULE_INIT_QOM);
 
+    monitor_init_globals();
+
     bdrv_init_with_whitelist();
 
     if (qemu_init_main_loop(&err)) {
@@ -330,6 +335,8 @@ int main(int argc, char *argv[])
 
     qemu_add_opts(&qemu_device_opts);
     qemu_add_opts(&qemu_drive_opts);
+    qemu_add_opts(&qemu_chardev_opts);
+    qemu_add_opts(&qemu_mon_opts);
     qemu_add_drive_opts(&qemu_legacy_drive_opts);
     qemu_add_drive_opts(&qemu_common_drive_opts);
     qemu_add_drive_opts(&qemu_drive_opts);
@@ -350,6 +357,12 @@ int main(int argc, char *argv[])
     }
 
     parse_cmdline(argc - 2, argv + 2, NULL);
+
+    qemu_opts_foreach(qemu_find_opts("chardev"),
+                      chardev_init_func, NULL, &error_fatal);
+
+    qemu_opts_foreach(qemu_find_opts("mon"),
+                      mon_init_func, NULL, &error_fatal);
 
     mpqemu_init_channel(mpqemu_link, &mpqemu_link->com, fd);
 
