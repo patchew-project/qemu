@@ -238,7 +238,7 @@ void visit_type_%(c_name)s(Visitor *v, const char *name, %(c_name)s **obj, Error
 out_obj:
     visit_end_alternate(v, (void **)obj);
     if (err && visit_is_input(v)) {
-        qapi_free_%(c_name)s(*obj);
+        g_free(*obj);
         *obj = NULL;
     }
 out:
