@@ -2863,6 +2863,8 @@ F: include/remote/pcihost.h
 F: remote/pcihost.c
 F: include/remote/machine.h
 F: remote/machine.c
+F: include/remote/memory.h
+F: remote/memory.c
 
 Build and test automation
 -------------------------
