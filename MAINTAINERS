@@ -2866,6 +2866,9 @@ F: include/remote/machine.h
 F: remote/machine.c
 F: include/remote/memory.h
 F: remote/memory.c
+F: hw/proxy/Makefile.objs
+F: hw/proxy/qemu-proxy.c
+F: include/hw/proxy/qemu-proxy.h
 
 Build and test automation
 -------------------------
