@@ -39,7 +39,7 @@
 #include "qemu/option.h"
 #include "qemu/id.h"
 
-#include "chardev/char-mux.h"
+#include "chardev-internal.h"
 
 /***********************************************************/
 /* character device */
