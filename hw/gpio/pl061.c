@@ -12,11 +12,14 @@
 #include "hw/arm/fdt.h"
 #include "hw/gpio/pl061.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
+#include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "sysemu/device_tree.h"
+#include "sysemu/gpiodev.h"
 
 //#define DEBUG_PL061 1
 
@@ -41,6 +44,9 @@ static const uint8_t pl061_id_luminary[12] =
 typedef struct PL061State {
     SysBusDevice parent_obj;
 
+#ifdef CONFIG_GPIODEV
+    char *host;
+#endif
     MemoryRegion iomem;
     uint32_t locked;
     uint32_t data;
@@ -370,10 +376,39 @@ static void pl061_init(Object *obj)
     qdev_init_gpio_out(dev, s->out, 8);
 }
 
+#ifdef CONFIG_GPIODEV
+static Property pl061_properties[] = {
+    DEFINE_PROP_STRING("host", PL061State, host),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pl061_realize(DeviceState *dev, Error **errp)
+{
+    PL061State *s = PL061(dev);
+
+    if (!dev->opts) {
+        /* Not created by user */
+        return;
+    }
+
+    if (!s->host) {
+        error_setg(errp, "'host' property is required");
+        return;
+    }
+
+    qemu_gpiodev_add(dev, s->host, 8, errp);
+}
+#endif /* CONFIG_GPIODEV */
+
 static void pl061_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+#ifdef CONFIG_GPIODEV
+    device_class_set_props(dc, pl061_properties);
+    dc->realize = pl061_realize;
+    dc->user_creatable = true;
+#endif
     dc->vmsd = &vmstate_pl061;
     dc->reset = &pl061_reset;
 }

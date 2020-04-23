@@ -875,6 +875,15 @@ SRST
 ``-device isa-ipmi-bt,bmc=id[,ioport=val][,irq=val]``
     Like the KCS interface, but defines a BT interface. The default port
     is 0xe4 and the default interrupt is 5.
+
+#ifdef CONFIG_GPIODEV
+``-device pl061,host=gpiochip``
+    Add a PL061 GPIO controller, and map its virtual GPIO lines to a GPIO
+    controller on the host.
+
+    ``host=gpiochip``
+        The name or label of the GPIO controller on the host.
+#endif
 ERST
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,
