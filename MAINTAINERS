@@ -1996,6 +1996,8 @@ F: blockdev-hmp-cmds.c
 F: block/qapi.c
 F: qapi/block*.json
 F: qapi/transaction.json
+F: stubs/qapi-misc.c
+F: stubs/qapi-target.c
 T: git https://repo.or.cz/qemu/armbru.git block-next
 
 Dirty Bitmaps
@@ -2120,6 +2122,7 @@ F: ui/
 F: include/ui/
 F: qapi/ui.json
 F: util/drm.c
+F: stubs/ui-stub.c
 
 Cocoa graphics
 M: Peter Maydell <peter.maydell@linaro.org>
@@ -2152,6 +2155,7 @@ F: include/monitor/hmp-target.h
 F: tests/qtest/test-hmp.c
 F: include/qemu/qemu-print.h
 F: util/qemu-print.c
+F: stubs/migration.c
 
 Network device backends
 M: Jason Wang <jasowang@redhat.com>

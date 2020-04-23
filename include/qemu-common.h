@@ -10,6 +10,8 @@
 #ifndef QEMU_COMMON_H
 #define QEMU_COMMON_H
 
+#include <assert.h>
+
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 /* Copyright string for -version arguments, About dialogs, etc */
@@ -134,5 +136,11 @@ void page_size_init(void);
 /* returns non-zero if dump is in progress, otherwise zero is
  * returned. */
 bool dump_in_progress(void);
+
+#ifdef CONFIG_DEBUG
+#define qemu_debug_assert(x) assert(x)
+#else
+#define qemu_debug_assert(x)
+#endif
 
 #endif
