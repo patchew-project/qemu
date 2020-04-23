@@ -64,3 +64,5 @@ util-obj-$(CONFIG_GIO) += dbus.o
 dbus.o-cflags = $(GIO_CFLAGS)
 dbus.o-libs = $(GIO_LIBS)
 util-obj-$(CONFIG_USER_ONLY) += selfmap.o
+
+remote-pci-obj-$(CONFIG_MPQEMU) += notify.o

@@ -2861,6 +2861,8 @@ F: include/io/mpqemu-link.h
 F: io/mpqemu-link.c
 F: include/remote/pcihost.h
 F: remote/pcihost.c
+F: include/remote/machine.h
+F: remote/machine.c
 
 Build and test automation
 -------------------------
