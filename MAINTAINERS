@@ -2880,6 +2880,8 @@ F: remote/iohub.c
 F: remote/remote-opts.h
 F: remote/remote-opts.c
 F: docs/devel/multi-process.rst
+F: scripts/mpqemu-launcher.py
+F: scripts/mpqemu-launcher-perf-mode.py
 
 Build and test automation
 -------------------------
