@@ -787,6 +787,17 @@ static int vhost_dev_set_features(struct vhost_dev *dev,
 static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
 {
     int r, i, idx;
+
+    if (!dev->started) {
+        /*
+         * If vhost-user daemon is used as a backend for the
+         * device and the connection is broken, then the vhost_dev
+         * structure will be reset all its values to 0.
+         * Add additional check for the device state.
+         */
+        return -1;
+    }
+
     r = vhost_dev_set_features(dev, enable_log);
     if (r < 0) {
         goto err_features;
@@ -801,12 +812,19 @@ static int vhost_dev_set_log(struct vhost_dev *dev, bool enable_log)
     }
     return 0;
 err_vq:
-    for (; i >= 0; --i) {
+    /*
+     * Disconnect with the vhost-user daemon can lead to the
+     * vhost_dev_cleanup() call which will clean up vhost_dev
+     * structure.
+     */
+    for (; dev->started && (i >= 0); --i) {
         idx = dev->vhost_ops->vhost_get_vq_index(dev, dev->vq_index + i);
         vhost_virtqueue_set_addr(dev, dev->vqs + i, idx,
                                  dev->log_enabled);
     }
-    vhost_dev_set_features(dev, dev->log_enabled);
+    if (dev->started) {
+        vhost_dev_set_features(dev, dev->log_enabled);
+    }
 err_features:
     return r;
 }
@@ -832,7 +850,15 @@ static int vhost_migration_log(MemoryListener *listener, int enable)
     } else {
         vhost_dev_log_resize(dev, vhost_get_log_size(dev));
         r = vhost_dev_set_log(dev, true);
-        if (r < 0) {
+        /*
+         * The dev log resize can fail, because of disconnect
+         * with the vhost-user-blk daemon. Check the device
+         * state before calling the vhost_dev_set_log()
+         * function.
+         * Don't return error if device isn't started to be
+         * consistent with the check above.
+         */
+        if (dev->started && r < 0) {
             return r;
         }
     }
@@ -1739,7 +1765,12 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
 fail_log:
     vhost_log_put(hdev, false);
 fail_vq:
-    while (--i >= 0) {
+    /*
+     * Disconnect with the vhost-user daemon can lead to the
+     * vhost_dev_cleanup() call which will clean up vhost_dev
+     * structure.
+     */
+    while ((--i >= 0) && (hdev->started)) {
         vhost_virtqueue_stop(hdev,
                              vdev,
                              hdev->vqs + i,
