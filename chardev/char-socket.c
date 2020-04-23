@@ -476,7 +476,7 @@ static void update_disconnected_filename(SocketChardev *s)
 static void tcp_chr_disconnect_locked(Chardev *chr)
 {
     SocketChardev *s = SOCKET_CHARDEV(chr);
-    bool emit_close = s->state == TCP_CHARDEV_STATE_CONNECTED;
+    bool was_connected = s->state == TCP_CHARDEV_STATE_CONNECTED;
 
     tcp_chr_free_connection(chr);
 
@@ -485,11 +485,11 @@ static void tcp_chr_disconnect_locked(Chardev *chr)
                                               chr, NULL, chr->gcontext);
     }
     update_disconnected_filename(s);
-    if (emit_close) {
+    if (was_connected) {
         qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
-    }
-    if (s->reconnect_time) {
-        qemu_chr_socket_restart_timer(chr);
+        if (s->reconnect_time) {
+            qemu_chr_socket_restart_timer(chr);
+        }
     }
 }
 
