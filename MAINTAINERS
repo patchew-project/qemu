@@ -2869,6 +2869,8 @@ F: remote/memory.c
 F: hw/proxy/Makefile.objs
 F: hw/proxy/qemu-proxy.c
 F: include/hw/proxy/qemu-proxy.h
+F: include/hw/proxy/memory-sync.h
+F: hw/proxy/memory-sync.c
 
 Build and test automation
 -------------------------

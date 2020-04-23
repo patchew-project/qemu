@@ -14,6 +14,7 @@
 
 #include "io/mpqemu-link.h"
 #include "hw/pci/pci.h"
+#include "hw/proxy/memory-sync.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
@@ -39,7 +40,12 @@ typedef struct ProxyMemoryRegion {
 struct PCIProxyDev {
     PCIDevice parent_dev;
 
+    int n_mr_sections;
+    MemoryRegionSection *mr_sections;
+
     MPQemuLinkState *mpqemu_link;
+
+    RemoteMemSync *sync;
 
     int socket;
 

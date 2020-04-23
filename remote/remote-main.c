@@ -35,6 +35,7 @@
 #include "exec/ramlist.h"
 #include "remote/remote-common.h"
 #include "exec/memattrs.h"
+#include "exec/address-spaces.h"
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan);
@@ -227,6 +228,16 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
         break;
     case BAR_READ:
         process_bar_read(msg, &err);
+        if (err) {
+            goto finalize_loop;
+        }
+        break;
+    case SYNC_SYSMEM:
+        /*
+         * TODO: ensure no active DMA is happening when
+         * sysmem is being updated
+         */
+        remote_sysmem_reconfig(msg, &err);
         if (err) {
             goto finalize_loop;
         }
