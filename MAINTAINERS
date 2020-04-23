@@ -607,6 +607,12 @@ F: include/hw/arm/digic.h
 F: hw/*/digic*
 F: include/hw/*/digic*
 
+GPIO device backend
+M: Geert Uytterhoeven <geert+renesas@glider.be>
+S: Supported
+F: backends/gpiodev.c
+F: include/sysemu/gpiodev.h
+
 Goldfish RTC
 M: Anup Patel <anup.patel@wdc.com>
 M: Alistair Francis <Alistair.Francis@wdc.com>
