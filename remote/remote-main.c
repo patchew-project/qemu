@@ -39,6 +39,7 @@
 #include "exec/address-spaces.h"
 #include "remote/iohub.h"
 #include "remote-opts.h"
+#include "sysemu/reset.h"
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan);
@@ -208,6 +209,15 @@ static void process_get_pci_info_msg(MPQemuLinkState *link, MPQemuMsg *msg)
     mpqemu_msg_send(&ret, link->dev);
 }
 
+static void process_device_reset_msg(MPQemuMsg *msg)
+{
+    qemu_devices_reset();
+
+    if (msg->num_fds == 1) {
+            notify_proxy(msg->fds[0], 0);
+    }
+}
+
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan)
 {
@@ -273,6 +283,9 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
     case PROXY_PING:
         wait = msg->fds[0];
         notify_proxy(wait, 0);
+        break;
+    case DEVICE_RESET:
+        process_device_reset_msg(msg);
         break;
     default:
         error_setg(&err, "Unknown command in %s", print_pid_exec(pid_exec));

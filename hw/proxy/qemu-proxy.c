@@ -291,14 +291,39 @@ static void pci_proxy_dev_exit(PCIDevice *pdev)
     stop_hb_timer(dev);
 }
 
+static void proxy_device_reset(DeviceState *dev)
+{
+    PCIProxyDev *pdev = PCI_PROXY_DEV(dev);
+    MPQemuMsg msg;
+    int wait = -1;
+
+    memset(&msg, 0, sizeof(MPQemuMsg));
+
+    msg.bytestream = 0;
+    msg.size = sizeof(msg.data1);
+    msg.cmd = DEVICE_RESET;
+
+    wait = GET_REMOTE_WAIT;
+    msg.num_fds = 1;
+    msg.fds[0] = wait;
+
+    mpqemu_msg_send(&msg, pdev->mpqemu_link->com);
+
+    (void)wait_for_remote(wait);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->realize = pci_proxy_dev_realize;
     k->exit = pci_proxy_dev_exit;
     k->config_read = pci_proxy_read_config;
     k->config_write = pci_proxy_write_config;
+    dc->reset = proxy_device_reset;
 }
 
 static const TypeInfo pci_proxy_dev_type_info = {
