@@ -216,6 +216,7 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
     g_autofree gchar *pid_exec = NULL;
 
     pid_exec = g_malloc(PROC_INFO_LENGTH);
+    int wait;
 
     if ((cond & G_IO_HUP) || (cond & G_IO_ERR)) {
         goto finalize_loop;
@@ -268,6 +269,10 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
         break;
     case GET_PCI_INFO:
         process_get_pci_info_msg(link, msg);
+        break;
+    case PROXY_PING:
+        wait = msg->fds[0];
+        notify_proxy(wait, 0);
         break;
     default:
         error_setg(&err, "Unknown command in %s", print_pid_exec(pid_exec));
