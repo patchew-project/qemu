@@ -50,6 +50,7 @@ typedef enum {
     SET_IRQFD,
     GET_PCI_INFO,
     RET_PCI_INFO,
+    PROXY_PING,
     MAX,
 } mpqemu_cmd_t;
 

@@ -55,6 +55,9 @@ struct PCIProxyDev {
     EventNotifier intr;
     EventNotifier resample;
 
+    EventNotifier en_ping;
+    QEMUTimer *hb_timer;
+
     int socket;
 
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
