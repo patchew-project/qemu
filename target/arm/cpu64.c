@@ -620,12 +620,12 @@ static void aarch64_max_initfn(Object *obj)
          * code needs to distinguish this QEMU CPU from other software
          * implementations, though this shouldn't be needed.
          */
-        t = FIELD_DP64(0, MIDR_EL1, IMPLEMENTER, 0);
-        t = FIELD_DP64(t, MIDR_EL1, ARCHITECTURE, 0xf);
-        t = FIELD_DP64(t, MIDR_EL1, PARTNUM, 'Q');
-        t = FIELD_DP64(t, MIDR_EL1, VARIANT, 0);
-        t = FIELD_DP64(t, MIDR_EL1, REVISION, 0);
-        cpu->midr = t;
+        u = FIELD_DP32(0, MIDR_EL1, IMPLEMENTER, 0);
+        u = FIELD_DP32(u, MIDR_EL1, ARCHITECTURE, 0xf);
+        u = FIELD_DP32(u, MIDR_EL1, PARTNUM, 'Q');
+        u = FIELD_DP32(u, MIDR_EL1, VARIANT, 0);
+        u = FIELD_DP32(u, MIDR_EL1, REVISION, 0);
+        cpu->midr = u;
 
         t = cpu->isar.id_aa64isar0;
         t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2); /* AES + PMULL */
