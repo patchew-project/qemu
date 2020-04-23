@@ -939,6 +939,7 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     struct sockaddr_un un;
     int sock, rc;
     size_t pathlen;
+    socklen_t serverlen;
 
     if (saddr->path == NULL) {
         error_setg(errp, "unix connect: no path specified");
@@ -963,10 +964,17 @@ static int unix_connect_saddr(UnixSocketAddress *saddr, Error **errp)
     un.sun_family = AF_UNIX;
     memcpy(un.sun_path, saddr->path, pathlen);
 
+    if (saddr->path[0] == '@') {
+        un.sun_path[0] = '\0';
+        serverlen = pathlen + offsetof(struct sockaddr_un, sun_path);
+    } else {
+        serverlen = sizeof(un);
+    }
+
     /* connect to peer */
     do {
         rc = 0;
-        if (connect(sock, (struct sockaddr *) &un, sizeof(un)) < 0) {
+        if (connect(sock, (struct sockaddr *) &un, serverlen) < 0) {
             rc = -errno;
         }
     } while (rc == -EINTR);
