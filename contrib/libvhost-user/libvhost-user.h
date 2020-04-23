@@ -388,6 +388,9 @@ struct VuDev {
     /* Postcopy data */
     int postcopy_ufd;
     bool postcopy_listening;
+
+    /* Fields to simulate test cases. */
+    int simulate_init_disconnect;
 };
 
 typedef struct VuVirtqElement {
@@ -644,5 +647,15 @@ void vu_queue_get_avail_bytes(VuDev *vdev, VuVirtq *vq, unsigned int *in_bytes,
  */
 bool vu_queue_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int in_bytes,
                           unsigned int out_bytes);
+
+/**
+ * vu_simulate_init_disconnect:
+ * @dev: a VuDev context
+ * @should_simulate: expected simulation behaviour (true or false)
+ *
+ * Set the flag to simulate the vhost-user daemon crash during
+ * initialization. This is used to test reconnect functionality.
+ */
+void vu_simulate_init_disconnect(VuDev *dev, int should_simulate);
 
 #endif /* LIBVHOST_USER_H */

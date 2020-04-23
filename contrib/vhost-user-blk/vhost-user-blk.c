@@ -581,6 +581,7 @@ static char *opt_socket_path;
 static char *opt_blk_file;
 static gboolean opt_print_caps;
 static gboolean opt_read_only;
+static gboolean opt_simulate_disconnect;
 
 static GOptionEntry entries[] = {
     { "print-capabilities", 'c', 0, G_OPTION_ARG_NONE, &opt_print_caps,
@@ -592,7 +593,14 @@ static GOptionEntry entries[] = {
     {"blk-file", 'b', 0, G_OPTION_ARG_FILENAME, &opt_blk_file,
      "block device or file path", "PATH"},
     { "read-only", 'r', 0, G_OPTION_ARG_NONE, &opt_read_only,
-      "Enable read-only", NULL }
+      "Enable read-only", NULL },
+    { "simulate-disconnect-stage", 0, 0, G_OPTION_ARG_INT,
+      &opt_simulate_disconnect,
+      "Simulate disconnect during initialization for the testing purposes.\n"
+      "\t1 - make assert in the handler of the SET_VRING_CALL command\n"
+      "\t2 - make assert in the handler of the SET_VRING_NUM command\n",
+      "CASENUM" },
+    { NULL },
 };
 
 int main(int argc, char **argv)
@@ -655,6 +663,10 @@ int main(int argc, char **argv)
         g_printerr("Failed to initialize libvhost-user-glib\n");
         exit(EXIT_FAILURE);
     }
+
+    /* Set testing flags. */
+    vu_simulate_init_disconnect(&vdev_blk->parent.parent,
+            opt_simulate_disconnect);
 
     g_main_loop_run(vdev_blk->loop);
     g_main_loop_unref(vdev_blk->loop);

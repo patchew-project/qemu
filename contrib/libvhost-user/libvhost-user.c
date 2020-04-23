@@ -73,6 +73,14 @@
 #define VHOST_USER_VERSION 1
 #define LIBVHOST_USER_DEBUG 0
 
+/*
+ * Inject fail in different places in daemon. This will trigger different
+ * paths in QEMU. Main purpose is to test the reconnect functionality
+ * during vhost initialization step.
+ */
+#define VHOST_SDISCONNECT_SET_VRING_CALL 1
+#define VHOST_SDISCONNECT_SET_VRING_NUM 2
+
 #define DPRINT(...)                             \
     do {                                        \
         if (LIBVHOST_USER_DEBUG) {              \
@@ -861,6 +869,11 @@ vu_set_vring_num_exec(VuDev *dev, VhostUserMsg *vmsg)
     DPRINT("State.index: %d\n", index);
     DPRINT("State.num:   %d\n", num);
     dev->vq[index].vring.num = num;
+    if (dev->simulate_init_disconnect == VHOST_SDISCONNECT_SET_VRING_NUM) {
+        DPRINT("Simulate vhost daemon crash during initialization.\n");
+        assert(0);
+        return false;
+    }
 
     return false;
 }
@@ -1160,6 +1173,13 @@ vu_set_vring_call_exec(VuDev *dev, VhostUserMsg *vmsg)
     bool nofd = vmsg->payload.u64 & VHOST_USER_VRING_NOFD_MASK;
 
     DPRINT("u64: 0x%016"PRIx64"\n", vmsg->payload.u64);
+
+    /* Simulate crash during initialization. */
+    if (dev->simulate_init_disconnect == VHOST_SDISCONNECT_SET_VRING_CALL) {
+        DPRINT("Simulate vhost daemon crash during initialization.\n");
+        assert(0);
+        return false;
+    }
 
     if (!vu_check_queue_msg_file(dev, vmsg)) {
         return false;
@@ -2071,6 +2091,16 @@ vu_queue_empty(VuDev *dev, VuVirtq *vq)
     }
 
     return vring_avail_idx(vq) == vq->last_avail_idx;
+}
+
+/*
+ * Set the flag to simulate the vhost-user daemon crash during
+ * initialization. This is used to test reconnect functionality.
+ */
+void
+vu_simulate_init_disconnect(VuDev *dev, int should_simulate)
+{
+    dev->simulate_init_disconnect = should_simulate;
 }
 
 static bool
