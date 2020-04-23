@@ -79,6 +79,7 @@ qemu-seccomp.o-libs := $(SECCOMP_LIBS)
 common-obj-$(CONFIG_FDT) += device_tree.o
 
 common-obj-y += qapi/
+common-obj-y += util/machine-notify.o
 
 endif # CONFIG_SOFTMMU
 
