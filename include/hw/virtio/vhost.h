@@ -90,6 +90,7 @@ struct vhost_dev {
     QLIST_HEAD(, vhost_iommu) iommu_list;
     IOMMUNotifier n;
     const VhostDevConfigOps *config_ops;
+    bool notifiers_set;
 };
 
 int vhost_dev_init(struct vhost_dev *hdev, void *opaque,

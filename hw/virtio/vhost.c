@@ -1380,6 +1380,7 @@ int vhost_dev_enable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_vq;
         }
     }
+    hdev->notifiers_set = true;
 
     return 0;
 fail_vq:
@@ -1407,6 +1408,10 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     int i, r;
 
+    if (!hdev->notifiers_set) {
+        return;
+    }
+
     for (i = 0; i < hdev->nvqs; ++i) {
         r = virtio_bus_set_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i,
                                          false);
@@ -1417,6 +1422,8 @@ void vhost_dev_disable_notifiers(struct vhost_dev *hdev, VirtIODevice *vdev)
         virtio_bus_cleanup_host_notifier(VIRTIO_BUS(qbus), hdev->vq_index + i);
     }
     virtio_device_release_ioeventfd(vdev);
+
+    hdev->notifiers_set = false;
 }
 
 /*
@@ -1448,6 +1455,10 @@ int vhost_dev_drop_guest_notifiers(struct vhost_dev *hdev,
     BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
     VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
+
+    if (!hdev->notifiers_set) {
+        return 0;
+    }
 
     ret = k->set_guest_notifiers(qbus->parent, nvqs, false);
     if (ret < 0) {
