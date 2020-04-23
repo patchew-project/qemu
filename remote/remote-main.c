@@ -53,6 +53,32 @@ gchar *print_pid_exec(gchar *str)
 
 #define LINK_TO_DEV(link) ((PCIDevice *)link->opaque)
 
+static void process_config_write(PCIDevice *dev, MPQemuMsg *msg)
+{
+    struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
+
+    qemu_mutex_lock_iothread();
+    pci_default_write_config(dev, conf->addr, conf->val, conf->l);
+    qemu_mutex_unlock_iothread();
+}
+
+static void process_config_read(PCIDevice *dev, MPQemuMsg *msg)
+{
+    struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
+    uint32_t val;
+    int wait;
+
+    wait = msg->fds[0];
+
+    qemu_mutex_lock_iothread();
+    val = pci_default_read_config(dev, conf->addr, conf->l);
+    qemu_mutex_unlock_iothread();
+
+    notify_proxy(wait, val);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static gpointer dev_thread(gpointer data)
 {
     MPQemuLinkState *link = data;
@@ -114,6 +140,12 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
         break;
     case CONNECT_DEV:
         process_connect_dev_msg(msg);
+        break;
+    case PCI_CONFIG_WRITE:
+        process_config_write(LINK_TO_DEV(link), msg);
+        break;
+    case PCI_CONFIG_READ:
+        process_config_read(LINK_TO_DEV(link), msg);
         break;
     default:
         error_setg(&err, "Unknown command in %s", print_pid_exec(pid_exec));

@@ -39,8 +39,16 @@ typedef enum {
     INIT = 0,
     SYNC_SYSMEM,
     CONNECT_DEV,
+    PCI_CONFIG_WRITE,
+    PCI_CONFIG_READ,
     MAX,
 } mpqemu_cmd_t;
+
+struct conf_data_msg {
+    uint32_t addr;
+    uint32_t val;
+    int l;
+};
 
 typedef struct {
     hwaddr gpas[REMOTE_MAX_FDS];
