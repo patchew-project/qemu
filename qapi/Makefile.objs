@@ -36,3 +36,5 @@ QAPI_MODULES_STORAGE_DAEMON = block-core char common control crypto
 QAPI_MODULES_STORAGE_DAEMON += introspect job qom sockets pragma transaction
 
 storage-daemon-obj-y += $(QAPI_MODULES_STORAGE_DAEMON:%=qapi-commands-%.o)
+
+remote-pci-obj-$(CONFIG_MPQEMU) += $(QAPI_COMMON_MODULES:%=qapi-commands-%.o)

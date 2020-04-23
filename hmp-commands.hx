@@ -12,6 +12,7 @@ HXCOMM HXCOMM can be used for comments, discarded from both rST and C.
         .params     = "[cmd]",
         .help       = "show the help",
         .cmd        = hmp_do_help_cmd,
+        .targets    = "scsi",
         .flags      = "p",
     },
 

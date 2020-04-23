@@ -37,6 +37,7 @@
 #pragma weak monitor_printf
 #pragma weak monitor_cur_is_qmp
 #pragma weak qmp_device_list_properties
+#pragma weak monitor_fdsets_cleanup
 
 __thread Monitor *cur_mon;
 

@@ -4,3 +4,7 @@ common-obj-y += qmp-cmds.o qmp-cmds-control.o
 common-obj-y += hmp-cmds.o
 
 storage-daemon-obj-y += monitor.o qmp.o qmp-cmds-control.o
+
+remote-pci-obj-$(CONFIG_MPQEMU) += monitor.o qmp.o hmp.o
+remote-pci-obj-$(CONFIG_MPQEMU) += qmp-cmds.o qmp-cmds-control.o
+remote-pci-obj-$(CONFIG_MPQEMU) += hmp-cmds.o
