@@ -10,6 +10,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu-common.h"
+#include <poll.h>
 
 #include "qemu/module.h"
 #include "io/mpqemu-link.h"
@@ -202,6 +203,66 @@ int mpqemu_msg_recv(MPQemuMsg *msg, MPQemuChannel *chan)
         }
     }
     return rc;
+}
+
+/*
+ * wait_for_remote() Synchronizes QEMU and the remote process. The maximum
+ *                   wait time is 1s, after which the wait times out.
+ *                   The function alse returns a 64 bit return value after
+ *                   the wait. The function uses eventfd() to do the wait
+ *                   and pass the return values. eventfd() can't return a
+ *                   value of '0'. Therefore, all return values are offset
+ *                   by '1' at the sending end, and corrected at the
+ *                   receiving end.
+ */
+
+uint64_t wait_for_remote(int efd)
+{
+    struct pollfd pfd = { .fd = efd, .events = POLLIN };
+    uint64_t val;
+    int ret;
+
+    ret = poll(&pfd, 1, 1000);
+
+    switch (ret) {
+    case 0:
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Error wait_for_remote: Timed out\n");
+        /* TODO: Kick-off error recovery */
+        return UINT64_MAX;
+    case -1:
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Poll error wait_for_remote: %s\n",
+                      strerror(errno));
+        return UINT64_MAX;
+    default:
+        if (read(efd, &val, sizeof(val)) == -1) {
+            qemu_log_mask(LOG_REMOTE_DEBUG, "Error wait_for_remote: %s\n",
+                          strerror(errno));
+            return UINT64_MAX;
+        }
+    }
+
+    /*
+     * The remote process could write a non-zero value
+     * to the eventfd to wake QEMU up. However, the drawback of using eventfd
+     * for this purpose is that a return value of zero wouldn't wake QEMU up.
+     * Therefore, we offset the return value by one at the remote process and
+     * correct it in the QEMU end.
+     */
+    val = (val == UINT64_MAX) ? val : (val - 1);
+
+    return val;
+}
+
+void notify_proxy(int efd, uint64_t val)
+{
+    val = (val == UINT64_MAX) ? val : (val + 1);
+    ssize_t len = -1;
+
+    len = write(efd, &val, sizeof(val));
+    if (len == -1 || len != sizeof(val)) {
+        qemu_log_mask(LOG_REMOTE_DEBUG, "Error notify_proxy: %s\n",
+                      strerror(errno));
+    }
 }
 
 static gboolean mpqemu_link_handler_prepare(GSource *gsrc, gint *timeout)
