@@ -38,6 +38,7 @@
 typedef enum {
     INIT = 0,
     SYNC_SYSMEM,
+    CONNECT_DEV,
     MAX,
 } mpqemu_cmd_t;
 
@@ -120,8 +121,12 @@ struct MPQemuLinkState {
     GMainLoop *loop;
 
     MPQemuChannel *com;
+    MPQemuChannel *dev;
 
     mpqemu_link_callback callback;
+
+    void *opaque;
+    QemuThread thread;
 };
 
 MPQemuLinkState *mpqemu_link_create(void);

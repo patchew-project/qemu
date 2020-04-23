@@ -17,11 +17,45 @@
 static void proxy_set_socket(Object *obj, const char *str, Error **errp)
 {
     PCIProxyDev *pdev = PCI_PROXY_DEV(obj);
+    DeviceState *dev = DEVICE(obj);
+    MPQemuMsg msg = { 0 };
+    int wait, fd[2];
 
     pdev->socket = atoi(str);
 
     mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->com,
                         pdev->socket);
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fd)) {
+        error_setg(errp, "Failed to create socket for device channel");
+        return;
+    }
+
+    wait = GET_REMOTE_WAIT;
+
+    msg.cmd = CONNECT_DEV;
+    msg.bytestream = 1;
+    msg.data2 = (uint8_t *)g_strdup(dev->id);
+    msg.size = sizeof(msg.data2);
+    msg.num_fds = 2;
+    msg.fds[0] = wait;
+    msg.fds[1] = fd[1];
+
+    mpqemu_msg_send(&msg, pdev->mpqemu_link->com);
+
+    if (wait_for_remote(wait)) {
+        error_setg(errp, "Failed to connect device to the remote");
+        close(fd[0]);
+    } else {
+        mpqemu_init_channel(pdev->mpqemu_link, &pdev->mpqemu_link->dev,
+                            fd[0]);
+    }
+
+    PUT_REMOTE_WAIT(wait);
+
+    close(fd[1]);
+
+    g_free(msg.data2);
 }
 
 static void proxy_init(Object *obj)

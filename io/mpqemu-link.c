@@ -46,6 +46,9 @@ MPQemuLinkState *mpqemu_link_create(void)
     MPQemuLinkState *link = MPQEMU_LINK(object_new(TYPE_MPQEMU_LINK));
 
     link->com = NULL;
+    link->dev = NULL;
+
+    link->opaque = NULL;
 
     return link;
 }
