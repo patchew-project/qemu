@@ -88,3 +88,17 @@ int replay_read_random(void *buf, size_t len)
 {
     return 0;
 }
+
+bool replay_has_checkpoint(void)
+{
+    return false;
+}
+
+int replay_get_instructions(void)
+{
+    return 0;
+}
+
+void replay_account_executed_instructions(void)
+{
+}
