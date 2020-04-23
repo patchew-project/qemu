@@ -43,4 +43,6 @@ stub-obj-y += pci-host-piix.o
 stub-obj-y += ram-block.o
 stub-obj-y += ramfb.o
 stub-obj-y += fw_cfg.o
+stub-obj-y += machine-init-add.o
+stub-obj-y += machine-init-remove.o
 stub-obj-$(CONFIG_SOFTMMU) += semihost.o

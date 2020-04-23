@@ -3,6 +3,5 @@
 
 bool machine_init_done = true;
 
-void qemu_add_machine_init_done_notifier(Notifier *notify)
-{
-}
+NotifierList machine_init_done_notifiers =
+    NOTIFIER_LIST_INITIALIZER(machine_init_done_notifiers);
