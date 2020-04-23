@@ -32,6 +32,7 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/tpm.h"
 #include "hw/platform-bus.h"
+#include "hw/gpio/pl061.h"
 #include "hw/vfio/vfio-platform.h"
 #include "hw/vfio/vfio-calxeda-xgmac.h"
 #include "hw/vfio/vfio-amd-xgbe.h"
@@ -468,6 +469,22 @@ static int add_tpm_tis_fdt_node(SysBusDevice *sbdev, void *opaque)
     return 0;
 }
 
+/*
+ * add_pl061_node: Create a DT node for a PL061 GPIO controller
+ */
+static int add_pl061_node(SysBusDevice *sbdev, void *opaque)
+{
+    PlatformBusFDTData *data = opaque;
+    PlatformBusDevice *pbus = data->pbus;
+    void *fdt = data->fdt;
+
+    pl061_create_fdt(fdt, data->pbus_node_name, 1,
+                     platform_bus_get_mmio_addr(pbus, sbdev, 0), 0x1000,
+                     platform_bus_get_irqn(pbus, sbdev, 0) + data->irq_start,
+                     qemu_fdt_get_phandle(fdt, "/apb-pclk"));
+    return 0;
+}
+
 static int no_fdt_node(SysBusDevice *sbdev, void *opaque)
 {
     return 0;
@@ -489,6 +506,7 @@ static const BindingEntry bindings[] = {
     VFIO_PLATFORM_BINDING("amd,xgbe-seattle-v1a", add_amd_xgbe_fdt_node),
 #endif
     TYPE_BINDING(TYPE_TPM_TIS_SYSBUS, add_tpm_tis_fdt_node),
+    TYPE_BINDING(TYPE_PL061, add_pl061_node),
     TYPE_BINDING(TYPE_RAMFB_DEVICE, no_fdt_node),
     TYPE_BINDING("", NULL), /* last element */
 };
