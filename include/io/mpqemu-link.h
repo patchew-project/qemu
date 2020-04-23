@@ -31,6 +31,8 @@
 /**
  * mpqemu_cmd_t:
  * SYNC_SYSMEM      Shares QEMU's RAM with remote device's RAM
+ * BAR_WRITE        Writes to PCI BAR region
+ * BAR_READ         Reads from PCI BAR region
  *
  * proc_cmd_t enum type to specify the command to be executed on the remote
  * device.
@@ -41,6 +43,8 @@ typedef enum {
     CONNECT_DEV,
     PCI_CONFIG_WRITE,
     PCI_CONFIG_READ,
+    BAR_WRITE,
+    BAR_READ,
     MAX,
 } mpqemu_cmd_t;
 
@@ -55,6 +59,13 @@ typedef struct {
     uint64_t sizes[REMOTE_MAX_FDS];
     ram_addr_t offsets[REMOTE_MAX_FDS];
 } sync_sysmem_msg_t;
+
+typedef struct {
+    hwaddr addr;
+    uint64_t val;
+    unsigned size;
+    bool memory;
+} bar_access_msg_t;
 
 /**
  * MPQemuMsg:
@@ -78,6 +89,7 @@ typedef struct {
     union {
         uint64_t u64;
         sync_sysmem_msg_t sync_sysmem;
+        bar_access_msg_t bar_access;
     } data1;
 
     int fds[REMOTE_MAX_FDS];

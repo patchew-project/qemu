@@ -34,6 +34,7 @@
 #include "block/block.h"
 #include "exec/ramlist.h"
 #include "remote/remote-common.h"
+#include "exec/memattrs.h"
 
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan);
@@ -114,6 +115,77 @@ exit:
     notify_proxy(wait, ret);
 }
 
+/* TODO: confirm memtx attrs. */
+static void process_bar_write(MPQemuMsg *msg, Error **errp)
+{
+    bar_access_msg_t *bar_access = &msg->data1.bar_access;
+    AddressSpace *as =
+        bar_access->memory ? &address_space_memory : &address_space_io;
+    MemTxResult res;
+
+    assert(is_power_of_2(bar_access->size) &&
+           bar_access->size <= sizeof(uint64_t));
+
+    res = address_space_rw(as, bar_access->addr, MEMTXATTRS_UNSPECIFIED,
+                           (uint8_t *)&bar_access->val, bar_access->size,
+                           true);
+
+    if (res != MEMTX_OK) {
+        error_setg(errp, "Could not perform address space write operation,"
+                   " inaccessible address: %lx in pid %d, %s.",
+                   bar_access->addr, getpid(), __progname);
+    }
+}
+
+static void process_bar_read(MPQemuMsg *msg, Error **errp)
+{
+    bar_access_msg_t *bar_access = &msg->data1.bar_access;
+    AddressSpace *as;
+    int wait = msg->fds[0];
+    MemTxResult res;
+    uint64_t val = 0;
+
+    as = bar_access->memory ? &address_space_memory : &address_space_io;
+
+    assert(is_power_of_2(bar_access->size) &&
+           bar_access->size <= sizeof(uint64_t));
+
+    res = address_space_rw(as, bar_access->addr, MEMTXATTRS_UNSPECIFIED,
+                           (uint8_t *)&val, bar_access->size, false);
+
+    if (res != MEMTX_OK) {
+        error_setg(errp, "Could not perform address space read operation,"
+                   " inaccessible address: %lx in pid %d, %s.",
+                   bar_access->addr, getpid(), __progname);
+        val = (uint64_t)-1;
+        goto fail;
+    }
+
+    switch (bar_access->size) {
+    case 8:
+        /* Nothing to do as val is already 8 bytes long */
+        break;
+    case 4:
+        val = *((uint32_t *)&val);
+        break;
+    case 2:
+        val = *((uint16_t *)&val);
+        break;
+    case 1:
+        val = *((uint8_t *)&val);
+        break;
+    default:
+        error_setg(errp, "Invalid PCI BAR read size in pid %d, %s",
+                   getpid(), __progname);
+        return;
+    }
+
+fail:
+    notify_proxy(wait, val);
+
+    PUT_REMOTE_WAIT(wait);
+}
+
 static void process_msg(GIOCondition cond, MPQemuLinkState *link,
                         MPQemuChannel *chan)
 {
@@ -146,6 +218,18 @@ static void process_msg(GIOCondition cond, MPQemuLinkState *link,
         break;
     case PCI_CONFIG_READ:
         process_config_read(LINK_TO_DEV(link), msg);
+        break;
+    case BAR_WRITE:
+        process_bar_write(msg, &err);
+        if (err) {
+            goto finalize_loop;
+        }
+        break;
+    case BAR_READ:
+        process_bar_read(msg, &err);
+        if (err) {
+            goto finalize_loop;
+        }
         break;
     default:
         error_setg(&err, "Unknown command in %s", print_pid_exec(pid_exec));
