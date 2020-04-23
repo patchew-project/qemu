@@ -9,12 +9,14 @@
  */
 
 #include "qemu/osdep.h"
+#include "hw/arm/fdt.h"
 #include "hw/gpio/pl061.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "sysemu/device_tree.h"
 
 //#define DEBUG_PL061 1
 
@@ -397,3 +399,43 @@ static void pl061_register_types(void)
 }
 
 type_init(pl061_register_types)
+
+/*
+ * pl061_create_fdt: Create a DT node for a PL061 GPIO controller
+ * @fdt: device tree blob
+ * @parent: name of the parent node
+ * @n_cells: value of #address-cells and #size-cells
+ * @base: base address of the controller's register block
+ * @size: size of the controller's register block
+ * @irq: interrupt number
+ * @clock: phandle of the apb-pclk clock
+ *
+ * Return value: a phandle referring to the created DT node.
+ *
+ * See the DT Binding Documentation in the Linux kernel source tree:
+ * Documentation/devicetree/bindings/gpio/pl061-gpio.yaml
+ */
+uint32_t pl061_create_fdt(void *fdt, const char *parent, unsigned int n_cells,
+                          hwaddr base, hwaddr size, int irq, uint32_t clock)
+{
+    char *nodename = g_strdup_printf("%s/gpio@%" PRIx64, parent, base);
+    static const char compat[] = "arm,pl061\0arm,primecell";
+    uint32_t phandle = qemu_fdt_alloc_phandle(fdt);
+
+    qemu_fdt_add_subnode(fdt, nodename);
+    qemu_fdt_setprop_sized_cells(fdt, nodename, "reg", n_cells, base, n_cells,
+                                 size);
+    qemu_fdt_setprop(fdt, nodename, "compatible", compat, sizeof(compat));
+    qemu_fdt_setprop_cell(fdt, nodename, "#gpio-cells", 2);
+    qemu_fdt_setprop(fdt, nodename, "gpio-controller", NULL, 0);
+    qemu_fdt_setprop_cell(fdt, nodename, "#interrupt-cells", 2);
+    qemu_fdt_setprop(fdt, nodename, "interrupt-controller", NULL, 0);
+    qemu_fdt_setprop_cells(fdt, nodename, "interrupts", GIC_FDT_IRQ_TYPE_SPI,
+                           irq, GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+    qemu_fdt_setprop_cell(fdt, nodename, "clocks", clock);
+    qemu_fdt_setprop_string(fdt, nodename, "clock-names", "apb_pclk");
+    qemu_fdt_setprop_cell(fdt, nodename, "phandle", phandle);
+    g_free(nodename);
+
+    return phandle;
+}
