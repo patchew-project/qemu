@@ -1287,15 +1287,6 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
                            s->vnet_hdr);
     }
 
-    qemu_mutex_lock(&colo_compare_mutex);
-    if (!colo_compare_active) {
-        qemu_mutex_init(&event_mtx);
-        qemu_cond_init(&event_complete_cond);
-        colo_compare_active = true;
-    }
-    QTAILQ_INSERT_TAIL(&net_compares, s, next);
-    qemu_mutex_unlock(&colo_compare_mutex);
-
     s->sendco.done = true;
     g_queue_init(&s->sendco.send_list);
 
@@ -1307,6 +1298,16 @@ static void colo_compare_complete(UserCreatable *uc, Error **errp)
                                                       connection_destroy);
 
     colo_compare_iothread(s);
+
+    qemu_mutex_lock(&colo_compare_mutex);
+    if (!colo_compare_active) {
+        qemu_mutex_init(&event_mtx);
+        qemu_cond_init(&event_complete_cond);
+        colo_compare_active = true;
+    }
+    QTAILQ_INSERT_TAIL(&net_compares, s, next);
+    qemu_mutex_unlock(&colo_compare_mutex);
+
     return;
 }
 
@@ -1377,6 +1378,20 @@ static void colo_compare_finalize(Object *obj)
     CompareState *s = COLO_COMPARE(obj);
     CompareState *tmp = NULL;
 
+    qemu_mutex_lock(&colo_compare_mutex);
+    QTAILQ_FOREACH(tmp, &net_compares, next) {
+        if (tmp == s) {
+            QTAILQ_REMOVE(&net_compares, s, next);
+            break;
+        }
+    }
+    if (QTAILQ_EMPTY(&net_compares)) {
+        colo_compare_active = false;
+        qemu_mutex_destroy(&event_mtx);
+        qemu_cond_destroy(&event_complete_cond);
+    }
+    qemu_mutex_unlock(&colo_compare_mutex);
+
     AioContext *ctx = iothread_get_aio_context(s->iothread);
     aio_context_acquire(ctx);
     AIO_WAIT_WHILE(ctx, !s->sendco.done);
@@ -1394,20 +1409,6 @@ static void colo_compare_finalize(Object *obj)
     }
 
     qemu_bh_delete(s->event_bh);
-
-    qemu_mutex_lock(&colo_compare_mutex);
-    QTAILQ_FOREACH(tmp, &net_compares, next) {
-        if (tmp == s) {
-            QTAILQ_REMOVE(&net_compares, s, next);
-            break;
-        }
-    }
-    if (QTAILQ_EMPTY(&net_compares)) {
-        colo_compare_active = false;
-        qemu_mutex_destroy(&event_mtx);
-        qemu_cond_destroy(&event_complete_cond);
-    }
-    qemu_mutex_unlock(&colo_compare_mutex);
 
     /* Release all unhandled packets after compare thead exited */
     g_queue_foreach(&s->conn_list, colo_flush_packets, s);
