@@ -2740,8 +2740,11 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
  * BDRV_REQ_FUA).
  *
  * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
+ *
+ * To be called between exactly one pair of bdrv_inc/dec_in_flight()
  */
-int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
+static int coroutine_fn
+bdrv_do_make_zero(BdrvChild *child, BdrvRequestFlags flags)
 {
     int ret;
     int64_t target_size, bytes, offset = 0;
@@ -2757,7 +2760,8 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
         if (bytes <= 0) {
             return 0;
         }
-        ret = bdrv_block_status(bs, offset, bytes, &bytes, NULL, NULL);
+        ret = bdrv_co_block_status(bs, true, false,
+                                   offset, bytes, &bytes, NULL, NULL);
         if (ret < 0) {
             return ret;
         }
@@ -2765,12 +2769,56 @@ int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
             offset += bytes;
             continue;
         }
-        ret = bdrv_pwrite_zeroes(child, offset, bytes, flags);
+        ret = bdrv_do_pwrite_zeroes(child, offset, bytes, flags);
         if (ret < 0) {
             return ret;
         }
         offset += bytes;
     }
+}
+
+typedef struct BdrvDoMakeZeroData {
+    BdrvChild *child;
+    BdrvRequestFlags flags;
+    int ret;
+    bool done;
+} BdrvDoMakeZeroData;
+
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
+static void coroutine_fn bdrv_make_zero_co_entry(void *opaque)
+{
+    BdrvDoMakeZeroData *data = opaque;
+
+    data->ret = bdrv_do_make_zero(data->child, data->flags);
+    data->done = true;
+    aio_wait_kick();
+}
+
+int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
+{
+    int ret;
+
+    bdrv_inc_in_flight(child->bs);
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        ret = bdrv_do_make_zero(child, flags);
+    } else {
+        BdrvDoMakeZeroData data = {
+            .child = child,
+            .flags = flags,
+            .done = false,
+        };
+        Coroutine *co = qemu_coroutine_create(bdrv_make_zero_co_entry, &data);
+
+        bdrv_coroutine_enter(child->bs, co);
+        BDRV_POLL_WHILE(child->bs, !data.done);
+        ret = data.ret;
+    }
+
+    bdrv_dec_in_flight(child->bs);
+
+    return ret;
 }
 
 typedef struct BdrvVmstateCo {
