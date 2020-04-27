@@ -116,7 +116,7 @@ static coroutine_fn int null_co_common(BlockDriverState *bs)
 }
 
 static coroutine_fn int null_co_preadv(BlockDriverState *bs,
-                                       uint64_t offset, uint64_t bytes,
+                                       int64_t offset, int64_t bytes,
                                        QEMUIOVector *qiov, int flags)
 {
     BDRVNullState *s = bs->opaque;
@@ -187,7 +187,7 @@ static inline BlockAIOCB *null_aio_common(BlockDriverState *bs,
 }
 
 static BlockAIOCB *null_aio_preadv(BlockDriverState *bs,
-                                   uint64_t offset, uint64_t bytes,
+                                   int64_t offset, int64_t bytes,
                                    QEMUIOVector *qiov, int flags,
                                    BlockCompletionFunc *cb,
                                    void *opaque)

@@ -74,7 +74,7 @@ static int64_t cor_getlength(BlockDriverState *bs)
 
 
 static int coroutine_fn cor_co_preadv(BlockDriverState *bs,
-                                      uint64_t offset, uint64_t bytes,
+                                      int64_t offset, int64_t bytes,
                                       QEMUIOVector *qiov, int flags)
 {
     return bdrv_co_preadv(bs->file, offset, bytes, qiov,
