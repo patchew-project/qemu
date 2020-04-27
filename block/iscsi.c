@@ -1141,7 +1141,8 @@ iscsi_getlength(BlockDriverState *bs)
 }
 
 static int
-coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+coroutine_fn iscsi_co_pdiscard_old(BlockDriverState *bs, int64_t offset,
+                                   int bytes)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
@@ -1201,6 +1202,13 @@ out_unlock:
     qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
+}
+
+static int
+coroutine_fn iscsi_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    assert(bytes <= INT_MAX);
+    return iscsi_co_pdiscard_old(bs, offset, bytes);
 }
 
 static int

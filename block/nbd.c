@@ -1293,7 +1293,7 @@ static int nbd_client_co_flush(BlockDriverState *bs)
 }
 
 static int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                  int bytes)
+                                  int64_t bytes)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
     NBDRequest request = {
@@ -1301,6 +1301,8 @@ static int nbd_client_co_pdiscard(BlockDriverState *bs, int64_t offset,
         .from = offset,
         .len = bytes,
     };
+
+    assert(bytes < INT_MAX);
 
     assert(!(s->info.flags & NBD_FLAG_READ_ONLY));
     if (!(s->info.flags & NBD_FLAG_SEND_TRIM) || !bytes) {

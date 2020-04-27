@@ -2794,9 +2794,16 @@ raw_do_pdiscard(BlockDriverState *bs, int64_t offset, int bytes, bool blkdev)
 }
 
 static coroutine_fn int
-raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+raw_co_pdiscard_old(BlockDriverState *bs, int64_t offset, int bytes)
 {
     return raw_do_pdiscard(bs, offset, bytes, false);
+}
+
+static coroutine_fn int
+raw_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    assert(bytes <= INT_MAX);
+    return raw_co_pdiscard_old(bs, offset, bytes);
 }
 
 static int coroutine_fn
@@ -3478,7 +3485,7 @@ static int fd_open(BlockDriverState *bs)
 }
 
 static coroutine_fn int
-hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
+hdev_co_pdiscard_old(BlockDriverState *bs, int64_t offset, int bytes)
 {
     BDRVRawState *s = bs->opaque;
     int ret;
@@ -3489,6 +3496,13 @@ hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int bytes)
         return ret;
     }
     return raw_do_pdiscard(bs, offset, bytes, true);
+}
+
+static coroutine_fn int
+hdev_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
+{
+    assert(bytes <= INT_MAX);
+    return hdev_co_pdiscard_old(bs, offset, bytes);
 }
 
 static coroutine_fn int hdev_co_pwrite_zeroes(BlockDriverState *bs,

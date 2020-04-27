@@ -1165,9 +1165,9 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
     return nvme_co_pwrite_zeroes_old(bs, offset, bytes, flags);
 }
 
-static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
-                                         int64_t offset,
-                                         int bytes)
+static int coroutine_fn nvme_co_pdiscard_old(BlockDriverState *bs,
+                                             int64_t offset,
+                                             int bytes)
 {
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *ioq = s->queues[1];
@@ -1244,6 +1244,13 @@ out:
 
 }
 
+static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
+                                         int64_t offset,
+                                         int64_t bytes)
+{
+    assert(bytes <= INT_MAX);
+    return nvme_co_pdiscard_old(bs, offset, bytes);
+}
 
 static int nvme_reopen_prepare(BDRVReopenState *reopen_state,
                                BlockReopenQueue *queue, Error **errp)
