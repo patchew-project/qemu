@@ -2178,47 +2178,6 @@ int bdrv_pwrite_sync(BdrvChild *child, int64_t offset,
     return 0;
 }
 
-/*
- * Completely zero out a block device with the help of bdrv_pwrite_zeroes.
- * The operation is sped up by checking the block status and only writing
- * zeroes to the device if they currently do not return zeroes. Optional
- * flags are passed through to bdrv_pwrite_zeroes (e.g. BDRV_REQ_MAY_UNMAP,
- * BDRV_REQ_FUA).
- *
- * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
- */
-int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
-{
-    int ret;
-    int64_t target_size, bytes, offset = 0;
-    BlockDriverState *bs = child->bs;
-
-    target_size = bdrv_getlength(bs);
-    if (target_size < 0) {
-        return target_size;
-    }
-
-    for (;;) {
-        bytes = MIN(target_size - offset, BDRV_REQUEST_MAX_BYTES);
-        if (bytes <= 0) {
-            return 0;
-        }
-        ret = bdrv_block_status(bs, offset, bytes, &bytes, NULL, NULL);
-        if (ret < 0) {
-            return ret;
-        }
-        if (ret & BDRV_BLOCK_ZERO) {
-            offset += bytes;
-            continue;
-        }
-        ret = bdrv_pwrite_zeroes(child, offset, bytes, flags);
-        if (ret < 0) {
-            return ret;
-        }
-        offset += bytes;
-    }
-}
-
 int bdrv_preadv(BdrvChild *child, int64_t offset, QEMUIOVector *qiov)
 {
     int ret;
@@ -2771,6 +2730,47 @@ int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
     bdrv_inc_in_flight(top);
 
     return data.ret;
+}
+
+/*
+ * Completely zero out a block device with the help of bdrv_pwrite_zeroes.
+ * The operation is sped up by checking the block status and only writing
+ * zeroes to the device if they currently do not return zeroes. Optional
+ * flags are passed through to bdrv_pwrite_zeroes (e.g. BDRV_REQ_MAY_UNMAP,
+ * BDRV_REQ_FUA).
+ *
+ * Returns < 0 on error, 0 on success. For error codes see bdrv_write().
+ */
+int bdrv_make_zero(BdrvChild *child, BdrvRequestFlags flags)
+{
+    int ret;
+    int64_t target_size, bytes, offset = 0;
+    BlockDriverState *bs = child->bs;
+
+    target_size = bdrv_getlength(bs);
+    if (target_size < 0) {
+        return target_size;
+    }
+
+    for (;;) {
+        bytes = MIN(target_size - offset, BDRV_REQUEST_MAX_BYTES);
+        if (bytes <= 0) {
+            return 0;
+        }
+        ret = bdrv_block_status(bs, offset, bytes, &bytes, NULL, NULL);
+        if (ret < 0) {
+            return ret;
+        }
+        if (ret & BDRV_BLOCK_ZERO) {
+            offset += bytes;
+            continue;
+        }
+        ret = bdrv_pwrite_zeroes(child, offset, bytes, flags);
+        if (ret < 0) {
+            return ret;
+        }
+        offset += bytes;
+    }
 }
 
 typedef struct BdrvVmstateCo {
