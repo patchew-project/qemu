@@ -358,7 +358,7 @@ static void schedule_next_request(ThrottleGroupMember *tgm, bool is_write)
  * @is_write:  the type of operation (read/write)
  */
 void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm,
-                                                        unsigned int bytes,
+                                                        int64_t bytes,
                                                         bool is_write)
 {
     bool must_wait;
