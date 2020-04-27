@@ -3125,31 +3125,38 @@ int bdrv_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes)
 
 int bdrv_co_ioctl(BlockDriverState *bs, int req, void *buf)
 {
+    int ret;
     BlockDriver *drv = bs->drv;
-    CoroutineIOCompletion co = {
-        .coroutine = qemu_coroutine_self(),
-    };
-    BlockAIOCB *acb;
 
     bdrv_inc_in_flight(bs);
+
     if (!drv || (!drv->bdrv_aio_ioctl && !drv->bdrv_co_ioctl)) {
-        co.ret = -ENOTSUP;
+        ret = -ENOTSUP;
         goto out;
     }
 
     if (drv->bdrv_co_ioctl) {
-        co.ret = drv->bdrv_co_ioctl(bs, req, buf);
+        ret = drv->bdrv_co_ioctl(bs, req, buf);
     } else {
+        CoroutineIOCompletion co = {
+            .coroutine = qemu_coroutine_self(),
+        };
+        BlockAIOCB *acb;
+
         acb = drv->bdrv_aio_ioctl(bs, req, buf, bdrv_co_io_em_complete, &co);
         if (!acb) {
-            co.ret = -ENOTSUP;
+            ret = -ENOTSUP;
             goto out;
         }
+
         qemu_coroutine_yield();
+        ret = co.ret;
     }
+
 out:
     bdrv_dec_in_flight(bs);
-    return co.ret;
+
+    return ret;
 }
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
