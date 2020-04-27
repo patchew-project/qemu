@@ -3073,7 +3073,7 @@ DLOG(checkpoint());
 }
 
 static int coroutine_fn
-vvfat_co_pwritev(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+vvfat_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
                  QEMUIOVector *qiov, int flags)
 {
     int ret;
@@ -3111,7 +3111,7 @@ static int coroutine_fn vvfat_co_block_status(BlockDriverState *bs,
 }
 
 static int coroutine_fn
-write_target_commit(BlockDriverState *bs, uint64_t offset, uint64_t bytes,
+write_target_commit(BlockDriverState *bs, int64_t offset, int64_t bytes,
                     QEMUIOVector *qiov, int flags)
 {
     int ret;

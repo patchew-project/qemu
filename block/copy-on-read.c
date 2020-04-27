@@ -83,7 +83,7 @@ static int coroutine_fn cor_co_preadv(BlockDriverState *bs,
 
 
 static int coroutine_fn cor_co_pwritev(BlockDriverState *bs,
-                                       uint64_t offset, uint64_t bytes,
+                                       int64_t offset, int64_t bytes,
                                        QEMUIOVector *qiov, int flags)
 {
 
