@@ -2482,6 +2482,22 @@ static int coroutine_fn bdrv_co_block_status_above(BlockDriverState *bs,
     return ret;
 }
 
+static int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs,
+                                             int64_t offset, int64_t bytes,
+                                             int64_t *pnum)
+{
+    int ret;
+    int64_t dummy;
+
+    ret = bdrv_co_block_status_above(bs, backing_bs(bs), false, offset,
+                                     bytes, pnum ? pnum : &dummy, NULL,
+                                     NULL);
+    if (ret < 0) {
+        return ret;
+    }
+    return !!(ret & BDRV_BLOCK_ALLOCATED);
+}
+
 /* Coroutine wrapper for bdrv_block_status_above() */
 static void coroutine_fn bdrv_block_status_above_co_entry(void *opaque)
 {
@@ -2578,10 +2594,10 @@ int coroutine_fn bdrv_is_allocated(BlockDriverState *bs, int64_t offset,
  * but 'pnum' will only be 0 when end of file is reached.
  *
  */
-int bdrv_is_allocated_above(BlockDriverState *top,
-                            BlockDriverState *base,
-                            bool include_base, int64_t offset,
-                            int64_t bytes, int64_t *pnum)
+static int coroutine_fn
+bdrv_co_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+                           bool include_base, int64_t offset, int64_t bytes,
+                           int64_t *pnum)
 {
     BlockDriverState *intermediate;
     int ret;
@@ -2595,7 +2611,7 @@ int bdrv_is_allocated_above(BlockDriverState *top,
         int64_t size_inter;
 
         assert(intermediate);
-        ret = bdrv_is_allocated(intermediate, offset, bytes, &pnum_inter);
+        ret = bdrv_co_is_allocated(intermediate, offset, bytes, &pnum_inter);
         if (ret < 0) {
             return ret;
         }
@@ -2622,6 +2638,56 @@ int bdrv_is_allocated_above(BlockDriverState *top,
 
     *pnum = n;
     return 0;
+}
+
+typedef struct BdrvCoIsAllocatedAboveData {
+    BlockDriverState *top;
+    BlockDriverState *base;
+    bool include_base;
+    int64_t offset;
+    int64_t bytes;
+    int64_t *pnum;
+    int ret;
+    bool done;
+} BdrvCoIsAllocatedAboveData;
+
+static void coroutine_fn bdrv_is_allocated_above_co_entry(void *opaque)
+{
+    BdrvCoIsAllocatedAboveData *data = opaque;
+
+    data->ret = bdrv_co_is_allocated_above(data->top, data->base,
+                                           data->include_base,
+                                           data->offset, data->bytes,
+                                           data->pnum);
+    data->done = true;
+    aio_wait_kick();
+}
+
+int bdrv_is_allocated_above(BlockDriverState *top, BlockDriverState *base,
+                            bool include_base, int64_t offset, int64_t bytes,
+                            int64_t *pnum)
+{
+    Coroutine *co;
+    BdrvCoIsAllocatedAboveData data = {
+        .top = top,
+        .base = base,
+        .include_base = include_base,
+        .offset = offset,
+        .bytes = bytes,
+        .pnum = pnum,
+        .done = false,
+    };
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_is_allocated_above_co_entry(&data);
+    } else {
+        co = qemu_coroutine_create(bdrv_is_allocated_above_co_entry, &data);
+        bdrv_coroutine_enter(top, co);
+        BDRV_POLL_WHILE(top, !data.done);
+    }
+
+    return data.ret;
 }
 
 typedef struct BdrvVmstateCo {
