@@ -875,9 +875,9 @@ static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self
 }
 
 static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
-                                   size_t size)
+                                   int64_t bytes)
 {
-    if (size > BDRV_REQUEST_MAX_BYTES) {
+    if (bytes > BDRV_REQUEST_MAX_BYTES) {
         return -EIO;
     }
 
@@ -885,7 +885,7 @@ static int bdrv_check_byte_request(BlockDriverState *bs, int64_t offset,
         return -ENOMEDIUM;
     }
 
-    if (offset < 0) {
+    if (offset < 0 || bytes < 0) {
         return -EIO;
     }
 
