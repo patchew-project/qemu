@@ -1511,7 +1511,8 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
     return bdrv_co_preadv_part(child, offset, bytes, qiov, 0, flags);
 }
 
-int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
+static int coroutine_fn bdrv_do_preadv_part(BdrvChild *child,
     int64_t offset, unsigned int bytes,
     QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
@@ -1540,8 +1541,6 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
         return 0;
     }
 
-    bdrv_inc_in_flight(bs);
-
     /* Don't do copy-on-read if we read data before write operation */
     if (atomic_read(&bs->copy_on_read)) {
         flags |= BDRV_REQ_COPY_ON_READ;
@@ -1554,9 +1553,22 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
                               bs->bl.request_alignment,
                               qiov, qiov_offset, flags);
     tracked_request_end(&req);
-    bdrv_dec_in_flight(bs);
 
     bdrv_padding_destroy(&pad);
+
+    return ret;
+}
+
+int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
+    int64_t offset, unsigned int bytes,
+    QEMUIOVector *qiov, size_t qiov_offset,
+    BdrvRequestFlags flags)
+{
+    int ret;
+
+    bdrv_inc_in_flight(child->bs);
+    ret = bdrv_do_preadv_part(child, offset, bytes, qiov, qiov_offset, flags);
+    bdrv_dec_in_flight(child->bs);
 
     return ret;
 }
@@ -1922,7 +1934,8 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     return bdrv_co_pwritev_part(child, offset, bytes, qiov, 0, flags);
 }
 
-int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
+static int coroutine_fn bdrv_do_pwritev_part(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
 {
@@ -1962,7 +1975,6 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
         return 0;
     }
 
-    bdrv_inc_in_flight(bs);
     /*
      * Align write if necessary by performing a read-modify-write cycle.
      * Pad qiov with the read parts and be sure to have a tracked request not
@@ -1987,7 +1999,19 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
 
 out:
     tracked_request_end(&req);
-    bdrv_dec_in_flight(bs);
+
+    return ret;
+}
+
+int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
+    BdrvRequestFlags flags)
+{
+    int ret;
+
+    bdrv_inc_in_flight(child->bs);
+    ret = bdrv_do_pwritev_part(child, offset, bytes, qiov, qiov_offset, flags);
+    bdrv_dec_in_flight(child->bs);
 
     return ret;
 }
@@ -2014,17 +2038,18 @@ typedef struct RwCo {
     BdrvRequestFlags flags;
 } RwCo;
 
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static void coroutine_fn bdrv_rw_co_entry(void *opaque)
 {
     RwCo *rwco = opaque;
 
     if (!rwco->is_write) {
-        rwco->ret = bdrv_co_preadv(rwco->child, rwco->offset,
-                                   rwco->qiov->size, rwco->qiov,
+        rwco->ret = bdrv_do_preadv_part(rwco->child, rwco->offset,
+                                   rwco->qiov->size, rwco->qiov, 0,
                                    rwco->flags);
     } else {
-        rwco->ret = bdrv_co_pwritev(rwco->child, rwco->offset,
-                                    rwco->qiov->size, rwco->qiov,
+        rwco->ret = bdrv_do_pwritev_part(rwco->child, rwco->offset,
+                                    rwco->qiov->size, rwco->qiov, 0,
                                     rwco->flags);
     }
     aio_wait_kick();
@@ -2047,6 +2072,8 @@ static int bdrv_prwv_co(BdrvChild *child, int64_t offset,
         .flags = flags,
     };
 
+    bdrv_inc_in_flight(child->bs);
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_rw_co_entry(&rwco);
@@ -2055,6 +2082,9 @@ static int bdrv_prwv_co(BdrvChild *child, int64_t offset,
         bdrv_coroutine_enter(child->bs, co);
         BDRV_POLL_WHILE(child->bs, rwco.ret == NOT_DONE);
     }
+
+    bdrv_dec_in_flight(child->bs);
+
     return rwco.ret;
 }
 
@@ -2699,14 +2729,13 @@ typedef struct BdrvVmstateCo {
     int                 ret;
 } BdrvVmstateCo;
 
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static int coroutine_fn
-bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
+bdrv_do_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                    bool is_read)
 {
     BlockDriver *drv = bs->drv;
     int ret = -ENOTSUP;
-
-    bdrv_inc_in_flight(bs);
 
     if (!drv) {
         ret = -ENOMEDIUM;
@@ -2717,17 +2746,19 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
             ret = drv->bdrv_save_vmstate(bs, qiov, pos);
         }
     } else if (bs->file) {
-        ret = bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
+        bdrv_inc_in_flight(bs->file->bs);
+        ret = bdrv_do_rw_vmstate(bs->file->bs, qiov, pos, is_read);
+        bdrv_dec_in_flight(bs->file->bs);
     }
 
-    bdrv_dec_in_flight(bs);
     return ret;
 }
 
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static void coroutine_fn bdrv_co_rw_vmstate_entry(void *opaque)
 {
     BdrvVmstateCo *co = opaque;
-    co->ret = bdrv_co_rw_vmstate(co->bs, co->qiov, co->pos, co->is_read);
+    co->ret = bdrv_do_rw_vmstate(co->bs, co->qiov, co->pos, co->is_read);
     aio_wait_kick();
 }
 
@@ -2735,8 +2766,12 @@ static inline int
 bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                 bool is_read)
 {
+    int ret;
+
+    bdrv_inc_in_flight(bs);
+
     if (qemu_in_coroutine()) {
-        return bdrv_co_rw_vmstate(bs, qiov, pos, is_read);
+        ret = bdrv_do_rw_vmstate(bs, qiov, pos, is_read);
     } else {
         BdrvVmstateCo data = {
             .bs         = bs,
@@ -2749,8 +2784,12 @@ bdrv_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
 
         bdrv_coroutine_enter(bs, co);
         BDRV_POLL_WHILE(bs, data.ret == -EINPROGRESS);
-        return data.ret;
+        ret = data.ret;
     }
+
+    bdrv_dec_in_flight(bs);
+
+    return ret;
 }
 
 int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
@@ -2828,16 +2867,14 @@ void bdrv_aio_cancel_async(BlockAIOCB *acb)
 /**************************************************************/
 /* Coroutine block device emulation */
 
-int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
+static int coroutine_fn bdrv_do_flush(BlockDriverState *bs)
 {
     int current_gen;
-    int ret = 0;
+    int ret;
 
-    bdrv_inc_in_flight(bs);
-
-    if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs) ||
-        bdrv_is_sg(bs)) {
-        goto early_exit;
+    if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs) || bdrv_is_sg(bs)) {
+        return 0;
     }
 
     qemu_co_mutex_lock(&bs->reqs_lock);
@@ -2935,8 +2972,17 @@ out:
     qemu_co_queue_next(&bs->flush_queue);
     qemu_co_mutex_unlock(&bs->reqs_lock);
 
-early_exit:
+    return ret;
+}
+
+int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
+{
+    int ret;
+
+    bdrv_inc_in_flight(bs);
+    ret = bdrv_do_flush(bs);
     bdrv_dec_in_flight(bs);
+
     return ret;
 }
 
@@ -2945,11 +2991,12 @@ typedef struct FlushCo {
     int ret;
 } FlushCo;
 
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 {
     FlushCo *rwco = opaque;
 
-    rwco->ret = bdrv_co_flush(rwco->bs);
+    rwco->ret = bdrv_do_flush(rwco->bs);
     aio_wait_kick();
 }
 
@@ -2961,6 +3008,8 @@ int bdrv_flush(BlockDriverState *bs)
         .ret = NOT_DONE,
     };
 
+    bdrv_inc_in_flight(bs);
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_flush_co_entry(&flush_co);
@@ -2970,11 +3019,14 @@ int bdrv_flush(BlockDriverState *bs)
         BDRV_POLL_WHILE(bs, flush_co.ret == NOT_DONE);
     }
 
+    bdrv_dec_in_flight(bs);
+
     return flush_co.ret;
 }
 
-int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
-                                  int64_t bytes)
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
+static int coroutine_fn bdrv_do_pdiscard(BdrvChild *child, int64_t offset,
+                                         int64_t bytes)
 {
     BdrvTrackedRequest req;
     int max_pdiscard, ret;
@@ -3012,7 +3064,6 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     head = offset % align;
     tail = (offset + bytes) % align;
 
-    bdrv_inc_in_flight(bs);
     tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_DISCARD);
 
     ret = bdrv_co_write_req_prepare(child, offset, bytes, &req, 0);
@@ -3083,7 +3134,18 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
 out:
     bdrv_co_write_req_finish(child, req.offset, req.bytes, &req, ret);
     tracked_request_end(&req);
-    bdrv_dec_in_flight(bs);
+    return ret;
+}
+
+int coroutine_fn bdrv_co_pdiscard(BdrvChild *child,
+                                  int64_t offset, int64_t bytes)
+{
+    int ret;
+
+    bdrv_inc_in_flight(child->bs);
+    ret = bdrv_do_pdiscard(child, offset, bytes);
+    bdrv_dec_in_flight(child->bs);
+
     return ret;
 }
 
@@ -3094,11 +3156,12 @@ typedef struct DiscardCo {
     int ret;
 } DiscardCo;
 
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static void coroutine_fn bdrv_pdiscard_co_entry(void *opaque)
 {
     DiscardCo *rwco = opaque;
 
-    rwco->ret = bdrv_co_pdiscard(rwco->child, rwco->offset, rwco->bytes);
+    rwco->ret = bdrv_do_pdiscard(rwco->child, rwco->offset, rwco->bytes);
     aio_wait_kick();
 }
 
@@ -3112,6 +3175,8 @@ int bdrv_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes)
         .ret = NOT_DONE,
     };
 
+    bdrv_inc_in_flight(child->bs);
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_pdiscard_co_entry(&rwco);
@@ -3120,6 +3185,8 @@ int bdrv_pdiscard(BdrvChild *child, int64_t offset, int64_t bytes)
         bdrv_coroutine_enter(child->bs, co);
         BDRV_POLL_WHILE(child->bs, rwco.ret == NOT_DONE);
     }
+
+    bdrv_dec_in_flight(child->bs);
 
     return rwco.ret;
 }
@@ -3411,9 +3478,12 @@ static void bdrv_parent_cb_resize(BlockDriverState *bs)
  * If 'exact' is true, the file must be resized to exactly the given
  * 'offset'.  Otherwise, it is sufficient for the node to be at least
  * 'offset' bytes in length.
+ *
+ * To be called between exactly one pair of bdrv_inc/dec_in_flight()
  */
-int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
-                                  PreallocMode prealloc, Error **errp)
+static int coroutine_fn bdrv_do_truncate(BdrvChild *child,
+                                         int64_t offset, bool exact,
+                                         PreallocMode prealloc, Error **errp)
 {
     BlockDriverState *bs = child->bs;
     BlockDriver *drv = bs->drv;
@@ -3444,7 +3514,6 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
         new_bytes = 0;
     }
 
-    bdrv_inc_in_flight(bs);
     tracked_request_begin(&req, bs, offset - new_bytes, new_bytes,
                           BDRV_TRACKED_TRUNCATE);
 
@@ -3493,6 +3562,19 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
 
 out:
     tracked_request_end(&req);
+
+    return ret;
+}
+
+int coroutine_fn bdrv_co_truncate(BdrvChild *child,
+                                  int64_t offset, bool exact,
+                                  PreallocMode prealloc, Error **errp)
+{
+    int ret;
+    BlockDriverState *bs = child->bs;
+
+    bdrv_inc_in_flight(bs);
+    ret = bdrv_do_truncate(child, offset, exact, prealloc, errp);
     bdrv_dec_in_flight(bs);
 
     return ret;
@@ -3507,10 +3589,11 @@ typedef struct TruncateCo {
     int ret;
 } TruncateCo;
 
+/* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static void coroutine_fn bdrv_truncate_co_entry(void *opaque)
 {
     TruncateCo *tco = opaque;
-    tco->ret = bdrv_co_truncate(tco->child, tco->offset, tco->exact,
+    tco->ret = bdrv_do_truncate(tco->child, tco->offset, tco->exact,
                                 tco->prealloc, tco->errp);
     aio_wait_kick();
 }
@@ -3528,6 +3611,8 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
         .ret        = NOT_DONE,
     };
 
+    bdrv_inc_in_flight(child->bs);
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_truncate_co_entry(&tco);
@@ -3536,6 +3621,8 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
         bdrv_coroutine_enter(child->bs, co);
         BDRV_POLL_WHILE(child->bs, tco.ret == NOT_DONE);
     }
+
+    bdrv_dec_in_flight(child->bs);
 
     return tco.ret;
 }
