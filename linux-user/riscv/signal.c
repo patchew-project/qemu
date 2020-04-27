@@ -32,7 +32,7 @@
 struct target_sigcontext {
     abi_long pc;
     abi_long gpr[31]; /* x0 is not present, so all offsets must be -1 */
-    uint64_t fpr[32];
+    uint64_t fpr[32] __attribute__((aligned(16)));
     uint32_t fcsr;
 }; /* cf. riscv-linux:arch/riscv/include/uapi/asm/ptrace.h */
 
@@ -40,8 +40,9 @@ struct target_ucontext {
     unsigned long uc_flags;
     struct target_ucontext *uc_link;
     target_stack_t uc_stack;
-    struct target_sigcontext uc_mcontext;
     target_sigset_t uc_sigmask;
+    char __unused[1024 / 8 - sizeof(target_sigset_t)];
+    struct target_sigcontext uc_mcontext;
 };
 
 struct target_rt_sigframe {
