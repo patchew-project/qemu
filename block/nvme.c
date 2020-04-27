@@ -1103,10 +1103,10 @@ static coroutine_fn int nvme_co_flush(BlockDriverState *bs)
 }
 
 
-static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
-                                              int64_t offset,
-                                              int bytes,
-                                              BdrvRequestFlags flags)
+static coroutine_fn int nvme_co_pwrite_zeroes_old(BlockDriverState *bs,
+                                                  int64_t offset,
+                                                  int bytes,
+                                                  BdrvRequestFlags flags)
 {
     BDRVNVMeState *s = bs->opaque;
     NVMeQueuePair *ioq = s->queues[1];
@@ -1156,6 +1156,14 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
     return data.ret;
 }
 
+static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
+                                              int64_t offset,
+                                              int64_t bytes,
+                                              BdrvRequestFlags flags)
+{
+    assert(bytes <= INT_MAX);
+    return nvme_co_pwrite_zeroes_old(bs, offset, bytes, flags);
+}
 
 static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
                                          int64_t offset,

@@ -1204,8 +1204,8 @@ out_unlock:
 }
 
 static int
-coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
-                                    int bytes, BdrvRequestFlags flags)
+coroutine_fn iscsi_co_pwrite_zeroes_old(BlockDriverState *bs, int64_t offset,
+                                        int bytes, BdrvRequestFlags flags)
 {
     IscsiLun *iscsilun = bs->opaque;
     struct IscsiTask iTask;
@@ -1306,6 +1306,14 @@ out_unlock:
     qemu_mutex_unlock(&iscsilun->mutex);
     g_free(iTask.err_str);
     return r;
+}
+
+static int
+coroutine_fn iscsi_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset,
+                                    int64_t bytes, BdrvRequestFlags flags)
+{
+    assert(bytes < INT_MAX);
+    return iscsi_co_pwrite_zeroes_old(bs, offset, bytes, flags);
 }
 
 static void apply_chap(struct iscsi_context *iscsi, QemuOpts *opts,
