@@ -1357,7 +1357,7 @@ void object_property_set_link(Object *obj, Object *value,
                               const char *name, Error **errp)
 {
     if (value) {
-        gchar *path = object_get_canonical_path(value);
+        char *path = object_get_canonical_path(value);
         object_property_set_str(obj, path, name, errp);
         g_free(path);
     } else {
@@ -1653,14 +1653,15 @@ static void object_get_child_property(Object *obj, Visitor *v,
                                       Error **errp)
 {
     Object *child = opaque;
-    gchar *path;
+    char *path;
 
     path = object_get_canonical_path(child);
     visit_type_str(v, name, &path, errp);
     g_free(path);
 }
 
-static Object *object_resolve_child_property(Object *parent, void *opaque, const gchar *part)
+static Object *object_resolve_child_property(Object *parent, void *opaque,
+                                             const char *part)
 {
     return opaque;
 }
@@ -1681,7 +1682,7 @@ void object_property_add_child(Object *obj, const char *name,
                                Object *child, Error **errp)
 {
     Error *local_err = NULL;
-    gchar *type;
+    char *type;
     ObjectProperty *op;
 
     if (child->parent != NULL) {
@@ -1740,14 +1741,14 @@ static void object_get_link_property(Object *obj, Visitor *v,
 {
     LinkProperty *lprop = opaque;
     Object **targetp = object_link_get_targetp(obj, lprop);
-    gchar *path;
+    char *path;
 
     if (*targetp) {
         path = object_get_canonical_path(*targetp);
         visit_type_str(v, name, &path, errp);
         g_free(path);
     } else {
-        path = (gchar *)"";
+        path = (char *)"";
         visit_type_str(v, name, &path, errp);
     }
 }
@@ -1765,7 +1766,7 @@ static Object *object_resolve_link(Object *obj, const char *name,
                                    const char *path, Error **errp)
 {
     const char *type;
-    gchar *target_type;
+    char *target_type;
     bool ambiguous = false;
     Object *target;
 
@@ -1828,7 +1829,8 @@ static void object_set_link_property(Object *obj, Visitor *v,
     }
 }
 
-static Object *object_resolve_link_property(Object *parent, void *opaque, const gchar *part)
+static Object *object_resolve_link_property(Object *parent, void *opaque,
+                                            const char *part)
 {
     LinkProperty *lprop = opaque;
 
@@ -1858,7 +1860,7 @@ static void object_add_link_prop(Object *obj, const char *name,
 {
     Error *local_err = NULL;
     LinkProperty *prop = g_malloc(sizeof(*prop));
-    gchar *full_type;
+    char *full_type;
     ObjectProperty *op;
 
     if (flags & OBJ_PROP_LINK_DIRECT) {
@@ -1910,7 +1912,7 @@ object_class_property_add_link(ObjectClass *oc,
 {
     Error *local_err = NULL;
     LinkProperty *prop = g_new0(LinkProperty, 1);
-    gchar *full_type;
+    char *full_type;
     ObjectProperty *op;
 
     prop->offset = offset;
@@ -1945,7 +1947,7 @@ void object_property_add_const_link(Object *obj, const char *name,
                          NULL, OBJ_PROP_LINK_DIRECT, errp);
 }
 
-gchar *object_get_canonical_path_component(Object *obj)
+char *object_get_canonical_path_component(Object *obj)
 {
     ObjectProperty *prop = NULL;
     GHashTableIter iter;
@@ -1970,7 +1972,7 @@ gchar *object_get_canonical_path_component(Object *obj)
     return NULL;
 }
 
-gchar *object_get_canonical_path(Object *obj)
+char *object_get_canonical_path(Object *obj)
 {
     Object *root = object_get_root();
     char *newpath, *path = NULL;
@@ -2000,7 +2002,7 @@ gchar *object_get_canonical_path(Object *obj)
     return path;
 }
 
-Object *object_resolve_path_component(Object *parent, const gchar *part)
+Object *object_resolve_path_component(Object *parent, const char *part)
 {
     ObjectProperty *prop = object_property_find(parent, part, NULL);
     if (prop == NULL) {
@@ -2015,9 +2017,9 @@ Object *object_resolve_path_component(Object *parent, const gchar *part)
 }
 
 static Object *object_resolve_abs_path(Object *parent,
-                                          gchar **parts,
-                                          const char *typename,
-                                          int index)
+                                       char **parts,
+                                       const char *typename,
+                                       int index)
 {
     Object *child;
 
@@ -2038,9 +2040,9 @@ static Object *object_resolve_abs_path(Object *parent,
 }
 
 static Object *object_resolve_partial_path(Object *parent,
-                                              gchar **parts,
-                                              const char *typename,
-                                              bool *ambiguous)
+                                           char **parts,
+                                           const char *typename,
+                                           bool *ambiguous)
 {
     Object *obj;
     GHashTableIter iter;
@@ -2078,7 +2080,7 @@ Object *object_resolve_path_type(const char *path, const char *typename,
                                  bool *ambiguousp)
 {
     Object *obj;
-    gchar **parts;
+    char **parts;
 
     parts = g_strsplit(path, "/", 0);
     assert(parts);
@@ -2769,7 +2771,7 @@ static void property_set_alias(Object *obj, Visitor *v, const char *name,
 }
 
 static Object *property_resolve_alias(Object *obj, void *opaque,
-                                      const gchar *part)
+                                      const char *part)
 {
     AliasProperty *prop = opaque;
 
@@ -2791,7 +2793,7 @@ void object_property_add_alias(Object *obj, const char *name,
     AliasProperty *prop;
     ObjectProperty *op;
     ObjectProperty *target_prop;
-    gchar *prop_type;
+    char *prop_type;
     Error *local_err = NULL;
 
     target_prop = object_property_find(target_obj, target_name, errp);
