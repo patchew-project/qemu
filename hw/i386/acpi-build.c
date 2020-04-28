@@ -48,6 +48,7 @@
 #include "migration/vmstate.h"
 #include "hw/mem/memory-device.h"
 #include "hw/mem/nvdimm.h"
+#include "qemu/nvdimm-utils.h"
 #include "sysemu/numa.h"
 #include "sysemu/reset.h"
 
@@ -2429,6 +2430,25 @@ build_srat(GArray *table_data, BIOSLinker *linker, MachineState *machine)
                               MEM_AFFINITY_ENABLED);
         }
     }
+
+    if (machine->nvdimms_state->is_enabled) {
+        GSList *device_list = nvdimm_get_device_list();
+
+        for (; device_list; device_list = device_list->next) {
+            DeviceState *dev = device_list->data;
+            int node = object_property_get_int(OBJECT(dev), PC_DIMM_NODE_PROP,
+                                               NULL);
+            uint64_t addr = object_property_get_uint(OBJECT(dev),
+                                                     PC_DIMM_ADDR_PROP, NULL);
+            uint64_t size = object_property_get_uint(OBJECT(dev),
+                                                     PC_DIMM_SIZE_PROP, NULL);
+
+            numamem = acpi_data_push(table_data, sizeof *numamem);
+            build_srat_memory(numamem, addr, size, node,
+                              MEM_AFFINITY_ENABLED | MEM_AFFINITY_NON_VOLATILE);
+        }
+    }
+
     slots = (table_data->len - numa_start) / sizeof *numamem;
     for (; slots < pcms->numa_nodes + 2; slots++) {
         numamem = acpi_data_push(table_data, sizeof *numamem);
