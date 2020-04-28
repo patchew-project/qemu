@@ -1387,6 +1387,22 @@ void qemu_system_reset(ShutdownCause reason)
 
     cpu_synchronize_all_states();
 
+    /*
+     * System reboot could reset memory layout.  Although the final status of
+     * the memory layout should be the same as before the reset, the memory
+     * sections can still be removed and added back frequently due to the reset
+     * process.  This could potentially drop dirty bits in track for those
+     * memory sections before the reset.
+     *
+     * Do a global dirty sync before the reset happens if we are during a
+     * precopy, so we don't lose the dirty bits during the memory shuffles.
+     */
+    if (migration_is_precopy()) {
+        WITH_RCU_READ_LOCK_GUARD() {
+            migration_bitmap_sync_precopy();
+        }
+    }
+
     if (mc && mc->reset) {
         mc->reset(current_machine);
     } else {
