@@ -1794,6 +1794,13 @@ bool migration_is_active(MigrationState *s)
             s->state == MIGRATION_STATUS_POSTCOPY_ACTIVE);
 }
 
+bool migration_is_precopy(void)
+{
+    MigrationState *s = migrate_get_current();
+
+    return s && s->state == MIGRATION_STATUS_ACTIVE;
+}
+
 void migrate_init(MigrationState *s)
 {
     /*
