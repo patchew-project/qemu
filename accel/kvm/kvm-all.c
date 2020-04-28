@@ -1061,9 +1061,6 @@ static void kvm_set_phys_mem(KVMMemoryListener *kml,
             if (!mem) {
                 goto out;
             }
-            if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
-                kvm_physical_sync_dirty_bitmap(kml, section);
-            }
 
             /* unregister the slot */
             g_free(mem->dirty_bmap);
