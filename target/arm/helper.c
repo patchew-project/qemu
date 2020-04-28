@@ -504,29 +504,15 @@ void init_cpreg_list(ARMCPU *cpu)
 /*
  * Some registers are not accessible if EL3.NS=0 and EL3 is using AArch32 but
  * they are accessible when EL3 is using AArch64 regardless of EL3.NS.
- *
- * access_el3_aa32ns: Used to check AArch32 register views.
- * access_el3_aa32ns_aa64any: Used to check both AArch32/64 register views.
  */
-static CPAccessResult access_el3_aa32ns(CPUARMState *env,
-                                        const ARMCPRegInfo *ri,
-                                        bool isread)
-{
-    bool secure = arm_is_secure_below_el3(env);
-
-    assert(!arm_el_is_aa64(env, 3));
-    if (secure) {
-        return CP_ACCESS_TRAP_UNCATEGORIZED;
-    }
-    return CP_ACCESS_OK;
-}
-
 static CPAccessResult access_el3_aa32ns_aa64any(CPUARMState *env,
                                                 const ARMCPRegInfo *ri,
                                                 bool isread)
 {
-    if (!arm_el_is_aa64(env, 3)) {
-        return access_el3_aa32ns(env, ri, isread);
+    bool secure = arm_is_secure_below_el3(env);
+
+    if (!arm_el_is_aa64(env, 3) && secure) {
+        return CP_ACCESS_TRAP_UNCATEGORIZED;
     }
     return CP_ACCESS_OK;
 }
@@ -5223,7 +5209,7 @@ static const ARMCPRegInfo el3_no_el2_cp_reginfo[] = {
       .type = ARM_CP_CONST, .resetvalue = 0 },
     { .name = "VTTBR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 6, .crm = 2,
-      .access = PL2_RW, .accessfn = access_el3_aa32ns,
+      .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
       .type = ARM_CP_CONST | ARM_CP_64BIT, .resetvalue = 0 },
     { .name = "VTTBR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 0,
@@ -5556,7 +5542,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "VTCR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
       .type = ARM_CP_ALIAS,
-      .access = PL2_RW, .accessfn = access_el3_aa32ns,
+      .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
       .fieldoffset = offsetof(CPUARMState, cp15.vtcr_el2) },
     { .name = "VTCR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 2, .crm = 1, .opc2 = 2,
@@ -5568,7 +5554,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
     { .name = "VTTBR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 6, .crm = 2,
       .type = ARM_CP_64BIT | ARM_CP_ALIAS,
-      .access = PL2_RW, .accessfn = access_el3_aa32ns,
+      .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
       .fieldoffset = offsetof(CPUARMState, cp15.vttbr_el2),
       .writefn = vttbr_write },
     { .name = "VTTBR_EL2", .state = ARM_CP_STATE_AA64,
@@ -5708,7 +5694,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .fieldoffset = offsetof(CPUARMState, cp15.mdcr_el2), },
     { .name = "HPFAR", .state = ARM_CP_STATE_AA32,
       .cp = 15, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 4,
-      .access = PL2_RW, .accessfn = access_el3_aa32ns,
+      .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
       .fieldoffset = offsetof(CPUARMState, cp15.hpfar_el2) },
     { .name = "HPFAR_EL2", .state = ARM_CP_STATE_AA64,
       .opc0 = 3, .opc1 = 4, .crn = 6, .crm = 0, .opc2 = 4,
@@ -7565,7 +7551,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
         ARMCPRegInfo vpidr_regs[] = {
             { .name = "VPIDR", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 0,
-              .access = PL2_RW, .accessfn = access_el3_aa32ns,
+              .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
               .resetvalue = cpu->midr, .type = ARM_CP_ALIAS,
               .fieldoffset = offsetoflow32(CPUARMState, cp15.vpidr_el2) },
             { .name = "VPIDR_EL2", .state = ARM_CP_STATE_AA64,
@@ -7574,7 +7560,7 @@ void register_cp_regs_for_features(ARMCPU *cpu)
               .fieldoffset = offsetof(CPUARMState, cp15.vpidr_el2) },
             { .name = "VMPIDR", .state = ARM_CP_STATE_AA32,
               .cp = 15, .opc1 = 4, .crn = 0, .crm = 0, .opc2 = 5,
-              .access = PL2_RW, .accessfn = access_el3_aa32ns,
+              .access = PL2_RW, .accessfn = access_el3_aa32ns_aa64any,
               .resetvalue = vmpidr_def, .type = ARM_CP_ALIAS,
               .fieldoffset = offsetoflow32(CPUARMState, cp15.vmpidr_el2) },
             { .name = "VMPIDR_EL2", .state = ARM_CP_STATE_AA64,
