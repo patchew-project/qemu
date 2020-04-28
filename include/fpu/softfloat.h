@@ -688,7 +688,12 @@ static inline int floatx80_is_any_nan(floatx80 a)
 *----------------------------------------------------------------------------*/
 static inline bool floatx80_invalid_encoding(floatx80 a)
 {
+#if defined(TARGET_M68K)
+    return (a.low & (1ULL << 63)) == 0 && (((a.high & 0x7FFF) != 0)
+                                           && (a.high != 0x7FFF));
+#else
     return (a.low & (1ULL << 63)) == 0 && (a.high & 0x7FFF) != 0;
+#endif
 }
 
 #define floatx80_zero make_floatx80(0x0000, 0x0000000000000000LL)
