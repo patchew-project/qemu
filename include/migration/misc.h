@@ -66,6 +66,7 @@ void remove_migration_state_change_notifier(Notifier *notify);
 bool migration_in_setup(MigrationState *);
 bool migration_has_finished(MigrationState *);
 bool migration_has_failed(MigrationState *);
+void migration_bitmap_sync_precopy(void);
 /* ...and after the device transmission */
 bool migration_in_postcopy_after_devices(MigrationState *);
 void migration_global_dump(Monitor *mon);

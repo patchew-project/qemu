@@ -970,7 +970,7 @@ static void migration_bitmap_sync(RAMState *rs)
     }
 }
 
-static void migration_bitmap_sync_precopy(RAMState *rs)
+void migration_bitmap_sync_precopy(void)
 {
     Error *local_err = NULL;
 
@@ -983,7 +983,7 @@ static void migration_bitmap_sync_precopy(RAMState *rs)
         local_err = NULL;
     }
 
-    migration_bitmap_sync(rs);
+    migration_bitmap_sync(ram_state);
 
     if (precopy_notify(PRECOPY_NOTIFY_AFTER_BITMAP_SYNC, &local_err)) {
         error_report_err(local_err);
@@ -2300,7 +2300,7 @@ static void ram_init_bitmaps(RAMState *rs)
     WITH_RCU_READ_LOCK_GUARD() {
         ram_list_init_bitmaps();
         memory_global_dirty_log_start();
-        migration_bitmap_sync_precopy(rs);
+        migration_bitmap_sync_precopy();
     }
     qemu_mutex_unlock_ramlist();
     qemu_mutex_unlock_iothread();
@@ -2589,7 +2589,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 
     WITH_RCU_READ_LOCK_GUARD() {
         if (!migration_in_postcopy()) {
-            migration_bitmap_sync_precopy(rs);
+            migration_bitmap_sync_precopy();
         }
 
         ram_control_before_iterate(f, RAM_CONTROL_FINISH);
@@ -2639,7 +2639,7 @@ static void ram_save_pending(QEMUFile *f, void *opaque, uint64_t max_size,
         remaining_size < max_size) {
         qemu_mutex_lock_iothread();
         WITH_RCU_READ_LOCK_GUARD() {
-            migration_bitmap_sync_precopy(rs);
+            migration_bitmap_sync_precopy();
         }
         qemu_mutex_unlock_iothread();
         remaining_size = rs->migration_dirty_pages * TARGET_PAGE_SIZE;
