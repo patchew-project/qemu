@@ -385,8 +385,7 @@ static void create_virtio_regions(VersalVirt *s)
 
         pic_irq = qdev_get_gpio_in(DEVICE(&s->soc.fpd.apu.gic), irq);
         dev = qdev_create(NULL, "virtio-mmio");
-        object_property_add_child(OBJECT(&s->soc), name, OBJECT(dev),
-                                  &error_fatal);
+        object_property_add_child(OBJECT(&s->soc), name, OBJECT(dev));
         qdev_init_nofail(dev);
         sysbus_connect_irq(SYS_BUS_DEVICE(dev), 0, pic_irq);
         mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);

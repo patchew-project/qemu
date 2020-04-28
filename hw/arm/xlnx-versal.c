@@ -44,7 +44,7 @@ static void versal_create_apu_cpus(Versal *s)
         }
 
         name = g_strdup_printf("apu-cpu[%d]", i);
-        object_property_add_child(OBJECT(s), name, obj, &error_fatal);
+        object_property_add_child(OBJECT(s), name, obj);
         g_free(name);
 
         object_property_set_int(obj, s->cfg.psci_conduit,
@@ -148,7 +148,7 @@ static void versal_create_uarts(Versal *s, qemu_irq *pic)
         dev = qdev_create(NULL, TYPE_PL011);
         s->lpd.iou.uart[i] = SYS_BUS_DEVICE(dev);
         qdev_prop_set_chr(dev, "chardev", serial_hd(i));
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        object_property_add_child(OBJECT(s), name, OBJECT(dev));
         qdev_init_nofail(dev);
 
         mr = sysbus_mmio_get_region(s->lpd.iou.uart[i], 0);
@@ -173,7 +173,7 @@ static void versal_create_gems(Versal *s, qemu_irq *pic)
 
         dev = qdev_create(NULL, "cadence_gem");
         s->lpd.iou.gem[i] = SYS_BUS_DEVICE(dev);
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        object_property_add_child(OBJECT(s), name, OBJECT(dev));
         if (nd->used) {
             qemu_check_nic_model(nd, "cadence_gem");
             qdev_set_nic_properties(dev, nd);
@@ -205,7 +205,7 @@ static void versal_create_admas(Versal *s, qemu_irq *pic)
 
         dev = qdev_create(NULL, "xlnx.zdma");
         s->lpd.iou.adma[i] = SYS_BUS_DEVICE(dev);
-        object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+        object_property_add_child(OBJECT(s), name, OBJECT(dev));
         qdev_init_nofail(dev);
 
         mr = sysbus_mmio_get_region(s->lpd.iou.adma[i], 0);
@@ -266,7 +266,7 @@ static void versal_unimp_area(Versal *s, const char *name,
 
     qdev_prop_set_string(dev, "name", name);
     qdev_prop_set_uint64(dev, "size", size);
-    object_property_add_child(OBJECT(s), name, OBJECT(dev), &error_fatal);
+    object_property_add_child(OBJECT(s), name, OBJECT(dev));
     qdev_init_nofail(dev);
 
     mr_dev = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);

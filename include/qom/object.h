@@ -1036,7 +1036,6 @@ void object_unref(Object *obj);
  *   meant to allow a property to free its opaque upon object
  *   destruction.  This may be NULL.
  * @opaque: an opaque pointer to pass to the callbacks for the property
- * @errp: returns an error if this function fails
  *
  * Returns: The #ObjectProperty; this can be used to set the @resolve
  * callback for child and link properties.
@@ -1046,7 +1045,7 @@ ObjectProperty *object_property_add(Object *obj, const char *name,
                                     ObjectPropertyAccessor *get,
                                     ObjectPropertyAccessor *set,
                                     ObjectPropertyRelease *release,
-                                    void *opaque, Error **errp);
+                                    void *opaque);
 
 void object_property_del(Object *obj, const char *name, Error **errp);
 
@@ -1055,7 +1054,7 @@ ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           ObjectPropertyAccessor *get,
                                           ObjectPropertyAccessor *set,
                                           ObjectPropertyRelease *release,
-                                          void *opaque, Error **errp);
+                                          void *opaque);
 
 /**
  * object_property_set_default_bool:
@@ -1494,7 +1493,6 @@ Object *object_resolve_path_component(Object *parent, const char *part);
  * @obj: the object to add a property to
  * @name: the name of the property
  * @child: the child object
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Child properties form the composition tree.  All objects need to be a child
  * of another object.  Objects can only be a child of one object.
@@ -1509,7 +1507,7 @@ Object *object_resolve_path_component(Object *parent, const char *part);
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_child(Object *obj, const char *name,
-                                          Object *child, Error **errp);
+                                          Object *child);
 
 typedef enum {
     /* Unref the link pointer when the property is deleted */
@@ -1538,7 +1536,6 @@ void object_property_allow_set_link(const Object *, const char *,
  * @targetp: a pointer to where the link object reference is stored
  * @check: callback to veto setting or NULL if the property is read-only
  * @flags: additional options for the link
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Links establish relationships between objects.  Links are unidirectional
  * although two links can be combined to form a bidirectional relationship
@@ -1565,16 +1562,14 @@ ObjectProperty *object_property_add_link(Object *obj, const char *name,
                               const char *type, Object **targetp,
                               void (*check)(const Object *obj, const char *name,
                                             Object *val, Error **errp),
-                              ObjectPropertyLinkFlags flags,
-                              Error **errp);
+                              ObjectPropertyLinkFlags flags);
 
 ObjectProperty *object_class_property_add_link(ObjectClass *oc,
                               const char *name,
                               const char *type, ptrdiff_t offset,
                               void (*check)(const Object *obj, const char *name,
                                             Object *val, Error **errp),
-                              ObjectPropertyLinkFlags flags,
-                              Error **errp);
+                              ObjectPropertyLinkFlags flags);
 
 /**
  * object_property_add_str:
@@ -1583,7 +1578,6 @@ ObjectProperty *object_class_property_add_link(ObjectClass *oc,
  * @get: the getter or NULL if the property is write-only.  This function must
  *   return a string to be freed by g_free().
  * @set: the setter or NULL if the property is read-only
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add a string property using getters/setters.  This function will add a
  * property of type 'string'.
@@ -1592,15 +1586,13 @@ ObjectProperty *object_class_property_add_link(ObjectClass *oc,
  */
 ObjectProperty *object_property_add_str(Object *obj, const char *name,
                              char *(*get)(Object *, Error **),
-                             void (*set)(Object *, const char *, Error **),
-                             Error **errp);
+                             void (*set)(Object *, const char *, Error **));
 
 ObjectProperty *object_class_property_add_str(ObjectClass *klass,
                                    const char *name,
                                    char *(*get)(Object *, Error **),
                                    void (*set)(Object *, const char *,
-                                               Error **),
-                                   Error **errp);
+                                               Error **));
 
 /**
  * object_property_add_bool:
@@ -1608,7 +1600,6 @@ ObjectProperty *object_class_property_add_str(ObjectClass *klass,
  * @name: the name of the property
  * @get: the getter or NULL if the property is write-only.
  * @set: the setter or NULL if the property is read-only
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add a bool property using getters/setters.  This function will add a
  * property of type 'bool'.
@@ -1617,14 +1608,12 @@ ObjectProperty *object_class_property_add_str(ObjectClass *klass,
  */
 ObjectProperty *object_property_add_bool(Object *obj, const char *name,
                               bool (*get)(Object *, Error **),
-                              void (*set)(Object *, bool, Error **),
-                              Error **errp);
+                              void (*set)(Object *, bool, Error **));
 
 ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
                                     const char *name,
                                     bool (*get)(Object *, Error **),
-                                    void (*set)(Object *, bool, Error **),
-                                    Error **errp);
+                                    void (*set)(Object *, bool, Error **));
 
 /**
  * object_property_add_enum:
@@ -1633,7 +1622,6 @@ ObjectProperty *object_class_property_add_bool(ObjectClass *klass,
  * @typename: the name of the enum data type
  * @get: the getter or %NULL if the property is write-only.
  * @set: the setter or %NULL if the property is read-only
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an enum property using getters/setters.  This function will add a
  * property of type '@typename'.
@@ -1644,23 +1632,20 @@ ObjectProperty *object_property_add_enum(Object *obj, const char *name,
                               const char *typename,
                               const QEnumLookup *lookup,
                               int (*get)(Object *, Error **),
-                              void (*set)(Object *, int, Error **),
-                              Error **errp);
+                              void (*set)(Object *, int, Error **));
 
 ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
                                     const char *name,
                                     const char *typename,
                                     const QEnumLookup *lookup,
                                     int (*get)(Object *, Error **),
-                                    void (*set)(Object *, int, Error **),
-                                    Error **errp);
+                                    void (*set)(Object *, int, Error **));
 
 /**
  * object_property_add_tm:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @get: the getter or NULL if the property is write-only.
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add a read-only struct tm valued property using a getter function.
  * This function will add a property of type 'struct tm'.
@@ -1668,13 +1653,11 @@ ObjectProperty *object_class_property_add_enum(ObjectClass *klass,
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_tm(Object *obj, const char *name,
-                            void (*get)(Object *, struct tm *, Error **),
-                            Error **errp);
+                            void (*get)(Object *, struct tm *, Error **));
 
 ObjectProperty *object_class_property_add_tm(ObjectClass *klass,
-                                  const char *name,
-                                  void (*get)(Object *, struct tm *, Error **),
-                                  Error **errp);
+                            const char *name,
+                            void (*get)(Object *, struct tm *, Error **));
 
 typedef enum {
     /* Automatically add a getter to the property */
@@ -1691,7 +1674,6 @@ typedef enum {
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint8'.
@@ -1699,14 +1681,13 @@ typedef enum {
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_uint8_ptr(Object *obj, const char *name,
-                                   const uint8_t *v, ObjectPropertyFlags flags,
-                                   Error **errp);
+                                              const uint8_t *v,
+                                              ObjectPropertyFlags flags);
 
 ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
                                          const char *name,
                                          const uint8_t *v,
-                                         ObjectPropertyFlags flags,
-                                         Error **errp);
+                                         ObjectPropertyFlags flags);
 
 /**
  * object_property_add_uint16_ptr:
@@ -1714,7 +1695,6 @@ ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint16'.
@@ -1723,14 +1703,12 @@ ObjectProperty *object_class_property_add_uint8_ptr(ObjectClass *klass,
  */
 ObjectProperty *object_property_add_uint16_ptr(Object *obj, const char *name,
                                     const uint16_t *v,
-                                    ObjectPropertyFlags flags,
-                                    Error **errp);
+                                    ObjectPropertyFlags flags);
 
 ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint16_t *v,
-                                          ObjectPropertyFlags flags,
-                                          Error **errp);
+                                          ObjectPropertyFlags flags);
 
 /**
  * object_property_add_uint32_ptr:
@@ -1738,7 +1716,6 @@ ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint32'.
@@ -1747,14 +1724,12 @@ ObjectProperty *object_class_property_add_uint16_ptr(ObjectClass *klass,
  */
 ObjectProperty *object_property_add_uint32_ptr(Object *obj, const char *name,
                                     const uint32_t *v,
-                                    ObjectPropertyFlags flags,
-                                    Error **errp);
+                                    ObjectPropertyFlags flags);
 
 ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint32_t *v,
-                                          ObjectPropertyFlags flags,
-                                          Error **errp);
+                                          ObjectPropertyFlags flags);
 
 /**
  * object_property_add_uint64_ptr:
@@ -1762,7 +1737,6 @@ ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
  * @name: the name of the property
  * @v: pointer to value
  * @flags: bitwise-or'd ObjectPropertyFlags
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an integer property in memory.  This function will add a
  * property of type 'uint64'.
@@ -1771,14 +1745,12 @@ ObjectProperty *object_class_property_add_uint32_ptr(ObjectClass *klass,
  */
 ObjectProperty *object_property_add_uint64_ptr(Object *obj, const char *name,
                                     const uint64_t *v,
-                                    ObjectPropertyFlags flags,
-                                    Error **Errp);
+                                    ObjectPropertyFlags flags);
 
 ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
                                           const char *name,
                                           const uint64_t *v,
-                                          ObjectPropertyFlags flags,
-                                          Error **Errp);
+                                          ObjectPropertyFlags flags);
 
 /**
  * object_property_add_alias:
@@ -1786,7 +1758,6 @@ ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
  * @name: the name of the property
  * @target_obj: the object to forward property access to
  * @target_name: the name of the property on the forwarded object
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an alias for a property on an object.  This function will add a property
  * of the same type as the forwarded property.
@@ -1799,15 +1770,13 @@ ObjectProperty *object_class_property_add_uint64_ptr(ObjectClass *klass,
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_alias(Object *obj, const char *name,
-                               Object *target_obj, const char *target_name,
-                               Error **errp);
+                               Object *target_obj, const char *target_name);
 
 /**
  * object_property_add_const_link:
  * @obj: the object to add a property to
  * @name: the name of the property
  * @target: the object to be referred by the link
- * @errp: if an error occurs, a pointer to an area to store the error
  *
  * Add an unmodifiable link for a property on an object.  This function will
  * add a property of type link<TYPE> where TYPE is the type of @target.
@@ -1820,7 +1789,7 @@ ObjectProperty *object_property_add_alias(Object *obj, const char *name,
  * Returns: The newly added property on success, or %NULL on failure.
  */
 ObjectProperty *object_property_add_const_link(Object *obj, const char *name,
-                                    Object *target, Error **errp);
+                                               Object *target);
 
 /**
  * object_property_set_description:
