@@ -129,12 +129,51 @@ int xen_pt_unregister_vga_regions(XenHostPCIDevice *dev)
     return 0;
 }
 
-static void *get_vgabios(XenPCIPassthroughState *s, int *size,
+static void *get_sysfs_vgabios(XenPCIPassthroughState *s, int *size,
                        XenHostPCIDevice *dev)
 {
     return pci_assign_dev_load_option_rom(&s->dev, size,
                                           dev->domain, dev->bus,
                                           dev->dev, dev->func);
+}
+
+static void xen_pt_direct_vbios_copy(XenPCIPassthroughState *s, Error **errp)
+{
+    int fd = -1;
+    void *guest_bios = NULL;
+    void *host_vbios = NULL;
+    /* This is always 32 pages in the real mode reserved region */
+    int bios_size = 32 << XC_PAGE_SHIFT;
+    int vbios_addr = 0xc0000;
+
+    fd = open("/dev/mem", O_RDONLY);
+    if (fd == -1) {
+        error_setg(errp, "Can't open /dev/mem: %s", strerror(errno));
+        return;
+    }
+    host_vbios = mmap(NULL, bios_size,
+            PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, fd, vbios_addr);
+    close(fd);
+
+    if (host_vbios == MAP_FAILED) {
+        error_setg(errp, "Failed to mmap host vbios: %s", strerror(errno));
+        return;
+    }
+
+    memory_region_init_ram(&s->dev.rom, OBJECT(&s->dev),
+            "legacy_vbios.rom", bios_size, &error_abort);
+    guest_bios = memory_region_get_ram_ptr(&s->dev.rom);
+    memcpy(guest_bios, host_vbios, bios_size);
+
+    if (munmap(host_vbios, bios_size) == -1) {
+        XEN_PT_LOG(&s->dev, "Failed to unmap host vbios: %s\n", strerror(errno));
+    }
+
+    cpu_physical_memory_write(vbios_addr, guest_bios, bios_size);
+    memory_region_set_address(&s->dev.rom, vbios_addr);
+    pci_register_bar(&s->dev, PCI_ROM_SLOT, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->dev.rom);
+    s->dev.has_rom = true;
+    XEN_PT_LOG(&s->dev, "Legacy VBIOS registered\n");
 }
 
 /* Refer to Seabios. */
@@ -179,9 +218,11 @@ void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
         return;
     }
 
-    bios = get_vgabios(s, &bios_size, dev);
+    bios = get_sysfs_vgabios(s, &bios_size, dev);
     if (!bios) {
-        error_setg(errp, "VGA: Can't get VBIOS");
+        XEN_PT_LOG(&s->dev, "Unable to get host VBIOS from sysfs - "
+                            "falling back to a direct copy of memory ranges\n");
+        xen_pt_direct_vbios_copy(s, errp);
         return;
     }
 
@@ -223,6 +264,7 @@ void xen_pt_setup_vga(XenPCIPassthroughState *s, XenHostPCIDevice *dev,
 
     /* Currently we fixed this address as a primary for legacy BIOS. */
     cpu_physical_memory_write(0xc0000, bios, bios_size);
+    XEN_PT_LOG(&s->dev, "Legacy VBIOS registered\n");
 }
 
 uint32_t igd_read_opregion(XenPCIPassthroughState *s)
