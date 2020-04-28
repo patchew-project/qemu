@@ -1331,8 +1331,8 @@ int object_property_get_enum(Object *obj, const char *name,
  * undefined if an error occurs (including when the property value is not
  * an list of integers).
  */
-void object_property_get_uint16List(Object *obj, const char *name,
-                                    uint16List **list, Error **errp);
+uint16List *object_property_get_uint16List(Object *obj, const char *name,
+                                           Error **errp);
 
 /**
  * object_property_set:

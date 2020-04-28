@@ -1559,10 +1559,11 @@ int object_property_get_enum(Object *obj, const char *name,
     return ret;
 }
 
-void object_property_get_uint16List(Object *obj, const char *name,
-                                    uint16List **list, Error **errp)
+uint16List *object_property_get_uint16List(Object *obj, const char *name,
+                                           Error **errp)
 {
     Error *err = NULL;
+    uint16List *list = NULL;
     Visitor *v;
     char *str;
 
@@ -1575,11 +1576,11 @@ void object_property_get_uint16List(Object *obj, const char *name,
     visit_complete(v, &str);
     visit_free(v);
     v = string_input_visitor_new(str);
-    visit_type_uint16List(v, NULL, list, errp);
-
+    visit_type_uint16List(v, NULL, &list, errp);
     g_free(str);
 out:
     visit_free(v);
+    return list;
 }
 
 void object_property_parse(Object *obj, const char *string,

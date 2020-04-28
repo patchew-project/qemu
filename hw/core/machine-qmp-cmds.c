@@ -325,9 +325,9 @@ static int query_memdev(Object *obj, void *opaque)
                                                     "policy",
                                                     "HostMemPolicy",
                                                     &error_abort);
-        object_property_get_uint16List(obj, "host-nodes",
-                                       &m->value->host_nodes,
-                                       &error_abort);
+        m->value->host_nodes = object_property_get_uint16List(obj,
+                                                              "host-nodes",
+                                                              &error_abort);
 
         m->next = *list;
         *list = m;
