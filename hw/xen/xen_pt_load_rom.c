@@ -38,12 +38,12 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
     fp = fopen(rom_file, "r+");
     if (fp == NULL) {
         if (errno != ENOENT) {
-            error_report("pci-assign: Cannot open %s: %s", rom_file, strerror(errno));
+            warn_report("pci-assign: Cannot open %s: %s", rom_file, strerror(errno));
         }
         return NULL;
     }
     if (fstat(fileno(fp), &st) == -1) {
-        error_report("pci-assign: Cannot stat %s: %s", rom_file, strerror(errno));
+        warn_report("pci-assign: Cannot stat %s: %s", rom_file, strerror(errno));
         goto close_rom;
     }
 
@@ -59,10 +59,9 @@ void *pci_assign_dev_load_option_rom(PCIDevice *dev,
     memset(ptr, 0xff, st.st_size);
 
     if (!fread(ptr, 1, st.st_size, fp)) {
-        error_report("pci-assign: Cannot read from host %s", rom_file);
-        error_printf("Device option ROM contents are probably invalid "
-                     "(check dmesg).\nSkip option ROM probe with rombar=0, "
-                     "or load from file with romfile=\n");
+        warn_report("pci-assign: Cannot read from host %s", rom_file);
+        memory_region_unref(&dev->rom);
+        ptr = NULL;
         goto close_rom;
     }
 
