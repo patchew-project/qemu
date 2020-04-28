@@ -493,10 +493,16 @@ int bdrv_commit(BlockDriverState *bs)
     }
 
     if (drv->bdrv_make_empty) {
-        ret = drv->bdrv_make_empty(bs);
+        ret = blk_set_perm(src, BLK_PERM_WRITE, BLK_PERM_ALL, NULL);
         if (ret < 0) {
             goto ro_cleanup;
         }
+
+        ret = blk_make_empty(src, NULL);
+        if (ret < 0) {
+            goto ro_cleanup;
+        }
+
         blk_flush(src);
     }
 
