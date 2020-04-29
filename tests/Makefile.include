@@ -4,7 +4,7 @@
 check-help:
 	@echo "Regression testing targets:"
 	@echo
-	@echo " $(MAKE) check                Run unit, qapi-schema, qtest and decodetree"
+	@echo " $(MAKE) check                Run unit, qapi-schema, qtest and decodetree flake8"
 	@echo
 	@echo " $(MAKE) check-qtest-TARGET   Run qtest tests for given target"
 	@echo " $(MAKE) check-qtest          Run qtest tests"
@@ -19,6 +19,7 @@ check-help:
 	@echo " $(MAKE) check-report.tap     Generates an aggregated TAP test report"
 	@echo " $(MAKE) check-venv           Creates a Python venv for tests"
 	@echo " $(MAKE) check-clean          Clean the tests and related data"
+	@echo " $(MAKE) check-flake8         Clean the tests and related data"
 	@echo
 	@echo " $(MAKE) get-vm-images        Downloads all images used by acceptance tests, according to configured targets (~350 MB each, 1.5 GB max)"
 	@echo
@@ -923,7 +924,40 @@ check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 ifeq ($(CONFIG_TOOLS),y)
 check-block: $(patsubst %,check-%, $(check-block-y))
 endif
-check: check-block check-qapi-schema check-unit check-softfloat check-qtest check-decodetree
+
+is_git := $(shell test -d $(SRC_PATH)/.git && echo 1 || echo 0)
+
+ifeq (1, $(is_git))
+PYTHON_FILES = $(shell git ls-tree -r HEAD: --name-only | grep '.py$$')
+PYTHON_FILES += $(shell git ls-tree -r HEAD: --name-only tests/qemu-iotests/??? | xargs grep -l '/usr/bin/env python')
+
+# Validate many python style rules
+FLAKE8_INDENTATION = E111,E114,E115,E116,E117,E121,E122,E123,E124,E125,E126,E127,E128,E129,E131
+FLAKE8_WHITESPACE = E201,E202,E203,E211,E221,E222,E225,E226,E228,E231,E241,E251,E261,E265,E266
+FLAKE8_BLANK_LINES = E301,E302,E303,E305,E306
+FLAKE8_IMPORTS = E401,E402
+FLAKE8_LINE_LENGTH = E501,E502
+FLAKE8_STATEMENTS = E701,E702,E703,E711,E712,E713,E714,E722,E731,E741
+FLAKE8_ERRORS = F401,F403,F405,F811,F821,F841
+FLAKE8_WARNINGS = W391,W503,W504,W605
+
+FLAKE8_IGNORE = $(FLAKE8_INDENTATION),$\
+               $(FLAKE8_WHITESPACE),$\
+               $(FLAKE8_BLANK_LINES),$\
+               $(FLAKE8_IMPORTS),$\
+               $(FLAKE8_LINE_LENGTH),$\
+               $(FLAKE8_STATEMENTS),$\
+               $(FLAKE8_ERRORS),$\
+               $(FLAKE8_WARNINGS) \
+               $(NULL)
+
+check-flake8:
+	$(call quiet-command,flake8 --ignore=$(FLAKE8_IGNORE) $(PYTHON_FILES))
+else
+check-flake8:
+endif
+
+check: check-block check-qapi-schema check-unit check-softfloat check-qtest check-decodetree check-flake8
 check-clean:
 	rm -rf $(check-unit-y) tests/*.o tests/*/*.o $(QEMU_IOTESTS_HELPERS-y)
 	rm -rf $(sort $(foreach target,$(SYSEMU_TARGET_LIST), $(check-qtest-$(target)-y:%=tests/qtest/%$(EXESUF))) $(check-qtest-generic-y:%=tests/qtest/%$(EXESUF)))
