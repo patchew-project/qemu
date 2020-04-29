@@ -190,6 +190,9 @@ static void pcspk_realizefn(DeviceState *dev, Error **errp)
 
     isa_register_ioport(isadev, &s->ioport, s->iobase);
 
+    if (!s->card.state) {
+        s->card.state = audio_state_by_name("onboard");
+    }
     if (s->card.state) {
         pcspk_audio_init(s);
     }
