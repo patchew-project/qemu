@@ -302,6 +302,7 @@ audio_win_int=""
 libs_qga=""
 debug_info="yes"
 stack_protector=""
+safe_stack="no"
 use_containers="yes"
 gdb_bin=$(command -v "gdb")
 
@@ -1275,6 +1276,8 @@ for opt do
   ;;
   --disable-stack-protector) stack_protector="no"
   ;;
+  --enable-safe-stack) safe_stack="yes"
+  ;;
   --disable-curses) curses="no"
   ;;
   --enable-curses) curses="yes"
@@ -1774,6 +1777,8 @@ Advanced options (experts only):
   --with-coroutine=BACKEND coroutine backend. Supported options:
                            ucontext, sigaltstack, windows
   --enable-gcov            enable test coverage analysis with gcov
+  --enable-safe-stack      enable the SafeStack stack protection. Depends on
+                           clang/llvm >= 3.7 and coroutine backend ucontext.
   --gcov=GCOV              use specified gcov [$gcov_tool]
   --disable-blobs          disable installing provided firmware blobs
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
@@ -5501,6 +5506,29 @@ if test "$debug_stack_usage" = "yes"; then
   fi
 fi
 
+##################################################
+# Check if SafeStack is enabled and supported
+
+if test "$safe_stack" = "yes"; then
+  cat > $TMPC << EOF
+int main(int argc, char *argv[])
+{
+    return 0;
+}
+EOF
+  flag="-fsanitize=safe-stack"
+  # Check that safe-stack is supported.
+  if compile_prog "-Werror $flag" ""; then
+    # Flag needed both at compilation and at linking
+    QEMU_CFLAGS="$QEMU_CFLAGS $flag"
+    QEMU_LDFLAGS="$QEMU_LDFLAGS $flag"
+  else
+    error_exit "SafeStack not supported by your compiler"
+  fi
+  if test "$coroutine" != "ucontext"; then
+    error_exit "SafeStack is only supported by the coroutine backend ucontext"
+  fi
+fi
 
 ##########################################
 # check if we have open_by_handle_at
@@ -6595,6 +6623,7 @@ echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
 echo "profiler          $profiler"
 echo "static build      $static"
+echo "safe stack        $safe_stack"
 if test "$darwin" = "yes" ; then
     echo "Cocoa support     $cocoa"
 fi
