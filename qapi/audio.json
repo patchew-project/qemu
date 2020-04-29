@@ -153,6 +153,51 @@
     '*latency': 'uint32' } }
 
 ##
+# @AudiodevJackPerDirectionOptions:
+#
+# Options of the JACK backend that are used for both playback and
+# recording.
+#
+# @server_name: select from among several possible concurrent server instances.
+# If unspecified, use "default" unless $JACK_DEFAULT_SERVER is defined in the
+# process environment.
+#
+# @client_name: the client name to use. The server will modify this name to
+# create a unique variant, if needed unless @exact_name is true.
+#
+# @start_server: set to true to start a jack server instance if one is not
+# present.
+#
+# @exact_name: use the exact name requested otherwise JACK automatically
+# generates a unique one, if needed.
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevJackPerDirectionOptions',
+  'base': 'AudiodevPerDirectionOptions',
+  'data': {
+    '*server_name':  'str',
+    '*client_name':  'str',
+    '*start_server': 'bool',
+    '*exact_name':   'bool' } }
+
+##
+# @AudiodevJackOptions:
+#
+# Options of the JACK audio backend.
+#
+# @in: options of the capture stream
+#
+# @out: options of the playback stream
+#
+# Since: 4.0
+##
+{ 'struct': 'AudiodevJackOptions',
+  'data': {
+    '*in':  'AudiodevJackPerDirectionOptions',
+    '*out': 'AudiodevJackPerDirectionOptions' } }
+
+##
 # @AudiodevOssPerDirectionOptions:
 #
 # Options of the OSS backend that are used for both playback and
@@ -300,8 +345,8 @@
 # Since: 4.0
 ##
 { 'enum': 'AudiodevDriver',
-  'data': [ 'none', 'alsa', 'coreaudio', 'dsound', 'oss', 'pa', 'sdl',
-            'spice', 'wav' ] }
+  'data': [ 'none', 'alsa', 'coreaudio', 'dsound', 'jack', 'oss', 'pa',
+            'sdl', 'spice', 'wav' ] }
 
 ##
 # @Audiodev:
@@ -327,6 +372,7 @@
     'alsa':      'AudiodevAlsaOptions',
     'coreaudio': 'AudiodevCoreaudioOptions',
     'dsound':    'AudiodevDsoundOptions',
+    'jack':      'AudiodevJackOptions',
     'oss':       'AudiodevOssOptions',
     'pa':        'AudiodevPaOptions',
     'sdl':       'AudiodevGenericOptions',
