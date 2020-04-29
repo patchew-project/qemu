@@ -112,7 +112,7 @@ static void pcspk_callback(void *opaque, int free)
     }
 }
 
-static int pcspk_audio_init(ISABus *bus)
+static int pcspk_audio_init(BusState *bus)
 {
     PCSpkState *s = pcspk_state;
     struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUDIO_FORMAT_U8, 0};
@@ -218,14 +218,21 @@ static Property pcspk_properties[] = {
 static void pcspk_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+    SoundHwCmdlineClass *sk = SOUNDHW_CMDLINE_CLASS(klass);
 
     dc->realize = pcspk_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
+    dc->desc = "PC speaker";
     dc->vmsd = &vmstate_spk;
     device_class_set_props(dc, pcspk_properties);
     /* Reason: realize sets global pcspk_state */
     /* Reason: pit object link */
     dc->user_creatable = false;
+    sk->cmdline_name = "pcspk";
+
+    if (0) {
+        pcspk_audio_init(NULL); /* XXX */
+    }
 }
 
 static const TypeInfo pcspk_info = {
@@ -234,11 +241,14 @@ static const TypeInfo pcspk_info = {
     .instance_size  = sizeof(PCSpkState),
     .instance_init  = pcspk_initfn,
     .class_init     = pcspk_class_initfn,
+    .interfaces = (InterfaceInfo[]) {
+        { SOUNDHW_CMDLINE_INTERFACE },
+        { },
+    },
 };
 
 static void pcspk_register(void)
 {
     type_register_static(&pcspk_info);
-    isa_register_soundhw("pcspk", "PC speaker", pcspk_audio_init);
 }
 type_init(pcspk_register)

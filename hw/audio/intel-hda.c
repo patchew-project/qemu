@@ -1281,11 +1281,15 @@ static const TypeInfo intel_hda_info_ich9 = {
 static void hda_codec_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
+    SoundHwCmdlineClass *shc = SOUNDHW_CMDLINE_CLASS(klass);
+
     k->realize = hda_codec_dev_realize;
     k->unrealize = hda_codec_dev_unrealize;
     set_bit(DEVICE_CATEGORY_SOUND, k->categories);
     k->bus_type = TYPE_HDA_BUS;
     device_class_set_props(k, hda_props);
+    k->desc = "Intel HD Audio";
+    shc->cmdline_name = "hda";
 }
 
 static const TypeInfo hda_codec_device_type_info = {
@@ -1295,6 +1299,10 @@ static const TypeInfo hda_codec_device_type_info = {
     .abstract = true,
     .class_size = sizeof(HDACodecDeviceClass),
     .class_init = hda_codec_device_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { SOUNDHW_CMDLINE_INTERFACE },
+        { },
+    },
 };
 
 /*
@@ -1321,7 +1329,10 @@ static void intel_hda_register_types(void)
     type_register_static(&intel_hda_info_ich6);
     type_register_static(&intel_hda_info_ich9);
     type_register_static(&hda_codec_device_type_info);
-    pci_register_soundhw("hda", "Intel HD Audio", intel_hda_and_codec_init);
+
+    if (0) {
+        intel_hda_and_codec_init(NULL); /* XXX */
+    }
 }
 
 type_init(intel_hda_register_types)

@@ -1,13 +1,23 @@
 #ifndef HW_SOUNDHW_H
 #define HW_SOUNDHW_H
 
-void isa_register_soundhw(const char *name, const char *descr,
-                          int (*init_isa)(ISABus *bus));
-
-void pci_register_soundhw(const char *name, const char *descr,
-                          int (*init_pci)(PCIBus *bus));
+#include "qom/object.h"
 
 void soundhw_init(void);
 void select_soundhw(const char *optarg);
+
+#define SOUNDHW_CMDLINE_INTERFACE "soundhw-deprecated"
+
+#define SOUNDHW_CMDLINE_CLASS(class) \
+    OBJECT_CLASS_CHECK(SoundHwCmdlineClass, (class), SOUNDHW_CMDLINE_INTERFACE)
+
+typedef struct SoundHwCmdlineClass {
+    /*< private >*/
+    InterfaceClass parent_class;
+    /*< public >*/
+
+    const char *cmdline_name;
+    bool option_used;
+} SoundHwCmdlineClass;
 
 #endif

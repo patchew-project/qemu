@@ -31,125 +31,140 @@
 
 struct soundhw {
     const char *name;
-    const char *descr;
-    int enabled;
-    int isa;
-    union {
-        int (*init_isa) (ISABus *bus);
-        int (*init_pci) (PCIBus *bus);
-    } init;
+    bool is_found;
 };
 
-static struct soundhw soundhw[9];
-static int soundhw_count;
-
-void isa_register_soundhw(const char *name, const char *descr,
-                          int (*init_isa)(ISABus *bus))
+static gint soundhw_list_compare(gconstpointer a, gconstpointer b)
 {
-    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
-    soundhw[soundhw_count].name = name;
-    soundhw[soundhw_count].descr = descr;
-    soundhw[soundhw_count].isa = 1;
-    soundhw[soundhw_count].init.init_isa = init_isa;
-    soundhw_count++;
+    SoundHwCmdlineClass *sc_a = SOUNDHW_CMDLINE_CLASS(a);
+    SoundHwCmdlineClass *sc_b = SOUNDHW_CMDLINE_CLASS(b);
+
+    return strcmp(sc_a->cmdline_name, sc_b->cmdline_name);
 }
 
-void pci_register_soundhw(const char *name, const char *descr,
-                          int (*init_pci)(PCIBus *bus))
+static void soundhw_list_entry(gpointer data, gpointer user_data)
 {
-    assert(soundhw_count < ARRAY_SIZE(soundhw) - 1);
-    soundhw[soundhw_count].name = name;
-    soundhw[soundhw_count].descr = descr;
-    soundhw[soundhw_count].isa = 0;
-    soundhw[soundhw_count].init.init_pci = init_pci;
-    soundhw_count++;
+    SoundHwCmdlineClass *sc = SOUNDHW_CMDLINE_CLASS(data);
+    DeviceClass *dc = DEVICE_CLASS(data);
+
+    printf("%-11s %s\n", sc->cmdline_name, dc->desc);
+}
+
+static void soundhw_check_enable_entry(gpointer data, gpointer user_data)
+{
+    SoundHwCmdlineClass *sc = SOUNDHW_CMDLINE_CLASS(data);
+    struct soundhw *d = user_data;
+
+    if (g_str_equal(d->name, "all") || g_str_equal(d->name, sc->cmdline_name)) {
+        sc->option_used = d->is_found = true;
+    }
+}
+
+static void soundhw_list(GSList *list)
+{
+    if (!list) {
+        printf("Machine has no user-selectable audio hardware "
+                "(it may or may not have always-present audio hardware).\n");
+        return;
+    }
+    list = g_slist_sort(list, soundhw_list_compare);
+    printf("Valid sound card names (comma separated):\n");
+    g_slist_foreach(list, soundhw_list_entry, NULL);
+    printf("\n-soundhw all will enable all of the above\n");
 }
 
 void select_soundhw(const char *optarg)
 {
-    struct soundhw *c;
+    struct soundhw data;
+    GSList *list;
+
+    list = object_class_get_list(SOUNDHW_CMDLINE_INTERFACE, false);
 
     if (is_help_option(optarg)) {
-    show_valid_cards:
-
-        if (soundhw_count) {
-             printf("Valid sound card names (comma separated):\n");
-             for (c = soundhw; c->name; ++c) {
-                 printf ("%-11s %s\n", c->name, c->descr);
-             }
-             printf("\n-soundhw all will enable all of the above\n");
-        } else {
-             printf("Machine has no user-selectable audio hardware "
-                    "(it may or may not have always-present audio hardware).\n");
-        }
-        exit(!is_help_option(optarg));
+        soundhw_list(list);
+        exit(0);
     }
-    else {
-        size_t l;
-        const char *p;
-        char *e;
-        int bad_card = 0;
 
-        if (!strcmp(optarg, "all")) {
-            for (c = soundhw; c->name; ++c) {
-                c->enabled = 1;
+    if (strchr(optarg, ',')) {
+        char **parts = g_strsplit(optarg, ",", 0);
+        char **tmp;
+
+        for (tmp = parts; tmp && *tmp; tmp++) {
+            data = (struct soundhw){ .name = *tmp };
+            g_slist_foreach(list, soundhw_check_enable_entry, &data);
+            if (!data.is_found) {
+                goto invalid_name;
             }
-            return;
         }
-
-        p = optarg;
-        while (*p) {
-            e = strchr(p, ',');
-            l = !e ? strlen(p) : (size_t) (e - p);
-
-            for (c = soundhw; c->name; ++c) {
-                if (!strncmp(c->name, p, l) && !c->name[l]) {
-                    c->enabled = 1;
-                    break;
-                }
-            }
-
-            if (!c->name) {
-                if (l > 80) {
-                    error_report("Unknown sound card name (too big to show)");
-                }
-                else {
-                    error_report("Unknown sound card name `%.*s'",
-                                 (int) l, p);
-                }
-                bad_card = 1;
-            }
-            p += l + (e != NULL);
+        g_strfreev(parts);
+    } else {
+        data = (struct soundhw){ .name = optarg };
+        g_slist_foreach(list, soundhw_check_enable_entry, &data);
+        if (!data.is_found) {
+            goto invalid_name;
         }
+    }
+    g_slist_free(list);
+    return;
 
-        if (bad_card) {
-            goto show_valid_cards;
+invalid_name:
+    error_report("Unknown sound card name `%s'", data.name);
+    soundhw_list(list);
+    exit(1);
+}
+
+static void soundhw_create_entry(gpointer data, gpointer user_data)
+{
+    ObjectClass *oc = data;
+    SoundHwCmdlineClass *sc = SOUNDHW_CMDLINE_CLASS(oc);
+    const char *typename = object_class_get_name(oc);
+    BusState *bus;
+
+    if (!sc->option_used) {
+        return;
+    }
+
+    warn_report("'-soundhw %s' is deprecated, please use '-device %s' instead",
+                sc->cmdline_name, typename);
+
+    if (object_class_dynamic_cast(oc, TYPE_ISA_DEVICE)) {
+        bus = (BusState *)object_resolve_path_type("", TYPE_ISA_BUS, NULL);
+        if (!bus) {
+            error_report("ISA bus not available for %s", sc->cmdline_name);
+            exit(1);
         }
+        isa_create_simple(ISA_BUS(bus), typename);
+    }
+    if (object_class_dynamic_cast(oc, TYPE_PCI_DEVICE)) {
+        bus = (BusState *)object_resolve_path_type("", TYPE_PCI_BUS, NULL);
+        if (!bus) {
+            error_report("PCI bus not available for %s", sc->cmdline_name);
+            exit(1);
+        }
+        pci_create_simple(PCI_BUS(bus), -1, typename);
     }
 }
 
 void soundhw_init(void)
 {
-    struct soundhw *c;
-    ISABus *isa_bus = (ISABus *) object_resolve_path_type("", TYPE_ISA_BUS, NULL);
-    PCIBus *pci_bus = (PCIBus *) object_resolve_path_type("", TYPE_PCI_BUS, NULL);
+    GSList *list;
 
-    for (c = soundhw; c->name; ++c) {
-        if (c->enabled) {
-            if (c->isa) {
-                if (!isa_bus) {
-                    error_report("ISA bus not available for %s", c->name);
-                    exit(1);
-                }
-                c->init.init_isa(isa_bus);
-            } else {
-                if (!pci_bus) {
-                    error_report("PCI bus not available for %s", c->name);
-                    exit(1);
-                }
-                c->init.init_pci(pci_bus);
-            }
-        }
+    list = object_class_get_list(SOUNDHW_CMDLINE_INTERFACE, false);
+    if (list) {
+        g_slist_foreach(list, soundhw_create_entry, NULL);
+        g_slist_free(list);
     }
 }
 
+static const TypeInfo soundhw_interface_info = {
+    .name       = SOUNDHW_CMDLINE_INTERFACE,
+    .parent     = TYPE_INTERFACE,
+    .class_size = sizeof(SoundHwCmdlineClass),
+};
+
+static void soundhw_register_types(void)
+{
+    type_register_static(&soundhw_interface_info);
+}
+
+type_init(soundhw_register_types)

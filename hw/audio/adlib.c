@@ -308,11 +308,13 @@ static Property adlib_properties[] = {
 static void adlib_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
+    SoundHwCmdlineClass *sk = SOUNDHW_CMDLINE_CLASS(klass);
 
     dc->realize = adlib_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = ADLIB_DESC;
     device_class_set_props(dc, adlib_properties);
+    sk->cmdline_name = "adlib";
 }
 
 static const TypeInfo adlib_info = {
@@ -320,18 +322,15 @@ static const TypeInfo adlib_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (AdlibState),
     .class_init    = adlib_class_initfn,
+    .interfaces    = (InterfaceInfo[]) {
+        { SOUNDHW_CMDLINE_INTERFACE },
+        { },
+    },
 };
-
-static int Adlib_init (ISABus *bus)
-{
-    isa_create_simple (bus, TYPE_ADLIB);
-    return 0;
-}
 
 static void adlib_register_types (void)
 {
     type_register_static (&adlib_info);
-    isa_register_soundhw("adlib", ADLIB_DESC, Adlib_init);
 }
 
 type_init (adlib_register_types)

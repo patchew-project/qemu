@@ -292,12 +292,6 @@ static void gus_realizefn (DeviceState *dev, Error **errp)
     AUD_set_active_out (s->voice, 1);
 }
 
-static int GUS_init (ISABus *bus)
-{
-    isa_create_simple (bus, TYPE_GUS);
-    return 0;
-}
-
 static Property gus_properties[] = {
     DEFINE_AUDIO_PROPERTIES(GUSState, card),
     DEFINE_PROP_UINT32 ("freq",    GUSState, freq,        44100),
@@ -310,12 +304,14 @@ static Property gus_properties[] = {
 static void gus_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
+    SoundHwCmdlineClass *sk = SOUNDHW_CMDLINE_CLASS(klass);
 
     dc->realize = gus_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Gravis Ultrasound GF1";
     dc->vmsd = &vmstate_gus;
     device_class_set_props(dc, gus_properties);
+    sk->cmdline_name = "gus";
 }
 
 static const TypeInfo gus_info = {
@@ -323,12 +319,15 @@ static const TypeInfo gus_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof (GUSState),
     .class_init    = gus_class_initfn,
+    .interfaces    = (InterfaceInfo[]) {
+        { SOUNDHW_CMDLINE_INTERFACE },
+        { },
+    },
 };
 
 static void gus_register_types (void)
 {
     type_register_static (&gus_info);
-    isa_register_soundhw("gus", "Gravis Ultrasound GF1", GUS_init);
 }
 
 type_init (gus_register_types)

@@ -1395,12 +1395,6 @@ static void ac97_exit(PCIDevice *dev)
     AUD_remove_card(&s->card);
 }
 
-static int ac97_init (PCIBus *bus)
-{
-    pci_create_simple(bus, -1, TYPE_AC97);
-    return 0;
-}
-
 static Property ac97_properties[] = {
     DEFINE_AUDIO_PROPERTIES(AC97LinkState, card),
     DEFINE_PROP_END_OF_LIST (),
@@ -1410,6 +1404,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
+    SoundHwCmdlineClass *sk = SOUNDHW_CMDLINE_CLASS(klass);
 
     k->realize = ac97_realize;
     k->exit = ac97_exit;
@@ -1422,6 +1417,7 @@ static void ac97_class_init (ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_ac97;
     device_class_set_props(dc, ac97_properties);
     dc->reset = ac97_on_reset;
+    sk->cmdline_name = "ac97";
 }
 
 static const TypeInfo ac97_info = {
@@ -1431,6 +1427,7 @@ static const TypeInfo ac97_info = {
     .class_init    = ac97_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { SOUNDHW_CMDLINE_INTERFACE },
         { },
     },
 };
@@ -1438,7 +1435,6 @@ static const TypeInfo ac97_info = {
 static void ac97_register_types (void)
 {
     type_register_static (&ac97_info);
-    pci_register_soundhw("ac97", "Intel 82801AA AC97 Audio", ac97_init);
 }
 
 type_init (ac97_register_types)

@@ -1415,12 +1415,6 @@ static void sb16_realizefn (DeviceState *dev, Error **errp)
     AUD_register_card ("sb16", &s->card);
 }
 
-static int SB16_init (ISABus *bus)
-{
-    isa_create_simple (bus, TYPE_SB16);
-    return 0;
-}
-
 static Property sb16_properties[] = {
     DEFINE_AUDIO_PROPERTIES(SB16State, card),
     DEFINE_PROP_UINT32 ("version", SB16State, ver,  0x0405), /* 4.5 */
@@ -1434,12 +1428,14 @@ static Property sb16_properties[] = {
 static void sb16_class_initfn (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
+    SoundHwCmdlineClass *sk = SOUNDHW_CMDLINE_CLASS(klass);
 
     dc->realize = sb16_realizefn;
     set_bit(DEVICE_CATEGORY_SOUND, dc->categories);
     dc->desc = "Creative Sound Blaster 16";
     dc->vmsd = &vmstate_sb16;
     device_class_set_props(dc, sb16_properties);
+    sk->cmdline_name = "sb16";
 }
 
 static const TypeInfo sb16_info = {
@@ -1448,12 +1444,15 @@ static const TypeInfo sb16_info = {
     .instance_size = sizeof (SB16State),
     .instance_init = sb16_initfn,
     .class_init    = sb16_class_initfn,
+    .interfaces    = (InterfaceInfo[]) {
+        { SOUNDHW_CMDLINE_INTERFACE },
+        { },
+    },
 };
 
 static void sb16_register_types (void)
 {
     type_register_static (&sb16_info);
-    isa_register_soundhw("sb16", "Creative Sound Blaster 16", SB16_init);
 }
 
 type_init (sb16_register_types)

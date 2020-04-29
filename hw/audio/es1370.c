@@ -881,12 +881,6 @@ static void es1370_exit(PCIDevice *dev)
     AUD_remove_card(&s->card);
 }
 
-static int es1370_init (PCIBus *bus)
-{
-    pci_create_simple (bus, -1, TYPE_ES1370);
-    return 0;
-}
-
 static Property es1370_properties[] = {
     DEFINE_AUDIO_PROPERTIES(ES1370State, card),
     DEFINE_PROP_END_OF_LIST(),
@@ -896,6 +890,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS (klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS (klass);
+    SoundHwCmdlineClass *sk = SOUNDHW_CMDLINE_CLASS(klass);
 
     k->realize = es1370_realize;
     k->exit = es1370_exit;
@@ -909,6 +904,7 @@ static void es1370_class_init (ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_es1370;
     dc->reset = es1370_on_reset;
     device_class_set_props(dc, es1370_properties);
+    sk->cmdline_name = "es1370";
 }
 
 static const TypeInfo es1370_info = {
@@ -918,6 +914,7 @@ static const TypeInfo es1370_info = {
     .class_init    = es1370_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
+        { SOUNDHW_CMDLINE_INTERFACE },
         { },
     },
 };
@@ -925,7 +922,6 @@ static const TypeInfo es1370_info = {
 static void es1370_register_types (void)
 {
     type_register_static (&es1370_info);
-    pci_register_soundhw("es1370", "ENSONIQ AudioPCI ES1370", es1370_init);
 }
 
 type_init (es1370_register_types)
