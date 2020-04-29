@@ -30,6 +30,10 @@
 #include "qemu-common.h"
 #include "qemu/coroutine_int.h"
 
+#ifdef CONFIG_SAFESTACK
+#error "SafeStack does not work with sigaltstack's implementation"
+#endif
+
 typedef struct {
     Coroutine base;
     void *stack;
