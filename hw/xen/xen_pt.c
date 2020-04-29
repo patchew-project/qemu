@@ -483,8 +483,12 @@ static int xen_pt_register_regions(XenPCIPassthroughState *s, uint16_t *cmd)
                    i, r->size, r->base_addr, type);
     }
 
-    /* Register expansion ROM address */
-    if (d->rom.base_addr && d->rom.size) {
+    /*
+     * Register expansion ROM address. If we are dealing with a ROM
+     * shadow copy for legacy vga devices then don't bother to map it
+     * as previous code creates a proper shadow copy
+     */
+    if (d->rom.base_addr && d->rom.size && !(is_igd_vga_passthrough(d))) {
         uint32_t bar_data = 0;
 
         /* Re-set BAR reported by OS, otherwise ROM can't be read. */
