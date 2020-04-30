@@ -34,6 +34,7 @@
 #include "sysemu/accel.h"
 #include "hw/boards.h"
 #include "migration/vmstate.h"
+#include "qemu/log.h"
 
 //#define DEBUG_UNASSIGNED
 
@@ -1307,12 +1308,19 @@ static uint64_t memory_region_ram_device_read(void *opaque,
     return data;
 }
 
-static void memory_region_ram_device_write(void *opaque, hwaddr addr,
-                                           uint64_t data, unsigned size)
+static MemTxResult memory_region_ram_device_write(void *opaque, hwaddr addr,
+                                           uint64_t data, unsigned size,
+                                           MemTxAttrs attrs)
 {
     MemoryRegion *mr = opaque;
 
     trace_memory_region_ram_device_write(get_cpu_index(), mr, addr, data, size);
+    if (mr->readonly) {
+        qemu_log_mask(LOG_GUEST_ERROR,
+                      "Invalid write to read only ram device region addr 0x%"
+                       HWADDR_PRIx" size %u\n", addr, size);
+        return MEMTX_ERROR;
+    }
 
     switch (size) {
     case 1:
@@ -1328,11 +1336,12 @@ static void memory_region_ram_device_write(void *opaque, hwaddr addr,
         *(uint64_t *)(mr->ram_block->host + addr) = data;
         break;
     }
+    return MEMTX_OK;
 }
 
 static const MemoryRegionOps ram_device_mem_ops = {
     .read = memory_region_ram_device_read,
-    .write = memory_region_ram_device_write,
+    .write_with_attrs = memory_region_ram_device_write,
     .endianness = DEVICE_HOST_ENDIAN,
     .valid = {
         .min_access_size = 1,
