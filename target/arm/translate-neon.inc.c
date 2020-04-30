@@ -1322,9 +1322,15 @@ static bool trans_VQRDMULH_3s(DisasContext *s, arg_3same *a)
     return do_3same_32(s, a, fns[a->size - 1]);
 }
 
-static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
+static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn,
+                        bool reads_vd)
 {
-    /* FP operations handled elementwise 32 bits at a time */
+    /*
+     * FP operations handled elementwise 32 bits at a time.
+     * If reads_vd is true then the old value of Vd will be
+     * loaded before calling the callback function. This is
+     * used for multiply-accumulate type operations.
+     */
     TCGv_i32 tmp, tmp2;
     int pass;
 
@@ -1350,9 +1356,16 @@ static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
     for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
         tmp = neon_load_reg(a->vn, pass);
         tmp2 = neon_load_reg(a->vm, pass);
-        fn(tmp, tmp, tmp2, fpstatus);
+        if (reads_vd) {
+            TCGv_i32 tmp_rd = neon_load_reg(a->vd, pass);
+            fn(tmp_rd, tmp, tmp2, fpstatus);
+            neon_store_reg(a->vd, pass, tmp_rd);
+            tcg_temp_free_i32(tmp);
+        } else {
+            fn(tmp, tmp, tmp2, fpstatus);
+            neon_store_reg(a->vd, pass, tmp);
+        }
         tcg_temp_free_i32(tmp2);
-        neon_store_reg(a->vd, pass, tmp);
     }
     tcg_temp_free_ptr(fpstatus);
     return true;
@@ -1362,19 +1375,37 @@ static bool do_3same_fp(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
  * For all the functions using this macro, size == 1 means fp16,
  * which is an architecture extension we don't implement yet.
  */
-#define DO_3S_FP(INSN,FUNC)                                         \
+#define DO_3S_FP(INSN,FUNC,READS_VD)                                \
     static bool trans_##INSN##_fp_3s(DisasContext *s, arg_3same *a) \
     {                                                               \
         if (a->size != 0) {                                         \
             /* TODO fp16 support */                                 \
             return false;                                           \
         }                                                           \
-        return do_3same_fp(s, a, FUNC);                             \
+        return do_3same_fp(s, a, FUNC, READS_VD);                   \
     }
 
-DO_3S_FP(VADD, gen_helper_vfp_adds)
-DO_3S_FP(VSUB, gen_helper_vfp_subs)
-DO_3S_FP(VABD, gen_helper_neon_abd_f32)
+DO_3S_FP(VADD, gen_helper_vfp_adds, false)
+DO_3S_FP(VSUB, gen_helper_vfp_subs, false)
+DO_3S_FP(VABD, gen_helper_neon_abd_f32, false)
+DO_3S_FP(VMUL, gen_helper_vfp_muls, false)
+
+static void gen_VMLA_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_muls(vn, vn, vm, fpstatus);
+    gen_helper_vfp_adds(vd, vd, vn, fpstatus);
+}
+
+static void gen_VMLS_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
+                            TCGv_ptr fpstatus)
+{
+    gen_helper_vfp_muls(vn, vn, vm, fpstatus);
+    gen_helper_vfp_subs(vd, vd, vn, fpstatus);
+}
+
+DO_3S_FP(VMLA, gen_VMLA_fp_3s, true)
+DO_3S_FP(VMLS, gen_VMLS_fp_3s, true)
 
 static bool do_3same_fp_pair(DisasContext *s, arg_3same *a, VFPGen3OpSPFn *fn)
 {
