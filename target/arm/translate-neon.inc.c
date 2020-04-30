@@ -908,3 +908,65 @@ static bool trans_SHA256SU1_3s(DisasContext *s, arg_SHA256SU1_3s *a)
 
     return true;
 }
+
+static bool do_3same_64(DisasContext *s, arg_3same *a, NeonGenTwo64OpFn *fn)
+{
+    /* Handle 3-reg-same operations to be performed 64 bits at a time */
+    TCGv_i64 rn, rm, rd;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    rn = tcg_temp_new_i64();
+    rm = tcg_temp_new_i64();
+    rd = tcg_temp_new_i64();
+
+    for (pass = 0; pass < (a->q ? 2 : 1); pass++) {
+        neon_load_reg64(rn, a->vn + pass);
+        neon_load_reg64(rm, a->vm + pass);
+        fn(rd, rm, rn);
+        neon_store_reg64(rd, a->vd + pass);
+    }
+
+    tcg_temp_free_i64(rn);
+    tcg_temp_free_i64(rm);
+    tcg_temp_free_i64(rd);
+
+    return true;
+}
+
+#define DO_3SAME_64(INSN, FUNC)                                         \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        return do_3same_64(s, a, FUNC);                                 \
+    }
+
+#define DO_3SAME_64_ENV(INSN, FUNC)                                     \
+    static void gen_##INSN##_3s(TCGv_i64 d, TCGv_i64 n, TCGv_i64 m)     \
+    {                                                                   \
+        FUNC(d, cpu_env, n, m);                                         \
+    }                                                                   \
+    DO_3SAME_64(INSN, gen_##INSN##_3s)
+
+DO_3SAME_64(VRSHL_S64, gen_helper_neon_rshl_s64)
+DO_3SAME_64(VRSHL_U64, gen_helper_neon_rshl_u64)
+DO_3SAME_64_ENV(VQSHL_S64, gen_helper_neon_qshl_s64)
+DO_3SAME_64_ENV(VQSHL_U64, gen_helper_neon_qshl_u64)
+DO_3SAME_64_ENV(VQRSHL_S64, gen_helper_neon_qrshl_s64)
+DO_3SAME_64_ENV(VQRSHL_U64, gen_helper_neon_qrshl_u64)
