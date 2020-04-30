@@ -1439,10 +1439,10 @@ static int coroutine_fn bdrv_qed_co_writev(BlockDriverState *bs,
     return qed_co_request(bs, sector_num, qiov, nb_sectors, QED_AIOCB_WRITE);
 }
 
-static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
-                                                  int64_t offset,
-                                                  int bytes,
-                                                  BdrvRequestFlags flags)
+static int coroutine_fn bdrv_qed_co_pwrite_zeroes_old(BlockDriverState *bs,
+                                                      int64_t offset,
+                                                      int bytes,
+                                                      BdrvRequestFlags flags)
 {
     BDRVQEDState *s = bs->opaque;
 
@@ -1461,6 +1461,15 @@ static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
     return qed_co_request(bs, offset >> BDRV_SECTOR_BITS, &qiov,
                           bytes >> BDRV_SECTOR_BITS,
                           QED_AIOCB_WRITE | QED_AIOCB_ZERO);
+}
+
+static int coroutine_fn bdrv_qed_co_pwrite_zeroes(BlockDriverState *bs,
+                                                  int64_t offset,
+                                                  int64_t bytes,
+                                                  BdrvRequestFlags flags)
+{
+    assert(bytes <= INT_MAX);
+    return bdrv_qed_co_pwrite_zeroes_old(bs, offset, bytes, flags);
 }
 
 static int coroutine_fn bdrv_qed_co_truncate(BlockDriverState *bs,

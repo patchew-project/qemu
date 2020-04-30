@@ -3727,7 +3727,7 @@ static bool is_zero(BlockDriverState *bs, int64_t offset, int64_t bytes)
     return res >= 0 && (res & BDRV_BLOCK_ZERO) && nr == bytes;
 }
 
-static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
+static coroutine_fn int qcow2_co_pwrite_zeroes_old(BlockDriverState *bs,
     int64_t offset, int bytes, BdrvRequestFlags flags)
 {
     int ret;
@@ -3777,6 +3777,13 @@ static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
     qemu_co_mutex_unlock(&s->lock);
 
     return ret;
+}
+
+static coroutine_fn int qcow2_co_pwrite_zeroes(BlockDriverState *bs,
+    int64_t offset, int64_t bytes, BdrvRequestFlags flags)
+{
+    assert(bytes < INT_MAX);
+    return qcow2_co_pwrite_zeroes_old(bs, offset, bytes, flags);
 }
 
 static coroutine_fn int qcow2_co_pdiscard(BlockDriverState *bs,
