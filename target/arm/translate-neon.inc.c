@@ -712,3 +712,60 @@ DO_3SAME_GVEC3_NO_SZ_3(VMLS, mls_op)
 
 DO_3SAME_GVEC3_SHIFT(VSHL_S, sshl_op)
 DO_3SAME_GVEC3_SHIFT(VSHL_U, ushl_op)
+
+static bool do_vqrdmlah(DisasContext *s, arg_3same *a,
+                        gen_helper_gvec_3_ptr *fn)
+{
+    int vec_size = a->q ? 16 : 8;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON) ||
+        !dc_isar_feature(aa32_rdm, s)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if (!fn) {
+        return false; /* bad size */
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    tcg_gen_gvec_3_ptr(vfp_reg_offset(1, a->vd),
+                       vfp_reg_offset(1, a->vn),
+                       vfp_reg_offset(1, a->vm),
+                       cpu_env, vec_size, vec_size, 0, fn);
+    return true;
+}
+
+static bool trans_VQRDMLAH_3s(DisasContext *s, arg_3same *a)
+{
+    static gen_helper_gvec_3_ptr * const fns[] = {
+        NULL,
+        gen_helper_gvec_qrdmlah_s16,
+        gen_helper_gvec_qrdmlah_s32,
+        NULL,
+    };
+    return do_vqrdmlah(s, a, fns[a->size]);
+}
+
+static bool trans_VQRDMLSH_3s(DisasContext *s, arg_3same *a)
+{
+    static gen_helper_gvec_3_ptr * const fns[] = {
+        NULL,
+        gen_helper_gvec_qrdmlsh_s16,
+        gen_helper_gvec_qrdmlsh_s32,
+        NULL,
+    };
+    return do_vqrdmlah(s, a, fns[a->size]);
+}
