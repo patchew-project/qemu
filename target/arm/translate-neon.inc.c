@@ -1128,3 +1128,79 @@ DO_3SAME_QS32(VQRSHL_U,qrshl_u)
 
 DO_3SAME_SHIFT32(VRSHL_S, rshl_s)
 DO_3SAME_SHIFT32(VRSHL_U, rshl_u)
+
+static bool do_vaba(DisasContext *s, arg_3same *a,
+                    NeonGenTwoOpFn *abd_fn, NeonGenTwoOpFn *add_fn)
+{
+    /* VABA: handled elementwise 32 bits at a time, accumulating */
+    TCGv_i32 tmp, tmp2;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        tmp = neon_load_reg(a->vn, pass);
+        tmp2 = neon_load_reg(a->vm, pass);
+        abd_fn(tmp, tmp, tmp2);
+        tcg_temp_free_i32(tmp2);
+        tmp2 = neon_load_reg(a->vd, pass);
+        add_fn(tmp, tmp, tmp2);
+        tcg_temp_free_i32(tmp2);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    return true;
+}
+
+static bool trans_VABA_S_3s(DisasContext *s, arg_3same *a)
+{
+    static NeonGenTwoOpFn * const abd_fns[] = {
+        gen_helper_neon_abd_s8,
+        gen_helper_neon_abd_s16,
+        gen_helper_neon_abd_s32,
+    };
+    static NeonGenTwoOpFn * const add_fns[] = {
+        gen_helper_neon_add_u8,
+        gen_helper_neon_add_u16,
+        tcg_gen_add_i32,
+    };
+
+    if (a->size > 2) {
+        return false;
+    }
+    return do_vaba(s, a, abd_fns[a->size], add_fns[a->size]);
+}
+
+static bool trans_VABA_U_3s(DisasContext *s, arg_3same *a)
+{
+    static NeonGenTwoOpFn * const abd_fns[] = {
+        gen_helper_neon_abd_u8,
+        gen_helper_neon_abd_u16,
+        gen_helper_neon_abd_u32,
+    };
+    static NeonGenTwoOpFn * const add_fns[] = {
+        gen_helper_neon_add_u8,
+        gen_helper_neon_add_u16,
+        tcg_gen_add_i32,
+    };
+
+    if (a->size > 2) {
+        return false;
+    }
+    return do_vaba(s, a, abd_fns[a->size], add_fns[a->size]);
+}
