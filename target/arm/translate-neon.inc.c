@@ -1032,3 +1032,6 @@ static bool do_3same_32(DisasContext *s, arg_3same *a, NeonGenTwoOpFn *fn)
     }
 
 DO_3SAME_32(VHADD, hadd)
+DO_3SAME_32(VHSUB, hsub)
+DO_3SAME_32(VRHADD, rhadd)
+DO_3SAME_32(VABD, abd)
