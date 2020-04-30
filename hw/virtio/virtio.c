@@ -3812,6 +3812,19 @@ bool virtio_device_ioeventfd_enabled(VirtIODevice *vdev)
     return virtio_bus_ioeventfd_enabled(vbus);
 }
 
+/*
+ * Check if set_guest_notifiers() method is set by the init routine.
+ * Return true if yes, otherwise return false.
+ */
+bool virtio_device_guest_notifiers_initialized(VirtIODevice *vdev)
+{
+    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
+    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
+
+    return k->set_guest_notifiers;
+}
+
+
 static const TypeInfo virtio_device_info = {
     .name = TYPE_VIRTIO_DEVICE,
     .parent = TYPE_DEVICE,

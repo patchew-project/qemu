@@ -60,15 +60,13 @@ vhost_user_backend_dev_init(VhostUserBackend *b, VirtIODevice *vdev,
 void
 vhost_user_backend_start(VhostUserBackend *b)
 {
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(b->vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret, i ;
 
     if (b->started) {
         return;
     }
 
-    if (!k->set_guest_notifiers) {
+    if (!virtio_device_guest_notifiers_initialized(b->vdev)) {
         error_report("binding does not support guest notifiers");
         return;
     }
@@ -78,9 +76,8 @@ vhost_user_backend_start(VhostUserBackend *b)
         return;
     }
 
-    ret = k->set_guest_notifiers(qbus->parent, b->dev.nvqs, true);
+    ret = vhost_dev_assign_guest_notifiers(&b->dev, b->vdev, b->dev.nvqs);
     if (ret < 0) {
-        error_report("Error binding guest notifier");
         goto err_host_notifiers;
     }
 
@@ -104,7 +101,7 @@ vhost_user_backend_start(VhostUserBackend *b)
     return;
 
 err_guest_notifiers:
-    k->set_guest_notifiers(qbus->parent, b->dev.nvqs, false);
+    vhost_dev_drop_guest_notifiers(&b->dev, b->vdev, b->dev.nvqs);
 err_host_notifiers:
     vhost_dev_disable_notifiers(&b->dev, b->vdev);
 }
@@ -112,8 +109,6 @@ err_host_notifiers:
 void
 vhost_user_backend_stop(VhostUserBackend *b)
 {
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(b->vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret = 0;
 
     if (!b->started) {
@@ -122,9 +117,8 @@ vhost_user_backend_stop(VhostUserBackend *b)
 
     vhost_dev_stop(&b->dev, b->vdev);
 
-    if (k->set_guest_notifiers) {
-        ret = k->set_guest_notifiers(qbus->parent,
-                                     b->dev.nvqs, false);
+    if (virtio_device_guest_notifiers_initialized(b->vdev)) {
+        ret = vhost_dev_drop_guest_notifiers(&b->dev, b->vdev, b->dev.nvqs);
         if (ret < 0) {
             error_report("vhost guest notifier cleanup failed: %d", ret);
         }

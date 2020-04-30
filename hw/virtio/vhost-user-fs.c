@@ -38,12 +38,10 @@ static void vuf_get_config(VirtIODevice *vdev, uint8_t *config)
 static void vuf_start(VirtIODevice *vdev)
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
     int i;
 
-    if (!k->set_guest_notifiers) {
+    if (!virtio_device_guest_notifiers_initialized(vdev)) {
         error_report("binding does not support guest notifiers");
         return;
     }
@@ -54,9 +52,9 @@ static void vuf_start(VirtIODevice *vdev)
         return;
     }
 
-    ret = k->set_guest_notifiers(qbus->parent, fs->vhost_dev.nvqs, true);
+    ret = vhost_dev_assign_guest_notifiers(&fs->vhost_dev, vdev,
+            fs->vhost_dev.nvqs);
     if (ret < 0) {
-        error_report("Error binding guest notifier: %d", -ret);
         goto err_host_notifiers;
     }
 
@@ -79,7 +77,7 @@ static void vuf_start(VirtIODevice *vdev)
     return;
 
 err_guest_notifiers:
-    k->set_guest_notifiers(qbus->parent, fs->vhost_dev.nvqs, false);
+    vhost_dev_drop_guest_notifiers(&fs->vhost_dev, vdev, fs->vhost_dev.nvqs);
 err_host_notifiers:
     vhost_dev_disable_notifiers(&fs->vhost_dev, vdev);
 }
@@ -87,17 +85,16 @@ err_host_notifiers:
 static void vuf_stop(VirtIODevice *vdev)
 {
     VHostUserFS *fs = VHOST_USER_FS(vdev);
-    BusState *qbus = BUS(qdev_get_parent_bus(DEVICE(vdev)));
-    VirtioBusClass *k = VIRTIO_BUS_GET_CLASS(qbus);
     int ret;
 
-    if (!k->set_guest_notifiers) {
+    if (!virtio_device_guest_notifiers_initialized(vdev)) {
         return;
     }
 
     vhost_dev_stop(&fs->vhost_dev, vdev);
 
-    ret = k->set_guest_notifiers(qbus->parent, fs->vhost_dev.nvqs, false);
+    ret = vhost_dev_drop_guest_notifiers(&fs->vhost_dev, vdev,
+            fs->vhost_dev.nvqs);
     if (ret < 0) {
         error_report("vhost guest notifier cleanup failed: %d", ret);
         return;
