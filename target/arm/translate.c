@@ -3011,12 +3011,6 @@ static inline void gen_neon_rsb(int size, TCGv_i32 t0, TCGv_i32 t1)
     }
 }
 
-/* 32-bit pairwise ops end up the same as the elementwise versions.  */
-#define gen_helper_neon_pmax_s32  tcg_gen_smax_i32
-#define gen_helper_neon_pmax_u32  tcg_gen_umax_i32
-#define gen_helper_neon_pmin_s32  tcg_gen_smin_i32
-#define gen_helper_neon_pmin_u32  tcg_gen_umin_i32
-
 #define GEN_NEON_INTEGER_OP_ENV(name) do { \
     switch ((size << 1) | u) { \
     case 0: \
@@ -4794,6 +4788,8 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         case NEON_3R_VRSHL:
         case NEON_3R_VQRSHL:
         case NEON_3R_VABA:
+        case NEON_3R_VPMAX:
+        case NEON_3R_VPMIN:
             /* Already handled by decodetree */
             return 1;
         }
@@ -4805,8 +4801,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
         pairwise = 0;
         switch (op) {
         case NEON_3R_VPADD_VQRDMLAH:
-        case NEON_3R_VPMAX:
-        case NEON_3R_VPMIN:
             pairwise = 1;
             break;
         case NEON_3R_FLOAT_ARITH:
@@ -4863,12 +4857,6 @@ static int disas_neon_data_insn(DisasContext *s, uint32_t insn)
             tmp2 = neon_load_reg(rm, pass);
         }
         switch (op) {
-        case NEON_3R_VPMAX:
-            GEN_NEON_INTEGER_OP(pmax);
-            break;
-        case NEON_3R_VPMIN:
-            GEN_NEON_INTEGER_OP(pmin);
-            break;
         case NEON_3R_VQDMULH_VQRDMULH: /* Multiply high.  */
             if (!u) { /* VQDMULH */
                 switch (size) {
