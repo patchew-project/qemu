@@ -19,7 +19,7 @@
 #include "coth.h"
 
 int coroutine_fn v9fs_co_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
-                                 struct dirent **dent)
+                                 struct dirent *dent)
 {
     int err;
     V9fsState *s = pdu->s;
@@ -32,13 +32,20 @@ int coroutine_fn v9fs_co_readdir(V9fsPDU *pdu, V9fsFidState *fidp,
             struct dirent *entry;
 
             errno = 0;
+
+            v9fs_readdir_lock(&fidp->fs.dir);
+
             entry = s->ops->readdir(&s->ctx, &fidp->fs);
             if (!entry && errno) {
                 err = -errno;
+            } else if (entry) {
+                memcpy(dent, entry, sizeof(*dent));
+                err = 1;
             } else {
-                *dent = entry;
                 err = 0;
             }
+
+            v9fs_readdir_unlock(&fidp->fs.dir);
         });
     return err;
 }

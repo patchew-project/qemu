@@ -256,6 +256,13 @@ static struct dirent *synth_readdir(FsContext *ctx, V9fsFidOpenState *fs)
     if (entry) {
         synth_open->offset++;
     }
+
+    if (!strcmp(node->name, QTEST_V9FS_SYNTH_READDIR_DEADLOCK_DIR)) {
+        while (synth_open->offset != QTEST_V9FS_SYNTH_READDIR_DEADLOCK_OFFSET) {
+            sched_yield();
+        }
+    }
+
     return entry;
 }
 
@@ -596,6 +603,11 @@ static int synth_init(FsContext *ctx, Error **errp)
                 assert(!ret);
                 g_free(name);
             }
+
+            ret = qemu_v9fs_synth_mkdir(
+                NULL, 0700, QTEST_V9FS_SYNTH_READDIR_DEADLOCK_DIR, &dir
+            );
+            assert(!ret);
         }
     }
 

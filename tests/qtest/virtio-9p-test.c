@@ -793,6 +793,38 @@ static void fs_flush_ignored(void *obj, void *data, QGuestAllocator *t_alloc)
     g_free(wnames[0]);
 }
 
+static void fs_readdir_deadlock(void *obj, void *data, QGuestAllocator *t_alloc)
+{
+    QVirtio9P *v9p = obj;
+    alloc = t_alloc;
+    char *const wnames[] = { g_strdup(QTEST_V9FS_SYNTH_READDIR_DEADLOCK_DIR) };
+    P9Req *req, *req2;
+
+    fs_attach(v9p, NULL, t_alloc);
+    req = v9fs_twalk(v9p, 0, 1, 1, wnames, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rwalk(req, NULL, NULL);
+
+    req = v9fs_tlopen(v9p, 1, O_WRONLY, 0);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_rlopen(req, NULL, NULL);
+
+    /*
+     * The first request will remain pending in the backend until
+     * a request with the magic offset is received. This deadlocks
+     * the mainloop of an older QEMU that still handles the critical
+     * section around readdir() in the frontend code.
+     */
+    req = v9fs_treaddir(v9p, 1, 0, 128, 0);
+    req2 = v9fs_treaddir(v9p, 1, QTEST_V9FS_SYNTH_READDIR_DEADLOCK_OFFSET, 128,
+                         1);
+    v9fs_req_wait_for_reply(req, NULL);
+    v9fs_req_free(req);
+    v9fs_req_free(req2);
+
+    g_free(wnames[0]);
+}
+
 static void register_virtio_9p_test(void)
 {
     qos_add_test("config", "virtio-9p", pci_config, NULL);
@@ -810,6 +842,7 @@ static void register_virtio_9p_test(void)
     qos_add_test("fs/flush/ignored", "virtio-9p", fs_flush_ignored,
                  NULL);
     qos_add_test("fs/readdir/basic", "virtio-9p", fs_readdir, NULL);
+    qos_add_test("fs/readdir/deadlock", "virtio-9p", fs_readdir_deadlock, NULL);
 }
 
 libqos_init(register_virtio_9p_test);
