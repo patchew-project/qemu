@@ -1035,3 +1035,96 @@ DO_3SAME_32(VHADD, hadd)
 DO_3SAME_32(VHSUB, hsub)
 DO_3SAME_32(VRHADD, rhadd)
 DO_3SAME_32(VABD, abd)
+
+static bool do_3same_qs32(DisasContext *s, arg_3same *a, NeonGenTwoOpEnvFn *fn)
+{
+    /*
+     * Saturating shift operations handled elementwise 32 bits at a
+     * time which need to pass cpu_env to the helper and where the rn
+     * and rm operands are reversed from the usual do_3same() order.
+     */
+    TCGv_i32 tmp, tmp2;
+    int pass;
+
+    if (!arm_dc_feature(s, ARM_FEATURE_NEON)) {
+        return false;
+    }
+
+    /* UNDEF accesses to D16-D31 if they don't exist. */
+    if (!dc_isar_feature(aa32_simd_r32, s) &&
+        ((a->vd | a->vn | a->vm) & 0x10)) {
+        return false;
+    }
+
+    if ((a->vn | a->vm | a->vd) & a->q) {
+        return false;
+    }
+
+    if (a->size == 3) {
+        return false;
+    }
+
+    if (!vfp_access_check(s)) {
+        return true;
+    }
+
+    for (pass = 0; pass < (a->q ? 4 : 2); pass++) {
+        /* Note reversal of operand order */
+        tmp = neon_load_reg(a->vm, pass);
+        tmp2 = neon_load_reg(a->vn, pass);
+        fn(tmp, cpu_env, tmp, tmp2);
+        tcg_temp_free_i32(tmp2);
+        neon_store_reg(a->vd, pass, tmp);
+    }
+    return true;
+}
+
+/*
+ * Handling for shifts with sizes 8/16/32 bits. 64-bit shifts are
+ * covered by the *_S64_3s and *_U64_3s patterns and the grouping in
+ * the decode file means those functions are called first for
+ * size==0b11. Note that we must 'return false' here for the
+ * size==0b11 case rather than asserting, because where the 64-bit
+ * function has an UNDEF case and returns false the decoder will fall
+ * through to trying these functions.
+ */
+#define DO_3SAME_QS32(INSN, func)                                       \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        static NeonGenTwoOpEnvFn * const fns[] = {                      \
+            gen_helper_neon_##func##8,                                  \
+            gen_helper_neon_##func##16,                                 \
+            gen_helper_neon_##func##32,                                 \
+        };                                                              \
+        if (a->size > 2) {                                              \
+            return false;                                               \
+        }                                                               \
+        return do_3same_qs32(s, a, fns[a->size]);                       \
+    }
+
+DO_3SAME_QS32(VQSHL_S,qshl_s)
+DO_3SAME_QS32(VQSHL_U,qshl_u)
+DO_3SAME_QS32(VQRSHL_S,qrshl_s)
+DO_3SAME_QS32(VQRSHL_U,qrshl_u)
+
+#define DO_3SAME_SHIFT32(INSN, func) \
+    static bool trans_##INSN##_3s(DisasContext *s, arg_3same *a)        \
+    {                                                                   \
+        static NeonGenTwoOpFn * const fns[] = {                         \
+            gen_helper_neon_##func##8,                                  \
+            gen_helper_neon_##func##16,                                 \
+            gen_helper_neon_##func##32,                                 \
+        };                                                              \
+        int rtmp;                                                       \
+        if (a->size > 2) {                                              \
+            return false;                                               \
+        }                                                               \
+        /* Shift operand order is reversed */                           \
+        rtmp = a->vn;                                                   \
+        a->vn = a->vm;                                                  \
+        a->vm = rtmp;                                                   \
+        return do_3same_32(s, a, fns[a->size]);                         \
+    }
+
+DO_3SAME_SHIFT32(VRSHL_S, rshl_s)
+DO_3SAME_SHIFT32(VRSHL_U, rshl_u)
