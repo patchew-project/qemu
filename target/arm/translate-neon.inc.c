@@ -1389,6 +1389,11 @@ DO_3S_FP(VADD, gen_helper_vfp_adds, false)
 DO_3S_FP(VSUB, gen_helper_vfp_subs, false)
 DO_3S_FP(VABD, gen_helper_neon_abd_f32, false)
 DO_3S_FP(VMUL, gen_helper_vfp_muls, false)
+DO_3S_FP(VCEQ, gen_helper_neon_ceq_f32, false)
+DO_3S_FP(VCGE, gen_helper_neon_cge_f32, false)
+DO_3S_FP(VCGT, gen_helper_neon_cgt_f32, false)
+DO_3S_FP(VACGE, gen_helper_neon_acge_f32, false)
+DO_3S_FP(VACGT, gen_helper_neon_acgt_f32, false)
 
 static void gen_VMLA_fp_3s(TCGv_i32 vd, TCGv_i32 vn, TCGv_i32 vm,
                             TCGv_ptr fpstatus)
