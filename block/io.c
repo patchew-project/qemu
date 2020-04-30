@@ -1488,7 +1488,7 @@ static void bdrv_padding_destroy(BdrvRequestPadding *pad)
  */
 static bool bdrv_pad_request(BlockDriverState *bs,
                              QEMUIOVector **qiov, size_t *qiov_offset,
-                             int64_t *offset, unsigned int *bytes,
+                             int64_t *offset, int64_t *bytes,
                              BdrvRequestPadding *pad)
 {
     if (!bdrv_init_padding(bs, *offset, *bytes, pad)) {
@@ -1515,7 +1515,7 @@ int coroutine_fn bdrv_co_preadv(BdrvChild *child,
 
 /* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static int coroutine_fn bdrv_do_preadv_part(BdrvChild *child,
-    int64_t offset, unsigned int bytes,
+    int64_t offset, int64_t bytes,
     QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
 {
@@ -1524,7 +1524,7 @@ static int coroutine_fn bdrv_do_preadv_part(BdrvChild *child,
     BdrvRequestPadding pad;
     int ret;
 
-    trace_bdrv_co_preadv(bs, offset, bytes, flags);
+    trace_bdrv_co_preadv_part(bs, offset, bytes, flags);
 
     ret = bdrv_check_byte_request(bs, offset, bytes);
     if (ret < 0) {
@@ -1562,7 +1562,7 @@ static int coroutine_fn bdrv_do_preadv_part(BdrvChild *child,
 }
 
 int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
-    int64_t offset, unsigned int bytes,
+    int64_t offset, int64_t bytes,
     QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
 {
@@ -1866,7 +1866,7 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
 
 static int coroutine_fn bdrv_co_do_zero_pwritev(BdrvChild *child,
                                                 int64_t offset,
-                                                unsigned int bytes,
+                                                int64_t bytes,
                                                 BdrvRequestFlags flags,
                                                 BdrvTrackedRequest *req)
 {
@@ -1941,7 +1941,7 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
 
 /* To be called between exactly one pair of bdrv_inc/dec_in_flight() */
 static int coroutine_fn bdrv_do_pwritev_part(BdrvChild *child,
-    int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
+    int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
 {
     BlockDriverState *bs = child->bs;
@@ -1950,7 +1950,7 @@ static int coroutine_fn bdrv_do_pwritev_part(BdrvChild *child,
     BdrvRequestPadding pad;
     int ret;
 
-    trace_bdrv_co_pwritev(child->bs, offset, bytes, flags);
+    trace_bdrv_co_pwritev_part(child->bs, offset, bytes, flags);
 
     if (!bs->drv) {
         return -ENOMEDIUM;
@@ -2009,7 +2009,7 @@ out:
 }
 
 int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
-    int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
+    int64_t offset, int64_t bytes, QEMUIOVector *qiov, size_t qiov_offset,
     BdrvRequestFlags flags)
 {
     int ret;
