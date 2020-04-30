@@ -1277,3 +1277,47 @@ DO_3SAME_PAIR(VPMIN_S, pmin_s)
 DO_3SAME_PAIR(VPMAX_U, pmax_u)
 DO_3SAME_PAIR(VPMIN_U, pmin_u)
 DO_3SAME_PAIR(VPADD, padd_u)
+
+static void gen_VQDMULH_s16(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_helper_neon_qdmulh_s16(rd, cpu_env, rn, rm);
+}
+
+static void gen_VQDMULH_s32(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_helper_neon_qdmulh_s32(rd, cpu_env, rn, rm);
+}
+
+static bool trans_VQDMULH_3s(DisasContext *s, arg_3same *a)
+{
+    static NeonGenTwoOpFn * const fns[] = {
+        gen_VQDMULH_s16, gen_VQDMULH_s32,
+    };
+
+    if (a->size != 1 && a->size != 2) {
+        return false;
+    }
+    return do_3same_32(s, a, fns[a->size - 1]);
+}
+
+static void gen_VQRDMULH_s16(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_helper_neon_qrdmulh_s16(rd, cpu_env, rn, rm);
+}
+
+static void gen_VQRDMULH_s32(TCGv_i32 rd, TCGv_i32 rn, TCGv_i32 rm)
+{
+    gen_helper_neon_qrdmulh_s32(rd, cpu_env, rn, rm);
+}
+
+static bool trans_VQRDMULH_3s(DisasContext *s, arg_3same *a)
+{
+    static NeonGenTwoOpFn * const fns[] = {
+        gen_VQRDMULH_s16, gen_VQRDMULH_s32,
+    };
+
+    if (a->size != 1 && a->size != 2) {
+        return false;
+    }
+    return do_3same_32(s, a, fns[a->size - 1]);
+}
