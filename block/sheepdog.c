@@ -3091,8 +3091,8 @@ static int sd_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
 }
 
 
-static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
-                                      int bytes)
+static coroutine_fn int sd_co_pdiscard_old(BlockDriverState *bs, int64_t offset,
+                                           int bytes)
 {
     SheepdogAIOCB acb;
     BDRVSheepdogState *s = bs->opaque;
@@ -3119,6 +3119,13 @@ static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
     sd_aio_complete(&acb);
 
     return acb.ret;
+}
+
+static coroutine_fn int sd_co_pdiscard(BlockDriverState *bs, int64_t offset,
+                                       int64_t bytes)
+{
+    assert(bytes <= INT_MAX);
+    return sd_co_pdiscard_old(bs, offset, bytes);
 }
 
 static coroutine_fn int
