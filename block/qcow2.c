@@ -4234,6 +4234,9 @@ static int coroutine_fn qcow2_co_truncate(BlockDriverState *bs, int64_t offset,
     if ((flags & BDRV_REQ_ZERO_WRITE) && offset > old_length) {
         uint64_t zero_start = QEMU_ALIGN_UP(old_length, s->cluster_size);
 
+        /* zero_start should not be after the new end of the image */
+        zero_start = MIN(zero_start, offset);
+
         /*
          * Use zero clusters as much as we can. qcow2_cluster_zeroize()
          * requires a cluster-aligned start. The end may be unaligned if it is
