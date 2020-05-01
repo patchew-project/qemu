@@ -100,6 +100,7 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
                                     Error **errp)
 {
     const char *path = qemu_opt_get(opts, "path");
+    const char *in = qemu_opt_get(opts, "in");
     ChardevFile *file;
 
     backend->type = CHARDEV_BACKEND_KIND_FILE;
@@ -110,6 +111,10 @@ static void qemu_chr_parse_file_out(QemuOpts *opts, ChardevBackend *backend,
     file = backend->u.file.data = g_new0(ChardevFile, 1);
     qemu_chr_parse_common(opts, qapi_ChardevFile_base(file));
     file->out = g_strdup(path);
+    if (in) {
+        file->has_in = true;
+        file->in = g_strdup(qemu_opt_get(opts, "in"));
+    }
 
     file->has_append = true;
     file->append = qemu_opt_get_bool(opts, "append", false);
