@@ -4211,6 +4211,7 @@ int tcg_gen_code(TCGContext *s, TranslationBlock *tb)
     }
     tcg_debug_assert(num_insns >= 0);
     s->gen_insn_end_off[num_insns] = tcg_current_code_size(s);
+    s->gen_insn_end_off[num_insns + 1] = 0;
 
     /* Generate TB finalization at the end of block */
 #ifdef TCG_TARGET_NEED_LDST_LABELS
