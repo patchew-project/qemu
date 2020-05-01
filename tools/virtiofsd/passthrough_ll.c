@@ -2530,6 +2530,21 @@ static void print_capabilities(void)
     printf("}\n");
 }
 
+/* Copied from bubblewrap */
+static int
+raw_clone(unsigned long flags, void *child_stack)
+{
+#if defined(__s390__) || defined(__CRIS__)
+  /*
+   * On s390 and cris the order of the first and second arguments
+   * of the raw clone() system call is reversed.
+   */
+    return (int) syscall(__NR_clone, child_stack, flags);
+#else
+    return (int) syscall(__NR_clone, flags, child_stack);
+#endif
+}
+
 /*
  * Move to a new mount, net, and pid namespaces to isolate this process.
  */
@@ -2547,14 +2562,15 @@ static void setup_namespaces(struct lo_data *lo, struct fuse_session *se)
      * an empty network namespace to prevent TCP/IP and other network
      * activity in case this process is compromised.
      */
-    if (unshare(CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET) != 0) {
-        fuse_log(FUSE_LOG_ERR, "unshare(CLONE_NEWPID | CLONE_NEWNS): %m\n");
-        exit(1);
+    int clone_flags = SIGCHLD | CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWNET;
+    /* If we're non root, we need a new user namespace */
+    if (getuid() != 0) {
+        clone_flags |= CLONE_NEWUSER;
     }
 
-    child = fork();
+    child = raw_clone(clone_flags, NULL);
     if (child < 0) {
-        fuse_log(FUSE_LOG_ERR, "fork() failed: %m\n");
+        fuse_log(FUSE_LOG_ERR, "clone() failed: %m\n");
         exit(1);
     }
     if (child > 0) {
