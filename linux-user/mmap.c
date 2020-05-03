@@ -714,6 +714,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         }
+#if TARGET_ABI_BITS < TARGET_LONG_BITS
         /* Check if address fits target address space */
         if ((unsigned long)host_addr + new_size > (abi_ulong)-1) {
             /* Revert mremap() changes */
@@ -721,6 +722,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
             errno = ENOMEM;
             host_addr = MAP_FAILED;
         }
+#endif /* TARGET_ABI_BITS < TARGET_LONG_BITS */
     }
 
     if (host_addr == MAP_FAILED) {
