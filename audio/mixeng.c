@@ -271,7 +271,7 @@ f_sample *mixeng_clip[2][2][2][3] = {
 #define CONV_NATURAL_FLOAT(x) (x)
 #define CLIP_NATURAL_FLOAT(x) (x)
 #else
-static const float float_scale = UINT_MAX / 2.f;
+static const float float_scale = UINT_MAX / 2.;
 #define CONV_NATURAL_FLOAT(x) ((x) * float_scale)
 
 #ifdef RECIPROCAL
