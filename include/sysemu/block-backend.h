@@ -205,7 +205,9 @@ uint32_t blk_get_request_alignment(BlockBackend *blk);
 uint32_t blk_get_max_transfer(BlockBackend *blk);
 int blk_get_max_iov(BlockBackend *blk);
 void blk_set_guest_block_size(BlockBackend *blk, int align);
+/* callers must free the returned pointer with qemu_vfree() */
 void *blk_try_blockalign(BlockBackend *blk, size_t size);
+/* callers must free the returned pointer with qemu_vfree() */
 void *blk_blockalign(BlockBackend *blk, size_t size);
 bool blk_op_is_blocked(BlockBackend *blk, BlockOpType op, Error **errp);
 void blk_op_unblock(BlockBackend *blk, BlockOpType op, Error *reason);

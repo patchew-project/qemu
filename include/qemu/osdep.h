@@ -294,8 +294,11 @@ extern int daemon(int, int);
 #endif
 
 int qemu_daemon(int nochdir, int noclose);
+/* callers must free the returned pointer with qemu_vfree() */
 void *qemu_try_memalign(size_t alignment, size_t size);
+/* callers must free the returned pointer with qemu_vfree() */
 void *qemu_memalign(size_t alignment, size_t size);
+/* callers must free the returned pointer with qemu_anon_ram_free() */
 void *qemu_anon_ram_alloc(size_t size, uint64_t *align, bool shared);
 void qemu_vfree(void *ptr);
 void qemu_anon_ram_free(void *ptr, size_t size);
