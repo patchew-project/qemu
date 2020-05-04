@@ -10,6 +10,7 @@
 #include "qemu/qht.h"
 #include "qemu/rcu.h"
 #include "qemu/xxhash.h"
+#include <math.h>
 
 struct thread_stats {
     size_t rd;
@@ -284,7 +285,7 @@ static void do_threshold(double rate, uint64_t *threshold)
     if (rate == 1.0) {
         *threshold = UINT64_MAX;
     } else {
-        *threshold = rate * UINT64_MAX;
+        *threshold = rate * nextafter(0x1p64, 0.0);
     }
 }
 
