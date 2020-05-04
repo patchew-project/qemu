@@ -144,6 +144,18 @@
             'active', 'postcopy-active', 'postcopy-paused',
             'postcopy-recover', 'completed', 'failed', 'colo',
             'pre-switchover', 'device', 'wait-unplug' ] }
+##
+# @VfioStats:
+#
+# Detailed VFIO devices migration statistics
+#
+# @bytes: amount of bytes transferred to the target VM by VFIO devices
+#
+# Since: 5.0
+#
+##
+{ 'struct': 'VfioStats',
+  'data': {'bytes': 'int' } }
 
 ##
 # @MigrationInfo:
@@ -205,6 +217,10 @@
 #
 # @socket-address: Only used for tcp, to know what the real port is (Since 4.0)
 #
+# @vfio: @VfioStats containing detailed VFIO devices migration statistics,
+#        only returned if VFIO device is present, migration is supported by all
+#         VFIO devices and status is 'active' or 'completed' (since 5.0)
+#
 # Since: 0.14.0
 ##
 { 'struct': 'MigrationInfo',
@@ -220,7 +236,8 @@
            '*postcopy-blocktime' : 'uint32',
            '*postcopy-vcpu-blocktime': ['uint32'],
            '*compression': 'CompressionStats',
-           '*socket-address': ['SocketAddress'] } }
+           '*socket-address': ['SocketAddress'],
+           '*vfio': 'VfioStats' } }
 
 ##
 # @query-migrate:
