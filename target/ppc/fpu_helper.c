@@ -676,6 +676,17 @@ static void float_invalid_op_addsub(CPUPPCState *env, bool set_fpcc,
 /* fadd - fadd. */
 float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CPU_DoubleU u1, u2;
+
+    u1.d = arg1;
+    u2.d = arg2;
+    CPU_DoubleU retDouble;
+    retDouble.nd = u1.nd + u2.nd;
+    if (likely(float64_is_zero_or_normal(retDouble.d)))
+    {
+        /* TODO: Handling inexact */
+        return retDouble.d;
+    }
     float64 ret = float64_add(arg1, arg2, &env->fp_status);
     int status = get_float_exception_flags(&env->fp_status);
 
@@ -691,6 +702,17 @@ float64 helper_fadd(CPUPPCState *env, float64 arg1, float64 arg2)
 /* fsub - fsub. */
 float64 helper_fsub(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CPU_DoubleU u1, u2;
+
+    u1.d = arg1;
+    u2.d = arg2;
+    CPU_DoubleU retDouble;
+    retDouble.nd = u1.nd - u2.nd;
+    if (likely(float64_is_zero_or_normal(retDouble.d)))
+    {
+        /* TODO: Handling inexact */
+        return retDouble.d;
+    }
     float64 ret = float64_sub(arg1, arg2, &env->fp_status);
     int status = get_float_exception_flags(&env->fp_status);
 
@@ -717,6 +739,17 @@ static void float_invalid_op_mul(CPUPPCState *env, bool set_fprc,
 /* fmul - fmul. */
 float64 helper_fmul(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CPU_DoubleU u1, u2;
+
+    u1.d = arg1;
+    u2.d = arg2;
+    CPU_DoubleU retDouble;
+    retDouble.nd = u1.nd * u2.nd;
+    if (likely(float64_is_zero_or_normal(retDouble.d)))
+    {
+        /* TODO: Handling inexact */
+        return retDouble.d;
+    }
     float64 ret = float64_mul(arg1, arg2, &env->fp_status);
     int status = get_float_exception_flags(&env->fp_status);
 
@@ -747,6 +780,17 @@ static void float_invalid_op_div(CPUPPCState *env, bool set_fprc,
 /* fdiv - fdiv. */
 float64 helper_fdiv(CPUPPCState *env, float64 arg1, float64 arg2)
 {
+    CPU_DoubleU u1, u2;
+
+    u1.d = arg1;
+    u2.d = arg2;
+    CPU_DoubleU retDouble;
+    retDouble.nd = u1.nd / u2.nd;
+    if (likely(float64_is_zero_or_normal(retDouble.d)))
+    {
+        /* TODO: Handling inexact */
+        return retDouble.d;
+    }
     float64 ret = float64_div(arg1, arg2, &env->fp_status);
     int status = get_float_exception_flags(&env->fp_status);
 
