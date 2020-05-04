@@ -523,6 +523,13 @@ static int parallel_can_receive(void *opaque)
      return 1;
 }
 
+static void parallel_isa_reset(DeviceState *dev)
+{
+    ISAParallelState *isa = ISA_PARALLEL(dev);
+
+    parallel_reset(&isa->state);
+}
+
 static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 {
     static int index;
@@ -552,7 +559,6 @@ static void parallel_isa_realizefn(DeviceState *dev, Error **errp)
 
     base = isa->iobase;
     isa_init_irq(isadev, &s->irq, isa->isairq);
-    qemu_register_reset(parallel_reset, s);
 
     qemu_chr_fe_set_handlers(&s->chr, parallel_can_receive, NULL,
                              NULL, NULL, s, NULL, true);
@@ -625,6 +631,7 @@ static void parallel_isa_class_initfn(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset = parallel_isa_reset;
     dc->realize = parallel_isa_realizefn;
     dc->vmsd = &vmstate_parallel_isa;
     device_class_set_props(dc, parallel_isa_properties);
