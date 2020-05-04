@@ -313,6 +313,7 @@
 #define DESC_1_RX_EOF 0x00008000
 
 #define GEM_MODID_VALUE 0x00020118
+#define MAX_TX_FRAME_SIZE 10240
 
 static inline uint64_t tx_desc_get_buffer(CadenceGEMState *s, uint32_t *desc)
 {
@@ -1143,7 +1144,7 @@ static void gem_transmit(CadenceGEMState *s)
 {
     uint32_t desc[DESC_MAX_NUM_WORDS];
     hwaddr packet_desc_addr;
-    uint8_t     tx_packet[2048];
+    uint8_t     tx_packet[MAX_TX_FRAME_SIZE];
     uint8_t     *p;
     unsigned    total_bytes;
     int q = 0;
@@ -1344,7 +1345,7 @@ static void gem_reset(DeviceState *d)
     s->regs[GEM_RXPARTIALSF] = 0x000003ff;
     s->regs[GEM_MODID] = s->revision;
     s->regs[GEM_DESCONF] = 0x02500111;
-    s->regs[GEM_DESCONF2] = 0x2ab13fff;
+    s->regs[GEM_DESCONF2] = 0x2ab12800;
     s->regs[GEM_DESCONF5] = 0x002f2045;
     s->regs[GEM_DESCONF6] = GEM_DESCONF6_64B_MASK;
 
