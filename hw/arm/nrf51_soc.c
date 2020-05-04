@@ -170,6 +170,17 @@ static void nrf51_soc_realize(DeviceState *dev_soc, Error **errp)
     memory_region_add_subregion_overlap(&s->container,
                                         NRF51_IOMEM_BASE, &s->clock, -1);
 
+    create_unimplemented_device("nrf51_soc.radio", NRF51_RADIO_BASE,
+                                NRF51_PERIPHERAL_SIZE);
+    create_unimplemented_device("nrf51_soc.uarte", NRF51_UART_BASE,
+                                NRF51_PERIPHERAL_SIZE);
+    create_unimplemented_device("nrf51_soc.gpiote", NRF51_GPIOTE_BASE,
+                                NRF51_PERIPHERAL_SIZE);
+    create_unimplemented_device("nrf51_soc.temp", NRF51_TEMP_BASE,
+                                NRF51_PERIPHERAL_SIZE);
+    create_unimplemented_device("nrf51_soc.ppi", NRF51_PPI_BASE,
+                                NRF51_PERIPHERAL_SIZE);
+
     create_unimplemented_device("nrf51_soc.io", NRF51_IOMEM_BASE,
                                 NRF51_IOMEM_SIZE);
     create_unimplemented_device("nrf51_soc.private",
