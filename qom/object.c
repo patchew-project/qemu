@@ -1683,7 +1683,12 @@ void object_property_add_child(Object *obj, const char *name,
     ObjectProperty *op;
 
     if (child->parent != NULL) {
-        error_setg(errp, "child object is already parented");
+        error_setg(errp, "child object '%s' is already parented (parent: '%s') "
+                         "can not be children '%s' of '%s'",
+                   object_get_typename(child),
+                   object_get_typename(child->parent),
+                   name,
+                   object_get_typename(obj));
         return;
     }
 
