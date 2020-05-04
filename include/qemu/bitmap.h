@@ -90,12 +90,14 @@ int slow_bitmap_intersects(const unsigned long *bitmap1,
                            const unsigned long *bitmap2, long bits);
 long slow_bitmap_count_one(const unsigned long *bitmap, long nbits);
 
+/* callers must free the returned pointer with g_free() */
 static inline unsigned long *bitmap_try_new(long nbits)
 {
     long len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
     return g_try_malloc0(len);
 }
 
+/* callers must free the returned pointer with g_free() */
 static inline unsigned long *bitmap_new(long nbits)
 {
     unsigned long *ptr = bitmap_try_new(nbits);
