@@ -135,12 +135,17 @@ static void bus_unparent(Object *obj)
     BusState *bus = BUS(obj);
     BusChild *kid;
 
+    printf("### %s bus=%p %s\n",
+           __func__, obj, object_get_typename(obj));
     /* Only the main system bus has no parent, and that bus is never freed */
     assert(bus->parent);
 
     while ((kid = QTAILQ_FIRST(&bus->children)) != NULL) {
         DeviceState *dev = kid->child;
+        printf("### %s kid=%p %s\n",
+               __func__, OBJECT(dev), object_get_typename(OBJECT(dev)));
         object_unparent(OBJECT(dev));
+        assert(kid != QTAILQ_FIRST(&bus->children));
     }
     QLIST_REMOVE(bus, sibling);
     bus->parent->num_child_bus--;

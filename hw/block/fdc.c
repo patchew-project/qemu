@@ -2523,7 +2523,11 @@ static void fdctrl_connect_drives(FDCtrl *fdctrl, DeviceState *fdc_dev,
         blk_ref(blk);
         blk_detach_dev(blk, fdc_dev);
         fdctrl->qdev_for_drives[i].blk = NULL;
+#if 0
         qdev_prop_set_drive(dev, "drive", blk, &local_err);
+#else
+        error_setg(&local_err, "hack");
+#endif
         blk_unref(blk);
 
         if (local_err) {
