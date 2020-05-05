@@ -615,7 +615,7 @@ static size_t alsa_write(HWVoiceOut *hw, void *buf, size_t len)
     size_t len_frames = len / hw->info.bytes_per_frame;
 
     while (len_frames) {
-        char *src = advance(buf, pos);
+        const char *src = advance_out(buf, pos);
         snd_pcm_sframes_t written;
 
         written = snd_pcm_writei(alsa->handle, src, len_frames);
@@ -809,7 +809,7 @@ static size_t alsa_read(HWVoiceIn *hw, void *buf, size_t len)
     size_t pos = 0;
 
     while (len) {
-        void *dst = advance(buf, pos);
+        void *dst = advance_in(buf, pos);
         snd_pcm_sframes_t nread;
 
         nread = snd_pcm_readi(

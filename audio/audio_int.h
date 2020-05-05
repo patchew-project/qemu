@@ -255,9 +255,15 @@ static inline size_t audio_ring_dist(size_t dst, size_t src, size_t len)
     return (dst >= src) ? (dst - src) : (len - src + dst);
 }
 
-static inline void *advance(void *p, int incr)
+static inline void *advance_in(void *p, int incr)
 {
     uint8_t *d = p;
+    return d + incr;
+}
+
+static inline const void *advance_out(const void *p, int incr)
+{
+    const uint8_t *d = p;
     return d + incr;
 }
 

@@ -439,7 +439,7 @@ static size_t oss_write(HWVoiceOut *hw, void *buf, size_t len)
     pos = 0;
     while (len) {
         ssize_t bytes_written;
-        void *pcm = advance(buf, pos);
+        const void *pcm = advance_out(buf, pos);
 
         bytes_written = write(oss->fd, pcm, len);
         if (bytes_written < 0) {
@@ -678,7 +678,7 @@ static size_t oss_read(HWVoiceIn *hw, void *buf, size_t len)
     while (len) {
         ssize_t nread;
 
-        void *dst = advance(buf, pos);
+        void *dst = advance_in(buf, pos);
         nread = read(oss->fd, dst, len);
 
         if (nread == -1) {
