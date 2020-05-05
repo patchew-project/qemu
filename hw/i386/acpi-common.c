@@ -28,6 +28,8 @@
 #include "hw/acpi/aml-build.h"
 #include "hw/acpi/utils.h"
 #include "hw/i386/pc.h"
+#include "hw/isa/apm.h"
+#include "hw/rtc/mc146818rtc_regs.h"
 #include "target/i386/cpu.h"
 
 #include "acpi-build.h"
@@ -160,4 +162,45 @@ void acpi_build_facs(GArray *table_data)
     AcpiFacsDescriptorRev1 *facs = acpi_data_push(table_data, sizeof *facs);
     memcpy(&facs->signature, "FACS", 4);
     facs->length = cpu_to_le32(sizeof(*facs));
+}
+
+void acpi_init_common_fadt_data(MachineState *ms, Object *o,
+                                AcpiFadtData *data)
+{
+    uint32_t io = object_property_get_uint(o, ACPI_PM_PROP_PM_IO_BASE, NULL);
+    AmlAddressSpace as = AML_AS_SYSTEM_IO;
+    AcpiFadtData fadt = {
+        .rev = 3,
+        .flags =
+            (1 << ACPI_FADT_F_WBINVD) |
+            (1 << ACPI_FADT_F_PROC_C1) |
+            (1 << ACPI_FADT_F_SLP_BUTTON) |
+            (1 << ACPI_FADT_F_RTC_S4) |
+            (1 << ACPI_FADT_F_USE_PLATFORM_CLOCK) |
+            /* APIC destination mode ("Flat Logical") has an upper limit of 8
+             * CPUs for more than 8 CPUs, "Clustered Logical" mode has to be
+             * used
+             */
+            ((ms->smp.max_cpus > 8) ?
+                        (1 << ACPI_FADT_F_FORCE_APIC_CLUSTER_MODEL) : 0),
+        .int_model = 1 /* Multiple APIC */,
+        .rtc_century = RTC_CENTURY,
+        .plvl2_lat = 0xfff /* C2 state not supported */,
+        .plvl3_lat = 0xfff /* C3 state not supported */,
+        .smi_cmd = ACPI_PORT_SMI_CMD,
+        .sci_int = object_property_get_uint(o, ACPI_PM_PROP_SCI_INT, NULL),
+        .acpi_enable_cmd =
+            object_property_get_uint(o, ACPI_PM_PROP_ACPI_ENABLE_CMD, NULL),
+        .acpi_disable_cmd =
+            object_property_get_uint(o, ACPI_PM_PROP_ACPI_DISABLE_CMD, NULL),
+        .pm1a_evt = { .space_id = as, .bit_width = 4 * 8, .address = io },
+        .pm1a_cnt = { .space_id = as, .bit_width = 2 * 8,
+                      .address = io + 0x04 },
+        .pm_tmr = { .space_id = as, .bit_width = 4 * 8, .address = io + 0x08 },
+        .gpe0_blk = { .space_id = as, .bit_width =
+            object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK_LEN, NULL) * 8,
+            .address = object_property_get_uint(o, ACPI_PM_PROP_GPE0_BLK, NULL)
+        },
+    };
+    *data = fadt;
 }

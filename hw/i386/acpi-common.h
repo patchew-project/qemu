@@ -1,7 +1,8 @@
 #ifndef HW_I386_ACPI_COMMON_H
 #define HW_I386_ACPI_COMMON_H
-#include "include/hw/acpi/acpi_dev_interface.h"
 
+#include "include/hw/acpi/acpi-defs.h"
+#include "include/hw/acpi/acpi_dev_interface.h"
 #include "include/hw/acpi/bios-linker-loader.h"
 #include "include/hw/i386/x86.h"
 
@@ -12,5 +13,7 @@ void acpi_build_madt(GArray *table_data, BIOSLinker *linker,
                      X86MachineState *x86ms, AcpiDeviceIf *adev,
                      bool has_pci);
 void acpi_build_facs(GArray *table_data);
+void acpi_init_common_fadt_data(MachineState *ms, Object *o,
+                                AcpiFadtData *data);
 
 #endif
