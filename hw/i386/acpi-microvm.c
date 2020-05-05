@@ -47,7 +47,7 @@ static void acpi_dsdt_add_power_button(Aml *scope)
     aml_append(scope, dev);
 }
 
-static void acpi_dsdt_add_virtio(Aml *scope)
+static void acpi_dsdt_add_virtio(Aml *scope, MicrovmMachineState *mms)
 {
     gchar *separator;
     long int index;
@@ -75,7 +75,7 @@ static void acpi_dsdt_add_virtio(Aml *scope)
                 continue;
             }
 
-            uint32_t irq = VIRTIO_IRQ_BASE + index;
+            uint32_t irq = mms->virtio_irq_base + index;
             hwaddr base = VIRTIO_MMIO_BASE + index * 512;
             hwaddr size = 512;
 
@@ -119,7 +119,7 @@ build_dsdt_microvm(GArray *table_data, BIOSLinker *linker,
     build_ged_aml(sb_scope, GED_DEVICE, HOTPLUG_HANDLER(mms->acpi_dev),
                   GED_MMIO_IRQ, AML_SYSTEM_MEMORY, GED_MMIO_BASE);
     acpi_dsdt_add_power_button(sb_scope);
-    acpi_dsdt_add_virtio(sb_scope);
+    acpi_dsdt_add_virtio(sb_scope, mms);
     aml_append(dsdt, sb_scope);
 
     scope = aml_scope("\\");
