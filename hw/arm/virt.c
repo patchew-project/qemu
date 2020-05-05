@@ -2258,7 +2258,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
         virt_get_acpi, virt_set_acpi,
         NULL, NULL, &error_abort);
     object_class_property_set_description(oc, "acpi",
-        "Enable ACPI", &error_abort);
+        "Enable ACPI");
 }
 
 static void virt_instance_init(Object *obj)
@@ -2275,8 +2275,7 @@ static void virt_instance_init(Object *obj)
                              virt_set_secure, NULL);
     object_property_set_description(obj, "secure",
                                     "Set on/off to enable/disable the ARM "
-                                    "Security Extensions (TrustZone)",
-                                    NULL);
+                                    "Security Extensions (TrustZone)");
 
     /* EL2 is also disabled by default, for similar reasons */
     vms->virt = false;
@@ -2285,8 +2284,7 @@ static void virt_instance_init(Object *obj)
     object_property_set_description(obj, "virtualization",
                                     "Set on/off to enable/disable emulating a "
                                     "guest CPU which implements the ARM "
-                                    "Virtualization Extensions",
-                                    NULL);
+                                    "Virtualization Extensions");
 
     /* High memory is enabled by default */
     vms->highmem = true;
@@ -2294,15 +2292,13 @@ static void virt_instance_init(Object *obj)
                              virt_set_highmem, NULL);
     object_property_set_description(obj, "highmem",
                                     "Set on/off to enable/disable using "
-                                    "physical address space above 32 bits",
-                                    NULL);
+                                    "physical address space above 32 bits");
     vms->gic_version = VIRT_GIC_VERSION_NOSEL;
     object_property_add_str(obj, "gic-version", virt_get_gic_version,
                         virt_set_gic_version, NULL);
     object_property_set_description(obj, "gic-version",
                                     "Set GIC version. "
-                                    "Valid values are 2, 3, host and max",
-                                    NULL);
+                                    "Valid values are 2, 3, host and max");
 
     vms->highmem_ecam = !vmc->no_highmem_ecam;
 
@@ -2315,8 +2311,7 @@ static void virt_instance_init(Object *obj)
                                  virt_set_its, NULL);
         object_property_set_description(obj, "its",
                                         "Set on/off to enable/disable "
-                                        "ITS instantiation",
-                                        NULL);
+                                        "ITS instantiation");
     }
 
     /* Default disallows iommu instantiation */
@@ -2324,8 +2319,7 @@ static void virt_instance_init(Object *obj)
     object_property_add_str(obj, "iommu", virt_get_iommu, virt_set_iommu, NULL);
     object_property_set_description(obj, "iommu",
                                     "Set the IOMMU type. "
-                                    "Valid values are none and smmuv3",
-                                    NULL);
+                                    "Valid values are none and smmuv3");
 
     vms->irqmap = a15irqmap;
 
