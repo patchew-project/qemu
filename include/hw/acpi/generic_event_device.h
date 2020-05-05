@@ -68,8 +68,18 @@
 #define ACPI_GED(obj) \
     OBJECT_CHECK(AcpiGedState, (obj), TYPE_ACPI_GED)
 
+#define TYPE_ACPI_GED_X86 "acpi-ged-x86"
+#define ACPI_GED_X86(obj) \
+    OBJECT_CHECK(AcpiGedX86State, (obj), TYPE_ACPI_GED_X86)
+
 #define ACPI_GED_EVT_SEL_OFFSET    0x0
 #define ACPI_GED_EVT_SEL_LEN       0x4
+
+#define ACPI_GED_X86_REG_SLEEP_CTL 0x00
+#define ACPI_GED_X86_REG_SLEEP_STS 0x01
+#define ACPI_GED_X86_REG_RESET     0x02
+#define   ACPI_GED_X86_RESET_VALUE 0x42
+#define ACPI_GED_X86_REG_COUNT     0x03
 
 #define GED_DEVICE      "GED"
 #define AML_GED_EVT_REG "EREG"
