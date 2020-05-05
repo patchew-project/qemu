@@ -72,16 +72,6 @@
 #include "hw/acpi/ipmi.h"
 #include "hw/acpi/hmat.h"
 
-/* These are used to size the ACPI tables for -M pc-i440fx-1.7 and
- * -M pc-i440fx-2.0.  Even if the actual amount of AML generated grows
- * a little bit, there should be plenty of free space since the DSDT
- * shrunk by ~1.5k between QEMU 2.0 and QEMU 2.1.
- */
-#define ACPI_BUILD_LEGACY_CPU_AML_SIZE    97
-#define ACPI_BUILD_ALIGN_SIZE             0x1000
-
-#define ACPI_BUILD_TABLE_SIZE             0x20000
-
 /* #define DEBUG_ACPI_BUILD */
 #ifdef DEBUG_ACPI_BUILD
 #define ACPI_BUILD_DPRINTF(fmt, ...)        \
@@ -265,14 +255,6 @@ static void acpi_get_pci_holes(Range *hole, Range *hole64)
                       object_property_get_uint(pci_host,
                                                PCI_HOST_PROP_PCI_HOLE64_END,
                                                NULL));
-}
-
-static void acpi_align_size(GArray *blob, unsigned align)
-{
-    /* Align size to multiple of given size. This reduces the chance
-     * we need to change size in the future (breaking cross version migration).
-     */
-    g_array_set_size(blob, ROUND_UP(acpi_data_len(blob), align));
 }
 
 static void build_append_pcihp_notify_entry(Aml *method, int slot)
