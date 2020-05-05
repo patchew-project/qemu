@@ -703,7 +703,7 @@ static size_t audio_pcm_hw_get_live_out (HWVoiceOut *hw, int *nb_live)
 /*
  * Soft voice (playback)
  */
-static size_t audio_pcm_sw_write(SWVoiceOut *sw, void *buf, size_t size)
+static size_t audio_pcm_sw_write(SWVoiceOut *sw, const void *buf, size_t size)
 {
     size_t hwsamples, samples, isamp, osamp, wpos, live, dead, left, swlim, blck;
     size_t ret = 0, pos = 0, total = 0;
@@ -850,7 +850,7 @@ static void audio_timer (void *opaque)
 /*
  * Public API
  */
-size_t AUD_write(SWVoiceOut *sw, void *buf, size_t size)
+size_t AUD_write(SWVoiceOut *sw, const void *buf, size_t size)
 {
     HWVoiceOut *hw;
 
