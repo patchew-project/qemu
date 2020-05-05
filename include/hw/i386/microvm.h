@@ -24,12 +24,18 @@
 
 #include "hw/boards.h"
 #include "hw/i386/x86.h"
+#include "hw/acpi/acpi_dev_interface.h"
 
 /* Platform virtio definitions */
 #define VIRTIO_MMIO_BASE      0xc0000000
 #define VIRTIO_IRQ_BASE       5
 #define VIRTIO_NUM_TRANSPORTS 8
 #define VIRTIO_CMDLINE_MAXLEN 64
+
+#define GED_MMIO_BASE         0xc1000000
+#define GED_MMIO_BASE_MEMHP   (GED_MMIO_BASE + 0x100)
+#define GED_MMIO_BASE_REGS    (GED_MMIO_BASE + 0x200)
+#define GED_MMIO_IRQ          9
 
 /* Machine type options */
 #define MICROVM_MACHINE_PIT                 "pit"
@@ -58,6 +64,8 @@ typedef struct {
 
     /* Machine state */
     bool kernel_cmdline_fixed;
+    Notifier machine_done;
+    AcpiDeviceIf *acpi_dev;
 } MicrovmMachineState;
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")
