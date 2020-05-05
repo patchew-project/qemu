@@ -310,10 +310,10 @@ ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile
 	$(call quiet-command,\
 	    stem=$* && src=$${stem%-to-*} dst=$${stem#*-to-} && \
 	    test -e $(KEYCODEMAP_GEN) && \
-	    $(PYTHON) $(KEYCODEMAP_GEN) \
+	    $(PYTHON) $(KEYCODEMAP_GEN) code-map \
 	          --lang glib2 \
 	          --varname qemu_input_map_$${src}_to_$${dst} \
-	          code-map $(KEYCODEMAP_CSV) $${src} $${dst} \
+	          $(KEYCODEMAP_CSV) $${src} $${dst} \
 	        > $@ || rm -f $@, "GEN", "$@")
 
 $(KEYCODEMAP_GEN): .git-submodule-status
