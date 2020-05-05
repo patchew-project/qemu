@@ -27,7 +27,7 @@
 
 #define TYPE_VMPORT "vmport"
 
-typedef uint32_t (VMPortReadFunc)(void *opaque, uint32_t address);
+typedef uint32_t VMPortReadFunc(void *opaque, uint32_t address);
 
 void vmport_register(unsigned char command, VMPortReadFunc *func, void *opaque);
 
