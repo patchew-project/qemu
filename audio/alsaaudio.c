@@ -608,7 +608,7 @@ static int alsa_open(bool in, struct alsa_params_req *req,
     return -1;
 }
 
-static size_t alsa_write(HWVoiceOut *hw, void *buf, size_t len)
+static size_t alsa_write(HWVoiceOut *hw, const void *buf, size_t len)
 {
     ALSAVoiceOut *alsa = (ALSAVoiceOut *) hw;
     size_t pos = 0;

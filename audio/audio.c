@@ -1253,7 +1253,7 @@ static size_t audio_pcm_hw_run_in(HWVoiceIn *hw, size_t samples)
     while (samples) {
         size_t proc;
         size_t size = samples * hw->info.bytes_per_frame;
-        void *buf = hw->pcm_ops->get_buffer_in(hw, &size);
+        const void *buf = hw->pcm_ops->get_buffer_in(hw, &size);
 
         assert(size % hw->info.bytes_per_frame == 0);
         if (size == 0) {
@@ -1425,7 +1425,7 @@ void *audio_generic_get_buffer_in(HWVoiceIn *hw, size_t *size)
     return hw->buf_emul + start;
 }
 
-void audio_generic_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
+void audio_generic_put_buffer_in(HWVoiceIn *hw, const void *buf, size_t size)
 {
     assert(size <= hw->pending_emul);
     hw->pending_emul -= size;
@@ -1468,7 +1468,8 @@ void *audio_generic_get_buffer_out(HWVoiceOut *hw, size_t *size)
     return hw->buf_emul + hw->pos_emul;
 }
 
-size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
+size_t audio_generic_put_buffer_out(HWVoiceOut *hw,
+                                    const void *buf, size_t size)
 {
     assert(buf == hw->buf_emul + hw->pos_emul &&
            size + hw->pending_emul <= hw->size_emul);
@@ -1479,7 +1480,7 @@ size_t audio_generic_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
     return size;
 }
 
-size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
+size_t audio_generic_write(HWVoiceOut *hw, const void *buf, size_t size)
 {
     size_t dst_size, copy_size;
     void *dst = hw->pcm_ops->get_buffer_out(hw, &dst_size);
@@ -1491,7 +1492,7 @@ size_t audio_generic_write(HWVoiceOut *hw, void *buf, size_t size)
 
 size_t audio_generic_read(HWVoiceIn *hw, void *buf, size_t size)
 {
-    void *src = hw->pcm_ops->get_buffer_in(hw, &size);
+    const void *src = hw->pcm_ops->get_buffer_in(hw, &size);
 
     memcpy(buf, src, size);
     hw->pcm_ops->put_buffer_in(hw, src, size);

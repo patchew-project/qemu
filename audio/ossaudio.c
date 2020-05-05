@@ -402,7 +402,7 @@ static void *oss_get_buffer_out(HWVoiceOut *hw, size_t *size)
     }
 }
 
-static size_t oss_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
+static size_t oss_put_buffer_out(HWVoiceOut *hw, const void *buf, size_t size)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     if (oss->mmapped) {
@@ -415,7 +415,7 @@ static size_t oss_put_buffer_out(HWVoiceOut *hw, void *buf, size_t size)
     }
 }
 
-static size_t oss_write(HWVoiceOut *hw, void *buf, size_t len)
+static size_t oss_write(HWVoiceOut *hw, const void *buf, size_t len)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
     size_t pos;

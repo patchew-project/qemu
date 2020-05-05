@@ -139,7 +139,7 @@ static void *line_out_get_buffer(HWVoiceOut *hw, size_t *size)
     return out->frame + out->fpos;
 }
 
-static size_t line_out_put_buffer(HWVoiceOut *hw, void *buf, size_t size)
+static size_t line_out_put_buffer(HWVoiceOut *hw, const void *buf, size_t size)
 {
     SpiceVoiceOut *out = container_of(hw, SpiceVoiceOut, hw);
 

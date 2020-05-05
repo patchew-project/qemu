@@ -412,9 +412,10 @@ static int coreaudio_unlock (coreaudioVoiceOut *core, const char *fn_name)
 COREAUDIO_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                        (hw, size))
 COREAUDIO_WRAPPER_FUNC(put_buffer_out, size_t,
-                       (HWVoiceOut *hw, void *buf, size_t size),
+                       (HWVoiceOut *hw, const void *buf, size_t size),
                        (hw, buf, size))
-COREAUDIO_WRAPPER_FUNC(write, size_t, (HWVoiceOut *hw, void *buf, size_t size),
+COREAUDIO_WRAPPER_FUNC(write, size_t,
+                       (HWVoiceOut *hw, const void *buf, size_t size),
                        (hw, buf, size))
 #undef COREAUDIO_WRAPPER_FUNC
 

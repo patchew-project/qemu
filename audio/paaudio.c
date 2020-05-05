@@ -125,7 +125,7 @@ unlock_and_fail:
     return NULL;
 }
 
-static void qpa_put_buffer_in(HWVoiceIn *hw, void *buf, size_t size)
+static void qpa_put_buffer_in(HWVoiceIn *hw, const void *buf, size_t size)
 {
     PAVoiceIn *p = (PAVoiceIn *) hw;
     PAConnection *c = p->g->conn;
@@ -228,7 +228,7 @@ unlock_and_fail:
     return NULL;
 }
 
-static size_t qpa_write(HWVoiceOut *hw, void *data, size_t length)
+static size_t qpa_write(HWVoiceOut *hw, const void *data, size_t length)
 {
     PAVoiceOut *p = (PAVoiceOut *) hw;
     PAConnection *c = p->g->conn;

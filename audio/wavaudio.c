@@ -39,7 +39,7 @@ typedef struct WAVVoiceOut {
     int total_samples;
 } WAVVoiceOut;
 
-static size_t wav_write_out(HWVoiceOut *hw, void *buf, size_t len)
+static size_t wav_write_out(HWVoiceOut *hw, const void *buf, size_t len)
 {
     WAVVoiceOut *wav = (WAVVoiceOut *) hw;
     int64_t bytes = audio_rate_get_bytes(&hw->info, &wav->rate, len);

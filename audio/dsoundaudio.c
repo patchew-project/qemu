@@ -454,7 +454,7 @@ static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
     return ret;
 }
 
-static size_t dsound_put_buffer_out(HWVoiceOut *hw, void *buf, size_t len)
+static size_t dsound_put_buffer_out(HWVoiceOut *hw, const void *buf, size_t len)
 {
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
     LPDIRECTSOUNDBUFFER dsb = ds->dsound_buffer;

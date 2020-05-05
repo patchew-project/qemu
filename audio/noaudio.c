@@ -41,7 +41,7 @@ typedef struct NoVoiceIn {
     RateCtl rate;
 } NoVoiceIn;
 
-static size_t no_write(HWVoiceOut *hw, void *buf, size_t len)
+static size_t no_write(HWVoiceOut *hw, const void *buf, size_t len)
 {
     NoVoiceOut *no = (NoVoiceOut *) hw;
     return audio_rate_get_bytes(&hw->info, &no->rate, len);

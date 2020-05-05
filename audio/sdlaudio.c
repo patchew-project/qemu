@@ -256,10 +256,12 @@ static void sdl_callback (void *opaque, Uint8 *buf, int len)
 SDL_WRAPPER_FUNC(get_buffer_out, void *, (HWVoiceOut *hw, size_t *size),
                  (hw, size), *size = 0, sdl_unlock)
 SDL_WRAPPER_FUNC(put_buffer_out, size_t,
-                 (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size),
+                 (HWVoiceOut *hw, const void *buf, size_t size),
+                 (hw, buf, size),
                  /*nothing*/, sdl_unlock_and_post)
 SDL_WRAPPER_FUNC(write, size_t,
-                 (HWVoiceOut *hw, void *buf, size_t size), (hw, buf, size),
+                 (HWVoiceOut *hw, const void *buf, size_t size),
+                 (hw, buf, size),
                  /*nothing*/, sdl_unlock_and_post)
 
 #undef SDL_WRAPPER_FUNC
