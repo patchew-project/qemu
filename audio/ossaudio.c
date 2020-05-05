@@ -28,7 +28,7 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/host-utils.h"
-#include "audio.h"
+#include "audio/audio.h"
 #include "trace.h"
 
 #define AUDIO_CAP "oss"

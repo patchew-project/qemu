@@ -27,7 +27,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "audio.h"
+#include "audio/audio.h"
 
 #define AUDIO_CAP "dsound"
 #include "audio_int.h"

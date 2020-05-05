@@ -3,7 +3,7 @@
 #include "qemu/osdep.h"
 #include "qemu/module.h"
 #include "qemu-common.h"
-#include "audio.h"
+#include "audio/audio.h"
 #include "qapi/opts-visitor.h"
 
 #include <pulse/pulseaudio.h>

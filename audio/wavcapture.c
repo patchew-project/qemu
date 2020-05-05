@@ -2,7 +2,7 @@
 #include "monitor/monitor.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
-#include "audio.h"
+#include "audio/audio.h"
 
 typedef struct {
     FILE *f;

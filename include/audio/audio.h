@@ -95,6 +95,7 @@ void AUD_log (const char *cap, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 
 void AUD_register_card (const char *name, QEMUSoundCard *card);
 void AUD_remove_card (QEMUSoundCard *card);
+
 CaptureVoiceOut *AUD_add_capture(
     AudioState *s,
     struct audsettings *as,
@@ -111,7 +112,6 @@ SWVoiceOut *AUD_open_out (
     audio_callback_fn callback_fn,
     struct audsettings *settings
     );
-
 void AUD_close_out (QEMUSoundCard *card, SWVoiceOut *sw);
 size_t AUD_write (SWVoiceOut *sw, const void *pcm_buf, size_t size);
 int  AUD_get_buffer_size_out (SWVoiceOut *sw);

@@ -27,7 +27,7 @@
 #include "qemu/module.h"
 #include "qemu/timer.h"
 #include "qapi/opts-visitor.h"
-#include "audio.h"
+#include "audio/audio.h"
 
 #define AUDIO_CAP "wav"
 #include "audio_int.h"
