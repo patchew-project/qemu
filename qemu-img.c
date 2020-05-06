@@ -4307,7 +4307,7 @@ static int img_bench(int argc, char **argv)
             int64_t sval;
 
             sval = cvtnum(optarg);
-            if (sval < 0 || sval > INT_MAX) {
+            if (sval < 0) {
                 error_report("Invalid buffer size specified");
                 return 1;
             }
@@ -4320,7 +4320,7 @@ static int img_bench(int argc, char **argv)
             int64_t sval;
 
             sval = cvtnum(optarg);
-            if (sval < 0 || sval > INT_MAX) {
+            if (sval < 0) {
                 error_report("Invalid step size specified");
                 return 1;
             }
@@ -4493,7 +4493,7 @@ static int img_dd_bs(const char *arg,
 
     res = cvtnum(arg);
 
-    if (res <= 0 || res > INT_MAX) {
+    if (res <= 0) {
         error_report("invalid number: '%s'", arg);
         return 1;
     }
