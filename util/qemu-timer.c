@@ -587,6 +587,11 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
         qemu_mutex_lock(&timer_list->active_timers_lock);
 
         progress = true;
+        /*
+         * Callback may insert new checkpoints, therefore add new checkpoint
+         * for the virtual timers.
+         */
+        need_replay_checkpoint = timer_list->clock->type == QEMU_CLOCK_VIRTUAL;
     }
     qemu_mutex_unlock(&timer_list->active_timers_lock);
 
