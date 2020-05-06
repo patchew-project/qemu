@@ -92,13 +92,13 @@ Formatting 'TEST_DIR/t.qcow2', fmt=qcow2 size=1649267441664 cluster_size=65536 l
 == 3. Invalid sizes ==
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1024
-qemu-img: Image size must be less than 8 EiB!
+qemu-img: Invalid image size specified! Must be less than 8 EiB!
 
 qemu-img create -f qcow2 -o size=-1024 TEST_DIR/t.qcow2
 qemu-img: TEST_DIR/t.qcow2: Value '-1024' is out of range for parameter 'size'
 
 qemu-img create -f qcow2 TEST_DIR/t.qcow2 -- -1k
-qemu-img: Image size must be less than 8 EiB!
+qemu-img: Invalid image size specified! Must be less than 8 EiB!
 
 qemu-img create -f qcow2 -o size=-1k TEST_DIR/t.qcow2
 qemu-img: TEST_DIR/t.qcow2: Value '-1k' is out of range for parameter 'size'
