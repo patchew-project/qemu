@@ -491,7 +491,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev, Error **errp)
     virtio_del_queue(vdev, 0);
     virtio_cleanup(vdev);
     g_free(vmem->bitmap);
-    ramblock_discard_set_required(false);
+    ram_block_discard_set_required(false);
 }
 
 static int virtio_mem_pre_save(void *opaque)
