@@ -4049,4 +4049,52 @@ void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
     }
 }
 
+static int ram_block_discard_broken;
+
+int ram_block_discard_set_broken(bool state)
+{
+    int old;
+
+    if (!state) {
+        atomic_dec(&ram_block_discard_broken);
+        return 0;
+    }
+
+    do {
+        old = atomic_read(&ram_block_discard_broken);
+        if (old < 0) {
+            return -EBUSY;
+        }
+    } while (atomic_cmpxchg(&ram_block_discard_broken, old, old + 1) != old);
+    return 0;
+}
+
+int ram_block_discard_set_required(bool state)
+{
+    int old;
+
+    if (!state) {
+        atomic_inc(&ram_block_discard_broken);
+        return 0;
+    }
+
+    do {
+        old = atomic_read(&ram_block_discard_broken);
+        if (old > 0) {
+            return -EBUSY;
+        }
+    } while (atomic_cmpxchg(&ram_block_discard_broken, old, old - 1) != old);
+    return 0;
+}
+
+bool ram_block_discard_is_broken(void)
+{
+    return atomic_read(&ram_block_discard_broken) > 0;
+}
+
+bool ram_block_discard_is_required(void)
+{
+    return atomic_read(&ram_block_discard_broken) < 0;
+}
+
 #endif
