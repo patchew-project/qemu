@@ -10253,10 +10253,10 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         switch (arg1) {
         case PR_GET_PDEATHSIG:
         {
-            int deathsig;
+            uint32_t deathsig;
             ret = get_errno(prctl(arg1, &deathsig, arg3, arg4, arg5));
             if (!is_error(ret) && arg2
-                && put_user_ual(deathsig, arg2)) {
+                && put_user_u32(deathsig, arg2)) {
                 return -TARGET_EFAULT;
             }
             return ret;
