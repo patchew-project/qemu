@@ -115,7 +115,18 @@ struct BlockDriver {
      */
     bool bdrv_needs_filename;
 
-    /* Set if a driver can support backing files */
+    /*
+     * Set if a driver can support backing files. This also implies the
+     * following semantics:
+     *
+     *  - Return status 0 of .bdrv_co_block_status means that corresponding
+     *    blocks are not allocated in this layer of backing-chain
+     *  - For such (unallocated) blocks, read will:
+     *    - read from backing file if there is one and big enough
+     *    - fill buffer with zeroes if there is no backing file
+     *    - space after EOF of the backing file considered as zero
+     *      (corresponding part of read-buffer must be zeroed by driver)
+     */
     bool supports_backing;
 
     /* For handling image reopen for split or non-split files */
