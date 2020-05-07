@@ -1207,8 +1207,7 @@ static uint64_t nvme_mmio_read(void *opaque, hwaddr addr, unsigned size)
          */
         if (addr == 0xE08 &&
             (NVME_PMRCAP_PMRWBM(n->bar.pmrcap) & 0x02)) {
-            qemu_ram_writeback(n->pmrdev->mr.ram_block,
-                               0, n->pmrdev->size);
+            qemu_ram_msync(n->pmrdev->mr.ram_block, 0, n->pmrdev->size);
         }
         memcpy(&val, ptr + addr, size);
     } else {
