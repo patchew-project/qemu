@@ -112,7 +112,7 @@ typedef struct MegasasState {
     uint64_t reply_queue_pa;
     void *reply_queue;
     int reply_queue_len;
-    int reply_queue_head;
+    uint16_t reply_queue_head;
     int reply_queue_tail;
     uint64_t consumer_pa;
     uint64_t producer_pa;
