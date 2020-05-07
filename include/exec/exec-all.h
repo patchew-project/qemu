@@ -454,12 +454,15 @@ static inline uint32_t curr_cflags(void)
 }
 
 /* TranslationBlock invalidate API */
-#if defined(CONFIG_USER_ONLY)
+#ifdef CONFIG_SOFTMMU
+void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs);
+void tb_invalidate_phys_range(ram_addr_t start, ram_addr_t end);
+void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
+#else
 void tb_invalidate_phys_addr(target_ulong addr);
 void tb_invalidate_phys_range(target_ulong start, target_ulong end);
-#else
-void tb_invalidate_phys_addr(AddressSpace *as, hwaddr addr, MemTxAttrs attrs);
-#endif
+#endif /* CONFIG_SOFTMMU */
+
 void tb_flush(CPUState *cpu);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
 TranslationBlock *tb_htable_lookup(CPUState *cpu, target_ulong pc,
@@ -583,7 +586,6 @@ void tlb_reset_dirty(CPUState *cpu, ram_addr_t start1, ram_addr_t length);
 void tlb_set_dirty(CPUState *cpu, target_ulong vaddr);
 
 /* exec.c */
-void tb_flush_jmp_cache(CPUState *cpu, target_ulong addr);
 
 MemoryRegionSection *
 address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
@@ -591,7 +593,7 @@ address_space_translate_for_iotlb(CPUState *cpu, int asidx, hwaddr addr,
                                   MemTxAttrs attrs, int *prot);
 hwaddr memory_region_section_get_iotlb(CPUState *cpu,
                                        MemoryRegionSection *section);
-#endif
+#endif /* CONFIG_USER_ONLY */
 
 /* vl.c */
 extern int singlestep;
