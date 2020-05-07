@@ -190,6 +190,14 @@ int foreach_not_ignored_block(RAMBlockIterFunc func, void *opaque)
     return ret;
 }
 
+static inline unsigned long int ramblock_recv_bitmap_offset(void *host_addr,
+                                                            RAMBlock *rb)
+{
+    uint64_t host_addr_offset =
+            (uint64_t)(uintptr_t)(host_addr - (void *)rb->host);
+    return host_addr_offset >> TARGET_PAGE_BITS;
+}
+
 static void ramblock_recv_map_init(void)
 {
     RAMBlock *rb;

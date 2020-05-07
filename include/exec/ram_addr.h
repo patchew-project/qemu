@@ -83,14 +83,6 @@ static inline void *ramblock_ptr(RAMBlock *block, ram_addr_t offset)
     return (char *)block->host + offset;
 }
 
-static inline unsigned long int ramblock_recv_bitmap_offset(void *host_addr,
-                                                            RAMBlock *rb)
-{
-    uint64_t host_addr_offset =
-            (uint64_t)(uintptr_t)(host_addr - (void *)rb->host);
-    return host_addr_offset >> TARGET_PAGE_BITS;
-}
-
 bool ramblock_is_pmem(RAMBlock *rb);
 
 /**
