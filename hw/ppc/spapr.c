@@ -69,7 +69,6 @@
 #include "hw/virtio/vhost-scsi-common.h"
 
 #include "exec/address-spaces.h"
-#include "exec/ram_addr.h"
 #include "hw/usb.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
