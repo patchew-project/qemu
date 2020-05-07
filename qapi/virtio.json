@@ -79,6 +79,150 @@
 }
 
 ##
+# @VirtioTransportFeature:
+#
+# An enumeration of Virtio device transport features, including virtio-ring
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioTransportFeature',
+  'data': [ 'notify-on-empty', 'any-layout', 'version-1', 'iommu-platform',
+            'ring-packed', 'order-platform', 'sr-iov', 'indirect-desc',
+            'event-idx', 'bad-feature' ]
+}
+
+##
+# @VirtioSerialFeature:
+#
+# An enumeration of Virtio serial features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioSerialFeature',
+  'data': [ 'size', 'multiport', 'emerg-write' ]
+}
+
+##
+# @VirtioBlkFeature:
+#
+# An enumeration of Virtio block features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioBlkFeature',
+  'data': [ 'size-max', 'seg-max', 'geometry', 'ro', 'blk-size', 'topology',              'mq', 'discard', 'write-zeroes', 'barrier', 'scsi', 'flush',
+            'config-wce' ]
+}
+
+##
+# @VirtioGpuFeature:
+#
+# An enumeration of Virtio gpu features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioGpuFeature',
+  'data': [ 'virgl', 'edid' ]
+}
+
+##
+# @VirtioNetFeature:
+#
+# An enumeration of Virtio net features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioNetFeature',
+  'data': [ 'csum', 'guest-csum', 'ctrl-guest-offloads', 'mtu', 'mac',
+            'guest-tso4', 'guest-tso6', 'guest-ecn', 'guest-ufo',
+            'host-tso4', 'host-tso6', 'host-ecn', 'host-ufo', 'mrg-rxbuf',
+            'status', 'ctrl-vq', 'ctrl-rx', 'ctrl-vlan', 'ctrl-rx-extra',
+            'guest-announce', 'mq', 'ctrl-mac-addr', 'standby',
+            'speed-duplex', 'gso' ]
+}
+
+##
+# @VirtioScsiFeature:
+#
+# An enumeration of Virtio scsi features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioScsiFeature',
+  'data': [ 'inout', 'hotplug', 'change', 't10-pi' ]
+}
+
+##
+# @VirtioBalloonFeature:
+#
+# An enumeration of Virtio balloon features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioBalloonFeature',
+  'data': [ 'must-tell-host', 'stats-vq', 'deflate-on-oom', 'free-page-hint',
+            'page-poison' ]
+}
+
+##
+# @VirtioIommuFeature:
+#
+# An enumeration of Virtio iommu features
+#
+# Since: 5.1
+##
+
+{ 'enum': 'VirtioIommuFeature',
+  'data': [ 'input-range', 'domain-range', 'map-unmap', 'bypass', 'probe',
+            'mmio' ]
+}
+
+##
+# @VirtioDeviceFeatures:
+#
+# An union to define the list of features for a virtio device
+#
+# Since: 5.1
+##
+
+{ 'union': 'VirtioDeviceFeatures',
+  'data': {
+    'virtio-serial': [ 'VirtioSerialFeature' ],
+    'virtio-blk': [ 'VirtioBlkFeature' ],
+    'virtio-gpu': [ 'VirtioGpuFeature' ],
+    'virtio-net': [ 'VirtioNetFeature' ],
+    'virtio-scsi': [ 'VirtioScsiFeature' ],
+    'virtio-balloon': [ 'VirtioBalloonFeature' ],
+    'virtio-iommu': [ 'VirtioIommuFeature' ]
+  }
+}
+
+##
+# @VirtioStatusFeatures:
+#
+# @transport: the list of transport features of the virtio device
+#
+# @device: the list of the virtio device specific features
+#
+# @unknown: virtio bitmap of the undecoded features
+#
+# Since: 5.1
+##
+
+{ 'struct': 'VirtioStatusFeatures',
+  'data': { 'transport': [ 'VirtioTransportFeature' ],
+            'device': 'VirtioDeviceFeatures',
+            'unknown': 'uint64' }
+}
+
+##
 # @VirtioStatus:
 #
 # @device-id: VirtIODevice status
@@ -101,9 +245,9 @@
   'data': {
     'device-id': 'int',
     'device-endian': 'VirtioStatusEndianness',
-    'guest-features': 'uint64',
-    'host-features': 'uint64',
-    'backend-features': 'uint64',
+    'guest-features': 'VirtioStatusFeatures',
+    'host-features': 'VirtioStatusFeatures',
+    'backend-features': 'VirtioStatusFeatures',
     'num-vqs': 'uint16'
   }
 }
@@ -123,18 +267,40 @@
 #
 # -> { "execute": "x-debug-virtio-status",
 #      "arguments": {
-#          "path": "/machine/peripheral-anon/device[3]/virtio-backend"
+#          "path": "/machine/peripheral-anon/device[1]/virtio-backend"
 #      }
 #   }
 # <- { "return": {
-#          "backend-features": 0,
-#          "guest-features": 5111807911,
-#          "num-vqs": 3,
-#          "host-features": 6337593319,
 #          "device-endian": "little",
-#          "device-id": 1
+#          "device-id": 3,
+#          "backend-features": {
+#              "device": {
+#                  "type": "virtio-serial",
+#                  "data": []
+#              },
+#              "unknown": 0,
+#              "transport": []
+#          },
+#          "num-vqs": 64,
+#          "guest-features": {
+#              "device": {
+#                  "type": "virtio-serial",
+#                  "data": [ "multiport" ]
+#              },
+#              "unknown": 0,
+#              "transport": [ "event-idx", "indirect-desc", "version-1" ]
+#          },
+#          "host-features": {
+#              "device": {
+#                  "type": "virtio-serial",
+#                  "data": [ "emerg-write", "multiport" ]
+#              },
+#              "unknown": 0,
+#              "transport": [ "event-idx", "indirect-desc", "bad-feature",
+#                             "version-1", "any-layout", "notify-on-empty" ]
+#          }
 #      }
-#    }
+#  }
 #
 ##
 
