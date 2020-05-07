@@ -57,6 +57,12 @@ struct MemoryRegionMmio {
     CPUWriteMemoryFunc *write[3];
 };
 
+struct ReservedRegion {
+    hwaddr low;
+    hwaddr high;
+    unsigned int type;
+};
+
 typedef struct IOMMUTLBEntry IOMMUTLBEntry;
 
 /* See address_space_translate: bit 0 is read, bit 1 is write.  */
