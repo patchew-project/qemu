@@ -15,6 +15,7 @@ from avocado_qemu import Test, BUILD_DIR
 from qemu.accel import kvm_available
 from qemu.accel import tcg_available
 
+from avocado import skipIf
 from avocado.utils import cloudinit
 from avocado.utils import network
 from avocado.utils import vmimage
@@ -159,6 +160,7 @@ class BootLinuxAarch64(BootLinux):
         self.vm.add_args('-device', 'virtio-rng-pci,rng=rng0')
         self.vm.add_args('-object', 'rng-random,id=rng0,filename=/dev/urandom')
 
+    @skipIf(os.getenv('AVOCADO_SKIP_SLOW_TESTS'), 'Test takes >7min')
     def test_virt_tcg(self):
         """
         :avocado: tags=accel:tcg
