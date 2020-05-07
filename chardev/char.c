@@ -850,6 +850,9 @@ QemuOptsList qemu_chardev_opts = {
             .name = "path",
             .type = QEMU_OPT_STRING,
         },{
+            .name = "pathin",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "host",
             .type = QEMU_OPT_STRING,
         },{
