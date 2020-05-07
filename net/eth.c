@@ -314,10 +314,62 @@ eth_strip_vlan_ex(const struct iovec *iov, int iovcnt, size_t iovoff,
     return 0;
 }
 
+static bool eth_is_ip6_extension_header_type(uint8_t hdr_type);
+
+static void *eth_ip6_find_ext(struct ip6_header *ip6, uint8_t ext_type)
+{
+    uint8_t curr_ext_hdr_type = ip6->ip6_nxt;
+    struct ip6_ext_hdr *ext_hdr = (struct ip6_ext_hdr *)(ip6 + 1);
+    for (; eth_is_ip6_extension_header_type(curr_ext_hdr_type);) {
+        if (curr_ext_hdr_type == ext_type) {
+            return ext_hdr;
+        }
+        curr_ext_hdr_type = ext_hdr->ip6r_nxt;
+        ext_hdr = (struct ip6_ext_hdr *)(((uint8_t *)ext_hdr)
+                + (ext_hdr->ip6r_len + 1) * IP6_EXT_GRANULARITY);
+    }
+
+    return NULL;
+}
+
+/*
+ * To add an extension - there is should be
+ * enough memory 'behind' the ip6 header.
+ */
+static void *eth_ip6_add_ext_nonsafe(struct ip6_header *ip6, uint8_t ext_type)
+{
+    uint8_t curr_ext_hdr_type = ip6->ip6_nxt;
+    struct ip6_ext_hdr *ext_hdr = (struct ip6_ext_hdr *)(ip6 + 1);
+    struct ip6_ext_hdr *ext_hdr_prev = NULL;
+
+    if (!eth_is_ip6_extension_header_type(curr_ext_hdr_type)) {
+        ext_hdr->ip6r_nxt = ip6->ip6_nxt;
+        ip6->ip6_nxt = ext_type;
+        return ext_hdr;
+    }
+
+    ext_hdr_prev = ext_hdr;
+    curr_ext_hdr_type = ext_hdr->ip6r_nxt;
+    ext_hdr = (struct ip6_ext_hdr *)(((uint8_t *)ext_hdr)
+            + (ext_hdr->ip6r_len + 1) * IP6_EXT_GRANULARITY);
+
+    for (; eth_is_ip6_extension_header_type(curr_ext_hdr_type);) {
+        ext_hdr_prev = ext_hdr;
+        curr_ext_hdr_type = ext_hdr->ip6r_nxt;
+        ext_hdr = (struct ip6_ext_hdr *)(((uint8_t *)ext_hdr)
+                + (ext_hdr->ip6r_len + 1) * IP6_EXT_GRANULARITY);
+    }
+
+    ext_hdr->ip6r_nxt = ext_hdr_prev->ip6r_nxt;
+    ext_hdr_prev->ip6r_nxt = ext_type;
+
+    return ext_hdr;
+}
+
 void
-eth_setup_ip4_fragmentation(const void *l2hdr, size_t l2hdr_len,
-                            void *l3hdr, size_t l3hdr_len,
-                            size_t l3payload_len,
+eth_setup_ip_fragmentation(const void *l2hdr, size_t l2hdr_len,
+                            void *l3hdr, size_t *l3hdr_len,
+                            size_t l3hdr_max_len, size_t l3payload_len,
                             size_t frag_offset, bool more_frags)
 {
     const struct iovec l2vec = {
@@ -325,7 +377,9 @@ eth_setup_ip4_fragmentation(const void *l2hdr, size_t l2hdr_len,
         .iov_len = l2hdr_len
     };
 
-    if (eth_get_l3_proto(&l2vec, 1, l2hdr_len) == ETH_P_IP) {
+    uint16_t l3_proto = eth_get_l3_proto(&l2vec, 1, l2hdr_len);
+
+    if (l3_proto == ETH_P_IP) {
         uint16_t orig_flags;
         struct ip_header *iphdr = (struct ip_header *) l3hdr;
         uint16_t frag_off_units = frag_offset / IP_FRAG_UNIT_SIZE;
@@ -337,7 +391,32 @@ eth_setup_ip4_fragmentation(const void *l2hdr, size_t l2hdr_len,
         orig_flags = be16_to_cpu(iphdr->ip_off) & ~(IP_OFFMASK|IP_MF);
         new_ip_off = frag_off_units | orig_flags  | (more_frags ? IP_MF : 0);
         iphdr->ip_off = cpu_to_be16(new_ip_off);
-        iphdr->ip_len = cpu_to_be16(l3payload_len + l3hdr_len);
+        iphdr->ip_len = cpu_to_be16(l3payload_len + *l3hdr_len);
+
+        eth_fix_ip4_checksum(l3hdr, *l3hdr_len);
+    } else if (l3_proto == ETH_P_IPV6) {
+        struct ip6_header *ip6 = (struct ip6_header *) l3hdr;
+
+        struct ip6_ext_hdr_fragment *frag_ext = NULL;
+
+        /* Find frag extension */
+        frag_ext = eth_ip6_find_ext(ip6, IP6_FRAGMENT);
+        if (frag_ext == NULL) {
+            /* No frag extension? Add one */
+            if (*l3hdr_len + sizeof(*frag_ext) > l3hdr_max_len) {
+                return; /* TODO: request to reallocate l3hdr */
+            }
+            frag_ext = eth_ip6_add_ext_nonsafe(ip6, IP6_FRAGMENT);
+            *l3hdr_len += sizeof(*frag_ext);
+            static uint32_t s_id = 0x71656d75; /* 'qemu' */
+            frag_ext->id = cpu_to_be32(s_id);
+            ++s_id;
+        }
+
+        frag_ext->off = cpu_to_be16((frag_offset / IP_FRAG_UNIT_SIZE) << 3
+                | (uint16_t)!!more_frags);
+
+        ip6->ip6_plen = cpu_to_be16(l3payload_len + *l3hdr_len - sizeof(*ip6));
     }
 }
 

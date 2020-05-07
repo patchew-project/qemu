@@ -139,6 +139,14 @@ struct ip6_ext_hdr_routing {
     uint8_t     rsvd[4];
 };
 
+struct ip6_ext_hdr_fragment {
+    uint8_t     nxt;
+    uint8_t     res0;
+    uint16_t    off;
+    uint32_t    id;
+};
+
+
 struct ip6_option_hdr {
 #define IP6_OPT_PAD1   (0x00)
 #define IP6_OPT_HOME   (0xC9)
@@ -186,6 +194,7 @@ struct tcp_hdr {
 
 #define ip6_nxt      ip6_ctlun.ip6_un1.ip6_un1_nxt
 #define ip6_ecn_acc  ip6_ctlun.ip6_un3.ip6_un3_ecn
+#define ip6_plen     ip6_ctlun.ip6_un1.ip6_un1_plen
 
 #define PKT_GET_ETH_HDR(p)        \
     ((struct eth_header *)(p))
@@ -398,9 +407,9 @@ void eth_get_protocols(const struct iovec *iov, int iovcnt,
                        eth_ip4_hdr_info *ip4hdr_info,
                        eth_l4_hdr_info  *l4hdr_info);
 
-void eth_setup_ip4_fragmentation(const void *l2hdr, size_t l2hdr_len,
-                                 void *l3hdr, size_t l3hdr_len,
-                                 size_t l3payload_len,
+void eth_setup_ip_fragmentation(const void *l2hdr, size_t l2hdr_len,
+                                 void *l3hdr, size_t *l3hdr_len,
+                                 size_t l3hdr_max_len, size_t l3payload_len,
                                  size_t frag_offset, bool more_frags);
 
 void
