@@ -22,7 +22,7 @@
 
 #include "cpu.h"
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_SOFTMMU
 static inline AddressSpaceDispatch *flatview_to_dispatch(FlatView *fv)
 {
     return fv->dispatch;
