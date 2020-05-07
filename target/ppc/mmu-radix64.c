@@ -270,7 +270,8 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                               ppc_v3_pate_t pate,
                                               hwaddr *h_raddr, int *h_prot,
                                               int *h_page_size, bool pde_addr,
-                                              bool cause_excp)
+                                              bool cause_excp,
+                                              bool cause_rc_update)
 {
     int fault_cause = 0;
     hwaddr pte_addr;
@@ -291,8 +292,9 @@ static int ppc_radix64_partition_scoped_xlate(PowerPCCPU *cpu, int rwx,
         return 1;
     }
 
-    /* Update Reference and Change Bits */
-    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, h_prot);
+    if (cause_rc_update) {
+        ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, h_prot);
+    }
 
     return 0;
 }
@@ -301,7 +303,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
                                             vaddr eaddr, uint64_t pid,
                                             ppc_v3_pate_t pate, hwaddr *g_raddr,
                                             int *g_prot, int *g_page_size,
-                                            bool cause_excp)
+                                            bool cause_excp,
+                                            bool cause_rc_update)
 {
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
@@ -336,7 +339,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
         ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, prtbe_addr,
                                                  pate, &h_raddr, &h_prot,
                                                  &h_page_size, true,
-                                                 cause_excp);
+                                                 cause_excp,
+                                                 cause_rc_update);
         if (ret) {
             return ret;
         }
@@ -376,7 +380,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
             ret = ppc_radix64_partition_scoped_xlate(cpu, 0, eaddr, pte_addr,
                                                      pate, &h_raddr, &h_prot,
                                                      &h_page_size, true,
-                                                     cause_excp);
+                                                     cause_excp,
+                                                     cause_rc_update);
             if (ret) {
                 return ret;
             }
@@ -408,7 +413,9 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
         return 1;
     }
 
-    ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, g_prot);
+    if (cause_rc_update) {
+        ppc_radix64_set_rc(cpu, rwx, pte, pte_addr, g_prot);
+    }
 
     return 0;
 }
@@ -433,7 +440,8 @@ static int ppc_radix64_process_scoped_xlate(PowerPCCPU *cpu, int rwx,
 static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
                              bool relocation,
                              hwaddr *raddr, int *psizep, int *protp,
-                             bool cause_excp)
+                             bool cause_excp,
+                             bool cause_rc_update)
 {
     CPUPPCState *env = &cpu->env;
     uint64_t lpid, pid;
@@ -483,7 +491,9 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
     if (relocation) {
         int ret = ppc_radix64_process_scoped_xlate(cpu, rwx, eaddr, pid,
                                                    pate, &g_raddr, &prot,
-                                                   &psize, cause_excp);
+                                                   &psize,
+                                                   cause_excp,
+                                                   cause_rc_update);
         if (ret) {
             return ret;
         }
@@ -506,7 +516,9 @@ static int ppc_radix64_xlate(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
             ret = ppc_radix64_partition_scoped_xlate(cpu, rwx, eaddr, g_raddr,
                                                      pate, raddr, &prot, &psize,
-                                                     0, cause_excp);
+                                                     0,
+                                                     cause_excp,
+                                                     cause_rc_update);
             if (ret) {
                 return ret;
             }
@@ -562,7 +574,7 @@ int ppc_radix64_handle_mmu_fault(PowerPCCPU *cpu, vaddr eaddr, int rwx,
 
     /* Translate eaddr to raddr (where raddr is addr qemu needs for access) */
     if (ppc_radix64_xlate(cpu, eaddr, rwx, relocation, &raddr,
-                          &page_size, &prot, true)) {
+                          &page_size, &prot, true, true)) {
         return 1;
     }
 
@@ -584,7 +596,7 @@ hwaddr ppc_radix64_get_phys_page_debug(PowerPCCPU *cpu, target_ulong eaddr)
     }
 
     if (ppc_radix64_xlate(cpu, eaddr, 0, msr_dr, &raddr, &psize,
-                          &prot, false)) {
+                          &prot, false, false)) {
         return -1;
     }
 
