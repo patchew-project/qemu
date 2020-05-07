@@ -95,7 +95,8 @@ static inline bool cpu_physical_memory_all_dirty(ram_addr_t start,
     while (page < end) {
         unsigned long next = MIN(end, base + DIRTY_MEMORY_BLOCK_SIZE);
         unsigned long num = next - base;
-        unsigned long found = find_next_zero_bit(blocks->blocks[idx], num, offset);
+        unsigned long found = find_next_zero_bit(blocks->blocks[idx],
+                                                 num, offset);
         if (found < num) {
             dirty = false;
             break;
@@ -120,14 +121,14 @@ static inline bool cpu_physical_memory_is_clean(ram_addr_t addr)
 {
     bool vga = cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_VGA);
     bool code = cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_CODE);
-    bool migration =
-        cpu_physical_memory_get_dirty_flag(addr, DIRTY_MEMORY_MIGRATION);
+    bool migration = cpu_physical_memory_get_dirty_flag(addr,
+                                                        DIRTY_MEMORY_MIGRATION);
     return !(vga && code && migration);
 }
 
 static inline uint8_t cpu_physical_memory_range_includes_clean(ram_addr_t start,
-                                                               ram_addr_t length,
-                                                               uint8_t mask)
+                                                            ram_addr_t length,
+                                                            uint8_t mask)
 {
     uint8_t ret = 0;
 
@@ -272,7 +273,8 @@ static inline void cpu_physical_memory_set_dirty_lebitmap(unsigned long *bitmap,
 
         xen_hvm_modified_memory(start, pages << TARGET_PAGE_BITS);
     } else {
-        uint8_t clients = tcg_enabled() ? DIRTY_CLIENTS_ALL : DIRTY_CLIENTS_NOCODE;
+        uint8_t clients = tcg_enabled()
+                          ? DIRTY_CLIENTS_ALL : DIRTY_CLIENTS_NOCODE;
 
         if (!global_dirty_log) {
             clients &= ~(1 << DIRTY_MEMORY_MIGRATION);
@@ -304,8 +306,11 @@ bool cpu_physical_memory_test_and_clear_dirty(ram_addr_t start,
                                               ram_addr_t length,
                                               unsigned client);
 
-DirtyBitmapSnapshot *cpu_physical_memory_snapshot_and_clear_dirty
-    (MemoryRegion *mr, hwaddr offset, hwaddr length, unsigned client);
+DirtyBitmapSnapshot *cpu_physical_memory_snapshot_and_clear_dirty(
+                                                            MemoryRegion *mr,
+                                                            hwaddr offset,
+                                                            hwaddr length,
+                                                            unsigned client);
 
 bool cpu_physical_memory_snapshot_get_dirty(DirtyBitmapSnapshot *snap,
                                             ram_addr_t start,
@@ -314,7 +319,8 @@ bool cpu_physical_memory_snapshot_get_dirty(DirtyBitmapSnapshot *snap,
 static inline void cpu_physical_memory_clear_dirty_range(ram_addr_t start,
                                                          ram_addr_t length)
 {
-    cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_MIGRATION);
+    cpu_physical_memory_test_and_clear_dirty(start, length,
+                                             DIRTY_MEMORY_MIGRATION);
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_VGA);
     cpu_physical_memory_test_and_clear_dirty(start, length, DIRTY_MEMORY_CODE);
 }
