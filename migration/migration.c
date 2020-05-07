@@ -46,6 +46,7 @@
 #include "qemu/thread.h"
 #include "trace.h"
 #include "exec/target_page.h"
+#include "exec/ramblock.h"
 #include "io/channel-buffer.h"
 #include "migration/colo.h"
 #include "hw/boards.h"

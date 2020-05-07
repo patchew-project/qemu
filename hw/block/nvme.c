@@ -46,7 +46,7 @@
 #include "qapi/visitor.h"
 #include "sysemu/hostmem.h"
 #include "sysemu/block-backend.h"
-#include "exec/ram_addr.h"
+#include "exec/ramblock.h"
 
 #include "qemu/log.h"
 #include "qemu/module.h"

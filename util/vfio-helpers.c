@@ -15,7 +15,7 @@
 #include <linux/vfio.h>
 #include "qapi/error.h"
 #include "exec/ramlist.h"
-#include "exec/cpu-common.h"
+#include "exec/ramblock.h"
 #include "trace.h"
 #include "qemu/error-report.h"
 #include "standard-headers/linux/pci_regs.h"

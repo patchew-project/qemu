@@ -48,6 +48,7 @@
 #include "sysemu/cpus.h"
 #include "exec/memory.h"
 #include "exec/target_page.h"
+#include "exec/ramblock.h"
 #include "trace.h"
 #include "qemu/iov.h"
 #include "qemu/main-loop.h"

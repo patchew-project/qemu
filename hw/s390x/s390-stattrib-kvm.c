@@ -15,7 +15,6 @@
 #include "hw/s390x/storage-attributes.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
-#include "exec/ram_addr.h"
 #include "cpu.h"
 #include "kvm_s390x.h"
 

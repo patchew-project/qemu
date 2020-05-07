@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
 #include "exec/ramlist.h"
-#include "exec/cpu-common.h"
+#include "exec/ramblock.h"
 
 void *qemu_ram_get_host_addr(RAMBlock *rb)
 {

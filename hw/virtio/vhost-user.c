@@ -23,6 +23,7 @@
 #include "sysemu/cryptodev.h"
 #include "migration/migration.h"
 #include "migration/postcopy-ram.h"
+#include "exec/ramblock.h"
 #include "trace.h"
 
 #include <sys/ioctl.h>

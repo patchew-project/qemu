@@ -18,6 +18,7 @@
 
 #include "qemu/osdep.h"
 #include "exec/target_page.h"
+#include "exec/ramblock.h"
 #include "migration.h"
 #include "qemu-file.h"
 #include "savevm.h"

@@ -21,6 +21,7 @@
 #include "qemu/coroutine_int.h"
 #include "io/channel.h"
 #include "net/announce.h"
+#include "exec/ramblock.h"
 
 struct PostcopyBlocktimeContext;
 
