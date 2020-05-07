@@ -9,13 +9,13 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu-common.h"
 #include "cpu.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 
 #include "hw/vfio/vfio-common.h"
 #include "hw/hw.h"
-#include "exec/ram_addr.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "trace.h"

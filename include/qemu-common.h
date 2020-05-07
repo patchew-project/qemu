@@ -81,6 +81,16 @@ bool set_preferred_target_page_bits(int bits);
 void finalize_target_page_bits(void);
 
 /**
+ * qemu_minrampagesize:
+ * qemu_maxrampagesize:
+ *
+ * If backed via -memdev, return the device page size,
+ * else return the host kernel page size.
+ */
+long qemu_minrampagesize(void);
+long qemu_maxrampagesize(void);
+
+/**
  * Sends a (part of) iovec down a socket, yielding when the socket is full, or
  * Receives data into a (part of) iovec from a socket,
  * yielding when there is no data in the socket.
