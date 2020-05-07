@@ -233,12 +233,21 @@ bool pmp_hart_has_privs(CPURISCVState *env, target_ulong addr,
         return true;
     }
 
-    /*
-     * if size is unknown (0), assume that all bytes
-     * from addr to the end of the page will be accessed.
-     */
     if (size == 0) {
-        pmp_size = -(addr | TARGET_PAGE_MASK);
+        if (!riscv_feature(env, RISCV_FEATURE_MMU)) {
+            /*
+             * if size is unknown (0), assume that all bytes
+             * from addr to the end of the page will be accessed.
+             */
+            pmp_size = -(addr | TARGET_PAGE_MASK);
+        } else {
+            /*
+             * If size is unknown (0) and we don't have an MMU,
+             * just guess the size as the xlen as we don't want to
+             * access an entire page worth.
+             */
+            pmp_size = sizeof(target_ulong);
+        }
     } else {
         pmp_size = size;
     }
