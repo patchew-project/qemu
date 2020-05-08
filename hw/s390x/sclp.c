@@ -49,7 +49,7 @@ static inline bool sclp_command_code_valid(uint32_t code)
     return false;
 }
 
-static void prepare_cpu_entries(SCLPDevice *sclp, CPUEntry *entry, int *count)
+static void prepare_cpu_entries(CPUEntry *entry, int *count)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
     uint8_t features[SCCB_CPU_FEATURE_LEN] = { 0 };
@@ -77,7 +77,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     IplParameterBlock *ipib = s390_ipl_get_iplb();
 
     /* CPU information */
-    prepare_cpu_entries(sclp, read_info->entries, &cpu_count);
+    prepare_cpu_entries(read_info->entries, &cpu_count);
     read_info->entries_cpu = cpu_to_be16(cpu_count);
     read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
     read_info->highest_cpu = cpu_to_be16(machine->smp.max_cpus - 1);
@@ -135,7 +135,7 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
     ReadCpuInfo *cpu_info = (ReadCpuInfo *) sccb;
     int cpu_count;
 
-    prepare_cpu_entries(sclp, cpu_info->entries, &cpu_count);
+    prepare_cpu_entries(cpu_info->entries, &cpu_count);
     cpu_info->nr_configured = cpu_to_be16(cpu_count);
     cpu_info->offset_configured = cpu_to_be16(offsetof(ReadCpuInfo, entries));
     cpu_info->nr_standby = cpu_to_be16(0);
