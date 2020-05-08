@@ -1748,3 +1748,10 @@ fail:
                   name, bdrv_get_device_or_node_name(bs));
     return false;
 }
+
+bool qcow2_dirty_bitmap_supported(BlockDriverState *bs)
+{
+    BDRVQcow2State *s = bs->opaque;
+
+    return s->qcow_version >= 3;
+}
