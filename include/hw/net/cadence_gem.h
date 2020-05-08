@@ -82,6 +82,7 @@ typedef struct CadenceGEMState {
 
     uint8_t *tx_packet;
     uint8_t *rx_packet;
+    uint16_t jumbo_max_len;
     uint32_t rx_desc[MAX_PRIORITY_QUEUES][DESC_MAX_NUM_WORDS];
 
     bool sar_active[4];
