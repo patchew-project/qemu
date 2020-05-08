@@ -37,8 +37,6 @@
 #define PHANDLE_NVLINK(phb, gn, nn)  (0x00130000 | (((phb)->index) << 8) | \
                                      ((gn) << 4) | (nn))
 
-#define SPAPR_GPU_NUMA_ID           (cpu_to_be32(1))
-
 typedef struct SpaprPhbPciNvGpuSlot {
         uint64_t tgt;
         uint64_t gpa;
@@ -361,9 +359,9 @@ void spapr_phb_nvgpu_ram_populate_dt(SpaprPhbState *sphb, void *fdt)
                                                     "nvlink2-mr[0]", NULL);
         uint32_t associativity[] = {
             cpu_to_be32(0x4),
-            SPAPR_GPU_NUMA_ID,
-            SPAPR_GPU_NUMA_ID,
-            SPAPR_GPU_NUMA_ID,
+            cpu_to_be32(nvslot->numa_id),
+            cpu_to_be32(nvslot->numa_id),
+            cpu_to_be32(nvslot->numa_id),
             cpu_to_be32(nvslot->numa_id)
         };
         uint64_t size = object_property_get_uint(nv_mrobj, "size", NULL);
