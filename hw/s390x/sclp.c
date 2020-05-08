@@ -103,15 +103,17 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     int cpu_count;
     int rnsize, rnmax;
     IplParameterBlock *ipib = s390_ipl_get_iplb();
+    int offset_cpu = offsetof(ReadInfo, entries);
+    CPUEntry *entries_start = (void *)sccb + offset_cpu;
 
     if (!check_sufficient_sccb_len(sccb, sizeof(ReadInfo))) {
         return;
     }
 
     /* CPU information */
-    prepare_cpu_entries(read_info->entries, &cpu_count);
+    prepare_cpu_entries(entries_start, &cpu_count);
     read_info->entries_cpu = cpu_to_be16(cpu_count);
-    read_info->offset_cpu = cpu_to_be16(offsetof(ReadInfo, entries));
+    read_info->offset_cpu = cpu_to_be16(offset_cpu);
     read_info->highest_cpu = cpu_to_be16(machine->smp.max_cpus - 1);
 
     read_info->ibc_val = cpu_to_be32(s390_get_ibc_val());
