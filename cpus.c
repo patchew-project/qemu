@@ -813,7 +813,7 @@ void configure_icount(QemuOpts *opts, Error **errp)
         return;
     }
 
-    if (strcmp(option, "auto") != 0) {
+    if (option && !strcmp(option, "auto")) {
         if (qemu_strtol(option, NULL, 0, &time_shift) < 0
             || time_shift < 0 || time_shift > MAX_ICOUNT_SHIFT) {
             error_setg(errp, "icount: Invalid shift value");
