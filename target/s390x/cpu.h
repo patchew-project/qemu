@@ -769,6 +769,10 @@ void s390_cmma_reset(void);
 void s390_enable_css_support(S390CPU *cpu);
 int s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch_id,
                                 int vq, bool assign);
+void s390_get_diag318_info(uint64_t *info);
+void s390_set_diag318_info(uint64_t info);
+bool s390_diag318_is_allowed(void);
+
 #ifndef CONFIG_USER_ONLY
 unsigned int s390_cpu_set_state(uint8_t cpu_state, S390CPU *cpu);
 #else

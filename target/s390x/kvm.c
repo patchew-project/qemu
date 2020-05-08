@@ -814,6 +814,44 @@ int kvm_s390_set_clock_ext(uint8_t tod_high, uint64_t tod_low)
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
 }
 
+int kvm_s390_get_diag318_info(uint64_t *info)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MISC,
+        .attr = KVM_S390_VM_MISC_DIAG318,
+        .addr = (uint64_t)info,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_diag318_info(uint64_t info)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MISC,
+        .attr = KVM_S390_VM_MISC_DIAG318,
+        .addr = (uint64_t)&info,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+bool kvm_s390_diag318_is_allowed(void)
+{
+    return s390_has_feat(S390_FEAT_DIAG318) &&
+           s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB);
+}
+
+static int kvm_s390_enable_diag318(void)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MISC,
+        .attr = KVM_S390_VM_MISC_ENABLE_DIAG318,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
 /**
  * kvm_s390_mem_op:
  * @addr:      the logical start address in guest memory
@@ -2460,6 +2498,12 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     /* Extended-Length SCCB is handled entirely within QEMU */
     set_bit(S390_FEAT_EXTENDED_LENGTH_SCCB, model->features);
 
+    /* Allow diag318 iff KVM supported and not in PV mode */
+    if (!s390_is_pv() && kvm_vm_check_attr(kvm_state,
+        KVM_S390_VM_MISC, KVM_S390_VM_MISC_DIAG318)) {
+        set_bit(S390_FEAT_DIAG318, model->features);
+    }
+
     /* strip of features that are not part of the maximum model */
     bitmap_and(model->features, model->features, model->def->full_feat,
                S390_FEAT_MAX);
@@ -2527,6 +2571,10 @@ void kvm_s390_apply_cpu_model(const S390CPUModel *model, Error **errp)
 
     if (test_bit(S390_FEAT_AP, model->features)) {
         kvm_s390_configure_apie(true);
+    }
+
+    if (kvm_s390_diag318_is_allowed()) {
+        kvm_s390_enable_diag318();
     }
 }
 

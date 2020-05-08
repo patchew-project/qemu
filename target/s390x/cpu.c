@@ -446,6 +446,25 @@ void s390_enable_css_support(S390CPU *cpu)
         kvm_s390_enable_css_support(cpu);
     }
 }
+
+void s390_get_diag318_info(uint64_t *info)
+{
+    if (kvm_enabled()) {
+        kvm_s390_get_diag318_info(info);
+    }
+}
+
+void s390_set_diag318_info(uint64_t info)
+{
+    if (kvm_enabled()) {
+        kvm_s390_set_diag318_info(info);
+    }
+}
+
+bool s390_diag318_is_allowed(void)
+{
+    return kvm_enabled() && kvm_s390_diag318_is_allowed();
+}
 #endif
 
 static gchar *s390_gdb_arch_name(CPUState *cs)

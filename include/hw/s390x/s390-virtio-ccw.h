@@ -30,6 +30,7 @@ typedef struct S390CcwMachineState {
     bool dea_key_wrap;
     bool pv;
     uint8_t loadparm[8];
+    uint64_t diag318_info;
 } S390CcwMachineState;
 
 typedef struct S390CcwMachineClass {
