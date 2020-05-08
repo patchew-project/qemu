@@ -49,6 +49,34 @@ static inline bool sclp_command_code_valid(uint32_t code)
     return false;
 }
 
+static bool check_sccb_boundary_valid(uint64_t sccb_addr, uint32_t code,
+                                      SCCB *sccb)
+{
+    uint64_t current_len = sccb_addr + be16_to_cpu(sccb->h.length);
+    uint64_t allowed_len = (sccb_addr & PAGE_MASK) + PAGE_SIZE;
+
+    switch (code & SCLP_CMD_CODE_MASK) {
+    default:
+        if (current_len <= allowed_len) {
+            return true;
+        }
+    }
+    sccb->h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
+    return false;
+}
+
+static bool check_sufficient_sccb_len(SCCB *sccb, int size)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    int required_len = size + ms->possible_cpus->len * sizeof(CPUEntry);
+
+    if (be16_to_cpu(sccb->h.length) < required_len) {
+        sccb->h.response_code = cpu_to_be16(SCLP_RC_INSUFFICIENT_SCCB_LENGTH);
+        return false;
+    }
+    return true;
+}
+
 static void prepare_cpu_entries(CPUEntry *entry, int *count)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
@@ -76,8 +104,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     int rnsize, rnmax;
     IplParameterBlock *ipib = s390_ipl_get_iplb();
 
-    if (be16_to_cpu(sccb->h.length) < (sizeof(ReadInfo) + cpu_count * sizeof(CPUEntry))) {
-        sccb->h.response_code = cpu_to_be16(SCLP_RC_INSUFFICIENT_SCCB_LENGTH);
+    if (!check_sufficient_sccb_len(sccb, sizeof(ReadInfo))) {
         return;
     }
 
@@ -134,8 +161,7 @@ static void sclp_read_cpu_info(SCLPDevice *sclp, SCCB *sccb)
     ReadCpuInfo *cpu_info = (ReadCpuInfo *) sccb;
     int cpu_count;
 
-    if (be16_to_cpu(sccb->h.length) < (sizeof(ReadCpuInfo) + cpu_count * sizeof(CPUEntry))) {
-        sccb->h.response_code = cpu_to_be16(SCLP_RC_INSUFFICIENT_SCCB_LENGTH);
+    if (!check_sufficient_sccb_len(sccb, sizeof(ReadCpuInfo))) {
         return;
     }
 
@@ -227,6 +253,10 @@ int sclp_service_call_protected(CPUS390XState *env, uint64_t sccb,
         goto out_write;
     }
 
+    if (!check_sccb_boundary_valid(sccb, code, &work_sccb)) {
+        goto out_write;
+    }
+
     sclp_c->execute(sclp, &work_sccb, code);
 out_write:
     s390_cpu_pv_mem_write(env_archcpu(env), 0, &work_sccb,
@@ -272,8 +302,7 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
         goto out_write;
     }
 
-    if ((sccb + be16_to_cpu(work_sccb.h.length)) > ((sccb & PAGE_MASK) + PAGE_SIZE)) {
-        work_sccb.h.response_code = cpu_to_be16(SCLP_RC_SCCB_BOUNDARY_VIOLATION);
+    if (!check_sccb_boundary_valid(sccb, code, &work_sccb)) {
         goto out_write;
     }
 
