@@ -318,9 +318,12 @@ struct MicroBlazeCPU {
 void mb_cpu_do_interrupt(CPUState *cs);
 bool mb_cpu_exec_interrupt(CPUState *cs, int int_req);
 void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
-hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+
+#ifndef CONFIG_USER_ONLY
+hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+#endif
 
 void mb_tcg_init(void);
 /* you can call this signal handler from your SIGBUS and SIGSEGV

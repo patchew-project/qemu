@@ -193,7 +193,9 @@ bool cris_cpu_exec_interrupt(CPUState *cpu, int int_req);
 
 void cris_cpu_dump_state(CPUState *cs, FILE *f, int flags);
 
+#ifndef CONFIG_USER_ONLY
 hwaddr cris_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
+#endif
 
 int crisv10_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int cris_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
