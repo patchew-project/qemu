@@ -3,9 +3,13 @@
 
 /* CPU interfaces that are target independent.  */
 
-#ifndef CONFIG_USER_ONLY
+#ifdef CONFIG_USER_ONLY
+#ifdef __GNUC__
+#pragma GCC poison hwaddr
+#endif /* __GNUC__ */
+#else
 #include "exec/hwaddr.h"
-#endif
+#endif /* CONFIG_USER_ONLY */
 
 /* The CPU list lock nests outside page_(un)lock or mmap_(un)lock */
 void qemu_init_cpu_list(void);
