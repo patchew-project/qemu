@@ -1,7 +1,7 @@
 #ifndef QEMU_DISAS_H
 #define QEMU_DISAS_H
 
-#include "exec/hwaddr.h"
+#include "exec/cpu-common.h"
 
 #ifdef NEED_CPU_H
 #include "cpu.h"
