@@ -326,6 +326,7 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
 struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
                                                   uint64_t vaddr);
 
+#ifndef CONFIG_USER_ONLY
 /*
  * The following additional queries can be run on the hwaddr structure
  * to return information about it. For non-IO accesses the device
@@ -333,6 +334,7 @@ struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
  */
 bool qemu_plugin_hwaddr_is_io(struct qemu_plugin_hwaddr *hwaddr);
 uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr);
+#endif /* CONFIG_USER_ONLY */
 
 typedef void
 (*qemu_plugin_vcpu_mem_cb_t)(unsigned int vcpu_index,

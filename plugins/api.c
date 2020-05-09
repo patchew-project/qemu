@@ -249,7 +249,8 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info)
  * Virtual Memory queries
  */
 
-#ifdef CONFIG_SOFTMMU
+#ifndef CONFIG_USER_ONLY
+
 static __thread struct qemu_plugin_hwaddr hwaddr_info;
 
 struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
@@ -267,26 +268,14 @@ struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
 
     return &hwaddr_info;
 }
-#else
-struct qemu_plugin_hwaddr *qemu_plugin_get_hwaddr(qemu_plugin_meminfo_t info,
-                                                  uint64_t vaddr)
-{
-    return NULL;
-}
-#endif
 
 bool qemu_plugin_hwaddr_is_io(struct qemu_plugin_hwaddr *hwaddr)
 {
-#ifdef CONFIG_SOFTMMU
     return hwaddr->is_io;
-#else
-    return false;
-#endif
 }
 
 uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr)
 {
-#ifdef CONFIG_SOFTMMU
     if (haddr) {
         if (!haddr->is_io) {
             ram_addr_t ram_addr = qemu_ram_addr_from_host((void *) haddr->v.ram.hostaddr);
@@ -299,7 +288,6 @@ uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr
             return haddr->v.io.offset;
         }
     }
-#endif
     return 0;
 }
 
@@ -308,7 +296,6 @@ uint64_t qemu_plugin_hwaddr_device_offset(const struct qemu_plugin_hwaddr *haddr
  * will be. This helps the plugin dimension per-vcpu arrays.
  */
 
-#ifndef CONFIG_USER_ONLY
 static MachineState * get_ms(void)
 {
     return MACHINE(qdev_get_machine());
