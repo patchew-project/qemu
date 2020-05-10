@@ -1829,11 +1829,13 @@ F: docs/specs/vmgenid.txt
 F: tests/qtest/vmgenid-test.c
 F: stubs/vmgenid.c
 
-Unimplemented device
+Unimplemented device and empty slot
 M: Peter Maydell <peter.maydell@linaro.org>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
+F: include/hw/misc/empty_slot.h
 F: include/hw/misc/unimp.h
+F: hw/misc/empty_slot.c
 F: hw/misc/unimp.c
 
 Standard VGA
