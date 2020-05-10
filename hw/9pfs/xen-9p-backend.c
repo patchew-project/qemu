@@ -201,15 +201,35 @@ static void xen_9pfs_init_in_iov_from_pdu(V9fsPDU *pdu,
     xen_9pfs_in_sg(ring, ring->sg, &num, pdu->idx, *size);
 
     buf_size = iov_size(ring->sg, num);
-    if (buf_size  < P9_IOHDRSZ) {
-        xen_pv_printf(&xen_9pfs->xendev, 0, "Xen 9pfs reply type %d needs "
-                      "%zu bytes, buffer has %zu, less than minimum\n",
-                      pdu->id + 1, *size, buf_size);
-        xen_be_set_state(&xen_9pfs->xendev, XenbusStateClosing);
-        xen_9pfs_disconnect(&xen_9pfs->xendev);
-    }
-    if (buf_size  < *size) {
-        *size = buf_size;
+    if (pdu->id + 1 == P9_RREAD) {
+        /* size[4] Rread tag[2] count[4] data[count] */
+        const size_t hdr_size = 11;
+        /*
+         * If current transport buffer size is smaller than actually required
+         * for this Rreaddir response, then truncate the response to the
+         * currently available transport buffer size, however only if it would
+         * at least allow to return 1 payload byte to client.
+         */
+        if (buf_size < hdr_size + 1) {
+            xen_pv_printf(&xen_9pfs->xendev, 0, "Xen 9pfs reply type %d "
+                          "needs %zu bytes, buffer has %zu, less than "
+                          "minimum (%zu)\n",
+                          pdu->id + 1, *size, buf_size, hdr_size + 1);
+            xen_be_set_state(&xen_9pfs->xendev, XenbusStateClosing);
+            xen_9pfs_disconnect(&xen_9pfs->xendev);
+        }
+        if (buf_size < *size) {
+            *size = buf_size;
+        }
+    } else {
+        if (buf_size < *size) {
+            xen_pv_printf(&xen_9pfs->xendev, 0, "Xen 9pfs reply type %d "
+                         "needs %zu bytes, buffer has %zu\n", pdu->id + 1,
+                          *size, buf_size);
+
+            xen_be_set_state(&xen_9pfs->xendev, XenbusStateClosing);
+            xen_9pfs_disconnect(&xen_9pfs->xendev);
+        }
     }
 
     *piov = ring->sg;

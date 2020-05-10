@@ -154,15 +154,34 @@ static void virtio_init_in_iov_from_pdu(V9fsPDU *pdu, struct iovec **piov,
     VirtQueueElement *elem = v->elems[pdu->idx];
     size_t buf_size = iov_size(elem->in_sg, elem->in_num);
 
-    if (buf_size < P9_IOHDRSZ) {
-        VirtIODevice *vdev = VIRTIO_DEVICE(v);
+    if (pdu->id + 1 == P9_RREAD) {
+        /* size[4] Rread tag[2] count[4] data[count] */
+        const size_t hdr_size = 11;
+        /*
+         * If current transport buffer size is smaller than actually required
+         * for this Rreaddir response, then truncate the response to the
+         * currently available transport buffer size, however only if it would
+         * at least allow to return 1 payload byte to client.
+         */
+        if (buf_size < hdr_size + 1) {
+            VirtIODevice *vdev = VIRTIO_DEVICE(v);
 
-        virtio_error(vdev,
-                     "VirtFS reply type %d needs %zu bytes, buffer has %zu, less than minimum",
-                     pdu->id + 1, *size, buf_size);
-    }
-    if (buf_size < *size) {
-        *size = buf_size;
+            virtio_error(vdev,
+                         "VirtFS reply type %d needs %zu bytes, buffer has "
+                         "%zu, less than minimum (%zu)",
+                         pdu->id + 1, *size, buf_size, hdr_size + 1);
+        }
+        if (buf_size < *size) {
+            *size = buf_size;
+        }
+    } else {
+        if (buf_size < *size) {
+            VirtIODevice *vdev = VIRTIO_DEVICE(v);
+
+            virtio_error(vdev,
+                         "VirtFS reply type %d needs %zu bytes, buffer has %zu",
+                         pdu->id + 1, *size, buf_size);
+        }
     }
 
     *piov = elem->in_sg;
