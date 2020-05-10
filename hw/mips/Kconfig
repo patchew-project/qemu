@@ -43,6 +43,7 @@ config JAZZ
 
 config FULOONG
     bool
+    select PCI_BONITO
 
 config MIPS_CPS
     bool
