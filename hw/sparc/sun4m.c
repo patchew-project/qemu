@@ -772,50 +772,6 @@ static const TypeInfo prom_info = {
     .class_init    = prom_class_init,
 };
 
-#define TYPE_SUN4M_MEMORY "memory"
-#define SUN4M_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4M_MEMORY)
-
-typedef struct RamDevice {
-    SysBusDevice parent_obj;
-    HostMemoryBackend *memdev;
-} RamDevice;
-
-/* System RAM */
-static void ram_realize(DeviceState *dev, Error **errp)
-{
-    RamDevice *d = SUN4M_RAM(dev);
-    MemoryRegion *ram = host_memory_backend_get_memory(d->memdev);
-
-    sysbus_init_mmio(SYS_BUS_DEVICE(dev), ram);
-}
-
-static void ram_initfn(Object *obj)
-{
-    RamDevice *d = SUN4M_RAM(obj);
-    object_property_add_link(obj, "memdev", TYPE_MEMORY_BACKEND,
-                             (Object **)&d->memdev,
-                             object_property_allow_set_link,
-                             OBJ_PROP_LINK_STRONG, &error_abort);
-    object_property_set_description(obj, "memdev", "Set RAM backend"
-                                    "Valid value is ID of a hostmem backend",
-                                     &error_abort);
-}
-
-static void ram_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = ram_realize;
-}
-
-static const TypeInfo ram_info = {
-    .name          = TYPE_SUN4M_MEMORY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RamDevice),
-    .instance_init = ram_initfn,
-    .class_init    = ram_class_init,
-};
-
 static void cpu_devinit(const char *cpu_type, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
 {
@@ -858,8 +814,6 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     SysBusDevice *s;
     unsigned int smp_cpus = machine->smp.cpus;
     unsigned int max_cpus = machine->smp.max_cpus;
-    Object *ram_memdev = object_resolve_path_type(machine->ram_memdev_id,
-                                                  TYPE_MEMORY_BACKEND, NULL);
 
     if (machine->ram_size > hwdef->max_mem) {
         error_report("Too much memory for this machine: %" PRId64 ","
@@ -876,11 +830,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef,
     for (i = smp_cpus; i < MAX_CPUS; i++)
         cpu_irqs[i] = qemu_allocate_irqs(dummy_cpu_set_irq, NULL, MAX_PILS);
 
-    /* Create and map RAM frontend */
-    dev = qdev_create(NULL, "memory");
-    object_property_set_link(OBJECT(dev), ram_memdev, "memdev", &error_fatal);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, 0);
+    /* RAM */
+    memory_region_add_subregion(get_system_memory(), 0, machine->ram);
 
     /* models without ECC don't trap when missing ram is accessed */
     if (!hwdef->ecc_base) {
@@ -1575,7 +1526,6 @@ static void sun4m_register_types(void)
     type_register_static(&idreg_info);
     type_register_static(&afx_info);
     type_register_static(&prom_info);
-    type_register_static(&ram_info);
 
     type_register_static(&ss5_type);
     type_register_static(&ss10_type);
