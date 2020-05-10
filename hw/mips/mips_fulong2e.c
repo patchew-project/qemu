@@ -69,7 +69,7 @@
  * 2, use "Bonito2edev" to replace "dir_corresponding_to_your_target_hardware"
  * in the "Compile Guide".
  */
-#define FULONG_BIOSNAME "pmon_fulong2e.bin"
+#define FULONG_BIOSNAME "pmon_2e.bin"
 
 /* PCI SLOT in fulong 2e */
 #define FULONG2E_VIA_SLOT        5
