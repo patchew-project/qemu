@@ -490,66 +490,6 @@ static const TypeInfo prom_info = {
     .class_init    = prom_class_init,
 };
 
-
-#define TYPE_SUN4U_MEMORY "memory"
-#define SUN4U_RAM(obj) OBJECT_CHECK(RamDevice, (obj), TYPE_SUN4U_MEMORY)
-
-typedef struct RamDevice {
-    SysBusDevice parent_obj;
-
-    MemoryRegion ram;
-    uint64_t size;
-} RamDevice;
-
-/* System RAM */
-static void ram_realize(DeviceState *dev, Error **errp)
-{
-    RamDevice *d = SUN4U_RAM(dev);
-    SysBusDevice *sbd = SYS_BUS_DEVICE(dev);
-
-    memory_region_init_ram_nomigrate(&d->ram, OBJECT(d), "sun4u.ram", d->size,
-                           &error_fatal);
-    vmstate_register_ram_global(&d->ram);
-    sysbus_init_mmio(sbd, &d->ram);
-}
-
-static void ram_init(hwaddr addr, ram_addr_t RAM_size)
-{
-    DeviceState *dev;
-    SysBusDevice *s;
-    RamDevice *d;
-
-    /* allocate RAM */
-    dev = qdev_create(NULL, TYPE_SUN4U_MEMORY);
-    s = SYS_BUS_DEVICE(dev);
-
-    d = SUN4U_RAM(dev);
-    d->size = RAM_size;
-    qdev_init_nofail(dev);
-
-    sysbus_mmio_map(s, 0, addr);
-}
-
-static Property ram_properties[] = {
-    DEFINE_PROP_UINT64("size", RamDevice, size, 0),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
-static void ram_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-
-    dc->realize = ram_realize;
-    device_class_set_props(dc, ram_properties);
-}
-
-static const TypeInfo ram_info = {
-    .name          = TYPE_SUN4U_MEMORY,
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(RamDevice),
-    .class_init    = ram_class_init,
-};
-
 static void sun4uv_init(MemoryRegion *address_space_mem,
                         MachineState *machine,
                         const struct hwdef *hwdef)
@@ -576,7 +516,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     qdev_init_nofail(iommu);
 
     /* set up devices */
-    ram_init(0, machine->ram_size);
+    memory_region_add_subregion(address_space_mem, 0, machine->ram);
 
     prom_init(hwdef->prom_addr, bios_name);
 
@@ -817,6 +757,7 @@ static void sun4u_class_init(ObjectClass *oc, void *data)
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("TI-UltraSparc-IIi");
     mc->ignore_boot_device_suffixes = true;
     mc->default_display = "std";
+    mc->default_ram_id = "sun4u.ram";
     fwc->get_dev_path = sun4u_fw_dev_path;
 }
 
@@ -841,6 +782,7 @@ static void sun4v_class_init(ObjectClass *oc, void *data)
     mc->default_boot_order = "c";
     mc->default_cpu_type = SPARC_CPU_TYPE_NAME("Sun-UltraSparc-T1");
     mc->default_display = "std";
+    mc->default_ram_id = "sun4u.ram";
 }
 
 static const TypeInfo sun4v_type = {
@@ -854,7 +796,6 @@ static void sun4u_register_types(void)
     type_register_static(&power_info);
     type_register_static(&ebus_info);
     type_register_static(&prom_info);
-    type_register_static(&ram_info);
 
     type_register_static(&sun4u_type);
     type_register_static(&sun4v_type);
