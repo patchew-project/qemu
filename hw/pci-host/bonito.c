@@ -586,6 +586,12 @@ static int pci_bonito_map_irq(PCIDevice *pci_dev, int irq_num)
     }
 }
 
+static ResetType bonito_reset_type(PCIBonitoState *s)
+{
+    /* TODO: Use resettable_get_type(s) to also return RESET_TYPE_WARM */
+    return RESET_TYPE_COLD;
+}
+
 static void bonito_reset(void *opaque)
 {
     PCIBonitoState *s = opaque;
@@ -598,7 +604,8 @@ static void bonito_reset(void *opaque)
     val = FIELD_DP32(val, BONGENCFG, WRITEBEHIND, 1);
     val = FIELD_DP32(val, BONGENCFG, PREFETCH, 1);
     val = FIELD_DP32(val, BONGENCFG, UNCACHED, 1);
-    val = FIELD_DP32(val, BONGENCFG, CPUSELFRESET, 1);
+    val = FIELD_DP32(val, BONGENCFG, CPUSELFRESET,
+                     bonito_reset_type(s) == RESET_TYPE_COLD);
     s->regs[BONITO_BONGENCFG] = val;
 
     s->regs[BONITO_IODEVCFG] = 0x2bff8010;
