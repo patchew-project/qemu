@@ -2204,7 +2204,7 @@ void memory_region_do_writeback(MemoryRegion *mr, hwaddr addr, hwaddr size)
      * Might be extended case needed to cover
      * different types of memory regions
      */
-    if (mr->ram_block && mr->dirty_log_mask) {
+    if (mr->ram_block) {
         qemu_ram_writeback(mr->ram_block, addr, size);
     }
 }
