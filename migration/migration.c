@@ -816,6 +816,8 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->max_postcopy_bandwidth = s->parameters.max_postcopy_bandwidth;
     params->has_max_cpu_throttle = true;
     params->max_cpu_throttle = s->parameters.max_cpu_throttle;
+    params->has_yank = true;
+    params->yank = s->parameters.yank;
     params->has_announce_initial = true;
     params->announce_initial = s->parameters.announce_initial;
     params->has_announce_max = true;
@@ -1374,6 +1376,9 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
     if (params->has_max_cpu_throttle) {
         dest->max_cpu_throttle = params->max_cpu_throttle;
     }
+    if (params->has_yank) {
+        dest->yank = params->yank;
+    }
     if (params->has_announce_initial) {
         dest->announce_initial = params->announce_initial;
     }
@@ -1485,6 +1490,9 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
     }
     if (params->has_max_cpu_throttle) {
         s->parameters.max_cpu_throttle = params->max_cpu_throttle;
+    }
+    if (params->has_yank) {
+        s->parameters.yank = params->yank;
     }
     if (params->has_announce_initial) {
         s->parameters.announce_initial = params->announce_initial;
@@ -3639,6 +3647,8 @@ static Property migration_properties[] = {
     DEFINE_PROP_UINT8("max-cpu-throttle", MigrationState,
                       parameters.max_cpu_throttle,
                       DEFAULT_MIGRATE_MAX_CPU_THROTTLE),
+    DEFINE_PROP_BOOL("yank", MigrationState,
+                      parameters.yank, false),
     DEFINE_PROP_SIZE("announce-initial", MigrationState,
                       parameters.announce_initial,
                       DEFAULT_MIGRATE_ANNOUNCE_INITIAL),
@@ -3728,6 +3738,7 @@ static void migration_instance_init(Object *obj)
     params->has_xbzrle_cache_size = true;
     params->has_max_postcopy_bandwidth = true;
     params->has_max_cpu_throttle = true;
+    params->has_yank = true;
     params->has_announce_initial = true;
     params->has_announce_max = true;
     params->has_announce_rounds = true;
