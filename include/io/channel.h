@@ -132,6 +132,8 @@ struct QIOChannelClass {
                         bool enabled);
     void (*io_set_delay)(QIOChannel *ioc,
                          bool enabled);
+    void (*io_set_yank)(QIOChannel *ioc,
+                        bool enabled);
     off_t (*io_seek)(QIOChannel *ioc,
                      off_t offset,
                      int whence,
@@ -549,6 +551,16 @@ int qio_channel_shutdown(QIOChannel *ioc,
  */
 void qio_channel_set_delay(QIOChannel *ioc,
                            bool enabled);
+
+/**
+ * qio_channel_set_yank:
+ * @ioc: the channel object
+ * @enabled: the new flag state
+ *
+ * Controls wether this channel participates in yanking.
+ */
+void qio_channel_set_yank(QIOChannel *ioc,
+                          bool enabled);
 
 /**
  * qio_channel_set_cork:

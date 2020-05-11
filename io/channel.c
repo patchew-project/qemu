@@ -373,6 +373,15 @@ void qio_channel_set_delay(QIOChannel *ioc,
     }
 }
 
+void qio_channel_set_yank(QIOChannel *ioc,
+                          bool enabled)
+{
+    QIOChannelClass *klass = QIO_CHANNEL_GET_CLASS(ioc);
+
+    if (klass->io_set_yank) {
+        klass->io_set_yank(ioc, enabled);
+    }
+}
 
 void qio_channel_set_cork(QIOChannel *ioc,
                           bool enabled)

@@ -26,6 +26,7 @@
 #include "io/channel-watch.h"
 #include "trace.h"
 #include "qapi/clone-visitor.h"
+#include "yank.h"
 
 #define SOCKET_MAX_FDS 16
 
@@ -55,6 +56,7 @@ qio_channel_socket_new(void)
 
     sioc = QIO_CHANNEL_SOCKET(object_new(TYPE_QIO_CHANNEL_SOCKET));
     sioc->fd = -1;
+    sioc->yank = 0;
 
     ioc = QIO_CHANNEL(sioc);
     qio_channel_set_feature(ioc, QIO_CHANNEL_FEATURE_SHUTDOWN);
@@ -395,10 +397,19 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
     return NULL;
 }
 
+static void qio_channel_socket_yank(void *opaque)
+{
+    QIOChannel *ioc = opaque;
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+
+    shutdown(sioc->fd, SHUT_RDWR);
+}
+
 static void qio_channel_socket_init(Object *obj)
 {
     QIOChannelSocket *ioc = QIO_CHANNEL_SOCKET(obj);
     ioc->fd = -1;
+    ioc->yank = 0;
 }
 
 static void qio_channel_socket_finalize(Object *obj)
@@ -421,6 +432,9 @@ static void qio_channel_socket_finalize(Object *obj)
 #endif
         closesocket(ioc->fd);
         ioc->fd = -1;
+    }
+    if (ioc->yank) {
+        yank_unregister_function(qio_channel_socket_yank, ioc);
     }
 }
 
@@ -686,6 +700,20 @@ qio_channel_socket_set_delay(QIOChannel *ioc,
                     &v, sizeof(v));
 }
 
+static void
+qio_channel_socket_set_yank(QIOChannel *ioc,
+                            bool enabled)
+{
+    QIOChannelSocket *sioc = QIO_CHANNEL_SOCKET(ioc);
+
+    if (sioc->yank) {
+        yank_unregister_function(qio_channel_socket_yank, ioc);
+    }
+    sioc->yank = enabled;
+    if (sioc->yank) {
+        yank_register_function(qio_channel_socket_yank, ioc);
+    }
+}
 
 static void
 qio_channel_socket_set_cork(QIOChannel *ioc,
@@ -785,6 +813,7 @@ static void qio_channel_socket_class_init(ObjectClass *klass,
     ioc_klass->io_shutdown = qio_channel_socket_shutdown;
     ioc_klass->io_set_cork = qio_channel_socket_set_cork;
     ioc_klass->io_set_delay = qio_channel_socket_set_delay;
+    ioc_klass->io_set_yank = qio_channel_socket_set_yank;
     ioc_klass->io_create_watch = qio_channel_socket_create_watch;
     ioc_klass->io_set_aio_fd_handler = qio_channel_socket_set_aio_fd_handler;
 }
