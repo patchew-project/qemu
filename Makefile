@@ -973,6 +973,11 @@ ifneq ($(DESCS),)
 			"$(DESTDIR)$(qemu_datadir)/firmware/$$x"; \
 	done
 endif
+ifdef INSTALL_COLO_RA
+	mkdir -p "$(DESTDIR)$(libdir)/ocf/resource.d/qemu"
+	$(INSTALL_PROG) "scripts/colo-resource-agent/colo" \
+		"$(DESTDIR)$(libdir)/ocf/resource.d/qemu/colo"
+endif
 	for s in $(ICON_SIZES); do \
 		mkdir -p "$(DESTDIR)$(qemu_icondir)/hicolor/$${s}/apps"; \
 		$(INSTALL_DATA) $(SRC_PATH)/ui/icons/qemu_$${s}.png \
