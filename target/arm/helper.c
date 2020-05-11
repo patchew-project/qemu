@@ -6829,7 +6829,7 @@ static void dccvap_writefn(CPUARMState *env, const ARMCPRegInfo *opaque,
         mr = memory_region_from_host(haddr, &offset);
 
         if (mr) {
-            memory_region_do_writeback(mr, offset, dline_size);
+            memory_region_sync(mr, offset, dline_size);
         }
     }
 }
