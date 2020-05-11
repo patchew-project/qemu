@@ -812,6 +812,8 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
         return;
     }
     dev = qdev_device_add(opts, &local_err);
+    drain_call_rcu();
+
     if (!dev) {
         error_propagate(errp, local_err);
         qemu_opts_del(opts);
@@ -904,6 +906,7 @@ void qmp_device_del(const char *id, Error **errp)
         }
 
         qdev_unplug(dev, errp);
+        drain_call_rcu();
     }
 }
 
