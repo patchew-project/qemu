@@ -217,6 +217,8 @@ int vfio_pci_igd_opregion_init(VFIOPCIDevice *vdev,
 int vfio_pci_nvidia_v100_ram_init(VFIOPCIDevice *vdev, Error **errp);
 int vfio_pci_nvlink2_init(VFIOPCIDevice *vdev, Error **errp);
 
+int vfio_pci_vmd_init(VFIOPCIDevice *vdev);
+
 void vfio_display_reset(VFIOPCIDevice *vdev);
 int vfio_display_probe(VFIOPCIDevice *vdev, Error **errp);
 void vfio_display_finalize(VFIOPCIDevice *vdev);

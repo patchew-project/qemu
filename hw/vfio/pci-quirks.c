@@ -1709,3 +1709,106 @@ free_exit:
 
     return ret;
 }
+
+/*
+ * The VMD endpoint provides a real PCIe domain to the guest and the guest
+ * kernel performs enumeration of the VMD sub-device domain. Guest transactions
+ * to VMD sub-devices go through IOMMU translation from guest addresses to
+ * physical addresses. When MMIO goes to an endpoint after being translated to
+ * physical addresses, the bridge rejects the transaction because the window
+ * has been programmed with guest addresses.
+ *
+ * VMD can use the Host Physical Address in order to correctly program the
+ * bridge windows in its PCIe domain. VMD device 28C0 has HPA shadow registers
+ * located at offset 0x2000 in MEMBAR2 (BAR 4). The shadow registers are valid
+ * if bit 1 is set in the VMD VMLOCK config register 0x70. VMD devices without
+ * this native assistance can have these registers safely emulated as these
+ * registers are reserved.
+ */
+typedef struct VFIOVMDQuirk {
+    VFIOPCIDevice *vdev;
+    uint64_t membar_phys[2];
+} VFIOVMDQuirk;
+
+static uint64_t vfio_vmd_quirk_read(void *opaque, hwaddr addr, unsigned size)
+{
+    VFIOVMDQuirk *data = opaque;
+    uint64_t val = 0;
+
+    memcpy(&val, (void *)data->membar_phys + addr, size);
+    return val;
+}
+
+static const MemoryRegionOps vfio_vmd_quirk = {
+    .read = vfio_vmd_quirk_read,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+#define VMD_VMLOCK  0x70
+#define VMD_SHADOW  0x2000
+#define VMD_MEMBAR2 4
+
+static int vfio_vmd_emulate_shadow_registers(VFIOPCIDevice *vdev)
+{
+    VFIOQuirk *quirk;
+    VFIOVMDQuirk *data;
+    PCIDevice *pdev = &vdev->pdev;
+    int ret;
+
+    data = g_malloc0(sizeof(*data));
+    ret = pread(vdev->vbasedev.fd, data->membar_phys, 16,
+                vdev->config_offset + PCI_BASE_ADDRESS_2);
+    if (ret != 16) {
+        error_report("VMD %s cannot read MEMBARs (%d)",
+                     vdev->vbasedev.name, ret);
+        g_free(data);
+        return -EFAULT;
+    }
+
+    quirk = vfio_quirk_alloc(1);
+    quirk->data = data;
+    data->vdev = vdev;
+
+    /* Emulate Shadow Registers */
+    memory_region_init_io(quirk->mem, OBJECT(vdev), &vfio_vmd_quirk, data,
+                          "vfio-vmd-quirk", sizeof(data->membar_phys));
+    memory_region_add_subregion_overlap(vdev->bars[VMD_MEMBAR2].region.mem,
+                                        VMD_SHADOW, quirk->mem, 1);
+    memory_region_set_readonly(quirk->mem, true);
+    memory_region_set_enabled(quirk->mem, true);
+
+    QLIST_INSERT_HEAD(&vdev->bars[VMD_MEMBAR2].quirks, quirk, next);
+
+    trace_vfio_pci_vmd_quirk_shadow_regs(vdev->vbasedev.name,
+                                         data->membar_phys[0],
+                                         data->membar_phys[1]);
+
+    /* Advertise Shadow Register support */
+    pci_byte_test_and_set_mask(pdev->config + VMD_VMLOCK, 0x2);
+    pci_set_byte(pdev->wmask + VMD_VMLOCK, 0);
+    pci_set_byte(vdev->emulated_config_bits + VMD_VMLOCK, 0x2);
+
+    trace_vfio_pci_vmd_quirk_vmlock(vdev->vbasedev.name,
+                                    pci_get_byte(pdev->config + VMD_VMLOCK));
+
+    return 0;
+}
+
+int vfio_pci_vmd_init(VFIOPCIDevice *vdev)
+{
+    int ret = 0;
+
+    switch (vdev->device_id) {
+    case 0x28C0: /* Native passthrough support */
+        break;
+    /* Emulates Native passthrough support */
+    case 0x201D:
+    case 0x467F:
+    case 0x4C3D:
+    case 0x9A0B:
+        ret = vfio_vmd_emulate_shadow_registers(vdev);
+        break;
+    }
+
+    return ret;
+}
