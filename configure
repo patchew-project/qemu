@@ -7832,6 +7832,7 @@ case "$target_name" in
     TARGET_ARCH=microblaze
     TARGET_SYSTBL_ABI=common
     bflt="yes"
+    gdb_xml_files="microblaze-core.xml"
     echo "TARGET_ABI32=y" >> $config_target_mak
   ;;
   mips|mipsel)

@@ -25,6 +25,8 @@
 #include "fpu/softfloat-types.h"
 
 typedef struct CPUMBState CPUMBState;
+typedef struct DynamicMBGDBXMLInfo DynamicMBGDBXMLInfo;
+
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
@@ -272,6 +274,10 @@ struct CPUMBState {
     } pvr;
 };
 
+struct DynamicMBGDBXMLInfo {
+    char *xml;
+};
+
 /**
  * MicroBlazeCPU:
  * @env: #CPUMBState
@@ -286,6 +292,7 @@ struct MicroBlazeCPU {
 
     CPUNegativeOffsetState neg;
     CPUMBState env;
+    DynamicMBGDBXMLInfo dyn_xml;
 
     /* Microblaze Configuration Settings */
     struct {
@@ -321,6 +328,8 @@ void mb_cpu_dump_state(CPUState *cpu, FILE *f, int flags);
 hwaddr mb_cpu_get_phys_page_debug(CPUState *cpu, vaddr addr);
 int mb_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int mb_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
+void mb_gen_dynamic_xml(MicroBlazeCPU *cpu);
+const char *mb_gdb_get_dynamic_xml(CPUState *cs, const char *xmlname);
 
 void mb_tcg_init(void);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
