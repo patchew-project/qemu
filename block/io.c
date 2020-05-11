@@ -2896,8 +2896,9 @@ int bdrv_flush(BlockDriverState *bs)
         .ret = NOT_DONE,
     };
 
-    if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
+    if (qemu_in_coroutine() &&
+        bdrv_get_aio_context(bs) == qemu_get_current_aio_context()) {
+        /* Fast-path if already in coroutine and we own the drive's context */
         bdrv_flush_co_entry(&flush_co);
     } else {
         co = qemu_coroutine_create(bdrv_flush_co_entry, &flush_co);
