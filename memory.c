@@ -2197,7 +2197,6 @@ void memory_region_ram_resize(MemoryRegion *mr, ram_addr_t newsize, Error **errp
     qemu_ram_resize(mr->ram_block, newsize, errp);
 }
 
-
 void memory_region_sync(MemoryRegion *mr, hwaddr addr, hwaddr size)
 {
     /*
@@ -2205,7 +2204,7 @@ void memory_region_sync(MemoryRegion *mr, hwaddr addr, hwaddr size)
      * different types of memory regions
      */
     if (mr->ram_block) {
-        qemu_ram_writeback(mr->ram_block, addr, size);
+        qemu_ram_msync(mr->ram_block, addr, size);
     }
 }
 
