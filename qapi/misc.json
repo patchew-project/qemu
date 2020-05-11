@@ -1550,3 +1550,18 @@
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
 
+##
+# @yank:
+#
+# Recover from hanging qemu by calling yank functions.
+#
+# Returns: nothing.
+#
+# Example:
+#
+# -> { "execute": "yank" }
+# <- { "return": {} }
+#
+# Since: 5.1
+##
+{ 'command': 'yank', 'allow-oob': true }
