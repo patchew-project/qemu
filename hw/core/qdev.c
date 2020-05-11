@@ -964,7 +964,20 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
             }
        }
 
+       atomic_store_release(&dev->realized, value);
+
     } else if (!value && dev->realized) {
+
+        /*
+         * Change the value so that any concurrent users are aware
+         * that the device is going to be unrealized
+         *
+         * TODO: change .realized property to enum that states
+         * each phase of the device realization/unrealization
+         */
+
+        atomic_store_release(&dev->realized, value);
+
         /* We want local_err to track only the first error */
         QLIST_FOREACH(bus, &dev->child_bus, sibling) {
             object_property_set_bool(OBJECT(bus), false, "realized",
@@ -980,12 +993,12 @@ static void device_set_realized(Object *obj, bool value, Error **errp)
         DEVICE_LISTENER_CALL(unrealize, Reverse, dev);
 
         if (local_err != NULL) {
+            atomic_store_release(&dev->realized, true);
             goto fail;
         }
     }
 
     assert(local_err == NULL);
-    dev->realized = value;
     return;
 
 child_realize_fail:
