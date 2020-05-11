@@ -939,6 +939,9 @@ QemuOptsList qemu_chardev_opts = {
         },{
             .name = "logappend",
             .type = QEMU_OPT_BOOL,
+        },{
+            .name = "yank",
+            .type = QEMU_OPT_BOOL,
         },
         { /* end of list */ }
     },

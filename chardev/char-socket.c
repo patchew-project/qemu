@@ -65,6 +65,7 @@ typedef struct {
     int max_size;
     int do_telnetopt;
     int do_nodelay;
+    int do_yank;
     int *read_msgfds;
     size_t read_msgfds_num;
     int *write_msgfds;
@@ -877,6 +878,9 @@ static int tcp_chr_new_client(Chardev *chr, QIOChannelSocket *sioc)
     if (s->do_nodelay) {
         qio_channel_set_delay(s->ioc, false);
     }
+    if (s->do_yank) {
+        qio_channel_set_yank(s->ioc, true);
+    }
     if (s->listener) {
         qio_net_listener_set_client_func_full(s->listener, NULL, NULL,
                                               NULL, chr->gcontext);
@@ -1297,6 +1301,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     SocketChardev *s = SOCKET_CHARDEV(chr);
     ChardevSocket *sock = backend->u.socket.data;
     bool do_nodelay     = sock->has_nodelay ? sock->nodelay : false;
+    bool do_yank        = sock->has_yank    ? sock->yank    : false;
     bool is_listen      = sock->has_server  ? sock->server  : true;
     bool is_telnet      = sock->has_telnet  ? sock->telnet  : false;
     bool is_tn3270      = sock->has_tn3270  ? sock->tn3270  : false;
@@ -1310,6 +1315,7 @@ static void qmp_chardev_open_socket(Chardev *chr,
     s->is_tn3270 = is_tn3270;
     s->is_websock = is_websock;
     s->do_nodelay = do_nodelay;
+    s->do_yank = do_yank;
     if (sock->tls_creds) {
         Object *creds;
         creds = object_resolve_path_component(
@@ -1400,6 +1406,8 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
 
     sock->has_nodelay = qemu_opt_get(opts, "delay");
     sock->nodelay = !qemu_opt_get_bool(opts, "delay", true);
+    sock->has_yank = qemu_opt_get(opts, "yank");
+    sock->yank = qemu_opt_get_bool(opts, "yank", false);
     /*
      * We have different default to QMP for 'server', hence
      * we can't just check for existence of 'server'
