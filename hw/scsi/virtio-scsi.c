@@ -35,13 +35,30 @@ static inline int virtio_scsi_get_lun(uint8_t *lun)
 
 static inline SCSIDevice *virtio_scsi_device_find(VirtIOSCSI *s, uint8_t *lun)
 {
+    SCSIDevice *device = NULL;
+
     if (lun[0] != 1) {
         return NULL;
     }
     if (lun[2] != 0 && !(lun[2] >= 0x40 && lun[2] < 0x80)) {
         return NULL;
     }
-    return scsi_device_find(&s->bus, 0, lun[1], virtio_scsi_get_lun(lun));
+
+    device = scsi_device_find(&s->bus, 0, lun[1], virtio_scsi_get_lun(lun));
+
+    /*
+     * This function might run on the IO thread and we might race against
+     * main thread hot-plugging the device.
+     *
+     * We assume that as soon as .realized is set to true we can let
+     * the user access the device.
+     */
+
+    if (!device || !atomic_load_acquire(&device->qdev.realized)) {
+        return NULL;
+    }
+
+    return device;
 }
 
 void virtio_scsi_init_req(VirtIOSCSI *s, VirtQueue *vq, VirtIOSCSIReq *req)
