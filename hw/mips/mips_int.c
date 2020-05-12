@@ -74,14 +74,12 @@ static void cpu_mips_irq_request(void *opaque, int irq, int level)
 void cpu_mips_irq_init_cpu(MIPSCPU *cpu)
 {
     CPUMIPSState *env = &cpu->env;
-    qemu_irq *qi;
     int i;
 
-    qi = qemu_allocate_irqs(cpu_mips_irq_request, cpu, 8);
+    qdev_init_gpio_in(DEVICE(cpu), cpu_mips_irq_request, 8);
     for (i = 0; i < 8; i++) {
-        env->irq[i] = qi[i];
+        env->irq[i] = qdev_get_gpio_in(DEVICE(cpu), i);
     }
-    g_free(qi);
 }
 
 void cpu_mips_soft_irq(CPUMIPSState *env, int irq, int level)
