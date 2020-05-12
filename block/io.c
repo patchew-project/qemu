@@ -695,14 +695,17 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
                                   uint64_t bytes,
                                   enum BdrvTrackedRequestType type)
 {
+    Coroutine *self = qemu_coroutine_self();
+
     assert(bytes <= INT64_MAX && offset <= INT64_MAX - bytes);
+    assert(bs->aio_context == qemu_coroutine_get_aio_context(self));
 
     *req = (BdrvTrackedRequest){
         .bs = bs,
         .offset         = offset,
         .bytes          = bytes,
         .type           = type,
-        .co             = qemu_coroutine_self(),
+        .co             = self,
         .serialising    = false,
         .overlap_offset = offset,
         .overlap_bytes  = bytes,
