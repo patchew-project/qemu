@@ -2763,6 +2763,7 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
     Error *local_err = NULL;
     const char *base_name = NULL;
     int job_flags = JOB_DEFAULT;
+    BlockDriverState *bottom_cow_node;
 
     if (!has_on_error) {
         on_error = BLOCKDEV_ON_ERROR_REPORT;
@@ -2807,8 +2808,14 @@ void qmp_block_stream(bool has_job_id, const char *job_id, const char *device,
         base_name = base_bs->filename;
     }
 
-    /* Check for op blockers in the whole chain between bs and base */
-    for (iter = bs; iter && iter != base_bs; iter = backing_bs(iter)) {
+    bottom_cow_node = bdrv_find_overlay(bs, base_bs);
+    if (!bottom_cow_node) {
+        error_setg(errp, "bottom node is not found, nothing to stream");
+        goto out;
+    }
+    /* Check for op blockers in the whole chain between bs and bottom */
+    for (iter = bs; iter && iter != bdrv_filtered_bs(bottom_cow_node);
+         iter = bdrv_filtered_bs(iter)) {
         if (bdrv_op_is_blocked(iter, BLOCK_OP_TYPE_STREAM, errp)) {
             goto out;
         }
