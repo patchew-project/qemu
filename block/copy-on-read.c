@@ -21,6 +21,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include "block/block_int.h"
 #include "qemu/module.h"
 
@@ -128,6 +129,21 @@ static void cor_lock_medium(BlockDriverState *bs, bool locked)
 }
 
 
+static void cor_refresh_filename(BlockDriverState *bs)
+{
+    pstrcpy(bs->exact_filename, sizeof(bs->exact_filename),
+            bs->file->bs->filename);
+}
+
+
+static int cor_change_backing_file(BlockDriverState *bs,
+                                   const char *backing_file,
+                                   const char *backing_fmt)
+{
+    return bdrv_change_backing_file(bs->file->bs, backing_file, backing_fmt);
+}
+
+
 static BlockDriver bdrv_copy_on_read = {
     .format_name                        = "copy-on-read",
 
@@ -146,6 +162,8 @@ static BlockDriver bdrv_copy_on_read = {
     .bdrv_lock_medium                   = cor_lock_medium,
 
     .bdrv_co_block_status               = bdrv_co_block_status_from_file,
+    .bdrv_refresh_filename              = cor_refresh_filename,
+    .bdrv_change_backing_file           = cor_change_backing_file,
 
     .has_variable_length                = true,
     .is_filter                          = true,
