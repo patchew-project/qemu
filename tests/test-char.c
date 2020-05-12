@@ -1228,6 +1228,101 @@ static void char_file_test_internal(Chardev *ext_chr, const char *filepath)
     g_free(out);
 }
 
+static int file_can_read(void *opaque)
+{
+    return 4096;
+}
+
+static void file_read(void *opaque, const uint8_t *buf, int size)
+{
+    int ret;
+    Chardev *chr = *(Chardev **)opaque;
+    g_assert_cmpint(size, <=, file_can_read(opaque));
+
+    g_assert_cmpint(size, ==, 6);
+    g_assert(strncmp((const char *)buf, "hello!", 6) == 0);
+    ret = qemu_chr_write_all(chr, (const uint8_t *)"world!", 6);
+    g_assert_cmpint(ret, ==, 6);
+    quit = true;
+}
+
+static void char_file_separate_input_file(void)
+{
+    char *tmp_path = g_dir_make_tmp("qemu-test-char.XXXXXX", NULL);
+    char *in;
+    char *out;
+    QemuOpts *opts;
+    Chardev *chr;
+    ChardevFile file = {};
+    CharBackend be;
+    ChardevBackend backend = { .type = CHARDEV_BACKEND_KIND_FILE,
+                               .u.file.data = &file };
+    char *contents = NULL;
+    gsize length;
+    int ret;
+    time_t in_mtime;
+    GStatBuf file_stat;
+
+    in = g_build_filename(tmp_path, "in", NULL);
+    out = g_build_filename(tmp_path, "out", NULL);
+
+    ret = g_file_set_contents(in, "hello!", 6, NULL);
+    g_assert(ret == TRUE);
+    g_stat(in, &file_stat);
+    in_mtime = file_stat.st_mtime;
+    /*
+     * Sleep to ensure that if the following actions modify the file, the mtime
+     * will be different
+     */
+    sleep(1);
+    opts = qemu_opts_create(qemu_find_opts("chardev"), "serial-id",
+                            1, &error_abort);
+    qemu_opt_set(opts, "backend", "file", &error_abort);
+    qemu_opt_set(opts, "pathin", in, &error_abort);
+    qemu_opt_set(opts, "path", out, &error_abort);
+
+    chr = qemu_chr_new_from_opts(opts, NULL, NULL);
+    qemu_chr_fe_init(&be, chr, &error_abort);
+
+    file.has_in = true;
+    file.in = in;
+    file.out = out;
+
+
+    qemu_chr_fe_set_handlers(&be, file_can_read,
+                             file_read,
+                             NULL, NULL, &chr, NULL, true);
+
+    chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
+                               NULL, &error_abort);
+    g_assert_nonnull(chr);
+
+    main_loop(); /* should call file_read, and copy contents of in to out */
+
+    qemu_chr_fe_deinit(&be, true);
+
+    /* Check that out was written to */
+    ret = g_file_get_contents(out, &contents, &length, NULL);
+    g_assert(ret == TRUE);
+    g_assert_cmpint(length, ==, 6);
+    g_assert(strncmp(contents, "world!", 6) == 0);
+    g_free(contents);
+
+    /* Check that in hasn't been modified */
+    ret = g_file_get_contents(in, &contents, &length, NULL);
+    g_assert(ret == TRUE);
+    g_assert_cmpint(length, ==, 6);
+    g_assert(strncmp(contents, "hello!", 6) == 0);
+    g_stat(in, &file_stat);
+    g_assert(file_stat.st_mtime == in_mtime);
+
+    g_free(contents);
+    g_rmdir(tmp_path);
+    g_free(tmp_path);
+    g_free(in);
+    g_free(out);
+}
+
 static void char_file_test(void)
 {
     char_file_test_internal(NULL, NULL);
@@ -1398,6 +1493,7 @@ int main(int argc, char **argv)
     g_test_add_func("/char/pipe", char_pipe_test);
 #endif
     g_test_add_func("/char/file", char_file_test);
+    g_test_add_func("/char/file/pathin", char_file_separate_input_file);
 #ifndef _WIN32
     g_test_add_func("/char/file-fifo", char_file_fifo_test);
 #endif
