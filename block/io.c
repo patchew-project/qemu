@@ -895,8 +895,21 @@ static int bdrv_run_co(BlockDriverState *bs, CoroutineEntry *entry,
                        void *opaque, int *ret)
 {
     if (qemu_in_coroutine()) {
-        /* Fast-path if already in coroutine context */
+        Coroutine *self = qemu_coroutine_self();
+        AioContext *bs_ctx = bdrv_get_aio_context(bs);
+        AioContext *co_ctx = qemu_coroutine_get_aio_context(self);
+
+        if (bs_ctx != co_ctx) {
+            /* Move to the iothread of the node */
+            aio_co_schedule(bs_ctx, self);
+            qemu_coroutine_yield();
+        }
         entry(opaque);
+        if (bs_ctx != co_ctx) {
+            /* Move back to the original AioContext */
+            aio_co_schedule(bs_ctx, self);
+            qemu_coroutine_yield();
+        }
     } else {
         Coroutine *co = qemu_coroutine_create(entry, opaque);
         *ret = NOT_DONE;
