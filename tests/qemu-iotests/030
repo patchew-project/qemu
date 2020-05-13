@@ -368,8 +368,7 @@ class TestParallelOps(iotests.QMPTestCase):
         self.wait_until_completed(drive='commit-drive0')
 
     # In this case the base node of the stream job is the same as the
-    # top node of commit job. Since this results in the commit filter
-    # node being part of the stream chain, this is not allowed.
+    # top node of commit job.
     def test_overlapping_4(self):
         self.assert_no_active_block_jobs()
 
@@ -381,13 +380,13 @@ class TestParallelOps(iotests.QMPTestCase):
 
         # Stream from node2 into node4
         result = self.vm.qmp('block-stream', device='node4', base_node='node2', job_id='node4')
-        self.assert_qmp(result, 'error/desc',
-            "Cannot freeze 'backing' link to 'commit-filter'")
+        self.assert_qmp(result, 'return', {})
 
         result = self.vm.qmp('block-job-set-speed', device='drive0', speed=0)
         self.assert_qmp(result, 'return', {})
 
-        self.wait_until_completed()
+        self.vm.run_job(job='drive0', auto_dismiss=True)
+        self.vm.run_job(job='node4', auto_dismiss=True)
         self.assert_no_active_block_jobs()
 
     # In this case the base node of the stream job is the commit job's
