@@ -1,3 +1,6 @@
+PYMODULES = $(wildcard *.py)
+
+KNOWN_GOOD = iotests.py
 
 CLEANFILES= *.out.bad *.notrun check.log check.time*
 
@@ -7,3 +10,6 @@ default:
 clean:
 	rm -f $(CLEANFILES)
 
+delint:
+	pylint $(KNOWN_GOOD)
+	pylint --disable=R,C,W $(filter-out $(KNOWN_GOOD), $(PYMODULES))
