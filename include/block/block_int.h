@@ -89,9 +89,11 @@ struct BlockDriver {
     int instance_size;
 
     /* set to true if the BlockDriver is a block filter. Block filters pass
-     * certain callbacks that refer to data (see block.c) to their bs->file if
-     * the driver doesn't implement them. Drivers that do not wish to forward
-     * must implement them and return -ENOTSUP.
+     * certain callbacks that refer to data (see block.c) to their bs->file
+     * or bs->backing (whichever one exists) if the driver doesn't implement
+     * them. Drivers that do not wish to forward must implement them and return
+     * -ENOTSUP.
+     * Note that filters are not allowed to modify data.
      */
     bool is_filter;
     /*
@@ -585,6 +587,13 @@ struct BlockDriver {
      * If this pointer is NULL, the array is considered empty.
      * "filename" and "driver" are always considered strong. */
     const char *const *strong_runtime_opts;
+
+    /**
+     * Return the data storage child, if there is exactly one.  If
+     * this function is not implemented, the block layer will assume
+     * bs->file to be this child.
+     */
+    BdrvChild *(*bdrv_storage_child)(BlockDriverState *bs);
 };
 
 static inline bool block_driver_can_compress(BlockDriver *drv)
@@ -1331,6 +1340,48 @@ int refresh_total_sectors(BlockDriverState *bs, int64_t hint);
 
 void bdrv_set_monitor_owned(BlockDriverState *bs);
 BlockDriverState *bds_tree_init(QDict *bs_opts, Error **errp);
+
+BdrvChild *bdrv_filtered_cow_child(BlockDriverState *bs);
+BdrvChild *bdrv_filtered_rw_child(BlockDriverState *bs);
+BdrvChild *bdrv_filtered_child(BlockDriverState *bs);
+BdrvChild *bdrv_metadata_child(BlockDriverState *bs);
+BdrvChild *bdrv_storage_child(BlockDriverState *bs);
+BdrvChild *bdrv_primary_child(BlockDriverState *bs);
+
+static inline BlockDriverState *child_bs(BdrvChild *child)
+{
+    return child ? child->bs : NULL;
+}
+
+static inline BlockDriverState *bdrv_filtered_cow_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_filtered_cow_child(bs));
+}
+
+static inline BlockDriverState *bdrv_filtered_rw_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_filtered_rw_child(bs));
+}
+
+static inline BlockDriverState *bdrv_filtered_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_filtered_child(bs));
+}
+
+static inline BlockDriverState *bdrv_metadata_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_metadata_child(bs));
+}
+
+static inline BlockDriverState *bdrv_storage_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_storage_child(bs));
+}
+
+static inline BlockDriverState *bdrv_primary_bs(BlockDriverState *bs)
+{
+    return child_bs(bdrv_primary_child(bs));
+}
 
 /**
  * Simple implementation of bdrv_co_create_opts for protocol drivers
