@@ -593,7 +593,7 @@ Command description:
   For more information, consult ``include/block/block.h`` in QEMU's
   source code.
 
-.. option:: measure [--output=OFMT] [-O OUTPUT_FMT] [-o OPTIONS] [--size N | [--object OBJECTDEF] [--image-opts] [-f FMT] [-l SNAPSHOT_PARAM] FILENAME]
+.. option:: measure [--output=OFMT] [-O OUTPUT_FMT] [-o OPTIONS] [--size N | [--object OBJECTDEF] [--image-opts] [-f FMT] [--bitmaps] [-l SNAPSHOT_PARAM] FILENAME]
 
   Calculate the file size required for a new image.  This information
   can be used to size logical volumes or SAN LUNs appropriately for
@@ -616,6 +616,7 @@ Command description:
 
     required size: 524288
     fully allocated size: 1074069504
+    bitmaps: 0
 
   The ``required size`` is the file size of the new image.  It may be smaller
   than the virtual disk size if the image format supports compact representation.
@@ -624,6 +625,13 @@ Command description:
   been written to all sectors.  This is the maximum size that the image file can
   occupy with the exception of internal snapshots, dirty bitmaps, vmstate data,
   and other advanced image format features.
+
+  The ``bitmaps size`` is the additional size required if the
+  destination supports persistent bitmaps, in order to additionally
+  copy bitmaps in addition to the guest-visible data.  If the
+  ``--bitmaps`` option was in use, the bitmap size is folded into the
+  required and fully-allocated size for convenience, rather than being
+  a separate line item.
 
 .. option:: snapshot [--object OBJECTDEF] [--image-opts] [-U] [-q] [-l | -a SNAPSHOT | -c SNAPSHOT | -d SNAPSHOT] FILENAME
 

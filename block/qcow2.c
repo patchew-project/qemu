@@ -4818,6 +4818,7 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
     PreallocMode prealloc;
     bool has_backing_file;
     bool has_luks;
+    uint64_t bitmaps_size = 0; /* size occupied by bitmaps in in_bs */
 
     /* Parse image creation options */
     cluster_size = qcow2_opt_get_cluster_size_del(opts, &local_err);
@@ -4893,12 +4894,37 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
 
     /* Account for input image */
     if (in_bs) {
+        BdrvDirtyBitmap *bm;
+        size_t bitmap_dir_size = 0;
         int64_t ssize = bdrv_getlength(in_bs);
+
         if (ssize < 0) {
             error_setg_errno(&local_err, -ssize,
                              "Unable to get image virtual_size");
             goto err;
         }
+
+        FOR_EACH_DIRTY_BITMAP(in_bs, bm) {
+            if (bdrv_dirty_bitmap_get_persistence(bm)) {
+                const char *name = bdrv_dirty_bitmap_name(bm);
+                uint32_t granularity = bdrv_dirty_bitmap_granularity(bm);
+                uint64_t bmbits = DIV_ROUND_UP(bdrv_dirty_bitmap_size(bm),
+                                               granularity);
+                uint64_t bmclusters = DIV_ROUND_UP(DIV_ROUND_UP(bmbits,
+                                                                CHAR_BIT),
+                                                   cluster_size);
+
+                /* Assume the entire bitmap is allocated */
+                bitmaps_size += bmclusters * cluster_size;
+                /* Also reserve space for the bitmap table entries */
+                bitmaps_size += ROUND_UP(bmclusters * sizeof(uint64_t),
+                                         cluster_size);
+                /* And space for contribution to bitmap directory size */
+                bitmap_dir_size += ROUND_UP(strlen(name) + 24,
+                                            sizeof(uint64_t));
+            }
+        }
+        bitmaps_size += ROUND_UP(bitmap_dir_size, cluster_size);
 
         virtual_size = ROUND_UP(ssize, cluster_size);
 
@@ -4946,16 +4972,21 @@ static BlockMeasureInfo *qcow2_measure(QemuOpts *opts, BlockDriverState *in_bs,
         required = virtual_size;
     }
 
-    info = g_new(BlockMeasureInfo, 1);
+    info = g_new0(BlockMeasureInfo, 1);
     info->fully_allocated =
         qcow2_calc_prealloc_size(virtual_size, cluster_size,
                                  ctz32(refcount_bits)) + luks_payload_size;
 
-    /* Remove data clusters that are not required.  This overestimates the
+    /*
+     * Remove data clusters that are not required.  This overestimates the
      * required size because metadata needed for the fully allocated file is
-     * still counted.
+     * still counted.  Show bitmaps only if both source and destination
+     * would support them.
      */
     info->required = info->fully_allocated - virtual_size + required;
+    info->has_bitmaps = version >= 3 && in_bs &&
+        bdrv_supports_persistent_dirty_bitmap(in_bs);
+    info->bitmaps = bitmaps_size;
     return info;
 
 err:

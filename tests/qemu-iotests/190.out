@@ -1,11 +1,44 @@
 QA output created by 190
-== Huge file ==
+== Huge file without bitmaps ==
 
 Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2199023255552
 required size: 2199023255552
 fully allocated size: 2199023255552
 required size: 335806464
 fully allocated size: 2199359062016
+bitmaps size: 0
 required size: 18874368
 fully allocated size: 2199042129920
+bitmaps size: 0
+
+== Huge file with bitmaps ==
+
+qemu-img: --bitmaps is only supported with a filename.
+required size: 2199023255552
+fully allocated size: 2199023255552
+qemu-img: no bitmaps measured, either source or destination format lacks bitmap support
+required size: 7012352
+fully allocated size: 17170432
+qemu-img: no bitmaps measured, either source or destination format lacks bitmap support
+required size: 335806464
+fully allocated size: 2199359062016
+qemu-img: no bitmaps measured, either source or destination format lacks bitmap support
+
+expected bitmap 537198592
+required size: 335806464
+fully allocated size: 2199359062016
+bitmaps size: 537198592
+required size: 873005056
+fully allocated size: 2199896260608
+
+expected bitmap 545259520
+{
+    "bitmaps": 545259520,
+    "required": 18874368,
+    "fully-allocated": 2199042129920
+}
+{
+    "required": 564133888,
+    "fully-allocated": 2199587389440
+}
 *** done

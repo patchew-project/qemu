@@ -78,6 +78,7 @@ enum {
     OPTION_ENABLE = 272,
     OPTION_DISABLE = 273,
     OPTION_MERGE = 274,
+    OPTION_BITMAPS = 275,
 };
 
 typedef enum OutputFormat {
@@ -5096,6 +5097,7 @@ static int img_measure(int argc, char **argv)
         {"output", required_argument, 0, OPTION_OUTPUT},
         {"size", required_argument, 0, OPTION_SIZE},
         {"force-share", no_argument, 0, 'U'},
+        {"bitmaps", no_argument, 0, OPTION_BITMAPS},
         {0, 0, 0, 0}
     };
     OutputFormat output_format = OFORMAT_HUMAN;
@@ -5112,6 +5114,7 @@ static int img_measure(int argc, char **argv)
     QemuOpts *sn_opts = NULL;
     QemuOptsList *create_opts = NULL;
     bool image_opts = false;
+    bool bitmaps = false;
     uint64_t img_size = UINT64_MAX;
     BlockMeasureInfo *info = NULL;
     Error *local_err = NULL;
@@ -5192,6 +5195,9 @@ static int img_measure(int argc, char **argv)
             img_size = (uint64_t)sval;
         }
         break;
+        case OPTION_BITMAPS:
+            bitmaps = true;
+            break;
         }
     }
 
@@ -5218,6 +5224,10 @@ static int img_measure(int argc, char **argv)
     }
     if (!filename && img_size == UINT64_MAX) {
         error_report("Either --size N or one filename must be specified.");
+        goto out;
+    }
+    if (!filename && bitmaps) {
+        error_report("--bitmaps is only supported with a filename.");
         goto out;
     }
 
@@ -5275,9 +5285,24 @@ static int img_measure(int argc, char **argv)
         goto out;
     }
 
+    if (bitmaps) {
+        if (!info->has_bitmaps) {
+            error_report("no bitmaps measured, either source or destination "
+                         "format lacks bitmap support");
+            goto out;
+        } else {
+            info->required += info->bitmaps;
+            info->fully_allocated += info->bitmaps;
+            info->has_bitmaps = false;
+        }
+    }
+
     if (output_format == OFORMAT_HUMAN) {
         printf("required size: %" PRIu64 "\n", info->required);
         printf("fully allocated size: %" PRIu64 "\n", info->fully_allocated);
+        if (info->has_bitmaps) {
+            printf("bitmaps size: %" PRIu64 "\n", info->bitmaps);
+        }
     } else {
         dump_json_block_measure_info(info);
     }
