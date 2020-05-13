@@ -1522,6 +1522,9 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip9->psi), PNV9_PSIHB_BASE(chip),
                             "bar", &error_fatal);
+    /* This is the only device with 4k ESB pages */
+    object_property_set_int(OBJECT(&chip9->psi), XIVE_ESB_4K, "shift",
+                            &error_fatal);
     object_property_set_bool(OBJECT(&chip9->psi), true, "realized", &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
@@ -1794,6 +1797,9 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     /* Processor Service Interface (PSI) Host Bridge */
     object_property_set_int(OBJECT(&chip10->psi), PNV10_PSIHB_BASE(chip),
                             "bar", &error_fatal);
+    /* PSI can now be configured to use 64k ESB pages on POWER10 */
+    object_property_set_int(OBJECT(&chip10->psi), XIVE_ESB_64K, "shift",
+                            &error_fatal);
     object_property_set_bool(OBJECT(&chip10->psi), true, "realized",
                              &local_err);
     if (local_err) {
