@@ -1621,3 +1621,39 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @MigrationBlockNodeMapping:
+#
+# Maps a block node name to an alias for migration.
+#
+# @node-name: A block node name.
+#
+# @alias: An alias name for migration (for example the node name on
+#         the opposite site).
+#
+# Since: 5.1
+##
+{ 'struct': 'MigrationBitmapMapping',
+  'data': {
+      'node-name': 'str',
+      'alias': 'str'
+  } }
+
+##
+# @migrate-set-bitmap-node-mapping:
+#
+# Maps block node names to arbitrary aliases for the purpose of dirty
+# bitmap migration.  Such aliases may for example be the corresponding
+# node names on the opposite site.
+#
+# By default, every node name is mapped to itself.
+#
+# @mapping: The mapping; must be one-to-one, but not necessarily
+#           complete.  Any mapping not given will be reset to the
+#           default (i.e. the identity mapping).
+#
+# Since: 5.1
+##
+{ 'command': 'migrate-set-bitmap-node-mapping',
+  'data': { 'mapping': ['MigrationBlockNodeMapping'] } }
