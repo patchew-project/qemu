@@ -127,6 +127,9 @@ typedef struct Pnv10Chip {
     uint32_t     nr_quads;
     PnvQuad      *quads;
 
+#define PNV10_CHIP_MAX_PEC 2
+    PnvPhb4PecState pecs[PNV10_CHIP_MAX_PEC];
+
 } Pnv10Chip;
 
 #define PNV10_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)

@@ -705,9 +705,17 @@ static void pnv_ipmi_bt_init(ISABus *bus, IPMIBmc *bmc, uint32_t irq)
 static void pnv_chip_power10_pic_print_info(PnvChip *chip, Monitor *mon)
 {
     Pnv10Chip *chip10 = PNV10_CHIP(chip);
+    int i, j;
 
     pnv_xive2_pic_print_info(&chip10->xive, mon);
     pnv_psi_pic_print_info(&chip10->psi, mon);
+
+    for (i = 0; i < PNV10_CHIP_MAX_PEC; i++) {
+        PnvPhb4PecState *pec = &chip10->pecs[i];
+        for (j = 0; j < pec->num_stacks; j++) {
+            pnv_phb4_pic_print_info(&pec->stacks[j].phb, mon);
+        }
+    }
 }
 
 static void pnv_init(MachineState *machine)
@@ -1606,7 +1614,10 @@ static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
 
 static void pnv_chip_power10_instance_init(Object *obj)
 {
+    PnvChip *chip = PNV_CHIP(obj);
     Pnv10Chip *chip10 = PNV10_CHIP(obj);
+    PnvChipClass *pcc = PNV_CHIP_GET_CLASS(obj);
+    int i;
 
     object_initialize_child(obj, "xive", &chip10->xive, sizeof(chip10->xive),
                             TYPE_PNV_XIVE2, &error_abort, NULL);
@@ -1618,6 +1629,17 @@ static void pnv_chip_power10_instance_init(Object *obj)
                             TYPE_PNV10_LPC, &error_abort, NULL);
     object_initialize_child(obj, "occ",  &chip10->occ, sizeof(chip10->occ),
                             TYPE_PNV10_OCC, &error_abort, NULL);
+
+    for (i = 0; i < PNV10_CHIP_MAX_PEC; i++) {
+        object_initialize_child(obj, "pec[*]", &chip10->pecs[i],
+                                sizeof(chip10->pecs[i]), TYPE_PNV_PHB5_PEC,
+                                &error_abort, NULL);
+    }
+
+    /*
+     * Number of PHBs is the chip default
+     */
+    chip->num_phbs = pcc->num_phbs;
 }
 
 
@@ -1644,6 +1666,77 @@ static void pnv_chip_power10_quad_realize(Pnv10Chip *chip10, Error **errp)
 
         pnv_xscom_add_subregion(chip, PNV10_XSCOM_EQ_BASE(eq->id),
                                 &eq->xscom_regs);
+    }
+}
+
+static void pnv_chip_power10_phb_realize(PnvChip *chip, Error **errp)
+{
+    Pnv10Chip *chip10 = PNV10_CHIP(chip);
+    Error *local_err = NULL;
+    int i, j;
+    int phb_id = 0;
+
+    for (i = 0; i < PNV10_CHIP_MAX_PEC; i++) {
+        PnvPhb4PecState *pec = &chip10->pecs[i];
+        PnvPhb4PecClass *pecc = PNV_PHB4_PEC_GET_CLASS(pec);
+        uint32_t pec_nest_base;
+        uint32_t pec_pci_base;
+
+        object_property_set_int(OBJECT(pec), i, "index", &error_fatal);
+        /*
+         * PEC0 -> 3 stacks
+         * PEC1 -> 3 stacks
+         */
+        object_property_set_int(OBJECT(pec), 3, "num-stacks",
+                                &error_fatal);
+        object_property_set_int(OBJECT(pec), chip->chip_id, "chip-id",
+                                 &error_fatal);
+        object_property_set_link(OBJECT(pec), OBJECT(get_system_memory()),
+                                 "system-memory", &error_abort);
+        object_property_set_bool(OBJECT(pec), true, "realized", &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return;
+        }
+
+        pec_nest_base = pecc->xscom_nest_base(pec);
+        pec_pci_base = pecc->xscom_pci_base(pec);
+
+        pnv_xscom_add_subregion(chip, pec_nest_base, &pec->nest_regs_mr);
+        pnv_xscom_add_subregion(chip, pec_pci_base, &pec->pci_regs_mr);
+
+        for (j = 0; j < pec->num_stacks && phb_id < chip->num_phbs;
+             j++, phb_id++) {
+            PnvPhb4PecStack *stack = &pec->stacks[j];
+            Object *obj = OBJECT(&stack->phb);
+
+            object_property_set_int(obj, phb_id, "index", &error_fatal);
+            object_property_set_int(obj, chip->chip_id, "chip-id",
+                                    &error_fatal);
+            object_property_set_int(obj, PNV_PHB5_VERSION, "version",
+                                    &error_fatal);
+            object_property_set_int(obj, PNV_PHB5_DEVICE_ID, "device-id",
+                                    &error_fatal);
+            object_property_set_link(obj, OBJECT(stack), "stack", &error_abort);
+            object_property_set_bool(obj, true, "realized", &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+            qdev_set_parent_bus(DEVICE(obj), sysbus_get_default());
+
+            /* Populate the XSCOM address space. */
+            pnv_xscom_add_subregion(chip,
+                                   pec_nest_base + 0x40 * (stack->stack_no + 1),
+                                   &stack->nest_regs_mr);
+            pnv_xscom_add_subregion(chip,
+                                    pec_pci_base + 0x40 * (stack->stack_no + 1),
+                                    &stack->pci_regs_mr);
+            pnv_xscom_add_subregion(chip,
+                                    pec_pci_base + PNV9_XSCOM_PEC_PCI_STK0 +
+                                    0x40 * stack->stack_no,
+                                    &stack->phb_regs_mr);
+        }
     }
 }
 
@@ -1736,6 +1829,13 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     }
     pnv_xscom_add_subregion(chip, PNV10_XSCOM_OCC_BASE,
                             &chip10->occ.xscom_regs);
+
+    /* PHBs */
+    pnv_chip_power10_phb_realize(chip, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 }
 
 static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
@@ -1762,6 +1862,7 @@ static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
     k->xscom_core_base = pnv_chip_power10_xscom_core_base;
     k->xscom_pcba = pnv_chip_power10_xscom_pcba;
     dc->desc = "PowerNV Chip POWER10";
+    k->num_phbs = 6;
 
     device_class_set_parent_realize(dc, pnv_chip_power10_realize,
                                     &k->parent_realize);
