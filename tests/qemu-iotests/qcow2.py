@@ -11,13 +11,14 @@ class QcowHeaderExtension:
             padding = 8 - (length % 8)
             data += b"\0" * padding
 
-        self.magic  = magic
+        self.magic = magic
         self.length = length
-        self.data   = data
+        self.data = data
 
     @classmethod
     def create(cls, magic, data):
         return QcowHeaderExtension(magic, len(data), data)
+
 
 class QcowHeader:
 
@@ -26,29 +27,40 @@ class QcowHeader:
 
     fields = [
         # Version 2 header fields
-        [ uint32_t, '%#x',  'magic' ],
-        [ uint32_t, '%d',   'version' ],
-        [ uint64_t, '%#x',  'backing_file_offset' ],
-        [ uint32_t, '%#x',  'backing_file_size' ],
-        [ uint32_t, '%d',   'cluster_bits' ],
-        [ uint64_t, '%d',   'size' ],
-        [ uint32_t, '%d',   'crypt_method' ],
-        [ uint32_t, '%d',   'l1_size' ],
-        [ uint64_t, '%#x',  'l1_table_offset' ],
-        [ uint64_t, '%#x',  'refcount_table_offset' ],
-        [ uint32_t, '%d',   'refcount_table_clusters' ],
-        [ uint32_t, '%d',   'nb_snapshots' ],
-        [ uint64_t, '%#x',  'snapshot_offset' ],
+        # pylint: disable=bad-whitespace
+        [uint32_t, '%#x',  'magic'],
+        [uint32_t, '%d',   'version'],
+        [uint64_t, '%#x',  'backing_file_offset'],
+        [uint32_t, '%#x',  'backing_file_size'],
+        [uint32_t, '%d',   'cluster_bits'],
+        [uint64_t, '%d',   'size'],
+        [uint32_t, '%d',   'crypt_method'],
+        [uint32_t, '%d',   'l1_size'],
+        [uint64_t, '%#x',  'l1_table_offset'],
+        [uint64_t, '%#x',  'refcount_table_offset'],
+        [uint32_t, '%d',   'refcount_table_clusters'],
+        [uint32_t, '%d',   'nb_snapshots'],
+        [uint64_t, '%#x',  'snapshot_offset'],
 
         # Version 3 header fields
-        [ uint64_t, 'mask', 'incompatible_features' ],
-        [ uint64_t, 'mask', 'compatible_features' ],
-        [ uint64_t, 'mask', 'autoclear_features' ],
-        [ uint32_t, '%d',   'refcount_order' ],
-        [ uint32_t, '%d',   'header_length' ],
-    ];
+        [uint64_t, 'mask', 'incompatible_features'],
+        [uint64_t, 'mask', 'compatible_features'],
+        [uint64_t, 'mask', 'autoclear_features'],
+        [uint32_t, '%d',   'refcount_order'],
+        [uint32_t, '%d',   'header_length'],
+    ]
 
     fmt = '>' + ''.join(field[0] for field in fields)
+
+    @property
+    def backing_file_offset(self):
+        # Pylint struggles to verify dynamic properties.
+        # Dataclasses in 3.7 would make this easy.
+        return self.__dict__['backing_file_offset']
+
+    @backing_file_offset.setter
+    def backing_file_offset(self, val):
+        self.__dict__['backing_file_offset'] = val
 
     def __init__(self, fd):
 
@@ -59,22 +71,22 @@ class QcowHeader:
 
         header = struct.unpack(QcowHeader.fmt, buf)
         self.__dict__ = dict((field[2], header[i])
-            for i, field in enumerate(QcowHeader.fields))
+                             for i, field in enumerate(QcowHeader.fields))
 
         self.set_defaults()
-        self.cluster_size = 1 << self.cluster_bits
+        self.cluster_size = 1 << self.__dict__['cluster_bits']
 
         fd.seek(self.header_length)
         self.load_extensions(fd)
 
         if self.backing_file_offset:
             fd.seek(self.backing_file_offset)
-            self.backing_file = fd.read(self.backing_file_size)
+            self.backing_file = fd.read(self.__dict__['backing_file_size'])
         else:
             self.backing_file = None
 
     def set_defaults(self):
-        if self.version == 2:
+        if self.__dict__['version'] == 2:
             self.incompatible_features = 0
             self.compatible_features = 0
             self.autoclear_features = 0
@@ -93,10 +105,10 @@ class QcowHeader:
             (magic, length) = struct.unpack('>II', fd.read(8))
             if magic == 0:
                 break
-            else:
-                padded = (length + 7) & ~7
-                data = fd.read(padded)
-                self.extensions.append(QcowHeaderExtension(magic, length, data))
+            padded = (length + 7) & ~7
+            data = fd.read(padded)
+            extension = QcowHeaderExtension(magic, length, data)
+            self.extensions.append(extension)
 
     def update_extensions(self, fd):
 
@@ -108,7 +120,7 @@ class QcowHeader:
             fd.write(buf)
             fd.write(ex.data)
 
-        if self.backing_file != None:
+        if self.backing_file is None:
             self.backing_file_offset = fd.tell()
             fd.write(self.backing_file)
 
@@ -170,13 +182,13 @@ def cmd_dump_header_exts(fd):
 def cmd_set_header(fd, name, value):
     try:
         value = int(value, 0)
-    except:
-        print("'%s' is not a valid number" % value)
+    except ValueError:
+        print(f"'{value}' is not a valid number")
         sys.exit(1)
 
     fields = (field[2] for field in QcowHeader.fields)
     if not name in fields:
-        print("'%s' is not a known header field" % name)
+        print("'{name}' is not a known header field")
         sys.exit(1)
 
     h = QcowHeader(fd)
@@ -186,12 +198,13 @@ def cmd_set_header(fd, name, value):
 def cmd_add_header_ext(fd, magic, data):
     try:
         magic = int(magic, 0)
-    except:
-        print("'%s' is not a valid magic number" % magic)
+    except ValueError:
+        print(f"'{magic}' is not a valid magic number")
         sys.exit(1)
 
     h = QcowHeader(fd)
-    h.extensions.append(QcowHeaderExtension.create(magic, data.encode('ascii')))
+    ext = QcowHeaderExtension.create(magic, data.encode('ascii'))
+    h.extensions.append(ext)
     h.update(fd)
 
 def cmd_add_header_ext_stdio(fd, magic):
@@ -201,8 +214,8 @@ def cmd_add_header_ext_stdio(fd, magic):
 def cmd_del_header_ext(fd, magic):
     try:
         magic = int(magic, 0)
-    except:
-        print("'%s' is not a valid magic number" % magic)
+    except ValueError:
+        print(f"'{magic}' is not a valid magic number")
         sys.exit(1)
 
     h = QcowHeader(fd)
@@ -224,8 +237,8 @@ def cmd_set_feature_bit(fd, group, bit):
         bit = int(bit, 0)
         if bit < 0 or bit >= 64:
             raise ValueError
-    except:
-        print("'%s' is not a valid bit number in range [0, 64)" % bit)
+    except ValueError:
+        print(f"'{bit}' is not a valid bit number in range [0, 64)")
         sys.exit(1)
 
     h = QcowHeader(fd)
@@ -236,33 +249,68 @@ def cmd_set_feature_bit(fd, group, bit):
     elif group == 'autoclear':
         h.autoclear_features |= 1 << bit
     else:
-        print("'%s' is not a valid group, try 'incompatible', 'compatible', or 'autoclear'" % group)
+        print(f"'{group}' is not a valid group, "
+              "try 'incompatible', 'compatible', or 'autoclear'")
         sys.exit(1)
 
     h.update(fd)
 
 cmds = [
-    [ 'dump-header',          cmd_dump_header,          0, 'Dump image header and header extensions' ],
-    [ 'dump-header-exts',     cmd_dump_header_exts,     0, 'Dump image header extensions' ],
-    [ 'set-header',           cmd_set_header,           2, 'Set a field in the header'],
-    [ 'add-header-ext',       cmd_add_header_ext,       2, 'Add a header extension' ],
-    [ 'add-header-ext-stdio', cmd_add_header_ext_stdio, 1, 'Add a header extension, data from stdin' ],
-    [ 'del-header-ext',       cmd_del_header_ext,       1, 'Delete a header extension' ],
-    [ 'set-feature-bit',      cmd_set_feature_bit,      2, 'Set a feature bit'],
+    [
+        'dump-header',
+        cmd_dump_header,
+        0,
+        'Dump image header and header extensions'
+    ],
+    [
+        'dump-header-exts',
+        cmd_dump_header_exts,
+        0,
+        'Dump image header extensions'
+    ],
+    [
+        'set-header',
+        cmd_set_header,
+        2,
+        'Set a field in the header'
+    ],
+    [
+        'add-header-ext',
+        cmd_add_header_ext,
+        2,
+        'Add a header extension'
+    ],
+    [
+        'add-header-ext-stdio',
+        cmd_add_header_ext_stdio,
+        1,
+        'Add a header extension, data from stdin'
+    ],
+    [
+        'del-header-ext',
+        cmd_del_header_ext,
+        1,
+        'Delete a header extension'
+    ],
+    [
+        'set-feature-bit',
+        cmd_set_feature_bit,
+        2,
+        'Set a feature bit'
+    ],
 ]
 
 def main(filename, cmd, args):
     fd = open(filename, "r+b")
     try:
-        for name, handler, num_args, desc in cmds:
+        for name, handler, num_args, _desc in cmds:
             if name != cmd:
                 continue
-            elif len(args) != num_args:
+            if len(args) != num_args:
                 usage()
                 return
-            else:
-                handler(fd, *args)
-                return
+            handler(fd, *args)
+            return
         print("Unknown command '%s'" % cmd)
     finally:
         fd.close()
@@ -271,7 +319,7 @@ def usage():
     print("Usage: %s <file> <cmd> [<arg>, ...]" % sys.argv[0])
     print("")
     print("Supported commands:")
-    for name, handler, num_args, desc in cmds:
+    for name, _handler, _num_args, desc in cmds:
         print("    %-20s - %s" % (name, desc))
 
 if __name__ == '__main__':
