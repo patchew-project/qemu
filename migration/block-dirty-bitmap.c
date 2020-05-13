@@ -73,6 +73,8 @@
 #include "qemu/hbitmap.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#include "qapi/qapi-commands-migration.h"
+#include "qapi/qmp/qdict.h"
 #include "trace.h"
 
 #define CHUNK_SIZE     (1 << 10)
@@ -120,6 +122,9 @@ typedef struct DirtyBitmapMigState {
 
     bool bulk_completed;
     bool no_bitmaps;
+
+    QDict *node_in_mapping;
+    QDict *node_out_mapping;
 
     /* for send_bitmap_bits() */
     BlockDriverState *prev_bs;
@@ -281,7 +286,12 @@ static int init_dirty_bitmap_migration(void)
     dirty_bitmap_mig_state.no_bitmaps = false;
 
     for (bs = bdrv_next_all_states(NULL); bs; bs = bdrv_next_all_states(bs)) {
+        const QDict *map = dirty_bitmap_mig_state.node_out_mapping;
         const char *name = bdrv_get_device_or_node_name(bs);
+
+        if (map) {
+            name = qdict_get_try_str(map, name) ?: name;
+        }
 
         FOR_EACH_DIRTY_BITMAP(bs, bitmap) {
             if (!bdrv_dirty_bitmap_name(bitmap)) {
@@ -600,6 +610,8 @@ static int dirty_bitmap_load_bits(QEMUFile *f, DirtyBitmapLoadState *s)
 
 static int dirty_bitmap_load_header(QEMUFile *f, DirtyBitmapLoadState *s)
 {
+    const QDict *map = dirty_bitmap_mig_state.node_in_mapping;
+    const char *mapped_node = "(none)";
     Error *local_err = NULL;
     bool nothing;
     s->flags = qemu_get_bitmap_flags(f);
@@ -612,7 +624,13 @@ static int dirty_bitmap_load_header(QEMUFile *f, DirtyBitmapLoadState *s)
             error_report("Unable to read node name string");
             return -EINVAL;
         }
-        s->bs = bdrv_lookup_bs(s->node_name, s->node_name, &local_err);
+
+        mapped_node = s->node_name;
+        if (map) {
+            mapped_node = qdict_get_try_str(map, mapped_node) ?: mapped_node;
+        }
+
+        s->bs = bdrv_lookup_bs(mapped_node, mapped_node, &local_err);
         if (!s->bs) {
             error_report_err(local_err);
             return -EINVAL;
@@ -634,7 +652,7 @@ static int dirty_bitmap_load_header(QEMUFile *f, DirtyBitmapLoadState *s)
         if (!s->bitmap && !(s->flags & DIRTY_BITMAP_MIG_FLAG_START)) {
             error_report("Error: unknown dirty bitmap "
                          "'%s' for block device '%s'",
-                         s->bitmap_name, s->node_name);
+                         s->bitmap_name, mapped_node);
             return -EINVAL;
         }
     } else if (!s->bitmap && !nothing) {
@@ -711,6 +729,44 @@ static bool dirty_bitmap_is_active_iterate(void *opaque)
 static bool dirty_bitmap_has_postcopy(void *opaque)
 {
     return true;
+}
+
+void qmp_migrate_set_bitmap_node_mapping(MigrationBlockNodeMappingList *mapping,
+                                         Error **errp)
+{
+    QDict *in_mapping = qdict_new();
+    QDict *out_mapping = qdict_new();
+
+    for (; mapping; mapping = mapping->next) {
+        MigrationBlockNodeMapping *entry = mapping->value;
+
+        if (qdict_haskey(out_mapping, entry->node_name)) {
+            error_setg(errp, "Cannot map node name '%s' twice",
+                       entry->node_name);
+            goto fail;
+        }
+
+        if (qdict_haskey(in_mapping, entry->alias)) {
+            error_setg(errp, "Cannot use alias '%s' twice",
+                       entry->alias);
+            goto fail;
+        }
+
+        qdict_put_str(in_mapping, entry->alias, entry->node_name);
+        qdict_put_str(out_mapping, entry->node_name, entry->alias);
+    }
+
+    qobject_unref(dirty_bitmap_mig_state.node_in_mapping);
+    qobject_unref(dirty_bitmap_mig_state.node_out_mapping);
+
+    dirty_bitmap_mig_state.node_in_mapping = in_mapping;
+    dirty_bitmap_mig_state.node_out_mapping = out_mapping;
+
+    return;
+
+fail:
+    qobject_unref(in_mapping);
+    qobject_unref(out_mapping);
 }
 
 static SaveVMHandlers savevm_dirty_bitmap_handlers = {
