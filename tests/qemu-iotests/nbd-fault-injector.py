@@ -47,10 +47,7 @@ import sys
 import socket
 import struct
 import collections
-if sys.version_info.major >= 3:
-    import configparser
-else:
-    import ConfigParser as configparser
+import configparser
 
 FAKE_DISK_SIZE = 8 * 1024 * 1024 * 1024 # 8 GB
 
@@ -71,7 +68,9 @@ neg1_struct = struct.Struct('>QQH')
 export_tuple = collections.namedtuple('Export', 'reserved magic opt len')
 export_struct = struct.Struct('>IQII')
 neg2_struct = struct.Struct('>QH124x')
-request_tuple = collections.namedtuple('Request', 'magic type handle from_ len')
+request_tuple = collections.namedtuple(
+    'Request', 'magic type handle from_ len'
+)
 request_struct = struct.Struct('>IIQQI')
 reply_struct = struct.Struct('>IIQ')
 
@@ -84,13 +83,13 @@ def recvall(sock, bufsize):
     chunks = []
     while received < bufsize:
         chunk = sock.recv(bufsize - received)
-        if len(chunk) == 0:
+        if not chunk:
             raise Exception('unexpected disconnect')
         chunks.append(chunk)
         received += len(chunk)
     return b''.join(chunks)
 
-class Rule(object):
+class Rule:
     def __init__(self, name, event, io, when):
         self.name = name
         self.event = event
@@ -104,7 +103,7 @@ class Rule(object):
             return False
         return True
 
-class FaultInjectionSocket(object):
+class FaultInjectionSocket:
     def __init__(self, sock, rules):
         self.sock = sock
         self.rules = rules
@@ -150,7 +149,7 @@ def negotiate_export(conn):
     export = export_tuple._make(export_struct.unpack(buf))
     assert export.magic == NBD_OPTS_MAGIC
     assert export.opt == NBD_OPT_EXPORT_NAME
-    name = conn.recv(export.len, event='export-name')
+    _name = conn.recv(export.len, event='export-name')
 
     # Send negotiation part 2
     buf = neg2_struct.pack(FAKE_DISK_SIZE, 0)
@@ -200,7 +199,8 @@ def parse_inject_error(name, options):
     if 'event' not in options:
         err('missing \"event\" option in %s' % name)
     event = options['event']
-    if event not in ('neg-classic', 'neg1', 'export', 'neg2', 'request', 'reply', 'data'):
+    if event not in ('neg-classic', 'neg1', 'export',
+                     'neg2', 'request', 'reply', 'data'):
         err('invalid \"event\" option value \"%s\" in %s' % (event, name))
     io = options.get('io', 'readwrite')
     if io not in ('read', 'write', 'readwrite'):
@@ -229,8 +229,8 @@ def parse_config(config):
 
 def load_rules(filename):
     config = configparser.RawConfigParser()
-    with open(filename, 'rt') as f:
-        config.readfp(f, filename)
+    with open(filename, 'rt') as infile:
+        config.read_file(infile)
     return parse_config(config)
 
 def open_socket(path):
@@ -252,8 +252,14 @@ def open_socket(path):
     return sock
 
 def usage(args):
-    sys.stderr.write('usage: %s [--classic-negotiation] <tcp-port>|<unix-path> <config-file>\n' % args[0])
-    sys.stderr.write('Run an fault injector NBD server with rules defined in a config file.\n')
+    name = args[0]
+    sys.stderr.write(
+        f'usage: {name} [--classic-negotiation] '
+        '<tcp-port>|<unix-path> <config-file>\n'
+    )
+    sys.stderr.write(
+        'Run a fault injector NBD server with '
+        'rules defined in a config file.\n')
     sys.exit(1)
 
 def main(args):

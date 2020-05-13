@@ -1,6 +1,6 @@
 PYMODULES = $(wildcard *.py)
 
-KNOWN_GOOD = iotests.py
+KNOWN_GOOD = iotests.py nbd-fault-injector.py
 
 CLEANFILES= *.out.bad *.notrun check.log check.time*
 
