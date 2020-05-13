@@ -1347,6 +1347,9 @@ BdrvChild *bdrv_filtered_child(BlockDriverState *bs);
 BdrvChild *bdrv_metadata_child(BlockDriverState *bs);
 BdrvChild *bdrv_storage_child(BlockDriverState *bs);
 BdrvChild *bdrv_primary_child(BlockDriverState *bs);
+BlockDriverState *bdrv_skip_implicit_filters(BlockDriverState *bs);
+BlockDriverState *bdrv_skip_rw_filters(BlockDriverState *bs);
+BlockDriverState *bdrv_backing_chain_next(BlockDriverState *bs);
 
 static inline BlockDriverState *child_bs(BdrvChild *child)
 {
