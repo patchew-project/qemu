@@ -2002,6 +2002,7 @@ T: git https://repo.or.cz/qemu/armbru.git block-next
 
 Dirty Bitmaps
 M: John Snow <jsnow@redhat.com>
+M: Eric Blake <eblake@redhat.com>
 R: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
 L: qemu-block@nongnu.org
 S: Supported
