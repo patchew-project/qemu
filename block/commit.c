@@ -47,7 +47,7 @@ static int commit_prepare(Job *job)
 {
     CommitBlockJob *s = container_of(job, CommitBlockJob, common.job);
 
-    bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
+    bdrv_unfreeze_chain(s->commit_top_bs, s->base_bs);
     s->chain_frozen = false;
 
     /* Remove base node parent that still uses BLK_PERM_WRITE/RESIZE before
@@ -67,7 +67,7 @@ static void commit_abort(Job *job)
     BlockDriverState *top_bs = blk_bs(s->top);
 
     if (s->chain_frozen) {
-        bdrv_unfreeze_backing_chain(s->commit_top_bs, s->base_bs);
+        bdrv_unfreeze_chain(s->commit_top_bs, s->base_bs);
     }
 
     /* Make sure commit_top_bs and top stay around until bdrv_replace_node() */
@@ -317,7 +317,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
         }
     }
 
-    if (bdrv_freeze_backing_chain(commit_top_bs, base, errp) < 0) {
+    if (bdrv_freeze_chain(commit_top_bs, base, errp) < 0) {
         goto fail;
     }
     s->chain_frozen = true;
@@ -358,7 +358,7 @@ void commit_start(const char *job_id, BlockDriverState *bs,
 
 fail:
     if (s->chain_frozen) {
-        bdrv_unfreeze_backing_chain(commit_top_bs, base);
+        bdrv_unfreeze_chain(commit_top_bs, base);
     }
     if (s->base) {
         blk_unref(s->base);

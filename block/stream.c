@@ -53,7 +53,7 @@ static void stream_abort(Job *job)
 
     if (s->chain_frozen) {
         BlockJob *bjob = &s->common;
-        bdrv_unfreeze_backing_chain(blk_bs(bjob->blk), s->bottom);
+        bdrv_unfreeze_chain(blk_bs(bjob->blk), s->bottom);
     }
 }
 
@@ -66,7 +66,7 @@ static int stream_prepare(Job *job)
     Error *local_err = NULL;
     int ret = 0;
 
-    bdrv_unfreeze_backing_chain(bs, s->bottom);
+    bdrv_unfreeze_chain(bs, s->bottom);
     s->chain_frozen = false;
 
     if (bs->backing) {
@@ -225,7 +225,7 @@ void stream_start(const char *job_id, BlockDriverState *bs,
     int basic_flags = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED;
     BlockDriverState *bottom = bdrv_find_overlay(bs, base);
 
-    if (bdrv_freeze_backing_chain(bs, bottom, errp) < 0) {
+    if (bdrv_freeze_chain(bs, bottom, errp) < 0) {
         return;
     }
 
@@ -276,5 +276,5 @@ fail:
     if (bs_read_only) {
         bdrv_reopen_set_read_only(bs, true, NULL);
     }
-    bdrv_unfreeze_backing_chain(bs, bottom);
+    bdrv_unfreeze_chain(bs, bottom);
 }
