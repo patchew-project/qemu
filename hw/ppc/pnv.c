@@ -1616,6 +1616,8 @@ static void pnv_chip_power10_instance_init(Object *obj)
                             TYPE_PNV10_PSI, &error_abort, NULL);
     object_initialize_child(obj, "lpc",  &chip10->lpc, sizeof(chip10->lpc),
                             TYPE_PNV10_LPC, &error_abort, NULL);
+    object_initialize_child(obj, "occ",  &chip10->occ, sizeof(chip10->occ),
+                            TYPE_PNV10_OCC, &error_abort, NULL);
 }
 
 static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
@@ -1689,6 +1691,18 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
 
     chip->dt_isa_nodename = g_strdup_printf("/lpcm-opb@%" PRIx64 "/lpc@0",
                                             (uint64_t) PNV10_LPCM_BASE(chip));
+
+    /* Create the simplified OCC model */
+    object_property_set_link(OBJECT(&chip10->occ), OBJECT(&chip10->psi), "psi",
+                             &error_abort);
+    object_property_set_bool(OBJECT(&chip10->occ), true, "realized",
+                             &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    pnv_xscom_add_subregion(chip, PNV10_XSCOM_OCC_BASE,
+                            &chip10->occ.xscom_regs);
 }
 
 static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)

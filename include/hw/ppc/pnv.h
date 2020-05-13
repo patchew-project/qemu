@@ -122,6 +122,7 @@ typedef struct Pnv10Chip {
     PnvXive2     xive;
     Pnv9Psi      psi;
     PnvLpcController lpc;
+    PnvOCC       occ;
 } Pnv10Chip;
 
 #define PNV10_PIR2FUSEDCORE(pir) (((pir) >> 3) & 0xf)
