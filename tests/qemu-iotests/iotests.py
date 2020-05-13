@@ -90,7 +90,7 @@ luks_default_secret_object = 'secret,id=keysec0,data=' + \
 luks_default_key_secret_opt = 'key-secret=keysec0'
 
 
-def qemu_img(*args):
+def qemu_img(*args) -> int:
     '''Run qemu-img and return the exit code'''
     devnull = open('/dev/null', 'r+')
     exitcode = subprocess.call(qemu_img_args + list(args),
@@ -113,24 +113,24 @@ def ordered_qmp(qmsg, conv_keys=True):
         return od
     return qmsg
 
-def qemu_img_create(*args):
-    args = list(args)
+def qemu_img_create(*args: str) -> int:
+    qargs = list(args)
 
     # default luks support
-    if '-f' in args and args[args.index('-f') + 1] == 'luks':
-        if '-o' in args:
-            i = args.index('-o')
-            if 'key-secret' not in args[i + 1]:
-                args[i + 1].append(luks_default_key_secret_opt)
-                args.insert(i + 2, '--object')
-                args.insert(i + 3, luks_default_secret_object)
+    if '-f' in qargs and qargs[qargs.index('-f') + 1] == 'luks':
+        if '-o' in qargs:
+            i = qargs.index('-o')
+            if 'key-secret' not in qargs[i + 1]:
+                qargs[i + 1].append(luks_default_key_secret_opt)
+                qargs.insert(i + 2, '--object')
+                qargs.insert(i + 3, luks_default_secret_object)
         else:
-            args = ['-o', luks_default_key_secret_opt,
-                    '--object', luks_default_secret_object] + args
+            qargs = ['-o', luks_default_key_secret_opt,
+                     '--object', luks_default_secret_object] + qargs
 
-    args.insert(0, 'create')
+    qargs.insert(0, 'create')
 
-    return qemu_img(*args)
+    return qemu_img(*qargs)
 
 def qemu_img_verbose(*args):
     '''Run qemu-img without suppressing its output and return the exit code'''
