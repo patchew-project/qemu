@@ -13,7 +13,6 @@
 import sys
 import struct
 import random
-import optparse
 
 # This can be used as a module
 __all__ = ['QED_F_NEED_CHECK', 'QED']
@@ -47,7 +46,7 @@ def unpack_table_elem(s):
 def pack_table_elem(elem):
     return struct.pack(table_elem_fmt, elem)
 
-class QED(object):
+class QED:
     def __init__(self, f):
         self.f = f
 
@@ -74,19 +73,22 @@ class QED(object):
     def read_table(self, offset):
         size = self.header['table_size'] * self.header['cluster_size']
         s = self.raw_pread(offset, size)
-        table = [unpack_table_elem(s[i:i + table_elem_size]) for i in xrange(0, size, table_elem_size)]
+        table = [unpack_table_elem(s[i:i + table_elem_size])
+                 for i in range(0, size, table_elem_size)]
         return table
 
     def load_l1_table(self):
         self.l1_table = self.read_table(self.header['l1_table_offset'])
-        self.table_nelems = self.header['table_size'] * self.header['cluster_size'] // table_elem_size
+        self.table_nelems = (self.header['table_size']
+                             * self.header['cluster_size'] // table_elem_size)
 
     def write_table(self, offset, table):
         s = ''.join(pack_table_elem(x) for x in table)
         self.raw_pwrite(offset, s)
 
 def random_table_item(table):
-    vals = [(index, offset) for index, offset in enumerate(table) if offset != 0]
+    vals = [(index, offset) for index, offset
+            in enumerate(table) if offset != 0]
     if not vals:
         err('cannot pick random item because table is empty')
     return random.choice(vals)
@@ -103,7 +105,8 @@ def corrupt_table_duplicate(table):
 def corrupt_table_invalidate(qed, table):
     '''Corrupt a table by introducing an invalid offset'''
     index, _ = random_table_item(table)
-    table[index] = qed.filesize + random.randint(0, 100 * 1024 * 1024 * 1024 * 1024)
+    table[index] = (qed.filesize
+                    + random.randint(0, 100 * 1024 * 1024 * 1024 * 1024))
 
 def cmd_show(qed, *args):
     '''show [header|l1|l2 <offset>]- Show header or l1/l2 tables'''
@@ -144,7 +147,11 @@ def cmd_invalidate(qed, table_level):
     qed.write_table(offset, table)
 
 def cmd_need_check(qed, *args):
-    '''need-check [on|off] - Test, set, or clear the QED_F_NEED_CHECK header bit'''
+    """
+    need-check [on|off]
+
+    Test, set, or clear the QED_F_NEED_CHECK header bit
+    """
     if not args:
         print(bool(qed.header['features'] & QED_F_NEED_CHECK))
         return
@@ -165,7 +172,7 @@ def cmd_zero_cluster(qed, pos, *args):
             err('expected one argument')
         n = int(args[0])
 
-    for i in xrange(n):
+    for _ in range(n):
         l1_index = pos // qed.header['cluster_size'] // len(qed.l1_table)
         if qed.l1_table[l1_index] == 0:
             err('no l2 table allocated')
@@ -179,7 +186,11 @@ def cmd_zero_cluster(qed, pos, *args):
         pos += qed.header['cluster_size']
 
 def cmd_copy_metadata(qed, outfile):
-    '''copy-metadata <outfile> - Copy metadata only (for scrubbing corrupted images)'''
+    """
+    copy-metadata <outfile>
+
+    Copy metadata only (for scrubbing corrupted images)
+    """
     out = open(outfile, 'wb')
 
     # Match file size
@@ -213,23 +224,26 @@ def usage():
     print('Supported commands:')
     for cmd in sorted(x for x in globals() if x.startswith('cmd_')):
         print(globals()[cmd].__doc__)
-    sys.exit(1)
+    return 1
 
 def main():
     if len(sys.argv) < 3:
-        usage()
-    filename, cmd = sys.argv[1:3]
+        return usage()
+    filename = sys.argv[1]
+    cmd = sys.argv[2]
 
     cmd = 'cmd_' + cmd.replace('-', '_')
     if cmd not in globals():
-        usage()
+        return usage()
 
     qed = QED(open(filename, 'r+b'))
     try:
         globals()[cmd](qed, *sys.argv[3:])
-    except TypeError as e:
+    except TypeError:
         sys.stderr.write(globals()[cmd].__doc__ + '\n')
-        sys.exit(1)
+        return 1
+
+    return 0
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
