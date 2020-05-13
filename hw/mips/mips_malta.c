@@ -427,10 +427,12 @@ static uint64_t malta_fpga_read(void *opaque, hwaddr addr,
         break;
 
     default:
-#if 0
-        printf("malta_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
-               addr);
-#endif
+/*
+ * Possible logging:
+ *
+ *        printf("malta_fpga_read: Bad register offset 0x" TARGET_FMT_lx "\n",
+ *               addr);
+ */
         break;
     }
     return val;
@@ -515,10 +517,12 @@ static void malta_fpga_write(void *opaque, hwaddr addr,
         break;
 
     default:
-#if 0
-        printf("malta_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
-               addr);
-#endif
+/*
+ * Possible logging:
+ *
+ *        printf("malta_fpga_write: Bad register offset 0x" TARGET_FMT_lx "\n",
+ *               addr);
+ */
         break;
     }
 }
