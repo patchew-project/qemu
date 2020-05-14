@@ -34,7 +34,7 @@ import unittest
 
 # pylint: disable=import-error, wrong-import-position
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu import qtest
+from qemu.lib import qtest
 
 assert sys.version_info >= (3, 6)
 
