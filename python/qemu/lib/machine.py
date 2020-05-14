@@ -113,7 +113,7 @@ class QEMUMachine:
         # Runstate
         self._qemu_log_path = None
         self._qemu_log_file = None
-        self._popen = None
+        self._popen: Optional['subprocess.Popen[bytes]'] = None
         self._events = []
         self._iolog = None
         self._qmp_set = True   # Enable QMP monitor by default.
@@ -225,6 +225,12 @@ class QEMUMachine:
         """Returns true if the VM is running."""
         return self._popen is not None and self._popen.poll() is None
 
+    @property
+    def _subp(self) -> 'subprocess.Popen[bytes]':
+        if self._popen is None:
+            raise QEMUMachineError('Subprocess pipe not present')
+        return self._popen
+
     def exitcode(self):
         """Returns the exit code if possible, or None."""
         if self._popen is None:
@@ -235,7 +241,7 @@ class QEMUMachine:
         """Returns the PID of the running process, or None."""
         if not self.is_running():
             return None
-        return self._popen.pid
+        return self._subp.pid
 
     def _load_io_log(self):
         if self._qemu_log_path is not None:
@@ -352,7 +358,7 @@ class QEMUMachine:
         """
         Wait for the VM to power off
         """
-        self._popen.wait()
+        self._subp.wait()
         if self._qmp:
             self._qmp.close()
         self._load_io_log()
@@ -371,11 +377,11 @@ class QEMUMachine:
             self._qmp.close()
 
             try:
-                self._popen.wait(timeout=3)
+                self._subp.wait(timeout=3)
             except subprocess.TimeoutExpired:
-                self._popen.kill()
+                self._subp.kill()
 
-        self._popen.wait()
+        self._subp.wait()
 
     def shutdown(self, has_quit: bool = False) -> None:
         """
