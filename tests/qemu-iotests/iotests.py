@@ -1171,7 +1171,11 @@ def execute_setup_common(supported_fmts: Sequence[str] = (),
     debug = '-d' in sys.argv
     if debug:
         sys.argv.remove('-d')
-    logging.basicConfig(level=(logging.DEBUG if debug else logging.WARN))
+
+    logging.basicConfig(
+        level=logging.DEBUG if debug else logging.WARN,
+        stream=sys.stderr,
+    )
 
     _verify_image_format(supported_fmts, unsupported_fmts)
     _verify_protocol(supported_protocols, unsupported_protocols)
