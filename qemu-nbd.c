@@ -916,7 +916,13 @@ int main(int argc, char **argv)
         } else if (pid == 0) {
             close(stderr_fd[0]);
 
-            old_stderr = dup(STDERR_FILENO);
+            /* Remember parents stderr only if the fork option is set.
+             * The child won't close this inherited fd otherwise.
+             */
+            if (fork_process) {
+              old_stderr = dup(STDERR_FILENO);
+            }
+
             ret = qemu_daemon(1, 0);
 
             /* Temporarily redirect stderr to the parent's pipe...  */
