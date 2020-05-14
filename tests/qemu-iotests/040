@@ -483,34 +483,33 @@ class TestErrorHandling(iotests.QMPTestCase):
                           file=('top-dbg' if top_debug else 'top-file'),
                           backing='mid-fmt')
 
+
+    class TestJobRunner(iotests.JobRunner):
+        expected_events = ('BLOCK_JOB_COMPLETED',
+                           'BLOCK_JOB_ERROR',
+                           'BLOCK_JOB_READY')
+
+        def __init__(self, *args, test, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.log = []
+            self.test = test
+
+        def on_pause(self, event):
+            super().on_pause(event)
+            result = self._vm.qmp('block-job-resume', device=self._id)
+            self.test.assert_qmp(result, 'return', {})
+
+        def on_block_job_event(self, event):
+            if event['event'] not in self.expected_events:
+                self.test.fail("Unexpected event: %s" % event)
+            super().on_block_job_event(event)
+            self.log.append(event)
+
     def run_job(self, expected_events, error_pauses_job=False):
-        match_device = {'data': {'device': 'job0'}}
-        events = {
-            'BLOCK_JOB_COMPLETED': match_device,
-            'BLOCK_JOB_CANCELLED': match_device,
-            'BLOCK_JOB_ERROR': match_device,
-            'BLOCK_JOB_READY': match_device,
-        }
-
-        completed = False
-        log = []
-        while not completed:
-            ev = self.vm.events_wait(events, timeout=5.0)
-            if ev['event'] == 'BLOCK_JOB_COMPLETED':
-                completed = True
-            elif ev['event'] == 'BLOCK_JOB_ERROR':
-                if error_pauses_job:
-                    result = self.vm.qmp('block-job-resume', device='job0')
-                    self.assert_qmp(result, 'return', {})
-            elif ev['event'] == 'BLOCK_JOB_READY':
-                result = self.vm.qmp('block-job-complete', device='job0')
-                self.assert_qmp(result, 'return', {})
-            else:
-                self.fail("Unexpected event: %s" % ev)
-            log.append(iotests.filter_qmp_event(ev))
-
+        job = self.TestJobRunner(self.vm, 'job0', test=self)
+        job.run()
         self.maxDiff = None
-        self.assertEqual(expected_events, log)
+        self.assertEqual(expected_events, job.log)
 
     def event_error(self, op, action):
         return {
