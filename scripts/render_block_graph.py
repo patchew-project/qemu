@@ -26,7 +26,7 @@ from graphviz import Digraph
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
 from qemu.lib import QEMUMonitorProtocol
-from qemu.lib.machine import MonitorResponseError
+from qemu.lib.qmp import QMPResponseError
 
 
 def perm(arr):
@@ -103,7 +103,7 @@ class LibvirtGuest():
         reply = json.loads(subprocess.check_output(ar))
 
         if 'error' in reply:
-            raise MonitorResponseError(reply)
+            raise QEMUResponseError(reply)
 
         return reply['return']
 
