@@ -98,18 +98,18 @@ static int run_dynamic_ccw_program(SubChannelId schid, uint16_t cutype,
 
 static void make_readipl(void)
 {
-    Ccw0 *ccwIplRead = (Ccw0 *)0x00;
+    Ccw0 *ccwIplRead = (Ccw0 *)0x0;
 
     /* Create Read IPL ccw at address 0 */
     ccwIplRead->cmd_code = CCW_CMD_READ_IPL;
-    ccwIplRead->cda = 0x00; /* Read into address 0x00 in main memory */
+    ccwIplRead->cda = 0x0; /* Read into address 0x00 in main memory */
     ccwIplRead->chain = 0; /* Chain flag */
     ccwIplRead->count = 0x18; /* Read 0x18 bytes of data */
 }
 
 static void run_readipl(SubChannelId schid, uint16_t cutype)
 {
-    if (do_cio(schid, cutype, 0x00, CCW_FMT0)) {
+    if (do_cio(schid, cutype, 0x0, CCW_FMT0)) {
         panic("dasd-ipl: Failed to run Read IPL channel program\n");
     }
 }
@@ -133,10 +133,10 @@ static void check_ipl2(uint32_t ipl2_addr)
 {
     Ccw0 *ccw = u32toptr(ipl2_addr);
 
-    if (ipl2_addr == 0x00) {
+    if (ipl2_addr == 0) {
         panic("IPL2 address invalid. Is this disk really bootable?\n");
     }
-    if (ccw->cmd_code == 0x00) {
+    if (ccw->cmd_code == 0) {
         panic("IPL2 ccw data invalid. Is this disk really bootable?\n");
     }
 }
@@ -161,7 +161,7 @@ static void ipl1_fixup(void)
     memcpy(ccwRead, (void *)0x08, 16);
 
     /* Disable chaining so we don't TIC to IPL2 channel program */
-    ccwRead->chain = 0x00;
+    ccwRead->chain = 0;
 
     ccwSeek->cmd_code = CCW_CMD_DASD_SEEK;
     ccwSeek->cda = ptr2u32(seekData);
@@ -206,7 +206,7 @@ static void run_ipl2(SubChannelId schid, uint16_t cutype, uint32_t addr)
  */
 void dasd_ipl(SubChannelId schid, uint16_t cutype)
 {
-    PSWLegacy *pswl = (PSWLegacy *) 0x00;
+    PSWLegacy *pswl = (PSWLegacy *) 0x0;
     uint32_t ipl2_addr;
 
     /* Construct Read IPL CCW and run it to read IPL1 from boot disk */
