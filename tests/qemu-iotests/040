@@ -485,12 +485,12 @@ class TestErrorHandling(iotests.QMPTestCase):
 
     def run_job(self, expected_events, error_pauses_job=False):
         match_device = {'data': {'device': 'job0'}}
-        events = [
-            ('BLOCK_JOB_COMPLETED', match_device),
-            ('BLOCK_JOB_CANCELLED', match_device),
-            ('BLOCK_JOB_ERROR', match_device),
-            ('BLOCK_JOB_READY', match_device),
-        ]
+        events = {
+            'BLOCK_JOB_COMPLETED': match_device,
+            'BLOCK_JOB_CANCELLED': match_device,
+            'BLOCK_JOB_ERROR': match_device,
+            'BLOCK_JOB_READY': match_device,
+        }
 
         completed = False
         log = []

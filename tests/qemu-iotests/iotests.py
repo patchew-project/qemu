@@ -635,14 +635,14 @@ class VM(qtest.QEMUQtestMachine):
         """
         match_device = {'data': {'device': job}}
         match_id = {'data': {'id': job}}
-        events = [
-            ('BLOCK_JOB_COMPLETED', match_device),
-            ('BLOCK_JOB_CANCELLED', match_device),
-            ('BLOCK_JOB_ERROR', match_device),
-            ('BLOCK_JOB_READY', match_device),
-            ('BLOCK_JOB_PENDING', match_id),
-            ('JOB_STATUS_CHANGE', match_id)
-        ]
+        events = {
+            'BLOCK_JOB_COMPLETED': match_device,
+            'BLOCK_JOB_CANCELLED': match_device,
+            'BLOCK_JOB_ERROR': match_device,
+            'BLOCK_JOB_READY': match_device,
+            'BLOCK_JOB_PENDING': match_id,
+            'JOB_STATUS_CHANGE': match_id,
+        }
         error = None
         while True:
             ev = filter_qmp_event(self.events_wait(events, timeout=wait))

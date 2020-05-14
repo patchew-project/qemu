@@ -478,21 +478,21 @@ class QEMUMachine(object):
         timeout: QEMUMonitorProtocol.pull_event timeout parameter.
         match: Optional match criteria. See event_match for details.
         """
-        return self.events_wait([(name, match)], timeout)
+        return self.events_wait({name: match}, timeout)
 
     def events_wait(self, events, timeout=60.0):
         """
         events_wait waits for and returns a named event from QMP with a timeout.
 
-        events: a sequence of (name, match_criteria) tuples.
+        events: a mapping containing {name: match_criteria}.
                 The match criteria are optional and may be None.
                 See event_match for details.
         timeout: QEMUMonitorProtocol.pull_event timeout parameter.
         """
         def _match(event):
-            for name, match in events:
-                if event['event'] == name and self.event_match(event, match):
-                    return True
+            name = event['event']
+            if name in events:
+                return self.event_match(event, events[name])
             return False
 
         # Search cached events

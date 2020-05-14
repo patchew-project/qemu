@@ -67,8 +67,9 @@ def test(persistent, restart):
 
     vm.qmp_log('block-commit', device='drive0', top=top,
                filters=[iotests.filter_qmp_testfiles])
-    ev = vm.events_wait((('BLOCK_JOB_READY', None),
-                         ('BLOCK_JOB_COMPLETED', None)))
+    ev = vm.events_wait({
+        'BLOCK_JOB_READY': None,
+        'BLOCK_JOB_COMPLETED': None })
     log(filter_qmp_event(ev))
     if (ev['event'] == 'BLOCK_JOB_COMPLETED'):
         vm.shutdown()
