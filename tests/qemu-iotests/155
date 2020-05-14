@@ -163,6 +163,12 @@ class BaseClass(iotests.QMPTestCase):
             self.assert_qmp_absent(node, 'image/backing-image')
 
 
+class MirrorJob(iotests.TestJobRunner):
+    def on_pending(self, event):
+        self.test.openBacking()
+        super().on_pending(event)
+
+
 # Class variables for controlling its behavior:
 #
 # cmd: Mirroring command to execute, either drive-mirror or blockdev-mirror
@@ -188,8 +194,9 @@ class MirrorBaseClass(BaseClass):
 
         self.assert_qmp(result, 'return', {})
 
-        self.vm.run_job('mirror-job', auto_finalize=False,
-                        pre_finalize=self.openBacking, auto_dismiss=True)
+        job = MirrorJob(self.vm, 'mirror-job', test=self,
+                        auto_finalize=False, auto_dismiss=True)
+        job.run()
 
     def testFull(self):
         self.runMirror('full')

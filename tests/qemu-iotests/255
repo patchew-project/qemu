@@ -71,8 +71,13 @@ with iotests.FilePath('t.qcow2') as disk_path, \
     result = vm.qmp_log('block-commit', job_id='job0', auto_finalize=False,
                         device='overlay', top_node='mid')
 
-    vm.run_job('job0', auto_finalize=False, pre_finalize=start_requests,
-                auto_dismiss=True)
+    class JobRunner(iotests.JobRunner):
+        def on_pending(self, event):
+            start_requests()
+            super().on_pending(event)
+
+    runner = JobRunner(vm, 'job0', auto_finalize=False, auto_dismiss=True)
+    runner.run()
 
     vm.shutdown()
 

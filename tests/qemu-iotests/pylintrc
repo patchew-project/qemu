@@ -17,8 +17,19 @@ disable=invalid-name,
         too-many-lines,
         too-many-locals,
         too-many-public-methods,
+        too-many-instance-attributes,
         # These are temporary, and should be removed:
         missing-docstring,
+
+
+[VARIABLES]
+
+# List of strings which can identify a callback function by name. A callback
+# name must start or end with one of those strings.
+callbacks=cb_,
+          _cb,
+          on_,
+
 
 [FORMAT]
 

@@ -40,6 +40,7 @@ assert sys.version_info >= (3, 6)
 
 # Type Aliases
 QMPResponse = Dict[str, Any]
+QapiEvent = Dict[str, Any]
 
 
 # Use this logger for logging messages directly from the iotests module
@@ -489,6 +490,141 @@ def remote_filename(path):
     else:
         raise Exception("Protocol %s not supported" % (imgproto))
 
+
+class JobRunner:
+    """
+    JobRunner offers a job-lifetime management framework.
+
+    It can be used as-is for a no-frills run-to-completion module,
+    or subclassed to gain access to per-event callbacks for
+    customizable behavior.
+
+    :param vm: The VM the job is running on
+    :param job: Job ID of a recently created job
+    :param cancel: When true, cancels the job prior to finalization.
+    :param auto_finalize: True if the job was configured to finalize itself.
+    :param auto_dismiss: True if the job will dismiss itself post-finalization.
+    """
+    def __init__(self,
+                 vm: 'VM',
+                 job: str,
+                 cancel: bool = False,
+                 auto_finalize: bool = True,
+                 auto_dismiss: bool = False):
+        self._vm = vm
+        self._id = job
+        self.cancel = cancel
+
+        self._auto_finalize = auto_finalize
+        self._auto_dismiss = auto_dismiss
+        self._exited = False
+        self._error: Optional[str] = None
+
+        match_device = {'data': {'device': self._id}}
+        match_id = {'data': {'id': self._id}}
+
+        # Listen for these events with these parameters:
+        self._events = {
+            'BLOCK_JOB_COMPLETED': match_device,
+            'BLOCK_JOB_CANCELLED': match_device,
+            'BLOCK_JOB_ERROR': match_device,
+            'BLOCK_JOB_READY': match_device,
+            'BLOCK_JOB_PENDING': match_id,
+            'JOB_STATUS_CHANGE': match_id
+        }
+
+        self._dispatch = {
+            'created': self.on_create,
+            'running': self.on_run,
+            'paused': self.on_pause,
+            'ready': self.on_ready,
+            'standby': self.on_standby,
+            'waiting': self.on_waiting,
+            'pending': self.on_pending,
+            'aborting': self.on_abort,
+            'concluded': self.on_conclude,
+            'null': self.on_null,
+        }
+
+    # These are Job state change callbacks.
+    # Subclass and override these for custom workflows.
+
+    def on_create(self, event: QapiEvent) -> None:
+        pass
+
+    def on_run(self, event: QapiEvent) -> None:
+        pass
+
+    def on_pause(self, event: QapiEvent) -> None:
+        pass
+
+    def on_ready(self, event: QapiEvent) -> None:
+        self._vm.qmp_log('job-complete', id=self._id)
+
+    def on_standby(self, event: QapiEvent) -> None:
+        pass
+
+    def on_waiting(self, event: QapiEvent) -> None:
+        pass
+
+    def on_pending(self, event: QapiEvent) -> None:
+        if self._auto_finalize:
+            return
+
+        if self.cancel:
+            self._vm.qmp_log('job-cancel', id=self._id)
+        else:
+            self._vm.qmp_log('job-finalize', id=self._id)
+
+    def on_abort(self, event: QapiEvent) -> None:
+        result = self._vm.qmp('query-jobs')
+        for j in result['return']:
+            if j['id'] == self._id:
+                self._error = j['error']
+                log('Job failed: %s' % (j['error']))
+
+    def on_conclude(self, event: QapiEvent) -> None:
+        if self._auto_dismiss:
+            return
+
+        self._vm.qmp_log('job-dismiss', id=self._id)
+
+    def on_null(self, event: QapiEvent) -> None:
+        self._exited = True
+
+    # Macro events -- QAPI events.
+    # These are callbacks for individual top-level events.
+
+    def on_change(self, event: QapiEvent) -> None:
+        status = event['data']['status']
+        assert status in self._dispatch
+        self._dispatch[status](event)
+
+    def on_block_job_event(self, event: QapiEvent) -> None:
+        # pylint: disable=no-self-use
+        log(event)
+
+    def event(self, event: QapiEvent) -> None:
+        assert event['event'] in self._events.keys()
+        if event['event'] == 'JOB_STATUS_CHANGE':
+            self.on_change(event)
+        else:
+            self.on_block_job_event(event)
+
+    def run(self, wait: float = 60.0) -> Optional[str]:
+        """
+        Run the event loop for this job.
+
+        :param wait: Timeout in seconds specifying how long to wait
+                     for an event. Defaults to 60.0.
+        :return: Error string on failure, Nothing on success.
+        """
+        while not self._exited:
+            raw_event = self._vm.events_wait(self._events, timeout=wait)
+            self.event(filter_qmp_event(raw_event))
+        return self._error
+
+
 class VM(qtest.QEMUQtestMachine):
     '''A QEMU VM'''
 
@@ -615,60 +751,21 @@ class VM(qtest.QEMUQtestMachine):
         log(result, filters, indent=indent)
         return result
 
-    # Returns None on success, and an error string on failure
-    def run_job(self, job, auto_finalize=True, auto_dismiss=False,
-                pre_finalize=None, cancel=False, wait=60.0):
+    def run_job(self, job, **kwargs) -> Optional[str]:
         """
         run_job moves a job from creation through to dismissal.
 
-        :param job: String. ID of recently-launched job
-        :param auto_finalize: Bool. True if the job was launched with
-                              auto_finalize. Defaults to True.
-        :param auto_dismiss: Bool. True if the job was launched with
-                             auto_dismiss=True. Defaults to False.
-        :param pre_finalize: Callback. A callable that takes no arguments to be
-                             invoked prior to issuing job-finalize, if any.
-        :param cancel: Bool. When true, cancels the job after the pre_finalize
-                       callback.
-        :param wait: Float. Timeout value specifying how long to wait for any
-                     event, in seconds. Defaults to 60.0.
+        :param job: Job ID of a recently created job.
+        :param kwargs: See JobRunner.__init__() and JobRunner.run().
+
+        :return: Error string on failure, Nothing on success.
         """
-        match_device = {'data': {'device': job}}
-        match_id = {'data': {'id': job}}
-        events = {
-            'BLOCK_JOB_COMPLETED': match_device,
-            'BLOCK_JOB_CANCELLED': match_device,
-            'BLOCK_JOB_ERROR': match_device,
-            'BLOCK_JOB_READY': match_device,
-            'BLOCK_JOB_PENDING': match_id,
-            'JOB_STATUS_CHANGE': match_id,
-        }
-        error = None
-        while True:
-            ev = filter_qmp_event(self.events_wait(events, timeout=wait))
-            if ev['event'] != 'JOB_STATUS_CHANGE':
-                log(ev)
-                continue
-            status = ev['data']['status']
-            if status == 'aborting':
-                result = self.qmp('query-jobs')
-                for j in result['return']:
-                    if j['id'] == job:
-                        error = j['error']
-                        log('Job failed: %s' % (j['error']))
-            elif status == 'ready':
-                self.qmp_log('job-complete', id=job)
-            elif status == 'pending' and not auto_finalize:
-                if pre_finalize:
-                    pre_finalize()
-                if cancel:
-                    self.qmp_log('job-cancel', id=job)
-                else:
-                    self.qmp_log('job-finalize', id=job)
-            elif status == 'concluded' and not auto_dismiss:
-                self.qmp_log('job-dismiss', id=job)
-            elif status == 'null':
-                return error
+        if 'wait' in kwargs:
+            run_kwargs = {'wait': kwargs.pop('wait')}
+        else:
+            run_kwargs = {}
+        job_runner = JobRunner(self, job, **kwargs)
+        return job_runner.run(**run_kwargs)
 
     # Returns None on success, and an error string on failure
     def blockdev_create(self, options, job_id='job0', filters=None):
@@ -978,6 +1075,15 @@ class QMPTestCase(unittest.TestCase):
         '''Skip this test case'''
         case_notrun(reason)
         self.skipTest(reason)
+
+
+class TestJobRunner(JobRunner):
+    """
+    JobRunner intended for use within a QMPTestCase.
+    """
+    def __init__(self, *args, test: QMPTestCase, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.test = test
 
 
 def notrun(reason):

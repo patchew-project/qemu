@@ -352,30 +352,40 @@ def test_bitmap_sync(bsync_mode, msync_mode='bitmap', failure=None):
         job = backup(drive0, 1, bsync1, msync_mode,
                      bitmap="bitmap0", bitmap_mode=bsync_mode)
 
-        def _callback():
-            """Issue writes while the job is open to test bitmap divergence."""
-            # Note: when `failure` is 'intermediate', this isn't called.
-            log('')
-            bitmaps = perform_writes(drive0, 2, filter_node_name='backup-top')
-            # Named bitmap (static, should be unchanged)
-            ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0',
-                                          bitmaps=bitmaps))
-            # Anonymous bitmap (dynamic, shows new writes)
-            anonymous = EmulatedBitmap()
-            anonymous.dirty_group(2)
-            anonymous.compare(vm.get_bitmap(drive0.node, '', recording=True,
-                                            bitmaps=bitmaps))
 
-            # Simulate the order in which this will happen:
-            # group 1 gets cleared first, then group two gets written.
-            if ((bsync_mode == 'on-success' and not failure) or
-                (bsync_mode == 'always')):
-                ebitmap.clear()
-            ebitmap.dirty_group(2)
+        class JobRunner(iotests.JobRunner):
+            def on_pending(self, event):
+                """
+                Issue writes while the job is open to test bitmap divergence.
+                """
 
-        vm.run_job(job, auto_dismiss=True, auto_finalize=False,
-                   pre_finalize=_callback,
-                   cancel=(failure == 'simulated'))
+                # Note: when `failure` is 'intermediate', this isn't called.
+                log('')
+                bitmaps = perform_writes(drive0, 2,
+                                         filter_node_name='backup-top')
+                # Named bitmap (static, should be unchanged)
+                ebitmap.compare(vm.get_bitmap(drive0.node, 'bitmap0',
+                                              bitmaps=bitmaps))
+                # Anonymous bitmap (dynamic, shows new writes)
+                anonymous = EmulatedBitmap()
+                anonymous.dirty_group(2)
+                anonymous.compare(vm.get_bitmap(drive0.node, '', recording=True,
+                                                bitmaps=bitmaps))
+
+                # Simulate the order in which this will happen:
+                # group 1 gets cleared first, then group two gets written.
+                if ((bsync_mode == 'on-success' and not failure) or
+                    (bsync_mode == 'always')):
+                    ebitmap.clear()
+                ebitmap.dirty_group(2)
+
+                super().on_pending(event)
+
+
+        runner = JobRunner(vm, job, cancel=(failure == 'simulated'),
+                           auto_finalize=False, auto_dismiss=True)
+        runner.run()
+
         bitmaps = vm.query_bitmaps()
         log({'bitmaps': bitmaps}, indent=2)
         log('')
