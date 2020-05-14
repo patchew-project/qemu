@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 ##
 # QEMU Object Model test tools
 #
@@ -13,6 +13,8 @@
 
 import sys
 import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
 from qmp import QEMUMonitorProtocol
 
 cmd, args = sys.argv[0], sys.argv[1:]
