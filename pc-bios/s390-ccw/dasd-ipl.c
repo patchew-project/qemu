@@ -229,7 +229,6 @@ void dasd_ipl(SubChannelId schid, uint16_t cutype)
     run_ipl2(schid, cutype, ipl2_addr);
 
     /* Transfer control to the guest operating system */
-    pswl->mask |= PSW_MASK_EAMODE;   /* Force z-mode */
-    pswl->addr |= PSW_MASK_BAMODE;   /* ...          */
+    pswl->mask |= PSW_MASK_64;   /* Force 64 bit addressing */
     jump_to_low_kernel();
 }
