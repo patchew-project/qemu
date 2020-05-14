@@ -986,7 +986,7 @@ def notrun(reason):
     seq = os.path.basename(sys.argv[0])
 
     open('%s/%s.notrun' % (output_dir, seq), 'w').write(reason + '\n')
-    logger.warning("%s not run: %s", seq, reason)
+    logger.info("%s not run: %s", seq, reason)
     sys.exit(0)
 
 def case_notrun(reason):
