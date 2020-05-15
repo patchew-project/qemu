@@ -313,3 +313,30 @@ VSLI_2sh         1111 001 1 1 . 01 shift:4  .... 0101 0 . . 1 .... \
                  @2reg_shift size=1
 VSLI_2sh         1111 001 1 1 . 001 shift:3 .... 0101 0 . . 1 .... \
                  @2reg_shift size=0
+
+VQSHLU_64_2sh    1111 001 1 1 . shift:6     .... 0110 1 . . 1 .... \
+                 @2reg_shift size=3
+VQSHLU_2sh       1111 001 1 1 . 1 shift:5   .... 0110 0 . . 1 .... \
+                 @2reg_shift size=2
+VQSHLU_2sh       1111 001 1 1 . 01 shift:4  .... 0110 0 . . 1 .... \
+                 @2reg_shift size=1
+VQSHLU_2sh       1111 001 1 1 . 001 shift:3 .... 0110 0 . . 1 .... \
+                 @2reg_shift size=0
+
+VQSHL_S_64_2sh   1111 001 0 1 . shift:6     .... 0111 1 . . 1 .... \
+                 @2reg_shift size=3
+VQSHL_S_2sh      1111 001 0 1 . 1 shift:5   .... 0111 0 . . 1 .... \
+                 @2reg_shift size=2
+VQSHL_S_2sh      1111 001 0 1 . 01 shift:4  .... 0111 0 . . 1 .... \
+                 @2reg_shift size=1
+VQSHL_S_2sh      1111 001 0 1 . 001 shift:3 .... 0111 0 . . 1 .... \
+                 @2reg_shift size=0
+
+VQSHL_U_64_2sh   1111 001 1 1 . shift:6     .... 0111 1 . . 1 .... \
+                 @2reg_shift size=3
+VQSHL_U_2sh      1111 001 1 1 . 1 shift:5   .... 0111 0 . . 1 .... \
+                 @2reg_shift size=2
+VQSHL_U_2sh      1111 001 1 1 . 01 shift:4  .... 0111 0 . . 1 .... \
+                 @2reg_shift size=1
+VQSHL_U_2sh      1111 001 1 1 . 001 shift:3 .... 0111 0 . . 1 .... \
+                 @2reg_shift size=0
