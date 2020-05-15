@@ -47,6 +47,9 @@ static COLOMode last_colo_mode;
 
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
 
+/* Default COLO_CHECKPOINT_INTERVAL is 1000 ms */
+#define COLO_CHECKPOINT_INTERVAL 1000
+
 bool migration_in_colo_state(void)
 {
     MigrationState *s = migrate_get_current();
@@ -651,13 +654,20 @@ out:
 void colo_checkpoint_notify(void *opaque)
 {
     MigrationState *s = opaque;
-    int64_t next_notify_time;
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_HOST);
 
-    qemu_sem_post(&s->colo_checkpoint_sem);
-    s->colo_checkpoint_time = qemu_clock_get_ms(QEMU_CLOCK_HOST);
-    next_notify_time = s->colo_checkpoint_time +
-                    s->parameters.x_checkpoint_delay;
-    timer_mod(s->colo_delay_timer, next_notify_time);
+    /*
+     * When COLO guest occur issues, COLO-compare will catch lots of
+     * different network packet and trigger notification multi times,
+     * force periodic may happen at the same time. So this can be
+     * efficient merge checkpoint request within COLO_CHECKPOINT_INTERVAL.
+     */
+    if (now > s->colo_checkpoint_time + COLO_CHECKPOINT_INTERVAL) {
+        qemu_sem_post(&s->colo_checkpoint_sem);
+        timer_mod(s->colo_delay_timer, now +
+                  s->parameters.x_checkpoint_delay);
+        s->colo_checkpoint_time = now;
+    }
 }
 
 void migrate_start_colo_process(MigrationState *s)
