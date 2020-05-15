@@ -404,3 +404,17 @@ VQRSHRN_U32_2sh  1111 001 1 1 . 01 ....     .... 1001 0 . . 1 .... \
                  @2reg_shift_q1 size=2 shift=%neon_rshift_i4
 VQRSHRN_U16_2sh  1111 001 1 1 . 001 ...     .... 1001 0 . . 1 .... \
                  @2reg_shift_q1 size=1 shift=%neon_rshift_i3
+
+VSHLL_S_2sh      1111 001 0 1 . 1 shift:5   .... 1010 0 . . 1 .... \
+                 @2reg_shift_q0 size=2
+VSHLL_S_2sh      1111 001 0 1 . 01 shift:4  .... 1010 0 . . 1 .... \
+                 @2reg_shift_q0 size=1
+VSHLL_S_2sh      1111 001 0 1 . 001 shift:3 .... 1010 0 . . 1 .... \
+                 @2reg_shift_q0 size=0
+
+VSHLL_U_2sh      1111 001 1 1 . 1 shift:5   .... 1010 0 . . 1 .... \
+                 @2reg_shift_q0 size=2
+VSHLL_U_2sh      1111 001 1 1 . 01 shift:4  .... 1010 0 . . 1 .... \
+                 @2reg_shift_q0 size=1
+VSHLL_U_2sh      1111 001 1 1 . 001 shift:3 .... 1010 0 . . 1 .... \
+                 @2reg_shift_q0 size=0
