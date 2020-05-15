@@ -94,8 +94,8 @@ Creating sound card devices using ``-soundhw`` (since 5.1)
 Sound card devices should be created using ``-device`` instead.  The
 names are the same for most devices.  The exceptions are ``hda`` which
 needs two devices (``-device intel-hda --device hda-duplex``) and
-``pcspk`` which can be activated using ``-global
-pcspk.audiodev=<name>``.
+``pcspk`` which can be activated by creating an audiodev named
+``onboard``.
 
 ``-mon ...,control=readline,pretty=on|off`` (since 4.1)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''
