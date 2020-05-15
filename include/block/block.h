@@ -525,9 +525,13 @@ void bdrv_img_create(const char *filename, const char *fmt,
 size_t bdrv_min_mem_align(BlockDriverState *bs);
 /* Returns optimal alignment in bytes for bounce buffer */
 size_t bdrv_opt_mem_align(BlockDriverState *bs);
+/* callers must free the returned pointer with qemu_vfree() */
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
+/* callers must free the returned pointer with qemu_vfree() */
 void *qemu_blockalign0(BlockDriverState *bs, size_t size);
+/* callers must free the returned pointer with qemu_vfree() */
 void *qemu_try_blockalign(BlockDriverState *bs, size_t size);
+/* callers must free the returned pointer with qemu_vfree() */
 void *qemu_try_blockalign0(BlockDriverState *bs, size_t size);
 bool bdrv_qiov_is_aligned(BlockDriverState *bs, QEMUIOVector *qiov);
 
