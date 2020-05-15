@@ -233,6 +233,69 @@ VSHR_U_2sh       1111 001 1 1 . 01 ....     .... 0000 0 . . 1 .... \
 VSHR_U_2sh       1111 001 1 1 . 001 ...     .... 0000 0 . . 1 .... \
                  @2reg_shift size=0 shift=%neon_rshift_i3
 
+VSRA_S_2sh       1111 001 0 1 .  ......     .... 0001 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VSRA_S_2sh       1111 001 0 1 . 1 .....     .... 0001 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VSRA_S_2sh       1111 001 0 1 . 01 ....     .... 0001 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VSRA_S_2sh       1111 001 0 1 . 001 ...     .... 0001 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VSRA_U_2sh       1111 001 1 1 .  ......     .... 0001 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VSRA_U_2sh       1111 001 1 1 . 1 .....     .... 0001 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VSRA_U_2sh       1111 001 1 1 . 01 ....     .... 0001 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VSRA_U_2sh       1111 001 1 1 . 001 ...     .... 0001 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VRSHR_S_2sh      1111 001 0 1 .  ......     .... 0010 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VRSHR_S_2sh      1111 001 0 1 . 1 .....     .... 0010 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VRSHR_S_2sh      1111 001 0 1 . 01 ....     .... 0010 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VRSHR_S_2sh      1111 001 0 1 . 001 ...     .... 0010 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VRSHR_U_2sh      1111 001 1 1 .  ......     .... 0010 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VRSHR_U_2sh      1111 001 1 1 . 1 .....     .... 0010 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VRSHR_U_2sh      1111 001 1 1 . 01 ....     .... 0010 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VRSHR_U_2sh      1111 001 1 1 . 001 ...     .... 0010 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VRSRA_S_2sh      1111 001 0 1 .  ......     .... 0011 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VRSRA_S_2sh      1111 001 0 1 . 1 .....     .... 0011 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VRSRA_S_2sh      1111 001 0 1 . 01 ....     .... 0011 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VRSRA_S_2sh      1111 001 0 1 . 001 ...     .... 0011 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VRSRA_U_2sh      1111 001 1 1 .  ......     .... 0011 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VRSRA_U_2sh      1111 001 1 1 . 1 .....     .... 0011 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VRSRA_U_2sh      1111 001 1 1 . 01 ....     .... 0011 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VRSRA_U_2sh      1111 001 1 1 . 001 ...     .... 0011 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VSRI_2sh         1111 001 1 1 .  ......     .... 0100 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VSRI_2sh         1111 001 1 1 . 1 .....     .... 0100 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VSRI_2sh         1111 001 1 1 . 01 ....     .... 0100 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VSRI_2sh         1111 001 1 1 . 001 ...     .... 0100 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
 VSHL_2sh         1111 001 0 1 . shift:6     .... 0101 1 . . 1 .... \
                  @2reg_shift size=3
 VSHL_2sh         1111 001 0 1 . 1 shift:5   .... 0101 0 . . 1 .... \
