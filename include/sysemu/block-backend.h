@@ -155,7 +155,31 @@ BlockAIOCB *blk_aio_pwrite_zeroes(BlockBackend *blk, int64_t offset,
                                   int bytes, BdrvRequestFlags flags,
                                   BlockCompletionFunc *cb, void *opaque);
 int blk_make_zero(BlockBackend *blk, BdrvRequestFlags flags);
+
+/**
+ * blk_pread:
+ *
+ * @blk: the block backend where the buffer content is going to be read from
+ * @offset: position in bytes to read at
+ * @buf: the data buffer
+ * @bytes: number of bytes to read
+ *
+ * Returns: the number of bytes read on success, or a negative errno otherwise.
+ */
 int blk_pread(BlockBackend *blk, int64_t offset, void *buf, int bytes);
+
+/**
+ * blk_pwrite:
+ *
+ * @blk: the block backend where the buffer content is going to be written to
+ * @offset: position in bytes to write at
+ * @buf: the data buffer
+ * @bytes: number of bytes of @buf to write
+ * @flags: request flags
+ *
+ * Returns: the number of bytes consumed on success,
+ *          or a negative errno otherwise.
+ */
 int blk_pwrite(BlockBackend *blk, int64_t offset, const void *buf, int bytes,
                BdrvRequestFlags flags);
 int64_t blk_getlength(BlockBackend *blk);
