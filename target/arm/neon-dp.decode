@@ -209,6 +209,30 @@ VMINNM_fp_3s     1111 001 1 0 . 1 . .... .... 1111 ... 1 .... @3same_fp
 @2reg_shift      .... ... . . . ...... .... .... . q:1 . . .... \
                  &2reg_shift vm=%vm_dp vd=%vd_dp
 
+# Right shifts are encoded as N - shift, where N is the element size in bits.
+%neon_rshift_i6  16:6 !function=rsub_64
+%neon_rshift_i5  16:5 !function=rsub_32
+%neon_rshift_i4  16:4 !function=rsub_16
+%neon_rshift_i3  16:3 !function=rsub_8
+
+VSHR_S_2sh       1111 001 0 1 .  ......     .... 0000 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VSHR_S_2sh       1111 001 0 1 . 1 .....     .... 0000 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VSHR_S_2sh       1111 001 0 1 . 01 ....     .... 0000 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VSHR_S_2sh       1111 001 0 1 . 001 ...     .... 0000 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
+VSHR_U_2sh       1111 001 1 1 .  ......     .... 0000 1 . . 1 .... \
+                 @2reg_shift size=3 shift=%neon_rshift_i6
+VSHR_U_2sh       1111 001 1 1 . 1 .....     .... 0000 0 . . 1 .... \
+                 @2reg_shift size=2 shift=%neon_rshift_i5
+VSHR_U_2sh       1111 001 1 1 . 01 ....     .... 0000 0 . . 1 .... \
+                 @2reg_shift size=1 shift=%neon_rshift_i4
+VSHR_U_2sh       1111 001 1 1 . 001 ...     .... 0000 0 . . 1 .... \
+                 @2reg_shift size=0 shift=%neon_rshift_i3
+
 VSHL_2sh         1111 001 0 1 . shift:6     .... 0101 1 . . 1 .... \
                  @2reg_shift size=3
 VSHL_2sh         1111 001 0 1 . 1 shift:5   .... 0101 0 . . 1 .... \
