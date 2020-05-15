@@ -208,6 +208,10 @@ VMINNM_fp_3s     1111 001 1 0 . 1 . .... .... 1111 ... 1 .... @3same_fp
 
 @2reg_shift      .... ... . . . ...... .... .... . q:1 . . .... \
                  &2reg_shift vm=%vm_dp vd=%vd_dp
+@2reg_shift_q0   .... ... . . . ...... .... .... . 0 . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp q=0
+@2reg_shift_q1   .... ... . . . ...... .... .... . 1 . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp q=1
 
 # Right shifts are encoded as N - shift, where N is the element size in bits.
 %neon_rshift_i6  16:6 !function=rsub_64
@@ -340,3 +344,31 @@ VQSHL_U_2sh      1111 001 1 1 . 01 shift:4  .... 0111 0 . . 1 .... \
                  @2reg_shift size=1
 VQSHL_U_2sh      1111 001 1 1 . 001 shift:3 .... 0111 0 . . 1 .... \
                  @2reg_shift size=0
+
+VSHRN_64_2sh     1111 001 0 1 . 1 .....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q0 size=3 shift=%neon_rshift_i5
+VSHRN_32_2sh     1111 001 0 1 . 01 ....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q0 size=2 shift=%neon_rshift_i4
+VSHRN_16_2sh     1111 001 0 1 . 001 ...     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q0 size=1 shift=%neon_rshift_i3
+
+VRSHRN_64_2sh    1111 001 0 1 . 1 .....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q1 size=3 shift=%neon_rshift_i5
+VRSHRN_32_2sh    1111 001 0 1 . 01 ....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q1 size=2 shift=%neon_rshift_i4
+VRSHRN_16_2sh    1111 001 0 1 . 001 ...     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q1 size=1 shift=%neon_rshift_i3
+
+VQSHRUN_64_2sh   1111 001 1 1 . 1 .....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q0 size=3 shift=%neon_rshift_i5
+VQSHRUN_32_2sh   1111 001 1 1 . 01 ....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q0 size=2 shift=%neon_rshift_i4
+VQSHRUN_16_2sh   1111 001 1 1 . 001 ...     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q0 size=1 shift=%neon_rshift_i3
+
+VQRSHRUN_64_2sh  1111 001 1 1 . 1 .....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q1 size=3 shift=%neon_rshift_i5
+VQRSHRUN_32_2sh  1111 001 1 1 . 01 ....     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q1 size=2 shift=%neon_rshift_i4
+VQRSHRUN_16_2sh  1111 001 1 1 . 001 ...     .... 1000 0 . . 1 .... \
+                 @2reg_shift_q1 size=1 shift=%neon_rshift_i3
