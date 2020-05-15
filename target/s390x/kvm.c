@@ -105,6 +105,7 @@
 
 #define DIAG_TIMEREVENT                 0x288
 #define DIAG_IPL                        0x308
+#define DIAG_SET_CONTROL_PROGRAM_CODES  0x318
 #define DIAG_KVM_HYPERCALL              0x500
 #define DIAG_KVM_BREAKPOINT             0x501
 
@@ -809,6 +810,28 @@ int kvm_s390_set_clock_ext(uint8_t tod_high, uint64_t tod_low)
         .group = KVM_S390_VM_TOD,
         .attr = KVM_S390_VM_TOD_EXT,
         .addr = (uint64_t)&gtod,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_get_diag_318_info(uint64_t *info)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MISC,
+        .attr = KVM_S390_VM_MISC_DIAG_318,
+        .addr = (uint64_t)info,
+    };
+
+    return kvm_vm_ioctl(kvm_state, KVM_GET_DEVICE_ATTR, &attr);
+}
+
+int kvm_s390_set_diag_318_info(uint64_t info)
+{
+    struct kvm_device_attr attr = {
+        .group = KVM_S390_VM_MISC,
+        .attr = KVM_S390_VM_MISC_DIAG_318,
+        .addr = (uint64_t)&info,
     };
 
     return kvm_vm_ioctl(kvm_state, KVM_SET_DEVICE_ATTR, &attr);
@@ -1601,6 +1624,14 @@ static int handle_sw_breakpoint(S390CPU *cpu, struct kvm_run *run)
     return -ENOENT;
 }
 
+static void kvm_handle_diag_318(struct kvm_run *run)
+{
+    uint64_t reg = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    uint64_t info = run->s.regs.gprs[reg];
+
+    kvm_s390_set_diag_318_info(info);
+}
+
 #define DIAG_KVM_CODE_MASK 0x000000000000ffff
 
 static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
@@ -1619,6 +1650,9 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
         break;
     case DIAG_IPL:
         kvm_handle_diag_308(cpu, run);
+        break;
+    case DIAG_SET_CONTROL_PROGRAM_CODES:
+        kvm_handle_diag_318(run);
         break;
     case DIAG_KVM_HYPERCALL:
         r = handle_hypercall(cpu, run);
@@ -2459,6 +2493,12 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
 
     /* Extended-Length SCCB is handled entirely within QEMU */
     set_bit(S390_FEAT_EXTENDED_LENGTH_SCCB, model->features);
+
+    /* Allow diag 0x318 iff KVM supported and not in PV mode */
+    if (!s390_is_pv() && kvm_vm_check_attr(kvm_state,
+        KVM_S390_VM_MISC, KVM_S390_VM_MISC_DIAG_318)) {
+        set_bit(S390_FEAT_DIAG_318, model->features);
+    }
 
     /* strip of features that are not part of the maximum model */
     bitmap_and(model->features, model->features, model->def->full_feat,

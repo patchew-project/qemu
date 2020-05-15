@@ -242,6 +242,40 @@ static void s390_create_sclpconsole(const char *type, Chardev *chardev)
     qdev_init_nofail(dev);
 }
 
+static int diag_318_post_load(void *opaque, int version_id)
+{
+    S390CcwMachineState *d = opaque;
+
+    s390_set_diag_318_info(d->diag_318_info);
+    return 0;
+}
+
+static int diag_318_pre_save(void *opaque)
+{
+    S390CcwMachineState *d = opaque;
+
+    s390_get_diag_318_info(&d->diag_318_info);
+    return 0;
+}
+
+static bool diag_318_needed(void *opaque)
+{
+    return s390_diag_318_is_allowed();
+}
+
+const VMStateDescription vmstate_diag_318 = {
+    .name = "vmstate_diag_318",
+    .post_load = diag_318_post_load,
+    .pre_save = diag_318_pre_save,
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .needed = diag_318_needed,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT64(diag_318_info, S390CcwMachineState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void ccw_init(MachineState *machine)
 {
     int ret;
@@ -299,6 +333,8 @@ static void ccw_init(MachineState *machine)
 
     /* init the TOD clock */
     s390_init_tod();
+
+    vmstate_register(NULL, 0, &vmstate_diag_318, machine);
 }
 
 static void s390_cpu_plug(HotplugHandler *hotplug_dev,
@@ -404,6 +440,13 @@ static void s390_pv_prepare_reset(S390CcwMachineState *ms)
     s390_pv_perf_clear_reset();
 }
 
+static void s390_diag_318_reset(void)
+{
+    if (s390_diag_318_is_allowed()) {
+        s390_set_diag_318_info(0);
+    }
+}
+
 static void s390_machine_reset(MachineState *machine)
 {
     S390CcwMachineState *ms = S390_CCW_MACHINE(machine);
@@ -440,6 +483,7 @@ static void s390_machine_reset(MachineState *machine)
         subsystem_reset();
         s390_crypto_reset();
         s390_pv_prepare_reset(ms);
+        s390_diag_318_reset();
         CPU_FOREACH(t) {
             run_on_cpu(t, s390_do_cpu_full_reset, RUN_ON_CPU_NULL);
         }
@@ -452,6 +496,7 @@ static void s390_machine_reset(MachineState *machine)
          */
         subsystem_reset();
         s390_pv_prepare_reset(ms);
+        s390_diag_318_reset();
         CPU_FOREACH(t) {
             if (t == cs) {
                 continue;

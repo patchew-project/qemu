@@ -446,6 +446,29 @@ void s390_enable_css_support(S390CPU *cpu)
         kvm_s390_enable_css_support(cpu);
     }
 }
+
+void s390_get_diag_318_info(uint64_t *info)
+{
+    if (kvm_enabled()) {
+        kvm_s390_get_diag_318_info(info);
+    }
+}
+
+void s390_set_diag_318_info(uint64_t info)
+{
+    if (kvm_enabled()) {
+        kvm_s390_set_diag_318_info(info);
+    }
+}
+
+bool s390_diag_318_is_allowed(void)
+{
+    if (kvm_enabled()) {
+        return s390_has_feat(S390_FEAT_DIAG_318) &&
+               s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB);
+    }
+    return false;
+}
 #endif
 
 static gchar *s390_gdb_arch_name(CPUState *cs)
