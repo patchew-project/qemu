@@ -199,3 +199,30 @@ VRECPS_fp_3s     1111 001 0 0 . 0 . .... .... 1111 ... 1 .... @3same_fp
 VRSQRTS_fp_3s    1111 001 0 0 . 1 . .... .... 1111 ... 1 .... @3same_fp
 VMAXNM_fp_3s     1111 001 1 0 . 0 . .... .... 1111 ... 1 .... @3same_fp
 VMINNM_fp_3s     1111 001 1 0 . 1 . .... .... 1111 ... 1 .... @3same_fp
+
+######################################################################
+# 2-reg-and-shift grouping:
+# 1111 001 U 1 D immH:3 immL:3 Vd:4 opc:4 L Q M 1 Vm:4
+######################################################################
+&2reg_shift vm vd q shift size
+
+@2reg_shift      .... ... . . . ...... .... .... . q:1 . . .... \
+                 &2reg_shift vm=%vm_dp vd=%vd_dp
+
+VSHL_2sh         1111 001 0 1 . shift:6     .... 0101 1 . . 1 .... \
+                 @2reg_shift size=3
+VSHL_2sh         1111 001 0 1 . 1 shift:5   .... 0101 0 . . 1 .... \
+                 @2reg_shift size=2
+VSHL_2sh         1111 001 0 1 . 01 shift:4  .... 0101 0 . . 1 .... \
+                 @2reg_shift size=1
+VSHL_2sh         1111 001 0 1 . 001 shift:3 .... 0101 0 . . 1 .... \
+                 @2reg_shift size=0
+
+VSLI_2sh         1111 001 1 1 . shift:6     .... 0101 1 . . 1 .... \
+                 @2reg_shift size=3
+VSLI_2sh         1111 001 1 1 . 1 shift:5   .... 0101 0 . . 1 .... \
+                 @2reg_shift size=2
+VSLI_2sh         1111 001 1 1 . 01 shift:4  .... 0101 0 . . 1 .... \
+                 @2reg_shift size=1
+VSLI_2sh         1111 001 1 1 . 001 shift:3 .... 0101 0 . . 1 .... \
+                 @2reg_shift size=0
