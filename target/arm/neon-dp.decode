@@ -430,3 +430,52 @@ VCVT_FS_2sh      1111 001 0 1 . 1 shift:5   .... 1111 0 . . 1 .... \
                  @2reg_shift size=0
 VCVT_FU_2sh      1111 001 1 1 . 1 shift:5   .... 1111 0 . . 1 .... \
                  @2reg_shift size=0
+
+######################################################################
+# 1-reg-and-modified-immediate grouping:
+# 1111 001 i 1 D 000 imm:3 Vd:4 cmode:4 0 Q op 1 Vm:4
+######################################################################
+
+&1reg_imm        vd q imm cmode op
+
+%asimd_imm_value 24:1 16:3 0:4
+
+@1reg_imm        .... ... . . . ... ... .... .... . q:1 . . .... \
+                 &1reg_imm imm=%asimd_imm_value vd=%vd_dp
+
+{
+  # Logic operations, ie not VMOV or VMVN: (cmode & 1) && cmode < 12
+  VORR_1r        1111 001 . 1 . 000 ... .... 0001 0 . 0 1 .... \
+                 @1reg_imm cmode=1 op=0
+  VORR_1r        1111 001 . 1 . 000 ... .... 0011 0 . 0 1 .... \
+                 @1reg_imm cmode=3 op=0
+  VORR_1r        1111 001 . 1 . 000 ... .... 0101 0 . 0 1 .... \
+                 @1reg_imm cmode=5 op=0
+  VORR_1r        1111 001 . 1 . 000 ... .... 0111 0 . 0 1 .... \
+                 @1reg_imm cmode=7 op=0
+  VORR_1r        1111 001 . 1 . 000 ... .... 1001 0 . 0 1 .... \
+                 @1reg_imm cmode=9 op=0
+  VORR_1r        1111 001 . 1 . 000 ... .... 1011 0 . 0 1 .... \
+                 @1reg_imm cmode=11 op=0
+
+  VBIC_1r        1111 001 . 1 . 000 ... .... 0001 0 . 1 1 .... \
+                 @1reg_imm cmode=1 op=1
+  VBIC_1r        1111 001 . 1 . 000 ... .... 0011 0 . 1 1 .... \
+                 @1reg_imm cmode=3 op=1
+  VBIC_1r        1111 001 . 1 . 000 ... .... 0101 0 . 1 1 .... \
+                 @1reg_imm cmode=5 op=1
+  VBIC_1r        1111 001 . 1 . 000 ... .... 0111 0 . 1 1 .... \
+                 @1reg_imm cmode=7 op=1
+  VBIC_1r        1111 001 . 1 . 000 ... .... 1001 0 . 1 1 .... \
+                 @1reg_imm cmode=9 op=1
+  VBIC_1r        1111 001 . 1 . 000 ... .... 1011 0 . 1 1 .... \
+                 @1reg_imm cmode=11 op=1
+
+  # A VMVN special case: cmode == 14 op == 1
+  VMVN_14_1r     1111 001 . 1 . 000 ... .... 1110 0 . 1 1 .... \
+                 @1reg_imm cmode=14 op=1
+
+  # VMOV, VMVN: all other cmode/op combinations
+  VMOV_1r        1111 001 . 1 . 000 ... .... cmode:4 0 . op:1 1 .... \
+                 @1reg_imm
+}
