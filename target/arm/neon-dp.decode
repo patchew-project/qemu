@@ -372,3 +372,35 @@ VQRSHRUN_32_2sh  1111 001 1 1 . 01 ....     .... 1000 0 . . 1 .... \
                  @2reg_shift_q1 size=2 shift=%neon_rshift_i4
 VQRSHRUN_16_2sh  1111 001 1 1 . 001 ...     .... 1000 0 . . 1 .... \
                  @2reg_shift_q1 size=1 shift=%neon_rshift_i3
+
+# VQSHRN with signed input
+VQSHRN_S64_2sh   1111 001 0 1 . 1 .....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q0 size=3 shift=%neon_rshift_i5
+VQSHRN_S32_2sh   1111 001 0 1 . 01 ....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q0 size=2 shift=%neon_rshift_i4
+VQSHRN_S16_2sh   1111 001 0 1 . 001 ...     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q0 size=1 shift=%neon_rshift_i3
+
+# VQRSHRN with signed input
+VQRSHRN_S64_2sh  1111 001 0 1 . 1 .....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q1 size=3 shift=%neon_rshift_i5
+VQRSHRN_S32_2sh  1111 001 0 1 . 01 ....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q1 size=2 shift=%neon_rshift_i4
+VQRSHRN_S16_2sh  1111 001 0 1 . 001 ...     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q1 size=1 shift=%neon_rshift_i3
+
+# VQSHRN with unsigned input
+VQSHRN_U64_2sh   1111 001 1 1 . 1 .....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q0 size=3 shift=%neon_rshift_i5
+VQSHRN_U32_2sh   1111 001 1 1 . 01 ....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q0 size=2 shift=%neon_rshift_i4
+VQSHRN_U16_2sh   1111 001 1 1 . 001 ...     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q0 size=1 shift=%neon_rshift_i3
+
+# VQRSHRN with unsigned input
+VQRSHRN_U64_2sh  1111 001 1 1 . 1 .....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q1 size=3 shift=%neon_rshift_i5
+VQRSHRN_U32_2sh  1111 001 1 1 . 01 ....     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q1 size=2 shift=%neon_rshift_i4
+VQRSHRN_U16_2sh  1111 001 1 1 . 001 ...     .... 1001 0 . . 1 .... \
+                 @2reg_shift_q1 size=1 shift=%neon_rshift_i3
