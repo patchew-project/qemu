@@ -86,8 +86,8 @@ typedef enum {
 } BdrvRequestFlags;
 
 typedef struct BlockSizes {
-    uint32_t phys;
-    uint32_t log;
+    uint32_t phys;  /* physical block size */
+    uint32_t log;   /* logical block size */
 } BlockSizes;
 
 typedef struct HDGeometry {
