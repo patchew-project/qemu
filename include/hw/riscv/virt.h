@@ -23,6 +23,11 @@
 #include "hw/sysbus.h"
 #include "hw/block/flash.h"
 
+#define VIRT_SOCKETS_MAX 4
+#define VIRT_CPUS_PER_SOCKET_MIN 2
+#define VIRT_CPUS_PER_SOCKET_MAX 4
+#define VIRT_CPUS_MAX (VIRT_SOCKETS_MAX * VIRT_CPUS_PER_SOCKET_MAX)
+
 #define TYPE_RISCV_VIRT_MACHINE MACHINE_TYPE_NAME("virt")
 #define RISCV_VIRT_MACHINE(obj) \
     OBJECT_CHECK(RISCVVirtState, (obj), TYPE_RISCV_VIRT_MACHINE)
@@ -32,8 +37,9 @@ typedef struct {
     MachineState parent;
 
     /*< public >*/
-    RISCVHartArrayState soc;
-    DeviceState *plic;
+    unsigned int num_socs;
+    RISCVHartArrayState soc[VIRT_SOCKETS_MAX];
+    DeviceState *plic[VIRT_SOCKETS_MAX];
     PFlashCFI01 *flash[2];
 
     void *fdt;
@@ -74,6 +80,8 @@ enum {
 #define VIRT_PLIC_ENABLE_STRIDE 0x80
 #define VIRT_PLIC_CONTEXT_BASE 0x200000
 #define VIRT_PLIC_CONTEXT_STRIDE 0x1000
+#define VIRT_PLIC_SIZE(__num_context) \
+    (VIRT_PLIC_CONTEXT_BASE + (__num_context) * VIRT_PLIC_CONTEXT_STRIDE)
 
 #define FDT_PCI_ADDR_CELLS    3
 #define FDT_PCI_INT_CELLS     1
