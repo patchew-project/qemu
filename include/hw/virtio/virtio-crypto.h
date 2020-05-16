@@ -19,17 +19,6 @@
 #include "sysemu/iothread.h"
 #include "sysemu/cryptodev.h"
 
-
-#define DEBUG_VIRTIO_CRYPTO 0
-
-#define DPRINTF(fmt, ...) \
-do { \
-    if (DEBUG_VIRTIO_CRYPTO) { \
-        fprintf(stderr, "virtio_crypto: " fmt, ##__VA_ARGS__); \
-    } \
-} while (0)
-
-
 #define TYPE_VIRTIO_CRYPTO "virtio-crypto-device"
 #define VIRTIO_CRYPTO(obj) \
         OBJECT_CHECK(VirtIOCrypto, (obj), TYPE_VIRTIO_CRYPTO)

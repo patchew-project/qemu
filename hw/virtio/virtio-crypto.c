@@ -24,6 +24,7 @@
 #include "hw/virtio/virtio-access.h"
 #include "standard-headers/linux/virtio_ids.h"
 #include "sysemu/cryptodev-vhost.h"
+#include "trace.h"
 
 #define VIRTIO_CRYPTO_VM_VERSION 1
 
@@ -49,8 +50,9 @@ virtio_crypto_cipher_session_helper(VirtIODevice *vdev,
     info->cipher_alg = ldl_le_p(&cipher_para->algo);
     info->key_len = ldl_le_p(&cipher_para->keylen);
     info->direction = ldl_le_p(&cipher_para->op);
-    DPRINTF("cipher_alg=%" PRIu32 ", info->direction=%" PRIu32 "\n",
-             info->cipher_alg, info->direction);
+    trace_virtio_crypto_cipher_session_helper_cipher_alg_and_direction(
+            info->cipher_alg, info->direction);
+
 
     if (info->key_len > vcrypto->conf.max_cipher_key_len) {
         error_report("virtio-crypto length of cipher key is too big: %u",
@@ -60,7 +62,7 @@ virtio_crypto_cipher_session_helper(VirtIODevice *vdev,
     /* Get cipher key */
     if (info->key_len > 0) {
         size_t s;
-        DPRINTF("keylen=%" PRIu32 "\n", info->key_len);
+        trace_virtio_crypto_cipher_session_helper_keylen(info->key_len);
 
         info->cipher_key = g_malloc(info->key_len);
         s = iov_to_buf(*iov, num, 0, info->cipher_key, info->key_len);
@@ -130,7 +132,8 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
             }
             /* get auth key */
             if (info.auth_key_len > 0) {
-                DPRINTF("auth_keylen=%" PRIu32 "\n", info.auth_key_len);
+                trace_virtio_crypto_create_sym_session_auth_keylen(
+                            info.auth_key_len);
                 info.auth_key = g_malloc(info.auth_key_len);
                 s = iov_to_buf(iov, out_num, 0, info.auth_key,
                                info.auth_key_len);
@@ -165,8 +168,7 @@ virtio_crypto_create_sym_session(VirtIOCrypto *vcrypto,
                                      vcrypto->cryptodev,
                                      &info, queue_index, &local_err);
     if (session_id >= 0) {
-        DPRINTF("create session_id=%" PRIu64 " successfully\n",
-                session_id);
+        trace_virtio_crypto_create_sym_session_session_id(session_id);
 
         ret = session_id;
     } else {
@@ -193,7 +195,7 @@ virtio_crypto_handle_close_session(VirtIOCrypto *vcrypto,
     Error *local_err = NULL;
 
     session_id = ldq_le_p(&close_sess_req->session_id);
-    DPRINTF("close session, id=%" PRIu64 "\n", session_id);
+    trace_virtio_crypto_handle_close_session(session_id);
 
     ret = cryptodev_backend_sym_close_session(
               vcrypto->cryptodev, session_id, queue_id, &local_err);
@@ -474,7 +476,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
     op_info->len_to_cipher = len_to_cipher;
     /* Handle the initilization vector */
     if (op_info->iv_len > 0) {
-        DPRINTF("iv_len=%" PRIu32 "\n", op_info->iv_len);
+        trace_virtio_crypto_sym_op_helper_iv_len(op_info->iv_len);
         op_info->iv = op_info->data + curr_size;
 
         s = iov_to_buf(iov, out_num, 0, op_info->iv, op_info->iv_len);
@@ -488,7 +490,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
 
     /* Handle additional authentication data if exists */
     if (op_info->aad_len > 0) {
-        DPRINTF("aad_len=%" PRIu32 "\n", op_info->aad_len);
+        trace_virtio_crypto_sym_op_helper_aad_len(op_info->aad_len);
         op_info->aad_data = op_info->data + curr_size;
 
         s = iov_to_buf(iov, out_num, 0, op_info->aad_data, op_info->aad_len);
@@ -503,7 +505,7 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
 
     /* Handle the source data */
     if (op_info->src_len > 0) {
-        DPRINTF("src_len=%" PRIu32 "\n", op_info->src_len);
+        trace_virtio_crypto_sym_op_helper_src_len(op_info->src_len);
         op_info->src = op_info->data + curr_size;
 
         s = iov_to_buf(iov, out_num, 0, op_info->src, op_info->src_len);
@@ -520,11 +522,11 @@ virtio_crypto_sym_op_helper(VirtIODevice *vdev,
     op_info->dst = op_info->data + curr_size;
     curr_size += op_info->dst_len;
 
-    DPRINTF("dst_len=%" PRIu32 "\n", op_info->dst_len);
+    trace_virtio_crypto_sym_op_helper_dst_len(op_info->dst_len);
 
     /* Handle the hash digest result */
     if (hash_result_len > 0) {
-        DPRINTF("hash_result_len=%" PRIu32 "\n", hash_result_len);
+        trace_virtio_crypto_sym_op_helper_hash_result_len(hash_result_len);
         op_info->digest_result = op_info->data + curr_size;
     }
 

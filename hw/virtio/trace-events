@@ -73,3 +73,15 @@ virtio_iommu_get_domain(uint32_t domain_id) "Alloc domain=%d"
 virtio_iommu_put_domain(uint32_t domain_id) "Free domain=%d"
 virtio_iommu_translate_out(uint64_t virt_addr, uint64_t phys_addr, uint32_t sid) "0x%"PRIx64" -> 0x%"PRIx64 " for sid=%d"
 virtio_iommu_report_fault(uint8_t reason, uint32_t flags, uint32_t endpoint, uint64_t addr) "FAULT reason=%d flags=%d endpoint=%d address =0x%"PRIx64
+
+# virtio-crypto.c
+virtio_crypto_cipher_session_helper_cipher_alg_and_direction(uint32_t cipher_alg, uint8_t direction) "cipher_alg=%" PRIu32 ", info->direction=%" PRIu32
+virtio_crypto_cipher_session_helper_keylen(uint32_t keylen) "keylen=%" PRIu32
+virtio_crypto_create_sym_session_auth_keylen(uint32_t auth_keylen) "auth_keylen=%" PRIu32
+virtio_crypto_create_sym_session_session_id(int64_t session_id) "create session_id=%" PRIu64 " successfully"
+virtio_crypto_sym_op_helper_src_len(uint32_t src_len) "src_len=%" PRIu32
+virtio_crypto_sym_op_helper_dst_len(uint32_t dst_len) "dst_len=%" PRIu32
+virtio_crypto_sym_op_helper_hash_result_len(uint32_t hash_result_len) "hash_result_len=%" PRIu32
+virtio_crypto_handle_close_session(uint64_t session_id) "close session id %" PRIu64
+virtio_crypto_sym_op_helper_iv_len(uint32_t iv_len) "iv_len %" PRIu32
+virtio_crypto_sym_op_helper_aad_len(uint32_t aad_len) "aad_len %" PRIu32
