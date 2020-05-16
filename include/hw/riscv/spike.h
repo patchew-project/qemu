@@ -22,12 +22,18 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
 
+#define SPIKE_SOCKETS_MAX 4
+#define SPIKE_CPUS_PER_SOCKET_MIN 2
+#define SPIKE_CPUS_PER_SOCKET_MAX 4
+#define SPIKE_CPUS_MAX (SPIKE_SOCKETS_MAX * SPIKE_CPUS_PER_SOCKET_MAX)
+
 typedef struct {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
-    RISCVHartArrayState soc;
+    unsigned int num_socs;
+    RISCVHartArrayState soc[SPIKE_SOCKETS_MAX];
     void *fdt;
     int fdt_size;
 } SpikeState;
