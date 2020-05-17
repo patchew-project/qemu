@@ -3066,10 +3066,14 @@ void memory_region_flush_rom_device(MemoryRegion *mr, hwaddr addr, hwaddr size)
 
 static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
 {
+    unsigned access_size_min = mr->ops->valid.min_access_size;
     unsigned access_size_max = mr->ops->valid.max_access_size;
 
     /* Regions are assumed to support 1-4 byte accesses unless
        otherwise specified.  */
+    if (access_size_min == 0) {
+        access_size_min = 1;
+    }
     if (access_size_max == 0) {
         access_size_max = 4;
     }
@@ -3082,11 +3086,14 @@ static int memory_access_size(MemoryRegion *mr, unsigned l, hwaddr addr)
         }
     }
 
-    /* Don't attempt accesses larger than the maximum.  */
-    if (l > access_size_max) {
+    /* Don't attempt accesses not in the minimum/maximum range.  */
+    if (l < access_size_min) {
+        l = access_size_min;
+    } else if (l > access_size_max) {
         l = access_size_max;
+    } else {
+        l = pow2floor(l);
     }
-    l = pow2floor(l);
 
     return l;
 }
