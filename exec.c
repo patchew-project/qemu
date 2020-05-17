@@ -3136,13 +3136,20 @@ static MemTxResult flatview_write_continue(FlatView *fv, hwaddr addr,
 
     for (;;) {
         if (!memory_access_is_direct(mr, true)) {
+            /* I/O case */
+            hwaddr l2;
+
             release_lock |= prepare_mmio_access(mr);
-            l = memory_access_size(mr, l, addr1);
+            l2 = memory_access_size(mr, l, addr1);
             /* XXX: could force current_cpu to NULL to avoid
                potential bugs */
-            val = ldn_he_p(buf, l);
-            result |= memory_region_dispatch_write(mr, addr1, val,
-                                                   size_memop(l), attrs);
+            if (l <= l2) {
+                val = ldn_he_p(buf, l);
+                result |= memory_region_dispatch_write(mr, addr1, val,
+                                                       size_memop(l), attrs);
+            } else {
+                result = MEMTX_ERROR;
+            }
         } else {
             /* RAM case */
             ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
@@ -3202,11 +3209,17 @@ MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
     for (;;) {
         if (!memory_access_is_direct(mr, false)) {
             /* I/O case */
+            hwaddr l2;
+
             release_lock |= prepare_mmio_access(mr);
-            l = memory_access_size(mr, l, addr1);
-            result |= memory_region_dispatch_read(mr, addr1, &val,
-                                                  size_memop(l), attrs);
-            stn_he_p(buf, l, val);
+            l2 = memory_access_size(mr, l, addr1);
+            if (l <= l2) {
+                result |= memory_region_dispatch_read(mr, addr1, &val,
+                                                      size_memop(l), attrs);
+                stn_he_p(buf, l, val);
+            } else {
+                result = MEMTX_ERROR;
+            }
         } else {
             /* RAM case */
             ram_ptr = qemu_ram_ptr_length(mr->ram_block, addr1, &l, false);
