@@ -161,12 +161,14 @@ struct MemoryRegionOps {
                                    hwaddr addr,
                                    uint64_t *data,
                                    unsigned size,
-                                   MemTxAttrs attrs);
+                                   MemTxAttrs attrs)
+                                   QEMU_WARN_UNUSED_RESULT;
     MemTxResult (*write_with_attrs)(void *opaque,
                                     hwaddr addr,
                                     uint64_t data,
                                     unsigned size,
-                                    MemTxAttrs attrs);
+                                    MemTxAttrs attrs)
+                                    QEMU_WARN_UNUSED_RESULT;
 
     enum device_endian endianness;
     /* Guest-visible constraints: */
@@ -1989,7 +1991,8 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
                                         hwaddr addr,
                                         uint64_t *pval,
                                         MemOp op,
-                                        MemTxAttrs attrs);
+                                        MemTxAttrs attrs)
+                                        QEMU_WARN_UNUSED_RESULT;
 /**
  * memory_region_dispatch_write: perform a write directly to the specified
  * MemoryRegion.
@@ -2004,7 +2007,8 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          hwaddr addr,
                                          uint64_t data,
                                          MemOp op,
-                                         MemTxAttrs attrs);
+                                         MemTxAttrs attrs)
+                                         QEMU_WARN_UNUSED_RESULT;
 
 /**
  * address_space_init: initializes an address space
@@ -2053,7 +2057,8 @@ void address_space_remove_listeners(AddressSpace *as);
  */
 MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
                              MemTxAttrs attrs, void *buf,
-                             hwaddr len, bool is_write);
+                             hwaddr len, bool is_write)
+                             QEMU_WARN_UNUSED_RESULT;
 
 /**
  * address_space_write: write to address space.
@@ -2070,7 +2075,8 @@ MemTxResult address_space_rw(AddressSpace *as, hwaddr addr,
  */
 MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
                                 MemTxAttrs attrs,
-                                const void *buf, hwaddr len);
+                                const void *buf, hwaddr len)
+                                QEMU_WARN_UNUSED_RESULT;
 
 /**
  * address_space_write_rom: write to address space, including ROM.
@@ -2096,7 +2102,8 @@ MemTxResult address_space_write(AddressSpace *as, hwaddr addr,
  */
 MemTxResult address_space_write_rom(AddressSpace *as, hwaddr addr,
                                     MemTxAttrs attrs,
-                                    const void *buf, hwaddr len);
+                                    const void *buf, hwaddr len)
+                                    QEMU_WARN_UNUSED_RESULT;
 
 /* address_space_ld*: load from an address space
  * address_space_st*: store to an address space
@@ -2334,20 +2341,24 @@ void address_space_unmap(AddressSpace *as, void *buffer, hwaddr len,
 
 /* Internal functions, part of the implementation of address_space_read.  */
 MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
-                                    MemTxAttrs attrs, void *buf, hwaddr len);
+                                    MemTxAttrs attrs, void *buf, hwaddr len)
+                                    QEMU_WARN_UNUSED_RESULT;
 MemTxResult flatview_read_continue(FlatView *fv, hwaddr addr,
                                    MemTxAttrs attrs, void *buf,
                                    hwaddr len, hwaddr addr1, hwaddr l,
-                                   MemoryRegion *mr);
+                                   MemoryRegion *mr)
+                                   QEMU_WARN_UNUSED_RESULT;
 void *qemu_map_ram_ptr(RAMBlock *ram_block, ram_addr_t addr);
 
 /* Internal functions, part of the implementation of address_space_read_cached
  * and address_space_write_cached.  */
 MemTxResult address_space_read_cached_slow(MemoryRegionCache *cache,
-                                           hwaddr addr, void *buf, hwaddr len);
+                                           hwaddr addr, void *buf, hwaddr len)
+                                           QEMU_WARN_UNUSED_RESULT;
 MemTxResult address_space_write_cached_slow(MemoryRegionCache *cache,
                                             hwaddr addr, const void *buf,
-                                            hwaddr len);
+                                            hwaddr len)
+                                            QEMU_WARN_UNUSED_RESULT;
 
 static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
 {
@@ -2373,7 +2384,7 @@ static inline bool memory_access_is_direct(MemoryRegion *mr, bool is_write)
  * @buf: buffer with the data transferred
  * @len: length of the data transferred
  */
-static inline __attribute__((__always_inline__))
+static inline __attribute__((__always_inline__)) QEMU_WARN_UNUSED_RESULT
 MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
                                MemTxAttrs attrs, void *buf,
                                hwaddr len)
@@ -2412,7 +2423,7 @@ MemTxResult address_space_read(AddressSpace *as, hwaddr addr,
  * @buf: buffer with the data transferred
  * @len: length of the data transferred
  */
-static inline MemTxResult
+static inline MemTxResult QEMU_WARN_UNUSED_RESULT
 address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
                           void *buf, hwaddr len)
 {
@@ -2433,7 +2444,7 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
  * @buf: buffer with the data transferred
  * @len: length of the data transferred
  */
-static inline MemTxResult
+static inline MemTxResult QEMU_WARN_UNUSED_RESULT
 address_space_write_cached(MemoryRegionCache *cache, hwaddr addr,
                            const void *buf, hwaddr len)
 {
