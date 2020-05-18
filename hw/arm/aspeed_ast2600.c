@@ -188,7 +188,7 @@ static void aspeed_soc_ast2600_init(Object *obj)
                               sizeof(s->wdt[i]), typename);
     }
 
-    for (i = 0; i < sc->macs_num; i++) {
+    for (i = 0; i < nb_nics && i < sc->macs_num; i++) {
         sysbus_init_child_obj(obj, "ftgmac100[*]", OBJECT(&s->ftgmac100[i]),
                               sizeof(s->ftgmac100[i]), TYPE_FTGMAC100);
 
