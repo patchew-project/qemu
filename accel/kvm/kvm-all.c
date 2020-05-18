@@ -2357,6 +2357,7 @@ int kvm_cpu_exec(CPUState *cpu)
 
     do {
         MemTxAttrs attrs;
+        MemTxResult res;
 
         if (cpu->vcpu_dirty) {
             kvm_arch_put_registers(cpu, KVM_PUT_RUNTIME_STATE);
@@ -2429,12 +2430,12 @@ int kvm_cpu_exec(CPUState *cpu)
         case KVM_EXIT_MMIO:
             DPRINTF("handle_mmio\n");
             /* Called outside BQL */
-            address_space_rw(&address_space_memory,
-                             run->mmio.phys_addr, attrs,
-                             run->mmio.data,
-                             run->mmio.len,
-                             run->mmio.is_write);
-            ret = 0;
+            res = address_space_rw(&address_space_memory,
+                                   run->mmio.phys_addr, attrs,
+                                   run->mmio.data,
+                                   run->mmio.len,
+                                   run->mmio.is_write);
+            ret = res == MEMTX_OK ? 0 : -1;
             break;
         case KVM_EXIT_IRQ_WINDOW_OPEN:
             DPRINTF("irq_window_open\n");
