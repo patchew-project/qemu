@@ -91,6 +91,17 @@ static void print_qom_composition(Monitor *mon, Object *obj, int indent)
     } else {
         name = object_get_canonical_path_component(obj);
     }
+
+    DeviceState *dev = (DeviceState *)object_dynamic_cast(obj, TYPE_DEVICE);
+    DeviceClass *dc = (DeviceClass *)object_class_dynamic_cast(obj->class, TYPE_DEVICE);
+    if (dev && !dev->realized) {
+        monitor_printf(mon, "### unrealized: %s (%s)\n",
+                       name, object_get_typename(obj));
+    }
+    if (dev && dc->bus_type && !dev->parent_bus) {
+        monitor_printf(mon, "### no %s bus: %s (%s)\n",
+                       dc->bus_type, name, object_get_typename(obj));
+    }
     monitor_printf(mon, "%*s/%s (%s)\n", indent, "", name,
                    object_get_typename(obj));
     g_free(name);
