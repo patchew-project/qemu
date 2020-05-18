@@ -287,6 +287,9 @@ static void aspeed_soc_ast2600_realize(DeviceState *dev, Error **errp)
             return;
         }
     }
+    for (; i < sc->num_cpus; i++) {
+        object_unparent(OBJECT(&s->cpu[i]));
+    }
 
     /* A7MPCORE */
     object_property_set_int(OBJECT(&s->a7mpcore), s->num_cpus, "num-cpu",
