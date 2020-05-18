@@ -771,17 +771,43 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     }
 }
 
+struct qbus_child {
+    DeviceState *dev;
+    char *qom_path;
+};
+
+static int dev_cmp(const void *a, const void *b)
+{
+    return g_strcmp0(((struct qbus_child *)a)->qom_path,
+                     ((struct qbus_child *)b)->qom_path);
+}
+
 static void qbus_print(Monitor *mon, BusState *bus, int indent)
 {
     BusChild *kid;
+    GSList *children = NULL;
 
     qdev_printf("bus: %s\n", bus->name);
     indent += 2;
     qdev_printf("type %s\n", object_get_typename(OBJECT(bus)));
     QTAILQ_FOREACH(kid, &bus->children, sibling) {
         DeviceState *dev = kid->child;
-        qdev_print(mon, dev, indent);
+        struct qbus_child *qc = g_malloc(sizeof(*qc));
+        qc->dev = dev;
+        qc->qom_path = object_get_canonical_path(OBJECT(dev));
+        children = g_slist_insert_sorted(children, qc, dev_cmp);
     }
+    while (children) {
+        struct qbus_child *qc = children->data;
+        DeviceState *dev = qc->dev;
+        GSList *next = children->next;
+        qdev_print(mon, dev, indent);
+        g_free(qc->qom_path);
+        g_free(qc);
+        g_slist_free_1(children);
+        children = next;
+    }
+
 }
 #undef qdev_printf
 
