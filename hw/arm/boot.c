@@ -291,7 +291,8 @@ static inline bool have_dtb(const struct arm_boot_info *info)
 
 #define WRITE_WORD(p, value) do { \
     address_space_stl_notdirty(as, p, value, \
-                               MEMTXATTRS_UNSPECIFIED, NULL);  \
+                               MEMTXATTRS_UNSPECIFIED, &result); \
+    assert(result == MEMTX_OK); \
     p += 4;                       \
 } while (0)
 
@@ -300,6 +301,7 @@ static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
     int initrd_size = info->initrd_size;
     hwaddr base = info->loader_start;
     hwaddr p;
+    MemTxResult result;
 
     p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
@@ -326,8 +328,9 @@ static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
         int cmdline_size;
 
         cmdline_size = strlen(info->kernel_cmdline);
-        address_space_write(as, p + 8, MEMTXATTRS_UNSPECIFIED,
-                            info->kernel_cmdline, cmdline_size + 1);
+        result = address_space_write(as, p + 8, MEMTXATTRS_UNSPECIFIED,
+                                     info->kernel_cmdline, cmdline_size + 1);
+        assert(result == MEMTX_OK);
         cmdline_size = (cmdline_size >> 2) + 1;
         WRITE_WORD(p, cmdline_size + 2);
         WRITE_WORD(p, 0x54410009);
@@ -341,8 +344,9 @@ static void set_kernel_args(const struct arm_boot_info *info, AddressSpace *as)
         atag_board_len = (info->atag_board(info, atag_board_buf) + 3) & ~3;
         WRITE_WORD(p, (atag_board_len + 8) >> 2);
         WRITE_WORD(p, 0x414f4d50);
-        address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
-                            atag_board_buf, atag_board_len);
+        result = address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
+                                     atag_board_buf, atag_board_len);
+        assert(result == MEMTX_OK);
         p += atag_board_len;
     }
     /* ATAG_END */
@@ -357,6 +361,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info,
     const char *s;
     int initrd_size = info->initrd_size;
     hwaddr base = info->loader_start;
+    MemTxResult result;
 
     /* see linux/include/asm-arm/setup.h */
     p = base + KERNEL_ARGS_ADDR;
@@ -419,7 +424,9 @@ static void set_kernel_args_old(const struct arm_boot_info *info,
     }
     s = info->kernel_cmdline;
     if (s) {
-        address_space_write(as, p, MEMTXATTRS_UNSPECIFIED, s, strlen(s) + 1);
+        result = address_space_write(as, p, MEMTXATTRS_UNSPECIFIED,
+                                     s, strlen(s) + 1);
+        assert(result == MEMTX_OK);
     } else {
         WRITE_WORD(p, 0);
     }
