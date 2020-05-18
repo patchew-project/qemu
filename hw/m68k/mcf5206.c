@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
@@ -306,7 +307,8 @@ static uint64_t m5206_mbar_read(m5206_mbar_state *s,
     case 0x170: return s->uivr[0];
     case 0x1b0: return s->uivr[1];
     }
-    hw_error("Bad MBAR read offset 0x%x", (int)offset);
+    qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad MBAR offset 0x%" HWADDR_PRIX "\n",
+                  __func__, offset);
     return 0;
 }
 
@@ -360,7 +362,8 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
         s->uivr[1] = value;
         break;
     default:
-        hw_error("Bad MBAR write offset 0x%x", (int)offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad MBAR offset 0x%x\n",
+                      __func__, offset);
         break;
     }
 }

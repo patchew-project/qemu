@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 #include "cpu.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
@@ -127,7 +128,8 @@ static void mcf_intc_write(void *opaque, hwaddr addr,
         }
         break;
     default:
-        hw_error("mcf_intc_write: Bad write offset %d\n", offset);
+        qemu_log_mask(LOG_GUEST_ERROR, "%s: Bad offset 0x%02x\n",
+                      __func__, offset);
         break;
     }
     mcf_intc_update(s);
