@@ -801,6 +801,10 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
         struct qbus_child *qc = children->data;
         DeviceState *dev = qc->dev;
         GSList *next = children->next;
+        if (!qc->qom_path) {
+            printf("### no qom path: %s, id \"%s\"\n",
+                   object_get_typename(OBJECT(dev)), dev->id ? dev->id : "");
+        }
         qdev_print(mon, dev, indent);
         g_free(qc->qom_path);
         g_free(qc);
