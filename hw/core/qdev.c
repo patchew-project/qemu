@@ -98,6 +98,23 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
 {
     BusState *old_parent_bus = dev->parent_bus;
 
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    if (bus) {
+        BusClass *bc;
+        for (bc = BUS_GET_CLASS(bus);
+             bc;
+             bc = (BusClass *)object_class_dynamic_cast(object_class_get_parent(OBJECT_CLASS(bc)), TYPE_BUS)) {
+            if (!g_strcmp0(dc->bus_type, object_class_get_name(OBJECT_CLASS(bc)))) {
+                break;
+            }
+        }
+        if (!bc) {
+            printf("### bus mismatch %s is %s plugged into %s\n",
+                   object_get_typename(OBJECT(dev)), dc->bus_type,
+                   object_class_get_name(OBJECT_CLASS(BUS_GET_CLASS(bus))));
+        }
+    }
+
     if (old_parent_bus) {
         trace_qdev_update_parent_bus(dev, object_get_typename(OBJECT(dev)),
             old_parent_bus, object_get_typename(OBJECT(old_parent_bus)),
