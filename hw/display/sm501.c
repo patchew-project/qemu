@@ -1816,6 +1816,7 @@ static void sm501_init(SM501State *s, DeviceState *dev,
     /* ddc */
     I2CDDCState *ddc = I2CDDC(qdev_create(BUS(s->i2c_bus), TYPE_I2CDDC));
     i2c_set_slave_address(I2C_SLAVE(ddc), 0x50);
+    qdev_init_nofail(DEVICE(ddc));
 
     /* mmio */
     memory_region_init(&s->mmio_region, OBJECT(dev), "sm501.mmio", MMIO_SIZE);
