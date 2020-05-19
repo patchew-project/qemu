@@ -489,6 +489,10 @@ static QemuOptsList qemu_fw_cfg_opts = {
             .name = "string",
             .type = QEMU_OPT_STRING,
             .help = "Sets content of the blob to be inserted from a string",
+        }, {
+            .name = "blob_id",
+            .type = QEMU_OPT_STRING,
+            .help = "Sets id of the object generating fw_cfg blob to be used",
         },
         { /* end of list */ }
     },
@@ -2020,7 +2024,7 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
 {
     gchar *buf;
     size_t size;
-    const char *name, *file, *str;
+    const char *name, *file, *str, *blob_id;
     FWCfgState *fw_cfg = (FWCfgState *) opaque;
 
     if (fw_cfg == NULL) {
@@ -2030,14 +2034,17 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     name = qemu_opt_get(opts, "name");
     file = qemu_opt_get(opts, "file");
     str = qemu_opt_get(opts, "string");
+    blob_id = qemu_opt_get(opts, "blob_id");
 
     /* we need name and either a file or the content string */
-    if (!(nonempty_str(name) && (nonempty_str(file) || nonempty_str(str)))) {
+    if (!(nonempty_str(name)
+          && (nonempty_str(file) || nonempty_str(str) || nonempty_str(blob_id)))
+         ) {
         error_setg(errp, "invalid argument(s)");
         return -1;
     }
-    if (nonempty_str(file) && nonempty_str(str)) {
-        error_setg(errp, "file and string are mutually exclusive");
+    if (nonempty_str(file) && nonempty_str(str) && nonempty_str(blob_id)) {
+        error_setg(errp, "file, string and blob_id are mutually exclusive");
         return -1;
     }
     if (strlen(name) > FW_CFG_MAX_FILE_PATH - 1) {
@@ -2052,6 +2059,8 @@ static int parse_fw_cfg(void *opaque, QemuOpts *opts, Error **errp)
     if (nonempty_str(str)) {
         size = strlen(str); /* NUL terminator NOT included in fw_cfg blob */
         buf = g_memdup(str, size);
+    } else if (nonempty_str(blob_id)) {
+        return fw_cfg_add_from_generator(fw_cfg, name, blob_id, errp);
     } else {
         GError *err = NULL;
         if (!g_file_get_contents(file, &buf, &size, &err)) {
