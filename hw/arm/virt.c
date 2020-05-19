@@ -841,13 +841,15 @@ static void create_gpio(const VirtMachineState *vms)
                                      qdev_get_gpio_in(vms->gic, irq));
 
     uint32_t phandle = qemu_fdt_alloc_phandle(vms->fdt);
-    nodename = g_strdup_printf("/pl061@%" PRIx64, base);
+    nodename = g_strdup_printf("/gpio@%" PRIx64, base);
     qemu_fdt_add_subnode(vms->fdt, nodename);
     qemu_fdt_setprop_sized_cells(vms->fdt, nodename, "reg",
                                  2, base, 2, size);
     qemu_fdt_setprop(vms->fdt, nodename, "compatible", compat, sizeof(compat));
     qemu_fdt_setprop_cell(vms->fdt, nodename, "#gpio-cells", 2);
     qemu_fdt_setprop(vms->fdt, nodename, "gpio-controller", NULL, 0);
+    qemu_fdt_setprop_cell(vms->fdt, nodename, "#interrupt-cells", 2);
+    qemu_fdt_setprop(vms->fdt, nodename, "interrupt-controller", NULL, 0);
     qemu_fdt_setprop_cells(vms->fdt, nodename, "interrupts",
                            GIC_FDT_IRQ_TYPE_SPI, irq,
                            GIC_FDT_IRQ_FLAGS_LEVEL_HI);
