@@ -1,0 +1,14 @@
+# Input file for risugen defining AArch64 SVE2 instructions
+.mode arm.aarch64
+
+# floating-point pairwise
+FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
+!constraints { $size != 0; }
+FMAXNMP     A64_V    01100100 size:2 010 100 100 pg:3 zm:5 zdn:5 \
+!constraints { $size != 0; }
+FMINNMP     A64_V    01100100 size:2 010 101 100 pg:3 zm:5 zdn:5 \
+!constraints { $size != 0; }
+FMAXP       A64_V    01100100 size:2 010 110 100 pg:3 zm:5 zdn:5 \
+!constraints { $size != 0; }
+FMINP       A64_V    01100100 size:2 010 111 100 pg:3 zm:5 zdn:5 \
+!constraints { $size != 0; }
