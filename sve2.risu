@@ -1,6 +1,17 @@
 # Input file for risugen defining AArch64 SVE2 instructions
 .mode arm.aarch64
 
+# integer multiply vectors (unpredicated)
+MUL         A64_V    00000100 size:2 1 zm:5 0110 00 zn:5 zd:5
+SMULH       A64_V    00000100 size:2 1 zm:5 0110 10 zn:5 zd:5
+UMULH       A64_V    00000100 size:2 1 zm:5 0110 11 zn:5 zd:5
+PMUL        A64_V    00000100 size:2 1 zm:5 0110 01 zn:5 zd:5 \
+!constraints { $size == 0; }
+
+# signed saturating doubling multiply high (unpredicated)
+SQDMULH     A64_V    00000100 size:2 1 zm:5 01110 0 zn:5 zd:5
+SQRDMULH    A64_V    00000100 size:2 1 zm:5 01110 1 zn:5 zd:5
+
 # floating-point pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
