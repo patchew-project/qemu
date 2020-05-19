@@ -322,7 +322,13 @@ extern void *pci_assign_dev_load_option_rom(PCIDevice *dev,
                                             unsigned int domain,
                                             unsigned int bus, unsigned int slot,
                                             unsigned int function);
+
+#ifdef CONFIG_XEN_PCI_PASSTHROUGH
 extern bool has_igd_gfx_passthru;
+#else
+# define has_igd_gfx_passthru false
+#endif
+
 static inline bool is_igd_vga_passthrough(XenHostPCIDevice *dev)
 {
     return (has_igd_gfx_passthru

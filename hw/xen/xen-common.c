@@ -134,7 +134,11 @@ static bool xen_get_igd_gfx_passthru(Object *obj, Error **errp)
 
 static void xen_set_igd_gfx_passthru(Object *obj, bool value, Error **errp)
 {
+#ifdef CONFIG_XEN_PCI_PASSTHROUGH
     has_igd_gfx_passthru = value;
+#else
+    error_setg(errp, "Xen PCI passthrough support not built in");
+#endif
 }
 
 static void xen_setup_post(MachineState *ms, AccelState *accel)
