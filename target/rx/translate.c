@@ -143,13 +143,17 @@ void rx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
-static bool use_goto_tb(DisasContext *dc, target_ulong dest)
+static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
-    if (unlikely(dc->base.singlestep_enabled)) {
+    if (unlikely(ctx->base.singlestep_enabled)) {
         return false;
-    } else {
-        return true;
     }
+
+#ifndef CONFIG_USER_ONLY
+    return (ctx->base.tb->pc & TARGET_PAGE_MASK) == (dest & TARGET_PAGE_MASK);
+#else
+    return true;
+#endif
 }
 
 static void gen_goto_tb(DisasContext *dc, int n, target_ulong dest)
