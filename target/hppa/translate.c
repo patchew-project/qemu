@@ -817,10 +817,20 @@ static bool gen_illegal(DisasContext *ctx)
 
 static bool use_goto_tb(DisasContext *ctx, target_ureg dest)
 {
-    /* Suppress goto_tb for page crossing, IO, or single-steping.  */
-    return !(((ctx->base.pc_first ^ dest) & TARGET_PAGE_MASK)
-             || (tb_cflags(ctx->base.tb) & CF_LAST_IO)
-             || ctx->base.singlestep_enabled);
+    /* No direct translation block linking with CF_LAST_IO or in singlestep */
+    if ((tb_cflags(ctx->base.tb) & CF_LAST_IO) ||
+        ctx->base.singlestep_enabled) {
+        return false;
+    }
+
+#ifndef CONFIG_USER_ONLY
+    /* Directly link translation blocks only from inside the same guest page */
+    if ((ctx->base.pc_first ^ dest) & TARGET_PAGE_MASK) {
+        return false;
+    }
+#endif
+
+    return true;
 }
 
 /* If the next insn is to be nullified, and it's on the same page,
