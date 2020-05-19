@@ -1032,6 +1032,30 @@ void *fw_cfg_modify_file(FWCfgState *s, const char *filename,
     return NULL;
 }
 
+ssize_t fw_cfg_add_from_generator(FWCfgState *s, const char *filename,
+                                  const char *generator_id, Error **errp)
+{
+    FWCfgDataGeneratorClass *k;
+    Object *o;
+    size_t sz;
+
+    o = object_resolve_path_component(object_get_objects_root(), generator_id);
+    if (!o) {
+        error_setg(errp, "Cannot find object ID %s", generator_id);
+        return -1;
+    }
+    if (!object_dynamic_cast(o, TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)) {
+        error_setg(errp, "Object '%s' is not a fw_cfg-data-generator subclass",
+                         generator_id);
+        return -1;
+    }
+    k = FW_CFG_DATA_GENERATOR_GET_CLASS(o);
+    sz = k->get_length(o);
+    fw_cfg_add_file(s, filename, g_memdup(k->get_data(o), sz), sz);
+
+    return sz;
+}
+
 static void fw_cfg_machine_reset(void *opaque)
 {
     MachineClass *mc = MACHINE_GET_CLASS(qdev_get_machine());
@@ -1333,12 +1357,18 @@ static const TypeInfo fw_cfg_mem_info = {
     .class_init    = fw_cfg_mem_class_init,
 };
 
+static const TypeInfo fw_cfg_data_generator_interface_info = {
+    .name = TYPE_FW_CFG_DATA_GENERATOR_INTERFACE,
+    .parent = TYPE_INTERFACE,
+    .class_size = sizeof(FWCfgDataGeneratorClass),
+};
 
 static void fw_cfg_register_types(void)
 {
     type_register_static(&fw_cfg_info);
     type_register_static(&fw_cfg_io_info);
     type_register_static(&fw_cfg_mem_info);
+    type_register_static(&fw_cfg_data_generator_interface_info);
 }
 
 type_init(fw_cfg_register_types)
