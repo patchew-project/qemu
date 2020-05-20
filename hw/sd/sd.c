@@ -802,7 +802,12 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
 
 static inline bool sd_wp_addr(SDState *sd, uint64_t addr)
 {
-    return test_bit(sd_addr_to_wpnum(addr), sd->wp_groups);
+    uint64_t bit = sd_addr_to_wpnum(addr);
+
+    if (bit < sd->wpgrps_size) {
+        return test_bit(bit, sd->wp_groups);
+    }
+    return true;
 }
 
 static void sd_lock_command(SDState *sd)
