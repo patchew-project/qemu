@@ -517,6 +517,7 @@ static void microvm_machine_initfn(Object *obj)
 static void microvm_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    X86MachineClass *x86mc = X86_MACHINE_CLASS(oc);
 
     mc->init = microvm_machine_state_init;
 
@@ -536,6 +537,9 @@ static void microvm_class_init(ObjectClass *oc, void *data)
 
     /* Machine class handlers */
     mc->reset = microvm_machine_reset;
+
+    /* acpi is off by default */
+    x86mc->acpi_default = false;
 
     object_class_property_add(oc, MICROVM_MACHINE_PIC, "OnOffAuto",
                               microvm_machine_get_pic,
