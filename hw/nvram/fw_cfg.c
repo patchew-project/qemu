@@ -40,6 +40,7 @@
 #include "qemu/cutils.h"
 #include "qapi/error.h"
 #include "hw/acpi/aml-build.h"
+#include "hw/pci/pci_bus.h"
 
 #define FW_CFG_FILE_SLOTS_DFLT 0x20
 
@@ -740,6 +741,25 @@ static void *fw_cfg_modify_bytes_read(FWCfgState *s, uint16_t key,
     s->entries[arch][key].allow_write = false;
 
     return ptr;
+}
+
+void fw_cfg_write_extra_pci_roots(PCIBus *bus, FWCfgState *s)
+{
+    if (bus) {
+        int extra_hosts = 0;
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            /* look for expander root buses */
+            if (pci_bus_is_root(bus)) {
+                extra_hosts++;
+            }
+        }
+        if (extra_hosts && s) {
+            uint64_t *val = g_malloc(sizeof(*val));
+            *val = cpu_to_le64(extra_hosts);
+            fw_cfg_add_file(s,
+                   "etc/extra-pci-roots", val, sizeof(*val));
+        }
+    }
 }
 
 void fw_cfg_add_bytes(FWCfgState *s, uint16_t key, void *data, size_t len)
