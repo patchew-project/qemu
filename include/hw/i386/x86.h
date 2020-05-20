@@ -37,6 +37,7 @@ typedef struct {
     bool save_tsc_khz;
     /* Enables contiguous-apic-ID mode */
     bool compat_apic_id_mode;
+    bool acpi_default;
 } X86MachineClass;
 
 typedef struct {

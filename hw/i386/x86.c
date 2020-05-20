@@ -940,10 +940,22 @@ static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
 
 bool x86_machine_is_acpi_enabled(X86MachineState *x86ms)
 {
-    if (x86ms->acpi == ON_OFF_AUTO_OFF) {
-        return false;
+    X86MachineClass *x86mc = X86_MACHINE_GET_CLASS(x86ms);
+    bool enabled;
+
+    switch (x86ms->acpi) {
+    case ON_OFF_AUTO_ON:
+        enabled = true;
+        break;
+    case ON_OFF_AUTO_OFF:
+        enabled = false;
+        break;
+    case ON_OFF_AUTO_AUTO:
+    default:
+        enabled = x86mc->acpi_default;
+        break;
     }
-    return true;
+    return enabled;
 }
 
 static void x86_machine_get_acpi(Object *obj, Visitor *v, const char *name,
@@ -990,6 +1002,9 @@ static void x86_machine_class_init(ObjectClass *oc, void *data)
     x86mc->compat_apic_id_mode = false;
     x86mc->save_tsc_khz = true;
     nc->nmi_monitor_handler = x86_nmi;
+
+    /* acpi is on by default */
+    x86mc->acpi_default = true;
 
     object_class_property_add(oc, X86_MACHINE_MAX_RAM_BELOW_4G, "size",
         x86_machine_get_max_ram_below_4g, x86_machine_set_max_ram_below_4g,
