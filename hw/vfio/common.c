@@ -29,6 +29,7 @@
 #include "hw/vfio/vfio.h"
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
+#include "exec/ram_addr.h"
 #include "hw/hw.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
@@ -38,6 +39,7 @@
 #include "sysemu/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "migration/migration.h"
 
 VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
@@ -288,6 +290,28 @@ const MemoryRegionOps vfio_region_ops = {
 };
 
 /*
+ * Device state interfaces
+ */
+
+static bool vfio_devices_are_stopped_and_saving(void)
+{
+    VFIOGroup *group;
+    VFIODevice *vbasedev;
+
+    QLIST_FOREACH(group, &vfio_group_list, next) {
+        QLIST_FOREACH(vbasedev, &group->device_list, next) {
+            if ((vbasedev->device_state & VFIO_DEVICE_STATE_SAVING) &&
+                !(vbasedev->device_state & VFIO_DEVICE_STATE_RUNNING)) {
+                continue;
+            } else {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/*
  * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
  */
 static int vfio_dma_unmap(VFIOContainer *container,
@@ -408,8 +432,8 @@ static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 }
 
 /* Called with rcu_read_lock held.  */
-static bool vfio_get_vaddr(IOMMUTLBEntry *iotlb, void **vaddr,
-                           bool *read_only)
+static bool vfio_get_xlat_addr(IOMMUTLBEntry *iotlb, void **vaddr,
+                               ram_addr_t *ram_addr, bool *read_only)
 {
     MemoryRegion *mr;
     hwaddr xlat;
@@ -440,9 +464,17 @@ static bool vfio_get_vaddr(IOMMUTLBEntry *iotlb, void **vaddr,
         return false;
     }
 
-    *vaddr = memory_region_get_ram_ptr(mr) + xlat;
-    *read_only = !writable || mr->readonly;
+    if (vaddr) {
+        *vaddr = memory_region_get_ram_ptr(mr) + xlat;
+    }
 
+    if (ram_addr) {
+        *ram_addr = memory_region_get_ram_addr(mr) + xlat;
+    }
+
+    if (read_only) {
+        *read_only = !writable || mr->readonly;
+    }
     return true;
 }
 
@@ -467,7 +499,7 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     rcu_read_lock();
 
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
-        if (!vfio_get_vaddr(iotlb, &vaddr, &read_only)) {
+        if (!vfio_get_xlat_addr(iotlb, &vaddr, NULL, &read_only)) {
             goto out;
         }
         /*
@@ -813,9 +845,151 @@ static void vfio_listener_region_del(MemoryListener *listener,
     }
 }
 
+static int vfio_get_dirty_bitmap(MemoryListener *listener,
+                                 MemoryRegionSection *section)
+{
+    VFIOContainer *container = container_of(listener, VFIOContainer, listener);
+    VFIOGuestIOMMU *giommu = NULL;
+    IOMMUTLBEntry iotlb;
+    hwaddr granularity, iova, iova_end;
+    int ret;
+
+    if (memory_region_is_iommu(section->mr)) {
+        QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
+            if (MEMORY_REGION(giommu->iommu) == section->mr &&
+                giommu->n.start == section->offset_within_region) {
+                break;
+            }
+        }
+
+        if (!giommu) {
+            return -EINVAL;
+        }
+    }
+
+    iova = TARGET_PAGE_ALIGN(section->offset_within_address_space);
+
+    if (memory_region_is_iommu(section->mr)) {
+        hwaddr iova_size;
+
+        granularity = memory_region_iommu_get_min_page_size(giommu->iommu);
+        iova_end = memory_region_iommu_get_address_limit(giommu->iommu);
+
+        if (iova_end) {
+            iova_size = MIN(int128_get64(section->size), iova_end - iova + 1);
+        } else {
+            iova_size = int128_get64(section->size);
+        }
+
+        iova_end = iova + iova_size - 1;
+    } else {
+        granularity = memory_region_size(section->mr);
+        iova_end = iova + int128_get64(section->size) - 1;
+    }
+
+    RCU_READ_LOCK_GUARD();
+
+    while (iova < iova_end) {
+        struct vfio_iommu_type1_dirty_bitmap *dbitmap;
+        struct vfio_iommu_type1_dirty_bitmap_get *range;
+        ram_addr_t start, pages;
+        uint64_t iova_xlat, size;
+
+        if (memory_region_is_iommu(section->mr)) {
+            iotlb = address_space_get_iotlb_entry(container->space->as, iova,
+                                                 true, MEMTXATTRS_UNSPECIFIED);
+            if ((iotlb.target_as == NULL) || (iotlb.addr_mask == 0)) {
+                if ((iova + granularity) < iova) {
+                    break;
+                }
+                iova += granularity;
+                continue;
+            }
+            iova_xlat = iotlb.iova + giommu->iommu_offset;
+            size = iotlb.addr_mask + 1;
+        } else {
+            iova_xlat = iova;
+            size = iova_end - iova + 1;
+        }
+
+        dbitmap = g_malloc0(sizeof(*dbitmap) + sizeof(*range));
+
+        dbitmap->argsz = sizeof(*dbitmap) + sizeof(*range);
+        dbitmap->flags = VFIO_IOMMU_DIRTY_PAGES_FLAG_GET_BITMAP;
+        range = (struct vfio_iommu_type1_dirty_bitmap_get *)&dbitmap->data;
+        range->iova = iova_xlat;
+        range->size = size;
+
+        /*
+         * cpu_physical_memory_set_dirty_lebitmap() expects pages in bitmap of
+         * TARGET_PAGE_SIZE to mark those dirty. Hence set bitmap's pgsize to
+         * TARGET_PAGE_SIZE.
+         */
+        range->bitmap.pgsize = TARGET_PAGE_SIZE;
+
+        pages = TARGET_PAGE_ALIGN(range->size) >> TARGET_PAGE_BITS;
+        range->bitmap.size = ROUND_UP(pages, sizeof(__u64) * BITS_PER_BYTE) /
+                             BITS_PER_BYTE;
+        range->bitmap.data = g_malloc0(range->bitmap.size);
+
+        ret = ioctl(container->fd, VFIO_IOMMU_DIRTY_PAGES, dbitmap);
+        if (ret) {
+            error_report("Failed to get dirty bitmap for iova: 0x%llx "
+                         "size: 0x%llx err: %d",
+                         range->iova, range->size, errno);
+            goto err_out;
+        }
+
+        if (memory_region_is_iommu(section->mr)) {
+            if (!vfio_get_xlat_addr(&iotlb, NULL, &start, NULL)) {
+                ret = -EINVAL;
+                goto err_out;
+            }
+        } else {
+            start = memory_region_get_ram_addr(section->mr) +
+                    section->offset_within_region + iova -
+                    TARGET_PAGE_ALIGN(section->offset_within_address_space);
+        }
+
+        cpu_physical_memory_set_dirty_lebitmap((uint64_t *)range->bitmap.data,
+                                               start, pages);
+
+        trace_vfio_get_dirty_bitmap(container->fd, range->iova, range->size,
+                                    range->bitmap.size, start);
+err_out:
+        g_free(range->bitmap.data);
+        g_free(dbitmap);
+
+        if (ret) {
+            return ret;
+        }
+
+        if ((iova + size) < iova) {
+            break;
+        }
+
+        iova += size;
+    }
+
+    return 0;
+}
+
+static void vfio_listerner_log_sync(MemoryListener *listener,
+        MemoryRegionSection *section)
+{
+    if (vfio_listener_skipped_section(section)) {
+        return;
+    }
+
+    if (vfio_devices_are_stopped_and_saving()) {
+        vfio_get_dirty_bitmap(listener, section);
+    }
+}
+
 static const MemoryListener vfio_memory_listener = {
     .region_add = vfio_listener_region_add,
     .region_del = vfio_listener_region_del,
+    .log_sync = vfio_listerner_log_sync,
 };
 
 static void vfio_listener_release(VFIOContainer *container)
