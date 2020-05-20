@@ -54,6 +54,7 @@
 #include "net/announce.h"
 #include "qemu/queue.h"
 #include "multifd.h"
+#include "qemu/vfio-helpers.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -970,6 +971,17 @@ static void populate_disk_info(MigrationInfo *info)
     }
 }
 
+#ifdef CONFIG_LINUX
+static void populate_vfio_info(MigrationInfo *info)
+{
+    if (vfio_mig_active()) {
+        info->has_vfio = true;
+        info->vfio = g_malloc0(sizeof(*info->vfio));
+        info->vfio->bytes = vfio_mig_bytes_transferred();
+    }
+}
+#endif
+
 static void fill_source_migration_info(MigrationInfo *info)
 {
     MigrationState *s = migrate_get_current();
@@ -995,6 +1007,9 @@ static void fill_source_migration_info(MigrationInfo *info)
         populate_time_info(info, s);
         populate_ram_info(info, s);
         populate_disk_info(info);
+#ifdef CONFIG_LINUX
+        populate_vfio_info(info);
+#endif
         break;
     case MIGRATION_STATUS_COLO:
         info->has_status = true;
@@ -1003,6 +1018,9 @@ static void fill_source_migration_info(MigrationInfo *info)
     case MIGRATION_STATUS_COMPLETED:
         populate_time_info(info, s);
         populate_ram_info(info, s);
+#ifdef CONFIG_LINUX
+        populate_vfio_info(info);
+#endif
         break;
     case MIGRATION_STATUS_FAILED:
         info->has_status = true;

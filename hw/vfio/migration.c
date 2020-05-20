@@ -26,7 +26,7 @@
 #include "exec/ram_addr.h"
 #include "pci.h"
 #include "trace.h"
-
+#include "qemu/vfio-helpers.h"
 /*
  * Flags used as delimiter:
  * 0xffffffff => MSB 32-bit all 1s
@@ -37,6 +37,8 @@
 #define VFIO_MIG_FLAG_DEV_CONFIG_STATE  (0xffffffffef100002ULL)
 #define VFIO_MIG_FLAG_DEV_SETUP_STATE   (0xffffffffef100003ULL)
 #define VFIO_MIG_FLAG_DEV_DATA_STATE    (0xffffffffef100004ULL)
+
+static int64_t bytes_transferred;
 
 static void vfio_migration_region_exit(VFIODevice *vbasedev)
 {
@@ -229,6 +231,7 @@ static int vfio_save_buffer(QEMUFile *f, VFIODevice *vbasedev)
         return ret;
     }
 
+    bytes_transferred += data_size;
     return data_size;
 }
 
@@ -743,6 +746,11 @@ static int vfio_migration_init(VFIODevice *vbasedev,
 }
 
 /* ---------------------------------------------------------------------- */
+
+int64_t vfio_mig_bytes_transferred(void)
+{
+    return bytes_transferred;
+}
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
 {
