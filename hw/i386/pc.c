@@ -127,7 +127,6 @@ GlobalProperty pc_compat_3_1[] = {
     { "Skylake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
     { "Skylake-Server-IBRS" "-" TYPE_X86_CPU, "mpx", "on" },
     { "Cascadelake-Server" "-" TYPE_X86_CPU,  "mpx", "on" },
-    { "Icelake-Client" "-" TYPE_X86_CPU,      "mpx", "on" },
     { "Icelake-Server" "-" TYPE_X86_CPU,      "mpx", "on" },
     { "Cascadelake-Server" "-" TYPE_X86_CPU, "stepping", "5" },
     { TYPE_X86_CPU, "x-intel-pt-auto-level", "off" },
