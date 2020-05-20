@@ -18,6 +18,7 @@ block-obj-y += block.o blockjob.o job.o
 block-obj-y += block/ scsi/
 block-obj-y += qemu-io-cmds.o
 block-obj-$(CONFIG_REPLICATION) += replication.o
+block-obj-y += yank.o
 
 block-obj-m = block/
 
