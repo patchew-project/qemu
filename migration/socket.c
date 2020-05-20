@@ -26,6 +26,7 @@
 #include "io/channel-socket.h"
 #include "io/net-listener.h"
 #include "trace.h"
+#include "yank.h"
 
 
 struct SocketOutgoingArgs {
@@ -35,6 +36,8 @@ struct SocketOutgoingArgs {
 void socket_send_channel_create(QIOTaskFunc f, void *data)
 {
     QIOChannelSocket *sioc = qio_channel_socket_new();
+    yank_register_function((char *) "migration", yank_generic_iochannel,
+                           QIO_CHANNEL(sioc));
     qio_channel_socket_connect_async(sioc, outgoing_args.saddr,
                                      f, data, NULL, NULL);
 }
@@ -42,6 +45,8 @@ void socket_send_channel_create(QIOTaskFunc f, void *data)
 int socket_send_channel_destroy(QIOChannel *send)
 {
     /* Remove channel */
+    yank_unregister_function((char *) "migration", yank_generic_iochannel,
+                             QIO_CHANNEL(send));
     object_unref(OBJECT(send));
     if (outgoing_args.saddr) {
         qapi_free_SocketAddress(outgoing_args.saddr);
@@ -101,6 +106,8 @@ static void socket_outgoing_migration(QIOTask *task,
     Error *err = NULL;
 
     if (qio_task_propagate_error(task, &err)) {
+        yank_unregister_function((char *) "migration", yank_generic_iochannel,
+                                 QIO_CHANNEL(sioc));
         trace_migration_socket_outgoing_error(error_get_pretty(err));
     } else {
         trace_migration_socket_outgoing_connected(data->hostname);
@@ -127,6 +134,8 @@ static void socket_start_outgoing_migration(MigrationState *s,
     }
 
     qio_channel_set_name(QIO_CHANNEL(sioc), "migration-socket-outgoing");
+    yank_register_function((char *) "migration", yank_generic_iochannel,
+                           QIO_CHANNEL(sioc));
     qio_channel_socket_connect_async(sioc,
                                      saddr,
                                      socket_outgoing_migration,
@@ -163,6 +172,8 @@ static void socket_accept_incoming_migration(QIONetListener *listener,
     trace_migration_socket_incoming_accepted();
 
     qio_channel_set_name(QIO_CHANNEL(cioc), "migration-socket-incoming");
+    yank_register_function((char *) "migration", yank_generic_iochannel,
+                           QIO_CHANNEL(cioc));
     migration_channel_process_incoming(QIO_CHANNEL(cioc));
 
     if (migration_has_all_channels()) {
