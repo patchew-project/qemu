@@ -118,6 +118,7 @@ uint32_t x86_cpu_apic_id_from_index(X86MachineState *x86ms,
 
 void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
 {
+    MachineClass *mc = MACHINE_GET_CLASS(x86ms);
     Object *cpu = NULL;
     Error *local_err = NULL;
 
@@ -125,6 +126,16 @@ void x86_cpu_new(X86MachineState *x86ms, int64_t apic_id, Error **errp)
 
     object_property_set_uint(cpu, apic_id, "apic-id", &local_err);
     object_property_set_bool(cpu, true, "realized", &local_err);
+
+    if (!mc->has_hotpluggable_cpus) {
+        /* coldplug cpu */
+        MachineState *ms = MACHINE(x86ms);
+        int i = 0;
+        while (ms->possible_cpus->cpus[i].arch_id != apic_id) {
+            i++;
+        }
+        ms->possible_cpus->cpus[i].cpu = cpu;
+    }
 
     object_unref(cpu);
     error_propagate(errp, local_err);
