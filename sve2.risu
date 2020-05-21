@@ -315,6 +315,13 @@ FCVTLT_HS   A64_V    01100100 10 0010 01 101 pg:3 zn:5 zd:5
 FCVTNT_DS   A64_V    01100100 11 0010 10 101 pg:3 zn:5 zd:5
 FCVTLT_SD   A64_V    01100100 11 0010 11 101 pg:3 zn:5 zd:5
 
+# Floating Point Unary Operations (Predicated)
+## floating-point convert precision
+FCVTX       A64_V    01100101 00 0010 10 101 pg:3 zn:5 zd:5
+## floating-point convert to integer
+FLOGB       A64_V    01100101 00 011 size:2 0101 p:3 zn:5 zd:5 \
+!constraints { $size != 0; }
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
