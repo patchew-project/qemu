@@ -1,6 +1,12 @@
 # Input file for risugen defining AArch64 SVE2 instructions
 .mode arm.aarch64
 
+# Permute Vector (Predicated) Constructive
+SLICE       A64_V    00000101 size:2 101101100 pg:3 zn:5 zd:5
+
+# Permute Vector (Extract) Constructive
+EXT         A64_V    00000101011 imm8h:5 000 imm8l:3 zn:5 zd:5
+
 # Bitwise Logical (Unpredicated)
 XAR         A64_V    00000100 tszh:2 1 tszl:2 imm3:3 001101 zm:5 zdn:5 \
 !constraints { !($tszh == 0 && $tszl == 0); }
