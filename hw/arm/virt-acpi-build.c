@@ -51,6 +51,10 @@
 #include "migration/vmstate.h"
 #include "hw/acpi/ghes.h"
 
+#include "hw/arm/virt.h"
+#include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_bridge.h"
+#include "hw/pci/pcie_host.h"
 #define ARM_SPI_BASE 32
 
 static void acpi_dsdt_add_cpus(Aml *scope, int smp_cpus)
@@ -268,19 +272,80 @@ static void acpi_dsdt_add_pci_osc(Aml *dev, Aml *scope)
 }
 
 static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
-                              uint32_t irq, bool use_highmem, bool highmem_ecam)
+                              uint32_t irq, bool use_highmem, bool highmem_ecam,
+                              VirtMachineState *vms)
 {
     int ecam_id = VIRT_ECAM_ID(highmem_ecam);
-    Aml *method, *crs;
+    int i;
+    Aml *method, *crs, *dev_pxb;
     hwaddr base_mmio = memmap[VIRT_PCIE_MMIO].base;
     hwaddr size_mmio = memmap[VIRT_PCIE_MMIO].size;
     hwaddr base_pio = memmap[VIRT_PCIE_PIO].base;
     hwaddr size_pio = memmap[VIRT_PCIE_PIO].size;
     hwaddr base_ecam = memmap[ecam_id].base;
     hwaddr size_ecam = memmap[ecam_id].size;
+    CrsRangeEntry *entry;
+    CrsRangeSet crs_range_set;
+
+    crs_range_set_init(&crs_range_set);
     int nr_pcie_buses = size_ecam / PCIE_MMCFG_SIZE_MIN;
 
     Aml *dev = aml_device("%s", "PCI0");
+    PCIHostState *s = PCI_GET_PCIE_HOST_STATE;
+
+    PCIBus *bus = s->bus;
+    /* start to construct the tables for pxb */
+    if (bus) {
+        QLIST_FOREACH(bus, &bus->child, sibling) {
+            uint8_t bus_num = pci_bus_num(bus);
+            uint8_t numa_node = pci_bus_numa_node(bus);
+
+            if (!pci_bus_is_root(bus)) {
+                continue;
+            }
+            /*
+             * 0 - (nr_pcie_buses - 1) is the bus range for the main
+             * host-bridge and it equals the MIN of the
+             * busNr defined for pxb-pcie.
+             */
+            if (bus_num < nr_pcie_buses) {
+                nr_pcie_buses = bus_num;
+            }
+
+            dev_pxb = aml_device("PC%.02X", bus_num);
+            aml_append(dev_pxb, aml_name_decl("_HID", aml_string("PNP0A08")));
+            aml_append(dev_pxb, aml_name_decl("_CID", aml_string("PNP0A03")));
+            aml_append(dev_pxb, aml_name_decl("_ADR", aml_int(0)));
+            aml_append(dev_pxb, aml_name_decl("_CCA", aml_int(1)));
+            aml_append(dev_pxb, aml_name_decl("_SEG", aml_int(0)));
+            aml_append(dev_pxb, aml_name_decl("_BBN", aml_int(bus_num)));
+            aml_append(dev_pxb, aml_name_decl("_UID", aml_int(bus_num)));
+            aml_append(dev_pxb,
+                       aml_name_decl("_STR", aml_unicode("pxb Device")));
+            if (numa_node != NUMA_NODE_UNASSIGNED) {
+                method = aml_method("_PXM", 0, AML_NOTSERIALIZED);
+                aml_append(method, aml_return(aml_int(numa_node)));
+                aml_append(dev_pxb, method);
+            }
+
+            acpi_dsdt_add_pci_route_table(dev_pxb, scope, irq);
+
+            /*
+             * Resources defined for PXBs are composed by the folling parts:
+             * 1. The resources the pci-brige/pcie-root-port need.
+             * 2. The resources the devices behind pxb need.
+             */
+            crs = build_crs(PCI_HOST_BRIDGE(BUS(bus)->parent), &crs_range_set);
+            aml_append(dev_pxb, aml_name_decl("_CRS", crs));
+
+            acpi_dsdt_add_pci_osc(dev_pxb, scope);
+
+            aml_append(scope, dev_pxb);
+
+        }
+    }
+
+    /* tables for the main */
     aml_append(dev, aml_name_decl("_HID", aml_string("PNP0A08")));
     aml_append(dev, aml_name_decl("_CID", aml_string("PNP0A03")));
     aml_append(dev, aml_name_decl("_SEG", aml_int(0)));
@@ -301,25 +366,51 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
         aml_word_bus_number(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
                             0x0000, 0x0000, nr_pcie_buses - 1, 0x0000,
                             nr_pcie_buses));
-    aml_append(rbuf,
-        aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                         AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000, base_mmio,
-                         base_mmio + size_mmio - 1, 0x0000, size_mmio));
-    aml_append(rbuf,
-        aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
-                     AML_ENTIRE_RANGE, 0x0000, 0x0000, size_pio - 1, base_pio,
-                     size_pio));
+
+    /*
+     * Remove the resources used by PXBs.
+     */
+    crs_replace_with_free_ranges(crs_range_set.mem_ranges,
+                                 base_mmio,
+                                 base_mmio + size_mmio - 1);
+    for (i = 0; i < crs_range_set.mem_ranges->len; i++) {
+        entry = g_ptr_array_index(crs_range_set.mem_ranges, i);
+        aml_append(rbuf,
+            aml_dword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                             AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
+                             entry->base, entry->limit,
+                             0x0000, entry->limit - entry->base + 1));
+    }
+
+    crs_replace_with_free_ranges(crs_range_set.io_ranges,
+                                 0x0000,
+                                 size_pio - 1);
+    for (i = 0; i < crs_range_set.io_ranges->len; i++) {
+        entry = g_ptr_array_index(crs_range_set.io_ranges, i);
+        aml_append(rbuf,
+            aml_dword_io(AML_MIN_FIXED, AML_MAX_FIXED, AML_POS_DECODE,
+                         AML_ENTIRE_RANGE, 0x0000, entry->base,
+                         entry->limit, base_pio,
+                         entry->limit - entry->base + 1));
+    }
+
 
     if (use_highmem) {
         hwaddr base_mmio_high = memmap[VIRT_HIGH_PCIE_MMIO].base;
         hwaddr size_mmio_high = memmap[VIRT_HIGH_PCIE_MMIO].size;
 
-        aml_append(rbuf,
-            aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
-                             AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
-                             base_mmio_high,
-                             base_mmio_high + size_mmio_high - 1, 0x0000,
-                             size_mmio_high));
+        crs_replace_with_free_ranges(crs_range_set.mem_64bit_ranges,
+                                     base_mmio_high,
+                                     base_mmio_high + size_mmio_high - 1);
+        for (i = 0; i < crs_range_set.mem_64bit_ranges->len; i++) {
+            entry = g_ptr_array_index(crs_range_set.mem_64bit_ranges, i);
+            aml_append(rbuf,
+                aml_qword_memory(AML_POS_DECODE, AML_MIN_FIXED, AML_MAX_FIXED,
+                                 AML_NON_CACHEABLE, AML_READ_WRITE, 0x0000,
+                                 entry->base,
+                                 entry->limit, 0x0000,
+                                 entry->limit - entry->base + 1));
+        }
     }
 
     aml_append(method, aml_return(rbuf));
@@ -337,6 +428,8 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
     aml_append(dev_res0, aml_name_decl("_CRS", crs));
     aml_append(dev, dev_res0);
     aml_append(scope, dev);
+
+    crs_range_set_free(&crs_range_set);
 }
 
 static void acpi_dsdt_add_gpio(Aml *scope, const MemMapEntry *gpio_memmap,
@@ -748,7 +841,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker, VirtMachineState *vms)
     acpi_dsdt_add_virtio(scope, &memmap[VIRT_MMIO],
                     (irqmap[VIRT_MMIO] + ARM_SPI_BASE), NUM_VIRTIO_TRANSPORTS);
     acpi_dsdt_add_pci(scope, memmap, (irqmap[VIRT_PCIE] + ARM_SPI_BASE),
-                      vms->highmem, vms->highmem_ecam);
+                      vms->highmem, vms->highmem_ecam, vms);
     if (vms->acpi_dev) {
         build_ged_aml(scope, "\\_SB."GED_DEVICE,
                       HOTPLUG_HANDLER(vms->acpi_dev),
