@@ -66,6 +66,92 @@ SQDMLSLT    A64_V    01000100 size:2 0 zm:5 0110 11 zn:5 zda:5 \
 SQRDMLAH    A64_V    01000100 size:2 0 zm:5 01110 0 zn:5 zda:5
 SQRDMLSH    A64_V    01000100 size:2 0 zm:5 01110 1 zn:5 zda:5
 
+# Multiply (Indexed)
+## integer multiply-add (indexed)
+MLA_H       A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 00001 0 zn:5 zda:5
+MLS_H       A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 00001 1 zn:5 zda:5
+
+MLA_S       A64_V    01000100 1 0 1 i2:2 zm:3 00001 0 zn:5 zda:5
+MLS_S       A64_V    01000100 1 0 1 i2:2 zm:3 00001 1 zn:5 zda:5
+
+MLA_D       A64_V    01000100 1 1 1 i1:1 zm:4 00001 0 zn:5 zda:5
+MLS_D       A64_V    01000100 1 1 1 i1:1 zm:4 00001 1 zn:5 zda:5
+## saturating multiply-add high (indexed)
+SQRDMLAH_H  A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 00010 0 zn:5 zda:5
+SQRDMLSH_H  A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 00010 1 zn:5 zda:5
+
+SQRDMLAH_S  A64_V    01000100 1 0 1 i2:2 zm:3 00010 0 zn:5 zda:5
+SQRDMLSH_S  A64_V    01000100 1 0 1 i2:2 zm:3 00010 1 zn:5 zda:5
+
+SQRDMLAH_D  A64_V    01000100 1 1 1 i1:1 zm:4 00010 0 zn:5 zda:5
+SQRDMLSH_D  A64_V    01000100 1 1 1 i1:1 zm:4 00010 1 zn:5 zda:5
+## saturating multiply-add (indexed)
+SQDMLALB_S  A64_V    01000100 1 0 1 i3h:2 zm:3 001 0 i3l:1 0 zn:5 zda:5
+SQDMLALT_S  A64_V    01000100 1 0 1 i3h:2 zm:3 001 0 i3l:1 1 zn:5 zda:5
+SQDMLSLB_S  A64_V    01000100 1 0 1 i3h:2 zm:3 001 1 i3l:1 0 zn:5 zda:5
+SQDMLSLT_S  A64_V    01000100 1 0 1 i3h:2 zm:3 001 1 i3l:1 1 zn:5 zda:5
+
+SQDMLALB_D  A64_V    01000100 1 1 1 i2h:1 zm:4 001 0 i2l:1 0 zn:5 zda:5
+SQDMLALT_D  A64_V    01000100 1 1 1 i2h:1 zm:4 001 0 i2l:1 1 zn:5 zda:5
+SQDMLSLB_D  A64_V    01000100 1 1 1 i2h:1 zm:4 001 1 i2l:1 0 zn:5 zda:5
+SQDMLSLT_D  A64_V    01000100 1 1 1 i2h:1 zm:4 001 1 i2l:1 1 zn:5 zda:5
+## complex integer dot product (indexed)
+CDOT_S      A64_V    01000100 1 0 1 i2:2 zm:3 0100 rot:2 zn:5 zda:5
+CDOT_D      A64_V    01000100 1 1 1 i1:1 zm:4 0100 rot:2 zn:5 zda:5
+## complex integer multiply-add (indexed)
+CMLA_S      A64_V    01000100 1 0 1 i2:2 zm:3 0110 rot:2 zn:5 zda:5
+CMLA_D      A64_V    01000100 1 1 1 i1:1 zm:4 0110 rot:2 zn:5 zda:5
+## complex saturating multiply-add (indexed)
+SQRDCMLAH_H A64_V    01000100 1 0 1 i2:2 zm:3 0111 rot:2 zn:5 zda:5
+SQRDCMLAH_S A64_V    01000100 1 1 1 i1:1 zm:4 0111 rot:2 zn:5 zda:5
+## integer multiply-add long (indexed)
+SMLALB_S    A64_V    01000100 101 i3h:2 zm:3 1000 i3l:1 0 zn:5 zda:5
+SMLALT_S    A64_V    01000100 101 i3h:2 zm:3 1000 i3l:1 1 zn:5 zda:5
+UMLALB_S    A64_V    01000100 101 i3h:2 zm:3 1001 i3l:1 0 zn:5 zda:5
+UMLALT_S    A64_V    01000100 101 i3h:2 zm:3 1001 i3l:1 1 zn:5 zda:5
+SMLSLB_S    A64_V    01000100 101 i3h:2 zm:3 1010 i3l:1 0 zn:5 zda:5
+SMLSLT_S    A64_V    01000100 101 i3h:2 zm:3 1010 i3l:1 1 zn:5 zda:5
+UMLSLB_S    A64_V    01000100 101 i3h:2 zm:3 1011 i3l:1 0 zn:5 zda:5
+UMLSLT_S    A64_V    01000100 101 i3h:2 zm:3 1011 i3l:1 1 zn:5 zda:5
+
+SMLALB_D    A64_V    01000100 111 i2h:1 zm:4 1000 i2l:1 0 zn:5 zda:5
+SMLALT_D    A64_V    01000100 111 i2h:1 zm:4 1000 i2l:1 1 zn:5 zda:5
+UMLALB_D    A64_V    01000100 111 i2h:1 zm:4 1001 i2l:1 0 zn:5 zda:5
+UMLALT_D    A64_V    01000100 111 i2h:1 zm:4 1001 i2l:1 1 zn:5 zda:5
+SMLSLB_D    A64_V    01000100 111 i2h:1 zm:4 1010 i2l:1 0 zn:5 zda:5
+SMLSLT_D    A64_V    01000100 111 i2h:1 zm:4 1010 i2l:1 1 zn:5 zda:5
+UMLSLB_D    A64_V    01000100 111 i2h:1 zm:4 1011 i2l:1 0 zn:5 zda:5
+UMLSLT_D    A64_V    01000100 111 i2h:1 zm:4 1011 i2l:1 1 zn:5 zda:5
+## integer multiply long (indexed)
+SMULLB_S    A64_V    01000100 101 i3h:2 zm:3 1100 i3l:1 0 zn:5 zd:5
+SMULLT_S    A64_V    01000100 101 i3h:2 zm:3 1100 i3l:1 1 zn:5 zd:5
+UMULLB_S    A64_V    01000100 101 i3h:2 zm:3 1101 i3l:1 0 zn:5 zd:5
+UMULLT_S    A64_V    01000100 101 i3h:2 zm:3 1101 i3l:1 1 zn:5 zd:5
+
+SMULLB_D    A64_V    01000100 111 i2h:1 zm:4 1100 i2l:1 0 zn:5 zd:5
+SMULLT_D    A64_V    01000100 111 i2h:1 zm:4 1100 i2l:1 1 zn:5 zd:5
+UMULLB_D    A64_V    01000100 111 i2h:1 zm:4 1101 i2l:1 0 zn:5 zd:5
+UMULLT_D    A64_V    01000100 111 i2h:1 zm:4 1101 i2l:1 1 zn:5 zd:5
+## saturating multiply (indexed)
+SQDMULLB_S  A64_V    01000100 101 i3h:2 zm:3 1110 i3l:1 0 zn:5 zd:5
+SQDMULLT_S  A64_V    01000100 101 i3h:2 zm:3 1110 i3l:1 1 zn:5 zd:5
+
+SQDMULLB_D  A64_V    01000100 111 i2h:1 zm:4 1110 i2l:1 0 zn:5 zd:5
+SQDMULLT_D  A64_V    01000100 111 i2h:1 zm:4 1110 i2l:1 1 zn:5 zd:5
+## saturating multiply high (indexed)
+SQDMULH_H   A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 11110 0 zn:5 zd:5
+SQRDMULH_H  A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 11110 1 zn:5 zd:5
+
+SQDMULH_S   A64_V    01000100 101 i2:2 zm:3 11110 0 zn:5 zd:5
+SQRDMULH_S  A64_V    01000100 101 i2:2 zm:3 11110 1 zn:5 zd:5
+
+SQDMULH_D   A64_V    01000100 111 i1:1 zm:4 11110 0 zn:5 zd:5
+SQRDMULH_D  A64_V    01000100 111 i1:1 zm:4 11110 1 zn:5 zd:5
+## integer multiply (indexed)
+MUL_H       A64_V    01000100 0 i3h:1 1 i3l:2 zm:3 111110 zn:5 zd:5
+MUL_S       A64_V    01000100 101        i2:2 zm:3 111110 zn:5 zd:5
+MUL_D       A64_V    01000100 111        i1:1 zm:4 111110 zn:5 zd:5
+
 # Integer Multiply (Unpredicated)
 ## integer multiply vectors (unpredicated)
 MUL         A64_V    00000100 size:2 1 zm:5 0110 00 zn:5 zd:5
