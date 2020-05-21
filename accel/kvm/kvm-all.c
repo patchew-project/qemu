@@ -39,7 +39,6 @@
 #include "qemu/main-loop.h"
 #include "trace.h"
 #include "hw/irq.h"
-#include "sysemu/sev.h"
 #include "sysemu/balloon.h"
 #include "qapi/visitor.h"
 #include "qapi/qapi-types-common.h"
@@ -2104,8 +2103,21 @@ static int kvm_init(MachineState *ms)
      * encryption context.
      */
     if (ms->memory_encryption) {
-        kvm_state->guest_memory_protection = sev_guest_init(ms->memory_encryption);
-        if (!kvm_state->guest_memory_protection) {
+        Object *obj = object_resolve_path_component(object_get_objects_root(),
+                                                    ms->memory_encryption);
+
+        if (object_dynamic_cast(obj, TYPE_GUEST_MEMORY_PROTECTION)) {
+            GuestMemoryProtection *gmpo = GUEST_MEMORY_PROTECTION(obj);
+            GuestMemoryProtectionClass *gmpc =
+                GUEST_MEMORY_PROTECTION_GET_CLASS(gmpo);
+
+            ret = gmpc->kvm_init(gmpo);
+            if (ret < 0) {
+                goto err;
+            }
+
+            kvm_state->guest_memory_protection = gmpo;
+        } else {
             ret = -1;
             goto err;
         }

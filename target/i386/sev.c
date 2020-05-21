@@ -300,26 +300,6 @@ sev_guest_instance_init(Object *obj)
                                    OBJ_PROP_FLAG_READWRITE);
 }
 
-static SevGuestState *
-lookup_sev_guest_info(const char *id)
-{
-    Object *obj;
-    SevGuestState *info;
-
-    obj = object_resolve_path_component(object_get_objects_root(), id);
-    if (!obj) {
-        return NULL;
-    }
-
-    info = (SevGuestState *)
-            object_dynamic_cast(obj, TYPE_SEV_GUEST);
-    if (!info) {
-        return NULL;
-    }
-
-    return info;
-}
-
 bool
 sev_enabled(void)
 {
@@ -637,22 +617,14 @@ sev_vm_state_change(void *opaque, int running, RunState state)
     }
 }
 
-GuestMemoryProtection *
-sev_guest_init(const char *id)
+static int sev_kvm_init(GuestMemoryProtection *gmpo)
 {
-    SevGuestState *sev;
+    SevGuestState *sev = SEV_GUEST(gmpo);
     char *devname;
     int ret, fw_error;
     uint32_t ebx;
     uint32_t host_cbitpos;
     struct sev_user_data_status status = {};
-
-    sev = lookup_sev_guest_info(id);
-    if (!sev) {
-        error_report("%s: '%s' is not a valid '%s' object",
-                     __func__, id, TYPE_SEV_GUEST);
-        goto err;
-    }
 
     sev_guest = sev;
     sev->state = SEV_STATE_UNINIT;
@@ -715,10 +687,10 @@ sev_guest_init(const char *id)
     qemu_add_machine_init_done_notifier(&sev_machine_done_notify);
     qemu_add_vm_change_state_handler(sev_vm_state_change, sev);
 
-    return GUEST_MEMORY_PROTECTION(sev);
+    return 0;
 err:
     sev_guest = NULL;
-    return NULL;
+    return -1;
 }
 
 static int
@@ -757,6 +729,7 @@ sev_guest_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "session-file",
         "guest owners session parameters (encoded with base64)");
 
+    gmpc->kvm_init = sev_kvm_init;
     gmpc->encrypt_data = sev_encrypt_data;
 }
 
