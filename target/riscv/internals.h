@@ -35,4 +35,10 @@ bool riscv_cpu_set_rounding_mode(CPURISCVState *env, uint32_t rm);
 target_ulong fclass_h(uint64_t frs1);
 target_ulong fclass_s(uint64_t frs1);
 target_ulong fclass_d(uint64_t frs1);
+
+#define SEW8  0
+#define SEW16 1
+#define SEW32 2
+#define SEW64 3
+
 #endif
