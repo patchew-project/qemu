@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
+#include "exec/guest-memory-protection.h"
 
 GlobalProperty hw_compat_5_0[] = {};
 const size_t hw_compat_5_0_len = G_N_ELEMENTS(hw_compat_5_0);
@@ -419,16 +420,37 @@ static char *machine_get_memory_encryption(Object *obj, Error **errp)
 {
     MachineState *ms = MACHINE(obj);
 
-    return g_strdup(ms->memory_encryption);
+    if (ms->gmpo) {
+        return object_get_canonical_path_component(OBJECT(ms->gmpo));
+    }
+
+    return NULL;
 }
 
 static void machine_set_memory_encryption(Object *obj, const char *value,
                                         Error **errp)
 {
-    MachineState *ms = MACHINE(obj);
+    Object *gmpo =
+        object_resolve_path_component(object_get_objects_root(), value);
 
-    g_free(ms->memory_encryption);
-    ms->memory_encryption = g_strdup(value);
+    if (!gmpo) {
+        error_setg(errp, "No such memory encryption object '%s'", value);
+        return;
+    }
+
+    object_property_set_link(obj, gmpo, "guest-memory-protection", errp);
+}
+
+static void machine_check_guest_memory_protection(const Object *obj,
+                                                  const char *name,
+                                                  Object *new_target,
+                                                  Error **errp)
+{
+    /*
+     * So far the only constraint is that the target has the
+     * TYPE_GUEST_MEMORY_PROTECTION interface, and that's checked by
+     * the QOM core
+     */
 }
 
 static bool machine_get_nvdimm(Object *obj, Error **errp)
@@ -849,6 +871,15 @@ static void machine_class_init(ObjectClass *oc, void *data)
     object_class_property_set_description(oc, "enforce-config-section",
         "Set on to enforce configuration section migration");
 
+    object_class_property_add_link(oc, "guest-memory-protection",
+                                   TYPE_GUEST_MEMORY_PROTECTION,
+                                   offsetof(MachineState, gmpo),
+                                   machine_check_guest_memory_protection,
+                                   OBJ_PROP_LINK_STRONG);
+    object_class_property_set_description(oc, "guest-memory-protection",
+        "Set guest memory protection object to use");
+
+    /* For compatibility */
     object_class_property_add_str(oc, "memory-encryption",
         machine_get_memory_encryption, machine_set_memory_encryption);
     object_class_property_set_description(oc, "memory-encryption",
@@ -1121,7 +1152,7 @@ void machine_run_board_init(MachineState *machine)
         }
     }
 
-    if (machine->memory_encryption) {
+    if (machine->gmpo) {
         /*
          * With guest memory protection, the host can't see the real
          * contents of RAM, so there's no point in it trying to merge

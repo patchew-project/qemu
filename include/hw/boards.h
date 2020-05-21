@@ -12,6 +12,8 @@
 #include "qom/object.h"
 #include "hw/core/cpu.h"
 
+typedef struct GuestMemoryProtection GuestMemoryProtection;
+
 #define TYPE_MACHINE_SUFFIX "-machine"
 
 /* Machine class name that needs to be used for class-name-based machine
@@ -277,7 +279,7 @@ struct MachineState {
     bool suppress_vmdesc;
     bool enforce_config_section;
     bool enable_graphics;
-    char *memory_encryption;
+    GuestMemoryProtection *gmpo;
     char *ram_memdev_id;
     /*
      * convenience alias to ram_memdev_id backend memory region

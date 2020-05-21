@@ -2102,25 +2102,16 @@ static int kvm_init(MachineState *ms)
      * if memory encryption object is specified then initialize the memory
      * encryption context.
      */
-    if (ms->memory_encryption) {
-        Object *obj = object_resolve_path_component(object_get_objects_root(),
-                                                    ms->memory_encryption);
+    if (ms->gmpo) {
+        GuestMemoryProtectionClass *gmpc =
+            GUEST_MEMORY_PROTECTION_GET_CLASS(ms->gmpo);
 
-        if (object_dynamic_cast(obj, TYPE_GUEST_MEMORY_PROTECTION)) {
-            GuestMemoryProtection *gmpo = GUEST_MEMORY_PROTECTION(obj);
-            GuestMemoryProtectionClass *gmpc =
-                GUEST_MEMORY_PROTECTION_GET_CLASS(gmpo);
-
-            ret = gmpc->kvm_init(gmpo);
-            if (ret < 0) {
-                goto err;
-            }
-
-            kvm_state->guest_memory_protection = gmpo;
-        } else {
-            ret = -1;
+        ret = gmpc->kvm_init(ms->gmpo);
+        if (ret < 0) {
             goto err;
         }
+
+        kvm_state->guest_memory_protection = ms->gmpo;
     }
 
     ret = kvm_arch_init(ms, s);
