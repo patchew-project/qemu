@@ -2072,6 +2072,7 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
                          image_name, (uint64_t)guest_hiaddr, reserved_va);
             exit(EXIT_FAILURE);
         }
+#if HOST_LONG_BITS == 32
     } else {
         if ((guest_hiaddr - guest_base) > ~(uintptr_t)0) {
             error_report("%s: requires more virtual address space "
@@ -2079,6 +2080,7 @@ static void pgb_have_guest_base(const char *image_name, abi_ulong guest_loaddr,
                          image_name, (uint64_t)guest_hiaddr - guest_base);
             exit(EXIT_FAILURE);
         }
+#endif
     }
 
     /*
