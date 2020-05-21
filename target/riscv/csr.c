@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "qemu/main-loop.h"
 #include "exec/exec-all.h"
+#include "internals.h"
 
 /* CSR function table */
 static riscv_csr_operations csr_ops[];
@@ -174,6 +175,9 @@ static int write_frm(CPURISCVState *env, int csrno, target_ulong val)
     env->mstatus |= MSTATUS_FS;
 #endif
     env->frm = val & (FSR_RD >> FSR_RD_SHIFT);
+    if (!riscv_cpu_set_rounding_mode(env, env->frm)) {
+        return -1;
+    }
     return 0;
 }
 
@@ -207,6 +211,9 @@ static int write_fcsr(CPURISCVState *env, int csrno, target_ulong val)
         env->vxsat = (val & FSR_VXSAT) >> FSR_VXSAT_SHIFT;
     }
     riscv_cpu_set_fflags(env, (val & FSR_AEXC) >> FSR_AEXC_SHIFT);
+    if (!riscv_cpu_set_rounding_mode(env, env->frm)) {
+        return -1;
+    }
     return 0;
 }
 

@@ -50,13 +50,10 @@ void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong hard)
     set_float_exception_flags(soft, &env->fp_status);
 }
 
-void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
+bool riscv_cpu_set_rounding_mode(CPURISCVState *env, uint32_t rm)
 {
     int softrm;
 
-    if (rm == 7) {
-        rm = env->frm;
-    }
     switch (rm) {
     case 0:
         softrm = float_round_nearest_even;
@@ -74,10 +71,22 @@ void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
         softrm = float_round_ties_away;
         break;
     default:
-        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+        return false;
     }
 
     set_float_rounding_mode(softrm, &env->fp_status);
+    return true;
+}
+
+void helper_set_rounding_mode(CPURISCVState *env, uint32_t rm)
+{
+    if (rm == 7) {
+        rm = env->frm;
+    }
+
+    if (!riscv_cpu_set_rounding_mode(env, rm)) {
+        riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
+    }
 }
 
 uint64_t helper_fmadd_s(CPURISCVState *env, uint64_t frs1, uint64_t frs2,

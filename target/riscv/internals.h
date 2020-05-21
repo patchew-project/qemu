@@ -27,4 +27,7 @@ FIELD(VDATA, VM, 8, 1)
 FIELD(VDATA, LMUL, 9, 2)
 FIELD(VDATA, NF, 11, 4)
 FIELD(VDATA, WD, 11, 1)
+
+/* set float rounding mode */
+bool riscv_cpu_set_rounding_mode(CPURISCVState *env, uint32_t rm);
 #endif
