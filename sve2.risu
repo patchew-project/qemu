@@ -25,6 +25,47 @@ URSHR       A64_V    00000100 tszh:2 00 1101 100 pg:3 tszl:2 imm3:3 zdn:5 \
 SQSHLU      A64_V    00000100 tszh:2 00 1111 100 pg:3 tszl:2 imm3:3 zdn:5 \
 !constraints { !($tszh == 0 && $tszl == 0); }
 
+# Integer Multiply-Add (Unpredicated)
+CDOT        A64_V    01000100 size:2 0 zm:5 0001 rot:2 zn:5 zda:5 \
+!constraints { $size > 1; }
+## saturating multiply-add interleaved long
+SQDMLALBT   A64_V    01000100 size:2 0 zm:5 00001 0 zn:5 zda:5 \
+!constraints { $size != 0; }
+SQDMLSLBT   A64_V    01000100 size:2 0 zm:5 00001 1 zn:5 zda:5 \
+!constraints { $size != 0; }
+## complex integer multiply-add
+CMLA        A64_V    01000100 size:2 0 zm:5 001 0 rot:2 zn:5 zda:5
+SQRDCMLAH   A64_V    01000100 size:2 0 zm:5 001 1 rot:2 zn:5 zda:5
+## integer multiply-add long
+SMLALB      A64_V    01000100 size:2 0 zm:5 010 000 zn:5 zda:5 \
+!constraints { $size != 0; }
+SMLALT      A64_V    01000100 size:2 0 zm:5 010 001 zn:5 zda:5 \
+!constraints { $size != 0; }
+UMLALB      A64_V    01000100 size:2 0 zm:5 010 010 zn:5 zda:5 \
+!constraints { $size != 0; }
+UMLALT      A64_V    01000100 size:2 0 zm:5 010 011 zn:5 zda:5 \
+!constraints { $size != 0; }
+SMLSLB      A64_V    01000100 size:2 0 zm:5 010 100 zn:5 zda:5 \
+!constraints { $size != 0; }
+SMLSLT      A64_V    01000100 size:2 0 zm:5 010 101 zn:5 zda:5 \
+!constraints { $size != 0; }
+UMLSLB      A64_V    01000100 size:2 0 zm:5 010 110 zn:5 zda:5 \
+!constraints { $size != 0; }
+UMLSLT      A64_V    01000100 size:2 0 zm:5 010 111 zn:5 zda:5 \
+!constraints { $size != 0; }
+## saturating multiply-add long
+SQDMLALB    A64_V    01000100 size:2 0 zm:5 0110 00 zn:5 zda:5 \
+!constraints { $size != 0; }
+SQDMLALT    A64_V    01000100 size:2 0 zm:5 0110 01 zn:5 zda:5 \
+!constraints { $size != 0; }
+SQDMLSLB    A64_V    01000100 size:2 0 zm:5 0110 10 zn:5 zda:5 \
+!constraints { $size != 0; }
+SQDMLSLT    A64_V    01000100 size:2 0 zm:5 0110 11 zn:5 zda:5 \
+!constraints { $size != 0; }
+## saturating multiply-add high
+SQRDMLAH    A64_V    01000100 size:2 0 zm:5 01110 0 zn:5 zda:5
+SQRDMLSH    A64_V    01000100 size:2 0 zm:5 01110 1 zn:5 zda:5
+
 # Integer Multiply (Unpredicated)
 ## integer multiply vectors (unpredicated)
 MUL         A64_V    00000100 size:2 1 zm:5 0110 00 zn:5 zd:5
