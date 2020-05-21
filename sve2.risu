@@ -297,6 +297,13 @@ SM4E        A64_V    01000101 00 10001 1 11100 0 zm:5 zdn:5
 SM4EKEY     A64_V    01000101 00 1 zm:5 11110 0 zn:5 zd:5
 RAX1        A64_V    01000101 00 1 zm:5 11110 1 zn:5 zd:5
 
+# Floating Point Convert Precision Odd Elements
+FCVTXNT     A64_V    01100100 00 0010 10 101 pg:3 zn:5 zd:5
+FCVTNT_SH   A64_V    01100100 10 0010 00 101 pg:3 zn:5 zd:5
+FCVTLT_HS   A64_V    01100100 10 0010 01 101 pg:3 zn:5 zd:5
+FCVTNT_DS   A64_V    01100100 11 0010 10 101 pg:3 zn:5 zd:5
+FCVTLT_SD   A64_V    01100100 11 0010 11 101 pg:3 zn:5 zd:5
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
