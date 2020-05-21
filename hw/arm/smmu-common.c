@@ -224,7 +224,7 @@ static int smmu_ptw_64(SMMUTransCfg *cfg,
     granule_sz = tt->granule_sz;
     stride = granule_sz - 3;
     inputsize = 64 - tt->tsz;
-    level = 4 - (inputsize - 4) / stride;
+    level = tt->starting_level;
     indexmask = (1ULL << (inputsize - (stride * (4 - level)))) - 1;
     baseaddr = extract64(tt->ttb, 0, 48);
     baseaddr &= ~indexmask;

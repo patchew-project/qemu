@@ -50,6 +50,7 @@ typedef struct SMMUTransTableInfo {
     uint64_t ttb;              /* TT base address */
     uint8_t tsz;               /* input range, ie. 2^(64 -tsz)*/
     uint8_t granule_sz;        /* granule page shift */
+    uint8_t starting_level;    /* starting level */
 } SMMUTransTableInfo;
 
 struct SMMUTLBEntry {
