@@ -2079,9 +2079,11 @@ static int kvm_init(MachineState *ms)
     if (ms->gmpo) {
         GuestMemoryProtectionClass *gmpc =
             GUEST_MEMORY_PROTECTION_GET_CLASS(ms->gmpo);
+        Error *local_err = NULL;
 
-        ret = gmpc->kvm_init(ms->gmpo);
+        ret = gmpc->kvm_init(ms->gmpo, &local_err);
         if (ret < 0) {
+            error_report_err(local_err);
             goto err;
         }
     }
