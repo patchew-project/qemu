@@ -494,3 +494,23 @@ FMLALB_vec  A64_V    011001001 01 zm:5 100 000 zn:5 zda:5
 FMLALT_vec  A64_V    011001001 01 zm:5 100 001 zn:5 zda:5
 FMLSLB_vec  A64_V    011001001 01 zm:5 101 000 zn:5 zda:5
 FMLSLT_vec  A64_V    011001001 01 zm:5 101 001 zn:5 zda:5
+
+# 32-Bit Gather
+## 32-bit gather non-temporal load (scalar plus 32-bit unscaled offsets)
+LDNT1SB_32  A64_V    1000010 00 00 rm:5 100 pg:3 zn:5 zt:5
+LDNT1B_32   A64_V    1000010 00 00 rm:5 101 pg:3 zn:5 zt:5
+LDNT1SH_32  A64_V    1000010 01 00 rm:5 100 pg:3 zn:5 zt:5
+LDNT1H_32   A64_V    1000010 01 00 rm:5 101 pg:3 zn:5 zt:5
+LDNT1W_32   A64_V    1000010 10 00 rm:5 101 pg:3 zn:5 zt:5
+
+# 64-Bit Gather
+## 64-bit gather non-temporal load
+##  (scalar plus unpacked 32-bit unscaled offsets)
+LDNT1SB_64  A64_V    1100010 00 00 rm:5 100 pg:3 zn:5 zt:5
+LDNT1B_64   A64_V    1100010 00 00 rm:5 110 pg:3 zn:5 zt:5
+LDNT1SH_64  A64_V    1100010 01 00 rm:5 100 pg:3 zn:5 zt:5
+LDNT1H_64   A64_V    1100010 01 00 rm:5 110 pg:3 zn:5 zt:5
+LDNT1SW_64  A64_V    1100010 10 00 rm:5 100 pg:3 zn:5 zt:5
+LDNT1W_64   A64_V    1100010 10 00 rm:5 110 pg:3 zn:5 zt:5
+LDNT1D_64   A64_V    1100010 11 00 rm:5 110 pg:3 zn:5 zt:5
+
