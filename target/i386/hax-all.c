@@ -498,7 +498,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
     if (((cpu->interrupt_request & CPU_INTERRUPT_HARD) &&
          (env->eflags & IF_MASK)) ||
         (cpu->interrupt_request & CPU_INTERRUPT_NMI)) {
-        cpu->halted = 0;
+        cpu_halted_set(cpu, 0);
     }
 
     if (cpu->interrupt_request & CPU_INTERRUPT_INIT) {
@@ -516,7 +516,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
         hax_vcpu_sync_state(env, 1);
     }
 
-    if (cpu->halted) {
+    if (cpu_halted(cpu)) {
         /* If this vcpu is halted, we must not ask HAXM to run it. Instead, we
          * break out of hax_smp_cpu_exec() as if this vcpu had executed HLT.
          * That way, this vcpu thread will be trapped in qemu_wait_io_event(),
@@ -581,7 +581,7 @@ static int hax_vcpu_hax_exec(CPUArchState *env)
                 !(cpu->interrupt_request & CPU_INTERRUPT_NMI)) {
                 /* hlt instruction with interrupt disabled is shutdown */
                 env->eflags |= IF_MASK;
-                cpu->halted = 1;
+                cpu_halted_set(cpu, 1);
                 cpu->exception_index = EXCP_HLT;
                 ret = 1;
             }
