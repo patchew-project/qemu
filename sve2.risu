@@ -272,6 +272,18 @@ HISTSEG     A64_V    01000101 size:2 1 zm:5 101000 zn:5 zd:5 \
 HISTCNT     A64_V    01000101 size:2 1 zm:5 110 pg:3 zn:5 zd:5 \
 !constraints { $size > 1; }
 
+# Crypto Extensions
+## crypto unary operations
+AESMC       A64_V    01000101 size:2 10000011100 0 00000 zdn:5
+AESIMC      A64_V    01000101 size:2 10000011100 1 00000 zdn:5
+## crypto destructive binary operations
+AESE        A64_V    01000101 00 10001 0 11100 0 zm:5 zdn:5
+AESD        A64_V    01000101 00 10001 0 11100 1 zm:5 zdn:5
+SM4E        A64_V    01000101 00 10001 1 11100 0 zm:5 zdn:5
+## crypto constructive binary operations
+SM4EKEY     A64_V    01000101 00 1 zm:5 11110 0 zn:5 zd:5
+RAX1        A64_V    01000101 00 1 zm:5 11110 1 zn:5 zd:5
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
