@@ -480,3 +480,17 @@ WHILEHS     A64_V    00100101 size:2 1 rm:5 000 sf:1 10 rn:5 0 pd:4
 ## pointer conflict compare
 WHILEWR     A64_V    00100101 size:2 1 rm:5 001100 rn:5 0 pd:4
 WHILERW     A64_V    00100101 size:2 1 rm:5 001100 rn:5 1 pd:4
+
+# Floating Point Widening Multiply-Add (Indexed)
+## floating-point multiply-add long (indexed)
+FMLALB_idx  A64_V    011001001 01 i3h:2 zm:3 0100 i3l:1 0 zn:5 zda:5
+FMLALT_idx  A64_V    011001001 01 i3h:2 zm:3 0100 i3l:1 1 zn:5 zda:5
+FMLSLB_idx  A64_V    011001001 01 i3h:2 zm:3 0110 i3l:1 0 zn:5 zda:5
+FMLSLT_idx  A64_V    011001001 01 i3h:2 zm:3 0110 i3l:1 1 zn:5 zda:5
+
+# Floating Point Widening Multiply-Add
+## floating-point multiply-add long
+FMLALB_vec  A64_V    011001001 01 zm:5 100 000 zn:5 zda:5
+FMLALT_vec  A64_V    011001001 01 zm:5 100 001 zn:5 zda:5
+FMLSLB_vec  A64_V    011001001 01 zm:5 101 000 zn:5 zda:5
+FMLSLT_vec  A64_V    011001001 01 zm:5 101 001 zn:5 zda:5
