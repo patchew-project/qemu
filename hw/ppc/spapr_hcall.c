@@ -1058,17 +1058,19 @@ static target_ulong h_cede(PowerPCCPU *cpu, SpaprMachineState *spapr,
     env->msr |= (1ULL << MSR_EE);
     hreg_compute_hflags(env);
 
+    cpu_mutex_lock(cs);
     if (spapr_cpu->prod) {
         spapr_cpu->prod = false;
+        cpu_mutex_unlock(cs);
         return H_SUCCESS;
     }
 
     if (!cpu_has_work(cs)) {
-        cs->halted = 1;
+        cpu_halted_set(cs, 1);
         cs->exception_index = EXCP_HLT;
         cs->exit_request = 1;
     }
-
+    cpu_mutex_unlock(cs);
     return H_SUCCESS;
 }
 
@@ -1085,7 +1087,7 @@ static target_ulong h_confer_self(PowerPCCPU *cpu)
         spapr_cpu->prod = false;
         return H_SUCCESS;
     }
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
     cs->exception_index = EXCP_HALTED;
     cs->exit_request = 1;
 
@@ -1116,7 +1118,7 @@ static target_ulong h_join(PowerPCCPU *cpu, SpaprMachineState *spapr,
         }
 
         /* Don't have a way to indicate joined, so use halted && MSR[EE]=0 */
-        if (!cs->halted || (e->msr & (1ULL << MSR_EE))) {
+        if (!cpu_halted(cs) || (e->msr & (1ULL << MSR_EE))) {
             last_unjoined = false;
             break;
         }
@@ -1199,7 +1201,7 @@ static target_ulong h_prod(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
     spapr_cpu = spapr_cpu_state(tcpu);
     spapr_cpu->prod = true;
-    cs->halted = 0;
+    cpu_halted_set(cs, 0);
     qemu_cpu_kick(cs);
 
     return H_SUCCESS;
@@ -1685,7 +1687,7 @@ target_ulong do_client_architecture_support(PowerPCCPU *cpu,
         if (cs == CPU(cpu)) {
             continue;
         }
-        if (!cs->halted) {
+        if (!cpu_halted(cs)) {
             warn_report("guest has multiple active vCPUs at CAS, which is not allowed");
             return H_MULTI_THREADS_ACTIVE;
         }
