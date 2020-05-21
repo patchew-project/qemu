@@ -45,6 +45,7 @@
 #include "qapi/qapi-types-common.h"
 #include "qapi/qapi-visit-common.h"
 #include "sysemu/reset.h"
+#include "exec/guest-memory-protection.h"
 
 #include "hw/boards.h"
 
@@ -119,8 +120,7 @@ struct KVMState
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
 
     /* memory encryption */
-    void *memcrypt_handle;
-    int (*memcrypt_encrypt_data)(void *handle, uint8_t *ptr, uint64_t len);
+    GuestMemoryProtection *guest_memory_protection;
 
     /* For "info mtree -f" to tell if an MR is registered in KVM */
     int nr_as;
@@ -172,7 +172,7 @@ int kvm_get_max_memslots(void)
 
 bool kvm_memcrypt_enabled(void)
 {
-    if (kvm_state && kvm_state->memcrypt_handle) {
+    if (kvm_state && kvm_state->guest_memory_protection) {
         return true;
     }
 
@@ -181,10 +181,13 @@ bool kvm_memcrypt_enabled(void)
 
 int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
 {
-    if (kvm_state->memcrypt_handle &&
-        kvm_state->memcrypt_encrypt_data) {
-        return kvm_state->memcrypt_encrypt_data(kvm_state->memcrypt_handle,
-                                              ptr, len);
+    GuestMemoryProtection *gmpo = kvm_state->guest_memory_protection;
+
+    if (gmpo) {
+        GuestMemoryProtectionClass *gmpc =
+            GUEST_MEMORY_PROTECTION_GET_CLASS(gmpo);
+
+        return gmpc->encrypt_data(gmpo, ptr, len);
     }
 
     return 1;
@@ -2101,13 +2104,11 @@ static int kvm_init(MachineState *ms)
      * encryption context.
      */
     if (ms->memory_encryption) {
-        kvm_state->memcrypt_handle = sev_guest_init(ms->memory_encryption);
-        if (!kvm_state->memcrypt_handle) {
+        kvm_state->guest_memory_protection = sev_guest_init(ms->memory_encryption);
+        if (!kvm_state->guest_memory_protection) {
             ret = -1;
             goto err;
         }
-
-        kvm_state->memcrypt_encrypt_data = sev_encrypt_data;
     }
 
     ret = kvm_arch_init(ms, s);

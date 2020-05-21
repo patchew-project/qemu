@@ -30,6 +30,8 @@ typedef struct GuestMemoryProtection GuestMemoryProtection;
 
 typedef struct GuestMemoryProtectionClass {
     InterfaceClass parent;
+
+    int (*encrypt_data)(GuestMemoryProtection *, uint8_t *, uint64_t);
 } GuestMemoryProtectionClass;
 
 #endif /* QEMU_GUEST_MEMORY_PROTECTION_H */
