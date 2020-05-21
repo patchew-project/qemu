@@ -333,3 +333,7 @@ FMAXP       A64_V    01100100 size:2 010 110 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
 FMINP       A64_V    01100100 size:2 010 111 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
+
+# Table Lookup
+TBL         A64_V    00000101 size:2 1 zm:5 00101 0 zn:5 zd:5
+TBX         A64_V    00000101 size:2 1 zm:5 00101 1 zn:5 zd:5
