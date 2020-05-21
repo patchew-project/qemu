@@ -1,6 +1,17 @@
 # Input file for risugen defining AArch64 SVE2 instructions
 .mode arm.aarch64
 
+# Bitwise Logical (Unpredicated)
+XAR         A64_V    00000100 tszh:2 1 tszl:2 imm3:3 001101 zm:5 zdn:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+## bitwise ternary operations
+EOR3        A64_V    00000100 00 1 zm:5 00111 0 zk:5 zdn:5
+BSL         A64_V    00000100 00 1 zm:5 00111 1 zk:5 zdn:5
+BCAX        A64_V    00000100 01 1 zm:5 00111 0 zk:5 zdn:5
+BSL1N       A64_V    00000100 01 1 zm:5 00111 1 zk:5 zdn:5
+BSL2N       A64_V    00000100 10 1 zm:5 00111 1 zk:5 zdn:5
+NBSL        A64_V    00000100 11 1 zm:5 00111 1 zk:5 zdn:5
+
 # Bitwise Shift (Unpredicated)
 ## bitwise shift by immediate (predicated)
 SQSHL_imm   A64_V    00000100 tszh:2 00 0110 100 pg:3 tszl:2 imm3:3 zdn:5 \
