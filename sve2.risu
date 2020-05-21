@@ -260,6 +260,12 @@ RSUBHNB     A64_V    01000101 size:2 1 zm:5 011 110 zn:5 zd:5 \
 RSUBHNT     A64_V    01000101 size:2 1 zm:5 011 111 zn:5 zd:5 \
 !constraints { $size != 0; }
 
+# Character Match
+MATCH       A64_V    01000101 size:2 1 zm:5 100 pg:3 zn:5 0 pd:4 \
+!constraints { $size < 2; }
+NMATCH      A64_V    01000101 size:2 1 zm:5 100 pg:3 zn:5 1 pd:4 \
+!constraints { $size < 2; }
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
