@@ -184,6 +184,82 @@ SLI         A64_V    01000101 tszh:2 0 tszl:2 imm3:3 11110 1 zn:5 zd:5 \
 SABA        A64_V    01000101 size:2 0 zm:5 11111 0 zn:5 zda:5
 UABA        A64_V    01000101 size:2 0 zm:5 11111 1 zn:5 zda:5
 
+# Narrowing
+## saturating extract narrow
+SQXTNB_H    A64_V    010001010 0101 000010 000 zn:5 zd:5
+SQXTNB_S    A64_V    010001010 0110 000010 000 zn:5 zd:5
+SQXTNB_D    A64_V    010001010 1100 000010 000 zn:5 zd:5
+
+SQXTNT_H    A64_V    010001010 0101 000010 001 zn:5 zd:5
+SQXTNT_S    A64_V    010001010 0110 000010 001 zn:5 zd:5
+SQXTNT_D    A64_V    010001010 1100 000010 001 zn:5 zd:5
+
+UQXTNB_H    A64_V    010001010 0101 000010 010 zn:5 zd:5
+UQXTNB_S    A64_V    010001010 0110 000010 010 zn:5 zd:5
+UQXTNB_D    A64_V    010001010 1100 000010 010 zn:5 zd:5
+
+UQXTNT_H    A64_V    010001010 0101 000010 011 zn:5 zd:5
+UQXTNT_S    A64_V    010001010 0110 000010 011 zn:5 zd:5
+UQXTNT_D    A64_V    010001010 1100 000010 011 zn:5 zd:5
+
+SQXTUNB_H   A64_V    010001010 0101 000010 100 zn:5 zd:5
+SQXTUNB_S   A64_V    010001010 0110 000010 100 zn:5 zd:5
+SQXTUNB_D   A64_V    010001010 1100 000010 100 zn:5 zd:5
+
+SQXTUNT_H   A64_V    010001010 0101 000010 101 zn:5 zd:5
+SQXTUNT_S   A64_V    010001010 0110 000010 101 zn:5 zd:5
+SQXTUNT_D   A64_V    010001010 1100 000010 101 zn:5 zd:5
+## bitwise shift right narrow
+SQSHRUNB    A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0000 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQSHRUNT    A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0001 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQRSHRUNB   A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0010 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQRSHRUNT   A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0011 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SHRNB       A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0100 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SHRNT       A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0101 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+RSHRNB      A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0110 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+RSHRNT      A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 0111 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQSHRNB     A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1000 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQSHRNT     A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1001 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQRSHRNB    A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1010 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SQRSHRNT    A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1011 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+UQSHRNB     A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1100 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+UQSHRNT     A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1101 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+UQRSHRNB    A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1110 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+UQRSHRNT    A64_V    010001010 tszh:1 1 tszl:2 imm3:3 00 1111 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+## integer add/subtract narrow high part
+ADDHNB      A64_V    01000101 size:2 1 zm:5 011 000 zn:5 zd:5 \
+!constraints { $size != 0; }
+ADDHNT      A64_V    01000101 size:2 1 zm:5 011 001 zn:5 zd:5 \
+!constraints { $size != 0; }
+RADDHNB     A64_V    01000101 size:2 1 zm:5 011 010 zn:5 zd:5 \
+!constraints { $size != 0; }
+RADDHNT     A64_V    01000101 size:2 1 zm:5 011 011 zn:5 zd:5 \
+!constraints { $size != 0; }
+SUBHNB      A64_V    01000101 size:2 1 zm:5 011 100 zn:5 zd:5 \
+!constraints { $size != 0; }
+SUBHNT      A64_V    01000101 size:2 1 zm:5 011 101 zn:5 zd:5 \
+!constraints { $size != 0; }
+RSUBHNB     A64_V    01000101 size:2 1 zm:5 011 110 zn:5 zd:5 \
+!constraints { $size != 0; }
+RSUBHNT     A64_V    01000101 size:2 1 zm:5 011 111 zn:5 zd:5 \
+!constraints { $size != 0; }
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
