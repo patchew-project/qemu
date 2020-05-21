@@ -62,6 +62,67 @@ USQADD      A64_V    01000100 size:2 011 101 100 pg:3 zm:5 zdn:5
 SQSUBR      A64_V    01000100 size:2 011 110 100 pg:3 zm:5 zdn:5
 UQSUBR      A64_V    01000100 size:2 011 111 100 pg:3 zm:5 zdn:5
 
+# Widening Integer Arithmetic
+## integer add/subtract long
+SADDLB      A64_V    01000101 size:2 0 zm:5 00 0000 zn:5 zd:5 \
+!constraints { $size != 0; }
+SADDLT      A64_V    01000101 size:2 0 zm:5 00 0001 zn:5 zd:5 \
+!constraints { $size != 0; }
+UADDLB      A64_V    01000101 size:2 0 zm:5 00 0010 zn:5 zd:5 \
+!constraints { $size != 0; }
+UADDLT      A64_V    01000101 size:2 0 zm:5 00 0011 zn:5 zd:5 \
+!constraints { $size != 0; }
+SSUBLB      A64_V    01000101 size:2 0 zm:5 00 0100 zn:5 zd:5 \
+!constraints { $size != 0; }
+SSUBLT      A64_V    01000101 size:2 0 zm:5 00 0101 zn:5 zd:5 \
+!constraints { $size != 0; }
+USUBLB      A64_V    01000101 size:2 0 zm:5 00 0110 zn:5 zd:5 \
+!constraints { $size != 0; }
+USUBLT      A64_V    01000101 size:2 0 zm:5 00 0111 zn:5 zd:5 \
+!constraints { $size != 0; }
+SABDLB      A64_V    01000101 size:2 0 zm:5 00 1100 zn:5 zd:5 \
+!constraints { $size != 0; }
+SABDLT      A64_V    01000101 size:2 0 zm:5 00 1101 zn:5 zd:5 \
+!constraints { $size != 0; }
+UABDLB      A64_V    01000101 size:2 0 zm:5 00 1110 zn:5 zd:5 \
+!constraints { $size != 0; }
+UABDLT      A64_V    01000101 size:2 0 zm:5 00 1111 zn:5 zd:5 \
+!constraints { $size != 0; }
+## integer add/subtract wide
+SADDWB      A64_V    01000101 size:2 0 zm:5 010 000 zn:5 zd:5 \
+!constraints { $size != 0; }
+SADDWT      A64_V    01000101 size:2 0 zm:5 010 001 zn:5 zd:5 \
+!constraints { $size != 0; }
+UADDWB      A64_V    01000101 size:2 0 zm:5 010 010 zn:5 zd:5 \
+!constraints { $size != 0; }
+UADDWT      A64_V    01000101 size:2 0 zm:5 010 011 zn:5 zd:5 \
+!constraints { $size != 0; }
+SSUBWB      A64_V    01000101 size:2 0 zm:5 010 100 zn:5 zd:5 \
+!constraints { $size != 0; }
+SSUBWT      A64_V    01000101 size:2 0 zm:5 010 101 zn:5 zd:5 \
+!constraints { $size != 0; }
+USUBWB      A64_V    01000101 size:2 0 zm:5 010 110 zn:5 zd:5 \
+!constraints { $size != 0; }
+USUBWT      A64_V    01000101 size:2 0 zm:5 010 111 zn:5 zd:5 \
+!constraints { $size != 0; }
+## integer multiply long
+SQDMULLB    A64_V    01000101 size:2 0 zm:5 011 000 zn:5 zd:5 \
+!constraints { $size != 0; }
+SQDMULLT    A64_V    01000101 size:2 0 zm:5 011 001 zn:5 zd:5 \
+!constraints { $size != 0; }
+PMULLB      A64_V    01000101 size:2 0 zm:5 011 010 zn:5 zd:5 \
+!constraints { $size != 0; }
+PMULLT      A64_V    01000101 size:2 0 zm:5 011 011 zn:5 zd:5 \
+!constraints { $size != 0; }
+SMULLB      A64_V    01000101 size:2 0 zm:5 011 100 zn:5 zd:5 \
+!constraints { $size != 0; }
+SMULLT      A64_V    01000101 size:2 0 zm:5 011 101 zn:5 zd:5 \
+!constraints { $size != 0; }
+UMULLB      A64_V    01000101 size:2 0 zm:5 011 110 zn:5 zd:5 \
+!constraints { $size != 0; }
+UMULLT      A64_V    01000101 size:2 0 zm:5 011 111 zn:5 zd:5 \
+!constraints { $size != 0; }
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
