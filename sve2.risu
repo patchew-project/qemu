@@ -470,3 +470,13 @@ FMINP       A64_V    01100100 size:2 010 111 100 pg:3 zm:5 zdn:5 \
 # Table Lookup
 TBL         A64_V    00000101 size:2 1 zm:5 00101 0 zn:5 zd:5
 TBX         A64_V    00000101 size:2 1 zm:5 00101 1 zn:5 zd:5
+
+# Integer Compare (Scalars)
+## integer compare scalar count and limit
+WHILEGE     A64_V    00100101 size:2 1 rm:5 000 sf:1 00 rn:5 0 pd:4
+WHILEGT     A64_V    00100101 size:2 1 rm:5 000 sf:1 00 rn:5 1 pd:4
+WHILEHI     A64_V    00100101 size:2 1 rm:5 000 sf:1 10 rn:5 1 pd:4
+WHILEHS     A64_V    00100101 size:2 1 rm:5 000 sf:1 10 rn:5 0 pd:4
+## pointer conflict compare
+WHILEWR     A64_V    00100101 size:2 1 rm:5 001100 rn:5 0 pd:4
+WHILERW     A64_V    00100101 size:2 1 rm:5 001100 rn:5 1 pd:4
