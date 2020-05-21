@@ -263,6 +263,11 @@ int qemu_add_child_watch(pid_t pid);
  */
 bool qemu_mutex_iothread_locked(void);
 
+/*
+ * qemu_cond_timedwait_iothread: like the previous, but with timeout
+ */
+void qemu_cond_timedwait_iothread(QemuCond *cond, int ms);
+
 /**
  * qemu_mutex_lock_iothread: Lock the main loop mutex.
  *
