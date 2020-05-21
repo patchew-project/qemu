@@ -30,4 +30,9 @@ FIELD(VDATA, WD, 11, 1)
 
 /* set float rounding mode */
 bool riscv_cpu_set_rounding_mode(CPURISCVState *env, uint32_t rm);
+
+/* float point classify helpers */
+target_ulong fclass_h(uint64_t frs1);
+target_ulong fclass_s(uint64_t frs1);
+target_ulong fclass_d(uint64_t frs1);
 #endif
