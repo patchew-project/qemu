@@ -148,6 +148,42 @@ BEXT        A64_V    01000101 size:2 0 zm:5 1011 00 zn:5 zd:5
 BDEP        A64_V    01000101 size:2 0 zm:5 1011 01 zn:5 zd:5
 BGRP        A64_V    01000101 size:2 0 zm:5 1011 10 zn:5 zd:5
 
+# Accumulate
+## complex integer add
+CADD        A64_V    01000101 size:2 00000 0 11011 rot:1 zm:5 zdn:5
+SQCADD      A64_V    01000101 size:2 00000 1 11011 rot:1 zm:5 zdn:5
+## integer absolute difference and accumulate long
+SABALB      A64_V    01000101 size:2 0 zm:5 1100 00 zn:5 zda:5 \
+!constraints { $size != 0; }
+SABALT      A64_V    01000101 size:2 0 zm:5 1100 01 zn:5 zda:5 \
+!constraints { $size != 0; }
+UABALB      A64_V    01000101 size:2 0 zm:5 1100 10 zn:5 zda:5 \
+!constraints { $size != 0; }
+UABALT      A64_V    01000101 size:2 0 zm:5 1100 11 zn:5 zda:5 \
+!constraints { $size != 0; }
+## integer add/subtract long with carry
+ADCLB       A64_V    01000101 0 size:1 0 zm:5 11010 0 zn:5 zda:5
+ADCLT       A64_V    01000101 0 size:1 0 zm:5 11010 1 zn:5 zda:5
+SBCLB       A64_V    01000101 1 size:1 0 zm:5 11010 0 zn:5 zda:5
+SBCLT       A64_V    01000101 1 size:1 0 zm:5 11010 1 zn:5 zda:5
+## bitwise shift right and accumulate
+SSRA        A64_V    01000101 tszh:2 0 tszl:2 imm3:3 1110 00 zn:5 zda:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+USRA        A64_V    01000101 tszh:2 0 tszl:2 imm3:3 1110 01 zn:5 zda:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SRSRA       A64_V    01000101 tszh:2 0 tszl:2 imm3:3 1110 10 zn:5 zda:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+URSRA       A64_V    01000101 tszh:2 0 tszl:2 imm3:3 1110 11 zn:5 zda:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+## bitwise shift and insert
+SRI         A64_V    01000101 tszh:2 0 tszl:2 imm3:3 11110 0 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SLI         A64_V    01000101 tszh:2 0 tszl:2 imm3:3 11110 1 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+## integer absolute difference and accumulate
+SABA        A64_V    01000101 size:2 0 zm:5 11111 0 zn:5 zda:5
+UABA        A64_V    01000101 size:2 0 zm:5 11111 1 zn:5 zda:5
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
