@@ -409,8 +409,12 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
     return tlb_hit_page(tlb_addr, addr & TARGET_PAGE_MASK);
 }
 
+#ifdef CONFIG_TCG
+void dump_drift_info(void);
 void dump_exec_info(void);
 void dump_opcount_info(void);
+#endif /* CONFIG_TCG */
+
 #endif /* !CONFIG_USER_ONLY */
 
 int cpu_memory_rw_debug(CPUState *cpu, target_ulong addr,

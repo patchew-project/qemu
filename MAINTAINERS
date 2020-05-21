@@ -2143,6 +2143,7 @@ M: Paolo Bonzini <pbonzini@redhat.com>
 S: Maintained
 F: cpus.c
 F: cpu-throttle.c
+F: cpu-timers.c
 F: include/qemu/main-loop.h
 F: include/sysemu/runstate.h
 F: util/main-loop.c

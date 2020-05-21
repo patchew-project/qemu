@@ -155,6 +155,7 @@ ifdef CONFIG_SOFTMMU
 obj-y += arch_init.o
 obj-y += cpus.o
 obj-y += cpu-throttle.o
+obj-y += cpu-timers.o
 obj-y += gdbstub.o
 obj-y += balloon.o
 obj-y += ioport.o

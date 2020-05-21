@@ -225,13 +225,6 @@ void qemu_clock_notify(QEMUClockType type);
 void qemu_clock_enable(QEMUClockType type, bool enabled);
 
 /**
- * qemu_start_warp_timer:
- *
- * Starts a timer for virtual clock update
- */
-void qemu_start_warp_timer(void);
-
-/**
  * qemu_clock_run_timers:
  * @type: clock on which to operate
  *
@@ -791,12 +784,6 @@ static inline int64_t qemu_soonest_timeout(int64_t timeout1, int64_t timeout2)
  */
 void init_clocks(QEMUTimerListNotifyCB *notify_cb);
 
-int64_t cpu_get_ticks(void);
-/* Caller must hold BQL */
-void cpu_enable_ticks(void);
-/* Caller must hold BQL */
-void cpu_disable_ticks(void);
-
 static inline int64_t get_max_clock_jump(void)
 {
     /* This should be small enough to prevent excessive interrupts from being
@@ -849,13 +836,6 @@ static inline int64_t get_clock(void)
     }
 }
 #endif
-
-/* icount */
-int64_t cpu_get_icount_raw(void);
-int64_t cpu_get_icount(void);
-int64_t cpu_get_clock(void);
-int64_t cpu_icount_to_ns(int64_t icount);
-void    cpu_update_icount(CPUState *cpu);
 
 /*******************************************/
 /* host CPU ticks (if available) */

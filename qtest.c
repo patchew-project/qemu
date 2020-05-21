@@ -21,7 +21,7 @@
 #include "exec/memory.h"
 #include "hw/irq.h"
 #include "sysemu/accel.h"
-#include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
 #include "qemu/error-report.h"
