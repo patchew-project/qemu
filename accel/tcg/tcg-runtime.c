@@ -173,5 +173,5 @@ void HELPER(cpu_halted_set)(CPUArchState *env, uint32_t val)
 {
     CPUState *cpu = env_cpu(env);
 
-    cpu->halted = val;
+    cpu_halted_set(cpu, val);
 }
