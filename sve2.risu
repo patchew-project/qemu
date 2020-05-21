@@ -11,6 +11,57 @@ PMUL        A64_V    00000100 00 1 zm:5 0110 01 zn:5 zd:5
 SQDMULH     A64_V    00000100 size:2 1 zm:5 01110 0 zn:5 zd:5
 SQRDMULH    A64_V    00000100 size:2 1 zm:5 01110 1 zn:5 zd:5
 
+# Integer Predicated
+## integer pairwise add and accumulate long
+SADALP      A64_V    01000100 size:2 00010 0 101 pg:3 zn:5 zda:5 \
+!constraints { $size != 0; }
+UADALP      A64_V    01000100 size:2 00010 1 101 pg:3 zn:5 zda:5 \
+!constraints { $size != 0; }
+## integer unary (predicated)
+URECPE      A64_V    01000100 size:2 00 0 0 00 101 pg:3 zn:5 zda:5 \
+!constraints { $size == 2; }
+URSQRTE     A64_V    01000100 size:2 00 0 0 01 101 pg:3 zn:5 zda:5 \
+!constraints { $size == 2; }
+SQABS       A64_V    01000100 size:2 00 1 0 00 101 pg:3 zn:5 zda:5
+SQNEG       A64_V    01000100 size:2 00 1 0 01 101 pg:3 zn:5 zda:5
+## saturating/rounding bitwise shift left (predicated)
+SRSHL       A64_V    01000100 size:2 00 0010 100 pg:3 zm:5 zdn:5
+URSHL       A64_V    01000100 size:2 00 0011 100 pg:3 zm:5 zdn:5
+SRSHLR      A64_V    01000100 size:2 00 0110 100 pg:3 zm:5 zdn:5
+URSHLR      A64_V    01000100 size:2 00 0111 100 pg:3 zm:5 zdn:5
+SQSHL_vec   A64_V    01000100 size:2 00 1000 100 pg:3 zm:5 zdn:5
+UQSHL_vec   A64_V    01000100 size:2 00 1001 100 pg:3 zm:5 zdn:5
+SQRSHL      A64_V    01000100 size:2 00 1010 100 pg:3 zm:5 zdn:5
+UQRSHL      A64_V    01000100 size:2 00 1011 100 pg:3 zm:5 zdn:5
+SQSHLR      A64_V    01000100 size:2 00 1100 100 pg:3 zm:5 zdn:5
+UQSHLR      A64_V    01000100 size:2 00 1101 100 pg:3 zm:5 zdn:5
+SQRSHLR     A64_V    01000100 size:2 00 1110 100 pg:3 zm:5 zdn:5
+UQRSHLR     A64_V    01000100 size:2 00 1111 100 pg:3 zm:5 zdn:5
+## integer halving add/subtract (predicated)
+SHADD       A64_V    01000100 size:2 010 000 100 pg:3 zm:5 zdn:5
+UHADD       A64_V    01000100 size:2 010 001 100 pg:3 zm:5 zdn:5
+SHSUB       A64_V    01000100 size:2 010 010 100 pg:3 zm:5 zdn:5
+UHSUB       A64_V    01000100 size:2 010 011 100 pg:3 zm:5 zdn:5
+SRHADD      A64_V    01000100 size:2 010 100 100 pg:3 zm:5 zdn:5
+URHADD      A64_V    01000100 size:2 010 101 100 pg:3 zm:5 zdn:5
+SHSUBR      A64_V    01000100 size:2 010 110 100 pg:3 zm:5 zdn:5
+UHSUBR      A64_V    01000100 size:2 010 111 100 pg:3 zm:5 zdn:5
+## integer pairwise arithmetic
+ADDP        A64_V    01000100 size:2 010 001 101 pg:3 zm:5 zdn:5
+SMAXP       A64_V    01000100 size:2 010 100 101 pg:3 zm:5 zdn:5
+UMAXP       A64_V    01000100 size:2 010 101 101 pg:3 zm:5 zdn:5
+SMINP       A64_V    01000100 size:2 010 110 101 pg:3 zm:5 zdn:5
+UMINP       A64_V    01000100 size:2 010 111 101 pg:3 zm:5 zdn:5
+## saturating add/subtract
+SQADD       A64_V    01000100 size:2 011 000 100 pg:3 zm:5 zdn:5
+UQADD       A64_V    01000100 size:2 011 001 100 pg:3 zm:5 zdn:5
+SQSUB       A64_V    01000100 size:2 011 010 100 pg:3 zm:5 zdn:5
+UQSUB       A64_V    01000100 size:2 011 011 100 pg:3 zm:5 zdn:5
+SUQADD      A64_V    01000100 size:2 011 100 100 pg:3 zm:5 zdn:5
+USQADD      A64_V    01000100 size:2 011 101 100 pg:3 zm:5 zdn:5
+SQSUBR      A64_V    01000100 size:2 011 110 100 pg:3 zm:5 zdn:5
+UQSUBR      A64_V    01000100 size:2 011 111 100 pg:3 zm:5 zdn:5
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
