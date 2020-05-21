@@ -377,7 +377,7 @@ struct CPUState {
     uint64_t random_seed;
     sigjmp_buf jmp_env;
 
-    QemuMutex lock;
+    QemuMutex *lock;
     /* fields below protected by @lock */
     QemuCond cond;
     QSIMPLEQ_HEAD(, qemu_work_item) work_list;
@@ -484,6 +484,12 @@ void cpu_mutex_unlock_impl(CPUState *cpu, const char *file, int line);
  * Returns true if the calling thread is currently holding the CPU's mutex.
  */
 bool cpu_mutex_locked(const CPUState *cpu);
+
+/**
+ * cpu_mutex_destroy - Handle how to destroy this CPU's mutex
+ * @cpu: the CPU whose mutex to destroy
+ */
+void cpu_mutex_destroy(CPUState *cpu);
 
 /**
  * no_cpu_mutex_locked - check whether any CPU mutex is held
