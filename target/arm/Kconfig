@@ -1,0 +1,2 @@
+config SEMIHOSTING
+    default y if TCG
