@@ -123,6 +123,31 @@ UMULLB      A64_V    01000101 size:2 0 zm:5 011 110 zn:5 zd:5 \
 UMULLT      A64_V    01000101 size:2 0 zm:5 011 111 zn:5 zd:5 \
 !constraints { $size != 0; }
 
+# Misc
+## bitwise shift left long
+SSHLLB      A64_V    010001010 tszh:1 0 tszl:2 imm3:3 1010 00 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+SSHLLT      A64_V    010001010 tszh:1 0 tszl:2 imm3:3 1010 01 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+USHLLB      A64_V    010001010 tszh:1 0 tszl:2 imm3:3 1010 10 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+USHLLT      A64_V    010001010 tszh:1 0 tszl:2 imm3:3 1010 11 zn:5 zd:5 \
+!constraints { !($tszh == 0 && $tszl == 0); }
+## integer add/subtract interleaved long
+SADDLBT     A64_V    01000101 size:2 0 zm:5 1000 00 zn:5 zd:5 \
+!constraints { $size != 0; }
+SSUBLBT     A64_V    01000101 size:2 0 zm:5 1000 10 zn:5 zd:5 \
+!constraints { $size != 0; }
+SSUBLTB     A64_V    01000101 size:2 0 zm:5 1000 11 zn:5 zd:5 \
+!constraints { $size != 0; }
+## bitwise exclusive-or interleaved
+EORBT       A64_V    01000101 size:2 0 zm:5 10010 0 zn:5 zd:5
+EORTB       A64_V    01000101 size:2 0 zm:5 10010 1 zn:5 zd:5
+## bitwise permute
+BEXT        A64_V    01000101 size:2 0 zm:5 1011 00 zn:5 zd:5
+BDEP        A64_V    01000101 size:2 0 zm:5 1011 01 zn:5 zd:5
+BGRP        A64_V    01000101 size:2 0 zm:5 1011 10 zn:5 zd:5
+
 # Floating Point Pairwise
 FADDP       A64_V    01100100 size:2 010 000 100 pg:3 zm:5 zdn:5 \
 !constraints { $size != 0; }
