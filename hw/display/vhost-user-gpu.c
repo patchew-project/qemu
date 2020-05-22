@@ -466,6 +466,22 @@ vhost_user_gpu_set_config(VirtIODevice *vdev,
     }
 }
 
+static uint64_t
+vhost_user_gpu_get_features(VirtIODevice *vdev, uint64_t features,
+                            Error **errp)
+{
+    VhostUserGPU *g = VHOST_USER_GPU(vdev);
+    Error *local_err = NULL;
+
+    features = virtio_gpu_base_get_features(vdev, features, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return 0;
+    }
+
+    return vhost_get_default_features(&g->vhost->dev, features);
+}
+
 static void
 vhost_user_gpu_set_status(VirtIODevice *vdev, uint8_t val)
 {
@@ -582,6 +598,7 @@ vhost_user_gpu_class_init(ObjectClass *klass, void *data)
 
     vdc->realize = vhost_user_gpu_device_realize;
     vdc->reset = vhost_user_gpu_reset;
+    vdc->get_features = vhost_user_gpu_get_features;
     vdc->set_status   = vhost_user_gpu_set_status;
     vdc->guest_notifier_mask = vhost_user_gpu_guest_notifier_mask;
     vdc->guest_notifier_pending = vhost_user_gpu_guest_notifier_pending;

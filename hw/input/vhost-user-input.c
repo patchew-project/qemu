@@ -45,6 +45,14 @@ static void vhost_input_change_active(VirtIOInput *vinput)
     }
 }
 
+static uint64_t vhost_input_get_features(VirtIODevice *vdev, uint64_t features,
+                                         Error **errp)
+{
+    VHostUserInput *vhi = VHOST_USER_INPUT(vdev);
+
+    return vhost_get_default_features(&vhi->vhost->dev, features);
+}
+
 static void vhost_input_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
     VirtIOInput *vinput = VIRTIO_INPUT(vdev);
@@ -89,6 +97,7 @@ static void vhost_input_class_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->vmsd = &vmstate_vhost_input;
+    vdc->get_features = vhost_input_get_features;
     vdc->get_config = vhost_input_get_config;
     vdc->set_config = vhost_input_set_config;
     vic->realize = vhost_input_realize;

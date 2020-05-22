@@ -192,6 +192,8 @@ bool virtio_gpu_base_device_realize(DeviceState *qdev,
 void virtio_gpu_base_reset(VirtIOGPUBase *g);
 void virtio_gpu_base_fill_display_info(VirtIOGPUBase *g,
                         struct virtio_gpu_resp_display_info *dpy_info);
+uint64_t virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
+                                      Error **errp);
 
 /* virtio-gpu.c */
 void virtio_gpu_ctrl_response(VirtIOGPU *g,

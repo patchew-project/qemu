@@ -130,8 +130,9 @@ static uint64_t vuf_get_features(VirtIODevice *vdev,
                                       uint64_t requested_features,
                                       Error **errp)
 {
-    /* No feature bits used yet */
-    return requested_features;
+    VHostUserFS *fs = VHOST_USER_FS(vdev);
+
+    return vhost_get_default_features(&fs->vhost_dev, requested_features);
 }
 
 static void vuf_handle_output(VirtIODevice *vdev, VirtQueue *vq)

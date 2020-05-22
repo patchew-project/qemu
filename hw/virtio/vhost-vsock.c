@@ -180,8 +180,9 @@ static uint64_t vhost_vsock_get_features(VirtIODevice *vdev,
                                          uint64_t requested_features,
                                          Error **errp)
 {
-    /* No feature bits used yet */
-    return requested_features;
+    VHostVSock *vsock = VHOST_VSOCK(vdev);
+
+    return vhost_get_default_features(&vsock->vhost_dev, requested_features);
 }
 
 static void vhost_vsock_handle_output(VirtIODevice *vdev, VirtQueue *vq)

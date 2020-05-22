@@ -176,7 +176,7 @@ virtio_gpu_base_device_realize(DeviceState *qdev,
     return true;
 }
 
-static uint64_t
+uint64_t
 virtio_gpu_base_get_features(VirtIODevice *vdev, uint64_t features,
                              Error **errp)
 {

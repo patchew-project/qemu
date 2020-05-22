@@ -48,6 +48,23 @@ static unsigned int used_memslots;
 static QLIST_HEAD(, vhost_dev) vhost_devices =
     QLIST_HEAD_INITIALIZER(vhost_devices);
 
+/*
+ * Feature bits that device backends must explicitly report. Feature bits not
+ * listed here maybe set by QEMU without checking with the device backend.
+ * Ideally all feature bits would be listed here but existing vhost device
+ * implementations do not explicitly report bits like VIRTIO_F_VERSION_1, so we
+ * can only assume they are supported.
+ *
+ * New feature bits added to the VIRTIO spec should usually be included here
+ * so that existing vhost device backends that do not support them yet continue
+ * to work.
+ */
+static const int vhost_default_feature_bits[] = {
+    VIRTIO_F_IOMMU_PLATFORM,
+    VIRTIO_F_RING_PACKED,
+    VHOST_INVALID_FEATURE_BIT
+};
+
 bool vhost_has_free_slot(void)
 {
     unsigned int slots_limit = ~0U;
@@ -1466,6 +1483,11 @@ uint64_t vhost_get_features(struct vhost_dev *hdev, const int *feature_bits,
         bit++;
     }
     return features;
+}
+
+uint64_t vhost_get_default_features(struct vhost_dev *hdev, uint64_t features)
+{
+    return vhost_get_features(hdev, vhost_default_feature_bits, features);
 }
 
 void vhost_ack_features(struct vhost_dev *hdev, const int *feature_bits,

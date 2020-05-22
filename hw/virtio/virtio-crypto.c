@@ -739,7 +739,8 @@ static uint64_t virtio_crypto_get_features(VirtIODevice *vdev,
                                            uint64_t features,
                                            Error **errp)
 {
-    return features;
+    /* Just returns features when vhost is disabled */
+    return cryptodev_vhost_get_features(vdev, features);
 }
 
 static void virtio_crypto_reset(VirtIODevice *vdev)

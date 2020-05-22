@@ -266,6 +266,20 @@ void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues)
     assert(r >= 0);
 }
 
+uint64_t cryptodev_vhost_get_features(VirtIODevice *dev, uint64_t features)
+{
+    VirtIOCrypto *vcrypto = VIRTIO_CRYPTO(dev);
+    CryptoDevBackend *b = vcrypto->cryptodev;
+    CryptoDevBackendClient *cc = b->conf.peers.ccs[0];
+    CryptoDevBackendVhost *vhost_crypto = cryptodev_get_vhost(cc, b, 0);
+
+    if (!vhost_crypto) {
+        return features; /* vhost disabled */
+    }
+
+    return vhost_get_default_features(&vhost_crypto->dev, features);
+}
+
 void cryptodev_vhost_virtqueue_mask(VirtIODevice *dev,
                                            int queue,
                                            int idx, bool mask)
@@ -331,6 +345,11 @@ int cryptodev_vhost_start(VirtIODevice *dev, int total_queues)
 
 void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues)
 {
+}
+
+uint64_t cryptodev_vhost_get_features(VirtIODevice *dev, uint64_t features)
+{
+    return features;
 }
 
 void cryptodev_vhost_virtqueue_mask(VirtIODevice *dev,

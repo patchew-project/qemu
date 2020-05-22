@@ -123,6 +123,17 @@ int cryptodev_vhost_start(VirtIODevice *dev, int total_queues);
 void cryptodev_vhost_stop(VirtIODevice *dev, int total_queues);
 
 /**
+ * cryptodev_vhost_get_features:
+ * @dev: the virtio crypto object
+ * @requested_features: the features being offered
+ *
+ * Returns: the requested features bits that are supported by the vhost device,
+ * or the original request feature bits if vhost is disabled
+ *
+ */
+uint64_t cryptodev_vhost_get_features(VirtIODevice *dev, uint64_t features);
+
+/**
  * cryptodev_vhost_virtqueue_mask:
  * @dev: the virtio crypto object
  * @queue: the cryptodev backend queue index
