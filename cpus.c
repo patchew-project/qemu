@@ -1966,7 +1966,7 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
 
         if (qemu_tcg_mttcg_enabled()) {
             /* create a thread per vCPU with TCG (MTTCG) */
-            parallel_cpus = true;
+            atomic_set(&parallel_cpus, true);
             snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
                  cpu->cpu_index);
 

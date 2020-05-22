@@ -496,7 +496,7 @@ static inline uint32_t tb_cflags(const TranslationBlock *tb)
 /* current cflags for hashing/comparison */
 static inline uint32_t curr_cflags(void)
 {
-    return (parallel_cpus ? CF_PARALLEL : 0)
+    return (atomic_read(&parallel_cpus) ? CF_PARALLEL : 0)
          | (use_icount ? CF_USE_ICOUNT : 0);
 }
 

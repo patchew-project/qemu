@@ -250,7 +250,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
         }
 
         /* Since we got here, we know that parallel_cpus must be true.  */
-        parallel_cpus = false;
+        atomic_set(&parallel_cpus, false);
         cc->cpu_exec_enter(cpu);
         /* execute the generated code */
         trace_exec_tb(tb, pc);
@@ -278,7 +278,7 @@ void cpu_exec_step_atomic(CPUState *cpu)
      * the execution.
      */
     g_assert(cpu_in_exclusive_context(cpu));
-    parallel_cpus = true;
+    atomic_set(&parallel_cpus, true);
     end_exclusive();
 }
 

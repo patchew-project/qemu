@@ -6022,8 +6022,8 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         /* If this is our first additional thread, we need to ensure we
          * generate code for parallel execution and flush old translations.
          */
-        if (!parallel_cpus) {
-            parallel_cpus = true;
+        if (!atomic_read(&parallel_cpus)) {
+            atomic_set(&parallel_cpus, true);
             tb_flush(cpu);
         }
 
