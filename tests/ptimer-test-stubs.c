@@ -12,6 +12,7 @@
 #include "qemu/main-loop.h"
 #include "sysemu/replay.h"
 #include "migration/vmstate.h"
+#include "sysemu/cpu-timers.h"
 
 #include "ptimer-test.h"
 
@@ -31,7 +32,10 @@ QEMUTimerListGroup main_loop_tlg;
 int64_t ptimer_test_time_ns;
 
 /* Do not artificially limit period - see hw/core/ptimer.c.  */
-int use_icount = 1;
+int icount_enabled(void)
+{
+    return 1;
+}
 bool qtest_allowed;
 
 void timer_init_full(QEMUTimer *ts,
