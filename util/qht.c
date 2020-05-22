@@ -69,6 +69,7 @@
 #include "qemu/qht.h"
 #include "qemu/atomic.h"
 #include "qemu/rcu.h"
+#include "qemu/tsan.h"
 
 //#define QHT_DEBUG
 
@@ -580,10 +581,12 @@ static void *qht_insert__locked(const struct qht *ht, struct qht_map *map,
         b = b->next;
     } while (b);
 
+    TSAN_ANNOTATE_IGNORE_WRITES_BEGIN();
     b = qemu_memalign(QHT_BUCKET_ALIGN, sizeof(*b));
     memset(b, 0, sizeof(*b));
     new = b;
     i = 0;
+    TSAN_ANNOTATE_IGNORE_WRITES_END();
     atomic_inc(&map->n_added_buckets);
     if (unlikely(qht_map_needs_resize(map)) && needs_resize) {
         *needs_resize = true;
