@@ -96,7 +96,8 @@ uint64_t qvirtio_config_readq(QVirtioDevice *d, uint64_t addr)
 
 uint64_t qvirtio_get_features(QVirtioDevice *d)
 {
-    return d->bus->get_features(d);
+    /* qvirtio does not support packed virtqueues yet */
+    return d->bus->get_features(d) & ~(1ull << VIRTIO_F_RING_PACKED);
 }
 
 void qvirtio_set_features(QVirtioDevice *d, uint64_t features)
