@@ -1,0 +1,14 @@
+# TSan reports a double lock on RECURSIVE mutexes.
+mutex:aio_context_acquire
+mutex:pthread_mutex_lock
+
+# TSan reports a race betwen pthread_mutex_init() and
+# pthread_mutex_lock()
+race:pthread_mutex_init
+race:pthread_mutex_lock
+
+# TSan is unhappy about these load and store operations.
+race:bswap.h
+race:store_helper
+race:load_helper
+race:tb_set_jmp_target

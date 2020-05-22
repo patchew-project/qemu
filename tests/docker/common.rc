@@ -27,6 +27,25 @@ requires()
 
 configure_qemu()
 {
+    if test -z "$TSAN"; then
+        requires clang tsan
+        echo "Including TSan Support"
+        tsan_log_dir="/tmp/qemu-test/build/tsan"
+        mkdir -p $tsan_log_dir > /dev/null || true
+        EXTRA_CONFIGURE_OPTS="${EXTRA_CONFIGURE_OPTS} --enable-tsan \
+                             --cc=clang-10 --cxx=clang++-10 \
+                             --disable-werror --extra-cflags=-O0"
+        # detect deadlocks is false currently simply because
+        # TSan crashes immediately with deadlock detecter enabled.
+        # We have maxed out the history size to get the best chance of finding
+        # warnings during testing.
+        # Note, to get tsan to fail on warning, use exitcode=66 below.
+        tsan_opts="suppressions=/tmp/qemu-test/src/tests/tsan/suppressions.tsan\
+                   detect_deadlocks=false history_size=7\
+                   halt_on_error=0 exitcode=0 verbose=5\
+                   log_path=$tsan_log_dir/tsan_warnings.txt"
+        export TSAN_OPTIONS="$tsan_opts"
+    fi
     config_opts="--enable-werror \
                  ${TARGET_LIST:+--target-list=${TARGET_LIST}} \
                  --prefix=$INSTALL_DIR \
