@@ -31,6 +31,7 @@
 #include "disas/disas.h"
 #include "exec/log.h"
 #include "tcg/tcg.h"
+#include "qemu/tsan.h"
 
 /* 32-bit helpers */
 
@@ -151,6 +152,7 @@ void *HELPER(lookup_tb_ptr)(CPUArchState *env)
     TranslationBlock *tb;
     target_ulong cs_base, pc;
     uint32_t flags;
+    void *tc_ptr;
 
     tb = tb_lookup__cpu_state(cpu, &pc, &cs_base, &flags, curr_cflags());
     if (tb == NULL) {
@@ -161,7 +163,10 @@ void *HELPER(lookup_tb_ptr)(CPUArchState *env)
                            TARGET_FMT_lx "/" TARGET_FMT_lx "/%#x] %s\n",
                            cpu->cpu_index, tb->tc.ptr, cs_base, pc, flags,
                            lookup_symbol(pc));
-    return tb->tc.ptr;
+    TSAN_ANNOTATE_IGNORE_READS_BEGIN();
+    tc_ptr = tb->tc.ptr;
+    TSAN_ANNOTATE_IGNORE_READS_END();
+    return tc_ptr;
 }
 
 void HELPER(exit_atomic)(CPUArchState *env)

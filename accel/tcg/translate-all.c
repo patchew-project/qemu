@@ -58,6 +58,7 @@
 #include "exec/log.h"
 #include "sysemu/cpus.h"
 #include "sysemu/tcg.h"
+#include "qemu/tsan.h"
 
 /* #define DEBUG_TB_INVALIDATE */
 /* #define DEBUG_TB_FLUSH */
@@ -1704,6 +1705,7 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         max_insns = 1;
     }
 
+    TSAN_ANNOTATE_IGNORE_WRITES_BEGIN();
  buffer_overflow:
     tb = tcg_tb_alloc(tcg_ctx);
     if (unlikely(!tb)) {
@@ -1902,9 +1904,11 @@ TranslationBlock *tb_gen_code(CPUState *cpu,
         orig_aligned -= ROUND_UP(sizeof(*tb), qemu_icache_linesize);
         atomic_set(&tcg_ctx->code_gen_ptr, (void *)orig_aligned);
         tb_destroy(tb);
+        TSAN_ANNOTATE_IGNORE_WRITES_END();
         return existing_tb;
     }
     tcg_tb_insert(tb);
+    TSAN_ANNOTATE_IGNORE_WRITES_END();
     return tb;
 }
 
@@ -2409,7 +2413,7 @@ void dump_opcount_info(void)
 void cpu_interrupt(CPUState *cpu, int mask)
 {
     g_assert(qemu_mutex_iothread_locked());
-    cpu->interrupt_request |= mask;
+    atomic_or(&cpu->interrupt_request, mask);
     atomic_set(&cpu_neg(cpu)->icount_decr.u16.high, -1);
 }
 

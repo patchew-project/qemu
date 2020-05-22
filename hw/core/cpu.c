@@ -104,7 +104,7 @@ void cpu_reset_interrupt(CPUState *cpu, int mask)
     if (need_lock) {
         qemu_mutex_lock_iothread();
     }
-    cpu->interrupt_request &= ~mask;
+    atomic_and(&cpu->interrupt_request, ~mask);
     if (need_lock) {
         qemu_mutex_unlock_iothread();
     }
