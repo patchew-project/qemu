@@ -28,7 +28,23 @@
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
 
-GlobalProperty hw_compat_5_0[] = {};
+GlobalProperty hw_compat_5_0[] = {
+    { "vhost-user-blk", "packed", "off" },
+    { "vhost-user-fs-device", "packed", "off" },
+    { "vhost-vsock-device", "packed", "off" },
+    { "virtio-9p-device", "packed", "off" },
+    { "virtio-balloon-device", "packed", "off" },
+    { "virtio-blk-device", "packed", "off" },
+    { "virtio-crypto-device", "packed", "off" },
+    { "virtio-gpu-device", "packed", "off" },
+    { "virtio-input-device", "packed", "off" },
+    { "virtio-iommu-device", "packed", "off" },
+    { "virtio-net-device", "packed", "off" },
+    { "virtio-pmem", "packed", "off" },
+    { "virtio-rng-device", "packed", "off" },
+    { "virtio-scsi-common", "packed", "off" },
+    { "virtio-serial-device", "packed", "off" },
+};
 const size_t hw_compat_5_0_len = G_N_ELEMENTS(hw_compat_5_0);
 
 GlobalProperty hw_compat_4_2[] = {
