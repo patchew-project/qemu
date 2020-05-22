@@ -6306,7 +6306,8 @@ if test "$have_asan" = "yes"; then
 fi
 if test "$have_tsan" = "yes" ; then
   if test "$have_tsan_iface_fiber" = "yes" ; then
-    QEMU_CFLAGS="-fsanitize=thread $QEMU_CFLAGS"
+    QEMU_CFLAGS="-fsanitize=thread -fsanitize-blacklist="\
+	        "\$(SRC_PATH)/tests/tsan/blacklist.tsan $QEMU_CFLAGS"
     QEMU_LDFLAGS="-fsanitize=thread $QEMU_LDFLAGS"
   else
     echo "Cannot enable TSAN due to missing fiber annotation interface."
