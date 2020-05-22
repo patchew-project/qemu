@@ -33,6 +33,7 @@
 #include "block/raw-aio.h"
 #include "qemu/coroutine_int.h"
 #include "trace.h"
+#include "qemu/tsan.h"
 
 /***********************************************************/
 /* bottom halves (can be seen as timers which expire ASAP) */
@@ -76,10 +77,12 @@ static void aio_bh_enqueue(QEMUBH *bh, unsigned new_flags)
      * 2. ctx is loaded before the callback has a chance to execute and bh
      *    could be freed.
      */
+    TSAN_ANNOTATE_IGNORE_WRITES_BEGIN();
     old_flags = atomic_fetch_or(&bh->flags, BH_PENDING | new_flags);
     if (!(old_flags & BH_PENDING)) {
         QSLIST_INSERT_HEAD_ATOMIC(&ctx->bh_list, bh, next);
     }
+    TSAN_ANNOTATE_IGNORE_WRITES_END();
 
     aio_notify(ctx);
 }
@@ -143,7 +146,9 @@ int aio_bh_poll(AioContext *ctx)
     BHListSlice *s;
     int ret = 0;
 
+    TSAN_ANNOTATE_IGNORE_WRITES_BEGIN();
     QSLIST_MOVE_ATOMIC(&slice.bh_list, &ctx->bh_list);
+    TSAN_ANNOTATE_IGNORE_WRITES_END();
     QSIMPLEQ_INSERT_TAIL(&ctx->bh_slice_list, &slice, next);
 
     while ((s = QSIMPLEQ_FIRST(&ctx->bh_slice_list))) {
@@ -280,14 +285,16 @@ aio_ctx_check(GSource *source)
     aio_notify_accept(ctx);
 
     QSLIST_FOREACH_RCU(bh, &ctx->bh_list, next) {
-        if ((bh->flags & (BH_SCHEDULED | BH_DELETED)) == BH_SCHEDULED) {
+        if ((atomic_read(&bh->flags) & (BH_SCHEDULED | BH_DELETED))
+             == BH_SCHEDULED) {
             return true;
         }
     }
 
     QSIMPLEQ_FOREACH(s, &ctx->bh_slice_list, next) {
         QSLIST_FOREACH_RCU(bh, &s->bh_list, next) {
-            if ((bh->flags & (BH_SCHEDULED | BH_DELETED)) == BH_SCHEDULED) {
+            if ((atomic_read(&bh->flags) & (BH_SCHEDULED | BH_DELETED))
+                 == BH_SCHEDULED) {
                 return true;
             }
         }
