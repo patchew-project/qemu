@@ -34,6 +34,8 @@
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
+    VIRTIO_F_VERSION_1,
+    VIRTIO_F_RING_PACKED,
     VIRTIO_F_NOTIFY_ON_EMPTY,
     VIRTIO_RING_F_INDIRECT_DESC,
     VIRTIO_RING_F_EVENT_IDX,
