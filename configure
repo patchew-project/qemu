@@ -3908,6 +3908,24 @@ EOF
     fi
 fi
 
+#########################################
+# libdrm check
+
+cat > $TMPC << EOF
+#include <libdrm/drm.h>
+#include <sys/ioctl.h>
+int main(void)
+{
+        struct drm_version version;
+        ioctl(-1, DRM_IOCTL_VERSION, &version);
+        return 0;
+}
+EOF
+if ! compile_prog "" ; then
+    error_exit "libdrm check failed" \
+        "Make sure to have the libdrm/drm.h installed."
+fi
+
 ##########################################
 # SHA command probe for modules
 if test "$modules" = yes; then
