@@ -513,6 +513,11 @@ static void block_move(ARTISTState *s, int source_x, int source_y, int dest_x,
         dst = dest_x + ((line + dest_y) * buf->width);
 
         for (column = startcolumn; column != endcolumn; column += columnincr) {
+            if ((int)src + column < 0 || src + column >= buf->size) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              "block_move src:%d column:%d\n", src, column);
+                continue; /* FIXME */
+            }
             if (dst + column > buf->size || src + column > buf->size) {
                 continue;
             }
