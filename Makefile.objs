@@ -57,6 +57,7 @@ common-obj-$(CONFIG_LINUX) += fsdev/
 
 common-obj-y += accel/
 common-obj-y += migration/
+common-obj-y += yank.o
 
 common-obj-y += audio/
 common-obj-m += audio/
