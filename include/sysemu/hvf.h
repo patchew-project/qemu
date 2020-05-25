@@ -86,7 +86,6 @@ int hvf_smp_cpu_exec(CPUState *);
 void hvf_cpu_synchronize_state(CPUState *);
 void hvf_cpu_synchronize_post_reset(CPUState *);
 void hvf_cpu_synchronize_post_init(CPUState *);
-void _hvf_cpu_synchronize_post_init(CPUState *, run_on_cpu_data);
 
 void hvf_vcpu_destroy(CPUState *);
 void hvf_raise_event(CPUState *);
