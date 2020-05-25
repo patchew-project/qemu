@@ -24,6 +24,9 @@
 #include "trace.h"
 #include "multifd.h"
 
+#include "yank.h"
+#include "io/channel-socket.h"
+
 /* Multiple fd's */
 
 #define MULTIFD_MAGIC 0x11223344U
@@ -859,6 +862,13 @@ int multifd_load_cleanup(Error **errp)
     }
     for (i = 0; i < migrate_multifd_channels(); i++) {
         MultiFDRecvParams *p = &multifd_recv_state->params[i];
+
+        if (object_dynamic_cast(OBJECT(p->c), TYPE_QIO_CHANNEL_SOCKET)
+            && OBJECT(p->c)->ref == 1) {
+            yank_unregister_function((char *) "migration",
+                                     yank_generic_iochannel,
+                                     QIO_CHANNEL(p->c));
+        }
 
         object_unref(OBJECT(p->c));
         p->c = NULL;
