@@ -27,7 +27,7 @@
 #include "qemu/cutils.h"
 #include "qemu/timer.h"
 #include "sysemu/qtest.h"
-#include "sysemu/cpus.h"
+#include "sysemu/cpu-timers.h"
 #include "sysemu/replay.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
@@ -521,7 +521,7 @@ void main_loop_wait(int nonblocking)
 
     /* CPU thread can infinitely wait for event after
        missing the warp */
-    qemu_start_warp_timer();
+    icount_start_warp_timer();
     qemu_clock_run_all_timers();
 }
 
