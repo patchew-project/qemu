@@ -159,6 +159,8 @@ generated-files-$(CONFIG_TRACE_UST) += trace-ust-all.c
 
 generated-files-y += module_block.h
 
+generated-files-y += block/block-gen.c
+
 TRACE_HEADERS = trace-root.h $(trace-events-subdirs:%=%/trace.h)
 TRACE_SOURCES = trace-root.c $(trace-events-subdirs:%=%/trace.c)
 TRACE_DTRACE =
@@ -174,6 +176,10 @@ generated-files-y += $(TRACE_HEADERS)
 generated-files-y += $(TRACE_SOURCES)
 generated-files-y += $(BUILD_DIR)/trace-events-all
 generated-files-y += .git-submodule-status
+
+COROUTINE_HEADERS = include/block/block.h block/coroutines.h
+block/block-gen.c: $(COROUTINE_HEADERS) $(SRC_PATH)/scripts/coroutine-wrapper.py
+	$(call quiet-command, cat $(COROUTINE_HEADERS) | $(SRC_PATH)/scripts/coroutine-wrapper.py > $@,"GEN","$(TARGET_DIR)$@")
 
 trace-group-name = $(shell dirname $1 | sed -e 's/[^a-zA-Z0-9]/_/g')
 
