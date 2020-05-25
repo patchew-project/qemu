@@ -10,6 +10,7 @@ qom-obj-y = qom/
 ifeq ($(call lor,$(CONFIG_SOFTMMU),$(CONFIG_TOOLS)),y)
 
 chardev-obj-y = chardev/
+chardev-obj-y += yank.o
 
 authz-obj-y = authz/
 
