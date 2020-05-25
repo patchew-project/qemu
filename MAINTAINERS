@@ -1776,9 +1776,12 @@ F: hw/net/net_tx_pkt*
 Vmware
 M: Dmitry Fleytman <dmitry.fleytman@gmail.com>
 S: Maintained
+F: hw/display/vmware_vga.c
 F: hw/net/vmxnet*
 F: hw/scsi/vmw_pvscsi*
 F: tests/qtest/vmxnet3-test.c
+F: pc-bios/vgabios-vmware.bin
+F: roms/config.vga-vmware
 
 Rocker
 M: Jiri Pirko <jiri@resnulli.us>
