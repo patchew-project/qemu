@@ -37,6 +37,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
+#include "qemu/cutils.h"
 #include "hw/block/block.h"
 #include "hw/block/flash.h"
 #include "hw/qdev-properties.h"
@@ -67,6 +69,8 @@ do {                                                        \
 
 #define PFLASH_BE          0
 #define PFLASH_SECURE      1
+
+#define PFLASH_SIZE_MAX     (256 * MiB) /* Micron PC28F00BP33EF */
 
 struct PFlashCFI01 {
     /*< private >*/
@@ -717,6 +721,12 @@ static void pflash_cfi01_realize(DeviceState *dev, Error **errp)
     }
 
     total_len = pfl->sector_len * pfl->nb_blocs;
+    if (total_len > PFLASH_SIZE_MAX) {
+        char *maxsz = size_to_str(PFLASH_SIZE_MAX);
+        error_setg(errp, "Maximum supported CFI flash size is %s.", maxsz);
+        g_free(maxsz);
+        return;
+    }
 
     /* These are only used to expose the parameters of each device
      * in the cfi_table[].
