@@ -19,6 +19,8 @@
 #include "fork_fuzz.h"
 #include "qos_fuzz.h"
 
+#include "exec/address-spaces.h"
+#include "hw/core/cpu.h"
 
 #define QVIRTIO_NET_TIMEOUT_US (30 * 1000 * 1000)
 #define QVIRTIO_RX_VQ 0
@@ -69,8 +71,8 @@ static void virtio_net_fuzz_multi(QTestState *s,
              * If checking used ring, ensure that the fuzzer doesn't trigger
              * trivial asserion failure on zero-zied buffer
              */
-            qtest_memwrite(s, req_addr, Data, vqa.length);
-
+            address_space_write(first_cpu->as, req_addr, MEMTXATTRS_UNSPECIFIED,
+                                &Data, vqa.length);
 
             free_head = qvirtqueue_add(s, q, req_addr, vqa.length,
                     vqa.write, vqa.next);

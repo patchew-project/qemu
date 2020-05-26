@@ -23,6 +23,9 @@
 #include "fork_fuzz.h"
 #include "qos_fuzz.h"
 
+#include "exec/address-spaces.h"
+#include "hw/core/cpu.h"
+
 #define PCI_SLOT                0x02
 #define PCI_FN                  0x00
 #define QVIRTIO_SCSI_TIMEOUT_US (1 * 1000 * 1000)
@@ -108,7 +111,8 @@ static void virtio_scsi_fuzz(QTestState *s, QVirtioSCSIQueues* queues,
 
         /* Copy the data into ram, and place it on the virtqueue */
         uint64_t req_addr = guest_alloc(t_alloc, vqa.length);
-        qtest_memwrite(s, req_addr, Data, vqa.length);
+        address_space_write(first_cpu->as, req_addr, MEMTXATTRS_UNSPECIFIED,
+                            &Data, vqa.length);
         if (vq_touched[vqa.queue] == 0) {
             vq_touched[vqa.queue] = 1;
             free_head[vqa.queue] = qvirtqueue_add(s, q, req_addr, vqa.length,
