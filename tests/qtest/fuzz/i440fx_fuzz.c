@@ -20,6 +20,7 @@
 #include "fuzz/qos_fuzz.h"
 #include "fuzz/fork_fuzz.h"
 
+#include "exec/address-spaces.h"
 
 #define I440FX_PCI_HOST_BRIDGE_CFG 0xcf8
 #define I440FX_PCI_HOST_BRIDGE_DATA 0xcfc
@@ -59,22 +60,28 @@ static void ioport_fuzz_qtest(QTestState *s,
                                       I440FX_PCI_HOST_BRIDGE_DATA;
         switch (a.opcode % ACTION_MAX) {
         case WRITEB:
-            qtest_outb(s, addr, (uint8_t)a.value);
+            address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                                &a.value, sizeof(uint8_t));
             break;
         case WRITEW:
-            qtest_outw(s, addr, (uint16_t)a.value);
+            address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                                &a.value, sizeof(uint16_t));
             break;
         case WRITEL:
-            qtest_outl(s, addr, (uint32_t)a.value);
+            address_space_write(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                                &a.value, sizeof(uint32_t));
             break;
         case READB:
-            qtest_inb(s, addr);
+            address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                               &a.value, sizeof(uint8_t));
             break;
         case READW:
-            qtest_inw(s, addr);
+            address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                               &a.value, sizeof(uint16_t));
             break;
         case READL:
-            qtest_inl(s, addr);
+            address_space_read(&address_space_io, addr, MEMTXATTRS_UNSPECIFIED,
+                               &a.value, sizeof(uint32_t));
             break;
         }
         /* Move to the next operation */
