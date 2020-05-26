@@ -96,9 +96,31 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
         return false;
     }
 
+    /*
+     * all devices which support min_io_size (scsi and virtio-blk) expose it to
+     * the guest as a uint16_t in units of logical blocks
+     */
+    if (conf->min_io_size > conf->logical_block_size * UINT16_MAX) {
+        error_setg(errp,
+                   "min_io_size must not exceed " stringify(UINT16_MAX)
+                   " logical blocks");
+        return false;
+    }
+
     if (!QEMU_IS_ALIGNED(conf->opt_io_size, conf->logical_block_size)) {
         error_setg(errp,
                    "opt_io_size must be a multiple of logical_block_size");
+        return false;
+    }
+
+    /*
+     * all devices which support opt_io_size (scsi and virtio-blk) expose it to
+     * the guest as a uint32_t in units of logical blocks
+     */
+    if (conf->opt_io_size > conf->logical_block_size * UINT32_MAX) {
+        error_setg(errp,
+                   "opt_io_size must not exceed " stringify(UINT32_MAX)
+                   " logical blocks");
         return false;
     }
 
@@ -107,6 +129,18 @@ bool blkconf_blocksizes(BlockConf *conf, Error **errp)
                          conf->logical_block_size)) {
         error_setg(errp, "discard_granularity must be "
                    "a multiple of logical_block_size");
+        return false;
+    }
+
+    /*
+     * all devices which support discard_granularity (scsi) expose it to the
+     * guest as a uint32_t in units of logical blocks
+     */
+    if (conf->discard_granularity != -1 &&
+        conf->discard_granularity > conf->logical_block_size * UINT32_MAX) {
+        error_setg(errp,
+                   "discard_granularity must not exceed " stringify(UINT32_MAX)
+                   " logical blocks");
         return false;
     }
 
