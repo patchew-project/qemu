@@ -129,7 +129,7 @@ static void openrisc_sim_init(MachineState *machine)
     const char *kernel_filename = machine->kernel_filename;
     OpenRISCCPU *cpu = NULL;
     MemoryRegion *ram;
-    qemu_irq *cpu_irqs[2];
+    qemu_irq *cpu_irqs[2] = {};
     qemu_irq serial_irq;
     int n;
     unsigned int smp_cpus = machine->smp.cpus;
