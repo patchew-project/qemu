@@ -24,7 +24,7 @@ autoclear_features        []
 refcount_order            4
 header_length             72
 
-Header extension:
+Header extension:         Unknown
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
@@ -52,7 +52,7 @@ autoclear_features        []
 refcount_order            4
 header_length             72
 
-Header extension:
+Header extension:         Unknown
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
@@ -80,12 +80,12 @@ autoclear_features        []
 refcount_order            4
 header_length             72
 
-Header extension:
+Header extension:         Backing format
 magic                     0xe2792aca
 length                    11
 data                      'host_device'
 
-Header extension:
+Header extension:         Unknown
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
@@ -115,12 +115,12 @@ autoclear_features        []
 refcount_order            4
 header_length             112
 
-Header extension:
+Header extension:         Feature table
 magic                     0x6803f857
 length                    336
 data                      <binary>
 
-Header extension:
+Header extension:         Unknown
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
@@ -148,12 +148,12 @@ autoclear_features        []
 refcount_order            4
 header_length             112
 
-Header extension:
+Header extension:         Feature table
 magic                     0x6803f857
 length                    336
 data                      <binary>
 
-Header extension:
+Header extension:         Unknown
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
@@ -181,17 +181,17 @@ autoclear_features        []
 refcount_order            4
 header_length             112
 
-Header extension:
+Header extension:         Backing format
 magic                     0xe2792aca
 length                    11
 data                      'host_device'
 
-Header extension:
+Header extension:         Feature table
 magic                     0x6803f857
 length                    336
 data                      <binary>
 
-Header extension:
+Header extension:         Unknown
 magic                     0x12345678
 length                    31
 data                      'This is a test header extension'
