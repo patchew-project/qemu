@@ -244,6 +244,7 @@ typedef struct DeviceMemoryState {
  * @cores: the number of cores in one package
  * @threads: the number of threads in one core
  * @sockets: the number of sockets on the machine
+ * @sockets_specified: the number of sockets were specified for the machine
  * @max_cpus: the maximum number of logical processors on the machine
  */
 typedef struct CpuTopology {
@@ -251,6 +252,7 @@ typedef struct CpuTopology {
     unsigned int cores;
     unsigned int threads;
     unsigned int sockets;
+    bool sockets_specified;
     unsigned int max_cpus;
 } CpuTopology;
 

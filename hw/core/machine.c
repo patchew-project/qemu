@@ -706,6 +706,8 @@ static void smp_parse(MachineState *ms, QemuOpts *opts)
         unsigned cores   = qemu_opt_get_number(opts, "cores", 0);
         unsigned threads = qemu_opt_get_number(opts, "threads", 0);
 
+         ms->smp.sockets_specified = (sockets == 0) ? false : true;
+
         /* compute missing values, prefer sockets over cores over threads */
         if (cpus == 0 || sockets == 0) {
             cores = cores > 0 ? cores : 1;
