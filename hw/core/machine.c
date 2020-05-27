@@ -28,7 +28,11 @@
 #include "hw/mem/nvdimm.h"
 #include "migration/vmstate.h"
 
-GlobalProperty hw_compat_5_0[] = {};
+GlobalProperty hw_compat_5_0[] = {
+    { "virtio-scsi-device", "num_queues", "1"},
+    { "vhost-scsi", "num_queues", "1"},
+    { "vhost-user-scsi", "num_queues", "1"},
+};
 const size_t hw_compat_5_0_len = G_N_ELEMENTS(hw_compat_5_0);
 
 GlobalProperty hw_compat_4_2[] = {
