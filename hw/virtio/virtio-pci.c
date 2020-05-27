@@ -19,6 +19,7 @@
 
 #include "exec/memop.h"
 #include "standard-headers/linux/virtio_pci.h"
+#include "hw/boards.h"
 #include "hw/virtio/virtio.h"
 #include "migration/qemu-file-types.h"
 #include "hw/pci/pci.h"
@@ -2022,6 +2023,12 @@ void virtio_pci_types_register(const VirtioPCIDeviceTypeInfo *t)
         type_register(&transitional_type_info);
     }
     g_free(base_name);
+}
+
+unsigned virtio_pci_optimal_num_queues(unsigned fixed_queues)
+{
+    /* 1:1 vq to vcpu mapping is ideal because it avoids IPIs */
+    return MIN(current_machine->smp.cpus, VIRTIO_QUEUE_MAX - fixed_queues);
 }
 
 /* virtio-pci-bus */
