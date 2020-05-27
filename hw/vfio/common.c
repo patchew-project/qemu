@@ -1157,15 +1157,24 @@ static void vfio_put_address_space(VFIOAddressSpace *space)
 static int vfio_get_iommu_type(VFIOContainer *container,
                                Error **errp)
 {
-    int iommu_types[] = { VFIO_TYPE1v2_IOMMU, VFIO_TYPE1_IOMMU,
-                          VFIO_SPAPR_TCE_v2_IOMMU, VFIO_SPAPR_TCE_IOMMU };
+    static const struct {
+        int type;
+        const char *name;
+    } iommu[] = {
+        {VFIO_TYPE1v2_IOMMU, "Type1 (v2)"},
+        {VFIO_TYPE1_IOMMU, "Type1 (v1)"},
+        {VFIO_SPAPR_TCE_v2_IOMMU, "sPAPR TCE (v2)"},
+        {VFIO_SPAPR_TCE_IOMMU, "sPAPR TCE (v1)"}
+    };
     int i;
 
-    for (i = 0; i < ARRAY_SIZE(iommu_types); i++) {
-        if (ioctl(container->fd, VFIO_CHECK_EXTENSION, iommu_types[i])) {
-            return iommu_types[i];
+    for (i = 0; i < ARRAY_SIZE(iommu); i++) {
+        if (ioctl(container->fd, VFIO_CHECK_EXTENSION, iommu[i].type)) {
+            trace_vfio_get_iommu_type(iommu[i].name);
+            return iommu[i].type;
         }
     }
+    trace_vfio_get_iommu_type("Not available or not supported");
     error_setg(errp, "No available IOMMU models");
     return -EINVAL;
 }
