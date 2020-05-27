@@ -32,6 +32,7 @@ GlobalProperty hw_compat_5_0[] = {
     { "virtio-blk-device", "num-queues", "1"},
     { "virtio-scsi-device", "num_queues", "1"},
     { "vhost-scsi", "num_queues", "1"},
+    { "vhost-user-blk", "num-queues", "1"},
     { "vhost-user-scsi", "num_queues", "1"},
 };
 const size_t hw_compat_5_0_len = G_N_ELEMENTS(hw_compat_5_0);
