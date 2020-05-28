@@ -21,13 +21,24 @@
 
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
+#include "sysemu/numa.h"
+
+#define SPIKE_CPUS_MAX 8
+
+#define TYPE_SPIKE_MACHINE MACHINE_TYPE_NAME("spike")
+#define SPIKE_MACHINE(obj) \
+    OBJECT_CHECK(SpikeState, (obj), TYPE_SPIKE_MACHINE)
 
 typedef struct {
     /*< private >*/
-    SysBusDevice parent_obj;
+    MachineState parent;
 
     /*< public >*/
-    RISCVHartArrayState soc;
+    bool numa_enabled;
+    unsigned int num_socs;
+    uint64_t mem_offset[MAX_NODES];
+    uint64_t mem_size[MAX_NODES];
+    RISCVHartArrayState soc[MAX_NODES];
     void *fdt;
     int fdt_size;
 } SpikeState;
