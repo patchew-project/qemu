@@ -13,15 +13,8 @@
 #ifndef HVF_H
 #define HVF_H
 
-#include "cpu.h"
-#include "qemu/bitops.h"
-
 extern bool hvf_allowed;
 #ifdef CONFIG_HVF
-#include <Hypervisor/hv.h>
-#include <Hypervisor/hv_vmx.h>
-#include <Hypervisor/hv_error.h>
-#include "target/i386/cpu.h"
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg);
 #define hvf_enabled() (hvf_allowed)
