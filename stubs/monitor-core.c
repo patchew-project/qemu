@@ -8,6 +8,10 @@ Monitor *monitor_cur(void)
     return NULL;
 }
 
+void monitor_set_cur(Monitor *mon)
+{
+}
+
 void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
 {
 }
