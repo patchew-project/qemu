@@ -703,6 +703,8 @@ sev_guest_init(const char *id)
     s->api_major = status.api_major;
     s->api_minor = status.api_minor;
 
+    s->secret_gpa = 0;
+
     trace_kvm_sev_init();
     ret = sev_ioctl(s->sev_fd, KVM_SEV_INIT, NULL, &fw_error);
     if (ret) {
@@ -728,6 +730,28 @@ err:
     return NULL;
 }
 
+static void
+sev_find_secret_gpa(uint8_t *ptr, uint64_t len)
+{
+    uint64_t offset;
+
+    SevROMSecretTable *secret_table;
+    QemuUUID secret_table_guid;
+
+    qemu_uuid_parse(SEV_ROM_SECRET_GUID,&secret_table_guid);
+    secret_table_guid = qemu_uuid_bswap(secret_table_guid);
+
+    offset = len - 0x1000;
+    while(offset > 0) {
+        secret_table = (SevROMSecretTable *)(ptr + offset);
+        if(qemu_uuid_is_equal(&secret_table_guid, (QemuUUID *) secret_table)){
+            sev_state->secret_gpa = (long unsigned int) secret_table->base;
+            break;
+        }
+        offset -= 0x1000;
+    }
+}
+
 int
 sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
 {
@@ -735,6 +759,9 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
 
     /* if SEV is in update state then encrypt the data else do nothing */
     if (sev_check_state(SEV_STATE_LAUNCH_UPDATE)) {
+        if(!sev_state->secret_gpa) {
+            sev_find_secret_gpa(ptr, len);
+	    }
         return sev_launch_update_data(ptr, len);
     }
 
@@ -773,8 +800,8 @@ int sev_inject_launch_secret(const char *packet_hdr,
 
     /* secret can be inject only in this state */
     if (!sev_check_state(SEV_STATE_LAUNCH_SECRET)) {
-	error_report("Not in correct state. %x",sev_state->state);
-	return 1;
+        error_report("Not in correct state. %x",sev_state->state);
+        return 1;
     }
 
     hdr = g_base64_decode(packet_hdr, &hdr_sz);
@@ -788,6 +815,9 @@ int sev_inject_launch_secret(const char *packet_hdr,
         error_report("SEV: Failed to decode data");
         goto err;
     }
+
+    if(sev_state->secret_gpa)
+        gpa = sev_state->secret_gpa;
 
     hva = gpa2hva(gpa, data_sz);
     if (!hva) {

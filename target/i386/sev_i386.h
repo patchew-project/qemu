@@ -19,6 +19,7 @@
 #include "sysemu/kvm.h"
 #include "sysemu/sev.h"
 #include "qemu/error-report.h"
+#include "qemu/uuid.h"
 #include "qapi/qapi-types-misc-target.h"
 
 #define SEV_POLICY_NODBG        0x1
@@ -27,6 +28,8 @@
 #define SEV_POLICY_NOSEND       0x8
 #define SEV_POLICY_DOMAIN       0x10
 #define SEV_POLICY_SEV          0x20
+
+#define SEV_ROM_SECRET_GUID "adf956ad-e98c-484c-ae11-b51c7d336447"
 
 #define TYPE_QSEV_GUEST_INFO "sev-guest"
 #define QSEV_GUEST_INFO(obj)                  \
@@ -42,6 +45,18 @@ extern SevCapability *sev_get_capabilities(void);
 
 typedef struct QSevGuestInfo QSevGuestInfo;
 typedef struct QSevGuestInfoClass QSevGuestInfoClass;
+typedef struct SevROMSecretTable SevROMSecretTable;
+
+/**
+ * If guest physical address for the launch secret is
+ * provided in the ROM, it should be in the following
+ * page-aligned structure.
+ */
+struct SevROMSecretTable {
+    QemuUUID guid;
+    unsigned int base;
+    unsigned int size;
+};
 
 /**
  * QSevGuestInfo:
@@ -78,6 +93,7 @@ struct SEVState {
     uint32_t cbitpos;
     uint32_t reduced_phys_bits;
     uint32_t handle;
+    uint64_t secret_gpa;
     int sev_fd;
     SevState state;
     gchar *measurement;
