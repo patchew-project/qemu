@@ -23,6 +23,9 @@
 #include "fork_fuzz.h"
 #include "qos_fuzz.h"
 
+#include "exec/address-spaces.h"
+#include "hw/core/cpu.h"
+
 #define PCI_SLOT                0x02
 #define PCI_FN                  0x00
 #define QVIRTIO_SCSI_TIMEOUT_US (1 * 1000 * 1000)
@@ -63,7 +66,8 @@ static QVirtioSCSIQueues *qvirtio_scsi_init(QVirtioDevice *dev, uint64_t mask)
 }
 
 static void virtio_scsi_fuzz(QTestState *s, QVirtioSCSIQueues* queues,
-        const unsigned char *Data, size_t Size)
+                             const unsigned char *Data, size_t Size,
+                             bool use_qtest_chardev)
 {
     /*
      * Data is a sequence of random bytes. We split them up into "actions",
@@ -108,7 +112,13 @@ static void virtio_scsi_fuzz(QTestState *s, QVirtioSCSIQueues* queues,
 
         /* Copy the data into ram, and place it on the virtqueue */
         uint64_t req_addr = guest_alloc(t_alloc, vqa.length);
-        qtest_memwrite(s, req_addr, Data, vqa.length);
+        if (use_qtest_chardev) {
+            qtest_memwrite(s, req_addr, Data, vqa.length);
+        } else {
+            address_space_write(first_cpu->as, req_addr,
+                                 MEMTXATTRS_UNSPECIFIED,
+                                 &Data, vqa.length);
+        }
         if (vq_touched[vqa.queue] == 0) {
             vq_touched[vqa.queue] = 1;
             free_head[vqa.queue] = qvirtqueue_add(s, q, req_addr, vqa.length,
@@ -141,7 +151,25 @@ static void virtio_scsi_fork_fuzz(QTestState *s,
         queues = qvirtio_scsi_init(scsi->vdev, 0);
     }
     if (fork() == 0) {
-        virtio_scsi_fuzz(s, queues, Data, Size);
+        virtio_scsi_fuzz(s, queues, Data, Size, false);
+        flush_events(s);
+        _Exit(0);
+    } else {
+        wait(NULL);
+    }
+}
+
+static void virtio_scsi_fork_fuzz_qtest(QTestState *s,
+                                        const unsigned char *Data,
+                                        size_t Size)
+{
+    QVirtioSCSI *scsi = fuzz_qos_obj;
+    static QVirtioSCSIQueues *queues;
+    if (!queues) {
+        queues = qvirtio_scsi_init(scsi->vdev, 0);
+    }
+    if (fork() == 0) {
+        virtio_scsi_fuzz(s, queues, Data, Size, true);
         flush_events(s);
         _Exit(0);
     } else {
@@ -159,7 +187,9 @@ static void virtio_scsi_with_flag_fuzz(QTestState *s,
         if (Size >= sizeof(uint64_t)) {
             queues = qvirtio_scsi_init(scsi->vdev, *(uint64_t *)Data);
             virtio_scsi_fuzz(s, queues,
-                             Data + sizeof(uint64_t), Size - sizeof(uint64_t));
+                             Data + sizeof(uint64_t),
+                             Size - sizeof(uint64_t),
+                             false);
             flush_events(s);
         }
         _Exit(0);
@@ -189,7 +219,7 @@ static void register_virtio_scsi_fuzz_targets(void)
 {
     fuzz_add_qos_target(&(FuzzTarget){
                 .name = "virtio-scsi-fuzz",
-                .description = "Fuzz the virtio-scsi virtual queues, forking"
+                .description = "Fuzz the virtio-scsi virtual queues, forking "
                                 "for each fuzz run",
                 .pre_vm_init = &counter_shm_init,
                 .pre_fuzz = &virtio_scsi_pre_fuzz,
@@ -199,8 +229,19 @@ static void register_virtio_scsi_fuzz_targets(void)
                 );
 
     fuzz_add_qos_target(&(FuzzTarget){
+                .name = "virtio-scsi-fuzz-qtest",
+                .description = "Fuzz the virtio-scsi virtual queues, forking "
+                                "for each fuzz run (over a qtest chardev)",
+                .pre_vm_init = &counter_shm_init,
+                .pre_fuzz = &virtio_scsi_pre_fuzz,
+                .fuzz = virtio_scsi_fork_fuzz_qtest,},
+                "virtio-scsi",
+                &(QOSGraphTestOptions){.before = virtio_scsi_test_setup}
+                );
+
+    fuzz_add_qos_target(&(FuzzTarget){
                 .name = "virtio-scsi-flags-fuzz",
-                .description = "Fuzz the virtio-scsi virtual queues, forking"
+                .description = "Fuzz the virtio-scsi virtual queues, forking "
                 "for each fuzz run (also fuzzes the virtio flags)",
                 .pre_vm_init = &counter_shm_init,
                 .pre_fuzz = &virtio_scsi_pre_fuzz,

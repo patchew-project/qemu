@@ -19,6 +19,8 @@
 #include "fork_fuzz.h"
 #include "qos_fuzz.h"
 
+#include "exec/address-spaces.h"
+#include "hw/core/cpu.h"
 
 #define QVIRTIO_NET_TIMEOUT_US (30 * 1000 * 1000)
 #define QVIRTIO_RX_VQ 0
@@ -29,7 +31,9 @@ static int sockfds[2];
 static bool sockfds_initialized;
 
 static void virtio_net_fuzz_multi(QTestState *s,
-        const unsigned char *Data, size_t Size, bool check_used)
+                                  const unsigned char *Data, size_t Size,
+                                  bool check_used, bool use_qtest_chardev)
+
 {
     typedef struct vq_action {
         uint8_t queue;
@@ -69,8 +73,13 @@ static void virtio_net_fuzz_multi(QTestState *s,
              * If checking used ring, ensure that the fuzzer doesn't trigger
              * trivial asserion failure on zero-zied buffer
              */
-            qtest_memwrite(s, req_addr, Data, vqa.length);
-
+            if (use_qtest_chardev) {
+                qtest_memwrite(s, req_addr, Data, vqa.length);
+            } else {
+                address_space_write(first_cpu->as, req_addr,
+                                     MEMTXATTRS_UNSPECIFIED,
+                                     &Data, vqa.length);
+            }
 
             free_head = qvirtqueue_add(s, q, req_addr, vqa.length,
                     vqa.write, vqa.next);
@@ -118,7 +127,20 @@ static void virtio_net_fork_fuzz(QTestState *s,
         const unsigned char *Data, size_t Size)
 {
     if (fork() == 0) {
-        virtio_net_fuzz_multi(s, Data, Size, false);
+        virtio_net_fuzz_multi(s, Data, Size, false, false);
+        flush_events(s);
+        _Exit(0);
+    } else {
+        wait(NULL);
+    }
+}
+
+static void virtio_net_fork_fuzz_qtest(QTestState *s,
+                                       const unsigned char *Data,
+                                       size_t Size)
+{
+    if (fork() == 0) {
+        virtio_net_fuzz_multi(s, Data, Size, false, true);
         flush_events(s);
         _Exit(0);
     } else {
@@ -130,7 +152,7 @@ static void virtio_net_fork_fuzz_check_used(QTestState *s,
         const unsigned char *Data, size_t Size)
 {
     if (fork() == 0) {
-        virtio_net_fuzz_multi(s, Data, Size, true);
+        virtio_net_fuzz_multi(s, Data, Size, true, false);
         flush_events(s);
         _Exit(0);
     } else {
@@ -169,6 +191,16 @@ static void register_virtio_net_fuzz_targets(void)
             "traffic using the socket backend",
             .pre_fuzz = &virtio_net_pre_fuzz,
             .fuzz = virtio_net_fork_fuzz,},
+            "virtio-net",
+            &(QOSGraphTestOptions){.before = virtio_net_test_setup_socket}
+            );
+
+    fuzz_add_qos_target(&(FuzzTarget){
+            .name = "virtio-net-socket-qtest",
+            .description = "Fuzz the virtio-net virtual queues. Fuzz incoming "
+            "traffic using the socket backend (over a qtest chardev)",
+            .pre_fuzz = &virtio_net_pre_fuzz,
+            .fuzz = virtio_net_fork_fuzz_qtest,},
             "virtio-net",
             &(QOSGraphTestOptions){.before = virtio_net_test_setup_socket}
             );
