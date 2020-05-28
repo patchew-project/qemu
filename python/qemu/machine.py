@@ -342,7 +342,26 @@ class QEMUMachine(object):
         self._load_io_log()
         self._post_shutdown()
 
-    def shutdown(self, has_quit=False):
+    def _issue_shutdown(self, has_quit: bool = False) -> None:
+        """
+        Shutdown the VM.
+        """
+        if not self.is_running():
+            return
+
+        if self._qmp is not None:
+            if not has_quit:
+                self._qmp.cmd('quit')
+            self._qmp.close()
+
+            try:
+                self._popen.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self._popen.kill()
+
+        self._popen.wait()
+
+    def shutdown(self, has_quit: bool = False) -> None:
         """
         Terminate the VM and clean up
         """
@@ -353,17 +372,7 @@ class QEMUMachine(object):
             self._console_socket.close()
             self._console_socket = None
 
-        if self.is_running():
-            if self._qmp:
-                try:
-                    if not has_quit:
-                        self._qmp.cmd('quit')
-                    self._qmp.close()
-                    self._popen.wait(timeout=3)
-                except:
-                    self._popen.kill()
-            self._popen.wait()
-
+        self._issue_shutdown(has_quit)
         self._load_io_log()
         self._post_shutdown()
 
