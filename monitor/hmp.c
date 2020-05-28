@@ -1061,6 +1061,7 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
     QDict *qdict;
     const HMPCommand *cmd;
     const char *cmd_start = cmdline;
+    Monitor *old_mon;
 
     trace_handle_hmp_command(mon, cmdline);
 
@@ -1079,7 +1080,12 @@ void handle_hmp_command(MonitorHMP *mon, const char *cmdline)
         return;
     }
 
+    /* old_mon is non-NULL when called from qmp_human_monitor_command() */
+    old_mon = monitor_cur();
+    monitor_set_cur(&mon->common);
     cmd->cmd(&mon->common, qdict);
+    monitor_set_cur(old_mon);
+
     qobject_unref(qdict);
 }
 
@@ -1300,26 +1306,21 @@ cleanup:
 
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
-    MonitorHMP *mon;
-    Monitor *old_mon = monitor_cur();
+    Monitor *mon = opaque;
+    MonitorHMP *hmp_mon = container_of(mon, MonitorHMP, common);
     int i;
 
-    monitor_set_cur(opaque);
-    mon = container_of(monitor_cur(), MonitorHMP, common);
-
-    if (mon->rs) {
+    if (hmp_mon->rs) {
         for (i = 0; i < size; i++) {
-            readline_handle_byte(mon->rs, buf[i]);
+            readline_handle_byte(hmp_mon->rs, buf[i]);
         }
     } else {
         if (size == 0 || buf[size - 1] != 0) {
-            monitor_printf(&mon->common, "corrupted command\n");
+            monitor_printf(mon, "corrupted command\n");
         } else {
-            handle_hmp_command(mon, (char *)buf);
+            handle_hmp_command(hmp_mon, (char *)buf);
         }
     }
-
-    monitor_set_cur(old_mon);
 }
 
 static void monitor_event(void *opaque, QEMUChrEvent event)
