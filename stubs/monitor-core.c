@@ -8,7 +8,7 @@ Monitor *monitor_cur(void)
     return NULL;
 }
 
-void monitor_set_cur(Monitor *mon)
+void monitor_set_cur(Coroutine *co, Monitor *mon)
 {
 }
 
