@@ -93,10 +93,10 @@ static bool query_is_blacklisted(const char *cmd)
         /* Success depends on target-specific build configuration: */
         "query-pci",              /* CONFIG_PCI */
         /* Success depends on launching SEV guest */
-        "query-sev-launch-measure",
+        // "query-sev-launch-measure",
         /* Success depends on Host or Hypervisor SEV support */
-        "query-sev",
-        "query-sev-capabilities",
+        // "query-sev",
+        // "query-sev-capabilities",
         NULL
     };
     int i;

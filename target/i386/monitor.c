@@ -736,3 +736,11 @@ SevCapability *qmp_query_sev_capabilities(Error **errp)
 
     return data;
 }
+
+void qmp_sev_inject_launch_secret(const char *packet_hdr,
+                                  const char *secret, uint64_t gpa,
+                                  Error **errp)
+{
+    if (sev_inject_launch_secret(packet_hdr,secret,gpa) != 0)
+      error_setg(errp, "SEV inject secret failed");
+}

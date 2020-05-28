@@ -28,6 +28,7 @@
 #include "sysemu/runstate.h"
 #include "trace.h"
 #include "migration/blocker.h"
+#include "exec/address-spaces.h"
 
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
@@ -738,6 +739,88 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
     }
 
     return 0;
+}
+
+
+static void *
+gpa2hva(hwaddr addr, uint64_t size)
+{
+    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
+                                                 addr, size);
+
+    if (!mrs.mr) {
+        error_report("No memory is mapped at address 0x%" HWADDR_PRIx, addr);
+        return NULL;
+    }
+
+    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
+        error_report("Memory at address 0x%" HWADDR_PRIx "is not RAM", addr);
+        memory_region_unref(mrs.mr);
+        return NULL;
+    }
+
+    return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
+}
+
+int sev_inject_launch_secret(const char *packet_hdr,
+                             const char *secret, uint64_t gpa)
+{
+    struct kvm_sev_launch_secret *input = NULL;
+    guchar *data = NULL, *hdr = NULL;
+    int error, ret = 1;
+    void *hva;
+    gsize hdr_sz = 0, data_sz = 0;
+
+    /* secret can be inject only in this state */
+    if (!sev_check_state(SEV_STATE_LAUNCH_SECRET)) {
+	error_report("Not in correct state. %x",sev_state->state);
+	return 1;
+    }
+
+    hdr = g_base64_decode(packet_hdr, &hdr_sz);
+    if (!hdr || !hdr_sz) {
+        error_report("SEV: Failed to decode sequence header");
+        return 1;
+    }
+
+    data = g_base64_decode(secret, &data_sz);
+    if (!data || !data_sz) {
+        error_report("SEV: Failed to decode data");
+        goto err;
+    }
+
+    hva = gpa2hva(gpa, data_sz);
+    if (!hva) {
+        goto err;
+    }
+    input = g_new0(struct kvm_sev_launch_secret, 1);
+
+    input->hdr_uaddr = (unsigned long)hdr;
+    input->hdr_len = hdr_sz;
+
+    input->trans_uaddr = (unsigned long)data;
+    input->trans_len = data_sz;
+
+    input->guest_uaddr = (unsigned long)hva;
+    input->guest_len = data_sz;
+
+    trace_kvm_sev_launch_secret(gpa, input->guest_uaddr,
+                                input->trans_uaddr, input->trans_len);
+
+    ret = sev_ioctl(sev_state->sev_fd,KVM_SEV_LAUNCH_SECRET, input, &error);
+    if (ret) {
+        error_report("SEV: failed to inject secret ret=%d fw_error=%d '%s'",
+                     ret, error, fw_error_to_str(error));
+        goto err;
+    }
+
+    ret = 0;
+
+err:
+    g_free(data);
+    g_free(hdr);
+    g_free(input);
+    return ret;
 }
 
 static void
