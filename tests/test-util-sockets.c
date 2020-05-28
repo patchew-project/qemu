@@ -53,6 +53,17 @@ static void test_fd_is_socket_good(void)
 static int mon_fd = -1;
 static const char *mon_fdname;
 
+/* Syms in libqemustub.a are discarded at .o file granularity.
+ * To replace monitor_get_fd() we must ensure everything in
+ * stubs/monitor.c is defined, to make sure monitor.o is discarded
+ * otherwise we get duplicate syms at link time.
+ */
+__thread Monitor *cur_mon;
+Monitor *monitor_cur(void) { return cur_mon; }
+int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap) { abort(); }
+void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp) {}
+void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp) {}
+
 int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
 {
     g_assert(cur_mon);
@@ -63,17 +74,6 @@ int monitor_get_fd(Monitor *mon, const char *fdname, Error **errp)
     }
     return dup(mon_fd);
 }
-
-/* Syms in libqemustub.a are discarded at .o file granularity.
- * To replace monitor_get_fd() we must ensure everything in
- * stubs/monitor.c is defined, to make sure monitor.o is discarded
- * otherwise we get duplicate syms at link time.
- */
-__thread Monitor *cur_mon;
-int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap) { abort(); }
-void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp) {}
-void monitor_init_hmp(Chardev *chr, bool use_readline, Error **errp) {}
-
 
 static void test_socket_fd_pass_name_good(void)
 {

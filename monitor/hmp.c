@@ -1301,11 +1301,11 @@ cleanup:
 static void monitor_read(void *opaque, const uint8_t *buf, int size)
 {
     MonitorHMP *mon;
-    Monitor *old_mon = cur_mon;
+    Monitor *old_mon = monitor_cur();
     int i;
 
-    cur_mon = opaque;
-    mon = container_of(cur_mon, MonitorHMP, common);
+    monitor_set_cur(opaque);
+    mon = container_of(monitor_cur(), MonitorHMP, common);
 
     if (mon->rs) {
         for (i = 0; i < size; i++) {
@@ -1313,13 +1313,13 @@ static void monitor_read(void *opaque, const uint8_t *buf, int size)
         }
     } else {
         if (size == 0 || buf[size - 1] != 0) {
-            monitor_printf(cur_mon, "corrupted command\n");
+            monitor_printf(&mon->common, "corrupted command\n");
         } else {
             handle_hmp_command(mon, (char *)buf);
         }
     }
 
-    cur_mon = old_mon;
+    monitor_set_cur(old_mon);
 }
 
 static void monitor_event(void *opaque, QEMUChrEvent event)
