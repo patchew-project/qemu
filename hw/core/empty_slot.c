@@ -66,7 +66,7 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
         e = EMPTY_SLOT(dev);
         e->size = slot_size;
 
-        qdev_realize_and_unref(dev, NULL, &error_fatal);
+        sysbus_realize_and_unref(s, &error_fatal);
 
         sysbus_mmio_map(s, 0, addr);
     }
