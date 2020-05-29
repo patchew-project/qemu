@@ -35,6 +35,7 @@ int vhost_net_notify_migration_done(VHostNetState *net, char* mac_addr);
 VHostNetState *get_vhost_net(NetClientState *nc);
 
 int vhost_set_vring_enable(NetClientState * nc, int enable);
+int vhost_set_vring_ready(NetClientState *nc);
 
 uint64_t vhost_net_get_acked_features(VHostNetState *net);
 

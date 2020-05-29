@@ -344,7 +344,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
             goto err_start;
         }
 
-        if (ncs[i].peer->vring_enable) {
+        if (peer->vring_enable) {
             /* restore vring enable state */
             r = vhost_set_vring_enable(peer, peer->vring_enable);
 
@@ -455,6 +455,15 @@ int vhost_set_vring_enable(NetClientState *nc, int enable)
     return 0;
 }
 
+int vhost_set_vring_ready(NetClientState *nc)
+{
+    VHostNetState *net = get_vhost_net(nc);
+    const VhostOps *vhost_ops = net->dev.vhost_ops;
+    if (vhost_ops && vhost_ops->vhost_set_vring_ready) {
+        return vhost_ops->vhost_set_vring_ready(&net->dev);
+    }
+    return 0;
+}
 int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 {
     const VhostOps *vhost_ops = net->dev.vhost_ops;
