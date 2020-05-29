@@ -38,6 +38,7 @@
 #include "hw/misc/mos6522.h"
 #include "hw/misc/macio/gpio.h"
 #include "hw/misc/macio/pmu.h"
+#include "qapi/error.h"
 #include "qemu/timer.h"
 #include "sysemu/runstate.h"
 #include "qapi/error.h"
@@ -743,8 +744,7 @@ static void pmu_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd;
     struct tm tm;
 
-    object_property_set_bool(OBJECT(&s->mos6522_pmu), true, "realized",
-                             &error_abort);
+    sysbus_realize(SYS_BUS_DEVICE(&s->mos6522_pmu), &error_abort);
 
     /* Pass IRQ from 6522 */
     sbd = SYS_BUS_DEVICE(s);
@@ -775,8 +775,8 @@ static void pmu_init(Object *obj)
                              qdev_prop_allow_set_link_before_realize,
                              0);
 
-    sysbus_init_child_obj(obj, "mos6522-pmu", &s->mos6522_pmu,
-                          sizeof(s->mos6522_pmu), TYPE_MOS6522_PMU);
+    object_initialize_child(obj, "mos6522-pmu", &s->mos6522_pmu,
+                            TYPE_MOS6522_PMU);
 
     memory_region_init_io(&s->mem, obj, &mos6522_pmu_ops, s, "via-pmu",
                           0x2000);
