@@ -14,7 +14,7 @@
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
 #include "standard-headers/linux/vhost_types.h"
-
+#include "hw/virtio/vhost-vdpa.h"
 #ifdef CONFIG_VHOST_KERNEL
 #include <linux/vhost.h>
 #include <sys/ioctl.h>
@@ -22,10 +22,16 @@
 static int vhost_kernel_call(struct vhost_dev *dev, unsigned long int request,
                              void *arg)
 {
-    int fd = (uintptr_t) dev->opaque;
-
-    assert(dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_KERNEL);
-
+    int fd = -1;
+    struct vhost_vdpa *v = NULL;
+    if (dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_KERNEL) {
+        fd  = (uintptr_t) dev->opaque;
+    }
+    if (dev->vhost_ops->backend_type == VHOST_BACKEND_TYPE_VDPA) {
+        v = dev->opaque;
+        fd = v->device_fd;
+    }
+    assert(fd != -1);
     return ioctl(fd, request, arg);
 }
 
@@ -89,7 +95,7 @@ static int vhost_kernel_scsi_get_abi_version(struct vhost_dev *dev, int *version
     return vhost_kernel_call(dev, VHOST_SCSI_GET_ABI_VERSION, version);
 }
 
-static int vhost_kernel_set_log_base(struct vhost_dev *dev, uint64_t base,
+int vhost_kernel_set_log_base(struct vhost_dev *dev, uint64_t base,
                                      struct vhost_log *log)
 {
     return vhost_kernel_call(dev, VHOST_SET_LOG_BASE, &base);
@@ -101,7 +107,7 @@ static int vhost_kernel_set_mem_table(struct vhost_dev *dev,
     return vhost_kernel_call(dev, VHOST_SET_MEM_TABLE, mem);
 }
 
-static int vhost_kernel_set_vring_addr(struct vhost_dev *dev,
+int vhost_kernel_set_vring_addr(struct vhost_dev *dev,
                                        struct vhost_vring_addr *addr)
 {
     return vhost_kernel_call(dev, VHOST_SET_VRING_ADDR, addr);
@@ -113,31 +119,31 @@ static int vhost_kernel_set_vring_endian(struct vhost_dev *dev,
     return vhost_kernel_call(dev, VHOST_SET_VRING_ENDIAN, ring);
 }
 
-static int vhost_kernel_set_vring_num(struct vhost_dev *dev,
+int vhost_kernel_set_vring_num(struct vhost_dev *dev,
                                       struct vhost_vring_state *ring)
 {
     return vhost_kernel_call(dev, VHOST_SET_VRING_NUM, ring);
 }
 
-static int vhost_kernel_set_vring_base(struct vhost_dev *dev,
+int vhost_kernel_set_vring_base(struct vhost_dev *dev,
                                        struct vhost_vring_state *ring)
 {
     return vhost_kernel_call(dev, VHOST_SET_VRING_BASE, ring);
 }
 
-static int vhost_kernel_get_vring_base(struct vhost_dev *dev,
+int vhost_kernel_get_vring_base(struct vhost_dev *dev,
                                        struct vhost_vring_state *ring)
 {
     return vhost_kernel_call(dev, VHOST_GET_VRING_BASE, ring);
 }
 
-static int vhost_kernel_set_vring_kick(struct vhost_dev *dev,
+int vhost_kernel_set_vring_kick(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
     return vhost_kernel_call(dev, VHOST_SET_VRING_KICK, file);
 }
 
-static int vhost_kernel_set_vring_call(struct vhost_dev *dev,
+int vhost_kernel_set_vring_call(struct vhost_dev *dev,
                                        struct vhost_vring_file *file)
 {
     return vhost_kernel_call(dev, VHOST_SET_VRING_CALL, file);
@@ -155,13 +161,13 @@ static int vhost_kernel_set_features(struct vhost_dev *dev,
     return vhost_kernel_call(dev, VHOST_SET_FEATURES, &features);
 }
 
-static int vhost_kernel_get_features(struct vhost_dev *dev,
+int vhost_kernel_get_features(struct vhost_dev *dev,
                                      uint64_t *features)
 {
     return vhost_kernel_call(dev, VHOST_GET_FEATURES, features);
 }
 
-static int vhost_kernel_set_owner(struct vhost_dev *dev)
+int vhost_kernel_set_owner(struct vhost_dev *dev)
 {
     return vhost_kernel_call(dev, VHOST_SET_OWNER, NULL);
 }

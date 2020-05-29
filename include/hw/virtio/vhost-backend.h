@@ -172,4 +172,32 @@ int vhost_backend_handle_iotlb_msg(struct vhost_dev *dev,
 
 int vhost_user_gpu_set_socket(struct vhost_dev *dev, int fd);
 
+
+int vhost_kernel_set_log_base(struct vhost_dev *dev, uint64_t base,
+                                     struct vhost_log *log);
+
+int vhost_kernel_set_vring_addr(struct vhost_dev *dev,
+                                       struct vhost_vring_addr *addr);
+
+int vhost_kernel_set_vring_num(struct vhost_dev *dev,
+                                      struct vhost_vring_state *ring);
+
+int vhost_kernel_set_vring_base(struct vhost_dev *dev,
+                                       struct vhost_vring_state *ring);
+
+int vhost_kernel_get_vring_base(struct vhost_dev *dev,
+                                       struct vhost_vring_state *ring);
+
+int vhost_kernel_set_vring_kick(struct vhost_dev *dev,
+                                       struct vhost_vring_file *file);
+
+int vhost_kernel_set_vring_call(struct vhost_dev *dev,
+                                       struct vhost_vring_file *file);
+
+int vhost_kernel_set_owner(struct vhost_dev *dev);
+
+int vhost_kernel_get_features(struct vhost_dev *dev,
+                                     uint64_t *features);
+
+
 #endif /* VHOST_BACKEND_H */
