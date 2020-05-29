@@ -723,9 +723,9 @@
    'node-id': 'uint32',
    'size': 'size',
    'level': 'uint8',
-   'associativity': 'HmatCacheAssociativity',
-   'policy': 'HmatCacheWritePolicy',
-   'line': 'uint16' }}
+   '*associativity': 'HmatCacheAssociativity',
+   '*policy': 'HmatCacheWritePolicy',
+   '*line': 'uint16' }}
 
 ##
 # @HostMemPolicy:
