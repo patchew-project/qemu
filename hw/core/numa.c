@@ -136,11 +136,15 @@ static void parse_numa_node(MachineState *ms, NumaNodeOptions *node,
         numa_info[nodenr].node_memdev = MEMORY_BACKEND(o);
     }
 
-    /*
-     * If not set the initiator, set it to MAX_NODES. And if
-     * HMAT is enabled and this node has no cpus, QEMU will raise error.
-     */
-    numa_info[nodenr].initiator = MAX_NODES;
+    /* Initialize initiator to either the current NUMA node (if
+     * it has at least one CPU), or to MAX_NODES. If HMAT is
+     * enabled an error will be raised later in
+     * numa_validate_initiator(). */
+    if (numa_info[nodenr].has_cpu)
+        numa_info[nodenr].initiator = nodenr;
+    else
+        numa_info[nodenr].initiator = MAX_NODES;
+
     if (node->has_initiator) {
         if (!ms->numa_state->hmat_enabled) {
             error_setg(errp, "ACPI Heterogeneous Memory Attribute Table "
