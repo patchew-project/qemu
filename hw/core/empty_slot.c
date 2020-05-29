@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/sysbus.h"
+#include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/empty_slot.h"
 
@@ -60,12 +61,12 @@ void empty_slot_init(hwaddr addr, uint64_t slot_size)
         SysBusDevice *s;
         EmptySlot *e;
 
-        dev = qdev_create(NULL, TYPE_EMPTY_SLOT);
+        dev = qdev_new(TYPE_EMPTY_SLOT);
         s = SYS_BUS_DEVICE(dev);
         e = EMPTY_SLOT(dev);
         e->size = slot_size;
 
-        qdev_init_nofail(dev);
+        qdev_realize_and_unref(dev, NULL, &error_fatal);
 
         sysbus_mmio_map(s, 0, addr);
     }
