@@ -94,3 +94,8 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 {
     return 0;
 }
+int vhost_net_get_device_id(struct vhost_net *net, uint32_t * device_id)
+{
+    return 0;
+}
+

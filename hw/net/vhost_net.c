@@ -17,8 +17,10 @@
 #include "net/net.h"
 #include "net/tap.h"
 #include "net/vhost-user.h"
+#include "net/vhost-vdpa.h"
 
 #include "standard-headers/linux/vhost_types.h"
+#include "linux-headers/linux/vhost.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "qemu/error-report.h"
@@ -85,6 +87,30 @@ static const int user_feature_bits[] = {
     VHOST_INVALID_FEATURE_BIT
 };
 
+static const int vdpa_feature_bits[] = {
+    VIRTIO_F_NOTIFY_ON_EMPTY,
+    VIRTIO_RING_F_INDIRECT_DESC,
+    VIRTIO_RING_F_EVENT_IDX,
+    VIRTIO_F_ANY_LAYOUT,
+    VIRTIO_F_VERSION_1,
+    VIRTIO_NET_F_CSUM,
+    VIRTIO_NET_F_GUEST_CSUM,
+    VIRTIO_NET_F_GSO,
+    VIRTIO_NET_F_GUEST_TSO4,
+    VIRTIO_NET_F_GUEST_TSO6,
+    VIRTIO_NET_F_GUEST_ECN,
+    VIRTIO_NET_F_GUEST_UFO,
+    VIRTIO_NET_F_HOST_TSO4,
+    VIRTIO_NET_F_HOST_TSO6,
+    VIRTIO_NET_F_HOST_ECN,
+    VIRTIO_NET_F_HOST_UFO,
+    VIRTIO_NET_F_MRG_RXBUF,
+    VIRTIO_NET_F_MTU,
+    VIRTIO_F_IOMMU_PLATFORM,
+    VIRTIO_F_RING_PACKED,
+    VIRTIO_NET_F_GUEST_ANNOUNCE,
+    VHOST_INVALID_FEATURE_BIT
+};
 static const int *vhost_net_get_feature_bits(struct vhost_net *net)
 {
     const int *feature_bits = 0;
@@ -95,6 +121,9 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
         break;
     case NET_CLIENT_DRIVER_VHOST_USER:
         feature_bits = user_feature_bits;
+        break;
+    case NET_CLIENT_DRIVER_VHOST_VDPA:
+        feature_bits = vdpa_feature_bits;
         break;
     default:
         error_report("Feature bits not defined for this type: %d",
@@ -110,7 +139,10 @@ uint64_t vhost_net_get_features(struct vhost_net *net, uint64_t features)
     return vhost_get_features(&net->dev, vhost_net_get_feature_bits(net),
             features);
 }
-
+int vhost_net_get_device_id(struct vhost_net *net, uint32_t * device_id)
+{
+    return vhost_dev_get_device_id(&net->dev, device_id);
+}
 void vhost_net_ack_features(struct vhost_net *net, uint64_t features)
 {
     net->dev.acked_features = net->dev.backend_features;
@@ -337,6 +369,11 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
+
+        if (virtio_queue_enabled(dev, i)) {
+            vhost_set_vring_ready(peer);
+        }
+
         peer = qemu_get_peer(ncs, i);
         r = vhost_net_start_one(get_vhost_net(peer), dev);
 
@@ -434,6 +471,12 @@ VHostNetState *get_vhost_net(NetClientState *nc)
         assert(vhost_net);
         break;
 #endif
+#ifdef CONFIG_VHOST_NET_VDPA
+    case NET_CLIENT_DRIVER_VHOST_VDPA:
+        vhost_net = vhost_vdpa_get_vhost_net(nc);
+        assert(vhost_net);
+        break;
+#endif
     default:
         break;
     }
@@ -474,3 +517,5 @@ int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu)
 
     return vhost_ops->vhost_net_set_mtu(&net->dev, mtu);
 }
+
+

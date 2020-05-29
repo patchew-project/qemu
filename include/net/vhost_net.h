@@ -40,5 +40,5 @@ int vhost_set_vring_ready(NetClientState *nc);
 uint64_t vhost_net_get_acked_features(VHostNetState *net);
 
 int vhost_net_set_mtu(struct vhost_net *net, uint16_t mtu);
-
-#endif
+int vhost_net_get_device_id(struct vhost_net *net, uint32_t *device_id);
+endif
