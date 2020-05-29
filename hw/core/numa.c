@@ -384,19 +384,11 @@ void parse_numa_hmat_cache(MachineState *ms, NumaHmatCacheOptions *node,
                            Error **errp)
 {
     int nb_numa_nodes = ms->numa_state->num_nodes;
-    NodeInfo *numa_info = ms->numa_state->nodes;
     NumaHmatCacheOptions *hmat_cache = NULL;
 
     if (node->node_id >= nb_numa_nodes) {
         error_setg(errp, "Invalid node-id=%" PRIu32 ", it should be less "
                    "than %d", node->node_id, nb_numa_nodes);
-        return;
-    }
-
-    if (numa_info[node->node_id].lb_info_provided != (BIT(0) | BIT(1))) {
-        error_setg(errp, "The latency and bandwidth information of "
-                   "node-id=%" PRIu32 " should be provided before memory side "
-                   "cache attributes", node->node_id);
         return;
     }
 
