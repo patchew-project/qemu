@@ -429,6 +429,27 @@
     '*queues':        'int' } }
 
 ##
+# @NetdevVhostVDPAOptions:
+#
+# Vhost-vdpa network backend
+#
+# @vhostdev: name of a vdpa dev path in sysfs
+#            (default path:/dev/vhost-vdpa-$ID)
+#
+# @fd: file descriptor of an already opened vdpa device
+#
+# @queues: number of queues to be created for multiqueue vhost-vdpa
+#          (default: 1)
+#
+# Since: 5.1
+##
+{ 'struct': 'NetdevVhostVDPAOptions',
+  'data': {
+    '*vhostdev':     'str',
+    '*fd':           'str',
+    '*queues':       'int' } }
+
+##
 # @NetClientDriver:
 #
 # Available netdev drivers.
@@ -437,7 +458,7 @@
 ##
 { 'enum': 'NetClientDriver',
   'data': [ 'none', 'nic', 'user', 'tap', 'l2tpv3', 'socket', 'vde',
-            'bridge', 'hubport', 'netmap', 'vhost-user' ] }
+            'bridge', 'hubport', 'netmap', 'vhost-user', 'vhost-vdpa' ] }
 
 ##
 # @Netdev:
@@ -465,7 +486,8 @@
     'bridge':   'NetdevBridgeOptions',
     'hubport':  'NetdevHubPortOptions',
     'netmap':   'NetdevNetmapOptions',
-    'vhost-user': 'NetdevVhostUserOptions' } }
+    'vhost-user': 'NetdevVhostUserOptions',
+    'vhost-vdpa': 'NetdevVhostVDPAOptions' } }
 
 ##
 # @NetLegacy:
