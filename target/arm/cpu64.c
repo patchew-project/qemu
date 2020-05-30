@@ -137,6 +137,9 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
     define_arm_cp_regs(cpu, cortex_a72_a57_a53_cp_reginfo);
+    if (kvm_enabled()) {
+        kvm_arm_add_vcpu_properties(obj);
+    }
 }
 
 static void aarch64_a53_initfn(Object *obj)
@@ -190,6 +193,9 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
     define_arm_cp_regs(cpu, cortex_a72_a57_a53_cp_reginfo);
+    if (kvm_enabled()) {
+        kvm_arm_add_vcpu_properties(obj);
+    }
 }
 
 static void aarch64_a72_initfn(Object *obj)
@@ -241,6 +247,9 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
     define_arm_cp_regs(cpu, cortex_a72_a57_a53_cp_reginfo);
+    if (kvm_enabled()) {
+        kvm_arm_add_vcpu_properties(obj);
+    }
 }
 
 void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)

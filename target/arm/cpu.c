@@ -1973,6 +1973,9 @@ static void cortex_a7_initfn(Object *obj)
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
     cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
     define_arm_cp_regs(cpu, cortexa15_cp_reginfo); /* Same as A15 */
+    if (kvm_enabled()) {
+        kvm_arm_add_vcpu_properties(obj);
+    }
 }
 
 static void cortex_a15_initfn(Object *obj)
@@ -2015,6 +2018,9 @@ static void cortex_a15_initfn(Object *obj)
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
     cpu->ccsidr[2] = 0x711fe07a; /* 4096K L2 unified cache */
     define_arm_cp_regs(cpu, cortexa15_cp_reginfo);
+    if (kvm_enabled()) {
+        kvm_arm_add_vcpu_properties(obj);
+    }
 }
 
 #ifndef TARGET_AARCH64
