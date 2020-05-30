@@ -31,39 +31,8 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 
-#define MAX_IRQ 256
 #define SOCKET_TIMEOUT 50
 #define SOCKET_MAX_FDS 16
-
-
-typedef void (*QTestSendFn)(QTestState *s, const char *buf);
-typedef void (*ExternalSendFn)(void *s, const char *buf);
-typedef GString* (*QTestRecvFn)(QTestState *);
-
-typedef struct QTestClientTransportOps {
-    QTestSendFn     send;      /* for sending qtest commands */
-
-    /*
-     * use external_send to send qtest command strings through functions which
-     * do not accept a QTestState as the first parameter.
-     */
-    ExternalSendFn  external_send;
-
-    QTestRecvFn     recv_line; /* for receiving qtest command responses */
-} QTestTransportOps;
-
-struct QTestState
-{
-    int fd;
-    int qmp_fd;
-    pid_t qemu_pid;  /* our child QEMU process */
-    int wstatus;
-    int expected_status;
-    bool big_endian;
-    bool irq_level[MAX_IRQ];
-    GString *rx;
-    QTestTransportOps ops;
-};
 
 static GHookList abrt_hooks;
 static struct sigaction sigact_old;
@@ -101,6 +70,19 @@ static int init_socket(const char *socket_path)
     return sock;
 }
 
+int qtest_socket_client(char *server_socket_path)
+{
+    struct sockaddr_un serv_addr;
+    int sock;
+    int ret;
+    sock = socket(PF_UNIX, SOCK_STREAM, 0);
+    g_assert_cmpint(sock, !=, -1);
+    serv_addr.sun_family = AF_UNIX;
+    snprintf(serv_addr.sun_path, sizeof(serv_addr.sun_path), "%s", server_socket_path);
+    ret = connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    g_assert_cmpint(ret, >=, 0);
+    return sock;
+}
 static int socket_accept(int sock)
 {
     struct sockaddr_un addr;
