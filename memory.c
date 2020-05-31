@@ -1370,7 +1370,7 @@ bool memory_region_access_valid(MemoryRegion *mr,
 
     access_size_max = mr->ops->valid.max_access_size;
     if (!mr->ops->valid.max_access_size) {
-        access_size_max = 4;
+        access_size_max = TARGET_LONG_SIZE;
     }
 
     access_size = MAX(MIN(size, access_size_max), access_size_min);
