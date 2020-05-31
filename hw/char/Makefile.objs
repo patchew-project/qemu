@@ -16,7 +16,6 @@ common-obj-$(CONFIG_CADENCE) += cadence_uart.o
 common-obj-$(CONFIG_EXYNOS4) += exynos4210_uart.o
 common-obj-$(CONFIG_COLDFIRE) += mcf_uart.o
 common-obj-$(CONFIG_OMAP) += omap_uart.o
-common-obj-$(CONFIG_SH4) += sh_serial.o
 common-obj-$(CONFIG_DIGIC) += digic-uart.o
 common-obj-$(CONFIG_STM32F2XX_USART) += stm32f2xx_usart.o
 common-obj-$(CONFIG_RASPI) += bcm2835_aux.o
@@ -30,6 +29,8 @@ common-obj-$(CONFIG_LM32) += lm32_juart.o
 common-obj-$(CONFIG_LM32) += lm32_uart.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-uart.o
 common-obj-$(CONFIG_SCLPCONSOLE) += sclpconsole.o sclpconsole-lm.o
+
+common-obj-$(CONFIG_RENESAS_SCI) += renesas_sci.o
 
 obj-$(CONFIG_VIRTIO) += virtio-serial-bus.o
 obj-$(CONFIG_PSERIES) += spapr_vty.o
