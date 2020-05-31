@@ -143,12 +143,15 @@ void rx_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 }
 
-static bool use_goto_tb(DisasContext *dc, target_ulong dest)
+static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
 {
-    if (unlikely(dc->base.singlestep_enabled)) {
+    /* No direct translation block linking in singlestep */
+    if (unlikely(ctx->base.singlestep_enabled)) {
         return false;
     } else {
-        return true;
+        /* Directly link translation blocks only within the same guest page */
+        return (ctx->base.tb->pc & TARGET_PAGE_MASK) ==
+               (dest & TARGET_PAGE_MASK);
     }
 }
 
