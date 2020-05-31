@@ -37,3 +37,4 @@ common-obj-$(CONFIG_MSF2) += mss-timer.o
 common-obj-$(CONFIG_RASPI) += bcm2835_systmr.o
 
 common-obj-$(CONFIG_RENESAS_8TMR) += renesas_8timer.o
+common-obj-$(CONFIG_RENESAS_TIMER) += renesas_timer.o
