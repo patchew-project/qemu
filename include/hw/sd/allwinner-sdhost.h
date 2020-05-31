@@ -68,6 +68,10 @@ typedef struct AwSdHostState {
     /** Maps I/O registers in physical memory */
     MemoryRegion iomem;
 
+    /** DMA physical memory */
+    MemoryRegion *dma_mr;
+    AddressSpace dma_as;
+
     /** Interrupt output signal to notify CPU */
     qemu_irq irq;
 

@@ -21,7 +21,10 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/units.h"
+#include "qapi/error.h"
 #include "sysemu/blockdev.h"
+#include "sysemu/dma.h"
+#include "hw/qdev-properties.h"
 #include "hw/irq.h"
 #include "hw/sd/allwinner-sdhost.h"
 #include "migration/vmstate.h"
@@ -306,7 +309,7 @@ static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
     uint8_t buf[1024];
 
     /* Read descriptor */
-    cpu_physical_memory_read(desc_addr, desc, sizeof(*desc));
+    dma_memory_read(&s->dma_as, desc_addr, desc, sizeof(*desc));
     if (desc->size == 0) {
         desc->size = klass->max_desc_size;
     } else if (desc->size > klass->max_desc_size) {
@@ -331,8 +334,9 @@ static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
 
         /* Write to SD bus */
         if (is_write) {
-            cpu_physical_memory_read((desc->addr & DESC_SIZE_MASK) + num_done,
-                                      buf, buf_bytes);
+            dma_memory_read(&s->dma_as,
+                            (desc->addr & DESC_SIZE_MASK) + num_done,
+                            buf, buf_bytes);
 
             for (uint32_t i = 0; i < buf_bytes; i++) {
                 sdbus_write_data(&s->sdbus, buf[i]);
@@ -343,15 +347,16 @@ static uint32_t allwinner_sdhost_process_desc(AwSdHostState *s,
             for (uint32_t i = 0; i < buf_bytes; i++) {
                 buf[i] = sdbus_read_data(&s->sdbus);
             }
-            cpu_physical_memory_write((desc->addr & DESC_SIZE_MASK) + num_done,
-                                       buf, buf_bytes);
+            dma_memory_write(&s->dma_as,
+                             (desc->addr & DESC_SIZE_MASK) + num_done,
+                             buf, buf_bytes);
         }
         num_done += buf_bytes;
     }
 
     /* Clear hold flag and flush descriptor */
     desc->status &= ~DESC_STATUS_HOLD;
-    cpu_physical_memory_write(desc_addr, desc, sizeof(*desc));
+    dma_memory_write(&s->dma_as, desc_addr, desc, sizeof(*desc));
 
     return num_done;
 }
@@ -742,6 +747,17 @@ static void allwinner_sdhost_init(Object *obj)
     sysbus_init_irq(SYS_BUS_DEVICE(s), &s->irq);
 }
 
+static void allwinner_sdhost_realize(DeviceState *dev, Error **errp)
+{
+    AwSdHostState *s = AW_SDHOST(dev);
+
+    if (!s->dma_mr) {
+        error_setg(errp, "\"dma\" property must be provided.");
+        return;
+    }
+    address_space_init(&s->dma_as, s->dma_mr, "sdhost-dma");
+}
+
 static void allwinner_sdhost_reset(DeviceState *dev)
 {
     AwSdHostState *s = AW_SDHOST(dev);
@@ -787,6 +803,12 @@ static void allwinner_sdhost_reset(DeviceState *dev)
     s->status_crc = REG_SD_CRC_STA_RST;
 }
 
+static Property allwinner_sdhost_properties[] = {
+    DEFINE_PROP_LINK("dma", AwSdHostState,
+                     dma_mr, TYPE_MEMORY_REGION, MemoryRegion *),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void allwinner_sdhost_bus_class_init(ObjectClass *klass, void *data)
 {
     SDBusClass *sbc = SD_BUS_CLASS(klass);
@@ -798,7 +820,9 @@ static void allwinner_sdhost_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    device_class_set_props(dc, allwinner_sdhost_properties);
     dc->reset = allwinner_sdhost_reset;
+    dc->realize = allwinner_sdhost_realize;
     dc->vmsd = &vmstate_allwinner_sdhost;
 }
 
