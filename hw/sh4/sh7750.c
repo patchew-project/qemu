@@ -24,12 +24,15 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
 #include "sysemu/sysemu.h"
 #include "sh7750_regs.h"
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
+#include "hw/char/renesas_sci.h"
+#include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 
@@ -752,6 +755,40 @@ static const MemoryRegionOps sh7750_mmct_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void sh_serial_init(SH7750State *s, MemoryRegion *sysmem,
+                    hwaddr base, int feat,
+                    uint32_t freq, Chardev *chr,
+                    qemu_irq eri_source,
+                    qemu_irq rxi_source,
+                    qemu_irq txi_source,
+                    qemu_irq tei_source,
+                    qemu_irq bri_source)
+{
+    DeviceState *dev;
+    SysBusDevice *sci;
+
+    dev = qdev_create(NULL, TYPE_RENESAS_SCI);
+
+    sci = SYS_BUS_DEVICE(dev);
+
+    qdev_prop_set_chr(dev, "chardev", chr);
+    qdev_prop_set_uint64(dev, "input-freq", freq);
+    qdev_prop_set_int32(dev, "feature", feat);
+    qdev_prop_set_int32(dev, "register-size", 32);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(sci, 0, base);
+    sysbus_mmio_map(sci, 1, P4ADDR(base));
+    sysbus_mmio_map(sci, 2, A7ADDR(base));
+    sysbus_connect_irq(sci, 0, eri_source);
+    sysbus_connect_irq(sci, 1, rxi_source);
+    sysbus_connect_irq(sci, 2, txi_source);
+    if (feat == SCI_FEAT_SCI) {
+        sysbus_connect_irq(sci, 3, tei_source);
+    } else {
+        sysbus_connect_irq(sci, 3, bri_source);
+    }
+}
+
 SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
@@ -800,15 +837,15 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
 
     cpu->env.intc_handle = &s->intc;
 
-    sh_serial_init(sysmem, 0x1fe00000,
-                   0, s->periph_freq, serial_hd(0),
+    sh_serial_init(s, sysmem, 0x1fe00000,
+                   SCI_FEAT_SCI, s->periph_freq, serial_hd(0),
                    s->intc.irqs[SCI1_ERI],
                    s->intc.irqs[SCI1_RXI],
                    s->intc.irqs[SCI1_TXI],
                    s->intc.irqs[SCI1_TEI],
                    NULL);
-    sh_serial_init(sysmem, 0x1fe80000,
-                   SH_SERIAL_FEAT_SCIF,
+    sh_serial_init(s, sysmem, 0x1fe80000,
+                   SCI_FEAT_SCIF,
                    s->periph_freq, serial_hd(1),
                    s->intc.irqs[SCIF_ERI],
                    s->intc.irqs[SCIF_RXI],
