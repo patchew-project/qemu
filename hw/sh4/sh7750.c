@@ -32,6 +32,7 @@
 #include "sh7750_regnames.h"
 #include "hw/sh4/sh_intc.h"
 #include "hw/char/renesas_sci.h"
+#include "hw/timer/renesas_timer.h"
 #include "hw/qdev-properties.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
@@ -756,13 +757,13 @@ static const MemoryRegionOps sh7750_mmct_ops = {
 };
 
 static void sh_serial_init(SH7750State *s, MemoryRegion *sysmem,
-                    hwaddr base, int feat,
-                    uint32_t freq, Chardev *chr,
-                    qemu_irq eri_source,
-                    qemu_irq rxi_source,
-                    qemu_irq txi_source,
-                    qemu_irq tei_source,
-                    qemu_irq bri_source)
+                           hwaddr base, int feat,
+                           uint32_t freq, Chardev *chr,
+                           qemu_irq eri_source,
+                           qemu_irq rxi_source,
+                           qemu_irq txi_source,
+                           qemu_irq tei_source,
+                           qemu_irq bri_source)
 {
     DeviceState *dev;
     SysBusDevice *sci;
@@ -786,6 +787,31 @@ static void sh_serial_init(SH7750State *s, MemoryRegion *sysmem,
         sysbus_connect_irq(sci, 3, tei_source);
     } else {
         sysbus_connect_irq(sci, 3, bri_source);
+    }
+}
+
+static void tmu012_init(SH7750State *s, MemoryRegion *sysmem, hwaddr base,
+                        int feat, uint32_t freq,
+                        qemu_irq ch0_irq, qemu_irq ch1_irq,
+                        qemu_irq ch2_irq0, qemu_irq ch2_irq1)
+{
+    DeviceState *dev;
+    SysBusDevice *tmu;
+
+    dev = qdev_create(NULL, TYPE_RENESAS_TIMER);
+
+    tmu = SYS_BUS_DEVICE(dev);
+
+    qdev_prop_set_uint64(dev, "input-freq", freq);
+    qdev_prop_set_int32(dev, "feature", feat);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(tmu, 0, base);
+    sysbus_mmio_map(tmu, 1, P4ADDR(base));
+    sysbus_mmio_map(tmu, 2, A7ADDR(base));
+    sysbus_connect_irq(tmu, 0, ch0_irq);
+    sysbus_connect_irq(tmu, 1, ch1_irq);
+    if (ch2_irq0) {
+        sysbus_connect_irq(tmu, 2, ch2_irq0);
     }
 }
 
@@ -853,8 +879,8 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
                    NULL,
                    s->intc.irqs[SCIF_BRI]);
 
-    tmu012_init(sysmem, 0x1fd80000,
-		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
+    tmu012_init(s, sysmem, 0x1fd80000,
+                RTIMER_FEAT_TMU_LOW,
 		s->periph_freq,
 		s->intc.irqs[TMU0],
 		s->intc.irqs[TMU1],
@@ -877,7 +903,8 @@ SH7750State *sh7750_init(SuperHCPU *cpu, MemoryRegion *sysmem)
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_tmu34),
 				 NULL, 0);
-        tmu012_init(sysmem, 0x1e100000, 0, s->periph_freq,
+        tmu012_init(s, sysmem, 0x1e100000,
+                    RTIMER_FEAT_TMU_HIGH, s->periph_freq,
 		    s->intc.irqs[TMU3],
 		    s->intc.irqs[TMU4],
 		    NULL, NULL);

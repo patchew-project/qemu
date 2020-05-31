@@ -21,5 +21,5 @@ config SH7750
 
 config SH4
     bool
-    select PTIMER
+    select RENESAS_TIMER
     select RENESAS_SCI
