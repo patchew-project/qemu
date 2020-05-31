@@ -1,0 +1,13 @@
+config RX
+    bool
+
+config RX62N
+    bool
+    select RX
+    select RENESAS_8TMR
+    select RENESAS_TIMER
+    select RENESAS_SCI
+
+config RX_VIRT
+    bool
+    select RX62N
