@@ -2962,9 +2962,17 @@ static void tcg_commit(MemoryListener *listener)
 
 static void memory_map_init(void)
 {
+    uint64_t system_memory_size;
+
+#if TARGET_LONG_BITS >= 64
+    system_memory_size = UINT64_MAX;
+#else
+    system_memory_size = 1ULL << TARGET_LONG_BITS;
+#endif
+
     system_memory = g_malloc(sizeof(*system_memory));
 
-    memory_region_init(system_memory, NULL, "system", UINT64_MAX);
+    memory_region_init(system_memory, NULL, "system", system_memory_size);
     address_space_init(&address_space_memory, system_memory, "memory");
 
     system_io = g_malloc(sizeof(*system_io));
