@@ -5,6 +5,7 @@
  * (Rev.1.40 R01UH0033EJ0140)
  *
  * Copyright (c) 2019 Yoshinori Sato
+ * Copyright (c) 2020 Philippe Mathieu-Daudé
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -54,6 +55,21 @@
 #define RX62N_TMR_IRQ   174
 #define RX62N_CMT_IRQ   28
 #define RX62N_SCI_IRQ   214
+
+typedef struct RX62NClass {
+    /*< private >*/
+    DeviceClass parent_class;
+    /*< public >*/
+    const char *name;
+    uint64_t ram_size;
+    uint64_t rom_flash_size;
+    uint64_t data_flash_size;
+} RX62NClass;
+
+#define RX62N_MCU_CLASS(klass) \
+    OBJECT_CLASS_CHECK(RX62NClass, (klass), TYPE_RX62N_MCU)
+#define RX62N_MCU_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(RX62NClass, (obj), TYPE_RX62N_MCU)
 
 /*
  * IRQ -> IPR mapping table
@@ -153,7 +169,7 @@ static void register_tmr(RX62NState *s, int unit)
                             &error_abort, NULL);
 
     tmr = SYS_BUS_DEVICE(&s->tmr[unit]);
-    qdev_prop_set_uint64(DEVICE(tmr), "input-freq", RX62N_PCLK);
+    qdev_prop_set_uint64(DEVICE(tmr), "input-freq", s->pclk_freq_hz);
     qdev_init_nofail(DEVICE(tmr));
 
     irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;
@@ -173,7 +189,7 @@ static void register_cmt(RX62NState *s, int unit)
                             &error_abort, NULL);
 
     cmt = SYS_BUS_DEVICE(&s->cmt[unit]);
-    qdev_prop_set_uint64(DEVICE(cmt), "input-freq", RX62N_PCLK);
+    qdev_prop_set_uint64(DEVICE(cmt), "input-freq", s->pclk_freq_hz);
     qdev_init_nofail(DEVICE(cmt));
 
     irqbase = RX62N_CMT_IRQ + CMT_NR_IRQ * unit;
@@ -194,7 +210,7 @@ static void register_sci(RX62NState *s, int unit)
 
     sci = SYS_BUS_DEVICE(&s->sci[unit]);
     qdev_prop_set_chr(DEVICE(sci), "chardev", serial_hd(unit));
-    qdev_prop_set_uint64(DEVICE(sci), "input-freq", RX62N_PCLK);
+    qdev_prop_set_uint64(DEVICE(sci), "input-freq", s->pclk_freq_hz);
     qdev_init_nofail(DEVICE(sci));
 
     irqbase = RX62N_SCI_IRQ + SCI_NR_IRQ * unit;
@@ -207,6 +223,21 @@ static void register_sci(RX62NState *s, int unit)
 static void rx62n_realize(DeviceState *dev, Error **errp)
 {
     RX62NState *s = RX62N_MCU(dev);
+    RX62NClass *rxc = RX62N_MCU_GET_CLASS(dev);
+
+    if (s->xtal_freq_hz == 0) {
+        error_setg(errp, "\"xtal-frequency-hz\" property must be provided.");
+        return;
+    }
+    /* XTAL range: 8-14 MHz */
+    if (s->xtal_freq_hz < 8e6 || s->xtal_freq_hz > 14e6) {
+        error_setg(errp, "\"xtal-frequency-hz\" property in incorrect range.");
+        return;
+    }
+    /* Use a 4x fixed multiplier */
+    s->pclk_freq_hz = 4 * s->xtal_freq_hz;
+    /* PCLK range: 8-50 MHz */
+    assert(s->pclk_freq_hz <= 50e6);
 
     memory_region_init_ram(&s->iram, OBJECT(dev), "iram",
                            rxc->ram_size, &error_abort);
@@ -245,6 +276,7 @@ static Property rx62n_properties[] = {
     DEFINE_PROP_LINK("main-bus", RX62NState, sysmem, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_BOOL("load-kernel", RX62NState, kernel, false),
+    DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -256,16 +288,41 @@ static void rx62n_class_init(ObjectClass *klass, void *data)
     device_class_set_props(dc, rx62n_properties);
 }
 
-static const TypeInfo rx62n_info = {
-    .name = TYPE_RX62N_MCU,
-    .parent = TYPE_DEVICE,
-    .instance_size = sizeof(RX62NState),
-    .class_init = rx62n_class_init,
+static void r5f562n7_class_init(ObjectClass *oc, void *data)
+{
+    RX62NClass *rxc = RX62N_MCU_CLASS(oc);
+
+    rxc->ram_size = 64 * KiB;
+    rxc->rom_flash_size = 384 * KiB;
+    rxc->data_flash_size = 32 * KiB;
 };
 
-static void rx62n_register_types(void)
+static void r5f562n8_class_init(ObjectClass *oc, void *data)
 {
-    type_register_static(&rx62n_info);
-}
+    RX62NClass *rxc = RX62N_MCU_CLASS(oc);
 
-type_init(rx62n_register_types)
+    rxc->ram_size = 96 * KiB;
+    rxc->rom_flash_size = 512 * KiB;
+    rxc->data_flash_size = 32 * KiB;
+};
+
+static const TypeInfo rx62n_types[] = {
+    {
+        .name           = TYPE_R5F562N7_MCU,
+        .parent         = TYPE_RX62N_MCU,
+        .class_init     = r5f562n7_class_init,
+    }, {
+        .name           = TYPE_R5F562N8_MCU,
+        .parent         = TYPE_RX62N_MCU,
+        .class_init     = r5f562n8_class_init,
+    }, {
+        .name           = TYPE_RX62N_MCU,
+        .parent         = TYPE_DEVICE,
+        .instance_size  = sizeof(RX62NState),
+        .class_size     = sizeof(RX62NClass),
+        .class_init     = rx62n_class_init,
+        .abstract       = true,
+     }
+};
+
+DEFINE_TYPES(rx62n_types)
