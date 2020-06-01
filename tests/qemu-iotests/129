@@ -76,7 +76,7 @@ class TestStopWithBlockJob(iotests.QMPTestCase):
     def test_drive_backup(self):
         self.do_test_stop("drive-backup", device="drive0",
                           target=self.target_img,
-                          sync="full")
+                          sync="full", speed=1024)
 
     def test_block_commit(self):
         self.do_test_stop("block-commit", device="drive0")
