@@ -1238,6 +1238,21 @@ F: pc-bios/canyonlands.dt[sb]
 F: pc-bios/u-boot-sam460ex-20100605.bin
 F: roms/u-boot-sam460ex
 
+RX Machines
+-----------
+rx-gdbsim
+M: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Maintained
+F: docs/system/target-rx.rst
+F: hw/rx/
+F: hw/intc/rx_icu.c
+F: hw/timer/renesas_*.c
+F: hw/char/renesas_sci.c
+F: include/hw/rx/
+F: include/hw/timer/renesas_*.h
+F: include/hw/char/renesas_sci.h
+F: tests/acceptance/machine_rx_gdbsim.py
+
 SH4 Machines
 ------------
 R2D
