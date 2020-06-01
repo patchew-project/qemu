@@ -46,6 +46,8 @@ typedef struct BackupBlockJob {
     uint64_t len;
     uint64_t bytes_read;
     int64_t cluster_size;
+    int max_workers;
+    int64_t max_chunk;
 
     BlockCopyState *bcs;
 } BackupBlockJob;
@@ -335,6 +337,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                   bool compress,
                   const char *filter_node_name,
                   bool use_copy_range,
+                  int max_workers,
+                  int64_t max_chunk,
                   BlockdevOnError on_source_error,
                   BlockdevOnError on_target_error,
                   int creation_flags,
@@ -354,6 +358,16 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     /* QMP interface protects us from these cases */
     assert(sync_mode != MIRROR_SYNC_MODE_INCREMENTAL);
     assert(sync_bitmap || sync_mode != MIRROR_SYNC_MODE_BITMAP);
+
+    if (max_workers < 1) {
+        error_setg(errp, "At least one worker needed");
+        return NULL;
+    }
+
+    if (max_chunk < 0) {
+        error_setg(errp, "max-chunk is negative");
+        return NULL;
+    }
 
     if (bs == target) {
         error_setg(errp, "Source and target cannot be the same");
@@ -422,6 +436,11 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     if (cluster_size < 0) {
         goto error;
     }
+    if (max_chunk && max_chunk < cluster_size) {
+        error_setg(errp, "Required max-chunk (%" PRIi64") is less than backup "
+                   "cluster size (%" PRIi64 ")", max_chunk, cluster_size);
+        return NULL;
+    }
 
     /*
      * If source is in backing chain of target assume that target is going to be
@@ -465,6 +484,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     job->bcs = bcs;
     job->cluster_size = cluster_size;
     job->len = len;
+    job->max_workers = max_workers;
+    job->max_chunk = max_chunk;
 
     block_copy_set_progress_callback(bcs, backup_progress_bytes_callback, job);
     block_copy_set_progress_meter(bcs, &job->common.job.progress);

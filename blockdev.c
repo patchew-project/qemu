@@ -2743,6 +2743,9 @@ static BlockJob *do_backup_common(BackupCommon *backup,
     if (!backup->has_compress) {
         backup->compress = false;
     }
+    if (!backup->has_x_max_workers) {
+        backup->x_max_workers = 64;
+    }
 
     if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
         (backup->sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
@@ -2822,6 +2825,8 @@ static BlockJob *do_backup_common(BackupCommon *backup,
                             backup->compress,
                             backup->filter_node_name,
                             backup->x_use_copy_range,
+                            backup->x_max_workers,
+                            backup->x_max_chunk,
                             backup->on_source_error,
                             backup->on_target_error,
                             job_flags, NULL, NULL, txn, errp);
