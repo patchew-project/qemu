@@ -193,6 +193,15 @@ static void msix_table_mmio_write(void *opaque, hwaddr addr,
     msix_handle_mask_update(dev, vector, was_masked);
 }
 
+static bool msix_table_accepts(void *opaque, hwaddr addr, unsigned size,
+                                    bool is_write, MemTxAttrs attrs)
+{
+    PCIDevice *dev = opaque;
+    uint16_t tbl_size = dev->msix_entries_nr * PCI_MSIX_ENTRY_SIZE;
+
+    return dev->msix_table + addr + 4 <= dev->msix_table + tbl_size;
+}
+
 static const MemoryRegionOps msix_table_mmio_ops = {
     .read = msix_table_mmio_read,
     .write = msix_table_mmio_write,
@@ -200,6 +209,7 @@ static const MemoryRegionOps msix_table_mmio_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .accepts = msix_table_accepts
     },
 };
 
@@ -221,6 +231,15 @@ static void msix_pba_mmio_write(void *opaque, hwaddr addr,
 {
 }
 
+static bool msix_pba_accepts(void *opaque, hwaddr addr, unsigned size,
+                                    bool is_write, MemTxAttrs attrs)
+{
+    PCIDevice *dev = opaque;
+    uint16_t pba_size = QEMU_ALIGN_UP(dev->msix_entries_nr, 64) / 8;
+
+    return dev->msix_pba + addr + 4 <= dev->msix_pba + pba_size;
+}
+
 static const MemoryRegionOps msix_pba_mmio_ops = {
     .read = msix_pba_mmio_read,
     .write = msix_pba_mmio_write,
@@ -228,6 +247,7 @@ static const MemoryRegionOps msix_pba_mmio_ops = {
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
+        .accepts = msix_pba_accepts
     },
 };
 
