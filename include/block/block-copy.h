@@ -18,7 +18,6 @@
 #include "block/block.h"
 #include "qemu/co-shared-resource.h"
 
-typedef void (*ProgressBytesCallbackFunc)(int64_t bytes, void *opaque);
 typedef void (*BlockCopyAsyncCallbackFunc)(int ret, bool error_is_read,
                                            void *opaque);
 typedef struct BlockCopyState BlockCopyState;
@@ -28,11 +27,6 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      int64_t cluster_size, bool use_copy_range,
                                      BdrvRequestFlags write_flags,
                                      Error **errp);
-
-void block_copy_set_progress_callback(
-        BlockCopyState *s,
-        ProgressBytesCallbackFunc progress_bytes_callback,
-        void *progress_opaque);
 
 void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm);
 
@@ -57,7 +51,8 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t offset, int64_t bytes,
                                      bool ratelimit, int max_workers,
                                      int64_t max_chunk,
-                                     BlockCopyAsyncCallbackFunc cb);
+                                     BlockCopyAsyncCallbackFunc cb,
+                                     void *cb_opaque);
 
 /*
  * Set speed limit for block-copy instance. All block-copy operations related to

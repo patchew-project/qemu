@@ -39,6 +39,7 @@ typedef struct BlockCopyCallState {
     int64_t max_chunk;
     bool ratelimit;
     BlockCopyAsyncCallbackFunc cb;
+    void *cb_opaque;
 
     /* State */
     bool failed;
@@ -103,9 +104,6 @@ typedef struct BlockCopyState {
     bool skip_unallocated;
 
     ProgressMeter *progress;
-    /* progress_bytes_callback: called when some copying progress is done. */
-    ProgressBytesCallbackFunc progress_bytes_callback;
-    void *progress_opaque;
 
     SharedResource *mem;
 
@@ -287,15 +285,6 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
     return s;
 }
 
-void block_copy_set_progress_callback(
-        BlockCopyState *s,
-        ProgressBytesCallbackFunc progress_bytes_callback,
-        void *progress_opaque)
-{
-    s->progress_bytes_callback = progress_bytes_callback;
-    s->progress_opaque = progress_opaque;
-}
-
 void block_copy_set_progress_meter(BlockCopyState *s, ProgressMeter *pm)
 {
     s->progress = pm;
@@ -443,7 +432,6 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
         t->call_state->error_is_read = error_is_read;
     } else {
         progress_work_done(t->s->progress, t->bytes);
-        t->s->progress_bytes_callback(t->bytes, t->s->progress_opaque);
     }
     co_put_to_shres(t->s->mem, t->bytes);
     block_copy_task_end(t, ret);
@@ -712,8 +700,7 @@ static int coroutine_fn block_copy_common(BlockCopyCallState *call_state)
     } while (ret > 0 && !call_state->cancelled);
 
     if (call_state->cb) {
-        call_state->cb(ret, call_state->error_is_read,
-                       call_state->s->progress_opaque);
+        call_state->cb(ret, call_state->error_is_read, call_state->cb_opaque);
     }
 
     if (call_state->canceller) {
@@ -754,7 +741,8 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t offset, int64_t bytes,
                                      bool ratelimit, int max_workers,
                                      int64_t max_chunk,
-                                     BlockCopyAsyncCallbackFunc cb)
+                                     BlockCopyAsyncCallbackFunc cb,
+                                     void *cb_opaque)
 {
     BlockCopyCallState *call_state = g_new(BlockCopyCallState, 1);
     Coroutine *co = qemu_coroutine_create(block_copy_async_co_entry,
@@ -766,6 +754,7 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
         .bytes = bytes,
         .ratelimit = ratelimit,
         .cb = cb,
+        .cb_opaque = cb_opaque,
         .max_workers = max_workers ?: BLOCK_COPY_MAX_WORKERS,
         .max_chunk = max_chunk,
     };
