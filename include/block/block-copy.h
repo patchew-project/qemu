@@ -59,6 +59,14 @@ BlockCopyCallState *block_copy_async(BlockCopyState *s,
                                      int64_t max_chunk,
                                      BlockCopyAsyncCallbackFunc cb);
 
+/*
+ * Set speed limit for block-copy instance. All block-copy operations related to
+ * this BlockCopyState will participate in speed calculation, but only
+ * block_copy_async calls with @ratelimit=true will be actually limited.
+ */
+void block_copy_set_speed(BlockCopyState *s, BlockCopyCallState *call_state,
+                          uint64_t speed);
+
 BdrvDirtyBitmap *block_copy_dirty_bitmap(BlockCopyState *s);
 void block_copy_set_skip_unallocated(BlockCopyState *s, bool skip);
 
