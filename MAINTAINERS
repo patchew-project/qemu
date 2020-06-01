@@ -298,9 +298,7 @@ SH4 TCG CPUs
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target/sh4/
-F: hw/sh4/
 F: disas/sh4.c
-F: include/hw/sh4/
 
 SPARC TCG CPUs
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1238,6 +1236,18 @@ F: pc-bios/canyonlands.dt[sb]
 F: pc-bios/u-boot-sam460ex-20100605.bin
 F: roms/u-boot-sam460ex
 
+Renesas Hardware
+----------------
+SH4 Hardware
+M: Aurelien Jarno <aurelien@aurel32.net>
+M: Philippe Mathieu-Daudé <f4bug@amsat.org>
+S: Odd Fixes
+F: hw/sh4/
+F: hw/char/sh_serial.c
+F: hw/intc/sh_intc.c
+F: hw/timer/sh_timer.c
+F: include/hw/sh4/
+
 SH4 Machines
 ------------
 R2D
@@ -1246,6 +1256,7 @@ S: Maintained
 F: hw/sh4/r2d.c
 F: hw/intc/sh_intc.c
 F: hw/timer/sh_timer.c
+F: include/hw/sh4/sh_intc.h
 
 Shix
 M: Magnus Damm <magnus.damm@gmail.com>
