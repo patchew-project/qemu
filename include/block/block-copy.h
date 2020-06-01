@@ -35,8 +35,7 @@ void block_copy_state_free(BlockCopyState *s);
 int64_t block_copy_reset_unallocated(BlockCopyState *s,
                                      int64_t offset, int64_t *count);
 
-int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes,
-                            bool *error_is_read);
+int coroutine_fn block_copy(BlockCopyState *s, int64_t offset, int64_t bytes);
 
 /*
  * Run block-copy in a coroutine, return state pointer. If finished early
