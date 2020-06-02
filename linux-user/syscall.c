@@ -112,6 +112,9 @@
 #include <linux/if_alg.h>
 #include <linux/rtc.h>
 #include <sound/asound.h>
+#ifdef HAVE_DRM_H
+#include <libdrm/drm.h>
+#endif
 #include "linux_loop.h"
 #include "uname.h"
 
@@ -5274,6 +5277,70 @@ static abi_long do_ioctl_tiocgptpeer(const IOCTLEntry *ie, uint8_t *buf_temp,
     int flags = target_to_host_bitmask(arg, fcntl_flags_tbl);
     return get_errno(safe_ioctl(fd, ie->host_cmd, flags));
 }
+#endif
+
+#ifdef HAVE_DRM_H
+
+static inline abi_long target_to_host_drmversion(struct drm_version *host_ver,
+                                                abi_long target_addr)
+{
+    struct target_drm_version *target_ver;
+
+    if (!lock_user_struct(VERIFY_READ, target_ver, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+    __get_user(host_ver->name_len, &target_ver->name_len);
+    host_ver->name = host_ver->name_len ? g2h(target_ver->name) : NULL;
+    __get_user(host_ver->date_len, &target_ver->date_len);
+    host_ver->date = host_ver->date_len ? g2h(target_ver->date) : NULL;
+    __get_user(host_ver->desc_len, &target_ver->desc_len);
+    host_ver->desc = host_ver->desc_len ? g2h(target_ver->desc) : NULL;
+    unlock_user_struct(target_ver, target_addr, 0);
+    return 0;
+}
+
+static inline abi_long host_to_target_drmversion(abi_ulong target_addr,
+                                                 struct drm_version *host_ver)
+{
+    struct target_drm_version *target_ver;
+
+    if (!lock_user_struct(VERIFY_WRITE, target_ver, target_addr, 0)) {
+        return -TARGET_EFAULT;
+    }
+    __put_user(host_ver->version_major, &target_ver->version_major);
+    __put_user(host_ver->version_minor, &target_ver->version_minor);
+    __put_user(host_ver->version_patchlevel, &target_ver->version_patchlevel);
+    __put_user(host_ver->name_len, &target_ver->name_len);
+    __put_user(host_ver->date_len, &target_ver->date_len);
+    __put_user(host_ver->desc_len, &target_ver->desc_len);
+    unlock_user_struct(target_ver, target_addr, 0);
+    return 0;
+}
+
+static abi_long do_ioctl_drm(const IOCTLEntry *ie, uint8_t *buf_temp,
+                             int fd, int cmd, abi_long arg)
+{
+    struct drm_version *ver;
+    abi_long ret;
+
+    switch (ie->host_cmd) {
+    case DRM_IOCTL_VERSION:
+        ver = (struct drm_version *)buf_temp;
+        memset(ver, 0, sizeof(*ver));
+        ret = target_to_host_drmversion(ver, arg);
+        if (is_error(ret)) {
+            return ret;
+        }
+        ret = get_errno(safe_ioctl(fd, ie->host_cmd, ver));
+        if (is_error(ret)) {
+            return ret;
+        }
+        ret = host_to_target_drmversion(arg, ver);
+        return ret;
+    }
+    return -TARGET_EFAULT;
+}
+
 #endif
 
 static IOCTLEntry ioctl_entries[] = {
