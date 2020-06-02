@@ -1091,6 +1091,20 @@ static void io_writex(CPUArchState *env, CPUIOTLBEntry *iotlbentry,
                                MMU_DATA_STORE, mmu_idx, iotlbentry->attrs, r,
                                retaddr);
     }
+
+    /*
+     * The memory_region_dispatch may have triggered a flush/resize
+     * so for plugins we need to ensure we have reset the tlb_entry
+     * so any later lookup is correct.
+     */
+#ifdef CONFIG_PLUGIN
+    if (env_tlb(env)->d[mmu_idx].n_used_entries == 0) {
+        int size = op & MO_SIZE;
+        tlb_fill(env_cpu(env), addr, size, MMU_DATA_STORE,
+                 mmu_idx, retaddr);
+    }
+#endif
+
     if (locked) {
         qemu_mutex_unlock_iothread();
     }
