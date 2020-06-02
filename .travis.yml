@@ -399,6 +399,7 @@ jobs:
         - CACHE_NAME="${TRAVIS_BRANCH}-linux-gcc-debug-tcg"
 
     - name: "[aarch64] GCC check-tcg"
+      if: false # Temporarily disabled due to problem in aarch64 runner.
       arch: arm64
       dist: xenial
       addons:
