@@ -32,7 +32,7 @@ from typing import (
 from types import TracebackType
 
 from . import qmp
-from .qmp import SocketAddrT
+from .qmp import SocketAddrT, QMPMessage
 
 LOG = logging.getLogger(__name__)
 
@@ -553,6 +553,8 @@ class QEMUMachine:
                     return True
             return False
 
+        event: Optional[QMPMessage]
+
         # Search cached events
         for event in self._events:
             if _match(event):
@@ -562,6 +564,8 @@ class QEMUMachine:
         # Poll for new events
         while True:
             event = self._qmp.pull_event(wait=timeout)
+            if event is None:
+                break
             if _match(event):
                 return event
             self._events.append(event)
