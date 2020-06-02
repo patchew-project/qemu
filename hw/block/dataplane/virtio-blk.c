@@ -214,11 +214,16 @@ int virtio_blk_data_plane_start(VirtIODevice *vdev)
     vblk->dataplane_started = true;
     trace_virtio_blk_data_plane_start(s);
 
+    /* Prevent requests from getting queued on the old context */
+    blk_set_disable_request_queuing(s->conf->conf.blk, true);
+
     r = blk_set_aio_context(s->conf->conf.blk, s->ctx, &local_err);
     if (r < 0) {
         error_report_err(local_err);
         goto fail_guest_notifiers;
     }
+
+    blk_set_disable_request_queuing(s->conf->conf.blk, false);
 
     /* Kick right away to begin processing requests already in vring */
     for (i = 0; i < nvqs; i++) {
@@ -287,9 +292,14 @@ void virtio_blk_data_plane_stop(VirtIODevice *vdev)
     aio_context_acquire(s->ctx);
     aio_wait_bh_oneshot(s->ctx, virtio_blk_data_plane_stop_bh, s);
 
+    /* Prevent requests from getting queued on the old context */
+    blk_set_disable_request_queuing(s->conf->conf.blk, true);
+
     /* Drain and try to switch bs back to the QEMU main loop. If other users
      * keep the BlockBackend in the iothread, that's ok */
     blk_set_aio_context(s->conf->conf.blk, qemu_get_aio_context(), NULL);
+
+    blk_set_disable_request_queuing(s->conf->conf.blk, false);
 
     aio_context_release(s->ctx);
 
