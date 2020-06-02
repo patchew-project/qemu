@@ -19,7 +19,11 @@ subclass of QEMUMachine, respectively.
 
 import socket
 import os
-from typing import Optional, TextIO
+from typing import (
+    List,
+    Optional,
+    TextIO,
+)
 
 from .machine import QEMUMachine
 
@@ -111,8 +115,9 @@ class QEMUQtestMachine(QEMUMachine):
         self._qtest = None
         self._qtest_path = os.path.join(sock_dir, name + "-qtest.sock")
 
-    def _base_args(self):
-        args = super()._base_args()
+    @property
+    def _base_args(self) -> List[str]:
+        args = super()._base_args
         args.extend(['-qtest', 'unix:path=' + self._qtest_path,
                      '-accel', 'qtest'])
         return args
