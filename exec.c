@@ -1056,7 +1056,11 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
         QTAILQ_INSERT_TAIL(&cpu->watchpoints, wp, entry);
     }
 
-    tlb_flush_page(cpu, addr);
+    if (((addr + len) & TARGET_PAGE_MASK) != (addr & TARGET_PAGE_MASK)) {
+        tlb_flush(cpu);
+    } else {
+        tlb_flush_page(cpu, addr);
+    }
 
     if (watchpoint)
         *watchpoint = wp;
