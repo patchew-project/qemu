@@ -35,7 +35,7 @@ import argparse
 from itertools import chain
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'python'))
-from qemu.machine import QEMUMachine
+from qemu.core import QEMUMachine
 
 logger = logging.getLogger('device-crash-test')
 dbg = logger.debug

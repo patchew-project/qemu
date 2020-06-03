@@ -32,7 +32,7 @@ else:
 
 sys.path.append(os.path.join(SOURCE_DIR, 'python'))
 
-from qemu.machine import QEMUMachine
+from qemu.core import QEMUMachine
 
 def is_readable_executable_file(path):
     return os.path.isfile(path) and os.access(path, os.R_OK | os.X_OK)

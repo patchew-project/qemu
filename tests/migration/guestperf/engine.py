@@ -29,7 +29,7 @@ from guestperf.timings import TimingRecord, Timings
 
 sys.path.append(os.path.join(os.path.dirname(__file__),
                              '..', '..', '..', 'python'))
-from qemu.machine import QEMUMachine
+from qemu.core import QEMUMachine
 
 
 class Engine(object):

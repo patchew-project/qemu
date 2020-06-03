@@ -17,7 +17,7 @@ import os, posix
 from errno import *
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.qmp import QEMUMonitorProtocol
+from qemu.core import QEMUMonitorProtocol
 
 fuse.fuse_python_api = (0, 2)
 

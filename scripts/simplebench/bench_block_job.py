@@ -25,8 +25,8 @@ import socket
 import json
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'python'))
-from qemu.machine import QEMUMachine
-from qemu.qmp import QMPConnectError
+from qemu.core import QEMUMachine
+from qemu.core.qmp import QMPConnectError
 
 
 def bench_block_job(cmd, cmd_args, qemu_args):
