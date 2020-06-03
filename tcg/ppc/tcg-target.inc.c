@@ -790,21 +790,25 @@ static inline void tcg_out_ext32u(TCGContext *s, TCGReg dst, TCGReg src)
 
 static inline void tcg_out_shli32(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
+    c = ((unsigned)c > 32) ? 32 : c;
     tcg_out_rlw(s, RLWINM, dst, src, c, 0, 31 - c);
 }
 
 static inline void tcg_out_shli64(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
+    c = ((unsigned)c > 64) ? 64 : c;
     tcg_out_rld(s, RLDICR, dst, src, c, 63 - c);
 }
 
 static inline void tcg_out_shri32(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
+    c = ((unsigned)c > 32) ? 32 : c;
     tcg_out_rlw(s, RLWINM, dst, src, 32 - c, c, 31);
 }
 
 static inline void tcg_out_shri64(TCGContext *s, TCGReg dst, TCGReg src, int c)
 {
+    c = ((unsigned)c > 64) ? 64 : c;
     tcg_out_rld(s, RLDICL, dst, src, 64 - c, c);
 }
 
