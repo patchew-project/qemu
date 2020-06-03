@@ -24,21 +24,14 @@ struct QemuLockable {
     QemuLockUnlockFunc *unlock;
 };
 
-#define QLNULL ((QemuLockable *)0)
-
-
-/* This function gives an error if an invalid, non-NULL pointer type is passed
- * to QEMU_MAKE_LOCKABLE.  For optimized builds, we can rely on dead-code elimination
- * from the compiler, and give the errors already at link time.
+/*
+ *  If unknown_lock_type() is referenced, it means we have tried to passed something
+ *  not recognized as lockable to the macros below.  Use QLNULL to intentionally pass
+ *  a null lockable.
  */
-#if defined(__OPTIMIZE__) && !defined(__SANITIZE_ADDRESS__)
+#define QLNULL ((QemuLockable *)0)
 void unknown_lock_type(void *);
-#else
-static inline void unknown_lock_type(void *unused)
-{
-    abort();
-}
-#endif
+
 
 static inline __attribute__((__always_inline__)) QemuLockable *
 qemu_make_lockable(void *x, QemuLockable *lockable)
