@@ -10875,6 +10875,7 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
     uint64_t descaddrmask;
     bool aarch64 = arm_el_is_aa64(env, el);
     bool guarded = false;
+    uint8_t memattr;
 
     /* TODO: This code does not support shareability levels. */
     if (aarch64) {
@@ -11099,17 +11100,32 @@ static bool get_phys_addr_lpae(CPUARMState *env, target_ulong address,
         txattrs->target_tlb_bit0 = true;
     }
 
-    if (cacheattrs != NULL) {
+    if (mmu_idx == ARMMMUIdx_Stage2) {
+        memattr = convert_stage2_attrs(env, extract32(attrs, 0, 4));
+    } else {
+        /* Index into MAIR registers for cache attributes */
+        uint64_t mair = env->cp15.mair_el[el];
+        memattr = extract64(mair, extract32(attrs, 0, 3) * 8, 8);
+    }
+
+    /* When MTE is enabled, remember Tagged Memory in IOTLB. */
+    if (aarch64 && cpu_isar_feature(aa64_mte, cpu)) {
         if (mmu_idx == ARMMMUIdx_Stage2) {
-            cacheattrs->attrs = convert_stage2_attrs(env,
-                                                     extract32(attrs, 0, 4));
+            /*
+             * Require Normal, I+O Shareable, WB, NT, RA, WA (0xff).
+             * If not, squash stage1 tagged normal setting.
+             */
+            if (memattr != 0xff) {
+                txattrs->target_tlb_bit1 = false;
+            }
         } else {
-            /* Index into MAIR registers for cache attributes */
-            uint8_t attrindx = extract32(attrs, 0, 3);
-            uint64_t mair = env->cp15.mair_el[regime_el(env, mmu_idx)];
-            assert(attrindx <= 7);
-            cacheattrs->attrs = extract64(mair, attrindx * 8, 8);
+            /* Tagged Normal Memory (0xf0).  */
+            txattrs->target_tlb_bit1 = (memattr == 0xf0);
         }
+    }
+
+    if (cacheattrs != NULL) {
+        cacheattrs->attrs = memattr;
         cacheattrs->shareability = extract32(attrs, 6, 2);
     }
 
@@ -12065,6 +12081,17 @@ bool get_phys_addr(CPUARMState *env, target_ulong address,
         *phys_ptr = address;
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         *page_size = TARGET_PAGE_SIZE;
+
+        /* Stage1 translations are Tagged or Untagged based on HCR_DCT. */
+        if (cpu_isar_feature(aa64_mte, env_archcpu(env))
+            && (mmu_idx == ARMMMUIdx_Stage1_E0 ||
+                mmu_idx == ARMMMUIdx_Stage1_E1 ||
+                mmu_idx == ARMMMUIdx_Stage1_E1_PAN)) {
+            uint64_t hcr = arm_hcr_el2_eff(env);
+            if ((hcr & (HCR_DC | HCR_DCT)) == (HCR_DC | HCR_DCT)) {
+                attrs->target_tlb_bit1 = true;
+            }
+        }
         return 0;
     }
 
