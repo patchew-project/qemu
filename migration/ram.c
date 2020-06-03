@@ -910,14 +910,15 @@ static void migration_update_rates(RAMState *rs, int64_t end_time)
         xbzrle_counters.cache_miss_rate = (double)(xbzrle_counters.cache_miss -
             rs->xbzrle_cache_miss_prev) / page_count;
         rs->xbzrle_cache_miss_prev = xbzrle_counters.cache_miss;
-        unencoded_size = (xbzrle_counters.pages - rs->xbzrle_pages_prev) *
-                         TARGET_PAGE_SIZE;
-        encoded_size = xbzrle_counters.bytes - rs->xbzrle_bytes_prev;
         if (xbzrle_counters.pages == rs->xbzrle_pages_prev) {
             xbzrle_counters.encoding_rate = 0;
-        } else if (!encoded_size) {
+        } else if (xbzrle_counters.bytes == rs->xbzrle_bytes_prev) {
             xbzrle_counters.encoding_rate = UINT64_MAX;
         } else {
+            unencoded_size = (xbzrle_counters.pages - rs->xbzrle_pages_prev) *
+                             TARGET_PAGE_SIZE;
+            encoded_size = xbzrle_counters.bytes - rs->xbzrle_bytes_prev;
+
             xbzrle_counters.encoding_rate = unencoded_size / encoded_size;
         }
         rs->xbzrle_pages_prev = xbzrle_counters.pages;
