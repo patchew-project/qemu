@@ -384,7 +384,10 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
         val = s->regs.crtc_pitch;
         break;
     case 0xf00 ... 0xfff:
-        val = pci_default_read_config(&s->dev, addr - 0xf00, size);
+        addr = addr - 0xf00;
+        if (addr + size <= 0xff) {
+            val = pci_default_read_config(&s->dev, addr, size);
+        }
         break;
     case CUR_OFFSET:
         val = s->regs.cur_offset;
