@@ -286,7 +286,8 @@ static uint64_t ati_mm_read(void *opaque, hwaddr addr, unsigned int size)
                 val = ldn_le_p(s->vga.vram_ptr + idx, size);
             }
         } else {
-            val = ati_mm_read(s, s->regs.mm_index + addr - MM_DATA, size);
+            uint32_t idx = s->regs.mm_index++;
+            val = ati_mm_read(s, idx + addr - MM_DATA, size);
         }
         break;
     case BIOS_0_SCRATCH ... BUS_CNTL - 1:
@@ -521,7 +522,8 @@ static void ati_mm_write(void *opaque, hwaddr addr,
                 stn_le_p(s->vga.vram_ptr + idx, size, data);
             }
         } else {
-            ati_mm_write(s, s->regs.mm_index + addr - MM_DATA, data, size);
+            uint32_t idx = s->regs.mm_index++;
+            ati_mm_write(s, idx + addr - MM_DATA, data, size);
         }
         break;
     case BIOS_0_SCRATCH ... BUS_CNTL - 1:
