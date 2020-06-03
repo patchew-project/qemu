@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 pylint = "==2.5.0"
 flake8 = ">=3.6.0"
+mypy = ">=0.730"
 
 [packages]
 
