@@ -28,6 +28,7 @@
 #define MAX_IO_BYTES (1 << 20) /* 1 Mb */
 #define DEFAULT_MIRROR_BUF_SIZE (MAX_IN_FLIGHT * MAX_IO_BYTES)
 
+
 /* The mirroring buffer is a list of granularity-sized chunks.
  * Free chunks are organized in a list.
  */
@@ -157,7 +158,7 @@ static void coroutine_fn mirror_wait_on_conflicts(MirrorOp *self,
             if (ranges_overlap(self_start_chunk, self_nb_chunks,
                                op_start_chunk, op_nb_chunks))
             {
-                qemu_co_queue_wait(&op->waiting_requests, NULL);
+                qemu_co_queue_wait(&op->waiting_requests, QLNULL);
                 break;
             }
         }
@@ -297,7 +298,7 @@ mirror_wait_for_any_operation(MirrorBlockJob *s, bool active)
         if (!op->is_pseudo_op && op->is_in_flight &&
             op->is_active_write == active)
         {
-            qemu_co_queue_wait(&op->waiting_requests, NULL);
+            qemu_co_queue_wait(&op->waiting_requests, QLNULL);
             return;
         }
     }

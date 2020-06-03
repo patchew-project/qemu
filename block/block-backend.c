@@ -1174,7 +1174,7 @@ static void coroutine_fn blk_wait_while_drained(BlockBackend *blk)
 
     if (blk->quiesce_counter && !blk->disable_request_queuing) {
         blk_dec_in_flight(blk);
-        qemu_co_queue_wait(&blk->queued_requests, NULL);
+        qemu_co_queue_wait(&blk->queued_requests, QLNULL);
         blk_inc_in_flight(blk);
     }
 }
@@ -2367,7 +2367,7 @@ static void blk_root_drained_end(BdrvChild *child, int *drained_end_counter)
         if (blk->dev_ops && blk->dev_ops->drained_end) {
             blk->dev_ops->drained_end(blk->dev_opaque);
         }
-        while (qemu_co_enter_next(&blk->queued_requests, NULL)) {
+        while (qemu_co_enter_next(&blk->queued_requests, QLNULL)) {
             /* Resume all queued requests */
         }
     }

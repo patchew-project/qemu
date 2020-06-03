@@ -64,7 +64,7 @@ void coroutine_fn co_get_from_shres(SharedResource *s, uint64_t n)
 {
     assert(n <= s->total);
     while (!co_try_get_from_shres(s, n)) {
-        qemu_co_queue_wait(&s->queue, NULL);
+        qemu_co_queue_wait(&s->queue, QLNULL);
     }
 }
 
