@@ -3753,17 +3753,20 @@ static void disas_pc_rel_adr(DisasContext *s, uint32_t insn)
  *    sf: 0 -> 32bit, 1 -> 64bit
  *    op: 0 -> add  , 1 -> sub
  *     S: 1 -> set flags
- * shift: 00 -> LSL imm by 0, 01 -> LSL imm by 12
+ * shift: 00 -> LSL imm by 0,
+ *        01 -> LSL imm by 12
+ *        10 -> ADDG, SUBG
  */
 static void disas_add_sub_imm(DisasContext *s, uint32_t insn)
 {
     int rd = extract32(insn, 0, 5);
     int rn = extract32(insn, 5, 5);
-    uint64_t imm = extract32(insn, 10, 12);
+    int imm = extract32(insn, 10, 12);
     int shift = extract32(insn, 22, 2);
     bool setflags = extract32(insn, 29, 1);
     bool sub_op = extract32(insn, 30, 1);
     bool is_64bit = extract32(insn, 31, 1);
+    bool is_tag = false;
 
     TCGv_i64 tcg_rn = cpu_reg_sp(s, rn);
     TCGv_i64 tcg_rd = setflags ? cpu_reg(s, rd) : cpu_reg_sp(s, rd);
@@ -3775,8 +3778,37 @@ static void disas_add_sub_imm(DisasContext *s, uint32_t insn)
     case 0x1:
         imm <<= 12;
         break;
+    case 0x2:
+        /* ADDG, SUBG */
+        if (!is_64bit || setflags || (imm & 0x30) ||
+            !dc_isar_feature(aa64_mte_insn_reg, s)) {
+            goto do_unallocated;
+        }
+        is_tag = true;
+        break;
     default:
+    do_unallocated:
         unallocated_encoding(s);
+        return;
+    }
+
+    if (is_tag) {
+        imm = (imm >> 6) << LOG2_TAG_GRANULE;
+        if (sub_op) {
+            imm = -imm;
+        }
+
+        if (s->ata) {
+            TCGv_i32 tag_offset = tcg_const_i32(imm & 15);
+            TCGv_i32 offset = tcg_const_i32(imm);
+
+            gen_helper_addsubg(tcg_rd, cpu_env, tcg_rn, offset, tag_offset);
+            tcg_temp_free_i32(tag_offset);
+            tcg_temp_free_i32(offset);
+        } else {
+            tcg_gen_addi_i64(tcg_rd, tcg_rn, imm);
+            gen_address_with_allocation_tag0(tcg_rd, tcg_rd);
+        }
         return;
     }
 
