@@ -27,6 +27,7 @@
 #include "migration/blocker.h"
 #include "migration/qemu-file-types.h"
 #include "sysemu/dma.h"
+#include "sysemu/tcg.h"
 #include "trace.h"
 
 /* enabled until disconnected backend stabilizes */
@@ -403,26 +404,43 @@ static int vhost_verify_ring_mappings(struct vhost_dev *dev,
     return r;
 }
 
+/*
+ * vhost_section: identify sections needed for vhost access
+ *
+ * We only care about RAM sections here (where virtqueue can live). If
+ * we find one we still allow the backend to potentially filter it out
+ * of our list.
+ */
 static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
 {
-    bool result;
-    bool log_dirty = memory_region_get_dirty_log_mask(section->mr) &
-                     ~(1 << DIRTY_MEMORY_MIGRATION);
-    result = memory_region_is_ram(section->mr) &&
-        !memory_region_is_rom(section->mr);
+    enum { OK = 0, NOT_RAM, DIRTY, FILTERED } result = NOT_RAM;
 
-    /* Vhost doesn't handle any block which is doing dirty-tracking other
-     * than migration; this typically fires on VGA areas.
-     */
-    result &= !log_dirty;
+    if (memory_region_is_ram(section->mr) && !memory_region_is_rom(section->mr)) {
+        uint8_t dirty_mask = memory_region_get_dirty_log_mask(section->mr);
+        uint8_t handled_dirty;
 
-    if (result && dev->vhost_ops->vhost_backend_mem_section_filter) {
-        result &=
-            dev->vhost_ops->vhost_backend_mem_section_filter(dev, section);
+        /*
+         * Vhost doesn't handle any block which is doing dirty-tracking other
+         * than migration; this typically fires on VGA areas. However
+         * for TCG we also do dirty code page tracking which shouldn't
+         * get in the way.
+         */
+        handled_dirty = (1 << DIRTY_MEMORY_MIGRATION);
+        if (tcg_enabled()) {
+            handled_dirty |= (1 << DIRTY_MEMORY_CODE);
+        }
+        if (dirty_mask & ~handled_dirty) {
+            result = DIRTY;
+        } else if (dev->vhost_ops->vhost_backend_mem_section_filter &&
+            !dev->vhost_ops->vhost_backend_mem_section_filter(dev, section)) {
+            result = FILTERED;
+        } else {
+            result = OK;
+        }
     }
 
     trace_vhost_section(section->mr->name, result);
-    return result;
+    return result == OK;
 }
 
 static void vhost_begin(MemoryListener *listener)
