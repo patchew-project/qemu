@@ -24,6 +24,7 @@
 #include "qemu/osdep.h"
 #include "hw/irq.h"
 #include "hw/net/imx_fec.h"
+#include "hw/net/mii.h"
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "sysemu/dma.h"
@@ -231,6 +232,9 @@ static const VMStateDescription vmstate_imx_eth = {
 #define PHY_INT_PARFAULT            (1 << 2)
 #define PHY_INT_AUTONEG_PAGE        (1 << 1)
 
+#define MII_SMC911X_ISF             29
+#define MII_SMC911X_IM              30
+
 static void imx_eth_update(IMXFECState *s);
 
 /*
@@ -249,11 +253,11 @@ static void imx_phy_update_link(IMXFECState *s)
     /* Autonegotiation status mirrors link status.  */
     if (qemu_get_queue(s->nic)->link_down) {
         trace_imx_phy_update_link("down");
-        s->phy_status &= ~0x0024;
+        s->phy_status &= ~(MII_BMSR_LINK_ST | MII_BMSR_AN_COMP);
         s->phy_int |= PHY_INT_DOWN;
     } else {
         trace_imx_phy_update_link("up");
-        s->phy_status |= 0x0024;
+        s->phy_status |= MII_BMSR_LINK_ST | MII_BMSR_AN_COMP;
         s->phy_int |= PHY_INT_ENERGYON;
         s->phy_int |= PHY_INT_AUTONEG_COMPLETE;
     }
@@ -269,9 +273,11 @@ static void imx_phy_reset(IMXFECState *s)
 {
     trace_imx_phy_reset();
 
-    s->phy_status = 0x7809;
-    s->phy_control = 0x3000;
-    s->phy_advertise = 0x01e1;
+    s->phy_status = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD | MII_BMSR_10T_FD |
+                    MII_BMSR_10T_HD | MII_BMSR_AUTONEG | MII_BMSR_EXTCAP;
+    s->phy_control = MII_BMCR_AUTOEN | MII_BMCR_SPEED100;
+    s->phy_advertise = MII_ANAR_CSMACD | MII_ANAR_TX | MII_ANAR_10FD |
+                       MII_ANAR_10 | MII_ANAR_TXFD;
     s->phy_int_mask = 0;
     s->phy_int = 0;
     imx_phy_update_link(s);
@@ -285,37 +291,42 @@ static uint32_t imx_phy_read(IMXFECState *s, int reg)
     reg %= 32;
 
     switch (reg) {
-    case 0:     /* Basic Control */
+    case MII_BMCR:     /* Basic Control */
         val = s->phy_control;
         break;
-    case 1:     /* Basic Status */
+    case MII_BMSR:     /* Basic Status */
         val = s->phy_status;
         break;
-    case 2:     /* ID1 */
-        val = 0x0007;
+    case MII_PHYID1:     /* ID1 */
+        val = LAN911x_PHYID1;
         break;
-    case 3:     /* ID2 */
-        val = 0xc0d1;
+    case MII_PHYID2:     /* ID2 */
+        val = LAN911x_PHYID2;
         break;
-    case 4:     /* Auto-neg advertisement */
+    case MII_ANAR:     /* Auto-neg advertisement */
         val = s->phy_advertise;
         break;
-    case 5:     /* Auto-neg Link Partner Ability */
-        val = 0x0f71;
+    case MII_ANLPAR:     /* Auto-neg Link Partner Ability */
+        val = MII_ANLPAR_CSMACD | MII_ANLPAR_10 | MII_ANLPAR_10FD |
+              MII_ANLPAR_TX | MII_ANLPAR_TXFD | MII_ANLPAR_PAUSE |
+              MII_ANLPAR_PAUSEASY;
         break;
-    case 6:     /* Auto-neg Expansion */
-        val = 1;
+    case MII_ANER:     /* Auto-neg Expansion */
+        val = MII_ANER_NWAY;
         break;
-    case 29:    /* Interrupt source.  */
+    case MII_SMC911X_ISF:    /* Interrupt source.  */
         val = s->phy_int;
         s->phy_int = 0;
         imx_phy_update_irq(s);
         break;
-    case 30:    /* Interrupt mask */
+    case MII_SMC911X_IM:    /* Interrupt mask */
         val = s->phy_int_mask;
         break;
-    case 17:
-    case 18:
+    case MII_NSR:
+        val = 1 << 6;
+        break;
+    case MII_LBREMR:
+    case MII_REC:
     case 27:
     case 31:
         qemu_log_mask(LOG_UNIMP, "[%s.phy]%s: reg %d not implemented\n",
@@ -343,26 +354,31 @@ static void imx_phy_write(IMXFECState *s, int reg, uint32_t val)
     trace_imx_phy_write(val, phy, reg);
 
     switch (reg) {
-    case 0:     /* Basic Control */
-        if (val & 0x8000) {
+    case MII_BMCR:     /* Basic Control */
+        if (val & MII_BMCR_RESET) {
             imx_phy_reset(s);
         } else {
-            s->phy_control = val & 0x7980;
+            s->phy_control = val & (MII_BMCR_LOOPBACK | MII_BMCR_SPEED100 |
+                                    MII_BMCR_AUTOEN | MII_BMCR_PDOWN |
+                                    MII_BMCR_FD | MII_BMCR_CTST);
             /* Complete autonegotiation immediately.  */
-            if (val & 0x1000) {
-                s->phy_status |= 0x0020;
+            if (val & MII_BMCR_AUTOEN) {
+                s->phy_status |= MII_BMSR_AN_COMP;
             }
         }
         break;
-    case 4:     /* Auto-neg advertisement */
-        s->phy_advertise = (val & 0x2d7f) | 0x80;
+    case MII_ANAR:     /* Auto-neg advertisement */
+        s->phy_advertise = (val & (MII_ANAR_PAUSE_ASYM | MII_ANAR_PAUSE |
+                                   MII_ANAR_TXFD | MII_ANAR_TX |
+                                   MII_ANAR_10FD | MII_ANAR_10 | 0x1f)) |
+                                   MII_ANAR_TX;
         break;
-    case 30:    /* Interrupt mask */
+    case MII_SMC911X_IM:    /* Interrupt mask */
         s->phy_int_mask = val & 0xff;
         imx_phy_update_irq(s);
         break;
-    case 17:
-    case 18:
+    case MII_LBREMR:
+    case MII_REC:
     case 27:
     case 31:
         qemu_log_mask(LOG_UNIMP, "[%s.phy)%s: reg %d not implemented\n",

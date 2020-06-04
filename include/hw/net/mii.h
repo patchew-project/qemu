@@ -112,4 +112,8 @@
 #define DP83848_PHYID1      0x2000
 #define DP83848_PHYID2      0x5c90
 
+/* SMSC LAN911x Internal PHY */
+#define LAN911x_PHYID1      0x0007
+#define LAN911x_PHYID2      0xc0d1
+
 #endif /* MII_H */
