@@ -20,7 +20,37 @@
 #include "qapi/qmp/qobject.h"
 #include "qapi/qmp/qdict.h"
 
+#define MAX_IRQ 256
+
 typedef struct QTestState QTestState;
+
+typedef void (*QTestSendFn)(QTestState *s, const char *buf);
+typedef void (*ExternalSendFn)(void *s, const char *buf);
+typedef GString* (*QTestRecvFn)(QTestState *);
+
+typedef struct QTestClientTransportOps {
+    QTestSendFn     send;      /* for sending qtest commands */
+
+    /*
+     * use external_send to send qtest command strings through functions which
+     * do not accept a QTestState as the first parameter.
+     */
+    ExternalSendFn  external_send;
+
+    QTestRecvFn     recv_line; /* for receiving qtest command responses */
+} QTestTransportOps;
+
+struct QTestState {
+    int fd;
+    int qmp_fd;
+    pid_t qemu_pid;  /* our child QEMU process */
+    int wstatus;
+    int expected_status;
+    bool big_endian;
+    bool irq_level[MAX_IRQ];
+    GString *rx;
+    QTestTransportOps ops;
+};
 
 /**
  * qtest_initf:
@@ -625,6 +655,14 @@ void qtest_add_data_func_full(const char *str, void *data,
     } while (0)
 
 void qtest_add_abrt_handler(GHookFunc fn, const void *data);
+
+/**
+ * qtest_socket_client:
+ * @server_socket_path: the socket server's path
+ *
+ * Connect to a socket server.
+ */
+int qtest_socket_client(char *server_socket_path);
 
 /**
  * qtest_qmp_assert_success:
