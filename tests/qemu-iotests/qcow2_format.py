@@ -21,6 +21,12 @@ class Flags64(Qcow2Field):
         return str(bits)
 
 
+class Enum(Qcow2Field):
+
+    def __str__(self):
+        return f'{self.value} ({self.mapping.get(self.value, "<unknown>")})'
+
+
 class Qcow2StructMeta(type):
 
     # Mapping from c types to python struct format
@@ -75,8 +81,17 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
 
 class QcowHeaderExtension(Qcow2Struct):
 
+    class Magic(Enum):
+        mapping = {
+            0xE2792ACA: 'Backing format',
+            0x6803f857: 'Feature table',
+            0x0537be77: 'Crypto header',
+            0x23852875: 'Bitmaps',
+            0x44415441: 'Data file'
+        }
+
     fields = (
-        ('u32', '{:#x}', 'magic'),
+        ('u32', Magic, 'magic'),
         ('u32', '{}', 'length')
         # length bytes of data follows
         # then padding to next multiply of 8
