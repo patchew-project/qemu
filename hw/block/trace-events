@@ -15,6 +15,24 @@ pflash_data_write(uint64_t offset, unsigned size, uint32_t value, uint64_t count
 pflash_manufacturer_id(uint16_t id) "Read Manufacturer ID: 0x%04x"
 pflash_device_id(uint16_t id) "Read Device ID: 0x%04x"
 pflash_device_info(uint64_t offset) "Read Device Information offset:0x%04"PRIx64
+pflash_sector_erase_timeout(int sectors) "sector erase timeout fired; erasing %d sectors"
+pflash_sector_erase_complete(void) "sector erase complete"
+pflash_unknown_command_state(uint8_t cmd) "unknown command state: 0x%02x"
+pflash_status(uint64_t status) "status 0x%" PRIx64
+pflash_flash_id(uint64_t boff, uint64_t id) "ID 0x%" PRIx64 " 0x%" PRIx64
+pflash_sector_erase_start(uint64_t start, uint64_t end) "start sector erase at 0x%"PRIx64"-0x%"PRIx64
+pflash_unlock0_failed(uint64_t addr, uint8_t cmd, uint16_t expected) "unlock0 failed 0x%" PRIx64 " %02x %04x"
+pflash_unlock_sequence_started(void) "unlock sequence started"
+pflash_unlock1_failed(uint64_t addr, uint8_t cmd, uint16_t expected) "unlock0 failed 0x%" PRIx64 " %02x %04x"
+pflash_unlock_sequence_done(void) "unlock sequence done"
+pflash_command_failed(uint64_t addr, uint8_t cmd) "command failed addr 0x%" PRIx64 " cmd 0x%02x"
+pflash_command_starting(uint8_t cmd) "starting command 0x%02x"
+pflash_command_unknown(uint8_t cmd) "unknown command 0x%02x"
+pflash_invalid_write_state(uint8_t cmd, int state) "invalid write for command 0x%02x (wc %d)"
+pflash_invalid_command_state(uint8_t cmd, int state) "invalid command state 0x%02x (wc %d)"
+pflash_invalid_erase_adddress(uint64_t addr) "chip erase: invalid address 0x%" PRIx64
+pflash_chip_erase_start(void) "start chip erase"
+pflash_invalid_write_query(void) "invalid write in CFI query mode"
 
 # virtio-blk.c
 virtio_blk_req_complete(void *vdev, void *req, int status) "vdev %p req %p status %d"
