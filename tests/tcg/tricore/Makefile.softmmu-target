@@ -7,6 +7,8 @@ ASFLAGS =
 
 QEMU_OPTS += -M tricore_testboard -nographic -kernel
 
+TESTS += test_abs.tst
+
 %.pS: $(TESTS_PATH)/%.S
 	$(HOST_CC) -E -o $@ $<
 
