@@ -116,6 +116,7 @@ ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
 {
     ObjectTypeInfoList *ret = NULL;
 
+    qdev_module_load_all();
     object_class_foreach(qom_list_types_tramp, implements, abstract, &ret);
 
     return ret;
