@@ -146,10 +146,57 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     return dev;
 }
 
+/*
+ * Building devices modular is mostly useful in case they have
+ * dependencies to external libraries.  Which is the case for very few
+ * devices.  So with the expecration that this will be rather the
+ * exception than to rule go with a simple hardcoded list for now ...
+ */
+static struct {
+    const char *type;
+    const char *mod;
+} const hwmodules[] = {
+};
+
+static bool qdev_module_loaded_all;
+
+void qdev_module_load_type(const char *type)
+{
+    int i;
+
+    fprintf(stderr, "%s: %s\n", __func__, type);
+    if (qdev_module_loaded_all) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(hwmodules); i++) {
+        if (strcmp(hwmodules[i].type, type) == 0) {
+            hw_module_load_one(hwmodules[i].mod);
+            return;
+        }
+    }
+}
+
+void qdev_module_load_all(void)
+{
+    int i;
+
+    fprintf(stderr, "%s\n", __func__);
+    if (qdev_module_loaded_all) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(hwmodules); i++) {
+        hw_module_load_one(hwmodules[i].mod);
+    }
+    qdev_module_loaded_all = true;
+}
+
 DeviceState *qdev_try_create(BusState *bus, const char *type)
 {
     DeviceState *dev;
 
+    if (object_class_by_name(type) == NULL) {
+        qdev_module_load_type(type);
+    }
     if (object_class_by_name(type) == NULL) {
         return NULL;
     }
