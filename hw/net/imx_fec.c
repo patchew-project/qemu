@@ -280,11 +280,9 @@ static void imx_phy_reset(IMXFECState *s)
 static uint32_t imx_phy_read(IMXFECState *s, int reg)
 {
     uint32_t val;
+    uint32_t phy = reg / 32;
 
-    if (reg > 31) {
-        /* we only advertise one phy */
-        return 0;
-    }
+    reg %= 32;
 
     switch (reg) {
     case 0:     /* Basic Control */
@@ -331,19 +329,18 @@ static uint32_t imx_phy_read(IMXFECState *s, int reg)
         break;
     }
 
-    trace_imx_phy_read(val, reg);
+    trace_imx_phy_read(val, phy, reg);
 
     return val;
 }
 
 static void imx_phy_write(IMXFECState *s, int reg, uint32_t val)
 {
-    trace_imx_phy_write(val, reg);
+    uint32_t phy = reg / 32;
 
-    if (reg > 31) {
-        /* we only advertise one phy */
-        return;
-    }
+    reg %= 32;
+
+    trace_imx_phy_write(val, phy, reg);
 
     switch (reg) {
     case 0:     /* Basic Control */
@@ -926,7 +923,7 @@ static void imx_eth_write(void *opaque, hwaddr offset, uint64_t value,
                                                        extract32(value,
                                                                  18, 10)));
         } else {
-            /* This a write operation */
+            /* This is a write operation */
             imx_phy_write(s, extract32(value, 18, 10), extract32(value, 0, 16));
         }
         /* raise the interrupt as the PHY operation is done */
