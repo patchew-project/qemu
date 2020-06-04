@@ -7,9 +7,21 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-FROM qemu:debian9
-
+FROM debian:stretch-slim
 MAINTAINER Philippe Mathieu-Daudé <f4bug@amsat.org>
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt install -yy eatmydata && \
+    DEBIAN_FRONTEND=noninteractive eatmydata \
+    apt-get install -y --no-install-recommends \
+        bison \
+        build-essential \
+        ca-certificates \
+        curl \
+        flex \
+        gettext \
+        git \
+        python3-minimal
 
 RUN git clone --single-branch \
         https://github.com/bkoppelmann/tricore-binutils.git \
