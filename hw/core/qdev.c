@@ -156,6 +156,8 @@ static struct {
     const char *type;
     const char *mod;
 } const hwmodules[] = {
+    { .type = "qxl-vga",        .mod = "display-qxl"            },
+    { .type = "qxl",            .mod = "display-qxl"            },
 };
 
 static bool qdev_module_loaded_all;
