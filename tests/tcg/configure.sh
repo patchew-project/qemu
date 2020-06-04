@@ -242,6 +242,8 @@ for target in $target_list; do
   if test $got_cross_cc = no && test "$container" != no && test -n "$container_image"; then
     echo "DOCKER_IMAGE=$container_image" >> $config_target_mak
     echo "DOCKER_CROSS_CC_GUEST=$container_cross_cc" >> $config_target_mak
+    echo "DOCKER_CROSS_AS_GUEST=$container_cross_as" >> $config_target_mak
+    echo "DOCKER_CROSS_LD_GUEST=$container_cross_ld" >> $config_target_mak
   fi
 done
 
