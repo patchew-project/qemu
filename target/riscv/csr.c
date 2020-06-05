@@ -47,7 +47,7 @@ static int fs(CPURISCVState *env, int csrno)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
     return 0;
@@ -61,7 +61,7 @@ static int ctr(CPURISCVState *env, int csrno)
 
     if (!cpu->cfg.ext_counters) {
         /* The Counters extensions is not enabled */
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
     return 0;
@@ -89,7 +89,7 @@ static int hmode(CPURISCVState *env, int csrno)
         }
     }
 
-    return -1;
+    return -RISCV_EXCP_ILLEGAL_INST;
 }
 
 static int pmp(CPURISCVState *env, int csrno)
@@ -103,7 +103,7 @@ static int read_fflags(CPURISCVState *env, int csrno, target_ulong *val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
     *val = riscv_cpu_get_fflags(env);
@@ -114,7 +114,7 @@ static int write_fflags(CPURISCVState *env, int csrno, target_ulong val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
     env->mstatus |= MSTATUS_FS;
 #endif
@@ -126,7 +126,7 @@ static int read_frm(CPURISCVState *env, int csrno, target_ulong *val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
     *val = env->frm;
@@ -137,7 +137,7 @@ static int write_frm(CPURISCVState *env, int csrno, target_ulong val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
     env->mstatus |= MSTATUS_FS;
 #endif
@@ -149,7 +149,7 @@ static int read_fcsr(CPURISCVState *env, int csrno, target_ulong *val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
     *val = (riscv_cpu_get_fflags(env) << FSR_AEXC_SHIFT)
@@ -161,7 +161,7 @@ static int write_fcsr(CPURISCVState *env, int csrno, target_ulong val)
 {
 #if !defined(CONFIG_USER_ONLY)
     if (!env->debugger && !riscv_cpu_fp_enabled(env)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
     env->mstatus |= MSTATUS_FS;
 #endif
@@ -223,7 +223,7 @@ static int read_time(CPURISCVState *env, int csrno, target_ulong *val)
     uint64_t delta = riscv_cpu_virt_enabled(env) ? env->htimedelta : 0;
 
     if (!env->rdtime_fn) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     *val = env->rdtime_fn() + delta;
@@ -236,7 +236,7 @@ static int read_timeh(CPURISCVState *env, int csrno, target_ulong *val)
     uint64_t delta = riscv_cpu_virt_enabled(env) ? env->htimedelta : 0;
 
     if (!env->rdtime_fn) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     *val = (env->rdtime_fn() + delta) >> 32;
@@ -502,7 +502,7 @@ static int write_mcounteren(CPURISCVState *env, int csrno, target_ulong val)
 static int read_mscounteren(CPURISCVState *env, int csrno, target_ulong *val)
 {
     if (env->priv_ver < PRIV_VERSION_1_11_0) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
     *val = env->mcounteren;
     return 0;
@@ -512,7 +512,7 @@ static int read_mscounteren(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_mscounteren(CPURISCVState *env, int csrno, target_ulong val)
 {
     if (env->priv_ver < PRIV_VERSION_1_11_0) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
     env->mcounteren = val;
     return 0;
@@ -736,7 +736,7 @@ static int read_satp(CPURISCVState *env, int csrno, target_ulong *val)
     }
 
     if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     } else {
         *val = env->satp;
     }
@@ -753,7 +753,7 @@ static int write_satp(CPURISCVState *env, int csrno, target_ulong val)
         ((val ^ env->satp) & (SATP_MODE | SATP_ASID | SATP_PPN)))
     {
         if (env->priv == PRV_S && get_field(env->mstatus, MSTATUS_TVM)) {
-            return -1;
+            return -RISCV_EXCP_ILLEGAL_INST;
         } else {
             if((val ^ env->satp) & SATP_ASID) {
                 tlb_flush(env_cpu(env));
@@ -923,7 +923,7 @@ static int write_hgatp(CPURISCVState *env, int csrno, target_ulong val)
 static int read_htimedelta(CPURISCVState *env, int csrno, target_ulong *val)
 {
     if (!env->rdtime_fn) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
 #if defined(TARGET_RISCV32)
@@ -937,7 +937,7 @@ static int read_htimedelta(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_htimedelta(CPURISCVState *env, int csrno, target_ulong val)
 {
     if (!env->rdtime_fn) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
 #if defined(TARGET_RISCV32)
@@ -952,7 +952,7 @@ static int write_htimedelta(CPURISCVState *env, int csrno, target_ulong val)
 static int read_htimedeltah(CPURISCVState *env, int csrno, target_ulong *val)
 {
     if (!env->rdtime_fn) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     *val = env->htimedelta >> 32;
@@ -962,7 +962,7 @@ static int read_htimedeltah(CPURISCVState *env, int csrno, target_ulong *val)
 static int write_htimedeltah(CPURISCVState *env, int csrno, target_ulong val)
 {
     if (!env->rdtime_fn) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     env->htimedelta = deposit64(env->htimedelta, 32, 32, (uint64_t)val);
@@ -1160,18 +1160,18 @@ int riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
 
     if ((write_mask && read_only) ||
         (!env->debugger && (effective_priv < get_field(csrno, 0x300)))) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 #endif
 
     /* ensure the CSR extension is enabled. */
     if (!cpu->cfg.ext_icsr) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     /* check predicate */
     if (!csr_ops[csrno].predicate || csr_ops[csrno].predicate(env, csrno) < 0) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     /* execute combined read/write operation if it exists */
@@ -1181,7 +1181,7 @@ int riscv_csrrw(CPURISCVState *env, int csrno, target_ulong *ret_value,
 
     /* if no accessor exists then return failure */
     if (!csr_ops[csrno].read) {
-        return -1;
+        return -RISCV_EXCP_ILLEGAL_INST;
     }
 
     /* read old value */
