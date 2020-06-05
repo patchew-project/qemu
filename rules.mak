@@ -191,6 +191,20 @@ ne = $(if $(subst $2,,$1)$(subst $1,,$2),y,n)
 isempty = $(if $1,n,y)
 notempty = $(if $1,y,n)
 
+# strequal
+# Usage: $(call strequal, str1, str2)
+#
+# This macro returns a string (TRUE) when @str1 and @str2
+# are equal, else returns the empty string (FALSE)
+strequal = $(if $(subst $2,,$1)$(subst $1,,$2),,$1)
+
+# startwith
+# Usage: $(call startwith, startstr, fullstr)
+#
+# This macro returns a string (TRUE) when @fullstr starts with
+# @startstr, else returns the empty string (FALSE)
+startwith = $(findstring :$1,:$2)
+
 # Generate files with tracetool
 TRACETOOL=$(PYTHON) $(SRC_PATH)/scripts/tracetool.py
 
