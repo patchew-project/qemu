@@ -452,3 +452,38 @@ atomic = $(eval $1: $(call sentinel,$1) ; @:) \
 
 print-%:
 	@echo '$*=$($*)'
+
+# base-arch
+# Usage: $(call base-arch, target)
+#
+# @target: the target architecture.
+#
+# This macro will return the base architecture for a target.
+#
+# As example, $(call base-arch, aarch64) returns 'arm'.
+base-arch = $(strip \
+		$(if $(call startwith,aarch64,$1),arm,\
+		  $(if $(call startwith,arm,$1),arm,\
+		    $(if $(call startwith,microblaze,$1),microblaze,\
+		      $(if $(call startwith,mips,$1),mips,\
+		        $(if $(call startwith,ppc,$1),ppc,\
+		          $(if $(call startwith,riscv,$1),riscv,\
+		            $(if $(call startwith,sh4,$1),sh4,\
+		              $(if $(call startwith,sparc,$1),sparc,\
+		                $(if $(call startwith,xtensa,$1),xtensa,\
+		                  $(if $(call strequal,x86_64,$1),i386,\
+		                    $1\
+		                   )\
+		                 )\
+		               )\
+		             )\
+		           )\
+		         )\
+		       )\
+		     )\
+		   )\
+		 )\
+		)
+
+print-base-arch-%:
+	@echo '$*=$(call base-arch,$*)'
