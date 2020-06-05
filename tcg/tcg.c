@@ -502,13 +502,26 @@ size_t tcg_nb_tbs(void)
     return nb_tbs;
 }
 
-static void tcg_region_tree_reset_all(void)
+static gboolean tcg_region_tree_traverse(gpointer k, gpointer v, gpointer data)
+{
+    TranslationBlock *tb = v;
+    tb_destroy_func tb_destroy = data;
+
+    tb_destroy(tb);
+    return FALSE;
+}
+
+static void tcg_region_tree_reset_all(tb_destroy_func tb_destroy)
 {
     size_t i;
 
     tcg_region_tree_lock_all();
     for (i = 0; i < region.n; i++) {
         struct tcg_region_tree *rt = region_trees + i * tree_size;
+
+        if (tb_destroy != NULL) {
+            g_tree_foreach(rt->tree, tcg_region_tree_traverse, tb_destroy);
+        }
 
         /* Increment the refcount first so that destroy acts as a reset */
         g_tree_ref(rt->tree);
@@ -586,7 +599,7 @@ static inline bool tcg_region_initial_alloc__locked(TCGContext *s)
 }
 
 /* Call from a safe-work context */
-void tcg_region_reset_all(void)
+void tcg_region_reset_all(tb_destroy_func tb_destroy)
 {
     unsigned int n_ctxs = atomic_read(&n_tcg_ctxs);
     unsigned int i;
@@ -603,7 +616,7 @@ void tcg_region_reset_all(void)
     }
     qemu_mutex_unlock(&region.lock);
 
-    tcg_region_tree_reset_all();
+    tcg_region_tree_reset_all(tb_destroy);
 }
 
 #ifdef CONFIG_USER_ONLY
