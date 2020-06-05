@@ -2219,6 +2219,7 @@ S: Odd fixes
 F: python/qemu/*py
 F: scripts/*.py
 F: tests/*.py
+F: tests/requirements.txt
 
 Benchmark util
 M: Vladimir Sementsov-Ogievskiy <vsementsov@virtuozzo.com>
