@@ -430,6 +430,7 @@ softmmu="yes"
 linux_user="no"
 bsd_user="no"
 blobs="yes"
+colo_ra="no"
 edk2_blobs="no"
 pkgversion=""
 pie=""
@@ -1309,6 +1310,10 @@ for opt do
   ;;
   --disable-blobs) blobs="no"
   ;;
+  --disable-colo-ra) colo_ra="no"
+  ;;
+  --enable-colo-ra) colo_ra="yes"
+  ;;
   --with-pkgversion=*) pkgversion="$optarg"
   ;;
   --with-coroutine=*) coroutine="$optarg"
@@ -1776,6 +1781,7 @@ Advanced options (experts only):
   --enable-gcov            enable test coverage analysis with gcov
   --gcov=GCOV              use specified gcov [$gcov_tool]
   --disable-blobs          disable installing provided firmware blobs
+  --enable-colo-ra         enable installing the COLO resource agent for pacemaker
   --with-vss-sdk=SDK-path  enable Windows VSS support in QEMU Guest Agent
   --with-win-sdk=SDK-path  path to Windows Platform SDK (to build VSS .tlb)
   --tls-priority           default TLS protocol/cipher priority string
@@ -6663,6 +6669,7 @@ echo "Linux AIO support $linux_aio"
 echo "Linux io_uring support $linux_io_uring"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
+echo "Install COLO resource agent $colo_ra"
 echo "KVM support       $kvm"
 echo "HAX support       $hax"
 echo "HVF support       $hvf"
@@ -7204,6 +7211,9 @@ if test "$vhost_user_fs" = "yes" ; then
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak
+fi
+if test "$colo_ra" = "yes" ; then
+  echo "INSTALL_COLO_RA=yes" >> $config_host_mak
 fi
 if test "$iovec" = "yes" ; then
   echo "CONFIG_IOVEC=y" >> $config_host_mak
