@@ -793,6 +793,25 @@ static void sm501_2d_operation(SM501State *s)
                 src_x == dst_x && src_y == dst_y) {
                 break;
             }
+            /* Some clients also do 1 pixel blits, avoid overhead for these */
+            if (width == 1 && height == 1) {
+                unsigned int si = (src_x + src_y * src_pitch) * (1 << format);
+                unsigned int di = (dst_x + dst_y * dst_pitch) * (1 << format);
+                switch (format) {
+                case 0:
+                    s->local_mem[dst_base + di] = s->local_mem[src_base + si];
+                    break;
+                case 1:
+                    *(uint16_t *)&s->local_mem[dst_base + di] =
+                                    *(uint16_t *)&s->local_mem[src_base + si];
+                    break;
+                case 2:
+                    *(uint32_t *)&s->local_mem[dst_base + di] =
+                                    *(uint32_t *)&s->local_mem[src_base + si];
+                    break;
+                }
+                break;
+            }
             /* Check for overlaps, this could be made more exact */
             uint32_t sb, se, db, de;
             sb = src_base + src_x + src_y * (width + src_pitch);
@@ -841,9 +860,24 @@ static void sm501_2d_operation(SM501State *s)
             color = cpu_to_le16(color);
         }
 
-        pixman_fill((uint32_t *)&s->local_mem[dst_base],
-                    dst_pitch * (1 << format) / sizeof(uint32_t),
-                    8 * (1 << format), dst_x, dst_y, width, height, color);
+        if (width == 1 && height == 1) {
+            unsigned int i = (dst_x + dst_y * dst_pitch) * (1 << format);
+            switch (format) {
+            case 0:
+                s->local_mem[dst_base + i] = color & 0xff;
+                break;
+            case 1:
+                *(uint16_t *)&s->local_mem[dst_base + i] = color & 0xffff;
+                break;
+            case 2:
+                *(uint32_t *)&s->local_mem[dst_base + i] = color;
+                break;
+            }
+        } else {
+            pixman_fill((uint32_t *)&s->local_mem[dst_base],
+                        dst_pitch * (1 << format) / sizeof(uint32_t),
+                        8 * (1 << format), dst_x, dst_y, width, height, color);
+        }
         break;
     }
     default:
