@@ -36,6 +36,7 @@
 #include "ui/console.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
+#include "hw/qdev-deprecated.h"
 
 /* #define DEBUG_SMC */
 
@@ -252,6 +253,8 @@ static void applesmc_add_key(AppleSMCState *s, const char *key,
                              int len, const char *data)
 {
     struct AppleSMCData *def;
+
+    qdev_warn_deprecated_function_used();
 
     def = g_malloc0(sizeof(struct AppleSMCData));
     def->key = key;
