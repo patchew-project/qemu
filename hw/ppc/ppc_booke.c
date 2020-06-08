@@ -31,7 +31,7 @@
 #include "qemu/log.h"
 #include "hw/loader.h"
 #include "kvm_ppc.h"
-
+#include "hw/qdev-deprecated.h"
 
 /* Timer Control Register */
 
@@ -337,6 +337,8 @@ void ppc_booke_timers_init(PowerPCCPU *cpu, uint32_t freq, uint32_t flags)
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
     int ret = 0;
+
+    qdev_warn_deprecated_function_used();
 
     tb_env      = g_malloc0(sizeof(ppc_tb_t));
     booke_timer = g_malloc0(sizeof(booke_timer_t));
