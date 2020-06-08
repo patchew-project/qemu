@@ -561,26 +561,20 @@ static void aarch64_max_initfn(Object *obj)
     } else {
         uint64_t t;
         uint32_t u;
-        aarch64_a57_initfn(obj);
 
+        cpu->dtb_compatible = "qemu,aarch64-max";
         /*
          * Reset MIDR so the guest doesn't mistake our 'max' CPU type for a real
          * one and try to apply errata workarounds or use impdef features we
          * don't provide.
          * An IMPLEMENTER field of 0 means "reserved for software use";
-         * ARCHITECTURE must be 0xf indicating "v7 or later, check ID registers
-         * to see which features are present";
          * the VARIANT, PARTNUM and REVISION fields are all implementation
          * defined and we choose to define PARTNUM just in case guest
          * code needs to distinguish this QEMU CPU from other software
          * implementations, though this shouldn't be needed.
          */
-        t = FIELD_DP64(0, MIDR_EL1, IMPLEMENTER, 0);
-        t = FIELD_DP64(t, MIDR_EL1, ARCHITECTURE, 0xf);
-        t = FIELD_DP64(t, MIDR_EL1, PARTNUM, 'Q');
-        t = FIELD_DP64(t, MIDR_EL1, VARIANT, 0);
-        t = FIELD_DP64(t, MIDR_EL1, REVISION, 0);
-        cpu->midr = t;
+        aarch64_cpu_common_init(obj, 0, 'Q', 0, 0);
+        cortex_a72_a57_a53_common_init(cpu);
 
         t = cpu->isar.id_aa64isar0;
         t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2); /* AES + PMULL */
@@ -680,12 +674,24 @@ static void aarch64_max_initfn(Object *obj)
          * and enabling SVE in system mode is more useful in the short term.
          */
 
+        cpu->reset_fpsid = 0x41034080;
+        cpu->clidr = 0x0a200023;
+        cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
+        cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
+        cpu->ccsidr[2] = 0x707fe07a; /* 1MB L2 cache */
+        cpu->gic_num_lrs = 4;
+        cpu->gic_vpribits = 5;
+        cpu->gic_vprebits = 5;
+
 #ifdef CONFIG_USER_ONLY
         /* For usermode -cpu max we can use a larger and more efficient DCZ
          * blocksize since we don't have to follow what the hardware does.
          */
         cpu->ctr = 0x80038003; /* 32 byte I and D cacheline size, VIPT icache */
         cpu->dcz_blocksize = 7; /*  512 bytes */
+#else
+        cpu->ctr = 0x8444c004;
+        cpu->dcz_blocksize = 4; /* 64 bytes */
 #endif
     }
 
