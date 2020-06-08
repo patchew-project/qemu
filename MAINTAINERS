@@ -299,9 +299,7 @@ SH4 TCG CPUs
 M: Aurelien Jarno <aurelien@aurel32.net>
 S: Odd Fixes
 F: target/sh4/
-F: hw/sh4/
 F: disas/sh4.c
-F: include/hw/sh4/
 
 SPARC TCG CPUs
 M: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
@@ -1947,6 +1945,14 @@ S: Supported
 F: hw/*/*xive*
 F: include/hw/*/*xive*
 F: docs/*/*xive*
+
+SH4 Hardware
+S: Orphan
+F: hw/sh4/
+F: hw/char/sh_serial.c
+F: hw/intc/sh_intc.c
+F: hw/timer/sh_timer.c
+F: include/hw/sh4/
 
 Subsystems
 ----------
