@@ -296,8 +296,7 @@ F: tests/tcg/s390x/
 L: qemu-s390x@nongnu.org
 
 SH4 TCG CPUs
-M: Aurelien Jarno <aurelien@aurel32.net>
-S: Odd Fixes
+S: Orphan
 F: target/sh4/
 F: disas/sh4.c
 
