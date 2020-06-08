@@ -27,6 +27,7 @@
 #include "sysemu/qtest.h"
 #include "qemu/cutils.h"
 #include "qemu/log.h"
+#include "hw/qdev-deprecated.h"
 
 static struct {
     hwaddr io_base;
@@ -1767,6 +1768,8 @@ static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
                 qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma)
 {
     PXA2xxI2SState *s = g_new0(PXA2xxI2SState, 1);
+
+    qdev_warn_deprecated_function_used();
 
     s->irq = irq;
     s->rx_dma = rx_dma;
