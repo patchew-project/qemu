@@ -23,6 +23,7 @@
 #include "ui/console.h"
 #include "hw/display/blizzard.h"
 #include "ui/pixel_ops.h"
+#include "hw/qdev-deprecated.h"
 
 typedef void (*blizzard_fn_t)(uint8_t *, const uint8_t *, unsigned int);
 
@@ -1009,6 +1010,8 @@ void *s1d13745_init(qemu_irq gpio_int)
 {
     BlizzardState *s = (BlizzardState *) g_malloc0(sizeof(*s));
     DisplaySurface *surface;
+
+    qdev_warn_deprecated_function_used();
 
     s->fb = g_malloc(0x180000);
 
