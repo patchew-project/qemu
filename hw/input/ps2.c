@@ -30,7 +30,7 @@
 #include "ui/input.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-
+#include "hw/qdev-deprecated.h"
 #include "trace.h"
 
 /* debug PC keyboard */
@@ -1136,6 +1136,8 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 {
     PS2KbdState *s = (PS2KbdState *)g_malloc0(sizeof(PS2KbdState));
 
+    qdev_warn_deprecated_function_used();
+
     trace_ps2_kbd_init(s);
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
@@ -1157,6 +1159,8 @@ static QemuInputHandler ps2_mouse_handler = {
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
 {
     PS2MouseState *s = (PS2MouseState *)g_malloc0(sizeof(PS2MouseState));
+
+    qdev_warn_deprecated_function_used();
 
     trace_ps2_mouse_init(s);
     s->common.update_irq = update_irq;
