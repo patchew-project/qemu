@@ -43,6 +43,7 @@
 #include "hw/usb.h"
 #include "hw/block/flash.h"
 #include "exec/address-spaces.h"
+#include "hw/qdev-deprecated.h"
 
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE (16 * MiB)
@@ -186,6 +187,8 @@ static qemu_irq *r2d_fpga_init(MemoryRegion *sysmem,
                                hwaddr base, qemu_irq irl)
 {
     r2d_fpga_t *s;
+
+    qdev_warn_deprecated_function_used();
 
     s = g_malloc0(sizeof(r2d_fpga_t));
 
