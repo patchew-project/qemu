@@ -1585,6 +1585,8 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         topo_ids.die_id = cpu->die_id;
         topo_ids.core_id = cpu->core_id;
         topo_ids.smt_id = cpu->thread_id;
+        topo_ids.node_id = cpu_x86_use_epyc_apic_id_encoding(ms->cpu_type) ?
+                           x86_node_id_for_epyc(&topo_info, &topo_ids) : 0;
         cpu->apic_id = x86ms->apicid_from_topo_ids(&topo_info, &topo_ids);
     }
 

@@ -140,6 +140,17 @@ static inline unsigned apicid_pkg_offset_epyc(X86CPUTopoInfo *topo_info)
            apicid_node_width_epyc(topo_info);
 }
 
+static inline unsigned x86_node_id_for_epyc(X86CPUTopoInfo *topo_info,
+                                            const X86CPUTopoIDs *topo_ids)
+{
+    unsigned nr_nodes = MAX(topo_info->nodes_per_pkg, 1);
+    unsigned cores_per_node = DIV_ROUND_UP((topo_info->dies_per_pkg *
+                                            topo_info->cores_per_die *
+                                            topo_info->threads_per_core),
+                                            nr_nodes);
+
+    return (topo_ids->core_id / cores_per_node) % nr_nodes;
+}
 /*
  * Make APIC ID for the CPU based on Pkg_ID, Core_ID, SMT_ID
  *
