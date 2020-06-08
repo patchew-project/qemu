@@ -40,7 +40,7 @@
 #include "qemu/log.h"
 #include "qemu/option.h"
 #include "exec/address-spaces.h"
-
+#include "hw/qdev-deprecated.h"
 #include "hw/ppc/ppc.h"
 #include "hw/ppc/ppc4xx.h"
 #include "hw/qdev-properties.h"
@@ -94,6 +94,8 @@ static PowerPCCPU *ppc440_init_xilinx(const char *cpu_type, uint32_t sysclk)
     PowerPCCPU *cpu;
     CPUPPCState *env;
     qemu_irq *irqs;
+
+    qdev_warn_deprecated_function_used();
 
     cpu = POWERPC_CPU(cpu_create(cpu_type));
     env = &cpu->env;
