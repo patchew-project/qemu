@@ -30,6 +30,7 @@
 #include "qemu/log.h"
 #include "hw/isa/i8259_internal.h"
 #include "trace.h"
+#include "hw/qdev-deprecated.h"
 
 /* debug PIC */
 //#define DEBUG_PIC
@@ -413,6 +414,8 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
     DeviceState *dev;
     ISADevice *isadev;
     int i;
+
+    qdev_warn_deprecated_function_used();
 
     irq_set = g_new0(qemu_irq, ISA_NUM_IRQS);
 
