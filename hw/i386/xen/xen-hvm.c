@@ -31,7 +31,7 @@
 #include "sysemu/xen-mapcache.h"
 #include "trace.h"
 #include "exec/address-spaces.h"
-
+#include "hw/qdev-deprecated.h"
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/e820.h>
 
@@ -1400,6 +1400,8 @@ void xen_hvm_init(PCMachineState *pcms, MemoryRegion **ram_memory)
     int i, rc;
     xen_pfn_t ioreq_pfn;
     XenIOState *state;
+
+    qdev_warn_deprecated_function_used();
 
     state = g_malloc0(sizeof (XenIOState));
 
