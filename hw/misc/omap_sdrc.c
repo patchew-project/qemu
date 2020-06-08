@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/arm/omap.h"
+#include "hw/qdev-deprecated.h"
 
 /* SDRAM Controller Subsystem */
 struct omap_sdrc_s {
@@ -158,6 +159,8 @@ struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
                                    hwaddr base)
 {
     struct omap_sdrc_s *s = g_new0(struct omap_sdrc_s, 1);
+
+    qdev_warn_deprecated_function_used();
 
     omap_sdrc_reset(s);
 

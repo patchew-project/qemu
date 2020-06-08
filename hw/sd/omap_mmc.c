@@ -24,6 +24,7 @@
 #include "hw/irq.h"
 #include "hw/arm/omap.h"
 #include "hw/sd/sd.h"
+#include "hw/qdev-deprecated.h"
 
 struct omap_mmc_s {
     qemu_irq irq;
@@ -599,6 +600,8 @@ struct omap_mmc_s *omap_mmc_init(hwaddr base,
 {
     struct omap_mmc_s *s = g_new0(struct omap_mmc_s, 1);
 
+    qdev_warn_deprecated_function_used();
+
     s->irq = irq;
     s->dma = dma;
     s->clk = clk;
@@ -624,6 +627,8 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
                 omap_clk fclk, omap_clk iclk)
 {
     struct omap_mmc_s *s = g_new0(struct omap_mmc_s, 1);
+
+    qdev_warn_deprecated_function_used();
 
     s->irq = irq;
     s->dma = dma;

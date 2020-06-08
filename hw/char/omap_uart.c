@@ -22,6 +22,7 @@
 #include "hw/arm/omap.h"
 #include "hw/char/serial.h"
 #include "exec/address-spaces.h"
+#include "hw/qdev-deprecated.h"
 
 /* UARTs */
 struct omap_uart_s {
@@ -56,6 +57,8 @@ struct omap_uart_s *omap_uart_init(hwaddr base,
                 const char *label, Chardev *chr)
 {
     struct omap_uart_s *s = g_new0(struct omap_uart_s, 1);
+
+    qdev_warn_deprecated_function_used();
 
     s->base = base;
     s->fclk = fclk;
@@ -167,6 +170,8 @@ struct omap_uart_s *omap2_uart_init(MemoryRegion *sysmem,
     hwaddr base = omap_l4_attach(ta, 0, NULL);
     struct omap_uart_s *s = omap_uart_init(base, irq,
                     fclk, iclk, txdma, rxdma, label, chr);
+
+    qdev_warn_deprecated_function_used();
 
     memory_region_init_io(&s->iomem, NULL, &omap_uart_ops, s, "omap.uart", 0x100);
 
