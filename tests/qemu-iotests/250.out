@@ -1,5 +1,5 @@
 QA output created by 250
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=2202009600 preallocation=metadata
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT preallocation=metadata size=2202009600
 discard 10485760/10485760 bytes at offset 0
 10 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 discard 10485760/10485760 bytes at offset 2191523840
