@@ -27,6 +27,7 @@
 #include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/qdev-deprecated.h"
 
 #define TSC_CUT_RESOLUTION(value, p)	((value) >> (16 - (p ? 12 : 10)))
 
@@ -488,6 +489,8 @@ static const VMStateDescription vmstate_tsc2005 = {
 void *tsc2005_init(qemu_irq pintdav)
 {
     TSC2005State *s;
+
+    qdev_warn_deprecated_function_used();
 
     s = (TSC2005State *)
             g_malloc0(sizeof(TSC2005State));
