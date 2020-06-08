@@ -35,6 +35,7 @@
 #include "hw/char/parallel.h"
 #include "sysemu/reset.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-deprecated.h"
 #include "trace.h"
 
 //#define DEBUG_PARALLEL
@@ -600,6 +601,8 @@ bool parallel_mm_init(MemoryRegion *address_space,
                       Chardev *chr)
 {
     ParallelState *s;
+
+    qdev_warn_deprecated_function_used();
 
     s = g_malloc0(sizeof(ParallelState));
     s->irq = irq;
