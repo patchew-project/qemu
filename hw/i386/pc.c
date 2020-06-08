@@ -94,6 +94,7 @@
 #include "vmport.h"
 #include "fw_cfg.h"
 #include "trace.h"
+#include "hw/qdev-deprecated.h"
 
 GlobalProperty pc_compat_5_0[] = {};
 const size_t pc_compat_5_0_len = G_N_ELEMENTS(pc_compat_5_0);
@@ -347,6 +348,8 @@ const size_t pc_compat_1_4_len = G_N_ELEMENTS(pc_compat_1_4);
 GSIState *pc_gsi_create(qemu_irq **irqs, bool pci_enabled)
 {
     GSIState *s;
+
+    qdev_warn_deprecated_function_used();
 
     s = g_new0(GSIState, 1);
     if (kvm_ioapic_in_kernel()) {
