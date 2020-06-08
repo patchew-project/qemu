@@ -37,6 +37,7 @@
 #include "kvm_ppc.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/qdev-deprecated.h"
 
 //#define PPC_DEBUG_IRQ
 //#define PPC_DEBUG_TB
@@ -1113,6 +1114,8 @@ clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
 {
     PowerPCCPU *cpu = env_archcpu(env);
     ppc_tb_t *tb_env;
+
+    qdev_warn_deprecated_function_used();
 
     tb_env = g_malloc0(sizeof(ppc_tb_t));
     env->tb_env = tb_env;
