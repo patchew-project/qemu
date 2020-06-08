@@ -26,6 +26,7 @@
 #include "hw/sysbus.h"
 #include "elf.h"
 #include "exec/address-spaces.h"
+#include "hw/qdev-deprecated.h"
 
 #define SYS_FREQ 166666666
 
@@ -190,6 +191,8 @@ static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
     m5208_timer_state *s;
     int i;
+
+    qdev_warn_deprecated_function_used();
 
     /* SDRAMC.  */
     memory_region_init_io(iomem, NULL, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
