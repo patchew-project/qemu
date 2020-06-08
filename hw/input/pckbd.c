@@ -31,7 +31,7 @@
 #include "hw/input/i8042.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
-
+#include "hw/qdev-deprecated.h"
 #include "trace.h"
 
 /*	Keyboard Controller Commands */
@@ -466,6 +466,8 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    hwaddr mask)
 {
     KBDState *s = g_malloc0(sizeof(KBDState));
+
+    qdev_warn_deprecated_function_used();
 
     s->irq_kbd = kbd_irq;
     s->irq_mouse = mouse_irq;
