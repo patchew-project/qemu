@@ -29,6 +29,8 @@
 #include "kvm_arm.h"
 #include "qapi/visitor.h"
 
+#define MIDR_IMPLEMENTER_ARM 0x41
+
 #ifndef CONFIG_USER_ONLY
 static uint64_t a57_a53_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
 {
@@ -86,11 +88,19 @@ static const ARMCPRegInfo cortex_a72_a57_a53_cp_reginfo[] = {
     REGINFO_SENTINEL
 };
 
-static void aarch64_a57_initfn(Object *obj)
+void aarch64_cpu_common_init(Object *obj, uint8_t impl, uint16_t part,
+                             uint8_t var, uint8_t rev)
 {
     ARMCPU *cpu = ARM_CPU(obj);
+    uint64_t t;
 
-    cpu->dtb_compatible = "arm,cortex-a57";
+    t = FIELD_DP64(0, MIDR_EL1, IMPLEMENTER, impl);
+    t = FIELD_DP64(t, MIDR_EL1, ARCHITECTURE, 0xf);
+    t = FIELD_DP64(t, MIDR_EL1, PARTNUM, part);
+    t = FIELD_DP64(t, MIDR_EL1, VARIANT, var);
+    t = FIELD_DP64(t, MIDR_EL1, REVISION, rev);
+    cpu->midr = t;
+
     set_feature(&cpu->env, ARM_FEATURE_V8);
     set_feature(&cpu->env, ARM_FEATURE_NEON);
     set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
@@ -99,8 +109,16 @@ static void aarch64_a57_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL2);
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     set_feature(&cpu->env, ARM_FEATURE_PMU);
+}
+
+static void aarch64_a57_initfn(Object *obj)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+
+    aarch64_cpu_common_init(obj, MIDR_IMPLEMENTER_ARM, 0xd07, 1, 0);
+
+    cpu->dtb_compatible = "arm,cortex-a57";
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A57;
-    cpu->midr = 0x411fd070;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034070;
     cpu->isar.mvfr0 = 0x10110222;
@@ -143,17 +161,10 @@ static void aarch64_a53_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
+    aarch64_cpu_common_init(obj, MIDR_IMPLEMENTER_ARM, 0xd03, 0, 4);
+
     cpu->dtb_compatible = "arm,cortex-a53";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A53;
-    cpu->midr = 0x410fd034;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034070;
     cpu->isar.mvfr0 = 0x10110222;
@@ -196,16 +207,9 @@ static void aarch64_a72_initfn(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
 
+    aarch64_cpu_common_init(obj, MIDR_IMPLEMENTER_ARM, 0xd08, 0, 3);
+
     cpu->dtb_compatible = "arm,cortex-a72";
-    set_feature(&cpu->env, ARM_FEATURE_V8);
-    set_feature(&cpu->env, ARM_FEATURE_NEON);
-    set_feature(&cpu->env, ARM_FEATURE_GENERIC_TIMER);
-    set_feature(&cpu->env, ARM_FEATURE_AARCH64);
-    set_feature(&cpu->env, ARM_FEATURE_CBAR_RO);
-    set_feature(&cpu->env, ARM_FEATURE_EL2);
-    set_feature(&cpu->env, ARM_FEATURE_EL3);
-    set_feature(&cpu->env, ARM_FEATURE_PMU);
-    cpu->midr = 0x410fd083;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034080;
     cpu->isar.mvfr0 = 0x10110222;

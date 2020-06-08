@@ -44,6 +44,9 @@ typedef struct ARMCPUInfo {
 void arm_cpu_register(const ARMCPUInfo *info);
 void aarch64_cpu_register(const ARMCPUInfo *info);
 
+void aarch64_cpu_common_init(Object *obj, uint8_t impl, uint16_t part,
+                             uint8_t var, uint8_t rev);
+
 /**
  * ARMCPUClass:
  * @parent_realize: The parent class' realize handler.
