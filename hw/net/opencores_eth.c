@@ -687,7 +687,6 @@ static uint64_t open_eth_desc_read(void *opaque,
     OpenEthState *s = opaque;
     uint64_t v = 0;
 
-    addr &= 0x3ff;
     memcpy(&v, (uint8_t *)s->desc + addr, size);
     trace_open_eth_desc_read((uint32_t)addr, (uint32_t)v);
     return v;
@@ -698,7 +697,6 @@ static void open_eth_desc_write(void *opaque,
 {
     OpenEthState *s = opaque;
 
-    addr &= 0x3ff;
     trace_open_eth_desc_write((uint32_t)addr, (uint32_t)val);
     memcpy((uint8_t *)s->desc + addr, &val, size);
     open_eth_check_start_xmit(s);
