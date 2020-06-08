@@ -86,8 +86,8 @@ static void mii_reset(Mii *s)
     s->regs[MII_BMSR] = MII_BMSR_100TX_FD | MII_BMSR_100TX_HD |
         MII_BMSR_10T_FD | MII_BMSR_10T_HD | MII_BMSR_MFPS |
         MII_BMSR_AN_COMP | MII_BMSR_AUTONEG;
-    s->regs[MII_PHYID1] = 0x2000;
-    s->regs[MII_PHYID2] = 0x5c90;
+    s->regs[MII_PHYID1] = DP83848_PHYID1;
+    s->regs[MII_PHYID2] = DP83848_PHYID2;
     s->regs[MII_ANAR] = MII_ANAR_TXFD | MII_ANAR_TX |
         MII_ANAR_10FD | MII_ANAR_10 | MII_ANAR_CSMACD;
     mii_set_link(s, s->link_ok);
