@@ -25,6 +25,7 @@
 #include "hw/usb.h"
 #include "hw/irq.h"
 #include "hw/hw.h"
+#include "hw/qdev-deprecated.h"
 
 /* Common USB registers */
 #define MUSB_HDRC_FADDR		0x00	/* 8-bit */
@@ -376,6 +377,8 @@ struct MUSBState *musb_init(DeviceState *parent_device, int gpio_base)
 {
     MUSBState *s = g_malloc0(sizeof(*s));
     int i;
+
+    qdev_warn_deprecated_function_used();
 
     for (i = 0; i < musb_irq_max; i++) {
         s->irqs[i] = qdev_get_gpio_in(parent_device, gpio_base + i);
