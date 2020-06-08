@@ -7756,6 +7756,8 @@ if test "$linux" = "yes" ; then
     fi
 fi
 
+target_to_base_map=""
+
 for target in $target_list; do
 target_dir="$target"
 config_target_mak=$target_dir/config-target.mak
@@ -7984,6 +7986,7 @@ target_arch_name="$(upper $TARGET_ARCH)"
 echo "TARGET_$target_arch_name=y" >> $config_target_mak
 echo "TARGET_NAME=$target_name" >> $config_target_mak
 echo "TARGET_BASE_ARCH=$TARGET_BASE_ARCH" >> $config_target_mak
+target_to_base_map="$target_dir,$TARGET_BASE_ARCH $target_to_base_map"
 if [ "$TARGET_ABI_DIR" = "" ]; then
   TARGET_ABI_DIR=$TARGET_ARCH
 fi
@@ -8198,6 +8201,22 @@ fi
 if test "$ccache_cpp2" = "yes"; then
   echo "export CCACHE_CPP2=y" >> $config_host_mak
 fi
+
+# Export a rule for calculating base arch from target_dir for use by
+# the Kconfig generator
+echo "# Usage: \$(call base-arch, target-dir)" >> $config_host_mak
+echo "# Return the base architecture for a target." >> $config_host_mak
+echo "# e.g \$(call base-arch, aarch64-linux-user) returns 'arm'" >> $config_host_mak
+echo "base-arch = \$(strip \\" >> $config_host_mak
+close_braces=""
+for pairs in $target_to_base_map
+do
+    dir="${pairs%%,*}"
+    base="${pairs#*,}"
+    echo "\$(if \$(findstring $dir,\$1),$base, \\" >> $config_host_mak
+    close_braces="$close_braces )"
+done
+echo "$close_braces )" >> $config_host_mak
 
 # If we're using a separate build tree, set it up now.
 # DIRS are directories which we simply mkdir in the build tree;
