@@ -31,6 +31,7 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "qemu/module.h"
+#include "hw/qdev-deprecated.h"
 
 /*
  * Registers of hardware timer in sun4m.
@@ -391,6 +392,8 @@ static void slavio_timer_init(Object *obj)
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
     unsigned int i;
     TimerContext *tc;
+
+    qdev_warn_deprecated_function_used();
 
     for (i = 0; i <= MAX_CPUS; i++) {
         uint64_t size;
