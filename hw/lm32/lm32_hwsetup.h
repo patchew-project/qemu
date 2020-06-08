@@ -27,6 +27,7 @@
 
 #include "qemu/cutils.h"
 #include "hw/loader.h"
+#include "hw/qdev-deprecated.h"
 
 typedef struct {
     void *data;
@@ -56,6 +57,8 @@ enum hwsetup_tag {
 static inline HWSetup *hwsetup_init(void)
 {
     HWSetup *hw;
+
+    qdev_warn_deprecated_function_used();
 
     hw = g_malloc(sizeof(HWSetup));
     hw->data = g_malloc0(TARGET_PAGE_SIZE);
