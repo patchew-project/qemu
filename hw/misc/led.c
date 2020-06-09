@@ -7,6 +7,7 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-led.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/led.h"
 #include "hw/irq.h"
@@ -19,6 +20,9 @@ static void led_set(void *opaque, int line, int new_state)
 
     trace_led_set(s->name, s->current_state, new_state);
 
+    /* FIXME QMP rate limite? */
+    qapi_event_send_led_status_changed(s->name, new_state
+                                                ? LED_STATE_ON : LED_STATE_OFF);
     s->current_state = new_state;
 }
 
