@@ -4438,31 +4438,29 @@ float128 uint64_to_float128(uint64_t a, float_status *status)
 
 floatx80 float32_to_floatx80(float32 a, float_status *status)
 {
-    bool aSign;
-    int aExp;
-    uint32_t aSig;
+    FloatParts pa = float32_unpack_canonical(a, status);
 
-    a = float32_squash_input_denormal(a, status);
-    aSig = extractFloat32Frac( a );
-    aExp = extractFloat32Exp( a );
-    aSign = extractFloat32Sign( a );
-    if ( aExp == 0xFF ) {
-        if (aSig) {
-            floatx80 res = commonNaNToFloatx80(float32ToCommonNaN(a, status),
-                                               status);
-            return floatx80_silence_nan(res, status);
-        }
-        return packFloatx80(aSign,
+    switch (pa.cls) {
+    case float_class_snan:
+    case float_class_qnan:
+    {
+        floatx80 res = commonNaNToFloatx80(float32ToCommonNaN(a, status), status);
+        return floatx80_silence_nan(res, status);
+    }
+    case float_class_inf:
+        return packFloatx80(pa.sign,
                             floatx80_infinity_high,
                             floatx80_infinity_low);
+        break;
+    case float_class_zero:
+        return packFloatx80(pa.sign, 0, 0);
+    case float_class_normal:
+        /* pa.frac << 1 drops the IMPLICIT 1 to leave only the
+           fractional part */
+        return packFloatx80(pa.sign, pa.exp + 16383, pa.frac << 1);
+    default:
+        g_assert_not_reached();
     }
-    if ( aExp == 0 ) {
-        if ( aSig == 0 ) return packFloatx80( aSign, 0, 0 );
-        normalizeFloat32Subnormal( aSig, &aExp, &aSig );
-    }
-    aSig |= 0x00800000;
-    return packFloatx80( aSign, aExp + 0x3F80, ( (uint64_t) aSig )<<40 );
-
 }
 
 /*----------------------------------------------------------------------------
