@@ -2403,6 +2403,8 @@ static int handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
     }
 
     for (m = l2meta; m != NULL; m = m->next) {
+        uint64_t start = m->alloc_offset;
+        uint64_t len = m->nb_clusters * s->cluster_size;
         int ret;
 
         if (!m->cow_start.nb_bytes && !m->cow_end.nb_bytes) {
@@ -2413,21 +2415,25 @@ static int handle_alloc_space(BlockDriverState *bs, QCowL2Meta *l2meta)
             continue;
         }
 
+        if (!m->cow_start.nb_bytes) {
+            start += m->cow_end.offset;
+            len -= m->cow_end.offset;
+        } else if (!m->cow_end.nb_bytes) {
+            len = m->cow_start.nb_bytes;
+        }
+
         /*
          * instead of writing zero COW buffers,
          * efficiently zero out the whole clusters
          */
 
-        ret = qcow2_pre_write_overlap_check(bs, 0, m->alloc_offset,
-                                            m->nb_clusters * s->cluster_size,
-                                            true);
+        ret = qcow2_pre_write_overlap_check(bs, 0, start, len, true);
         if (ret < 0) {
             return ret;
         }
 
         BLKDBG_EVENT(bs->file, BLKDBG_CLUSTER_ALLOC_SPACE);
-        ret = bdrv_co_pwrite_zeroes(s->data_file, m->alloc_offset,
-                                    m->nb_clusters * s->cluster_size,
+        ret = bdrv_co_pwrite_zeroes(s->data_file, start, len,
                                     BDRV_REQ_NO_FALLBACK);
         if (ret < 0) {
             if (ret != -ENOTSUP && ret != -EAGAIN) {
