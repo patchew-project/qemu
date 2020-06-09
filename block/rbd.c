@@ -1107,6 +1107,65 @@ static int64_t qemu_rbd_getlength(BlockDriverState *bs)
     return info.size;
 }
 
+#if LIBRBD_VERSION_CODE > 265
+static int disk_usage_callback(uint64_t offset, size_t len, int exists,
+                               void *arg)
+{
+  uint64_t *used_size = (uint64_t *)(arg);
+  if (exists) {
+    (*used_size) += len;
+  }
+  return 0;
+}
+#endif
+
+static int64_t qemu_rbd_allocated_file_size(BlockDriverState *bs)
+{
+    BDRVRBDState *s = bs->opaque;
+    rbd_image_info_t info;
+    int r;
+    uint64_t used_size = 0;
+    uint64_t features = 0;
+
+    r = rbd_stat(s->image, &info, sizeof(info));
+    if (r < 0) {
+        return r;
+    }
+
+    r = rbd_get_features(s->image, &features);
+    if (r < 0) {
+        return r;
+    }
+
+   /*
+    * rbd_diff_iterate2() is available in versions above Ceph 0.94 (Hammer)
+    * It uses a object map inside Ceph which is faster than rbd_diff_iterate()
+    * which iterates all objects.
+    * LIBRBD_VERSION_CODE for Ceph 0.94 is 265. In 266 and upwards diff_iterate2
+    * is available
+    */
+#if LIBRBD_VERSION_CODE > 265
+    if (features & RBD_FEATURE_FAST_DIFF) {
+
+        /*
+         * RBD image fast-diff feature enabled
+         * Querying for actual allocation.
+         */
+        r = rbd_diff_iterate2(s->image, NULL, 0, info.size, 0, 1,
+                              &disk_usage_callback,
+                              &used_size);
+        if (r < 0) {
+            return r;
+        }
+    } else {
+        used_size = info.size;
+    }
+#else
+    used_size = info.size;
+#endif
+    return used_size;
+}
+
 static int coroutine_fn qemu_rbd_co_truncate(BlockDriverState *bs,
                                              int64_t offset,
                                              bool exact,
@@ -1316,6 +1375,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_get_info          = qemu_rbd_getinfo,
     .create_opts            = &qemu_rbd_create_opts,
     .bdrv_getlength         = qemu_rbd_getlength,
+    .bdrv_get_allocated_file_size = qemu_rbd_allocated_file_size,
     .bdrv_co_truncate       = qemu_rbd_co_truncate,
     .protocol_name          = "rbd",
 
