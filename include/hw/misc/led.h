@@ -27,4 +27,18 @@ typedef struct LEDState {
     uint8_t reset_state; /* TODO [GPIO_ACTIVE_LOW, GPIO_ACTIVE_HIGH] */
 } LEDState;
 
+/**
+ * create_led_by_gpio_id: create and LED device
+ * @parent: the parent object
+ * @gpio_dev: device exporting GPIOs
+ * @gpio_id: GPIO ID of this LED
+ * @name: name of the LED
+ *
+ * This utility function creates a LED and connects it to a
+ * GPIO exported by another device.
+ */
+DeviceState *create_led_by_gpio_id(Object *parentobj,
+                                   DeviceState *gpio_dev, unsigned gpio_id,
+                                   const char *led_name);
+
 #endif /* HW_MISC_LED_H */
