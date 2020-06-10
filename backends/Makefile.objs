@@ -2,6 +2,9 @@ common-obj-y += rng.o rng-egd.o rng-builtin.o
 common-obj-$(CONFIG_POSIX) += rng-random.o
 
 common-obj-$(CONFIG_TPM) += tpm.o
+common-obj-$(CONFIG_TPM) += tpm_util.o
+common-obj-$(CONFIG_TPM_PASSTHROUGH) += tpm_passthrough.o
+common-obj-$(CONFIG_TPM_EMULATOR) += tpm_emulator.o
 
 common-obj-y += hostmem.o hostmem-ram.o
 common-obj-$(CONFIG_POSIX) += hostmem-file.o
