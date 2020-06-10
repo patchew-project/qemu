@@ -4797,10 +4797,42 @@ static int qcow2_make_empty(BlockDriverState *bs)
     return ret;
 }
 
+
+typedef struct Qcow2VMStateTask {
+    AioTask task;
+
+    BlockDriverState *bs;
+    int64_t offset;
+    void *buf;
+    size_t bytes;
+} Qcow2VMStateTask;
+
+typedef struct Qcow2SaveVMState {
+    AioTaskPool *pool;
+    Qcow2VMStateTask *t;
+} Qcow2SaveVMState;
+
 static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcow2State *s = bs->opaque;
+    Qcow2SaveVMState *state = s->savevm_state;
     int ret;
+
+    if (state != NULL) {
+        aio_task_pool_start_task(state->pool, &state->t->task);
+
+        aio_task_pool_wait_all(state->pool);
+        ret = aio_task_pool_status(state->pool);
+
+        aio_task_pool_free(state->pool);
+        g_free(state);
+
+        s->savevm_state = NULL;
+
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
     qemu_co_mutex_lock(&s->lock);
     ret = qcow2_write_caches(bs);
@@ -5098,14 +5130,89 @@ static int qcow2_has_zero_init(BlockDriverState *bs)
     }
 }
 
+
+static coroutine_fn int qcow2_co_vmstate_task_entry(AioTask *task)
+{
+    int err;
+    Qcow2VMStateTask *t = container_of(task, Qcow2VMStateTask, task);
+
+    if (t->bytes != 0) {
+        QEMUIOVector local_qiov;
+        qemu_iovec_init_buf(&local_qiov, t->buf, t->bytes);
+        err = t->bs->drv->bdrv_co_pwritev_part(t->bs, t->offset, t->bytes,
+                                               &local_qiov, 0, 0);
+    }
+
+    qemu_vfree(t->buf);
+    return err;
+}
+
+static Qcow2VMStateTask *qcow2_vmstate_task_create(BlockDriverState *bs,
+                                                    int64_t pos, size_t size)
+{
+    BDRVQcow2State *s = bs->opaque;
+    Qcow2VMStateTask *t = g_new(Qcow2VMStateTask, 1);
+
+    *t = (Qcow2VMStateTask) {
+        .task.func = qcow2_co_vmstate_task_entry,
+        .buf = qemu_blockalign(bs, size),
+        .offset = qcow2_vm_state_offset(s) + pos,
+        .bs = bs,
+    };
+
+    return t;
+}
+
 static int qcow2_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
                               int64_t pos)
 {
     BDRVQcow2State *s = bs->opaque;
+    Qcow2SaveVMState *state = s->savevm_state;
+    Qcow2VMStateTask *t;
+    size_t buf_size = MAX(s->cluster_size, 1 * MiB);
+    size_t to_copy;
+    size_t off;
 
     BLKDBG_EVENT(bs->file, BLKDBG_VMSTATE_SAVE);
-    return bs->drv->bdrv_co_pwritev_part(bs, qcow2_vm_state_offset(s) + pos,
-                                         qiov->size, qiov, 0, 0);
+
+    if (state == NULL) {
+        state = g_new(Qcow2SaveVMState, 1);
+        *state = (Qcow2SaveVMState) {
+            .pool = aio_task_pool_new(QCOW2_MAX_WORKERS),
+            .t = qcow2_vmstate_task_create(bs, pos, buf_size),
+        };
+
+        s->savevm_state = state;
+    }
+
+    if (aio_task_pool_status(state->pool) != 0) {
+        return aio_task_pool_status(state->pool);
+    }
+
+    t = state->t;
+    if (t->offset + t->bytes != qcow2_vm_state_offset(s) + pos) {
+        /* Normally this branch is not reachable from migration */
+        return bs->drv->bdrv_co_pwritev_part(bs,
+                qcow2_vm_state_offset(s) + pos, qiov->size, qiov, 0, 0);
+    }
+
+    off = 0;
+    while (1) {
+        to_copy = MIN(qiov->size - off, buf_size - t->bytes);
+        qemu_iovec_to_buf(qiov, off, t->buf + t->bytes, to_copy);
+        t->bytes += to_copy;
+        if (t->bytes < buf_size) {
+            return 0;
+        }
+
+        aio_task_pool_start_task(state->pool, &t->task);
+
+        pos += to_copy;
+        off += to_copy;
+        state->t = t = qcow2_vmstate_task_create(bs, pos, buf_size);
+    }
+
+    return 0;
 }
 
 static int qcow2_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
