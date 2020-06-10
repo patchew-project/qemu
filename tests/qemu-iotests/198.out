@@ -73,6 +73,7 @@ Format specific information:
                 key offset: 1810432
         payload offset: 2068480
         master key iters: 1024
+    extended l2: false
 
 == checking image layer ==
 image: json:{ /* filtered */ }
@@ -117,4 +118,5 @@ Format specific information:
                 key offset: 1810432
         payload offset: 2068480
         master key iters: 1024
+    extended l2: false
 *** done
