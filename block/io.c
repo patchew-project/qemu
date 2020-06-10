@@ -1774,11 +1774,12 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
     bool need_flush = false;
     int head = 0;
     int tail = 0;
-
-    int max_write_zeroes = MIN_NON_ZERO(bs->bl.max_pwrite_zeroes, INT_MAX);
+    int max_write_zeroes;
     int alignment = MAX(bs->bl.pwrite_zeroes_alignment,
                         bs->bl.request_alignment);
     int max_transfer = MIN_NON_ZERO(bs->bl.max_transfer, MAX_BOUNCE_BUFFER);
+
+    assert(alignment % bs->bl.request_alignment == 0);
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1788,11 +1789,17 @@ static int coroutine_fn bdrv_co_do_pwrite_zeroes(BlockDriverState *bs,
         return -ENOTSUP;
     }
 
-    assert(alignment % bs->bl.request_alignment == 0);
-    head = offset % alignment;
-    tail = (offset + bytes) % alignment;
+    if ((flags & BDRV_REQ_NO_FALLBACK) && bs->bl.max_pwrite_zeroes_fast) {
+        max_write_zeroes = bs->bl.max_pwrite_zeroes_fast;
+    } else {
+        max_write_zeroes = bs->bl.max_pwrite_zeroes;
+    }
+    max_write_zeroes = MIN_NON_ZERO(max_write_zeroes, INT_MAX);
     max_write_zeroes = QEMU_ALIGN_DOWN(max_write_zeroes, alignment);
     assert(max_write_zeroes >= bs->bl.request_alignment);
+
+    head = offset % alignment;
+    tail = (offset + bytes) % alignment;
 
     while (bytes > 0 && !ret) {
         int num = bytes;
