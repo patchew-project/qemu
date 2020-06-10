@@ -217,7 +217,7 @@ nbd_negotiate_send_rep_verr(NBDClient *client, uint32_t type,
 
     msg = g_strdup_vprintf(fmt, va);
     len = strlen(msg);
-    assert(len < 4096);
+    assert(len < NBD_MAX_STRING_SIZE);
     trace_nbd_negotiate_send_rep_err(msg);
     ret = nbd_negotiate_send_rep_len(client, type, len, errp);
     if (ret < 0) {
@@ -229,6 +229,27 @@ nbd_negotiate_send_rep_verr(NBDClient *client, uint32_t type,
     }
 
     return 0;
+}
+
+/*
+ * Truncate a potentially-long user-supplied string into something
+ * more suitable for an error reply.
+ */
+static const char *
+nbd_truncate_name(const char *name)
+{
+#define SANE_LENGTH 80
+    static char buf[SANE_LENGTH + 3 + 1]; /* Trailing '...', NUL */
+
+    if (strlen(name) < SANE_LENGTH) {
+        return name;
+    }
+    memcpy(buf, name, SANE_LENGTH);
+    buf[SANE_LENGTH] = '.';
+    buf[SANE_LENGTH + 1] = '.';
+    buf[SANE_LENGTH + 2] = '.';
+    buf[SANE_LENGTH + 3] = '\0';
+    return buf;
 }
 
 /* Send an error reply.
@@ -597,7 +618,7 @@ static int nbd_negotiate_handle_info(NBDClient *client, Error **errp)
     if (!exp) {
         return nbd_negotiate_send_rep_err(client, NBD_REP_ERR_UNKNOWN,
                                           errp, "export '%s' not present",
-                                          name);
+                                          nbd_truncate_name(name));
     }
 
     /* Don't bother sending NBD_INFO_NAME unless client requested it */
@@ -996,7 +1017,8 @@ static int nbd_negotiate_meta_queries(NBDClient *client,
     meta->exp = nbd_export_find(export_name);
     if (meta->exp == NULL) {
         return nbd_opt_drop(client, NBD_REP_ERR_UNKNOWN, errp,
-                            "export '%s' not present", export_name);
+                            "export '%s' not present",
+                            nbd_truncate_name(export_name));
     }
 
     ret = nbd_opt_read(client, &nb_queries, sizeof(nb_queries), errp);
