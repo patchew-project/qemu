@@ -291,6 +291,8 @@ typedef struct Qcow2BitmapHeaderExt {
 
 #define QCOW2_MAX_THREADS 4
 
+typedef struct Qcow2SaveVMState Qcow2SaveVMState;
+
 typedef struct BDRVQcow2State {
     int cluster_bits;
     int cluster_size;
@@ -384,6 +386,8 @@ typedef struct BDRVQcow2State {
      * is to convert the image with the desired compression type set.
      */
     Qcow2CompressionType compression_type;
+
+    Qcow2SaveVMState *savevm_state;
 } BDRVQcow2State;
 
 typedef struct Qcow2COWRegion {
