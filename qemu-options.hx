@@ -188,7 +188,7 @@ DEF("numa", HAS_ARG, QEMU_OPTION_numa,
     "-numa dist,src=source,dst=destination,val=distance\n"
     "-numa cpu,node-id=node[,socket-id=x][,core-id=y][,thread-id=z]\n"
     "-numa hmat-lb,initiator=node,target=node,hierarchy=memory|first-level|second-level|third-level,data-type=access-latency|read-latency|write-latency[,latency=lat][,bandwidth=bw]\n"
-    "-numa hmat-cache,node-id=node,size=size,level=level[,associativity=none|direct|complex][,policy=none|write-back|write-through][,line=size]\n",
+    "-numa hmat-cache,node-id=node,size=size,level=level,associativity=none|direct|complex,policy=none|write-back|write-through,line=size\n",
     QEMU_ARCH_ALL)
 SRST
 ``-numa node[,mem=size][,cpus=firstcpu[-lastcpu]][,nodeid=node][,initiator=initiator]``
@@ -201,7 +201,7 @@ SRST
   \ 
 ``-numa hmat-lb,initiator=node,target=node,hierarchy=hierarchy,data-type=tpye[,latency=lat][,bandwidth=bw]``
   \ 
-``-numa hmat-cache,node-id=node,size=size,level=level[,associativity=str][,policy=str][,line=size]``
+``-numa hmat-cache,node-id=node,size=size,level=level,associativity=str,policy=str,line=size``
     Define a NUMA node and assign RAM and VCPUs to it. Set the NUMA
     distance from a source node to a destination node. Set the ACPI
     Heterogeneous Memory Attributes for the given nodes.
