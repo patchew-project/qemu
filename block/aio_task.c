@@ -27,11 +27,10 @@
 #include "block/aio_task.h"
 
 struct AioTaskPool {
-    Coroutine *main_co;
+    Coroutine *wake_co;
     int status;
     int max_busy_tasks;
     int busy_tasks;
-    bool waiting;
 };
 
 static void coroutine_fn aio_task_co(void *opaque)
@@ -52,21 +51,21 @@ static void coroutine_fn aio_task_co(void *opaque)
 
     g_free(task);
 
-    if (pool->waiting) {
-        pool->waiting = false;
-        aio_co_wake(pool->main_co);
+    if (pool->wake_co != NULL) {
+        aio_co_wake(pool->wake_co);
+        pool->wake_co = NULL;
     }
 }
 
 void coroutine_fn aio_task_pool_wait_one(AioTaskPool *pool)
 {
     assert(pool->busy_tasks > 0);
-    assert(qemu_coroutine_self() == pool->main_co);
+    assert(pool->wake_co == NULL);
 
-    pool->waiting = true;
+    pool->wake_co = qemu_coroutine_self();
     qemu_coroutine_yield();
 
-    assert(!pool->waiting);
+    assert(pool->wake_co == NULL);
     assert(pool->busy_tasks < pool->max_busy_tasks);
 }
 
@@ -98,7 +97,7 @@ AioTaskPool *coroutine_fn aio_task_pool_new(int max_busy_tasks)
 {
     AioTaskPool *pool = g_new0(AioTaskPool, 1);
 
-    pool->main_co = qemu_coroutine_self();
+    pool->wake_co = NULL;
     pool->max_busy_tasks = max_busy_tasks;
 
     return pool;
