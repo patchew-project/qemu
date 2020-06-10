@@ -319,6 +319,9 @@ SRST
     'none/direct(direct-mapped)/complex(complex cache indexing)'. policy
     is the write policy. line is the cache Line size in bytes.
 
+    Please note, that due to internal implementation, '\ ``hmat-cache``\ '
+    must be configured only after '\ ``hmat-lb``\ ' option.
+
     For example, the following options describe 2 NUMA nodes. Node 0 has
     2 cpus and a ram, node 1 has only a ram. The processors in node 0
     access memory in node 0 with access-latency 5 nanoseconds,
