@@ -206,6 +206,9 @@ static void a9_gtimer_write(void *opaque, hwaddr addr, uint64_t value,
     case R_INTERRUPT_STATUS:
         a9_gtimer_update(s, false);
         gtb->status &= ~value;
+        if (gtb->status == 0) {
+            qemu_set_irq(gtb->irq, 0);
+        }
         break;
     case R_COMPARATOR_HI:
         shift = 32;
