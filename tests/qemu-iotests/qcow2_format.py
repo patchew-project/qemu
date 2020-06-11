@@ -103,6 +103,10 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
             print('{:<25} {}'.format(f[2], value_str))
 
 
+# seek relative to the current position in the file
+FROM_CURRENT = 1
+
+
 class Qcow2BitmapExt(Qcow2Struct):
 
     fields = (
@@ -111,6 +115,73 @@ class Qcow2BitmapExt(Qcow2Struct):
         ('u64', '{:#x}', 'bitmap_directory_size'),
         ('u64', '{:#x}', 'bitmap_directory_offset')
     )
+
+    def read_bitmap_directory(self, fd):
+        self.bitmaps = []
+        fd.seek(self.bitmap_directory_offset)
+        buf_size = struct.calcsize(Qcow2BitmapDirEntry.fmt)
+
+        for n in range(self.nb_bitmaps):
+            buf = fd.read(buf_size)
+            dir_entry = Qcow2BitmapDirEntry(data=buf)
+            fd.seek(dir_entry.extra_data_size, FROM_CURRENT)
+            bitmap_name = fd.read(dir_entry.name_size)
+            dir_entry.name = bitmap_name.decode('ascii')
+            self.bitmaps.append(dir_entry)
+            entry_raw_size = dir_entry.bitmap_dir_entry_raw_size()
+            shift = ((entry_raw_size + 7) & ~7) - entry_raw_size
+            fd.seek(shift, FROM_CURRENT)
+
+    def load(self, fd):
+        self.read_bitmap_directory(fd)
+
+    def dump(self):
+        super().dump()
+        for bm in self.bitmaps:
+            bm.dump_bitmap_dir_entry()
+
+
+BME_FLAG_IN_USE = 1 << 0
+BME_FLAG_AUTO = 1 << 1
+
+
+class Qcow2BitmapDirEntry(Qcow2Struct):
+
+    name = ''
+
+    fields = (
+        ('u64', '{:#x}', 'bitmap_table_offset'),
+        ('u32', '{}',    'bitmap_table_size'),
+        ('u32', '{}',    'flags'),
+        ('u8',  '{}',    'type'),
+        ('u8',  '{}',    'granularity_bits'),
+        ('u16', '{}',    'name_size'),
+        ('u32', '{}',    'extra_data_size')
+    )
+
+    def __init__(self, data):
+        super().__init__(data=data)
+
+        self.bitmap_table_bytes = self.bitmap_table_size \
+            * struct.calcsize('Q')
+
+        self.bitmap_flags = []
+        if (self.flags & BME_FLAG_IN_USE):
+            self.bitmap_flags.append("in-use")
+        if (self.flags & BME_FLAG_AUTO):
+            self.bitmap_flags.append("auto")
+
+    def bitmap_dir_entry_raw_size(self):
+        return struct.calcsize(self.fmt) + self.name_size + \
+            self.extra_data_size
+
+    def dump_bitmap_dir_entry(self):
+        print()
+        print(f'{"Bitmap name":<25} {self.name}')
+        for fl in self.bitmap_flags:
+            print(f'{"flag":<25} {fl}')
+        print(f'{"table size ":<25} {self.bitmap_table_bytes} {"(bytes)"}')
+        super().dump()
 
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
@@ -252,6 +323,10 @@ class QcowHeader(Qcow2Struct):
                 break
             else:
                 self.extensions.append(ext)
+
+        for ext in self.extensions:
+            if ext.obj is not None:
+                ext.obj.load(fd)
 
     def update_extensions(self, fd):
 
