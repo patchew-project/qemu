@@ -98,6 +98,37 @@ static const hwaddr npcm7xx_uart_addr[] = {
     0xF0004000,
 };
 
+static const hwaddr npcm7xx_fiu0_flash_addr[] = {
+    0x80000000,
+    0x88000000,
+};
+
+static const hwaddr npcm7xx_fiu3_flash_addr[] = {
+    0xa0000000,
+    0xa8000000,
+    0xb0000000,
+    0xb8000000,
+};
+
+static const struct {
+    const char *name;
+    hwaddr regs_addr;
+    int cs_count;
+    const hwaddr *flash_addr;
+} npcm7xx_fiu[] = {
+    {
+        .name = "fiu0",
+        .regs_addr = 0xfb000000,
+        .cs_count = ARRAY_SIZE(npcm7xx_fiu0_flash_addr),
+        .flash_addr = npcm7xx_fiu0_flash_addr,
+    }, {
+        .name = "fiu3",
+        .regs_addr = 0xc0000000,
+        .cs_count = ARRAY_SIZE(npcm7xx_fiu3_flash_addr),
+        .flash_addr = npcm7xx_fiu3_flash_addr,
+    },
+};
+
 void npcm7xx_write_secondary_boot(ARMCPU *cpu, const struct arm_boot_info *info)
 {
     /*
@@ -168,6 +199,13 @@ static void npcm7xx_init(Object *obj)
     for (i = 0; i < ARRAY_SIZE(s->tim); i++) {
         sysbus_init_child_obj(obj, "tim[*]", OBJECT(&s->tim[i]),
                               sizeof(s->tim[i]), TYPE_NPCM7XX_TIMER);
+    }
+
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_fiu) != ARRAY_SIZE(s->fiu));
+    for (i = 0; i < ARRAY_SIZE(s->fiu); i++) {
+        sysbus_init_child_obj(obj, npcm7xx_fiu[i].name,
+                              OBJECT(&s->fiu[i]), sizeof(s->fiu[i]),
+                              TYPE_NPCM7XX_FIU);
     }
 }
 
@@ -295,6 +333,27 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
         serial_mm_init(get_system_memory(), npcm7xx_uart_addr[i], 2,
                        npcm7xx_irq(s, NPCM7XX_UART0_IRQ + i), 115200,
                        serial_hd(i), DEVICE_LITTLE_ENDIAN);
+    }
+
+    /* Flash Interface Unit (FIU) */
+    QEMU_BUILD_BUG_ON(ARRAY_SIZE(npcm7xx_fiu) != ARRAY_SIZE(s->fiu));
+    for (i = 0; i < ARRAY_SIZE(s->fiu); i++) {
+        Object *o = OBJECT(&s->fiu[i]);
+        int j;
+
+        object_property_set_int(o, npcm7xx_fiu[i].cs_count, "cs-count",
+                                &error_abort);
+        object_property_set_bool(o, true, "realized", &err);
+        if (err) {
+            error_propagate(errp, err);
+            return;
+        }
+
+        sysbus_mmio_map(SYS_BUS_DEVICE(o), 0, npcm7xx_fiu[i].regs_addr);
+        for (j = 0; j < npcm7xx_fiu[i].cs_count; j++) {
+            sysbus_mmio_map(SYS_BUS_DEVICE(o), j + 1,
+                            npcm7xx_fiu[i].flash_addr[j]);
+        }
     }
 
     /* RAM2 (SRAM) */
