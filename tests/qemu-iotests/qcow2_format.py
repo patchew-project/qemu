@@ -137,6 +137,9 @@ class Qcow2BitmapExt(Qcow2Struct):
             shift = ((entry_raw_size + 7) & ~7) - entry_raw_size
             fd.seek(shift, FROM_CURRENT)
 
+        for bm in self.bitmaps:
+            bm.read_bitmap_table(fd)
+
     def load(self, fd):
         self.read_bitmap_directory(fd)
 
@@ -181,6 +184,12 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         return struct.calcsize(self.fmt) + self.name_size + \
             self.extra_data_size
 
+    def read_bitmap_table(self, fd):
+        fd.seek(self.bitmap_table_offset)
+        table_size = self.bitmap_table_bytes * struct.calcsize('Q')
+        table = [e[0] for e in struct.iter_unpack('>Q', fd.read(table_size))]
+        self.bitmap_table = Qcow2BitmapTable(table)
+
     def dump_bitmap_dir_entry(self):
         print()
         print(f'{"Bitmap name":<25} {self.name}')
@@ -188,6 +197,39 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
             print(f'{"flag":<25} {fl}')
         print(f'{"table size ":<25} {self.bitmap_table_bytes} {"(bytes)"}')
         super().dump()
+        self.bitmap_table.print_bitmap_table(self.cluster_size)
+
+
+class Qcow2BitmapTableEntry:
+
+    BME_TABLE_ENTRY_OFFSET_MASK = 0x00fffffffffffe00
+    BME_TABLE_ENTRY_FLAG_ALL_ONES = 1
+    bmte_type = ['all-zeroes', 'all-ones', 'serialized']
+
+    def __init__(self, entry):
+        self.offset = entry & self.BME_TABLE_ENTRY_OFFSET_MASK
+        if self.offset:
+            self.type = 'serialized'
+        elif entry & self.BME_TABLE_ENTRY_FLAG_ALL_ONES:
+            self.type = 'all-ones'
+        else:
+            self.type = 'all-zeroes'
+
+
+class Qcow2BitmapTable:
+
+    def __init__(self, raw_table):
+        self.entries = []
+        for entry in raw_table:
+            self.entries.append(Qcow2BitmapTableEntry(entry))
+
+    def print_bitmap_table(self, cluster_size):
+        bitmap_table = enumerate(self.entries)
+        print("Bitmap table\ttype\t\toffset\t\tsize")
+        for i, entry in bitmap_table:
+            print("\t%-4d\t%s\t%#x\t\t%d" % (i, entry.type, entry.offset,
+                                             cluster_size))
+        print("")
 
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
