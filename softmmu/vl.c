@@ -1770,6 +1770,10 @@ static bool vga_interface_available(VGAInterfaceType t)
 {
     const VGAInterfaceInfo *ti = &vga_interfaces[t];
 
+    if (ti->class_names[0] && !object_class_by_name(ti->class_names[0])) {
+        qdev_module_load_type(ti->class_names[0]);
+    }
+
     assert(t < VGA_TYPE_MAX);
     return !ti->class_names[0] ||
            object_class_by_name(ti->class_names[0]) ||
