@@ -2336,6 +2336,7 @@ R: Bandan Das <bsd@redhat.com>
 R: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
 F: tests/qtest/fuzz/
+F: scripts/oss-fuzz/
 
 Register API
 M: Alistair Francis <alistair@alistair23.me>
