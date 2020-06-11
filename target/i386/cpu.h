@@ -20,6 +20,7 @@
 #ifndef I386_CPU_H
 #define I386_CPU_H
 
+#include "sysemu/hvf.h"
 #include "sysemu/tcg.h"
 #include "cpu-qom.h"
 #include "hyperv-proto.h"
@@ -1597,6 +1598,7 @@ typedef struct CPUX86State {
     struct kvm_nested_state *nested_state;
 #endif
 #if defined(CONFIG_HVF)
+    hvf_lazy_flags hvf_lflags;
     HVFX86EmulatorState *hvf_emul;
 #endif
 

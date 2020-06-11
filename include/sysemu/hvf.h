@@ -21,10 +21,17 @@
 #include <Hypervisor/hv_vmx.h>
 #include <Hypervisor/hv_error.h>
 #include "target/i386/cpu.h"
+#include "exec/cpu-defs.h"
+
 uint32_t hvf_get_supported_cpuid(uint32_t func, uint32_t idx,
                                  int reg);
 extern bool hvf_allowed;
 #define hvf_enabled() (hvf_allowed)
+
+typedef struct hvf_lazy_flags {
+    target_ulong result;
+    target_ulong auxbits;
+} hvf_lazy_flags;
 #else /* !CONFIG_HVF */
 #define hvf_enabled() 0
 #define hvf_get_supported_cpuid(func, idx, reg) 0
