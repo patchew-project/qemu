@@ -92,6 +92,8 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
         self.__dict__ = dict((field[2], values[i])
                              for i, field in enumerate(self.fields))
 
+        self.fields_dict = self.__dict__.copy()
+
     def dump(self, dump_json=None):
         for f in self.fields:
             value = self.__dict__[f[2]]
@@ -101,7 +103,6 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
                 value_str = str(f[1](value))
 
             print('{:<25} {}'.format(f[2], value_str))
-
 
 # seek relative to the current position in the file
 FROM_CURRENT = 1
@@ -142,6 +143,7 @@ class Qcow2BitmapExt(Qcow2Struct):
 
     def load(self, fd):
         self.read_bitmap_directory(fd)
+        self.fields_dict.update(entries=self.bitmaps)
 
     def dump(self, dump_json=None):
         super().dump(dump_json)
@@ -189,6 +191,7 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         table_size = self.bitmap_table_bytes * struct.calcsize('Q')
         table = [e[0] for e in struct.iter_unpack('>Q', fd.read(table_size))]
         self.bitmap_table = Qcow2BitmapTable(table)
+        self.fields_dict.update(bitmap_table=self.bitmap_table)
 
     def dump_bitmap_dir_entry(self, dump_json=None):
         print()
