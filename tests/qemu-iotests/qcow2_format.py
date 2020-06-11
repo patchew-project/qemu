@@ -92,7 +92,7 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
         self.__dict__ = dict((field[2], values[i])
                              for i, field in enumerate(self.fields))
 
-    def dump(self):
+    def dump(self, dump_json=None):
         for f in self.fields:
             value = self.__dict__[f[2]]
             if isinstance(f[1], str):
@@ -143,10 +143,10 @@ class Qcow2BitmapExt(Qcow2Struct):
     def load(self, fd):
         self.read_bitmap_directory(fd)
 
-    def dump(self):
-        super().dump()
+    def dump(self, dump_json=None):
+        super().dump(dump_json)
         for bm in self.bitmaps:
-            bm.dump_bitmap_dir_entry()
+            bm.dump_bitmap_dir_entry(dump_json)
 
 
 BME_FLAG_IN_USE = 1 << 0
@@ -190,7 +190,7 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         table = [e[0] for e in struct.iter_unpack('>Q', fd.read(table_size))]
         self.bitmap_table = Qcow2BitmapTable(table)
 
-    def dump_bitmap_dir_entry(self):
+    def dump_bitmap_dir_entry(self, dump_json=None):
         print()
         print(f'{"Bitmap name":<25} {self.name}')
         for fl in self.bitmap_flags:
@@ -298,13 +298,13 @@ class QcowHeaderExtension(Qcow2Struct):
         else:
             self.obj = None
 
-    def dump(self):
+    def dump(self, dump_json=None):
         super().dump()
 
         if self.obj is None:
             print(f'{"data":<25} {self.data_str}')
         else:
-            self.obj.dump()
+            self.obj.dump(dump_json)
 
     @classmethod
     def create(cls, magic, data):
@@ -407,8 +407,8 @@ class QcowHeader(Qcow2Struct):
         buf = buf[0:header_bytes-1]
         fd.write(buf)
 
-    def dump_extensions(self):
+    def dump_extensions(self, dump_json=None):
         for ex in self.extensions:
             print('Header extension:')
-            ex.dump()
+            ex.dump(dump_json)
             print()
