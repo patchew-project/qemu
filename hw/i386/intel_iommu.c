@@ -4099,6 +4099,82 @@ static int vtd_dev_get_iommu_attr(PCIBus *bus, void *opaque, int32_t devfn,
     return ret;
 }
 
+
+static bool vtd_check_nesting_info(IntelIOMMUState *s,
+                                   struct iommu_nesting_info_vtd *vtd)
+{
+    return !((s->aw_bits != vtd->addr_width) ||
+             ((s->host_cap & vtd->cap_mask) !=
+              (vtd->cap_reg & vtd->cap_mask)) ||
+             ((s->host_ecap & vtd->ecap_mask) !=
+              (vtd->ecap_reg & vtd->ecap_mask)) ||
+             (VTD_GET_PSS(s->host_ecap) != (vtd->pasid_bits - 1)));
+}
+
+/* Caller should hold iommu lock. */
+static bool vtd_sync_nesting_info(IntelIOMMUState *s,
+                                      struct iommu_nesting_info_vtd *vtd)
+{
+    uint64_t cap, ecap;
+
+    if (s->cap_finalized) {
+        return vtd_check_nesting_info(s, vtd);
+    }
+
+    if (s->aw_bits > vtd->addr_width) {
+        error_report("User aw-bits: %u > host address width: %u",
+                      s->aw_bits, vtd->addr_width);
+        return false;
+    }
+
+    cap = s->host_cap & vtd->cap_reg & vtd->cap_mask;
+    s->host_cap &= ~vtd->cap_mask;
+    s->host_cap |= cap;
+
+    ecap = s->host_ecap & vtd->ecap_reg & vtd->ecap_mask;
+    s->host_ecap &= ~vtd->ecap_mask;
+    s->host_ecap |= ecap;
+
+    if ((VTD_ECAP_PASID & s->host_ecap) && vtd->pasid_bits &&
+        (VTD_GET_PSS(s->host_ecap) > (vtd->pasid_bits - 1))) {
+        s->host_ecap &= ~VTD_ECAP_PSS_MASK;
+        s->host_ecap |= VTD_ECAP_PSS(vtd->pasid_bits - 1);
+    }
+    return true;
+}
+
+/*
+ * virtual VT-d which wants nested needs to check the host IOMMU
+ * nesting cap info behind the assigned devices. Thus that vIOMMU
+ * could bind guest page table to host.
+ */
+static bool vtd_check_iommu_ctx(IntelIOMMUState *s,
+                                HostIOMMUContext *iommu_ctx)
+{
+    struct iommu_nesting_info *info = iommu_ctx->info;
+    struct iommu_nesting_info_vtd *vtd;
+    uint32_t minsz, size;
+
+    if (IOMMU_PASID_FORMAT_INTEL_VTD != info->format) {
+        error_report("Format is not compatible for nesting!!!");
+        return false;
+    }
+
+    size = sizeof(*vtd);
+    minsz = endof(struct iommu_nesting_info, flags);
+    if (size > (info->size - minsz)) {
+        /*
+         * QEMU may have been using new linux-headers/iommu.h than
+         * kernel supports, hence fail it.
+         */
+        error_report("IOMMU nesting cap is not compatible!!!");
+        return false;
+    }
+
+    vtd =  (struct iommu_nesting_info_vtd *) &info->data;
+    return vtd_sync_nesting_info(s, vtd);
+}
+
 static int vtd_dev_set_iommu_context(PCIBus *bus, void *opaque,
                                      int devfn,
                                      HostIOMMUContext *iommu_ctx)
@@ -4112,6 +4188,11 @@ static int vtd_dev_set_iommu_context(PCIBus *bus, void *opaque,
     vtd_bus = vtd_find_add_bus(s, bus);
 
     vtd_iommu_lock(s);
+
+    if (!vtd_check_iommu_ctx(s, iommu_ctx)) {
+        vtd_iommu_unlock(s);
+        return -ENOENT;
+    }
 
     vtd_dev_icx = vtd_bus->dev_icx[devfn];
 
@@ -4368,6 +4449,14 @@ static void vtd_init(IntelIOMMUState *s)
         s->ecap |= VTD_ECAP_SMTS | VTD_ECAP_SRS | VTD_ECAP_SLTS;
     }
 
+    if (!s->cap_finalized) {
+        s->host_cap = s->cap;
+        s->host_ecap = s->ecap;
+    } else {
+        s->cap = s->host_cap;
+        s->ecap = s->host_ecap;
+    }
+
     vtd_reset_caches(s);
 
     /* Define registers with default values and bit semantics */
@@ -4501,6 +4590,12 @@ static bool vtd_decide_config(IntelIOMMUState *s, Error **errp)
     return true;
 }
 
+static void vtd_refresh_capability_reg(IntelIOMMUState *s)
+{
+    vtd_set_quad(s, DMAR_CAP_REG, s->cap);
+    vtd_set_quad(s, DMAR_ECAP_REG, s->ecap);
+}
+
 static int vtd_machine_done_notify_one(Object *child, void *unused)
 {
     IntelIOMMUState *iommu = INTEL_IOMMU_DEVICE(x86_iommu_get_default());
@@ -4514,6 +4609,15 @@ static int vtd_machine_done_notify_one(Object *child, void *unused)
         vtd_panic_require_caching_mode();
     }
 
+    vtd_iommu_lock(iommu);
+    iommu->cap = iommu->host_cap & iommu->cap;
+    iommu->ecap = iommu->host_ecap & iommu->ecap;
+    if (!iommu->cap_finalized) {
+        iommu->cap_finalized = true;
+    }
+
+    vtd_refresh_capability_reg(iommu);
+    vtd_iommu_unlock(iommu);
     return 0;
 }
 
@@ -4545,6 +4649,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     QLIST_INIT(&s->vtd_as_with_notifiers);
     QLIST_INIT(&s->vtd_dev_icx_list);
     qemu_mutex_init(&s->iommu_lock);
+    s->cap_finalized = false;
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
                           "intel_iommu", DMAR_REG_SIZE);
