@@ -482,7 +482,7 @@ static int decode_cd(SMMUTransCfg *cfg, CD *cd, SMMUEventInfo *event)
 
     /* decode data dependent on TT */
     for (i = 0; i <= 1; i++) {
-        int tg, tsz;
+        int tg, tsz, input_size, stride;
         SMMUTransTableInfo *tt = &cfg->tt[i];
 
         cfg->tt[i].disabled = CD_EPD(cd, i);
@@ -502,11 +502,15 @@ static int decode_cd(SMMUTransCfg *cfg, CD *cd, SMMUEventInfo *event)
         }
 
         tt->tsz = tsz;
+        input_size = 64 - tt->tsz;
+        stride = tt->granule_sz - 3;
         tt->ttb = CD_TTB(cd, i);
         if (tt->ttb & ~(MAKE_64BIT_MASK(0, cfg->oas))) {
             goto bad_cd;
         }
-        trace_smmuv3_decode_cd_tt(i, tt->tsz, tt->ttb, tt->granule_sz);
+        tt->starting_level = 4 - (input_size - 4) / stride;
+        trace_smmuv3_decode_cd_tt(i, tt->tsz, tt->ttb,
+                                  tt->granule_sz, tt->starting_level);
     }
 
     event->record_trans_faults = CD_R(cd);
