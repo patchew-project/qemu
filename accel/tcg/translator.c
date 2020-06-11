@@ -26,8 +26,8 @@
 void translator_loop_temp_check(DisasContextBase *db)
 {
     if (tcg_check_temp_count()) {
-        qemu_log("warning: TCG temporary leaks before "
-                 TARGET_FMT_lx "\n", db->pc_next);
+        qemu_log_mask(LOG_TCG_WARN, "warning: TCG temporary leaks before "
+                      TARGET_FMT_lx "\n", db->pc_next);
     }
 }
 

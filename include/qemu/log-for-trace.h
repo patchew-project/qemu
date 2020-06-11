@@ -29,7 +29,14 @@ static inline bool qemu_loglevel_mask(int mask)
     return (qemu_loglevel & mask) != 0;
 }
 
-/* main logging function */
+/**
+ * qemu_log: main logging function
+ *
+ * Most users shouldn't be calling qemu_log unconditionally as it adds
+ * noise to logging output. Either use qemu_log_mask() or wrap
+ * successive log calls a qemu_loglevel_mask() check and
+ * qemu_log_lock/unlock(). The tracing infrastructure does similar wrapping.
+ */
 int GCC_FMT_ATTR(1, 2) qemu_log(const char *fmt, ...);
 
 #endif
