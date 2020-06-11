@@ -22,6 +22,7 @@
 #include "hw/misc/unimp.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
+#include "qemu-common.h"
 #include "qemu/units.h"
 #include "sysemu/sysemu.h"
 
@@ -269,6 +270,22 @@ static void npcm7xx_realize(DeviceState *dev, Error **errp)
         return;
     }
     memory_region_add_subregion(get_system_memory(), NPCM7XX_ROM_BA, &s->irom);
+
+    if (bios_name) {
+        g_autofree char *filename = NULL;
+        int ret;
+
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+        if (!filename) {
+            error_setg(errp, "Could not find ROM image '%s'", bios_name);
+            return;
+        }
+        ret = load_image_mr(filename, &s->irom);
+        if (ret < 0) {
+            error_setg(errp, "Failed to load ROM image '%s'", filename);
+            return;
+        }
+    }
 
     /* External DDR4 SDRAM */
     memory_region_add_subregion(get_system_memory(), NPCM7XX_DRAM_BA, s->dram);
