@@ -32,6 +32,7 @@
  * input
  */
 #define CMD_SEP "\x84\x05\x5C\x5E"
+#define MAX_DMA_FILL_SIZE 0x10000
 
 typedef struct {
     size_t addr;
@@ -58,6 +59,18 @@ typedef struct {
 char **region_whitelist;
 
 /*
+ * List of dma regions populated since the last fuzzing command. Used to ensure
+ * that we only write to each DMA address once, to avoid race conditions when
+ * building reproducers.
+ */
+static GArray *dma_regions;
+
+static GArray *dma_patterns;
+int dma_pattern_index;
+
+void dma_read_cb(size_t addr, size_t len);
+
+/*
  * Allocate a block of memory and populate it with a pattern.
  */
 static void *pattern_alloc(pattern p, size_t len)
@@ -76,6 +89,62 @@ static void *pattern_alloc(pattern p, size_t len)
     return buf;
 }
 
+/*
+ * Call-back for functions that perform DMA reads from guest memory. Confirm
+ * that the region has not already been populated since the last loop in
+ * general_fuzz(), avoiding potential race-conditions, which we don't have
+ * a good way for reproducing right now.
+ */
+void dma_read_cb(size_t addr, size_t len)
+{
+    int i;
+
+    /* Return immediately if we have no data to fill the dma region */
+    if (dma_patterns->len == 0) {
+        return;
+    }
+
+    /* Return immediately if the address is greater than the RAM size */
+    if (addr > current_machine->ram_size) {
+        return;
+    }
+
+    /* Cap the length of the DMA access to something reasonable */
+    len = MIN(len, MAX_DMA_FILL_SIZE);
+
+    /*
+     * If we overlap with any existing dma_regions, split the range and only
+     * populate the non-overlapping parts.
+     */
+    for (i = 0; i < dma_regions->len; ++i) {
+        address_range *region = &g_array_index(dma_regions, address_range, i);
+        if (addr < region->addr + region->len && addr + len > region->addr) {
+            if (addr < region->addr) {
+                dma_read_cb(addr, region->addr - addr);
+            }
+            if (addr + len > region->addr + region->len) {
+                dma_read_cb(region->addr + region->len,
+                        addr + len - (region->addr + region->len));
+            }
+            return;
+        }
+    }
+
+    /*
+     * Otherwise, populate the region using address_space_write_rom to avoid
+     * writing to any IO MemoryRegions
+     */
+    address_range ar = {addr, len};
+    g_array_append_val(dma_regions, ar);
+    void *buf = pattern_alloc(g_array_index(dma_patterns, pattern,
+                              dma_pattern_index), ar.len);
+    address_space_write_rom(first_cpu->as, ar.addr, MEMTXATTRS_UNSPECIFIED,
+                            buf, ar.len);
+    free(buf);
+
+    /* Increment the index of the pattern for the next DMA access */
+    dma_pattern_index = (dma_pattern_index + 1) % dma_patterns->len;
+}
 
 /*
  * Here we want to convert a fuzzer-provided [io-region-index, offset] to
@@ -269,6 +338,32 @@ static void op_write(QTestState *s, const unsigned char * data, size_t len)
     }
 }
 
+static void op_add_dma_pattern(QTestState *s,
+                               const unsigned char *data, size_t len)
+{
+    struct {
+        /*
+         * index and stride can be used to increment the index-th byte of the
+         * pattern by the value stride, for each loop of the pattern.
+         */
+        uint8_t index;
+        uint8_t stride;
+    } a;
+
+    if (len < sizeof(a) + 1) {
+        return;
+    }
+    memcpy(&a, data, sizeof(a));
+    pattern p = {a.index, a.stride, len - sizeof(a), data + sizeof(a)};
+    g_array_append_val(dma_patterns, p);
+    return;
+}
+
+static void op_clear_dma_patterns(QTestState *s,
+                                  const unsigned char *data, size_t len)
+{
+    g_array_set_size(dma_patterns, 0);
+}
 
 static void op_write_pattern(QTestState *s, const unsigned char * data,
                              size_t len)
@@ -341,6 +436,8 @@ static void general_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
         op_out,
         op_read,
         op_write,
+        op_add_dma_pattern,
+        op_clear_dma_patterns,
         op_write_pattern,
         op_clock_step
     };
@@ -348,9 +445,12 @@ static void general_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
     const unsigned char *nextcmd;
     size_t cmd_len;
     uint8_t op;
+    g_array_set_size(dma_patterns, 0);
+    dma_pattern_index = 0;
 
     if (fork() == 0) {
         while (cmd && Size) {
+            g_array_set_size(dma_regions, 0);
             /* Get the length until the next command or end of input */
             nextcmd = memmem(cmd, Size, CMD_SEP, strlen(CMD_SEP));
             cmd_len = nextcmd ? nextcmd - cmd : Size;
@@ -418,6 +518,8 @@ static void general_pre_qos_fuzz(QTestState *s)
     }
     counter_shm_init();
 
+    dma_regions = g_array_new(false, false, sizeof(address_range));
+    dma_patterns = g_array_new(false, false, sizeof(pattern));
 
     qos_init_path(s);
 
