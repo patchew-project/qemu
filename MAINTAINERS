@@ -729,10 +729,12 @@ M: Tyrone Ting <kfting@nuvoton.com>
 L: qemu-arm@nongnu.org
 S: Supported
 F: hw/arm/npcm7xx*
+F: hw/mem/npcm7xx*
 F: hw/misc/npcm7xx*
 F: hw/nvram/npcm7xx*
 F: hw/timer/npcm7xx*
 F: include/hw/arm/npcm7xx*
+F: include/hw/mem/npcm7xx*
 F: include/hw/misc/npcm7xx*
 F: include/hw/nvram/npcm7xx*
 F: include/hw/timer/npcm7xx*
