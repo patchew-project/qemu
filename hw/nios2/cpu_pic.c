@@ -42,6 +42,8 @@ static void nios2_pic_cpu_handler(void *opaque, int irq, int level)
         } else if (!level) {
             env->irq_pending = 0;
             cpu_reset_interrupt(cs, type);
+        } else {
+            cs->interrupt_request |= type;
         }
     } else {
         if (level) {
