@@ -18,6 +18,7 @@
 #include "hw/arm/boot.h"
 #include "hw/arm/npcm7xx.h"
 #include "hw/core/cpu.h"
+#include "hw/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/units.h"
 
@@ -40,6 +41,20 @@ static void npcm7xx_load_kernel(MachineState *machine, NPCM7xxState *soc)
     arm_load_kernel(&soc->cpu[0], machine, &npcm7xx_binfo);
 }
 
+static void npcm7xx_connect_flash(NPCM7xxFIUState *fiu, int cs_no,
+                                  const char *flash_type, DriveInfo *dinfo) {
+    DeviceState *flash;
+    qemu_irq flash_cs;
+
+    flash = ssi_create_slave_no_init(fiu->spi, flash_type);
+    qdev_prop_set_drive(flash, "drive", blk_by_legacy_dinfo(dinfo),
+                        &error_abort);
+    qdev_init_nofail(flash);
+
+    flash_cs = qdev_get_gpio_in_named(flash, SSI_GPIO_CS, 0);
+    sysbus_connect_irq(SYS_BUS_DEVICE(fiu), cs_no, flash_cs);
+}
+
 static NPCM7xxState *npcm7xx_create_soc(MachineState *machine)
 {
     NPCM7xxMachineClass *nmc = NPCM7XX_MACHINE_GET_CLASS(machine);
@@ -57,8 +72,14 @@ static NPCM7xxState *npcm7xx_create_soc(MachineState *machine)
 static void npcm750_evb_init(MachineState *machine)
 {
     NPCM7xxState *soc;
+    DriveInfo *dinfo;
 
     soc = npcm7xx_create_soc(machine);
+
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        npcm7xx_connect_flash(&soc->fiu[0], 0, "w25q256", dinfo);
+    }
 
     npcm7xx_load_kernel(machine, soc);
 }
@@ -66,8 +87,14 @@ static void npcm750_evb_init(MachineState *machine)
 static void quanta_gsj_init(MachineState *machine)
 {
     NPCM7xxState *soc;
+    DriveInfo *dinfo;
 
     soc = npcm7xx_create_soc(machine);
+
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        npcm7xx_connect_flash(&soc->fiu[0], 0, "mx25l25635e", dinfo);
+    }
 
     npcm7xx_load_kernel(machine, soc);
 }
