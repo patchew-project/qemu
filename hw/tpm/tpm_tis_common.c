@@ -36,6 +36,7 @@
 #include "sysemu/tpm_util.h"
 #include "tpm_ppi.h"
 #include "trace.h"
+#include "../backends/tpm/trace.h" /* FIXME TRACE_TPM_UTIL_SHOW_BUFFER */
 
 #include "tpm_tis.h"
 
