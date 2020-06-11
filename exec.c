@@ -3247,7 +3247,10 @@ MemTxResult address_space_read_full(AddressSpace *as, hwaddr addr,
 {
     MemTxResult result = MEMTX_OK;
     FlatView *fv;
-
+#ifdef CONFIG_FUZZ
+    if(as->root == get_system_memory())
+        dma_read_cb(addr, len);
+#endif
     if (len > 0) {
         RCU_READ_LOCK_GUARD();
         fv = address_space_to_flatview(as);
@@ -3556,6 +3559,10 @@ void *address_space_map(AddressSpace *as,
         }
 
         *plen = l;
+#ifdef CONFIG_FUZZ
+        if(as->root == get_system_memory() && !is_write)
+            dma_read_cb(addr, *plen);
+#endif
         return bounce.buffer;
     }
 
@@ -3563,6 +3570,10 @@ void *address_space_map(AddressSpace *as,
     memory_region_ref(mr);
     *plen = flatview_extend_translation(fv, addr, len, mr, xlat,
                                         l, is_write, attrs);
+#ifdef CONFIG_FUZZ
+    if(as->root == get_system_memory() && !is_write)
+        dma_read_cb(addr, *plen);
+#endif
     ptr = qemu_ram_ptr_length(mr->ram_block, xlat, plen, true);
 
     return ptr;
@@ -3635,6 +3646,10 @@ int64_t address_space_cache_init(MemoryRegionCache *cache,
 
     assert(len > 0);
 
+#ifdef CONFIG_FUZZ
+    if(as->root == get_system_memory() && !is_write)
+        dma_read_cb(addr, len);
+#endif
     l = len;
     cache->fv = address_space_get_flatview(as);
     d = flatview_to_dispatch(cache->fv);

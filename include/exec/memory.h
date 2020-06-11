@@ -49,6 +49,10 @@
 
 extern bool global_dirty_log;
 
+#ifdef CONFIG_FUZZ
+extern void dma_read_cb(size_t addr, size_t len);
+#endif
+
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegionMmio MemoryRegionMmio;
 
@@ -2427,6 +2431,10 @@ address_space_read_cached(MemoryRegionCache *cache, hwaddr addr,
                           void *buf, hwaddr len)
 {
     assert(addr < cache->len && len <= cache->len - addr);
+
+#ifdef CONFIG_FUZZ
+    dma_read_cb(addr, len);
+#endif
     if (likely(cache->ptr)) {
         memcpy(buf, cache->ptr + addr, len);
     } else {

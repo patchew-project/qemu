@@ -28,6 +28,9 @@ static inline uint32_t ADDRESS_SPACE_LD_CACHED(l)(MemoryRegionCache *cache,
     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
 {
     assert(addr < cache->len && 4 <= cache->len - addr);
+#ifdef CONFIG_FUZZ
+    dma_read_cb(cache->xlat + addr, 4);
+#endif
     if (likely(cache->ptr)) {
         return LD_P(l)(cache->ptr + addr);
     } else {
@@ -39,6 +42,9 @@ static inline uint64_t ADDRESS_SPACE_LD_CACHED(q)(MemoryRegionCache *cache,
     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
 {
     assert(addr < cache->len && 8 <= cache->len - addr);
+#ifdef CONFIG_FUZZ
+    dma_read_cb(cache->xlat + addr, 8);
+#endif
     if (likely(cache->ptr)) {
         return LD_P(q)(cache->ptr + addr);
     } else {
@@ -50,6 +56,9 @@ static inline uint32_t ADDRESS_SPACE_LD_CACHED(uw)(MemoryRegionCache *cache,
     hwaddr addr, MemTxAttrs attrs, MemTxResult *result)
 {
     assert(addr < cache->len && 2 <= cache->len - addr);
+#ifdef CONFIG_FUZZ
+    dma_read_cb(cache->xlat + addr, 2);
+#endif
     if (likely(cache->ptr)) {
         return LD_P(uw)(cache->ptr + addr);
     } else {

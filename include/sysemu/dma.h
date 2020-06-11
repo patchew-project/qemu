@@ -105,8 +105,11 @@ static inline int dma_memory_rw(AddressSpace *as, dma_addr_t addr,
                                 void *buf, dma_addr_t len,
                                 DMADirection dir)
 {
+#ifdef CONFIG_FUZZ
+    if (dir == DMA_DIRECTION_TO_DEVICE)
+        dma_read_cb(addr, len);
+#endif
     dma_barrier(as, dir);
-
     return dma_memory_rw_relaxed(as, addr, buf, len, dir);
 }
 
