@@ -1230,22 +1230,20 @@ static void hmp_acl_remove(Monitor *mon, const QDict *qdict)
     }
 }
 
-void qmp_getfd(const char *fdname, Error **errp)
+/*
+ * Add a named fd to the monitor list.
+ * Returns true on success.
+ */
+static bool addfd(const char *fdname, int fd, Error **errp)
 {
     mon_fd_t *monfd;
-    int fd, tmp_fd;
-
-    fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
-    if (fd == -1) {
-        error_setg(errp, QERR_FD_NOT_SUPPLIED);
-        return;
-    }
+    int tmp_fd;
 
     if (qemu_isdigit(fdname[0])) {
         close(fd);
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "fdname",
                    "a name not starting with a digit");
-        return;
+        return false;
     }
 
     qemu_mutex_lock(&cur_mon->mon_lock);
@@ -1259,7 +1257,7 @@ void qmp_getfd(const char *fdname, Error **errp)
         qemu_mutex_unlock(&cur_mon->mon_lock);
         /* Make sure close() is outside critical section */
         close(tmp_fd);
-        return;
+        return true;
     }
 
     monfd = g_malloc0(sizeof(mon_fd_t));
@@ -1268,6 +1266,36 @@ void qmp_getfd(const char *fdname, Error **errp)
 
     QLIST_INSERT_HEAD(&cur_mon->fds, monfd, next);
     qemu_mutex_unlock(&cur_mon->mon_lock);
+
+    return true;
+}
+
+void qmp_getfd(const char *fdname, Error **errp)
+{
+    int fd = qemu_chr_fe_get_msgfd(&cur_mon->chr);
+    if (fd == -1) {
+        error_setg(errp, QERR_FD_NOT_SUPPLIED);
+        return;
+    }
+
+    if (!addfd(fdname, fd, errp)) {
+        close(fd);
+    }
+}
+
+void qmp_openfd(const char *fdname, const char *filename, Error **errp)
+{
+    int fd;
+
+    fd = open(filename, O_RDWR | O_CREAT, S_IRWXU);
+    if (fd == -1) {
+        error_setg_errno(errp, errno, "Cannot open file '%s'", filename);
+        return;
+    }
+
+    if (!addfd(fdname, fd, errp)) {
+        close(fd);
+    }
 }
 
 void qmp_closefd(const char *fdname, Error **errp)

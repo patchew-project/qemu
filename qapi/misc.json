@@ -952,7 +952,7 @@
 ##
 # @closefd:
 #
-# Close a file descriptor previously passed via SCM rights
+# Close a named file descriptor
 #
 # @fdname: file descriptor name
 #
@@ -967,6 +967,27 @@
 #
 ##
 { 'command': 'closefd', 'data': {'fdname': 'str'} }
+
+##
+# @openfd:
+#
+# Open a file descriptor.  The file is opened read-write.
+#
+# @fdname: file descriptor name
+# @filename: file name
+#
+# Returns: Nothing on success
+#
+# Since: 5.1
+#
+# Example:
+#
+# -> { "execute": "openfd", "arguments": { "fdname": "null",
+#                                          "filename": "/dev/null" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'openfd', 'data': {'fdname': 'str', 'filename': 'str'} }
 
 ##
 # @MemoryInfo:
