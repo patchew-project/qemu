@@ -156,6 +156,8 @@ static struct {
     const char *type;
     const char *mod;
 } const hwmodules[] = {
+    { .type = "ccid-card-passthru",    .mod = "usb-smartcard"         },
+    { .type = "ccid-card-emulated",    .mod = "usb-smartcard"         },
 };
 
 static bool qdev_module_loaded_all;
