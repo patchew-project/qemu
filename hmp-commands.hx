@@ -1606,7 +1606,7 @@ ERST
         .name       = "closefd",
         .args_type  = "fdname:s",
         .params     = "closefd name",
-        .help       = "close a file descriptor previously passed via SCM rights",
+        .help       = "close a named file descriptor",
         .cmd        = hmp_closefd,
     },
 
@@ -1615,6 +1615,20 @@ SRST
   Close the file descriptor previously assigned to *fdname* using the
   ``getfd`` command. This is only needed if the file descriptor was never
   used by another monitor command.
+ERST
+
+    {
+        .name       = "openfd",
+        .args_type  = "fdname:s,filename:s",
+        .params     = "openfd name filename",
+        .help       = "open the named file (read write) and assign it a name",
+        .cmd        = hmp_openfd,
+    },
+
+SRST
+``openfd`` *fdname* *filename*
+  Open the named file and store it using the name *fdname* for later use by
+  other monitor comands.
 ERST
 
     {

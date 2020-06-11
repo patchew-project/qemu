@@ -1659,6 +1659,16 @@ void hmp_closefd(Monitor *mon, const QDict *qdict)
     hmp_handle_error(mon, err);
 }
 
+void hmp_openfd(Monitor *mon, const QDict *qdict)
+{
+    const char *fdname = qdict_get_str(qdict, "fdname");
+    const char *filename = qdict_get_str(qdict, "filename");
+    Error *err = NULL;
+
+    qmp_openfd(fdname, filename, &err);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_sendkey(Monitor *mon, const QDict *qdict)
 {
     const char *keys = qdict_get_str(qdict, "keys");
