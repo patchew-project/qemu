@@ -20,16 +20,19 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <string.h>
 #include <sys/types.h>
+#include <syscall.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <utime.h>
 #include <time.h>
+#include <sys/prctl.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
@@ -41,6 +44,7 @@
 #include <setjmp.h>
 #include <sys/shm.h>
 #include <assert.h>
+#include <pthread.h>
 
 #define STACK_SIZE 16384
 
@@ -368,14 +372,12 @@ static void test_pipe(void)
     chk_error(close(fds[1]));
 }
 
-static int thread1_res;
-static int thread2_res;
-
 static int thread1_func(void *arg)
 {
+    int *res = (int *) arg;
     int i;
     for(i=0;i<5;i++) {
-        thread1_res++;
+        (*res)++;
         usleep(10 * 1000);
     }
     return 0;
@@ -383,9 +385,10 @@ static int thread1_func(void *arg)
 
 static int thread2_func(void *arg)
 {
+    int *res = (int *) arg;
     int i;
     for(i=0;i<6;i++) {
-        thread2_res++;
+        (*res)++;
         usleep(10 * 1000);
     }
     return 0;
@@ -405,25 +408,27 @@ static void test_clone(void)
     uint8_t *stack1, *stack2;
     pid_t pid1, pid2;
 
+    int t1 = 0, t2 = 0;
+
     stack1 = malloc(STACK_SIZE);
     pid1 = chk_error(clone(thread1_func, stack1 + STACK_SIZE,
                            CLONE_VM | SIGCHLD,
-                            "hello1"));
+                            &t1));
 
     stack2 = malloc(STACK_SIZE);
     pid2 = chk_error(clone(thread2_func, stack2 + STACK_SIZE,
                            CLONE_VM | CLONE_FS | CLONE_FILES |
                            CLONE_SIGHAND | CLONE_SYSVSEM | SIGCHLD,
-                           "hello2"));
+                           &t2));
 
     wait_for_child(pid1);
     free(stack1);
     wait_for_child(pid2);
     free(stack2);
 
-    if (thread1_res != 5 ||
-        thread2_res != 6)
+    if (t1 != 5 || t2 != 6) {
         error("clone");
+    }
 }
 
 /***********************************/
@@ -562,12 +567,146 @@ static void test_clone_signal_count(void)
      * SIGCHLD.
      */
     chk_error(waitpid(pid, &status, __WCLONE));
+    free(child_stack);
 
     chk_error(sigaction(SIGRTMIN, &prev, NULL));
 
     if (test_clone_signal_count_handler_calls != 1) {
         error("expected to receive exactly 1 signal, received %d signals",
               test_clone_signal_count_handler_calls);
+    }
+}
+
+struct test_clone_pdeathsig_info {
+    uint8_t *child_stack;
+    pthread_mutex_t notify_test_mutex;
+    pthread_cond_t notify_test_cond;
+    pthread_mutex_t notify_parent_mutex;
+    pthread_cond_t notify_parent_cond;
+    bool signal_received;
+};
+
+static int test_clone_pdeathsig_child(void *arg)
+{
+    struct test_clone_pdeathsig_info *info =
+        (struct test_clone_pdeathsig_info *) arg;
+    sigset_t wait_on, block_all;
+    siginfo_t sinfo;
+    struct timespec timeout;
+    int ret;
+
+    /* Block all signals, so SIGUSR1 will be pending when we wait on it. */
+    sigfillset(&block_all);
+    chk_error(sigprocmask(SIG_BLOCK, &block_all, NULL));
+
+    chk_error(prctl(PR_SET_PDEATHSIG, SIGUSR1));
+
+    pthread_mutex_lock(&info->notify_parent_mutex);
+    pthread_cond_broadcast(&info->notify_parent_cond);
+    pthread_mutex_unlock(&info->notify_parent_mutex);
+
+    sigemptyset(&wait_on);
+    sigaddset(&wait_on, SIGUSR1);
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 300 * 1000 * 1000;  /* 300ms */
+
+    ret = sigtimedwait(&wait_on, &sinfo, &timeout);
+
+    if (ret < 0 && errno != EAGAIN) {
+        error("%m (ret=%d, errno=%d/%s)", ret, errno, strerror(errno));
+    }
+    if (ret == SIGUSR1) {
+        info->signal_received = true;
+    }
+    pthread_mutex_lock(&info->notify_test_mutex);
+    pthread_cond_broadcast(&info->notify_test_cond);
+    pthread_mutex_unlock(&info->notify_test_mutex);
+    _exit(0);
+}
+
+static int test_clone_pdeathsig_parent(void *arg)
+{
+    struct test_clone_pdeathsig_info *info =
+        (struct test_clone_pdeathsig_info *) arg;
+
+    pthread_mutex_lock(&info->notify_parent_mutex);
+
+    chk_error(clone(
+        test_clone_pdeathsig_child,
+        info->child_stack + STACK_SIZE,
+        CLONE_VM,
+        info
+    ));
+
+    /* No need to reap the child, it will get reaped by init. */
+
+    /* Wait for the child to signal that they have set up PDEATHSIG. */
+    pthread_cond_wait(&info->notify_parent_cond, &info->notify_parent_mutex);
+    pthread_mutex_unlock(&info->notify_parent_mutex);  /* avoid UB on destroy */
+
+    _exit(0);
+}
+
+/*
+ * This checks that cloned children have the correct parent/child
+ * relationship using PDEATHSIG. PDEATHSIG is based on kernel task hierarchy,
+ * rather than "process" hierarchy, so it should be pretty sensitive to
+ * breakages. PDEATHSIG is also a widely used feature, so it's important
+ * it's correct.
+ *
+ * This test works by spawning a child process (parent) which then spawns it's
+ * own child (the child). The child registers a PDEATHSIG handler, and then
+ * notifies the parent which exits. The child then waits for the PDEATHSIG
+ * signal it regsitered. The child reports whether or not the signal is
+ * received within a small time window, and then notifies the test runner
+ * (this function) that the test is finished.
+ */
+static void test_clone_pdeathsig(void)
+{
+    uint8_t *parent_stack;
+    struct test_clone_pdeathsig_info info;
+    pid_t pid;
+    int status;
+
+    memset(&info, 0, sizeof(info));
+
+    /*
+     * Setup condition variables, so we can be notified once the final child
+     * observes the PDEATHSIG signal from it's parent exiting. When the parent
+     * exits, the child will be orphaned, so we can't use `wait*` to wait for
+     * it to finish.
+     */
+    chk_error(pthread_mutex_init(&info.notify_test_mutex, NULL));
+    chk_error(pthread_cond_init(&info.notify_test_cond, NULL));
+    chk_error(pthread_mutex_init(&info.notify_parent_mutex, NULL));
+    chk_error(pthread_cond_init(&info.notify_parent_cond, NULL));
+
+    parent_stack = malloc(STACK_SIZE);
+    info.child_stack = malloc(STACK_SIZE);
+
+    pthread_mutex_lock(&info.notify_test_mutex);
+
+    pid = chk_error(clone(
+        test_clone_pdeathsig_parent,
+        parent_stack + STACK_SIZE,
+        CLONE_VM,
+        &info
+    ));
+
+    pthread_cond_wait(&info.notify_test_cond, &info.notify_test_mutex);
+    pthread_mutex_unlock(&info.notify_test_mutex);
+    chk_error(waitpid(pid, &status, __WCLONE));  /* reap the parent */
+
+    free(parent_stack);
+    free(info.child_stack);
+
+    pthread_cond_destroy(&info.notify_parent_cond);
+    pthread_mutex_destroy(&info.notify_parent_mutex);
+    pthread_cond_destroy(&info.notify_test_cond);
+    pthread_mutex_destroy(&info.notify_test_mutex);
+
+    if (!info.signal_received) {
+        error("child did not receive PDEATHSIG on parent death");
     }
 }
 
@@ -580,8 +719,9 @@ int main(int argc, char **argv)
     test_socket();
     test_clone();
     test_clone_signal_count();
-
+    test_clone_pdeathsig();
     test_signal();
     test_shm();
+
     return 0;
 }

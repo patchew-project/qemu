@@ -60,3 +60,6 @@ endif
 
 # Update TESTS
 TESTS += $(MULTIARCH_TESTS)
+
+# linux-test.c depends on -pthread.
+LDFLAGS += -pthread
