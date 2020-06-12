@@ -261,9 +261,6 @@ enum {
     QEMU___RTA_MAX
 };
 
-TargetFdTrans **target_fd_trans;
-unsigned int target_fd_max;
-
 static void tswap_nlmsghdr(struct nlmsghdr *nlh)
 {
     nlh->nlmsg_len = tswap32(nlh->nlmsg_len);

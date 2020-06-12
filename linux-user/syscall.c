@@ -6013,6 +6013,18 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     ts->info = parent_ts->info;
     ts->signal_mask = parent_ts->signal_mask;
 
+    if (flags & CLONE_FILES) {
+        ts->fd_trans_tbl = parent_ts->fd_trans_tbl;
+    } else {
+        /*
+         * When CLONE_FILES is not set, the parent and child will have
+         * different file descriptor tables, so we need a new
+         * fd_trans_tbl. Clone from parent_ts, since child inherits all our
+         * file descriptors.
+         */
+        ts->fd_trans_tbl = fd_trans_table_clone(parent_ts->fd_trans_tbl);
+    }
+
     if (flags & CLONE_CHILD_CLEARTID) {
         ts->child_tidptr = child_tidptr;
     }

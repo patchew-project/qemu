@@ -5,6 +5,7 @@
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "exec/cpu_ldst.h"
+#include "fd-trans-type.h"
 
 #undef DEBUG_REMAP
 #ifdef DEBUG_REMAP
@@ -96,6 +97,22 @@ struct emulated_sigtable {
     target_siginfo_t info;
 };
 
+/*
+ * The fd_trans_table is used the FD data translation subsystem to
+ * find FD data translators (i.e. functions). `entries` is an array of pointers
+ * with size `fd_max`, containing pointers to TargetFDTrans structs. A pointer
+ * to a struct of this type is stored TaskState, which allows the struct itself
+ * to be shared by all tasks (e.g., threads) that share a file descriptor
+ * namespace. Storing a pointer to this table in the TaskState struct is needed
+ * to support rare cases where tasks share an address space, but do not share
+ * a set of file descriptors (e.g., after clone(CLONE_VM) when CLONE_FILES is
+ * not set). See `fd-trans.h` for more info on the FD translation subsystem.
+ */
+struct fd_trans_table {
+    uint64_t fd_max;
+    TargetFdTrans **entries;
+};
+
 /* NOTE: we force a big alignment so that the stack stored after is
    aligned too */
 typedef struct TaskState {
@@ -153,6 +170,13 @@ typedef struct TaskState {
 
     /* This thread's sigaltstack, if it has one */
     struct target_sigaltstack sigaltstack_used;
+
+    /*
+     * A pointer to the FD trans table to be used by this task. Note that the
+     * task doesn't have exclusive control of the fd_trans_table so access to
+     * the table itself should be guarded.
+     */
+    struct fd_trans_table *fd_trans_tbl;
 } __attribute__((aligned(16))) TaskState;
 
 extern char *exec_path;

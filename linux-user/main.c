@@ -796,6 +796,7 @@ int main(int argc, char **argv, char **envp)
     ts->bprm = &bprm;
     cpu->opaque = ts;
     task_settid(ts);
+    ts->fd_trans_tbl = g_new0(struct fd_trans_table, 1);
 
     ret = loader_exec(execfd, exec_path, target_argv, target_environ, regs,
         info, &bprm);

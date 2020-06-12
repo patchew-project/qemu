@@ -16,38 +16,45 @@
 #ifndef FD_TRANS_H
 #define FD_TRANS_H
 
-typedef abi_long (*TargetFdDataFunc)(void *, size_t);
-typedef abi_long (*TargetFdAddrFunc)(void *, abi_ulong, socklen_t);
-typedef struct TargetFdTrans {
-    TargetFdDataFunc host_to_target_data;
-    TargetFdDataFunc target_to_host_data;
-    TargetFdAddrFunc target_to_host_addr;
-} TargetFdTrans;
+#include "qemu.h"
+#include "fd-trans-type.h"
 
-extern TargetFdTrans **target_fd_trans;
-
-extern unsigned int target_fd_max;
+/*
+ * Return a duplicate of the given fd_trans_table. This function always
+ * succeeds. Ownership of the pointed-to table is yielded to the caller. The
+ * caller is responsible for freeing the table when it is no longer in-use.
+ */
+struct fd_trans_table *fd_trans_table_clone(struct fd_trans_table *tbl);
 
 static inline TargetFdDataFunc fd_trans_target_to_host_data(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
-        return target_fd_trans[fd]->target_to_host_data;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct fd_trans_table *tbl = ts->fd_trans_tbl;
+
+    if (fd >= 0 && fd < tbl->fd_max && tbl->entries[fd]) {
+        return tbl->entries[fd]->target_to_host_data;
     }
     return NULL;
 }
 
 static inline TargetFdDataFunc fd_trans_host_to_target_data(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
-        return target_fd_trans[fd]->host_to_target_data;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct fd_trans_table *tbl = ts->fd_trans_tbl;
+
+    if (fd >= 0 && fd < tbl->fd_max && tbl->entries[fd]) {
+        return tbl->entries[fd]->host_to_target_data;
     }
     return NULL;
 }
 
 static inline TargetFdAddrFunc fd_trans_target_to_host_addr(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
-        return target_fd_trans[fd]->target_to_host_addr;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct fd_trans_table *tbl = ts->fd_trans_tbl;
+
+    if (fd >= 0 && fd < tbl->fd_max && tbl->entries[fd]) {
+        return tbl->entries[fd]->target_to_host_addr;
     }
     return NULL;
 }
@@ -56,29 +63,41 @@ static inline void fd_trans_register(int fd, TargetFdTrans *trans)
 {
     unsigned int oldmax;
 
-    if (fd >= target_fd_max) {
-        oldmax = target_fd_max;
-        target_fd_max = ((fd >> 6) + 1) << 6; /* by slice of 64 entries */
-        target_fd_trans = g_renew(TargetFdTrans *,
-                                  target_fd_trans, target_fd_max);
-        memset((void *)(target_fd_trans + oldmax), 0,
-               (target_fd_max - oldmax) * sizeof(TargetFdTrans *));
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct fd_trans_table *tbl = ts->fd_trans_tbl;
+
+    /*
+     * TODO: This is racy. Updates to tbl->entries should be guarded by
+     * a lock.
+     */
+    if (fd >= tbl->fd_max) {
+        oldmax = tbl->fd_max;
+        tbl->fd_max = ((fd >> 6) + 1) << 6; /* by slice of 64 entries */
+        tbl->entries = g_renew(TargetFdTrans *, tbl->entries, tbl->fd_max);
+        memset((void *)(tbl->entries + oldmax), 0,
+               (tbl->fd_max - oldmax) * sizeof(TargetFdTrans *));
     }
-    target_fd_trans[fd] = trans;
+    tbl->entries[fd] = trans;
 }
 
 static inline void fd_trans_unregister(int fd)
 {
-    if (fd >= 0 && fd < target_fd_max) {
-        target_fd_trans[fd] = NULL;
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct fd_trans_table *tbl = ts->fd_trans_tbl;
+
+    if (fd >= 0 && fd < tbl->fd_max) {
+        tbl->entries[fd] = NULL;
     }
 }
 
 static inline void fd_trans_dup(int oldfd, int newfd)
 {
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
+    struct fd_trans_table *tbl = ts->fd_trans_tbl;
+
     fd_trans_unregister(newfd);
-    if (oldfd < target_fd_max && target_fd_trans[oldfd]) {
-        fd_trans_register(newfd, target_fd_trans[oldfd]);
+    if (oldfd >= 0 && oldfd < tbl->fd_max && tbl->entries[oldfd]) {
+        fd_trans_register(newfd, tbl->entries[oldfd]);
     }
 }
 
