@@ -7,18 +7,40 @@
  */
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-led.h"
+#include "qemu/timer.h"
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/led.h"
 #include "hw/irq.h"
 #include "trace.h"
 
+#define MAX_QMP_LED_EVENTS_PER_SEC  4 /* TODO shared between LED children? */
+
+static void emit_led_status_changed_event(LEDState *s, int state)
+{
+    static const int64_t delay_min_ms = NANOSECONDS_PER_SECOND / SCALE_MS
+                                        / MAX_QMP_LED_EVENTS_PER_SEC;
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+
+    if (now - s->last_event_ms > delay_min_ms) {
+        qapi_event_send_led_status_changed(s->name, state
+                                                    ? LED_STATE_ON
+                                                    : LED_STATE_OFF);
+    } else {
+        /* TODO count skipped events? */
+    }
+    s->last_event_ms = now;
+}
+
 static void led_set(void *opaque, int line, int new_state)
 {
     LEDState *s = LED(opaque);
 
     trace_led_set(s->name, s->current_state, new_state);
-
+    if (new_state != s->current_state) {
+        emit_led_status_changed_event(s, new_state);
+    }
     s->current_state = new_state;
 }
 

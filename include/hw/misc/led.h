@@ -21,6 +21,7 @@ typedef struct LEDState {
 
     qemu_irq irq;
     uint8_t current_state;
+    int64_t last_event_ms;
 
     /* Properties */
     char *name;
