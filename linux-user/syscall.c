@@ -5989,6 +5989,17 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         return -TARGET_EINVAL;
     }
 
+    if ((flags & CLONE_SIGHAND) && !(flags & CLONE_VM)) {
+        /*
+         * Like CLONE_FILES, this flag combination is unsupported. If
+         * CLONE_SIGHAND is specified without CLONE_VM, then we need to keep
+         * the sigact table in-sync across virtual memory boundaries, which is
+         * substantially more complicated.
+         */
+        qemu_log_mask(LOG_UNIMP, "CLONE_SIGHAND only supported with CLONE_VM");
+        return -TARGET_EINVAL;
+    }
+
     pthread_mutex_init(&info.mutex, NULL);
     pthread_mutex_lock(&info.mutex);
     pthread_cond_init(&info.cond, NULL);
@@ -6023,6 +6034,12 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
          * file descriptors.
          */
         ts->fd_trans_tbl = fd_trans_table_clone(parent_ts->fd_trans_tbl);
+    }
+
+    if (flags & CLONE_SIGHAND) {
+        ts->sigact_tbl = parent_ts->sigact_tbl;
+    } else {
+        ts->sigact_tbl = sigact_table_clone(parent_ts->sigact_tbl);
     }
 
     if (flags & CLONE_CHILD_CLEARTID) {

@@ -25,7 +25,13 @@
 #include "trace.h"
 #include "signal-common.h"
 
-static struct target_sigaction sigact_table[TARGET_NSIG];
+struct target_sigaltstack target_sigaltstack_used = {
+    .ss_sp = 0,
+    .ss_size = 0,
+    .ss_flags = TARGET_SS_DISABLE,
+};
+
+typedef struct target_sigaction sigact_table[TARGET_NSIG];
 
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc);
@@ -542,6 +548,11 @@ static void signal_table_init(void)
     }
 }
 
+struct target_sigaction *sigact_table_clone(struct target_sigaction *orig)
+{
+    return memcpy(g_new(sigact_table, 1), orig, sizeof(sigact_table));
+}
+
 void signal_init(void)
 {
     TaskState *ts = (TaskState *)thread_cpu->opaque;
@@ -556,6 +567,12 @@ void signal_init(void)
     /* Set the signal mask from the host mask. */
     sigprocmask(0, 0, &ts->signal_mask);
 
+    /*
+     * Set all host signal handlers. ALL signals are blocked during
+     * the handlers to serialize them.
+     */
+    ts->sigact_tbl = (struct target_sigaction *) g_new0(sigact_table, 1);
+
     sigfillset(&act.sa_mask);
     act.sa_flags = SA_SIGINFO;
     act.sa_sigaction = host_signal_handler;
@@ -568,9 +585,9 @@ void signal_init(void)
         host_sig = target_to_host_signal(i);
         sigaction(host_sig, NULL, &oact);
         if (oact.sa_sigaction == (void *)SIG_IGN) {
-            sigact_table[i - 1]._sa_handler = TARGET_SIG_IGN;
+            ts->sigact_tbl[i - 1]._sa_handler = TARGET_SIG_IGN;
         } else if (oact.sa_sigaction == (void *)SIG_DFL) {
-            sigact_table[i - 1]._sa_handler = TARGET_SIG_DFL;
+            ts->sigact_tbl[i - 1]._sa_handler = TARGET_SIG_DFL;
         }
         /* If there's already a handler installed then something has
            gone horribly wrong, so don't even try to handle that case.  */
@@ -608,11 +625,12 @@ void force_sig(int sig)
 #if !defined(TARGET_RISCV)
 void force_sigsegv(int oldsig)
 {
+    TaskState *ts = (TaskState *)thread_cpu->opaque;
     if (oldsig == SIGSEGV) {
         /* Make sure we don't try to deliver the signal again; this will
          * end up with handle_pending_signal() calling dump_core_and_abort().
          */
-        sigact_table[oldsig - 1]._sa_handler = TARGET_SIG_DFL;
+        ts->sigact_tbl[oldsig - 1]._sa_handler = TARGET_SIG_DFL;
     }
     force_sig(TARGET_SIGSEGV);
 }
@@ -837,6 +855,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     struct sigaction act1;
     int host_sig;
     int ret = 0;
+    TaskState* ts = (TaskState *)thread_cpu->opaque;
 
     trace_signal_do_sigaction_guest(sig, TARGET_NSIG);
 
@@ -848,7 +867,7 @@ int do_sigaction(int sig, const struct target_sigaction *act,
         return -TARGET_ERESTARTSYS;
     }
 
-    k = &sigact_table[sig - 1];
+    k = &ts->sigact_tbl[sig - 1];
     if (oact) {
         __put_user(k->_sa_handler, &oact->_sa_handler);
         __put_user(k->sa_flags, &oact->sa_flags);
@@ -930,7 +949,7 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
         sa = NULL;
         handler = TARGET_SIG_IGN;
     } else {
-        sa = &sigact_table[sig - 1];
+        sa = &ts->sigact_tbl[sig - 1];
         handler = sa->_sa_handler;
     }
 
@@ -1022,9 +1041,9 @@ void process_pending_signals(CPUArchState *cpu_env)
              * looping round and round indefinitely.
              */
             if (sigismember(&ts->signal_mask, target_to_host_signal_table[sig])
-                || sigact_table[sig - 1]._sa_handler == TARGET_SIG_IGN) {
+                || ts->sigact_tbl[sig - 1]._sa_handler == TARGET_SIG_IGN) {
                 sigdelset(&ts->signal_mask, target_to_host_signal_table[sig]);
-                sigact_table[sig - 1]._sa_handler = TARGET_SIG_DFL;
+                ts->sigact_tbl[sig - 1]._sa_handler = TARGET_SIG_DFL;
             }
 
             handle_pending_signal(cpu_env, sig, &ts->sync_signal);

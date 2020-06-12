@@ -177,6 +177,12 @@ typedef struct TaskState {
      * the table itself should be guarded.
      */
     struct fd_trans_table *fd_trans_tbl;
+
+    /*
+     * A table containing signal actions for the target. It should have at
+     * least TARGET_NSIG entries
+     */
+    struct target_sigaction *sigact_tbl;
 } __attribute__((aligned(16))) TaskState;
 
 extern char *exec_path;
@@ -419,7 +425,9 @@ void print_syscall_ret(int num, abi_long arg1);
  */
 void print_taken_signal(int target_signum, const target_siginfo_t *tinfo);
 
+
 /* signal.c */
+struct target_sigaction *sigact_table_clone(struct target_sigaction *orig);
 void process_pending_signals(CPUArchState *cpu_env);
 void signal_init(void);
 int queue_signal(CPUArchState *env, int sig, int si_type,
