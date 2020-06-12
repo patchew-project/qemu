@@ -18,6 +18,7 @@
 #include "hw/arm/nrf51_soc.h"
 #include "hw/i2c/microbit_i2c.h"
 #include "hw/qdev-properties.h"
+#include "hw/misc/led.h"
 
 typedef struct {
     MachineState parent;
@@ -57,6 +58,8 @@ static void microbit_init(MachineState *machine)
     mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(i2c), 0);
     memory_region_add_subregion_overlap(&s->nrf51.container, NRF51_TWI_BASE,
                                         mr, -1);
+
+    create_led_by_gpio_id(OBJECT(machine), DEVICE(soc), 21, "Green LED #0");
 
     armv7m_load_kernel(ARM_CPU(first_cpu), machine->kernel_filename,
                        NRF51_SOC(soc)->flash_size);

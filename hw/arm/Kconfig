@@ -436,6 +436,7 @@ config FSL_IMX6UL
 config MICROBIT
     bool
     select NRF51_SOC
+    select LED
 
 config NRF51_SOC
     bool
