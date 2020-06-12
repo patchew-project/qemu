@@ -104,3 +104,23 @@ static void led_register_types(void)
 }
 
 type_init(led_register_types)
+
+DeviceState *create_led_by_gpio_id(Object *parentobj,
+                                   DeviceState *gpio_dev, unsigned gpio_id,
+                                   const char *led_name)
+{
+    DeviceState *dev;
+    char *name;
+
+    dev = qdev_create(NULL, TYPE_LED);
+    /* TODO set "reset_state" */
+    qdev_prop_set_string(dev, "name", led_name);
+    name = g_ascii_strdown(led_name, -1);
+    name = g_strdelimit(name, " #", '-');
+    object_property_add_child(parentobj, name, OBJECT(dev));
+    g_free(name);
+    qdev_init_nofail(dev);
+    qdev_connect_gpio_out(gpio_dev, gpio_id, qdev_get_gpio_in(dev, 0));
+
+    return dev;
+}
