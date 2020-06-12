@@ -407,14 +407,13 @@ static void test_clone(void)
 
     stack1 = malloc(STACK_SIZE);
     pid1 = chk_error(clone(thread1_func, stack1 + STACK_SIZE,
-                           CLONE_VM | CLONE_FS | CLONE_FILES |
-                           CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM,
+                           CLONE_VM | SIGCHLD,
                             "hello1"));
 
     stack2 = malloc(STACK_SIZE);
     pid2 = chk_error(clone(thread2_func, stack2 + STACK_SIZE,
                            CLONE_VM | CLONE_FS | CLONE_FILES |
-                           CLONE_SIGHAND | CLONE_THREAD | CLONE_SYSVSEM,
+                           CLONE_SIGHAND | CLONE_SYSVSEM | SIGCHLD,
                            "hello2"));
 
     wait_for_child(pid1);
@@ -517,6 +516,61 @@ static void test_shm(void)
     chk_error(shmdt(ptr));
 }
 
+static volatile sig_atomic_t test_clone_signal_count_handler_calls;
+
+static void test_clone_signal_count_handler(int sig)
+{
+    test_clone_signal_count_handler_calls++;
+}
+
+/* A clone function that does nothing and exits successfully. */
+static int successful_func(void *arg __attribute__((unused)))
+{
+    return 0;
+}
+
+/*
+ * With our clone implementation it's possible that we could generate too many
+ * child exit signals. Make sure only the single expected child-exit signal is
+ * generated.
+ */
+static void test_clone_signal_count(void)
+{
+    uint8_t *child_stack;
+    struct sigaction prev, test;
+    int status;
+    pid_t pid;
+
+    memset(&test, 0, sizeof(test));
+    test.sa_handler = test_clone_signal_count_handler;
+    test.sa_flags = SA_RESTART;
+
+    /* Use real-time signals, so every signal event gets delivered. */
+    chk_error(sigaction(SIGRTMIN, &test, &prev));
+
+    child_stack = malloc(STACK_SIZE);
+    pid = chk_error(clone(
+        successful_func,
+        child_stack + STACK_SIZE,
+        CLONE_VM | SIGRTMIN,
+        NULL
+    ));
+
+    /*
+     * Need to use __WCLONE here because we are not using SIGCHLD as the
+     * exit_signal. By default linux only waits for children spawned with
+     * SIGCHLD.
+     */
+    chk_error(waitpid(pid, &status, __WCLONE));
+
+    chk_error(sigaction(SIGRTMIN, &prev, NULL));
+
+    if (test_clone_signal_count_handler_calls != 1) {
+        error("expected to receive exactly 1 signal, received %d signals",
+              test_clone_signal_count_handler_calls);
+    }
+}
+
 int main(int argc, char **argv)
 {
     test_file();
@@ -524,11 +578,8 @@ int main(int argc, char **argv)
     test_fork();
     test_time();
     test_socket();
-
-    if (argc > 1) {
-        printf("test_clone still considered buggy\n");
-        test_clone();
-    }
+    test_clone();
+    test_clone_signal_count();
 
     test_signal();
     test_shm();

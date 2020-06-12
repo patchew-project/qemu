@@ -139,10 +139,9 @@
 
 /* These flags are ignored:
  * CLONE_DETACHED is now ignored by the kernel;
- * CLONE_IO is just an optimisation hint to the I/O scheduler
  */
 #define CLONE_IGNORED_FLAGS                     \
-    (CLONE_DETACHED | CLONE_IO)
+    (CLONE_DETACHED)
 
 /* Flags for fork which we can implement within QEMU itself */
 #define CLONE_EMULATED_FLAGS               \
@@ -5978,14 +5977,31 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     }
     proc_flags = (proc_flags & ~CSIGNAL) | host_sig;
 
-    /* Emulate vfork() with fork() */
-    if (proc_flags & CLONE_VFORK) {
-        proc_flags &= ~(CLONE_VFORK | CLONE_VM);
+
+    if (!clone_flags_are_fork(proc_flags) && !(flags & CLONE_VM)) {
+        /*
+         * If the user is doing a non-CLONE_VM clone, which cannot be emulated
+         * with fork, we can't guarantee that we can emulate this correctly.
+         * It should work OK as long as there are no threads in parent process,
+         * so we hide it behind a flag if the user knows what they're doing.
+         */
+        qemu_log_mask(LOG_UNIMP,
+                      "Refusing non-fork/thread clone without CLONE_VM.");
+        return -TARGET_EINVAL;
     }
 
-    if (!clone_flags_are_fork(proc_flags) &&
-        !clone_flags_are_thread(proc_flags)) {
-        qemu_log_mask(LOG_UNIMP, "unsupported clone flags");
+    if ((flags & CLONE_FILES) && !(flags & CLONE_VM)) {
+        /*
+         * This flag combination is currently unsupported. QEMU needs to update
+         * the fd_trans_table as new file descriptors are opened. This is easy
+         * when CLONE_VM is set, because the fd_trans_table is shared between
+         * the parent and child. Without CLONE_VM the fd_trans_table will need
+         * to be share specially using shared memory mappings, or a
+         * consistentcy protocol between the child and the parent.
+         *
+         * For now, just return EINVAL in this case.
+         */
+        qemu_log_mask(LOG_UNIMP, "CLONE_FILES only supported with CLONE_VM");
         return -TARGET_EINVAL;
     }
 
@@ -6042,6 +6058,10 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         ts->sigact_tbl = sigact_table_clone(parent_ts->sigact_tbl);
     }
 
+    if (!clone_flags_are_thread(proc_flags)) {
+        ts->is_cloned = true;
+    }
+
     if (flags & CLONE_CHILD_CLEARTID) {
         ts->child_tidptr = child_tidptr;
     }
@@ -6063,10 +6083,8 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
         tb_flush(cpu);
     }
 
-    if (proc_flags & CLONE_VM) {
-        info.child.register_thread = true;
-        info.child.signal_setup = true;
-    }
+    info.child.signal_setup = (flags & CLONE_VM) && !(flags & CLONE_VFORK);
+    info.child.register_thread = !!(flags & CLONE_VM);
 
     /*
      * It is not safe to deliver signals until the child has finished
@@ -6078,7 +6096,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
 
     ret = get_errno(qemu_clone(proc_flags, clone_run, (void *) &info));
 
-    if (ret >= 0 && (proc_flags & CLONE_VM)) {
+    if (ret >= 0 && (flags & CLONE_VM) && !(flags & CLONE_VFORK)) {
         /*
          * Wait for the child to finish setup if the child is running in the
          * same VM.
@@ -6092,7 +6110,7 @@ static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
     pthread_cond_destroy(&info.cond);
     pthread_mutex_destroy(&info.mutex);
 
-    if (ret >= 0 && !(proc_flags & CLONE_VM)) {
+    if (ret >= 0 && !(flags & CLONE_VM)) {
         /*
          * If !CLONE_VM, then we need to set parent_tidptr, since the child
          * won't set it for us. Should always be safe to set it here anyways.
@@ -7662,6 +7680,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     switch(num) {
     case TARGET_NR_exit:
     {
+        bool do_pthread_exit = false;
         /* In old applications this may be used to implement _exit(2).
            However in threaded applictions it is used for thread termination,
            and _exit_group is used for application termination.
@@ -7692,10 +7711,20 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                           NULL, NULL, 0);
             }
 
+            /*
+             * Need this multi-step process so we can free ts before calling
+             * pthread_exit.
+             */
+            if (!ts->is_cloned) {
+                do_pthread_exit = true;
+            }
+
             thread_cpu = NULL;
             g_free(ts);
-            rcu_unregister_thread();
-            pthread_exit(NULL);
+            if (do_pthread_exit) {
+                rcu_unregister_thread();
+                pthread_exit(NULL);
+            }
         }
 
         pthread_mutex_unlock(&clone_lock);
@@ -9700,6 +9729,14 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #ifdef __NR_exit_group
         /* new thread calls */
     case TARGET_NR_exit_group: {
+        /*
+         * TODO: We need to clean up CPUs (like is done for exit(2))
+         * for all threads in this process when exit_group is called, at least
+         * for tasks that have been cloned. Could also be done in
+         * clone_trampoline/tls_mgr. Since this cleanup is non-trival (need to
+         * coordinate it across threads. Right now it seems to be fine without
+         * the cleanup, so just leaving a note.
+         */
         preexit_cleanup(cpu_env, arg1);
         return get_errno(exit_group(arg1));
     }

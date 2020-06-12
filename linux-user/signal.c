@@ -36,6 +36,21 @@ typedef struct target_sigaction sigact_table[TARGET_NSIG];
 static void host_signal_handler(int host_signum, siginfo_t *info,
                                 void *puc);
 
+/*
+ * This table, initilized in signal_init, is used to track "hidden" processes
+ * for which exit signals should not be delivered. The PIDs of the processes
+ * hidden processes are stored as keys. Values are always set to NULL.
+ *
+ * Note: Process IDs stored in this table may "leak" (i.e., never be removed
+ * from the table) if the guest blocks (SIG_IGN) the exit signal for the child
+ * it spawned. There is a small risk, that this PID could later be reused
+ * by an alternate child process, and the child exit would be hidden. This is
+ * an unusual case that is unlikely to happen, but it is possible.
+ */
+static GHashTable *hidden_processes;
+
+/* this lock guards access to the `hidden_processes` table. */
+static pthread_mutex_t hidden_processes_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * System includes define _NSIG as SIGRTMAX + 1,
@@ -564,6 +579,9 @@ void signal_init(void)
     /* initialize signal conversion tables */
     signal_table_init();
 
+    /* initialize the hidden process table. */
+    hidden_processes = g_hash_table_new(g_direct_hash, g_direct_equal);
+
     /* Set the signal mask from the host mask. */
     sigprocmask(0, 0, &ts->signal_mask);
 
@@ -749,6 +767,10 @@ static void host_signal_handler(int host_signum, siginfo_t *info,
     k = &ts->sigtab[sig - 1];
     k->info = tinfo;
     k->pending = sig;
+    k->exit_pid = 0;
+    if (info->si_code & (CLD_DUMPED | CLD_KILLED | CLD_EXITED)) {
+        k->exit_pid = info->si_pid;
+    }
     ts->signal_pending = 1;
 
     /* Block host signals until target signal handler entered. We
@@ -930,6 +952,17 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     return ret;
 }
 
+void hide_current_process_exit_signal(void)
+{
+    pid_t pid = getpid();
+
+    pthread_mutex_lock(&hidden_processes_lock);
+
+    (void)g_hash_table_insert(hidden_processes, GINT_TO_POINTER(pid), NULL);
+
+    pthread_mutex_unlock(&hidden_processes_lock);
+}
+
 static void handle_pending_signal(CPUArchState *cpu_env, int sig,
                                   struct emulated_sigtable *k)
 {
@@ -943,6 +976,22 @@ static void handle_pending_signal(CPUArchState *cpu_env, int sig,
     trace_user_handle_signal(cpu_env, sig);
     /* dequeue signal */
     k->pending = 0;
+
+    if (k->exit_pid) {
+        pthread_mutex_lock(&hidden_processes_lock);
+        /*
+         * If the exit signal is for a hidden PID, then just drop it, and
+         * remove the hidden process from the list, since we know it has
+         * exited.
+         */
+        if (g_hash_table_contains(hidden_processes,
+                                  GINT_TO_POINTER(k->exit_pid))) {
+            g_hash_table_remove(hidden_processes, GINT_TO_POINTER(k->exit_pid));
+            pthread_mutex_unlock(&hidden_processes_lock);
+            return;
+        }
+        pthread_mutex_unlock(&hidden_processes_lock);
+    }
 
     sig = gdb_handlesig(cpu, sig);
     if (!sig) {

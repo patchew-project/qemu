@@ -94,6 +94,7 @@ struct vm86_saved_state {
 
 struct emulated_sigtable {
     int pending; /* true if signal is pending */
+    pid_t exit_pid; /* non-zero host pid, if a process is exiting. */
     target_siginfo_t info;
 };
 
@@ -183,6 +184,15 @@ typedef struct TaskState {
      * least TARGET_NSIG entries
      */
     struct target_sigaction *sigact_tbl;
+
+    /*
+     * Set to true if the process asssociated with this task state was cloned.
+     * This is needed to disambiguate cloned processes from threads. If
+     * CLONE_VM is used, a pthread_exit(..) will free the stack/TLS of the
+     * trampoline thread, and the trampoline will be unable to conduct its
+     * cleanup.
+     */
+    bool is_cloned;
 } __attribute__((aligned(16))) TaskState;
 
 extern char *exec_path;
@@ -442,6 +452,13 @@ abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 int do_sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 abi_long do_swapcontext(CPUArchState *env, abi_ulong uold_ctx,
                         abi_ulong unew_ctx, abi_long ctx_size);
+
+/*
+ * Register the current process as a "hidden" process. Exit signals generated
+ * by this process should not be delivered to the guest.
+ */
+void hide_current_process_exit_signal(void);
+
 /**
  * block_signals: block all signals while handling this guest syscall
  *
