@@ -156,6 +156,17 @@ void kvm_arm_cpu_post_load(ARMCPU *cpu);
 void kvm_arm_reset_vcpu(ARMCPU *cpu);
 
 /**
+ * kvm_arm_create_host_vcpu:
+ * @cpu: ARMCPU
+ *
+ * Called at to pre create all possible kvm vcpus within the the host at the
+ * virt machine init time. This will also init this pre-created vcpu and
+ * hence result in vcpu reset at host. These pre created and inited vcpus
+ * shall be parked for use when ARM vcpus are actually realized.
+ */
+void kvm_arm_create_host_vcpu(ARMCPU *cpu);
+
+/**
  * kvm_arm_init_serror_injection:
  * @cs: CPUState
  *

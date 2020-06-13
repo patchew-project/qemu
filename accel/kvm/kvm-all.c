@@ -379,6 +379,37 @@ err:
     return ret;
 }
 
+void kvm_park_vcpu(CPUState *cs)
+{
+    unsigned long vcpu_id = cs->cpu_index;
+    struct KVMParkedVcpu *vcpu;
+
+    vcpu = g_malloc0(sizeof(*vcpu));
+    vcpu->vcpu_id = vcpu_id;
+    vcpu->kvm_fd = cs->kvm_fd;
+    QLIST_INSERT_HEAD(&kvm_state->kvm_parked_vcpus, vcpu, node);
+}
+
+int kvm_create_vcpu(CPUState *cpu)
+{
+    unsigned long vcpu_id = cpu->cpu_index;
+    KVMState *s = kvm_state;
+    int ret = 0;
+
+    DPRINTF("kvm_create_vcpu\n");
+
+    ret = kvm_vm_ioctl(s, KVM_CREATE_VCPU, (void *)vcpu_id);
+    if (ret < 0) {
+        goto err;
+    }
+    cpu->kvm_fd = ret;
+    cpu->kvm_state = s;
+    cpu->vcpu_dirty = true;
+
+err:
+    return ret;
+}
+
 int kvm_destroy_vcpu(CPUState *cpu)
 {
     KVMState *s = kvm_state;
