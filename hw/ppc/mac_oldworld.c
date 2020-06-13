@@ -80,6 +80,15 @@ static void ppc_heathrow_reset(void *opaque)
     cpu_reset(CPU(cpu));
 }
 
+static uint64_t machine_id_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return (addr == 0 && size == 2 ? 0x3d8c : 0);
+}
+
+const MemoryRegionOps machine_id_reg_ops = {
+    .read = machine_id_read,
+};
+
 static void ppc_heathrow_init(MachineState *machine)
 {
     ram_addr_t ram_size = machine->ram_size;
@@ -93,6 +102,7 @@ static void ppc_heathrow_init(MachineState *machine)
     char *filename;
     int linux_boot, i;
     MemoryRegion *bios = g_new(MemoryRegion, 1);
+    MemoryRegion *machine_id = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base, cmdline_base = 0;
     int32_t kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -226,6 +236,10 @@ static void ppc_heathrow_init(MachineState *machine)
             exit(1);
         }
     }
+
+    memory_region_init_io(machine_id, OBJECT(machine), &machine_id_reg_ops,
+                          NULL, "machine_id", 2);
+    memory_region_add_subregion(get_system_memory(), 0xff000004, machine_id);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
     pic_dev = qdev_create(NULL, TYPE_HEATHROW);
