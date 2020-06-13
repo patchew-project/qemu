@@ -1403,6 +1403,28 @@ static void create_secure_ram(VirtMachineState *vms,
     g_free(nodename);
 }
 
+static void virt_remove_disabled_cpus(VirtMachineState *vms)
+{
+    MachineState *ms = MACHINE(vms);
+    int n;
+
+    /*
+     * RFC: Question: Other approach could have been to keep them forever
+     * and release it only once when qemu exits as part o finalize or when
+     * new vcpu is hotplugged. In the later old could be released for the
+     * newly created object for the same vcpu?
+     */
+    for (n = vms->smp_cpus; n < vms->max_cpus; n++) {
+        CPUState *cs = qemu_get_possible_cpu(n);
+        if (!qemu_present_cpu(cs)) {
+            CPUArchId *cpu_slot;
+            cpu_slot = virt_find_cpu_slot(ms, cs->cpu_index);
+            cpu_slot->cpu = NULL;
+            object_unref(OBJECT(cs));
+        }
+    }
+}
+
 static bool virt_pmu_init(VirtMachineState *vms)
 {
     CPUArchIdList *possible_cpus = vms->parent.possible_cpus;
@@ -1500,6 +1522,9 @@ void virt_machine_done(Notifier *notifier, void *data)
 
     virt_acpi_setup(vms);
     virt_build_smbios(vms);
+
+    /* release the disabled ARMCPU objects used during init for pre-sizing */
+     virt_remove_disabled_cpus(vms);
 }
 
 static uint64_t virt_cpu_mp_affinity(VirtMachineState *vms, int idx)
