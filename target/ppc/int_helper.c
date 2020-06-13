@@ -533,6 +533,7 @@ void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
         }                                                               \
     }
 VARITH_DO(muluwm, *, u32)
+VARITH_DO(mulld, *, s64)
 #undef VARITH_DO
 #undef VARITH
 
