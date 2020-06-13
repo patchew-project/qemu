@@ -355,6 +355,8 @@ void qdev_connect_gpio_out_named(DeviceState *dev, const char *name, int n,
 qemu_irq qdev_get_gpio_out_connector(DeviceState *dev, const char *name, int n);
 qemu_irq qdev_intercept_gpio_out(DeviceState *dev, qemu_irq icpt,
                                  const char *name, int n);
+qemu_irq qdev_disconnect_gpio_out_named(DeviceState *dev,
+                                               const char *name, int n);
 
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
