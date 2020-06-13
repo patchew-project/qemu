@@ -798,6 +798,9 @@ static void trans_vclzd(DisasContext *ctx)
     tcg_temp_free_i64(avr);
 }
 
+static void gen_vexptefp(DisasContext *ctx);
+static void gen_vlogefp(DisasContext *ctx);
+
 GEN_VXFORM(vmuloub, 4, 0);
 GEN_VXFORM(vmulouh, 4, 1);
 GEN_VXFORM(vmulouw, 4, 2);
@@ -822,6 +825,18 @@ GEN_VXFORM(vmulhsw, 4, 14);
 GEN_VXFORM_DUAL(vmulesw, PPC_ALTIVEC, PPC_NONE,
 		vmulhsw, PPC_NONE, PPC2_ISA300);
 GEN_VXFORM(vmulhsd, 4, 15);
+GEN_VXFORM(vdivuw, 5, 2);
+GEN_VXFORM(vdivud, 5, 3);
+GEN_VXFORM(vdivsw, 5, 6);
+GEN_VXFORM_DUAL_EXT(vexptefp, PPC_ALTIVEC, PPC_NONE, 0x001f0000,
+		vdivsw, PPC_NONE, PPC2_ISA300, 0x00000000);
+GEN_VXFORM(vdivsd, 5, 7);
+GEN_VXFORM_DUAL_EXT(vlogefp, PPC_ALTIVEC, PPC_NONE, 0x001f0000,
+		vdivsd, PPC_NONE, PPC2_ISA300, 0x00000000);
+GEN_VXFORM(vmoduw, 5, 26);
+GEN_VXFORM(vmodud, 5, 27);
+GEN_VXFORM(vmodsw, 5, 30);
+GEN_VXFORM(vmodsd, 5, 31);
 GEN_VXFORM_V(vslb, MO_8, tcg_gen_gvec_shlv, 2, 4);
 GEN_VXFORM_V(vslh, MO_16, tcg_gen_gvec_shlv, 2, 5);
 GEN_VXFORM_V(vslw, MO_32, tcg_gen_gvec_shlv, 2, 6);
