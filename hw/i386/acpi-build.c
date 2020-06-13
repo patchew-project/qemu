@@ -1711,7 +1711,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             .acpi_1_compatible = true, .has_legacy_cphp = true
         };
         build_cpus_aml(dsdt, machine, opts, pm->cpu_hp_io_base,
-                       "\\_SB.PCI0", "\\_GPE._E02");
+                       "\\_SB.PCI0", "\\_GPE._E02", AML_SYSTEM_IO);
     }
 
     if (pcms->memhp_io_base && nr_mem) {
