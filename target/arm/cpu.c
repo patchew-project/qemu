@@ -1086,6 +1086,9 @@ static Property arm_cpu_has_dsp_property =
 static Property arm_cpu_has_mpu_property =
             DEFINE_PROP_BOOL("has-mpu", ARMCPU, has_mpu, true);
 
+static Property arm_cpu_coreid_property =
+            DEFINE_PROP_INT32("core-id", ARMCPU, core_id, -1);
+
 /* This is like DEFINE_PROP_UINT32 but it doesn't set the default value,
  * because the CPU initfn will have already set cpu->pmsav7_dregion to
  * the right value for that particular CPU type, and we don't want
@@ -1167,6 +1170,8 @@ void arm_cpu_post_init(Object *obj)
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
         qdev_property_add_static(DEVICE(obj), &arm_cpu_rvbar_property);
     }
+
+    qdev_property_add_static(DEVICE(obj), &arm_cpu_coreid_property);
 
 #ifndef CONFIG_USER_ONLY
     if (arm_feature(&cpu->env, ARM_FEATURE_EL3)) {
