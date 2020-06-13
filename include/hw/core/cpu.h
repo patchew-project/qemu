@@ -419,6 +419,7 @@ struct CPUState {
 
     GArray *plugin_mem_cbs;
 
+    bool disabled;
     /* TODO Move common fields from CPUArchState here. */
     int cpu_index;
     int cluster_index;
@@ -801,6 +802,26 @@ static inline bool cpu_in_exclusive_context(const CPUState *cpu)
  * Returns: The CPU or %NULL if there is no matching CPU.
  */
 CPUState *qemu_get_cpu(int index);
+
+/**
+ * qemu_get_possible_cpu:
+ * @index: The CPUState@cpu_index value of the CPU to obtain.
+ *
+ * Gets a CPU matching @index.
+ *
+ * Returns: The possible CPU or %NULL if there is no matching CPU.
+ */
+CPUState *qemu_get_possible_cpu(int index);
+
+/**
+ * qemu_present_cpu:
+ * @cpu: The vCPU to check
+ *
+ * Checks if the vcpu is amongst the present possible vcpus.
+ *
+ * Returns: True if it is present possible vcpu else false
+ */
+bool qemu_present_cpu(CPUState *cpu);
 
 /**
  * cpu_exists:

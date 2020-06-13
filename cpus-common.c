@@ -23,6 +23,7 @@
 #include "hw/core/cpu.h"
 #include "sysemu/cpus.h"
 #include "qemu/lockable.h"
+#include "hw/boards.h"
 
 static QemuMutex qemu_cpu_list_lock;
 static QemuCond exclusive_cond;
@@ -82,6 +83,25 @@ void cpu_list_add(CPUState *cpu)
         assert(!cpu_index_auto_assigned);
     }
     QTAILQ_INSERT_TAIL_RCU(&cpus, cpu, node);
+    qemu_mutex_unlock(&qemu_cpu_list_lock);
+}
+
+CPUState *qemu_get_possible_cpu(int index)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    const CPUArchIdList *possible_cpus = ms->possible_cpus;
+    CPUState *cpu;
+
+    assert((index >= 0) && (index < possible_cpus->len));
+
+    cpu = CPU(possible_cpus->cpus[index].cpu);
+
+    return cpu;
+}
+
+bool qemu_present_cpu(CPUState *cpu)
+{
+    return (cpu && !cpu->disabled);
 }
 
 void cpu_list_remove(CPUState *cpu)
