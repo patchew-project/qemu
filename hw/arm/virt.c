@@ -2201,6 +2201,46 @@ static HotplugHandler *virt_machine_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
+static void virt_smp_parse(MachineState *ms, QemuOpts *opts)
+{
+    if (opts) {
+        unsigned cpus    = qemu_opt_get_number(opts, "cpus", 1);
+        unsigned sockets = qemu_opt_get_number(opts, "sockets", 1);
+        unsigned cores   = qemu_opt_get_number(opts, "cores", cpus);
+        unsigned threads = qemu_opt_get_number(opts, "threads", 1);
+        unsigned int max_cpus;
+
+        if (sockets > 1 || threads > 1) {
+            error_report("does not support more than one socket or thread");
+            exit(1);
+        }
+
+        if (cores != cpus) {
+            error_report("cpu topology: "
+                         "sockets (%u) * cores (%u) * threads (%u) < "
+                         "smp_cpus (%u)",
+                         sockets, cores, threads, cpus);
+            exit(1);
+        }
+
+        max_cpus = qemu_opt_get_number(opts, "maxcpus", cpus);
+        if (sockets * cores * threads > max_cpus) {
+            error_report("cpu topology: "
+                         "sockets (%u) * cores (%u) * threads (%u) > "
+                         "maxcpus (%u)",
+                         sockets, cores, threads,
+                         max_cpus);
+            exit(1);
+        }
+
+        ms->smp.max_cpus = max_cpus;
+        ms->smp.sockets = sockets;
+        ms->smp.cpus = cpus;
+        ms->smp.cores = cores;
+        ms->smp.threads = threads;
+    }
+}
+
 /*
  * for arm64 kvm_type [7-0] encodes the requested number of bits
  * in the IPA address space
@@ -2266,6 +2306,7 @@ static void virt_machine_class_init(ObjectClass *oc, void *data)
     mc->nvdimm_supported = true;
     mc->auto_enable_numa_with_memhp = true;
     mc->default_ram_id = "mach-virt.ram";
+    mc->smp_parse = virt_smp_parse;
 
     object_class_property_add(oc, "acpi", "OnOffAuto",
         virt_get_acpi, virt_set_acpi,
