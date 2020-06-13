@@ -127,6 +127,7 @@ typedef struct {
     DeviceState *platform_bus_dev;
     FWCfgState *fw_cfg;
     PFlashCFI01 *flash[2];
+    MemoryRegion *secure_sysmem;
     bool secure;
     bool highmem;
     bool highmem_ecam;
@@ -142,6 +143,7 @@ typedef struct {
     char *pciehb_nodename;
     const int *irqmap;
     int smp_cpus;
+    int max_cpus;
     void *fdt;
     int fdt_size;
     uint32_t clock_phandle;
