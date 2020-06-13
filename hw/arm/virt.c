@@ -1928,6 +1928,8 @@ static void machvirt_init(MachineState *machine)
 
     create_fdt(vms);
 
+    notifier_list_init(&vms->cpuhp_notifiers);
+
     possible_cpus = mc->possible_cpu_arch_ids(machine);
     for (n = 0; n < possible_cpus->len; n++) {
         Object *cpuobj;
@@ -2378,6 +2380,12 @@ out:
     error_propagate(errp, local_err);
 }
 
+static void virt_update_gic(VirtMachineState *vms, CPUState *cs)
+{
+    /* notify gic to stitch GICC to this new cpu */
+    notifier_list_notify(&vms->cpuhp_notifiers, cs);
+}
+
 static void virt_cpu_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
                               Error **errp)
 {
@@ -2432,7 +2440,7 @@ static void virt_cpu_pre_plug(HotplugHandler *hotplug_dev, DeviceState *dev,
     virt_cpu_set_properties(OBJECT(cs), cpu_slot);
 
     if (dev->hotplugged) {
-        /* TODO: update GIC about this hotplug change here */
+        virt_update_gic(vms, cs);
     }
 }
 
@@ -2506,7 +2514,7 @@ static void virt_cpu_unplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     /* TODO: update the acpi cpu hotplug state for cpu hot-unplug */
 
     unwire_gic_cpu_irqs(vms, cs);
-    /* TODO: update the GIC about this hot unplug change */
+    virt_update_gic(vms, cs);
 
     /* TODO: unregister this cpu for reset & update F/W info for the next boot */
 

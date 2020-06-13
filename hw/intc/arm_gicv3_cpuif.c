@@ -20,6 +20,11 @@
 #include "hw/irq.h"
 #include "cpu.h"
 
+void gicv3_set_cpustate(GICv3CPUState *s, CPUState *cpu)
+{
+    s->cpu = cpu;
+}
+
 void gicv3_set_gicv3state(CPUState *cpu, GICv3CPUState *s)
 {
     ARMCPU *arm_cpu = ARM_CPU(cpu);
