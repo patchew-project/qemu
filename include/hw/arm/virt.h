@@ -147,6 +147,7 @@ typedef struct {
     const int *irqmap;
     int smp_cpus;
     int max_cpus;
+    uint16_t boot_cpus;
     void *fdt;
     int fdt_size;
     uint32_t clock_phandle;
