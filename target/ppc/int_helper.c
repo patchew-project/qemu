@@ -523,6 +523,30 @@ void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
     r->VsrD(0) = 0;
 }
 
+void helper_vmulhsd(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+	int i;
+	uint64_t h64 = 0;
+	uint64_t l64 = 0;
+
+	for (i = 0; i < 2; i++) {
+		muls64(&l64, &h64, a->s64[i], b->s64[i]);
+		r->s64[i] = h64;
+	}
+}
+
+void helper_vmulhud(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
+{
+	int i;
+	uint64_t h64 = 0;
+	uint64_t l64 = 0;
+
+	for (i = 0; i < 2; i++) {
+		mulu64(&l64, &h64, a->s64[i], b->s64[i]);
+		r->u64[i] = h64;
+	}
+}
+
 #define VMULH_DO(name, op, element, cast_orig, cast_temp)		\
     void helper_vmulh##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)	\
     {									\
