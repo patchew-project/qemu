@@ -565,6 +565,11 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
                 apic->flags = cpu_to_le32(1);
                 break;
             }
+            case ACPI_APIC_GENERIC_CPU_INTERFACE: {
+                AcpiMadtGenericCpuInterface *gicc = (void *)madt_buf->data;
+                gicc->flags = cpu_to_le32(1);
+                break;
+            }
             default:
                 assert(0);
             }
