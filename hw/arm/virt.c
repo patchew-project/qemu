@@ -525,22 +525,8 @@ static void fdt_add_gic_node(VirtMachineState *vms)
 
 static void fdt_add_pmu_nodes(const VirtMachineState *vms)
 {
-    CPUState *cpu;
     ARMCPU *armcpu;
     uint32_t irqflags = GIC_FDT_IRQ_FLAGS_LEVEL_HI;
-
-    CPU_FOREACH(cpu) {
-        armcpu = ARM_CPU(cpu);
-        if (!arm_feature(&armcpu->env, ARM_FEATURE_PMU)) {
-            return;
-        }
-        if (kvm_enabled()) {
-            if (kvm_irqchip_in_kernel()) {
-                kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ));
-            }
-            kvm_arm_pmu_init(cpu);
-        }
-    }
 
     if (vms->gic_version == VIRT_GIC_VERSION_2) {
         irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
@@ -1414,6 +1400,38 @@ static void create_secure_ram(VirtMachineState *vms,
     g_free(nodename);
 }
 
+static bool virt_pmu_init(VirtMachineState *vms)
+{
+    CPUArchIdList *possible_cpus = vms->parent.possible_cpus;
+    ARMCPU *armcpu;
+    int n;
+
+    /*
+     * As of now KVM ensures that within the host all the vcpus have same
+     * features configured. This cannot be changed later and cannot be diferent
+     * for new vcpus being plugged in. Also, -cpu option/virt machine cpu-type
+     * ensures all the vcpus are identical.
+     */
+    for (n = 0; n < possible_cpus->len; n++) {
+        CPUState *cpu = qemu_get_possible_cpu(n);
+        armcpu = ARM_CPU(cpu);
+
+        if (!arm_feature(&armcpu->env, ARM_FEATURE_PMU)) {
+            warn_report("Not all vcpus might have PMU initialized");
+            return false;
+        }
+
+        if (kvm_enabled()) {
+            if (kvm_irqchip_in_kernel()) {
+                kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ));
+            }
+            kvm_arm_pmu_init(cpu);
+        }
+    }
+
+    return true;
+}
+
 static void *machvirt_dtb(const struct arm_boot_info *binfo, int *fdt_size)
 {
     const VirtMachineState *board = container_of(binfo, VirtMachineState,
@@ -1909,7 +1927,10 @@ static void machvirt_init(MachineState *machine)
 
     create_gic(vms);
 
-    fdt_add_pmu_nodes(vms);
+    if (!vmc->no_pmu && virt_pmu_init(vms)) {
+        vms->pmu = true;
+        fdt_add_pmu_nodes(vms);
+    }
 
     create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
 

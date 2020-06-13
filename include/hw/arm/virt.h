@@ -134,6 +134,7 @@ typedef struct {
     bool its;
     bool virt;
     bool ras;
+    bool pmu;
     OnOffAuto acpi;
     VirtGICType gic_version;
     VirtIOMMUType iommu;
