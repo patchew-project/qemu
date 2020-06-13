@@ -1621,6 +1621,16 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
     /* First try to write zeros and unmap at the same time */
 
 #ifdef CONFIG_FALLOCATE_PUNCH_HOLE
+    /*
+     * The block device fallocate() implementation in the kernel does set
+     * BLKDEV_ZERO_NOFALLBACK, but it does not guarantee that the operation is
+     * fast so we can't call this if we have to avoid slow fallbacks.
+     */
+    if (aiocb->aio_type & QEMU_AIO_BLKDEV &&
+        aiocb->aio_type & QEMU_AIO_NO_FALLBACK) {
+        return -ENOTSUP;
+    }
+
     int ret = do_fallocate(s->fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
                            aiocb->aio_offset, aiocb->aio_nbytes);
     if (ret != -ENOTSUP) {
