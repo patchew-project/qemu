@@ -34,6 +34,7 @@
 #include "hw/input/adb.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
+#include "hw/i2c/smbus_eeprom.h"
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
@@ -137,6 +138,8 @@ static void ppc_heathrow_init(MachineState *machine)
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
     uint64_t tbfreq;
+    uint8_t *spd_data[3] = {};
+    I2CBus *i2c_bus;
 
     linux_boot = (kernel_filename != NULL);
 
@@ -156,8 +159,16 @@ static void ppc_heathrow_init(MachineState *machine)
                      "maximum 2047 MB", ram_size / MiB);
         exit(1);
     }
-
     memory_region_add_subregion(sysmem, 0, machine->ram);
+    for (i = 0; i < 3; i++) {
+        int size_left = ram_size - i * 512 * MiB;
+        if (size_left > 0) {
+            uint32_t s = size_left / MiB;
+            s = (s > 512 ? 512 : s);
+            s = 1U << (31 - clz32(s));
+            spd_data[i] = spd_data_generate(SDR, s * MiB);
+        }
+    }
 
     /* allocate and load firmware ROM */
     memory_region_init_rom(bios, NULL, "ppc_heathrow.bios", PROM_SIZE,
@@ -340,6 +351,12 @@ static void ppc_heathrow_init(MachineState *machine)
     macio_ide_init_drives(macio_ide, &hd[MAX_IDE_DEVS]);
 
     dev = DEVICE(object_resolve_path_component(OBJECT(macio), "cuda"));
+    i2c_bus = I2C_BUS(qdev_get_child_bus(dev, "i2c"));
+    for (i = 0; i < 3; i++) {
+        if (spd_data[i]) {
+            smbus_eeprom_init_one(i2c_bus, 0x50 + i, spd_data[i]);
+        }
+    }
     adb_bus = qdev_get_child_bus(dev, "adb.0");
     dev = qdev_create(adb_bus, TYPE_ADB_KEYBOARD);
     qdev_init_nofail(dev);
