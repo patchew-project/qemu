@@ -73,7 +73,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
-static void ppc_heathrow_reset(void *opaque)
+static void ppc_heathrow_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
 
@@ -118,7 +118,7 @@ static void ppc_heathrow_init(MachineState *machine)
 
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  TBFREQ);
-        qemu_register_reset(ppc_heathrow_reset, cpu);
+        qemu_register_reset(ppc_heathrow_cpu_reset, cpu);
     }
 
     /* allocate RAM */
