@@ -55,6 +55,18 @@
 #define OLDWORLD_IDE1_IRQ      0xe
 #define OLDWORLD_IDE1_DMA_IRQ  0x3
 
+/* g3beige machine */
+#define TYPE_HEATHROW_MACHINE MACHINE_TYPE_NAME("g3beige")
+#define HEATHROW_MACHINE(obj) OBJECT_CHECK(HeathrowMachineState, (obj), \
+                                           TYPE_HEATHROW_MACHINE)
+
+typedef struct HeathrowMachineState {
+    /*< private >*/
+    MachineState parent;
+
+    PCIDevice *macio_pci;
+} HeathrowMachineState;
+
 /* New World IRQs */
 #define NEWWORLD_CUDA_IRQ      0x19
 #define NEWWORLD_PMU_IRQ       0x19
