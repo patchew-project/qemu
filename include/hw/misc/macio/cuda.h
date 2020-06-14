@@ -79,6 +79,7 @@ typedef struct CUDAState {
 
     ADBBusState adb_bus;
     MOS6522CUDAState mos6522_cuda;
+    I2CBus *i2c_bus;
 
     uint32_t tick_offset;
     uint64_t tb_frequency;
