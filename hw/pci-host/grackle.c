@@ -130,7 +130,7 @@ static void grackle_pci_class_init(ObjectClass *klass, void *data)
     k->realize   = grackle_pci_realize;
     k->vendor_id = PCI_VENDOR_ID_MOTOROLA;
     k->device_id = PCI_DEVICE_ID_MOTOROLA_MPC106;
-    k->revision  = 0x00;
+    k->revision  = 0x40;
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
     /*
      * PCI-facing part of the host bridge, not usable without the
