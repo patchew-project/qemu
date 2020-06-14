@@ -104,7 +104,7 @@ static void pmu_adb_poll(void *opaque)
     }
 
     timer_mod(s->adb_poll_timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 30);
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->autopoll_rate_ms);
 }
 
 static void pmu_one_sec_timer(void *opaque)
@@ -180,7 +180,7 @@ static void pmu_cmd_set_adb_autopoll(PMUState *s, uint16_t mask)
     s->adb_poll_mask = mask;
     if (mask) {
         timer_mod(s->adb_poll_timer,
-                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 30);
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->autopoll_rate_ms);
     } else {
         timer_del(s->adb_poll_timer);
     }
