@@ -24,6 +24,7 @@ block-obj-y += throttle-groups.o
 block-obj-$(CONFIG_LINUX) += nvme.o
 
 block-obj-y += nbd.o
+block-obj-$(CONFIG_LINUX) += export/vhost-user-blk-server.o ../contrib/libvhost-user/libvhost-user.o
 block-obj-$(CONFIG_SHEEPDOG) += sheepdog.o
 block-obj-$(CONFIG_LIBISCSI) += iscsi.o
 block-obj-$(if $(CONFIG_LIBISCSI),y,n) += iscsi-opts.o
