@@ -66,6 +66,7 @@ util-obj-y += hbitmap.o
 util-obj-y += main-loop.o
 util-obj-y += nvdimm-utils.o
 util-obj-y += qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
+util-obj-$(CONFIG_LINUX) += vhost-user-server.o
 util-obj-y += qemu-coroutine-sleep.o
 util-obj-y += qemu-co-shared-resource.o
 util-obj-y += qemu-sockets.o
