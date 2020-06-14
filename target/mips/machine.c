@@ -252,7 +252,7 @@ const VMStateDescription vmstate_mips_cpu = {
         VMSTATE_UINT64(env.CP0_EntryLo1, MIPSCPU),
         VMSTATE_UINTTL(env.CP0_Context, MIPSCPU),
         VMSTATE_INT32(env.CP0_MemoryMapID, MIPSCPU),
-        VMSTATE_INT32(env.CP0_PageMask, MIPSCPU),
+        VMSTATE_UINTTL(env.CP0_PageMask, MIPSCPU),
         VMSTATE_INT32(env.CP0_PageGrain, MIPSCPU),
         VMSTATE_UINTTL(env.CP0_SegCtl0, MIPSCPU),
         VMSTATE_UINTTL(env.CP0_SegCtl1, MIPSCPU),

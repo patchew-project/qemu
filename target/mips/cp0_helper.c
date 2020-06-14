@@ -872,20 +872,44 @@ void helper_mtc0_memorymapid(CPUMIPSState *env, target_ulong arg1)
     }
 }
 
-void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask)
-{
-    uint64_t mask = arg1 >> (TARGET_PAGE_BITS + 1);
-    if (!(env->insn_flags & ISA_MIPS32R6) || (arg1 == ~0) ||
-        (mask == 0x0000 || mask == 0x0003 || mask == 0x000F ||
-         mask == 0x003F || mask == 0x00FF || mask == 0x03FF ||
-         mask == 0x0FFF || mask == 0x3FFF || mask == 0xFFFF)) {
-        env->CP0_PageMask = arg1 & (0x1FFFFFFF & (TARGET_PAGE_MASK << 1));
-    }
-}
-
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
 {
-    update_pagemask(env, arg1, &env->CP0_PageMask);
+    uint64_t mask;
+    int maxmaskbits, maskbits;
+
+    if (env->insn_flags & ISA_MIPS32R6) {
+        return;
+    }
+
+    /* Don't care MASKX as we don't support 1KB page */
+#ifdef TARGET_MIPS64
+    if (env->CP0_Config3 & CP0C3_BPG) {
+        maxmaskbits = 47;
+    } else {
+        maxmaskbits = 16;
+    }
+#else
+    maxmaskbits = 16;
+#endif
+    mask = extract64((uint64_t)arg1, CP0PM_MASK, maxmaskbits);
+
+    maskbits = find_first_zero_bit(&mask, 64);
+
+    /* Ensure no more set bit after first zero */
+    if (mask >> maskbits) {
+        goto invalid;
+    }
+    /* We don't support VTLB entry smaller than target page */
+    if ((maskbits + 12) < TARGET_PAGE_BITS) {
+        goto invalid;
+    }
+    env->CP0_PageMask = mask << CP0PM_MASK;
+
+    return;
+
+invalid:
+    maskbits = MIN(maxmaskbits, MAX(maskbits, TARGET_PAGE_BITS - 12));
+    env->CP0_PageMask = ((1 << (maskbits + 1)) - 1) << CP0PM_MASK;
 }
 
 void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
@@ -1111,7 +1135,7 @@ void helper_mthc0_saar(CPUMIPSState *env, target_ulong arg1)
 void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 {
     target_ulong old, val, mask;
-    mask = (TARGET_PAGE_MASK << 1) | env->CP0_EntryHi_ASID_mask;
+    mask = ~((1 << 14) - 1) | env->CP0_EntryHi_ASID_mask;
     if (((env->CP0_Config4 >> CP0C4_IE) & 0x3) >= 2) {
         mask |= 1 << CP0EnHi_EHINV;
     }

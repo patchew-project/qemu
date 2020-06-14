@@ -617,7 +617,8 @@ struct CPUMIPSState {
 /*
  * CP0 Register 5
  */
-    int32_t CP0_PageMask;
+    target_ulong CP0_PageMask;
+#define CP0PM_MASK 13
     int32_t CP0_PageGrain_rw_bitmask;
     int32_t CP0_PageGrain;
 #define CP0PG_RIE 31
