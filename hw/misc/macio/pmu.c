@@ -90,10 +90,11 @@ static void pmu_update_extirq(PMUState *s)
 static void pmu_adb_poll(void *opaque)
 {
     PMUState *s = opaque;
+    ADBBusState *adb_bus = &s->adb_bus;
     int olen;
 
     if (!(s->intbits & PMU_INT_ADB)) {
-        olen = adb_poll(&s->adb_bus, s->adb_reply, s->adb_poll_mask);
+        olen = adb_poll(adb_bus, s->adb_reply, adb_bus->autopoll_mask);
         trace_pmu_adb_poll(olen);
 
         if (olen > 0) {
@@ -102,9 +103,6 @@ static void pmu_adb_poll(void *opaque)
             pmu_update_extirq(s);
         }
     }
-
-    timer_mod(s->adb_poll_timer,
-              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->autopoll_rate_ms);
 }
 
 static void pmu_one_sec_timer(void *opaque)
@@ -171,18 +169,15 @@ static void pmu_cmd_set_int_mask(PMUState *s,
 
 static void pmu_cmd_set_adb_autopoll(PMUState *s, uint16_t mask)
 {
+    ADBBusState *adb_bus = &s->adb_bus;
+
     trace_pmu_cmd_set_adb_autopoll(mask);
 
-    if (s->adb_poll_mask == mask) {
-        return;
-    }
-
-    s->adb_poll_mask = mask;
     if (mask) {
-        timer_mod(s->adb_poll_timer,
-                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + s->autopoll_rate_ms);
+        adb_set_autopoll_mask(adb_bus, mask);
+        adb_set_autopoll_enabled(adb_bus, true);
     } else {
-        timer_del(s->adb_poll_timer);
+        adb_set_autopoll_enabled(adb_bus, false);
     }
 }
 
@@ -265,6 +260,8 @@ static void pmu_cmd_adb_poll_off(PMUState *s,
                                  const uint8_t *in_data, uint8_t in_len,
                                  uint8_t *out_data, uint8_t *out_len)
 {
+    ADBBusState *adb_bus = &s->adb_bus;
+
     if (in_len != 0) {
         qemu_log_mask(LOG_GUEST_ERROR,
                       "PMU: ADB POLL OFF command, invalid len: %d want: 0\n",
@@ -272,9 +269,8 @@ static void pmu_cmd_adb_poll_off(PMUState *s,
         return;
     }
 
-    if (s->has_adb && s->adb_poll_mask) {
-        timer_del(s->adb_poll_timer);
-        s->adb_poll_mask = 0;
+    if (s->has_adb) {
+        adb_set_autopoll_enabled(adb_bus, false);
     }
 }
 
@@ -682,12 +678,10 @@ static bool pmu_adb_state_needed(void *opaque)
 
 static const VMStateDescription vmstate_pmu_adb = {
     .name = "pmu/adb",
-    .version_id = 0,
-    .minimum_version_id = 0,
+    .version_id = 1,
+    .minimum_version_id = 1,
     .needed = pmu_adb_state_needed,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT16(adb_poll_mask, PMUState),
-        VMSTATE_TIMER_PTR(adb_poll_timer, PMUState),
         VMSTATE_UINT8(adb_reply_size, PMUState),
         VMSTATE_BUFFER(adb_reply, PMUState),
         VMSTATE_END_OF_LIST()
@@ -712,7 +706,6 @@ static const VMStateDescription vmstate_pmu = {
         VMSTATE_BUFFER(cmd_rsp, PMUState),
         VMSTATE_UINT8(intbits, PMUState),
         VMSTATE_UINT8(intmask, PMUState),
-        VMSTATE_UINT8(autopoll_rate_ms, PMUState),
         VMSTATE_UINT32(tick_offset, PMUState),
         VMSTATE_TIMER_PTR(one_sec_timer, PMUState),
         VMSTATE_INT64(one_sec_target, PMUState),
@@ -732,7 +725,6 @@ static void pmu_reset(DeviceState *dev)
     s->intbits = 0;
 
     s->cmd_state = pmu_state_idle;
-    s->adb_poll_mask = 0;
 }
 
 static void pmu_realize(DeviceState *dev, Error **errp)
@@ -741,6 +733,7 @@ static void pmu_realize(DeviceState *dev, Error **errp)
     SysBusDevice *sbd;
     MOS6522State *ms;
     DeviceState *d;
+    ADBBusState *adb_bus = &s->adb_bus;
     struct tm tm;
 
     /* Pass IRQ from 6522 */
@@ -758,9 +751,7 @@ static void pmu_realize(DeviceState *dev, Error **errp)
     if (s->has_adb) {
         qbus_create_inplace(&s->adb_bus, sizeof(s->adb_bus), TYPE_ADB_BUS,
                             dev, "adb.0");
-        s->adb_poll_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL, pmu_adb_poll, s);
-        s->adb_poll_mask = 0xffff;
-        s->autopoll_rate_ms = 20;
+        adb_register_autopoll_callback(adb_bus, pmu_adb_poll, s);
     }
 }
 
