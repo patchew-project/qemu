@@ -300,7 +300,7 @@ static int cpu_post_load(void *opaque, int version_id)
     int i;
 
     if (env->tsc_khz && env->user_tsc_khz &&
-        env->tsc_khz != env->user_tsc_khz) {
+        !freq_within_bounds(env->tsc_khz, env->user_tsc_khz)) {
         error_report("Mismatch between user-specified TSC frequency and "
                      "migrated TSC frequency");
         return -EINVAL;
