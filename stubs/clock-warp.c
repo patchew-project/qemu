@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
-#include "qemu/timer.h"
+#include "sysemu/cpu-timers.h"
 
-void qemu_start_warp_timer(void)
+void icount_start_warp_timer(void)
 {
 }
 
