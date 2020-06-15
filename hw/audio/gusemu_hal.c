@@ -30,9 +30,9 @@
 #include "gustate.h"
 #include "gusemu.h"
 
-#define GUSregb(position) (*            (gusptr+(position)))
-#define GUSregw(position) (*(uint16_t *) (gusptr+(position)))
-#define GUSregd(position) (*(uint16_t *)(gusptr+(position)))
+#define GUSregb(position) (*(gusptr + (position)))
+#define GUSregw(position) (*(uint16_t *)(gusptr + (position)))
+#define GUSregd(position) (*(uint32_t *)(gusptr + (position)))
 
 /* size given in bytes */
 unsigned int gus_read(GUSEmuState * state, int port, int size)

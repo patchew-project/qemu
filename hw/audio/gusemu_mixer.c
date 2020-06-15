@@ -26,11 +26,11 @@
 #include "gusemu.h"
 #include "gustate.h"
 
-#define GUSregb(position)  (*            (gusptr+(position)))
-#define GUSregw(position)  (*(uint16_t *) (gusptr+(position)))
-#define GUSregd(position)  (*(uint16_t *)(gusptr+(position)))
+#define GUSregb(position)  (*(gusptr + (position)))
+#define GUSregw(position)  (*(uint16_t *)(gusptr + (position)))
+#define GUSregd(position)  (*(uint32_t *)(gusptr + (position)))
 
-#define GUSvoice(position) (*(uint16_t *)(voiceptr+(position)))
+#define GUSvoice(position) (*(uint16_t *)(voiceptr + (position)))
 
 /* samples are always 16bit stereo (4 bytes each, first right then left interleaved) */
 void gus_mixvoices(GUSEmuState * state, unsigned int playback_freq, unsigned int numsamples,
