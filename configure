@@ -2248,6 +2248,18 @@ if test "$edk2_blobs" = "yes" && ! has bzip2; then
   error_exit "The bzip2 program is required for building QEMU"
 fi
 
+###################################
+# SLOF is mandatory for the pSeries
+for target in $target_list; do
+  case $target in
+    ppc64-softmmu)
+      if test -e "${source_path}/.git" ; then
+          git_submodules="${git_submodules} roms/SLOF"
+      fi
+    ;;
+  esac
+done
+
 feature_not_found() {
   feature=$1
   remedy=$2
