@@ -41,6 +41,7 @@ typedef struct TPMIfClass {
     enum TpmModel model;
     void (*request_completed)(TPMIf *obj, int ret);
     enum TPMVersion (*get_version)(TPMIf *obj);
+    uint8_t (*get_irqnum)(TPMIf *obj);
 } TPMIfClass;
 
 #define TYPE_TPM_TIS_ISA            "tpm-tis"
@@ -72,6 +73,15 @@ static inline TPMVersion tpm_get_version(TPMIf *ti)
     }
 
     return TPM_IF_GET_CLASS(ti)->get_version(ti);
+}
+
+static inline uint8_t tpm_get_irqnum(TPMIf *ti)
+{
+    if (!ti || !TPM_IF_GET_CLASS(ti)->get_irqnum) {
+        return 0;
+    }
+
+    return TPM_IF_GET_CLASS(ti)->get_irqnum(ti);
 }
 
 #endif /* QEMU_TPM_H */
