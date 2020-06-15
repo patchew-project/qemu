@@ -57,6 +57,10 @@
 #include <lwp.h>
 #endif
 
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
+
 #include "qemu/mmap-alloc.h"
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
@@ -372,6 +376,14 @@ void qemu_init_exec_dir(const char *argv0)
         if (!sysctl(mib, ARRAY_SIZE(mib), buf, &len, NULL, 0) &&
             *buf) {
             buf[sizeof(buf) - 1] = '\0';
+            p = buf;
+        }
+    }
+#elif defined(__APPLE__)
+    {
+        uint32_t len = (uint32_t)sizeof(buf);
+        if (_NSGetExecutablePath(buf, &len) == 0) {
+            buf[len - 1] = 0;
             p = buf;
         }
     }
