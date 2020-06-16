@@ -61,6 +61,8 @@
 
 #define BLOCK_PROBE_BUF_SIZE        512
 
+#define BDRV_VMSTATE_WORKERS_MAX    8
+
 enum BdrvTrackedRequestType {
     BDRV_TRACKED_READ,
     BDRV_TRACKED_WRITE,
@@ -784,6 +786,9 @@ struct BdrvChild {
     QLIST_ENTRY(BdrvChild) next_parent;
 };
 
+
+typedef struct BdrvSaveVMState BdrvSaveVMState;
+
 /*
  * Note: the function bdrv_append() copies and swaps contents of
  * BlockDriverStates, so if you add new fields to this struct, please
@@ -947,6 +952,9 @@ struct BlockDriverState {
 
     /* BdrvChild links to this node may never be frozen */
     bool never_freeze;
+
+    /* Intermediate buffer for VM state saving from snapshot creation code */
+    BdrvSaveVMState *savevm_state;
 };
 
 struct BlockBackendRootState {

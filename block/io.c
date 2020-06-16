@@ -26,6 +26,7 @@
 #include "trace.h"
 #include "sysemu/block-backend.h"
 #include "block/aio-wait.h"
+#include "block/aio_task.h"
 #include "block/blockjob.h"
 #include "block/blockjob_int.h"
 #include "block/block_int.h"
@@ -33,6 +34,7 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "qemu/units.h"
 #include "sysemu/replay.h"
 
 /* Maximum bounce buffer for copy-on-read and write zeroes, in bytes */
@@ -2640,6 +2642,100 @@ typedef struct BdrvVmstateCo {
     bool                is_read;
 } BdrvVmstateCo;
 
+typedef struct BdrvVMStateTask {
+    AioTask task;
+
+    BlockDriverState *bs;
+    int64_t offset;
+    void *buf;
+    size_t bytes;
+} BdrvVMStateTask;
+
+typedef struct BdrvSaveVMState {
+    AioTaskPool *pool;
+    BdrvVMStateTask *t;
+} BdrvSaveVMState;
+
+
+static coroutine_fn int bdrv_co_vmstate_save_task_entry(AioTask *task)
+{
+    int err = 0;
+    BdrvVMStateTask *t = container_of(task, BdrvVMStateTask, task);
+
+    if (t->bytes != 0) {
+        QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, t->buf, t->bytes);
+
+        bdrv_inc_in_flight(t->bs);
+        err = t->bs->drv->bdrv_save_vmstate(t->bs, &qiov, t->offset);
+        bdrv_dec_in_flight(t->bs);
+    }
+
+    qemu_vfree(t->buf);
+    return err;
+}
+
+static BdrvVMStateTask *bdrv_vmstate_task_create(BlockDriverState *bs,
+                                                 int64_t pos, size_t size)
+{
+    BdrvVMStateTask *t = g_new(BdrvVMStateTask, 1);
+
+    *t = (BdrvVMStateTask) {
+        .task.func = bdrv_co_vmstate_save_task_entry,
+        .buf = qemu_blockalign(bs, size),
+        .offset = pos,
+        .bs = bs,
+    };
+
+    return t;
+}
+
+static int bdrv_co_do_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+                                   int64_t pos)
+{
+    BdrvSaveVMState *state = bs->savevm_state;
+    BdrvVMStateTask *t;
+    size_t buf_size = MAX(bdrv_get_cluster_size(bs), 1 * MiB);
+    size_t to_copy, off;
+
+    if (state == NULL) {
+        state = g_new(BdrvSaveVMState, 1);
+        *state = (BdrvSaveVMState) {
+            .pool = aio_task_pool_new(BDRV_VMSTATE_WORKERS_MAX),
+            .t = bdrv_vmstate_task_create(bs, pos, buf_size),
+        };
+
+        bs->savevm_state = state;
+    }
+
+    if (aio_task_pool_status(state->pool) < 0) {
+        /* Caller is responsible for cleanup. We should block all further
+         * save operations for this exact state */
+        return aio_task_pool_status(state->pool);
+    }
+
+    t = state->t;
+    if (t->offset + t->bytes != pos) {
+        /* Normally this branch is not reachable from migration */
+        return bs->drv->bdrv_save_vmstate(bs, qiov, pos);
+    }
+
+    off = 0;
+    while (1) {
+        to_copy = MIN(qiov->size - off, buf_size - t->bytes);
+        qemu_iovec_to_buf(qiov, off, t->buf + t->bytes, to_copy);
+        t->bytes += to_copy;
+        if (t->bytes < buf_size) {
+            return qiov->size;
+        }
+
+        aio_task_pool_start_task(state->pool, &t->task);
+
+        pos += to_copy;
+        off += to_copy;
+        state->t = t = bdrv_vmstate_task_create(bs, pos, buf_size);
+    }
+}
+
 static int coroutine_fn
 bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                    bool is_read)
@@ -2655,7 +2751,7 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
         if (is_read) {
             ret = drv->bdrv_load_vmstate(bs, qiov, pos);
         } else {
-            ret = drv->bdrv_save_vmstate(bs, qiov, pos);
+            ret = bdrv_co_do_save_vmstate(bs, qiov, pos);
         }
     } else if (bs->file) {
         ret = bdrv_co_rw_vmstate(bs->file->bs, qiov, pos, is_read);
@@ -2726,7 +2822,30 @@ int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
 
 static int coroutine_fn bdrv_co_flush_vmstate(BlockDriverState *bs)
 {
-    return 0;
+    int err;
+    BdrvSaveVMState *state = bs->savevm_state;
+
+    if (bs->drv->bdrv_save_vmstate == NULL && bs->file != NULL) {
+        return bdrv_co_flush_vmstate(bs->file->bs);
+    }
+    if (state == NULL) {
+        return 0;
+    }
+
+    if (aio_task_pool_status(state->pool) >= 0) {
+        /* We are on success path, commit last chunk if possible */
+        aio_task_pool_start_task(state->pool, &state->t->task);
+    }
+
+    aio_task_pool_wait_all(state->pool);
+    err = aio_task_pool_status(state->pool);
+
+    aio_task_pool_free(state->pool);
+    g_free(state);
+
+    bs->savevm_state = NULL;
+
+    return err;
 }
 
 static int coroutine_fn bdrv_flush_vmstate_co_entry(void *opaque)
