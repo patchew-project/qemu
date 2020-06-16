@@ -81,7 +81,7 @@ typedef struct IPMIBmcExtern {
     unsigned int outpos;
     unsigned int outlen;
 
-    struct QEMUTimer *extern_timer;
+    QEMUTimer *extern_timer_ms;
 
     /* A reset event is pending to be sent upstream. */
     bool send_reset;
@@ -112,8 +112,8 @@ static void continue_send(IPMIBmcExtern *ibe)
     }
     if (ibe->outpos < ibe->outlen) {
         /* Not fully transmitted, try again in a 10ms */
-        timer_mod_ns(ibe->extern_timer,
-                     qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 10000000);
+        timer_mod(ibe->extern_timer_ms,
+                  qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 10);
     } else {
         /* Sent */
         ibe->outlen = 0;
@@ -137,8 +137,8 @@ static void continue_send(IPMIBmcExtern *ibe)
 
         if (ibe->waiting_rsp) {
             /* Make sure we get a response within 4 seconds. */
-            timer_mod_ns(ibe->extern_timer,
-                         qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + 4000000000ULL);
+            timer_mod(ibe->extern_timer_ms,
+                      qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + 4 * 1000);
         }
     }
     return;
@@ -303,7 +303,7 @@ static void handle_msg(IPMIBmcExtern *ibe)
         ibe->inpos--; /* Remove checkum */
     }
 
-    timer_del(ibe->extern_timer);
+    timer_del(ibe->extern_timer_ms);
     ibe->waiting_rsp = false;
     k->handle_rsp(ibe->parent.intf, ibe->inbuf[0], ibe->inbuf + 1, ibe->inpos - 1);
 }
@@ -502,7 +502,8 @@ static void ipmi_bmc_extern_init(Object *obj)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
 
-    ibe->extern_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, extern_timeout, ibe);
+    ibe->extern_timer_ms = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                        extern_timeout, ibe);
     vmstate_register(NULL, 0, &vmstate_ipmi_bmc_extern, ibe);
 }
 
@@ -510,8 +511,8 @@ static void ipmi_bmc_extern_finalize(Object *obj)
 {
     IPMIBmcExtern *ibe = IPMI_BMC_EXTERN(obj);
 
-    timer_del(ibe->extern_timer);
-    timer_free(ibe->extern_timer);
+    timer_del(ibe->extern_timer_ms);
+    timer_free(ibe->extern_timer_ms);
 }
 
 static Property ipmi_bmc_extern_properties[] = {
