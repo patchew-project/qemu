@@ -50,7 +50,7 @@ typedef struct VirtIOBalloon {
     uint64_t stats[VIRTIO_BALLOON_S_NR];
     VirtQueueElement *stats_vq_elem;
     size_t stats_vq_offset;
-    QEMUTimer *stats_timer;
+    QEMUTimer *stats_timer_ms;
     IOThread *iothread;
     QEMUBH *free_page_bh;
     /*
