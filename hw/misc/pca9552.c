@@ -12,8 +12,10 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/bitops.h"
 #include "hw/misc/pca9552.h"
 #include "hw/misc/pca9552_regs.h"
+#include "hw/irq.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
@@ -48,12 +50,16 @@ static void pca9552_update_pin_input(PCA9552State *s)
             s->regs[input_reg] |= 1 << input_shift;
             if (input_shift < s->nr_leds) {
                 trace_pca9552_led_set(input_shift, true);
+            } else {
+                qemu_set_irq(s->gpio[input_shift - s->nr_leds], 1);
             }
             break;
         case PCA9552_LED_OFF:
             s->regs[input_reg] &= ~(1 << input_shift);
             if (input_shift < s->nr_leds) {
                 trace_pca9552_led_set(input_shift, false);
+            } else {
+                qemu_set_irq(s->gpio[input_shift - s->nr_leds], 0);
             }
             break;
         case PCA9552_LED_PWM0:
@@ -63,6 +69,16 @@ static void pca9552_update_pin_input(PCA9552State *s)
             break;
         }
     }
+}
+
+static void pca9552_gpio_set(void *opaque, int n, int enable)
+{
+    PCA9552State *s = opaque;
+
+    /* LED13 to LED15 are used as regular GPIOs. */
+    s->regs[PCA9552_LS3] = deposit32(s->regs[PCA9552_LS3], n + 1, 1,
+                                     enable ? PCA9552_LED_ON : PCA9552_LED_OFF);
+    pca9552_update_pin_input(s);
 }
 
 static uint8_t pca9552_read(PCA9552State *s, uint8_t reg)
@@ -308,6 +324,8 @@ static void pca9552_initfn(Object *obj)
                             NULL, NULL);
         g_free(name);
     }
+    qdev_init_gpio_in(DEVICE(obj), pca9552_gpio_set, PCA9552_NR_GPIOS);
+    qdev_init_gpio_out(DEVICE(obj), s->gpio, PCA9552_NR_GPIOS);
 }
 
 static void pca9552_class_init(ObjectClass *klass, void *data)
