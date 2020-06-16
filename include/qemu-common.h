@@ -27,6 +27,7 @@ int qemu_main(int argc, char **argv, char **envp);
 #endif
 
 void qemu_get_timedate(struct tm *tm, int offset);
+/* Returns difference with RTC reference time (in seconds) */
 int qemu_timedate_diff(struct tm *tm);
 
 void *qemu_oom_check(void *ptr);

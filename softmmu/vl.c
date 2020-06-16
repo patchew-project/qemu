@@ -737,7 +737,7 @@ void qemu_system_vmstop_request(RunState state)
 }
 
 /***********************************************************/
-/* RTC reference time/date access */
+/* RTC reference time/date access (in seconds) */
 static time_t qemu_ref_timedate(QEMUClockType clock)
 {
     time_t value = qemu_clock_get_ms(clock) / 1000;
