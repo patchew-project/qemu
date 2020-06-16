@@ -17,6 +17,25 @@ they were first deprecated in the 2.10.0 release.
 What follows is a list of all features currently marked as
 deprecated.
 
+Configure script options
+------------------------
+
+``--sphinx-build=`` (since 5.1)
+'''''''''''''''''''''''''''''''
+
+The ``--sphinx-build`` option to select a specific sphinx-build entry
+point is replaced by configuring Python accordingly. QEMU will now
+default to using ``$python -m sphinx`` to use Python's preferred version
+of sphinx.
+
+Python will generally default to preferring user packages installed with
+``pip install --user`` first, and system distribution packages
+second. By specifying a custom Python binary or activating a virtual
+environment, Python will alter its module search behavior. As a last
+resort, the PYTHONPATH environment variable can be modified to specify
+an explicit directory.
+
+
 System emulator command line arguments
 --------------------------------------
 

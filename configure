@@ -932,16 +932,6 @@ do
     fi
 done
 
-sphinx_build=
-for binary in sphinx-build-3 sphinx-build
-do
-    if has "$binary"
-    then
-        sphinx_build=$(command -v "$binary")
-        break
-    fi
-done
-
 # Check for ancillary tools used in testing
 genisoimage=
 for binary in genisoimage mkisofs
@@ -1014,7 +1004,9 @@ for opt do
   ;;
   --python=*) python="$optarg"
   ;;
-  --sphinx-build=*) sphinx_build="$optarg"
+  --sphinx-build=*)
+      sphinx_build="$optarg"
+      echo "--sphinx-build is deprecated. QEMU uses the specified python's sphinx module."
   ;;
   --gcov=*) gcov_tool="$optarg"
   ;;
@@ -4995,6 +4987,12 @@ has_sphinx_build() {
                     -b html "$TMPDIR1/sphinx" \
                     "$TMPDIR1/sphinx/out"  >> config.log 2>&1
 }
+
+# While we support --sphinx-build, defer to that.
+# Otherwise, use the module execution feature of Python.
+if ! has $sphinx_build; then
+    sphinx_build="$python -m sphinx"
+fi
 
 # Check if tools are available to build documentation.
 if test "$docs" != "no" ; then
