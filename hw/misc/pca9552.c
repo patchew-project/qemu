@@ -17,6 +17,7 @@
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "trace.h"
 
 #define PCA9552_LED_ON   0x0
 #define PCA9552_LED_OFF  0x1
@@ -45,9 +46,15 @@ static void pca9552_update_pin_input(PCA9552State *s)
         switch (config) {
         case PCA9552_LED_ON:
             s->regs[input_reg] |= 1 << input_shift;
+            if (input_shift < s->nr_leds) {
+                trace_pca9552_led_set(input_shift, true);
+            }
             break;
         case PCA9552_LED_OFF:
             s->regs[input_reg] &= ~(1 << input_shift);
+            if (input_shift < s->nr_leds) {
+                trace_pca9552_led_set(input_shift, false);
+            }
             break;
         case PCA9552_LED_PWM0:
         case PCA9552_LED_PWM1:
