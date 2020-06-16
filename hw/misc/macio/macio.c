@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
+#include "qemu/log.h"
 #include "hw/ppc/mac.h"
 #include "hw/misc/macio/cuda.h"
 #include "hw/pci/pci.h"
@@ -94,6 +95,33 @@ static void macio_bar_setup(MacIOState *s)
     macio_escc_legacy_setup(s);
 }
 
+#define AWAC_CODEC_STATUS_REG 0x20
+
+#define AWAC_MAKER_CRYSTAL 1
+#define AWAC_REV_SCREAMER 3
+#define AWAC_VALID_DATA 0x40
+
+static uint64_t screamer_read(void *opaque, hwaddr addr, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP,
+                  "macio: screamer read %" HWADDR_PRIx "  %d\n", addr, size);
+    return (addr == AWAC_CODEC_STATUS_REG ? AWAC_VALID_DATA << 8 |
+            AWAC_MAKER_CRYSTAL << 16 | AWAC_REV_SCREAMER << 20 : 0);
+}
+
+static void screamer_write(void *opaque, hwaddr addr,
+                           uint64_t val, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP,
+                  "macio: screamer write %" HWADDR_PRIx "  %d = %"PRIx64"\n",
+                  addr, size, val);
+}
+
+const MemoryRegionOps screamer_ops = {
+    .read = screamer_read,
+    .write = screamer_write,
+};
+
 static void macio_common_realize(PCIDevice *d, Error **errp)
 {
     MacIOState *s = MACIO(d);
@@ -149,6 +177,7 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
     DeviceState *pic_dev = DEVICE(os->pic);
     Error *err = NULL;
     SysBusDevice *sysbus_dev;
+    MemoryRegion *screamer = g_new(MemoryRegion, 1);
 
     macio_common_realize(d, &err);
     if (err) {
@@ -208,6 +237,11 @@ static void macio_oldworld_realize(PCIDevice *d, Error **errp)
         error_propagate(errp, err);
         return;
     }
+
+    /* Dummy screamer sound device */
+    memory_region_init_io(screamer, OBJECT(d), &screamer_ops, NULL,
+                          "screamer", 0x2000);
+    memory_region_add_subregion(&s->bar, 0x14000, screamer);
 }
 
 static void macio_init_ide(MacIOState *s, MACIOIDEState *ide, int index)
