@@ -38,6 +38,7 @@
 #include "hw/timer/cmsdk-apb-timer.h"
 #include "hw/timer/cmsdk-apb-dualtimer.h"
 #include "hw/misc/mps2-scc.h"
+#include "hw/misc/mps2-fpgaio.h"
 #include "hw/net/lan9118.h"
 #include "net/net.h"
 
@@ -66,6 +67,7 @@ typedef struct {
     MemoryRegion blockram_m3;
     MemoryRegion sram;
     MPS2SCC scc;
+    MPS2FPGAIO fpgaio;
     CMSDKAPBDualTimer dualtimer;
 } MPS2MachineState;
 
@@ -337,6 +339,11 @@ static void mps2_common_init(MachineState *machine)
 
         sysbus_create_simple("versatile_i2c", i2cbase[i], NULL);
     }
+    sysbus_init_child_obj(OBJECT(mms), "fpgaio", &mms->fpgaio,
+                          sizeof(mms->fpgaio), TYPE_MPS2_FPGAIO);
+    object_property_set_bool(OBJECT(&mms->fpgaio), true, "realized",
+                             &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&mms->fpgaio), 0, 0x40028000);
 
     /* In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.
