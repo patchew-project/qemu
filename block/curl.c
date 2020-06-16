@@ -119,7 +119,7 @@ typedef struct CURLState
 
 typedef struct BDRVCURLState {
     CURLM *multi;
-    QEMUTimer timer;
+    QEMUTimer timer_ms;
     uint64_t len;
     CURLState states[CURL_NUM_STATES];
     char *url;
@@ -148,11 +148,10 @@ static int curl_timer_cb(CURLM *multi, long timeout_ms, void *opaque)
 
     trace_curl_timer_cb(timeout_ms);
     if (timeout_ms == -1) {
-        timer_del(&s->timer);
+        timer_del(&s->timer_ms);
     } else {
-        int64_t timeout_ns = (int64_t)timeout_ms * 1000 * 1000;
-        timer_mod(&s->timer,
-                  qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + timeout_ns);
+        timer_mod(&s->timer_ms,
+                  qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + timeout_ms);
     }
     return 0;
 }
@@ -582,7 +581,7 @@ static void curl_detach_aio_context(BlockDriverState *bs)
     }
     qemu_mutex_unlock(&s->mutex);
 
-    timer_del(&s->timer);
+    timer_del(&s->timer_ms);
 }
 
 static void curl_attach_aio_context(BlockDriverState *bs,
@@ -590,8 +589,8 @@ static void curl_attach_aio_context(BlockDriverState *bs,
 {
     BDRVCURLState *s = bs->opaque;
 
-    aio_timer_init(new_context, &s->timer,
-                   QEMU_CLOCK_REALTIME, SCALE_NS,
+    aio_timer_init(new_context, &s->timer_ms,
+                   QEMU_CLOCK_REALTIME, SCALE_MS,
                    curl_multi_timeout_do, s);
 
     assert(!s->multi);
