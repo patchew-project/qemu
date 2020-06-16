@@ -98,23 +98,24 @@ static void aspeed_wdt_reload(AspeedWDTState *s)
     uint64_t reload;
 
     if (!(s->regs[WDT_CTRL] & WDT_CTRL_1MHZ_CLK)) {
-        reload = muldiv64(s->regs[WDT_RELOAD_VALUE], NANOSECONDS_PER_SECOND,
+        reload = muldiv64(s->regs[WDT_RELOAD_VALUE],
+                          NANOSECONDS_PER_SECOND / SCALE_US,
                           s->pclk_freq);
     } else {
-        reload = s->regs[WDT_RELOAD_VALUE] * 1000ULL;
+        reload = s->regs[WDT_RELOAD_VALUE];
     }
 
     if (aspeed_wdt_is_enabled(s)) {
-        timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + reload);
+        timer_mod(s->timer_us, qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + reload);
     }
 }
 
 static void aspeed_wdt_reload_1mhz(AspeedWDTState *s)
 {
-    uint64_t reload = s->regs[WDT_RELOAD_VALUE] * 1000ULL;
+    uint64_t reload = s->regs[WDT_RELOAD_VALUE];
 
     if (aspeed_wdt_is_enabled(s)) {
-        timer_mod(s->timer, qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + reload);
+        timer_mod(s->timer_us, qemu_clock_get_us(QEMU_CLOCK_VIRTUAL) + reload);
     }
 }
 
@@ -149,7 +150,7 @@ static void aspeed_wdt_write(void *opaque, hwaddr offset, uint64_t data,
             awc->wdt_reload(s);
         } else if (!enable && aspeed_wdt_is_enabled(s)) {
             s->regs[WDT_CTRL] = data;
-            timer_del(s->timer);
+            timer_del(s->timer_us);
         }
         break;
     case WDT_RESET_WIDTH:
@@ -189,7 +190,7 @@ static const VMStateDescription vmstate_aspeed_wdt = {
     .version_id = 0,
     .minimum_version_id = 0,
     .fields = (VMStateField[]) {
-        VMSTATE_TIMER_PTR(timer, AspeedWDTState),
+        VMSTATE_TIMER_PTR(timer_us, AspeedWDTState),
         VMSTATE_UINT32_ARRAY(regs, AspeedWDTState, ASPEED_WDT_REGS_MAX),
         VMSTATE_END_OF_LIST()
     }
@@ -214,7 +215,7 @@ static void aspeed_wdt_reset(DeviceState *dev)
     s->regs[WDT_CTRL] = 0;
     s->regs[WDT_RESET_WIDTH] = 0xFF;
 
-    timer_del(s->timer);
+    timer_del(s->timer_us);
 }
 
 static void aspeed_wdt_timer_expired(void *dev)
@@ -224,7 +225,7 @@ static void aspeed_wdt_timer_expired(void *dev)
 
     /* Do not reset on SDRAM controller reset */
     if (s->scu->regs[reset_ctrl_reg] & SCU_RESET_SDRAM) {
-        timer_del(s->timer);
+        timer_del(s->timer_us);
         s->regs[WDT_CTRL] = 0;
         return;
     }
@@ -232,7 +233,7 @@ static void aspeed_wdt_timer_expired(void *dev)
     qemu_log_mask(CPU_LOG_RESET, "Watchdog timer %" HWADDR_PRIx " expired.\n",
                   s->iomem.addr);
     watchdog_perform_action();
-    timer_del(s->timer);
+    timer_del(s->timer_us);
 }
 
 #define PCLK_HZ 24000000
@@ -244,7 +245,8 @@ static void aspeed_wdt_realize(DeviceState *dev, Error **errp)
 
     assert(s->scu);
 
-    s->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, aspeed_wdt_timer_expired, dev);
+    s->timer_us = timer_new_us(QEMU_CLOCK_VIRTUAL,
+                               aspeed_wdt_timer_expired, dev);
 
     /* FIXME: This setting should be derived from the SCU hw strapping
      * register SCU70

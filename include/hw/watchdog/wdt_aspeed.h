@@ -25,7 +25,7 @@
 typedef struct AspeedWDTState {
     /*< private >*/
     SysBusDevice parent_obj;
-    QEMUTimer *timer;
+    QEMUTimer *timer_us;
 
     /*< public >*/
     MemoryRegion iomem;
