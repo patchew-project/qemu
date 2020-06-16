@@ -49,7 +49,7 @@ typedef struct M48t59State {
     time_t   stop_time;
     /* Alarm & watchdog */
     struct tm alarm;
-    QEMUTimer *alrm_timer;
+    QEMUTimer *alrm_timer_ms;
     QEMUTimer *wd_timer;
     /* NVRAM storage */
     uint8_t *buffer;

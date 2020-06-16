@@ -89,7 +89,7 @@ static M48txxInfo m48txx_sysbus_info[] = {
 static void alarm_cb (void *opaque)
 {
     struct tm tm;
-    uint64_t next_time;
+    uint64_t next_time_s;
     M48t59State *NVRAM = opaque;
 
     qemu_set_irq(NVRAM->IRQ, 1);
@@ -104,42 +104,43 @@ static void alarm_cb (void *opaque)
             tm.tm_mon = 1;
             tm.tm_year++;
         }
-        next_time = qemu_timedate_diff(&tm) - NVRAM->time_offset;
+        next_time_s = qemu_timedate_diff(&tm) - NVRAM->time_offset;
     } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF4] & 0x80) == 0 &&
 	       (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
 	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once a day */
-        next_time = 24 * 60 * 60;
+        next_time_s = 24 * 60 * 60;
     } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF3] & 0x80) == 0 &&
 	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once an hour */
-        next_time = 60 * 60;
+        next_time_s = 60 * 60;
     } else if ((NVRAM->buffer[0x1FF5] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF4] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF3] & 0x80) != 0 &&
 	       (NVRAM->buffer[0x1FF2] & 0x80) == 0) {
         /* Repeat once a minute */
-        next_time = 60;
+        next_time_s = 60;
     } else {
         /* Repeat once a second */
-        next_time = 1;
+        next_time_s = 1;
     }
-    timer_mod(NVRAM->alrm_timer, qemu_clock_get_ns(rtc_clock) +
-                    next_time * 1000);
+    timer_mod(NVRAM->alrm_timer_ms,
+              qemu_clock_get_ms(rtc_clock) + next_time_s *
+                                             NANOSECONDS_PER_SECOND / SCALE_MS);
     qemu_set_irq(NVRAM->IRQ, 0);
 }
 
 static void set_alarm(M48t59State *NVRAM)
 {
     int diff;
-    if (NVRAM->alrm_timer != NULL) {
-        timer_del(NVRAM->alrm_timer);
+    if (NVRAM->alrm_timer_ms != NULL) {
+        timer_del(NVRAM->alrm_timer_ms);
         diff = qemu_timedate_diff(&NVRAM->alarm) - NVRAM->time_offset;
         if (diff > 0)
-            timer_mod(NVRAM->alrm_timer, diff * 1000);
+            timer_mod(NVRAM->alrm_timer_ms, diff * 1000);
     }
 }
 
@@ -539,9 +540,9 @@ void m48t59_reset_common(M48t59State *NVRAM)
 {
     NVRAM->addr = 0;
     NVRAM->lock = 0;
-    if (NVRAM->alrm_timer != NULL)
-        timer_del(NVRAM->alrm_timer);
-
+    if (NVRAM->alrm_timer_ms != NULL) {
+        timer_del(NVRAM->alrm_timer_ms);
+    }
     if (NVRAM->wd_timer != NULL)
         timer_del(NVRAM->wd_timer);
 }
@@ -603,7 +604,7 @@ void m48t59_realize_common(M48t59State *s, Error **errp)
 {
     s->buffer = g_malloc0(s->size);
     if (s->model == 59) {
-        s->alrm_timer = timer_new_ns(rtc_clock, &alarm_cb, s);
+        s->alrm_timer_ms = timer_new_ms(rtc_clock, &alarm_cb, s);
         s->wd_timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, &watchdog_cb, s);
     }
     qemu_get_timedate(&s->alarm, 0);
