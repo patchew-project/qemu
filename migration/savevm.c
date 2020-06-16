@@ -150,6 +150,9 @@ static ssize_t block_get_buffer(void *opaque, uint8_t *buf, int64_t pos,
 
 static int bdrv_fclose(void *opaque, Error **errp)
 {
+    int err = bdrv_flush_vmstate(opaque);
+    if (err < 0)
+        return err;
     return bdrv_flush(opaque);
 }
 

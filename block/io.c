@@ -2724,6 +2724,21 @@ int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
     return bdrv_rw_vmstate(bs, qiov, pos, true);
 }
 
+static int coroutine_fn bdrv_co_flush_vmstate(BlockDriverState *bs)
+{
+    return 0;
+}
+
+static int coroutine_fn bdrv_flush_vmstate_co_entry(void *opaque)
+{
+    return bdrv_co_flush_vmstate(opaque);
+}
+
+int bdrv_flush_vmstate(BlockDriverState *bs)
+{
+    return bdrv_run_co(bs, bdrv_flush_vmstate_co_entry, bs);
+}
+
 /**************************************************************/
 /* async I/Os */
 

@@ -2177,15 +2177,19 @@ int blk_truncate(BlockBackend *blk, int64_t offset, bool exact,
 int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
                      int64_t pos, int size)
 {
-    int ret;
+    int ret, ret2;
 
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
     ret = bdrv_save_vmstate(blk_bs(blk), buf, pos, size);
+    ret2 = bdrv_flush_vmstate(blk_bs(blk));
     if (ret < 0) {
         return ret;
+    }
+    if (ret2 < 0) {
+        return ret2;
     }
 
     if (ret == size && !blk->enable_write_cache) {
