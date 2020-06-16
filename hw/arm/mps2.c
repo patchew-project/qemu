@@ -306,7 +306,7 @@ static void mps2_common_init(MachineState *machine)
     cmsdk_apb_timer_create(0x40000000, qdev_get_gpio_in(armv7m, 8), SYSCLK_FRQ);
     cmsdk_apb_timer_create(0x40001000, qdev_get_gpio_in(armv7m, 9), SYSCLK_FRQ);
 
-    sysbus_init_child_obj(OBJECT(mms), "dualtimer", &mms->dualtimer,
+    sysbus_init_child_obj(OBJECT(mms), "apb-dualtimer", &mms->dualtimer,
                           sizeof(mms->dualtimer), TYPE_CMSDK_APB_DUALTIMER);
     qdev_prop_set_uint32(DEVICE(&mms->dualtimer), "pclk-frq", SYSCLK_FRQ);
     object_property_set_bool(OBJECT(&mms->dualtimer), true, "realized",
