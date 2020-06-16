@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/bitops.h"
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/sysbus.h"
@@ -35,6 +36,13 @@ REG32(COUNTER, 0x18)
 REG32(PRESCALE, 0x1c)
 REG32(PSCNTR, 0x20)
 REG32(MISC, 0x4c)
+
+static void mps2_fpgaio_push_button(void *opaque, int irq, int level)
+{
+    MPS2FPGAIO *s = MPS2_FPGAIO(opaque);
+
+    s->button = deposit32(s->button, irq, 1, level);
+}
 
 static uint32_t counter_from_tickoff(int64_t now, int64_t tick_offset, int frq)
 {
@@ -131,7 +139,7 @@ static uint64_t mps2_fpgaio_read(void *opaque, hwaddr offset, unsigned size)
         /* User-pressable board buttons. We don't model that, so just return
          * zeroes.
          */
-        r = 0;
+        r = s->button;
         break;
     case A_PRESCALE:
         r = s->prescale;
@@ -232,6 +240,7 @@ static void mps2_fpgaio_reset(DeviceState *dev)
 
     trace_mps2_fpgaio_reset();
     s->led0 = 0;
+    s->button = 0;
     s->prescale = 0;
     s->misc = 0;
     s->clk1hz_tick_offset = tickoff_from_counter(now, 0, 1);
@@ -249,6 +258,8 @@ static void mps2_fpgaio_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &mps2_fpgaio_ops, s,
                           "mps2-fpgaio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    qdev_init_gpio_in_named(DEVICE(s), mps2_fpgaio_push_button, "PB", 2);
 }
 
 static bool mps2_fpgaio_counters_needed(void *opaque)

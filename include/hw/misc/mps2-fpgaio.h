@@ -34,6 +34,7 @@ typedef struct {
     MemoryRegion iomem;
 
     uint32_t led0;
+    uint32_t button;
     uint32_t prescale;
     uint32_t misc;
 
