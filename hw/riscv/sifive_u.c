@@ -327,6 +327,7 @@ static void sifive_u_machine_init(MachineState *machine)
     MemoryRegion *flash0 = g_new(MemoryRegion, 1);
     target_ulong start_addr = memmap[SIFIVE_U_DRAM].base;
     hwaddr fdt_load_addr;
+    uint64_t kernel_entry;
 
     /* Initialize SoC */
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_U_SOC);
@@ -353,7 +354,7 @@ static void sifive_u_machine_init(MachineState *machine)
                                  memmap[SIFIVE_U_DRAM].base, NULL);
 
     if (machine->kernel_filename) {
-        uint64_t kernel_entry = riscv_load_kernel(machine->kernel_filename,
+        kernel_entry = riscv_load_kernel(machine->kernel_filename,
                                                   NULL);
 
         if (machine->initrd_filename) {
@@ -366,6 +367,12 @@ static void sifive_u_machine_init(MachineState *machine)
             qemu_fdt_setprop_cell(s->fdt, "/chosen", "linux,initrd-end",
                                   end);
         }
+    } else {
+       /*
+        * If dynamic firmware is used, it doesn't know where is the next mode
+        * if kernel argument is not set.
+        */
+        kernel_entry = 0;
     }
 
     /* Compute the fdt load address in dram */
@@ -383,7 +390,7 @@ static void sifive_u_machine_init(MachineState *machine)
 
     /* load the reset vector */
     riscv_setup_rom_reset_vec(start_addr, memmap[SIFIVE_U_MROM].base,
-                              memmap[SIFIVE_U_MROM].size,
+                              memmap[SIFIVE_U_MROM].size, kernel_entry,
                               fdt_load_addr, s->fdt);
 }
 
