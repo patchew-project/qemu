@@ -512,14 +512,62 @@ int ga_parse_whence(GuestFileWhence *whence, Error **errp)
     return -1;
 }
 
+#ifndef HOST_NAME_MAX
+# ifdef _POSIX_HOST_NAME_MAX
+#  define HOST_NAME_MAX _POSIX_HOST_NAME_MAX
+# else
+#  define HOST_NAME_MAX 255
+# endif
+#endif
+
 GuestHostName *qmp_guest_get_host_name(Error **errp)
 {
     GuestHostName *result = NULL;
-    gchar const *hostname = g_get_host_name();
-    if (hostname != NULL) {
-        result = g_new0(GuestHostName, 1);
-        result->host_name = g_strdup(hostname);
+    g_autofree char *hostname = NULL;
+
+    /*
+     * We want to avoid using g_get_host_name() because that
+     * caches the result and we wouldn't reflect changes in the
+     * host name.
+     */
+
+#ifndef G_OS_WIN32
+    long len = -1;
+
+#ifdef _SC_HOST_NAME_MAX
+    len = sysconf(_SC_HOST_NAME_MAX);
+#endif /* _SC_HOST_NAME_MAX */
+
+    if (len < 0) {
+        len = HOST_NAME_MAX;
     }
+
+    hostname = g_malloc0(len + 1);
+
+    if (gethostname(hostname, len) < 0) {
+        return NULL;
+    }
+
+#else /* G_OS_WIN32 */
+
+    wchar_t tmp[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD size = G_N_ELEMENTS(tmp);
+
+    if (GetComputerNameW(tmp, &size) != 0) {
+        /*
+         * Indeed, on Windows retval of zero means failure
+         * and nonzero means success.
+         */
+        hostname = g_utf16_to_utf8(tmp, size, NULL, NULL, NULL);
+    }
+#endif /* G_OS_WIN32 */
+
+    if (!hostname) {
+        hostname = g_strdup("localhost");
+    }
+
+    result = g_new0(GuestHostName, 1);
+    result->host_name = g_steal_pointer(&hostname);
     return result;
 }
 
