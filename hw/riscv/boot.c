@@ -160,25 +160,51 @@ hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
     return *start + size;
 }
 
+hwaddr riscv_calc_fdt_load_addr(hwaddr dram_base, uint64_t mem_size, void *fdt)
+{
+    hwaddr temp, fdt_addr;
+    hwaddr dram_end = dram_base + mem_size;
+    int fdtsize = fdt_totalsize(fdt);
+
+    if (fdtsize <= 0) {
+        error_report("invalid device-tree");
+        exit(1);
+    }
+    /*
+     * We should put fdt as far as possible to avoid kernel/initrd overwriting
+     * its content. But it should be addressable by 32 bit system as well.
+     * Thus, put it at an aligned address that less than fdt size from end of
+     * dram or 4GB whichever is lesser.
+     */
+    temp = MIN(dram_end, 4096 * MiB);
+    fdt_addr = QEMU_ALIGN_DOWN(temp - fdtsize, 2 * MiB);
+
+    return fdt_addr;
+}
+
 void riscv_setup_rom_reset_vec(hwaddr start_addr, hwaddr rom_base,
-                               hwaddr rom_size, void *fdt)
+                               hwaddr rom_size,
+                               hwaddr fdt_load_addr, void *fdt)
 {
     int i;
     /* reset vector */
-    uint32_t reset_vec[8] = {
-        0x00000297,                  /* 1:  auipc  t0, %pcrel_hi(dtb) */
-        0x02028593,                  /*     addi   a1, t0, %pcrel_lo(1b) */
+    uint32_t reset_vec[10] = {
+        0x00000297,                  /* 1:  auipc  t0, %pcrel_hi(fw_dyn) */
         0xf1402573,                  /*     csrr   a0, mhartid  */
 #if defined(TARGET_RISCV32)
+        0x0202a583,                  /*     lw     a1, 32(t0) */
         0x0182a283,                  /*     lw     t0, 24(t0) */
 #elif defined(TARGET_RISCV64)
+        0x0202b583,                  /*     ld     a1, 32(t0) */
         0x0182b283,                  /*     ld     t0, 24(t0) */
 #endif
         0x00028067,                  /*     jr     t0 */
         0x00000000,
         start_addr,                  /* start: .dword */
         0x00000000,
-                                     /* dtb: */
+        fdt_load_addr,               /* fdt_laddr: .dword */
+        0x00000000,
+                                     /* fw_dyn: */
     };
 
     /* copy in the reset vector in little_endian byte order */
@@ -189,14 +215,9 @@ void riscv_setup_rom_reset_vec(hwaddr start_addr, hwaddr rom_base,
                           rom_base, &address_space_memory);
 
     /* copy in the device tree */
-    if (fdt_pack(fdt) || fdt_totalsize(fdt) >
-        rom_size - sizeof(reset_vec)) {
-        error_report("not enough space to store device-tree");
-        exit(1);
-    }
     qemu_fdt_dumpdtb(fdt, fdt_totalsize(fdt));
-    rom_add_blob_fixed_as("mrom.fdt", fdt, fdt_totalsize(fdt),
-                           rom_base + sizeof(reset_vec),
+
+    rom_add_blob_fixed_as("fdt", fdt, fdt_totalsize(fdt), fdt_load_addr,
                            &address_space_memory);
 
     return;

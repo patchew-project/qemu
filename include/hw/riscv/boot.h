@@ -35,7 +35,10 @@ target_ulong riscv_load_kernel(const char *kernel_filename,
                                symbol_fn_t sym_cb);
 hwaddr riscv_load_initrd(const char *filename, uint64_t mem_size,
                          uint64_t kernel_entry, hwaddr *start);
+hwaddr riscv_calc_fdt_load_addr(hwaddr dram_start, uint64_t dram_size,
+                                void *fdt);
 void riscv_setup_rom_reset_vec(hwaddr saddr, hwaddr rom_base,
-                               hwaddr rom_size, void *fdt);
+                               hwaddr rom_size,
+                               hwaddr fdt_load_addr, void *fdt);
 
 #endif /* RISCV_BOOT_H */
