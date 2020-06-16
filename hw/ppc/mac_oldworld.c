@@ -73,6 +73,15 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
+static void ppc_heathrow_reset(MachineState *machine)
+{
+    HeathrowMachineState *m = HEATHROW_MACHINE(machine);
+
+    qemu_devices_reset();
+    pci_default_write_config(m->macio, PCI_COMMAND, PCI_COMMAND_MEMORY, 2);
+    pci_default_write_config(m->macio, PCI_BASE_ADDRESS_0, 0xf3000000, 4);
+}
+
 static void ppc_heathrow_cpu_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -82,6 +91,7 @@ static void ppc_heathrow_cpu_reset(void *opaque)
 
 static void ppc_heathrow_init(MachineState *machine)
 {
+    HeathrowMachineState *hm = HEATHROW_MACHINE(machine);
     ram_addr_t ram_size = machine->ram_size;
     const char *boot_device = machine->boot_order;
     PowerPCCPU *cpu = NULL;
@@ -287,6 +297,7 @@ static void ppc_heathrow_init(MachineState *machine)
 
     /* MacIO */
     macio = pci_new(-1, TYPE_OLDWORLD_MACIO);
+    hm->macio = macio;
     dev = DEVICE(macio);
     qdev_prop_set_uint64(dev, "frequency", tbfreq);
     object_property_set_link(OBJECT(macio), OBJECT(pic_dev), "pic",
@@ -439,6 +450,7 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
 
     mc->desc = "Heathrow based PowerMAC";
     mc->init = ppc_heathrow_init;
+    mc->reset = ppc_heathrow_reset;
     mc->block_default_type = IF_IDE;
     mc->max_cpus = MAX_CPUS;
 #ifndef TARGET_PPC64
@@ -455,9 +467,10 @@ static void heathrow_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo ppc_heathrow_machine_info = {
-    .name          = MACHINE_TYPE_NAME("g3beige"),
+    .name          = TYPE_HEATHROW_MACHINE,
     .parent        = TYPE_MACHINE,
     .class_init    = heathrow_class_init,
+    .instance_size = sizeof(HeathrowMachineState),
     .interfaces = (InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { }
