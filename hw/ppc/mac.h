@@ -64,6 +64,7 @@ typedef struct HeathrowMachineState {
     /*< private >*/
     MachineState parent;
 
+    MemoryRegion machine_id;
     PCIDevice *macio;
 } HeathrowMachineState;
 

@@ -52,6 +52,9 @@
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
+#define MACHINE_ID_ADDR 0xff000004
+#define MACHINE_ID_VAL 0x3d8c
+
 #define TBFREQ 16600000UL
 #define CLOCKFREQ 266000000UL
 #define BUSFREQ 66000000UL
@@ -88,6 +91,22 @@ static void ppc_heathrow_cpu_reset(void *opaque)
 
     cpu_reset(CPU(cpu));
 }
+
+static uint64_t machine_id_read(void *opaque, hwaddr addr, unsigned size)
+{
+    return (addr == 0 && size == 2 ? MACHINE_ID_VAL : 0);
+}
+
+static void machine_id_write(void *opaque, hwaddr addr,
+                             uint64_t val, unsigned size)
+{
+    return;
+}
+
+const MemoryRegionOps machine_id_reg_ops = {
+    .read = machine_id_read,
+    .write = machine_id_write,
+};
 
 static void ppc_heathrow_init(MachineState *machine)
 {
@@ -238,6 +257,11 @@ static void ppc_heathrow_init(MachineState *machine)
             exit(1);
         }
     }
+
+    memory_region_init_io(&hm->machine_id, OBJECT(machine),
+                          &machine_id_reg_ops, NULL, "machine_id", 2);
+    memory_region_add_subregion(get_system_memory(), MACHINE_ID_ADDR,
+                                &hm->machine_id);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
     pic_dev = qdev_new(TYPE_HEATHROW);
