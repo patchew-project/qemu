@@ -321,6 +321,7 @@ static void mps2_common_init(MachineState *machine)
         create_unimplemented_device("cmsdk-ahb-gpio", gpiobase[i], 0x1000);
     }
 
+    /* FPGA APB */
     sysbus_init_child_obj(OBJECT(mms), "scc", &mms->scc,
                           sizeof(mms->scc), TYPE_MPS2_SCC);
     sccdev = DEVICE(&mms->scc);
@@ -330,6 +331,12 @@ static void mps2_common_init(MachineState *machine)
     object_property_set_bool(OBJECT(&mms->scc), true, "realized",
                              &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(sccdev), 0, 0x4002f000);
+    for (i = 0; i < 4; i++) {
+        static const hwaddr i2cbase[] = {0x40022000, 0x40023000,
+                                         0x40029000, 0x4002a000};
+
+        sysbus_create_simple("versatile_i2c", i2cbase[i], NULL);
+    }
 
     /* In hardware this is a LAN9220; the LAN9118 is software compatible
      * except that it doesn't support the checksum-offload feature.
