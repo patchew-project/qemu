@@ -18,3 +18,10 @@ bool no_cpu_mutex_locked(void)
 {
     return true;
 }
+
+void cpu_mutex_destroy(CPUState *cpu)
+{
+    qemu_mutex_destroy(cpu->lock);
+    g_free(cpu->lock);
+    cpu->lock = NULL;
+}
