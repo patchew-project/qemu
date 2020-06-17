@@ -762,6 +762,10 @@ static void escc2_channel_command(ESCC2ChannelState *channel)
         tmp &= ~(REGISTER_STAR_RFNE);
         REGISTER_WRITE(channel, REGISTER_STAR, tmp);
     }
+
+    if (command & REGISTER_CMDR_RFRD) {
+        escc2_channel_irq_event(channel, REGISTER_ISR0, REGISTER_ISR0_TCD);
+    }
 }
 
 static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
