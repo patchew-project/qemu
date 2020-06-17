@@ -1103,6 +1103,19 @@ def skip_if_unsupported(required_formats=(), read_only=False):
         return func_wrapper
     return skip_test_decorator
 
+def skip_for_formats(formats: Sequence[str] = ()):
+    '''Skip Test Decorator
+       Skips the test for the given formats'''
+    def skip_test_decorator(func):
+        def func_wrapper(test_case: QMPTestCase, *args: List[Any],
+                         **kwargs: Dict[str, Any]) -> None:
+            if imgfmt in formats:
+                test_case.case_skip(f'{test_case}: Skipped for format {imgfmt}')
+            else:
+                func(test_case, *args, **kwargs)
+        return func_wrapper
+    return skip_test_decorator
+
 def skip_if_user_is_root(func):
     '''Skip Test Decorator
        Runs the test only without root permissions'''
