@@ -207,6 +207,14 @@
 
 /* ISR1. */
 #define REGISTER_ISR1_OFFSET                    0x3b
+#define REGISTER_ISR1_BRK                       0x80
+#define REGISTER_ISR1_BRKT                      0x40
+#define REGISTER_ISR1_ALLS                      0x20
+#define REGISTER_ISR1_XOFF                      0x10
+#define REGISTER_ISR1_TIN                       0x8
+#define REGISTER_ISR1_CSC                       0x4
+#define REGISTER_ISR1_XON                       0x2
+#define REGISTER_ISR1_XPR                       0x1
 
 /* IMR1. */
 #define REGISTER_IMR1_OFFSET                    0x3b
@@ -749,6 +757,7 @@ static uint64_t escc2_mem_read(void *opaque, hwaddr addr, unsigned size)
 
 static void escc2_channel_command(ESCC2ChannelState *channel)
 {
+    unsigned int i;
     uint8_t tmp, command;
 
     command = REGISTER_READ(channel, REGISTER_CMDR);
@@ -765,6 +774,21 @@ static void escc2_channel_command(ESCC2ChannelState *channel)
 
     if (command & REGISTER_CMDR_RFRD) {
         escc2_channel_irq_event(channel, REGISTER_ISR0, REGISTER_ISR0_TCD);
+    }
+
+    if (command & REGISTER_CMDR_XF) {
+        i = 0;
+        while (i < CHANNEL_FIFO_LENGTH && channel->fifo_transmit[i] != 0) {
+            i++;
+        }
+        qemu_chr_fe_write_all(&channel->chardev, channel->fifo_transmit, i);
+        escc2_channel_irq_event(channel, REGISTER_ISR1, REGISTER_ISR1_ALLS);
+
+        /*
+         * XFIFO is ready and ISR1_XPR should be generated. Fake the XRES
+         * command.
+         */
+        command &= REGISTER_CMDR_XRES;
     }
 }
 
