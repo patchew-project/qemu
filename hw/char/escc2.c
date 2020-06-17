@@ -7,6 +7,8 @@
  */
 
 #include "qemu/osdep.h"
+#include "chardev/char-fe.h"
+#include "chardev/char-serial.h"
 #include "hw/char/escc2.h"
 #include "hw/irq.h"
 #include "hw/isa/isa.h"
@@ -17,6 +19,13 @@
 
 /* STAR. */
 #define REGISTER_STAR_OFFSET                    0x20
+#define REGISTER_STAR_XDOV                      0x80
+#define REGISTER_STAR_XFW                       0x40
+#define REGISTER_STAR_RFNE                      0x20
+#define REGISTER_STAR_FCS                       0x10
+#define REGISTER_STAR_TEC                       0x8
+#define REGISTER_STAR_CEC                       0x4
+#define REGISTER_STAR_CTS                       0x2
 
 /* CMDR. */
 #define REGISTER_CMDR_OFFSET                    0x20
@@ -38,9 +47,40 @@
 
 /* DAFO. */
 #define REGISTER_DAFO_OFFSET                    0x27
+#define REGISTER_DAFO_XBRK                      0x40
+#define REGISTER_DAFO_STOP                      0x20
+#define REGISTER_DAFO_PAR1                      0x10
+#define REGISTER_DAFO_PAR0                      0x8
+#define REGISTER_DAFO_PARE                      0x4
+#define REGISTER_DAFO_CHL1                      0x2
+#define REGISTER_DAFO_CHL0                      0x1
+
+#define REGISTER_DAFO_PAR_MASK \
+    (REGISTER_DAFO_PAR1 | REGISTER_DAFO_PAR0)
+#define REGISTER_DAFO_PAR_SPACE                 0x0
+#define REGISTER_DAFO_PAR_ODD                   (REGISTER_DAFO_PAR0)
+#define REGISTER_DAFO_PAR_EVEN                  (REGISTER_DAFO_PAR1)
+#define REGISTER_DAFO_PAR_MARK \
+    (REGISTER_DAFO_PAR1 | REGISTER_DAFO_PAR0)
+#define REGISTER_DAFO_CHL_MASK \
+    (REGISTER_DAFO_CHL1 | REGISTER_DAFO_CHL0)
+#define REGISTER_DAFO_CHL_CS8                   0x0
+#define REGISTER_DAFO_CHL_CS7                   (REGISTER_DAFO_CHL0)
+#define REGISTER_DAFO_CHL_CS6                   (REGISTER_DAFO_CHL1)
+#define REGISTER_DAFO_CHL_CS5 \
+    (REGISTER_DAFO_CHL1 | REGISTER_DAFO_CHL0)
 
 /* RFC. */
 #define REGISTER_RFC_OFFSET                     0x28
+#define REGISTER_RFC_DPS                        0x40
+#define REGISTER_RFC_DXS                        0x20
+#define REGISTER_RFC_RFDF                       0x10
+#define REGISTER_RFC_RFTH1                      0x8
+#define REGISTER_RFC_RFTH0                      0x4
+#define REGISTER_RFC_TCDE                       0x1
+
+#define REGISTER_RFC_RFTH_MASK \
+    (REGISTER_RFC_RFTH1 | REGISTER_RFC_RFTH0)
 
 /* RBCL. */
 #define REGISTER_RBCL_OFFSET                    0x2a
@@ -122,6 +162,14 @@
 
 /* ISR0. */
 #define REGISTER_ISR0_OFFSET                    0x3a
+#define REGISTER_ISR0_TCD                       0x80
+#define REGISTER_ISR0_TIME                      0x40
+#define REGISTER_ISR0_PERR                      0x20
+#define REGISTER_ISR0_FERR                      0x10
+#define REGISTER_ISR0_PLLA                      0x8
+#define REGISTER_ISR0_CDSC                      0x4
+#define REGISTER_ISR0_RFO                       0x2
+#define REGISTER_ISR0_RPF                       0x1
 
 /* IMR0. */
 #define REGISTER_IMR0_OFFSET                    0x3a
@@ -195,6 +243,8 @@ typedef struct ESCC2State ESCC2State;
 #define CHANNEL_FIFO_LENGTH                     0x20
 typedef struct ESCC2ChannelState {
     ESCC2State *controller;
+
+    CharBackend chardev;
 
     /*
      * The SAB 82532 ships with 64 byte FIFO queues for transmitting and
@@ -292,6 +342,102 @@ static void escc2_irq_update(ESCC2State *controller)
     }
 
     trace_escc2_irq_update(gis);
+}
+
+static void escc2_channel_irq_event(ESCC2ChannelState *channel,
+        uint8_t status_register, uint8_t event)
+{
+    /*
+     * Ensure that event does not have more than one bit set when calling this
+     * function.
+     */
+    uint8_t mask, tmp;
+
+    switch (status_register) {
+    case REGISTER_ISR0:
+        mask = REGISTER_READ(channel, REGISTER_IMR0);
+        break;
+    case REGISTER_ISR1:
+        mask = REGISTER_READ(channel, REGISTER_IMR1);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    if ((event & ~(mask))
+            || (REGISTER_READ(channel, REGISTER_IPC) & REGISTER_IPC_VIS)) {
+        tmp = REGISTER_READ(channel, status_register);
+        tmp |= event;
+        REGISTER_WRITE(channel, status_register, tmp);
+    }
+
+    if (event & ~(mask)) {
+        escc2_irq_update(channel->controller);
+    }
+}
+
+static void escc2_channel_parameters_update(ESCC2ChannelState *channel)
+{
+    uint8_t dafo;
+    QEMUSerialSetParams ssp;
+
+    if (!qemu_chr_fe_backend_connected(&channel->chardev)) {
+        return;
+    }
+
+    /* Check if parity is enabled. */
+    dafo = REGISTER_READ(channel, REGISTER_DAFO);
+    if (dafo & REGISTER_DAFO_PARE) {
+        /* Determine the parity. */
+        switch (dafo & REGISTER_DAFO_PAR_MASK) {
+        case REGISTER_DAFO_PAR_SPACE:
+        case REGISTER_DAFO_PAR_MARK:
+            /*
+             * XXX: QEMU doesn't support stick parity yet. Silently fail and
+             * fall to the next case.
+             */
+        case REGISTER_DAFO_PAR_ODD:
+            ssp.parity = 'O';
+            break;
+        case REGISTER_DAFO_PAR_EVEN:
+            ssp.parity = 'E';
+            break;
+        default:
+            g_assert_not_reached();
+        }
+    } else {
+        ssp.parity = 'N';
+    }
+
+    /* Determine the number of data bits. */
+    switch (dafo & REGISTER_DAFO_CHL_MASK) {
+    case REGISTER_DAFO_CHL_CS8:
+        ssp.data_bits = 8;
+        break;
+    case REGISTER_DAFO_CHL_CS7:
+        ssp.data_bits = 7;
+        break;
+    case REGISTER_DAFO_CHL_CS6:
+        ssp.data_bits = 6;
+        break;
+    case REGISTER_DAFO_CHL_CS5:
+        ssp.data_bits = 5;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    /* Determine the number of stop bits. */
+    if (dafo & REGISTER_DAFO_STOP) {
+        ssp.stop_bits = 2;
+    } else {
+        ssp.stop_bits = 1;
+    }
+
+    /* XXX */
+    ssp.speed = 0;
+
+    qemu_chr_fe_ioctl(&channel->chardev, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
 static void escc2_channel_reset(ESCC2ChannelState *channel)
@@ -469,6 +615,7 @@ static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case REGISTER_DAFO_OFFSET:
         REGISTER_WRITE(channel, REGISTER_DAFO, value);
+        escc2_channel_parameters_update(channel);
         break;
     case REGISTER_RFC_OFFSET:
         REGISTER_WRITE(channel, REGISTER_RFC, value);
@@ -484,6 +631,7 @@ static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case REGISTER_CCR1_OFFSET:
         REGISTER_WRITE(channel, REGISTER_CCR1, value);
+        escc2_channel_parameters_update(channel);
         break;
     case REGISTER_CCR2_OFFSET:
         REGISTER_WRITE(channel, REGISTER_CCR2, value);
@@ -505,9 +653,11 @@ static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case REGISTER_BGR_OFFSET:
         REGISTER_WRITE(channel, REGISTER_BGR, value);
+        escc2_channel_parameters_update(channel);
         break;
     case REGISTER_TIC_OFFSET:
         REGISTER_WRITE(channel, REGISTER_TIC, value);
+        qemu_chr_fe_write_all(&channel->chardev, (uint8_t *)&value, 1);
         break;
     case REGISTER_MXN_OFFSET:
         REGISTER_WRITE(channel, REGISTER_MXN, value);
@@ -542,6 +692,7 @@ static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case REGISTER_CCR4_OFFSET:
         REGISTER_WRITE(channel, REGISTER_CCR4, value);
+        escc2_channel_parameters_update(channel);
         break;
     default:
         /* Registers do not exhaustively cover the addressable region. */
@@ -549,6 +700,74 @@ static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
     }
 
     trace_escc2_mem_write(CHANNEL_CHAR(channel), offset, value);
+}
+
+static unsigned int escc2_channel_rfifo_threshold(ESCC2ChannelState *channel)
+{
+    unsigned int threshold;
+
+    switch (REGISTER_READ(channel, REGISTER_RFC) & REGISTER_RFC_RFTH_MASK) {
+    case 0:
+        threshold = 1;
+        break;
+    case 1:
+        threshold = 4;
+        break;
+    case 2:
+        threshold = 16;
+        break;
+    case 3:
+        threshold = 32;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+
+    return threshold;
+}
+
+static int escc2_channel_chardev_can_receive(void *opaque)
+{
+    uint8_t tmp;
+    ESCC2ChannelState *channel = opaque;
+    unsigned int threshold = escc2_channel_rfifo_threshold(channel);
+
+    tmp = REGISTER_READ(channel, REGISTER_RBCL);
+    if (threshold > tmp) {
+        return threshold - tmp;
+    } else {
+        return 0;
+    }
+}
+
+static void escc2_channel_chardev_receive(void *opaque, const uint8_t *buf,
+        int size)
+{
+    uint8_t tmp, rbcl;
+    unsigned int i, nbytes;
+    ESCC2ChannelState *channel = opaque;
+
+    /* Determine the number of characters that can be safely consumed. */
+    rbcl = REGISTER_READ(channel, REGISTER_RBCL);
+    if (rbcl + size > CHANNEL_FIFO_LENGTH) {
+        nbytes = CHANNEL_FIFO_LENGTH - rbcl;
+    } else {
+        nbytes = size;
+    }
+
+    /* Consume characters. */
+    for (i = 0; i < nbytes; i++) {
+        channel->fifo_receive[rbcl + i] = buf[i];
+    }
+    REGISTER_WRITE(channel, REGISTER_RBCL, rbcl + nbytes);
+
+    tmp = REGISTER_READ(channel, REGISTER_STAR);
+    tmp |= REGISTER_STAR_RFNE;
+    REGISTER_WRITE(channel, REGISTER_STAR, tmp);
+
+    if (escc2_channel_chardev_can_receive(channel) == 0) {
+        escc2_channel_irq_event(channel, REGISTER_ISR0, REGISTER_ISR0_RPF);
+    }
 }
 
 static void escc2_realize(DeviceState *dev, Error **errp)
@@ -560,6 +779,13 @@ static void escc2_realize(DeviceState *dev, Error **errp)
     for (i = 0; i < CHANNEL_COUNT; i++) {
         channel = &controller->channel[i];
         channel->controller = controller;
+
+        if (qemu_chr_fe_backend_connected(&channel->chardev)) {
+            qemu_chr_fe_set_handlers(&channel->chardev,
+                    escc2_channel_chardev_can_receive,
+                    escc2_channel_chardev_receive, NULL, NULL, channel, NULL,
+                    true);
+        }
     }
 
     qemu_register_reset(escc2_reset, controller);
@@ -605,7 +831,13 @@ static void escc2_isa_realize(DeviceState *dev, Error **errp)
 
 static void escc2_unrealize(DeviceState *dev)
 {
+    unsigned int i;
     ESCC2State *controller = ESCC2(dev);
+
+    for (i = 0; i < CHANNEL_COUNT; i++) {
+        qemu_chr_fe_deinit(&controller->channel[i].chardev, false);
+    }
+
     qemu_unregister_reset(escc2_reset, controller);
 }
 
@@ -618,6 +850,8 @@ static void escc2_isa_instance_init(Object *o)
 }
 
 static Property escc2_properties[] = {
+    DEFINE_PROP_CHR("chardevA", ESCC2State, channel[CHANNEL_A].chardev),
+    DEFINE_PROP_CHR("chardevB", ESCC2State, channel[CHANNEL_B].chardev),
     DEFINE_PROP_END_OF_LIST()
 };
 
