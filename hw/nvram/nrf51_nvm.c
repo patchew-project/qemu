@@ -274,6 +274,12 @@ static const MemoryRegionOps io_ops = {
 };
 
 
+static uint64_t flash_read(void *opaque, hwaddr addr, unsigned size)
+{
+    qemu_log_mask(LOG_UNIMP, "%s not implemented\n", __func__);
+    return 0;
+}
+
 static void flash_write(void *opaque, hwaddr offset, uint64_t value,
         unsigned int size)
 {
@@ -300,6 +306,7 @@ static void flash_write(void *opaque, hwaddr offset, uint64_t value,
 
 
 static const MemoryRegionOps flash_ops = {
+    .read = flash_read,
     .write = flash_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
