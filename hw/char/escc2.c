@@ -106,9 +106,31 @@
 
 /* CCR1. */
 #define REGISTER_CCR1_OFFSET                    0x2d
+#define REGISTER_CCR1_ODS                       0x10
+#define REGISTER_CCR1_BCR                       0x8
+#define REGISTER_CCR1_CM2                       0x4
+#define REGISTER_CCR1_CM1                       0x2
+#define REGISTER_CCR1_CM0                       0x1
+
+#define REGISTER_CCR1_CM_MASK \
+    (REGISTER_CCR1_CM2 | REGISTER_CCR1_CM1 | REGISTER_CCR1_CM0)
 
 /* CCR2. */
 #define REGISTER_CCR2_OFFSET                    0x2e
+#define REGISTER_CCR2_SOC1                      0x80
+#define REGISTER_CCR2_BR9                       0x80
+#define REGISTER_CCR2_SOC0                      0x40
+#define REGISTER_CCR2_BR8                       0x40
+#define REGISTER_CCR2_BDF                       0x20
+#define REGISTER_CCR2_XCS0                      0x20
+#define REGISTER_CCR2_SSEL                      0x10
+#define REGISTER_CCR2_RCS0                      0x10
+#define REGISTER_CCR2_TOE                       0x8
+#define REGISTER_CCR2_RWX                       0x4
+#define REGISTER_CCR2_DIV                       0x1
+
+#define REGISTER_CCR2_BR_MASK \
+    (REGISTER_CCR2_BR8 | REGISTER_CCR2_BR9)
 
 /* CCR3. */
 #define REGISTER_CCR3_OFFSET                    0x2f
@@ -130,6 +152,9 @@
 
 /* BGR. */
 #define REGISTER_BGR_OFFSET                     0x34
+
+#define REGISTER_BGR_EN_MASK                    0x3f
+#define REGISTER_BGR_EM_MASK                    0xc0
 
 /* TIC. */
 #define REGISTER_TIC_OFFSET                     0x35
@@ -194,6 +219,10 @@
 
 /* CCR4. */
 #define REGISTER_CCR4_OFFSET                    0x3f
+#define REGISTER_CCR4_MCK4                      0x80
+#define REGISTER_CCR4_EBRG                      0x40
+#define REGISTER_CCR4_TST1                      0x20
+#define REGISTER_CCR4_ICD                       0x10
 
 enum {
     REGISTER_STAR = 0,
@@ -244,6 +273,14 @@ typedef struct ESCC2State ESCC2State;
 typedef struct ESCC2ChannelState {
     ESCC2State *controller;
 
+    /*
+     * Each channel has dedicated pins for providing receive and transmit clock
+     * sources. These dedicated pins are a subset of a larger set of selectable
+     * clock sources.
+     */
+    unsigned int rxclock;
+    unsigned int txclock;
+
     CharBackend chardev;
 
     /*
@@ -274,6 +311,14 @@ enum {
 
 struct ESCC2State {
     DeviceState parent;
+
+    /*
+     * The controller has two pins: XTAL1 and XTAL2. These pins can be used
+     * together with a crystal and oscillator to provide a clock source.
+     * Alternatively, XTAL1 can provide an externally generated clock source.
+     * These configurations are mutually exclusive.
+     */
+    unsigned int xtal;
 
     MemoryRegion io;
     qemu_irq irq;
@@ -376,9 +421,130 @@ static void escc2_channel_irq_event(ESCC2ChannelState *channel,
     }
 }
 
+static float escc2_channel_baud_rate_generate(ESCC2ChannelState *channel,
+        unsigned int clock)
+{
+    /*
+     * Each channel has an independent baud rate generator. This baud rate
+     * generator can act as a clock source for receiving, transmitting, and/or
+     * for the DPLL.
+     */
+    int k, n, m;
+    uint8_t ccr2 = REGISTER_READ(channel, REGISTER_CCR2);
+    uint8_t bgr = REGISTER_READ(channel, REGISTER_BGR);
+
+    if (REGISTER_READ(channel, REGISTER_CCR2) & REGISTER_CCR2_BDF) {
+        /* The baud rate division factor k relies on BGR. */
+        if (REGISTER_READ(channel, REGISTER_CCR4) & REGISTER_CCR4_EBRG) {
+            /* Enhanced mode. */
+            n = bgr & REGISTER_BGR_EN_MASK;
+            m = ((ccr2 & REGISTER_CCR2_BR_MASK) >> 6)
+                | ((bgr & REGISTER_BGR_EM_MASK) >> 6);
+            k = (n + 1) * (2 * m);
+        } else {
+            /* Standard mode. */
+            n = ((ccr2 & REGISTER_CCR2_BR_MASK) << 2) | bgr;
+            k = (n + 1) * 2;
+        }
+    } else {
+        k = 1;
+    }
+
+    return (float) clock / (16 * k);
+}
+
+static void escc2_channel_io_speed(ESCC2ChannelState *channel, float *input,
+        float *output)
+{
+    /*
+     * The receive and transmit speed can be configured to leverage dedicated
+     * receive and transmit clock source pins, the channel independent baud rate
+     * generator, the DPLL for handling clock synchronisation, the onboard
+     * oscillator, and a designated master clock. Different combinations of
+     * these are selected by specifying the clock mode and submode.
+     *
+     * Note: The DPLL, to function correctly, requires a clock source with a
+     * frequency 16 times the nominal bit rate so that the DPLL can synchronise
+     * the clock with the input stream. When the DPLL is used, the frequency
+     * must be divided by 16.
+     */
+    unsigned int mode = REGISTER_READ(channel, REGISTER_CCR1)
+        & REGISTER_CCR1_CM_MASK;
+    unsigned int submode = REGISTER_READ(channel, REGISTER_CCR2)
+        & REGISTER_CCR2_SSEL;
+
+    /* Clock modes are numbered 0 through 7. */
+    switch (mode) {
+    case 0:
+        *input = channel->rxclock;
+        if (!submode) {
+            /* 0a. */
+            *output = channel->txclock;
+        } else {
+            /* 0b. */
+            *output = escc2_channel_baud_rate_generate(channel,
+                    channel->controller->xtal);
+        }
+        break;
+    case 1:
+        *input = channel->rxclock;
+        *output = *input;
+        break;
+    case 2:
+        *input = escc2_channel_baud_rate_generate(channel, channel->rxclock)
+            / 16;
+        if (!(REGISTER_READ(channel, REGISTER_CCR2)
+                    & REGISTER_CCR2_SSEL)) {
+            /* 2a. */
+            *output = channel->txclock;
+        } else {
+            /* 2b. */
+            *output = *input;
+        }
+        break;
+    case 3:
+        *input = escc2_channel_baud_rate_generate(channel, channel->rxclock);
+        if (!(REGISTER_READ(channel, REGISTER_CCR2) & REGISTER_CCR2_SSEL)) {
+            /* 3a. */
+            *input /= 16;
+        }
+        *output = *input;
+        break;
+    case 4:
+        *input = channel->controller->xtal;
+        *output = *input;
+    case 5:
+        *input = channel->rxclock;
+        *output = *input;
+    case 6:
+        *input = escc2_channel_baud_rate_generate(channel,
+                channel->controller->xtal) / 16;
+        if (!(REGISTER_READ(channel, REGISTER_CCR2) & REGISTER_CCR2_SSEL)) {
+            /* 6a. */
+            *output = channel->txclock;
+        } else {
+            /* 6b. */
+            *output = *input;
+        }
+        break;
+    case 7:
+        *input = escc2_channel_baud_rate_generate(channel,
+                channel->controller->xtal);
+        if (!(REGISTER_READ(channel, REGISTER_CCR2) & REGISTER_CCR2_SSEL)) {
+            /* 7a. */
+            *input /= 16;
+        }
+        *output = *input;
+        break;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 static void escc2_channel_parameters_update(ESCC2ChannelState *channel)
 {
     uint8_t dafo;
+    float ispeed, ospeed;
     QEMUSerialSetParams ssp;
 
     if (!qemu_chr_fe_backend_connected(&channel->chardev)) {
@@ -434,8 +600,12 @@ static void escc2_channel_parameters_update(ESCC2ChannelState *channel)
         ssp.stop_bits = 1;
     }
 
-    /* XXX */
-    ssp.speed = 0;
+    /*
+     * XXX: QEMU doesn't support configurations with different input/output
+     * speeds yet so the input speed is used for both.
+     */
+    escc2_channel_io_speed(channel, &ispeed, &ospeed);
+    ssp.speed = ispeed;
 
     qemu_chr_fe_ioctl(&channel->chardev, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
@@ -852,6 +1022,11 @@ static void escc2_isa_instance_init(Object *o)
 static Property escc2_properties[] = {
     DEFINE_PROP_CHR("chardevA", ESCC2State, channel[CHANNEL_A].chardev),
     DEFINE_PROP_CHR("chardevB", ESCC2State, channel[CHANNEL_B].chardev),
+    DEFINE_PROP_UINT32("xtal", ESCC2State, xtal, 0),
+    DEFINE_PROP_UINT32("rxclockA", ESCC2State, channel[CHANNEL_A].rxclock, 0),
+    DEFINE_PROP_UINT32("txclockA", ESCC2State, channel[CHANNEL_A].txclock, 0),
+    DEFINE_PROP_UINT32("rxclockB", ESCC2State, channel[CHANNEL_B].rxclock, 0),
+    DEFINE_PROP_UINT32("txclockB", ESCC2State, channel[CHANNEL_B].txclock, 0),
     DEFINE_PROP_END_OF_LIST()
 };
 
