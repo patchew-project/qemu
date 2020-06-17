@@ -29,6 +29,12 @@
 
 /* CMDR. */
 #define REGISTER_CMDR_OFFSET                    0x20
+#define REGISTER_CMDR_RMC                       0x80
+#define REGISTER_CMDR_RRES                      0x40
+#define REGISTER_CMDR_RFRD                      0x20
+#define REGISTER_CMDR_STI                       0x10
+#define REGISTER_CMDR_XF                        0x8
+#define REGISTER_CMDR_XRES                      0x1
 
 /* MODE. */
 #define REGISTER_MODE_OFFSET                    0x22
@@ -741,6 +747,23 @@ static uint64_t escc2_mem_read(void *opaque, hwaddr addr, unsigned size)
     return value;
 }
 
+static void escc2_channel_command(ESCC2ChannelState *channel)
+{
+    uint8_t tmp, command;
+
+    command = REGISTER_READ(channel, REGISTER_CMDR);
+    trace_escc2_channel_command(CHANNEL_CHAR(channel), command);
+
+    if (command & REGISTER_CMDR_RRES) {
+        memset(channel->fifo_receive, 0, sizeof(channel->fifo_receive));
+        REGISTER_WRITE(channel, REGISTER_RBCL, 0);
+
+        tmp = REGISTER_READ(channel, REGISTER_STAR);
+        tmp &= ~(REGISTER_STAR_RFNE);
+        REGISTER_WRITE(channel, REGISTER_STAR, tmp);
+    }
+}
+
 static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
         unsigned size)
 {
@@ -767,6 +790,7 @@ static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case REGISTER_CMDR_OFFSET:
         REGISTER_WRITE(channel, REGISTER_CMDR, value);
+        escc2_channel_command(channel);
         break;
     case REGISTER_MODE_OFFSET:
         REGISTER_WRITE(channel, REGISTER_MODE, value);

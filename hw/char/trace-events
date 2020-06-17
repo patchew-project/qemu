@@ -59,6 +59,7 @@ escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=0x%0
 # escc2.c
 escc2_irq_update(uint8_t gis) "value 0x%x"
 escc2_mem_read(char channel, uint32_t addr, uint8_t value) "channel %c addr 0x%x value 0x%x"
+escc2_channel_command(char channel, uint8_t command) "channel %c command 0x%x"
 escc2_mem_write(char channel, uint32_t addr, uint8_t value) "channel %c addr 0x%x value 0x%x"
 
 # pl011.c
