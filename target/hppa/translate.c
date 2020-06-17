@@ -2725,8 +2725,7 @@ static bool trans_or(DisasContext *ctx, arg_rrr_cf *a)
 
             /* Tell the qemu main loop to halt until this cpu has work.  */
             tmp = tcg_const_i32(1);
-            tcg_gen_st_i32(tmp, cpu_env, -offsetof(HPPACPU, env) +
-                                         offsetof(CPUState, halted));
+            gen_helper_cpu_halted_set(cpu_env, tmp);
             tcg_temp_free_i32(tmp);
             gen_excp_1(EXCP_HALTED);
             ctx->base.is_jmp = DISAS_NORETURN;
