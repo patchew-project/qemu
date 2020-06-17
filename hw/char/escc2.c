@@ -8,6 +8,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/escc2.h"
+#include "hw/irq.h"
 #include "hw/isa/isa.h"
 #include "hw/qdev-properties.h"
 #include "qapi/error.h"
@@ -55,6 +56,13 @@
 
 /* CCR0. */
 #define REGISTER_CCR0_OFFSET                    0x2c
+#define REGISTER_CCR0_PU                        0x80
+#define REGISTER_CCR0_MCE                       0x40
+#define REGISTER_CCR0_SC2                       0x10
+#define REGISTER_CCR0_SC1                       0x8
+#define REGISTER_CCR0_SC0                       0x4
+#define REGISTER_CCR0_SM1                       0x2
+#define REGISTER_CCR0_SM0                       0x1
 
 /* CCR1. */
 #define REGISTER_CCR1_OFFSET                    0x2d
@@ -94,12 +102,23 @@
 
 /* GIS. */
 #define REGISTER_GIS_OFFSET                     0x38
+#define REGISTER_GIS_PI                         0x80
+#define REGISTER_GIS_ISA1                       0x8
+#define REGISTER_GIS_ISA0                       0x4
+#define REGISTER_GIS_ISB1                       0x2
+#define REGISTER_GIS_ISB0                       0x1
 
 /* IVA. */
 #define REGISTER_IVA_OFFSET                     0x38
 
 /* IPC. */
 #define REGISTER_IPC_OFFSET                     0x39
+#define REGISTER_IPC_VIS                        0x80
+#define REGISTER_IPC_SLA1                       0x10
+#define REGISTER_IPC_SLA0                       0x8
+#define REGISTER_IPC_CASM                       0x4
+#define REGISTER_IPC_IC1                        0x2
+#define REGISTER_IPC_IC0                        0x1
 
 /* ISR0. */
 #define REGISTER_ISR0_OFFSET                    0x3a
@@ -207,6 +226,7 @@ struct ESCC2State {
     DeviceState parent;
 
     MemoryRegion io;
+    qemu_irq irq;
     ESCC2ChannelState channel[CHANNEL_COUNT];
 };
 
@@ -218,8 +238,61 @@ struct ESCC2State {
 typedef struct ESCC2ISAState {
     ISADevice parent;
     uint32_t iobase;
+    uint32_t irq;
     struct ESCC2State controller;
 } ESCC2ISAState;
+
+static void escc2_irq_update(ESCC2State *controller)
+{
+    bool power;
+    uint8_t gis;
+    ESCC2ChannelState *a, *b;
+
+    gis = 0;
+    a = CONTROLLER_CHANNEL_A(controller);
+    b = CONTROLLER_CHANNEL_B(controller);
+
+    /*
+     * Interrupts are not propagated to the CPU when in power-down mode. There
+     * is an exception for interrupts from the universal port.
+     */
+    power = REGISTER_READ(a, REGISTER_CCR0) & REGISTER_CCR0_PU;
+
+    if (REGISTER_READ(a, REGISTER_ISR0) & ~(REGISTER_READ(a, REGISTER_IMR0))) {
+        gis |= REGISTER_GIS_ISA0;
+    }
+    if (REGISTER_READ(a, REGISTER_ISR1) & ~(REGISTER_READ(a, REGISTER_IMR1))) {
+        gis |= REGISTER_GIS_ISA1;
+    }
+
+    if (REGISTER_READ(b, REGISTER_ISR0) & ~(REGISTER_READ(b, REGISTER_IMR0))) {
+        gis |= REGISTER_GIS_ISB0;
+    }
+    if (REGISTER_READ(b, REGISTER_ISR1) & ~(REGISTER_READ(b, REGISTER_IMR1))) {
+        gis |= REGISTER_GIS_ISB1;
+    }
+
+    if (REGISTER_READ(a, REGISTER_PIS) & ~(REGISTER_READ(a, REGISTER_PIM))) {
+        gis |= REGISTER_GIS_PI;
+        /*
+         * Ensure that interrupts are propagated even if the controller is in
+         * power-down mode.
+         */
+        power = true;
+    }
+
+    /* GIS is accessible from either channel and must be synchronised. */
+    REGISTER_WRITE(a, REGISTER_GIS, gis);
+    REGISTER_WRITE(b, REGISTER_GIS, gis);
+
+    if (gis && power) {
+        qemu_irq_raise(controller->irq);
+    } else {
+        qemu_irq_lower(controller->irq);
+    }
+
+    trace_escc2_irq_update(gis);
+}
 
 static void escc2_channel_reset(ESCC2ChannelState *channel)
 {
@@ -320,15 +393,22 @@ static uint64_t escc2_mem_read(void *opaque, hwaddr addr, unsigned size)
         break;
     case REGISTER_ISR0_OFFSET:
         value = REGISTER_READ(channel, REGISTER_ISR0);
+        REGISTER_WRITE(channel, REGISTER_ISR0, 0);
+        escc2_irq_update(controller);
         break;
     case REGISTER_ISR1_OFFSET:
         value = REGISTER_READ(channel, REGISTER_ISR1);
+        REGISTER_WRITE(channel, REGISTER_ISR1, 0);
+        escc2_irq_update(controller);
         break;
     case REGISTER_PVR_OFFSET:
         value = REGISTER_READ(channel, REGISTER_PVR);
         break;
     case REGISTER_PIS_OFFSET:
         value = REGISTER_READ(channel, REGISTER_PIS);
+        REGISTER_WRITE(CONTROLLER_CHANNEL_A(controller), REGISTER_PIS, 0);
+        REGISTER_WRITE(CONTROLLER_CHANNEL_B(controller), REGISTER_PIS, 0);
+        escc2_irq_update(controller);
         break;
     case REGISTER_PCR_OFFSET:
         value = REGISTER_READ(channel, REGISTER_PCR);
@@ -506,6 +586,13 @@ static void escc2_isa_realize(DeviceState *dev, Error **errp)
         return;
     }
 
+    if (isa->irq == -1) {
+        error_setg(errp, "IRQ must be provided.");
+        return;
+    }
+
+    isa_init_irq(ISA_DEVICE(dev), &controller->irq, isa->irq);
+
     object_property_set_bool(OBJECT(controller), true, "realized", errp);
     if (*errp) {
         return;
@@ -536,6 +623,7 @@ static Property escc2_properties[] = {
 
 static Property escc2_isa_properties[] = {
     DEFINE_PROP_UINT32("iobase", ESCC2ISAState, iobase, -1),
+    DEFINE_PROP_UINT32("irq", ESCC2ISAState, irq, -1),
     DEFINE_PROP_END_OF_LIST()
 };
 
