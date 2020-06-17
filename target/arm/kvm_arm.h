@@ -12,6 +12,7 @@
 #define QEMU_KVM_ARM_H
 
 #include "sysemu/kvm.h"
+#include "sysemu/accel.h"
 #include "exec/memory.h"
 #include "qemu/error-report.h"
 
@@ -269,29 +270,29 @@ void kvm_arm_add_vcpu_properties(Object *obj);
 
 /**
  * kvm_arm_aarch32_supported:
- * @cs: CPUState
+ * @as: AccelState
  *
- * Returns: true if the KVM VCPU can enable AArch32 mode
+ * Returns: true if the KVM accelerator can enable AArch32 mode
  * and false otherwise.
  */
-bool kvm_arm_aarch32_supported(CPUState *cs);
+bool kvm_arm_aarch32_supported(AccelState *as);
 
 /**
  * kvm_arm_pmu_supported:
- * @cs: CPUState
+ * @as: AccelState
  *
- * Returns: true if the KVM VCPU can enable its PMU
+ * Returns: true if the KVM accelerator can enable its PMU
  * and false otherwise.
  */
-bool kvm_arm_pmu_supported(CPUState *cs);
+bool kvm_arm_pmu_supported(AccelState *as);
 
 /**
  * kvm_arm_sve_supported:
- * @cs: CPUState
+ * @as: AccelState
  *
- * Returns true if the KVM VCPU can enable SVE and false otherwise.
+ * Returns true if the KVM accelerator can enable SVE and false otherwise.
  */
-bool kvm_arm_sve_supported(CPUState *cs);
+bool kvm_arm_sve_supported(AccelState *as);
 
 /**
  * kvm_arm_get_max_vm_ipa_size:
@@ -359,17 +360,17 @@ static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
 
 static inline void kvm_arm_add_vcpu_properties(Object *obj) {}
 
-static inline bool kvm_arm_aarch32_supported(CPUState *cs)
+static inline bool kvm_arm_aarch32_supported(AccelState *as)
 {
     return false;
 }
 
-static inline bool kvm_arm_pmu_supported(CPUState *cs)
+static inline bool kvm_arm_pmu_supported(AccelState *as)
 {
     return false;
 }
 
-static inline bool kvm_arm_sve_supported(CPUState *cs)
+static inline bool kvm_arm_sve_supported(AccelState *as)
 {
     return false;
 }
