@@ -1650,6 +1650,44 @@ int blk_pdiscard(BlockBackend *blk, int64_t offset, int bytes)
     return blk_prw(blk, offset, NULL, bytes, blk_pdiscard_entry, 0);
 }
 
+static int coroutine_fn
+blk_do_get_lba_status(BlockBackend *blk, int64_t offset, int bytes,
+                      uint32_t *num_blocks, uint32_t *is_deallocated)
+{
+    int ret;
+
+    blk_wait_while_drained(blk);
+
+    ret = blk_check_byte_request(blk, offset, bytes);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return bdrv_co_get_lba_status(blk->root, offset, bytes, num_blocks,
+                                  is_deallocated);
+}
+
+static void blk_aio_get_lba_status_entry(void *opaque)
+{
+    BlkAioEmAIOCB *acb = opaque;
+    BlkRwCo *rwco = &acb->rwco;
+
+    void *data = acb->common.opaque;
+    uint32_t *num_blocks = (uint32_t *)data;
+    uint32_t *is_deallocated = (uint32_t *)(data + sizeof(uint32_t));
+
+    rwco->ret = blk_do_get_lba_status(rwco->blk, rwco->offset, acb->bytes,
+                                      num_blocks, is_deallocated);
+    blk_aio_complete(acb);
+}
+
+BlockAIOCB *blk_aio_get_lba_status(BlockBackend *blk, int64_t offset, int bytes,
+                                   BlockCompletionFunc *cb, void *opaque)
+{
+    return blk_aio_prwv(blk, offset, bytes, NULL, blk_aio_get_lba_status_entry,
+                        0, cb, opaque);
+}
+
 /* To be called between exactly one pair of blk_inc/dec_in_flight() */
 static int coroutine_fn blk_do_flush(BlockBackend *blk)
 {
