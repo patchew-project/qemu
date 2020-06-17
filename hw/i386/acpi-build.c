@@ -1061,6 +1061,7 @@ static Aml *build_vmbus_device_aml(VMBusBridge *vmbus_bridge)
 
     dev = aml_device("VMBS");
     aml_append(dev, aml_name_decl("STA", aml_int(0xF)));
+    aml_append(dev, aml_name_decl("_ADR", aml_int(0x0)));
     aml_append(dev, aml_name_decl("_HID", aml_string("VMBus")));
     aml_append(dev, aml_name_decl("_UID", aml_int(0x0)));
     aml_append(dev, aml_name_decl("_DDN", aml_string("VMBUS")));
