@@ -1296,6 +1296,11 @@ int coroutine_fn bdrv_co_block_status_from_backing(BlockDriverState *bs,
                                                    int64_t *pnum,
                                                    int64_t *map,
                                                    BlockDriverState **file);
+int coroutine_fn bdrv_co_get_lba_status(BdrvChild *child,
+                                        int64_t offset,
+                                        int64_t bytes,
+                                        uint32_t *num_blocks,
+                                        uint32_t *is_deallocated);
 const char *bdrv_get_parent_name(const BlockDriverState *bs);
 void blk_dev_change_media_cb(BlockBackend *blk, bool load, Error **errp);
 bool blk_dev_has_removable_media(BlockBackend *blk);
