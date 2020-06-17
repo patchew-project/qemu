@@ -769,6 +769,7 @@ static void smp_parse(MachineState *ms, QemuOpts *opts)
         ms->smp.threads = threads;
         ms->smp.sockets = sockets;
     }
+    assert(ms->smp.max_cpus <= CPU_LOCK_BITMAP_SIZE);
 
     if (ms->smp.cpus > 1) {
         Error *blocker = NULL;
