@@ -1,6 +1,14 @@
 config ESCC
     bool
 
+config ESCC2
+    bool
+
+config ESCC2_ISA
+    bool
+    depends on ISA_BUS
+    select ESCC2
+
 config PARALLEL
     bool
     default y

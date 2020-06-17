@@ -56,6 +56,10 @@ escc_sunkbd_event_out(int ch) "Translated keycode 0x%2.2x"
 escc_kbd_command(int val) "Command %d"
 escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=0x%01x"
 
+# escc2.c
+escc2_mem_read(char channel, uint32_t addr, uint8_t value) "channel %c addr 0x%x value 0x%x"
+escc2_mem_write(char channel, uint32_t addr, uint8_t value) "channel %c addr 0x%x value 0x%x"
+
 # pl011.c
 pl011_irq_state(int level) "irq state %d"
 pl011_read(uint32_t addr, uint32_t value) "addr 0x%08x value 0x%08x"
