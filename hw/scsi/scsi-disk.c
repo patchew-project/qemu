@@ -1866,6 +1866,89 @@ static void scsi_disk_emulate_write_data(SCSIRequest *req)
     }
 }
 
+typedef struct GetLbaStatusCBData {
+    uint32_t num_blocks;
+    uint32_t is_deallocated;
+    SCSIDiskReq *r;
+} GetLbaStatusCBData;
+
+static void scsi_get_lba_status_complete(void *opaque, int ret);
+
+static void scsi_get_lba_status_complete_noio(GetLbaStatusCBData *data, int ret)
+{
+    SCSIDiskReq *r = data->r;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    assert(r->req.aiocb == NULL);
+
+    block_acct_start(blk_get_stats(s->qdev.conf.blk), &r->acct,
+                     s->qdev.blocksize, BLOCK_ACCT_GET_LBA_STATUS);
+
+    r->req.aiocb = blk_aio_get_lba_status(s->qdev.conf.blk,
+                                          r->req.cmd.lba * s->qdev.blocksize,
+                                          s->qdev.blocksize,
+                                          scsi_get_lba_status_complete, data);
+}
+
+static void scsi_get_lba_status_complete(void *opaque, int ret)
+{
+    GetLbaStatusCBData *data = opaque;
+    SCSIDiskReq *r = data->r;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    assert(r->req.aiocb != NULL);
+    r->req.aiocb = NULL;
+
+    aio_context_acquire(blk_get_aio_context(s->qdev.conf.blk));
+    if (scsi_disk_req_check_error(r, ret, true)) {
+        g_free(data);
+        goto done;
+    }
+
+    block_acct_done(blk_get_stats(s->qdev.conf.blk), &r->acct);
+    scsi_req_unref(&r->req);
+    g_free(data);
+
+done:
+    aio_context_release(blk_get_aio_context(s->qdev.conf.blk));
+}
+
+static void scsi_disk_emulate_get_lba_status(SCSIRequest *req, uint8_t *outbuf)
+{
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+    GetLbaStatusCBData *data;
+    uint32_t *num_blocks;
+    uint32_t *is_deallocated;
+
+    data = g_new0(GetLbaStatusCBData, 1);
+    data->r = r;
+    num_blocks = &(data->num_blocks);
+    is_deallocated = &(data->is_deallocated);
+
+    scsi_req_ref(&r->req);
+    scsi_get_lba_status_complete_noio(data, 0);
+
+    /*
+     * 8 + 16 is the length in bytes of response header and
+     * one LBA status descriptor
+     */
+    memset(outbuf, 0, 8 + 16);
+    outbuf[3] = 20;
+    outbuf[8] = (req->cmd.lba >> 56) & 0xff;
+    outbuf[9] = (req->cmd.lba >> 48) & 0xff;
+    outbuf[10] = (req->cmd.lba >> 40) & 0xff;
+    outbuf[11] = (req->cmd.lba >> 32) & 0xff;
+    outbuf[12] = (req->cmd.lba >> 24) & 0xff;
+    outbuf[13] = (req->cmd.lba >> 16) & 0xff;
+    outbuf[14] = (req->cmd.lba >> 8) & 0xff;
+    outbuf[15] = req->cmd.lba & 0xff;
+    outbuf[16] = (*num_blocks >> 24) & 0xff;
+    outbuf[17] = (*num_blocks >> 16) & 0xff;
+    outbuf[18] = (*num_blocks >> 8) & 0xff;
+    outbuf[19] = *num_blocks & 0xff;
+    outbuf[20] = *is_deallocated ? 1 : 0;
+}
+
 static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -2076,6 +2159,13 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 
             /* Protection, exponent and lowest lba field left blank. */
             break;
+        } else if ((req->cmd.buf[1] & 31) == SAI_GET_LBA_STATUS) {
+            if (req->cmd.lba > s->qdev.max_lba) {
+                goto illegal_lba;
+            }
+            scsi_disk_emulate_get_lba_status(req, outbuf);
+            r->iov.iov_len = req->cmd.xfer;
+            return r->iov.iov_len;
         }
         trace_scsi_disk_emulate_command_SAI_unsupported();
         goto illegal_request;

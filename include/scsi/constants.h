@@ -154,6 +154,7 @@
  * SERVICE ACTION IN subcodes
  */
 #define SAI_READ_CAPACITY_16  0x10
+#define SAI_GET_LBA_STATUS    0x12
 
 /*
  * READ POSITION service action codes
