@@ -39,7 +39,7 @@ static void spapr_reset_vcpu(PowerPCCPU *cpu)
     /* All CPUs start halted.  CPU0 is unhalted from the machine level
      * reset code and the rest are explicitly started up by the guest
      * using an RTAS call */
-    cs->halted = 1;
+    cpu_halted_set(cs, 1);
 
     env->spr[SPR_HIOR] = 0;
 
@@ -88,7 +88,7 @@ void spapr_cpu_set_entry_state(PowerPCCPU *cpu, target_ulong nip,
     env->gpr[3] = r3;
     env->gpr[4] = r4;
     kvmppc_set_reg_ppc_online(cpu, 1);
-    CPU(cpu)->halted = 0;
+    cpu_halted_set(CPU(cpu), 0);
     /* Enable Power-saving mode Exit Cause exceptions */
     ppc_store_lpcr(cpu, env->spr[SPR_LPCR] | pcc->lpcr_pm);
 }
