@@ -20,7 +20,6 @@ typedef struct VMBusBridge {
     SysBusDevice parent_obj;
 
     uint8_t irq0;
-    uint8_t irq1;
 
     VMBus *bus;
 } VMBusBridge;
