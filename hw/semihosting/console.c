@@ -130,7 +130,7 @@ static void console_wake_up(gpointer data, gpointer user_data)
 {
     CPUState *cs = (CPUState *) data;
     /* cpu_handle_halt won't know we have work so just unbung here */
-    cs->halted = 0;
+    cpu_halted_set(cs, 0);
     qemu_cpu_kick(cs);
 }
 
@@ -153,7 +153,7 @@ target_ulong qemu_semihosting_console_inc(CPUArchState *env)
     g_assert(current_cpu);
     if (fifo8_is_empty(&c->fifo)) {
         c->sleeping_cpus = g_slist_prepend(c->sleeping_cpus, current_cpu);
-        current_cpu->halted = 1;
+        cpu_halted_set(current_cpu, 1);
         current_cpu->exception_index = EXCP_HALTED;
         cpu_loop_exit(current_cpu);
         /* never returns */
