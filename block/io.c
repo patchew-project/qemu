@@ -2208,6 +2208,49 @@ int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
                            BDRV_REQ_ZERO_WRITE | flags);
 }
 
+int coroutine_fn
+bdrv_co_get_lba_status(BdrvChild *child, int64_t offset, int64_t bytes,
+                       uint32_t *num_blocks, uint32_t *is_deallocated)
+{
+    BlockDriverState *bs = child->bs;
+    int ret = 0;
+    int64_t target_size, count = 0;
+    bool first = true;
+    uint8_t wanted_bit1 = 0;
+
+    target_size = bdrv_getlength(bs);
+    if (target_size < 0) {
+        return -EIO;
+    }
+
+    if (offset < 0 || bytes < 0) {
+        return -EIO;
+    }
+
+    for ( ; offset <= target_size - bytes; offset += count) {
+        ret = bdrv_block_status(bs, offset, bytes, &count, NULL, NULL);
+        if (ret < 0) {
+            goto out;
+        }
+        if (first) {
+            if (ret & BDRV_BLOCK_ZERO) {
+                wanted_bit1 = BDRV_BLOCK_ZERO >> 1;
+                *is_deallocated = 1;
+            } else {
+                wanted_bit1 = 0;
+            }
+            first = false;
+        }
+        if ((ret & BDRV_BLOCK_ZERO) >> 1 == wanted_bit1) {
+            (*num_blocks)++;
+        } else {
+            break;
+        }
+    }
+out:
+    return ret;
+}
+
 /*
  * Flush ALL BDSes regardless of if they are reachable via a BlkBackend or not.
  */
