@@ -1092,7 +1092,6 @@ static Aml *build_vmbus_device_aml(VMBusBridge *vmbus_bridge)
 static void build_isa_devices_aml(Aml *table)
 {
     ISADevice *fdc = pc_find_fdc0();
-    VMBusBridge *vmbus_bridge = vmbus_bridge_find();
     bool ambiguous;
 
     Aml *scope = aml_scope("_SB.PCI0.ISA");
@@ -1111,10 +1110,6 @@ static void build_isa_devices_aml(Aml *table)
     } else {
         build_acpi_ipmi_devices(scope, BUS(obj), "\\_SB.PCI0.ISA");
         isa_build_aml(ISA_BUS(obj), scope);
-    }
-
-    if (vmbus_bridge) {
-        aml_append(scope, build_vmbus_device_aml(vmbus_bridge));
     }
 
     aml_append(table, scope);
@@ -1661,6 +1656,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     PCIBus *bus = NULL;
     TPMIf *tpm = tpm_find();
     int i;
+    VMBusBridge *vmbus_bridge = vmbus_bridge_find();
 
     dsdt = init_aml_allocator();
 
@@ -1675,6 +1671,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
         aml_append(dev, aml_name_decl("_UID", aml_int(1)));
         aml_append(sb_scope, dev);
+        if (vmbus_bridge) {
+            aml_append(sb_scope, build_vmbus_device_aml(vmbus_bridge));
+        }
         aml_append(dsdt, sb_scope);
 
         build_hpet_aml(dsdt);
@@ -1692,6 +1691,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_UID", aml_int(1)));
         aml_append(dev, build_q35_osc_method());
         aml_append(sb_scope, dev);
+        if (vmbus_bridge) {
+            aml_append(sb_scope, build_vmbus_device_aml(vmbus_bridge));
+        }
         aml_append(dsdt, sb_scope);
 
         build_hpet_aml(dsdt);
