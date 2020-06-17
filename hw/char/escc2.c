@@ -790,6 +790,11 @@ static void escc2_channel_command(ESCC2ChannelState *channel)
          */
         command &= REGISTER_CMDR_XRES;
     }
+
+    if (command & REGISTER_CMDR_XRES) {
+        memset(channel->fifo_transmit, 0, sizeof(channel->fifo_transmit));
+        escc2_channel_irq_event(channel, REGISTER_ISR1, REGISTER_ISR1_XPR);
+    }
 }
 
 static void escc2_mem_write(void *opaque, hwaddr addr, uint64_t value,
