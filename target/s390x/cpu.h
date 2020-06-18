@@ -112,6 +112,8 @@ struct CPUS390XState {
     uint16_t external_call_addr;
     DECLARE_BITMAP(emergency_signals, S390_MAX_CPUS);
 
+    uint64_t diag318_info;
+
     /* Fields up to this point are cleared by a CPU reset */
     struct {} end_reset_fields;
 
@@ -136,7 +138,6 @@ struct CPUS390XState {
 
     /* currently processed sigp order */
     uint8_t sigp_order;
-
 };
 
 static inline uint64_t *get_freg(CPUS390XState *cs, int nr)
