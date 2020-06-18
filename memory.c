@@ -1495,6 +1495,9 @@ void memory_region_init_io(MemoryRegion *mr,
                            const char *name,
                            uint64_t size)
 {
+    assert(ops);
+    assert(ops->read);
+    assert(ops->write);
     memory_region_init(mr, owner, name, size);
     mr->ops = ops ? ops : &unassigned_mem_ops;
     mr->opaque = opaque;
@@ -1674,6 +1677,8 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
 {
     Error *err = NULL;
     assert(ops);
+    assert(ops->read);
+    assert(ops->write);
     memory_region_init(mr, owner, name, size);
     mr->ops = ops;
     mr->opaque = opaque;
