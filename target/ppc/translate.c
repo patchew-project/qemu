@@ -6971,7 +6971,69 @@ static void gen_dform3D(DisasContext *ctx)
     return gen_invalid(ctx);
 }
 
+/* brd */
+static void gen_brd(DisasContext *ctx)
+{
+    TCGv_i64 temp = tcg_temp_new_i64();
+
+    tcg_gen_bswap64_i64(temp, cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_st_i64(temp, cpu_env, offsetof(CPUPPCState, gpr[rA(ctx->opcode)]));
+
+    tcg_temp_free_i64(temp);
+}
+
+/* brw */
+static void gen_brw(DisasContext *ctx)
+{
+    TCGv_i64 temp = tcg_temp_new_i64();
+    TCGv_i64 lsb = tcg_temp_new_i64();
+    TCGv_i64 msb = tcg_temp_new_i64();
+
+    tcg_gen_movi_i64(lsb, 0x00000000ffffffffull);
+    tcg_gen_and_i64(temp, lsb, cpu_gpr[rS(ctx->opcode)]);
+    tcg_gen_bswap32_i64(lsb, temp);
+
+    tcg_gen_shri_i64(msb, cpu_gpr[rS(ctx->opcode)], 32);
+    tcg_gen_bswap32_i64(temp, msb);
+    tcg_gen_shli_i64(msb, temp, 32);
+
+    tcg_gen_or_i64(temp, lsb, msb);
+
+    tcg_gen_st_i64(temp, cpu_env, offsetof(CPUPPCState, gpr[rA(ctx->opcode)]));
+
+    tcg_temp_free_i64(temp);
+    tcg_temp_free_i64(lsb);
+    tcg_temp_free_i64(msb);
+}
+
+/* brh */
+static void gen_brh(DisasContext *ctx)
+{
+    TCGv_i64 temp = tcg_temp_new_i64();
+    TCGv_i64 t0 = tcg_temp_new_i64();
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    TCGv_i64 t2 = tcg_temp_new_i64();
+    TCGv_i64 t3 = tcg_temp_new_i64();
+
+    tcg_gen_movi_i64(t0, 0x00ff00ff00ff00ffull);
+    tcg_gen_shri_i64(t1, cpu_gpr[rS(ctx->opcode)], 8);
+    tcg_gen_and_i64(t2, t1, t0);
+    tcg_gen_and_i64(t1, cpu_gpr[rS(ctx->opcode)], t0);
+    tcg_gen_shli_i64(t1, t1, 8);
+    tcg_gen_or_i64(temp, t1, t2);
+    tcg_gen_st_i64(temp, cpu_env, offsetof(CPUPPCState, gpr[rA(ctx->opcode)]));
+
+    tcg_temp_free_i64(temp);
+    tcg_temp_free_i64(t0);
+    tcg_temp_free_i64(t1);
+    tcg_temp_free_i64(t2);
+    tcg_temp_free_i64(t3);
+}
+
 static opcode_t opcodes[] = {
+GEN_HANDLER_E(brd, 0x1F, 0x1B, 0x05, 0x0000F801, PPC_NONE, PPC2_ISA310),
+GEN_HANDLER_E(brw, 0x1F, 0x1B, 0x04, 0x0000F801, PPC_NONE, PPC2_ISA310),
+GEN_HANDLER_E(brh, 0x1F, 0x1B, 0x06, 0x0000F801, PPC_NONE, PPC2_ISA310),
 GEN_HANDLER(invalid, 0x00, 0x00, 0x00, 0xFFFFFFFF, PPC_NONE),
 GEN_HANDLER(cmp, 0x1F, 0x00, 0x00, 0x00400000, PPC_INTEGER),
 GEN_HANDLER(cmpi, 0x0B, 0xFF, 0xFF, 0x00400000, PPC_INTEGER),
