@@ -25,6 +25,7 @@ stub-obj-y += tpm.o
 stub-obj-y += trace-control.o
 stub-obj-y += vmstate.o
 stub-obj-$(CONFIG_SOFTMMU) += win32-kbd-hook.o
+stub-obj-y += cpu-synchronize-state.o
 
 #######################################################################
 # code used by both qemu system emulation and qemu-img

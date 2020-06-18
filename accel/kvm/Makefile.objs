@@ -1,2 +1,4 @@
 obj-y += kvm-all.o
+obj-y += kvm-cpus.o
+
 obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o
