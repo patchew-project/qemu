@@ -5190,61 +5190,63 @@ static void do_mem_zpa(DisasContext *s, int zt, int pg, TCGv_i64 addr,
     tcg_temp_free_i32(t_desc);
 }
 
+/* Indexed by [be][dtype][nreg] */
+static gen_helper_gvec_mem * const ldr_fns[2][16][4] = {
+    /* Little-endian */
+    { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
+        gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
+      { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
+
+      { gen_helper_sve_ld1sds_le_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1hh_le_r, gen_helper_sve_ld2hh_le_r,
+        gen_helper_sve_ld3hh_le_r, gen_helper_sve_ld4hh_le_r },
+      { gen_helper_sve_ld1hsu_le_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1hdu_le_r, NULL, NULL, NULL },
+
+      { gen_helper_sve_ld1hds_le_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1hss_le_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1ss_le_r, gen_helper_sve_ld2ss_le_r,
+        gen_helper_sve_ld3ss_le_r, gen_helper_sve_ld4ss_le_r },
+      { gen_helper_sve_ld1sdu_le_r, NULL, NULL, NULL },
+
+      { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1dd_le_r, gen_helper_sve_ld2dd_le_r,
+        gen_helper_sve_ld3dd_le_r, gen_helper_sve_ld4dd_le_r } },
+
+    /* Big-endian */
+    { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
+        gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
+      { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
+
+      { gen_helper_sve_ld1sds_be_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1hh_be_r, gen_helper_sve_ld2hh_be_r,
+        gen_helper_sve_ld3hh_be_r, gen_helper_sve_ld4hh_be_r },
+      { gen_helper_sve_ld1hsu_be_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1hdu_be_r, NULL, NULL, NULL },
+
+      { gen_helper_sve_ld1hds_be_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1hss_be_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1ss_be_r, gen_helper_sve_ld2ss_be_r,
+        gen_helper_sve_ld3ss_be_r, gen_helper_sve_ld4ss_be_r },
+      { gen_helper_sve_ld1sdu_be_r, NULL, NULL, NULL },
+
+      { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
+      { gen_helper_sve_ld1dd_be_r, gen_helper_sve_ld2dd_be_r,
+        gen_helper_sve_ld3dd_be_r, gen_helper_sve_ld4dd_be_r } }
+};
+
 static void do_ld_zpa(DisasContext *s, int zt, int pg,
                       TCGv_i64 addr, int dtype, int nreg)
 {
-    static gen_helper_gvec_mem * const fns[2][16][4] = {
-        /* Little-endian */
-        { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
-            gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
-          { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
-
-          { gen_helper_sve_ld1sds_le_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1hh_le_r, gen_helper_sve_ld2hh_le_r,
-            gen_helper_sve_ld3hh_le_r, gen_helper_sve_ld4hh_le_r },
-          { gen_helper_sve_ld1hsu_le_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1hdu_le_r, NULL, NULL, NULL },
-
-          { gen_helper_sve_ld1hds_le_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1hss_le_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1ss_le_r, gen_helper_sve_ld2ss_le_r,
-            gen_helper_sve_ld3ss_le_r, gen_helper_sve_ld4ss_le_r },
-          { gen_helper_sve_ld1sdu_le_r, NULL, NULL, NULL },
-
-          { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1dd_le_r, gen_helper_sve_ld2dd_le_r,
-            gen_helper_sve_ld3dd_le_r, gen_helper_sve_ld4dd_le_r } },
-
-        /* Big-endian */
-        { { gen_helper_sve_ld1bb_r, gen_helper_sve_ld2bb_r,
-            gen_helper_sve_ld3bb_r, gen_helper_sve_ld4bb_r },
-          { gen_helper_sve_ld1bhu_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bsu_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bdu_r, NULL, NULL, NULL },
-
-          { gen_helper_sve_ld1sds_be_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1hh_be_r, gen_helper_sve_ld2hh_be_r,
-            gen_helper_sve_ld3hh_be_r, gen_helper_sve_ld4hh_be_r },
-          { gen_helper_sve_ld1hsu_be_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1hdu_be_r, NULL, NULL, NULL },
-
-          { gen_helper_sve_ld1hds_be_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1hss_be_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1ss_be_r, gen_helper_sve_ld2ss_be_r,
-            gen_helper_sve_ld3ss_be_r, gen_helper_sve_ld4ss_be_r },
-          { gen_helper_sve_ld1sdu_be_r, NULL, NULL, NULL },
-
-          { gen_helper_sve_ld1bds_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bss_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1bhs_r, NULL, NULL, NULL },
-          { gen_helper_sve_ld1dd_be_r, gen_helper_sve_ld2dd_be_r,
-            gen_helper_sve_ld3dd_be_r, gen_helper_sve_ld4dd_be_r } }
-    };
-    gen_helper_gvec_mem *fn = fns[s->be_data == MO_BE][dtype][nreg];
+    gen_helper_gvec_mem *fn = ldr_fns[s->be_data == MO_BE][dtype][nreg];
 
     /* While there are holes in the table, they are not
      * accessible via the instruction encoding.
@@ -5397,14 +5399,8 @@ static bool trans_LDNF1_zpri(DisasContext *s, arg_rpri_load *a)
     return true;
 }
 
-static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int msz)
+static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int dtype)
 {
-    static gen_helper_gvec_mem * const fns[2][4] = {
-        { gen_helper_sve_ld1bb_r,    gen_helper_sve_ld1hh_le_r,
-          gen_helper_sve_ld1ss_le_r, gen_helper_sve_ld1dd_le_r },
-        { gen_helper_sve_ld1bb_r,    gen_helper_sve_ld1hh_be_r,
-          gen_helper_sve_ld1ss_be_r, gen_helper_sve_ld1dd_be_r },
-    };
     unsigned vsz = vec_full_reg_size(s);
     TCGv_ptr t_pg;
     TCGv_i32 t_desc;
@@ -5436,7 +5432,7 @@ static void do_ldrq(DisasContext *s, int zt, int pg, TCGv_i64 addr, int msz)
     t_pg = tcg_temp_new_ptr();
     tcg_gen_addi_ptr(t_pg, cpu_env, poff);
 
-    fns[s->be_data == MO_BE][msz](cpu_env, t_pg, addr, t_desc);
+    ldr_fns[s->be_data == MO_BE][dtype][0](cpu_env, t_pg, addr, t_desc);
 
     tcg_temp_free_ptr(t_pg);
     tcg_temp_free_i32(t_desc);
@@ -5458,7 +5454,7 @@ static bool trans_LD1RQ_zprr(DisasContext *s, arg_rprr_load *a)
         TCGv_i64 addr = new_tmp_a64(s);
         tcg_gen_shli_i64(addr, cpu_reg(s, a->rm), msz);
         tcg_gen_add_i64(addr, addr, cpu_reg_sp(s, a->rn));
-        do_ldrq(s, a->rd, a->pg, addr, msz);
+        do_ldrq(s, a->rd, a->pg, addr, a->dtype);
     }
     return true;
 }
@@ -5468,7 +5464,7 @@ static bool trans_LD1RQ_zpri(DisasContext *s, arg_rpri_load *a)
     if (sve_access_check(s)) {
         TCGv_i64 addr = new_tmp_a64(s);
         tcg_gen_addi_i64(addr, cpu_reg_sp(s, a->rn), a->imm * 16);
-        do_ldrq(s, a->rd, a->pg, addr, dtype_msz(a->dtype));
+        do_ldrq(s, a->rd, a->pg, addr, a->dtype);
     }
     return true;
 }
