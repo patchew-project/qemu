@@ -388,6 +388,9 @@ GEN_OPCODE3(name, opc1, opc2, opc3, opc4, inval, type, type2)
 #define GEN_HANDLER2_E_2(name, onam, opc1, opc2, opc3, opc4, inval, typ, typ2) \
 GEN_OPCODE4(name, onam, opc1, opc2, opc3, opc4, inval, typ, typ2)
 
+#define GEN_HANDLER_BOTH(name, opc1, opc2, opc3, inval0, inval1, type0, type1) \
+GEN_OPCODE_DUAL(name, opc1, opc2, opc3, inval0, inval1, type0, type1)
+
 typedef struct opcode_t {
     unsigned char opc1, opc2, opc3, opc4;
 #if HOST_LONG_BITS == 64 /* Explicitly align to 64 bits */

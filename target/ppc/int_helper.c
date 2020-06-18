@@ -575,6 +575,25 @@ VARITH_DO(mulld, *, s64)
 #undef VARITH_DO
 #undef VARITH
 
+#define VDIV_MOD_DO(name, op, element)                                  \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    {                                                                   \
+        int i;                                                          \
+                                                                        \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            r->element[i] = a->element[i] op b->element[i];             \
+        }                                                               \
+    }
+VDIV_MOD_DO(divsw, /, s32)
+VDIV_MOD_DO(divuw, /, u32)
+VDIV_MOD_DO(divsd, /, s64)
+VDIV_MOD_DO(divud, /, u64)
+VDIV_MOD_DO(modsw, %, s32)
+VDIV_MOD_DO(moduw, %, u32)
+VDIV_MOD_DO(modsd, %, s64)
+VDIV_MOD_DO(modud, %, u64)
+#undef VDIV_MOD_DO
+
 #define VARITHFP(suffix, func)                                          \
     void helper_v##suffix(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, \
                           ppc_avr_t *b)                                 \
