@@ -3487,7 +3487,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 }
                 if (optarg && strchr(optarg, ':')) {
                     error_report("Don't use ':' with -accel, "
-                                 "use -M accel=... for now instead");
+                                 "use multiple -accel=... options instead");
                     exit(1);
                 }
                 break;
