@@ -256,9 +256,8 @@ int sclp_service_call_protected(CPUS390XState *env, uint64_t sccb,
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     SCCB work_sccb;
-    hwaddr sccb_len = sizeof(SCCB);
 
-    s390_cpu_pv_mem_read(env_archcpu(env), 0, &work_sccb, sccb_len);
+    s390_cpu_pv_mem_read(env_archcpu(env), 0, &work_sccb, sizeof(SCCBHeader));
 
     if (!sclp_command_code_valid(code)) {
         work_sccb.h.response_code = cpu_to_be16(SCLP_RC_INVALID_SCLP_COMMAND);
@@ -268,6 +267,9 @@ int sclp_service_call_protected(CPUS390XState *env, uint64_t sccb,
     if (!sccb_has_valid_boundary(sccb, code, &work_sccb.h)) {
         goto out_write;
     }
+
+    s390_cpu_pv_mem_read(env_archcpu(env), 0, &work_sccb,
+                         be16_to_cpu(work_sccb.h.length));
 
     sclp_c->execute(sclp, &work_sccb, code);
 out_write:
@@ -282,8 +284,6 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
     SCLPDevice *sclp = get_sclp_device();
     SCLPDeviceClass *sclp_c = SCLP_GET_CLASS(sclp);
     SCCB work_sccb;
-
-    hwaddr sccb_len = sizeof(SCCB);
 
     /* first some basic checks on program checks */
     if (env->psw.mask & PSW_MASK_PSTATE) {
@@ -302,7 +302,7 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
      * from playing dirty tricks by modifying the memory content after
      * the host has checked the values
      */
-    cpu_physical_memory_read(sccb, &work_sccb, sccb_len);
+    cpu_physical_memory_read(sccb, &work_sccb, sizeof(SCCBHeader));
 
     /* Valid sccb sizes */
     if (be16_to_cpu(work_sccb.h.length) < sizeof(SCCBHeader)) {
@@ -317,6 +317,9 @@ int sclp_service_call(CPUS390XState *env, uint64_t sccb, uint32_t code)
     if (!sccb_has_valid_boundary(sccb, code, &work_sccb.h)) {
         goto out_write;
     }
+
+    /* the header contains the actual length of the sccb */
+    cpu_physical_memory_read(sccb, &work_sccb, be16_to_cpu(work_sccb.h.length));
 
     sclp_c->execute(sclp, &work_sccb, code);
 out_write:
