@@ -1121,6 +1121,55 @@ DO_ZPZ_D(sve2_sqneg_d, uint64_t, DO_SQNEG)
 DO_ZPZ(sve2_urecpe_s, uint32_t, H1_4, helper_recpe_u32)
 DO_ZPZ(sve2_ursqrte_s, uint32_t, H1_4, helper_rsqrte_u32)
 
+static int16_t do_float16_logb_as_int(float16 a)
+{
+    if (float16_is_normal(a)) {
+        return extract16(a, 10, 5) - 15;
+    } else if (float16_is_infinity(a)) {
+        return INT16_MAX;
+    } else if (float16_is_any_nan(a) || float16_is_zero(a)) {
+        return INT16_MIN;
+    } else {
+        /* denormal */
+        int shift = 6 - clz32(extract16(a, 0, 10)) - 16;
+        return -15 - shift + 1;
+    }
+}
+
+static int32_t do_float32_logb_as_int(float32 a)
+{
+    if (float32_is_normal(a)) {
+        return extract32(a, 23, 8) - 127;
+    } else if (float32_is_infinity(a)) {
+        return INT32_MAX;
+    } else if (float32_is_any_nan(a) || float32_is_zero(a)) {
+        return INT32_MIN;
+    } else {
+        /* denormal */
+        int shift = 9 - clz32(extract32(a, 0, 23));
+        return -127 - shift + 1;
+    }
+}
+
+static int64_t do_float64_logb_as_int(float64 a)
+{
+    if (float64_is_normal(a)) {
+        return extract64(a, 52, 11) - 1023;
+    } else if (float64_is_infinity(a)) {
+        return INT64_MAX;
+    } else if (float64_is_any_nan(a) || float64_is_zero(a)) {
+        return INT64_MIN;
+    } else {
+        /* denormal */
+        int shift = 12 - clz64(extract64(a, 0, 52));
+        return -1023 - shift + 1;
+    }
+}
+
+DO_ZPZ(flogb_h, float16, H1_2, do_float16_logb_as_int)
+DO_ZPZ(flogb_s, float32, H1_4, do_float32_logb_as_int)
+DO_ZPZ(flogb_d, float64,     , do_float64_logb_as_int)
+
 /* Three-operand expander, unpredicated, in which the third operand is "wide".
  */
 #define DO_ZZW(NAME, TYPE, TYPEW, H, OP)                       \
