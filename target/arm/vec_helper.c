@@ -194,6 +194,30 @@ void HELPER(sve2_sqrdmlsh_h)(void *vd, void *vn, void *vm,
     }
 }
 
+void HELPER(neon_sqdmulh_h)(void *vd, void *vn, void *vm,
+                            void *vq, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    int16_t *d = vd, *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 2; ++i) {
+        d[i] = do_sqrdmlah_h(n[i], m[i], 0, false, false, vq);
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(neon_sqrdmulh_h)(void *vd, void *vn, void *vm,
+                             void *vq, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    int16_t *d = vd, *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 2; ++i) {
+        d[i] = do_sqrdmlah_h(n[i], m[i], 0, false, true, vq);
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
 void HELPER(sve2_sqdmulh_h)(void *vd, void *vn, void *vm, uint32_t desc)
 {
     intptr_t i, opr_sz = simd_oprsz(desc);
@@ -291,6 +315,7 @@ void HELPER(sve2_sqrdmlah_s)(void *vd, void *vn, void *vm,
     }
 }
 
+
 void HELPER(sve2_sqrdmlsh_s)(void *vd, void *vn, void *vm,
                              void *va, uint32_t desc)
 {
@@ -301,6 +326,30 @@ void HELPER(sve2_sqrdmlsh_s)(void *vd, void *vn, void *vm,
     for (i = 0; i < opr_sz / 4; ++i) {
         d[i] = do_sqrdmlah_s(n[i], m[i], a[i], true, true, &discard);
     }
+}
+
+void HELPER(neon_sqdmulh_s)(void *vd, void *vn, void *vm,
+                            void *vq, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    int32_t *d = vd, *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 4; ++i) {
+        d[i] = do_sqrdmlah_s(n[i], m[i], 0, false, false, vq);
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
+}
+
+void HELPER(neon_sqrdmulh_s)(void *vd, void *vn, void *vm,
+                             void *vq, uint32_t desc)
+{
+    intptr_t i, opr_sz = simd_oprsz(desc);
+    int32_t *d = vd, *n = vn, *m = vm;
+
+    for (i = 0; i < opr_sz / 4; ++i) {
+        d[i] = do_sqrdmlah_s(n[i], m[i], 0, false, true, vq);
+    }
+    clear_tail(d, opr_sz, simd_maxsz(desc));
 }
 
 void HELPER(sve2_sqdmulh_s)(void *vd, void *vn, void *vm, uint32_t desc)
