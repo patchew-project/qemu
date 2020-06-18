@@ -257,6 +257,12 @@
 @rrx_d          ........ 11 . index:1 rm:4 ...... rn:5 rd:5 \
                 &rrx_esz esz=3
 
+# Two registers and a scalar by index, wide
+@rrxl_s         ........ 10 ... rm:3 ...... rn:5 rd:5 \
+                &rrx_esz index=%index3_19_11 esz=2
+@rrxl_d         ........ 11 ..  rm:4 ...... rn:5 rd:5 \
+                &rrx_esz index=%index2_20_11 esz=3
+
 # Three registers and a scalar by index
 @rrxr_h         ........ 0. . ..      rm:3 ...... rn:5 rd:5 \
                 &rrxr_esz ra=%reg_movprfx index=%index3_22_19 esz=1
@@ -818,6 +824,16 @@ SQDMLSLB_zzxw_s 01000100 .. 1 ..... 0011.0 ..... .....          @rrxw_s
 SQDMLSLB_zzxw_d 01000100 .. 1 ..... 0011.0 ..... .....          @rrxw_d
 SQDMLSLT_zzxw_s 01000100 .. 1 ..... 0011.1 ..... .....          @rrxw_s
 SQDMLSLT_zzxw_d 01000100 .. 1 ..... 0011.1 ..... .....          @rrxw_d
+
+# SVE2 integer multiply long (indexed)
+SMULLB_zzx_s    01000100 .. 1 ..... 1100.0 ..... .....          @rrxl_s
+SMULLB_zzx_d    01000100 .. 1 ..... 1100.0 ..... .....          @rrxl_d
+SMULLT_zzx_s    01000100 .. 1 ..... 1100.1 ..... .....          @rrxl_s
+SMULLT_zzx_d    01000100 .. 1 ..... 1100.1 ..... .....          @rrxl_d
+UMULLB_zzx_s    01000100 .. 1 ..... 1101.0 ..... .....          @rrxl_s
+UMULLB_zzx_d    01000100 .. 1 ..... 1101.0 ..... .....          @rrxl_d
+UMULLT_zzx_s    01000100 .. 1 ..... 1101.1 ..... .....          @rrxl_s
+UMULLT_zzx_d    01000100 .. 1 ..... 1101.1 ..... .....          @rrxl_d
 
 # SVE2 integer multiply (indexed)
 MUL_zzx_h       01000100 .. 1 ..... 111110 ..... .....          @rrx_h
