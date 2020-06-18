@@ -56,6 +56,18 @@ static bool sccb_has_valid_boundary(uint64_t sccb_addr, uint32_t code,
     uint64_t sccb_boundary = (sccb_addr & PAGE_MASK) + PAGE_SIZE;
 
     switch (code & SCLP_CMD_CODE_MASK) {
+    case SCLP_CMDW_READ_SCP_INFO:
+    case SCLP_CMDW_READ_SCP_INFO_FORCED:
+    case SCLP_CMDW_READ_CPU_INFO:
+        /*
+         * An extended-length SCCB is only allowed for Read SCP/CPU Info and
+         * is allowed to exceed the 4k boundary. The respective commands will
+         * set the length field to the required length if an insufficient
+         * SCCB length is provided.
+         */
+        if (s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB)) {
+            return true;
+        }
     default:
         if (sccb_max_addr < sccb_boundary) {
             return true;
@@ -72,6 +84,10 @@ static bool sccb_sufficient_len(SCCB *sccb, int num_cpus, int data_len)
 
     if (be16_to_cpu(sccb->h.length) < required_len) {
         sccb->h.response_code = cpu_to_be16(SCLP_RC_INSUFFICIENT_SCCB_LENGTH);
+        if (s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB) &&
+            sccb->h.control_mask[2] & SCLP_VARIABLE_LENGTH_RESPONSE) {
+            sccb->h.length = required_len;
+        }
         return false;
     }
     return true;
@@ -101,7 +117,9 @@ static void prepare_cpu_entries(MachineState *ms, CPUEntry *entry, int *count)
  */
 static inline int get_read_scp_info_data_len(void)
 {
-    return offsetof(ReadInfo, entries);
+    return s390_has_feat(S390_FEAT_EXTENDED_LENGTH_SCCB) ?
+           offsetof(ReadInfo, entries) :
+           SCLP_READ_SCP_INFO_FIXED_CPU_OFFSET;
 }
 
 /* Provide information about the configuration, CPUs and storage */
@@ -116,6 +134,7 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
     CPUEntry *entries_start = (void *)sccb + data_len;
 
     if (!sccb_sufficient_len(sccb, machine->possible_cpus->len, data_len)) {
+        warn_report("insufficient sccb size to store read scp info response");
         return;
     }
 
