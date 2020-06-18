@@ -523,6 +523,20 @@ void helper_vprtybq(ppc_avr_t *r, ppc_avr_t *b)
     r->VsrD(0) = 0;
 }
 
+#define VMULH_DO(name, op, element, cast_orig, cast_temp)               \
+    void helper_vmulh##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)   \
+    {                                                                   \
+        int i;                                                          \
+                                                                        \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            r->element[i] = (cast_orig)(((cast_temp)a->element[i] op    \
+                            (cast_temp)b->element[i]) >> 32);           \
+        }                                                               \
+    }
+VMULH_DO(sw, *, s32, int32_t, int64_t)
+VMULH_DO(uw, *, u32, uint32_t, uint64_t)
+#undef VMULH_DO
+
 #define VARITH_DO(name, op, element)                                    \
     void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
     {                                                                   \
