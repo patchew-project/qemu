@@ -144,6 +144,7 @@ struct lo_data {
     int flock;
     int posix_lock;
     int xattr;
+    int restrictcaps;
     char *source;
     double timeout;
     int cache;
@@ -170,6 +171,8 @@ static const struct fuse_opt lo_opts[] = {
     { "no_posix_lock", offsetof(struct lo_data, posix_lock), 0 },
     { "xattr", offsetof(struct lo_data, xattr), 1 },
     { "no_xattr", offsetof(struct lo_data, xattr), 0 },
+    { "restrictcaps", offsetof(struct lo_data, restrictcaps), 1 },
+    { "no_restrictcaps", offsetof(struct lo_data, restrictcaps), 0 },
     { "timeout=%lf", offsetof(struct lo_data, timeout), 0 },
     { "timeout=", offsetof(struct lo_data, timeout_set), 1 },
     { "cache=none", offsetof(struct lo_data, cache), CACHE_NONE },
@@ -2615,7 +2618,9 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
     setup_namespaces(lo, se);
     setup_mounts(lo->source);
     setup_seccomp(enable_syslog);
-    setup_capabilities();
+    if (lo->restrictcaps) {
+        setup_capabilities();
+    }
 }
 
 /* Set the maximum number of open file descriptors */
@@ -2764,6 +2769,7 @@ int main(int argc, char *argv[])
         .writeback = 0,
         .posix_lock = 1,
         .proc_self_fd = -1,
+        .restrictcaps = 1,
     };
     struct lo_map_elem *root_elem;
     int ret = -1;

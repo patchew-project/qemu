@@ -81,6 +81,9 @@ Options
     Enable/disable extended attributes (xattr) on files and directories.  The
     default is ``no_xattr``.
 
+  * restrictcaps|no_restrictcaps\n"
+    Restrict capabilities at startup.  The default is ``restrictcaps``.
+
 .. option:: --socket-path=PATH
 
   Listen on vhost-user UNIX domain socket at PATH.
