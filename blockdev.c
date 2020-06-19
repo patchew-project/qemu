@@ -2177,6 +2177,63 @@ static void block_dirty_bitmap_remove_commit(BlkActionState *common)
     bdrv_release_dirty_bitmap(state->bitmap);
 }
 
+static void block_dirty_bitmap_populate_prepare(BlkActionState *common,
+                                                Error **errp)
+{
+    BlockJobActionState *state = DO_UPCAST(BlockJobActionState, common, common);
+    BlockDirtyBitmapPopulate *bitpop;
+    BlockDriverState *bs;
+    AioContext *aio_context;
+    BdrvDirtyBitmap *bmap = NULL;
+    int job_flags = JOB_DEFAULT;
+
+    assert(common->action->type ==
+           TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_POPULATE);
+    bitpop = common->action->u.block_dirty_bitmap_populate.data;
+
+    bmap = block_dirty_bitmap_lookup(bitpop->node, bitpop->name, &bs, errp);
+    if (!bmap) {
+        return;
+    }
+
+    aio_context = bdrv_get_aio_context(bs);
+    aio_context_acquire(aio_context);
+    state->bs = bs;
+
+    /* Paired with .clean() */
+    bdrv_drained_begin(state->bs);
+
+    if (!bitpop->has_on_error) {
+        bitpop->on_error = BLOCKDEV_ON_ERROR_REPORT;
+    }
+    if (!bitpop->has_auto_finalize) {
+        bitpop->auto_finalize = true;
+    }
+    if (!bitpop->has_auto_dismiss) {
+        bitpop->auto_dismiss = true;
+    }
+
+    if (!bitpop->auto_finalize) {
+        job_flags |= JOB_MANUAL_FINALIZE;
+    }
+    if (!bitpop->auto_dismiss) {
+        job_flags |= JOB_MANUAL_DISMISS;
+    }
+
+    state->job = bitpop_job_create(
+        bitpop->job_id,
+        bs,
+        bmap,
+        bitpop->pattern,
+        bitpop->on_error,
+        job_flags,
+        NULL, NULL,
+        common->block_job_txn,
+        errp);
+
+    aio_context_release(aio_context);
+}
+
 static void abort_prepare(BlkActionState *common, Error **errp)
 {
     error_setg(errp, "Transaction aborted using Abort action");
@@ -2259,6 +2316,13 @@ static const BlkActionOps actions[] = {
         .prepare = block_dirty_bitmap_remove_prepare,
         .commit = block_dirty_bitmap_remove_commit,
         .abort = block_dirty_bitmap_remove_abort,
+    },
+    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_POPULATE] = {
+        .instance_size = sizeof(BlockJobActionState),
+        .prepare = block_dirty_bitmap_populate_prepare,
+        .commit = blockdev_backup_commit,
+        .abort = blockdev_backup_abort,
+        .clean = blockdev_backup_clean,
     },
     /* Where are transactions for MIRROR, COMMIT and STREAM?
      * Although these blockjobs use transaction callbacks like the backup job,
@@ -2377,6 +2441,16 @@ void qmp_block_passwd(bool has_device, const char *device,
 {
     error_setg(errp,
                "Setting block passwords directly is no longer supported");
+}
+
+void qmp_block_dirty_bitmap_populate(BlockDirtyBitmapPopulate *bitpop,
+                                     Error **errp)
+{
+    TransactionAction action = {
+        .type = TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_POPULATE,
+        .u.block_dirty_bitmap_populate.data = bitpop,
+    };
+    blockdev_do_action(&action, errp);
 }
 
 BlockDirtyBitmapSha256 *qmp_x_debug_block_dirty_bitmap_sha256(const char *node,

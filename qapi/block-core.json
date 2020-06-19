@@ -2260,6 +2260,24 @@
             '*auto-dismiss': 'bool' } }
 
 ##
+# @block-dirty-bitmap-populate:
+#
+# Creates a new job that writes a pattern into a dirty bitmap.
+#
+# Since: 5.1
+#
+# Example:
+#
+# -> { "execute": "block-dirty-bitmap-populate",
+#      "arguments": { "node": "drive0", "target": "bitmap0",
+#                     "job-id": "job0", "pattern": "allocate-top" } }
+# <- { "return": {} }
+#
+##
+{ 'command': 'block-dirty-bitmap-populate', 'boxed': true,
+  'data': 'BlockDirtyBitmapPopulate' }
+
+##
 # @BlockDirtyBitmapSha256:
 #
 # SHA256 hash of dirty bitmap data
