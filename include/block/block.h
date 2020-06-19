@@ -572,6 +572,11 @@ int bdrv_save_vmstate(BlockDriverState *bs, const uint8_t *buf,
 
 int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
                       int64_t pos, int size);
+/*
+ * bdrv_finalize_vmstate() is mandatory to commit vmstate changes if
+ * bdrv_save_vmstate() was ever called.
+ */
+int bdrv_finalize_vmstate(BlockDriverState *bs);
 
 void bdrv_img_create(const char *filename, const char *fmt,
                      const char *base_filename, const char *base_fmt,
