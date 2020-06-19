@@ -2188,7 +2188,7 @@ int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
         return ret;
     }
 
-    if (ret == size && !blk->enable_write_cache) {
+    if (!blk->enable_write_cache) {
         ret = bdrv_flush(blk_bs(blk));
     }
 
