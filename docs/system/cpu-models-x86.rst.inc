@@ -66,7 +66,7 @@ across all desired hosts.
 ``Haswell``, ``Haswell-IBRS``, ``Haswell-noTSX``, ``Haswell-noTSX-IBRS``
     Intel Core Processor (Haswell, 2013)
 
-``IvyBridge``, ``IvyBridge-IBR``
+``IvyBridge``, ``IvyBridge-IBRS``
     Intel Xeon E3-12xx v2 (Ivy Bridge, 2012)
 
 ``SandyBridge``, ``SandyBridge-IBRS``
