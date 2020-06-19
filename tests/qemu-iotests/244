@@ -217,6 +217,71 @@ $QEMU_IMG amend -f $IMGFMT -o "data_file=blkdebug::$TEST_IMG.data" "$TEST_IMG"
 $QEMU_IMG convert -f $IMGFMT -O $IMGFMT -n -C "$TEST_IMG.src" "$TEST_IMG"
 $QEMU_IMG compare -f $IMGFMT -F $IMGFMT "$TEST_IMG.src" "$TEST_IMG"
 
+echo
+echo '=== Preallocation with data-file-raw ==='
+
+echo
+echo '--- Using a non-zeroed data file ---'
+
+# Using data-file-raw must enforce at least metadata preallocation so
+# that it does not matter whether one reads the raw file or the qcow2
+# file
+
+# The real test we would like to do here is to use an existing block
+# device with some random data on it as the external data file.
+# When creating the qcow2 file, it would not be overwritten and its
+# data would stay as it is.  However, using an existing block device
+# is a bit cumbersome in a test, so we are going to cheat by using a
+# normal regular file.
+
+# Unfortunately, this will O_CREAT | O_TRUNC that regular file, so
+# there is no point in creating it beforehand and filling it with
+# random data:
+_make_test_img -o "data_file=$TEST_IMG.data,data_file_raw=on" 1M
+
+# So now comes the cheating: We write directly into the data file.
+# That is actually unsupported, but it works for this test.
+# (As written above, the actual case would be to use a block device
+# as the external data file.  Such a device would not be emptied when
+# the qcow2 file is created, so its data would persist that step.)
+$QEMU_IO -f raw -c 'write -P 42 0 1M' "$TEST_IMG.data" | _filter_qemu_io
+
+echo
+echo 'Comparing pattern:'
+
+# Reading from either the qcow2 file or the data file should return
+# the same result:
+$QEMU_IO -f raw -c 'read -P 42 0 1M' "$TEST_IMG.data" | _filter_qemu_io
+$QEMU_IO -f $IMGFMT -c 'read -P 42 0 1M' "$TEST_IMG" | _filter_qemu_io
+
+# For good measure
+$QEMU_IMG compare -f raw "$TEST_IMG.data" "$TEST_IMG"
+
+echo
+echo '--- Giving a backing file at runtime ---'
+
+# qcow2 files with data-file-raw cannot have backing files given by
+# their image header, but qemu will allow you to set a backing node at
+# runtime -- it should not have any effect, though (because reading
+# from the qcow2 node should return the same data as reading from the
+# raw node).
+
+_make_test_img -o "data_file=$TEST_IMG.data,data_file_raw=on" 1M
+TEST_IMG="$TEST_IMG.base" _make_test_img 1M
+
+# Write something that is not zero into the base image
+$QEMU_IO -c 'write -P 42 0 1M' "$TEST_IMG.base" | _filter_qemu_io
+
+echo
+echo 'Comparing qcow2 image and raw data file:'
+
+# $TEST_IMG and $TEST_IMG.data must show the same data at all times;
+# that is, the qcow2 node must not fall through to the backing image
+# at any point
+$QEMU_IMG compare --image-opts \
+    "driver=raw,file.filename=$TEST_IMG.data"  \
+    "file.filename=$TEST_IMG,backing.file.filename=$TEST_IMG.base"
+
 # success, all done
 echo "*** done"
 rm -f $seq.full
