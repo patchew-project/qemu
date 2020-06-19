@@ -118,9 +118,6 @@ struct KVMState
     KVMMemoryListener memory_listener;
     QLIST_HEAD(, KVMParkedVcpu) kvm_parked_vcpus;
 
-    /* host trust limitation (e.g. by guest memory encryption) */
-    HostTrustLimitation *htl;
-
     /* For "info mtree -f" to tell if an MR is registered in KVM */
     int nr_as;
     struct KVMAs {
@@ -217,28 +214,6 @@ int kvm_get_max_memslots(void)
     KVMState *s = KVM_STATE(current_accel());
 
     return s->nr_slots;
-}
-
-bool kvm_memcrypt_enabled(void)
-{
-    if (kvm_state && kvm_state->htl) {
-        return true;
-    }
-
-    return false;
-}
-
-int kvm_memcrypt_encrypt_data(uint8_t *ptr, uint64_t len)
-{
-    HostTrustLimitation *htl = kvm_state->htl;
-
-    if (htl) {
-        HostTrustLimitationClass *htlc = HOST_TRUST_LIMITATION_GET_CLASS(htl);
-
-        return htlc->encrypt_data(htl, ptr, len);
-    }
-
-    return 1;
 }
 
 /* Called with KVMMemoryListener.slots_lock held */
@@ -2188,8 +2163,6 @@ static int kvm_init(MachineState *ms)
         if (ret < 0) {
             goto err;
         }
-
-        kvm_state->htl = ms->htl;
     }
 
     ret = kvm_arch_init(ms, s);
