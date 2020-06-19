@@ -2158,9 +2158,11 @@ static int kvm_init(MachineState *ms)
     if (ms->htl) {
         HostTrustLimitationClass *htlc =
             HOST_TRUST_LIMITATION_GET_CLASS(ms->htl);
+        Error *local_err = NULL;
 
-        ret = htlc->kvm_init(ms->htl);
+        ret = htlc->kvm_init(ms->htl, &local_err);
         if (ret < 0) {
+            error_report_err(local_err);
             goto err;
         }
     }

@@ -30,7 +30,7 @@
 typedef struct HostTrustLimitationClass {
     InterfaceClass parent;
 
-    int (*kvm_init)(HostTrustLimitation *);
+    int (*kvm_init)(HostTrustLimitation *, Error **);
     int (*encrypt_data)(HostTrustLimitation *, uint8_t *, uint64_t);
 } HostTrustLimitationClass;
 
