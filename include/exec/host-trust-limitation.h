@@ -28,6 +28,9 @@
 
 typedef struct HostTrustLimitationClass {
     InterfaceClass parent;
+
+    int (*kvm_init)(HostTrustLimitation *);
+    int (*encrypt_data)(HostTrustLimitation *, uint8_t *, uint64_t);
 } HostTrustLimitationClass;
 
 #endif /* QEMU_HOST_TRUST_LIMITATION_H */
