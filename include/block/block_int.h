@@ -1231,6 +1231,27 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                             BlockCompletionFunc *cb, void *opaque,
                             JobTxn *txn, Error **errp);
 
+/*
+ * bitpop_job_create: Create a new bitmap population job.
+ *
+ * @job_id: The id of the newly-created job.
+ * @bs: Block device associated with the @target_bitmap.
+ * @target_bitmap: The bitmap to populate.
+ * @on_error: What to do if an error on @bs is encountered.
+ * @creation_flags: Flags that control the behavior of the Job lifetime.
+ *                  See @BlockJobCreateFlags
+ * @cb: Completion function for the job.
+ * @opaque: Opaque pointer value passed to @cb.
+ * @txn: Transaction that this job is part of (may be NULL).
+ */
+BlockJob *bitpop_job_create(const char *job_id, BlockDriverState *bs,
+                            BdrvDirtyBitmap *target_bitmap,
+                            BitmapPattern pattern,
+                            BlockdevOnError on_error,
+                            int creation_flags,
+                            BlockCompletionFunc *cb, void *opaque,
+                            JobTxn *txn, Error **errp);
+
 BdrvChild *bdrv_root_attach_child(BlockDriverState *child_bs,
                                   const char *child_name,
                                   const BdrvChildClass *child_class,

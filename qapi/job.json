@@ -19,10 +19,14 @@
 #
 # @create: image creation job type, see "blockdev-create" (since 3.0)
 #
+# @bitmap-populate: drive bitmap population job type, see
+#                   "block-dirty-bitmap-populate" (since 5.1)
+#
 # Since: 1.7
 ##
 { 'enum': 'JobType',
-  'data': ['commit', 'stream', 'mirror', 'backup', 'create'] }
+  'data': ['commit', 'stream', 'mirror', 'backup', 'create',
+           'bitmap-populate'] }
 
 ##
 # @JobStatus:
