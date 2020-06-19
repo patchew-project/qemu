@@ -33,7 +33,7 @@
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -126,7 +126,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -209,7 +209,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -301,7 +301,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -383,7 +383,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -466,7 +466,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -539,7 +539,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -621,7 +621,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -680,7 +680,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -760,7 +760,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -830,7 +830,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -909,7 +909,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -978,7 +978,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1048,7 +1048,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1108,7 +1108,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1177,7 +1177,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1249,7 +1249,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -1342,7 +1342,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -1425,7 +1425,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -1517,7 +1517,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -1599,7 +1599,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1682,7 +1682,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1755,7 +1755,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1837,7 +1837,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -1896,7 +1896,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -1976,7 +1976,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2046,7 +2046,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2125,7 +2125,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2194,7 +2194,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2264,7 +2264,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2324,7 +2324,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2393,7 +2393,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2455,7 +2455,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2538,7 +2538,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2611,7 +2611,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2693,7 +2693,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -2765,7 +2765,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2838,7 +2838,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2901,7 +2901,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -2973,7 +2973,7 @@ OK: All bitmaps removed
 expecting 0 dirty sectors; have 0. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3022,7 +3022,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3092,7 +3092,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3152,7 +3152,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3221,7 +3221,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3280,7 +3280,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3340,7 +3340,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3390,7 +3390,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3449,7 +3449,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3511,7 +3511,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3594,7 +3594,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3667,7 +3667,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3749,7 +3749,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -3821,7 +3821,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3894,7 +3894,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -3957,7 +3957,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -4029,7 +4029,7 @@ OK: All bitmaps removed
 expecting 6 dirty sectors; have 6. OK!
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -4078,7 +4078,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -4148,7 +4148,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -4208,7 +4208,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -4277,7 +4277,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 -- Write #2:
 {"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
@@ -4336,7 +4336,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -4396,7 +4396,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -4446,7 +4446,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}
@@ -4505,7 +4505,7 @@ OK: All bitmaps removed
 {"return": {}}
 
 -- Test block-dirty-bitmap-populate (bitpop0):
-{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"execute": "x-block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
 {"return": {}}
 {"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
 {"return": {}}

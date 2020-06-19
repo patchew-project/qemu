@@ -2188,8 +2188,8 @@ static void block_dirty_bitmap_populate_prepare(BlkActionState *common,
     int job_flags = JOB_DEFAULT;
 
     assert(common->action->type ==
-           TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_POPULATE);
-    bitpop = common->action->u.block_dirty_bitmap_populate.data;
+           TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_POPULATE);
+    bitpop = common->action->u.x_block_dirty_bitmap_populate.data;
 
     bmap = block_dirty_bitmap_lookup(bitpop->node, bitpop->name, &bs, errp);
     if (!bmap) {
@@ -2317,7 +2317,7 @@ static const BlkActionOps actions[] = {
         .commit = block_dirty_bitmap_remove_commit,
         .abort = block_dirty_bitmap_remove_abort,
     },
-    [TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_POPULATE] = {
+    [TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_POPULATE] = {
         .instance_size = sizeof(BlockJobActionState),
         .prepare = block_dirty_bitmap_populate_prepare,
         .commit = blockdev_backup_commit,
@@ -2443,12 +2443,12 @@ void qmp_block_passwd(bool has_device, const char *device,
                "Setting block passwords directly is no longer supported");
 }
 
-void qmp_block_dirty_bitmap_populate(BlockDirtyBitmapPopulate *bitpop,
-                                     Error **errp)
+void qmp_x_block_dirty_bitmap_populate(BlockDirtyBitmapPopulate *bitpop,
+                                       Error **errp)
 {
     TransactionAction action = {
-        .type = TRANSACTION_ACTION_KIND_BLOCK_DIRTY_BITMAP_POPULATE,
-        .u.block_dirty_bitmap_populate.data = bitpop,
+        .type = TRANSACTION_ACTION_KIND_X_BLOCK_DIRTY_BITMAP_POPULATE,
+        .u.x_block_dirty_bitmap_populate.data = bitpop,
     };
     blockdev_do_action(&action, errp);
 }

@@ -49,7 +49,7 @@ class Drive:
 def block_dirty_bitmap_populate(vm, node, bitmap, job_id, pattern, **kwargs):
     # Strip any arguments explicitly nulled by the caller:
     kwargs = {key: val for key, val in kwargs.items() if val is not None}
-    result = vm.qmp_log('block-dirty-bitmap-populate',
+    result = vm.qmp_log('x-block-dirty-bitmap-populate',
                         node=node,
                         name=bitmap,
                         job_id=job_id,

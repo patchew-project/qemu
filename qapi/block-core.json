@@ -2260,7 +2260,7 @@
             '*auto-dismiss': 'bool' } }
 
 ##
-# @block-dirty-bitmap-populate:
+# @x-block-dirty-bitmap-populate:
 #
 # Creates a new job that writes a pattern into a dirty bitmap.
 #
@@ -2268,13 +2268,13 @@
 #
 # Example:
 #
-# -> { "execute": "block-dirty-bitmap-populate",
+# -> { "execute": "x-block-dirty-bitmap-populate",
 #      "arguments": { "node": "drive0", "target": "bitmap0",
 #                     "job-id": "job0", "pattern": "allocate-top" } }
 # <- { "return": {} }
 #
 ##
-{ 'command': 'block-dirty-bitmap-populate', 'boxed': true,
+{ 'command': 'x-block-dirty-bitmap-populate', 'boxed': true,
   'data': 'BlockDirtyBitmapPopulate' }
 
 ##
