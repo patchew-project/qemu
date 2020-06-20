@@ -89,11 +89,19 @@ typedef struct VFIOContainer {
     QLIST_ENTRY(VFIOContainer) next;
 } VFIOContainer;
 
+typedef struct VFIOIovaRange {
+    hwaddr iova;
+    size_t size;
+    ram_addr_t ram_addr;
+    QLIST_ENTRY(VFIOIovaRange) next;
+} VFIOIovaRange;
+
 typedef struct VFIOGuestIOMMU {
     VFIOContainer *container;
     IOMMUMemoryRegion *iommu;
     hwaddr iommu_offset;
     IOMMUNotifier n;
+    QLIST_HEAD(, VFIOIovaRange) iova_list;
     QLIST_ENTRY(VFIOGuestIOMMU) giommu_next;
 } VFIOGuestIOMMU;
 
