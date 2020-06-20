@@ -30,6 +30,7 @@ typedef struct PCA9552State {
     uint8_t max_reg;
     char *description; /* For debugging purpose only */
     uint8_t nr_leds;
+    qemu_irq gpio[PCA9552_PIN_COUNT];
 } PCA9552State;
 
 #endif
