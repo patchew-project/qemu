@@ -132,7 +132,7 @@ static void do_rz(struct thread_info *info)
 {
     struct thread_stats *stats = &info->stats;
 
-    if (info->r < resize_threshold) {
+    if (info->r <= resize_threshold) {
         size_t size = info->resize_down ? resize_min : resize_max;
         bool resized;
 
@@ -154,7 +154,7 @@ static void do_rw(struct thread_info *info)
     uint32_t hash;
     long *p;
 
-    if (info->r >= update_threshold) {
+    if (info->r > update_threshold) {
         bool read;
 
         p = &keys[info->r & (lookup_range - 1)];
@@ -281,11 +281,18 @@ static void pr_params(void)
 
 static void do_threshold(double rate, uint64_t *threshold)
 {
+    /*
+     * For 0 <= rate <= 1, scale to fit in a uint64_t.
+     *
+     * For rate == 1, returning UINT64_MAX means 100% certainty: all
+     * uint64_t will match using <=.  The largest representable value
+     * for rate less than 1 is 0.999999999999999889; scaling that
+     * by 2**64 results in 0xfffffffffffff800.
+     */
     if (rate == 1.0) {
         *threshold = UINT64_MAX;
     } else {
-        *threshold = (rate * 0xffff000000000000ull)
-                   + (rate * 0x0000ffffffffffffull);
+        *threshold = rate * 0x1p64;
     }
 }
 
