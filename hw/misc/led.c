@@ -32,6 +32,11 @@ void led_set_intensity(LEDState *s, uint16_t new_intensity)
 {
     trace_led_set_intensity(s->description ? s->description : "n/a",
                             s->color, new_intensity);
+    if (new_intensity != s->current_intensity) {
+        trace_led_change_intensity(s->description ? s->description : "n/a",
+                                   s->color,
+                                   s->current_intensity, new_intensity);
+    }
     s->current_intensity = new_intensity;
 }
 

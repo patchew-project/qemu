@@ -209,6 +209,7 @@ grlib_apb_pnp_read(uint64_t addr, uint32_t value) "APB PnP read addr:0x%03"PRIx6
 
 # led.c
 led_set_intensity(const char *color, const char *desc, uint16_t intensity) "LED desc:'%s' color:%s intensity: 0x%04"PRIx16
+led_change_intensity(const char *color, const char *desc, uint16_t old_intensity, uint16_t new_intensity) "LED desc:'%s' color:%s intensity 0x%04"PRIx16" -> 0x%04"PRIx16""
 
 # pca9552.c
 pca9552_gpio_status(const char *description, const char *buf) "%s GPIOs 0-15 [%s]"

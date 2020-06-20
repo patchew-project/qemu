@@ -35,6 +35,7 @@ typedef struct LEDState {
     DeviceState parent_obj;
     /* Public */
 
+    uint16_t current_intensity;
     qemu_irq irq;
 
     /* Properties */
