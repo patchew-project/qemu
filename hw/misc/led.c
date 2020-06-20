@@ -10,6 +10,7 @@
 #include "migration/vmstate.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/led.h"
+#include "hw/irq.h"
 #include "trace.h"
 
 static const char *led_color(LEDColor color)
@@ -39,6 +40,14 @@ void led_set_state(LEDState *s, bool is_on)
     led_set_intensity(s, is_on ? UINT16_MAX : 0);
 }
 
+static void gpio_led_set(void *opaque, int line, int new_state)
+{
+    LEDState *s = LED(opaque);
+
+    assert(line == 0);
+    led_set_state(s, !!new_state);
+}
+
 static void led_reset(DeviceState *dev)
 {
     LEDState *s = LED(dev);
@@ -63,6 +72,8 @@ static void led_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "property 'color' not specified");
         return;
     }
+
+    qdev_init_gpio_in(DEVICE(s), gpio_led_set, 1);
 }
 
 static Property led_properties[] = {
@@ -116,6 +127,20 @@ DeviceState *create_led(Object *parentobj,
     object_property_add_child(parentobj, name, OBJECT(dev));
     g_free(name);
     qdev_realize_and_unref(dev, NULL, &error_fatal);
+
+    return dev;
+}
+
+DeviceState *create_led_by_gpio_id(Object *parentobj,
+                                   DeviceState *gpio_dev, unsigned gpio_id,
+                                   LEDColor color,
+                                   const char *description,
+                                   uint16_t reset_intensity)
+{
+    DeviceState *dev;
+
+    dev = create_led(parentobj, color, description, reset_intensity);
+    qdev_connect_gpio_out(gpio_dev, gpio_id, qdev_get_gpio_in(dev, 0));
 
     return dev;
 }

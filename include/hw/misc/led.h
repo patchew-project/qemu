@@ -35,6 +35,8 @@ typedef struct LEDState {
     DeviceState parent_obj;
     /* Public */
 
+    qemu_irq irq;
+
     /* Properties */
     char *description;
     char *color;
@@ -75,5 +77,23 @@ DeviceState *create_led(Object *parentobj,
                         LEDColor color,
                         const char *description,
                         uint16_t reset_intensity);
+
+/**
+ * create_led_by_gpio_id: create and LED device and connect it to a GPIO output
+ * @parent: the parent object
+ * @gpio_dev: device exporting GPIOs
+ * @gpio_id: GPIO ID of this LED
+ * @color: color of the LED
+ * @description: description of the LED (optional)
+ * @reset_intensity: LED intensity at reset
+ *
+ * This utility function creates a LED and connects it to a
+ * GPIO exported by another device.
+ */
+DeviceState *create_led_by_gpio_id(Object *parentobj,
+                                   DeviceState *gpio_dev, unsigned gpio_id,
+                                   LEDColor color,
+                                   const char *description,
+                                   uint16_t reset_intensity);
 
 #endif /* HW_MISC_LED_H */
