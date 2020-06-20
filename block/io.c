@@ -727,10 +727,11 @@ static bool tracked_request_overlaps(BdrvTrackedRequest *req,
     return true;
 }
 
-static bool coroutine_fn
-bdrv_wait_serialising_requests_locked(BlockDriverState *bs,
-                                      BdrvTrackedRequest *self)
+/* Called with self->bs->reqs_lock locked */
+static bool coroutine_fn wait_or_find_conflicts(BdrvTrackedRequest *self,
+                                                bool wait)
 {
+    BlockDriverState *bs = self->bs;
     BdrvTrackedRequest *req;
     bool retry;
     bool waited = false;
@@ -754,6 +755,9 @@ bdrv_wait_serialising_requests_locked(BlockDriverState *bs,
                  * will wait for us as soon as it wakes up, then just go on
                  * (instead of producing a deadlock in the former case). */
                 if (!req->waiting_for) {
+                    if (!wait) {
+                        return true;
+                    }
                     self->waiting_for = req;
                     qemu_co_queue_wait(&req->wait_queue, &bs->reqs_lock);
                     self->waiting_for = NULL;
@@ -767,13 +771,18 @@ bdrv_wait_serialising_requests_locked(BlockDriverState *bs,
     return waited;
 }
 
-bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
+/* Return true on success, false on fail. Always success with blocking = true */
+static bool bdrv_do_mark_request_serialising(BdrvTrackedRequest *req,
+        uint64_t align, bool blocking, bool *waited)
 {
     BlockDriverState *bs = req->bs;
     int64_t overlap_offset = req->offset & ~(align - 1);
     uint64_t overlap_bytes = ROUND_UP(req->offset + req->bytes, align)
                                - overlap_offset;
-    bool waited;
+    int64_t old_overlap_offset = req->overlap_offset;
+    uint64_t old_overlap_bytes = req->overlap_bytes;
+    bool old_serializing = req->serialising;
+    bool found;
 
     qemu_co_mutex_lock(&bs->reqs_lock);
     if (!req->serialising) {
@@ -783,9 +792,44 @@ bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 
     req->overlap_offset = MIN(req->overlap_offset, overlap_offset);
     req->overlap_bytes = MAX(req->overlap_bytes, overlap_bytes);
-    waited = bdrv_wait_serialising_requests_locked(bs, req);
+    found = wait_or_find_conflicts(req, blocking);
+
+    if (!blocking && found) {
+        req->overlap_offset = old_overlap_offset;
+        req->overlap_bytes = old_overlap_bytes;
+        if (!old_serializing) {
+            atomic_dec(&req->bs->serialising_in_flight);
+            req->serialising = false;
+        }
+    }
+
+    *waited = found && blocking;
+
     qemu_co_mutex_unlock(&bs->reqs_lock);
+
+    return blocking || !found;
+}
+
+/* Return true if had to wait for conflicts */
+bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
+{
+    bool waited;
+    bool success = bdrv_do_mark_request_serialising(req, align, true, &waited);
+
+    assert(success);
     return waited;
+}
+
+/* Return true on success, false if there are some conflicts */
+__attribute__ ((unused))
+static bool bdrv_try_mark_request_serialising(BdrvTrackedRequest *req,
+                                              uint64_t align)
+{
+    bool waited;
+    bool success = bdrv_do_mark_request_serialising(req, align, false, &waited);
+
+    assert(!waited);
+    return success;
 }
 
 /**
@@ -865,7 +909,7 @@ static bool coroutine_fn bdrv_wait_serialising_requests(BdrvTrackedRequest *self
     }
 
     qemu_co_mutex_lock(&bs->reqs_lock);
-    waited = bdrv_wait_serialising_requests_locked(bs, self);
+    waited = wait_or_find_conflicts(self, true);
     qemu_co_mutex_unlock(&bs->reqs_lock);
 
     return waited;
