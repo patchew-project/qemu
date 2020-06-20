@@ -25,6 +25,7 @@ typedef struct {
 
     /*< public >*/
     MemoryRegion iomem;
+    DeviceState *led[8];
 
     uint32_t cfg0;
     uint32_t cfg1;
