@@ -24,6 +24,7 @@
 #include "migration/vmstate.h"
 #include "hw/registerfields.h"
 #include "hw/misc/mps2-fpgaio.h"
+#include "hw/misc/led.h"
 #include "hw/qdev-properties.h"
 #include "qemu/timer.h"
 
@@ -176,12 +177,9 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
 
     switch (offset) {
     case A_LED0:
-        /* LED bits [1:0] control board LEDs. We don't currently have
-         * a mechanism for displaying this graphically, so use a trace event.
-         */
-        trace_mps2_fpgaio_leds(value & 0x02 ? '*' : '.',
-                               value & 0x01 ? '*' : '.');
         s->led0 = value & 0x3;
+        led_set_state(LED(s->led[0]), value & 0x01);
+        led_set_state(LED(s->led[1]), value & 0x02);
         break;
     case A_PRESCALE:
         resync_counter(s);
@@ -249,6 +247,11 @@ static void mps2_fpgaio_init(Object *obj)
     memory_region_init_io(&s->iomem, obj, &mps2_fpgaio_ops, s,
                           "mps2-fpgaio", 0x1000);
     sysbus_init_mmio(sbd, &s->iomem);
+
+    s->led[0] = create_led(obj, LED_COLOR_GREEN,
+                           "USERLED0", LED_RESET_INTENSITY_ACTIVE_HIGH);
+    s->led[1] = create_led(obj, LED_COLOR_GREEN,
+                           "USERLED1", LED_RESET_INTENSITY_ACTIVE_HIGH);
 }
 
 static bool mps2_fpgaio_counters_needed(void *opaque)

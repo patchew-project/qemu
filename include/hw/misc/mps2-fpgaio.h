@@ -32,6 +32,7 @@ typedef struct {
 
     /*< public >*/
     MemoryRegion iomem;
+    DeviceState *led[2];
 
     uint32_t led0;
     uint32_t prescale;
