@@ -12,12 +12,14 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "qemu/bitops.h"
 #include "hw/qdev-properties.h"
 #include "hw/misc/pca9552.h"
 #include "hw/misc/pca9552_regs.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "trace.h"
 
 #define PCA9552_LED_ON   0x0
 #define PCA9552_LED_OFF  0x1
@@ -32,6 +34,32 @@ static uint8_t pca9552_pin_get_config(PCA9552State *s, int pin)
     uint8_t shift = (pin % 4) << 1;
 
     return extract32(s->regs[reg], shift, 2);
+}
+
+static void pca9552_display_pins_status(PCA9552State *s)
+{
+    uint16_t pins_status, pins_changed;
+    int i;
+
+    pins_status = (s->regs[PCA9552_INPUT1] << 8) | s->regs[PCA9552_INPUT0];
+    pins_changed = s->pins_status ^ pins_status;
+    if (!pins_changed) {
+        return;
+    }
+    s->pins_status = pins_status;
+    if (trace_event_get_state_backends(TRACE_PCA9552_GPIO_STATUS)) {
+        char buf[PCA9552_PIN_COUNT + 1];
+
+        for (i = 0; i < s->nr_leds; i++) {
+            if (extract32(pins_status, i, 1)) {
+                buf[i] = '*';
+            } else {
+                buf[i] = '.';
+            }
+        }
+        buf[i] = '\0';
+        trace_pca9552_gpio_status(s->description, buf);
+    }
 }
 
 static void pca9552_update_pin_input(PCA9552State *s)
@@ -57,6 +85,7 @@ static void pca9552_update_pin_input(PCA9552State *s)
             break;
         }
     }
+    pca9552_display_pins_status(s);
 }
 
 static uint8_t pca9552_read(PCA9552State *s, uint8_t reg)

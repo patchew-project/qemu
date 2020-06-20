@@ -26,6 +26,7 @@ typedef struct PCA9552State {
     uint8_t pointer;
 
     uint8_t regs[PCA9552_NR_REGS];
+    uint16_t pins_status; /* Holds latest INPUT0 & INPUT1 status */
     uint8_t max_reg;
     char *description; /* For debugging purpose only */
     uint8_t nr_leds;
