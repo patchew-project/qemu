@@ -691,7 +691,8 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
                                   BlockDriverState *bs,
                                   int64_t offset,
                                   uint64_t bytes,
-                                  enum BdrvTrackedRequestType type)
+                                  enum BdrvTrackedRequestType type,
+                                  BdrvTrackedRequest *lock)
 {
     assert(bytes <= INT64_MAX && offset <= INT64_MAX - bytes);
 
@@ -704,6 +705,7 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
         .serialising    = false,
         .overlap_offset = offset,
         .overlap_bytes  = bytes,
+        .lock           = lock,
     };
 
     qemu_co_queue_init(&req->wait_queue);
@@ -745,15 +747,26 @@ static bool coroutine_fn wait_or_find_conflicts(BdrvTrackedRequest *self,
             if (tracked_request_overlaps(req, self->overlap_offset,
                                          self->overlap_bytes))
             {
-                /* Hitting this means there was a reentrant request, for
-                 * example, a block driver issuing nested requests.  This must
-                 * never happen since it means deadlock.
+                if (self->lock == req) {
+                    /* This is atomic request under range_lock */
+                    assert(req->type == BDRV_TRACKED_LOCK);
+                    assert(self->offset >= req->offset);
+                    assert(self->bytes <= req->bytes);
+                    continue;
+                }
+                /*
+                 * Hitting this means there was a reentrant request (except for
+                 * range_lock, handled above), for example, a block driver
+                 * issuing nested requests.  This must never happen since it
+                 * means deadlock.
                  */
                 assert(qemu_coroutine_self() != req->co);
 
-                /* If the request is already (indirectly) waiting for us, or
+                /*
+                 * If the request is already (indirectly) waiting for us, or
                  * will wait for us as soon as it wakes up, then just go on
-                 * (instead of producing a deadlock in the former case). */
+                 * (instead of producing a deadlock in the former case).
+                 */
                 if (!req->waiting_for) {
                     if (!wait) {
                         return true;
@@ -821,7 +834,6 @@ bool bdrv_mark_request_serialising(BdrvTrackedRequest *req, uint64_t align)
 }
 
 /* Return true on success, false if there are some conflicts */
-__attribute__ ((unused))
 static bool bdrv_try_mark_request_serialising(BdrvTrackedRequest *req,
                                               uint64_t align)
 {
@@ -1796,7 +1808,7 @@ int coroutine_fn bdrv_co_preadv_part(BdrvChild *child,
 
     bdrv_pad_request(bs, &qiov, &qiov_offset, &offset, &bytes, &pad);
 
-    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_READ);
+    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_READ, NULL);
     ret = bdrv_aligned_preadv(child, &req, offset, bytes,
                               bs->bl.request_alignment,
                               qiov, qiov_offset, flags);
@@ -2169,9 +2181,9 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
     return bdrv_co_pwritev_part(child, offset, bytes, qiov, 0, flags);
 }
 
-int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
+static int coroutine_fn bdrv_co_pwritev_part_locked(BdrvChild *child,
     int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
-    BdrvRequestFlags flags)
+    BdrvRequestFlags flags, BdrvTrackedRequest *lock)
 {
     BlockDriverState *bs = child->bs;
     BdrvTrackedRequest req;
@@ -2215,7 +2227,7 @@ int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
      * Pad qiov with the read parts and be sure to have a tracked request not
      * only for bdrv_aligned_pwritev, but also for the reads of the RMW cycle.
      */
-    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_WRITE);
+    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_WRITE, lock);
 
     if (flags & BDRV_REQ_ZERO_WRITE) {
         ret = bdrv_co_do_zero_pwritev(child, offset, bytes, flags, &req);
@@ -2239,8 +2251,23 @@ out:
     return ret;
 }
 
+int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
+    int64_t offset, unsigned int bytes, QEMUIOVector *qiov, size_t qiov_offset,
+    BdrvRequestFlags flags)
+{
+    return bdrv_co_pwritev_part_locked(child, offset, bytes, qiov, qiov_offset,
+                                       flags, NULL);
+}
+
 int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
                                        int bytes, BdrvRequestFlags flags)
+{
+    return bdrv_co_pwrite_zeroes_locked(child, offset, bytes, flags, NULL);
+}
+
+int coroutine_fn bdrv_co_pwrite_zeroes_locked(BdrvChild *child, int64_t offset,
+                                              int bytes, BdrvRequestFlags flags,
+                                              BdrvTrackedRequest *lock)
 {
     trace_bdrv_co_pwrite_zeroes(child->bs, offset, bytes, flags);
 
@@ -2248,8 +2275,8 @@ int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
         flags &= ~BDRV_REQ_MAY_UNMAP;
     }
 
-    return bdrv_co_pwritev(child, offset, bytes, NULL,
-                           BDRV_REQ_ZERO_WRITE | flags);
+    return bdrv_co_pwritev_part_locked(child, offset, bytes, NULL, 0,
+                                       BDRV_REQ_ZERO_WRITE | flags, lock);
 }
 
 /*
@@ -2980,7 +3007,7 @@ int coroutine_fn bdrv_co_pdiscard(BdrvChild *child, int64_t offset,
     tail = (offset + bytes) % align;
 
     bdrv_inc_in_flight(bs);
-    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_DISCARD);
+    tracked_request_begin(&req, bs, offset, bytes, BDRV_TRACKED_DISCARD, NULL);
 
     ret = bdrv_co_write_req_prepare(child, offset, bytes, &req, 0);
     if (ret < 0) {
@@ -3252,7 +3279,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(
     if (recurse_src) {
         bdrv_inc_in_flight(src->bs);
         tracked_request_begin(&req, src->bs, src_offset, bytes,
-                              BDRV_TRACKED_READ);
+                              BDRV_TRACKED_READ, NULL);
 
         /* BDRV_REQ_SERIALISING is only for write operation */
         assert(!(read_flags & BDRV_REQ_SERIALISING));
@@ -3269,7 +3296,7 @@ static int coroutine_fn bdrv_co_copy_range_internal(
     } else {
         bdrv_inc_in_flight(dst->bs);
         tracked_request_begin(&req, dst->bs, dst_offset, bytes,
-                              BDRV_TRACKED_WRITE);
+                              BDRV_TRACKED_WRITE, NULL);
         ret = bdrv_co_write_req_prepare(dst, dst_offset, bytes, &req,
                                         write_flags);
         if (!ret) {
@@ -3381,7 +3408,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
 
     bdrv_inc_in_flight(bs);
     tracked_request_begin(&req, bs, offset - new_bytes, new_bytes,
-                          BDRV_TRACKED_TRUNCATE);
+                          BDRV_TRACKED_TRUNCATE, NULL);
 
     /* If we are growing the image and potentially using preallocation for the
      * new area, we need to make sure that no write requests are made to it
@@ -3493,4 +3520,29 @@ int bdrv_truncate(BdrvChild *child, int64_t offset, bool exact,
     };
 
     return bdrv_run_co(child->bs, bdrv_truncate_co_entry, &tco);
+}
+
+BdrvTrackedRequest *coroutine_fn bdrv_co_range_try_lock(BlockDriverState *bs,
+                                                        int64_t offset,
+                                                        int64_t bytes)
+{
+    BdrvTrackedRequest *req = g_new(BdrvTrackedRequest, 1);
+    bool success;
+
+    tracked_request_begin(req, bs, offset, bytes, BDRV_TRACKED_LOCK, NULL);
+    success = bdrv_try_mark_request_serialising(req, bdrv_get_cluster_size(bs));
+    if (!success) {
+        g_free(req);
+        req = NULL;
+    }
+
+    return req;
+}
+
+void coroutine_fn bdrv_co_range_unlock(BdrvTrackedRequest *req)
+{
+    assert(req->type == BDRV_TRACKED_LOCK);
+
+    tracked_request_end(req);
+    g_free(req);
 }

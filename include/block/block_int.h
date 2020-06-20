@@ -66,6 +66,7 @@ enum BdrvTrackedRequestType {
     BDRV_TRACKED_WRITE,
     BDRV_TRACKED_DISCARD,
     BDRV_TRACKED_TRUNCATE,
+    BDRV_TRACKED_LOCK,
 };
 
 typedef struct BdrvTrackedRequest {
@@ -83,6 +84,12 @@ typedef struct BdrvTrackedRequest {
     CoQueue wait_queue; /* coroutines blocked on this request */
 
     struct BdrvTrackedRequest *waiting_for;
+
+    /*
+     * If non-zero, the request is under lock, so it's allowed to intersect
+     * (actully it must be inside) the @lock request.
+     */
+    struct BdrvTrackedRequest *lock;
 } BdrvTrackedRequest;
 
 struct BlockDriver {
@@ -1017,6 +1024,15 @@ int coroutine_fn bdrv_co_pwritev(BdrvChild *child,
 int coroutine_fn bdrv_co_pwritev_part(BdrvChild *child,
     int64_t offset, unsigned int bytes,
     QEMUIOVector *qiov, size_t qiov_offset, BdrvRequestFlags flags);
+
+/*
+ * Creates serializing BDRV_TRACKED_LOCK request if no conflicts, on success
+ * return pointer to it, to be used in bdrv_co_range_unlock().
+ */
+BdrvTrackedRequest *coroutine_fn bdrv_co_range_try_lock(BlockDriverState *bs,
+                                                        int64_t offset,
+                                                        int64_t bytes);
+void coroutine_fn bdrv_co_range_unlock(BdrvTrackedRequest *req);
 
 static inline int coroutine_fn bdrv_co_pread(BdrvChild *child,
     int64_t offset, unsigned int bytes, void *buf, BdrvRequestFlags flags)

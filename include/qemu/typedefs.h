@@ -28,6 +28,7 @@ typedef struct Aml Aml;
 typedef struct AnnounceTimer AnnounceTimer;
 typedef struct BdrvDirtyBitmap BdrvDirtyBitmap;
 typedef struct BdrvDirtyBitmapIter BdrvDirtyBitmapIter;
+typedef struct BdrvTrackedRequest BdrvTrackedRequest;
 typedef struct BlockBackend BlockBackend;
 typedef struct BlockBackendRootState BlockBackendRootState;
 typedef struct BlockDriverState BlockDriverState;

@@ -386,6 +386,15 @@ int bdrv_pwrite_sync(BdrvChild *child, int64_t offset,
  */
 int coroutine_fn bdrv_co_pwrite_zeroes(BdrvChild *child, int64_t offset,
                                        int bytes, BdrvRequestFlags flags);
+
+/*
+ * Version of bdrv_co_pwrite_zeroes to be used inside bdrv_co_range_try_lock()
+ * .. bdrv_co_range_unlock() pair.
+ */
+int coroutine_fn bdrv_co_pwrite_zeroes_locked(BdrvChild *child,
+    int64_t offset, int bytes, BdrvRequestFlags flags,
+    BdrvTrackedRequest *lock);
+
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
     const char *backing_file);
 void bdrv_refresh_filename(BlockDriverState *bs);
