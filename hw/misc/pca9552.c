@@ -291,7 +291,7 @@ static void pca9552_initfn(Object *obj)
      * PCA955X device
      */
     s->max_reg = PCA9552_LS3;
-    s->nr_leds = 16;
+    s->nr_leds = PCA9552_PIN_COUNT;
 
     for (led = 0; led < s->nr_leds; led++) {
         char *name;

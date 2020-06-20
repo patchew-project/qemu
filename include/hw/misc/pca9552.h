@@ -15,6 +15,7 @@
 #define PCA9552(obj) OBJECT_CHECK(PCA9552State, (obj), TYPE_PCA9552)
 
 #define PCA9552_NR_REGS 10
+#define PCA9552_PIN_COUNT 16
 
 typedef struct PCA9552State {
     /*< private >*/
