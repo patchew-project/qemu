@@ -190,14 +190,14 @@ if ($terse) {
 
 if ($tree) {
 	if (defined $root) {
-		if (!top_of_kernel_tree($root)) {
+		if (!top_of_qemu_tree($root)) {
 			die "$P: $root: --root does not point at a valid tree\n";
 		}
 	} else {
-		if (top_of_kernel_tree('.')) {
+		if (top_of_qemu_tree('.')) {
 			$root = '.';
 		} elsif ($0 =~ m@(.*)/scripts/[^/]*$@ &&
-						top_of_kernel_tree($1)) {
+						top_of_qemu_tree($1)) {
 			$root = $1;
 		}
 	}
@@ -456,7 +456,7 @@ if ($chk_branch) {
 
 exit($exit);
 
-sub top_of_kernel_tree {
+sub top_of_qemu_tree {
 	my ($root) = @_;
 
 	my @tree_check = (
