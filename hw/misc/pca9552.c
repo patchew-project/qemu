@@ -60,6 +60,21 @@ static void pca9552_display_pins_status(PCA9552State *s)
         buf[i] = '\0';
         trace_pca9552_gpio_status(s->description, buf);
     }
+    if (trace_event_get_state_backends(TRACE_PCA9552_GPIO_CHANGE)) {
+        for (i = 0; i < s->nr_leds; i++) {
+            if (extract32(pins_changed, i, 1)) {
+                unsigned new_state = extract32(pins_status, i, 1);
+
+                /*
+                 * We display the state using the PCA logic ("active-high").
+                 * This is not the state of the LED, which signal might be
+                 * wired "active-low" on the board.
+                 */
+                trace_pca9552_gpio_change(s->description, i,
+                                          !new_state, new_state);
+            }
+        }
+    }
 }
 
 static void pca9552_update_pin_input(PCA9552State *s)
