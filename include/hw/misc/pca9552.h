@@ -27,6 +27,7 @@ typedef struct PCA9552State {
 
     uint8_t regs[PCA9552_NR_REGS];
     uint8_t max_reg;
+    char *description; /* For debugging purpose only */
     uint8_t nr_leds;
 } PCA9552State;
 

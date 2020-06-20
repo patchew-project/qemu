@@ -12,6 +12,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
+#include "hw/qdev-properties.h"
 #include "hw/misc/pca9552.h"
 #include "hw/misc/pca9552_regs.h"
 #include "migration/vmstate.h"
@@ -312,7 +313,15 @@ static void pca9552_realize(DeviceState *dev, Error **errp)
                    __func__, s->nr_leds, PCA9552_PIN_COUNT);
         return;
     }
+    if (!s->description) {
+        s->description = g_strdup("pca-unspecified");
+    }
 }
+
+static Property pca9552_properties[] = {
+    DEFINE_PROP_STRING("description", PCA9552State, description),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 static void pca9552_class_init(ObjectClass *klass, void *data)
 {
@@ -325,6 +334,7 @@ static void pca9552_class_init(ObjectClass *klass, void *data)
     dc->realize = pca9552_realize;
     dc->reset = pca9552_reset;
     dc->vmsd = &pca9552_vmstate;
+    device_class_set_props(dc, pca9552_properties);
 }
 
 static const TypeInfo pca9552_info = {
