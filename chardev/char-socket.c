@@ -1086,7 +1086,10 @@ static void qemu_chr_socket_connected(QIOTask *task, void *opaque)
     if (qio_task_propagate_error(task, &err)) {
         tcp_chr_change_state(s, TCP_CHARDEV_STATE_DISCONNECTED);
         check_report_connect_error(chr, err);
-        error_free(err);
+        /* If connect_err_reported is true, it means err is already freed */
+        if (!s->connect_err_reported) {
+            error_free(err);
+        }
         goto cleanup;
     }
 
