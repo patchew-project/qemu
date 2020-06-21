@@ -46,6 +46,13 @@ static Notifier packets_compare_notifier;
 static COLOMode last_colo_mode;
 
 #define COLO_BUFFER_BASE_SIZE (4 * 1024 * 1024)
+#define COLO_RAM_MIGRATE_ITERATION_MAX 10
+
+typedef enum {
+    COLO_MIG_ITERATE_RESUME = 0,  /* Resume migration iteration */
+    COLO_MIG_ITERATE_BREAK  = 1,  /* Break migration loop */
+} COLOMigIterateState;
+
 
 bool migration_in_colo_state(void)
 {
@@ -398,12 +405,79 @@ static uint64_t colo_receive_message_value(QEMUFile *f, uint32_t expect_msg,
     return value;
 }
 
+static int colo_migrate_ram_iteration(MigrationState *s, Error **errp)
+{
+    int64_t threshold_size = s->parameters.x_colo_migrate_ram_threshold;
+    uint64_t pending_size, pend_pre, pend_compat, pend_post;
+    Error *local_err = NULL;
+    int ret;
+
+    if (threshold_size == 0) {
+        return COLO_MIG_ITERATE_BREAK;
+    }
+
+    qemu_savevm_state_pending(s->to_dst_file, threshold_size,
+                              &pend_pre, &pend_compat, &pend_post);
+    pending_size = pend_pre + pend_compat + pend_post;
+
+    trace_colo_migrate_pending(pending_size, threshold_size,
+                               pend_pre, pend_compat, pend_post);
+
+    /* Still a significant amount to transfer */
+    if (pending_size && pending_size >= threshold_size) {
+        colo_send_message(s->to_dst_file, COLO_MESSAGE_MIGRATE_RAM, &local_err);
+        if (local_err) {
+            error_propagate(errp, local_err);
+            return COLO_MIG_ITERATE_BREAK;
+        }
+
+        qemu_savevm_state_iterate(s->to_dst_file, false);
+        qemu_put_byte(s->to_dst_file, QEMU_VM_EOF);
+
+        ret = qemu_file_get_error(s->to_dst_file);
+        if (ret < 0) {
+            error_setg_errno(errp, -ret, "Failed to send dirty pages");
+            return COLO_MIG_ITERATE_BREAK;
+        }
+
+        return COLO_MIG_ITERATE_RESUME;
+    }
+
+    trace_colo_migration_low_pending(pending_size);
+
+    return COLO_MIG_ITERATE_BREAK;
+}
+
+static void colo_migrate_ram_before_checkpoint(MigrationState *s, Error **errp)
+{
+    Error *local_err = NULL;
+    int iterate_count = 0;
+
+    while (iterate_count++ < COLO_RAM_MIGRATE_ITERATION_MAX) {
+        COLOMigIterateState state;
+
+        state = colo_migrate_ram_iteration(s, &local_err);
+        if (state == COLO_MIG_ITERATE_BREAK) {
+            if (local_err) {
+                error_propagate(errp, local_err);
+            }
+
+            return;
+        }
+    };
+}
+
 static int colo_do_checkpoint_transaction(MigrationState *s,
                                           QIOChannelBuffer *bioc,
                                           QEMUFile *fb)
 {
     Error *local_err = NULL;
     int ret = -1;
+
+    colo_migrate_ram_before_checkpoint(s, &local_err);
+    if (local_err) {
+        goto out;
+    }
 
     colo_send_message(s->to_dst_file, COLO_MESSAGE_CHECKPOINT_REQUEST,
                       &local_err);
@@ -818,6 +892,11 @@ static void colo_wait_handle_message(MigrationIncomingState *mis,
     switch (msg) {
     case COLO_MESSAGE_CHECKPOINT_REQUEST:
         colo_incoming_process_checkpoint(mis, fb, bioc, errp);
+        break;
+    case COLO_MESSAGE_MIGRATE_RAM:
+        if (qemu_loadvm_state_main(mis->from_src_file, mis) < 0) {
+            error_setg(errp, "Load ram failed");
+        }
         break;
     default:
         error_setg(errp, "Got unknown COLO message: %d", msg);

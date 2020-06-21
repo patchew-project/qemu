@@ -88,6 +88,7 @@
 
 /* The delay time (in ms) between two COLO checkpoints */
 #define DEFAULT_MIGRATE_X_CHECKPOINT_DELAY (200 * 100)
+#define DEFAULT_COLO_MIGRATE_RAM_THRESHOLD (100 * 1024 * 1024UL)
 #define DEFAULT_MIGRATE_MULTIFD_CHANNELS 2
 #define DEFAULT_MIGRATE_MULTIFD_COMPRESSION MULTIFD_COMPRESSION_NONE
 /* 0: means nocompress, 1: best speed, ... 9: best compress ratio */
@@ -800,6 +801,9 @@ MigrationParameters *qmp_query_migrate_parameters(Error **errp)
     params->downtime_limit = s->parameters.downtime_limit;
     params->has_x_checkpoint_delay = true;
     params->x_checkpoint_delay = s->parameters.x_checkpoint_delay;
+    params->has_x_colo_migrate_ram_threshold = true;
+    params->x_colo_migrate_ram_threshold =
+            s->parameters.x_colo_migrate_ram_threshold;
     params->has_block_incremental = true;
     params->block_incremental = s->parameters.block_incremental;
     params->has_multifd_channels = true;
@@ -1223,6 +1227,8 @@ static bool migrate_params_check(MigrationParameters *params, Error **errp)
 
     /* x_checkpoint_delay is now always positive */
 
+    /* x_colo_migrate_ram_threshold is zero or positive */
+
     if (params->has_multifd_channels && (params->multifd_channels < 1)) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE,
                    "multifd_channels",
@@ -1356,6 +1362,11 @@ static void migrate_params_test_apply(MigrateSetParameters *params,
         dest->x_checkpoint_delay = params->x_checkpoint_delay;
     }
 
+    if (params->has_x_colo_migrate_ram_threshold) {
+        dest->x_colo_migrate_ram_threshold =
+            params->x_colo_migrate_ram_threshold;
+    }
+
     if (params->has_block_incremental) {
         dest->block_incremental = params->block_incremental;
     }
@@ -1461,6 +1472,11 @@ static void migrate_params_apply(MigrateSetParameters *params, Error **errp)
         if (migration_in_colo_state()) {
             colo_checkpoint_notify(s);
         }
+    }
+
+    if (params->has_x_colo_migrate_ram_threshold) {
+        s->parameters.x_colo_migrate_ram_threshold =
+                params->x_colo_migrate_ram_threshold;
     }
 
     if (params->has_block_incremental) {
@@ -3622,6 +3638,9 @@ static Property migration_properties[] = {
     DEFINE_PROP_UINT32("x-checkpoint-delay", MigrationState,
                       parameters.x_checkpoint_delay,
                       DEFAULT_MIGRATE_X_CHECKPOINT_DELAY),
+    DEFINE_PROP_UINT64("x-colo-migrate-ram-threshold", MigrationState,
+                      parameters.x_colo_migrate_ram_threshold,
+                      DEFAULT_COLO_MIGRATE_RAM_THRESHOLD),
     DEFINE_PROP_UINT8("multifd-channels", MigrationState,
                       parameters.multifd_channels,
                       DEFAULT_MIGRATE_MULTIFD_CHANNELS),
@@ -3724,6 +3743,7 @@ static void migration_instance_init(Object *obj)
     params->has_max_bandwidth = true;
     params->has_downtime_limit = true;
     params->has_x_checkpoint_delay = true;
+    params->has_x_colo_migrate_ram_threshold = true;
     params->has_block_incremental = true;
     params->has_multifd_channels = true;
     params->has_multifd_compression = true;

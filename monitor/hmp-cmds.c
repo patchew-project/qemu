@@ -450,6 +450,10 @@ void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "%s: %u ms\n",
             MigrationParameter_str(MIGRATION_PARAMETER_X_CHECKPOINT_DELAY),
             params->x_checkpoint_delay);
+        assert(params->has_x_colo_migrate_ram_threshold);
+        monitor_printf(mon, "%s: %" PRIu64 "\n",
+            MigrationParameter_str(MIGRATION_PARAMETER_X_COLO_MIGRATE_RAM_THRESHOLD),
+            params->x_colo_migrate_ram_threshold);
         assert(params->has_block_incremental);
         monitor_printf(mon, "%s: %s\n",
             MigrationParameter_str(MIGRATION_PARAMETER_BLOCK_INCREMENTAL),
@@ -1332,6 +1336,10 @@ void hmp_migrate_set_parameter(Monitor *mon, const QDict *qdict)
     case MIGRATION_PARAMETER_X_CHECKPOINT_DELAY:
         p->has_x_checkpoint_delay = true;
         visit_type_int(v, param, &p->x_checkpoint_delay, &err);
+        break;
+    case MIGRATION_PARAMETER_X_COLO_MIGRATE_RAM_THRESHOLD:
+        p->has_x_colo_migrate_ram_threshold = true;
+        visit_type_int(v, param, &p->x_colo_migrate_ram_threshold, &err);
         break;
     case MIGRATION_PARAMETER_BLOCK_INCREMENTAL:
         p->has_block_incremental = true;

@@ -600,6 +600,9 @@
 # @x-checkpoint-delay: The delay time (in ms) between two COLO checkpoints in
 #                      periodic mode. (Since 2.8)
 #
+# @x-colo-migrate-ram-threshold: the threshold (in bytes) of the COLO ram migration's
+#                                pending size before COLO checkpoint. (Since 5.0)
+#
 # @block-incremental: Affects how much storage is migrated when the
 #                     block migration capability is enabled.  When false, the entire
 #                     storage backing chain is migrated into a flattened image at
@@ -651,7 +654,8 @@
            'cpu-throttle-initial', 'cpu-throttle-increment',
            'cpu-throttle-tailslow',
            'tls-creds', 'tls-hostname', 'tls-authz', 'max-bandwidth',
-           'downtime-limit', 'x-checkpoint-delay', 'block-incremental',
+           'downtime-limit', 'x-checkpoint-delay',
+           'x-colo-migrate-ram-threshold', 'block-incremental',
            'multifd-channels',
            'xbzrle-cache-size', 'max-postcopy-bandwidth',
            'max-cpu-throttle', 'multifd-compression',
@@ -740,6 +744,9 @@
 #
 # @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
 #
+# @x-colo-migrate-ram-threshold: the threshold in bytes of the COLO ram migration's
+#                                pending size before COLO checkpoint. (Since 5.0)
+#
 # @block-incremental: Affects how much storage is migrated when the
 #                     block migration capability is enabled.  When false, the entire
 #                     storage backing chain is migrated into a flattened image at
@@ -804,6 +811,7 @@
             '*max-bandwidth': 'int',
             '*downtime-limit': 'int',
             '*x-checkpoint-delay': 'int',
+            '*x-colo-migrate-ram-threshold': 'int',
             '*block-incremental': 'bool',
             '*multifd-channels': 'int',
             '*xbzrle-cache-size': 'size',
@@ -915,6 +923,9 @@
 #
 # @x-checkpoint-delay: the delay time between two COLO checkpoints. (Since 2.8)
 #
+# @x-colo-migrate-ram-threshold: the threshold in bytes of the COLO ram migration's
+#                                pending size before COLO checkpoint. (Since 5.0)
+#
 # @block-incremental: Affects how much storage is migrated when the
 #                     block migration capability is enabled.  When false, the entire
 #                     storage backing chain is migrated into a flattened image at
@@ -978,6 +989,7 @@
             '*max-bandwidth': 'size',
             '*downtime-limit': 'uint64',
             '*x-checkpoint-delay': 'uint32',
+            '*x-colo-migrate-ram-threshold': 'uint64',
             '*block-incremental': 'bool' ,
             '*multifd-channels': 'uint8',
             '*xbzrle-cache-size': 'size',
@@ -1116,12 +1128,14 @@
 #
 # @vmstate-loaded: VM's state has been loaded by SVM.
 #
+# @migrate-ram: Send dirty pages as many as possible before COLO checkpoint.
+#
 # Since: 2.8
 ##
 { 'enum': 'COLOMessage',
   'data': [ 'checkpoint-ready', 'checkpoint-request', 'checkpoint-reply',
             'vmstate-send', 'vmstate-size', 'vmstate-received',
-            'vmstate-loaded' ] }
+            'vmstate-loaded', 'migrate-ram' ] }
 
 ##
 # @COLOMode:
