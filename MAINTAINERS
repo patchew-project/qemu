@@ -1252,6 +1252,13 @@ S: Supported
 F: hw/riscv/opentitan.c
 F: include/hw/riscv/opentitan.h
 
+RX Machines
+-----------
+rx-gdbsim
+M: Yoshinori Sato <ysato@users.sourceforge.jp>
+S: Maintained
+F: hw/rx/rx-gdbsim.c
+
 SH4 Machines
 ------------
 R2D
