@@ -276,6 +276,7 @@ typedef struct ChardevClass {
     void (*chr_be_event)(Chardev *s, QEMUChrEvent event);
     /* Return 0 if succeeded, 1 if failed */
     int (*chr_machine_done)(Chardev *chr);
+    int (*chr_get_winsize)(Chardev *chr, uint16_t *cols, uint16_t *rows);
 } ChardevClass;
 
 Chardev *qemu_chardev_new(const char *id, const char *typename,

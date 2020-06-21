@@ -155,6 +155,17 @@ int qemu_chr_fe_wait_connected(CharBackend *be, Error **errp);
 void qemu_chr_fe_set_echo(CharBackend *be, bool echo);
 
 /**
+ * qemu_chr_fe_get_winsize:
+ * @cols: the address for storing columns
+ * @rows: the address for storing rows
+ *
+ * Get the terminal size of the backend.
+ *
+ * Returns: 0 on success and < 0 on error
+ */
+int qemu_chr_fe_get_winsize(CharBackend *be, uint16_t *cols, uint16_t *rows);
+
+/**
  * qemu_chr_fe_set_open:
  *
  * Set character frontend open status.  This is an indication that the
