@@ -4287,6 +4287,8 @@ void qemu_init(int argc, char **argv, char **envp)
             exit (i == 1 ? 1 : 0);
     }
 
+    audio_init_audiodevs();
+
     /* This checkpoint is required by replay to separate prior clock
        reading from the other reads, because timer polling functions query
        clock values from the log. */
@@ -4343,8 +4345,6 @@ void qemu_init(int argc, char **argv, char **envp)
         numa_uses_legacy_mem() && !current_machine->ram_memdev_id) {
         create_default_memdev(current_machine, mem_path);
     }
-
-    audio_init_audiodevs();
 
     /* from here on runstate is RUN_STATE_PRELAUNCH */
     machine_run_board_init(current_machine);
