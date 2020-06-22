@@ -557,4 +557,7 @@ void device_listener_unregister(DeviceListener *listener);
  */
 bool qdev_should_hide_device(QemuOpts *opts);
 
+void qdev_module_load_type(const char *type);
+void qdev_module_load_all(void);
+
 #endif

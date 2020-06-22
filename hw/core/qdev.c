@@ -137,6 +137,9 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
  */
 DeviceState *qdev_new(const char *name)
 {
+    if (!object_class_by_name(name)) {
+        qdev_module_load_type(name);
+    }
     return DEVICE(object_new(name));
 }
 
@@ -148,10 +151,62 @@ DeviceState *qdev_new(const char *name)
 DeviceState *qdev_try_new(const char *name)
 {
     if (!object_class_by_name(name)) {
+        qdev_module_load_type(name);
+    }
+    if (!object_class_by_name(name)) {
         return NULL;
     }
 
     return DEVICE(object_new(name));
+}
+
+/*
+ * Building devices modular is mostly useful in case they have
+ * dependencies to external shared libraries, so we can cut down the
+ * core qemu library dependencies.  Which is the case for only a very
+ * few devices.  So with the expectation that this will be rather the
+ * exception than to rule go with a simple hardcoded list for now
+ * (instead of generating it automatically somehow).
+ */
+static struct {
+    const char *type;
+    const char *mod;
+} const hwmodules[] = {
+};
+
+static bool qdev_module_loaded_all;
+
+void qdev_module_load_type(const char *type)
+{
+    int i;
+
+    if (qdev_module_loaded_all) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(hwmodules); i++) {
+        if (strcmp(hwmodules[i].type, type) == 0) {
+            hw_module_load_one(hwmodules[i].mod);
+            return;
+        }
+    }
+}
+
+void qdev_module_load_all(void)
+{
+    int i;
+
+    if (qdev_module_loaded_all) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(hwmodules); i++) {
+        if (i > 0 && strcmp(hwmodules[i - 1].mod,
+                            hwmodules[i].mod) == 0) {
+            /* one module implementing multiple devices -> load only once */
+            continue;
+        }
+        hw_module_load_one(hwmodules[i].mod);
+    }
+    qdev_module_loaded_all = true;
 }
 
 static QTAILQ_HEAD(, DeviceListener) device_listeners
