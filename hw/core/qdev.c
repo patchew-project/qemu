@@ -175,6 +175,8 @@ static struct {
     { .type = "ccid-card-passthru",    .mod = "usb-smartcard"         },
     { .type = "ccid-card-emulated",    .mod = "usb-smartcard"         },
     { .type = "usb-redir",             .mod = "usb-redirect"          },
+    { .type = "qxl-vga",               .mod = "display-qxl"           },
+    { .type = "qxl",                   .mod = "display-qxl"           },
 };
 
 static bool qdev_module_loaded_all;
