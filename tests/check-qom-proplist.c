@@ -421,7 +421,6 @@ static void test_dummy_createcmdl(void)
 
     user_creatable_del("dev0", &err);
     g_assert(err == NULL);
-    error_free(err);
 
     object_unref(OBJECT(dobj));
 
