@@ -1,6 +1,7 @@
 stub-obj-y += blk-commit-all.o
 stub-obj-y += cpu-get-clock.o
-stub-obj-y += cpu-get-icount.o
+stub-obj-y += qemu-timer-notify-cb.o
+stub-obj-y += icount.o
 stub-obj-y += dump.o
 stub-obj-y += error-printf.o
 stub-obj-y += fdset.o
