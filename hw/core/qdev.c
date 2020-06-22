@@ -177,6 +177,12 @@ static struct {
     { .type = "usb-redir",             .mod = "usb-redirect"          },
     { .type = "qxl-vga",               .mod = "display-qxl"           },
     { .type = "qxl",                   .mod = "display-qxl"           },
+    { .type = "virtio-gpu-device",     .mod = "display-virtio-gpu"    },
+    { .type = "virtio-gpu-pci",        .mod = "display-virtio-gpu"    },
+    { .type = "virtio-vga",            .mod = "display-virtio-gpu"    },
+    { .type = "vhost-user-gpu-device", .mod = "display-virtio-gpu"    },
+    { .type = "vhost-user-gpu-pci",    .mod = "display-virtio-gpu"    },
+    { .type = "vhost-user-vga",        .mod = "display-virtio-gpu"    },
 };
 
 static bool qdev_module_loaded_all;
