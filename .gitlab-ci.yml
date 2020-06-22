@@ -1,3 +1,15 @@
+#
+# Currently we have two build stages:
+#  - build (for traditional build and test or first stage build)
+#  - test (for test stages, using build artefacts from a build stage)
+stages:
+  - build
+  - test
+
+variables:
+  BASE_CONFIG: "--disable-docs"
+  MAIN_SOFTMMU_TARGETS: "aarch64-softmmu,mips64-softmmu,ppc64-softmmu,riscv64-softmmu,s390x-softmmu,x86_64-softmmu"
+
 include:
   - local: '/.gitlab-ci.d/edk2.yml'
   - local: '/.gitlab-ci.d/opensbi.yml'
@@ -16,22 +28,93 @@ include:
         make python3 perl-podlators perl-Test-Harness pixman-devel zlib-devel
   - JOBS=$(expr $(nproc) + 1)
 
-build-system1:
+.post_acceptance_template: &post_acceptance
+  after_script:
+    - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP")]' | xargs cat
+      - du -chs $HOME/avocado/data/cache
+
+build:system-ubuntu-main:
  image: ubuntu:19.10
+ stage: build
  <<: *before_script_apt
  script:
  - apt-get install -y -qq libgtk-3-dev libvte-dev nettle-dev libcacard-dev
       libusb-dev libvde-dev libspice-protocol-dev libgl1-mesa-dev libvdeplug-dev
  - mkdir build
  - cd build
- - ../configure --enable-werror --target-list="aarch64-softmmu alpha-softmmu
-      cris-softmmu hppa-softmmu lm32-softmmu moxie-softmmu microblazeel-softmmu
-      mips64el-softmmu m68k-softmmu ppc-softmmu riscv64-softmmu sparc-softmmu"
+ - ../configure ${BASE_CONFIG} --enable-werror --target-list="${MAIN_SOFTMMU_TARGETS}"
  - make -j"$JOBS"
- - make -j"$JOBS" check
+ artifacts:
+   paths:
+     - build
 
-build-system2:
+check:system-ubuntu-main:
+ image: ubuntu:19.10
+ stage: test
+ dependencies:
+ - build:system-ubuntu-main
+ <<: *before_script_apt
+ script:
+ - cd build
+ - make check
+
+acceptance:system-ubuntu-main:
+ image: ubuntu:19.10
+ stage: test
+ dependencies:
+ - build:system-ubuntu-main
+ <<: *before_script_apt
+ script:
+ - DEBIAN_FRONTEND=noninteractive apt-get install -y -qq
+    python3-pil python3-pip python3-numpy python3-opencv python3-venv
+    rpm2cpio tesseract-ocr tesseract-ocr-eng
+ - cd build
+ - make check-acceptance
+ <<: *post_acceptance
+
+build:system-debian-alt:
+ image: debian:buster-slim
+ stage: build
+ <<: *before_script_apt
+ script:
+ - apt-get install -y -qq libgtk-3-dev libvte-dev nettle-dev libcacard-dev
+      libusb-dev libvde-dev libspice-protocol-dev libgl1-mesa-dev libvdeplug-dev
+ - mkdir build
+ - cd build
+ - ../configure ${BASE_CONFIG} --enable-werror --disable-user
+     --target-list-exclude="${MAIN_SOFTMMU_TARGETS}"
+ - make -j"$JOBS"
+ artifacts:
+   paths:
+     - build
+
+check:system-debian-alt:
+ image: debian:buster-slim
+ stage: test
+ dependencies:
+ - build:system-debian-alt
+ <<: *before_script_apt
+ script:
+ - cd build
+ - make check
+
+acceptance:system-debian-alt:
+ image: debian:buster-slim
+ stage: test
+ dependencies:
+ - build:system-debian-alt
+ <<: *before_script_apt
+ script:
+ - DEBIAN_FRONTEND=noninteractive apt-get install -y -qq
+    python3-pil python3-pip python3-numpy python3-opencv python3-venv
+    rpm2cpio tesseract-ocr tesseract-ocr-eng
+ - cd build
+ - make check-acceptance
+ <<: *post_acceptance
+
+build:system-fedora-misc:
  image: fedora:latest
+ stage: build
  <<: *before_script_dnf
  script:
  - yum install -y SDL2-devel libgcrypt-devel brlapi-devel libaio-devel
@@ -43,7 +126,32 @@ build-system2:
       microblaze-softmmu mips-softmmu riscv32-softmmu s390x-softmmu sh4-softmmu
       sparc64-softmmu x86_64-softmmu xtensa-softmmu nios2-softmmu or1k-softmmu"
  - make -j"$JOBS"
- - make -j"$JOBS" check
+ artifacts:
+   paths:
+     - build
+
+check:system-fedora-misc:
+ image: fedora:latest
+ stage: test
+ dependencies:
+ - build:system-fedora-misc
+ <<: *before_script_dnf
+ script:
+ - cd build
+ - make check
+
+acceptance:system-fedora-misc:
+ image: fedora:latest
+ stage: test
+ dependencies:
+ - build:system-fedora-misc
+ <<: *before_script_dnf
+ script:
+ - yum install -y python3-pillow python3-pip python3-numpy python3-opencv
+       python3-virtualenv tesseract tesseract-langpack-eng
+ - cd build
+ - make check-acceptance
+ <<: *post_acceptance
 
 build-disabled:
  image: fedora:latest
