@@ -153,8 +153,9 @@ acceptance:system-fedora-misc:
  - make check-acceptance
  <<: *post_acceptance
 
-build-disabled:
+build:system-fedora-misc-disabled:
  image: fedora:latest
+ stage: build
  <<: *before_script_dnf
  script:
  - mkdir build
@@ -167,7 +168,19 @@ build-disabled:
       --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
       --target-list="i386-softmmu ppc64-softmmu mips64-softmmu i386-linux-user"
  - make -j"$JOBS"
- - make -j"$JOBS" check-qtest SPEED=slow
+ artifacts:
+   paths:
+     - build
+
+qtest:system-fedora-misc-disabled:
+ image: fedora:latest
+ stage: test
+ dependencies:
+ - build:system-fedora-misc-disabled
+ <<: *before_script_dnf
+ script:
+ - cd build
+ - make check-qtest SPEED=slow
 
 build-tcg-disabled:
  image: centos:8
