@@ -2739,6 +2739,180 @@ static int bdrv_co_do_save_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
     }
 }
 
+
+typedef struct BdrvLoadVMChunk {
+    void *buf;
+    uint64_t offset;
+    ssize_t bytes;
+
+    QLIST_ENTRY(BdrvLoadVMChunk) list;
+} BdrvLoadVMChunk;
+
+typedef struct BdrvLoadVMState {
+    AioTaskPool *pool;
+
+    int64_t offset;
+    int64_t last_loaded;
+
+    int chunk_count;
+    QLIST_HEAD(, BdrvLoadVMChunk) chunks;
+    QLIST_HEAD(, BdrvLoadVMChunk) loading;
+    CoMutex lock;
+    CoQueue waiters;
+} BdrvLoadVMState;
+
+typedef struct BdrvLoadVMStateTask {
+    AioTask task;
+
+    BlockDriverState *bs;
+    BdrvLoadVMChunk *chunk;
+} BdrvLoadVMStateTask;
+
+static BdrvLoadVMChunk *bdrv_co_find_loadvmstate_chunk(int64_t pos,
+                                                       BdrvLoadVMChunk *c)
+{
+    for (; c != NULL; c = QLIST_NEXT(c, list)) {
+        if (c->offset <= pos && c->offset + c->bytes > pos) {
+            return c;
+        }
+    }
+
+    return NULL;
+}
+
+static void bdrv_free_loadvm_chunk(BdrvLoadVMChunk *c)
+{
+    qemu_vfree(c->buf);
+    g_free(c);
+}
+
+static coroutine_fn int bdrv_co_vmstate_load_task_entry(AioTask *task)
+{
+    int err = 0;
+    BdrvLoadVMStateTask *t = container_of(task, BdrvLoadVMStateTask, task);
+    BdrvLoadVMChunk *c = t->chunk;
+    BdrvLoadVMState *state = t->bs->loadvm_state;
+    QEMUIOVector qiov = QEMU_IOVEC_INIT_BUF(qiov, c->buf, c->bytes);
+
+    bdrv_inc_in_flight(t->bs);
+    err = t->bs->drv->bdrv_load_vmstate(t->bs, &qiov, c->offset);
+    bdrv_dec_in_flight(t->bs);
+
+    qemu_co_mutex_lock(&state->lock);
+    QLIST_REMOVE(c, list);
+    if (err == 0) {
+        QLIST_INSERT_HEAD(&state->chunks, c, list);
+    } else {
+        bdrv_free_loadvm_chunk(c);
+    }
+    qemu_co_mutex_unlock(&state->lock);
+    qemu_co_queue_restart_all(&state->waiters);
+
+    return err;
+}
+
+static void bdrv_co_start_loadvmstate(BlockDriverState *bs,
+                                      BdrvLoadVMState *state)
+{
+    int i;
+    size_t buf_size = MAX(bdrv_get_cluster_size(bs), 1 * MiB);
+
+    qemu_co_mutex_assert_locked(&state->lock);
+    for (i = state->chunk_count; i < BDRV_VMSTATE_WORKERS_MAX; i++) {
+        BdrvLoadVMStateTask *t = g_new(BdrvLoadVMStateTask, 1);
+
+        *t = (BdrvLoadVMStateTask) {
+            .task.func = bdrv_co_vmstate_load_task_entry,
+            .bs = bs,
+            .chunk = g_new(BdrvLoadVMChunk, 1),
+        };
+
+        *t->chunk = (BdrvLoadVMChunk) {
+            .buf = qemu_blockalign(bs, buf_size),
+            .offset = state->last_loaded,
+            .bytes = buf_size,
+        };
+        /* FIXME: tail of stream */
+
+        QLIST_INSERT_HEAD(&state->loading, t->chunk, list);
+        state->chunk_count++;
+        state->last_loaded += buf_size;
+
+        qemu_co_mutex_unlock(&state->lock);
+        aio_task_pool_start_task(state->pool, &t->task);
+        qemu_co_mutex_lock(&state->lock);
+    }
+}
+
+static int bdrv_co_do_load_vmstate(BlockDriverState *bs, QEMUIOVector *qiov,
+                                   int64_t pos)
+{
+    BdrvLoadVMState *state = bs->loadvm_state;
+    BdrvLoadVMChunk *c;
+    size_t off;
+
+    if (state == NULL) {
+        if (pos != 0) {
+            /* Normally this branch is not reachable from migration */
+            return bs->drv->bdrv_load_vmstate(bs, qiov, pos);
+        }
+
+        state = g_new(BdrvLoadVMState, 1);
+        *state = (BdrvLoadVMState) {
+            .pool = aio_task_pool_new(BDRV_VMSTATE_WORKERS_MAX),
+            .chunks = QLIST_HEAD_INITIALIZER(state->chunks),
+            .loading = QLIST_HEAD_INITIALIZER(state->loading),
+        };
+        qemu_co_mutex_init(&state->lock);
+        qemu_co_queue_init(&state->waiters);
+
+        bs->loadvm_state = state;
+    }
+
+    if (state->offset != pos) {
+        /* Normally this branch is not reachable from migration */
+        return bs->drv->bdrv_load_vmstate(bs, qiov, pos);
+    }
+
+    off = 0;
+    qemu_co_mutex_lock(&state->lock);
+    bdrv_co_start_loadvmstate(bs, state);
+
+    while (off < qiov->size && aio_task_pool_status(state->pool) == 0) {
+        c = bdrv_co_find_loadvmstate_chunk(pos, QLIST_FIRST(&state->chunks));
+        if (c != NULL) {
+            ssize_t chunk_off = pos - c->offset;
+            ssize_t to_copy = MIN(qiov->size - off, c->bytes - chunk_off);
+
+            qemu_iovec_from_buf(qiov, off, c->buf + chunk_off, to_copy);
+
+            off += to_copy;
+            pos += to_copy;
+
+            if (pos == c->offset + c->bytes) {
+                state->chunk_count--;
+                /* End of buffer, discard it from the list */
+                QLIST_REMOVE(c, list);
+                bdrv_free_loadvm_chunk(c);
+            }
+
+            state->offset += to_copy;
+            continue;
+        }
+
+        c = bdrv_co_find_loadvmstate_chunk(pos, QLIST_FIRST(&state->loading));
+        if (c != NULL) {
+            qemu_co_queue_wait(&state->waiters, &state->lock);
+            continue;
+        }
+
+        bdrv_co_start_loadvmstate(bs, state);
+    }
+    qemu_co_mutex_unlock(&state->lock);
+
+    return aio_task_pool_status(state->pool);
+}
+
 static int coroutine_fn
 bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
                    bool is_read)
@@ -2752,7 +2926,7 @@ bdrv_co_rw_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos,
         ret = -ENOMEDIUM;
     } else if (drv->bdrv_load_vmstate) {
         if (is_read) {
-            ret = drv->bdrv_load_vmstate(bs, qiov, pos);
+            ret = bdrv_co_do_load_vmstate(bs, qiov, pos);
         } else {
             ret = bdrv_co_do_save_vmstate(bs, qiov, pos);
         }
@@ -2823,13 +2997,13 @@ int bdrv_readv_vmstate(BlockDriverState *bs, QEMUIOVector *qiov, int64_t pos)
     return bdrv_rw_vmstate(bs, qiov, pos, true);
 }
 
-static int coroutine_fn bdrv_co_finalize_vmstate(BlockDriverState *bs)
+static int coroutine_fn bdrv_co_finalize_save_vmstate(BlockDriverState *bs)
 {
     int err;
     BdrvSaveVMState *state = bs->savevm_state;
 
     if (bs->drv->bdrv_save_vmstate == NULL && bs->file != NULL) {
-        return bdrv_co_finalize_vmstate(bs->file->bs);
+        return bdrv_co_finalize_save_vmstate(bs->file->bs);
     }
     if (state == NULL) {
         return 0;
@@ -2849,6 +3023,51 @@ static int coroutine_fn bdrv_co_finalize_vmstate(BlockDriverState *bs)
     bs->savevm_state = NULL;
 
     return err;
+}
+
+static int coroutine_fn bdrv_co_finalize_load_vmstate(BlockDriverState *bs)
+{
+    int err;
+    BdrvLoadVMState *state = bs->loadvm_state;
+    BdrvLoadVMChunk *c, *tmp;
+
+    if (bs->drv->bdrv_load_vmstate == NULL && bs->file != NULL) {
+        return bdrv_co_finalize_load_vmstate(bs->file->bs);
+    }
+    if (state == NULL) {
+        return 0;
+    }
+
+    aio_task_pool_wait_all(state->pool);
+    err = aio_task_pool_status(state->pool);
+    aio_task_pool_free(state->pool);
+
+    QLIST_FOREACH(c, &state->loading, list) {
+        assert(1);  /* this list must be empty as all tasks are committed */
+    }
+    QLIST_FOREACH_SAFE(c, &state->chunks, list, tmp) {
+        QLIST_REMOVE(c, list);
+        bdrv_free_loadvm_chunk(c);
+    }
+
+    g_free(state);
+
+    bs->loadvm_state = NULL;
+
+    return err;
+}
+
+static int coroutine_fn bdrv_co_finalize_vmstate(BlockDriverState *bs)
+{
+    int err1 = bdrv_co_finalize_save_vmstate(bs);
+    int err2 = bdrv_co_finalize_load_vmstate(bs);
+    if (err1 < 0) {
+        return err1;
+    }
+    if (err2 < 0) {
+        return err2;
+    }
+    return 0;
 }
 
 static int coroutine_fn bdrv_finalize_vmstate_co_entry(void *opaque)
