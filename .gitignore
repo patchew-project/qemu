@@ -92,7 +92,7 @@
 *.toc
 *.tp
 *.vr
-*.d
+!\.*.d
 !/scripts/qemu-guest-agent/fsfreeze-hook.d
 *.o
 .sdk
