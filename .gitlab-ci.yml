@@ -184,6 +184,7 @@ qtest:system-fedora-misc-disabled:
 
 build-tcg-disabled:
  image: centos:8
+ stage: build
  <<: *before_script_dnf
  script:
  - dnf install -y clang gtk3-devel libusbx-devel libgcrypt-devel
@@ -203,6 +204,7 @@ build-tcg-disabled:
             260 261 262 263 264 270 272 273 277 279
 
 build-user:
+ stage: build
  <<: *before_script_apt
  script:
  - mkdir build
@@ -214,6 +216,7 @@ build-user:
 
 build-clang:
  image: fedora:latest
+ stage: build
  <<: *before_script_dnf
  script:
  - yum install -y clang SDL2-devel libattr-devel libcap-ng-devel xfsprogs-devel
@@ -228,6 +231,7 @@ build-clang:
 
 build-tci:
  image: centos:8
+ stage: build
  <<: *before_script_dnf
  script:
  - TARGETS="aarch64 alpha arm hppa m68k microblaze moxie ppc64 s390x x86_64"
