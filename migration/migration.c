@@ -54,6 +54,7 @@
 #include "net/announce.h"
 #include "qemu/queue.h"
 #include "multifd.h"
+#include "qemu/yank.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -231,6 +232,8 @@ void migration_incoming_state_destroy(void)
         qapi_free_SocketAddressList(mis->socket_address_list);
         mis->socket_address_list = NULL;
     }
+
+    yank_unregister_instance("migration");
 }
 
 static void migrate_generate_event(int new_state)
@@ -362,7 +365,9 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     const char *p;
 
     qapi_event_send_migration(MIGRATION_STATUS_SETUP);
+    yank_register_instance("migration");
     if (!strcmp(uri, "defer")) {
+        yank_unregister_instance("migration");
         deferred_incoming_migration(errp);
     } else if (strstart(uri, "tcp:", &p)) {
         tcp_start_incoming_migration(p, errp);
@@ -377,6 +382,7 @@ void qemu_start_incoming_migration(const char *uri, Error **errp)
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_incoming_migration(p, errp);
     } else {
+        yank_unregister_instance("migration");
         error_setg(errp, "unknown migration protocol: %s", uri);
     }
 }
@@ -1646,6 +1652,7 @@ static void migrate_fd_cleanup(MigrationState *s)
     }
     notifier_list_notify(&migration_state_notifiers, s);
     block_cleanup_parameters(s);
+    yank_unregister_instance("migration");
 }
 
 static void migrate_fd_cleanup_schedule(MigrationState *s)
@@ -1912,6 +1919,7 @@ void qmp_migrate_recover(const char *uri, Error **errp)
      * only re-setup the migration stream and poke existing migration
      * to continue using that newly established channel.
      */
+    yank_unregister_instance("migration");
     qemu_start_incoming_migration(uri, errp);
 }
 
@@ -2048,7 +2056,9 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
         /* Error detected, put into errp */
         return;
     }
-
+    if (!(has_resume && resume)) {
+        yank_register_instance("migration");
+    }
     if (strstart(uri, "tcp:", &p)) {
         tcp_start_outgoing_migration(s, p, &local_err);
 #ifdef CONFIG_RDMA
@@ -2062,6 +2072,9 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     } else if (strstart(uri, "fd:", &p)) {
         fd_start_outgoing_migration(s, p, &local_err);
     } else {
+        if (!(has_resume && resume)) {
+            yank_unregister_instance("migration");
+        }
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "uri",
                    "a valid migration protocol");
         migrate_set_state(&s->state, MIGRATION_STATUS_SETUP,
@@ -2071,6 +2084,9 @@ void qmp_migrate(const char *uri, bool has_blk, bool blk,
     }
 
     if (local_err) {
+        if (!(has_resume && resume)) {
+            yank_unregister_instance("migration");
+        }
         migrate_fd_error(s, local_err);
         error_propagate(errp, local_err);
         return;
