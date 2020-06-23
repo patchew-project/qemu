@@ -884,6 +884,33 @@ static inline int host_to_target_sock_type(int host_type)
     return target_type;
 }
 
+/*
+ * If the guest is using a 32 bit ABI then we should try to ask the kernel
+ * to provide 32-bit offsets in getdents syscalls, as otherwise some
+ * filesystems will return 64-bit hash values which we can't fit into
+ * the field sizes the guest ABI mandates.
+ */
+#ifndef FD_32BIT_MODE
+#define FD_32BIT_MODE 2
+#endif
+
+static inline void request_32bit_fs(int fd)
+{
+#if HOST_LONG_BITS > TARGET_ABI_BITS
+    /*
+     * Ignore errors, which are likely due to the host kernel being
+     * too old to support FD_32BIT_MODE. We'll continue anyway, which
+     * might or might not work, depending on the guest code and on the
+     * host filesystem.
+     */
+    int flags = fcntl(fd, F_GETFD);
+    if (flags == -1) {
+        return;
+    }
+    fcntl(fd, F_SETFD, flags | FD_32BIT_MODE);
+#endif
+}
+
 static abi_ulong target_brk;
 static abi_ulong target_original_brk;
 static abi_ulong brk_page;
@@ -7725,6 +7752,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                                   target_to_host_bitmask(arg2, fcntl_flags_tbl),
                                   arg3));
         fd_trans_unregister(ret);
+        request_32bit_fs(ret);
         unlock_user(p, arg1, 0);
         return ret;
 #endif
@@ -7735,6 +7763,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                                   target_to_host_bitmask(arg3, fcntl_flags_tbl),
                                   arg4));
         fd_trans_unregister(ret);
+        request_32bit_fs(ret);
         unlock_user(p, arg2, 0);
         return ret;
 #if defined(TARGET_NR_name_to_handle_at) && defined(CONFIG_OPEN_BY_HANDLE)
@@ -7746,6 +7775,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR_open_by_handle_at:
         ret = do_open_by_handle_at(arg1, arg2, arg3);
         fd_trans_unregister(ret);
+        request_32bit_fs(ret);
         return ret;
 #endif
     case TARGET_NR_close:
@@ -7790,6 +7820,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             return -TARGET_EFAULT;
         ret = get_errno(creat(p, arg2));
         fd_trans_unregister(ret);
+        request_32bit_fs(ret);
         unlock_user(p, arg1, 0);
         return ret;
 #endif
@@ -12419,6 +12450,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
         }
         ret = get_errno(memfd_create(p, arg2));
         fd_trans_unregister(ret);
+        request_32bit_fs(ret);
         unlock_user(p, arg1, 0);
         return ret;
 #endif
