@@ -24,12 +24,8 @@
 
 #include "sysemu/dma.h"
 
-#define TYPE_XHCI "base-xhci"
 #define TYPE_NEC_XHCI "nec-usb-xhci"
 #define TYPE_QEMU_XHCI "qemu-xhci"
-
-#define XHCI(obj) \
-    OBJECT_CHECK(XHCIState, (obj), TYPE_XHCI)
 
 #define MAXPORTS_2 15
 #define MAXPORTS_3 15
@@ -170,7 +166,7 @@ typedef struct XHCIInterrupter {
     uint32_t erdp_low;
     uint32_t erdp_high;
 
-    bool msix_used, er_pcs;
+    bool er_pcs;
 
     dma_addr_t er_start;
     uint32_t er_size;
@@ -184,11 +180,7 @@ typedef struct XHCIInterrupter {
 
 } XHCIInterrupter;
 
-struct XHCIState {
-    /*< private >*/
-    PCIDevice parent_obj;
-    /*< public >*/
-
+typedef struct XHCIState {
     USBBus bus;
     MemoryRegion mem;
     AddressSpace *as;
@@ -204,8 +196,9 @@ struct XHCIState {
     uint32_t numslots;
     uint32_t flags;
     uint32_t max_pstreams_mask;
-    OnOffAuto msi;
-    OnOffAuto msix;
+    void (*intr_update)(XHCIState *s, int n, bool enable);
+    void (*intr_raise)(XHCIState *s, int n, bool level);
+    DeviceState *hostOpaque;
 
     /* Operational Registers */
     uint32_t usbcmd;
@@ -230,8 +223,12 @@ struct XHCIState {
     XHCIRing cmd_ring;
 
     bool nec_quirks;
-};
+} XHCIState;
 
+extern const VMStateDescription vmstate_xhci;
+void xhci_reset(XHCIState *xhci);
+void usb_xhci_realize(XHCIState *xhci, DeviceState *dev, Error **errp);
+void usb_xhci_unrealize(XHCIState *xhci, DeviceState *dev, Error **errp);
 bool xhci_get_flag(XHCIState *xhci, enum xhci_flags bit);
 void xhci_set_flag(XHCIState *xhci, enum xhci_flags bit);
 #endif
