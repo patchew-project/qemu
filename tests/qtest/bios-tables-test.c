@@ -877,6 +877,8 @@ static void test_acpi_piix4_tcg_numamem(void)
     free_test_data(&data);
 }
 
+#ifdef CONFIG_TPM
+
 uint64_t tpm_tis_base_addr;
 
 static void test_acpi_tcg_tpm(const char *machine, const char *tpm_if,
@@ -934,6 +936,8 @@ static void test_acpi_q35_tcg_tpm_tis(void)
 {
     test_acpi_tcg_tpm("q35", "tis", 0xFED40000);
 }
+
+#endif /* CONFIG_TPM */
 
 static void test_acpi_tcg_dimm_pxm(const char *machine)
 {
@@ -1098,7 +1102,9 @@ int main(int argc, char *argv[])
             return ret;
         }
 
+#ifdef CONFIG_TPM
         qtest_add_func("acpi/q35/tpm-tis", test_acpi_q35_tcg_tpm_tis);
+#endif
         qtest_add_func("acpi/piix4", test_acpi_piix4_tcg);
         qtest_add_func("acpi/piix4/bridge", test_acpi_piix4_tcg_bridge);
         qtest_add_func("acpi/q35", test_acpi_q35_tcg);
