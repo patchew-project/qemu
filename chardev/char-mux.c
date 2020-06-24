@@ -293,6 +293,12 @@ static void mux_chr_update_read_handlers(Chardev *chr)
                                   chr->gcontext, true, false);
 }
 
+static int mux_chr_get_winsize(Chardev *chr, uint16_t *cols, uint16_t *rows)
+{
+    MuxChardev *d = MUX_CHARDEV(chr);
+    return qemu_chr_fe_get_winsize(&d->chr, cols, rows);
+}
+
 void mux_set_focus(Chardev *chr, int focus)
 {
     MuxChardev *d = MUX_CHARDEV(chr);
@@ -385,6 +391,7 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
     cc->chr_be_event = mux_chr_be_event;
     cc->chr_machine_done = open_muxes;
     cc->chr_update_read_handler = mux_chr_update_read_handlers;
+    cc->chr_get_winsize = mux_chr_get_winsize;
 }
 
 static const TypeInfo char_mux_type_info = {

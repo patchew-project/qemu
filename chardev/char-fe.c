@@ -336,6 +336,17 @@ void qemu_chr_fe_set_echo(CharBackend *be, bool echo)
     }
 }
 
+int qemu_chr_fe_get_winsize(CharBackend *be, uint16_t *cols, uint16_t *rows)
+{
+    Chardev *chr = be->chr;
+
+    if (chr && CHARDEV_GET_CLASS(chr)->chr_get_winsize) {
+        return CHARDEV_GET_CLASS(chr)->chr_get_winsize(chr, cols, rows);
+    }
+
+    return -1;
+}
+
 void qemu_chr_fe_set_open(CharBackend *be, int fe_open)
 {
     Chardev *chr = be->chr;
