@@ -273,6 +273,13 @@ static const MemoryRegionOps io_ops = {
         .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t flash_read(void *opaque, hwaddr offset, unsigned size)
+{
+    NRF51NVMState *s = NRF51_NVM(opaque);
+
+    assert(offset + size <= s->flash_size);
+    return ldl_le_p(s->storage + offset);
+}
 
 static void flash_write(void *opaque, hwaddr offset, uint64_t value,
         unsigned int size)
@@ -300,6 +307,7 @@ static void flash_write(void *opaque, hwaddr offset, uint64_t value,
 
 
 static const MemoryRegionOps flash_ops = {
+    .read = flash_read,
     .write = flash_write,
     .valid.min_access_size = 4,
     .valid.max_access_size = 4,
