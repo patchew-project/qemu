@@ -68,7 +68,7 @@ typedef struct ComponentEntry {
     ScsiBlockPtr data;
     uint8_t pad[7];
     uint8_t component_type;
-    uint64_t load_address;
+    uint64_t psw;
 } __attribute((packed)) ComponentEntry;
 
 typedef struct ComponentHeader {
