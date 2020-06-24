@@ -206,7 +206,6 @@ static void run_ipl2(SubChannelId schid, uint16_t cutype, uint32_t addr)
  */
 void dasd_ipl(SubChannelId schid, uint16_t cutype)
 {
-    PSWLegacy *pswl = (PSWLegacy *) 0x00;
     uint32_t ipl2_addr;
 
     /* Construct Read IPL CCW and run it to read IPL1 from boot disk */
@@ -229,7 +228,5 @@ void dasd_ipl(SubChannelId schid, uint16_t cutype)
     run_ipl2(schid, cutype, ipl2_addr);
 
     /* Transfer control to the guest operating system */
-    pswl->mask |= PSW_MASK_EAMODE;   /* Force z-mode */
-    pswl->addr |= PSW_MASK_BAMODE;   /* ...          */
     jump_to_low_kernel();
 }
