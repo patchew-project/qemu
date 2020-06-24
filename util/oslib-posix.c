@@ -248,6 +248,11 @@ void qemu_anon_ram_free(void *ptr, size_t size)
     qemu_ram_munmap(-1, ptr, size);
 }
 
+bool qemu_fd_is_valid(int fd)
+{
+    return fcntl(fd, F_GETFL) != -1;
+}
+
 void qemu_set_block(int fd)
 {
     int f;
