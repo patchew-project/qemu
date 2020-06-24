@@ -34,7 +34,9 @@
 #include "chardev/char-win-stdio.h"
 #else
 #include <termios.h>
+#include <sys/ioctl.h>
 #include "chardev/char-fd.h"
+#include "qemu/main-loop.h"
 #endif
 
 #ifndef _WIN32
@@ -44,6 +46,13 @@ static int old_fd0_flags;
 static bool stdio_in_use;
 static bool stdio_allow_signal;
 static bool stdio_echo_state;
+
+typedef struct {
+    FDChardev parent;
+    Notifier resize_notifier;
+} StdioChardev;
+
+#define STDIO_CHARDEV(obj) OBJECT_CHECK(StdioChardev, (obj), TYPE_CHARDEV_STDIO)
 
 static void term_exit(void)
 {
@@ -82,11 +91,32 @@ static void term_stdio_handler(int sig)
     qemu_chr_set_echo_stdio(NULL, stdio_echo_state);
 }
 
+static int qemu_chr_get_winsize_stdio(Chardev *chr, uint16_t *cols,
+                                      uint16_t *rows)
+{
+    struct winsize ws;
+
+    if (ioctl(1, TIOCGWINSZ, &ws) < 0) {
+        return -1;
+    }
+
+    *cols = ws.ws_col;
+    *rows = ws.ws_row;
+    return 0;
+}
+
+static void term_resize_notify(Notifier *n, void *data)
+{
+    StdioChardev *s = container_of(n, StdioChardev, resize_notifier);
+    qemu_chr_be_event(CHARDEV(s), CHR_EVENT_RESIZE);
+}
+
 static void qemu_chr_open_stdio(Chardev *chr,
                                 ChardevBackend *backend,
                                 bool *be_opened,
                                 Error **errp)
 {
+    StdioChardev *s = STDIO_CHARDEV(chr);
     ChardevStdio *opts = backend->u.stdio.data;
     struct sigaction act;
 
@@ -116,6 +146,9 @@ static void qemu_chr_open_stdio(Chardev *chr,
         stdio_allow_signal = opts->signal;
     }
     qemu_chr_set_echo_stdio(chr, false);
+
+    s->resize_notifier.notify = term_resize_notify;
+    sigwinch_add_notifier(&s->resize_notifier);
 }
 #endif
 
@@ -139,6 +172,7 @@ static void char_stdio_class_init(ObjectClass *oc, void *data)
 #ifndef _WIN32
     cc->open = qemu_chr_open_stdio;
     cc->chr_set_echo = qemu_chr_set_echo_stdio;
+    cc->chr_get_winsize = qemu_chr_get_winsize_stdio;
 #endif
 }
 
@@ -155,6 +189,7 @@ static const TypeInfo char_stdio_type_info = {
     .parent = TYPE_CHARDEV_WIN_STDIO,
 #else
     .parent = TYPE_CHARDEV_FD,
+    .instance_size = sizeof(StdioChardev),
 #endif
     .instance_finalize = char_stdio_finalize,
     .class_init = char_stdio_class_init,
