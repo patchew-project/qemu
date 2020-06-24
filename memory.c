@@ -1485,7 +1485,13 @@ void memory_region_init_io(MemoryRegion *mr,
                            uint64_t size)
 {
     memory_region_init(mr, owner, name, size);
-    mr->ops = ops ? ops : &unassigned_mem_ops;
+    if (ops) {
+        assert(ops->read || ops->read_with_attrs);
+        assert(ops->write || ops->write_with_attrs);
+        mr->ops = ops;
+    } else {
+        mr->ops = &unassigned_mem_ops;
+    }
     mr->opaque = opaque;
     mr->terminates = true;
 }
@@ -1663,6 +1669,8 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
 {
     Error *err = NULL;
     assert(ops);
+    assert(ops->read || ops->read_with_attrs);
+    assert(ops->write || ops->write_with_attrs);
     memory_region_init(mr, owner, name, size);
     mr->ops = ops;
     mr->opaque = opaque;
