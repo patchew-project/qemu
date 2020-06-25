@@ -99,6 +99,15 @@ static coroutine_fn int backup_top_co_pwritev(BlockDriverState *bs,
     return bdrv_co_pwritev(bs->backing, offset, bytes, qiov, flags);
 }
 
+static coroutine_fn int backup_top_co_pwritev_compressed(BlockDriverState *bs,
+                                                         uint64_t offset,
+                                                         uint64_t bytes,
+                                                         QEMUIOVector *qiov)
+{
+    return backup_top_co_pwritev(bs, offset, bytes, qiov,
+                                 BDRV_REQ_WRITE_COMPRESSED);
+}
+
 static int coroutine_fn backup_top_co_flush(BlockDriverState *bs)
 {
     if (!bs->backing) {
@@ -173,6 +182,7 @@ BlockDriver bdrv_backup_top_filter = {
     .bdrv_co_pwritev            = backup_top_co_pwritev,
     .bdrv_co_pwrite_zeroes      = backup_top_co_pwrite_zeroes,
     .bdrv_co_pdiscard           = backup_top_co_pdiscard,
+    .bdrv_co_pwritev_compressed = backup_top_co_pwritev_compressed,
     .bdrv_co_flush              = backup_top_co_flush,
 
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
