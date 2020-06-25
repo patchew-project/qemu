@@ -25,6 +25,8 @@ typedef enum TPMVersion {
     TPM_VERSION_2_0 = 2,
 } TPMVersion;
 
+#define TPM_IRQ_DISABLED  (~0)
+
 #define TYPE_TPM_IF "tpm-if"
 #define TPM_IF_CLASS(klass)                                 \
     OBJECT_CLASS_CHECK(TPMIfClass, (klass), TYPE_TPM_IF)
@@ -41,6 +43,7 @@ typedef struct TPMIfClass {
     enum TpmModel model;
     void (*request_completed)(TPMIf *obj, int ret);
     enum TPMVersion (*get_version)(TPMIf *obj);
+    int8_t (*get_irqnum)(TPMIf *obj);
 } TPMIfClass;
 
 #define TYPE_TPM_TIS_ISA            "tpm-tis"
@@ -72,6 +75,15 @@ static inline TPMVersion tpm_get_version(TPMIf *ti)
     }
 
     return TPM_IF_GET_CLASS(ti)->get_version(ti);
+}
+
+static inline int8_t tpm_get_irqnum(TPMIf *ti)
+{
+    if (!ti || !TPM_IF_GET_CLASS(ti)->get_irqnum) {
+        return TPM_IRQ_DISABLED;
+    }
+
+    return TPM_IF_GET_CLASS(ti)->get_irqnum(ti);
 }
 
 #endif /* QEMU_TPM_H */
