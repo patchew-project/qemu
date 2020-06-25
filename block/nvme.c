@@ -438,6 +438,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     BDRVNVMeState *s = bs->opaque;
     NvmeIdCtrl *idctrl;
     NvmeIdNs *idns;
+    size_t idsz_max;
     NvmeLBAF *lbaf;
     uint8_t *resp;
     uint16_t oncs;
@@ -448,14 +449,15 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
         .cdw10 = cpu_to_le32(0x1),
     };
 
-    resp = qemu_try_blockalign0(bs, sizeof(NvmeIdCtrl));
+    idsz_max = MAX_CONST(sizeof(NvmeIdCtrl), sizeof(NvmeIdNs));
+    resp = qemu_try_blockalign0(bs, idsz_max);
     if (!resp) {
         error_setg(errp, "Cannot allocate buffer for identify response");
         goto out;
     }
     idctrl = (NvmeIdCtrl *)resp;
     idns = (NvmeIdNs *)resp;
-    r = qemu_vfio_dma_map(s->vfio, resp, sizeof(NvmeIdCtrl), true, &iova);
+    r = qemu_vfio_dma_map(s->vfio, resp, idsz_max, true, &iova);
     if (r) {
         error_setg(errp, "Cannot map buffer for DMA");
         goto out;
