@@ -51,6 +51,7 @@ typedef struct {
 } NVMeRequest;
 
 typedef struct {
+    AioContext *aio_context;
     CoQueue     free_req_queue;
     QemuMutex   lock;
 
@@ -93,7 +94,6 @@ QEMU_BUILD_BUG_ON(offsetof(NVMeRegs, doorbells) != 0x1000);
 #define QUEUE_INDEX_IO(n)   (1 + n)
 
 typedef struct {
-    AioContext *aio_context;
     QEMUVFIOState *vfio;
     NVMeRegs *regs;
     /* The submission/completion queue pairs.
@@ -190,6 +190,7 @@ static void nvme_free_req_queue_cb(void *opaque)
 }
 
 static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
+                                             AioContext *aio_context,
                                              int idx, int size,
                                              Error **errp)
 {
@@ -207,6 +208,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
     if (!q->prp_list_pages) {
         goto fail;
     }
+    q->aio_context = aio_context;
     memset(q->prp_list_pages, 0, s->page_size * NVME_QUEUE_SIZE);
     qemu_mutex_init(&q->lock);
     q->index = idx;
@@ -365,7 +367,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
         smp_mb_release();
         *q->cq.doorbell = cpu_to_le32(q->cq.head);
         if (!qemu_co_queue_empty(&q->free_req_queue)) {
-            replay_bh_schedule_oneshot_event(s->aio_context,
+            replay_bh_schedule_oneshot_event(q->aio_context,
                                              nvme_free_req_queue_cb, q);
         }
     }
@@ -419,7 +421,6 @@ static void nvme_cmd_sync_cb(void *opaque, int ret)
 static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,
                          NvmeCmd *cmd)
 {
-    AioContext *aio_context = bdrv_get_aio_context(bs);
     NVMeRequest *req;
     BDRVNVMeState *s = bs->opaque;
     int ret = -EINPROGRESS;
@@ -429,7 +430,7 @@ static int nvme_cmd_sync(BlockDriverState *bs, NVMeQueuePair *q,
     }
     nvme_submit_command(s, q, req, cmd, nvme_cmd_sync_cb, &ret);
 
-    AIO_WAIT_WHILE(aio_context, ret == -EINPROGRESS);
+    AIO_WAIT_WHILE(q->aio_context, ret == -EINPROGRESS);
     return ret;
 }
 
@@ -547,7 +548,8 @@ static void nvme_handle_event(EventNotifier *n)
     nvme_poll_queues(s);
 }
 
-static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
+static bool nvme_add_io_queue(BlockDriverState *bs,
+                              AioContext *aio_context, Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
     int n = s->nr_queues;
@@ -555,7 +557,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     NvmeCmd cmd;
     int queue_size = NVME_QUEUE_SIZE;
 
-    q = nvme_create_queue_pair(s, n, queue_size, errp);
+    q = nvme_create_queue_pair(s, aio_context, n, queue_size, errp);
     if (!q) {
         return false;
     }
@@ -600,6 +602,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
                      Error **errp)
 {
     BDRVNVMeState *s = bs->opaque;
+    AioContext *aio_context = bdrv_get_aio_context(bs);
     int ret;
     uint64_t cap;
     uint64_t timeout_ms;
@@ -610,7 +613,6 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     qemu_co_queue_init(&s->dma_flush_queue);
     s->device = g_strdup(device);
     s->nsid = namespace;
-    s->aio_context = bdrv_get_aio_context(bs);
     ret = event_notifier_init(&s->irq_notifier, 0);
     if (ret) {
         error_setg(errp, "Failed to init event notifier");
@@ -660,7 +662,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
 
     /* Set up admin queue. */
     s->queues = g_new(NVMeQueuePair *, 1);
-    s->queues[QUEUE_INDEX_ADMIN] = nvme_create_queue_pair(s, 0,
+    s->queues[QUEUE_INDEX_ADMIN] = nvme_create_queue_pair(s, aio_context, 0,
                                                           NVME_QUEUE_SIZE,
                                                           errp);
     if (!s->queues[QUEUE_INDEX_ADMIN]) {
@@ -695,7 +697,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     if (ret) {
         goto out;
     }
-    aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
+    aio_set_event_notifier(aio_context, &s->irq_notifier,
                            false, nvme_handle_event, nvme_poll_cb);
 
     nvme_identify(bs, namespace, &local_err);
@@ -706,7 +708,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     }
 
     /* Set up command queues. */
-    if (!nvme_add_io_queue(bs, errp)) {
+    if (!nvme_add_io_queue(bs, aio_context, errp)) {
         ret = -EIO;
     }
 out:
@@ -775,11 +777,11 @@ static void nvme_close(BlockDriverState *bs)
     BDRVNVMeState *s = bs->opaque;
 
     for (i = 0; i < s->nr_queues; ++i) {
+        aio_set_event_notifier(s->queues[i]->aio_context,
+                               &s->irq_notifier, false, NULL, NULL);
         nvme_free_queue_pair(s->queues[i]);
     }
     g_free(s->queues);
-    aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
-                           false, NULL, NULL);
     event_notifier_cleanup(&s->irq_notifier);
     qemu_vfio_pci_unmap_bar(s->vfio, 0, (void *)s->regs, 0, NVME_BAR_SIZE);
     qemu_vfio_close(s->vfio);
@@ -992,7 +994,7 @@ static coroutine_fn int nvme_co_prw_aligned(BlockDriverState *bs,
         .cdw12 = cpu_to_le32(cdw12),
     };
     NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
+        .ctx = ioq->aio_context,
         .ret = -EINPROGRESS,
     };
 
@@ -1101,7 +1103,7 @@ static coroutine_fn int nvme_co_flush(BlockDriverState *bs)
         .nsid = cpu_to_le32(s->nsid),
     };
     NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
+        .ctx = ioq->aio_context,
         .ret = -EINPROGRESS,
     };
 
@@ -1142,7 +1144,7 @@ static coroutine_fn int nvme_co_pwrite_zeroes(BlockDriverState *bs,
     };
 
     NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
+        .ctx = ioq->aio_context,
         .ret = -EINPROGRESS,
     };
 
@@ -1192,7 +1194,7 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     };
 
     NVMeCoData data = {
-        .ctx = bdrv_get_aio_context(bs),
+        .ctx = ioq->aio_context,
         .ret = -EINPROGRESS,
     };
 
@@ -1289,7 +1291,6 @@ static void nvme_attach_aio_context(BlockDriverState *bs,
 {
     BDRVNVMeState *s = bs->opaque;
 
-    s->aio_context = new_context;
     aio_set_event_notifier(new_context, &s->irq_notifier,
                            false, nvme_handle_event, nvme_poll_cb);
 }
