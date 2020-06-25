@@ -145,6 +145,7 @@ struct lo_data {
     int posix_lock;
     int xattr;
     char *source;
+    char *modcaps;
     double timeout;
     int cache;
     int timeout_set;
@@ -170,6 +171,7 @@ static const struct fuse_opt lo_opts[] = {
     { "no_posix_lock", offsetof(struct lo_data, posix_lock), 0 },
     { "xattr", offsetof(struct lo_data, xattr), 1 },
     { "no_xattr", offsetof(struct lo_data, xattr), 0 },
+    { "modcaps=%s", offsetof(struct lo_data, modcaps), 0 },
     { "timeout=%lf", offsetof(struct lo_data, timeout), 0 },
     { "timeout=", offsetof(struct lo_data, timeout_set), 1 },
     { "cache=none", offsetof(struct lo_data, cache), CACHE_NONE },
@@ -2571,7 +2573,7 @@ static void setup_mounts(const char *source)
 /*
  * Only keep whitelisted capabilities that are needed for file system operation
  */
-static void setup_capabilities(void)
+static void setup_capabilities(struct lo_data *lo)
 {
     pthread_mutex_lock(&cap.mutex);
     capng_restore_state(&cap.saved);
@@ -2604,6 +2606,50 @@ static void setup_capabilities(void)
         exit(1);
     }
 
+    /*
+     * The modcaps option is a colon separated list of caps,
+     * each preceded by either + or -.
+     */
+    while (lo->modcaps) {
+        capng_act_t action;
+        int cap;
+
+        char *next = strchr(lo->modcaps, ':');
+        if (next) {
+            *next = '\0';
+            next++;
+        }
+
+        switch (lo->modcaps[0]) {
+        case '+':
+            action = CAPNG_ADD;
+            break;
+
+        case '-':
+            action = CAPNG_DROP;
+            break;
+
+        default:
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Expecting '+'/'-' in modcaps but found '%c'\n",
+                     __func__, lo->modcaps[0]);
+            exit(1);
+        }
+        cap = capng_name_to_capability(lo->modcaps + 1);
+        if (cap < 0) {
+            fuse_log(FUSE_LOG_ERR, "%s: Unknown capability '%s'\n", __func__,
+                     lo->modcaps);
+            exit(1);
+        }
+        if (capng_update(action, CAPNG_PERMITTED | CAPNG_EFFECTIVE, cap)) {
+            fuse_log(FUSE_LOG_ERR, "%s: capng_update failed for '%s'\n",
+                     __func__, lo->modcaps);
+            exit(1);
+        }
+
+        lo->modcaps = next;
+    }
+
     if (capng_apply(CAPNG_SELECT_BOTH)) {
         fuse_log(FUSE_LOG_ERR, "%s: capng_apply failed\n", __func__);
         exit(1);
@@ -2627,7 +2673,7 @@ static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
     setup_namespaces(lo, se);
     setup_mounts(lo->source);
     setup_seccomp(enable_syslog);
-    setup_capabilities();
+    setup_capabilities(lo);
 }
 
 /* Set the maximum number of open file descriptors */
