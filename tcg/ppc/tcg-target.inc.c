@@ -564,6 +564,7 @@ static int tcg_target_const_match(tcg_target_long val, TCGType type,
 #define VMULOUH    VX4(72)
 #define VMULOUW    VX4(136)       /* v2.07 */
 #define VMULUWM    VX4(137)       /* v2.07 */
+#define VMULLD     VX4(457)       /* v3.10 */
 #define VMSUMUHM   VX4(38)
 
 #define VMRGHB     VX4(12)
@@ -3153,6 +3154,7 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
     static const uint32_t
         add_op[4] = { VADDUBM, VADDUHM, VADDUWM, VADDUDM },
         sub_op[4] = { VSUBUBM, VSUBUHM, VSUBUWM, VSUBUDM },
+        mul_op[4] = { 0, 0, VMULUWM, VMULLD },
         neg_op[4] = { 0, 0, VNEGW, VNEGD },
         eq_op[4]  = { VCMPEQUB, VCMPEQUH, VCMPEQUW, VCMPEQUD },
         ne_op[4]  = { VCMPNEB, VCMPNEH, VCMPNEW, 0 },
@@ -3203,8 +3205,9 @@ static void tcg_out_vec_op(TCGContext *s, TCGOpcode opc,
         a1 = 0;
         break;
     case INDEX_op_mul_vec:
-        tcg_debug_assert(vece == MO_32 && have_isa_2_07);
-        insn = VMULUWM;
+        tcg_debug_assert((vece == MO_32 && have_isa_2_07) ||
+                         (vece == MO_64 && have_isa_3_10));
+        insn = mul_op[vece];
         break;
     case INDEX_op_ssadd_vec:
         insn = ssadd_op[vece];
