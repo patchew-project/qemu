@@ -45,6 +45,10 @@
 #include "qemu/memfd.h"
 
 #include "libvhost-user.h"
+static inline bool has_feature(uint64_t features, unsigned int fbit);
+static inline bool vu_has_feature(VuDev *dev, unsigned int fbit);
+
+#include "libvhost-access.h"
 
 /* usually provided by GLib */
 #ifndef MIN
@@ -1074,7 +1078,7 @@ vu_set_vring_addr_exec(VuDev *dev, VhostUserMsg *vmsg)
         return false;
     }
 
-    vq->used_idx = vq->vring.used->idx;
+    vq->used_idx = vu_lduw_p(dev, &vq->vring.used->idx);
 
     if (vq->last_avail_idx != vq->used_idx) {
         bool resume = dev->iface->queue_is_processed_in_order &&
@@ -1191,7 +1195,7 @@ vu_check_queue_inflights(VuDev *dev, VuVirtq *vq)
         return 0;
     }
 
-    vq->used_idx = vq->vring.used->idx;
+    vq->used_idx = vu_lduw_p(dev, &vq->vring.used->idx);
     vq->resubmit_num = 0;
     vq->resubmit_list = NULL;
     vq->counter = 0;
@@ -2019,35 +2023,35 @@ vu_queue_started(const VuDev *dev, const VuVirtq *vq)
 }
 
 static inline uint16_t
-vring_avail_flags(VuVirtq *vq)
+vring_avail_flags(VuDev *dev, VuVirtq *vq)
 {
-    return vq->vring.avail->flags;
+    return vu_lduw_p(dev, &vq->vring.avail->flags);
 }
 
 static inline uint16_t
-vring_avail_idx(VuVirtq *vq)
+vring_avail_idx(VuDev *dev, VuVirtq *vq)
 {
-    vq->shadow_avail_idx = vq->vring.avail->idx;
+    vq->shadow_avail_idx = vu_lduw_p(dev, &vq->vring.avail->idx);
 
     return vq->shadow_avail_idx;
 }
 
 static inline uint16_t
-vring_avail_ring(VuVirtq *vq, int i)
+vring_avail_ring(VuDev *dev, VuVirtq *vq, int i)
 {
-    return vq->vring.avail->ring[i];
+    return vu_lduw_p(dev, &vq->vring.avail->ring[i]);
 }
 
 static inline uint16_t
-vring_get_used_event(VuVirtq *vq)
+vring_get_used_event(VuDev *dev, VuVirtq *vq)
 {
-    return vring_avail_ring(vq, vq->vring.num);
+    return vring_avail_ring(dev, vq, vq->vring.num);
 }
 
 static int
 virtqueue_num_heads(VuDev *dev, VuVirtq *vq, unsigned int idx)
 {
-    uint16_t num_heads = vring_avail_idx(vq) - idx;
+    uint16_t num_heads = vring_avail_idx(dev, vq) - idx;
 
     /* Check it isn't doing very strange things with descriptor numbers. */
     if (num_heads > vq->vring.num) {
@@ -2070,7 +2074,7 @@ virtqueue_get_head(VuDev *dev, VuVirtq *vq,
 {
     /* Grab the next descriptor number they're advertising, and increment
      * the index we've seen. */
-    *head = vring_avail_ring(vq, idx % vq->vring.num);
+    *head = vring_avail_ring(dev, vq, idx % vq->vring.num);
 
     /* If their number is silly, that's a fatal mistake. */
     if (*head >= vq->vring.num) {
@@ -2123,12 +2127,12 @@ virtqueue_read_next_desc(VuDev *dev, struct vring_desc *desc,
                          int i, unsigned int max, unsigned int *next)
 {
     /* If this descriptor says it doesn't chain, we're done. */
-    if (!(desc[i].flags & VRING_DESC_F_NEXT)) {
+    if (!(vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_NEXT)) {
         return VIRTQUEUE_READ_DESC_DONE;
     }
 
     /* Check they're not leading us off end of descriptors. */
-    *next = desc[i].next;
+    *next = vu_lduw_p(dev, &desc[i].next);
     /* Make sure compiler knows to grab that: we don't want it changing! */
     smp_wmb();
 
@@ -2171,8 +2175,8 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
         }
         desc = vq->vring.desc;
 
-        if (desc[i].flags & VRING_DESC_F_INDIRECT) {
-            if (desc[i].len % sizeof(struct vring_desc)) {
+        if (vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_INDIRECT) {
+            if (vu_ldl_p(dev, &desc[i].len) % sizeof(struct vring_desc)) {
                 vu_panic(dev, "Invalid size for indirect buffer table");
                 goto err;
             }
@@ -2185,8 +2189,8 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
 
             /* loop over the indirect descriptor table */
             indirect = 1;
-            desc_addr = desc[i].addr;
-            desc_len = desc[i].len;
+            desc_addr = vu_ldq_p(dev, &desc[i].addr);
+            desc_len = vu_ldl_p(dev, &desc[i].len);
             max = desc_len / sizeof(struct vring_desc);
             read_len = desc_len;
             desc = vu_gpa_to_va(dev, &read_len, desc_addr);
@@ -2213,10 +2217,10 @@ vu_queue_get_avail_bytes(VuDev *dev, VuVirtq *vq, unsigned int *in_bytes,
                 goto err;
             }
 
-            if (desc[i].flags & VRING_DESC_F_WRITE) {
-                in_total += desc[i].len;
+            if (vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_WRITE) {
+                in_total += vu_ldl_p(dev, &desc[i].len);
             } else {
-                out_total += desc[i].len;
+                out_total += vu_ldl_p(dev, &desc[i].len);
             }
             if (in_total >= max_in_bytes && out_total >= max_out_bytes) {
                 goto done;
@@ -2277,7 +2281,7 @@ vu_queue_empty(VuDev *dev, VuVirtq *vq)
         return false;
     }
 
-    return vring_avail_idx(vq) == vq->last_avail_idx;
+    return vring_avail_idx(dev, vq) == vq->last_avail_idx;
 }
 
 static bool
@@ -2296,14 +2300,14 @@ vring_notify(VuDev *dev, VuVirtq *vq)
     }
 
     if (!vu_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
-        return !(vring_avail_flags(vq) & VRING_AVAIL_F_NO_INTERRUPT);
+        return !(vring_avail_flags(dev, vq) & VRING_AVAIL_F_NO_INTERRUPT);
     }
 
     v = vq->signalled_used_valid;
     vq->signalled_used_valid = true;
     old = vq->signalled_used;
     new = vq->signalled_used = vq->used_idx;
-    return !v || vring_need_event(vring_get_used_event(vq), new, old);
+    return !v || vring_need_event(vring_get_used_event(dev, vq), new, old);
 }
 
 static void _vu_queue_notify(VuDev *dev, VuVirtq *vq, bool sync)
@@ -2361,33 +2365,33 @@ void vu_queue_notify_sync(VuDev *dev, VuVirtq *vq)
 }
 
 static inline void
-vring_used_flags_set_bit(VuVirtq *vq, int mask)
+vring_used_flags_set_bit(VuDev *dev, VuVirtq *vq, int mask)
+{
+    uint16_t *flags;
+
+    flags = (uint16_t *)(char*)vq->vring.used +
+        offsetof(struct vring_used, flags);
+    vu_stw_p(dev, flags, vu_lduw_p(dev, flags) | mask);
+}
+
+static inline void
+vring_used_flags_unset_bit(VuDev *dev, VuVirtq *vq, int mask)
 {
     uint16_t *flags;
 
     flags = (uint16_t *)((char*)vq->vring.used +
                          offsetof(struct vring_used, flags));
-    *flags |= mask;
+    vu_stw_p(dev, flags, vu_lduw_p(dev, flags) & ~mask);
 }
 
 static inline void
-vring_used_flags_unset_bit(VuVirtq *vq, int mask)
-{
-    uint16_t *flags;
-
-    flags = (uint16_t *)((char*)vq->vring.used +
-                         offsetof(struct vring_used, flags));
-    *flags &= ~mask;
-}
-
-static inline void
-vring_set_avail_event(VuVirtq *vq, uint16_t val)
+vring_set_avail_event(VuDev *dev, VuVirtq *vq, uint16_t val)
 {
     if (!vq->notification) {
         return;
     }
 
-    *((uint16_t *) &vq->vring.used->ring[vq->vring.num]) = val;
+    vu_stw_p(dev, &vq->vring.used->ring[vq->vring.num], val);
 }
 
 void
@@ -2395,11 +2399,11 @@ vu_queue_set_notification(VuDev *dev, VuVirtq *vq, int enable)
 {
     vq->notification = enable;
     if (vu_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
-        vring_set_avail_event(vq, vring_avail_idx(vq));
+        vring_set_avail_event(dev, vq, vring_avail_idx(dev, vq));
     } else if (enable) {
-        vring_used_flags_unset_bit(vq, VRING_USED_F_NO_NOTIFY);
+        vring_used_flags_unset_bit(dev, vq, VRING_USED_F_NO_NOTIFY);
     } else {
-        vring_used_flags_set_bit(vq, VRING_USED_F_NO_NOTIFY);
+        vring_used_flags_set_bit(dev, vq, VRING_USED_F_NO_NOTIFY);
     }
     if (enable) {
         /* Expose avail event/used flags before caller checks the avail idx. */
@@ -2476,14 +2480,14 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
     struct vring_desc desc_buf[VIRTQUEUE_MAX_SIZE];
     int rc;
 
-    if (desc[i].flags & VRING_DESC_F_INDIRECT) {
-        if (desc[i].len % sizeof(struct vring_desc)) {
+    if (vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_INDIRECT) {
+        if (vu_ldl_p(dev, &desc[i].len) % sizeof(struct vring_desc)) {
             vu_panic(dev, "Invalid size for indirect buffer table");
         }
 
         /* loop over the indirect descriptor table */
-        desc_addr = desc[i].addr;
-        desc_len = desc[i].len;
+        desc_addr = vu_ldq_p(dev, &desc[i].addr);
+        desc_len = vu_ldl_p(dev, &desc[i].len);
         max = desc_len / sizeof(struct vring_desc);
         read_len = desc_len;
         desc = vu_gpa_to_va(dev, &read_len, desc_addr);
@@ -2505,10 +2509,10 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
 
     /* Collect all the descriptors */
     do {
-        if (desc[i].flags & VRING_DESC_F_WRITE) {
+        if (vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_WRITE) {
             virtqueue_map_desc(dev, &in_num, iov + out_num,
                                VIRTQUEUE_MAX_SIZE - out_num, true,
-                               desc[i].addr, desc[i].len);
+                               vu_ldq_p(dev, &desc[i].addr), vu_ldl_p(dev, &desc[i].len));
         } else {
             if (in_num) {
                 vu_panic(dev, "Incorrect order for descriptors");
@@ -2516,7 +2520,7 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
             }
             virtqueue_map_desc(dev, &out_num, iov,
                                VIRTQUEUE_MAX_SIZE, false,
-                               desc[i].addr, desc[i].len);
+                               vu_ldq_p(dev, &desc[i].addr), vu_ldl_p(dev, &desc[i].len));
         }
 
         /* If we've got too many, that implies a descriptor loop. */
@@ -2642,7 +2646,7 @@ vu_queue_pop(VuDev *dev, VuVirtq *vq, size_t sz)
     }
 
     if (vu_has_feature(dev, VIRTIO_RING_F_EVENT_IDX)) {
-        vring_set_avail_event(vq, vq->last_avail_idx);
+        vring_set_avail_event(dev, vq, vq->last_avail_idx);
     }
 
     elem = vu_queue_map_desc(dev, vq, head, sz);
@@ -2712,14 +2716,14 @@ vu_log_queue_fill(VuDev *dev, VuVirtq *vq,
     max = vq->vring.num;
     i = elem->index;
 
-    if (desc[i].flags & VRING_DESC_F_INDIRECT) {
-        if (desc[i].len % sizeof(struct vring_desc)) {
+    if (vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_INDIRECT) {
+        if (vu_ldl_p(dev, &desc[i].len) % sizeof(struct vring_desc)) {
             vu_panic(dev, "Invalid size for indirect buffer table");
         }
 
         /* loop over the indirect descriptor table */
-        desc_addr = desc[i].addr;
-        desc_len = desc[i].len;
+        desc_addr = vu_ldq_p(dev, &desc[i].addr);
+        desc_len = vu_ldl_p(dev, &desc[i].len);
         max = desc_len / sizeof(struct vring_desc);
         read_len = desc_len;
         desc = vu_gpa_to_va(dev, &read_len, desc_addr);
@@ -2745,9 +2749,9 @@ vu_log_queue_fill(VuDev *dev, VuVirtq *vq,
             return;
         }
 
-        if (desc[i].flags & VRING_DESC_F_WRITE) {
-            min = MIN(desc[i].len, len);
-            vu_log_write(dev, desc[i].addr, min);
+        if (vu_lduw_p(dev, &desc[i].flags) & VRING_DESC_F_WRITE) {
+            min = MIN(vu_ldl_p(dev, &desc[i].len), len);
+            vu_log_write(dev, vu_ldq_p(dev, &desc[i].addr), min);
             len -= min;
         }
 
@@ -2772,15 +2776,15 @@ vu_queue_fill(VuDev *dev, VuVirtq *vq,
 
     idx = (idx + vq->used_idx) % vq->vring.num;
 
-    uelem.id = elem->index;
-    uelem.len = len;
+    vu_stl_p(dev, &uelem.id, elem->index);
+    vu_stl_p(dev, &uelem.len, len);
     vring_used_write(dev, vq, &uelem, idx);
 }
 
 static inline
 void vring_used_idx_set(VuDev *dev, VuVirtq *vq, uint16_t val)
 {
-    vq->vring.used->idx = val;
+    vu_stw_p(dev, &vq->vring.used->idx, val);
     vu_log_write(dev,
                  vq->vring.log_guest_addr + offsetof(struct vring_used, idx),
                  sizeof(vq->vring.used->idx));
