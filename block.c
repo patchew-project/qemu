@@ -4997,10 +4997,21 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
     if (drv->bdrv_get_allocated_file_size) {
         return drv->bdrv_get_allocated_file_size(bs);
     }
-    if (bs->file) {
-        return bdrv_get_allocated_file_size(bs->file->bs);
+
+    if (drv->bdrv_file_open) {
+        /*
+         * Protocol drivers default to -ENOTSUP (most of their data is
+         * not stored in any of their children (if they even have any),
+         * so there is no generic way to figure it out).
+         */
+        return bdrv_notsup_allocated_file_size(bs);
+    } else if (drv->is_filter) {
+        /* Filter drivers default to the size of their primary child */
+        return bdrv_primary_allocated_file_size(bs);
+    } else {
+        /* Other drivers default to summing their children's sizes */
+        return bdrv_sum_allocated_file_size(bs);
     }
-    return -ENOTSUP;
 }
 
 /**
