@@ -85,6 +85,9 @@ static int qemu_signal_init(Error **errp)
      * by sigwait() in the signal thread. Otherwise, the cpu thread will
      * not catch it reliably.
      */
+#ifndef SIGIO
+#define SIGIO SIGPOLL
+#endif
     sigemptyset(&set);
     sigaddset(&set, SIG_IPI);
     sigaddset(&set, SIGIO);

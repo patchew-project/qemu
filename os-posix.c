@@ -42,6 +42,8 @@
 #include <sys/prctl.h>
 #endif
 
+#include <sys/mman.h>
+
 /*
  * Must set all three of these at once.
  * Legal combinations are              unset   by name   by uid
@@ -339,10 +341,12 @@ int os_mlock(void)
 {
     int ret = 0;
 
+#if !defined(__HAIKU__)
     ret = mlockall(MCL_CURRENT | MCL_FUTURE);
     if (ret < 0) {
         error_report("mlockall: %s", strerror(errno));
     }
 
+#endif
     return ret;
 }

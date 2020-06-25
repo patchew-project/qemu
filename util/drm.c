@@ -38,9 +38,11 @@ int qemu_drm_rendernode_open(const char *rendernode)
 
     fd = -1;
     while ((e = readdir(dir))) {
+#if !defined(__HAIKU__)
         if (e->d_type != DT_CHR) {
             continue;
         }
+#endif
 
         if (strncmp(e->d_name, "renderD", 7)) {
             continue;
