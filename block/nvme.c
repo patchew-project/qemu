@@ -246,9 +246,9 @@ fail:
 }
 
 /* With q->lock */
-static void nvme_kick(BDRVNVMeState *s, NVMeQueuePair *q)
+static void nvme_kick(NVMeQueuePair *q)
 {
-    if (s->plugged || !q->need_kick) {
+    if (!q->need_kick) {
         return;
     }
     trace_nvme_kick(q->index);
@@ -406,7 +406,9 @@ static void nvme_submit_command(BDRVNVMeState *s, NVMeQueuePair *q,
            q->sq.tail * NVME_SQ_ENTRY_BYTES, cmd, sizeof(*cmd));
     q->sq.tail = (q->sq.tail + 1) % NVME_QUEUE_SIZE;
     q->need_kick++;
-    nvme_kick(s, q);
+    if (!s->plugged) {
+        nvme_kick(q);
+    }
     nvme_process_completion(s, q);
     qemu_mutex_unlock(&q->lock);
 }
@@ -1311,7 +1313,7 @@ static void nvme_aio_unplug(BlockDriverState *bs)
     for (i = QUEUE_INDEX_IO(0); i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
         qemu_mutex_lock(&q->lock);
-        nvme_kick(s, q);
+        nvme_kick(q);
         nvme_process_completion(s, q);
         qemu_mutex_unlock(&q->lock);
     }
