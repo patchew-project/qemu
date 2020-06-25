@@ -850,8 +850,15 @@ Virt
 M: Peter Maydell <peter.maydell@linaro.org>
 L: qemu-arm@nongnu.org
 S: Maintained
-F: hw/arm/virt*
+F: hw/arm/virt.c
+F: hw/arm/virt-acpi-build.c
 F: include/hw/arm/virt.h
+
+Virt M
+M: Keith Packard <keithp@keithp.com>
+L: qemu-arm@nongnu.org
+S: Maintained
+F: hw/arm/virtm.c
 
 Xilinx Zynq
 M: Edgar E. Iglesias <edgar.iglesias@gmail.com>
