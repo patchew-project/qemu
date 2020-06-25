@@ -5,10 +5,9 @@
 
 #include "libvhost-user.h"
 
-/* TODO attempt to use poisoned TARGET_PPC64/ARM */
-/* #if defined(TARGET_PPC64) || defined(TARGET_ARM) */
-/* #define LEGACY_VIRTIO_IS_BIENDIAN 1 */
-/* #endif */
+#if defined(TARGET_PPC64) || defined(TARGET_ARM)
+#define LEGACY_VIRTIO_IS_BIENDIAN 1
+#endif
 
 static inline bool vu_is_big_endian(VuDev *dev)
 {

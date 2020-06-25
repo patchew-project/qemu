@@ -111,6 +111,7 @@ elf2dmp-obj-y = contrib/elf2dmp/
 ivshmem-client-obj-$(CONFIG_IVSHMEM) = contrib/ivshmem-client/
 ivshmem-server-obj-$(CONFIG_IVSHMEM) = contrib/ivshmem-server/
 libvhost-user-obj-y = contrib/libvhost-user/
+libvhost-user.o-cflags += -iquote $(SRC_PATH)/s390x-softmmu -DNEED_CPU_H
 vhost-user-scsi.o-cflags := $(LIBISCSI_CFLAGS)
 vhost-user-scsi.o-libs := $(LIBISCSI_LIBS)
 vhost-user-scsi-obj-y = contrib/vhost-user-scsi/
