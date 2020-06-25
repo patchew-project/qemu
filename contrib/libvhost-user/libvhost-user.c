@@ -2432,7 +2432,7 @@ virtqueue_map_desc(VuDev *dev,
 
         iov[num_sg].iov_base = vu_gpa_to_va(dev, &len, pa);
         if (iov[num_sg].iov_base == NULL) {
-            vu_panic(dev, "virtio: invalid address for buffers");
+            vu_panic(dev, "virtio: invalid address 0x%lx for buffers", pa);
             return;
         }
         iov[num_sg].iov_len = len;
