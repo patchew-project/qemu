@@ -318,7 +318,7 @@ static inline int nvme_translate_error(const NvmeCqe *c)
 }
 
 /* With q->lock */
-static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
+static bool nvme_process_completion(NVMeQueuePair *q)
 {
     bool progress = false;
     NVMeRequest *preq;
@@ -326,7 +326,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
     NvmeCqe *c;
 
     trace_nvme_process_completion(q->index, q->inflight);
-    if (q->busy || s->plugged) {
+    if (q->busy) {
         trace_nvme_process_completion_queue_busy(q->index);
         return false;
     }
@@ -408,8 +408,8 @@ static void nvme_submit_command(BDRVNVMeState *s, NVMeQueuePair *q,
     q->need_kick++;
     if (!s->plugged) {
         nvme_kick(q);
+        nvme_process_completion(q);
     }
-    nvme_process_completion(s, q);
     qemu_mutex_unlock(&q->lock);
 }
 
@@ -529,10 +529,13 @@ static bool nvme_poll_queues(BDRVNVMeState *s)
     bool progress = false;
     int i;
 
+    if (s->plugged) {
+        return false;
+    }
     for (i = 0; i < s->nr_queues; i++) {
         NVMeQueuePair *q = s->queues[i];
         qemu_mutex_lock(&q->lock);
-        while (nvme_process_completion(s, q)) {
+        while (nvme_process_completion(q)) {
             /* Keep polling */
             progress = true;
         }
@@ -1314,7 +1317,7 @@ static void nvme_aio_unplug(BlockDriverState *bs)
         NVMeQueuePair *q = s->queues[i];
         qemu_mutex_lock(&q->lock);
         nvme_kick(q);
-        nvme_process_completion(s, q);
+        nvme_process_completion(q);
         qemu_mutex_unlock(&q->lock);
     }
 }
