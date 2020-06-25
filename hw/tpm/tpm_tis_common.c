@@ -354,7 +354,11 @@ static uint64_t tpm_tis_mmio_read(void *opaque, hwaddr addr,
         val = s->loc[locty].inte;
         break;
     case TPM_TIS_REG_INT_VECTOR:
-        val = s->irq_num;
+        if (s->irq_num != TPM_IRQ_DISABLED) {
+            val = s->irq_num;
+        } else {
+            val = 0;
+        }
         break;
     case TPM_TIS_REG_INT_STATUS:
         val = s->loc[locty].ints;
@@ -586,6 +590,9 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
         if (s->active_locty != locty) {
             break;
         }
+        if (s->irq_num == TPM_IRQ_DISABLED) {
+            val &= ~TPM_TIS_INT_ENABLED;
+        }
 
         s->loc[locty].inte &= mask;
         s->loc[locty].inte |= (val & (TPM_TIS_INT_ENABLED |
@@ -596,6 +603,9 @@ static void tpm_tis_mmio_write(void *opaque, hwaddr addr,
         /* hard wired -- ignore */
         break;
     case TPM_TIS_REG_INT_STATUS:
+        if (s->irq_num == TPM_IRQ_DISABLED) {
+            break;
+        }
         /* clearing of interrupt flags */
         if (((val & TPM_TIS_INTERRUPTS_SUPPORTED)) &&
             (s->loc[locty].ints & TPM_TIS_INTERRUPTS_SUPPORTED)) {

@@ -128,13 +128,15 @@ static void tpm_tis_isa_realizefn(DeviceState *dev, Error **errp)
         error_setg(errp, "'tpmdev' property is required");
         return;
     }
-    if (s->irq_num > 15) {
+    if (s->irq_num > 15 && s->irq_num != TPM_IRQ_DISABLED) {
         error_setg(errp, "IRQ %d is outside valid range of 0 to 15",
                    s->irq_num);
         return;
     }
 
-    isa_init_irq(ISA_DEVICE(dev), &s->irq, s->irq_num);
+    if (s->irq_num != TPM_IRQ_DISABLED) {
+        isa_init_irq(ISA_DEVICE(dev), &s->irq, s->irq_num);
+    }
 
     memory_region_add_subregion(isa_address_space(ISA_DEVICE(dev)),
                                 TPM_TIS_ADDR_BASE, &s->mmio);
