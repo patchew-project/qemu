@@ -189,12 +189,11 @@ static void nvme_free_req_queue_cb(void *opaque)
     qemu_mutex_unlock(&q->lock);
 }
 
-static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
+static NVMeQueuePair *nvme_create_queue_pair(BDRVNVMeState *s,
                                              int idx, int size,
                                              Error **errp)
 {
     int i, r;
-    BDRVNVMeState *s = bs->opaque;
     Error *local_err = NULL;
     NVMeQueuePair *q;
     uint64_t prp_list_iova;
@@ -555,7 +554,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     NvmeCmd cmd;
     int queue_size = NVME_QUEUE_SIZE;
 
-    q = nvme_create_queue_pair(bs, n, queue_size, errp);
+    q = nvme_create_queue_pair(s, n, queue_size, errp);
     if (!q) {
         return false;
     }
@@ -660,7 +659,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
 
     /* Set up admin queue. */
     s->queues = g_new(NVMeQueuePair *, 1);
-    s->queues[QUEUE_INDEX_ADMIN] = nvme_create_queue_pair(bs, 0,
+    s->queues[QUEUE_INDEX_ADMIN] = nvme_create_queue_pair(s, 0,
                                                           NVME_QUEUE_SIZE,
                                                           errp);
     if (!s->queues[QUEUE_INDEX_ADMIN]) {
