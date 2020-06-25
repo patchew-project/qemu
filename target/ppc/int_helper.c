@@ -1121,6 +1121,32 @@ void helper_vmulhud(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)
     mulu64(&discard, &r->u64[1], a->u64[1], b->u64[1]);
 }
 
+#define VDIV_MOD_DO(name, op, element, sign, bit)                       \
+    void helper_v##name(ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b)       \
+    {                                                                   \
+        int i;                                                          \
+                                                                        \
+                                                                        \
+        for (i = 0; i < ARRAY_SIZE(r->element); i++) {                  \
+            if (unlikely((b->element[i] == 0) ||                        \
+                (sign &&                                                \
+                (b->element[i] == UINT##bit##_MAX) &&                   \
+                (a->element[i] == INT##bit##_MIN))))                    \
+                continue;                                               \
+            r->element[i] = a->element[i] op b->element[i];             \
+        }                                                               \
+    }
+VDIV_MOD_DO(divsw, /, s32, 1, 32)
+VDIV_MOD_DO(divuw, /, u32, 0, 32)
+VDIV_MOD_DO(divsd, /, s64, 1, 64)
+VDIV_MOD_DO(divud, /, u64, 0, 64)
+VDIV_MOD_DO(modsw, %, s32, 1, 32)
+VDIV_MOD_DO(moduw, %, u32, 0, 32)
+VDIV_MOD_DO(modsd, %, s64, 1, 64)
+VDIV_MOD_DO(modud, %, u64, 0, 64)
+#undef VDIV_MOD_DO
+
+
 void helper_vperm(CPUPPCState *env, ppc_avr_t *r, ppc_avr_t *a, ppc_avr_t *b,
                   ppc_avr_t *c)
 {

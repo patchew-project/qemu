@@ -54,6 +54,11 @@ GEN_HANDLER_E(name, 0x04, opc2, opc3, 0x00000000, PPC_NONE, PPC2_ISA310)
 #define GEN_VXFORM_DUAL(name0, name1, opc2, opc3, type0, type1) \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, type0, type1)
 
+#define GEN_VXFORM_DUAL_BOTH(name0, name1, opc2, opc3, inval0, \
+                             inval1, type0, type1)             \
+GEN_HANDLER_BOTH(name0##_##name1, 0x4, opc2, opc3, inval0,     \
+                 inval1, type0, type1)
+
 #define GEN_VXRFORM_DUAL(name0, name1, opc2, opc3, tp0, tp1) \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, opc3, 0x00000000, tp0, tp1), \
 GEN_HANDLER_E(name0##_##name1, 0x4, opc2, (opc3 | 0x10), 0x00000000, tp0, tp1),
@@ -116,6 +121,16 @@ GEN_VXFORM(vmulesb, 4, 12),
 GEN_VXFORM(vmulesh, 4, 13),
 GEN_VXFORM_DUAL(vmulesw, vmulhsw, 4, 14, PPC_ALTIVEC, PPC_NONE),
 GEN_VXFORM_310(vmulhsd, 4, 15),
+GEN_VXFORM_310(vdivuw, 5, 2),
+GEN_VXFORM_310(vdivud, 5, 3),
+GEN_VXFORM_DUAL_BOTH(vexptefp, vdivsw, 5, 6, 0x001f0000, 0x00000000,
+                     PPC_ALTIVEC, PPC2_ISA310),
+GEN_VXFORM_DUAL_BOTH(vlogefp, vdivsd, 5, 7, 0x001f0000, 0x00000000,
+                     PPC_ALTIVEC, PPC2_ISA310),
+GEN_VXFORM_310(vmoduw, 5, 26),
+GEN_VXFORM_310(vmodud, 5, 27),
+GEN_VXFORM_310(vmodsw, 5, 30),
+GEN_VXFORM_310(vmodsd, 5, 31),
 GEN_VXFORM(vslb, 2, 4),
 GEN_VXFORM(vslh, 2, 5),
 GEN_VXFORM_DUAL(vslw, vrlwnm, 2, 6, PPC_ALTIVEC, PPC_NONE),
@@ -259,8 +274,6 @@ GEN_VXFORM_NOA(vupkhpx, 7, 13),
 GEN_VXFORM_NOA(vupklpx, 7, 15),
 GEN_VXFORM_NOA(vrefp, 5, 4),
 GEN_VXFORM_NOA(vrsqrtefp, 5, 5),
-GEN_VXFORM_NOA(vexptefp, 5, 6),
-GEN_VXFORM_NOA(vlogefp, 5, 7),
 GEN_VXFORM_NOA(vrfim, 5, 11),
 GEN_VXFORM_NOA(vrfin, 5, 8),
 GEN_VXFORM_NOA(vrfip, 5, 10),
