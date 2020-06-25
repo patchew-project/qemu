@@ -5003,6 +5003,57 @@ int64_t bdrv_get_allocated_file_size(BlockDriverState *bs)
     return -ENOTSUP;
 }
 
+/**
+ * Implementation of BlockDriver.bdrv_get_allocated_file_size() for
+ * block drivers that want it to sum all children they store data on.
+ * (This excludes backing children.)
+ */
+int64_t bdrv_sum_allocated_file_size(BlockDriverState *bs)
+{
+    BdrvChild *child;
+    int64_t child_size, sum = 0;
+
+    QLIST_FOREACH(child, &bs->children, next) {
+        if (child->role & (BDRV_CHILD_DATA | BDRV_CHILD_METADATA |
+                           BDRV_CHILD_FILTERED))
+        {
+            child_size = bdrv_get_allocated_file_size(child->bs);
+            if (child_size < 0) {
+                return child_size;
+            }
+            sum += child_size;
+        }
+    }
+
+    return sum;
+}
+
+/**
+ * Implementation of BlockDriver.bdrv_get_allocated_file_size() for
+ * block drivers that want it to return only the size of a node's
+ * primary child.
+ */
+int64_t bdrv_primary_allocated_file_size(BlockDriverState *bs)
+{
+    BlockDriverState *primary_bs;
+
+    primary_bs = bdrv_primary_bs(bs);
+    if (!primary_bs) {
+        return -ENOTSUP;
+    }
+
+    return bdrv_get_allocated_file_size(primary_bs);
+}
+
+/**
+ * Implementation of BlockDriver.bdrv_get_allocated_file_size() for
+ * protocol block drivers that just do not support it.
+ */
+int64_t bdrv_notsup_allocated_file_size(BlockDriverState *bs)
+{
+    return -ENOTSUP;
+}
+
 /*
  * bdrv_measure:
  * @drv: Format driver
