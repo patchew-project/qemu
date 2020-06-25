@@ -323,6 +323,7 @@ static BlockDriver bdrv_blkverify = {
     .bdrv_getlength                   = blkverify_getlength,
     .bdrv_refresh_filename            = blkverify_refresh_filename,
     .bdrv_dirname                     = blkverify_dirname,
+    .bdrv_get_allocated_file_size     = bdrv_sum_allocated_file_size,
 
     .bdrv_co_preadv                   = blkverify_co_preadv,
     .bdrv_co_pwritev                  = blkverify_co_pwritev,
