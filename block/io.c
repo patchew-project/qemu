@@ -3307,6 +3307,7 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
                                   Error **errp)
 {
     BlockDriverState *bs = child->bs;
+    BdrvChild *filtered;
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
     int64_t old_size, new_bytes;
@@ -3358,6 +3359,8 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
         goto out;
     }
 
+    filtered = bdrv_filter_child(bs);
+
     /*
      * If the image has a backing file that is large enough that it would
      * provide data for the new area, we cannot leave it unallocated because
@@ -3390,8 +3393,8 @@ int coroutine_fn bdrv_co_truncate(BdrvChild *child, int64_t offset, bool exact,
             goto out;
         }
         ret = drv->bdrv_co_truncate(bs, offset, exact, prealloc, flags, errp);
-    } else if (bs->file && drv->is_filter) {
-        ret = bdrv_co_truncate(bs->file, offset, exact, prealloc, flags, errp);
+    } else if (filtered) {
+        ret = bdrv_co_truncate(filtered, offset, exact, prealloc, flags, errp);
     } else {
         error_setg(errp, "Image format driver does not support resize");
         ret = -ENOTSUP;
