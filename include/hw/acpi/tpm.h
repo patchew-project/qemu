@@ -25,7 +25,7 @@
 #define TPM_TIS_ADDR_SIZE           0x5000
 
 #define TPM_TIS_ISA_IRQ             13    /* only one possible */
-#define TPM_TIS_SYSBUS_IRQ          5
+#define TPM_TIS_SYSBUS_IRQ          TPM_IRQ_DISABLED
 
 #define TPM_TIS_NUM_LOCALITIES      5     /* per spec */
 #define TPM_TIS_LOCALITY_SHIFT      12
