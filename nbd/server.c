@@ -1419,6 +1419,8 @@ static void client_close(NBDClient *client, bool negotiated)
     qio_channel_shutdown(client->ioc, QIO_CHANNEL_SHUTDOWN_BOTH,
                          NULL);
 
+    AIO_WAIT_WHILE(client->exp->ctx, client->recv_coroutine);
+
     /* Also tell the client, so that they release their reference.  */
     if (client->close_fn) {
         client->close_fn(client, negotiated);
@@ -2450,6 +2452,7 @@ static coroutine_fn void nbd_trip(void *opaque)
 
     trace_nbd_trip();
     if (client->closing) {
+        client->recv_coroutine = NULL;
         nbd_client_put(client);
         return;
     }
