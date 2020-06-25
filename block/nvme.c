@@ -170,7 +170,7 @@ static void nvme_init_queue(BlockDriverState *bs, NVMeQueue *q,
     }
 }
 
-static void nvme_free_queue_pair(BlockDriverState *bs, NVMeQueuePair *q)
+static void nvme_free_queue_pair(NVMeQueuePair *q)
 {
     qemu_vfree(q->prp_list_pages);
     qemu_vfree(q->sq.queue);
@@ -241,7 +241,7 @@ static NVMeQueuePair *nvme_create_queue_pair(BlockDriverState *bs,
 
     return q;
 fail:
-    nvme_free_queue_pair(bs, q);
+    nvme_free_queue_pair(q);
     return NULL;
 }
 
@@ -568,7 +568,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     };
     if (nvme_cmd_sync(bs, s->queues[QUEUE_INDEX_ADMIN], &cmd)) {
         error_setg(errp, "Failed to create io queue [%d]", n);
-        nvme_free_queue_pair(bs, q);
+        nvme_free_queue_pair(q);
         return false;
     }
     cmd = (NvmeCmd) {
@@ -579,7 +579,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
     };
     if (nvme_cmd_sync(bs, s->queues[QUEUE_INDEX_ADMIN], &cmd)) {
         error_setg(errp, "Failed to create io queue [%d]", n);
-        nvme_free_queue_pair(bs, q);
+        nvme_free_queue_pair(q);
         return false;
     }
     s->queues = g_renew(NVMeQueuePair *, s->queues, n + 1);
@@ -776,7 +776,7 @@ static void nvme_close(BlockDriverState *bs)
     BDRVNVMeState *s = bs->opaque;
 
     for (i = 0; i < s->nr_queues; ++i) {
-        nvme_free_queue_pair(bs, s->queues[i]);
+        nvme_free_queue_pair(s->queues[i]);
     }
     g_free(s->queues);
     aio_set_event_notifier(bdrv_get_aio_context(bs), &s->irq_notifier,
