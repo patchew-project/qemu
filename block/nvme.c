@@ -323,9 +323,9 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
     NVMeRequest req;
     NvmeCqe *c;
 
-    trace_nvme_process_completion(s, q->index, q->inflight);
+    trace_nvme_process_completion(q->index, q->inflight);
     if (q->busy || s->plugged) {
-        trace_nvme_process_completion_queue_busy(s, q->index);
+        trace_nvme_process_completion_queue_busy(q->index);
         return false;
     }
     q->busy = true;
@@ -347,7 +347,7 @@ static bool nvme_process_completion(BDRVNVMeState *s, NVMeQueuePair *q)
             continue;
         }
         assert(cid <= NVME_QUEUE_SIZE);
-        trace_nvme_complete_command(s, q->index, cid);
+        trace_nvme_complete_command(q->index, cid);
         preq = &q->reqs[cid - 1];
         req = *preq;
         assert(req.cid == cid);
