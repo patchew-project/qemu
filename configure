@@ -901,8 +901,8 @@ SunOS)
 ;;
 Haiku)
   haiku="yes"
-  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS $QEMU_CFLAGS"
-  LIBS="-lposix_error_mapper -lnetwork $LIBS"
+  QEMU_CFLAGS="-DB_USE_POSITIVE_POSIX_ERRORS -D_BSD_SOURCE $QEMU_CFLAGS"
+  LIBS="-lposix_error_mapper -lnetwork -lbsd $LIBS"
 ;;
 Linux)
   audio_drv_list="try-pa oss"
@@ -2371,6 +2371,30 @@ if compile_prog "" "" ; then
   l2tpv3=yes
 else
   l2tpv3=no
+fi
+
+cat > $TMPC <<EOF
+#include <pty.h>
+int main(int argc, char *argv[]) {
+    return 0;
+}
+EOF
+if compile_prog "" "" ; then
+  pty_h=yes
+else
+  pty_h=no
+fi
+
+cat > $TMPC <<EOF
+#include <sys/mman.h>
+int main(int argc, char *argv[]) {
+    return mlockall(MCL_FUTURE);
+}
+EOF
+if compile_prog "" "" ; then
+  have_mlockall=yes
+else
+  have_mlockall=no
 fi
 
 #########################################
@@ -7757,6 +7781,12 @@ if test "$parallels" = "yes" ; then
 fi
 if test "$sheepdog" = "yes" ; then
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
+fi
+if test "$pty_h" = "yes" ; then
+  echo "CONFIG_PTY=y" >> $config_host_mak
+fi
+if test "$have_mlockall" = "yes" ; then
+  echo "CONFIG_MLOCKALL=y" >> $config_host_mak
 fi
 if test "$fuzzing" = "yes" ; then
   if test "$have_fuzzer" = "yes"; then
