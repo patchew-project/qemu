@@ -1480,6 +1480,15 @@ static int coroutine_fn bdrv_mirror_top_pdiscard(BlockDriverState *bs,
                                     NULL, 0);
 }
 
+static int coroutine_fn bdrv_mirror_top_pwritev_compressed(BlockDriverState *bs,
+                                                           uint64_t offset,
+                                                           uint64_t bytes,
+                                                           QEMUIOVector *qiov)
+{
+    return bdrv_mirror_top_pwritev(bs, offset, bytes, qiov,
+                                   BDRV_REQ_WRITE_COMPRESSED);
+}
+
 static void bdrv_mirror_top_refresh_filename(BlockDriverState *bs)
 {
     if (bs->backing == NULL) {
@@ -1526,6 +1535,7 @@ static BlockDriver bdrv_mirror_top = {
     .bdrv_co_pwritev            = bdrv_mirror_top_pwritev,
     .bdrv_co_pwrite_zeroes      = bdrv_mirror_top_pwrite_zeroes,
     .bdrv_co_pdiscard           = bdrv_mirror_top_pdiscard,
+    .bdrv_co_pwritev_compressed = bdrv_mirror_top_pwritev_compressed,
     .bdrv_co_flush              = bdrv_mirror_top_flush,
     .bdrv_co_block_status       = bdrv_co_block_status_from_backing,
     .bdrv_refresh_filename      = bdrv_mirror_top_refresh_filename,
