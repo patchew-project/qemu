@@ -441,7 +441,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     NvmeIdNs *idns;
     size_t idsz_max;
     NvmeLBAF *lbaf;
-    uint8_t *resp;
+    void *resp;
     uint16_t oncs;
     int r;
     uint64_t iova;
