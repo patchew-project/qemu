@@ -249,7 +249,7 @@ static void nvme_kick(BDRVNVMeState *s, NVMeQueuePair *q)
     if (s->plugged || !q->need_kick) {
         return;
     }
-    trace_nvme_kick(s, q->index);
+    trace_nvme_kick(q->index);
     assert(!(q->sq.tail & 0xFF00));
     /* Fence the write to submission queue entry before notifying the device. */
     smp_wmb();

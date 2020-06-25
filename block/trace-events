@@ -154,7 +154,7 @@ vxhs_close(char *vdisk_guid) "Closing vdisk %s"
 vxhs_get_creds(const char *cacert, const char *client_key, const char *client_cert) "cacert %s, client_key %s, client_cert %s"
 
 # nvme.c
-nvme_kick(void *s, int queue) "s %p queue %d"
+nvme_kick(int queue) "queue %d"
 nvme_dma_flush_queue_wait(void *s) "s %p"
 nvme_error(int cmd_specific, int sq_head, int sqid, int cid, int status) "cmd_specific %d sq_head %d sqid %d cid %d status 0x%x"
 nvme_process_completion(void *s, int index, int inflight) "s %p queue %d inflight %d"
