@@ -22,6 +22,8 @@ typedef struct NvmeBar {
     uint32_t    pmrebs;
     uint32_t    pmrswtp;
     uint32_t    pmrmsc;
+    uint32_t    reserved[58];
+    uint8_t     cmd_set_specfic[0x100];
 } NvmeBar;
 
 enum NvmeCapShift {
@@ -879,6 +881,7 @@ enum NvmeIdNsDps {
 
 static inline void _nvme_check_size(void)
 {
+    QEMU_BUILD_BUG_ON(sizeof(NvmeBar) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeAerResult) != 4);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCqe) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDsmRange) != 16);
