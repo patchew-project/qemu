@@ -1422,6 +1422,7 @@ static void create_secure_ram(VirtMachineState *vms,
 
     if (secure_tag_sysmem) {
         create_tag_ram(secure_tag_sysmem, base, size, "mach-virt.secure-tag");
+        qemu_fdt_setprop(vms->fdt, nodename, "arm,armv8.5-memtag", "", 0);
     }
 
     g_free(nodename);
@@ -1842,6 +1843,7 @@ static void machvirt_init(MachineState *machine)
          */
         if (object_property_find(cpuobj, "tag-memory", NULL)) {
             if (!tag_sysmem) {
+                vms->bootinfo.tag_memory = true;
                 tag_sysmem = g_new(MemoryRegion, 1);
                 memory_region_init(tag_sysmem, OBJECT(machine),
                                    "tag-memory", UINT64_MAX / 32);

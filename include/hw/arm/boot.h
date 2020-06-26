@@ -116,6 +116,9 @@ struct arm_boot_info {
      */
     bool secure_board_setup;
 
+    /* If set, all ram objects have tag memory objects. */
+    bool tag_memory;
+
     arm_endianness endianness;
 };
 
