@@ -31,6 +31,7 @@
 #include "hw/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "hw/i2c/smbus_eeprom.h"
+#include "trace.h"
 
 //#define DEBUG
 
@@ -124,6 +125,7 @@ static void smbus_eeprom_reset(DeviceState *dev)
 {
     SMBusEEPROMDevice *eeprom = SMBUS_EEPROM(dev);
 
+    trace_smbus_eeprom_reset(eeprom->description);
     memcpy(eeprom->data, eeprom->init_data, SMBUS_EEPROM_SIZE);
     eeprom->offset = 0;
 }
