@@ -230,6 +230,7 @@ static bool trans_fcvt_s_d(DisasContext *ctx, arg_fcvt_s_d *a)
 
     gen_set_rm(ctx, a->rm);
     gen_helper_fcvt_s_d(cpu_fpr[a->rd], cpu_env, cpu_fpr[a->rs1]);
+    gen_nanbox_fpr(ctx, a->rd);
 
     mark_fs_dirty(ctx);
     return true;
