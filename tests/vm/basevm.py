@@ -553,6 +553,12 @@ def parse_args(vmcls):
     def get_default_jobs():
         if kvm_available(vmcls.arch):
             return multiprocessing.cpu_count() // 2
+        elif os.uname().machine == "x86_64" and \
+             vmcls.arch in ["aarch64", "x86_64", "i386"]:
+            # MTTCG is available on these arches and we can allow more cores.
+            # But only up to a reasonable limit. User can always override
+            # these limits with --jobs.
+            return min(multiprocessing.cpu_count() // 2, 8)
         else:
             return 1
 
