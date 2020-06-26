@@ -97,6 +97,35 @@ static void gen_nanbox_fpr(DisasContext *ctx, int regno)
     }
 }
 
+/*
+ * A narrow n-bit operation, where n < FLEN, checks that input operands
+ * are correctly NaN-boxed, i.e., all upper FLEN - n bits are 1.
+ * If so, the n least-signicant bits of the input are used as the input value,
+ * otherwise the input value is treated as an n-bit canonical NaN.
+ * (riscv-spec-v2.2 Section 9.2).
+ */
+static void check_nanboxed(DisasContext *ctx, int num, ...)
+{
+    if (has_ext(ctx, RVD)) {
+        int i;
+        TCGv_i64 cond1 = tcg_temp_new_i64();
+        TCGv_i64 t_nan = tcg_const_i64(0x7fc00000);
+        TCGv_i64 t_max = tcg_const_i64(MAKE_64BIT_MASK(32, 32));
+        va_list valist;
+        va_start(valist, num);
+
+        for (i = 0; i < num; i++) {
+            TCGv_i64 t = va_arg(valist, TCGv_i64);
+            tcg_gen_movcond_i64(TCG_COND_GEU, t, t, t_max, t, t_nan);
+        }
+
+        va_end(valist);
+        tcg_temp_free_i64(cond1);
+        tcg_temp_free_i64(t_nan);
+        tcg_temp_free_i64(t_max);
+    }
+}
+
 static void generate_exception(DisasContext *ctx, int excp)
 {
     tcg_gen_movi_tl(cpu_pc, ctx->base.pc_next);
