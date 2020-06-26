@@ -5,6 +5,7 @@ common-obj-$(CONFIG_XILINX_SPIPS) += xilinx_spips.o
 common-obj-$(CONFIG_ASPEED_SOC) += aspeed_smc.o
 common-obj-$(CONFIG_STM32F2XX_SPI) += stm32f2xx_spi.o
 common-obj-$(CONFIG_MSF2) += mss-spi.o
+common-obj-$(CONFIG_NPCM7XX) += npcm7xx_fiu.o
 
 common-obj-$(CONFIG_OMAP) += omap_spi.o
 common-obj-$(CONFIG_IMX) += imx_spi.o
