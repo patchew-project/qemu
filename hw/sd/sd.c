@@ -539,6 +539,8 @@ static void sd_response_r7_make(SDState *sd, uint8_t *response)
 
 static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
 {
+    assert(addr < sd->size);
+
     return addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 }
 
