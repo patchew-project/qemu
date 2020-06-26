@@ -556,22 +556,6 @@ static void sd_reset(DeviceState *dev)
     }
     size = sect << 9;
 
-    sect = sd_addr_to_wpnum(size) + 1;
-
-    sd->state = sd_idle_state;
-    sd->rca = 0x0000;
-    sd_set_ocr(sd);
-    sd_set_scr(sd);
-    sd_set_cid(sd);
-    sd_set_csd(sd, size);
-    sd_set_cardstatus(sd);
-    sd_set_sdstatus(sd);
-
-    g_free(sd->wp_groups);
-    sd->wp_switch = sd->blk ? blk_is_read_only(sd->blk) : false;
-    sd->wpgrps_size = sect;
-    sd->wp_groups = bitmap_new(sd->wpgrps_size);
-    memset(sd->function_group, 0, sizeof(sd->function_group));
     sd->erase_start = 0;
     sd->erase_end = 0;
     sd->size = size;
@@ -581,6 +565,22 @@ static void sd_reset(DeviceState *dev)
     sd->dat_lines = 0xf;
     sd->cmd_line = true;
     sd->multi_blk_cnt = 0;
+    sd->state = sd_idle_state;
+    sd->rca = 0x0000;
+
+    sd_set_ocr(sd);
+    sd_set_scr(sd);
+    sd_set_cid(sd);
+    sd_set_csd(sd, size);
+    sd_set_cardstatus(sd);
+    sd_set_sdstatus(sd);
+
+    sect = sd_addr_to_wpnum(size) + 1;
+    g_free(sd->wp_groups);
+    sd->wp_switch = sd->blk ? blk_is_read_only(sd->blk) : false;
+    sd->wpgrps_size = sect;
+    sd->wp_groups = bitmap_new(sd->wpgrps_size);
+    memset(sd->function_group, 0, sizeof(sd->function_group));
 }
 
 static bool sd_get_inserted(SDState *sd)
