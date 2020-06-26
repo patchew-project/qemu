@@ -47,6 +47,7 @@ typedef struct SMBusEEPROMDevice {
     uint8_t *init_data;
     uint8_t offset;
     bool accessed;
+    char *description;
 } SMBusEEPROMDevice;
 
 static uint8_t eeprom_receive_byte(SMBusDevice *dev)
@@ -134,7 +135,9 @@ static void smbus_eeprom_realize(DeviceState *dev, Error **errp)
     smbus_eeprom_reset(dev);
     if (eeprom->init_data == NULL) {
         error_setg(errp, "init_data cannot be NULL");
+        return;
     }
+    eeprom->description = object_get_canonical_path_component(OBJECT(dev));
 }
 
 static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
