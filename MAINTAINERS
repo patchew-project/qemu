@@ -2609,6 +2609,13 @@ F: tests/uefi-test-tools/
 F: .gitlab-ci.d/edk2.yml
 F: .gitlab-ci.d/edk2/
 
+OpenSBI Firmware
+M: Bin Meng <bmeng.cn@gmail.com>
+S: Supported
+F: pc-bios/opensbi-*
+F: .gitlab-ci.d/opensbi.yml
+F: .gitlab-ci.d/opensbi/
+
 Usermode Emulation
 ------------------
 Overall usermode emulation
