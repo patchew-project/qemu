@@ -61,6 +61,9 @@
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
+#ifdef CONFIG_TRACE_RECORDER
+#include "trace/recorder.h"
+#endif
 #include "exec/memory.h"
 #include "exec/exec-all.h"
 #include "qemu/option.h"
@@ -223,6 +226,30 @@ static void hmp_trace_file(Monitor *mon, const QDict *qdict)
     } else {
         monitor_printf(mon, "unexpected argument \"%s\"\n", op);
         help_cmd(mon, "trace-file");
+    }
+}
+#endif
+
+#ifdef CONFIG_TRACE_RECORDER
+static void hmp_recorder(Monitor *mon, const QDict *qdict)
+{
+    const char *op = qdict_get_try_str(qdict, "op");
+    const char *arg = qdict_get_try_str(qdict, "arg");
+
+    if (!op) {
+        monitor_printf(mon, "missing recorder command\"%s\"\n", op);
+        help_cmd(mon, "recorder");
+    } else if (!strcmp(op, "trace")) {
+        recorder_trace_set(arg);
+    } else if (!strcmp(op, "dump")) {
+        if (!arg || !*arg) {
+            recorder_dump();
+        } else {
+            recorder_dump_for(arg);
+        }
+    } else {
+        monitor_printf(mon, "unexpected recorder command \"%s\"\n", op);
+        help_cmd(mon, "recorder");
     }
 }
 #endif

@@ -304,6 +304,22 @@ SRST
 ERST
 #endif
 
+#if defined(CONFIG_TRACE_RECORDER)
+    {
+        .name       = "recorder",
+        .args_type  = "op:s?,arg:F?",
+        .params     = "trace|dump [arg]",
+        .help       = "trace selected recorders or print recorder dump",
+        .cmd        = hmp_recorder,
+    },
+
+SRST
+``trace-file on|off|flush``
+  Open, close, or flush the trace file.  If no argument is given, the
+  status of the trace file is displayed.
+ERST
+#endif
+
     {
         .name       = "log",
         .args_type  = "items:s",
@@ -1120,7 +1136,7 @@ ERST
 
 SRST
 ``dump-guest-memory [-p]`` *filename* *begin* *length*
-  \ 
+  \
 ``dump-guest-memory [-z|-l|-s|-w]`` *filename*
   Dump guest memory to *protocol*. The file can be processed with crash or
   gdb. Without ``-z|-l|-s|-w``, the dump format is ELF.
@@ -1828,4 +1844,3 @@ ERST
         .sub_table  = hmp_info_cmds,
         .flags      = "p",
     },
-

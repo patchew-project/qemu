@@ -7727,6 +7727,11 @@ fi
 if have_backend "log"; then
   echo "CONFIG_TRACE_LOG=y" >> $config_host_mak
 fi
+if have_backend "recorder"; then
+  echo "CONFIG_TRACE_RECORDER=y" >> $config_host_mak
+  # This is a bit brutal, but there is currently a bug in the makefiles
+  LIBS="$LIBS -lrecorder"
+fi
 if have_backend "ust"; then
   echo "CONFIG_TRACE_UST=y" >> $config_host_mak
 fi

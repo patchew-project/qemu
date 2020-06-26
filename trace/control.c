@@ -23,6 +23,9 @@
 #ifdef CONFIG_TRACE_SYSLOG
 #include <syslog.h>
 #endif
+#ifdef CONFIG_TRACE_RECORDER
+#include "trace/recorder.h"
+#endif
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/config-file.h"
@@ -280,6 +283,10 @@ bool trace_init_backends(void)
 
 #ifdef CONFIG_TRACE_SYSLOG
     openlog(NULL, LOG_PID, LOG_DAEMON);
+#endif
+
+#ifdef CONFIG_TRACE_RECORDER
+    recorder_trace_init();
 #endif
 
     return true;
