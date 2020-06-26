@@ -19,6 +19,10 @@
     - docker push "$TAG"
   after_script:
     - docker logout
+  only:
+    changes:
+      - .gitlab-ci.d/containers.yml
+      - tests/docker/*
 
 amd64-centos7-container:
   <<: *container_job_definition
