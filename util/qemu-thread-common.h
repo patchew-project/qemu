@@ -15,6 +15,9 @@
 
 #include "qemu/thread.h"
 #include "trace.h"
+#include "trace/recorder.h"
+
+RECORDER_DEFINE(lock, 16, "Lock state");
 
 static inline void qemu_mutex_post_init(QemuMutex *mutex)
 {
@@ -23,12 +26,14 @@ static inline void qemu_mutex_post_init(QemuMutex *mutex)
     mutex->line = 0;
 #endif
     mutex->initialized = true;
+    record(lock, "Init state %d for %p", -1, mutex);
 }
 
 static inline void qemu_mutex_pre_lock(QemuMutex *mutex,
                                        const char *file, int line)
 {
     trace_qemu_mutex_lock(mutex, file, line);
+    record(lock, "Locking state %d for %p", 1, mutex);
 }
 
 static inline void qemu_mutex_post_lock(QemuMutex *mutex,
@@ -39,6 +44,7 @@ static inline void qemu_mutex_post_lock(QemuMutex *mutex,
     mutex->line = line;
 #endif
     trace_qemu_mutex_locked(mutex, file, line);
+    record(lock, "Locked state %d for %p", 2, mutex);
 }
 
 static inline void qemu_mutex_pre_unlock(QemuMutex *mutex,
@@ -49,6 +55,7 @@ static inline void qemu_mutex_pre_unlock(QemuMutex *mutex,
     mutex->line = 0;
 #endif
     trace_qemu_mutex_unlock(mutex, file, line);
+    record(lock, "Unkocked state %d for %p", 0, mutex);
 }
 
 #endif
