@@ -165,7 +165,9 @@ static void smbus_eeprom_register_types(void)
 
 type_init(smbus_eeprom_register_types)
 
-void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
+void smbus_eeprom_init_one(Object *parent_obj, const char *child_name,
+                           I2CBus *smbus, uint8_t address,
+                           uint8_t *eeprom_buf)
 {
     DeviceState *dev;
 
@@ -173,10 +175,12 @@ void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
     qdev_prop_set_uint8(dev, "address", address);
     /* FIXME: use an array of byte or block backend property? */
     SMBUS_EEPROM(dev)->init_data = eeprom_buf;
+    object_property_add_child(parent_obj, child_name, OBJECT(dev));
     qdev_realize_and_unref(dev, (BusState *)smbus, &error_fatal);
 }
 
-void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
+void smbus_eeprom_init(Object *parent_obj, const char *child_name_prefix,
+                       I2CBus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
     int i;
@@ -189,8 +193,11 @@ void smbus_eeprom_init(I2CBus *smbus, int nb_eeprom,
     }
 
     for (i = 0; i < nb_eeprom; i++) {
-        smbus_eeprom_init_one(smbus, 0x50 + i,
+        char *name = g_strdup_printf("%s-%d", child_name_prefix, i);
+
+        smbus_eeprom_init_one(parent_obj, name, smbus, 0x50 + i,
                               eeprom_buf + (i * SMBUS_EEPROM_SIZE));
+        g_free(name);
     }
 }
 

@@ -26,9 +26,12 @@
 #include "exec/cpu-common.h"
 #include "hw/i2c/i2c.h"
 
-void smbus_eeprom_init_one(I2CBus *bus, uint8_t address, uint8_t *eeprom_buf);
-void smbus_eeprom_init(I2CBus *bus, int nb_eeprom,
-                       const uint8_t *eeprom_spd, int size);
+void smbus_eeprom_init_one(Object *parent_obj, const char *child_name,
+                           I2CBus *smbus, uint8_t address,
+                           uint8_t *eeprom_buf);
+void smbus_eeprom_init(Object *parent_obj, const char *child_name_prefix,
+                       I2CBus *smbus, int nb_eeprom,
+                       const uint8_t *eeprom_spd, int eeprom_spd_size);
 
 enum sdram_type { SDR = 0x4, DDR = 0x7, DDR2 = 0x8 };
 uint8_t *spd_data_generate(enum sdram_type type, ram_addr_t size);

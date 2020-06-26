@@ -337,7 +337,7 @@ static void sam460ex_init(MachineState *machine)
     spd_data = spd_data_generate(ram_sizes[0] < 128 * MiB ? DDR : DDR2,
                                  ram_sizes[0]);
     spd_data[20] = 4; /* SO-DIMM module */
-    smbus_eeprom_init_one(i2c, 0x50, spd_data);
+    smbus_eeprom_init_one(OBJECT(machine->ram), "spd", i2c, 0x50, spd_data);
     /* RTC */
     i2c_create_slave(i2c, "m41t80", 0x68);
 
