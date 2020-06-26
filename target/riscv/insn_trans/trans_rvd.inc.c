@@ -241,10 +241,15 @@ static bool trans_fcvt_d_s(DisasContext *ctx, arg_fcvt_d_s *a)
     REQUIRE_FPU;
     REQUIRE_EXT(ctx, RVD);
 
+    TCGv_i64 t1 = tcg_temp_new_i64();
+    tcg_gen_mov_i64(t1, cpu_fpr[a->rs1]);
+    check_nanboxed(ctx, 1, t1);
+
     gen_set_rm(ctx, a->rm);
-    gen_helper_fcvt_d_s(cpu_fpr[a->rd], cpu_env, cpu_fpr[a->rs1]);
+    gen_helper_fcvt_d_s(cpu_fpr[a->rd], cpu_env, t1);
 
     mark_fs_dirty(ctx);
+    tcg_temp_free_i64(t1);
     return true;
 }
 
