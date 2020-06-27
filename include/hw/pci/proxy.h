@@ -14,6 +14,7 @@
 
 #include "hw/pci/pci.h"
 #include "io/channel.h"
+#include "hw/pci/memory-sync.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
@@ -41,6 +42,8 @@ struct PCIProxyDev {
     char *fd;
     QIOChannel *com;
     QIOChannel *dev;
+
+    RemoteMemSync sync;
 
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
 };
