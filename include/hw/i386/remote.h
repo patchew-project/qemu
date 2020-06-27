@@ -17,11 +17,13 @@
 #include "qom/object.h"
 #include "hw/boards.h"
 #include "hw/pci-host/remote.h"
+#include "io/channel.h"
 
 typedef struct RemMachineState {
     MachineState parent_obj;
 
     RemotePCIHost *host;
+    QIOChannel *ioc;
 } RemMachineState;
 
 #define TYPE_REMOTE_MACHINE "remote-machine"

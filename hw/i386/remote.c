@@ -15,6 +15,7 @@
 #include "exec/address-spaces.h"
 #include "exec/memory.h"
 #include "qapi/error.h"
+#include "io/channel-util.h"
 
 static void remote_machine_init(MachineState *machine)
 {
@@ -42,6 +43,20 @@ static void remote_machine_init(MachineState *machine)
     qdev_realize(DEVICE(rem_host), sysbus_get_default(), &error_fatal);
 }
 
+static void remote_set_socket(Object *obj, const char *str, Error **errp)
+{
+    RemMachineState *s = REMOTE_MACHINE(obj);
+    Error *local_err = NULL;
+    int fd = atoi(str);
+
+    s->ioc = qio_channel_new_fd(fd, &local_err);
+}
+
+static void remote_instance_init(Object *obj)
+{
+    object_property_add_str(obj, "socket", NULL, remote_set_socket);
+}
+
 static void remote_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
@@ -53,6 +68,7 @@ static const TypeInfo remote_machine = {
     .name = TYPE_REMOTE_MACHINE,
     .parent = TYPE_MACHINE,
     .instance_size = sizeof(RemMachineState),
+    .instance_init = remote_instance_init,
     .class_init = remote_machine_class_init,
 };
 
