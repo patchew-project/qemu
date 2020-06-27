@@ -2956,6 +2956,8 @@ F: include/hw/i386/remote.h
 F: io/mpqemu-link.c
 F: include/io/mpqemu-link.h
 F: hw/i386/remote-msg.c
+F: include/hw/i386/remote-memory.h
+F: hw/i386/remote-memory.c
 
 Build and test automation
 -------------------------

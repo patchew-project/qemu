@@ -18,6 +18,8 @@
 #include "qemu/thread.h"
 #include "io/channel.h"
 #include "io/channel-socket.h"
+#include "exec/cpu-common.h"
+#include "exec/hwaddr.h"
 
 #define REMOTE_MAX_FDS 8
 
@@ -28,12 +30,21 @@
  *
  * MPQemuCmd enum type to specify the command to be executed on the remote
  * device.
+ *
+ * SYNC_SYSMEM      Shares QEMU's RAM with remote device's RAM
  */
 typedef enum {
     INIT = 0,
+    SYNC_SYSMEM,
     RET_MSG,
     MAX = INT_MAX,
 } MPQemuCmd;
+
+typedef struct {
+    hwaddr gpas[REMOTE_MAX_FDS];
+    uint64_t sizes[REMOTE_MAX_FDS];
+    off_t offsets[REMOTE_MAX_FDS];
+} SyncSysmemMsg;
 
 /**
  * Maximum size of data2 field in the message to be transmitted.
@@ -53,6 +64,7 @@ typedef enum {
  * MPQemuMsg Format of the message sent to the remote device from QEMU.
  *
  */
+
 typedef struct {
     int cmd;
     int bytestream;
@@ -60,6 +72,7 @@ typedef struct {
 
     union {
         uint64_t u64;
+        SyncSysmemMsg sync_sysmem;
     } data1;
 
     int fds[REMOTE_MAX_FDS];

@@ -16,6 +16,7 @@ obj-$(CONFIG_VMMOUSE) += vmmouse.o
 obj-$(CONFIG_PC) += port92.o
 obj-$(CONFIG_MPQEMU) += remote.o
 obj-$(CONFIG_MPQEMU) += remote-msg.o
+obj-$(CONFIG_MPQEMU) += remote-memory.o
 
 obj-y += kvmvapic.o
 obj-$(CONFIG_ACPI) += acpi-common.o
