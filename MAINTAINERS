@@ -2965,6 +2965,8 @@ F: include/hw/pci/memory-sync.h
 F: hw/remote/iohub.c
 F: include/hw/remote/iohub.h
 F: docs/devel/multi-process.rst
+F: scripts/mpqemu-launcher.py
+F: scripts/mpqemu-launcher-perf-mode.py
 
 Build and test automation
 -------------------------
