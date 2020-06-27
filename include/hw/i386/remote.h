@@ -30,4 +30,7 @@ typedef struct RemMachineState {
 #define REMOTE_MACHINE(obj) \
     OBJECT_CHECK(RemMachineState, (obj), TYPE_REMOTE_MACHINE)
 
+gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
+                            gpointer opaque);
+
 #endif

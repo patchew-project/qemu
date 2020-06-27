@@ -16,6 +16,7 @@
 #include "exec/memory.h"
 #include "qapi/error.h"
 #include "io/channel-util.h"
+#include "io/channel.h"
 
 static void remote_machine_init(MachineState *machine)
 {
@@ -50,6 +51,9 @@ static void remote_set_socket(Object *obj, const char *str, Error **errp)
     int fd = atoi(str);
 
     s->ioc = qio_channel_new_fd(fd, &local_err);
+
+    qio_channel_add_watch(s->ioc, G_IO_IN | G_IO_HUP | G_IO_ERR | G_IO_NVAL,
+                          mpqemu_process_msg, NULL, NULL);
 }
 
 static void remote_instance_init(Object *obj)
