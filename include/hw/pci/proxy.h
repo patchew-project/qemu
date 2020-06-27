@@ -30,6 +30,7 @@ typedef struct PCIProxyDev {
     PCIDevice parent_dev;
     char *fd;
     QIOChannel *com;
+    QIOChannel *dev;
 } PCIProxyDev;
 
 typedef struct PCIProxyDevClass {

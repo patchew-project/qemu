@@ -234,6 +234,14 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
             return false;
         }
         break;
+    case CONNECT_DEV:
+        if ((msg->num_fds != 1) ||
+            (msg->fds[0] == -1) ||
+            (msg->fds[0] == -1) ||
+            !msg->bytestream) {
+            return false;
+        }
+        break;
     default:
         break;
     }

@@ -15,10 +15,38 @@
 #include "io/channel-util.h"
 #include "hw/qdev-properties.h"
 #include "monitor/monitor.h"
+#include "io/mpqemu-link.h"
 
 static void proxy_set_socket(PCIProxyDev *pdev, int fd, Error **errp)
 {
+    DeviceState *dev = DEVICE(pdev);
+    MPQemuMsg msg = { 0 };
+    int fds[2];
+    Error *local_err = NULL;
+
     pdev->com = qio_channel_new_fd(fd, errp);
+
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds)) {
+        error_setg(errp, "Failed to create proxy channel with fd %d", fd);
+        return;
+    }
+
+    msg.cmd = CONNECT_DEV;
+    msg.bytestream = 1;
+    msg.data2 = (uint8_t *)dev->id;
+    msg.size = strlen(dev->id) + 1;
+    msg.num_fds = 1;
+    msg.fds[0] = fds[1];
+
+    (void)mpqemu_msg_send_reply_co(&msg, pdev->com, &local_err);
+    if (local_err) {
+        error_setg(errp, "Failed to send DEV_CONNECT to the remote process");
+        close(fds[0]);
+    } else {
+        pdev->dev = qio_channel_new_fd(fds[0], errp);
+    }
+
+    close(fds[1]);
 }
 
 static Property proxy_properties[] = {

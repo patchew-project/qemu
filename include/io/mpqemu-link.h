@@ -36,6 +36,7 @@
 typedef enum {
     INIT = 0,
     SYNC_SYSMEM,
+    CONNECT_DEV,
     RET_MSG,
     MAX = INT_MAX,
 } MPQemuCmd;
