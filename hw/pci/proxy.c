@@ -26,6 +26,7 @@
 static void probe_pci_info(PCIDevice *dev);
 static void start_hb_timer(PCIProxyDev *dev);
 static void pci_proxy_dev_exit(PCIDevice *pdev);
+static void proxy_device_reset(DeviceState *dev);
 
 static void proxy_set_socket(PCIProxyDev *pdev, int fd, Error **errp)
 {
@@ -197,6 +198,8 @@ static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
     k->config_read = pci_proxy_read_config;
     k->config_write = pci_proxy_write_config;
     k->exit = pci_proxy_dev_exit;
+
+    dc->reset = proxy_device_reset;
 
     device_class_set_props(dc, proxy_properties);
 }
@@ -413,4 +416,21 @@ static void pci_proxy_dev_exit(PCIDevice *pdev)
     PCIProxyDev *dev = PCI_PROXY_DEV(pdev);
 
     stop_hb_timer(dev);
+}
+
+static void proxy_device_reset(DeviceState *dev)
+{
+    PCIProxyDev *pdev = PCI_PROXY_DEV(dev);
+    MPQemuMsg msg = { 0 };
+    Error *local_err = NULL;
+
+    msg.bytestream = 0;
+    msg.size = sizeof(msg.data1);
+    msg.cmd = DEVICE_RESET;
+
+    (void)mpqemu_msg_send_reply_co(&msg, pdev->com, &local_err);
+    if (local_err) {
+        error_report("Failed to send DEVICE_RESET to the remote process");
+    }
+
 }

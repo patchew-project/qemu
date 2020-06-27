@@ -11,6 +11,7 @@
 #include "exec/memattrs.h"
 #include "hw/i386/remote-memory.h"
 #include "hw/remote/iohub.h"
+#include "sysemu/reset.h"
 
 static void process_connect_dev_msg(MPQemuMsg *msg, QIOChannel *com,
                                     Error **errp);
@@ -23,6 +24,7 @@ static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
 static void process_get_pci_info_msg(QIOChannel *ioc, MPQemuMsg *msg,
                                      PCIDevice *pci_dev);
 static void process_proxy_ping_msg(QIOChannel *ioc);
+static void process_device_reset_msg(QIOChannel *ioc);
 
 gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
                             gpointer opaque)
@@ -79,6 +81,9 @@ gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
         break;
     case PROXY_PING:
         process_proxy_ping_msg(ioc);
+        break;
+    case DEVICE_RESET:
+        process_device_reset_msg(ioc);
         break;
     default:
         error_setg(&local_err, "Unknown command (%d) received from proxy \
@@ -280,6 +285,17 @@ static void process_proxy_ping_msg(QIOChannel *ioc)
 
     ret.cmd = RET_MSG;
     ret.size = sizeof(ret.data1);
+
+    mpqemu_msg_send(&ret, ioc);
+}
+
+static void process_device_reset_msg(QIOChannel *ioc)
+{
+    MPQemuMsg ret = { 0 };
+
+    qemu_devices_reset();
+
+    ret.cmd = RET_MSG;
 
     mpqemu_msg_send(&ret, ioc);
 }
