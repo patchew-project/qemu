@@ -16,6 +16,8 @@
 #include "qapi/error.h"
 #include "qemu/iov.h"
 #include "qemu/error-report.h"
+#include "qemu/main-loop.h"
+#include "io/channel-socket.h"
 
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc)
 {
@@ -116,6 +118,82 @@ int mpqemu_msg_recv(MPQemuMsg *msg, QIOChannel *ioc)
     }
 
     return 0;
+}
+
+/* Use in proxy only as it clobbers fd handlers. */
+static void coroutine_fn mpqemu_msg_send_co(void *data)
+{
+    MPQemuRequest *req = (MPQemuRequest *)data;
+    MPQemuMsg msg_reply = {0};
+    long ret = -EINVAL;
+
+    if (!req->sioc) {
+        error_report("No channel available to send command %d",
+                     req->msg->cmd);
+        atomic_mb_set(&req->finished, true);
+        req->error = -EINVAL;
+        return;
+    }
+
+    req->co = qemu_coroutine_self();
+    mpqemu_msg_send(req->msg, QIO_CHANNEL(req->sioc));
+
+    yield_until_fd_readable(req->sioc->fd);
+
+    ret = mpqemu_msg_recv(&msg_reply, QIO_CHANNEL(req->sioc));
+    if (ret < 0) {
+        error_report("ERROR: failed to get a reply for command %d, \
+                     errno %s, ret is %ld",
+                     req->msg->cmd, strerror(errno), ret);
+        req->error = -errno;
+    } else {
+        if (!mpqemu_msg_valid(&msg_reply) || msg_reply.cmd != RET_MSG) {
+            error_report("ERROR: Invalid reply received for command %d",
+                         req->msg->cmd);
+            req->error = -EINVAL;
+        } else {
+            req->ret = msg_reply.data1.u64;
+        }
+    }
+    atomic_mb_set(&req->finished, true);
+}
+
+/*
+ * Create if needed and enter co-routine to send the message to the
+ * remote channel ioc and wait for the reply.
+ * Resturns the value from the reply message, sets the error on failure.
+ */
+
+uint64_t mpqemu_msg_send_reply_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                  Error **errp)
+{
+    MPQemuRequest req = {0};
+    uint64_t ret = UINT64_MAX;
+
+    req.sioc = QIO_CHANNEL_SOCKET(ioc);
+    if (!req.sioc) {
+        return ret;
+    }
+
+    req.msg = msg;
+    req.ret = 0;
+    req.finished = false;
+
+    if (!req.co) {
+        req.co = qemu_coroutine_create(mpqemu_msg_send_co, &req);
+    }
+
+    qemu_coroutine_enter(req.co);
+    while (!req.finished) {
+        aio_poll(qemu_get_aio_context(), false);
+    }
+    if (req.error) {
+        error_setg(errp, "Error exchanging message with remote process, "\
+                        "socket %d, error %d", req.sioc->fd, req.error);
+    }
+    ret = req.ret;
+
+    return ret;
 }
 
 bool mpqemu_msg_valid(MPQemuMsg *msg)

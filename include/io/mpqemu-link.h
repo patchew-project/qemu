@@ -17,6 +17,7 @@
 #include "qom/object.h"
 #include "qemu/thread.h"
 #include "io/channel.h"
+#include "io/channel-socket.h"
 
 #define REMOTE_MAX_FDS 8
 
@@ -30,6 +31,7 @@
  */
 typedef enum {
     INIT = 0,
+    RET_MSG,
     MAX = INT_MAX,
 } MPQemuCmd;
 
@@ -66,6 +68,20 @@ typedef struct {
     /* Max size of data2 is MPQEMU_MSG_DATA_MAX */
     uint8_t *data2;
 } MPQemuMsg;
+
+struct MPQemuRequest {
+    MPQemuMsg *msg;
+    QIOChannelSocket *sioc;
+    Coroutine *co;
+    bool finished;
+    int error;
+    long ret;
+};
+
+typedef struct MPQemuRequest MPQemuRequest;
+
+uint64_t mpqemu_msg_send_reply_co(MPQemuMsg *msg, QIOChannel *ioc,
+                                  Error **errp);
 
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc);
 int mpqemu_msg_recv(MPQemuMsg *msg, QIOChannel *ioc);
