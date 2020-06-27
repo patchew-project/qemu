@@ -10,6 +10,7 @@
 #include "hw/pci/pci.h"
 #include "exec/memattrs.h"
 #include "hw/i386/remote-memory.h"
+#include "hw/remote/iohub.h"
 
 static void process_connect_dev_msg(MPQemuMsg *msg, QIOChannel *com,
                                     Error **errp);
@@ -66,6 +67,9 @@ gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
         break;
     case SYNC_SYSMEM:
         remote_sysmem_reconfig(&msg, &local_err);
+        break;
+    case SET_IRQFD:
+        process_set_irqfd_msg(pci_dev, &msg);
         break;
     default:
         error_setg(&local_err, "Unknown command (%d) received from proxy \

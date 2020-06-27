@@ -18,12 +18,14 @@
 #include "hw/boards.h"
 #include "hw/pci-host/remote.h"
 #include "io/channel.h"
+#include "hw/remote/iohub.h"
 
 typedef struct RemMachineState {
     MachineState parent_obj;
 
     RemotePCIHost *host;
     QIOChannel *ioc;
+    RemoteIOHubState *iohub;
 } RemMachineState;
 
 #define TYPE_REMOTE_MACHINE "remote-machine"

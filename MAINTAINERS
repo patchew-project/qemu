@@ -2962,6 +2962,8 @@ F: hw/pci/proxy.c
 F: include/hw/pci/proxy.h
 F: hw/pci/memory-sync.c
 F: include/hw/pci/memory-sync.h
+F: hw/remote/iohub.c
+F: include/hw/remote/iohub.h
 
 Build and test automation
 -------------------------

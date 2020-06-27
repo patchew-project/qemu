@@ -258,6 +258,7 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
         break;
     case BAR_WRITE:
     case BAR_READ:
+    case SET_IRQFD:
         if (msg->size != sizeof(msg->data1)) {
             return false;
         }
