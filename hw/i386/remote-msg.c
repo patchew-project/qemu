@@ -20,6 +20,8 @@ static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
                                 MPQemuMsg *msg);
 static void process_bar_write(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
 static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
+static void process_get_pci_info_msg(QIOChannel *ioc, MPQemuMsg *msg,
+                                     PCIDevice *pci_dev);
 
 gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
                             gpointer opaque)
@@ -70,6 +72,9 @@ gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
         break;
     case SET_IRQFD:
         process_set_irqfd_msg(pci_dev, &msg);
+        break;
+    case GET_PCI_INFO:
+        process_get_pci_info_msg(ioc, &msg, pci_dev);
         break;
     default:
         error_setg(&local_err, "Unknown command (%d) received from proxy \
@@ -242,6 +247,24 @@ static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp)
 fail:
     ret.cmd = RET_MSG;
     ret.data1.u64 = val;
+    ret.size = sizeof(ret.data1);
+
+    mpqemu_msg_send(&ret, ioc);
+}
+
+static void process_get_pci_info_msg(QIOChannel *ioc, MPQemuMsg *msg,
+                                     PCIDevice *pci_dev)
+{
+    PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
+    MPQemuMsg ret = { 0 };
+
+    ret.cmd = RET_MSG;
+
+    ret.data1.ret_pci_info.vendor_id = pc->vendor_id;
+    ret.data1.ret_pci_info.device_id = pc->device_id;
+    ret.data1.ret_pci_info.class_id = pc->class_id;
+    ret.data1.ret_pci_info.subsystem_id = pc->subsystem_id;
+
     ret.size = sizeof(ret.data1);
 
     mpqemu_msg_send(&ret, ioc);

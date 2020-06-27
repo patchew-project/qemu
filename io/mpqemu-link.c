@@ -263,6 +263,11 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
             return false;
         }
         break;
+    case GET_PCI_INFO:
+        if (msg->size) {
+            return false;
+        }
+        break;
     default:
         break;
     }
