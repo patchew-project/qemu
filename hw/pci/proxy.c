@@ -24,6 +24,8 @@
 #include "util/event_notifier-posix.c"
 
 static void probe_pci_info(PCIDevice *dev);
+static void start_hb_timer(PCIProxyDev *dev);
+static void pci_proxy_dev_exit(PCIDevice *pdev);
 
 static void proxy_set_socket(PCIProxyDev *pdev, int fd, Error **errp)
 {
@@ -132,6 +134,8 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     setup_irqfd(dev);
 
     probe_pci_info(PCI_DEVICE(dev));
+
+    start_hb_timer(dev);
 }
 
 static int config_op_send(PCIProxyDev *pdev, uint32_t addr, uint32_t *val,
@@ -192,6 +196,7 @@ static void pci_proxy_dev_class_init(ObjectClass *klass, void *data)
     k->realize = pci_proxy_dev_realize;
     k->config_read = pci_proxy_read_config;
     k->config_write = pci_proxy_write_config;
+    k->exit = pci_proxy_dev_exit;
 
     device_class_set_props(dc, proxy_properties);
 }
@@ -355,4 +360,57 @@ static void probe_pci_info(PCIDevice *dev)
             g_free(name);
         }
     }
+}
+
+static void hb_msg(PCIProxyDev *dev)
+{
+    DeviceState *ds = DEVICE(dev);
+    MPQemuMsg msg = { 0 };
+    long ret = -EINVAL;
+    Error *local_err = NULL;
+
+    msg.cmd = PROXY_PING;
+    msg.bytestream = 0;
+    msg.size = 0;
+
+    ret = mpqemu_msg_send_reply_co(&msg, dev->com, &local_err);
+    if (local_err) {
+        error_report("Lost contact with remote device %s, error code %ld",
+                     ds->id, ret);
+    }
+}
+
+#define NOP_INTERVAL 1000
+
+static void remote_ping(void *opaque)
+{
+    PCIProxyDev *dev = opaque;
+
+    hb_msg(dev);
+
+    timer_mod(dev->hb_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NOP_INTERVAL);
+}
+
+static void start_hb_timer(PCIProxyDev *dev)
+{
+    dev->hb_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                 remote_ping,
+                                 dev);
+
+    timer_mod(dev->hb_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NOP_INTERVAL);
+}
+
+static void stop_hb_timer(PCIProxyDev *dev)
+{
+    timer_del(dev->hb_timer);
+    timer_free(dev->hb_timer);
+}
+
+static void pci_proxy_dev_exit(PCIDevice *pdev)
+{
+    PCIProxyDev *dev = PCI_PROXY_DEV(pdev);
+
+    stop_hb_timer(dev);
 }

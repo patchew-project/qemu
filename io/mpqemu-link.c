@@ -264,6 +264,7 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
         }
         break;
     case GET_PCI_INFO:
+    case PROXY_PING:
         if (msg->size) {
             return false;
         }
