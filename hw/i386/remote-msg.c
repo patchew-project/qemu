@@ -11,10 +11,16 @@
 
 static void process_connect_dev_msg(MPQemuMsg *msg, QIOChannel *com,
                                     Error **errp);
+static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
+                                 MPQemuMsg *msg);
+static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
+                                MPQemuMsg *msg);
 
 gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
                             gpointer opaque)
 {
+    DeviceState *dev = (DeviceState *)opaque;
+    PCIDevice *pci_dev = PCI_DEVICE(dev);
     Error *local_err = NULL;
     MPQemuMsg msg = { 0 };
 
@@ -41,6 +47,12 @@ gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
     switch (msg.cmd) {
     case CONNECT_DEV:
         process_connect_dev_msg(&msg, ioc, &local_err);
+        break;
+    case PCI_CONFIG_WRITE:
+        process_config_write(ioc, pci_dev, &msg);
+        break;
+    case PCI_CONFIG_READ:
+        process_config_read(ioc, pci_dev, &msg);
         break;
     default:
         error_setg(&local_err, "Unknown command (%d) received from proxy \
@@ -88,4 +100,46 @@ exit:
     ret.size = sizeof(ret.data1);
 
     mpqemu_msg_send(&ret, com);
+}
+
+static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
+                                 MPQemuMsg *msg)
+{
+    struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
+    MPQemuMsg ret = { 0 };
+
+    if (conf->addr >= PCI_CFG_SPACE_EXP_SIZE) {
+        error_report("Bad address received when writing PCI config, pid %d",
+                     getpid());
+        ret.data1.u64 = UINT64_MAX;
+    } else {
+        pci_default_write_config(dev, conf->addr, conf->val, conf->l);
+    }
+
+    ret.cmd = RET_MSG;
+    ret.bytestream = 0;
+    ret.size = sizeof(ret.data1);
+
+    mpqemu_msg_send(&ret, ioc);
+}
+
+static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
+                                MPQemuMsg *msg)
+{
+    struct conf_data_msg *conf = (struct conf_data_msg *)msg->data2;
+    MPQemuMsg ret = { 0 };
+
+    if (conf->addr >= PCI_CFG_SPACE_EXP_SIZE) {
+        error_report("Bad address received when reading PCI config, pid %d",
+                     getpid());
+        ret.data1.u64 = UINT64_MAX;
+    } else {
+        ret.data1.u64 = pci_default_read_config(dev, conf->addr, conf->l);
+    }
+
+    ret.cmd = RET_MSG;
+    ret.bytestream = 0;
+    ret.size = sizeof(ret.data1);
+
+    mpqemu_msg_send(&ret, ioc);
 }

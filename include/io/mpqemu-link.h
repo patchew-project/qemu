@@ -38,6 +38,8 @@ typedef enum {
     SYNC_SYSMEM,
     CONNECT_DEV,
     RET_MSG,
+    PCI_CONFIG_WRITE,
+    PCI_CONFIG_READ,
     MAX = INT_MAX,
 } MPQemuCmd;
 
@@ -46,6 +48,12 @@ typedef struct {
     uint64_t sizes[REMOTE_MAX_FDS];
     off_t offsets[REMOTE_MAX_FDS];
 } SyncSysmemMsg;
+
+struct conf_data_msg {
+    uint32_t addr;
+    uint32_t val;
+    int l;
+};
 
 /**
  * Maximum size of data2 field in the message to be transmitted.
