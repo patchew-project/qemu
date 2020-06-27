@@ -28,3 +28,4 @@ Contents:
    reset
    s390-dasd-ipl
    clocks
+   multi-process

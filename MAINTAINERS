@@ -2964,6 +2964,7 @@ F: hw/pci/memory-sync.c
 F: include/hw/pci/memory-sync.h
 F: hw/remote/iohub.c
 F: include/hw/remote/iohub.h
+F: docs/devel/multi-process.rst
 
 Build and test automation
 -------------------------
