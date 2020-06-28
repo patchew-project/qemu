@@ -189,6 +189,7 @@ void migration_shutdown(void)
      */
     migrate_fd_cancel(current_migration);
     object_unref(OBJECT(current_migration));
+    current_migration = NULL;
 }
 
 /* For outgoing */
