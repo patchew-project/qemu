@@ -115,4 +115,18 @@ static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
     return n->ns_size >> nvme_ns_lbads(ns);
 }
 
+static inline uint16_t nvme_cid(NvmeRequest *req)
+{
+    if (req) {
+        return le16_to_cpu(req->cqe.cid);
+    }
+
+    return 0xffff;
+}
+
+static inline uint16_t nvme_sqid(NvmeRequest *req)
+{
+    return le16_to_cpu(req->sq->sqid);
+}
+
 #endif /* HW_NVME_H */
