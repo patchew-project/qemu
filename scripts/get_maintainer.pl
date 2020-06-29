@@ -38,6 +38,7 @@ my $email_hg_since = "-365";
 my $interactive = 0;
 my $email_remove_duplicates = 1;
 my $email_use_mailmap = 1;
+my $email_use_ignoredmailmap = 1;
 my $output_multiline = 1;
 my $output_separator = ", ";
 my $output_roles = 0;
@@ -363,6 +364,51 @@ sub read_mailmap {
 	}
     }
     close($mailmap_file);
+}
+
+my $ignoredmailmap;
+
+read_ignoredmailmap();
+
+sub read_ignoredmailmap {
+    $ignoredmailmap = {
+	names => {},
+	addresses => {}
+    };
+
+    return if (!$email_use_ignoredmailmap || !(-f "${lk_path}.ignoredmailmap"));
+
+    open(my $ignoredmailmap_file, '<', "${lk_path}.ignoredmailmap")
+	or warn "$P: Can't open .ignoredmailmap: $!\n";
+
+    while (<$ignoredmailmap_file>) {
+	s/#.*$//; #strip comments
+	s/^\s+|\s+$//g; #trim
+
+	next if (/^\s*$/); #skip empty lines
+	#entries have one of the following formats:
+	# name1 <mail1>
+	# <mail1>
+
+	if (/^([^<]+)<([^>]+)>$/) {
+	    my $real_name = $1;
+	    my $address = $2;
+
+	    $real_name =~ s/\s+$//;
+	    ($real_name, $address) = parse_email("$real_name <$address>");
+	    $ignoredmailmap->{$address} = 1;
+	} elsif (/^(.+)<([^>]+)>\s*<([^>]+)>$/) {
+	    my $real_name = $1;
+	    my $real_address = $2;
+	    my $wrong_address = $3;
+
+	    $real_name =~ s/\s+$//;
+	    ($real_name, $real_address) =
+		parse_email("$real_name <$real_address>");
+	    $ignoredmailmap->{$real_address} = 1;
+	}
+    }
+    close($ignoredmailmap_file);
 }
 
 ## use the filenames on the command line or find the filenames in the patchfiles
@@ -1073,6 +1119,10 @@ sub push_email_address {
 
     if ($address eq "") {
 	return 0;
+    }
+    if (exists $ignoredmailmap->{$address}) {
+        #warn("Ignoring address: '" . $address . "'\n");
+        return 0;
     }
 
     if (!$email_remove_duplicates) {
