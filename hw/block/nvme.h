@@ -19,18 +19,36 @@ typedef struct NvmeAsyncEvent {
     NvmeAerResult result;
 } NvmeAsyncEvent;
 
-typedef struct NvmeRequest {
-    struct NvmeSQueue       *sq;
-    struct NvmeNamespace    *ns;
-    BlockAIOCB              *aiocb;
-    uint16_t                status;
-    NvmeCqe                 cqe;
-    NvmeCmd                 cmd;
-    BlockAcctCookie         acct;
-    QEMUSGList              qsg;
-    QEMUIOVector            iov;
-    QTAILQ_ENTRY(NvmeRequest)entry;
-} NvmeRequest;
+typedef struct NvmeRequest NvmeRequest;
+typedef void NvmeRequestCompletionFunc(NvmeRequest *req, void *opaque);
+
+struct NvmeRequest {
+    struct NvmeSQueue    *sq;
+    struct NvmeNamespace *ns;
+
+    NvmeCqe  cqe;
+    NvmeCmd  cmd;
+    uint16_t status;
+
+    uint64_t slba;
+    uint32_t nlb;
+
+    QEMUSGList   qsg;
+    QEMUIOVector iov;
+
+    NvmeRequestCompletionFunc *cb;
+    void                      *cb_arg;
+
+    QTAILQ_HEAD(, NvmeAIO)    aio_tailq;
+    QTAILQ_ENTRY(NvmeRequest) entry;
+};
+
+static inline void nvme_req_set_cb(NvmeRequest *req,
+                                   NvmeRequestCompletionFunc *cb, void *cb_arg)
+{
+    req->cb = cb;
+    req->cb_arg = cb_arg;
+}
 
 typedef struct NvmeSQueue {
     struct NvmeCtrl *ctrl;
@@ -75,6 +93,68 @@ static inline NvmeLBAF *nvme_ns_lbaf(NvmeNamespace *ns)
 static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
 {
     return nvme_ns_lbaf(ns)->ds;
+}
+
+typedef enum NvmeAIOOp {
+    NVME_AIO_OPC_NONE         = 0x0,
+    NVME_AIO_OPC_FLUSH        = 0x1,
+    NVME_AIO_OPC_READ         = 0x2,
+    NVME_AIO_OPC_WRITE        = 0x3,
+    NVME_AIO_OPC_WRITE_ZEROES = 0x4,
+} NvmeAIOOp;
+
+typedef enum NvmeAIOFlags {
+    NVME_AIO_DMA = 1 << 0,
+} NvmeAIOFlags;
+
+typedef struct NvmeAIO NvmeAIO;
+typedef void NvmeAIOCompletionFunc(NvmeAIO *aio, void *opaque, int ret);
+
+struct NvmeAIO {
+    NvmeRequest *req;
+
+    NvmeAIOOp       opc;
+    int64_t         offset;
+    size_t          len;
+    BlockBackend    *blk;
+    BlockAIOCB      *aiocb;
+    BlockAcctCookie acct;
+
+    NvmeAIOCompletionFunc *cb;
+    void                  *cb_arg;
+
+    int flags;
+    void *payload;
+
+    QTAILQ_ENTRY(NvmeAIO) tailq_entry;
+};
+
+static inline const char *nvme_aio_opc_str(NvmeAIO *aio)
+{
+    switch (aio->opc) {
+    case NVME_AIO_OPC_NONE:         return "NVME_AIO_OP_NONE";
+    case NVME_AIO_OPC_FLUSH:        return "NVME_AIO_OP_FLUSH";
+    case NVME_AIO_OPC_READ:         return "NVME_AIO_OP_READ";
+    case NVME_AIO_OPC_WRITE:        return "NVME_AIO_OP_WRITE";
+    case NVME_AIO_OPC_WRITE_ZEROES: return "NVME_AIO_OP_WRITE_ZEROES";
+    default:                        return "NVME_AIO_OP_UNKNOWN";
+    }
+}
+
+static inline bool nvme_req_is_write(NvmeRequest *req)
+{
+    switch (req->cmd.opcode) {
+    case NVME_CMD_WRITE:
+    case NVME_CMD_WRITE_ZEROES:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static inline bool nvme_req_is_dma(NvmeRequest *req)
+{
+    return req->qsg.sg != NULL;
 }
 
 #define TYPE_NVME "nvme"
