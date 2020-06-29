@@ -79,6 +79,17 @@ static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
 #define NVME(obj) \
         OBJECT_CHECK(NvmeCtrl, (obj), TYPE_NVME)
 
+typedef struct NvmeFeatureVal {
+    union {
+        struct {
+            uint16_t temp_thresh_hi;
+            uint16_t temp_thresh_low;
+        };
+        uint32_t temp_thresh;
+    };
+    uint32_t    async_config;
+} NvmeFeatureVal;
+
 typedef struct NvmeCtrl {
     PCIDevice    parent_obj;
     MemoryRegion iomem;
