@@ -258,22 +258,29 @@ extern int daemon(int, int);
         typeof(1 ? (a) : (b)) _a = (a), _b = (b);       \
         _a < _b ? _a : _b;                              \
     })
-#define MIN_CONST(a, b)                                         \
-    __builtin_choose_expr(                                      \
-        __builtin_constant_p(a) && __builtin_constant_p(b),     \
-        (a) < (b) ? (a) : (b),                                  \
-        ((void)0))
+
 #undef MAX
 #define MAX(a, b)                                       \
     ({                                                  \
         typeof(1 ? (a) : (b)) _a = (a), _b = (b);       \
         _a > _b ? _a : _b;                              \
     })
+
+#ifdef __COVERITY__
+#define MIN_CONST(a, b) (a) < (b) ? (a) : (b)
+#define MAX_CONST(a, b) (a) > (b) ? (a) : (b)
+#else
+#define MIN_CONST(a, b)                                         \
+    __builtin_choose_expr(                                      \
+        __builtin_constant_p(a) && __builtin_constant_p(b),     \
+        (a) < (b) ? (a) : (b),                                  \
+        ((void)0))
 #define MAX_CONST(a, b)                                         \
     __builtin_choose_expr(                                      \
         __builtin_constant_p(a) && __builtin_constant_p(b),     \
         (a) > (b) ? (a) : (b),                                  \
         ((void)0))
+#endif
 
 /*
  * Minimum function that returns zero only if both values are zero.
