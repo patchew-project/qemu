@@ -2,7 +2,7 @@
 #include "sysemu/cpu-timers.h"
 #include "qemu/main-loop.h"
 
-int64_t cpu_get_clock(void)
+void qemu_timer_notify_cb(void *opaque, QEMUClockType type)
 {
-    return get_clock_realtime();
+    qemu_notify_event();
 }
