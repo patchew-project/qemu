@@ -1057,8 +1057,16 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
     uint32_t result;
+    uint8_t fid = NVME_GETSETFEAT_FID(dw10);
+    uint16_t iv;
 
-    switch (dw10) {
+    trace_pci_nvme_getfeat(nvme_cid(req), fid, dw11);
+
+    if (!nvme_feature_support[fid]) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (fid) {
     case NVME_TEMPERATURE_THRESHOLD:
         result = 0;
 
@@ -1089,14 +1097,27 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
                              ((n->params.max_ioqpairs - 1) << 16));
         trace_pci_nvme_getfeat_numq(result);
         break;
+    case NVME_INTERRUPT_VECTOR_CONF:
+        iv = dw11 & 0xffff;
+        if (iv >= n->params.max_ioqpairs + 1) {
+            return NVME_INVALID_FIELD | NVME_DNR;
+        }
+
+        result = iv;
+        if (iv == n->admin_cq.vector) {
+            result |= NVME_INTVC_NOCOALESCING;
+        }
+
+        result = cpu_to_le32(result);
+        break;
     case NVME_ASYNCHRONOUS_EVENT_CONF:
         result = cpu_to_le32(n->features.async_config);
         break;
     case NVME_TIMESTAMP:
         return nvme_get_feature_timestamp(n, cmd);
     default:
-        trace_pci_nvme_err_invalid_getfeat(dw10);
-        return NVME_INVALID_FIELD | NVME_DNR;
+        result = cpu_to_le32(nvme_feature_default[fid]);
+        break;
     }
 
     req->cqe.result = result;
@@ -1125,8 +1146,15 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
+    uint8_t fid = NVME_GETSETFEAT_FID(dw10);
 
-    switch (dw10) {
+    trace_pci_nvme_setfeat(nvme_cid(req), fid, dw11);
+
+    if (!nvme_feature_support[fid]) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    switch (fid) {
     case NVME_TEMPERATURE_THRESHOLD:
         if (NVME_TEMP_TMPSEL(dw11) != NVME_TEMP_TMPSEL_COMPOSITE) {
             break;
@@ -1173,8 +1201,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
     case NVME_TIMESTAMP:
         return nvme_set_feature_timestamp(n, cmd);
     default:
-        trace_pci_nvme_err_invalid_setfeat(dw10);
-        return NVME_INVALID_FIELD | NVME_DNR;
+        return NVME_FEAT_NOT_CHANGABLE | NVME_DNR;
     }
     return NVME_SUCCESS;
 }
