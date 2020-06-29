@@ -687,6 +687,15 @@ void ppc4xx_sdram_banks(MemoryRegion *ram, int nr_banks,
     int i;
     int j;
 
+    if (ctpop64(size_left) > nr_banks) {
+        if (nr_banks) {
+            error_report("RAM size must be a power of 2");
+        } else {
+            error_report("RAM size must be the combination of %d powers of 2",
+                         nr_banks);
+        }
+        exit(1);
+    }
     for (i = 0; i < nr_banks; i++) {
         for (j = 0; sdram_bank_sizes[j] != 0; j++) {
             bank_size = sdram_bank_sizes[j];
