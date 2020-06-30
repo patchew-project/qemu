@@ -556,8 +556,6 @@ static void sd_reset(DeviceState *dev)
     }
     size = sect << 9;
 
-    sect = sd_addr_to_wpnum(size) + 1;
-
     sd->size = size;
     sd->state = sd_idle_state;
     sd->rca = 0x0000;
@@ -570,7 +568,11 @@ static void sd_reset(DeviceState *dev)
 
     g_free(sd->wp_groups);
     sd->wp_switch = sd->blk ? blk_is_read_only(sd->blk) : false;
-    sd->wpgrps_size = sect;
+    if (sd->size) {
+        sd->wpgrps_size = sd_addr_to_wpnum(sd, sd->size) + 1;
+    } else {
+        sd->wpgrps_size = 1;
+    }
     sd->wp_groups = bitmap_new(sd->wpgrps_size);
     memset(sd->function_group, 0, sizeof(sd->function_group));
     sd->erase_start = 0;
