@@ -537,8 +537,10 @@ static void sd_response_r7_make(SDState *sd, uint8_t *response)
     stl_be_p(response, sd->vhs);
 }
 
-static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
+static uint64_t sd_addr_to_wpnum(SDState *sd, uint64_t addr)
 {
+    assert(addr < sd->size);
+
     return addr >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT);
 }
 
@@ -773,8 +775,8 @@ static void sd_erase(SDState *sd)
         erase_end *= HWBLOCK_SIZE;
     }
 
-    erase_start = sd_addr_to_wpnum(erase_start);
-    erase_end = sd_addr_to_wpnum(erase_end);
+    erase_start = sd_addr_to_wpnum(sd, erase_start);
+    erase_end = sd_addr_to_wpnum(sd, erase_end);
     sd->erase_start = 0;
     sd->erase_end = 0;
     sd->csd[14] |= 0x40;
@@ -791,7 +793,7 @@ static uint32_t sd_wpbits(SDState *sd, uint64_t addr)
     uint32_t i, wpnum;
     uint32_t ret = 0;
 
-    wpnum = sd_addr_to_wpnum(addr);
+    wpnum = sd_addr_to_wpnum(sd, addr);
 
     for (i = 0; i < 32; i++, wpnum++, addr += WPGROUP_SIZE) {
         if (addr < sd->size && test_bit(wpnum, sd->wp_groups)) {
@@ -833,7 +835,7 @@ static void sd_function_switch(SDState *sd, uint32_t arg)
 
 static inline bool sd_wp_addr(SDState *sd, uint64_t addr)
 {
-    return test_bit(sd_addr_to_wpnum(addr), sd->wp_groups);
+    return test_bit(sd_addr_to_wpnum(sd, addr), sd->wp_groups);
 }
 
 static void sd_lock_command(SDState *sd)
@@ -1345,7 +1347,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             }
 
             sd->state = sd_programming_state;
-            set_bit(sd_addr_to_wpnum(addr), sd->wp_groups);
+            set_bit(sd_addr_to_wpnum(sd, addr), sd->wp_groups);
             /* Bzzzzzzztt .... Operation complete.  */
             sd->state = sd_transfer_state;
             return sd_r1b;
@@ -1364,7 +1366,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
             }
 
             sd->state = sd_programming_state;
-            clear_bit(sd_addr_to_wpnum(addr), sd->wp_groups);
+            clear_bit(sd_addr_to_wpnum(sd, addr), sd->wp_groups);
             /* Bzzzzzzztt .... Operation complete.  */
             sd->state = sd_transfer_state;
             return sd_r1b;
