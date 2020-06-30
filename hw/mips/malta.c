@@ -1482,10 +1482,11 @@ static void malta_machine_virt_class_init(ObjectClass *oc, void *data)
     mc->is_default = true;
 #ifdef TARGET_MIPS64
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("20Kc");
+    mmc->max_ramsize = 3 * GiB;
 #else
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
-#endif
     mmc->max_ramsize = 2 * GiB;
+#endif
 }
 
 static void malta_machine_phys_class_init(ObjectClass *oc, void *data)
