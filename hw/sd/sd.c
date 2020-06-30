@@ -81,6 +81,7 @@ enum SDCardStates {
 };
 
 #define HWBLOCK_SHIFT   9                       /* 512 bytes */
+#define HWBLOCK_SIZE    (1 << HWBLOCK_SHIFT)
 #define SECTOR_SHIFT    5                       /* 16 kilobytes */
 #define WPGROUP_SHIFT   7                       /* 2 megs */
 #define CMULT_SHIFT     9                       /* 512 times HWBLOCK_SIZE */
@@ -129,7 +130,7 @@ struct SDState {
     uint32_t blk_written;
     uint64_t data_start;
     uint32_t data_offset;
-    uint8_t data[512];
+    uint8_t data[HWBLOCK_SIZE];
     qemu_irq readonly_cb;
     qemu_irq inserted_cb;
     QEMUTimer *ocr_power_timer;
@@ -410,7 +411,7 @@ static void sd_set_csd(SDState *sd, uint64_t size)
             ((HWBLOCK_SHIFT << 6) & 0xc0);
         sd->csd[14] = 0x00;	/* File format group */
     } else {			/* SDHC */
-        size /= 512 * KiB;
+        size /= HWBLOCK_SIZE * KiB;
         size -= 1;
         sd->csd[0] = 0x40;
         sd->csd[1] = 0x0e;
@@ -574,7 +575,7 @@ static void sd_reset(DeviceState *dev)
     sd->erase_start = 0;
     sd->erase_end = 0;
     sd->size = size;
-    sd->blk_len = 0x200;
+    sd->blk_len = HWBLOCK_SIZE;
     sd->pwd_len = 0;
     sd->expecting_acmd = false;
     sd->dat_lines = 0xf;
@@ -685,7 +686,7 @@ static const VMStateDescription sd_vmstate = {
         VMSTATE_UINT32(blk_written, SDState),
         VMSTATE_UINT64(data_start, SDState),
         VMSTATE_UINT32(data_offset, SDState),
-        VMSTATE_UINT8_ARRAY(data, SDState, 512),
+        VMSTATE_UINT8_ARRAY(data, SDState, HWBLOCK_SIZE),
         VMSTATE_UNUSED_V(1, 512),
         VMSTATE_BOOL(enable, SDState),
         VMSTATE_END_OF_LIST()
@@ -754,8 +755,8 @@ static void sd_erase(SDState *sd)
 
     if (FIELD_EX32(sd->ocr, OCR, CARD_CAPACITY)) {
         /* High capacity memory card: erase units are 512 byte blocks */
-        erase_start *= 512;
-        erase_end *= 512;
+        erase_start *= HWBLOCK_SIZE;
+        erase_end *= HWBLOCK_SIZE;
     }
 
     erase_start = sd_addr_to_wpnum(erase_start);
@@ -1149,7 +1150,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd, SDRequest req)
     case 16:	/* CMD16:  SET_BLOCKLEN */
         switch (sd->state) {
         case sd_transfer_state:
-            if (req.arg > (1 << HWBLOCK_SHIFT)) {
+            if (req.arg > HWBLOCK_SIZE) {
                 sd->card_status |= BLOCK_LEN_ERROR;
             } else {
                 trace_sdcard_set_blocklen(req.arg);
@@ -1961,7 +1962,7 @@ uint8_t sd_read_data(SDState *sd)
     if (sd->card_status & (ADDRESS_ERROR | WP_VIOLATION))
         return 0x00;
 
-    io_len = (sd->ocr & (1 << 30)) ? 512 : sd->blk_len;
+    io_len = (sd->ocr & (1 << 30)) ? HWBLOCK_SIZE : sd->blk_len;
 
     trace_sdcard_read_data(sd->proto_name,
                            sd_acmd_name(sd->current_cmd),
