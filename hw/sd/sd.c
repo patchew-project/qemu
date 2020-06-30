@@ -558,12 +558,13 @@ static void sd_reset(DeviceState *dev)
 
     sect = sd_addr_to_wpnum(size) + 1;
 
+    sd->size = size;
     sd->state = sd_idle_state;
     sd->rca = 0x0000;
     sd_set_ocr(sd);
     sd_set_scr(sd);
     sd_set_cid(sd);
-    sd_set_csd(sd, size);
+    sd_set_csd(sd, sd->size);
     sd_set_cardstatus(sd);
     sd_set_sdstatus(sd);
 
@@ -574,7 +575,6 @@ static void sd_reset(DeviceState *dev)
     memset(sd->function_group, 0, sizeof(sd->function_group));
     sd->erase_start = 0;
     sd->erase_end = 0;
-    sd->size = size;
     sd->blk_len = HWBLOCK_SIZE;
     sd->pwd_len = 0;
     sd->expecting_acmd = false;
