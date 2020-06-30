@@ -1505,6 +1505,20 @@ static void malta_machine_strict_class_init(ObjectClass *oc, void *data)
     mmc->verify_dimm_sizes = true;
 };
 
+#ifdef TARGET_MIPS64
+static void malta_machine_unleashed_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    MaltaMachineClass *mmc = MALTA_MACHINE_CLASS(oc);
+
+    mc->desc = "MIPS Malta Core LV (physically unlimited)";
+    mc->block_default_type = IF_IDE;
+    mc->max_cpus = 16;
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("20Kc");
+    mmc->max_ramsize = 3 * GiB;
+}
+#endif /* TARGET_MIPS64 */
+
 static const TypeInfo malta_machine_types[] = {
     {
         .name          = MACHINE_TYPE_NAME("malta"),
@@ -1516,6 +1530,13 @@ static const TypeInfo malta_machine_types[] = {
         .parent        = TYPE_MALTA_MACHINE,
         .class_init    = malta_machine_strict_class_init,
     },
+#ifdef TARGET_MIPS64
+    {
+        .name          = MACHINE_TYPE_NAME("malta-unleashed"),
+        .parent        = TYPE_MALTA_MACHINE,
+        .class_init    = malta_machine_unleashed_class_init,
+    },
+#endif /* TARGET_MIPS64 */
     {
         .name          = TYPE_MALTA_MACHINE,
         .parent        = TYPE_MACHINE,
