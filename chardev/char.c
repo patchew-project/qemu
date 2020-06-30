@@ -50,19 +50,10 @@ static Object *get_chardevs_root(void)
     return container_get(object_get_root(), "/chardevs");
 }
 
-static void chr_be_event(Chardev *s, QEMUChrEvent event)
+void qemu_chr_be_event(Chardev *s, QEMUChrEvent event)
 {
     CharBackend *be = s->be;
 
-    if (!be || !be->chr_event) {
-        return;
-    }
-
-    be->chr_event(be->opaque, event);
-}
-
-void qemu_chr_be_event(Chardev *s, QEMUChrEvent event)
-{
     /* Keep track if the char device is open */
     switch (event) {
         case CHR_EVENT_OPENED:
@@ -78,7 +69,11 @@ void qemu_chr_be_event(Chardev *s, QEMUChrEvent event)
         break;
     }
 
-    CHARDEV_GET_CLASS(s)->chr_be_event(s, event);
+    if (!be || !be->chr_event) {
+        return;
+    }
+
+    be->chr_event(be->opaque, event);
 }
 
 /* Not reporting errors from writing to logfile, as logs are
@@ -276,7 +271,6 @@ static void char_class_init(ObjectClass *oc, void *data)
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
     cc->chr_write = null_chr_write;
-    cc->chr_be_event = chr_be_event;
 }
 
 static void char_finalize(Object *obj)

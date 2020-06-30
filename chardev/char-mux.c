@@ -126,15 +126,6 @@ static void mux_chr_send_event(MuxChardev *d, int mux_nr, QEMUChrEvent event)
     }
 }
 
-static void mux_chr_be_event(Chardev *chr, QEMUChrEvent event)
-{
-    MuxChardev *d = MUX_CHARDEV(chr);
-
-    if (d->focus != -1) {
-        mux_chr_send_event(d, d->focus, event);
-    }
-}
-
 static int mux_proc_byte(Chardev *chr, MuxChardev *d, int ch)
 {
     if (d->term_got_escape) {
@@ -382,7 +373,6 @@ static void char_mux_class_init(ObjectClass *oc, void *data)
     cc->chr_write = mux_chr_write;
     cc->chr_accept_input = mux_chr_accept_input;
     cc->chr_add_watch = mux_chr_add_watch;
-    cc->chr_be_event = mux_chr_be_event;
     cc->chr_machine_done = open_muxes;
     cc->chr_update_read_handler = mux_chr_update_read_handlers;
 }
