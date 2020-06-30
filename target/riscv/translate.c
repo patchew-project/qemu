@@ -490,7 +490,7 @@ static void gen_set_rm(DisasContext *ctx, int rm)
 {
     TCGv_i32 t0;
 
-    if (ctx->frm == rm) {
+    if (ctx->frm == rm && rm != 7) {
         return;
     }
     ctx->frm = rm;
