@@ -1792,10 +1792,15 @@ static void qemu_cpu_kick_thread(CPUState *cpu)
         return;
     }
     cpu->thread_kicked = true;
-    err = pthread_kill(cpu->thread->thread, SIG_IPI);
-    if (err && err != ESRCH) {
-        fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
-        exit(1);
+
+    if (hvf_enabled()) {
+        hvf_vcpu_kick(cpu);
+    } else {
+        err = pthread_kill(cpu->thread->thread, SIG_IPI);
+        if (err && err != ESRCH) {
+            fprintf(stderr, "qemu:%s: %s", __func__, strerror(err));
+            exit(1);
+        }
     }
 #else /* _WIN32 */
     if (!qemu_cpu_is_self(cpu)) {

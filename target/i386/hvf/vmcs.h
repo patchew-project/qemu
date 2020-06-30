@@ -349,6 +349,7 @@
 #define VMCS_PIN_BASED_CTLS_EXTINT            (1 << 0)
 #define VMCS_PIN_BASED_CTLS_NMI               (1 << 3)
 #define VMCS_PIN_BASED_CTLS_VNMI              (1 << 5)
+#define VMCS_PIN_BASED_CTLS_VMX_PREEMPT_TIMER (1 << 6)
 
 #define VMCS_PRI_PROC_BASED_CTLS_INT_WINDOW_EXITING (1 << 2)
 #define VMCS_PRI_PROC_BASED_CTLS_TSC_OFFSET (1 << 3)

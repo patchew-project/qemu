@@ -72,6 +72,9 @@
 #include "sysemu/accel.h"
 #include "target/i386/cpu.h"
 
+/* Maximum value of VMX-preemption timer */
+#define HVF_MAX_DEADLINE UINT32_MAX
+
 HVFState *hvf_state;
 
 static void assert_hvf_ok(hv_return_t ret)
@@ -552,10 +555,6 @@ void hvf_vcpu_destroy(CPUState *cpu)
     assert_hvf_ok(ret);
 }
 
-static void dummy_signal(int sig)
-{
-}
-
 int hvf_init_vcpu(CPUState *cpu)
 {
 
@@ -563,21 +562,11 @@ int hvf_init_vcpu(CPUState *cpu)
     CPUX86State *env = &x86cpu->env;
     int r;
 
-    /* init cpu signals */
-    sigset_t set;
-    struct sigaction sigact;
-
-    memset(&sigact, 0, sizeof(sigact));
-    sigact.sa_handler = dummy_signal;
-    sigaction(SIG_IPI, &sigact, NULL);
-
-    pthread_sigmask(SIG_BLOCK, NULL, &set);
-    sigdelset(&set, SIG_IPI);
-
     init_emu();
     init_decoder();
 
     hvf_state->hvf_caps = g_new0(struct hvf_vcpu_caps, 1);
+    env->hvf_deadline = HVF_MAX_DEADLINE;
     env->hvf_mmio_buf = g_new(char, 4096);
 
     r = hv_vcpu_create((hv_vcpuid_t *)&cpu->hvf_fd, HV_VCPU_DEFAULT);
@@ -606,6 +595,7 @@ int hvf_init_vcpu(CPUState *cpu)
           cap2ctrl(hvf_state->hvf_caps->vmx_cap_pinbased,
           VMCS_PIN_BASED_CTLS_EXTINT |
           VMCS_PIN_BASED_CTLS_NMI |
+          VMCS_PIN_BASED_CTLS_VMX_PREEMPT_TIMER |
           VMCS_PIN_BASED_CTLS_VNMI));
     wvmcs(cpu->hvf_fd, VMCS_PRI_PROC_BASED_CTLS,
           cap2ctrl(hvf_state->hvf_caps->vmx_cap_procbased,
@@ -725,7 +715,14 @@ int hvf_vcpu_exec(CPUState *cpu)
             return EXCP_HLT;
         }
 
+        /* Use VMX-preemption timer trick only if available */
+        if (rvmcs(cpu->hvf_fd, VMCS_PIN_BASED_CTLS) &
+            VMCS_PIN_BASED_CTLS_VMX_PREEMPT_TIMER) {
+            wvmcs(cpu->hvf_fd, VMCS_PREEMPTION_TIMER_VALUE,
+                  atomic_read(&env->hvf_deadline));
+        }
         hv_return_t r  = hv_vcpu_run(cpu->hvf_fd);
+        atomic_set(&env->hvf_deadline, HVF_MAX_DEADLINE);
         assert_hvf_ok(r);
 
         /* handle VMEXIT */
@@ -869,6 +866,7 @@ int hvf_vcpu_exec(CPUState *cpu)
             ret = EXCP_INTERRUPT;
             break;
         case EXIT_REASON_EXT_INTR:
+        case EXIT_REASON_VMX_PREEMPT:
             /* force exit and allow io handling */
             ret = EXCP_INTERRUPT;
             break;
@@ -964,6 +962,20 @@ int hvf_vcpu_exec(CPUState *cpu)
     } while (ret == 0);
 
     return ret;
+}
+
+void hvf_vcpu_kick(CPUState *cpu)
+{
+    X86CPU *x86_cpu = X86_CPU(cpu);
+    CPUX86State *env = &x86_cpu->env;
+    hv_return_t err;
+
+    atomic_set(&env->hvf_deadline, 0);
+    err = hv_vcpu_interrupt(&cpu->hvf_fd, 1);
+    if (err) {
+        fprintf(stderr, "qemu:%s error %#x\n", __func__, err);
+        exit(1);
+    }
 }
 
 bool hvf_allowed;
