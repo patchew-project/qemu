@@ -1439,8 +1439,16 @@ static void malta_machine_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
-    mc->desc = "MIPS Malta Core LV";
     mc->init = mips_malta_init;
+    mc->default_ram_id = "mips_malta.ram";
+}
+
+static void malta_machine_virt_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+
+    mc->desc = "MIPS Malta Core LV (no physical limitations)";
+    mc->alias = "malta";
     mc->block_default_type = IF_IDE;
     mc->max_cpus = 16;
     mc->is_default = true;
@@ -1449,13 +1457,13 @@ static void malta_machine_class_init(ObjectClass *oc, void *data)
 #else
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
 #endif
-    mc->default_ram_id = "mips_malta.ram";
 }
 
 static const TypeInfo malta_machine_types[] = {
     {
-        .name          = MACHINE_TYPE_NAME("malta"),
+        .name          = MACHINE_TYPE_NAME("malta-virt"),
         .parent        = TYPE_MALTA_MACHINE,
+        .class_init    = malta_machine_virt_class_init,
     }, {
         .name          = TYPE_MALTA_MACHINE,
         .parent        = TYPE_MACHINE,
