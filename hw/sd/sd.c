@@ -545,18 +545,30 @@ static inline uint64_t sd_addr_to_wpnum(uint64_t addr)
 static void sd_reset(DeviceState *dev)
 {
     SDState *sd = SD_CARD(dev);
-    uint64_t size;
-    uint64_t sect;
 
     trace_sdcard_reset();
     if (sd->blk) {
-        blk_get_geometry(sd->blk, &sect);
-    } else {
-        sect = 0;
-    }
-    size = sect << 9;
+        int64_t size = blk_getlength(sd->blk);
 
-    sd->size = size;
+        if (size == -ENOMEDIUM) {
+            /*
+             * FIXME blk should be set once per device in sd_realize(),
+             * and we shouldn't be checking it in sed_reset(). But this
+             * is how the reparent currently works.
+             */
+            char *id = object_get_canonical_path_component(OBJECT(dev));
+
+            warn_report("sd-card '%s' created with no drive.",
+                        id ? id : "unknown");
+            g_free(id);
+            size = 0;
+        }
+        assert(size >= 0);
+        sd->size = size;
+    } else {
+        sd->size = 0;
+    }
+
     sd->state = sd_idle_state;
     sd->rca = 0x0000;
     sd_set_ocr(sd);
