@@ -1479,11 +1479,32 @@ static void malta_machine_virt_class_init(ObjectClass *oc, void *data)
     mmc->max_ramsize = 2 * GiB;
 }
 
+static void malta_machine_phys_class_init(ObjectClass *oc, void *data)
+{
+    MachineClass *mc = MACHINE_CLASS(oc);
+    MaltaMachineClass *mmc = MALTA_MACHINE_CLASS(oc);
+
+    mc->desc = "MIPS Malta Core LV (physically limited as real hardware)";
+    mc->block_default_type = IF_PFLASH;
+    mc->max_cpus = 1;
+#ifdef TARGET_MIPS64
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("5Kc");
+#else
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("4Kc");
+#endif
+    mc->default_ram_size = 32 * MiB;
+    mmc->max_ramsize = 256 * MiB; /* 32 MByte PC100 SDRAM DIMMs x 4 slots */
+};
+
 static const TypeInfo malta_machine_types[] = {
     {
         .name          = MACHINE_TYPE_NAME("malta-virt"),
         .parent        = TYPE_MALTA_MACHINE,
         .class_init    = malta_machine_virt_class_init,
+    }, {
+        .name          = MACHINE_TYPE_NAME("malta-phys"),
+        .parent        = TYPE_MALTA_MACHINE,
+        .class_init    = malta_machine_phys_class_init,
     }, {
         .name          = TYPE_MALTA_MACHINE,
         .parent        = TYPE_MACHINE,
