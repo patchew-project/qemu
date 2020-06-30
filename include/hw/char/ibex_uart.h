@@ -101,6 +101,8 @@ typedef struct {
     uint32_t uart_val;
     uint32_t uart_timeout_ctrl;
 
+    Clock *f_clk;
+
     CharBackend chr;
     qemu_irq tx_watermark;
     qemu_irq rx_watermark;
