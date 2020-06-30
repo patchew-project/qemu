@@ -56,6 +56,7 @@
 #include "sysemu/kvm.h"
 #include "hw/semihosting/semihost.h"
 #include "hw/mips/cps.h"
+#include "qemu/cutils.h"
 
 #define ENVP_ADDR           0x80002000l
 #define ENVP_NB_ENTRIES     16
@@ -71,6 +72,17 @@
 #define MAX_IDE_BUS         2
 
 #define TYPE_MALTA_MACHINE       MACHINE_TYPE_NAME("malta-base")
+#define MALTA_MACHINE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(MaltaMachineClass, (klass), TYPE_MALTA_MACHINE)
+#define MALTA_MACHINE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(MaltaMachineClass, (obj), TYPE_MALTA_MACHINE)
+
+typedef struct MaltaMachineClass {
+    /* Private */
+    MachineClass parent_obj;
+    /* Public */
+    ram_addr_t max_ramsize;
+} MaltaMachineClass;
 
 typedef struct {
     MemoryRegion iomem;
@@ -1232,7 +1244,7 @@ void mips_malta_init(MachineState *machine)
     DriveInfo *dinfo;
     int fl_idx = 0;
     int be;
-
+    MaltaMachineClass *mmc = MALTA_MACHINE_GET_CLASS(machine);
     DeviceState *dev = qdev_new(TYPE_MIPS_MALTA);
     MaltaState *s = MIPS_MALTA(dev);
 
@@ -1248,10 +1260,16 @@ void mips_malta_init(MachineState *machine)
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
 
-    /* allocate RAM */
-    if (ram_size > 2 * GiB) {
-        error_report("Too much memory for this machine: %" PRId64 "MB,"
-                     " maximum 2048MB", ram_size / MiB);
+    /*
+     * The GT-64120A north bridge accepts at most 256 MiB per SCS for
+     * address decoding, so we have a maximum of 1 GiB. We deliberately
+     * ignore this physical limitation.
+     */
+    if (ram_size > mmc->max_ramsize) {
+        char *maxsize_str = size_to_str(mmc->max_ramsize);
+        error_report("Too much memory for this machine: %" PRId64 " MiB,"
+                     " maximum %s", ram_size / MiB, maxsize_str);
+        g_free(maxsize_str);
         exit(1);
     }
 
@@ -1446,6 +1464,7 @@ static void malta_machine_common_class_init(ObjectClass *oc, void *data)
 static void malta_machine_default_class_init(ObjectClass *oc, void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
+    MaltaMachineClass *mmc = MALTA_MACHINE_CLASS(oc);
 
     mc->desc = "MIPS Malta Core LV";
     mc->block_default_type = IF_IDE;
@@ -1456,6 +1475,7 @@ static void malta_machine_default_class_init(ObjectClass *oc, void *data)
 #else
     mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
 #endif
+    mmc->max_ramsize = 2 * GiB;
 }
 
 static const TypeInfo malta_machine_types[] = {
