@@ -808,7 +808,9 @@ static int vhost_dev_set_features(struct vhost_dev *dev,
         features |= 0x1ULL << VHOST_F_LOG_ALL;
     }
     if (!vhost_dev_has_iommu(dev)) {
-        features &= ~(0x1ULL << VIRTIO_F_IOMMU_PLATFORM);
+        if (dev->vhost_ops->backend_type != VHOST_BACKEND_TYPE_VDPA) {
+            features &= ~(0x1ULL << VIRTIO_F_IOMMU_PLATFORM);
+        }
     }
     r = dev->vhost_ops->vhost_set_features(dev, features);
     if (r < 0) {
@@ -1701,9 +1703,10 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
             goto fail_log;
         }
     }
+
     if (vhost_dev_has_iommu(hdev) &&
         hdev->vhost_ops->vhost_set_iotlb_callback) {
-            hdev->vhost_ops->vhost_set_iotlb_callback(hdev, true);
+        hdev->vhost_ops->vhost_set_iotlb_callback(hdev, true);
 
         /* Update used ring information for IOTLB to work correctly,
          * vhost-kernel code requires for this.*/

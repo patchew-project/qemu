@@ -17,8 +17,10 @@
 #include "net/net.h"
 #include "net/tap.h"
 #include "net/vhost-user.h"
+#include "net/vhost-vdpa.h"
 
 #include "standard-headers/linux/vhost_types.h"
+#include "linux-headers/linux/vhost.h"
 #include "hw/virtio/virtio-net.h"
 #include "net/vhost_net.h"
 #include "qemu/error-report.h"
@@ -33,12 +35,6 @@
 #include "hw/virtio/vhost.h"
 #include "hw/virtio/virtio-bus.h"
 
-struct vhost_net {
-    struct vhost_dev dev;
-    struct vhost_virtqueue vqs[2];
-    int backend;
-    NetClientState *nc;
-};
 
 /* Features supported by host kernel. */
 static const int kernel_feature_bits[] = {
@@ -95,6 +91,9 @@ static const int *vhost_net_get_feature_bits(struct vhost_net *net)
         break;
     case NET_CLIENT_DRIVER_VHOST_USER:
         feature_bits = user_feature_bits;
+        break;
+    case NET_CLIENT_DRIVER_VHOST_VDPA:
+        feature_bits = vdpa_feature_bits;
         break;
     default:
         error_report("Feature bits not defined for this type: %d",
@@ -316,7 +315,6 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
-
         peer = qemu_get_peer(ncs, i);
         net = get_vhost_net(peer);
         vhost_net_set_vq_index(net, i * 2);
@@ -337,6 +335,7 @@ int vhost_net_start(VirtIODevice *dev, NetClientState *ncs,
     }
 
     for (i = 0; i < total_queues; i++) {
+
         peer = qemu_get_peer(ncs, i);
         r = vhost_net_start_one(get_vhost_net(peer), dev);
 
@@ -431,6 +430,12 @@ VHostNetState *get_vhost_net(NetClientState *nc)
 #ifdef CONFIG_VHOST_NET_USER
     case NET_CLIENT_DRIVER_VHOST_USER:
         vhost_net = vhost_user_get_vhost_net(nc);
+        assert(vhost_net);
+        break;
+#endif
+#ifdef CONFIG_VHOST_NET_VDPA
+    case NET_CLIENT_DRIVER_VHOST_VDPA:
+        vhost_net = vhost_vdpa_get_vhost_net(nc);
         assert(vhost_net);
         break;
 #endif
