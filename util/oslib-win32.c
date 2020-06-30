@@ -132,6 +132,12 @@ struct tm *localtime_r(const time_t *timep, struct tm *result)
 }
 #endif /* CONFIG_LOCALTIME_R */
 
+bool qemu_fd_is_valid(int fd)
+{
+    /* FIXME: how to check if fd is valid? */
+    return true;
+}
+
 void qemu_set_block(int fd)
 {
     unsigned long opt = 0;
