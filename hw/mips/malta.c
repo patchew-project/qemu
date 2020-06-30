@@ -71,6 +71,8 @@
 
 #define MAX_IDE_BUS         2
 
+#define DIMM_SLOTS_COUNT    4
+
 #define TYPE_MALTA_MACHINE       MACHINE_TYPE_NAME("malta")
 #define MALTA_MACHINE_CLASS(klass) \
      OBJECT_CLASS_CHECK(MaltaMachineClass, (klass), TYPE_MALTA_MACHINE)
@@ -82,6 +84,7 @@ typedef struct MaltaMachineClass {
     MachineClass parent_obj;
     /* Public */
     ram_addr_t max_ramsize;
+    bool verify_dimm_sizes;
 } MaltaMachineClass;
 
 typedef struct {
@@ -1260,6 +1263,12 @@ void mips_malta_init(MachineState *machine)
     /* create CPU */
     mips_create_cpu(machine, s, &cbus_irq, &i8259_irq);
 
+    if (mmc->verify_dimm_sizes && ctpop64(ram_size) > DIMM_SLOTS_COUNT) {
+        error_report("RAM size must be the combination of %d powers of 2",
+                     DIMM_SLOTS_COUNT);
+        exit(1);
+    }
+
     /*
      * The GT-64120A north bridge accepts at most 256 MiB per SCS for
      * address decoding, so we have a maximum of 1 GiB. We deliberately
@@ -1494,6 +1503,7 @@ static void malta_machine_phys_class_init(ObjectClass *oc, void *data)
 #endif
     mc->default_ram_size = 32 * MiB;
     mmc->max_ramsize = 256 * MiB; /* 32 MByte PC100 SDRAM DIMMs x 4 slots */
+    mmc->verify_dimm_sizes = true;
 };
 
 static const TypeInfo malta_machine_types[] = {
