@@ -70,6 +70,8 @@
 
 #define MAX_IDE_BUS         2
 
+#define TYPE_MALTA_MACHINE       MACHINE_TYPE_NAME("malta")
+
 typedef struct {
     MemoryRegion iomem;
     MemoryRegion iomem_lo; /* 0 - 0x900 */
@@ -1433,8 +1435,10 @@ static void mips_malta_register_types(void)
 
 type_init(mips_malta_register_types)
 
-static void mips_malta_machine_init(MachineClass *mc)
+static void malta_machine_class_init(ObjectClass *oc, void *data)
 {
+    MachineClass *mc = MACHINE_CLASS(oc);
+
     mc->desc = "MIPS Malta Core LV";
     mc->init = mips_malta_init;
     mc->block_default_type = IF_IDE;
@@ -1448,4 +1452,16 @@ static void mips_malta_machine_init(MachineClass *mc)
     mc->default_ram_id = "mips_malta.ram";
 }
 
-DEFINE_MACHINE("malta", mips_malta_machine_init)
+static const TypeInfo malta_machine_types[] = {
+    {
+        .name          = MACHINE_TYPE_NAME("malta"),
+        .parent        = TYPE_MALTA_MACHINE,
+    }, {
+        .name          = TYPE_MALTA_MACHINE,
+        .parent        = TYPE_MACHINE,
+        .class_init    = malta_machine_class_init,
+        .abstract      = true,
+    }
+};
+
+DEFINE_TYPES(malta_machine_types)
