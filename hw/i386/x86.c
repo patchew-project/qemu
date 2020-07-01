@@ -93,7 +93,8 @@ static void x86_set_epyc_topo_handlers(MachineState *machine)
  * all CPUs up to max_cpus.
  */
 uint32_t x86_cpu_apic_id_from_index(X86MachineState *x86ms,
-                                    unsigned int cpu_index)
+                                    unsigned int cpu_index,
+                                    CpuInstanceProperties props)
 {
     X86MachineClass *x86mc = X86_MACHINE_GET_CLASS(x86ms);
     X86CPUTopoInfo topo_info;
@@ -102,7 +103,7 @@ uint32_t x86_cpu_apic_id_from_index(X86MachineState *x86ms,
 
     init_topo_info(&topo_info, x86ms);
 
-    correct_id = x86ms->apicid_from_cpu_idx(&topo_info, cpu_index);
+    correct_id = x86ms->apicid_from_cpu_idx(&topo_info, cpu_index, props);
     if (x86mc->compat_apic_id_mode) {
         if (cpu_index != correct_id && !warned && !qtest_enabled()) {
             error_report("APIC IDs set in compatibility mode, "
@@ -136,6 +137,8 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
     const CPUArchIdList *possible_cpus;
     MachineState *ms = MACHINE(x86ms);
     MachineClass *mc = MACHINE_GET_CLASS(x86ms);
+    CpuInstanceProperties props;
+
 
     /* Check for apicid encoding */
     if (cpu_x86_use_epyc_apic_id_encoding(ms->cpu_type)) {
@@ -143,6 +146,8 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
     }
 
     x86_cpu_set_default_version(default_cpu_version);
+
+    possible_cpus = mc->possible_cpu_arch_ids(ms);
 
     /*
      * Calculates the limit to CPU APIC ID values
@@ -152,13 +157,15 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
      *
      * This is used for FW_CFG_MAX_CPUS. See comments on fw_cfg_arch_create().
      */
-    x86ms->apic_id_limit = x86_cpu_apic_id_from_index(x86ms,
-                                                      ms->smp.max_cpus - 1) + 1;
-    possible_cpus = mc->possible_cpu_arch_ids(ms);
+    props = ms->possible_cpus->cpus[ms->smp.max_cpus - 1].props;
 
+    x86ms->apic_id_limit = x86_cpu_apic_id_from_index(x86ms,
+                                                      ms->smp.max_cpus - 1,
+                                                      props) + 1;
     for (i = 0; i < ms->possible_cpus->len; i++) {
+        props = ms->possible_cpus->cpus[i].props;
         ms->possible_cpus->cpus[i].arch_id =
-            x86_cpu_apic_id_from_index(x86ms, i);
+            x86_cpu_apic_id_from_index(x86ms, i, props);
     }
 
     for (i = 0; i < ms->smp.cpus; i++) {

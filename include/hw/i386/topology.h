@@ -221,10 +221,17 @@ static inline void x86_init_topo_ids(X86CPUTopoInfo *topo_info,
  * 'cpu_index' is a sequential, contiguous ID for the CPU.
  */
 static inline apic_id_t x86_apicid_from_cpu_idx_epyc(X86CPUTopoInfo *topo_info,
-                                                     unsigned cpu_index)
+                                                     unsigned cpu_index,
+                                                     CpuInstanceProperties props)
 {
     X86CPUTopoIDs topo_ids;
-    x86_topo_ids_from_idx_epyc(topo_info, cpu_index, &topo_ids);
+
+    if (props.has_node_id) {
+        x86_init_topo_ids(topo_info, props, &topo_ids);
+    } else {
+        x86_topo_ids_from_idx_epyc(topo_info, cpu_index, &topo_ids);
+    }
+
     return x86_apicid_from_topo_ids_epyc(topo_info, &topo_ids);
 }
 /* Make APIC ID for the CPU based on Pkg_ID, Core_ID, SMT_ID
@@ -280,7 +287,8 @@ static inline void x86_topo_ids_from_apicid(apic_id_t apicid,
  * 'cpu_index' is a sequential, contiguous ID for the CPU.
  */
 static inline apic_id_t x86_apicid_from_cpu_idx(X86CPUTopoInfo *topo_info,
-                                                unsigned cpu_index)
+                                                unsigned cpu_index,
+                                                CpuInstanceProperties props)
 {
     X86CPUTopoIDs topo_ids;
     x86_topo_ids_from_idx(topo_info, cpu_index, &topo_ids);

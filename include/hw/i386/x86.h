@@ -65,7 +65,8 @@ typedef struct {
 
     /* Apic id specific handlers */
     uint32_t (*apicid_from_cpu_idx)(X86CPUTopoInfo *topo_info,
-                                    unsigned cpu_index);
+                                    unsigned cpu_index,
+                                    CpuInstanceProperties props);
     void (*topo_ids_from_apicid)(apic_id_t apicid, X86CPUTopoInfo *topo_info,
                                  X86CPUTopoIDs *topo_ids);
     apic_id_t (*apicid_from_topo_ids)(X86CPUTopoInfo *topo_info,
@@ -93,7 +94,8 @@ typedef struct {
 void init_topo_info(X86CPUTopoInfo *topo_info, const X86MachineState *x86ms);
 
 uint32_t x86_cpu_apic_id_from_index(X86MachineState *pcms,
-                                    unsigned int cpu_index);
+                                    unsigned int cpu_index,
+                                    CpuInstanceProperties props);
 
 void x86_cpu_new(X86MachineState *pcms, int64_t apic_id, Error **errp);
 void x86_cpus_init(X86MachineState *pcms, int default_cpu_version);

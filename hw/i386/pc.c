@@ -775,13 +775,17 @@ void pc_smp_parse(MachineState *ms, QemuOpts *opts)
 void pc_hot_add_cpu(MachineState *ms, const int64_t id, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(ms);
-    int64_t apic_id = x86_cpu_apic_id_from_index(x86ms, id);
+    CpuInstanceProperties props;
+    int64_t apic_id;
     Error *local_err = NULL;
 
     if (id < 0) {
         error_setg(errp, "Invalid CPU id: %" PRIi64, id);
         return;
     }
+    props = ms->possible_cpus->cpus[id].props;
+
+    apic_id = x86_cpu_apic_id_from_index(x86ms, id, props);
 
     if (apic_id >= ACPI_CPU_HOTPLUG_ID_LIMIT) {
         error_setg(errp, "Unable to add CPU: %" PRIi64
