@@ -113,7 +113,7 @@ acceptance-system-fedora-alt:
     MAKE_CHECK_ARGS: check-acceptance
   <<: *post_acceptance
 
-build-disabled:
+build-system-fedora-disabled:
   <<: *native_build_job_definition
   variables:
     IMAGE: fedora
@@ -124,6 +124,17 @@ build-disabled:
       --disable-qom-cast-debug --disable-spice --disable-vhost-vsock
       --disable-vhost-net --disable-vhost-crypto --disable-vhost-user
     TARGETS: i386-softmmu ppc64-softmmu mips64-softmmu i386-linux-user
+  artifacts:
+    paths:
+      - build
+
+qtest-system-fedora-disabled:
+  <<: *native_test_job_definition
+  needs:
+    - job: build-system-fedora-disabled
+      artifacts: true
+  variables:
+    IMAGE: fedora
     MAKE_CHECK_ARGS: check-qtest SPEED=slow
 
 build-tcg-disabled:
