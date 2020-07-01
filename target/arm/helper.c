@@ -9778,6 +9778,14 @@ void arm_cpu_do_interrupt(CPUState *cs)
         return;
     }
 
+    if (cs->exception_index == EXCP_SMC &&
+        !arm_feature(env, ARM_FEATURE_EL3) &&
+        cpu->psci_conduit != QEMU_PSCI_CONDUIT_SMC) {
+        /* Treat unknown SMC calls as NOP, just like KVM */
+        qemu_log_mask(CPU_LOG_INT, "...handled as NOP\n");
+        return;
+    }
+
     /*
      * Semihosting semantics depend on the register width of the code
      * that caused the exception, not the target exception level, so
