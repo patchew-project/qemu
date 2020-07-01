@@ -1795,6 +1795,7 @@ M: Keith Busch <kbusch@kernel.org>
 L: qemu-block@nongnu.org
 S: Supported
 F: hw/block/nvme*
+F: include/block/nvme.h
 F: tests/qtest/nvme-test.c
 
 megasas
@@ -2804,6 +2805,7 @@ M: Fam Zheng <fam@euphon.net>
 L: qemu-block@nongnu.org
 S: Supported
 F: block/nvme*
+F: include/block/nvme.h
 
 Bootdevice
 M: Gonglei <arei.gonglei@huawei.com>
