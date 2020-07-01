@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 
 /* Needed early for CONFIG_BSD etc. */
 
@@ -282,7 +283,7 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
 /*
  * Opens a file with FD_CLOEXEC set
  */
-int qemu_open(const char *name, int flags, ...)
+static int qemu_openv(const char *name, int flags, Error **errp, va_list ap)
 {
     int ret;
     int mode = 0;
@@ -297,24 +298,31 @@ int qemu_open(const char *name, int flags, ...)
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
         if (fdset_id == -1) {
+            error_setg(errp, "Unable to parse fdset %s", name);
             errno = EINVAL;
             return -1;
         }
 
         fd = monitor_fdset_get_fd(fdset_id, flags);
         if (fd < 0) {
+            error_setg_errno(errp, -fd, "Unable acquire FD for %s flags %x",
+                             name, flags);
             errno = -fd;
             return -1;
         }
 
         dupfd = qemu_dup_flags(fd, flags);
         if (dupfd == -1) {
+            error_setg_errno(errp, errno, "Unable dup FD for %s flags %x",
+                             name, flags);
             return -1;
         }
 
         ret = monitor_fdset_dup_fd_add(fdset_id, dupfd);
         if (ret == -1) {
             close(dupfd);
+            error_setg(errp, "Unable save FD for %s flags %x",
+                       name, flags);
             errno = EINVAL;
             return -1;
         }
@@ -324,11 +332,7 @@ int qemu_open(const char *name, int flags, ...)
 #endif
 
     if (flags & O_CREAT) {
-        va_list ap;
-
-        va_start(ap, flags);
         mode = va_arg(ap, int);
-        va_end(ap);
     }
 
 #ifdef O_CLOEXEC
@@ -340,23 +344,62 @@ int qemu_open(const char *name, int flags, ...)
     }
 #endif
 
-#ifdef O_DIRECT
-    if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
-        int newflags = flags & ~O_DIRECT;
-# ifdef O_CLOEXEC
-        ret = open(name, newflags | O_CLOEXEC, mode);
-# else
-        ret = open(name, newflags, mode);
-# endif
-        if (ret != -1) {
-            close(ret);
-            error_report("file system does not support O_DIRECT");
-            errno = EINVAL;
+    if (ret == -1) {
+        const char *action = "open";
+        if (flags & O_CREAT) {
+            action = "create";
         }
-    }
+#ifdef O_DIRECT
+        if (errno == EINVAL && (flags & O_DIRECT)) {
+            int newflags = flags & ~O_DIRECT;
+# ifdef O_CLOEXEC
+            ret = open(name, newflags | O_CLOEXEC, mode);
+# else
+            ret = open(name, newflags, mode);
+# endif
+            if (ret != -1) {
+                close(ret);
+                error_setg(errp, "Unable to %s '%s' flags 0x%x: "
+                           "filesystem does not support O_DIRECT",
+                           action, name, flags);
+                if (!errp) {
+                    error_report("file system does not support O_DIRECT");
+                }
+                errno = EINVAL;
+                return -1;
+            }
+        }
 #endif /* O_DIRECT */
+        error_setg_errno(errp, errno, "Unable to %s '%s' flags 0x%x",
+                         action, name, flags);
+    }
+
 
     return ret;
+}
+
+int qemu_open_err(const char *name, int flags, Error **errp, ...)
+{
+    va_list ap;
+    int rv;
+
+    va_start(ap, errp);
+    rv = qemu_openv(name, flags, errp, ap);
+    va_end(ap);
+
+    return rv;
+}
+
+int qemu_open(const char *name, int flags, ...)
+{
+    va_list ap;
+    int rv;
+
+    va_start(ap, flags);
+    rv = qemu_openv(name, flags, NULL, ap);
+    va_end(ap);
+
+    return rv;
 }
 
 int qemu_close(int fd)
