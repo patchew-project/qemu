@@ -1532,6 +1532,15 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
             cpu->die_id = 0;
         }
 
+        /*
+         * If node_id is not set, initialize it to zero for now. If the user
+         * does not pass the correct node in case of numa configuration, it
+         * will be rejected eventually.
+         */
+        if (cpu->node_id < 0) {
+            cpu->node_id = 0;
+        }
+
         if (cpu->socket_id < 0) {
             error_setg(errp, "CPU socket-id is not set");
             return;
@@ -1566,6 +1575,7 @@ static void pc_cpu_pre_plug(HotplugHandler *hotplug_dev,
         }
 
         topo_ids.pkg_id = cpu->socket_id;
+        topo_ids.node_id = cpu->node_id;
         topo_ids.die_id = cpu->die_id;
         topo_ids.core_id = cpu->core_id;
         topo_ids.smt_id = cpu->thread_id;
