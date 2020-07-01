@@ -439,7 +439,7 @@ static void ich9_apm_ctrl_changed(uint32_t val, void *arg)
                 cpu_interrupt(cs, CPU_INTERRUPT_SMI);
             }
         } else {
-            cpu_interrupt(current_cpu, CPU_INTERRUPT_SMI);
+            cpu_interrupt(current_cpu ? current_cpu : first_cpu, CPU_INTERRUPT_SMI);
         }
     }
 }
