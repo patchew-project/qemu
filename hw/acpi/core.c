@@ -394,9 +394,17 @@ uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
     return ar->pm1.evt.sts;
 }
 
-static void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
+static void acpi_pm1_evt_write_sts(ACPIREGS *ar, hwaddr addr, uint16_t val,
+                                   unsigned width)
 {
     uint16_t pm1_sts = acpi_pm1_evt_get_sts(ar);
+    if (width == 1) {
+        if (addr == 0) {
+            val |= pm1_sts & 0xff00;
+        } else if (addr == 1) {
+            val = (val << BITS_PER_BYTE) | (pm1_sts & 0xff);
+        }
+    }
     if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
         /* if TMRSTS is reset, then compute the new overflow time */
         acpi_pm_tmr_calc_overflow_time(ar);
@@ -404,8 +412,16 @@ static void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
     ar->pm1.evt.sts &= ~val;
 }
 
-static void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
+static void acpi_pm1_evt_write_en(ACPIREGS *ar, hwaddr addr, uint16_t val,
+                                  unsigned width)
 {
+    if (width == 1) {
+        if (addr == 0) {
+            val |= ar->pm1.evt.en & 0xff00;
+        } else if (addr == 1) {
+            val = (val << BITS_PER_BYTE) | (ar->pm1.evt.en & 0xff);
+        }
+    }
     ar->pm1.evt.en = val;
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC,
                               val & ACPI_BITMASK_RT_CLOCK_ENABLE);
@@ -434,9 +450,11 @@ static uint64_t acpi_pm_evt_read(void *opaque, hwaddr addr, unsigned width)
     ACPIREGS *ar = opaque;
     switch (addr) {
     case 0:
-        return acpi_pm1_evt_get_sts(ar);
+    case 1:
+        return acpi_pm1_evt_get_sts(ar) >> (addr * BITS_PER_BYTE);
     case 2:
-        return ar->pm1.evt.en;
+    case 3:
+        return ar->pm1.evt.en >> ((addr - 2) * BITS_PER_BYTE);
     default:
         return 0;
     }
@@ -448,11 +466,13 @@ static void acpi_pm_evt_write(void *opaque, hwaddr addr, uint64_t val,
     ACPIREGS *ar = opaque;
     switch (addr) {
     case 0:
-        acpi_pm1_evt_write_sts(ar, val);
+    case 1:
+        acpi_pm1_evt_write_sts(ar, addr, val, width);
         ar->pm1.evt.update_sci(ar);
         break;
     case 2:
-        acpi_pm1_evt_write_en(ar, val);
+    case 3:
+        acpi_pm1_evt_write_en(ar, addr - 2, val, width);
         ar->pm1.evt.update_sci(ar);
         break;
     }
@@ -461,7 +481,7 @@ static void acpi_pm_evt_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps acpi_pm_evt_ops = {
     .read = acpi_pm_evt_read,
     .write = acpi_pm_evt_write,
-    .valid.min_access_size = 2,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 2,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
@@ -590,19 +610,27 @@ void acpi_pm1_cnt_update(ACPIREGS *ar,
 static uint64_t acpi_pm_cnt_read(void *opaque, hwaddr addr, unsigned width)
 {
     ACPIREGS *ar = opaque;
-    return ar->pm1.cnt.cnt;
+    return ar->pm1.cnt.cnt >> (addr * BITS_PER_BYTE);
 }
 
 static void acpi_pm_cnt_write(void *opaque, hwaddr addr, uint64_t val,
                               unsigned width)
 {
+    ACPIREGS *ar = opaque;
+    if (width == 1) {
+        if (addr == 0) {
+            val |= ar->pm1.cnt.cnt & 0xff00;
+        } else if (addr == 1) {
+            val = (val << BITS_PER_BYTE) | (ar->pm1.cnt.cnt & 0xff);
+        }
+    }
     acpi_pm1_cnt_write(opaque, val);
 }
 
 static const MemoryRegionOps acpi_pm_cnt_ops = {
     .read = acpi_pm_cnt_read,
     .write = acpi_pm_cnt_write,
-    .valid.min_access_size = 2,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 2,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
