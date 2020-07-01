@@ -2106,6 +2106,9 @@ void qemu_init_vcpu(CPUState *cpu)
 {
     MachineState *ms = MACHINE(qdev_get_machine());
 
+    if (!current_cpu) {
+        current_cpu = cpu;
+    }
     cpu->nr_cores = ms->smp.cores;
     cpu->nr_threads =  ms->smp.threads;
     cpu->stopped = true;
