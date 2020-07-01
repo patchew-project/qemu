@@ -40,6 +40,7 @@
 
 
 #include "qemu/bitops.h"
+#include "qapi/qapi-types-machine.h"
 
 /* APIC IDs can be 32-bit, but beware: APIC IDs > 255 require x2APIC support
  */
@@ -196,6 +197,24 @@ static inline void x86_topo_ids_from_apicid_epyc(apic_id_t apicid,
     topo_ids->pkg_id = apicid >> apicid_pkg_offset_epyc(topo_info);
 }
 
+
+/*
+ * Initialize topo_ids from CpuInstanceProperties
+ * node_id in CpuInstanceProperties(or in CPU device) is a sequential
+ * number, but while building the topology we need to separate it for
+ * each socket(mod nodes_per_pkg).
+ */
+static inline void x86_init_topo_ids(X86CPUTopoInfo *topo_info,
+                                     CpuInstanceProperties props,
+                                     X86CPUTopoIDs *topo_ids)
+{
+    topo_ids->smt_id = props.has_thread_id ? props.thread_id : 0;
+    topo_ids->core_id = props.has_core_id ? props.core_id : 0;
+    topo_ids->die_id = props.has_die_id ? props.die_id : 0;
+    topo_ids->node_id = props.has_node_id ?
+                        props.node_id % MAX(topo_info->nodes_per_pkg, 1) : 0;
+    topo_ids->pkg_id = props.has_socket_id ? props.socket_id : 0;
+}
 /*
  * Make APIC ID for the CPU 'cpu_index'
  *
