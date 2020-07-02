@@ -3334,7 +3334,6 @@ static int hdev_open(BlockDriverState *bs, QDict *options, int flags,
                      Error **errp)
 {
     BDRVRawState *s = bs->opaque;
-    Error *local_err = NULL;
     int ret;
 
 #if defined(__APPLE__) && defined(__MACH__)
@@ -3399,9 +3398,8 @@ hdev_open_Mac_error:
 
     s->type = FTYPE_FILE;
 
-    ret = raw_open_common(bs, options, flags, 0, true, &local_err);
+    ret = raw_open_common(bs, options, flags, 0, true, errp);
     if (ret < 0) {
-        error_propagate(errp, local_err);
 #if defined(__APPLE__) && defined(__MACH__)
         if (*bsd_path) {
             filename = bsd_path;
@@ -3677,14 +3675,12 @@ static int cdrom_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
     BDRVRawState *s = bs->opaque;
-    Error *local_err = NULL;
     int ret;
 
     s->type = FTYPE_CD;
 
-    ret = raw_open_common(bs, options, flags, 0, true, &local_err);
+    ret = raw_open_common(bs, options, flags, 0, true, errp);
     if (ret) {
-        error_propagate(errp, local_err);
         return ret;
     }
 

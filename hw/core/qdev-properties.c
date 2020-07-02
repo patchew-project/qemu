@@ -116,7 +116,6 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    Error *local_err = NULL;
     bool value;
 
     if (dev->realized) {
@@ -124,8 +123,7 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_bool(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_bool(v, name, &value, errp)) {
         return;
     }
     bit_prop_set(dev, prop, value);
@@ -179,7 +177,6 @@ static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    Error *local_err = NULL;
     bool value;
 
     if (dev->realized) {
@@ -187,8 +184,7 @@ static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_bool(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_bool(v, name, &value, errp)) {
         return;
     }
     bit64_prop_set(dev, prop, value);
@@ -475,7 +471,6 @@ static void set_string(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     char **ptr = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
     char *str;
 
     if (dev->realized) {
@@ -483,8 +478,7 @@ static void set_string(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
     g_free(*ptr);
@@ -527,7 +521,6 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     MACAddr *mac = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
     int i, pos;
     char *str, *p;
 
@@ -536,8 +529,7 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
@@ -743,15 +735,13 @@ static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
     Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     uint64_t value;
-    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
-    if (!visit_type_size(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
 
@@ -792,15 +782,13 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     uint64_t value;
-    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
-    if (!visit_type_size(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
     /* value of 0 means "unset" */
@@ -868,7 +856,6 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     PCIHostDeviceAddress *addr = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
     char *str, *p;
     char *e;
     unsigned long val;
@@ -880,8 +867,7 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
@@ -971,7 +957,6 @@ static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     QemuUUID *uuid = qdev_get_prop_ptr(dev, prop);
-    Error *local_err = NULL;
     char *str;
 
     if (dev->realized) {
@@ -979,8 +964,7 @@ static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    if (!visit_type_str(v, name, &str, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &str, errp)) {
         return;
     }
 
@@ -1046,7 +1030,6 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     uint32_t *alenptr = qdev_get_prop_ptr(dev, prop);
     void **arrayptr = (void *)dev + prop->arrayoffset;
-    Error *local_err = NULL;
     void *eltptr;
     const char *arrayname;
     int i;
@@ -1060,8 +1043,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
                    name);
         return;
     }
-    if (!visit_type_uint32(v, name, alenptr, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, alenptr, errp)) {
         return;
     }
     if (!*alenptr) {
@@ -1384,16 +1366,13 @@ static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     PCIExpLinkSpeed *p = qdev_get_prop_ptr(dev, prop);
     int speed;
-    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
-    if (!visit_type_enum(v, prop->name, &speed, prop->info->enum_table,
-                         &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_enum(v, prop->name, &speed, prop->info->enum_table, errp)) {
         return;
     }
 
@@ -1472,16 +1451,13 @@ static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
     Property *prop = opaque;
     PCIExpLinkWidth *p = qdev_get_prop_ptr(dev, prop);
     int width;
-    Error *local_err = NULL;
 
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
     }
 
-    if (!visit_type_enum(v, prop->name, &width, prop->info->enum_table,
-                         &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_enum(v, prop->name, &width, prop->info->enum_table, errp)) {
         return;
     }
 

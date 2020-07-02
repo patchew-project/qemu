@@ -800,15 +800,13 @@ bool object_set_propv(Object *obj,
                      va_list vargs)
 {
     const char *propname;
-    Error *local_err = NULL;
 
     propname = va_arg(vargs, char *);
     while (propname != NULL) {
         const char *value = va_arg(vargs, char *);
 
         g_assert(value != NULL);
-        if (!object_property_parse(obj, propname, value, &local_err)) {
-            error_propagate(errp, local_err);
+        if (!object_property_parse(obj, propname, value, errp)) {
             return false;
         }
         propname = va_arg(vargs, char *);
