@@ -127,18 +127,34 @@ static gboolean smmu_hash_remove_by_asid_iova(gpointer key, gpointer value,
 
     if (info->asid >= 0) {
         return (info->asid == SMMU_IOTLB_ASID(*iotlb_key)) &&
-                ((info->iova & ~entry->addr_mask) == entry->iova);
+               (((entry->iova & ~info->mask) == info->iova) ||
+               ((info->iova & ~entry->addr_mask) ==  entry->iova));
     } else {
-        return (info->iova & ~entry->addr_mask) == entry->iova;
+        return (((entry->iova & ~info->mask) == info->iova) ||
+               ((info->iova & ~entry->addr_mask) ==  entry->iova));
     }
 }
 
-inline void smmu_iotlb_inv_iova(SMMUState *s, int asid, dma_addr_t iova)
+inline void
+smmu_iotlb_inv_iova(SMMUState *s, int asid, dma_addr_t iova,
+                    uint8_t tg, uint64_t num_pages, uint8_t ttl)
 {
-    SMMUIOTLBPageInvInfo info = {.asid = asid, .iova = iova};
+    if (ttl && (num_pages == 1)) {
+        uint64_t key = smmu_get_iotlb_key(asid, iova, tg, ttl);
 
-    trace_smmu_iotlb_inv_iova(asid, iova);
-    g_hash_table_foreach_remove(s->iotlb, smmu_hash_remove_by_asid_iova, &info);
+        g_hash_table_remove(s->iotlb, &key);
+    } else {
+            /* if tg is not set we use 4KB range invalidation */
+            uint8_t granule = tg ? tg * 2 + 10 : 12;
+
+            SMMUIOTLBPageInvInfo info = {
+                 .asid = asid, .iova = iova,
+                 .mask = (num_pages * 1 << granule) - 1};
+
+            g_hash_table_foreach_remove(s->iotlb,
+                                        smmu_hash_remove_by_asid_iova,
+                                        &info);
+    }
 }
 
 inline void smmu_iotlb_inv_asid(SMMUState *s, uint16_t asid)
