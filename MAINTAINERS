@@ -130,7 +130,6 @@ F: include/sysemu/cpus.h
 F: include/sysemu/tcg.h
 
 FPU emulation
-M: Aurelien Jarno <aurelien@aurel32.net>
 M: Peter Maydell <peter.maydell@linaro.org>
 M: Alex Bennée <alex.bennee@linaro.org>
 S: Maintained
