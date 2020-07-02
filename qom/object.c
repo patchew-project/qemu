@@ -404,7 +404,7 @@ void object_apply_global_props(Object *obj, const GPtrArray *props, Error **errp
             continue;
         }
         p->used = true;
-        object_property_parse(obj, p->value, p->property, &err);
+        object_property_parse(obj, p->property, p->value, &err);
         if (err != NULL) {
             error_prepend(&err, "can't apply global %s.%s=%s: ",
                           p->driver, p->property, p->value);
@@ -798,7 +798,7 @@ int object_set_propv(Object *obj,
         const char *value = va_arg(vargs, char *);
 
         g_assert(value != NULL);
-        object_property_parse(obj, value, propname, &local_err);
+        object_property_parse(obj, propname, value, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
             return -1;
@@ -1298,7 +1298,7 @@ void object_property_del(Object *obj, const char *name)
     g_hash_table_remove(obj->properties, name);
 }
 
-void object_property_get(Object *obj, Visitor *v, const char *name,
+void object_property_get(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
     ObjectProperty *prop = object_property_find(obj, name, errp);
@@ -1313,7 +1313,7 @@ void object_property_get(Object *obj, Visitor *v, const char *name,
     }
 }
 
-void object_property_set(Object *obj, Visitor *v, const char *name,
+void object_property_set(Object *obj, const char *name, Visitor *v,
                          Error **errp)
 {
     ObjectProperty *prop = object_property_find(obj, name, errp);
@@ -1328,11 +1328,11 @@ void object_property_set(Object *obj, Visitor *v, const char *name,
     }
 }
 
-void object_property_set_str(Object *obj, const char *value,
-                             const char *name, Error **errp)
+void object_property_set_str(Object *obj, const char *name,
+                             const char *value, Error **errp)
 {
     QString *qstr = qstring_from_str(value);
-    object_property_set_qobject(obj, QOBJECT(qstr), name, errp);
+    object_property_set_qobject(obj, name, QOBJECT(qstr), errp);
 
     qobject_unref(qstr);
 }
@@ -1356,15 +1356,15 @@ char *object_property_get_str(Object *obj, const char *name,
     return retval;
 }
 
-void object_property_set_link(Object *obj, Object *value,
-                              const char *name, Error **errp)
+void object_property_set_link(Object *obj, const char *name, Object *value,
+                              Error **errp)
 {
     if (value) {
         char *path = object_get_canonical_path(value);
-        object_property_set_str(obj, path, name, errp);
+        object_property_set_str(obj, name, path, errp);
         g_free(path);
     } else {
-        object_property_set_str(obj, "", name, errp);
+        object_property_set_str(obj, name, "", errp);
     }
 }
 
@@ -1386,11 +1386,11 @@ Object *object_property_get_link(Object *obj, const char *name,
     return target;
 }
 
-void object_property_set_bool(Object *obj, bool value,
-                              const char *name, Error **errp)
+void object_property_set_bool(Object *obj, const char *name, bool value,
+                              Error **errp)
 {
     QBool *qbool = qbool_from_bool(value);
-    object_property_set_qobject(obj, QOBJECT(qbool), name, errp);
+    object_property_set_qobject(obj, name, QOBJECT(qbool), errp);
 
     qobject_unref(qbool);
 }
@@ -1417,11 +1417,11 @@ bool object_property_get_bool(Object *obj, const char *name,
     return retval;
 }
 
-void object_property_set_int(Object *obj, int64_t value,
-                             const char *name, Error **errp)
+void object_property_set_int(Object *obj, const char *name, int64_t value,
+                             Error **errp)
 {
     QNum *qnum = qnum_from_int(value);
-    object_property_set_qobject(obj, QOBJECT(qnum), name, errp);
+    object_property_set_qobject(obj, name, QOBJECT(qnum), errp);
 
     qobject_unref(qnum);
 }
@@ -1486,12 +1486,12 @@ void object_property_set_default_uint(ObjectProperty *prop, uint64_t value)
     object_property_set_default(prop, QOBJECT(qnum_from_uint(value)));
 }
 
-void object_property_set_uint(Object *obj, uint64_t value,
-                              const char *name, Error **errp)
+void object_property_set_uint(Object *obj, const char *name, uint64_t value,
+                              Error **errp)
 {
     QNum *qnum = qnum_from_uint(value);
 
-    object_property_set_qobject(obj, QOBJECT(qnum), name, errp);
+    object_property_set_qobject(obj, name, QOBJECT(qnum), errp);
     qobject_unref(qnum);
 }
 
@@ -1553,11 +1553,12 @@ int object_property_get_enum(Object *obj, const char *name,
     return ret;
 }
 
-void object_property_parse(Object *obj, const char *string,
-                           const char *name, Error **errp)
+void object_property_parse(Object *obj, const char *name,
+                           const char *string, Error **errp)
 {
     Visitor *v = string_input_visitor_new(string);
-    object_property_set(obj, v, name, errp);
+
+    object_property_set(obj, name, v, errp);
     visit_free(v);
 }
 
@@ -1569,7 +1570,7 @@ char *object_property_print(Object *obj, const char *name, bool human,
     Error *local_err = NULL;
 
     v = string_output_visitor_new(human, &string);
-    object_property_get(obj, v, name, &local_err);
+    object_property_get(obj, name, v, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         goto out;
@@ -1765,9 +1766,7 @@ static void object_set_link_property(Object *obj, Visitor *v,
     Object *new_target = NULL;
     char *path = NULL;
 
-    visit_type_str(v, name, &path, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &path, errp)) {
         return;
     }
 
@@ -2080,10 +2079,8 @@ static void property_set_str(Object *obj, Visitor *v, const char *name,
 {
     StringProperty *prop = opaque;
     char *value;
-    Error *local_err = NULL;
 
-    if (!visit_type_str(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &value, errp)) {
         return;
     }
 
@@ -2160,10 +2157,8 @@ static void property_set_bool(Object *obj, Visitor *v, const char *name,
 {
     BoolProperty *prop = opaque;
     bool value;
-    Error *local_err = NULL;
 
-    if (!visit_type_bool(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_bool(v, name, &value, errp)) {
         return;
     }
 
@@ -2232,10 +2227,8 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
 {
     EnumProperty *prop = opaque;
     int value;
-    Error *err = NULL;
 
-    if (!visit_type_enum(v, name, &value, prop->lookup, &err)) {
-        error_propagate(errp, err);
+    if (!visit_type_enum(v, name, &value, prop->lookup, errp)) {
         return;
     }
     prop->set(obj, value, errp);
@@ -2301,36 +2294,34 @@ static void property_get_tm(Object *obj, Visitor *v, const char *name,
 
     prop->get(obj, &value, &err);
     if (err) {
-        goto out;
+        error_propagate(errp, err);
+        return;
     }
 
-    if (!visit_start_struct(v, name, NULL, 0, &err)) {
-        goto out;
+    if (!visit_start_struct(v, name, NULL, 0, errp)) {
+        return;
     }
-    if (!visit_type_int32(v, "tm_year", &value.tm_year, &err)) {
+    if (!visit_type_int32(v, "tm_year", &value.tm_year, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_mon", &value.tm_mon, &err)) {
+    if (!visit_type_int32(v, "tm_mon", &value.tm_mon, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_mday", &value.tm_mday, &err)) {
+    if (!visit_type_int32(v, "tm_mday", &value.tm_mday, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_hour", &value.tm_hour, &err)) {
+    if (!visit_type_int32(v, "tm_hour", &value.tm_hour, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_min", &value.tm_min, &err)) {
+    if (!visit_type_int32(v, "tm_min", &value.tm_min, errp)) {
         goto out_end;
     }
-    if (!visit_type_int32(v, "tm_sec", &value.tm_sec, &err)) {
+    if (!visit_type_int32(v, "tm_sec", &value.tm_sec, errp)) {
         goto out_end;
     }
-    visit_check_struct(v, &err);
+    visit_check_struct(v, errp);
 out_end:
     visit_end_struct(v, NULL);
-out:
-    error_propagate(errp, err);
-
 }
 
 static void property_release_tm(Object *obj, const char *name,
@@ -2384,10 +2375,8 @@ static void property_set_uint8_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint8_t *field = opaque;
     uint8_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint8(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint8(v, name, &value, errp)) {
         return;
     }
 
@@ -2406,10 +2395,8 @@ static void property_set_uint16_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint16_t *field = opaque;
     uint16_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint16(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint16(v, name, &value, errp)) {
         return;
     }
 
@@ -2428,10 +2415,8 @@ static void property_set_uint32_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint32_t *field = opaque;
     uint32_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
 
@@ -2450,10 +2435,8 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint64_t *field = opaque;
     uint64_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint64(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint64(v, name, &value, errp)) {
         return;
     }
 
@@ -2630,7 +2613,7 @@ static void property_get_alias(Object *obj, Visitor *v, const char *name,
 {
     AliasProperty *prop = opaque;
 
-    object_property_get(prop->target_obj, v, prop->target_name, errp);
+    object_property_get(prop->target_obj, prop->target_name, v, errp);
 }
 
 static void property_set_alias(Object *obj, Visitor *v, const char *name,
@@ -2638,7 +2621,7 @@ static void property_set_alias(Object *obj, Visitor *v, const char *name,
 {
     AliasProperty *prop = opaque;
 
-    object_property_set(prop->target_obj, v, prop->target_name, errp);
+    object_property_set(prop->target_obj, prop->target_name, v, errp);
 }
 
 static Object *property_resolve_alias(Object *obj, void *opaque,

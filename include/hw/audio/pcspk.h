@@ -39,7 +39,7 @@ static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
     isadev = isa_new(TYPE_PC_SPEAKER);
     dev = DEVICE(isadev);
     qdev_prop_set_uint32(dev, "iobase", 0x61);
-    object_property_set_link(OBJECT(dev), OBJECT(pit), "pit", NULL);
+    object_property_set_link(OBJECT(dev), "pit", OBJECT(pit), NULL);
     isa_realize_and_unref(isadev, bus, &error_fatal);
 
     return isadev;
