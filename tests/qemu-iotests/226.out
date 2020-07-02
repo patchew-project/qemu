@@ -6,7 +6,7 @@ QA output created by 226
 qemu-io: can't open: A regular file was expected by the 'file' driver, but something else was given
 qemu-io: warning: Opening a character device as a file using the 'file' driver is deprecated
 == Testing RW ==
-qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT': Is a directory
+qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT' flags 0x80002: Is a directory
 qemu-io: warning: Opening a character device as a file using the 'file' driver is deprecated
 
 === Testing with driver:host_device ===
@@ -14,13 +14,13 @@ qemu-io: warning: Opening a character device as a file using the 'file' driver i
 == Testing RO ==
 qemu-io: can't open: 'host_device' driver expects either a character or block device
 == Testing RW ==
-qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT': Is a directory
+qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT' flags 0x80002: Is a directory
 
 === Testing with driver:host_cdrom ===
 
 == Testing RO ==
 qemu-io: can't open: 'host_cdrom' driver expects either a character or block device
 == Testing RW ==
-qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT': Is a directory
+qemu-io: can't open: Could not open 'TEST_DIR/t.IMGFMT' flags 0x80802: Is a directory
 
 *** done

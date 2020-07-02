@@ -363,7 +363,7 @@ Testing: -drive file=foo:bar
 QEMU_PROG: -drive file=foo:bar: Unknown protocol 'foo'
 
 Testing: -drive file.filename=foo:bar
-QEMU_PROG: -drive file.filename=foo:bar: Could not open 'foo:bar': No such file or directory
+QEMU_PROG: -drive file.filename=foo:bar: Could not open 'foo:bar' flags 0x08000: No such file or directory
 
 Testing: -hda file:TEST_DIR/t.qcow2
 QEMU X.Y.Z monitor - type 'help' for more information
@@ -374,7 +374,7 @@ QEMU X.Y.Z monitor - type 'help' for more information
 (qemu) quit
 
 Testing: -drive file.filename=file:TEST_DIR/t.qcow2
-QEMU_PROG: -drive file.filename=file:TEST_DIR/t.qcow2: Could not open 'file:TEST_DIR/t.qcow2': No such file or directory
+QEMU_PROG: -drive file.filename=file:TEST_DIR/t.qcow2: Could not open 'file:TEST_DIR/t.qcow2' flags 0x80000: No such file or directory
 
 
 === Snapshot mode ===
