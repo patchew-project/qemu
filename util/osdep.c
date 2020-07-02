@@ -332,9 +332,11 @@ int qemu_open(const char *name, int flags, ...)
     }
 
 #ifdef O_CLOEXEC
-    ret = open(name, flags | O_CLOEXEC, mode);
-#else
+    flags |= O_CLOEXEC;
+#endif
     ret = open(name, flags, mode);
+
+#ifndef O_CLOEXEC
     if (ret >= 0) {
         qemu_set_cloexec(ret);
     }
@@ -342,8 +344,13 @@ int qemu_open(const char *name, int flags, ...)
 
 #ifdef O_DIRECT
     if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
-        error_report("file system may not support O_DIRECT");
-        errno = EINVAL; /* in case it was clobbered */
+        int newflags = flags & ~O_DIRECT;
+        ret = open(name, newflags, mode);
+        if (ret != -1) {
+            close(ret);
+            error_report("file system does not support O_DIRECT");
+            errno = EINVAL;
+        }
     }
 #endif /* O_DIRECT */
 
