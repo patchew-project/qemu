@@ -2624,7 +2624,8 @@ int qemu_load_device_state(QEMUFile *f)
     return 0;
 }
 
-int save_snapshot(const char *name, strList *exclude, Error **errp)
+int save_snapshot(const char *name, const char *vmstate,
+                  strList *exclude, Error **errp)
 {
     BlockDriverState *bs, *bs1;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -2662,7 +2663,7 @@ int save_snapshot(const char *name, strList *exclude, Error **errp)
         }
     }
 
-    bs = bdrv_all_find_vmstate_bs(NULL, exclude, errp);
+    bs = bdrv_all_find_vmstate_bs(vmstate, exclude, errp);
     if (bs == NULL) {
         return ret;
     }
@@ -2827,7 +2828,8 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     migration_incoming_state_destroy();
 }
 
-int load_snapshot(const char *name, strList *exclude, Error **errp)
+int load_snapshot(const char *name, const char *vmstate,
+                  strList *exclude, Error **errp)
 {
     BlockDriverState *bs, *bs_vm_state;
     QEMUSnapshotInfo sn;
@@ -2856,7 +2858,7 @@ int load_snapshot(const char *name, strList *exclude, Error **errp)
         return ret;
     }
 
-    bs_vm_state = bdrv_all_find_vmstate_bs(NULL, exclude, errp);
+    bs_vm_state = bdrv_all_find_vmstate_bs(vmstate, exclude, errp);
     if (!bs_vm_state) {
         return -ENOTSUP;
     }
@@ -2943,13 +2945,15 @@ bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 }
 
 void qmp_savevm(const char *tag,
+                bool has_vmstate, const char *vmstate,
                 bool has_exclude, strList *exclude,
                 Error **errp)
 {
-    save_snapshot(tag, exclude, errp);
+    save_snapshot(tag, vmstate, exclude, errp);
 }
 
 void qmp_loadvm(const char *tag,
+                bool has_vmstate, const char *vmstate,
                 bool has_exclude, strList *exclude,
                 Error **errp)
 {
@@ -2957,7 +2961,7 @@ void qmp_loadvm(const char *tag,
 
     vm_stop(RUN_STATE_RESTORE_VM);
 
-    if (load_snapshot(tag, exclude, errp) == 0 && saved_vm_running) {
+    if (load_snapshot(tag, vmstate, exclude, errp) == 0 && saved_vm_running) {
         vm_start();
     }
 }

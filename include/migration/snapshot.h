@@ -17,7 +17,11 @@
 
 #include "qapi/qapi-builtin-types.h"
 
-int save_snapshot(const char *name, strList *exclude, Error **errp);
-int load_snapshot(const char *name, strList *exclude, Error **errp);
+int save_snapshot(const char *name,
+                  const char *vmstate, strList *exclude,
+                  Error **errp);
+int load_snapshot(const char *name,
+                  const char *vmstate, strList *exclude,
+                  Error **errp);
 
 #endif

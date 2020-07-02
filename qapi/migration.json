@@ -1630,6 +1630,7 @@
 # @tag: name of the snapshot to create. If it already
 # exists it will be replaced.
 # @exclude: list of block device node names to exclude
+# @vmstate: block device node name to save vmstate to
 #
 # Note that execution of the VM will be paused during the time
 # it takes to save the snapshot
@@ -1641,6 +1642,7 @@
 # -> { "execute": "savevm",
 #      "data": {
 #         "tag": "my-snap",
+#         "vmstate": "disk0",
 #         "exclude": ["pflash0-vars"]
 #      }
 #    }
@@ -1650,6 +1652,7 @@
 ##
 { 'command': 'savevm',
   'data': { 'tag': 'str',
+            '*vmstate': 'str',
             '*exclude': ['str'] } }
 
 ##
@@ -1659,6 +1662,7 @@
 #
 # @tag: name of the snapshot to load.
 # @exclude: list of block device node names to exclude
+# @vmstate: block device node name to load vmstate from
 #
 # Returns: nothing
 #
@@ -1667,6 +1671,7 @@
 # -> { "execute": "loadvm",
 #      "data": {
 #         "tag": "my-snap",
+#         "vmstate": "disk0",
 #         "exclude": ["pflash0-vars"]
 #      }
 #    }
@@ -1676,6 +1681,7 @@
 ##
 { 'command': 'loadvm',
   'data': { 'tag': 'str',
+            '*vmstate': 'str',
             '*exclude': ['str'] } }
 
 ##
