@@ -1100,7 +1100,6 @@ Loongson-3 virtual platforms
 M: Huacai Chen <chenhc@lemote.com>
 R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
-F: hw/intc/loongson_liointc.c
 
 Boston
 M: Paul Burton <pburton@wavecomp.com>
