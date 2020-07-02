@@ -124,8 +124,7 @@ static void prop_set_bit(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_bool(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -188,8 +187,7 @@ static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_bool(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_bool(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -485,8 +483,7 @@ static void set_string(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -539,8 +536,7 @@ static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -673,8 +669,7 @@ static void set_pci_devfn(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_free(local_err);
         local_err = NULL;
         visit_type_int32(v, name, &value, &local_err);
@@ -755,8 +750,7 @@ static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_size(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -805,8 +799,7 @@ static void set_blocksize(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_size(v, name, &value, &local_err);
-    if (local_err) {
+    if (!visit_type_size(v, name, &value, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -887,8 +880,7 @@ static void set_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -987,8 +979,7 @@ static void set_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
         return;
     }
 
-    visit_type_str(v, name, &str, &local_err);
-    if (local_err) {
+    if (!visit_type_str(v, name, &str, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1069,8 +1060,7 @@ static void set_prop_arraylen(Object *obj, Visitor *v, const char *name,
                    name);
         return;
     }
-    visit_type_uint32(v, name, alenptr, &local_err);
-    if (local_err) {
+    if (!visit_type_uint32(v, name, alenptr, &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1401,8 +1391,8 @@ static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_enum(v, prop->name, &speed, prop->info->enum_table, &local_err);
-    if (local_err) {
+    if (!visit_type_enum(v, prop->name, &speed, prop->info->enum_table,
+                         &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
@@ -1489,8 +1479,8 @@ static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_enum(v, prop->name, &width, prop->info->enum_table, &local_err);
-    if (local_err) {
+    if (!visit_type_enum(v, prop->name, &width, prop->info->enum_table,
+                         &local_err)) {
         error_propagate(errp, local_err);
         return;
     }
