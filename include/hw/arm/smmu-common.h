@@ -88,10 +88,7 @@ typedef struct SMMUPciBus {
     SMMUDevice   *pbdev[]; /* Parent array is sparse, so dynamically alloc */
 } SMMUPciBus;
 
-typedef struct SMMUIOTLBKey {
-    uint64_t iova;
-    uint16_t asid;
-} SMMUIOTLBKey;
+ typedef uint64_t SMMUIOTLBKey;
 
 typedef struct SMMUState {
     /* <private> */

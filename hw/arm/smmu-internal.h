@@ -96,5 +96,8 @@ uint64_t iova_level_offset(uint64_t iova, int inputsize,
             MAKE_64BIT_MASK(0, gsz - 3);
 }
 
-#define SMMU_IOTLB_ASID(key) ((key).asid)
+#define SMMU_IOTLB_ASID_SHIFT  40
+
+#define SMMU_IOTLB_ASID(key) (((key) >> SMMU_IOTLB_ASID_SHIFT) & 0xFFFF)
+#define SMMU_IOTLB_IOVA(key) (((key) & MAKE_64BIT_MASK(0, 40)) << 12)
 #endif

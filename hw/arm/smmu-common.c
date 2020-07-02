@@ -34,34 +34,17 @@
 
 static guint smmu_iotlb_key_hash(gconstpointer v)
 {
-    SMMUIOTLBKey *key = (SMMUIOTLBKey *)v;
-    uint32_t a, b, c;
-
-    /* Jenkins hash */
-    a = b = c = JHASH_INITVAL + sizeof(*key);
-    a += key->asid;
-    b += extract64(key->iova, 0, 32);
-    c += extract64(key->iova, 32, 32);
-
-    __jhash_mix(a, b, c);
-    __jhash_final(a, b, c);
-
-    return c;
+    return (guint)*(const uint64_t *)v;
 }
 
 static gboolean smmu_iotlb_key_equal(gconstpointer v1, gconstpointer v2)
 {
-    const SMMUIOTLBKey *k1 = v1;
-    const SMMUIOTLBKey *k2 = v2;
-
-    return (k1->asid == k2->asid) && (k1->iova == k2->iova);
+    return *((const uint64_t *)v1) == *((const uint64_t *)v2);
 }
 
 SMMUIOTLBKey smmu_get_iotlb_key(uint16_t asid, uint64_t iova)
 {
-    SMMUIOTLBKey key = {.asid = asid, .iova = iova};
-
-    return key;
+    return iova >> 12 | (uint64_t)(asid) << SMMU_IOTLB_ASID_SHIFT;
 }
 
 IOMMUTLBEntry *smmu_iotlb_lookup(SMMUState *bs, SMMUTransCfg *cfg,
