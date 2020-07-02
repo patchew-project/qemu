@@ -1267,7 +1267,9 @@ static void s390_pci_set_fid(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    visit_type_uint32(v, name, ptr, errp);
+    if (!visit_type_uint32(v, name, ptr, errp)) {
+        return;
+    }
     zpci->fid_defined = true;
 }
 
