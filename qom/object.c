@@ -549,8 +549,7 @@ void object_initialize_child_with_propsv(Object *parentobj,
     object_initialize(childobj, size, type);
     obj = OBJECT(childobj);
 
-    object_set_propv(obj, &local_err, vargs);
-    if (local_err) {
+    if (object_set_propv(obj, errp, vargs) < 0) {
         goto out;
     }
 
@@ -743,7 +742,7 @@ Object *object_new_with_propv(const char *typename,
     }
     obj = object_new_with_type(klass->type);
 
-    if (object_set_propv(obj, &local_err, vargs) < 0) {
+    if (object_set_propv(obj, errp, vargs) < 0) {
         goto error;
     }
 
@@ -1767,14 +1766,17 @@ static void object_set_link_property(Object *obj, Visitor *v,
     char *path = NULL;
 
     visit_type_str(v, name, &path, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
-    if (!local_err && strcmp(path, "") != 0) {
-        new_target = object_resolve_link(obj, name, path, &local_err);
+    if (strcmp(path, "") != 0) {
+        new_target = object_resolve_link(obj, name, path, errp);
     }
 
     g_free(path);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!new_target) {
         return;
     }
 
