@@ -25,7 +25,7 @@
 #ifndef SNAPSHOT_H
 #define SNAPSHOT_H
 
-
+#include "qapi/qapi-builtin-types.h"
 
 #define SNAPSHOT_OPT_BASE       "snapshot."
 #define SNAPSHOT_OPT_ID         "snapshot.id"
@@ -76,17 +76,20 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
  * These functions will properly handle dataplane (take aio_context_acquire
  * when appropriate for appropriate block drivers */
 
-bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs);
-int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bsd_bs,
-                             Error **errp);
-int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs,
-                           Error **errp);
-int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs);
+bool bdrv_all_can_snapshot(strList *exclude_bs,
+                           BlockDriverState **first_bad_bs);
+int bdrv_all_delete_snapshot(const char *name, strList *exclude_bs,
+                             BlockDriverState **first_bsd_bs, Error **errp);
+int bdrv_all_goto_snapshot(const char *name, strList *exclude_bs,
+                           BlockDriverState **first_bad_bs, Error **errp);
+int bdrv_all_find_snapshot(const char *name, strList *exclude_bs,
+                           BlockDriverState **first_bad_bs);
 int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
                              BlockDriverState *vm_state_bs,
                              uint64_t vm_state_size,
+                             strList *exclude_bs,
                              BlockDriverState **first_bad_bs);
 
-BlockDriverState *bdrv_all_find_vmstate_bs(void);
+BlockDriverState *bdrv_all_find_vmstate_bs(strList *exclude_bs);
 
 #endif

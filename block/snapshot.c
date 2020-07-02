@@ -385,10 +385,20 @@ int bdrv_snapshot_load_tmp_by_id_or_name(BlockDriverState *bs,
     return ret;
 }
 
-static bool bdrv_all_snapshots_includes_bs(BlockDriverState *bs)
+static bool bdrv_all_snapshots_includes_bs(BlockDriverState *bs,
+                                           strList *exclude_bs)
 {
+    const char *node_name = bdrv_get_node_name(bs);
+
     if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
         return false;
+    }
+
+    while (exclude_bs) {
+        if (g_str_equal(node_name, exclude_bs->value)) {
+            return false;
+        }
+        exclude_bs = exclude_bs->next;
     }
 
     /* Include all nodes that are either in use by a BlockBackend, or that
@@ -400,7 +410,7 @@ static bool bdrv_all_snapshots_includes_bs(BlockDriverState *bs)
  * These functions will properly handle dataplane (take aio_context_acquire
  * when appropriate for appropriate block drivers) */
 
-bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
+bool bdrv_all_can_snapshot(strList *exclude_bs, BlockDriverState **first_bad_bs)
 {
     bool ok = true;
     BlockDriverState *bs;
@@ -410,7 +420,7 @@ bool bdrv_all_can_snapshot(BlockDriverState **first_bad_bs)
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        if (bdrv_all_snapshots_includes_bs(bs)) {
+        if (bdrv_all_snapshots_includes_bs(bs, exclude_bs)) {
             ok = bdrv_can_snapshot(bs);
         }
         aio_context_release(ctx);
@@ -425,8 +435,8 @@ fail:
     return ok;
 }
 
-int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
-                             Error **errp)
+int bdrv_all_delete_snapshot(const char *name, strList *exclude_bs,
+                             BlockDriverState **first_bad_bs, Error **errp)
 {
     int ret = 0;
     BlockDriverState *bs;
@@ -437,7 +447,7 @@ int bdrv_all_delete_snapshot(const char *name, BlockDriverState **first_bad_bs,
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        if (bdrv_all_snapshots_includes_bs(bs) &&
+        if (bdrv_all_snapshots_includes_bs(bs, exclude_bs) &&
             bdrv_snapshot_find(bs, snapshot, name) >= 0)
         {
             ret = bdrv_snapshot_delete(bs, snapshot->id_str,
@@ -456,8 +466,8 @@ fail:
 }
 
 
-int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs,
-                           Error **errp)
+int bdrv_all_goto_snapshot(const char *name, strList *exclude_bs,
+                           BlockDriverState **first_bad_bs, Error **errp)
 {
     int ret = 0;
     BlockDriverState *bs;
@@ -467,7 +477,7 @@ int bdrv_all_goto_snapshot(const char *name, BlockDriverState **first_bad_bs,
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        if (bdrv_all_snapshots_includes_bs(bs)) {
+        if (bdrv_all_snapshots_includes_bs(bs, exclude_bs)) {
             ret = bdrv_snapshot_goto(bs, name, errp);
         }
         aio_context_release(ctx);
@@ -482,7 +492,8 @@ fail:
     return ret;
 }
 
-int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
+int bdrv_all_find_snapshot(const char *name, strList *exclude_bs,
+                           BlockDriverState **first_bad_bs)
 {
     QEMUSnapshotInfo sn;
     int err = 0;
@@ -493,7 +504,7 @@ int bdrv_all_find_snapshot(const char *name, BlockDriverState **first_bad_bs)
         AioContext *ctx = bdrv_get_aio_context(bs);
 
         aio_context_acquire(ctx);
-        if (bdrv_all_snapshots_includes_bs(bs)) {
+        if (bdrv_all_snapshots_includes_bs(bs, exclude_bs)) {
             err = bdrv_snapshot_find(bs, &sn, name);
         }
         aio_context_release(ctx);
@@ -511,6 +522,7 @@ fail:
 int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
                              BlockDriverState *vm_state_bs,
                              uint64_t vm_state_size,
+                             strList *exclude_bs,
                              BlockDriverState **first_bad_bs)
 {
     int err = 0;
@@ -524,7 +536,7 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
         if (bs == vm_state_bs) {
             sn->vm_state_size = vm_state_size;
             err = bdrv_snapshot_create(bs, sn);
-        } else if (bdrv_all_snapshots_includes_bs(bs)) {
+        } else if (bdrv_all_snapshots_includes_bs(bs, exclude_bs)) {
             sn->vm_state_size = 0;
             err = bdrv_snapshot_create(bs, sn);
         }
@@ -540,7 +552,7 @@ fail:
     return err;
 }
 
-BlockDriverState *bdrv_all_find_vmstate_bs(void)
+BlockDriverState *bdrv_all_find_vmstate_bs(strList *exclude_bs)
 {
     BlockDriverState *bs;
     BdrvNextIterator it;
@@ -550,7 +562,8 @@ BlockDriverState *bdrv_all_find_vmstate_bs(void)
         bool found;
 
         aio_context_acquire(ctx);
-        found = bdrv_all_snapshots_includes_bs(bs) && bdrv_can_snapshot(bs);
+        found = bdrv_all_snapshots_includes_bs(bs, exclude_bs) &&
+            bdrv_can_snapshot(bs);
         aio_context_release(ctx);
 
         if (found) {
