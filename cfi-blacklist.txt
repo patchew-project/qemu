@@ -1,0 +1,27 @@
+# List of functions that should not be compiled with Control-Flow Integrity
+
+[cfi-icall]
+# TCG creates binary blobs at runtime, with the transformed code.
+# When it's time to execute it, the code is called with an indirect function
+# call. Since such function did not exist at compile time, the runtime has no
+# way to verify its signature. Disable CFI checks in the function that calls
+# the binary blob
+fun:cpu_tb_exec
+
+# TCI (Tiny Compiler Interpreter) is an interpreter for TCG pseudo code.
+# One possible operation in the pseudo code is a call to binary code.
+# Therefore, disable CFI checks in the interpreter function
+fun:tcg_qemu_tb_exec
+
+# TCG Plugins Callback Functions. The mechanism rely on opening external
+# shared libraries at runtime and get pointers to functions in such libraries
+# Since these pointers are external to the QEMU binary, the runtime cannot
+# verify their signature. Disable CFI Checks in all the functions that use
+# such pointers.
+fun:plugin_vcpu_cb__simple
+fun:plugin_cb__simple
+fun:plugin_cb__udata
+fun:qemu_plugin_tb_trans_cb
+fun:qemu_plugin_vcpu_syscall
+fun:qemu_plugin_vcpu_syscall_ret
+fun:plugin_load

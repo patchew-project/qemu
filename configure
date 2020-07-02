@@ -27,6 +27,7 @@ fi
 TMPB="qemu-conf"
 TMPC="${TMPDIR1}/${TMPB}.c"
 TMPO="${TMPDIR1}/${TMPB}.o"
+TMPA="${TMPDIR1}/lib${TMPB}.a"
 TMPCXX="${TMPDIR1}/${TMPB}.cxx"
 TMPE="${TMPDIR1}/${TMPB}.exe"
 TMPMO="${TMPDIR1}/${TMPB}.mo"
@@ -132,6 +133,43 @@ compile_prog() {
   local_cflags="$1"
   local_ldflags="$2"
   do_cc $QEMU_CFLAGS $local_cflags -o $TMPE $TMPC $QEMU_LDFLAGS $local_ldflags
+}
+
+do_run() {
+    # Run a generic program, capturing its output to the log.
+    # First argument is binary to execute.
+    local program="$1"
+    shift
+    echo $program $@ >> config.log
+    $program $@ >> config.log 2>&1 || return $?
+}
+
+do_run_filter() {
+    # Run a generic program, capturing its output to the log,
+    # but also filtering the output with grep.
+    # Returns the return value of grep.
+    # First argument is the filter string.
+    # Second argument is binary to execute.
+    local filter="$1"
+    shift
+    local program="$1"
+    shift
+    echo $program $@ >> config.log
+    $program $@ >> config.log 2>&1
+    $program $@ 2>&1 | grep ${filter} >> /dev/null || return $?
+
+}
+
+create_library() {
+  do_run "$ar" -rc${1} $TMPA $TMPO
+}
+
+create_index() {
+  do_run "$ranlib" $TMPA
+}
+
+find_library_symbol() {
+  do_run_filter ${1} "$nm" $TMPA
 }
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
@@ -306,6 +344,8 @@ libs_tools=""
 audio_win_int=""
 libs_qga=""
 debug_info="yes"
+cfi="no"
+cfi_debug="no"
 stack_protector=""
 safe_stack=""
 use_containers="yes"
@@ -1285,6 +1325,14 @@ for opt do
   ;;
   --disable-werror) werror="no"
   ;;
+  --enable-cfi) cfi="yes"
+  ;;
+  --disable-cfi) cfi="no"
+  ;;
+  --enable-cfi-debug) cfi_debug="yes"
+  ;;
+  --disable-cfi-debug) cfi_debug="no"
+  ;;
   --enable-stack-protector) stack_protector="yes"
   ;;
   --disable-stack-protector) stack_protector="no"
@@ -1838,6 +1886,10 @@ disabled with --disable-FEATURE, default is enabled if available:
   module-upgrades try to load modules from alternate paths for upgrades
   debug-tcg       TCG debugging (default is disabled)
   debug-info      debugging information
+  cfi             Enable Control-Flow Integrity for indirect function calls.
+                  Depends on clang/llvm >= 3.9 and is incompatible with modules
+  cfi-debug       In case of a cfi violation, a message containing the line that
+                  triggered the error is written to stderr
   sparse          sparse checker
   safe-stack      SafeStack Stack Smash Protection. Depends on
                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
@@ -5949,6 +6001,129 @@ if  test "$plugins" = "yes" &&
 fi
 
 ########################################
+# cfi (Control Flow Integrity)
+
+if test "$cfi" = "yes"; then
+  # Compiler/Linker Flags that needs to be added for cfi:
+  # -fsanitize=cfi-icall to enable control-flow integrity checks on
+  #            indirect function calls.
+  # -fsanitize-cfi-icall-generalize-pointers to allow indirect function calls
+  #            with pointers of a different type (i.e. pass a void* to a
+  #            function that expects a char*). Used in some spots in QEMU,
+  #            with compile-time type checks done by macros
+  # -fsanitize-blacklist, to disable CFI on specific functions.
+  #            required for some TCG functions that call runtime-created or
+  #            runtime-linked code. More details in cfi-blacklist.txt
+  # -flto=thin to enable link-time optimization. This is required for the
+  #            implementation of CFI to work properly across object files
+  # -fuse-ld=gold Since some of the objects are packed into static libraries,
+  #               which are not supported by the bfd linker.
+  test_cflag="-fsanitize=cfi-icall -fsanitize-cfi-icall-generalize-pointers -flto=thin -fsanitize-blacklist=${source_path}/cfi-blacklist.txt"
+  test_ldflag="-fsanitize=cfi-icall -flto=thin -fuse-ld=gold -fsanitize-blacklist=${source_path}/cfi-blacklist.txt"
+
+  if test "$cfi_debug" = "yes"; then
+    # Disable the default trap mechanism so that a error message is displayed
+    # when a CFI violation happens. The code is still terminated after the
+    # message
+    test_cflag="${test_cflag} -fno-sanitize-trap=cfi-icall"
+    test_ldflag="${test_ldflag} -fno-sanitize-trap=cfi-icall"
+  fi
+
+  # Check that cfi is supported.
+  # Need to check for:
+  # - Valid compiler, that supports cfi flags
+  # - Valid ar, ranlib and nm, able to work with intermediate code (for lto)
+  # - Incompatible configure options (plugins and modules) that use dlsym at
+  #   runtime (indirect function calls to shared libraries is not supported)
+
+  #### Check for a valid *ar* for link-time optimization.
+  # Test it by creating a static library and linking it
+  # Compile an object first
+  cat > $TMPC << EOF
+int fun(int val);
+
+int fun(int val) {
+    return val;
+}
+EOF
+  if ! compile_object "-Werror $test_cflag"; then
+    error_exit "Control Flow Integrity is not supported by your compiler"
+  fi
+  # Create a library out of it
+  if ! create_library "s" ; then
+    error_exit "LTO is required for CFI, but is not supported by ar. This usually happens when using gnu ar. Try switching to LLVM ar"
+  fi
+  # Now create a binary using the library
+  cat > $TMPC << EOF
+int fun(int val);
+
+int main(int argc, char *argv[]) {
+  return fun(0);
+}
+EOF
+  if ! compile_prog "-Werror $test_cflag" "$test_ldflag -L${TMPDIR1} -l${TMPB}"; then
+    error_exit "LTO is required for CFI, but is not supported by ar. This usually happens when using gnu ar. Try switching to LLVM ar"
+  fi
+
+  #### Check for a valid *ranlib* for link-time optimization.
+  # Test it by creating a static library without index, indexing and linking it
+  cat > $TMPC << EOF
+int fun(int val);
+
+int fun(int val) {
+    return val;
+}
+EOF
+  if ! compile_object "-Werror $test_cflag"; then
+    error_exit "Control Flow Integrity is not supported by your compiler"
+  fi
+  # Create a library explicity without an index
+  if ! create_library "S" ; then
+    error_exit "LTO is required for CFI, but is not supported by ar. This usually happens when using gnu ar. Try switching to LLVM ar"
+  fi
+  # Now run ranlib to index it
+  if ! create_index ; then
+    error_exit "LTO is required for CFI, but is not supported by ranlib. This usually happens when using gnu ranlib. Try switching to LLVM ranlib"
+  fi
+  # If ranlib worked, we can now use the library
+  cat > $TMPC << EOF
+int fun(int val);
+
+int main(int argc, char *argv[]) {
+  return fun(0);
+}
+EOF
+  if ! compile_prog "-Werror $test_cflag" "$test_ldflag -L${TMPDIR1} -l${TMPB}"; then
+    error_exit "LTO is required for CFI, but is not supported by ranlib. This usually happens when using gnu ranlib. Try switching to LLVM ranlib"
+  fi
+
+  #### Check for a valid *nm* for link-time optimization.
+  # nm does not return an error code if the file is unsupported, just
+  # print a warning text. So, check if *fun* is one of the symbols found by nm
+  # in the previously created static library
+  if ! find_library_symbol "fun" ; then
+    error_exit "LTO is required for CFI, but is not supported by nm. This usually happens when using gnu nm. Try switching to LLVM nm"
+  fi
+
+  #### The toolchain supports CFI, let's check for incompatible options
+
+  if test "$modules" = "yes"; then
+    error_exit "Control Flow Integrity is not compatible with modules"
+  fi
+
+  #### All good, add the flags for CFI to our CFLAGS and LDFLAGS
+  # Flag needed both at compilation and at linking
+  QEMU_CFLAGS="$QEMU_CFLAGS $test_cflag"
+  QEMU_LDFLAGS="$QEMU_LDFLAGS $test_ldflag"
+
+else
+  if test "$cfi_debug" = "yes"; then
+    error_exit "Cannot enable Control Flow Integrity debugging since CFI is not enabled"
+  fi
+fi
+
+
+########################################
 # See if __attribute__((alias)) is supported.
 # This false for Xcode 9, but has been remedied for Xcode 10.
 # Unfortunately, travis uses Xcode 9 by default.
@@ -6856,6 +7031,8 @@ echo "gprof enabled     $gprof"
 echo "sparse enabled    $sparse"
 echo "strip binaries    $strip_opt"
 echo "profiler          $profiler"
+echo "cfi               $cfi"
+echo "cfi debug         $cfi_debug"
 echo "static build      $static"
 echo "safe stack        $safe_stack"
 if test "$darwin" = "yes" ; then
