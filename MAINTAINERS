@@ -1099,8 +1099,7 @@ R: Jiaxun Yang <jiaxun.yang@flygoat.com>
 S: Maintained
 
 Boston
-M: Paul Burton <pburton@wavecomp.com>
-R: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
+M: Aleksandar Rikalo <aleksandar.rikalo@syrmia.com>
 S: Maintained
 F: hw/core/loader-fit.c
 F: hw/mips/boston.c
