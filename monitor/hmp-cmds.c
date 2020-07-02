@@ -1091,7 +1091,7 @@ void hmp_loadvm(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    qmp_loadvm(qdict_get_str(qdict, "name"), &err);
+    qmp_loadvm(qdict_get_str(qdict, "name"), false, NULL, &err);
     hmp_handle_error(mon, err);
 }
 
@@ -1099,7 +1099,7 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    qmp_savevm(qdict_get_try_str(qdict, "name"), &err);
+    qmp_savevm(qdict_get_try_str(qdict, "name"), false, NULL, &err);
     hmp_handle_error(mon, err);
 }
 
@@ -1107,7 +1107,7 @@ void hmp_delvm(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    qmp_delvm(qdict_get_str(qdict, "name"), &err);
+    qmp_delvm(qdict_get_str(qdict, "name"), false, NULL, &err);
     hmp_handle_error(mon, err);
 }
 

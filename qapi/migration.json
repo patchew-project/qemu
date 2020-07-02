@@ -1629,6 +1629,7 @@
 #
 # @tag: name of the snapshot to create. If it already
 # exists it will be replaced.
+# @exclude: list of block device node names to exclude
 #
 # Note that execution of the VM will be paused during the time
 # it takes to save the snapshot
@@ -1639,7 +1640,8 @@
 #
 # -> { "execute": "savevm",
 #      "data": {
-#         "tag": "my-snap"
+#         "tag": "my-snap",
+#         "exclude": ["pflash0-vars"]
 #      }
 #    }
 # <- { "return": { } }
@@ -1647,7 +1649,8 @@
 # Since: 5.2
 ##
 { 'command': 'savevm',
-  'data': { 'tag': 'str' } }
+  'data': { 'tag': 'str',
+            '*exclude': ['str'] } }
 
 ##
 # @loadvm:
@@ -1655,6 +1658,7 @@
 # Load a VM snapshot
 #
 # @tag: name of the snapshot to load.
+# @exclude: list of block device node names to exclude
 #
 # Returns: nothing
 #
@@ -1662,7 +1666,8 @@
 #
 # -> { "execute": "loadvm",
 #      "data": {
-#         "tag": "my-snap"
+#         "tag": "my-snap",
+#         "exclude": ["pflash0-vars"]
 #      }
 #    }
 # <- { "return": { } }
@@ -1670,7 +1675,8 @@
 # Since: 5.2
 ##
 { 'command': 'loadvm',
-  'data': { 'tag': 'str' } }
+  'data': { 'tag': 'str',
+            '*exclude': ['str'] } }
 
 ##
 # @delvm:
@@ -1678,6 +1684,7 @@
 # Delete a VM snapshot
 #
 # @tag: name of the snapshot to delete.
+# @exclude: list of block device node names to exclude
 #
 # Note that execution of the VM will be paused during the time
 # it takes to delete the snapshot
@@ -1688,7 +1695,8 @@
 #
 # -> { "execute": "delvm",
 #      "data": {
-#         "tag": "my-snap"
+#         "tag": "my-snap",
+#         "exclude": ["pflash0-vars"]
 #      }
 #    }
 # <- { "return": { } }
@@ -1696,4 +1704,5 @@
 # Since: 5.2
 ##
 { 'command': 'delvm',
-  'data': { 'tag': 'str' } }
+  'data': { 'tag': 'str',
+            '*exclude': ['str'] } }
