@@ -8371,6 +8371,7 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     disas_config "MIPS"
     if test -n "${cxx}"; then
       disas_config "NANOMIPS"
+      disas_config "LOONGSON2F"
     fi
   ;;
   moxie*)

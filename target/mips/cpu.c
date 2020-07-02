@@ -132,6 +132,10 @@ static void mips_cpu_disas_set_info(CPUState *s, disassemble_info *info)
         info->print_insn = print_insn_nanomips;
 #endif
     }
+
+    if(env->insn_flags & INSN_LOONGSON2F) {
+        info->print_insn = print_insn_loongson2f;
+    }
 }
 
 static void mips_cpu_realizefn(DeviceState *dev, Error **errp)
