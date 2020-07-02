@@ -552,7 +552,9 @@ fail:
     return err;
 }
 
-BlockDriverState *bdrv_all_find_vmstate_bs(strList *exclude_bs)
+BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
+                                           strList *exclude_bs,
+                                           Error **errp)
 {
     BlockDriverState *bs;
     BdrvNextIterator it;
@@ -560,16 +562,39 @@ BlockDriverState *bdrv_all_find_vmstate_bs(strList *exclude_bs)
     for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
         AioContext *ctx = bdrv_get_aio_context(bs);
         bool found;
+        Error *err = NULL;
 
         aio_context_acquire(ctx);
-        found = bdrv_all_snapshots_includes_bs(bs, exclude_bs) &&
-            bdrv_can_snapshot(bs);
+        if (vmstate_bs == NULL) {
+            found = bdrv_all_snapshots_includes_bs(bs, exclude_bs) &&
+                bdrv_can_snapshot(bs);
+        } else {
+            if (g_str_equal(vmstate_bs, bdrv_get_node_name(bs))) {
+                found = bdrv_all_snapshots_includes_bs(bs, exclude_bs) &&
+                    bdrv_can_snapshot(bs);
+                if (!found) {
+                    error_setg(&err,
+                               "block device '%s' cannot accept snapshots",
+                               vmstate_bs);
+                }
+            } else {
+                found = false;
+            }
+        }
         aio_context_release(ctx);
 
-        if (found) {
+        if (found || err) {
             bdrv_next_cleanup(&it);
+            if (err) {
+                error_propagate(errp, err);
+                return NULL;
+            }
             break;
         }
+    }
+
+    if (!bs) {
+        error_setg(errp, "No block device can accept snapshots");
     }
     return bs;
 }

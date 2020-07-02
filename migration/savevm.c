@@ -2662,9 +2662,8 @@ int save_snapshot(const char *name, Error **errp)
         }
     }
 
-    bs = bdrv_all_find_vmstate_bs(NULL);
+    bs = bdrv_all_find_vmstate_bs(NULL, NULL, errp);
     if (bs == NULL) {
-        error_setg(errp, "No block device can accept snapshots");
         return ret;
     }
     aio_context = bdrv_get_aio_context(bs);
@@ -2857,9 +2856,8 @@ int load_snapshot(const char *name, Error **errp)
         return ret;
     }
 
-    bs_vm_state = bdrv_all_find_vmstate_bs(NULL);
+    bs_vm_state = bdrv_all_find_vmstate_bs(NULL, NULL, errp);
     if (!bs_vm_state) {
-        error_setg(errp, "No block device supports snapshots");
         return -ENOTSUP;
     }
     aio_context = bdrv_get_aio_context(bs_vm_state);

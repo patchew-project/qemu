@@ -899,7 +899,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
     ImageEntry *image_entry, *next_ie;
     SnapshotEntry *snapshot_entry;
 
-    bs = bdrv_all_find_vmstate_bs(NULL);
+    bs = bdrv_all_find_vmstate_bs(NULL, NULL, NULL);
     if (!bs) {
         monitor_printf(mon, "No available block device supports snapshots\n");
         return;
