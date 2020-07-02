@@ -616,14 +616,12 @@ static BlockdevOptionsSsh *ssh_parse_options(QDict *options, Error **errp)
 {
     BlockdevOptionsSsh *result = NULL;
     QemuOpts *opts = NULL;
-    Error *local_err = NULL;
     const QDictEntry *e;
     Visitor *v;
 
     /* Translate legacy options */
     opts = qemu_opts_create(&ssh_runtime_opts, NULL, 0, &error_abort);
-    if (!qemu_opts_absorb_qdict(opts, options, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!qemu_opts_absorb_qdict(opts, options, errp)) {
         goto fail;
     }
 
