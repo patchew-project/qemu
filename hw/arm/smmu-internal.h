@@ -97,7 +97,16 @@ uint64_t iova_level_offset(uint64_t iova, int inputsize,
 }
 
 #define SMMU_IOTLB_ASID_SHIFT  40
+#define SMMU_IOTLB_LEVEL_SHIFT 56
+#define SMMU_IOTLB_TG_SHIFT    58
 
 #define SMMU_IOTLB_ASID(key) (((key) >> SMMU_IOTLB_ASID_SHIFT) & 0xFFFF)
 #define SMMU_IOTLB_IOVA(key) (((key) & MAKE_64BIT_MASK(0, 40)) << 12)
+
+typedef struct SMMUIOTLBPageInvInfo {
+    int asid;
+    uint64_t iova;
+    uint64_t mask;
+} SMMUIOTLBPageInvInfo;
+
 #endif
