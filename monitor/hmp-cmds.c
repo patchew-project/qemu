@@ -1089,15 +1089,9 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
 
 void hmp_loadvm(Monitor *mon, const QDict *qdict)
 {
-    int saved_vm_running  = runstate_is_running();
-    const char *name = qdict_get_str(qdict, "name");
     Error *err = NULL;
 
-    vm_stop(RUN_STATE_RESTORE_VM);
-
-    if (load_snapshot(name, &err) == 0 && saved_vm_running) {
-        vm_start();
-    }
+    qmp_loadvm(qdict_get_str(qdict, "name"), &err);
     hmp_handle_error(mon, err);
 }
 
@@ -1105,21 +1099,15 @@ void hmp_savevm(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
 
-    save_snapshot(qdict_get_try_str(qdict, "name"), &err);
+    qmp_savevm(qdict_get_try_str(qdict, "name"), &err);
     hmp_handle_error(mon, err);
 }
 
 void hmp_delvm(Monitor *mon, const QDict *qdict)
 {
-    BlockDriverState *bs;
     Error *err = NULL;
-    const char *name = qdict_get_str(qdict, "name");
 
-    if (bdrv_all_delete_snapshot(name, &bs, &err) < 0) {
-        error_prepend(&err,
-                      "deleting snapshot on device '%s': ",
-                      bdrv_get_device_name(bs));
-    }
+    qmp_delvm(qdict_get_str(qdict, "name"), &err);
     hmp_handle_error(mon, err);
 }
 

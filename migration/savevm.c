@@ -2943,3 +2943,30 @@ bool vmstate_check_only_migratable(const VMStateDescription *vmsd)
 
     return !(vmsd && vmsd->unmigratable);
 }
+
+void qmp_savevm(const char *tag, Error **errp)
+{
+    save_snapshot(tag, errp);
+}
+
+void qmp_loadvm(const char *tag, Error **errp)
+{
+    int saved_vm_running  = runstate_is_running();
+
+    vm_stop(RUN_STATE_RESTORE_VM);
+
+    if (load_snapshot(tag, errp) == 0 && saved_vm_running) {
+        vm_start();
+    }
+}
+
+void qmp_delvm(const char *tag, Error **errp)
+{
+    BlockDriverState *bs;
+
+    if (bdrv_all_delete_snapshot(tag, &bs, errp) < 0) {
+        error_prepend(errp,
+                      "deleting snapshot on device '%s': ",
+                      bdrv_get_device_or_node_name(bs));
+    }
+}

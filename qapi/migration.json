@@ -1621,3 +1621,79 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @savevm:
+#
+# Save a VM snapshot
+#
+# @tag: name of the snapshot to create. If it already
+# exists it will be replaced.
+#
+# Note that execution of the VM will be paused during the time
+# it takes to save the snapshot
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "savevm",
+#      "data": {
+#         "tag": "my-snap"
+#      }
+#    }
+# <- { "return": { } }
+#
+# Since: 5.2
+##
+{ 'command': 'savevm',
+  'data': { 'tag': 'str' } }
+
+##
+# @loadvm:
+#
+# Load a VM snapshot
+#
+# @tag: name of the snapshot to load.
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "loadvm",
+#      "data": {
+#         "tag": "my-snap"
+#      }
+#    }
+# <- { "return": { } }
+#
+# Since: 5.2
+##
+{ 'command': 'loadvm',
+  'data': { 'tag': 'str' } }
+
+##
+# @delvm:
+#
+# Delete a VM snapshot
+#
+# @tag: name of the snapshot to delete.
+#
+# Note that execution of the VM will be paused during the time
+# it takes to delete the snapshot
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "delvm",
+#      "data": {
+#         "tag": "my-snap"
+#      }
+#    }
+# <- { "return": { } }
+#
+# Since: 5.2
+##
+{ 'command': 'delvm',
+  'data': { 'tag': 'str' } }
