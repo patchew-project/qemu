@@ -63,7 +63,8 @@ class Qcow2StructMeta(type):
 
 class Qcow2Struct(metaclass=Qcow2StructMeta):
 
-    """Qcow2Struct: base class for qcow2 data structures
+    """
+    Qcow2Struct: base class for qcow2 data structures
 
     Successors should define fields class variable, which is: list of tuples,
     each of three elements:
@@ -112,6 +113,9 @@ class Qcow2BitmapExt(Qcow2Struct):
         ('u64', '{:#x}', 'bitmap_directory_size'),
         ('u64', '{:#x}', 'bitmap_directory_offset')
     )
+
+    def __init__(self, fd):
+        super().__init__(fd=fd)
 
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
@@ -173,7 +177,13 @@ class QcowHeaderExtension(Qcow2Struct):
         self.data_str = data_str
 
         if self.magic == QCOW2_EXT_MAGIC_BITMAPS:
-            self.obj = Qcow2BitmapExt(data=self.data)
+            assert fd is not None
+            position = fd.tell()
+            # Step back to reread data
+            padded = (self.length + 7) & ~7
+            fd.seek(-padded, 1)
+            self.obj = Qcow2BitmapExt(fd=fd)
+            fd.seek(position)
         else:
             self.obj = None
 
