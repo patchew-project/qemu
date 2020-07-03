@@ -441,6 +441,7 @@ edk2_blobs="no"
 pkgversion=""
 pie=""
 qom_cast_debug="yes"
+qdev_debug="no"
 trace_backends="log"
 trace_file="trace"
 spice=""
@@ -1123,6 +1124,10 @@ for opt do
   --disable-qom-cast-debug) qom_cast_debug="no"
   ;;
   --enable-qom-cast-debug) qom_cast_debug="yes"
+  ;;
+  --disable-qdev-debug) qdev_debug="no"
+  ;;
+  --enable-qdev-debug) qdev_debug="yes"
   ;;
   --disable-virtfs) virtfs="no"
   ;;
@@ -6992,6 +6997,7 @@ echo "gcov enabled      $gcov"
 echo "TPM support       $tpm"
 echo "libssh support    $libssh"
 echo "QOM debugging     $qom_cast_debug"
+echo "QDEV debugging    $qdev_debug"
 echo "Live block migration $live_block_migration"
 echo "lzo support       $lzo"
 echo "snappy support    $snappy"
@@ -7631,6 +7637,9 @@ if test "$localtime_r" = "yes" ; then
 fi
 if test "$qom_cast_debug" = "yes" ; then
   echo "CONFIG_QOM_CAST_DEBUG=y" >> $config_host_mak
+fi
+if test "$qdev_debug" = "yes" ; then
+  echo "CONFIG_QDEV_DEBUG=y" >> $config_host_mak
 fi
 if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=m" >> $config_host_mak
