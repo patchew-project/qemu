@@ -183,6 +183,7 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
                                             epit_table[i].irq));
     }
 
+    object_property_set_uint(OBJECT(&s->fec), s->phy_num, "phy-num", &err);
     qdev_set_nic_properties(DEVICE(&s->fec), &nd_table[0]);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->fec), &err);
@@ -339,10 +340,16 @@ static void fsl_imx25_realize(DeviceState *dev, Error **errp)
                                 &s->iram_alias);
 }
 
+static Property fsl_imx25_properties[] = {
+    DEFINE_PROP_UINT32("fec-phy-num", FslIMX25State, phy_num, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void fsl_imx25_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    device_class_set_props(dc, fsl_imx25_properties);
     dc->realize = fsl_imx25_realize;
     dc->desc = "i.MX25 SOC";
     /*
