@@ -100,6 +100,8 @@ typedef struct {
     /*< public >*/
 
     OHCIState ohci;
+
+    /* Properties */
     char *masterbus;
     uint32_t num_ports;
     uint32_t firstport;
