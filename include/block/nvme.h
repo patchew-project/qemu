@@ -704,9 +704,9 @@ typedef struct NvmeErrorLog {
     uint8_t     resv[35];
 } NvmeErrorLog;
 
-typedef struct NvmeSmartLog {
+typedef struct QEMU_PACKED NvmeSmartLog {
     uint8_t     critical_warning;
-    uint8_t     temperature[2];
+    uint16_t    temperature;
     uint8_t     available_spare;
     uint8_t     available_spare_threshold;
     uint8_t     percentage_used;
@@ -844,6 +844,10 @@ enum NvmeIdCtrlOncs {
 
 enum NvmeIdCtrlFrmw {
     NVME_FRMW_SLOT1_RO = 1 << 0,
+};
+
+enum NvmeIdCtrlLpa {
+    NVME_LPA_EXTENDED = 1 << 2,
 };
 
 #define NVME_CTRL_SQES_MIN(sqes) ((sqes) & 0xf)
