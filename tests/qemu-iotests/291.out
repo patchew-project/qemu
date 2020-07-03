@@ -33,6 +33,24 @@ reserved32                0
 bitmap_directory_size     0x40
 bitmap_directory_offset   0x510000
 
+Bitmap name               b1
+bitmap_table_offset       0x4e0000
+bitmap_table_size         1
+flags                     0x0 ([])
+type                      1
+granularity_bits          19
+name_size                 2
+extra_data_size           0
+
+Bitmap name               b2
+bitmap_table_offset       0x500000
+bitmap_table_size         1
+flags                     0x2 (['auto'])
+type                      1
+granularity_bits          16
+name_size                 2
+extra_data_size           0
+
 
 === Bitmap preservation not possible to non-qcow2 ===
 
@@ -97,6 +115,33 @@ nb_bitmaps                3
 reserved32                0
 bitmap_directory_size     0x60
 bitmap_directory_offset   0x520000
+
+Bitmap name               b1
+bitmap_table_offset       0x470000
+bitmap_table_size         1
+flags                     0x0 ([])
+type                      1
+granularity_bits          19
+name_size                 2
+extra_data_size           0
+
+Bitmap name               b2
+bitmap_table_offset       0x490000
+bitmap_table_size         1
+flags                     0x2 (['auto'])
+type                      1
+granularity_bits          16
+name_size                 2
+extra_data_size           0
+
+Bitmap name               b0
+bitmap_table_offset       0x510000
+bitmap_table_size         1
+flags                     0x0 ([])
+type                      1
+granularity_bits          16
+name_size                 2
+extra_data_size           0
 
 
 === Check bitmap contents ===
