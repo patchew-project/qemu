@@ -1055,14 +1055,41 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
+    uint32_t nsid = le32_to_cpu(cmd->nsid);
     uint32_t result;
     uint8_t fid = NVME_GETSETFEAT_FID(dw10);
+    NvmeGetFeatureSelect sel = NVME_GETFEAT_SELECT(dw10);
     uint16_t iv;
 
-    trace_pci_nvme_getfeat(nvme_cid(req), fid, dw11);
+    trace_pci_nvme_getfeat(nvme_cid(req), fid, sel, dw11);
 
     if (!nvme_feature_support[fid]) {
         return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (nvme_feature_cap[fid] & NVME_FEAT_CAP_NS) {
+        if (!nsid || nsid > n->num_namespaces) {
+            /*
+             * The Reservation Notification Mask and Reservation Persistence
+             * features require a status code of Invalid Field in Command when
+             * NSID is 0xFFFFFFFF. Since the device does not support those
+             * features we can always return Invalid Namespace or Format as we
+             * should do for all other features.
+             */
+            return NVME_INVALID_NSID | NVME_DNR;
+        }
+    }
+
+    switch (sel) {
+    case NVME_GETFEAT_SELECT_CURRENT:
+        break;
+    case NVME_GETFEAT_SELECT_SAVED:
+        /* no features are saveable by the controller; fallthrough */
+    case NVME_GETFEAT_SELECT_DEFAULT:
+        goto defaults;
+    case NVME_GETFEAT_SELECT_CAP:
+        result = cpu_to_le32(nvme_feature_cap[fid]);
+        goto out;
     }
 
     switch (fid) {
@@ -1074,22 +1101,45 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
          * return 0 for all other sensors.
          */
         if (NVME_TEMP_TMPSEL(dw11) != NVME_TEMP_TMPSEL_COMPOSITE) {
-            break;
+            goto out;
         }
 
         switch (NVME_TEMP_THSEL(dw11)) {
         case NVME_TEMP_THSEL_OVER:
             result = cpu_to_le16(n->features.temp_thresh_hi);
-            break;
+            goto out;
         case NVME_TEMP_THSEL_UNDER:
             result = cpu_to_le16(n->features.temp_thresh_low);
-            break;
+            goto out;
         }
 
-        break;
+        return NVME_INVALID_FIELD | NVME_DNR;
     case NVME_VOLATILE_WRITE_CACHE:
         result = cpu_to_le32(blk_enable_write_cache(n->conf.blk));
         trace_pci_nvme_getfeat_vwcache(result ? "enabled" : "disabled");
+        goto out;
+    case NVME_ASYNCHRONOUS_EVENT_CONF:
+        result = cpu_to_le32(n->features.async_config);
+        goto out;
+    case NVME_TIMESTAMP:
+        return nvme_get_feature_timestamp(n, cmd);
+    default:
+        break;
+    }
+
+defaults:
+    switch (fid) {
+    case NVME_TEMPERATURE_THRESHOLD:
+        result = 0;
+
+        if (NVME_TEMP_TMPSEL(dw11) != NVME_TEMP_TMPSEL_COMPOSITE) {
+            break;
+        }
+
+        if (NVME_TEMP_THSEL(dw11) == NVME_TEMP_THSEL_OVER) {
+            result = cpu_to_le16(NVME_TEMPERATURE_WARNING);
+        }
+
         break;
     case NVME_NUMBER_OF_QUEUES:
         result = cpu_to_le32((n->params.max_ioqpairs - 1) |
@@ -1109,16 +1159,12 @@ static uint16_t nvme_get_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 
         result = cpu_to_le32(result);
         break;
-    case NVME_ASYNCHRONOUS_EVENT_CONF:
-        result = cpu_to_le32(n->features.async_config);
-        break;
-    case NVME_TIMESTAMP:
-        return nvme_get_feature_timestamp(n, cmd);
     default:
         result = cpu_to_le32(nvme_feature_default[fid]);
         break;
     }
 
+out:
     req->cqe.result = result;
     return NVME_SUCCESS;
 }
@@ -1145,12 +1191,35 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeCmd *cmd, NvmeRequest *req)
 {
     uint32_t dw10 = le32_to_cpu(cmd->cdw10);
     uint32_t dw11 = le32_to_cpu(cmd->cdw11);
+    uint32_t nsid = le32_to_cpu(cmd->nsid);
     uint8_t fid = NVME_GETSETFEAT_FID(dw10);
+    uint8_t save = NVME_SETFEAT_SAVE(dw10);
 
-    trace_pci_nvme_setfeat(nvme_cid(req), fid, dw11);
+    trace_pci_nvme_setfeat(nvme_cid(req), fid, save, dw11);
+
+    if (save) {
+        return NVME_FID_NOT_SAVEABLE | NVME_DNR;
+    }
 
     if (!nvme_feature_support[fid]) {
         return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    if (nvme_feature_cap[fid] & NVME_FEAT_CAP_NS) {
+        if (!nsid || (nsid != NVME_NSID_BROADCAST &&
+                      nsid > n->num_namespaces)) {
+            return NVME_INVALID_NSID | NVME_DNR;
+        }
+    } else if (nsid && nsid != NVME_NSID_BROADCAST) {
+        if (nsid > n->num_namespaces) {
+            return NVME_INVALID_NSID | NVME_DNR;
+        }
+
+        return NVME_FEAT_NOT_NS_SPEC | NVME_DNR;
+    }
+
+    if (!(nvme_feature_cap[fid] & NVME_FEAT_CAP_CHANGE)) {
+        return NVME_FEAT_NOT_CHANGEABLE | NVME_DNR;
     }
 
     switch (fid) {
@@ -1997,7 +2066,9 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->sqes = (0x6 << 4) | 0x6;
     id->cqes = (0x4 << 4) | 0x4;
     id->nn = cpu_to_le32(n->num_namespaces);
-    id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROS | NVME_ONCS_TIMESTAMP);
+    id->oncs = cpu_to_le16(NVME_ONCS_WRITE_ZEROS | NVME_ONCS_TIMESTAMP |
+                           NVME_ONCS_FEATURES);
+
     id->psd[0].mp = cpu_to_le16(0x9c4);
     id->psd[0].enlat = cpu_to_le32(0x10);
     id->psd[0].exlat = cpu_to_le32(0x4);
