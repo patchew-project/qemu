@@ -195,6 +195,7 @@ struct VMStateDescription {
 };
 
 extern const VMStateDescription vmstate_dummy; /* Exclusively for linux-user */
+extern const VMStateDescription vmstate_no_state_to_migrate;
 
 extern const VMStateInfo vmstate_info_bool;
 
