@@ -3780,6 +3780,71 @@ static int ram_resume_prepare(MigrationState *s, void *opaque)
     return 0;
 }
 
+void dirty_track_init(void)
+{
+    RAMBlock *block;
+
+    if (ram_bytes_total()) {
+        RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+            unsigned long pages = block->max_length >> TARGET_PAGE_BITS;
+
+            block->bmap = bitmap_new(pages);
+            bitmap_set(block->bmap, 0, pages);
+        }
+    }
+    ram_state = g_new0(RAMState, 1);
+    ram_state->migration_dirty_pages = 0;
+    memory_global_dirty_log_start();
+}
+
+uint64_t dirty_track_dirty_pages(void)
+{
+    return ram_state->migration_dirty_pages;
+}
+
+void dirty_track_sync(void)
+{
+    RAMBlock *block = NULL;
+    unsigned long offset = 0;
+
+    memory_global_dirty_log_sync();
+    rcu_read_lock();
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+       ramblock_sync_dirty_bitmap(ram_state, block);
+    }
+    rcu_read_unlock();
+
+    rcu_read_lock();
+    block = QLIST_FIRST_RCU(&ram_list.blocks);
+
+    while (block) {
+        offset = migration_bitmap_find_dirty(ram_state, block, offset);
+
+        if (offset << TARGET_PAGE_BITS >= block->used_length) {
+            offset = 0;
+            block = QLIST_NEXT_RCU(block, next);
+        } else {
+            test_and_clear_bit(offset, block->bmap);
+        }
+    }
+
+    rcu_read_unlock();
+}
+
+void dirty_track_cleanup(void)
+{
+    RAMBlock *block;
+
+    memory_global_dirty_log_stop();
+    RAMBLOCK_FOREACH_NOT_IGNORED(block) {
+        g_free(block->bmap);
+        block->bmap = NULL;
+    }
+
+    g_free(ram_state);
+    ram_state = NULL;
+}
+
 static SaveVMHandlers savevm_ram_handlers = {
     .save_setup = ram_save_setup,
     .save_live_iterate = ram_save_iterate,

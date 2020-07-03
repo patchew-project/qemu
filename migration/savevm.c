@@ -63,6 +63,8 @@
 #include "migration/colo.h"
 #include "qemu/bitmap.h"
 #include "net/announce.h"
+#include "monitor/monitor.h"
+#include "monitor/hmp.h"
 
 const unsigned int postcopy_ram_discard_version = 0;
 
@@ -171,6 +173,15 @@ static QEMUFile *qemu_fopen_bdrv(BlockDriverState *bs, int is_writable)
     return qemu_fopen_ops(bs, &bdrv_read_ops);
 }
 
+static struct DirtyTrackState {
+    QemuThread thread;
+    int dirty_pages_rate;
+    bool quit;
+} current_dirty_track_state = {
+    { .thread = 0 },
+    .dirty_pages_rate = 0,
+    .quit = false,
+};
 
 /* QEMUFile timer support.
  * Not in qemu-file.c to not add qemu-timer.c as dependency to qemu-file.c
@@ -2745,6 +2756,78 @@ int save_snapshot(const char *name, Error **errp)
         vm_start();
     }
     return ret;
+}
+
+static void *dirty_track_thread(void *opaque)
+{
+    int64_t initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    struct DirtyTrackState *s = opaque;
+    int64_t current_time;
+    uint64_t time_spent;
+
+    for (;;) {
+        dirty_track_sync();
+        if (s->quit) {
+            current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+            time_spent = current_time - initial_time;
+
+            if (time_spent) {
+                s->dirty_pages_rate = dirty_track_dirty_pages() * 1000 /
+                    time_spent;
+            }
+            break;
+        }
+        usleep(1000 * 100);
+    }
+    return NULL;
+}
+
+bool dirty_track_is_running(void)
+{
+    return !!current_dirty_track_state.thread.thread;
+}
+
+void hmp_dirty_track(Monitor *mon, const QDict *qdict)
+{
+    MigrationState *s = migrate_get_current();
+
+    if (migration_is_running(s->state)) {
+        error_report(QERR_MIGRATION_ACTIVE);
+        return;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        error_report("Guest is waiting for an incoming migration");
+        return;
+    }
+
+    if (dirty_track_is_running()) {
+        error_report("There is a dirty tracking process in progress");
+        return;
+    }
+
+    dirty_track_init();
+    qemu_thread_create(&current_dirty_track_state.thread, "dirty tracking",
+                       dirty_track_thread, &current_dirty_track_state,
+                       QEMU_THREAD_JOINABLE);
+}
+
+void hmp_dirty_track_stop(Monitor *mon, const QDict *qdict)
+{
+    if (current_dirty_track_state.thread.thread == 0) {
+        error_report("There is no dirty tracking process in progress");
+        return;
+    }
+
+    current_dirty_track_state.quit = true;
+    qemu_thread_join(&current_dirty_track_state.thread);
+    monitor_printf(mon, "Dirty rate: %d pages/s\n",
+                   current_dirty_track_state.dirty_pages_rate);
+
+    dirty_track_cleanup();
+    current_dirty_track_state.thread.thread = 0;
+    current_dirty_track_state.dirty_pages_rate = 0;
+    current_dirty_track_state.quit = false;
 }
 
 void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
