@@ -139,6 +139,8 @@ typedef struct DeviceClass {
     const char *bus_type;
 } DeviceClass;
 
+extern const VMStateDescription *vmstate_qdev_no_state_to_migrate;
+
 typedef struct NamedGPIOList NamedGPIOList;
 
 struct NamedGPIOList {

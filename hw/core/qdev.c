@@ -45,6 +45,9 @@ bool qdev_hotplug = false;
 static bool qdev_hot_added = false;
 bool qdev_hot_removed = false;
 
+const VMStateDescription *vmstate_qdev_no_state_to_migrate =
+        &vmstate_no_state_to_migrate;
+
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
