@@ -55,9 +55,7 @@ typedef struct SerialState {
        it can be reset while reading iir */
     int thr_ipending;
     qemu_irq irq;
-    CharBackend chr;
     int last_break_enable;
-    uint32_t baudbase;
     uint32_t tsr_retry;
     guint watch_tag;
     uint32_t wakeup;
@@ -77,6 +75,10 @@ typedef struct SerialState {
 
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
+
+    /* Properties */
+    CharBackend chr;
+    uint32_t baudbase;
 } SerialState;
 
 typedef struct SerialMM {
@@ -84,6 +86,7 @@ typedef struct SerialMM {
 
     SerialState serial;
 
+    /* Properties */
     uint8_t regshift;
     uint8_t endianness;
 } SerialMM;
