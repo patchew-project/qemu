@@ -41,6 +41,15 @@ type                      1
 granularity_bits          19
 name_size                 2
 extra_data_size           0
+Bitmap table   type            offset                   size
+0              serialized      5046272                  65536
+1              all-zeroes      0                        65536
+2              all-zeroes      0                        65536
+3              all-zeroes      0                        65536
+4              all-zeroes      0                        65536
+5              all-zeroes      0                        65536
+6              all-zeroes      0                        65536
+7              all-zeroes      0                        65536
 
 Bitmap name               b2
 bitmap_table_offset       0x500000
@@ -50,6 +59,15 @@ type                      1
 granularity_bits          16
 name_size                 2
 extra_data_size           0
+Bitmap table   type            offset                   size
+0              serialized      5177344                  65536
+1              all-zeroes      0                        65536
+2              all-zeroes      0                        65536
+3              all-zeroes      0                        65536
+4              all-zeroes      0                        65536
+5              all-zeroes      0                        65536
+6              all-zeroes      0                        65536
+7              all-zeroes      0                        65536
 
 
 === Bitmap preservation not possible to non-qcow2 ===
@@ -124,6 +142,15 @@ type                      1
 granularity_bits          19
 name_size                 2
 extra_data_size           0
+Bitmap table   type            offset                   size
+0              serialized      4587520                  65536
+1              all-zeroes      0                        65536
+2              all-zeroes      0                        65536
+3              all-zeroes      0                        65536
+4              all-zeroes      0                        65536
+5              all-zeroes      0                        65536
+6              all-zeroes      0                        65536
+7              all-zeroes      0                        65536
 
 Bitmap name               b2
 bitmap_table_offset       0x490000
@@ -133,6 +160,15 @@ type                      1
 granularity_bits          16
 name_size                 2
 extra_data_size           0
+Bitmap table   type            offset                   size
+0              serialized      4718592                  65536
+1              serialized      4294967296               65536
+2              serialized      5348033147437056         65536
+3              serialized      13792273858822144        65536
+4              serialized      4718592                  65536
+5              serialized      4294967296               65536
+6              serialized      4503608217305088         65536
+7              serialized      14073748835532800        65536
 
 Bitmap name               b0
 bitmap_table_offset       0x510000
@@ -142,6 +178,15 @@ type                      1
 granularity_bits          16
 name_size                 2
 extra_data_size           0
+Bitmap table   type            offset                   size
+0              serialized      5242880                  65536
+1              all-zeroes      0                        65536
+2              all-zeroes      0                        65536
+3              all-zeroes      0                        65536
+4              all-zeroes      0                        65536
+5              all-zeroes      0                        65536
+6              all-zeroes      0                        65536
+7              all-zeroes      0                        65536
 
 
 === Check bitmap contents ===
