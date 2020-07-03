@@ -82,12 +82,15 @@ struct hwdef {
 typedef struct EbusState {
     /*< private >*/
     PCIDevice parent_obj;
+    /*< public >*/
 
     ISABus *isa_bus;
     qemu_irq isa_bus_irqs[ISA_NUM_IRQS];
-    uint64_t console_serial_base;
     MemoryRegion bar0;
     MemoryRegion bar1;
+
+    /* Properties */
+    uint64_t console_serial_base;
 } EbusState;
 
 #define TYPE_EBUS "ebus"
@@ -384,6 +387,7 @@ static void ebus_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_SUN_EBUS;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
+    dc->vmsd = vmstate_qdev_no_state_to_migrate;
     device_class_set_props(dc, ebus_properties);
 }
 
@@ -476,6 +480,7 @@ static void prom_class_init(ObjectClass *klass, void *data)
 
     device_class_set_props(dc, prom_properties);
     dc->realize = prom_realize;
+    dc->vmsd = vmstate_qdev_no_state_to_migrate;
 }
 
 static const TypeInfo prom_info = {
