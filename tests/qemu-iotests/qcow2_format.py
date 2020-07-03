@@ -110,6 +110,8 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
         self.__dict__ = dict((field[2], values[i])
                              for i, field in enumerate(self.fields))
 
+        self.fields_dict = self.__dict__.copy()
+
     def dump(self, dump_json=None):
         for f in self.fields:
             value = self.__dict__[f[2]]
@@ -140,6 +142,7 @@ class Qcow2BitmapExt(Qcow2Struct):
         self.bitmap_directory = \
             [Qcow2BitmapDirEntry(fd, cluster_size=self.cluster_size)
              for _ in range(self.nb_bitmaps)]
+        self.fields_dict.update(bitmap_directory=self.bitmap_directory)
 
     def dump(self, dump_json=None):
         super().dump(dump_json)
@@ -185,6 +188,7 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         table = [e[0] for e in struct.iter_unpack('>Q', fd.read(table_size))]
         self.bitmap_table = Qcow2BitmapTable(raw_table=table,
                                              cluster_size=self.cluster_size)
+        self.fields_dict.update(bitmap_table=self.bitmap_table)
 
     def dump(self, dump_json=None):
         print(f'{"Bitmap name":<25} {self.name}')
