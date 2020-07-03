@@ -728,13 +728,16 @@ static void build_fadt_rev5(GArray *table_data, BIOSLinker *linker,
     };
 
     switch (vms->psci_conduit) {
-    case QEMU_PSCI_CONDUIT_DISABLED:
-        fadt.arm_boot_arch = 0;
-        break;
     case QEMU_PSCI_CONDUIT_HVC:
         fadt.arm_boot_arch = ACPI_FADT_ARM_PSCI_COMPLIANT |
                              ACPI_FADT_ARM_PSCI_USE_HVC;
         break;
+    /*
+     * QEMU_PSCI_CONDUIT_DISABLED only means PSCI is not implemented by qemu,
+     * but typically it will still be provided by secure firmware, and it should
+     * use SMC as PSCI conduit.
+     */
+    case QEMU_PSCI_CONDUIT_DISABLED:
     case QEMU_PSCI_CONDUIT_SMC:
         fadt.arm_boot_arch = ACPI_FADT_ARM_PSCI_COMPLIANT;
         break;
