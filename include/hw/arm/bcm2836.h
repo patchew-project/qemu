@@ -33,14 +33,15 @@ typedef struct BCM283XState {
     DeviceState parent_obj;
     /*< public >*/
 
-    char *cpu_type;
-    uint32_t enabled_cpus;
-
     struct {
         ARMCPU core;
     } cpu[BCM283X_NCPUS];
     BCM2836ControlState control;
     BCM2835PeripheralState peripherals;
+
+    /* Properties */
+    char *cpu_type;
+    uint32_t enabled_cpus;
 } BCM283XState;
 
 typedef struct BCM283XInfo BCM283XInfo;
