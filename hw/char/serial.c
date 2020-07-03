@@ -1002,12 +1002,22 @@ static void serial_io_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(SYS_BUS_DEVICE(sio), &s->irq);
 }
 
+static const VMStateDescription vmstate_serial_io = {
+    .name = "serial",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT(serial, SerialIO, 0, vmstate_serial, SerialState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void serial_io_class_init(ObjectClass *klass, void* data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = serial_io_realize;
-    /* No dc->vmsd: class has no migratable state */
+    dc->vmsd = &vmstate_serial_io;
 }
 
 static void serial_io_instance_init(Object *o)
