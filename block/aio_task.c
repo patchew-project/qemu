@@ -54,26 +54,17 @@ static void coroutine_fn aio_task_co(void *opaque)
     qemu_co_queue_restart_all(&pool->waiters);
 }
 
-void coroutine_fn aio_task_pool_wait_one(AioTaskPool *pool)
-{
-    assert(pool->busy_tasks > 0);
-
-    qemu_co_queue_wait(&pool->waiters, NULL);
-
-    assert(pool->busy_tasks < pool->max_busy_tasks);
-}
-
 void coroutine_fn aio_task_pool_wait_slot(AioTaskPool *pool)
 {
     while (pool->busy_tasks >= pool->max_busy_tasks) {
-        aio_task_pool_wait_one(pool);
+        qemu_co_queue_wait(&pool->waiters, NULL);
     }
 }
 
 void coroutine_fn aio_task_pool_wait_all(AioTaskPool *pool)
 {
     while (pool->busy_tasks > 0) {
-        aio_task_pool_wait_one(pool);
+        qemu_co_queue_wait(&pool->waiters, NULL);
     }
 }
 
