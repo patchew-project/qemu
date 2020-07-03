@@ -812,6 +812,7 @@ struct BdrvChild {
 
 
 typedef struct BdrvSaveVMState BdrvSaveVMState;
+typedef struct BdrvLoadVMState BdrvLoadVMState;
 
 /*
  * Note: the function bdrv_append() copies and swaps contents of
@@ -979,6 +980,8 @@ struct BlockDriverState {
 
     /* Intermediate buffer for VM state saving from snapshot creation code */
     BdrvSaveVMState *savevm_state;
+    /* Intermediate buffer for VM state loading */
+    BdrvLoadVMState *loadvm_state;
 };
 
 struct BlockBackendRootState {
