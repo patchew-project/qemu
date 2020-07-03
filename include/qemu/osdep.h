@@ -104,7 +104,7 @@ extern int daemon(int, int);
 #include <setjmp.h>
 #include <signal.h>
 
-#ifdef __OpenBSD__
+#ifdef CONFIG_SYS_SIGNAL
 #include <sys/signal.h>
 #endif
 
