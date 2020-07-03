@@ -194,7 +194,7 @@ struct VMStateDescription {
     const VMStateDescription **subsections;
 };
 
-extern const VMStateDescription vmstate_dummy;
+extern const VMStateDescription vmstate_dummy; /* Exclusively for linux-user */
 
 extern const VMStateInfo vmstate_info_bool;
 
