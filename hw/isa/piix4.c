@@ -29,6 +29,7 @@
 #include "hw/southbridge/piix.h"
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/sysbus.h"
 #include "hw/intc/i8259.h"
 #include "hw/dma/i8257.h"
@@ -255,7 +256,7 @@ DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
     pci = pci_create_simple(pci_bus, devfn + 1, "piix4-ide");
     pci_ide_create_devs(pci);
 
-    pci_create_simple(pci_bus, devfn + 2, "piix4-usb-uhci");
+    pci_create_simple(pci_bus, devfn + 2, TYPE_PIIX4_USB_UHCI);
     if (smbus) {
         *smbus = piix4_pm_init(pci_bus, devfn + 3, 0x1100,
                                isa_get_irq(NULL, 9), NULL, 0, NULL);

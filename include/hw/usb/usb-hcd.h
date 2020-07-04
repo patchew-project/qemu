@@ -24,4 +24,10 @@
 #define TYPE_FUSBH200_EHCI          "fusbh200-ehci-usb"
 #define TYPE_CHIPIDEA               "usb-chipidea"
 
+/* UHCI */
+#define TYPE_PIIX3_USB_UHCI         "piix3-usb-uhci"
+#define TYPE_PIIX4_USB_UHCI         "piix4-usb-uhci"
+#define TYPE_VT82C686B_USB_UHCI     "vt82c686b-usb-uhci"
+#define TYPE_ICH9_USB_UHCI(n)       "ich9-usb-uhci" #n
+
 #endif
