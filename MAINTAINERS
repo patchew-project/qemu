@@ -1652,6 +1652,12 @@ M: Samuel Thibault <samuel.thibault@ens-lyon.org>
 S: Maintained
 F: hw/usb/dev-serial.c
 
+USB dwc-hsotg (dwc2)
+M: Gerd Hoffmann <kraxel@redhat.com>
+R: Paul Zimmerman <pauldzim@gmail.com>
+S: Maintained
+F: hw/usb/*dwc2*
+
 VFIO
 M: Alex Williamson <alex.williamson@redhat.com>
 S: Supported
