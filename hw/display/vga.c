@@ -35,6 +35,7 @@
 #include "hw/xen/xen.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "hw/qdev-deprecated.h"
 
 //#define DEBUG_VGA_MEM
 //#define DEBUG_VGA_REG
@@ -2261,6 +2262,8 @@ MemoryRegion *vga_init_io(VGACommonState *s, Object *obj,
                           const MemoryRegionPortio **vbe_ports)
 {
     MemoryRegion *vga_mem;
+
+    qdev_warn_deprecated_function_used();
 
     *vga_ports = vga_portio_list;
     *vbe_ports = vbe_portio_list;
