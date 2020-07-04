@@ -16,6 +16,7 @@
 #include "qemu/timer.h"
 #include "hw/ptimer.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-deprecated.h"
 
 /* General purpose timer module.  */
 typedef struct {
@@ -143,6 +144,8 @@ static void m5206_timer_write(m5206_timer_state *s, uint32_t addr, uint32_t val)
 static m5206_timer_state *m5206_timer_init(qemu_irq irq)
 {
     m5206_timer_state *s;
+
+    qdev_warn_deprecated_function_used();
 
     s = g_new0(m5206_timer_state, 1);
     s->timer = ptimer_init(m5206_timer_trigger, s, PTIMER_POLICY_DEFAULT);
@@ -565,6 +568,8 @@ qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, M68kCPU *cpu)
 {
     m5206_mbar_state *s;
     qemu_irq *pic;
+
+    qdev_warn_deprecated_function_used();
 
     s = g_new0(m5206_mbar_state, 1);
 
