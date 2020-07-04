@@ -13,6 +13,8 @@
 #ifndef HW_USB_MUSB_H
 #define HW_USB_MUSB_H
 
+#include "exec/memory.h"
+
 enum musb_irq_source_e {
     musb_irq_suspend = 0,
     musb_irq_resume,
