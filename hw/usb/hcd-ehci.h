@@ -24,17 +24,6 @@
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 
-#ifndef EHCI_DEBUG
-#define EHCI_DEBUG   0
-#endif
-
-#if EHCI_DEBUG
-#define DPRINTF printf
-#else
-#define DPRINTF(...)
-#endif
-
-#define MMIO_SIZE        0x1000
 #define CAPA_SIZE        0x10
 
 #define NB_PORTS         6        /* Max. Number of downstream ports */

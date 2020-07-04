@@ -36,6 +36,18 @@
 #include "qemu/error-report.h"
 #include "sysemu/runstate.h"
 
+#ifndef EHCI_DEBUG
+#define EHCI_DEBUG   0
+#endif
+
+#if EHCI_DEBUG
+#define DPRINTF printf
+#else
+#define DPRINTF(...)
+#endif
+
+#define MMIO_SIZE        0x1000
+
 #define FRAME_TIMER_FREQ 1000
 #define FRAME_TIMER_NS   (NANOSECONDS_PER_SECOND / FRAME_TIMER_FREQ)
 #define UFRAME_TIMER_NS  (FRAME_TIMER_NS / 8)
