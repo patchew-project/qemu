@@ -26,7 +26,7 @@
 #include "monitor-internal.h"
 #include "cpu.h"
 #include "monitor/qdev.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/pci/pci.h"
 #include "sysemu/watchdog.h"
 #include "hw/loader.h"

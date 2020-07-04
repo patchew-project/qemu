@@ -26,6 +26,7 @@
  */
 
 #include "hw/qdev-core.h"
+#include "hw/usb/usb.h"
 #include "qemu/iov.h"
 #include "qemu/queue.h"
 
@@ -176,7 +177,6 @@
 typedef struct USBBus USBBus;
 typedef struct USBBusOps USBBusOps;
 typedef struct USBPort USBPort;
-typedef struct USBDevice USBDevice;
 typedef struct USBPacket USBPacket;
 typedef struct USBCombinedPacket USBCombinedPacket;
 typedef struct USBEndpoint USBEndpoint;
@@ -256,9 +256,6 @@ struct USBDevice {
     const USBDescIface  *ifaces[USB_MAX_INTERFACES];
 };
 
-#define TYPE_USB_DEVICE "usb-device"
-#define USB_DEVICE(obj) \
-     OBJECT_CHECK(USBDevice, (obj), TYPE_USB_DEVICE)
 #define USB_DEVICE_CLASS(klass) \
      OBJECT_CLASS_CHECK(USBDeviceClass, (klass), TYPE_USB_DEVICE)
 #define USB_DEVICE_GET_CLASS(obj) \
@@ -459,14 +456,7 @@ void usb_device_reset(USBDevice *dev);
 void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 
-/* usb-linux.c */
-void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
-bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
-
 /* usb-bus.c */
-
-#define TYPE_USB_BUS "usb-bus"
-#define USB_BUS(obj) OBJECT_CHECK(USBBus, (obj), TYPE_USB_BUS)
 
 struct USBBus {
     BusState qbus;
@@ -489,13 +479,8 @@ struct USBBusOps {
 void usb_bus_new(USBBus *bus, size_t bus_size,
                  USBBusOps *ops, DeviceState *host);
 void usb_bus_release(USBBus *bus);
-USBBus *usb_bus_find(int busnr);
 void usb_legacy_register(const char *typename, const char *usbdevice_name,
                          USBDevice *(*usbdevice_init)(const char *params));
-USBDevice *usb_new(const char *name);
-bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **errp);
-USBDevice *usb_create_simple(USBBus *bus, const char *name);
-USBDevice *usbdevice_create(const char *cmdline);
 void usb_register_port(USBBus *bus, USBPort *port, void *opaque, int index,
                        USBPortOps *ops, int speedmask);
 void usb_register_companion(const char *masterbus, USBPort *ports[],
@@ -506,16 +491,6 @@ void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
 void usb_claim_port(USBDevice *dev, Error **errp);
 void usb_release_port(USBDevice *dev);
-/**
- * usb_get_port_path:
- * @dev: the USB device
- *
- * The returned data must be released with g_free()
- * when no longer required.
- *
- * Returns: a dynamically allocated pathname.
- */
-char *usb_get_port_path(USBDevice *dev);
 void usb_device_attach(USBDevice *dev, Error **errp);
 int usb_device_detach(USBDevice *dev);
 void usb_check_attach(USBDevice *dev, Error **errp);

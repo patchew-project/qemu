@@ -40,7 +40,7 @@
 #include "hw/ide.h"
 #include "hw/irq.h"
 #include "hw/loader.h"
-#include "hw/usb.h"
+#include "hw/usb/usb.h"
 #include "hw/block/flash.h"
 #include "exec/address-spaces.h"
 

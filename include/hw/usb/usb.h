@@ -1,15 +1,7 @@
 /*
- * Stub host USB redirector
+ * QEMU USB API
  *
  * Copyright (c) 2005 Fabrice Bellard
- *
- * Copyright (c) 2008 Max Krasnyansky
- *      Support for host device auto connect & disconnect
- *      Major rewrite to support fully async operation
- *
- * Copyright 2008 TJ <linux@tjworld.net>
- *      Added flexible support for /dev/bus/usb /sys/bus/usb/devices in addition
- *      to the legacy /proc/bus/usb USB device discovery and handling
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,18 +21,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef QEMU_HW_USB_H
+#define QEMU_HW_USB_H
 
-#include "qemu/osdep.h"
-#include "ui/console.h"
-#include "hw/usb/usb.h"
-#include "monitor/monitor.h"
+typedef struct USBDevice USBDevice;
 
-void hmp_info_usbhost(Monitor *mon, const QDict *qdict)
-{
-    monitor_printf(mon, "USB host devices not supported\n");
-}
+#define TYPE_USB_DEVICE "usb-device"
+#define USB_DEVICE(obj) \
+     OBJECT_CHECK(USBDevice, (obj), TYPE_USB_DEVICE)
 
-bool usb_host_dev_is_scsi_storage(USBDevice *ud)
-{
-    return false;
-}
+typedef struct USBBus USBBus;
+
+#define TYPE_USB_BUS "usb-bus"
+#define USB_BUS(obj) OBJECT_CHECK(USBBus, (obj), TYPE_USB_BUS)
+
+USBBus *usb_bus_find(int busnr);
+USBDevice *usb_new(const char *name);
+bool usb_realize_and_unref(USBDevice *dev, USBBus *bus, Error **errp);
+USBDevice *usb_create_simple(USBBus *bus, const char *name);
+USBDevice *usbdevice_create(const char *cmdline);
+
+/**
+ * usb_get_port_path:
+ * @dev: the USB device
+ *
+ * The returned data must be released with g_free()
+ * when no longer required.
+ *
+ * Returns: a dynamically allocated pathname.
+ */
+char *usb_get_port_path(USBDevice *dev);
+
+void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
+bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
+
+#endif
