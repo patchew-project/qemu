@@ -192,12 +192,6 @@ typedef struct USBDescOther USBDescOther;
 typedef struct USBDescString USBDescString;
 typedef struct USBDescMSOS USBDescMSOS;
 
-struct USBDescString {
-    uint8_t index;
-    char *str;
-    QLIST_ENTRY(USBDescString) next;
-};
-
 #define USB_MAX_ENDPOINTS  15
 #define USB_MAX_INTERFACES 16
 
@@ -554,10 +548,6 @@ void usb_device_ep_stopped(USBDevice *dev, USBEndpoint *ep);
 int usb_device_alloc_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps,
                              int streams);
 void usb_device_free_streams(USBDevice *dev, USBEndpoint **eps, int nr_eps);
-
-const char *usb_device_get_product_desc(USBDevice *dev);
-
-const USBDesc *usb_device_get_usb_desc(USBDevice *dev);
 
 /* quirks.c */
 
