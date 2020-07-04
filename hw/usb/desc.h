@@ -2,6 +2,7 @@
 #define QEMU_HW_USB_DESC_H
 
 #include <wchar.h>
+#include "hw/usb.h"
 
 /* binary representation */
 typedef struct USBDescriptor {
