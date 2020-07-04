@@ -20,6 +20,8 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "hw/arm/omap.h"
+#include "hw/qdev-deprecated.h"
+
 struct omap_synctimer_s {
     MemoryRegion iomem;
     uint32_t val;
@@ -100,6 +102,8 @@ struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu, omap_clk fclk, omap_clk iclk)
 {
     struct omap_synctimer_s *s = g_malloc0(sizeof(*s));
+
+    qdev_warn_deprecated_function_used();
 
     omap_synctimer_reset(s);
     memory_region_init_io(&s->iomem, NULL, &omap_synctimer_ops, s, "omap.synctimer",

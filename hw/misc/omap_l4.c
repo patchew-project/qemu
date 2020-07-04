@@ -19,6 +19,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/arm/omap.h"
+#include "hw/qdev-deprecated.h"
 
 struct omap_l4_s {
     MemoryRegion *address_space;
@@ -32,6 +33,8 @@ struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
 {
     struct omap_l4_s *bus = g_malloc0(
                     sizeof(*bus) + ta_num * sizeof(*bus->ta));
+
+    qdev_warn_deprecated_function_used();
 
     bus->address_space = address_space;
     bus->ta_num = ta_num;
