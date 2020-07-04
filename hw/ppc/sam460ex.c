@@ -38,6 +38,7 @@
 #include "hw/usb/hcd-ehci.h"
 #include "hw/ppc/fdt.h"
 #include "hw/qdev-properties.h"
+#include "hw/pci/pci.h"
 
 #include <libfdt.h>
 
