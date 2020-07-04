@@ -577,12 +577,10 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
                    dev->attached ? ", attached" : "");
 }
 
-static char *usb_get_full_dev_path(DeviceState *qdev)
+static char *usb_get_dev_path(USBDevice *dev, bool want_full_path)
 {
-    USBDevice *dev = USB_DEVICE(qdev);
-
-    if (dev->flags & (1 << USB_DEV_FLAG_FULL_PATH)) {
-        DeviceState *hcd = qdev->parent_bus->parent;
+    if (want_full_path && (dev->flags & (1 << USB_DEV_FLAG_FULL_PATH))) {
+        DeviceState *hcd = DEVICE(dev)->parent_bus->parent;
         char *id = qdev_get_dev_path(hcd);
 
         if (id) {
@@ -592,6 +590,16 @@ static char *usb_get_full_dev_path(DeviceState *qdev)
         }
     }
     return g_strdup(dev->port->path);
+}
+
+static char *usb_get_full_dev_path(DeviceState *qdev)
+{
+    return usb_get_dev_path(USB_DEVICE(qdev), true);
+}
+
+char *usb_get_port_path(USBDevice *dev)
+{
+    return usb_get_dev_path(dev, false);
 }
 
 static char *usb_get_fw_dev_path(DeviceState *qdev)
