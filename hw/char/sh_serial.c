@@ -31,6 +31,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "qemu/timer.h"
+#include "hw/qdev-deprecated.h"
 
 //#define DEBUG_SERIAL
 
@@ -381,6 +382,8 @@ void sh_serial_init(MemoryRegion *sysmem,
                     qemu_irq bri_source)
 {
     sh_serial_state *s;
+
+    qdev_warn_deprecated_function_used();
 
     s = g_malloc0(sizeof(sh_serial_state));
 

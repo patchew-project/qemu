@@ -13,6 +13,7 @@
 #include "hw/sh4/sh_intc.h"
 #include "hw/irq.h"
 #include "hw/sh4/sh.h"
+#include "hw/qdev-deprecated.h"
 
 //#define DEBUG_INTC
 //#define DEBUG_INTC_SOURCES
@@ -443,6 +444,8 @@ int sh_intc_init(MemoryRegion *sysmem,
 		 int nr_prio_regs)
 {
     unsigned int i, j;
+
+    qdev_warn_deprecated_function_used();
 
     desc->pending = 0;
     desc->nr_sources = nr_sources;
