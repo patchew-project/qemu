@@ -2,6 +2,7 @@
 #define CHIPIDEA_H
 
 #include "hw/usb/hcd-ehci.h"
+#include "hw/usb/usb-hcd.h"
 
 typedef struct ChipideaState {
     /*< private >*/
@@ -10,7 +11,6 @@ typedef struct ChipideaState {
     MemoryRegion iomem[3];
 } ChipideaState;
 
-#define TYPE_CHIPIDEA "usb-chipidea"
 #define CHIPIDEA(obj) OBJECT_CHECK(ChipideaState, (obj), TYPE_CHIPIDEA)
 
 #endif /* CHIPIDEA_H */

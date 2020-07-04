@@ -35,7 +35,7 @@
 #include "hw/qdev-properties.h"
 #include "hw/arm/exynos4210.h"
 #include "hw/sd/sdhci.h"
-#include "hw/usb/hcd-ehci.h"
+#include "hw/usb/usb-hcd.h"
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
 

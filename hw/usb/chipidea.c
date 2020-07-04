@@ -11,6 +11,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/usb/hcd-ehci.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/usb/chipidea.h"
 #include "qemu/log.h"
 #include "qemu/module.h"

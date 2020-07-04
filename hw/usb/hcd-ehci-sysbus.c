@@ -18,6 +18,7 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
 #include "hw/usb/hcd-ehci.h"
+#include "hw/usb/usb-hcd.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 

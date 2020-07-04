@@ -23,6 +23,7 @@
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
 #include "usb-internal.h"
+#include "hw/usb/usb-hcd.h"
 
 #define CAPA_SIZE        0x10
 
@@ -316,7 +317,6 @@ void usb_ehci_realize(EHCIState *s, DeviceState *dev, Error **errp);
 void usb_ehci_unrealize(EHCIState *s, DeviceState *dev);
 void ehci_reset(void *opaque);
 
-#define TYPE_PCI_EHCI "pci-ehci-usb"
 #define PCI_EHCI(obj) OBJECT_CHECK(EHCIPCIState, (obj), TYPE_PCI_EHCI)
 
 typedef struct EHCIPCIState {
@@ -326,15 +326,6 @@ typedef struct EHCIPCIState {
 
     EHCIState ehci;
 } EHCIPCIState;
-
-
-#define TYPE_SYS_BUS_EHCI "sysbus-ehci-usb"
-#define TYPE_PLATFORM_EHCI "platform-ehci-usb"
-#define TYPE_EXYNOS4210_EHCI "exynos4210-ehci-usb"
-#define TYPE_AW_H3_EHCI "aw-h3-ehci-usb"
-#define TYPE_TEGRA2_EHCI "tegra2-ehci-usb"
-#define TYPE_PPC4xx_EHCI "ppc4xx-ehci-usb"
-#define TYPE_FUSBH200_EHCI "fusbh200-ehci-usb"
 
 #define SYS_BUS_EHCI(obj) \
     OBJECT_CHECK(EHCISysBusState, (obj), TYPE_SYS_BUS_EHCI)

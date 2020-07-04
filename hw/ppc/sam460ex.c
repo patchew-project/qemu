@@ -37,7 +37,6 @@
 #include "hw/i2c/smbus_eeprom.h"
 #include "hw/usb/usb.h"
 #include "hw/usb/usb-hcd.h"
-#include "hw/usb/hcd-ehci.h"
 #include "hw/ppc/fdt.h"
 #include "hw/qdev-properties.h"
 #include "hw/pci/pci.h"

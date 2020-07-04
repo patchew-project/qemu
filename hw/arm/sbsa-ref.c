@@ -38,6 +38,7 @@
 #include "hw/loader.h"
 #include "hw/pci-host/gpex.h"
 #include "hw/qdev-properties.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/char/pl011.h"
 #include "net/net.h"
 
@@ -485,7 +486,7 @@ static void create_ehci(const SBSAMachineState *sms)
     hwaddr base = sbsa_ref_memmap[SBSA_EHCI].base;
     int irq = sbsa_ref_irqmap[SBSA_EHCI];
 
-    sysbus_create_simple("platform-ehci-usb", base,
+    sysbus_create_simple(TYPE_PLATFORM_EHCI, base,
                          qdev_get_gpio_in(sms->gic, irq));
 }
 
