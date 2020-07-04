@@ -34,7 +34,6 @@
 #include "migration/vmstate.h"
 #include "trace.h"
 #include "qemu/error-report.h"
-#include "qemu/main-loop.h"
 #include "sysemu/runstate.h"
 
 #define FRAME_TIMER_FREQ 1000
