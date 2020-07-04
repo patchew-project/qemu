@@ -71,6 +71,7 @@
 #include "exec/address-spaces.h"
 #include "exec/ram_addr.h"
 #include "hw/usb/usb.h"
+#include "hw/usb/usb-hcd.h"
 #include "qemu/config-file.h"
 #include "qemu/error-report.h"
 #include "trace.h"
@@ -2958,7 +2959,7 @@ static void spapr_machine_init(MachineState *machine)
 
     if (machine->usb) {
         if (smc->use_ohci_by_default) {
-            pci_create_simple(phb->bus, -1, "pci-ohci");
+            pci_create_simple(phb->bus, -1, TYPE_PCI_OHCI);
         } else {
             pci_create_simple(phb->bus, -1, "nec-usb-xhci");
         }

@@ -16,6 +16,7 @@
 #include "hw/net/lan9118.h"
 #include "hw/net/smc91c111.h"
 #include "hw/pci/pci.h"
+#include "hw/usb/usb-hcd.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
@@ -256,7 +257,7 @@ static void realview_init(MachineState *machine,
         sysbus_connect_irq(busdev, 3, pic[51]);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
         if (machine_usb(machine)) {
-            pci_create_simple(pci_bus, -1, "pci-ohci");
+            pci_create_simple(pci_bus, -1, TYPE_PCI_OHCI);
         }
         n = drive_get_max_bus(IF_SCSI);
         while (n >= 0) {

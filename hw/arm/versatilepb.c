@@ -17,6 +17,7 @@
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/pci/pci.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/i2c/i2c.h"
 #include "hw/i2c/arm_sbcon_i2c.h"
 #include "hw/irq.h"
@@ -273,7 +274,7 @@ static void versatile_init(MachineState *machine, int board_id)
         }
     }
     if (machine_usb(machine)) {
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple(pci_bus, -1, TYPE_PCI_OHCI);
     }
     n = drive_get_max_bus(IF_SCSI);
     while (n >= 0) {

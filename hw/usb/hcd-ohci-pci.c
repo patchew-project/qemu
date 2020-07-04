@@ -29,8 +29,8 @@
 #include "trace.h"
 #include "hcd-ohci.h"
 #include "usb-internal.h"
+#include "hw/usb/usb-hcd.h"
 
-#define TYPE_PCI_OHCI "pci-ohci"
 #define PCI_OHCI(obj) OBJECT_CHECK(OHCIPCIState, (obj), TYPE_PCI_OHCI)
 
 typedef struct {

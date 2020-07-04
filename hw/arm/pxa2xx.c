@@ -18,6 +18,7 @@
 #include "hw/arm/pxa.h"
 #include "sysemu/sysemu.h"
 #include "hw/char/serial.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/i2c/i2c.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
@@ -2196,7 +2197,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
         s->ssp[i] = (SSIBus *)qdev_get_child_bus(dev, "ssi");
     }
 
-    sysbus_create_simple("sysbus-ohci", 0x4c000000,
+    sysbus_create_simple(TYPE_SYSBUS_OHCI, 0x4c000000,
                          qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
 
     s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);

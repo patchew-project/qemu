@@ -33,6 +33,7 @@
 #include "hw/sysbus.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/qdev-properties.h"
 #include "hw/i2c/i2c.h"
 #include "hw/display/i2c-ddc.h"
@@ -1961,7 +1962,7 @@ static void sm501_realize_sysbus(DeviceState *dev, Error **errp)
     sysbus_init_mmio(sbd, &s->state.mmio_region);
 
     /* bridge to usb host emulation module */
-    usb_dev = qdev_new("sysbus-ohci");
+    usb_dev = qdev_new(TYPE_SYSBUS_OHCI);
     qdev_prop_set_uint32(usb_dev, "num-ports", 2);
     qdev_prop_set_uint64(usb_dev, "dma-offset", s->base);
     sysbus_realize_and_unref(SYS_BUS_DEVICE(usb_dev), &error_fatal);

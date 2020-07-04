@@ -55,6 +55,7 @@
 #include "hw/input/adb.h"
 #include "hw/ppc/mac_dbdma.h"
 #include "hw/pci/pci.h"
+#include "hw/usb/usb-hcd.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
@@ -411,7 +412,7 @@ static void ppc_core99_init(MachineState *machine)
     }
 
     if (machine->usb) {
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple(pci_bus, -1, TYPE_PCI_OHCI);
 
         /* U3 needs to use USB for input because Linux doesn't support via-cuda
         on PPC64 */

@@ -37,6 +37,7 @@
 #include "hw/isa/isa.h"
 #include "hw/pci/pci.h"
 #include "hw/pci/pci_host.h"
+#include "hw/usb/usb-hcd.h"
 #include "hw/boards.h"
 #include "hw/nvram/fw_cfg.h"
 #include "hw/char/escc.h"
@@ -301,7 +302,7 @@ static void ppc_heathrow_init(MachineState *machine)
     qdev_realize_and_unref(dev, adb_bus, &error_fatal);
 
     if (machine_usb(machine)) {
-        pci_create_simple(pci_bus, -1, "pci-ohci");
+        pci_create_simple(pci_bus, -1, TYPE_PCI_OHCI);
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)

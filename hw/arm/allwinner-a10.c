@@ -25,7 +25,7 @@
 #include "hw/misc/unimp.h"
 #include "sysemu/sysemu.h"
 #include "hw/boards.h"
-#include "hw/usb/hcd-ohci.h"
+#include "hw/usb/usb-hcd.h"
 
 #define AW_A10_MMC0_BASE        0x01c0f000
 #define AW_A10_PIC_REG_BASE     0x01c20400

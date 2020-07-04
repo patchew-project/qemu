@@ -21,6 +21,7 @@
 #ifndef HCD_OHCI_H
 #define HCD_OHCI_H
 
+#include "hw/usb/usb-hcd.h"
 #include "sysemu/dma.h"
 #include "usb-internal.h"
 
@@ -91,7 +92,6 @@ typedef struct OHCIState {
     void (*ohci_die)(struct OHCIState *ohci);
 } OHCIState;
 
-#define TYPE_SYSBUS_OHCI "sysbus-ohci"
 #define SYSBUS_OHCI(obj) OBJECT_CHECK(OHCISysBusState, (obj), TYPE_SYSBUS_OHCI)
 
 typedef struct {
