@@ -28,7 +28,7 @@
 #include "qemu/main-loop.h"
 #include "sysemu/runstate.h"
 #include "exec/address-spaces.h"
-
+#include "hw/qdev-deprecated.h"
 #include "hw/cris/etraxfs_dma.h"
 
 #define D(x)
@@ -764,6 +764,8 @@ static void DMA_run(void *opaque)
 void *etraxfs_dmac_init(hwaddr base, int nr_channels)
 {
 	struct fs_dma_ctrl *ctrl = NULL;
+
+    qdev_warn_deprecated_function_used();
 
 	ctrl = g_malloc0(sizeof *ctrl);
 
