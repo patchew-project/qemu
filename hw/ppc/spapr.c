@@ -3121,7 +3121,8 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
              * We use SRP luns of the form 01000000 | (usb-port << 16) | lun
              * in the top 32 bits of the 64-bit LUN
              */
-            unsigned usb_port = atoi(usb->port->path);
+            g_autofree char *usb_port_path = usb_get_port_path(usb);
+            unsigned usb_port = atoi(usb_port_path);
             unsigned id = 0x1000000 | (usb_port << 16) | d->lun;
             return g_strdup_printf("%s@%"PRIX64, qdev_fw_name(dev),
                                    (uint64_t)id << 32);
@@ -3137,7 +3138,8 @@ static char *spapr_get_fw_dev_path(FWPathProvider *p, BusState *bus,
     if (strcmp("usb-host", qdev_fw_name(dev)) == 0) {
         USBDevice *usbdev = CAST(USBDevice, dev, TYPE_USB_DEVICE);
         if (usb_host_dev_is_scsi_storage(usbdev)) {
-            return g_strdup_printf("storage@%s/disk", usbdev->port->path);
+            g_autofree char *usb_port_path = usb_get_port_path(usbdev);
+            return g_strdup_printf("storage@%s/disk", usb_port_path);
         }
     }
 
