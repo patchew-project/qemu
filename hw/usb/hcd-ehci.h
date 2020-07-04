@@ -19,10 +19,10 @@
 #define HW_USB_HCD_EHCI_H
 
 #include "qemu/timer.h"
-#include "hw/usb.h"
 #include "sysemu/dma.h"
 #include "hw/pci/pci.h"
 #include "hw/sysbus.h"
+#include "usb-internal.h"
 
 #define CAPA_SIZE        0x10
 

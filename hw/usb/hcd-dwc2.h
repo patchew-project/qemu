@@ -20,7 +20,7 @@
 #define HW_USB_DWC2_H
 
 #include "hw/sysbus.h"
-#include "hw/usb.h"
+#include "usb-internal.h"
 
 #define DWC2_MMIO_SIZE      0x11000
 

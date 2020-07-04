@@ -27,7 +27,6 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/usb.h"
 #include "hw/usb/uhci-regs.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci.h"
@@ -39,6 +38,7 @@
 #include "trace.h"
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
+#include "usb-internal.h"
 
 #define FRAME_TIMER_FREQ 1000
 

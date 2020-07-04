@@ -43,6 +43,7 @@
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
 #include "dwc2-regs.h"
+#include "usb-internal.h"
 
 #define USB_HZ_FS       12000000
 #define USB_HZ_HS       96000000

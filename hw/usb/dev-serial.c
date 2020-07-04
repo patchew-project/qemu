@@ -14,11 +14,11 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
 #include "chardev/char-serial.h"
 #include "chardev/char-fe.h"
+#include "usb-internal.h"
 
 //#define DEBUG_Serial
 

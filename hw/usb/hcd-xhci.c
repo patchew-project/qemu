@@ -23,7 +23,6 @@
 #include "qemu/timer.h"
 #include "qemu/module.h"
 #include "qemu/queue.h"
-#include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "hw/pci/pci.h"
 #include "hw/qdev-properties.h"
@@ -33,6 +32,7 @@
 #include "qapi/error.h"
 
 #include "hcd-xhci.h"
+#include "usb-internal.h"
 
 //#define DEBUG_XHCI
 //#define DEBUG_DATA

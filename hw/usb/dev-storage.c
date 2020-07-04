@@ -13,7 +13,6 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include "qemu/config-file.h"
-#include "hw/usb.h"
 #include "desc.h"
 #include "hw/qdev-properties.h"
 #include "hw/scsi/scsi.h"
@@ -22,6 +21,7 @@
 #include "sysemu/block-backend.h"
 #include "qapi/visitor.h"
 #include "qemu/cutils.h"
+#include "usb-internal.h"
 
 //#define DEBUG_MSD
 

@@ -42,9 +42,9 @@
 #include <usbredirfilter.h>
 
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
+#include "usb-internal.h"
 #include "usb-quirks.h"
 
 /* ERROR is defined below. Remove any previous definition. */

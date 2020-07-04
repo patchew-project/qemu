@@ -1,6 +1,6 @@
 #include "qemu/osdep.h"
-#include "hw/usb.h"
 #include "desc.h"
+#include "usb-internal.h"
 
 /*
  * Microsoft OS Descriptors

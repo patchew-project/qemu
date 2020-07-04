@@ -21,9 +21,9 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/usb.h"
 #include "qemu/iov.h"
 #include "trace.h"
+#include "usb-internal.h"
 
 static void usb_combined_packet_add(USBCombinedPacket *combined, USBPacket *p)
 {

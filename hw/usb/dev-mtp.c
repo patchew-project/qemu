@@ -24,10 +24,10 @@
 #include "qemu/filemonitor.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
 #include "qemu/units.h"
+#include "usb-internal.h"
 
 /* ----------------------------------------------------------------------- */
 

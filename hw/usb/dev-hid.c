@@ -25,7 +25,6 @@
 
 #include "qemu/osdep.h"
 #include "ui/console.h"
-#include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "desc.h"
 #include "qapi/error.h"
@@ -33,6 +32,7 @@
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
 #include "hw/qdev-properties.h"
+#include "usb-internal.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101

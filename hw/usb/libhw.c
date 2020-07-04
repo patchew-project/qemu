@@ -20,8 +20,8 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "hw/usb.h"
 #include "sysemu/dma.h"
+#include "usb-internal.h"
 
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl)
 {

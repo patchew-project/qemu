@@ -1,6 +1,5 @@
 #include "qemu/osdep.h"
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -9,6 +8,7 @@
 #include "monitor/monitor.h"
 #include "trace.h"
 #include "qemu/cutils.h"
+#include "usb-internal.h"
 #include "desc.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);

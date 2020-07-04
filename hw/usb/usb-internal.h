@@ -1,8 +1,5 @@
-#ifndef QEMU_USB_H
-#define QEMU_USB_H
-
 /*
- * QEMU USB API
+ * QEMU USB internal API
  *
  * Copyright (c) 2005 Fabrice Bellard
  *
@@ -24,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#ifndef QEMU_USB_INTERNAL_H
+#define QEMU_USB_INTERNAL_H
 
 #include "hw/qdev-core.h"
 #include "hw/usb/usb.h"

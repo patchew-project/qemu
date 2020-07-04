@@ -22,7 +22,7 @@
 #define HCD_OHCI_H
 
 #include "sysemu/dma.h"
-#include "hw/usb.h"
+#include "usb-internal.h"
 
 /* Number of Downstream Ports on the root hub: */
 #define OHCI_MAX_PORTS 15

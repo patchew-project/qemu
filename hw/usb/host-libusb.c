@@ -50,7 +50,7 @@
 #include "trace.h"
 
 #include "hw/qdev-properties.h"
-#include "hw/usb.h"
+#include "usb-internal.h"
 
 /* ------------------------------------------------------------------------ */
 

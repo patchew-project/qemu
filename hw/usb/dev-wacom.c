@@ -28,10 +28,10 @@
 
 #include "qemu/osdep.h"
 #include "ui/console.h"
-#include "hw/usb.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "desc.h"
+#include "usb-internal.h"
 
 /* Interface requests */
 #define WACOM_GET_REPORT	0x2101

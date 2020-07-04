@@ -24,9 +24,9 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
-#include "hw/usb.h"
 #include "qemu/iov.h"
 #include "trace.h"
+#include "usb-internal.h"
 
 void usb_pick_speed(USBPort *port)
 {
