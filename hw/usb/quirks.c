@@ -15,6 +15,7 @@
 #include "qemu/osdep.h"
 #include "quirks.inc.c"
 #include "hw/usb.h"
+#include "usb-quirks.h"
 
 static bool usb_id_match(const struct usb_device_id *ids,
                          uint16_t vendor_id, uint16_t product_id,
