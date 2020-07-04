@@ -50,6 +50,7 @@
 #include "xtensa_memory.h"
 #include "hw/xtensa/mx_pic.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-deprecated.h"
 
 typedef struct XtfpgaFlashDesc {
     hwaddr base;
@@ -128,6 +129,8 @@ static XtfpgaFpgaState *xtfpga_fpga_init(MemoryRegion *address_space,
                                          hwaddr base, uint32_t freq)
 {
     XtfpgaFpgaState *s = g_malloc(sizeof(XtfpgaFpgaState));
+
+    qdev_warn_deprecated_function_used();
 
     memory_region_init_io(&s->iomem, NULL, &xtfpga_fpga_ops, s,
                           "xtfpga.fpga", 0x10000);
