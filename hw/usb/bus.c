@@ -13,7 +13,7 @@
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
-static char *usb_get_dev_path(DeviceState *dev);
+static char *usb_get_full_dev_path(DeviceState *dev);
 static char *usb_get_fw_dev_path(DeviceState *qdev);
 static void usb_qdev_unrealize(DeviceState *qdev);
 
@@ -33,7 +33,7 @@ static void usb_bus_class_init(ObjectClass *klass, void *data)
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(klass);
 
     k->print_dev = usb_bus_dev_print;
-    k->get_dev_path = usb_get_dev_path;
+    k->get_dev_path = usb_get_full_dev_path;
     k->get_fw_dev_path = usb_get_fw_dev_path;
     hc->unplug = qdev_simple_device_unplug_cb;
 }
@@ -577,7 +577,7 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
                    dev->attached ? ", attached" : "");
 }
 
-static char *usb_get_dev_path(DeviceState *qdev)
+static char *usb_get_full_dev_path(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
 
