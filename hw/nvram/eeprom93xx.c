@@ -39,6 +39,7 @@
 #include "hw/nvram/eeprom93xx.h"
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
+#include "hw/qdev-deprecated.h"
 
 /* Debug EEPROM emulation. */
 //~ #define DEBUG_EEPROM
@@ -299,6 +300,8 @@ eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords)
     /* Add a new EEPROM (with 16, 64 or 256 words). */
     eeprom_t *eeprom;
     uint8_t addrbits;
+
+    qdev_warn_deprecated_function_used();
 
     switch (nwords) {
     case 16:
