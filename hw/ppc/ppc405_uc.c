@@ -36,6 +36,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
+#include "hw/qdev-deprecated.h"
 
 //#define DEBUG_OPBA
 //#define DEBUG_SDRAM
@@ -182,6 +183,8 @@ void ppc4xx_plb_init(CPUPPCState *env)
 {
     ppc4xx_plb_t *plb;
 
+    qdev_warn_deprecated_function_used();
+
     plb = g_malloc0(sizeof(ppc4xx_plb_t));
     ppc_dcr_register(env, PLB3A0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
     ppc_dcr_register(env, PLB4A0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
@@ -267,6 +270,8 @@ static void ppc4xx_pob_init(CPUPPCState *env)
 {
     ppc4xx_pob_t *pob;
 
+    qdev_warn_deprecated_function_used();
+
     pob = g_malloc0(sizeof(ppc4xx_pob_t));
     ppc_dcr_register(env, POB0_BEAR, pob, &dcr_read_pob, &dcr_write_pob);
     ppc_dcr_register(env, POB0_BESR0, pob, &dcr_read_pob, &dcr_write_pob);
@@ -350,6 +355,8 @@ static void ppc4xx_opba_reset (void *opaque)
 static void ppc4xx_opba_init(hwaddr base)
 {
     ppc4xx_opba_t *opba;
+
+    qdev_warn_deprecated_function_used();
 
     opba = g_malloc0(sizeof(ppc4xx_opba_t));
 #ifdef DEBUG_OPBA
@@ -549,6 +556,8 @@ void ppc405_ebc_init(CPUPPCState *env)
 {
     ppc4xx_ebc_t *ebc;
 
+    qdev_warn_deprecated_function_used();
+
     ebc = g_malloc0(sizeof(ppc4xx_ebc_t));
     qemu_register_reset(&ebc_reset, ebc);
     ppc_dcr_register(env, EBC0_CFGADDR,
@@ -631,6 +640,8 @@ static void ppc405_dma_reset (void *opaque)
 static void ppc405_dma_init(CPUPPCState *env, qemu_irq irqs[4])
 {
     ppc405_dma_t *dma;
+
+    qdev_warn_deprecated_function_used();
 
     dma = g_malloc0(sizeof(ppc405_dma_t));
     memcpy(dma->irqs, irqs, 4 * sizeof(qemu_irq));
@@ -734,6 +745,8 @@ static void ppc405_gpio_reset (void *opaque)
 static void ppc405_gpio_init(hwaddr base)
 {
     ppc405_gpio_t *gpio;
+
+    qdev_warn_deprecated_function_used();
 
     gpio = g_malloc0(sizeof(ppc405_gpio_t));
 #ifdef DEBUG_GPIO
@@ -896,6 +909,8 @@ static void ocm_reset (void *opaque)
 static void ppc405_ocm_init(CPUPPCState *env)
 {
     ppc405_ocm_t *ocm;
+
+    qdev_warn_deprecated_function_used();
 
     ocm = g_malloc0(sizeof(ppc405_ocm_t));
     /* XXX: Size is 4096 or 0x04000000 */
@@ -1141,6 +1156,8 @@ static void ppc4xx_gpt_init(hwaddr base, qemu_irq irqs[5])
 {
     ppc4xx_gpt_t *gpt;
     int i;
+
+    qdev_warn_deprecated_function_used();
 
     gpt = g_malloc0(sizeof(ppc4xx_gpt_t));
     for (i = 0; i < 5; i++) {
@@ -1409,6 +1426,8 @@ static void ppc405cr_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[7],
                                uint32_t sysclk)
 {
     ppc405cr_cpc_t *cpc;
+
+    qdev_warn_deprecated_function_used();
 
     cpc = g_malloc0(sizeof(ppc405cr_cpc_t));
     memcpy(cpc->clk_setup, clk_setup,
@@ -1754,6 +1773,8 @@ static void ppc405ep_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[8],
                                uint32_t sysclk)
 {
     ppc405ep_cpc_t *cpc;
+
+    qdev_warn_deprecated_function_used();
 
     cpc = g_malloc0(sizeof(ppc405ep_cpc_t));
     memcpy(cpc->clk_setup, clk_setup,

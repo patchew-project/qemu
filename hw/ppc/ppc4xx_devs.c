@@ -33,6 +33,7 @@
 #include "qemu/log.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
+#include "hw/qdev-deprecated.h"
 
 /*#define DEBUG_UIC*/
 
@@ -302,6 +303,8 @@ qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
 {
     ppcuic_t *uic;
     int i;
+
+    qdev_warn_deprecated_function_used();
 
     uic = g_malloc0(sizeof(ppcuic_t));
     uic->dcr_base = dcr_base;
@@ -647,6 +650,8 @@ void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
 {
     ppc4xx_sdram_t *sdram;
 
+    qdev_warn_deprecated_function_used();
+
     sdram = g_malloc0(sizeof(ppc4xx_sdram_t));
     sdram->irq = irq;
     sdram->nbanks = nbanks;
@@ -907,6 +912,8 @@ void ppc4xx_mal_init(CPUPPCState *env, uint8_t txcnum, uint8_t rxcnum,
 {
     ppc4xx_mal_t *mal;
     int i;
+
+    qdev_warn_deprecated_function_used();
 
     assert(txcnum <= 32 && rxcnum <= 32);
     mal = g_malloc0(sizeof(*mal));
