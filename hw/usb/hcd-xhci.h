@@ -23,9 +23,9 @@
 #define HW_USB_HCD_XHCI_H
 
 #include "usb-internal.h"
+#include "hw/usb/usb-hcd.h"
 
 #define TYPE_XHCI "base-xhci"
-#define TYPE_NEC_XHCI "nec-usb-xhci"
 #define TYPE_QEMU_XHCI "qemu-xhci"
 
 #define XHCI(obj) \

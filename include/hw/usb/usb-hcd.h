@@ -30,4 +30,7 @@
 #define TYPE_VT82C686B_USB_UHCI     "vt82c686b-usb-uhci"
 #define TYPE_ICH9_USB_UHCI(n)       "ich9-usb-uhci" #n
 
+/* XHCI */
+#define TYPE_NEC_XHCI "nec-usb-xhci"
+
 #endif

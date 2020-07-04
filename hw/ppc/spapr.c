@@ -2961,7 +2961,7 @@ static void spapr_machine_init(MachineState *machine)
         if (smc->use_ohci_by_default) {
             pci_create_simple(phb->bus, -1, TYPE_PCI_OHCI);
         } else {
-            pci_create_simple(phb->bus, -1, "nec-usb-xhci");
+            pci_create_simple(phb->bus, -1, TYPE_NEC_XHCI);
         }
 
         if (spapr->has_graphics) {
