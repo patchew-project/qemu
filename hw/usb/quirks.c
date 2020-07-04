@@ -13,7 +13,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "quirks.h"
+#include "quirks.inc.c"
 #include "hw/usb.h"
 
 static bool usb_id_match(const struct usb_device_id *ids,
