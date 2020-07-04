@@ -36,8 +36,11 @@
 #include "qapi/error.h"
 #include "hw/usb/dwc2-regs.h"
 #include "hw/usb/hcd-dwc2.h"
+#include "hw/irq.h"
+#include "sysemu/dma.h"
 #include "migration/vmstate.h"
 #include "trace.h"
+#include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
 

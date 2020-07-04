@@ -19,11 +19,8 @@
 #ifndef HW_USB_DWC2_H
 #define HW_USB_DWC2_H
 
-#include "qemu/timer.h"
-#include "hw/irq.h"
 #include "hw/sysbus.h"
 #include "hw/usb.h"
-#include "sysemu/dma.h"
 
 #define DWC2_MMIO_SIZE      0x11000
 
