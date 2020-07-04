@@ -21,6 +21,7 @@
 #include "qemu/error-report.h"
 #include "qemu/timer.h"
 #include "hw/arm/soc_dma.h"
+#include "hw/qdev-deprecated.h"
 
 static void transfer_mem2mem(struct soc_dma_ch_s *ch)
 {
@@ -241,6 +242,8 @@ struct soc_dma_s *soc_dma_init(int n)
 {
     int i;
     struct dma_s *s = g_malloc0(sizeof(*s) + n * sizeof(*s->ch));
+
+    qdev_warn_deprecated_function_used();
 
     s->chnum = n;
     s->soc.ch = s->ch;
