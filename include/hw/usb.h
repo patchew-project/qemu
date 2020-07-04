@@ -470,10 +470,6 @@ void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
 bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
 
-/* usb ports of the VM */
-
-#define VM_USB_HUB_SIZE 8
-
 /* usb-bus.c */
 
 #define TYPE_USB_BUS "usb-bus"
