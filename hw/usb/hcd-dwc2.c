@@ -34,7 +34,6 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/usb/dwc2-regs.h"
 #include "hw/usb/hcd-dwc2.h"
 #include "hw/irq.h"
 #include "sysemu/dma.h"
@@ -43,6 +42,7 @@
 #include "qemu/timer.h"
 #include "qemu/log.h"
 #include "hw/qdev-properties.h"
+#include "dwc2-regs.h"
 
 #define USB_HZ_FS       12000000
 #define USB_HZ_HS       96000000
