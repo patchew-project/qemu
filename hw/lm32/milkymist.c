@@ -87,6 +87,7 @@ static DeviceState *milkymist_memcard_create(hwaddr base)
     dev = qdev_new("milkymist-memcard");
     sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(dev), 0, base);
+    /* FIXME wire 'card is readonly' and 'card inserted' IRQs? */
 
     return dev;
 }
