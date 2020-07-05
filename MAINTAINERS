@@ -996,6 +996,7 @@ M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 R: Sarah Harris <S.E.Harris@kent.ac.uk>
 S: Maintained
 F: hw/avr/arduino.c
+F: tests/acceptance/machine_avr6.py
 
 CRIS Machines
 -------------
