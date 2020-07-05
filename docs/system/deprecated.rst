@@ -343,6 +343,11 @@ The 'ide-drive' device is deprecated. Users should use 'ide-hd' or
 The 'scsi-disk' device is deprecated. Users should use 'scsi-hd' or
 'scsi-cd' as appropriate to get a SCSI hard disk or CD-ROM as needed.
 
+``ssi-sd`` (since 5.1)
+'''''''''''''''''''''''''
+
+The 'ssi-sd' (SSI to SD card adapter) device is deprecated.
+
 System emulator machines
 ------------------------
 
