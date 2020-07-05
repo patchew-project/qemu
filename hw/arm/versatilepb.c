@@ -310,7 +310,9 @@ static void versatile_init(MachineState *machine, int board_id)
     qdev_connect_gpio_out(sysctl, 0, qdev_get_gpio_in(dev, 0));
 
     sysbus_create_varargs("pl181", 0x10005000, sic[22], sic[1], NULL);
+    /* FIXME wire 'card is readonly' and 'card inserted' IRQs? */
     sysbus_create_varargs("pl181", 0x1000b000, sic[23], sic[2], NULL);
+    /* FIXME wire 'card is readonly' and 'card inserted' IRQs? */
 
     /* Add PL031 Real Time Clock. */
     sysbus_create_simple("pl031", 0x101e8000, pic[10]);
