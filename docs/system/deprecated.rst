@@ -384,6 +384,11 @@ full SCSI support.  Use virtio-scsi instead when SCSI passthrough is required.
 Note this also applies to ``-device virtio-blk-pci,scsi=on|off``, which is an
 alias.
 
+``-device sd-card,spi=on`` (since 5.1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The SPI mode of the 'sd-card' device is deprecated.
+
 Block device options
 ''''''''''''''''''''
 
