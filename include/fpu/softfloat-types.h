@@ -167,6 +167,7 @@ typedef struct float_status {
     bool default_nan_mode;
     /* not always used -- see snan_bit_is_one() in softfloat-specialize.h */
     bool snan_bit_is_one;
+    bool use_first_nan;
     bool no_signaling_nans;
 } float_status;
 
