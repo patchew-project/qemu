@@ -289,7 +289,7 @@ static const struct kvm_para_features {
     { KVM_CAP_ASYNC_PF, KVM_FEATURE_ASYNC_PF },
 };
 
-static int get_para_features(KVMState *s)
+static int get_para_features(void)
 {
     int i, features = 0;
 
@@ -446,7 +446,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
 
     /* fallback for older kernels */
     if ((function == KVM_CPUID_FEATURES) && !found) {
-        ret = get_para_features(s);
+        ret = get_para_features();
     }
 
     return ret;
