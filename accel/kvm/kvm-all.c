@@ -909,7 +909,7 @@ static MemoryListener kvm_coalesced_pio_listener = {
     .coalesced_io_del = kvm_coalesce_pio_del,
 };
 
-int kvm_check_extension(KVMState *s, unsigned int extension)
+int kvm_check_extension(unsigned int extension)
 {
     int ret;
 
@@ -928,7 +928,7 @@ int kvm_vm_check_extension(KVMState *s, unsigned int extension)
     ret = kvm_vm_ioctl(s, KVM_CHECK_EXTENSION, extension);
     if (ret < 0) {
         /* VM wide version not implemented, use global one instead */
-        ret = kvm_check_extension(s, extension);
+        ret = kvm_check_extension(extension);
     }
 
     return ret;
@@ -1091,7 +1091,7 @@ static const KVMCapabilityInfo *
 kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
 {
     while (list->name) {
-        if (!kvm_check_extension(s, list->value)) {
+        if (!kvm_check_extension(list->value)) {
             return list;
         }
         list++;
@@ -1394,7 +1394,7 @@ void kvm_init_irq_routing(KVMState *s)
 {
     int gsi_count, i;
 
-    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING) - 1;
+    gsi_count = kvm_check_extension(KVM_CAP_IRQ_ROUTING) - 1;
     if (gsi_count > 0) {
         /* Round up so we can search ints using ffs */
         s->used_gsi_bitmap = bitmap_new(gsi_count);
@@ -1798,7 +1798,7 @@ int kvm_irqchip_add_hv_sint_route(KVMState *s, uint32_t vcpu, uint32_t sint)
     if (!kvm_gsi_routing_enabled()) {
         return -ENOSYS;
     }
-    if (!kvm_check_extension(s, KVM_CAP_HYPERV_SYNIC)) {
+    if (!kvm_check_extension(KVM_CAP_HYPERV_SYNIC)) {
         return -ENOSYS;
     }
     virq = kvm_irqchip_get_virq(s);
@@ -1907,9 +1907,9 @@ static void kvm_irqchip_create(KVMState *s)
     int ret;
 
     assert(s->kernel_irqchip_split != ON_OFF_AUTO_AUTO);
-    if (kvm_check_extension(s, KVM_CAP_IRQCHIP)) {
+    if (kvm_check_extension(KVM_CAP_IRQCHIP)) {
         ;
-    } else if (kvm_check_extension(s, KVM_CAP_S390_IRQCHIP)) {
+    } else if (kvm_check_extension(KVM_CAP_S390_IRQCHIP)) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_S390_IRQCHIP, 0);
         if (ret < 0) {
             fprintf(stderr, "Enable kernel irqchip failed: %s\n", strerror(-ret));
@@ -1959,13 +1959,13 @@ static int kvm_recommended_vcpus(KVMState *s)
 
 static int kvm_max_vcpus(KVMState *s)
 {
-    int ret = kvm_check_extension(s, KVM_CAP_MAX_VCPUS);
+    int ret = kvm_check_extension(KVM_CAP_MAX_VCPUS);
     return (ret) ? ret : kvm_recommended_vcpus(s);
 }
 
 static int kvm_max_vcpu_id(KVMState *s)
 {
-    int ret = kvm_check_extension(s, KVM_CAP_MAX_VCPU_ID);
+    int ret = kvm_check_extension(KVM_CAP_MAX_VCPU_ID);
     return (ret) ? ret : kvm_max_vcpus(s);
 }
 
@@ -2036,15 +2036,15 @@ static int kvm_init(MachineState *ms)
         goto err;
     }
 
-    kvm_immediate_exit = kvm_check_extension(s, KVM_CAP_IMMEDIATE_EXIT);
-    s->nr_slots = kvm_check_extension(s, KVM_CAP_NR_MEMSLOTS);
+    kvm_immediate_exit = kvm_check_extension(KVM_CAP_IMMEDIATE_EXIT);
+    s->nr_slots = kvm_check_extension(KVM_CAP_NR_MEMSLOTS);
 
     /* If unspecified, use the default value */
     if (!s->nr_slots) {
         s->nr_slots = 32;
     }
 
-    s->nr_as = kvm_check_extension(s, KVM_CAP_MULTI_ADDRESS_SPACE);
+    s->nr_as = kvm_check_extension(KVM_CAP_MULTI_ADDRESS_SPACE);
     if (s->nr_as <= 1) {
         s->nr_as = 1;
     }
@@ -2117,12 +2117,12 @@ static int kvm_init(MachineState *ms)
         goto err;
     }
 
-    s->coalesced_mmio = kvm_check_extension(s, KVM_CAP_COALESCED_MMIO);
+    s->coalesced_mmio = kvm_check_extension(KVM_CAP_COALESCED_MMIO);
     s->coalesced_pio = s->coalesced_mmio &&
-                       kvm_check_extension(s, KVM_CAP_COALESCED_PIO);
+                       kvm_check_extension(KVM_CAP_COALESCED_PIO);
 
     dirty_log_manual_caps =
-        kvm_check_extension(s, KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
+        kvm_check_extension( KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
     dirty_log_manual_caps &= (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE |
                               KVM_DIRTY_LOG_INITIALLY_SET);
     s->manual_dirty_log_protect = dirty_log_manual_caps;
@@ -2139,46 +2139,46 @@ static int kvm_init(MachineState *ms)
     }
 
 #ifdef KVM_CAP_VCPU_EVENTS
-    s->vcpu_events = kvm_check_extension(s, KVM_CAP_VCPU_EVENTS);
+    s->vcpu_events = kvm_check_extension(KVM_CAP_VCPU_EVENTS);
 #endif
 
     s->robust_singlestep =
-        kvm_check_extension(s, KVM_CAP_X86_ROBUST_SINGLESTEP);
+        kvm_check_extension(KVM_CAP_X86_ROBUST_SINGLESTEP);
 
 #ifdef KVM_CAP_DEBUGREGS
-    s->debugregs = kvm_check_extension(s, KVM_CAP_DEBUGREGS);
+    s->debugregs = kvm_check_extension(KVM_CAP_DEBUGREGS);
 #endif
 
-    s->max_nested_state_len = kvm_check_extension(s, KVM_CAP_NESTED_STATE);
+    s->max_nested_state_len = kvm_check_extension(KVM_CAP_NESTED_STATE);
 
 #ifdef KVM_CAP_IRQ_ROUTING
-    kvm_direct_msi_allowed = (kvm_check_extension(s, KVM_CAP_SIGNAL_MSI) > 0);
+    kvm_direct_msi_allowed = (kvm_check_extension(KVM_CAP_SIGNAL_MSI) > 0);
 #endif
 
-    s->intx_set_mask = kvm_check_extension(s, KVM_CAP_PCI_2_3);
+    s->intx_set_mask = kvm_check_extension(KVM_CAP_PCI_2_3);
 
     s->irq_set_ioctl = KVM_IRQ_LINE;
-    if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
+    if (kvm_check_extension(KVM_CAP_IRQ_INJECT_STATUS)) {
         s->irq_set_ioctl = KVM_IRQ_LINE_STATUS;
     }
 
     kvm_readonly_mem_allowed =
-        (kvm_check_extension(s, KVM_CAP_READONLY_MEM) > 0);
+        (kvm_check_extension(KVM_CAP_READONLY_MEM) > 0);
 
     kvm_eventfds_allowed =
-        (kvm_check_extension(s, KVM_CAP_IOEVENTFD) > 0);
+        (kvm_check_extension(KVM_CAP_IOEVENTFD) > 0);
 
     kvm_irqfds_allowed =
-        (kvm_check_extension(s, KVM_CAP_IRQFD) > 0);
+        (kvm_check_extension(KVM_CAP_IRQFD) > 0);
 
     kvm_resamplefds_allowed =
-        (kvm_check_extension(s, KVM_CAP_IRQFD_RESAMPLE) > 0);
+        (kvm_check_extension(KVM_CAP_IRQFD_RESAMPLE) > 0);
 
     kvm_vm_attributes_allowed =
-        (kvm_check_extension(s, KVM_CAP_VM_ATTRIBUTES) > 0);
+        (kvm_check_extension(KVM_CAP_VM_ATTRIBUTES) > 0);
 
     kvm_ioeventfd_any_length_allowed =
-        (kvm_check_extension(s, KVM_CAP_IOEVENTFD_ANY_LENGTH) > 0);
+        (kvm_check_extension(KVM_CAP_IOEVENTFD_ANY_LENGTH) > 0);
 
     kvm_state = s;
 
@@ -2271,7 +2271,7 @@ static int kvm_handle_internal_error(CPUState *cpu, struct kvm_run *run)
     fprintf(stderr, "KVM internal error. Suberror: %d\n",
             run->internal.suberror);
 
-    if (kvm_check_extension(kvm_state, KVM_CAP_INTERNAL_ERROR_DATA)) {
+    if (kvm_check_extension(KVM_CAP_INTERNAL_ERROR_DATA)) {
         int i;
 
         for (i = 0; i < run->internal.ndata; ++i) {
@@ -2740,7 +2740,7 @@ int kvm_has_many_ioeventfds(void)
 int kvm_has_gsi_routing(void)
 {
 #ifdef KVM_CAP_IRQ_ROUTING
-    return kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING);
+    return kvm_check_extension(KVM_CAP_IRQ_ROUTING);
 #else
     return false;
 #endif
@@ -2753,7 +2753,7 @@ int kvm_has_intx_set_mask(void)
 
 bool kvm_arm_supports_user_irq(void)
 {
-    return kvm_check_extension(kvm_state, KVM_CAP_ARM_USER_IRQ);
+    return kvm_check_extension(KVM_CAP_ARM_USER_IRQ);
 }
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
@@ -3026,7 +3026,7 @@ int kvm_create_device(KVMState *s, uint64_t type, bool test)
     create_dev.fd = -1;
     create_dev.flags = test ? KVM_CREATE_DEVICE_TEST : 0;
 
-    if (!kvm_check_extension(s, KVM_CAP_DEVICE_CTRL)) {
+    if (!kvm_check_extension(KVM_CAP_DEVICE_CTRL)) {
         return -ENOTSUP;
     }
 

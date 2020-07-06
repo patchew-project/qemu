@@ -52,8 +52,8 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     /* MIPS has 128 signals */
     kvm_set_sigmask_len(s, 16);
 
-    kvm_mips_fpu_cap = kvm_check_extension(s, KVM_CAP_MIPS_FPU);
-    kvm_mips_msa_cap = kvm_check_extension(s, KVM_CAP_MIPS_MSA);
+    kvm_mips_fpu_cap = kvm_check_extension(KVM_CAP_MIPS_FPU);
+    kvm_mips_msa_cap = kvm_check_extension(KVM_CAP_MIPS_MSA);
 
     DPRINTF("%s\n", __func__);
     return 0;

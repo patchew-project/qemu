@@ -203,7 +203,7 @@ static void kvm_openpic_realize(DeviceState *dev, Error **errp)
     struct kvm_create_device cd = {0};
     int ret, i;
 
-    if (!kvm_check_extension(s, KVM_CAP_DEVICE_CTRL)) {
+    if (!kvm_check_extension(KVM_CAP_DEVICE_CTRL)) {
         error_setg(errp, "Kernel is lacking Device Control API");
         return;
     }

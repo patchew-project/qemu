@@ -222,8 +222,7 @@ bool s390_has_feat(S390Feat feat)
 #ifdef CONFIG_KVM
         if (kvm_enabled()) {
             if (feat == S390_FEAT_VECTOR) {
-                return kvm_check_extension(kvm_state,
-                                           KVM_CAP_S390_VECTOR_REGISTERS);
+                return kvm_check_extension(KVM_CAP_S390_VECTOR_REGISTERS);
             }
             if (feat == S390_FEAT_RUNTIME_INSTRUMENTATION) {
                 return kvm_s390_get_ri();

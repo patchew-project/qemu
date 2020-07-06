@@ -365,7 +365,7 @@ int xics_kvm_connect(SpaprInterruptController *intc, uint32_t nr_servers,
         return 0;
     }
 
-    if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_IRQ_XICS)) {
+    if (!kvm_enabled() || !kvm_check_extension(KVM_CAP_IRQ_XICS)) {
         error_setg(errp,
                    "KVM and IRQ_XICS capability must be present for in-kernel XICS");
         return -1;

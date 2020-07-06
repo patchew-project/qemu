@@ -342,21 +342,21 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     object_class_foreach(ccw_machine_class_foreach, TYPE_S390_CCW_MACHINE,
                          false, NULL);
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_DEVICE_CTRL)) {
+    if (!kvm_check_extension(KVM_CAP_DEVICE_CTRL)) {
         error_report("KVM is missing capability KVM_CAP_DEVICE_CTRL - "
                      "please use kernel 3.15 or newer");
         return -1;
     }
 
-    cap_sync_regs = kvm_check_extension(s, KVM_CAP_SYNC_REGS);
-    cap_async_pf = kvm_check_extension(s, KVM_CAP_ASYNC_PF);
-    cap_mem_op = kvm_check_extension(s, KVM_CAP_S390_MEM_OP);
-    cap_s390_irq = kvm_check_extension(s, KVM_CAP_S390_INJECT_IRQ);
-    cap_vcpu_resets = kvm_check_extension(s, KVM_CAP_S390_VCPU_RESETS);
-    cap_protected = kvm_check_extension(s, KVM_CAP_S390_PROTECTED);
+    cap_sync_regs = kvm_check_extension(KVM_CAP_SYNC_REGS);
+    cap_async_pf = kvm_check_extension(KVM_CAP_ASYNC_PF);
+    cap_mem_op = kvm_check_extension(KVM_CAP_S390_MEM_OP);
+    cap_s390_irq = kvm_check_extension(KVM_CAP_S390_INJECT_IRQ);
+    cap_vcpu_resets = kvm_check_extension(KVM_CAP_S390_VCPU_RESETS);
+    cap_protected = kvm_check_extension(KVM_CAP_S390_PROTECTED);
 
-    if (!kvm_check_extension(s, KVM_CAP_S390_GMAP)
-        || !kvm_check_extension(s, KVM_CAP_S390_COW)) {
+    if (!kvm_check_extension(KVM_CAP_S390_GMAP)
+        || !kvm_check_extension(KVM_CAP_S390_COW)) {
         phys_mem_set_alloc(legacy_s390_alloc);
     }
 
@@ -381,7 +381,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * newer machine types if KVM_CAP_S390_AIS_MIGRATION is available.
      */
     if (cpu_model_allowed() && kvm_kernel_irqchip_allowed() &&
-        kvm_check_extension(s, KVM_CAP_S390_AIS_MIGRATION)) {
+        kvm_check_extension(KVM_CAP_S390_AIS_MIGRATION)) {
         kvm_vm_enable_cap(s, KVM_CAP_S390_AIS, 0);
     }
 
@@ -1996,7 +1996,7 @@ void kvm_arch_init_irq_routing(KVMState *s)
      * are handled in-kernel, it is not true for s390 (yet); therefore, we
      * have to override the common code kvm_halt_in_kernel_allowed setting.
      */
-    if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
+    if (kvm_check_extension(KVM_CAP_IRQ_ROUTING)) {
         kvm_gsi_routing_allowed = true;
         kvm_halt_in_kernel_allowed = false;
     }
@@ -2015,7 +2015,7 @@ int kvm_s390_assign_subch_ioeventfd(EventNotifier *notifier, uint32_t sch,
     };
     trace_kvm_assign_subch_ioeventfd(kick.fd, kick.addr, assign,
                                      kick.datamatch);
-    if (!kvm_check_extension(kvm_state, KVM_CAP_IOEVENTFD)) {
+    if (!kvm_check_extension(KVM_CAP_IOEVENTFD)) {
         return -ENOSYS;
     }
     if (!assign) {
@@ -2082,7 +2082,7 @@ void kvm_s390_vcpu_interrupt_pre_save(S390CPU *cpu)
     CPUState *cs = CPU(cpu);
     int32_t bytes;
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_IRQ_STATE)) {
+    if (!kvm_check_extension(KVM_CAP_S390_IRQ_STATE)) {
         return;
     }
 
@@ -2109,7 +2109,7 @@ int kvm_s390_vcpu_interrupt_post_load(S390CPU *cpu)
         return 0;
     }
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_IRQ_STATE)) {
+    if (!kvm_check_extension(KVM_CAP_S390_IRQ_STATE)) {
         return -ENOSYS;
     }
 
@@ -2421,7 +2421,7 @@ void kvm_s390_get_host_cpu_model(S390CPUModel *model, Error **errp)
     }
 
     /* bpb needs kernel support for migration, VSIE and reset */
-    if (!kvm_check_extension(kvm_state, KVM_CAP_S390_BPB)) {
+    if (!kvm_check_extension(KVM_CAP_S390_BPB)) {
         clear_bit(S390_FEAT_BPB, model->features);
     }
 

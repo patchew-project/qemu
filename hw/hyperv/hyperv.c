@@ -605,7 +605,7 @@ static bool process_event_flags_userspace;
 int hyperv_set_event_flag_handler(uint32_t conn_id, EventNotifier *notifier)
 {
     if (!process_event_flags_userspace &&
-        !kvm_check_extension(kvm_state, KVM_CAP_HYPERV_EVENTFD)) {
+        !kvm_check_extension(KVM_CAP_HYPERV_EVENTFD)) {
         process_event_flags_userspace = true;
 
         warn_report("Hyper-V event signaling is not supported by this kernel; "

@@ -22,7 +22,7 @@
 Object *kvm_s390_stattrib_create(void)
 {
     if (kvm_enabled() &&
-                kvm_check_extension(kvm_state, KVM_CAP_S390_CMMA_MIGRATION)) {
+                kvm_check_extension(KVM_CAP_S390_CMMA_MIGRATION)) {
         return object_new(TYPE_KVM_S390_STATTRIB);
     }
     return NULL;

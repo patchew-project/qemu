@@ -61,7 +61,7 @@ int kvm_arm_vcpu_finalize(CPUState *cs, int feature)
 
 void kvm_arm_init_serror_injection(CPUState *cs)
 {
-    cap_has_inject_serror_esr = kvm_check_extension(cs->kvm_state,
+    cap_has_inject_serror_esr = kvm_check_extension(
                                     KVM_CAP_ARM_INJECT_SERROR_ESR);
 }
 
@@ -211,15 +211,14 @@ void kvm_arm_add_vcpu_properties(Object *obj)
 
 bool kvm_arm_pmu_supported(void)
 {
-    return kvm_check_extension(kvm_state, KVM_CAP_ARM_PMU_V3);
+    return kvm_check_extension(KVM_CAP_ARM_PMU_V3);
 }
 
 int kvm_arm_get_max_vm_ipa_size(MachineState *ms)
 {
-    KVMState *s = KVM_STATE(ms->accelerator);
     int ret;
 
-    ret = kvm_check_extension(s, KVM_CAP_ARM_VM_IPA_SIZE);
+    ret = kvm_check_extension(KVM_CAP_ARM_VM_IPA_SIZE);
     return ret > 0 ? ret : 40;
 }
 
@@ -237,10 +236,10 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      */
     kvm_halt_in_kernel_allowed = true;
 
-    cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
+    cap_has_mp_state = kvm_check_extension(KVM_CAP_MP_STATE);
 
     if (ms->smp.cpus > 256 &&
-        !kvm_check_extension(s, KVM_CAP_ARM_IRQ_LINE_LAYOUT_2)) {
+        !kvm_check_extension(KVM_CAP_ARM_IRQ_LINE_LAYOUT_2)) {
         error_report("Using more than 256 vcpus requires a host kernel "
                      "with KVM_CAP_ARM_IRQ_LINE_LAYOUT_2");
         ret = -EINVAL;
@@ -950,7 +949,7 @@ int kvm_arch_irqchip_create(KVMState *s)
     /* If we can create the VGIC using the newer device control API, we
      * let the device do this when it initializes itself, otherwise we
      * fall back to the old API */
-    return kvm_check_extension(s, KVM_CAP_DEVICE_CTRL);
+    return kvm_check_extension(KVM_CAP_DEVICE_CTRL);
 }
 
 int kvm_arm_vgic_probe(void)

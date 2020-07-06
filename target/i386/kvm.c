@@ -133,12 +133,12 @@ int kvm_has_pit_state2(void)
 
 bool kvm_has_smm(void)
 {
-    return kvm_check_extension(kvm_state, KVM_CAP_X86_SMM);
+    return kvm_check_extension(KVM_CAP_X86_SMM);
 }
 
 bool kvm_has_adjust_clock_stable(void)
 {
-    int ret = kvm_check_extension(kvm_state, KVM_CAP_ADJUST_CLOCK);
+    int ret = kvm_check_extension(KVM_CAP_ADJUST_CLOCK);
 
     return (ret == KVM_CLOCK_TSC_STABLE);
 }
@@ -294,7 +294,7 @@ static int get_para_features(KVMState *s)
     int i, features = 0;
 
     for (i = 0; i < ARRAY_SIZE(para_features); i++) {
-        if (kvm_check_extension(s, para_features[i].cap)) {
+        if (kvm_check_extension(para_features[i].cap)) {
             features |= (1 << para_features[i].feature);
         }
     }
@@ -386,7 +386,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
          * and the irqchip is in the kernel.
          */
         if (kvm_irqchip_in_kernel() &&
-                kvm_check_extension(s, KVM_CAP_TSC_DEADLINE_TIMER)) {
+                kvm_check_extension(KVM_CAP_TSC_DEADLINE_TIMER)) {
             ret |= CPUID_EXT_TSC_DEADLINE_TIMER;
         }
 
@@ -398,8 +398,7 @@ uint32_t kvm_arch_get_supported_cpuid(KVMState *s, uint32_t function,
         }
 
         if (enable_cpu_pm) {
-            int disable_exits = kvm_check_extension(s,
-                                                    KVM_CAP_X86_DISABLE_EXITS);
+            int disable_exits = kvm_check_extension(KVM_CAP_X86_DISABLE_EXITS);
 
             if (disable_exits & KVM_X86_DISABLE_EXITS_MWAIT) {
                 ret |= CPUID_EXT_MONITOR;
@@ -536,7 +535,7 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
 {
     int r;
 
-    r = kvm_check_extension(s, KVM_CAP_MCE);
+    r = kvm_check_extension(KVM_CAP_MCE);
     if (r > 0) {
         *max_banks = r;
         return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
@@ -728,8 +727,7 @@ unsigned long kvm_arch_vcpu_id(CPUState *cs)
 
 static bool hyperv_enabled(X86CPU *cpu)
 {
-    CPUState *cs = CPU(cpu);
-    return kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0 &&
+    return kvm_check_extension(KVM_CAP_HYPERV) > 0 &&
         ((cpu->hyperv_spinlock_attempts != HYPERV_SPINLOCK_NEVER_RETRY) ||
          cpu->hyperv_features || cpu->hyperv_passthrough);
 }
@@ -761,13 +759,13 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
         return 0;
     }
 
-    cur_freq = kvm_check_extension(cs->kvm_state, KVM_CAP_GET_TSC_KHZ) ?
+    cur_freq = kvm_check_extension(KVM_CAP_GET_TSC_KHZ) ?
                kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) : -ENOTSUP;
 
     /*
      * If TSC scaling is supported, attempt to set TSC frequency.
      */
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_TSC_CONTROL)) {
+    if (kvm_check_extension(KVM_CAP_TSC_CONTROL)) {
         set_ioctl = true;
     }
 
@@ -787,7 +785,7 @@ static int kvm_arch_set_tsc_khz(CPUState *cs)
         /* When KVM_SET_TSC_KHZ fails, it's an error only if the current
          * TSC frequency doesn't match the one we want.
          */
-        cur_freq = kvm_check_extension(cs->kvm_state, KVM_CAP_GET_TSC_KHZ) ?
+        cur_freq = kvm_check_extension(KVM_CAP_GET_TSC_KHZ) ?
                    kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :
                    -ENOTSUP;
         if (cur_freq <= 0 || cur_freq != env->tsc_khz) {
@@ -1008,7 +1006,7 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid_legacy(CPUState *cs)
     entry_recomm->function = HV_CPUID_ENLIGHTMENT_INFO;
     entry_recomm->ebx = cpu->hyperv_spinlock_attempts;
 
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV) > 0) {
+    if (kvm_check_extension(KVM_CAP_HYPERV) > 0) {
         entry_feat->eax |= HV_HYPERCALL_AVAILABLE;
         entry_feat->eax |= HV_APIC_ACCESS_AVAILABLE;
         entry_feat->edx |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
@@ -1016,7 +1014,7 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid_legacy(CPUState *cs)
         entry_recomm->eax |= HV_APIC_ACCESS_RECOMMENDED;
     }
 
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_TIME) > 0) {
+    if (kvm_check_extension(KVM_CAP_HYPERV_TIME) > 0) {
         entry_feat->eax |= HV_TIME_REF_COUNT_AVAILABLE;
         entry_feat->eax |= HV_REFERENCE_TSC_AVAILABLE;
     }
@@ -1050,7 +1048,7 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid_legacy(CPUState *cs)
         unsigned int cap = cpu->hyperv_synic_kvm_only ?
             KVM_CAP_HYPERV_SYNIC : KVM_CAP_HYPERV_SYNIC2;
 
-        if (kvm_check_extension(cs->kvm_state, cap) > 0) {
+        if (kvm_check_extension(cap) > 0) {
             entry_feat->eax |= HV_SYNIC_AVAILABLE;
         }
     }
@@ -1059,19 +1057,16 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid_legacy(CPUState *cs)
         entry_feat->eax |= HV_SYNTIMERS_AVAILABLE;
     }
 
-    if (kvm_check_extension(cs->kvm_state,
-                            KVM_CAP_HYPERV_TLBFLUSH) > 0) {
+    if (kvm_check_extension(KVM_CAP_HYPERV_TLBFLUSH) > 0) {
         entry_recomm->eax |= HV_REMOTE_TLB_FLUSH_RECOMMENDED;
         entry_recomm->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
     }
 
-    if (kvm_check_extension(cs->kvm_state,
-                            KVM_CAP_HYPERV_ENLIGHTENED_VMCS) > 0) {
+    if (kvm_check_extension(KVM_CAP_HYPERV_ENLIGHTENED_VMCS) > 0) {
         entry_recomm->eax |= HV_ENLIGHTENED_VMCS_RECOMMENDED;
     }
 
-    if (kvm_check_extension(cs->kvm_state,
-                            KVM_CAP_HYPERV_SEND_IPI) > 0) {
+    if (kvm_check_extension(KVM_CAP_HYPERV_SEND_IPI) > 0) {
         entry_recomm->eax |= HV_CLUSTER_IPI_RECOMMENDED;
         entry_recomm->eax |= HV_EX_PROCESSOR_MASKS_RECOMMENDED;
     }
@@ -1215,7 +1210,7 @@ static int hyperv_handle_properties(CPUState *cs,
         }
     }
 
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
+    if (kvm_check_extension(KVM_CAP_HYPERV_CPUID) > 0) {
         cpuid = get_supported_hv_cpuid(cs);
     } else {
         cpuid = get_supported_hv_cpuid_legacy(cs);
@@ -1496,7 +1491,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
      * so that vcpu's TSC frequency can be migrated later via this field.
      */
     if (!env->tsc_khz) {
-        r = kvm_check_extension(cs->kvm_state, KVM_CAP_GET_TSC_KHZ) ?
+        r = kvm_check_extension(KVM_CAP_GET_TSC_KHZ) ?
             kvm_vcpu_ioctl(cs, KVM_GET_TSC_KHZ) :
             -ENOTSUP;
         if (r > 0) {
@@ -1737,7 +1732,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (((env->cpuid_version >> 8)&0xF) >= 6
         && (env->features[FEAT_1_EDX] & (CPUID_MCE | CPUID_MCA)) ==
            (CPUID_MCE | CPUID_MCA)
-        && kvm_check_extension(cs->kvm_state, KVM_CAP_MCE) > 0) {
+        && kvm_check_extension(KVM_CAP_MCE) > 0) {
         uint64_t mcg_cap, unsupported_caps;
         int banks;
         int ret;
@@ -1932,7 +1927,7 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
         return 0;
     }
 
-    if (!kvm_check_extension(s, KVM_CAP_GET_MSR_FEATURES)) {
+    if (!kvm_check_extension(KVM_CAP_GET_MSR_FEATURES)) {
         return 0;
     }
 
@@ -2128,13 +2123,13 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     int ret;
     struct utsname utsname;
 
-    has_xsave = kvm_check_extension(s, KVM_CAP_XSAVE);
-    has_xcrs = kvm_check_extension(s, KVM_CAP_XCRS);
-    has_pit_state2 = kvm_check_extension(s, KVM_CAP_PIT_STATE2);
+    has_xsave = kvm_check_extension(KVM_CAP_XSAVE);
+    has_xcrs = kvm_check_extension(KVM_CAP_XCRS);
+    has_pit_state2 = kvm_check_extension(KVM_CAP_PIT_STATE2);
 
-    hv_vpindex_settable = kvm_check_extension(s, KVM_CAP_HYPERV_VP_INDEX);
+    hv_vpindex_settable = kvm_check_extension(KVM_CAP_HYPERV_VP_INDEX);
 
-    has_exception_payload = kvm_check_extension(s, KVM_CAP_EXCEPTION_PAYLOAD);
+    has_exception_payload = kvm_check_extension(KVM_CAP_EXCEPTION_PAYLOAD);
     if (has_exception_payload) {
         ret = kvm_vm_enable_cap(s, KVM_CAP_EXCEPTION_PAYLOAD, 0, true);
         if (ret < 0) {
@@ -2165,7 +2160,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      * that case we need to stick with the default, i.e. a 256K maximum BIOS
      * size.
      */
-    if (kvm_check_extension(s, KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
+    if (kvm_check_extension(KVM_CAP_SET_IDENTITY_MAP_ADDR)) {
         /* Allows up to 16M BIOSes. */
         identity_base = 0xfeffc000;
 
@@ -2197,7 +2192,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
-    if (kvm_check_extension(s, KVM_CAP_X86_SMM) &&
+    if (kvm_check_extension(KVM_CAP_X86_SMM) &&
         object_dynamic_cast(OBJECT(ms), TYPE_X86_MACHINE) &&
         x86_machine_is_smm_enabled(X86_MACHINE(ms))) {
         smram_machine_done.notify = register_smram_listener;
@@ -2205,7 +2200,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
     }
 
     if (enable_cpu_pm) {
-        int disable_exits = kvm_check_extension(s, KVM_CAP_X86_DISABLE_EXITS);
+        int disable_exits = kvm_check_extension(KVM_CAP_X86_DISABLE_EXITS);
         int ret;
 
 /* Work around for kernel header with a typo. TODO: fix header and drop. */
@@ -4546,7 +4541,7 @@ bool kvm_arch_stop_on_emulation_error(CPUState *cs)
 
 void kvm_arch_init_irq_routing(KVMState *s)
 {
-    if (!kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
+    if (!kvm_check_extension(KVM_CAP_IRQ_ROUTING)) {
         /* If kernel can't do irq routing, interrupt source
          * override 0->2 cannot be set up as required by HPET.
          * So we have to disable it.

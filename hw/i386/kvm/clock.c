@@ -166,7 +166,7 @@ static void kvmclock_vm_state_change(void *opaque, int running,
 {
     KVMClockState *s = opaque;
     CPUState *cpu;
-    int cap_clock_ctrl = kvm_check_extension(kvm_state, KVM_CAP_KVMCLOCK_CTRL);
+    int cap_clock_ctrl = kvm_check_extension(KVM_CAP_KVMCLOCK_CTRL);
     int ret;
 
     if (running) {

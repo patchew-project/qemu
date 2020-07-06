@@ -264,7 +264,7 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
     };
     int ret;
 
-    if (kvm_check_extension(kvm_state, KVM_CAP_PIT2)) {
+    if (kvm_check_extension(KVM_CAP_PIT2)) {
         ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_PIT2, &config);
     } else {
         ret = kvm_vm_ioctl(kvm_state, KVM_CREATE_PIT);
@@ -278,7 +278,7 @@ static void kvm_pit_realizefn(DeviceState *dev, Error **errp)
     case LOST_TICK_POLICY_DELAY:
         break; /* enabled by default */
     case LOST_TICK_POLICY_DISCARD:
-        if (kvm_check_extension(kvm_state, KVM_CAP_REINJECT_CONTROL)) {
+        if (kvm_check_extension(KVM_CAP_REINJECT_CONTROL)) {
             struct kvm_reinject_control control = { .pit_reinject = 0 };
 
             ret = kvm_vm_ioctl(kvm_state, KVM_REINJECT_CONTROL, &control);

@@ -436,7 +436,7 @@ void kvm_arch_update_guest_debug(CPUState *cpu, struct kvm_guest_debug *dbg);
 
 bool kvm_arch_stop_on_emulation_error(CPUState *cpu);
 
-int kvm_check_extension(KVMState *s, unsigned int extension);
+int kvm_check_extension(unsigned int extension);
 
 int kvm_vm_check_extension(KVMState *s, unsigned int extension);
 

@@ -110,24 +110,24 @@ static int kvmppc_get_dec_bits(void);
 
 int kvm_arch_init(MachineState *ms, KVMState *s)
 {
-    cap_interrupt_unset = kvm_check_extension(s, KVM_CAP_PPC_UNSET_IRQ);
-    cap_segstate = kvm_check_extension(s, KVM_CAP_PPC_SEGSTATE);
-    cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
+    cap_interrupt_unset = kvm_check_extension(KVM_CAP_PPC_UNSET_IRQ);
+    cap_segstate = kvm_check_extension(KVM_CAP_PPC_SEGSTATE);
+    cap_booke_sregs = kvm_check_extension(KVM_CAP_PPC_BOOKE_SREGS);
     cap_ppc_smt_possible = kvm_vm_check_extension(s, KVM_CAP_PPC_SMT_POSSIBLE);
-    cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
-    cap_spapr_tce_64 = kvm_check_extension(s, KVM_CAP_SPAPR_TCE_64);
-    cap_spapr_multitce = kvm_check_extension(s, KVM_CAP_SPAPR_MULTITCE);
+    cap_spapr_tce = kvm_check_extension(KVM_CAP_SPAPR_TCE);
+    cap_spapr_tce_64 = kvm_check_extension(KVM_CAP_SPAPR_TCE_64);
+    cap_spapr_multitce = kvm_check_extension(KVM_CAP_SPAPR_MULTITCE);
     cap_spapr_vfio = kvm_vm_check_extension(s, KVM_CAP_SPAPR_TCE_VFIO);
-    cap_one_reg = kvm_check_extension(s, KVM_CAP_ONE_REG);
-    cap_hior = kvm_check_extension(s, KVM_CAP_PPC_HIOR);
-    cap_epr = kvm_check_extension(s, KVM_CAP_PPC_EPR);
-    cap_ppc_watchdog = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_WATCHDOG);
+    cap_one_reg = kvm_check_extension(KVM_CAP_ONE_REG);
+    cap_hior = kvm_check_extension(KVM_CAP_PPC_HIOR);
+    cap_epr = kvm_check_extension(KVM_CAP_PPC_EPR);
+    cap_ppc_watchdog = kvm_check_extension(KVM_CAP_PPC_BOOKE_WATCHDOG);
     /*
      * Note: we don't set cap_papr here, because this capability is
      * only activated after this by kvmppc_set_papr()
      */
     cap_htab_fd = kvm_vm_check_extension(s, KVM_CAP_PPC_HTAB_FD);
-    cap_fixup_hcalls = kvm_check_extension(s, KVM_CAP_PPC_FIXUP_HCALL);
+    cap_fixup_hcalls = kvm_check_extension(KVM_CAP_PPC_FIXUP_HCALL);
     cap_ppc_smt = kvm_vm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_htm = kvm_vm_check_extension(s, KVM_CAP_PPC_HTM);
     cap_mmu_radix = kvm_vm_check_extension(s, KVM_CAP_PPC_MMU_RADIX);
@@ -147,7 +147,7 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
      */
     cap_ppc_pvr_compat = false;
 
-    if (!kvm_check_extension(s, KVM_CAP_PPC_IRQ_LEVEL)) {
+    if (!kvm_check_extension(KVM_CAP_PPC_IRQ_LEVEL)) {
         error_report("KVM: Host kernel doesn't have level irq capability");
         exit(1);
     }
@@ -205,7 +205,7 @@ static int kvm_booke206_tlb_init(PowerPCCPU *cpu)
     int ret, i;
 
     if (!kvm_enabled() ||
-        !kvm_check_extension(cs->kvm_state, KVM_CAP_SW_TLB)) {
+        !kvm_check_extension(KVM_CAP_SW_TLB)) {
         return 0;
     }
 
@@ -246,7 +246,7 @@ static void kvm_get_smmu_info(struct kvm_ppc_smmu_info *info, Error **errp)
 
     assert(kvm_state != NULL);
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_GET_SMMU_INFO)) {
+    if (!kvm_check_extension(KVM_CAP_PPC_GET_SMMU_INFO)) {
         error_setg(errp, "KVM doesn't expose the MMU features it supports");
         error_append_hint(errp, "Consider switching to a newer KVM\n");
         return;
@@ -268,7 +268,7 @@ struct ppc_radix_page_info *kvm_get_radix_page_info(void)
     struct kvm_ppc_rmmu_info rmmu_info;
     int i;
 
-    if (!kvm_check_extension(s, KVM_CAP_PPC_MMU_RADIX)) {
+    if (!kvm_check_extension(KVM_CAP_PPC_MMU_RADIX)) {
         return NULL;
     }
     if (kvm_vm_ioctl(s, KVM_PPC_GET_RMMU_INFO, &rmmu_info)) {
@@ -2611,7 +2611,7 @@ int kvmppc_define_rtas_kernel_token(uint32_t token, const char *function)
         .token = token,
     };
 
-    if (!kvm_check_extension(kvm_state, KVM_CAP_PPC_RTAS)) {
+    if (!kvm_check_extension(KVM_CAP_PPC_RTAS)) {
         return -ENOENT;
     }
 
@@ -2828,7 +2828,7 @@ int kvm_handle_nmi(PowerPCCPU *cpu, struct kvm_run *run)
 
 int kvmppc_enable_hwrng(void)
 {
-    if (!kvm_enabled() || !kvm_check_extension(kvm_state, KVM_CAP_PPC_HWRNG)) {
+    if (!kvm_enabled() || !kvm_check_extension(KVM_CAP_PPC_HWRNG)) {
         return -1;
     }
 
