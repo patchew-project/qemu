@@ -530,7 +530,7 @@ uint64_t kvm_arch_get_supported_msr_feature(KVMState *s, uint32_t index)
     }
 }
 
-static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
+static int kvm_get_mce_cap_supported(uint64_t *mce_cap,
                                      int *max_banks)
 {
     int r;
@@ -538,7 +538,7 @@ static int kvm_get_mce_cap_supported(KVMState *s, uint64_t *mce_cap,
     r = kvm_check_extension(KVM_CAP_MCE);
     if (r > 0) {
         *max_banks = r;
-        return kvm_ioctl(s, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
+        return kvm_ioctl(kvm_state, KVM_X86_GET_MCE_CAP_SUPPORTED, mce_cap);
     }
     return -ENOSYS;
 }
@@ -1737,7 +1737,7 @@ int kvm_arch_init_vcpu(CPUState *cs)
         int banks;
         int ret;
 
-        ret = kvm_get_mce_cap_supported(cs->kvm_state, &mcg_cap, &banks);
+        ret = kvm_get_mce_cap_supported(&mcg_cap, &banks);
         if (ret < 0) {
             fprintf(stderr, "kvm_get_mce_cap_supported: %s", strerror(-ret));
             return ret;
