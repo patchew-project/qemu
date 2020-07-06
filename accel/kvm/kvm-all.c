@@ -913,7 +913,7 @@ int kvm_check_extension(KVMState *s, unsigned int extension)
 {
     int ret;
 
-    ret = kvm_ioctl(s, KVM_CHECK_EXTENSION, extension);
+    ret = kvm_ioctl(kvm_state, KVM_CHECK_EXTENSION, extension);
     if (ret < 0) {
         ret = 0;
     }
