@@ -304,6 +304,28 @@ SRST
 ERST
 #endif
 
+#if defined(CONFIG_TRACE_RECORDER)
+    {
+        .name       = "recorder",
+        .args_type  = "op:s?,arg:s?",
+        .params     = "trace|dump [arg]",
+        .help       = "trace selected recorders or print recorder dump",
+        .cmd        = hmp_recorder,
+    },
+
+SRST
+``trace`` *cmds*
+  Activate or deactivate tracing for individual recorder traces.
+  See recorder_trace_set(3) for the syntax of *cmds*
+  For example, to activate trace ``foo`` and disable alll traces
+  ending in ``_warning``, use ``foo:.*_warning=0``.
+  Using ``help`` will list available traces and their current setting.
+``dump`` [*name*]
+  Dump the recorder. If *name* is given, only the specific named recorder
+  will be dumped.
+ERST
+#endif
+
     {
         .name       = "log",
         .args_type  = "items:s",
@@ -1828,4 +1850,3 @@ ERST
         .sub_table  = hmp_info_cmds,
         .flags      = "p",
     },
-
