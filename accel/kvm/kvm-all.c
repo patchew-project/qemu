@@ -1088,7 +1088,7 @@ static int kvm_check_many_ioeventfds(void)
 }
 
 static const KVMCapabilityInfo *
-kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
+kvm_check_extension_list(const KVMCapabilityInfo *list)
 {
     while (list->name) {
         if (!kvm_check_extension(list->value)) {
@@ -2105,10 +2105,10 @@ static int kvm_init(MachineState *ms)
         nc++;
     }
 
-    missing_cap = kvm_check_extension_list(s, kvm_required_capabilites);
+    missing_cap = kvm_check_extension_list(kvm_required_capabilites);
     if (!missing_cap) {
         missing_cap =
-            kvm_check_extension_list(s, kvm_arch_required_capabilities);
+            kvm_check_extension_list(kvm_arch_required_capabilities);
     }
     if (missing_cap) {
         ret = -EINVAL;
