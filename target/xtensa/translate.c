@@ -2797,18 +2797,6 @@ static void translate_wur(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(cpu_UR[par[0]], arg[0].in);
 }
 
-static void translate_wur_fpu2k_fcr(DisasContext *dc, const OpcodeArg arg[],
-                                    const uint32_t par[])
-{
-    gen_helper_wur_fpu2k_fcr(cpu_env, arg[0].in);
-}
-
-static void translate_wur_fsr(DisasContext *dc, const OpcodeArg arg[],
-                              const uint32_t par[])
-{
-    tcg_gen_andi_i32(cpu_UR[par[0]], arg[0].in, 0xffffff80);
-}
-
 static void translate_xor(DisasContext *dc, const OpcodeArg arg[],
                           const uint32_t par[])
 {
@@ -4650,16 +4638,6 @@ static const XtensaOpcodeOps core_ops[] = {
         .translate = translate_rur,
         .par = (const uint32_t[]){EXPSTATE},
     }, {
-        .name = "rur.fcr",
-        .translate = translate_rur,
-        .par = (const uint32_t[]){FCR},
-        .coprocessor = 0x1,
-    }, {
-        .name = "rur.fsr",
-        .translate = translate_rur,
-        .par = (const uint32_t[]){FSR},
-        .coprocessor = 0x1,
-    }, {
         .name = "rur.threadptr",
         .translate = translate_rur,
         .par = (const uint32_t[]){THREADPTR},
@@ -5565,16 +5543,6 @@ static const XtensaOpcodeOps core_ops[] = {
         .name = "wur.expstate",
         .translate = translate_wur,
         .par = (const uint32_t[]){EXPSTATE},
-    }, {
-        .name = "wur.fcr",
-        .translate = translate_wur_fpu2k_fcr,
-        .par = (const uint32_t[]){FCR},
-        .coprocessor = 0x1,
-    }, {
-        .name = "wur.fsr",
-        .translate = translate_wur_fsr,
-        .par = (const uint32_t[]){FSR},
-        .coprocessor = 0x1,
     }, {
         .name = "wur.threadptr",
         .translate = translate_wur,
@@ -6494,6 +6462,18 @@ static void translate_wfr_s(DisasContext *dc, const OpcodeArg arg[],
     tcg_gen_mov_i32(arg[0].out, arg[1].in);
 }
 
+static void translate_wur_fpu2k_fcr(DisasContext *dc, const OpcodeArg arg[],
+                                    const uint32_t par[])
+{
+    gen_helper_wur_fpu2k_fcr(cpu_env, arg[0].in);
+}
+
+static void translate_wur_fpu2k_fsr(DisasContext *dc, const OpcodeArg arg[],
+                                    const uint32_t par[])
+{
+    tcg_gen_andi_i32(cpu_UR[par[0]], arg[0].in, 0xffffff80);
+}
+
 static const XtensaOpcodeOps fpu2000_ops[] = {
     {
         .name = "abs.s",
@@ -6617,6 +6597,16 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
         .par = (const uint32_t[]){float_round_nearest_even, false},
         .coprocessor = 0x1,
     }, {
+        .name = "rur.fcr",
+        .translate = translate_rur,
+        .par = (const uint32_t[]){FCR},
+        .coprocessor = 0x1,
+    }, {
+        .name = "rur.fsr",
+        .translate = translate_rur,
+        .par = (const uint32_t[]){FSR},
+        .coprocessor = 0x1,
+    }, {
         .name = "ssi",
         .translate = translate_ldsti,
         .par = (const uint32_t[]){true, false},
@@ -6682,6 +6672,16 @@ static const XtensaOpcodeOps fpu2000_ops[] = {
     }, {
         .name = "wfr",
         .translate = translate_wfr_s,
+        .coprocessor = 0x1,
+    }, {
+        .name = "wur.fcr",
+        .translate = translate_wur_fpu2k_fcr,
+        .par = (const uint32_t[]){FCR},
+        .coprocessor = 0x1,
+    }, {
+        .name = "wur.fsr",
+        .translate = translate_wur_fpu2k_fsr,
+        .par = (const uint32_t[]){FSR},
         .coprocessor = 0x1,
     },
 };
