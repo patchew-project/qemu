@@ -623,6 +623,7 @@ typedef struct FsMount {
     char *dirname;
     char *devtype;
     unsigned int devmajor, devminor;
+    bool is_loop;
     QTAILQ_ENTRY(FsMount) next;
 } FsMount;
 
@@ -668,6 +669,11 @@ static int dev_major_minor(const char *devpath,
     return -1;
 }
 
+static bool
+fsname_is_loop_device(const char *fsname)
+{
+    return g_str_has_prefix(fsname, "/dev/loop");
+}
 /*
  * Walk the mount table and build a list of local file systems
  */
@@ -707,6 +713,7 @@ static void build_fs_mount_list_from_mtab(FsMountList *mounts, Error **errp)
         mount->devtype = g_strdup(ment->mnt_type);
         mount->devmajor = devmajor;
         mount->devminor = devminor;
+        mount->is_loop = fsname_is_loop_device(ment->mnt_fsname);
 
         QTAILQ_INSERT_TAIL(mounts, mount, next);
     }
@@ -786,6 +793,7 @@ static void build_fs_mount_list(FsMountList *mounts, Error **errp)
         mount->devtype = g_strdup(dash + type_s);
         mount->devmajor = devmajor;
         mount->devminor = devminor;
+        mount->is_loop = fsname_is_loop_device(dash + dev_s);
 
         QTAILQ_INSERT_TAIL(mounts, mount, next);
     }
@@ -1302,6 +1310,10 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
             if (!list) {
                 continue;
             }
+        }
+
+        if (mount->is_loop) {
+            continue;
         }
 
         fd = qemu_open(mount->dirname, O_RDONLY);
