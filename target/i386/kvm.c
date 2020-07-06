@@ -1919,7 +1919,7 @@ void kvm_arch_do_init_vcpu(X86CPU *cpu)
     }
 }
 
-static int kvm_get_supported_feature_msrs(KVMState *s)
+static int kvm_get_supported_feature_msrs(void)
 {
     int ret = 0;
 
@@ -1934,7 +1934,7 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
     struct kvm_msr_list msr_list;
 
     msr_list.nmsrs = 0;
-    ret = kvm_ioctl(s, KVM_GET_MSR_FEATURE_INDEX_LIST, &msr_list);
+    ret = kvm_ioctl(kvm_state, KVM_GET_MSR_FEATURE_INDEX_LIST, &msr_list);
     if (ret < 0 && ret != -E2BIG) {
         error_report("Fetch KVM feature MSR list failed: %s",
             strerror(-ret));
@@ -1947,7 +1947,8 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
                  msr_list.nmsrs * sizeof(msr_list.indices[0]));
 
     kvm_feature_msrs->nmsrs = msr_list.nmsrs;
-    ret = kvm_ioctl(s, KVM_GET_MSR_FEATURE_INDEX_LIST, kvm_feature_msrs);
+    ret = kvm_ioctl(kvm_state, KVM_GET_MSR_FEATURE_INDEX_LIST,
+                    kvm_feature_msrs);
 
     if (ret < 0) {
         error_report("Fetch KVM feature MSR list failed: %s",
@@ -1960,7 +1961,7 @@ static int kvm_get_supported_feature_msrs(KVMState *s)
     return 0;
 }
 
-static int kvm_get_supported_msrs(KVMState *s)
+static int kvm_get_supported_msrs(void)
 {
     int ret = 0;
     struct kvm_msr_list msr_list, *kvm_msr_list;
@@ -1970,7 +1971,7 @@ static int kvm_get_supported_msrs(KVMState *s)
      *  save/restore.
      */
     msr_list.nmsrs = 0;
-    ret = kvm_ioctl(s, KVM_GET_MSR_INDEX_LIST, &msr_list);
+    ret = kvm_ioctl(kvm_state, KVM_GET_MSR_INDEX_LIST, &msr_list);
     if (ret < 0 && ret != -E2BIG) {
         return ret;
     }
@@ -1983,7 +1984,7 @@ static int kvm_get_supported_msrs(KVMState *s)
                                           sizeof(msr_list.indices[0])));
 
     kvm_msr_list->nmsrs = msr_list.nmsrs;
-    ret = kvm_ioctl(s, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);
+    ret = kvm_ioctl(kvm_state, KVM_GET_MSR_INDEX_LIST, kvm_msr_list);
     if (ret >= 0) {
         int i;
 
@@ -2139,12 +2140,12 @@ int kvm_arch_init(MachineState *ms, KVMState *s)
         }
     }
 
-    ret = kvm_get_supported_msrs(s);
+    ret = kvm_get_supported_msrs();
     if (ret < 0) {
         return ret;
     }
 
-    kvm_get_supported_feature_msrs(s);
+    kvm_get_supported_feature_msrs();
 
     uname(&utsname);
     lm_capable_kernel = strcmp(utsname.machine, "x86_64") == 0;
