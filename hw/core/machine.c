@@ -30,6 +30,7 @@
 
 GlobalProperty hw_compat_5_0[] = {
     { "vhost-scsi", "num_queues", "1"},
+    { "vhost-user-blk", "num-queues", "1"},
     { "vhost-user-scsi", "num_queues", "1"},
     { "virtio-balloon-device", "page-poison", "false" },
     { "virtio-blk-device", "num-queues", "1"},
