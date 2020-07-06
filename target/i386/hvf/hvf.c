@@ -967,13 +967,13 @@ static int hvf_accel_init(MachineState *ms)
     assert_hvf_ok(ret);
 
     s = g_new0(HVFState, 1);
- 
+
     s->num_slots = 32;
     for (x = 0; x < s->num_slots; ++x) {
         s->slots[x].size = 0;
         s->slots[x].slot_id = x;
     }
-  
+
     hvf_state = s;
     cpu_interrupt_handler = hvf_handle_interrupt;
     memory_listener_register(&hvf_memory_listener, &address_space_memory);

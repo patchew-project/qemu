@@ -180,7 +180,7 @@ static void serial_receive(void *opaque, const uint8_t *buf, int size)
         return;
     }
 
-    for (i = 0; i < size; i++) { 
+    for (i = 0; i < size; i++) {
         s->rx_fifo[s->rx_fifo_pos] = buf[i];
         s->rx_fifo_pos++;
         s->rx_fifo_pos &= 15;

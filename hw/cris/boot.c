@@ -72,7 +72,7 @@ void cris_load_image(CRISCPU *cpu, struct cris_load_info *li)
     int image_size;
 
     env->load_info = li;
-    /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis 
+    /* Boots a kernel elf binary, os/linux-2.6/vmlinux from the axis
        devboard SDK.  */
     image_size = load_elf(li->image_filename, NULL,
                           translate_kernel_address, NULL,

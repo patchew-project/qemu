@@ -1412,7 +1412,7 @@ static void iscsi_readcapacity_sync(IscsiLun *iscsilun, Error **errp)
     struct scsi_task *task = NULL;
     struct scsi_readcapacity10 *rc10 = NULL;
     struct scsi_readcapacity16 *rc16 = NULL;
-    int retries = ISCSI_CMD_RETRIES; 
+    int retries = ISCSI_CMD_RETRIES;
 
     do {
         if (task != NULL) {

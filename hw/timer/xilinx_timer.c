@@ -166,7 +166,7 @@ timer_write(void *opaque, hwaddr addr,
              __func__, addr * 4, value, timer, addr & 3));
     /* Further decoding to address a specific timers reg.  */
     addr &= 3;
-    switch (addr) 
+    switch (addr)
     {
         case R_TCSR:
             if (value & TCSR_TINT)
@@ -179,7 +179,7 @@ timer_write(void *opaque, hwaddr addr,
                 ptimer_transaction_commit(xt->ptimer);
             }
             break;
- 
+
         default:
             if (addr < ARRAY_SIZE(xt->regs))
                 xt->regs[addr] = value;

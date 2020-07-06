@@ -83,7 +83,7 @@ bool x86_write_segment_descriptor(struct CPUState *cpu,
 {
     target_ulong base;
     uint32_t limit;
-    
+
     if (GDT_SEL == sel.ti) {
         base  = rvmcs(cpu->hvf_fd, VMCS_GUEST_GDTR_BASE);
         limit = rvmcs(cpu->hvf_fd, VMCS_GUEST_GDTR_LIMIT);
@@ -91,7 +91,7 @@ bool x86_write_segment_descriptor(struct CPUState *cpu,
         base  = rvmcs(cpu->hvf_fd, VMCS_GUEST_LDTR_BASE);
         limit = rvmcs(cpu->hvf_fd, VMCS_GUEST_LDTR_LIMIT);
     }
-    
+
     if (sel.index * 8 >= limit) {
         printf("%s: gdt limit\n", __func__);
         return false;

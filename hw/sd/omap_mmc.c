@@ -342,7 +342,7 @@ static uint64_t omap_mmc_read(void *opaque, hwaddr offset,
         return s->arg >> 16;
 
     case 0x0c:	/* MMC_CON */
-        return (s->dw << 15) | (s->mode << 12) | (s->enable << 11) | 
+        return (s->dw << 15) | (s->mode << 12) | (s->enable << 11) |
                 (s->be << 10) | s->clkdiv;
 
     case 0x10:	/* MMC_STAT */

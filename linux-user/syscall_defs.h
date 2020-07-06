@@ -1926,7 +1926,7 @@ struct target_stat {
 	abi_long	st_blocks;	/* Number 512-byte blocks allocated. */
 
 	abi_ulong	target_st_atime;
-	abi_ulong 	target_st_atime_nsec; 
+	abi_ulong 	target_st_atime_nsec;
 	abi_ulong	target_st_mtime;
 	abi_ulong	target_st_mtime_nsec;
 	abi_ulong	target_st_ctime;

@@ -34,7 +34,7 @@ typedef struct TyphoonWindow {
     uint64_t wsm;
     uint64_t tba;
 } TyphoonWindow;
- 
+
 typedef struct TyphoonPchip {
     MemoryRegion region;
     MemoryRegion reg_iack;
@@ -189,7 +189,7 @@ static MemTxResult cchip_read(void *opaque, hwaddr addr,
     case 0x0780:
         /* PWR: Power Management Control.   */
         break;
-    
+
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */
@@ -441,7 +441,7 @@ static MemTxResult cchip_write(void *opaque, hwaddr addr,
     case 0x0780:
         /* PWR: Power Management Control.   */
         break;
-    
+
     case 0x0c00: /* CMONCTLA */
     case 0x0c40: /* CMONCTLB */
     case 0x0c80: /* CMONCNT01 */

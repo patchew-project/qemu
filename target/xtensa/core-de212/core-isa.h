@@ -1,4 +1,4 @@
-/* 
+/*
  * xtensa/config/core-isa.h -- HAL definitions that are dependent on Xtensa
  *				processor CORE configuration
  *
@@ -605,12 +605,12 @@
 /*----------------------------------------------------------------------
 				MPU
   ----------------------------------------------------------------------*/
-#define XCHAL_HAVE_MPU			0 
+#define XCHAL_HAVE_MPU			0
 #define XCHAL_MPU_ENTRIES		0
 
 #define XCHAL_MPU_ALIGN_REQ		1	/* MPU requires alignment of entries to background map */
 #define XCHAL_MPU_BACKGROUND_ENTRIES	0	/* number of entries in background map */
- 
+
 #define XCHAL_MPU_ALIGN_BITS		0
 #define XCHAL_MPU_ALIGN			0
 

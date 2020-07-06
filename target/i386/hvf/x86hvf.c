@@ -88,7 +88,7 @@ void hvf_put_segments(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
     struct vmx_segment seg;
-    
+
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_IDTR_LIMIT, env->idt.limit);
     wvmcs(cpu_state->hvf_fd, VMCS_GUEST_IDTR_BASE, env->idt.base);
 
@@ -105,7 +105,7 @@ void hvf_put_segments(CPUState *cpu_state)
 
     hvf_set_segment(cpu_state, &seg, &env->segs[R_CS], false);
     vmx_write_segment_descriptor(cpu_state, &seg, R_CS);
-    
+
     hvf_set_segment(cpu_state, &seg, &env->segs[R_DS], false);
     vmx_write_segment_descriptor(cpu_state, &seg, R_DS);
 
@@ -126,10 +126,10 @@ void hvf_put_segments(CPUState *cpu_state)
 
     hvf_set_segment(cpu_state, &seg, &env->ldt, false);
     vmx_write_segment_descriptor(cpu_state, &seg, R_LDTR);
-    
+
     hv_vcpu_flush(cpu_state->hvf_fd);
 }
-    
+
 void hvf_put_msrs(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
@@ -178,7 +178,7 @@ void hvf_get_segments(CPUState *cpu_state)
 
     vmx_read_segment_descriptor(cpu_state, &seg, R_CS);
     hvf_get_segment(&env->segs[R_CS], &seg);
-    
+
     vmx_read_segment_descriptor(cpu_state, &seg, R_DS);
     hvf_get_segment(&env->segs[R_DS], &seg);
 
@@ -209,7 +209,7 @@ void hvf_get_segments(CPUState *cpu_state)
     env->cr[2] = 0;
     env->cr[3] = rvmcs(cpu_state->hvf_fd, VMCS_GUEST_CR3);
     env->cr[4] = rvmcs(cpu_state->hvf_fd, VMCS_GUEST_CR4);
-    
+
     env->efer = rvmcs(cpu_state->hvf_fd, VMCS_GUEST_IA32_EFER);
 }
 
@@ -217,10 +217,10 @@ void hvf_get_msrs(CPUState *cpu_state)
 {
     CPUX86State *env = &X86_CPU(cpu_state)->env;
     uint64_t tmp;
-    
+
     hv_vcpu_read_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_CS, &tmp);
     env->sysenter_cs = tmp;
-    
+
     hv_vcpu_read_msr(cpu_state->hvf_fd, MSR_IA32_SYSENTER_ESP, &tmp);
     env->sysenter_esp = tmp;
 
@@ -237,7 +237,7 @@ void hvf_get_msrs(CPUState *cpu_state)
 #endif
 
     hv_vcpu_read_msr(cpu_state->hvf_fd, MSR_IA32_APICBASE, &tmp);
-    
+
     env->tsc = rdtscp() + rvmcs(cpu_state->hvf_fd, VMCS_TSC_OFFSET);
 }
 
@@ -264,15 +264,15 @@ int hvf_put_registers(CPUState *cpu_state)
     wreg(cpu_state->hvf_fd, HV_X86_R15, env->regs[15]);
     wreg(cpu_state->hvf_fd, HV_X86_RFLAGS, env->eflags);
     wreg(cpu_state->hvf_fd, HV_X86_RIP, env->eip);
-   
+
     wreg(cpu_state->hvf_fd, HV_X86_XCR0, env->xcr0);
-    
+
     hvf_put_xsave(cpu_state);
-    
+
     hvf_put_segments(cpu_state);
-    
+
     hvf_put_msrs(cpu_state);
-    
+
     wreg(cpu_state->hvf_fd, HV_X86_DR0, env->dr[0]);
     wreg(cpu_state->hvf_fd, HV_X86_DR1, env->dr[1]);
     wreg(cpu_state->hvf_fd, HV_X86_DR2, env->dr[2]);
@@ -281,7 +281,7 @@ int hvf_put_registers(CPUState *cpu_state)
     wreg(cpu_state->hvf_fd, HV_X86_DR5, env->dr[5]);
     wreg(cpu_state->hvf_fd, HV_X86_DR6, env->dr[6]);
     wreg(cpu_state->hvf_fd, HV_X86_DR7, env->dr[7]);
-    
+
     return 0;
 }
 
@@ -306,16 +306,16 @@ int hvf_get_registers(CPUState *cpu_state)
     env->regs[13] = rreg(cpu_state->hvf_fd, HV_X86_R13);
     env->regs[14] = rreg(cpu_state->hvf_fd, HV_X86_R14);
     env->regs[15] = rreg(cpu_state->hvf_fd, HV_X86_R15);
-    
+
     env->eflags = rreg(cpu_state->hvf_fd, HV_X86_RFLAGS);
     env->eip = rreg(cpu_state->hvf_fd, HV_X86_RIP);
-   
+
     hvf_get_xsave(cpu_state);
     env->xcr0 = rreg(cpu_state->hvf_fd, HV_X86_XCR0);
-    
+
     hvf_get_segments(cpu_state);
     hvf_get_msrs(cpu_state);
-    
+
     env->dr[0] = rreg(cpu_state->hvf_fd, HV_X86_DR0);
     env->dr[1] = rreg(cpu_state->hvf_fd, HV_X86_DR1);
     env->dr[2] = rreg(cpu_state->hvf_fd, HV_X86_DR2);
@@ -324,7 +324,7 @@ int hvf_get_registers(CPUState *cpu_state)
     env->dr[5] = rreg(cpu_state->hvf_fd, HV_X86_DR5);
     env->dr[6] = rreg(cpu_state->hvf_fd, HV_X86_DR6);
     env->dr[7] = rreg(cpu_state->hvf_fd, HV_X86_DR7);
-    
+
     x86_update_hflags(env);
     return 0;
 }
@@ -388,7 +388,7 @@ bool hvf_inject_interrupts(CPUState *cpu_state)
                 intr_type == VMCS_INTR_T_SWEXCEPTION) {
                 wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_INST_LENGTH, env->ins_len);
             }
-            
+
             if (env->has_error_code) {
                 wvmcs(cpu_state->hvf_fd, VMCS_ENTRY_EXCEPTION_ERROR,
                       env->error_code);

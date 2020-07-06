@@ -80,7 +80,7 @@ struct UHCIPCIDeviceClass {
     UHCIInfo       info;
 };
 
-/* 
+/*
  * Pending async transaction.
  * 'packet' must be the first field because completion
  * handler does "(UHCIAsync *) pkt" cast.

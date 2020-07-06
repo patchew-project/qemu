@@ -979,7 +979,7 @@ static void stellaris_adc_fifo_write(stellaris_adc_state *s, int n,
 {
     int head;
 
-    /* TODO: Real hardware has limited size FIFOs.  We have a full 16 entry 
+    /* TODO: Real hardware has limited size FIFOs.  We have a full 16 entry
        FIFO fir each sequencer.  */
     head = (s->fifo[n].state >> 4) & 0xf;
     if (s->fifo[n].state & STELLARIS_ADC_FIFO_FULL) {

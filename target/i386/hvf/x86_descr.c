@@ -112,7 +112,7 @@ void vmx_segment_to_x86_descriptor(struct CPUState *cpu, struct vmx_segment *vmx
 {
     x86_set_segment_limit(desc, vmx_desc->limit);
     x86_set_segment_base(desc, vmx_desc->base);
-    
+
     desc->type = vmx_desc->ar & 15;
     desc->s = (vmx_desc->ar >> 4) & 1;
     desc->dpl = (vmx_desc->ar >> 5) & 3;

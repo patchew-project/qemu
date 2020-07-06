@@ -55,7 +55,7 @@ abi_long target_strlen(abi_ulong guest_addr1)
         unlock_user(ptr, guest_addr, 0);
         guest_addr += len;
         /* we don't allow wrapping or integer overflow */
-        if (guest_addr == 0 || 
+        if (guest_addr == 0 ||
             (guest_addr - guest_addr1) > 0x7fffffff)
             return -TARGET_EFAULT;
         if (len != max_len)

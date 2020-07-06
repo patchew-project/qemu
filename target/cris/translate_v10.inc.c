@@ -299,7 +299,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
 
             op = CC_OP_LSL;
             if (imm & (1 << 5)) {
-                op = CC_OP_LSR; 
+                op = CC_OP_LSR;
             }
             imm &= 0x1f;
             cris_cc_mask(dc, CC_MASK_NZVC);
@@ -335,7 +335,7 @@ static unsigned int dec10_quick_imm(DisasContext *dc)
             LOG_DIS("b%s %d\n", cc_name(dc->cond), imm);
 
             cris_cc_mask(dc, 0);
-            cris_prepare_cc_branch(dc, imm, dc->cond); 
+            cris_prepare_cc_branch(dc, imm, dc->cond);
             break;
 
         default:
@@ -487,7 +487,7 @@ static void dec10_reg_mov_pr(DisasContext *dc)
         return;
     }
     if (dc->dst == PR_CCS) {
-        cris_evaluate_flags(dc); 
+        cris_evaluate_flags(dc);
     }
     cris_alu(dc, CC_OP_MOVE, cpu_R[dc->src],
                  cpu_R[dc->src], cpu_PR[dc->dst], preg_sizes_v10[dc->dst]);

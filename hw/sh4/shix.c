@@ -49,7 +49,7 @@ static void shix_init(MachineState *machine)
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);
     MemoryRegion *sdram = g_new(MemoryRegion, 2);
-    
+
     cpu = SUPERH_CPU(cpu_create(machine->cpu_type));
 
     /* Allocate memory space */

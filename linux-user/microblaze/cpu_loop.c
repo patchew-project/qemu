@@ -27,7 +27,7 @@ void cpu_loop(CPUMBState *env)
     CPUState *cs = env_cpu(env);
     int trapnr, ret;
     target_siginfo_t info;
-    
+
     while (1) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
@@ -52,13 +52,13 @@ void cpu_loop(CPUMBState *env)
             /* Return address is 4 bytes after the call.  */
             env->regs[14] += 4;
             env->sregs[SR_PC] = env->regs[14];
-            ret = do_syscall(env, 
-                             env->regs[12], 
-                             env->regs[5], 
-                             env->regs[6], 
-                             env->regs[7], 
-                             env->regs[8], 
-                             env->regs[9], 
+            ret = do_syscall(env,
+                             env->regs[12],
+                             env->regs[5],
+                             env->regs[6],
+                             env->regs[7],
+                             env->regs[8],
+                             env->regs[9],
                              env->regs[10],
                              0, 0);
             if (ret == -TARGET_ERESTARTSYS) {

@@ -33,8 +33,8 @@
 
 #define MUSB_HDRC_INTRTX	0x02	/* 16-bit */
 #define MUSB_HDRC_INTRRX	0x04
-#define MUSB_HDRC_INTRTXE	0x06  
-#define MUSB_HDRC_INTRRXE	0x08  
+#define MUSB_HDRC_INTRTXE	0x06
+#define MUSB_HDRC_INTRRXE	0x08
 #define MUSB_HDRC_INTRUSB	0x0a	/* 8 bit */
 #define MUSB_HDRC_INTRUSBE	0x0b	/* 8 bit */
 #define MUSB_HDRC_FRAME		0x0c	/* 16-bit */
@@ -113,7 +113,7 @@
  */
 
 /* POWER */
-#define MGC_M_POWER_ISOUPDATE		0x80 
+#define MGC_M_POWER_ISOUPDATE		0x80
 #define	MGC_M_POWER_SOFTCONN		0x40
 #define	MGC_M_POWER_HSENAB		0x20
 #define	MGC_M_POWER_HSMODE		0x10
@@ -127,7 +127,7 @@
 #define MGC_M_INTR_RESUME		0x02
 #define MGC_M_INTR_RESET		0x04
 #define MGC_M_INTR_BABBLE		0x04
-#define MGC_M_INTR_SOF			0x08 
+#define MGC_M_INTR_SOF			0x08
 #define MGC_M_INTR_CONNECT		0x10
 #define MGC_M_INTR_DISCONNECT		0x20
 #define MGC_M_INTR_SESSREQ		0x40
@@ -135,7 +135,7 @@
 #define MGC_M_INTR_EP0			0x01	/* FOR EP0 INTERRUPT */
 
 /* DEVCTL */
-#define MGC_M_DEVCTL_BDEVICE		0x80   
+#define MGC_M_DEVCTL_BDEVICE		0x80
 #define MGC_M_DEVCTL_FSDEV		0x40
 #define MGC_M_DEVCTL_LSDEV		0x20
 #define MGC_M_DEVCTL_VBUS		0x18

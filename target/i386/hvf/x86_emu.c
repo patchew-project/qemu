@@ -131,7 +131,7 @@ void write_reg(CPUX86State *env, int reg, target_ulong val, int size)
 target_ulong read_val_from_reg(target_ulong reg_ptr, int size)
 {
     target_ulong val;
-    
+
     switch (size) {
     case 1:
         val = *(uint8_t *)reg_ptr;

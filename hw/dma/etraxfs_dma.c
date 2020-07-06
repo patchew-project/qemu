@@ -322,12 +322,12 @@ static inline void channel_start(struct fs_dma_ctrl *ctrl, int c)
 
 static void channel_continue(struct fs_dma_ctrl *ctrl, int c)
 {
-	if (!channel_en(ctrl, c) 
+	if (!channel_en(ctrl, c)
 	    || channel_stopped(ctrl, c)
 	    || ctrl->channels[c].state != RUNNING
 	    /* Only reload the current data descriptor if it has eol set.  */
 	    || !ctrl->channels[c].current_d.eol) {
-		D(printf("continue failed ch=%d state=%d stopped=%d en=%d eol=%d\n", 
+		D(printf("continue failed ch=%d state=%d stopped=%d en=%d eol=%d\n",
 			 c, ctrl->channels[c].state,
 			 channel_stopped(ctrl, c),
 			 channel_en(ctrl,c),
@@ -383,7 +383,7 @@ static void channel_update_irq(struct fs_dma_ctrl *ctrl, int c)
 		ctrl->channels[c].regs[R_INTR]
 		& ctrl->channels[c].regs[RW_INTR_MASK];
 
-	D(printf("%s: chan=%d masked_intr=%x\n", __func__, 
+	D(printf("%s: chan=%d masked_intr=%x\n", __func__,
 		 c,
 		 ctrl->channels[c].regs[R_MASKED_INTR]));
 
@@ -492,7 +492,7 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 	return 1;
 }
 
-static int channel_in_process(struct fs_dma_ctrl *ctrl, int c, 
+static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 			      unsigned char *buf, int buflen, int eop)
 {
 	uint32_t len;
@@ -517,7 +517,7 @@ static int channel_in_process(struct fs_dma_ctrl *ctrl, int c,
 	    || eop) {
 		uint32_t r_intr = ctrl->channels[c].regs[R_INTR];
 
-		D(printf("in dscr end len=%d\n", 
+		D(printf("in dscr end len=%d\n",
 			 ctrl->channels[c].current_d.after
 			 - ctrl->channels[c].current_d.buf));
 		ctrl->channels[c].current_d.after = saved_data_buf;
@@ -708,7 +708,7 @@ static int etraxfs_dmac_run(void *opaque)
 	int i;
 	int p = 0;
 
-	for (i = 0; 
+	for (i = 0;
 	     i < ctrl->nr_channels;
 	     i++)
 	{
@@ -724,10 +724,10 @@ static int etraxfs_dmac_run(void *opaque)
 	return p;
 }
 
-int etraxfs_dmac_input(struct etraxfs_dma_client *client, 
+int etraxfs_dmac_input(struct etraxfs_dma_client *client,
 		       void *buf, int len, int eop)
 {
-	return channel_in_process(client->ctrl, client->channel, 
+	return channel_in_process(client->ctrl, client->channel,
 				  buf, len, eop);
 }
 
@@ -739,7 +739,7 @@ void etraxfs_dmac_connect(void *opaque, int c, qemu_irq *line, int input)
 	ctrl->channels[c].input = input;
 }
 
-void etraxfs_dmac_connect_client(void *opaque, int c, 
+void etraxfs_dmac_connect_client(void *opaque, int c,
 				 struct etraxfs_dma_client *cl)
 {
 	struct fs_dma_ctrl *ctrl = opaque;

@@ -200,9 +200,9 @@ static void imx25_ccm_reset(DeviceState *dev)
     memset(s->reg, 0, IMX25_CCM_MAX_REG * sizeof(uint32_t));
     s->reg[IMX25_CCM_MPCTL_REG] = 0x800b2c01;
     s->reg[IMX25_CCM_UPCTL_REG] = 0x84042800;
-    /* 
+    /*
      * The value below gives:
-     * CPU = 133 MHz, AHB = 66,5 MHz, IPG = 33 MHz. 
+     * CPU = 133 MHz, AHB = 66,5 MHz, IPG = 33 MHz.
      */
     s->reg[IMX25_CCM_CCTL_REG]  = 0xd0030000;
     s->reg[IMX25_CCM_CGCR0_REG] = 0x028A0100;
@@ -219,7 +219,7 @@ static void imx25_ccm_reset(DeviceState *dev)
 
     /*
      * default boot will change the reset values to allow:
-     * CPU = 399 MHz, AHB = 133 MHz, IPG = 66,5 MHz. 
+     * CPU = 399 MHz, AHB = 133 MHz, IPG = 66,5 MHz.
      * For some reason, this doesn't work. With the value below, linux
      * detects a 88 MHz IPG CLK instead of 66,5 MHz.
     s->reg[IMX25_CCM_CCTL_REG]  = 0x20032000;

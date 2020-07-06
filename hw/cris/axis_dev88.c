@@ -267,7 +267,7 @@ void axisdev88_init(MachineState *machine)
 
     memory_region_add_subregion(address_space_mem, 0x40000000, machine->ram);
 
-    /* The ETRAX-FS has 128Kb on chip ram, the docs refer to it as the 
+    /* The ETRAX-FS has 128Kb on chip ram, the docs refer to it as the
        internal memory.  */
     memory_region_init_ram(phys_intmem, NULL, "axisdev88.chipram",
                            INTMEM_SIZE, &error_fatal);

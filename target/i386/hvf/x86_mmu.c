@@ -143,7 +143,7 @@ static bool test_pt_entry(struct CPUState *cpu, struct gpt_translation *pt,
     if (pae && pt->exec_access && !pte_exec_access(pte)) {
         return false;
     }
-    
+
 exit:
     /* TODO: check reserved bits */
     return true;
@@ -175,7 +175,7 @@ static bool walk_gpt(struct CPUState *cpu, target_ulong addr, int err_code,
     bool is_large = false;
     target_ulong cr3 = rvmcs(cpu->hvf_fd, VMCS_GUEST_CR3);
     uint64_t page_mask = pae ? PAE_PTE_PAGE_MASK : LEGACY_PTE_PAGE_MASK;
-    
+
     memset(pt, 0, sizeof(*pt));
     top_level = gpt_top_level(cpu, pae);
 
@@ -184,7 +184,7 @@ static bool walk_gpt(struct CPUState *cpu, target_ulong addr, int err_code,
     pt->user_access = (err_code & MMU_PAGE_US);
     pt->write_access = (err_code & MMU_PAGE_WT);
     pt->exec_access = (err_code & MMU_PAGE_NX);
-    
+
     for (level = top_level; level > 0; level--) {
         get_pt_entry(cpu, pt, level, pae);
 

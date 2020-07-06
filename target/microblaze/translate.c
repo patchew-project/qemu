@@ -663,7 +663,7 @@ static void dec_div(DisasContext *dc)
 {
     unsigned int u;
 
-    u = dc->imm & 2; 
+    u = dc->imm & 2;
     LOG_DIS("div\n");
 
     if (trap_illegal(dc, !dc->cpu->cfg.use_div)) {

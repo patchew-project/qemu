@@ -104,7 +104,7 @@ struct target_rt_signal_frame {
     qemu_siginfo_fpu_t  fpu_state;
 };
 
-static inline abi_ulong get_sigframe(struct target_sigaction *sa, 
+static inline abi_ulong get_sigframe(struct target_sigaction *sa,
                                      CPUSPARCState *env,
                                      unsigned long framesize)
 {
@@ -506,7 +506,7 @@ void sparc64_get_context(CPUSPARCState *env)
     if (!lock_user_struct(VERIFY_WRITE, ucp, ucp_addr, 0)) {
         goto do_sigsegv;
     }
-    
+
     mcp = &ucp->tuc_mcontext;
     grp = &mcp->mc_gregs;
 

@@ -6,7 +6,7 @@
  *
  * This represents the Sparc32 lance (Am7990) ethernet device which is an
  * earlier register-compatible member of the AMD PC-Net II (Am79C970A) family.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights

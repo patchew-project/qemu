@@ -412,7 +412,7 @@ static uint16_t tsc2102_control_register_read(
     switch (reg) {
     case 0x00:	/* TSC ADC */
         return (s->pressure << 15) | ((!s->busy) << 14) |
-                (s->nextfunction << 10) | (s->nextprecision << 8) | s->filter; 
+                (s->nextfunction << 10) | (s->nextprecision << 8) | s->filter;
 
     case 0x01:	/* Status / Keypad Control */
         if ((s->model & 0xff00) == 0x2100)

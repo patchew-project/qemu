@@ -95,7 +95,7 @@ int bitbang_i2c_set(bitbang_i2c_interface *i2c, int line, int level)
     case SENDING_BIT7 ... SENDING_BIT0:
         i2c->buffer = (i2c->buffer << 1) | data;
         /* will end up in WAITING_FOR_ACK */
-        i2c->state++; 
+        i2c->state++;
         return bitbang_i2c_ret(i2c, 1);
 
     case WAITING_FOR_ACK:

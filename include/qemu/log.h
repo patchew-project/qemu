@@ -14,7 +14,7 @@ typedef struct QemuLogFile {
 extern QemuLogFile *qemu_logfile;
 
 
-/* 
+/*
  * The new API:
  *
  */

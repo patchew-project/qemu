@@ -236,7 +236,7 @@ static uint64_t sh_intc_read(void *opaque, hwaddr offset,
     printf("sh_intc_read 0x%lx\n", (unsigned long) offset);
 #endif
 
-    sh_intc_locate(desc, (unsigned long)offset, &valuep, 
+    sh_intc_locate(desc, (unsigned long)offset, &valuep,
 		   &enum_ids, &first, &width, &mode);
     return *valuep;
 }
@@ -257,7 +257,7 @@ static void sh_intc_write(void *opaque, hwaddr offset,
     printf("sh_intc_write 0x%lx 0x%08x\n", (unsigned long) offset, value);
 #endif
 
-    sh_intc_locate(desc, (unsigned long)offset, &valuep, 
+    sh_intc_locate(desc, (unsigned long)offset, &valuep,
 		   &enum_ids, &first, &width, &mode);
 
     switch (mode) {
@@ -273,7 +273,7 @@ static void sh_intc_write(void *opaque, hwaddr offset,
 	if ((*valuep & mask) == (value & mask))
             continue;
 #if 0
-	printf("k = %d, first = %d, enum = %d, mask = 0x%08x\n", 
+	printf("k = %d, first = %d, enum = %d, mask = 0x%08x\n",
 	       k, first, enum_ids[k], (unsigned int)mask);
 #endif
         sh_intc_toggle_mask(desc, enum_ids[k], value & mask, 0);
@@ -466,7 +466,7 @@ int sh_intc_init(MemoryRegion *sysmem,
     }
 
     desc->irqs = qemu_allocate_irqs(sh_intc_set_irq, desc, nr_sources);
- 
+
     memory_region_init_io(&desc->iomem, NULL, &sh_intc_ops, desc,
                           "interrupt-controller", 0x100000000ULL);
 
@@ -498,7 +498,7 @@ int sh_intc_init(MemoryRegion *sysmem,
     return 0;
 }
 
-/* Assert level <n> IRL interrupt. 
+/* Assert level <n> IRL interrupt.
    0:deassert. 1:lowest priority,... 15:highest priority. */
 void sh_intc_set_irl(void *opaque, int n, int level)
 {

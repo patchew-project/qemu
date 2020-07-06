@@ -169,7 +169,7 @@ static uint16_t tsc2005_read(TSC2005State *s, int reg)
 
     case 0xc:	/* CFR0 */
         return (s->pressure << 15) | ((!s->busy) << 14) |
-                (s->nextprecision << 13) | s->timing[0]; 
+                (s->nextprecision << 13) | s->timing[0];
     case 0xd:	/* CFR1 */
         return s->timing[1];
     case 0xe:	/* CFR2 */

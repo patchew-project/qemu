@@ -27,7 +27,7 @@ void cpu_loop(CPUCRISState *env)
     CPUState *cs = env_cpu(env);
     int trapnr, ret;
     target_siginfo_t info;
-    
+
     while (1) {
         cpu_exec_start(cs);
         trapnr = cpu_exec(cs);
@@ -49,13 +49,13 @@ void cpu_loop(CPUCRISState *env)
           /* just indicate that signals should be handled asap */
           break;
         case EXCP_BREAK:
-            ret = do_syscall(env, 
-                             env->regs[9], 
-                             env->regs[10], 
-                             env->regs[11], 
-                             env->regs[12], 
-                             env->regs[13], 
-                             env->pregs[7], 
+            ret = do_syscall(env,
+                             env->regs[9],
+                             env->regs[10],
+                             env->regs[11],
+                             env->regs[12],
+                             env->regs[13],
+                             env->pregs[7],
                              env->pregs[11],
                              0, 0);
             if (ret == -TARGET_ERESTARTSYS) {

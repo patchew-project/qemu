@@ -63,7 +63,7 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
                                     int size)
 {
     target_ulong val = 0;
-    
+
     switch (size) {
     case 1:
     case 2:
@@ -77,7 +77,7 @@ static inline uint64_t decode_bytes(CPUX86State *env, struct x86_decode *decode,
     target_ulong va  = linear_rip(env_cpu(env), env->eip) + decode->len;
     vmx_read_mem(env_cpu(env), &val, va, size);
     decode->len += size;
-    
+
     return val;
 }
 
@@ -210,7 +210,7 @@ static void decode_imm_0(CPUX86State *env, struct x86_decode *decode,
 static void decode_pushseg(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t op = (decode->opcode_len > 1) ? decode->opcode[1] : decode->opcode[0];
-    
+
     decode->op[0].type = X86_VAR_REG;
     switch (op) {
     case 0xe:
@@ -237,7 +237,7 @@ static void decode_pushseg(CPUX86State *env, struct x86_decode *decode)
 static void decode_popseg(CPUX86State *env, struct x86_decode *decode)
 {
     uint8_t op = (decode->opcode_len > 1) ? decode->opcode[1] : decode->opcode[0];
-    
+
     decode->op[0].type = X86_VAR_REG;
     switch (op) {
     case 0xf:
@@ -461,14 +461,14 @@ struct decode_x87_tbl _decode_tbl3[256];
 static void decode_x87_ins(CPUX86State *env, struct x86_decode *decode)
 {
     struct decode_x87_tbl *decoder;
-    
+
     decode->is_fpu = true;
     int mode = decode->modrm.mod == 3 ? 1 : 0;
     int index = ((decode->opcode[0] & 0xf) << 4) | (mode << 3) |
                  decode->modrm.reg;
 
     decoder = &_decode_tbl3[index];
-    
+
     decode->cmd = decoder->cmd;
     if (decoder->operand_size) {
         decode->operand_size = decoder->operand_size;
@@ -476,7 +476,7 @@ static void decode_x87_ins(CPUX86State *env, struct x86_decode *decode)
     decode->flags_mask = decoder->flags_mask;
     decode->fpop_stack = decoder->pop;
     decode->frev = decoder->rev;
-    
+
     if (decoder->decode_op1) {
         decoder->decode_op1(env, decode, &decode->op[0]);
     }
@@ -2002,7 +2002,7 @@ static inline void decode_displacement(CPUX86State *env, struct x86_decode *deco
     int addressing_size = decode->addressing_size;
     int mod = decode->modrm.mod;
     int rm = decode->modrm.rm;
-    
+
     decode->displacement_size = 0;
     switch (addressing_size) {
     case 2:
@@ -2115,7 +2115,7 @@ uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode)
 void init_decoder()
 {
     int i;
-    
+
     for (i = 0; i < ARRAY_SIZE(_decode_tbl1); i++) {
         memcpy(&_decode_tbl1[i], &invl_inst, sizeof(invl_inst));
     }
@@ -2124,7 +2124,7 @@ void init_decoder()
     }
     for (i = 0; i < ARRAY_SIZE(_decode_tbl3); i++) {
         memcpy(&_decode_tbl3[i], &invl_inst_x87, sizeof(invl_inst_x87));
-    
+
     }
     for (i = 0; i < ARRAY_SIZE(_1op_inst); i++) {
         _decode_tbl1[_1op_inst[i].opcode] = _1op_inst[i];

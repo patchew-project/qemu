@@ -246,7 +246,7 @@ struct Vmxnet3_TxDesc {
         };
         u32 val1;
     };
-    
+
     union {
         struct {
 #ifdef __BIG_ENDIAN_BITFIELD

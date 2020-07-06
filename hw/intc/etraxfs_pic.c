@@ -52,15 +52,15 @@ struct etrax_pic
 };
 
 static void pic_update(struct etrax_pic *fs)
-{   
+{
     uint32_t vector = 0;
     int i;
 
     fs->regs[R_R_MASKED_VECT] = fs->regs[R_R_VECT] & fs->regs[R_RW_MASK];
 
     /* The ETRAX interrupt controller signals interrupts to the core
-       through an interrupt request wire and an irq vector bus. If 
-       multiple interrupts are simultaneously active it chooses vector 
+       through an interrupt request wire and an irq vector bus. If
+       multiple interrupts are simultaneously active it chooses vector
        0x30 and lets the sw choose the priorities.  */
     if (fs->regs[R_R_MASKED_VECT]) {
         uint32_t mv = fs->regs[R_R_MASKED_VECT];
@@ -113,7 +113,7 @@ static const MemoryRegionOps pic_ops = {
 };
 
 static void nmi_handler(void *opaque, int irq, int level)
-{   
+{
     struct etrax_pic *fs = (void *)opaque;
     uint32_t mask;
 

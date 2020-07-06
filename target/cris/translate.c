@@ -369,7 +369,7 @@ static inline void t_gen_addx_carry(DisasContext *dc, TCGv d)
     if (dc->flagx_known) {
         if (dc->flags_x) {
             TCGv c;
-            
+
             c = tcg_temp_new();
             t_gen_mov_TN_preg(c, PR_CCS);
             /* C flag is already at bit 0.  */
@@ -402,7 +402,7 @@ static inline void t_gen_subx_carry(DisasContext *dc, TCGv d)
     if (dc->flagx_known) {
         if (dc->flags_x) {
             TCGv c;
-            
+
             c = tcg_temp_new();
             t_gen_mov_TN_preg(c, PR_CCS);
             /* C flag is already at bit 0.  */
@@ -688,7 +688,7 @@ static inline void cris_update_cc_x(DisasContext *dc)
 }
 
 /* Update cc prior to executing ALU op. Needs source operands untouched.  */
-static void cris_pre_alu_update_cc(DisasContext *dc, int op, 
+static void cris_pre_alu_update_cc(DisasContext *dc, int op,
                    TCGv dst, TCGv src, int size)
 {
     if (dc->update_cc) {
@@ -718,7 +718,7 @@ static inline void cris_update_result(DisasContext *dc, TCGv res)
 }
 
 /* Returns one if the write back stage should execute.  */
-static void cris_alu_op_exec(DisasContext *dc, int op, 
+static void cris_alu_op_exec(DisasContext *dc, int op,
                    TCGv dst, TCGv a, TCGv b, int size)
 {
     /* Emit the ALU insns.  */
@@ -1068,7 +1068,7 @@ static void cris_store_direct_jmp(DisasContext *dc)
     }
 }
 
-static void cris_prepare_cc_branch (DisasContext *dc, 
+static void cris_prepare_cc_branch (DisasContext *dc,
                     int offset, int cond)
 {
     /* This helps us re-schedule the micro-code to insns in delay-slots
@@ -1108,7 +1108,7 @@ static void gen_load64(DisasContext *dc, TCGv_i64 dst, TCGv addr)
     tcg_gen_qemu_ld_i64(dst, addr, mem_index, MO_TEQ);
 }
 
-static void gen_load(DisasContext *dc, TCGv dst, TCGv addr, 
+static void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
              unsigned int size, int sign)
 {
     int mem_index = cpu_mmu_index(&dc->cpu->env, false);
@@ -3047,27 +3047,27 @@ static unsigned int crisv32_decoder(CPUCRISState *env, DisasContext *dc)
  * to give SW a hint that the exception actually hit on the dslot.
  *
  * CRIS expects all PC addresses to be 16-bit aligned. The lsb is ignored by
- * the core and any jmp to an odd addresses will mask off that lsb. It is 
+ * the core and any jmp to an odd addresses will mask off that lsb. It is
  * simply there to let sw know there was an exception on a dslot.
  *
  * When the software returns from an exception, the branch will re-execute.
  * On QEMU care needs to be taken when a branch+delayslot sequence is broken
  * and the branch and delayslot don't share pages.
  *
- * The TB contaning the branch insn will set up env->btarget and evaluate 
- * env->btaken. When the translation loop exits we will note that the branch 
+ * The TB contaning the branch insn will set up env->btarget and evaluate
+ * env->btaken. When the translation loop exits we will note that the branch
  * sequence is broken and let env->dslot be the size of the branch insn (those
  * vary in length).
  *
  * The TB contaning the delayslot will have the PC of its real insn (i.e no lsb
- * set). It will also expect to have env->dslot setup with the size of the 
- * delay slot so that env->pc - env->dslot point to the branch insn. This TB 
- * will execute the dslot and take the branch, either to btarget or just one 
+ * set). It will also expect to have env->dslot setup with the size of the
+ * delay slot so that env->pc - env->dslot point to the branch insn. This TB
+ * will execute the dslot and take the branch, either to btarget or just one
  * insn ahead.
  *
- * When exceptions occur, we check for env->dslot in do_interrupt to detect 
+ * When exceptions occur, we check for env->dslot in do_interrupt to detect
  * broken branch sequences and setup $erp accordingly (i.e let it point to the
- * branch and set lsb). Then env->dslot gets cleared so that the exception 
+ * branch and set lsb). Then env->dslot gets cleared so that the exception
  * handler can enter. When returning from exceptions (jump $erp) the lsb gets
  * masked off and we will reexecute the branch insn.
  *

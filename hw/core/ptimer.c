@@ -246,7 +246,7 @@ uint64_t ptimer_get_count(ptimer_state *s)
             } else {
                 if (shift != 0)
                     div |= (period_frac >> (32 - shift));
-                /* Look at remaining bits of period_frac and round div up if 
+                /* Look at remaining bits of period_frac and round div up if
                    necessary.  */
                 if ((uint32_t)(period_frac << shift))
                     div += 1;

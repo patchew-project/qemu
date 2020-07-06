@@ -705,7 +705,7 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
 
     hotplug_event_notify(dev);
 
-    /* 
+    /*
      * 6.7.3.2 Command Completed Events
      *
      * Software issues a command to a hot-plug capable Downstream Port by

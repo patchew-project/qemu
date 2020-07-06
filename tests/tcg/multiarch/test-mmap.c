@@ -17,7 +17,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
@@ -63,15 +63,15 @@ void check_aligned_anonymous_unfixed_mmaps(void)
 		size_t len;
 
 		len = pagesize + (pagesize * i & 7);
-		p1 = mmap(NULL, len, PROT_READ, 
+		p1 = mmap(NULL, len, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		p2 = mmap(NULL, len, PROT_READ, 
+		p2 = mmap(NULL, len, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		p3 = mmap(NULL, len, PROT_READ, 
+		p3 = mmap(NULL, len, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		p4 = mmap(NULL, len, PROT_READ, 
+		p4 = mmap(NULL, len, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-		p5 = mmap(NULL, len, PROT_READ, 
+		p5 = mmap(NULL, len, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 		/* Make sure we get pages aligned with the pagesize. The
@@ -118,7 +118,7 @@ void check_large_anonymous_unfixed_mmap(void)
 	fprintf(stdout, "%s", __func__);
 
 	len = 0x02000000;
-	p1 = mmap(NULL, len, PROT_READ, 
+	p1 = mmap(NULL, len, PROT_READ,
 		  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	/* Make sure we get pages aligned with the pagesize. The
@@ -145,14 +145,14 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 	for (i = 0; i < 0x2fff; i++)
 	{
 		int nlen;
-		p1 = mmap(NULL, pagesize, PROT_READ, 
+		p1 = mmap(NULL, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		fail_unless (p1 != MAP_FAILED);
 		p = (uintptr_t) p1;
 		fail_unless ((p & pagemask) == 0);
 		memcpy (dummybuf, p1, pagesize);
 
-		p2 = mmap(NULL, pagesize, PROT_READ, 
+		p2 = mmap(NULL, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		fail_unless (p2 != MAP_FAILED);
 		p = (uintptr_t) p2;
@@ -162,12 +162,12 @@ void check_aligned_anonymous_unfixed_colliding_mmaps(void)
 
 		munmap (p1, pagesize);
 		nlen = pagesize * 8;
-		p3 = mmap(NULL, nlen, PROT_READ, 
+		p3 = mmap(NULL, nlen, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 		fail_unless (p3 != MAP_FAILED);
 
 		/* Check if the mmaped areas collide.  */
-		if (p3 < p2 
+		if (p3 < p2
 		    && (p3 + nlen) > p2)
 			fail_unless (0);
 
@@ -191,7 +191,7 @@ void check_aligned_anonymous_fixed_mmaps(void)
 	int i;
 
 	/* Find a suitable address to start with.  */
-	addr = mmap(NULL, pagesize * 40, PROT_READ | PROT_WRITE, 
+	addr = mmap(NULL, pagesize * 40, PROT_READ | PROT_WRITE,
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
 	fprintf(stdout, "%s addr=%p", __func__, addr);
@@ -200,10 +200,10 @@ void check_aligned_anonymous_fixed_mmaps(void)
 	for (i = 0; i < 40; i++)
 	{
 		/* Create submaps within our unfixed map.  */
-		p1 = mmap(addr, pagesize, PROT_READ, 
+		p1 = mmap(addr, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
 			  -1, 0);
-		/* Make sure we get pages aligned with the pagesize. 
+		/* Make sure we get pages aligned with the pagesize.
 		   The target expects this.  */
 		p = (uintptr_t) p1;
 		fail_unless (p1 == addr);
@@ -231,10 +231,10 @@ void check_aligned_anonymous_fixed_mmaps_collide_with_host(void)
 	for (i = 0; i < 20; i++)
 	{
 		/* Create submaps within our unfixed map.  */
-		p1 = mmap(addr, pagesize, PROT_READ | PROT_WRITE, 
+		p1 = mmap(addr, pagesize, PROT_READ | PROT_WRITE,
 			  MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
 			  -1, 0);
-		/* Make sure we get pages aligned with the pagesize. 
+		/* Make sure we get pages aligned with the pagesize.
 		   The target expects this.  */
 		p = (uintptr_t) p1;
 		fail_unless (p1 == addr);
@@ -258,14 +258,14 @@ void check_file_unfixed_mmaps(void)
 		size_t len;
 
 		len = pagesize;
-		p1 = mmap(NULL, len, PROT_READ, 
-			  MAP_PRIVATE, 
+		p1 = mmap(NULL, len, PROT_READ,
+			  MAP_PRIVATE,
 			  test_fd, 0);
-		p2 = mmap(NULL, len, PROT_READ, 
-			  MAP_PRIVATE, 
+		p2 = mmap(NULL, len, PROT_READ,
+			  MAP_PRIVATE,
 			  test_fd, pagesize);
-		p3 = mmap(NULL, len, PROT_READ, 
-			  MAP_PRIVATE, 
+		p3 = mmap(NULL, len, PROT_READ,
+			  MAP_PRIVATE,
 			  test_fd, pagesize * 2);
 
 		fail_unless (p1 != MAP_FAILED);
@@ -307,9 +307,9 @@ void check_file_unfixed_eof_mmaps(void)
 	fprintf(stdout, "%s", __func__);
 	for (i = 0; i < 0x10; i++)
 	{
-		p1 = mmap(NULL, pagesize, PROT_READ, 
-			  MAP_PRIVATE, 
-			  test_fd, 
+		p1 = mmap(NULL, pagesize, PROT_READ,
+			  MAP_PRIVATE,
+			  test_fd,
 			  (test_fsize - sizeof *p1) & ~pagemask);
 
 		fail_unless (p1 != MAP_FAILED);
@@ -339,7 +339,7 @@ void check_file_fixed_eof_mmaps(void)
 	int i;
 
 	/* Find a suitable address to start with.  */
-	addr = mmap(NULL, pagesize * 44, PROT_READ, 
+	addr = mmap(NULL, pagesize * 44, PROT_READ,
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
 
@@ -349,9 +349,9 @@ void check_file_fixed_eof_mmaps(void)
 	for (i = 0; i < 0x10; i++)
 	{
 		/* Create submaps within our unfixed map.  */
-		p1 = mmap(addr, pagesize, PROT_READ, 
-			  MAP_PRIVATE | MAP_FIXED, 
-			  test_fd, 
+		p1 = mmap(addr, pagesize, PROT_READ,
+			  MAP_PRIVATE | MAP_FIXED,
+			  test_fd,
 			  (test_fsize - sizeof *p1) & ~pagemask);
 
 		fail_unless (p1 != MAP_FAILED);
@@ -381,7 +381,7 @@ void check_file_fixed_mmaps(void)
 	int i;
 
 	/* Find a suitable address to start with.  */
-	addr = mmap(NULL, pagesize * 40 * 4, PROT_READ, 
+	addr = mmap(NULL, pagesize * 40 * 4, PROT_READ,
 		    MAP_PRIVATE | MAP_ANONYMOUS,
 		    -1, 0);
 	fprintf(stdout, "%s addr=%p", __func__, (void *)addr);
@@ -389,20 +389,20 @@ void check_file_fixed_mmaps(void)
 
 	for (i = 0; i < 40; i++)
 	{
-		p1 = mmap(addr, pagesize, PROT_READ, 
+		p1 = mmap(addr, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_FIXED,
 			  test_fd, 0);
-		p2 = mmap(addr + pagesize, pagesize, PROT_READ, 
+		p2 = mmap(addr + pagesize, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_FIXED,
 			  test_fd, pagesize);
-		p3 = mmap(addr + pagesize * 2, pagesize, PROT_READ, 
+		p3 = mmap(addr + pagesize * 2, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_FIXED,
 			  test_fd, pagesize * 2);
-		p4 = mmap(addr + pagesize * 3, pagesize, PROT_READ, 
+		p4 = mmap(addr + pagesize * 3, pagesize, PROT_READ,
 			  MAP_PRIVATE | MAP_FIXED,
 			  test_fd, pagesize * 3);
 
-		/* Make sure we get pages aligned with the pagesize. 
+		/* Make sure we get pages aligned with the pagesize.
 		   The target expects this.  */
 		fail_unless (p1 == (void *)addr);
 		fail_unless (p2 == (void *)addr + pagesize);
@@ -479,7 +479,7 @@ int main(int argc, char **argv)
         checked_write(test_fd, &i, sizeof i);
     }
 
-	/* Append a few extra writes to make the file end at non 
+	/* Append a few extra writes to make the file end at non
 	   page boundary.  */
     checked_write(test_fd, &i, sizeof i); i++;
     checked_write(test_fd, &i, sizeof i); i++;

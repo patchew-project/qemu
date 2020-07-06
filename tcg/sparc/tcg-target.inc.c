@@ -988,7 +988,7 @@ static void build_trampolines(TCGContext *s)
             /* Skip the oi argument.  */
             ra += 1;
         }
-                
+
         /* Set the retaddr operand.  */
         if (ra >= TCG_REG_O6) {
             tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_O7, TCG_REG_CALL_STACK,

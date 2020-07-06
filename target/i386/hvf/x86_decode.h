@@ -43,7 +43,7 @@ typedef enum x86_prefix {
 
 enum x86_decode_cmd {
     X86_DECODE_CMD_INVL = 0,
-    
+
     X86_DECODE_CMD_PUSH,
     X86_DECODE_CMD_PUSH_SEG,
     X86_DECODE_CMD_POP,
@@ -174,7 +174,7 @@ enum x86_decode_cmd {
     X86_DECODE_CMD_CMPXCHG8B,
     X86_DECODE_CMD_CMPXCHG,
     X86_DECODE_CMD_POPCNT,
-    
+
     X86_DECODE_CMD_FNINIT,
     X86_DECODE_CMD_FLD,
     X86_DECODE_CMD_FLDxx,

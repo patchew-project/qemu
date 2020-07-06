@@ -133,7 +133,7 @@ void helper_discard_movcal_backup(CPUSH4State *env)
 	env->movcal_backup = current = next;
 	if (current == NULL)
 	    env->movcal_backup_tail = &(env->movcal_backup);
-    } 
+    }
 }
 
 void helper_ocbi(CPUSH4State *env, uint32_t address)
@@ -146,7 +146,7 @@ void helper_ocbi(CPUSH4State *env, uint32_t address)
 	{
 	    memory_content *next = (*current)->next;
             cpu_stl_data(env, a, (*current)->value);
-	    
+	
 	    if (next == NULL)
 	    {
 		env->movcal_backup_tail = current;

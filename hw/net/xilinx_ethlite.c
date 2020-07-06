@@ -117,7 +117,7 @@ eth_write(void *opaque, hwaddr addr,
     uint32_t value = val64;
 
     addr >>= 2;
-    switch (addr) 
+    switch (addr)
     {
         case R_TX_CTRL0:
         case R_TX_CTRL1:

@@ -2914,7 +2914,7 @@ static void omap_rtc_tick(void *opaque)
 
     /*
      * Every full hour add a rough approximation of the compensation
-     * register to the 32kHz Timer (which drives the RTC) value. 
+     * register to the 32kHz Timer (which drives the RTC) value.
      */
     if (s->auto_comp && !s->current_tm.tm_sec && !s->current_tm.tm_min)
         s->tick += s->comp_reg * 1000 / 32768;

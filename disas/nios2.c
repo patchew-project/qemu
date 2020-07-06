@@ -96,7 +96,7 @@ enum overflow_type
   no_overflow
 };
 
-/* This structure holds information for a particular instruction. 
+/* This structure holds information for a particular instruction.
 
    The args field is a string describing the operands.  The following
    letters can appear in the args:
@@ -152,26 +152,26 @@ enum overflow_type
 struct nios2_opcode
 {
   const char *name;		/* The name of the instruction.  */
-  const char *args;		/* A string describing the arguments for this 
+  const char *args;		/* A string describing the arguments for this
 				   instruction.  */
-  const char *args_test;	/* Like args, but with an extra argument for 
+  const char *args_test;	/* Like args, but with an extra argument for
 				   the expected opcode.  */
-  unsigned long num_args;	/* The number of arguments the instruction 
+  unsigned long num_args;	/* The number of arguments the instruction
 				   takes.  */
   unsigned size;		/* Size in bytes of the instruction.  */
   enum iw_format_type format;	/* Instruction format.  */
   unsigned long match;		/* The basic opcode for the instruction.  */
-  unsigned long mask;		/* Mask for the opcode field of the 
+  unsigned long mask;		/* Mask for the opcode field of the
 				   instruction.  */
-  unsigned long pinfo;		/* Is this a real instruction or instruction 
+  unsigned long pinfo;		/* Is this a real instruction or instruction
 				   macro?  */
-  enum overflow_type overflow_msg;  /* Used to generate informative 
+  enum overflow_type overflow_msg;  /* Used to generate informative
 				       message when fixup overflows.  */
 };
 
-/* This value is used in the nios2_opcode.pinfo field to indicate that the 
-   instruction is a macro or pseudo-op.  This requires special treatment by 
-   the assembler, and is used by the disassembler to determine whether to 
+/* This value is used in the nios2_opcode.pinfo field to indicate that the
+   instruction is a macro or pseudo-op.  This requires special treatment by
+   the assembler, and is used by the disassembler to determine whether to
    check for a nop.  */
 #define NIOS2_INSN_MACRO	0x80000000
 #define NIOS2_INSN_MACRO_MOV	0x80000001
@@ -207,124 +207,124 @@ struct nios2_reg
 #define _NIOS2R1_H_
 
 /* R1 fields.  */
-#define IW_R1_OP_LSB 0 
-#define IW_R1_OP_SIZE 6 
-#define IW_R1_OP_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R1_OP_SIZE)) 
-#define IW_R1_OP_SHIFTED_MASK (IW_R1_OP_UNSHIFTED_MASK << IW_R1_OP_LSB) 
-#define GET_IW_R1_OP(W) (((W) >> IW_R1_OP_LSB) & IW_R1_OP_UNSHIFTED_MASK) 
-#define SET_IW_R1_OP(V) (((V) & IW_R1_OP_UNSHIFTED_MASK) << IW_R1_OP_LSB) 
+#define IW_R1_OP_LSB 0
+#define IW_R1_OP_SIZE 6
+#define IW_R1_OP_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R1_OP_SIZE))
+#define IW_R1_OP_SHIFTED_MASK (IW_R1_OP_UNSHIFTED_MASK << IW_R1_OP_LSB)
+#define GET_IW_R1_OP(W) (((W) >> IW_R1_OP_LSB) & IW_R1_OP_UNSHIFTED_MASK)
+#define SET_IW_R1_OP(V) (((V) & IW_R1_OP_UNSHIFTED_MASK) << IW_R1_OP_LSB)
 
-#define IW_I_A_LSB 27 
-#define IW_I_A_SIZE 5 
-#define IW_I_A_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_I_A_SIZE)) 
-#define IW_I_A_SHIFTED_MASK (IW_I_A_UNSHIFTED_MASK << IW_I_A_LSB) 
-#define GET_IW_I_A(W) (((W) >> IW_I_A_LSB) & IW_I_A_UNSHIFTED_MASK) 
-#define SET_IW_I_A(V) (((V) & IW_I_A_UNSHIFTED_MASK) << IW_I_A_LSB) 
+#define IW_I_A_LSB 27
+#define IW_I_A_SIZE 5
+#define IW_I_A_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_I_A_SIZE))
+#define IW_I_A_SHIFTED_MASK (IW_I_A_UNSHIFTED_MASK << IW_I_A_LSB)
+#define GET_IW_I_A(W) (((W) >> IW_I_A_LSB) & IW_I_A_UNSHIFTED_MASK)
+#define SET_IW_I_A(V) (((V) & IW_I_A_UNSHIFTED_MASK) << IW_I_A_LSB)
 
-#define IW_I_B_LSB 22 
-#define IW_I_B_SIZE 5 
-#define IW_I_B_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_I_B_SIZE)) 
-#define IW_I_B_SHIFTED_MASK (IW_I_B_UNSHIFTED_MASK << IW_I_B_LSB) 
-#define GET_IW_I_B(W) (((W) >> IW_I_B_LSB) & IW_I_B_UNSHIFTED_MASK) 
-#define SET_IW_I_B(V) (((V) & IW_I_B_UNSHIFTED_MASK) << IW_I_B_LSB) 
+#define IW_I_B_LSB 22
+#define IW_I_B_SIZE 5
+#define IW_I_B_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_I_B_SIZE))
+#define IW_I_B_SHIFTED_MASK (IW_I_B_UNSHIFTED_MASK << IW_I_B_LSB)
+#define GET_IW_I_B(W) (((W) >> IW_I_B_LSB) & IW_I_B_UNSHIFTED_MASK)
+#define SET_IW_I_B(V) (((V) & IW_I_B_UNSHIFTED_MASK) << IW_I_B_LSB)
 
-#define IW_I_IMM16_LSB 6 
-#define IW_I_IMM16_SIZE 16 
-#define IW_I_IMM16_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_I_IMM16_SIZE)) 
-#define IW_I_IMM16_SHIFTED_MASK (IW_I_IMM16_UNSHIFTED_MASK << IW_I_IMM16_LSB) 
-#define GET_IW_I_IMM16(W) (((W) >> IW_I_IMM16_LSB) & IW_I_IMM16_UNSHIFTED_MASK) 
-#define SET_IW_I_IMM16(V) (((V) & IW_I_IMM16_UNSHIFTED_MASK) << IW_I_IMM16_LSB) 
+#define IW_I_IMM16_LSB 6
+#define IW_I_IMM16_SIZE 16
+#define IW_I_IMM16_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_I_IMM16_SIZE))
+#define IW_I_IMM16_SHIFTED_MASK (IW_I_IMM16_UNSHIFTED_MASK << IW_I_IMM16_LSB)
+#define GET_IW_I_IMM16(W) (((W) >> IW_I_IMM16_LSB) & IW_I_IMM16_UNSHIFTED_MASK)
+#define SET_IW_I_IMM16(V) (((V) & IW_I_IMM16_UNSHIFTED_MASK) << IW_I_IMM16_LSB)
 
-#define IW_R_A_LSB 27 
-#define IW_R_A_SIZE 5 
-#define IW_R_A_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_A_SIZE)) 
-#define IW_R_A_SHIFTED_MASK (IW_R_A_UNSHIFTED_MASK << IW_R_A_LSB) 
-#define GET_IW_R_A(W) (((W) >> IW_R_A_LSB) & IW_R_A_UNSHIFTED_MASK) 
-#define SET_IW_R_A(V) (((V) & IW_R_A_UNSHIFTED_MASK) << IW_R_A_LSB) 
+#define IW_R_A_LSB 27
+#define IW_R_A_SIZE 5
+#define IW_R_A_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_A_SIZE))
+#define IW_R_A_SHIFTED_MASK (IW_R_A_UNSHIFTED_MASK << IW_R_A_LSB)
+#define GET_IW_R_A(W) (((W) >> IW_R_A_LSB) & IW_R_A_UNSHIFTED_MASK)
+#define SET_IW_R_A(V) (((V) & IW_R_A_UNSHIFTED_MASK) << IW_R_A_LSB)
 
-#define IW_R_B_LSB 22 
-#define IW_R_B_SIZE 5 
-#define IW_R_B_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_B_SIZE)) 
-#define IW_R_B_SHIFTED_MASK (IW_R_B_UNSHIFTED_MASK << IW_R_B_LSB) 
-#define GET_IW_R_B(W) (((W) >> IW_R_B_LSB) & IW_R_B_UNSHIFTED_MASK) 
-#define SET_IW_R_B(V) (((V) & IW_R_B_UNSHIFTED_MASK) << IW_R_B_LSB) 
+#define IW_R_B_LSB 22
+#define IW_R_B_SIZE 5
+#define IW_R_B_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_B_SIZE))
+#define IW_R_B_SHIFTED_MASK (IW_R_B_UNSHIFTED_MASK << IW_R_B_LSB)
+#define GET_IW_R_B(W) (((W) >> IW_R_B_LSB) & IW_R_B_UNSHIFTED_MASK)
+#define SET_IW_R_B(V) (((V) & IW_R_B_UNSHIFTED_MASK) << IW_R_B_LSB)
 
-#define IW_R_C_LSB 17 
-#define IW_R_C_SIZE 5 
-#define IW_R_C_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_C_SIZE)) 
-#define IW_R_C_SHIFTED_MASK (IW_R_C_UNSHIFTED_MASK << IW_R_C_LSB) 
-#define GET_IW_R_C(W) (((W) >> IW_R_C_LSB) & IW_R_C_UNSHIFTED_MASK) 
-#define SET_IW_R_C(V) (((V) & IW_R_C_UNSHIFTED_MASK) << IW_R_C_LSB) 
+#define IW_R_C_LSB 17
+#define IW_R_C_SIZE 5
+#define IW_R_C_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_C_SIZE))
+#define IW_R_C_SHIFTED_MASK (IW_R_C_UNSHIFTED_MASK << IW_R_C_LSB)
+#define GET_IW_R_C(W) (((W) >> IW_R_C_LSB) & IW_R_C_UNSHIFTED_MASK)
+#define SET_IW_R_C(V) (((V) & IW_R_C_UNSHIFTED_MASK) << IW_R_C_LSB)
 
-#define IW_R_OPX_LSB 11 
-#define IW_R_OPX_SIZE 6 
-#define IW_R_OPX_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_OPX_SIZE)) 
-#define IW_R_OPX_SHIFTED_MASK (IW_R_OPX_UNSHIFTED_MASK << IW_R_OPX_LSB) 
-#define GET_IW_R_OPX(W) (((W) >> IW_R_OPX_LSB) & IW_R_OPX_UNSHIFTED_MASK) 
-#define SET_IW_R_OPX(V) (((V) & IW_R_OPX_UNSHIFTED_MASK) << IW_R_OPX_LSB) 
+#define IW_R_OPX_LSB 11
+#define IW_R_OPX_SIZE 6
+#define IW_R_OPX_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_OPX_SIZE))
+#define IW_R_OPX_SHIFTED_MASK (IW_R_OPX_UNSHIFTED_MASK << IW_R_OPX_LSB)
+#define GET_IW_R_OPX(W) (((W) >> IW_R_OPX_LSB) & IW_R_OPX_UNSHIFTED_MASK)
+#define SET_IW_R_OPX(V) (((V) & IW_R_OPX_UNSHIFTED_MASK) << IW_R_OPX_LSB)
 
-#define IW_R_IMM5_LSB 6 
-#define IW_R_IMM5_SIZE 5 
-#define IW_R_IMM5_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_IMM5_SIZE)) 
-#define IW_R_IMM5_SHIFTED_MASK (IW_R_IMM5_UNSHIFTED_MASK << IW_R_IMM5_LSB) 
-#define GET_IW_R_IMM5(W) (((W) >> IW_R_IMM5_LSB) & IW_R_IMM5_UNSHIFTED_MASK) 
-#define SET_IW_R_IMM5(V) (((V) & IW_R_IMM5_UNSHIFTED_MASK) << IW_R_IMM5_LSB) 
+#define IW_R_IMM5_LSB 6
+#define IW_R_IMM5_SIZE 5
+#define IW_R_IMM5_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_R_IMM5_SIZE))
+#define IW_R_IMM5_SHIFTED_MASK (IW_R_IMM5_UNSHIFTED_MASK << IW_R_IMM5_LSB)
+#define GET_IW_R_IMM5(W) (((W) >> IW_R_IMM5_LSB) & IW_R_IMM5_UNSHIFTED_MASK)
+#define SET_IW_R_IMM5(V) (((V) & IW_R_IMM5_UNSHIFTED_MASK) << IW_R_IMM5_LSB)
 
-#define IW_J_IMM26_LSB 6 
-#define IW_J_IMM26_SIZE 26 
-#define IW_J_IMM26_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_J_IMM26_SIZE)) 
-#define IW_J_IMM26_SHIFTED_MASK (IW_J_IMM26_UNSHIFTED_MASK << IW_J_IMM26_LSB) 
-#define GET_IW_J_IMM26(W) (((W) >> IW_J_IMM26_LSB) & IW_J_IMM26_UNSHIFTED_MASK) 
-#define SET_IW_J_IMM26(V) (((V) & IW_J_IMM26_UNSHIFTED_MASK) << IW_J_IMM26_LSB) 
+#define IW_J_IMM26_LSB 6
+#define IW_J_IMM26_SIZE 26
+#define IW_J_IMM26_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_J_IMM26_SIZE))
+#define IW_J_IMM26_SHIFTED_MASK (IW_J_IMM26_UNSHIFTED_MASK << IW_J_IMM26_LSB)
+#define GET_IW_J_IMM26(W) (((W) >> IW_J_IMM26_LSB) & IW_J_IMM26_UNSHIFTED_MASK)
+#define SET_IW_J_IMM26(V) (((V) & IW_J_IMM26_UNSHIFTED_MASK) << IW_J_IMM26_LSB)
 
-#define IW_CUSTOM_A_LSB 27 
-#define IW_CUSTOM_A_SIZE 5 
-#define IW_CUSTOM_A_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_A_SIZE)) 
-#define IW_CUSTOM_A_SHIFTED_MASK (IW_CUSTOM_A_UNSHIFTED_MASK << IW_CUSTOM_A_LSB) 
-#define GET_IW_CUSTOM_A(W) (((W) >> IW_CUSTOM_A_LSB) & IW_CUSTOM_A_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_A(V) (((V) & IW_CUSTOM_A_UNSHIFTED_MASK) << IW_CUSTOM_A_LSB) 
+#define IW_CUSTOM_A_LSB 27
+#define IW_CUSTOM_A_SIZE 5
+#define IW_CUSTOM_A_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_A_SIZE))
+#define IW_CUSTOM_A_SHIFTED_MASK (IW_CUSTOM_A_UNSHIFTED_MASK << IW_CUSTOM_A_LSB)
+#define GET_IW_CUSTOM_A(W) (((W) >> IW_CUSTOM_A_LSB) & IW_CUSTOM_A_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_A(V) (((V) & IW_CUSTOM_A_UNSHIFTED_MASK) << IW_CUSTOM_A_LSB)
 
-#define IW_CUSTOM_B_LSB 22 
-#define IW_CUSTOM_B_SIZE 5 
-#define IW_CUSTOM_B_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_B_SIZE)) 
-#define IW_CUSTOM_B_SHIFTED_MASK (IW_CUSTOM_B_UNSHIFTED_MASK << IW_CUSTOM_B_LSB) 
-#define GET_IW_CUSTOM_B(W) (((W) >> IW_CUSTOM_B_LSB) & IW_CUSTOM_B_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_B(V) (((V) & IW_CUSTOM_B_UNSHIFTED_MASK) << IW_CUSTOM_B_LSB) 
+#define IW_CUSTOM_B_LSB 22
+#define IW_CUSTOM_B_SIZE 5
+#define IW_CUSTOM_B_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_B_SIZE))
+#define IW_CUSTOM_B_SHIFTED_MASK (IW_CUSTOM_B_UNSHIFTED_MASK << IW_CUSTOM_B_LSB)
+#define GET_IW_CUSTOM_B(W) (((W) >> IW_CUSTOM_B_LSB) & IW_CUSTOM_B_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_B(V) (((V) & IW_CUSTOM_B_UNSHIFTED_MASK) << IW_CUSTOM_B_LSB)
 
-#define IW_CUSTOM_C_LSB 17 
-#define IW_CUSTOM_C_SIZE 5 
-#define IW_CUSTOM_C_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_C_SIZE)) 
-#define IW_CUSTOM_C_SHIFTED_MASK (IW_CUSTOM_C_UNSHIFTED_MASK << IW_CUSTOM_C_LSB) 
-#define GET_IW_CUSTOM_C(W) (((W) >> IW_CUSTOM_C_LSB) & IW_CUSTOM_C_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_C(V) (((V) & IW_CUSTOM_C_UNSHIFTED_MASK) << IW_CUSTOM_C_LSB) 
+#define IW_CUSTOM_C_LSB 17
+#define IW_CUSTOM_C_SIZE 5
+#define IW_CUSTOM_C_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_C_SIZE))
+#define IW_CUSTOM_C_SHIFTED_MASK (IW_CUSTOM_C_UNSHIFTED_MASK << IW_CUSTOM_C_LSB)
+#define GET_IW_CUSTOM_C(W) (((W) >> IW_CUSTOM_C_LSB) & IW_CUSTOM_C_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_C(V) (((V) & IW_CUSTOM_C_UNSHIFTED_MASK) << IW_CUSTOM_C_LSB)
 
-#define IW_CUSTOM_READA_LSB 16 
-#define IW_CUSTOM_READA_SIZE 1 
-#define IW_CUSTOM_READA_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_READA_SIZE)) 
-#define IW_CUSTOM_READA_SHIFTED_MASK (IW_CUSTOM_READA_UNSHIFTED_MASK << IW_CUSTOM_READA_LSB) 
-#define GET_IW_CUSTOM_READA(W) (((W) >> IW_CUSTOM_READA_LSB) & IW_CUSTOM_READA_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_READA(V) (((V) & IW_CUSTOM_READA_UNSHIFTED_MASK) << IW_CUSTOM_READA_LSB) 
+#define IW_CUSTOM_READA_LSB 16
+#define IW_CUSTOM_READA_SIZE 1
+#define IW_CUSTOM_READA_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_READA_SIZE))
+#define IW_CUSTOM_READA_SHIFTED_MASK (IW_CUSTOM_READA_UNSHIFTED_MASK << IW_CUSTOM_READA_LSB)
+#define GET_IW_CUSTOM_READA(W) (((W) >> IW_CUSTOM_READA_LSB) & IW_CUSTOM_READA_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_READA(V) (((V) & IW_CUSTOM_READA_UNSHIFTED_MASK) << IW_CUSTOM_READA_LSB)
 
-#define IW_CUSTOM_READB_LSB 15 
-#define IW_CUSTOM_READB_SIZE 1 
-#define IW_CUSTOM_READB_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_READB_SIZE)) 
-#define IW_CUSTOM_READB_SHIFTED_MASK (IW_CUSTOM_READB_UNSHIFTED_MASK << IW_CUSTOM_READB_LSB) 
-#define GET_IW_CUSTOM_READB(W) (((W) >> IW_CUSTOM_READB_LSB) & IW_CUSTOM_READB_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_READB(V) (((V) & IW_CUSTOM_READB_UNSHIFTED_MASK) << IW_CUSTOM_READB_LSB) 
+#define IW_CUSTOM_READB_LSB 15
+#define IW_CUSTOM_READB_SIZE 1
+#define IW_CUSTOM_READB_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_READB_SIZE))
+#define IW_CUSTOM_READB_SHIFTED_MASK (IW_CUSTOM_READB_UNSHIFTED_MASK << IW_CUSTOM_READB_LSB)
+#define GET_IW_CUSTOM_READB(W) (((W) >> IW_CUSTOM_READB_LSB) & IW_CUSTOM_READB_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_READB(V) (((V) & IW_CUSTOM_READB_UNSHIFTED_MASK) << IW_CUSTOM_READB_LSB)
 
-#define IW_CUSTOM_READC_LSB 14 
-#define IW_CUSTOM_READC_SIZE 1 
-#define IW_CUSTOM_READC_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_READC_SIZE)) 
-#define IW_CUSTOM_READC_SHIFTED_MASK (IW_CUSTOM_READC_UNSHIFTED_MASK << IW_CUSTOM_READC_LSB) 
-#define GET_IW_CUSTOM_READC(W) (((W) >> IW_CUSTOM_READC_LSB) & IW_CUSTOM_READC_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_READC(V) (((V) & IW_CUSTOM_READC_UNSHIFTED_MASK) << IW_CUSTOM_READC_LSB) 
+#define IW_CUSTOM_READC_LSB 14
+#define IW_CUSTOM_READC_SIZE 1
+#define IW_CUSTOM_READC_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_READC_SIZE))
+#define IW_CUSTOM_READC_SHIFTED_MASK (IW_CUSTOM_READC_UNSHIFTED_MASK << IW_CUSTOM_READC_LSB)
+#define GET_IW_CUSTOM_READC(W) (((W) >> IW_CUSTOM_READC_LSB) & IW_CUSTOM_READC_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_READC(V) (((V) & IW_CUSTOM_READC_UNSHIFTED_MASK) << IW_CUSTOM_READC_LSB)
 
-#define IW_CUSTOM_N_LSB 6 
-#define IW_CUSTOM_N_SIZE 8 
-#define IW_CUSTOM_N_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_N_SIZE)) 
-#define IW_CUSTOM_N_SHIFTED_MASK (IW_CUSTOM_N_UNSHIFTED_MASK << IW_CUSTOM_N_LSB) 
-#define GET_IW_CUSTOM_N(W) (((W) >> IW_CUSTOM_N_LSB) & IW_CUSTOM_N_UNSHIFTED_MASK) 
-#define SET_IW_CUSTOM_N(V) (((V) & IW_CUSTOM_N_UNSHIFTED_MASK) << IW_CUSTOM_N_LSB) 
+#define IW_CUSTOM_N_LSB 6
+#define IW_CUSTOM_N_SIZE 8
+#define IW_CUSTOM_N_UNSHIFTED_MASK (0xffffffffu >> (32 - IW_CUSTOM_N_SIZE))
+#define IW_CUSTOM_N_SHIFTED_MASK (IW_CUSTOM_N_UNSHIFTED_MASK << IW_CUSTOM_N_LSB)
+#define GET_IW_CUSTOM_N(W) (((W) >> IW_CUSTOM_N_LSB) & IW_CUSTOM_N_UNSHIFTED_MASK)
+#define SET_IW_CUSTOM_N(V) (((V) & IW_CUSTOM_N_UNSHIFTED_MASK) << IW_CUSTOM_N_LSB)
 
 /* R1 opcodes.  */
 #define R1_OP_CALL 0

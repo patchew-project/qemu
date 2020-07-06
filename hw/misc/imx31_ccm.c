@@ -115,7 +115,7 @@ static uint32_t imx31_ccm_get_pll_ref_clk(IMXCCMState *dev)
             if (s->reg[IMX31_CCM_CCMR_REG] & CCMR_FPMF) {
                 freq *= 1024;
             }
-        } 
+        }
     } else {
         freq = CKIH_FREQ;
     }

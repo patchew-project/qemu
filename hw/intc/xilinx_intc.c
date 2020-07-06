@@ -113,7 +113,7 @@ pic_write(void *opaque, hwaddr addr,
 
     addr >>= 2;
     D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
-    switch (addr) 
+    switch (addr)
     {
         case R_IAR:
             p->regs[R_ISR] &= ~value; /* ACK.  */

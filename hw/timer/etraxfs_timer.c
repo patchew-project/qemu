@@ -230,7 +230,7 @@ static inline void timer_watchdog_update(ETRAXTimerState *t, uint32_t value)
     if (wd_en && wd_key != new_key)
         return;
 
-    D(printf("en=%d new_key=%x oldkey=%x cmd=%d cnt=%d\n", 
+    D(printf("en=%d new_key=%x oldkey=%x cmd=%d cnt=%d\n",
          wd_en, new_key, wd_key, new_cmd, wd_cnt));
 
     if (t->wd_hits)
