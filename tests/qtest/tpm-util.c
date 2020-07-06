@@ -130,7 +130,8 @@ void tpm_util_pcrextend(QTestState *s, tx_func *tx)
 }
 
 void tpm_util_pcrread(QTestState *s, tx_func *tx,
-                      const unsigned char *exp_resp, size_t exp_resp_size)
+                      const unsigned char *exp_resp, size_t exp_resp_size,
+                      off_t offset)
 {
     unsigned char buffer[1024];
     unsigned char tpm_pcrread[] =
@@ -139,7 +140,8 @@ void tpm_util_pcrread(QTestState *s, tx_func *tx,
 
     tx(s, tpm_pcrread, sizeof(tpm_pcrread), buffer, sizeof(buffer));
 
-    g_assert_cmpmem(buffer, exp_resp_size, exp_resp, exp_resp_size);
+    g_assert_cmpmem(&buffer[offset], exp_resp_size - offset,
+                    &exp_resp[offset], exp_resp_size - offset);
 }
 
 bool tpm_util_swtpm_has_tpm2(void)

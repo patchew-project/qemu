@@ -65,7 +65,7 @@ void tpm_test_swtpm_test(const char *src_tpm_path, tx_func *tx,
         "\x98\xe5\x86\x8d\xe6\x8b\x97\x29\x99\x60\xf2\x71\x7d\x17\x67\x89"
         "\xa4\x2f\x9a\xae\xa8\xc7\xb7\xaa\x79\xa8\x62\x56\xc1\xde";
     tpm_util_pcrread(s, tx, tpm_pcrread_resp,
-                     sizeof(tpm_pcrread_resp));
+                     sizeof(tpm_pcrread_resp), 14);
 
     qtest_end();
     tpm_util_swtpm_kill(swtpm_pid);
@@ -113,13 +113,13 @@ void tpm_test_swtpm_migration_test(const char *src_tpm_path,
         "\x98\xe5\x86\x8d\xe6\x8b\x97\x29\x99\x60\xf2\x71\x7d\x17\x67\x89"
         "\xa4\x2f\x9a\xae\xa8\xc7\xb7\xaa\x79\xa8\x62\x56\xc1\xde";
     tpm_util_pcrread(src_qemu, tx, tpm_pcrread_resp,
-                     sizeof(tpm_pcrread_resp));
+                     sizeof(tpm_pcrread_resp), 14);
 
     tpm_util_migrate(src_qemu, uri);
     tpm_util_wait_for_migration_complete(src_qemu);
 
     tpm_util_pcrread(dst_qemu, tx, tpm_pcrread_resp,
-                     sizeof(tpm_pcrread_resp));
+                     sizeof(tpm_pcrread_resp), 14);
 
     qtest_quit(dst_qemu);
     qtest_quit(src_qemu);

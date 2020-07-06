@@ -34,7 +34,8 @@ void tpm_util_tis_transfer(QTestState *s,
 void tpm_util_startup(QTestState *s, tx_func *tx);
 void tpm_util_pcrextend(QTestState *s, tx_func *tx);
 void tpm_util_pcrread(QTestState *s, tx_func *tx,
-                      const unsigned char *exp_resp, size_t exp_resp_size);
+                      const unsigned char *exp_resp, size_t exp_resp_size,
+                      off_t offset);
 
 bool tpm_util_swtpm_has_tpm2(void);
 
