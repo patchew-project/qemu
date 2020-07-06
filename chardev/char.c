@@ -998,7 +998,10 @@ static Chardev *chardev_new(const char *id, const char *typename,
     }
 
     if (id) {
-        object_property_add_child(get_chardevs_root(), id, obj);
+        object_property_try_add_child(get_chardevs_root(), id, obj, &local_err);
+        if (local_err) {
+            goto end;
+        }
         object_unref(obj);
     }
 
