@@ -1820,6 +1820,32 @@ SRST
 ERST
 
     {
+        .name       = "dirty_track",
+        .args_type  = "",
+        .params     = "",
+        .help       = "track dirty pages rate",
+        .cmd        = hmp_dirty_track,
+    },
+
+SRST
+``dirty_track``
+  Track dirty pages rate.
+ERST
+
+    {
+        .name       = "dirty_track_stop",
+        .args_type  = "",
+        .params     = "",
+        .help       = "stop current dirty pages track",
+        .cmd        = hmp_dirty_track_stop,
+    },
+
+SRST
+``dirty_track_stop``
+  Stop current dirty pages track.
+ERST
+
+    {
         .name       = "info",
         .args_type  = "item:s?",
         .params     = "[subcommand]",

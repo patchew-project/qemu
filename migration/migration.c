@@ -1964,6 +1964,11 @@ static bool migrate_prepare(MigrationState *s, bool blk, bool blk_inc,
 {
     Error *local_err = NULL;
 
+    if (dirty_track_is_running()) {
+        error_setg(errp, "There is a dirty tracking process in progress");
+        return false;
+    }
+
     if (resume) {
         if (s->state != MIGRATION_STATUS_POSTCOPY_PAUSED) {
             error_setg(errp, "Cannot resume if there is no "

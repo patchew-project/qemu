@@ -69,4 +69,9 @@ void colo_flush_ram_cache(void);
 void colo_release_ram_cache(void);
 void colo_incoming_start_dirty_log(void);
 
+void dirty_track_init(void);
+uint64_t dirty_track_dirty_pages(void);
+void dirty_track_sync(void);
+void dirty_track_cleanup(void);
+
 #endif
