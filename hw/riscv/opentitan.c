@@ -50,7 +50,8 @@ static const struct MemmapEntry {
     [IBEX_ALERT_HANDLER] =  {  0x40130000,  0x10000 },
     [IBEX_NMI_GEN] =        {  0x40140000,  0x10000 },
     [IBEX_USBDEV] =         {  0x40150000,  0x10000 },
-    [IBEX_PADCTRL] =        {  0x40160000,  0x10000 }
+    [IBEX_PADCTRL] =        {  0x40160000,  0x10000 },
+    [IBEX_OTBN] =           {  0x50000000, 0x400000 }
 };
 
 static void opentitan_board_init(MachineState *machine)
@@ -183,6 +184,8 @@ static void lowrisc_ibex_soc_realize(DeviceState *dev_soc, Error **errp)
         memmap[IBEX_USBDEV].base, memmap[IBEX_USBDEV].size);
     create_unimplemented_device("riscv.lowrisc.ibex.padctrl",
         memmap[IBEX_PADCTRL].base, memmap[IBEX_PADCTRL].size);
+    create_unimplemented_device("riscv.lowrisc.ibex.otbn",
+        memmap[IBEX_PADCTRL].base, memmap[IBEX_OTBN].size);
 }
 
 static void lowrisc_ibex_soc_class_init(ObjectClass *oc, void *data)

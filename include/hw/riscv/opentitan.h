@@ -68,6 +68,7 @@ enum {
     IBEX_NMI_GEN,
     IBEX_USBDEV,
     IBEX_PADCTRL,
+    IBEX_OTBN,
 };
 
 enum {
