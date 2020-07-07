@@ -1385,7 +1385,7 @@ static bool trans_SBRC(DisasContext *ctx, arg_SBRC *a)
 {
     TCGv Rr = cpu_r[a->rr];
 
-    ctx->skip_cond = TCG_COND_EQ;
+    ctx->skip_cond = TCG_COND_NE;
     ctx->skip_var0 = tcg_temp_new();
     ctx->free_skip_var0 = true;
 
@@ -1401,7 +1401,7 @@ static bool trans_SBRS(DisasContext *ctx, arg_SBRS *a)
 {
     TCGv Rr = cpu_r[a->rr];
 
-    ctx->skip_cond = TCG_COND_NE;
+    ctx->skip_cond = TCG_COND_EQ;
     ctx->skip_var0 = tcg_temp_new();
     ctx->free_skip_var0 = true;
 
