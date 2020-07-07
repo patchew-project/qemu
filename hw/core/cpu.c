@@ -259,7 +259,7 @@ static void cpu_common_reset(DeviceState *dev)
     }
 
     cpu->interrupt_request = 0;
-    cpu->halted = 0;
+    cpu->halted = cc->starts_halted();
     cpu->mem_io_pc = 0;
     cpu->icount_extra = 0;
     atomic_set(&cpu->icount_decr_ptr->u32, 0);
@@ -273,6 +273,11 @@ static void cpu_common_reset(DeviceState *dev)
 
         tcg_flush_softmmu_tlb(cpu);
     }
+}
+
+static uint32_t cpu_common_starts_halted(void)
+{
+    return 0;
 }
 
 static bool cpu_common_has_work(CPUState *cs)
@@ -428,6 +433,7 @@ static void cpu_class_init(ObjectClass *klass, void *data)
     k->cpu_exec_exit = cpu_common_noop;
     k->cpu_exec_interrupt = cpu_common_exec_interrupt;
     k->adjust_watchpoint_address = cpu_adjust_watchpoint_address;
+    k->starts_halted = cpu_common_starts_halted;
     set_bit(DEVICE_CATEGORY_CPU, dc->categories);
     dc->realize = cpu_common_realizefn;
     dc->unrealize = cpu_common_unrealizefn;

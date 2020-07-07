@@ -36,6 +36,7 @@
 #include "qapi/visitor.h"
 #include "hw/qdev-properties.h"
 #include "hw/ppc/ppc.h"
+#include "hw/ppc/spapr.h"
 #include "mmu-book3s-v3.h"
 #include "sysemu/qtest.h"
 #include "qemu/cutils.h"
@@ -10646,6 +10647,20 @@ static void ppc_cpu_set_pc(CPUState *cs, vaddr value)
     cpu->env.nip = value;
 }
 
+static uint32_t ppc_cpu_starts_halted(void)
+{
+    SpaprMachineState *spapr =
+        (SpaprMachineState *) object_dynamic_cast(qdev_get_machine(),
+                                                  TYPE_SPAPR_MACHINE);
+
+    /*
+     * In sPAPR, all CPUs start halted. CPU0 is unhalted from the machine level
+     * reset code and the rest are explicitly started up by the guest using an
+     * RTAS call.
+     */
+    return spapr != NULL;
+}
+
 static bool ppc_cpu_has_work(CPUState *cs)
 {
     PowerPCCPU *cpu = POWERPC_CPU(cs);
@@ -10922,6 +10937,7 @@ static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 #endif
 
     cc->disas_set_info = ppc_disas_set_info;
+    cc->starts_halted = ppc_cpu_starts_halted;
 
     dc->fw_name = "PowerPC,UNKNOWN";
 }
