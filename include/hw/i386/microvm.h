@@ -66,7 +66,6 @@ typedef struct {
     bool kernel_cmdline_fixed;
     Notifier machine_done;
     Notifier powerdown_req;
-    AcpiDeviceIf *acpi_dev;
 } MicrovmMachineState;
 
 #define TYPE_MICROVM_MACHINE   MACHINE_TYPE_NAME("microvm")
