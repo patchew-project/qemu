@@ -173,7 +173,12 @@ static void kill_qemu(QTestState *s)
         fprintf(stderr, "%s:%d: kill_qemu() detected QEMU death "
                 "from signal %d (%s)%s\n",
                 __FILE__, __LINE__, sig, signame, dump);
-        abort();
+        if (WCOREDUMP(wstatus)) {
+            /* Preserve child coredump */
+            exit(1);
+        } else {
+            abort();
+        }
     }
 }
 
