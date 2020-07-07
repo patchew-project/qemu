@@ -2083,7 +2083,7 @@ static int32_t operand_imm12(rv_inst inst)
 
 static int32_t operand_imm20(rv_inst inst)
 {
-    return (((int64_t)inst << 32) >> 44) << 12;
+    return ((int64_t)inst << 32) >> 44;
 }
 
 static int32_t operand_jimm20(rv_inst inst)
