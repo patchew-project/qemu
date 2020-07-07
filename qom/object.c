@@ -800,15 +800,13 @@ bool object_set_propv(Object *obj,
                      va_list vargs)
 {
     const char *propname;
-    Error *local_err = NULL;
 
     propname = va_arg(vargs, char *);
     while (propname != NULL) {
         const char *value = va_arg(vargs, char *);
 
         g_assert(value != NULL);
-        if (!object_property_parse(obj, propname, value, &local_err)) {
-            error_propagate(errp, local_err);
+        if (!object_property_parse(obj, propname, value, errp)) {
             return false;
         }
         propname = va_arg(vargs, char *);
@@ -2101,10 +2099,8 @@ static void property_set_str(Object *obj, Visitor *v, const char *name,
 {
     StringProperty *prop = opaque;
     char *value;
-    Error *local_err = NULL;
 
-    if (!visit_type_str(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_str(v, name, &value, errp)) {
         return;
     }
 
@@ -2181,10 +2177,8 @@ static void property_set_bool(Object *obj, Visitor *v, const char *name,
 {
     BoolProperty *prop = opaque;
     bool value;
-    Error *local_err = NULL;
 
-    if (!visit_type_bool(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_bool(v, name, &value, errp)) {
         return;
     }
 
@@ -2253,10 +2247,8 @@ static void property_set_enum(Object *obj, Visitor *v, const char *name,
 {
     EnumProperty *prop = opaque;
     int value;
-    Error *err = NULL;
 
-    if (!visit_type_enum(v, name, &value, prop->lookup, &err)) {
-        error_propagate(errp, err);
+    if (!visit_type_enum(v, name, &value, prop->lookup, errp)) {
         return;
     }
     prop->set(obj, value, errp);
@@ -2405,10 +2397,8 @@ static void property_set_uint8_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint8_t *field = opaque;
     uint8_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint8(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint8(v, name, &value, errp)) {
         return;
     }
 
@@ -2427,10 +2417,8 @@ static void property_set_uint16_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint16_t *field = opaque;
     uint16_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint16(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint16(v, name, &value, errp)) {
         return;
     }
 
@@ -2449,10 +2437,8 @@ static void property_set_uint32_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint32_t *field = opaque;
     uint32_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint32(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint32(v, name, &value, errp)) {
         return;
     }
 
@@ -2471,10 +2457,8 @@ static void property_set_uint64_ptr(Object *obj, Visitor *v, const char *name,
 {
     uint64_t *field = opaque;
     uint64_t value;
-    Error *local_err = NULL;
 
-    if (!visit_type_uint64(v, name, &value, &local_err)) {
-        error_propagate(errp, local_err);
+    if (!visit_type_uint64(v, name, &value, errp)) {
         return;
     }
 
