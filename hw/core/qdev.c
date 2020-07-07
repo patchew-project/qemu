@@ -392,8 +392,11 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
 
     if (bus) {
         qdev_set_parent_bus(dev, bus);
-    } else {
-        assert(!DEVICE_GET_CLASS(dev)->bus_type);
+    } else if (DEVICE_GET_CLASS(dev)->bus_type) {
+        error_setg(errp, "Unexpected bus '%s' for bus-less device '%s'",
+                   DEVICE_GET_CLASS(dev)->bus_type,
+                   object_get_typename(OBJECT(dev)));
+        return false;
     }
 
     object_property_set_bool(OBJECT(dev), true, "realized", &err);
