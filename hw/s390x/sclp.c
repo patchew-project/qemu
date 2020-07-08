@@ -22,6 +22,7 @@
 #include "hw/s390x/event-facility.h"
 #include "hw/s390x/s390-pci-bus.h"
 #include "hw/s390x/ipl.h"
+#include "hw/s390x/s390-virtio-ccw.h"
 
 static inline SCLPDevice *get_sclp_device(void)
 {
@@ -110,8 +111,15 @@ static void read_SCP_info(SCLPDevice *sclp, SCCB *sccb)
         read_info->rnsize2 = cpu_to_be32(rnsize);
     }
 
-    /* we don't support standby memory, maxram_size is never exposed */
-    rnmax = machine->ram_size >> sclp->increment_size;
+    /*
+     * Support for maxram was added with support for memory devices. The
+     * size of the initial memory is exposed via diag260.
+     */
+    if (memory_devices_allowed()) {
+        rnmax = machine->maxram_size >> sclp->increment_size;
+    } else {
+        rnmax = machine->ram_size >> sclp->increment_size;
+    }
     if (rnmax < 0x10000) {
         read_info->rnmax = cpu_to_be16(rnmax);
     } else {

@@ -160,6 +160,35 @@ static void virtio_ccw_register_hcalls(void)
                                    virtio_ccw_hcall_early_printk);
 }
 
+static void s390_device_memory_init(MachineState *machine)
+{
+    MemoryRegion *sysmem = get_system_memory();
+
+    machine->device_memory = g_malloc0(sizeof(*machine->device_memory));
+
+    /* initialize device memory address space */
+    if (machine->ram_size < machine->maxram_size) {
+        ram_addr_t device_mem_size = machine->maxram_size - machine->ram_size;
+
+        if (QEMU_ALIGN_UP(machine->maxram_size, MiB) != machine->maxram_size) {
+            error_report("maximum memory size must by aligned to 1 MB");
+            exit(EXIT_FAILURE);
+        }
+
+        machine->device_memory->base = machine->ram_size;
+        if (machine->device_memory->base + device_mem_size < device_mem_size) {
+            error_report("unsupported amount of maximum memory: " RAM_ADDR_FMT,
+                         machine->maxram_size);
+            exit(EXIT_FAILURE);
+        }
+
+        memory_region_init(&machine->device_memory->mr, OBJECT(machine),
+                           "device-memory", device_mem_size);
+        memory_region_add_subregion(sysmem, machine->device_memory->base,
+                                    &machine->device_memory->mr);
+    }
+}
+
 static void s390_memory_init(MachineState *machine)
 {
     MemoryRegion *sysmem = get_system_memory();
@@ -194,6 +223,11 @@ static void s390_memory_init(MachineState *machine)
     s390_skeys_init();
     /* Initialize storage attributes device */
     s390_stattrib_init();
+
+    /* Support for memory devices is glued to compat machines. */
+    if (memory_devices_allowed()) {
+        s390_device_memory_init(machine);
+    }
 }
 
 static void s390_init_ipl_dev(const char *kernel_filename,
@@ -617,6 +651,7 @@ static void ccw_machine_class_init(ObjectClass *oc, void *data)
     s390mc->cpu_model_allowed = true;
     s390mc->css_migration_enabled = true;
     s390mc->hpage_1m_allowed = true;
+    s390mc->memory_devices_allowed = true;
     mc->init = ccw_init;
     mc->reset = s390_machine_reset;
     mc->hot_add_cpu = s390_hot_add_cpu;
@@ -711,6 +746,11 @@ bool cpu_model_allowed(void)
 bool hpage_1m_allowed(void)
 {
     return get_machine_class()->hpage_1m_allowed;
+}
+
+bool memory_devices_allowed(void)
+{
+    return get_machine_class()->memory_devices_allowed;
 }
 
 static char *machine_get_loadparm(Object *obj, Error **errp)
@@ -831,8 +871,11 @@ static void ccw_machine_5_0_instance_options(MachineState *machine)
 
 static void ccw_machine_5_0_class_options(MachineClass *mc)
 {
+    S390CcwMachineClass *s390mc = S390_MACHINE_CLASS(mc);
+
     ccw_machine_5_1_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_5_0, hw_compat_5_0_len);
+    s390mc->memory_devices_allowed = false;
 }
 DEFINE_CCW_MACHINE(5_0, "5.0", false);
 

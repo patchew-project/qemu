@@ -32,8 +32,8 @@ void handle_diag_260(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
     ram_addr_t addr, length;
     uint64_t tmp;
 
-    /* TODO: Unlock with new QEMU machine. */
-    if (false) {
+    /* Support for diag260 is glued to support for memory devices. */
+    if (!memory_devices_allowed()) {
         s390_program_interrupt(env, PGM_OPERATION, ra);
         return;
     }
