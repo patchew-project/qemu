@@ -29,6 +29,7 @@
 #endif /* CONFIG_VHOST_VSOCK */
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-input.h"
+#include "hw/virtio/virtio-mem.h"
 
 #include "hw/s390x/s390_flic.h"
 #include "hw/s390x/css.h"
@@ -255,5 +256,17 @@ typedef struct VirtIOInputHIDCcw {
     VirtioCcwDevice parent_obj;
     VirtIOInputHID vdev;
 } VirtIOInputHIDCcw;
+
+/* virtio-mem-ccw */
+
+#define TYPE_VIRTIO_MEM_CCW "virtio-mem-ccw"
+#define VIRTIO_MEM_CCW(obj) \
+        OBJECT_CHECK(VirtIOMEMCcw, (obj), TYPE_VIRTIO_MEM_CCW)
+
+typedef struct VirtIOMEMCcw {
+    VirtioCcwDevice parent_obj;
+    VirtIOMEM vdev;
+    Notifier size_change_notifier;
+} VirtIOMEMCcw;
 
 #endif
