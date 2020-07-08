@@ -33,10 +33,12 @@
 #include "hw/acpi/acpi.h"
 #include "exec/address-spaces.h"
 #include "hw/pci/pci_bus.h"
+#include "hw/pci/pci_host.h"
 #include "migration/vmstate.h"
 #include "qapi/error.h"
 #include "qom/qom-qobject.h"
 #include "trace.h"
+#include "hw/i386/acpi-build.h"
 
 #define ACPI_PCIHP_ADDR 0xae00
 #define ACPI_PCIHP_SIZE 0x0014
@@ -84,6 +86,17 @@ static void *acpi_set_bsel(PCIBus *bus, void *opaque)
     }
 
     return bsel_alloc;
+}
+
+static PCIBus *find_host(void)
+{
+    Object *obj = acpi_get_i386_pci_host();
+
+    if (obj) {
+        return PCI_HOST_BRIDGE(obj)->bus;
+    }
+
+    return NULL;
 }
 
 static void acpi_set_pci_info(void)
