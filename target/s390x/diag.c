@@ -23,6 +23,63 @@
 #include "hw/s390x/pv.h"
 #include "kvm_s390x.h"
 
+void handle_diag_260(CPUS390XState *env, uint64_t r1, uint64_t r3, uintptr_t ra)
+{
+    MachineState *ms = MACHINE(qdev_get_machine());
+    const ram_addr_t initial_ram_size = ms->ram_size;
+    const uint64_t subcode = env->regs[r3];
+    S390CPU *cpu = env_archcpu(env);
+    ram_addr_t addr, length;
+    uint64_t tmp;
+
+    /* TODO: Unlock with new QEMU machine. */
+    if (false) {
+        s390_program_interrupt(env, PGM_OPERATION, ra);
+        return;
+    }
+
+    /*
+     * There also seems to be subcode "0xc", which stores the size of the
+     * first chunk and the total size to r1/r2. It's only used by very old
+     * Linux, so don't implement it.
+     */
+    if ((r1 & 1) || subcode != 0x10) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return;
+    }
+    addr = env->regs[r1];
+    length = env->regs[r1 + 1];
+
+    /* FIXME: Somebody with documentation should fix this. */
+    if (!QEMU_IS_ALIGNED(addr, 16) || !QEMU_IS_ALIGNED(length, 16)) {
+        s390_program_interrupt(env, PGM_SPECIFICATION, ra);
+        return;
+    }
+
+    /* FIXME: Somebody with documentation should fix this. */
+    if (!length) {
+        setcc(cpu, 3);
+        return;
+    }
+
+    /* FIXME: Somebody with documentation should fix this. */
+    if (!address_space_access_valid(&address_space_memory, addr, length, true,
+                                    MEMTXATTRS_UNSPECIFIED)) {
+        s390_program_interrupt(env, PGM_ADDRESSING, ra);
+        return;
+    }
+
+    /* Indicate our initial memory ([0 .. ram_size - 1]) */
+    tmp = cpu_to_be64(0);
+    cpu_physical_memory_write(addr, &tmp, sizeof(tmp));
+    tmp = cpu_to_be64(initial_ram_size - 1);
+    cpu_physical_memory_write(addr + sizeof(tmp), &tmp, sizeof(tmp));
+
+    /* Exactly one entry was stored. */
+    env->regs[r3] = 1;
+    setcc(cpu, 0);
+}
+
 int handle_diag_288(CPUS390XState *env, uint64_t r1, uint64_t r3)
 {
     uint64_t func = env->regs[r1];

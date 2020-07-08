@@ -2398,6 +2398,10 @@ static DisasJumpType op_diag(DisasContext *s, DisasOps *o)
     TCGv_i32 func_code = tcg_const_i32(get_field(s, i2));
 
     gen_helper_diag(cpu_env, r1, r3, func_code);
+    /* Only some diags modify the CC. */
+    if (get_field(s, i2) == 0x260) {
+        set_cc_static(s);
+    }
 
     tcg_temp_free_i32(func_code);
     tcg_temp_free_i32(r3);

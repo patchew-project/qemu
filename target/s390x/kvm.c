@@ -1565,6 +1565,14 @@ static int handle_hypercall(S390CPU *cpu, struct kvm_run *run)
     return ret;
 }
 
+static void kvm_handle_diag_260(S390CPU *cpu, struct kvm_run *run)
+{
+    const uint64_t r1 = (run->s390_sieic.ipa & 0x00f0) >> 4;
+    const uint64_t r3 = run->s390_sieic.ipa & 0x000f;
+
+    handle_diag_260(&cpu->env, r1, r3, 0);
+}
+
 static void kvm_handle_diag_288(S390CPU *cpu, struct kvm_run *run)
 {
     uint64_t r1, r3;
@@ -1614,6 +1622,9 @@ static int handle_diag(S390CPU *cpu, struct kvm_run *run, uint32_t ipb)
      */
     func_code = decode_basedisp_rs(&cpu->env, ipb, NULL) & DIAG_KVM_CODE_MASK;
     switch (func_code) {
+    case 0x260:
+        kvm_handle_diag_260(cpu, run);
+        break;
     case DIAG_TIMEREVENT:
         kvm_handle_diag_288(cpu, run);
         break;
