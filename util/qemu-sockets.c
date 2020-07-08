@@ -433,6 +433,57 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
     return res;
 }
 
+/*
+ * inet_set_keepalive
+ *
+ * Handle keep_alive settings. If user specified settings explicitly, fail if
+ * can't set the settings. If user just enabled keep-alive, not specifying the
+ * settings, try to set defaults but ignore failures.
+ */
+static int inet_set_keepalive(int sock, bool has_keep_alive,
+                              KeepAliveField *keep_alive, Error **errp)
+{
+    int ret;
+    int val;
+    bool has_settings = has_keep_alive &&  keep_alive->type == QTYPE_QDICT;
+
+    if (!has_keep_alive || (keep_alive->type == QTYPE_QBOOL &&
+                            !keep_alive->u.enabled))
+    {
+        return 0;
+    }
+
+    val = 1;
+    ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
+    if (ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
+        return -1;
+    }
+
+    val = has_settings ? keep_alive->u.settings.idle : 30;
+    ret = qemu_setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, &val, sizeof(val));
+    if (has_settings && ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set TCP_KEEPIDLE");
+        return -1;
+    }
+
+    val = has_settings ? keep_alive->u.settings.interval : 30;
+    ret = qemu_setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, &val, sizeof(val));
+    if (has_settings && ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set TCP_KEEPINTVL");
+        return -1;
+    }
+
+    val = has_settings ? keep_alive->u.settings.count : 20;
+    ret = qemu_setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, &val, sizeof(val));
+    if (has_settings && ret < 0) {
+        error_setg_errno(errp, errno, "Unable to set TCP_KEEPCNT");
+        return -1;
+    }
+
+    return 0;
+}
+
 /**
  * Create a socket and connect it to an address.
  *
@@ -468,16 +519,11 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
         return sock;
     }
 
-    if (saddr->keep_alive) {
-        int val = 1;
-        int ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-                                  &val, sizeof(val));
-
-        if (ret < 0) {
-            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
-            close(sock);
-            return -1;
-        }
+    if (inet_set_keepalive(sock, saddr->has_keep_alive, saddr->keep_alive,
+                           errp) < 0)
+    {
+        close(sock);
+        return -1;
     }
 
     return sock;
@@ -677,12 +723,20 @@ int inet_parse(InetSocketAddress *addr, const char *str, Error **errp)
     }
     begin = strstr(optstr, ",keep-alive");
     if (begin) {
+        bool val;
+
         if (inet_parse_flag("keep-alive", begin + strlen(",keep-alive"),
-                            &addr->keep_alive, errp) < 0)
+                            &val, errp) < 0)
         {
             return -1;
         }
+
         addr->has_keep_alive = true;
+        addr->keep_alive = g_new(KeepAliveField, 1);
+        *addr->keep_alive = (KeepAliveField) {
+            .type = QTYPE_QBOOL,
+            .u.enabled = val
+        };
     }
     return 0;
 }

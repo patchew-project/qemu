@@ -38,6 +38,37 @@
     'port': 'str' } }
 
 ##
+# @KeepAliveSettings:
+#
+# @idle: The time (in seconds) the connection needs to remain idle
+#        before TCP starts sending keepalive probes (sets TCP_KEEPIDLE).
+# @interval: The time (in seconds) between individual keepalive probes
+#            (sets TCP_KEEPINTVL).
+# @count: The maximum number of keepalive probes TCP should send before
+#         dropping the connection (sets TCP_KEEPCNT).
+#
+# Since: 5.2
+##
+{ 'struct': 'KeepAliveSettings',
+  'data': {
+    'idle': 'int',
+    'interval': 'int',
+    'count': 'int' } }
+
+##
+# @KeepAliveField:
+#
+# @enabled: If true, enable keep-alive with some default settings
+# @settings: Enable keep-alive and use explicit settings
+#
+# Since: 5.2
+##
+{ 'alternate': 'KeepAliveField',
+  'data': {
+    'enabled': 'bool',
+    'settings': 'KeepAliveSettings' } }
+
+##
 # @InetSocketAddress:
 #
 # Captures a socket address or address range in the Internet namespace.
@@ -65,7 +96,7 @@
     '*to': 'uint16',
     '*ipv4': 'bool',
     '*ipv6': 'bool',
-    '*keep-alive': 'bool' } }
+    '*keep-alive': 'KeepAliveField' } }
 
 ##
 # @UnixSocketAddress:
