@@ -201,10 +201,6 @@ static void acpi_get_pm_info(MachineState *machine, AcpiPmInfo *pm)
         /* w2k requires FADT(rev1) or it won't boot, keep PC compatible */
         pm->fadt.rev = 1;
         pm->cpu_hp_io_base = PIIX4_CPU_HOTPLUG_IO_BASE;
-        pm->pcihp_io_base =
-            object_property_get_uint(obj, ACPI_PCIHP_IO_BASE_PROP, NULL);
-        pm->pcihp_io_len =
-            object_property_get_uint(obj, ACPI_PCIHP_IO_LEN_PROP, NULL);
     }
     if (lpc) {
         struct AcpiGenericAddress r = { .space_id = AML_AS_SYSTEM_IO,
@@ -214,6 +210,10 @@ static void acpi_get_pm_info(MachineState *machine, AcpiPmInfo *pm)
         pm->fadt.flags |= 1 << ACPI_FADT_F_RESET_REG_SUP;
         pm->cpu_hp_io_base = ICH9_CPU_HOTPLUG_IO_BASE;
     }
+    pm->pcihp_io_base =
+        object_property_get_uint(obj, ACPI_PCIHP_IO_BASE_PROP, NULL);
+    pm->pcihp_io_len =
+        object_property_get_uint(obj, ACPI_PCIHP_IO_LEN_PROP, NULL);
 
     /* The above need not be conditional on machine type because the reset port
      * happens to be the same on PIIX (pc) and ICH9 (q35). */
@@ -472,7 +472,7 @@ static void build_append_pci_bus_devices(Aml *parent_scope, PCIBus *bus,
         QLIST_FOREACH(sec, &bus->child, sibling) {
             int32_t devfn = sec->parent_dev->devfn;
 
-            if (pci_bus_is_root(sec) || pci_bus_is_express(sec)) {
+            if (pci_bus_is_root(sec)) {
                 continue;
             }
 
@@ -1409,7 +1409,12 @@ static void build_piix4_pci_hotplug(Aml *table)
     aml_append(table, scope);
 }
 
-static Aml *build_q35_osc_method(void)
+static void build_q35_pci_hotplug(Aml *table)
+{
+    build_piix4_pci_hotplug(table);
+}
+
+static Aml *build_q35_osc_method(AcpiPmInfo *pm)
 {
     Aml *if_ctx;
     Aml *if_ctx2;
@@ -1520,6 +1525,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         build_hpet_aml(dsdt);
         build_q35_isa_bridge(dsdt);
         build_isa_devices_aml(dsdt);
+        build_q35_pci_hotplug(dsdt);
         build_q35_pci0_int(dsdt);
         if (pcms->smbus && !pcmc->do_not_add_smb_acpi) {
             build_smb0(dsdt, pcms->smbus, ICH9_SMB_DEV, ICH9_SMB_FUNC);
@@ -1546,7 +1552,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
     {
         aml_append(scope, aml_name_decl("_HID", aml_string("ACPI0006")));
 
-        if (misc->is_piix4) {
+        if (misc->is_piix4 || pm->pcihp_bridge_en) {
             method = aml_method("_E01", 0, AML_NOTSERIALIZED);
             aml_append(method,
                 aml_acquire(aml_name("\\_SB.PCI0.BLCK"), 0xFFFF));
