@@ -438,7 +438,8 @@ static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
  *
  * Handle keep_alive settings. If user specified settings explicitly, fail if
  * can't set the settings. If user just enabled keep-alive, not specifying the
- * settings, try to set defaults but ignore failures.
+ * settings, try to set defaults but ignore failures. If keep-alive option is
+ * not specified, try to set it but ignore failures.
  */
 static int inet_set_keepalive(int sock, bool has_keep_alive,
                               KeepAliveField *keep_alive, Error **errp)
@@ -447,8 +448,8 @@ static int inet_set_keepalive(int sock, bool has_keep_alive,
     int val;
     bool has_settings = has_keep_alive &&  keep_alive->type == QTYPE_QDICT;
 
-    if (!has_keep_alive || (keep_alive->type == QTYPE_QBOOL &&
-                            !keep_alive->u.enabled))
+    if (has_keep_alive &&
+        keep_alive->type == QTYPE_QBOOL && !keep_alive->u.enabled)
     {
         return 0;
     }
@@ -456,8 +457,12 @@ static int inet_set_keepalive(int sock, bool has_keep_alive,
     val = 1;
     ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val));
     if (ret < 0) {
-        error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
-        return -1;
+        if (has_keep_alive) {
+            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
+            return -1;
+        } else {
+            return 0;
+        }
     }
 
     val = has_settings ? keep_alive->u.settings.idle : 30;
