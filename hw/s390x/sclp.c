@@ -327,32 +327,14 @@ void s390_sclp_init(void)
 
 static void sclp_realize(DeviceState *dev, Error **errp)
 {
-    MachineState *machine = MACHINE(qdev_get_machine());
     SCLPDevice *sclp = SCLP(dev);
-    Error *err = NULL;
-    uint64_t hw_limit;
-    int ret;
 
     /*
      * qdev_device_add searches the sysbus for TYPE_SCLP_EVENTS_BUS. As long
      * as we can't find a fitting bus via the qom tree, we have to add the
      * event facility to the sysbus, so e.g. a sclp console can be created.
      */
-    sysbus_realize(SYS_BUS_DEVICE(sclp->event_facility), &err);
-    if (err) {
-        goto out;
-    }
-
-    ret = s390_set_memory_limit(machine->maxram_size, &hw_limit);
-    if (ret == -E2BIG) {
-        error_setg(&err, "host supports a maximum of %" PRIu64 " GB",
-                   hw_limit / GiB);
-    } else if (ret) {
-        error_setg(&err, "setting the guest size failed");
-    }
-
-out:
-    error_propagate(errp, err);
+    sysbus_realize(SYS_BUS_DEVICE(sclp->event_facility), errp);
 }
 
 static void sclp_memory_init(SCLPDevice *sclp)
