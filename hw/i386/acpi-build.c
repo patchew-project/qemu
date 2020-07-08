@@ -1422,6 +1422,7 @@ static Aml *build_q35_osc_method(AcpiPmInfo *pm)
     Aml *method;
     Aml *a_cwd1 = aml_name("CDW1");
     Aml *a_ctrl = aml_local(0);
+    unsigned osc_ctrl;
 
     method = aml_method("_OSC", 4, AML_NOTSERIALIZED);
     aml_append(method, aml_create_dword_field(aml_arg(3), aml_int(0), "CDW1"));
@@ -1435,9 +1436,12 @@ static Aml *build_q35_osc_method(AcpiPmInfo *pm)
 
     /*
      * Always allow native PME, AER (no dependencies)
-     * Allow SHPC (PCI bridges can have SHPC controller)
+     * Need to disable native and SHPC hot-plug to use acpihp
+     *
+     * PCI Firmware Specification, Revision 3.2
      */
-    aml_append(if_ctx, aml_and(a_ctrl, aml_int(0x1F), a_ctrl));
+    osc_ctrl = pm->pcihp_bridge_en ? 0x1C : 0x1F;
+    aml_append(if_ctx, aml_and(a_ctrl, aml_int(osc_ctrl), a_ctrl));
 
     if_ctx2 = aml_if(aml_lnot(aml_equal(aml_arg(1), aml_int(1))));
     /* Unknown revision */
@@ -1518,7 +1522,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
         aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
         aml_append(dev, aml_name_decl("_ADR", aml_int(0)));
         aml_append(dev, aml_name_decl("_UID", aml_int(1)));
-        aml_append(dev, build_q35_osc_method());
+        aml_append(dev, build_q35_osc_method(pm));
         aml_append(sb_scope, dev);
         aml_append(dsdt, sb_scope);
 
@@ -1593,7 +1597,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
             if (pci_bus_is_express(bus)) {
                 aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
                 aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
-                aml_append(dev, build_q35_osc_method());
+                aml_append(dev, build_q35_osc_method(pm));
             } else {
                 aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A03")));
             }
