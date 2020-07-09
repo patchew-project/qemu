@@ -349,10 +349,10 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
                                   const char *filename)
 {
     SocketAddress *gsconf;
-    URI *uri;
-    QueryParams *qp = NULL;
+    g_autoptr(URI) uri = NULL;
+    g_autoptr(QueryParams) qp = NULL;
     bool is_unix = false;
-    int ret = 0;
+    int ret;
 
     uri = uri_parse(filename);
     if (!uri) {
@@ -374,29 +374,25 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
         warn_report("rdma feature is not supported, falling back to tcp");
     } else {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     ret = parse_volume_options(gconf, uri->path);
     if (ret < 0) {
-        goto out;
+        return ret;
     }
 
     qp = query_params_parse(uri->query);
     if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     if (is_unix) {
         if (uri->server || uri->port) {
-            ret = -EINVAL;
-            goto out;
+            return -EINVAL;
         }
         if (strcmp(qp->p[0].name, "socket")) {
-            ret = -EINVAL;
-            goto out;
+            return -EINVAL;
         }
         gsconf->u.q_unix.path = g_strdup(qp->p[0].value);
     } else {
@@ -408,12 +404,7 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
         }
     }
 
-out:
-    if (qp) {
-        query_params_free(qp);
-    }
-    uri_free(uri);
-    return ret;
+    return 0;
 }
 
 static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
