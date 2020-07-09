@@ -2211,11 +2211,21 @@ int blk_save_vmstate(BlockBackend *blk, const uint8_t *buf,
 
 int blk_load_vmstate(BlockBackend *blk, uint8_t *buf, int64_t pos, int size)
 {
+    int ret, ret2;
+
     if (!blk_is_available(blk)) {
         return -ENOMEDIUM;
     }
 
-    return bdrv_load_vmstate(blk_bs(blk), buf, pos, size);
+    ret = bdrv_load_vmstate(blk_bs(blk), buf, pos, size);
+    ret2 = bdrv_finalize_vmstate(blk_bs(blk));
+    if (ret < 0) {
+        return ret;
+    }
+    if (ret2 < 0) {
+        return ret2;
+    }
+    return ret;
 }
 
 int blk_probe_blocksizes(BlockBackend *blk, BlockSizes *bsz)
