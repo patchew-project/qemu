@@ -77,34 +77,34 @@ typedef struct NFSRPC {
 
 static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
 {
-    URI *uri = NULL;
-    QueryParams *qp = NULL;
-    int ret = -EINVAL, i;
+    g_autoptr(URI) uri = NULL;
+    g_autoptr(QueryParams) qp = NULL;
+    int i;
 
     uri = uri_parse(filename);
     if (!uri) {
         error_setg(errp, "Invalid URI specified");
-        goto out;
+        return -EINVAL;
     }
     if (g_strcmp0(uri->scheme, "nfs") != 0) {
         error_setg(errp, "URI scheme must be 'nfs'");
-        goto out;
+        return -EINVAL;
     }
 
     if (!uri->server) {
         error_setg(errp, "missing hostname in URI");
-        goto out;
+        return -EINVAL;
     }
 
     if (!uri->path) {
         error_setg(errp, "missing file path in URI");
-        goto out;
+        return -EINVAL;
     }
 
     qp = query_params_parse(uri->query);
     if (!qp) {
         error_setg(errp, "could not parse query parameters");
-        goto out;
+        return -EINVAL;
     }
 
     qdict_put_str(options, "server.host", uri->server);
@@ -116,12 +116,12 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
         if (!qp->p[i].value) {
             error_setg(errp, "Value for NFS parameter expected: %s",
                        qp->p[i].name);
-            goto out;
+            return -EINVAL;
         }
         if (parse_uint_full(qp->p[i].value, &val, 0)) {
             error_setg(errp, "Illegal value for NFS parameter: %s",
                        qp->p[i].name);
-            goto out;
+            return -EINVAL;
         }
         if (!strcmp(qp->p[i].name, "uid")) {
             qdict_put_str(options, "user", qp->p[i].value);
@@ -138,18 +138,10 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
         } else {
             error_setg(errp, "Unknown NFS parameter name: %s",
                        qp->p[i].name);
-            goto out;
+            return -EINVAL;
         }
     }
-    ret = 0;
-out:
-    if (qp) {
-        query_params_free(qp);
-    }
-    if (uri) {
-        uri_free(uri);
-    }
-    return ret;
+    return 0;
 }
 
 static bool nfs_has_filename_options_conflict(QDict *options, Error **errp)
