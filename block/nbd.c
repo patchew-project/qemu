@@ -1516,10 +1516,9 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
 
 static int nbd_parse_uri(const char *filename, QDict *options)
 {
-    URI *uri;
+    g_autoptr(URI) uri = NULL;
+    g_autoptr(QueryParams) qp = NULL;
     const char *p;
-    QueryParams *qp = NULL;
-    int ret = 0;
     bool is_unix;
 
     uri = uri_parse(filename);
@@ -1535,8 +1534,7 @@ static int nbd_parse_uri(const char *filename, QDict *options)
     } else if (!g_strcmp0(uri->scheme, "nbd+unix")) {
         is_unix = true;
     } else {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     p = uri->path ? uri->path : "";
@@ -1549,26 +1547,23 @@ static int nbd_parse_uri(const char *filename, QDict *options)
 
     qp = query_params_parse(uri->query);
     if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
-        ret = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     if (is_unix) {
         /* nbd+unix:///export?socket=path */
         if (uri->server || uri->port || strcmp(qp->p[0].name, "socket")) {
-            ret = -EINVAL;
-            goto out;
+            return -EINVAL;
         }
         qdict_put_str(options, "server.type", "unix");
         qdict_put_str(options, "server.path", qp->p[0].value);
     } else {
         QString *host;
-        char *port_str;
+        g_autofree char *port_str = NULL;
 
         /* nbd[+tcp]://host[:port]/export */
         if (!uri->server) {
-            ret = -EINVAL;
-            goto out;
+            return -EINVAL;
         }
 
         /* strip braces from literal IPv6 address */
@@ -1584,15 +1579,9 @@ static int nbd_parse_uri(const char *filename, QDict *options)
 
         port_str = g_strdup_printf("%d", uri->port ?: NBD_DEFAULT_PORT);
         qdict_put_str(options, "server.port", port_str);
-        g_free(port_str);
     }
 
-out:
-    if (qp) {
-        query_params_free(qp);
-    }
-    uri_free(uri);
-    return ret;
+    return 0;
 }
 
 static bool nbd_has_filename_options_conflict(QDict *options, Error **errp)
