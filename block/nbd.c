@@ -31,7 +31,10 @@
 #include "qemu/osdep.h"
 
 #include "trace.h"
+#ifndef HAVE_GLIB_GURI
 #include "qemu/uri.h"
+#endif
+#include "qemu/error-report.h"
 #include "qemu/option.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
@@ -1513,31 +1516,77 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
 /*
  * Parse nbd_open options
  */
-
 static int nbd_parse_uri(const char *filename, QDict *options)
 {
+    const char *p, *scheme, *server, *socket = NULL;
+    int port;
+    bool is_unix;
+
+#ifdef HAVE_GLIB_GURI
+    g_autoptr(GUri) uri = NULL;
+    g_autoptr(GHashTable) params = NULL;
+    g_autoptr(GError) err = NULL;
+
+    uri = g_uri_parse(filename, G_URI_FLAGS_ENCODED_QUERY, &err);
+    if (!uri) {
+        error_report("Failed to parse NBD URI: %s", err->message);
+        return -EINVAL;
+    }
+
+    p = g_uri_get_path(uri);
+    scheme = g_uri_get_scheme(uri);
+    server = g_uri_get_host(uri);
+    port = g_uri_get_port(uri);
+#else
     g_autoptr(URI) uri = NULL;
     g_autoptr(QueryParams) qp = NULL;
-    const char *p;
-    bool is_unix;
 
     uri = uri_parse(filename);
     if (!uri) {
         return -EINVAL;
     }
 
+    p = uri->path ? uri->path : "";
+    scheme = uri->scheme;
+    server = uri->server;
+    port = uri->port;
+#endif
     /* transport */
-    if (!g_strcmp0(uri->scheme, "nbd")) {
+    if (!g_strcmp0(scheme, "nbd")) {
         is_unix = false;
-    } else if (!g_strcmp0(uri->scheme, "nbd+tcp")) {
+    } else if (!g_strcmp0(scheme, "nbd+tcp")) {
         is_unix = false;
-    } else if (!g_strcmp0(uri->scheme, "nbd+unix")) {
+    } else if (!g_strcmp0(scheme, "nbd+unix")) {
         is_unix = true;
     } else {
         return -EINVAL;
     }
-
-    p = uri->path ? uri->path : "";
+#ifdef HAVE_GLIB_GURI
+    params = g_uri_parse_params(g_uri_get_query(uri), -1,
+                                "&;", G_URI_PARAMS_NONE, &err);
+    if (err) {
+        error_report("Failed to parse NBD URI query: %s", err->message);
+        return -EINVAL;
+    }
+    if ((is_unix && g_hash_table_size(params) != 1) ||
+        (!is_unix && g_hash_table_size(params) != 0)) {
+        return -EINVAL;
+    }
+    if (is_unix) {
+        socket = g_hash_table_lookup(params, "socket");
+    }
+#else
+    qp = query_params_parse(uri->query);
+    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
+        return -EINVAL;
+    }
+    if (is_unix) {
+        if (!g_str_equal(qp->p[0].name, "socket")) {
+            return -EINVAL;
+        }
+        socket = qp->p[0].value;
+    }
+#endif
     if (p[0] == '/') {
         p++;
     }
@@ -1545,39 +1594,34 @@ static int nbd_parse_uri(const char *filename, QDict *options)
         qdict_put_str(options, "export", p);
     }
 
-    qp = query_params_parse(uri->query);
-    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
-        return -EINVAL;
-    }
-
     if (is_unix) {
         /* nbd+unix:///export?socket=path */
-        if (uri->server || uri->port || strcmp(qp->p[0].name, "socket")) {
+        if (server || port > 0) {
             return -EINVAL;
         }
         qdict_put_str(options, "server.type", "unix");
-        qdict_put_str(options, "server.path", qp->p[0].value);
+        qdict_put_str(options, "server.path", socket);
     } else {
         QString *host;
         g_autofree char *port_str = NULL;
 
         /* nbd[+tcp]://host[:port]/export */
-        if (!uri->server) {
+        if (!server) {
             return -EINVAL;
         }
 
         /* strip braces from literal IPv6 address */
-        if (uri->server[0] == '[') {
-            host = qstring_from_substr(uri->server, 1,
-                                       strlen(uri->server) - 1);
+        if (server[0] == '[') {
+            host = qstring_from_substr(server, 1,
+                                       strlen(server) - 1);
         } else {
-            host = qstring_from_str(uri->server);
+            host = qstring_from_str(server);
         }
 
         qdict_put_str(options, "server.type", "inet");
         qdict_put(options, "server.host", host);
 
-        port_str = g_strdup_printf("%d", uri->port ?: NBD_DEFAULT_PORT);
+        port_str = g_strdup_printf("%d", port > 0 ? port : NBD_DEFAULT_PORT);
         qdict_put_str(options, "server.port", port_str);
     }
 
