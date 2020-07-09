@@ -174,14 +174,12 @@ static QemuOptsList runtime_tcp_opts = {
  */
 static int vxhs_parse_uri(const char *filename, QDict *options)
 {
-    URI *uri = NULL;
-    char *port;
-    int ret = 0;
+    g_autoptr(URI) uri = NULL;
+    g_autofree char *port = NULL;
 
     trace_vxhs_parse_uri_filename(filename);
     uri = uri_parse(filename);
     if (!uri || !uri->server || !uri->path) {
-        uri_free(uri);
         return -EINVAL;
     }
 
@@ -190,15 +188,13 @@ static int vxhs_parse_uri(const char *filename, QDict *options)
     if (uri->port) {
         port = g_strdup_printf("%d", uri->port);
         qdict_put_str(options, VXHS_OPT_SERVER ".port", port);
-        g_free(port);
     }
 
     qdict_put_str(options, "vdisk-id", uri->path);
 
     trace_vxhs_parse_uri_hostinfo(uri->server, uri->port);
-    uri_free(uri);
 
-    return ret;
+    return 0;
 }
 
 static void vxhs_parse_filename(const char *filename, QDict *options,
