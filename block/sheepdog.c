@@ -986,39 +986,33 @@ static bool sd_parse_snapid_or_tag(const char *str,
 }
 
 typedef struct {
-    const char *path;           /* non-null iff transport is tcp */
-    const char *host;           /* valid when transport is tcp */
+    char *path;                 /* non-null iff transport is tcp */
+    char *host;                 /* valid when transport is tcp */
     int port;                   /* valid when transport is tcp */
     char vdi[SD_MAX_VDI_LEN];
     char tag[SD_MAX_VDI_TAG_LEN];
     uint32_t snap_id;
-    /* Remainder is only for sd_config_done() */
-    URI *uri;
-    QueryParams *qp;
 } SheepdogConfig;
 
 static void sd_config_done(SheepdogConfig *cfg)
 {
-    if (cfg->qp) {
-        query_params_free(cfg->qp);
-    }
-    uri_free(cfg->uri);
+    g_clear_pointer(&cfg->host, g_free);
+    g_clear_pointer(&cfg->path, g_free);
 }
 
 static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
                          Error **errp)
 {
-    Error *err = NULL;
-    QueryParams *qp = NULL;
+    g_autoptr(QueryParams) qp = NULL;
+    g_autoptr(URI) uri = NULL;
     bool is_unix;
-    URI *uri;
 
     memset(cfg, 0, sizeof(*cfg));
 
-    cfg->uri = uri = uri_parse(filename);
+    uri = uri_parse(filename);
     if (!uri) {
-        error_setg(&err, "invalid URI '%s'", filename);
-        goto out;
+        error_setg(errp, "invalid URI '%s'", filename);
+        return;
     }
 
     /* transport */
@@ -1029,48 +1023,48 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     } else if (!g_strcmp0(uri->scheme, "sheepdog+unix")) {
         is_unix = true;
     } else {
-        error_setg(&err, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
+        error_setg(errp, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
                    " or 'sheepdog+unix'");
-        goto out;
+        return;
     }
 
     if (uri->path == NULL || !strcmp(uri->path, "/")) {
-        error_setg(&err, "missing file path in URI");
-        goto out;
+        error_setg(errp, "missing file path in URI");
+        return;
     }
     if (g_strlcpy(cfg->vdi, uri->path + 1, SD_MAX_VDI_LEN)
         >= SD_MAX_VDI_LEN) {
-        error_setg(&err, "VDI name is too long");
-        goto out;
+        error_setg(errp, "VDI name is too long");
+        return;
     }
 
-    cfg->qp = qp = query_params_parse(uri->query);
+    qp = query_params_parse(uri->query);
 
     if (is_unix) {
         /* sheepdog+unix:///vdiname?socket=path */
         if (uri->server || uri->port) {
-            error_setg(&err, "URI scheme %s doesn't accept a server address",
+            error_setg(errp, "URI scheme %s doesn't accept a server address",
                        uri->scheme);
-            goto out;
+            return;
         }
         if (!qp->n) {
-            error_setg(&err,
+            error_setg(errp,
                        "URI scheme %s requires query parameter 'socket'",
                        uri->scheme);
-            goto out;
+            return;
         }
         if (qp->n != 1 || strcmp(qp->p[0].name, "socket")) {
-            error_setg(&err, "unexpected query parameters");
-            goto out;
+            error_setg(errp, "unexpected query parameters");
+            return;
         }
-        cfg->path = qp->p[0].value;
+        cfg->path = g_strdup(qp->p[0].value);
     } else {
         /* sheepdog[+tcp]://[host:port]/vdiname */
         if (qp->n) {
-            error_setg(&err, "unexpected query parameters");
-            goto out;
+            error_setg(errp, "unexpected query parameters");
+            return;
         }
-        cfg->host = uri->server;
+        cfg->host = g_strdup(uri->server);
         cfg->port = uri->port;
     }
 
@@ -1078,18 +1072,12 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
     if (uri->fragment) {
         if (!sd_parse_snapid_or_tag(uri->fragment,
                                     &cfg->snap_id, cfg->tag)) {
-            error_setg(&err, "'%s' is not a valid snapshot ID",
+            error_setg(errp, "'%s' is not a valid snapshot ID",
                        uri->fragment);
-            goto out;
+            return;
         }
     } else {
         cfg->snap_id = CURRENT_VDI_ID; /* search current vdi */
-    }
-
-out:
-    if (err) {
-        error_propagate(errp, err);
-        sd_config_done(cfg);
     }
 }
 
@@ -1184,7 +1172,7 @@ static void sd_parse_filename(const char *filename, QDict *options,
     }
     if (err) {
         error_propagate(errp, err);
-        return;
+        goto end;
     }
 
     if (cfg.path) {
@@ -1203,7 +1191,7 @@ static void sd_parse_filename(const char *filename, QDict *options,
         snprintf(buf, sizeof(buf), "%d", cfg.snap_id);
         qdict_set_default_str(options, "snap-id", buf);
     }
-
+end:
     sd_config_done(&cfg);
 }
 
