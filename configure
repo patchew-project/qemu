@@ -3924,6 +3924,10 @@ if $pkg_config --atleast-version=$glib_req_ver gio-unix-2.0; then
     gio_libs="$gio_libs $($pkg_config --libs gio-unix-2.0)"
 fi
 
+if $pkg_config --atleast-version=2.65.0 glib-2.0; then
+    glib_guri=yes
+fi
+
 # Sanity check that the current size_t matches the
 # size that glib thinks it should be. This catches
 # problems on multi-arch where people try to build
@@ -7376,6 +7380,9 @@ if test "$gio" = "yes" ; then
     echo "GIO_CFLAGS=$gio_cflags" >> $config_host_mak
     echo "GIO_LIBS=$gio_libs" >> $config_host_mak
     echo "GDBUS_CODEGEN=$gdbus_codegen" >> $config_host_mak
+fi
+if test "$glib_guri" = "yes" ; then
+    echo "HAVE_GLIB_GURI=y" >> $config_host_mak
 fi
 echo "CONFIG_TLS_PRIORITY=\"$tls_priority\"" >> $config_host_mak
 if test "$gnutls" = "yes" ; then
