@@ -1003,24 +1003,48 @@ static void sd_config_done(SheepdogConfig *cfg)
 static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
                          Error **errp)
 {
-    g_autoptr(QueryParams) qp = NULL;
-    g_autoptr(URI) uri = NULL;
+    const char *scheme, *server, *path, *fragment, *socket = NULL;
+    int port;
     bool is_unix;
 
-    memset(cfg, 0, sizeof(*cfg));
+#ifdef HAVE_GLIB_GURI
+    g_autoptr(GUri) uri = NULL;
+    g_autoptr(GHashTable) params = NULL;
+    g_autoptr(GError) err = NULL;
+
+    uri = g_uri_parse(filename, G_URI_FLAGS_ENCODED_QUERY, &err);
+    if (!uri) {
+        error_report("Failed to parse sheepdog URI: %s", err->message);
+        return;
+    }
+    scheme = g_uri_get_scheme(uri);
+    server = g_uri_get_host(uri);
+    port = g_uri_get_port(uri);
+    path = g_uri_get_path(uri);
+    fragment = g_uri_get_fragment(uri);
+#else
+    g_autoptr(QueryParams) qp = NULL;
+    g_autoptr(URI) uri = NULL;
 
     uri = uri_parse(filename);
     if (!uri) {
         error_setg(errp, "invalid URI '%s'", filename);
         return;
     }
+    scheme = uri->scheme;
+    server = uri->server;
+    port = uri->port;
+    path = uri->path;
+    fragment = uri->fragment;
+#endif
+    memset(cfg, 0, sizeof(*cfg));
 
     /* transport */
-    if (!g_strcmp0(uri->scheme, "sheepdog")) {
+    if (!g_strcmp0(scheme, "sheepdog")) {
         is_unix = false;
-    } else if (!g_strcmp0(uri->scheme, "sheepdog+tcp")) {
+    } else if (!g_strcmp0(scheme, "sheepdog+tcp")) {
         is_unix = false;
-    } else if (!g_strcmp0(uri->scheme, "sheepdog+unix")) {
+    } else if (!g_strcmp0(scheme, "sheepdog+unix")) {
         is_unix = true;
     } else {
         error_setg(errp, "URI scheme must be 'sheepdog', 'sheepdog+tcp',"
@@ -1028,52 +1052,71 @@ static void sd_parse_uri(SheepdogConfig *cfg, const char *filename,
         return;
     }
 
-    if (uri->path == NULL || !strcmp(uri->path, "/")) {
+#ifdef HAVE_GLIB_GURI
+    params = g_uri_parse_params(g_uri_get_query(uri), -1,
+                                "&;", G_URI_PARAMS_NONE, &err);
+    if (err) {
+        error_report("Failed to parse sheepdog URI query: %s", err->message);
+        return;
+    }
+    if ((is_unix && g_hash_table_size(params) != 1) ||
+        (!is_unix && g_hash_table_size(params) != 0)) {
+        error_setg(errp, "unexpected query parameters");
+        return;
+    }
+    if (is_unix) {
+        socket = g_hash_table_lookup(params, "socket");
+    }
+#else
+    qp = query_params_parse(uri->query);
+    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
+        error_setg(errp, "unexpected query parameters");
+        return;
+    }
+    if (is_unix) {
+        if (!g_str_equal(qp->p[0].name, "socket")) {
+            error_setg(errp, "unexpected query parameters");
+            return;
+        }
+        socket = qp->p[0].value;
+    }
+#endif
+    if (path == NULL || !strcmp(path, "/")) {
         error_setg(errp, "missing file path in URI");
         return;
     }
-    if (g_strlcpy(cfg->vdi, uri->path + 1, SD_MAX_VDI_LEN)
+    if (g_strlcpy(cfg->vdi, path + 1, SD_MAX_VDI_LEN)
         >= SD_MAX_VDI_LEN) {
         error_setg(errp, "VDI name is too long");
         return;
     }
 
-    qp = query_params_parse(uri->query);
-
     if (is_unix) {
         /* sheepdog+unix:///vdiname?socket=path */
-        if (uri->server || uri->port) {
+        if (server || port > 0) {
             error_setg(errp, "URI scheme %s doesn't accept a server address",
-                       uri->scheme);
+                       scheme);
             return;
         }
-        if (!qp->n) {
+        if (!socket) {
             error_setg(errp,
                        "URI scheme %s requires query parameter 'socket'",
-                       uri->scheme);
+                       scheme);
             return;
         }
-        if (qp->n != 1 || strcmp(qp->p[0].name, "socket")) {
-            error_setg(errp, "unexpected query parameters");
-            return;
-        }
-        cfg->path = g_strdup(qp->p[0].value);
+        cfg->path = g_strdup(socket);
     } else {
         /* sheepdog[+tcp]://[host:port]/vdiname */
-        if (qp->n) {
-            error_setg(errp, "unexpected query parameters");
-            return;
-        }
-        cfg->host = g_strdup(uri->server);
-        cfg->port = uri->port;
+        cfg->host = g_strdup(server);
+        cfg->port = port;
     }
 
     /* snapshot tag */
-    if (uri->fragment) {
-        if (!sd_parse_snapid_or_tag(uri->fragment,
+    if (fragment) {
+        if (!sd_parse_snapid_or_tag(fragment,
                                     &cfg->snap_id, cfg->tag)) {
             error_setg(errp, "'%s' is not a valid snapshot ID",
-                       uri->fragment);
+                       fragment);
             return;
         }
     } else {
