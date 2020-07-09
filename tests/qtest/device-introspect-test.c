@@ -105,13 +105,8 @@ static void test_one_device(QTestState *qts, const char *type)
 {
     QDict *resp;
     char *help;
-    char *qom_tree_start, *qom_tree_end;
-    char *qtree_start, *qtree_end;
 
     g_test_message("Testing device '%s'", type);
-
-    qom_tree_start = qtest_hmp(qts, "info qom-tree");
-    qtree_start = qtest_hmp(qts, "info qtree");
 
     resp = qtest_qmp(qts, "{'execute': 'device-list-properties',"
                           " 'arguments': {'typename': %s}}",
@@ -120,21 +115,6 @@ static void test_one_device(QTestState *qts, const char *type)
 
     help = qtest_hmp(qts, "device_add \"%s,help\"", type);
     g_free(help);
-
-    /*
-     * Some devices leave dangling pointers in QOM behind.
-     * "info qom-tree" or "info qtree" have a good chance at crashing then.
-     * Also make sure that the tree did not change.
-     */
-    qom_tree_end = qtest_hmp(qts, "info qom-tree");
-    g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
-    g_free(qom_tree_start);
-    g_free(qom_tree_end);
-
-    qtree_end = qtest_hmp(qts, "info qtree");
-    g_assert_cmpstr(qtree_start, ==, qtree_end);
-    g_free(qtree_start);
-    g_free(qtree_end);
 }
 
 static void test_device_intro_list(void)
@@ -232,9 +212,16 @@ static void test_device_intro_concrete(const void *args)
     QListEntry *entry;
     const char *type;
     QTestState *qts;
+    g_autofree char *qom_tree_start = NULL;
+    g_autofree char *qom_tree_end = NULL;
+    g_autofree char *qtree_start = NULL;
+    g_autofree char *qtree_end = NULL;
 
     qts = qtest_init(args);
     types = device_type_list(qts, false);
+
+    qom_tree_start = qtest_hmp(qts, "info qom-tree");
+    qtree_start = qtest_hmp(qts, "info qtree");
 
     QLIST_FOREACH_ENTRY(types, entry) {
         type = qdict_get_try_str(qobject_to(QDict, qlist_entry_obj(entry)),
@@ -242,6 +229,17 @@ static void test_device_intro_concrete(const void *args)
         g_assert(type);
         test_one_device(qts, type);
     }
+
+    /*
+     * Some devices leave dangling pointers in QOM behind.
+     * "info qom-tree" or "info qtree" have a good chance at crashing then.
+     * Also make sure that the tree did not change.
+     */
+    qom_tree_end = qtest_hmp(qts, "info qom-tree");
+    g_assert_cmpstr(qom_tree_start, ==, qom_tree_end);
+
+    qtree_end = qtest_hmp(qts, "info qtree");
+    g_assert_cmpstr(qtree_start, ==, qtree_end);
 
     qobject_unref(types);
     qtest_quit(qts);
