@@ -180,28 +180,41 @@ static void sftp_error_trace(BDRVSSHState *s, const char *op)
 
 static int parse_uri(const char *filename, QDict *options, Error **errp)
 {
+    g_autofree char *port_str = NULL;
+    const char *scheme, *server, *path, *user, *key, *value;
+    gint port;
+
+#ifdef HAVE_GLIB_GURI
+    g_autoptr(GUri) uri = NULL;
+    g_autoptr(GHashTable) params = NULL;
+    g_autoptr(GError) err = NULL;
+    GHashTableIter iter;
+
+    uri = g_uri_parse(filename, G_URI_FLAGS_ENCODED_QUERY, &err);
+    if (!uri) {
+        error_setg(errp, "Failed to parse SSH URI: %s", err->message);
+        return -EINVAL;
+    }
+
+    params = g_uri_parse_params(g_uri_get_query(uri), -1,
+                                "&;", G_URI_PARAMS_NONE, &err);
+    if (err) {
+        error_report("Failed to parse SSH URI query: %s", err->message);
+        return -EINVAL;
+    }
+
+    scheme = g_uri_get_scheme(uri);
+    user = g_uri_get_user(uri);
+    server = g_uri_get_host(uri);
+    path = g_uri_get_path(uri);
+    port = g_uri_get_port(uri);
+#else
     g_autoptr(URI) uri = NULL;
     g_autoptr(QueryParams) qp = NULL;
-    g_autofree char *port_str = NULL;
     int i;
 
     uri = uri_parse(filename);
     if (!uri) {
-        return -EINVAL;
-    }
-
-    if (g_strcmp0(uri->scheme, "ssh") != 0) {
-        error_setg(errp, "URI scheme must be 'ssh'");
-        return -EINVAL;
-    }
-
-    if (!uri->server || strcmp(uri->server, "") == 0) {
-        error_setg(errp, "missing hostname in URI");
-        return -EINVAL;
-    }
-
-    if (!uri->path || strcmp(uri->path, "") == 0) {
-        error_setg(errp, "missing remote path in URI");
         return -EINVAL;
     }
 
@@ -211,23 +224,51 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
         return -EINVAL;
     }
 
-    if(uri->user && strcmp(uri->user, "") != 0) {
-        qdict_put_str(options, "user", uri->user);
+    scheme = uri->scheme;
+    user = uri->user;
+    server = uri->server;
+    path = uri->path;
+    port = uri->port;
+#endif
+    if (g_strcmp0(scheme, "ssh") != 0) {
+        error_setg(errp, "URI scheme must be 'ssh'");
+        return -EINVAL;
     }
 
-    qdict_put_str(options, "server.host", uri->server);
+    if (!server || strcmp(server, "") == 0) {
+        error_setg(errp, "missing hostname in URI");
+        return -EINVAL;
+    }
 
-    port_str = g_strdup_printf("%d", uri->port ?: 22);
+    if (!path || strcmp(path, "") == 0) {
+        error_setg(errp, "missing remote path in URI");
+        return -EINVAL;
+    }
+
+    if (user && strcmp(user, "") != 0) {
+        qdict_put_str(options, "user", user);
+    }
+
+    qdict_put_str(options, "server.host", server);
+
+    port_str = g_strdup_printf("%d", port ?: 22);
     qdict_put_str(options, "server.port", port_str);
 
-    qdict_put_str(options, "path", uri->path);
+    qdict_put_str(options, "path", path);
 
     /* Pick out any query parameters that we understand, and ignore
      * the rest.
      */
+#ifdef HAVE_GLIB_GURI
+    g_hash_table_iter_init(&iter, params);
+    while (g_hash_table_iter_next(&iter, (void **)&key, (void **)&value)) {
+#else
     for (i = 0; i < qp->n; ++i) {
-        if (strcmp(qp->p[i].name, "host_key_check") == 0) {
-            qdict_put_str(options, "host_key_check", qp->p[i].value);
+        key = qp->p[i].name;
+        value = qp->p[i].value;
+#endif
+        if (g_strcmp0(key, "host_key_check") == 0) {
+            qdict_put_str(options, "host_key_check", value);
         }
     }
 
