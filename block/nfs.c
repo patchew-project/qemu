@@ -77,6 +77,31 @@ typedef struct NFSRPC {
 
 static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
 {
+    const char *scheme, *server, *path, *key, *value;
+
+#ifdef HAVE_GLIB_GURI
+    g_autoptr(GUri) uri = NULL;
+    g_autoptr(GHashTable) params = NULL;
+    g_autoptr(GError) err = NULL;
+    GHashTableIter iter;
+
+    uri = g_uri_parse(filename, G_URI_FLAGS_ENCODED_QUERY, &err);
+    if (!uri) {
+        error_setg(errp, "Failed to parse NFS URI: %s", err->message);
+        return -EINVAL;
+    }
+
+    params = g_uri_parse_params(g_uri_get_query(uri), -1,
+                                "&;", G_URI_PARAMS_NONE, &err);
+    if (err) {
+        error_report("Failed to parse NFS URI query: %s", err->message);
+        return -EINVAL;
+    }
+
+    scheme = g_uri_get_scheme(uri);
+    server = g_uri_get_host(uri);
+    path = g_uri_get_path(uri);
+#else
     g_autoptr(URI) uri = NULL;
     g_autoptr(QueryParams) qp = NULL;
     int i;
@@ -86,20 +111,6 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
         error_setg(errp, "Invalid URI specified");
         return -EINVAL;
     }
-    if (g_strcmp0(uri->scheme, "nfs") != 0) {
-        error_setg(errp, "URI scheme must be 'nfs'");
-        return -EINVAL;
-    }
-
-    if (!uri->server) {
-        error_setg(errp, "missing hostname in URI");
-        return -EINVAL;
-    }
-
-    if (!uri->path) {
-        error_setg(errp, "missing file path in URI");
-        return -EINVAL;
-    }
 
     qp = query_params_parse(uri->query);
     if (!qp) {
@@ -107,37 +118,60 @@ static int nfs_parse_uri(const char *filename, QDict *options, Error **errp)
         return -EINVAL;
     }
 
-    qdict_put_str(options, "server.host", uri->server);
-    qdict_put_str(options, "server.type", "inet");
-    qdict_put_str(options, "path", uri->path);
+    scheme = uri->scheme;
+    server = uri->server;
+    path = uri->path;
+#endif
+    if (g_strcmp0(scheme, "nfs") != 0) {
+        error_setg(errp, "URI scheme must be 'nfs'");
+        return -EINVAL;
+    }
 
+    if (!server) {
+        error_setg(errp, "missing hostname in URI");
+        return -EINVAL;
+    }
+
+    if (!path) {
+        error_setg(errp, "missing file path in URI");
+        return -EINVAL;
+    }
+
+    qdict_put_str(options, "server.host", server);
+    qdict_put_str(options, "server.type", "inet");
+    qdict_put_str(options, "path", path);
+
+#ifdef HAVE_GLIB_GURI
+    g_hash_table_iter_init(&iter, params);
+    while (g_hash_table_iter_next(&iter, (void **)&key, (void **)&value)) {
+#else
     for (i = 0; i < qp->n; i++) {
+        key = qp->p[i].name;
+        value = qp->p[i].value;
+#endif
         unsigned long long val;
-        if (!qp->p[i].value) {
-            error_setg(errp, "Value for NFS parameter expected: %s",
-                       qp->p[i].name);
+        if (!value) {
+            error_setg(errp, "Value for NFS parameter expected: %s", key);
             return -EINVAL;
         }
-        if (parse_uint_full(qp->p[i].value, &val, 0)) {
-            error_setg(errp, "Illegal value for NFS parameter: %s",
-                       qp->p[i].name);
+        if (parse_uint_full(value, &val, 0)) {
+            error_setg(errp, "Illegal value for NFS parameter: %s", key);
             return -EINVAL;
         }
-        if (!strcmp(qp->p[i].name, "uid")) {
-            qdict_put_str(options, "user", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "gid")) {
-            qdict_put_str(options, "group", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "tcp-syncnt")) {
-            qdict_put_str(options, "tcp-syn-count", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "readahead")) {
-            qdict_put_str(options, "readahead-size", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "pagecache")) {
-            qdict_put_str(options, "page-cache-size", qp->p[i].value);
-        } else if (!strcmp(qp->p[i].name, "debug")) {
-            qdict_put_str(options, "debug", qp->p[i].value);
+        if (!strcmp(key, "uid")) {
+            qdict_put_str(options, "user", value);
+        } else if (!strcmp(key, "gid")) {
+            qdict_put_str(options, "group", value);
+        } else if (!strcmp(key, "tcp-syncnt")) {
+            qdict_put_str(options, "tcp-syn-count", value);
+        } else if (!strcmp(key, "readahead")) {
+            qdict_put_str(options, "readahead-size", value);
+        } else if (!strcmp(key, "pagecache")) {
+            qdict_put_str(options, "page-cache-size", value);
+        } else if (!strcmp(key, "debug")) {
+            qdict_put_str(options, "debug", value);
         } else {
-            error_setg(errp, "Unknown NFS parameter name: %s",
-                       qp->p[i].name);
+            error_setg(errp, "Unknown NFS parameter name: %s", key);
             return -EINVAL;
         }
     }
