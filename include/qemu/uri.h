@@ -105,6 +105,9 @@ struct QueryParams *query_params_new (int init_alloc);
 extern QueryParams *query_params_parse (const char *query);
 extern void query_params_free (QueryParams *ps);
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(URI, uri_free)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(QueryParams, query_params_free)
+
 #ifdef __cplusplus
 }
 #endif
