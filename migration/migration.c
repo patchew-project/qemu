@@ -1529,10 +1529,13 @@ void qmp_migrate_set_parameters(MigrateSetParameters *params, Error **errp)
 
     if (!migrate_params_check(&tmp, errp)) {
         /* Invalid parameter */
-        return;
+        goto out;
     }
 
     migrate_params_apply(params, errp);
+out:
+    g_free(tmp.tls_hostname);
+    g_free(tmp.tls_creds);
 }
 
 
