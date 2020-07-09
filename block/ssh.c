@@ -180,9 +180,9 @@ static void sftp_error_trace(BDRVSSHState *s, const char *op)
 
 static int parse_uri(const char *filename, QDict *options, Error **errp)
 {
-    URI *uri = NULL;
-    QueryParams *qp;
-    char *port_str;
+    g_autoptr(URI) uri = NULL;
+    g_autoptr(QueryParams) qp = NULL;
+    g_autofree char *port_str = NULL;
     int i;
 
     uri = uri_parse(filename);
@@ -192,23 +192,23 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
 
     if (g_strcmp0(uri->scheme, "ssh") != 0) {
         error_setg(errp, "URI scheme must be 'ssh'");
-        goto err;
+        return -EINVAL;
     }
 
     if (!uri->server || strcmp(uri->server, "") == 0) {
         error_setg(errp, "missing hostname in URI");
-        goto err;
+        return -EINVAL;
     }
 
     if (!uri->path || strcmp(uri->path, "") == 0) {
         error_setg(errp, "missing remote path in URI");
-        goto err;
+        return -EINVAL;
     }
 
     qp = query_params_parse(uri->query);
     if (!qp) {
         error_setg(errp, "could not parse query parameters");
-        goto err;
+        return -EINVAL;
     }
 
     if(uri->user && strcmp(uri->user, "") != 0) {
@@ -219,7 +219,6 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
 
     port_str = g_strdup_printf("%d", uri->port ?: 22);
     qdict_put_str(options, "server.port", port_str);
-    g_free(port_str);
 
     qdict_put_str(options, "path", uri->path);
 
@@ -232,15 +231,7 @@ static int parse_uri(const char *filename, QDict *options, Error **errp)
         }
     }
 
-    query_params_free(qp);
-    uri_free(uri);
     return 0;
-
- err:
-    if (uri) {
-      uri_free(uri);
-    }
-    return -EINVAL;
 }
 
 static bool ssh_has_filename_options_conflict(QDict *options, Error **errp)
