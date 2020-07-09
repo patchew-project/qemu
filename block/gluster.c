@@ -288,9 +288,9 @@ static void glfs_clear_preopened(glfs_t *fs)
     }
 }
 
-static int parse_volume_options(BlockdevOptionsGluster *gconf, char *path)
+static int parse_volume_options(BlockdevOptionsGluster *gconf, const char *path)
 {
-    char *p, *q;
+    const char *p, *q;
 
     if (!path) {
         return -EINVAL;
@@ -349,13 +349,59 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
                                   const char *filename)
 {
     SocketAddress *gsconf;
+    bool is_unix = false;
+    int ret, port;
+    const char *scheme, *server, *path, *key = NULL, *value = NULL;
+    size_t nparams;
+
+#ifdef HAVE_GLIB_GURI
+    g_autoptr(GUri) uri = NULL;
+    g_autoptr(GHashTable) params = NULL;
+    g_autoptr(GError) err = NULL;
+
+    uri = g_uri_parse(filename, G_URI_FLAGS_ENCODED_QUERY, &err);
+    if (!uri) {
+        error_report("Failed to parse gluster URI: %s", err->message);
+        return -EINVAL;
+    }
+
+    params = g_uri_parse_params(g_uri_get_query(uri), -1,
+                                "&;", G_URI_PARAMS_NONE, &err);
+    if (err) {
+        error_report("Failed to parse gluster URI query: %s", err->message);
+        return -EINVAL;
+    }
+
+    scheme = g_uri_get_scheme(uri);
+    server = g_uri_get_host(uri);
+    port = g_uri_get_port(uri);
+    path = g_uri_get_path(uri);
+    nparams = g_hash_table_size(params);
+    g_hash_table_lookup_extended(params, "socket",
+                                 (void **)&key, (void **)&value);
+#else
     g_autoptr(URI) uri = NULL;
     g_autoptr(QueryParams) qp = NULL;
-    bool is_unix = false;
-    int ret;
 
     uri = uri_parse(filename);
     if (!uri) {
+        return -EINVAL;
+    }
+
+    qp = query_params_parse(uri->query);
+
+    scheme = uri->scheme;
+    server = uri->server;
+    port = uri->port;
+    path = uri->path;
+    nparams = qp->n;
+    if (nparams > 0) {
+        key = qp->p[0].name;
+        value = qp->p[0].value;
+    }
+#endif
+
+    if (nparams > 1 || (is_unix && !nparams) || (!is_unix && nparams)) {
         return -EINVAL;
     }
 
@@ -363,42 +409,37 @@ static int qemu_gluster_parse_uri(BlockdevOptionsGluster *gconf,
     gconf->server->value = gsconf = g_new0(SocketAddress, 1);
 
     /* transport */
-    if (!uri->scheme || !strcmp(uri->scheme, "gluster")) {
+    if (!scheme || !strcmp(scheme, "gluster")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
-    } else if (!strcmp(uri->scheme, "gluster+tcp")) {
+    } else if (!strcmp(scheme, "gluster+tcp")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
-    } else if (!strcmp(uri->scheme, "gluster+unix")) {
+    } else if (!strcmp(scheme, "gluster+unix")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_UNIX;
         is_unix = true;
-    } else if (!strcmp(uri->scheme, "gluster+rdma")) {
+    } else if (!strcmp(scheme, "gluster+rdma")) {
         gsconf->type = SOCKET_ADDRESS_TYPE_INET;
         warn_report("rdma feature is not supported, falling back to tcp");
     } else {
         return -EINVAL;
     }
 
-    ret = parse_volume_options(gconf, uri->path);
+    ret = parse_volume_options(gconf, path);
     if (ret < 0) {
         return ret;
     }
 
-    qp = query_params_parse(uri->query);
-    if (qp->n > 1 || (is_unix && !qp->n) || (!is_unix && qp->n)) {
-        return -EINVAL;
-    }
-
     if (is_unix) {
-        if (uri->server || uri->port) {
+        if (server || port) {
             return -EINVAL;
         }
-        if (strcmp(qp->p[0].name, "socket")) {
+        if (g_strcmp0(key, "socket")) {
             return -EINVAL;
         }
-        gsconf->u.q_unix.path = g_strdup(qp->p[0].value);
+        gsconf->u.q_unix.path = g_strdup(value);
     } else {
-        gsconf->u.inet.host = g_strdup(uri->server ? uri->server : "localhost");
-        if (uri->port) {
-            gsconf->u.inet.port = g_strdup_printf("%d", uri->port);
+        gsconf->u.inet.host = g_strdup(server ? server : "localhost");
+        if (port) {
+            gsconf->u.inet.port = g_strdup_printf("%d", port);
         } else {
             gsconf->u.inet.port = g_strdup_printf("%d", GLUSTER_DEFAULT_PORT);
         }
