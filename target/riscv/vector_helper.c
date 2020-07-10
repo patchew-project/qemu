@@ -4473,6 +4473,44 @@ GEN_VEXT_V_ENV(vfcvt_f_x_v_h, 2, 2, clearh)
 GEN_VEXT_V_ENV(vfcvt_f_x_v_w, 4, 4, clearl)
 GEN_VEXT_V_ENV(vfcvt_f_x_v_d, 8, 8, clearq)
 
+#define FCVT_RTZ_F_V(STYPE, DTYPE)                                   \
+static DTYPE##_t STYPE##_to_##DTYPE##_rtz(STYPE a, float_status * s) \
+{                                                                    \
+    signed char frm = s->float_rounding_mode;                        \
+    s->float_rounding_mode = float_round_to_zero;                    \
+    DTYPE##_t result = STYPE##_to_##DTYPE(a, s);                     \
+    s->float_rounding_mode = frm;                                    \
+    return result;                                                   \
+}
+
+/*
+ * vfcvt.rtz.xu.f.v vd, vs2, vm
+ * Convert float to unsigned integer, truncating.
+ */
+FCVT_RTZ_F_V(float16, uint16)
+FCVT_RTZ_F_V(float32, uint32)
+FCVT_RTZ_F_V(float64, uint64)
+RVVCALL(OPFVV1, vfcvt_rtz_xu_f_v_h, OP_UU_H, H2, H2, float16_to_uint16_rtz)
+RVVCALL(OPFVV1, vfcvt_rtz_xu_f_v_w, OP_UU_W, H4, H4, float32_to_uint32_rtz)
+RVVCALL(OPFVV1, vfcvt_rtz_xu_f_v_d, OP_UU_D, H8, H8, float64_to_uint64_rtz)
+GEN_VEXT_V_ENV(vfcvt_rtz_xu_f_v_h, 2, 2, clearh)
+GEN_VEXT_V_ENV(vfcvt_rtz_xu_f_v_w, 4, 4, clearl)
+GEN_VEXT_V_ENV(vfcvt_rtz_xu_f_v_d, 8, 8, clearq)
+
+/*
+ * vfcvt.rtz.x.f.v  vd, vs2, vm
+ * Convert float to signed integer, truncating.
+ */
+FCVT_RTZ_F_V(float16, int16)
+FCVT_RTZ_F_V(float32, int32)
+FCVT_RTZ_F_V(float64, int64)
+RVVCALL(OPFVV1, vfcvt_rtz_x_f_v_h, OP_UU_H, H2, H2, float16_to_int16_rtz)
+RVVCALL(OPFVV1, vfcvt_rtz_x_f_v_w, OP_UU_W, H4, H4, float32_to_int32_rtz)
+RVVCALL(OPFVV1, vfcvt_rtz_x_f_v_d, OP_UU_D, H8, H8, float64_to_int64_rtz)
+GEN_VEXT_V_ENV(vfcvt_rtz_x_f_v_h, 2, 2, clearh)
+GEN_VEXT_V_ENV(vfcvt_rtz_x_f_v_w, 4, 4, clearl)
+GEN_VEXT_V_ENV(vfcvt_rtz_x_f_v_d, 8, 8, clearq)
+
 /* Widening Floating-Point/Integer Type-Convert Instructions */
 /* (TD, T2, TX2) */
 #define WOP_UU_H uint32_t, uint16_t, uint16_t
