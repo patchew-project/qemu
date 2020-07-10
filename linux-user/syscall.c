@@ -58,6 +58,7 @@
 #include <linux/icmpv6.h>
 #include <linux/errqueue.h>
 #include <linux/random.h>
+#include <linux/if_tun.h>
 #ifdef CONFIG_TIMERFD
 #include <sys/timerfd.h>
 #endif

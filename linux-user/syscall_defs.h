@@ -859,6 +859,27 @@ struct target_rtc_pll_info {
 #define TARGET_SIOCSIFPFLAGS   0x8934          /* set extended flags          */
 #define TARGET_SIOCGIFPFLAGS   0x8935          /* get extended flags          */
 
+/* if_tun ioctls */
+#define TARGET_TUNGETFEATURES   TARGET_IOR('T', 207, unsigned int)
+#define TARGET_TUNGETIFF        TARGET_IOR('T', 210, unsigned int)
+#define TARGET_TUNGETSNDBUF     TARGET_IOR('T', 211, int)
+#define TARGET_TUNGETVNETHDRSZ  TARGET_IOR('T', 215, int)
+#define TARGET_TUNGETVNETLE     TARGET_IOR('T', 221, int)
+#define TARGET_TUNSETDEBUG      TARGET_IOW('T', 201, int)
+#define TARGET_TUNSETGROUP      TARGET_IOW('T', 206, int)
+#define TARGET_TUNSETIFF        TARGET_IOW('T', 202, int)
+#define TARGET_TUNSETIFINDEX    TARGET_IOW('T', 218, unsigned int)
+#define TARGET_TUNSETLINK       TARGET_IOW('T', 205, int)
+#define TARGET_TUNSETNOCSUM     TARGET_IOW('T', 200, int)
+#define TARGET_TUNSETOFFLOAD    TARGET_IOW('T', 208, unsigned int)
+#define TARGET_TUNSETOWNER      TARGET_IOW('T', 204, int)
+#define TARGET_TUNSETPERSIST    TARGET_IOW('T', 203, int)
+#define TARGET_TUNSETQUEUE      TARGET_IOW('T', 217, int)
+#define TARGET_TUNSETSNDBUF     TARGET_IOW('T', 212, int)
+#define TARGET_TUNSETTXFILTER   TARGET_IOW('T', 209, unsigned int)
+#define TARGET_TUNSETVNETHDRSZ  TARGET_IOW('T', 216, int)
+#define TARGET_TUNSETVNETLE     TARGET_IOW('T', 220, int)
+
 /* Bridging control calls */
 #define TARGET_SIOCGIFBR       0x8940          /* Bridging support             */
 #define TARGET_SIOCSIFBR       0x8941          /* Set bridging options         */
