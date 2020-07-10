@@ -224,17 +224,20 @@ static void xgmac_enet_send(XgmacState *s)
             DEBUGF_BRK("qemu:%s:ERROR...ERROR...ERROR... -- "
                         "xgmac buffer 1 len on send > 2048 (0x%x)\n",
                          __func__, bd.buffer1_size & 0xfff);
+            break;
         }
         if ((bd.buffer2_size & 0xfff) != 0) {
             DEBUGF_BRK("qemu:%s:ERROR...ERROR...ERROR... -- "
                         "xgmac buffer 2 len on send != 0 (0x%x)\n",
                         __func__, bd.buffer2_size & 0xfff);
+            break;
         }
-        if (len >= sizeof(frame)) {
+        if (frame_size + len >= sizeof(frame)) {
             DEBUGF_BRK("qemu:%s: buffer overflow %d read into %zu "
-                        "buffer\n" , __func__, len, sizeof(frame));
+                        "buffer\n" , __func__, frame_size + len, sizeof(frame));
             DEBUGF_BRK("qemu:%s: buffer1.size=%d; buffer2.size=%d\n",
                         __func__, bd.buffer1_size, bd.buffer2_size);
+            break;
         }
 
         cpu_physical_memory_read(bd.buffer1_addr, ptr, len);
