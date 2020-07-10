@@ -824,6 +824,61 @@ GEN_VEXT_TRANS(vle32ff_v, 32, 2, r2nfvm, ldff_op, ld_us_check)
 GEN_VEXT_TRANS(vle64ff_v, 64, 3, r2nfvm, ldff_op, ld_us_check)
 
 /*
+ * load and store whole register instructions
+ */
+typedef void gen_helper_ldst_whole(TCGv_ptr, TCGv, TCGv_env, TCGv_i32);
+
+static bool ldst_whole_trans(uint32_t vd, uint32_t rs1, uint32_t data,
+                             gen_helper_ldst_whole *fn, DisasContext *s)
+{
+    TCGv_ptr dest;
+    TCGv base;
+    TCGv_i32 desc;
+
+    dest = tcg_temp_new_ptr();
+    base = tcg_temp_new();
+    desc = tcg_const_i32(simd_desc(0, s->vlen / 8, data));
+
+    gen_get_gpr(base, rs1);
+    tcg_gen_addi_ptr(dest, cpu_env, vreg_ofs(s, vd));
+
+    fn(dest, base, cpu_env, desc);
+
+    tcg_temp_free_ptr(dest);
+    tcg_temp_free(base);
+    tcg_temp_free_i32(desc);
+    return true;
+}
+
+/*
+ * load and store whole register instructions ignore vtype and vl setting.
+ * Thus, we don't need to check vill bit. (Section 7.9)
+ */
+#define GEN_LDST_WHOLE_TRANS(NAME, EEW, SEQ, ARGTYPE, ARG_NF)          \
+static bool trans_##NAME(DisasContext *s, arg_##ARGTYPE * a)           \
+{                                                                      \
+    s->eew = EEW;                                                      \
+    s->emul = (float)EEW / (1 << (s->sew + 3)) * s->flmul;             \
+                                                                       \
+    REQUIRE_RVV;                                                       \
+                                                                       \
+    uint32_t data = 0;                                                 \
+    bool ret;                                                          \
+    data = FIELD_DP32(data, VDATA, LMUL, s->lmul);                     \
+    data = FIELD_DP32(data, VDATA, SEW, s->sew);                       \
+    data = FIELD_DP32(data, VDATA, VTA, s->vta);                       \
+    data = FIELD_DP32(data, VDATA, VMA, s->vma);                       \
+    data = FIELD_DP32(data, VDATA, NF, ARG_NF);                        \
+    ret = ldst_whole_trans(a->rd, a->rs1, data, gen_helper_##NAME, s); \
+    mark_vs_dirty(s);                                                  \
+    return ret;                                                        \
+}
+
+GEN_LDST_WHOLE_TRANS(vl1r_v, 8, 0, vl1r_v, 1)
+
+GEN_LDST_WHOLE_TRANS(vs1r_v, 8, 1, vs1r_v, 1)
+
+/*
  *** vector atomic operation
  */
 typedef void gen_helper_amo(TCGv_ptr, TCGv_ptr, TCGv, TCGv_ptr,
