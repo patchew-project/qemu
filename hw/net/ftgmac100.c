@@ -238,6 +238,11 @@ typedef struct {
  */
 #define FTGMAC100_MAX_FRAME_SIZE    9220
 
+/*
+ * Min frame size
+ */
+#define FTGMAC100_MIN_FRAME_SIZE    64
+
 /* Limits depending on the type of the frame
  *
  *   9216 for Jumbo frames (+ 4 for VLAN)
@@ -507,6 +512,15 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
         }
 
         len = FTGMAC100_TXDES0_TXBUF_SIZE(bd.des0);
+
+        /* drop small packets */
+        if (bd.des0 & FTGMAC100_TXDES0_FTS &&
+            len < FTGMAC100_MIN_FRAME_SIZE) {
+            qemu_log_mask(LOG_GUEST_ERROR, "%s: frame too small: %d bytes\n",
+                          __func__, len);
+            break;
+        }
+
         if (frame_size + len > sizeof(s->frame)) {
             qemu_log_mask(LOG_GUEST_ERROR, "%s: frame too big : %d bytes\n",
                           __func__, len);
