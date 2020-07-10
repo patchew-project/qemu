@@ -340,7 +340,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
     CPURISCVState *env = &cpu->env;
     RISCVCPUClass *mcc = RISCV_CPU_GET_CLASS(dev);
     int priv_version = PRIV_VERSION_1_11_0;
-    int vext_version = VEXT_VERSION_0_07_1;
+    int vext_version = VEXT_VERSION_0_09_0;
     target_ulong target_misa = 0;
     Error *local_err = NULL;
 
@@ -456,8 +456,8 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
                 return;
             }
             if (cpu->cfg.vext_spec) {
-                if (!g_strcmp0(cpu->cfg.vext_spec, "v0.7.1")) {
-                    vext_version = VEXT_VERSION_0_07_1;
+                if (!g_strcmp0(cpu->cfg.vext_spec, "v0.9")) {
+                    vext_version = VEXT_VERSION_0_09_0;
                 } else {
                     error_setg(errp,
                            "Unsupported vector spec version '%s'",
@@ -466,7 +466,7 @@ static void riscv_cpu_realize(DeviceState *dev, Error **errp)
                 }
             } else {
                 qemu_log("vector verison is not specified, "
-                        "use the default value v0.7.1\n");
+                        "use the default value v0.9\n");
             }
             set_vext_version(env, vext_version);
         }
