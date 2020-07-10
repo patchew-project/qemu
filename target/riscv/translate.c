@@ -60,6 +60,11 @@ typedef struct DisasContext {
     /* vector extension */
     bool vill;
     uint8_t lmul;
+    float flmul;
+    uint8_t eew;
+    float emul;
+    uint8_t vta;
+    uint8_t vma;
     uint8_t sew;
     uint16_t vlen;
     bool vl_eq_vlmax;
@@ -823,6 +828,9 @@ static void riscv_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cs)
     ctx->vill = FIELD_EX32(tb_flags, TB_FLAGS, VILL);
     ctx->sew = FIELD_EX32(tb_flags, TB_FLAGS, SEW);
     ctx->lmul = FIELD_EX32(tb_flags, TB_FLAGS, LMUL);
+    ctx->flmul = flmul_table[ctx->lmul];
+    ctx->vta = FIELD_EX32(tb_flags, TB_FLAGS, VTA);
+    ctx->vma = FIELD_EX32(tb_flags, TB_FLAGS, VMA);
     ctx->vl_eq_vlmax = FIELD_EX32(tb_flags, TB_FLAGS, VL_EQ_VLMAX);
 }
 

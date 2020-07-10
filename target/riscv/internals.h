@@ -24,8 +24,11 @@
 /* share data between vector helpers and decode code */
 FIELD(VDATA, VM, 0, 1)
 FIELD(VDATA, LMUL, 1, 3)
-FIELD(VDATA, NF, 4, 4)
-FIELD(VDATA, WD, 4, 1)
+FIELD(VDATA, SEW, 4, 3)
+FIELD(VDATA, VTA, 7, 1)
+FIELD(VDATA, VMA, 8, 1)
+FIELD(VDATA, NF, 9, 4)
+FIELD(VDATA, WD, 9, 1)
 
 /* float point classify helpers */
 target_ulong fclass_h(uint64_t frs1);
@@ -37,4 +40,10 @@ target_ulong fclass_d(uint64_t frs1);
 #define SEW32 2
 #define SEW64 3
 
+/* table to convert fractional LMUL value */
+static const float flmul_table[8] = {
+    1, 2, 4, 8,      /* LMUL */
+    -1,              /* reserved */
+    0.125, 0.25, 0.5 /* fractional LMUL */
+};
 #endif
