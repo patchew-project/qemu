@@ -368,16 +368,16 @@ static uint32_t vreg_ofs(DisasContext *s, int reg)
 } while (0)
 
 /*
- * Check function for vector reduction instructions
+ * Check function for vector reduction instructions.
  *
- * 2. In widen instructions and some other insturctions, like vslideup.vx,
- *    there is no need to check whether LMUL=1.
+ * TODO: Check vstart == 0
  */
-static bool vext_check_overlap_mask(DisasContext *s, uint32_t vd, bool vm,
-    bool force)
-{
-    return (vm != 0 || vd != 0) || (!force && (s->lmul == 0));
-}
+#define VEXT_CHECK_REDUCTION(s, rs2, is_wide) do { \
+    if (is_wide) {                                 \
+        require(s->sew < 3);                       \
+    }                                              \
+    require_align(rs2, s->flmul)                   \
+} while (0)
 
 /*
  * Check function for vector integer extension instructions.
@@ -2731,7 +2731,10 @@ GEN_OPFV_NARROW_TRANS(vfncvt_f_f_v)
 /* Vector Single-Width Integer Reduction Instructions */
 static bool reduction_check(DisasContext *s, arg_rmrr *a)
 {
-    return vext_check_isa_ill(s) && vext_check_reg(s, a->rs2, false);
+    REQUIRE_RVV;
+    VEXT_CHECK_ISA_ILL(s);
+    VEXT_CHECK_REDUCTION(s, a->rs2, false);
+    return true;
 }
 
 GEN_OPIVV_TRANS(vredsum_vs, reduction_check)
