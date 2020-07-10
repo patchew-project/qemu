@@ -14,6 +14,8 @@
 #define ACPI_CPU_CMD_DATA_OFFSET_RW 8
 #define ACPI_CPU_CMD_DATA2_OFFSET_R 0
 
+#define OVMF_CPUHP_SMI_CMD 4
+
 enum {
     CPHP_GET_NEXT_CPU_WITH_EVENT_CMD = 0,
     CPHP_OST_EVENT_CMD = 1,
@@ -473,6 +475,10 @@ void build_cpus_aml(Aml *table, MachineState *machine, CPUHotplugFeatures opts,
             Aml *next_cpu_cmd = aml_int(CPHP_GET_NEXT_CPU_WITH_EVENT_CMD);
 
             aml_append(method, aml_acquire(ctrl_lock, 0xFFFF));
+            if (opts.smi_path) {
+                aml_append(method, aml_store(aml_int(OVMF_CPUHP_SMI_CMD),
+                    aml_name("%s", opts.smi_path)));
+            }
             aml_append(method, aml_store(one, has_event));
             while_ctx = aml_while(aml_equal(has_event, one));
             {
