@@ -609,11 +609,8 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
     if (has_query_nodes && query_nodes) {
         for (bs = bdrv_next_node(NULL); bs; bs = bdrv_next_node(bs)) {
             BlockStatsList *info = g_malloc0(sizeof(*info));
-            AioContext *ctx = bdrv_get_aio_context(bs);
 
-            aio_context_acquire(ctx);
             info->value = bdrv_query_bds_stats(bs, false);
-            aio_context_release(ctx);
 
             *p_next = info;
             p_next = &info->next;
@@ -621,7 +618,6 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
     } else {
         for (blk = blk_all_next(NULL); blk; blk = blk_all_next(blk)) {
             BlockStatsList *info;
-            AioContext *ctx = blk_get_aio_context(blk);
             BlockStats *s;
             char *qdev;
 
@@ -629,7 +625,6 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
                 continue;
             }
 
-            aio_context_acquire(ctx);
             s = bdrv_query_bds_stats(blk_bs(blk), true);
             s->has_device = true;
             s->device = g_strdup(blk_name(blk));
@@ -643,7 +638,6 @@ BlockStatsList *qmp_query_blockstats(bool has_query_nodes,
             }
 
             bdrv_query_blk_stats(s->stats, blk);
-            aio_context_release(ctx);
 
             info = g_malloc0(sizeof(*info));
             info->value = s;
