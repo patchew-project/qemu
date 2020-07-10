@@ -305,6 +305,33 @@ static uint32_t vreg_ofs(DisasContext *s, int reg)
 
 /*
  * Check function for vector instruction with format:
+ * quad-width result and single-width sources (4*SEW = SEW op SEW)
+ *
+ * is_vs1: indicates whether insn[19:15] is a vs1 field or not.
+ */
+#define VEXT_CHECK_QSS(s, rd, rs1, rs2, vm, is_vs1) do {           \
+    require(s->flmul <= 2);                                        \
+    require(s->sew < 2);                                           \
+    require_align(rd, s->flmul * 4);                               \
+    require_align(rs2, s->flmul);                                  \
+    require_vm(rd, vm);                                            \
+    if (s->flmul < 1) {                                            \
+        require_noover(rd, s->flmul * 4, rs2, s->flmul);           \
+    } else {                                                       \
+        require_noover_widen(rd, s->flmul * 4, rs2, s->flmul);     \
+    }                                                              \
+    if (is_vs1) {                                                  \
+        require_align(rs1, s->flmul);                              \
+        if (s->flmul < 1) {                                        \
+            require_noover(rd, s->flmul * 4, rs1, s->flmul);       \
+        } else {                                                   \
+            require_noover_widen(rd, s->flmul * 4, rs1, s->flmul); \
+        }                                                          \
+    }                                                              \
+} while (0)
+
+/*
+ * Check function for vector instruction with format:
  * double-width result and double-width source1 and single-width
  * source2 (2*SEW = 2*SEW op SEW)
  *
@@ -1924,7 +1951,63 @@ GEN_OPIVX_WIDEN_TRANS(vwmacc_vx)
 GEN_OPIVX_WIDEN_TRANS(vwmaccsu_vx)
 GEN_OPIVX_WIDEN_TRANS(vwmaccus_vx)
 
-/* Vector Integer Merge and Move Instructions */
+/* Vector Quad-Widening Integer Multiply-Add Instructions (Extension Zvqmac) */
+/* OPIVV with QUAD-WIDEN */
+static bool opivv_quad_widen_check(DisasContext *s, arg_rmrr *a)
+{
+    REQUIRE_RVV;
+    VEXT_CHECK_ISA_ILL(s);
+    VEXT_CHECK_QSS(s, a->rd, a->rs1, a->rs2, a->vm, true);
+    return true;
+}
+
+#define GEN_OPIVV_QUAD_WIDEN_TRANS(NAME, CHECK)        \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a) \
+{                                                      \
+    static gen_helper_gvec_4_ptr * const fns[2] = {    \
+        gen_helper_##NAME##_b,                         \
+        gen_helper_##NAME##_h                          \
+    };                                                 \
+    return do_opivv_widen(s, a, fns[s->sew], CHECK);   \
+}
+
+GEN_OPIVV_QUAD_WIDEN_TRANS(vqmaccu_vv, opivv_quad_widen_check)
+GEN_OPIVV_QUAD_WIDEN_TRANS(vqmacc_vv, opivv_quad_widen_check)
+GEN_OPIVV_QUAD_WIDEN_TRANS(vqmaccsu_vv, opivv_quad_widen_check)
+
+/* OPIVX with QUAD-WIDEN */
+static bool opivx_quad_widen_check(DisasContext *s, arg_rmrr *a)
+{
+    REQUIRE_RVV;
+    VEXT_CHECK_ISA_ILL(s);
+    VEXT_CHECK_QSS(s, a->rd, a->rs1, a->rs2, a->vm, false);
+    return true;
+}
+
+static bool do_opivx_quad_widen(DisasContext *s, arg_rmrr *a,
+                                gen_helper_opivx *fn)
+{
+    if (opivx_quad_widen_check(s, a)) {
+        return opivx_trans(a->rd, a->rs1, a->rs2, a->vm, fn, s);
+    }
+    return false;
+}
+
+#define GEN_OPIVX_QUAD_WIDEN_TRANS(NAME)               \
+static bool trans_##NAME(DisasContext *s, arg_rmrr *a) \
+{                                                      \
+    static gen_helper_opivx * const fns[3] = {         \
+        gen_helper_##NAME##_b,                         \
+        gen_helper_##NAME##_h                          \
+    };                                                 \
+    return do_opivx_quad_widen(s, a, fns[s->sew]);     \
+}
+
+GEN_OPIVX_QUAD_WIDEN_TRANS(vqmaccu_vx)
+GEN_OPIVX_QUAD_WIDEN_TRANS(vqmacc_vx)
+GEN_OPIVX_QUAD_WIDEN_TRANS(vqmaccsu_vx)
+GEN_OPIVX_QUAD_WIDEN_TRANS(vqmaccus_vx)
+
 static bool trans_vmv_v_v(DisasContext *s, arg_vmv_v_v *a)
 {
     if (vext_check_isa_ill(s) &&
