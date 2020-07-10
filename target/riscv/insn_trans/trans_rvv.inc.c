@@ -380,6 +380,18 @@ static uint32_t vreg_ofs(DisasContext *s, int reg)
 } while (0)
 
 /*
+ * Check function for vector slide instructions.
+ */
+#define VEXT_CHECK_SLIDE(s, rd, rs2, vm, is_over) do { \
+    require_align(rs2, s->flmul);                      \
+    require_align(rd, s->flmul);                       \
+    require_vm(vm, rd);                                \
+    if (is_over) {                                     \
+        require(rd != rs2);                            \
+    }                                                  \
+} while (0)
+
+/*
  * Check function for vector integer extension instructions.
  */
 #define VEXT_CHECK_EXT(s, rd, rs2, vm, div) do {                 \
@@ -3214,20 +3226,27 @@ static bool trans_vfmv_s_f(DisasContext *s, arg_vfmv_s_f *a)
 /* Vector Slide Instructions */
 static bool slideup_check(DisasContext *s, arg_rmrr *a)
 {
-    return (vext_check_isa_ill(s) &&
-            vext_check_overlap_mask(s, a->rd, a->vm, true) &&
-            vext_check_reg(s, a->rd, false) &&
-            vext_check_reg(s, a->rs2, false) &&
-            (a->rd != a->rs2));
+    REQUIRE_RVV;
+    VEXT_CHECK_ISA_ILL(s);
+    VEXT_CHECK_SLIDE(s, a->rd, a->rs2, a->vm, true);
+    return true;
 }
 
 GEN_OPIVX_TRANS(vslideup_vx, slideup_check)
 GEN_OPIVX_TRANS(vslide1up_vx, slideup_check)
 GEN_OPIVI_TRANS(vslideup_vi, 1, vslideup_vx, slideup_check)
 
-GEN_OPIVX_TRANS(vslidedown_vx, opivx_check)
-GEN_OPIVX_TRANS(vslide1down_vx, opivx_check)
-GEN_OPIVI_TRANS(vslidedown_vi, 1, vslidedown_vx, opivx_check)
+static bool slidedown_check(DisasContext *s, arg_rmrr *a)
+{
+    REQUIRE_RVV;
+    VEXT_CHECK_ISA_ILL(s);
+    VEXT_CHECK_SLIDE(s, a->rd, a->rs2, a->vm, false);
+    return true;
+}
+
+GEN_OPIVX_TRANS(vslidedown_vx, slidedown_check)
+GEN_OPIVX_TRANS(vslide1down_vx, slidedown_check)
+GEN_OPIVI_TRANS(vslidedown_vi, 1, vslidedown_vx, slidedown_check)
 
 /* Vector Register Gather Instruction */
 static bool vrgather_vv_check(DisasContext *s, arg_rmrr *a)
