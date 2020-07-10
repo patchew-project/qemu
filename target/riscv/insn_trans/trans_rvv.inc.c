@@ -2813,27 +2813,27 @@ static bool trans_viota_m(DisasContext *s, arg_viota_m *a)
 /* Vector Element Index Instruction */
 static bool trans_vid_v(DisasContext *s, arg_vid_v *a)
 {
-    if (vext_check_isa_ill(s) &&
-        vext_check_reg(s, a->rd, false) &&
-        vext_check_overlap_mask(s, a->rd, a->vm, false)) {
-        uint32_t data = 0;
-        TCGLabel *over = gen_new_label();
-        tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
+    REQUIRE_RVV;
+    VEXT_CHECK_ISA_ILL(s);
+    require_align(a->rd, s->flmul);
+    require_vm(a->vm, a->rd);
 
-        data = FIELD_DP32(data, VDATA, VM, a->vm);
-        data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
-        data = FIELD_DP32(data, VDATA, VTA, s->vta);
-        data = FIELD_DP32(data, VDATA, VMA, s->vma);
-        static gen_helper_gvec_2_ptr * const fns[4] = {
-            gen_helper_vid_v_b, gen_helper_vid_v_h,
-            gen_helper_vid_v_w, gen_helper_vid_v_d,
-        };
-        tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
-                           cpu_env, 0, s->vlen / 8, data, fns[s->sew]);
-        gen_set_label(over);
-        return true;
-    }
-    return false;
+    uint32_t data = 0;
+    TCGLabel *over = gen_new_label();
+    tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_vl, 0, over);
+
+    data = FIELD_DP32(data, VDATA, VM, a->vm);
+    data = FIELD_DP32(data, VDATA, LMUL, s->lmul);
+    data = FIELD_DP32(data, VDATA, VTA, s->vta);
+    data = FIELD_DP32(data, VDATA, VMA, s->vma);
+    static gen_helper_gvec_2_ptr * const fns[4] = {
+        gen_helper_vid_v_b, gen_helper_vid_v_h,
+        gen_helper_vid_v_w, gen_helper_vid_v_d,
+    };
+    tcg_gen_gvec_2_ptr(vreg_ofs(s, a->rd), vreg_ofs(s, 0),
+                       cpu_env, 0, s->vlen / 8, data, fns[s->sew]);
+    gen_set_label(over);
+    return true;
 }
 
 /*
