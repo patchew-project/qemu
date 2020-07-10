@@ -3221,3 +3221,29 @@ static bool trans_vcompress_vm(DisasContext *s, arg_r *a)
     }
     return false;
 }
+
+/*
+ * Whole Vector Register Move Instructions ignore vtype and vl setting.
+ * Thus, we don't need to check vill bit. (Section 17.6)
+ */
+#define GEN_VMV_WHOLE_TRANS(NAME, LEN)                    \
+static bool trans_##NAME(DisasContext *s, arg_##NAME * a) \
+{                                                         \
+    REQUIRE_RVV;                                          \
+    require((a->rd & ((LEN) - 1)) == 0);                  \
+    require((a->rs2 & ((LEN) - 1)) == 0);                 \
+                                                          \
+    for (int i = 0; i < LEN; ++i) {                       \
+        /* EEW = 8 */                                     \
+        tcg_gen_gvec_mov(8, vreg_ofs(s, a->rd + i),       \
+                         vreg_ofs(s, a->rs2 + i),         \
+                         s->vlen / 8, s->vlen / 8);       \
+    }                                                     \
+    mark_vs_dirty(s);                                     \
+    return true;                                          \
+}
+
+GEN_VMV_WHOLE_TRANS(vmv1r_v, 1)
+GEN_VMV_WHOLE_TRANS(vmv2r_v, 2)
+GEN_VMV_WHOLE_TRANS(vmv4r_v, 4)
+GEN_VMV_WHOLE_TRANS(vmv8r_v, 8)
