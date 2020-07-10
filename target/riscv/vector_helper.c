@@ -4798,9 +4798,9 @@ GEN_VEXT_FRED(vfredmin_vs_d, uint64_t, uint64_t, H8, H8, false,
               float64_minnum_noprop, clearq)
 
 /* Vector Widening Floating-Point Reduction Instructions */
-/* Unordered reduce 2*SEW = 2*SEW + sum(promote(SEW)) */
-void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
-                            void *vs2, CPURISCVState *env, uint32_t desc)
+/* Ordered reduce 2*SEW = 2*SEW + sum(promote(SEW)) */
+void HELPER(vfwredosum_vs_h)(void *vd, void *v0, void *vs1,
+                             void *vs2, CPURISCVState *env, uint32_t desc)
 {
     uint32_t vm = vext_vm(desc);
     uint32_t vta = vext_vta(desc);
@@ -4821,8 +4821,8 @@ void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
     clearl(vd, vta, 1, sizeof(uint32_t), tot);
 }
 
-void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
-                            void *vs2, CPURISCVState *env, uint32_t desc)
+void HELPER(vfwredosum_vs_w)(void *vd, void *v0, void *vs1,
+                             void *vs2, CPURISCVState *env, uint32_t desc)
 {
     uint32_t vm = vext_vm(desc);
     uint32_t vta = vext_vta(desc);
@@ -4840,6 +4840,69 @@ void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
                          &env->fp_status);
     }
     *((uint64_t *)vd) = s1;
+    clearq(vd, vta, 1, sizeof(uint64_t), tot);
+}
+
+/* Unordered reduce 2*SEW = 2*SEW + sum(promote(SEW)) */
+void HELPER(vfwredsum_vs_h)(void *vd, void *v0, void *vs1,
+                            void *vs2, CPURISCVState *env, uint32_t desc)
+{
+    uint32_t vm = vext_vm(desc);
+    uint32_t vta = vext_vta(desc);
+    uint32_t vl = env->vl;
+    uint32_t i;
+    uint32_t tot = env_archcpu(env)->cfg.vlen / 8;
+    uint32_t s1 =  *((uint32_t *)vs1 + H4(0));
+    bool active = false;                                                   \
+
+    for (i = 0; i < vl; i++) {
+        uint16_t s2 = *((uint16_t *)vs2 + H2(i));
+        if (!vm && !vext_elem_mask(v0, i)) {
+            continue;
+        }
+        active = true;
+        s1 = float32_add(s1, float16_to_float32(s2, true, &env->fp_status),
+                         &env->fp_status);
+    }
+
+    if (vl > 0) {
+        if (!active) {
+            *((uint32_t *)vd + H4(0)) = propagate_nan(s1, 32, &env->fp_status);
+        } else {
+            *((uint32_t *)vd + H4(0)) = s1;
+        }
+    }
+    clearl(vd, vta, 1, sizeof(uint32_t), tot);
+}
+
+void HELPER(vfwredsum_vs_w)(void *vd, void *v0, void *vs1,
+                            void *vs2, CPURISCVState *env, uint32_t desc)
+{
+    uint32_t vm = vext_vm(desc);
+    uint32_t vta = vext_vta(desc);
+    uint32_t vl = env->vl;
+    uint32_t i;
+    uint32_t tot = env_archcpu(env)->cfg.vlen / 8;
+    uint64_t s1 =  *((uint64_t *)vs1);
+    bool active = false;                                                   \
+
+    for (i = 0; i < vl; i++) {
+        uint32_t s2 = *((uint32_t *)vs2 + H4(i));
+        if (!vm && !vext_elem_mask(v0, i)) {
+            continue;
+        }
+        active = true;
+        s1 = float64_add(s1, float32_to_float64(s2, &env->fp_status),
+                         &env->fp_status);
+    }
+
+    if (vl > 0) {
+        if (!active) {
+            *((uint64_t *)vd) = propagate_nan(s1, 64, &env->fp_status);
+        } else {
+            *((uint64_t *)vd) = s1;
+        }
+    }
     clearq(vd, vta, 1, sizeof(uint64_t), tot);
 }
 
