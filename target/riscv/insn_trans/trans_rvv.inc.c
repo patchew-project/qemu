@@ -72,33 +72,32 @@ static inline bool is_overlapped_widen(const int astart, int asize,
     }
 }
 
-static bool trans_vsetvl(DisasContext *ctx, arg_vsetvl *a)
+static bool trans_vsetvl(DisasContext *s, arg_vsetvl *a)
 {
+    TCGv_i32 rd, rs1;
     TCGv s1, s2, dst;
 
     REQUIRE_RVV;
-    if (!has_ext(ctx, RVV)) {
+    if (!has_ext(s, RVV)) {
         return false;
     }
 
+    rd = tcg_const_i32(a->rd);
+    rs1 = tcg_const_i32(a->rs1);
+    s1 = tcg_temp_new();
     s2 = tcg_temp_new();
     dst = tcg_temp_new();
 
-    /* Using x0 as the rs1 register specifier, encodes an infinite AVL */
-    if (a->rs1 == 0) {
-        /* As the mask is at least one bit, RV_VLEN_MAX is >= VLMAX */
-        s1 = tcg_const_tl(RV_VLEN_MAX);
-    } else {
-        s1 = tcg_temp_new();
-        gen_get_gpr(s1, a->rs1);
-    }
+    gen_get_gpr(s1, a->rs1);
     gen_get_gpr(s2, a->rs2);
-    gen_helper_vsetvl(dst, cpu_env, s1, s2);
+    gen_helper_vsetvl(dst, cpu_env, rd, rs1, s1, s2);
     gen_set_gpr(a->rd, dst);
-    tcg_gen_movi_tl(cpu_pc, ctx->pc_succ_insn);
-    lookup_and_goto_ptr(ctx);
-    ctx->base.is_jmp = DISAS_NORETURN;
+    tcg_gen_movi_tl(cpu_pc, s->pc_succ_insn);
+    lookup_and_goto_ptr(s);
+    s->base.is_jmp = DISAS_NORETURN;
 
+    tcg_temp_free_i32(rd);
+    tcg_temp_free_i32(rs1);
     tcg_temp_free(s1);
     tcg_temp_free(s2);
     tcg_temp_free(dst);
@@ -106,31 +105,30 @@ static bool trans_vsetvl(DisasContext *ctx, arg_vsetvl *a)
     return true;
 }
 
-static bool trans_vsetvli(DisasContext *ctx, arg_vsetvli *a)
+static bool trans_vsetvli(DisasContext *s, arg_vsetvli *a)
 {
+    TCGv_i32 rd, rs1;
     TCGv s1, s2, dst;
 
     REQUIRE_RVV;
-    if (!has_ext(ctx, RVV)) {
+    if (!has_ext(s, RVV)) {
         return false;
     }
 
+    rd = tcg_const_i32(a->rd);
+    rs1 = tcg_const_i32(a->rs1);
+    s1 = tcg_temp_new();
     s2 = tcg_const_tl(a->zimm);
     dst = tcg_temp_new();
 
-    /* Using x0 as the rs1 register specifier, encodes an infinite AVL */
-    if (a->rs1 == 0) {
-        /* As the mask is at least one bit, RV_VLEN_MAX is >= VLMAX */
-        s1 = tcg_const_tl(RV_VLEN_MAX);
-    } else {
-        s1 = tcg_temp_new();
-        gen_get_gpr(s1, a->rs1);
-    }
-    gen_helper_vsetvl(dst, cpu_env, s1, s2);
+    gen_get_gpr(s1, a->rs1);
+    gen_helper_vsetvl(dst, cpu_env, rd, rs1, s1, s2);
     gen_set_gpr(a->rd, dst);
-    gen_goto_tb(ctx, 0, ctx->pc_succ_insn);
-    ctx->base.is_jmp = DISAS_NORETURN;
+    gen_goto_tb(s, 0, s->pc_succ_insn);
+    s->base.is_jmp = DISAS_NORETURN;
 
+    tcg_temp_free_i32(rd);
+    tcg_temp_free_i32(rs1);
     tcg_temp_free(s1);
     tcg_temp_free(s2);
     tcg_temp_free(dst);

@@ -26,33 +26,49 @@
 #include "internals.h"
 #include <math.h>
 
-target_ulong HELPER(vsetvl)(CPURISCVState *env, target_ulong s1,
-                            target_ulong s2)
+target_ulong HELPER(vsetvl)(CPURISCVState *env, uint32_t rd, uint32_t rs1,
+                            target_ulong s1, target_ulong s2)
 {
-    int vlmax, vl;
+    int vlmax;
+    int vl = 0;
+
     RISCVCPU *cpu = env_archcpu(env);
     uint16_t sew = 8 << FIELD_EX64(s2, VTYPE, VSEW);
     uint8_t ediv = FIELD_EX64(s2, VTYPE, VEDIV);
     bool vill = FIELD_EX64(s2, VTYPE, VILL);
+    vlmax = vext_get_vlmax(cpu, s2);
     target_ulong reserved = FIELD_EX64(s2, VTYPE, RESERVED);
 
-    if ((sew > cpu->cfg.elen) || vill || (ediv != 0) || (reserved != 0)) {
+    uint64_t lmul = (FIELD_EX64(s2, VTYPE, VFLMUL) << 2)
+        | FIELD_EX64(s2, VTYPE, VLMUL);
+    float vflmul = flmul_table[lmul];
+
+    if ((sew > cpu->cfg.elen)
+        || vill
+        || vflmul < ((float)sew / cpu->cfg.elen)
+        || (ediv != 0)
+        || (reserved != 0)) {
         /* only set vill bit. */
         env->vtype = FIELD_DP64(0, VTYPE, VILL, 1);
-        env->vl = 0;
-        env->vstart = 0;
         return 0;
     }
 
-    vlmax = vext_get_vlmax(cpu, s2);
-    if (s1 <= vlmax) {
-        vl = s1;
-    } else {
+    /* set vl */
+    if (rd == 0 && rs1 == 0) {
+        /* keep existing vl */
+        vl = env->vl > vlmax ? vlmax : env->vl;
+    } else if (rd != 0 && rs1 == 0) {
+        /* set vl to vlmax */
         vl = vlmax;
+    } else if (rs1 != 0) {
+        /* normal stripmining */
+        vl = s1 > vlmax ? vlmax : s1;
     }
-    env->vl = vl;
+
     env->vtype = s2;
     env->vstart = 0;
+    env->vl = vl;
+
     return vl;
 }
 
