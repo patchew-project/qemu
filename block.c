@@ -1488,6 +1488,16 @@ static int bdrv_open_driver(BlockDriverState *bs, BlockDriver *drv,
         return -EINVAL;
     }
 
+    /*
+     * Unaligned requests will automatically be aligned to bl.request_alignment
+     * and we don't want to extend requests to access space beyond the end of
+     * the image, so it's required that the image size is aligned.
+     */
+    if ((bs->total_sectors * BDRV_SECTOR_SIZE) % bs->bl.request_alignment) {
+        error_setg(errp, "Image size is not a multiple of request alignment");
+        return -EINVAL;
+    }
+
     assert(bdrv_opt_mem_align(bs) != 0);
     assert(bdrv_min_mem_align(bs) != 0);
     assert(is_power_of_2(bs->bl.request_alignment));
