@@ -402,6 +402,34 @@ float64_gen2(float64 xa, float64 xb, float_status *s,
 }
 
 /*----------------------------------------------------------------------------
+| Returns the fraction bits of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+static inline uint32_t extractFloat16Frac(float16 a)
+{
+    return float16_val(a) & 0x3ff;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the exponent bits of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+static inline int extractFloat16Exp(float16 a)
+{
+    return (float16_val(a) >> 10) & 0x1f;
+}
+
+/*----------------------------------------------------------------------------
+| Returns the sign bit of the half-precision floating-point value `a'.
+*----------------------------------------------------------------------------*/
+
+static inline bool extractFloat16Sign(float16 a)
+{
+    return float16_val(a) >> 15;
+}
+
+
+/*----------------------------------------------------------------------------
 | Returns the fraction bits of the single-precision floating-point value `a'.
 *----------------------------------------------------------------------------*/
 
@@ -5004,6 +5032,218 @@ float64 float64_log2(float64 a, float_status *status)
     if ( zSign )
         zSig = -zSig;
     return normalizeRoundAndPackFloat64(zSign, 0x408, zSig, status);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is equal to
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  Otherwise, the comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_eq(float16 a, float16 b, float_status *status)
+{
+    uint16_t av, bv;
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        float_raise(float_flag_invalid, status);
+        return 0;
+    }
+    av = float16_val(a);
+    bv = float16_val(b);
+    return (av == bv) || ((uint16_t) ((av | bv) << 1) == 0);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is less than
+| or equal to the corresponding value `b', and 0 otherwise.  The invalid
+| exception is raised if either operand is a NaN.  The comparison is performed
+| according to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_le(float16 a, float16 b, float_status *status)
+{
+    bool aSign, bSign;
+    uint16_t av, bv;
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        float_raise(float_flag_invalid, status);
+        return 0;
+    }
+    aSign = extractFloat16Sign(a);
+    bSign = extractFloat16Sign(b);
+    av = float16_val(a);
+    bv = float16_val(b);
+    if (aSign != bSign) {
+        return aSign || ((uint16_t) ((av | bv) << 1) == 0);
+    }
+    return (av == bv) || (aSign ^ (av < bv));
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is less than
+| the corresponding value `b', and 0 otherwise.  The invalid exception is
+| raised if either operand is a NaN.  The comparison is performed according
+| to the IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_lt(float16 a, float16 b, float_status *status)
+{
+    bool aSign, bSign;
+    uint16_t av, bv;
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        float_raise(float_flag_invalid, status);
+        return 0;
+    }
+    aSign = extractFloat16Sign(a);
+    bSign = extractFloat16Sign(b);
+    av = float16_val(a);
+    bv = float16_val(b);
+    if (aSign != bSign) {
+        return aSign && ((uint16_t) ((av | bv) << 1) != 0);
+    }
+    return (av != bv) && (aSign ^ (av < bv));
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  The invalid exception is raised if either
+| operand is a NaN.  The comparison is performed according to the IEC/IEEE
+| Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_unordered(float16 a, float16 b, float_status *status)
+{
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        float_raise(float_flag_invalid, status);
+        return 1;
+    }
+    return 0;
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is equal to
+| the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+| exception.  The comparison is performed according to the IEC/IEEE Standard
+| for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_eq_quiet(float16 a, float16 b, float_status *status)
+{
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        if (float16_is_signaling_nan(a, status)
+        || float16_is_signaling_nan(b, status)) {
+            float_raise(float_flag_invalid, status);
+        }
+        return 0;
+    }
+    return (float16_val(a) == float16_val(b)) ||
+            ((uint16_t) ((float16_val(a) | float16_val(b)) << 1) == 0);
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is less than or
+| equal to the corresponding value `b', and 0 otherwise.  Quiet NaNs do not
+| cause an exception.  Otherwise, the comparison is performed according to the
+| IEC/IEEE Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_le_quiet(float16 a, float16 b, float_status *status)
+{
+    bool aSign, bSign;
+    uint16_t av, bv;
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        if (float16_is_signaling_nan(a, status)
+        || float16_is_signaling_nan(b, status)) {
+            float_raise(float_flag_invalid, status);
+        }
+        return 0;
+    }
+    aSign = extractFloat16Sign(a);
+    bSign = extractFloat16Sign(b);
+    av = float16_val(a);
+    bv = float16_val(b);
+    if (aSign != bSign) {
+        return aSign || ((uint16_t) ((av | bv) << 1) == 0);
+    }
+    return (av == bv) || (aSign ^ (av < bv));
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point value `a' is less than
+| the corresponding value `b', and 0 otherwise.  Quiet NaNs do not cause an
+| exception.  Otherwise, the comparison is performed according to the IEC/IEEE
+| Standard for Binary Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_lt_quiet(float16 a, float16 b, float_status *status)
+{
+    bool aSign, bSign;
+    uint16_t av, bv;
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        if (float16_is_signaling_nan(a, status)
+        || float16_is_signaling_nan(b, status)) {
+            float_raise(float_flag_invalid, status);
+        }
+        return 0;
+    }
+    aSign = extractFloat16Sign(a);
+    bSign = extractFloat16Sign(b);
+    av = float16_val(a);
+    bv = float16_val(b);
+    if (aSign != bSign) {
+        return aSign && ((uint16_t) ((av | bv) << 1) != 0);
+    }
+    return (av != bv) && (aSign ^ (av < bv));
+}
+
+/*----------------------------------------------------------------------------
+| Returns 1 if the half-precision floating-point values `a' and `b' cannot
+| be compared, and 0 otherwise.  Quiet NaNs do not cause an exception.  The
+| comparison is performed according to the IEC/IEEE Standard for Binary
+| Floating-Point Arithmetic.
+*----------------------------------------------------------------------------*/
+
+int float16_unordered_quiet(float16 a, float16 b, float_status *status)
+{
+    a = float16_squash_input_denormal(a, status);
+    b = float16_squash_input_denormal(b, status);
+
+    if (((extractFloat16Exp(a) == 0x1F) && extractFloat16Frac(a))
+        || ((extractFloat16Exp(b) == 0x1F) && extractFloat16Frac(b))) {
+        if (float16_is_signaling_nan(a, status)
+        || float16_is_signaling_nan(b, status)) {
+            float_raise(float_flag_invalid, status);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 /*----------------------------------------------------------------------------
