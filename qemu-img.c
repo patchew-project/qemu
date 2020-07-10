@@ -4007,20 +4007,9 @@ static int img_resize(int argc, char **argv)
     }
 
     if (total_size < current_size && !shrink) {
-        warn_report("Shrinking an image will delete all data beyond the "
-                    "shrunken image's end. Before performing such an "
-                    "operation, make sure there is no important data there.");
-
-        if (g_strcmp0(bdrv_get_format_name(blk_bs(blk)), "raw") != 0) {
-            error_report(
-              "Use the --shrink option to perform a shrink operation.");
-            ret = -1;
-            goto out;
-        } else {
-            warn_report("Using the --shrink option will suppress this message. "
-                        "Note that future versions of qemu-img may refuse to "
-                        "shrink images without this option.");
-        }
+        error_report("Use the --shrink option to perform a shrink operation.");
+        ret = -1;
+        goto out;
     }
 
     /*
