@@ -187,59 +187,67 @@ static uint64_t tmr_read(void *opaque, hwaddr addr, unsigned size)
                       addr);
         return UINT64_MAX;
     }
-    switch (addr & 0x0e) {
-    case A_TCR:
-        ret = 0;
-        ret = FIELD_DP8(ret, TCR, CCLR,
-                        FIELD_EX8(tmr->tcr[ch], TCR, CCLR));
-        ret = FIELD_DP8(ret, TCR, OVIE,
-                        FIELD_EX8(tmr->tcr[ch], TCR, OVIE));
-        ret = FIELD_DP8(ret, TCR, CMIEA,
-                        FIELD_EX8(tmr->tcr[ch], TCR, CMIEA));
-        ret = FIELD_DP8(ret, TCR, CMIEB,
-                        FIELD_EX8(tmr->tcr[ch], TCR, CMIEB));
-        return ret;
-    case A_TCSR:
-        ret = 0;
-        ret = FIELD_DP8(ret, TCSR, OSA,
-                        FIELD_EX8(tmr->tcsr[ch], TCSR, OSA));
-        ret = FIELD_DP8(ret, TCSR, OSB,
-                        FIELD_EX8(tmr->tcsr[ch], TCSR, OSB));
-        switch (ch) {
-        case 0:
-            ret = FIELD_DP8(ret, TCSR, ADTE,
-                            FIELD_EX8(tmr->tcsr[ch], TCSR, ADTE));
-            break;
-        case 1: /* CH1 ADTE unimplement always 1 */
-            ret = FIELD_DP8(ret, TCSR, ADTE, 1);
-            break;
-        }
-        return ret;
-    case A_TCORA:
-        if (size == 1) {
+    switch (size) {
+    case 1:
+        switch (addr & 0x0e) {
+        case A_TCR:
+            ret = 0;
+            ret = FIELD_DP8(ret, TCR, CCLR,
+                            FIELD_EX8(tmr->tcr[ch], TCR, CCLR));
+            ret = FIELD_DP8(ret, TCR, OVIE,
+                            FIELD_EX8(tmr->tcr[ch], TCR, OVIE));
+            ret = FIELD_DP8(ret, TCR, CMIEA,
+                            FIELD_EX8(tmr->tcr[ch], TCR, CMIEA));
+            ret = FIELD_DP8(ret, TCR, CMIEB,
+                            FIELD_EX8(tmr->tcr[ch], TCR, CMIEB));
+            return ret;
+        case A_TCSR:
+            ret = 0;
+            ret = FIELD_DP8(ret, TCSR, OSA,
+                            FIELD_EX8(tmr->tcsr[ch], TCSR, OSA));
+            ret = FIELD_DP8(ret, TCSR, OSB,
+                            FIELD_EX8(tmr->tcsr[ch], TCSR, OSB));
+            switch (ch) {
+            case 0:
+                ret = FIELD_DP8(ret, TCSR, ADTE,
+                                FIELD_EX8(tmr->tcsr[ch], TCSR, ADTE));
+                break;
+            case 1: /* CH1 ADTE unimplement always 1 */
+                ret = FIELD_DP8(ret, TCSR, ADTE, 1);
+                break;
+            }
+            return ret;
+        case A_TCORA:
             return tmr->tcora[ch];
-        } else if (ch == 0) {
-            return concat_reg(tmr->tcora);
-        }
-    case A_TCORB:
-        if (size == 1) {
+        case A_TCORB:
             return tmr->tcorb[ch];
-        } else {
-            return concat_reg(tmr->tcorb);
-        }
-    case A_TCNT:
-        return read_tcnt(tmr, size, ch);
-    case A_TCCR:
-        if (size == 1) {
+        case A_TCNT:
+            return read_tcnt(tmr, size, ch);
+        case A_TCCR:
             return read_tccr(tmr->tccr[ch]);
-        } else {
-            return read_tccr(tmr->tccr[0]) << 8 | read_tccr(tmr->tccr[1]);
+        default:
+            qemu_log_mask(LOG_UNIMP, "renesas_tmr: Register 0x%" HWADDR_PRIX
+                          " not implemented\n",
+                          addr);
+            break;
         }
-    default:
-        qemu_log_mask(LOG_UNIMP, "renesas_tmr: Register 0x%" HWADDR_PRIX
-                                 " not implemented\n",
-                      addr);
-        break;
+    case 2:
+        switch (addr) {
+        case A_TCORA:
+            return concat_reg(tmr->tcora);
+        case A_TCORB:
+            return concat_reg(tmr->tcora);
+        case A_TCNT:
+            return read_tcnt(tmr, size, ch);
+        case A_TCCR:
+            return read_tccr(tmr->tccr[ch]) << 8 | read_tccr(tmr->tccr[1]);
+        default:
+            qemu_log_mask(LOG_GUEST_ERROR,
+                          "renesas_tmr: Register 0x%" HWADDR_PRIX
+                          " invalid access size\n",
+                          addr);
+            break;
+        }
     }
     return UINT64_MAX;
 }
