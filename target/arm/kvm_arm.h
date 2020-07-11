@@ -268,6 +268,16 @@ void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu);
 void kvm_arm_add_vcpu_properties(Object *obj);
 
 /**
+ * kvm_arm_steal_time_finalize:
+ * @cpu: ARMCPU for which to finalize kvm-steal-time
+ * @errp: Pointer to Error* for error propagation
+ *
+ * Validate the kvm-steal-time property selection and set its default
+ * based on KVM support and guest configuration.
+ */
+void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp);
+
+/**
  * kvm_arm_aarch32_supported:
  *
  * Returns: true if KVM can enable AArch32 mode
@@ -340,6 +350,16 @@ int kvm_arm_vgic_probe(void);
 
 void kvm_arm_pmu_set_irq(CPUState *cs, int irq);
 void kvm_arm_pmu_init(CPUState *cs);
+
+/**
+ * kvm_arm_pvtime_init:
+ * @cs: CPUState
+ * @ipa: Per-vcpu guest physical base address of the pvtime structures
+ *
+ * Initializes PVTIME for the VCPU, setting the PVTIME IPA to @ipa.
+ */
+void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa);
+
 int kvm_arm_set_irq(int cpu, int irqtype, int irq, int level);
 
 #else
@@ -355,6 +375,7 @@ static inline void kvm_arm_set_cpu_features_from_host(ARMCPU *cpu)
 }
 
 static inline void kvm_arm_add_vcpu_properties(Object *obj) {}
+static inline void kvm_arm_steal_time_finalize(ARMCPU *cpu, Error **errp) {}
 
 static inline bool kvm_arm_aarch32_supported(void)
 {
@@ -383,9 +404,8 @@ static inline int kvm_arm_vgic_probe(void)
 
 static inline void kvm_arm_pmu_set_irq(CPUState *cs, int irq) {}
 static inline void kvm_arm_pmu_init(CPUState *cs) {}
-
+static inline void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa) {}
 static inline void kvm_arm_sve_get_vls(CPUState *cs, unsigned long *map) {}
-
 static inline void kvm_arm_get_virtual_time(CPUState *cs) {}
 static inline void kvm_arm_put_virtual_time(CPUState *cs) {}
 #endif

@@ -560,6 +560,11 @@ void kvm_arm_pmu_init(CPUState *cs)
     qemu_log_mask(LOG_UNIMP, "%s: not implemented\n", __func__);
 }
 
+void kvm_arm_pvtime_init(CPUState *cs, uint64_t ipa)
+{
+    qemu_log_mask(LOG_UNIMP, "%s: not implemented\n", __func__);
+}
+
 #define ARM_REG_DFSR  ARM_CP15_REG32(0, 5, 0, 0)
 #define ARM_REG_TTBCR ARM_CP15_REG32(0, 2, 0, 2)
 /*

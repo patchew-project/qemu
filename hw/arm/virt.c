@@ -151,6 +151,7 @@ static const MemMapEntry base_memmap[] = {
     [VIRT_PCDIMM_ACPI] =        { 0x09070000, MEMORY_HOTPLUG_IO_LEN },
     [VIRT_ACPI_GED] =           { 0x09080000, ACPI_GED_EVT_SEL_LEN },
     [VIRT_NVDIMM_ACPI] =        { 0x09090000, NVDIMM_ACPI_IO_LEN},
+    [VIRT_PVTIME] =             { 0x090a0000, 0x00010000 },
     [VIRT_MMIO] =               { 0x0a000000, 0x00000200 },
     /* ...repeating for a total of NUM_VIRTIO_TRANSPORTS, each of that size */
     [VIRT_PLATFORM_BUS] =       { 0x0c000000, 0x02000000 },
@@ -1663,13 +1664,26 @@ static void finalize_gic_version(VirtMachineState *vms)
  */
 static void virt_cpu_post_init(VirtMachineState *vms)
 {
-    bool aarch64, pmu;
+    bool aarch64, pmu, steal_time;
     CPUState *cpu;
 
     aarch64 = object_property_get_bool(OBJECT(first_cpu), "aarch64", NULL);
     pmu = object_property_get_bool(OBJECT(first_cpu), "pmu", NULL);
+    steal_time = object_property_get_bool(OBJECT(first_cpu),
+                                          "kvm-steal-time", NULL);
 
     if (kvm_enabled()) {
+        hwaddr pvtime_base = vms->memmap[VIRT_PVTIME].base;
+        hwaddr pvtime_size = vms->memmap[VIRT_PVTIME].size;
+
+        if (steal_time) {
+            MemoryRegion *pvtime = g_new(MemoryRegion, 1);
+
+            memory_region_init_ram(pvtime, NULL, "pvtime", pvtime_size, NULL);
+            memory_region_add_subregion(get_system_memory(), pvtime_base,
+                                        pvtime);
+        }
+
         CPU_FOREACH(cpu) {
             if (pmu) {
                 assert(arm_feature(&ARM_CPU(cpu)->env, ARM_FEATURE_PMU));
@@ -1677,6 +1691,17 @@ static void virt_cpu_post_init(VirtMachineState *vms)
                     kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ));
                 }
                 kvm_arm_pmu_init(cpu);
+            }
+            if (steal_time) {
+                /*
+                 * We need 64 bytes for each CPU[*]. One 64k region gives
+                 * us up to 1024 CPUs, or some growing room for the pvtime
+                 * structure for less CPUs.
+                 *
+                 * [*] See Linux kernel arch/arm64/include/asm/pvclock-abi.h
+                 */
+                assert(pvtime_size >= MACHINE_GET_CLASS(vms)->max_cpus * 64);
+                kvm_arm_pvtime_init(cpu, pvtime_base + 64 * cpu->cpu_index);
             }
         }
     } else {
@@ -1846,6 +1871,11 @@ static void machvirt_init(MachineState *machine)
         if (vmc->kvm_no_adjvtime &&
             object_property_find(cpuobj, "kvm-no-adjvtime", NULL)) {
             object_property_set_bool(cpuobj, "kvm-no-adjvtime", true, NULL);
+        }
+
+        if (vmc->kvm_no_steal_time &&
+            object_property_find(cpuobj, "kvm-steal-time", NULL)) {
+            object_property_set_bool(cpuobj, false, "kvm-steal-time", NULL);
         }
 
         if (vmc->no_pmu && object_property_find(cpuobj, "pmu", NULL)) {
@@ -2568,6 +2598,7 @@ static void virt_machine_5_0_options(MachineClass *mc)
     mc->numa_mem_supported = true;
     vmc->acpi_expose_flash = true;
     mc->auto_enable_numa_with_memdev = false;
+    vmc->kvm_no_steal_time = true;
 }
 DEFINE_VIRT_MACHINE(5, 0)
 
