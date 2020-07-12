@@ -58,7 +58,7 @@ def bench_write_req(qemu_img, image_name, block_size, block_offset, requests,
     image_name   -- QCOW2 image name to create
     block_size   -- size of a block to write to clusters
     block_offset -- offset of the block in clusters
-    requests     -- number of write requests per cluster
+    requests     -- number of write requests per cluster, customize if zero
     empty_image  -- if not True, fills image with random data
 
     Returns {'seconds': int} on success and {'error': str} on failure.
@@ -175,6 +175,13 @@ if __name__ == '__main__':
             'block_offset': 4096,
             'requests': 2,
             'empty_image': True
+        },
+        {
+            'id': '<unaligned>',
+            'block_size': 104857600,
+            'block_offset': 524288,
+            'requests': 0,
+            'empty_image': False
         },
     ]
 
