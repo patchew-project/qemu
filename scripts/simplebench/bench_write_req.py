@@ -29,7 +29,7 @@ def bench_func(env, case):
     """ Handle one "cell" of benchmarking table. """
     return bench_write_req(env['qemu_img'], env['image_name'],
                            case['block_size'], case['block_offset'],
-                           case['requests'])
+                           case['requests'], case['empty_image'])
 
 
 def qemu_img_pipe(*args):
@@ -45,7 +45,8 @@ def qemu_img_pipe(*args):
     return subp.communicate()[0]
 
 
-def bench_write_req(qemu_img, image_name, block_size, block_offset, requests):
+def bench_write_req(qemu_img, image_name, block_size, block_offset, requests,
+                    empty_image):
     """Benchmark write requests
 
     The function creates a QCOW2 image with the given path/name and fills it
@@ -58,6 +59,7 @@ def bench_write_req(qemu_img, image_name, block_size, block_offset, requests):
     block_size   -- size of a block to write to clusters
     block_offset -- offset of the block in clusters
     requests     -- number of write requests per cluster
+    empty_image  -- if not True, fills image with random data
 
     Returns {'seconds': int} on success and {'error': str} on failure.
     Return value is compatible with simplebench lib.
@@ -96,6 +98,15 @@ def bench_write_req(qemu_img, image_name, block_size, block_offset, requests):
 
     try:
         qemu_img_pipe(*args_create)
+
+        if not empty_image:
+            dd = ['dd', 'if=/dev/urandom', f'of={image_name}',
+                  f'bs={cluster_size}', f'seek={seek}',
+                  f'count={dd_count}']
+            devnull = open('/dev/null', 'w')
+            subprocess.run(dd, stderr=devnull, stdout=devnull)
+            subprocess.run('sync')
+
     except OSError as e:
         os.remove(image_name)
         return {'error': 'qemu_img create failed: ' + str(e)}
@@ -130,25 +141,29 @@ if __name__ == '__main__':
             'id': '<simple case>',
             'block_size': 0,
             'block_offset': 0,
-            'requests': 10
+            'requests': 10,
+            'empty_image': True
         },
         {
             'id': '<general case>',
             'block_size': 4096,
             'block_offset': 0,
-            'requests': 10
+            'requests': 10,
+            'empty_image': True
         },
         {
             'id': '<cluster middle>',
             'block_size': 4096,
             'block_offset': 524288,
-            'requests': 10
+            'requests': 10,
+            'empty_image': True
         },
         {
             'id': '<cluster overlap>',
             'block_size': 524288,
             'block_offset': 4096,
-            'requests': 2
+            'requests': 2,
+            'empty_image': True
         },
     ]
 
