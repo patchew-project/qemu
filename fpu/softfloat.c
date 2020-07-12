@@ -584,6 +584,11 @@ static inline FloatParts float16_unpack_raw(float16 f)
     return unpack_raw(float16_params, f);
 }
 
+static inline FloatParts bfloat16_unpack_raw(bfloat16 f)
+{
+    return unpack_raw(bfloat16_params, f);
+}
+
 static inline FloatParts float32_unpack_raw(float32 f)
 {
     return unpack_raw(float32_params, f);
@@ -605,6 +610,11 @@ static inline uint64_t pack_raw(FloatFmt fmt, FloatParts p)
 static inline float16 float16_pack_raw(FloatParts p)
 {
     return make_float16(pack_raw(float16_params, p));
+}
+
+static inline bfloat16 bfloat16_pack_raw(FloatParts p)
+{
+    return make_bfloat16(pack_raw(bfloat16_params, p));
 }
 
 static inline float32 float32_pack_raw(FloatParts p)
@@ -824,6 +834,11 @@ static FloatParts float16_unpack_canonical(float16 f, float_status *s)
     return float16a_unpack_canonical(f, s, &float16_params);
 }
 
+static FloatParts bfloat16_unpack_canonical(bfloat16 f, float_status *s)
+{
+    return sf_canonicalize(bfloat16_unpack_raw(f), &bfloat16_params, s);
+}
+
 static float16 float16a_round_pack_canonical(FloatParts p, float_status *s,
                                              const FloatFmt *params)
 {
@@ -833,6 +848,11 @@ static float16 float16a_round_pack_canonical(FloatParts p, float_status *s,
 static float16 float16_round_pack_canonical(FloatParts p, float_status *s)
 {
     return float16a_round_pack_canonical(p, s, &float16_params);
+}
+
+static bfloat16 bfloat16_round_pack_canonical(FloatParts p, float_status *s)
+{
+    return float16a_round_pack_canonical(p, s, &bfloat16_params);
 }
 
 static FloatParts float32_unpack_canonical(float32 f, float_status *s)
