@@ -114,6 +114,7 @@
 #include <sound/asound.h>
 #ifdef HAVE_DRM_H
 #include <libdrm/drm.h>
+#include <libdrm/i915_drm.h>
 #endif
 #include "linux_loop.h"
 #include "uname.h"
@@ -5352,6 +5353,44 @@ static abi_long do_ioctl_drm(const IOCTLEntry *ie, uint8_t *buf_temp,
         return ret;
     }
     return -TARGET_ENOSYS;
+}
+
+static abi_long do_ioctl_drm_i915_getparam(const IOCTLEntry *ie,
+                                           struct drm_i915_getparam *gparam,
+                                           int fd, abi_long arg)
+{
+    abi_long ret;
+    struct target_drm_i915_getparam *target_gparam;
+
+    if (!lock_user_struct(VERIFY_READ, target_gparam, arg, 0)) {
+        return -TARGET_EFAULT;
+    }
+    __get_user(gparam->param, &target_gparam->param);
+    gparam->value = lock_user(VERIFY_WRITE, target_gparam->value,
+                             sizeof(*gparam->value), 0);
+    if (!gparam->value) {
+        unlock_user_struct(target_gparam, arg, 0);
+        return -TARGET_EFAULT;
+    }
+
+    ret = get_errno(safe_ioctl(fd, ie->host_cmd, gparam));
+
+    unlock_user(gparam->value, target_gparam->value, sizeof(*gparam->value));
+    unlock_user_struct(target_gparam, arg, 0);
+    return ret;
+}
+
+static abi_long do_ioctl_drm_i915(const IOCTLEntry *ie, uint8_t *buf_temp,
+                                  int fd, int cmd, abi_long arg)
+{
+    switch (ie->host_cmd) {
+    case DRM_IOCTL_I915_GETPARAM:
+        return do_ioctl_drm_i915_getparam(ie,
+                                          (struct drm_i915_getparam *)buf_temp,
+                                          fd, arg);
+    default:
+        return -TARGET_ENOSYS;
+    }
 }
 
 #endif
