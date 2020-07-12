@@ -68,7 +68,13 @@ void helper_cmpxchg8b(CPUX86State *env, target_ulong a0)
         uint64_t *haddr = g2h(a0);
         cmpv = cpu_to_le64(cmpv);
         newv = cpu_to_le64(newv);
-        oldv = atomic_cmpxchg__nocheck(haddr, cmpv, newv);
+        if ((unsigned long)haddr % 8) {
+            volatile uint64_t tmp = *haddr; /* avoid compiler optimization */
+            oldv = atomic_cmpxchg__nocheck(&tmp, cmpv, newv);
+            *haddr = tmp;
+        } else {
+            oldv = atomic_cmpxchg__nocheck(haddr, cmpv, newv);
+        }
         oldv = le64_to_cpu(oldv);
     }
 #else
