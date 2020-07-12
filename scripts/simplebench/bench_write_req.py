@@ -58,7 +58,7 @@ def bench_write_req(qemu_img, image_name, block_size, block_offset, requests,
     image_name   -- QCOW2 image name to create
     block_size   -- size of a block to write to clusters
     block_offset -- offset of the block in clusters
-    requests     -- number of write requests per cluster
+    requests     -- number of write requests per cluster, customize if zero
     empty_image  -- if not True, fills image with random data
 
     Returns {'seconds': int} on success and {'error': str} on failure.
@@ -83,8 +83,17 @@ def bench_write_req(qemu_img, image_name, block_size, block_offset, requests,
                    f'cluster_size={cluster_size}',
                    image_name, str(image_size)]
 
-    count = requests * int(image_size / cluster_size)
-    step = str(cluster_size)
+    if requests:
+        count = requests * int(image_size / cluster_size)
+        step = str(cluster_size)
+    else:
+        # Create unaligned write requests
+        assert block_size
+        shift = int(block_size * 1.01)
+        count = int((image_size - block_offset) / shift)
+        step = str(shift)
+        depth = ['-d', '2']
+
     offset = str(block_offset)
     cnt = str(count)
     size = []
@@ -95,6 +104,8 @@ def bench_write_req(qemu_img, image_name, block_size, block_offset, requests,
                   '-S', step, '-o', offset, '-f', 'qcow2', image_name]
     if block_size:
         args_bench.extend(size)
+    if not requests:
+        args_bench.extend(depth)
 
     try:
         qemu_img_pipe(*args_create)
@@ -164,6 +175,13 @@ if __name__ == '__main__':
             'block_offset': 4096,
             'requests': 2,
             'empty_image': True
+        },
+        {
+            'id': '<unaligned>',
+            'block_size': 104857600,
+            'block_offset': 524288,
+            'requests': 0,
+            'empty_image': False
         },
     ]
 
