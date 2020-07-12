@@ -292,7 +292,7 @@ bool float32_is_quiet_nan(float32 a_, float_status *status)
     if (snan_bit_is_one(status)) {
         return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
     } else {
-        return ((uint32_t)(a << 1) >= 0xFF800000);
+        return ((a >> 22) & 0x1FF) == 0x1FF;
     }
 #endif
 }
@@ -309,7 +309,7 @@ bool float32_is_signaling_nan(float32 a_, float_status *status)
 #else
     uint32_t a = float32_val(a_);
     if (snan_bit_is_one(status)) {
-        return ((uint32_t)(a << 1) >= 0xFF800000);
+        return ((a >> 22) & 0x1FF) == 0x1FF;
     } else {
         return (((a >> 22) & 0x1FF) == 0x1FE) && (a & 0x003FFFFF);
     }
@@ -647,7 +647,7 @@ bool float64_is_quiet_nan(float64 a_, float_status *status)
         return (((a >> 51) & 0xFFF) == 0xFFE)
             && (a & 0x0007FFFFFFFFFFFFULL);
     } else {
-        return ((a << 1) >= 0xFFF0000000000000ULL);
+        return ((a >> 51) & 0xFFF) == 0xFFF;
     }
 #endif
 }
@@ -664,7 +664,7 @@ bool float64_is_signaling_nan(float64 a_, float_status *status)
 #else
     uint64_t a = float64_val(a_);
     if (snan_bit_is_one(status)) {
-        return ((a << 1) >= 0xFFF0000000000000ULL);
+        return ((a >> 51) & 0xFFF) == 0xFFF;
     } else {
         return (((a >> 51) & 0xFFF) == 0xFFE)
             && (a & UINT64_C(0x0007FFFFFFFFFFFF));
