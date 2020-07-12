@@ -239,6 +239,37 @@ bool float16_is_quiet_nan(float16, float_status *status);
 bool float16_is_signaling_nan(float16, float_status *status);
 float16 float16_silence_nan(float16, float_status *status);
 
+/*----------------------------------------------------------------------------
+| Software brain floatint-point operations.
+*----------------------------------------------------------------------------*/
+
+bfloat16 bfloat16_add(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_sub(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_mul(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_div(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_muladd(bfloat16, bfloat16, bfloat16, int,
+                         float_status *status);
+float16 bfloat16_scalbn(bfloat16, int, float_status *status);
+bfloat16 bfloat16_min(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_max(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_minnum(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_maxnum(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_minnummag(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_maxnummag(bfloat16, bfloat16, float_status *status);
+bfloat16 bfloat16_sqrt(bfloat16, float_status *status);
+int bfloat16_compare(bfloat16, bfloat16, float_status *status);
+int bfloat16_compare_quiet(bfloat16, bfloat16, float_status *status);
+int bfloat16_unordered_quiet(bfloat16, bfloat16, float_status *status);
+int bfloat16_le(bfloat16, bfloat16, float_status *status);
+int bfloat16_lt(bfloat16, bfloat16, float_status *status);
+int bfloat16_eq_quiet(bfloat16, bfloat16, float_status *status);
+
+int bfloat16_is_quiet_nan(bfloat16, float_status *status);
+int bfloat16_is_signaling_nan(bfloat16, float_status *status);
+bfloat16 bfloat16_silence_nan(bfloat16, float_status *status);
+bfloat16 bfloat16_default_nan(float_status *status);
+bfloat16 bfloat16_squash_input_denormal(bfloat16 a, float_status *status);
+
 static inline bool float16_is_any_nan(float16 a)
 {
     return ((float16_val(a) & ~0x8000) > 0x7c00);
@@ -292,6 +323,19 @@ static inline float16 float16_set_sign(float16 a, int sign)
 #define float16_two make_float16(0x4000)
 #define float16_three make_float16(0x4200)
 #define float16_infinity make_float16(0x7c00)
+
+static inline bfloat16 bfloat16_set_sign(bfloat16 a, int sign)
+{
+    return make_bfloat16((bfloat16_val(a) & 0x7fff) | (sign << 15));
+}
+
+#define bfloat16_zero make_bfloat16(0)
+#define bfloat16_half make_bfloat16(0x3f00)
+#define bfloat16_one make_bfloat16(0x3f80)
+#define bfloat16_one_point_five make_bfloat16(0x3fc0)
+#define bfloat16_two make_bfloat16(0x4000)
+#define bfloat16_three make_bfloat16(0x4040)
+#define bfloat16_infinity make_bfloat16(0x7f80)
 
 /*----------------------------------------------------------------------------
 | The pattern for a default generated half-precision NaN.
