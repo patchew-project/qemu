@@ -1955,22 +1955,19 @@ EOF
 exit 0
 fi
 
-# Remove old dependency files to make sure that they get properly regenerated
-rm -f */config-devices.mak.d
-
 # Remove syscall_nr.h to be sure they will be regenerated in the build
 # directory, not in the source directory
 for arch in alpha hppa m68k xtensa sh4 microblaze arm ppc s390x sparc sparc64 \
     i386 x86_64 mips mips64 ; do
     # remove the file if it has been generated in the source directory
     rm -f "${source_path}/linux-user/${arch}/syscall_nr.h"
-    # remove the dependency files
-    for target in ${arch}*-linux-user ; do
-        test -d "${target}" && find "${target}" -type f -name "*.d" \
-             -exec grep -q "${source_path}/linux-user/${arch}/syscall_nr.h" {} \; \
-             -print | while read file ; do rm "${file}" "${file%.d}.o" ; done
-    done
 done
+
+# Clean out all old dependency files. As more files are generated we
+# run the risk of old dependencies triggering generation in the wrong
+# places. Previous brittle attempts to be surgical tend to miss edge
+# cases leading to wasted time and much confusion.
+find -type f -name "*.d" -exec rm -f {} \;
 
 if test -z "$python"
 then
