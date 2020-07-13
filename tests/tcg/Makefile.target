@@ -129,8 +129,16 @@ ifeq ($(CONFIG_PLUGIN),y)
 PLUGIN_SRC=$(SRC_PATH)/tests/plugin
 PLUGIN_LIB=../../plugin
 VPATH+=$(PLUGIN_LIB)
-PLUGINS=$(filter-out liblockstep.so,\
-		$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c))))
+
+# Some plugins aren't testable automatically
+SKIP_PLUGINS=liblockstep.so
+ifdef CONFIG_USER_ONLY
+SKIP_PLUGINS+=libhwprofile.so
+endif
+
+PLUGINS=$(filter-out $(SKIP_PLUGINS),\
+		$(patsubst %.c, lib%.so, \
+			$(notdir $(wildcard $(PLUGIN_SRC)/*.c))))
 
 # We need to ensure expand the run-plugin-TEST-with-PLUGIN
 # pre-requistes manually here as we can't use stems to handle it. We
