@@ -825,7 +825,6 @@ static int process_reply(int sock, int type,
         break;
     default:
         return -1;
-        break;
     }
     return 0;
 }
