@@ -289,10 +289,8 @@ target_ulong HELPER(mfspr)(CPUOpenRISCState *env, target_ulong rd,
 
     case TO_SPR(5, 1):  /* MACLO */
         return (uint32_t)env->mac;
-        break;
     case TO_SPR(5, 2):  /* MACHI */
         return env->mac >> 32;
-        break;
 
     case TO_SPR(8, 0):  /* PMR */
         return env->pmr;
