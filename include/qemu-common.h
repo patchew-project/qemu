@@ -110,6 +110,20 @@ const char *qemu_get_vm_name(void);
 
 #define QEMU_FILE_TYPE_BIOS   0
 #define QEMU_FILE_TYPE_KEYMAP 1
+/**
+ * qemu_find_file:
+ * @type: QEMU_FILE_TYPE_BIOS (for BIOS, VGA BIOS)
+ *        or QEMU_FILE_TYPE_KEYMAP (for keymaps).
+ * @name: File name
+ *
+ * Search for @name file in the data directories, either configured at
+ * build time (DATADIR) or registered with the -L command line option.
+ *
+ * The caller must use g_free() to free the returned data when it is
+ * no longer required.
+ *
+ * Returns: absolute path to the file or NULL on error.
+ */
 char *qemu_find_file(int type, const char *name);
 
 /* OS specific functions */
