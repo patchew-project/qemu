@@ -1193,6 +1193,138 @@ UNUSED static struct flags falloc_flags[] = {
 #endif
 };
 
+UNUSED static struct flags termios_iflags[] = {
+    FLAG_TARGET(IGNBRK),
+    FLAG_TARGET(BRKINT),
+    FLAG_TARGET(IGNPAR),
+    FLAG_TARGET(PARMRK),
+    FLAG_TARGET(INPCK),
+    FLAG_TARGET(ISTRIP),
+    FLAG_TARGET(INLCR),
+    FLAG_TARGET(IGNCR),
+    FLAG_TARGET(ICRNL),
+    FLAG_TARGET(IUCLC),
+    FLAG_TARGET(IXON),
+    FLAG_TARGET(IXANY),
+    FLAG_TARGET(IXOFF),
+    FLAG_TARGET(IMAXBEL),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags[] = {
+    FLAG_TARGET(OPOST),
+    FLAG_TARGET(OLCUC),
+    FLAG_TARGET(ONLCR),
+    FLAG_TARGET(OCRNL),
+    FLAG_TARGET(ONOCR),
+    FLAG_TARGET(ONLRET),
+    FLAG_TARGET(OFILL),
+    FLAG_TARGET(OFDEL),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags_NLDLY[] = {
+    FLAG_TARGET(NL0),
+    FLAG_TARGET(NL1),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags_CRDLY[] = {
+    FLAG_TARGET(CR0),
+    FLAG_TARGET(CR1),
+    FLAG_TARGET(CR2),
+    FLAG_TARGET(CR3),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags_TABDLY[] = {
+    FLAG_TARGET(TAB0),
+    FLAG_TARGET(TAB1),
+    FLAG_TARGET(TAB2),
+    FLAG_TARGET(TAB3),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags_VTDLY[] = {
+    FLAG_TARGET(VT0),
+    FLAG_TARGET(VT1),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags_FFDLY[] = {
+    FLAG_TARGET(FF0),
+    FLAG_TARGET(FF1),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_oflags_BSDLY[] = {
+    FLAG_TARGET(BS0),
+    FLAG_TARGET(BS1),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_cflags_CBAUD[] = {
+    FLAG_TARGET(B0),
+    FLAG_TARGET(B50),
+    FLAG_TARGET(B75),
+    FLAG_TARGET(B110),
+    FLAG_TARGET(B134),
+    FLAG_TARGET(B150),
+    FLAG_TARGET(B200),
+    FLAG_TARGET(B300),
+    FLAG_TARGET(B600),
+    FLAG_TARGET(B1200),
+    FLAG_TARGET(B1800),
+    FLAG_TARGET(B2400),
+    FLAG_TARGET(B4800),
+    FLAG_TARGET(B9600),
+    FLAG_TARGET(B19200),
+    FLAG_TARGET(B38400),
+    FLAG_TARGET(B57600),
+    FLAG_TARGET(B115200),
+    FLAG_TARGET(B230400),
+    FLAG_TARGET(B460800),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_cflags_CSIZE[] = {
+    FLAG_TARGET(CS5),
+    FLAG_TARGET(CS6),
+    FLAG_TARGET(CS7),
+    FLAG_TARGET(CS8),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_cflags[] = {
+    FLAG_TARGET(CSTOPB),
+    FLAG_TARGET(CREAD),
+    FLAG_TARGET(PARENB),
+    FLAG_TARGET(PARODD),
+    FLAG_TARGET(HUPCL),
+    FLAG_TARGET(CLOCAL),
+    FLAG_TARGET(CRTSCTS),
+    FLAG_END,
+};
+
+UNUSED static struct flags termios_lflags[] = {
+    FLAG_TARGET(ISIG),
+    FLAG_TARGET(ICANON),
+    FLAG_TARGET(XCASE),
+    FLAG_TARGET(ECHO),
+    FLAG_TARGET(ECHOE),
+    FLAG_TARGET(ECHOK),
+    FLAG_TARGET(ECHONL),
+    FLAG_TARGET(NOFLSH),
+    FLAG_TARGET(TOSTOP),
+    FLAG_TARGET(ECHOCTL),
+    FLAG_TARGET(ECHOPRT),
+    FLAG_TARGET(ECHOKE),
+    FLAG_TARGET(FLUSHO),
+    FLAG_TARGET(PENDIN),
+    FLAG_TARGET(IEXTEN),
+    FLAG_END,
+};
+
 /*
  * print_xxx utility functions.  These are used to print syscall
  * parameters in certain format.  All of these have parameter
@@ -1418,6 +1550,67 @@ print_timezone(abi_ulong tz_addr, int last)
     } else {
         qemu_log("NULL%s", get_comma(last));
     }
+}
+
+void
+print_termios(void *arg)
+{
+    const struct target_termios *target = arg;
+
+    abi_long iflags = tswap32(target->c_iflag);
+    abi_long oflags = tswap32(target->c_oflag);
+    abi_long cflags = tswap32(target->c_cflag);
+    abi_long lflags = tswap32(target->c_lflag);
+
+    qemu_log("{");
+
+    qemu_log("c_iflag = ");
+    print_flags(termios_iflags, iflags, 0);
+
+    qemu_log("c_oflag = ");
+    abi_long oflags_clean =  oflags & ~(TARGET_NLDLY) & ~(TARGET_CRDLY) &
+                                      ~(TARGET_TABDLY) & ~(TARGET_BSDLY) &
+                                      ~(TARGET_VTDLY) & ~(TARGET_FFDLY);
+    print_flags(termios_oflags, oflags_clean, 0);
+    if (oflags & TARGET_NLDLY) {
+        print_flags(termios_oflags_NLDLY, oflags & TARGET_NLDLY, 0);
+    }
+    if (oflags & TARGET_CRDLY) {
+        print_flags(termios_oflags_CRDLY, oflags & TARGET_CRDLY, 0);
+    }
+    if (oflags & TARGET_TABDLY) {
+        print_flags(termios_oflags_TABDLY, oflags & TARGET_TABDLY, 0);
+    }
+    if (oflags & TARGET_BSDLY) {
+        print_flags(termios_oflags_BSDLY, oflags & TARGET_BSDLY, 0);
+    }
+    if (oflags & TARGET_VTDLY) {
+        print_flags(termios_oflags_VTDLY, oflags & TARGET_VTDLY, 0);
+    }
+    if (oflags & TARGET_FFDLY) {
+        print_flags(termios_oflags_FFDLY, oflags & TARGET_FFDLY, 0);
+    }
+
+    qemu_log("c_cflag = ");
+    if (cflags & TARGET_CBAUD) {
+        print_flags(termios_cflags_CBAUD, cflags & TARGET_CBAUD, 0);
+    }
+    if (cflags & TARGET_CSIZE) {
+        print_flags(termios_cflags_CSIZE, cflags & TARGET_CSIZE, 0);
+    }
+    abi_long cflags_clean = cflags & ~(TARGET_CBAUD) & ~(TARGET_CSIZE);
+    print_flags(termios_cflags, cflags_clean, 0);
+
+    qemu_log("c_lflag = ");
+    print_flags(termios_lflags, lflags, 0);
+
+    qemu_log("c_cc = ");
+    qemu_log("\"%s\",", target->c_cc);
+
+    qemu_log("c_line = ");
+    print_raw_param("\'%c\'", target->c_line, 1);
+
+    qemu_log("}");
 }
 
 #undef UNUSED

@@ -706,6 +706,8 @@ static inline uint64_t target_offset64(uint64_t word0, uint64_t word1)
 }
 #endif /* TARGET_ABI_BITS != 32 */
 
+extern void print_termios(void *arg);
+
 /**
  * preexit_cleanup: housekeeping before the guest exits
  *
