@@ -56,6 +56,10 @@
 #include <lwp.h>
 #endif
 
+#ifdef __OpenBSD__
+#include <sys/sysctl.h>
+#endif
+
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
@@ -100,6 +104,8 @@ int qemu_get_thread_id(void)
     return (int)tid;
 #elif defined(__NetBSD__)
     return _lwp_self();
+#elif defined(__OpenBSD__)
+    return getthrid();
 #else
     return getpid();
 #endif
@@ -406,6 +412,23 @@ void qemu_init_exec_dir(const char *argv0)
                 p = buf;
                 break;
             }
+        }
+    }
+#elif defined(__OpenBSD__)
+    {
+
+        char **args;
+        size_t len;
+        int mib[4] = {CTL_KERN, KERN_PROC_ARGS, getpid(), KERN_PROC_ARGV};
+
+        *buf = 0;
+        if (!sysctl(mib, ARRAY_SIZE(mib), NULL, &len, NULL, 0)) {
+            args = malloc(len);
+            if (!sysctl(mib, ARRAY_SIZE(mib), args, &len, NULL, 0)) {
+                p = realpath(*args, buf);
+            }
+
+            free(args);
         }
     }
 #endif
