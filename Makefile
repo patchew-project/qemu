@@ -478,6 +478,7 @@ dummy := $(call unnest-vars,, \
                 trace-obj-y)
 
 include $(SRC_PATH)/tests/Makefile.include
+include $(SRC_PATH)/python/Makefile.include
 
 all: $(DOCS) $(if $(BUILD_DOCS),sphinxdocs) $(TOOLS) $(HELPERS-y) recurse-all modules $(vhost-user-json-y)
 

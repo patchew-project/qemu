@@ -1,0 +1,33 @@
+# -*- Mode: makefile -*-
+
+PYLIB_VENV_DIR=$(BUILD_DIR)/venv/cqa
+PYLIB_VENV_REQ=$(SRC_PATH)/python/requirements.cqa.txt
+
+$(PYLIB_VENV_DIR): $(PYLIB_VENV_REQ)
+	$(call quiet-command, \
+	    $(PYTHON) -m venv $@, \
+	    VENV, $@)
+	$(call quiet-command, \
+	    $(PYLIB_VENV_DIR)/bin/python3 -m pip -q install -r $(PYLIB_VENV_REQ), \
+	    PIP, $(PYLIB_VENV_REQ))
+	$(call quiet-command, touch $@)
+
+pylib-venv: $(PYLIB_VENV_DIR)
+
+check-python: pylib-venv
+	$(call quiet-command, cd $(SRC_PATH)/python && \
+	    $(PYLIB_VENV_DIR)/bin/python3 -m flake8 qemu, \
+	    FLAKE8, \
+	    $(SRC_PATH)/python/qemu \
+	)
+	$(call quiet-command, cd $(SRC_PATH)/python && \
+	    $(PYLIB_VENV_DIR)/bin/python3 -m pylint qemu, \
+	    PYLINT, \
+	    $(SRC_PATH)/python/qemu \
+	)
+	$(call quiet-command, cd $(SRC_PATH)/python && \
+	    $(PYLIB_VENV_DIR)/bin/python3 -m mypy \
+	        --strict --no-error-summary qemu, \
+	    MYPY, \
+	    "--strict $(SRC_PATH)/python/qemu" \
+	)
