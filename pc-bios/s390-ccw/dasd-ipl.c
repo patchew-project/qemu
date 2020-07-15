@@ -120,8 +120,8 @@ static void run_readipl(SubChannelId schid, uint16_t cutype)
  */
 static void check_ipl1(void)
 {
-    Ccw0 *ccwread = (Ccw0 *)0x08;
-    Ccw0 *ccwtic = (Ccw0 *)0x10;
+    Ccw0 *ccwread = (Ccw0 *) &lowcore->ccw1;
+    Ccw0 *ccwtic = (Ccw0 *) &lowcore->ccw2;
 
     if (ccwread->cmd_code != CCW_CMD_DASD_READ ||
         ccwtic->cmd_code != CCW_CMD_TIC) {
@@ -143,15 +143,15 @@ static void check_ipl2(uint32_t ipl2_addr)
 
 static uint32_t read_ipl2_addr(void)
 {
-    Ccw0 *ccwtic = (Ccw0 *)0x10;
+    Ccw0 *ccwtic = (Ccw0 *)&lowcore->ccw2;
 
     return ccwtic->cda;
 }
 
 static void ipl1_fixup(void)
 {
-    Ccw0 *ccwSeek = (Ccw0 *) 0x08;
-    Ccw0 *ccwSearchID = (Ccw0 *) 0x10;
+    Ccw0 *ccwSeek = (Ccw0 *) &lowcore->ccw1;
+    Ccw0 *ccwSearchID = (Ccw0 *) &lowcore->ccw2;
     Ccw0 *ccwSearchTic = (Ccw0 *) 0x18;
     Ccw0 *ccwRead = (Ccw0 *) 0x20;
     CcwSeekData *seekData = (CcwSeekData *) 0x30;
