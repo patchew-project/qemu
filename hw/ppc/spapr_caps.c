@@ -58,8 +58,8 @@ typedef struct SpaprCapabilityInfo {
     int index;
 
     /* Getter and Setter Function Pointers */
-    ObjectPropertyAccessor *get;
-    ObjectPropertyAccessor *set;
+    ObjectPropertyGet *get;
+    ObjectPropertySet *set;
     const char *type;
     /* Possible values if this is a custom string type */
     SpaprCapPossible *possible;

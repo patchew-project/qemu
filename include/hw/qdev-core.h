@@ -287,8 +287,8 @@ struct PropertyInfo {
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     void (*set_default_value)(ObjectProperty *op, const Property *prop);
     void (*create)(ObjectClass *oc, Property *prop);
-    ObjectPropertyAccessor *get;
-    ObjectPropertyAccessor *set;
+    ObjectPropertyGet *get;
+    ObjectPropertySet *set;
     ObjectPropertyRelease *release;
 };
 

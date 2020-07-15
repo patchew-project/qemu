@@ -1148,8 +1148,8 @@ void object_unref(Object *obj)
 
 ObjectProperty *
 object_property_try_add(Object *obj, const char *name, const char *type,
-                        ObjectPropertyAccessor *get,
-                        ObjectPropertyAccessor *set,
+                        ObjectPropertyGet *get,
+                        ObjectPropertySet *set,
                         ObjectPropertyRelease *release,
                         void *opaque, Error **errp)
 {
@@ -1198,8 +1198,8 @@ object_property_try_add(Object *obj, const char *name, const char *type,
 
 ObjectProperty *
 object_property_add(Object *obj, const char *name, const char *type,
-                    ObjectPropertyAccessor *get,
-                    ObjectPropertyAccessor *set,
+                    ObjectPropertyGet *get,
+                    ObjectPropertySet *set,
                     ObjectPropertyRelease *release,
                     void *opaque)
 {
@@ -1211,8 +1211,8 @@ ObjectProperty *
 object_class_property_add(ObjectClass *klass,
                           const char *name,
                           const char *type,
-                          ObjectPropertyAccessor *get,
-                          ObjectPropertyAccessor *set,
+                          ObjectPropertyGet *get,
+                          ObjectPropertySet *set,
                           ObjectPropertyRelease *release,
                           void *opaque)
 {
@@ -2486,8 +2486,8 @@ object_property_add_uint8_ptr(Object *obj, const char *name,
                               const uint8_t *v,
                               ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint8_ptr;
@@ -2506,8 +2506,8 @@ object_class_property_add_uint8_ptr(ObjectClass *klass, const char *name,
                                     const uint8_t *v,
                                     ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint8_ptr;
@@ -2526,8 +2526,8 @@ object_property_add_uint16_ptr(Object *obj, const char *name,
                                const uint16_t *v,
                                ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint16_ptr;
@@ -2546,8 +2546,8 @@ object_class_property_add_uint16_ptr(ObjectClass *klass, const char *name,
                                      const uint16_t *v,
                                      ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint16_ptr;
@@ -2566,8 +2566,8 @@ object_property_add_uint32_ptr(Object *obj, const char *name,
                                const uint32_t *v,
                                ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint32_ptr;
@@ -2586,8 +2586,8 @@ object_class_property_add_uint32_ptr(ObjectClass *klass, const char *name,
                                      const uint32_t *v,
                                      ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint32_ptr;
@@ -2606,8 +2606,8 @@ object_property_add_uint64_ptr(Object *obj, const char *name,
                                const uint64_t *v,
                                ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint64_ptr;
@@ -2626,8 +2626,8 @@ object_class_property_add_uint64_ptr(ObjectClass *klass, const char *name,
                                      const uint64_t *v,
                                      ObjectPropertyFlags flags)
 {
-    ObjectPropertyAccessor *getter = NULL;
-    ObjectPropertyAccessor *setter = NULL;
+    ObjectPropertyGet *getter = NULL;
+    ObjectPropertySet *setter = NULL;
 
     if ((flags & OBJ_PROP_FLAG_READ) == OBJ_PROP_FLAG_READ) {
         getter = property_get_uint64_ptr;

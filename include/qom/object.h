@@ -310,20 +310,36 @@ typedef struct InterfaceInfo InterfaceInfo;
 typedef struct ObjectProperty ObjectProperty;
 
 /**
- * ObjectPropertyAccessor:
+ * ObjectPropertySet:
  * @obj: the object that owns the property
  * @v: the visitor that contains the property data
  * @name: the name of the property
  * @opaque: the object property opaque
- * @errp: a pointer to an Error that is filled if getting/setting fails.
+ * @errp: a pointer to an Error that is filled if setting fails.
  *
- * Called when trying to get/set a property.
+ * Called when trying to set a property.
  */
-typedef void (ObjectPropertyAccessor)(Object *obj,
-                                      Visitor *v,
-                                      const char *name,
-                                      void *opaque,
-                                      Error **errp);
+typedef void (ObjectPropertySet)(Object *obj,
+                                 Visitor *v,
+                                 const char *name,
+                                 void *opaque,
+                                 Error **errp);
+
+/**
+ * ObjectPropertyGet:
+ * @obj: the object that owns the property
+ * @v: the visitor that contains the property data
+ * @name: the name of the property
+ * @opaque: the object property opaque
+ * @errp: a pointer to an Error that is filled if getting fails.
+ *
+ * Called when trying to get a property.
+ */
+typedef void (ObjectPropertyGet)(Object *obj,
+                                 Visitor *v,
+                                 const char *name,
+                                 void *opaque,
+                                 Error **errp);
 
 /**
  * ObjectPropertyResolve:
@@ -370,8 +386,8 @@ struct ObjectProperty
     char *name;
     char *type;
     char *description;
-    ObjectPropertyAccessor *get;
-    ObjectPropertyAccessor *set;
+    ObjectPropertyGet *get;
+    ObjectPropertySet *set;
     ObjectPropertyResolve *resolve;
     ObjectPropertyRelease *release;
     ObjectPropertyInit *init;
@@ -1071,8 +1087,8 @@ void object_unref(Object *obj);
  */
 ObjectProperty *object_property_try_add(Object *obj, const char *name,
                                         const char *type,
-                                        ObjectPropertyAccessor *get,
-                                        ObjectPropertyAccessor *set,
+                                        ObjectPropertyGet *get,
+                                        ObjectPropertySet *set,
                                         ObjectPropertyRelease *release,
                                         void *opaque, Error **errp);
 
@@ -1083,8 +1099,8 @@ ObjectProperty *object_property_try_add(Object *obj, const char *name,
  */
 ObjectProperty *object_property_add(Object *obj, const char *name,
                                     const char *type,
-                                    ObjectPropertyAccessor *get,
-                                    ObjectPropertyAccessor *set,
+                                    ObjectPropertyGet *get,
+                                    ObjectPropertySet *set,
                                     ObjectPropertyRelease *release,
                                     void *opaque);
 
@@ -1092,8 +1108,8 @@ void object_property_del(Object *obj, const char *name);
 
 ObjectProperty *object_class_property_add(ObjectClass *klass, const char *name,
                                           const char *type,
-                                          ObjectPropertyAccessor *get,
-                                          ObjectPropertyAccessor *set,
+                                          ObjectPropertyGet *get,
+                                          ObjectPropertySet *set,
                                           ObjectPropertyRelease *release,
                                           void *opaque);
 
