@@ -17,6 +17,13 @@
 #include "hw/s390x/adapter.h"
 #include "hw/virtio/virtio.h"
 #include "qemu/queue.h"
+#include "cpu.h"
+
+#ifndef CONFIG_KVM
+#define S390_ADAPTER_SUPPRESSIBLE 0x01
+#else
+#define S390_ADAPTER_SUPPRESSIBLE KVM_S390_ADAPTER_SUPPRESSIBLE
+#endif
 
 /*
  * Reserve enough gsis to accommodate all virtio devices.
