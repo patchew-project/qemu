@@ -687,12 +687,9 @@ static void virtio_mem_set_requested_size(Object *obj, Visitor *v,
                                           Error **errp)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
-    Error *err = NULL;
     uint64_t value;
 
-    visit_type_size(v, name, &value, &err);
-    if (err) {
-        error_propagate(errp, err);
+    if (!visit_type_size(v, name, &value, errp)) {
         return;
     }
 
