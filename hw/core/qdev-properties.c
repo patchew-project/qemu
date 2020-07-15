@@ -581,13 +581,10 @@ static void get_reserved_region(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     ReservedRegion *rr = qdev_get_prop_ptr(dev, prop);
-    char buffer[64];
-    char *p = buffer;
-    int rc;
+    g_autofree char *p;
 
-    rc = snprintf(buffer, sizeof(buffer), "0x%"PRIx64":0x%"PRIx64":%u",
-                  rr->low, rr->high, rr->type);
-    assert(rc < sizeof(buffer));
+    p = g_strdup_printf("0x%"PRIx64":0x%"PRIx64":%u",
+                        rr->low, rr->high, rr->type);
 
     visit_type_str(v, name, &p, errp);
 }
