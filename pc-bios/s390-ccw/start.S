@@ -63,7 +63,10 @@ consume_sclp_int:
         stctg   %c0,%c0,0(%r15)
         oi      6(%r15),0x2
         lctlg   %c0,%c0,0(%r15)
-        /* prepare external call handler */
+        /*
+         * Prepare external new PSW as it might have been overwritten
+         * by a loaded blob
+         */
         larl %r1, external_new_code
         stg %r1, 0x1b8
         larl %r1, external_new_mask
@@ -83,7 +86,10 @@ consume_io_int:
         stctg %c6,%c6,0(%r15)
         oi    4(%r15), 0xff
         lctlg %c6,%c6,0(%r15)
-        /* prepare i/o call handler */
+        /*
+         * Prepare i/o new PSW as it might have been overwritten
+         * by a loaded blob
+         */
         larl  %r1, io_new_code
         stg   %r1, 0x1f8
         larl  %r1, io_new_mask
