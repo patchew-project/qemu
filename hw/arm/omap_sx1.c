@@ -191,12 +191,11 @@ static void sx1_init(MachineState *machine, const int version)
     }
 
     if (!machine->kernel_filename && !fl_idx && !qtest_enabled()) {
-        error_report("Kernel or Flash image must be specified");
-        exit(1);
+        warn_report("Kernel or Flash image must be specified");
+    } else {
+        /* Load the kernel.  */
+        arm_load_kernel(mpu->cpu, machine, &sx1_binfo);
     }
-
-    /* Load the kernel.  */
-    arm_load_kernel(mpu->cpu, machine, &sx1_binfo);
 
     /* TODO: fix next line */
     //~ qemu_console_resize(ds, 640, 480);

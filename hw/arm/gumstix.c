@@ -60,9 +60,8 @@ static void connex_init(MachineState *machine)
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo && !qtest_enabled()) {
-        error_report("A flash image must be given with the "
-                     "'pflash' parameter");
-        exit(1);
+        warn_report("A flash image must be given with the "
+                    "'pflash' parameter");
     }
 
     if (!pflash_cfi01_register(0x00000000, "connext.rom", connex_rom,
@@ -90,9 +89,8 @@ static void verdex_init(MachineState *machine)
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo && !qtest_enabled()) {
-        error_report("A flash image must be given with the "
-                     "'pflash' parameter");
-        exit(1);
+        warn_report("A flash image must be given with the "
+                    "'pflash' parameter");
     }
 
     if (!pflash_cfi01_register(0x00000000, "verdex.rom", verdex_rom,
