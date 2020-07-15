@@ -978,7 +978,7 @@ void s390_realize_cpu_model(CPUState *cs, Error **errp)
 #endif
 }
 
-static void get_feature(Object *obj, Visitor *v, const char *name,
+static bool get_feature(Object *obj, Visitor *v, const char *name,
                         void *opaque, Error **errp)
 {
     S390Feat feat = (S390Feat) opaque;
@@ -988,11 +988,12 @@ static void get_feature(Object *obj, Visitor *v, const char *name,
     if (!cpu->model) {
         error_setg(errp, "Details about the host CPU model are not available, "
                          "features cannot be queried.");
-        return;
+        return false;
     }
 
     value = test_bit(feat, cpu->model->features);
-    visit_type_bool(v, name, &value, errp);
+
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void set_feature(Object *obj, Visitor *v, const char *name,
@@ -1029,7 +1030,7 @@ static void set_feature(Object *obj, Visitor *v, const char *name,
     }
 }
 
-static void get_feature_group(Object *obj, Visitor *v, const char *name,
+static bool get_feature_group(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
     S390FeatGroup group = (S390FeatGroup) opaque;
@@ -1041,13 +1042,14 @@ static void get_feature_group(Object *obj, Visitor *v, const char *name,
     if (!cpu->model) {
         error_setg(errp, "Details about the host CPU model are not available, "
                          "features cannot be queried.");
-        return;
+        return false;
     }
 
     /* a group is enabled if all features are enabled */
     bitmap_and(tmp, cpu->model->features, def->feat, S390_FEAT_MAX);
     value = bitmap_equal(tmp, def->feat, S390_FEAT_MAX);
-    visit_type_bool(v, name, &value, errp);
+
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void set_feature_group(Object *obj, Visitor *v, const char *name,

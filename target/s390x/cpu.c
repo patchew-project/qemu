@@ -265,23 +265,26 @@ static GuestPanicInformation *s390_cpu_get_crash_info(CPUState *cs)
     return panic_info;
 }
 
-static void s390_cpu_get_crash_info_qom(Object *obj, Visitor *v,
+static bool s390_cpu_get_crash_info_qom(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
     CPUState *cs = CPU(obj);
     GuestPanicInformation *panic_info;
+    bool ret;
 
     if (!cs->crash_occurred) {
         error_setg(errp, "No crash occurred");
-        return;
+        return false;
     }
 
     panic_info = s390_cpu_get_crash_info(cs);
 
-    visit_type_GuestPanicInformation(v, "crash-information", &panic_info,
-                                     errp);
+    ret = visit_type_GuestPanicInformation(v, "crash-information", &panic_info,
+                                           errp);
     qapi_free_GuestPanicInformation(panic_info);
+
+    return ret;
 }
 #endif
 

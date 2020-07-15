@@ -1484,7 +1484,7 @@ void vfio_setup_resetfn_quirk(VFIOPCIDevice *vdev)
  *
  * https://lists.gnu.org/archive/html/qemu-devel/2017-08/pdfUda5iEpgOS.pdf
  */
-static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
+static bool get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
@@ -1492,7 +1492,7 @@ static void get_nv_gpudirect_clique_id(Object *obj, Visitor *v,
     Property *prop = opaque;
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_uint8(v, name, ptr, errp);
+    return visit_type_uint8(v, name, ptr, errp);
 }
 
 static void set_nv_gpudirect_clique_id(Object *obj, Visitor *v,
@@ -1565,20 +1565,22 @@ static int vfio_add_nv_gpudirect_cap(VFIOPCIDevice *vdev, Error **errp)
     return 0;
 }
 
-static void vfio_pci_nvlink2_get_tgt(Object *obj, Visitor *v,
+static bool vfio_pci_nvlink2_get_tgt(Object *obj, Visitor *v,
                                      const char *name,
                                      void *opaque, Error **errp)
 {
     uint64_t tgt = (uintptr_t) opaque;
-    visit_type_uint64(v, name, &tgt, errp);
+
+    return visit_type_uint64(v, name, &tgt, errp);
 }
 
-static void vfio_pci_nvlink2_get_link_speed(Object *obj, Visitor *v,
+static bool vfio_pci_nvlink2_get_link_speed(Object *obj, Visitor *v,
                                                  const char *name,
                                                  void *opaque, Error **errp)
 {
     uint32_t link_speed = (uint32_t)(uintptr_t) opaque;
-    visit_type_uint32(v, name, &link_speed, errp);
+
+    return visit_type_uint32(v, name, &link_speed, errp);
 }
 
 int vfio_pci_nvidia_v100_ram_init(VFIOPCIDevice *vdev, Error **errp)

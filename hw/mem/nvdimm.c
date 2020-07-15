@@ -32,13 +32,13 @@
 #include "hw/mem/memory-device.h"
 #include "sysemu/hostmem.h"
 
-static void nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
+static bool nvdimm_get_label_size(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(obj);
     uint64_t value = nvdimm->label_size;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
@@ -65,7 +65,7 @@ static void nvdimm_set_label_size(Object *obj, Visitor *v, const char *name,
     nvdimm->label_size = value;
 }
 
-static void nvdimm_get_uuid(Object *obj, Visitor *v, const char *name,
+static bool nvdimm_get_uuid(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(obj);
@@ -73,7 +73,7 @@ static void nvdimm_get_uuid(Object *obj, Visitor *v, const char *name,
 
     value = qemu_uuid_unparse_strdup(&nvdimm->uuid);
 
-    visit_type_str(v, name, &value, errp);
+    return visit_type_str(v, name, &value, errp);
 }
 
 

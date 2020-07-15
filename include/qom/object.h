@@ -333,9 +333,11 @@ typedef void (ObjectPropertySet)(Object *obj,
  * @opaque: the object property opaque
  * @errp: a pointer to an Error that is filled if getting fails.
  *
+ * Return true on success, false on failure.
+ *
  * Called when trying to get a property.
  */
-typedef void (ObjectPropertyGet)(Object *obj,
+typedef bool (ObjectPropertyGet)(Object *obj,
                                  Visitor *v,
                                  const char *name,
                                  void *opaque,

@@ -445,7 +445,7 @@ void arm_cpu_sve_finalize(ARMCPU *cpu, Error **errp)
     cpu->sve_max_vq = max_vq;
 }
 
-static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
+static bool cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -457,7 +457,8 @@ static void cpu_max_get_sve_max_vq(Object *obj, Visitor *v, const char *name,
     } else {
         value = cpu->sve_max_vq;
     }
-    visit_type_uint32(v, name, &value, errp);
+
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void cpu_max_set_sve_max_vq(Object *obj, Visitor *v, const char *name,
@@ -486,7 +487,7 @@ static void cpu_max_set_sve_max_vq(Object *obj, Visitor *v, const char *name,
     cpu->sve_max_vq = max_vq;
 }
 
-static void cpu_arm_get_sve_vq(Object *obj, Visitor *v, const char *name,
+static bool cpu_arm_get_sve_vq(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -499,7 +500,8 @@ static void cpu_arm_get_sve_vq(Object *obj, Visitor *v, const char *name,
     } else {
         value = test_bit(vq - 1, cpu->sve_vq_map);
     }
-    visit_type_bool(v, name, &value, errp);
+
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void cpu_arm_set_sve_vq(Object *obj, Visitor *v, const char *name,
@@ -527,13 +529,13 @@ static void cpu_arm_set_sve_vq(Object *obj, Visitor *v, const char *name,
     set_bit(vq - 1, cpu->sve_vq_init);
 }
 
-static void cpu_arm_get_sve(Object *obj, Visitor *v, const char *name,
+static bool cpu_arm_get_sve(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
     ARMCPU *cpu = ARM_CPU(obj);
     bool value = cpu_isar_feature(aa64_sve, cpu);
 
-    visit_type_bool(v, name, &value, errp);
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void cpu_arm_set_sve(Object *obj, Visitor *v, const char *name,

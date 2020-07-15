@@ -56,13 +56,13 @@ static void tmp105_alarm_update(TMP105State *s)
     tmp105_interrupt_update(s);
 }
 
-static void tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
+static bool tmp105_get_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     TMP105State *s = TMP105(obj);
     int64_t value = s->temperature * 1000 / 256;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 /* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8

@@ -249,7 +249,7 @@ static int pca955x_event(I2CSlave *i2c, enum i2c_event event)
     return 0;
 }
 
-static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
+static bool pca955x_get_led(Object *obj, Visitor *v, const char *name,
                             void *opaque, Error **errp)
 {
     PCA955xClass *k = PCA955X_GET_CLASS(obj);
@@ -260,11 +260,11 @@ static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
     rc = sscanf(name, "led%2d", &led);
     if (rc != 1) {
         error_setg(errp, "%s: error reading %s", __func__, name);
-        return;
+        return false;
     }
     if (led < 0 || led > k->pin_count) {
         error_setg(errp, "%s invalid led %s", __func__, name);
-        return;
+        return false;
     }
     /*
      * Get the LSx register as the qom interface should expose the device
@@ -273,7 +273,7 @@ static void pca955x_get_led(Object *obj, Visitor *v, const char *name,
      */
     reg = PCA9552_LS0 + led / 4;
     state = (pca955x_read(s, reg) >> (led % 8)) & 0x3;
-    visit_type_str(v, name, (char **)&led_state[state], errp);
+    return visit_type_str(v, name, (char **)&led_state[state], errp);
 }
 
 /*

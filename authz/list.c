@@ -83,13 +83,13 @@ qauthz_list_prop_get_policy(Object *obj,
 }
 
 
-static void
+static bool
 qauthz_list_prop_get_rules(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
     QAuthZList *lauthz = QAUTHZ_LIST(obj);
 
-    visit_type_QAuthZListRuleList(v, name, &lauthz->rules, errp);
+    return visit_type_QAuthZListRuleList(v, name, &lauthz->rules, errp);
 }
 
 static void

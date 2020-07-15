@@ -139,14 +139,14 @@ int cryptodev_backend_crypto_operation(
     return -VIRTIO_CRYPTO_ERR;
 }
 
-static void
+static bool
 cryptodev_backend_get_queues(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     CryptoDevBackend *backend = CRYPTODEV_BACKEND(obj);
     uint32_t value = backend->conf.peers.queues;
 
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void

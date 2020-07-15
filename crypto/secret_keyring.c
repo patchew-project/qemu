@@ -91,14 +91,15 @@ qcrypto_secret_prop_set_key(Object *obj, Visitor *v,
 }
 
 
-static void
+static bool
 qcrypto_secret_prop_get_key(Object *obj, Visitor *v,
                             const char *name, void *opaque,
                             Error **errp)
 {
     QCryptoSecretKeyring *secret = QCRYPTO_SECRET_KEYRING(obj);
     int32_t value = secret->serial;
-    visit_type_int32(v, name, &value, errp);
+
+    return visit_type_int32(v, name, &value, errp);
 }
 
 

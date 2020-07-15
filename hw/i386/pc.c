@@ -1758,7 +1758,7 @@ static HotplugHandler *pc_get_hotplug_handler(MachineState *machine,
     return NULL;
 }
 
-static void
+static bool
 pc_machine_get_device_memory_region_size(Object *obj, Visitor *v,
                                          const char *name, void *opaque,
                                          Error **errp)
@@ -1770,16 +1770,16 @@ pc_machine_get_device_memory_region_size(Object *obj, Visitor *v,
         value = memory_region_size(&ms->device_memory->mr);
     }
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
-static void pc_machine_get_vmport(Object *obj, Visitor *v, const char *name,
+static bool pc_machine_get_vmport(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     OnOffAuto vmport = pcms->vmport;
 
-    visit_type_OnOffAuto(v, name, &vmport, errp);
+    return visit_type_OnOffAuto(v, name, &vmport, errp);
 }
 
 static void pc_machine_set_vmport(Object *obj, Visitor *v, const char *name,
@@ -1832,14 +1832,14 @@ static void pc_machine_set_pit(Object *obj, bool value, Error **errp)
     pcms->pit_enabled = value;
 }
 
-static void pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
+static bool pc_machine_get_max_ram_below_4g(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
 {
     PCMachineState *pcms = PC_MACHINE(obj);
     uint64_t value = pcms->max_ram_below_4g;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static void pc_machine_set_max_ram_below_4g(Object *obj, Visitor *v,

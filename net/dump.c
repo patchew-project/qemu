@@ -179,13 +179,13 @@ static void filter_dump_setup(NetFilterState *nf, Error **errp)
     net_dump_state_init(&nfds->ds, nfds->filename, nfds->maxlen, errp);
 }
 
-static void filter_dump_get_maxlen(Object *obj, Visitor *v, const char *name,
+static bool filter_dump_get_maxlen(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     NetFilterDumpState *nfds = FILTER_DUMP(obj);
     uint32_t value = nfds->maxlen;
 
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void filter_dump_set_maxlen(Object *obj, Visitor *v, const char *name,

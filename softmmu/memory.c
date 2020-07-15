@@ -1170,20 +1170,22 @@ void memory_region_init(MemoryRegion *mr,
     memory_region_do_init(mr, owner, name, size);
 }
 
-static void memory_region_get_container(Object *obj, Visitor *v,
+static bool memory_region_get_container(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     char *path = (char *)"";
+    bool ret;
 
     if (mr->container) {
         path = object_get_canonical_path(OBJECT(mr->container));
     }
-    visit_type_str(v, name, &path, errp);
+    ret = visit_type_str(v, name, &path, errp);
     if (mr->container) {
         g_free(path);
     }
+    return ret;
 }
 
 static Object *memory_region_resolve_container(Object *obj, void *opaque,
@@ -1194,23 +1196,23 @@ static Object *memory_region_resolve_container(Object *obj, void *opaque,
     return OBJECT(mr->container);
 }
 
-static void memory_region_get_priority(Object *obj, Visitor *v,
+static bool memory_region_get_priority(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     int32_t value = mr->priority;
 
-    visit_type_int32(v, name, &value, errp);
+    return visit_type_int32(v, name, &value, errp);
 }
 
-static void memory_region_get_size(Object *obj, Visitor *v, const char *name,
+static bool memory_region_get_size(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     MemoryRegion *mr = MEMORY_REGION(obj);
     uint64_t value = memory_region_size(mr);
 
-    visit_type_uint64(v, name, &value, errp);
+    return visit_type_uint64(v, name, &value, errp);
 }
 
 static void memory_region_initfn(Object *obj)

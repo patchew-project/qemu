@@ -15,13 +15,13 @@
 #include "sysemu/cpus.h"
 #include "hw/boards.h"
 
-static void core_prop_get_core_id(Object *obj, Visitor *v, const char *name,
+static bool core_prop_get_core_id(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     CPUCore *core = CPU_CORE(obj);
     int64_t value = core->core_id;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void core_prop_set_core_id(Object *obj, Visitor *v, const char *name,
@@ -42,13 +42,13 @@ static void core_prop_set_core_id(Object *obj, Visitor *v, const char *name,
     core->core_id = value;
 }
 
-static void core_prop_get_nr_threads(Object *obj, Visitor *v, const char *name,
+static bool core_prop_get_nr_threads(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
     CPUCore *core = CPU_CORE(obj);
     int64_t value = core->nr_threads;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void core_prop_set_nr_threads(Object *obj, Visitor *v, const char *name,

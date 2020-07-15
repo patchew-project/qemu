@@ -4394,7 +4394,7 @@ static void mark_unavailable_features(X86CPU *cpu, FeatureWord w, uint64_t mask,
     }
 }
 
-static void x86_cpuid_version_get_family(Object *obj, Visitor *v,
+static bool x86_cpuid_version_get_family(Object *obj, Visitor *v,
                                          const char *name, void *opaque,
                                          Error **errp)
 {
@@ -4406,7 +4406,8 @@ static void x86_cpuid_version_get_family(Object *obj, Visitor *v,
     if (value == 0xf) {
         value += (env->cpuid_version >> 20) & 0xff;
     }
-    visit_type_int(v, name, &value, errp);
+
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
@@ -4436,7 +4437,7 @@ static void x86_cpuid_version_set_family(Object *obj, Visitor *v,
     }
 }
 
-static void x86_cpuid_version_get_model(Object *obj, Visitor *v,
+static bool x86_cpuid_version_get_model(Object *obj, Visitor *v,
                                         const char *name, void *opaque,
                                         Error **errp)
 {
@@ -4446,7 +4447,8 @@ static void x86_cpuid_version_get_model(Object *obj, Visitor *v,
 
     value = (env->cpuid_version >> 4) & 0xf;
     value |= ((env->cpuid_version >> 16) & 0xf) << 4;
-    visit_type_int(v, name, &value, errp);
+
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
@@ -4472,7 +4474,7 @@ static void x86_cpuid_version_set_model(Object *obj, Visitor *v,
     env->cpuid_version |= ((value & 0xf) << 4) | ((value >> 4) << 16);
 }
 
-static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
+static bool x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
                                            const char *name, void *opaque,
                                            Error **errp)
 {
@@ -4481,7 +4483,8 @@ static void x86_cpuid_version_get_stepping(Object *obj, Visitor *v,
     int64_t value;
 
     value = env->cpuid_version & 0xf;
-    visit_type_int(v, name, &value, errp);
+
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_version_set_stepping(Object *obj, Visitor *v,
@@ -4578,14 +4581,15 @@ static void x86_cpuid_set_model_id(Object *obj, const char *model_id,
     }
 }
 
-static void x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, const char *name,
+static bool x86_cpuid_get_tsc_freq(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     int64_t value;
 
     value = cpu->env.tsc_khz * 1000;
-    visit_type_int(v, name, &value, errp);
+
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
@@ -4609,7 +4613,7 @@ static void x86_cpuid_set_tsc_freq(Object *obj, Visitor *v, const char *name,
 }
 
 /* Generic getter for "feature-words" and "filtered-features" properties */
-static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
+static bool x86_cpu_get_feature_words(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
@@ -4641,7 +4645,8 @@ static void x86_cpu_get_feature_words(Object *obj, Visitor *v,
         list = &list_entries[w];
     }
 
-    visit_type_X86CPUFeatureWordInfoList(v, "feature-words", &list, errp);
+    return visit_type_X86CPUFeatureWordInfoList(v, "feature-words",
+                                                &list, errp);
 }
 
 /* Convert all '_' in a feature string option name to '-', to make feature
@@ -4804,7 +4809,7 @@ static void x86_cpu_list_feature_names(FeatureWordArray features,
     }
 }
 
-static void x86_cpu_get_unavailable_features(Object *obj, Visitor *v,
+static bool x86_cpu_get_unavailable_features(Object *obj, Visitor *v,
                                              const char *name, void *opaque,
                                              Error **errp)
 {
@@ -4812,7 +4817,8 @@ static void x86_cpu_get_unavailable_features(Object *obj, Visitor *v,
     strList *result = NULL;
 
     x86_cpu_list_feature_names(xc->filtered_features, &result);
-    visit_type_strList(v, "unavailable-features", &result, errp);
+
+    return visit_type_strList(v, "unavailable-features", &result, errp);
 }
 
 /* Check for missing features that may prevent the CPU class from
@@ -6766,14 +6772,15 @@ typedef struct BitProperty {
     uint64_t mask;
 } BitProperty;
 
-static void x86_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
+static bool x86_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     X86CPU *cpu = X86_CPU(obj);
     BitProperty *fp = opaque;
     uint64_t f = cpu->env.features[fp->w];
     bool value = (f & fp->mask) == fp->mask;
-    visit_type_bool(v, name, &value, errp);
+
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void x86_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
@@ -6883,27 +6890,30 @@ static GuestPanicInformation *x86_cpu_get_crash_info(CPUState *cs)
 
     return panic_info;
 }
-static void x86_cpu_get_crash_info_qom(Object *obj, Visitor *v,
+static bool x86_cpu_get_crash_info_qom(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
     CPUState *cs = CPU(obj);
     GuestPanicInformation *panic_info;
+    bool ret;
 
     if (!cs->crash_occurred) {
         error_setg(errp, "No crash occured");
-        return;
+        return false;
     }
 
     panic_info = x86_cpu_get_crash_info(cs);
     if (panic_info == NULL) {
         error_setg(errp, "No crash information");
-        return;
+        return false;
     }
 
-    visit_type_GuestPanicInformation(v, "crash-information", &panic_info,
-                                     errp);
+    ret = visit_type_GuestPanicInformation(v, "crash-information", &panic_info,
+                                           errp);
     qapi_free_GuestPanicInformation(panic_info);
+
+    return ret;
 }
 #endif /* !CONFIG_USER_ONLY */
 

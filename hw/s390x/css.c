@@ -2341,7 +2341,7 @@ void css_reset(void)
     channel_subsys.max_ssid = 0;
 }
 
-static void get_css_devid(Object *obj, Visitor *v, const char *name,
+static bool get_css_devid(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -2365,7 +2365,7 @@ static void get_css_devid(Object *obj, Visitor *v, const char *name,
         snprintf(buffer, sizeof(buffer), "<unset>");
     }
 
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 /*

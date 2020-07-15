@@ -32,7 +32,7 @@
 
 /* tpm backend property */
 
-static void get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -40,7 +40,7 @@ static void get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
     g_autofree char *p;
 
     p = g_strdup(*be ? (*be)->id : "");
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_tpm(Object *obj, Visitor *v, const char *name, void *opaque,

@@ -95,14 +95,14 @@ memfd_backend_set_hugetlbsize(Object *obj, Visitor *v, const char *name,
     m->hugetlbsize = value;
 }
 
-static void
+static bool
 memfd_backend_get_hugetlbsize(Object *obj, Visitor *v, const char *name,
                               void *opaque, Error **errp)
 {
     HostMemoryBackendMemfd *m = MEMORY_BACKEND_MEMFD(obj);
     uint64_t value = m->hugetlbsize;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static bool

@@ -424,14 +424,14 @@ static Property apic_properties_common[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void apic_common_get_id(Object *obj, Visitor *v, const char *name,
+static bool apic_common_get_id(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     APICCommonState *s = APIC_COMMON(obj);
     uint32_t value;
 
     value = s->apicbase & MSR_IA32_APICBASE_EXTD ? s->initial_apic_id : s->id;
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void apic_common_set_id(Object *obj, Visitor *v, const char *name,

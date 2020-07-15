@@ -208,13 +208,13 @@ static void aspeed_sdmc_reset(DeviceState *dev)
     s->regs[R_CONF] = asc->compute_conf(s, 0);
 }
 
-static void aspeed_sdmc_get_ram_size(Object *obj, Visitor *v, const char *name,
+static bool aspeed_sdmc_get_ram_size(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
     AspeedSDMCState *s = ASPEED_SDMC(obj);
     int64_t value = s->ram_size;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void aspeed_sdmc_set_ram_size(Object *obj, Visitor *v, const char *name,

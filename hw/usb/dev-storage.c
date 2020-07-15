@@ -719,13 +719,13 @@ static void usb_msd_class_storage_initfn(ObjectClass *klass, void *data)
     device_class_set_props(dc, msd_properties);
 }
 
-static void usb_msd_get_bootindex(Object *obj, Visitor *v, const char *name,
+static bool usb_msd_get_bootindex(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     USBDevice *dev = USB_DEVICE(obj);
     MSDState *s = USB_STORAGE_DEV(dev);
 
-    visit_type_int32(v, name, &s->conf.bootindex, errp);
+    return visit_type_int32(v, name, &s->conf.bootindex, errp);
 }
 
 static void usb_msd_set_bootindex(Object *obj, Visitor *v, const char *name,

@@ -512,11 +512,11 @@ static void sifive_u_machine_set_start_in_flash(Object *obj, bool value, Error *
     s->start_in_flash = value;
 }
 
-static void sifive_u_machine_get_uint32_prop(Object *obj, Visitor *v,
+static bool sifive_u_machine_get_uint32_prop(Object *obj, Visitor *v,
                                              const char *name, void *opaque,
                                              Error **errp)
 {
-    visit_type_uint32(v, name, (uint32_t *)opaque, errp);
+    return visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
 static void sifive_u_machine_set_uint32_prop(Object *obj, Visitor *v,

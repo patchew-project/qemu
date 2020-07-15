@@ -852,7 +852,7 @@ static void throttle_group_set(Object *obj, Visitor *v, const char * name,
     }
 }
 
-static void throttle_group_get(Object *obj, Visitor *v, const char *name,
+static bool throttle_group_get(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     ThrottleGroup *tg = THROTTLE_GROUP(obj);
@@ -876,7 +876,7 @@ static void throttle_group_get(Object *obj, Visitor *v, const char *name,
         break;
     }
 
-    visit_type_int64(v, name, &value, errp);
+    return visit_type_int64(v, name, &value, errp);
 }
 
 static void throttle_group_set_limits(Object *obj, Visitor *v,
@@ -907,7 +907,7 @@ unlock:
     return;
 }
 
-static void throttle_group_get_limits(Object *obj, Visitor *v,
+static bool throttle_group_get_limits(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
@@ -922,7 +922,7 @@ static void throttle_group_get_limits(Object *obj, Visitor *v,
 
     throttle_config_to_limits(&cfg, argp);
 
-    visit_type_ThrottleLimits(v, name, &argp, errp);
+    return visit_type_ThrottleLimits(v, name, &argp, errp);
 }
 
 static bool throttle_group_can_be_deleted(UserCreatable *uc)

@@ -70,14 +70,14 @@ typedef struct SpaprCapabilityInfo {
     bool (*migrate_needed)(void *opaque);
 } SpaprCapabilityInfo;
 
-static void spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
+static bool spapr_cap_get_bool(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     SpaprCapabilityInfo *cap = opaque;
     SpaprMachineState *spapr = SPAPR_MACHINE(obj);
     bool value = spapr_get_cap(spapr, cap->index) == SPAPR_CAP_ON;
 
-    visit_type_bool(v, name, &value, errp);
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
@@ -96,7 +96,7 @@ static void spapr_cap_set_bool(Object *obj, Visitor *v, const char *name,
 }
 
 
-static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
+static bool spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     SpaprCapabilityInfo *cap = opaque;
@@ -106,12 +106,12 @@ static void  spapr_cap_get_string(Object *obj, Visitor *v, const char *name,
 
     if (value >= cap->possible->num) {
         error_setg(errp, "Invalid value (%d) for cap-%s", value, cap->name);
-        return;
+        return false;
     }
 
     val = g_strdup(cap->possible->vals[value]);
 
-    visit_type_str(v, name, &val, errp);
+    return visit_type_str(v, name, &val, errp);
 }
 
 static void spapr_cap_set_string(Object *obj, Visitor *v, const char *name,
@@ -144,7 +144,7 @@ out:
     g_free(val);
 }
 
-static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
+static bool spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     SpaprCapabilityInfo *cap = opaque;
@@ -152,7 +152,7 @@ static void spapr_cap_get_pagesize(Object *obj, Visitor *v, const char *name,
     uint8_t val = spapr_get_cap(spapr, cap->index);
     uint64_t pagesize = (1ULL << val);
 
-    visit_type_size(v, name, &pagesize, errp);
+    return visit_type_size(v, name, &pagesize, errp);
 }
 
 static void spapr_cap_set_pagesize(Object *obj, Visitor *v, const char *name,

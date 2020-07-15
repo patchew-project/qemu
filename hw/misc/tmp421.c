@@ -110,7 +110,7 @@ typedef struct TMP421Class {
 static const int32_t mins[2] = { -40000, -55000 };
 static const int32_t maxs[2] = { 127000, 150000 };
 
-static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
+static bool tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     TMP421State *s = TMP421(obj);
@@ -121,17 +121,17 @@ static void tmp421_get_temperature(Object *obj, Visitor *v, const char *name,
 
     if (sscanf(name, "temperature%d", &tempid) != 1) {
         error_setg(errp, "error reading %s: %s", name, g_strerror(errno));
-        return;
+        return false;
     }
 
     if (tempid >= 4 || tempid < 0) {
         error_setg(errp, "error reading %s", name);
-        return;
+        return false;
     }
 
     value = ((s->temperature[tempid] - offset) * 1000 + 128) / 256;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 /* Units are 0.001 centigrades relative to 0 C.  s->temperature is 8.8

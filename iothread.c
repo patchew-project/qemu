@@ -223,14 +223,14 @@ static PollParamInfo poll_shrink_info = {
     "poll-shrink", offsetof(IOThread, poll_shrink),
 };
 
-static void iothread_get_poll_param(Object *obj, Visitor *v,
+static bool iothread_get_poll_param(Object *obj, Visitor *v,
         const char *name, void *opaque, Error **errp)
 {
     IOThread *iothread = IOTHREAD(obj);
     PollParamInfo *info = opaque;
     int64_t *field = (void *)iothread + info->offset;
 
-    visit_type_int64(v, name, field, errp);
+    return visit_type_int64(v, name, field, errp);
 }
 
 static void iothread_set_poll_param(Object *obj, Visitor *v,

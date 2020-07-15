@@ -230,12 +230,12 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
                          dev->conf.lsecs);
 }
 
-static void ide_dev_get_bootindex(Object *obj, Visitor *v, const char *name,
+static bool ide_dev_get_bootindex(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     IDEDevice *d = IDE_DEVICE(obj);
 
-    visit_type_int32(v, name, &d->conf.bootindex, errp);
+    return visit_type_int32(v, name, &d->conf.bootindex, errp);
 }
 
 static void ide_dev_set_bootindex(Object *obj, Visitor *v, const char *name,

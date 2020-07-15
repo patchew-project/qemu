@@ -3098,14 +3098,14 @@ static bool kvm_accel_has_memory(MachineState *ms, AddressSpace *as,
     return false;
 }
 
-static void kvm_get_kvm_shadow_mem(Object *obj, Visitor *v,
+static bool kvm_get_kvm_shadow_mem(Object *obj, Visitor *v,
                                    const char *name, void *opaque,
                                    Error **errp)
 {
     KVMState *s = KVM_STATE(obj);
     int64_t value = s->kvm_shadow_mem;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void kvm_set_kvm_shadow_mem(Object *obj, Visitor *v,

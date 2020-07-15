@@ -339,13 +339,13 @@ static void microvm_machine_reset(MachineState *machine)
     }
 }
 
-static void microvm_machine_get_pic(Object *obj, Visitor *v, const char *name,
+static bool microvm_machine_get_pic(Object *obj, Visitor *v, const char *name,
                                     void *opaque, Error **errp)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
     OnOffAuto pic = mms->pic;
 
-    visit_type_OnOffAuto(v, name, &pic, errp);
+    return visit_type_OnOffAuto(v, name, &pic, errp);
 }
 
 static void microvm_machine_set_pic(Object *obj, Visitor *v, const char *name,
@@ -356,13 +356,13 @@ static void microvm_machine_set_pic(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &mms->pic, errp);
 }
 
-static void microvm_machine_get_pit(Object *obj, Visitor *v, const char *name,
+static bool microvm_machine_get_pit(Object *obj, Visitor *v, const char *name,
                                     void *opaque, Error **errp)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
     OnOffAuto pit = mms->pit;
 
-    visit_type_OnOffAuto(v, name, &pit, errp);
+    return visit_type_OnOffAuto(v, name, &pit, errp);
 }
 
 static void microvm_machine_set_pit(Object *obj, Visitor *v, const char *name,
@@ -373,13 +373,13 @@ static void microvm_machine_set_pit(Object *obj, Visitor *v, const char *name,
     visit_type_OnOffAuto(v, name, &mms->pit, errp);
 }
 
-static void microvm_machine_get_rtc(Object *obj, Visitor *v, const char *name,
+static bool microvm_machine_get_rtc(Object *obj, Visitor *v, const char *name,
                                     void *opaque, Error **errp)
 {
     MicrovmMachineState *mms = MICROVM_MACHINE(obj);
     OnOffAuto rtc = mms->rtc;
 
-    visit_type_OnOffAuto(v, name, &rtc, errp);
+    return visit_type_OnOffAuto(v, name, &rtc, errp);
 }
 
 static void microvm_machine_set_rtc(Object *obj, Visitor *v, const char *name,

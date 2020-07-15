@@ -1078,14 +1078,14 @@ static void compare_set_notify_dev(Object *obj, const char *value, Error **errp)
     s->notify_dev = g_strdup(value);
 }
 
-static void compare_get_timeout(Object *obj, Visitor *v,
+static bool compare_get_timeout(Object *obj, Visitor *v,
                                 const char *name, void *opaque,
                                 Error **errp)
 {
     CompareState *s = COLO_COMPARE(obj);
     uint32_t value = s->compare_timeout;
 
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void compare_set_timeout(Object *obj, Visitor *v,
@@ -1106,14 +1106,14 @@ static void compare_set_timeout(Object *obj, Visitor *v,
     s->compare_timeout = value;
 }
 
-static void compare_get_expired_scan_cycle(Object *obj, Visitor *v,
+static bool compare_get_expired_scan_cycle(Object *obj, Visitor *v,
                                            const char *name, void *opaque,
                                            Error **errp)
 {
     CompareState *s = COLO_COMPARE(obj);
     uint32_t value = s->expired_scan_cycle;
 
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void compare_set_expired_scan_cycle(Object *obj, Visitor *v,

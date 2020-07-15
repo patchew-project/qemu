@@ -1462,13 +1462,13 @@ static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
     sock->addr = addr;
 }
 
-static void
+static bool
 char_socket_get_addr(Object *obj, Visitor *v, const char *name,
                      void *opaque, Error **errp)
 {
     SocketChardev *s = SOCKET_CHARDEV(obj);
 
-    visit_type_SocketAddress(v, name, &s->addr, errp);
+    return visit_type_SocketAddress(v, name, &s->addr, errp);
 }
 
 static bool

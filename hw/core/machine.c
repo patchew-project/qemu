@@ -275,14 +275,14 @@ static void machine_set_dumpdtb(Object *obj, const char *value, Error **errp)
     ms->dumpdtb = g_strdup(value);
 }
 
-static void machine_get_phandle_start(Object *obj, Visitor *v,
+static bool machine_get_phandle_start(Object *obj, Visitor *v,
                                       const char *name, void *opaque,
                                       Error **errp)
 {
     MachineState *ms = MACHINE(obj);
     int64_t value = ms->phandle_start;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void machine_set_phandle_start(Object *obj, Visitor *v,

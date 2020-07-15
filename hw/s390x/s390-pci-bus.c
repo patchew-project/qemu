@@ -1244,13 +1244,13 @@ static void s390_pci_device_reset(DeviceState *dev)
     fmb_timer_free(pbdev);
 }
 
-static void s390_pci_get_fid(Object *obj, Visitor *v, const char *name,
+static bool s390_pci_get_fid(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
     Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(DEVICE(obj), prop);
 
-    visit_type_uint32(v, name, ptr, errp);
+    return visit_type_uint32(v, name, ptr, errp);
 }
 
 static void s390_pci_set_fid(Object *obj, Visitor *v, const char *name,

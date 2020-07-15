@@ -726,7 +726,7 @@ static int get_set_idx(AspeedGPIOState *s, const char *group, int *group_idx)
     return -1;
 }
 
-static void aspeed_gpio_get_pin(Object *obj, Visitor *v, const char *name,
+static bool aspeed_gpio_get_pin(Object *obj, Visitor *v, const char *name,
                                 void *opaque, Error **errp)
 {
     int pin = 0xfff;
@@ -739,17 +739,17 @@ static void aspeed_gpio_get_pin(Object *obj, Visitor *v, const char *name,
         /* 1.8V gpio */
         if (sscanf(name, "gpio%3[18A-E]%1d", group, &pin) != 2) {
             error_setg(errp, "%s: error reading %s", __func__, name);
-            return;
+            return false;
         }
     }
     set_idx = get_set_idx(s, group, &group_idx);
     if (set_idx == -1) {
         error_setg(errp, "%s: invalid group %s", __func__, group);
-        return;
+        return false;
     }
     pin =  pin + group_idx * GPIOS_PER_GROUP;
     level = aspeed_gpio_get_pin_level(s, set_idx, pin);
-    visit_type_bool(v, name, &level, errp);
+    return visit_type_bool(v, name, &level, errp);
 }
 
 static void aspeed_gpio_set_pin(Object *obj, Visitor *v, const char *name,

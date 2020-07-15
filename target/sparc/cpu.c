@@ -786,13 +786,13 @@ static void sparc_cpu_initfn(Object *obj)
     }
 }
 
-static void sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
+static bool sparc_get_nwindows(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     SPARCCPU *cpu = SPARC_CPU(obj);
     int64_t value = cpu->env.def.nwindows;
 
-    visit_type_int(v, name, &value, errp);
+    return visit_type_int(v, name, &value, errp);
 }
 
 static void sparc_set_nwindows(Object *obj, Visitor *v, const char *name,

@@ -289,15 +289,16 @@ static SpaprDREntitySense logical_entity_sense(SpaprDrc *drc)
     }
 }
 
-static void prop_get_index(Object *obj, Visitor *v, const char *name,
+static bool prop_get_index(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(obj);
     uint32_t value = spapr_drc_index(drc);
-    visit_type_uint32(v, name, &value, errp);
+
+    return visit_type_uint32(v, name, &value, errp);
 }
 
-static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
+static bool prop_get_fdt(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
     SpaprDrc *drc = SPAPR_DR_CONNECTOR(obj);
@@ -309,7 +310,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
     if (!drc->fdt) {
         visit_type_null(v, NULL, &null, errp);
         qobject_unref(null);
-        return;
+        return false;
     }
 
     fdt = drc->fdt;
@@ -328,7 +329,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             fdt_depth++;
             name = fdt_get_name(fdt, fdt_offset, &name_len);
             if (!visit_start_struct(v, name, NULL, 0, errp)) {
-                return;
+                return false;
             }
             break;
         case FDT_END_NODE:
@@ -338,7 +339,7 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             visit_end_struct(v, NULL);
             if (err) {
                 error_propagate(errp, err);
-                return;
+                return false;
             }
             fdt_depth--;
             break;
@@ -347,19 +348,19 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
             prop = fdt_get_property_by_offset(fdt, fdt_offset, &prop_len);
             name = fdt_string(fdt, fdt32_to_cpu(prop->nameoff));
             if (!visit_start_list(v, name, NULL, 0, errp)) {
-                return;
+                return false;
             }
             for (i = 0; i < prop_len; i++) {
                 if (!visit_type_uint8(v, NULL, (uint8_t *)&prop->data[i],
                                       errp)) {
-                    return;
+                    return false;
                 }
             }
             visit_check_list(v, &err);
             visit_end_list(v, NULL);
             if (err) {
                 error_propagate(errp, err);
-                return;
+                return false;
             }
             break;
         }
@@ -369,6 +370,8 @@ static void prop_get_fdt(Object *obj, Visitor *v, const char *name,
         }
         fdt_offset = fdt_offset_next;
     } while (fdt_depth != 0);
+
+    return true;
 }
 
 void spapr_drc_attach(SpaprDrc *drc, DeviceState *d, Error **errp)

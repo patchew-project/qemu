@@ -870,13 +870,13 @@ bool x86_machine_is_smm_enabled(X86MachineState *x86ms)
     return false;
 }
 
-static void x86_machine_get_smm(Object *obj, Visitor *v, const char *name,
+static bool x86_machine_get_smm(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
     OnOffAuto smm = x86ms->smm;
 
-    visit_type_OnOffAuto(v, name, &smm, errp);
+    return visit_type_OnOffAuto(v, name, &smm, errp);
 }
 
 static void x86_machine_set_smm(Object *obj, Visitor *v, const char *name,
@@ -895,13 +895,13 @@ bool x86_machine_is_acpi_enabled(X86MachineState *x86ms)
     return true;
 }
 
-static void x86_machine_get_acpi(Object *obj, Visitor *v, const char *name,
+static bool x86_machine_get_acpi(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     X86MachineState *x86ms = X86_MACHINE(obj);
     OnOffAuto acpi = x86ms->acpi;
 
-    visit_type_OnOffAuto(v, name, &acpi, errp);
+    return visit_type_OnOffAuto(v, name, &acpi, errp);
 }
 
 static void x86_machine_set_acpi(Object *obj, Visitor *v, const char *name,

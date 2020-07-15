@@ -39,14 +39,14 @@ host_memory_backend_get_name(HostMemoryBackend *backend)
     return object_get_canonical_path(OBJECT(backend));
 }
 
-static void
+static bool
 host_memory_backend_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
     uint64_t value = backend->size;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static void
@@ -74,7 +74,7 @@ host_memory_backend_set_size(Object *obj, Visitor *v, const char *name,
     backend->size = value;
 }
 
-static void
+static bool
 host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
@@ -104,7 +104,7 @@ host_memory_backend_get_host_nodes(Object *obj, Visitor *v, const char *name,
     } while (true);
 
 ret:
-    visit_type_uint16List(v, name, &host_nodes, errp);
+    return visit_type_uint16List(v, name, &host_nodes, errp);
 }
 
 static void
@@ -239,11 +239,12 @@ static void host_memory_backend_set_prealloc(Object *obj, bool value,
     }
 }
 
-static void host_memory_backend_get_prealloc_threads(Object *obj, Visitor *v,
+static bool host_memory_backend_get_prealloc_threads(Object *obj, Visitor *v,
     const char *name, void *opaque, Error **errp)
 {
     HostMemoryBackend *backend = MEMORY_BACKEND(obj);
-    visit_type_uint32(v, name, &backend->prealloc_threads, errp);
+
+    return visit_type_uint32(v, name, &backend->prealloc_threads, errp);
 }
 
 static void host_memory_backend_set_prealloc_threads(Object *obj, Visitor *v,

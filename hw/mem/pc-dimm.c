@@ -147,7 +147,7 @@ static Property pc_dimm_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
+static bool pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     Error *local_err = NULL;
@@ -156,10 +156,10 @@ static void pc_dimm_get_size(Object *obj, Visitor *v, const char *name,
     value = memory_device_get_region_size(MEMORY_DEVICE(obj), &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
-        return;
+        return false;
     }
 
-    visit_type_uint64(v, name, &value, errp);
+    return visit_type_uint64(v, name, &value, errp);
 }
 
 static void pc_dimm_init(Object *obj)

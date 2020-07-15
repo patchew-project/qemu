@@ -232,11 +232,12 @@ static void balloon_stats_poll_cb(void *opaque)
     s->stats_vq_elem = NULL;
 }
 
-static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
+static bool balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     Error *err = NULL;
     VirtIOBalloon *s = opaque;
+    bool ret;
     int i;
 
     if (!visit_start_struct(v, name, NULL, 0, &err)) {
@@ -254,25 +255,28 @@ static void balloon_stats_get_all(Object *obj, Visitor *v, const char *name,
             goto out_nested;
         }
     }
-    visit_check_struct(v, &err);
+    ret = visit_check_struct(v, &err);
 out_nested:
     visit_end_struct(v, NULL);
 
-    if (!err) {
-        visit_check_struct(v, &err);
+    if (!ret) {
+        ret = visit_check_struct(v, &err);
     }
 out_end:
     visit_end_struct(v, NULL);
 out:
     error_propagate(errp, err);
+
+    return ret;
 }
 
-static void balloon_stats_get_poll_interval(Object *obj, Visitor *v,
+static bool balloon_stats_get_poll_interval(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
 {
     VirtIOBalloon *s = opaque;
-    visit_type_int(v, name, &s->stats_poll_interval, errp);
+
+    return visit_type_int(v, name, &s->stats_poll_interval, errp);
 }
 
 static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,

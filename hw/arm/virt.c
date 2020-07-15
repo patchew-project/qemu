@@ -2030,13 +2030,13 @@ bool virt_is_acpi_enabled(VirtMachineState *vms)
     return true;
 }
 
-static void virt_get_acpi(Object *obj, Visitor *v, const char *name,
+static bool virt_get_acpi(Object *obj, Visitor *v, const char *name,
                           void *opaque, Error **errp)
 {
     VirtMachineState *vms = VIRT_MACHINE(obj);
     OnOffAuto acpi = vms->acpi;
 
-    visit_type_OnOffAuto(v, name, &acpi, errp);
+    return visit_type_OnOffAuto(v, name, &acpi, errp);
 }
 
 static void virt_set_acpi(Object *obj, Visitor *v, const char *name,

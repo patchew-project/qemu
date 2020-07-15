@@ -49,7 +49,7 @@ static bool check_prop_still_unset(DeviceState *dev, const char *name,
 
 /* --- drive --- */
 
-static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -69,9 +69,9 @@ static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
     } else {
         value = "";
     }
-
     p = g_strdup(value);
-    visit_type_str(v, name, &p, errp);
+
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_drive_helper(Object *obj, Visitor *v, const char *name,
@@ -207,7 +207,7 @@ const PropertyInfo qdev_prop_drive_iothread = {
 
 /* --- character device --- */
 
-static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -215,7 +215,8 @@ static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
     g_autofree char *p;
 
     p = g_strdup(be->chr && be->chr->label ? be->chr->label : "");
-    visit_type_str(v, name, &p, errp);
+
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -279,7 +280,7 @@ const PropertyInfo qdev_prop_chr = {
 };
 
 /* --- netdev device --- */
-static void get_netdev(Object *obj, Visitor *v, const char *name,
+static bool get_netdev(Object *obj, Visitor *v, const char *name,
                        void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -288,7 +289,8 @@ static void get_netdev(Object *obj, Visitor *v, const char *name,
     g_autofree char *p;
 
     p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
-    visit_type_str(v, name, &p, errp);
+
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_netdev(Object *obj, Visitor *v, const char *name,
@@ -359,7 +361,7 @@ const PropertyInfo qdev_prop_netdev = {
 
 
 /* --- audiodev --- */
-static void get_audiodev(Object *obj, Visitor *v, const char* name,
+static bool get_audiodev(Object *obj, Visitor *v, const char* name,
                          void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -367,7 +369,7 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
     QEMUSoundCard *card = qdev_get_prop_ptr(dev, prop);
     g_autofree char *p = g_strdup(audio_get_id(card));
 
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_audiodev(Object *obj, Visitor *v, const char* name,

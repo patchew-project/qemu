@@ -118,7 +118,7 @@ static const VMStateDescription vmstate_i440fx = {
     }
 };
 
-static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
+static bool i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
                                               const char *name, void *opaque,
                                               Error **errp)
 {
@@ -129,10 +129,10 @@ static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
     val64 = range_is_empty(&s->pci_hole) ? 0 : range_lob(&s->pci_hole);
     value = val64;
     assert(value == val64);
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
-static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
+static bool i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
                                             const char *name, void *opaque,
                                             Error **errp)
 {
@@ -143,7 +143,7 @@ static void i440fx_pcihost_get_pci_hole_end(Object *obj, Visitor *v,
     val64 = range_is_empty(&s->pci_hole) ? 0 : range_upb(&s->pci_hole) + 1;
     value = val64;
     assert(value == val64);
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 /*
@@ -168,13 +168,13 @@ static uint64_t i440fx_pcihost_get_pci_hole64_start_value(Object *obj)
     return value;
 }
 
-static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
+static bool i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
                                                 const char *name,
                                                 void *opaque, Error **errp)
 {
     uint64_t hole64_start = i440fx_pcihost_get_pci_hole64_start_value(obj);
 
-    visit_type_uint64(v, name, &hole64_start, errp);
+    return visit_type_uint64(v, name, &hole64_start, errp);
 }
 
 /*
@@ -183,7 +183,7 @@ static void i440fx_pcihost_get_pci_hole64_start(Object *obj, Visitor *v,
  * Then it is expanded to the PCI_HOST_PROP_PCI_HOLE64_SIZE
  * that can be configured by the user.
  */
-static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
+static bool i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
                                               const char *name, void *opaque,
                                               Error **errp)
 {
@@ -199,7 +199,7 @@ static void i440fx_pcihost_get_pci_hole64_end(Object *obj, Visitor *v,
     if (s->pci_hole64_fix && value < hole64_end) {
         value = hole64_end;
     }
-    visit_type_uint64(v, name, &value, errp);
+    return visit_type_uint64(v, name, &value, errp);
 }
 
 static void i440fx_pcihost_initfn(Object *obj)

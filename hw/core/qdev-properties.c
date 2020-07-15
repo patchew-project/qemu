@@ -51,14 +51,14 @@ void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
     return ptr;
 }
 
-static void get_enum(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_enum(Object *obj, Visitor *v, const char *name, void *opaque,
                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
+    return visit_type_enum(v, prop->name, ptr, prop->info->enum_table, errp);
 }
 
 static void set_enum(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -101,7 +101,7 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
     }
 }
 
-static void prop_get_bit(Object *obj, Visitor *v, const char *name,
+static bool prop_get_bit(Object *obj, Visitor *v, const char *name,
                          void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -109,7 +109,7 @@ static void prop_get_bit(Object *obj, Visitor *v, const char *name,
     uint32_t *p = qdev_get_prop_ptr(dev, prop);
     bool value = (*p & qdev_get_prop_mask(prop)) != 0;
 
-    visit_type_bool(v, name, &value, errp);
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void prop_set_bit(Object *obj, Visitor *v, const char *name,
@@ -162,7 +162,7 @@ static void bit64_prop_set(DeviceState *dev, Property *props, bool val)
     }
 }
 
-static void prop_get_bit64(Object *obj, Visitor *v, const char *name,
+static bool prop_get_bit64(Object *obj, Visitor *v, const char *name,
                            void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -170,7 +170,7 @@ static void prop_get_bit64(Object *obj, Visitor *v, const char *name,
     uint64_t *p = qdev_get_prop_ptr(dev, prop);
     bool value = (*p & qdev_get_prop_mask64(prop)) != 0;
 
-    visit_type_bool(v, name, &value, errp);
+    return visit_type_bool(v, name, &value, errp);
 }
 
 static void prop_set_bit64(Object *obj, Visitor *v, const char *name,
@@ -201,14 +201,14 @@ const PropertyInfo qdev_prop_bit64 = {
 
 /* --- bool --- */
 
-static void get_bool(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_bool(Object *obj, Visitor *v, const char *name, void *opaque,
                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     bool *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_bool(v, name, ptr, errp);
+    return visit_type_bool(v, name, ptr, errp);
 }
 
 static void set_bool(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -235,14 +235,14 @@ const PropertyInfo qdev_prop_bool = {
 
 /* --- 8bit integer --- */
 
-static void get_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_uint8(v, name, ptr, errp);
+    return visit_type_uint8(v, name, ptr, errp);
 }
 
 static void set_uint8(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -279,14 +279,14 @@ const PropertyInfo qdev_prop_uint8 = {
 
 /* --- 16bit integer --- */
 
-static void get_uint16(Object *obj, Visitor *v, const char *name,
+static bool get_uint16(Object *obj, Visitor *v, const char *name,
                        void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint16_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_uint16(v, name, ptr, errp);
+    return visit_type_uint16(v, name, ptr, errp);
 }
 
 static void set_uint16(Object *obj, Visitor *v, const char *name,
@@ -313,14 +313,14 @@ const PropertyInfo qdev_prop_uint16 = {
 
 /* --- 32bit integer --- */
 
-static void get_uint32(Object *obj, Visitor *v, const char *name,
+static bool get_uint32(Object *obj, Visitor *v, const char *name,
                        void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_uint32(v, name, ptr, errp);
+    return visit_type_uint32(v, name, ptr, errp);
 }
 
 static void set_uint32(Object *obj, Visitor *v, const char *name,
@@ -338,14 +338,14 @@ static void set_uint32(Object *obj, Visitor *v, const char *name,
     visit_type_uint32(v, name, ptr, errp);
 }
 
-static void get_int32(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_int32(Object *obj, Visitor *v, const char *name, void *opaque,
                       Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_int32(v, name, ptr, errp);
+    return visit_type_int32(v, name, ptr, errp);
 }
 
 static void set_int32(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -379,14 +379,14 @@ const PropertyInfo qdev_prop_int32 = {
 
 /* --- 64bit integer --- */
 
-static void get_uint64(Object *obj, Visitor *v, const char *name,
+static bool get_uint64(Object *obj, Visitor *v, const char *name,
                        void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_uint64(v, name, ptr, errp);
+    return visit_type_uint64(v, name, ptr, errp);
 }
 
 static void set_uint64(Object *obj, Visitor *v, const char *name,
@@ -404,14 +404,14 @@ static void set_uint64(Object *obj, Visitor *v, const char *name,
     visit_type_uint64(v, name, ptr, errp);
 }
 
-static void get_int64(Object *obj, Visitor *v, const char *name,
+static bool get_int64(Object *obj, Visitor *v, const char *name,
                       void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_int64(v, name, ptr, errp);
+    return visit_type_int64(v, name, ptr, errp);
 }
 
 static void set_int64(Object *obj, Visitor *v, const char *name,
@@ -451,7 +451,7 @@ static void release_string(Object *obj, const char *name, void *opaque)
     g_free(*(char **)qdev_get_prop_ptr(DEVICE(obj), prop));
 }
 
-static void get_string(Object *obj, Visitor *v, const char *name,
+static bool get_string(Object *obj, Visitor *v, const char *name,
                        void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -460,10 +460,10 @@ static void get_string(Object *obj, Visitor *v, const char *name,
 
     if (!*ptr) {
         char *str = (char *)"";
-        visit_type_str(v, name, &str, errp);
-    } else {
-        visit_type_str(v, name, ptr, errp);
+        return visit_type_str(v, name, &str, errp);
     }
+
+    return visit_type_str(v, name, ptr, errp);
 }
 
 static void set_string(Object *obj, Visitor *v, const char *name,
@@ -500,7 +500,7 @@ const PropertyInfo qdev_prop_string = {
  *   01:02:03:04:05:06
  *   01-02-03-04-05-06
  */
-static void get_mac(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_mac(Object *obj, Visitor *v, const char *name, void *opaque,
                     Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -513,7 +513,7 @@ static void get_mac(Object *obj, Visitor *v, const char *name, void *opaque,
              mac->a[0], mac->a[1], mac->a[2],
              mac->a[3], mac->a[4], mac->a[5]);
 
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_mac(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -575,7 +575,7 @@ const PropertyInfo qdev_prop_macaddr = {
  *   where low/high addresses are uint64_t in hexadecimal
  *   and type is a non-negative decimal integer
  */
-static void get_reserved_region(Object *obj, Visitor *v, const char *name,
+static bool get_reserved_region(Object *obj, Visitor *v, const char *name,
                                 void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -586,7 +586,7 @@ static void get_reserved_region(Object *obj, Visitor *v, const char *name,
     p = g_strdup_printf("0x%"PRIx64":0x%"PRIx64":%u",
                         rr->low, rr->high, rr->type);
 
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 static void set_reserved_region(Object *obj, Visitor *v, const char *name,
@@ -800,7 +800,7 @@ const PropertyInfo qdev_prop_pci_devfn = {
 
 /* --- 32bit unsigned int 'size' type --- */
 
-static void get_size32(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_size32(Object *obj, Visitor *v, const char *name, void *opaque,
                        Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -808,7 +808,7 @@ static void get_size32(Object *obj, Visitor *v, const char *name, void *opaque,
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     uint64_t value = *ptr;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static void set_size32(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -906,7 +906,7 @@ const PropertyInfo qdev_prop_blocksize = {
 
 /* --- pci host address --- */
 
-static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
+static bool get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -926,7 +926,7 @@ static void get_pci_host_devaddr(Object *obj, Visitor *v, const char *name,
         assert(rc == sizeof(buffer) - 1);
     }
 
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 /*
@@ -1018,7 +1018,7 @@ const PropertyInfo qdev_prop_pci_host_devaddr = {
 
 /* --- UUID --- */
 
-static void get_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -1029,7 +1029,7 @@ static void get_uuid(Object *obj, Visitor *v, const char *name, void *opaque,
 
     qemu_uuid_unparse(uuid, buffer);
 
-    visit_type_str(v, name, &p, errp);
+    return visit_type_str(v, name, &p, errp);
 }
 
 #define UUID_VALUE_AUTO        "auto"
@@ -1358,14 +1358,14 @@ void qdev_prop_set_globals(DeviceState *dev)
 
 /* --- 64bit unsigned int 'size' type --- */
 
-static void get_size(Object *obj, Visitor *v, const char *name, void *opaque,
+static bool get_size(Object *obj, Visitor *v, const char *name, void *opaque,
                      Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
-    visit_type_size(v, name, ptr, errp);
+    return visit_type_size(v, name, ptr, errp);
 }
 
 static void set_size(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -1413,7 +1413,7 @@ const PropertyInfo qdev_prop_off_auto_pcibar = {
 
 /* --- PCIELinkSpeed 2_5/5/8/16 -- */
 
-static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
+static bool get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -1439,7 +1439,7 @@ static void get_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
         abort();
     }
 
-    visit_type_enum(v, prop->name, &speed, prop->info->enum_table, errp);
+    return visit_type_enum(v, prop->name, &speed, prop->info->enum_table, errp);
 }
 
 static void set_prop_pcielinkspeed(Object *obj, Visitor *v, const char *name,
@@ -1490,7 +1490,7 @@ const PropertyInfo qdev_prop_pcie_link_speed = {
 
 /* --- PCIELinkWidth 1/2/4/8/12/16/32 -- */
 
-static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
+static bool get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
                                    void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -1525,7 +1525,7 @@ static void get_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,
         abort();
     }
 
-    visit_type_enum(v, prop->name, &width, prop->info->enum_table, errp);
+    return visit_type_enum(v, prop->name, &width, prop->info->enum_table, errp);
 }
 
 static void set_prop_pcielinkwidth(Object *obj, Visitor *v, const char *name,

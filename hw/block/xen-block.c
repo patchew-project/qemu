@@ -332,7 +332,7 @@ static char *disk_to_vbd_name(unsigned int disk)
     return name;
 }
 
-static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
+static bool xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
                                void *opaque, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
@@ -362,10 +362,10 @@ static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
     }
     default:
         error_setg(errp, "invalid vdev type");
-        return;
+        return false;
     }
 
-    visit_type_str(v, name, &str, errp);
+    return visit_type_str(v, name, &str, errp);
 }
 
 static int vbd_name_to_disk(const char *name, const char **endp,

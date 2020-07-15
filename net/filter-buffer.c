@@ -155,14 +155,14 @@ static void filter_buffer_class_init(ObjectClass *oc, void *data)
     nfc->status_changed = filter_buffer_status_changed;
 }
 
-static void filter_buffer_get_interval(Object *obj, Visitor *v,
+static bool filter_buffer_get_interval(Object *obj, Visitor *v,
                                        const char *name, void *opaque,
                                        Error **errp)
 {
     FilterBufferState *s = FILTER_BUFFER(obj);
     uint32_t value = s->interval;
 
-    visit_type_uint32(v, name, &value, errp);
+    return visit_type_uint32(v, name, &value, errp);
 }
 
 static void filter_buffer_set_interval(Object *obj, Visitor *v,

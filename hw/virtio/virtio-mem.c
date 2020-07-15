@@ -663,23 +663,23 @@ static void virtio_mem_remove_size_change_notifier(VirtIOMEM *vmem,
     notifier_remove(notifier);
 }
 
-static void virtio_mem_get_size(Object *obj, Visitor *v, const char *name,
+static bool virtio_mem_get_size(Object *obj, Visitor *v, const char *name,
                                 void *opaque, Error **errp)
 {
     const VirtIOMEM *vmem = VIRTIO_MEM(obj);
     uint64_t value = vmem->size;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
-static void virtio_mem_get_requested_size(Object *obj, Visitor *v,
+static bool virtio_mem_get_requested_size(Object *obj, Visitor *v,
                                           const char *name, void *opaque,
                                           Error **errp)
 {
     const VirtIOMEM *vmem = VIRTIO_MEM(obj);
     uint64_t value = vmem->requested_size;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static void virtio_mem_set_requested_size(Object *obj, Visitor *v,
@@ -727,13 +727,13 @@ static void virtio_mem_set_requested_size(Object *obj, Visitor *v,
     }
 }
 
-static void virtio_mem_get_block_size(Object *obj, Visitor *v, const char *name,
+static bool virtio_mem_get_block_size(Object *obj, Visitor *v, const char *name,
                                       void *opaque, Error **errp)
 {
     const VirtIOMEM *vmem = VIRTIO_MEM(obj);
     uint64_t value = vmem->block_size;
 
-    visit_type_size(v, name, &value, errp);
+    return visit_type_size(v, name, &value, errp);
 }
 
 static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,

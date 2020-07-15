@@ -94,14 +94,14 @@ static void file_memory_backend_set_discard_data(Object *o, bool value,
     MEMORY_BACKEND_FILE(o)->discard_data = value;
 }
 
-static void file_memory_backend_get_align(Object *o, Visitor *v,
+static bool file_memory_backend_get_align(Object *o, Visitor *v,
                                           const char *name, void *opaque,
                                           Error **errp)
 {
     HostMemoryBackendFile *fb = MEMORY_BACKEND_FILE(o);
     uint64_t val = fb->align;
 
-    visit_type_size(v, name, &val, errp);
+    return visit_type_size(v, name, &val, errp);
 }
 
 static void file_memory_backend_set_align(Object *o, Visitor *v,
