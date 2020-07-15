@@ -37,11 +37,10 @@ static void get_tpm(Object *obj, Visitor *v, const char *name, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     TPMBackend **be = qdev_get_prop_ptr(dev, opaque);
-    char *p;
+    g_autofree char *p;
 
     p = g_strdup(*be ? (*be)->id : "");
     visit_type_str(v, name, &p, errp);
-    g_free(p);
 }
 
 static void set_tpm(Object *obj, Visitor *v, const char *name, void *opaque,

@@ -69,12 +69,11 @@ static void nvdimm_get_uuid(Object *obj, Visitor *v, const char *name,
                                   void *opaque, Error **errp)
 {
     NVDIMMDevice *nvdimm = NVDIMM(obj);
-    char *value = NULL;
+    g_autofree char *value = NULL;
 
     value = qemu_uuid_unparse_strdup(&nvdimm->uuid);
 
     visit_type_str(v, name, &value, errp);
-    g_free(value);
 }
 
 

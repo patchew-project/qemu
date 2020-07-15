@@ -1649,11 +1649,10 @@ static void object_get_child_property(Object *obj, Visitor *v,
                                       Error **errp)
 {
     Object *child = opaque;
-    char *path;
+    g_autofree char *path;
 
     path = object_get_canonical_path(child);
     visit_type_str(v, name, &path, errp);
-    g_free(path);
 }
 
 static Object *object_resolve_child_property(Object *parent, void *opaque,
@@ -2099,7 +2098,7 @@ static void property_get_str(Object *obj, Visitor *v, const char *name,
                              void *opaque, Error **errp)
 {
     StringProperty *prop = opaque;
-    char *value;
+    g_autofree char *value = NULL;
     Error *err = NULL;
 
     value = prop->get(obj, &err);
@@ -2109,7 +2108,6 @@ static void property_get_str(Object *obj, Visitor *v, const char *name,
     }
 
     visit_type_str(v, name, &value, errp);
-    g_free(value);
 }
 
 static void property_set_str(Object *obj, Visitor *v, const char *name,

@@ -56,7 +56,7 @@ static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
     Property *prop = opaque;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     const char *value;
-    char *p;
+    g_autofree char *p;
 
     if (*ptr) {
         value = blk_name(*ptr);
@@ -72,7 +72,6 @@ static void get_drive(Object *obj, Visitor *v, const char *name, void *opaque,
 
     p = g_strdup(value);
     visit_type_str(v, name, &p, errp);
-    g_free(p);
 }
 
 static void set_drive_helper(Object *obj, Visitor *v, const char *name,
@@ -213,11 +212,10 @@ static void get_chr(Object *obj, Visitor *v, const char *name, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     CharBackend *be = qdev_get_prop_ptr(dev, opaque);
-    char *p;
+    g_autofree char *p;
 
     p = g_strdup(be->chr && be->chr->label ? be->chr->label : "");
     visit_type_str(v, name, &p, errp);
-    g_free(p);
 }
 
 static void set_chr(Object *obj, Visitor *v, const char *name, void *opaque,
@@ -287,10 +285,10 @@ static void get_netdev(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     NICPeers *peers_ptr = qdev_get_prop_ptr(dev, prop);
-    char *p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
+    g_autofree char *p;
 
+    p = g_strdup(peers_ptr->ncs[0] ? peers_ptr->ncs[0]->name : "");
     visit_type_str(v, name, &p, errp);
-    g_free(p);
 }
 
 static void set_netdev(Object *obj, Visitor *v, const char *name,
@@ -367,10 +365,9 @@ static void get_audiodev(Object *obj, Visitor *v, const char* name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     QEMUSoundCard *card = qdev_get_prop_ptr(dev, prop);
-    char *p = g_strdup(audio_get_id(card));
+    g_autofree char *p = g_strdup(audio_get_id(card));
 
     visit_type_str(v, name, &p, errp);
-    g_free(p);
 }
 
 static void set_audiodev(Object *obj, Visitor *v, const char* name,

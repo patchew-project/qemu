@@ -338,7 +338,7 @@ static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     XenBlockVdev *vdev = qdev_get_prop_ptr(dev, prop);
-    char *str;
+    g_autofree char *str = NULL;
 
     switch (vdev->type) {
     case XEN_BLOCK_VDEV_TYPE_DP:
@@ -366,7 +366,6 @@ static void xen_block_get_vdev(Object *obj, Visitor *v, const char *name,
     }
 
     visit_type_str(v, name, &str, errp);
-    g_free(str);
 }
 
 static int vbd_name_to_disk(const char *name, const char **endp,
