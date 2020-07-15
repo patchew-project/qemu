@@ -1334,10 +1334,8 @@ void mips_malta_init(MachineState *machine)
         /* Load firmware from flash. */
         if (!dinfo) {
             /* Load a BIOS image. */
-            if (bios_name == NULL) {
-                bios_name = BIOS_FILENAME;
-            }
-            filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
+            filename = qemu_find_file(QEMU_FILE_TYPE_BIOS,
+                                      bios_name ?: BIOS_FILENAME);
             if (filename) {
                 bios_size = load_image_targphys(filename, FLASH_ADDRESS,
                                                 BIOS_SIZE);
@@ -1346,9 +1344,8 @@ void mips_malta_init(MachineState *machine)
                 bios_size = -1;
             }
             if ((bios_size < 0 || bios_size > BIOS_SIZE) &&
-                !kernel_filename && !qtest_enabled()) {
-                error_report("Could not load MIPS bios '%s', and no "
-                             "-kernel argument was specified", bios_name);
+                bios_name && !qtest_enabled()) {
+                error_report("Could not load MIPS bios '%s'", bios_name);
                 exit(1);
             }
         }
