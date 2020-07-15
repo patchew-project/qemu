@@ -167,16 +167,13 @@ static void ipl1_fixup(void)
     ccwSeek->cda = ptr2u32(seekData);
     ccwSeek->chain = 1;
     ccwSeek->count = sizeof(*seekData);
-    seekData->reserved = 0x00;
-    seekData->cyl = 0x00;
-    seekData->head = 0x00;
+    memset(seekData, 0, sizeof(*seekData));
 
     ccwSearchID->cmd_code = CCW_CMD_DASD_SEARCH_ID_EQ;
     ccwSearchID->cda = ptr2u32(searchData);
     ccwSearchID->chain = 1;
     ccwSearchID->count = sizeof(*searchData);
-    searchData->cyl = 0;
-    searchData->head = 0;
+    memset(searchData, 0, sizeof(*searchData));
     searchData->record = 2;
 
     /* Go back to Search CCW if correct record not yet found */
