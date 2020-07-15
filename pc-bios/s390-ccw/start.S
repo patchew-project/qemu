@@ -34,6 +34,12 @@ loop:
 remainder:
 	larl	%r2,memsetxc
 	ex	%r3,0(%r2)
+        /* Store io new PSW */
+        larl	%r1,io_new_psw
+        mvc	0x1f0(16),0(%r1)
+	/* Store ext new PSW */
+        larl	%r1,external_new_psw
+        mvc	0x1b0(16),0(%r1)
 done:
 	j      main		/* And call C */
 
@@ -64,11 +70,6 @@ consume_sclp_int:
         stctg   %c0,%c0,0(%r15)
         oi      6(%r15),0x2
         lctlg   %c0,%c0,0(%r15)
-        /* prepare external call handler */
-        larl %r1, external_new_code
-        stg %r1, 0x1b8
-        larl %r1, external_new_mask
-        mvc 0x1b0(8),0(%r1)
         /* load enabled wait PSW */
         larl %r1, enabled_wait_psw
         lpswe 0(%r1)
@@ -81,14 +82,9 @@ consume_sclp_int:
         .globl consume_io_int
 consume_io_int:
         /* enable I/O interrupts in cr6 */
-        stctg %c6,%c6,0(%r15)
-        oi    4(%r15), 0xff
-        lctlg %c6,%c6,0(%r15)
-        /* prepare i/o call handler */
-        larl  %r1, io_new_code
-        stg   %r1, 0x1f8
-        larl  %r1, io_new_mask
-        mvc   0x1f0(8),0(%r1)
+        stctg	%c6, %c6, 0(%r15)
+        oi	4(%r15), 0xff
+        lctlg	%c6, %c6, 0(%r15)
         /* load enabled wait PSW */
         larl  %r1, enabled_wait_psw
         lpswe 0(%r1)
@@ -112,7 +108,7 @@ disabled_wait_psw:
         .quad   PSW_MASK_DWAIT, 0x0000000000000000
 enabled_wait_psw:
         .quad   PSW_MASK_EWAIT, 0x0000000000000000
-external_new_mask:
-        .quad   PSW_MASK_64
-io_new_mask:
-        .quad   PSW_MASK_64
+external_new_psw:
+        .quad   PSW_MASK_64, external_new_code
+io_new_psw:
+        .quad   PSW_MASK_64, io_new_code
