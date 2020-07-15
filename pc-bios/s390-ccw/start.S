@@ -9,6 +9,7 @@
  * your option) any later version. See the COPYING file in the top-level
  * directory.
  */
+#include "s390-arch.h"
 
         .globl _start
 _start:
@@ -108,10 +109,10 @@ io_new_code:
 
         .align  8
 disabled_wait_psw:
-        .quad   0x0002000180000000,0x0000000000000000
+        .quad   PSW_MASK_DWAIT, 0x0000000000000000
 enabled_wait_psw:
-        .quad   0x0302000180000000,0x0000000000000000
+        .quad   PSW_MASK_EWAIT, 0x0000000000000000
 external_new_mask:
-        .quad   0x0000000180000000
+        .quad   PSW_MASK_64
 io_new_mask:
-        .quad   0x0000000180000000
+        .quad   PSW_MASK_64

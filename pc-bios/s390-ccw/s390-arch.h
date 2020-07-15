@@ -11,6 +11,20 @@
 #ifndef S390_ARCH_H
 #define S390_ARCH_H
 
+/* s390 psw bit masks */
+#define PSW_MASK_EXT        0x0100000000000000UL
+#define PSW_MASK_IOINT      0x0200000000000000ULL
+#define PSW_MASK_SHORTPSW   0x0008000000000000ULL
+#define PSW_MASK_WAIT       0x0002000000000000ULL
+#define PSW_MASK_EAMODE     0x0000000100000000ULL
+#define PSW_MASK_BAMODE     0x0000000080000000ULL
+#define PSW_MASK_SHORT_ADDR 0x000000007fffffffULL
+#define PSW_MASK_64         (PSW_MASK_EAMODE | PSW_MASK_BAMODE)
+#define PSW_MASK_DWAIT      (PSW_MASK_64 | PSW_MASK_WAIT)
+#define PSW_MASK_EWAIT      (PSW_MASK_DWAIT | PSW_MASK_IOINT | PSW_MASK_EXT)
+
+#ifndef __ASSEMBLER__
+
 typedef struct PSW {
     uint64_t mask;
     uint64_t addr;
@@ -23,15 +37,6 @@ typedef struct PSWLegacy {
     uint32_t addr;
 } __attribute__ ((aligned(8))) PSWLegacy;
 _Static_assert(sizeof(struct PSWLegacy) == 8, "PSWLegacy size incorrect");
-
-/* s390 psw bit masks */
-#define PSW_MASK_IOINT      0x0200000000000000ULL
-#define PSW_MASK_SHORTPSW   0x0008000000000000ULL
-#define PSW_MASK_WAIT       0x0002000000000000ULL
-#define PSW_MASK_EAMODE     0x0000000100000000ULL
-#define PSW_MASK_BAMODE     0x0000000080000000ULL
-#define PSW_MASK_SHORT_ADDR 0x000000007fffffffULL
-#define PSW_MASK_64         (PSW_MASK_EAMODE | PSW_MASK_BAMODE)
 
 /* Low core mapping */
 typedef struct LowCore {
@@ -107,5 +112,5 @@ static inline uint32_t store_prefix(void)
     asm volatile("stpx %0" : "=m" (address));
     return address;
 }
-
+#endif /* !__ASSEMBLER__ */
 #endif
