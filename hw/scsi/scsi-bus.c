@@ -1572,8 +1572,13 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     return g_strdup_printf("channel@%x/%s@%x,%x", d->channel,
                            qdev_fw_name(dev), d->id, d->lun);
 }
-
-SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
+/*
+ * Finds a matching channel/id/lun device on scsi bus, and
+ * takes a reference to it and returns it.
+ * If we don't find exact match (channel/bus/lun),
+ * we will return the first device which matches channel/bus
+ */
+SCSIDevice *scsi_device_get(SCSIBus *bus, int channel, int id, int lun)
 {
     BusChild *kid;
     SCSIDevice *target_dev = NULL;
@@ -1586,14 +1591,10 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
 
         if (dev->channel == channel && dev->id == id) {
             if (dev->lun == lun) {
+                object_ref(OBJECT(dev));
                 rcu_read_unlock();
                 return dev;
             }
-
-            /*
-             * If we don't find exact match (channel/bus/lun),
-             * we will return the first device which matches channel/bus
-             */
 
             if (!target_dev) {
                 target_dev = dev;
@@ -1601,8 +1602,24 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
         }
     }
 
+    object_ref(OBJECT(target_dev));
     rcu_read_unlock();
     return target_dev;
+}
+
+/*
+ * This function works like scsi_device_get but doesn't take a reference
+ * to the returned object.
+ * Devices that run under the QEMU global mutex can use this function.
+ * Devices that run outside the QEMU global mutex must use
+ * scsi_device_get() instead.
+ */
+SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
+{
+    SCSIDevice *dev = scsi_device_get(bus, channel, id, lun);
+
+    object_unref(OBJECT(dev));
+    return dev;
 }
 
 /* SCSI request list.  For simplicity, pv points to the whole device */
