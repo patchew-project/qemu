@@ -5939,7 +5939,8 @@ int main(void)
   return 0;
 }
 EOF
-if compile_prog "" "" ; then
+if compile_prog "-Wno-implicit-function-declaration -Wno-strict-prototypes" "";
+then
   atomic64=yes
 fi
 
