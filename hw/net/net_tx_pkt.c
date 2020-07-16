@@ -616,12 +616,10 @@ bool net_tx_pkt_send(struct NetTxPkt *pkt, NetClientState *nc)
      * Since underlying infrastructure does not support IP datagrams longer
      * than 64K we should drop such packets and don't even try to send
      */
-    if (VIRTIO_NET_HDR_GSO_NONE != pkt->virt_hdr.gso_type) {
-        if (pkt->payload_len >
-            ETH_MAX_IP_DGRAM_LEN -
-            pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len) {
-            return false;
-        }
+    if (pkt->payload_len >
+        ETH_MAX_IP_DGRAM_LEN -
+        pkt->vec[NET_TX_PKT_L3HDR_FRAG].iov_len) {
+        return false;
     }
 
     if (pkt->has_virt_hdr ||
