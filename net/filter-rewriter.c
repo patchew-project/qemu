@@ -76,7 +76,9 @@ static int handle_primary_tcp_pkt(RewriterState *rf,
     struct tcp_hdr *tcp_pkt;
 
     tcp_pkt = (struct tcp_hdr *)pkt->transport_header;
-    if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
+    if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_PKT_INFO) ||
+        trace_event_get_state_backends(
+          TRACE_COLO_FILTER_REWRITER_CONN_OFFSET)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
@@ -180,7 +182,9 @@ static int handle_secondary_tcp_pkt(RewriterState *rf,
 
     tcp_pkt = (struct tcp_hdr *)pkt->transport_header;
 
-    if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_DEBUG)) {
+    if (trace_event_get_state_backends(TRACE_COLO_FILTER_REWRITER_PKT_INFO) ||
+        trace_event_get_state_backends(
+          TRACE_COLO_FILTER_REWRITER_CONN_OFFSET)) {
         trace_colo_filter_rewriter_pkt_info(__func__,
                     inet_ntoa(pkt->ip->ip_src), inet_ntoa(pkt->ip->ip_dst),
                     ntohl(tcp_pkt->th_seq), ntohl(tcp_pkt->th_ack),
