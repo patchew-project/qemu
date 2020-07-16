@@ -6274,8 +6274,10 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
         }
     }
 
-    env->features[FEAT_XSAVE_COMP_LO] = mask;
-    env->features[FEAT_XSAVE_COMP_HI] = mask >> 32;
+    env->features[FEAT_XSAVE_COMP_LO] = mask &
+        x86_cpu_get_supported_feature_word(FEAT_XSAVE_COMP_LO, cpu->migratable);
+    env->features[FEAT_XSAVE_COMP_HI] = (mask >> 32) &
+        x86_cpu_get_supported_feature_word(FEAT_XSAVE_COMP_HI, cpu->migratable);
 }
 
 /***** Steps involved on loading and filtering CPUID data
