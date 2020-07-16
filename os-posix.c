@@ -82,8 +82,13 @@ void os_setup_signal_handling(void)
 
 /*
  * Find a likely location for support files using the location of the binary.
- * When running from the build tree this will be "$bindir/../pc-bios".
- * Otherwise, this is CONFIG_QEMU_DATADIR.
+ *
+ * If running from the install location (CONFIG_BINDIR), this will be
+ * CONFIG_QEMU_DATADIR.
+ *
+ * Otherwise, fallback on "$execdir/../pc-bios" if it exists (the build tree
+ * location), else on "$execdir/../share/qemu" (for the install-less/"portable"
+ * version).
  */
 char *os_find_datadir(void)
 {
@@ -93,12 +98,16 @@ char *os_find_datadir(void)
     exec_dir = qemu_get_exec_dir();
     g_return_val_if_fail(exec_dir != NULL, NULL);
 
+    if (g_str_has_prefix(exec_dir, CONFIG_BINDIR)) {
+        return g_strdup(CONFIG_QEMU_DATADIR);
+    }
+
     dir = g_build_filename(exec_dir, "..", "pc-bios", NULL);
     if (g_file_test(dir, G_FILE_TEST_IS_DIR)) {
         return g_steal_pointer(&dir);
     }
 
-    return g_strdup(CONFIG_QEMU_DATADIR);
+    return g_build_filename(exec_dir, "..", "share", "qemu", NULL);
 }
 
 void os_set_proc_name(const char *s)
