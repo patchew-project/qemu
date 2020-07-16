@@ -77,6 +77,8 @@ struct E1000Core {
         unsigned char sum_needed;
         bool cptse;
         struct NetTxPkt *tx_pkt;
+        QEMUBH *tx_bh;
+        E1000ECore *core;
     } tx[E1000E_NUM_QUEUES];
 
     struct NetRxPkt *rx_pkt;
