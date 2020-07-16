@@ -1592,19 +1592,10 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
 void hmp_netdev_add(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;
-    QemuOpts *opts;
+    QDict *non_constant_dict = qdict_clone_shallow(qdict);
 
-    opts = qemu_opts_from_qdict(qemu_find_opts("netdev"), qdict, &err);
-    if (err) {
-        goto out;
-    }
-
-    netdev_add(opts, &err);
-    if (err) {
-        qemu_opts_del(opts);
-    }
-
-out:
+    qmp_marshal_netdev_add(non_constant_dict, NULL, &err);
+    qobject_unref(non_constant_dict);
     hmp_handle_error(mon, err);
 }
 
