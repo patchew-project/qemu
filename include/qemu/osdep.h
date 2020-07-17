@@ -665,4 +665,14 @@ static inline void qemu_reset_optind(void)
  */
 char *qemu_get_host_name(Error **errp);
 
+/**
+ * qemu_get_host_physmem:
+ *
+ * Operating system agnostiv way of querying host memory.
+ *
+ * Returns amount of physical memory on the system. This is purely
+ * advisery and may return 0 if we can't work it out.
+ */
+size_t qemu_get_host_physmem(void);
+
 #endif

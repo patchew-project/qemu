@@ -839,3 +839,14 @@ char *qemu_get_host_name(Error **errp)
 
     return g_steal_pointer(&hostname);
 }
+
+size_t qemu_get_host_physmem(void)
+{
+#ifdef _SC_PHYS_PAGES
+    long pages = sysconf(_SC_PHYS_PAGES);
+    if (pages > 0) {
+        return pages * qemu_real_host_page_size;
+    }
+#endif
+    return 0;
+}
