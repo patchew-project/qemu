@@ -201,6 +201,15 @@ static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
                               errp)) {
             return;
         }
+    } else {
+        uint64_t nb_sectors;
+
+        blk_get_geometry(dev->conf.blk, &nb_sectors);
+        if (!nb_sectors) {
+            warn_report("Drive image of size zero is unsupported for 'ide-cd', "
+                        "use at your own risk ¯\\_(ツ)_/¯");
+        }
+        dev->conf.secs = nb_sectors;
     }
     if (!blkconf_apply_backend_options(&dev->conf, kind == IDE_CD,
                                        kind != IDE_CD, errp)) {
