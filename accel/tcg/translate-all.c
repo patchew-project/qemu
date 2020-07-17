@@ -977,6 +977,29 @@ static inline size_t size_code_gen_buffer(size_t tb_size)
     /* Size the buffer.  */
     if (tb_size == 0) {
         tb_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
+        /*
+         * A static default of 1G turned out to break (OOM Kill) many common
+         * CI setups that run at 1-2G Host memory size.
+         * At the same time the former default of ram_size/4 wasted performance
+         * on large host systems when running small guests.
+         * Common CI guest sizes are 0.5-1G which meant ~128M-256M TB size.
+         * A Default of 1/8th of the host size will get small hosts a
+         * similar TB size than they had prior to v5.0 and common bare metal
+         * systems (>=8G) the new 1G default that was set in v5.0
+         */
+#if defined _SC_PHYS_PAGES && defined _SC_PAGESIZE
+        {
+            unsigned long max = DEFAULT_CODE_GEN_BUFFER_SIZE;
+            double pages = (double)sysconf(_SC_PHYS_PAGES);
+
+            if (pages > 0 && pagesize > 0) {
+                max = (unsigned long)((pages * qemu_real_host_page_size) / 8);
+            }
+            if (max < DEFAULT_CODE_GEN_BUFFER_SIZE) {
+                tb_size = max;
+            }
+        }
+#endif
     }
     if (tb_size < MIN_CODE_GEN_BUFFER_SIZE) {
         tb_size = MIN_CODE_GEN_BUFFER_SIZE;
