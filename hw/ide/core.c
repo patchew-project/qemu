@@ -1315,7 +1315,8 @@ static void ide_reset(IDEState *s)
     trace_ide_reset(s);
 
     if (s->pio_aiocb) {
-        blk_aio_cancel(s->pio_aiocb);
+        /* If there is a pending AIO callback, invoke it now. */
+        blk_aio_cancel_async(s->pio_aiocb);
         s->pio_aiocb = NULL;
     }
 
