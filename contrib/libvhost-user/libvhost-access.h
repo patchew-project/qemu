@@ -1,11 +1,21 @@
 #ifndef LIBVHOST_ACCESS_H
 
+#include <assert.h>
+
 #include "qemu/bswap.h"
 
 #include "libvhost-user.h"
 
+static inline bool vu_has_feature(VuDev *dev, unsigned int fbit);
+
 static inline bool vu_access_is_big_endian(VuDev *dev)
 {
+    /*
+     * TODO: can probably be removed as the fencing is already done in
+     * `vu_set_features_exec`
+     */
+    assert(vu_has_feature(dev, VIRTIO_F_VERSION_1));
+
     /* Devices conforming to VIRTIO 1.0 or later are always LE. */
     return false;
 }
