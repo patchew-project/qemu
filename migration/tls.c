@@ -97,7 +97,7 @@ void migration_tls_channel_process_incoming(MigrationState *s,
         s->parameters.tls_authz,
         errp);
     if (!tioc) {
-        return;
+        goto cleanup;
     }
 
     trace_migration_tls_incoming_handshake_start();
@@ -107,6 +107,9 @@ void migration_tls_channel_process_incoming(MigrationState *s,
                               NULL,
                               NULL,
                               NULL);
+
+cleanup:
+    object_unref(OBJECT(creds));
 }
 
 
@@ -146,13 +149,13 @@ void migration_tls_channel_connect(MigrationState *s,
     }
     if (!hostname) {
         error_setg(errp, "No hostname available for TLS");
-        return;
+        goto cleanup;
     }
 
     tioc = qio_channel_tls_new_client(
         ioc, creds, hostname, errp);
     if (!tioc) {
-        return;
+        goto cleanup;
     }
 
     trace_migration_tls_outgoing_handshake_start(hostname);
@@ -162,4 +165,7 @@ void migration_tls_channel_connect(MigrationState *s,
                               s,
                               NULL,
                               NULL);
+
+cleanup:
+    object_unref(OBJECT(creds));
 }
