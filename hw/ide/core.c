@@ -804,7 +804,7 @@ void dma_buf_commit(IDEState *s, uint32_t tx_bytes)
 
 void ide_set_inactive(IDEState *s, bool more)
 {
-    s->bus->dma->aiocb = NULL;
+    ide_cancel_dma_sync(s);
     ide_clear_retry(s);
     if (s->bus->dma->ops->set_inactive) {
         s->bus->dma->ops->set_inactive(s->bus->dma, more);
