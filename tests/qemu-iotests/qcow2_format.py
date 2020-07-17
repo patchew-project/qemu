@@ -119,6 +119,9 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
 
             print('{:<25} {}'.format(f[2], value_str))
 
+    def to_dict(self):
+        return dict((f[2], self.__dict__[f[2]]) for f in self.fields)
+
 
 class Qcow2BitmapExt(Qcow2Struct):
 
@@ -151,6 +154,11 @@ class Qcow2BitmapExt(Qcow2Struct):
         for entry in self.bitmap_directory:
             print()
             entry.dump()
+
+    def to_dict(self):
+        fields_dict = super().to_dict()
+        fields_dict.update(bitmap_directory=self.bitmap_directory)
+        return fields_dict
 
 
 class Qcow2BitmapDirEntry(Qcow2Struct):
@@ -190,6 +198,13 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         super(Qcow2BitmapDirEntry, self).dump()
         self.bitmap_table.dump()
 
+    def to_dict(self):
+        fields_dict = super().to_dict()
+        fields_dict.update(bitmap_table=self.bitmap_table)
+        bmp_name = dict(name=self.name)
+        bme_dict = {**bmp_name, **fields_dict}
+        return bme_dict
+
 
 class Qcow2BitmapTableEntry:
 
@@ -204,6 +219,9 @@ class Qcow2BitmapTableEntry:
             self.type = 'all-ones'
         else:
             self.type = 'all-zeroes'
+
+    def to_dict(self):
+        return dict(type=self.type, offset=self.offset)
 
 
 class Qcow2BitmapTable:
@@ -226,6 +244,9 @@ class Qcow2BitmapTable:
         for i, entry in bitmap_table:
             print(f'{i:<14} {entry.type:<15} {entry.offset:<24} {size}')
 
+    def to_dict(self):
+        return dict(entries=self.entries)
+
 
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
 
@@ -240,6 +261,9 @@ class QcowHeaderExtension(Qcow2Struct):
             QCOW2_EXT_MAGIC_BITMAPS: 'Bitmaps',
             0x44415441: 'Data file'
         }
+
+        def to_dict(self):
+            return self.mapping.get(self.value, "<unknown>")
 
     fields = (
         ('u32', Magic, 'magic'),
@@ -302,6 +326,17 @@ class QcowHeaderExtension(Qcow2Struct):
             print(f'{"data":<25} {self.data_str}')
         else:
             self.obj.dump()
+
+    def to_dict(self):
+        fields_dict = super().to_dict()
+        ext_name = dict(name=self.Magic(self.magic))
+        he_dict = {**ext_name, **fields_dict}
+        if self.obj is not None:
+            he_dict.update(data=self.obj)
+        else:
+            he_dict.update(data_str=self.data_str)
+
+        return he_dict
 
     @classmethod
     def create(cls, magic, data):
@@ -405,3 +440,6 @@ class QcowHeader(Qcow2Struct):
             print('Header extension:')
             ex.dump()
             print()
+
+    def to_dict(self):
+        return super().to_dict()
