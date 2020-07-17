@@ -248,6 +248,15 @@ class Qcow2BitmapTable:
         return dict(entries=self.entries)
 
 
+class Qcow2HeaderExtensionsDoc:
+
+    def __init__(self, extensions):
+        self.extensions = extensions
+
+    def to_dict(self):
+        return dict(Header_extensions=self.extensions)
+
+
 QCOW2_EXT_MAGIC_BITMAPS = 0x23852875
 
 
