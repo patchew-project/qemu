@@ -51,6 +51,7 @@ common-obj-$(CONFIG_IMX) += imx_rngc.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-hpdmc.o
 common-obj-$(CONFIG_MILKYMIST) += milkymist-pfpu.o
 common-obj-$(CONFIG_MAINSTONE) += mst_fpga.o
+common-obj-$(CONFIG_NPCM7XX) += npcm7xx_gcr.o
 common-obj-$(CONFIG_OMAP) += omap_clk.o
 common-obj-$(CONFIG_OMAP) += omap_gpmc.o
 common-obj-$(CONFIG_OMAP) += omap_l4.o
