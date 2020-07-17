@@ -1904,6 +1904,8 @@ void kvm_arch_reset_vcpu(X86CPU *cpu)
 
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC)) {
         int i;
+
+        env->msr_hv_synic_control = HV_SYNIC_ENABLE;
         for (i = 0; i < ARRAY_SIZE(env->msr_hv_synic_sint); i++) {
             env->msr_hv_synic_sint[i] = HV_SINT_MASKED;
         }
