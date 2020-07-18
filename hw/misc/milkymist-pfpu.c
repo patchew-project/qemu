@@ -507,7 +507,7 @@ static void milkymist_pfpu_realize(DeviceState *dev, Error **errp)
     sysbus_init_irq(sbd, &s->irq);
 
     memory_region_init_io(&s->regs_region, OBJECT(dev), &pfpu_mmio_ops, s,
-            "milkymist-pfpu", MICROCODE_END * 4);
+                          "milkymist-pfpu", 0x1000);
     sysbus_init_mmio(sbd, &s->regs_region);
 }
 
