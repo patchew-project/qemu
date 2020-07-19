@@ -393,7 +393,9 @@ bool qdev_realize(DeviceState *dev, BusState *bus, Error **errp)
     if (bus) {
         qdev_set_parent_bus(dev, bus);
     } else {
-        assert(!DEVICE_GET_CLASS(dev)->bus_type);
+        DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+        assert(dc->hotpluggable || !dc->bus_type);
     }
 
     return object_property_set_bool(OBJECT(dev), "realized", true, errp);
