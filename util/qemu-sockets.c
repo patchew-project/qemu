@@ -354,9 +354,8 @@ listen_ok:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(struct addrinfo *addr, Error **errp);
-
-static int inet_connect_addr(struct addrinfo *addr, Error **errp)
+static int inet_connect_addr(InetSocketAddress *saddr,
+                             struct addrinfo *addr, Error **errp)
 {
     int sock, rc;
 
@@ -379,6 +378,18 @@ static int inet_connect_addr(struct addrinfo *addr, Error **errp)
         error_setg_errno(errp, errno, "Failed to connect socket");
         closesocket(sock);
         return -1;
+    }
+
+    if (saddr->keep_alive) {
+        int val = 1;
+        int ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
+                                  &val, sizeof(val));
+
+        if (ret < 0) {
+            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
+            closesocket(sock);
+            return -1;
+        }
     }
 
     return sock;
@@ -455,7 +466,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
-        sock = inet_connect_addr(e, &local_err);
+        sock = inet_connect_addr(saddr, e, &local_err);
         if (sock >= 0) {
             break;
         }
@@ -463,23 +474,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
 
     freeaddrinfo(res);
 
-    if (sock < 0) {
-        error_propagate(errp, local_err);
-        return sock;
-    }
-
-    if (saddr->keep_alive) {
-        int val = 1;
-        int ret = qemu_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-                                  &val, sizeof(val));
-
-        if (ret < 0) {
-            error_setg_errno(errp, errno, "Unable to set KEEPALIVE");
-            close(sock);
-            return -1;
-        }
-    }
-
+    error_propagate(errp, local_err);
     return sock;
 }
 
