@@ -132,6 +132,17 @@ static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
+    if (io->ops->valid.min_access_size > 1) {
+        /* CPU can always use 8-bit accesses on an ISA bus */
+        error_report("ISA device '%s' requires I/O min_access_size of 1",
+                     object_get_typename(OBJECT(dev)));
+        exit(1);
+    } else if (io->ops->valid.max_access_size < 4) {
+        /* CPU can always use 32-bit accesses on an ISA bus */
+        error_report("ISA device '%s' requires I/O max_access_size of 4",
+                     object_get_typename(OBJECT(dev)));
+        exit(1);
+    }
     memory_region_add_subregion(isabus->address_space_io, start, io);
     isa_init_ioport(dev, start);
 }
