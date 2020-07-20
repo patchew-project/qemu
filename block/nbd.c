@@ -1421,16 +1421,19 @@ static void nbd_client_close(BlockDriverState *bs)
     nbd_teardown_connection(bs);
 }
 
-static QIOChannelSocket *nbd_establish_connection(SocketAddress *saddr,
+static QIOChannelSocket *nbd_establish_connection(BlockDriverState *bs,
+                                                  SocketAddress *saddr,
                                                   Error **errp)
 {
     ERRP_GUARD();
     QIOChannelSocket *sioc;
+    AioContext *aio_context = bdrv_get_aio_context(bs);
 
     sioc = qio_channel_socket_new();
     qio_channel_set_name(QIO_CHANNEL(sioc), "nbd-client");
 
-    qio_channel_socket_connect_sync(sioc, saddr, errp);
+    qio_channel_attach_aio_context(QIO_CHANNEL(sioc), aio_context);
+    qio_channel_socket_connect_non_blocking_sync(sioc, saddr, errp);
     if (*errp) {
         object_unref(OBJECT(sioc));
         return NULL;
@@ -1451,7 +1454,7 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
      * establish TCP connection, return error if it fails
      * TODO: Configurable retry-until-timeout behaviour.
      */
-    QIOChannelSocket *sioc = nbd_establish_connection(s->saddr, errp);
+    QIOChannelSocket *sioc = nbd_establish_connection(bs, s->saddr, errp);
 
     if (!sioc) {
         return -ECONNREFUSED;
@@ -1461,8 +1464,6 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
 
     /* NBD handshake */
     trace_nbd_client_connect(s->export);
-    qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
-    qio_channel_attach_aio_context(QIO_CHANNEL(sioc), aio_context);
 
     s->info.request_sizes = true;
     s->info.structured_reply = true;
