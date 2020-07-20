@@ -282,6 +282,40 @@ $QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
 $QEMU_IMG compare "$TEST_IMG" "$TEST_IMG".orig
 
 echo
+echo '=== -n to an empty image ==='
+echo
+
+_make_test_img 64M
+
+# Convert with -n, which should not result in a fully allocated image, not even
+# with compat=0.10 (because the target doesn't have a backing file)
+TEST_IMG="$TEST_IMG".orig _make_test_img -o compat=1.1 64M
+$QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG map --output=json "$TEST_IMG".orig
+
+TEST_IMG="$TEST_IMG".orig _make_test_img -o compat=0.10 64M
+$QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG map --output=json "$TEST_IMG".orig
+
+echo
+echo '=== -n to an empty image with a backing file ==='
+echo
+
+_make_test_img 64M
+TEST_IMG="$TEST_IMG".base _make_test_img 64M
+
+# Convert with -n, which should still not result in a fully allocated image for
+# compat=1.1 (because it can use zero clusters), but it should be fully
+# allocated with compat=0.10
+TEST_IMG="$TEST_IMG".orig _make_test_img -b "$TEST_IMG".base -F $IMGFMT -o compat=1.1 64M
+$QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG map --output=json "$TEST_IMG".orig
+
+TEST_IMG="$TEST_IMG".orig _make_test_img -b "$TEST_IMG".base -F $IMGFMT -o compat=0.10 64M
+$QEMU_IMG convert -O $IMGFMT -n "$TEST_IMG" "$TEST_IMG".orig
+$QEMU_IMG map --output=json "$TEST_IMG".orig
+
+echo
 echo '=== -n -B to an image without a backing file ==='
 echo
 
