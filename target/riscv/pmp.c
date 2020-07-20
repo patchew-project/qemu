@@ -320,8 +320,13 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
 
     for (i = 0; i < sizeof(target_ulong); i++) {
         cfg_val = (val >> 8 * i)  & 0xff;
+#if defined(TARGET_RISCV32)
         pmp_write_cfg(env, (reg_index * sizeof(target_ulong)) + i,
             cfg_val);
+#elif defined(TARGET_RISCV64)
+        pmp_write_cfg(env, ((reg_index >> 1) * sizeof(target_ulong)) + i,
+            cfg_val);
+#endif
     }
 }
 
@@ -336,7 +341,11 @@ target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
     target_ulong val = 0;
 
     for (i = 0; i < sizeof(target_ulong); i++) {
+#if defined(TARGET_RISCV32)
         val = pmp_read_cfg(env, (reg_index * sizeof(target_ulong)) + i);
+#elif defined(TARGET_RISCV64)
+        val = pmp_read_cfg(env, ((reg_index >> 1) * sizeof(target_ulong)) + i);
+#endif
         cfg_val |= (val << (i * 8));
     }
     trace_pmpcfg_csr_read(env->mhartid, reg_index, cfg_val);
