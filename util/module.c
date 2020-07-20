@@ -109,7 +109,7 @@ void module_call_init(module_init_type type)
 }
 
 #ifdef CONFIG_MODULES
-static int module_load_file(const char *fname)
+static int module_load_file(const char *fname, bool mayfail)
 {
     GModule *g_module;
     void (*sym)(void);
@@ -133,8 +133,10 @@ static int module_load_file(const char *fname)
 
     g_module = g_module_open(fname, G_MODULE_BIND_LAZY | G_MODULE_BIND_LOCAL);
     if (!g_module) {
-        fprintf(stderr, "Failed to open module: %s\n",
-                g_module_error());
+        if (!mayfail) {
+            fprintf(stderr, "Failed to open module: %s\n",
+                    g_module_error());
+        }
         ret = -EINVAL;
         goto out;
     }
@@ -166,7 +168,7 @@ out:
 }
 #endif
 
-bool module_load_one(const char *prefix, const char *lib_name)
+bool module_load_one(const char *prefix, const char *lib_name, bool mayfail)
 {
     bool success = false;
 
@@ -223,7 +225,7 @@ bool module_load_one(const char *prefix, const char *lib_name)
     for (i = 0; i < n_dirs; i++) {
         fname = g_strdup_printf("%s/%s%s",
                 dirs[i], module_name, HOST_DSOSUF);
-        ret = module_load_file(fname);
+        ret = module_load_file(fname, mayfail);
         g_free(fname);
         fname = NULL;
         /* Try loading until loaded a module file */
@@ -284,7 +286,8 @@ void module_load_qom_one(const char *type)
     for (i = 0; i < ARRAY_SIZE(qom_modules); i++) {
         if (strcmp(qom_modules[i].type, type) == 0) {
             module_load_one(qom_modules[i].prefix,
-                            qom_modules[i].module);
+                            qom_modules[i].module,
+                            false);
             return;
         }
     }
@@ -305,7 +308,7 @@ void module_load_qom_all(void)
             /* one module implementing multiple types -> load only once */
             continue;
         }
-        module_load_one(qom_modules[i].prefix, qom_modules[i].module);
+        module_load_one(qom_modules[i].prefix, qom_modules[i].module, true);
     }
     module_loaded_qom_all = true;
 }
