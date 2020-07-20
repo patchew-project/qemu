@@ -354,10 +354,16 @@ listen_ok:
     ((rc) == -EINPROGRESS)
 #endif
 
-static int inet_connect_addr(InetSocketAddress *saddr,
-                             struct addrinfo *addr, Error **errp)
+int inet_connect_addr(InetSocketAddress *saddr, struct addrinfo *addr,
+                      bool blocking, bool *in_progress, Error **errp)
 {
     int sock, rc;
+
+    assert(blocking == !in_progress);
+
+    if (in_progress) {
+        *in_progress = false;
+    }
 
     sock = qemu_socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
     if (sock < 0) {
@@ -366,6 +372,10 @@ static int inet_connect_addr(InetSocketAddress *saddr,
     }
     socket_set_fast_reuse(sock);
 
+    if (!blocking) {
+        qemu_set_nonblock(sock);
+    }
+
     /* connect to peer */
     do {
         rc = 0;
@@ -373,6 +383,13 @@ static int inet_connect_addr(InetSocketAddress *saddr,
             rc = -errno;
         }
     } while (rc == -EINTR);
+
+    if (!blocking && rc == -EINPROGRESS) {
+        if (in_progress) {
+            *in_progress = true;
+        }
+        return sock;
+    }
 
     if (rc < 0) {
         error_setg_errno(errp, errno, "Failed to connect socket");
@@ -395,8 +412,26 @@ static int inet_connect_addr(InetSocketAddress *saddr,
     return sock;
 }
 
-static struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
-                                                 Error **errp)
+int socket_check(int fd, Error **errp)
+{
+    int optval;
+    socklen_t optlen = sizeof(optval);
+    if (qemu_getsockopt(fd, SOL_SOCKET, SO_ERROR, &optval, &optlen) < 0) {
+        error_setg_errno(errp, errno, "Unable to check connection");
+        return -1;
+    }
+
+    if (optval != 0) {
+        error_setg_errno(errp, errno, "Connection failed");
+        return -1;
+    }
+
+    return 0;
+}
+
+
+struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
+                                          Error **errp)
 {
     struct addrinfo ai, *res;
     int rc;
@@ -466,7 +501,7 @@ int inet_connect_saddr(InetSocketAddress *saddr, Error **errp)
     for (e = res; e != NULL; e = e->ai_next) {
         error_free(local_err);
         local_err = NULL;
-        sock = inet_connect_addr(saddr, e, &local_err);
+        sock = inet_connect_addr(saddr, e, true, NULL, &local_err);
         if (sock >= 0) {
             break;
         }

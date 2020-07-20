@@ -34,6 +34,12 @@ int inet_ai_family_from_address(InetSocketAddress *addr,
 int inet_parse(InetSocketAddress *addr, const char *str, Error **errp);
 int inet_connect(const char *str, Error **errp);
 int inet_connect_saddr(InetSocketAddress *saddr, Error **errp);
+int inet_connect_addr(InetSocketAddress *saddr, struct addrinfo *addr,
+                      bool blocking, bool *in_progress, Error **errp);
+struct addrinfo *inet_parse_connect_saddr(InetSocketAddress *saddr,
+                                          Error **errp);
+
+int socket_check(int fd, Error **errp);
 
 NetworkAddressFamily inet_netfamily(int family);
 
