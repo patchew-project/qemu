@@ -280,7 +280,18 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
         s->ioc = NULL;
     }
 
+    bdrv_dec_in_flight(s->bs);
     s->connect_status = nbd_client_connect(s->bs, &local_err);
+    s->wait_drained_end = true;
+    while (s->drained) {
+        /*
+         * We may be entered once from nbd_client_attach_aio_context_bh
+         * and then from nbd_client_co_drain_end. So here is a loop.
+         */
+        qemu_coroutine_yield();
+    }
+    bdrv_inc_in_flight(s->bs);
+
     error_free(s->connect_err);
     s->connect_err = NULL;
     error_propagate(&s->connect_err, local_err);
