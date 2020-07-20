@@ -874,10 +874,6 @@ static bool build_guest_fsinfo_for_pci_dev(char const *syspath,
     int i, nhosts = 0, pcilen;
     bool has_ata = false, has_host = false, has_tgt = false;
     char *p, *q, *driver = NULL;
-#ifdef CONFIG_LIBUDEV
-    struct udev *udev = NULL;
-    struct udev_device *udevice = NULL;
-#endif
     bool ret = false;
 
     p = strstr(syspath, "/devices/pci");
@@ -935,26 +931,6 @@ static bool build_guest_fsinfo_for_pci_dev(char const *syspath,
     pciaddr->bus = pci[1];
     pciaddr->slot = pci[2];
     pciaddr->function = pci[3];
-
-#ifdef CONFIG_LIBUDEV
-    udev = udev_new();
-    udevice = udev_device_new_from_syspath(udev, syspath);
-    if (udev == NULL || udevice == NULL) {
-        g_debug("failed to query udev");
-    } else {
-        const char *devnode, *serial;
-        devnode = udev_device_get_devnode(udevice);
-        if (devnode != NULL) {
-            disk->dev = g_strdup(devnode);
-            disk->has_dev = true;
-        }
-        serial = udev_device_get_property_value(udevice, "ID_SERIAL");
-        if (serial != NULL && *serial != 0) {
-            disk->serial = g_strdup(serial);
-            disk->has_serial = true;
-        }
-    }
-#endif
 
     if (strcmp(driver, "ata_piix") == 0) {
         /* a host per ide bus, target*:0:<unit>:0 */
@@ -1017,10 +993,6 @@ static bool build_guest_fsinfo_for_pci_dev(char const *syspath,
 
 cleanup:
     g_free(driver);
-#ifdef CONFIG_LIBUDEV
-    udev_unref(udev);
-    udev_device_unref(udevice);
-#endif
     return ret;
 }
 
@@ -1033,18 +1005,46 @@ static void build_guest_fsinfo_for_real_device(char const *syspath,
     GuestPCIAddress *pciaddr;
     GuestDiskAddressList *list = NULL;
     bool has_pci;
+#ifdef CONFIG_LIBUDEV
+    struct udev *udev = NULL;
+    struct udev_device *udevice = NULL;
+#endif
 
     pciaddr = g_malloc(sizeof(*pciaddr));
     memset(pciaddr, -1, sizeof(*pciaddr));  /* -1 means field is invalid */
 
     disk = g_malloc0(sizeof(*disk));
     disk->pci_controller = pciaddr;
+    disk->bus_type = GUEST_DISK_BUS_TYPE_UNKNOWN;
 
     list = g_malloc0(sizeof(*list));
     list->value = disk;
 
+#ifdef CONFIG_LIBUDEV
+    udev = udev_new();
+    udevice = udev_device_new_from_syspath(udev, syspath);
+    if (udev == NULL || udevice == NULL) {
+        g_debug("failed to query udev");
+    } else {
+        const char *devnode, *serial;
+        devnode = udev_device_get_devnode(udevice);
+        if (devnode != NULL) {
+            disk->dev = g_strdup(devnode);
+            disk->has_dev = true;
+        }
+        serial = udev_device_get_property_value(udevice, "ID_SERIAL");
+        if (serial != NULL && *serial != 0) {
+            disk->serial = g_strdup(serial);
+            disk->has_serial = true;
+        }
+    }
+
+    udev_unref(udev);
+    udev_device_unref(udevice);
+#endif
+
     has_pci = build_guest_fsinfo_for_pci_dev(syspath, disk, pciaddr, errp);
-    if (has_pci) {
+    if (has_pci || disk->has_dev || disk->has_serial) {
         list->next = fs->disk;
         fs->disk = list;
     } else {
