@@ -206,11 +206,15 @@ static void nbd_teardown_connection(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
-    if (s->state == NBD_CLIENT_CONNECTED) {
+    if (s->ioc) {
         /* finish any pending coroutines */
-        assert(s->ioc);
         qio_channel_shutdown(s->ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+    } else if (s->sioc) {
+        /* abort negotiation */
+        qio_channel_shutdown(QIO_CHANNEL(s->sioc), QIO_CHANNEL_SHUTDOWN_BOTH,
+                             NULL);
     }
+
     s->state = NBD_CLIENT_QUIT;
     if (s->connection_co) {
         if (s->connection_co_sleep_ns_state) {
@@ -1452,6 +1456,8 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
         return -ECONNREFUSED;
     }
 
+    s->sioc = sioc;
+
     /* NBD handshake */
     trace_nbd_client_connect(s->export);
     qio_channel_set_blocking(QIO_CHANNEL(sioc), false, NULL);
@@ -1468,6 +1474,7 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
     g_free(s->info.name);
     if (ret < 0) {
         object_unref(OBJECT(sioc));
+        s->sioc = NULL;
         return ret;
     }
     if (s->x_dirty_bitmap && !s->info.base_allocation) {
@@ -1493,8 +1500,6 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
         }
     }
 
-    s->sioc = sioc;
-
     if (!s->ioc) {
         s->ioc = QIO_CHANNEL(sioc);
         object_ref(OBJECT(s->ioc));
@@ -1515,6 +1520,7 @@ static int nbd_client_connect(BlockDriverState *bs, Error **errp)
         nbd_send_request(s->ioc ?: QIO_CHANNEL(sioc), &request);
 
         object_unref(OBJECT(sioc));
+        s->sioc = NULL;
 
         return ret;
     }
