@@ -22,12 +22,15 @@
 #include "qapi/error.h"
 #include "qapi/qapi-visit-sockets.h"
 #include "qemu/module.h"
+#include "qemu/sockets.h"
 #include "io/channel-socket.h"
 #include "io/channel-watch.h"
 #include "trace.h"
 #include "qapi/clone-visitor.h"
 
 #define SOCKET_MAX_FDS 16
+
+static int qio_channel_socket_close(QIOChannel *ioc, Error **errp);
 
 SocketAddress *
 qio_channel_socket_get_local_address(QIOChannelSocket *ioc,
@@ -157,6 +160,77 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
     return 0;
 }
 
+static int qio_channel_inet_connect_non_blocking_sync(QIOChannelSocket *ioc,
+        InetSocketAddress *addr, Error **errp)
+{
+    Error *local_err = NULL;
+    struct addrinfo *infos, *info;
+    int sock = -1;
+
+    infos = inet_parse_connect_saddr(addr, errp);
+    if (!infos) {
+        return -1;
+    }
+
+    for (info = infos; info != NULL; info = info->ai_next) {
+        bool in_progress;
+
+        error_free(local_err);
+        local_err = NULL;
+
+        sock = inet_connect_addr(addr, info, false, &in_progress, &local_err);
+        if (sock < 0) {
+            continue;
+        }
+
+        if (qio_channel_socket_set_fd(ioc, sock, &local_err) < 0) {
+            close(sock);
+            continue;
+        }
+
+        if (in_progress) {
+            if (qemu_in_coroutine()) {
+                qio_channel_yield(QIO_CHANNEL(ioc), G_IO_OUT);
+            } else {
+                qio_channel_wait(QIO_CHANNEL(ioc), G_IO_OUT);
+            }
+            if (socket_check(sock, &local_err) < 0) {
+                qio_channel_socket_close(QIO_CHANNEL(ioc), NULL);
+                continue;
+            }
+        }
+
+        break;
+    }
+
+    freeaddrinfo(infos);
+
+    error_propagate(errp, local_err);
+    return sock;
+}
+
+int qio_channel_socket_connect_non_blocking_sync(QIOChannelSocket *ioc,
+                                                 SocketAddress *addr,
+                                                 Error **errp)
+{
+    if (addr->type == SOCKET_ADDRESS_TYPE_INET) {
+        return qio_channel_inet_connect_non_blocking_sync(ioc, &addr->u.inet,
+                                                          errp);
+    } else {
+        /*
+         * TODO: implement non-blocking connect for other socket types.
+         * For now just use blocking connect, and then make socket non-blocking
+         * for consistancy.
+         */
+        int ret = qio_channel_socket_connect_sync(ioc, addr, errp);
+
+        if (ret < 0) {
+            return ret;
+        }
+
+        return qio_channel_set_blocking(QIO_CHANNEL(ioc), false, errp);
+    }
+}
 
 static void qio_channel_socket_connect_worker(QIOTask *task,
                                               gpointer opaque)

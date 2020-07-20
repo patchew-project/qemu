@@ -95,6 +95,20 @@ int qio_channel_socket_connect_sync(QIOChannelSocket *ioc,
                                     Error **errp);
 
 /**
+ * qio_channel_socket_connect_non_blocking_sync:
+ * @ioc: the socket channel object
+ * @addr: the address to connect to
+ * @errp: pointer to a NULL-initialized error object
+ *
+ * Attempt to connect to the address @addr using non-blocking mode of
+ * the socket. Function is synchronous, but being called from
+ * coroutine context will yield during connect operation.
+ */
+int qio_channel_socket_connect_non_blocking_sync(QIOChannelSocket *ioc,
+                                                 SocketAddress *addr,
+                                                 Error **errp);
+
+/**
  * qio_channel_socket_connect_async:
  * @ioc: the socket channel object
  * @addr: the address to connect to
