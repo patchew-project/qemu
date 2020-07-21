@@ -77,9 +77,13 @@ typedef struct E1000EState {
 
     bool disable_vnet;
 
+    int32_t tx_burst;
+
     E1000ECore core;
 
 } E1000EState;
+
+#define TX_BURST 256
 
 #define E1000E_MMIO_IDX     0
 #define E1000E_FLASH_IDX    1
@@ -263,6 +267,7 @@ static void e1000e_core_realize(E1000EState *s)
 {
     s->core.owner = &s->parent_obj;
     s->core.owner_nic = s->nic;
+    s->core.tx_burst = s->tx_burst;
 }
 
 static void
@@ -665,6 +670,7 @@ static Property e1000e_properties[] = {
                         e1000e_prop_subsys_ven, uint16_t),
     DEFINE_PROP_SIGNED("subsys", E1000EState, subsys, 0,
                         e1000e_prop_subsys, uint16_t),
+    DEFINE_PROP_INT32("x-txburst", E1000EState, tx_burst, TX_BURST),
     DEFINE_PROP_END_OF_LIST(),
 };
 

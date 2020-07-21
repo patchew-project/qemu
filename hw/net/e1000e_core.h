@@ -77,10 +77,18 @@ struct E1000Core {
         unsigned char sum_needed;
         bool cptse;
         struct NetTxPkt *tx_pkt;
+        QEMUBH *tx_bh;
+        uint32_t tx_waiting;
+        uint32_t cause;
+        bool ide;
+        E1000ECore *core;
     } tx[E1000E_NUM_QUEUES];
 
     struct NetRxPkt *rx_pkt;
 
+    int32_t tx_burst;
+
+    bool vm_running;
     bool has_vnet;
     int max_queue_num;
 

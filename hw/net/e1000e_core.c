@@ -910,18 +910,17 @@ e1000e_rx_ring_init(E1000ECore *core, E1000E_RxRing *rxr, int idx)
 }
 
 static void
-e1000e_start_xmit(E1000ECore *core, const E1000E_TxRing *txr)
+e1000e_start_xmit(struct e1000e_tx *q)
 {
+    E1000ECore *core = q->core;
     dma_addr_t base;
     struct e1000_tx_desc desc;
-    bool ide = false;
-    const E1000E_RingInfo *txi = txr->i;
-    uint32_t cause = E1000_ICS_TXQE;
+    const E1000E_RingInfo *txi;
+    E1000E_TxRing txr;
+    int32_t num_packets = 0;
 
-    if (!(core->mac[TCTL] & E1000_TCTL_EN)) {
-        trace_e1000e_tx_disabled();
-        return;
-    }
+    e1000e_tx_ring_init(core, &txr, q - &core->tx[0]);
+    txi = txr.i;
 
     while (!e1000e_ring_empty(core, txi)) {
         base = e1000e_ring_head_descr(core, txi);
@@ -931,14 +930,24 @@ e1000e_start_xmit(E1000ECore *core, const E1000E_TxRing *txr)
         trace_e1000e_tx_descr((void *)(intptr_t)desc.buffer_addr,
                               desc.lower.data, desc.upper.data);
 
-        e1000e_process_tx_desc(core, txr->tx, &desc, txi->idx);
-        cause |= e1000e_txdesc_writeback(core, base, &desc, &ide, txi->idx);
+        e1000e_process_tx_desc(core, txr.tx, &desc, txi->idx);
+        q->cause |= e1000e_txdesc_writeback(core, base, &desc,
+                                            &q->ide, txi->idx);
 
         e1000e_ring_advance(core, txi, 1);
+        if (++num_packets >= core->tx_burst) {
+            break;
+        }
     }
 
-    if (!ide || !e1000e_intrmgr_delay_tx_causes(core, &cause)) {
-        e1000e_set_interrupt_cause(core, cause);
+    if (num_packets >= core->tx_burst) {
+        qemu_bh_schedule(q->tx_bh);
+        q->tx_waiting = 1;
+        return;
+    }
+
+    if (!q->ide || !e1000e_intrmgr_delay_tx_causes(core, &q->cause)) {
+        e1000e_set_interrupt_cause(core, q->cause);
     }
 }
 
@@ -2423,32 +2432,41 @@ e1000e_set_dbal(E1000ECore *core, int index, uint32_t val)
 static void
 e1000e_set_tctl(E1000ECore *core, int index, uint32_t val)
 {
-    E1000E_TxRing txr;
     core->mac[index] = val;
 
     if (core->mac[TARC0] & E1000_TARC_ENABLE) {
-        e1000e_tx_ring_init(core, &txr, 0);
-        e1000e_start_xmit(core, &txr);
+        if (core->tx[0].tx_waiting) {
+            return;
+        }
+        core->tx[0].tx_waiting = 1;
+        if (!core->vm_running) {
+            return;
+        }
+        qemu_bh_schedule(core->tx[0].tx_bh);
     }
 
     if (core->mac[TARC1] & E1000_TARC_ENABLE) {
-        e1000e_tx_ring_init(core, &txr, 1);
-        e1000e_start_xmit(core, &txr);
+        if (core->tx[1].tx_waiting) {
+            return;
+        }
+        core->tx[1].tx_waiting = 1;
+        if (!core->vm_running) {
+            return;
+        }
+        qemu_bh_schedule(core->tx[1].tx_bh);
     }
 }
 
 static void
 e1000e_set_tdt(E1000ECore *core, int index, uint32_t val)
 {
-    E1000E_TxRing txr;
     int qidx = e1000e_mq_queue_idx(TDT, index);
     uint32_t tarc_reg = (qidx == 0) ? TARC0 : TARC1;
 
     core->mac[index] = val & 0xffff;
 
     if (core->mac[tarc_reg] & E1000_TARC_ENABLE) {
-        e1000e_tx_ring_init(core, &txr, qidx);
-        e1000e_start_xmit(core, &txr);
+        qemu_bh_schedule(core->tx[qidx].tx_bh);
     }
 }
 
@@ -3315,11 +3333,52 @@ e1000e_vm_state_change(void *opaque, int running, RunState state)
         trace_e1000e_vm_state_running();
         e1000e_intrmgr_resume(core);
         e1000e_autoneg_resume(core);
+        core->vm_running = 1;
+
+        for (int i = 0; i < E1000E_NUM_QUEUES; i++) {
+            /*
+             * Schedule tx bh unconditionally to make sure
+             * tx work after live migration since we don't
+             * migrate tx_waiting.
+             */
+            qemu_bh_schedule(core->tx[i].tx_bh);
+        }
+
     } else {
         trace_e1000e_vm_state_stopped();
+
+        for (int i = 0; i < E1000E_NUM_QUEUES; i++) {
+            qemu_bh_cancel(core->tx[i].tx_bh);
+        }
+
         e1000e_autoneg_pause(core);
         e1000e_intrmgr_pause(core);
+        core->vm_running = 0;
     }
+}
+
+
+static void e1000e_core_tx_bh(void *opaque)
+{
+    struct e1000e_tx *q = opaque;
+    E1000ECore *core = q->core;
+
+    if (!core->vm_running) {
+        assert(q->tx_waiting);
+        return;
+    }
+
+    q->tx_waiting = 0;
+
+    if (!(core->mac[TCTL] & E1000_TCTL_EN)) {
+        trace_e1000e_tx_disabled();
+        return;
+    }
+
+    q->cause = E1000_ICS_TXQE;
+    q->ide = false;
+
+    e1000e_start_xmit(q);
 }
 
 void
@@ -3334,12 +3393,15 @@ e1000e_core_pci_realize(E1000ECore     *core,
                                        e1000e_autoneg_timer, core);
     e1000e_intrmgr_pci_realize(core);
 
+    core->vm_running = runstate_is_running();
     core->vmstate =
         qemu_add_vm_change_state_handler(e1000e_vm_state_change, core);
 
     for (i = 0; i < E1000E_NUM_QUEUES; i++) {
         net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner,
                         E1000E_MAX_TX_FRAGS, core->has_vnet);
+        core->tx[i].core = core;
+        core->tx[i].tx_bh = qemu_bh_new(e1000e_core_tx_bh, &core->tx[i]);
     }
 
     net_rx_pkt_init(&core->rx_pkt, core->has_vnet);
@@ -3367,6 +3429,9 @@ e1000e_core_pci_uninit(E1000ECore *core)
     for (i = 0; i < E1000E_NUM_QUEUES; i++) {
         net_tx_pkt_reset(core->tx[i].tx_pkt);
         net_tx_pkt_uninit(core->tx[i].tx_pkt);
+        qemu_bh_cancel(core->tx[i].tx_bh);
+        qemu_bh_delete(core->tx[i].tx_bh);
+        core->tx[i].tx_bh = NULL;
     }
 
     net_rx_pkt_uninit(core->rx_pkt);
@@ -3480,6 +3545,8 @@ e1000e_core_reset(E1000ECore *core)
         net_tx_pkt_reset(core->tx[i].tx_pkt);
         memset(&core->tx[i].props, 0, sizeof(core->tx[i].props));
         core->tx[i].skip_cp = false;
+        qemu_bh_cancel(core->tx[i].tx_bh);
+        core->tx[i].tx_waiting = 0;
     }
 }
 
