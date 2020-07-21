@@ -101,8 +101,12 @@ static void digic_load_rom(DigicState *s, hwaddr addr,
         char *fn = qemu_find_file(QEMU_FILE_TYPE_BIOS, filename);
 
         if (!fn) {
-            error_report("Couldn't find rom image '%s'.", filename);
-            exit(1);
+            if (bios_name) {
+                error_report("Couldn't find rom image '%s'.", filename);
+                exit(1);
+            } else {
+                return;
+            }
         }
 
         rom_size = load_image_targphys(fn, addr, max_size);

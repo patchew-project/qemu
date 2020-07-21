@@ -190,11 +190,6 @@ static void sx1_init(MachineState *machine, const int version)
                                 OMAP_CS1_BASE, &cs[1]);
     }
 
-    if (!machine->kernel_filename && !fl_idx && !qtest_enabled()) {
-        error_report("Kernel or Flash image must be specified");
-        exit(1);
-    }
-
     /* Load the kernel.  */
     arm_load_kernel(mpu->cpu, machine, &sx1_binfo);
 

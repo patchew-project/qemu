@@ -231,7 +231,7 @@ static void palmte_init(MachineState *machine)
     static uint32_t cs1val = 0x0000e1a0;
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
-    int rom_size, rom_loaded = 0;
+    int rom_size;
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     MemoryRegion *flash = g_new(MemoryRegion, 1);
     MemoryRegion *cs = g_new(MemoryRegion, 4);
@@ -284,17 +284,11 @@ static void palmte_init(MachineState *machine)
         if (rom_size > 0) {
             rom_size = load_image_targphys(option_rom[0].name, OMAP_CS0_BASE,
                                            flash_size);
-            rom_loaded = 1;
         }
         if (rom_size < 0) {
             fprintf(stderr, "%s: error loading '%s'\n",
                             __func__, option_rom[0].name);
         }
-    }
-
-    if (!rom_loaded && !machine->kernel_filename && !qtest_enabled()) {
-        fprintf(stderr, "Kernel or ROM image must be specified\n");
-        exit(1);
     }
 
     /* Load the kernel.  */
