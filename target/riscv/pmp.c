@@ -309,6 +309,7 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
 {
     int i;
     uint8_t cfg_val;
+    uint32_t pmp_entry_base;
 
     trace_pmpcfg_csr_write(env->mhartid, reg_index, val);
 
@@ -318,10 +319,15 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
         return;
     }
 
+#if defined(TARGET_RISCV32)
+    pmp_entry_base = (reg_index * sizeof(target_ulong));
+#elif defined(TARGET_RISCV64)
+    pmp_entry_base = (reg_index >> 1) * sizeof(target_ulong);
+#endif
+
     for (i = 0; i < sizeof(target_ulong); i++) {
         cfg_val = (val >> 8 * i)  & 0xff;
-        pmp_write_cfg(env, (reg_index * sizeof(target_ulong)) + i,
-            cfg_val);
+        pmp_write_cfg(env, pmp_entry_base + i, cfg_val);
     }
 }
 
@@ -332,11 +338,18 @@ void pmpcfg_csr_write(CPURISCVState *env, uint32_t reg_index,
 target_ulong pmpcfg_csr_read(CPURISCVState *env, uint32_t reg_index)
 {
     int i;
+    uint32_t pmp_entry_base;
     target_ulong cfg_val = 0;
     target_ulong val = 0;
 
+#if defined(TARGET_RISCV32)
+    pmp_entry_base = (reg_index * sizeof(target_ulong));
+#elif defined(TARGET_RISCV64)
+    pmp_entry_base = (reg_index >> 1) * sizeof(target_ulong);
+#endif
+
     for (i = 0; i < sizeof(target_ulong); i++) {
-        val = pmp_read_cfg(env, (reg_index * sizeof(target_ulong)) + i);
+        val = pmp_read_cfg(env, pmp_entry_base + i);
         cfg_val |= (val << (i * 8));
     }
     trace_pmpcfg_csr_read(env->mhartid, reg_index, cfg_val);
