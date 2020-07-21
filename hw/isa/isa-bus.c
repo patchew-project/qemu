@@ -132,6 +132,20 @@ static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
+    if (io->ops->valid.min_access_size > 1 ||
+        io->ops->valid.max_access_size < 4) {
+        warn_report_once("Monkey-patching ISA I/O access sizes "
+                         "(side effect of CVE-2020-13754, only for QEMU v5.1)");
+        /*
+         * To be backward compatible with IBM-PC bus, ISA bus must accept
+         * 8-bit accesses.
+         */
+        io->ops->valid.min_access_size = 1;
+        /*
+         * EISA bus must accept 32-bit accesses.
+         */
+        io->ops->valid.max_access_size = 4;
+    }
     memory_region_add_subregion(isabus->address_space_io, start, io);
     isa_init_ioport(dev, start);
 }
