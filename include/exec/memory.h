@@ -383,7 +383,12 @@ struct MemoryRegion {
     RAMBlock *ram_block;
     Object *owner;
 
-    const MemoryRegionOps *ops;
+    /*
+     * XXX this must be 'const' but to counter side effects of
+     * CVE-2020-13754, make it non-const to allow monkey patching
+     * the access sizes. Only allowed for QEMU release v5.1 :(
+     */
+    MemoryRegionOps *ops;
     void *opaque;
     MemoryRegion *container;
     Int128 size;

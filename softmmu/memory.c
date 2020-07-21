@@ -1218,7 +1218,7 @@ static void memory_region_initfn(Object *obj)
     MemoryRegion *mr = MEMORY_REGION(obj);
     ObjectProperty *op;
 
-    mr->ops = &unassigned_mem_ops;
+    mr->ops = g_memdup(&unassigned_mem_ops, sizeof(MemoryRegionOps));
     mr->enabled = true;
     mr->romd_mode = true;
     mr->global_locking = true;
@@ -1485,7 +1485,11 @@ void memory_region_init_io(MemoryRegion *mr,
                            uint64_t size)
 {
     memory_region_init(mr, owner, name, size);
-    mr->ops = ops ? ops : &unassigned_mem_ops;
+    if (ops) {
+        mr->ops = g_memdup(ops, sizeof(MemoryRegionOps));
+    } else {
+        mr->ops = g_memdup(&unassigned_mem_ops, sizeof(MemoryRegionOps));
+    }
     mr->opaque = opaque;
     mr->terminates = true;
 }
@@ -1622,7 +1626,7 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
     mr->ram = true;
     mr->terminates = true;
     mr->ram_device = true;
-    mr->ops = &ram_device_mem_ops;
+    mr->ops = g_memdup(&ram_device_mem_ops, sizeof(MemoryRegionOps));
     mr->opaque = mr;
     mr->destructor = memory_region_destructor_ram;
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
@@ -1664,7 +1668,7 @@ void memory_region_init_rom_device_nomigrate(MemoryRegion *mr,
     Error *err = NULL;
     assert(ops);
     memory_region_init(mr, owner, name, size);
-    mr->ops = ops;
+    mr->ops = g_memdup(ops, sizeof(MemoryRegionOps));
     mr->opaque = opaque;
     mr->terminates = true;
     mr->rom_device = true;
