@@ -12,7 +12,6 @@ typedef struct SpiceChardev {
     bool                  blocked;
     const uint8_t         *datapos;
     int                   datalen;
-    QLIST_ENTRY(SpiceChardev) next;
 } SpiceChardev;
 
 #define TYPE_CHARDEV_SPICE "chardev-spice"
