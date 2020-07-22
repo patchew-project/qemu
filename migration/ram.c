@@ -2172,12 +2172,16 @@ again:
             break;
         }
 
+        trace_page_fault_processing_start(msg.arg.pagefault.address);
+
         if (ram_process_page_fault(msg.arg.pagefault.address) < 0) {
             error_report("page fault: error on write protected page "
                          "processing [0x%llx]",
                          msg.arg.pagefault.address);
             break;
         }
+
+        trace_page_fault_processing_finish(msg.arg.pagefault.address);
     }
 
     return NULL;

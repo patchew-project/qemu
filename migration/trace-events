@@ -128,6 +128,8 @@ save_xbzrle_page_skipping(void) ""
 save_xbzrle_page_overflow(void) ""
 ram_save_iterate_big_wait(uint64_t milliconds, int iterations) "big wait: %" PRIu64 " milliseconds, %d iterations"
 ram_load_complete(int ret, uint64_t seq_iter) "exit_code %d seq iteration %" PRIu64
+page_fault_processing_start(unsigned long address) "HVA: 0x%lx"
+page_fault_processing_finish(unsigned long address) "HVA: 0x%lx"
 
 # migration.c
 await_return_path_close_on_source_close(void) ""
