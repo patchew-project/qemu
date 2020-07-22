@@ -831,7 +831,6 @@ static void cpu_devinit(const char *cpu_type, unsigned int id,
     } else {
         qemu_register_reset(secondary_cpu_reset, cpu);
         cs = CPU(cpu);
-        cs->halted = 1;
         object_property_set_bool(OBJECT(cs), "start-powered-off", true,
                                  &error_abort);
     }
