@@ -43,6 +43,8 @@
 /* this must come after including "trace.h" */
 #include <shlobj.h>
 
+WINBASEAPI BOOL WINAPI GetPhysicallyInstalledSystemMemory (PULONGLONG);
+
 void *qemu_oom_check(void *ptr)
 {
     if (ptr == NULL) {
@@ -831,6 +833,15 @@ char *qemu_get_host_name(Error **errp)
 
 size_t qemu_get_host_physmem(void)
 {
-    /* currently unimplemented */
-    return 0;
+    ULONGLONG mem;
+
+    if (GetPhysicallyInstalledSystemMemory(&mem)) {
+        if (mem > SIZE_MAX) {
+            return SIZE_MAX;
+        } else {
+            return mem;
+        }
+    } else {
+        return 0;
+    }
 }
