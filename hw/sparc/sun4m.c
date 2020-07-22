@@ -233,7 +233,6 @@ static void secondary_cpu_reset(void *opaque)
     CPUState *cs = CPU(cpu);
 
     cpu_reset(cs);
-    cs->halted = 1;
 }
 
 static void cpu_halt_signal(void *opaque, int irq, int level)
@@ -833,6 +832,8 @@ static void cpu_devinit(const char *cpu_type, unsigned int id,
         qemu_register_reset(secondary_cpu_reset, cpu);
         cs = CPU(cpu);
         cs->halted = 1;
+        object_property_set_bool(OBJECT(cs), "start-powered-off", true,
+                                 &error_abort);
     }
     *cpu_irqs = qemu_allocate_irqs(cpu_set_irq, cpu, MAX_PILS);
     env->prom_addr = prom_addr;
