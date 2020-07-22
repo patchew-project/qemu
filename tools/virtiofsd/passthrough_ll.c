@@ -139,6 +139,7 @@ enum {
 
 struct lo_data {
     pthread_mutex_t mutex;
+    int chroot; /* 1 - use chroot, 0 - use mount namespace */
     int debug;
     int writeback;
     int flock;
@@ -162,6 +163,8 @@ struct lo_data {
 };
 
 static const struct fuse_opt lo_opts[] = {
+    { "chroot", offsetof(struct lo_data, chroot), 1 },
+    { "no_chroot", offsetof(struct lo_data, chroot), 0 },
     { "writeback", offsetof(struct lo_data, writeback), 1 },
     { "no_writeback", offsetof(struct lo_data, writeback), 0 },
     { "source=%s", offsetof(struct lo_data, source), 0 },
@@ -2666,14 +2669,50 @@ static void setup_capabilities(char *modcaps_in)
 }
 
 /*
+ * Use chroot as a weaker sandbox for environment where the process is launched
+ * without CAP_SYS_ADMIN.
+ */
+static void setup_chroot(struct lo_data *lo)
+{
+    lo->proc_self_fd = open("/proc/self/fd", O_PATH);
+    if (lo->proc_self_fd == -1) {
+        fuse_log(FUSE_LOG_ERR, "open(\"/proc/self/fd\", O_PATH): %m\n");
+        exit(1);
+    }
+
+    /*
+     * Make the shared directory the file system root so that FUSE_OPEN
+     * (lo_open()) cannot escape the shared directory by opening a symlink.
+     *
+     * It's still possible to escape the chroot via lo->proc_self_fd but that
+     * requires gaining control of the process first.
+     */
+    if (chroot(lo->source) != 0) {
+        fuse_log(FUSE_LOG_ERR, "chroot(\"%s\"): %m\n", lo->source);
+        exit(1);
+    }
+
+    /* Move into the chroot */
+    if (chdir("/") != 0) {
+        fuse_log(FUSE_LOG_ERR, "chdir(\"/\"): %m\n");
+        exit(1);
+    }
+}
+
+/*
  * Lock down this process to prevent access to other processes or files outside
  * source directory.  This reduces the impact of arbitrary code execution bugs.
  */
 static void setup_sandbox(struct lo_data *lo, struct fuse_session *se,
                           bool enable_syslog)
 {
-    setup_namespaces(lo, se);
-    setup_mounts(lo->source);
+    if (lo->chroot) {
+        setup_chroot(lo);
+    } else {
+        setup_namespaces(lo, se);
+        setup_mounts(lo->source);
+    }
+
     setup_seccomp(enable_syslog);
     setup_capabilities(g_strdup(lo->modcaps));
 }
@@ -2820,6 +2859,7 @@ int main(int argc, char *argv[])
     struct fuse_session *se;
     struct fuse_cmdline_opts opts;
     struct lo_data lo = {
+        .chroot = 0,
         .debug = 0,
         .writeback = 0,
         .posix_lock = 1,
