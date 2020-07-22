@@ -55,6 +55,7 @@
 #include "net/announce.h"
 #include "qemu/queue.h"
 #include "multifd.h"
+#include "sysemu/cpus.h"
 
 #define MAX_THROTTLE  (32 << 20)      /* Migration transfer speed throttling */
 
@@ -2473,7 +2474,7 @@ static void migrate_handle_rp_req_pages(MigrationState *ms, const char* rbname,
         return;
     }
 
-    if (ram_save_queue_pages(rbname, start, len)) {
+    if (ram_save_queue_pages(NULL, rbname, start, len, NULL)) {
         mark_source_rp_bad(ms);
     }
 }
@@ -3536,6 +3537,100 @@ static void *migration_thread(void *opaque)
     return NULL;
 }
 
+static void *background_snapshot_thread(void *opaque)
+{
+    MigrationState *m = opaque;
+    QIOChannelBuffer *bioc;
+    QEMUFile *fb;
+    int res = 0;
+
+    rcu_register_thread();
+
+    qemu_file_set_rate_limit(m->to_dst_file, INT64_MAX);
+
+    qemu_mutex_lock_iothread();
+    vm_stop(RUN_STATE_PAUSED);
+
+    qemu_savevm_state_header(m->to_dst_file);
+    qemu_mutex_unlock_iothread();
+    qemu_savevm_state_setup(m->to_dst_file);
+    qemu_mutex_lock_iothread();
+
+    migrate_set_state(&m->state, MIGRATION_STATUS_SETUP,
+                      MIGRATION_STATUS_ACTIVE);
+
+    /*
+     * We want to save the vm state for the moment when the snapshot saving was
+     * called but also we want to write RAM content with vm running. The RAM
+     * content should appear first in the vmstate.
+     * So, we first, save non-ram part of the vmstate to the temporary, buffer,
+     * then write ram part of the vmstate to the migration stream with vCPUs
+     * running and, finally, write the non-ram part of the vmstate from the
+     * buffer to the migration stream.
+     */
+    bioc = qio_channel_buffer_new(4096);
+    qio_channel_set_name(QIO_CHANNEL(bioc), "vmstate-buffer");
+    fb = qemu_fopen_channel_output(QIO_CHANNEL(bioc));
+    object_unref(OBJECT(bioc));
+
+    if (ram_write_tracking_start()) {
+        goto failed_resume;
+    }
+
+    if (global_state_store()) {
+        goto failed_resume;
+    }
+
+    cpu_synchronize_all_states();
+
+    if (qemu_savevm_state_complete_precopy_non_iterable(fb, false, false)) {
+        goto failed_resume;
+    }
+
+    vm_start();
+    qemu_mutex_unlock_iothread();
+
+    while (!res) {
+        res = qemu_savevm_state_iterate(m->to_dst_file, false);
+
+        if (res < 0 || qemu_file_get_error(m->to_dst_file)) {
+            goto failed;
+        }
+    }
+
+    /*
+     * By this moment we have RAM content saved into the migration stream.
+     * The next step is to flush the non-ram content (vm devices state)
+     * right after the ram content. The device state was stored in
+     * the temporary buffer prior to the ram saving.
+     */
+    qemu_put_buffer(m->to_dst_file, bioc->data, bioc->usage);
+    qemu_fflush(m->to_dst_file);
+
+    if (qemu_file_get_error(m->to_dst_file)) {
+        goto failed;
+    }
+
+    migrate_set_state(&m->state, MIGRATION_STATUS_ACTIVE,
+                                 MIGRATION_STATUS_COMPLETED);
+    goto exit;
+
+failed_resume:
+    vm_start();
+    qemu_mutex_unlock_iothread();
+failed:
+    migrate_set_state(&m->state, MIGRATION_STATUS_ACTIVE,
+                      MIGRATION_STATUS_FAILED);
+exit:
+    ram_write_tracking_stop();
+    qemu_fclose(fb);
+    qemu_mutex_lock_iothread();
+    qemu_savevm_state_cleanup();
+    qemu_mutex_unlock_iothread();
+    rcu_unregister_thread();
+    return NULL;
+}
+
 void migrate_fd_connect(MigrationState *s, Error *error_in)
 {
     Error *local_err = NULL;
@@ -3599,8 +3694,14 @@ void migrate_fd_connect(MigrationState *s, Error *error_in)
         migrate_fd_cleanup(s);
         return;
     }
-    qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
-                       QEMU_THREAD_JOINABLE);
+    if (migrate_background_snapshot()) {
+        qemu_thread_create(&s->thread, "bg_snapshot",
+                           background_snapshot_thread, s,
+                           QEMU_THREAD_JOINABLE);
+    } else {
+        qemu_thread_create(&s->thread, "live_migration", migration_thread, s,
+                           QEMU_THREAD_JOINABLE);
+    }
     s->migration_thread_running = true;
 }
 

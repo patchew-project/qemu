@@ -42,7 +42,8 @@ uint64_t ram_bytes_remaining(void);
 uint64_t ram_bytes_total(void);
 
 uint64_t ram_pagesize_summary(void);
-int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len);
+int ram_save_queue_pages(RAMBlock *block, const char *rbname,
+                         ram_addr_t start, ram_addr_t len, void *page_copy);
 void acct_update_position(QEMUFile *f, size_t size, bool zero);
 void ram_debug_dump_bitmap(unsigned long *todump, bool expected,
                            unsigned long pages);
@@ -69,4 +70,20 @@ void colo_flush_ram_cache(void);
 void colo_release_ram_cache(void);
 void colo_incoming_start_dirty_log(void);
 
+/* for background snapshot */
+void ram_block_list_create(void);
+void ram_block_list_destroy(void);
+RAMBlock *ram_bgs_block_find(uint64_t address, ram_addr_t *page_offset);
+
+void *ram_page_buffer_get(void);
+int ram_page_buffer_free(void *buffer);
+
+int ram_block_list_set_readonly(void);
+int ram_block_list_set_writable(void);
+
+int ram_copy_page(RAMBlock *block, unsigned long page_nr, void **page_copy);
+int ram_process_page_fault(uint64_t address);
+
+int ram_write_tracking_start(void);
+void ram_write_tracking_stop(void);
 #endif

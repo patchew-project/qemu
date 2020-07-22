@@ -44,6 +44,8 @@ typedef struct {
     unsigned long *blocks[];
 } DirtyMemoryBlocks;
 
+typedef QLIST_HEAD(, RAMBlock) RamBlockList;
+
 typedef struct RAMList {
     QemuMutex mutex;
     RAMBlock *mru_block;

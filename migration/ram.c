@@ -56,6 +56,12 @@
 #include "savevm.h"
 #include "qemu/iov.h"
 #include "multifd.h"
+#include <sys/syscall.h>
+#include <sys/ioctl.h>
+#include <linux/userfaultfd.h>
+#include <sys/eventfd.h>
+#include <inttypes.h>
+#include <poll.h>
 
 /***********************************************************/
 /* ram save/restore */
@@ -297,9 +303,26 @@ struct RAMSrcPageRequest {
     RAMBlock *rb;
     hwaddr    offset;
     hwaddr    len;
+    void     *page_copy;
 
     QSIMPLEQ_ENTRY(RAMSrcPageRequest) next_req;
 };
+
+/* Page buffer used for background snapshot */
+typedef struct RAMPageBuffer {
+    /* Page buffer capacity in host pages */
+    int capacity;
+    /* Current number of pages in the buffer */
+    int used;
+    /* Mutex to protect the page buffer */
+    QemuMutex lock;
+    /* To notify the requestor when the page buffer can be accessed again */
+    /* Page buffer allows access when used < capacity */
+    QemuCond used_decreased_cond;
+} RAMPageBuffer;
+
+/* RAMPageBuffer capacity */
+#define PAGE_BUFFER_CAPACITY 1000
 
 /* State of RAM for migration */
 struct RAMState {
@@ -354,6 +377,12 @@ struct RAMState {
     /* Queue of outstanding page requests from the destination */
     QemuMutex src_page_req_mutex;
     QSIMPLEQ_HEAD(, RAMSrcPageRequest) src_page_requests;
+    /* For background snapshot */
+    /* Data buffer to store copies of ram pages on backgound snapshot */
+    RAMPageBuffer page_buffer;
+    QemuEvent page_copying_done;
+    /* The number of threads trying to make a page copy */
+    uint64_t page_copier_cnt;
 };
 typedef struct RAMState RAMState;
 
@@ -410,6 +439,8 @@ struct PageSearchStatus {
     unsigned long page;
     /* Set once we wrap around */
     bool         complete_round;
+    /* Pointer to the cached page */
+    void *page_copy;
 };
 typedef struct PageSearchStatus PageSearchStatus;
 
@@ -1051,11 +1082,14 @@ static void migration_bitmap_sync_precopy(RAMState *rs)
  * @file: the file where the data is saved
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
+ * @page_copy: pointer to the page, if null the page pointer
+ *             is calculated based on block and offset
  */
 static int save_zero_page_to_file(RAMState *rs, QEMUFile *file,
-                                  RAMBlock *block, ram_addr_t offset)
+                                  RAMBlock *block, ram_addr_t offset,
+                                  uint8_t *page_copy)
 {
-    uint8_t *p = block->host + offset;
+    uint8_t *p = page_copy ? page_copy : block->host + offset;
     int len = 0;
 
     if (is_zero_range(p, TARGET_PAGE_SIZE)) {
@@ -1074,10 +1108,13 @@ static int save_zero_page_to_file(RAMState *rs, QEMUFile *file,
  * @rs: current RAM state
  * @block: block that contains the page we want to send
  * @offset: offset inside the block for the page
+ * @page_copy: pointer to the page, if null the page pointer
+ *             is calculated based on block and offset
  */
-static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset)
+static int save_zero_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
+                          uint8_t *page_copy)
 {
-    int len = save_zero_page_to_file(rs, rs->f, block, offset);
+    int len = save_zero_page_to_file(rs, rs->f, block, offset, page_copy);
 
     if (len) {
         ram_counters.duplicate++;
@@ -1151,9 +1188,11 @@ static int save_normal_page(RAMState *rs, RAMBlock *block, ram_addr_t offset,
     ram_counters.transferred += save_page_header(rs, rs->f, block,
                                                  offset | RAM_SAVE_FLAG_PAGE);
     if (async) {
-        qemu_put_buffer_async(rs->f, buf, TARGET_PAGE_SIZE,
-                              migrate_release_ram() &
-                              migration_in_postcopy());
+        bool may_free = migrate_background_snapshot() ||
+                        (migrate_release_ram() &&
+                         migration_in_postcopy());
+
+        qemu_put_buffer_async(rs->f, buf, TARGET_PAGE_SIZE, may_free);
     } else {
         qemu_put_buffer(rs->f, buf, TARGET_PAGE_SIZE);
     }
@@ -1184,7 +1223,12 @@ static int ram_save_page(RAMState *rs, PageSearchStatus *pss, bool last_stage)
     ram_addr_t offset = ((ram_addr_t)pss->page) << TARGET_PAGE_BITS;
     ram_addr_t current_addr = block->offset + offset;
 
-    p = block->host + offset;
+    if (pss->page_copy) {
+        p = pss->page_copy;
+    } else {
+        p = block->host + offset;
+    }
+
     trace_ram_save_page(block->idstr, (uint64_t)offset, p);
 
     XBZRLE_cache_lock();
@@ -1229,7 +1273,7 @@ static bool do_compress_ram_page(QEMUFile *f, z_stream *stream, RAMBlock *block,
     bool zero_page = false;
     int ret;
 
-    if (save_zero_page_to_file(rs, f, block, offset)) {
+    if (save_zero_page_to_file(rs, f, block, offset, NULL)) {
         zero_page = true;
         goto exit;
     }
@@ -1412,7 +1456,8 @@ static bool find_dirty_block(RAMState *rs, PageSearchStatus *pss, bool *again)
  * @rs: current RAM state
  * @offset: used to return the offset within the RAMBlock
  */
-static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
+static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset,
+                              void **page_copy)
 {
     RAMBlock *block = NULL;
 
@@ -1426,10 +1471,14 @@ static RAMBlock *unqueue_page(RAMState *rs, ram_addr_t *offset)
                                 QSIMPLEQ_FIRST(&rs->src_page_requests);
         block = entry->rb;
         *offset = entry->offset;
+        *page_copy = entry->page_copy;
 
         if (entry->len > TARGET_PAGE_SIZE) {
             entry->len -= TARGET_PAGE_SIZE;
             entry->offset += TARGET_PAGE_SIZE;
+            if (entry->page_copy) {
+                entry->page_copy += TARGET_PAGE_SIZE / sizeof(void *);
+            }
         } else {
             memory_region_unref(block->mr);
             QSIMPLEQ_REMOVE_HEAD(&rs->src_page_requests, next_req);
@@ -1456,9 +1505,10 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
     RAMBlock  *block;
     ram_addr_t offset;
     bool dirty;
+    void *page_copy;
 
     do {
-        block = unqueue_page(rs, &offset);
+        block = unqueue_page(rs, &offset, &page_copy);
         /*
          * We're sending this page, and since it's postcopy nothing else
          * will dirty it, and we must make sure it doesn't get sent again
@@ -1502,6 +1552,7 @@ static bool get_queued_page(RAMState *rs, PageSearchStatus *pss)
          * really rare.
          */
         pss->complete_round = false;
+        pss->page_copy = page_copy;
     }
 
     return !!block;
@@ -1536,12 +1587,17 @@ static void migration_page_queue_free(RAMState *rs)
  *
  * Returns zero on success or negative on error
  *
+ * @block: RAMBlock to use.
+ *         When @block is provided, then @rbname is ignored.
  * @rbname: Name of the RAMBLock of the request. NULL means the
  *          same that last one.
  * @start: starting address from the start of the RAMBlock
  * @len: length (in bytes) to send
+ * @page_copy: the page to copy to destination. If not specified,
+ *             will use the page data specified by @start and @len.
  */
-int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
+int ram_save_queue_pages(RAMBlock *block, const char *rbname,
+                         ram_addr_t start, ram_addr_t len, void *page_copy)
 {
     RAMBlock *ramblock;
     RAMState *rs = ram_state;
@@ -1549,7 +1605,9 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     ram_counters.postcopy_requests++;
     RCU_READ_LOCK_GUARD();
 
-    if (!rbname) {
+    if (block) {
+        ramblock = block;
+    } else if (!rbname) {
         /* Reuse last RAMBlock */
         ramblock = rs->last_req_rb;
 
@@ -1584,6 +1642,7 @@ int ram_save_queue_pages(const char *rbname, ram_addr_t start, ram_addr_t len)
     new_entry->rb = ramblock;
     new_entry->offset = start;
     new_entry->len = len;
+    new_entry->page_copy = page_copy;
 
     memory_region_ref(ramblock->mr);
     qemu_mutex_lock(&rs->src_page_req_mutex);
@@ -1670,7 +1729,7 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
         return 1;
     }
 
-    res = save_zero_page(rs, block, offset);
+    res = save_zero_page(rs, block, offset, pss->page_copy);
     if (res > 0) {
         /* Must let xbzrle know, otherwise a previous (now 0'd) cached
          * page would be stale
@@ -1680,7 +1739,12 @@ static int ram_save_target_page(RAMState *rs, PageSearchStatus *pss,
             xbzrle_cache_zero_page(rs, block->offset + offset);
             XBZRLE_cache_unlock();
         }
-        ram_release_pages(block->idstr, offset, res);
+
+        if (pss->page_copy) {
+            qemu_madvise(pss->page_copy, TARGET_PAGE_SIZE, MADV_DONTNEED);
+        } else {
+            ram_release_pages(block->idstr, offset, res);
+        }
         return res;
     }
 
@@ -1753,6 +1817,434 @@ static int ram_save_host_page(RAMState *rs, PageSearchStatus *pss,
     return pages;
 }
 
+/* BackGround Snapshot Blocks */
+static RamBlockList bgs_blocks;
+
+static RamBlockList *ram_bgs_block_list_get(void)
+{
+    return &bgs_blocks;
+}
+
+void ram_block_list_create(void)
+{
+    RAMBlock *block = NULL;
+    RamBlockList *block_list = ram_bgs_block_list_get();
+
+    qemu_mutex_lock_ramlist();
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        memory_region_ref(block->mr);
+        QLIST_INSERT_HEAD(block_list, block, bgs_next);
+    }
+    qemu_mutex_unlock_ramlist();
+}
+
+static int page_fault_fd;
+static int thread_quit_fd;
+static QemuThread page_fault_thread;
+
+static int mem_change_wp(void *addr, uint64_t length, bool protect)
+{
+    struct uffdio_writeprotect wp = { 0 };
+
+    assert(page_fault_fd);
+
+    if (protect) {
+        struct uffdio_register reg = { 0 };
+
+        reg.mode = UFFDIO_REGISTER_MODE_WP;
+        reg.range.start = (uint64_t) addr;
+        reg.range.len = length;
+
+        if (ioctl(page_fault_fd, UFFDIO_REGISTER, &reg)) {
+            error_report("Can't register memeory at %p len: %"PRIu64
+                         " for page fault interception", addr, length);
+            return -1;
+        }
+
+        wp.mode = UFFDIO_WRITEPROTECT_MODE_WP;
+    }
+
+    wp.range.start = (uint64_t) addr;
+    wp.range.len = length;
+
+    if (ioctl(page_fault_fd, UFFDIO_WRITEPROTECT, &wp)) {
+        error_report("Can't change protection at %p len: %"PRIu64,
+                     addr, length);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int ram_set_ro(void *addr, uint64_t length)
+{
+    return mem_change_wp(addr, length, true);
+}
+
+static int ram_set_rw(void *addr, uint64_t length)
+{
+    return mem_change_wp(addr, length, false);
+}
+
+int ram_block_list_set_readonly(void)
+{
+    RAMBlock *block = NULL;
+    RamBlockList *block_list = ram_bgs_block_list_get();
+    int ret = 0;
+
+    QLIST_FOREACH(block, block_list, bgs_next) {
+        ret = ram_set_ro(block->host, block->used_length);
+        if (ret) {
+            break;
+        }
+    }
+
+    return ret;
+}
+
+int ram_block_list_set_writable(void)
+{
+    RAMBlock *block = NULL;
+    RamBlockList *block_list = ram_bgs_block_list_get();
+    int ret = 0;
+
+    QLIST_FOREACH(block, block_list, bgs_next) {
+        ret = ram_set_rw(block->host, block->used_length);
+        if (ret) {
+            break;
+        }
+    }
+
+    return ret;
+}
+
+void ram_block_list_destroy(void)
+{
+    RAMBlock *next, *block;
+    RamBlockList *block_list = ram_bgs_block_list_get();
+
+    QLIST_FOREACH_SAFE(block, block_list, bgs_next, next) {
+        QLIST_REMOVE(block, bgs_next);
+        memory_region_unref(block->mr);
+    }
+}
+
+static void ram_page_buffer_decrease_used(void)
+{
+    qemu_mutex_lock(&ram_state->page_buffer.lock);
+    ram_state->page_buffer.used--;
+    qemu_cond_signal(&ram_state->page_buffer.used_decreased_cond);
+    qemu_mutex_unlock(&ram_state->page_buffer.lock);
+}
+
+static void ram_page_buffer_increase_used_wait(void)
+{
+    RAMState *rs = ram_state;
+
+    qemu_mutex_lock(&rs->page_buffer.lock);
+
+    if (rs->page_buffer.used == rs->page_buffer.capacity) {
+        qemu_cond_wait(&rs->page_buffer.used_decreased_cond,
+                       &rs->page_buffer.lock);
+    }
+
+    rs->page_buffer.used++;
+
+    qemu_mutex_unlock(&rs->page_buffer.lock);
+}
+
+void *ram_page_buffer_get(void)
+{
+    void *page;
+    ram_page_buffer_increase_used_wait();
+    page = mmap(0, TARGET_PAGE_SIZE, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if (page == MAP_FAILED) {
+        ram_page_buffer_decrease_used();
+        page = NULL;
+    }
+    return page;
+}
+
+int ram_page_buffer_free(void *buffer)
+{
+    ram_page_buffer_decrease_used();
+    return qemu_madvise(buffer, TARGET_PAGE_SIZE, MADV_DONTNEED);
+}
+
+RAMBlock *ram_bgs_block_find(uint64_t address, ram_addr_t *page_offset)
+{
+    RAMBlock *block = NULL;
+    RamBlockList *block_list = ram_bgs_block_list_get();
+
+    QLIST_FOREACH(block, block_list, bgs_next) {
+        uint64_t host = (uint64_t) block->host;
+        if (address - host < block->max_length) {
+            *page_offset = (address - host) & TARGET_PAGE_MASK;
+            return block;
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * ram_copy_page: make a page copy
+ *
+ * Used in the background snapshot to make a copy of a memeory page.
+ * Ensures that the memeory page is copied only once.
+ * When a page copy is done, restores read/write access to the memory
+ * page.
+ * If a page is being copied by another thread, wait until the copying
+ * ends and exit.
+ *
+ * Returns:
+ *   -1 - on error
+ *    0 - the page wasn't copied by the function call
+ *    1 - the page has been copied
+ *
+ * @block:     RAM block to use
+ * @page_nr:   the page number to copy
+ * @page_copy: the pointer to return a page copy
+ *
+ */
+int ram_copy_page(RAMBlock *block, unsigned long page_nr,
+                          void **page_copy)
+{
+    void *host_page;
+    int res = 0;
+
+    atomic_inc(&ram_state->page_copier_cnt);
+
+    if (test_and_set_bit_atomic(page_nr, block->touched_map)) {
+        while (!test_bit_atomic(page_nr, block->copied_map)) {
+            /* the page is being copied -- wait for the end of the copying */
+            qemu_event_wait(&ram_state->page_copying_done);
+        }
+        goto out;
+    }
+
+    *page_copy = ram_page_buffer_get();
+    if (!*page_copy) {
+        res = -1;
+        goto out;
+    }
+
+    host_page = block->host + (page_nr << TARGET_PAGE_BITS);
+    memcpy(*page_copy, host_page, TARGET_PAGE_SIZE);
+
+    if (ram_set_rw(host_page, TARGET_PAGE_SIZE)) {
+        ram_page_buffer_free(*page_copy);
+        *page_copy = NULL;
+        res = -1;
+        goto out;
+    }
+
+    set_bit_atomic(page_nr, block->copied_map);
+    qemu_event_set(&ram_state->page_copying_done);
+    qemu_event_reset(&ram_state->page_copying_done);
+
+    res = 1;
+out:
+    atomic_dec(&ram_state->page_copier_cnt);
+    return res;
+}
+
+/**
+ * ram_process_page_fault
+ *
+ * Used in the background snapshot to queue the copy of the memory
+ * page for writing.
+ *
+ * Returns:
+ *    0 > - on error
+ *    0   - success
+ *
+ * @address:  address of the faulted page
+ *
+ */
+int ram_process_page_fault(uint64_t address)
+{
+    int ret;
+    void *page_copy = NULL;
+    unsigned long page_nr;
+    ram_addr_t offset;
+
+    RAMBlock *block = ram_bgs_block_find(address, &offset);
+
+    if (!block) {
+        return -1;
+    }
+
+    page_nr = offset >> TARGET_PAGE_BITS;
+
+    ret = ram_copy_page(block, page_nr, &page_copy);
+
+    if (ret < 0) {
+        return ret;
+    } else if (ret > 0) {
+        if (ram_save_queue_pages(block, NULL, offset,
+                                 TARGET_PAGE_SIZE, page_copy)) {
+            ram_page_buffer_free(page_copy);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int get_page_fault_fd(void)
+{
+    struct uffdio_api api_struct = { 0 };
+    uint64_t ioctl_mask = BIT(_UFFDIO_REGISTER) | BIT(_UFFDIO_UNREGISTER);
+    int ufd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK);
+
+    if (ufd == -1) {
+        error_report("UFFD: not supported");
+        return -1;
+    }
+
+    api_struct.api = UFFD_API;
+    api_struct.features = UFFD_FEATURE_PAGEFAULT_FLAG_WP;
+
+    if (ioctl(ufd, UFFDIO_API, &api_struct)) {
+        error_report("UFFD: API failed");
+        return -1;
+    }
+
+    if ((api_struct.ioctls & ioctl_mask) != ioctl_mask) {
+        error_report("UFFD: missing write-protected feature");
+        return -1;
+    }
+
+    return ufd;
+}
+
+static void *page_fault_thread_fn(void *unused)
+{
+    GPollFD fds[2] = {
+        {.fd = page_fault_fd, .events = POLLIN | POLLERR | POLLHUP },
+        {.fd = thread_quit_fd, .events = POLLIN | POLLERR | POLLHUP },
+    };
+
+    while (true) {
+        struct uffd_msg msg;
+        ssize_t len;
+        int ret;
+
+        ret = qemu_poll_ns(fds, 2, -1);
+
+        if (ret < 0) {
+            error_report("page fault: error on fd polling: %d", ret);
+            break;
+        }
+
+        if (fds[1].revents) {
+            break;
+        }
+again:
+        len = read(fds[0].fd, &msg, sizeof(msg));
+
+        if (len == 0) {
+            break;
+        }
+
+        if (len < 0) {
+            error_report("page fault: error on uffd reading: %d", -errno);
+            if (errno == EAGAIN) {
+                goto again;
+            } else {
+                break;
+            }
+        }
+
+        if (msg.event != UFFD_EVENT_PAGEFAULT) {
+            error_report("page fault: unknown event from uffd: %d",
+                         msg.event);
+            break;
+        }
+
+        if (!(msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WP)) {
+            error_report("page fault: error. got address "
+                         "without write protection flag [0x%llx]",
+                         msg.arg.pagefault.address);
+            break;
+        }
+
+        if (ram_process_page_fault(msg.arg.pagefault.address) < 0) {
+            error_report("page fault: error on write protected page "
+                         "processing [0x%llx]",
+                         msg.arg.pagefault.address);
+            break;
+        }
+    }
+
+    return NULL;
+}
+
+static int page_fault_thread_start(void)
+{
+    page_fault_fd = get_page_fault_fd();
+    if (page_fault_fd == -1) {
+        page_fault_fd = 0;
+        error_report("page fault thread: can't initiate uffd");
+        return -1;
+    }
+
+    thread_quit_fd = eventfd(0, 0);
+    if (thread_quit_fd == -1) {
+        thread_quit_fd = 0;
+        error_report("page fault thread: can't initiate thread control fd");
+        return -1;
+    }
+
+    qemu_thread_create(&page_fault_thread, "pagefault_thrd",
+                       page_fault_thread_fn, (void *) 0,
+                       QEMU_THREAD_JOINABLE);
+
+    return 0;
+}
+
+static void page_fault_thread_stop(void)
+{
+    if (page_fault_fd) {
+        close(page_fault_fd);
+        page_fault_fd = 0;
+    }
+
+    if (thread_quit_fd) {
+        uint64_t val = 1;
+        int ret;
+
+        ret = write(thread_quit_fd, &val, sizeof(val));
+        assert(ret == sizeof(val));
+
+        qemu_thread_join(&page_fault_thread);
+        close(thread_quit_fd);
+        thread_quit_fd = 0;
+    }
+}
+
+int ram_write_tracking_start(void)
+{
+    if (page_fault_thread_start()) {
+        return -1;
+    }
+
+    ram_block_list_create();
+    ram_block_list_set_readonly();
+
+    return 0;
+}
+
+void ram_write_tracking_stop(void)
+{
+    ram_block_list_set_writable();
+    page_fault_thread_stop();
+    ram_block_list_destroy();
+}
+
 /**
  * ram_find_and_save_block: finds a dirty page and sends it to f
  *
@@ -1782,6 +2274,7 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
     pss.block = rs->last_seen_block;
     pss.page = rs->last_page;
     pss.complete_round = false;
+    pss.page_copy = NULL;
 
     if (!pss.block) {
         pss.block = QLIST_FIRST_RCU(&ram_list.blocks);
@@ -1794,10 +2287,29 @@ static int ram_find_and_save_block(RAMState *rs, bool last_stage)
         if (!found) {
             /* priority queue empty, so just search for something dirty */
             found = find_dirty_block(rs, &pss, &again);
+
+            if (found && migrate_background_snapshot()) {
+                /*
+                 * make a copy of the page and
+                 * pass it to the page search status
+                 */
+                int ret;
+                ret = ram_copy_page(pss.block, pss.page, &pss.page_copy);
+                if (ret == 0) {
+                    found = false;
+                    pages = 0;
+                } else if (ret < 0) {
+                    return ret;
+                }
+            }
         }
 
         if (found) {
             pages = ram_save_host_page(rs, &pss, last_stage);
+        }
+
+        if (pss.page_copy) {
+            ram_page_buffer_decrease_used();
         }
     } while (!pages && again);
 
@@ -1858,6 +2370,18 @@ static void xbzrle_load_cleanup(void)
 static void ram_state_cleanup(RAMState **rsp)
 {
     if (*rsp) {
+        if (migrate_background_snapshot()) {
+            qemu_mutex_destroy(&(*rsp)->page_buffer.lock);
+            qemu_cond_destroy(&(*rsp)->page_buffer.used_decreased_cond);
+            /* In case somebody is still waiting for the event */
+            /* make sure they have done with their copying routine */
+            while (atomic_read(&(*rsp)->page_copier_cnt)) {
+                qemu_event_set(&(*rsp)->page_copying_done);
+                qemu_event_reset(&(*rsp)->page_copying_done);
+            }
+            qemu_event_destroy(&(*rsp)->page_copying_done);
+        }
+
         migration_page_queue_free(*rsp);
         qemu_mutex_destroy(&(*rsp)->bitmap_mutex);
         qemu_mutex_destroy(&(*rsp)->src_page_req_mutex);
@@ -1897,6 +2421,13 @@ static void ram_save_cleanup(void *opaque)
         block->clear_bmap = NULL;
         g_free(block->bmap);
         block->bmap = NULL;
+
+        if (migrate_background_snapshot()) {
+            g_free(block->touched_map);
+            block->touched_map = NULL;
+            g_free(block->copied_map);
+            block->copied_map = NULL;
+        }
     }
 
     xbzrle_cleanup();
@@ -1912,6 +2443,10 @@ static void ram_state_reset(RAMState *rs)
     rs->last_version = ram_list.version;
     rs->ram_bulk_stage = true;
     rs->fpo_enabled = false;
+
+    /* page buffer capacity in number of pages */
+    rs->page_buffer.capacity = PAGE_BUFFER_CAPACITY;
+    rs->page_buffer.used = 0;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -2298,6 +2833,14 @@ static int ram_state_init(RAMState **rsp)
      * This must match with the initial values of dirty bitmap.
      */
     (*rsp)->migration_dirty_pages = ram_bytes_total() >> TARGET_PAGE_BITS;
+
+    if (migrate_background_snapshot()) {
+        qemu_mutex_init(&(*rsp)->page_buffer.lock);
+        qemu_cond_init(&(*rsp)->page_buffer.used_decreased_cond);
+        qemu_event_init(&(*rsp)->page_copying_done, false);
+        (*rsp)->page_copier_cnt = 0;
+    }
+
     ram_state_reset(*rsp);
 
     return 0;
@@ -2338,6 +2881,11 @@ static void ram_list_init_bitmaps(void)
             bitmap_set(block->bmap, 0, pages);
             block->clear_bmap_shift = shift;
             block->clear_bmap = bitmap_new(clear_bmap_size(pages, shift));
+
+            if (migrate_background_snapshot()) {
+                block->touched_map = bitmap_new(pages);
+                block->copied_map = bitmap_new(pages);
+            }
         }
     }
 }

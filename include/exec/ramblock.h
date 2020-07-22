@@ -59,6 +59,14 @@ struct RAMBlock {
      */
     unsigned long *clear_bmap;
     uint8_t clear_bmap_shift;
+
+    /* The following 3 elements are for background snapshot */
+    /* List of blocks used for background snapshot */
+    QLIST_ENTRY(RAMBlock) bgs_next;
+    /* Pages currently being copied */
+    unsigned long *touched_map;
+    /* Pages has been copied already */
+    unsigned long *copied_map;
 };
 #endif
 #endif
