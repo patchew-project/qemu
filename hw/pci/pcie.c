@@ -402,6 +402,17 @@ static void pcie_cap_slot_plug_common(PCIDevice *hotplug_dev, DeviceState *dev,
          */
         error_setg_errno(errp, EBUSY, "slot is electromechanically locked");
     }
+
+    if (sltsta & PCI_EXP_SLTSTA_ABP) {
+        /*
+         * Attention button is pressed, thus we can't send another
+         * hotpplug event
+         */
+        error_setg_errno(errp, EBUSY,
+                         "attention button is already pressed, can't "
+                         "send another hotplug event");
+    }
+
 }
 
 void pcie_cap_slot_pre_plug_cb(HotplugHandler *hotplug_dev, DeviceState *dev,
