@@ -24,6 +24,9 @@
 #include "exec/ramblock.h"
 #include "exec/address-spaces.h"
 #include "hw/qdev-core.h"
+#include "tests/qtest/libqos/pci.h"
+#include "tests/qtest/libqos/pci-pc.h"
+#include "hw/pci/pci.h"
 
 /*
  * CMD_SEP is a random 32-bit value used to separate "commands" in the fuzz
@@ -31,6 +34,9 @@
  */
 #define CMD_SEP "\x84\x05\x5C\x5E"
 #define DEFAULT_TIMEOUT_US 100000
+
+#define PCI_HOST_BRIDGE_CFG 0xcf8
+#define PCI_HOST_BRIDGE_DATA 0xcfc
 
 typedef struct {
     size_t addr;
@@ -43,6 +49,8 @@ static useconds_t timeout = 100000;
  * user for fuzzing.
  */
 static GPtrArray *fuzzable_memoryregions;
+static GPtrArray *fuzzable_pci_devices;
+
 /*
  * Here we want to convert a fuzzer-provided [io-region-index, offset] to
  * a physical address. To do this, we iterate over all of the matched
@@ -267,6 +275,65 @@ static void op_write(QTestState *s, const unsigned char * data, size_t len)
         break;
     }
 }
+static void op_pci_read(QTestState *s, const unsigned char * data, size_t len)
+{
+    enum Sizes {Byte, Word, Long, end_sizes};
+    struct {
+        uint8_t size;
+        uint8_t base;
+        uint8_t offset;
+    } a;
+    if (len < sizeof(a) || fuzzable_pci_devices->len == 0) {
+        return;
+    }
+    memcpy(&a, data, sizeof(a));
+    PCIDevice *dev = g_ptr_array_index(fuzzable_pci_devices,
+                                  a.base % fuzzable_pci_devices->len);
+    int devfn = dev->devfn;
+    qtest_outl(s, PCI_HOST_BRIDGE_CFG, (1U << 31) | (devfn << 8) | a.offset);
+    switch (a.size %= end_sizes) {
+    case Byte:
+        qtest_inb(s, PCI_HOST_BRIDGE_DATA);
+        break;
+    case Word:
+        qtest_inw(s, PCI_HOST_BRIDGE_DATA);
+        break;
+    case Long:
+        qtest_inl(s, PCI_HOST_BRIDGE_DATA);
+        break;
+    }
+}
+
+static void op_pci_write(QTestState *s, const unsigned char * data, size_t len)
+{
+    enum Sizes {Byte, Word, Long, end_sizes};
+    struct {
+        uint8_t size;
+        uint8_t base;
+        uint8_t offset;
+        uint32_t value;
+    } a;
+    if (len < sizeof(a) || fuzzable_pci_devices->len == 0) {
+        return;
+    }
+    memcpy(&a, data, sizeof(a));
+    PCIDevice *dev = g_ptr_array_index(fuzzable_pci_devices,
+                                  a.base % fuzzable_pci_devices->len);
+    int devfn = dev->devfn;
+    qtest_outl(s, PCI_HOST_BRIDGE_CFG, (1U << 31) | (devfn << 8) | a.offset);
+    switch (a.size %= end_sizes) {
+    case Byte:
+        qtest_outb(s, PCI_HOST_BRIDGE_DATA, a.value & 0xFF);
+        break;
+    case Word:
+        qtest_outw(s, PCI_HOST_BRIDGE_DATA, a.value & 0xFFFF);
+        break;
+    case Long:
+        qtest_outl(s, PCI_HOST_BRIDGE_DATA, a.value & 0xFFFFFFFF);
+        break;
+    }
+}
+
 static void op_clock_step(QTestState *s, const unsigned char *data, size_t len)
 {
     qtest_clock_step_next(s);
@@ -311,6 +378,8 @@ static void general_fuzz(QTestState *s, const unsigned char *Data, size_t Size)
         op_out,
         op_read,
         op_write,
+        op_pci_read,
+        op_pci_write,
         op_clock_step,
     };
     const unsigned char *cmd = Data;
@@ -397,6 +466,19 @@ static int locate_fuzz_objects(Object *child, void *opaque)
         printf("Matched Object by Type: %s\n", object_get_typename(child));
         /* Find and save ptrs to any child MemoryRegions */
         object_child_foreach_recursive(child, locate_fuzz_memory_regions, NULL);
+
+        /*
+         * We matched an object. If its a PCI device, store a pointer to it so
+         * we can map BARs and fuzz its config space.
+         */
+        if (object_dynamic_cast(OBJECT(child), TYPE_PCI_DEVICE)) {
+            /*
+             * Don't want duplicate pointers to the same PCIDevice, so remove
+             * copies of the pointer, before adding it.
+             */
+            g_ptr_array_remove_fast(fuzzable_pci_devices, PCI_DEVICE(child));
+            g_ptr_array_add(fuzzable_pci_devices, PCI_DEVICE(child));
+        }
     } else if (object_dynamic_cast(OBJECT(child), TYPE_MEMORY_REGION)) {
         if (g_pattern_match_simple(pattern,
             object_get_canonical_path_component(child))) {
@@ -416,6 +498,7 @@ static int locate_fuzz_objects(Object *child, void *opaque)
 
 static void general_pre_fuzz(QTestState *s)
 {
+    QPCIBus *qpci_bus;
     if (!getenv("QEMU_FUZZ_OBJECTS")) {
         usage();
     }
@@ -424,6 +507,7 @@ static void general_pre_fuzz(QTestState *s)
     }
 
     fuzzable_memoryregions = g_ptr_array_new();
+    fuzzable_pci_devices = g_ptr_array_new();
     wordexp_t result;
     wordexp(getenv("QEMU_FUZZ_OBJECTS"), &result, 0);
     for (int i = 0; i < result.we_wordc; i++) {
@@ -440,6 +524,36 @@ static void general_pre_fuzz(QTestState *s)
                object_get_canonical_path_component(&(mr->parent_obj)),
                mr->addr);
     }
+
+#ifdef TARGET_I386
+    printf("\n.. and the following Devices in the PCI Configuration Space:\n");
+    if (fuzzable_pci_devices->len) {
+        /*
+         * qpci_new_pc can't be used for non x86... What else can we do? Map
+         * BARs, without QOS?
+         */
+        qpci_bus = qpci_new_pc(s, NULL);
+        for (int i = 0; i < fuzzable_pci_devices->len; i++) {
+            PCIDevice *dev;
+            QPCIDevice *qdev;
+            dev = g_ptr_array_index(fuzzable_pci_devices, i);
+            qdev = qpci_device_find(qpci_bus, dev->devfn);
+            for (int j = 0; j < 5; j++) {
+                if (dev->io_regions[j].size) {
+                    qpci_iomap(qdev, j, NULL);
+                }
+            }
+            qpci_device_enable(qdev);
+            g_free(qdev);
+            printf("  * %x:%x device: %x function: %x)\n",
+                    pci_get_word(dev->config + PCI_VENDOR_ID),
+                    pci_get_word(dev->config + PCI_DEVICE_ID),
+                    PCI_SLOT(dev->devfn),
+                    PCI_FUNC(dev->devfn));
+        }
+        qpci_free_pc(qpci_bus);
+    }
+#endif
     counter_shm_init();
 }
 static GString *general_fuzz_cmdline(FuzzTarget *t)
