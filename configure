@@ -5808,10 +5808,16 @@ fi
 
 if test "$cpuid_h" = "yes" && test "$avx2_opt" != "no"; then
   cat > $TMPC << EOF
+#include <cpuid.h>
+#ifndef __clang__
 #pragma GCC push_options
 #pragma GCC target("avx2")
-#include <cpuid.h>
+#endif
 #include <immintrin.h>
+#ifndef __clang__
+#pragma GCC pop_options
+#endif
+__attribute__((target("avx2")))
 static int bar(void *a) {
     __m256i x = *(__m256i *)a;
     return _mm256_testz_si256(x, x);
@@ -5835,10 +5841,16 @@ fi
 
 if test "$cpuid_h" = "yes" && test "$avx512f_opt" = "yes"; then
   cat > $TMPC << EOF
+#include <cpuid.h>
+#ifndef __clang__
 #pragma GCC push_options
 #pragma GCC target("avx512f")
-#include <cpuid.h>
+#endif
 #include <immintrin.h>
+#ifndef __clang__
+#pragma GCC pop_options
+#endif
+__attribute__((target("avx512f")))
 static int bar(void *a) {
     __m512i x = *(__m512i *)a;
     return _mm512_test_epi64_mask(x, x);

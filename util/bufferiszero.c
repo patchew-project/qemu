@@ -64,17 +64,18 @@ buffer_zero_int(const void *buf, size_t len)
 }
 
 #if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT) || defined(__SSE2__)
-/* Do not use push_options pragmas unnecessarily, because clang
- * does not support them.
- */
-#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
+#ifndef __clang__
 #pragma GCC push_options
 #pragma GCC target("sse2")
 #endif
 #include <emmintrin.h>
+#ifndef __clang__
+#pragma GCC pop_options
+#endif
 
 /* Note that each of these vectorized functions require len >= 64.  */
 
+__attribute__((target("sse2")))
 static bool
 buffer_zero_sse2(const void *buf, size_t len)
 {
@@ -104,19 +105,22 @@ buffer_zero_sse2(const void *buf, size_t len)
 
     return _mm_movemask_epi8(_mm_cmpeq_epi8(t, zero)) == 0xFFFF;
 }
-#if defined(CONFIG_AVX512F_OPT) || defined(CONFIG_AVX2_OPT)
-#pragma GCC pop_options
-#endif
 
 #ifdef CONFIG_AVX2_OPT
 /* Note that due to restrictions/bugs wrt __builtin functions in gcc <= 4.8,
  * the includes have to be within the corresponding push_options region, and
  * therefore the regions themselves have to be ordered with increasing ISA.
  */
+#ifndef __clang__
 #pragma GCC push_options
 #pragma GCC target("sse4")
+#endif
 #include <smmintrin.h>
+#ifndef __clang__
+#pragma GCC pop_options
+#endif
 
+__attribute__((target("sse4")))
 static bool
 buffer_zero_sse4(const void *buf, size_t len)
 {
@@ -145,11 +149,16 @@ buffer_zero_sse4(const void *buf, size_t len)
     return _mm_testz_si128(t, t);
 }
 
-#pragma GCC pop_options
+#ifndef __clang__
 #pragma GCC push_options
 #pragma GCC target("avx2")
+#endif
 #include <immintrin.h>
+#ifndef __clang__
+#pragma GCC pop_options
+#endif
 
+__attribute__((target("avx2")))
 static bool
 buffer_zero_avx2(const void *buf, size_t len)
 {
@@ -176,14 +185,19 @@ buffer_zero_avx2(const void *buf, size_t len)
 
     return _mm256_testz_si256(t, t);
 }
-#pragma GCC pop_options
 #endif /* CONFIG_AVX2_OPT */
 
 #ifdef CONFIG_AVX512F_OPT
+#ifndef __clang__
 #pragma GCC push_options
 #pragma GCC target("avx512f")
+#endif
 #include <immintrin.h>
+#ifndef __clang__
+#pragma GCC pop_options
+#endif
 
+__attribute__((target("avx512f")))
 static bool
 buffer_zero_avx512(const void *buf, size_t len)
 {
@@ -210,7 +224,6 @@ buffer_zero_avx512(const void *buf, size_t len)
     return !_mm512_test_epi64_mask(t, t);
 
 }
-#pragma GCC pop_options
 #endif
 
 
