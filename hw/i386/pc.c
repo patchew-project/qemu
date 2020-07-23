@@ -64,7 +64,6 @@
 #include "kvm_i386.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/start_info.h"
-#include "ui/qemu-spice.h"
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "sysemu/arch_init.h"

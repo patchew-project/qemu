@@ -47,6 +47,7 @@ obj-$(CONFIG_VGA) += vga.o
 ifeq ($(CONFIG_QXL),y)
 common-obj-m += qxl.mo
 qxl.mo-objs = qxl.o qxl-logger.o qxl-render.o
+qxl.mo-cflags += $(SPICE_CFLAGS)
 endif
 
 common-obj-$(CONFIG_VIRTIO_GPU) += virtio-gpu-base.o virtio-gpu.o virtio-gpu-3d.o

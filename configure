@@ -5223,8 +5223,6 @@ EOF
      $pkg_config --atleast-version=0.12.3 spice-protocol && \
      compile_prog "$spice_cflags" "$spice_libs" ; then
     spice="yes"
-    libs_softmmu="$libs_softmmu $spice_libs"
-    QEMU_CFLAGS="$QEMU_CFLAGS $spice_cflags"
     spice_protocol_version=$($pkg_config --modversion spice-protocol)
     spice_server_version=$($pkg_config --modversion spice-server)
   else
@@ -7535,6 +7533,8 @@ fi
 
 if test "$spice" = "yes" ; then
   echo "CONFIG_SPICE=m" >> $config_host_mak
+  echo "SPICE_CFLAGS=$spice_cflags" >> $config_host_mak
+  echo "SPICE_LIBS=$spice_libs" >> $config_host_mak
 fi
 
 if test "$smartcard" = "yes" ; then
