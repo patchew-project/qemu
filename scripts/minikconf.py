@@ -690,10 +690,10 @@ if __name__ == '__main__':
     parser = KconfigParser(data)
     external_vars = set()
     for arg in argv[3:]:
-        m = re.match(r'^(CONFIG_[A-Z0-9_]+)=([yn]?)$', arg)
+        m = re.match(r'^(CONFIG_[A-Z0-9_]+)=([ymn]?)$', arg)
         if m is not None:
             name, value = m.groups()
-            parser.do_assignment(name, value == 'y')
+            parser.do_assignment(name, value == 'y' or value == 'm')
             external_vars.add(name[7:])
         else:
             fp = open(arg, 'rt', encoding='utf-8')
