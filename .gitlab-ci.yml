@@ -8,11 +8,9 @@ stages:
   - build
   - test
 
-# We assume GitLab has it's own caching set up for RPM/APT repositories so we
-# just take care of avocado assets here.
-cache:
-  paths:
-    - $HOME/avocado/data/cache
+# We assume GitLab has it's own caching set up for RPM/APT repositories
+cache: &global_cache
+  policy: pull-push
 
 include:
   - local: '/.gitlab-ci.d/edk2.yml'
@@ -47,11 +45,23 @@ include:
     - find . -type f -exec touch {} +
     - make $MAKE_CHECK_ARGS
 
-.post_acceptance_template: &post_acceptance
+.acceptance_template: &acceptance_definition
+  cache:
+    # inherit all global cache settings
+    <<: *global_cache
+    key: acceptance_cache
+    paths:
+      - $CI_PROJECT_DIR/avocado_cache
+    policy: pull-push
+  before_script:
+    - JOBS=$(expr $(nproc) + 1)
+    - mkdir -p ~/.config/avocado
+    - echo "[datadir.paths]" > ~/.config/avocado/avocado.conf
+    - echo "cache_dirs = ['${CI_PROJECT_DIR}/avocado_cache']" >> ~/.config/avocado/avocado.conf
   after_script:
     - cd build
     - python3 -c 'import json; r = json.load(open("tests/results/latest/results.json")); [print(t["logfile"]) for t in r["tests"] if t["status"] not in ("PASS", "SKIP")]' | xargs cat
-    - du -chs $HOME/avocado/data/cache
+    - du -chs $CI_PROJECT_DIR/avocado_cache
 
 build-system-ubuntu-main:
   <<: *native_build_job_definition
@@ -76,13 +86,13 @@ check-system-ubuntu-main:
 
 acceptance-system-ubuntu-main:
   <<: *native_test_job_definition
+  <<: *acceptance_definition
   needs:
     - job: build-system-ubuntu-main
       artifacts: true
   variables:
     IMAGE: ubuntu2004
     MAKE_CHECK_ARGS: check-acceptance
-  <<: *post_acceptance
 
 build-system-fedora-alt:
   <<: *native_build_job_definition
@@ -107,13 +117,13 @@ check-system-fedora-alt:
 
 acceptance-system-fedora-alt:
   <<: *native_test_job_definition
+  <<: *acceptance_definition
   needs:
     - job: build-system-fedora-alt
       artifacts: true
   variables:
     IMAGE: fedora
     MAKE_CHECK_ARGS: check-acceptance
-  <<: *post_acceptance
 
 build-disabled:
   <<: *native_build_job_definition
