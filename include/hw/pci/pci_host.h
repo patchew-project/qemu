@@ -70,4 +70,14 @@ extern const MemoryRegionOps pci_host_conf_be_ops;
 extern const MemoryRegionOps pci_host_data_le_ops;
 extern const MemoryRegionOps pci_host_data_be_ops;
 
+extern const VMStateDescription vmstate_pcihost;
+
+#define VMSTATE_PCI_HOST(_field, _state) {                           \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(PCIHostState),                              \
+    .vmsd       = &vmstate_pcihost,                                  \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, PCIHostState),\
+}
+
 #endif /* PCI_HOST_H */
