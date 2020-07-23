@@ -26,27 +26,13 @@
 #include "crypto/secret_common.h"
 
 #define TYPE_QCRYPTO_SECRET_KEYRING "secret_keyring"
-#define QCRYPTO_SECRET_KEYRING(obj) \
-    OBJECT_CHECK(QCryptoSecretKeyring, (obj), \
-                 TYPE_QCRYPTO_SECRET_KEYRING)
-#define QCRYPTO_SECRET_KEYRING_CLASS(class) \
-    OBJECT_CLASS_CHECK(QCryptoSecretKeyringClass, \
-                       (class), TYPE_QCRYPTO_SECRET_KEYRING)
-#define QCRYPTO_SECRET_KEYRING_GET_CLASS(class) \
-    OBJECT_GET_CLASS(QCryptoSecretKeyringClass, \
-                     (class), TYPE_QCRYPTO_SECRET_KEYRING)
-
-typedef struct QCryptoSecretKeyring QCryptoSecretKeyring;
-typedef struct QCryptoSecretKeyringClass QCryptoSecretKeyringClass;
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoSecretKeyring, qcrypto_secret_keyring,
+                           QCRYPTO_SECRET_KEYRING, QCryptoSecretCommon)
 
 typedef struct QCryptoSecretKeyring {
     QCryptoSecretCommon parent;
     int32_t serial;
 } QCryptoSecretKeyring;
 
-
-typedef struct QCryptoSecretKeyringClass {
-    QCryptoSecretCommonClass parent;
-} QCryptoSecretKeyringClass;
 
 #endif /* QCRYPTO_SECRET_KEYRING_H */
