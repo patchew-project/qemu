@@ -381,6 +381,7 @@ void error_propagate(Error **dst_errp, Error *local_err);
  *     error_propagate(dst_errp, local_err);
  * Please use ERRP_GUARD() and error_prepend() instead when possible.
  */
+GCC_FMT_ATTR(3, 4)
 void error_propagate_prepend(Error **dst_errp, Error *local_err,
                              const char *fmt, ...);
 
