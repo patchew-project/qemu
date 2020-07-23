@@ -29,11 +29,8 @@
 #endif
 
 #define TYPE_QCRYPTO_TLS_CREDS "tls-creds"
-#define QCRYPTO_TLS_CREDS(obj)                  \
-    OBJECT_CHECK(QCryptoTLSCreds, (obj), TYPE_QCRYPTO_TLS_CREDS)
-
-typedef struct QCryptoTLSCreds QCryptoTLSCreds;
-typedef struct QCryptoTLSCredsClass QCryptoTLSCredsClass;
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoTLSCreds, qcrypto_tls_creds,
+                           QCRYPTO_TLS_CREDS, Object)
 
 #define QCRYPTO_TLS_CREDS_DH_PARAMS "dh-params.pem"
 
@@ -57,11 +54,5 @@ struct QCryptoTLSCreds {
     bool verifyPeer;
     char *priority;
 };
-
-
-struct QCryptoTLSCredsClass {
-    ObjectClass parent_class;
-};
-
 
 #endif /* QCRYPTO_TLSCREDS_H */

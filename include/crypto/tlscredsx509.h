@@ -24,11 +24,8 @@
 #include "crypto/tlscreds.h"
 
 #define TYPE_QCRYPTO_TLS_CREDS_X509 "tls-creds-x509"
-#define QCRYPTO_TLS_CREDS_X509(obj)                  \
-    OBJECT_CHECK(QCryptoTLSCredsX509, (obj), TYPE_QCRYPTO_TLS_CREDS_X509)
-
-typedef struct QCryptoTLSCredsX509 QCryptoTLSCredsX509;
-typedef struct QCryptoTLSCredsX509Class QCryptoTLSCredsX509Class;
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoTLSCredsX509, qcrypto_tls_creds_x509,
+                           QCRYPTO_TLS_CREDS_X509, QCryptoTLSCreds)
 
 #define QCRYPTO_TLS_CREDS_X509_CA_CERT "ca-cert.pem"
 #define QCRYPTO_TLS_CREDS_X509_CA_CRL "ca-crl.pem"
@@ -103,11 +100,5 @@ struct QCryptoTLSCredsX509 {
     bool sanityCheck;
     char *passwordid;
 };
-
-
-struct QCryptoTLSCredsX509Class {
-    QCryptoTLSCredsClass parent_class;
-};
-
 
 #endif /* QCRYPTO_TLSCREDSX509_H */

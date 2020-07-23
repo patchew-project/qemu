@@ -24,6 +24,9 @@
 #include "tlscredspriv.h"
 #include "trace.h"
 
+OBJECT_DEFINE_ABSTRACT_TYPE(QCryptoTLSCreds, qcrypto_tls_creds,
+                            QCRYPTO_TLS_CREDS, OBJECT)
+
 #define DH_BITS 2048
 
 #ifdef CONFIG_GNUTLS
@@ -258,25 +261,3 @@ qcrypto_tls_creds_finalize(Object *obj)
     g_free(creds->dir);
     g_free(creds->priority);
 }
-
-
-static const TypeInfo qcrypto_tls_creds_info = {
-    .parent = TYPE_OBJECT,
-    .name = TYPE_QCRYPTO_TLS_CREDS,
-    .instance_size = sizeof(QCryptoTLSCreds),
-    .instance_init = qcrypto_tls_creds_init,
-    .instance_finalize = qcrypto_tls_creds_finalize,
-    .class_init = qcrypto_tls_creds_class_init,
-    .class_size = sizeof(QCryptoTLSCredsClass),
-    .abstract = true,
-};
-
-
-static void
-qcrypto_tls_creds_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_info);
-}
-
-
-type_init(qcrypto_tls_creds_register_types);
