@@ -57,6 +57,7 @@
 
 #ifdef CONFIG_SPICE
 #include <spice/enums.h>
+#include "ui/qemu-spice.h"
 #endif
 
 void hmp_handle_error(Monitor *mon, Error *err)
@@ -573,6 +574,14 @@ void hmp_info_vnc(Monitor *mon, const QDict *qdict)
 #endif
 
 #ifdef CONFIG_SPICE
+SpiceInfo *qmp_query_spice(Error **errp)
+{
+    if (!using_spice) {
+        return NULL;
+    }
+    return qemu_spice.query(errp);
+}
+
 void hmp_info_spice(Monitor *mon, const QDict *qdict)
 {
     SpiceChannelList *chan;
@@ -599,6 +608,10 @@ void hmp_info_spice(Monitor *mon, const QDict *qdict)
 
     info = qmp_query_spice(NULL);
 
+    if (!info) {
+        monitor_printf(mon, "Server: not started\n");
+        goto out;
+    }
     if (!info->enabled) {
         monitor_printf(mon, "Server: disabled\n");
         goto out;

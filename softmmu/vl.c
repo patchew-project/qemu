@@ -173,6 +173,30 @@ int icount_align_option;
 QemuUUID qemu_uuid;
 bool qemu_uuid_set;
 
+static bool qemu_is_not_using_spice(void)
+{
+    return 0;
+}
+
+static void qemu_spice_init_no_op(void)
+{
+}
+
+/*
+ * Only two fields are initialized, that can be used even when SPICE
+ * is not configured or not loaded. Other functions are protected by
+ * checking if using_spice.
+ */
+QemuSpiceOps qemu_spice = {
+    .in_use             = qemu_is_not_using_spice,
+    .init               = qemu_spice_init_no_op,
+};
+
+void qemu_spice_ops_register(QemuSpiceOps *ops)
+{
+    memcpy(&qemu_spice, ops, sizeof(qemu_spice));
+}
+
 static NotifierList exit_notifiers =
     NOTIFIER_LIST_INITIALIZER(exit_notifiers);
 
@@ -4124,7 +4148,7 @@ void qemu_init(int argc, char **argv, char **envp)
     /* spice needs the timers to be initialized by this point */
     /* spice must initialize before audio as it changes the default auiodev */
     /* spice must initialize before chardevs (for spicevmc and spiceport) */
-    qemu_spice_init();
+    qemu_spice.init();
 
     qemu_opts_foreach(qemu_find_opts("object"),
                       user_creatable_add_opts_foreach,
@@ -4420,7 +4444,7 @@ void qemu_init(int argc, char **argv, char **envp)
 #endif
 
     if (using_spice) {
-        qemu_spice_display_init();
+        qemu_spice.display_init();
     }
 
     if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {

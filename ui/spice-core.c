@@ -48,7 +48,7 @@ static time_t auth_expires = TIME_MAX;
 static int spice_migration_completed;
 static int spice_display_is_running;
 static int spice_have_target_host;
-int using_spice = 0;
+static int is_using_spice;
 
 static QemuThread me;
 
@@ -503,7 +503,7 @@ static QemuOptsList qemu_spice_opts = {
     },
 };
 
-SpiceInfo *qmp_query_spice(Error **errp)
+SpiceInfo *qemu_spice_query(Error **errp)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
     int port, tls_port;
@@ -632,6 +632,16 @@ static void vm_change_state_handler(void *opaque, int running,
     } else if (state != RUN_STATE_PAUSED) {
         qemu_spice_display_stop();
     }
+}
+
+bool qemu_is_using_spice(void)
+{
+    return is_using_spice;
+}
+
+void qemu_start_using_spice(void)
+{
+    is_using_spice = 1;
 }
 
 void qemu_spice_init(void)
@@ -796,7 +806,7 @@ void qemu_spice_init(void)
         error_report("failed to initialize spice server");
         exit(1);
     };
-    using_spice = 1;
+    qemu_start_using_spice();
 
     migration_state.notify = migration_state_notifier;
     add_migration_state_change_notifier(&migration_state);
@@ -1000,3 +1010,20 @@ static void spice_register_config(void)
     qemu_add_opts(&qemu_spice_opts);
 }
 opts_init(spice_register_config);
+
+static QemuSpiceOps qemu_spice_ops = {
+    .in_use             = qemu_is_using_spice,
+    .init               = qemu_spice_init,
+    .display_init       = qemu_spice_display_init,
+    .display_add_client = qemu_spice_display_add_client,
+    .set_passwd         = qemu_spice_set_passwd,
+    .set_pw_expire      = qemu_spice_set_pw_expire,
+    .migrate_info       = qemu_spice_migrate_info,
+    .query              = qemu_spice_query,
+};
+
+static void spice_register_ops(void)
+{
+    qemu_spice_ops_register(&qemu_spice_ops);
+}
+type_init(spice_register_ops);
