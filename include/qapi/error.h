@@ -386,12 +386,6 @@ void error_propagate_prepend(Error **dst_errp, Error *local_err,
 
 /*
  * Prepend some text to @errp's human-readable error message.
- * The text is made by formatting @fmt, @ap like vprintf().
- */
-void error_vprepend(Error *const *errp, const char *fmt, va_list ap);
-
-/*
- * Prepend some text to @errp's human-readable error message.
  * The text is made by formatting @fmt, ... like printf().
  */
 void error_prepend(Error *const *errp, const char *fmt, ...)
