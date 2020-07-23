@@ -980,8 +980,8 @@ void memory_region_init_ram_device_ptr(MemoryRegion *mr,
  * @name: used for debugging; not visible to the user or ABI
  * @orig: the region to be referenced; @mr will be equivalent to
  *        @orig between @offset and @offset + @size - 1.
- * @offset: start of the section in @orig to be referenced.
- * @size: size of the region.
+ * @offset: start of the section in @orig.
+ * @size: size of the section in @orig.
  */
 void memory_region_init_alias(MemoryRegion *mr,
                               struct Object *owner,
