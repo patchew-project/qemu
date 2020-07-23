@@ -1764,6 +1764,28 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                     target_cmsg->cmsg_type = tswap32(TARGET_SCM_TIMESTAMP_OLD);
                 }
                 break;
+            case SCM_TIMESTAMPNS:
+                if (target_uses_timeval64) {
+                    tgt_len = sizeof(struct target__kernel_timespec);
+                    target_cmsg->cmsg_type =
+                        tswap32(TARGET_SCM_TIMESTAMPNS_NEW);
+                } else {
+                    tgt_len = sizeof(struct target_timespec);
+                    target_cmsg->cmsg_type =
+                        tswap32(TARGET_SCM_TIMESTAMPNS_OLD);
+                }
+                break;
+            case SCM_TIMESTAMPING:
+                if (target_uses_timeval64) {
+                    tgt_len = sizeof(struct target__kernel_timespec[3]);
+                    target_cmsg->cmsg_type =
+                        tswap32(TARGET_SCM_TIMESTAMPING_NEW);
+                } else {
+                    tgt_len = sizeof(struct target_timespec[3]);
+                    target_cmsg->cmsg_type =
+                        tswap32(TARGET_SCM_TIMESTAMPING_OLD);
+                }
+                break;
             default:
                 break;
             }
@@ -1821,6 +1843,67 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
 
                     __put_user(tv->tv_sec, &target_tv->tv_sec);
                     __put_user(tv->tv_usec, &target_tv->tv_usec);
+                }
+                break;
+            }
+            case SCM_TIMESTAMPNS:
+            {
+                struct timespec *ts = (struct timespec *)data;
+                if (len != sizeof(struct timespec)) {
+                    goto unimplemented;
+                }
+
+                if (target_uses_timeval64) {
+                    struct target__kernel_timespec *target_ts =
+                        (struct target__kernel_timespec *)target_data;
+                    if (tgt_len != sizeof(struct target__kernel_timespec)) {
+                        goto unimplemented;
+                    }
+
+                    __put_user(ts->tv_sec, &target_ts->tv_sec);
+                    __put_user(ts->tv_nsec, &target_ts->tv_nsec);
+                } else {
+                    struct target_timespec *target_ts =
+                        (struct target_timespec *)target_data;
+                    if (tgt_len != sizeof(struct target_timespec)) {
+                        goto unimplemented;
+                    }
+
+                    __put_user(ts->tv_sec, &target_ts->tv_sec);
+                    __put_user(ts->tv_nsec, &target_ts->tv_nsec);
+                }
+                break;
+            }
+            case SCM_TIMESTAMPING:
+            {
+                int i;
+                struct timespec *ts = (struct timespec *)data;
+                if (len != sizeof(struct timespec[3])) {
+                    goto unimplemented;
+                }
+
+                if (target_uses_timeval64) {
+                    struct target__kernel_timespec *target_ts =
+                        (struct target__kernel_timespec *)target_data;
+                    if (tgt_len != sizeof(struct target__kernel_timespec[3])) {
+                        goto unimplemented;
+                    }
+
+                    for (i = 0; i < 3; ++i) {
+                        __put_user(ts[i].tv_sec, &target_ts[i].tv_sec);
+                        __put_user(ts[i].tv_nsec, &target_ts[i].tv_nsec);
+                    }
+                } else {
+                    struct target_timespec *target_ts =
+                        (struct target_timespec *)target_data;
+                    if (tgt_len != sizeof(struct target_timespec[3])) {
+                        goto unimplemented;
+                    }
+
+                    for (i = 0; i < 3; ++i) {
+                        __put_user(ts[i].tv_sec, &target_ts[i].tv_sec);
+                        __put_user(ts[i].tv_nsec, &target_ts[i].tv_nsec);
+                    }
                 }
                 break;
             }
@@ -2362,6 +2445,18 @@ set_timeout:
                 timestamp_format_is_new = (optname == TARGET_SO_TIMESTAMP_NEW);
                 optname = SO_TIMESTAMP;
                 break;
+        case TARGET_SO_TIMESTAMPNS_OLD:
+        case TARGET_SO_TIMESTAMPNS_NEW:
+                timestamp_format_is_new =
+                    (optname == TARGET_SO_TIMESTAMPNS_NEW);
+                optname = SO_TIMESTAMPNS;
+                break;
+        case TARGET_SO_TIMESTAMPING_OLD:
+        case TARGET_SO_TIMESTAMPING_NEW:
+                timestamp_format_is_new =
+                    (optname == TARGET_SO_TIMESTAMPING_NEW);
+                optname = SO_TIMESTAMPING;
+                break;
         case TARGET_SO_RCVLOWAT:
 		optname = SO_RCVLOWAT;
 		break;
@@ -2374,7 +2469,9 @@ set_timeout:
 	if (get_user_u32(val, optval_addr))
             return -TARGET_EFAULT;
 	ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname, &val, sizeof(val)));
-        if (!is_error(ret) && optname == SO_TIMESTAMP) {
+        if (!is_error(ret) &&
+            (optname == SO_TIMESTAMP || optname == SO_TIMESTAMPNS ||
+             optname == SO_TIMESTAMPING)) {
             fd_trans_mark_socket_timestamp_new(sockfd, timestamp_format_is_new);
         }
         break;
@@ -2615,6 +2712,20 @@ get_timeout:
                  (optname == TARGET_SO_TIMESTAMP_NEW));
             optname = SO_TIMESTAMP;
             goto int_case;
+        case TARGET_SO_TIMESTAMPNS_OLD:
+        case TARGET_SO_TIMESTAMPNS_NEW:
+            timestamp_format_matches =
+                (fd_trans_socket_timestamp_new(sockfd) ==
+                 (optname == TARGET_SO_TIMESTAMPNS_NEW));
+            optname = SO_TIMESTAMPNS;
+            goto int_case;
+        case TARGET_SO_TIMESTAMPING_OLD:
+        case TARGET_SO_TIMESTAMPING_NEW:
+            timestamp_format_matches =
+                (fd_trans_socket_timestamp_new(sockfd) ==
+                 (optname == TARGET_SO_TIMESTAMPING_NEW));
+            optname = SO_TIMESTAMPING;
+            goto int_case;
         case TARGET_SO_RCVLOWAT:
             optname = SO_RCVLOWAT;
             goto int_case;
@@ -2639,9 +2750,9 @@ get_timeout:
             return ret;
         if (optname == SO_TYPE) {
             val = host_to_target_sock_type(val);
-        }
-        if (optname == SO_TIMESTAMP) {
-            val = val && timestamp_format_matches;
+        } else if ((optname == SO_TIMESTAMP || optname == SO_TIMESTAMPNS ||
+                    optname == SO_TIMESTAMPING) && !timestamp_format_matches) {
+            val = 0;
         }
         if (len > lv)
             len = lv;
