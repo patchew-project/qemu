@@ -78,4 +78,14 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
                                          PCIE_MMCFG_DEVFN_MASK)
 #define PCIE_MMCFG_CONFOFFSET(addr)     ((addr) & PCIE_MMCFG_CONFOFFSET_MASK)
 
+extern const VMStateDescription vmstate_pciehost;
+
+#define VMSTATE_PCIE_HOST(_field, _state) {                            \
+    .name       = (stringify(_field)),                                 \
+    .size       = sizeof(PCIExpressHost),                              \
+    .vmsd       = &vmstate_pciehost,                                   \
+    .flags      = VMS_STRUCT,                                          \
+    .offset     = vmstate_offset_value(_state, _field, PCIExpressHost),\
+}
+
 #endif /* PCIE_HOST_H */

@@ -165,6 +165,16 @@ static void q35_host_get_pci_hole64_end(Object *obj, Visitor *v,
     visit_type_uint64(v, name, &value, errp);
 }
 
+static const VMStateDescription vmstate_q35_pcihost = {
+    .name = "Q35_PCIHost",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCIE_HOST(parent_obj, Q35PCIHost),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 /*
  * NOTE: setting defaults for the mch.* fields in this table
  * doesn't work, because mch is a separate QOM object that is
@@ -194,6 +204,7 @@ static void q35_host_class_init(ObjectClass *klass, void *data)
 
     hc->root_bus_path = q35_host_root_bus_path;
     dc->realize = q35_host_realize;
+    dc->vmsd = &vmstate_q35_pcihost;
     device_class_set_props(dc, q35_host_props);
     /* Reason: needs to be wired up by pc_q35_init */
     dc->user_creatable = false;
