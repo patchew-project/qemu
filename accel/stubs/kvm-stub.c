@@ -37,7 +37,7 @@ int kvm_destroy_vcpu(CPUState *cpu)
     return -ENOSYS;
 }
 
-int kvm_init_vcpu(CPUState *cpu)
+int kvm_init_vcpu(CPUState *cpu, Error **errp)
 {
     return -ENOSYS;
 }

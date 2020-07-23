@@ -1170,11 +1170,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     cpu->can_do_io = 1;
     current_cpu = cpu;
 
-    r = kvm_init_vcpu(cpu);
-    if (r < 0) {
-        error_report("kvm_init_vcpu failed: %s", strerror(-r));
-        exit(1);
-    }
+    kvm_init_vcpu(cpu, &error_fatal);
 
     kvm_init_cpu_signals(cpu);
 
