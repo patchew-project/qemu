@@ -1705,7 +1705,8 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
 }
 
 static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
-                                           struct msghdr *msgh)
+                                           struct msghdr *msgh,
+                                           bool target_uses_timeval64)
 {
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(msgh);
     abi_long msg_controllen;
@@ -1754,8 +1755,14 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
         switch (cmsg->cmsg_level) {
         case SOL_SOCKET:
             switch (cmsg->cmsg_type) {
-            case SO_TIMESTAMP:
-                tgt_len = sizeof(struct target_timeval);
+            case SCM_TIMESTAMP:
+                if (target_uses_timeval64) {
+                    tgt_len = sizeof(struct target__kernel_sock_timeval);
+                    target_cmsg->cmsg_type = tswap32(TARGET_SCM_TIMESTAMP_NEW);
+                } else {
+                    tgt_len = sizeof(struct target_timeval);
+                    target_cmsg->cmsg_type = tswap32(TARGET_SCM_TIMESTAMP_OLD);
+                }
                 break;
             default:
                 break;
@@ -1789,20 +1796,32 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
                 }
                 break;
             }
-            case SO_TIMESTAMP:
+            case SCM_TIMESTAMP:
             {
                 struct timeval *tv = (struct timeval *)data;
-                struct target_timeval *target_tv =
-                    (struct target_timeval *)target_data;
-
-                if (len != sizeof(struct timeval) ||
-                    tgt_len != sizeof(struct target_timeval)) {
+                if (len != sizeof(struct timeval)) {
                     goto unimplemented;
                 }
 
-                /* copy struct timeval to target */
-                __put_user(tv->tv_sec, &target_tv->tv_sec);
-                __put_user(tv->tv_usec, &target_tv->tv_usec);
+                if (target_uses_timeval64) {
+                    struct target__kernel_sock_timeval *target_tv =
+                        (struct target__kernel_sock_timeval *)target_data;
+                    if (tgt_len != sizeof(struct target__kernel_sock_timeval)) {
+                        goto unimplemented;
+                    }
+
+                    __put_user(tv->tv_sec, &target_tv->tv_sec);
+                    __put_user(tv->tv_usec, &target_tv->tv_usec);
+                } else {
+                    struct target_timeval *target_tv =
+                        (struct target_timeval *)target_data;
+                    if (tgt_len != sizeof(struct target_timeval)) {
+                        goto unimplemented;
+                    }
+
+                    __put_user(tv->tv_sec, &target_tv->tv_sec);
+                    __put_user(tv->tv_usec, &target_tv->tv_usec);
+                }
                 break;
             }
             case SCM_CREDENTIALS:
@@ -1941,7 +1960,7 @@ static abi_long do_setsockopt(int sockfd, int level, int optname,
                               abi_ulong optval_addr, socklen_t optlen)
 {
     abi_long ret;
-    int val;
+    int val, timestamp_format_is_new;
     struct ip_mreqn *ip_mreq;
     struct ip_mreq_source *ip_mreq_source;
 
@@ -2338,9 +2357,11 @@ set_timeout:
         case TARGET_SO_PASSSEC:
                 optname = SO_PASSSEC;
                 break;
-        case TARGET_SO_TIMESTAMP:
-		optname = SO_TIMESTAMP;
-		break;
+        case TARGET_SO_TIMESTAMP_OLD:
+        case TARGET_SO_TIMESTAMP_NEW:
+                timestamp_format_is_new = (optname == TARGET_SO_TIMESTAMP_NEW);
+                optname = SO_TIMESTAMP;
+                break;
         case TARGET_SO_RCVLOWAT:
 		optname = SO_RCVLOWAT;
 		break;
@@ -2353,6 +2374,9 @@ set_timeout:
 	if (get_user_u32(val, optval_addr))
             return -TARGET_EFAULT;
 	ret = get_errno(setsockopt(sockfd, SOL_SOCKET, optname, &val, sizeof(val)));
+        if (!is_error(ret) && optname == SO_TIMESTAMP) {
+            fd_trans_mark_socket_timestamp_new(sockfd, timestamp_format_is_new);
+        }
         break;
 #ifdef SOL_NETLINK
     case SOL_NETLINK:
@@ -2403,6 +2427,7 @@ static abi_long do_getsockopt(int sockfd, int level, int optname,
     abi_long ret;
     int len, val;
     socklen_t lv;
+    int timestamp_format_matches = 0;
 
     switch(level) {
     case TARGET_SOL_SOCKET:
@@ -2583,7 +2608,11 @@ get_timeout:
         case TARGET_SO_PASSCRED:
             optname = SO_PASSCRED;
             goto int_case;
-        case TARGET_SO_TIMESTAMP:
+        case TARGET_SO_TIMESTAMP_OLD:
+        case TARGET_SO_TIMESTAMP_NEW:
+            timestamp_format_matches =
+                (fd_trans_socket_timestamp_new(sockfd) ==
+                 (optname == TARGET_SO_TIMESTAMP_NEW));
             optname = SO_TIMESTAMP;
             goto int_case;
         case TARGET_SO_RCVLOWAT:
@@ -2610,6 +2639,9 @@ get_timeout:
             return ret;
         if (optname == SO_TYPE) {
             val = host_to_target_sock_type(val);
+        }
+        if (optname == SO_TIMESTAMP) {
+            val = val && timestamp_format_matches;
         }
         if (len > lv)
             len = lv;
@@ -3162,7 +3194,8 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
                 ret = fd_trans_host_to_target_data(fd)(msg.msg_iov->iov_base,
                                                MIN(msg.msg_iov->iov_len, len));
             } else {
-                ret = host_to_target_cmsg(msgp, &msg);
+                ret = host_to_target_cmsg(msgp, &msg,
+                                          fd_trans_socket_timestamp_new(fd));
             }
             if (!is_error(ret)) {
                 msgp->msg_namelen = tswap32(msg.msg_namelen);

@@ -22,6 +22,16 @@ typedef struct TargetFdTrans {
     TargetFdDataFunc host_to_target_data;
     TargetFdDataFunc target_to_host_data;
     TargetFdAddrFunc target_to_host_addr;
+
+    /* If `true`, this struct is dynamically allocated and should be
+     * `g_free()`ed when unregistering.
+     */
+    bool free_when_unregister;
+
+    /* The socket's timestamp option (`SO_TIMESTAMP`, `SO_TIMESTAMPNS`, and
+     * `SO_TIMESTAMPING`) is using the `_NEW` version.
+     */
+    bool socket_timestamp_new;
 } TargetFdTrans;
 
 extern TargetFdTrans **target_fd_trans;
@@ -52,6 +62,14 @@ static inline TargetFdAddrFunc fd_trans_target_to_host_addr(int fd)
     return NULL;
 }
 
+static inline bool fd_trans_socket_timestamp_new(int fd)
+{
+    if (fd >= 0 && fd < target_fd_max && target_fd_trans[fd]) {
+        return target_fd_trans[fd]->socket_timestamp_new;
+    }
+    return false;
+}
+
 static inline void fd_trans_register(int fd, TargetFdTrans *trans)
 {
     unsigned int oldmax;
@@ -70,6 +88,9 @@ static inline void fd_trans_register(int fd, TargetFdTrans *trans)
 static inline void fd_trans_unregister(int fd)
 {
     if (fd >= 0 && fd < target_fd_max) {
+        if (target_fd_trans[fd] && target_fd_trans[fd]->free_when_unregister) {
+            g_free(target_fd_trans[fd]);
+        }
         target_fd_trans[fd] = NULL;
     }
 }
@@ -78,8 +99,26 @@ static inline void fd_trans_dup(int oldfd, int newfd)
 {
     fd_trans_unregister(newfd);
     if (oldfd < target_fd_max && target_fd_trans[oldfd]) {
-        fd_trans_register(newfd, target_fd_trans[oldfd]);
+        TargetFdTrans *trans = target_fd_trans[oldfd];
+        if (trans->free_when_unregister) {
+            trans = g_new(TargetFdTrans, 1);
+            *trans = *target_fd_trans[oldfd];
+        }
+        fd_trans_register(newfd, trans);
     }
+}
+
+static inline void fd_trans_mark_socket_timestamp_new(int fd, bool value)
+{
+    if (fd < 0) return;
+    if (fd >= target_fd_max || target_fd_trans[fd] == NULL) {
+        if (!value) return; /* default is false */
+
+        TargetFdTrans* trans = g_new0(TargetFdTrans, 1);
+        trans->free_when_unregister = true;
+        fd_trans_register(fd, trans);
+    }
+    target_fd_trans[fd]->socket_timestamp_new = value;
 }
 
 extern TargetFdTrans target_packet_trans;
