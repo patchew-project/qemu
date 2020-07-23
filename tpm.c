@@ -42,6 +42,22 @@ tpm_be_find_by_type(enum TpmType type)
 }
 
 /*
+ * Walk the list of available TPM backend drivers and count them.
+ */
+static int tpm_backend_drivers_count(void)
+{
+    int count = 0, i;
+
+    for (i = 0; i < TPM_TYPE__MAX; i++) {
+        const TPMBackendClass *bc = tpm_be_find_by_type(i);
+        if (bc) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/*
  * Walk the list of available TPM backend drivers and display them on the
  * screen.
  */
@@ -86,6 +102,11 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     const TPMBackendClass *be;
     TPMBackend *drv;
     int i;
+
+    if (!tpm_backend_drivers_count()) {
+        error_setg(errp, "No TPM backend available in this binary.");
+        return 1;
+    }
 
     if (!QLIST_EMPTY(&tpm_backends)) {
         error_setg(errp, "Only one TPM is allowed.");
