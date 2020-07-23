@@ -26,5 +26,4 @@ baum.o-cflags := $(SDL_CFLAGS)
 baum.o-libs := $(BRLAPI_LIBS)
 endif
 
-common-obj-$(CONFIG_SPICE) += spice.mo
-spice.mo-objs := spice.o
+spice-app.mo-objs += ../chardev/spice.o

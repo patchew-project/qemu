@@ -11,7 +11,6 @@ common-obj-y += keymaps.o console.o cursor.o qemu-pixman.o
 common-obj-y += input.o input-keymap.o input-legacy.o kbd-state.o
 common-obj-y += input-barrier.o
 common-obj-$(CONFIG_LINUX) += input-linux.o
-common-obj-$(CONFIG_SPICE) += spice-core.o spice-input.o spice-display.o
 common-obj-$(CONFIG_COCOA) += cocoa.o
 common-obj-$(CONFIG_VNC) += $(vnc-obj-y)
 common-obj-$(call lnot,$(CONFIG_VNC)) += vnc-stubs.o
@@ -53,10 +52,11 @@ curses.mo-objs := curses.o
 curses.mo-cflags := $(CURSES_CFLAGS) $(ICONV_CFLAGS)
 curses.mo-libs := $(CURSES_LIBS) $(ICONV_LIBS)
 
-ifeq ($(CONFIG_GIO)$(CONFIG_SPICE),yy)
-common-obj-$(if $(CONFIG_MODULES),m,y) += spice-app.mo
+common-obj-$(CONFIG_SPICE) += spice-app.mo
+spice-app.mo-objs += spice-core.o spice-input.o spice-display.o
+ifeq ($(CONFIG_GIO)$(CONFIG_SPICE),ym)
+spice-app.mo-objs += spice-app.o
 endif
-spice-app.mo-objs := spice-app.o
 spice-app.mo-cflags := $(GIO_CFLAGS)
 spice-app.mo-libs := $(GIO_LIBS)
 
