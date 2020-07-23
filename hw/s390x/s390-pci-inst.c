@@ -555,6 +555,16 @@ int pcistg_service_call(S390CPU *cpu, uint8_t r1, uint8_t r2, uintptr_t ra)
         }
         /* len = 1,2,4 so we do not need to test */
         zpci_endian_swap(&data, len);
+
+        /*
+         * vfio-pci requires PCI_COMMAND_MEMORY.  Ensure that it
+         * stays on for an active device.
+         */
+        if ((pbdev->fh & FH_SHM_VFIO) && (offset == PCI_COMMAND) &&
+            (len == 2) && (data != 0)) {
+            data |= PCI_COMMAND_MEMORY;
+        }
+
         pci_host_config_write_common(pbdev->pdev, offset,
                                      pci_config_size(pbdev->pdev),
                                      data, len);
