@@ -5894,9 +5894,9 @@ if test "$int128" = "yes"; then
 int main(void)
 {
   unsigned __int128 x = 0, y = 0;
-  y = __atomic_load_16(&x, 0);
-  __atomic_store_16(&x, y, 0);
-  __atomic_compare_exchange_16(&x, &y, x, 0, 0, 0);
+  y = __atomic_load_n(&x, 0);
+  __atomic_store_n(&x, y, 0);
+  __atomic_compare_exchange_n(&x, &y, x, 0, 0, 0);
   return 0;
 }
 EOF
@@ -5911,7 +5911,7 @@ if test "$int128" = yes && test "$atomic128" = no; then
 int main(void)
 {
   unsigned __int128 x = 0, y = 0;
-  __sync_val_compare_and_swap_16(&x, y, x);
+  __sync_val_compare_and_swap(&x, y, x);
   return 0;
 }
 EOF
@@ -5931,11 +5931,11 @@ int main(void)
 {
   uint64_t x = 0, y = 0;
 #ifdef __ATOMIC_RELAXED
-  y = __atomic_load_8(&x, 0);
-  __atomic_store_8(&x, y, 0);
-  __atomic_compare_exchange_8(&x, &y, x, 0, 0, 0);
-  __atomic_exchange_8(&x, y, 0);
-  __atomic_fetch_add_8(&x, y, 0);
+  y = __atomic_load_n(&x, 0);
+  __atomic_store_n(&x, y, 0);
+  __atomic_compare_exchange_n(&x, &y, x, 0, 0, 0);
+  __atomic_exchange_n(&x, y, 0);
+  __atomic_fetch_add(&x, y, 0);
 #else
   typedef char is_host64[sizeof(void *) >= sizeof(uint64_t) ? 1 : -1];
   __sync_lock_test_and_set(&x, y);
