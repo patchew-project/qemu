@@ -58,23 +58,21 @@ static int tpm_backend_drivers_count(void)
 }
 
 /*
- * Walk the list of available TPM backend drivers and display them on the
- * screen.
+ * Walk the list of available TPM backend drivers and list them as Error hint.
  */
-static void tpm_display_backend_drivers(void)
+static void tpm_list_backend_drivers_hint(Error **errp)
 {
     int i;
 
-    fprintf(stderr, "Supported TPM types (choose only one):\n");
+    error_append_hint(errp, "Supported TPM types (choose only one):\n");
 
     for (i = 0; i < TPM_TYPE__MAX; i++) {
         const TPMBackendClass *bc = tpm_be_find_by_type(i);
         if (!bc) {
             continue;
         }
-        fprintf(stderr, "%12s   %s\n", TpmType_str(i), bc->desc);
+        error_append_hint(errp, "%12s   %s\n", TpmType_str(i), bc->desc);
     }
-    fprintf(stderr, "\n");
 }
 
 /*
@@ -97,6 +95,7 @@ TPMBackend *qemu_find_tpm_be(const char *id)
 
 static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
 {
+    ERRP_GUARD();
     const char *value;
     const char *id;
     const TPMBackendClass *be;
@@ -122,7 +121,7 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     value = qemu_opt_get(opts, "type");
     if (!value) {
         error_setg(errp, QERR_MISSING_PARAMETER, "type");
-        tpm_display_backend_drivers();
+        tpm_list_backend_drivers_hint(errp);
         return 1;
     }
 
@@ -131,7 +130,7 @@ static int tpm_init_tpmdev(void *dummy, QemuOpts *opts, Error **errp)
     if (be == NULL) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "type",
                    "a TPM backend type");
-        tpm_display_backend_drivers();
+        tpm_list_backend_drivers_hint(errp);
         return 1;
     }
 
@@ -184,8 +183,8 @@ int tpm_config_parse(QemuOptsList *opts_list, const char *optarg)
     QemuOpts *opts;
 
     if (!strcmp(optarg, "help")) {
-        tpm_display_backend_drivers();
-        return -1;
+        tpm_list_backend_drivers_hint(&error_fatal);
+        g_assert_not_reached(); /* Using &error_fatal triggers exit(1). */
     }
     opts = qemu_opts_parse_noisily(opts_list, optarg, true);
     if (!opts) {
