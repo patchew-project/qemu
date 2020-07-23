@@ -27,6 +27,7 @@
 #include "hw/pci/pci.h"
 #include "hw/hw.h"
 #include "hw/pci/msi.h"
+#include "migration/vmstate.h"
 #include "qemu/timer.h"
 #include "qemu/main-loop.h" /* iothread mutex */
 #include "qemu/module.h"
@@ -70,7 +71,7 @@ typedef struct {
         dma_addr_t cmd;
     } dma;
     QEMUTimer dma_timer;
-    char dma_buf[DMA_SIZE];
+    uint8_t dma_buf[DMA_SIZE];
     uint64_t dma_mask;
 } EduState;
 
@@ -405,6 +406,28 @@ static void edu_instance_init(Object *obj)
                                    &edu->dma_mask, OBJ_PROP_FLAG_READWRITE);
 }
 
+static const VMStateDescription vmstate_edu = {
+    .name = "edu",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(pdev, EduState),
+        VMSTATE_BOOL(stopping, EduState),
+        VMSTATE_UINT32(addr4, EduState),
+        VMSTATE_UINT32(fact, EduState),
+        VMSTATE_UINT32(status, EduState),
+        VMSTATE_UINT32(irq_status, EduState),
+        VMSTATE_UINT64(dma.src, EduState),
+        VMSTATE_UINT64(dma.dst, EduState),
+        VMSTATE_UINT64(dma.cnt, EduState),
+        VMSTATE_UINT64(dma.cmd, EduState),
+        VMSTATE_TIMER(dma_timer, EduState),
+        VMSTATE_BUFFER(dma_buf, EduState),
+        VMSTATE_UINT64(dma_mask, EduState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void edu_class_init(ObjectClass *class, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
@@ -415,6 +438,7 @@ static void edu_class_init(ObjectClass *class, void *data)
     k->vendor_id = PCI_VENDOR_ID_QEMU;
     k->device_id = 0x11e8;
     k->revision = 0x10;
+    dc->vmsd = &vmstate_edu;
     k->class_id = PCI_CLASS_OTHERS;
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
 }
