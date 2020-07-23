@@ -24,6 +24,7 @@
 #include "hw/pci/pcie_host.h"
 #include "qemu/module.h"
 #include "exec/address-spaces.h"
+#include "migration/vmstate.h"
 
 /* a helper function to get a PCIDevice for a given mmconfig address */
 static inline PCIDevice *pcie_dev_find_by_mmcfg_addr(PCIBus *s,
@@ -120,6 +121,16 @@ void pcie_host_mmcfg_update(PCIExpressHost *e,
     }
     memory_region_transaction_commit();
 }
+
+const VMStateDescription vmstate_pciehost = {
+    .name = "PCIEHost",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_HOST(pci, PCIExpressHost),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static const TypeInfo pcie_host_type_info = {
     .name = TYPE_PCIE_HOST_BRIDGE,

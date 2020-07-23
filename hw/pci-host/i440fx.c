@@ -118,6 +118,16 @@ static const VMStateDescription vmstate_i440fx = {
     }
 };
 
+static const VMStateDescription vmstate_i440fx_pcihost = {
+    .name = "I440FX_PCIHost",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_HOST(parent_obj, I440FXState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void i440fx_pcihost_get_pci_hole_start(Object *obj, Visitor *v,
                                               const char *name, void *opaque,
                                               Error **errp)
@@ -398,6 +408,7 @@ static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
     hc->root_bus_path = i440fx_pcihost_root_bus_path;
     dc->realize = i440fx_pcihost_realize;
     dc->fw_name = "pci";
+    dc->vmsd = &vmstate_i440fx_pcihost;
     device_class_set_props(dc, i440fx_props);
     /* Reason: needs to be wired up by pc_init1 */
     dc->user_creatable = false;

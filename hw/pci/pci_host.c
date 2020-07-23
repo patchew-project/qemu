@@ -24,6 +24,7 @@
 #include "hw/pci/pci_host.h"
 #include "qemu/module.h"
 #include "hw/pci/pci_bus.h"
+#include "migration/vmstate.h"
 #include "trace.h"
 
 /* debug PCI */
@@ -198,6 +199,16 @@ const MemoryRegionOps pci_host_data_be_ops = {
     .read = pci_host_data_read,
     .write = pci_host_data_write,
     .endianness = DEVICE_BIG_ENDIAN,
+};
+
+const VMStateDescription vmstate_pcihost = {
+    .name = "PCIHost",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(config_reg, PCIHostState),
+        VMSTATE_END_OF_LIST()
+    }
 };
 
 static const TypeInfo pci_host_type_info = {
