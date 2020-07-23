@@ -7761,6 +7761,20 @@ fi
 if have_backend "log"; then
   echo "CONFIG_TRACE_LOG=y" >> $config_host_mak
 fi
+if have_backend "recorder"; then
+    recorder_minver="1.0.10"
+    if $pkg_config --atleast-version=$recorder_minver recorder ; then
+        recorder_cflags="$($pkg_config --cflags recorder)"
+        recorder_libs="$($pkg_config --libs recorder)"
+        LIBS="$recorder_libs $LIBS"
+        libs_qga="$recorder_libs $libs_qga"
+        QEMU_CFLAGS="$QEMU_CFLAGS $recorder_cflags"
+        zstd="yes"
+        echo "CONFIG_TRACE_RECORDER=y" >> $config_host_mak
+    else
+        feature_not_found "recorder" "Install recorder-devel package"
+    fi
+fi
 if have_backend "ust"; then
   echo "CONFIG_TRACE_UST=y" >> $config_host_mak
 fi

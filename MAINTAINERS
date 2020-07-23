@@ -2484,6 +2484,7 @@ F: stubs/
 Tracing
 M: Stefan Hajnoczi <stefanha@redhat.com>
 S: Maintained
+R: Christophe de Dinechin <dinechin@redhat.com>
 F: trace/
 F: trace-events
 F: docs/qemu-option-trace.rst.inc
