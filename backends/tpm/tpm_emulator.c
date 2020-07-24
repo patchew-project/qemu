@@ -568,6 +568,9 @@ static int tpm_emulator_handle_device_opts(TPMEmulator *tpm_emu, QemuOpts *opts)
         }
 
         tpm_emu->options->chardev = g_strdup(value);
+    } else {
+        error_report("tpm-emulator: missing chardev");
+        goto err;
     }
 
     if (tpm_emulator_prepare_data_fd(tpm_emu) < 0) {
@@ -924,6 +927,11 @@ static void tpm_emulator_inst_init(Object *obj)
 static void tpm_emulator_shutdown(TPMEmulator *tpm_emu)
 {
     ptm_res res;
+
+    if (!tpm_emu->options->chardev) {
+        /* was never properly initialized */
+        return;
+    }
 
     if (tpm_emulator_ctrlcmd(tpm_emu, CMD_SHUTDOWN, &res, 0, sizeof(res)) < 0) {
         error_report("tpm-emulator: Could not cleanly shutdown the TPM: %s",
