@@ -36,6 +36,12 @@
 #define TRACE_PREFIX            "FU540_OTP: "
 #define SIFIVE_FU540_OTP_SIZE   (SIFIVE_U_OTP_NUM_FUSES * 4)
 
+#define SET_WRITTEN_BIT(map, idx, bit)    \
+    (map[idx] |= (0x1 << bit))
+
+#define GET_WRITTEN_BIT(map, idx, bit)    \
+    ((map[idx] >> bit) & 0x1)
+
 static int otp_backed_fd;
 static unsigned int *otp_mmap;
 
@@ -199,6 +205,18 @@ static void sifive_u_otp_write(void *opaque, hwaddr addr,
         s->ptrim = val32;
         break;
     case SIFIVE_U_OTP_PWE:
+        /* Keep written state for data only and PWE is enabled. Ignore PAS=1 */
+        if ((s->pa > SIFIVE_U_OTP_PWE) && (val32 & 0x1) && !s->pas) {
+            if (GET_WRITTEN_BIT(s->fuse_wo, s->pa, s->paio)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                              TRACE_PREFIX "Error: write idx<%u>, bit<%u>\n",
+                              s->pa, s->paio);
+                break;
+            } else {
+                SET_WRITTEN_BIT(s->fuse_wo, s->pa, s->paio);
+            }
+        }
+
         if (otp_file) {
             sifive_u_otp_backed_load(otp_file);
             sifive_u_otp_backed_write(s->pa, s->paio, s->pdin);
@@ -244,9 +262,19 @@ static void sifive_u_otp_reset(DeviceState *dev)
     /* Initialize all fuses' initial value to 0xFFs */
     memset(s->fuse, 0xff, sizeof(s->fuse));
 
-    /* Make a valid content of serial number */
-    s->fuse[SIFIVE_U_OTP_SERIAL_ADDR] = s->serial;
-    s->fuse[SIFIVE_U_OTP_SERIAL_ADDR + 1] = ~(s->serial);
+    /* Initialize write-once map */
+    memset(s->fuse_wo, 0x00, sizeof(s->fuse_wo));
+
+    /* if otp file is used, not over write these value. */
+    if (!otp_file) {
+        /* Make a valid content of serial number */
+        s->fuse[SIFIVE_U_OTP_SERIAL_ADDR] = s->serial;
+        s->fuse[SIFIVE_U_OTP_SERIAL_ADDR + 1] = ~(s->serial);
+
+        /* set status to 'written' */
+        s->fuse_wo[SIFIVE_U_OTP_SERIAL_ADDR] = 0xffff;
+        s->fuse_wo[SIFIVE_U_OTP_SERIAL_ADDR + 1] = 0xffff;
+    }
 
     /* Initialize file mmap and descriptor. */
     otp_mmap = NULL;
