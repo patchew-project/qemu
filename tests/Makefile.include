@@ -950,7 +950,7 @@ fetch-acceptance: check-venv
             $(TESTS_VENV_DIR)/bin/python -m avocado \
             $(if $(V),--show=$(AVOCADO_SHOW)) \
             assets fetch \
-            $(wildcard tests/acceptance/*.py), \
+            $(filter-out tests/acceptance/boot_linux.py,$(wildcard tests/acceptance/*.py)), \
             "AVOCADO", "tests/acceptance")
 
 check-acceptance: check-venv $(TESTS_RESULTS_DIR) get-vm-images
