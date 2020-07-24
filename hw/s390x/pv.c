@@ -14,8 +14,11 @@
 #include <linux/kvm.h>
 
 #include "cpu.h"
+#include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "sysemu/kvm.h"
+#include "qom/object_interfaces.h"
+#include "exec/host-trust-limitation.h"
 #include "hw/s390x/ipl.h"
 #include "hw/s390x/pv.h"
 
@@ -111,3 +114,61 @@ void s390_pv_inject_reset_error(CPUState *cs)
     /* Report that we are unable to enter protected mode */
     env->regs[r1 + 1] = DIAG_308_RC_INVAL_FOR_PV;
 }
+
+#define TYPE_S390_PV_GUEST "s390-pv-guest"
+#define S390_PV_GUEST(obj)                              \
+    OBJECT_CHECK(S390PVGuestState, (obj), TYPE_S390_PV_GUEST)
+
+typedef struct S390PVGuestState S390PVGuestState;
+
+/**
+ * S390PVGuestState:
+ *
+ * The S390PVGuestState object is basically a dummy used to tell the
+ * host trust limitation system to use s390's PV mechanism.  guest.
+ *
+ * # $QEMU \
+ *         -object s390-pv-guest,id=pv0 \
+ *         -machine ...,host-trust-limitation=pv0
+ */
+struct S390PVGuestState {
+    Object parent_obj;
+};
+
+static int s390_pv_kvm_init(HostTrustLimitation *gmpo, Error **errp)
+{
+    if (!s390_has_feat(S390_FEAT_UNPACK)) {
+        error_setg(errp,
+                   "CPU model does not support Protected Virtualization");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void s390_pv_guest_class_init(ObjectClass *oc, void *data)
+{
+    HostTrustLimitationClass *gmpc = HOST_TRUST_LIMITATION_CLASS(oc);
+
+    gmpc->kvm_init = s390_pv_kvm_init;
+}
+
+static const TypeInfo s390_pv_guest_info = {
+    .parent = TYPE_OBJECT,
+    .name = TYPE_S390_PV_GUEST,
+    .instance_size = sizeof(S390PVGuestState),
+    .class_init = s390_pv_guest_class_init,
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_HOST_TRUST_LIMITATION },
+        { TYPE_USER_CREATABLE },
+        { }
+    }
+};
+
+static void
+s390_pv_register_types(void)
+{
+    type_register_static(&s390_pv_guest_info);
+}
+
+type_init(s390_pv_register_types);
