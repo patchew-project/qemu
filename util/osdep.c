@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "qemu/osdep.h"
+#include "qapi/error.h"
 
 /* Needed early for CONFIG_BSD etc. */
 
@@ -282,10 +283,10 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
 /*
  * Opens a file with FD_CLOEXEC set
  */
-int qemu_open_old(const char *name, int flags, ...)
+static int
+qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
 {
     int ret;
-    int mode = 0;
 
 #ifndef _WIN32
     const char *fdset_id_str;
@@ -297,24 +298,31 @@ int qemu_open_old(const char *name, int flags, ...)
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
         if (fdset_id == -1) {
+            error_setg(errp, "Could not parse fdset %s", name);
             errno = EINVAL;
             return -1;
         }
 
         fd = monitor_fdset_get_fd(fdset_id, flags);
         if (fd < 0) {
+            error_setg_errno(errp, -fd, "Could not acquire FD for %s flags %x",
+                             name, flags);
             errno = -fd;
             return -1;
         }
 
         dupfd = qemu_dup_flags(fd, flags);
         if (dupfd == -1) {
+            error_setg_errno(errp, errno, "Could not dup FD for %s flags %x",
+                             name, flags);
             return -1;
         }
 
         ret = monitor_fdset_dup_fd_add(fdset_id, dupfd);
         if (ret == -1) {
             close(dupfd);
+            error_setg(errp, "Could not save FD for %s flags %x",
+                       name, flags);
             errno = EINVAL;
             return -1;
         }
@@ -323,22 +331,66 @@ int qemu_open_old(const char *name, int flags, ...)
     }
 #endif
 
-    if (flags & O_CREAT) {
-        va_list ap;
-
-        va_start(ap, flags);
-        mode = va_arg(ap, int);
-        va_end(ap);
-    }
-
 #ifdef O_CLOEXEC
-    ret = open(name, flags | O_CLOEXEC, mode);
-#else
+    flags |= O_CLOEXEC;
+#endif /* O_CLOEXEC */
+
     ret = open(name, flags, mode);
+
+#ifndef O_CLOEXEC
     if (ret >= 0) {
         qemu_set_cloexec(ret);
     }
-#endif
+#endif /* ! O_CLOEXEC */
+
+    if (ret == -1) {
+        const char *action = "open";
+        if (flags & O_CREAT) {
+            action = "create";
+        }
+        error_setg_errno(errp, errno, "Could not %s '%s' flags 0x%x",
+                         action, name, flags);
+    }
+
+
+    return ret;
+}
+
+
+int qemu_open(const char *name, int flags, Error **errp)
+{
+    if (flags & O_CREAT) {
+        error_setg(errp,
+                   "Invalid O_CREAT flag passed to qemu_open, use qemu_create");
+        return -1;
+    }
+    return qemu_open_internal(name, flags, 0, errp);
+}
+
+
+int qemu_create(const char *name, int flags, mode_t mode, Error **errp)
+{
+    if (flags & O_CREAT) {
+        error_setg(errp, "Redundant O_CREAT flag passed to qemu_create");
+        return -1;
+    }
+    return qemu_open_internal(name, flags | O_CREAT, mode, errp);
+}
+
+
+int qemu_open_old(const char *name, int flags, ...)
+{
+    va_list ap;
+    mode_t mode = 0;
+    int ret;
+
+    va_start(ap, flags);
+    if (flags & O_CREAT) {
+        mode = va_arg(ap, int);
+    }
+    va_end(ap);
+
+    ret = qemu_open_internal(name, flags, mode, NULL);
 
 #ifdef O_DIRECT
     if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
