@@ -12,7 +12,7 @@ freebsd_12_task:
   script:
     - mkdir build
     - cd build
-    - ../configure || { cat config.log; exit 1; }
+    - ../configure --enable-werror || { cat config.log; exit 1; }
     - gmake -j8
     - gmake V=1 check
 
@@ -24,7 +24,8 @@ macos_task:
   script:
     - mkdir build
     - cd build
-    - ../configure --python=/usr/local/bin/python3 || { cat config.log; exit 1; }
+    - ../configure --python=/usr/local/bin/python3 --disable-vnc-sasl
+        --enable-werror || { cat config.log; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
     - gmake check
 
@@ -37,6 +38,7 @@ macos_xcode_task:
   script:
     - mkdir build
     - cd build
-    - ../configure --cc=clang || { cat config.log; exit 1; }
+    - ../configure --cc=clang --disable-vnc-sasl --enable-werror
+        || { cat config.log; exit 1; }
     - gmake -j$(sysctl -n hw.ncpu)
     - gmake check
