@@ -24,6 +24,72 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/riscv/sifive_u_otp.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <string.h>
+
+#define TRACE_PREFIX            "FU540_OTP: "
+#define SIFIVE_FU540_OTP_SIZE   (SIFIVE_U_OTP_NUM_FUSES * 4)
+
+static int otp_backed_fd;
+static unsigned int *otp_mmap;
+
+static void sifive_u_otp_backed_load(const char *filename);
+static uint64_t sifive_u_otp_backed_read(uint32_t fuseidx);
+static void sifive_u_otp_backed_write(uint32_t fuseidx,
+                                      uint32_t paio,
+                                      uint32_t pdin);
+static void sifive_u_otp_backed_unload(void);
+
+void sifive_u_otp_backed_load(const char *filename)
+{
+    if (otp_backed_fd < 0) {
+
+        otp_backed_fd = open(filename, O_RDWR);
+
+        if (otp_backed_fd < 0)
+            qemu_log_mask(LOG_TRACE,
+                          TRACE_PREFIX "Warning: can't open otp file\n");
+        else {
+
+            otp_mmap = (unsigned int *)mmap(0,
+                                            SIFIVE_FU540_OTP_SIZE,
+                                            PROT_READ | PROT_WRITE | PROT_EXEC,
+                                            MAP_FILE | MAP_SHARED,
+                                            otp_backed_fd,
+                                            0);
+
+            if (otp_mmap == MAP_FAILED)
+                qemu_log_mask(LOG_TRACE,
+                              TRACE_PREFIX "Warning: can't mmap otp file\n");
+        }
+    }
+
+}
+
+uint64_t sifive_u_otp_backed_read(uint32_t fuseidx)
+{
+    return (uint64_t)(otp_mmap[fuseidx]);
+}
+
+void sifive_u_otp_backed_write(uint32_t fuseidx, uint32_t paio, uint32_t pdin)
+{
+    otp_mmap[fuseidx] &= ~(pdin << paio);
+    otp_mmap[fuseidx] |= (pdin << paio);
+}
+
+
+void sifive_u_otp_backed_unload(void)
+{
+    munmap(otp_mmap, SIFIVE_FU540_OTP_SIZE);
+    close(otp_backed_fd);
+    otp_backed_fd = -1;
+}
 
 static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -46,7 +112,17 @@ static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
         if ((s->pce & SIFIVE_U_OTP_PCE_EN) &&
             (s->pdstb & SIFIVE_U_OTP_PDSTB_EN) &&
             (s->ptrim & SIFIVE_U_OTP_PTRIM_EN)) {
-            return s->fuse[s->pa & SIFIVE_U_OTP_PA_MASK];
+
+            if (otp_file) {
+                uint64_t val;
+
+                sifive_u_otp_backed_load(otp_file);
+                val = sifive_u_otp_backed_read(s->pa);
+                sifive_u_otp_backed_unload();
+
+                return val;
+            } else
+                return s->fuse[s->pa & SIFIVE_U_OTP_PA_MASK];
         } else {
             return 0xff;
         }
@@ -123,6 +199,12 @@ static void sifive_u_otp_write(void *opaque, hwaddr addr,
         s->ptrim = val32;
         break;
     case SIFIVE_U_OTP_PWE:
+        if (otp_file) {
+            sifive_u_otp_backed_load(otp_file);
+            sifive_u_otp_backed_write(s->pa, s->paio, s->pdin);
+            sifive_u_otp_backed_unload();
+        }
+
         s->pwe = val32;
         break;
     default:
@@ -165,6 +247,10 @@ static void sifive_u_otp_reset(DeviceState *dev)
     /* Make a valid content of serial number */
     s->fuse[SIFIVE_U_OTP_SERIAL_ADDR] = s->serial;
     s->fuse[SIFIVE_U_OTP_SERIAL_ADDR + 1] = ~(s->serial);
+
+    /* Initialize file mmap and descriptor. */
+    otp_mmap = NULL;
+    otp_backed_fd = -1;
 }
 
 static void sifive_u_otp_class_init(ObjectClass *klass, void *data)

@@ -52,6 +52,8 @@
 #define SIFIVE_U_OTP(obj) \
     OBJECT_CHECK(SiFiveUOTPState, (obj), TYPE_SIFIVE_U_OTP)
 
+extern const char *otp_file;
+
 typedef struct SiFiveUOTPState {
     /*< private >*/
     SysBusDevice parent_obj;
