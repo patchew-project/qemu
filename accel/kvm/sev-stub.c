@@ -15,12 +15,7 @@
 #include "qemu-common.h"
 #include "sysemu/sev.h"
 
-int sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
-{
-    abort();
-}
-
-void *sev_guest_init(const char *id)
+HostTrustLimitation *sev_guest_init(const char *id)
 {
     return NULL;
 }
