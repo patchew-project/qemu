@@ -1304,7 +1304,7 @@ int64_t qmp_guest_fsfreeze_freeze_list(bool has_mountpoints,
             }
         }
 
-        fd = qemu_open(mount->dirname, O_RDONLY);
+        fd = qemu_open_old(mount->dirname, O_RDONLY);
         if (fd == -1) {
             error_setg_errno(errp, errno, "failed to open %s", mount->dirname);
             goto error;
@@ -1371,7 +1371,7 @@ int64_t qmp_guest_fsfreeze_thaw(Error **errp)
 
     QTAILQ_FOREACH(mount, &mounts, next) {
         logged = false;
-        fd = qemu_open(mount->dirname, O_RDONLY);
+        fd = qemu_open_old(mount->dirname, O_RDONLY);
         if (fd == -1) {
             continue;
         }
@@ -1461,7 +1461,7 @@ qmp_guest_fstrim(bool has_minimum, int64_t minimum, Error **errp)
         list->next = response->paths;
         response->paths = list;
 
-        fd = qemu_open(mount->dirname, O_RDONLY);
+        fd = qemu_open_old(mount->dirname, O_RDONLY);
         if (fd == -1) {
             result->error = g_strdup_printf("failed to open: %s",
                                             strerror(errno));
