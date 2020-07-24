@@ -5381,6 +5381,10 @@ fi
 ##########################################
 # capstone
 
+if test -z "$capstone" && test $tcg = 'no' ; then # !tcg implies !softmmu
+  capstone="no"
+fi
+
 case "$capstone" in
   "" | yes)
     if $pkg_config capstone; then
