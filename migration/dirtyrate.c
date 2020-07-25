@@ -31,6 +31,21 @@ CalculatingDirtyRateStage calculating_dirty_rate_stage = CAL_DIRTY_RATE_INIT;
         INTERNAL_RAMBLOCK_FOREACH(block)                   \
         if (!qemu_ram_is_migratable(block)) {} else
 
+static int64_t get_dirty_rate_info(void)
+{
+    int64_t dirty_rate = dirty_stat.dirty_rate;
+    /*
+     *    Return dirty_rate only when we get CAL_DIRTY_RATE_END.
+     *    And we must initial calculating_dirty_rate_stage.
+     */
+    if (calculating_dirty_rate_stage == CAL_DIRTY_RATE_END) {
+        calculating_dirty_rate_stage = CAL_DIRTY_RATE_INIT;
+        return dirty_rate;
+    }  else {
+        return -1;
+    }
+}
+
 static void reset_dirtyrate_stat(void)
 {
     dirty_stat.total_dirty_samples = 0;
@@ -376,4 +391,34 @@ void *get_dirtyrate_thread(void *arg)
     set_dirty_rate_stage(CAL_DIRTY_RATE_END);
 
     return NULL;
+}
+
+void qmp_cal_dirty_rate(int64_t value, Error **errp)
+{
+    static struct dirtyrate_config dirtyrate_config;
+    QemuThread thread;
+
+    /*
+     * We don't begin calculating thread only when it's in calculating status.
+     */
+    if (calculating_dirty_rate_stage == CAL_DIRTY_RATE_ING) {
+        return;
+    }
+
+    /*
+     * If we get CAL_DIRTY_RATE_END here, libvirtd may be restarted at last round,
+     * we need to initial it.
+     */
+    if (calculating_dirty_rate_stage == CAL_DIRTY_RATE_END)
+        calculating_dirty_rate_stage = CAL_DIRTY_RATE_INIT;
+
+    dirtyrate_config.sample_period_seconds = value;
+    dirtyrate_config.sample_pages_per_gigabytes = sample_pages_per_gigabytes;
+    qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
+                       (void *)&dirtyrate_config, QEMU_THREAD_DETACHED);
+}
+
+int64_t qmp_get_dirty_rate(Error **errp)
+{
+    return get_dirty_rate_info();
 }

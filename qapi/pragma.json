@@ -10,7 +10,8 @@
         'query-migrate-cache-size',
         'query-tpm-models',
         'query-tpm-types',
-        'ringbuf-read' ],
+        'ringbuf-read',
+        'get_dirty_rate' ],
     'name-case-whitelist': [
         'ACPISlotType',             # DIMM, visible through query-acpi-ospm-status
         'CpuInfoMIPS',              # PC, visible through query-cpu

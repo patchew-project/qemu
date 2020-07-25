@@ -1621,3 +1621,27 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @cal_dirty_rate:
+#
+# start calculating dirty rate for vm
+#
+# @value: time for sample dirty pages
+#
+# Since: 5.1
+#
+# Example:
+#   {"command": "cal_dirty_rate", "data": {"value": 1} }
+#
+##
+{ 'command': 'cal_dirty_rate', 'data': {'value': 'int64'} }
+
+##
+# @get_dirty_rate:
+#
+# get dirty rate for vm
+#
+# Since: 5.1
+##
+{ 'command': 'get_dirty_rate', 'returns': 'int64' }
