@@ -33,6 +33,19 @@ typedef enum {
     CAL_DIRTY_RATE_END   = 2,
 } CalculatingDirtyRateStage;
 
+/* 
+ * Store dirtypage info for each block.
+ */
+struct block_dirty_info {
+    char idstr[BLOCK_INFO_MAX_LEN];
+    uint8_t *block_addr;
+    unsigned long block_pages;
+    unsigned long *sample_page_vfn;
+    unsigned int sample_pages_count;
+    unsigned int sample_dirty_count;
+    uint8_t *hash_result;
+};
+
 void *get_dirtyrate_thread(void *arg);
 #endif
 
