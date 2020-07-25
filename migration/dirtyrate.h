@@ -15,6 +15,9 @@
 
 /* take 256 pages per GB for cal dirty rate */
 #define DIRTYRATE_DEFAULT_SAMPLE_PAGES    256
+#define DIRTYRATE_PAGE_SIZE_SHIFT       12
+#define BLOCK_INFO_MAX_LEN              256
+#define PAGE_SIZE_SHIFT                 20
 
 struct dirtyrate_config {
     uint64_t sample_pages_per_gigabytes;
@@ -32,6 +35,14 @@ typedef enum {
     CAL_DIRTY_RATE_ING   = 1,
     CAL_DIRTY_RATE_END   = 2,
 } CalculatingDirtyRateStage;
+
+struct dirtyrate_statistics {
+    unsigned int total_dirty_samples;
+    unsigned int total_sample_count;
+    unsigned long total_block_mem_MB;
+    int64_t dirty_rate;
+};
+
 
 /* 
  * Store dirtypage info for each block.

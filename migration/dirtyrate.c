@@ -13,19 +13,41 @@
 #include "dirtyrate.h"
 
 static uint64_t sample_pages_per_gigabytes = DIRTYRATE_DEFAULT_SAMPLE_PAGES;
-static uint64_t dirty_rate; /* MB/s */
+static struct dirtyrate_statistics dirty_stat;
 CalculatingDirtyRateStage calculating_dirty_rate_stage = CAL_DIRTY_RATE_INIT;
 
-static bool calculate_dirtyrate(struct dirtyrate_config config,
-                        uint64_t *dirty_rate, int64_t time)
+static void reset_dirtyrate_stat(void)
 {
-    /* todo */
-    return true;
+    dirty_stat.total_dirty_samples = 0;
+    dirty_stat.total_sample_count = 0;
+    dirty_stat.total_block_mem_MB = 0;
+    dirty_stat.dirty_rate = 0;
 }
 
-static void set_dirty_rate(uint64_t drate)
+static void update_dirtyrate_stat(struct block_dirty_info *info)
 {
-    dirty_rate = drate;
+    dirty_stat.total_dirty_samples += info->sample_dirty_count;
+    dirty_stat.total_sample_count += info->sample_pages_count;
+    dirty_stat.total_block_mem_MB += (info->block_pages << DIRTYRATE_PAGE_SIZE_SHIFT) >> PAGE_SIZE_SHIFT;
+}
+
+static void update_dirtyrate(int64_t msec)
+{
+    uint64_t dirty_rate;
+    unsigned int total_dirty_samples = dirty_stat.total_dirty_samples;
+    unsigned int total_sample_count = dirty_stat.total_sample_count;
+    unsigned long total_block_mem_MB = dirty_stat.total_block_mem_MB;
+
+    dirty_rate = total_dirty_samples * total_block_mem_MB *
+                 1000 / (total_sample_count * msec);
+
+    dirty_stat.dirty_rate = dirty_rate;
+}
+
+
+static void calculate_dirtyrate(struct dirtyrate_config config, int64_t time)
+{
+    /* todo */
 }
 
 /*
@@ -42,21 +64,12 @@ static void set_dirty_rate_stage(CalculatingDirtyRateStage ratestage)
 void *get_dirtyrate_thread(void *arg)
 {
     struct dirtyrate_config config = *(struct dirtyrate_config *)arg;
-    uint64_t dirty_rate;
-    uint64_t hash_dirty_rate;
-    bool query_succ;
     int64_t msec = 0;
  
     set_dirty_rate_stage(CAL_DIRTY_RATE_ING);
 
-    query_succ = calculate_dirtyrate(config, &hash_dirty_rate, msec);
-    if (!query_succ) {
-        dirty_rate = 0;
-    } else {
-        dirty_rate = hash_dirty_rate;
-    }
+    calculate_dirtyrate(config, msec);
 
-    set_dirty_rate(dirty_rate);
     set_dirty_rate_stage(CAL_DIRTY_RATE_END);
 
     return NULL;
