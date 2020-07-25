@@ -202,6 +202,83 @@ static int record_block_hash_info(struct dirtyrate_config config,
     return 0;
 }
 
+static int cal_block_dirty_rate(struct block_dirty_info *info)
+{
+    uint8_t *md = NULL;
+    size_t hash_len;
+    int i;
+    int ret = 0;
+
+    hash_len = qcrypto_hash_digest_len(QCRYPTO_HASH_ALG_MD5);
+    md = g_new0(uint8_t, hash_len);
+
+    for (i = 0; i < info->sample_pages_count; i++) {
+        ret = get_block_vfn_hash(info, info->sample_page_vfn[i], &md, &hash_len);
+        if (ret < 0) {
+            goto out;
+        }
+
+        if (memcmp(md, info->hash_result + i * hash_len, hash_len) != 0) {
+            info->sample_dirty_count++;
+        }
+    }
+
+out:
+    g_free(md);
+    return ret;
+}
+
+static bool find_block_matched(RAMBlock *block, struct block_dirty_info *infos,
+                               int count, struct block_dirty_info **matched)
+{
+    int i;
+
+    for (i = 0; i < count; i++) {
+        if (!strcmp(infos[i].idstr, qemu_ram_get_idstr(block))) {
+            break;
+        }
+    }
+
+    if (i == count) {
+        return false;
+    }
+
+    if (infos[i].block_addr != qemu_ram_get_host_addr(block) ||
+        infos[i].block_pages !=
+            (qemu_ram_get_used_length(block) >> DIRTYRATE_PAGE_SIZE_SHIFT)) {
+        return false;
+    }
+
+    *matched = &infos[i];
+    return true;
+}
+
+static int compare_block_hash_info(struct block_dirty_info *info, int block_index)
+{
+    struct block_dirty_info *block_dinfo = NULL;
+    RAMBlock *block = NULL;
+
+    RAMBLOCK_FOREACH_MIGRATABLE(block) {
+        if (ram_block_skip(block) < 0) {
+            continue;
+        }
+        block_dinfo = NULL;
+        if (!find_block_matched(block, info, block_index + 1, &block_dinfo)) {
+            continue;
+        }
+        if (cal_block_dirty_rate(block_dinfo) < 0) {
+            return -1;
+        }
+        update_dirtyrate_stat(block_dinfo);
+    }
+    if (!dirty_stat.total_sample_count) {
+        return -1;
+    }
+
+    return 0;
+}
+
+
 static void calculate_dirtyrate(struct dirtyrate_config config, int64_t time)
 {
     /* todo */
