@@ -15,6 +15,7 @@
 
 /* take 256 pages per GB for cal dirty rate */
 #define DIRTYRATE_DEFAULT_SAMPLE_PAGES    256
+#define DIRTYRATE_SAMPLE_PAGE_SIZE      4096
 #define DIRTYRATE_PAGE_SIZE_SHIFT       12
 #define BLOCK_INFO_MAX_LEN              256
 #define PAGE_SIZE_SHIFT                 20
