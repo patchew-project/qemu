@@ -295,10 +295,38 @@ static void set_dirty_rate_stage(CalculatingDirtyRateStage ratestage)
     calculating_dirty_rate_stage = ratestage;
 }
 
+static int64_t block_sample_gap_period(int64_t msec, int64_t initial_time)
+{
+    int64_t current_time;
+
+    current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if ((current_time - initial_time) >= msec) {
+        msec = current_time - initial_time;
+    } else {
+        g_usleep((msec + initial_time - current_time) * 1000);
+    }
+
+    return msec;
+}
+
+static int64_t get_sample_gap_period(struct dirtyrate_config config)
+{
+    int64_t msec;
+
+    msec = config.sample_period_seconds * 1000;
+    if (msec <= MIN_FETCH_DIRTYRATE_TIME_MSEC || msec > MAX_FETCH_DIRTYRATE_TIME_MSEC) {
+        msec = DEFAULT_FETCH_DIRTYRATE_TIME_MSEC;
+    }
+    return msec;
+}
+
 void *get_dirtyrate_thread(void *arg)
 {
     struct dirtyrate_config config = *(struct dirtyrate_config *)arg;
     int64_t msec = 0;
+
+    /* max period is 60 seconds */
+    msec = get_sample_gap_period(config);
  
     set_dirty_rate_stage(CAL_DIRTY_RATE_ING);
 

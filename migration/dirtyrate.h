@@ -14,11 +14,15 @@
 #define QEMU_MIGRATION_DIRTYRATE_H
 
 /* take 256 pages per GB for cal dirty rate */
-#define DIRTYRATE_DEFAULT_SAMPLE_PAGES    256
+#define DIRTYRATE_DEFAULT_SAMPLE_PAGES  256
 #define DIRTYRATE_SAMPLE_PAGE_SIZE      4096
 #define DIRTYRATE_PAGE_SIZE_SHIFT       12
 #define BLOCK_INFO_MAX_LEN              256
 #define PAGE_SIZE_SHIFT                 20
+
+#define MIN_FETCH_DIRTYRATE_TIME_MSEC        0
+#define MAX_FETCH_DIRTYRATE_TIME_MSEC        60000
+#define DEFAULT_FETCH_DIRTYRATE_TIME_MSEC    1000
 
 struct dirtyrate_config {
     uint64_t sample_pages_per_gigabytes;
