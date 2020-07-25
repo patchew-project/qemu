@@ -161,6 +161,21 @@ alloc_block_dirty_info(int *block_index,
     return block_dinfo;
 }
 
+static void free_block_dirty_info(struct block_dirty_info *infos, int count)
+{
+    int i;
+
+    if (!infos) {
+        return;
+    }
+
+    for (i = 0; i < count; i++) {
+        g_free(infos[i].sample_page_vfn);
+        g_free(infos[i].hash_result);
+    }
+    g_free(infos);
+}
+
 static int ram_block_skip(RAMBlock *block)
 {
     if (!strstr(qemu_ram_get_idstr(block), "ram-node") &&
@@ -278,12 +293,6 @@ static int compare_block_hash_info(struct block_dirty_info *info, int block_inde
     return 0;
 }
 
-
-static void calculate_dirtyrate(struct dirtyrate_config config, int64_t time)
-{
-    /* todo */
-}
-
 /*
  * There are multithread will write/read *calculating_dirty_rate_stage*,
  * we can protect only one thread write/read it by libvirt api.
@@ -319,6 +328,38 @@ static int64_t get_sample_gap_period(struct dirtyrate_config config)
     }
     return msec;
 }
+
+static void calculate_dirtyrate(struct dirtyrate_config config, int64_t time)
+{
+    struct block_dirty_info *block_dinfo = NULL;
+    int block_index = 0;
+    int64_t msec = time;
+    int64_t initial_time;
+
+    rcu_register_thread();
+    reset_dirtyrate_stat();
+    initial_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    rcu_read_lock();
+    if (record_block_hash_info(config, &block_dinfo, &block_index) < 0) {
+        goto out;
+    }
+    rcu_read_unlock();
+
+    msec = block_sample_gap_period(msec, initial_time);
+
+    rcu_read_lock();
+    if (compare_block_hash_info(block_dinfo, block_index) < 0) {
+        goto out;
+    }
+
+    update_dirtyrate(msec);
+
+out:
+    rcu_read_unlock();
+    free_block_dirty_info(block_dinfo, block_index + 1);
+    rcu_unregister_thread();
+}
+
 
 void *get_dirtyrate_thread(void *arg)
 {
