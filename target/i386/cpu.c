@@ -1142,8 +1142,8 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
     [FEAT_PERF_CAPABILITIES] = {
         .type = MSR_FEATURE_WORD,
         .feat_names = {
-            NULL, NULL, NULL, NULL,
-            NULL, NULL, NULL, NULL,
+            "lbr-fmt-bit-0", "lbr-fmt-bit-1", "lbr-fmt-bit-2", "lbr-fmt-bit-3",
+            "lbr-fmt-bit-4", "lbr-fmt-bit-5", NULL, NULL,
             NULL, NULL, NULL, NULL,
             NULL, "full-width-write", NULL, NULL,
             NULL, NULL, NULL, NULL,
@@ -4224,6 +4224,12 @@ static bool lmce_supported(void)
     return !!(mce_cap & MCG_LMCE_P);
 }
 
+static inline bool lbr_supported(void)
+{
+    return kvm_enabled() && (kvm_arch_get_supported_msr_feature(kvm_state,
+        MSR_IA32_PERF_CAPABILITIES) & PERF_CAP_LBR_FMT);
+}
+
 #define CPUID_MODEL_ID_SZ 48
 
 /**
@@ -4327,6 +4333,9 @@ static void max_x86_cpu_initfn(Object *obj)
     }
 
     object_property_set_bool(OBJECT(cpu), "pmu", true, &error_abort);
+    if (lbr_supported()) {
+        object_property_set_bool(OBJECT(cpu), "lbr", true, &error_abort);
+    }
 }
 
 static const TypeInfo max_x86_cpu_type_info = {
@@ -5535,6 +5544,10 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         if (!cpu->enable_pmu) {
             *ecx &= ~CPUID_EXT_PDCM;
+            if (cpu->enable_lbr) {
+                warn_report("LBR is unsupported since guest PMU is disabled.");
+                exit(1);
+            }
         }
         break;
     case 2:
@@ -6553,6 +6566,12 @@ static void x86_cpu_realizefn(DeviceState *dev, Error **errp)
         }
     }
 
+    if (!cpu->max_features && cpu->enable_lbr &&
+        !(env->features[FEAT_1_ECX] & CPUID_EXT_PDCM)) {
+        warn_report("requested vcpu model doesn't support PDCM for LBR.");
+        exit(1);
+    }
+
     if (cpu->ucode_rev == 0) {
         /* The default is the same as KVM's.  */
         if (IS_AMD_CPU(env)) {
@@ -7187,6 +7206,7 @@ static Property x86_cpu_properties[] = {
 #endif
     DEFINE_PROP_INT32("node-id", X86CPU, node_id, CPU_UNSET_NUMA_NODE_ID),
     DEFINE_PROP_BOOL("pmu", X86CPU, enable_pmu, false),
+    DEFINE_PROP_BOOL("lbr", X86CPU, enable_lbr, false),
 
     DEFINE_PROP_UINT32("hv-spinlocks", X86CPU, hyperv_spinlock_attempts,
                        HYPERV_SPINLOCK_NEVER_RETRY),

@@ -2690,8 +2690,10 @@ static void kvm_msr_entry_add_perf(X86CPU *cpu, FeatureWordArray f)
     uint64_t kvm_perf_cap =
         kvm_arch_get_supported_msr_feature(kvm_state,
                                            MSR_IA32_PERF_CAPABILITIES);
-
     if (kvm_perf_cap) {
+        if (!cpu->enable_lbr) {
+            kvm_perf_cap &= ~PERF_CAP_LBR_FMT;
+        }
         kvm_msr_entry_add(cpu, MSR_IA32_PERF_CAPABILITIES,
                         kvm_perf_cap & f[FEAT_PERF_CAPABILITIES]);
     }
@@ -2731,6 +2733,9 @@ static void kvm_init_msrs(X86CPU *cpu)
 
     if (has_msr_perf_capabs && cpu->enable_pmu) {
         kvm_msr_entry_add_perf(cpu, env->features);
+    } else if (!has_msr_perf_capabs && cpu->enable_lbr) {
+        warn_report("KVM doesn't support MSR_IA32_PERF_CAPABILITIES for LBR.");
+        exit(1);
     }
 
     if (has_msr_ucode_rev) {
