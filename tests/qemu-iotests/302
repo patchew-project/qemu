@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+#
+# Tests conveting qcow2 compressed to NBD
+#
+# Copyright (c) 2020 Nir Soffer <nirsof@gmail.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# owner=nirsof@gmail.com
+
+import json
+import iotests
+
+from iotests import (
+    file_path,
+    qemu_img,
+    qemu_img_create,
+    qemu_img_log,
+    qemu_img_pipe,
+    qemu_io,
+    qemu_nbd,
+)
+
+iotests.script_initialize(supported_fmts=["qcow2"])
+
+# Create source disk, format does not matter.
+src_disk = file_path("disk.img")
+qemu_img_create("-f", "raw", src_disk, "10m")
+qemu_io("-f", "raw", "-c", "write 1m 64K", src_disk)
+
+# The use case is writing qcow2 image directly into a tar file. Code to create
+# real tar file not included.
+#
+# offset    content
+# -------------------------------
+#      0    first memebr header
+#    512    first member data
+#   1024    second memeber header
+#   1536    second member data
+
+tar_file = file_path("test.tar")
+out = qemu_img_pipe("measure", "-O", "qcow2", "--output", "json", src_disk)
+measure = json.loads(out)
+qemu_img_create("-f", "raw", tar_file, str(measure["required"]))
+
+nbd_sock = file_path("nbd-sock", base_dir=iotests.sock_dir)
+nbd_uri = "nbd+unix:///exp?socket=" + nbd_sock
+
+# Use raw format to allow creating qcow2 directy into tar file.
+qemu_nbd(
+    "--socket", nbd_sock,
+    "--persistent",
+    "--export-name", "exp",
+    "--format", "raw",
+    "--offset", "1536",
+    tar_file)
+
+iotests.log("=== Target image info ===")
+qemu_img_log("info", nbd_uri)
+
+# Write image into the tar file. In a real applicatio we would write a tar
+# entry after writing the image.
+qemu_img("convert", "-f", "raw", "-O", "qcow2", "-c", src_disk, nbd_uri)
+
+iotests.log("=== Converted image info ===")
+qemu_img_log("info", nbd_uri)
+
+iotests.log("=== Converted image check ===")
+qemu_img_log("check", nbd_uri)
+
+iotests.log("=== Comparing to source disk ===")
+qemu_img_log("compare", src_disk, nbd_uri)
