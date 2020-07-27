@@ -551,27 +551,63 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
     return 0;
 }
 
-BlockDriverState *bdrv_all_find_vmstate_bs(strList *devices, Error **errp)
+BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
+                                           strList *devices,
+                                           Error **errp)
 {
     BlockDriverState *bs;
     BdrvNextIterator it;
 
-    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-        AioContext *ctx = bdrv_get_aio_context(bs);
-        bool found;
+    if (vmstate_bs) {
+        bool usable = false;
+        for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+            AioContext *ctx = bdrv_get_aio_context(bs);
+            bool match;
 
-        aio_context_acquire(ctx);
-        found = bdrv_all_snapshots_includes_bs(bs, devices) &&
-            bdrv_can_snapshot(bs);
-        aio_context_release(ctx);
-
-        if (found) {
-            bdrv_next_cleanup(&it);
-            break;
+            aio_context_acquire(ctx);
+            if (g_str_equal(vmstate_bs, bdrv_get_node_name(bs))) {
+                match = true;
+                usable = bdrv_can_snapshot(bs);
+            }
+            aio_context_release(ctx);
+            if (match) {
+                bdrv_next_cleanup(&it);
+                break;
+            }
         }
-    }
-    if (!bs) {
-        error_setg(errp, "No block device supports snapshots");
+        if (!bs) {
+            error_setg(errp,
+                       "block device '%s' does not exist",
+                       vmstate_bs);
+            return NULL;
+        }
+
+        if (!usable) {
+            error_setg(errp,
+                       "block device '%s' does not support snapshots",
+                       vmstate_bs);
+            return NULL;
+        }
+    } else {
+        for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+            AioContext *ctx = bdrv_get_aio_context(bs);
+            bool found;
+
+            aio_context_acquire(ctx);
+            found = bdrv_all_snapshots_includes_bs(bs, devices) &&
+                bdrv_can_snapshot(bs);
+            aio_context_release(ctx);
+
+            if (found) {
+                bdrv_next_cleanup(&it);
+                break;
+            }
+        }
+
+        if (!bs) {
+            error_setg(errp, "No block device supports snapshots");
+            return NULL;
+        }
     }
     return bs;
 }

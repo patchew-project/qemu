@@ -86,6 +86,8 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
                              strList *devices,
                              Error **errp);
 
-BlockDriverState *bdrv_all_find_vmstate_bs(strList *devices, Error **errp);
+BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
+                                           strList *devices,
+                                           Error **errp);
 
 #endif
