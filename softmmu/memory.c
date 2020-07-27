@@ -2960,7 +2960,8 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
         QTAILQ_FOREACH(ml, &submr_print_queue, mrqueue) {
             if (new_ml->mr->addr < ml->mr->addr ||
                 (new_ml->mr->addr == ml->mr->addr &&
-                 new_ml->mr->priority > ml->mr->priority)) {
+                 (MR_SIZE(new_ml->mr->size) > MR_SIZE(ml->mr->size) ||
+                  new_ml->mr->priority > ml->mr->priority))) {
                 QTAILQ_INSERT_BEFORE(ml, new_ml, mrqueue);
                 new_ml = NULL;
                 break;
