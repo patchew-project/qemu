@@ -38,8 +38,6 @@
 #include "qemu/error-report.h"
 #include "qemu/module.h"
 
-#include <xenguest.h>
-
 //#define DEBUG_PLATFORM
 
 #ifdef DEBUG_PLATFORM
