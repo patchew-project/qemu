@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+#
+# Test which nodes are involved in internal snapshots
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=berrange@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_test_img
+    rm -f "$SOCK_DIR/nbd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+_require_drivers copy-on-read
+
+# Internal snapshots are (currently) impossible with refcount_bits=1,
+# and generally impossible with external data files
+_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
+
+_require_devices virtio-blk
+
+do_run_qemu()
+{
+    echo Testing: "$@"
+    (
+        if ! test -t 0; then
+            while read cmd; do
+                echo $cmd
+            done
+        fi
+        echo quit
+    ) | $QEMU -nographic -qmp stdio -nodefaults "$@"
+    echo
+}
+
+run_qemu()
+{
+    do_run_qemu "$@" 2>&1 | _filter_testdir | _filter_qemu | _filter_hmp |
+        _filter_generated_node_ids | _filter_imgfmt | _filter_vmstate_size
+}
+
+size=128M
+
+run_test()
+{
+    if [ -n "$BACKING_FILE" ]; then
+        _make_test_img -b "$BACKING_FILE" -F $IMGFMT $size
+    else
+        _make_test_img $size
+    fi
+    run_qemu "$@" <<EOF | _filter_date
+{ "execute": "qmp_capabilities" }
+{ "execute": "snapshot-save",
+  "arguments": {
+    "job-id": "snapsave0",
+    "tag": "snap0",
+    "devices": ["disk1"]
+  } }
+{ "execute": "query-jobs" }
+{ "execute": "query-named-block-nodes" }
+{ "execute": "snapshot-load",
+  "arguments": {
+    "job-id": "snapload0",
+    "tag": "snap0",
+    "devices": ["disk1"]
+  } }
+{ "execute": "query-jobs" }
+{ "execute": "query-named-block-nodes" }
+{ "execute": "snapshot-delete",
+  "arguments": {
+    "job-id": "snapdel0",
+    "tag": "snap0",
+    "devices": ["disk1"]
+  } }
+{ "execute": "query-jobs" }
+{ "execute": "snapshot-delete",
+  "arguments": {
+    "job-id": "snapdel1",
+    "tag": "snap1",
+    "devices": ["disk1"]
+  } }
+{ "execute": "query-jobs" }
+{ "execute": "query-named-block-nodes" }
+{ "execute": "quit" }
+EOF
+}
+
+echo "Basic test"
+
+run_test -blockdev "{\"driver\":\"file\",\"filename\":\"$TEST_IMG\",\"node-name\":\"disk0\"}" \
+         -blockdev "{\"driver\":\"qcow2\",\"file\":\"disk0\",\"node-name\":\"disk1\"}"
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
