@@ -650,7 +650,8 @@ static void vmxnet3_process_tx_queue(VMXNET3State *s, int qidx)
             data_len = (txd.len > 0) ? txd.len : VMXNET3_MAX_TX_BUF_SIZE;
             data_pa = txd.addr;
 
-            if (!net_tx_pkt_add_raw_fragment(s->tx_pkt,
+            if (net_tx_pkt_exceed_max_fragments(s->tx_pkt) ||
+                !net_tx_pkt_add_raw_fragment(s->tx_pkt,
                                                 data_pa,
                                                 data_len)) {
                 s->skip_current_tx_pkt = true;

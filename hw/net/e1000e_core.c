@@ -728,7 +728,8 @@ e1000e_process_tx_desc(E1000ECore *core,
     addr = le64_to_cpu(dp->buffer_addr);
 
     if (!tx->skip_cp) {
-        if (!net_tx_pkt_add_raw_fragment(tx->tx_pkt, addr, split_size)) {
+        if (net_tx_pkt_exceed_max_fragments(tx->tx_pkt) ||
+            !net_tx_pkt_add_raw_fragment(tx->tx_pkt, addr, split_size)) {
             tx->skip_cp = true;
         }
     }
