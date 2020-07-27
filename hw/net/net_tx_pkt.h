@@ -180,6 +180,14 @@ bool net_tx_pkt_send_loopback(struct NetTxPkt *pkt, NetClientState *nc);
 bool net_tx_pkt_parse(struct NetTxPkt *pkt);
 
 /**
+* indicates if the current data fragment exceeds max_raw_frags
+*
+* @pkt:            packet
+*
+*/
+bool net_tx_pkt_exceed_max_fragments(struct NetTxPkt *pkt);
+
+/**
 * indicates if there are data fragments held by this packet object.
 *
 * @pkt:            packet

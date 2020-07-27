@@ -400,6 +400,11 @@ bool net_tx_pkt_add_raw_fragment(struct NetTxPkt *pkt, hwaddr pa,
     }
 }
 
+bool net_tx_pkt_exceed_max_fragments(struct NetTxPkt *pkt)
+{
+    return pkt->raw_frags >= pkt->max_raw_frags;
+}
+
 bool net_tx_pkt_has_fragments(struct NetTxPkt *pkt)
 {
     return pkt->raw_frags > 0;
