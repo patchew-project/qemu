@@ -15,6 +15,8 @@ void configure_icount(QemuOpts *opts, Error **errp);
 extern int use_icount;
 extern int icount_align_option;
 
+void qemu_handle_outa_time(void);
+
 /* drift information for info jit command */
 extern int64_t max_delay;
 extern int64_t max_advance;

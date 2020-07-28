@@ -540,6 +540,22 @@ bool timerlist_run_timers(QEMUTimerList *timer_list)
      * done".
      */
     current_time = qemu_clock_get_ns(timer_list->clock->type);
+
+    /*
+     * Check to see if we have run out of time. Most of our time
+     * sources are nanoseconds since epoch (some time around the fall
+     * of Babylon 5, the start of the Enterprises five year mission
+     * and just before the arrival of the great evil ~ 2262CE).
+     * Although icount based time is ns since the start of emulation
+     * it is able to skip forward if the device is sleeping (think IoT
+     * device with a very long heartbeat). Either way we don't really
+     * handle running out of time so lets catch it and report it here.
+     */
+    if (current_time == INT64_MAX) {
+        qemu_handle_outa_time();
+        goto out;
+    }
+
     qemu_mutex_lock(&timer_list->active_timers_lock);
     while ((ts = timer_list->active_timers)) {
         if (!timer_expired_ns(ts, current_time)) {

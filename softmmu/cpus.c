@@ -657,6 +657,19 @@ static bool shift_state_needed(void *opaque)
     return use_icount == 2;
 }
 
+/* Handler for reaching the end of time */
+void qemu_handle_outa_time(void)
+{
+    static bool reported = false;
+    if (runstate_is_running()) {
+        if (!reported) {
+            error_report("ran out of time, suspending emulation");
+            reported = true;
+        }
+        vm_stop(RUN_STATE_PAUSED);
+    }
+}
+
 /*
  * Subsection for warp timer migration is optional, because may not be created
  */
