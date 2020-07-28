@@ -218,7 +218,7 @@ static void find_boot_device(void)
     IPL_assert(found, "Boot device not found\n");
 }
 
-static void virtio_setup(void)
+static bool virtio_setup(void)
 {
     VDev *vdev = virtio_get_device();
     QemuIplParameters *early_qipl = (QemuIplParameters *)QIPL_ADDRESS;
@@ -233,9 +233,13 @@ static void virtio_setup(void)
         sclp_print("Network boot device detected\n");
         vdev->netboot_start_addr = qipl.netboot_start_addr;
     } else {
-        virtio_blk_setup_device(blk_schid);
+        if (!virtio_blk_setup_device(blk_schid)) {
+            return false;
+        }
         IPL_assert(virtio_ipl_disk_is_valid(), "No valid IPL device detected");
     }
+
+    return true;
 }
 
 static void ipl_boot_device(void)
@@ -246,8 +250,9 @@ static void ipl_boot_device(void)
         dasd_ipl(blk_schid, cutype); /* no return */
         break;
     case CU_TYPE_VIRTIO:
-        virtio_setup();
-        zipl_load(); /* no return */
+        if (virtio_setup()) {
+            zipl_load(); /* no return */
+        }
         break;
     default:
         print_int("Attempting to boot from unexpected device type", cutype);
