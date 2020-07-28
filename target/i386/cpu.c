@@ -5535,6 +5535,8 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         }
         if (!cpu->enable_pmu) {
             *ecx &= ~CPUID_EXT_PDCM;
+        } else {
+            *ecx |= CPUID_EXT_PDCM;
         }
         break;
     case 2:
