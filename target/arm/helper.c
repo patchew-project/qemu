@@ -2683,7 +2683,7 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         uint64_t count = gt_get_countervalue(&cpu->env);
         /* Note that this must be unsigned 64 bit arithmetic: */
         int istatus = count - offset >= gt->cval;
-        uint64_t nexttick;
+        uint64_t nexttick = 0;
         int irqstate;
 
         gt->ctl = deposit32(gt->ctl, 2, 1, istatus);
@@ -2692,21 +2692,30 @@ static void gt_recalc_timer(ARMCPU *cpu, int timeridx)
         qemu_set_irq(cpu->gt_timer_outputs[timeridx], irqstate);
 
         if (istatus) {
-            /* Next transition is when count rolls back over to zero */
-            nexttick = UINT64_MAX;
+            /*
+             * The IRQ status of the timer will persist until:
+             *   - CVAL is changed or
+             *   - ENABLE is changed
+             *
+             * There is no point re-arming the timer for some far
+             * flung future - currently it just is.
+             */
+            timer_del(cpu->gt_timer[timeridx]);
         } else {
             /* Next transition is when we hit cval */
             nexttick = gt->cval + offset;
-        }
-        /* Note that the desired next expiry time might be beyond the
-         * signed-64-bit range of a QEMUTimer -- in this case we just
-         * set the timer for as far in the future as possible. When the
-         * timer expires we will reset the timer for any remaining period.
-         */
-        if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
-            timer_mod_ns(cpu->gt_timer[timeridx], INT64_MAX);
-        } else {
-            timer_mod(cpu->gt_timer[timeridx], nexttick);
+
+            /*
+             * It is possible the next tick is beyond the
+             * signed-64-bit range of a QEMUTimer but currently the
+             * timer system doesn't support a run time of more the 292
+             * odd years so we set it to INT_MAX in this case.
+             */
+            if (nexttick > INT64_MAX / gt_cntfrq_period_ns(cpu)) {
+                timer_mod_ns(cpu->gt_timer[timeridx], INT64_MAX);
+            } else {
+                timer_mod(cpu->gt_timer[timeridx], nexttick);
+            }
         }
         trace_arm_gt_recalc(timeridx, irqstate, nexttick);
     } else {
