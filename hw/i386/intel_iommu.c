@@ -2656,6 +2656,129 @@ static void vtd_handle_iectl_write(IntelIOMMUState *s)
     }
 }
 
+static int vtd_request_pasid_alloc(IntelIOMMUState *s, uint32_t *pasid)
+{
+    VTDHostIOMMUContext *vtd_dev_icx;
+    int ret = -1;
+
+    vtd_iommu_lock(s);
+    QLIST_FOREACH(vtd_dev_icx, &s->vtd_dev_icx_list, next) {
+        HostIOMMUContext *iommu_ctx = vtd_dev_icx->iommu_ctx;
+
+        /*
+         * We'll return the first valid result we got. It's
+         * a bit hackish in that we don't have a good global
+         * interface yet to talk to modules like vfio to deliver
+         * this allocation request, so we're leveraging this
+         * per-device iommu context to do the same thing just
+         * to make sure the allocation happens only once.
+         */
+        ret = host_iommu_ctx_pasid_alloc(iommu_ctx, VTD_HPASID_MIN,
+                                         VTD_HPASID_MAX, pasid);
+        if (!ret) {
+            break;
+        }
+    }
+    vtd_iommu_unlock(s);
+
+    return ret;
+}
+
+static int vtd_request_pasid_free(IntelIOMMUState *s, uint32_t pasid)
+{
+    VTDHostIOMMUContext *vtd_dev_icx;
+    int ret = -1;
+
+    vtd_iommu_lock(s);
+    QLIST_FOREACH(vtd_dev_icx, &s->vtd_dev_icx_list, next) {
+        HostIOMMUContext *iommu_ctx = vtd_dev_icx->iommu_ctx;
+
+        /*
+         * Similar with pasid allocation. We'll free the pasid
+         * on the first successful free operation. It's a bit
+         * hackish in that we don't have a good global interface
+         * yet to talk to modules like vfio to deliver this pasid
+         * free request, so we're leveraging this per-device iommu
+         * context to do the same thing just to make sure the free
+         * happens only once.
+         */
+        ret = host_iommu_ctx_pasid_free(iommu_ctx, pasid);
+        if (!ret) {
+            break;
+        }
+    }
+    vtd_iommu_unlock(s);
+
+    return ret;
+}
+
+/*
+ * If IP is not set, set it then return.
+ * If IP is already set, return.
+ */
+static void vtd_vcmd_set_ip(IntelIOMMUState *s)
+{
+    s->vcrsp = 1;
+    vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                     ((uint64_t) s->vcrsp));
+}
+
+static void vtd_vcmd_clear_ip(IntelIOMMUState *s)
+{
+    s->vcrsp &= (~((uint64_t)(0x1)));
+    vtd_set_quad_raw(s, DMAR_VCRSP_REG,
+                     ((uint64_t) s->vcrsp));
+}
+
+/* Handle write to Virtual Command Register */
+static int vtd_handle_vcmd_write(IntelIOMMUState *s, uint64_t val)
+{
+    uint32_t pasid;
+    int ret = -1;
+
+    trace_vtd_reg_write_vcmd(s->vcrsp, val);
+
+    if (!(s->vccap & VTD_VCCAP_PAS) ||
+         (s->vcrsp & 1)) {
+        return -1;
+    }
+
+    /*
+     * Since vCPU should be blocked when the guest VMCD
+     * write was trapped to here. Should be no other vCPUs
+     * try to access VCMD if guest software is well written.
+     * However, we still emulate the IP bit here in case of
+     * bad guest software. Also align with the spec.
+     */
+    vtd_vcmd_set_ip(s);
+
+    switch (val & VTD_VCMD_CMD_MASK) {
+    case VTD_VCMD_ALLOC_PASID:
+        ret = vtd_request_pasid_alloc(s, &pasid);
+        if (ret) {
+            s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_NO_AVAILABLE_PASID);
+        } else {
+            s->vcrsp |= VTD_VCRSP_RSLT(pasid);
+        }
+        break;
+
+    case VTD_VCMD_FREE_PASID:
+        pasid = VTD_VCMD_PASID_VALUE(val);
+        ret = vtd_request_pasid_free(s, pasid);
+        if (ret < 0) {
+            s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_FREE_INVALID_PASID);
+        }
+        break;
+
+    default:
+        s->vcrsp |= VTD_VCRSP_SC(VTD_VCMD_UNDEFINED_CMD);
+        error_report_once("Virtual Command: unsupported command!!!");
+        break;
+    }
+    vtd_vcmd_clear_ip(s);
+    return 0;
+}
+
 static uint64_t vtd_mem_read(void *opaque, hwaddr addr, unsigned size)
 {
     IntelIOMMUState *s = opaque;
@@ -2942,6 +3065,23 @@ static void vtd_mem_write(void *opaque, hwaddr addr,
     case DMAR_IRTA_REG_HI:
         assert(size == 4);
         vtd_set_long(s, addr, val);
+        break;
+
+    case DMAR_VCMD_REG:
+        if (!vtd_handle_vcmd_write(s, val)) {
+            if (size == 4) {
+                vtd_set_long(s, addr, val);
+            } else {
+                vtd_set_quad(s, addr, val);
+            }
+        }
+        break;
+
+    case DMAR_VCMD_REG_HI:
+        assert(size == 4);
+        if (!vtd_handle_vcmd_write(s, val)) {
+            vtd_set_long(s, addr, val);
+        }
         break;
 
     default:
@@ -3497,6 +3637,7 @@ static int vtd_dev_set_iommu_context(PCIBus *bus, void *opaque,
     vtd_dev_icx->devfn = (uint8_t)devfn;
     vtd_dev_icx->iommu_state = s;
     vtd_dev_icx->iommu_ctx = iommu_ctx;
+    QLIST_INSERT_HEAD(&s->vtd_dev_icx_list, vtd_dev_icx, next);
 
     vtd_iommu_unlock(s);
 
@@ -3516,7 +3657,10 @@ static void vtd_dev_unset_iommu_context(PCIBus *bus, void *opaque, int devfn)
     vtd_iommu_lock(s);
 
     vtd_dev_icx = vtd_bus->dev_icx[devfn];
-    g_free(vtd_dev_icx);
+    if (vtd_dev_icx) {
+        QLIST_REMOVE(vtd_dev_icx, next);
+        g_free(vtd_dev_icx);
+    }
     vtd_bus->dev_icx[devfn] = NULL;
 
     vtd_iommu_unlock(s);
@@ -3791,6 +3935,13 @@ static void vtd_init(IntelIOMMUState *s)
      * Interrupt remapping registers.
      */
     vtd_define_quad(s, DMAR_IRTA_REG, 0, 0xfffffffffffff80fULL, 0);
+
+    /*
+     * Virtual Command Definitions
+     */
+    vtd_define_quad(s, DMAR_VCCAP_REG, s->vccap, 0, 0);
+    vtd_define_quad(s, DMAR_VCMD_REG, 0, 0xffffffffffffffffULL, 0);
+    vtd_define_quad(s, DMAR_VCRSP_REG, 0, 0, 0);
 }
 
 /* Should not reset address_spaces when reset because devices will still use
@@ -3906,6 +4057,7 @@ static void vtd_realize(DeviceState *dev, Error **errp)
     }
 
     QLIST_INIT(&s->vtd_as_with_notifiers);
+    QLIST_INIT(&s->vtd_dev_icx_list);
     qemu_mutex_init(&s->iommu_lock);
     memset(s->vtd_as_by_bus_num, 0, sizeof(s->vtd_as_by_bus_num));
     memory_region_init_io(&s->csrmem, OBJECT(s), &vtd_mem_ops, s,
