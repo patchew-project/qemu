@@ -1657,7 +1657,7 @@ static int find_max_backend_pagesize(Object *obj, void *opaque)
  * TODO: We assume right now that all mapped host memory backends are
  * used as RAM, however some might be used for different purposes.
  */
-long qemu_minrampagesize(void)
+size_t qemu_minrampagesize(void)
 {
     long hpsize = LONG_MAX;
     Object *memdev_root = object_resolve_path("/objects", NULL);
@@ -1666,7 +1666,7 @@ long qemu_minrampagesize(void)
     return hpsize;
 }
 
-long qemu_maxrampagesize(void)
+size_t qemu_maxrampagesize(void)
 {
     long pagesize = 0;
     Object *memdev_root = object_resolve_path("/objects", NULL);
@@ -1675,11 +1675,11 @@ long qemu_maxrampagesize(void)
     return pagesize;
 }
 #else
-long qemu_minrampagesize(void)
+size_t qemu_minrampagesize(void)
 {
     return qemu_real_host_page_size;
 }
-long qemu_maxrampagesize(void)
+size_t qemu_maxrampagesize(void)
 {
     return qemu_real_host_page_size;
 }

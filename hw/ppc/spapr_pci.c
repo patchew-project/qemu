@@ -1810,7 +1810,7 @@ static void spapr_phb_realize(DeviceState *dev, Error **errp)
     char *namebuf;
     int i;
     PCIBus *bus;
-    uint64_t msi_window_size = 4096;
+    size_t msi_window_size = 4096;
     SpaprTceTable *tcet;
     const unsigned windows_supported = spapr_phb_windows_supported(sphb);
     Error *local_err = NULL;

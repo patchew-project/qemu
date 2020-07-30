@@ -8,7 +8,7 @@
 
 #include "qemu/osdep.h"
 
-uintptr_t qemu_real_host_page_size;
+size_t qemu_real_host_page_size;
 intptr_t qemu_real_host_page_mask;
 
 static void __attribute__((constructor)) init_real_host_page_size(void)

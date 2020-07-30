@@ -345,7 +345,7 @@ static int test_ramblock_postcopiable(RAMBlock *rb, void *opaque)
  */
 bool postcopy_ram_supported_by_host(MigrationIncomingState *mis)
 {
-    long pagesize = qemu_real_host_page_size;
+    size_t pagesize = qemu_real_host_page_size;
     int ufd = -1;
     bool ret = false; /* Error unless we change it */
     void *testarea = NULL;
