@@ -3668,6 +3668,15 @@ SRST
     option is experimental.
 ERST
 
+DEF("pause", HAS_ARG, QEMU_OPTION_pause, \
+    "-pause secs    Pause for secs seconds on entry to main.\n", QEMU_ARCH_ALL)
+
+SRST
+``--pause secs``
+    Pause for a number of seconds on entry to main.  Useful for attaching
+    a debugger after QEMU has been launched by some other entity.
+ERST
+
 DEF("S", 0, QEMU_OPTION_S, \
     "-S              freeze CPU at startup (use 'c' to start execution)\n",
     QEMU_ARCH_ALL)

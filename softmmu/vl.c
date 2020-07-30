@@ -2844,7 +2844,7 @@ static void create_default_memdev(MachineState *ms, const char *path)
 
 void qemu_init(int argc, char **argv, char **envp)
 {
-    int i;
+    int i, seconds;
     int snapshot, linux_boot;
     const char *initrd_filename;
     const char *kernel_filename, *kernel_cmdline;
@@ -2881,6 +2881,13 @@ void qemu_init(int argc, char **argv, char **envp)
     BlockdevOptionsQueue bdo_queue = QSIMPLEQ_HEAD_INITIALIZER(bdo_queue);
     QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
     int mem_prealloc = 0; /* force preallocation of physical target memory */
+
+    if (getenv("QEMU_PAUSE")) {
+        seconds = atoi(getenv("QEMU_PAUSE"));
+        printf("Pausing %d seconds for debugger. QEMU PID is %d\n",
+               seconds, getpid());
+        sleep(seconds);
+    }
 
     os_set_line_buffering();
 
@@ -3203,6 +3210,12 @@ void qemu_init(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_gdb:
                 add_device_config(DEV_GDB, optarg);
+                break;
+            case QEMU_OPTION_pause:
+                seconds = atoi(optarg);
+                printf("Pausing %d seconds for debugger. QEMU PID is %d\n",
+                            seconds, getpid());
+                sleep(seconds);
                 break;
             case QEMU_OPTION_L:
                 if (is_help_option(optarg)) {
