@@ -285,18 +285,22 @@ static int kvmclock_pre_save(void *opaque)
     if (!s->runstate_paused) {
         kvm_update_clock(s);
     }
+    if (!runstate_is_running()) {
+        s->clock_valid = true;
+    }
 
     return 0;
 }
 
 static const VMStateDescription kvmclock_vmsd = {
     .name = "kvmclock",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .pre_load = kvmclock_pre_load,
     .pre_save = kvmclock_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_UINT64(clock, KVMClockState),
+        VMSTATE_BOOL_V(clock_valid, KVMClockState, 2),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * []) {
