@@ -1,6 +1,7 @@
 #ifndef QEMU_CUTILS_H
 #define QEMU_CUTILS_H
 
+#include "qemu/env.h"
 /**
  * pstrcpy:
  * @buf: buffer to copy string into

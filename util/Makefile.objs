@@ -1,4 +1,4 @@
-util-obj-y = osdep.o cutils.o unicode.o qemu-timer-common.o
+util-obj-y = osdep.o cutils.o unicode.o qemu-timer-common.o env.o
 util-obj-$(call lnot,$(CONFIG_ATOMIC64)) += atomic64.o
 util-obj-$(CONFIG_POSIX) += aio-posix.o
 util-obj-$(CONFIG_POSIX) += fdmon-poll.o
