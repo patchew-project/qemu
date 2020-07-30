@@ -137,6 +137,7 @@ static time_t rtc_ref_start_datetime;
 static int rtc_realtime_clock_offset; /* used only with QEMU_CLOCK_REALTIME */
 static int rtc_host_datetime_offset = -1; /* valid & used only with
                                              RTC_BASE_DATETIME */
+int start_on_wake;
 QEMUClockType rtc_clock;
 int vga_interface_type = VGA_NONE;
 static DisplayOptions dpy;
@@ -602,6 +603,8 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_PRELAUNCH, RUN_STATE_RUNNING },
     { RUN_STATE_PRELAUNCH, RUN_STATE_FINISH_MIGRATE },
     { RUN_STATE_PRELAUNCH, RUN_STATE_INMIGRATE },
+    { RUN_STATE_PRELAUNCH, RUN_STATE_SUSPENDED },
+    { RUN_STATE_PRELAUNCH, RUN_STATE_PAUSED },
 
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_RUNNING },
     { RUN_STATE_FINISH_MIGRATE, RUN_STATE_PAUSED },
@@ -1519,7 +1522,17 @@ void qemu_system_wakeup_request(WakeupReason reason, Error **errp)
     if (!(wakeup_reason_mask & (1 << reason))) {
         return;
     }
-    runstate_set(RUN_STATE_RUNNING);
+
+    /*
+     * Must call vm_start if it has never been called, to invoke the state
+     * change callbacks for the first time.
+     */
+    if (start_on_wake) {
+        start_on_wake = 0;
+        vm_start();
+    } else {
+        runstate_set(RUN_STATE_RUNNING);
+    }
     wakeup_reason = reason;
     qemu_notify_event();
 }

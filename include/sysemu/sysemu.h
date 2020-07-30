@@ -25,6 +25,7 @@ void qemu_add_machine_init_done_notifier(Notifier *notify);
 void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 void save_cpr_snapshot(const char *file, const char *mode, Error **errp);
+void load_cpr_snapshot(const char *file, Error **errp);
 
 extern int autostart;
 
@@ -53,6 +54,7 @@ extern uint8_t *boot_splash_filedata;
 extern bool enable_mlock;
 extern bool enable_cpu_pm;
 extern QEMUClockType rtc_clock;
+extern int start_on_wake;
 
 #define MAX_OPTION_ROMS 16
 typedef struct QEMUOptionRom {

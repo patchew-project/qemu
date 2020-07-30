@@ -1635,3 +1635,14 @@
 ##
 { 'command': 'cprsave', 'data': { 'file': 'str', 'mode': 'str' } }
 
+##
+# @cprload:
+#
+# Start virtual machine from checkpoint file that was created earlier using
+# the cprsave command.
+#
+# @file: name of checkpoint file
+#
+# Since 5.0
+##
+{ 'command': 'cprload', 'data': { 'file': 'str' } }

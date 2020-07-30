@@ -2975,6 +2975,40 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     migration_incoming_state_destroy();
 }
 
+void load_cpr_snapshot(const char *file, Error **errp)
+{
+    QEMUFile *f;
+    int ret;
+    RunState state;
+
+    if (runstate_is_running()) {
+        error_setg(errp, "cprload called for a running VM");
+        return;
+    }
+
+    f = qf_file_open(file, O_RDONLY, 0, errp);
+    if (!f) {
+        return;
+    }
+
+    ret = qemu_loadvm_state(f, VMS_REBOOT);
+    qemu_fclose(f);
+    if (ret < 0) {
+        error_setg(errp, "Error %d while loading VM state", ret);
+        return;
+    }
+
+    state = global_state_get_runstate();
+    if (state == RUN_STATE_RUNNING) {
+        vm_start();
+    } else {
+        runstate_set(state);
+        if (runstate_check(RUN_STATE_SUSPENDED)) {
+            start_on_wake = 1;
+        }
+    }
+}
+
 int load_snapshot(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs_vm_state;

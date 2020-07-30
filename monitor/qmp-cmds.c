@@ -167,6 +167,11 @@ void qmp_cprsave(const char *file, const char *mode, Error **errp)
     save_cpr_snapshot(file, mode, errp);
 }
 
+void qmp_cprload(const char *file, Error **errp)
+{
+    load_cpr_snapshot(file, errp);
+}
+
 void qmp_system_wakeup(Error **errp)
 {
     if (!qemu_wakeup_suspend_enabled()) {
