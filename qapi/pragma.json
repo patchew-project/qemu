@@ -5,6 +5,7 @@
 { 'pragma': {
     # Commands allowed to return a non-dictionary:
     'returns-whitelist': [
+        'cprinfo',
         'human-monitor-command',
         'qom-get',
         'query-migrate-cache-size',

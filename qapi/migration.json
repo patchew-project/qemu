@@ -1623,6 +1623,15 @@
   'data': { 'device-id': 'str' } }
 
 ##
+# @cprinfo:
+#
+# Return a space-delimited list of modes supported by the cprsave command
+#
+# Since 5.0
+##
+{ 'command': 'cprinfo', 'returns': 'str' }
+
+##
 # @cprsave:
 #
 # Create a checkpoint of the virtual machine device state in @file.
