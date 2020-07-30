@@ -3795,6 +3795,7 @@ static SaveVMHandlers savevm_ram_handlers = {
     .load_setup = ram_load_setup,
     .load_cleanup = ram_load_cleanup,
     .resume_prepare = ram_resume_prepare,
+    .mode_mask = VMS_MIGRATE | VMS_SNAPSHOT,
 };
 
 void ram_mig_init(void)

@@ -1023,6 +1023,7 @@ static SaveVMHandlers savevm_block_handlers = {
     .load_state = block_load,
     .save_cleanup = block_migration_cleanup,
     .is_active = block_is_active,
+    .mode_mask = VMS_MIGRATE | VMS_SNAPSHOT,
 };
 
 void blk_mig_init(void)

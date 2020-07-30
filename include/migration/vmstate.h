@@ -161,6 +161,7 @@ typedef enum {
 typedef enum {
     VMS_MIGRATE  = (1U << 1),
     VMS_SNAPSHOT = (1U << 2),
+    VMS_REBOOT   = (1U << 3),
     VMS_MODE_ALL = ~0U
 } VMStateMode;
 

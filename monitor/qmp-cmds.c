@@ -35,6 +35,7 @@
 #include "qapi/qapi-commands-machine.h"
 #include "qapi/qapi-commands-misc.h"
 #include "qapi/qapi-commands-ui.h"
+#include "qapi/qapi-commands-migration.h"
 #include "qapi/qmp/qerror.h"
 #include "hw/mem/memory-device.h"
 #include "hw/acpi/acpi_dev_interface.h"
@@ -159,6 +160,11 @@ void qmp_cont(Error **errp)
     } else {
         vm_start();
     }
+}
+
+void qmp_cprsave(const char *file, const char *mode, Error **errp)
+{
+    save_cpr_snapshot(file, mode, errp);
 }
 
 void qmp_system_wakeup(Error **errp)

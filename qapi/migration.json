@@ -1621,3 +1621,17 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @cprsave:
+#
+# Create a checkpoint of the virtual machine device state in @file.
+# Guest RAM and guest block device blocks are not saved.
+#
+# @file: name of checkpoint file
+# @mode: 'reboot' : checkpoint can be cprload'ed after a host kexec reboot.
+#
+# Since 5.0
+##
+{ 'command': 'cprsave', 'data': { 'file': 'str', 'mode': 'str' } }
+

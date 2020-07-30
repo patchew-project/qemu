@@ -2707,6 +2707,65 @@ int qemu_load_device_state(QEMUFile *f)
     return 0;
 }
 
+static QEMUFile *qf_file_open(const char *filename, int flags, int mode,
+                              Error **errp)
+{
+    QIOChannel *ioc;
+    int fd = qemu_open(filename, flags, mode);
+
+    if (fd < 0) {
+        error_setg_errno(errp, errno, "%s(%s)", __func__, filename);
+        return NULL;
+    }
+
+    ioc = QIO_CHANNEL(qio_channel_file_new_fd(fd));
+
+    if (flags & O_WRONLY) {
+        return qemu_fopen_channel_output(ioc);
+    }
+
+    return qemu_fopen_channel_input(ioc);
+}
+
+void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
+{
+    int ret = 0;
+    QEMUFile *f;
+    VMStateMode op;
+
+    if (!strcmp(mode, "reboot")) {
+        op = VMS_REBOOT;
+    } else {
+        error_setg(errp, "cprsave: bad mode %s", mode);
+        return;
+    }
+
+    f = qf_file_open(file, O_CREAT | O_WRONLY | O_TRUNC, 0600, errp);
+    if (!f) {
+        return;
+    }
+
+    ret = global_state_store();
+    if (ret) {
+        error_setg(errp, "Error saving global state");
+        qemu_fclose(f);
+        return;
+    }
+
+    vm_stop(RUN_STATE_SAVE_VM);
+
+    ret = qemu_savevm_state(f, op, errp);
+    if ((ret < 0) && !*errp) {
+        error_setg(errp, "qemu_savevm_state failed");
+    }
+    qemu_fclose(f);
+
+    if (op == VMS_REBOOT) {
+        no_shutdown = 0;
+        qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    }
+}
+
 int save_snapshot(const char *name, Error **errp)
 {
     BlockDriverState *bs, *bs1;
