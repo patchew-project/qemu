@@ -2715,6 +2715,90 @@ static void vfio_unregister_req_notifier(VFIOPCIDevice *vdev)
     vdev->req_enabled = false;
 }
 
+/* To limit output, trace only this many bytes of config. */
+#define CONFIG_LEN 512
+
+static void vfio_dump_config(const char *name, int fd, off_t offset)
+{
+    int i, j, n, config[CONFIG_LEN / 4];
+    char buf[128];
+    const char *fmt;
+    char *ptr = buf;
+    int *v = config;
+    int len = sizeof(buf) - 1;
+
+#ifdef CONFIG_TRACE_DTRACE
+    if (!QEMU_VFIO_PCI_CONFIG_ENABLED()) {
+        return;
+    }
+#endif
+
+    if (pread(fd, &config, sizeof(config), offset) < 0) {
+        perror("pread");
+        return;
+    }
+
+    trace_vfio_pci_config(name);
+
+    for (i = 0; i < CONFIG_LEN; i += 32, v += 8) {
+        n = snprintf(buf, len, "+%3d:", i);
+        ptr += n;
+        len -= n;
+        for (j = 0; j < 8; j++) {
+            fmt = v[j] ?  " %08x" : " %8x";
+            n = snprintf(ptr, len, fmt, v[j]);
+            ptr += n;
+            len -= n;
+        }
+        *ptr = 0;   /* terminate in case of truncation above */
+        trace_vfio_pci_config(buf);
+    }
+}
+
+static void vfio_dump_config_vdev(VFIOPCIDevice *vdev)
+{
+    vfio_dump_config(vdev->vbasedev.name, vdev->vbasedev.fd,
+                     vdev->config_offset);
+}
+
+static void vfio_dump_msix_vdev(VFIOPCIDevice *vdev)
+{
+    int i;
+    int *ptr = (int *) vdev->pdev.msix_table;
+
+    for (i = 0; i < vdev->pdev.msix_entries_nr; i++, ptr += 4) {
+        trace_vfio_msix_table(vdev->vbasedev.name, i,
+                              ptr[0], ptr[1], ptr[2], ptr[3]);
+    }
+}
+
+static void vfio_diff_config(VFIOPCIDevice *vdev)
+{
+    int i;
+    unsigned char config[CONFIG_LEN];
+    int n = sizeof(config);
+    unsigned char *c1 = (unsigned char *)config;
+    unsigned char *c2 = (unsigned char *)vdev->pdev.config;
+    char buf[128];
+
+#ifdef CONFIG_TRACE_DTRACE
+    if (!QEMU_VFIO_PCI_CONFIG_ENABLED()) {
+        return;
+    }
+#endif
+
+    if (pread(vdev->vbasedev.fd, &config, n, vdev->config_offset) != n) {
+        error_report("vfio_diff_config pread failed");
+    }
+    for (i = 0; i < CONFIG_LEN; i++) {
+        if (c1[i] != c2[i]) {
+            snprintf(buf, sizeof(buf),
+                     "config mismatch at %d: %x vs %x", i, c1[i], c2[i]);
+            trace_vfio_pci_config(buf);
+        }
+    }
+}
+
 static void vfio_realize(PCIDevice *pdev, Error **errp)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(pdev);
@@ -3037,6 +3121,9 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     if (pdev->reused) {
         pci_update_mappings(pdev);
     }
+    vfio_diff_config(vdev);
+    vfio_dump_config_vdev(vdev);
+    vfio_dump_msix_vdev(vdev);
 
     return;
 
@@ -3207,6 +3294,15 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int vfio_pci_pre_save(void *opaque)
+{
+    VFIOPCIDevice *vdev = opaque;
+
+    vfio_dump_config_vdev(vdev);
+    vfio_dump_msix_vdev(vdev);
+    return 0;
+}
+
 static int vfio_pci_post_load(void *opaque, int version_id)
 {
     int vector;
@@ -3225,6 +3321,8 @@ static int vfio_pci_post_load(void *opaque, int version_id)
                 vfio_msix_vector_use(pdev, vector, msg);
             }
         }
+
+        vfio_dump_msix_vdev(vdev);
 
     } else if (vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1)) {
         vfio_intx_enable(vdev, &err);
@@ -3246,6 +3344,7 @@ static const VMStateDescription vfio_pci_vmstate = {
     .version_id = 0,
     .minimum_version_id = 0,
     .post_load = vfio_pci_post_load,
+    .pre_save = vfio_pci_pre_save,
     .fields = (VMStateField[]) {
         VMSTATE_MSIX(pdev, VFIOPCIDevice),
         VMSTATE_END_OF_LIST()
