@@ -1139,6 +1139,16 @@ void hmp_announce_self(Monitor *mon, const QDict *qdict)
     qapi_free_AnnounceParameters(params);
 }
 
+void hmp_cprinfo(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+    char *res = qmp_cprinfo(&err);
+
+    monitor_printf(mon, "%s\n", res);
+    g_free(res);
+    hmp_handle_error(mon, err);
+}
+
 void hmp_cprsave(Monitor *mon, const QDict *qdict)
 {
     Error *err = NULL;

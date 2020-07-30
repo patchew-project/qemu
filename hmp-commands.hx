@@ -354,6 +354,19 @@ SRST
 ERST
 
     {
+        .name       = "cprinfo",
+        .args_type  = "",
+        .params     = "",
+        .help       = "return list of modes supported by cprsave",
+        .cmd        = hmp_cprinfo,
+    },
+
+SRST
+``cprinfo`` *tag*
+  Return a space-delimited list of modes supported by cprsave.
+ERST
+
+    {
         .name       = "cprsave",
         .args_type  = "file:s,mode:s",
         .params     = "file 'reboot'",
