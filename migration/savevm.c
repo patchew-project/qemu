@@ -266,6 +266,25 @@ static SaveState savevm_state = {
     .global_section_id = 0,
 };
 
+/*
+ * The FOREACH macros will filter handlers based on the current operation when
+ * additional conditions are added in a subsequent patch.
+ */
+
+#define SAVEVM_FOREACH(se, entry)                                    \
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry)                \
+
+#define SAVEVM_FOREACH_SAFE(se, entry, new_se)                       \
+    QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se)   \
+
+/* The FORALL macros unconditionally loop over all handlers. */
+
+#define SAVEVM_FORALL(se, entry)                                     \
+    QTAILQ_FOREACH(se, &savevm_state.handlers, entry)
+
+#define SAVEVM_FORALL_SAFE(se, entry, new_se)                        \
+    QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se)
+
 static bool should_validate_capability(int capability)
 {
     assert(capability >= 0 && capability < MIGRATION_CAPABILITY__MAX);
@@ -673,7 +692,7 @@ static uint32_t calculate_new_instance_id(const char *idstr)
     SaveStateEntry *se;
     uint32_t instance_id = 0;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FORALL(se, entry) {
         if (strcmp(idstr, se->idstr) == 0
             && instance_id <= se->instance_id) {
             instance_id = se->instance_id + 1;
@@ -689,7 +708,7 @@ static int calculate_compat_instance_id(const char *idstr)
     SaveStateEntry *se;
     int instance_id = 0;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FORALL(se, entry) {
         if (!se->compat) {
             continue;
         }
@@ -803,7 +822,7 @@ void unregister_savevm(VMStateIf *obj, const char *idstr, void *opaque)
     }
     pstrcat(id, sizeof(id), idstr);
 
-    QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
+    SAVEVM_FORALL_SAFE(se, entry, new_se) {
         if (strcmp(se->idstr, id) == 0 && se->opaque == opaque) {
             savevm_state_handler_remove(se);
             g_free(se->compat);
@@ -867,7 +886,7 @@ void vmstate_unregister(VMStateIf *obj, const VMStateDescription *vmsd,
 {
     SaveStateEntry *se, *new_se;
 
-    QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se) {
+    SAVEVM_FORALL_SAFE(se, entry, new_se) {
         if (se->vmsd == vmsd && se->opaque == opaque) {
             savevm_state_handler_remove(se);
             g_free(se->compat);
@@ -1119,7 +1138,7 @@ bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FORALL(se, entry) {
         if (se->vmsd && se->vmsd->unmigratable) {
             error_setg(errp, "State blocked by non-migratable device '%s'",
                        se->idstr);
@@ -1145,7 +1164,7 @@ bool qemu_savevm_state_guest_unplug_pending(void)
 {
     SaveStateEntry *se;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (se->vmsd && se->vmsd->dev_unplug_pending &&
             se->vmsd->dev_unplug_pending(se->opaque)) {
             return true;
@@ -1162,7 +1181,7 @@ void qemu_savevm_state_setup(QEMUFile *f)
     int ret;
 
     trace_savevm_state_setup();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops || !se->ops->save_setup) {
             continue;
         }
@@ -1193,7 +1212,7 @@ int qemu_savevm_state_resume_prepare(MigrationState *s)
 
     trace_savevm_state_resume_prepare();
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops || !se->ops->resume_prepare) {
             continue;
         }
@@ -1223,7 +1242,7 @@ int qemu_savevm_state_iterate(QEMUFile *f, bool postcopy)
     int ret = 1;
 
     trace_savevm_state_iterate();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops || !se->ops->save_live_iterate) {
             continue;
         }
@@ -1291,7 +1310,7 @@ void qemu_savevm_state_complete_postcopy(QEMUFile *f)
     SaveStateEntry *se;
     int ret;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops || !se->ops->save_live_complete_postcopy) {
             continue;
         }
@@ -1324,7 +1343,7 @@ int qemu_savevm_state_complete_precopy_iterable(QEMUFile *f, bool in_postcopy)
     SaveStateEntry *se;
     int ret;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops ||
             (in_postcopy && se->ops->has_postcopy &&
              se->ops->has_postcopy(se->opaque)) ||
@@ -1366,7 +1385,7 @@ int qemu_savevm_state_complete_precopy_non_iterable(QEMUFile *f,
     vmdesc = qjson_new();
     json_prop_int(vmdesc, "page_size", qemu_target_page_size());
     json_start_array(vmdesc, "devices");
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
 
         if ((!se->ops || !se->ops->save_state) && !se->vmsd) {
             continue;
@@ -1476,7 +1495,7 @@ void qemu_savevm_state_pending(QEMUFile *f, uint64_t threshold_size,
     *res_postcopy_only = 0;
 
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops || !se->ops->save_live_pending) {
             continue;
         }
@@ -1501,7 +1520,7 @@ void qemu_savevm_state_cleanup(void)
     }
 
     trace_savevm_state_cleanup();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (se->ops && se->ops->save_cleanup) {
             se->ops->save_cleanup(se->opaque);
         }
@@ -1580,7 +1599,7 @@ int qemu_save_device_state(QEMUFile *f)
     }
     cpu_synchronize_all_states();
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         int ret;
 
         if (se->is_ram) {
@@ -1612,7 +1631,7 @@ static SaveStateEntry *find_se(const char *idstr, uint32_t instance_id)
 {
     SaveStateEntry *se;
 
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FORALL(se, entry) {
         if (!strcmp(se->idstr, idstr) &&
             (instance_id == se->instance_id ||
              instance_id == se->alias_id))
@@ -2352,7 +2371,7 @@ qemu_loadvm_section_part_end(QEMUFile *f, MigrationIncomingState *mis)
     }
 
     trace_qemu_loadvm_state_section_partend(section_id);
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (se->load_section_id == section_id) {
             break;
         }
@@ -2418,7 +2437,7 @@ static int qemu_loadvm_state_setup(QEMUFile *f)
     int ret;
 
     trace_loadvm_state_setup();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (!se->ops || !se->ops->load_setup) {
             continue;
         }
@@ -2443,7 +2462,7 @@ void qemu_loadvm_state_cleanup(void)
     SaveStateEntry *se;
 
     trace_loadvm_state_cleanup();
-    QTAILQ_FOREACH(se, &savevm_state.handlers, entry) {
+    SAVEVM_FOREACH(se, entry) {
         if (se->ops && se->ops->load_cleanup) {
             se->ops->load_cleanup(se->opaque);
         }
