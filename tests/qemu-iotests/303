@@ -57,3 +57,6 @@ add_bitmap(1, 1, 7, False)
 add_bitmap(2, 7, 9, True)
 dump = ['qcow2.py', f'{disk}', 'dump-header']
 subprocess.run(dump)
+# Dump the metadata in JSON format
+dump.append('-j')
+subprocess.run(dump)
