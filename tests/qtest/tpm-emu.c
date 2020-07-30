@@ -83,7 +83,7 @@ void *tpm_emu_ctrl_thread(void *data)
     g_cond_signal(&s->data_cond);
 
     qio_channel_wait(QIO_CHANNEL(lioc), G_IO_IN);
-    ioc = QIO_CHANNEL(qio_channel_socket_accept(lioc, &error_abort));
+    ioc = QIO_CHANNEL(qio_channel_socket_accept(lioc, -1, &error_abort));
     g_assert(ioc);
 
     {

@@ -352,7 +352,7 @@ void qio_channel_socket_dgram_async(QIOChannelSocket *ioc,
 
 QIOChannelSocket *
 qio_channel_socket_accept(QIOChannelSocket *ioc,
-                          Error **errp)
+                          int reuse_fd, Error **errp)
 {
     QIOChannelSocket *cioc;
 
@@ -362,8 +362,14 @@ qio_channel_socket_accept(QIOChannelSocket *ioc,
 
  retry:
     trace_qio_channel_socket_accept(ioc);
-    cioc->fd = qemu_accept(ioc->fd, (struct sockaddr *)&cioc->remoteAddr,
-                           &cioc->remoteAddrLen);
+
+    if (reuse_fd != -1) {
+        cioc->fd = reuse_fd;
+    } else {
+        cioc->fd = qemu_accept(ioc->fd, (struct sockaddr *)&cioc->remoteAddr,
+                               &cioc->remoteAddrLen);
+    }
+
     if (cioc->fd < 0) {
         if (errno == EINTR) {
             goto retry;

@@ -248,6 +248,7 @@ qio_channel_socket_get_remote_address(QIOChannelSocket *ioc,
 /**
  * qio_channel_socket_accept:
  * @ioc: the socket channel object
+ * @reuse_fd: fd to reuse; -1 otherwise
  * @errp: pointer to a NULL-initialized error object
  *
  * If the socket represents a server, then this accepts
@@ -258,7 +259,7 @@ qio_channel_socket_get_remote_address(QIOChannelSocket *ioc,
  */
 QIOChannelSocket *
 qio_channel_socket_accept(QIOChannelSocket *ioc,
-                          Error **errp);
+                          int reuse_fd, Error **errp);
 
 
 #endif /* QIO_CHANNEL_SOCKET_H */

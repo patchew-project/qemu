@@ -800,7 +800,7 @@ static gboolean accept_client(QIOChannel *ioc, GIOCondition cond, gpointer opaqu
     PRHelperClient *prh;
 
     cioc = qio_channel_socket_accept(QIO_CHANNEL_SOCKET(ioc),
-                                     NULL);
+                                     -1, NULL);
     if (!cioc) {
         return TRUE;
     }

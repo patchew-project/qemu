@@ -884,7 +884,7 @@ char_socket_client_server_thread(gpointer data)
     QIOChannelSocket *cioc;
 
 retry:
-    cioc = qio_channel_socket_accept(ioc, &error_abort);
+    cioc = qio_channel_socket_accept(ioc, -1, &error_abort);
     g_assert_nonnull(cioc);
 
     if (char_socket_ping_pong(QIO_CHANNEL(cioc), NULL) != 0) {
