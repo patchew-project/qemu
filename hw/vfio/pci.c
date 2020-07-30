@@ -49,6 +49,7 @@
 
 static void vfio_disable_interrupts(VFIOPCIDevice *vdev);
 static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled);
+static const VMStateDescription vfio_pci_vmstate;
 
 /*
  * Disabling BAR mmaping can be slow, but toggling it around INTx can
@@ -1585,6 +1586,14 @@ static void vfio_mmap_set_enabled(VFIOPCIDevice *vdev, bool enabled)
     }
 }
 
+static void vfio_config_sync(VFIOPCIDevice *vdev, uint32_t offset, size_t len)
+{
+    if (pread(vdev->vbasedev.fd, vdev->pdev.config + offset, len,
+          vdev->config_offset + offset) != len) {
+        error_report("vfio_config_sync pread failed");
+    }
+}
+
 static void vfio_bar_prepare(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
@@ -1626,6 +1635,7 @@ static void vfio_bar_register(VFIOPCIDevice *vdev, int nr)
 {
     VFIOBAR *bar = &vdev->bars[nr];
     char *name;
+    PCIDevice *pdev = &vdev->pdev;
 
     if (!bar->size) {
         return;
@@ -1646,6 +1656,9 @@ static void vfio_bar_register(VFIOPCIDevice *vdev, int nr)
     }
 
     pci_register_bar(&vdev->pdev, nr, bar->type, bar->mr);
+    if (pdev->reused) {
+        vfio_config_sync(vdev, pci_bar(pdev, nr), 8);
+    }
 }
 
 static void vfio_bars_register(VFIOPCIDevice *vdev)
@@ -2805,7 +2818,8 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
         goto error;
     }
 
-    ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev, errp);
+    ret = vfio_get_device(group, vdev->vbasedev.name, &vdev->vbasedev,
+                          &pdev->reused, errp);
     if (ret) {
         vfio_put_group(group);
         goto error;
@@ -2972,9 +2986,11 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
                                              vfio_intx_routing_notifier);
         vdev->irqchip_change_notifier.notify = vfio_irqchip_change;
         kvm_irqchip_add_change_notifier(&vdev->irqchip_change_notifier);
-        ret = vfio_intx_enable(vdev, errp);
-        if (ret) {
-            goto out_deregister;
+        if (!pdev->reused) {
+            ret = vfio_intx_enable(vdev, errp);
+            if (ret) {
+                goto out_deregister;
+            }
         }
     }
 
@@ -3016,6 +3032,11 @@ static void vfio_realize(PCIDevice *pdev, Error **errp)
     vfio_register_err_notifier(vdev);
     vfio_register_req_notifier(vdev);
     vfio_setup_resetfn_quirk(vdev);
+
+    vfio_config_sync(vdev, pdev->msix_cap + PCI_MSIX_FLAGS, 2);
+    if (pdev->reused) {
+        pci_update_mappings(pdev);
+    }
 
     return;
 
@@ -3079,6 +3100,10 @@ static void vfio_exitfn(PCIDevice *pdev)
 static void vfio_pci_reset(DeviceState *dev)
 {
     VFIOPCIDevice *vdev = PCI_VFIO(dev);
+
+    if (vdev->pdev.reused) {
+        return;
+    }
 
     trace_vfio_pci_reset(vdev->vbasedev.name);
 
@@ -3182,6 +3207,51 @@ static Property vfio_pci_dev_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static int vfio_pci_post_load(void *opaque, int version_id)
+{
+    int vector;
+    MSIMessage msg;
+    Error *err = 0;
+    VFIOPCIDevice *vdev = opaque;
+    PCIDevice *pdev = &vdev->pdev;
+
+    if (msix_enabled(pdev)) {
+        vfio_msix_enable(vdev);
+        pdev->msix_function_masked = false;
+
+        for (vector = 0; vector < vdev->pdev.msix_entries_nr; vector++) {
+            if (!msix_is_masked(pdev, vector)) {
+                msg = msix_get_message(pdev, vector);
+                vfio_msix_vector_use(pdev, vector, msg);
+            }
+        }
+
+    } else if (vfio_pci_read_config(pdev, PCI_INTERRUPT_PIN, 1)) {
+        vfio_intx_enable(vdev, &err);
+        if (err) {
+            error_report_err(err);
+        }
+    }
+
+    vdev->vbasedev.group->container->reused = false;
+    vdev->pdev.reused = false;
+
+    return 0;
+}
+
+static const VMStateDescription vfio_pci_vmstate = {
+    .name = "vfio-pci",
+    .unmigratable = 1,
+    .mode_mask = VMS_RESTART,
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .post_load = vfio_pci_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_MSIX(pdev, VFIOPCIDevice),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
@@ -3189,6 +3259,7 @@ static void vfio_pci_dev_class_init(ObjectClass *klass, void *data)
 
     dc->reset = vfio_pci_reset;
     device_class_set_props(dc, vfio_pci_dev_properties);
+    dc->vmsd = &vfio_pci_vmstate;
     dc->desc = "VFIO-based PCI device assignment";
     set_bit(DEVICE_CATEGORY_MISC, dc->categories);
     pdc->realize = vfio_realize;
