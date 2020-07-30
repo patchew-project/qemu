@@ -354,6 +354,24 @@ SRST
 ERST
 
     {
+        .name       = "cprsave",
+        .args_type  = "file:s,mode:s",
+        .params     = "file 'reboot'",
+        .help       = "create a checkpoint of the VM in file",
+        .cmd        = hmp_cprsave,
+    },
+
+SRST
+``cprsave`` *tag*
+  Stop VCPUs, create a checkpoint of the whole virtual machine and save it
+  in *file*.
+  If *mode* is 'reboot', the checkpoint can be cprload'ed after a host kexec
+  reboot.
+  exec() /usr/bin/qemu-exec if it exists, else exec /usr/bin/qemu-system-x86_64,
+  passing all the original command line arguments.  The VCPUs remain paused.
+ERST
+
+    {
         .name       = "delvm",
         .args_type  = "name:s",
         .params     = "tag",
