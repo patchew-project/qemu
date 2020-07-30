@@ -119,6 +119,9 @@ class Qcow2Struct(metaclass=Qcow2StructMeta):
 
             print('{:<25} {}'.format(f[2], value_str))
 
+    def to_dict(self):
+        return dict((f[2], self.__dict__[f[2]]) for f in self.fields)
+
 
 class Qcow2BitmapExt(Qcow2Struct):
 
@@ -150,6 +153,11 @@ class Qcow2BitmapExt(Qcow2Struct):
         for entry in self.bitmap_directory:
             print()
             entry.dump()
+
+    def to_dict(self):
+        fields_dict = super().to_dict()
+        fields_dict['bitmap_directory'] = self.bitmap_directory
+        return fields_dict
 
 
 class Qcow2BitmapDirEntry(Qcow2Struct):
@@ -189,6 +197,14 @@ class Qcow2BitmapDirEntry(Qcow2Struct):
         super(Qcow2BitmapDirEntry, self).dump()
         self.bitmap_table.dump()
 
+    def to_dict(self):
+        fields_dict = super().to_dict()
+        fields_dict['bitmap_table'] = self.bitmap_table.entries
+        bmp_name = dict(name=self.name)
+        # Put the name ahead of the dict
+        bme_dict = {**bmp_name, **fields_dict}
+        return bme_dict
+
 
 class Qcow2BitmapTableEntry(Qcow2Struct):
 
@@ -213,6 +229,9 @@ class Qcow2BitmapTableEntry(Qcow2Struct):
             self.type = 'all-ones'
         else:
             self.type = 'all-zeroes'
+
+    def to_dict(self):
+        return dict(type=self.type, offset=self.offset, reserved=self.reserved)
 
 
 class Qcow2BitmapTable:
@@ -245,6 +264,9 @@ class QcowHeaderExtension(Qcow2Struct):
             QCOW2_EXT_MAGIC_BITMAPS: 'Bitmaps',
             0x44415441: 'Data file'
         }
+
+        def to_dict(self):
+            return self.mapping.get(self.value, "<unknown>")
 
     fields = (
         ('u32', Magic, 'magic'),
@@ -307,6 +329,18 @@ class QcowHeaderExtension(Qcow2Struct):
             print(f'{"data":<25} {self.data_str}')
         else:
             self.obj.dump()
+
+    def to_dict(self):
+        fields_dict = super().to_dict()
+        ext_name = dict(name=self.Magic(self.magic))
+        # Put the name ahead of the dict
+        he_dict = {**ext_name, **fields_dict}
+        if self.obj is not None:
+            he_dict['data'] = self.obj
+        else:
+            he_dict['data_str'] = self.data_str
+
+        return he_dict
 
     @classmethod
     def create(cls, magic, data):
