@@ -27,6 +27,7 @@ void qemu_remove_machine_init_done_notifier(Notifier *notify);
 
 void save_cpr_snapshot(const char *file, const char *mode, Error **errp);
 void load_cpr_snapshot(const char *file, Error **errp);
+void save_chardev_fds(void);
 
 extern int autostart;
 

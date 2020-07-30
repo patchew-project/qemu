@@ -2727,6 +2727,12 @@ static QEMUFile *qf_file_open(const char *filename, int flags, int mode,
     return qemu_fopen_channel_input(ioc);
 }
 
+static int preserve_fd(const char *name, const char *val, void *handle)
+{
+    qemu_clr_cloexec(atoi(val));
+    return 0;
+}
+
 void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
 {
     int ret = 0;
@@ -2788,6 +2794,8 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
         if (qemu_preserve_ram(errp)) {
             return;
         }
+        save_chardev_fds();
+        walkenv(FD_PREFIX, preserve_fd, 0);
         qemu_system_exec_request();
         putenv((char *)"QEMU_START_FREEZE=");
     }

@@ -36,6 +36,8 @@
 #include "qapi/qapi-visit-sockets.h"
 
 #include "chardev/char-io.h"
+#include "sysemu/sysemu.h"
+#include "qemu/cutils.h"
 
 /***********************************************************/
 /* TCP Net console */
@@ -400,6 +402,7 @@ static void tcp_chr_free_connection(Chardev *chr)
     SocketChardev *s = SOCKET_CHARDEV(chr);
     int i;
 
+    unsetenv_fd(chr->label);
     if (s->read_msgfds_num) {
         for (i = 0; i < s->read_msgfds_num; i++) {
             close(s->read_msgfds[i]);
@@ -1375,6 +1378,9 @@ static void qmp_chardev_open_socket(Chardev *chr,
             return;
         }
     }
+
+    load_char_socket_fd(chr);
+
 }
 
 static void qemu_chr_parse_socket(QemuOpts *opts, ChardevBackend *backend,
@@ -1517,3 +1523,32 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+void save_char_socket_fd(Chardev *chr)
+{
+    SocketChardev *sockchar = SOCKET_CHARDEV(chr);
+
+    if (sockchar->sioc) {
+        setenv_fd(chr->label, sockchar->sioc->fd);
+    }
+}
+
+void load_char_socket_fd(Chardev *chr)
+{
+    SocketChardev *sockchar;
+    QIOChannelSocket *sioc;
+
+    int fd = getenv_fd(chr->label);
+
+    if (fd != -1) {
+        unsetenv_fd(chr->label);
+        sockchar = SOCKET_CHARDEV(chr);
+        sioc = qio_channel_socket_accept(*sockchar->listener->sioc, fd, NULL);
+        if (sioc) {
+            tcp_chr_accept(sockchar->listener, sioc, chr);
+        } else {
+            error_printf("error: could not restore socket for %s\n",
+                         chr->label);
+        }
+    }
+}

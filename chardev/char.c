@@ -34,6 +34,7 @@
 #include "qapi/qapi-commands-char.h"
 #include "qapi/qmp/qerror.h"
 #include "sysemu/replay.h"
+#include "sysemu/sysemu.h"
 #include "qemu/help_option.h"
 #include "qemu/module.h"
 #include "qemu/option.h"
@@ -1174,3 +1175,16 @@ static void register_types(void)
 }
 
 type_init(register_types);
+
+static int chardev_is_socket(Object *child, void *opaque)
+{
+    if (CHARDEV_IS_SOCKET(child)) {
+        save_char_socket_fd((Chardev *) child);
+    }
+    return 0;
+}
+
+void save_chardev_fds(void)
+{
+    object_child_foreach(get_chardevs_root(), chardev_is_socket, NULL);
+}

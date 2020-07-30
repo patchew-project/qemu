@@ -250,6 +250,8 @@ int qemu_chr_wait_connected(Chardev *chr, Error **errp);
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_RINGBUF)
 #define CHARDEV_IS_PTY(chr) \
     object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_PTY)
+#define CHARDEV_IS_SOCKET(chr) \
+    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_SOCKET)
 
 typedef struct ChardevClass {
     ObjectClass parent_class;
@@ -289,5 +291,8 @@ GSource *qemu_chr_timeout_add_ms(Chardev *chr, guint ms,
 
 /* console.c */
 void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
+
+void save_char_socket_fd(Chardev *);
+void load_char_socket_fd(Chardev *);
 
 #endif
