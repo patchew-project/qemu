@@ -243,6 +243,13 @@ use the QEMU command line:
 
     -object memory-backend-file,id=nv_mem,mem-path=/XXX/yyy,size=4G,pmem=on
 
+At the end of live migration, QEMU uses msync() to flush the data to the
+backend storage. When the backend file is a character device dax, the pages
+explicitly avoid the page cache. It will return failure from msync().
+So we add 'pmem=on' to avoid calling msync(), use the QEMU command line:
+
+    -object memory-backend-file,id=mem1,pmem=on,mem-path=/dev/dax0.0,size=4G
+
 References
 ----------
 
