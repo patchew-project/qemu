@@ -2740,6 +2740,10 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
         return;
     }
 
+    if (op == VMS_REBOOT && qemu_ram_volatile(errp)) {
+        return;
+    }
+
     f = qf_file_open(file, O_CREAT | O_WRONLY | O_TRUNC, 0600, errp);
     if (!f) {
         return;

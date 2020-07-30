@@ -2519,6 +2519,8 @@ bool ram_block_discard_is_disabled(void);
  */
 bool ram_block_discard_is_required(void);
 
+bool qemu_ram_volatile(Error **errp);
+
 #endif
 
 #endif
