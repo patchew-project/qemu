@@ -50,6 +50,7 @@
 #include "qom/object_interfaces.h"
 #include "qemu/cutils.h"
 #include "io/dns-resolver.h"
+#include "sysemu/sysemu.h"
 
 #define VNC_REFRESH_INTERVAL_BASE GUI_REFRESH_INTERVAL_DEFAULT
 #define VNC_REFRESH_INTERVAL_INC  50
@@ -2214,28 +2215,34 @@ static void set_pixel_format(VncState *vs, int bits_per_pixel,
     graphic_hw_update(vs->vd->dcl.con);
 }
 
-static void pixel_format_message (VncState *vs) {
+/*
+ * reuse - true if we are using an existing (already initialized)
+ * connection to a vnc client
+ */
+static void pixel_format_message(VncState *vs, bool reuse)
+{
     char pad[3] = { 0, 0, 0 };
 
     vs->client_pf = qemu_default_pixelformat(32);
 
-    vnc_write_u8(vs, vs->client_pf.bits_per_pixel); /* bits-per-pixel */
-    vnc_write_u8(vs, vs->client_pf.depth); /* depth */
+    if (!reuse) {
+        vnc_write_u8(vs, vs->client_pf.bits_per_pixel); /* bits-per-pixel */
+        vnc_write_u8(vs, vs->client_pf.depth); /* depth */
 
 #ifdef HOST_WORDS_BIGENDIAN
-    vnc_write_u8(vs, 1);             /* big-endian-flag */
+        vnc_write_u8(vs, 1);             /* big-endian-flag */
 #else
-    vnc_write_u8(vs, 0);             /* big-endian-flag */
+        vnc_write_u8(vs, 0);             /* big-endian-flag */
 #endif
-    vnc_write_u8(vs, 1);             /* true-color-flag */
-    vnc_write_u16(vs, vs->client_pf.rmax);     /* red-max */
-    vnc_write_u16(vs, vs->client_pf.gmax);     /* green-max */
-    vnc_write_u16(vs, vs->client_pf.bmax);     /* blue-max */
-    vnc_write_u8(vs, vs->client_pf.rshift);    /* red-shift */
-    vnc_write_u8(vs, vs->client_pf.gshift);    /* green-shift */
-    vnc_write_u8(vs, vs->client_pf.bshift);    /* blue-shift */
-    vnc_write(vs, pad, 3);           /* padding */
-
+        vnc_write_u8(vs, 1);             /* true-color-flag */
+        vnc_write_u16(vs, vs->client_pf.rmax);     /* red-max */
+        vnc_write_u16(vs, vs->client_pf.gmax);     /* green-max */
+        vnc_write_u16(vs, vs->client_pf.bmax);     /* blue-max */
+        vnc_write_u8(vs, vs->client_pf.rshift);    /* red-shift */
+        vnc_write_u8(vs, vs->client_pf.gshift);    /* green-shift */
+        vnc_write_u8(vs, vs->client_pf.bshift);    /* blue-shift */
+        vnc_write(vs, pad, 3);           /* padding */
+    }
     vnc_hextile_set_pixel_conversion(vs, 0);
     vs->write_pixels = vnc_write_pixels_copy;
 }
@@ -2252,7 +2259,7 @@ static void vnc_colordepth(VncState *vs)
                                pixman_image_get_width(vs->vd->server),
                                pixman_image_get_height(vs->vd->server),
                                VNC_ENCODING_WMVi);
-        pixel_format_message(vs);
+        pixel_format_message(vs, false);
         vnc_unlock_output(vs);
         vnc_flush(vs);
     } else {
@@ -2420,7 +2427,8 @@ static int protocol_client_msg(VncState *vs, uint8_t *data, size_t len)
     return 0;
 }
 
-static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
+static int protocol_client_init_base(VncState *vs, uint8_t *data, size_t len,
+                                     bool reuse)
 {
     char buf[1024];
     VncShareMode mode;
@@ -2495,10 +2503,11 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
            pixman_image_get_height(vs->vd->server) >= 0);
     vs->client_width = pixman_image_get_width(vs->vd->server);
     vs->client_height = pixman_image_get_height(vs->vd->server);
-    vnc_write_u16(vs, vs->client_width);
-    vnc_write_u16(vs, vs->client_height);
-
-    pixel_format_message(vs);
+    if (!reuse) {
+        vnc_write_u16(vs, vs->client_width);
+        vnc_write_u16(vs, vs->client_height);
+    }
+    pixel_format_message(vs, reuse);
 
     if (qemu_name) {
         size = snprintf(buf, sizeof(buf), "QEMU (%s)", qemu_name);
@@ -2509,9 +2518,11 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
         size = snprintf(buf, sizeof(buf), "QEMU");
     }
 
-    vnc_write_u32(vs, size);
-    vnc_write(vs, buf, size);
-    vnc_flush(vs);
+    if (!reuse) {
+        vnc_write_u32(vs, size);
+        vnc_write(vs, buf, size);
+        vnc_flush(vs);
+    }
 
     vnc_client_cache_auth(vs);
     vnc_qmp_event(vs, QAPI_EVENT_VNC_INITIALIZED);
@@ -2519,6 +2530,11 @@ static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
     vnc_read_when(vs, protocol_client_msg, 1);
 
     return 0;
+}
+
+static int protocol_client_init(VncState *vs, uint8_t *data, size_t len)
+{
+    return protocol_client_init_base(vs, data, len, false);
 }
 
 void start_client_init(VncState *vs)
@@ -3012,8 +3028,12 @@ static void vnc_refresh(DisplayChangeListener *dcl)
     }
 }
 
+/*
+ * reuse - true if we are using an existing (already initialized)
+ * connection to a vnc client
+ */
 static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
-                        bool skipauth, bool websocket)
+                        bool skipauth, bool websocket, bool reuse)
 {
     VncState *vs = g_new0(VncState, 1);
     bool first_client = QTAILQ_EMPTY(&vd->clients);
@@ -3109,8 +3129,13 @@ static void vnc_connect(VncDisplay *vd, QIOChannelSocket *sioc,
 
     graphic_hw_update(vd->dcl.con);
 
-    if (!vs->websocket) {
+    if ((!vs->websocket) && !reuse) {
         vnc_start_protocol(vs);
+    }
+
+    if (reuse) {
+        uint8_t data[1] = {0};
+        (void) protocol_client_init_base(vs, data, sizeof(data), true);
     }
 
     if (vd->num_connecting > vd->connections_limit) {
@@ -3143,7 +3168,7 @@ static void vnc_listen_io(QIONetListener *listener,
     qio_channel_set_name(QIO_CHANNEL(cioc),
                          isWebsock ? "vnc-ws-server" : "vnc-server");
     qio_channel_set_delay(QIO_CHANNEL(cioc), false);
-    vnc_connect(vd, cioc, false, isWebsock);
+    vnc_connect(vd, cioc, false, isWebsock, false);
 }
 
 static const DisplayChangeListenerOps dcl_ops = {
@@ -3733,7 +3758,7 @@ static int vnc_display_connect(VncDisplay *vd,
     if (qio_channel_socket_connect_sync(sioc, saddr[0], errp) < 0) {
         return -1;
     }
-    vnc_connect(vd, sioc, false, false);
+    vnc_connect(vd, sioc, false, false, false);
     object_unref(OBJECT(sioc));
     return 0;
 }
@@ -4057,7 +4082,7 @@ void vnc_display_add_client(const char *id, int csock, bool skipauth)
     sioc = qio_channel_socket_new_fd(csock, NULL);
     if (sioc) {
         qio_channel_set_name(QIO_CHANNEL(sioc), "vnc-server");
-        vnc_connect(vd, sioc, skipauth, false);
+        vnc_connect(vd, sioc, skipauth, false, false);
         object_unref(OBJECT(sioc));
     }
 }
@@ -4117,3 +4142,75 @@ static void vnc_register_config(void)
     qemu_add_opts(&qemu_vnc_opts);
 }
 opts_init(vnc_register_config);
+
+void save_vnc_fds(void)
+{
+    VncDisplay *vd;
+    VncState *vs;
+    int disp_num = 0;
+    char name[40];
+
+    QTAILQ_FOREACH(vd, &vnc_displays, next) {
+        QTAILQ_FOREACH(vs, &vd->clients, next) {
+            if (vs->sioc) {
+                snprintf(name, sizeof(name), "%s_%d", vs->sioc->parent.name,
+                         disp_num);
+                setenv_fd(name, vs->sioc->fd);
+                break;
+            }
+        }
+        disp_num++;
+    }
+}
+
+static void set_vnc_fd(char *name, QIOChannelSocket *cioc, VncDisplay *vd,
+                       bool isWebsock)
+{
+    VncState *vs;
+    QIOChannelSocket *sioc;
+
+    int fd = getenv_fd(name);
+    if (fd != -1) {
+        sioc = qio_channel_socket_accept(cioc, fd, NULL);
+        if (sioc) {
+            unsetenv_fd(name);
+            qio_channel_set_name(QIO_CHANNEL(sioc),
+                                 isWebsock ? "vnc-ws-server" : "vnc-server");
+
+            qio_channel_set_delay(QIO_CHANNEL(sioc), false);
+            vnc_connect(vd, sioc, false, isWebsock, true);
+            object_unref(OBJECT(sioc));
+
+            /* force update on all clients */
+            QTAILQ_FOREACH(vs, &vd->clients, next) {
+                vs->update = VNC_STATE_UPDATE_FORCE;
+            }
+        } else {
+            error_printf("Could not restore vnc channel %s; "
+                     "client must reconnect.\n", name);
+        }
+    }
+}
+
+void load_vnc_fds(void)
+{
+    VncDisplay *vd;
+    QIOChannelSocket *cioc = NULL;
+    int disp_num = 0;
+    char name[40];
+
+    QTAILQ_FOREACH(vd, &vnc_displays, next) {
+        if (vd->listener) {
+            cioc = *vd->listener->sioc;
+            snprintf(name, sizeof(name), "vnc-server_%d", disp_num);
+            set_vnc_fd(name, cioc, vd, false);
+        }
+
+        if (vd->wslistener) {
+            cioc = *vd->wslistener->sioc;
+            snprintf(name, sizeof(name), "vnc-ws-server_%d", disp_num);
+            set_vnc_fd(name, cioc, vd, true);
+        }
+        disp_num++;
+    }
+}

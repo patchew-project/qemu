@@ -2795,6 +2795,7 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
             return;
         }
         save_chardev_fds();
+        save_vnc_fds();
         walkenv(FD_PREFIX, preserve_fd, 0);
         qemu_system_exec_request();
         putenv((char *)"QEMU_START_FREEZE=");
@@ -3042,6 +3043,8 @@ void load_cpr_snapshot(const char *file, Error **errp)
             start_on_wake = 1;
         }
     }
+
+    load_vnc_fds();
 }
 
 int load_snapshot(const char *name, Error **errp)
