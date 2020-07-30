@@ -2746,6 +2746,16 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
         return;
     }
 
+    if (op == VMS_RESTART && QEMU_MADV_DOEXEC == QEMU_MADV_INVALID) {
+        error_setg(errp, "kernel does not support MADV_DOEXEC.");
+        return;
+    }
+
+    if (op == VMS_RESTART && xen_enabled()) {
+        error_setg(errp, "xen does not support cprsave restart");
+        return;
+    }
+
     f = qf_file_open(file, O_CREAT | O_WRONLY | O_TRUNC, 0600, errp);
     if (!f) {
         return;
@@ -2774,6 +2784,12 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
     if (op == VMS_REBOOT) {
         no_shutdown = 0;
         qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+    } else if (op == VMS_RESTART) {
+        if (qemu_preserve_ram(errp)) {
+            return;
+        }
+        qemu_system_exec_request();
+        putenv((char *)"QEMU_START_FREEZE=");
     }
 }
 

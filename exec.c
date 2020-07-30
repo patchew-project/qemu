@@ -2235,7 +2235,7 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
     Error *err = NULL;
     const char *name;
     void *addr;
-    size_t maxlen;
+    size_t len, maxlen;
 
     old_ram_size = last_ram_page();
 
@@ -2253,7 +2253,12 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
             }
         } else {
             name = memory_region_name(new_block->mr);
-            addr = phys_mem_alloc(maxlen, &new_block->mr->align, shared);
+            if (getenv_ram(name, &addr, &len)) {
+                assert(len == maxlen);
+            } else {
+                addr = phys_mem_alloc(maxlen, &new_block->mr->align, shared);
+                setenv_ram(name, addr, maxlen);
+            }
 
             if (!addr) {
                 error_setg_errno(errp, errno,
@@ -2498,6 +2503,8 @@ void qemu_ram_free(RAMBlock *block)
     if (!block) {
         return;
     }
+
+    unsetenv_ram(memory_region_name(block->mr));
 
     if (block->host) {
         ram_block_notify_remove(block->host, block->max_length);
@@ -2760,6 +2767,31 @@ bool qemu_ram_volatile(Error **errp)
     }
 
     rcu_read_unlock();
+    return ret;
+}
+
+static int preserve_ram(const char *name, const char *val, void *handle)
+{
+    void *addr;
+    size_t len;
+    Error **errp = handle;
+
+    getenv_ram(name, &addr, &len);
+    if (qemu_madvise(addr, len, QEMU_MADV_DOEXEC)) {
+        error_setg_errno(errp, errno,
+                         "MADV_DOEXEC failed on memory region %s", name);
+        return 1;
+    }
+    return 0;
+}
+
+
+int qemu_preserve_ram(Error **errp)
+{
+    int ret;
+    qemu_mutex_lock_ramlist();
+    ret = walkenv(ADDR_PREFIX, preserve_ram, errp);
+    qemu_mutex_unlock_ramlist();
     return ret;
 }
 

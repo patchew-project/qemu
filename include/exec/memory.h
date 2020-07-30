@@ -2521,6 +2521,8 @@ bool ram_block_discard_is_required(void);
 
 bool qemu_ram_volatile(Error **errp);
 
+int qemu_preserve_ram(Error **errp);
+
 #endif
 
 #endif
