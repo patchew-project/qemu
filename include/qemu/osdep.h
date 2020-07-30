@@ -454,10 +454,10 @@ void qemu_anon_ram_free(void *ptr, size_t size);
    /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
       Valgrind does not support alignments larger than 1 MiB,
       therefore we need special code which handles running on Valgrind. */
-#  define QEMU_VMALLOC_ALIGN (512 * 4096)
+#  define QEMU_VMALLOC_ALIGN (512 * 4096UL)
 #elif defined(__linux__) && defined(__s390x__)
    /* Use 1 MiB (segment size) alignment so gmap can be used by KVM. */
-#  define QEMU_VMALLOC_ALIGN (256 * 4096)
+#  define QEMU_VMALLOC_ALIGN (256 * 4096UL)
 #elif defined(__linux__) && defined(__sparc__)
 #include <sys/shm.h>
 #  define QEMU_VMALLOC_ALIGN MAX(qemu_real_host_page_size, SHMLBA)
