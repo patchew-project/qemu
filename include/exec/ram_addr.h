@@ -93,8 +93,8 @@ static inline unsigned long int ramblock_recv_bitmap_offset(void *host_addr,
 
 bool ramblock_is_pmem(RAMBlock *rb);
 
-long qemu_minrampagesize(void);
-long qemu_maxrampagesize(void);
+size_t qemu_minrampagesize(void);
+size_t qemu_maxrampagesize(void);
 
 /**
  * qemu_ram_alloc_from_file,
