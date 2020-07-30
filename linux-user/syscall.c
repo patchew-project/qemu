@@ -115,6 +115,7 @@
 #ifdef HAVE_DRM_H
 #include <libdrm/drm.h>
 #endif
+#include <linux/binfmts.h>
 #include "linux_loop.h"
 #include "uname.h"
 
@@ -7674,6 +7675,131 @@ static target_timer_t get_timer_id(abi_long arg)
     return timerid;
 }
 
+/* qemu_execve() Must return target values and target errnos.
+ *
+ * Although execve() is not an interruptible syscall it is
+ * a special case where we must use the safe_syscall wrapper:
+ * if we allow a signal to happen before we make the host
+ * syscall then we will 'lose' it, because at the point of
+ * execve the process leaves QEMU's control. So we use the
+ * safe syscall wrapper to ensure that we either take the
+ * signal as a guest signal, or else it does not happen
+ * before the execve completes and makes it the other
+ * program's problem.
+ */
+static abi_long qemu_execve(char *filename, char *argv[],
+                  char *envp[])
+{
+    char *i_arg = NULL, *i_name = NULL;
+    char **new_argp;
+    int argc, fd, ret, i, offset = 5;
+    char *cp;
+    char buf[BINPRM_BUF_SIZE];
+
+    /* normal execve case */
+    if (qemu_execve_path == NULL || *qemu_execve_path == 0) {
+        return get_errno(safe_execve(filename, argv, envp));
+    }
+
+    for (argc = 0; argv[argc] != NULL; argc++) {
+        /* nothing */ ;
+    }
+
+    fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        return get_errno(fd);
+    }
+
+    ret = read(fd, buf, BINPRM_BUF_SIZE);
+    if (ret == -1) {
+        close(fd);
+        return get_errno(ret);
+    }
+
+    /* if we have less than 2 bytes, we can guess it is not executable */
+    if (ret < 2) {
+        close(fd);
+        return -host_to_target_errno(ENOEXEC);
+    }
+
+    close(fd);
+
+    /* adapted from the kernel
+     * https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/tree/fs/binfmt_script.c
+     */
+    if ((buf[0] == '#') && (buf[1] == '!')) {
+        /*
+         * This section does the #! interpretation.
+         * Sorta complicated, but hopefully it will work.  -TYT
+         */
+
+        buf[BINPRM_BUF_SIZE - 1] = '\0';
+        cp = strchr(buf, '\n');
+        if (cp == NULL) {
+            cp = buf + BINPRM_BUF_SIZE - 1;
+        }
+        *cp = '\0';
+        while (cp > buf) {
+            cp--;
+            if ((*cp == ' ') || (*cp == '\t')) {
+                *cp = '\0';
+            } else {
+                break;
+            }
+        }
+        for (cp = buf + 2; (*cp == ' ') || (*cp == '\t'); cp++) {
+            /* nothing */ ;
+        }
+        if (*cp == '\0') {
+            return -ENOEXEC; /* No interpreter name found */
+        }
+        i_name = cp;
+        i_arg = NULL;
+        for ( ; *cp && (*cp != ' ') && (*cp != '\t'); cp++) {
+            /* nothing */ ;
+        }
+        while ((*cp == ' ') || (*cp == '\t')) {
+            *cp++ = '\0';
+        }
+        if (*cp) {
+            i_arg = cp;
+        }
+
+        if (i_arg) {
+            offset += 2;
+        } else {
+            offset += 1;
+        }
+    }
+
+    new_argp = alloca((argc + offset + 1) * sizeof(void *));
+
+    /* Copy the original arguments with offset */
+    for (i = 0; i < argc; i++) {
+        new_argp[i + offset] = argv[i];
+    }
+
+    new_argp[0] = strdup(qemu_execve_path);
+    new_argp[1] = strdup("--execve");
+    new_argp[2] = strdup(qemu_execve_path);
+    new_argp[3] = strdup("-0");
+    new_argp[offset] = filename;
+    new_argp[argc + offset] = NULL;
+
+    if (i_name) {
+        new_argp[4] = i_name;
+        new_argp[5] = i_name;
+
+        if (i_arg) {
+            new_argp[6] = i_arg;
+        }
+    } else {
+        new_argp[4] = argv[0];
+    }
+
+    return get_errno(safe_execve(qemu_execve_path, new_argp, envp));
+}
+
 static int target_to_host_cpu_mask(unsigned long *host_mask,
                                    size_t host_size,
                                    abi_ulong target_addr,
@@ -8023,17 +8149,7 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 
             if (!(p = lock_user_string(arg1)))
                 goto execve_efault;
-            /* Although execve() is not an interruptible syscall it is
-             * a special case where we must use the safe_syscall wrapper:
-             * if we allow a signal to happen before we make the host
-             * syscall then we will 'lose' it, because at the point of
-             * execve the process leaves QEMU's control. So we use the
-             * safe syscall wrapper to ensure that we either take the
-             * signal as a guest signal, or else it does not happen
-             * before the execve completes and makes it the other
-             * program's problem.
-             */
-            ret = get_errno(safe_execve(p, argp, envp));
+            ret = qemu_execve(p, argp, envp);
             unlock_user(p, arg1, 0);
 
             goto execve_end;
