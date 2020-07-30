@@ -29,6 +29,7 @@
 #include "sysemu/dma.h"
 #include "sysemu/tcg.h"
 #include "trace.h"
+#include "sysemu/sysemu.h"
 
 /* enabled until disconnected backend stabilizes */
 #define _VHOST_DEBUG 1
@@ -1772,4 +1773,15 @@ int vhost_net_set_backend(struct vhost_dev *hdev,
     }
 
     return -1;
+}
+
+void reset_vhost_devices(void)
+{
+    struct vhost_dev *dev;
+
+    QLIST_FOREACH(dev, &vhost_devices, entry) {
+        if (dev->vhost_ops->vhost_reset_device(dev) < 0) {
+            VHOST_OPS_DEBUG("vhost_reset_device failed");
+        }
+    }
 }
