@@ -33,6 +33,8 @@
 #include "qapi/qmp/qlist.h"
 #include "qapi/qmp/qstring.h"
 #include "trace.h"
+#include "qemu/env.h"
+#include "sysemu/sysemu.h"
 
 struct QMPRequest {
     /* Owner of the request */
@@ -398,6 +400,21 @@ static void monitor_qmp_setup_handlers_bh(void *opaque)
     monitor_list_append(&mon->common);
 }
 
+static void setenv_qmp(const char *name, bool val)
+{
+    setenv_bool(name, val);
+}
+
+static bool getenv_qmp(const char *name)
+{
+    bool ret = getenv_bool(name);
+    if (ret != -1) {
+        unsetenv_bool(name);
+        return ret;
+    }
+    return false;
+}
+
 void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
 {
     MonitorQMP *mon = g_new0(MonitorQMP, 1);
@@ -437,5 +454,30 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)
                                  monitor_qmp_read, monitor_qmp_event,
                                  NULL, &mon->common, NULL, true);
         monitor_list_append(&mon->common);
+    }
+
+    /*
+     * If a chr->label qmp env var is true, this is a restored qmp
+     * connection with capabilities negotiated.
+     */
+    if (getenv_qmp(chr->label) == true) {
+        mon->commands = &qmp_commands;
+    }
+}
+
+void save_qmp_negotiation_status(void)
+{
+    Monitor *mon;
+    MonitorQMP *qmp_mon;
+
+    QTAILQ_FOREACH(mon, &mon_list, entry) {
+        if (!monitor_is_qmp(mon)) {
+            continue;
+        }
+
+        qmp_mon = container_of(mon, MonitorQMP, common);
+        if (qmp_mon->commands == &qmp_commands) {
+            setenv_qmp(mon->chr.chr->label, true);
+        }
     }
 }

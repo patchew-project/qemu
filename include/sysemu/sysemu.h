@@ -30,6 +30,7 @@ void load_cpr_snapshot(const char *file, Error **errp);
 void save_chardev_fds(void);
 void save_vnc_fds(void);
 void load_vnc_fds(void);
+void save_qmp_negotiation_status(void);
 
 extern int autostart;
 

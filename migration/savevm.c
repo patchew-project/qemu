@@ -2797,6 +2797,7 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
         save_chardev_fds();
         save_vnc_fds();
         walkenv(FD_PREFIX, preserve_fd, 0);
+        save_qmp_negotiation_status();
         qemu_system_exec_request();
         putenv((char *)"QEMU_START_FREEZE=");
     }
