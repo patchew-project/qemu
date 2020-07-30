@@ -2756,6 +2756,11 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
         return;
     }
 
+    /* Update timers_state before saving.  Suspend did not so do. */
+    if (runstate_check(RUN_STATE_SUSPENDED)) {
+        cpu_disable_ticks();
+    }
+
     vm_stop(RUN_STATE_SAVE_VM);
 
     ret = qemu_savevm_state(f, op, errp);
