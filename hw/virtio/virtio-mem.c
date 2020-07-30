@@ -754,7 +754,7 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
 
     if (value < VIRTIO_MEM_MIN_BLOCK_SIZE) {
         error_setg(errp, "'%s' property has to be at least 0x%" PRIx32, name,
-                   VIRTIO_MEM_MIN_BLOCK_SIZE);
+                   (unsigned int)VIRTIO_MEM_MIN_BLOCK_SIZE);
         return;
     } else if (!is_power_of_2(value)) {
         error_setg(errp, "'%s' property has to be a power of two", name);
