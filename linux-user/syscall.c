@@ -115,6 +115,7 @@
 #ifdef HAVE_DRM_H
 #include <libdrm/drm.h>
 #endif
+#include <scsi/sg.h>
 #include "linux_loop.h"
 #include "uname.h"
 
