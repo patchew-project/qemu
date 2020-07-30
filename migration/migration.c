@@ -476,7 +476,7 @@ static void process_incoming_migration_co(void *opaque)
     postcopy_state_set(POSTCOPY_INCOMING_NONE);
     migrate_set_state(&mis->state, MIGRATION_STATUS_NONE,
                       MIGRATION_STATUS_ACTIVE);
-    ret = qemu_loadvm_state(mis->from_src_file);
+    ret = qemu_loadvm_state(mis->from_src_file, VMS_MIGRATE);
 
     ps = postcopy_state_get();
     trace_process_incoming_migration_co_end(ret, ps);
@@ -3425,7 +3425,7 @@ static void *migration_thread(void *opaque)
 
     object_ref(OBJECT(s));
     update_iteration_initial_status(s);
-
+    savevm_set_mode(VMS_MIGRATE);
     qemu_savevm_state_header(s->to_dst_file);
 
     /*

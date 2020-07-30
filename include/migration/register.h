@@ -17,6 +17,9 @@
 #include "hw/vmstate-if.h"
 
 typedef struct SaveVMHandlers {
+    /* Mask of VMStateMode's that should use this handler */
+    unsigned mode_mask;
+
     /* This runs inside the iothread lock.  */
     SaveStateHandler *save_state;
 

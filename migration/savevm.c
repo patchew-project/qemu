@@ -256,6 +256,7 @@ typedef struct SaveState {
     const char *name;
     uint32_t target_page_bits;
     uint32_t caps_count;
+    VMStateMode mode;
     MigrationCapability *capabilities;
     QemuUUID uuid;
 } SaveState;
@@ -266,16 +267,15 @@ static SaveState savevm_state = {
     .global_section_id = 0,
 };
 
-/*
- * The FOREACH macros will filter handlers based on the current operation when
- * additional conditions are added in a subsequent patch.
- */
+/* The FOREACH macros filter handlers based on the current operation. */
 
 #define SAVEVM_FOREACH(se, entry)                                    \
     QTAILQ_FOREACH(se, &savevm_state.handlers, entry)                \
+        if (savevm_state.mode & mode_mask(se))
 
 #define SAVEVM_FOREACH_SAFE(se, entry, new_se)                       \
     QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se)   \
+        if (savevm_state.mode & mode_mask(se))
 
 /* The FORALL macros unconditionally loop over all handlers. */
 
@@ -284,6 +284,33 @@ static SaveState savevm_state = {
 
 #define SAVEVM_FORALL_SAFE(se, entry, new_se)                        \
     QTAILQ_FOREACH_SAFE(se, &savevm_state.handlers, entry, new_se)
+
+/*
+ * Set the current mode to be used for filtering savevm handlers in
+ * SAVEVM_FOREACH.
+ */
+void savevm_set_mode(VMStateMode mode)
+{
+    savevm_state.mode = mode;
+}
+
+/*
+ * A savevm handler is selected in SAVEVM_FOREACH if its mask overlaps the
+ * current mode.  The mask is defined by either the new vmsd interface or the
+ * legacy ops interface.  If the mask is zero, it implicily includes all modes.
+ */
+static inline unsigned mode_mask(SaveStateEntry *se)
+{
+    const VMStateDescription *vmsd = se->vmsd;
+    unsigned mask = 0;
+
+    if (vmsd) {
+        mask = vmsd->mode_mask;
+    } else if (se->ops) {
+        mask = se->ops->mode_mask;
+    }
+    return mask ? mask : VMS_MODE_ALL;
+}
 
 static bool should_validate_capability(int capability)
 {
@@ -1527,11 +1554,13 @@ void qemu_savevm_state_cleanup(void)
     }
 }
 
-static int qemu_savevm_state(QEMUFile *f, Error **errp)
+static int qemu_savevm_state(QEMUFile *f, VMStateMode mode, Error **errp)
 {
     int ret;
     MigrationState *ms = migrate_get_current();
     MigrationStatus status;
+
+    savevm_set_mode(mode);
 
     if (migration_is_running(ms->state)) {
         error_setg(errp, QERR_MIGRATION_ACTIVE);
@@ -2584,13 +2613,14 @@ out:
     return ret;
 }
 
-int qemu_loadvm_state(QEMUFile *f)
+int qemu_loadvm_state(QEMUFile *f, VMStateMode mode)
 {
     MigrationIncomingState *mis = migration_incoming_get_current();
     Error *local_err = NULL;
     int ret;
 
-    if (qemu_savevm_state_blocked(&local_err)) {
+    if ((mode & (VMS_SNAPSHOT | VMS_MIGRATE)) &&
+        qemu_savevm_state_blocked(&local_err)) {
         error_report_err(local_err);
         return -EINVAL;
     }
@@ -2763,7 +2793,7 @@ int save_snapshot(const char *name, Error **errp)
         error_setg(errp, "Could not open VM state file");
         goto the_end;
     }
-    ret = qemu_savevm_state(f, errp);
+    ret = qemu_savevm_state(f, VMS_SNAPSHOT, errp);
     vm_state_size = qemu_ftell(f);
     ret2 = qemu_fclose(f);
     if (ret < 0) {
@@ -2812,6 +2842,7 @@ void qmp_xen_save_devices_state(const char *filename, bool has_live, bool live,
     int saved_vm_running;
     int ret;
 
+    savevm_set_mode(VMS_MIGRATE);
     if (!has_live) {
         /* live default to true so old version of Xen tool stack can have a
          * successfull live migration */
@@ -2877,7 +2908,7 @@ void qmp_xen_load_devices_state(const char *filename, Error **errp)
     f = qemu_fopen_channel_input(QIO_CHANNEL(ioc));
     object_unref(OBJECT(ioc));
 
-    ret = qemu_loadvm_state(f);
+    ret = qemu_loadvm_state(f, VMS_MIGRATE);
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, QERR_IO_ERROR);
@@ -2955,7 +2986,7 @@ int load_snapshot(const char *name, Error **errp)
     mis->from_src_file = f;
 
     aio_context_acquire(aio_context);
-    ret = qemu_loadvm_state(f);
+    ret = qemu_loadvm_state(f, VMS_SNAPSHOT);
     migration_incoming_state_destroy();
     aio_context_release(aio_context);
 

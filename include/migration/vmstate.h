@@ -158,6 +158,12 @@ typedef enum {
     MIG_PRI_MAX,
 } MigrationPriority;
 
+typedef enum {
+    VMS_MIGRATE  = (1U << 1),
+    VMS_SNAPSHOT = (1U << 2),
+    VMS_MODE_ALL = ~0U
+} VMStateMode;
+
 struct VMStateField {
     const char *name;
     const char *err_hint;
@@ -182,6 +188,7 @@ struct VMStateDescription {
     int minimum_version_id;
     int minimum_version_id_old;
     MigrationPriority priority;
+    unsigned mode_mask;
     LoadStateHandler *load_state_old;
     int (*pre_load)(void *opaque);
     int (*post_load)(void *opaque, int version_id);
@@ -1214,5 +1221,7 @@ void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
 void vmstate_register_ram_global(struct MemoryRegion *memory);
 
 bool vmstate_check_only_migratable(const VMStateDescription *vmsd);
+
+void savevm_set_mode(VMStateMode mode);
 
 #endif
