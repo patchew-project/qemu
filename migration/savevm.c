@@ -32,6 +32,7 @@
 #include "migration.h"
 #include "migration/snapshot.h"
 #include "migration/vmstate.h"
+#include "chardev/char.h"
 #include "migration/misc.h"
 #include "migration/register.h"
 #include "migration/global_state.h"
@@ -2799,6 +2800,7 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
         walkenv(FD_PREFIX, preserve_fd, 0);
         reset_vhost_devices();
         save_qmp_negotiation_status();
+        qemu_term_exit();
         qemu_system_exec_request();
         putenv((char *)"QEMU_START_FREEZE=");
     }

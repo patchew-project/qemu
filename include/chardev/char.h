@@ -296,4 +296,6 @@ void save_char_socket_fd(Chardev *);
 void load_char_socket_fd(Chardev *);
 void save_char_pty_fd(Chardev *);
 
+void qemu_term_exit(void);
+
 #endif
