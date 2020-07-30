@@ -1180,6 +1180,8 @@ static int chardev_is_socket(Object *child, void *opaque)
 {
     if (CHARDEV_IS_SOCKET(child)) {
         save_char_socket_fd((Chardev *) child);
+    } else if (CHARDEV_IS_PTY(child)) {
+        save_char_pty_fd((Chardev *) child);
     }
     return 0;
 }

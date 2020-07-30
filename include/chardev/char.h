@@ -294,5 +294,6 @@ void qemu_chr_parse_vc(QemuOpts *opts, ChardevBackend *backend, Error **errp);
 
 void save_char_socket_fd(Chardev *);
 void load_char_socket_fd(Chardev *);
+void save_char_pty_fd(Chardev *);
 
 #endif

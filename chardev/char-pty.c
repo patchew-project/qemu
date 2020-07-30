@@ -30,6 +30,7 @@
 #include "qemu/sockets.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
+#include "qemu/cutils.h"
 #include "qemu/qemu-print.h"
 
 #include "chardev/char-io.h"
@@ -183,6 +184,16 @@ static void pty_chr_state(Chardev *chr, int connected)
     }
 }
 
+void save_char_pty_fd(Chardev *chr)
+{
+    PtyChardev *s = PTY_CHARDEV(chr);
+    QIOChannelFile *fioc = QIO_CHANNEL_FILE(s->ioc);
+
+    if (fioc) {
+        setenv_fd(chr->label, fioc->fd);
+    }
+}
+
 static void char_pty_finalize(Object *obj)
 {
     Chardev *chr = CHARDEV(obj);
@@ -204,18 +215,23 @@ static void char_pty_open(Chardev *chr,
     char pty_name[PATH_MAX];
     char *name;
 
-    master_fd = qemu_openpty_raw(&slave_fd, pty_name);
-    if (master_fd < 0) {
-        error_setg_errno(errp, errno, "Failed to create PTY");
-        return;
+    master_fd = getenv_fd(chr->label);
+    if (master_fd >= 0) {
+        unsetenv_fd(chr->label);
+        chr->filename = g_strdup_printf("pty:unknown");
+    } else {
+        master_fd = qemu_openpty_raw(&slave_fd, pty_name);
+        if (master_fd < 0) {
+            error_setg_errno(errp, errno, "Failed to create PTY");
+            return;
+        }
+
+        close(slave_fd);
+        qemu_set_nonblock(master_fd);
+        chr->filename = g_strdup_printf("pty:%s", pty_name);
+        qemu_printf("char device redirected to %s (label %s)\n",
+                    pty_name, chr->label);
     }
-
-    close(slave_fd);
-    qemu_set_nonblock(master_fd);
-
-    chr->filename = g_strdup_printf("pty:%s", pty_name);
-    qemu_printf("char device redirected to %s (label %s)\n",
-                pty_name, chr->label);
 
     s = PTY_CHARDEV(chr);
     s->ioc = QIO_CHANNEL(qio_channel_file_new_fd(master_fd));
