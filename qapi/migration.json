@@ -1639,6 +1639,7 @@
 #
 # @file: name of checkpoint file
 # @mode: 'reboot' : checkpoint can be cprload'ed after a host kexec reboot.
+#        'restart': checkpoint can be cprload'ed after restarting qemu.
 #
 # Since 5.0
 ##

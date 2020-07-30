@@ -2735,6 +2735,8 @@ void save_cpr_snapshot(const char *file, const char *mode, Error **errp)
 
     if (!strcmp(mode, "reboot")) {
         op = VMS_REBOOT;
+    } else if (!strcmp(mode, "restart")) {
+        op = VMS_RESTART;
     } else {
         error_setg(errp, "cprsave: bad mode %s", mode);
         return;
@@ -3000,7 +3002,7 @@ void load_cpr_snapshot(const char *file, Error **errp)
         return;
     }
 
-    ret = qemu_loadvm_state(f, VMS_REBOOT);
+    ret = qemu_loadvm_state(f, VMS_REBOOT | VMS_RESTART);
     qemu_fclose(f);
     if (ret < 0) {
         error_setg(errp, "Error %d while loading VM state", ret);

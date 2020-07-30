@@ -369,7 +369,7 @@ ERST
     {
         .name       = "cprsave",
         .args_type  = "file:s,mode:s",
-        .params     = "file 'reboot'",
+        .params     = "file 'restart'|'reboot'",
         .help       = "create a checkpoint of the VM in file",
         .cmd        = hmp_cprsave,
     },
@@ -380,6 +380,8 @@ SRST
   in *file*.
   If *mode* is 'reboot', the checkpoint can be cprload'ed after a host kexec
   reboot.
+  If *mode* is 'restart', the checkpoint can be cprload'ed after restarting
+  qemu.
   exec() /usr/bin/qemu-exec if it exists, else exec /usr/bin/qemu-system-x86_64,
   passing all the original command line arguments.  The VCPUs remain paused.
 ERST

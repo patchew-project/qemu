@@ -164,7 +164,7 @@ void qmp_cont(Error **errp)
 
 char *qmp_cprinfo(Error **errp)
 {
-    return g_strdup("reboot");
+    return g_strdup("reboot restart");
 }
 
 void qmp_cprsave(const char *file, const char *mode, Error **errp)
