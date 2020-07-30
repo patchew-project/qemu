@@ -1324,9 +1324,11 @@ void pci_update_mappings(PCIDevice *d)
     PCIIORegion *r;
     int i;
     pcibus_t new_addr;
+    const char *name;
 
     for(i = 0; i < PCI_NUM_REGIONS; i++) {
         r = &d->io_regions[i];
+        name = r->memory ? r->memory->name : "";
 
         /* this region isn't registered */
         if (!r->size)
@@ -1340,18 +1342,18 @@ void pci_update_mappings(PCIDevice *d)
 
         /* now do the real mapping */
         if (r->addr != PCI_BAR_UNMAPPED) {
-            trace_pci_update_mappings_del(d, pci_dev_bus_num(d),
+            trace_pci_update_mappings_del(d->name, pci_dev_bus_num(d),
                                           PCI_SLOT(d->devfn),
                                           PCI_FUNC(d->devfn),
-                                          i, r->addr, r->size);
+                                          i, r->addr, r->size, name);
             memory_region_del_subregion(r->address_space, r->memory);
         }
         r->addr = new_addr;
         if (r->addr != PCI_BAR_UNMAPPED) {
-            trace_pci_update_mappings_add(d, pci_dev_bus_num(d),
+            trace_pci_update_mappings_add(d->name, pci_dev_bus_num(d),
                                           PCI_SLOT(d->devfn),
                                           PCI_FUNC(d->devfn),
-                                          i, r->addr, r->size);
+                                          i, r->addr, r->size, name);
             memory_region_add_subregion_overlap(r->address_space,
                                                 r->addr, r->memory, 1);
         }

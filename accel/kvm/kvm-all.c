@@ -46,6 +46,7 @@
 #include "sysemu/reset.h"
 
 #include "hw/boards.h"
+#include "trace-root.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -1670,7 +1671,7 @@ int kvm_irqchip_add_msi_route(KVMState *s, int vector, PCIDevice *dev)
     }
 
     trace_kvm_irqchip_add_msi_route(dev ? dev->name : (char *)"N/A",
-                                    vector, virq);
+                                    vector, virq, msg.address, msg.data);
 
     kvm_add_routing_entry(s, &kroute);
     kvm_arch_add_msi_route_post(&kroute, vector, dev);
@@ -1717,6 +1718,7 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, EventNotifier *event,
 {
     int fd = event_notifier_get_fd(event);
     int rfd = resample ? event_notifier_get_fd(resample) : -1;
+    int ret;
 
     struct kvm_irqfd irqfd = {
         .fd = fd,
@@ -1758,7 +1760,9 @@ static int kvm_irqchip_assign_irqfd(KVMState *s, EventNotifier *event,
         return -ENOSYS;
     }
 
-    return kvm_vm_ioctl(s, KVM_IRQFD, &irqfd);
+    ret = kvm_vm_ioctl(s, KVM_IRQFD, &irqfd);
+    trace_kvm_irqchip_assign_irqfd(fd, virq, rfd, ret);
+    return ret;
 }
 
 int kvm_irqchip_add_adapter_route(KVMState *s, AdapterInfo *adapter)

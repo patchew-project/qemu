@@ -189,6 +189,7 @@ static void msix_table_mmio_write(void *opaque, hwaddr addr,
     int vector = addr / PCI_MSIX_ENTRY_SIZE;
     bool was_masked;
 
+    trace_msix_table_mmio_write(dev->name, addr, val, size);
     was_masked = msix_is_masked(dev, vector);
     pci_set_long(dev->msix_table + addr, val);
     msix_handle_mask_update(dev, vector, was_masked);

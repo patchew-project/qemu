@@ -107,6 +107,8 @@ qmp_job_complete(void *job) "job %p"
 qmp_job_finalize(void *job) "job %p"
 qmp_job_dismiss(void *job) "job %p"
 
+# exec.c
+ram_block_add(void *host, uint64_t maxlen, const char *name, const char *mode) "host=%p, maxlen=0x%"PRIx64", mr = {name=%s, %s}"
 
 ### Guest events, keep at bottom
 

@@ -2319,6 +2319,9 @@ static void ram_block_add(RAMBlock *new_block, Error **errp, bool shared)
         }
         ram_block_notify_add(new_block->host, new_block->max_length);
     }
+    trace_ram_block_add(new_block->host, new_block->max_length,
+                        memory_region_name(new_block->mr),
+                        new_block->mr->readonly ? "ro" : "rw");
 }
 
 #ifdef CONFIG_POSIX

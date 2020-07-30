@@ -304,6 +304,8 @@ static int vfio_dma_unmap(VFIOContainer *container,
         return 0;
     }
 
+    trace_vfio_dma_unmap(container->fd, iova, size);
+
     while (ioctl(container->fd, VFIO_IOMMU_UNMAP_DMA, &unmap)) {
         /*
          * The type1 backend has an off-by-one bug in the kernel (71a7d3d78e3c
@@ -327,6 +329,11 @@ static int vfio_dma_unmap(VFIOContainer *container,
         return -errno;
     }
 
+    if (unmap.size != size) {
+        error_printf("warn: VFIO_UNMAP_DMA(0x%lx, 0x%lx) only unmaps 0x%llx",
+                     iova, size, unmap.size);
+    }
+
     return 0;
 }
 
@@ -344,6 +351,9 @@ static int vfio_dma_map(VFIOContainer *container, hwaddr iova,
     if (container->reused) {
         return 0;
     }
+
+    trace_vfio_dma_map(container->fd, iova, size, vaddr,
+                       (readonly ? "r" : "rw"));
 
     if (!readonly) {
         map.flags |= VFIO_DMA_MAP_FLAG_WRITE;
@@ -985,7 +995,8 @@ int vfio_region_mmap(VFIORegion *region)
         trace_vfio_region_mmap(memory_region_name(&region->mmaps[i].mem),
                                region->mmaps[i].offset,
                                region->mmaps[i].offset +
-                               region->mmaps[i].size - 1);
+                               region->mmaps[i].size - 1,
+                               region->mmaps[i].mmap);
     }
 
     return 0;
@@ -1695,6 +1706,9 @@ retry:
 
         goto retry;
     }
+
+    trace_vfio_region(vbasedev->name, index, (*info)->offset, (*info)->size,
+                      (*info)->cap_offset, (*info)->flags);
 
     return 0;
 }
