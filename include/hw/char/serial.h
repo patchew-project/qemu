@@ -88,12 +88,6 @@ typedef struct SerialMM {
     uint8_t endianness;
 } SerialMM;
 
-typedef struct SerialIO {
-    SysBusDevice parent;
-
-    SerialState serial;
-} SerialIO;
-
 extern const VMStateDescription vmstate_serial;
 extern const MemoryRegionOps serial_io_ops;
 
@@ -104,9 +98,6 @@ void serial_set_frequency(SerialState *s, uint32_t frequency);
 
 #define TYPE_SERIAL_MM "serial-mm"
 #define SERIAL_MM(s) OBJECT_CHECK(SerialMM, (s), TYPE_SERIAL_MM)
-
-#define TYPE_SERIAL_IO "serial-io"
-#define SERIAL_IO(s) OBJECT_CHECK(SerialIO, (s), TYPE_SERIAL_IO)
 
 SerialMM *serial_mm_init(MemoryRegion *address_space,
                          hwaddr base, int regshift,
