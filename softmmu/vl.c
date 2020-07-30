@@ -4502,6 +4502,11 @@ void qemu_init(int argc, char **argv, char **envp)
         exit(0);
     }
 
+    if (getenv("QEMU_START_FREEZE")) {
+        unsetenv("QEMU_START_FREEZE");
+        autostart = 0;
+    }
+
     if (incoming) {
         Error *local_err = NULL;
         qemu_start_incoming_migration(incoming, &local_err);
