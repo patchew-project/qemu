@@ -41,6 +41,7 @@ typedef enum {
     SET_IRQFD,
     GET_PCI_INFO,
     PROXY_PING,
+    DEVICE_RESET,
     MAX = INT_MAX,
 } MPQemuCmd;
 

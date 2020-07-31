@@ -19,6 +19,7 @@
 #include "exec/memattrs.h"
 #include "hw/i386/remote-memory.h"
 #include "hw/remote/iohub.h"
+#include "sysemu/reset.h"
 
 static void process_config_write(QIOChannel *ioc, PCIDevice *dev,
                                  MPQemuMsg *msg);
@@ -27,6 +28,8 @@ static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
 static void process_bar_write(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
 static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
 static void process_proxy_ping_msg(QIOChannel *ioc, Error **errp);
+static void process_device_reset_msg(QIOChannel *ioc, PCIDevice *dev,
+                                     Error **errp);
 
 gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
                             gpointer opaque)
@@ -78,6 +81,9 @@ gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
         break;
     case PROXY_PING:
         process_proxy_ping_msg(ioc, &local_err);
+        break;
+    case DEVICE_RESET:
+        process_device_reset_msg(ioc, pci_dev, &local_err);
         break;
     default:
         error_setg(&local_err,
@@ -241,4 +247,20 @@ static void process_proxy_ping_msg(QIOChannel *ioc, Error **errp)
         error_setg(errp, "Error while sending message to proxy "
                    "in remote process pid=%d", getpid());
     }
+}
+
+static void process_device_reset_msg(QIOChannel *ioc, PCIDevice *dev,
+                                     Error **errp)
+{
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+    DeviceState *s = DEVICE(dev);
+    MPQemuMsg ret = { 0 };
+
+    if (dc->reset) {
+        dc->reset(s);
+    }
+
+    ret.cmd = RET_MSG;
+
+    mpqemu_msg_send(&ret, ioc, errp);
 }
