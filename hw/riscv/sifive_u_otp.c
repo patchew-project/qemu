@@ -24,6 +24,62 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "hw/riscv/sifive_u_otp.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <string.h>
+
+#define TRACE_PREFIX            "FU540_OTP: "
+#define SIFIVE_FU540_OTP_SIZE   (SIFIVE_U_OTP_NUM_FUSES * 4)
+
+static int32_t sifive_u_otp_backed_open(const char *filename, int32_t *fd,
+                                        uint32_t **map)
+{
+    /* open and mmap OTP image file */
+    if (filename && strcmp(filename, "NULL") != 0) {
+        *fd = open(filename, O_RDWR);
+
+        if (*fd < 0) {
+            qemu_log_mask(LOG_TRACE,
+                          TRACE_PREFIX "Warning: can't open otp file<%s>\n",
+                          filename);
+            return -1;
+        } else {
+
+            *map = (unsigned int *)mmap(0,
+                                         SIFIVE_FU540_OTP_SIZE,
+                                         PROT_READ | PROT_WRITE | PROT_EXEC,
+                                         MAP_FILE | MAP_SHARED,
+                                         *fd,
+                                         0);
+
+            if (*map == MAP_FAILED) {
+                qemu_log_mask(LOG_TRACE,
+                              TRACE_PREFIX "Warning: can't mmap otp file<%s>\n",
+                              filename);
+                close(*fd);
+                return -2;
+            }
+        }
+    } else {
+        /* filename is 'NULL' */
+        return -3;
+    }
+
+    return 0;
+}
+
+static int32_t sifive_u_otp_backed_close(int fd, unsigned int *map)
+{
+    munmap(map, SIFIVE_FU540_OTP_SIZE);
+    close(fd);
+
+    return 0;
+}
 
 static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
 {
@@ -46,6 +102,20 @@ static uint64_t sifive_u_otp_read(void *opaque, hwaddr addr, unsigned int size)
         if ((s->pce & SIFIVE_U_OTP_PCE_EN) &&
             (s->pdstb & SIFIVE_U_OTP_PDSTB_EN) &&
             (s->ptrim & SIFIVE_U_OTP_PTRIM_EN)) {
+
+            int32_t fd;
+            uint32_t *map;
+            uint64_t val;
+
+            /* open and mmap OTP image file */
+            if (0 == sifive_u_otp_backed_open(s->otp_file, &fd, &map)) {
+                val = (uint64_t)(map[s->pa]);
+
+                /* close and unmmap */
+                sifive_u_otp_backed_close(fd, map);
+                return val;
+            }
+
             return s->fuse[s->pa & SIFIVE_U_OTP_PA_MASK];
         } else {
             return 0xff;
@@ -78,6 +148,8 @@ static void sifive_u_otp_write(void *opaque, hwaddr addr,
 {
     SiFiveUOTPState *s = opaque;
     uint32_t val32 = (uint32_t)val64;
+    int32_t fd;
+    uint32_t *map;
 
     switch (addr) {
     case SIFIVE_U_OTP_PA:
@@ -123,6 +195,16 @@ static void sifive_u_otp_write(void *opaque, hwaddr addr,
         s->ptrim = val32;
         break;
     case SIFIVE_U_OTP_PWE:
+        /* open and mmap OTP image file */
+        if (0 == sifive_u_otp_backed_open(s->otp_file, &fd, &map)) {
+            /* store value */
+            map[s->pa] &= ~(s->pdin << s->paio);
+            map[s->pa] |= (s->pdin << s->paio);
+
+            /* close and unmmap */
+            sifive_u_otp_backed_close(fd, map);
+        }
+
         s->pwe = val32;
         break;
     default:
@@ -143,6 +225,7 @@ static const MemoryRegionOps sifive_u_otp_ops = {
 
 static Property sifive_u_otp_properties[] = {
     DEFINE_PROP_UINT32("serial", SiFiveUOTPState, serial, 0),
+    DEFINE_PROP_STRING("otp-file", SiFiveUOTPState, otp_file),
     DEFINE_PROP_END_OF_LIST(),
 };
 

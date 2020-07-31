@@ -75,6 +75,7 @@ typedef struct SiFiveUOTPState {
     uint32_t fuse[SIFIVE_U_OTP_NUM_FUSES];
     /* config */
     uint32_t serial;
+    char *otp_file;
 } SiFiveUOTPState;
 
 #endif /* HW_SIFIVE_U_OTP_H */

@@ -46,6 +46,7 @@ typedef struct SiFiveUSoCState {
     CadenceGEMState gem;
 
     uint32_t serial;
+    char *otp_file;
 } SiFiveUSoCState;
 
 #define TYPE_RISCV_U_MACHINE MACHINE_TYPE_NAME("sifive_u")
@@ -65,6 +66,7 @@ typedef struct SiFiveUState {
     bool start_in_flash;
     uint32_t msel;
     uint32_t serial;
+    char *otp_file;
 } SiFiveUState;
 
 enum {

@@ -87,6 +87,7 @@ static const struct MemmapEntry {
 };
 
 #define OTP_SERIAL          1
+#define OTP_FILE            "NULL"
 #define GEM_REVISION        0x10070109
 
 static void create_fdt(SiFiveUState *s, const struct MemmapEntry *memmap,
@@ -387,6 +388,8 @@ static void sifive_u_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(machine), "soc", &s->soc, TYPE_RISCV_U_SOC);
     object_property_set_uint(OBJECT(&s->soc), "serial", s->serial,
                              &error_abort);
+    object_property_set_str(OBJECT(&s->soc), "otp-file", s->otp_file,
+                             &error_abort);
     qdev_realize(DEVICE(&s->soc), NULL, &error_abort);
 
     /* register RAM */
@@ -526,6 +529,21 @@ static void sifive_u_machine_set_uint32_prop(Object *obj, Visitor *v,
     visit_type_uint32(v, name, (uint32_t *)opaque, errp);
 }
 
+static void sifive_u_machine_get_str_prop(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    visit_type_str(v, name, (char **)opaque, errp);
+}
+
+static void sifive_u_machine_set_str_prop(Object *obj, Visitor *v,
+                                             const char *name, void *opaque,
+                                             Error **errp)
+{
+    visit_type_str(v, name, (char **)opaque, errp);
+}
+
+
 static void sifive_u_machine_instance_init(Object *obj)
 {
     SiFiveUState *s = RISCV_U_MACHINE(obj);
@@ -551,6 +569,12 @@ static void sifive_u_machine_instance_init(Object *obj)
                         sifive_u_machine_get_uint32_prop,
                         sifive_u_machine_set_uint32_prop, NULL, &s->serial);
     object_property_set_description(obj, "serial", "Board serial number");
+
+    s->otp_file = (char *)OTP_FILE;
+    object_property_add(obj, "otp-file", "string",
+                        sifive_u_machine_get_str_prop,
+                        sifive_u_machine_set_str_prop, NULL, &s->otp_file);
+    object_property_set_description(obj, "otp-file", "file-backed otp file");
 }
 
 static void sifive_u_machine_class_init(ObjectClass *oc, void *data)
@@ -709,6 +733,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
     }
 
     qdev_prop_set_uint32(DEVICE(&s->otp), "serial", s->serial);
+    qdev_prop_set_string(DEVICE(&s->otp), "otp-file", s->otp_file);
     if (!sysbus_realize(SYS_BUS_DEVICE(&s->otp), errp)) {
         return;
     }
@@ -737,6 +762,7 @@ static void sifive_u_soc_realize(DeviceState *dev, Error **errp)
 
 static Property sifive_u_soc_props[] = {
     DEFINE_PROP_UINT32("serial", SiFiveUSoCState, serial, OTP_SERIAL),
+    DEFINE_PROP_STRING("otp-file", SiFiveUSoCState, otp_file),
     DEFINE_PROP_END_OF_LIST()
 };
 
