@@ -14,6 +14,7 @@
 #include "qom/object.h"
 #include "hw/boards.h"
 #include "hw/pci-host/remote.h"
+#include "io/channel.h"
 
 typedef struct RemoteMachineState {
     MachineState parent_obj;
@@ -24,5 +25,8 @@ typedef struct RemoteMachineState {
 #define TYPE_REMOTE_MACHINE "remote-machine"
 #define REMOTE_MACHINE(obj) \
     OBJECT_CHECK(RemoteMachineState, (obj), TYPE_REMOTE_MACHINE)
+
+gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
+                            gpointer opaque);
 
 #endif
