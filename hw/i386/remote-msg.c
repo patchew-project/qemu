@@ -26,6 +26,7 @@ static void process_config_read(QIOChannel *ioc, PCIDevice *dev,
                                 MPQemuMsg *msg);
 static void process_bar_write(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
 static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp);
+static void process_proxy_ping_msg(QIOChannel *ioc, Error **errp);
 
 gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
                             gpointer opaque)
@@ -74,6 +75,9 @@ gboolean mpqemu_process_msg(QIOChannel *ioc, GIOCondition cond,
         break;
     case SET_IRQFD:
         process_set_irqfd_msg(pci_dev, &msg);
+        break;
+    case PROXY_PING:
+        process_proxy_ping_msg(ioc, &local_err);
         break;
     default:
         error_setg(&local_err,
@@ -215,6 +219,21 @@ static void process_bar_read(QIOChannel *ioc, MPQemuMsg *msg, Error **errp)
 fail:
     ret.cmd = RET_MSG;
     ret.data1.u64 = le64_to_cpu(val);
+    ret.size = sizeof(ret.data1);
+
+    mpqemu_msg_send(&ret, ioc, &local_err);
+    if (local_err) {
+        error_setg(errp, "Error while sending message to proxy "
+                   "in remote process pid=%d", getpid());
+    }
+}
+
+static void process_proxy_ping_msg(QIOChannel *ioc, Error **errp)
+{
+    MPQemuMsg ret = { 0 };
+    Error *local_err = NULL;
+
+    ret.cmd = RET_MSG;
     ret.size = sizeof(ret.data1);
 
     mpqemu_msg_send(&ret, ioc, &local_err);

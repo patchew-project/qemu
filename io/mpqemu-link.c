@@ -280,6 +280,14 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
             return false;
         }
         break;
+    case PROXY_PING:
+        if (msg->bytestream || msg->num_fds) {
+            return false;
+        }
+        if (msg->size) {
+            return false;
+        }
+        break;
     default:
         break;
     }

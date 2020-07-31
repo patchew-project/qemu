@@ -24,6 +24,8 @@
 #include "util/event_notifier-posix.c"
 
 static void probe_pci_info(PCIDevice *dev, Error **errp);
+static void start_hb_timer(PCIProxyDev *dev);
+static void stop_hb_timer(PCIProxyDev *dev);
 
 static void proxy_set_socket(PCIProxyDev *pdev, int fd, Error **errp)
 {
@@ -111,6 +113,8 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
     setup_irqfd(dev);
 
     probe_pci_info(PCI_DEVICE(dev), errp);
+
+    start_hb_timer(dev);
 }
 
 static void pci_proxy_dev_exit(PCIDevice *pdev)
@@ -123,6 +127,8 @@ static void pci_proxy_dev_exit(PCIDevice *pdev)
 
     event_notifier_cleanup(&dev->intr);
     event_notifier_cleanup(&dev->resample);
+
+    stop_hb_timer(dev);
 }
 
 static int config_op_send(PCIProxyDev *pdev, uint32_t addr, uint32_t *val,
@@ -342,4 +348,50 @@ static void probe_pci_info(PCIDevice *dev, Error **errp)
             g_free(name);
         }
     }
+}
+
+static void hb_msg(PCIProxyDev *dev)
+{
+    DeviceState *ds = DEVICE(dev);
+    Error *local_err = NULL;
+    MPQemuMsg msg = { 0 };
+
+    msg.cmd = PROXY_PING;
+    msg.bytestream = 0;
+    msg.size = 0;
+
+    (void)mpqemu_msg_send_and_await_reply(&msg, dev->ioc, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
+        qio_channel_close(dev->ioc, &local_err);
+        error_setg(&error_fatal, "Lost contact with device %s", ds->id);
+    }
+}
+
+#define NOP_INTERVAL 1000
+
+static void remote_ping(void *opaque)
+{
+    PCIProxyDev *dev = opaque;
+
+    hb_msg(dev);
+
+    timer_mod(dev->hb_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NOP_INTERVAL);
+}
+
+static void start_hb_timer(PCIProxyDev *dev)
+{
+    dev->hb_timer = timer_new_ms(QEMU_CLOCK_VIRTUAL,
+                                 remote_ping,
+                                 dev);
+
+    timer_mod(dev->hb_timer,
+              qemu_clock_get_ms(QEMU_CLOCK_VIRTUAL) + NOP_INTERVAL);
+}
+
+static void stop_hb_timer(PCIProxyDev *dev)
+{
+    timer_del(dev->hb_timer);
+    timer_free(dev->hb_timer);
 }
