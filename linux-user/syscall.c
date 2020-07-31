@@ -3219,7 +3219,7 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
 
 static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec_addr,
                                 unsigned int vlen, unsigned int flags,
-                                abi_long timeout, int send)
+                                abi_long timeout, int time64, int send)
 {
     struct mmsghdr *host_msgvec;
     struct target_mmsghdr *target_msgvec;
@@ -3279,7 +3279,10 @@ static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec_addr,
             ret = get_errno(safe_sendmmsg(fd, host_msgvec, i, flags));
         } else {
             if (timeout) {
-                if (target_to_host_timespec(&ts, timeout)) {
+                if (!time64 && target_to_host_timespec(&ts, timeout)) {
+                    return -TARGET_EFAULT;
+                }
+                if (time64 && target_to_host_timespec64(&ts, timeout)) {
                     return -TARGET_EFAULT;
                 }
                 ret = get_errno(safe_recvmmsg(fd, host_msgvec, i, flags, &ts));
@@ -3621,10 +3624,14 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         return do_sendrecvmsg(a[0], a[1], a[2], 0);
     case TARGET_SYS_ACCEPT4: /* sockfd, addr, addrlen, flags */
         return do_accept4(a[0], a[1], a[2], a[3]);
-    case TARGET_SYS_RECVMMSG: /* sockfd, msgvec, vlen, timeout, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], a[4], 0);
+    case TARGET_SYS_RECVMMSG: /* sockfd, msgvec, vlen, flags, timeout, */
+#if TARGET_ABI_BITS == 32
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], a[4], 0, 0);
+#else
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], a[4], 1, 0);
+#endif
     case TARGET_SYS_SENDMMSG: /* sockfd, msgvec, vlen, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0, 1);
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0, 0, 1);
     default:
         qemu_log_mask(LOG_UNIMP, "Unsupported socketcall: %d\n", num);
         return -TARGET_EINVAL;
@@ -9577,11 +9584,15 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_sendmmsg
     case TARGET_NR_sendmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0, 1);
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0, 0, 1);
 #endif
 #ifdef TARGET_NR_recvmmsg
     case TARGET_NR_recvmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, 0);
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, 0, 0);
+#endif
+#ifdef TARGET_NR_recvmmsg_time64
+    case TARGET_NR_recvmmsg_time64:
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, 1, 0);
 #endif
 #ifdef TARGET_NR_sendto
     case TARGET_NR_sendto:
