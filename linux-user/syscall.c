@@ -794,6 +794,10 @@ safe_syscall6(ssize_t, recvfrom, int, fd, void *, buf, size_t, len,
               int, flags, struct sockaddr *, addr, socklen_t *, addrlen)
 safe_syscall3(ssize_t, sendmsg, int, fd, const struct msghdr *, msg, int, flags)
 safe_syscall3(ssize_t, recvmsg, int, fd, struct msghdr *, msg, int, flags)
+safe_syscall4(int, sendmmsg, int, fd, struct mmsghdr *, msgvec,
+              unsigned int, vlen, int, flags)
+safe_syscall5(int, recvmmsg, int, fd, struct mmsghdr *, msgvec,
+              unsigned int, vlen, int, flags, struct timespec *, timeout)
 safe_syscall2(int, flock, int, fd, int, operation)
 #ifdef TARGET_NR_rt_sigtimedwait
 safe_syscall4(int, rt_sigtimedwait, const sigset_t *, these, siginfo_t *, uinfo,
@@ -3066,41 +3070,94 @@ static abi_long do_connect(int sockfd, abi_ulong target_addr,
     return get_errno(safe_connect(sockfd, addr, addrlen));
 }
 
-/* do_sendrecvmsg_locked() Must return target values and target errnos. */
-static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
-                                      int flags, int send)
+static abi_long target_to_host_msghdr(int fd, struct msghdr *host_msg,
+                                      struct target_msghdr *target_msg,
+                                      int send)
 {
-    abi_long ret, len;
-    struct msghdr msg;
-    abi_ulong count;
-    struct iovec *vec;
-    abi_ulong target_vec;
-
-    if (msgp->msg_name) {
-        msg.msg_namelen = tswap32(msgp->msg_namelen);
-        msg.msg_name = alloca(msg.msg_namelen+1);
-        ret = target_to_host_sockaddr(fd, msg.msg_name,
-                                      tswapal(msgp->msg_name),
-                                      msg.msg_namelen);
+    abi_long ret = 0;
+    if (target_msg->msg_name) {
+        host_msg->msg_namelen = tswap32(target_msg->msg_namelen);
+        host_msg->msg_name = alloca(host_msg->msg_namelen + 1);
+        ret = target_to_host_sockaddr(fd, host_msg->msg_name,
+                                      tswapal(target_msg->msg_name),
+                                      host_msg->msg_namelen);
         if (ret == -TARGET_EFAULT) {
-            /* For connected sockets msg_name and msg_namelen must
+            /*
+             * For connected sockets msg_name and msg_namelen must
              * be ignored, so returning EFAULT immediately is wrong.
              * Instead, pass a bad msg_name to the host kernel, and
              * let it decide whether to return EFAULT or not.
              */
-            msg.msg_name = (void *)-1;
+            host_msg->msg_name = (void *)-1;
+            ret = 0;
         } else if (ret) {
-            goto out2;
+            return ret;
         }
     } else {
-        msg.msg_name = NULL;
-        msg.msg_namelen = 0;
+        host_msg->msg_name = NULL;
+        host_msg->msg_namelen = 0;
     }
-    msg.msg_controllen = 2 * tswapal(msgp->msg_controllen);
-    msg.msg_control = alloca(msg.msg_controllen);
-    memset(msg.msg_control, 0, msg.msg_controllen);
+    host_msg->msg_controllen = 2 * tswapal(target_msg->msg_controllen);
+    host_msg->msg_control = alloca(host_msg->msg_controllen);
+    memset(host_msg->msg_control, 0, host_msg->msg_controllen);
+    host_msg->msg_flags = tswap32(target_msg->msg_flags);
+    if (send) {
+        if (fd_trans_target_to_host_data(fd)) {
+            void *host_iov_base;
 
-    msg.msg_flags = tswap32(msgp->msg_flags);
+            host_iov_base = g_malloc(host_msg->msg_iov->iov_len);
+            memcpy(host_iov_base, host_msg->msg_iov->iov_base,
+                   host_msg->msg_iov->iov_len);
+            ret = fd_trans_target_to_host_data(fd)(host_iov_base,
+                                                   host_msg->msg_iov->iov_len);
+            if (ret >= 0) {
+                host_msg->msg_iov->iov_base = host_iov_base;
+                ret = 0;
+            }
+            g_free(host_iov_base);
+        } else {
+            ret = target_to_host_cmsg(host_msg, target_msg);
+        }
+    }
+    return ret;
+}
+
+static abi_long host_to_target_msghdr(int fd, struct target_msghdr *target_msg,
+                                      struct msghdr *host_msg, int len)
+{
+    abi_long ret;
+
+    if (fd_trans_host_to_target_data(fd)) {
+        ret = fd_trans_host_to_target_data(fd)(host_msg->msg_iov->iov_base,
+                                      MIN(host_msg->msg_iov->iov_len, len));
+    } else {
+        ret = host_to_target_cmsg(target_msg, host_msg);
+    }
+    if (!is_error(ret)) {
+        target_msg->msg_namelen = tswap32(host_msg->msg_namelen);
+        target_msg->msg_flags = tswap32(host_msg->msg_flags);
+        if (host_msg->msg_name != NULL && host_msg->msg_name != (void *)-1) {
+            ret = host_to_target_sockaddr(tswapal(target_msg->msg_name),
+                              host_msg->msg_name, host_msg->msg_namelen);
+            if (ret) {
+                return ret;
+            }
+        }
+        ret = len;
+    }
+
+    return ret;
+}
+
+/* do_sendrecvmsg_locked() Must return target values and target errnos. */
+static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
+                                      int flags, int send)
+{
+    abi_long ret;
+    struct msghdr msg;
+    abi_ulong count;
+    struct iovec *vec;
+    abi_ulong target_vec;
 
     count = tswapal(msgp->msg_iovlen);
     target_vec = tswapal(msgp->msg_iov);
@@ -3122,48 +3179,18 @@ static abi_long do_sendrecvmsg_locked(int fd, struct target_msghdr *msgp,
     msg.msg_iovlen = count;
     msg.msg_iov = vec;
 
-    if (send) {
-        if (fd_trans_target_to_host_data(fd)) {
-            void *host_msg;
+    ret = target_to_host_msghdr(fd, &msg, msgp, send);
 
-            host_msg = g_malloc(msg.msg_iov->iov_len);
-            memcpy(host_msg, msg.msg_iov->iov_base, msg.msg_iov->iov_len);
-            ret = fd_trans_target_to_host_data(fd)(host_msg,
-                                                   msg.msg_iov->iov_len);
-            if (ret >= 0) {
-                msg.msg_iov->iov_base = host_msg;
-                ret = get_errno(safe_sendmsg(fd, &msg, flags));
-            }
-            g_free(host_msg);
-        } else {
-            ret = target_to_host_cmsg(&msg, msgp);
-            if (ret == 0) {
-                ret = get_errno(safe_sendmsg(fd, &msg, flags));
-            }
-        }
+    if (ret) {
+        goto out;
+    }
+
+    if (send) {
+        ret = get_errno(safe_sendmsg(fd, &msg, flags));
     } else {
         ret = get_errno(safe_recvmsg(fd, &msg, flags));
         if (!is_error(ret)) {
-            len = ret;
-            if (fd_trans_host_to_target_data(fd)) {
-                ret = fd_trans_host_to_target_data(fd)(msg.msg_iov->iov_base,
-                                               MIN(msg.msg_iov->iov_len, len));
-            } else {
-                ret = host_to_target_cmsg(msgp, &msg);
-            }
-            if (!is_error(ret)) {
-                msgp->msg_namelen = tswap32(msg.msg_namelen);
-                msgp->msg_flags = tswap32(msg.msg_flags);
-                if (msg.msg_name != NULL && msg.msg_name != (void *)-1) {
-                    ret = host_to_target_sockaddr(tswapal(msgp->msg_name),
-                                    msg.msg_name, msg.msg_namelen);
-                    if (ret) {
-                        goto out;
-                    }
-                }
-
-                ret = len;
-            }
+            ret = host_to_target_msghdr(fd, msgp, &msg, ret);
         }
     }
 
@@ -3190,50 +3217,98 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
     return ret;
 }
 
-/* We don't rely on the C library to have sendmmsg/recvmmsg support,
- * so it might not have this *mmsg-specific flag either.
- */
-#ifndef MSG_WAITFORONE
-#define MSG_WAITFORONE 0x10000
-#endif
-
-static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
+static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec_addr,
                                 unsigned int vlen, unsigned int flags,
                                 int send)
 {
-    struct target_mmsghdr *mmsgp;
+    struct mmsghdr *host_msgvec;
+    struct target_mmsghdr *target_msgvec;
     abi_long ret = 0;
+    int num_sentrecv = 0;
+    int num_iovec = 0;
+    abi_ulong iovlen = 0;
+    struct iovec *host_iovec;
+    abi_ulong target_iovec;
     int i;
 
     if (vlen > UIO_MAXIOV) {
         vlen = UIO_MAXIOV;
     }
 
-    mmsgp = lock_user(VERIFY_WRITE, target_msgvec, sizeof(*mmsgp) * vlen, 1);
-    if (!mmsgp) {
+    target_msgvec = lock_user(VERIFY_WRITE, target_msgvec_addr,
+                              sizeof(target_msgvec) * vlen, 1);
+    if (!target_msgvec) {
         return -TARGET_EFAULT;
     }
 
+    host_msgvec = alloca(sizeof(*host_msgvec) * vlen);
+
     for (i = 0; i < vlen; i++) {
-        ret = do_sendrecvmsg_locked(fd, &mmsgp[i].msg_hdr, flags, send);
+
+        iovlen = tswapal(target_msgvec[i].msg_hdr.msg_iovlen);
+        target_iovec = tswapal(target_msgvec[i].msg_hdr.msg_iov);
+
+        if (iovlen > IOV_MAX) {
+            ret = -TARGET_EMSGSIZE;
+            break;
+         }
+         host_iovec = lock_iovec(send ? VERIFY_READ : VERIFY_WRITE,
+                                 target_iovec, iovlen, send);
+
+        if (host_iovec == NULL) {
+            ret = -host_to_target_errno(errno);
+            break;
+        }
+
+        num_iovec++;
+
+        host_msgvec[i].msg_hdr.msg_iovlen = iovlen;
+        host_msgvec[i].msg_hdr.msg_iov = host_iovec;
+
+        ret = target_to_host_msghdr(fd, &host_msgvec[i].msg_hdr,
+                                    &target_msgvec[i].msg_hdr, send);
+
         if (is_error(ret)) {
             break;
         }
-        mmsgp[i].msg_len = tswap32(ret);
-        /* MSG_WAITFORONE turns on MSG_DONTWAIT after one packet */
-        if (flags & MSG_WAITFORONE) {
-            flags |= MSG_DONTWAIT;
+    }
+
+    if (i > 0) {
+        if (send) {
+            ret = get_errno(safe_sendmmsg(fd, host_msgvec, i, flags));
+        } else {
+            ret = get_errno(safe_recvmmsg(fd, host_msgvec, i, flags, NULL));
         }
     }
 
-    unlock_user(mmsgp, target_msgvec, sizeof(*mmsgp) * i);
-
-    /* Return number of datagrams sent if we sent any at all;
-     * otherwise return the error.
-     */
-    if (i) {
-        return i;
+    if (!is_error(ret)) {
+        num_sentrecv = ret;
+        for (i = 0; i < num_sentrecv; i++) {
+            if (!send) {
+                ret = host_to_target_msghdr(fd, &target_msgvec[i].msg_hdr,
+                                            &host_msgvec[i].msg_hdr,
+                                            host_msgvec[i].msg_len);
+                if (is_error(ret)) {
+                    num_sentrecv = i;
+                    break;
+                }
+            }
+            target_msgvec[i].msg_len = tswap32(host_msgvec[i].msg_len);
+        }
     }
+
+    for (i = 0; i < num_iovec; i++) {
+        target_iovec = tswapal(target_msgvec[i].msg_hdr.msg_iov);
+        unlock_iovec(host_msgvec[i].msg_hdr.msg_iov,
+                     target_iovec, iovlen, !send);
+    }
+
+    unlock_user(target_msgvec, target_msgvec_addr, sizeof(*target_msgvec) * i);
+
+    if (num_sentrecv) {
+        return num_sentrecv;
+    }
+
     return ret;
 }
 
