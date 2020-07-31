@@ -951,6 +951,11 @@ static Chardev *chardev_new(const char *id, const char *typename,
 
     assert(g_str_has_prefix(typename, "chardev-"));
 
+    if (id && object_resolve_path_component(get_chardevs_root(), id)) {
+        error_setg(errp, "Chardev '%s' already exists", id);
+        return NULL;
+    }
+
     obj = object_new(typename);
     chr = CHARDEV(obj);
     chr->label = g_strdup(id);
@@ -969,11 +974,7 @@ static Chardev *chardev_new(const char *id, const char *typename,
     }
 
     if (id) {
-        object_property_try_add_child(get_chardevs_root(), id, obj,
-                                      &local_err);
-        if (local_err) {
-            goto end;
-        }
+        object_property_add_child(get_chardevs_root(), id, obj);
         object_unref(obj);
     }
 
