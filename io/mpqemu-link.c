@@ -255,6 +255,20 @@ bool mpqemu_msg_valid(MPQemuMsg *msg)
             return false;
         }
         break;
+    case PCI_CONFIG_WRITE:
+    case PCI_CONFIG_READ:
+        if (msg->size != sizeof(ConfDataMsg)) {
+            return false;
+        }
+        if (!msg->bytestream) {
+            return false;
+        }
+        ConfDataMsg *conf = (ConfDataMsg *)msg->data2;
+
+        if (conf->l != 1 && conf->l != 2 && conf->l != 4) {
+            return false;
+        }
+        break;
     default:
         break;
     }
