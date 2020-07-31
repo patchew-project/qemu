@@ -12,6 +12,7 @@
 #include "hw/pci/pci.h"
 #include "io/channel.h"
 #include "hw/pci/memory-sync.h"
+#include "qemu/event_notifier.h"
 
 #define TYPE_PCI_PROXY_DEV "pci-proxy-dev"
 
@@ -34,6 +35,10 @@ struct PCIProxyDev {
     QIOChannel *ioc;
 
     RemoteMemSync sync;
+
+    int virq;
+    EventNotifier intr;
+    EventNotifier resample;
 
     ProxyMemoryRegion region[PCI_NUM_REGIONS];
 };
