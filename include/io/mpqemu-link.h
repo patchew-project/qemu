@@ -39,6 +39,7 @@ typedef enum {
     BAR_WRITE,
     BAR_READ,
     SET_IRQFD,
+    GET_PCI_INFO,
     MAX = INT_MAX,
 } MPQemuCmd;
 
