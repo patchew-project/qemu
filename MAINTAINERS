@@ -3051,6 +3051,8 @@ F: include/hw/i386/remote-obj.h
 F: hw/i386/remote-obj.c
 F: include/hw/i386/remote-memory.h
 F: hw/i386/remote-memory.c
+F: hw/pci/proxy.c
+F: include/hw/pci/proxy.h
 
 Build and test automation
 -------------------------
