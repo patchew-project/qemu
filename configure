@@ -4063,20 +4063,6 @@ if test "$modules" = yes; then
 fi
 
 ##########################################
-# pixman support probe
-
-if test "$softmmu" = "no"; then
-  pixman_cflags=
-  pixman_libs=
-elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
-  pixman_cflags=$($pkg_config --cflags pixman-1)
-  pixman_libs=$($pkg_config --libs pixman-1)
-else
-  error_exit "pixman >= 0.21.8 not present." \
-      "Please install the pixman devel package."
-fi
-
-##########################################
 # libmpathpersist probe
 
 if test "$mpath" != "no" ; then
@@ -4489,6 +4475,20 @@ if test "$opengl" = "yes" && test "$have_x11" = "yes"; then
       ;;
     esac
   done
+fi
+
+##########################################
+# pixman support probe
+
+if test "$softmmu" = "no" && ! ( test "${linux} ${virglrenderer} ${gbm} ${want_tools}" = "yes yes yes yes" );  then
+  pixman_cflags=
+  pixman_libs=
+elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
+  pixman_cflags=$($pkg_config --cflags pixman-1)
+  pixman_libs=$($pkg_config --libs pixman-1)
+else
+  error_exit "pixman >= 0.21.8 not present." \
+      "Please install the pixman devel package."
 fi
 
 ##########################################
