@@ -107,6 +107,51 @@ Options
   performance.  ``auto`` acts similar to NFS with a 1 second metadata cache
   timeout.  ``always`` sets a long cache lifetime at the expense of coherency.
 
+xattr-mapping
+-------------
+
+By default the name of xattr's used by the client are passe through to the host
+file system.  This can be a problem where either those xattr names are used
+by something on the host (e.g. selinux guest/host confusion) or if the
+virtiofsd is running in a container with restricted priviliges where it cannot
+access some attributes.
+
+A mapping of xattr names can be made using -o xattrmap=mapping where the ``mapping``
+string consists of a series of rules.
+
+Each rule starts and ends with a ':'.  The mapping stops on a matching
+rule.  White space may be added before and after each rule.
+
+:scope:type:key:prepend:
+
+scope= 'c' - match 'key' against a xattr name from the client
+            for setxattr/getxattr/removexattr
+       'h' - match 'prepend' against a xattr name from the host
+            for listxattr
+       both letters can be included to match both cases.
+
+type is one of:
+       'p' Prefixing: If 'key' matches the client then the 'prepend'
+           is added before the name is passed to the host.
+           For a host case, the prepend is tested and stripped
+           if matching.
+
+       'o' OK: The attribute name is OK and passed through to
+           the host unchanged.
+
+       'b' Bad: If a client tries to use this name it's
+           denied using EPERM; when the host passes an attribute
+           name matching it's hidden.
+
+key is a string tested as a prefix on an attribute name originating
+       on the client.  It maybe empty in which case a 'c' rule
+       will always match on client names.
+
+prepend is a string tested as a prefix on an attribute name originiating
+       on the host, and used as a new prefix by 'p'.  It maybe empty
+       in which case a 'h' rule will always match on host names.
+
+
 Examples
 --------
 
@@ -123,3 +168,4 @@ Export ``/var/lib/fs/vm001/`` on vhost-user UNIX domain socket
       -numa node,memdev=mem \
       ...
   guest# mount -t virtiofs myfs /mnt
+

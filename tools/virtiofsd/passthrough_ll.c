@@ -144,6 +144,7 @@ struct lo_data {
     int flock;
     int posix_lock;
     int xattr;
+    char *xattrmap;
     char *source;
     char *modcaps;
     double timeout;
@@ -171,6 +172,7 @@ static const struct fuse_opt lo_opts[] = {
     { "no_posix_lock", offsetof(struct lo_data, posix_lock), 0 },
     { "xattr", offsetof(struct lo_data, xattr), 1 },
     { "no_xattr", offsetof(struct lo_data, xattr), 0 },
+    { "xattrmap=%s", offsetof(struct lo_data, xattrmap), 0 },
     { "modcaps=%s", offsetof(struct lo_data, modcaps), 0 },
     { "timeout=%lf", offsetof(struct lo_data, timeout), 0 },
     { "timeout=", offsetof(struct lo_data, timeout_set), 1 },
@@ -2003,7 +2005,154 @@ static void lo_flock(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi,
     fuse_reply_err(req, res == -1 ? errno : 0);
 }
 
-static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *name,
+typedef struct xattr_map_entry {
+    const char *key;
+    const char *prepend;
+    unsigned int flags;
+} XattrMapEntry;
+
+/*
+ * Exit; process attribute unmodified if matched.
+ * An empty key applies to all.
+ */
+#define XATTR_MAP_FLAG_END_OK  (1 <<  0)
+/*
+ * The attribute is unwanted;
+ * EPERM on write hidden on read.
+ */
+#define XATTR_MAP_FLAG_END_BAD (1 <<  1)
+/*
+ * For attr that start with 'key' prepend 'prepend'
+ * 'key' maybe empty to prepend for all attrs
+ * key is defined from set/remove point of view.
+ * Automatically reversed on read
+ */
+#define XATTR_MAP_FLAG_PREFIX  (1 <<  2)
+/* Apply rule to get/set/remove */
+#define XATTR_MAP_FLAG_CLIENT  (1 << 16)
+/* Apply rule to list */
+#define XATTR_MAP_FLAG_HOST    (1 << 17)
+/* Apply rule to all */
+#define XATTR_MAP_FLAG_ALL   (XATTR_MAP_FLAG_HOST | XATTR_MAP_FLAG_CLIENT)
+
+static XattrMapEntry *xattr_map_list;
+
+static XattrMapEntry *parse_xattrmap(const char *map)
+{
+    XattrMapEntry *res = NULL;
+    size_t nentries = 0;
+    const char *tmp;
+
+    while (*map) {
+        /* Find the : at the start of a rule */
+        if (isspace(*map)) {
+            map++;
+            continue;
+        }
+        if (*map != ':') {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Expecting : or space, found '%c'"
+                     " at start of rule %zu\n",
+                     __func__, *map, nentries + 1);
+            exit(1);
+        }
+        /* Skip the :, now at the start of the 'scope' */
+        map++;
+
+        /* Allocate some space for the rule */
+        res = g_realloc_n(res, ++nentries, sizeof(XattrMapEntry));
+        res[nentries - 1].flags = 0;
+
+        /* Scope is one or both of 'c' or 'h' */
+        do {
+            switch (*map) {
+            case 'c':
+                res[nentries - 1].flags |= XATTR_MAP_FLAG_CLIENT;
+                map++;
+                break;
+            case 'h':
+                res[nentries - 1].flags |= XATTR_MAP_FLAG_HOST;
+                map++;
+                break;
+            case ':':
+                break;
+            default:
+                fuse_log(FUSE_LOG_ERR,
+                         "%s: Expecting 'c', 'h', or ':', found '%c' in scope"
+                         " section of rule %zu\n",
+                         __func__, *map, nentries);
+                exit(1);
+            }
+        } while (*map != ':');
+
+        /* Start of 'type' */
+        switch (*++map) {
+        case 'p':
+            res[nentries - 1].flags |= XATTR_MAP_FLAG_PREFIX;
+            map++;
+            break;
+        case 'o':
+            res[nentries - 1].flags |= XATTR_MAP_FLAG_END_OK;
+            map++;
+            break;
+        case 'b':
+            res[nentries - 1].flags |= XATTR_MAP_FLAG_END_BAD;
+            map++;
+            break;
+        default:
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Expecting 'p', 'o', or 'b', found '%c' in type"
+                     " section of rule %zu\n",
+                     __func__, *map, nentries);
+            exit(1);
+        }
+
+        if (*map++ != ':') {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Missing ':' at end of type field of rule %zu\n",
+                     __func__, *map, nentries);
+            exit(1);
+        }
+
+        /* At start of 'key' field */
+        tmp = strchr(map, ':');
+        if (!tmp) {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Missing ':' at end of key field of rule %zu",
+                     __func__, *map, nentries);
+            exit(1);
+        }
+        res[nentries - 1].key = g_strndup(map, tmp - map);
+        map = tmp + 1;
+
+        /* At start of 'prepend' field */
+        tmp = strchr(map, ':');
+        if (!tmp) {
+            fuse_log(FUSE_LOG_ERR,
+                     "%s: Missing ':' at end of prepend field of rule %zu",
+                     __func__, *map, nentries);
+            exit(1);
+        }
+        res[nentries - 1].prepend = g_strndup(map, tmp - map);
+        map = tmp + 1;
+        /* End of rule - go around again for another rule */
+    }
+
+    if (!nentries) {
+        fuse_log(FUSE_LOG_ERR, "Empty xattr map\n");
+        exit(1);
+    }
+
+    /* Add a terminaotr to error in cases the user hasn't specified */
+    res = g_realloc_n(res, ++nentries, sizeof(XattrMapEntry));
+    res[nentries - 1].flags = XATTR_MAP_FLAG_ALL | XATTR_MAP_FLAG_END_BAD;
+    res[nentries - 1].key = g_strdup("");
+    res[nentries - 1].prepend = g_strdup("");
+
+    return res;
+}
+
+static void lo_getxattr(fuse_req_t req, fuse_ino_t ino, const char *in_name,
                         size_t size)
 {
     struct lo_data *lo = lo_data(req);
@@ -2909,6 +3058,11 @@ int main(int argc, char *argv[])
     } else {
         lo.source = strdup("/");
     }
+
+    if (lo.xattrmap) {
+        xattr_map_list = parse_xattrmap(lo.xattrmap);
+    }
+
     if (!lo.timeout_set) {
         switch (lo.cache) {
         case CACHE_NONE:
