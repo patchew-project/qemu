@@ -18,7 +18,7 @@ ifeq ($(CONFIG_POSIX),y)
 obj-$(CONFIG_HAX) += hax-posix.o
 endif
 obj-$(CONFIG_HVF) += hvf/
-obj-$(CONFIG_WHPX) += whpx-all.o
+obj-$(CONFIG_WHPX) += whpx-all.o whpx-cpus.o
 endif
 obj-$(CONFIG_SEV) += sev.o
 obj-$(call lnot,$(CONFIG_SEV)) += sev-stub.o
