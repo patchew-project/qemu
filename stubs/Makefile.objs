@@ -1,6 +1,7 @@
 stub-obj-y += blk-commit-all.o
 stub-obj-y += cmos.o
 stub-obj-y += cpu-get-clock.o
+stub-obj-y += cpus-get-virtual-clock.o
 stub-obj-y += qemu-timer-notify-cb.o
 stub-obj-y += icount.o
 stub-obj-y += dump.o
@@ -28,6 +29,7 @@ stub-obj-y += trace-control.o
 stub-obj-y += vmgenid.o
 stub-obj-y += vmstate.o
 stub-obj-$(CONFIG_SOFTMMU) += win32-kbd-hook.o
+stub-obj-y += cpu-synchronize-state.o
 
 #######################################################################
 # code used by both qemu system emulation and qemu-img
