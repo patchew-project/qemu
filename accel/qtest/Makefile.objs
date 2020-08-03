@@ -1,0 +1,2 @@
+obj-y += qtest.o
+obj-y += qtest-cpus.o
