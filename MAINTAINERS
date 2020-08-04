@@ -3068,6 +3068,12 @@ R: Wainer dos Santos Moschetta <wainersm@redhat.com>
 S: Maintained
 F: .gitlab-ci.yml
 
+GitHub Actions (build Windows installer)
+M: Stefan Weil <sw@weilnetz.de>
+M: Sunil Muthuswamy <sunilmut@microsoft.com>
+S: Maintained
+F: .github/workflows/
+
 Guest Test Compilation Support
 M: Alex Bennée <alex.bennee@linaro.org>
 R: Philippe Mathieu-Daudé <f4bug@amsat.org>
