@@ -7,10 +7,10 @@
 #~ set -e
 set -x
 
-ARCH=$1
-DLLS="libgcc_s_sjlj-1.dll libgomp-1.dll libstdc++-6.dll"
-
-if test "$ARCH" != "i686"; then
+if test "$1" == "32"; then
+  ARCH=i686
+  DLLS="libgcc_s_sjlj-1.dll libgomp-1.dll libstdc++-6.dll"
+else
   ARCH=x86_64
   DLLS="libgcc_s_seh-1.dll libgomp-1.dll libstdc++-6.dll"
 fi

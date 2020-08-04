@@ -9,26 +9,17 @@ name: Cross build for Windows
 on: [push]
 
 jobs:
-  build32:
+  build:
+    strategy:
+      matrix:
+        arch: [32, 64]
     if: github.repository == 'qemu/qemu'
     runs-on: [ubuntu-20.04]
     steps:
     - uses: actions/checkout@v2
-    - name: Build QEMU installer (32 bit)
-      run: .github/workflows/build.sh i686
+    - name: Build QEMU installer (${{ matrix.arch }} bit)
+      run: .github/workflows/build.sh ${{ matrix.arch }}
     - uses: actions/upload-artifact@v1
       with:
-        name: QEMU Installer Windows 32 bit
-        path: dist
-
-  build64:
-    if: github.repository == 'qemu/qemu'
-    runs-on: [ubuntu-20.04]
-    steps:
-    - uses: actions/checkout@v2
-    - name: Build QEMU installer (64 bit)
-      run: .github/workflows/build.sh x86_64
-    - uses: actions/upload-artifact@v1
-      with:
-        name: QEMU Installer Windows 64 bit
+        name: QEMU Installer Windows ${{ matrix.arch }} bit
         path: dist
