@@ -425,19 +425,14 @@ void aio_notify(AioContext *ctx)
     smp_mb();
     if (atomic_read(&ctx->notify_me)) {
         event_notifier_set(&ctx->notifier);
-        atomic_mb_set(&ctx->notified, true);
     }
+
+    atomic_mb_set(&ctx->notified, true);
 }
 
 void aio_notify_accept(AioContext *ctx)
 {
-    if (atomic_xchg(&ctx->notified, false)
-#ifdef WIN32
-        || true
-#endif
-    ) {
-        event_notifier_test_and_clear(&ctx->notifier);
-    }
+    atomic_mb_set(&ctx->notified, false);
 }
 
 static void aio_timerlist_notify(void *opaque, QEMUClockType type)
@@ -445,8 +440,11 @@ static void aio_timerlist_notify(void *opaque, QEMUClockType type)
     aio_notify(opaque);
 }
 
-static void aio_context_notifier_dummy_cb(EventNotifier *e)
+static void aio_context_notifier_cb(EventNotifier *e)
 {
+    AioContext *ctx = container_of(e, AioContext, notifier);
+
+    event_notifier_test_and_clear(&ctx->notifier);
 }
 
 /* Returns true if aio_notify() was called (e.g. a BH was scheduled) */
@@ -508,7 +506,7 @@ AioContext *aio_context_new(Error **errp)
 
     aio_set_event_notifier(ctx, &ctx->notifier,
                            false,
-                           aio_context_notifier_dummy_cb,
+                           aio_context_notifier_cb,
                            aio_context_notifier_poll);
 #ifdef CONFIG_LINUX_AIO
     ctx->linux_aio = NULL;
