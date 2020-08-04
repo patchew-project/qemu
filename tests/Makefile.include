@@ -687,7 +687,7 @@ check-report.tap: $(patsubst %,check-report-qtest-%.tap, $(QTEST_TARGETS)) check
 # generic Makefile expansions. Once we are cleanly passing all
 # the tests we can simplify the make syntax.
 
-FP_TEST_BIN=$(BUILD_DIR)/tests/fp/fp-test
+FP_TEST_BIN=$(BUILD_DIR)/tests/fp/fp-test$(EXESUF)
 
 # the build dir is created by configure
 $(FP_TEST_BIN): config-host.h $(test-util-obj-y)
