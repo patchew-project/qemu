@@ -3408,8 +3408,8 @@ static void disas_ldst_atomic(DisasContext *s, uint32_t insn,
  * W: pre-indexing flag
  * S: sign for imm9.
  */
-static void disas_ldst_pac(DisasContext *s, uint32_t insn,
-                           int size, int rt, bool is_vector)
+static void disas_ld_pac(DisasContext *s, uint32_t insn,
+                         int size, int rt, bool is_vector)
 {
     int rn = extract32(insn, 5, 5);
     bool is_wback = extract32(insn, 11, 1);
@@ -3562,7 +3562,7 @@ static void disas_ldst_reg(DisasContext *s, uint32_t insn)
             disas_ldst_reg_roffset(s, insn, opc, size, rt, is_vector);
             return;
         default:
-            disas_ldst_pac(s, insn, size, rt, is_vector);
+            disas_ld_pac(s, insn, size, rt, is_vector);
             return;
         }
         break;
