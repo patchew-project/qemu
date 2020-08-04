@@ -965,7 +965,10 @@ check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 ifeq ($(CONFIG_TOOLS),y)
 check-block: $(patsubst %,check-%, $(check-block-y))
 endif
-check-build: build-unit build-softfloat build-qtest
+check-build-y = build-unit
+check-build-$(CONFIG_POSIX) += build-softfloat
+check-build-$(CONFIG_SOFTMMU) += build-qtest
+check-build: $(check-build-y)
 
 check-clean:
 	rm -rf $(check-unit-y) tests/*.o tests/*/*.o $(QEMU_IOTESTS_HELPERS-y)
