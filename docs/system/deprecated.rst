@@ -17,6 +17,17 @@ they were first deprecated in the 2.10.0 release.
 What follows is a list of all features currently marked as
 deprecated.
 
+Build and test automation
+-------------------------
+
+``Travis-CI`` (Since 5.2)
+'''''''''''''''''''''''''
+
+``Travis-CI`` is deprecated in favor of GitLab-CI.
+
+The '.travis.yml' configuration should only be modified to remove jobs
+when equivalent exist on GitLab-CI. Adding new jobs is not allowed.
+
 System emulator command line arguments
 --------------------------------------
 

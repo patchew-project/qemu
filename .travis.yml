@@ -1,3 +1,10 @@
+#  WARNING  WARNING  WARNING  WARNING  WARNING  WARNING  WARNING  WARNING
+#
+#  As of QEMU 5.2, this file is now deprecated in favor of GitLab CI.
+#  Do not modify, except to remove jobs ported to GitLab CI.
+#
+#  WARNING  WARNING  WARNING  WARNING  WARNING  WARNING  WARNING  WARNING
+
 # The current Travis default is a VM based 16.04 Xenial on GCE
 # Additional builds with specific requirements for a full VM need to
 # be added as additional matrix: entries later on
