@@ -203,12 +203,12 @@ static int16_t artist_get_y(uint32_t reg)
 }
 
 static void artist_invalidate_lines(struct vram_buffer *buf,
-                                    int starty, int height)
+                                    unsigned int starty, unsigned int height)
 {
-    int start = starty * buf->width;
-    int size = height * buf->width;
+    unsigned int start = starty * buf->width;
+    unsigned int size = height * buf->width;
 
-    if (start + size <= buf->size) {
+    if (start + size < buf->size) {
         memory_region_set_dirty(&buf->mr, start, size);
     }
 }
@@ -274,15 +274,15 @@ static artist_rop_t artist_get_op(ARTISTState *s)
 }
 
 static void artist_rop8(ARTISTState *s, struct vram_buffer *buf,
-                        int offset, uint8_t val)
+                        unsigned int offset, uint8_t val)
 {
     const artist_rop_t op = artist_get_op(s);
     uint8_t plane_mask;
     uint8_t *dst;
 
-    if (offset < 0 || offset >= buf->size) {
+    if (offset >= buf->size) {
         qemu_log_mask(LOG_GUEST_ERROR,
-                      "rop8 offset:%d bufsize:%u\n", offset, buf->size);
+                      "rop8 offset:%u bufsize:%u\n", offset, buf->size);
         return;
     }
     dst = buf->data + offset;
@@ -464,12 +464,14 @@ static void vram_bit_write(ARTISTState *s, int posx, int posy, bool incr_x,
     }
 }
 
-static void block_move(ARTISTState *s, int source_x, int source_y, int dest_x,
-                       int dest_y, int width, int height)
+static void block_move(ARTISTState *s,
+                       unsigned int source_x, unsigned int source_y,
+                       unsigned int dest_x,   unsigned int dest_y,
+                       unsigned int width,    unsigned int height)
 {
     struct vram_buffer *buf;
     int line, endline, lineincr, startcolumn, endcolumn, columnincr, column;
-    uint32_t dst, src;
+    unsigned int dst, src;
 
     trace_artist_block_move(source_x, source_y, dest_x, dest_y, width, height);
 
@@ -481,6 +483,12 @@ static void block_move(ARTISTState *s, int source_x, int source_y, int dest_x,
     }
 
     buf = &s->vram_buffer[ARTIST_BUFFER_AP];
+    if (height > buf->height) {
+        height = buf->height;
+    }
+    if (width > buf->width) {
+        width = buf->width;
+    }
 
     if (dest_y > source_y) {
         /* move down */
@@ -507,24 +515,27 @@ static void block_move(ARTISTState *s, int source_x, int source_y, int dest_x,
     }
 
     for ( ; line != endline; line += lineincr) {
-        src = source_x + ((line + source_y) * buf->width);
-        dst = dest_x + ((line + dest_y) * buf->width);
+        src = source_x + ((line + source_y) * buf->width) + startcolumn;
+        dst = dest_x + ((line + dest_y) * buf->width) + startcolumn;
 
         for (column = startcolumn; column != endcolumn; column += columnincr) {
-            if (dst + column > buf->size || src + column > buf->size) {
+            if (dst > buf->size || src > buf->size) {
                 continue;
             }
-            artist_rop8(s, buf, dst + column, buf->data[src + column]);
+            artist_rop8(s, buf, dst, buf->data[src]);
+            src += columnincr;
+            dst += columnincr;
         }
     }
 
     artist_invalidate_lines(buf, dest_y, height);
 }
 
-static void fill_window(ARTISTState *s, int startx, int starty,
-                        int width, int height)
+static void fill_window(ARTISTState *s,
+                        unsigned int startx, unsigned int starty,
+                        unsigned int width,  unsigned int height)
 {
-    uint32_t offset;
+    unsigned int offset;
     uint8_t color = artist_get_color(s);
     struct vram_buffer *buf;
     int x, y;
@@ -561,7 +572,9 @@ static void fill_window(ARTISTState *s, int startx, int starty,
     artist_invalidate_lines(buf, starty, height);
 }
 
-static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
+static void draw_line(ARTISTState *s,
+                      unsigned int x1, unsigned int y1,
+                      unsigned int x2, unsigned int y2,
                       bool update_start, int skip_pix, int max_pix)
 {
     struct vram_buffer *buf = &s->vram_buffer[ARTIST_BUFFER_AP];
@@ -636,7 +649,7 @@ static void draw_line(ARTISTState *s, int x1, int y1, int x2, int y2,
     color = artist_get_color(s);
 
     do {
-        int ofs;
+        unsigned int ofs;
 
         if (c1) {
             ofs = x * s->width + y;
@@ -768,9 +781,9 @@ static void font_write16(ARTISTState *s, uint16_t val)
     uint16_t mask;
     int i;
 
-    int startx = artist_get_x(s->vram_start);
-    int starty = artist_get_y(s->vram_start) + s->font_write_pos_y;
-    int offset = starty * s->width + startx;
+    unsigned int startx = artist_get_x(s->vram_start);
+    unsigned int starty = artist_get_y(s->vram_start) + s->font_write_pos_y;
+    unsigned int offset = starty * s->width + startx;
 
     buf = &s->vram_buffer[ARTIST_BUFFER_AP];
 
@@ -1138,7 +1151,7 @@ static void artist_vram_write(void *opaque, hwaddr addr, uint64_t val,
     struct vram_buffer *buf;
     int posy = (addr >> 11) & 0x3ff;
     int posx = addr & 0x7ff;
-    uint32_t offset;
+    unsigned int offset;
     trace_artist_vram_write(size, addr, val);
 
     if (s->cmap_bm_access) {
