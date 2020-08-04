@@ -31,15 +31,8 @@ class BootLinuxBase(Test):
     def download_boot(self):
         self.log.debug('Looking for and selecting a qemu-img binary to be '
                        'used to create the bootable snapshot image')
-        # If qemu-img has been built, use it, otherwise the system wide one
-        # will be used.  If none is available, the test will cancel.
-        qemu_img = os.path.join(BUILD_DIR, 'qemu-img')
-        if not os.path.exists(qemu_img):
-            qemu_img = find_command('qemu-img', False)
-        if qemu_img is False:
-            self.cancel('Could not find "qemu-img", which is required to '
-                        'create the bootable image')
-        vmimage.QEMU_IMG = qemu_img
+
+        vmimage.QEMU_IMG = self.pick_qemu_util("qemu-img")
 
         self.log.info('Downloading/preparing boot image')
         # Fedora 31 only provides ppc64le images
