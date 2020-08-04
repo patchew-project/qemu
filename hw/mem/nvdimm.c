@@ -151,6 +151,10 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
                              "nvdimm-memory", mr, 0, pmem_size);
     memory_region_set_nonvolatile(nvdimm->nvdimm_mr, true);
     nvdimm->nvdimm_mr->align = align;
+
+    if (memory_region_is_rom(mr)) {
+        nvdimm->unarmed = true; /* this device is read-only */
+    }
 }
 
 static MemoryRegion *nvdimm_md_get_memory_region(MemoryDeviceState *md,
