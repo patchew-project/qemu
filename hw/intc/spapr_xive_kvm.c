@@ -889,3 +889,18 @@ void kvmppc_xive_disconnect(SpaprInterruptController *intc)
         xive->change = NULL;
     }
 }
+
+bool kvmppc_xive_kernel_irqchip(SpaprXive *xive)
+{
+    return xive->fd != -1;
+}
+
+bool kvmppc_xive_kernel_irqchip_tctx(XiveTCTX *tctx)
+{
+    return kvmppc_xive_kernel_irqchip(SPAPR_XIVE(tctx->xptr));
+}
+
+bool kvmppc_xive_kernel_irqchip_xsrc(XiveSource *xsrc)
+{
+    return kvmppc_xive_kernel_irqchip(SPAPR_XIVE(xsrc->xive));
+}

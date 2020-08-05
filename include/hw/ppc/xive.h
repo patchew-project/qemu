@@ -484,5 +484,7 @@ void kvmppc_xive_cpu_connect(XiveTCTX *tctx, Error **errp);
 void kvmppc_xive_cpu_synchronize_state(XiveTCTX *tctx, Error **errp);
 void kvmppc_xive_cpu_get_state(XiveTCTX *tctx, Error **errp);
 void kvmppc_xive_cpu_set_state(XiveTCTX *tctx, Error **errp);
+bool kvmppc_xive_kernel_irqchip_tctx(XiveTCTX *tctx);
+bool kvmppc_xive_kernel_irqchip_xsrc(XiveSource *xsrc);
 
 #endif /* PPC_XIVE_H */

@@ -592,6 +592,13 @@ static const char * const xive_tctx_ring_names[] = {
     "USER", "OS", "POOL", "PHYS",
 };
 
+/*
+ * kvm_irqchip_in_kernel() will cause the compiler to turn this
+ * info a nop if CONFIG_KVM isn't defined.
+ */
+#define kvmppc_xive_in_kernel_tctx(tctx) \
+    (kvm_irqchip_in_kernel() && kvmppc_xive_kernel_irqchip_tctx(tctx))
+
 void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 {
     int cpu_index;
@@ -606,7 +613,7 @@ void xive_tctx_pic_print_info(XiveTCTX *tctx, Monitor *mon)
 
     cpu_index = tctx->cs ? tctx->cs->cpu_index : -1;
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvmppc_xive_in_kernel_tctx(tctx)) {
         Error *local_err = NULL;
 
         kvmppc_xive_cpu_synchronize_state(tctx, &local_err);
@@ -671,7 +678,7 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
     }
 
     /* Connect the presenter to the VCPU (required for CPU hotplug) */
-    if (kvm_irqchip_in_kernel()) {
+    if (kvmppc_xive_in_kernel_tctx(tctx)) {
         kvmppc_xive_cpu_connect(tctx, &local_err);
         if (local_err) {
             error_propagate(errp, local_err);
@@ -682,10 +689,11 @@ static void xive_tctx_realize(DeviceState *dev, Error **errp)
 
 static int vmstate_xive_tctx_pre_save(void *opaque)
 {
+    XiveTCTX *tctx = XIVE_TCTX(opaque);
     Error *local_err = NULL;
 
-    if (kvm_irqchip_in_kernel()) {
-        kvmppc_xive_cpu_get_state(XIVE_TCTX(opaque), &local_err);
+    if (kvmppc_xive_in_kernel_tctx(tctx)) {
+        kvmppc_xive_cpu_get_state(tctx, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return -1;
@@ -697,14 +705,15 @@ static int vmstate_xive_tctx_pre_save(void *opaque)
 
 static int vmstate_xive_tctx_post_load(void *opaque, int version_id)
 {
+    XiveTCTX *tctx = XIVE_TCTX(opaque);
     Error *local_err = NULL;
 
-    if (kvm_irqchip_in_kernel()) {
+    if (kvmppc_xive_in_kernel_tctx(tctx)) {
         /*
          * Required for hotplugged CPU, for which the state comes
          * after all states of the machine.
          */
-        kvmppc_xive_cpu_set_state(XIVE_TCTX(opaque), &local_err);
+        kvmppc_xive_cpu_set_state(tctx, &local_err);
         if (local_err) {
             error_report_err(local_err);
             return -1;
@@ -1125,6 +1134,13 @@ static void xive_source_reset(void *dev)
     memset(xsrc->status, XIVE_ESB_OFF, xsrc->nr_irqs);
 }
 
+/*
+ * kvm_irqchip_in_kernel() will cause the compiler to turn this
+ * info a nop if CONFIG_KVM isn't defined.
+ */
+#define kvmppc_xive_in_kernel_xsrc(xsrc) \
+    (kvm_irqchip_in_kernel() && kvmppc_xive_kernel_irqchip_xsrc(xsrc))
+
 static void xive_source_realize(DeviceState *dev, Error **errp)
 {
     XiveSource *xsrc = XIVE_SOURCE(dev);
@@ -1147,7 +1163,7 @@ static void xive_source_realize(DeviceState *dev, Error **errp)
     xsrc->status = g_malloc0(xsrc->nr_irqs);
     xsrc->lsi_map = bitmap_new(xsrc->nr_irqs);
 
-    if (!kvm_irqchip_in_kernel()) {
+    if (!kvmppc_xive_in_kernel_xsrc(xsrc)) {
         memory_region_init_io(&xsrc->esb_mmio, OBJECT(xsrc),
                               &xive_source_esb_ops, xsrc, "xive.esb",
                               (1ull << xsrc->esb_shift) * xsrc->nr_irqs);

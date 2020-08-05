@@ -94,5 +94,6 @@ void kvmppc_xive_get_queue_config(SpaprXive *xive, uint8_t end_blk,
 void kvmppc_xive_synchronize_state(SpaprXive *xive, Error **errp);
 int kvmppc_xive_pre_save(SpaprXive *xive);
 int kvmppc_xive_post_load(SpaprXive *xive, int version_id);
+bool kvmppc_xive_kernel_irqchip(SpaprXive *xive);
 
 #endif /* PPC_SPAPR_XIVE_H */
