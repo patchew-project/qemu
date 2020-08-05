@@ -748,6 +748,8 @@ int qcow2_cache_destroy(Qcow2Cache *c);
 void qcow2_cache_entry_mark_dirty(Qcow2Cache *c, void *table);
 int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c);
 int qcow2_cache_write(BlockDriverState *bs, Qcow2Cache *c);
+int qcow2_cache_l2_write_entry(BlockDriverState *bs, Qcow2Cache *c,
+                               void *table, int index, int num);
 int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
     Qcow2Cache *dependency);
 void qcow2_cache_depends_on_flush(Qcow2Cache *c);

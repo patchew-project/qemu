@@ -998,6 +998,9 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
      }
 
 
+    ret = qcow2_cache_l2_write_entry(bs, s->l2_table_cache, l2_slice,
+                                     l2_index, m->nb_clusters);
+
     qcow2_cache_put(s->l2_table_cache, (void **) &l2_slice);
 
     /*

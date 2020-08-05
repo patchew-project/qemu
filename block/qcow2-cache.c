@@ -266,6 +266,22 @@ int qcow2_cache_flush(BlockDriverState *bs, Qcow2Cache *c)
     return result;
 }
 
+#define L2_ENTRIES_PER_SECTOR 64
+int qcow2_cache_l2_write_entry(BlockDriverState *bs, Qcow2Cache *c,
+                               void *table, int index, int num)
+{
+    int ret;
+    int i = qcow2_cache_get_table_idx(c, table);
+    int start_sector = index / L2_ENTRIES_PER_SECTOR;
+    int end_sector = (index + num - 1) / L2_ENTRIES_PER_SECTOR;
+    int nr_sectors = end_sector - start_sector + 1;
+    ret = bdrv_pwrite(bs->file,
+                      c->entries[i].offset + start_sector * BDRV_SECTOR_SIZE,
+                      table + start_sector * BDRV_SECTOR_SIZE,
+                      nr_sectors * BDRV_SECTOR_SIZE);
+    return ret;
+}
+
 int qcow2_cache_set_dependency(BlockDriverState *bs, Qcow2Cache *c,
     Qcow2Cache *dependency)
 {
