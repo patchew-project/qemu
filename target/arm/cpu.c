@@ -1311,6 +1311,16 @@ void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
             return;
         }
     }
+
+    if (kvm_enabled()) {
+#ifdef TARGET_AARCH64
+        kvm_arm_steal_time_finalize(cpu, &local_err);
+        if (local_err != NULL) {
+            error_propagate(errp, local_err);
+            return;
+        }
+#endif
+    }
 }
 
 static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
