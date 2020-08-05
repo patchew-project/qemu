@@ -11,9 +11,13 @@ void pause_all_vcpus(void);
 void cpu_stop_current(void);
 void cpu_ticks_init(void);
 
+#if !defined(CONFIG_USER_ONLY)
 void configure_icount(QemuOpts *opts, Error **errp);
 extern int use_icount;
 extern int icount_align_option;
+#else
+#define use_icount false
+#endif
 
 /* drift information for info jit command */
 extern int64_t max_delay;
