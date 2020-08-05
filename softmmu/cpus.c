@@ -81,6 +81,13 @@
 
 #endif /* CONFIG_LINUX */
 
+/*
+ * 0 = Do not count executed instructions.
+ * 1 = Precise instruction counting.
+ * 2 = Adaptive rate instruction counting.
+ */
+int use_icount;
+
 static QemuMutex qemu_global_mutex;
 
 int64_t max_delay;
