@@ -157,10 +157,6 @@ int ide_get_bios_chs_trans(BusState *bus, int unit)
 
 /* --------------------------------- */
 
-typedef struct IDEDrive {
-    IDEDevice dev;
-} IDEDrive;
-
 static void ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind, Error **errp)
 {
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, dev->qdev.parent_bus);
@@ -297,19 +293,19 @@ static void ide_drive_realize(IDEDevice *dev, Error **errp)
 }
 
 #define DEFINE_IDE_DEV_PROPERTIES()                     \
-    DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),        \
-    DEFINE_BLOCK_ERROR_PROPERTIES(IDEDrive, dev.conf),  \
-    DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
-    DEFINE_PROP_UINT64("wwn",  IDEDrive, dev.wwn, 0),   \
-    DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial),\
-    DEFINE_PROP_STRING("model", IDEDrive, dev.model)
+    DEFINE_BLOCK_PROPERTIES(IDEDevice, conf),        \
+    DEFINE_BLOCK_ERROR_PROPERTIES(IDEDevice, conf),  \
+    DEFINE_PROP_STRING("ver",  IDEDevice, version),  \
+    DEFINE_PROP_UINT64("wwn",  IDEDevice, wwn, 0),   \
+    DEFINE_PROP_STRING("serial",  IDEDevice, serial),\
+    DEFINE_PROP_STRING("model", IDEDevice, model)
 
 static Property ide_hd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
-    DEFINE_BLOCK_CHS_PROPERTIES(IDEDrive, dev.conf),
+    DEFINE_BLOCK_CHS_PROPERTIES(IDEDevice, conf),
     DEFINE_PROP_BIOS_CHS_TRANS("bios-chs-trans",
-                IDEDrive, dev.chs_trans, BIOS_ATA_TRANSLATION_AUTO),
-    DEFINE_PROP_UINT16("rotation_rate", IDEDrive, dev.rotation_rate, 0),
+                IDEDevice, chs_trans, BIOS_ATA_TRANSLATION_AUTO),
+    DEFINE_PROP_UINT16("rotation_rate", IDEDevice, rotation_rate, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -327,7 +323,6 @@ static void ide_hd_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ide_hd_info = {
     .name          = "ide-hd",
     .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
     .class_init    = ide_hd_class_init,
 };
 
@@ -350,7 +345,6 @@ static void ide_cd_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ide_cd_info = {
     .name          = "ide-cd",
     .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
     .class_init    = ide_cd_class_init,
 };
 
@@ -373,7 +367,6 @@ static void ide_drive_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ide_drive_info = {
     .name          = "ide-drive",
     .parent        = TYPE_IDE_DEVICE,
-    .instance_size = sizeof(IDEDrive),
     .class_init    = ide_drive_class_init,
 };
 
