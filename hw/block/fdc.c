@@ -259,7 +259,7 @@ static uint32_t fd_sector(FDrive *drv)
 }
 
 /* Returns current position, in bytes, for given drive */
-static int fd_offset(FDrive *drv)
+static uint64_t fd_offset(FDrive *drv)
 {
     g_assert(fd_sector(drv) < INT_MAX >> BDRV_SECTOR_BITS);
     return fd_sector(drv) << BDRV_SECTOR_BITS;
