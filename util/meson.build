@@ -62,7 +62,4 @@ util_ss.add(when: 'CONFIG_LINUX', if_true: files('vfio-helpers.c'))
 util_ss.add(when: 'CONFIG_POSIX', if_true: files('drm.c'))
 util_ss.add(files('guest-random.c'))
 util_ss.add(when: 'CONFIG_GIO', if_true: [files('dbus.c'), gio])
-
-if have_user then
-  util_ss.add(files('selfmap.c'))
-endif
+util_ss.add(when: 'CONFIG_USER_ONLY', if_true: [files('selfmap.c')])
