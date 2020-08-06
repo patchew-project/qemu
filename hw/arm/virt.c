@@ -820,6 +820,7 @@ static void virt_powerdown_req(Notifier *n, void *opaque)
 {
     VirtMachineState *s = container_of(n, VirtMachineState, powerdown_notifier);
 
+    info_report("send powerdown to vm.");
     if (s->acpi_dev) {
         acpi_send_event(s->acpi_dev, ACPI_POWER_DOWN_STATUS);
     } else {
@@ -1780,6 +1781,7 @@ static void machvirt_init(MachineState *machine)
     }
 
     create_fdt(vms);
+    info_report("cpu init start");
 
     possible_cpus = mc->possible_cpu_arch_ids(machine);
     for (n = 0; n < possible_cpus->len; n++) {
