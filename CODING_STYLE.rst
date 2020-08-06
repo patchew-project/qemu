@@ -109,8 +109,31 @@ names are lower_case_with_underscores_ending_with_a_t, like the POSIX
 uint64_t and family.  Note that this last convention contradicts POSIX
 and is therefore likely to be changed.
 
+Variable Naming Conventions
+---------------------------
+
+A number of common short naming conventions exist for variables that use
+common QEMU types. For example when dealing with the architecture
+independent CPUState this is often in a ``cs`` pointer variable
+whereas the concrete CPUArchState us usually held in a pointer called
+``env``.
+
+Likewise in device emulation code the common DeviceState is usually
+called ``dev`` with the actual state structure often the very terse
+``s`` or maybe ``foodev``.
+
+Function Naming Conventions
+---------------------------
+
 When wrapping standard library functions, use the prefix ``qemu_`` to alert
 readers that they are seeing a wrapped version; otherwise avoid this prefix.
+
+Functions that are expected to be called with some sort of lock held
+usually have the suffix ``_locked``.
+
+Public functions (i.e. declared in public headers) tend to be prefixes
+with the subsystem or file they came from. For example ``tlb_`` for
+functions from ``cputlb.c`` or ``cpu_`` for functions from cpus.c.
 
 Block structure
 ===============
