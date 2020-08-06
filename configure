@@ -316,7 +316,6 @@ audio_drv_list=""
 block_drv_rw_whitelist=""
 block_drv_ro_whitelist=""
 host_cc="cc"
-libs_cpu=""
 libs_softmmu=""
 libs_tools=""
 audio_win_int=""
@@ -5415,7 +5414,6 @@ case "$capstone" in
     else
       LIBCAPSTONE=libcapstone.a
     fi
-    libs_cpu="-L$PWD/capstone -lcapstone $libs_cpu"
     capstone_libs="-L$PWD/capstone -lcapstone"
     capstone_cflags="-I${source_path}/capstone/include"
     ;;
@@ -5424,7 +5422,6 @@ case "$capstone" in
     capstone_libs="$($pkg_config --libs capstone)"
     capstone_cflags="$($pkg_config --cflags capstone)"
     QEMU_CFLAGS="$QEMU_CFLAGS $($pkg_config --cflags capstone)"
-    libs_cpu="$($pkg_config --libs capstone) $libs_cpu"
     ;;
 
   no)
@@ -6342,7 +6339,10 @@ fi
 if test "$fuzzing" = "yes" ; then
   write_c_fuzzer_skeleton
   if compile_prog "$CPU_CFLAGS -Werror -fsanitize=fuzzer" ""; then
-      have_fuzzer=yes
+    have_fuzzer=yes
+  else
+    error_exit "Your compiler doesn't support -fsanitize=fuzzer"
+    exit 1
   fi
 fi
 
@@ -6842,7 +6842,6 @@ echo "qemu_helperdir=$libexecdir" >> $config_host_mak
 echo "qemu_localedir=$qemu_localedir" >> $config_host_mak
 echo "qemu_icondir=$qemu_icondir" >> $config_host_mak
 echo "qemu_desktopdir=$qemu_desktopdir" >> $config_host_mak
-echo "libs_cpu=$libs_cpu" >> $config_host_mak
 echo "libs_softmmu=$libs_softmmu" >> $config_host_mak
 echo "GIT=$git" >> $config_host_mak
 echo "GIT_SUBMODULES=$git_submodules" >> $config_host_mak
@@ -7705,14 +7704,7 @@ if test "$have_mlockall" = "yes" ; then
   echo "HAVE_MLOCKALL=y" >> $config_host_mak
 fi
 if test "$fuzzing" = "yes" ; then
-  if test "$have_fuzzer" = "yes"; then
-    FUZZ_LDFLAGS=" -fsanitize=fuzzer"
-    FUZZ_CFLAGS=" -fsanitize=fuzzer"
-    CFLAGS="$CFLAGS -fsanitize=fuzzer-no-link"
-  else
-    error_exit "Your compiler doesn't support -fsanitize=fuzzer"
-    exit 1
-  fi
+  CFLAGS="$CFLAGS -fsanitize=fuzzer-no-link"
 fi
 
 if test "$plugins" = "yes" ; then
@@ -8299,8 +8291,8 @@ if test "$TARGET_ARCH" = "s390x" && test "$target_softmmu" = "yes" && \
     fi
 fi
 
-echo "QEMU_LDFLAGS+=$ldflags" >> $config_target_mak
-echo "QEMU_CFLAGS+=$cflags" >> $config_target_mak
+echo "QEMU_LDFLAGS=$ldflags" >> $config_target_mak
+echo "QEMU_CFLAGS=$cflags" >> $config_target_mak
 
 done # for target in $targets
 

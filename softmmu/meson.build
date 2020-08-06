@@ -8,3 +8,7 @@ specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
   'memory_mapping.c',
   'qtest.c',
   'vl.c'))
+
+softmmu_emulator_ss.add(files(
+  'main.c',
+), sdl)
