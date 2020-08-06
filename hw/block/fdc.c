@@ -245,14 +245,14 @@ static void fd_init(FDrive *drv)
 
 #define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
 
-static int fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
-                          uint8_t last_sect, uint8_t num_sides)
+static uint32_t fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
+                               uint8_t last_sect, uint8_t num_sides)
 {
     return (((track * num_sides) + head) * last_sect) + sect - 1;
 }
 
 /* Returns current position, in sectors, for given drive */
-static int fd_sector(FDrive *drv)
+static uint32_t fd_sector(FDrive *drv)
 {
     return fd_sector_calc(drv->head, drv->track, drv->sect, drv->last_sect,
                           NUM_SIDES(drv));
