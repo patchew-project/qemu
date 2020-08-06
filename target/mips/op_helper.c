@@ -1583,6 +1583,8 @@ void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
         /* Index Load Tag */
         memory_region_dispatch_read(env->itc_tag, index, &env->CP0_TagLo,
                                     MO_64, MEMTXATTRS_UNSPECIFIED);
+    } else {
+        qemu_log_mask(LOG_UNIMP, "cache %u\n", op);
     }
 #endif
 }
