@@ -1001,6 +1001,8 @@ DriveInfo *drive_new(QemuOpts *all_opts, BlockInterfaceType block_default_type,
         qdict_put_str(bs_opts, "rerror", rerror);
     }
 
+    info_report("blockdev init(%s).", filename ? filename : "");
+
     /* Actual block device init: Functionality shared with blockdev-add */
     blk = blockdev_init(filename, bs_opts, errp);
     bs_opts = NULL;

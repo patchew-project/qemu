@@ -66,9 +66,7 @@
 
 #include "qemu/mmap-alloc.h"
 
-#ifdef CONFIG_DEBUG_STACK_USAGE
 #include "qemu/error-report.h"
-#endif
 
 #define MAX_MEM_PREALLOC_THREAD_COUNT 16
 
@@ -558,6 +556,7 @@ static bool touch_all_pages(char *area, size_t hpagesize, size_t numpages,
     g_free(memset_thread);
     memset_thread = NULL;
 
+    info_report("Finish touching all pages.");
     return memset_thread_failed;
 }
 

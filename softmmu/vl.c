@@ -1070,6 +1070,8 @@ static void configure_blockdev(BlockdevOptionsQueue *bdo_queue,
         exit(0);
     }
 
+    info_report("Finish drive init.");
+
     default_drive(default_cdrom, snapshot, machine_class->block_default_type, 2,
                   CDROM_OPTS);
     default_drive(default_floppy, snapshot, IF_FLOPPY, 0, FD_OPTS);
