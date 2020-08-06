@@ -540,10 +540,21 @@ static void ftgmac100_do_tx(FTGMAC100State *s, uint32_t tx_ring,
                 s->isr |= FTGMAC100_INT_XPKT_LOST;
                 len =  sizeof(s->frame) - frame_size - 4;
             }
-            memmove(ptr + 16, ptr + 12, len - 12);
-            stw_be_p(ptr + 12, ETH_P_VLAN);
-            stw_be_p(ptr + 14, bd.des1);
-            len += 4;
+
+            if (len < sizeof(struct eth_header)) {
+                qemu_log_mask(LOG_GUEST_ERROR,
+                         "%s: frame too small for VLAN insertion : %d bytes\n",
+                         __func__, len);
+                s->isr |= FTGMAC100_INT_XPKT_LOST;
+            } else {
+                uint8_t *vlan_hdr = ptr + (ETH_ALEN * 2);
+                uint8_t *payload = vlan_hdr + sizeof(struct vlan_header);
+
+                memmove(payload, vlan_hdr, len - (ETH_ALEN * 2));
+                stw_be_p(vlan_hdr, ETH_P_VLAN);
+                stw_be_p(vlan_hdr + 2, FTGMAC100_TXDES1_VLANTAG_CI(bd.des1));
+                len += sizeof(struct vlan_header);
+            }
         }
 
         ptr += len;
