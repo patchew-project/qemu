@@ -2636,7 +2636,6 @@ static void fdctrl_realize_common(DeviceState *dev, FDCtrl *fdctrl,
         }
     }
 
-    FLOPPY_DPRINTF("init controller\n");
     fdctrl->fifo = qemu_memalign(512, FD_SECTOR_LEN);
     memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
     fdctrl->fifo_size = 512;
