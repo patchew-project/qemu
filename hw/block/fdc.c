@@ -395,12 +395,10 @@ static int pick_geometry(FDrive *drv)
     if (match == -1) {
         if (size_match != -1) {
             parse = &fd_formats[size_match];
-            FLOPPY_DPRINTF("User requested floppy drive type '%s', "
-                           "but inserted medium appears to be a "
-                           "%"PRId64" sector '%s' type\n",
-                           FloppyDriveType_str(drv->drive),
-                           nb_sectors,
-                           FloppyDriveType_str(parse->drive));
+            warn_report("User requested floppy drive type '%s', but inserted "
+                        "medium appears to be a %"PRId64" sector '%s' type",
+                        FloppyDriveType_str(drv->drive), nb_sectors,
+                        FloppyDriveType_str(parse->drive));
         }
         assert(type_match != -1 && "misconfigured fd_format");
         match = type_match;
@@ -1805,8 +1803,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
             /* READ & SCAN commands and realign to a sector for WRITE */
             if (blk_pread(cur_drv->blk, fd_offset(cur_drv),
                           fdctrl->fifo, BDRV_SECTOR_SIZE) < 0) {
-                FLOPPY_DPRINTF("Floppy: error getting sector %d\n",
-                               fd_sector(cur_drv));
+                warn_report("Floppy: error getting sector %" PRIu32,
+                            fd_sector(cur_drv));
                 /* Sure, image size is too small... */
                 memset(fdctrl->fifo, 0, FD_SECTOR_LEN);
             }
@@ -1833,8 +1831,8 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
                            fdctrl->data_pos, len);
             if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv),
                            fdctrl->fifo, BDRV_SECTOR_SIZE, 0) < 0) {
-                FLOPPY_DPRINTF("error writing sector %d\n",
-                               fd_sector(cur_drv));
+                warn_report("error writing sector %" PRIu32,
+                            fd_sector(cur_drv));
                 fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
                 goto transfer_error;
             }
@@ -1911,8 +1909,8 @@ static uint32_t fdctrl_read_data(FDCtrl *fdctrl)
         if (pos == 0) {
             if (fdctrl->data_pos != 0)
                 if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
-                    FLOPPY_DPRINTF("error seeking to next sector %d\n",
-                                   fd_sector(cur_drv));
+                    warn_report("error seeking to next sector %" PRIu32,
+                                fd_sector(cur_drv));
                     return 0;
                 }
             if (blk_pread(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
@@ -1997,7 +1995,7 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
     if (cur_drv->blk == NULL ||
         blk_pwrite(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
                    BDRV_SECTOR_SIZE, 0) < 0) {
-        FLOPPY_DPRINTF("error formatting sector %d\n", fd_sector(cur_drv));
+        warn_report("error formatting sector %" PRIu32, fd_sector(cur_drv));
         fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK, 0x00, 0x00);
     } else {
         if (cur_drv->sect == cur_drv->last_sect) {
@@ -2421,13 +2419,13 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
             cur_drv = get_cur_drv(fdctrl);
             if (blk_pwrite(cur_drv->blk, fd_offset(cur_drv), fdctrl->fifo,
                            BDRV_SECTOR_SIZE, 0) < 0) {
-                FLOPPY_DPRINTF("error writing sector %d\n",
-                               fd_sector(cur_drv));
+                warn_report("error writing sector %" PRIu32,
+                            fd_sector(cur_drv));
                 break;
             }
             if (!fdctrl_seek_to_next_sect(fdctrl, cur_drv)) {
-                FLOPPY_DPRINTF("error seeking to next sector %d\n",
-                               fd_sector(cur_drv));
+                warn_report("error seeking to next sector %" PRIu32,
+                            fd_sector(cur_drv));
                 break;
             }
         }
