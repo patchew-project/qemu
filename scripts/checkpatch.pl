@@ -1300,6 +1300,7 @@ sub process {
 	my $in_header_lines = $file ? 0 : 1;
 	my $in_commit_log = 0;		#Scanning lines before patch
 	my $reported_maintainer_file = 0;
+	my $reported_trace_events_file = 0;
 	my $non_utf8_charset = 0;
 
 	our @report = ();
@@ -1524,15 +1525,24 @@ sub process {
 		if ($line =~ /^\s*MAINTAINERS\s*\|/) {
 			$reported_maintainer_file = 1;
 		}
-
+# similar check for trace-events
+		if ($line =~ /^\s*trace-events\s*\|/) {
+			$reported_trace_events_file = 1;
+		}
 # Check for added, moved or deleted files
-		if (!$reported_maintainer_file && !$in_commit_log &&
+		if (!$in_commit_log &&
 		    ($line =~ /^(?:new|deleted) file mode\s*\d+\s*$/ ||
 		     $line =~ /^rename (?:from|to) [\w\/\.\-]+\s*$/ ||
 		     ($line =~ /\{\s*([\w\/\.\-]*)\s*\=\>\s*([\w\/\.\-]*)\s*\}/ &&
 		      (defined($1) || defined($2))))) {
-			$reported_maintainer_file = 1;
-			WARN("added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
+			if (!$reported_maintainer_file) {
+				$reported_maintainer_file = 1;
+				WARN("added, moved or deleted file(s), does MAINTAINERS need updating?\n" . $herecurr);
+			}
+			if (!$reported_trace_events_file) {
+				$reported_trace_events_file = 1;
+				WARN("added, moved or deleted file(s), does trace-events need updating?\n" . $herecurr);
+			}
 		}
 
 # Check for wrappage within a valid hunk of the file
