@@ -10,6 +10,8 @@ IMAGES += ubuntu.aarch64 centos.aarch64
 endif
 endif
 
+EFI_AARCH64 = $(wildcard $(SRC_PATH)/pc-bios/edk2-aarch64-code.fd)
+
 IMAGES_DIR := $(HOME)/.cache/qemu-vm/images
 IMAGE_FILES := $(patsubst %, $(IMAGES_DIR)/%.img, $(IMAGES))
 
