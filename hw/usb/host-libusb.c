@@ -904,6 +904,8 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
 
         rc = libusb_open(dev, &s->dh);
         if (rc != 0) {
+            info_report("libusb open usb device bus %d, device %d failed",
+                        bus_num, addr);
             goto fail;
         }
     } else {
@@ -931,6 +933,7 @@ static int usb_host_open(USBHostDevice *s, libusb_device *dev, int hostfd)
 
     libusb_get_device_descriptor(dev, &s->ddesc);
     usb_host_get_port(s->dev, s->port, sizeof(s->port));
+    info_report("open a host usb device on bus %d, device %d", bus_num, addr);
 
     usb_ep_init(udev);
     usb_host_ep_update(s);
@@ -1016,6 +1019,8 @@ static int usb_host_close(USBHostDevice *s)
         usb_device_detach(udev);
     }
 
+    info_report("begin to reset the usb device, bus : %d,"
+                " device : %d", s->bus_num, s->addr);
     usb_host_release_interfaces(s);
     libusb_reset_device(s->dh);
     usb_host_attach_kernel(s);

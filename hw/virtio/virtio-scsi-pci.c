@@ -19,6 +19,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "qemu/module.h"
 #include "virtio-pci.h"
+#include "qemu/error-report.h"
 
 typedef struct VirtIOSCSIPCI VirtIOSCSIPCI;
 
@@ -50,6 +51,8 @@ static void virtio_scsi_pci_realize(VirtIOPCIProxy *vpci_dev, Error **errp)
     DeviceState *proxy = DEVICE(vpci_dev);
     char *bus_name;
 
+    info_report("virtio scsi HBA %s begin to initialize.",
+                !proxy->id ? "NULL" : proxy->id);
     if (vpci_dev->nvectors == DEV_NVECTORS_UNSPECIFIED) {
         vpci_dev->nvectors = vs->conf.num_queues + 3;
     }

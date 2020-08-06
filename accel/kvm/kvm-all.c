@@ -1427,7 +1427,10 @@ void kvm_irqchip_commit_routes(KVMState *s)
     s->irq_routes->flags = 0;
     trace_kvm_irqchip_commit_routes();
     ret = kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
-    assert(ret == 0);
+    if (ret < 0) {
+        error_report("Set GSI routing failed");
+        abort();
+    }
 }
 
 static void kvm_add_routing_entry(KVMState *s,

@@ -1708,7 +1708,9 @@ static void virtio_pci_device_unplugged(DeviceState *d)
     VirtIOPCIProxy *proxy = VIRTIO_PCI(d);
     bool modern = virtio_pci_modern(proxy);
     bool modern_pio = proxy->flags & VIRTIO_PCI_FLAG_MODERN_PIO_NOTIFY;
+    VirtIODevice *vdev = virtio_bus_get_device(&proxy->bus);
 
+    info_report("device name: %s", !vdev ? "NULL" : vdev->name);
     virtio_pci_stop_ioeventfd(proxy);
 
     if (modern) {

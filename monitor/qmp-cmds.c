@@ -155,8 +155,10 @@ void qmp_cont(Error **errp)
     }
 
     if (runstate_check(RUN_STATE_INMIGRATE)) {
+        info_report("qmp cont is received in migration");
         autostart = 1;
     } else {
+        info_report("qmp cont is received and vm is started");
         vm_start();
     }
 }

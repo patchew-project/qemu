@@ -343,6 +343,7 @@ int os_mlock(void)
 #ifdef HAVE_MLOCKALL
     int ret = 0;
 
+    info_report("do mlockall");
     ret = mlockall(MCL_CURRENT | MCL_FUTURE);
     if (ret < 0) {
         error_report("mlockall: %s", strerror(errno));

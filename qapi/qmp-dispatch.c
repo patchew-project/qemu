@@ -18,6 +18,8 @@
 #include "qapi/qmp/qjson.h"
 #include "sysemu/runstate.h"
 #include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qstring.h"
+#include "qemu/error-report.h"
 
 static QDict *qmp_dispatch_check_obj(QDict *dict, bool allow_oob,
                                      Error **errp)
@@ -96,6 +98,7 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
     const char *command;
     QDict *args;
     const QmpCommand *cmd;
+    QString *json;
     QDict *dict;
     QObject *id;
     QObject *ret = NULL;
@@ -152,6 +155,20 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
         args = qdict_get_qdict(dict, "arguments");
         qobject_ref(args);
     }
+
+    json = qobject_to_json(QOBJECT(args));
+    if (json) {
+        if ((strcmp(command, "query-block-jobs") != 0)
+            && (strcmp(command, "query-migrate") != 0)
+            && (strcmp(command, "query-blockstats") != 0)
+            && (strcmp(command, "query-balloon") != 0)
+            && (strcmp(command, "set_password") != 0)) {
+            info_report("qmp_cmd_name: %s, arguments: %s",
+                        command, qstring_get_str(json));
+        }
+        qobject_unref(json);
+    }
+
     cmd->fn(args, &ret, &err);
     qobject_unref(args);
     if (err) {
