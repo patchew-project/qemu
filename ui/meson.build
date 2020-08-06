@@ -32,3 +32,5 @@ foreach e : keymaps
                           '--varname', 'qemu_input_map_@0@_to_@1@'.format(e[0], e[1]),
                           'code-map', '@INPUT0@', e[0], e[1]])
 endforeach
+
+subdir('shader')
