@@ -78,7 +78,6 @@
 *.msi
 *.dll
 *.so
-*.mo
 *.fn
 *.ky
 *.log
