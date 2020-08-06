@@ -655,11 +655,10 @@ static void ftgmac100_reset(DeviceState *d)
     s->itc = 0;
     s->aptcr = 1;
     s->dblac = 0x00022f00;
-    s->revr = 0;
     s->fear1 = 0;
     s->tpafcr = 0xf1;
 
-    s->maccr = 0;
+    s->maccr &= FTGMAC100_MACCR_GIGA_MODE | FTGMAC100_MACCR_FAST_MODE;
     s->phycr = 0;
     s->phydata = 0;
     s->fcr = 0x400;
@@ -812,6 +811,7 @@ static void ftgmac100_write(void *opaque, hwaddr addr,
     case FTGMAC100_MACCR: /* MAC Device control */
         s->maccr = value;
         if (value & FTGMAC100_MACCR_SW_RST) {
+            /* TODO: rework software reset to have a finer granularity */
             ftgmac100_reset(DEVICE(s));
         }
 
