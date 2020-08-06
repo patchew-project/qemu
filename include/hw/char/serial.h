@@ -31,8 +31,10 @@
 #include "qemu/fifo8.h"
 #include "chardev/char.h"
 #include "hw/sysbus.h"
+#include "hw/clock.h"
 
 #define UART_FIFO_LENGTH    16      /* 16550A Fifo Length */
+#define UART_CLOCK_DIVISOR  16      /* baudrate is input clock / 16 */
 
 typedef struct SerialState {
     DeviceState parent;
@@ -57,6 +59,7 @@ typedef struct SerialState {
     qemu_irq irq;
     CharBackend chr;
     int last_break_enable;
+    Clock *rclk; /* ReceiverClock */
     uint32_t baudbase;
     uint32_t tsr_retry;
     guint watch_tag;

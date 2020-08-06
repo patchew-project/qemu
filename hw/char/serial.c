@@ -35,6 +35,7 @@
 #include "qemu/error-report.h"
 #include "trace.h"
 #include "hw/qdev-properties.h"
+#include "hw/qdev-clock.h"
 
 #define UART_LCR_DLAB	0x80	/* Divisor latch access bit */
 
@@ -921,9 +922,35 @@ static int serial_be_change(void *opaque)
     return 0;
 }
 
+/* Change the main reference oscillator frequency. */
+void serial_set_frequency(SerialState *s, uint32_t frequency)
+{
+    s->baudbase = frequency;
+    serial_update_parameters(s);
+}
+
+static void serial_rclk_update(void *opaque)
+{
+    SerialState *s = opaque;
+
+    serial_set_frequency(s, clock_get_hz(s->rclk) / UART_CLOCK_DIVISOR);
+}
+
+static void serial_init(Object *obj)
+{
+    SerialState *s = SERIAL(obj);
+
+    s->rclk = qdev_init_clock_in(DEVICE(obj), "rclk", serial_rclk_update, s);
+}
+
 static void serial_realize(DeviceState *dev, Error **errp)
 {
     SerialState *s = SERIAL(dev);
+
+    /* initialize the frequency in case the clock remains unconnected */
+    if (!clock_get(s->rclk)) {
+        clock_set_hz(s->rclk, s->baudbase);
+    }
 
     s->modem_status_poll = timer_new_ns(QEMU_CLOCK_VIRTUAL, (QEMUTimerCB *) serial_update_msl, s);
 
@@ -953,13 +980,6 @@ static void serial_unrealize(DeviceState *dev)
     fifo8_destroy(&s->xmit_fifo);
 
     qemu_unregister_reset(serial_reset, s);
-}
-
-/* Change the main reference oscillator frequency. */
-void serial_set_frequency(SerialState *s, uint32_t frequency)
-{
-    s->baudbase = frequency;
-    serial_update_parameters(s);
 }
 
 const MemoryRegionOps serial_io_ops = {
@@ -994,6 +1014,7 @@ static const TypeInfo serial_info = {
     .name = TYPE_SERIAL,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SerialState),
+    .instance_init = serial_init,
     .class_init = serial_class_init,
 };
 
