@@ -864,6 +864,19 @@
            '*serial': 'str', '*dev': 'str'} }
 
 ##
+# @guest-get-disks:
+#
+# Returns: The list of disks in the guest. For Windows these are only the
+#          physical disks. On Linux these are all root block devices of
+#          non-zero size including e.g. removable devices, loop devices,
+#          NBD, etc.
+#
+# Since: 5.2
+##
+{ 'command': 'guest-get-disks',
+  'returns': ['GuestDiskAddress'] }
+
+##
 # @GuestFilesystemInfo:
 #
 # @name: disk name

@@ -62,6 +62,8 @@ extern char **environ;
 #endif
 #endif
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(GuestFilesystemInfo, qapi_free_GuestFilesystemInfo)
+
 static void ga_wait_child(pid_t pid, int *status, Error **errp)
 {
     pid_t rpid;
@@ -1114,6 +1116,92 @@ static void build_guest_fsinfo_for_device(char const *devpath,
     }
 
     free(syspath);
+}
+
+GuestDiskAddressList *qmp_guest_get_disks(Error **errp)
+{
+    GuestDiskAddressList *item, *ret = NULL;
+    DIR *dp = NULL;
+    struct dirent *de = NULL;
+
+    g_debug("listing /sys/block directory");
+    dp = opendir("/sys/block");
+    if (dp == NULL) {
+        error_setg_errno(errp, errno, "Can't open directory \"/sys/block\"");
+        return NULL;
+    }
+    while ((de = readdir(dp)) != NULL) {
+        g_autofree char *disk_dir = NULL, *line = NULL,
+            *size_path = NULL, *slaves_dir = NULL;
+        g_autoptr(GuestFilesystemInfo) fs = NULL;
+        uint64_t slaves = 0;
+        struct dirent *de_slaves;
+        DIR *dp_slaves = NULL;
+        FILE *fp = NULL;
+        size_t n;
+        Error *local_err = NULL;
+        if (de->d_type != DT_LNK) {
+            g_debug("  skipping entry: %s", de->d_name);
+            continue;
+        }
+
+        slaves_dir = g_strdup_printf("/sys/block/%s/slaves", de->d_name);
+        if (slaves_dir == NULL) {
+            g_debug("  failed to open directory %s", slaves_dir);
+            continue;
+        }
+        g_debug("  counting entries in: %s", slaves_dir);
+        dp_slaves = opendir(slaves_dir);
+        while ((de_slaves = readdir(dp_slaves)) != NULL) {
+            if ((strcmp(".", de_slaves->d_name) == 0) ||
+                (strcmp("..", de_slaves->d_name) == 0)) {
+                continue;
+            }
+            slaves++;
+        }
+        closedir(dp_slaves);
+        g_debug("    counted %lu items", slaves);
+        if (slaves != 0) {
+            continue;
+        }
+
+        g_debug("  checking disk size");
+        size_path = g_strdup_printf("/sys/block/%s/size", de->d_name);
+        fp = fopen(size_path, "r");
+        if (!fp) {
+            g_debug("  failed to read disk size");
+            continue;
+        }
+        if (getline(&line, &n, fp) == -1) {
+            g_debug("  failed to read disk size");
+            fclose(fp);
+            continue;
+        }
+        fclose(fp);
+        if (strcmp(line, "0\n") == 0) {
+            g_debug("  skipping zero-sized disk");
+            continue;
+        }
+
+        fs = g_malloc0(sizeof(*fs));
+        g_debug("  adding %s", de->d_name);
+        disk_dir = g_strdup_printf("/sys/block/%s", de->d_name);
+        build_guest_fsinfo_for_device(disk_dir, fs, &local_err);
+        if (local_err != NULL) {
+            g_debug("  failed to get device info, ignoring error: %s",
+                error_get_pretty(local_err));
+            error_free(local_err);
+            continue;
+        } else if (fs->disk == NULL) {
+            g_debug("  skipping unknown disk");
+            continue;
+        }
+        item = g_steal_pointer(&fs->disk);
+        g_assert(item->next == NULL); /* expecting just a single disk */
+        item->next = ret;
+        ret = item;
+    }
+    return ret;
 }
 
 /* Return a list of the disk device(s)' info which @mount lies on */
@@ -2748,7 +2836,8 @@ GList *ga_command_blacklist_init(GList *blacklist)
         const char *list[] = {
             "guest-get-fsinfo", "guest-fsfreeze-status",
             "guest-fsfreeze-freeze", "guest-fsfreeze-freeze-list",
-            "guest-fsfreeze-thaw", "guest-get-fsinfo", NULL};
+            "guest-fsfreeze-thaw", "guest-get-fsinfo",
+            "guest-get-disks", NULL};
         char **p = (char **)list;
 
         while (*p) {
