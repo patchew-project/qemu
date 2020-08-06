@@ -174,6 +174,25 @@ path_of() {
     return 1
 }
 
+version_ge () {
+    local_ver1=`echo $1 | tr . ' '`
+    local_ver2=`echo $2 | tr . ' '`
+    while true; do
+        set x $local_ver1
+        local_first=${2-0}
+        # shift 2 does nothing if there are less than 2 arguments
+        shift; shift
+        local_ver1=$*
+        set x $local_ver2
+        # the second argument finished, the first must be greater or equal
+        test $# = 1 && return 0
+        test $local_first -lt $2 && return 1
+        test $local_first -gt $2 && return 0
+        shift; shift
+        local_ver2=$*
+    done
+}
+
 have_backend () {
     echo "$trace_backends" | grep "$1" >/dev/null
 }
@@ -1965,9 +1984,28 @@ then
     error_exit "Python not found. Use --python=/path/to/python"
 fi
 
-if ! has "$meson"
-then
-    error_exit "Meson not found. Use --meson=/path/to/meson"
+if test -z "$meson" ; then
+    if has meson && version_ge "$(meson --version)" 0.55.0; then
+        meson=meson
+    elif test -e "${source_path}/.git" && test $git_update = 'yes' ; then
+        meson=git
+    elif test -e "${source_path}/meson/meson.py" ; then
+        meson=internal
+    fi
+fi
+
+case "$meson" in
+    git | internal)
+        if test "$meson" = git; then
+            git_submodules="${git_submodules} meson"
+            (cd "${source_path}" && GIT="$git" "./scripts/git-submodule.sh" update meson)
+        fi
+        meson="${source_path}/meson/meson.py"
+        ;;
+esac
+
+if ! has "$meson" ; then
+    error_exit "Meson not found. Use --meson=/path/to/meson|git|internal"
 fi
 meson=$(command -v $meson)
 
