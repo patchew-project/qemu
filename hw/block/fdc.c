@@ -2930,7 +2930,7 @@ static void isabus_fdc_instance_init(Object *obj)
                                   DEVICE(obj));
 }
 
-static const TypeInfo isa_fdc_info = {
+static const TypeInfo isabus_fdc_info = {
     .name          = TYPE_ISA_FDC,
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(FDCtrlISABus),
@@ -2971,7 +2971,7 @@ static void sysbus_fdc_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo sysbus_fdc_info = {
+static const TypeInfo sysbus_fdc_i82078_info = {
     .name          = "sysbus-fdc",
     .parent        = TYPE_SYSBUS_FDC,
     .instance_init = sysbus_fdc_initfn,
@@ -2997,7 +2997,7 @@ static void sun4m_fdc_class_init(ObjectClass *klass, void *data)
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
 }
 
-static const TypeInfo sun4m_fdc_info = {
+static const TypeInfo sysbus_fdc_sun4m_info = {
     .name          = "SUNW,fdtwo",
     .parent        = TYPE_SYSBUS_FDC,
     .instance_init = sun4m_fdc_initfn,
@@ -3013,7 +3013,7 @@ static void sysbus_fdc_common_class_init(ObjectClass *klass, void *data)
     dc->vmsd = &vmstate_sysbus_fdc;
 }
 
-static const TypeInfo sysbus_fdc_type_info = {
+static const TypeInfo sysbus_fdc_common_info = {
     .name          = TYPE_SYSBUS_FDC,
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(FDCtrlSysBus),
@@ -3024,10 +3024,12 @@ static const TypeInfo sysbus_fdc_type_info = {
 
 static void fdc_register_types(void)
 {
-    type_register_static(&isa_fdc_info);
-    type_register_static(&sysbus_fdc_type_info);
-    type_register_static(&sysbus_fdc_info);
-    type_register_static(&sun4m_fdc_info);
+    type_register_static(&isabus_fdc_info);
+
+    type_register_static(&sysbus_fdc_common_info);
+    type_register_static(&sysbus_fdc_i82078_info);
+    type_register_static(&sysbus_fdc_sun4m_info);
+
     type_register_static(&floppy_bus_info);
     type_register_static(&floppy_drive_info);
 }
