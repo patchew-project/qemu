@@ -326,7 +326,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
 /* Set drive back to track 0 */
 static void fd_recalibrate(FDrive *drv)
 {
-    FLOPPY_DPRINTF("recalibrate\n");
+    trace_floppy_recalibrate();
     fd_seek(drv, 0, 0, 1, 1);
 }
 
@@ -438,7 +438,7 @@ static void fd_revalidate(FDrive *drv)
 {
     int rc;
 
-    FLOPPY_DPRINTF("revalidate\n");
+    trace_floppy_revalidate();
     if (drv->blk != NULL) {
         drv->ro = blk_is_read_only(drv->blk);
         if (!blk_is_inserted(drv->blk)) {
@@ -1283,7 +1283,7 @@ static void fdctrl_reset(FDCtrl *fdctrl, int do_irq)
 {
     int i;
 
-    FLOPPY_DPRINTF("reset controller\n");
+    trace_fdc_reset();
     fdctrl_reset_irq(fdctrl);
     /* Initialise controller */
     fdctrl->sra = 0;
