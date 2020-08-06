@@ -26,6 +26,7 @@
 #include "qemu/osdep.h"
 #include "qemu/queue.h"
 #include "sysemu/reset.h"
+#include "qemu/error-report.h"
 
 /* reset/shutdown handler */
 
@@ -64,6 +65,7 @@ void qemu_devices_reset(void)
 {
     QEMUResetEntry *re, *nre;
 
+    info_report("reset all devices");
     /* reset all devices */
     QTAILQ_FOREACH_SAFE(re, &reset_handlers, entry, nre) {
         re->func(re->opaque);

@@ -1657,9 +1657,11 @@ static bool main_loop_should_exit(void)
     }
     if (qemu_powerdown_requested()) {
         qemu_system_powerdown();
+        info_report("domain is power down by outside operation");
     }
     if (qemu_vmstop_requested(&r)) {
         vm_stop(r);
+        info_report("domain is stopped by outside operation");
     }
     return false;
 }
@@ -1669,6 +1671,7 @@ void qemu_main_loop(void)
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
+    info_report("qemu enter main_loop");
     while (!main_loop_should_exit()) {
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
@@ -2941,6 +2944,7 @@ void qemu_init(int argc, char **argv, char **envp)
 
     autostart = 1;
 
+    info_report("qemu pid is %d, options parsing start", getpid());
     /* first pass of option parsing */
     optind = 1;
     while (optind < argc) {
@@ -3154,6 +3158,7 @@ void qemu_init(int argc, char **argv, char **envp)
                 exit(0);
                 break;
             case QEMU_OPTION_m:
+                info_report("memory options parse start");
                 opts = qemu_opts_parse_noisily(qemu_find_opts("memory"),
                                                optarg, true);
                 if (!opts) {
@@ -4152,6 +4157,7 @@ void qemu_init(int argc, char **argv, char **envp)
     current_machine->maxram_size = maxram_size;
     current_machine->ram_slots = ram_slots;
 
+    info_report("configure accelerator %s start", machine_class->name);
     /*
      * Note: uses machine properties such as kernel-irqchip, must run
      * after machine_set_property().
@@ -4300,6 +4306,7 @@ void qemu_init(int argc, char **argv, char **envp)
     replay_checkpoint(CHECKPOINT_INIT);
     qdev_machine_init();
 
+    info_report("machine init start");
     current_machine->boot_order = boot_order;
 
     /* parse features once if machine provides default cpu_type */
@@ -4379,6 +4386,7 @@ void qemu_init(int argc, char **argv, char **envp)
             exit(1);
     }
 
+    info_report("device init start");
     /* init generic devices */
     rom_set_order_override(FW_CFG_ORDER_OVERRIDE_DEVICE);
     qemu_opts_foreach(qemu_find_opts("device"),
