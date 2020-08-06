@@ -161,6 +161,7 @@ typedef struct XiveNotifier XiveNotifier;
 typedef struct XiveNotifierClass {
     InterfaceClass parent;
     void (*notify)(XiveNotifier *xn, uint32_t lisn);
+    bool (*in_kernel)(const XiveNotifier *xn);
 } XiveNotifierClass;
 
 /*
@@ -396,6 +397,7 @@ typedef struct XivePresenterClass {
                      uint8_t nvt_blk, uint32_t nvt_idx,
                      bool cam_ignore, uint8_t priority,
                      uint32_t logic_serv, XiveTCTXMatch *match);
+    bool (*in_kernel)(const XivePresenter *xptr);
 } XivePresenterClass;
 
 int xive_presenter_tctx_match(XivePresenter *xptr, XiveTCTX *tctx,
