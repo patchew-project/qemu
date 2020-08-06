@@ -1439,7 +1439,9 @@ static void *virtqueue_split_pop(VirtQueue *vq, size_t sz)
     max = vq->vring.num;
 
     if (vq->inuse >= vq->vring.num) {
-        virtio_error(vdev, "Virtqueue size exceeded");
+        virtio_error(vdev, "Virtio device %s vq->inuse=%d vq->vring.num=%d, "
+                     "virtqueue size exceeded",
+                     vdev->name, vq->inuse, vq->vring.num);
         goto done;
     }
 
