@@ -49,6 +49,15 @@ git-submodule-update:
 endif
 endif
 
+export NINJA=./ninjatool
+Makefile.ninja: build.ninja ninjatool
+	./ninjatool -t ninja2make --clean --omit dist uninstall < $< > $@
+-include Makefile.ninja
+
+ninjatool: ninjatool.stamp
+ninjatool.stamp: $(SRC_PATH)/scripts/ninjatool.py config-host.mak
+	$(MESON) setup --reconfigure . $(SRC_PATH) && touch $@
+
 .git-submodule-status: git-submodule-update config-host.mak
 
 # Check that we're not trying to do an out-of-tree build from
@@ -68,6 +77,8 @@ CONFIG_ALL=y
 -include config-all-devices.mak
 -include config-all-disas.mak
 
+build.ninja: meson-private/coredata.dat
+meson-private/coredata.dat: config-host.mak
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	@echo $@ is out-of-date, running configure
 	@./config.status
@@ -933,6 +944,8 @@ ICON_SIZES=16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512
 install-includedir:
 	$(INSTALL_DIR) "$(DESTDIR)$(includedir)"
 
+# Needed by "meson install"
+export DESTDIR
 install: all $(if $(BUILD_DOCS),install-doc) \
 	install-datadir install-localstatedir install-includedir \
 	$(if $(INSTALL_BLOBS),$(edk2-decompressed)) \
@@ -1005,21 +1018,6 @@ endif
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	$(INSTALL_DATA) $(BUILD_DIR)/trace-events-all "$(DESTDIR)$(qemu_datadir)/trace-events-all"
-
-.PHONY: ctags
-ctags:
-	rm -f tags
-	find "$(SRC_PATH)" -name '*.[hc]' -exec ctags --append {} +
-
-.PHONY: TAGS
-TAGS:
-	rm -f TAGS
-	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
-
-cscope:
-	rm -f "$(SRC_PATH)"/cscope.*
-	find "$(SRC_PATH)/" -name "*.[chsS]" -print | sed 's,^\./,,' > "$(SRC_PATH)/cscope.files"
-	cscope -b -i"$(SRC_PATH)/cscope.files"
 
 # opengl shader programs
 ui/shader/%-vert.h: $(SRC_PATH)/ui/shader/%.vert $(SRC_PATH)/scripts/shaderinclude.pl
