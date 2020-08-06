@@ -18,6 +18,8 @@ memory_region_ram_device_write(int cpu_index, void *mr, uint64_t addr, uint64_t 
 flatview_new(void *view, void *root) "%p (root %p)"
 flatview_destroy(void *view, void *root) "%p (root %p)"
 flatview_destroy_rcu(void *view, void *root) "%p (root %p)"
+memory_region_io_check_odd_size(const char *name, uint64_t size) "mr name:'%s' size:0x%"PRIx64
+memory_region_io_check_access_size_incomplete(const char *name, unsigned vmin, unsigned vmax, unsigned imin, unsigned imax) "mr name:'%s' min/max:[valid:%u/%u impl:%u/%u]"
 
 # vl.c
 vm_state_notify(int running, int reason, const char *reason_str) "running %d reason %d (%s)"

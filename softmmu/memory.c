@@ -1488,6 +1488,17 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops ? ops : &unassigned_mem_ops;
     mr->opaque = opaque;
     mr->terminates = true;
+    if (size != UINT64_MAX && !is_power_of_2(size)) {
+        trace_memory_region_io_check_odd_size(name, size);
+    }
+    if (ops && (!ops->impl.min_access_size || !ops->impl.max_access_size ||
+                !ops->valid.min_access_size || !ops->valid.max_access_size)) {
+        trace_memory_region_io_check_access_size_incomplete(name,
+                mr->ops->valid.min_access_size,
+                mr->ops->valid.max_access_size,
+                mr->ops->impl.min_access_size,
+                mr->ops->impl.max_access_size);
+    }
 }
 
 void memory_region_init_ram_nomigrate(MemoryRegion *mr,
