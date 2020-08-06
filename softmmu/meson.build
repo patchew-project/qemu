@@ -1,4 +1,4 @@
-specific_ss.add(files(
+specific_ss.add(when: 'CONFIG_SOFTMMU', if_true: files(
   'arch_init.c',
   'balloon.c',
   'cpus.c',
@@ -6,4 +6,5 @@ specific_ss.add(files(
   'ioport.c',
   'memory.c',
   'memory_mapping.c',
-  'qtest.c'))
+  'qtest.c',
+  'vl.c'))
