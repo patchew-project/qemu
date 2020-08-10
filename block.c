@@ -443,13 +443,13 @@ static int bdrv_format_is_whitelisted(const char *format_name, bool read_only)
         return 1;               /* no whitelist, anything goes */
     }
 
-    for (p = whitelist_rw; *p; p++) {
+    for (p = whitelist_rw; p < &whitelist_rw[ARRAY_SIZE(whitelist_rw)]; p++) {
         if (!strcmp(format_name, *p)) {
             return 1;
         }
     }
     if (read_only) {
-        for (p = whitelist_ro; *p; p++) {
+        for (p = whitelist_ro; p < &whitelist_ro[ARRAY_SIZE(whitelist_ro)]; p++) {
             if (!strcmp(format_name, *p)) {
                 return 1;
             }
