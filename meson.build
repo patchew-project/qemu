@@ -523,6 +523,9 @@ subdir('nbd')
 subdir('scsi')
 subdir('block')
 
+# needed for fuzzing binaries
+subdir('tests/qtest/libqos')
+
 mods = []
 block_mods = []
 softmmu_mods = []
