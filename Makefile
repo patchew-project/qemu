@@ -125,44 +125,6 @@ generated-files-y += module_block.h
 
 generated-files-y += .git-submodule-status
 
-KEYCODEMAP_GEN = $(SRC_PATH)/ui/keycodemapdb/tools/keymap-gen
-KEYCODEMAP_CSV = $(SRC_PATH)/ui/keycodemapdb/data/keymaps.csv
-
-KEYCODEMAP_FILES = \
-		 ui/input-keymap-atset1-to-qcode.inc \
-		 ui/input-keymap-linux-to-qcode.inc \
-		 ui/input-keymap-qcode-to-atset1.inc \
-		 ui/input-keymap-qcode-to-atset2.inc \
-		 ui/input-keymap-qcode-to-atset3.inc \
-		 ui/input-keymap-qcode-to-linux.inc \
-		 ui/input-keymap-qcode-to-qnum.inc \
-		 ui/input-keymap-qcode-to-sun.inc \
-		 ui/input-keymap-qnum-to-qcode.inc \
-		 ui/input-keymap-usb-to-qcode.inc \
-		 ui/input-keymap-win32-to-qcode.inc \
-		 ui/input-keymap-x11-to-qcode.inc \
-		 ui/input-keymap-xorgevdev-to-qcode.inc \
-		 ui/input-keymap-xorgkbd-to-qcode.inc \
-		 ui/input-keymap-xorgxquartz-to-qcode.inc \
-		 ui/input-keymap-xorgxwin-to-qcode.inc \
-		 ui/input-keymap-osx-to-qcode.inc \
-		 $(NULL)
-
-generated-files-$(CONFIG_SOFTMMU) += $(KEYCODEMAP_FILES)
-
-ui/input-keymap-%.inc: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile.objs
-	$(call quiet-command,\
-	    stem=$* && src=$${stem%-to-*} dst=$${stem#*-to-} && \
-	    test -e $(KEYCODEMAP_GEN) && \
-	    $(PYTHON) $(KEYCODEMAP_GEN) \
-	          --lang glib2 \
-	          --varname qemu_input_map_$${src}_to_$${dst} \
-	          code-map $(KEYCODEMAP_CSV) $${src} $${dst} \
-	        > $@ || rm -f $@, "GEN", "$@")
-
-$(KEYCODEMAP_GEN): .git-submodule-status
-$(KEYCODEMAP_CSV): .git-submodule-status
-
 edk2-decompressed = $(basename $(wildcard pc-bios/edk2-*.fd.bz2))
 pc-bios/edk2-%.fd: pc-bios/edk2-%.fd.bz2
 	$(call quiet-command,bzip2 -d -c $< > $@,"BUNZIP2",$<)
