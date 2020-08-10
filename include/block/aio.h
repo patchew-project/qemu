@@ -287,6 +287,11 @@ void aio_context_unref(AioContext *ctx);
  */
 void aio_context_acquire(AioContext *ctx);
 
+/* Add timeout to aio_context_acquire().  If the time for obtaining
+ * the lock exceeds @t, return ETIMEDOUT.
+ */
+int aio_context_acquire_timeout(AioContext *ctx, int t);
+
 /* Relinquish ownership of the AioContext. */
 void aio_context_release(AioContext *ctx);
 

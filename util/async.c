@@ -605,6 +605,16 @@ void aio_context_acquire(AioContext *ctx)
     qemu_rec_mutex_lock(&ctx->lock);
 }
 
+int aio_context_acquire_timeout(AioContext *ctx, int t)
+{
+    struct timespec tout;
+
+    clock_gettime(CLOCK_REALTIME, &tout);
+    tout.tv_sec += t;
+
+    return qemu_rec_mutex_timed_lock(&ctx->lock, &tout);
+}
+
 void aio_context_release(AioContext *ctx)
 {
     qemu_rec_mutex_unlock(&ctx->lock);

@@ -82,6 +82,12 @@ void qemu_mutex_lock_impl(QemuMutex *mutex, const char *file, const int line)
     qemu_mutex_post_lock(mutex, file, line);
 }
 
+int qemu_mutex_timed_lock(QemuMutex *mutex, const struct timespec *tsptr)
+{
+    assert(mutex->initialized);
+    return pthread_mutex_timedlock(&mutex->lock, tsptr);
+}
+
 int qemu_mutex_trylock_impl(QemuMutex *mutex, const char *file, const int line)
 {
     int err;

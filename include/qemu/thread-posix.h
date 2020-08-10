@@ -9,6 +9,7 @@ typedef QemuMutex QemuRecMutex;
 #define qemu_rec_mutex_lock_impl    qemu_mutex_lock_impl
 #define qemu_rec_mutex_trylock_impl qemu_mutex_trylock_impl
 #define qemu_rec_mutex_unlock qemu_mutex_unlock
+#define qemu_rec_mutex_timed_lock qemu_mutex_timed_lock
 
 struct QemuMutex {
     pthread_mutex_t lock;
