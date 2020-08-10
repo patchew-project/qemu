@@ -34,7 +34,7 @@
 #include "overlay_tool.h"
 
 #define xtensa_modules xtensa_modules_fsf
-#include "core-fsf/xtensa-modules.inc.c"
+#include "core-fsf/xtensa-modules.inc"
 
 static XtensaConfig fsf __attribute__((unused)) = {
     .name = "fsf",

@@ -50,9 +50,9 @@ static inline int rsub_8(DisasContext *s, int x)
 }
 
 /* Include the generated Neon decoder */
-#include "decode-neon-dp.inc.c"
-#include "decode-neon-ls.inc.c"
-#include "decode-neon-shared.inc.c"
+#include "decode-neon-dp.inc"
+#include "decode-neon-ls.inc"
+#include "decode-neon-shared.inc"
 
 /* Return the offset of a 2**SIZE piece of a NEON register, at index ELE,
  * where 0 is the least significant end of the register.
