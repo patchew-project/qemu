@@ -271,7 +271,11 @@ void bdrv_query_image_info(BlockDriverState *bs,
     Error *err = NULL;
     ImageInfo *info;
 
-    aio_context_acquire(bdrv_get_aio_context(bs));
+    ret = aio_context_acquire_timeout(bdrv_get_aio_context(bs), LOCK_TIMEOUT);
+    if (ret) {
+        error_setg_errno(errp, ret, "acquire aio context failed");
+        return;
+    }
 
     size = bdrv_getlength(bs);
     if (size < 0) {

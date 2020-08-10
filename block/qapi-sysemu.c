@@ -439,6 +439,7 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     BlockDriverState *bs;
     BlockBackend *blk;
     AioContext *aio_context;
+    int ret;
 
     blk = qmp_get_blk(arg->has_device ? arg->device : NULL,
                       arg->has_id ? arg->id : NULL,
@@ -448,7 +449,11 @@ void qmp_block_set_io_throttle(BlockIOThrottle *arg, Error **errp)
     }
 
     aio_context = blk_get_aio_context(blk);
-    aio_context_acquire(aio_context);
+    ret = aio_context_acquire_timeout(aio_context, LOCK_TIMEOUT);
+    if (ret) {
+        error_setg_errno(errp, ret, "acquire aio context failed");
+        return;
+    }
 
     bs = blk_bs(blk);
     if (!bs) {

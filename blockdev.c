@@ -2431,6 +2431,7 @@ void qmp_block_resize(bool has_device, const char *device,
     BlockBackend *blk = NULL;
     BlockDriverState *bs;
     AioContext *aio_context;
+    int ret;
 
     bs = bdrv_lookup_bs(has_device ? device : NULL,
                         has_node_name ? node_name : NULL,
@@ -2441,7 +2442,11 @@ void qmp_block_resize(bool has_device, const char *device,
     }
 
     aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
+    ret = aio_context_acquire_timeout(aio_context, LOCK_TIMEOUT);
+    if (ret) {
+        error_setg_errno(errp, ret, "acquire aio context failed");
+        return;
+    }
 
     if (size < 0) {
         error_setg(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
@@ -3016,7 +3021,11 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
     }
 
     aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(aio_context);
+    ret = aio_context_acquire_timeout(aio_context, LOCK_TIMEOUT);
+    if (ret) {
+        error_setg_errno(errp, ret, "acquire aio context failed");
+        return;
+    }
 
     if (!arg->has_mode) {
         arg->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
@@ -3184,12 +3193,20 @@ void qmp_blockdev_mirror(bool has_job_id, const char *job_id,
     /* Honor bdrv_try_set_aio_context() context acquisition requirements. */
     old_context = bdrv_get_aio_context(target_bs);
     aio_context = bdrv_get_aio_context(bs);
-    aio_context_acquire(old_context);
+    ret = aio_context_acquire_timeout(old_context, LOCK_TIMEOUT);
+    if (ret) {
+        error_setg_errno(errp, ret, "acquire aio context failed");
+        return;
+    }
 
     ret = bdrv_try_set_aio_context(target_bs, aio_context, errp);
 
     aio_context_release(old_context);
-    aio_context_acquire(aio_context);
+    ret = aio_context_acquire_timeout(aio_context, LOCK_TIMEOUT);
+    if (ret) {
+        error_setg_errno(errp, ret, "acquire aio context failed");
+        return;
+    }
 
     if (ret < 0) {
         goto out;
@@ -3603,6 +3620,7 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
 {
     BlockJobInfoList *head = NULL, **p_next = &head;
     BlockJob *job;
+    int ret;
 
     for (job = block_job_next(NULL); job; job = block_job_next(job)) {
         BlockJobInfoList *elem;
@@ -3613,7 +3631,14 @@ BlockJobInfoList *qmp_query_block_jobs(Error **errp)
         }
         elem = g_new0(BlockJobInfoList, 1);
         aio_context = blk_get_aio_context(job->blk);
-        aio_context_acquire(aio_context);
+        ret = aio_context_acquire_timeout(aio_context, LOCK_TIMEOUT);
+        if (ret) {
+            g_free(elem);
+            qapi_free_BlockJobInfoList(head);
+            error_setg_errno(errp, ret, "acquire aio context failed");
+            return NULL;
+        }
+
         elem->value = block_job_query(job, errp);
         aio_context_release(aio_context);
         if (!elem->value) {
