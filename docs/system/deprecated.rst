@@ -4,9 +4,9 @@ Deprecated features
 In general features are intended to be supported indefinitely once
 introduced into QEMU. In the event that a feature needs to be removed,
 it will be listed in this section. The feature will remain functional
-for 2 releases prior to actual removal. Deprecated features may also
-generate warnings on the console when QEMU starts up, or if activated
-via a monitor command, however, this is not a mandatory requirement.
+for 1 more release after deprecation. Deprecated features may also generate
+warnings on the console when QEMU starts up, or if activated via a monitor
+command, however, this is not a mandatory requirement.
 
 Prior to the 2.10.0 release there was no official policy on how
 long features would be deprecated prior to their removal, nor
