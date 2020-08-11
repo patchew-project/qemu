@@ -16,6 +16,7 @@
 
 #include "sysemu/whpx.h"
 #include "whpx-cpus.h"
+#include "whpx-int.h"
 
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>

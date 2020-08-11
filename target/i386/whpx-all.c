@@ -25,6 +25,7 @@
 #include "whp-dispatch.h"
 
 #include "whpx-cpus.h"
+#include "whpx-int.h"
 
 #include <WinHvPlatform.h>
 #include <WinHvEmulation.h>
