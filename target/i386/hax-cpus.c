@@ -22,12 +22,12 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
-#include "hax-i386.h"
 #include "sysemu/runstate.h"
 #include "sysemu/cpus.h"
 #include "qemu/guest-random.h"
 
 #include "hax-cpus.h"
+#include "hax-int.h"
 
 static void *hax_cpu_thread_fn(void *arg)
 {

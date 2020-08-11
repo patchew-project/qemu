@@ -28,13 +28,13 @@
 #include "exec/address-spaces.h"
 
 #include "qemu-common.h"
-#include "hax-i386.h"
 #include "sysemu/accel.h"
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "hw/boards.h"
 
 #include "hax-cpus.h"
+#include "hax-int.h"
 
 #define DEBUG_HAX 0
 
