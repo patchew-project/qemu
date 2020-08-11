@@ -48,8 +48,6 @@
 #define TARGET_SO_DETACH_FILTER        27
 
 #define TARGET_SO_PEERNAME      28
-#define TARGET_SO_TIMESTAMP     29
-#define TARGET_SCM_TIMESTAMP        TARGET_SO_TIMESTAMP
 
 #define TARGET_SO_PEERSEC       30
 #define TARGET_SO_PASSSEC       34
@@ -74,6 +72,12 @@
 
 /* Instruct lower device to use last 4-bytes of skb data as FCS */
 #define TARGET_SO_NOFCS     43
+
+#define TARGET_SO_TIMESTAMP_OLD        29
+#define TARGET_SCM_TIMESTAMP_OLD       TARGET_SO_TIMESTAMP_OLD
+
+#define TARGET_SO_TIMESTAMP_NEW        63
+#define TARGET_SCM_TIMESTAMP_NEW       TARGET_SO_TIMESTAMP_NEW
 
 /* TARGET_O_NONBLOCK clashes with the bits used for socket types.  Therefore we
  * have to define SOCK_NONBLOCK to a different value here.
