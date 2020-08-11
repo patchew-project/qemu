@@ -1187,6 +1187,7 @@ static int sg_get_max_segments(int fd)
     int ret;
     int sysfd = -1;
     long max_segments;
+    unsigned int max_segs;
     struct stat st;
 
     if (fstat(fd, &st)) {
@@ -1194,30 +1195,38 @@ static int sg_get_max_segments(int fd)
         goto out;
     }
 
-    sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
-                                major(st.st_rdev), minor(st.st_rdev));
-    sysfd = open(sysfspath, O_RDONLY);
-    if (sysfd == -1) {
-        ret = -errno;
-        goto out;
+    if (S_ISBLK(st.st_mode)) {
+        sysfspath = g_strdup_printf("/sys/dev/block/%u:%u/queue/max_segments",
+                                    major(st.st_rdev), minor(st.st_rdev));
+        sysfd = open(sysfspath, O_RDONLY);
+        if (sysfd == -1) {
+            ret = -errno;
+            goto out;
+        }
+        do {
+            ret = read(sysfd, buf, sizeof(buf) - 1);
+        } while (ret == -1 && errno == EINTR);
+        if (ret < 0) {
+            ret = -errno;
+            goto out;
+        } else if (ret == 0) {
+            ret = -EIO;
+            goto out;
+        }
+        buf[ret] = 0;
+        /* The file is ended with '\n', pass 'end' to accept that. */
+        ret = qemu_strtol(buf, &end, 10, &max_segments);
+        if (ret == 0 && end && *end == '\n') {
+            ret = max_segments;
+        }
+    } else {
+	ret = ioctl(fd, SG_GET_SG_TABLESIZE, &max_segs);
+        if (ret != 0) {
+            ret = -errno;
+            goto out;
+        }
+        ret = max_segs;
     }
-    do {
-        ret = read(sysfd, buf, sizeof(buf) - 1);
-    } while (ret == -1 && errno == EINTR);
-    if (ret < 0) {
-        ret = -errno;
-        goto out;
-    } else if (ret == 0) {
-        ret = -EIO;
-        goto out;
-    }
-    buf[ret] = 0;
-    /* The file is ended with '\n', pass 'end' to accept that. */
-    ret = qemu_strtol(buf, &end, 10, &max_segments);
-    if (ret == 0 && end && *end == '\n') {
-        ret = max_segments;
-    }
-
 out:
     if (sysfd != -1) {
         close(sysfd);
