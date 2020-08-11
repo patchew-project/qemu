@@ -47,6 +47,7 @@
 #include "qemu/guest-random.h"
 #include "sysemu/hw_accel.h"
 #include "kvm-cpus.h"
+#include "kvm-int.h"
 
 #include "hw/boards.h"
 

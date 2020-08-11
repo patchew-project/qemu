@@ -22,6 +22,7 @@
 #include "qemu/guest-random.h"
 
 #include "kvm-cpus.h"
+#include "kvm-int.h"
 
 static void *kvm_vcpu_thread_fn(void *arg)
 {
