@@ -58,3 +58,6 @@
 [submodule "roms/qboot"]
 	path = roms/qboot
 	url = https://github.com/bonzini/qboot
+[submodule "roms/vbootrom"]
+	path = roms/vbootrom
+	url = https://github.com/google/vbootrom.git
