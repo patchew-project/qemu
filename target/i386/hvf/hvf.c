@@ -72,6 +72,7 @@
 #include "sysemu/accel.h"
 #include "target/i386/cpu.h"
 
+#include "hvf-int.h"
 #include "hvf-cpus.h"
 
 HVFState *hvf_state;

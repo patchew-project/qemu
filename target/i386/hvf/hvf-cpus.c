@@ -55,6 +55,7 @@
 #include "target/i386/cpu.h"
 #include "qemu/guest-random.h"
 
+#include "hvf-int.h"
 #include "hvf-cpus.h"
 
 /*
