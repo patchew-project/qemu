@@ -165,6 +165,10 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
         if (ret < 0) {
             return;
         }
+    } else if (nb_prom_envs > 0) {
+        nvram->size = chrp_nvram_create_system_partition(NULL,
+                                                         MIN_NVRAM_SIZE / 4,
+                                                         true);
     } else {
         nvram->size = DEFAULT_NVRAM_SIZE;
     }
