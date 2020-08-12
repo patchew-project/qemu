@@ -24,37 +24,48 @@
 #include "hw/nvram/chrp_nvram.h"
 #include "sysemu/sysemu.h"
 
-static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str)
+static int chrp_nvram_set_var(uint8_t *nvram, int addr, const char *str,
+                              bool dry_run)
 {
     int len;
 
     len = strlen(str) + 1;
-    memcpy(&nvram[addr], str, len);
-
+    if (!dry_run) {
+        memcpy(&nvram[addr], str, len);
+    }
     return addr + len;
 }
 
 /**
  * Create a "system partition", used for the Open Firmware
- * environment variables.
+ * environment variables. If @dry_run is false, only returns
+ * the size of the partition but don't write the data.
  */
-int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
+int chrp_nvram_create_system_partition(uint8_t *data, int min_len, bool dry_run)
 {
     ChrpNvramPartHdr *part_header;
     unsigned int i;
     int end;
 
+    assert(data || dry_run);
+
     part_header = (ChrpNvramPartHdr *)data;
-    part_header->signature = CHRP_NVPART_SYSTEM;
-    pstrcpy(part_header->name, sizeof(part_header->name), "system");
+
+    if (!dry_run) {
+        part_header->signature = CHRP_NVPART_SYSTEM;
+        pstrcpy(part_header->name, sizeof(part_header->name), "system");
+    }
 
     end = sizeof(ChrpNvramPartHdr);
     for (i = 0; i < nb_prom_envs; i++) {
-        end = chrp_nvram_set_var(data, end, prom_envs[i]);
+        end = chrp_nvram_set_var(data, end, prom_envs[i], dry_run);
     }
 
     /* End marker */
-    data[end++] = '\0';
+    if (!dry_run) {
+        data[end] = '\0';
+    }
+    end++;
 
     end = (end + 15) & ~15;
     /* XXX: OpenBIOS is not able to grow up a partition. Leave some space for
@@ -62,8 +73,9 @@ int chrp_nvram_create_system_partition(uint8_t *data, int min_len)
     if (end < min_len) {
         end = min_len;
     }
-    chrp_nvram_finish_partition(part_header, end);
-
+    if (!dry_run) {
+        chrp_nvram_finish_partition(part_header, end);
+    }
     return end;
 }
 
