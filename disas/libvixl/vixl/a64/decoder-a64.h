@@ -215,7 +215,7 @@ class Decoder {
   // On entry, instruction bits 27:24 = 0x0.
   void DecodePCRelAddressing(const Instruction* instr);
 
-  // Decode the add/subtract immediate instruction, and call the correspoding
+  // Decode the add/subtract immediate instruction, and call the corresponding
   // visitors.
   // On entry, instruction bits 27:24 = 0x1.
   void DecodeAddSubImmediate(const Instruction* instr);

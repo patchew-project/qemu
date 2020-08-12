@@ -77,7 +77,7 @@ const int MBytes = 1024 * KBytes;
 #endif
 // This is not as powerful as template based assertions, but it is simple.
 // It assumes that the descriptions are unique. If this starts being a problem,
-// we can switch to a different implemention.
+// we can switch to a different implementation.
 #define VIXL_CONCAT(a, b) a##b
 #define VIXL_STATIC_ASSERT_LINE(line, condition) \
   typedef char VIXL_CONCAT(STATIC_ASSERT_LINE_, line)[(condition) ? 1 : -1] \
