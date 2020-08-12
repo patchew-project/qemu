@@ -572,6 +572,69 @@ void aarch64_add_sve_properties(Object *obj)
     }
 }
 
+static const char * const pauth_names[] = {
+    "off", "impdef", "arch"
+};
+
+static const QEnumLookup pauth_lookup = {
+    .array = pauth_names,
+    .size = ARRAY_SIZE(pauth_names)
+};
+
+static int cpu_arm_get_pauth(Object *obj, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    int value;
+
+    /* We will always set GPA+APA and GPI+API to the same value. */
+    if (FIELD_EX64(cpu->isar.id_aa64isar1, ID_AA64ISAR1, APA)) {
+        value = 2;
+    } else if (FIELD_EX64(cpu->isar.id_aa64isar1, ID_AA64ISAR1, API)) {
+        value = 1;
+    } else {
+        value = 0;
+    }
+    return value;
+}
+
+static void cpu_arm_set_pauth(Object *obj, int value, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    uint64_t t;
+
+    /* TODO: Handle HaveEnhancedPAC, HaveEnhancedPAC2, HaveFPAC. */
+    t = cpu->isar.id_aa64isar1;
+    switch (value) {
+    case 0:
+        t = FIELD_DP64(t, ID_AA64ISAR1, APA, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, API, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPA, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPI, 0);
+        break;
+    case 1:
+        t = FIELD_DP64(t, ID_AA64ISAR1, APA, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, API, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPA, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPI, 1);
+        break;
+    case 2:
+        t = FIELD_DP64(t, ID_AA64ISAR1, APA, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, API, 0);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPA, 1);
+        t = FIELD_DP64(t, ID_AA64ISAR1, GPI, 0);
+        break;
+    default:
+        g_assert_not_reached();
+    }
+    cpu->isar.id_aa64isar1 = t;
+}
+
+static void aarch64_add_pauth_properties(Object *obj)
+{
+    object_property_add_enum(obj, "pauth", "ARMPauthKind", &pauth_lookup,
+                             cpu_arm_get_pauth, cpu_arm_set_pauth);
+}
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -720,6 +783,7 @@ static void aarch64_max_initfn(Object *obj)
 #endif
     }
 
+    aarch64_add_pauth_properties(obj);
     aarch64_add_sve_properties(obj);
     object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_max_vq,
                         cpu_max_set_sve_max_vq, NULL, NULL);
