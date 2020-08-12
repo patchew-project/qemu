@@ -21,6 +21,7 @@ NAMES += hotblocks
 NAMES += howvec
 NAMES += hotpages
 NAMES += lockstep
+NAMES += syscall
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
