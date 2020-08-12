@@ -500,6 +500,10 @@ static inline uint32_t syn_wfx(int cv, int cond, int ti, bool is_16bit)
            (cv << 24) | (cond << 20) | ti;
 }
 
+uint32_t merge_syn_data_abort(uint32_t template_syn, unsigned int target_el,
+                              bool same_el, bool ea, bool s1ptw,
+                              bool is_write, int fsc);
+
 /* Update a QEMU watchpoint based on the information the guest has set in the
  * DBGWCR<n>_EL1 and DBGWVR<n>_EL1 registers.
  */

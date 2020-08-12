@@ -10,11 +10,9 @@
 #include "internals.h"
 #include "exec/exec-all.h"
 
-static inline uint32_t merge_syn_data_abort(uint32_t template_syn,
-                                            unsigned int target_el,
-                                            bool same_el, bool ea,
-                                            bool s1ptw, bool is_write,
-                                            int fsc)
+uint32_t merge_syn_data_abort(uint32_t template_syn, unsigned int target_el,
+                              bool same_el, bool ea, bool s1ptw,
+                              bool is_write, int fsc)
 {
     uint32_t syn;
 
