@@ -390,7 +390,7 @@ static bitmask_transtbl fcntl_flags_tbl[] = {
 
 _syscall2(int, sys_getcwd1, char *, buf, size_t, size)
 
-#ifdef TARGET_NR_utimensat
+#if defined(TARGET_NR_utimensat)
 #if defined(__NR_utimensat)
 #define __NR_sys_utimensat __NR_utimensat
 _syscall4(int,sys_utimensat,int,dirfd,const char *,pathname,
@@ -756,11 +756,11 @@ safe_syscall5(int, waitid, idtype_t, idtype, id_t, id, siginfo_t *, infop, \
               int, options, struct rusage *, rusage)
 safe_syscall3(int, execve, const char *, filename, char **, argv, char **, envp)
 #if defined(TARGET_NR_select) || defined(TARGET_NR__newselect) || \
-    defined(TARGET_NR_pselect6)
+    defined(TARGET_NR_pselect6) || defined(TARGET_NR_pselect6_time64)
 safe_syscall6(int, pselect6, int, nfds, fd_set *, readfds, fd_set *, writefds, \
               fd_set *, exceptfds, struct timespec *, timeout, void *, sig)
 #endif
-#if defined(TARGET_NR_ppoll) || defined(TARGET_NR_poll)
+#if defined(TARGET_NR_ppoll) || defined(TARGET_NR_ppoll_time64)
 safe_syscall5(int, ppoll, struct pollfd *, ufds, unsigned int, nfds,
               struct timespec *, tsp, const sigset_t *, sigmask,
               size_t, sigsetsize)
@@ -977,7 +977,7 @@ abi_long do_brk(abi_ulong new_brk)
 }
 
 #if defined(TARGET_NR_select) || defined(TARGET_NR__newselect) || \
-    defined(TARGET_NR_pselect6)
+    defined(TARGET_NR_pselect6) || defined(TARGET_NR_pselect6_time64)
 static inline abi_long copy_from_user_fdset(fd_set *fds,
                                             abi_ulong target_fds_addr,
                                             int n)
@@ -1245,7 +1245,8 @@ static inline abi_long target_to_host_timespec(struct timespec *host_ts,
 }
 #endif
 
-#if defined(TARGET_NR_clock_settime64) || defined(TARGET_NR_futex_time64)
+#if defined(TARGET_NR_clock_settime64) || defined(TARGET_NR_futex_time64) || \
+    defined(TARGET_NR_pselect6_time64) || defined(TARGET_NR_ppoll_time64)
 static inline abi_long target_to_host_timespec64(struct timespec *host_ts,
                                                  abi_ulong target_addr)
 {
@@ -9038,8 +9039,13 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
         return ret;
 #endif
+#if defined(TARGET_NR_pselect6) || defined(TARGET_NR_pselect6_time64)
 #ifdef TARGET_NR_pselect6
     case TARGET_NR_pselect6:
+#endif
+#ifdef TARGET_NR_pselect6_time64
+    case TARGET_NR_pselect6_time64:
+#endif
         {
             abi_long rfd_addr, wfd_addr, efd_addr, n, ts_addr;
             fd_set rfds, wfds, efds;
@@ -9083,8 +9089,21 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
              * use the do_select() helper ...
              */
             if (ts_addr) {
-                if (target_to_host_timespec(&ts, ts_addr)) {
-                    return -TARGET_EFAULT;
+                switch (num) {
+#ifdef TARGET_NR_pselect6
+                case TARGET_NR_pselect6:
+                    if (target_to_host_timespec(&ts, ts_addr)) {
+                        return -TARGET_EFAULT;
+                    }
+                    break;
+#endif
+#ifdef TARGET_NR_pselect6_time64
+                case TARGET_NR_pselect6_time64:
+                    if (target_to_host_timespec64(&ts, ts_addr)) {
+                        return -TARGET_EFAULT;
+                    }
+                    break;
+#endif
                 }
                 ts_ptr = &ts;
             } else {
@@ -9135,8 +9154,22 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                 if (efd_addr && copy_to_user_fdset(efd_addr, &efds, n))
                     return -TARGET_EFAULT;
 
-                if (ts_addr && host_to_target_timespec(ts_addr, &ts))
-                    return -TARGET_EFAULT;
+                switch (num) {
+#ifdef TARGET_NR_pselect6
+                case TARGET_NR_pselect6:
+                    if (ts_addr && host_to_target_timespec(ts_addr, &ts)) {
+                        return -TARGET_EFAULT;
+                    }
+                break;
+#endif
+#ifdef TARGET_NR_pselect6_time64
+                case TARGET_NR_pselect6_time64:
+                    if (ts_addr && host_to_target_timespec64(ts_addr, &ts)) {
+                        return -TARGET_EFAULT;
+                    }
+                break;
+#endif
+                }
             }
         }
         return ret;
@@ -10071,12 +10104,16 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
     case TARGET_NR__newselect:
         return do_select(arg1, arg2, arg3, arg4, arg5);
 #endif
-#if defined(TARGET_NR_poll) || defined(TARGET_NR_ppoll)
+#if defined(TARGET_NR_poll) || defined(TARGET_NR_ppoll) || \
+    defined(TARGET_NR_ppoll_time64)
 # ifdef TARGET_NR_poll
     case TARGET_NR_poll:
 # endif
 # ifdef TARGET_NR_ppoll
     case TARGET_NR_ppoll:
+# endif
+# ifdef TARGET_NR_ppoll_time64
+    case TARGET_NR_ppoll_time64:
 # endif
         {
             struct target_pollfd *target_pfd;
@@ -10105,17 +10142,38 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
             }
 
             switch (num) {
-# ifdef TARGET_NR_ppoll
+#if defined(TARGET_NR_ppoll) || defined(TARGET_NR_ppoll_time64)
+#ifdef TARGET_NR_ppoll
             case TARGET_NR_ppoll:
+#endif
+#ifdef TARGET_NR_ppoll_time64
+            case TARGET_NR_ppoll_time64:
+#endif
             {
                 struct timespec _timeout_ts, *timeout_ts = &_timeout_ts;
                 target_sigset_t *target_set;
                 sigset_t _set, *set = &_set;
 
                 if (arg3) {
-                    if (target_to_host_timespec(timeout_ts, arg3)) {
-                        unlock_user(target_pfd, arg1, 0);
-                        return -TARGET_EFAULT;
+                    switch (num) {
+#ifdef TARGET_NR_ppoll
+                    case TARGET_NR_ppoll:
+                        if (target_to_host_timespec(timeout_ts, arg3)) {
+                            unlock_user(target_pfd, arg1, 0);
+                            return -TARGET_EFAULT;
+                        }
+                    break;
+#endif
+#ifdef TARGET_NR_ppoll_time64
+                    case TARGET_NR_ppoll_time64:
+                        if (target_to_host_timespec64(timeout_ts, arg3)) {
+                            unlock_user(target_pfd, arg1, 0);
+                            return -TARGET_EFAULT;
+                        }
+                    break;
+#endif
+                    default:
+                        g_assert_not_reached();
                     }
                 } else {
                     timeout_ts = NULL;
@@ -10141,7 +10199,20 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
                                            set, SIGSET_T_SIZE));
 
                 if (!is_error(ret) && arg3) {
-                    host_to_target_timespec(arg3, timeout_ts);
+                    switch (num) {
+#ifdef TARGET_NR_ppoll
+                    case TARGET_NR_ppoll:
+                        host_to_target_timespec(arg3, timeout_ts);
+                        break;
+#endif
+#ifdef TARGET_NR_ppoll_time64
+                    case TARGET_NR_ppoll_time64:
+                        host_to_target_timespec64(arg3, timeout_ts);
+                        break;
+#endif
+                    default:
+                        g_assert_not_reached();
+                    }
                 }
                 if (arg4) {
                     unlock_user(target_set, arg4, 0);
