@@ -3892,6 +3892,8 @@ static inline abi_long target_to_host_sembuf(struct sembuf *host_sembuf,
   (__nsops), 0, (__sops), (__timeout)
 #endif
 
+#define TARGET_SEMOPM 500
+
 static inline abi_long do_semtimedop(int semid,
                                      abi_long ptr,
                                      unsigned nsops,
@@ -3908,8 +3910,13 @@ static inline abi_long do_semtimedop(int semid,
         }
     }
 
-    if (target_to_host_sembuf(sops, ptr, nsops))
+    if (nsops > TARGET_SEMOPM) {
+        return -TARGET_E2BIG;
+    }
+
+    if (target_to_host_sembuf(sops, ptr, nsops)) {
         return -TARGET_EFAULT;
+    }
 
     ret = -TARGET_ENOSYS;
 #ifdef __NR_semtimedop
