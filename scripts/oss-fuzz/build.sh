@@ -73,7 +73,7 @@ mkdir -p "$DEST_DIR/lib/"  # Copy the shared libraries here
 if ! make CONFIG_FUZZ=y CFLAGS="$LIB_FUZZING_ENGINE" "-j$(nproc)" \
     i386-softmmu/fuzz; then
     fatal "Build failed. Please specify a compiler with fuzzing support"\
-          "using the \$CC and \$CXX environemnt variables, or specify a"\
+          "using the \$CC and \$CXX environment variables, or specify a"\
           "\$LIB_FUZZING_ENGINE compatible with your compiler"\
           "\nFor example: CC=clang CXX=clang++ $0"
 fi
