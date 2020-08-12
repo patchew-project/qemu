@@ -145,6 +145,7 @@ static void rtas_nvram_store(PowerPCCPU *cpu, SpaprMachineState *spapr,
 
 static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
 {
+    ERRP_GUARD();
     SpaprNvram *nvram = VIO_SPAPR_NVRAM(dev);
     int ret;
 
@@ -187,6 +188,20 @@ static void spapr_nvram_realize(SpaprVioDevice *dev, Error **errp)
             return;
         }
     } else if (nb_prom_envs > 0) {
+        int len = chrp_nvram_create_system_partition(nvram->buf,
+                                                     MIN_NVRAM_SIZE / 4,
+                                                     true);
+
+        /* Check the partition is large enough for all the -prom-env data */
+        if (nvram->size < len) {
+            error_setg(errp, "-prom-env data requires %d bytes but spapr-nvram "
+                       "is only %d bytes in size", len, nvram->size);
+            error_append_hint(errp,
+                              "Try to pass %d less bytes to -prom-env.\n",
+                              len - nvram->size);
+            return;
+        }
+
         /* Create a system partition to pass the -prom-env variables */
         chrp_nvram_create_system_partition(nvram->buf, MIN_NVRAM_SIZE / 4,
                                            false);
