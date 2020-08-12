@@ -698,7 +698,7 @@ static uint32_t gdb_get_cpu_pid(CPUState *cpu)
 {
     /* TODO: In user mode, we should use the task state PID */
     if (cpu->cluster_index == UNASSIGNED_CLUSTER_INDEX) {
-        /* Return the default process' PID */
+        /* Return the default process's PID */
         int index = gdbserver_state.process_num - 1;
         return gdbserver_state.processes[index].pid;
     }

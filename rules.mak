@@ -51,7 +51,7 @@ undefined-symbols = $(call find-symbols,$1,awk '$$2=="U"{print $$1}')
 # linking executables that will load them. So we can look up symbol reference
 # in LINK.
 #
-# This is necessary because the exectuable itself may not use the function, in
+# This is necessary because the executable itself may not use the function, in
 # which case the function would not be linked in. Then the DSO loading will
 # fail because of the missing symbol.
 process-archive-undefs = $(filter-out %.a %.mo,$1) \
