@@ -519,7 +519,7 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
 {
     int mmu_idx = FIELD_EX32(desc, MTEDESC, MIDX);
     ARMMMUIdx arm_mmu_idx = core_to_aa64_mmu_idx(mmu_idx);
-    int el, reg_el, tcf, select;
+    int el, target_el, reg_el, tcf, select, is_write, syn;
     uint64_t sctlr;
 
     reg_el = regime_el(env, arm_mmu_idx);
@@ -543,13 +543,17 @@ static void mte_check_fail(CPUARMState *env, uint32_t desc,
          *
          * In restore_state_to_opc, we set the exception syndrome
          * for the load or store operation.  Unwind first so we
-         * may overwrite that with the syndrome for the tag check.
+         * may merge that with the syndrome for the tag check.
          */
         cpu_restore_state(env_cpu(env), ra, true);
         env->exception.vaddress = dirty_ptr;
-        raise_exception(env, EXCP_DATA_ABORT,
-                        syn_data_abort_no_iss(el != 0, 0, 0, 0, 0, 0, 0x11),
-                        exception_target_el(env));
+
+        target_el = exception_target_el(env);
+        is_write = FIELD_EX32(desc, MTEDESC, WRITE);
+        syn = merge_syn_data_abort(env->exception.syndrome, target_el,
+                                   target_el == el, 0, 0, is_write, 0x11);
+
+        raise_exception(env, EXCP_DATA_ABORT, syn, target_el);
         /* noreturn, but fall through to the assert anyway */
 
     case 0:
