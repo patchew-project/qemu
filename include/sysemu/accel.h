@@ -26,12 +26,13 @@
 #include "qom/object.h"
 #include "exec/hwaddr.h"
 
-typedef struct AccelState {
+struct AccelState {
     /*< private >*/
     Object parent_obj;
-} AccelState;
+};
+typedef struct AccelState AccelState;
 
-typedef struct AccelClass {
+struct AccelClass {
     /*< private >*/
     ObjectClass parent_class;
     /*< public >*/
@@ -52,7 +53,8 @@ typedef struct AccelClass {
      * compat_props or user-provided global properties.
      */
     GPtrArray *compat_props;
-} AccelClass;
+};
+typedef struct AccelClass AccelClass;
 
 #define TYPE_ACCEL "accel"
 

@@ -32,6 +32,7 @@
 #include "trace.h"
 #include "hw/virtio/virtio-serial.h"
 #include "hw/virtio/virtio-access.h"
+#include "qom/object.h"
 
 static struct VirtIOSerialDevices {
     QLIST_HEAD(, VirtIOSerial) devices;

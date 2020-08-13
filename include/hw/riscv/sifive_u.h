@@ -25,12 +25,14 @@
 #include "hw/riscv/sifive_gpio.h"
 #include "hw/riscv/sifive_u_prci.h"
 #include "hw/riscv/sifive_u_otp.h"
+#include "qom/object.h"
 
 #define TYPE_RISCV_U_SOC "riscv.sifive.u.soc"
+typedef struct SiFiveUSoCState SiFiveUSoCState;
 #define RISCV_U_SOC(obj) \
     OBJECT_CHECK(SiFiveUSoCState, (obj), TYPE_RISCV_U_SOC)
 
-typedef struct SiFiveUSoCState {
+struct SiFiveUSoCState {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -46,13 +48,14 @@ typedef struct SiFiveUSoCState {
     CadenceGEMState gem;
 
     uint32_t serial;
-} SiFiveUSoCState;
+};
 
 #define TYPE_RISCV_U_MACHINE MACHINE_TYPE_NAME("sifive_u")
+typedef struct SiFiveUState SiFiveUState;
 #define RISCV_U_MACHINE(obj) \
     OBJECT_CHECK(SiFiveUState, (obj), TYPE_RISCV_U_MACHINE)
 
-typedef struct SiFiveUState {
+struct SiFiveUState {
     /*< private >*/
     MachineState parent_obj;
 
@@ -65,7 +68,7 @@ typedef struct SiFiveUState {
     bool start_in_flash;
     uint32_t msel;
     uint32_t serial;
-} SiFiveUState;
+};
 
 enum {
     SIFIVE_U_DEV_DEBUG,

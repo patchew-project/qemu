@@ -24,6 +24,7 @@
 #include "ahci_internal.h"
 
 #include "trace.h"
+#include "qom/object.h"
 
 #define ALLWINNER_AHCI(obj) \
         OBJECT_CHECK(AllwinnerAHCIState, (obj), TYPE_ALLWINNER_AHCI)

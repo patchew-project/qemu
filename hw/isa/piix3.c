@@ -33,6 +33,7 @@
 #include "sysemu/reset.h"
 #include "sysemu/runstate.h"
 #include "migration/vmstate.h"
+#include "qom/object.h"
 
 #define XEN_PIIX_NUM_PIRQS      128ULL
 

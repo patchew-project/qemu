@@ -36,6 +36,7 @@
 #include "rocker_tlv.h"
 #include "rocker_world.h"
 #include "rocker_of_dpa.h"
+#include "qom/object.h"
 
 struct rocker {
     /* private */

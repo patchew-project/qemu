@@ -28,6 +28,7 @@
 #include "hw/ide/internal.h"
 #include "hw/sysbus.h"
 #include "hw/pci/pci.h"
+#include "qom/object.h"
 
 #define AHCI_MEM_BAR_SIZE         0x1000
 #define AHCI_MAX_PORTS            32

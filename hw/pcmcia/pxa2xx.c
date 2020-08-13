@@ -17,6 +17,7 @@
 #include "qemu/module.h"
 #include "hw/pcmcia.h"
 #include "hw/arm/pxa.h"
+#include "qom/object.h"
 
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
 #define PXA2XX_PCMCIA(obj) \

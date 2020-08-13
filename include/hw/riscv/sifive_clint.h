@@ -21,13 +21,15 @@
 #define HW_SIFIVE_CLINT_H
 
 #include "hw/sysbus.h"
+#include "qom/object.h"
 
 #define TYPE_SIFIVE_CLINT "riscv.sifive.clint"
 
+typedef struct SiFiveCLINTState SiFiveCLINTState;
 #define SIFIVE_CLINT(obj) \
     OBJECT_CHECK(SiFiveCLINTState, (obj), TYPE_SIFIVE_CLINT)
 
-typedef struct SiFiveCLINTState {
+struct SiFiveCLINTState {
     /*< private >*/
     SysBusDevice parent_obj;
 
@@ -38,7 +40,7 @@ typedef struct SiFiveCLINTState {
     uint32_t timecmp_base;
     uint32_t time_base;
     uint32_t aperture_size;
-} SiFiveCLINTState;
+};
 
 DeviceState *sifive_clint_create(hwaddr addr, hwaddr size, uint32_t num_harts,
     uint32_t sip_base, uint32_t timecmp_base, uint32_t time_base,

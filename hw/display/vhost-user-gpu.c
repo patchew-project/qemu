@@ -16,6 +16,7 @@
 #include "chardev/char-fe.h"
 #include "qapi/error.h"
 #include "migration/blocker.h"
+#include "qom/object.h"
 
 #define VHOST_USER_GPU(obj)                                    \
     OBJECT_CHECK(VhostUserGPU, (obj), TYPE_VHOST_USER_GPU)

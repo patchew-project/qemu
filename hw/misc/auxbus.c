@@ -34,6 +34,7 @@
 #include "hw/i2c/i2c.h"
 #include "monitor/monitor.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 #ifndef DEBUG_AUX
 #define DEBUG_AUX 0

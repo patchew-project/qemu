@@ -12,6 +12,7 @@
 #include "exec/memory.h"
 #include "sysemu/accel.h"
 #include "sysemu/kvm.h"
+#include "qom/object.h"
 
 typedef struct KVMSlot
 {

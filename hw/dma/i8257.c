@@ -32,6 +32,7 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define I8257(obj) \
     OBJECT_CHECK(I8257State, (obj), TYPE_I8257)

@@ -38,6 +38,7 @@
 #include "migration/qemu-file-types.h"
 #include "migration/vmstate.h"
 #include "mpi.h"
+#include "qom/object.h"
 
 #define NAA_LOCALLY_ASSIGNED_ID 0x3ULL
 #define IEEE_COMPANY_LOCALLY_ASSIGNED 0x525400

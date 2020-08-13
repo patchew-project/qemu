@@ -16,6 +16,7 @@
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qapi/error.h"
+#include "qom/object.h"
 
 //#define DEBUG_PL181 1
 
@@ -29,9 +30,10 @@ do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 #define PL181_FIFO_LEN 16
 
 #define TYPE_PL181 "pl181"
+typedef struct PL181State PL181State;
 #define PL181(obj) OBJECT_CHECK(PL181State, (obj), TYPE_PL181)
 
-typedef struct PL181State {
+struct PL181State {
     SysBusDevice parent_obj;
 
     MemoryRegion iomem;
@@ -60,7 +62,7 @@ typedef struct PL181State {
     qemu_irq irq[2];
     /* GPIO outputs for 'card is readonly' and 'card inserted' */
     qemu_irq cardstatus[2];
-} PL181State;
+};
 
 static const VMStateDescription vmstate_pl181 = {
     .name = "pl181",

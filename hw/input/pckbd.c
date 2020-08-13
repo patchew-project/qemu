@@ -34,6 +34,7 @@
 #include "sysemu/runstate.h"
 
 #include "trace.h"
+#include "qom/object.h"
 
 /*	Keyboard Controller Commands */
 #define KBD_CCMD_READ_MODE	0x20	/* Read mode bits */

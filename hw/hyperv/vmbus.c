@@ -19,6 +19,7 @@
 #include "hw/sysbus.h"
 #include "cpu.h"
 #include "trace.h"
+#include "qom/object.h"
 
 #define TYPE_VMBUS "vmbus"
 #define VMBUS(obj) OBJECT_CHECK(VMBus, (obj), TYPE_VMBUS)

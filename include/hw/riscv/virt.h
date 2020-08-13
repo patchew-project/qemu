@@ -22,12 +22,14 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/sysbus.h"
 #include "hw/block/flash.h"
+#include "qom/object.h"
 
 #define TYPE_RISCV_VIRT_MACHINE MACHINE_TYPE_NAME("virt")
+typedef struct RISCVVirtState RISCVVirtState;
 #define RISCV_VIRT_MACHINE(obj) \
     OBJECT_CHECK(RISCVVirtState, (obj), TYPE_RISCV_VIRT_MACHINE)
 
-typedef struct {
+struct RISCVVirtState {
     /*< private >*/
     MachineState parent;
 
@@ -38,7 +40,7 @@ typedef struct {
 
     void *fdt;
     int fdt_size;
-} RISCVVirtState;
+};
 
 enum {
     VIRT_DEBUG,

@@ -28,6 +28,7 @@
 #include "qemu/module.h"
 #include "qemu/option.h"
 #include <sys/ioctl.h>
+#include "qom/object.h"
 
 #ifdef CONFIG_BSD
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
@@ -49,11 +50,12 @@
 
 #if defined(__linux__)
 
-typedef struct {
+struct ParallelChardev {
     Chardev parent;
     int fd;
     int mode;
-} ParallelChardev;
+};
+typedef struct ParallelChardev ParallelChardev;
 
 #define PARALLEL_CHARDEV(obj) \
     OBJECT_CHECK(ParallelChardev, (obj), TYPE_CHARDEV_PARALLEL)
@@ -177,10 +179,11 @@ static void qemu_chr_open_pp_fd(Chardev *chr,
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__DragonFly__)
 
-typedef struct {
+struct ParallelChardev {
     Chardev parent;
     int fd;
-} ParallelChardev;
+};
+typedef struct ParallelChardev ParallelChardev;
 
 #define PARALLEL_CHARDEV(obj)                                   \
     OBJECT_CHECK(ParallelChardev, (obj), TYPE_CHARDEV_PARALLEL)
