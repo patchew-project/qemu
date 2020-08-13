@@ -1578,15 +1578,18 @@ void helper_cache(CPUMIPSState *env, target_ulong addr, uint32_t op)
     target_ulong index = addr & 0x1fffffff;
 
     switch (cache_operation) {
-    case 0b010:
-        /* Index Store Tag */
+    case 0b010: /* Index Store Tag */
         memory_region_dispatch_write(env->itc_tag, index, env->CP0_TagLo,
                                      MO_64, MEMTXATTRS_UNSPECIFIED);
         break;
-    case 0b001:
-        /* Index Load Tag */
+    case 0b001: /* Index Load Tag */
         memory_region_dispatch_read(env->itc_tag, index, &env->CP0_TagLo,
                                     MO_64, MEMTXATTRS_UNSPECIFIED);
+        break;
+    case 0b000: /* Index Invalidate */
+    case 0b100: /* Hit Invalidate */
+    case 0b110: /* Hit Writeback */
+        /* no-op */
         break;
     default:
         break;
