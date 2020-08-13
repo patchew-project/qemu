@@ -28,6 +28,9 @@
 #include "trace.h"
 
 
+OBJECT_DEFINE_ABSTRACT_TYPE(QCryptoSecretCommon, qcrypto_secret_common,
+                            QCRYPTO_SECRET_COMMON, OBJECT)
+
 static void qcrypto_secret_decrypt(QCryptoSecretCommon *secret,
                                    const uint8_t *input,
                                    size_t inputlen,
@@ -269,7 +272,7 @@ qcrypto_secret_prop_get_keyid(Object *obj,
 
 
 static void
-qcrypto_secret_finalize(Object *obj)
+qcrypto_secret_common_finalize(Object *obj)
 {
     QCryptoSecretCommon *secret = QCRYPTO_SECRET_COMMON(obj);
 
@@ -279,7 +282,7 @@ qcrypto_secret_finalize(Object *obj)
 }
 
 static void
-qcrypto_secret_class_init(ObjectClass *oc, void *data)
+qcrypto_secret_common_class_init(ObjectClass *oc, void *data)
 {
     object_class_property_add_bool(oc, "loaded",
                                    qcrypto_secret_prop_get_loaded,
@@ -297,6 +300,10 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
                                   qcrypto_secret_prop_set_iv);
 }
 
+static void
+qcrypto_secret_common_init(Object *obj)
+{
+}
 
 int qcrypto_secret_lookup(const char *secretid,
                           uint8_t **data,
@@ -380,19 +387,3 @@ char *qcrypto_secret_lookup_as_base64(const char *secretid,
     g_free(data);
     return ret;
 }
-
-
-static const TypeInfo qcrypto_secret_info = {
-    .parent = TYPE_OBJECT,
-    .name = TYPE_QCRYPTO_SECRET_COMMON,
-    .instance_size = sizeof(QCryptoSecretCommon),
-    .instance_finalize = qcrypto_secret_finalize,
-    .class_size = sizeof(QCryptoSecretCommonClass),
-    .class_init = qcrypto_secret_class_init,
-    .abstract = true,
-};
-TYPE_INFO(qcrypto_secret_info)
-
-
-
-
