@@ -1319,6 +1319,9 @@ static struct CPUFeatureInfo cpu_features[] = {
     FIELD_INFO(ID_AA64ISAR1, FRINTTS, false, 1, 0, false),
     FIELD_INFO(ID_AA64ISAR1, SB, false, 1, 0, false),
     FIELD_INFO(ID_AA64ISAR1, SPECRES, false, 1, 0, false),
+    FIELD_INFO(ID_AA64ISAR1, I8MM, false, 1, 0, false),
+    FIELD_INFO(ID_AA64ISAR1, BF16, false, 1, 0, false),
+    FIELD_INFO(ID_AA64ISAR1, DGH, false, 1, 0, false),
 
     FIELD_INFO(ID_AA64PFR0, EL0, false, 1, 0, false),
     FIELD_INFO(ID_AA64PFR0, EL1, false, 1, 0, false),
