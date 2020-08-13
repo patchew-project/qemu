@@ -20,10 +20,8 @@
 #include "qapi/error.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
-typedef struct SpaprDrc SpaprDrc;
-typedef struct SpaprDrcClass SpaprDrcClass;
-DECLARE_OBJ_CHECKERS(SpaprDrc, SpaprDrcClass,
-                     SPAPR_DR_CONNECTOR, TYPE_SPAPR_DR_CONNECTOR)
+OBJECT_DECLARE_TYPE(SpaprDrc, SpaprDrcClass,
+                    spapr_dr_connector, SPAPR_DR_CONNECTOR)
 
 #define TYPE_SPAPR_DRC_PHYSICAL "spapr-drc-physical"
 typedef struct SpaprDrcPhysical SpaprDrcPhysical;
