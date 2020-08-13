@@ -115,6 +115,9 @@
 #ifdef HAVE_DRM_H
 #include <libdrm/drm.h>
 #endif
+#ifdef CONFIG_BTRFS
+#include <linux/btrfs.h>
+#endif
 #include "linux_loop.h"
 #include "uname.h"
 
