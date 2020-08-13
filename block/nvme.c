@@ -785,7 +785,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         }
     }
 
-    ret = qemu_vfio_pci_init_irq(s->vfio, &s->irq_notifier, errp);
+    ret = qemu_vfio_pci_init_irq(s->vfio, &s->irq_notifier, INDEX_ADMIN, errp);
     if (ret) {
         goto out;
     }

@@ -28,6 +28,6 @@ void *qemu_vfio_pci_map_bar(QEMUVFIOState *s, int index,
 void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
                              uint64_t offset, uint64_t size);
 int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
-                           Error **errp);
+                           int irq_index, Error **errp);
 
 #endif

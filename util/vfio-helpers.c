@@ -180,12 +180,19 @@ void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
  * Initialize device IRQ with @irq_type and and register an event notifier.
  */
 int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
-                           Error **errp)
+                           int irq_index, Error **errp)
 {
     int r;
     struct vfio_irq_set *irq_set;
     size_t irq_set_size;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
+
+    if (irq_index >= s->irq_count) {
+        error_setg(errp,
+                   "Illegal interrupt %d (device initialized for %zu in total)",
+                   irq_index, s->irq_count);
+        return -EINVAL;
+    }
 
     irq_info.index = s->irq_type;
     if (ioctl(s->device, VFIO_DEVICE_GET_IRQ_INFO, &irq_info)) {
@@ -196,7 +203,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         error_setg(errp, "Device interrupt doesn't support eventfd");
         return -EINVAL;
     }
-    s->eventfd[0] = event_notifier_get_fd(e);
+    s->eventfd[irq_index] = event_notifier_get_fd(e);
 
     irq_set_size = sizeof(*irq_set) + s->irq_count * sizeof(int32_t);
     irq_set = g_malloc0(irq_set_size);
