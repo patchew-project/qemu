@@ -26,6 +26,9 @@
 #include "qom/object_interfaces.h"
 #include "trace.h"
 
+OBJECT_DEFINE_TYPE_WITH_INTERFACES(QCryptoTLSCredsAnon, qcrypto_tls_creds_anon,
+                                   QCRYPTO_TLS_CREDS_ANON, QCRYPTO_TLS_CREDS,
+                                   { TYPE_USER_CREATABLE }, { NULL })
 
 #ifdef CONFIG_GNUTLS
 
@@ -191,20 +194,7 @@ qcrypto_tls_creds_anon_class_init(ObjectClass *oc, void *data)
 }
 
 
-static const TypeInfo qcrypto_tls_creds_anon_info = {
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
-    .name = TYPE_QCRYPTO_TLS_CREDS_ANON,
-    .instance_size = sizeof(QCryptoTLSCredsAnon),
-    .instance_finalize = qcrypto_tls_creds_anon_finalize,
-    .class_size = sizeof(QCryptoTLSCredsAnonClass),
-    .class_init = qcrypto_tls_creds_anon_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
-};
-TYPE_INFO(qcrypto_tls_creds_anon_info)
-
-
-
-
+static void
+qcrypto_tls_creds_anon_init(Object *obj)
+{
+}

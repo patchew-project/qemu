@@ -27,6 +27,10 @@
 #include "trace.h"
 
 
+OBJECT_DEFINE_TYPE_WITH_INTERFACES(QCryptoTLSCredsPSK, qcrypto_tls_creds_psk,
+                                   QCRYPTO_TLS_CREDS_PSK, QCRYPTO_TLS_CREDS,
+                                   { TYPE_USER_CREATABLE }, { NULL })
+
 #ifdef CONFIG_GNUTLS
 
 static int
@@ -281,21 +285,7 @@ qcrypto_tls_creds_psk_class_init(ObjectClass *oc, void *data)
                                   qcrypto_tls_creds_psk_prop_set_username);
 }
 
-
-static const TypeInfo qcrypto_tls_creds_psk_info = {
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
-    .name = TYPE_QCRYPTO_TLS_CREDS_PSK,
-    .instance_size = sizeof(QCryptoTLSCredsPSK),
-    .instance_finalize = qcrypto_tls_creds_psk_finalize,
-    .class_size = sizeof(QCryptoTLSCredsPSKClass),
-    .class_init = qcrypto_tls_creds_psk_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
-};
-TYPE_INFO(qcrypto_tls_creds_psk_info)
-
-
-
-
+static void
+qcrypto_tls_creds_psk_init(Object *obj)
+{
+}

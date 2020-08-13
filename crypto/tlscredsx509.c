@@ -28,6 +28,10 @@
 #include "trace.h"
 
 
+OBJECT_DEFINE_TYPE_WITH_INTERFACES(QCryptoTLSCredsX509, qcrypto_tls_creds_x509,
+                                   QCRYPTO_TLS_CREDS_X509, QCRYPTO_TLS_CREDS,
+                                   { TYPE_USER_CREATABLE }, { NULL })
+
 #ifdef CONFIG_GNUTLS
 
 #include <gnutls/x509.h>
@@ -814,23 +818,3 @@ qcrypto_tls_creds_x509_class_init(ObjectClass *oc, void *data)
                                   qcrypto_tls_creds_x509_prop_get_passwordid,
                                   qcrypto_tls_creds_x509_prop_set_passwordid);
 }
-
-
-static const TypeInfo qcrypto_tls_creds_x509_info = {
-    .parent = TYPE_QCRYPTO_TLS_CREDS,
-    .name = TYPE_QCRYPTO_TLS_CREDS_X509,
-    .instance_size = sizeof(QCryptoTLSCredsX509),
-    .instance_init = qcrypto_tls_creds_x509_init,
-    .instance_finalize = qcrypto_tls_creds_x509_finalize,
-    .class_size = sizeof(QCryptoTLSCredsX509Class),
-    .class_init = qcrypto_tls_creds_x509_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
-};
-TYPE_INFO(qcrypto_tls_creds_x509_info)
-
-
-
-
