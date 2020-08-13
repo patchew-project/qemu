@@ -335,6 +335,12 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
         ret = -errno;
         goto fail;
     }
+    trace_qemu_vfio_init_pci(device_info.num_irqs);
+    if (device_info.num_irqs < irq_count) {
+        error_setg(errp, "Invalid device IRQ count");
+        ret = -EINVAL;
+        goto fail;
+    }
     s->irq_type = irq_type;
     s->irq_count = irq_count;
 
