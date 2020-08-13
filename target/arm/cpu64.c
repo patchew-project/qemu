@@ -28,6 +28,7 @@
 #include "sysemu/kvm.h"
 #include "kvm_arm.h"
 #include "qapi/visitor.h"
+#include "hw/qdev-properties.h"
 
 #ifndef CONFIG_USER_ONLY
 static uint64_t a57_a53_l2ctlr_read(CPUARMState *env, const ARMCPRegInfo *ri)
@@ -778,6 +779,105 @@ static gchar *aarch64_gdb_arch_name(CPUState *cs)
     return g_strdup("aarch64");
 }
 
+static void
+cpu_add_feat_as_prop(const char *typename, const char *name, const char *val)
+{
+    GlobalProperty *prop = g_new0(typeof(*prop), 1);
+    prop->driver = typename;
+    prop->property = g_strdup(name);
+    prop->value = g_strdup(val);
+    qdev_prop_register_global(prop);
+}
+
+static gint compare_string(gconstpointer a, gconstpointer b)
+{
+    return g_strcmp0(a, b);
+}
+
+static GList *plus_features, *minus_features;
+
+static char *strtoupr(char *str)
+{
+    char *orign = str;
+
+    for (; *str != '\0'; str++) {
+        *str = toupper(*str);
+    }
+
+    return orign;
+}
+
+static void aarch64_cpu_parse_features(const char *typename, char *features,
+                                     Error **errp)
+{
+    GList *l;
+    char *featurestr; /* Single 'key=value" string being parsed */
+    static bool cpu_globals_initialized;
+
+    if (cpu_globals_initialized) {
+        return;
+    }
+    cpu_globals_initialized = true;
+
+    if (!features) {
+        return;
+    }
+    for (featurestr = strtok(features, ",");
+        featurestr;
+        featurestr = strtok(NULL, ",")) {
+        const char *name;
+        char *tmp;
+        const char *val = NULL;
+        char *eq = NULL;
+
+        /* Compatibility syntax: */
+        if (featurestr[0] == '+') {
+            plus_features = g_list_append(plus_features,
+                                          g_strdup(featurestr + 1));
+            continue;
+        } else if (featurestr[0] == '-') {
+            minus_features = g_list_append(minus_features,
+                                           g_strdup(featurestr + 1));
+            continue;
+        }
+
+        eq = strchr(featurestr, '=');
+        name = featurestr;
+        if (eq) {
+            *eq++ = 0;
+            val = eq;
+        } else {
+            error_setg(errp, "Unsupported property format: %s", name);
+            return;
+        }
+
+        if (g_list_find_custom(plus_features, name, compare_string)) {
+            warn_report("Ambiguous CPU model string. "
+                        "Don't mix both \"+%s\" and \"%s=%s\"",
+                        name, name, val);
+        }
+        if (g_list_find_custom(minus_features, name, compare_string)) {
+            warn_report("Ambiguous CPU model string. "
+                        "Don't mix both \"-%s\" and \"%s=%s\"",
+                        name, name, val);
+        }
+        tmp = g_strdup(name);
+        tmp = strtoupr(tmp);
+        cpu_add_feat_as_prop(typename, tmp, val);
+        g_free(tmp);
+    }
+
+    for (l = plus_features; l; l = l->next) {
+        const char *name = strtoupr(l->data); /* convert to upper string */
+        cpu_add_feat_as_prop(typename, name, "on");
+    }
+
+    for (l = minus_features; l; l = l->next) {
+        const char *name = strtoupr(l->data);
+        cpu_add_feat_as_prop(typename, name, "off");
+    }
+}
+
 static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -788,6 +888,7 @@ static void aarch64_cpu_class_init(ObjectClass *oc, void *data)
     cc->gdb_num_core_regs = 34;
     cc->gdb_core_xml_file = "aarch64-core.xml";
     cc->gdb_arch_name = aarch64_gdb_arch_name;
+    cc->parse_features = aarch64_cpu_parse_features;
 }
 
 static void aarch64_cpu_instance_init(Object *obj)
