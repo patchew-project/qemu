@@ -44,6 +44,7 @@ struct QEMUVFIOState {
     QemuMutex lock;
 
     int irq_type; /* vfio index */
+    size_t irq_count; /* vfio subindex (vector) */
 
     /* These fields are protected by BQL */
     int container;
@@ -195,7 +196,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         return -EINVAL;
     }
 
-    irq_set_size = sizeof(*irq_set) + sizeof(int32_t);
+    irq_set_size = sizeof(*irq_set) + s->irq_count * sizeof(int32_t);
     irq_set = g_malloc0(irq_set_size);
 
     /* Get to a known IRQ state */
@@ -204,7 +205,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         .flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER,
         .index = irq_info.index,
         .start = 0,
-        .count = 1,
+        .count = s->irq_count,
     };
 
     *(int32_t *)&irq_set->data = event_notifier_get_fd(e);
@@ -239,7 +240,7 @@ static int qemu_vfio_pci_write_config(QEMUVFIOState *s, void *buf, int size, int
 }
 
 static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
-                              int irq_type,
+                              int irq_type, unsigned irq_count,
                               Error **errp)
 {
     int ret;
@@ -335,6 +336,7 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
         goto fail;
     }
     s->irq_type = irq_type;
+    s->irq_count = irq_count;
 
     if (device_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX) {
         error_setg(errp, "Invalid device regions");
@@ -433,7 +435,7 @@ QEMUVFIOState *qemu_vfio_open_pci(const char *device, int irq_type,
     int r;
     QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
 
-    r = qemu_vfio_init_pci(s, device, irq_type, errp);
+    r = qemu_vfio_init_pci(s, device, irq_type, 1, errp);
     if (r) {
         g_free(s);
         return NULL;
