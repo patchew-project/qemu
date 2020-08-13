@@ -77,7 +77,6 @@
 struct QCryptoCipher {
     QCryptoCipherAlgorithm alg;
     QCryptoCipherMode mode;
-    void *opaque;
     const QCryptoCipherDriver *driver;
 };
 
