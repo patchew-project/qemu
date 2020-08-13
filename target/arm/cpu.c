@@ -1539,6 +1539,11 @@ static void arm_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     Error *local_err = NULL;
     bool value;
 
+    if (!kvm_arm_cpu_feature_supported()) {
+        warn_report("KVM doesn't support to set CPU feature in arm.  "
+                    "Setting to `%s` is ignored.", name);
+        return;
+    }
     if (dev->realized) {
         qdev_prop_set_after_realize(dev, name, errp);
         return;
