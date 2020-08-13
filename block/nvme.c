@@ -106,6 +106,9 @@ QEMU_BUILD_BUG_ON(offsetof(NVMeRegs, doorbells) != 0x1000);
 #define INDEX_ADMIN     0
 #define INDEX_IO(n)     (1 + n)
 
+/* This driver shares a single MSIX IRQ for the admin and I/O queues */
+#define MSIX_IRQ_COUNT  1
+
 struct BDRVNVMeState {
     AioContext *aio_context;
     QEMUVFIOState *vfio;
@@ -712,7 +715,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     }
 
     s->vfio = qemu_vfio_open_pci(device, VFIO_PCI_MSIX_IRQ_INDEX,
-                                 errp);
+                                 MSIX_IRQ_COUNT, errp);
     if (!s->vfio) {
         ret = -EINVAL;
         goto out;

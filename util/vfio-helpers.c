@@ -450,12 +450,12 @@ static void qemu_vfio_open_common(QEMUVFIOState *s)
  * Open a PCI device, e.g. "0000:00:01.0".
  */
 QEMUVFIOState *qemu_vfio_open_pci(const char *device, int irq_type,
-                                  Error **errp)
+                                  unsigned irq_count, Error **errp)
 {
     int r;
     QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
 
-    r = qemu_vfio_init_pci(s, device, irq_type, 1, errp);
+    r = qemu_vfio_init_pci(s, device, irq_type, irq_count, errp);
     if (r) {
         g_free(s);
         return NULL;
