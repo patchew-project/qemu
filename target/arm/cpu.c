@@ -25,6 +25,8 @@
 #include "qemu/module.h"
 #include "qapi/error.h"
 #include "qapi/visitor.h"
+#include "qapi/qmp/qdict.h"
+#include "qom/qom-qobject.h"
 #include "cpu.h"
 #include "internals.h"
 #include "exec/exec-all.h"
@@ -1514,6 +1516,45 @@ static const CPUFeatureDep feature_dependencies[] = {
         .to = FIELD_INFO(ID_AA64ISAR0, SHA3, false, 1, 0, false),
     },
 };
+
+static char *strtolower(char *src)
+{
+    char *start = src;
+
+    for (; *src; ++src) {
+        *src = tolower(*src);
+    }
+
+    return start;
+}
+
+void arm_cpu_features_to_dict(ARMCPU *cpu, QDict *features)
+{
+    Object *obj = OBJECT(cpu);
+    const char *name;
+    ObjectProperty *prop;
+    bool is_32bit = !arm_feature(&cpu->env, ARM_FEATURE_AARCH64);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(cpu_features); ++i) {
+        if (is_32bit != cpu_features[i].is_32bit) {
+            continue;
+        }
+
+        name = cpu_features[i].name;
+        prop = object_property_find(obj, name, NULL);
+        if (prop) {
+            QObject *value;
+            g_autofree char *tmp;
+
+            assert(prop->get);
+            value = object_property_get_qobject(obj, name, &error_abort);
+            tmp = strtolower(g_strdup(name));
+
+            qdict_put_obj(features, tmp, value);
+        }
+    }
+}
 
 static void arm_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
