@@ -260,10 +260,6 @@ static const TypeInfo char_win_stdio_type_info = {
     .class_init = char_win_stdio_class_init,
     .abstract = true,
 };
+TYPE_INFO(char_win_stdio_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_win_stdio_type_info);
-}
 
-type_init(register_types);

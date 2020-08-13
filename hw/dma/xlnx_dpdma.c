@@ -608,11 +608,8 @@ static const TypeInfo xlnx_dpdma_info = {
     .instance_init = xlnx_dpdma_init,
     .class_init    = xlnx_dpdma_class_init,
 };
+TYPE_INFO(xlnx_dpdma_info)
 
-static void xlnx_dpdma_register_types(void)
-{
-    type_register_static(&xlnx_dpdma_info);
-}
 
 size_t xlnx_dpdma_start_operation(XlnxDPDMAState *s, uint8_t channel,
                                     bool one_desc)
@@ -787,4 +784,3 @@ void xlnx_dpdma_trigger_vsync_irq(XlnxDPDMAState *s)
     xlnx_dpdma_update_irq(s);
 }
 
-type_init(xlnx_dpdma_register_types)

@@ -305,6 +305,7 @@ static const TypeInfo via_ac97_info = {
         { },
     },
 };
+TYPE_INFO(via_ac97_info)
 
 static void vt82c686b_mc97_realize(PCIDevice *dev, Error **errp)
 {
@@ -349,6 +350,7 @@ static const TypeInfo via_mc97_info = {
         { },
     },
 };
+TYPE_INFO(via_mc97_info)
 
 /* vt82c686 pm init */
 static void vt82c686b_pm_realize(PCIDevice *dev, Error **errp)
@@ -431,6 +433,7 @@ static const TypeInfo via_pm_info = {
         { },
     },
 };
+TYPE_INFO(via_pm_info)
 
 static const VMStateDescription vmstate_via = {
     .name = "vt82c686b",
@@ -519,6 +522,7 @@ static const TypeInfo via_info = {
         { },
     },
 };
+TYPE_INFO(via_info)
 
 static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
 {
@@ -537,14 +541,6 @@ static const TypeInfo via_superio_info = {
     .class_size    = sizeof(ISASuperIOClass),
     .class_init    = vt82c686b_superio_class_init,
 };
+TYPE_INFO(via_superio_info)
 
-static void vt82c686b_register_types(void)
-{
-    type_register_static(&via_ac97_info);
-    type_register_static(&via_mc97_info);
-    type_register_static(&via_pm_info);
-    type_register_static(&via_superio_info);
-    type_register_static(&via_info);
-}
 
-type_init(vt82c686b_register_types)

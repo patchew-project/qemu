@@ -159,10 +159,6 @@ static const TypeInfo allwinner_sid_info = {
     .instance_size = sizeof(AwSidState),
     .class_init    = allwinner_sid_class_init,
 };
+TYPE_INFO(allwinner_sid_info)
 
-static void allwinner_sid_register(void)
-{
-    type_register_static(&allwinner_sid_info);
-}
 
-type_init(allwinner_sid_register)

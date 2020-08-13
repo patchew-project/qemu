@@ -244,6 +244,7 @@ static const TypeInfo pcspk_info = {
     .instance_init  = pcspk_initfn,
     .class_init     = pcspk_class_initfn,
 };
+TYPE_INFO(pcspk_info)
 
 static int pcspk_audio_init_soundhw(ISABus *bus)
 {
@@ -256,7 +257,6 @@ static int pcspk_audio_init_soundhw(ISABus *bus)
 
 static void pcspk_register(void)
 {
-    type_register_static(&pcspk_info);
     isa_register_soundhw("pcspk", "PC speaker", pcspk_audio_init_soundhw);
 }
 type_init(pcspk_register)

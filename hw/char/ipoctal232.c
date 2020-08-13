@@ -598,10 +598,6 @@ static const TypeInfo ipoctal_info = {
     .instance_size = sizeof(IPOctalState),
     .class_init    = ipoctal_class_init,
 };
+TYPE_INFO(ipoctal_info)
 
-static void ipoctal_register_types(void)
-{
-    type_register_static(&ipoctal_info);
-}
 
-type_init(ipoctal_register_types)

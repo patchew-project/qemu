@@ -174,10 +174,6 @@ static const TypeInfo ads7846_info = {
     .instance_size = sizeof(ADS7846State),
     .class_init    = ads7846_class_init,
 };
+TYPE_INFO(ads7846_info)
 
-static void ads7846_register_types(void)
-{
-    type_register_static(&ads7846_info);
-}
 
-type_init(ads7846_register_types)

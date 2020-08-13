@@ -486,11 +486,8 @@ static const TypeInfo macio_ide_type_info = {
     .instance_init = macio_ide_initfn,
     .class_init = macio_ide_class_init,
 };
+TYPE_INFO(macio_ide_type_info)
 
-static void macio_ide_register_types(void)
-{
-    type_register_static(&macio_ide_type_info);
-}
 
 /* hd_table must contain 2 block drivers */
 void macio_ide_init_drives(MACIOIDEState *s, DriveInfo **hd_table)
@@ -510,4 +507,3 @@ void macio_ide_register_dma(MACIOIDEState *s)
                            pmac_ide_transfer, pmac_ide_flush, s);
 }
 
-type_init(macio_ide_register_types)

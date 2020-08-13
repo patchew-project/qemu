@@ -354,10 +354,6 @@ static const TypeInfo aspeed_vic_info = {
     .instance_size = sizeof(AspeedVICState),
     .class_init = aspeed_vic_class_init,
 };
+TYPE_INFO(aspeed_vic_info)
 
-static void aspeed_vic_register_types(void)
-{
-    type_register_static(&aspeed_vic_info);
-}
 
-type_init(aspeed_vic_register_types);

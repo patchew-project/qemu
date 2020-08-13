@@ -546,24 +546,20 @@ static const TypeInfo pl110_info = {
     .instance_init = pl110_init,
     .class_init    = pl110_class_init,
 };
+TYPE_INFO(pl110_info)
 
 static const TypeInfo pl110_versatile_info = {
     .name          = "pl110_versatile",
     .parent        = TYPE_PL110,
     .instance_init = pl110_versatile_init,
 };
+TYPE_INFO(pl110_versatile_info)
 
 static const TypeInfo pl111_info = {
     .name          = "pl111",
     .parent        = TYPE_PL110,
     .instance_init = pl111_init,
 };
+TYPE_INFO(pl111_info)
 
-static void pl110_register_types(void)
-{
-    type_register_static(&pl110_info);
-    type_register_static(&pl110_versatile_info);
-    type_register_static(&pl111_info);
-}
 
-type_init(pl110_register_types)

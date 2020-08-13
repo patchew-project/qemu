@@ -99,10 +99,6 @@ static const TypeInfo gpio_key_info = {
     .instance_size = sizeof(GPIOKEYState),
     .class_init    = gpio_key_class_init,
 };
+TYPE_INFO(gpio_key_info)
 
-static void gpio_key_register_types(void)
-{
-    type_register_static(&gpio_key_info);
-}
 
-type_init(gpio_key_register_types)

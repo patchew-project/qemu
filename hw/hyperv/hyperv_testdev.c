@@ -319,9 +319,5 @@ static const TypeInfo hv_test_dev_info = {
     .instance_size  = sizeof(HypervTestDev),
     .class_init     = hv_test_dev_class_init,
 };
+TYPE_INFO(hv_test_dev_info)
 
-static void hv_test_dev_register_types(void)
-{
-    type_register_static(&hv_test_dev_info);
-}
-type_init(hv_test_dev_register_types);

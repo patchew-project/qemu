@@ -446,10 +446,6 @@ static const TypeInfo allwinner_h3_type_info = {
     .instance_init = allwinner_h3_init,
     .class_init = allwinner_h3_class_init,
 };
+TYPE_INFO(allwinner_h3_type_info)
 
-static void allwinner_h3_register_types(void)
-{
-    type_register_static(&allwinner_h3_type_info);
-}
 
-type_init(allwinner_h3_register_types)

@@ -298,10 +298,6 @@ static TypeInfo prep_systemio800_info = {
     .instance_size = sizeof(PrepSystemIoState),
     .class_init    = prep_systemio_class_initfn,
 };
+TYPE_INFO(prep_systemio800_info)
 
-static void prep_systemio_register_types(void)
-{
-    type_register_static(&prep_systemio800_info);
-}
 
-type_init(prep_systemio_register_types)

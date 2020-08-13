@@ -517,10 +517,6 @@ static const TypeInfo stellaris_enet_info = {
     .instance_size = sizeof(stellaris_enet_state),
     .class_init    = stellaris_enet_class_init,
 };
+TYPE_INFO(stellaris_enet_info)
 
-static void stellaris_enet_register_types(void)
-{
-    type_register_static(&stellaris_enet_info);
-}
 
-type_init(stellaris_enet_register_types)

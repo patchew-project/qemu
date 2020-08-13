@@ -306,6 +306,7 @@ static const TypeInfo lm32_evr_type = {
     .parent = TYPE_MACHINE,
     .class_init = lm32_evr_class_init,
 };
+TYPE_INFO(lm32_evr_type)
 
 static void lm32_uclinux_class_init(ObjectClass *oc, void *data)
 {
@@ -323,11 +324,6 @@ static const TypeInfo lm32_uclinux_type = {
     .parent = TYPE_MACHINE,
     .class_init = lm32_uclinux_class_init,
 };
+TYPE_INFO(lm32_uclinux_type)
 
-static void lm32_machine_init(void)
-{
-    type_register_static(&lm32_evr_type);
-    type_register_static(&lm32_uclinux_type);
-}
 
-type_init(lm32_machine_init)

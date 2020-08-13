@@ -1040,10 +1040,6 @@ static const TypeInfo dp8393x_info = {
     .instance_init = dp8393x_instance_init,
     .class_init    = dp8393x_class_init,
 };
+TYPE_INFO(dp8393x_info)
 
-static void dp8393x_register_types(void)
-{
-    type_register_static(&dp8393x_info);
-}
 
-type_init(dp8393x_register_types)

@@ -234,10 +234,6 @@ static const TypeInfo m2sxxx_soc_info = {
     .instance_init = m2sxxx_soc_initfn,
     .class_init    = m2sxxx_soc_class_init,
 };
+TYPE_INFO(m2sxxx_soc_info)
 
-static void m2sxxx_soc_types(void)
-{
-    type_register_static(&m2sxxx_soc_info);
-}
 
-type_init(m2sxxx_soc_types)

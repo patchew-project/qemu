@@ -162,10 +162,6 @@ static const TypeInfo stm32f4xx_syscfg_info = {
     .instance_init = stm32f4xx_syscfg_init,
     .class_init    = stm32f4xx_syscfg_class_init,
 };
+TYPE_INFO(stm32f4xx_syscfg_info)
 
-static void stm32f4xx_syscfg_register_types(void)
-{
-    type_register_static(&stm32f4xx_syscfg_info);
-}
 
-type_init(stm32f4xx_syscfg_register_types)

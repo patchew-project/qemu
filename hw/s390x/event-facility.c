@@ -333,6 +333,7 @@ static const TypeInfo sclp_events_bus_info = {
     .name = TYPE_SCLP_EVENTS_BUS,
     .parent = TYPE_BUS,
 };
+TYPE_INFO(sclp_events_bus_info)
 
 static void command_handler(SCLPEventFacility *ef, SCCB *sccb, uint64_t code)
 {
@@ -483,6 +484,7 @@ static const TypeInfo sclp_event_facility_info = {
     .class_init    = init_event_facility_class,
     .class_size    = sizeof(SCLPEventFacilityClass),
 };
+TYPE_INFO(sclp_event_facility_info)
 
 static void event_realize(DeviceState *qdev, Error **errp)
 {
@@ -514,15 +516,9 @@ static const TypeInfo sclp_event_type_info = {
     .class_size = sizeof(SCLPEventClass),
     .abstract = true,
 };
+TYPE_INFO(sclp_event_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&sclp_events_bus_info);
-    type_register_static(&sclp_event_facility_info);
-    type_register_static(&sclp_event_type_info);
-}
 
-type_init(register_types)
 
 BusState *sclp_get_event_facility_bus(void)
 {

@@ -527,9 +527,5 @@ static const TypeInfo microvm_machine_info = {
          { }
     },
 };
+TYPE_INFO(microvm_machine_info)
 
-static void microvm_machine_init(void)
-{
-    type_register_static(&microvm_machine_info);
-}
-type_init(microvm_machine_init);

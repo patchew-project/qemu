@@ -135,10 +135,6 @@ static const TypeInfo debugcon_isa_info = {
     .instance_size = sizeof(ISADebugconState),
     .class_init    = debugcon_isa_class_initfn,
 };
+TYPE_INFO(debugcon_isa_info)
 
-static void debugcon_register_types(void)
-{
-    type_register_static(&debugcon_isa_info);
-}
 
-type_init(debugcon_register_types)

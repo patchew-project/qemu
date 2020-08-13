@@ -407,6 +407,7 @@ static const TypeInfo esp_pci_info = {
         { },
     },
 };
+TYPE_INFO(esp_pci_info)
 
 typedef struct {
     PCIESPState pci;
@@ -526,11 +527,6 @@ static const TypeInfo dc390_info = {
     .instance_size = sizeof(DC390State),
     .class_init = dc390_class_init,
 };
+TYPE_INFO(dc390_info)
 
-static void esp_pci_register_types(void)
-{
-    type_register_static(&esp_pci_info);
-    type_register_static(&dc390_info);
-}
 
-type_init(esp_pci_register_types)

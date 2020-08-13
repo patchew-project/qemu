@@ -159,13 +159,9 @@ static const TypeInfo synic_type_info = {
     .instance_size = sizeof(SynICState),
     .class_init = synic_class_init,
 };
+TYPE_INFO(synic_type_info)
 
-static void synic_register_types(void)
-{
-    type_register_static(&synic_type_info);
-}
 
-type_init(synic_register_types)
 
 /*
  * KVM has its own message producers (SynIC timers).  To guarantee

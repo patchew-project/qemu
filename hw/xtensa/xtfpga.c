@@ -614,6 +614,7 @@ static const TypeInfo xtfpga_lx60_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_lx60_class_init,
 };
+TYPE_INFO(xtfpga_lx60_type)
 
 static void xtfpga_lx60_nommu_class_init(ObjectClass *oc, void *data)
 {
@@ -631,6 +632,7 @@ static const TypeInfo xtfpga_lx60_nommu_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_lx60_nommu_class_init,
 };
+TYPE_INFO(xtfpga_lx60_nommu_type)
 
 static void xtfpga_lx200_class_init(ObjectClass *oc, void *data)
 {
@@ -648,6 +650,7 @@ static const TypeInfo xtfpga_lx200_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_lx200_class_init,
 };
+TYPE_INFO(xtfpga_lx200_type)
 
 static void xtfpga_lx200_nommu_class_init(ObjectClass *oc, void *data)
 {
@@ -665,6 +668,7 @@ static const TypeInfo xtfpga_lx200_nommu_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_lx200_nommu_class_init,
 };
+TYPE_INFO(xtfpga_lx200_nommu_type)
 
 static void xtfpga_ml605_class_init(ObjectClass *oc, void *data)
 {
@@ -682,6 +686,7 @@ static const TypeInfo xtfpga_ml605_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_ml605_class_init,
 };
+TYPE_INFO(xtfpga_ml605_type)
 
 static void xtfpga_ml605_nommu_class_init(ObjectClass *oc, void *data)
 {
@@ -699,6 +704,7 @@ static const TypeInfo xtfpga_ml605_nommu_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_ml605_nommu_class_init,
 };
+TYPE_INFO(xtfpga_ml605_nommu_type)
 
 static void xtfpga_kc705_class_init(ObjectClass *oc, void *data)
 {
@@ -716,6 +722,7 @@ static const TypeInfo xtfpga_kc705_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_kc705_class_init,
 };
+TYPE_INFO(xtfpga_kc705_type)
 
 static void xtfpga_kc705_nommu_class_init(ObjectClass *oc, void *data)
 {
@@ -733,17 +740,6 @@ static const TypeInfo xtfpga_kc705_nommu_type = {
     .parent = TYPE_MACHINE,
     .class_init = xtfpga_kc705_nommu_class_init,
 };
+TYPE_INFO(xtfpga_kc705_nommu_type)
 
-static void xtfpga_machines_init(void)
-{
-    type_register_static(&xtfpga_lx60_type);
-    type_register_static(&xtfpga_lx200_type);
-    type_register_static(&xtfpga_ml605_type);
-    type_register_static(&xtfpga_kc705_type);
-    type_register_static(&xtfpga_lx60_nommu_type);
-    type_register_static(&xtfpga_lx200_nommu_type);
-    type_register_static(&xtfpga_ml605_nommu_type);
-    type_register_static(&xtfpga_kc705_nommu_type);
-}
 
-type_init(xtfpga_machines_init)

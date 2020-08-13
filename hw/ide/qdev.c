@@ -66,6 +66,7 @@ static const TypeInfo ide_bus_info = {
     .instance_size = sizeof(IDEBus),
     .class_init = ide_bus_class_init,
 };
+TYPE_INFO(ide_bus_info)
 
 void ide_bus_new(IDEBus *idebus, size_t idebus_size, DeviceState *dev,
                  int bus_id, int max_units)
@@ -330,6 +331,7 @@ static const TypeInfo ide_hd_info = {
     .instance_size = sizeof(IDEDrive),
     .class_init    = ide_hd_class_init,
 };
+TYPE_INFO(ide_hd_info)
 
 static Property ide_cd_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
@@ -353,6 +355,7 @@ static const TypeInfo ide_cd_info = {
     .instance_size = sizeof(IDEDrive),
     .class_init    = ide_cd_class_init,
 };
+TYPE_INFO(ide_cd_info)
 
 static Property ide_drive_properties[] = {
     DEFINE_IDE_DEV_PROPERTIES(),
@@ -376,6 +379,7 @@ static const TypeInfo ide_drive_info = {
     .instance_size = sizeof(IDEDrive),
     .class_init    = ide_drive_class_init,
 };
+TYPE_INFO(ide_drive_info)
 
 static void ide_device_class_init(ObjectClass *klass, void *data)
 {
@@ -395,14 +399,6 @@ static const TypeInfo ide_device_type_info = {
     .class_init = ide_device_class_init,
     .instance_init = ide_dev_instance_init,
 };
+TYPE_INFO(ide_device_type_info)
 
-static void ide_register_types(void)
-{
-    type_register_static(&ide_bus_info);
-    type_register_static(&ide_hd_info);
-    type_register_static(&ide_cd_info);
-    type_register_static(&ide_drive_info);
-    type_register_static(&ide_device_type_info);
-}
 
-type_init(ide_register_types)

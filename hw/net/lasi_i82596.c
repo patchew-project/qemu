@@ -181,10 +181,6 @@ static const TypeInfo lasi_82596_info = {
     .class_init    = lasi_82596_class_init,
     .instance_init = lasi_82596_instance_init,
 };
+TYPE_INFO(lasi_82596_info)
 
-static void lasi_82596_register_types(void)
-{
-    type_register_static(&lasi_82596_info);
-}
 
-type_init(lasi_82596_register_types)

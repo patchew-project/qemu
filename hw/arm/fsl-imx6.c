@@ -473,10 +473,6 @@ static const TypeInfo fsl_imx6_type_info = {
     .instance_init = fsl_imx6_init,
     .class_init = fsl_imx6_class_init,
 };
+TYPE_INFO(fsl_imx6_type_info)
 
-static void fsl_imx6_register_types(void)
-{
-    type_register_static(&fsl_imx6_type_info);
-}
 
-type_init(fsl_imx6_register_types)

@@ -144,10 +144,6 @@ static const TypeInfo puv3_gpio_info = {
     .instance_size = sizeof(PUV3GPIOState),
     .class_init = puv3_gpio_class_init,
 };
+TYPE_INFO(puv3_gpio_info)
 
-static void puv3_gpio_register_type(void)
-{
-    type_register_static(&puv3_gpio_info);
-}
 
-type_init(puv3_gpio_register_type)

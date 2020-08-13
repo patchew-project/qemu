@@ -523,10 +523,6 @@ static const TypeInfo xen_platform_info = {
         { },
     },
 };
+TYPE_INFO(xen_platform_info)
 
-static void xen_platform_register_types(void)
-{
-    type_register_static(&xen_platform_info);
-}
 
-type_init(xen_platform_register_types)

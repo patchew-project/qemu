@@ -15,10 +15,6 @@ static const TypeInfo pcmcia_card_type_info = {
     .abstract = true,
     .class_size = sizeof(PCMCIACardClass),
 };
+TYPE_INFO(pcmcia_card_type_info)
 
-static void pcmcia_register_types(void)
-{
-    type_register_static(&pcmcia_card_type_info);
-}
 
-type_init(pcmcia_register_types)

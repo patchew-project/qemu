@@ -331,10 +331,6 @@ static TypeInfo bcm2835_mbox_info = {
     .class_init    = bcm2835_mbox_class_init,
     .instance_init = bcm2835_mbox_init,
 };
+TYPE_INFO(bcm2835_mbox_info)
 
-static void bcm2835_mbox_register_types(void)
-{
-    type_register_static(&bcm2835_mbox_info);
-}
 
-type_init(bcm2835_mbox_register_types)

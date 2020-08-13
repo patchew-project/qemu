@@ -1479,6 +1479,7 @@ static const TypeInfo xilinx_spips_info = {
     .class_init = xilinx_spips_class_init,
     .class_size = sizeof(XilinxSPIPSClass),
 };
+TYPE_INFO(xilinx_spips_info)
 
 static const TypeInfo xilinx_qspips_info = {
     .name  = TYPE_XILINX_QSPIPS,
@@ -1486,6 +1487,7 @@ static const TypeInfo xilinx_qspips_info = {
     .instance_size  = sizeof(XilinxQSPIPS),
     .class_init = xilinx_qspips_class_init,
 };
+TYPE_INFO(xilinx_qspips_info)
 
 static const TypeInfo xlnx_zynqmp_qspips_info = {
     .name  = TYPE_XLNX_ZYNQMP_QSPIPS,
@@ -1494,12 +1496,6 @@ static const TypeInfo xlnx_zynqmp_qspips_info = {
     .instance_init  = xlnx_zynqmp_qspips_init,
     .class_init = xlnx_zynqmp_qspips_class_init,
 };
+TYPE_INFO(xlnx_zynqmp_qspips_info)
 
-static void xilinx_spips_register_types(void)
-{
-    type_register_static(&xilinx_spips_info);
-    type_register_static(&xilinx_qspips_info);
-    type_register_static(&xlnx_zynqmp_qspips_info);
-}
 
-type_init(xilinx_spips_register_types)

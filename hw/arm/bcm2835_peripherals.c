@@ -373,10 +373,6 @@ static const TypeInfo bcm2835_peripherals_type_info = {
     .instance_init = bcm2835_peripherals_init,
     .class_init = bcm2835_peripherals_class_init,
 };
+TYPE_INFO(bcm2835_peripherals_type_info)
 
-static void bcm2835_peripherals_register_types(void)
-{
-    type_register_static(&bcm2835_peripherals_type_info);
-}
 
-type_init(bcm2835_peripherals_register_types)

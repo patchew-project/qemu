@@ -402,10 +402,6 @@ static const TypeInfo adb_kbd_type_info = {
     .class_init = adb_kbd_class_init,
     .class_size = sizeof(ADBKeyboardClass),
 };
+TYPE_INFO(adb_kbd_type_info)
 
-static void adb_kbd_register_types(void)
-{
-    type_register_static(&adb_kbd_type_info);
-}
 
-type_init(adb_kbd_register_types)

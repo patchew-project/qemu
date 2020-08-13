@@ -626,13 +626,9 @@ static const TypeInfo i8257_info = {
         { }
     }
 };
+TYPE_INFO(i8257_info)
 
-static void i8257_register_types(void)
-{
-    type_register_static(&i8257_info);
-}
 
-type_init(i8257_register_types)
 
 void i8257_dma_init(ISABus *bus, bool high_page_enable)
 {

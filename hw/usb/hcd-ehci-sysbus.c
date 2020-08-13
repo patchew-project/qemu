@@ -98,6 +98,7 @@ static const TypeInfo ehci_type_info = {
     .class_init    = ehci_sysbus_class_init,
     .class_size    = sizeof(SysBusEHCIClass),
 };
+TYPE_INFO(ehci_type_info)
 
 static void ehci_platform_class_init(ObjectClass *oc, void *data)
 {
@@ -114,6 +115,7 @@ static const TypeInfo ehci_platform_type_info = {
     .parent        = TYPE_SYS_BUS_EHCI,
     .class_init    = ehci_platform_class_init,
 };
+TYPE_INFO(ehci_platform_type_info)
 
 static void ehci_exynos4210_class_init(ObjectClass *oc, void *data)
 {
@@ -130,6 +132,7 @@ static const TypeInfo ehci_exynos4210_type_info = {
     .parent        = TYPE_SYS_BUS_EHCI,
     .class_init    = ehci_exynos4210_class_init,
 };
+TYPE_INFO(ehci_exynos4210_type_info)
 
 static void ehci_aw_h3_class_init(ObjectClass *oc, void *data)
 {
@@ -146,6 +149,7 @@ static const TypeInfo ehci_aw_h3_type_info = {
     .parent        = TYPE_SYS_BUS_EHCI,
     .class_init    = ehci_aw_h3_class_init,
 };
+TYPE_INFO(ehci_aw_h3_type_info)
 
 static void ehci_tegra2_class_init(ObjectClass *oc, void *data)
 {
@@ -162,6 +166,7 @@ static const TypeInfo ehci_tegra2_type_info = {
     .parent        = TYPE_SYS_BUS_EHCI,
     .class_init    = ehci_tegra2_class_init,
 };
+TYPE_INFO(ehci_tegra2_type_info)
 
 static void ehci_ppc4xx_init(Object *o)
 {
@@ -186,6 +191,7 @@ static const TypeInfo ehci_ppc4xx_type_info = {
     .class_init    = ehci_ppc4xx_class_init,
     .instance_init = ehci_ppc4xx_init,
 };
+TYPE_INFO(ehci_ppc4xx_type_info)
 
 /*
  * Faraday FUSBH200 USB 2.0 EHCI
@@ -262,16 +268,6 @@ static const TypeInfo ehci_fusbh200_type_info = {
     .instance_init = fusbh200_ehci_init,
     .class_init    = fusbh200_ehci_class_init,
 };
+TYPE_INFO(ehci_fusbh200_type_info)
 
-static void ehci_sysbus_register_types(void)
-{
-    type_register_static(&ehci_type_info);
-    type_register_static(&ehci_platform_type_info);
-    type_register_static(&ehci_exynos4210_type_info);
-    type_register_static(&ehci_aw_h3_type_info);
-    type_register_static(&ehci_tegra2_type_info);
-    type_register_static(&ehci_ppc4xx_type_info);
-    type_register_static(&ehci_fusbh200_type_info);
-}
 
-type_init(ehci_sysbus_register_types)

@@ -180,6 +180,7 @@ static const TypeInfo sh_pci_host_info = {
         { },
     },
 };
+TYPE_INFO(sh_pci_host_info)
 
 static void sh_pci_device_class_init(ObjectClass *klass, void *data)
 {
@@ -194,11 +195,6 @@ static const TypeInfo sh_pci_device_info = {
     .instance_size = sizeof(SHPCIState),
     .class_init    = sh_pci_device_class_init,
 };
+TYPE_INFO(sh_pci_device_info)
 
-static void sh_pci_register_types(void)
-{
-    type_register_static(&sh_pci_device_info);
-    type_register_static(&sh_pci_host_info);
-}
 
-type_init(sh_pci_register_types)

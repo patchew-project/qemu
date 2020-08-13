@@ -1224,6 +1224,7 @@ static const TypeInfo fw_cfg_info = {
     .instance_size = sizeof(FWCfgState),
     .class_init    = fw_cfg_class_init,
 };
+TYPE_INFO(fw_cfg_info)
 
 static void fw_cfg_file_slots_allocate(FWCfgState *s, Error **errp)
 {
@@ -1297,6 +1298,7 @@ static const TypeInfo fw_cfg_io_info = {
     .instance_size = sizeof(FWCfgIoState),
     .class_init    = fw_cfg_io_class_init,
 };
+TYPE_INFO(fw_cfg_io_info)
 
 
 static Property fw_cfg_mem_properties[] = {
@@ -1359,19 +1361,13 @@ static const TypeInfo fw_cfg_mem_info = {
     .instance_size = sizeof(FWCfgMemState),
     .class_init    = fw_cfg_mem_class_init,
 };
+TYPE_INFO(fw_cfg_mem_info)
 
 static const TypeInfo fw_cfg_data_generator_interface_info = {
     .parent = TYPE_INTERFACE,
     .name = TYPE_FW_CFG_DATA_GENERATOR_INTERFACE,
     .class_size = sizeof(FWCfgDataGeneratorClass),
 };
+TYPE_INFO(fw_cfg_data_generator_interface_info)
 
-static void fw_cfg_register_types(void)
-{
-    type_register_static(&fw_cfg_info);
-    type_register_static(&fw_cfg_io_info);
-    type_register_static(&fw_cfg_mem_info);
-    type_register_static(&fw_cfg_data_generator_interface_info);
-}
 
-type_init(fw_cfg_register_types)

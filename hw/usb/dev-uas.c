@@ -961,10 +961,6 @@ static const TypeInfo uas_info = {
     .instance_size = sizeof(UASDevice),
     .class_init    = usb_uas_class_initfn,
 };
+TYPE_INFO(uas_info)
 
-static void usb_uas_register_types(void)
-{
-    type_register_static(&uas_info);
-}
 
-type_init(usb_uas_register_types)

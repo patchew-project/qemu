@@ -219,9 +219,5 @@ static const TypeInfo nrf51_soc_info = {
     .instance_init = nrf51_soc_init,
     .class_init    = nrf51_soc_class_init,
 };
+TYPE_INFO(nrf51_soc_info)
 
-static void nrf51_soc_types(void)
-{
-    type_register_static(&nrf51_soc_info);
-}
-type_init(nrf51_soc_types)

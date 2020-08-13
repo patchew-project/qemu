@@ -245,10 +245,6 @@ static const TypeInfo fsl_imx31_type_info = {
     .instance_init = fsl_imx31_init,
     .class_init = fsl_imx31_class_init,
 };
+TYPE_INFO(fsl_imx31_type_info)
 
-static void fsl_imx31_register_types(void)
-{
-    type_register_static(&fsl_imx31_type_info);
-}
 
-type_init(fsl_imx31_register_types)

@@ -136,13 +136,8 @@ static const TypeInfo qauthz_pam_info = {
         { }
     }
 };
+TYPE_INFO(qauthz_pam_info)
 
 
-static void
-qauthz_pam_register_types(void)
-{
-    type_register_static(&qauthz_pam_info);
-}
 
 
-type_init(qauthz_pam_register_types);

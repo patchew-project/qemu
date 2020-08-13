@@ -929,10 +929,6 @@ static const TypeInfo imx6ul_ccm_info = {
     .instance_init = imx6ul_ccm_init,
     .class_init    = imx6ul_ccm_class_init,
 };
+TYPE_INFO(imx6ul_ccm_info)
 
-static void imx6ul_ccm_register_types(void)
-{
-    type_register_static(&imx6ul_ccm_info);
-}
 
-type_init(imx6ul_ccm_register_types)

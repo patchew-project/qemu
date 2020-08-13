@@ -253,12 +253,8 @@ static const TypeInfo boston_device = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(BostonState),
 };
+TYPE_INFO(boston_device)
 
-static void boston_register_types(void)
-{
-    type_register_static(&boston_device);
-}
-type_init(boston_register_types)
 
 static void gen_firmware(uint32_t *p, hwaddr kernel_entry, hwaddr fdt_addr,
                          bool is_64b)

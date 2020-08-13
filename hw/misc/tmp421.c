@@ -378,12 +378,12 @@ static const TypeInfo tmp421_info = {
     .instance_init = tmp421_initfn,
     .abstract      = true,
 };
+TYPE_INFO(tmp421_info)
 
 static void tmp421_register_types(void)
 {
     int i;
 
-    type_register_static(&tmp421_info);
     for (i = 0; i < ARRAY_SIZE(devices); ++i) {
         TypeInfo ti = {
             .name       = devices[i].name,

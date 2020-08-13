@@ -98,10 +98,6 @@ static const TypeInfo digic_type_info = {
     .instance_init = digic_init,
     .class_init = digic_class_init,
 };
+TYPE_INFO(digic_type_info)
 
-static void digic_register_types(void)
-{
-    type_register_static(&digic_type_info);
-}
 
-type_init(digic_register_types)

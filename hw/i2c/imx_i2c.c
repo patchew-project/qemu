@@ -324,10 +324,6 @@ static const TypeInfo imx_i2c_type_info = {
     .instance_size = sizeof(IMXI2CState),
     .class_init = imx_i2c_class_init,
 };
+TYPE_INFO(imx_i2c_type_info)
 
-static void imx_i2c_register_types(void)
-{
-    type_register_static(&imx_i2c_type_info);
-}
 
-type_init(imx_i2c_register_types)

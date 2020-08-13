@@ -2208,10 +2208,6 @@ static const TypeInfo sd_info = {
     .instance_init = sd_instance_init,
     .instance_finalize = sd_instance_finalize,
 };
+TYPE_INFO(sd_info)
 
-static void sd_register_types(void)
-{
-    type_register_static(&sd_info);
-}
 
-type_init(sd_register_types)

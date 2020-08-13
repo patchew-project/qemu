@@ -332,6 +332,7 @@ static const TypeInfo sev_guest_info = {
         { }
     }
 };
+TYPE_INFO(sev_guest_info)
 
 static SevGuestState *
 lookup_sev_guest_info(const char *id)
@@ -785,10 +786,4 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
     return 0;
 }
 
-static void
-sev_register_types(void)
-{
-    type_register_static(&sev_guest_info);
-}
 
-type_init(sev_register_types);

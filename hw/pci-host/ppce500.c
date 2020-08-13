@@ -518,6 +518,7 @@ static const TypeInfo e500_host_bridge_info = {
         { },
     },
 };
+TYPE_INFO(e500_host_bridge_info)
 
 static Property pcihost_properties[] = {
     DEFINE_PROP_UINT32("first_slot", PPCE500PCIState, first_slot, 0x11),
@@ -541,11 +542,6 @@ static const TypeInfo e500_pcihost_info = {
     .instance_size = sizeof(PPCE500PCIState),
     .class_init    = e500_pcihost_class_init,
 };
+TYPE_INFO(e500_pcihost_info)
 
-static void e500_pci_register_types(void)
-{
-    type_register_static(&e500_pcihost_info);
-    type_register_static(&e500_host_bridge_info);
-}
 
-type_init(e500_pci_register_types)

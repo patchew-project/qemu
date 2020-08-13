@@ -613,10 +613,6 @@ static const TypeInfo cadence_uart_info = {
     .instance_init = cadence_uart_init,
     .class_init    = cadence_uart_class_init,
 };
+TYPE_INFO(cadence_uart_info)
 
-static void cadence_uart_register_types(void)
-{
-    type_register_static(&cadence_uart_info);
-}
 
-type_init(cadence_uart_register_types)

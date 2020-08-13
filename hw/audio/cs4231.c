@@ -178,10 +178,6 @@ static const TypeInfo cs4231_info = {
     .instance_init = cs4231_init,
     .class_init    = cs4231_class_init,
 };
+TYPE_INFO(cs4231_info)
 
-static void cs4231_register_types(void)
-{
-    type_register_static(&cs4231_info);
-}
 
-type_init(cs4231_register_types)

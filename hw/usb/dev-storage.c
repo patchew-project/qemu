@@ -762,6 +762,7 @@ static const TypeInfo usb_storage_dev_type_info = {
     .abstract = true,
     .class_init = usb_msd_class_initfn_common,
 };
+TYPE_INFO(usb_storage_dev_type_info)
 
 static void usb_msd_instance_init(Object *obj)
 {
@@ -785,18 +786,13 @@ static const TypeInfo msd_info = {
     .class_init    = usb_msd_class_storage_initfn,
     .instance_init = usb_msd_instance_init,
 };
+TYPE_INFO(msd_info)
 
 static const TypeInfo bot_info = {
     .name          = "usb-bot",
     .parent        = TYPE_USB_STORAGE,
     .class_init    = usb_msd_class_bot_initfn,
 };
+TYPE_INFO(bot_info)
 
-static void usb_msd_register_types(void)
-{
-    type_register_static(&usb_storage_dev_type_info);
-    type_register_static(&msd_info);
-    type_register_static(&bot_info);
-}
 
-type_init(usb_msd_register_types)

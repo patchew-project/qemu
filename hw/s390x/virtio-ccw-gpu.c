@@ -59,10 +59,6 @@ static const TypeInfo virtio_ccw_gpu = {
     .instance_init = virtio_ccw_gpu_instance_init,
     .class_init    = virtio_ccw_gpu_class_init,
 };
+TYPE_INFO(virtio_ccw_gpu)
 
-static void virtio_ccw_gpu_register(void)
-{
-    type_register_static(&virtio_ccw_gpu);
-}
 
-type_init(virtio_ccw_gpu_register)

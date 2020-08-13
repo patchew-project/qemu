@@ -159,9 +159,5 @@ static const TypeInfo aspeed_xdma_info = {
     .instance_size = sizeof(AspeedXDMAState),
     .class_init    = aspeed_xdma_class_init,
 };
+TYPE_INFO(aspeed_xdma_info)
 
-static void aspeed_xdma_register_type(void)
-{
-    type_register_static(&aspeed_xdma_info);
-}
-type_init(aspeed_xdma_register_type);

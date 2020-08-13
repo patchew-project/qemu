@@ -438,6 +438,7 @@ static const TypeInfo qemu_s390_flic_info = {
     .instance_init = qemu_s390_flic_instance_init,
     .class_init    = qemu_s390_flic_class_init,
 };
+TYPE_INFO(qemu_s390_flic_info)
 
 
 static const TypeInfo s390_flic_common_info = {
@@ -447,14 +448,9 @@ static const TypeInfo s390_flic_common_info = {
     .class_init    = s390_flic_class_init,
     .class_size    = sizeof(S390FLICStateClass),
 };
+TYPE_INFO(s390_flic_common_info)
 
-static void qemu_s390_flic_register_types(void)
-{
-    type_register_static(&s390_flic_common_info);
-    type_register_static(&qemu_s390_flic_info);
-}
 
-type_init(qemu_s390_flic_register_types)
 
 static bool adapter_info_so_needed(void *opaque)
 {

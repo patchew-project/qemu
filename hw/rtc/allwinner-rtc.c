@@ -378,6 +378,7 @@ static const TypeInfo allwinner_rtc_info = {
     .class_size    = sizeof(AwRtcClass),
     .abstract      = true,
 };
+TYPE_INFO(allwinner_rtc_info)
 
 static const TypeInfo allwinner_rtc_sun4i_info = {
     .name          = TYPE_AW_RTC_SUN4I,
@@ -385,6 +386,7 @@ static const TypeInfo allwinner_rtc_sun4i_info = {
     .class_init    = allwinner_rtc_sun4i_class_init,
     .instance_init = allwinner_rtc_sun4i_init,
 };
+TYPE_INFO(allwinner_rtc_sun4i_info)
 
 static const TypeInfo allwinner_rtc_sun6i_info = {
     .name          = TYPE_AW_RTC_SUN6I,
@@ -392,6 +394,7 @@ static const TypeInfo allwinner_rtc_sun6i_info = {
     .class_init    = allwinner_rtc_sun6i_class_init,
     .instance_init = allwinner_rtc_sun6i_init,
 };
+TYPE_INFO(allwinner_rtc_sun6i_info)
 
 static const TypeInfo allwinner_rtc_sun7i_info = {
     .name          = TYPE_AW_RTC_SUN7I,
@@ -399,13 +402,6 @@ static const TypeInfo allwinner_rtc_sun7i_info = {
     .class_init    = allwinner_rtc_sun7i_class_init,
     .instance_init = allwinner_rtc_sun7i_init,
 };
+TYPE_INFO(allwinner_rtc_sun7i_info)
 
-static void allwinner_rtc_register(void)
-{
-    type_register_static(&allwinner_rtc_info);
-    type_register_static(&allwinner_rtc_sun4i_info);
-    type_register_static(&allwinner_rtc_sun6i_info);
-    type_register_static(&allwinner_rtc_sun7i_info);
-}
 
-type_init(allwinner_rtc_register)

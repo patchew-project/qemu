@@ -282,10 +282,6 @@ static const TypeInfo nextkbd_info = {
     .instance_size = sizeof(NextKBDState),
     .class_init    = nextkbd_class_init,
 };
+TYPE_INFO(nextkbd_info)
 
-static void nextkbd_register_types(void)
-{
-    type_register_static(&nextkbd_info);
-}
 
-type_init(nextkbd_register_types)

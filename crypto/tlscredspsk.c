@@ -294,13 +294,8 @@ static const TypeInfo qcrypto_tls_creds_psk_info = {
         { }
     }
 };
+TYPE_INFO(qcrypto_tls_creds_psk_info)
 
 
-static void
-qcrypto_tls_creds_psk_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_psk_info);
-}
 
 
-type_init(qcrypto_tls_creds_psk_register_types);

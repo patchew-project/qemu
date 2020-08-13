@@ -388,10 +388,6 @@ static const TypeInfo rxicu_info = {
     .instance_finalize = rxicu_fini,
     .class_init = rxicu_class_init,
 };
+TYPE_INFO(rxicu_info)
 
-static void rxicu_register_types(void)
-{
-    type_register_static(&rxicu_info);
-}
 
-type_init(rxicu_register_types)

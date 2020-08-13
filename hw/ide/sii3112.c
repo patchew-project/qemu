@@ -313,10 +313,6 @@ static const TypeInfo sii3112_pci_info = {
     .instance_size = sizeof(SiI3112PCIState),
     .class_init = sii3112_pci_class_init,
 };
+TYPE_INFO(sii3112_pci_info)
 
-static void sii3112_register_types(void)
-{
-    type_register_static(&sii3112_pci_info);
-}
 
-type_init(sii3112_register_types)

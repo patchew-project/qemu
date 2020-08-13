@@ -382,6 +382,7 @@ static const TypeInfo cmsdk_apb_watchdog_info = {
     .instance_init = cmsdk_apb_watchdog_init,
     .class_init = cmsdk_apb_watchdog_class_init,
 };
+TYPE_INFO(cmsdk_apb_watchdog_info)
 
 static void luminary_watchdog_init(Object *obj)
 {
@@ -396,11 +397,6 @@ static const TypeInfo luminary_watchdog_info = {
     .parent = TYPE_CMSDK_APB_WATCHDOG,
     .instance_init = luminary_watchdog_init
 };
+TYPE_INFO(luminary_watchdog_info)
 
-static void cmsdk_apb_watchdog_register_types(void)
-{
-    type_register_static(&cmsdk_apb_watchdog_info);
-    type_register_static(&luminary_watchdog_info);
-}
 
-type_init(cmsdk_apb_watchdog_register_types);

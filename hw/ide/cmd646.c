@@ -342,10 +342,6 @@ static const TypeInfo cmd646_ide_info = {
     .parent        = TYPE_PCI_IDE,
     .class_init    = cmd646_ide_class_init,
 };
+TYPE_INFO(cmd646_ide_info)
 
-static void cmd646_ide_register_types(void)
-{
-    type_register_static(&cmd646_ide_info);
-}
 
-type_init(cmd646_ide_register_types)

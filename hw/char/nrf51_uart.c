@@ -325,10 +325,6 @@ static const TypeInfo nrf51_uart_info = {
     .instance_init = nrf51_uart_init,
     .class_init = nrf51_uart_class_init
 };
+TYPE_INFO(nrf51_uart_info)
 
-static void nrf51_uart_register_types(void)
-{
-    type_register_static(&nrf51_uart_info);
-}
 
-type_init(nrf51_uart_register_types)

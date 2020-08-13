@@ -457,11 +457,8 @@ static const TypeInfo nand_info = {
     .instance_size = sizeof(NANDFlashState),
     .class_init    = nand_class_init,
 };
+TYPE_INFO(nand_info)
 
-static void nand_register_types(void)
-{
-    type_register_static(&nand_info);
-}
 
 /*
  * Chip inputs are CLE, ALE, CE, WP, GND and eight I/O pins.  Chip
@@ -655,7 +652,6 @@ DeviceState *nand_init(BlockBackend *blk, int manf_id, int chip_id)
     return dev;
 }
 
-type_init(nand_register_types)
 
 #else
 

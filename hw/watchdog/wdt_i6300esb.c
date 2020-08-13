@@ -491,11 +491,11 @@ static const TypeInfo i6300esb_info = {
         { },
     },
 };
+TYPE_INFO(i6300esb_info)
 
 static void i6300esb_register_types(void)
 {
     watchdog_add_model(&model);
-    type_register_static(&i6300esb_info);
 }
 
 type_init(i6300esb_register_types)

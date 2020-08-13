@@ -199,10 +199,6 @@ static const TypeInfo file_backend_info = {
     .instance_finalize = file_backend_instance_finalize,
     .instance_size = sizeof(HostMemoryBackendFile),
 };
+TYPE_INFO(file_backend_info)
 
-static void register_types(void)
-{
-    type_register_static(&file_backend_info);
-}
 
-type_init(register_types);

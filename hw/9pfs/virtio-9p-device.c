@@ -259,10 +259,6 @@ static const TypeInfo virtio_device_info = {
     .instance_size = sizeof(V9fsVirtioState),
     .class_init = virtio_9p_class_init,
 };
+TYPE_INFO(virtio_device_info)
 
-static void virtio_9p_register_types(void)
-{
-    type_register_static(&virtio_device_info);
-}
 
-type_init(virtio_9p_register_types)

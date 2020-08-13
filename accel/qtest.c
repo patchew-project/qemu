@@ -45,10 +45,6 @@ static const TypeInfo qtest_accel_type = {
     .parent = TYPE_ACCEL,
     .class_init = qtest_accel_class_init,
 };
+TYPE_INFO(qtest_accel_type)
 
-static void qtest_type_init(void)
-{
-    type_register_static(&qtest_accel_type);
-}
 
-type_init(qtest_type_init);

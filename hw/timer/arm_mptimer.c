@@ -322,10 +322,6 @@ static const TypeInfo arm_mptimer_info = {
     .instance_init = arm_mptimer_init,
     .class_init    = arm_mptimer_class_init,
 };
+TYPE_INFO(arm_mptimer_info)
 
-static void arm_mptimer_register_types(void)
-{
-    type_register_static(&arm_mptimer_info);
-}
 
-type_init(arm_mptimer_register_types)

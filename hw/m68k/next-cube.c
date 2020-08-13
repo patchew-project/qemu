@@ -975,10 +975,6 @@ static const TypeInfo next_typeinfo = {
     .class_init = next_machine_class_init,
     .instance_size = sizeof(NeXTState),
 };
+TYPE_INFO(next_typeinfo)
 
-static void next_register_type(void)
-{
-    type_register_static(&next_typeinfo);
-}
 
-type_init(next_register_type)

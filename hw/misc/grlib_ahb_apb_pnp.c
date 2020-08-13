@@ -180,6 +180,7 @@ static const TypeInfo grlib_ahb_pnp_info = {
     .instance_size = sizeof(AHBPnp),
     .class_init    = grlib_ahb_pnp_class_init,
 };
+TYPE_INFO(grlib_ahb_pnp_info)
 
 /* APBPnp */
 
@@ -291,11 +292,6 @@ static const TypeInfo grlib_apb_pnp_info = {
     .instance_size = sizeof(APBPnp),
     .class_init    = grlib_apb_pnp_class_init,
 };
+TYPE_INFO(grlib_apb_pnp_info)
 
-static void grlib_ahb_apb_pnp_register_types(void)
-{
-    type_register_static(&grlib_ahb_pnp_info);
-    type_register_static(&grlib_apb_pnp_info);
-}
 
-type_init(grlib_ahb_apb_pnp_register_types)

@@ -601,10 +601,6 @@ static const TypeInfo dino_pcihost_info = {
     .instance_size = sizeof(DinoState),
     .class_init    = dino_pcihost_class_init,
 };
+TYPE_INFO(dino_pcihost_info)
 
-static void dino_register_types(void)
-{
-    type_register_static(&dino_pcihost_info);
-}
 
-type_init(dino_register_types)

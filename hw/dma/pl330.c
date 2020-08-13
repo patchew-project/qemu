@@ -1674,10 +1674,6 @@ static const TypeInfo pl330_type_info = {
     .instance_size  = sizeof(PL330State),
     .class_init      = pl330_class_init,
 };
+TYPE_INFO(pl330_type_info)
 
-static void pl330_register_types(void)
-{
-    type_register_static(&pl330_type_info);
-}
 
-type_init(pl330_register_types)

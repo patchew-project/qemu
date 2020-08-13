@@ -686,6 +686,7 @@ static TypeInfo spapr_tce_table_info = {
     .instance_size = sizeof(SpaprTceTable),
     .class_init = spapr_tce_table_class_init,
 };
+TYPE_INFO(spapr_tce_table_info)
 
 static void spapr_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
@@ -703,11 +704,6 @@ static const TypeInfo spapr_iommu_memory_region_info = {
     .name = TYPE_SPAPR_IOMMU_MEMORY_REGION,
     .class_init = spapr_iommu_memory_region_class_init,
 };
+TYPE_INFO(spapr_iommu_memory_region_info)
 
-static void register_types(void)
-{
-    type_register_static(&spapr_tce_table_info);
-    type_register_static(&spapr_iommu_memory_region_info);
-}
 
-type_init(register_types);

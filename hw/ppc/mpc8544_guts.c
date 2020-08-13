@@ -133,10 +133,6 @@ static const TypeInfo mpc8544_guts_info = {
     .instance_size = sizeof(GutsState),
     .instance_init = mpc8544_guts_initfn,
 };
+TYPE_INFO(mpc8544_guts_info)
 
-static void mpc8544_guts_register_types(void)
-{
-    type_register_static(&mpc8544_guts_info);
-}
 
-type_init(mpc8544_guts_register_types)

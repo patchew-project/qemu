@@ -1007,6 +1007,7 @@ static const TypeInfo ivshmem_common_info = {
         { },
     },
 };
+TYPE_INFO(ivshmem_common_info)
 
 static const VMStateDescription ivshmem_plain_vmsd = {
     .name = TYPE_IVSHMEM_PLAIN,
@@ -1061,6 +1062,7 @@ static const TypeInfo ivshmem_plain_info = {
     .instance_size = sizeof(IVShmemState),
     .class_init    = ivshmem_plain_class_init,
 };
+TYPE_INFO(ivshmem_plain_info)
 
 static const VMStateDescription ivshmem_doorbell_vmsd = {
     .name = TYPE_IVSHMEM_DOORBELL,
@@ -1122,12 +1124,6 @@ static const TypeInfo ivshmem_doorbell_info = {
     .instance_init = ivshmem_doorbell_init,
     .class_init    = ivshmem_doorbell_class_init,
 };
+TYPE_INFO(ivshmem_doorbell_info)
 
-static void ivshmem_register_types(void)
-{
-    type_register_static(&ivshmem_common_info);
-    type_register_static(&ivshmem_plain_info);
-    type_register_static(&ivshmem_doorbell_info);
-}
 
-type_init(ivshmem_register_types)

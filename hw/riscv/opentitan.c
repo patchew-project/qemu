@@ -196,10 +196,6 @@ static const TypeInfo lowrisc_ibex_soc_type_info = {
     .instance_init = lowrisc_ibex_soc_init,
     .class_init = lowrisc_ibex_soc_class_init,
 };
+TYPE_INFO(lowrisc_ibex_soc_type_info)
 
-static void lowrisc_ibex_soc_register_types(void)
-{
-    type_register_static(&lowrisc_ibex_soc_type_info);
-}
 
-type_init(lowrisc_ibex_soc_register_types)

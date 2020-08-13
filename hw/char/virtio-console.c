@@ -270,6 +270,7 @@ static const TypeInfo virtconsole_info = {
     .parent        = TYPE_VIRTIO_CONSOLE_SERIAL_PORT,
     .class_init    = virtconsole_class_init,
 };
+TYPE_INFO(virtconsole_info)
 
 static Property virtserialport_properties[] = {
     DEFINE_PROP_CHR("chardev", VirtConsole, chr),
@@ -296,11 +297,6 @@ static const TypeInfo virtserialport_info = {
     .instance_size = sizeof(VirtConsole),
     .class_init    = virtserialport_class_init,
 };
+TYPE_INFO(virtserialport_info)
 
-static void virtconsole_register_types(void)
-{
-    type_register_static(&virtserialport_info);
-    type_register_static(&virtconsole_info);
-}
 
-type_init(virtconsole_register_types)

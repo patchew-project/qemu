@@ -1608,11 +1608,8 @@ static const TypeInfo whpx_accel_type = {
     .parent = TYPE_ACCEL,
     .class_init = whpx_accel_class_init,
 };
+TYPE_INFO(whpx_accel_type)
 
-static void whpx_type_init(void)
-{
-    type_register_static(&whpx_accel_type);
-}
 
 bool init_whp_dispatch(void)
 {
@@ -1645,4 +1642,3 @@ error:
     return false;
 }
 
-type_init(whpx_type_init);

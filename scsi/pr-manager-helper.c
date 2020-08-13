@@ -320,10 +320,6 @@ static const TypeInfo pr_manager_helper_info = {
     .instance_finalize = pr_manager_helper_instance_finalize,
     .class_init = pr_manager_helper_class_init,
 };
+TYPE_INFO(pr_manager_helper_info)
 
-static void pr_manager_helper_register_types(void)
-{
-    type_register_static(&pr_manager_helper_info);
-}
 
-type_init(pr_manager_helper_register_types);

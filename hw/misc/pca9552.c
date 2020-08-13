@@ -410,6 +410,7 @@ static const TypeInfo pca955x_info = {
     .class_size    = sizeof(PCA955xClass),
     .abstract      = true,
 };
+TYPE_INFO(pca955x_info)
 
 static void pca9552_class_init(ObjectClass *oc, void *data)
 {
@@ -427,11 +428,6 @@ static const TypeInfo pca9552_info = {
     .parent        = TYPE_PCA955X,
     .class_init    = pca9552_class_init,
 };
+TYPE_INFO(pca9552_info)
 
-static void pca955x_register_types(void)
-{
-    type_register_static(&pca955x_info);
-    type_register_static(&pca9552_info);
-}
 
-type_init(pca955x_register_types)

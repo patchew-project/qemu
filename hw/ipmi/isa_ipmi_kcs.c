@@ -172,10 +172,6 @@ static const TypeInfo isa_ipmi_kcs_info = {
         { }
     }
 };
+TYPE_INFO(isa_ipmi_kcs_info)
 
-static void ipmi_register_types(void)
-{
-    type_register_static(&isa_ipmi_kcs_info);
-}
 
-type_init(ipmi_register_types)

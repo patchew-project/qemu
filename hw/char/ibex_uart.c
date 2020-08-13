@@ -507,10 +507,6 @@ static const TypeInfo ibex_uart_info = {
     .instance_init = ibex_uart_init,
     .class_init    = ibex_uart_class_init,
 };
+TYPE_INFO(ibex_uart_info)
 
-static void ibex_uart_register_types(void)
-{
-    type_register_static(&ibex_uart_info);
-}
 
-type_init(ibex_uart_register_types)

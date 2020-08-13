@@ -149,6 +149,7 @@ static const TypeInfo grackle_pci_info = {
         { },
     },
 };
+TYPE_INFO(grackle_pci_info)
 
 static char *grackle_ofw_unit_address(const SysBusDevice *dev)
 {
@@ -181,11 +182,6 @@ static const TypeInfo grackle_host_info = {
     .instance_init = grackle_init,
     .class_init    = grackle_class_init,
 };
+TYPE_INFO(grackle_host_info)
 
-static void grackle_register_types(void)
-{
-    type_register_static(&grackle_pci_info);
-    type_register_static(&grackle_host_info);
-}
 
-type_init(grackle_register_types)

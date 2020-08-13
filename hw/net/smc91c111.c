@@ -808,11 +808,8 @@ static const TypeInfo smc91c111_info = {
     .instance_size = sizeof(smc91c111_state),
     .class_init    = smc91c111_class_init,
 };
+TYPE_INFO(smc91c111_info)
 
-static void smc91c111_register_types(void)
-{
-    type_register_static(&smc91c111_info);
-}
 
 /* Legacy helper function.  Should go away when machine config files are
    implemented.  */
@@ -830,4 +827,3 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-type_init(smc91c111_register_types)

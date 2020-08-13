@@ -2018,10 +2018,6 @@ static const TypeInfo pc_machine_info = {
          { }
     },
 };
+TYPE_INFO(pc_machine_info)
 
-static void pc_machine_register_types(void)
-{
-    type_register_static(&pc_machine_info);
-}
 
-type_init(pc_machine_register_types)

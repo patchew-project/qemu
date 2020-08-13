@@ -3028,10 +3028,6 @@ static const TypeInfo cirrus_vga_info = {
         { },
     },
 };
+TYPE_INFO(cirrus_vga_info)
 
-static void cirrus_vga_register_types(void)
-{
-    type_register_static(&cirrus_vga_info);
-}
 
-type_init(cirrus_vga_register_types)

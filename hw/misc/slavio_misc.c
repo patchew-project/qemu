@@ -495,6 +495,7 @@ static const TypeInfo slavio_misc_info = {
     .instance_init = slavio_misc_init,
     .class_init    = slavio_misc_class_init,
 };
+TYPE_INFO(slavio_misc_info)
 
 static const TypeInfo apc_info = {
     .name          = TYPE_APC,
@@ -502,11 +503,6 @@ static const TypeInfo apc_info = {
     .instance_size = sizeof(MiscState),
     .instance_init = apc_init,
 };
+TYPE_INFO(apc_info)
 
-static void slavio_misc_register_types(void)
-{
-    type_register_static(&slavio_misc_info);
-    type_register_static(&apc_info);
-}
 
-type_init(slavio_misc_register_types)

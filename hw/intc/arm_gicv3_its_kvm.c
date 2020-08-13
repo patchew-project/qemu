@@ -257,10 +257,6 @@ static const TypeInfo kvm_arm_its_info = {
     .class_init = kvm_arm_its_class_init,
     .class_size = sizeof(KVMARMITSClass),
 };
+TYPE_INFO(kvm_arm_its_info)
 
-static void kvm_arm_its_register_types(void)
-{
-    type_register_static(&kvm_arm_its_info);
-}
 
-type_init(kvm_arm_its_register_types)

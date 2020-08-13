@@ -213,10 +213,6 @@ static const TypeInfo xen_accel_type = {
     .parent = TYPE_ACCEL,
     .class_init = xen_accel_class_init,
 };
+TYPE_INFO(xen_accel_type)
 
-static void xen_type_init(void)
-{
-    type_register_static(&xen_accel_type);
-}
 
-type_init(xen_type_init);

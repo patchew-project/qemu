@@ -532,10 +532,6 @@ static const TypeInfo input_linux_info = {
         { }
     }
 };
+TYPE_INFO(input_linux_info)
 
-static void register_types(void)
-{
-    type_register_static(&input_linux_info);
-}
 
-type_init(register_types);

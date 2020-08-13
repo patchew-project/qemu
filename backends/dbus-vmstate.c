@@ -499,11 +499,6 @@ static const TypeInfo dbus_vmstate_info = {
         { }
     }
 };
+TYPE_INFO(dbus_vmstate_info)
 
-static void
-register_types(void)
-{
-    type_register_static(&dbus_vmstate_info);
-}
 
-type_init(register_types);

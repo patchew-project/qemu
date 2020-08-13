@@ -301,10 +301,6 @@ static const TypeInfo vuf_info = {
     .instance_size = sizeof(VHostUserFS),
     .class_init = vuf_class_init,
 };
+TYPE_INFO(vuf_info)
 
-static void vuf_register_types(void)
-{
-    type_register_static(&vuf_info);
-}
 
-type_init(vuf_register_types)

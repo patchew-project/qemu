@@ -52,10 +52,6 @@ static const TypeInfo vfio_amd_xgbe_dev_info = {
     .class_init = vfio_amd_xgbe_class_init,
     .class_size = sizeof(VFIOAmdXgbeDeviceClass),
 };
+TYPE_INFO(vfio_amd_xgbe_dev_info)
 
-static void register_amd_xgbe_dev_type(void)
-{
-    type_register_static(&vfio_amd_xgbe_dev_info);
-}
 
-type_init(register_amd_xgbe_dev_type)

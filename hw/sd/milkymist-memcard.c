@@ -322,10 +322,6 @@ static const TypeInfo milkymist_memcard_info = {
     .instance_init = milkymist_memcard_init,
     .class_init    = milkymist_memcard_class_init,
 };
+TYPE_INFO(milkymist_memcard_info)
 
-static void milkymist_memcard_register_types(void)
-{
-    type_register_static(&milkymist_memcard_info);
-}
 
-type_init(milkymist_memcard_register_types)

@@ -79,13 +79,9 @@ static const TypeInfo sifive_test_info = {
     .instance_size = sizeof(SiFiveTestState),
     .instance_init = sifive_test_init,
 };
+TYPE_INFO(sifive_test_info)
 
-static void sifive_test_register_types(void)
-{
-    type_register_static(&sifive_test_info);
-}
 
-type_init(sifive_test_register_types)
 
 
 /*

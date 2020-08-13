@@ -366,13 +366,9 @@ static const TypeInfo exynos4210_gic_info = {
     .instance_size = sizeof(Exynos4210GicState),
     .class_init    = exynos4210_gic_class_init,
 };
+TYPE_INFO(exynos4210_gic_info)
 
-static void exynos4210_gic_register_types(void)
-{
-    type_register_static(&exynos4210_gic_info);
-}
 
-type_init(exynos4210_gic_register_types)
 
 /* IRQ OR Gate struct.
  *
@@ -474,10 +470,6 @@ static const TypeInfo exynos4210_irq_gate_info = {
     .instance_init = exynos4210_irq_gate_init,
     .class_init    = exynos4210_irq_gate_class_init,
 };
+TYPE_INFO(exynos4210_irq_gate_info)
 
-static void exynos4210_irq_gate_register_types(void)
-{
-    type_register_static(&exynos4210_irq_gate_info);
-}
 
-type_init(exynos4210_irq_gate_register_types)

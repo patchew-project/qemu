@@ -718,6 +718,7 @@ static const TypeInfo rc4030_info = {
     .instance_init = rc4030_initfn,
     .class_init = rc4030_class_init,
 };
+TYPE_INFO(rc4030_info)
 
 static void rc4030_iommu_memory_region_class_init(ObjectClass *klass,
                                                   void *data)
@@ -732,14 +733,9 @@ static const TypeInfo rc4030_iommu_memory_region_info = {
     .name = TYPE_RC4030_IOMMU_MEMORY_REGION,
     .class_init = rc4030_iommu_memory_region_class_init,
 };
+TYPE_INFO(rc4030_iommu_memory_region_info)
 
-static void rc4030_register_types(void)
-{
-    type_register_static(&rc4030_info);
-    type_register_static(&rc4030_iommu_memory_region_info);
-}
 
-type_init(rc4030_register_types)
 
 DeviceState *rc4030_init(rc4030_dma **dmas, IOMMUMemoryRegion **dma_mr)
 {

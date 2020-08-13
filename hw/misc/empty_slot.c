@@ -99,10 +99,6 @@ static const TypeInfo empty_slot_info = {
     .instance_size = sizeof(EmptySlot),
     .class_init    = empty_slot_class_init,
 };
+TYPE_INFO(empty_slot_info)
 
-static void empty_slot_register_types(void)
-{
-    type_register_static(&empty_slot_info);
-}
 
-type_init(empty_slot_register_types)

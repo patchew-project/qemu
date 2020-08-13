@@ -3942,13 +3942,9 @@ static const TypeInfo qio_channel_rdma_info = {
     .instance_finalize = qio_channel_rdma_finalize,
     .class_init = qio_channel_rdma_class_init,
 };
+TYPE_INFO(qio_channel_rdma_info)
 
-static void qio_channel_rdma_register_types(void)
-{
-    type_register_static(&qio_channel_rdma_info);
-}
 
-type_init(qio_channel_rdma_register_types);
 
 static QEMUFile *qemu_fopen_rdma(RDMAContext *rdma, const char *mode)
 {

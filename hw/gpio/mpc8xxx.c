@@ -214,10 +214,6 @@ static const TypeInfo mpc8xxx_gpio_info = {
     .instance_init = mpc8xxx_gpio_initfn,
     .class_init    = mpc8xxx_gpio_class_init,
 };
+TYPE_INFO(mpc8xxx_gpio_info)
 
-static void mpc8xxx_gpio_register_types(void)
-{
-    type_register_static(&mpc8xxx_gpio_info);
-}
 
-type_init(mpc8xxx_gpio_register_types)

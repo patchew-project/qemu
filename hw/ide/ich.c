@@ -188,10 +188,6 @@ static const TypeInfo ich_ahci_info = {
         { },
     },
 };
+TYPE_INFO(ich_ahci_info)
 
-static void ich_ahci_register_types(void)
-{
-    type_register_static(&ich_ahci_info);
-}
 
-type_init(ich_ahci_register_types)

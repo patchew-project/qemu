@@ -1808,13 +1808,9 @@ static const TypeInfo sysbus_ahci_info = {
     .instance_init = sysbus_ahci_init,
     .class_init    = sysbus_ahci_class_init,
 };
+TYPE_INFO(sysbus_ahci_info)
 
-static void sysbus_ahci_register_types(void)
-{
-    type_register_static(&sysbus_ahci_info);
-}
 
-type_init(sysbus_ahci_register_types)
 
 int32_t ahci_get_num_ports(PCIDevice *dev)
 {

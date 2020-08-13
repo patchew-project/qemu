@@ -2976,6 +2976,7 @@ static const TypeInfo scsi_disk_base_info = {
     .class_size    = sizeof(SCSIDiskClass),
     .abstract      = true,
 };
+TYPE_INFO(scsi_disk_base_info)
 
 #define DEFINE_SCSI_DISK_PROPERTIES()                                   \
     DEFINE_PROP_DRIVE_IOTHREAD("drive", SCSIDiskState, qdev.conf.blk),  \
@@ -3042,6 +3043,7 @@ static const TypeInfo scsi_hd_info = {
     .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_hd_class_initfn,
 };
+TYPE_INFO(scsi_hd_info)
 
 static Property scsi_cd_properties[] = {
     DEFINE_SCSI_DISK_PROPERTIES(),
@@ -3073,6 +3075,7 @@ static const TypeInfo scsi_cd_info = {
     .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_cd_class_initfn,
 };
+TYPE_INFO(scsi_cd_info)
 
 #ifdef __linux__
 static Property scsi_block_properties[] = {
@@ -3112,6 +3115,7 @@ static const TypeInfo scsi_block_info = {
     .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_block_class_initfn,
 };
+TYPE_INFO(scsi_block_info)
 #endif
 
 static Property scsi_disk_properties[] = {
@@ -3152,16 +3156,12 @@ static const TypeInfo scsi_disk_info = {
     .parent        = TYPE_SCSI_DISK_BASE,
     .class_init    = scsi_disk_class_initfn,
 };
+TYPE_INFO(scsi_disk_info)
 
 static void scsi_disk_register_types(void)
 {
-    type_register_static(&scsi_disk_base_info);
-    type_register_static(&scsi_hd_info);
-    type_register_static(&scsi_cd_info);
 #ifdef __linux__
-    type_register_static(&scsi_block_info);
 #endif
-    type_register_static(&scsi_disk_info);
 }
 
 type_init(scsi_disk_register_types)

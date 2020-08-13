@@ -494,10 +494,6 @@ static const TypeInfo cadence_ttc_info = {
     .instance_init = cadence_ttc_init,
     .class_init = cadence_ttc_class_init,
 };
+TYPE_INFO(cadence_ttc_info)
 
-static void cadence_ttc_register_types(void)
-{
-    type_register_static(&cadence_ttc_info);
-}
 
-type_init(cadence_ttc_register_types)

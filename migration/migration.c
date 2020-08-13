@@ -3814,10 +3814,6 @@ static const TypeInfo migration_type = {
     .instance_init = migration_instance_init,
     .instance_finalize = migration_instance_finalize,
 };
+TYPE_INFO(migration_type)
 
-static void register_migration_types(void)
-{
-    type_register_static(&migration_type);
-}
 
-type_init(register_migration_types);

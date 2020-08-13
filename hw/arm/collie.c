@@ -85,9 +85,5 @@ static const TypeInfo collie_machine_typeinfo = {
     .class_init = collie_machine_class_init,
     .instance_size = sizeof(CollieMachineState),
 };
+TYPE_INFO(collie_machine_typeinfo)
 
-static void collie_machine_register_types(void)
-{
-    type_register_static(&collie_machine_typeinfo);
-}
-type_init(collie_machine_register_types);

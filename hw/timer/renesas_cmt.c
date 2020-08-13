@@ -274,10 +274,6 @@ static const TypeInfo rcmt_info = {
     .instance_init = rcmt_init,
     .class_init = rcmt_class_init,
 };
+TYPE_INFO(rcmt_info)
 
-static void rcmt_register_types(void)
-{
-    type_register_static(&rcmt_info);
-}
 
-type_init(rcmt_register_types)

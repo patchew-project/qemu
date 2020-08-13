@@ -997,10 +997,6 @@ static const TypeInfo sysbus_esp_info = {
     .instance_size = sizeof(SysBusESPState),
     .class_init    = sysbus_esp_class_init,
 };
+TYPE_INFO(sysbus_esp_info)
 
-static void esp_register_types(void)
-{
-    type_register_static(&sysbus_esp_info);
-}
 
-type_init(esp_register_types)

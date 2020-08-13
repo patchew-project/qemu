@@ -201,10 +201,6 @@ static const TypeInfo heathrow_type_info = {
     .instance_init = heathrow_init,
     .class_init = heathrow_class_init,
 };
+TYPE_INFO(heathrow_type_info)
 
-static void heathrow_register_types(void)
-{
-    type_register_static(&heathrow_type_info);
-}
 
-type_init(heathrow_register_types)

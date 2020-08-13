@@ -119,10 +119,6 @@ static const TypeInfo serial_pci_info = {
         { },
     },
 };
+TYPE_INFO(serial_pci_info)
 
-static void serial_pci_register_types(void)
-{
-    type_register_static(&serial_pci_info);
-}
 
-type_init(serial_pci_register_types)

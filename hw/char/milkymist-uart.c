@@ -249,10 +249,6 @@ static const TypeInfo milkymist_uart_info = {
     .instance_init = milkymist_uart_init,
     .class_init    = milkymist_uart_class_init,
 };
+TYPE_INFO(milkymist_uart_info)
 
-static void milkymist_uart_register_types(void)
-{
-    type_register_static(&milkymist_uart_info);
-}
 
-type_init(milkymist_uart_register_types)

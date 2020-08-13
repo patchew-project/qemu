@@ -173,10 +173,6 @@ static const TypeInfo or1k_ompic_info = {
     .instance_init = or1k_ompic_init,
     .class_init    = or1k_ompic_class_init,
 };
+TYPE_INFO(or1k_ompic_info)
 
-static void or1k_ompic_register_types(void)
-{
-    type_register_static(&or1k_ompic_info);
-}
 
-type_init(or1k_ompic_register_types)

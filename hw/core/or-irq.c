@@ -140,10 +140,6 @@ static const TypeInfo or_irq_type_info = {
    .instance_init = or_irq_init,
    .class_init = or_irq_class_init,
 };
+TYPE_INFO(or_irq_type_info)
 
-static void or_irq_register_types(void)
-{
-    type_register_static(&or_irq_type_info);
-}
 
-type_init(or_irq_register_types)

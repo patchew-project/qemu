@@ -459,6 +459,7 @@ static TypeInfo macfb_sysbus_info = {
     .instance_size = sizeof(MacfbSysBusState),
     .class_init    = macfb_sysbus_class_init,
 };
+TYPE_INFO(macfb_sysbus_info)
 
 static TypeInfo macfb_nubus_info = {
     .name          = TYPE_NUBUS_MACFB,
@@ -467,11 +468,6 @@ static TypeInfo macfb_nubus_info = {
     .class_init    = macfb_nubus_class_init,
     .class_size    = sizeof(MacfbNubusDeviceClass),
 };
+TYPE_INFO(macfb_nubus_info)
 
-static void macfb_register_types(void)
-{
-    type_register_static(&macfb_sysbus_info);
-    type_register_static(&macfb_nubus_info);
-}
 
-type_init(macfb_register_types)

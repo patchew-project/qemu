@@ -968,10 +968,6 @@ static const TypeInfo throttle_group_info = {
         { }
     },
 };
+TYPE_INFO(throttle_group_info)
 
-static void throttle_groups_init(void)
-{
-    type_register_static(&throttle_group_info);
-}
 
-type_init(throttle_groups_init);

@@ -413,10 +413,6 @@ static const TypeInfo mss_spi_info = {
     .instance_size  = sizeof(MSSSpiState),
     .class_init     = mss_spi_class_init,
 };
+TYPE_INFO(mss_spi_info)
 
-static void mss_spi_register_types(void)
-{
-    type_register_static(&mss_spi_info);
-}
 
-type_init(mss_spi_register_types)

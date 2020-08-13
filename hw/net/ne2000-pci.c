@@ -127,10 +127,6 @@ static const TypeInfo ne2000_info = {
         { },
     },
 };
+TYPE_INFO(ne2000_info)
 
-static void ne2000_register_types(void)
-{
-    type_register_static(&ne2000_info);
-}
 
-type_init(ne2000_register_types)

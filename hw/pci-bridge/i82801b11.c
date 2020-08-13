@@ -113,10 +113,6 @@ static const TypeInfo i82801b11_bridge_info = {
         { },
     },
 };
+TYPE_INFO(i82801b11_bridge_info)
 
-static void d2pbr_register(void)
-{
-    type_register_static(&i82801b11_bridge_info);
-}
 
-type_init(d2pbr_register);

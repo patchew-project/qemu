@@ -287,10 +287,6 @@ static const TypeInfo goldfish_rtc_info = {
     .instance_size = sizeof(GoldfishRTCState),
     .class_init    = goldfish_rtc_class_init,
 };
+TYPE_INFO(goldfish_rtc_info)
 
-static void goldfish_rtc_register_types(void)
-{
-    type_register_static(&goldfish_rtc_info);
-}
 
-type_init(goldfish_rtc_register_types)

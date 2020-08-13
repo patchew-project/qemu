@@ -721,6 +721,7 @@ static const TypeInfo virtio_mmio_info = {
     .instance_size = sizeof(VirtIOMMIOProxy),
     .class_init    = virtio_mmio_class_init,
 };
+TYPE_INFO(virtio_mmio_info)
 
 /* virtio-mmio-bus. */
 
@@ -790,11 +791,6 @@ static const TypeInfo virtio_mmio_bus_info = {
     .instance_size = sizeof(VirtioBusState),
     .class_init    = virtio_mmio_bus_class_init,
 };
+TYPE_INFO(virtio_mmio_bus_info)
 
-static void virtio_mmio_register_types(void)
-{
-    type_register_static(&virtio_mmio_bus_info);
-    type_register_static(&virtio_mmio_info);
-}
 
-type_init(virtio_mmio_register_types)

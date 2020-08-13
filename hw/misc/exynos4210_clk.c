@@ -156,11 +156,11 @@ static const TypeInfo exynos4210_clk_info = {
     .instance_init = exynos4210_clk_init,
     .class_init    = exynos4210_clk_class_init,
 };
+TYPE_INFO(exynos4210_clk_info)
 
 static void exynos4210_clk_register(void)
 {
     qemu_log_mask(LOG_GUEST_ERROR, "Clock init\n");
-    type_register_static(&exynos4210_clk_info);
 }
 
 type_init(exynos4210_clk_register)

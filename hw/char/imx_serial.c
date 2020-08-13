@@ -382,10 +382,6 @@ static const TypeInfo imx_serial_info = {
     .instance_init  = imx_serial_init,
     .class_init     = imx_serial_class_init,
 };
+TYPE_INFO(imx_serial_info)
 
-static void imx_serial_register_types(void)
-{
-    type_register_static(&imx_serial_info);
-}
 
-type_init(imx_serial_register_types)

@@ -383,10 +383,6 @@ static const TypeInfo qio_channel_command_info = {
     .instance_finalize = qio_channel_command_finalize,
     .class_init = qio_channel_command_class_init,
 };
+TYPE_INFO(qio_channel_command_info)
 
-static void qio_channel_command_register_types(void)
-{
-    type_register_static(&qio_channel_command_info);
-}
 
-type_init(qio_channel_command_register_types);

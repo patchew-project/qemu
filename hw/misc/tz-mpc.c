@@ -606,6 +606,7 @@ static const TypeInfo tz_mpc_info = {
     .instance_init = tz_mpc_init,
     .class_init = tz_mpc_class_init,
 };
+TYPE_INFO(tz_mpc_info)
 
 static void tz_mpc_iommu_memory_region_class_init(ObjectClass *klass,
                                                   void *data)
@@ -622,11 +623,6 @@ static const TypeInfo tz_mpc_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .class_init = tz_mpc_iommu_memory_region_class_init,
 };
+TYPE_INFO(tz_mpc_iommu_memory_region_info)
 
-static void tz_mpc_register_types(void)
-{
-    type_register_static(&tz_mpc_info);
-    type_register_static(&tz_mpc_iommu_memory_region_info);
-}
 
-type_init(tz_mpc_register_types);

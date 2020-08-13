@@ -215,13 +215,9 @@ static const TypeInfo sifive_clint_info = {
     .instance_size = sizeof(SiFiveCLINTState),
     .class_init    = sifive_clint_class_init,
 };
+TYPE_INFO(sifive_clint_info)
 
-static void sifive_clint_register_types(void)
-{
-    type_register_static(&sifive_clint_info);
-}
 
-type_init(sifive_clint_register_types)
 
 
 /*

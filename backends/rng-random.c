@@ -144,10 +144,6 @@ static const TypeInfo rng_random_info = {
     .instance_init = rng_random_init,
     .instance_finalize = rng_random_finalize,
 };
+TYPE_INFO(rng_random_info)
 
-static void register_types(void)
-{
-    type_register_static(&rng_random_info);
-}
 
-type_init(register_types);

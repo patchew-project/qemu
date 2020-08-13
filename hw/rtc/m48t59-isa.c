@@ -165,6 +165,7 @@ static const TypeInfo m48txx_isa_type_info = {
         { }
     }
 };
+TYPE_INFO(m48txx_isa_type_info)
 
 static void m48t59_isa_register_types(void)
 {
@@ -175,7 +176,6 @@ static void m48t59_isa_register_types(void)
     };
     int i;
 
-    type_register_static(&m48txx_isa_type_info);
 
     for (i = 0; i < ARRAY_SIZE(m48txx_isa_info); i++) {
         isa_type_info.name = m48txx_isa_info[i].bus_name;

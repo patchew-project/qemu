@@ -612,10 +612,6 @@ static const TypeInfo emulated_card_info = {
     .instance_size = sizeof(EmulatedState),
     .class_init    = emulated_class_initfn,
 };
+TYPE_INFO(emulated_card_info)
 
-static void ccid_card_emulated_register_types(void)
-{
-    type_register_static(&emulated_card_info);
-}
 
-type_init(ccid_card_emulated_register_types)

@@ -319,6 +319,7 @@ static const TypeInfo ref405ep_type = {
     .parent = TYPE_MACHINE,
     .class_init = ref405ep_class_init,
 };
+TYPE_INFO(ref405ep_type)
 
 /*****************************************************************************/
 /* AMCC Taihu evaluation board */
@@ -550,11 +551,6 @@ static const TypeInfo taihu_type = {
     .parent = TYPE_MACHINE,
     .class_init = taihu_class_init,
 };
+TYPE_INFO(taihu_type)
 
-static void ppc405_machine_init(void)
-{
-    type_register_static(&ref405ep_type);
-    type_register_static(&taihu_type);
-}
 
-type_init(ppc405_machine_init)

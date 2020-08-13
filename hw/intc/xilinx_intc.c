@@ -195,10 +195,6 @@ static const TypeInfo xilinx_intc_info = {
     .instance_init = xilinx_intc_init,
     .class_init    = xilinx_intc_class_init,
 };
+TYPE_INFO(xilinx_intc_info)
 
-static void xilinx_intc_register_types(void)
-{
-    type_register_static(&xilinx_intc_info);
-}
 
-type_init(xilinx_intc_register_types)

@@ -441,17 +441,13 @@ static TypeInfo bcm2835_sdhost_info = {
     .class_init    = bcm2835_sdhost_class_init,
     .instance_init = bcm2835_sdhost_init,
 };
+TYPE_INFO(bcm2835_sdhost_info)
 
 static const TypeInfo bcm2835_sdhost_bus_info = {
     .name = TYPE_BCM2835_SDHOST_BUS,
     .parent = TYPE_SD_BUS,
     .instance_size = sizeof(SDBus),
 };
+TYPE_INFO(bcm2835_sdhost_bus_info)
 
-static void bcm2835_sdhost_register_types(void)
-{
-    type_register_static(&bcm2835_sdhost_info);
-    type_register_static(&bcm2835_sdhost_bus_info);
-}
 
-type_init(bcm2835_sdhost_register_types)

@@ -192,17 +192,13 @@ static const TypeInfo tpm_backend_info = {
     .class_size = sizeof(TPMBackendClass),
     .abstract = true,
 };
+TYPE_INFO(tpm_backend_info)
 
 static const TypeInfo tpm_if_info = {
     .name = TYPE_TPM_IF,
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(TPMIfClass),
 };
+TYPE_INFO(tpm_if_info)
 
-static void register_types(void)
-{
-    type_register_static(&tpm_backend_info);
-    type_register_static(&tpm_if_info);
-}
 
-type_init(register_types);

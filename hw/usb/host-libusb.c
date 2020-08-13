@@ -1708,13 +1708,9 @@ static TypeInfo usb_host_dev_info = {
     .class_init    = usb_host_class_initfn,
     .instance_init = usb_host_instance_init,
 };
+TYPE_INFO(usb_host_dev_info)
 
-static void usb_host_register_types(void)
-{
-    type_register_static(&usb_host_dev_info);
-}
 
-type_init(usb_host_register_types)
 
 /* ------------------------------------------------------------------------ */
 

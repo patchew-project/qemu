@@ -502,10 +502,6 @@ static const TypeInfo exynos4210_info = {
     .instance_init = exynos4210_init,
     .class_init = exynos4210_class_init,
 };
+TYPE_INFO(exynos4210_info)
 
-static void exynos4210_register_types(void)
-{
-    type_register_static(&exynos4210_info);
-}
 
-type_init(exynos4210_register_types)

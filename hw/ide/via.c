@@ -231,10 +231,6 @@ static const TypeInfo via_ide_info = {
     .parent        = TYPE_PCI_IDE,
     .class_init    = via_ide_class_init,
 };
+TYPE_INFO(via_ide_info)
 
-static void via_ide_register_types(void)
-{
-    type_register_static(&via_ide_info);
-}
 
-type_init(via_ide_register_types)

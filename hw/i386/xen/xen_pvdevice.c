@@ -145,10 +145,6 @@ static const TypeInfo xen_pv_type_info = {
         { },
     },
 };
+TYPE_INFO(xen_pv_type_info)
 
-static void xen_pv_register_types(void)
-{
-    type_register_static(&xen_pv_type_info);
-}
 
-type_init(xen_pv_register_types)

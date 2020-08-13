@@ -73,11 +73,7 @@ static const TypeInfo authz_info = {
     .class_size = sizeof(QAuthZClass),
     .abstract = true,
 };
+TYPE_INFO(authz_info)
 
-static void qauthz_register_types(void)
-{
-    type_register_static(&authz_info);
-}
 
-type_init(qauthz_register_types)
 

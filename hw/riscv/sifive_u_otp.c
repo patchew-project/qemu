@@ -182,10 +182,6 @@ static const TypeInfo sifive_u_otp_info = {
     .instance_size = sizeof(SiFiveUOTPState),
     .class_init    = sifive_u_otp_class_init,
 };
+TYPE_INFO(sifive_u_otp_info)
 
-static void sifive_u_otp_register_types(void)
-{
-    type_register_static(&sifive_u_otp_info);
-}
 
-type_init(sifive_u_otp_register_types)

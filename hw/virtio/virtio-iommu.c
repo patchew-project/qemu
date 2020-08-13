@@ -984,17 +984,13 @@ static const TypeInfo virtio_iommu_info = {
     .instance_init = virtio_iommu_instance_init,
     .class_init = virtio_iommu_class_init,
 };
+TYPE_INFO(virtio_iommu_info)
 
 static const TypeInfo virtio_iommu_memory_region_info = {
     .parent = TYPE_IOMMU_MEMORY_REGION,
     .name = TYPE_VIRTIO_IOMMU_MEMORY_REGION,
     .class_init = virtio_iommu_memory_region_class_init,
 };
+TYPE_INFO(virtio_iommu_memory_region_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_iommu_info);
-    type_register_static(&virtio_iommu_memory_region_info);
-}
 
-type_init(virtio_register_types)

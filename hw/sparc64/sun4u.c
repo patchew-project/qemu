@@ -283,6 +283,7 @@ static const TypeInfo power_info = {
     .instance_size = sizeof(PowerDevice),
     .class_init    = power_class_init,
 };
+TYPE_INFO(power_info)
 
 static void ebus_isa_irq_handler(void *opaque, int n, int level)
 {
@@ -397,6 +398,7 @@ static const TypeInfo ebus_info = {
         { },
     },
 };
+TYPE_INFO(ebus_info)
 
 #define TYPE_OPENPROM "openprom"
 #define OPENPROM(obj) OBJECT_CHECK(PROMState, (obj), TYPE_OPENPROM)
@@ -484,6 +486,7 @@ static const TypeInfo prom_info = {
     .instance_size = sizeof(PROMState),
     .class_init    = prom_class_init,
 };
+TYPE_INFO(prom_info)
 
 
 #define TYPE_SUN4U_MEMORY "memory"
@@ -544,6 +547,7 @@ static const TypeInfo ram_info = {
     .instance_size = sizeof(RamDevice),
     .class_init    = ram_class_init,
 };
+TYPE_INFO(ram_info)
 
 static void sun4uv_init(MemoryRegion *address_space_mem,
                         MachineState *machine,
@@ -828,6 +832,7 @@ static const TypeInfo sun4u_type = {
         { }
     },
 };
+TYPE_INFO(sun4u_type)
 
 static void sun4v_class_init(ObjectClass *oc, void *data)
 {
@@ -847,16 +852,11 @@ static const TypeInfo sun4v_type = {
     .parent = TYPE_MACHINE,
     .class_init = sun4v_class_init,
 };
+TYPE_INFO(sun4v_type)
 
 static void sun4u_register_types(void)
 {
-    type_register_static(&power_info);
-    type_register_static(&ebus_info);
-    type_register_static(&prom_info);
-    type_register_static(&ram_info);
 
-    type_register_static(&sun4u_type);
-    type_register_static(&sun4v_type);
 }
 
 type_init(sun4u_register_types)

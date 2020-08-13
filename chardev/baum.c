@@ -677,10 +677,6 @@ static const TypeInfo char_braille_type_info = {
     .instance_finalize = char_braille_finalize,
     .class_init = char_braille_class_init,
 };
+TYPE_INFO(char_braille_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_braille_type_info);
-}
 
-type_init(register_types);

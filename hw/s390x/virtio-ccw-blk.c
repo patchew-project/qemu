@@ -59,10 +59,6 @@ static const TypeInfo virtio_ccw_blk = {
     .instance_init = virtio_ccw_blk_instance_init,
     .class_init    = virtio_ccw_blk_class_init,
 };
+TYPE_INFO(virtio_ccw_blk)
 
-static void virtio_ccw_blk_register(void)
-{
-    type_register_static(&virtio_ccw_blk);
-}
 
-type_init(virtio_ccw_blk_register)

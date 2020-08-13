@@ -428,24 +428,20 @@ static const TypeInfo mps2_info = {
     .class_size = sizeof(MPS2MachineClass),
     .class_init = mps2_class_init,
 };
+TYPE_INFO(mps2_info)
 
 static const TypeInfo mps2_an385_info = {
     .name = TYPE_MPS2_AN385_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
     .class_init = mps2_an385_class_init,
 };
+TYPE_INFO(mps2_an385_info)
 
 static const TypeInfo mps2_an511_info = {
     .name = TYPE_MPS2_AN511_MACHINE,
     .parent = TYPE_MPS2_MACHINE,
     .class_init = mps2_an511_class_init,
 };
+TYPE_INFO(mps2_an511_info)
 
-static void mps2_machine_init(void)
-{
-    type_register_static(&mps2_info);
-    type_register_static(&mps2_an385_info);
-    type_register_static(&mps2_an511_info);
-}
 
-type_init(mps2_machine_init);

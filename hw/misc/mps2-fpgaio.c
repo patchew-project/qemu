@@ -310,10 +310,6 @@ static const TypeInfo mps2_fpgaio_info = {
     .instance_init = mps2_fpgaio_init,
     .class_init = mps2_fpgaio_class_init,
 };
+TYPE_INFO(mps2_fpgaio_info)
 
-static void mps2_fpgaio_register_types(void)
-{
-    type_register_static(&mps2_fpgaio_info);
-}
 
-type_init(mps2_fpgaio_register_types);

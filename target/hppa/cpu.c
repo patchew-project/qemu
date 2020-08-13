@@ -167,10 +167,6 @@ static const TypeInfo hppa_cpu_type_info = {
     .class_size = sizeof(HPPACPUClass),
     .class_init = hppa_cpu_class_init,
 };
+TYPE_INFO(hppa_cpu_type_info)
 
-static void hppa_cpu_register_types(void)
-{
-    type_register_static(&hppa_cpu_type_info);
-}
 
-type_init(hppa_cpu_register_types)

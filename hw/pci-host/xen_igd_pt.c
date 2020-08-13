@@ -110,10 +110,6 @@ static const TypeInfo igd_passthrough_i440fx_info = {
     .instance_size = sizeof(PCII440FXState),
     .class_init    = igd_passthrough_i440fx_class_init,
 };
+TYPE_INFO(igd_passthrough_i440fx_info)
 
-static void igd_pt_i440fx_register_types(void)
-{
-    type_register_static(&igd_passthrough_i440fx_info);
-}
 
-type_init(igd_pt_i440fx_register_types)

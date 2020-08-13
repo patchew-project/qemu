@@ -459,10 +459,6 @@ static const TypeInfo mips_gic_info = {
     .instance_init = mips_gic_init,
     .class_init    = mips_gic_class_init,
 };
+TYPE_INFO(mips_gic_info)
 
-static void mips_gic_register_types(void)
-{
-    type_register_static(&mips_gic_info);
-}
 
-type_init(mips_gic_register_types)

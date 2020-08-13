@@ -199,10 +199,6 @@ static const TypeInfo ppce500_spin_info = {
     .instance_init = ppce500_spin_initfn,
     .class_init    = ppce500_spin_class_init,
 };
+TYPE_INFO(ppce500_spin_info)
 
-static void ppce500_spin_register_types(void)
-{
-    type_register_static(&ppce500_spin_info);
-}
 
-type_init(ppce500_spin_register_types)

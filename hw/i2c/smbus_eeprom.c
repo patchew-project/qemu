@@ -157,13 +157,9 @@ static const TypeInfo smbus_eeprom_info = {
     .instance_size = sizeof(SMBusEEPROMDevice),
     .class_init    = smbus_eeprom_class_initfn,
 };
+TYPE_INFO(smbus_eeprom_info)
 
-static void smbus_eeprom_register_types(void)
-{
-    type_register_static(&smbus_eeprom_info);
-}
 
-type_init(smbus_eeprom_register_types)
 
 void smbus_eeprom_init_one(I2CBus *smbus, uint8_t address, uint8_t *eeprom_buf)
 {

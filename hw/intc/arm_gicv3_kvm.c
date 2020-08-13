@@ -889,10 +889,6 @@ static const TypeInfo kvm_arm_gicv3_info = {
     .class_init = kvm_arm_gicv3_class_init,
     .class_size = sizeof(KVMARMGICv3Class),
 };
+TYPE_INFO(kvm_arm_gicv3_info)
 
-static void kvm_arm_gicv3_register_types(void)
-{
-    type_register_static(&kvm_arm_gicv3_info);
-}
 
-type_init(kvm_arm_gicv3_register_types)

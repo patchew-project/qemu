@@ -296,10 +296,6 @@ static TypeInfo pc_dimm_info = {
         { }
     },
 };
+TYPE_INFO(pc_dimm_info)
 
-static void pc_dimm_register_types(void)
-{
-    type_register_static(&pc_dimm_info);
-}
 
-type_init(pc_dimm_register_types)

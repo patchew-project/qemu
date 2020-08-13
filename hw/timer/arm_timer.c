@@ -385,6 +385,7 @@ static const TypeInfo icp_pit_info = {
     .instance_size = sizeof(icp_pit_state),
     .instance_init = icp_pit_init,
 };
+TYPE_INFO(icp_pit_info)
 
 static Property sp804_properties[] = {
     DEFINE_PROP_UINT32("freq0", SP804State, freq0, 1000000),
@@ -408,11 +409,6 @@ static const TypeInfo sp804_info = {
     .instance_init = sp804_init,
     .class_init    = sp804_class_init,
 };
+TYPE_INFO(sp804_info)
 
-static void arm_timer_register_types(void)
-{
-    type_register_static(&icp_pit_info);
-    type_register_static(&sp804_info);
-}
 
-type_init(arm_timer_register_types)

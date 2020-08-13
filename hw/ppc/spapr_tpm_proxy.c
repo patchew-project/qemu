@@ -168,10 +168,10 @@ static const TypeInfo spapr_tpm_proxy_info = {
     .instance_size = sizeof(SpaprTpmProxy),
     .class_init    = spapr_tpm_proxy_class_init,
 };
+TYPE_INFO(spapr_tpm_proxy_info)
 
 static void spapr_tpm_proxy_register_types(void)
 {
-    type_register_static(&spapr_tpm_proxy_info);
     spapr_register_hypercall(SVM_H_TPM_COMM, h_tpm_comm);
 }
 

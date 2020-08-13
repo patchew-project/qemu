@@ -269,10 +269,6 @@ static const TypeInfo imx_rngc_info = {
     .instance_size = sizeof(IMXRNGCState),
     .class_init    = imx_rngc_class_init,
 };
+TYPE_INFO(imx_rngc_info)
 
-static void imx_rngc_register_types(void)
-{
-    type_register_static(&imx_rngc_info);
-}
 
-type_init(imx_rngc_register_types)

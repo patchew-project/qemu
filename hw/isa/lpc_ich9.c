@@ -802,10 +802,6 @@ static const TypeInfo ich9_lpc_info = {
         { }
     }
 };
+TYPE_INFO(ich9_lpc_info)
 
-static void ich9_lpc_register(void)
-{
-    type_register_static(&ich9_lpc_info);
-}
 
-type_init(ich9_lpc_register);

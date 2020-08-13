@@ -363,10 +363,6 @@ static const TypeInfo acpi_ged_info = {
         { }
     }
 };
+TYPE_INFO(acpi_ged_info)
 
-static void acpi_ged_register_types(void)
-{
-    type_register_static(&acpi_ged_info);
-}
 
-type_init(acpi_ged_register_types)

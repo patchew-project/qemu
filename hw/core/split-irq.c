@@ -83,10 +83,6 @@ static const TypeInfo split_irq_type_info = {
    .instance_init = split_irq_init,
    .class_init = split_irq_class_init,
 };
+TYPE_INFO(split_irq_type_info)
 
-static void split_irq_register_types(void)
-{
-    type_register_static(&split_irq_type_info);
-}
 
-type_init(split_irq_register_types)

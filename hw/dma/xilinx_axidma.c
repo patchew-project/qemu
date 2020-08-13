@@ -630,6 +630,7 @@ static const TypeInfo axidma_info = {
     .class_init    = axidma_class_init,
     .instance_init = xilinx_axidma_init,
 };
+TYPE_INFO(axidma_info)
 
 static const TypeInfo xilinx_axidma_data_stream_info = {
     .name          = TYPE_XILINX_AXI_DMA_DATA_STREAM,
@@ -642,6 +643,7 @@ static const TypeInfo xilinx_axidma_data_stream_info = {
         { }
     }
 };
+TYPE_INFO(xilinx_axidma_data_stream_info)
 
 static const TypeInfo xilinx_axidma_control_stream_info = {
     .name          = TYPE_XILINX_AXI_DMA_CONTROL_STREAM,
@@ -654,12 +656,6 @@ static const TypeInfo xilinx_axidma_control_stream_info = {
         { }
     }
 };
+TYPE_INFO(xilinx_axidma_control_stream_info)
 
-static void xilinx_axidma_register_types(void)
-{
-    type_register_static(&axidma_info);
-    type_register_static(&xilinx_axidma_data_stream_info);
-    type_register_static(&xilinx_axidma_control_stream_info);
-}
 
-type_init(xilinx_axidma_register_types)

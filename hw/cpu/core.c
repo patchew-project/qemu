@@ -91,10 +91,6 @@ static const TypeInfo cpu_core_type_info = {
     .instance_size = sizeof(CPUCore),
     .instance_init = cpu_core_instance_init,
 };
+TYPE_INFO(cpu_core_type_info)
 
-static void cpu_core_register_types(void)
-{
-    type_register_static(&cpu_core_type_info);
-}
 
-type_init(cpu_core_register_types)

@@ -177,6 +177,7 @@ static const TypeInfo pnv_occ_power8_type_info = {
     .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_power8_class_init,
 };
+TYPE_INFO(pnv_occ_power8_type_info)
 
 #define P9_OCB_OCI_OCCMISC              0x6080
 #define P9_OCB_OCI_OCCMISC_CLEAR        0x6081
@@ -248,6 +249,7 @@ static const TypeInfo pnv_occ_power9_type_info = {
     .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_power9_class_init,
 };
+TYPE_INFO(pnv_occ_power9_type_info)
 
 static void pnv_occ_realize(DeviceState *dev, Error **errp)
 {
@@ -291,12 +293,6 @@ static const TypeInfo pnv_occ_type_info = {
     .class_size    = sizeof(PnvOCCClass),
     .abstract      = true,
 };
+TYPE_INFO(pnv_occ_type_info)
 
-static void pnv_occ_register_types(void)
-{
-    type_register_static(&pnv_occ_type_info);
-    type_register_static(&pnv_occ_power8_type_info);
-    type_register_static(&pnv_occ_power9_type_info);
-}
 
-type_init(pnv_occ_register_types);

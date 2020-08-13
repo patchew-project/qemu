@@ -740,10 +740,6 @@ static const TypeInfo vfio_ccw_info = {
     .instance_size = sizeof(VFIOCCWDevice),
     .class_init = vfio_ccw_class_init,
 };
+TYPE_INFO(vfio_ccw_info)
 
-static void register_vfio_ccw_type(void)
-{
-    type_register_static(&vfio_ccw_info);
-}
 
-type_init(register_vfio_ccw_type)

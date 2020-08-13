@@ -572,6 +572,7 @@ static const TypeInfo pxa25x_timer_dev_info = {
     .instance_size = sizeof(PXA2xxTimerInfo),
     .class_init    = pxa25x_timer_dev_class_init,
 };
+TYPE_INFO(pxa25x_timer_dev_info)
 
 static Property pxa27x_timer_dev_properties[] = {
     DEFINE_PROP_UINT32("freq", PXA2xxTimerInfo, freq, PXA27X_FREQ),
@@ -594,6 +595,7 @@ static const TypeInfo pxa27x_timer_dev_info = {
     .instance_size = sizeof(PXA2xxTimerInfo),
     .class_init    = pxa27x_timer_dev_class_init,
 };
+TYPE_INFO(pxa27x_timer_dev_info)
 
 static void pxa2xx_timer_class_init(ObjectClass *oc, void *data)
 {
@@ -611,12 +613,6 @@ static const TypeInfo pxa2xx_timer_type_info = {
     .abstract      = true,
     .class_init    = pxa2xx_timer_class_init,
 };
+TYPE_INFO(pxa2xx_timer_type_info)
 
-static void pxa2xx_timer_register_types(void)
-{
-    type_register_static(&pxa2xx_timer_type_info);
-    type_register_static(&pxa25x_timer_dev_info);
-    type_register_static(&pxa27x_timer_dev_info);
-}
 
-type_init(pxa2xx_timer_register_types)

@@ -592,6 +592,7 @@ static const TypeInfo dscm1xxxx_type_info = {
     .parent = TYPE_MICRODRIVE,
     .class_init = dscm1xxxx_class_init,
 };
+TYPE_INFO(dscm1xxxx_type_info)
 
 static void microdrive_realize(DeviceState *dev, Error **errp)
 {
@@ -632,11 +633,6 @@ static const TypeInfo microdrive_type_info = {
     .abstract = true,
     .class_init = microdrive_class_init,
 };
+TYPE_INFO(microdrive_type_info)
 
-static void microdrive_register_types(void)
-{
-    type_register_static(&microdrive_type_info);
-    type_register_static(&dscm1xxxx_type_info);
-}
 
-type_init(microdrive_register_types)

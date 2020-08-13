@@ -1510,10 +1510,6 @@ static const TypeInfo char_socket_type_info = {
     .instance_finalize = char_socket_finalize,
     .class_init = char_socket_class_init,
 };
+TYPE_INFO(char_socket_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_socket_type_info);
-}
 
-type_init(register_types);

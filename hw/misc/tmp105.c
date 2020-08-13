@@ -264,10 +264,6 @@ static const TypeInfo tmp105_info = {
     .instance_init = tmp105_initfn,
     .class_init    = tmp105_class_init,
 };
+TYPE_INFO(tmp105_info)
 
-static void tmp105_register_types(void)
-{
-    type_register_static(&tmp105_info);
-}
 
-type_init(tmp105_register_types)

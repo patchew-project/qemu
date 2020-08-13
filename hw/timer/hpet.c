@@ -810,10 +810,6 @@ static const TypeInfo hpet_device_info = {
     .instance_init = hpet_init,
     .class_init    = hpet_device_class_init,
 };
+TYPE_INFO(hpet_device_info)
 
-static void hpet_register_types(void)
-{
-    type_register_static(&hpet_device_info);
-}
 
-type_init(hpet_register_types)

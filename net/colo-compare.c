@@ -1495,10 +1495,6 @@ static const TypeInfo colo_compare_info = {
         { }
     }
 };
+TYPE_INFO(colo_compare_info)
 
-static void register_types(void)
-{
-    type_register_static(&colo_compare_info);
-}
 
-type_init(register_types);

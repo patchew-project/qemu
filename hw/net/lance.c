@@ -163,10 +163,6 @@ static const TypeInfo lance_info = {
     .class_init    = lance_class_init,
     .instance_init = lance_instance_init,
 };
+TYPE_INFO(lance_info)
 
-static void lance_register_types(void)
-{
-    type_register_static(&lance_info);
-}
 
-type_init(lance_register_types)

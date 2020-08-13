@@ -378,10 +378,10 @@ static const TypeInfo wacom_info = {
     .instance_size = sizeof(USBWacomState),
     .class_init    = usb_wacom_class_init,
 };
+TYPE_INFO(wacom_info)
 
 static void usb_wacom_register_types(void)
 {
-    type_register_static(&wacom_info);
     usb_legacy_register(TYPE_USB_WACOM, "wacom-tablet", NULL);
 }
 

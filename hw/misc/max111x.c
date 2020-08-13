@@ -194,6 +194,7 @@ static const TypeInfo max111x_info = {
     .class_init    = max111x_class_init,
     .abstract      = true,
 };
+TYPE_INFO(max111x_info)
 
 static void max1110_class_init(ObjectClass *klass, void *data)
 {
@@ -209,6 +210,7 @@ static const TypeInfo max1110_info = {
     .parent        = TYPE_MAX_111X,
     .class_init    = max1110_class_init,
 };
+TYPE_INFO(max1110_info)
 
 static void max1111_class_init(ObjectClass *klass, void *data)
 {
@@ -224,12 +226,6 @@ static const TypeInfo max1111_info = {
     .parent        = TYPE_MAX_111X,
     .class_init    = max1111_class_init,
 };
+TYPE_INFO(max1111_info)
 
-static void max111x_register_types(void)
-{
-    type_register_static(&max111x_info);
-    type_register_static(&max1110_info);
-    type_register_static(&max1111_info);
-}
 
-type_init(max111x_register_types)

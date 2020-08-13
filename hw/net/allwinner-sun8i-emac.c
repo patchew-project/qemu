@@ -858,10 +858,6 @@ static const TypeInfo allwinner_sun8i_emac_info = {
     .instance_init  = allwinner_sun8i_emac_init,
     .class_init     = allwinner_sun8i_emac_class_init,
 };
+TYPE_INFO(allwinner_sun8i_emac_info)
 
-static void allwinner_sun8i_emac_register_types(void)
-{
-    type_register_static(&allwinner_sun8i_emac_info);
-}
 
-type_init(allwinner_sun8i_emac_register_types)

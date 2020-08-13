@@ -334,10 +334,6 @@ static const TypeInfo tpm_crb_info = {
         { }
     }
 };
+TYPE_INFO(tpm_crb_info)
 
-static void tpm_crb_register(void)
-{
-    type_register_static(&tpm_crb_info);
-}
 
-type_init(tpm_crb_register)

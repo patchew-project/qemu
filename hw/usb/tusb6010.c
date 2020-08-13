@@ -840,10 +840,6 @@ static const TypeInfo tusb6010_info = {
     .instance_size = sizeof(TUSBState),
     .class_init    = tusb6010_class_init,
 };
+TYPE_INFO(tusb6010_info)
 
-static void tusb6010_register_types(void)
-{
-    type_register_static(&tusb6010_info);
-}
 
-type_init(tusb6010_register_types)

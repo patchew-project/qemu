@@ -164,10 +164,6 @@ static const TypeInfo milkymist_hpdmc_info = {
     .instance_size = sizeof(MilkymistHpdmcState),
     .class_init    = milkymist_hpdmc_class_init,
 };
+TYPE_INFO(milkymist_hpdmc_info)
 
-static void milkymist_hpdmc_register_types(void)
-{
-    type_register_static(&milkymist_hpdmc_info);
-}
 
-type_init(milkymist_hpdmc_register_types)

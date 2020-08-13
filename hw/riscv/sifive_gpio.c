@@ -388,10 +388,6 @@ static const TypeInfo sifive_gpio_info = {
     .instance_size = sizeof(SIFIVEGPIOState),
     .class_init = sifive_gpio_class_init
 };
+TYPE_INFO(sifive_gpio_info)
 
-static void sifive_gpio_register_types(void)
-{
-    type_register_static(&sifive_gpio_info);
-}
 
-type_init(sifive_gpio_register_types)

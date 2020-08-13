@@ -940,6 +940,7 @@ static const TypeInfo typhoon_pcihost_info = {
     .parent        = TYPE_PCI_HOST_BRIDGE,
     .instance_size = sizeof(TyphoonState),
 };
+TYPE_INFO(typhoon_pcihost_info)
 
 static void typhoon_iommu_memory_region_class_init(ObjectClass *klass,
                                                    void *data)
@@ -954,11 +955,6 @@ static const TypeInfo typhoon_iommu_memory_region_info = {
     .name = TYPE_TYPHOON_IOMMU_MEMORY_REGION,
     .class_init = typhoon_iommu_memory_region_class_init,
 };
+TYPE_INFO(typhoon_iommu_memory_region_info)
 
-static void typhoon_register_types(void)
-{
-    type_register_static(&typhoon_pcihost_info);
-    type_register_static(&typhoon_iommu_memory_region_info);
-}
 
-type_init(typhoon_register_types)

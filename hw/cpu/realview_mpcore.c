@@ -128,10 +128,6 @@ static const TypeInfo mpcore_rirq_info = {
     .instance_init = mpcore_rirq_init,
     .class_init    = mpcore_rirq_class_init,
 };
+TYPE_INFO(mpcore_rirq_info)
 
-static void realview_mpcore_register_types(void)
-{
-    type_register_static(&mpcore_rirq_info);
-}
 
-type_init(realview_mpcore_register_types)

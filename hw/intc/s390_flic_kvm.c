@@ -672,10 +672,6 @@ static const TypeInfo kvm_s390_flic_info = {
     .class_size    = sizeof(KVMS390FLICStateClass),
     .class_init    = kvm_s390_flic_class_init,
 };
+TYPE_INFO(kvm_s390_flic_info)
 
-static void kvm_s390_flic_register_types(void)
-{
-    type_register_static(&kvm_s390_flic_info);
-}
 
-type_init(kvm_s390_flic_register_types)

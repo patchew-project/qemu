@@ -372,11 +372,6 @@ static const TypeInfo cryptodev_vhost_user_info = {
     .instance_finalize = cryptodev_vhost_user_finalize,
     .instance_size = sizeof(CryptoDevBackendVhostUser),
 };
+TYPE_INFO(cryptodev_vhost_user_info)
 
-static void
-cryptodev_vhost_user_register_types(void)
-{
-    type_register_static(&cryptodev_vhost_user_info);
-}
 
-type_init(cryptodev_vhost_user_register_types);

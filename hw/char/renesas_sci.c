@@ -341,10 +341,6 @@ static const TypeInfo rsci_info = {
     .instance_init = rsci_init,
     .class_init = rsci_class_init,
 };
+TYPE_INFO(rsci_info)
 
-static void rsci_register_types(void)
-{
-    type_register_static(&rsci_info);
-}
 
-type_init(rsci_register_types)

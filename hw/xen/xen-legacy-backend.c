@@ -797,6 +797,7 @@ static const TypeInfo xendev_type_info = {
     .class_init    = xendev_class_init,
     .instance_size = sizeof(struct XenLegacyDevice),
 };
+TYPE_INFO(xendev_type_info)
 
 static void xen_sysbus_class_init(ObjectClass *klass, void *data)
 {
@@ -814,6 +815,7 @@ static const TypeInfo xensysbus_info = {
         { }
     }
 };
+TYPE_INFO(xensysbus_info)
 
 static Property xen_sysdev_properties[] = {
     {/* end of property list */},
@@ -832,12 +834,6 @@ static const TypeInfo xensysdev_info = {
     .instance_size = sizeof(SysBusDevice),
     .class_init    = xen_sysdev_class_init,
 };
+TYPE_INFO(xensysdev_info)
 
-static void xenbe_register_types(void)
-{
-    type_register_static(&xensysbus_info);
-    type_register_static(&xensysdev_info);
-    type_register_static(&xendev_type_info);
-}
 
-type_init(xenbe_register_types)

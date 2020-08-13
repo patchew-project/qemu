@@ -393,10 +393,6 @@ static const TypeInfo xlnx_zynq_devcfg_info = {
     .instance_init  = xlnx_zynq_devcfg_init,
     .class_init     = xlnx_zynq_devcfg_class_init,
 };
+TYPE_INFO(xlnx_zynq_devcfg_info)
 
-static void xlnx_zynq_devcfg_register_types(void)
-{
-    type_register_static(&xlnx_zynq_devcfg_info);
-}
 
-type_init(xlnx_zynq_devcfg_register_types)

@@ -433,10 +433,6 @@ static const TypeInfo xgmac_enet_info = {
     .instance_size = sizeof(XgmacState),
     .class_init    = xgmac_enet_class_init,
 };
+TYPE_INFO(xgmac_enet_info)
 
-static void xgmac_enet_register_types(void)
-{
-    type_register_static(&xgmac_enet_info);
-}
 
-type_init(xgmac_enet_register_types)

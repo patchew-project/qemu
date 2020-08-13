@@ -156,10 +156,6 @@ static const TypeInfo puv3_ost_info = {
     .instance_size = sizeof(PUV3OSTState),
     .class_init = puv3_ost_class_init,
 };
+TYPE_INFO(puv3_ost_info)
 
-static void puv3_ost_register_type(void)
-{
-    type_register_static(&puv3_ost_info);
-}
 
-type_init(puv3_ost_register_type)

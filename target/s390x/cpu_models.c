@@ -1305,6 +1305,7 @@ static const TypeInfo qemu_s390_cpu_type_info = {
     .instance_finalize = s390_cpu_model_finalize,
     .class_init = s390_qemu_cpu_model_class_init,
 };
+TYPE_INFO(qemu_s390_cpu_type_info)
 
 static const TypeInfo max_s390_cpu_type_info = {
     .name = S390_CPU_TYPE_NAME("max"),
@@ -1313,6 +1314,7 @@ static const TypeInfo max_s390_cpu_type_info = {
     .instance_finalize = s390_cpu_model_finalize,
     .class_init = s390_max_cpu_model_class_init,
 };
+TYPE_INFO(max_s390_cpu_type_info)
 
 #ifdef CONFIG_KVM
 static const TypeInfo host_s390_cpu_type_info = {
@@ -1320,6 +1322,7 @@ static const TypeInfo host_s390_cpu_type_info = {
     .parent = S390_CPU_TYPE_NAME("max"),
     .class_init = s390_host_cpu_model_class_init,
 };
+TYPE_INFO(host_s390_cpu_type_info)
 #endif
 
 static void init_ignored_base_feat(void)
@@ -1395,10 +1398,7 @@ static void register_types(void)
         g_free(name);
     }
 
-    type_register_static(&qemu_s390_cpu_type_info);
-    type_register_static(&max_s390_cpu_type_info);
 #ifdef CONFIG_KVM
-    type_register_static(&host_s390_cpu_type_info);
 #endif
 }
 

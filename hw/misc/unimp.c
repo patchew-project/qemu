@@ -88,10 +88,6 @@ static const TypeInfo unimp_info = {
     .instance_size = sizeof(UnimplementedDeviceState),
     .class_init = unimp_class_init,
 };
+TYPE_INFO(unimp_info)
 
-static void unimp_register_types(void)
-{
-    type_register_static(&unimp_info);
-}
 
-type_init(unimp_register_types)

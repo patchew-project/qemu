@@ -174,10 +174,6 @@ static const TypeInfo niagara_type = {
     .parent = TYPE_MACHINE,
     .class_init = niagara_class_init,
 };
+TYPE_INFO(niagara_type)
 
-static void niagara_register_types(void)
-{
-    type_register_static(&niagara_type);
-}
 
-type_init(niagara_register_types)

@@ -1317,10 +1317,6 @@ static const TypeInfo arm_linux_boot_if_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(ARMLinuxBootIfClass),
 };
+TYPE_INFO(arm_linux_boot_if_info)
 
-static void arm_linux_boot_register_types(void)
-{
-    type_register_static(&arm_linux_boot_if_info);
-}
 
-type_init(arm_linux_boot_register_types)

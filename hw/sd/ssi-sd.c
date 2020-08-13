@@ -307,10 +307,6 @@ static const TypeInfo ssi_sd_info = {
     .instance_size = sizeof(ssi_sd_state),
     .class_init    = ssi_sd_class_init,
 };
+TYPE_INFO(ssi_sd_info)
 
-static void ssi_sd_register_types(void)
-{
-    type_register_static(&ssi_sd_info);
-}
 
-type_init(ssi_sd_register_types)

@@ -726,10 +726,6 @@ static const TypeInfo wm8750_info = {
     .instance_size = sizeof(WM8750State),
     .class_init    = wm8750_class_init,
 };
+TYPE_INFO(wm8750_info)
 
-static void wm8750_register_types(void)
-{
-    type_register_static(&wm8750_info);
-}
 
-type_init(wm8750_register_types)

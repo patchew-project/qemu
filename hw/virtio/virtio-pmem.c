@@ -183,10 +183,6 @@ static TypeInfo virtio_pmem_info = {
     .class_init    = virtio_pmem_class_init,
     .instance_size = sizeof(VirtIOPMEM),
 };
+TYPE_INFO(virtio_pmem_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_pmem_info);
-}
 
-type_init(virtio_register_types)

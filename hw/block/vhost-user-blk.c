@@ -561,10 +561,6 @@ static const TypeInfo vhost_user_blk_info = {
     .instance_init = vhost_user_blk_instance_init,
     .class_init = vhost_user_blk_class_init,
 };
+TYPE_INFO(vhost_user_blk_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&vhost_user_blk_info);
-}
 
-type_init(virtio_register_types)

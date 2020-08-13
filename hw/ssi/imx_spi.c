@@ -450,10 +450,6 @@ static const TypeInfo imx_spi_info = {
     .instance_size = sizeof(IMXSPIState),
     .class_init    = imx_spi_class_init,
 };
+TYPE_INFO(imx_spi_info)
 
-static void imx_spi_register_types(void)
-{
-    type_register_static(&imx_spi_info);
-}
 
-type_init(imx_spi_register_types)

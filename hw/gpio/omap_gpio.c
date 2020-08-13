@@ -767,6 +767,7 @@ static const TypeInfo omap_gpio_info = {
     .instance_init = omap_gpio_init,
     .class_init    = omap_gpio_class_init,
 };
+TYPE_INFO(omap_gpio_info)
 
 void omap2_gpio_set_iclk(omap2_gpif *gpio, omap_clk clk)
 {
@@ -801,11 +802,6 @@ static const TypeInfo omap2_gpio_info = {
     .instance_size = sizeof(struct omap2_gpif_s),
     .class_init    = omap2_gpio_class_init,
 };
+TYPE_INFO(omap2_gpio_info)
 
-static void omap_gpio_register_types(void)
-{
-    type_register_static(&omap_gpio_info);
-    type_register_static(&omap2_gpio_info);
-}
 
-type_init(omap_gpio_register_types)

@@ -278,10 +278,6 @@ static const TypeInfo can_host_socketcan_info = {
     .instance_init = can_host_socketcan_instance_init,
     .class_init = can_host_socketcan_class_init,
 };
+TYPE_INFO(can_host_socketcan_info)
 
-static void can_host_register_types(void)
-{
-    type_register_static(&can_host_socketcan_info);
-}
 
-type_init(can_host_register_types);

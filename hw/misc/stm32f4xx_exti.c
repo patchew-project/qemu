@@ -179,10 +179,6 @@ static const TypeInfo stm32f4xx_exti_info = {
     .instance_init = stm32f4xx_exti_init,
     .class_init    = stm32f4xx_exti_class_init,
 };
+TYPE_INFO(stm32f4xx_exti_info)
 
-static void stm32f4xx_exti_register_types(void)
-{
-    type_register_static(&stm32f4xx_exti_info);
-}
 
-type_init(stm32f4xx_exti_register_types)

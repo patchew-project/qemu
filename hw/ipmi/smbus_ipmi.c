@@ -375,10 +375,6 @@ static const TypeInfo smbus_ipmi_info = {
         { }
     }
 };
+TYPE_INFO(smbus_ipmi_info)
 
-static void smbus_ipmi_register_types(void)
-{
-    type_register_static(&smbus_ipmi_info);
-}
 
-type_init(smbus_ipmi_register_types)

@@ -188,6 +188,7 @@ static const TypeInfo pnv_homer_power8_type_info = {
     .instance_size = sizeof(PnvHomer),
     .class_init    = pnv_homer_power8_class_init,
 };
+TYPE_INFO(pnv_homer_power8_type_info)
 
 /* P9 Pstate table */
 
@@ -331,6 +332,7 @@ static const TypeInfo pnv_homer_power9_type_info = {
     .instance_size = sizeof(PnvHomer),
     .class_init    = pnv_homer_power9_class_init,
 };
+TYPE_INFO(pnv_homer_power9_type_info)
 
 static void pnv_homer_realize(DeviceState *dev, Error **errp)
 {
@@ -371,12 +373,6 @@ static const TypeInfo pnv_homer_type_info = {
     .class_size    = sizeof(PnvHomerClass),
     .abstract      = true,
 };
+TYPE_INFO(pnv_homer_type_info)
 
-static void pnv_homer_register_types(void)
-{
-    type_register_static(&pnv_homer_type_info);
-    type_register_static(&pnv_homer_power8_type_info);
-    type_register_static(&pnv_homer_power9_type_info);
-}
 
-type_init(pnv_homer_register_types);

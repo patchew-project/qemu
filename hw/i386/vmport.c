@@ -303,10 +303,6 @@ static const TypeInfo vmport_info = {
     .instance_size = sizeof(VMPortState),
     .class_init    = vmport_class_initfn,
 };
+TYPE_INFO(vmport_info)
 
-static void vmport_register_types(void)
-{
-    type_register_static(&vmport_info);
-}
 
-type_init(vmport_register_types)

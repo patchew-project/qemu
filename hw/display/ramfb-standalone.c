@@ -53,10 +53,6 @@ static const TypeInfo ramfb_info = {
     .instance_size = sizeof(RAMFBStandaloneState),
     .class_init    = ramfb_class_initfn,
 };
+TYPE_INFO(ramfb_info)
 
-static void ramfb_register_types(void)
-{
-    type_register_static(&ramfb_info);
-}
 
-type_init(ramfb_register_types)

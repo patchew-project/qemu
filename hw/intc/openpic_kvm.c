@@ -286,10 +286,6 @@ static const TypeInfo kvm_openpic_info = {
     .instance_init = kvm_openpic_init,
     .class_init    = kvm_openpic_class_init,
 };
+TYPE_INFO(kvm_openpic_info)
 
-static void kvm_openpic_register_types(void)
-{
-    type_register_static(&kvm_openpic_info);
-}
 
-type_init(kvm_openpic_register_types)

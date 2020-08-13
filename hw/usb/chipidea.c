@@ -169,9 +169,5 @@ static const TypeInfo chipidea_info = {
     .instance_init = chipidea_init,
     .class_init    = chipidea_class_init,
 };
+TYPE_INFO(chipidea_info)
 
-static void chipidea_register_type(void)
-{
-    type_register_static(&chipidea_info);
-}
-type_init(chipidea_register_type)

@@ -110,9 +110,5 @@ static const TypeInfo e500plat_info = {
          { }
     }
 };
+TYPE_INFO(e500plat_info)
 
-static void e500plat_register_types(void)
-{
-    type_register_static(&e500plat_info);
-}
-type_init(e500plat_register_types)

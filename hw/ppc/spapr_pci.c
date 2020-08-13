@@ -2243,6 +2243,7 @@ static const TypeInfo spapr_phb_info = {
         { }
     }
 };
+TYPE_INFO(spapr_phb_info)
 
 static void spapr_phb_pci_enumerate_bridge(PCIBus *bus, PCIDevice *pdev,
                                            void *opaque)
@@ -2459,12 +2460,7 @@ void spapr_pci_rtas_init(void)
                         rtas_ibm_slot_error_detail);
 }
 
-static void spapr_pci_register_types(void)
-{
-    type_register_static(&spapr_phb_info);
-}
 
-type_init(spapr_pci_register_types)
 
 static int spapr_switch_one_vga(DeviceState *dev, void *opaque)
 {

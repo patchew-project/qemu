@@ -165,10 +165,6 @@ static const TypeInfo isa_ipmi_bt_info = {
         { }
     }
 };
+TYPE_INFO(isa_ipmi_bt_info)
 
-static void ipmi_register_types(void)
-{
-    type_register_static(&isa_ipmi_bt_info);
-}
 
-type_init(ipmi_register_types)

@@ -516,10 +516,6 @@ static const TypeInfo ppc440_pcix_info = {
     .instance_size = sizeof(PPC440PCIXState),
     .class_init    = ppc440_pcix_class_init,
 };
+TYPE_INFO(ppc440_pcix_info)
 
-static void ppc440_pcix_register_types(void)
-{
-    type_register_static(&ppc440_pcix_info);
-}
 
-type_init(ppc440_pcix_register_types)

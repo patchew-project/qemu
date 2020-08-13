@@ -2113,10 +2113,6 @@ static TypeInfo mtp_info = {
     .instance_size = sizeof(MTPState),
     .class_init    = usb_mtp_class_initfn,
 };
+TYPE_INFO(mtp_info)
 
-static void usb_mtp_register_types(void)
-{
-    type_register_static(&mtp_info);
-}
 
-type_init(usb_mtp_register_types)

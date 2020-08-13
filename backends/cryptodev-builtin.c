@@ -384,11 +384,6 @@ static const TypeInfo cryptodev_builtin_info = {
     .class_init = cryptodev_builtin_class_init,
     .instance_size = sizeof(CryptoDevBackendBuiltin),
 };
+TYPE_INFO(cryptodev_builtin_info)
 
-static void
-cryptodev_builtin_register_types(void)
-{
-    type_register_static(&cryptodev_builtin_info);
-}
 
-type_init(cryptodev_builtin_register_types);

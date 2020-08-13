@@ -215,10 +215,6 @@ static const TypeInfo max7310_info = {
     .instance_size = sizeof(MAX7310State),
     .class_init    = max7310_class_init,
 };
+TYPE_INFO(max7310_info)
 
-static void max7310_register_types(void)
-{
-    type_register_static(&max7310_info);
-}
 
-type_init(max7310_register_types)

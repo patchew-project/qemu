@@ -357,10 +357,6 @@ static const TypeInfo etraxfs_timer_info = {
     .instance_size = sizeof(ETRAXTimerState),
     .class_init    = etraxfs_timer_class_init,
 };
+TYPE_INFO(etraxfs_timer_info)
 
-static void etraxfs_timer_register_types(void)
-{
-    type_register_static(&etraxfs_timer_info);
-}
 
-type_init(etraxfs_timer_register_types)

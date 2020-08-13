@@ -36,10 +36,6 @@ static const TypeInfo mac_nubus_bridge_info = {
     .instance_size = sizeof(MacNubusState),
     .class_init    = mac_nubus_bridge_class_init,
 };
+TYPE_INFO(mac_nubus_bridge_info)
 
-static void mac_nubus_bridge_register_types(void)
-{
-    type_register_static(&mac_nubus_bridge_info);
-}
 
-type_init(mac_nubus_bridge_register_types)

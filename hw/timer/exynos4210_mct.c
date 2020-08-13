@@ -1545,10 +1545,6 @@ static const TypeInfo exynos4210_mct_info = {
     .instance_init = exynos4210_mct_init,
     .class_init    = exynos4210_mct_class_init,
 };
+TYPE_INFO(exynos4210_mct_info)
 
-static void exynos4210_mct_register_types(void)
-{
-    type_register_static(&exynos4210_mct_info);
-}
 
-type_init(exynos4210_mct_register_types)

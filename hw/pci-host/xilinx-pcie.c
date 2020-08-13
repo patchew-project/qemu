@@ -185,6 +185,7 @@ static const TypeInfo xilinx_pcie_host_info = {
     .instance_init = xilinx_pcie_host_init,
     .class_init = xilinx_pcie_host_class_init,
 };
+TYPE_INFO(xilinx_pcie_host_info)
 
 static uint32_t xilinx_pcie_root_config_read(PCIDevice *d,
                                              uint32_t address, int len)
@@ -321,11 +322,6 @@ static const TypeInfo xilinx_pcie_root_info = {
         { }
     },
 };
+TYPE_INFO(xilinx_pcie_root_info)
 
-static void xilinx_pcie_register(void)
-{
-    type_register_static(&xilinx_pcie_root_info);
-    type_register_static(&xilinx_pcie_host_info);
-}
 
-type_init(xilinx_pcie_register)

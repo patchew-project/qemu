@@ -1401,10 +1401,6 @@ static const TypeInfo dwc2_usb_type_info = {
     .class_size    = sizeof(DWC2Class),
     .class_init    = dwc2_class_init,
 };
+TYPE_INFO(dwc2_usb_type_info)
 
-static void dwc2_usb_register_types(void)
-{
-    type_register_static(&dwc2_usb_type_info);
-}
 
-type_init(dwc2_usb_register_types)

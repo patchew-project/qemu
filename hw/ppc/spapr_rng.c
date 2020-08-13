@@ -156,9 +156,5 @@ static const TypeInfo spapr_rng_info = {
     .instance_init = spapr_rng_instance_init,
     .class_init    = spapr_rng_class_init,
 };
+TYPE_INFO(spapr_rng_info)
 
-static void spapr_rng_register_type(void)
-{
-    type_register_static(&spapr_rng_info);
-}
-type_init(spapr_rng_register_type)

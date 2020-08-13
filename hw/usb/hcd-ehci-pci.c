@@ -178,6 +178,7 @@ static const TypeInfo ehci_pci_type_info = {
         { },
     },
 };
+TYPE_INFO(ehci_pci_type_info)
 
 static void ehci_data_class_init(ObjectClass *klass, void *data)
 {
@@ -223,7 +224,6 @@ static void ehci_pci_register_types(void)
     };
     int i;
 
-    type_register_static(&ehci_pci_type_info);
 
     for (i = 0; i < ARRAY_SIZE(ehci_pci_info); i++) {
         ehci_type_info.name = ehci_pci_info[i].name;

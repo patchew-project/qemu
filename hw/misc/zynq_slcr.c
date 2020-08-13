@@ -616,10 +616,6 @@ static const TypeInfo zynq_slcr_info = {
     .instance_size  = sizeof(ZynqSLCRState),
     .instance_init = zynq_slcr_init,
 };
+TYPE_INFO(zynq_slcr_info)
 
-static void zynq_slcr_register_types(void)
-{
-    type_register_static(&zynq_slcr_info);
-}
 
-type_init(zynq_slcr_register_types)

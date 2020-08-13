@@ -845,6 +845,7 @@ static const TypeInfo aspeed_i2c_info = {
     .class_size = sizeof(AspeedI2CClass),
     .abstract   = true,
 };
+TYPE_INFO(aspeed_i2c_info)
 
 static qemu_irq aspeed_2400_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
@@ -880,6 +881,7 @@ static const TypeInfo aspeed_2400_i2c_info = {
     .parent = TYPE_ASPEED_I2C,
     .class_init = aspeed_2400_i2c_class_init,
 };
+TYPE_INFO(aspeed_2400_i2c_info)
 
 static qemu_irq aspeed_2500_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
@@ -914,6 +916,7 @@ static const TypeInfo aspeed_2500_i2c_info = {
     .parent = TYPE_ASPEED_I2C,
     .class_init = aspeed_2500_i2c_class_init,
 };
+TYPE_INFO(aspeed_2500_i2c_info)
 
 static qemu_irq aspeed_2600_i2c_bus_get_irq(AspeedI2CBus *bus)
 {
@@ -947,16 +950,9 @@ static const TypeInfo aspeed_2600_i2c_info = {
     .parent = TYPE_ASPEED_I2C,
     .class_init = aspeed_2600_i2c_class_init,
 };
+TYPE_INFO(aspeed_2600_i2c_info)
 
-static void aspeed_i2c_register_types(void)
-{
-    type_register_static(&aspeed_i2c_info);
-    type_register_static(&aspeed_2400_i2c_info);
-    type_register_static(&aspeed_2500_i2c_info);
-    type_register_static(&aspeed_2600_i2c_info);
-}
 
-type_init(aspeed_i2c_register_types)
 
 
 I2CBus *aspeed_i2c_get_bus(AspeedI2CState *s, int busnr)

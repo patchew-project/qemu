@@ -965,10 +965,6 @@ static const TypeInfo x86_machine_info = {
          { }
     },
 };
+TYPE_INFO(x86_machine_info)
 
-static void x86_machine_register_types(void)
-{
-    type_register_static(&x86_machine_info);
-}
 
-type_init(x86_machine_register_types)

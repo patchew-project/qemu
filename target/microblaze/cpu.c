@@ -343,10 +343,6 @@ static const TypeInfo mb_cpu_type_info = {
     .class_size = sizeof(MicroBlazeCPUClass),
     .class_init = mb_cpu_class_init,
 };
+TYPE_INFO(mb_cpu_type_info)
 
-static void mb_cpu_register_types(void)
-{
-    type_register_static(&mb_cpu_type_info);
-}
 
-type_init(mb_cpu_register_types)

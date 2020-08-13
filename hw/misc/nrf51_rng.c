@@ -257,10 +257,6 @@ static const TypeInfo nrf51_rng_info = {
     .instance_init = nrf51_rng_init,
     .class_init = nrf51_rng_class_init
 };
+TYPE_INFO(nrf51_rng_info)
 
-static void nrf51_rng_register_types(void)
-{
-    type_register_static(&nrf51_rng_info);
-}
 
-type_init(nrf51_rng_register_types)

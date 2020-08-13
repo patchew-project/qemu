@@ -1419,10 +1419,6 @@ static const TypeInfo net_info = {
     .class_init    = usb_net_class_initfn,
     .instance_init = usb_net_instance_init,
 };
+TYPE_INFO(net_info)
 
-static void usb_net_register_types(void)
-{
-    type_register_static(&net_info);
-}
 
-type_init(usb_net_register_types)

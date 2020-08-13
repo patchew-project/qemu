@@ -373,6 +373,7 @@ static const TypeInfo icp_info = {
     .class_init = icp_class_init,
     .class_size = sizeof(ICPStateClass),
 };
+TYPE_INFO(icp_info)
 
 Object *icp_create(Object *cpu, const char *type, XICSFabric *xi, Error **errp)
 {
@@ -707,12 +708,14 @@ static const TypeInfo ics_info = {
     .class_init = ics_class_init,
     .class_size = sizeof(ICSStateClass),
 };
+TYPE_INFO(ics_info)
 
 static const TypeInfo xics_fabric_info = {
     .name = TYPE_XICS_FABRIC,
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(XICSFabricClass),
 };
+TYPE_INFO(xics_fabric_info)
 
 /*
  * Exported functions
@@ -742,11 +745,4 @@ void ics_set_irq_type(ICSState *ics, int srcno, bool lsi)
     }
 }
 
-static void xics_register_types(void)
-{
-    type_register_static(&ics_info);
-    type_register_static(&icp_info);
-    type_register_static(&xics_fabric_info);
-}
 
-type_init(xics_register_types)

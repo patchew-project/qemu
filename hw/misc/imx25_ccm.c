@@ -311,10 +311,6 @@ static const TypeInfo imx25_ccm_info = {
     .instance_init = imx25_ccm_init,
     .class_init    = imx25_ccm_class_init,
 };
+TYPE_INFO(imx25_ccm_info)
 
-static void imx25_ccm_register_types(void)
-{
-    type_register_static(&imx25_ccm_info);
-}
 
-type_init(imx25_ccm_register_types)

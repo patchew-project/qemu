@@ -555,6 +555,7 @@ static const TypeInfo xen_block_type_info = {
     .class_size = sizeof(XenBlockDeviceClass),
     .class_init = xen_block_class_init,
 };
+TYPE_INFO(xen_block_type_info)
 
 static void xen_disk_unrealize(XenBlockDevice *blockdev)
 {
@@ -594,6 +595,7 @@ static const TypeInfo xen_disk_type_info = {
     .instance_size = sizeof(XenDiskDevice),
     .class_init = xen_disk_class_init,
 };
+TYPE_INFO(xen_disk_type_info)
 
 static void xen_cdrom_unrealize(XenBlockDevice *blockdev)
 {
@@ -641,15 +643,9 @@ static const TypeInfo xen_cdrom_type_info = {
     .instance_size = sizeof(XenCDRomDevice),
     .class_init = xen_cdrom_class_init,
 };
+TYPE_INFO(xen_cdrom_type_info)
 
-static void xen_block_register_types(void)
-{
-    type_register_static(&xen_block_type_info);
-    type_register_static(&xen_disk_type_info);
-    type_register_static(&xen_cdrom_type_info);
-}
 
-type_init(xen_block_register_types)
 
 static void xen_block_blockdev_del(const char *node_name, Error **errp)
 {

@@ -206,10 +206,6 @@ static const TypeInfo nubus_device_type_info = {
     .instance_size = sizeof(NubusDevice),
     .class_init = nubus_device_class_init,
 };
+TYPE_INFO(nubus_device_type_info)
 
-static void nubus_register_types(void)
-{
-    type_register_static(&nubus_device_type_info);
-}
 
-type_init(nubus_register_types)

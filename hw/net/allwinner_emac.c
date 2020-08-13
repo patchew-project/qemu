@@ -531,10 +531,6 @@ static const TypeInfo aw_emac_info = {
     .instance_init   = aw_emac_init,
     .class_init     = aw_emac_class_init,
 };
+TYPE_INFO(aw_emac_info)
 
-static void aw_emac_register_types(void)
-{
-    type_register_static(&aw_emac_info);
-}
 
-type_init(aw_emac_register_types)

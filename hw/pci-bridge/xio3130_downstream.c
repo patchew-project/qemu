@@ -181,10 +181,6 @@ static const TypeInfo xio3130_downstream_info = {
         { }
     },
 };
+TYPE_INFO(xio3130_downstream_info)
 
-static void xio3130_downstream_register_types(void)
-{
-    type_register_static(&xio3130_downstream_info);
-}
 
-type_init(xio3130_downstream_register_types)

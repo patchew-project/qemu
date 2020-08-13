@@ -263,10 +263,6 @@ static const TypeInfo xilinx_timer_info = {
     .instance_init = xilinx_timer_init,
     .class_init    = xilinx_timer_class_init,
 };
+TYPE_INFO(xilinx_timer_info)
 
-static void xilinx_timer_register_types(void)
-{
-    type_register_static(&xilinx_timer_info);
-}
 
-type_init(xilinx_timer_register_types)

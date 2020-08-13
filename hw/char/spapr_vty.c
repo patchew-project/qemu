@@ -203,6 +203,7 @@ static const TypeInfo spapr_vty_info = {
     .instance_size = sizeof(SpaprVioVty),
     .class_init    = spapr_vty_class_init,
 };
+TYPE_INFO(spapr_vty_info)
 
 SpaprVioDevice *spapr_vty_get_default(SpaprVioBus *bus)
 {
@@ -266,7 +267,6 @@ static void spapr_vty_register_types(void)
 {
     spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
     spapr_register_hypercall(H_GET_TERM_CHAR, h_get_term_char);
-    type_register_static(&spapr_vty_info);
 }
 
 type_init(spapr_vty_register_types)

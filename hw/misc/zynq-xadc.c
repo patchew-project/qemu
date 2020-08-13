@@ -296,10 +296,6 @@ static const TypeInfo zynq_xadc_info = {
     .instance_size  = sizeof(ZynqXADCState),
     .instance_init = zynq_xadc_init,
 };
+TYPE_INFO(zynq_xadc_info)
 
-static void zynq_xadc_register_types(void)
-{
-    type_register_static(&zynq_xadc_info);
-}
 
-type_init(zynq_xadc_register_types)

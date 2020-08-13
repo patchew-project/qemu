@@ -121,10 +121,6 @@ static const TypeInfo char_testdev_type_info = {
     .instance_size = sizeof(TestdevChardev),
     .class_init = char_testdev_class_init,
 };
+TYPE_INFO(char_testdev_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_testdev_type_info);
-}
 
-type_init(register_types);

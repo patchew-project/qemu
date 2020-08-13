@@ -52,10 +52,6 @@ static const TypeInfo vhost_vsock_ccw_info = {
     .instance_init = vhost_vsock_ccw_instance_init,
     .class_init    = vhost_vsock_ccw_class_init,
 };
+TYPE_INFO(vhost_vsock_ccw_info)
 
-static void vhost_vsock_ccw_register(void)
-{
-    type_register_static(&vhost_vsock_ccw_info);
-}
 
-type_init(vhost_vsock_ccw_register)

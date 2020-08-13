@@ -280,6 +280,7 @@ static const TypeInfo armv7m_info = {
     .instance_init = armv7m_instance_init,
     .class_init = armv7m_class_init,
 };
+TYPE_INFO(armv7m_info)
 
 static void armv7m_reset(void *opaque)
 {
@@ -359,11 +360,6 @@ static const TypeInfo bitband_info = {
     .instance_init = bitband_init,
     .class_init    = bitband_class_init,
 };
+TYPE_INFO(bitband_info)
 
-static void armv7m_register_types(void)
-{
-    type_register_static(&bitband_info);
-    type_register_static(&armv7m_info);
-}
 
-type_init(armv7m_register_types)

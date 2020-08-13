@@ -143,6 +143,7 @@ static const TypeInfo pcie_port_type_info = {
     .abstract = true,
     .class_init = pcie_port_class_init,
 };
+TYPE_INFO(pcie_port_type_info)
 
 static Property pcie_slot_props[] = {
     DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
@@ -174,11 +175,6 @@ static const TypeInfo pcie_slot_type_info = {
         { }
     }
 };
+TYPE_INFO(pcie_slot_type_info)
 
-static void pcie_port_register_types(void)
-{
-    type_register_static(&pcie_port_type_info);
-    type_register_static(&pcie_slot_type_info);
-}
 
-type_init(pcie_port_register_types)

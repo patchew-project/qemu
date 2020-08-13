@@ -274,6 +274,7 @@ static const TypeInfo adb_bus_type_info = {
     .instance_size = sizeof(ADBBusState),
     .class_init = adb_bus_class_init,
 };
+TYPE_INFO(adb_bus_type_info)
 
 const VMStateDescription vmstate_adb_device = {
     .name = "adb_device",
@@ -313,11 +314,6 @@ static const TypeInfo adb_device_type_info = {
     .abstract = true,
     .class_init = adb_device_class_init,
 };
+TYPE_INFO(adb_device_type_info)
 
-static void adb_register_types(void)
-{
-    type_register_static(&adb_bus_type_info);
-    type_register_static(&adb_device_type_info);
-}
 
-type_init(adb_register_types)

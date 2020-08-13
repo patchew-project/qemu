@@ -692,24 +692,20 @@ static const TypeInfo mps2tz_info = {
         { }
     },
 };
+TYPE_INFO(mps2tz_info)
 
 static const TypeInfo mps2tz_an505_info = {
     .name = TYPE_MPS2TZ_AN505_MACHINE,
     .parent = TYPE_MPS2TZ_MACHINE,
     .class_init = mps2tz_an505_class_init,
 };
+TYPE_INFO(mps2tz_an505_info)
 
 static const TypeInfo mps2tz_an521_info = {
     .name = TYPE_MPS2TZ_AN521_MACHINE,
     .parent = TYPE_MPS2TZ_MACHINE,
     .class_init = mps2tz_an521_class_init,
 };
+TYPE_INFO(mps2tz_an521_info)
 
-static void mps2tz_machine_init(void)
-{
-    type_register_static(&mps2tz_info);
-    type_register_static(&mps2tz_an505_info);
-    type_register_static(&mps2tz_an521_info);
-}
 
-type_init(mps2tz_machine_init);

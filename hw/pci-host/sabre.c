@@ -499,6 +499,7 @@ static const TypeInfo sabre_pci_info = {
         { },
     },
 };
+TYPE_INFO(sabre_pci_info)
 
 static char *sabre_ofw_unit_address(const SysBusDevice *dev)
 {
@@ -535,11 +536,6 @@ static const TypeInfo sabre_info = {
     .instance_init = sabre_init,
     .class_init    = sabre_class_init,
 };
+TYPE_INFO(sabre_info)
 
-static void sabre_register_types(void)
-{
-    type_register_static(&sabre_info);
-    type_register_static(&sabre_pci_info);
-}
 
-type_init(sabre_register_types)

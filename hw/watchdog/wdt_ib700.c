@@ -146,11 +146,11 @@ static const TypeInfo wdt_ib700_info = {
     .instance_size = sizeof(IB700State),
     .class_init    = wdt_ib700_class_init,
 };
+TYPE_INFO(wdt_ib700_info)
 
 static void wdt_ib700_register_types(void)
 {
     watchdog_add_model(&model);
-    type_register_static(&wdt_ib700_info);
 }
 
 type_init(wdt_ib700_register_types)

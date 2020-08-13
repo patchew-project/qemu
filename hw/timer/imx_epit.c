@@ -368,10 +368,6 @@ static const TypeInfo imx_epit_info = {
     .instance_size = sizeof(IMXEPITState),
     .class_init = imx_epit_class_init,
 };
+TYPE_INFO(imx_epit_info)
 
-static void imx_epit_register_types(void)
-{
-    type_register_static(&imx_epit_info);
-}
 
-type_init(imx_epit_register_types)

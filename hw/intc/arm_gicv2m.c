@@ -190,10 +190,6 @@ static const TypeInfo gicv2m_info = {
     .instance_init = gicv2m_init,
     .class_init    = gicv2m_class_init,
 };
+TYPE_INFO(gicv2m_info)
 
-static void gicv2m_register_types(void)
-{
-    type_register_static(&gicv2m_info);
-}
 
-type_init(gicv2m_register_types)

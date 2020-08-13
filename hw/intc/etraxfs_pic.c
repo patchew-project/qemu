@@ -162,10 +162,6 @@ static const TypeInfo etraxfs_pic_info = {
     .instance_size = sizeof(struct etrax_pic),
     .instance_init = etraxfs_pic_init,
 };
+TYPE_INFO(etraxfs_pic_info)
 
-static void etraxfs_pic_register_types(void)
-{
-    type_register_static(&etraxfs_pic_info);
-}
 
-type_init(etraxfs_pic_register_types)

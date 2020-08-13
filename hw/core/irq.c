@@ -136,10 +136,6 @@ static const TypeInfo irq_type_info = {
    .parent = TYPE_OBJECT,
    .instance_size = sizeof(struct IRQState),
 };
+TYPE_INFO(irq_type_info)
 
-static void irq_register_types(void)
-{
-    type_register_static(&irq_type_info);
-}
 
-type_init(irq_register_types)

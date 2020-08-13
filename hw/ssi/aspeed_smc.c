@@ -1447,12 +1447,12 @@ static const TypeInfo aspeed_smc_info = {
     .class_size     = sizeof(AspeedSMCClass),
     .abstract       = true,
 };
+TYPE_INFO(aspeed_smc_info)
 
 static void aspeed_smc_register_types(void)
 {
     int i;
 
-    type_register_static(&aspeed_smc_info);
     for (i = 0; i < ARRAY_SIZE(controllers); ++i) {
         TypeInfo ti = {
             .name       = controllers[i].name,

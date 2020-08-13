@@ -647,24 +647,20 @@ static const TypeInfo musca_info = {
     .class_size = sizeof(MuscaMachineClass),
     .class_init = musca_class_init,
 };
+TYPE_INFO(musca_info)
 
 static const TypeInfo musca_a_info = {
     .name = TYPE_MUSCA_A_MACHINE,
     .parent = TYPE_MUSCA_MACHINE,
     .class_init = musca_a_class_init,
 };
+TYPE_INFO(musca_a_info)
 
 static const TypeInfo musca_b1_info = {
     .name = TYPE_MUSCA_B1_MACHINE,
     .parent = TYPE_MUSCA_MACHINE,
     .class_init = musca_b1_class_init,
 };
+TYPE_INFO(musca_b1_info)
 
-static void musca_machine_init(void)
-{
-    type_register_static(&musca_info);
-    type_register_static(&musca_a_info);
-    type_register_static(&musca_b1_info);
-}
 
-type_init(musca_machine_init);

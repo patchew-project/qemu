@@ -98,10 +98,6 @@ static const TypeInfo sclp_cpu_info = {
     .class_init    = cpu_class_init,
     .class_size    = sizeof(SCLPEventClass),
 };
+TYPE_INFO(sclp_cpu_info)
 
-static void sclp_cpu_register_types(void)
-{
-    type_register_static(&sclp_cpu_info);
-}
 
-type_init(sclp_cpu_register_types)

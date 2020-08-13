@@ -902,10 +902,6 @@ static const TypeInfo tcx_info = {
     .instance_init = tcx_initfn,
     .class_init    = tcx_class_init,
 };
+TYPE_INFO(tcx_info)
 
-static void tcx_register_types(void)
-{
-    type_register_static(&tcx_info);
-}
 
-type_init(tcx_register_types)

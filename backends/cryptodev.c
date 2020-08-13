@@ -245,11 +245,6 @@ static const TypeInfo cryptodev_backend_info = {
         { }
     }
 };
+TYPE_INFO(cryptodev_backend_info)
 
-static void
-cryptodev_backend_register_types(void)
-{
-    type_register_static(&cryptodev_backend_info);
-}
 
-type_init(cryptodev_backend_register_types);

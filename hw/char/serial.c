@@ -1024,6 +1024,7 @@ static const TypeInfo serial_io_info = {
     .instance_init = serial_io_instance_init,
     .class_init = serial_io_class_init,
 };
+TYPE_INFO(serial_io_info)
 
 static Property serial_properties[] = {
     DEFINE_PROP_CHR("chardev", SerialState, chr),
@@ -1048,6 +1049,7 @@ static const TypeInfo serial_info = {
     .instance_size = sizeof(SerialState),
     .class_init = serial_class_init,
 };
+TYPE_INFO(serial_info)
 
 /* Memory mapped interface */
 static uint64_t serial_mm_read(void *opaque, hwaddr addr,
@@ -1174,12 +1176,6 @@ static const TypeInfo serial_mm_info = {
     .instance_size = sizeof(SerialMM),
     .class_init = serial_mm_class_init,
 };
+TYPE_INFO(serial_mm_info)
 
-static void serial_register_types(void)
-{
-    type_register_static(&serial_info);
-    type_register_static(&serial_io_info);
-    type_register_static(&serial_mm_info);
-}
 
-type_init(serial_register_types)

@@ -237,13 +237,9 @@ static const TypeInfo vmgenid_device_info = {
     .instance_size = sizeof(VmGenIdState),
     .class_init    = vmgenid_device_class_init,
 };
+TYPE_INFO(vmgenid_device_info)
 
-static void vmgenid_register_types(void)
-{
-    type_register_static(&vmgenid_device_info);
-}
 
-type_init(vmgenid_register_types)
 
 GuidInfo *qmp_query_vm_generation_id(Error **errp)
 {

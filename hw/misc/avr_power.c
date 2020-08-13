@@ -104,10 +104,6 @@ static const TypeInfo avr_mask_info = {
     .class_init    = avr_mask_class_init,
     .instance_init = avr_mask_init,
 };
+TYPE_INFO(avr_mask_info)
 
-static void avr_mask_register_types(void)
-{
-    type_register_static(&avr_mask_info);
-}
 
-type_init(avr_mask_register_types)

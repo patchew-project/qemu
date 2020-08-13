@@ -93,10 +93,6 @@ static const TypeInfo simba_pci_bridge_info = {
         { },
     },
 };
+TYPE_INFO(simba_pci_bridge_info)
 
-static void simba_register_types(void)
-{
-    type_register_static(&simba_pci_bridge_info);
-}
 
-type_init(simba_register_types)

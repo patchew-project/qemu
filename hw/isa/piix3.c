@@ -322,6 +322,7 @@ static const TypeInfo piix3_pci_type_info = {
         { },
     },
 };
+TYPE_INFO(piix3_pci_type_info)
 
 static void piix3_class_init(ObjectClass *klass, void *data)
 {
@@ -335,6 +336,7 @@ static const TypeInfo piix3_info = {
     .parent        = TYPE_PIIX3_PCI_DEVICE,
     .class_init    = piix3_class_init,
 };
+TYPE_INFO(piix3_info)
 
 static void piix3_xen_class_init(ObjectClass *klass, void *data)
 {
@@ -348,15 +350,9 @@ static const TypeInfo piix3_xen_info = {
     .parent        = TYPE_PIIX3_PCI_DEVICE,
     .class_init    = piix3_xen_class_init,
 };
+TYPE_INFO(piix3_xen_info)
 
-static void piix3_register_types(void)
-{
-    type_register_static(&piix3_pci_type_info);
-    type_register_static(&piix3_info);
-    type_register_static(&piix3_xen_info);
-}
 
-type_init(piix3_register_types)
 
 /*
  * Return the global irq number corresponding to a given device irq

@@ -24,11 +24,7 @@ static const TypeInfo stream_slave_info = {
     .parent        = TYPE_INTERFACE,
     .class_size = sizeof(StreamSlaveClass),
 };
+TYPE_INFO(stream_slave_info)
 
 
-static void stream_slave_register_types(void)
-{
-    type_register_static(&stream_slave_info);
-}
 
-type_init(stream_slave_register_types)

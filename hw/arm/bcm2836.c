@@ -168,12 +168,12 @@ static const TypeInfo bcm283x_type_info = {
     .class_size = sizeof(BCM283XClass),
     .abstract = true,
 };
+TYPE_INFO(bcm283x_type_info)
 
 static void bcm2836_register_types(void)
 {
     int i;
 
-    type_register_static(&bcm283x_type_info);
     for (i = 0; i < ARRAY_SIZE(bcm283x_socs); i++) {
         TypeInfo ti = {
             .name = bcm283x_socs[i].name,

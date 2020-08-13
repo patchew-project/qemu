@@ -169,6 +169,7 @@ static const TypeInfo nuri_type = {
     .parent = TYPE_MACHINE,
     .class_init = nuri_class_init,
 };
+TYPE_INFO(nuri_type)
 
 static void smdkc210_class_init(ObjectClass *oc, void *data)
 {
@@ -187,11 +188,6 @@ static const TypeInfo smdkc210_type = {
     .parent = TYPE_MACHINE,
     .class_init = smdkc210_class_init,
 };
+TYPE_INFO(smdkc210_type)
 
-static void exynos4_machines_init(void)
-{
-    type_register_static(&nuri_type);
-    type_register_static(&smdkc210_type);
-}
 
-type_init(exynos4_machines_init)

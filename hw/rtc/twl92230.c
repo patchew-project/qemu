@@ -888,10 +888,6 @@ static const TypeInfo twl92230_info = {
     .instance_size = sizeof(MenelausState),
     .class_init    = twl92230_class_init,
 };
+TYPE_INFO(twl92230_info)
 
-static void twl92230_register_types(void)
-{
-    type_register_static(&twl92230_info);
-}
 
-type_init(twl92230_register_types)

@@ -75,10 +75,6 @@ static const TypeInfo debug_exit_info = {
     .instance_size = sizeof(ISADebugExitState),
     .class_init    = debug_exit_class_initfn,
 };
+TYPE_INFO(debug_exit_info)
 
-static void debug_exit_register_types(void)
-{
-    type_register_static(&debug_exit_info);
-}
 
-type_init(debug_exit_register_types)

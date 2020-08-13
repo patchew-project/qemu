@@ -332,13 +332,9 @@ static const TypeInfo mcf_uart_info = {
     .instance_init = mcf_uart_instance_init,
     .class_init    = mcf_uart_class_init,
 };
+TYPE_INFO(mcf_uart_info)
 
-static void mcf_uart_register(void)
-{
-    type_register_static(&mcf_uart_info);
-}
 
-type_init(mcf_uart_register)
 
 void *mcf_uart_init(qemu_irq irq, Chardev *chrdrv)
 {

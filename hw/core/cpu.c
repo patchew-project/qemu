@@ -449,10 +449,6 @@ static const TypeInfo cpu_type_info = {
     .class_size = sizeof(CPUClass),
     .class_init = cpu_class_init,
 };
+TYPE_INFO(cpu_type_info)
 
-static void cpu_register_types(void)
-{
-    type_register_static(&cpu_type_info);
-}
 
-type_init(cpu_register_types)

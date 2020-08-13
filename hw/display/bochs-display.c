@@ -381,10 +381,6 @@ static const TypeInfo bochs_display_type_info = {
         { },
     },
 };
+TYPE_INFO(bochs_display_type_info)
 
-static void bochs_display_register_types(void)
-{
-    type_register_static(&bochs_display_type_info);
-}
 
-type_init(bochs_display_register_types)

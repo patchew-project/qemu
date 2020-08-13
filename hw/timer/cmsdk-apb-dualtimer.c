@@ -520,10 +520,6 @@ static const TypeInfo cmsdk_apb_dualtimer_info = {
     .instance_init = cmsdk_apb_dualtimer_init,
     .class_init = cmsdk_apb_dualtimer_class_init,
 };
+TYPE_INFO(cmsdk_apb_dualtimer_info)
 
-static void cmsdk_apb_dualtimer_register_types(void)
-{
-    type_register_static(&cmsdk_apb_dualtimer_info);
-}
 
-type_init(cmsdk_apb_dualtimer_register_types);

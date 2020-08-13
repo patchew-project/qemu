@@ -1641,10 +1641,6 @@ static const TypeInfo openpic_info = {
     .instance_init = openpic_init,
     .class_init    = openpic_class_init,
 };
+TYPE_INFO(openpic_info)
 
-static void openpic_register_types(void)
-{
-    type_register_static(&openpic_info);
-}
 
-type_init(openpic_register_types)

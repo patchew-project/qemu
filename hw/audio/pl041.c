@@ -650,10 +650,6 @@ static const TypeInfo pl041_device_info = {
     .instance_init = pl041_init,
     .class_init    = pl041_device_class_init,
 };
+TYPE_INFO(pl041_device_info)
 
-static void pl041_register_types(void)
-{
-    type_register_static(&pl041_device_info);
-}
 
-type_init(pl041_register_types)

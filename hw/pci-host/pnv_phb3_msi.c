@@ -310,13 +310,9 @@ static const TypeInfo phb3_msi_info = {
     .class_size = sizeof(ICSStateClass),
     .instance_init = phb3_msi_instance_init,
 };
+TYPE_INFO(phb3_msi_info)
 
-static void pnv_phb3_msi_register_types(void)
-{
-    type_register_static(&phb3_msi_info);
-}
 
-type_init(pnv_phb3_msi_register_types);
 
 void pnv_phb3_msi_pic_print_info(Phb3MsiState *msi, Monitor *mon)
 {

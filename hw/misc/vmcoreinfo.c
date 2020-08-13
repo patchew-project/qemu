@@ -99,10 +99,6 @@ static const TypeInfo vmcoreinfo_device_info = {
     .instance_size = sizeof(VMCoreInfoState),
     .class_init    = vmcoreinfo_device_class_init,
 };
+TYPE_INFO(vmcoreinfo_device_info)
 
-static void vmcoreinfo_register_types(void)
-{
-    type_register_static(&vmcoreinfo_device_info);
-}
 
-type_init(vmcoreinfo_register_types)

@@ -107,10 +107,6 @@ static const TypeInfo smc37c669_type_info = {
     .class_size    = sizeof(ISASuperIOClass),
     .class_init    = smc37c669_class_init,
 };
+TYPE_INFO(smc37c669_type_info)
 
-static void smc37c669_register_types(void)
-{
-    type_register_static(&smc37c669_type_info);
-}
 
-type_init(smc37c669_register_types)

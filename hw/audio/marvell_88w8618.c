@@ -304,10 +304,6 @@ static const TypeInfo mv88w8618_audio_info = {
     .instance_init = mv88w8618_audio_init,
     .class_init    = mv88w8618_audio_class_init,
 };
+TYPE_INFO(mv88w8618_audio_info)
 
-static void mv88w8618_register_types(void)
-{
-    type_register_static(&mv88w8618_audio_info);
-}
 
-type_init(mv88w8618_register_types)

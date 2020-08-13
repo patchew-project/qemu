@@ -165,10 +165,6 @@ static const TypeInfo rng_egd_info = {
     .instance_init = rng_egd_init,
     .instance_finalize = rng_egd_finalize,
 };
+TYPE_INFO(rng_egd_info)
 
-static void register_types(void)
-{
-    type_register_static(&rng_egd_info);
-}
 
-type_init(register_types);

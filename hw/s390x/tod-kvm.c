@@ -155,9 +155,5 @@ static TypeInfo kvm_s390_tod_info = {
     .class_init = kvm_s390_tod_class_init,
     .class_size = sizeof(S390TODClass),
 };
+TYPE_INFO(kvm_s390_tod_info)
 
-static void register_types(void)
-{
-    type_register_static(&kvm_s390_tod_info);
-}
-type_init(register_types);

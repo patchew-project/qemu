@@ -79,10 +79,6 @@ static const TypeInfo nmi_info = {
     .parent        = TYPE_INTERFACE,
     .class_size    = sizeof(NMIClass),
 };
+TYPE_INFO(nmi_info)
 
-static void nmi_register_types(void)
-{
-    type_register_static(&nmi_info);
-}
 
-type_init(nmi_register_types)

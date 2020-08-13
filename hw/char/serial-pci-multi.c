@@ -199,6 +199,7 @@ static const TypeInfo multi_2x_serial_pci_info = {
         { },
     },
 };
+TYPE_INFO(multi_2x_serial_pci_info)
 
 static const TypeInfo multi_4x_serial_pci_info = {
     .name          = "pci-serial-4x",
@@ -211,11 +212,6 @@ static const TypeInfo multi_4x_serial_pci_info = {
         { },
     },
 };
+TYPE_INFO(multi_4x_serial_pci_info)
 
-static void multi_serial_pci_register_types(void)
-{
-    type_register_static(&multi_2x_serial_pci_info);
-    type_register_static(&multi_4x_serial_pci_info);
-}
 
-type_init(multi_serial_pci_register_types)

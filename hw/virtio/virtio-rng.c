@@ -281,10 +281,6 @@ static const TypeInfo virtio_rng_info = {
     .instance_size = sizeof(VirtIORNG),
     .class_init = virtio_rng_class_init,
 };
+TYPE_INFO(virtio_rng_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_rng_info);
-}
 
-type_init(virtio_register_types)

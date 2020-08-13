@@ -2539,12 +2539,8 @@ static const TypeInfo virt_machine_info = {
          { }
     },
 };
+TYPE_INFO(virt_machine_info)
 
-static void machvirt_machine_init(void)
-{
-    type_register_static(&virt_machine_info);
-}
-type_init(machvirt_machine_init);
 
 static void virt_machine_5_1_options(MachineClass *mc)
 {

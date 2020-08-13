@@ -1167,12 +1167,12 @@ static const TypeInfo armsse_info = {
         { }
     }
 };
+TYPE_INFO(armsse_info)
 
 static void armsse_register_types(void)
 {
     int i;
 
-    type_register_static(&armsse_info);
 
     for (i = 0; i < ARRAY_SIZE(armsse_variants); i++) {
         TypeInfo ti = {

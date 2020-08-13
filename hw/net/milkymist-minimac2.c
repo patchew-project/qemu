@@ -539,10 +539,6 @@ static const TypeInfo milkymist_minimac2_info = {
     .instance_size = sizeof(MilkymistMinimac2State),
     .class_init    = milkymist_minimac2_class_init,
 };
+TYPE_INFO(milkymist_minimac2_info)
 
-static void milkymist_minimac2_register_types(void)
-{
-    type_register_static(&milkymist_minimac2_info);
-}
 
-type_init(milkymist_minimac2_register_types)

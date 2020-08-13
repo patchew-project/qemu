@@ -349,10 +349,6 @@ static const TypeInfo pnv_pbcq_type_info = {
         { }
     }
 };
+TYPE_INFO(pnv_pbcq_type_info)
 
-static void pnv_pbcq_register_types(void)
-{
-    type_register_static(&pnv_pbcq_type_info);
-}
 
-type_init(pnv_pbcq_register_types)

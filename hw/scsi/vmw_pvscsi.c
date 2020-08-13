@@ -1312,11 +1312,6 @@ static const TypeInfo pvscsi_info = {
         { }
     }
 };
+TYPE_INFO(pvscsi_info)
 
-static void
-pvscsi_register_types(void)
-{
-    type_register_static(&pvscsi_info);
-}
 
-type_init(pvscsi_register_types);

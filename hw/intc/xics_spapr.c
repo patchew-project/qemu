@@ -468,10 +468,6 @@ static const TypeInfo ics_spapr_info = {
         { }
     },
 };
+TYPE_INFO(ics_spapr_info)
 
-static void xics_spapr_register_types(void)
-{
-    type_register_static(&ics_spapr_info);
-}
 
-type_init(xics_spapr_register_types)

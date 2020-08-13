@@ -1710,10 +1710,6 @@ static const TypeInfo gem_info = {
     .instance_init = gem_init,
     .class_init = gem_class_init,
 };
+TYPE_INFO(gem_info)
 
-static void gem_register_types(void)
-{
-    type_register_static(&gem_info);
-}
 
-type_init(gem_register_types)

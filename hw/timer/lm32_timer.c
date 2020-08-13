@@ -240,10 +240,6 @@ static const TypeInfo lm32_timer_info = {
     .instance_init = lm32_timer_init,
     .class_init    = lm32_timer_class_init,
 };
+TYPE_INFO(lm32_timer_info)
 
-static void lm32_timer_register_types(void)
-{
-    type_register_static(&lm32_timer_info);
-}
 
-type_init(lm32_timer_register_types)

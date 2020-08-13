@@ -72,10 +72,6 @@ static const TypeInfo kvm_s390_skeys_info = {
     .class_init    = kvm_s390_skeys_class_init,
     .class_size    = sizeof(S390SKeysClass),
 };
+TYPE_INFO(kvm_s390_skeys_info)
 
-static void kvm_s390_skeys_register_types(void)
-{
-    type_register_static(&kvm_s390_skeys_info);
-}
 
-type_init(kvm_s390_skeys_register_types)

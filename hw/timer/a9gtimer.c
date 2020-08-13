@@ -368,10 +368,6 @@ static const TypeInfo a9_gtimer_info = {
     .instance_size = sizeof(A9GTimerState),
     .class_init    = a9_gtimer_class_init,
 };
+TYPE_INFO(a9_gtimer_info)
 
-static void a9_gtimer_register_types(void)
-{
-    type_register_static(&a9_gtimer_info);
-}
 
-type_init(a9_gtimer_register_types)

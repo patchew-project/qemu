@@ -233,10 +233,6 @@ static const TypeInfo allwinner_h3_ccu_info = {
     .instance_size = sizeof(AwH3ClockCtlState),
     .class_init    = allwinner_h3_ccu_class_init,
 };
+TYPE_INFO(allwinner_h3_ccu_info)
 
-static void allwinner_h3_ccu_register(void)
-{
-    type_register_static(&allwinner_h3_ccu_info);
-}
 
-type_init(allwinner_h3_ccu_register)

@@ -2488,6 +2488,7 @@ static const TypeInfo vmbus_dev_type_info = {
     .class_init = vmbus_dev_class_init,
     .instance_init = vmbus_dev_instance_init,
 };
+TYPE_INFO(vmbus_dev_type_info)
 
 static void vmbus_realize(BusState *bus, Error **errp)
 {
@@ -2700,6 +2701,7 @@ static const TypeInfo vmbus_type_info = {
     .instance_size = sizeof(VMBus),
     .class_init = vmbus_class_init,
 };
+TYPE_INFO(vmbus_type_info)
 
 static void vmbus_bridge_realize(DeviceState *dev, Error **errp)
 {
@@ -2765,12 +2767,6 @@ static const TypeInfo vmbus_bridge_type_info = {
     .instance_size = sizeof(VMBusBridge),
     .class_init = vmbus_bridge_class_init,
 };
+TYPE_INFO(vmbus_bridge_type_info)
 
-static void vmbus_register_types(void)
-{
-    type_register_static(&vmbus_bridge_type_info);
-    type_register_static(&vmbus_dev_type_info);
-    type_register_static(&vmbus_type_info);
-}
 
-type_init(vmbus_register_types)

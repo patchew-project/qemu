@@ -394,10 +394,6 @@ static const TypeInfo char_mux_type_info = {
     .instance_size = sizeof(MuxChardev),
     .instance_finalize = char_mux_finalize,
 };
+TYPE_INFO(char_mux_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_mux_type_info);
-}
 
-type_init(register_types);

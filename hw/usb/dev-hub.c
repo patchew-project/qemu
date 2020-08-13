@@ -695,10 +695,6 @@ static const TypeInfo hub_info = {
     .instance_size = sizeof(USBHubState),
     .class_init    = usb_hub_class_initfn,
 };
+TYPE_INFO(hub_info)
 
-static void usb_hub_register_types(void)
-{
-    type_register_static(&hub_info);
-}
 
-type_init(usb_hub_register_types)

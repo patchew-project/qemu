@@ -277,10 +277,6 @@ static const TypeInfo sclp_console_info = {
     .class_init    = console_class_init,
     .class_size    = sizeof(SCLPEventClass),
 };
+TYPE_INFO(sclp_console_info)
 
-static void register_types(void)
-{
-    type_register_static(&sclp_console_info);
-}
 
-type_init(register_types)

@@ -292,13 +292,9 @@ static const TypeInfo iothread_info = {
         {}
     },
 };
+TYPE_INFO(iothread_info)
 
-static void iothread_register_types(void)
-{
-    type_register_static(&iothread_info);
-}
 
-type_init(iothread_register_types)
 
 char *iothread_get_id(IOThread *iothread)
 {

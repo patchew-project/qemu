@@ -1407,12 +1407,12 @@ static const TypeInfo m25p80_info = {
     .class_size     = sizeof(M25P80Class),
     .abstract       = true,
 };
+TYPE_INFO(m25p80_info)
 
 static void m25p80_register_types(void)
 {
     int i;
 
-    type_register_static(&m25p80_info);
     for (i = 0; i < ARRAY_SIZE(known_devices); ++i) {
         TypeInfo ti = {
             .name       = known_devices[i].part_name,

@@ -79,10 +79,6 @@ static const TypeInfo ccw_device_info = {
     .class_init = ccw_device_class_init,
     .abstract = true,
 };
+TYPE_INFO(ccw_device_info)
 
-static void ccw_device_register(void)
-{
-    type_register_static(&ccw_device_info);
-}
 
-type_init(ccw_device_register)

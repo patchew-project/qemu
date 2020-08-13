@@ -525,10 +525,6 @@ static const TypeInfo pci_ide_type_info = {
         { },
     },
 };
+TYPE_INFO(pci_ide_type_info)
 
-static void pci_ide_register_types(void)
-{
-    type_register_static(&pci_ide_type_info);
-}
 
-type_init(pci_ide_register_types)

@@ -363,10 +363,6 @@ static const TypeInfo applesmc_isa_info = {
     .instance_size = sizeof(AppleSMCState),
     .class_init    = qdev_applesmc_class_init,
 };
+TYPE_INFO(applesmc_isa_info)
 
-static void applesmc_register_types(void)
-{
-    type_register_static(&applesmc_isa_info);
-}
 
-type_init(applesmc_register_types)

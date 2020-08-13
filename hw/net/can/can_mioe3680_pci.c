@@ -256,10 +256,6 @@ static const TypeInfo mioe3680_pci_info = {
         { },
     },
 };
+TYPE_INFO(mioe3680_pci_info)
 
-static void mioe3680_pci_register_types(void)
-{
-    type_register_static(&mioe3680_pci_info);
-}
 
-type_init(mioe3680_pci_register_types)

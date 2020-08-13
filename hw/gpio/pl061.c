@@ -385,17 +385,13 @@ static const TypeInfo pl061_info = {
     .instance_init = pl061_init,
     .class_init    = pl061_class_init,
 };
+TYPE_INFO(pl061_info)
 
 static const TypeInfo pl061_luminary_info = {
     .name          = "pl061_luminary",
     .parent        = TYPE_PL061,
     .instance_init = pl061_luminary_init,
 };
+TYPE_INFO(pl061_luminary_info)
 
-static void pl061_register_types(void)
-{
-    type_register_static(&pl061_info);
-    type_register_static(&pl061_luminary_info);
-}
 
-type_init(pl061_register_types)

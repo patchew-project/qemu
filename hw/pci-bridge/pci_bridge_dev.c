@@ -278,6 +278,7 @@ static const TypeInfo pci_bridge_dev_info = {
         { }
     }
 };
+TYPE_INFO(pci_bridge_dev_info)
 
 /*
  * Multiseat bridge.  Same as the standard pci bridge, only with a
@@ -299,11 +300,6 @@ static const TypeInfo pci_bridge_dev_seat_info = {
     .instance_size     = sizeof(PCIBridgeDev),
     .class_init        = pci_bridge_dev_seat_class_init,
 };
+TYPE_INFO(pci_bridge_dev_seat_info)
 
-static void pci_bridge_dev_register(void)
-{
-    type_register_static(&pci_bridge_dev_info);
-    type_register_static(&pci_bridge_dev_seat_info);
-}
 
-type_init(pci_bridge_dev_register);

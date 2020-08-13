@@ -324,10 +324,6 @@ static const TypeInfo exynos4210_i2c_type_info = {
     .instance_init = exynos4210_i2c_init,
     .class_init = exynos4210_i2c_class_init,
 };
+TYPE_INFO(exynos4210_i2c_type_info)
 
-static void exynos4210_i2c_register_types(void)
-{
-    type_register_static(&exynos4210_i2c_type_info);
-}
 
-type_init(exynos4210_i2c_register_types)

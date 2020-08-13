@@ -2134,10 +2134,6 @@ static const TypeInfo arm_gic_info = {
     .class_init = arm_gic_class_init,
     .class_size = sizeof(ARMGICClass),
 };
+TYPE_INFO(arm_gic_info)
 
-static void arm_gic_register_types(void)
-{
-    type_register_static(&arm_gic_info);
-}
 
-type_init(arm_gic_register_types)

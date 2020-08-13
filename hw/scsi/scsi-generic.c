@@ -778,12 +778,8 @@ static const TypeInfo scsi_generic_info = {
     .instance_size = sizeof(SCSIDevice),
     .class_init    = scsi_generic_class_initfn,
 };
+TYPE_INFO(scsi_generic_info)
 
-static void scsi_generic_register_types(void)
-{
-    type_register_static(&scsi_generic_info);
-}
 
-type_init(scsi_generic_register_types)
 
 #endif /* __linux__ */

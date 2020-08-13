@@ -1264,6 +1264,7 @@ static const TypeInfo gt64120_pci_info = {
         { },
     },
 };
+TYPE_INFO(gt64120_pci_info)
 
 static void gt64120_class_init(ObjectClass *klass, void *data)
 {
@@ -1280,11 +1281,6 @@ static const TypeInfo gt64120_info = {
     .instance_size = sizeof(GT64120State),
     .class_init    = gt64120_class_init,
 };
+TYPE_INFO(gt64120_info)
 
-static void gt64120_pci_register_types(void)
-{
-    type_register_static(&gt64120_info);
-    type_register_static(&gt64120_pci_info);
-}
 
-type_init(gt64120_pci_register_types)

@@ -910,10 +910,6 @@ static const TypeInfo hvf_accel_type = {
     .parent = TYPE_ACCEL,
     .class_init = hvf_accel_class_init,
 };
+TYPE_INFO(hvf_accel_type)
 
-static void hvf_type_init(void)
-{
-    type_register_static(&hvf_accel_type);
-}
 
-type_init(hvf_type_init);

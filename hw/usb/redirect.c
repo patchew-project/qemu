@@ -2605,10 +2605,6 @@ static const TypeInfo usbredir_dev_info = {
     .class_init    = usbredir_class_initfn,
     .instance_init = usbredir_instance_init,
 };
+TYPE_INFO(usbredir_dev_info)
 
-static void usbredir_register_types(void)
-{
-    type_register_static(&usbredir_dev_info);
-}
 
-type_init(usbredir_register_types)

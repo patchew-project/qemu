@@ -65,10 +65,6 @@ static const TypeInfo mpc8544ds_info = {
     .parent        = TYPE_PPCE500_MACHINE,
     .class_init    = e500plat_machine_class_init,
 };
+TYPE_INFO(mpc8544ds_info)
 
-static void mpc8544ds_register_types(void)
-{
-    type_register_static(&mpc8544ds_info);
-}
 
-type_init(mpc8544ds_register_types)

@@ -485,13 +485,9 @@ static const TypeInfo sifive_plic_info = {
     .instance_size = sizeof(SiFivePLICState),
     .class_init    = sifive_plic_class_init,
 };
+TYPE_INFO(sifive_plic_info)
 
-static void sifive_plic_register_types(void)
-{
-    type_register_static(&sifive_plic_info);
-}
 
-type_init(sifive_plic_register_types)
 
 /*
  * Create PLIC device.

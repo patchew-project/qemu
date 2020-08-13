@@ -52,10 +52,6 @@ static const TypeInfo vfio_calxeda_xgmac_dev_info = {
     .class_init = vfio_calxeda_xgmac_class_init,
     .class_size = sizeof(VFIOCalxedaXgmacDeviceClass),
 };
+TYPE_INFO(vfio_calxeda_xgmac_dev_info)
 
-static void register_calxeda_xgmac_dev_type(void)
-{
-    type_register_static(&vfio_calxeda_xgmac_dev_info);
-}
 
-type_init(register_calxeda_xgmac_dev_type)

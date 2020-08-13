@@ -325,10 +325,6 @@ static const TypeInfo bus_info = {
         { }
     },
 };
+TYPE_INFO(bus_info)
 
-static void bus_register_types(void)
-{
-    type_register_static(&bus_info);
-}
 
-type_init(bus_register_types)

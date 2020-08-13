@@ -150,10 +150,6 @@ static const TypeInfo xio3130_upstream_info = {
         { }
     },
 };
+TYPE_INFO(xio3130_upstream_info)
 
-static void xio3130_upstream_register_types(void)
-{
-    type_register_static(&xio3130_upstream_info);
-}
 
-type_init(xio3130_upstream_register_types)

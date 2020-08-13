@@ -83,6 +83,7 @@ static const TypeInfo pr_manager_info = {
         { }
     }
 };
+TYPE_INFO(pr_manager_info)
 
 PRManager *pr_manager_lookup(const char *id, Error **errp)
 {
@@ -108,11 +109,6 @@ PRManager *pr_manager_lookup(const char *id, Error **errp)
     return pr_mgr;
 }
 
-static void
-pr_manager_register_types(void)
-{
-    type_register_static(&pr_manager_info);
-}
 
 static int query_one_pr_manager(Object *object, void *opaque)
 {
@@ -148,4 +144,3 @@ PRManagerInfoList *qmp_query_pr_managers(Error **errp)
     return head;
 }
 
-type_init(pr_manager_register_types);

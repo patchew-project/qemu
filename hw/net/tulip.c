@@ -1038,10 +1038,6 @@ static const TypeInfo tulip_info = {
         { },
     },
 };
+TYPE_INFO(tulip_info)
 
-static void tulip_register_types(void)
-{
-    type_register_static(&tulip_info);
-}
 
-type_init(tulip_register_types)

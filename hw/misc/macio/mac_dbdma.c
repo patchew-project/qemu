@@ -931,10 +931,6 @@ static const TypeInfo mac_dbdma_type_info = {
     .instance_init = mac_dbdma_init,
     .class_init = mac_dbdma_class_init
 };
+TYPE_INFO(mac_dbdma_type_info)
 
-static void mac_dbdma_register_types(void)
-{
-    type_register_static(&mac_dbdma_type_info);
-}
 
-type_init(mac_dbdma_register_types)

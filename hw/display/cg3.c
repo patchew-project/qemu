@@ -385,10 +385,6 @@ static const TypeInfo cg3_info = {
     .instance_init = cg3_initfn,
     .class_init    = cg3_class_init,
 };
+TYPE_INFO(cg3_info)
 
-static void cg3_register_types(void)
-{
-    type_register_static(&cg3_info);
-}
 
-type_init(cg3_register_types)

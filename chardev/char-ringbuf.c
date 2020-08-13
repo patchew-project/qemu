@@ -237,17 +237,13 @@ static const TypeInfo char_ringbuf_type_info = {
     .instance_size = sizeof(RingBufChardev),
     .instance_finalize = char_ringbuf_finalize,
 };
+TYPE_INFO(char_ringbuf_type_info)
 
 /* Bug-compatibility: */
 static const TypeInfo char_memory_type_info = {
     .name = TYPE_CHARDEV_MEMORY,
     .parent = TYPE_CHARDEV_RINGBUF,
 };
+TYPE_INFO(char_memory_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_ringbuf_type_info);
-    type_register_static(&char_memory_type_info);
-}
 
-type_init(register_types);

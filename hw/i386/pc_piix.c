@@ -906,12 +906,8 @@ static TypeInfo isa_bridge_info = {
         { },
     },
 };
+TYPE_INFO(isa_bridge_info)
 
-static void pt_graphics_register_types(void)
-{
-    type_register_static(&isa_bridge_info);
-}
-type_init(pt_graphics_register_types)
 
 void igd_passthrough_isa_bridge_create(PCIBus *bus, uint16_t gpu_dev_id)
 {

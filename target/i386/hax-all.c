@@ -1141,10 +1141,6 @@ static const TypeInfo hax_accel_type = {
     .parent = TYPE_ACCEL,
     .class_init = hax_accel_class_init,
 };
+TYPE_INFO(hax_accel_type)
 
-static void hax_type_init(void)
-{
-    type_register_static(&hax_accel_type);
-}
 
-type_init(hax_type_init);

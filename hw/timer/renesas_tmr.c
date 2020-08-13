@@ -468,10 +468,6 @@ static const TypeInfo rtmr_info = {
     .instance_init = rtmr_init,
     .class_init = rtmr_class_init,
 };
+TYPE_INFO(rtmr_info)
 
-static void rtmr_register_types(void)
-{
-    type_register_static(&rtmr_info);
-}
 
-type_init(rtmr_register_types)

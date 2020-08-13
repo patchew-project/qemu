@@ -366,6 +366,7 @@ static const TypeInfo pl011_arm_info = {
     .instance_init = pl011_init,
     .class_init    = pl011_class_init,
 };
+TYPE_INFO(pl011_arm_info)
 
 static void pl011_luminary_init(Object *obj)
 {
@@ -379,11 +380,6 @@ static const TypeInfo pl011_luminary_info = {
     .parent        = TYPE_PL011,
     .instance_init = pl011_luminary_init,
 };
+TYPE_INFO(pl011_luminary_info)
 
-static void pl011_register_types(void)
-{
-    type_register_static(&pl011_arm_info);
-    type_register_static(&pl011_luminary_info);
-}
 
-type_init(pl011_register_types)

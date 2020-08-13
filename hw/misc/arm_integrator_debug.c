@@ -91,10 +91,6 @@ static const TypeInfo intdbg_info = {
     .instance_size = sizeof(IntegratorDebugState),
     .instance_init = intdbg_control_init,
 };
+TYPE_INFO(intdbg_info)
 
-static void intdbg_register_types(void)
-{
-    type_register_static(&intdbg_info);
-}
 
-type_init(intdbg_register_types)

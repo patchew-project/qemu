@@ -272,10 +272,6 @@ static const TypeInfo xilinx_ethlite_info = {
     .instance_init = xilinx_ethlite_init,
     .class_init    = xilinx_ethlite_class_init,
 };
+TYPE_INFO(xilinx_ethlite_info)
 
-static void xilinx_ethlite_register_types(void)
-{
-    type_register_static(&xilinx_ethlite_info);
-}
 
-type_init(xilinx_ethlite_register_types)

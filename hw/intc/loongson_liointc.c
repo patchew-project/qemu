@@ -233,10 +233,6 @@ static const TypeInfo loongson_liointc_info = {
     .instance_size = sizeof(struct loongson_liointc),
     .instance_init = loongson_liointc_init,
 };
+TYPE_INFO(loongson_liointc_info)
 
-static void loongson_liointc_register_types(void)
-{
-    type_register_static(&loongson_liointc_info);
-}
 
-type_init(loongson_liointc_register_types)

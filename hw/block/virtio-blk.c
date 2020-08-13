@@ -1327,10 +1327,6 @@ static const TypeInfo virtio_blk_info = {
     .instance_init = virtio_blk_instance_init,
     .class_init = virtio_blk_class_init,
 };
+TYPE_INFO(virtio_blk_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_blk_info);
-}
 
-type_init(virtio_register_types)

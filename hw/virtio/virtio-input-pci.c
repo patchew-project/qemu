@@ -112,6 +112,7 @@ static const TypeInfo virtio_input_pci_info = {
     .class_init    = virtio_input_pci_class_init,
     .abstract      = true,
 };
+TYPE_INFO(virtio_input_pci_info)
 
 static const TypeInfo virtio_input_hid_pci_info = {
     .name          = TYPE_VIRTIO_INPUT_HID_PCI,
@@ -119,6 +120,7 @@ static const TypeInfo virtio_input_hid_pci_info = {
     .instance_size = sizeof(VirtIOInputHIDPCI),
     .abstract      = true,
 };
+TYPE_INFO(virtio_input_hid_pci_info)
 
 static const VirtioPCIDeviceTypeInfo virtio_keyboard_pci_info = {
     .generic_name  = TYPE_VIRTIO_KEYBOARD_PCI,
@@ -146,8 +148,6 @@ static const VirtioPCIDeviceTypeInfo virtio_tablet_pci_info = {
 static void virtio_pci_input_register(void)
 {
     /* Base types: */
-    type_register_static(&virtio_input_pci_info);
-    type_register_static(&virtio_input_hid_pci_info);
 
     /* Implementations: */
     virtio_pci_types_register(&virtio_keyboard_pci_info);

@@ -897,6 +897,7 @@ static const TypeInfo sparc_cpu_type_info = {
     .class_size = sizeof(SPARCCPUClass),
     .class_init = sparc_cpu_class_init,
 };
+TYPE_INFO(sparc_cpu_type_info)
 
 static void sparc_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
@@ -922,7 +923,6 @@ static void sparc_cpu_register_types(void)
 {
     int i;
 
-    type_register_static(&sparc_cpu_type_info);
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
         sparc_register_cpudef_type(&sparc_defs[i]);
     }

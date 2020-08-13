@@ -161,11 +161,11 @@ static const TypeInfo memfd_backend_info = {
     .class_init = memfd_backend_class_init,
     .instance_size = sizeof(HostMemoryBackendMemfd),
 };
+TYPE_INFO(memfd_backend_info)
 
 static void register_types(void)
 {
     if (qemu_memfd_check(MFD_ALLOW_SEALING)) {
-        type_register_static(&memfd_backend_info);
     }
 }
 

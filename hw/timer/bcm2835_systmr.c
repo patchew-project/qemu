@@ -154,10 +154,6 @@ static const TypeInfo bcm2835_systmr_info = {
     .instance_size = sizeof(BCM2835SystemTimerState),
     .class_init = bcm2835_systmr_class_init,
 };
+TYPE_INFO(bcm2835_systmr_info)
 
-static void bcm2835_systmr_register_types(void)
-{
-    type_register_static(&bcm2835_systmr_info);
-}
 
-type_init(bcm2835_systmr_register_types);

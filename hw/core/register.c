@@ -330,10 +330,6 @@ static const TypeInfo register_info = {
     .parent = TYPE_DEVICE,
     .class_init = register_class_init,
 };
+TYPE_INFO(register_info)
 
-static void register_register_types(void)
-{
-    type_register_static(&register_info);
-}
 
-type_init(register_register_types)

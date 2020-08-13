@@ -28,10 +28,6 @@ static const TypeInfo ap_device_info = {
     .class_init = ap_class_init,
     .abstract = true,
 };
+TYPE_INFO(ap_device_info)
 
-static void ap_device_register(void)
-{
-    type_register_static(&ap_device_info);
-}
 
-type_init(ap_device_register)

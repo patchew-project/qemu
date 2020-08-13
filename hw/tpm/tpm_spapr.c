@@ -423,10 +423,6 @@ static const TypeInfo tpm_spapr_info = {
         { }
     }
 };
+TYPE_INFO(tpm_spapr_info)
 
-static void tpm_spapr_register_types(void)
-{
-    type_register_static(&tpm_spapr_info);
-}
 
-type_init(tpm_spapr_register_types)

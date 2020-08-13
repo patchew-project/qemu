@@ -303,10 +303,6 @@ static const TypeInfo tz_msc_info = {
     .instance_init = tz_msc_init,
     .class_init = tz_msc_class_init,
 };
+TYPE_INFO(tz_msc_info)
 
-static void tz_msc_register_types(void)
-{
-    type_register_static(&tz_msc_info);
-}
 
-type_init(tz_msc_register_types);

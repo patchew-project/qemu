@@ -1305,13 +1305,9 @@ static const TypeInfo ppc460ex_pcie_host_info = {
     .instance_size = sizeof(PPC460EXPCIEState),
     .class_init = ppc460ex_pcie_class_init,
 };
+TYPE_INFO(ppc460ex_pcie_host_info)
 
-static void ppc460ex_pcie_register(void)
-{
-    type_register_static(&ppc460ex_pcie_host_info);
-}
 
-type_init(ppc460ex_pcie_register)
 
 static void ppc460ex_pcie_register_dcrs(PPC460EXPCIEState *s, CPUPPCState *env)
 {

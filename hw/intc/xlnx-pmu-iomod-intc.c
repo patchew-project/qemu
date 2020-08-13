@@ -549,10 +549,6 @@ static const TypeInfo xlnx_pmu_io_intc_info = {
     .class_init    = xlnx_pmu_io_intc_class_init,
     .instance_init = xlnx_pmu_io_intc_init,
 };
+TYPE_INFO(xlnx_pmu_io_intc_info)
 
-static void xlnx_pmu_io_intc_register_types(void)
-{
-    type_register_static(&xlnx_pmu_io_intc_info);
-}
 
-type_init(xlnx_pmu_io_intc_register_types)

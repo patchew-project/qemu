@@ -357,10 +357,6 @@ static const TypeInfo imx_avic_info = {
     .instance_init = imx_avic_init,
     .class_init = imx_avic_class_init,
 };
+TYPE_INFO(imx_avic_info)
 
-static void imx_avic_register_types(void)
-{
-    type_register_static(&imx_avic_info);
-}
 
-type_init(imx_avic_register_types)

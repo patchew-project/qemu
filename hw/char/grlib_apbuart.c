@@ -294,10 +294,6 @@ static const TypeInfo grlib_apbuart_info = {
     .instance_size = sizeof(UART),
     .class_init    = grlib_apbuart_class_init,
 };
+TYPE_INFO(grlib_apbuart_info)
 
-static void grlib_apbuart_register_types(void)
-{
-    type_register_static(&grlib_apbuart_info);
-}
 
-type_init(grlib_apbuart_register_types)

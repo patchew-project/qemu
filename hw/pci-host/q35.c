@@ -261,6 +261,7 @@ static const TypeInfo q35_host_info = {
     .instance_init = q35_host_initfn,
     .class_init = q35_host_class_init,
 };
+TYPE_INFO(q35_host_info)
 
 /****************************************************************************
  * MCH D0:F0
@@ -706,11 +707,6 @@ static const TypeInfo mch_info = {
         { },
     },
 };
+TYPE_INFO(mch_info)
 
-static void q35_register(void)
-{
-    type_register_static(&mch_info);
-    type_register_static(&q35_host_info);
-}
 
-type_init(q35_register);

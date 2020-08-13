@@ -653,10 +653,6 @@ static const TypeInfo arm_sysctl_info = {
     .instance_finalize = arm_sysctl_finalize,
     .class_init    = arm_sysctl_class_init,
 };
+TYPE_INFO(arm_sysctl_info)
 
-static void arm_sysctl_register_types(void)
-{
-    type_register_static(&arm_sysctl_info);
-}
 
-type_init(arm_sysctl_register_types)

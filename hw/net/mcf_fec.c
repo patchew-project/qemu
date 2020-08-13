@@ -683,10 +683,6 @@ static const TypeInfo mcf_fec_info = {
     .instance_init = mcf_fec_instance_init,
     .class_init    = mcf_fec_class_init,
 };
+TYPE_INFO(mcf_fec_info)
 
-static void mcf_fec_register_types(void)
-{
-    type_register_static(&mcf_fec_info);
-}
 
-type_init(mcf_fec_register_types)

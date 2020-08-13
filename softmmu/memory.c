@@ -3231,6 +3231,7 @@ static const TypeInfo memory_region_info = {
     .instance_init      = memory_region_initfn,
     .instance_finalize  = memory_region_finalize,
 };
+TYPE_INFO(memory_region_info)
 
 static const TypeInfo iommu_memory_region_info = {
     .parent             = TYPE_MEMORY_REGION,
@@ -3240,11 +3241,6 @@ static const TypeInfo iommu_memory_region_info = {
     .instance_init      = iommu_memory_region_initfn,
     .abstract           = true,
 };
+TYPE_INFO(iommu_memory_region_info)
 
-static void memory_register_types(void)
-{
-    type_register_static(&memory_region_info);
-    type_register_static(&iommu_memory_region_info);
-}
 
-type_init(memory_register_types)

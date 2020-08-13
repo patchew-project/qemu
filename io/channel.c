@@ -539,12 +539,8 @@ static const TypeInfo qio_channel_info = {
     .abstract = true,
     .class_size = sizeof(QIOChannelClass),
 };
+TYPE_INFO(qio_channel_info)
 
 
-static void qio_channel_register_types(void)
-{
-    type_register_static(&qio_channel_info);
-}
 
 
-type_init(qio_channel_register_types);

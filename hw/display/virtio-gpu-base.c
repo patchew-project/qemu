@@ -232,14 +232,9 @@ static const TypeInfo virtio_gpu_base_info = {
     .class_init = virtio_gpu_base_class_init,
     .abstract = true
 };
+TYPE_INFO(virtio_gpu_base_info)
 
-static void
-virtio_register_types(void)
-{
-    type_register_static(&virtio_gpu_base_info);
-}
 
-type_init(virtio_register_types)
 
 QEMU_BUILD_BUG_ON(sizeof(struct virtio_gpu_ctrl_hdr)                != 24);
 QEMU_BUILD_BUG_ON(sizeof(struct virtio_gpu_update_cursor)           != 56);

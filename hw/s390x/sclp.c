@@ -411,9 +411,5 @@ static TypeInfo sclp_info = {
     .class_init = sclp_class_init,
     .class_size = sizeof(SCLPDeviceClass),
 };
+TYPE_INFO(sclp_info)
 
-static void register_types(void)
-{
-    type_register_static(&sclp_info);
-}
-type_init(register_types);
