@@ -571,7 +571,7 @@ struct Object
     typedef struct ModuleObjName ModuleObjName; \
     typedef struct ModuleObjName##Class ModuleObjName##Class; \
     \
-    G_DEFINE_AUTOPTR_CLEANUP_FUNC(ModuleObjName##Class, object_unref) \
+    G_DEFINE_AUTOPTR_CLEANUP_FUNC(ModuleObjName, object_unref) \
     \
     static inline G_GNUC_UNUSED ModuleObjName##Class * \
     MODULE_OBJ_NAME##_GET_CLASS(void *obj) \
