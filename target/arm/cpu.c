@@ -1418,6 +1418,103 @@ static struct CPUFeatureInfo cpu_features[] = {
     },
 };
 
+typedef struct CPUFeatureDep {
+    CPUFeatureInfo from, to;
+} CPUFeatureDep;
+
+static const CPUFeatureDep feature_dependencies[] = {
+    {
+        .from = FIELD_INFO(ID_AA64PFR0, FP, true, 0, 0xf, false),
+        .to = FIELD_INFO(ID_AA64PFR0, ADVSIMD, true, 0, 0xf, false),
+    },
+    {
+        .from = FIELD_INFO(ID_AA64PFR0, ADVSIMD, true, 0, 0xf, false),
+        .to = FIELD_INFO(ID_AA64PFR0, FP, true, 0, 0xf, false),
+    },
+    {
+        .from = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_FP_LENGTH,
+            .shift = R_ID_AA64PFR0_FP_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "FPHP", .is_32bit = false,
+        },
+        .to = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_ADVSIMD_LENGTH,
+            .shift = R_ID_AA64PFR0_ADVSIMD_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "ADVSIMDHP", .is_32bit = false,
+        },
+    },
+    {
+        .from = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_ADVSIMD_LENGTH,
+            .shift = R_ID_AA64PFR0_ADVSIMD_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "ADVSIMDHP", .is_32bit = false,
+        },
+        .to = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_FP_LENGTH,
+            .shift = R_ID_AA64PFR0_FP_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "FPHP", .is_32bit = false,
+        },
+    },
+    {
+
+        .from = FIELD_INFO(ID_AA64ISAR0, AES, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_AES_LENGTH,
+            .shift = R_ID_AA64ISAR0_AES_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "PMULL", .is_32bit = false,
+        },
+    },
+    {
+
+        .from = FIELD_INFO(ID_AA64ISAR0, SHA2, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+            .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "SHA512", .is_32bit = false,
+        },
+    },
+    {
+        .from = FIELD_INFO(ID_AA64ISAR1, LRCPC, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR1, .length = R_ID_AA64ISAR1_LRCPC_LENGTH,
+            .shift = R_ID_AA64ISAR1_LRCPC_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "ILRCPC", .is_32bit = false,
+        },
+    },
+    {
+        .from = FIELD_INFO(ID_AA64ISAR0, SM3, false, 1, 0, false),
+        .to = FIELD_INFO(ID_AA64ISAR0, SM4, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO(ID_AA64ISAR0, SM4, false, 1, 0, false),
+        .to = FIELD_INFO(ID_AA64ISAR0, SM3, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO(ID_AA64ISAR0, SHA1, false, 1, 0, false),
+        .to = FIELD_INFO(ID_AA64ISAR0, SHA2, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO(ID_AA64ISAR0, SHA1, false, 1, 0, false),
+        .to = FIELD_INFO(ID_AA64ISAR0, SHA3, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO(ID_AA64ISAR0, SHA3, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+            .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "SHA512", .is_32bit = false,
+        },
+    },
+    {
+        .from = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+            .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "SHA512", .is_32bit = false,
+        },
+        .to = FIELD_INFO(ID_AA64ISAR0, SHA3, false, 1, 0, false),
+    },
+};
+
 static void arm_cpu_get_bit_prop(Object *obj, Visitor *v, const char *name,
                                  void *opaque, Error **errp)
 {
@@ -1454,13 +1551,45 @@ static void arm_cpu_set_bit_prop(Object *obj, Visitor *v, const char *name,
     }
 
     if (value) {
+        if (object_property_get_bool(obj, feat->name, NULL)) {
+            return;
+        }
         isar->regs[feat->reg] = deposit64(isar->regs[feat->reg],
                                           feat->shift, feat->length,
                                           feat->min_value);
+        /* Auto enable the features which current feature is dependent on. */
+        for (int i = 0; i < ARRAY_SIZE(feature_dependencies); ++i) {
+            const CPUFeatureDep *d = &feature_dependencies[i];
+            if (strcmp(d->to.name, feat->name) != 0) {
+                continue;
+            }
+
+            object_property_set_bool(obj, d->from.name, true, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
     } else {
+        if (!object_property_get_bool(obj, feat->name, NULL)) {
+            return;
+        }
         isar->regs[feat->reg] = deposit64(isar->regs[feat->reg],
                                           feat->shift, feat->length,
                                           feat->ni_value);
+        /* Auto disable the features which are dependent on current feature. */
+        for (int i = 0; i < ARRAY_SIZE(feature_dependencies); ++i) {
+            const CPUFeatureDep *d = &feature_dependencies[i];
+            if (strcmp(d->from.name, feat->name) != 0) {
+                continue;
+            }
+
+            object_property_set_bool(obj, d->to.name, false, &local_err);
+            if (local_err) {
+                error_propagate(errp, local_err);
+                return;
+            }
+        }
     }
 }
 
