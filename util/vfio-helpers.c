@@ -45,6 +45,7 @@ struct QEMUVFIOState {
 
     int irq_type; /* vfio index */
     size_t irq_count; /* vfio subindex (vector) */
+    int32_t *eventfd;
 
     /* These fields are protected by BQL */
     int container;
@@ -195,6 +196,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         error_setg(errp, "Device interrupt doesn't support eventfd");
         return -EINVAL;
     }
+    s->eventfd[0] = event_notifier_get_fd(e);
 
     irq_set_size = sizeof(*irq_set) + s->irq_count * sizeof(int32_t);
     irq_set = g_malloc0(irq_set_size);
@@ -207,8 +209,8 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         .start = 0,
         .count = s->irq_count,
     };
+    memcpy(&irq_set->data, &s->eventfd, s->irq_count * sizeof(int32_t));
 
-    *(int32_t *)&irq_set->data = event_notifier_get_fd(e);
     r = ioctl(s->device, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
     if (r) {
@@ -343,6 +345,10 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
     }
     s->irq_type = irq_type;
     s->irq_count = irq_count;
+    s->eventfd = g_new(int32_t, irq_count);
+    for (i = 0; i < irq_count; i++) {
+        s->eventfd[i] = -1;
+    }
 
     if (device_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX) {
         error_setg(errp, "Invalid device regions");
@@ -379,6 +385,7 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
     }
     return 0;
 fail:
+    g_free(s->eventfd);
     close(s->group);
 fail_container:
     close(s->container);
@@ -730,6 +737,7 @@ void qemu_vfio_close(QEMUVFIOState *s)
     }
     ram_block_notifier_remove(&s->ram_notifier);
     qemu_vfio_reset(s);
+    g_free(s->eventfd);
     close(s->device);
     close(s->group);
     close(s->container);
