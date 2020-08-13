@@ -711,7 +711,8 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         return ret;
     }
 
-    s->vfio = qemu_vfio_open_pci(device, errp);
+    s->vfio = qemu_vfio_open_pci(device, VFIO_PCI_MSIX_IRQ_INDEX,
+                                 errp);
     if (!s->vfio) {
         ret = -EINVAL;
         goto out;
@@ -784,8 +785,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
         }
     }
 
-    ret = qemu_vfio_pci_init_irq(s->vfio, &s->irq_notifier,
-                                 VFIO_PCI_MSIX_IRQ_INDEX, errp);
+    ret = qemu_vfio_pci_init_irq(s->vfio, &s->irq_notifier, errp);
     if (ret) {
         goto out;
     }

@@ -43,6 +43,8 @@ typedef struct {
 struct QEMUVFIOState {
     QemuMutex lock;
 
+    int irq_type; /* vfio index */
+
     /* These fields are protected by BQL */
     int container;
     int group;
@@ -176,14 +178,14 @@ void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
  * Initialize device IRQ with @irq_type and and register an event notifier.
  */
 int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
-                           int irq_type, Error **errp)
+                           Error **errp)
 {
     int r;
     struct vfio_irq_set *irq_set;
     size_t irq_set_size;
     struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
 
-    irq_info.index = irq_type;
+    irq_info.index = s->irq_type;
     if (ioctl(s->device, VFIO_DEVICE_GET_IRQ_INFO, &irq_info)) {
         error_setg_errno(errp, errno, "Failed to get device interrupt info");
         return -errno;
@@ -237,6 +239,7 @@ static int qemu_vfio_pci_write_config(QEMUVFIOState *s, void *buf, int size, int
 }
 
 static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
+                              int irq_type,
                               Error **errp)
 {
     int ret;
@@ -331,6 +334,7 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
         ret = -errno;
         goto fail;
     }
+    s->irq_type = irq_type;
 
     if (device_info.num_regions < VFIO_PCI_CONFIG_REGION_INDEX) {
         error_setg(errp, "Invalid device regions");
@@ -423,12 +427,13 @@ static void qemu_vfio_open_common(QEMUVFIOState *s)
 /**
  * Open a PCI device, e.g. "0000:00:01.0".
  */
-QEMUVFIOState *qemu_vfio_open_pci(const char *device, Error **errp)
+QEMUVFIOState *qemu_vfio_open_pci(const char *device, int irq_type,
+                                  Error **errp)
 {
     int r;
     QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
 
-    r = qemu_vfio_init_pci(s, device, errp);
+    r = qemu_vfio_init_pci(s, device, irq_type, errp);
     if (r) {
         g_free(s);
         return NULL;

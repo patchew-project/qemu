@@ -15,7 +15,8 @@
 
 typedef struct QEMUVFIOState QEMUVFIOState;
 
-QEMUVFIOState *qemu_vfio_open_pci(const char *device, Error **errp);
+QEMUVFIOState *qemu_vfio_open_pci(const char *device, int irq_type,
+                                  Error **errp);
 void qemu_vfio_close(QEMUVFIOState *s);
 int qemu_vfio_dma_map(QEMUVFIOState *s, void *host, size_t size,
                       bool temporary, uint64_t *iova_list);
@@ -27,6 +28,6 @@ void *qemu_vfio_pci_map_bar(QEMUVFIOState *s, int index,
 void qemu_vfio_pci_unmap_bar(QEMUVFIOState *s, int index, void *bar,
                              uint64_t offset, uint64_t size);
 int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
-                           int irq_type, Error **errp);
+                           Error **errp);
 
 #endif
