@@ -228,8 +228,7 @@ exynos4210_combiner_read(void *opaque, hwaddr offset, unsigned size)
             hw_error("exynos4210.combiner: overflow of reg_set by 0x"
                     TARGET_FMT_plx "offset\n", offset);
         }
-        val = s->reg_set[offset >> 2];
-        return 0;
+        break;
     }
     return val;
 }
