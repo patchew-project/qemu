@@ -162,8 +162,8 @@ DECLARE_INSTANCE_CHECKER(PCIVPBState, PCI_VPB,
                          TYPE_VERSATILE_PCI)
 
 #define TYPE_VERSATILE_PCI_HOST "versatile_pci_host"
-#define PCI_VPB_HOST(obj) \
-    OBJECT_CHECK(PCIDevice, (obj), TYPE_VERSATILE_PCI_HOST)
+DECLARE_INSTANCE_CHECKER(PCIDevice, PCI_VPB_HOST,
+                         TYPE_VERSATILE_PCI_HOST)
 
 typedef enum {
     PCI_IMAP0 = 0x0,

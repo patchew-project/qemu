@@ -45,8 +45,8 @@
 
 #define TYPE_MPTSAS1068 "mptsas1068"
 
-#define MPT_SAS(obj) \
-    OBJECT_CHECK(MPTSASState, (obj), TYPE_MPTSAS1068)
+DECLARE_INSTANCE_CHECKER(MPTSASState, MPT_SAS,
+                         TYPE_MPTSAS1068)
 
 #define MPTSAS1068_PRODUCT_ID                  \
     (MPI_FW_HEADER_PID_FAMILY_1068_SAS |       \

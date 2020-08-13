@@ -42,12 +42,8 @@ typedef struct SpaprDimmState SpaprDimmState;
 typedef struct SpaprMachineClass SpaprMachineClass;
 
 #define TYPE_SPAPR_MACHINE      "spapr-machine"
-#define SPAPR_MACHINE(obj) \
-    OBJECT_CHECK(SpaprMachineState, (obj), TYPE_SPAPR_MACHINE)
-#define SPAPR_MACHINE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(SpaprMachineClass, obj, TYPE_SPAPR_MACHINE)
-#define SPAPR_MACHINE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(SpaprMachineClass, klass, TYPE_SPAPR_MACHINE)
+DECLARE_OBJ_CHECKERS(SpaprMachineState, SpaprMachineClass,
+                     SPAPR_MACHINE, TYPE_SPAPR_MACHINE)
 
 typedef enum {
     SPAPR_RESIZE_HPT_DEFAULT = 0,
@@ -777,8 +773,8 @@ DECLARE_INSTANCE_CHECKER(SpaprTceTable, SPAPR_TCE_TABLE,
                          TYPE_SPAPR_TCE_TABLE)
 
 #define TYPE_SPAPR_IOMMU_MEMORY_REGION "spapr-iommu-memory-region"
-#define SPAPR_IOMMU_MEMORY_REGION(obj) \
-        OBJECT_CHECK(IOMMUMemoryRegion, (obj), TYPE_SPAPR_IOMMU_MEMORY_REGION)
+DECLARE_INSTANCE_CHECKER(IOMMUMemoryRegion, SPAPR_IOMMU_MEMORY_REGION,
+                         TYPE_SPAPR_IOMMU_MEMORY_REGION)
 
 struct SpaprTceTable {
     DeviceState parent;

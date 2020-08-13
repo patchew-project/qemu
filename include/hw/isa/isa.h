@@ -12,15 +12,12 @@
 
 #define TYPE_ISA_DEVICE "isa-device"
 typedef struct ISADeviceClass ISADeviceClass;
-#define ISA_DEVICE(obj) \
-     OBJECT_CHECK(ISADevice, (obj), TYPE_ISA_DEVICE)
-#define ISA_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(ISADeviceClass, (klass), TYPE_ISA_DEVICE)
-#define ISA_DEVICE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(ISADeviceClass, (obj), TYPE_ISA_DEVICE)
+DECLARE_OBJ_CHECKERS(ISADevice, ISADeviceClass,
+                     ISA_DEVICE, TYPE_ISA_DEVICE)
 
 #define TYPE_ISA_BUS "ISA"
-#define ISA_BUS(obj) OBJECT_CHECK(ISABus, (obj), TYPE_ISA_BUS)
+DECLARE_INSTANCE_CHECKER(ISABus, ISA_BUS,
+                         TYPE_ISA_BUS)
 
 #define TYPE_APPLE_SMC "isa-applesmc"
 #define APPLESMC_MAX_DATA_LENGTH       32

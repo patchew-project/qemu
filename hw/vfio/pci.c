@@ -44,7 +44,8 @@
 #include "qom/object.h"
 
 #define TYPE_VFIO_PCI "vfio-pci"
-#define PCI_VFIO(obj)    OBJECT_CHECK(VFIOPCIDevice, obj, TYPE_VFIO_PCI)
+DECLARE_INSTANCE_CHECKER(VFIOPCIDevice, PCI_VFIO,
+                         TYPE_VFIO_PCI)
 
 #define TYPE_VFIO_PCI_NOHOTPLUG "vfio-pci-nohotplug"
 

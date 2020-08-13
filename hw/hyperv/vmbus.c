@@ -22,7 +22,8 @@
 #include "qom/object.h"
 
 #define TYPE_VMBUS "vmbus"
-#define VMBUS(obj) OBJECT_CHECK(VMBus, (obj), TYPE_VMBUS)
+DECLARE_INSTANCE_CHECKER(VMBus, VMBUS,
+                         TYPE_VMBUS)
 
 enum {
     VMGPADL_INIT,

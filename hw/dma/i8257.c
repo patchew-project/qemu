@@ -34,8 +34,8 @@
 #include "trace.h"
 #include "qom/object.h"
 
-#define I8257(obj) \
-    OBJECT_CHECK(I8257State, (obj), TYPE_I8257)
+DECLARE_INSTANCE_CHECKER(I8257State, I8257,
+                         TYPE_I8257)
 
 /* #define DEBUG_DMA */
 

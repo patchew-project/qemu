@@ -18,8 +18,8 @@
 #include "migration/blocker.h"
 #include "qom/object.h"
 
-#define VHOST_USER_GPU(obj)                                    \
-    OBJECT_CHECK(VhostUserGPU, (obj), TYPE_VHOST_USER_GPU)
+DECLARE_INSTANCE_CHECKER(VhostUserGPU, VHOST_USER_GPU,
+                         TYPE_VHOST_USER_GPU)
 
 typedef enum VhostUserGpuRequest {
     VHOST_USER_GPU_NONE = 0,

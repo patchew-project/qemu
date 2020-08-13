@@ -482,7 +482,8 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     qemu_register_reset(kbd_reset, s);
 }
 
-#define I8042(obj) OBJECT_CHECK(ISAKBDState, (obj), TYPE_I8042)
+DECLARE_INSTANCE_CHECKER(ISAKBDState, I8042,
+                         TYPE_I8042)
 
 struct ISAKBDState {
     ISADevice parent_obj;

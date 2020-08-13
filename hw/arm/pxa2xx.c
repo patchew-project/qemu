@@ -1256,8 +1256,8 @@ struct PXA2xxI2CSlaveState {
 };
 
 #define TYPE_PXA2XX_I2C "pxa2xx_i2c"
-#define PXA2XX_I2C(obj) \
-    OBJECT_CHECK(PXA2xxI2CState, (obj), TYPE_PXA2XX_I2C)
+DECLARE_INSTANCE_CHECKER(PXA2xxI2CState, PXA2XX_I2C,
+                         TYPE_PXA2XX_I2C)
 
 struct PXA2xxI2CState {
     /*< private >*/
@@ -1794,7 +1794,8 @@ static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
 
 /* PXA Fast Infra-red Communications Port */
 #define TYPE_PXA2XX_FIR "pxa2xx-fir"
-#define PXA2XX_FIR(obj) OBJECT_CHECK(PXA2xxFIrState, (obj), TYPE_PXA2XX_FIR)
+DECLARE_INSTANCE_CHECKER(PXA2xxFIrState, PXA2XX_FIR,
+                         TYPE_PXA2XX_FIR)
 
 struct PXA2xxFIrState {
     /*< private >*/

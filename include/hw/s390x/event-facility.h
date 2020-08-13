@@ -195,14 +195,8 @@ struct SCLPEventClass {
 
 #define TYPE_SCLP_EVENT_FACILITY "s390-sclp-event-facility"
 typedef struct SCLPEventFacilityClass SCLPEventFacilityClass;
-#define EVENT_FACILITY(obj) \
-     OBJECT_CHECK(SCLPEventFacility, (obj), TYPE_SCLP_EVENT_FACILITY)
-#define EVENT_FACILITY_CLASS(klass) \
-     OBJECT_CLASS_CHECK(SCLPEventFacilityClass, (klass), \
-                        TYPE_SCLP_EVENT_FACILITY)
-#define EVENT_FACILITY_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(SCLPEventFacilityClass, (obj), \
-                      TYPE_SCLP_EVENT_FACILITY)
+DECLARE_OBJ_CHECKERS(SCLPEventFacility, SCLPEventFacilityClass,
+                     EVENT_FACILITY, TYPE_SCLP_EVENT_FACILITY)
 
 struct SCLPEventFacilityClass {
     SysBusDeviceClass parent_class;

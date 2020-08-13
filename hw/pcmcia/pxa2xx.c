@@ -20,8 +20,8 @@
 #include "qom/object.h"
 
 #define TYPE_PXA2XX_PCMCIA "pxa2xx-pcmcia"
-#define PXA2XX_PCMCIA(obj) \
-    OBJECT_CHECK(PXA2xxPCMCIAState, obj, TYPE_PXA2XX_PCMCIA)
+DECLARE_INSTANCE_CHECKER(PXA2xxPCMCIAState, PXA2XX_PCMCIA,
+                         TYPE_PXA2XX_PCMCIA)
 
 struct PXA2xxPCMCIAState {
     SysBusDevice parent_obj;

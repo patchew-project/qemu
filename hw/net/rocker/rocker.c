@@ -76,8 +76,8 @@ struct rocker {
 
 #define TYPE_ROCKER "rocker"
 
-#define ROCKER(obj) \
-    OBJECT_CHECK(Rocker, (obj), TYPE_ROCKER)
+DECLARE_INSTANCE_CHECKER(Rocker, ROCKER,
+                         TYPE_ROCKER)
 
 static QLIST_HEAD(, rocker) rockers;
 

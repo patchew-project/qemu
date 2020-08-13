@@ -51,7 +51,8 @@ struct I2CSlave {
 };
 
 #define TYPE_I2C_BUS "i2c-bus"
-#define I2C_BUS(obj) OBJECT_CHECK(I2CBus, (obj), TYPE_I2C_BUS)
+DECLARE_INSTANCE_CHECKER(I2CBus, I2C_BUS,
+                         TYPE_I2C_BUS)
 
 typedef struct I2CNode I2CNode;
 

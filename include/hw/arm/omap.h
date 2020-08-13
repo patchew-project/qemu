@@ -105,12 +105,12 @@ void omap_i2c_set_fclk(OMAPI2CState *i2c, omap_clk clk);
 
 /* omap_gpio.c */
 #define TYPE_OMAP1_GPIO "omap-gpio"
-#define OMAP1_GPIO(obj)                                         \
-    OBJECT_CHECK(struct omap_gpif_s, (obj), TYPE_OMAP1_GPIO)
+DECLARE_INSTANCE_CHECKER(struct omap_gpif_s, OMAP1_GPIO,
+                         TYPE_OMAP1_GPIO)
 
 #define TYPE_OMAP2_GPIO "omap2-gpio"
-#define OMAP2_GPIO(obj)                                         \
-    OBJECT_CHECK(struct omap2_gpif_s, (obj), TYPE_OMAP2_GPIO)
+DECLARE_INSTANCE_CHECKER(struct omap2_gpif_s, OMAP2_GPIO,
+                         TYPE_OMAP2_GPIO)
 
 typedef struct omap_gpif_s omap_gpif;
 typedef struct omap2_gpif_s omap2_gpif;

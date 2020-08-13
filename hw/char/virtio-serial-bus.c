@@ -845,8 +845,8 @@ static Property virtser_props[] = {
 };
 
 #define TYPE_VIRTIO_SERIAL_BUS "virtio-serial-bus"
-#define VIRTIO_SERIAL_BUS(obj) \
-      OBJECT_CHECK(VirtIOSerialBus, (obj), TYPE_VIRTIO_SERIAL_BUS)
+DECLARE_INSTANCE_CHECKER(VirtIOSerialBus, VIRTIO_SERIAL_BUS,
+                         TYPE_VIRTIO_SERIAL_BUS)
 
 static void virtser_bus_class_init(ObjectClass *klass, void *data)
 {
