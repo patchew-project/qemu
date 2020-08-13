@@ -318,8 +318,7 @@ static void virtio_mem_handle_request(VirtIODevice *vdev, VirtQueue *vq)
         if (iov_to_buf(elem->out_sg, elem->out_num, 0, &req, len) < len) {
             virtio_error(vdev, "virtio-mem protocol violation: invalid request"
                          " size: %d", len);
-            g_free(elem);
-            return;
+            goto out_free;
         }
 
         if (iov_size(elem->in_sg, elem->in_num) <
@@ -327,8 +326,7 @@ static void virtio_mem_handle_request(VirtIODevice *vdev, VirtQueue *vq)
             virtio_error(vdev, "virtio-mem protocol violation: not enough space"
                          " for response: %zu",
                          iov_size(elem->in_sg, elem->in_num));
-            g_free(elem);
-            return;
+            goto out_free;
         }
 
         type = le16_to_cpu(req.type);
@@ -348,12 +346,15 @@ static void virtio_mem_handle_request(VirtIODevice *vdev, VirtQueue *vq)
         default:
             virtio_error(vdev, "virtio-mem protocol violation: unknown request"
                          " type: %d", type);
-            g_free(elem);
-            return;
+            goto out_free;
         }
 
         g_free(elem);
     }
+
+out_free:
+    virtqueue_detach_element(vq, elem, 0);
+    g_free(elem);
 }
 
 static void virtio_mem_get_config(VirtIODevice *vdev, uint8_t *config_data)
