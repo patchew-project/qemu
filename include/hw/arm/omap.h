@@ -71,8 +71,8 @@ void omap_clk_reparent(omap_clk clk, omap_clk parent);
 /* omap_intc.c */
 #define TYPE_OMAP_INTC "common-omap-intc"
 typedef struct omap_intr_handler_s omap_intr_handler;
-#define OMAP_INTC(obj)                                              \
-    OBJECT_CHECK(omap_intr_handler, (obj), TYPE_OMAP_INTC)
+DECLARE_INSTANCE_CHECKER(omap_intr_handler, OMAP_INTC,
+                         TYPE_OMAP_INTC)
 
 
 /*
@@ -95,7 +95,8 @@ void omap_intc_set_fclk(omap_intr_handler *intc, omap_clk clk);
 /* omap_i2c.c */
 #define TYPE_OMAP_I2C "omap_i2c"
 typedef struct OMAPI2CState OMAPI2CState;
-#define OMAP_I2C(obj) OBJECT_CHECK(OMAPI2CState, (obj), TYPE_OMAP_I2C)
+DECLARE_INSTANCE_CHECKER(OMAPI2CState, OMAP_I2C,
+                         TYPE_OMAP_I2C)
 
 
 /* TODO: clock framework (see above) */

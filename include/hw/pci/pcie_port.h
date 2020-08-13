@@ -69,10 +69,8 @@ void pcie_chassis_del_slot(PCIESlot *s);
 
 #define TYPE_PCIE_ROOT_PORT         "pcie-root-port-base"
 typedef struct PCIERootPortClass PCIERootPortClass;
-#define PCIE_ROOT_PORT_CLASS(klass) \
-     OBJECT_CLASS_CHECK(PCIERootPortClass, (klass), TYPE_PCIE_ROOT_PORT)
-#define PCIE_ROOT_PORT_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(PCIERootPortClass, (obj), TYPE_PCIE_ROOT_PORT)
+DECLARE_CLASS_CHECKERS(PCIERootPortClass, PCIE_ROOT_PORT,
+                       TYPE_PCIE_ROOT_PORT)
 
 struct PCIERootPortClass {
     PCIDeviceClass parent_class;

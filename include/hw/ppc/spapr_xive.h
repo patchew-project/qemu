@@ -17,11 +17,8 @@
 #define TYPE_SPAPR_XIVE "spapr-xive"
 typedef struct SpaprXive SpaprXive;
 typedef struct SpaprXiveClass SpaprXiveClass;
-#define SPAPR_XIVE(obj) OBJECT_CHECK(SpaprXive, (obj), TYPE_SPAPR_XIVE)
-#define SPAPR_XIVE_CLASS(klass)                                         \
-    OBJECT_CLASS_CHECK(SpaprXiveClass, (klass), TYPE_SPAPR_XIVE)
-#define SPAPR_XIVE_GET_CLASS(obj)                               \
-    OBJECT_GET_CLASS(SpaprXiveClass, (obj), TYPE_SPAPR_XIVE)
+DECLARE_OBJ_CHECKERS(SpaprXive, SpaprXiveClass,
+                     SPAPR_XIVE, TYPE_SPAPR_XIVE)
 
 struct SpaprXive {
     XiveRouter    parent;

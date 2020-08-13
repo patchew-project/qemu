@@ -39,10 +39,8 @@ static inline uint16_t applesmc_port(void)
 #define TYPE_ISADMA "isa-dma"
 
 typedef struct IsaDmaClass IsaDmaClass;
-#define ISADMA_CLASS(klass) \
-    OBJECT_CLASS_CHECK(IsaDmaClass, (klass), TYPE_ISADMA)
-#define ISADMA_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(IsaDmaClass, (obj), TYPE_ISADMA)
+DECLARE_CLASS_CHECKERS(IsaDmaClass, ISADMA,
+                       TYPE_ISADMA)
 #define ISADMA(obj) \
     INTERFACE_CHECK(IsaDma, (obj), TYPE_ISADMA)
 

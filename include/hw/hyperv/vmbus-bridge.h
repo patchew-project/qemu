@@ -26,7 +26,8 @@ struct VMBusBridge {
 };
 typedef struct VMBusBridge VMBusBridge;
 
-#define VMBUS_BRIDGE(obj) OBJECT_CHECK(VMBusBridge, (obj), TYPE_VMBUS_BRIDGE)
+DECLARE_INSTANCE_CHECKER(VMBusBridge, VMBUS_BRIDGE,
+                         TYPE_VMBUS_BRIDGE)
 
 static inline VMBusBridge *vmbus_bridge_find(void)
 {

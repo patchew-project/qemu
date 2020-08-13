@@ -68,8 +68,8 @@ TYPE_INFO(virtio_gpu_pci_base_info)
 
 #define TYPE_VIRTIO_GPU_PCI "virtio-gpu-pci"
 typedef struct VirtIOGPUPCI VirtIOGPUPCI;
-#define VIRTIO_GPU_PCI(obj)                                 \
-    OBJECT_CHECK(VirtIOGPUPCI, (obj), TYPE_VIRTIO_GPU_PCI)
+DECLARE_INSTANCE_CHECKER(VirtIOGPUPCI, VIRTIO_GPU_PCI,
+                         TYPE_VIRTIO_GPU_PCI)
 
 struct VirtIOGPUPCI {
     VirtIOGPUPCIBase parent_obj;

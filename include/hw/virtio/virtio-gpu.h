@@ -27,17 +27,13 @@
 #define TYPE_VIRTIO_GPU_BASE "virtio-gpu-base"
 typedef struct VirtIOGPUBase VirtIOGPUBase;
 typedef struct VirtIOGPUBaseClass VirtIOGPUBaseClass;
-#define VIRTIO_GPU_BASE(obj)                                                \
-    OBJECT_CHECK(VirtIOGPUBase, (obj), TYPE_VIRTIO_GPU_BASE)
-#define VIRTIO_GPU_BASE_GET_CLASS(obj)                                      \
-    OBJECT_GET_CLASS(VirtIOGPUBaseClass, obj, TYPE_VIRTIO_GPU_BASE)
-#define VIRTIO_GPU_BASE_CLASS(klass)                                        \
-    OBJECT_CLASS_CHECK(VirtIOGPUBaseClass, klass, TYPE_VIRTIO_GPU_BASE)
+DECLARE_OBJ_CHECKERS(VirtIOGPUBase, VirtIOGPUBaseClass,
+                     VIRTIO_GPU_BASE, TYPE_VIRTIO_GPU_BASE)
 
 #define TYPE_VIRTIO_GPU "virtio-gpu-device"
 typedef struct VirtIOGPU VirtIOGPU;
-#define VIRTIO_GPU(obj)                                        \
-        OBJECT_CHECK(VirtIOGPU, (obj), TYPE_VIRTIO_GPU)
+DECLARE_INSTANCE_CHECKER(VirtIOGPU, VIRTIO_GPU,
+                         TYPE_VIRTIO_GPU)
 
 #define TYPE_VHOST_USER_GPU "vhost-user-gpu"
 

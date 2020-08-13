@@ -26,8 +26,8 @@
 
 #define TYPE_RISCV_E_SOC "riscv.sifive.e.soc"
 typedef struct SiFiveESoCState SiFiveESoCState;
-#define RISCV_E_SOC(obj) \
-    OBJECT_CHECK(SiFiveESoCState, (obj), TYPE_RISCV_E_SOC)
+DECLARE_INSTANCE_CHECKER(SiFiveESoCState, RISCV_E_SOC,
+                         TYPE_RISCV_E_SOC)
 
 struct SiFiveESoCState {
     /*< private >*/
@@ -52,8 +52,8 @@ struct SiFiveEState {
 typedef struct SiFiveEState SiFiveEState;
 
 #define TYPE_RISCV_E_MACHINE MACHINE_TYPE_NAME("sifive_e")
-#define RISCV_E_MACHINE(obj) \
-    OBJECT_CHECK(SiFiveEState, (obj), TYPE_RISCV_E_MACHINE)
+DECLARE_INSTANCE_CHECKER(SiFiveEState, RISCV_E_MACHINE,
+                         TYPE_RISCV_E_MACHINE)
 
 enum {
     SIFIVE_E_DEV_DEBUG,

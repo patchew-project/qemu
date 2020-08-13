@@ -29,12 +29,8 @@ struct arm_boot_info;
 
 typedef struct ARMCPU ARMCPU;
 typedef struct ARMCPUClass ARMCPUClass;
-#define ARM_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(ARMCPUClass, (klass), TYPE_ARM_CPU)
-#define ARM_CPU(obj) \
-    OBJECT_CHECK(ARMCPU, (obj), TYPE_ARM_CPU)
-#define ARM_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(ARMCPUClass, (obj), TYPE_ARM_CPU)
+DECLARE_OBJ_CHECKERS(ARMCPU, ARMCPUClass,
+                     ARM_CPU, TYPE_ARM_CPU)
 
 #define TYPE_ARM_MAX_CPU "max-" TYPE_ARM_CPU
 

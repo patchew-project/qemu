@@ -54,7 +54,8 @@ enum AUXReply {
 };
 
 #define TYPE_AUX_BUS "aux-bus"
-#define AUX_BUS(obj) OBJECT_CHECK(AUXBus, (obj), TYPE_AUX_BUS)
+DECLARE_INSTANCE_CHECKER(AUXBus, AUX_BUS,
+                         TYPE_AUX_BUS)
 
 struct AUXBus {
     /* < private > */
@@ -73,8 +74,8 @@ struct AUXBus {
 };
 
 #define TYPE_AUX_SLAVE "aux-slave"
-#define AUX_SLAVE(obj) \
-     OBJECT_CHECK(AUXSlave, (obj), TYPE_AUX_SLAVE)
+DECLARE_INSTANCE_CHECKER(AUXSlave, AUX_SLAVE,
+                         TYPE_AUX_SLAVE)
 
 struct AUXSlave {
     /* < private > */

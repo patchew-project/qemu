@@ -29,8 +29,8 @@
 
 #define TYPE_RISCV_U_SOC "riscv.sifive.u.soc"
 typedef struct SiFiveUSoCState SiFiveUSoCState;
-#define RISCV_U_SOC(obj) \
-    OBJECT_CHECK(SiFiveUSoCState, (obj), TYPE_RISCV_U_SOC)
+DECLARE_INSTANCE_CHECKER(SiFiveUSoCState, RISCV_U_SOC,
+                         TYPE_RISCV_U_SOC)
 
 struct SiFiveUSoCState {
     /*< private >*/
@@ -52,8 +52,8 @@ struct SiFiveUSoCState {
 
 #define TYPE_RISCV_U_MACHINE MACHINE_TYPE_NAME("sifive_u")
 typedef struct SiFiveUState SiFiveUState;
-#define RISCV_U_MACHINE(obj) \
-    OBJECT_CHECK(SiFiveUState, (obj), TYPE_RISCV_U_MACHINE)
+DECLARE_INSTANCE_CHECKER(SiFiveUState, RISCV_U_MACHINE,
+                         TYPE_RISCV_U_MACHINE)
 
 struct SiFiveUState {
     /*< private >*/

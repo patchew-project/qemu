@@ -20,12 +20,8 @@ typedef struct I2CSlave I2CSlave;
 
 #define TYPE_I2C_SLAVE "i2c-slave"
 typedef struct I2CSlaveClass I2CSlaveClass;
-#define I2C_SLAVE(obj) \
-     OBJECT_CHECK(I2CSlave, (obj), TYPE_I2C_SLAVE)
-#define I2C_SLAVE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(I2CSlaveClass, (klass), TYPE_I2C_SLAVE)
-#define I2C_SLAVE_GET_CLASS(obj) \
-     OBJECT_GET_CLASS(I2CSlaveClass, (obj), TYPE_I2C_SLAVE)
+DECLARE_OBJ_CHECKERS(I2CSlave, I2CSlaveClass,
+                     I2C_SLAVE, TYPE_I2C_SLAVE)
 
 struct I2CSlaveClass {
     DeviceClass parent_class;

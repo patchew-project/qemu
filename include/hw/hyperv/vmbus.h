@@ -22,12 +22,8 @@
 
 typedef struct VMBusDevice VMBusDevice;
 typedef struct VMBusDeviceClass VMBusDeviceClass;
-#define VMBUS_DEVICE(obj) \
-    OBJECT_CHECK(VMBusDevice, (obj), TYPE_VMBUS_DEVICE)
-#define VMBUS_DEVICE_CLASS(klass) \
-    OBJECT_CLASS_CHECK(VMBusDeviceClass, (klass), TYPE_VMBUS_DEVICE)
-#define VMBUS_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(VMBusDeviceClass, (obj), TYPE_VMBUS_DEVICE)
+DECLARE_OBJ_CHECKERS(VMBusDevice, VMBusDeviceClass,
+                     VMBUS_DEVICE, TYPE_VMBUS_DEVICE)
 
 /*
  * Object wrapping a GPADL -- GPA Descriptor List -- an array of guest physical

@@ -17,12 +17,8 @@
 #define FW_CFG_MEM(obj) OBJECT_CHECK(FWCfgMemState, (obj), TYPE_FW_CFG_MEM)
 
 typedef struct FWCfgDataGeneratorClass FWCfgDataGeneratorClass;
-#define FW_CFG_DATA_GENERATOR_CLASS(class) \
-    OBJECT_CLASS_CHECK(FWCfgDataGeneratorClass, (class), \
+DECLARE_CLASS_CHECKERS(FWCfgDataGeneratorClass, FW_CFG_DATA_GENERATOR,
                        TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)
-#define FW_CFG_DATA_GENERATOR_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(FWCfgDataGeneratorClass, (obj), \
-                     TYPE_FW_CFG_DATA_GENERATOR_INTERFACE)
 
 struct FWCfgDataGeneratorClass {
     /*< private >*/
