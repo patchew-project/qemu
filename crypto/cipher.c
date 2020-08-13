@@ -151,11 +151,11 @@ qcrypto_cipher_munge_des_rfb_key(const uint8_t *key,
 #endif /* CONFIG_GCRYPT || CONFIG_NETTLE */
 
 #ifdef CONFIG_GCRYPT
-#include "cipher-gcrypt.c"
+#include "cipher-gcrypt.inc.c"
 #elif defined CONFIG_NETTLE
-#include "cipher-nettle.c"
+#include "cipher-nettle.inc.c"
 #else
-#include "cipher-builtin.c"
+#include "cipher-builtin.inc.c"
 #endif
 
 QCryptoCipher *qcrypto_cipher_new(QCryptoCipherAlgorithm alg,
