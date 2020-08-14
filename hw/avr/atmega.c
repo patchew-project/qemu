@@ -302,6 +302,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         object_initialize_child(OBJECT(dev), devname, &s->usart[i],
                                 TYPE_AVR_USART);
         qdev_prop_set_chr(DEVICE(&s->usart[i]), "chardev", serial_hd(i));
+        qdev_connect_clock_in(DEVICE(&s->usart[i]), "xck", s->ioclk);
         sbd = SYS_BUS_DEVICE(&s->usart[i]);
         sysbus_realize(sbd, &error_abort);
         sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[USART(i)].addr);

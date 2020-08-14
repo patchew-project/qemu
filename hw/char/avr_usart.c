@@ -23,6 +23,7 @@
 #include "hw/char/avr_usart.h"
 #include "qemu/log.h"
 #include "hw/irq.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 
 /* Offsets of registers. */
@@ -307,12 +308,14 @@ static void avr_usart_pr(void *opaque, int irq, int level)
 static void avr_usart_init(Object *obj)
 {
     AVRUsartState *s = AVR_USART(obj);
+
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->rxc_irq);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->dre_irq);
     sysbus_init_irq(SYS_BUS_DEVICE(obj), &s->txc_irq);
     memory_region_init_io(&s->mmio, obj, &avr_usart_ops, s, TYPE_AVR_USART, 7);
     sysbus_init_mmio(SYS_BUS_DEVICE(obj), &s->mmio);
     qdev_init_gpio_in(DEVICE(s), avr_usart_pr, 1);
+    s->clkin = qdev_init_clock_in(DEVICE(obj), "xck", NULL, s);
     s->enabled = true;
 }
 

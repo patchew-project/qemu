@@ -25,6 +25,7 @@
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "hw/hw.h"
+#include "hw/clock.h"
 
 #define TYPE_AVR_USART "avr-usart"
 #define AVR_USART(obj) \
@@ -51,6 +52,7 @@ typedef struct {
     /* Baud Rate Registers (low/high byte) */
     uint8_t brrh;
     uint8_t brrl;
+    Clock *clkin;
 
     /* Receive Complete */
     qemu_irq rxc_irq;
