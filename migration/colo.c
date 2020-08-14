@@ -870,6 +870,7 @@ void *colo_process_incoming_thread(void *opaque)
     replication_start_all(REPLICATION_MODE_SECONDARY, &local_err);
     if (local_err) {
         qemu_mutex_unlock_iothread();
+        error_report_err(local_err);
         goto out;
     }
 #else
@@ -882,6 +883,7 @@ void *colo_process_incoming_thread(void *opaque)
     colo_send_message(mis->to_src_file, COLO_MESSAGE_CHECKPOINT_READY,
                       &local_err);
     if (local_err) {
+        error_report_err(local_err);
         goto out;
     }
 
