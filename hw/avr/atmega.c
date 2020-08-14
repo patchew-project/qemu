@@ -332,8 +332,7 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         devname = g_strdup_printf("timer%zu", i);
         object_initialize_child(OBJECT(dev), devname, &s->timer[i],
                                 TYPE_AVR_TIMER16);
-        object_property_set_uint(OBJECT(&s->timer[i]), "cpu-frequency-hz",
-                                 s->xtal_freq_hz, &error_abort);
+        qdev_connect_clock_in(DEVICE(&s->timer[i]), "clkt", s->ioclk);
         sbd = SYS_BUS_DEVICE(&s->timer[i]);
         sysbus_realize(sbd, &error_abort);
         sysbus_mmio_map(sbd, 0, OFFSET_DATA + mc->dev[idx].addr);

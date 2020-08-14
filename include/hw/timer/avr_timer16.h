@@ -31,6 +31,7 @@
 #include "hw/sysbus.h"
 #include "qemu/timer.h"
 #include "hw/hw.h"
+#include "hw/clock.h"
 
 enum NextInterrupt {
     OVERFLOW,
@@ -52,6 +53,7 @@ typedef struct AVRTimer16State {
     MemoryRegion iomem;
     MemoryRegion imsk_iomem;
     MemoryRegion ifr_iomem;
+    Clock *clkin;
     QEMUTimer *timer;
     qemu_irq capt_irq;
     qemu_irq compa_irq;
@@ -84,7 +86,6 @@ typedef struct AVRTimer16State {
     uint8_t ifr;
 
     uint8_t id;
-    uint64_t cpu_freq_hz;
     uint64_t freq_hz;
     uint64_t period_ns;
     uint64_t reset_time_ns;
