@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
 #include "qapi/qmp/qstring.h"
@@ -21,6 +22,7 @@
 
 #define NULL_OPT_LATENCY "latency-ns"
 #define NULL_OPT_ZEROES  "read-zeroes"
+#define NULL_OPT_SIZE    (1 * GiB)
 
 typedef struct {
     int64_t length;
@@ -86,7 +88,7 @@ static int null_file_open(BlockDriverState *bs, QDict *options, int flags,
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     qemu_opts_absorb_qdict(opts, options, &error_abort);
     s->length =
-        qemu_opt_get_size(opts, BLOCK_OPT_SIZE, 1 << 30);
+        qemu_opt_get_size(opts, BLOCK_OPT_SIZE, NULL_OPT_SIZE);
     s->latency_ns =
         qemu_opt_get_number(opts, NULL_OPT_LATENCY, 0);
     if (s->latency_ns < 0) {
