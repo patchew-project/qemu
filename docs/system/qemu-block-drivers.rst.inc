@@ -952,3 +952,29 @@ on host and see if there are locks held by the QEMU process on the image file.
 More than one byte could be locked by the QEMU instance, each byte of which
 reflects a particular permission that is acquired or protected by the running
 block driver.
+
+Filter drivers
+~~~~~~~~~~~~~~
+
+Qemu supports several filter drivers, which doesn't store any data, but do some
+additional tasks, hooking io requests.
+
+.. program:: filter-drivers
+.. option:: preallocate
+
+  Preallocate filter driver is intended to be inserted between format
+  and protocol nodes and does preallocation of some additional space
+  (expanding the protocol file) on write. It may be used for
+  file-systems with slow allocation.
+
+  Supported options:
+
+  .. program:: preallocate
+  .. option:: prealloc-align
+
+    On preallocation, align file length to this number, default 1M.
+
+  .. program:: preallocate
+  .. option:: prealloc-align
+
+    How much to preallocate, default 128M.
