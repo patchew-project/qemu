@@ -24,6 +24,7 @@
 
 #include "hw/char/mchp_pfsoc_mmuart.h"
 #include "hw/dma/mchp_pfsoc_dma.h"
+#include "hw/net/cadence_gem.h"
 #include "hw/sd/cadence_sdhci.h"
 
 typedef struct MicrochipPFSoCState {
@@ -42,6 +43,8 @@ typedef struct MicrochipPFSoCState {
     MchpPfSoCMMUartState *serial3;
     MchpPfSoCMMUartState *serial4;
     MchpPfSoCDMAState dma;
+    CadenceGEMState gem0;
+    CadenceGEMState gem1;
     CadenceSDHCIState sdhci;
 } MicrochipPFSoCState;
 
@@ -84,6 +87,8 @@ enum {
     MICROCHIP_PFSOC_MMUART2,
     MICROCHIP_PFSOC_MMUART3,
     MICROCHIP_PFSOC_MMUART4,
+    MICROCHIP_PFSOC_GEM0,
+    MICROCHIP_PFSOC_GEM1,
     MICROCHIP_PFSOC_ENVM_CFG,
     MICROCHIP_PFSOC_ENVM_DATA,
     MICROCHIP_PFSOC_IOSCB_CFG,
@@ -91,6 +96,8 @@ enum {
 };
 
 enum {
+    MICROCHIP_PFSOC_GEM0_IRQ = 64,
+    MICROCHIP_PFSOC_GEM1_IRQ = 70,
     MICROCHIP_PFSOC_EMMC_SD_IRQ = 88,
     MICROCHIP_PFSOC_MMUART0_IRQ = 90,
     MICROCHIP_PFSOC_MMUART1_IRQ = 91,
