@@ -121,7 +121,7 @@ static void ide_identify(IDEState *s)
     put_le16(p + 0, 0x0040);
     put_le16(p + 1, s->cylinders);
     put_le16(p + 3, s->heads);
-    put_le16(p + 4, 512 * s->sectors); /* XXX: retired, remove ? */
+    put_le16(p + 4, BDRV_SECTOR_SIZE * s->sectors); /* XXX: retired, remove ? */
     put_le16(p + 5, 512); /* XXX: retired, remove ? */
     put_le16(p + 6, s->sectors);
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
@@ -864,7 +864,7 @@ static void ide_dma_cb(void *opaque, int ret)
         }
     }
 
-    if (s->io_buffer_size > s->nsector * 512) {
+    if (s->io_buffer_size > s->nsector * BDRV_SECTOR_SIZE) {
         /*
          * The PRDs were longer than needed for this request.
          * The Active bit must remain set after the request completes.
@@ -877,7 +877,7 @@ static void ide_dma_cb(void *opaque, int ret)
 
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        assert(n * 512 == s->sg.size);
+        assert(n * BDRV_SECTOR_SIZE == s->sg.size);
         dma_buf_commit(s, s->sg.size);
         sector_num += n;
         ide_set_sector(s, sector_num);
@@ -894,17 +894,17 @@ static void ide_dma_cb(void *opaque, int ret)
     /* launch next transfer */
     n = s->nsector;
     s->io_buffer_index = 0;
-    s->io_buffer_size = n * 512;
+    s->io_buffer_size = n * BDRV_SECTOR_SIZE;
     prep_size = s->bus->dma->ops->prepare_buf(s->bus->dma, s->io_buffer_size);
     /* prepare_buf() must succeed and respect the limit */
-    assert(prep_size >= 0 && prep_size <= n * 512);
+    assert(prep_size >= 0 && prep_size <= n * BDRV_SECTOR_SIZE);
 
     /*
      * Now prep_size stores the number of bytes in the sglist, and
      * s->io_buffer_size stores the number of bytes described by the PRDs.
      */
 
-    if (prep_size < n * 512) {
+    if (prep_size < n * BDRV_SECTOR_SIZE) {
         /*
          * The PRDs are too short for this request. Error condition!
          * Reset the Active bit and don't raise the interrupt.
@@ -1412,7 +1412,8 @@ static bool cmd_identify(IDEState *s, uint8_t cmd)
             ide_cfata_identify(s);
         }
         s->status = READY_STAT | SEEK_STAT;
-        ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
+        ide_transfer_start(s, s->io_buffer, BDRV_SECTOR_SIZE,
+                           ide_transfer_stop);
         ide_set_irq(s->bus);
         return false;
     } else {
@@ -1482,7 +1483,7 @@ static bool cmd_write_multiple(IDEState *s, uint8_t cmd)
     n = MIN(s->nsector, s->req_nb_sectors);
 
     s->status = SEEK_STAT | READY_STAT;
-    ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
+    ide_transfer_start(s, s->io_buffer, BDRV_SECTOR_SIZE * n, ide_sector_write);
 
     s->media_changed = 1;
 
@@ -1524,7 +1525,7 @@ static bool cmd_write_pio(IDEState *s, uint8_t cmd)
 
     s->req_nb_sectors = 1;
     s->status = SEEK_STAT | READY_STAT;
-    ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
+    ide_transfer_start(s, s->io_buffer, BDRV_SECTOR_SIZE, ide_sector_write);
 
     s->media_changed = 1;
 
@@ -1678,7 +1679,7 @@ static bool cmd_identify_packet(IDEState *s, uint8_t cmd)
 {
     ide_atapi_identify(s);
     s->status = READY_STAT | SEEK_STAT;
-    ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
+    ide_transfer_start(s, s->io_buffer, BDRV_SECTOR_SIZE, ide_transfer_stop);
     ide_set_irq(s->bus);
     return false;
 }
@@ -2559,7 +2560,7 @@ static void ide_init1(IDEBus *bus, int unit)
     s->unit = unit;
     s->drive_serial = drive_serial++;
     /* we need at least 2k alignment for accessing CDROMs using O_DIRECT */
-    s->io_buffer_total_len = IDE_DMA_BUF_SECTORS*512 + 4;
+    s->io_buffer_total_len = IDE_DMA_BUF_SECTORS * BDRV_SECTOR_SIZE + 4;
     s->io_buffer = qemu_memalign(2048, s->io_buffer_total_len);
     memset(s->io_buffer, 0, s->io_buffer_total_len);
 
