@@ -15,6 +15,7 @@
 #include "exec/memory.h"
 #include "exec/address-spaces.h"
 #include "sysemu/sysemu.h"
+#include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
 #include "hw/sysbus.h"
 #include "hw/boards.h" /* FIXME memory_region_allocate_system_memory for sram */
@@ -231,6 +232,9 @@ static void atmega_realize(DeviceState *dev, Error **errp)
         error_setg(errp, "\"xtal-frequency-hz\" property must be provided.");
         return;
     }
+    s->ioclk = qdev_init_clock_out(dev, "ioclk");
+    /* Clock Control Unit not implemented: directly distribute from xtal */
+    clock_set_hz(s->ioclk, s->xtal_freq_hz);
 
     /* CPU */
     object_initialize_child(OBJECT(dev), "cpu", &s->cpu, mc->cpu_type);

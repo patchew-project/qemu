@@ -14,6 +14,7 @@
 #include "hw/char/avr_usart.h"
 #include "hw/timer/avr_timer16.h"
 #include "hw/misc/avr_power.h"
+#include "hw/clock.h"
 #include "target/avr/cpu.h"
 
 #define TYPE_ATMEGA_MCU     "ATmega"
@@ -35,6 +36,7 @@ typedef struct AtmegaMcuState {
     /*< public >*/
 
     AVRCPU cpu;
+    Clock *ioclk;
     MemoryRegion flash;
     MemoryRegion eeprom;
     MemoryRegion sram;
