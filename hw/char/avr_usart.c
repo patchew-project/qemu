@@ -25,6 +25,7 @@
 #include "hw/irq.h"
 #include "hw/qdev-clock.h"
 #include "hw/qdev-properties.h"
+#include "trace.h"
 
 /* Offsets of registers. */
 #define USART_DR   0x06
@@ -55,6 +56,8 @@
 #define USART_CSRC_PM0    (1 << 4)
 #define USART_CSRC_CSZ1   (1 << 2)
 #define USART_CSRC_CSZ0   (1 << 1)
+
+#define USART_CLOCK_DIVISOR  16      /* baudrate is input clock / 16 */
 
 static int avr_usart_can_receive(void *opaque)
 {
@@ -118,6 +121,14 @@ static void update_char_mask(AVRUsartState *usart)
     default:
         assert(0);
     }
+}
+
+static void avr_usart_update_baudrate(AVRUsartState *s)
+{
+    unsigned baudrate = (clock_get_hz(s->clkin) / USART_CLOCK_DIVISOR)
+                        / (((s->brrh << 8) | s->brrl) + 1);
+
+    trace_avr_usart_update_baudrate((s->brrh << 8) | s->brrl, baudrate);
 }
 
 static void avr_usart_reset(DeviceState *dev)
@@ -269,9 +280,11 @@ static void avr_usart_write(void *opaque, hwaddr addr, uint64_t value,
         break;
     case USART_BRRL:
         usart->brrl = value;
+        avr_usart_update_baudrate(usart);
         break;
     case USART_BRRH:
         usart->brrh = value & 0b00001111;
+        avr_usart_update_baudrate(usart);
         break;
     default:
         qemu_log_mask(
