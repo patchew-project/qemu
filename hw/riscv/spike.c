@@ -230,7 +230,7 @@ static void spike_board_init(MachineState *machine)
     /* Core Local Interruptor (timer and IPI) */
     sifive_clint_create(memmap[SPIKE_CLINT].base, memmap[SPIKE_CLINT].size,
         smp_cpus, SIFIVE_SIP_BASE, SIFIVE_TIMECMP_BASE, SIFIVE_TIME_BASE,
-        false);
+        SIFIVE_CLINT_TIMEBASE_FREQ, false);
 }
 
 static void spike_machine_init(MachineClass *mc)

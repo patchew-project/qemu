@@ -294,7 +294,7 @@ static int read_time(CPURISCVState *env, int csrno, target_ulong *val)
         return -1;
     }
 
-    *val = env->rdtime_fn() + delta;
+    *val = env->rdtime_fn(env->rdtime_fn_arg) + delta;
     return 0;
 }
 
@@ -307,7 +307,7 @@ static int read_timeh(CPURISCVState *env, int csrno, target_ulong *val)
         return -1;
     }
 
-    *val = (env->rdtime_fn() + delta) >> 32;
+    *val = (env->rdtime_fn(env->rdtime_fn_arg) + delta) >> 32;
     return 0;
 }
 #endif
