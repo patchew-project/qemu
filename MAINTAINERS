@@ -1320,8 +1320,10 @@ L: qemu-riscv@nongnu.org
 S: Supported
 F: hw/riscv/microchip_pfsoc.c
 F: hw/char/mchp_pfsoc_mmuart.c
+F: hw/dma/mchp_pfsoc_dma.c
 F: include/hw/riscv/microchip_pfsoc.h
 F: include/hw/char/mchp_pfsoc_mmuart.h
+F: include/hw/dma/mchp_pfsoc_dma.h
 
 RX Machines
 -----------
