@@ -138,6 +138,14 @@ void x86_cpus_init(X86MachineState *x86ms, int default_cpu_version)
 
     /* Check for apicid encoding */
     if (cpu_x86_use_epyc_apic_id_encoding(ms->cpu_type)) {
+        if ((ms->numa_state->num_nodes > 0) &&
+            ms->numa_state->num_nodes != (ms->smp.sockets * x86ms->smp_dies)) {
+            error_setg(&error_fatal, "Numa configuration here requires smp "
+                       "'dies' parameter. Configure the cpu topology properly "
+                       "with max_cpus = sockets * dies * cores * threads. Dies"
+                       " is equivalent to number of numa nodes in a socket.");
+            return;
+        }
         x86_set_epyc_topo_handlers(ms);
     }
 
