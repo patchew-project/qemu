@@ -56,6 +56,27 @@
 /*
  * The BIOS image used by this machine is called Hart Software Services (HSS).
  * See https://github.com/polarfire-soc/hart-software-services
+ *
+ * As of now the DDR memory controller in the Microchip PolarFire SoC has not
+ * been modeled. Simply creating unimplemented devices does not make HSS happy.
+ * Emulating the DDR memory controller is tedious, so a patched HSS should be
+ * used as the BIOS for this machine.
+ *
+ * To patch HSS, open boards/icicle-kit-es/hss_board_init.c in the HSS source
+ * tree, find the boardInitFunctions[] array that contains the initialization
+ * routines for this board, and remove the line that contains 'HSS_DDRInit'.
+ *
+ * QEMU does not support eMMC hence the SD configuration shall be used in the
+ * HSS and Yocto BSP build. The eMMC configuration is not supported.
+ *
+ * Instructions to build HSS:
+ *   $ cp boards/icicle-kit-es/def_config.sdcard .config
+ *   $ make BOARD=icicle-kit-es
+ *
+ * For Yocto build, "MACHINE=icicle-kit-es-sd" should be specified, otherwise
+ * when booting Linux kernel the rootfs cannot be mounted. The generated image
+ * is something like: mpfs-dev-cli-icicle-kit-es-sd.rootfs.wic. Resize the file
+ * with 'qemu-image' to a power of 2 before passing to QEMU '-sd' command line.
  */
 #define BIOS_FILENAME   "hss.bin"
 #define RESET_VECTOR    0x20220000
