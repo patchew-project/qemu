@@ -312,6 +312,7 @@ static void test_socket_unix_abstract_good(void)
     g_thread_join(cli);
     g_thread_join(serv);
 
+    g_rand_free(r);
     g_free(abstract_sock_name);
     g_rand_free(r);
 }
