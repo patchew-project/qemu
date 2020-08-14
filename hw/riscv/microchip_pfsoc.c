@@ -13,6 +13,7 @@
  * 2) eNVM (Embedded Non-Volatile Memory)
  * 3) MMUARTs (Multi-Mode UART)
  * 4) Cadence eMMC/SDHC controller and an SD card connected to it
+ * 5) DMA (Direct Memory Access Controller)
  *
  * This board currently generates devicetree dynamically that indicates at least
  * two harts and up to five harts.
@@ -71,6 +72,7 @@ static const struct MemmapEntry {
     [MICROCHIP_PFSOC_BUSERR_UNIT4] =    {  0x1704000,     0x1000 },
     [MICROCHIP_PFSOC_CLINT] =           {  0x2000000,    0x10000 },
     [MICROCHIP_PFSOC_L2CC] =            {  0x2010000,     0x1000 },
+    [MICROCHIP_PFSOC_DMA] =             {  0x3000000,   0x100000 },
     [MICROCHIP_PFSOC_L2LIM] =           {  0x8000000,  0x2000000 },
     [MICROCHIP_PFSOC_PLIC] =            {  0xc000000,  0x4000000 },
     [MICROCHIP_PFSOC_MMUART0] =         { 0x20000000,     0x1000 },
@@ -113,6 +115,9 @@ static void microchip_pfsoc_soc_instance_init(Object *obj)
     qdev_prop_set_string(DEVICE(&s->u_cpus), "cpu-type",
                          TYPE_RISCV_CPU_SIFIVE_U54);
     qdev_prop_set_uint64(DEVICE(&s->u_cpus), "resetvec", RESET_VECTOR);
+
+    object_initialize_child(obj, "dma-controller", &s->dma,
+                            TYPE_MCHP_PFSOC_DMA);
 
     object_initialize_child(obj, "sd-controller", &s->sdhci,
                             TYPE_CADENCE_SDHCI);
@@ -219,6 +224,11 @@ static void microchip_pfsoc_soc_realize(DeviceState *dev, Error **errp)
         MICROCHIP_PFSOC_PLIC_CONTEXT_STRIDE,
         memmap[MICROCHIP_PFSOC_PLIC].size);
     g_free(plic_hart_config);
+
+    /* DMA */
+    sysbus_realize(SYS_BUS_DEVICE(&s->dma), errp);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->dma), 0,
+                    memmap[MICROCHIP_PFSOC_DMA].base);
 
     /* SYSREG */
     create_unimplemented_device("microchip.pfsoc.sysreg",
