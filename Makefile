@@ -49,6 +49,22 @@ git-submodule-update:
 endif
 endif
 
+export NINJA=./ninjatool
+Makefile.ninja: build.ninja ninjatool
+	./ninjatool -t ninja2make --omit clean dist uninstall < $< > $@
+-include Makefile.ninja
+
+${ninja-targets-c_COMPILER} ${ninja-targets-cpp_COMPILER}: .var.ARGS += -MP
+
+ninjatool: ninjatool.stamp
+ninjatool.stamp: $(SRC_PATH)/scripts/ninjatool.py config-host.mak
+	$(MESON) setup --reconfigure . $(SRC_PATH) && touch $@
+
+.PHONY: ninja-clean ninja-distclean clean-ctlist
+clean-ctlist:
+ninja-clean::
+ninja-distclean::
+
 .git-submodule-status: git-submodule-update config-host.mak
 
 # Check that we're not trying to do an out-of-tree build from
@@ -68,6 +84,8 @@ CONFIG_ALL=y
 -include config-all-devices.mak
 -include config-all-disas.mak
 
+build.ninja: meson-private/coredata.dat
+meson-private/coredata.dat: config-host.mak
 config-host.mak: $(SRC_PATH)/configure $(SRC_PATH)/pc-bios $(SRC_PATH)/VERSION
 	@echo $@ is out-of-date, running configure
 	@./config.status
@@ -762,7 +780,8 @@ clean-coverage:
 		"CLEAN", "coverage files")
 endif
 
-clean: recurse-clean
+clean: recurse-clean ninja-clean clean-ctlist
+	-test -f ninjatool && ./ninjatool $(if $(V),-v,) -t clean
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
@@ -799,7 +818,8 @@ rm -rf $(MANUAL_BUILDDIR)/$1/_static
 rm -f $(MANUAL_BUILDDIR)/$1/objects.inv $(MANUAL_BUILDDIR)/$1/searchindex.js $(MANUAL_BUILDDIR)/$1/*.html
 endef
 
-distclean: clean
+distclean: clean ninja-distclean
+	-test -f ninjatool && ./ninjatool $(if $(V),-v,) -t clean -g
 	rm -f config-host.mak config-host.h* $(DOCS)
 	rm -f tests/tcg/config-*.mak
 	rm -f config-all-devices.mak config-all-disas.mak config.status
@@ -807,6 +827,8 @@ distclean: clean
 	rm -f po/*.mo tests/qemu-iotests/common.env
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
+	rm -rf meson-private meson-logs meson-info compile_commands.json
+	rm -f Makefile.ninja ninjatool ninjatool.stamp
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -f docs/version.texi
@@ -933,6 +955,8 @@ ICON_SIZES=16x16 24x24 32x32 48x48 64x64 128x128 256x256 512x512
 install-includedir:
 	$(INSTALL_DIR) "$(DESTDIR)$(includedir)"
 
+# Needed by "meson install"
+export DESTDIR
 install: all $(if $(BUILD_DOCS),install-doc) \
 	install-datadir install-localstatedir install-includedir \
 	$(if $(INSTALL_BLOBS),$(edk2-decompressed)) \
@@ -1005,21 +1029,6 @@ endif
 		$(INSTALL_DATA) $(SRC_PATH)/pc-bios/keymaps/$$x "$(DESTDIR)$(qemu_datadir)/keymaps"; \
 	done
 	$(INSTALL_DATA) $(BUILD_DIR)/trace-events-all "$(DESTDIR)$(qemu_datadir)/trace-events-all"
-
-.PHONY: ctags
-ctags:
-	rm -f tags
-	find "$(SRC_PATH)" -name '*.[hc]' -exec ctags --append {} +
-
-.PHONY: TAGS
-TAGS:
-	rm -f TAGS
-	find "$(SRC_PATH)" -name '*.[hc]' -exec etags --append {} +
-
-cscope:
-	rm -f "$(SRC_PATH)"/cscope.*
-	find "$(SRC_PATH)/" -name "*.[chsS]" -print | sed 's,^\./,,' > "$(SRC_PATH)/cscope.files"
-	cscope -b -i"$(SRC_PATH)/cscope.files"
 
 # opengl shader programs
 ui/shader/%-vert.h: $(SRC_PATH)/ui/shader/%.vert $(SRC_PATH)/scripts/shaderinclude.pl
