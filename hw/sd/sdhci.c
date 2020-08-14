@@ -294,7 +294,7 @@ static void sdhci_reset(SDHCIState *s)
     s->pending_insert_state = false;
 }
 
-static void sdhci_poweron_reset(DeviceState *dev)
+void sdhci_poweron_reset(DeviceState *dev)
 {
     /* QOM (ie power-on) reset. This is identical to reset
      * commanded via device register apart from handling of the

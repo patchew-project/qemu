@@ -342,5 +342,6 @@ void sdhci_uninitfn(SDHCIState *s);
 void sdhci_common_realize(SDHCIState *s, Error **errp);
 void sdhci_common_unrealize(SDHCIState *s);
 void sdhci_common_class_init(ObjectClass *klass, void *data);
+void sdhci_poweron_reset(DeviceState *dev);
 
 #endif
