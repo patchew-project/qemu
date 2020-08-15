@@ -19,6 +19,11 @@
  */
 #define DIRTYRATE_DEFAULT_SAMPLE_PAGES            256
 
+/*
+ * Record ramblock idstr
+ */
+#define RAMBLOCK_INFO_MAX_LEN                     256
+
 /* Take 1s as default for calculation duration */
 #define DEFAULT_FETCH_DIRTYRATE_TIME_SEC          1
 
@@ -38,6 +43,19 @@ typedef enum {
     CAL_DIRTY_RATE_ACTIVE,
     CAL_DIRTY_RATE_END,
 } CalculatingDirtyRateState;
+
+/*
+ * Store dirtypage info for each ramblock.
+ */
+struct RamblockDirtyInfo {
+    char idstr[RAMBLOCK_INFO_MAX_LEN]; /* idstr for each ramblock */
+    uint8_t *ramblock_addr; /* base address of ramblock we measure */
+    size_t ramblock_pages; /* sum of dividation by 4K pages for ramblock */
+    size_t *sample_page_vfn; /* relative offset address for sampled page */
+    unsigned int sample_pages_count; /* sum of sampled pages */
+    unsigned int sample_dirty_count; /* sum of dirty pages we measure */
+    uint8_t *hash_result; /* array of hash result for sampled pages */
+};
 
 void *get_dirtyrate_thread(void *arg);
 #endif
