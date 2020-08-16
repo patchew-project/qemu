@@ -1509,6 +1509,8 @@ void memory_region_init_ram_shared_nomigrate(MemoryRegion *mr,
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc(size, share, mr, &err);
@@ -1533,6 +1535,8 @@ void memory_region_init_resizeable_ram(MemoryRegion *mr,
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc_resizeable(size, max_size, resized,
@@ -1558,6 +1562,8 @@ void memory_region_init_ram_from_file(MemoryRegion *mr,
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->align = align;
@@ -1581,6 +1587,8 @@ void memory_region_init_ram_from_fd(MemoryRegion *mr,
     Error *err = NULL;
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_block = qemu_ram_alloc_from_fd(size, mr,
@@ -1603,6 +1611,8 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
 {
     memory_region_init(mr, owner, name, size);
     mr->ram = true;
+    mr->ops = &ram_device_mem_ops;
+    mr->opaque = mr;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->dirty_log_mask = tcg_enabled() ? (1 << DIRTY_MEMORY_CODE) : 0;
