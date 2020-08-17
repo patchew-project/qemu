@@ -6900,15 +6900,15 @@ static inline void set_avr64(int regno, TCGv_i64 src, bool high)
     tcg_gen_st_i64(src, cpu_env, avr64_offset(regno, high));
 }
 
-#include "translate/fp-impl.inc.c"
+#include "translate/fp-impl.inc"
 
-#include "translate/vmx-impl.inc.c"
+#include "translate/vmx-impl.inc"
 
-#include "translate/vsx-impl.inc.c"
+#include "translate/vsx-impl.inc"
 
-#include "translate/dfp-impl.inc.c"
+#include "translate/dfp-impl.inc"
 
-#include "translate/spe-impl.inc.c"
+#include "translate/spe-impl.inc"
 
 /* Handles lfdp, lxsd, lxssp */
 static void gen_dform39(DisasContext *ctx)
@@ -7587,19 +7587,19 @@ GEN_HANDLER2_E(treclaim, "treclaim", 0x1F, 0x0E, 0x1D, 0x03E0F800, \
 GEN_HANDLER2_E(trechkpt, "trechkpt", 0x1F, 0x0E, 0x1F, 0x03FFF800, \
                PPC_NONE, PPC2_TM),
 
-#include "translate/fp-ops.inc.c"
+#include "translate/fp-ops.inc"
 
-#include "translate/vmx-ops.inc.c"
+#include "translate/vmx-ops.inc"
 
-#include "translate/vsx-ops.inc.c"
+#include "translate/vsx-ops.inc"
 
-#include "translate/dfp-ops.inc.c"
+#include "translate/dfp-ops.inc"
 
-#include "translate/spe-ops.inc.c"
+#include "translate/spe-ops.inc"
 };
 
 #include "helper_regs.h"
-#include "translate_init.inc.c"
+#include "translate_init.inc"
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */

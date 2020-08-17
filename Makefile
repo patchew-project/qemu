@@ -289,28 +289,28 @@ KEYCODEMAP_GEN = $(SRC_PATH)/ui/keycodemapdb/tools/keymap-gen
 KEYCODEMAP_CSV = $(SRC_PATH)/ui/keycodemapdb/data/keymaps.csv
 
 KEYCODEMAP_FILES = \
-		 ui/input-keymap-atset1-to-qcode.c \
-		 ui/input-keymap-linux-to-qcode.c \
-		 ui/input-keymap-qcode-to-atset1.c \
-		 ui/input-keymap-qcode-to-atset2.c \
-		 ui/input-keymap-qcode-to-atset3.c \
-		 ui/input-keymap-qcode-to-linux.c \
-		 ui/input-keymap-qcode-to-qnum.c \
-		 ui/input-keymap-qcode-to-sun.c \
-		 ui/input-keymap-qnum-to-qcode.c \
-		 ui/input-keymap-usb-to-qcode.c \
-		 ui/input-keymap-win32-to-qcode.c \
-		 ui/input-keymap-x11-to-qcode.c \
-		 ui/input-keymap-xorgevdev-to-qcode.c \
-		 ui/input-keymap-xorgkbd-to-qcode.c \
-		 ui/input-keymap-xorgxquartz-to-qcode.c \
-		 ui/input-keymap-xorgxwin-to-qcode.c \
-		 ui/input-keymap-osx-to-qcode.c \
+		 ui/input-keymap-atset1-to-qcode.inc \
+		 ui/input-keymap-linux-to-qcode.inc \
+		 ui/input-keymap-qcode-to-atset1.inc \
+		 ui/input-keymap-qcode-to-atset2.inc \
+		 ui/input-keymap-qcode-to-atset3.inc \
+		 ui/input-keymap-qcode-to-linux.inc \
+		 ui/input-keymap-qcode-to-qnum.inc \
+		 ui/input-keymap-qcode-to-sun.inc \
+		 ui/input-keymap-qnum-to-qcode.inc \
+		 ui/input-keymap-usb-to-qcode.inc \
+		 ui/input-keymap-win32-to-qcode.inc \
+		 ui/input-keymap-x11-to-qcode.inc \
+		 ui/input-keymap-xorgevdev-to-qcode.inc \
+		 ui/input-keymap-xorgkbd-to-qcode.inc \
+		 ui/input-keymap-xorgxquartz-to-qcode.inc \
+		 ui/input-keymap-xorgxwin-to-qcode.inc \
+		 ui/input-keymap-osx-to-qcode.inc \
 		 $(NULL)
 
 generated-files-$(CONFIG_SOFTMMU) += $(KEYCODEMAP_FILES)
 
-ui/input-keymap-%.c: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile.objs
+ui/input-keymap-%.inc: $(KEYCODEMAP_GEN) $(KEYCODEMAP_CSV) $(SRC_PATH)/ui/Makefile.objs
 	$(call quiet-command,\
 	    stem=$* && src=$${stem%-to-*} dst=$${stem#*-to-} && \
 	    test -e $(KEYCODEMAP_GEN) && \

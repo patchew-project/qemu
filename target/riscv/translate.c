@@ -583,7 +583,7 @@ static int ex_rvc_shifti(DisasContext *ctx, int imm)
 }
 
 /* Include the auto-generated decoder for 32 bit insn */
-#include "decode_insn32.inc.c"
+#include "decode_insn32.inc"
 
 static bool gen_arith_imm_fn(DisasContext *ctx, arg_i *a,
                              void (*func)(TCGv, TCGv, target_long))
@@ -718,17 +718,17 @@ static bool gen_shift(DisasContext *ctx, arg_r *a,
 }
 
 /* Include insn module translation function */
-#include "insn_trans/trans_rvi.inc.c"
-#include "insn_trans/trans_rvm.inc.c"
-#include "insn_trans/trans_rva.inc.c"
-#include "insn_trans/trans_rvf.inc.c"
-#include "insn_trans/trans_rvd.inc.c"
-#include "insn_trans/trans_rvh.inc.c"
-#include "insn_trans/trans_rvv.inc.c"
-#include "insn_trans/trans_privileged.inc.c"
+#include "insn_trans/trans_rvi.inc"
+#include "insn_trans/trans_rvm.inc"
+#include "insn_trans/trans_rva.inc"
+#include "insn_trans/trans_rvf.inc"
+#include "insn_trans/trans_rvd.inc"
+#include "insn_trans/trans_rvh.inc"
+#include "insn_trans/trans_rvv.inc"
+#include "insn_trans/trans_privileged.inc"
 
 /* Include the auto-generated decoder for 16 bit insn */
-#include "decode_insn16.inc.c"
+#include "decode_insn16.inc"
 
 static void decode_opc(CPURISCVState *env, DisasContext *ctx, uint16_t opcode)
 {
