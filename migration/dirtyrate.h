@@ -57,6 +57,16 @@ struct RamblockDirtyInfo {
     uint8_t *hash_result; /* array of hash result for sampled pages */
 };
 
+/*
+ * Store calculate statistics for each measure.
+ */
+struct DirtyRateStat {
+    unsigned int total_dirty_samples; /* total dirty pages for this measure */
+    unsigned int total_sample_count; /* total sampled pages for this measure */
+    size_t total_block_mem_MB; /* size of sampled pages in MB */
+    int64_t dirty_rate; /* dirty rate for this measure */
+};
+
 void *get_dirtyrate_thread(void *arg);
 #endif
 

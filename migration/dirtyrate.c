@@ -24,6 +24,7 @@
 #include "dirtyrate.h"
 
 CalculatingDirtyRateState CalculatingState = CAL_DIRTY_RATE_INIT;
+static struct DirtyRateStat dirty_stat;
 
 static int dirty_rate_set_state(int new_state)
 {
@@ -38,6 +39,35 @@ static int dirty_rate_set_state(int new_state)
     }
 
     return 0;
+}
+
+static void reset_dirtyrate_stat(void)
+{
+    dirty_stat.total_dirty_samples = 0;
+    dirty_stat.total_sample_count = 0;
+    dirty_stat.total_block_mem_MB = 0;
+    dirty_stat.dirty_rate = 0;
+}
+
+static void update_dirtyrate_stat(struct RamblockDirtyInfo *info)
+{
+    dirty_stat.total_dirty_samples += info->sample_dirty_count;
+    dirty_stat.total_sample_count += info->sample_pages_count;
+    /* size of 4K pages in MB */
+    dirty_stat.total_block_mem_MB += info->ramblock_pages / 256;
+}
+
+static void update_dirtyrate(uint64_t msec)
+{
+    uint64_t dirty_rate;
+    unsigned int total_dirty_samples = dirty_stat.total_dirty_samples;
+    unsigned int total_sample_count = dirty_stat.total_sample_count;
+    size_t total_block_mem_MB = dirty_stat.total_block_mem_MB;
+
+    dirty_rate = total_dirty_samples * total_block_mem_MB *
+                 1000 / (total_sample_count * msec);
+
+    dirty_stat.dirty_rate = dirty_rate;
 }
 
 static void calculate_dirtyrate(struct DirtyRateConfig config)
