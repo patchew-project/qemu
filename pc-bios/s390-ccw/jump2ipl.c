@@ -33,7 +33,10 @@ void jump_to_IPL_code(uint64_t address)
 {
     /* store the subsystem information _after_ the bootmap was loaded */
     write_subsystem_identification();
-    write_iplb_location();
+
+    if (iplb.pbt != S390_IPL_TYPE_CCW) {
+            write_iplb_location();
+    }
 
     /* prevent unknown IPL types in the guest */
     if (iplb.pbt == S390_IPL_TYPE_QEMU_SCSI) {
