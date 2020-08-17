@@ -112,6 +112,34 @@ static MemTxResult interleaver_write(void *opaque,
     return r;
 }
 
+static GStrv interleaver_subregions_description(const MemoryRegion *mr)
+{
+    InterleaverDeviceState *s = container_of(mr, InterleaverDeviceState, iomem);
+    InterleaverDeviceClass *idc = INTERLEAVER_DEVICE_GET_CLASS(s);
+    gchar **descs = g_new(gchar *, idc->mr_count + 1);
+    unsigned output_access_bits = idc->output_access_size << 3;
+    size_t i;
+
+    for (i = 0; i < idc->mr_count; i++) {
+        if (i) {
+            descs[i] = g_strdup_printf("  %u-bit access on '%s'"
+                                       " (%zu-bit shifted)",
+                                       output_access_bits,
+                                       s->mr[i] ? memory_region_name(s->mr[i])
+                                                : emtpy_mr_name,
+                                       i * output_access_bits);
+       } else {
+            descs[i] = g_strdup_printf("  %u-bit access on '%s'",
+                                       output_access_bits,
+                                       s->mr[i] ? memory_region_name(s->mr[i])
+                                                : emtpy_mr_name);
+        }
+    }
+    descs[i] = NULL;
+
+    return descs;
+}
+
 static void interleaver_realize(DeviceState *dev, Error **errp)
 {
     InterleaverDeviceState *s = INTERLEAVER_DEVICE(dev);
@@ -139,6 +167,7 @@ static void interleaver_realize(DeviceState *dev, Error **errp)
     }
     memory_region_init_io(&s->iomem, OBJECT(s), &idc->ops, s,
                           idc->name, s->size);
+    s->iomem.subregions_description = interleaver_subregions_description;
     sysbus_init_mmio(SYS_BUS_DEVICE(s), &s->iomem);
 }
 
