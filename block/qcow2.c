@@ -1868,6 +1868,40 @@ static void coroutine_fn qcow2_open_entry(void *opaque)
     qemu_co_mutex_unlock(&s->lock);
 }
 
+static int qcow2_vz_insert_prealloc_filter(BlockDriverState *bs, Error **errp)
+{
+    QDict *options;
+    BlockDriverState *filter_bs;
+    Error *local_err = NULL;
+    int flags;
+
+    if (!bdrv_is_file_on_fuse(bs->file->bs)) {
+        /* Nothing to do */
+        return 0;
+    }
+
+    /* Assume it's a vstorage */
+    options = qdict_new();
+    qdict_put_str(options, "driver", "preallocate");
+    qdict_put_str(options, "file", bs->file->bs->node_name);
+    flags = bdrv_is_read_only(bs->file->bs) ? 0 : BDRV_O_RDWR;
+    filter_bs = bdrv_open(NULL, NULL, options, flags, errp);
+    if (!filter_bs) {
+        return -EINVAL;
+    }
+
+    bdrv_replace_node(bs->file->bs, filter_bs, &local_err);
+
+    /*
+     * On failure we want to remove filter_bs, on success it's referenced now by
+     * qcow2 node.
+     */
+    bdrv_unref(filter_bs);
+
+    error_propagate(errp, local_err);
+    return local_err ? -EINVAL : 0;
+}
+
 static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
                       Error **errp)
 {
@@ -1883,6 +1917,10 @@ static int qcow2_open(BlockDriverState *bs, QDict *options, int flags,
     bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
                                BDRV_CHILD_IMAGE, false, errp);
     if (!bs->file) {
+        return -EINVAL;
+    }
+
+    if (qcow2_vz_insert_prealloc_filter(bs, errp) < 0) {
         return -EINVAL;
     }
 
