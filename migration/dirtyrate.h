@@ -20,9 +20,16 @@
 #define DIRTYRATE_DEFAULT_SAMPLE_PAGES            256
 
 /*
+ * Sample page size 4K as default.
+ */
+#define DIRTYRATE_SAMPLE_PAGE_SIZE                4096
+
+/*
  * Record ramblock idstr
  */
 #define RAMBLOCK_INFO_MAX_LEN                     256
+
+#define QCRYPTO_HASH_LEN                          16
 
 /* Take 1s as default for calculation duration */
 #define DEFAULT_FETCH_DIRTYRATE_TIME_SEC          1
