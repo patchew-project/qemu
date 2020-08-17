@@ -404,6 +404,12 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    /*
+     * If a memory region has subregions linked, it can use this
+     * handler to return an array of string, each string holding
+     * the subregion description.
+     */
+    GStrv (*subregions_description)(const MemoryRegion *mr);
 };
 
 struct IOMMUMemoryRegion {

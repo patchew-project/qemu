@@ -2967,6 +2967,28 @@ static void mtree_print_mr(const MemoryRegion *mr, unsigned int level,
                 mtree_print_mr_owner(mr);
             }
             qemu_printf("\n");
+
+            if (mr->subregions_description) {
+                GStrv s = mr->subregions_description(mr);
+                for (int j = 0; s[j]; j++) {
+                    for (i = 0; i < level; i++) {
+                        qemu_printf(MTREE_INDENT);
+                    }
+                    qemu_printf(TARGET_FMT_plx "-" TARGET_FMT_plx
+                                " (prio %d, %s%s): %s%s",
+                                cur_start, cur_end,
+                                mr->priority,
+                                mr->nonvolatile ? "nv-" : "",
+                                memory_region_type((MemoryRegion *)mr),
+                                s[j],
+                                mr->enabled ? "" : " [disabled]");
+                    if (owner) {
+                        mtree_print_mr_owner(mr);
+                    }
+                    qemu_printf("\n");
+                }
+                g_strfreev(s);
+            }
         }
     }
 
