@@ -28,6 +28,30 @@ CalculatingDirtyRateState CalculatingState = CAL_DIRTY_RATE_INIT;
 static unsigned long int qcrypto_hash_len = QCRYPTO_HASH_LEN;
 static struct DirtyRateStat dirty_stat;
 
+static int64_t set_sample_page_period(int64_t msec, int64_t initial_time)
+{
+    int64_t current_time;
+
+    current_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+    if ((current_time - initial_time) >= msec) {
+        msec = current_time - initial_time;
+    } else {
+        g_usleep((msec + initial_time - current_time) * 1000);
+    }
+
+    return msec;
+}
+
+static int64_t get_sample_page_period(int64_t sec)
+{
+    if (sec <= MIN_FETCH_DIRTYRATE_TIME_SEC ||
+        sec > MAX_FETCH_DIRTYRATE_TIME_SEC) {
+        sec = DEFAULT_FETCH_DIRTYRATE_TIME_SEC;
+    }
+
+    return sec;
+}
+
 static int dirty_rate_set_state(int new_state)
 {
     int old_state = CalculatingState;
