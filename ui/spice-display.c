@@ -657,6 +657,53 @@ static void interface_set_client_capabilities(QXLInstance *sin,
     /* nothing to do */
 }
 
+#if SPICE_INTERFACE_QXL_MAJOR >= 3 && SPICE_INTERFACE_QXL_MINOR >= 4
+static int interface_client_monitors_mm(QXLInstance *sin, VDAgentMonitorsMM *mm)
+{
+    SimpleSpiceDisplay *ssd = container_of(sin, SimpleSpiceDisplay, qxl);
+    QemuUIInfo info;
+    int head;
+
+    if (!dpy_ui_info_supported(ssd->dcl.con)) {
+        return 0; /* == not supported by guest */
+    }
+
+    if (!mm) {
+        return 1;
+    }
+
+    info = *dpy_get_ui_info(ssd->dcl.con);
+    /* Note: this code doesn't handle Spice multi-head support, where multiple
+     * monitor configuration for a single QXL device means multiple head. */
+    if (mm->num_of_monitors == 1) {
+        /*
+         * New spice-server version which filters the list of monitors
+         * to only include those that belong to our display channel.
+         *
+         * single-head configuration (where filtering doesn't matter)
+         * takes this code path too.
+         */
+        info.width_mm  = mm->monitors[0].width;
+        info.height_mm = mm->monitors[0].height;
+    } else {
+        /*
+         * Old spice-server which gives us all monitors, so we have to
+         * figure ourself which entry we need.  Array index is the
+         * channel_id, which is the qemu console index, see
+         * qemu_spice_add_display_interface().
+         */
+        head = qemu_console_get_index(ssd->dcl.con);
+        if (mm->num_of_monitors > head) {
+            info.width_mm  = mm->monitors[head].width;
+            info.height_mm = mm->monitors[head].height;
+        }
+    }
+
+    dpy_set_ui_info(ssd->dcl.con, &info);
+    return 1;
+}
+#endif
+
 static int interface_client_monitors_config(QXLInstance *sin,
                                             VDAgentMonitorsConfig *mc)
 {
@@ -674,6 +721,8 @@ static int interface_client_monitors_config(QXLInstance *sin,
 
     info = *dpy_get_ui_info(ssd->dcl.con);
 
+    /* Note: this code doesn't handle Spice multi-head support, where multiple
+     * monitor configuration for a single QXL device means multiple head. */
     if (mc->num_of_monitors == 1) {
         /*
          * New spice-server version which filters the list of monitors
@@ -728,6 +777,9 @@ static const QXLInterface dpy_interface = {
     .update_area_complete    = interface_update_area_complete,
     .set_client_capabilities = interface_set_client_capabilities,
     .client_monitors_config  = interface_client_monitors_config,
+#if SPICE_INTERFACE_QXL_MAJOR >= 3 && SPICE_INTERFACE_QXL_MINOR >= 4
+    .client_monitors_mm      = interface_client_monitors_mm,
+#endif
 };
 
 static void display_update(DisplayChangeListener *dcl,
