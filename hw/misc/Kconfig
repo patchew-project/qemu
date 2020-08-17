@@ -30,6 +30,11 @@ config ISA_TESTDEV
     default y if TEST_DEVICES
     depends on ISA_BUS
 
+config MMIO_TESTDEV
+    bool
+    default y if TEST_DEVICES
+    depends on INTERLEAVER
+
 config PCI_TESTDEV
     bool
     default y if TEST_DEVICES

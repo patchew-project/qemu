@@ -1966,6 +1966,8 @@ M: Philippe Mathieu-Daudé <f4bug@amsat.org>
 S: Maintained
 F: include/hw/misc/interleaver.h
 F: hw/misc/interleaver.c
+F: hw/misc/mmio-testdev.c
+F: include/hw/misc/testdev.h
 
 Standard VGA
 M: Gerd Hoffmann <kraxel@redhat.com>
