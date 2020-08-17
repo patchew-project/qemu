@@ -6,6 +6,8 @@ typedef struct qemu_edid_info {
     const char *name;
     const char *serial;
     uint32_t    dpi;
+    uint16_t    width_mm;
+    uint16_t    height_mm;
     uint32_t    prefx;
     uint32_t    prefy;
     uint32_t    maxx;
