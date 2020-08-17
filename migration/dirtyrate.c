@@ -67,6 +67,39 @@ static int dirty_rate_set_state(int new_state)
     return 0;
 }
 
+static struct DirtyRateInfo *query_dirty_rate_info(void)
+{
+    int64_t dirty_rate = dirty_stat.dirty_rate;
+    struct DirtyRateInfo *info = g_malloc0(sizeof(DirtyRateInfo));
+
+    switch (CalculatingState) {
+    case CAL_DIRTY_RATE_INIT:
+        info->dirty_rate = -1;
+        info->status = g_strdup("Not start measuring");
+        break;
+    case CAL_DIRTY_RATE_ACTIVE:
+        info->dirty_rate = -1;
+        info->status = g_strdup("Still measuring");
+        break;
+    case CAL_DIRTY_RATE_END:
+        info->dirty_rate = dirty_rate;
+        info->status = g_strdup("Measured");
+        break;
+    default:
+        info->dirty_rate = -1;
+        info->status = g_strdup("Unknown status");
+        break;
+    }
+
+    /*
+     * Only support query once for each calculation,
+     * reset as CAL_DIRTY_RATE_INIT after query
+     */
+    (void)dirty_rate_set_state(CAL_DIRTY_RATE_INIT);
+
+    return info;
+}
+
 static void reset_dirtyrate_stat(void)
 {
     dirty_stat.total_dirty_samples = 0;
@@ -402,4 +435,27 @@ void *get_dirtyrate_thread(void *arg)
     ret = dirty_rate_set_state(CAL_DIRTY_RATE_END);
 
     return NULL;
+}
+
+void qmp_calc_dirty_rate(int64_t calc_time, Error **errp)
+{
+    static struct DirtyRateConfig config;
+    QemuThread thread;
+
+    /*
+     * We don't begin calculating thread only when it's in calculating status.
+     */
+    if (CalculatingState == CAL_DIRTY_RATE_ACTIVE) {
+        return;
+    }
+
+    config.sample_period_seconds = get_sample_page_period(calc_time);
+    config.sample_pages_per_gigabytes = DIRTYRATE_DEFAULT_SAMPLE_PAGES;
+    qemu_thread_create(&thread, "get_dirtyrate", get_dirtyrate_thread,
+                       (void *)&config, QEMU_THREAD_DETACHED);
+}
+
+struct DirtyRateInfo *qmp_query_dirty_rate(Error **errp)
+{
+    return query_dirty_rate_info();
 }
