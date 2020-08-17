@@ -19,6 +19,7 @@
 #include "chardev/char-fe.h"
 #include "exec/ioport.h"
 #include "exec/memory.h"
+#include "exec/address-spaces.h"
 #include "hw/irq.h"
 #include "sysemu/accel.h"
 #include "sysemu/cpus.h"
@@ -276,6 +277,13 @@ static void qtest_irq_handler(void *opaque, int n, int level)
 /* Default address space for MMIO accesses */
 static AddressSpace *qtest_mem_as(void)
 {
+    if (!first_cpu) {
+        /*
+         * The 'none' machine doesn't have any CPU,
+         * directly access the main address space.
+         */
+        return &address_space_memory;
+    }
     return first_cpu->as;
 }
 
