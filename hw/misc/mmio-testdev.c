@@ -9,6 +9,10 @@
 /*
  * This device is mostly used to test QEMU internal MMIO devices.
  * Accesses using CPU core are not allowed.
+ *
+ * This device is meant to be used for testing, like:
+ *
+ *   qemu-system-sh4 -M none -device mmio-testdev,address=0x10000000
  */
 
 #include "qemu/osdep.h"

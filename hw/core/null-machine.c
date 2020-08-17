@@ -17,6 +17,7 @@
 #include "sysemu/sysemu.h"
 #include "exec/address-spaces.h"
 #include "hw/core/cpu.h"
+#include "hw/misc/testdev.h"
 
 static void machine_none_init(MachineState *mch)
 {
@@ -55,6 +56,7 @@ static void machine_none_machine_init(MachineClass *mc)
     mc->no_floppy = 1;
     mc->no_cdrom = 1;
     mc->no_sdcard = 1;
+    machine_class_allow_dynamic_sysbus_dev(mc, TYPE_MMIO_TESTDEV);
 }
 
 DEFINE_MACHINE("none", machine_none_machine_init)
