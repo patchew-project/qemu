@@ -2073,8 +2073,9 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     s = idebus_active_if(bus);
     trace_ide_exec_cmd(bus, s, val);
 
-    /* ignore commands to non existent slave */
-    if (s != bus->ifs && !s->blk) {
+    /* ignore commands if no any device exist or non existent slave */
+    if ((!bus->ifs[0].blk && !bus->ifs[1].blk) ||
+        (s != bus->ifs && !s->blk)) {
         return;
     }
 
