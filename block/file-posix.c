@@ -324,6 +324,27 @@ static bool dio_byte_aligned(int fd)
     return false;
 }
 
+static bool is_fuse(int fd)
+{
+#ifdef __linux__
+    struct statfs buf;
+    int ret;
+
+    ret = fstatfs(fd, &buf);
+    if (ret == 0 && buf.f_type == FUSE_SUPER_MAGIC) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+bool bdrv_is_file_on_fuse(BlockDriverState *bs)
+{
+    BDRVRawState *s = bs->opaque;
+
+    return !strcmp(bs->drv->format_name, "file") && is_fuse(s->fd);
+}
+
 /* Check if read is allowed with given memory buffer and length.
  *
  * This function is used to check O_DIRECT memory buffer and request alignment.
