@@ -21,6 +21,10 @@ config SGA
     bool
     depends on ISA_BUS
 
+config INTERLEAVER
+    bool
+    default y
+
 config ISA_TESTDEV
     bool
     default y if TEST_DEVICES

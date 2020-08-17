@@ -12,6 +12,7 @@ common-obj-$(CONFIG_PCA9552) += pca9552.o
 common-obj-$(CONFIG_UNIMP) += unimp.o
 common-obj-$(CONFIG_EMPTY_SLOT) += empty_slot.o
 common-obj-$(CONFIG_FW_CFG_DMA) += vmcoreinfo.o
+common-obj-$(CONFIG_INTERLEAVER) += interleaver.o
 
 # ARM devices
 common-obj-$(CONFIG_PL310) += arm_l2x0.o

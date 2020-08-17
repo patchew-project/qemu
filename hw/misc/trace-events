@@ -217,3 +217,9 @@ grlib_apb_pnp_read(uint64_t addr, uint32_t value) "APB PnP read addr:0x%03"PRIx6
 # pca9552.c
 pca955x_gpio_status(const char *description, const char *buf) "%s GPIOs 0-15 [%s]"
 pca955x_gpio_change(const char *description, unsigned id, unsigned prev_state, unsigned current_state) "%s GPIO id:%u status: %u -> %u"
+
+# interleaver.c
+interleaver_read_enter(unsigned input_access_size, unsigned output_access_size, unsigned size, unsigned mr_count, unsigned index, const char *mr_name, uint64_t in_addr, uint64_t out_addr) "rd ixs:%u oxs:%u sz:%u mr_cnt:%u mr_idx:%u mr_name:'%s' iadr:0x%"PRIx64" oadr:0x%"PRIx64
+interleaver_read_exit(unsigned size, uint64_t value, const char *result) "rd size:%u value:0x%08"PRIx64" result: %s"
+interleaver_write_enter(unsigned input_access_size, unsigned output_access_size, unsigned size, unsigned mr_count, unsigned index, const char *mr_name, uint64_t in_addr, uint64_t out_addr) "wr ixs:%u oxs:%u sz:%u mr_cnt:%u mr_idx:%u mr_name:'%s' iadr:0x%"PRIx64" oadr:0x%"PRIx64
+interleaver_write_exit(unsigned size, uint64_t value, const char *result) "wr size:%u value:0x%08"PRIx64" result: %s"
