@@ -9,6 +9,7 @@ check-qtest-generic-y += qmp-cmd-test
 check-qtest-generic-y += qom-test
 check-qtest-generic-$(CONFIG_MODULES) += modules-test
 check-qtest-generic-y += test-hmp
+check-qtest-generic-$(CONFIG_MMIO_TESTDEV) += mmio-test
 
 check-qtest-pci-$(CONFIG_RTL8139_PCI) += rtl8139-test
 check-qtest-pci-$(CONFIG_VGA) += display-vga-test
