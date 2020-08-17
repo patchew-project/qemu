@@ -205,14 +205,14 @@ test('QAPI schema regression tests', python, args: files('test-qapi.py', schemas
 diff = find_program('diff')
 
 qapi_doc = custom_target('QAPI doc',
-                         output: ['doc-good-qapi-commands.c', 'doc-good-qapi-commands.h',
+                         output: ['doc-good-qapi-doc.texi',
+                                  'doc-good-qapi-commands.c', 'doc-good-qapi-commands.h',
                                   'doc-good-qapi-emit-events.c', 'doc-good-qapi-emit-events.h',
                                   'doc-good-qapi-events.c', 'doc-good-qapi-events.h',
                                   'doc-good-qapi-init-commands.c', 'doc-good-qapi-init-commands.h',
                                   'doc-good-qapi-introspect.c', 'doc-good-qapi-introspect.h',
                                   'doc-good-qapi-types.c', 'doc-good-qapi-types.h',
-                                  'doc-good-qapi-visit.c', 'doc-good-qapi-visit.h',
-                                  'doc-good-qapi-doc.texi' ],
+                                  'doc-good-qapi-visit.c', 'doc-good-qapi-visit.h' ],
                          input: files('doc-good.json'),
                          command: [ qapi_gen, '-o', meson.current_build_dir(),
                                     '-p', 'doc-good-', '@INPUT0@' ],
