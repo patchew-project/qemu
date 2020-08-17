@@ -198,7 +198,7 @@ static bool avr_have_feature(DisasContext *ctx, int feature)
 }
 
 static bool decode_insn(DisasContext *ctx, uint16_t insn);
-#include "decode_insn.inc"
+#include "decode-insn.inc"
 
 /*
  * Arithmetic Instructions
