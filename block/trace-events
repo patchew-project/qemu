@@ -206,7 +206,10 @@ curl_setup_preadv(void *co, uint64_t offset, uint64_t bytes) "co %p requests 0x%
 curl_pending_hit(void *co, uint64_t start, uint64_t len) "co %p finds 0x%" PRIx64 " + 0x%" PRIx64
 curl_pending_piggyback(void *co, uint64_t start, uint64_t len) "co %p pending 0x%" PRIx64 " + 0x%" PRIx64
 curl_pending_miss(void *co, uint64_t start, uint64_t len) "co %p misses 0x%" PRIx64 " + 0x%" PRIx64
+curl_cache_hit(void *co, uint64_t start, uint64_t len) "co %p finds 0x%" PRIx64 " + 0x%" PRIx64
 curl_close(void) "close"
+curl_cache_alloc(size_t n) "%zu cache blocks allocated"
+curl_cache_free(size_t n) "%zu cache blocks allocated"
 
 # file-posix.c
 file_xfs_write_zeroes(const char *error) "cannot write zero range (%s)"
