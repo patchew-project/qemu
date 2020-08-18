@@ -563,7 +563,22 @@ static void qjack_client_fini(QJackClient *c)
         /* fallthrough */
 
     case QJACK_STATE_SHUTDOWN:
-        jack_client_close(c->client);
+        /*
+         * Due to a rediculous commit in the Jack library, the client may have
+         * been freed already.
+         *
+         * Until there is a proper fix for this we can not risk using the
+         * pointer at all if we have been notified of a shutdown, as such the
+         * below line is commented out to prevent a use after free segfault.
+         * This will not cause a memory leak as the recovery routine will trigger
+         * the "cleanup" code in the jack library.
+         *
+         * https://github.com/jackaudio/jack2/commit/171a3c4a0ddd18d2afae56f3af6291c8e96ee3ac
+         */
+
+        //jack_client_close(c->client);
+        c->client = NULL;
+
         /* fallthrough */
 
     case QJACK_STATE_DISCONNECTED:
