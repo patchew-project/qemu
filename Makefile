@@ -65,6 +65,10 @@ clean-ctlist:
 ninja-clean::
 ninja-distclean::
 
+Makefile.mtest: build.ninja scripts/mtest2make.py
+	$(MESON) introspect --tests | $(PYTHON) scripts/mtest2make.py > $@
+-include Makefile.mtest
+
 .git-submodule-status: git-submodule-update config-host.mak
 
 # Check that we're not trying to do an out-of-tree build from
@@ -820,7 +824,7 @@ distclean: clean ninja-distclean
 	rm -f roms/seabios/config.mak roms/vgabios/config.mak
 	rm -f qemu-plugins-ld.symbols qemu-plugins-ld64.symbols
 	rm -rf meson-private meson-logs meson-info compile_commands.json
-	rm -f Makefile.ninja ninjatool ninjatool.stamp
+	rm -f Makefile.ninja ninjatool ninjatool.stamp Makefile.mtest
 	rm -f config.log
 	rm -f linux-headers/asm
 	rm -f docs/version.texi
