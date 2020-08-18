@@ -421,13 +421,37 @@ static void qemu_vfio_open_common(QEMUVFIOState *s)
 }
 
 /**
+ * Return if the host architecture is supported.
+ *
+ * aarch64: IOMMU page alignment not respected
+ * ppc64:   SPAPR IOMMU window not configured
+ * x86-64:  Only architecture validated
+ * other:   Untested
+ */
+static bool qemu_vfio_arch_supported(void)
+{
+    bool supported = false;
+
+#if defined(HOST_X86_64)
+    supported = true;
+#endif
+
+    return supported;
+}
+/**
  * Open a PCI device, e.g. "0000:00:01.0".
  */
 QEMUVFIOState *qemu_vfio_open_pci(const char *device, Error **errp)
 {
     int r;
-    QEMUVFIOState *s = g_new0(QEMUVFIOState, 1);
+    QEMUVFIOState *s;
 
+    if (!qemu_vfio_arch_supported()) {
+        error_setg(errp,
+                   "QEMU VFIO utility is not supported on this architecture");
+        return NULL;
+    }
+    s = g_new0(QEMUVFIOState, 1);
     r = qemu_vfio_init_pci(s, device, errp);
     if (r) {
         g_free(s);
