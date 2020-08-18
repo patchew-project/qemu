@@ -643,8 +643,8 @@ static inline void qdev_init_gpio_in_named(DeviceState *dev,
 
 /**
  * qdev_pass_gpios: create GPIO lines on container which pass through to device
- * @dev: Device which has GPIO lines
- * @container: Container device which needs to expose them
+ * @from_dev: Device which has GPIO lines
+ * @to_container: Container device which needs to expose them
  * @name: Name of GPIO array to pass through (NULL for the anonymous GPIO array)
  *
  * In QEMU, complicated devices like SoCs are often modelled with a
@@ -653,14 +653,14 @@ static inline void qdev_init_gpio_in_named(DeviceState *dev,
  * to create GPIO arrays on itself which simply pass through to a GPIO
  * array of one of its internal devices.
  *
- * If @dev has both input and output GPIOs named @name then both will
+ * If @from_dev has both input and output GPIOs named @name then both will
  * be passed through. It is not possible to pass a subset of the array
  * with this function.
  *
- * To users of the container device, the GPIO array created on @container
+ * To users of the container device, the GPIO array created on @to_container
  * behaves exactly like any other.
  */
-void qdev_pass_gpios(DeviceState *dev, DeviceState *container,
+void qdev_pass_gpios(DeviceState *from_dev, DeviceState *to_container,
                      const char *name);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
