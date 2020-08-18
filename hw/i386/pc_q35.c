@@ -359,6 +359,7 @@ static void pc_q35_5_2_machine_options(MachineClass *m)
     pc_q35_machine_options(m);
     m->alias = "q35";
     pcmc->default_cpu_version = 1;
+    compat_props_add(m->compat_props, pc_compat_5_1, pc_compat_5_1_len);
 }
 
 DEFINE_Q35_MACHINE(v5_2, "pc-q35-5.2", NULL,

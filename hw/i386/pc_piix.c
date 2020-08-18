@@ -433,6 +433,7 @@ static void pc_i440fx_5_2_machine_options(MachineClass *m)
     m->alias = "pc";
     m->is_default = true;
     pcmc->default_cpu_version = 1;
+    compat_props_add(m->compat_props, pc_compat_5_1, pc_compat_5_1_len);
 }
 
 DEFINE_I440FX_MACHINE(v5_2, "pc-i440fx-5.2", NULL,
