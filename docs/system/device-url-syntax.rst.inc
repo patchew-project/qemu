@@ -201,6 +201,10 @@ These are specified using a special URL syntax.
       bytes. The value must be a non-zero power of two.  It defaults
       to 256kB.
 
+   ``blockcount``
+      The number of ``blocksize`` blocks that the system may allocate
+      to store data read from the remote server.
+
    Note that when passing options to qemu explicitly, ``driver`` is the
    value of <protocol>.
 

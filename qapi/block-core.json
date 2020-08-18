@@ -3767,11 +3767,15 @@
 # @blocksize: Size of all IO requests sent to the remote server; must
 #             be a non-zero power of two (defaults to 1 256kB)
 #
+# @blockcount: The number of IO blocks used to cache data from the
+#              remote server.
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlBase',
   'data': { 'url': 'str',
             '*blocksize': 'int',
+            '*blockcount': 'int',
             '*timeout': 'int',
             '*username': 'str',
             '*password-secret': 'str',

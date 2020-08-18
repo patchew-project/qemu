@@ -75,14 +75,15 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_PROXY_PASSWORD_SECRET "proxy-password-secret"
 #define CURL_BLOCK_OPT_OFFSET "offset"
 #define CURL_BLOCK_OPT_BLOCKSIZE "blocksize"
+#define CURL_BLOCK_OPT_BLOCKCOUNT "blockcount"
 
 #define CURL_BLOCK_OPT_SSLVERIFY_DEFAULT true
 #define CURL_BLOCK_OPT_TIMEOUT_DEFAULT 5
 /* Must be a non-zero power of 2. */
 #define CURL_BLOCK_OPT_BLOCKSIZE_DEFAULT (256 * 1024)
+/* The defaultnumber of blocks to store in the cache. */
+#define CURL_BLOCK_OPT_BLOCKCOUNT_DEFAULT (CURL_NUM_STATES)
 
-/* The maximum number of blocks to store in the cache. */
-#define CURL_BLOCK_CACHE_MAX_BLOCKS 100
 /* The number of heads in the hash table. */
 #define CURL_BLOCK_CACHE_HASH 37
 
@@ -161,6 +162,7 @@ typedef struct BDRVCURLState {
     char *proxypassword;
     size_t offset;
     size_t blocksize;
+    int cache_max;
     int cache_allocated; /* The number of block_t currently allocated. */
     QLIST_HEAD(, block) cache_free;
     QTAILQ_HEAD(, block) cache_lru;
@@ -287,7 +289,7 @@ static block_t *curl_cache_get(BDRVCURLState *s)
     }
 
     /* If not at the limit, try get a new one. */
-    if (s->cache_allocated < CURL_BLOCK_CACHE_MAX_BLOCKS) {
+    if (s->cache_allocated < s->cache_max) {
         b = curl_cache_alloc(s);
         if (b) {
             b->use++;
@@ -929,6 +931,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Block size for IO requests"
         },
+        {
+            .name = CURL_BLOCK_OPT_BLOCKCOUNT,
+            .type = QEMU_OPT_SIZE,
+            .help = "Maximum number of cached blocks"
+        },
         { /* end of list */ }
     },
 };
@@ -1037,6 +1044,13 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
                                      CURL_BLOCK_OPT_BLOCKSIZE_DEFAULT);
     if ((s->blocksize & (s->blocksize - 1)) != 0) {
         error_setg(errp, "blocksize must be a non-zero power of two");
+        goto out_noclean;
+    }
+    s->cache_max = qemu_opt_get_size(opts, CURL_BLOCK_OPT_BLOCKCOUNT,
+                                     CURL_BLOCK_OPT_BLOCKCOUNT_DEFAULT);
+    if (s->cache_max < CURL_NUM_STATES) {
+        error_setg(errp, "blockcount must be larger than %d",
+            CURL_NUM_STATES - 1);
         goto out_noclean;
     }
 
