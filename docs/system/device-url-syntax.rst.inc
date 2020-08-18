@@ -194,6 +194,13 @@ These are specified using a special URL syntax.
       Add an offset, in bytes, to all range requests sent to the
       remote server.
 
+   ``blocksize``
+      The size of all IO requests sent to the remote server. This
+      value may optionally have the suffix 'T', 'G', 'M', 'K', 'k' or
+      'b'. If it does not have a suffix, it will be assumed to be in
+      bytes. The value must be a non-zero power of two.  It defaults
+      to 256kB.
+
    Note that when passing options to qemu explicitly, ``driver`` is the
    value of <protocol>.
 

@@ -74,17 +74,12 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_PROXY_USERNAME "proxy-username"
 #define CURL_BLOCK_OPT_PROXY_PASSWORD_SECRET "proxy-password-secret"
 #define CURL_BLOCK_OPT_OFFSET "offset"
+#define CURL_BLOCK_OPT_BLOCKSIZE "blocksize"
 
 #define CURL_BLOCK_OPT_SSLVERIFY_DEFAULT true
 #define CURL_BLOCK_OPT_TIMEOUT_DEFAULT 5
-
 /* Must be a non-zero power of 2. */
-#define CURL_BLOCK_SIZE (256 * 1024)
-
-/* Align "n" to the start of the containing block. */
-#define CURL_BLOCK_ALIGN(n) ((n) & ~(CURL_BLOCK_SIZE - 1))
-/* The offset of "n" within its' block. */
-#define CURL_BLOCK_OFFSET(n) ((n) & (CURL_BLOCK_SIZE - 1))
+#define CURL_BLOCK_OPT_BLOCKSIZE_DEFAULT (256 * 1024)
 
 struct BDRVCURLState;
 struct CURLState;
@@ -102,7 +97,7 @@ typedef struct CURLAIOCB {
 
     /*
      * start and end indicate the subset of the surrounding
-     * CURL_BLOCK_SIZE sized block that is the subject of this
+     * BDRVCURLState.blocksize sized block that is the subject of this
      * IOCB. They are offsets from the beginning of the underlying
      * buffer.
      */
@@ -148,10 +143,23 @@ typedef struct BDRVCURLState {
     char *proxyusername;
     char *proxypassword;
     size_t offset;
+    size_t blocksize;
 } BDRVCURLState;
 
 static void curl_clean_state(CURLState *s);
 static void curl_multi_do(void *arg);
+
+/* Align "n" to the start of the containing block. */
+static inline uint64_t curl_block_align(BDRVCURLState *s, uint64_t n)
+{
+    return n & ~(s->blocksize - 1);
+}
+
+/* The offset of "n" within its' block. */
+static inline uint64_t curl_block_offset(BDRVCURLState *s, uint64_t n)
+{
+    return n & (s->blocksize - 1);
+}
 
 #ifdef NEED_CURL_TIMER_CALLBACK
 /* Called from curl_multi_do_locked, with s->mutex held.  */
@@ -264,22 +272,23 @@ static size_t curl_header_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 /* Called from curl_multi_do_locked, with s->mutex held.  */
 static size_t curl_read_cb(void *ptr, size_t size, size_t nmemb, void *opaque)
 {
-    CURLState *s = ((CURLState*)opaque);
+    CURLState *state = (CURLState *)opaque;
+    BDRVCURLState *s = state->s;
     size_t realsize = size * nmemb;
 
     trace_curl_read_cb(realsize);
 
-    if (!s || !s->orig_buf) {
+    if (!state || !state->orig_buf) {
         goto read_end;
     }
 
-    if (s->buf_off >= CURL_BLOCK_SIZE) {
+    if (state->buf_off >= s->blocksize) {
         /* buffer full, read nothing */
         goto read_end;
     }
-    realsize = MIN(realsize, CURL_BLOCK_SIZE - s->buf_off);
-    memcpy(s->orig_buf + s->buf_off, ptr, realsize);
-    s->buf_off += realsize;
+    realsize = MIN(realsize, s->blocksize - state->buf_off);
+    memcpy(state->orig_buf + state->buf_off, ptr, realsize);
+    state->buf_off += realsize;
 
 read_end:
     /* curl will error out if we do not return this value */
@@ -300,7 +309,7 @@ static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
         /* The end of the currently valid data. */
         uint64_t buf_end = state->buf_start + state->buf_off;
         /* The end of the valid data when the IO completes. */
-        uint64_t buf_fend = state->buf_start + CURL_BLOCK_SIZE;
+        uint64_t buf_fend = state->buf_start + s->blocksize;
 
         if (!state->orig_buf)
             continue;
@@ -315,7 +324,7 @@ static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
             (clamped_end >= state->buf_start) &&
             (clamped_end <= buf_end))
         {
-            char *buf = state->orig_buf + CURL_BLOCK_OFFSET(start);
+            char *buf = state->orig_buf + curl_block_offset(s, start);
 
             trace_curl_pending_hit(qemu_coroutine_self(),
                                    start, len);
@@ -343,7 +352,7 @@ static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
 
             trace_curl_pending_piggyback(qemu_coroutine_self(),
                                          start, len);
-            acb->start = CURL_BLOCK_OFFSET(start);
+            acb->start = curl_block_offset(s, start);
             acb->end = acb->start + clamped_len;
 
             for (j = 0; j < CURL_NUM_ACB; j++) {
@@ -688,6 +697,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_SIZE,
             .help = "Offset into underlying content"
         },
+        {
+            .name = CURL_BLOCK_OPT_BLOCKSIZE,
+            .type = QEMU_OPT_SIZE,
+            .help = "Block size for IO requests"
+        },
         { /* end of list */ }
     },
 };
@@ -792,6 +806,12 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     }
 
     s->offset = qemu_opt_get_size(opts, CURL_BLOCK_OPT_OFFSET, 0);
+    s->blocksize = qemu_opt_get_size(opts, CURL_BLOCK_OPT_BLOCKSIZE,
+                                     CURL_BLOCK_OPT_BLOCKSIZE_DEFAULT);
+    if ((s->blocksize & (s->blocksize - 1)) != 0) {
+        error_setg(errp, "blocksize must be a non-zero power of two");
+        goto out_noclean;
+    }
 
     trace_curl_open(file);
     qemu_co_queue_init(&s->free_state_waitq);
@@ -885,8 +905,8 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
      * Our caller must ensure that this request does not span two
      * blocks.
      */
-    assert(CURL_BLOCK_ALIGN(acb->offset) ==
-           CURL_BLOCK_ALIGN(acb->offset + acb->bytes - 1));
+    assert(curl_block_align(s, acb->offset) ==
+           curl_block_align(s, acb->offset + acb->bytes - 1));
 
     qemu_mutex_lock(&s->mutex);
 
@@ -915,13 +935,13 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
         goto out;
     }
 
-    acb->start = CURL_BLOCK_OFFSET(acb->offset);
+    acb->start = curl_block_offset(s, acb->offset);
     acb->end = acb->start + MIN(acb->bytes, s->len - acb->offset);
 
     state->buf_off = 0;
-    state->buf_start = CURL_BLOCK_ALIGN(acb->offset);
+    state->buf_start = curl_block_align(s, acb->offset);
     if (!state->orig_buf) {
-        state->orig_buf = g_try_malloc(CURL_BLOCK_SIZE);
+        state->orig_buf = g_try_malloc(s->blocksize);
     }
     if (!state->orig_buf) {
         curl_clean_state(state);
@@ -932,9 +952,9 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
 
     snprintf(state->range, 127, "%" PRIu64 "-%" PRIu64,
              s->offset + state->buf_start,
-             s->offset + state->buf_start + CURL_BLOCK_SIZE);
+             s->offset + state->buf_start + s->blocksize);
     trace_curl_setup_preadv(qemu_coroutine_self(), state->buf_start,
-                            CURL_BLOCK_SIZE);
+                            s->blocksize);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     if (curl_multi_add_handle(s->multi, state->curl) != CURLM_OK) {
@@ -955,8 +975,9 @@ out:
 static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
         uint64_t offset, uint64_t bytes, QEMUIOVector *qiov, int flags)
 {
+    BDRVCURLState *s = bs->opaque;
     /*
-     * The lower layer does all IO in single CURL_BLOCK_SIZE sized and
+     * The lower layer does all IO in single s->blocksize sized and
      * aligned chunks and cannot handle an IO that spans two blocks,
      * so split the request here.
      */
@@ -967,7 +988,7 @@ static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
     trace_curl_co_preadv(qemu_coroutine_self(), offset, bytes);
 
     while (bytes > 0) {
-        uint64_t len = MIN(bytes, CURL_BLOCK_SIZE - CURL_BLOCK_OFFSET(off));
+        uint64_t len = MIN(bytes, s->blocksize - curl_block_offset(s, off));
         CURLAIOCB acb = {
             .co = qemu_coroutine_self(),
             .ret = -EINPROGRESS,

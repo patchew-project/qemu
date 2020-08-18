@@ -3764,10 +3764,14 @@
 # @proxy-password-secret: ID of a QCryptoSecret object providing a password
 #                         for proxy authentication (defaults to no password)
 #
+# @blocksize: Size of all IO requests sent to the remote server; must
+#             be a non-zero power of two (defaults to 1 256kB)
+#
 # Since: 2.9
 ##
 { 'struct': 'BlockdevOptionsCurlBase',
   'data': { 'url': 'str',
+            '*blocksize': 'int',
             '*timeout': 'int',
             '*username': 'str',
             '*password-secret': 'str',
