@@ -17,5 +17,6 @@ typedef enum {
 } AcpiOSCField;
 
 void acpi_setup(void);
+Object *acpi_get_i386_pci_host(void);
 
 #endif
