@@ -36,6 +36,7 @@
 #include "hw/acpi/acpi.h"
 #include "hw/acpi/tco.h"
 #include "exec/address-spaces.h"
+#include "trace.h"
 
 #include "hw/i386/ich9.h"
 #include "hw/mem/pc-dimm.h"
@@ -59,13 +60,17 @@ static void ich9_pm_update_sci_fn(ACPIREGS *regs)
 static uint64_t ich9_gpe_readb(void *opaque, hwaddr addr, unsigned width)
 {
     ICH9LPCPMRegs *pm = opaque;
-    return acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
+    uint64_t val = acpi_gpe_ioport_readb(&pm->acpi_regs, addr);
+
+    trace_ich9_gpe_readb(addr, width, val);
+    return val;
 }
 
 static void ich9_gpe_writeb(void *opaque, hwaddr addr, uint64_t val,
                             unsigned width)
 {
     ICH9LPCPMRegs *pm = opaque;
+    trace_ich9_gpe_writeb(addr, width, val);
     acpi_gpe_ioport_writeb(&pm->acpi_regs, addr, val);
     acpi_update_sci(&pm->acpi_regs, pm->irq);
 }
