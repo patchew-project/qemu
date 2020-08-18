@@ -728,6 +728,7 @@ subdir('net')
 subdir('replay')
 subdir('hw')
 subdir('accel')
+subdir('plugins')
 subdir('bsd-user')
 subdir('linux-user')
 
@@ -895,6 +896,10 @@ foreach target : target_dirs
 endforeach
 
 # Other build targets
+
+if 'CONFIG_PLUGIN' in config_host
+  install_headers('include/qemu/qemu-plugin.h')
+endif
 
 if 'CONFIG_GUEST_AGENT' in config_host
   subdir('qga')
