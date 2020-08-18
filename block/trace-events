@@ -17,6 +17,8 @@ bdrv_co_pwrite_zeroes(void *bs, int64_t offset, int count, int flags) "bs %p off
 bdrv_co_do_copy_on_readv(void *bs, int64_t offset, unsigned int bytes, int64_t cluster_offset, int64_t cluster_bytes) "bs %p offset %"PRId64" bytes %u cluster_offset %"PRId64" cluster_bytes %"PRId64
 bdrv_co_copy_range_from(void *src, uint64_t src_offset, void *dst, uint64_t dst_offset, uint64_t bytes, int read_flags, int write_flags) "src %p offset %"PRIu64" dst %p offset %"PRIu64" bytes %"PRIu64" rw flags 0x%x 0x%x"
 bdrv_co_copy_range_to(void *src, uint64_t src_offset, void *dst, uint64_t dst_offset, uint64_t bytes, int read_flags, int write_flags) "src %p offset %"PRIu64" dst %p offset %"PRIu64" bytes %"PRIu64" rw flags 0x%x 0x%x"
+bdrv_driver_pwritev(void *co, uint64_t offset, uint64_t bytes) "co %p writes 0x%"PRIx64" + 0x%"PRIx64
+bdrv_driver_pwritev_done(void *co) "co %p done"
 
 # stream.c
 stream_one_iteration(void *s, int64_t offset, uint64_t bytes, int is_allocated) "s %p offset %" PRId64 " bytes %" PRIu64 " is_allocated %d"
@@ -196,7 +198,12 @@ curl_sock_cb(int action, int fd) "sock action %d on fd %d"
 curl_read_cb(size_t realsize) "just reading %zu bytes"
 curl_open(const char *file) "opening %s"
 curl_open_size(uint64_t size) "size = %" PRIu64
-curl_setup_preadv(uint64_t bytes, uint64_t start, const char *range) "reading %" PRIu64 " at %" PRIu64 " (%s)"
+curl_co_preadv(void *co, uint64_t offset, uint64_t bytes) "co %p requests 0x%" PRIx64 " + 0x%" PRIx64
+curl_co_preadv_done(void *co) "co %p done"
+curl_setup_preadv(void *co, uint64_t offset, uint64_t bytes) "co %p requests 0x%" PRIx64 " + 0x%" PRIx64
+curl_pending_hit(void *co, uint64_t start, uint64_t len) "co %p finds 0x%" PRIx64 " + 0x%" PRIx64
+curl_pending_piggyback(void *co, uint64_t start, uint64_t len) "co %p pending 0x%" PRIx64 " + 0x%" PRIx64
+curl_pending_miss(void *co, uint64_t start, uint64_t len) "co %p misses 0x%" PRIx64 " + 0x%" PRIx64
 curl_close(void) "close"
 
 # file-posix.c
@@ -222,3 +229,7 @@ sheepdog_snapshot_create_inode(const char *name, uint32_t snap, uint32_t vdi) "s
 
 # ssh.c
 sftp_error(const char *op, const char *ssh_err, int ssh_err_code, int sftp_err_code) "%s failed: %s (libssh error code: %d, sftp error code: %d)"
+
+# linux-aio.c
+laio_co_submit(void *co, uint64_t offset, uint64_t bytes) "co %p writes 0x%"PRIx64" + 0x%"PRIx64
+laio_co_submit_done(void *co) "co %p done"

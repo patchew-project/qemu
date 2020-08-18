@@ -1194,6 +1194,8 @@ static int coroutine_fn bdrv_driver_pwritev(BlockDriverState *bs,
         return -ENOMEDIUM;
     }
 
+    trace_bdrv_driver_pwritev(qemu_coroutine_self(), offset, bytes);
+
     if (drv->bdrv_co_pwritev_part) {
         ret = drv->bdrv_co_pwritev_part(bs, offset, bytes, qiov, qiov_offset,
                                         flags & bs->supported_write_flags);
@@ -1252,6 +1254,8 @@ emulate_flags:
     if (qiov == &local_qiov) {
         qemu_iovec_destroy(&local_qiov);
     }
+
+    trace_bdrv_driver_pwritev_done(qemu_coroutine_self());
 
     return ret;
 }

@@ -299,6 +299,8 @@ static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
         {
             char *buf = state->orig_buf + (start - state->buf_start);
 
+            trace_curl_pending_hit(qemu_coroutine_self(),
+                                   start, len);
             qemu_iovec_from_buf(acb->qiov, 0, buf, clamped_len);
             if (clamped_len < len) {
                 qemu_iovec_memset(acb->qiov, clamped_len, 0, len - clamped_len);
@@ -316,6 +318,8 @@ static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
         {
             int j;
 
+            trace_curl_pending_piggyback(qemu_coroutine_self(),
+                                         start, len);
             acb->start = start - state->buf_start;
             acb->end = acb->start + clamped_len;
 
@@ -327,6 +331,8 @@ static bool curl_find_buf(BDRVCURLState *s, uint64_t start, uint64_t len,
             }
         }
     }
+
+    trace_curl_pending_miss(qemu_coroutine_self(), start, len);
 
     return false;
 }
@@ -894,7 +900,7 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
 
     snprintf(state->range, 127, "%" PRIu64 "-%" PRIu64,
              s->offset + start, s->offset + end);
-    trace_curl_setup_preadv(acb->bytes, start, state->range);
+    trace_curl_setup_preadv(qemu_coroutine_self(), start, acb->bytes);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     if (curl_multi_add_handle(s->multi, state->curl) != CURLM_OK) {
@@ -923,10 +929,12 @@ static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
         .bytes = bytes
     };
 
+    trace_curl_co_preadv(qemu_coroutine_self(), offset, bytes);
     curl_setup_preadv(bs, &acb);
     while (acb.ret == -EINPROGRESS) {
         qemu_coroutine_yield();
     }
+    trace_curl_co_preadv_done(qemu_coroutine_self());
     return acb.ret;
 }
 

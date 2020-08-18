@@ -15,6 +15,7 @@
 #include "qemu/event_notifier.h"
 #include "qemu/coroutine.h"
 #include "qapi/error.h"
+#include "trace.h"
 
 #include <libaio.h>
 
@@ -391,6 +392,8 @@ int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
         .qiov       = qiov,
     };
 
+    trace_laio_co_submit(qemu_coroutine_self(), offset, qiov->size);
+
     ret = laio_do_submit(fd, &laiocb, offset, type);
     if (ret < 0) {
         return ret;
@@ -399,6 +402,9 @@ int coroutine_fn laio_co_submit(BlockDriverState *bs, LinuxAioState *s, int fd,
     if (laiocb.ret == -EINPROGRESS) {
         qemu_coroutine_yield();
     }
+
+    trace_laio_co_submit_done(qemu_coroutine_self());
+
     return laiocb.ret;
 }
 
