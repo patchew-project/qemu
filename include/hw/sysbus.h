@@ -73,7 +73,12 @@ typedef void FindSysbusDeviceFunc(SysBusDevice *sbdev, void *opaque);
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
-void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
+/**
+ * sysbus_pass_irq: Pass through IRQ/GPIO lines from one to another device
+ * @to_dev: Device which needs to expose IRQ/GPIO lines
+ * @from_dev: Device which has the IRQ/GPIO lines
+ */
+void sysbus_pass_irq(SysBusDevice *to_dev, SysBusDevice *from_dev);
 void sysbus_init_ioports(SysBusDevice *dev, uint32_t ioport, uint32_t size);
 
 

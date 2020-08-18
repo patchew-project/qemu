@@ -181,10 +181,9 @@ void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p)
     qdev_init_gpio_out_named(DEVICE(dev), p, SYSBUS_DEVICE_GPIO_IRQ, 1);
 }
 
-/* Pass IRQs from a target device.  */
-void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target)
+void sysbus_pass_irq(SysBusDevice *to_dev, SysBusDevice *from_dev)
 {
-    qdev_pass_gpios(DEVICE(target), DEVICE(dev), SYSBUS_DEVICE_GPIO_IRQ);
+    qdev_pass_gpios(DEVICE(from_dev), DEVICE(to_dev), SYSBUS_DEVICE_GPIO_IRQ);
 }
 
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory)
