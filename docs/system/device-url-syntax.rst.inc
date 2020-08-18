@@ -197,6 +197,10 @@ These are specified using a special URL syntax.
       get the size of the image to be downloaded. If not set, the
       default timeout of 5 seconds is used.
 
+   ``offset``
+      Add an offset, in bytes, to all range requests sent to the
+      remote server.
+
    Note that when passing options to qemu explicitly, ``driver`` is the
    value of <protocol>.
 

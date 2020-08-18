@@ -74,6 +74,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_PASSWORD_SECRET "password-secret"
 #define CURL_BLOCK_OPT_PROXY_USERNAME "proxy-username"
 #define CURL_BLOCK_OPT_PROXY_PASSWORD_SECRET "proxy-password-secret"
+#define CURL_BLOCK_OPT_OFFSET "offset"
 
 #define CURL_BLOCK_OPT_READAHEAD_DEFAULT (256 * 1024)
 #define CURL_BLOCK_OPT_SSLVERIFY_DEFAULT true
@@ -135,6 +136,7 @@ typedef struct BDRVCURLState {
     char *password;
     char *proxyusername;
     char *proxypassword;
+    size_t offset;
 } BDRVCURLState;
 
 static void curl_clean_state(CURLState *s);
@@ -658,6 +660,11 @@ static QemuOptsList runtime_opts = {
             .type = QEMU_OPT_STRING,
             .help = "ID of secret used as password for HTTP proxy auth",
         },
+        {
+            .name = CURL_BLOCK_OPT_OFFSET,
+            .type = QEMU_OPT_SIZE,
+            .help = "Offset into underlying content"
+        },
         { /* end of list */ }
     },
 };
@@ -768,6 +775,8 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
             goto out_noclean;
         }
     }
+
+    s->offset = qemu_opt_get_size(opts, CURL_BLOCK_OPT_OFFSET, 0);
 
     trace_curl_open(file);
     qemu_co_queue_init(&s->free_state_waitq);
@@ -899,7 +908,8 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     }
     state->acb[0] = acb;
 
-    snprintf(state->range, 127, "%" PRIu64 "-%" PRIu64, start, end);
+    snprintf(state->range, 127, "%" PRIu64 "-%" PRIu64,
+             s->offset + start, s->offset + end);
     trace_curl_setup_preadv(acb->bytes, start, state->range);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
