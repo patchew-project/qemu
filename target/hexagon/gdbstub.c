@@ -15,28 +15,35 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef HEXAGON_INTERNAL_H
-#define HEXAGON_INTERNAL_H
+#include "qemu/osdep.h"
+#include "qemu-common.h"
+#include "exec/gdbstub.h"
+#include "cpu.h"
+#include "internal.h"
 
-/*
- * Change HEX_DEBUG to 1 to turn on debugging output
- */
-#define HEX_DEBUG 0
-#define HEX_DEBUG_LOG(...) \
-    do { \
-        if (HEX_DEBUG) { \
-            rcu_read_lock(); \
-            fprintf(stderr, __VA_ARGS__); \
-            rcu_read_unlock(); \
-        } \
-    } while (0)
+int hexagon_gdb_read_register(CPUState *cs, GByteArray *mem_buf, int n)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
 
-extern void hexagon_debug(CPUHexagonState *env);
+    if (n < TOTAL_PER_THREAD_REGS) {
+        return gdb_get_regl(mem_buf, env->gpr[n]);
+    }
 
-extern const char * const hexagon_regnames[TOTAL_PER_THREAD_REGS];
+    g_assert_not_reached();
+    return 0;
+}
 
-extern void init_genptr(void);
+int hexagon_gdb_write_register(CPUState *cs, uint8_t *mem_buf, int n)
+{
+    HexagonCPU *cpu = HEXAGON_CPU(cs);
+    CPUHexagonState *env = &cpu->env;
 
-extern int hexagon_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
-extern int hexagon_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
-#endif
+    if (n < TOTAL_PER_THREAD_REGS) {
+        env->gpr[n] = ldtul_p(mem_buf);
+        return sizeof(target_ulong);
+    }
+
+    g_assert_not_reached();
+    return 0;
+}
