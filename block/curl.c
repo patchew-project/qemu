@@ -65,6 +65,7 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_TIMEOUT_MAX 10000
 
 #define CURL_BLOCK_OPT_URL       "url"
+#define CURL_BLOCK_OPT_READAHEAD "readahead"
 #define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
 #define CURL_BLOCK_OPT_TIMEOUT "timeout"
 #define CURL_BLOCK_OPT_COOKIE    "cookie"
@@ -149,6 +150,7 @@ typedef struct BDRVCURLState {
     uint64_t len;
     CURLState states[CURL_NUM_STATES];
     char *url;
+    size_t readahead_size;
     bool sslverify;
     uint64_t timeout;
     char *cookie;
@@ -882,6 +884,11 @@ static QemuOptsList runtime_opts = {
             .help = "URL to open",
         },
         {
+            .name = CURL_BLOCK_OPT_READAHEAD,
+            .type = QEMU_OPT_SIZE,
+            .help = "Readahead size",
+        },
+        {
             .name = CURL_BLOCK_OPT_SSLVERIFY,
             .type = QEMU_OPT_BOOL,
             .help = "Verify SSL certificate"
@@ -975,6 +982,8 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
         goto out_noclean;
     }
+
+    s->readahead_size = qemu_opt_get_size(opts, CURL_BLOCK_OPT_READAHEAD, 0);
 
     s->timeout = qemu_opt_get_number(opts, CURL_BLOCK_OPT_TIMEOUT,
                                      CURL_BLOCK_OPT_TIMEOUT_DEFAULT);
@@ -1246,6 +1255,8 @@ static int coroutine_fn curl_co_preadv(BlockDriverState *bs,
     uint64_t off = offset;
 
     trace_curl_co_preadv(qemu_coroutine_self(), offset, bytes);
+
+    bytes += s->readahead_size;
 
     while (bytes > 0) {
         uint64_t len = MIN(bytes, s->blocksize - curl_block_offset(s, off));

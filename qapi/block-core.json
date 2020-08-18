@@ -3752,6 +3752,8 @@
 #
 # @url: URL of the image file
 #
+# @readahead: Amount of read-ahead (defaults to 0)
+#
 # @timeout: Timeout for connections, in seconds (defaults to 5)
 #
 # @username: Username for authentication (defaults to none)
@@ -3776,6 +3778,7 @@
   'data': { 'url': 'str',
             '*blocksize': 'int',
             '*blockcount': 'int',
+            '*readahead': 'int',
             '*timeout': 'int',
             '*username': 'str',
             '*password-secret': 'str',
