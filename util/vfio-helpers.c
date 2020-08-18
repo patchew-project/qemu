@@ -215,6 +215,59 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
     return 0;
 }
 
+/**
+ * Initialize device MSIX IRQs and register event notifiers.
+ * @irq_count: number of MSIX IRQs to initialize
+ * @e: Array of @irq_count notifiers (each corresponding to a MSIX IRQ)
+ */
+int qemu_vfio_pci_init_msix_irqs(QEMUVFIOState *s, EventNotifier *e,
+                                 unsigned irq_count, Error **errp)
+{
+    int r;
+    struct vfio_irq_set *irq_set;
+    size_t irq_set_size;
+    struct vfio_irq_info irq_info = { .argsz = sizeof(irq_info) };
+
+    irq_info.index = VFIO_PCI_MSIX_IRQ_INDEX;
+    if (ioctl(s->device, VFIO_DEVICE_GET_IRQ_INFO, &irq_info)) {
+        error_setg_errno(errp, errno, "Failed to get device interrupt info");
+        return -errno;
+    }
+    if (irq_info.count <= irq_count) {
+        error_setg(errp,
+                   "Not enough device interrupts available (only %" PRIu32 ")",
+                   irq_info.count);
+        return -EINVAL;
+    }
+    if (!(irq_info.flags & VFIO_IRQ_INFO_EVENTFD)) {
+        error_setg(errp, "Device interrupt doesn't support eventfd");
+        return -EINVAL;
+    }
+
+    irq_set_size = sizeof(*irq_set) + irq_count * sizeof(int32_t);
+    irq_set = g_malloc0(irq_set_size);
+
+    /* Get to a known IRQ state */
+    *irq_set = (struct vfio_irq_set) {
+        .argsz = irq_set_size,
+        .flags = VFIO_IRQ_SET_DATA_EVENTFD | VFIO_IRQ_SET_ACTION_TRIGGER,
+        .index = irq_info.index,
+        .start = 0,
+        .count = irq_count,
+    };
+
+    for (unsigned i = 0; i < irq_count; i++) {
+        ((int32_t *)&irq_set->data)[i] = event_notifier_get_fd(&e[i]);
+    }
+    r = ioctl(s->device, VFIO_DEVICE_SET_IRQS, irq_set);
+    g_free(irq_set);
+    if (r) {
+        error_setg_errno(errp, errno, "Failed to setup device interrupts");
+        return -errno;
+    }
+    return 0;
+}
+
 static int qemu_vfio_pci_read_config(QEMUVFIOState *s, void *buf,
                                      int size, int ofs)
 {
