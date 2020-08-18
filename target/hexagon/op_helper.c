@@ -88,6 +88,24 @@ static inline void log_pred_write(CPUHexagonState *env, int pnum,
     }
 }
 
+static inline void log_store32(CPUHexagonState *env, target_ulong addr,
+                               int32_t val, int width, int slot)
+{
+    HEX_DEBUG_LOG("log_store%d(0x%x, %d [0x%x])\n", width, addr, val, val);
+    env->mem_log_stores[slot].va = addr;
+    env->mem_log_stores[slot].width = width;
+    env->mem_log_stores[slot].data32 = val;
+}
+
+static inline void log_store64(CPUHexagonState *env, target_ulong addr,
+                               int64_t val, int width, int slot)
+{
+    HEX_DEBUG_LOG("log_store%d(0x%x, %ld [0x%lx])\n", width, addr, val, val);
+    env->mem_log_stores[slot].va = addr;
+    env->mem_log_stores[slot].width = width;
+    env->mem_log_stores[slot].data64 = val;
+}
+
 static inline void write_new_pc(CPUHexagonState *env, target_ulong addr)
 {
     HEX_DEBUG_LOG("write_new_pc(0x" TARGET_FMT_lx ")\n", addr);
