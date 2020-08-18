@@ -3754,7 +3754,8 @@ for drv in $audio_drv_list; do
 
     jack | try-jack)
     if $pkg_config jack --exists; then
-        jack_libs=$($pkg_config jack --libs)
+        # dl is needed to check at runtime if jack1 or jack2 is in use
+        jack_libs="$($pkg_config jack --libs) -ldl"
         if test "$drv" = "try-jack"; then
             audio_drv_list=$(echo "$audio_drv_list" | sed -e 's/try-jack/jack/')
         fi

@@ -31,6 +31,7 @@
 #define AUDIO_CAP "jack"
 #include "audio_int.h"
 
+#include <dlfcn.h>
 #include <jack/jack.h>
 #include <jack/thread.h>
 
@@ -84,6 +85,7 @@ typedef struct QJackIn {
 }
 QJackIn;
 
+static int QJackWorkaroundCloseBug;
 static int qjack_client_init(QJackClient *c);
 static void qjack_client_connect_ports(QJackClient *c);
 static void qjack_client_fini(QJackClient *c);
@@ -563,7 +565,10 @@ static void qjack_client_fini(QJackClient *c)
         /* fallthrough */
 
     case QJACK_STATE_SHUTDOWN:
-        jack_client_close(c->client);
+        if (!QJackWorkaroundCloseBug) {
+            jack_client_close(c->client);
+        }
+        c->client = NULL;
         /* fallthrough */
 
     case QJACK_STATE_DISCONNECTED:
@@ -662,6 +667,36 @@ static void qjack_info(const char *msg)
 
 static void register_audio_jack(void)
 {
+    void *handle;
+
+    /*
+     * As JACK1 and JACK2 are interchangeable and JACK2 has "cleanup" routine
+     * that JACK1 does not have, we need to determine which version is in use at
+     * runtime. Unfortunatly there is no way to determine which is in use other
+     * then to look for symbols that are missing in JACK1, which in this case is
+     * `jack_get_version`. An issue has been raised over this, but to be
+     * compatible with older versions we must use this method to determine which
+     * library is in use. If at some time the jack developers implement
+     * `jack_get_version` in JACK1, this code will need to be revisited.
+     *
+     * At worst the workaround will be enabled and we will introduce a small
+     * memory leak if the jack server is restarted. This is better then the
+     * alternative which would be a use after free segfault.
+     */
+
+    handle = dlopen("libjack.so", RTLD_LAZY | RTLD_NOLOAD);
+    if (!handle) {
+        dolog("unable to open libjack.so to determine version\n");
+        dolog("assuming JACK2 and enabling the close bug workaround\n");
+        QJackWorkaroundCloseBug = 1;
+    } else {
+        if (dlsym(handle, "jack_get_version")) {
+            dolog("JACK2 detected, enabling close bug workaround\n");
+            QJackWorkaroundCloseBug = 1;
+        }
+        dlclose(handle);
+    }
+
     audio_driver_register(&jack_driver);
     jack_set_thread_creator(qjack_thread_creator);
     jack_set_error_function(qjack_error);
