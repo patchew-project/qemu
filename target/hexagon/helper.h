@@ -15,6 +15,8 @@
  *  along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "gen_tcg.h"
+
 DEF_HELPER_2(raise_exception, noreturn, env, i32)
 DEF_HELPER_1(debug_start_packet, void, env)
 DEF_HELPER_3(debug_check_store_width, void, env, int, int)

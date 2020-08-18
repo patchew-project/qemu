@@ -26,6 +26,7 @@
 #include "translate.h"
 #include "macros.h"
 #include "genptr_helpers.h"
+#include "gen_tcg.h"
 
 #define DEF_TCG_FUNC(TAG, GENFN) \
 static void generate_##TAG(CPUHexagonState *env, DisasContext *ctx, \
