@@ -3752,9 +3752,6 @@
 #
 # @url: URL of the image file
 #
-# @readahead: Size of the read-ahead cache; must be a multiple of
-#             512 (defaults to 256 kB)
-#
 # @timeout: Timeout for connections, in seconds (defaults to 5)
 #
 # @username: Username for authentication (defaults to none)
@@ -3771,7 +3768,6 @@
 ##
 { 'struct': 'BlockdevOptionsCurlBase',
   'data': { 'url': 'str',
-            '*readahead': 'int',
             '*timeout': 'int',
             '*username': 'str',
             '*password-secret': 'str',

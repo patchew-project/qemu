@@ -65,7 +65,6 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_TIMEOUT_MAX 10000
 
 #define CURL_BLOCK_OPT_URL       "url"
-#define CURL_BLOCK_OPT_READAHEAD "readahead"
 #define CURL_BLOCK_OPT_SSLVERIFY "sslverify"
 #define CURL_BLOCK_OPT_TIMEOUT "timeout"
 #define CURL_BLOCK_OPT_COOKIE    "cookie"
@@ -76,7 +75,6 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define CURL_BLOCK_OPT_PROXY_PASSWORD_SECRET "proxy-password-secret"
 #define CURL_BLOCK_OPT_OFFSET "offset"
 
-#define CURL_BLOCK_OPT_READAHEAD_DEFAULT (256 * 1024)
 #define CURL_BLOCK_OPT_SSLVERIFY_DEFAULT true
 #define CURL_BLOCK_OPT_TIMEOUT_DEFAULT 5
 
@@ -124,7 +122,6 @@ typedef struct BDRVCURLState {
     uint64_t len;
     CURLState states[CURL_NUM_STATES];
     char *url;
-    size_t readahead_size;
     bool sslverify;
     uint64_t timeout;
     char *cookie;
@@ -616,11 +613,6 @@ static QemuOptsList runtime_opts = {
             .help = "URL to open",
         },
         {
-            .name = CURL_BLOCK_OPT_READAHEAD,
-            .type = QEMU_OPT_SIZE,
-            .help = "Readahead size",
-        },
-        {
             .name = CURL_BLOCK_OPT_SSLVERIFY,
             .type = QEMU_OPT_BOOL,
             .help = "Verify SSL certificate"
@@ -702,14 +694,6 @@ static int curl_open(BlockDriverState *bs, QDict *options, int flags,
     qemu_mutex_init(&s->mutex);
     opts = qemu_opts_create(&runtime_opts, NULL, 0, &error_abort);
     if (!qemu_opts_absorb_qdict(opts, options, errp)) {
-        goto out_noclean;
-    }
-
-    s->readahead_size = qemu_opt_get_size(opts, CURL_BLOCK_OPT_READAHEAD,
-                                          CURL_BLOCK_OPT_READAHEAD_DEFAULT);
-    if ((s->readahead_size & 0x1ff) != 0) {
-        error_setg(errp, "HTTP_READAHEAD_SIZE %zd is not a multiple of 512",
-                   s->readahead_size);
         goto out_noclean;
     }
 
@@ -898,7 +882,7 @@ static void curl_setup_preadv(BlockDriverState *bs, CURLAIOCB *acb)
     state->buf_off = 0;
     g_free(state->orig_buf);
     state->buf_start = start;
-    state->buf_len = MIN(acb->end + s->readahead_size, s->len - start);
+    state->buf_len = MIN(acb->end, s->len - start);
     end = start + state->buf_len - 1;
     state->orig_buf = g_try_malloc(state->buf_len);
     if (state->buf_len && state->orig_buf == NULL) {
@@ -971,8 +955,9 @@ static void curl_refresh_filename(BlockDriverState *bs)
 {
     BDRVCURLState *s = bs->opaque;
 
-    /* "readahead" and "timeout" do not change the guest-visible data,
-     * so ignore them */
+    /*
+     * "timeout" does not change the guest-visible data, so ignore it.
+     */
     if (s->sslverify != CURL_BLOCK_OPT_SSLVERIFY_DEFAULT ||
         s->cookie || s->username || s->password || s->proxyusername ||
         s->proxypassword)

@@ -174,13 +174,6 @@ These are specified using a special URL syntax.
    ``url``
       The full URL when passing options to the driver explicitly.
 
-   ``readahead``
-      The amount of data to read ahead with each range request to the
-      remote server. This value may optionally have the suffix 'T', 'G',
-      'M', 'K', 'k' or 'b'. If it does not have a suffix, it will be
-      assumed to be in bytes. The value must be a multiple of 512 bytes.
-      It defaults to 256k.
-
    ``sslverify``
       Whether to verify the remote server's certificate when connecting
       over SSL. It can have the value 'on' or 'off'. It defaults to
