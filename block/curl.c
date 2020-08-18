@@ -60,8 +60,8 @@ static CURLMcode __curl_multi_socket_action(CURLM *multi_handle,
 #define PROTOCOLS (CURLPROTO_HTTP | CURLPROTO_HTTPS | \
                    CURLPROTO_FTP | CURLPROTO_FTPS)
 
-#define CURL_NUM_STATES 8
-#define CURL_NUM_ACB    8
+#define CURL_NUM_STATES 16
+#define CURL_NUM_ACB    16
 #define CURL_TIMEOUT_MAX 10000
 
 #define CURL_BLOCK_OPT_URL       "url"
