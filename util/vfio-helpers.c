@@ -193,7 +193,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         return -EINVAL;
     }
 
-    irq_set_size = sizeof(*irq_set) + sizeof(int);
+    irq_set_size = sizeof(*irq_set) + sizeof(int32_t);
     irq_set = g_malloc0(irq_set_size);
 
     /* Get to a known IRQ state */
@@ -205,7 +205,7 @@ int qemu_vfio_pci_init_irq(QEMUVFIOState *s, EventNotifier *e,
         .count = 1,
     };
 
-    *(int *)&irq_set->data = event_notifier_get_fd(e);
+    *(int32_t *)&irq_set->data = event_notifier_get_fd(e);
     r = ioctl(s->device, VFIO_DEVICE_SET_IRQS, irq_set);
     g_free(irq_set);
     if (r) {
