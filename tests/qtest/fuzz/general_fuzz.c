@@ -739,6 +739,83 @@ static void general_pre_fuzz(QTestState *s)
 
     counter_shm_init();
 }
+
+/*
+ * When libfuzzer gives us two inputs to combine, return a new input with the
+ * following structure:
+ *
+ * Input 1 (data1)
+ * SEPARATOR
+ * Clear out the DMA Patterns
+ * SEPARATOR
+ * Disable the pci_read/write instructions
+ * SEPARATOR
+ * Input 2 (data2)
+ *
+ * The idea is to collate the core behaviors of the two inputs.
+ * For example:
+ * Input 1: maps a device's BARs, sets up three DMA patterns, and triggers
+ *          device functionality A
+ * Input 2: maps a device's BARs, sets up one DMA pattern, and triggers device
+ *          functionality B
+ *
+ * This function attempts to produce an input that:
+ * Ouptut: maps a device's BARs, set up three DMA patterns, triggers
+ *          functionality A device, replaces the DMA patterns with a single
+ *          patten, and triggers device functionality B.
+ */
+static size_t general_fuzz_crossover(const uint8_t *data1, size_t size1, const
+                                     uint8_t *data2, size_t size2, uint8_t *out,
+                                     size_t max_out_size, unsigned int seed)
+{
+    size_t copy = 0, size = 0;
+
+    // Copy in the first input
+    copy = MIN(size1, max_out_size);
+    memcpy(out+size, data1, copy);
+    size+= copy;
+    max_out_size-= copy;
+
+    // Append a separator
+    copy = MIN(strlen(SEPARATOR), max_out_size);
+    memcpy(out+size, SEPARATOR, copy);
+    size+= copy;
+    max_out_size-= copy;
+
+    // Clear out the
+    copy = MIN(1, max_out_size);
+    if (copy) {
+        out[size] = OP_CLEAR_DMA_PATTERNS;
+    }
+    size+= copy;
+    max_out_size-= copy;
+
+    copy = MIN(strlen(SEPARATOR), max_out_size);
+    memcpy(out+size, SEPARATOR, copy);
+    size+= copy;
+    max_out_size-= copy;
+
+    copy = MIN(1, max_out_size);
+    if (copy) {
+        out[size] = OP_DISABLE_PCI;
+    }
+    size+= copy;
+    max_out_size-= copy;
+
+    copy = MIN(strlen(SEPARATOR), max_out_size);
+    memcpy(out+size, SEPARATOR, copy);
+    size+= copy;
+    max_out_size-= copy;
+
+    copy = MIN(size2, max_out_size);
+    memcpy(out+size, data2, copy);
+    size+= copy;
+    max_out_size-= copy;
+
+    return  size;
+}
+
+
 static GString *general_fuzz_cmdline(FuzzTarget *t)
 {
     GString *cmd_line = g_string_new(TARGET_NAME);
@@ -758,7 +835,9 @@ static void register_general_fuzz_targets(void)
             .description = "Fuzz based on any qemu command-line args. ",
             .get_init_cmdline = general_fuzz_cmdline,
             .pre_fuzz = general_pre_fuzz,
-            .fuzz = general_fuzz});
+            .fuzz = general_fuzz,
+            .crossover = general_fuzz_crossover
+    });
 }
 
 fuzz_target_init(register_general_fuzz_targets);
