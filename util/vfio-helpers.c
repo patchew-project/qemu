@@ -11,6 +11,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/cutils.h"
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 #include "qapi/error.h"
@@ -314,6 +315,25 @@ static int qemu_vfio_init_pci(QEMUVFIOState *s, const char *device,
     if (ioctl(s->container, VFIO_IOMMU_GET_INFO, &iommu_info)) {
         error_setg_errno(errp, errno, "Failed to get IOMMU info");
         ret = -errno;
+        goto fail;
+    }
+    if (!(iommu_info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
+        error_setg(errp, "Failed to get IOMMU page size info");
+        ret = -errno;
+        goto fail;
+    }
+    if (!extract64(iommu_info.iova_pgsizes,
+                   ctz64(qemu_real_host_page_size), 1)) {
+        g_autofree char *host_page_size = size_to_str(qemu_real_host_page_size);
+        error_setg(errp, "Unsupported IOMMU page size: %s", host_page_size);
+        error_append_hint(errp, "Available page size:\n");
+        for (int i = 0; i < 64; i++) {
+            if (extract64(iommu_info.iova_pgsizes, i, 1)) {
+                g_autofree char *iova_pgsizes = size_to_str(1UL << i);
+                error_append_hint(errp, " %s\n", iova_pgsizes);
+            }
+        }
+        ret = -EINVAL;
         goto fail;
     }
 
