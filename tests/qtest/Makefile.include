@@ -7,6 +7,7 @@ check-qtest-generic-y += machine-none-test
 check-qtest-generic-y += qmp-test
 check-qtest-generic-y += qmp-cmd-test
 check-qtest-generic-y += qom-test
+check-qtest-generic-y += fuzz-test
 check-qtest-generic-$(CONFIG_MODULES) += modules-test
 check-qtest-generic-y += test-hmp
 
@@ -272,6 +273,7 @@ tests/qtest/m25p80-test$(EXESUF): tests/qtest/m25p80-test.o
 tests/qtest/i440fx-test$(EXESUF): tests/qtest/i440fx-test.o $(libqos-pc-obj-y)
 tests/qtest/q35-test$(EXESUF): tests/qtest/q35-test.o $(libqos-pc-obj-y)
 tests/qtest/fw_cfg-test$(EXESUF): tests/qtest/fw_cfg-test.o $(libqos-pc-obj-y)
+tests/qtest/fuzz-test$(EXESUF): tests/qtest/fuzz-test.o $(libqos-pc-obj-y)
 tests/qtest/rtl8139-test$(EXESUF): tests/qtest/rtl8139-test.o $(libqos-pc-obj-y)
 tests/qtest/pnv-xscom-test$(EXESUF): tests/qtest/pnv-xscom-test.o
 tests/qtest/wdt_ib700-test$(EXESUF): tests/qtest/wdt_ib700-test.o
