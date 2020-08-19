@@ -13,11 +13,18 @@
 
 . common.rc
 
-requires mingw dtc
+requires dtc
+requires_any mingw mxe
 
 cd "$BUILD_DIR"
 
-for prefix in x86_64-w64-mingw32- i686-w64-mingw32-; do
+if has mingw; then
+  prefixes='x86_64-w64-mingw32- i686-w64-mingw32-'
+else
+  prefixes='x86_64-w64-mingw32.shared- i686-w64-mingw32.shared-'
+  export PATH=/usr/lib/mxe/usr/bin:$PATH
+fi
+for prefix in $prefixes; do
     TARGET_LIST=${TARGET_LIST:-$DEF_TARGET_LIST} \
         build_qemu --cross-prefix=$prefix \
         --enable-trace-backends=simple \

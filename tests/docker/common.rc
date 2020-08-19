@@ -15,10 +15,26 @@
 # overriden by TARGET_LIST if the user sets it.
 DEF_TARGET_LIST=${DEF_TARGET_LIST:-"x86_64-softmmu,aarch64-softmmu"}
 
+has()
+{
+    echo "$FEATURES" | grep -wq -e "$1"
+}
+
+requires_any()
+{
+    for c in $@; do
+        if has "$c"; then
+            return
+        fi
+    done
+    echo "None of prerequisites '$*' is present, skip"
+    exit 0
+}
+
 requires()
 {
     for c in $@; do
-        if ! echo "$FEATURES" | grep -wq -e "$c"; then
+        if ! has "$c"; then
             echo "Prerequisite '$c' not present, skip"
             exit 0
         fi

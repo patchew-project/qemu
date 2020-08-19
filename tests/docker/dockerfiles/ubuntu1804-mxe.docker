@@ -1,0 +1,54 @@
+FROM ubuntu:18.04
+ENV PACKAGES \
+    ccache \
+    gcc \
+    gettext \
+    git \
+    gnupg \
+    gnupg2 \
+    make \
+    nsis \
+    python3-yaml \
+    python3-sphinx \
+    python3-setuptools \
+    texinfo
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y install $PACKAGES
+
+ENV MXE_PACKAGES \
+    mxe-i686-w64-mingw32.shared-bzip2 \
+    mxe-i686-w64-mingw32.shared-curl \
+    mxe-i686-w64-mingw32.shared-glib \
+    mxe-i686-w64-mingw32.shared-gcc \
+    mxe-i686-w64-mingw32.shared-glib \
+    mxe-i686-w64-mingw32.shared-gmp \
+    mxe-i686-w64-mingw32.shared-gnutls \
+    mxe-i686-w64-mingw32.shared-gtk3 \
+    mxe-i686-w64-mingw32.shared-libjpeg-turbo \
+    mxe-i686-w64-mingw32.shared-libpng \
+    mxe-i686-w64-mingw32.shared-nettle \
+    mxe-i686-w64-mingw32.shared-nsis \
+    mxe-i686-w64-mingw32.shared-pixman \
+    mxe-i686-w64-mingw32.shared-pkgconf \
+    mxe-i686-w64-mingw32.shared-sdl2 \
+    mxe-x86-64-w64-mingw32.shared-bzip2 \
+    mxe-x86-64-w64-mingw32.shared-curl \
+    mxe-x86-64-w64-mingw32.shared-gcc \
+    mxe-x86-64-w64-mingw32.shared-glib \
+    mxe-x86-64-w64-mingw32.shared-gmp \
+    mxe-x86-64-w64-mingw32.shared-gnutls \
+    mxe-x86-64-w64-mingw32.shared-gtk3 \
+    mxe-x86-64-w64-mingw32.shared-libjpeg-turbo \
+    mxe-x86-64-w64-mingw32.shared-libpng \
+    mxe-x86-64-w64-mingw32.shared-nettle \
+    mxe-x86-64-w64-mingw32.shared-nsis \
+    mxe-x86-64-w64-mingw32.shared-pixman \
+    mxe-x86-64-w64-mingw32.shared-pkgconf \
+    mxe-x86-64-w64-mingw32.shared-sdl2
+
+RUN echo "deb http://pkg.mxe.cc/repos/apt bionic main" > \
+   /etc/apt/sources.list.d/mxeapt.list && \
+   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C6BF758A33A3A276 && \
+   apt-get update && \
+   DEBIAN_FRONTEND=noninteractive apt-get install -y $MXE_PACKAGES
+ENV FEATURES mxe
