@@ -37,6 +37,13 @@ smartcard.mo-libs := $(SMARTCARD_LIBS)
 endif
 endif
 
+ifeq ($(CONFIG_USB_U2F),y)
+common-obj-y                          += u2f.o u2f-passthru.o
+common-obj-$(CONFIG_U2F)              += u2f-emulated.o
+u2f-emulated.o-cflags = $(U2F_CFLAGS)
+u2f-emulated.o-libs = $(U2F_LIBS)
+endif
+
 ifeq ($(CONFIG_POSIX),y)
 common-obj-$(CONFIG_USB_STORAGE_MTP)  += dev-mtp.o
 endif
