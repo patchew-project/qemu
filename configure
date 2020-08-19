@@ -447,6 +447,7 @@ trace_file="trace"
 spice=""
 rbd=""
 smartcard=""
+u2f=""
 libusb=""
 usb_redir=""
 opengl=""
@@ -1390,6 +1391,10 @@ for opt do
   ;;
   --enable-smartcard) smartcard="yes"
   ;;
+  --disable-u2f) u2f="no"
+  ;;
+  --enable-u2f) u2f="yes"
+  ;;
   --disable-libusb) libusb="no"
   ;;
   --enable-libusb) libusb="yes"
@@ -1899,6 +1904,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   libiscsi        iscsi support
   libnfs          nfs support
   smartcard       smartcard support (libcacard)
+  u2f             U2F support (u2f-emu)
   libusb          libusb (for usb passthrough)
   live-block-migration   Block migration in the main migration stream
   usb-redir       usb network redirection support
@@ -5250,6 +5256,20 @@ if test "$smartcard" != "no"; then
     fi
 fi
 
+# check for u2f support
+if test "$u2f" != "no"; then
+    if $pkg_config --atleast-version=0.0.0 u2f-emu; then
+        u2f_emu_cflags=$($pkg_config --cflags u2f-emu)
+        u2f_emu_libs=$($pkg_config --libs u2f-emu)
+        u2f="yes"
+    else
+        if test "$u2f" = "yes"; then
+            feature_not_found "u2f" "Install u2f-emu"
+        fi
+        u2f="no"
+    fi
+fi
+
 # check for libusb
 if test "$libusb" != "no" ; then
     if $pkg_config --atleast-version=1.0.13 libusb-1.0; then
@@ -6965,6 +6985,7 @@ echo "spice support     $spice $(echo_version $spice $spice_protocol_version/$sp
 echo "rbd support       $rbd"
 echo "xfsctl support    $xfs"
 echo "smartcard support $smartcard"
+echo "U2F support       $u2f"
 echo "libusb            $libusb"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
@@ -7541,6 +7562,12 @@ if test "$smartcard" = "yes" ; then
   echo "CONFIG_SMARTCARD=y" >> $config_host_mak
   echo "SMARTCARD_CFLAGS=$libcacard_cflags" >> $config_host_mak
   echo "SMARTCARD_LIBS=$libcacard_libs" >> $config_host_mak
+fi
+
+if test "$u2f" = "yes" ; then
+  echo "CONFIG_U2F=y" >> $config_host_mak
+  echo "U2F_CFLAGS=$u2f_emu_cflags" >> $config_host_mak
+  echo "U2F_LIBS=$u2f_emu_libs" >> $config_host_mak
 fi
 
 if test "$libusb" = "yes" ; then
