@@ -38,7 +38,7 @@ OSS_FUZZ_BUILD_DIR="./build-oss-fuzz/"
 # remove it, resulting in an unresolved reference to qemu_build_not_reached
 # Undefine the __OPTIMIZE__ macro which compiler.h relies on to choose whether
 # to " #define qemu_build_not_reached()  g_assert_not_reached() "
-EXTRA_CFLAGS="$CFLAGS -U __OPTIMIZE__"
+EXTRA_CFLAGS="$CFLAGS -U __OPTIMIZE__ -DCONFIG_FUZZ=y"
 
 if ! { [ -e "./COPYING" ] &&
    [ -e "./MAINTAINERS" ] &&
@@ -100,6 +100,12 @@ for target in $(./i386-softmmu/qemu-fuzz-i386 | awk '$1 ~ /\*/  {print $2}');
 do
     cp ./i386-softmmu/qemu-fuzz-i386 "$DEST_DIR/qemu-fuzz-i386-target-$target"
 done
+
+mkdir -p "$DEST_DIR/deps"
+mv "$DEST_DIR/qemu-fuzz-i386-target-general-fuzz" "$DEST_DIR/deps/"
+
+./scripts/oss-fuzz/build_general_fuzzers.py \
+    "./scripts/oss-fuzz/general_fuzzer_configs.yml" "$DEST_DIR/general-fuzz-"
 
 echo "Done. The fuzzers are located in $DEST_DIR"
 exit 0

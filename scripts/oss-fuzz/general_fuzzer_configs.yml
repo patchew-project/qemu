@@ -92,7 +92,7 @@ configs:
         -device usb-braille,chardev=cd0 -device usb-ccid -device usb-ccid
         -device usb-kbd -device usb-mouse -device usb-serial,chardev=cd1
         -device usb-tablet -device usb-wacom-tablet -device usb-audio
-      objects: "*usb* *uhci* *xhci*"
+      objects: "*usb* *xhci*"
 
     - name: pc-i440fx
       args: -machine pc
