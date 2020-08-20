@@ -41,6 +41,7 @@
 #include "hw/usb.h"
 #include "hw/char/pl011.h"
 #include "net/net.h"
+#include "migration/vmstate.h"
 
 #define RAMLIMIT_GB 8192
 #define RAMLIMIT_BYTES (RAMLIMIT_GB * GiB)
@@ -62,6 +63,7 @@ enum {
     SBSA_CPUPERIPHS,
     SBSA_GIC_DIST,
     SBSA_GIC_REDIST,
+    SBSA_SECURE_EC,
     SBSA_SMMU,
     SBSA_UART,
     SBSA_RTC,
@@ -98,6 +100,14 @@ typedef struct {
 #define SBSA_MACHINE(obj) \
     OBJECT_CHECK(SBSAMachineState, (obj), TYPE_SBSA_MACHINE)
 
+typedef struct {
+    SysBusDevice parent_obj;
+    MemoryRegion iomem;
+} SECUREECState;
+
+#define TYPE_SECURE_EC      "sbsa-secure-ec"
+#define SECURE_EC(obj) OBJECT_CHECK(SECUREECState, (obj), TYPE_SECURE_EC)
+
 static const MemMapEntry sbsa_ref_memmap[] = {
     /* 512M boot ROM */
     [SBSA_FLASH] =              {          0, 0x20000000 },
@@ -107,6 +117,7 @@ static const MemMapEntry sbsa_ref_memmap[] = {
     [SBSA_CPUPERIPHS] =         { 0x40000000, 0x00040000 },
     [SBSA_GIC_DIST] =           { 0x40060000, 0x00010000 },
     [SBSA_GIC_REDIST] =         { 0x40080000, 0x04000000 },
+    [SBSA_SECURE_EC] =          { 0x50000000, 0x00001000 },
     [SBSA_UART] =               { 0x60000000, 0x00001000 },
     [SBSA_RTC] =                { 0x60010000, 0x00001000 },
     [SBSA_GPIO] =               { 0x60020000, 0x00001000 },
@@ -585,6 +596,65 @@ static void *sbsa_ref_dtb(const struct arm_boot_info *binfo, int *fdt_size)
     return board->fdt;
 }
 
+enum sbsa_secure_ec_powerstates {
+    SBSA_SECURE_EC_CMD_NULL,
+    SBSA_SECURE_EC_CMD_POWEROFF,
+    SBSA_SECURE_EC_CMD_REBOOT,
+};
+
+static uint64_t secure_ec_read(void *opaque, hwaddr offset, unsigned size)
+{
+    /* No use for this currently */
+    return 0;
+}
+
+static void secure_ec_write(void *opaque, hwaddr offset,
+                     uint64_t value, unsigned size)
+{
+    if (offset == 0) { /* PSCI machine power command register */
+        switch (value) {
+        case SBSA_SECURE_EC_CMD_NULL:
+            break;
+        case SBSA_SECURE_EC_CMD_POWEROFF:
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
+            break;
+        case SBSA_SECURE_EC_CMD_REBOOT:
+            qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+            break;
+        default:
+            error_report("sbsa-ref: ERROR Unkown power command");
+        }
+    } else {
+        error_report("sbsa-ref: unknown EC register");
+    }
+}
+
+static const MemoryRegionOps secure_ec_ops = {
+    .read = secure_ec_read,
+    .write = secure_ec_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void secure_ec_init(Object *obj)
+{
+    SECUREECState *s = SECURE_EC(obj);
+    SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+
+    memory_region_init_io(&s->iomem, obj, &secure_ec_ops, s, "secure-ec",
+                            0x1000);
+    sysbus_init_mmio(dev, &s->iomem);
+}
+
+static void create_secure_ec(MemoryRegion *mem)
+{
+    hwaddr base = sbsa_ref_memmap[SBSA_SECURE_EC].base;
+    DeviceState *dev = qdev_create(NULL, TYPE_SECURE_EC);
+    SysBusDevice *s = SYS_BUS_DEVICE(dev);
+
+    memory_region_add_subregion(mem, base,
+                                sysbus_mmio_get_region(s, 0));
+}
+
 static void sbsa_ref_init(MachineState *machine)
 {
     unsigned int smp_cpus = machine->smp.cpus;
@@ -708,6 +778,8 @@ static void sbsa_ref_init(MachineState *machine)
 
     create_pcie(sms);
 
+    create_secure_ec(secure_sysmem);
+
     sms->bootinfo.ram_size = machine->ram_size;
     sms->bootinfo.nb_cpus = smp_cpus;
     sms->bootinfo.board_id = -1;
@@ -798,8 +870,31 @@ static const TypeInfo sbsa_ref_info = {
     .instance_size = sizeof(SBSAMachineState),
 };
 
+static const VMStateDescription vmstate_secure_ec_info = {
+    .name = "sbsa-secure-ec",
+    .version_id = 0,
+    .minimum_version_id = 0,
+};
+
+static void secure_ec_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    dc->vmsd = &vmstate_secure_ec_info;
+    dc->user_creatable = false;
+}
+
+static const TypeInfo secure_ec_info = {
+    .name          = TYPE_SECURE_EC,
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SECUREECState),
+    .instance_init = secure_ec_init,
+    .class_init    = secure_ec_class_init,
+};
+
 static void sbsa_ref_machine_init(void)
 {
+    type_register_static(&secure_ec_info);
     type_register_static(&sbsa_ref_info);
 }
 
