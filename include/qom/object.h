@@ -655,6 +655,14 @@ struct Object
     struct InstanceType##Class { ParentClassType parent_class; };
 
 
+#define TYPE_INFO(type_info_var) \
+    static void \
+    register_type_info_##type_info_var(void) \
+    { \
+        type_register_static(&type_info_var); \
+    } \
+    type_init(register_type_info_##type_info_var);
+
 /**
  * OBJECT_DEFINE_TYPE_EXTENDED:
  * @ModuleObjName: the object name with initial caps
@@ -700,12 +708,7 @@ struct Object
         .interfaces = (InterfaceInfo[]) { __VA_ARGS__ } , \
     }; \
     \
-    static void \
-    module_obj_name##_register_types(void) \
-    { \
-        type_register_static(&module_obj_name##_info); \
-    } \
-    type_init(module_obj_name##_register_types);
+    TYPE_INFO(module_obj_name##_info)
 
 /**
  * OBJECT_DEFINE_TYPE:
