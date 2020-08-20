@@ -450,14 +450,16 @@ def file_pattern(name):
 
 class FilePaths:
     """
-    FilePaths is an auto-generated filename that cleans itself up.
+    Context manager generating multiple file names. The generated files are
+    removed when exiting the context.
 
-    Use this context manager to generate filenames and ensure that the file
-    gets deleted::
+    Example usage:
 
-        with FilePaths(['test.img']) as img_path:
-            qemu_img('create', img_path, '1G')
-        # migration_sock_path is automatically deleted
+        with FilePaths(['test.img', 'test.sock']) as (img_path, sock_path):
+            # Use img_path and sock_path here...
+
+        # img_path and sock_path are automatically removed here.
+
     """
     def __init__(self, names, base_dir=test_dir):
         self.paths = []
