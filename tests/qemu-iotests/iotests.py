@@ -402,6 +402,10 @@ def filter_img_info(output, filename):
         lines.append(line)
     return '\n'.join(lines)
 
+def filter_img_check(msg):
+    msg = re.sub(r'.*allocated.*fragmented.*compressed clusters', '', msg)
+    return re.sub(r'Image end offset: [0-9]+', '', msg).strip()
+
 def filter_imgfmt(msg):
     return msg.replace(imgfmt, 'IMGFMT')
 
