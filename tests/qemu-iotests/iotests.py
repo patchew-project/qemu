@@ -448,17 +448,22 @@ class Timeout:
 def file_pattern(name):
     return "{0}-{1}".format(os.getpid(), name)
 
-class FilePaths:
+class FilePath:
     """
     Context manager generating multiple file names. The generated files are
     removed when exiting the context.
 
     Example usage:
 
-        with FilePaths('test.img', 'test.sock') as (img_path, sock_path):
+        with FilePath('test.img', 'test.sock') as (img_path, sock_path):
             # Use img_path and sock_path here...
 
         # img_path and sock_path are automatically removed here.
+
+    For convenience, calling with one argument yields a single file instead of
+    a tuple with one item:
+
+        with FilePath("a") as a:
 
     """
     def __init__(self, *names, base_dir=test_dir):
@@ -467,7 +472,10 @@ class FilePaths:
             self.paths.append(os.path.join(base_dir, file_pattern(name)))
 
     def __enter__(self):
-        return self.paths
+        if len(self.paths) == 1:
+            return self.paths[0]
+        else:
+            return self.paths
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         for path in self.paths:
@@ -477,15 +485,6 @@ class FilePaths:
                 pass
         return False
 
-class FilePath(FilePaths):
-    """
-    FilePath is a specialization of FilePaths that takes a single filename.
-    """
-    def __init__(self, name, base_dir=test_dir):
-        super(FilePath, self).__init__(name, base_dir=base_dir)
-
-    def __enter__(self):
-        return self.paths[0]
 
 def file_path_remover():
     for path in reversed(file_path_remover.paths):
