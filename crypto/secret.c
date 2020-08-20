@@ -25,6 +25,9 @@
 #include "qemu/module.h"
 #include "trace.h"
 
+OBJECT_DEFINE_TYPE_WITH_INTERFACES(QCryptoSecret, qcrypto_secret,
+                                   QCRYPTO_SECRET, QCRYPTO_SECRET_COMMON,
+                                   { TYPE_USER_CREATABLE }, { NULL })
 
 static void
 qcrypto_secret_load_data(QCryptoSecretCommon *sec_common,
@@ -140,21 +143,7 @@ qcrypto_secret_class_init(ObjectClass *oc, void *data)
                                   qcrypto_secret_prop_set_file);
 }
 
-
-static const TypeInfo qcrypto_secret_info = {
-    .parent = TYPE_QCRYPTO_SECRET_COMMON,
-    .name = TYPE_QCRYPTO_SECRET,
-    .instance_size = sizeof(QCryptoSecret),
-    .instance_finalize = qcrypto_secret_finalize,
-    .class_size = sizeof(QCryptoSecretClass),
-    .class_init = qcrypto_secret_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
-};
-TYPE_INFO(qcrypto_secret_info)
-
-
-
-
+static void
+qcrypto_secret_init(Object *obj)
+{
+}
