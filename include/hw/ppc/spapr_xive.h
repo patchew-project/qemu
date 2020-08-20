@@ -15,10 +15,8 @@
 #include "qom/object.h"
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
-typedef struct SpaprXive SpaprXive;
-typedef struct SpaprXiveClass SpaprXiveClass;
-DECLARE_OBJ_CHECKERS(SpaprXive, SpaprXiveClass,
-                     SPAPR_XIVE, TYPE_SPAPR_XIVE)
+OBJECT_DECLARE_TYPE(SpaprXive, SpaprXiveClass,
+                    spapr_xive, SPAPR_XIVE)
 
 struct SpaprXive {
     XiveRouter    parent;
