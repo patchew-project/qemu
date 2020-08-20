@@ -22,7 +22,8 @@ typedef struct SWIMBus SWIMBus;
 typedef struct SWIMCtrl SWIMCtrl;
 
 #define TYPE_SWIM_DRIVE "swim-drive"
-#define SWIM_DRIVE(obj) OBJECT_CHECK(SWIMDrive, (obj), TYPE_SWIM_DRIVE)
+DECLARE_INSTANCE_CHECKER(SWIMDrive, SWIM_DRIVE,
+                         TYPE_SWIM_DRIVE)
 
 struct SWIMDrive {
     DeviceState qdev;
@@ -31,7 +32,8 @@ struct SWIMDrive {
 };
 
 #define TYPE_SWIM_BUS "swim-bus"
-#define SWIM_BUS(obj) OBJECT_CHECK(SWIMBus, (obj), TYPE_SWIM_BUS)
+DECLARE_INSTANCE_CHECKER(SWIMBus, SWIM_BUS,
+                         TYPE_SWIM_BUS)
 
 struct SWIMBus {
     BusState bus;

@@ -31,7 +31,8 @@ do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 
 #define TYPE_PL181 "pl181"
 typedef struct PL181State PL181State;
-#define PL181(obj) OBJECT_CHECK(PL181State, (obj), TYPE_PL181)
+DECLARE_INSTANCE_CHECKER(PL181State, PL181,
+                         TYPE_PL181)
 
 struct PL181State {
     SysBusDevice parent_obj;
