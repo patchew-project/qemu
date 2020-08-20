@@ -31,6 +31,7 @@
 #define HW_SD_H
 
 #include "hw/qdev-core.h"
+#include "qom/object.h"
 
 #define OUT_OF_RANGE		(1 << 31)
 #define ADDRESS_ERROR		(1 << 30)
@@ -92,13 +93,14 @@ typedef struct SDState SDState;
 typedef struct SDBus SDBus;
 
 #define TYPE_SD_CARD "sd-card"
+typedef struct SDCardClass SDCardClass;
 #define SD_CARD(obj) OBJECT_CHECK(SDState, (obj), TYPE_SD_CARD)
 #define SD_CARD_CLASS(klass) \
     OBJECT_CLASS_CHECK(SDCardClass, (klass), TYPE_SD_CARD)
 #define SD_CARD_GET_CLASS(obj) \
     OBJECT_GET_CLASS(SDCardClass, (obj), TYPE_SD_CARD)
 
-typedef struct {
+struct SDCardClass {
     /*< private >*/
     DeviceClass parent_class;
     /*< public >*/
@@ -113,9 +115,10 @@ typedef struct {
     void (*enable)(SDState *sd, bool enable);
     bool (*get_inserted)(SDState *sd);
     bool (*get_readonly)(SDState *sd);
-} SDCardClass;
+};
 
 #define TYPE_SD_BUS "sd-bus"
+typedef struct SDBusClass SDBusClass;
 #define SD_BUS(obj) OBJECT_CHECK(SDBus, (obj), TYPE_SD_BUS)
 #define SD_BUS_CLASS(klass) OBJECT_CLASS_CHECK(SDBusClass, (klass), TYPE_SD_BUS)
 #define SD_BUS_GET_CLASS(obj) OBJECT_GET_CLASS(SDBusClass, (obj), TYPE_SD_BUS)
@@ -124,7 +127,7 @@ struct SDBus {
     BusState qbus;
 };
 
-typedef struct {
+struct SDBusClass {
     /*< private >*/
     BusClass parent_class;
     /*< public >*/
@@ -134,7 +137,7 @@ typedef struct {
      */
     void (*set_inserted)(DeviceState *dev, bool inserted);
     void (*set_readonly)(DeviceState *dev, bool readonly);
-} SDBusClass;
+};
 
 /* Legacy functions to be used only by non-qdevified callers */
 SDState *sd_init(BlockBackend *bs, bool is_spi);

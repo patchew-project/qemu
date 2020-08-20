@@ -32,6 +32,7 @@
 #include "migration/vmstate.h"
 #include "qemu/module.h"
 #include "desc.h"
+#include "qom/object.h"
 
 /* Interface requests */
 #define WACOM_GET_REPORT	0x2101
@@ -44,7 +45,7 @@
 #define HID_SET_IDLE		0x210a
 #define HID_SET_PROTOCOL	0x210b
 
-typedef struct USBWacomState {
+struct USBWacomState {
     USBDevice dev;
     USBEndpoint *intr;
     QEMUPutMouseEntry *eh_entry;
@@ -57,7 +58,8 @@ typedef struct USBWacomState {
     } mode;
     uint8_t idle;
     int changed;
-} USBWacomState;
+};
+typedef struct USBWacomState USBWacomState;
 
 #define TYPE_USB_WACOM "usb-wacom-tablet"
 #define USB_WACOM(obj) OBJECT_CHECK(USBWacomState, (obj), TYPE_USB_WACOM)
