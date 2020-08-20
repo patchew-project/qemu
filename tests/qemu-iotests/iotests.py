@@ -1083,6 +1083,12 @@ def _verify_aio_mode(supported_aio_modes: Sequence[str] = ()) -> None:
     if supported_aio_modes and (aiomode not in supported_aio_modes):
         notrun('not suitable for this aio mode: %s' % aiomode)
 
+def verify_o_direct() -> None:
+    with FilePath('test_o_direct') as f:
+        qemu_img_create('-f', 'raw', f, '1M')
+        if 'O_DIRECT' in qemu_io('-f', 'raw', '-t', 'none', '-c', 'quit', f):
+            notrun(f'file system at {test_dir} does not support O_DIRECT')
+
 def supports_quorum():
     return 'quorum' in qemu_img_pipe('--help')
 
