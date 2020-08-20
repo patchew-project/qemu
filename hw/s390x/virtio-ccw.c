@@ -1199,6 +1199,7 @@ static const TypeInfo virtio_ccw_device_info = {
     .class_size = sizeof(VirtIOCCWDeviceClass),
     .abstract = true,
 };
+TYPE_INFO(virtio_ccw_device_info)
 
 /* virtio-ccw-bus */
 
@@ -1239,11 +1240,6 @@ static const TypeInfo virtio_ccw_bus_info = {
     .instance_size = sizeof(VirtioCcwBusState),
     .class_init = virtio_ccw_bus_class_init,
 };
+TYPE_INFO(virtio_ccw_bus_info)
 
-static void virtio_ccw_register(void)
-{
-    type_register_static(&virtio_ccw_bus_info);
-    type_register_static(&virtio_ccw_device_info);
-}
 
-type_init(virtio_ccw_register)

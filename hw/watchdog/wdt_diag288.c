@@ -137,11 +137,11 @@ static const TypeInfo wdt_diag288_info = {
     .instance_size  = sizeof(DIAG288State),
     .class_size = sizeof(DIAG288Class),
 };
+TYPE_INFO(wdt_diag288_info)
 
 static void wdt_diag288_register_types(void)
 {
     watchdog_add_model(&model);
-    type_register_static(&wdt_diag288_info);
 }
 
 type_init(wdt_diag288_register_types)

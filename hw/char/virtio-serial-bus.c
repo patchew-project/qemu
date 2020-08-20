@@ -855,6 +855,7 @@ static const TypeInfo virtser_bus_info = {
     .instance_size = sizeof(VirtIOSerialBus),
     .class_init = virtser_bus_class_init,
 };
+TYPE_INFO(virtser_bus_info)
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
@@ -1117,6 +1118,7 @@ static const TypeInfo virtio_serial_port_type_info = {
     .class_size = sizeof(VirtIOSerialPortClass),
     .class_init = virtio_serial_port_class_init,
 };
+TYPE_INFO(virtio_serial_port_type_info)
 
 static void virtio_serial_device_unrealize(DeviceState *dev)
 {
@@ -1201,12 +1203,6 @@ static const TypeInfo virtio_device_info = {
         { }
     }
 };
+TYPE_INFO(virtio_device_info)
 
-static void virtio_serial_register_types(void)
-{
-    type_register_static(&virtser_bus_info);
-    type_register_static(&virtio_serial_port_type_info);
-    type_register_static(&virtio_device_info);
-}
 
-type_init(virtio_serial_register_types)

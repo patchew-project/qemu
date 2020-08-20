@@ -269,12 +269,8 @@ static const TypeInfo qio_dns_resolver_info = {
     .instance_size = sizeof(QIODNSResolver),
     .class_size = sizeof(QIODNSResolverClass),
 };
+TYPE_INFO(qio_dns_resolver_info)
 
 
-static void qio_dns_resolver_register_types(void)
-{
-    type_register_static(&qio_dns_resolver_info);
-}
 
 
-type_init(qio_dns_resolver_register_types);

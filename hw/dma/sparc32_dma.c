@@ -286,6 +286,7 @@ static const TypeInfo sparc32_dma_device_info = {
     .instance_init = sparc32_dma_device_init,
     .class_init    = sparc32_dma_device_class_init,
 };
+TYPE_INFO(sparc32_dma_device_info)
 
 static void sparc32_espdma_device_init(Object *obj)
 {
@@ -327,6 +328,7 @@ static const TypeInfo sparc32_espdma_device_info = {
     .instance_init = sparc32_espdma_device_init,
     .class_init    = sparc32_espdma_device_class_init,
 };
+TYPE_INFO(sparc32_espdma_device_info)
 
 static void sparc32_ledma_device_init(Object *obj)
 {
@@ -365,6 +367,7 @@ static const TypeInfo sparc32_ledma_device_info = {
     .instance_init = sparc32_ledma_device_init,
     .class_init    = sparc32_ledma_device_class_init,
 };
+TYPE_INFO(sparc32_ledma_device_info)
 
 static void sparc32_dma_realize(DeviceState *dev, Error **errp)
 {
@@ -437,14 +440,7 @@ static const TypeInfo sparc32_dma_info = {
     .instance_init = sparc32_dma_init,
     .class_init    = sparc32_dma_class_init,
 };
+TYPE_INFO(sparc32_dma_info)
 
 
-static void sparc32_dma_register_types(void)
-{
-    type_register_static(&sparc32_dma_device_info);
-    type_register_static(&sparc32_espdma_device_info);
-    type_register_static(&sparc32_ledma_device_info);
-    type_register_static(&sparc32_dma_info);
-}
 
-type_init(sparc32_dma_register_types)

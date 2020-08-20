@@ -104,10 +104,6 @@ static const TypeInfo can_host_info = {
         { }
     }
 };
+TYPE_INFO(can_host_info)
 
-static void can_host_register_types(void)
-{
-    type_register_static(&can_host_info);
-}
 
-type_init(can_host_register_types);

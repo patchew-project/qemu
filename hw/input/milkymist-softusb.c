@@ -311,10 +311,6 @@ static const TypeInfo milkymist_softusb_info = {
     .instance_size = sizeof(MilkymistSoftUsbState),
     .class_init    = milkymist_softusb_class_init,
 };
+TYPE_INFO(milkymist_softusb_info)
 
-static void milkymist_softusb_register_types(void)
-{
-    type_register_static(&milkymist_softusb_info);
-}
 
-type_init(milkymist_softusb_register_types)

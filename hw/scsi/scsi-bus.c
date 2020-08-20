@@ -49,6 +49,7 @@ static const TypeInfo scsi_bus_info = {
         { }
     }
 };
+TYPE_INFO(scsi_bus_info)
 static int next_scsi_bus;
 
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
@@ -1738,11 +1739,6 @@ static const TypeInfo scsi_device_type_info = {
     .class_init = scsi_device_class_init,
     .instance_init = scsi_dev_instance_init,
 };
+TYPE_INFO(scsi_device_type_info)
 
-static void scsi_register_types(void)
-{
-    type_register_static(&scsi_bus_info);
-    type_register_static(&scsi_device_type_info);
-}
 
-type_init(scsi_register_types)

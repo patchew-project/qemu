@@ -330,10 +330,6 @@ static const TypeInfo pxa2xx_pic_info = {
     .instance_size = sizeof(PXA2xxPICState),
     .class_init    = pxa2xx_pic_class_init,
 };
+TYPE_INFO(pxa2xx_pic_info)
 
-static void pxa2xx_pic_register_types(void)
-{
-    type_register_static(&pxa2xx_pic_info);
-}
 
-type_init(pxa2xx_pic_register_types)

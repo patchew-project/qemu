@@ -182,10 +182,6 @@ static const TypeInfo char_msmouse_type_info = {
     .instance_finalize = char_msmouse_finalize,
     .class_init = char_msmouse_class_init,
 };
+TYPE_INFO(char_msmouse_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_msmouse_type_info);
-}
 
-type_init(register_types);

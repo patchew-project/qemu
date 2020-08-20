@@ -287,10 +287,6 @@ static const TypeInfo pl190_info = {
     .instance_init = pl190_init,
     .class_init    = pl190_class_init,
 };
+TYPE_INFO(pl190_info)
 
-static void pl190_register_types(void)
-{
-    type_register_static(&pl190_info);
-}
 
-type_init(pl190_register_types)

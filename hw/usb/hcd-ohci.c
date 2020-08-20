@@ -1995,10 +1995,6 @@ static const TypeInfo ohci_sysbus_info = {
     .instance_size = sizeof(OHCISysBusState),
     .class_init    = ohci_sysbus_class_init,
 };
+TYPE_INFO(ohci_sysbus_info)
 
-static void ohci_register_types(void)
-{
-    type_register_static(&ohci_sysbus_info);
-}
 
-type_init(ohci_register_types)

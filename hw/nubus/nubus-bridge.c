@@ -25,10 +25,6 @@ static const TypeInfo nubus_bridge_info = {
     .instance_size = sizeof(SysBusDevice),
     .class_init    = nubus_bridge_class_init,
 };
+TYPE_INFO(nubus_bridge_info)
 
-static void nubus_register_types(void)
-{
-    type_register_static(&nubus_bridge_info);
-}
 
-type_init(nubus_register_types)

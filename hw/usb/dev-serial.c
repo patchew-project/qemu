@@ -586,6 +586,7 @@ static const TypeInfo usb_serial_dev_type_info = {
     .abstract = true,
     .class_init = usb_serial_dev_class_init,
 };
+TYPE_INFO(usb_serial_dev_type_info)
 
 static void usb_serial_class_initfn(ObjectClass *klass, void *data)
 {
@@ -602,6 +603,7 @@ static const TypeInfo serial_info = {
     .parent        = TYPE_USB_SERIAL,
     .class_init    = usb_serial_class_initfn,
 };
+TYPE_INFO(serial_info)
 
 static Property braille_properties[] = {
     DEFINE_PROP_CHR("chardev", USBSerialState, cs),
@@ -623,12 +625,10 @@ static const TypeInfo braille_info = {
     .parent        = TYPE_USB_SERIAL,
     .class_init    = usb_braille_class_initfn,
 };
+TYPE_INFO(braille_info)
 
 static void usb_serial_register_types(void)
 {
-    type_register_static(&usb_serial_dev_type_info);
-    type_register_static(&serial_info);
-    type_register_static(&braille_info);
     usb_legacy_register("usb-braille", "braille", usb_braille_init);
 }
 

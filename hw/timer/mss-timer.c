@@ -289,10 +289,6 @@ static const TypeInfo mss_timer_info = {
     .instance_init = mss_timer_init,
     .class_init    = mss_timer_class_init,
 };
+TYPE_INFO(mss_timer_info)
 
-static void mss_timer_register_types(void)
-{
-    type_register_static(&mss_timer_info);
-}
 
-type_init(mss_timer_register_types)

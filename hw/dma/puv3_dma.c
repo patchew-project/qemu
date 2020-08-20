@@ -109,10 +109,6 @@ static const TypeInfo puv3_dma_info = {
     .instance_size = sizeof(PUV3DMAState),
     .class_init = puv3_dma_class_init,
 };
+TYPE_INFO(puv3_dma_info)
 
-static void puv3_dma_register_type(void)
-{
-    type_register_static(&puv3_dma_info);
-}
 
-type_init(puv3_dma_register_type)

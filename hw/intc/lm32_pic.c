@@ -186,10 +186,6 @@ static const TypeInfo lm32_pic_info = {
         { }
     },
 };
+TYPE_INFO(lm32_pic_info)
 
-static void lm32_pic_register_types(void)
-{
-    type_register_static(&lm32_pic_info);
-}
 
-type_init(lm32_pic_register_types)

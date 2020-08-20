@@ -352,10 +352,6 @@ static const TypeInfo milkymist_vgafb_info = {
     .instance_init = milkymist_vgafb_init,
     .class_init    = milkymist_vgafb_class_init,
 };
+TYPE_INFO(milkymist_vgafb_info)
 
-static void milkymist_vgafb_register_types(void)
-{
-    type_register_static(&milkymist_vgafb_info);
-}
 
-type_init(milkymist_vgafb_register_types)

@@ -257,10 +257,6 @@ static const TypeInfo kvm_apic_info = {
     .instance_size = sizeof(APICCommonState),
     .class_init = kvm_apic_class_init,
 };
+TYPE_INFO(kvm_apic_info)
 
-static void kvm_apic_register_types(void)
-{
-    type_register_static(&kvm_apic_info);
-}
 
-type_init(kvm_apic_register_types)

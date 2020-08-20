@@ -224,10 +224,6 @@ static const TypeInfo vhost_vsock_info = {
     .instance_size = sizeof(VHostVSock),
     .class_init = vhost_vsock_class_init,
 };
+TYPE_INFO(vhost_vsock_info)
 
-static void vhost_vsock_register_types(void)
-{
-    type_register_static(&vhost_vsock_info);
-}
 
-type_init(vhost_vsock_register_types)

@@ -14,10 +14,6 @@ static const TypeInfo vmstate_if_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(VMStateIfClass),
 };
+TYPE_INFO(vmstate_if_info)
 
-static void vmstate_register_types(void)
-{
-    type_register_static(&vmstate_if_info);
-}
 
-type_init(vmstate_register_types);

@@ -637,10 +637,6 @@ static const TypeInfo xlnx_zynqmp_type_info = {
     .instance_init = xlnx_zynqmp_init,
     .class_init = xlnx_zynqmp_class_init,
 };
+TYPE_INFO(xlnx_zynqmp_type_info)
 
-static void xlnx_zynqmp_register_types(void)
-{
-    type_register_static(&xlnx_zynqmp_type_info);
-}
 
-type_init(xlnx_zynqmp_register_types)

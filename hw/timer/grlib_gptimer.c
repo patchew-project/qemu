@@ -424,10 +424,6 @@ static const TypeInfo grlib_gptimer_info = {
     .instance_size = sizeof(GPTimerUnit),
     .class_init    = grlib_gptimer_class_init,
 };
+TYPE_INFO(grlib_gptimer_info)
 
-static void grlib_gptimer_register_types(void)
-{
-    type_register_static(&grlib_gptimer_info);
-}
 
-type_init(grlib_gptimer_register_types)

@@ -1697,10 +1697,6 @@ static const TypeInfo nvme_info = {
         { }
     },
 };
+TYPE_INFO(nvme_info)
 
-static void nvme_register_types(void)
-{
-    type_register_static(&nvme_info);
-}
 
-type_init(nvme_register_types)

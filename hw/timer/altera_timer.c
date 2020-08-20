@@ -235,10 +235,6 @@ static const TypeInfo altera_timer_info = {
     .instance_init = altera_timer_init,
     .class_init    = altera_timer_class_init,
 };
+TYPE_INFO(altera_timer_info)
 
-static void altera_timer_register(void)
-{
-    type_register_static(&altera_timer_info);
-}
 
-type_init(altera_timer_register)

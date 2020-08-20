@@ -369,6 +369,7 @@ static const TypeInfo i440fx_info = {
         { },
     },
 };
+TYPE_INFO(i440fx_info)
 
 static const char *i440fx_pcihost_root_bus_path(PCIHostState *host_bridge,
                                                 PCIBus *rootbus)
@@ -410,11 +411,6 @@ static const TypeInfo i440fx_pcihost_info = {
     .instance_init = i440fx_pcihost_initfn,
     .class_init    = i440fx_pcihost_class_init,
 };
+TYPE_INFO(i440fx_pcihost_info)
 
-static void i440fx_register_types(void)
-{
-    type_register_static(&i440fx_info);
-    type_register_static(&i440fx_pcihost_info);
-}
 
-type_init(i440fx_register_types)

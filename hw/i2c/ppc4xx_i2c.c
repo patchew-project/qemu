@@ -363,10 +363,6 @@ static const TypeInfo ppc4xx_i2c_type_info = {
     .instance_init = ppc4xx_i2c_init,
     .class_init = ppc4xx_i2c_class_init,
 };
+TYPE_INFO(ppc4xx_i2c_type_info)
 
-static void ppc4xx_i2c_register_types(void)
-{
-    type_register_static(&ppc4xx_i2c_type_info);
-}
 
-type_init(ppc4xx_i2c_register_types)

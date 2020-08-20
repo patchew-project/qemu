@@ -102,10 +102,6 @@ static const TypeInfo nubus_bus_info = {
     .instance_init = nubus_init,
     .class_init = nubus_class_init,
 };
+TYPE_INFO(nubus_bus_info)
 
-static void nubus_register_types(void)
-{
-    type_register_static(&nubus_bus_info);
-}
 
-type_init(nubus_register_types)

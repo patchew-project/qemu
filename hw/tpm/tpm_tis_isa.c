@@ -162,10 +162,6 @@ static const TypeInfo tpm_tis_isa_info = {
         { }
     }
 };
+TYPE_INFO(tpm_tis_isa_info)
 
-static void tpm_tis_isa_register(void)
-{
-    type_register_static(&tpm_tis_isa_info);
-}
 
-type_init(tpm_tis_isa_register)

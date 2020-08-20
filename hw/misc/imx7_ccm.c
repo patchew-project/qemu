@@ -242,6 +242,7 @@ static const TypeInfo imx7_ccm_info = {
     .instance_init = imx7_ccm_init,
     .class_init    = imx7_ccm_class_init,
 };
+TYPE_INFO(imx7_ccm_info)
 
 static const VMStateDescription vmstate_imx7_analog = {
     .name = TYPE_IMX7_ANALOG,
@@ -270,10 +271,5 @@ static const TypeInfo imx7_analog_info = {
     .instance_init = imx7_analog_init,
     .class_init    = imx7_analog_class_init,
 };
+TYPE_INFO(imx7_analog_info)
 
-static void imx7_ccm_register_type(void)
-{
-    type_register_static(&imx7_ccm_info);
-    type_register_static(&imx7_analog_info);
-}
-type_init(imx7_ccm_register_type)

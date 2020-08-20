@@ -255,10 +255,6 @@ static const TypeInfo etraxfs_ser_info = {
     .instance_init = etraxfs_ser_init,
     .class_init    = etraxfs_ser_class_init,
 };
+TYPE_INFO(etraxfs_ser_info)
 
-static void etraxfs_serial_register_types(void)
-{
-    type_register_static(&etraxfs_ser_info);
-}
 
-type_init(etraxfs_serial_register_types)

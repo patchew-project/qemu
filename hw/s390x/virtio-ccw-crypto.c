@@ -60,10 +60,6 @@ static const TypeInfo virtio_ccw_crypto = {
     .instance_init = virtio_ccw_crypto_instance_init,
     .class_init    = virtio_ccw_crypto_class_init,
 };
+TYPE_INFO(virtio_ccw_crypto)
 
-static void virtio_ccw_crypto_register(void)
-{
-    type_register_static(&virtio_ccw_crypto);
-}
 
-type_init(virtio_ccw_crypto_register)

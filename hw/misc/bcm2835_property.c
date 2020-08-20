@@ -427,10 +427,6 @@ static TypeInfo bcm2835_property_info = {
     .class_init    = bcm2835_property_class_init,
     .instance_init = bcm2835_property_init,
 };
+TYPE_INFO(bcm2835_property_info)
 
-static void bcm2835_property_register_types(void)
-{
-    type_register_static(&bcm2835_property_info);
-}
 
-type_init(bcm2835_property_register_types)

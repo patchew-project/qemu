@@ -2503,6 +2503,7 @@ static const TypeInfo qxl_pci_type_info = {
         { },
     },
 };
+TYPE_INFO(qxl_pci_type_info)
 
 static void qxl_primary_class_init(ObjectClass *klass, void *data)
 {
@@ -2521,6 +2522,7 @@ static const TypeInfo qxl_primary_info = {
     .parent        = TYPE_PCI_QXL,
     .class_init    = qxl_primary_class_init,
 };
+TYPE_INFO(qxl_primary_info)
 
 static void qxl_secondary_class_init(ObjectClass *klass, void *data)
 {
@@ -2537,12 +2539,6 @@ static const TypeInfo qxl_secondary_info = {
     .parent        = TYPE_PCI_QXL,
     .class_init    = qxl_secondary_class_init,
 };
+TYPE_INFO(qxl_secondary_info)
 
-static void qxl_register_types(void)
-{
-    type_register_static(&qxl_pci_type_info);
-    type_register_static(&qxl_primary_info);
-    type_register_static(&qxl_secondary_info);
-}
 
-type_init(qxl_register_types)

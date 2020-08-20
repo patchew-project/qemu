@@ -473,10 +473,6 @@ static const TypeInfo pci_bridge_type_info = {
     .instance_size = sizeof(PCIBridge),
     .abstract = true,
 };
+TYPE_INFO(pci_bridge_type_info)
 
-static void pci_bridge_register_types(void)
-{
-    type_register_static(&pci_bridge_type_info);
-}
 
-type_init(pci_bridge_register_types)

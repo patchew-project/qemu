@@ -869,6 +869,7 @@ static const TypeInfo spapr_vlan_info = {
     .instance_init = spapr_vlan_instance_init,
     .instance_finalize = spapr_vlan_instance_finalize,
 };
+TYPE_INFO(spapr_vlan_info)
 
 static void spapr_vlan_register_types(void)
 {
@@ -880,7 +881,6 @@ static void spapr_vlan_register_types(void)
     spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
     spapr_register_hypercall(H_CHANGE_LOGICAL_LAN_MAC,
                              h_change_logical_lan_mac);
-    type_register_static(&spapr_vlan_info);
 }
 
 type_init(spapr_vlan_register_types)

@@ -437,10 +437,6 @@ static const TypeInfo slavio_timer_info = {
     .instance_init = slavio_timer_init,
     .class_init    = slavio_timer_class_init,
 };
+TYPE_INFO(slavio_timer_info)
 
-static void slavio_timer_register_types(void)
-{
-    type_register_static(&slavio_timer_info);
-}
 
-type_init(slavio_timer_register_types)

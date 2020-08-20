@@ -240,10 +240,6 @@ static const TypeInfo pci_host_type_info = {
     .instance_size = sizeof(PCIHostState),
     .class_init = pci_host_class_init,
 };
+TYPE_INFO(pci_host_type_info)
 
-static void pci_host_register_types(void)
-{
-    type_register_static(&pci_host_type_info);
-}
 
-type_init(pci_host_register_types)

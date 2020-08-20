@@ -230,10 +230,6 @@ static const TypeInfo rs6000mc_info = {
     .instance_size = sizeof(RS6000MCState),
     .class_init    = rs6000mc_class_initfn,
 };
+TYPE_INFO(rs6000mc_info)
 
-static void rs6000mc_types(void)
-{
-    type_register_static(&rs6000mc_info);
-}
 
-type_init(rs6000mc_types)

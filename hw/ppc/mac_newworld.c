@@ -645,10 +645,6 @@ static const TypeInfo core99_machine_info = {
         { }
     },
 };
+TYPE_INFO(core99_machine_info)
 
-static void mac_machine_register_types(void)
-{
-    type_register_static(&core99_machine_info);
-}
 
-type_init(mac_machine_register_types)

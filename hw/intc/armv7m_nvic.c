@@ -2775,10 +2775,6 @@ static const TypeInfo armv7m_nvic_info = {
     .class_init    = armv7m_nvic_class_init,
     .class_size    = sizeof(SysBusDeviceClass),
 };
+TYPE_INFO(armv7m_nvic_info)
 
-static void armv7m_nvic_register_types(void)
-{
-    type_register_static(&armv7m_nvic_info);
-}
 
-type_init(armv7m_nvic_register_types)

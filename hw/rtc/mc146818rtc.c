@@ -1047,10 +1047,6 @@ static const TypeInfo mc146818rtc_info = {
     .instance_size = sizeof(RTCState),
     .class_init    = rtc_class_initfn,
 };
+TYPE_INFO(mc146818rtc_info)
 
-static void mc146818rtc_register_types(void)
-{
-    type_register_static(&mc146818rtc_info);
-}
 
-type_init(mc146818rtc_register_types)

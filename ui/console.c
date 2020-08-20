@@ -2388,6 +2388,7 @@ static const TypeInfo qemu_console_info = {
     .instance_size = sizeof(QemuConsole),
     .class_size = sizeof(QemuConsoleClass),
 };
+TYPE_INFO(qemu_console_info)
 
 static void char_vc_class_init(ObjectClass *oc, void *data)
 {
@@ -2414,9 +2415,4 @@ void qemu_console_early_init(void)
     }
 }
 
-static void register_types(void)
-{
-    type_register_static(&qemu_console_info);
-}
 
-type_init(register_types);

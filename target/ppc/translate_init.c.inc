@@ -10936,6 +10936,7 @@ static const TypeInfo ppc_cpu_type_info = {
     .class_size = sizeof(PowerPCCPUClass),
     .class_init = ppc_cpu_class_init,
 };
+TYPE_INFO(ppc_cpu_type_info)
 
 #ifndef CONFIG_USER_ONLY
 static const TypeInfo ppc_vhyp_type_info = {
@@ -10943,13 +10944,12 @@ static const TypeInfo ppc_vhyp_type_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(PPCVirtualHypervisorClass),
 };
+TYPE_INFO(ppc_vhyp_type_info)
 #endif
 
 static void ppc_cpu_register_types(void)
 {
-    type_register_static(&ppc_cpu_type_info);
 #ifndef CONFIG_USER_ONLY
-    type_register_static(&ppc_vhyp_type_info);
 #endif
 }
 

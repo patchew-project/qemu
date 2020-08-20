@@ -170,10 +170,6 @@ static const TypeInfo emulated_ccw_3270_info = {
     .class_size = sizeof(EmulatedCcw3270Class),
     .abstract = true,
 };
+TYPE_INFO(emulated_ccw_3270_info)
 
-static void emulated_ccw_register(void)
-{
-    type_register_static(&emulated_ccw_3270_info);
-}
 
-type_init(emulated_ccw_register)

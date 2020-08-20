@@ -606,10 +606,6 @@ static const TypeInfo i8042_info = {
     .instance_init = i8042_initfn,
     .class_init    = i8042_class_initfn,
 };
+TYPE_INFO(i8042_info)
 
-static void i8042_register_types(void)
-{
-    type_register_static(&i8042_info);
-}
 
-type_init(i8042_register_types)

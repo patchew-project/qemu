@@ -160,10 +160,6 @@ static const TypeInfo sifive_u_prci_info = {
     .instance_size = sizeof(SiFiveUPRCIState),
     .class_init    = sifive_u_prci_class_init,
 };
+TYPE_INFO(sifive_u_prci_info)
 
-static void sifive_u_prci_register_types(void)
-{
-    type_register_static(&sifive_u_prci_info);
-}
 
-type_init(sifive_u_prci_register_types)

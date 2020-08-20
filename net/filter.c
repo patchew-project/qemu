@@ -368,10 +368,6 @@ static const TypeInfo netfilter_info = {
         { }
     }
 };
+TYPE_INFO(netfilter_info)
 
-static void register_types(void)
-{
-    type_register_static(&netfilter_info);
-}
 
-type_init(register_types);

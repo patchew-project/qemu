@@ -256,10 +256,6 @@ static const TypeInfo filter_dump_info = {
     .instance_finalize = filter_dump_instance_finalize,
     .instance_size = sizeof(NetFilterDumpState),
 };
+TYPE_INFO(filter_dump_info)
 
-static void filter_dump_register_types(void)
-{
-    type_register_static(&filter_dump_info);
-}
 
-type_init(filter_dump_register_types);

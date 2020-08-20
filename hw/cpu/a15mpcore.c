@@ -171,10 +171,6 @@ static const TypeInfo a15mp_priv_info = {
     .instance_init = a15mp_priv_initfn,
     .class_init = a15mp_priv_class_init,
 };
+TYPE_INFO(a15mp_priv_info)
 
-static void a15mp_register_types(void)
-{
-    type_register_static(&a15mp_priv_info);
-}
 
-type_init(a15mp_register_types)

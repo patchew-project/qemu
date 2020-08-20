@@ -27,6 +27,7 @@ static const TypeInfo i2c_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(I2CBus),
 };
+TYPE_INFO(i2c_bus_info)
 
 static int i2c_bus_pre_save(void *opaque)
 {
@@ -306,11 +307,6 @@ static const TypeInfo i2c_slave_type_info = {
     .class_size = sizeof(I2CSlaveClass),
     .class_init = i2c_slave_class_init,
 };
+TYPE_INFO(i2c_slave_type_info)
 
-static void i2c_slave_register_types(void)
-{
-    type_register_static(&i2c_bus_info);
-    type_register_static(&i2c_slave_type_info);
-}
 
-type_init(i2c_slave_register_types)

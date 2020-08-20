@@ -1178,6 +1178,7 @@ static TypeInfo mac_via_info = {
     .instance_init = mac_via_init,
     .class_init = mac_via_class_init,
 };
+TYPE_INFO(mac_via_info)
 
 /* VIA 1 */
 static void mos6522_q800_via1_reset(DeviceState *dev)
@@ -1213,6 +1214,7 @@ static const TypeInfo mos6522_q800_via1_type_info = {
     .instance_init = mos6522_q800_via1_init,
     .class_init = mos6522_q800_via1_class_init,
 };
+TYPE_INFO(mos6522_q800_via1_type_info)
 
 /* VIA 2 */
 static void mos6522_q800_via2_portB_write(MOS6522State *s)
@@ -1259,12 +1261,6 @@ static const TypeInfo mos6522_q800_via2_type_info = {
     .instance_init = mos6522_q800_via2_init,
     .class_init = mos6522_q800_via2_class_init,
 };
+TYPE_INFO(mos6522_q800_via2_type_info)
 
-static void mac_via_register_types(void)
-{
-    type_register_static(&mos6522_q800_via1_type_info);
-    type_register_static(&mos6522_q800_via2_type_info);
-    type_register_static(&mac_via_info);
-}
 
-type_init(mac_via_register_types);

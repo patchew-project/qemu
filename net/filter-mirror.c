@@ -438,6 +438,7 @@ static const TypeInfo filter_redirector_info = {
     .instance_finalize = filter_redirector_fini,
     .instance_size = sizeof(MirrorState),
 };
+TYPE_INFO(filter_redirector_info)
 
 static const TypeInfo filter_mirror_info = {
     .name = TYPE_FILTER_MIRROR,
@@ -447,11 +448,6 @@ static const TypeInfo filter_mirror_info = {
     .instance_finalize = filter_mirror_fini,
     .instance_size = sizeof(MirrorState),
 };
+TYPE_INFO(filter_mirror_info)
 
-static void register_types(void)
-{
-    type_register_static(&filter_mirror_info);
-    type_register_static(&filter_redirector_info);
-}
 
-type_init(register_types);

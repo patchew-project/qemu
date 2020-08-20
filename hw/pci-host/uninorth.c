@@ -380,6 +380,7 @@ static const TypeInfo unin_main_pci_host_info = {
         { },
     },
 };
+TYPE_INFO(unin_main_pci_host_info)
 
 static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
 {
@@ -408,6 +409,7 @@ static const TypeInfo u3_agp_pci_host_info = {
         { },
     },
 };
+TYPE_INFO(u3_agp_pci_host_info)
 
 static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
 {
@@ -436,6 +438,7 @@ static const TypeInfo unin_agp_pci_host_info = {
         { },
     },
 };
+TYPE_INFO(unin_agp_pci_host_info)
 
 static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
 {
@@ -464,6 +467,7 @@ static const TypeInfo unin_internal_pci_host_info = {
         { },
     },
 };
+TYPE_INFO(unin_internal_pci_host_info)
 
 static Property pci_unin_main_pci_host_props[] = {
     DEFINE_PROP_UINT32("ofw-addr", UNINHostState, ofw_addr, -1),
@@ -489,6 +493,7 @@ static const TypeInfo pci_unin_main_info = {
     .instance_init = pci_unin_main_init,
     .class_init    = pci_unin_main_class_init,
 };
+TYPE_INFO(pci_unin_main_info)
 
 static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
 {
@@ -505,6 +510,7 @@ static const TypeInfo pci_u3_agp_info = {
     .instance_init = pci_u3_agp_init,
     .class_init    = pci_u3_agp_class_init,
 };
+TYPE_INFO(pci_u3_agp_info)
 
 static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
 {
@@ -521,6 +527,7 @@ static const TypeInfo pci_unin_agp_info = {
     .instance_init = pci_unin_agp_init,
     .class_init    = pci_unin_agp_class_init,
 };
+TYPE_INFO(pci_unin_agp_info)
 
 static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
 {
@@ -537,6 +544,7 @@ static const TypeInfo pci_unin_internal_info = {
     .instance_init = pci_unin_internal_init,
     .class_init    = pci_unin_internal_class_init,
 };
+TYPE_INFO(pci_unin_internal_info)
 
 /* UniN device */
 static void unin_write(void *opaque, hwaddr addr, uint64_t value,
@@ -592,20 +600,12 @@ static const TypeInfo unin_info = {
     .instance_init = unin_init,
     .class_init    = unin_class_init,
 };
+TYPE_INFO(unin_info)
 
 static void unin_register_types(void)
 {
-    type_register_static(&unin_main_pci_host_info);
-    type_register_static(&u3_agp_pci_host_info);
-    type_register_static(&unin_agp_pci_host_info);
-    type_register_static(&unin_internal_pci_host_info);
 
-    type_register_static(&pci_unin_main_info);
-    type_register_static(&pci_u3_agp_info);
-    type_register_static(&pci_unin_agp_info);
-    type_register_static(&pci_unin_internal_info);
 
-    type_register_static(&unin_info);
 }
 
 type_init(unin_register_types)

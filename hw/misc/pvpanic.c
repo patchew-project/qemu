@@ -129,10 +129,6 @@ static TypeInfo pvpanic_isa_info = {
     .instance_init = pvpanic_isa_initfn,
     .class_init    = pvpanic_isa_class_init,
 };
+TYPE_INFO(pvpanic_isa_info)
 
-static void pvpanic_register_types(void)
-{
-    type_register_static(&pvpanic_isa_info);
-}
 
-type_init(pvpanic_register_types)

@@ -323,10 +323,6 @@ static const TypeInfo vhost_scsi_info = {
         { }
     },
 };
+TYPE_INFO(vhost_scsi_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&vhost_scsi_info);
-}
 
-type_init(virtio_register_types)

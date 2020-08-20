@@ -69,6 +69,7 @@ static const TypeInfo virtio_ccw_scsi = {
     .instance_init = virtio_ccw_scsi_instance_init,
     .class_init    = virtio_ccw_scsi_class_init,
 };
+TYPE_INFO(virtio_ccw_scsi)
 
 #ifdef CONFIG_VHOST_SCSI
 
@@ -111,14 +112,13 @@ static const TypeInfo vhost_ccw_scsi = {
     .instance_init = vhost_ccw_scsi_instance_init,
     .class_init    = vhost_ccw_scsi_class_init,
 };
+TYPE_INFO(vhost_ccw_scsi)
 
 #endif
 
 static void virtio_ccw_scsi_register(void)
 {
-    type_register_static(&virtio_ccw_scsi);
 #ifdef CONFIG_VHOST_SCSI
-    type_register_static(&vhost_ccw_scsi);
 #endif
 }
 

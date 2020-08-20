@@ -378,10 +378,6 @@ static const TypeInfo pc87312_type_info = {
     .class_init    = pc87312_class_init,
     /* FIXME use a qdev drive property instead of drive_get() */
 };
+TYPE_INFO(pc87312_type_info)
 
-static void pc87312_register_types(void)
-{
-    type_register_static(&pc87312_type_info);
-}
 
-type_init(pc87312_register_types)

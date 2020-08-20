@@ -423,10 +423,6 @@ static const TypeInfo qio_channel_tls_info = {
     .instance_finalize = qio_channel_tls_finalize,
     .class_init = qio_channel_tls_class_init,
 };
+TYPE_INFO(qio_channel_tls_info)
 
-static void qio_channel_tls_register_types(void)
-{
-    type_register_static(&qio_channel_tls_info);
-}
 
-type_init(qio_channel_tls_register_types);

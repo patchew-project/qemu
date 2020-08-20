@@ -351,10 +351,6 @@ static const TypeInfo mpc_i2c_type_info = {
     .instance_size = sizeof(MPCI2CState),
     .class_init    = mpc_i2c_class_init,
 };
+TYPE_INFO(mpc_i2c_type_info)
 
-static void mpc_i2c_register_types(void)
-{
-    type_register_static(&mpc_i2c_type_info);
-}
 
-type_init(mpc_i2c_register_types)

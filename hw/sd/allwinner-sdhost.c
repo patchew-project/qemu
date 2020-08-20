@@ -823,18 +823,21 @@ static TypeInfo allwinner_sdhost_info = {
     .class_size    = sizeof(AwSdHostClass),
     .abstract      = true,
 };
+TYPE_INFO(allwinner_sdhost_info)
 
 static const TypeInfo allwinner_sdhost_sun4i_info = {
     .name          = TYPE_AW_SDHOST_SUN4I,
     .parent        = TYPE_AW_SDHOST,
     .class_init    = allwinner_sdhost_sun4i_class_init,
 };
+TYPE_INFO(allwinner_sdhost_sun4i_info)
 
 static const TypeInfo allwinner_sdhost_sun5i_info = {
     .name          = TYPE_AW_SDHOST_SUN5I,
     .parent        = TYPE_AW_SDHOST,
     .class_init    = allwinner_sdhost_sun5i_class_init,
 };
+TYPE_INFO(allwinner_sdhost_sun5i_info)
 
 static const TypeInfo allwinner_sdhost_bus_info = {
     .name = TYPE_AW_SDHOST_BUS,
@@ -842,13 +845,6 @@ static const TypeInfo allwinner_sdhost_bus_info = {
     .instance_size = sizeof(SDBus),
     .class_init = allwinner_sdhost_bus_class_init,
 };
+TYPE_INFO(allwinner_sdhost_bus_info)
 
-static void allwinner_sdhost_register_types(void)
-{
-    type_register_static(&allwinner_sdhost_info);
-    type_register_static(&allwinner_sdhost_sun4i_info);
-    type_register_static(&allwinner_sdhost_sun5i_info);
-    type_register_static(&allwinner_sdhost_bus_info);
-}
 
-type_init(allwinner_sdhost_register_types)

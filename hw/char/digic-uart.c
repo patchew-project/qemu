@@ -193,10 +193,6 @@ static const TypeInfo digic_uart_info = {
     .instance_init = digic_uart_init,
     .class_init = digic_uart_class_init,
 };
+TYPE_INFO(digic_uart_info)
 
-static void digic_uart_register_types(void)
-{
-    type_register_static(&digic_uart_info);
-}
 
-type_init(digic_uart_register_types)

@@ -78,10 +78,6 @@ static const TypeInfo sdhci_pci_info = {
         { },
     },
 };
+TYPE_INFO(sdhci_pci_info)
 
-static void sdhci_pci_register_type(void)
-{
-    type_register_static(&sdhci_pci_info);
-}
 
-type_init(sdhci_pci_register_type)

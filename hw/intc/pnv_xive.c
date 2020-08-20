@@ -1975,10 +1975,6 @@ static const TypeInfo pnv_xive_info = {
         { }
     }
 };
+TYPE_INFO(pnv_xive_info)
 
-static void pnv_xive_register_types(void)
-{
-    type_register_static(&pnv_xive_info);
-}
 
-type_init(pnv_xive_register_types)

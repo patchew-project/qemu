@@ -1531,10 +1531,6 @@ static const TypeInfo rocker_info = {
         { },
     },
 };
+TYPE_INFO(rocker_info)
 
-static void rocker_register_types(void)
-{
-    type_register_static(&rocker_info);
-}
 
-type_init(rocker_register_types)

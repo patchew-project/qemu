@@ -1071,10 +1071,6 @@ static const TypeInfo virtio_balloon_info = {
     .instance_init = virtio_balloon_instance_init,
     .class_init = virtio_balloon_class_init,
 };
+TYPE_INFO(virtio_balloon_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_balloon_info);
-}
 
-type_init(virtio_register_types)

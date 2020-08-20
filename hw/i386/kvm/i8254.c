@@ -332,10 +332,6 @@ static const TypeInfo kvm_pit_info = {
     .class_init = kvm_pit_class_init,
     .class_size = sizeof(KVMPITClass),
 };
+TYPE_INFO(kvm_pit_info)
 
-static void kvm_pit_register(void)
-{
-    type_register_static(&kvm_pit_info);
-}
 
-type_init(kvm_pit_register)

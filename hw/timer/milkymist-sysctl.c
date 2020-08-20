@@ -353,10 +353,6 @@ static const TypeInfo milkymist_sysctl_info = {
     .instance_init = milkymist_sysctl_init,
     .class_init    = milkymist_sysctl_class_init,
 };
+TYPE_INFO(milkymist_sysctl_info)
 
-static void milkymist_sysctl_register_types(void)
-{
-    type_register_static(&milkymist_sysctl_info);
-}
 
-type_init(milkymist_sysctl_register_types)

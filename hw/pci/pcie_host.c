@@ -128,10 +128,6 @@ static const TypeInfo pcie_host_type_info = {
     .instance_size = sizeof(PCIExpressHost),
     .instance_init = pcie_host_init,
 };
+TYPE_INFO(pcie_host_type_info)
 
-static void pcie_host_register_types(void)
-{
-    type_register_static(&pcie_host_type_info);
-}
 
-type_init(pcie_host_register_types)

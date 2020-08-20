@@ -1441,6 +1441,7 @@ static const TypeInfo n800_type = {
     .parent = TYPE_MACHINE,
     .class_init = n800_class_init,
 };
+TYPE_INFO(n800_type)
 
 static void n810_class_init(ObjectClass *oc, void *data)
 {
@@ -1461,11 +1462,6 @@ static const TypeInfo n810_type = {
     .parent = TYPE_MACHINE,
     .class_init = n810_class_init,
 };
+TYPE_INFO(n810_type)
 
-static void nseries_machine_init(void)
-{
-    type_register_static(&n800_type);
-    type_register_static(&n810_type);
-}
 
-type_init(nseries_machine_init)

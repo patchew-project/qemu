@@ -366,6 +366,7 @@ static const TypeInfo ppc4xx_host_bridge_info = {
         { },
     },
 };
+TYPE_INFO(ppc4xx_host_bridge_info)
 
 static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
 {
@@ -381,11 +382,6 @@ static const TypeInfo ppc4xx_pcihost_info = {
     .instance_size = sizeof(PPC4xxPCIState),
     .class_init    = ppc4xx_pcihost_class_init,
 };
+TYPE_INFO(ppc4xx_pcihost_info)
 
-static void ppc4xx_pci_register_types(void)
-{
-    type_register_static(&ppc4xx_pcihost_info);
-    type_register_static(&ppc4xx_host_bridge_info);
-}
 
-type_init(ppc4xx_pci_register_types)

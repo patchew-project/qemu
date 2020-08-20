@@ -3728,6 +3728,7 @@ static const TypeInfo xhci_info = {
         { }
     },
 };
+TYPE_INFO(xhci_info)
 
 static void qemu_xhci_class_init(ObjectClass *klass, void *data)
 {
@@ -3755,11 +3756,6 @@ static const TypeInfo qemu_xhci_info = {
     .class_init    = qemu_xhci_class_init,
     .instance_init = qemu_xhci_instance_init,
 };
+TYPE_INFO(qemu_xhci_info)
 
-static void xhci_register_types(void)
-{
-    type_register_static(&xhci_info);
-    type_register_static(&qemu_xhci_info);
-}
 
-type_init(xhci_register_types)

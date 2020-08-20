@@ -228,10 +228,6 @@ static const TypeInfo smbus_device_type_info = {
     .class_size = sizeof(SMBusDeviceClass),
     .class_init = smbus_device_class_init,
 };
+TYPE_INFO(smbus_device_type_info)
 
-static void smbus_device_register_types(void)
-{
-    type_register_static(&smbus_device_type_info);
-}
 
-type_init(smbus_device_register_types)

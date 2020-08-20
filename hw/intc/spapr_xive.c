@@ -802,13 +802,9 @@ static const TypeInfo spapr_xive_info = {
         { }
     },
 };
+TYPE_INFO(spapr_xive_info)
 
-static void spapr_xive_register_types(void)
-{
-    type_register_static(&spapr_xive_info);
-}
 
-type_init(spapr_xive_register_types)
 
 /*
  * XIVE hcalls

@@ -132,10 +132,6 @@ static const TypeInfo pnv_pnor_info = {
     .instance_size = sizeof(PnvPnor),
     .class_init    = pnv_pnor_class_init,
 };
+TYPE_INFO(pnv_pnor_info)
 
-static void pnv_pnor_register_types(void)
-{
-    type_register_static(&pnv_pnor_info);
-}
 
-type_init(pnv_pnor_register_types)

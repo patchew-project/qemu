@@ -1058,6 +1058,7 @@ static const TypeInfo pnv_phb4_iommu_memory_region_info = {
     .name = TYPE_PNV_PHB4_IOMMU_MEMORY_REGION,
     .class_init = pnv_phb4_iommu_memory_region_class_init,
 };
+TYPE_INFO(pnv_phb4_iommu_memory_region_info)
 
 /*
  * MSI/MSIX memory region implementation.
@@ -1301,6 +1302,7 @@ static const TypeInfo pnv_phb4_type_info = {
             { },
     }
 };
+TYPE_INFO(pnv_phb4_type_info)
 
 static void pnv_phb4_root_bus_class_init(ObjectClass *klass, void *data)
 {
@@ -1322,6 +1324,7 @@ static const TypeInfo pnv_phb4_root_bus_info = {
         { }
     },
 };
+TYPE_INFO(pnv_phb4_root_bus_info)
 
 static void pnv_phb4_root_port_reset(DeviceState *dev)
 {
@@ -1385,16 +1388,9 @@ static const TypeInfo pnv_phb4_root_port_info = {
     .instance_size = sizeof(PnvPHB4RootPort),
     .class_init    = pnv_phb4_root_port_class_init,
 };
+TYPE_INFO(pnv_phb4_root_port_info)
 
-static void pnv_phb4_register_types(void)
-{
-    type_register_static(&pnv_phb4_root_bus_info);
-    type_register_static(&pnv_phb4_root_port_info);
-    type_register_static(&pnv_phb4_type_info);
-    type_register_static(&pnv_phb4_iommu_memory_region_info);
-}
 
-type_init(pnv_phb4_register_types);
 
 void pnv_phb4_update_regions(PnvPhb4PecStack *stack)
 {

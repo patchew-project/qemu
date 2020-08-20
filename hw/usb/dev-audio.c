@@ -1019,10 +1019,10 @@ static const TypeInfo usb_audio_info = {
     .instance_size = sizeof(USBAudioState),
     .class_init    = usb_audio_class_init,
 };
+TYPE_INFO(usb_audio_info)
 
 static void usb_audio_register_types(void)
 {
-    type_register_static(&usb_audio_info);
     usb_legacy_register(TYPE_USB_AUDIO, "audio", NULL);
 }
 

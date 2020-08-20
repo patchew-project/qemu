@@ -194,10 +194,6 @@ static const TypeInfo s390_ccw_info = {
     .class_init    = s390_ccw_class_init,
     .abstract      = true,
 };
+TYPE_INFO(s390_ccw_info)
 
-static void register_s390_ccw_type(void)
-{
-    type_register_static(&s390_ccw_info);
-}
 
-type_init(register_s390_ccw_type)

@@ -221,10 +221,6 @@ static const TypeInfo sd_bus_info = {
     .instance_size = sizeof(SDBus),
     .class_size = sizeof(SDBusClass),
 };
+TYPE_INFO(sd_bus_info)
 
-static void sd_bus_register_types(void)
-{
-    type_register_static(&sd_bus_info);
-}
 
-type_init(sd_bus_register_types)

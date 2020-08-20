@@ -210,16 +210,12 @@ static const TypeInfo rx_cpu_info = {
     .class_size = sizeof(RXCPUClass),
     .class_init = rx_cpu_class_init,
 };
+TYPE_INFO(rx_cpu_info)
 
 static const TypeInfo rx62n_rx_cpu_info = {
     .name = TYPE_RX62N_CPU,
     .parent = TYPE_RX_CPU,
 };
+TYPE_INFO(rx62n_rx_cpu_info)
 
-static void rx_cpu_register_types(void)
-{
-    type_register_static(&rx_cpu_info);
-    type_register_static(&rx62n_rx_cpu_info);
-}
 
-type_init(rx_cpu_register_types)

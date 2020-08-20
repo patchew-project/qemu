@@ -838,10 +838,6 @@ static const TypeInfo zdma_info = {
     .class_init    = zdma_class_init,
     .instance_init = zdma_init,
 };
+TYPE_INFO(zdma_info)
 
-static void zdma_register_types(void)
-{
-    type_register_static(&zdma_info);
-}
 
-type_init(zdma_register_types)

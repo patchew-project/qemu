@@ -268,10 +268,6 @@ static const TypeInfo exynos4210_rng_info = {
     .instance_init = exynos4210_rng_init,
     .class_init    = exynos4210_rng_class_init,
 };
+TYPE_INFO(exynos4210_rng_info)
 
-static void exynos4210_rng_register(void)
-{
-    type_register_static(&exynos4210_rng_info);
-}
 
-type_init(exynos4210_rng_register)

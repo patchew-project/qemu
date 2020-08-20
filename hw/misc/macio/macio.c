@@ -467,6 +467,7 @@ static const TypeInfo macio_bus_info = {
     .parent = TYPE_SYSTEM_BUS,
     .instance_size = sizeof(MacIOBusState),
 };
+TYPE_INFO(macio_bus_info)
 
 static const TypeInfo macio_oldworld_type_info = {
     .name          = TYPE_OLDWORLD_MACIO,
@@ -475,6 +476,7 @@ static const TypeInfo macio_oldworld_type_info = {
     .instance_init = macio_oldworld_init,
     .class_init    = macio_oldworld_class_init,
 };
+TYPE_INFO(macio_oldworld_type_info)
 
 static const TypeInfo macio_newworld_type_info = {
     .name          = TYPE_NEWWORLD_MACIO,
@@ -483,6 +485,7 @@ static const TypeInfo macio_newworld_type_info = {
     .instance_init = macio_newworld_init,
     .class_init    = macio_newworld_class_init,
 };
+TYPE_INFO(macio_newworld_type_info)
 
 static const TypeInfo macio_type_info = {
     .name          = TYPE_MACIO,
@@ -496,13 +499,6 @@ static const TypeInfo macio_type_info = {
         { },
     },
 };
+TYPE_INFO(macio_type_info)
 
-static void macio_register_types(void)
-{
-    type_register_static(&macio_bus_info);
-    type_register_static(&macio_type_info);
-    type_register_static(&macio_oldworld_type_info);
-    type_register_static(&macio_newworld_type_info);
-}
 
-type_init(macio_register_types)

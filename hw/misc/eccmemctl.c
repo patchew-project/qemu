@@ -346,11 +346,7 @@ static const TypeInfo ecc_info = {
     .instance_init = ecc_init,
     .class_init    = ecc_class_init,
 };
+TYPE_INFO(ecc_info)
 
 
-static void ecc_register_types(void)
-{
-    type_register_static(&ecc_info);
-}
 
-type_init(ecc_register_types)

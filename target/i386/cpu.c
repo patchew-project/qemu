@@ -4335,6 +4335,7 @@ static const TypeInfo max_x86_cpu_type_info = {
     .instance_init = max_x86_cpu_initfn,
     .class_init = max_x86_cpu_class_init,
 };
+TYPE_INFO(max_x86_cpu_type_info)
 
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
 static void host_x86_cpu_class_init(ObjectClass *oc, void *data)
@@ -4358,6 +4359,7 @@ static const TypeInfo host_x86_cpu_type_info = {
     .parent = X86_CPU_TYPE_NAME("max"),
     .class_init = host_x86_cpu_class_init,
 };
+TYPE_INFO(host_x86_cpu_type_info)
 
 #endif
 
@@ -7349,6 +7351,7 @@ static const TypeInfo x86_cpu_type_info = {
     .class_size = sizeof(X86CPUClass),
     .class_init = x86_cpu_common_class_init,
 };
+TYPE_INFO(x86_cpu_type_info)
 
 
 /* "base" CPU model, used by query-cpu-model-expansion */
@@ -7367,19 +7370,16 @@ static const TypeInfo x86_base_cpu_type_info = {
         .parent = TYPE_X86_CPU,
         .class_init = x86_cpu_base_class_init,
 };
+TYPE_INFO(x86_base_cpu_type_info)
 
 static void x86_cpu_register_types(void)
 {
     int i;
 
-    type_register_static(&x86_cpu_type_info);
     for (i = 0; i < ARRAY_SIZE(builtin_x86_defs); i++) {
         x86_register_cpudef_types(&builtin_x86_defs[i]);
     }
-    type_register_static(&max_x86_cpu_type_info);
-    type_register_static(&x86_base_cpu_type_info);
 #if defined(CONFIG_KVM) || defined(CONFIG_HVF)
-    type_register_static(&host_x86_cpu_type_info);
 #endif
 }
 

@@ -162,10 +162,6 @@ static const TypeInfo nvram_sysbus_info = {
     .instance_size = sizeof(SysBusNvRamState),
     .class_init    = nvram_sysbus_class_init,
 };
+TYPE_INFO(nvram_sysbus_info)
 
-static void nvram_register_types(void)
-{
-    type_register_static(&nvram_sysbus_info);
-}
 
-type_init(nvram_register_types)

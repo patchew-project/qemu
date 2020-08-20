@@ -120,10 +120,6 @@ static TypeInfo i2c_ddc_info = {
     .instance_init = i2c_ddc_init,
     .class_init = i2c_ddc_class_init
 };
+TYPE_INFO(i2c_ddc_info)
 
-static void ddc_register_devices(void)
-{
-    type_register_static(&i2c_ddc_info);
-}
 
-type_init(ddc_register_devices);

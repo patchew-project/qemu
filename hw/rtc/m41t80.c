@@ -110,10 +110,6 @@ static const TypeInfo m41t80_info = {
     .instance_size = sizeof(M41t80State),
     .class_init    = m41t80_class_init,
 };
+TYPE_INFO(m41t80_info)
 
-static void m41t80_register_types(void)
-{
-    type_register_static(&m41t80_info);
-}
 
-type_init(m41t80_register_types)

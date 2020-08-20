@@ -395,10 +395,6 @@ static const TypeInfo nrf51_timer_info = {
     .instance_init = nrf51_timer_init,
     .class_init = nrf51_timer_class_init
 };
+TYPE_INFO(nrf51_timer_info)
 
-static void nrf51_timer_register_types(void)
-{
-    type_register_static(&nrf51_timer_info);
-}
 
-type_init(nrf51_timer_register_types)

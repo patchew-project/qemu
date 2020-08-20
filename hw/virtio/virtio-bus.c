@@ -335,10 +335,6 @@ static const TypeInfo virtio_bus_info = {
     .class_size = sizeof(VirtioBusClass),
     .class_init = virtio_bus_class_init
 };
+TYPE_INFO(virtio_bus_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_bus_info);
-}
 
-type_init(virtio_register_types)

@@ -195,10 +195,6 @@ static const TypeInfo stm32f205_soc_info = {
     .instance_init = stm32f205_soc_initfn,
     .class_init    = stm32f205_soc_class_init,
 };
+TYPE_INFO(stm32f205_soc_info)
 
-static void stm32f205_soc_types(void)
-{
-    type_register_static(&stm32f205_soc_info);
-}
 
-type_init(stm32f205_soc_types)

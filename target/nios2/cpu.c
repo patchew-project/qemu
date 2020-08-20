@@ -216,10 +216,6 @@ static const TypeInfo nios2_cpu_type_info = {
     .class_size = sizeof(Nios2CPUClass),
     .class_init = nios2_cpu_class_init,
 };
+TYPE_INFO(nios2_cpu_type_info)
 
-static void nios2_cpu_register_types(void)
-{
-    type_register_static(&nios2_cpu_type_info);
-}
 
-type_init(nios2_cpu_register_types)

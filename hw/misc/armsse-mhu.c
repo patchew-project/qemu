@@ -191,10 +191,6 @@ static const TypeInfo armsse_mhu_info = {
     .instance_init = armsse_mhu_init,
     .class_init = armsse_mhu_class_init,
 };
+TYPE_INFO(armsse_mhu_info)
 
-static void armsse_mhu_register_types(void)
-{
-    type_register_static(&armsse_mhu_info);
-}
 
-type_init(armsse_mhu_register_types);

@@ -139,10 +139,6 @@ static const TypeInfo pci_ipmi_kcs_info = {
         { }
     }
 };
+TYPE_INFO(pci_ipmi_kcs_info)
 
-static void pci_ipmi_kcs_register_types(void)
-{
-    type_register_static(&pci_ipmi_kcs_info);
-}
 
-type_init(pci_ipmi_kcs_register_types)

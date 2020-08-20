@@ -765,6 +765,7 @@ static const TypeInfo ccw_machine_info = {
         { }
     },
 };
+TYPE_INFO(ccw_machine_info)
 
 bool css_migration_enabled(void)
 {
@@ -1054,9 +1055,4 @@ static void ccw_machine_2_4_class_options(MachineClass *mc)
 }
 DEFINE_CCW_MACHINE(2_4, "2.4", false);
 
-static void ccw_machine_register_types(void)
-{
-    type_register_static(&ccw_machine_info);
-}
 
-type_init(ccw_machine_register_types)

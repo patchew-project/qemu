@@ -172,10 +172,6 @@ static const TypeInfo vuv_info = {
     .instance_size = sizeof(VHostUserVSock),
     .class_init = vuv_class_init,
 };
+TYPE_INFO(vuv_info)
 
-static void vuv_register_types(void)
-{
-    type_register_static(&vuv_info);
-}
 
-type_init(vuv_register_types)

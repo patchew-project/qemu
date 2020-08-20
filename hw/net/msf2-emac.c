@@ -580,10 +580,6 @@ static const TypeInfo msf2_emac_info = {
     .instance_init = msf2_emac_init,
     .class_init    = msf2_emac_class_init,
 };
+TYPE_INFO(msf2_emac_info)
 
-static void msf2_emac_register_types(void)
-{
-    type_register_static(&msf2_emac_info);
-}
 
-type_init(msf2_emac_register_types)

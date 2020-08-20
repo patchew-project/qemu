@@ -396,10 +396,6 @@ static const TypeInfo tpm_passthrough_info = {
     .instance_init = tpm_passthrough_inst_init,
     .instance_finalize = tpm_passthrough_inst_finalize,
 };
+TYPE_INFO(tpm_passthrough_info)
 
-static void tpm_passthrough_register(void)
-{
-    type_register_static(&tpm_passthrough_info);
-}
 
-type_init(tpm_passthrough_register)

@@ -176,12 +176,14 @@ static const TypeInfo pl050_kbd_info = {
     .parent        = TYPE_PL050,
     .instance_init = pl050_keyboard_init,
 };
+TYPE_INFO(pl050_kbd_info)
 
 static const TypeInfo pl050_mouse_info = {
     .name          = "pl050_mouse",
     .parent        = TYPE_PL050,
     .instance_init = pl050_mouse_init,
 };
+TYPE_INFO(pl050_mouse_info)
 
 static void pl050_class_init(ObjectClass *oc, void *data)
 {
@@ -198,12 +200,6 @@ static const TypeInfo pl050_type_info = {
     .abstract      = true,
     .class_init    = pl050_class_init,
 };
+TYPE_INFO(pl050_type_info)
 
-static void pl050_register_types(void)
-{
-    type_register_static(&pl050_type_info);
-    type_register_static(&pl050_kbd_info);
-    type_register_static(&pl050_mouse_info);
-}
 
-type_init(pl050_register_types)

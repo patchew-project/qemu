@@ -76,9 +76,5 @@ static const TypeInfo imx7_snvs_info = {
     .instance_init = imx7_snvs_init,
     .class_init    = imx7_snvs_class_init,
 };
+TYPE_INFO(imx7_snvs_info)
 
-static void imx7_snvs_register_type(void)
-{
-    type_register_static(&imx7_snvs_info);
-}
-type_init(imx7_snvs_register_type)

@@ -788,6 +788,7 @@ static const TypeInfo bonito_info = {
         { },
     },
 };
+TYPE_INFO(bonito_info)
 
 static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
 {
@@ -802,11 +803,6 @@ static const TypeInfo bonito_pcihost_info = {
     .instance_size = sizeof(BonitoState),
     .class_init    = bonito_pcihost_class_init,
 };
+TYPE_INFO(bonito_pcihost_info)
 
-static void bonito_register_types(void)
-{
-    type_register_static(&bonito_pcihost_info);
-    type_register_static(&bonito_info);
-}
 
-type_init(bonito_register_types)

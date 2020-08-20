@@ -433,10 +433,6 @@ static const TypeInfo colo_rewriter_info = {
     .instance_init = filter_rewriter_init,
     .instance_size = sizeof(RewriterState),
 };
+TYPE_INFO(colo_rewriter_info)
 
-static void register_types(void)
-{
-    type_register_static(&colo_rewriter_info);
-}
 
-type_init(register_types);

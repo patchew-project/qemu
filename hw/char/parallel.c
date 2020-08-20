@@ -659,10 +659,6 @@ static const TypeInfo parallel_isa_info = {
     .instance_size = sizeof(ISAParallelState),
     .class_init    = parallel_isa_class_initfn,
 };
+TYPE_INFO(parallel_isa_info)
 
-static void parallel_register_types(void)
-{
-    type_register_static(&parallel_isa_info);
-}
 
-type_init(parallel_register_types)

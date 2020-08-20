@@ -102,10 +102,6 @@ static const TypeInfo versatile_i2c_info = {
     .instance_size = sizeof(VersatileI2CState),
     .instance_init = versatile_i2c_init,
 };
+TYPE_INFO(versatile_i2c_info)
 
-static void versatile_i2c_register_types(void)
-{
-    type_register_static(&versatile_i2c_info);
-}
 
-type_init(versatile_i2c_register_types)

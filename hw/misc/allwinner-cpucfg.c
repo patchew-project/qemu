@@ -273,10 +273,6 @@ static const TypeInfo allwinner_cpucfg_info = {
     .instance_size = sizeof(AwCpuCfgState),
     .class_init    = allwinner_cpucfg_class_init,
 };
+TYPE_INFO(allwinner_cpucfg_info)
 
-static void allwinner_cpucfg_register(void)
-{
-    type_register_static(&allwinner_cpucfg_info);
-}
 
-type_init(allwinner_cpucfg_register)

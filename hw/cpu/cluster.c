@@ -91,10 +91,6 @@ static const TypeInfo cpu_cluster_type_info = {
     .instance_size = sizeof(CPUClusterState),
     .class_init = cpu_cluster_class_init,
 };
+TYPE_INFO(cpu_cluster_type_info)
 
-static void cpu_cluster_register_types(void)
-{
-    type_register_static(&cpu_cluster_type_info);
-}
 
-type_init(cpu_cluster_register_types)

@@ -126,10 +126,6 @@ static const TypeInfo bcm2835_thermal_info = {
     .instance_size = sizeof(Bcm2835ThermalState),
     .class_init = bcm2835_thermal_class_init,
 };
+TYPE_INFO(bcm2835_thermal_info)
 
-static void bcm2835_thermal_register_types(void)
-{
-    type_register_static(&bcm2835_thermal_info);
-}
 
-type_init(bcm2835_thermal_register_types)

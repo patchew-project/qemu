@@ -797,10 +797,6 @@ static const TypeInfo sbsa_ref_info = {
     .class_init    = sbsa_ref_class_init,
     .instance_size = sizeof(SBSAMachineState),
 };
+TYPE_INFO(sbsa_ref_info)
 
-static void sbsa_ref_machine_init(void)
-{
-    type_register_static(&sbsa_ref_info);
-}
 
-type_init(sbsa_ref_machine_init);

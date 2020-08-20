@@ -706,6 +706,7 @@ static const TypeInfo core_info = {
     .instance_init = integratorcm_init,
     .class_init    = core_class_init,
 };
+TYPE_INFO(core_info)
 
 static const TypeInfo icp_pic_info = {
     .name          = TYPE_INTEGRATOR_PIC,
@@ -714,6 +715,7 @@ static const TypeInfo icp_pic_info = {
     .instance_init = icp_pic_init,
     .class_init    = icp_pic_class_init,
 };
+TYPE_INFO(icp_pic_info)
 
 static const TypeInfo icp_ctrl_regs_info = {
     .name          = TYPE_ICP_CONTROL_REGS,
@@ -722,12 +724,6 @@ static const TypeInfo icp_ctrl_regs_info = {
     .instance_init = icp_control_init,
     .class_init    = icp_control_class_init,
 };
+TYPE_INFO(icp_ctrl_regs_info)
 
-static void integratorcp_register_types(void)
-{
-    type_register_static(&icp_pic_info);
-    type_register_static(&core_info);
-    type_register_static(&icp_ctrl_regs_info);
-}
 
-type_init(integratorcp_register_types)

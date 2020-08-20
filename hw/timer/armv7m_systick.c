@@ -253,10 +253,6 @@ static const TypeInfo armv7m_systick_info = {
     .instance_size = sizeof(SysTickState),
     .class_init = systick_class_init,
 };
+TYPE_INFO(armv7m_systick_info)
 
-static void armv7m_systick_register_types(void)
-{
-    type_register_static(&armv7m_systick_info);
-}
 
-type_init(armv7m_systick_register_types)

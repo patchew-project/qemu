@@ -525,10 +525,6 @@ static const TypeInfo arm_gicv3_common_type = {
         { },
     },
 };
+TYPE_INFO(arm_gicv3_common_type)
 
-static void register_types(void)
-{
-    type_register_static(&arm_gicv3_common_type);
-}
 
-type_init(register_types)

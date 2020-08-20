@@ -225,6 +225,7 @@ static const TypeInfo mips_cpu_type_info = {
     .class_size = sizeof(MIPSCPUClass),
     .class_init = mips_cpu_class_init,
 };
+TYPE_INFO(mips_cpu_type_info)
 
 static void mips_cpu_cpudef_class_init(ObjectClass *oc, void *data)
 {
@@ -250,7 +251,6 @@ static void mips_cpu_register_types(void)
 {
     int i;
 
-    type_register_static(&mips_cpu_type_info);
     for (i = 0; i < mips_defs_number; i++) {
         mips_register_cpudef_type(&mips_defs[i]);
     }

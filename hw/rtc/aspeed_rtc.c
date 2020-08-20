@@ -172,10 +172,6 @@ static const TypeInfo aspeed_rtc_info = {
     .instance_size = sizeof(AspeedRtcState),
     .class_init    = aspeed_rtc_class_init,
 };
+TYPE_INFO(aspeed_rtc_info)
 
-static void aspeed_rtc_register_types(void)
-{
-    type_register_static(&aspeed_rtc_info);
-}
 
-type_init(aspeed_rtc_register_types)

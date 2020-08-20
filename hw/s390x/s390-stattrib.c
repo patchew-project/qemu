@@ -330,6 +330,7 @@ static const TypeInfo qemu_s390_stattrib_info = {
     .class_init    = qemu_s390_stattrib_class_init,
     .class_size    = sizeof(S390StAttribClass),
 };
+TYPE_INFO(qemu_s390_stattrib_info)
 
 /* Generic abstract object: */
 
@@ -401,11 +402,6 @@ static const TypeInfo s390_stattrib_info = {
     .class_size    = sizeof(S390StAttribClass),
     .abstract      = true,
 };
+TYPE_INFO(s390_stattrib_info)
 
-static void s390_stattrib_register_types(void)
-{
-    type_register_static(&s390_stattrib_info);
-    type_register_static(&qemu_s390_stattrib_info);
-}
 
-type_init(s390_stattrib_register_types)

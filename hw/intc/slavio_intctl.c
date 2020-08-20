@@ -466,10 +466,6 @@ static const TypeInfo slavio_intctl_info = {
         { }
     },
 };
+TYPE_INFO(slavio_intctl_info)
 
-static void slavio_intctl_register_types(void)
-{
-    type_register_static(&slavio_intctl_info);
-}
 
-type_init(slavio_intctl_register_types)

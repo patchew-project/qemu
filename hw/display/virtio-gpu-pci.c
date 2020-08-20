@@ -63,6 +63,7 @@ static const TypeInfo virtio_gpu_pci_base_info = {
     .class_init = virtio_gpu_pci_base_class_init,
     .abstract = true
 };
+TYPE_INFO(virtio_gpu_pci_base_info)
 
 #define TYPE_VIRTIO_GPU_PCI "virtio-gpu-pci"
 #define VIRTIO_GPU_PCI(obj)                                 \
@@ -91,7 +92,6 @@ static const VirtioPCIDeviceTypeInfo virtio_gpu_pci_info = {
 
 static void virtio_gpu_pci_register_types(void)
 {
-    type_register_static(&virtio_gpu_pci_base_info);
     virtio_pci_types_register(&virtio_gpu_pci_info);
 }
 

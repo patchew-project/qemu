@@ -534,11 +534,8 @@ static const TypeInfo omap_i2c_info = {
     .instance_init = omap_i2c_init,
     .class_init = omap_i2c_class_init,
 };
+TYPE_INFO(omap_i2c_info)
 
-static void omap_i2c_register_types(void)
-{
-    type_register_static(&omap_i2c_info);
-}
 
 I2CBus *omap_i2c_bus(DeviceState *omap_i2c)
 {
@@ -546,4 +543,3 @@ I2CBus *omap_i2c_bus(DeviceState *omap_i2c)
     return s->bus;
 }
 
-type_init(omap_i2c_register_types)

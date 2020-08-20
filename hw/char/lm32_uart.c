@@ -304,10 +304,6 @@ static const TypeInfo lm32_uart_info = {
     .instance_init = lm32_uart_init,
     .class_init    = lm32_uart_class_init,
 };
+TYPE_INFO(lm32_uart_info)
 
-static void lm32_uart_register_types(void)
-{
-    type_register_static(&lm32_uart_info);
-}
 
-type_init(lm32_uart_register_types)

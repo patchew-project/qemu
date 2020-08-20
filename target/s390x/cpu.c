@@ -523,10 +523,6 @@ static const TypeInfo s390_cpu_type_info = {
     .class_size = sizeof(S390CPUClass),
     .class_init = s390_cpu_class_init,
 };
+TYPE_INFO(s390_cpu_type_info)
 
-static void s390_cpu_register_types(void)
-{
-    type_register_static(&s390_cpu_type_info);
-}
 
-type_init(s390_cpu_register_types)

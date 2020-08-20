@@ -137,10 +137,6 @@ static const TypeInfo puv3_intc_info = {
     .instance_size = sizeof(PUV3INTCState),
     .class_init = puv3_intc_class_init,
 };
+TYPE_INFO(puv3_intc_info)
 
-static void puv3_intc_register_type(void)
-{
-    type_register_static(&puv3_intc_info);
-}
 
-type_init(puv3_intc_register_type)

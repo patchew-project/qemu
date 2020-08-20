@@ -164,10 +164,6 @@ static const TypeInfo tilegx_cpu_type_info = {
     .class_size = sizeof(TileGXCPUClass),
     .class_init = tilegx_cpu_class_init,
 };
+TYPE_INFO(tilegx_cpu_type_info)
 
-static void tilegx_cpu_register_types(void)
-{
-    type_register_static(&tilegx_cpu_type_info);
-}
 
-type_init(tilegx_cpu_register_types)

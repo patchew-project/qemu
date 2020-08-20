@@ -95,10 +95,6 @@ static const TypeInfo arm11_scu_type_info = {
     .instance_init = arm11_scu_init,
     .class_init    = arm11_scu_class_init,
 };
+TYPE_INFO(arm11_scu_type_info)
 
-static void arm11_scu_register_types(void)
-{
-    type_register_static(&arm11_scu_type_info);
-}
 
-type_init(arm11_scu_register_types)

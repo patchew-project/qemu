@@ -461,10 +461,6 @@ static TypeInfo bcm2835_fb_info = {
     .class_init    = bcm2835_fb_class_init,
     .instance_init = bcm2835_fb_init,
 };
+TYPE_INFO(bcm2835_fb_info)
 
-static void bcm2835_fb_register_types(void)
-{
-    type_register_static(&bcm2835_fb_info);
-}
 
-type_init(bcm2835_fb_register_types)

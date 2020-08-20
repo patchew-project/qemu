@@ -822,6 +822,7 @@ static const TypeInfo vexpress_info = {
     .class_size = sizeof(VexpressMachineClass),
     .class_init = vexpress_class_init,
 };
+TYPE_INFO(vexpress_info)
 
 static const TypeInfo vexpress_a9_info = {
     .name = TYPE_VEXPRESS_A9_MACHINE,
@@ -829,6 +830,7 @@ static const TypeInfo vexpress_a9_info = {
     .class_init = vexpress_a9_class_init,
     .instance_init = vexpress_a9_instance_init,
 };
+TYPE_INFO(vexpress_a9_info)
 
 static const TypeInfo vexpress_a15_info = {
     .name = TYPE_VEXPRESS_A15_MACHINE,
@@ -836,12 +838,6 @@ static const TypeInfo vexpress_a15_info = {
     .class_init = vexpress_a15_class_init,
     .instance_init = vexpress_a15_instance_init,
 };
+TYPE_INFO(vexpress_a15_info)
 
-static void vexpress_machine_init(void)
-{
-    type_register_static(&vexpress_info);
-    type_register_static(&vexpress_a9_info);
-    type_register_static(&vexpress_a15_info);
-}
 
-type_init(vexpress_machine_init);

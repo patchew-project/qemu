@@ -80,6 +80,7 @@ static const TypeInfo floppy_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(FloppyBus),
 };
+TYPE_INFO(floppy_bus_info)
 
 static void floppy_bus_create(FDCtrl *fdc, FloppyBus *bus, DeviceState *dev)
 {
@@ -620,6 +621,7 @@ static const TypeInfo floppy_drive_info = {
     .instance_size = sizeof(FloppyDrive),
     .class_init = floppy_drive_class_init,
 };
+TYPE_INFO(floppy_drive_info)
 
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
@@ -2940,6 +2942,7 @@ static const TypeInfo isa_fdc_info = {
     .class_init    = isabus_fdc_class_init,
     .instance_init = isabus_fdc_instance_init,
 };
+TYPE_INFO(isa_fdc_info)
 
 static const VMStateDescription vmstate_sysbus_fdc ={
     .name = "fdc",
@@ -2980,6 +2983,7 @@ static const TypeInfo sysbus_fdc_info = {
     .instance_init = sysbus_fdc_initfn,
     .class_init    = sysbus_fdc_class_init,
 };
+TYPE_INFO(sysbus_fdc_info)
 
 static Property sun4m_fdc_properties[] = {
     DEFINE_PROP_DRIVE("drive", FDCtrlSysBus, state.qdev_for_drives[0].blk),
@@ -3006,6 +3010,7 @@ static const TypeInfo sun4m_fdc_info = {
     .instance_init = sun4m_fdc_initfn,
     .class_init    = sun4m_fdc_class_init,
 };
+TYPE_INFO(sun4m_fdc_info)
 
 static void sysbus_fdc_common_class_init(ObjectClass *klass, void *data)
 {
@@ -3024,15 +3029,6 @@ static const TypeInfo sysbus_fdc_type_info = {
     .abstract      = true,
     .class_init    = sysbus_fdc_common_class_init,
 };
+TYPE_INFO(sysbus_fdc_type_info)
 
-static void fdc_register_types(void)
-{
-    type_register_static(&isa_fdc_info);
-    type_register_static(&sysbus_fdc_type_info);
-    type_register_static(&sysbus_fdc_info);
-    type_register_static(&sun4m_fdc_info);
-    type_register_static(&floppy_bus_info);
-    type_register_static(&floppy_drive_info);
-}
 
-type_init(fdc_register_types)

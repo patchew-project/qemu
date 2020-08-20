@@ -235,6 +235,7 @@ static const TypeInfo virtio_input_hid_info = {
     .class_init    = virtio_input_hid_class_init,
     .abstract      = true,
 };
+TYPE_INFO(virtio_input_hid_info)
 
 /* ----------------------------------------------------------------- */
 
@@ -291,6 +292,7 @@ static const TypeInfo virtio_keyboard_info = {
     .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_keyboard_init,
 };
+TYPE_INFO(virtio_keyboard_info)
 
 /* ----------------------------------------------------------------- */
 
@@ -384,6 +386,7 @@ static const TypeInfo virtio_mouse_info = {
     .instance_init = virtio_mouse_init,
     .class_init    = virtio_mouse_class_init,
 };
+TYPE_INFO(virtio_mouse_info)
 
 /* ----------------------------------------------------------------- */
 
@@ -508,15 +511,8 @@ static const TypeInfo virtio_tablet_info = {
     .instance_init = virtio_tablet_init,
     .class_init    = virtio_tablet_class_init,
 };
+TYPE_INFO(virtio_tablet_info)
 
 /* ----------------------------------------------------------------- */
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_input_hid_info);
-    type_register_static(&virtio_keyboard_info);
-    type_register_static(&virtio_mouse_info);
-    type_register_static(&virtio_tablet_info);
-}
 
-type_init(virtio_register_types)

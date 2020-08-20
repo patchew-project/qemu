@@ -1332,10 +1332,6 @@ static const TypeInfo qio_channel_websock_info = {
     .instance_finalize = qio_channel_websock_finalize,
     .class_init = qio_channel_websock_class_init,
 };
+TYPE_INFO(qio_channel_websock_info)
 
-static void qio_channel_websock_register_types(void)
-{
-    type_register_static(&qio_channel_websock_info);
-}
 
-type_init(qio_channel_websock_register_types);

@@ -216,10 +216,6 @@ static const TypeInfo xtensa_cpu_type_info = {
     .class_size = sizeof(XtensaCPUClass),
     .class_init = xtensa_cpu_class_init,
 };
+TYPE_INFO(xtensa_cpu_type_info)
 
-static void xtensa_cpu_register_types(void)
-{
-    type_register_static(&xtensa_cpu_type_info);
-}
 
-type_init(xtensa_cpu_register_types)

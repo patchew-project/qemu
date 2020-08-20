@@ -684,10 +684,6 @@ static const TypeInfo piix4_pm_info = {
         { }
     }
 };
+TYPE_INFO(piix4_pm_info)
 
-static void piix4_pm_register_types(void)
-{
-    type_register_static(&piix4_pm_info);
-}
 
-type_init(piix4_pm_register_types)

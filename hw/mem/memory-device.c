@@ -337,10 +337,6 @@ static const TypeInfo memory_device_info = {
     .parent        = TYPE_INTERFACE,
     .class_size = sizeof(MemoryDeviceClass),
 };
+TYPE_INFO(memory_device_info)
 
-static void memory_device_register_types(void)
-{
-    type_register_static(&memory_device_info);
-}
 
-type_init(memory_device_register_types)

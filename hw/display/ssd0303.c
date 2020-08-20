@@ -326,10 +326,6 @@ static const TypeInfo ssd0303_info = {
     .instance_size = sizeof(ssd0303_state),
     .class_init    = ssd0303_class_init,
 };
+TYPE_INFO(ssd0303_info)
 
-static void ssd0303_register_types(void)
-{
-    type_register_static(&ssd0303_info);
-}
 
-type_init(ssd0303_register_types)

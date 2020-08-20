@@ -801,6 +801,7 @@ static const TypeInfo pmu_type_info = {
     .instance_init = pmu_init,
     .class_init = pmu_class_init,
 };
+TYPE_INFO(pmu_type_info)
 
 static void mos6522_pmu_portB_write(MOS6522State *s)
 {
@@ -860,11 +861,6 @@ static const TypeInfo mos6522_pmu_type_info = {
     .instance_size = sizeof(MOS6522PMUState),
     .class_init = mos6522_pmu_class_init,
 };
+TYPE_INFO(mos6522_pmu_type_info)
 
-static void pmu_register_types(void)
-{
-    type_register_static(&pmu_type_info);
-    type_register_static(&mos6522_pmu_type_info);
-}
 
-type_init(pmu_register_types)

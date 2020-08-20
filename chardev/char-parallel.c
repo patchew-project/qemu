@@ -308,12 +308,8 @@ static const TypeInfo char_parallel_type_info = {
     .instance_finalize = char_parallel_finalize,
     .class_init = char_parallel_class_init,
 };
+TYPE_INFO(char_parallel_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_parallel_type_info);
-}
 
-type_init(register_types);
 
 #endif

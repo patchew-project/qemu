@@ -142,10 +142,6 @@ static const TypeInfo ne2000_isa_info = {
     .class_init    = isa_ne2000_class_initfn,
     .instance_init = isa_ne2000_instance_init,
 };
+TYPE_INFO(ne2000_isa_info)
 
-static void ne2000_isa_register_types(void)
-{
-    type_register_static(&ne2000_isa_info);
-}
 
-type_init(ne2000_isa_register_types)

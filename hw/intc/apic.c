@@ -913,10 +913,6 @@ static const TypeInfo apic_info = {
     .parent        = TYPE_APIC_COMMON,
     .class_init    = apic_class_init,
 };
+TYPE_INFO(apic_info)
 
-static void apic_register_types(void)
-{
-    type_register_static(&apic_info);
-}
 
-type_init(apic_register_types)

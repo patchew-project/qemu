@@ -117,10 +117,6 @@ static const TypeInfo port92_info = {
     .instance_init = port92_initfn,
     .class_init    = port92_class_initfn,
 };
+TYPE_INFO(port92_info)
 
-static void port92_register_types(void)
-{
-    type_register_static(&port92_info);
-}
 
-type_init(port92_register_types)

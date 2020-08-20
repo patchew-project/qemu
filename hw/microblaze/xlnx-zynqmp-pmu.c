@@ -135,13 +135,9 @@ static const TypeInfo xlnx_zynqmp_pmu_soc_type_info = {
     .instance_init = xlnx_zynqmp_pmu_soc_init,
     .class_init = xlnx_zynqmp_pmu_soc_class_init,
 };
+TYPE_INFO(xlnx_zynqmp_pmu_soc_type_info)
 
-static void xlnx_zynqmp_pmu_soc_register_types(void)
-{
-    type_register_static(&xlnx_zynqmp_pmu_soc_type_info);
-}
 
-type_init(xlnx_zynqmp_pmu_soc_register_types)
 
 /* Define the PMU Machine */
 

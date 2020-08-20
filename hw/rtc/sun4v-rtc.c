@@ -87,10 +87,6 @@ static const TypeInfo sun4v_rtc_info = {
     .instance_size = sizeof(Sun4vRtc),
     .class_init    = sun4v_rtc_class_init,
 };
+TYPE_INFO(sun4v_rtc_info)
 
-static void sun4v_rtc_register_types(void)
-{
-    type_register_static(&sun4v_rtc_info);
-}
 
-type_init(sun4v_rtc_register_types)

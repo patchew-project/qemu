@@ -57,10 +57,6 @@ static const TypeInfo virtio_ccw_9p_info = {
     .instance_init = virtio_ccw_9p_instance_init,
     .class_init    = virtio_ccw_9p_class_init,
 };
+TYPE_INFO(virtio_ccw_9p_info)
 
-static void virtio_ccw_9p_register(void)
-{
-    type_register_static(&virtio_ccw_9p_info);
-}
 
-type_init(virtio_ccw_9p_register)

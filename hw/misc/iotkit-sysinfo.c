@@ -131,10 +131,6 @@ static const TypeInfo iotkit_sysinfo_info = {
     .instance_init = iotkit_sysinfo_init,
     .class_init = iotkit_sysinfo_class_init,
 };
+TYPE_INFO(iotkit_sysinfo_info)
 
-static void iotkit_sysinfo_register_types(void)
-{
-    type_register_static(&iotkit_sysinfo_info);
-}
 
-type_init(iotkit_sysinfo_register_types);

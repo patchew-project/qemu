@@ -1028,6 +1028,7 @@ static const TypeInfo virtio_scsi_common_info = {
     .abstract = true,
     .class_init = virtio_scsi_common_class_init,
 };
+TYPE_INFO(virtio_scsi_common_info)
 
 static const TypeInfo virtio_scsi_info = {
     .name = TYPE_VIRTIO_SCSI,
@@ -1039,11 +1040,6 @@ static const TypeInfo virtio_scsi_info = {
         { }
     }
 };
+TYPE_INFO(virtio_scsi_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_scsi_common_info);
-    type_register_static(&virtio_scsi_info);
-}
 
-type_init(virtio_register_types)

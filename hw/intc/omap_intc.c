@@ -419,6 +419,7 @@ static const TypeInfo omap_intc_info = {
     .instance_init = omap_intc_init,
     .class_init    = omap_intc_class_init,
 };
+TYPE_INFO(omap_intc_info)
 
 static uint64_t omap2_inth_read(void *opaque, hwaddr addr,
                                 unsigned size)
@@ -672,6 +673,7 @@ static const TypeInfo omap2_intc_info = {
     .instance_init = omap2_intc_init,
     .class_init    = omap2_intc_class_init,
 };
+TYPE_INFO(omap2_intc_info)
 
 static const TypeInfo omap_intc_type_info = {
     .name          = TYPE_OMAP_INTC,
@@ -679,12 +681,6 @@ static const TypeInfo omap_intc_type_info = {
     .instance_size = sizeof(struct omap_intr_handler_s),
     .abstract      = true,
 };
+TYPE_INFO(omap_intc_type_info)
 
-static void omap_intc_register_types(void)
-{
-    type_register_static(&omap_intc_type_info);
-    type_register_static(&omap_intc_info);
-    type_register_static(&omap2_intc_info);
-}
 
-type_init(omap_intc_register_types)

@@ -1434,10 +1434,6 @@ static const TypeInfo artist_info = {
     .instance_init = artist_initfn,
     .class_init    = artist_class_init,
 };
+TYPE_INFO(artist_info)
 
-static void artist_register_types(void)
-{
-    type_register_static(&artist_info);
-}
 
-type_init(artist_register_types)

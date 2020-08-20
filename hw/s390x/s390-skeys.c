@@ -251,6 +251,7 @@ static const TypeInfo qemu_s390_skeys_info = {
     .class_init    = qemu_s390_skeys_class_init,
     .class_size    = sizeof(S390SKeysClass),
 };
+TYPE_INFO(qemu_s390_skeys_info)
 
 static void s390_storage_keys_save(QEMUFile *f, void *opaque)
 {
@@ -421,11 +422,6 @@ static const TypeInfo s390_skeys_info = {
     .class_size    = sizeof(S390SKeysClass),
     .abstract = true,
 };
+TYPE_INFO(s390_skeys_info)
 
-static void qemu_s390_skeys_register_types(void)
-{
-    type_register_static(&s390_skeys_info);
-    type_register_static(&qemu_s390_skeys_info);
-}
 
-type_init(qemu_s390_skeys_register_types)

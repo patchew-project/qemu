@@ -455,10 +455,6 @@ static const TypeInfo i8259_info = {
     .class_init = i8259_class_init,
     .class_size = sizeof(PICClass),
 };
+TYPE_INFO(i8259_info)
 
-static void pic_register_types(void)
-{
-    type_register_static(&i8259_info);
-}
 
-type_init(pic_register_types)

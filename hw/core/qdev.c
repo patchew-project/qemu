@@ -1251,10 +1251,6 @@ static const TypeInfo device_type_info = {
         { }
     }
 };
+TYPE_INFO(device_type_info)
 
-static void qdev_register_types(void)
-{
-    type_register_static(&device_type_info);
-}
 
-type_init(qdev_register_types)

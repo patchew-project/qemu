@@ -378,10 +378,6 @@ static const TypeInfo versal_info = {
     .instance_init = versal_init,
     .class_init = versal_class_init,
 };
+TYPE_INFO(versal_info)
 
-static void versal_register_types(void)
-{
-    type_register_static(&versal_info);
-}
 
-type_init(versal_register_types);

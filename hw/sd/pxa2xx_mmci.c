@@ -593,6 +593,7 @@ static const TypeInfo pxa2xx_mmci_info = {
     .instance_init = pxa2xx_mmci_instance_init,
     .class_init = pxa2xx_mmci_class_init,
 };
+TYPE_INFO(pxa2xx_mmci_info)
 
 static const TypeInfo pxa2xx_mmci_bus_info = {
     .name = TYPE_PXA2XX_MMCI_BUS,
@@ -600,11 +601,6 @@ static const TypeInfo pxa2xx_mmci_bus_info = {
     .instance_size = sizeof(SDBus),
     .class_init = pxa2xx_mmci_bus_class_init,
 };
+TYPE_INFO(pxa2xx_mmci_bus_info)
 
-static void pxa2xx_mmci_register_types(void)
-{
-    type_register_static(&pxa2xx_mmci_info);
-    type_register_static(&pxa2xx_mmci_bus_info);
-}
 
-type_init(pxa2xx_mmci_register_types)

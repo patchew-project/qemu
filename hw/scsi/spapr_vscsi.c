@@ -1290,10 +1290,6 @@ static const TypeInfo spapr_vscsi_info = {
     .instance_size = sizeof(VSCSIState),
     .class_init    = spapr_vscsi_class_init,
 };
+TYPE_INFO(spapr_vscsi_info)
 
-static void spapr_vscsi_register_types(void)
-{
-    type_register_static(&spapr_vscsi_info);
-}
 
-type_init(spapr_vscsi_register_types)

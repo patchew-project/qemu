@@ -224,10 +224,6 @@ static const TypeInfo macio_gpio_init_info = {
         { }
     },
 };
+TYPE_INFO(macio_gpio_init_info)
 
-static void macio_gpio_register_types(void)
-{
-    type_register_static(&macio_gpio_init_info);
-}
 
-type_init(macio_gpio_register_types)

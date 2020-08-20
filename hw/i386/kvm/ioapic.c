@@ -158,10 +158,6 @@ static const TypeInfo kvm_ioapic_info = {
     .instance_size = sizeof(KVMIOAPICState),
     .class_init = kvm_ioapic_class_init,
 };
+TYPE_INFO(kvm_ioapic_info)
 
-static void kvm_ioapic_register_types(void)
-{
-    type_register_static(&kvm_ioapic_info);
-}
 
-type_init(kvm_ioapic_register_types)

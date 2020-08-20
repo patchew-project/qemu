@@ -505,10 +505,6 @@ static const TypeInfo ioapic_info = {
     .instance_size = sizeof(IOAPICCommonState),
     .class_init    = ioapic_class_init,
 };
+TYPE_INFO(ioapic_info)
 
-static void ioapic_register_types(void)
-{
-    type_register_static(&ioapic_info);
-}
 
-type_init(ioapic_register_types)

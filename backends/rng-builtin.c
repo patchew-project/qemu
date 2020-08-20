@@ -68,10 +68,6 @@ static const TypeInfo rng_builtin_info = {
     .instance_finalize = rng_builtin_finalize,
     .class_init = rng_builtin_class_init,
 };
+TYPE_INFO(rng_builtin_info)
 
-static void register_types(void)
-{
-    type_register_static(&rng_builtin_info);
-}
 
-type_init(register_types);

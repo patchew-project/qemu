@@ -1425,6 +1425,7 @@ static const TypeInfo mips_malta_device = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(MaltaState),
 };
+TYPE_INFO(mips_malta_device)
 
 static void mips_malta_machine_init(MachineClass *mc)
 {
@@ -1443,9 +1444,4 @@ static void mips_malta_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE("malta", mips_malta_machine_init)
 
-static void mips_malta_register_types(void)
-{
-    type_register_static(&mips_malta_device);
-}
 
-type_init(mips_malta_register_types)

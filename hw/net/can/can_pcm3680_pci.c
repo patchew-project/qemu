@@ -257,10 +257,6 @@ static const TypeInfo pcm3680i_pci_info = {
         { },
     },
 };
+TYPE_INFO(pcm3680i_pci_info)
 
-static void pcm3680i_pci_register_types(void)
-{
-    type_register_static(&pcm3680i_pci_info);
-}
 
-type_init(pcm3680i_pci_register_types)

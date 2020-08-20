@@ -940,13 +940,9 @@ static const TypeInfo pflash_cfi01_info = {
     .instance_size  = sizeof(PFlashCFI01),
     .class_init     = pflash_cfi01_class_init,
 };
+TYPE_INFO(pflash_cfi01_info)
 
-static void pflash_cfi01_register_types(void)
-{
-    type_register_static(&pflash_cfi01_info);
-}
 
-type_init(pflash_cfi01_register_types)
 
 PFlashCFI01 *pflash_cfi01_register(hwaddr base,
                                    const char *name,

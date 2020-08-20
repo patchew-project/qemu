@@ -540,10 +540,6 @@ static const TypeInfo milkymist_pfpu_info = {
     .instance_size = sizeof(MilkymistPFPUState),
     .class_init    = milkymist_pfpu_class_init,
 };
+TYPE_INFO(milkymist_pfpu_info)
 
-static void milkymist_pfpu_register_types(void)
-{
-    type_register_static(&milkymist_pfpu_info);
-}
 
-type_init(milkymist_pfpu_register_types)

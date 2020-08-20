@@ -862,10 +862,6 @@ static const TypeInfo virtio_mem_info = {
     .class_init = virtio_mem_class_init,
     .class_size = sizeof(VirtIOMEMClass),
 };
+TYPE_INFO(virtio_mem_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_mem_info);
-}
 
-type_init(virtio_register_types)

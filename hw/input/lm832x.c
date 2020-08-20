@@ -518,10 +518,6 @@ static const TypeInfo lm8323_info = {
     .instance_size = sizeof(LM823KbdState),
     .class_init    = lm8323_class_init,
 };
+TYPE_INFO(lm8323_info)
 
-static void lm832x_register_types(void)
-{
-    type_register_static(&lm8323_info);
-}
 
-type_init(lm832x_register_types)

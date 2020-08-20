@@ -310,10 +310,6 @@ static const TypeInfo jazz_led_info = {
     .instance_init = jazz_led_init,
     .class_init    = jazz_led_class_init,
 };
+TYPE_INFO(jazz_led_info)
 
-static void jazz_led_register(void)
-{
-    type_register_static(&jazz_led_info);
-}
 
-type_init(jazz_led_register);

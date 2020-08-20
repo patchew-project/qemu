@@ -1620,6 +1620,7 @@ static const TypeInfo amdvi = {
     .instance_init = amdvi_instance_init,
     .class_init = amdvi_class_init
 };
+TYPE_INFO(amdvi)
 
 static const TypeInfo amdviPCI = {
     .name = "AMDVI-PCI",
@@ -1630,6 +1631,7 @@ static const TypeInfo amdviPCI = {
         { },
     },
 };
+TYPE_INFO(amdviPCI)
 
 static void amdvi_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
@@ -1644,12 +1646,6 @@ static const TypeInfo amdvi_iommu_memory_region_info = {
     .name = TYPE_AMD_IOMMU_MEMORY_REGION,
     .class_init = amdvi_iommu_memory_region_class_init,
 };
+TYPE_INFO(amdvi_iommu_memory_region_info)
 
-static void amdviPCI_register_types(void)
-{
-    type_register_static(&amdviPCI);
-    type_register_static(&amdvi);
-    type_register_static(&amdvi_iommu_memory_region_info);
-}
 
-type_init(amdviPCI_register_types);

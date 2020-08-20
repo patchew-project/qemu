@@ -523,10 +523,6 @@ static const TypeInfo mos6522_type_info = {
     .class_size = sizeof(MOS6522DeviceClass),
     .class_init = mos6522_class_init,
 };
+TYPE_INFO(mos6522_type_info)
 
-static void mos6522_register_types(void)
-{
-    type_register_static(&mos6522_type_info);
-}
 
-type_init(mos6522_register_types)

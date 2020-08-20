@@ -589,6 +589,7 @@ static const TypeInfo pnv_psi_power8_info = {
     .instance_init = pnv_psi_power8_instance_init,
     .class_init    = pnv_psi_power8_class_init,
 };
+TYPE_INFO(pnv_psi_power8_info)
 
 
 /* Common registers */
@@ -898,6 +899,7 @@ static const TypeInfo pnv_psi_power9_info = {
             { },
     },
 };
+TYPE_INFO(pnv_psi_power9_info)
 
 static void pnv_psi_power10_class_init(ObjectClass *klass, void *data)
 {
@@ -918,6 +920,7 @@ static const TypeInfo pnv_psi_power10_info = {
     .parent        = TYPE_PNV9_PSI,
     .class_init    = pnv_psi_power10_class_init,
 };
+TYPE_INFO(pnv_psi_power10_info)
 
 static void pnv_psi_class_init(ObjectClass *klass, void *data)
 {
@@ -944,16 +947,9 @@ static const TypeInfo pnv_psi_info = {
         { }
     }
 };
+TYPE_INFO(pnv_psi_info)
 
-static void pnv_psi_register_types(void)
-{
-    type_register_static(&pnv_psi_info);
-    type_register_static(&pnv_psi_power8_info);
-    type_register_static(&pnv_psi_power9_info);
-    type_register_static(&pnv_psi_power10_info);
-}
 
-type_init(pnv_psi_register_types);
 
 void pnv_psi_pic_print_info(Pnv9Psi *psi9, Monitor *mon)
 {

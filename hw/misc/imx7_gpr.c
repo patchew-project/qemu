@@ -116,9 +116,5 @@ static const TypeInfo imx7_gpr_info = {
     .instance_init = imx7_gpr_init,
     .class_init    = imx7_gpr_class_init,
 };
+TYPE_INFO(imx7_gpr_info)
 
-static void imx7_gpr_register_type(void)
-{
-    type_register_static(&imx7_gpr_info);
-}
-type_init(imx7_gpr_register_type)

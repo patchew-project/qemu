@@ -687,6 +687,7 @@ static const TypeInfo nvram_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(NvramClass),
 };
+TYPE_INFO(nvram_info)
 
 static const TypeInfo m48txx_sysbus_type_info = {
     .name = TYPE_M48TXX_SYS_BUS,
@@ -700,6 +701,7 @@ static const TypeInfo m48txx_sysbus_type_info = {
         { }
     }
 };
+TYPE_INFO(m48txx_sysbus_type_info)
 
 static void m48t59_register_types(void)
 {
@@ -710,8 +712,6 @@ static void m48t59_register_types(void)
     };
     int i;
 
-    type_register_static(&nvram_info);
-    type_register_static(&m48txx_sysbus_type_info);
 
     for (i = 0; i < ARRAY_SIZE(m48txx_sysbus_info); i++) {
         sysbus_type_info.name = m48txx_sysbus_info[i].bus_name;

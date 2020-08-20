@@ -302,10 +302,6 @@ static const TypeInfo imx6_src_info = {
     .instance_size = sizeof(IMX6SRCState),
     .class_init    = imx6_src_class_init,
 };
+TYPE_INFO(imx6_src_info)
 
-static void imx6_src_register_types(void)
-{
-    type_register_static(&imx6_src_info);
-}
 
-type_init(imx6_src_register_types)

@@ -2222,10 +2222,6 @@ static const TypeInfo ipmi_sim_type = {
     .instance_size = sizeof(IPMIBmcSim),
     .class_init    = ipmi_sim_class_init,
 };
+TYPE_INFO(ipmi_sim_type)
 
-static void ipmi_sim_register_types(void)
-{
-    type_register_static(&ipmi_sim_type);
-}
 
-type_init(ipmi_sim_register_types)

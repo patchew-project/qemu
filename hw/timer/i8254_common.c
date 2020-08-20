@@ -262,10 +262,6 @@ static const TypeInfo pit_common_type = {
     .class_init    = pit_common_class_init,
     .abstract      = true,
 };
+TYPE_INFO(pit_common_type)
 
-static void register_devices(void)
-{
-    type_register_static(&pit_common_type);
-}
 
-type_init(register_devices);

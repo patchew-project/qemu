@@ -304,6 +304,7 @@ static const TypeInfo char_type_info = {
     .class_size = sizeof(ChardevClass),
     .class_init = char_class_init,
 };
+TYPE_INFO(char_type_info)
 
 static bool qemu_chr_is_busy(Chardev *s)
 {
@@ -1168,9 +1169,4 @@ void qemu_chr_cleanup(void)
     object_unparent(get_chardevs_root());
 }
 
-static void register_types(void)
-{
-    type_register_static(&char_type_info);
-}
 
-type_init(register_types);

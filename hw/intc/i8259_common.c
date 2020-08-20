@@ -210,10 +210,6 @@ static const TypeInfo pic_common_type = {
         { }
     },
 };
+TYPE_INFO(pic_common_type)
 
-static void pic_common_register_types(void)
-{
-    type_register_static(&pic_common_type);
-}
 
-type_init(pic_common_register_types)

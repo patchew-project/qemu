@@ -213,13 +213,9 @@ static const TypeInfo highbank_regs_info = {
     .instance_init = highbank_regs_init,
     .class_init    = highbank_regs_class_init,
 };
+TYPE_INFO(highbank_regs_info)
 
-static void highbank_regs_register_types(void)
-{
-    type_register_static(&highbank_regs_info);
-}
 
-type_init(highbank_regs_register_types)
 
 static struct arm_boot_info highbank_binfo;
 
@@ -434,6 +430,7 @@ static const TypeInfo highbank_type = {
     .parent = TYPE_MACHINE,
     .class_init = highbank_class_init,
 };
+TYPE_INFO(highbank_type)
 
 static void midway_class_init(ObjectClass *oc, void *data)
 {
@@ -453,11 +450,6 @@ static const TypeInfo midway_type = {
     .parent = TYPE_MACHINE,
     .class_init = midway_class_init,
 };
+TYPE_INFO(midway_type)
 
-static void calxeda_machines_init(void)
-{
-    type_register_static(&highbank_type);
-    type_register_static(&midway_type);
-}
 
-type_init(calxeda_machines_init)

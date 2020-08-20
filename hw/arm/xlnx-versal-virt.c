@@ -574,11 +574,7 @@ static const TypeInfo versal_virt_machine_init_typeinfo = {
     .instance_init = versal_virt_machine_instance_init,
     .instance_size = sizeof(VersalVirt),
 };
+TYPE_INFO(versal_virt_machine_init_typeinfo)
 
-static void versal_virt_machine_init_register_types(void)
-{
-    type_register_static(&versal_virt_machine_init_typeinfo);
-}
 
-type_init(versal_virt_machine_init_register_types)
 

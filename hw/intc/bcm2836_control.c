@@ -399,10 +399,6 @@ static TypeInfo bcm2836_control_info = {
     .class_init    = bcm2836_control_class_init,
     .instance_init = bcm2836_control_init,
 };
+TYPE_INFO(bcm2836_control_info)
 
-static void bcm2836_control_register_types(void)
-{
-    type_register_static(&bcm2836_control_info);
-}
 
-type_init(bcm2836_control_register_types)

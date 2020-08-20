@@ -62,10 +62,6 @@ static const TypeInfo hotplug_handler_info = {
     .parent        = TYPE_INTERFACE,
     .class_size = sizeof(HotplugHandlerClass),
 };
+TYPE_INFO(hotplug_handler_info)
 
-static void hotplug_handler_register_types(void)
-{
-    type_register_static(&hotplug_handler_info);
-}
 
-type_init(hotplug_handler_register_types)

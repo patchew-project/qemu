@@ -247,10 +247,6 @@ static const TypeInfo xilinx_uartlite_info = {
     .instance_init = xilinx_uartlite_init,
     .class_init    = xilinx_uartlite_class_init,
 };
+TYPE_INFO(xilinx_uartlite_info)
 
-static void xilinx_uart_register_types(void)
-{
-    type_register_static(&xilinx_uartlite_info);
-}
 
-type_init(xilinx_uart_register_types)

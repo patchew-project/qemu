@@ -436,13 +436,9 @@ static TypeInfo etsec_info = {
     .class_init            = etsec_class_init,
     .instance_init         = etsec_instance_init,
 };
+TYPE_INFO(etsec_info)
 
-static void etsec_register_types(void)
-{
-    type_register_static(&etsec_info);
-}
 
-type_init(etsec_register_types)
 
 DeviceState *etsec_create(hwaddr         base,
                           MemoryRegion * mr,

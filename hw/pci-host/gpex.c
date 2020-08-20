@@ -136,6 +136,7 @@ static const TypeInfo gpex_host_info = {
     .instance_init = gpex_host_initfn,
     .class_init = gpex_host_class_init,
 };
+TYPE_INFO(gpex_host_info)
 
 /****************************************************************************
  * GPEX Root D0:F0
@@ -180,11 +181,6 @@ static const TypeInfo gpex_root_info = {
         { },
     },
 };
+TYPE_INFO(gpex_root_info)
 
-static void gpex_register(void)
-{
-    type_register_static(&gpex_root_info);
-    type_register_static(&gpex_host_info);
-}
 
-type_init(gpex_register)

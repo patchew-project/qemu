@@ -488,10 +488,6 @@ static const TypeInfo apic_common_type = {
     .class_init = apic_common_class_init,
     .abstract = true,
 };
+TYPE_INFO(apic_common_type)
 
-static void apic_common_register_types(void)
-{
-    type_register_static(&apic_common_type);
-}
 
-type_init(apic_common_register_types)

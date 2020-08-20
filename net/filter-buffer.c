@@ -197,10 +197,6 @@ static const TypeInfo filter_buffer_info = {
     .instance_init = filter_buffer_init,
     .instance_size = sizeof(FilterBufferState),
 };
+TYPE_INFO(filter_buffer_info)
 
-static void register_types(void)
-{
-    type_register_static(&filter_buffer_info);
-}
 
-type_init(register_types);

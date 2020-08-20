@@ -803,6 +803,7 @@ static const TypeInfo usb_hid_type_info = {
     .abstract = true,
     .class_init = usb_hid_class_initfn,
 };
+TYPE_INFO(usb_hid_type_info)
 
 static Property usb_tablet_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
@@ -828,6 +829,7 @@ static const TypeInfo usb_tablet_info = {
     .parent        = TYPE_USB_HID,
     .class_init    = usb_tablet_class_initfn,
 };
+TYPE_INFO(usb_tablet_info)
 
 static Property usb_mouse_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
@@ -851,6 +853,7 @@ static const TypeInfo usb_mouse_info = {
     .parent        = TYPE_USB_HID,
     .class_init    = usb_mouse_class_initfn,
 };
+TYPE_INFO(usb_mouse_info)
 
 static Property usb_keyboard_properties[] = {
         DEFINE_PROP_UINT32("usb_version", USBHIDState, usb_version, 2),
@@ -875,15 +878,12 @@ static const TypeInfo usb_keyboard_info = {
     .parent        = TYPE_USB_HID,
     .class_init    = usb_keyboard_class_initfn,
 };
+TYPE_INFO(usb_keyboard_info)
 
 static void usb_hid_register_types(void)
 {
-    type_register_static(&usb_hid_type_info);
-    type_register_static(&usb_tablet_info);
     usb_legacy_register("usb-tablet", "tablet", NULL);
-    type_register_static(&usb_mouse_info);
     usb_legacy_register("usb-mouse", "mouse", NULL);
-    type_register_static(&usb_keyboard_info);
     usb_legacy_register("usb-kbd", "keyboard", NULL);
 }
 

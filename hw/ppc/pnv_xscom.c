@@ -240,13 +240,9 @@ static const TypeInfo pnv_xscom_interface_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(PnvXScomInterfaceClass),
 };
+TYPE_INFO(pnv_xscom_interface_info)
 
-static void pnv_xscom_register_types(void)
-{
-    type_register_static(&pnv_xscom_interface_info);
-}
 
-type_init(pnv_xscom_register_types)
 
 typedef struct ForeachPopulateArgs {
     void *fdt;

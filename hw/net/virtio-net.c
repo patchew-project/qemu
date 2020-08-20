@@ -3602,10 +3602,6 @@ static const TypeInfo virtio_net_info = {
     .instance_init = virtio_net_instance_init,
     .class_init = virtio_net_class_init,
 };
+TYPE_INFO(virtio_net_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_net_info);
-}
 
-type_init(virtio_register_types)
