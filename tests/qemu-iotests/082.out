@@ -544,10 +544,10 @@ Supported options:
   size=<size>            - Virtual disk size
 
 Testing: convert -O qcow2 -o backing_fmt=qcow2,backing_file=TEST_DIR/t.qcow2,,help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,help': No such file or directory
+qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,help' flags 0x80000: No such file or directory
 
 Testing: convert -O qcow2 -o backing_fmt=qcow2,backing_file=TEST_DIR/t.qcow2,,? TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
-qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,?': No such file or directory
+qemu-img: Could not open 'TEST_DIR/t.qcow2.base': Could not open backing file: Could not open 'TEST_DIR/t.qcow2,?' flags 0x80000: No such file or directory
 
 Testing: convert -O qcow2 -o backing_file=TEST_DIR/t.qcow2, -o help TEST_DIR/t.qcow2 TEST_DIR/t.qcow2.base
 qemu-img: Invalid option list: backing_file=TEST_DIR/t.qcow2,
