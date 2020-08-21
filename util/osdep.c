@@ -284,7 +284,7 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
  * Opens a file with FD_CLOEXEC set
  */
 static int
-qemu_open_internal(const char *name, int flags, mode_t mode)
+qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
 {
     int ret;
 
@@ -298,24 +298,31 @@ qemu_open_internal(const char *name, int flags, mode_t mode)
 
         fdset_id = qemu_parse_fdset(fdset_id_str);
         if (fdset_id == -1) {
+            error_setg(errp, "Could not parse fdset %s", name);
             errno = EINVAL;
             return -1;
         }
 
         fd = monitor_fdset_get_fd(fdset_id, flags);
         if (fd < 0) {
+            error_setg_errno(errp, -fd, "Could not acquire FD for %s flags %x",
+                             name, flags);
             errno = -fd;
             return -1;
         }
 
         dupfd = qemu_dup_flags(fd, flags);
         if (dupfd == -1) {
+            error_setg_errno(errp, errno, "Could not dup FD for %s flags %x",
+                             name, flags);
             return -1;
         }
 
         ret = monitor_fdset_dup_fd_add(fdset_id, dupfd);
         if (ret == -1) {
             close(dupfd);
+            error_setg(errp, "Could not save FD for %s flags %x",
+                       name, flags);
             errno = EINVAL;
             return -1;
         }
@@ -336,6 +343,16 @@ qemu_open_internal(const char *name, int flags, mode_t mode)
     }
 #endif /* ! O_CLOEXEC */
 
+    if (ret == -1) {
+        const char *action = "open";
+        if (flags & O_CREAT) {
+            action = "create";
+        }
+        error_setg_errno(errp, errno, "Could not %s '%s' flags 0x%x",
+                         action, name, flags);
+    }
+
+
     return ret;
 }
 
@@ -352,7 +369,7 @@ int qemu_open_old(const char *name, int flags, ...)
     }
     va_end(ap);
 
-    ret = qemu_open_internal(name, flags, mode);
+    ret = qemu_open_internal(name, flags, mode, NULL);
 
 #ifdef O_DIRECT
     if (ret == -1 && errno == EINVAL && (flags & O_DIRECT)) {
