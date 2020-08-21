@@ -656,7 +656,7 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
             qemu_log_mask(LOG_GUEST_ERROR, "%s: failed to map MMIO memory for"
                           " resource %d element %d\n",
                           __func__, ab->resource_id, i);
-            virtio_gpu_cleanup_mapping_iov(g, *iov, i);
+            virtio_gpu_cleanup_mapping_iov(g, *iov, i + !!(*iov)[i].iov_base);
             g_free(ents);
             *iov = NULL;
             if (addr) {
