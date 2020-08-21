@@ -282,7 +282,7 @@ int qemu_lock_fd_test(int fd, int64_t start, int64_t len, bool exclusive)
 /*
  * Opens a file with FD_CLOEXEC set
  */
-int qemu_open(const char *name, int flags, ...)
+int qemu_open_old(const char *name, int flags, ...)
 {
     int ret;
     int mode = 0;
