@@ -57,6 +57,7 @@
 /qemu-ga
 /qemu-bridge-helper
 /qemu-keymap
+/virtiofsd
 /qemu-monitor.texi
 /qemu-monitor-info.texi
 /qemu-storage-daemon
