@@ -731,15 +731,24 @@ unlock:
 
 static void virtio_iommu_get_config(VirtIODevice *vdev, uint8_t *config_data)
 {
+    off_t offset;
     VirtIOIOMMU *dev = VIRTIO_IOMMU(vdev);
     struct virtio_iommu_config *config = &dev->config;
+    struct virtio_iommu_topo_pci_range *pci_topo = &dev->pci_topo;
 
     trace_virtio_iommu_get_config(config->page_size_mask,
                                   config->input_range.start,
                                   config->input_range.end,
                                   config->domain_range.end,
-                                  config->probe_size);
-    memcpy(config_data, &dev->config, sizeof(struct virtio_iommu_config));
+                                  config->probe_size,
+                                  config->topo_config.offset,
+                                  config->topo_config.count);
+    memcpy(config_data, config, sizeof(*config));
+
+    offset = config->topo_config.offset;
+    if (offset) {
+        memcpy(config_data + offset, pci_topo, sizeof(*pci_topo));
+    }
 }
 
 static void virtio_iommu_set_config(VirtIODevice *vdev,
@@ -747,12 +756,14 @@ static void virtio_iommu_set_config(VirtIODevice *vdev,
 {
     struct virtio_iommu_config config;
 
-    memcpy(&config, config_data, sizeof(struct virtio_iommu_config));
+    memcpy(&config, config_data, sizeof(config));
     trace_virtio_iommu_set_config(config.page_size_mask,
                                   config.input_range.start,
                                   config.input_range.end,
                                   config.domain_range.end,
-                                  config.probe_size);
+                                  config.probe_size,
+                                  config.topo_config.offset,
+                                  config.topo_config.count);
 }
 
 static uint64_t virtio_iommu_get_features(VirtIODevice *vdev, uint64_t f,
@@ -776,9 +787,10 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
 {
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOIOMMU *s = VIRTIO_IOMMU(dev);
+    size_t aligned_config_size = QEMU_ALIGN_UP(sizeof(s->config), 8);
 
     virtio_init(vdev, "virtio-iommu", VIRTIO_ID_IOMMU,
-                sizeof(struct virtio_iommu_config));
+                aligned_config_size + sizeof(s->pci_topo));
 
     memset(s->iommu_pcibus_by_bus_num, 0, sizeof(s->iommu_pcibus_by_bus_num));
 
@@ -790,6 +802,12 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
     s->config.input_range.end = -1UL;
     s->config.domain_range.end = 32;
     s->config.probe_size = VIOMMU_PROBE_SIZE;
+
+    if (s->topology) {
+        s->config.topo_config.offset = aligned_config_size;
+        s->config.topo_config.count = 1;
+        virtio_add_feature(&s->features, VIRTIO_IOMMU_F_TOPOLOGY);
+    }
 
     virtio_add_feature(&s->features, VIRTIO_RING_F_EVENT_IDX);
     virtio_add_feature(&s->features, VIRTIO_RING_F_INDIRECT_DESC);
@@ -809,6 +827,17 @@ static void virtio_iommu_device_realize(DeviceState *dev, Error **errp)
         pci_setup_iommu(s->primary_bus, virtio_iommu_find_add_as, s);
     } else {
         error_setg(errp, "VIRTIO-IOMMU is not attached to any PCI bus!");
+    }
+
+    if (s->topology) {
+        s->pci_topo = (struct virtio_iommu_topo_pci_range) {
+            .type               = cpu_to_le16(VIRTIO_IOMMU_TOPO_PCI_RANGE),
+            .length             = cpu_to_le16(sizeof(s->pci_topo)),
+            .endpoint_start     = 0,
+            .segment            = 0,
+            .bdf_start          = 0,
+            .bdf_end            = 0xffff,
+        };
     }
 }
 
@@ -965,6 +994,7 @@ static const VMStateDescription vmstate_virtio_iommu = {
 static Property virtio_iommu_properties[] = {
     DEFINE_PROP_LINK("primary-bus", VirtIOIOMMU, primary_bus, "PCI", PCIBus *),
     DEFINE_PROP_BOOL("boot-bypass", VirtIOIOMMU, boot_bypass, true),
+    DEFINE_PROP_BOOL("topology", VirtIOIOMMU, topology, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -49,6 +49,7 @@ typedef struct VirtIOIOMMU {
     VirtQueue *req_vq;
     VirtQueue *event_vq;
     struct virtio_iommu_config config;
+    struct virtio_iommu_topo_pci_range pci_topo;
     uint64_t features;
     GHashTable *as_by_busptr;
     IOMMUPciBus *iommu_pcibus_by_bus_num[PCI_BUS_MAX];
@@ -59,6 +60,8 @@ typedef struct VirtIOIOMMU {
     QemuMutex mutex;
     GTree *endpoints;
     bool boot_bypass;
+    /* Declare topology in config space */
+    bool topology;
 } VirtIOIOMMU;
 
 #endif
