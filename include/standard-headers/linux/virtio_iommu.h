@@ -16,6 +16,7 @@
 #define VIRTIO_IOMMU_F_BYPASS			3
 #define VIRTIO_IOMMU_F_PROBE			4
 #define VIRTIO_IOMMU_F_MMIO			5
+#define VIRTIO_IOMMU_F_TOPOLOGY			6
 
 struct virtio_iommu_range_64 {
 	uint64_t					start;
@@ -27,6 +28,17 @@ struct virtio_iommu_range_32 {
 	uint32_t					end;
 };
 
+struct virtio_iommu_topo_config {
+	/* Number of topology description structures */
+	uint16_t					count;
+	/*
+	 * Offset to the first topology description structure
+	 * (virtio_iommu_topo_*) from the start of the virtio_iommu config
+	 * space. Aligned on 8 bytes.
+	 */
+	uint16_t					offset;
+};
+
 struct virtio_iommu_config {
 	/* Supported page sizes */
 	uint64_t					page_size_mask;
@@ -36,6 +48,38 @@ struct virtio_iommu_config {
 	struct virtio_iommu_range_32		domain_range;
 	/* Probe buffer size */
 	uint32_t					probe_size;
+	struct virtio_iommu_topo_config		topo_config;
+};
+
+#define VIRTIO_IOMMU_TOPO_PCI_RANGE		0x1
+#define VIRTIO_IOMMU_TOPO_MMIO			0x2
+
+struct virtio_iommu_topo_pci_range {
+	/* VIRTIO_IOMMU_TOPO_PCI_RANGE */
+	uint8_t					type;
+	uint8_t					reserved;
+	/* Length of this structure */
+	uint16_t					length;
+	/* First endpoint ID in the range */
+	uint32_t					endpoint_start;
+	/* PCI domain number */
+	uint16_t					segment;
+	/* PCI Bus:Device.Function range */
+	uint16_t					bdf_start;
+	uint16_t					bdf_end;
+	uint16_t					padding;
+};
+
+struct virtio_iommu_topo_mmio {
+	/* VIRTIO_IOMMU_TOPO_MMIO */
+	uint8_t					type;
+	uint8_t					reserved;
+	/* Length of this structure */
+	uint16_t					length;
+	/* Endpoint ID */
+	uint32_t					endpoint;
+	/* Address of the first MMIO region */
+	uint64_t					address;
 };
 
 /* Request types */
