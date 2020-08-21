@@ -345,6 +345,19 @@ qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
 
     if (ret == -1) {
         const char *action = flags & O_CREAT ? "create" : "open";
+#ifdef O_DIRECT
+        if (errno == EINVAL && (flags & O_DIRECT)) {
+            ret = open(name, flags & ~O_DIRECT, mode);
+            if (ret != -1) {
+                close(ret);
+                error_setg(errp, "Could not %s '%s' flags 0x%x: "
+                           "filesystem does not support O_DIRECT",
+                           action, name, flags);
+                errno = EINVAL; /* close() clobbered earlier errno */
+                return -1;
+            }
+        }
+#endif /* O_DIRECT */
         error_setg_errno(errp, errno, "Could not %s '%s' flags 0x%x",
                          action, name, flags);
     }
