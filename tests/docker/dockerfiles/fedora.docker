@@ -38,6 +38,7 @@ ENV PACKAGES \
     libssh-devel \
     libubsan \
     libudev-devel \
+    liburing-devel \
     libusbx-devel \
     libxml2-devel \
     libzstd-devel \
