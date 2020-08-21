@@ -2390,6 +2390,13 @@ static void load_elf_image(const char *image_name, int image_fd,
     if (!elf_check_ehdr(ehdr)) {
         goto exit_errmsg;
     }
+#ifdef TARGET_ABI_MIPSN32
+/* from arch/mips/include/asm/elf.h */
+#define EF_MIPS_ABI2 0x00000020
+    if (!(ehdr->e_flags & EF_MIPS_ABI2)) {
+        fprintf(stderr, "warning: ELF binary missing n32 flag\n");
+    }
+#endif
 
     i = ehdr->e_phnum * sizeof(struct elf_phdr);
     if (ehdr->e_phoff + i <= BPRM_BUF_SIZE) {
