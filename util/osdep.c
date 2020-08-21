@@ -344,16 +344,29 @@ qemu_open_internal(const char *name, int flags, mode_t mode, Error **errp)
 #endif /* ! O_CLOEXEC */
 
     if (ret == -1) {
-        const char *action = "open";
-        if (flags & O_CREAT) {
-            action = "create";
-        }
+        const char *action = flags & O_CREAT ? "create" : "open";
         error_setg_errno(errp, errno, "Could not %s '%s' flags 0x%x",
                          action, name, flags);
     }
 
 
     return ret;
+}
+
+
+int qemu_open(const char *name, int flags, Error **errp)
+{
+    assert(!(flags & O_CREAT));
+
+    return qemu_open_internal(name, flags, 0, errp);
+}
+
+
+int qemu_create(const char *name, int flags, mode_t mode, Error **errp)
+{
+    assert(!(flags & O_CREAT));
+
+    return qemu_open_internal(name, flags | O_CREAT, mode, errp);
 }
 
 
