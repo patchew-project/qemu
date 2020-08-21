@@ -96,6 +96,11 @@ keymaps = [
 ]
 
 if have_system
+  if 'CONFIG_XKBCOMMON' in config_host
+  executable('qemu-keymap', files('qemu-keymap.c', 'ui/input-keymap.c'),
+             dependencies: [qemuutil, xkbcommon], install: true)
+  endif
+
   foreach e : keymaps
     output = 'input-keymap-@0@-to-@1@.c.inc'.format(e[0], e[1])
     genh += custom_target(output,
