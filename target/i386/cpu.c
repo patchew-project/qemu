@@ -388,7 +388,7 @@ static void encode_topo_cpuid8000001e(X86CPUTopoInfo *topo_info, X86CPU *cpu,
     unsigned long dies = topo_info->dies_per_pkg;
     int shift;
 
-    x86_topo_ids_from_apicid_epyc(cpu->apic_id, topo_info, &topo_ids);
+    x86_topo_ids_from_apicid(cpu->apic_id, topo_info, &topo_ids);
 
     *eax = cpu->apic_id;
     /*
