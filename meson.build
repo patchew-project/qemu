@@ -1062,12 +1062,13 @@ if 'CONFIG_GUEST_AGENT' in config_host
   subdir('qga')
 endif
 
+qemu_block_tools = []
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],
              dependencies: [authz, block, crypto, io, qom, qemuutil], install: true)
   qemu_io = executable('qemu-io', files('qemu-io.c'),
              dependencies: [block, qemuutil], install: true)
-  qemu_block_tools = [qemu_img, qemu_io]
+  qemu_block_tools += [qemu_img, qemu_io]
   if targetos == 'linux' or targetos == 'sunos' or targetos.endswith('bsd')
     qemu_nbd = executable('qemu-nbd', files('qemu-nbd.c'),
                dependencies: [block, qemuutil], install: true)
