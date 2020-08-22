@@ -533,7 +533,6 @@ static void vt82c686b_superio_class_init(ObjectClass *klass, void *data)
 static const TypeInfo via_superio_info = {
     .name          = TYPE_VT82C686B_SUPERIO,
     .parent        = TYPE_ISA_SUPERIO,
-    .class_size    = sizeof(ISASuperIOClass),
     .class_init    = vt82c686b_superio_class_init,
 };
 
