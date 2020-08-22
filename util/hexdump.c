@@ -16,8 +16,9 @@
 #include "qemu/osdep.h"
 #include "qemu-common.h"
 
-void qemu_hexdump(const char *buf, FILE *fp, const char *prefix, size_t size)
+void qemu_hexdump(const void *ptr, FILE *fp, const char *prefix, size_t size)
 {
+    const char *buf = ptr;
     unsigned int b, len, i, c;
 
     for (b = 0; b < size; b += 16) {
