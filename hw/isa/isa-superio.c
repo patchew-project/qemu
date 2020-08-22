@@ -182,6 +182,7 @@ static const TypeInfo isa_superio_type_info = {
     .name = TYPE_ISA_SUPERIO,
     .parent = TYPE_ISA_DEVICE,
     .abstract = true,
+    .instance_size = sizeof(ISASuperIODevice),
     .class_size = sizeof(ISASuperIOClass),
     .class_init = isa_superio_class_init,
 };
@@ -200,7 +201,6 @@ static void fdc37m81x_class_init(ObjectClass *klass, void *data)
 static const TypeInfo fdc37m81x_type_info = {
     .name          = TYPE_FDC37M81X_SUPERIO,
     .parent        = TYPE_ISA_SUPERIO,
-    .instance_size = sizeof(ISASuperIODevice),
     .class_init    = fdc37m81x_class_init,
 };
 
