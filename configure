@@ -3448,6 +3448,11 @@ fi
 
 ##########################################
 # xkbcommon probe
+if test -z "$xkbcommon"; then
+  if test "$want_tools" = "no"; then
+    xkbcommon=no
+  fi
+fi
 if test "$xkbcommon" != "no" ; then
   if $pkg_config xkbcommon --exists; then
     xkbcommon_cflags=$($pkg_config xkbcommon --cflags)
