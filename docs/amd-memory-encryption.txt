@@ -18,14 +18,14 @@ ioctls.
 Launching
 ---------
 Boot images (such as bios) must be encrypted before guest can be booted.
-MEMORY_ENCRYPT_OP ioctl provides commands to encrypt the images :LAUNCH_START,
+KVM_MEMORY_ENCRYPT_OP ioctl provides commands to encrypt the images: LAUNCH_START,
 LAUNCH_UPDATE_DATA, LAUNCH_MEASURE and LAUNCH_FINISH. These four commands
 together generate a fresh memory encryption key for the VM, encrypt the boot
 images and provide a measurement than can be used as an attestation of the
 successful launch.
 
 LAUNCH_START is called first to create a cryptographic launch context within
-the firmware. To create this context, guest owner must provides guest policy,
+the firmware. To create this context, guest owner must provide guest policy,
 its public Diffie-Hellman key (PDH) and session parameters. These inputs
 should be treated as binary blob and must be passed as-is to the SEV firmware.
 
@@ -64,7 +64,7 @@ Since the guest owner knows the initial contents of the guest at boot, the
 attestation measurement can be verified by comparing it to what the guest owner
 expects.
 
-LAUNCH_FINISH command finalizes the guest launch and destroy's the cryptographic
+LAUNCH_FINISH command finalizes the guest launch and destroys the cryptographic
 context.
 
 See SEV KM API Spec [1] 'Launching a guest' usage flow (Appendix A) for the
@@ -98,7 +98,7 @@ AMD Memory Encryption whitepaper:
 http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
 
 Secure Encrypted Virtualization Key Management:
-[1] http://support.amd.com/TechDocs/55766_SEV-KM API_Specification.pdf
+[1] http://support.amd.com/TechDocs/55766_SEV-KM_API_Specification.pdf
 
 KVM Forum slides:
 http://www.linux-kvm.org/images/7/74/02x08A-Thomas_Lendacky-AMDs_Virtualizatoin_Memory_Encryption_Technology.pdf
