@@ -24,6 +24,21 @@
  */
 #define RAMBLOCK_INFO_MAX_LEN                     256
 
+/*
+ * Sample page size 4K as default.
+ */
+#define DIRTYRATE_SAMPLE_PAGE_SIZE                4096
+
+/*
+ * Sample page size 4K shift
+ */
+#define DIRTYRATE_PAGE_SHIFT_KB                   12
+
+/*
+ * Sample page size 1G shift
+ */
+#define DIRTYRATE_PAGE_SHIFT_GB                   30
+
 /* Take 1s as default for calculation duration */
 #define DEFAULT_FETCH_DIRTYRATE_TIME_SEC          1
 
