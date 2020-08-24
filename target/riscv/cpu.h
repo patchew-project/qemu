@@ -85,6 +85,7 @@ enum {
 #define TRANSLATE_FAIL 1
 #define TRANSLATE_SUCCESS 0
 #define MMU_USER_IDX 3
+#define TRANSLATE_G_STAGE_FAIL 4
 
 #define MAX_RISCV_PMPS (16)
 
