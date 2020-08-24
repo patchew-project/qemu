@@ -35,9 +35,19 @@
 #define DIRTYRATE_PAGE_SHIFT_KB                   12
 
 /*
+ * Sample page size MB shift
+ */
+#define DIRTYRATE_PAGE_SHIFT_MB                   20
+
+/*
  * Sample page size 1G shift
  */
 #define DIRTYRATE_PAGE_SHIFT_GB                   30
+
+/*
+ * minimum ramblock size to sampled
+ */
+#define MIN_RAMBLOCK_SIZE                         128
 
 /* Take 1s as default for calculation duration */
 #define DEFAULT_FETCH_DIRTYRATE_TIME_SEC          1
