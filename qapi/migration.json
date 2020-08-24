@@ -1720,3 +1720,20 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @DirtyRateStatus:
+#
+# An enumeration of dirtyrate status.
+#
+# @unstarted: query-dirtyrate thread is not initial.
+#
+# @measuring: query-dirtyrate thread is created and start to measure.
+#
+# @measured:  query-dirtyrate thread is end, we can get result.
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'DirtyRateStatus',
+  'data': [ 'unstarted', 'measuring', 'measured'] }
