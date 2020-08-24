@@ -51,6 +51,8 @@
 
 /* Take 1s as default for calculation duration */
 #define DEFAULT_FETCH_DIRTYRATE_TIME_SEC          1
+#define MIN_FETCH_DIRTYRATE_TIME_SEC              0
+#define MAX_FETCH_DIRTYRATE_TIME_SEC              60
 
 struct DirtyRateConfig {
     uint64_t sample_pages_per_gigabytes; /* sample pages per GB */
