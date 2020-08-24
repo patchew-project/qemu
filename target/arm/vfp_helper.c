@@ -1018,6 +1018,11 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
 }
 
 /* ARMv8 round to integral */
+float32 HELPER(rinth_exact)(float32 x, void *fp_status)
+{
+    return float16_round_to_int(x, fp_status);
+}
+
 float32 HELPER(rints_exact)(float32 x, void *fp_status)
 {
     return float32_round_to_int(x, fp_status);
@@ -1026,6 +1031,22 @@ float32 HELPER(rints_exact)(float32 x, void *fp_status)
 float64 HELPER(rintd_exact)(float64 x, void *fp_status)
 {
     return float64_round_to_int(x, fp_status);
+}
+
+float32 HELPER(rinth)(float32 x, void *fp_status)
+{
+    int old_flags = get_float_exception_flags(fp_status), new_flags;
+    float32 ret;
+
+    ret = float16_round_to_int(x, fp_status);
+
+    /* Suppress any inexact exceptions the conversion produced */
+    if (!(old_flags & float_flag_inexact)) {
+        new_flags = get_float_exception_flags(fp_status);
+        set_float_exception_flags(new_flags & ~float_flag_inexact, fp_status);
+    }
+
+    return ret;
 }
 
 float32 HELPER(rints)(float32 x, void *fp_status)
