@@ -3203,7 +3203,7 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
 
 static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
                                 unsigned int vlen, unsigned int flags,
-                                abi_ulong timeout, int send)
+                                abi_ulong timeout, bool time64, int send)
 {
     struct target_mmsghdr *mmsgp;
     struct timespec ts, end_time, curr_time;
@@ -3218,8 +3218,14 @@ static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
         return -TARGET_EFAULT;
     }
     if (timeout) {
-        if (target_to_host_timespec(&ts, timeout)) {
-            return -TARGET_EFAULT;
+        if (time64) {
+            if (target_to_host_timespec64(&ts, timeout)) {
+                return -TARGET_EFAULT;
+            }
+        } else {
+            if (target_to_host_timespec(&ts, timeout)) {
+                return -TARGET_EFAULT;
+            }
         }
         if (ts.tv_sec < 0 || ts.tv_nsec < 0 || ts.tv_nsec > 1000000000) {
             return -TARGET_EINVAL;
@@ -3512,7 +3518,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         [TARGET_SYS_SENDMSG] = 3,     /* fd, msg, flags */
         [TARGET_SYS_RECVMSG] = 3,     /* fd, msg, flags */
         [TARGET_SYS_ACCEPT4] = 4,     /* fd, addr, addrlen, flags */
-        [TARGET_SYS_RECVMMSG] = 5,    /* fd, msgvec, vlen, flags, timeout */
+        [TARGET_SYS_RECVMMSG] = 6,    /* fd, msgvec, vlen, flags, timeout */
         [TARGET_SYS_SENDMMSG] = 4,    /* fd, msgvec, vlen, flags */
     };
     abi_long a[6]; /* max 6 args */
@@ -3572,9 +3578,10 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
     case TARGET_SYS_ACCEPT4: /* sockfd, addr, addrlen, flags */
         return do_accept4(a[0], a[1], a[2], a[3]);
     case TARGET_SYS_RECVMMSG: /* sockfd, msgvec, vlen, flags, timeout */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], a[4], 0);
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], a[4],
+                               TARGET_ABI_BITS == 64, 0);
     case TARGET_SYS_SENDMMSG: /* sockfd, msgvec, vlen, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0, 1);
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0, false, 1);
     default:
         qemu_log_mask(LOG_UNIMP, "Unsupported socketcall: %d\n", num);
         return -TARGET_EINVAL;
@@ -9555,11 +9562,15 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_sendmmsg
     case TARGET_NR_sendmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0, 1);
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0, false, 1);
 #endif
 #ifdef TARGET_NR_recvmmsg
     case TARGET_NR_recvmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, 0);
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, false, 0);
+#endif
+#ifdef TARGET_NR_recvmmsg_time64
+    case TARGET_NR_recvmmsg_time64:
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, true, 0);
 #endif
 #ifdef TARGET_NR_sendto
     case TARGET_NR_sendto:
