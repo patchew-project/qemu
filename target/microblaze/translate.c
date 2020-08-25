@@ -65,13 +65,7 @@ typedef struct DisasContext {
     bool r0_set;
 
     /* Decoder.  */
-    int type_b;
-    uint32_t ir;
     uint32_t ext_imm;
-    uint8_t opcode;
-    uint8_t rd, ra, rb;
-    uint16_t imm;
-
     unsigned int cpustate_changed;
     unsigned int tb_flags;
     unsigned int tb_flags_to_set;
@@ -182,21 +176,6 @@ static bool trap_userspace(DisasContext *dc, bool cond)
         gen_raise_hw_excp(dc, ESR_EC_PRIVINSN);
     }
     return cond_user;
-}
-
-static int32_t dec_alu_typeb_imm(DisasContext *dc)
-{
-    tcg_debug_assert(dc->type_b);
-    return typeb_imm(dc, (int16_t)dc->imm);
-}
-
-static inline TCGv_i32 *dec_alu_op_b(DisasContext *dc)
-{
-    if (dc->type_b) {
-        tcg_gen_movi_i32(cpu_imm, dec_alu_typeb_imm(dc));
-        return &cpu_imm;
-    }
-    return &cpu_R[dc->rb];
 }
 
 static TCGv_i32 reg_for_read(DisasContext *dc, int reg)
@@ -1094,7 +1073,7 @@ static bool setup_dslot(DisasContext *dc)
     }
 
     dc->tb_flags_to_set |= D_FLAG;
-    if (dc->type_b && (dc->tb_flags & IMM_FLAG)) {
+    if (dc->tb_flags & IMM_FLAG) {
         dc->tb_flags_to_set |= BIMM_FLAG;
     }
     return false;
@@ -1576,16 +1555,6 @@ static void do_rte(DisasContext *dc)
     dc->tb_flags &= ~DRTE_FLAG;
 }
 
-static void dec_null(DisasContext *dc)
-{
-    if (trap_illegal(dc, true)) {
-        return;
-    }
-    qemu_log_mask(LOG_GUEST_ERROR, "unknown insn pc=%x opc=%x\n",
-                  (uint32_t)dc->base.pc_next, dc->opcode);
-    dc->abort_at_next_insn = 1;
-}
-
 /* Insns connected to FSL or AXI stream attached devices.  */
 static bool do_get(DisasContext *dc, int rd, int rb, int imm, int ctrl)
 {
@@ -1649,46 +1618,6 @@ static bool trans_put(DisasContext *dc, arg_put *arg)
 static bool trans_putd(DisasContext *dc, arg_putd *arg)
 {
     return do_put(dc, arg->ra, arg->rb, 0, arg->ctrl);
-}
-
-static struct decoder_info {
-    struct {
-        uint32_t bits;
-        uint32_t mask;
-    };
-    void (*dec)(DisasContext *dc);
-} decinfo[] = {
-    {{0, 0}, dec_null}
-};
-
-static void old_decode(DisasContext *dc, uint32_t ir)
-{
-    int i;
-
-    dc->ir = ir;
-
-    if (ir == 0) {
-        trap_illegal(dc, dc->cpu->cfg.opcode_0_illegal);
-        /* Don't decode nop/zero instructions any further.  */
-        return;
-    }
-
-    /* bit 2 seems to indicate insn type.  */
-    dc->type_b = ir & (1 << 29);
-
-    dc->opcode = EXTRACT_FIELD(ir, 26, 31);
-    dc->rd = EXTRACT_FIELD(ir, 21, 25);
-    dc->ra = EXTRACT_FIELD(ir, 16, 20);
-    dc->rb = EXTRACT_FIELD(ir, 11, 15);
-    dc->imm = EXTRACT_FIELD(ir, 0, 15);
-
-    /* Large switch for all insns.  */
-    for (i = 0; i < ARRAY_SIZE(decinfo); i++) {
-        if ((dc->opcode & decinfo[i].mask) == decinfo[i].bits) {
-            decinfo[i].dec(dc);
-            break;
-        }
-    }
 }
 
 static void mb_tr_init_disas_context(DisasContextBase *dcb, CPUState *cs)
@@ -1757,7 +1686,7 @@ static void mb_tr_translate_insn(DisasContextBase *dcb, CPUState *cs)
 
     ir = cpu_ldl_code(env, dc->base.pc_next);
     if (!decode(dc, ir)) {
-        old_decode(dc, ir);
+        trap_illegal(dc, true);
     }
 
     if (dc->r0) {
