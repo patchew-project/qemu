@@ -539,10 +539,6 @@ static const TypeInfo ipmi_bmc_extern_type = {
     .instance_finalize = ipmi_bmc_extern_finalize,
     .class_init    = ipmi_bmc_extern_class_init,
  };
+TYPE_INFO(ipmi_bmc_extern_type)
 
-static void ipmi_bmc_extern_register_types(void)
-{
-    type_register_static(&ipmi_bmc_extern_type);
-}
 
-type_init(ipmi_bmc_extern_register_types)

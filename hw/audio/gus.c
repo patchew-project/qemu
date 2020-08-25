@@ -312,10 +312,10 @@ static const TypeInfo gus_info = {
     .instance_size = sizeof (GUSState),
     .class_init    = gus_class_initfn,
 };
+TYPE_INFO(gus_info)
 
 static void gus_register_types (void)
 {
-    type_register_static (&gus_info);
     deprecated_register_soundhw("gus", "Gravis Ultrasound GF1", 1, TYPE_GUS);
 }
 

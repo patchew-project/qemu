@@ -1426,10 +1426,10 @@ static const TypeInfo ac97_info = {
         { },
     },
 };
+TYPE_INFO(ac97_info)
 
 static void ac97_register_types (void)
 {
-    type_register_static (&ac97_info);
     deprecated_register_soundhw("ac97", "Intel 82801AA AC97 Audio",
                                 0, TYPE_AC97);
 }

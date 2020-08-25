@@ -318,10 +318,10 @@ static const TypeInfo adlib_info = {
     .instance_size = sizeof (AdlibState),
     .class_init    = adlib_class_initfn,
 };
+TYPE_INFO(adlib_info)
 
 static void adlib_register_types (void)
 {
-    type_register_static (&adlib_info);
     deprecated_register_soundhw("adlib", ADLIB_DESC, 1, TYPE_ADLIB);
 }
 

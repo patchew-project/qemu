@@ -918,10 +918,10 @@ static const TypeInfo es1370_info = {
         { },
     },
 };
+TYPE_INFO(es1370_info)
 
 static void es1370_register_types (void)
 {
-    type_register_static (&es1370_info);
     deprecated_register_soundhw("es1370", "ENSONIQ AudioPCI ES1370",
                                 0, TYPE_ES1370);
 }

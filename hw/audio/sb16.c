@@ -1443,10 +1443,10 @@ static const TypeInfo sb16_info = {
     .instance_init = sb16_initfn,
     .class_init    = sb16_class_initfn,
 };
+TYPE_INFO(sb16_info)
 
 static void sb16_register_types (void)
 {
-    type_register_static (&sb16_info);
     deprecated_register_soundhw("sb16", "Creative Sound Blaster 16",
                                 1, TYPE_SB16);
 }

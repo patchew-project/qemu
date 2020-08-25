@@ -311,6 +311,7 @@ static const TypeInfo milkymist_memcard_info = {
     .instance_init = milkymist_memcard_init,
     .class_init    = milkymist_memcard_class_init,
 };
+TYPE_INFO(milkymist_memcard_info)
 
 static void milkymist_sdbus_class_init(ObjectClass *klass, void *data)
 {
@@ -326,11 +327,6 @@ static const TypeInfo milkymist_sdbus_info = {
     .instance_size = sizeof(SDBus),
     .class_init = milkymist_sdbus_class_init,
 };
+TYPE_INFO(milkymist_sdbus_info)
 
-static void milkymist_memcard_register_types(void)
-{
-    type_register_static(&milkymist_memcard_info);
-    type_register_static(&milkymist_sdbus_info);
-}
 
-type_init(milkymist_memcard_register_types)
