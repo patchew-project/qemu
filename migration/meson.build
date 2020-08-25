@@ -21,6 +21,7 @@ softmmu_ss.add(files(
   'channel.c',
   'colo-failover.c',
   'colo.c',
+  'dirtyrate.c',
   'exec.c',
   'fd.c',
   'global_state.c',
