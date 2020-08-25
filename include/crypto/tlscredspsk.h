@@ -25,11 +25,8 @@
 #include "qom/object.h"
 
 #define TYPE_QCRYPTO_TLS_CREDS_PSK "tls-creds-psk"
-typedef struct QCryptoTLSCredsPSK QCryptoTLSCredsPSK;
-DECLARE_INSTANCE_CHECKER(QCryptoTLSCredsPSK, QCRYPTO_TLS_CREDS_PSK,
-                         TYPE_QCRYPTO_TLS_CREDS_PSK)
-
-typedef struct QCryptoTLSCredsPSKClass QCryptoTLSCredsPSKClass;
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoTLSCredsPSK, qcrypto_tls_creds_psk,
+                           QCRYPTO_TLS_CREDS_PSK, QCryptoTLSCredsClass)
 
 #define QCRYPTO_TLS_CREDS_PSKFILE "keys.psk"
 
@@ -97,11 +94,5 @@ struct QCryptoTLSCredsPSK {
     } data;
 #endif
 };
-
-
-struct QCryptoTLSCredsPSKClass {
-    QCryptoTLSCredsClass parent_class;
-};
-
 
 #endif /* QCRYPTO_TLSCREDSPSK_H */

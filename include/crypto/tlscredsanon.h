@@ -25,12 +25,8 @@
 #include "qom/object.h"
 
 #define TYPE_QCRYPTO_TLS_CREDS_ANON "tls-creds-anon"
-typedef struct QCryptoTLSCredsAnon QCryptoTLSCredsAnon;
-DECLARE_INSTANCE_CHECKER(QCryptoTLSCredsAnon, QCRYPTO_TLS_CREDS_ANON,
-                         TYPE_QCRYPTO_TLS_CREDS_ANON)
-
-
-typedef struct QCryptoTLSCredsAnonClass QCryptoTLSCredsAnonClass;
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoTLSCredsAnon, qcrypto_tls_creds_anon,
+                           QCRYPTO_TLS_CREDS_ANON, QCryptoTLSCredsClass)
 
 /**
  * QCryptoTLSCredsAnon:
@@ -102,11 +98,5 @@ struct QCryptoTLSCredsAnon {
     } data;
 #endif
 };
-
-
-struct QCryptoTLSCredsAnonClass {
-    QCryptoTLSCredsClass parent_class;
-};
-
 
 #endif /* QCRYPTO_TLSCREDSANON_H */
