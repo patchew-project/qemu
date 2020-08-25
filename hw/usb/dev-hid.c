@@ -33,6 +33,7 @@
 #include "qemu/timer.h"
 #include "hw/input/hid.h"
 #include "hw/qdev-properties.h"
+#include "qom/object.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101
@@ -47,14 +48,15 @@
 #define USB_DT_REPORT 0x22
 #define USB_DT_PHY    0x23
 
-typedef struct USBHIDState {
+struct USBHIDState {
     USBDevice dev;
     USBEndpoint *intr;
     HIDState hid;
     uint32_t usb_version;
     char *display;
     uint32_t head;
-} USBHIDState;
+};
+typedef struct USBHIDState USBHIDState;
 
 #define TYPE_USB_HID "usb-hid"
 #define USB_HID(obj) OBJECT_CHECK(USBHIDState, (obj), TYPE_USB_HID)

@@ -2,6 +2,7 @@
 #define HW_NVME_H
 
 #include "block/nvme.h"
+#include "qom/object.h"
 
 typedef struct NvmeParams {
     char     *serial;
@@ -74,10 +75,11 @@ static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
 }
 
 #define TYPE_NVME "nvme"
+typedef struct NvmeCtrl NvmeCtrl;
 #define NVME(obj) \
         OBJECT_CHECK(NvmeCtrl, (obj), TYPE_NVME)
 
-typedef struct NvmeCtrl {
+struct NvmeCtrl {
     PCIDevice    parent_obj;
     MemoryRegion iomem;
     MemoryRegion ctrl_mem;
@@ -107,7 +109,7 @@ typedef struct NvmeCtrl {
     NvmeSQueue      admin_sq;
     NvmeCQueue      admin_cq;
     NvmeIdCtrl      id_ctrl;
-} NvmeCtrl;
+};
 
 /* calculate the number of LBAs that the namespace can accomodate */
 static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
