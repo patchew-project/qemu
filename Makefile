@@ -246,6 +246,7 @@ s390-ccw.img s390-netboot.img \
 slof.bin skiboot.lid \
 palcode-clipper \
 u-boot.e500 u-boot-sam460-20100605.bin \
+npcm7xx_bootrom.bin \
 qemu_vga.ndrv \
 edk2-licenses.txt \
 hppa-firmware.img \
