@@ -78,10 +78,6 @@ static const TypeInfo imx_ccm_info = {
     .class_size    = sizeof(IMXCCMClass),
     .abstract      = true,
 };
+TYPE_INFO(imx_ccm_info)
 
-static void imx_ccm_register_types(void)
-{
-    type_register_static(&imx_ccm_info);
-}
 
-type_init(imx_ccm_register_types)

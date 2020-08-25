@@ -234,10 +234,6 @@ static const TypeInfo char_udp_type_info = {
     .instance_finalize = char_udp_finalize,
     .class_init = char_udp_class_init,
 };
+TYPE_INFO(char_udp_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_udp_type_info);
-}
 
-type_init(register_types);

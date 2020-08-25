@@ -302,10 +302,6 @@ static const TypeInfo ccw_terminal_info = {
     .class_init = terminal_class_init,
     .class_size = sizeof(EmulatedCcw3270Class),
 };
+TYPE_INFO(ccw_terminal_info)
 
-static void register_types(void)
-{
-    type_register_static(&ccw_terminal_info);
-}
 
-type_init(register_types)

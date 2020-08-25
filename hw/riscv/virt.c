@@ -630,10 +630,6 @@ static const TypeInfo virt_machine_typeinfo = {
     .instance_init = virt_machine_instance_init,
     .instance_size = sizeof(RISCVVirtState),
 };
+TYPE_INFO(virt_machine_typeinfo)
 
-static void virt_machine_init_register_types(void)
-{
-    type_register_static(&virt_machine_typeinfo);
-}
 
-type_init(virt_machine_init_register_types)

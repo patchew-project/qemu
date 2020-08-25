@@ -247,10 +247,6 @@ static TypeInfo nvdimm_info = {
     .instance_init = nvdimm_init,
     .instance_finalize = nvdimm_finalize,
 };
+TYPE_INFO(nvdimm_info)
 
-static void nvdimm_register_types(void)
-{
-    type_register_static(&nvdimm_info);
-}
 
-type_init(nvdimm_register_types)

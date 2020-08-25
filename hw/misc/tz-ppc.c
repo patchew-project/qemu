@@ -329,10 +329,6 @@ static const TypeInfo tz_ppc_info = {
     .instance_init = tz_ppc_init,
     .class_init = tz_ppc_class_init,
 };
+TYPE_INFO(tz_ppc_info)
 
-static void tz_ppc_register_types(void)
-{
-    type_register_static(&tz_ppc_info);
-}
 
-type_init(tz_ppc_register_types);

@@ -94,10 +94,6 @@ static const TypeInfo xen_apic_info = {
     .instance_size = sizeof(APICCommonState),
     .class_init = xen_apic_class_init,
 };
+TYPE_INFO(xen_apic_info)
 
-static void xen_apic_register_types(void)
-{
-    type_register_static(&xen_apic_info);
-}
 
-type_init(xen_apic_register_types)

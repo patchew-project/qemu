@@ -432,19 +432,15 @@ static const TypeInfo pl080_info = {
     .instance_init = pl080_init,
     .class_init    = pl080_class_init,
 };
+TYPE_INFO(pl080_info)
 
 static const TypeInfo pl081_info = {
     .name          = TYPE_PL081,
     .parent        = TYPE_PL080,
     .instance_init = pl081_init,
 };
+TYPE_INFO(pl081_info)
 
 /* The PL080 and PL081 are the same except for the number of channels
    they implement (8 and 2 respectively).  */
-static void pl080_register_types(void)
-{
-    type_register_static(&pl080_info);
-    type_register_static(&pl081_info);
-}
 
-type_init(pl080_register_types)

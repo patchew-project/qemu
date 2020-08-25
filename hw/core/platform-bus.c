@@ -221,10 +221,6 @@ static const TypeInfo platform_bus_info = {
     .instance_size = sizeof(PlatformBusDevice),
     .class_init    = platform_bus_class_init,
 };
+TYPE_INFO(platform_bus_info)
 
-static void platform_bus_register_types(void)
-{
-    type_register_static(&platform_bus_info);
-}
 
-type_init(platform_bus_register_types)

@@ -127,11 +127,8 @@ static const TypeInfo macio_nvram_type_info = {
     .instance_size = sizeof(MacIONVRAMState),
     .class_init = macio_nvram_class_init,
 };
+TYPE_INFO(macio_nvram_type_info)
 
-static void macio_nvram_register_types(void)
-{
-    type_register_static(&macio_nvram_type_info);
-}
 
 /* Set up a system OpenBIOS NVRAM partition */
 static void pmac_format_nvram_partition_of(MacIONVRAMState *nvr, int off,
@@ -182,4 +179,3 @@ void pmac_format_nvram_partition(MacIONVRAMState *nvr, int len)
     pmac_format_nvram_partition_of(nvr, 0, len / 2);
     pmac_format_nvram_partition_osx(nvr, len / 2, len / 2);
 }
-type_init(macio_nvram_register_types)

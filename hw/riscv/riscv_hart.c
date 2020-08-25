@@ -77,10 +77,6 @@ static const TypeInfo riscv_harts_info = {
     .instance_size = sizeof(RISCVHartArrayState),
     .class_init    = riscv_harts_class_init,
 };
+TYPE_INFO(riscv_harts_info)
 
-static void riscv_harts_register_types(void)
-{
-    type_register_static(&riscv_harts_info);
-}
 
-type_init(riscv_harts_register_types)

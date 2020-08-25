@@ -208,13 +208,9 @@ static TypeInfo vfio_pci_igd_lpc_bridge_info = {
         { },
     },
 };
+TYPE_INFO(vfio_pci_igd_lpc_bridge_info)
 
-static void vfio_pci_igd_register_types(void)
-{
-    type_register_static(&vfio_pci_igd_lpc_bridge_info);
-}
 
-type_init(vfio_pci_igd_register_types)
 
 static int vfio_pci_igd_lpc_init(VFIOPCIDevice *vdev,
                                  struct vfio_region_info *info)

@@ -120,10 +120,6 @@ static const TypeInfo microbit_i2c_info = {
     .instance_size = sizeof(MicrobitI2CState),
     .class_init = microbit_i2c_class_init,
 };
+TYPE_INFO(microbit_i2c_info)
 
-static void microbit_i2c_register_types(void)
-{
-    type_register_static(&microbit_i2c_info);
-}
 
-type_init(microbit_i2c_register_types)

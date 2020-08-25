@@ -47,6 +47,7 @@ static const TypeInfo usb_bus_info = {
         { }
     }
 };
+TYPE_INFO(usb_bus_info)
 
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
@@ -767,11 +768,6 @@ static const TypeInfo usb_device_type_info = {
     .class_size = sizeof(USBDeviceClass),
     .class_init = usb_device_class_init,
 };
+TYPE_INFO(usb_device_type_info)
 
-static void usb_register_types(void)
-{
-    type_register_static(&usb_bus_info);
-    type_register_static(&usb_device_type_info);
-}
 
-type_init(usb_register_types)

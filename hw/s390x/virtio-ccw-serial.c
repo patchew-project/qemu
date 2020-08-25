@@ -70,10 +70,6 @@ static const TypeInfo virtio_ccw_serial = {
     .instance_init = virtio_ccw_serial_instance_init,
     .class_init    = virtio_ccw_serial_class_init,
 };
+TYPE_INFO(virtio_ccw_serial)
 
-static void virtio_ccw_serial_register(void)
-{
-    type_register_static(&virtio_ccw_serial);
-}
 
-type_init(virtio_ccw_serial_register)

@@ -655,10 +655,6 @@ static const TypeInfo tpci200_info = {
         { },
     },
 };
+TYPE_INFO(tpci200_info)
 
-static void tpci200_register_types(void)
-{
-    type_register_static(&tpci200_info);
-}
 
-type_init(tpci200_register_types)

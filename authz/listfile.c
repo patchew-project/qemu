@@ -270,13 +270,8 @@ static const TypeInfo qauthz_list_file_info = {
         { }
     }
 };
+TYPE_INFO(qauthz_list_file_info)
 
 
-static void
-qauthz_list_file_register_types(void)
-{
-    type_register_static(&qauthz_list_file_info);
-}
 
 
-type_init(qauthz_list_file_register_types);

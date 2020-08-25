@@ -155,10 +155,6 @@ static const TypeInfo ohci_pci_info = {
         { },
     },
 };
+TYPE_INFO(ohci_pci_info)
 
-static void ohci_pci_register_types(void)
-{
-    type_register_static(&ohci_pci_info);
-}
 
-type_init(ohci_pci_register_types)

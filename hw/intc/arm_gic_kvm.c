@@ -613,10 +613,6 @@ static const TypeInfo kvm_arm_gic_info = {
     .class_init = kvm_arm_gic_class_init,
     .class_size = sizeof(KVMARMGICClass),
 };
+TYPE_INFO(kvm_arm_gic_info)
 
-static void kvm_arm_gic_register_types(void)
-{
-    type_register_static(&kvm_arm_gic_info);
-}
 
-type_init(kvm_arm_gic_register_types)

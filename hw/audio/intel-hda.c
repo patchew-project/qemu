@@ -46,6 +46,7 @@ static const TypeInfo hda_codec_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(HDACodecBus),
 };
+TYPE_INFO(hda_codec_bus_info)
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus, size_t bus_size,
                         hda_codec_response_func response,
@@ -1266,18 +1267,21 @@ static const TypeInfo intel_hda_info = {
         { },
     },
 };
+TYPE_INFO(intel_hda_info)
 
 static const TypeInfo intel_hda_info_ich6 = {
     .name          = "intel-hda",
     .parent        = TYPE_INTEL_HDA_GENERIC,
     .class_init    = intel_hda_class_init_ich6,
 };
+TYPE_INFO(intel_hda_info_ich6)
 
 static const TypeInfo intel_hda_info_ich9 = {
     .name          = "ich9-intel-hda",
     .parent        = TYPE_INTEL_HDA_GENERIC,
     .class_init    = intel_hda_class_init_ich9,
 };
+TYPE_INFO(intel_hda_info_ich9)
 
 static void hda_codec_device_class_init(ObjectClass *klass, void *data)
 {
@@ -1297,6 +1301,7 @@ static const TypeInfo hda_codec_device_type_info = {
     .class_size = sizeof(HDACodecDeviceClass),
     .class_init = hda_codec_device_class_init,
 };
+TYPE_INFO(hda_codec_device_type_info)
 
 /*
  * create intel hda controller with codec attached to it,
@@ -1319,11 +1324,6 @@ static int intel_hda_and_codec_init(PCIBus *bus)
 
 static void intel_hda_register_types(void)
 {
-    type_register_static(&hda_codec_bus_info);
-    type_register_static(&intel_hda_info);
-    type_register_static(&intel_hda_info_ich6);
-    type_register_static(&intel_hda_info_ich9);
-    type_register_static(&hda_codec_device_type_info);
     pci_register_soundhw("hda", "Intel HD Audio", intel_hda_and_codec_init);
 }
 

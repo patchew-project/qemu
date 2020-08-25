@@ -292,10 +292,6 @@ static const TypeInfo resettable_interface_info = {
     .parent     = TYPE_INTERFACE,
     .class_size = sizeof(ResettableClass),
 };
+TYPE_INFO(resettable_interface_info)
 
-static void reset_register_types(void)
-{
-    type_register_static(&resettable_interface_info);
-}
 
-type_init(reset_register_types)

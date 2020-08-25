@@ -183,9 +183,5 @@ static const TypeInfo spapr_rtc_info = {
     .instance_size = sizeof(SpaprRtcState),
     .class_init    = spapr_rtc_class_init,
 };
+TYPE_INFO(spapr_rtc_info)
 
-static void spapr_rtc_register_types(void)
-{
-    type_register_static(&spapr_rtc_info);
-}
-type_init(spapr_rtc_register_types)

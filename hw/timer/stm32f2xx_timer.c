@@ -338,10 +338,6 @@ static const TypeInfo stm32f2xx_timer_info = {
     .instance_init = stm32f2xx_timer_init,
     .class_init    = stm32f2xx_timer_class_init,
 };
+TYPE_INFO(stm32f2xx_timer_info)
 
-static void stm32f2xx_timer_register_types(void)
-{
-    type_register_static(&stm32f2xx_timer_info);
-}
 
-type_init(stm32f2xx_timer_register_types)

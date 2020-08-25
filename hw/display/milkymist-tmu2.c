@@ -495,13 +495,9 @@ static const TypeInfo milkymist_tmu2_info = {
     .instance_init = milkymist_tmu2_init,
     .class_init    = milkymist_tmu2_class_init,
 };
+TYPE_INFO(milkymist_tmu2_info)
 
-static void milkymist_tmu2_register_types(void)
-{
-    type_register_static(&milkymist_tmu2_info);
-}
 
-type_init(milkymist_tmu2_register_types)
 
 DeviceState *milkymist_tmu2_create(hwaddr base, qemu_irq irq)
 {

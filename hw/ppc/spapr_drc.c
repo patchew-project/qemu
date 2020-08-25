@@ -742,6 +742,7 @@ static const TypeInfo spapr_dr_connector_info = {
     .class_init    = spapr_dr_connector_class_init,
     .abstract      = true,
 };
+TYPE_INFO(spapr_dr_connector_info)
 
 static const TypeInfo spapr_drc_physical_info = {
     .name          = TYPE_SPAPR_DRC_PHYSICAL,
@@ -750,6 +751,7 @@ static const TypeInfo spapr_drc_physical_info = {
     .class_init    = spapr_drc_physical_class_init,
     .abstract      = true,
 };
+TYPE_INFO(spapr_drc_physical_info)
 
 static const TypeInfo spapr_drc_logical_info = {
     .name          = TYPE_SPAPR_DRC_LOGICAL,
@@ -757,24 +759,28 @@ static const TypeInfo spapr_drc_logical_info = {
     .class_init    = spapr_drc_logical_class_init,
     .abstract      = true,
 };
+TYPE_INFO(spapr_drc_logical_info)
 
 static const TypeInfo spapr_drc_cpu_info = {
     .name          = TYPE_SPAPR_DRC_CPU,
     .parent        = TYPE_SPAPR_DRC_LOGICAL,
     .class_init    = spapr_drc_cpu_class_init,
 };
+TYPE_INFO(spapr_drc_cpu_info)
 
 static const TypeInfo spapr_drc_pci_info = {
     .name          = TYPE_SPAPR_DRC_PCI,
     .parent        = TYPE_SPAPR_DRC_PHYSICAL,
     .class_init    = spapr_drc_pci_class_init,
 };
+TYPE_INFO(spapr_drc_pci_info)
 
 static const TypeInfo spapr_drc_lmb_info = {
     .name          = TYPE_SPAPR_DRC_LMB,
     .parent        = TYPE_SPAPR_DRC_LOGICAL,
     .class_init    = spapr_drc_lmb_class_init,
 };
+TYPE_INFO(spapr_drc_lmb_info)
 
 static const TypeInfo spapr_drc_phb_info = {
     .name          = TYPE_SPAPR_DRC_PHB,
@@ -782,12 +788,14 @@ static const TypeInfo spapr_drc_phb_info = {
     .instance_size = sizeof(SpaprDrc),
     .class_init    = spapr_drc_phb_class_init,
 };
+TYPE_INFO(spapr_drc_phb_info)
 
 static const TypeInfo spapr_drc_pmem_info = {
     .name          = TYPE_SPAPR_DRC_PMEM,
     .parent        = TYPE_SPAPR_DRC_LOGICAL,
     .class_init    = spapr_drc_pmem_class_init,
 };
+TYPE_INFO(spapr_drc_pmem_info)
 
 /* helper functions for external users */
 
@@ -1252,14 +1260,6 @@ out:
 
 static void spapr_drc_register_types(void)
 {
-    type_register_static(&spapr_dr_connector_info);
-    type_register_static(&spapr_drc_physical_info);
-    type_register_static(&spapr_drc_logical_info);
-    type_register_static(&spapr_drc_cpu_info);
-    type_register_static(&spapr_drc_pci_info);
-    type_register_static(&spapr_drc_lmb_info);
-    type_register_static(&spapr_drc_phb_info);
-    type_register_static(&spapr_drc_pmem_info);
 
     spapr_rtas_register(RTAS_SET_INDICATOR, "set-indicator",
                         rtas_set_indicator);

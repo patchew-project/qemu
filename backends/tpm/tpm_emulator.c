@@ -996,10 +996,6 @@ static const TypeInfo tpm_emulator_info = {
     .instance_init = tpm_emulator_inst_init,
     .instance_finalize = tpm_emulator_inst_finalize,
 };
+TYPE_INFO(tpm_emulator_info)
 
-static void tpm_emulator_register(void)
-{
-    type_register_static(&tpm_emulator_info);
-}
 
-type_init(tpm_emulator_register)

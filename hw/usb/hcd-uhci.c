@@ -1333,6 +1333,7 @@ static const TypeInfo uhci_pci_type_info = {
         { },
     },
 };
+TYPE_INFO(uhci_pci_type_info)
 
 static void uhci_data_class_init(ObjectClass *klass, void *data)
 {
@@ -1432,7 +1433,6 @@ static void uhci_register_types(void)
     };
     int i;
 
-    type_register_static(&uhci_pci_type_info);
 
     for (i = 0; i < ARRAY_SIZE(uhci_info); i++) {
         uhci_type_info.name = uhci_info[i].name;

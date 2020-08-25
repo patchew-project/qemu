@@ -147,10 +147,6 @@ static const TypeInfo a9_scu_info = {
     .instance_init = a9_scu_init,
     .class_init    = a9_scu_class_init,
 };
+TYPE_INFO(a9_scu_info)
 
-static void a9mp_register_types(void)
-{
-    type_register_static(&a9_scu_info);
-}
 
-type_init(a9mp_register_types)

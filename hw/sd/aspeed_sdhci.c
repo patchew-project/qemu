@@ -189,10 +189,6 @@ static TypeInfo aspeed_sdhci_info = {
     .instance_size = sizeof(AspeedSDHCIState),
     .class_init    = aspeed_sdhci_class_init,
 };
+TYPE_INFO(aspeed_sdhci_info)
 
-static void aspeed_sdhci_register_types(void)
-{
-    type_register_static(&aspeed_sdhci_info);
-}
 
-type_init(aspeed_sdhci_register_types)

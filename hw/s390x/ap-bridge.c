@@ -37,6 +37,7 @@ static const TypeInfo ap_bus_info = {
     .instance_size = 0,
     .class_init = ap_bus_class_init,
 };
+TYPE_INFO(ap_bus_info)
 
 void s390_init_ap(void)
 {
@@ -80,11 +81,6 @@ static const TypeInfo ap_bridge_info = {
         { }
     }
 };
+TYPE_INFO(ap_bridge_info)
 
-static void ap_register(void)
-{
-    type_register_static(&ap_bridge_info);
-    type_register_static(&ap_bus_info);
-}
 
-type_init(ap_register)

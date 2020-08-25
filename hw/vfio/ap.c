@@ -178,10 +178,6 @@ static const TypeInfo vfio_ap_info = {
     .instance_size = sizeof(VFIOAPDevice),
     .class_init = vfio_ap_class_init,
 };
+TYPE_INFO(vfio_ap_info)
 
-static void vfio_ap_type_init(void)
-{
-    type_register_static(&vfio_ap_info);
-}
 
-type_init(vfio_ap_type_init)

@@ -149,10 +149,6 @@ static const TypeInfo gicv3_its_common_info = {
     .class_init = gicv3_its_common_class_init,
     .abstract = true,
 };
+TYPE_INFO(gicv3_its_common_info)
 
-static void gicv3_its_common_register_types(void)
-{
-    type_register_static(&gicv3_its_common_info);
-}
 
-type_init(gicv3_its_common_register_types)

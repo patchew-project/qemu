@@ -3308,6 +3308,7 @@ static const TypeInfo char_gdb_type_info = {
     .parent = TYPE_CHARDEV,
     .class_init = char_gdb_class_init,
 };
+TYPE_INFO(char_gdb_type_info)
 
 static int find_cpu_clusters(Object *child, void *opaque)
 {
@@ -3440,10 +3441,5 @@ void gdbserver_cleanup(void)
     }
 }
 
-static void register_types(void)
-{
-    type_register_static(&char_gdb_type_info);
-}
 
-type_init(register_types);
 #endif

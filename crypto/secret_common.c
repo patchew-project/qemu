@@ -391,13 +391,8 @@ static const TypeInfo qcrypto_secret_info = {
     .class_init = qcrypto_secret_class_init,
     .abstract = true,
 };
+TYPE_INFO(qcrypto_secret_info)
 
 
-static void
-qcrypto_secret_register_types(void)
-{
-    type_register_static(&qcrypto_secret_info);
-}
 
 
-type_init(qcrypto_secret_register_types);

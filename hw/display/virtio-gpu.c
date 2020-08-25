@@ -1263,10 +1263,6 @@ static const TypeInfo virtio_gpu_info = {
     .instance_size = sizeof(VirtIOGPU),
     .class_init = virtio_gpu_class_init,
 };
+TYPE_INFO(virtio_gpu_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_gpu_info);
-}
 
-type_init(virtio_register_types)

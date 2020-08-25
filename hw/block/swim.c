@@ -252,12 +252,14 @@ static const TypeInfo swim_drive_info = {
     .instance_size = sizeof(SWIMDrive),
     .class_init = swim_drive_class_init,
 };
+TYPE_INFO(swim_drive_info)
 
 static const TypeInfo swim_bus_info = {
     .name = TYPE_SWIM_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(SWIMBus),
 };
+TYPE_INFO(swim_bus_info)
 
 static void iwmctrl_write(void *opaque, hwaddr reg, uint64_t value,
                           unsigned size)
@@ -481,12 +483,6 @@ static const TypeInfo sysbus_swim_info = {
     .instance_init = sysbus_swim_init,
     .class_init    = sysbus_swim_class_init,
 };
+TYPE_INFO(sysbus_swim_info)
 
-static void swim_register_types(void)
-{
-    type_register_static(&sysbus_swim_info);
-    type_register_static(&swim_bus_info);
-    type_register_static(&swim_drive_info);
-}
 
-type_init(swim_register_types)

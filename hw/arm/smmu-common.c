@@ -553,11 +553,7 @@ static const TypeInfo smmu_base_info = {
     .class_init    = smmu_base_class_init,
     .abstract      = true,
 };
+TYPE_INFO(smmu_base_info)
 
-static void smmu_base_register_types(void)
-{
-    type_register_static(&smmu_base_info);
-}
 
-type_init(smmu_base_register_types)
 

@@ -260,10 +260,6 @@ static const TypeInfo mst_fpga_info = {
     .instance_init = mst_fpga_init,
     .class_init    = mst_fpga_class_init,
 };
+TYPE_INFO(mst_fpga_info)
 
-static void mst_fpga_register_types(void)
-{
-    type_register_static(&mst_fpga_info);
-}
 
-type_init(mst_fpga_register_types)

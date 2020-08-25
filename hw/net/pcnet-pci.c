@@ -287,10 +287,6 @@ static const TypeInfo pcnet_info = {
         { },
     },
 };
+TYPE_INFO(pcnet_info)
 
-static void pci_pcnet_register_types(void)
-{
-    type_register_static(&pcnet_info);
-}
 
-type_init(pci_pcnet_register_types)

@@ -431,10 +431,6 @@ static const TypeInfo pnv_quad_info = {
     .instance_size = sizeof(PnvQuad),
     .class_init    = pnv_quad_class_init,
 };
+TYPE_INFO(pnv_quad_info)
 
-static void pnv_core_register_types(void)
-{
-    type_register_static(&pnv_quad_info);
-}
 
-type_init(pnv_core_register_types)

@@ -1444,10 +1444,6 @@ static const TypeInfo sungem_info = {
         { }
     }
 };
+TYPE_INFO(sungem_info)
 
-static void sungem_register_types(void)
-{
-    type_register_static(&sungem_info);
-}
 
-type_init(sungem_register_types)

@@ -707,10 +707,6 @@ static const TypeInfo pvrdma_info = {
         { }
     }
 };
+TYPE_INFO(pvrdma_info)
 
-static void register_types(void)
-{
-    type_register_static(&pvrdma_info);
-}
 
-type_init(register_types)

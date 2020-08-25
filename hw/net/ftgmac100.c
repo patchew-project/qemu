@@ -1123,6 +1123,7 @@ static const TypeInfo ftgmac100_info = {
     .instance_size = sizeof(FTGMAC100State),
     .class_init = ftgmac100_class_init,
 };
+TYPE_INFO(ftgmac100_info)
 
 /*
  * AST2600 MII controller
@@ -1282,11 +1283,6 @@ static const TypeInfo aspeed_mii_info = {
     .instance_size = sizeof(AspeedMiiState),
     .class_init = aspeed_mii_class_init,
 };
+TYPE_INFO(aspeed_mii_info)
 
-static void ftgmac100_register_types(void)
-{
-    type_register_static(&ftgmac100_info);
-    type_register_static(&aspeed_mii_info);
-}
 
-type_init(ftgmac100_register_types)

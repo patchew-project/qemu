@@ -187,10 +187,6 @@ static const TypeInfo kvm_s390_stattrib_info = {
     .class_init    = kvm_s390_stattrib_class_init,
     .class_size    = sizeof(S390StAttribClass),
 };
+TYPE_INFO(kvm_s390_stattrib_info)
 
-static void kvm_s390_stattrib_register_types(void)
-{
-    type_register_static(&kvm_s390_stattrib_info);
-}
 
-type_init(kvm_s390_stattrib_register_types)

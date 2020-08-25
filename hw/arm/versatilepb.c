@@ -426,6 +426,7 @@ static const TypeInfo versatilepb_type = {
     .parent = TYPE_MACHINE,
     .class_init = versatilepb_class_init,
 };
+TYPE_INFO(versatilepb_type)
 
 static void versatileab_class_init(ObjectClass *oc, void *data)
 {
@@ -444,14 +445,9 @@ static const TypeInfo versatileab_type = {
     .parent = TYPE_MACHINE,
     .class_init = versatileab_class_init,
 };
+TYPE_INFO(versatileab_type)
 
-static void versatile_machine_init(void)
-{
-    type_register_static(&versatilepb_type);
-    type_register_static(&versatileab_type);
-}
 
-type_init(versatile_machine_init)
 
 static void vpb_sic_class_init(ObjectClass *klass, void *data)
 {
@@ -467,10 +463,6 @@ static const TypeInfo vpb_sic_info = {
     .instance_init = vpb_sic_init,
     .class_init    = vpb_sic_class_init,
 };
+TYPE_INFO(vpb_sic_info)
 
-static void versatilepb_register_types(void)
-{
-    type_register_static(&vpb_sic_info);
-}
 
-type_init(versatilepb_register_types)

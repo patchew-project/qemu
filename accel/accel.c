@@ -36,6 +36,7 @@ static const TypeInfo accel_type = {
     .class_size = sizeof(AccelClass),
     .instance_size = sizeof(AccelState),
 };
+TYPE_INFO(accel_type)
 
 /* Lookup AccelClass from opt_name. Returns NULL if not found */
 AccelClass *accel_find(const char *opt_name)
@@ -77,9 +78,4 @@ void accel_setup_post(MachineState *ms)
     }
 }
 
-static void register_accel_types(void)
-{
-    type_register_static(&accel_type);
-}
 
-type_init(register_accel_types);

@@ -311,10 +311,6 @@ static const TypeInfo avr_usart_info = {
     .instance_init = avr_usart_init,
     .class_init    = avr_usart_class_init,
 };
+TYPE_INFO(avr_usart_info)
 
-static void avr_usart_register_types(void)
-{
-    type_register_static(&avr_usart_info);
-}
 
-type_init(avr_usart_register_types)

@@ -863,10 +863,6 @@ static const TypeInfo vapic_type = {
     .instance_size = sizeof(VAPICROMState),
     .class_init    = vapic_class_init,
 };
+TYPE_INFO(vapic_type)
 
-static void vapic_register(void)
-{
-    type_register_static(&vapic_type);
-}
 
-type_init(vapic_register);

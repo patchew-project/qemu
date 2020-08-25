@@ -193,10 +193,6 @@ static const TypeInfo l2x0_info = {
     .instance_init = l2x0_priv_init,
     .class_init = l2x0_class_init,
 };
+TYPE_INFO(l2x0_info)
 
-static void l2x0_register_types(void)
-{
-    type_register_static(&l2x0_info);
-}
 
-type_init(l2x0_register_types)

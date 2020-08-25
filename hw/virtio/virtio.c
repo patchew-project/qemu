@@ -3853,10 +3853,6 @@ static const TypeInfo virtio_device_info = {
     .abstract = true,
     .class_size = sizeof(VirtioDeviceClass),
 };
+TYPE_INFO(virtio_device_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&virtio_device_info);
-}
 
-type_init(virtio_register_types)

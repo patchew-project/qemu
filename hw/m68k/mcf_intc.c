@@ -190,13 +190,9 @@ static const TypeInfo mcf_intc_gate_info = {
     .instance_init = mcf_intc_instance_init,
     .class_init    = mcf_intc_class_init,
 };
+TYPE_INFO(mcf_intc_gate_info)
 
-static void mcf_intc_register_types(void)
-{
-    type_register_static(&mcf_intc_gate_info);
-}
 
-type_init(mcf_intc_register_types)
 
 qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         hwaddr base,

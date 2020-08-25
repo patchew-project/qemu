@@ -62,10 +62,6 @@ static const TypeInfo virtio_ccw_balloon = {
     .instance_init = virtio_ccw_balloon_instance_init,
     .class_init    = virtio_ccw_balloon_class_init,
 };
+TYPE_INFO(virtio_ccw_balloon)
 
-static void virtio_ccw_balloon_register(void)
-{
-    type_register_static(&virtio_ccw_balloon);
-}
 
-type_init(virtio_ccw_balloon_register)

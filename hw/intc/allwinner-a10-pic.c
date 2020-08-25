@@ -206,10 +206,6 @@ static const TypeInfo aw_a10_pic_info = {
     .instance_init = aw_a10_pic_init,
     .class_init = aw_a10_pic_class_init,
 };
+TYPE_INFO(aw_a10_pic_info)
 
-static void aw_a10_register_types(void)
-{
-    type_register_static(&aw_a10_pic_info);
-}
 
-type_init(aw_a10_register_types);

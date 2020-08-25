@@ -3452,10 +3452,6 @@ static const TypeInfo rtl8139_info = {
         { },
     },
 };
+TYPE_INFO(rtl8139_info)
 
-static void rtl8139_register_types(void)
-{
-    type_register_static(&rtl8139_info);
-}
 
-type_init(rtl8139_register_types)

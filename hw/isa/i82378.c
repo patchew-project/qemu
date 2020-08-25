@@ -142,10 +142,6 @@ static const TypeInfo i82378_type_info = {
         { },
     },
 };
+TYPE_INFO(i82378_type_info)
 
-static void i82378_register_types(void)
-{
-    type_register_static(&i82378_type_info);
-}
 
-type_init(i82378_register_types)

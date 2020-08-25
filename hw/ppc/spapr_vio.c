@@ -65,6 +65,7 @@ static const TypeInfo spapr_vio_bus_info = {
     .class_init = spapr_vio_bus_class_init,
     .instance_size = sizeof(SpaprVioBus),
 };
+TYPE_INFO(spapr_vio_bus_info)
 
 SpaprVioDevice *spapr_vio_find_by_reg(SpaprVioBus *bus, uint32_t reg)
 {
@@ -613,6 +614,7 @@ static const TypeInfo spapr_vio_bridge_info = {
     .parent        = TYPE_SYS_BUS_DEVICE,
     .class_init    = spapr_vio_bridge_class_init,
 };
+TYPE_INFO(spapr_vio_bridge_info)
 
 const VMStateDescription vmstate_spapr_vio = {
     .name = "spapr_vio",
@@ -649,15 +651,9 @@ static const TypeInfo spapr_vio_type_info = {
     .class_size = sizeof(SpaprVioDeviceClass),
     .class_init = vio_spapr_device_class_init,
 };
+TYPE_INFO(spapr_vio_type_info)
 
-static void spapr_vio_register_types(void)
-{
-    type_register_static(&spapr_vio_bus_info);
-    type_register_static(&spapr_vio_bridge_info);
-    type_register_static(&spapr_vio_type_info);
-}
 
-type_init(spapr_vio_register_types)
 
 static int compare_reg(const void *p1, const void *p2)
 {

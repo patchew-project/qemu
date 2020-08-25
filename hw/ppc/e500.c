@@ -1147,6 +1147,7 @@ static const TypeInfo e500_ccsr_info = {
     .instance_size = sizeof(PPCE500CCSRState),
     .instance_init = e500_ccsr_initfn,
 };
+TYPE_INFO(e500_ccsr_info)
 
 static const TypeInfo ppce500_info = {
     .name          = TYPE_PPCE500_MACHINE,
@@ -1155,11 +1156,6 @@ static const TypeInfo ppce500_info = {
     .instance_size = sizeof(PPCE500MachineState),
     .class_size    = sizeof(PPCE500MachineClass),
 };
+TYPE_INFO(ppce500_info)
 
-static void e500_register_types(void)
-{
-    type_register_static(&e500_ccsr_info);
-    type_register_static(&ppce500_info);
-}
 
-type_init(e500_register_types)

@@ -137,10 +137,6 @@ static const TypeInfo nextfb_info = {
     .instance_size = sizeof(NeXTFbState),
     .class_init    = nextfb_class_init,
 };
+TYPE_INFO(nextfb_info)
 
-static void nextfb_register_types(void)
-{
-    type_register_static(&nextfb_info);
-}
 
-type_init(nextfb_register_types)

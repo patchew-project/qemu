@@ -737,6 +737,7 @@ static const TypeInfo designware_pcie_root_info = {
         { }
     },
 };
+TYPE_INFO(designware_pcie_root_info)
 
 static const TypeInfo designware_pcie_host_info = {
     .name       = TYPE_DESIGNWARE_PCIE_HOST,
@@ -745,10 +746,5 @@ static const TypeInfo designware_pcie_host_info = {
     .instance_init = designware_pcie_host_init,
     .class_init = designware_pcie_host_class_init,
 };
+TYPE_INFO(designware_pcie_host_info)
 
-static void designware_pcie_register(void)
-{
-    type_register_static(&designware_pcie_root_info);
-    type_register_static(&designware_pcie_host_info);
-}
-type_init(designware_pcie_register)

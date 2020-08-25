@@ -76,6 +76,7 @@ static const TypeInfo dec_21154_pci_bridge_info = {
         { },
     },
 };
+TYPE_INFO(dec_21154_pci_bridge_info)
 
 PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
 {
@@ -138,6 +139,7 @@ static const TypeInfo dec_21154_pci_host_info = {
         { },
     },
 };
+TYPE_INFO(dec_21154_pci_host_info)
 
 static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)
 {
@@ -152,12 +154,6 @@ static const TypeInfo pci_dec_21154_device_info = {
     .instance_size = sizeof(DECState),
     .class_init    = pci_dec_21154_device_class_init,
 };
+TYPE_INFO(pci_dec_21154_device_info)
 
-static void dec_register_types(void)
-{
-    type_register_static(&pci_dec_21154_device_info);
-    type_register_static(&dec_21154_pci_host_info);
-    type_register_static(&dec_21154_pci_bridge_info);
-}
 
-type_init(dec_register_types)

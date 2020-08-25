@@ -319,6 +319,7 @@ static const TypeInfo iommu_info = {
     .instance_init = iommu_init,
     .class_init    = iommu_class_init,
 };
+TYPE_INFO(iommu_info)
 
 static void sun4u_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
@@ -332,11 +333,6 @@ static const TypeInfo sun4u_iommu_memory_region_info = {
     .name = TYPE_SUN4U_IOMMU_MEMORY_REGION,
     .class_init = sun4u_iommu_memory_region_class_init,
 };
+TYPE_INFO(sun4u_iommu_memory_region_info)
 
-static void iommu_register_types(void)
-{
-    type_register_static(&iommu_info);
-    type_register_static(&sun4u_iommu_memory_region_info);
-}
 
-type_init(iommu_register_types)

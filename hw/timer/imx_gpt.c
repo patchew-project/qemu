@@ -553,31 +553,27 @@ static const TypeInfo imx25_gpt_info = {
     .instance_init = imx25_gpt_init,
     .class_init = imx_gpt_class_init,
 };
+TYPE_INFO(imx25_gpt_info)
 
 static const TypeInfo imx31_gpt_info = {
     .name = TYPE_IMX31_GPT,
     .parent = TYPE_IMX25_GPT,
     .instance_init = imx31_gpt_init,
 };
+TYPE_INFO(imx31_gpt_info)
 
 static const TypeInfo imx6_gpt_info = {
     .name = TYPE_IMX6_GPT,
     .parent = TYPE_IMX25_GPT,
     .instance_init = imx6_gpt_init,
 };
+TYPE_INFO(imx6_gpt_info)
 
 static const TypeInfo imx7_gpt_info = {
     .name = TYPE_IMX7_GPT,
     .parent = TYPE_IMX25_GPT,
     .instance_init = imx7_gpt_init,
 };
+TYPE_INFO(imx7_gpt_info)
 
-static void imx_gpt_register_types(void)
-{
-    type_register_static(&imx25_gpt_info);
-    type_register_static(&imx31_gpt_info);
-    type_register_static(&imx6_gpt_info);
-    type_register_static(&imx7_gpt_info);
-}
 
-type_init(imx_gpt_register_types)

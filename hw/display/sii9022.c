@@ -183,10 +183,6 @@ static const TypeInfo sii9022_info = {
     .instance_size = sizeof(sii9022_state),
     .class_init    = sii9022_class_init,
 };
+TYPE_INFO(sii9022_info)
 
-static void sii9022_register_types(void)
-{
-    type_register_static(&sii9022_info);
-}
 
-type_init(sii9022_register_types)

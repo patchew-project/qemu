@@ -445,10 +445,6 @@ static const TypeInfo q800_machine_typeinfo = {
     .parent     = TYPE_MACHINE,
     .class_init = q800_machine_class_init,
 };
+TYPE_INFO(q800_machine_typeinfo)
 
-static void q800_machine_register_types(void)
-{
-    type_register_static(&q800_machine_typeinfo);
-}
 
-type_init(q800_machine_register_types)

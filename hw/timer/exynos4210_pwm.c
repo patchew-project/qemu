@@ -425,10 +425,6 @@ static const TypeInfo exynos4210_pwm_info = {
     .instance_init = exynos4210_pwm_init,
     .class_init    = exynos4210_pwm_class_init,
 };
+TYPE_INFO(exynos4210_pwm_info)
 
-static void exynos4210_pwm_register_types(void)
-{
-    type_register_static(&exynos4210_pwm_info);
-}
 
-type_init(exynos4210_pwm_register_types)

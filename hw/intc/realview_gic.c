@@ -77,10 +77,6 @@ static const TypeInfo realview_gic_info = {
     .instance_init = realview_gic_init,
     .class_init    = realview_gic_class_init,
 };
+TYPE_INFO(realview_gic_info)
 
-static void realview_gic_register_types(void)
-{
-    type_register_static(&realview_gic_info);
-}
 
-type_init(realview_gic_register_types)

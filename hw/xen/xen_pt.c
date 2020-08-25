@@ -994,10 +994,6 @@ static const TypeInfo xen_pci_passthrough_info = {
         { },
     },
 };
+TYPE_INFO(xen_pci_passthrough_info)
 
-static void xen_pci_passthrough_register_types(void)
-{
-    type_register_static(&xen_pci_passthrough_info);
-}
 
-type_init(xen_pci_passthrough_register_types)

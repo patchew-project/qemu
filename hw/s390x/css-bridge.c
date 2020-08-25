@@ -93,6 +93,7 @@ static const TypeInfo virtual_css_bus_info = {
     .instance_size = sizeof(VirtualCssBus),
     .class_init = virtual_css_bus_class_init,
 };
+TYPE_INFO(virtual_css_bus_info)
 
 VirtualCssBus *virtual_css_bus_init(void)
 {
@@ -157,11 +158,6 @@ static const TypeInfo virtual_css_bridge_info = {
         { }
     }
 };
+TYPE_INFO(virtual_css_bridge_info)
 
-static void virtual_css_register(void)
-{
-    type_register_static(&virtual_css_bridge_info);
-    type_register_static(&virtual_css_bus_info);
-}
 
-type_init(virtual_css_register)

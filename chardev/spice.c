@@ -383,6 +383,7 @@ static const TypeInfo char_spice_type_info = {
     .class_init = char_spice_class_init,
     .abstract = true,
 };
+TYPE_INFO(char_spice_type_info)
 
 static void char_spicevmc_class_init(ObjectClass *oc, void *data)
 {
@@ -398,6 +399,7 @@ static const TypeInfo char_spicevmc_type_info = {
     .parent = TYPE_CHARDEV_SPICE,
     .class_init = char_spicevmc_class_init,
 };
+TYPE_INFO(char_spicevmc_type_info)
 
 static void char_spiceport_class_init(ObjectClass *oc, void *data)
 {
@@ -413,12 +415,6 @@ static const TypeInfo char_spiceport_type_info = {
     .parent = TYPE_CHARDEV_SPICE,
     .class_init = char_spiceport_class_init,
 };
+TYPE_INFO(char_spiceport_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_spice_type_info);
-    type_register_static(&char_spicevmc_type_info);
-    type_register_static(&char_spiceport_type_info);
-}
 
-type_init(register_types);

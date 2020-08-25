@@ -244,10 +244,6 @@ static const TypeInfo xlnx_zcu102_machine_init_typeinfo = {
     .instance_init = xlnx_zcu102_machine_instance_init,
     .instance_size = sizeof(XlnxZCU102),
 };
+TYPE_INFO(xlnx_zcu102_machine_init_typeinfo)
 
-static void xlnx_zcu102_machine_init_register_types(void)
-{
-    type_register_static(&xlnx_zcu102_machine_init_typeinfo);
-}
 
-type_init(xlnx_zcu102_machine_init_register_types)

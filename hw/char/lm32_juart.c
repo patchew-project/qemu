@@ -156,10 +156,6 @@ static const TypeInfo lm32_juart_info = {
     .instance_size = sizeof(LM32JuartState),
     .class_init    = lm32_juart_class_init,
 };
+TYPE_INFO(lm32_juart_info)
 
-static void lm32_juart_register_types(void)
-{
-    type_register_static(&lm32_juart_info);
-}
 
-type_init(lm32_juart_register_types)

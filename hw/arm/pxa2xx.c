@@ -1238,6 +1238,7 @@ static const TypeInfo pxa2xx_rtc_sysbus_info = {
     .instance_init = pxa2xx_rtc_init,
     .class_init    = pxa2xx_rtc_sysbus_class_init,
 };
+TYPE_INFO(pxa2xx_rtc_sysbus_info)
 
 /* I2C Interface */
 
@@ -1498,6 +1499,7 @@ static const TypeInfo pxa2xx_i2c_slave_info = {
     .instance_size = sizeof(PXA2xxI2CSlaveState),
     .class_init    = pxa2xx_i2c_slave_class_init,
 };
+TYPE_INFO(pxa2xx_i2c_slave_info)
 
 PXA2xxI2CState *pxa2xx_i2c_init(hwaddr base,
                 qemu_irq irq, uint32_t region_size)
@@ -1568,6 +1570,7 @@ static const TypeInfo pxa2xx_i2c_info = {
     .instance_init = pxa2xx_i2c_initfn,
     .class_init    = pxa2xx_i2c_class_init,
 };
+TYPE_INFO(pxa2xx_i2c_info)
 
 /* PXA Inter-IC Sound Controller */
 static void pxa2xx_i2s_reset(PXA2xxI2SState *i2s)
@@ -2058,6 +2061,7 @@ static const TypeInfo pxa2xx_fir_info = {
     .class_init = pxa2xx_fir_class_init,
     .instance_init = pxa2xx_fir_instance_init,
 };
+TYPE_INFO(pxa2xx_fir_info)
 
 static PXA2xxFIrState *pxa2xx_fir_init(MemoryRegion *sysmem,
                                        hwaddr base,
@@ -2372,14 +2376,6 @@ static const TypeInfo pxa2xx_ssp_info = {
     .instance_init = pxa2xx_ssp_init,
     .class_init    = pxa2xx_ssp_class_init,
 };
+TYPE_INFO(pxa2xx_ssp_info)
 
-static void pxa2xx_register_types(void)
-{
-    type_register_static(&pxa2xx_i2c_slave_info);
-    type_register_static(&pxa2xx_ssp_info);
-    type_register_static(&pxa2xx_i2c_info);
-    type_register_static(&pxa2xx_rtc_sysbus_info);
-    type_register_static(&pxa2xx_fir_info);
-}
 
-type_init(pxa2xx_register_types)

@@ -216,10 +216,6 @@ static const TypeInfo gpio_i2c_info = {
     .instance_init = gpio_i2c_init,
     .class_init    = gpio_i2c_class_init,
 };
+TYPE_INFO(gpio_i2c_info)
 
-static void bitbang_i2c_register_types(void)
-{
-    type_register_static(&gpio_i2c_info);
-}
 
-type_init(bitbang_i2c_register_types)

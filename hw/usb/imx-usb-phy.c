@@ -216,10 +216,6 @@ static const TypeInfo imx_usbphy_info = {
     .instance_size = sizeof(IMXUSBPHYState),
     .class_init    = imx_usbphy_class_init,
 };
+TYPE_INFO(imx_usbphy_info)
 
-static void imx_usbphy_register_types(void)
-{
-    type_register_static(&imx_usbphy_info);
-}
 
-type_init(imx_usbphy_register_types)

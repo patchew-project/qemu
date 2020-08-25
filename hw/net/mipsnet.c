@@ -287,10 +287,6 @@ static const TypeInfo mipsnet_info = {
     .instance_size = sizeof(MIPSnetState),
     .class_init    = mipsnet_class_init,
 };
+TYPE_INFO(mipsnet_info)
 
-static void mipsnet_register_types(void)
-{
-    type_register_static(&mipsnet_info);
-}
 
-type_init(mipsnet_register_types)

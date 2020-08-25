@@ -313,10 +313,6 @@ static const TypeInfo kvaser_pci_info = {
         { },
     },
 };
+TYPE_INFO(kvaser_pci_info)
 
-static void kvaser_pci_register_types(void)
-{
-    type_register_static(&kvaser_pci_info);
-}
 
-type_init(kvaser_pci_register_types)

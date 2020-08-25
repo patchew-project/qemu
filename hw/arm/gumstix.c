@@ -121,6 +121,7 @@ static const TypeInfo connex_type = {
     .parent = TYPE_MACHINE,
     .class_init = connex_class_init,
 };
+TYPE_INFO(connex_type)
 
 static void verdex_class_init(ObjectClass *oc, void *data)
 {
@@ -137,11 +138,6 @@ static const TypeInfo verdex_type = {
     .parent = TYPE_MACHINE,
     .class_init = verdex_class_init,
 };
+TYPE_INFO(verdex_type)
 
-static void gumstix_machine_init(void)
-{
-    type_register_static(&connex_type);
-    type_register_static(&verdex_type);
-}
 
-type_init(gumstix_machine_init)

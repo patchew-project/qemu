@@ -160,10 +160,6 @@ static const TypeInfo mpcore_priv_info = {
     .instance_init = mpcore_priv_initfn,
     .class_init    = mpcore_priv_class_init,
 };
+TYPE_INFO(mpcore_priv_info)
 
-static void arm11mpcore_register_types(void)
-{
-    type_register_static(&mpcore_priv_info);
-}
 
-type_init(arm11mpcore_register_types)

@@ -355,10 +355,6 @@ static const TypeInfo zynq_machine_type = {
     .class_init = zynq_machine_class_init,
     .instance_size = sizeof(ZynqMachineState),
 };
+TYPE_INFO(zynq_machine_type)
 
-static void zynq_machine_register_types(void)
-{
-    type_register_static(&zynq_machine_type);
-}
 
-type_init(zynq_machine_register_types)

@@ -232,10 +232,6 @@ static const TypeInfo ds1338_info = {
     .instance_size = sizeof(DS1338State),
     .class_init    = ds1338_class_init,
 };
+TYPE_INFO(ds1338_info)
 
-static void ds1338_register_types(void)
-{
-    type_register_static(&ds1338_info);
-}
 
-type_init(ds1338_register_types)

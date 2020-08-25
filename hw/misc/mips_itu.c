@@ -573,10 +573,6 @@ static const TypeInfo mips_itu_info = {
     .instance_init = mips_itu_init,
     .class_init    = mips_itu_class_init,
 };
+TYPE_INFO(mips_itu_info)
 
-static void mips_itu_register_types(void)
-{
-    type_register_static(&mips_itu_info);
-}
 
-type_init(mips_itu_register_types)

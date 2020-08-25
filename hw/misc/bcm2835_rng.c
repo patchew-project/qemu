@@ -138,10 +138,6 @@ static TypeInfo bcm2835_rng_info = {
     .class_init    = bcm2835_rng_class_init,
     .instance_init = bcm2835_rng_init,
 };
+TYPE_INFO(bcm2835_rng_info)
 
-static void bcm2835_rng_register_types(void)
-{
-    type_register_static(&bcm2835_rng_info);
-}
 
-type_init(bcm2835_rng_register_types)

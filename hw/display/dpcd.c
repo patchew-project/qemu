@@ -156,10 +156,6 @@ static const TypeInfo dpcd_info = {
     .class_init    = dpcd_class_init,
     .instance_init = dpcd_init,
 };
+TYPE_INFO(dpcd_info)
 
-static void dpcd_register_types(void)
-{
-    type_register_static(&dpcd_info);
-}
 
-type_init(dpcd_register_types)

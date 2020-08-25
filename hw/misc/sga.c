@@ -59,10 +59,6 @@ static const TypeInfo sga_info = {
     .instance_size = sizeof(ISASGAState),
     .class_init    = sga_class_initfn,
 };
+TYPE_INFO(sga_info)
 
-static void sga_register_types(void)
-{
-    type_register_static(&sga_info);
-}
 
-type_init(sga_register_types)

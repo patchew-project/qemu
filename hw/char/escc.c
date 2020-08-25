@@ -876,10 +876,6 @@ static const TypeInfo escc_info = {
     .instance_init = escc_init1,
     .class_init    = escc_class_init,
 };
+TYPE_INFO(escc_info)
 
-static void escc_register_types(void)
-{
-    type_register_static(&escc_info);
-}
 
-type_init(escc_register_types)

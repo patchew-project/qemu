@@ -91,6 +91,7 @@ static TypeInfo ipmi_interface_type_info = {
     .class_size = sizeof(IPMIInterfaceClass),
     .class_init = ipmi_interface_class_init,
 };
+TYPE_INFO(ipmi_interface_type_info)
 
 static void isa_ipmi_bmc_check(const Object *obj, const char *name,
                                Object *val, Error **errp)
@@ -128,11 +129,6 @@ static TypeInfo ipmi_bmc_type_info = {
     .class_size = sizeof(IPMIBmcClass),
     .class_init = bmc_class_init,
 };
+TYPE_INFO(ipmi_bmc_type_info)
 
-static void ipmi_register_types(void)
-{
-    type_register_static(&ipmi_interface_type_info);
-    type_register_static(&ipmi_bmc_type_info);
-}
 
-type_init(ipmi_register_types)

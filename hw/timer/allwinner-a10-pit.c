@@ -296,10 +296,6 @@ static const TypeInfo a10_pit_info = {
     .instance_init = a10_pit_init,
     .class_init = a10_pit_class_init,
 };
+TYPE_INFO(a10_pit_info)
 
-static void a10_register_types(void)
-{
-    type_register_static(&a10_pit_info);
-}
 
-type_init(a10_register_types);

@@ -199,10 +199,6 @@ static const TypeInfo vhost_user_backend_info = {
     .instance_finalize = vhost_user_backend_finalize,
     .class_size = sizeof(VhostUserBackendClass),
 };
+TYPE_INFO(vhost_user_backend_info)
 
-static void register_types(void)
-{
-    type_register_static(&vhost_user_backend_info);
-}
 
-type_init(register_types);

@@ -185,10 +185,6 @@ static const TypeInfo mips_cpc_info = {
     .instance_init = mips_cpc_init,
     .class_init    = mips_cpc_class_init,
 };
+TYPE_INFO(mips_cpc_info)
 
-static void mips_cpc_register_types(void)
-{
-    type_register_static(&mips_cpc_info);
-}
 
-type_init(mips_cpc_register_types)

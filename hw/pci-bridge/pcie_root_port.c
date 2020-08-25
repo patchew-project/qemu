@@ -189,10 +189,6 @@ static const TypeInfo rp_info = {
         { }
     },
 };
+TYPE_INFO(rp_info)
 
-static void rp_register_types(void)
-{
-    type_register_static(&rp_info);
-}
 
-type_init(rp_register_types)

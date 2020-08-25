@@ -249,10 +249,6 @@ static const TypeInfo vhost_vsock_common_info = {
     .class_init = vhost_vsock_common_class_init,
     .abstract = true,
 };
+TYPE_INFO(vhost_vsock_common_info)
 
-static void vhost_vsock_common_register_types(void)
-{
-    type_register_static(&vhost_vsock_common_info);
-}
 
-type_init(vhost_vsock_common_register_types)

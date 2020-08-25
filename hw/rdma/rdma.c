@@ -21,10 +21,6 @@ static const TypeInfo rdma_hmp_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(RdmaProviderClass),
 };
+TYPE_INFO(rdma_hmp_info)
 
-static void rdma_register_types(void)
-{
-    type_register_static(&rdma_hmp_info);
-}
 
-type_init(rdma_register_types)

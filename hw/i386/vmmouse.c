@@ -316,10 +316,6 @@ static const TypeInfo vmmouse_info = {
     .instance_size = sizeof(VMMouseState),
     .class_init    = vmmouse_class_initfn,
 };
+TYPE_INFO(vmmouse_info)
 
-static void vmmouse_register_types(void)
-{
-    type_register_static(&vmmouse_info);
-}
 
-type_init(vmmouse_register_types)

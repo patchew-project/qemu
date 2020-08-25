@@ -62,10 +62,6 @@ static const TypeInfo virtio_ccw_net = {
     .instance_init = virtio_ccw_net_instance_init,
     .class_init    = virtio_ccw_net_class_init,
 };
+TYPE_INFO(virtio_ccw_net)
 
-static void virtio_ccw_net_register(void)
-{
-    type_register_static(&virtio_ccw_net);
-}
 
-type_init(virtio_ccw_net_register)

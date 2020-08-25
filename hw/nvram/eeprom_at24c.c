@@ -194,10 +194,6 @@ const TypeInfo at24c_eeprom_type = {
     .class_size = sizeof(I2CSlaveClass),
     .class_init = at24c_eeprom_class_init,
 };
+TYPE_INFO(at24c_eeprom_type)
 
-static void at24c_eeprom_register(void)
-{
-    type_register_static(&at24c_eeprom_type);
-}
 
-type_init(at24c_eeprom_register)

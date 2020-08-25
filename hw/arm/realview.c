@@ -406,6 +406,7 @@ static const TypeInfo realview_eb_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_class_init,
 };
+TYPE_INFO(realview_eb_type)
 
 static void realview_eb_mpcore_class_init(ObjectClass *oc, void *data)
 {
@@ -424,6 +425,7 @@ static const TypeInfo realview_eb_mpcore_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_eb_mpcore_class_init,
 };
+TYPE_INFO(realview_eb_mpcore_type)
 
 static void realview_pb_a8_class_init(ObjectClass *oc, void *data)
 {
@@ -440,6 +442,7 @@ static const TypeInfo realview_pb_a8_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_pb_a8_class_init,
 };
+TYPE_INFO(realview_pb_a8_type)
 
 static void realview_pbx_a9_class_init(ObjectClass *oc, void *data)
 {
@@ -457,13 +460,6 @@ static const TypeInfo realview_pbx_a9_type = {
     .parent = TYPE_MACHINE,
     .class_init = realview_pbx_a9_class_init,
 };
+TYPE_INFO(realview_pbx_a9_type)
 
-static void realview_machine_init(void)
-{
-    type_register_static(&realview_eb_type);
-    type_register_static(&realview_eb_mpcore_type);
-    type_register_static(&realview_pb_a8_type);
-    type_register_static(&realview_pbx_a9_type);
-}
 
-type_init(realview_machine_init)

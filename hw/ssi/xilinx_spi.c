@@ -381,10 +381,6 @@ static const TypeInfo xilinx_spi_info = {
     .instance_size  = sizeof(XilinxSPI),
     .class_init     = xilinx_spi_class_init,
 };
+TYPE_INFO(xilinx_spi_info)
 
-static void xilinx_spi_register_types(void)
-{
-    type_register_static(&xilinx_spi_info);
-}
 
-type_init(xilinx_spi_register_types)

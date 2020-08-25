@@ -406,10 +406,6 @@ static const TypeInfo arm_gicv3_info = {
     .class_init = arm_gicv3_class_init,
     .class_size = sizeof(ARMGICv3Class),
 };
+TYPE_INFO(arm_gicv3_info)
 
-static void arm_gicv3_register_types(void)
-{
-    type_register_static(&arm_gicv3_info);
-}
 
-type_init(arm_gicv3_register_types)

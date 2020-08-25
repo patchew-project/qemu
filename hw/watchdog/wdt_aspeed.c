@@ -282,6 +282,7 @@ static const TypeInfo aspeed_wdt_info = {
     .class_size    = sizeof(AspeedWDTClass),
     .abstract      = true,
 };
+TYPE_INFO(aspeed_wdt_info)
 
 static void aspeed_2400_wdt_class_init(ObjectClass *klass, void *data)
 {
@@ -301,6 +302,7 @@ static const TypeInfo aspeed_2400_wdt_info = {
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2400_wdt_class_init,
 };
+TYPE_INFO(aspeed_2400_wdt_info)
 
 static void aspeed_2500_wdt_reset_pulse(AspeedWDTState *s, uint32_t property)
 {
@@ -336,6 +338,7 @@ static const TypeInfo aspeed_2500_wdt_info = {
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2500_wdt_class_init,
 };
+TYPE_INFO(aspeed_2500_wdt_info)
 
 static void aspeed_2600_wdt_class_init(ObjectClass *klass, void *data)
 {
@@ -356,14 +359,11 @@ static const TypeInfo aspeed_2600_wdt_info = {
     .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2600_wdt_class_init,
 };
+TYPE_INFO(aspeed_2600_wdt_info)
 
 static void wdt_aspeed_register_types(void)
 {
     watchdog_add_model(&model);
-    type_register_static(&aspeed_wdt_info);
-    type_register_static(&aspeed_2400_wdt_info);
-    type_register_static(&aspeed_2500_wdt_info);
-    type_register_static(&aspeed_2600_wdt_info);
 }
 
 type_init(wdt_aspeed_register_types)

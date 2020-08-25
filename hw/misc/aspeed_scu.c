@@ -501,6 +501,7 @@ static const TypeInfo aspeed_scu_info = {
     .class_size    = sizeof(AspeedSCUClass),
     .abstract      = true,
 };
+TYPE_INFO(aspeed_scu_info)
 
 static void aspeed_2400_scu_class_init(ObjectClass *klass, void *data)
 {
@@ -521,6 +522,7 @@ static const TypeInfo aspeed_2400_scu_info = {
     .instance_size = sizeof(AspeedSCUState),
     .class_init = aspeed_2400_scu_class_init,
 };
+TYPE_INFO(aspeed_2400_scu_info)
 
 static void aspeed_2500_scu_class_init(ObjectClass *klass, void *data)
 {
@@ -541,6 +543,7 @@ static const TypeInfo aspeed_2500_scu_info = {
     .instance_size = sizeof(AspeedSCUState),
     .class_init = aspeed_2500_scu_class_init,
 };
+TYPE_INFO(aspeed_2500_scu_info)
 
 static uint64_t aspeed_ast2600_scu_read(void *opaque, hwaddr offset,
                                         unsigned size)
@@ -696,13 +699,6 @@ static const TypeInfo aspeed_2600_scu_info = {
     .instance_size = sizeof(AspeedSCUState),
     .class_init = aspeed_2600_scu_class_init,
 };
+TYPE_INFO(aspeed_2600_scu_info)
 
-static void aspeed_scu_register_types(void)
-{
-    type_register_static(&aspeed_scu_info);
-    type_register_static(&aspeed_2400_scu_info);
-    type_register_static(&aspeed_2500_scu_info);
-    type_register_static(&aspeed_2600_scu_info);
-}
 
-type_init(aspeed_scu_register_types);

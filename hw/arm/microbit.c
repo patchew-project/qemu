@@ -75,10 +75,6 @@ static const TypeInfo microbit_info = {
     .instance_size = sizeof(MicrobitMachineState),
     .class_init = microbit_machine_class_init,
 };
+TYPE_INFO(microbit_info)
 
-static void microbit_machine_init(void)
-{
-    type_register_static(&microbit_info);
-}
 
-type_init(microbit_machine_init);

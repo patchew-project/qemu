@@ -86,10 +86,6 @@ static TypeInfo altera_iic_info = {
     .instance_init = altera_iic_init,
     .class_init    = altera_iic_class_init,
 };
+TYPE_INFO(altera_iic_info)
 
-static void altera_iic_register(void)
-{
-    type_register_static(&altera_iic_info);
-}
 
-type_init(altera_iic_register)

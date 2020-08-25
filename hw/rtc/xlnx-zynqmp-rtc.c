@@ -266,10 +266,6 @@ static const TypeInfo rtc_info = {
     .class_init    = rtc_class_init,
     .instance_init = rtc_init,
 };
+TYPE_INFO(rtc_info)
 
-static void rtc_register_types(void)
-{
-    type_register_static(&rtc_info);
-}
 
-type_init(rtc_register_types)

@@ -766,6 +766,7 @@ static const TypeInfo xive_tctx_info = {
     .instance_size = sizeof(XiveTCTX),
     .class_init    = xive_tctx_class_init,
 };
+TYPE_INFO(xive_tctx_info)
 
 Object *xive_tctx_create(Object *cpu, XivePresenter *xptr, Error **errp)
 {
@@ -1214,6 +1215,7 @@ static const TypeInfo xive_source_info = {
     .instance_size = sizeof(XiveSource),
     .class_init    = xive_source_class_init,
 };
+TYPE_INFO(xive_source_info)
 
 /*
  * XiveEND helpers
@@ -1761,6 +1763,7 @@ static const TypeInfo xive_router_info = {
         { }
     }
 };
+TYPE_INFO(xive_router_info)
 
 void xive_eas_pic_print_info(XiveEAS *eas, uint32_t lisn, Monitor *mon)
 {
@@ -1920,6 +1923,7 @@ static const TypeInfo xive_end_source_info = {
     .instance_size = sizeof(XiveENDSource),
     .class_init    = xive_end_source_class_init,
 };
+TYPE_INFO(xive_end_source_info)
 
 /*
  * XIVE Notifier
@@ -1929,6 +1933,7 @@ static const TypeInfo xive_notifier_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(XiveNotifierClass),
 };
+TYPE_INFO(xive_notifier_info)
 
 /*
  * XIVE Presenter
@@ -1938,6 +1943,7 @@ static const TypeInfo xive_presenter_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(XivePresenterClass),
 };
+TYPE_INFO(xive_presenter_info)
 
 /*
  * XIVE Fabric
@@ -1947,16 +1953,6 @@ static const TypeInfo xive_fabric_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(XiveFabricClass),
 };
+TYPE_INFO(xive_fabric_info)
 
-static void xive_register_types(void)
-{
-    type_register_static(&xive_fabric_info);
-    type_register_static(&xive_source_info);
-    type_register_static(&xive_notifier_info);
-    type_register_static(&xive_presenter_info);
-    type_register_static(&xive_router_info);
-    type_register_static(&xive_end_source_info);
-    type_register_static(&xive_tctx_info);
-}
 
-type_init(xive_register_types)

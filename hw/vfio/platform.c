@@ -714,10 +714,6 @@ static const TypeInfo vfio_platform_dev_info = {
     .class_init = vfio_platform_class_init,
     .class_size = sizeof(VFIOPlatformDeviceClass),
 };
+TYPE_INFO(vfio_platform_dev_info)
 
-static void register_vfio_platform_dev_type(void)
-{
-    type_register_static(&vfio_platform_dev_info);
-}
 
-type_init(register_vfio_platform_dev_type)

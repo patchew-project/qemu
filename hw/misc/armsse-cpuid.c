@@ -126,10 +126,6 @@ static const TypeInfo armsse_cpuid_info = {
     .instance_init = armsse_cpuid_init,
     .class_init = armsse_cpuid_class_init,
 };
+TYPE_INFO(armsse_cpuid_info)
 
-static void armsse_cpuid_register_types(void)
-{
-    type_register_static(&armsse_cpuid_info);
-}
 
-type_init(armsse_cpuid_register_types);

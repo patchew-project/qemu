@@ -146,13 +146,9 @@ static const TypeInfo serial_isa_info = {
     .instance_init = serial_isa_initfn,
     .class_init    = serial_isa_class_initfn,
 };
+TYPE_INFO(serial_isa_info)
 
-static void serial_register_types(void)
-{
-    type_register_static(&serial_isa_info);
-}
 
-type_init(serial_register_types)
 
 static void serial_isa_init(ISABus *bus, int index, Chardev *chr)
 {

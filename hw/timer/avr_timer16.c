@@ -612,10 +612,6 @@ static const TypeInfo avr_timer16_info = {
     .instance_init = avr_timer16_init,
     .class_init    = avr_timer16_class_init,
 };
+TYPE_INFO(avr_timer16_info)
 
-static void avr_timer16_register_types(void)
-{
-    type_register_static(&avr_timer16_info);
-}
 
-type_init(avr_timer16_register_types)

@@ -1360,17 +1360,13 @@ static const TypeInfo imx_fec_info = {
     .instance_init = imx_fec_init,
     .class_init    = imx_eth_class_init,
 };
+TYPE_INFO(imx_fec_info)
 
 static const TypeInfo imx_enet_info = {
     .name          = TYPE_IMX_ENET,
     .parent        = TYPE_IMX_FEC,
     .instance_init = imx_enet_init,
 };
+TYPE_INFO(imx_enet_info)
 
-static void imx_eth_register_types(void)
-{
-    type_register_static(&imx_fec_info);
-    type_register_static(&imx_enet_info);
-}
 
-type_init(imx_eth_register_types)

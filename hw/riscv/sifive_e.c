@@ -161,13 +161,9 @@ static const TypeInfo sifive_e_machine_typeinfo = {
     .instance_init = sifive_e_machine_instance_init,
     .instance_size = sizeof(SiFiveEState),
 };
+TYPE_INFO(sifive_e_machine_typeinfo)
 
-static void sifive_e_machine_init_register_types(void)
-{
-    type_register_static(&sifive_e_machine_typeinfo);
-}
 
-type_init(sifive_e_machine_init_register_types)
 
 static void sifive_e_soc_init(Object *obj)
 {
@@ -276,10 +272,6 @@ static const TypeInfo sifive_e_soc_type_info = {
     .instance_init = sifive_e_soc_init,
     .class_init = sifive_e_soc_class_init,
 };
+TYPE_INFO(sifive_e_soc_type_info)
 
-static void sifive_e_soc_register_types(void)
-{
-    type_register_static(&sifive_e_soc_type_info);
-}
 
-type_init(sifive_e_soc_register_types)

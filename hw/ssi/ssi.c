@@ -30,6 +30,7 @@ static const TypeInfo ssi_bus_info = {
     .parent = TYPE_BUS,
     .instance_size = sizeof(SSIBus),
 };
+TYPE_INFO(ssi_bus_info)
 
 static void ssi_cs_default(void *opaque, int n, int level)
 {
@@ -89,6 +90,7 @@ static const TypeInfo ssi_slave_info = {
     .class_size = sizeof(SSISlaveClass),
     .abstract = true,
 };
+TYPE_INFO(ssi_slave_info)
 
 bool ssi_realize_and_unref(DeviceState *dev, SSIBus *bus, Error **errp)
 {
@@ -136,10 +138,4 @@ const VMStateDescription vmstate_ssi_slave = {
     }
 };
 
-static void ssi_slave_register_types(void)
-{
-    type_register_static(&ssi_bus_info);
-    type_register_static(&ssi_slave_info);
-}
 
-type_init(ssi_slave_register_types)

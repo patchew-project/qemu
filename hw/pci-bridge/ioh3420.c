@@ -121,10 +121,6 @@ static const TypeInfo ioh3420_info = {
     .parent        = TYPE_PCIE_ROOT_PORT,
     .class_init    = ioh3420_class_init,
 };
+TYPE_INFO(ioh3420_info)
 
-static void ioh3420_register_types(void)
-{
-    type_register_static(&ioh3420_info);
-}
 
-type_init(ioh3420_register_types)

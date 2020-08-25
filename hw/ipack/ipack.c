@@ -107,17 +107,13 @@ static const TypeInfo ipack_device_info = {
     .class_init    = ipack_device_class_init,
     .abstract      = true,
 };
+TYPE_INFO(ipack_device_info)
 
 static const TypeInfo ipack_bus_info = {
     .name = TYPE_IPACK_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(IPackBus),
 };
+TYPE_INFO(ipack_bus_info)
 
-static void ipack_register_types(void)
-{
-    type_register_static(&ipack_device_info);
-    type_register_static(&ipack_bus_info);
-}
 
-type_init(ipack_register_types)

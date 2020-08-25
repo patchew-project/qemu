@@ -1381,11 +1381,8 @@ static const TypeInfo lan9118_info = {
     .instance_size = sizeof(lan9118_state),
     .class_init    = lan9118_class_init,
 };
+TYPE_INFO(lan9118_info)
 
-static void lan9118_register_types(void)
-{
-    type_register_static(&lan9118_info);
-}
 
 /* Legacy helper function.  Should go away when machine config files are
    implemented.  */
@@ -1403,4 +1400,3 @@ void lan9118_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-type_init(lan9118_register_types)

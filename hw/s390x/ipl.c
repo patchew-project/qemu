@@ -765,10 +765,6 @@ static const TypeInfo s390_ipl_info = {
     .name  = TYPE_S390_IPL,
     .instance_size  = sizeof(S390IPLState),
 };
+TYPE_INFO(s390_ipl_info)
 
-static void s390_ipl_register_types(void)
-{
-    type_register_static(&s390_ipl_info);
-}
 
-type_init(s390_ipl_register_types)

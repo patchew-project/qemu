@@ -259,13 +259,8 @@ static const TypeInfo qauthz_list_info = {
         { }
     }
 };
+TYPE_INFO(qauthz_list_info)
 
 
-static void
-qauthz_list_register_types(void)
-{
-    type_register_static(&qauthz_list_info);
-}
 
 
-type_init(qauthz_list_register_types);

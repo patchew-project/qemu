@@ -158,10 +158,6 @@ static const TypeInfo i82374_info = {
     .instance_size  = sizeof(I82374State),
     .class_init = i82374_class_init,
 };
+TYPE_INFO(i82374_info)
 
-static void i82374_register_types(void)
-{
-    type_register_static(&i82374_info);
-}
 
-type_init(i82374_register_types)

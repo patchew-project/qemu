@@ -183,6 +183,7 @@ static const TypeInfo palm_misc_gpio_info = {
      * need to set up reset or vmstate, and has no realize method.
      */
 };
+TYPE_INFO(palm_misc_gpio_info)
 
 static void palmte_gpio_setup(struct omap_mpu_state_s *cpu)
 {
@@ -313,9 +314,4 @@ static void palmte_machine_init(MachineClass *mc)
 
 DEFINE_MACHINE("cheetah", palmte_machine_init)
 
-static void palm_register_types(void)
-{
-    type_register_static(&palm_misc_gpio_info);
-}
 
-type_init(palm_register_types)

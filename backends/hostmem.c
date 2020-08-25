@@ -516,10 +516,6 @@ static const TypeInfo host_memory_backend_info = {
         { }
     }
 };
+TYPE_INFO(host_memory_backend_info)
 
-static void register_types(void)
-{
-    type_register_static(&host_memory_backend_info);
-}
 
-type_init(register_types);

@@ -119,9 +119,5 @@ static const TypeInfo imx_gpcv2_info = {
     .instance_init = imx_gpcv2_init,
     .class_init    = imx_gpcv2_class_init,
 };
+TYPE_INFO(imx_gpcv2_info)
 
-static void imx_gpcv2_register_type(void)
-{
-    type_register_static(&imx_gpcv2_info);
-}
-type_init(imx_gpcv2_register_type)

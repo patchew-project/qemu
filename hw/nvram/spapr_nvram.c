@@ -282,10 +282,6 @@ static const TypeInfo spapr_nvram_type_info = {
     .instance_size = sizeof(SpaprNvram),
     .class_init    = spapr_nvram_class_init,
 };
+TYPE_INFO(spapr_nvram_type_info)
 
-static void spapr_nvram_register_types(void)
-{
-    type_register_static(&spapr_nvram_type_info);
-}
 
-type_init(spapr_nvram_register_types)

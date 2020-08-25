@@ -374,6 +374,7 @@ static const TypeInfo vga_pci_type_info = {
         { },
     },
 };
+TYPE_INFO(vga_pci_type_info)
 
 static void vga_class_init(ObjectClass *klass, void *data)
 {
@@ -405,6 +406,7 @@ static const TypeInfo vga_info = {
     .instance_init = pci_std_vga_init,
     .class_init    = vga_class_init,
 };
+TYPE_INFO(vga_info)
 
 static const TypeInfo secondary_info = {
     .name          = "secondary-vga",
@@ -412,12 +414,6 @@ static const TypeInfo secondary_info = {
     .instance_init = pci_secondary_vga_init,
     .class_init    = secondary_class_init,
 };
+TYPE_INFO(secondary_info)
 
-static void vga_register_types(void)
-{
-    type_register_static(&vga_pci_type_info);
-    type_register_static(&vga_info);
-    type_register_static(&secondary_info);
-}
 
-type_init(vga_register_types)

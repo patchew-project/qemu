@@ -228,13 +228,9 @@ static const TypeInfo piix4_info = {
         { },
     },
 };
+TYPE_INFO(piix4_info)
 
-static void piix4_register_types(void)
-{
-    type_register_static(&piix4_info);
-}
 
-type_init(piix4_register_types)
 
 DeviceState *piix4_create(PCIBus *pci_bus, ISABus **isa_bus, I2CBus **smbus)
 {

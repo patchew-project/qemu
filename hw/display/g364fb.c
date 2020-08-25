@@ -536,10 +536,6 @@ static const TypeInfo g364fb_sysbus_info = {
     .instance_size = sizeof(G364SysBusState),
     .class_init    = g364fb_sysbus_class_init,
 };
+TYPE_INFO(g364fb_sysbus_info)
 
-static void g364fb_register_types(void)
-{
-    type_register_static(&g364fb_sysbus_info);
-}
 
-type_init(g364fb_register_types)

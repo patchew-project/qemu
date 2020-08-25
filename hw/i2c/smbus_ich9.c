@@ -146,10 +146,6 @@ static const TypeInfo ich9_smb_info = {
         { },
     },
 };
+TYPE_INFO(ich9_smb_info)
 
-static void ich9_smb_register(void)
-{
-    type_register_static(&ich9_smb_info);
-}
 
-type_init(ich9_smb_register);

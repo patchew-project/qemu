@@ -1043,10 +1043,6 @@ static const TypeInfo ati_vga_info = {
           { },
     },
 };
+TYPE_INFO(ati_vga_info)
 
-static void ati_vga_register_types(void)
-{
-    type_register_static(&ati_vga_info);
-}
 
-type_init(ati_vga_register_types)

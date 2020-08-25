@@ -229,6 +229,7 @@ static const TypeInfo sx1_machine_v2_type = {
     .parent = TYPE_MACHINE,
     .class_init = sx1_machine_v2_class_init,
 };
+TYPE_INFO(sx1_machine_v2_type)
 
 static void sx1_machine_v1_class_init(ObjectClass *oc, void *data)
 {
@@ -247,11 +248,6 @@ static const TypeInfo sx1_machine_v1_type = {
     .parent = TYPE_MACHINE,
     .class_init = sx1_machine_v1_class_init,
 };
+TYPE_INFO(sx1_machine_v1_type)
 
-static void sx1_machine_init(void)
-{
-    type_register_static(&sx1_machine_v1_type);
-    type_register_static(&sx1_machine_v2_type);
-}
 
-type_init(sx1_machine_init)

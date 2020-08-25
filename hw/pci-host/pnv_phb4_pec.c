@@ -513,6 +513,7 @@ static const TypeInfo pnv_pec_type_info = {
         { }
     }
 };
+TYPE_INFO(pnv_pec_type_info)
 
 static void pnv_pec_stk_instance_init(Object *obj)
 {
@@ -583,11 +584,6 @@ static const TypeInfo pnv_pec_stk_type_info = {
         { }
     }
 };
+TYPE_INFO(pnv_pec_stk_type_info)
 
-static void pnv_pec_register_types(void)
-{
-    type_register_static(&pnv_pec_type_info);
-    type_register_static(&pnv_pec_stk_type_info);
-}
 
-type_init(pnv_pec_register_types);

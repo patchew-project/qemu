@@ -382,10 +382,6 @@ static const TypeInfo nrf51_nvm_info = {
     .instance_init = nrf51_nvm_init,
     .class_init = nrf51_nvm_class_init
 };
+TYPE_INFO(nrf51_nvm_info)
 
-static void nrf51_nvm_register_types(void)
-{
-    type_register_static(&nrf51_nvm_info);
-}
 
-type_init(nrf51_nvm_register_types)

@@ -217,10 +217,6 @@ static const TypeInfo stm32f2xx_spi_info = {
     .instance_init = stm32f2xx_spi_init,
     .class_init    = stm32f2xx_spi_class_init,
 };
+TYPE_INFO(stm32f2xx_spi_info)
 
-static void stm32f2xx_spi_register_types(void)
-{
-    type_register_static(&stm32f2xx_spi_info);
-}
 
-type_init(stm32f2xx_spi_register_types)

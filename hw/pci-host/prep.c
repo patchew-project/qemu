@@ -395,6 +395,7 @@ static const TypeInfo raven_info = {
         { },
     },
 };
+TYPE_INFO(raven_info)
 
 static Property raven_pcihost_properties[] = {
     DEFINE_PROP_UINT32("elf-machine", PREPPCIState, pci_dev.elf_machine,
@@ -423,11 +424,6 @@ static const TypeInfo raven_pcihost_info = {
     .instance_init = raven_pcihost_initfn,
     .class_init = raven_pcihost_class_init,
 };
+TYPE_INFO(raven_pcihost_info)
 
-static void raven_register_types(void)
-{
-    type_register_static(&raven_pcihost_info);
-    type_register_static(&raven_info);
-}
 
-type_init(raven_register_types)

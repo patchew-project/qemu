@@ -55,10 +55,6 @@ static const TypeInfo nec_xhci_info = {
     .parent        = TYPE_XHCI,
     .class_init    = nec_xhci_class_init,
 };
+TYPE_INFO(nec_xhci_info)
 
-static void nec_xhci_register_types(void)
-{
-    type_register_static(&nec_xhci_info);
-}
 
-type_init(nec_xhci_register_types)

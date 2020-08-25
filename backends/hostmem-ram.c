@@ -45,10 +45,6 @@ static const TypeInfo ram_backend_info = {
     .parent = TYPE_MEMORY_BACKEND,
     .class_init = ram_backend_class_init,
 };
+TYPE_INFO(ram_backend_info)
 
-static void register_types(void)
-{
-    type_register_static(&ram_backend_info);
-}
 
-type_init(register_types);

@@ -901,6 +901,7 @@ static const TypeInfo hda_audio_info = {
     .class_init    = hda_audio_base_class_init,
     .abstract      = true,
 };
+TYPE_INFO(hda_audio_info)
 
 static void hda_audio_output_class_init(ObjectClass *klass, void *data)
 {
@@ -917,6 +918,7 @@ static const TypeInfo hda_audio_output_info = {
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_output_class_init,
 };
+TYPE_INFO(hda_audio_output_info)
 
 static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
 {
@@ -933,6 +935,7 @@ static const TypeInfo hda_audio_duplex_info = {
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_duplex_class_init,
 };
+TYPE_INFO(hda_audio_duplex_info)
 
 static void hda_audio_micro_class_init(ObjectClass *klass, void *data)
 {
@@ -949,13 +952,6 @@ static const TypeInfo hda_audio_micro_info = {
     .instance_size = sizeof(HDAAudioState),
     .class_init    = hda_audio_micro_class_init,
 };
+TYPE_INFO(hda_audio_micro_info)
 
-static void hda_audio_register_types(void)
-{
-    type_register_static(&hda_audio_info);
-    type_register_static(&hda_audio_output_info);
-    type_register_static(&hda_audio_duplex_info);
-    type_register_static(&hda_audio_micro_info);
-}
 
-type_init(hda_audio_register_types)

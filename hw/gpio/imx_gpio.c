@@ -346,10 +346,6 @@ static const TypeInfo imx_gpio_info = {
     .instance_size = sizeof(IMXGPIOState),
     .class_init = imx_gpio_class_init,
 };
+TYPE_INFO(imx_gpio_info)
 
-static void imx_gpio_register_types(void)
-{
-    type_register_static(&imx_gpio_info);
-}
 
-type_init(imx_gpio_register_types)

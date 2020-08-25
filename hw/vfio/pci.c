@@ -3207,6 +3207,7 @@ static const TypeInfo vfio_pci_dev_info = {
         { }
     },
 };
+TYPE_INFO(vfio_pci_dev_info)
 
 static Property vfio_pci_dev_nohotplug_properties[] = {
     DEFINE_PROP_BOOL("ramfb", VFIOPCIDevice, enable_ramfb, false),
@@ -3227,11 +3228,6 @@ static const TypeInfo vfio_pci_nohotplug_dev_info = {
     .instance_size = sizeof(VFIOPCIDevice),
     .class_init = vfio_pci_nohotplug_dev_class_init,
 };
+TYPE_INFO(vfio_pci_nohotplug_dev_info)
 
-static void register_vfio_pci_dev_type(void)
-{
-    type_register_static(&vfio_pci_dev_info);
-    type_register_static(&vfio_pci_nohotplug_dev_info);
-}
 
-type_init(register_vfio_pci_dev_type)

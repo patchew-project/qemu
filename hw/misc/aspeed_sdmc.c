@@ -297,6 +297,7 @@ static const TypeInfo aspeed_sdmc_info = {
     .class_size = sizeof(AspeedSDMCClass),
     .abstract   = true,
 };
+TYPE_INFO(aspeed_sdmc_info)
 
 static uint32_t aspeed_2400_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
@@ -353,6 +354,7 @@ static const TypeInfo aspeed_2400_sdmc_info = {
     .parent = TYPE_ASPEED_SDMC,
     .class_init = aspeed_2400_sdmc_class_init,
 };
+TYPE_INFO(aspeed_2400_sdmc_info)
 
 static uint32_t aspeed_2500_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
@@ -420,6 +422,7 @@ static const TypeInfo aspeed_2500_sdmc_info = {
     .parent = TYPE_ASPEED_SDMC,
     .class_init = aspeed_2500_sdmc_class_init,
 };
+TYPE_INFO(aspeed_2500_sdmc_info)
 
 static uint32_t aspeed_2600_sdmc_compute_conf(AspeedSDMCState *s, uint32_t data)
 {
@@ -497,13 +500,6 @@ static const TypeInfo aspeed_2600_sdmc_info = {
     .parent = TYPE_ASPEED_SDMC,
     .class_init = aspeed_2600_sdmc_class_init,
 };
+TYPE_INFO(aspeed_2600_sdmc_info)
 
-static void aspeed_sdmc_register_types(void)
-{
-    type_register_static(&aspeed_sdmc_info);
-    type_register_static(&aspeed_2400_sdmc_info);
-    type_register_static(&aspeed_2500_sdmc_info);
-    type_register_static(&aspeed_2600_sdmc_info);
-}
 
-type_init(aspeed_sdmc_register_types);

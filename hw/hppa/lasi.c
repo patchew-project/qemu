@@ -359,10 +359,6 @@ static const TypeInfo lasi_pcihost_info = {
     .instance_size = sizeof(LasiState),
     .class_init    = lasi_class_init,
 };
+TYPE_INFO(lasi_pcihost_info)
 
-static void lasi_register_types(void)
-{
-    type_register_static(&lasi_pcihost_info);
-}
 
-type_init(lasi_register_types)

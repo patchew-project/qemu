@@ -513,10 +513,6 @@ static const TypeInfo exynos4210_pmu_info = {
     .instance_init = exynos4210_pmu_init,
     .class_init    = exynos4210_pmu_class_init,
 };
+TYPE_INFO(exynos4210_pmu_info)
 
-static void exynos4210_pmu_register(void)
-{
-    type_register_static(&exynos4210_pmu_info);
-}
 
-type_init(exynos4210_pmu_register)

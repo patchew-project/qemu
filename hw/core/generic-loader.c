@@ -212,10 +212,6 @@ static TypeInfo generic_loader_info = {
     .instance_size = sizeof(GenericLoaderState),
     .class_init = generic_loader_class_init,
 };
+TYPE_INFO(generic_loader_info)
 
-static void generic_loader_register_type(void)
-{
-    type_register_static(&generic_loader_info);
-}
 
-type_init(generic_loader_register_type)

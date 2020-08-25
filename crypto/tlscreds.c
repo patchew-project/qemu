@@ -270,13 +270,8 @@ static const TypeInfo qcrypto_tls_creds_info = {
     .class_size = sizeof(QCryptoTLSCredsClass),
     .abstract = true,
 };
+TYPE_INFO(qcrypto_tls_creds_info)
 
 
-static void
-qcrypto_tls_creds_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_info);
-}
 
 
-type_init(qcrypto_tls_creds_register_types);

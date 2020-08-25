@@ -199,6 +199,7 @@ static TypeInfo virtio_vga_base_info = {
     .class_init    = virtio_vga_base_class_init,
     .abstract      = true,
 };
+TYPE_INFO(virtio_vga_base_info)
 
 #define TYPE_VIRTIO_VGA "virtio-vga"
 
@@ -230,7 +231,6 @@ static VirtioPCIDeviceTypeInfo virtio_vga_info = {
 
 static void virtio_vga_register_types(void)
 {
-    type_register_static(&virtio_vga_base_info);
     virtio_pci_types_register(&virtio_vga_info);
 }
 

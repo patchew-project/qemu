@@ -763,10 +763,6 @@ static const TypeInfo open_eth_info = {
     .instance_size = sizeof(OpenEthState),
     .class_init    = open_eth_class_init,
 };
+TYPE_INFO(open_eth_info)
 
-static void open_eth_register_types(void)
-{
-    type_register_static(&open_eth_info);
-}
 
-type_init(open_eth_register_types)

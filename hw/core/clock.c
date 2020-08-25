@@ -121,10 +121,6 @@ static const TypeInfo clock_info = {
     .instance_init     = clock_initfn,
     .instance_finalize = clock_finalizefn,
 };
+TYPE_INFO(clock_info)
 
-static void clock_register_types(void)
-{
-    type_register_static(&clock_info);
-}
 
-type_init(clock_register_types)

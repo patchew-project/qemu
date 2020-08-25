@@ -831,12 +831,12 @@ static const TypeInfo aarch64_cpu_type_info = {
     .class_size = sizeof(AArch64CPUClass),
     .class_init = aarch64_cpu_class_init,
 };
+TYPE_INFO(aarch64_cpu_type_info)
 
 static void aarch64_cpu_register_types(void)
 {
     size_t i;
 
-    type_register_static(&aarch64_cpu_type_info);
 
     for (i = 0; i < ARRAY_SIZE(aarch64_cpus); ++i) {
         aarch64_cpu_register(&aarch64_cpus[i]);

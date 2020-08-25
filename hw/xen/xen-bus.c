@@ -517,6 +517,7 @@ static const TypeInfo xen_bus_type_info = {
         { }
     },
 };
+TYPE_INFO(xen_bus_type_info)
 
 void xen_device_backend_printf(XenDevice *xendev, const char *key,
                                const char *fmt, ...)
@@ -1349,6 +1350,7 @@ static const TypeInfo xen_device_type_info = {
     .class_size = sizeof(XenDeviceClass),
     .class_init = xen_device_class_init,
 };
+TYPE_INFO(xen_device_type_info)
 
 typedef struct XenBridge {
     SysBusDevice busdev;
@@ -1361,15 +1363,9 @@ static const TypeInfo xen_bridge_type_info = {
     .parent = TYPE_SYS_BUS_DEVICE,
     .instance_size = sizeof(XenBridge),
 };
+TYPE_INFO(xen_bridge_type_info)
 
-static void xen_register_types(void)
-{
-    type_register_static(&xen_bridge_type_info);
-    type_register_static(&xen_bus_type_info);
-    type_register_static(&xen_device_type_info);
-}
 
-type_init(xen_register_types)
 
 void xen_bus_init(void)
 {

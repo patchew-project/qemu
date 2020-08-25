@@ -154,10 +154,6 @@ static const TypeInfo msf2_sysreg_info = {
     .instance_size  = sizeof(MSF2SysregState),
     .instance_init = msf2_sysreg_init,
 };
+TYPE_INFO(msf2_sysreg_info)
 
-static void msf2_sysreg_register_types(void)
-{
-    type_register_static(&msf2_sysreg_info);
-}
 
-type_init(msf2_sysreg_register_types)

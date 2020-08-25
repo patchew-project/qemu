@@ -696,6 +696,7 @@ static const TypeInfo aspeed_timer_info = {
     .class_size = sizeof(AspeedTimerClass),
     .abstract   = true,
 };
+TYPE_INFO(aspeed_timer_info)
 
 static void aspeed_2400_timer_class_init(ObjectClass *klass, void *data)
 {
@@ -712,6 +713,7 @@ static const TypeInfo aspeed_2400_timer_info = {
     .parent = TYPE_ASPEED_TIMER,
     .class_init = aspeed_2400_timer_class_init,
 };
+TYPE_INFO(aspeed_2400_timer_info)
 
 static void aspeed_2500_timer_class_init(ObjectClass *klass, void *data)
 {
@@ -728,6 +730,7 @@ static const TypeInfo aspeed_2500_timer_info = {
     .parent = TYPE_ASPEED_TIMER,
     .class_init = aspeed_2500_timer_class_init,
 };
+TYPE_INFO(aspeed_2500_timer_info)
 
 static void aspeed_2600_timer_class_init(ObjectClass *klass, void *data)
 {
@@ -744,13 +747,6 @@ static const TypeInfo aspeed_2600_timer_info = {
     .parent = TYPE_ASPEED_TIMER,
     .class_init = aspeed_2600_timer_class_init,
 };
+TYPE_INFO(aspeed_2600_timer_info)
 
-static void aspeed_timer_register_types(void)
-{
-    type_register_static(&aspeed_timer_info);
-    type_register_static(&aspeed_2400_timer_info);
-    type_register_static(&aspeed_2500_timer_info);
-    type_register_static(&aspeed_2600_timer_info);
-}
 
-type_init(aspeed_timer_register_types)

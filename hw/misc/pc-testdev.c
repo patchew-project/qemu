@@ -207,10 +207,6 @@ static const TypeInfo testdev_info = {
     .instance_size  = sizeof(PCTestdev),
     .class_init     = testdev_class_init,
 };
+TYPE_INFO(testdev_info)
 
-static void testdev_register_types(void)
-{
-    type_register_static(&testdev_info);
-}
 
-type_init(testdev_register_types)

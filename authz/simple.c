@@ -103,13 +103,8 @@ static const TypeInfo qauthz_simple_info = {
         { }
     }
 };
+TYPE_INFO(qauthz_simple_info)
 
 
-static void
-qauthz_simple_register_types(void)
-{
-    type_register_static(&qauthz_simple_info);
-}
 
 
-type_init(qauthz_simple_register_types);

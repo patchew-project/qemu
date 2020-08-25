@@ -580,6 +580,7 @@ static const TypeInfo cuda_type_info = {
     .instance_init = cuda_init,
     .class_init = cuda_class_init,
 };
+TYPE_INFO(cuda_type_info)
 
 static void mos6522_cuda_portB_write(MOS6522State *s)
 {
@@ -619,11 +620,6 @@ static const TypeInfo mos6522_cuda_type_info = {
     .instance_size = sizeof(MOS6522CUDAState),
     .class_init = mos6522_cuda_class_init,
 };
+TYPE_INFO(mos6522_cuda_type_info)
 
-static void cuda_register_types(void)
-{
-    type_register_static(&mos6522_cuda_type_info);
-    type_register_static(&cuda_type_info);
-}
 
-type_init(cuda_register_types)

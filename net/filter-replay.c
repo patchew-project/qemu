@@ -82,10 +82,6 @@ static const TypeInfo filter_replay_info = {
     .instance_finalize = filter_replay_instance_finalize,
     .instance_size = sizeof(NetFilterReplayState),
 };
+TYPE_INFO(filter_replay_info)
 
-static void filter_replay_register_types(void)
-{
-    type_register_static(&filter_replay_info);
-}
 
-type_init(filter_replay_register_types);

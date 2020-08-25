@@ -973,10 +973,6 @@ static const TypeInfo sunhme_info = {
         { }
     }
 };
+TYPE_INFO(sunhme_info)
 
-static void sunhme_register_types(void)
-{
-    type_register_static(&sunhme_info);
-}
 
-type_init(sunhme_register_types)

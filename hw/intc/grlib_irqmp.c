@@ -350,10 +350,6 @@ static const TypeInfo grlib_irqmp_info = {
     .instance_init = grlib_irqmp_init,
     .class_init    = grlib_irqmp_class_init,
 };
+TYPE_INFO(grlib_irqmp_info)
 
-static void grlib_irqmp_register_types(void)
-{
-    type_register_static(&grlib_irqmp_info);
-}
 
-type_init(grlib_irqmp_register_types)

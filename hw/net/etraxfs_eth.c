@@ -680,10 +680,6 @@ static const TypeInfo etraxfs_eth_info = {
     .instance_size = sizeof(ETRAXFSEthState),
     .class_init    = etraxfs_eth_class_init,
 };
+TYPE_INFO(etraxfs_eth_info)
 
-static void etraxfs_eth_register_types(void)
-{
-    type_register_static(&etraxfs_eth_info);
-}
 
-type_init(etraxfs_eth_register_types)

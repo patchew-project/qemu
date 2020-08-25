@@ -352,10 +352,6 @@ static const TypeInfo pci_testdev_info = {
         { },
     },
 };
+TYPE_INFO(pci_testdev_info)
 
-static void pci_testdev_register_types(void)
-{
-    type_register_static(&pci_testdev_info);
-}
 
-type_init(pci_testdev_register_types)

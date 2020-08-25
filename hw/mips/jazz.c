@@ -401,6 +401,7 @@ static const TypeInfo mips_magnum_type = {
     .parent = TYPE_MACHINE,
     .class_init = mips_magnum_class_init,
 };
+TYPE_INFO(mips_magnum_type)
 
 static void mips_pica61_class_init(ObjectClass *oc, void *data)
 {
@@ -418,11 +419,6 @@ static const TypeInfo mips_pica61_type = {
     .parent = TYPE_MACHINE,
     .class_init = mips_pica61_class_init,
 };
+TYPE_INFO(mips_pica61_type)
 
-static void mips_jazz_machine_init(void)
-{
-    type_register_static(&mips_magnum_type);
-    type_register_static(&mips_pica61_type);
-}
 
-type_init(mips_jazz_machine_init)

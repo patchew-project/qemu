@@ -374,10 +374,6 @@ static const TypeInfo pit_info = {
     .class_init    = pit_class_initfn,
     .class_size    = sizeof(PITClass),
 };
+TYPE_INFO(pit_info)
 
-static void pit_register_types(void)
-{
-    type_register_static(&pit_info);
-}
 
-type_init(pit_register_types)

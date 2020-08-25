@@ -356,10 +356,6 @@ static const TypeInfo wctablet_type_info = {
     .instance_finalize = wctablet_chr_finalize,
     .class_init = wctablet_chr_class_init,
 };
+TYPE_INFO(wctablet_type_info)
 
-static void register_types(void)
-{
-     type_register_static(&wctablet_type_info);
-}
 
-type_init(register_types);

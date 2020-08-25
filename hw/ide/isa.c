@@ -128,10 +128,6 @@ static const TypeInfo isa_ide_info = {
     .instance_size = sizeof(ISAIDEState),
     .class_init    = isa_ide_class_initfn,
 };
+TYPE_INFO(isa_ide_info)
 
-static void isa_ide_register_types(void)
-{
-    type_register_static(&isa_ide_info);
-}
 
-type_init(isa_ide_register_types)

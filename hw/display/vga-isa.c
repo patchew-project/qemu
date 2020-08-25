@@ -105,10 +105,6 @@ static const TypeInfo vga_isa_info = {
     .instance_size = sizeof(ISAVGAState),
     .class_init    = vga_isa_class_initfn,
 };
+TYPE_INFO(vga_isa_info)
 
-static void vga_isa_register_types(void)
-{
-    type_register_static(&vga_isa_info);
-}
 
-type_init(vga_isa_register_types)

@@ -46,10 +46,6 @@ static const TypeInfo char_console_type_info = {
     .parent = TYPE_CHARDEV_WIN,
     .class_init = char_console_class_init,
 };
+TYPE_INFO(char_console_type_info)
 
-static void register_types(void)
-{
-    type_register_static(&char_console_type_info);
-}
 
-type_init(register_types);

@@ -454,10 +454,6 @@ static const TypeInfo ppc_heathrow_machine_info = {
         { }
     },
 };
+TYPE_INFO(ppc_heathrow_machine_info)
 
-static void ppc_heathrow_register_types(void)
-{
-    type_register_static(&ppc_heathrow_machine_info);
-}
 
-type_init(ppc_heathrow_register_types);

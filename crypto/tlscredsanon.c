@@ -203,13 +203,8 @@ static const TypeInfo qcrypto_tls_creds_anon_info = {
         { }
     }
 };
+TYPE_INFO(qcrypto_tls_creds_anon_info)
 
 
-static void
-qcrypto_tls_creds_anon_register_types(void)
-{
-    type_register_static(&qcrypto_tls_creds_anon_info);
-}
 
 
-type_init(qcrypto_tls_creds_anon_register_types);

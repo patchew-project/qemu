@@ -719,10 +719,6 @@ static const TypeInfo e1000e_info = {
         { }
     },
 };
+TYPE_INFO(e1000e_info)
 
-static void e1000e_register_types(void)
-{
-    type_register_static(&e1000e_info);
-}
 
-type_init(e1000e_register_types)

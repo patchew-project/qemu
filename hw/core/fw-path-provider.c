@@ -45,10 +45,6 @@ static const TypeInfo fw_path_provider_info = {
     .parent        = TYPE_INTERFACE,
     .class_size    = sizeof(FWPathProviderClass),
 };
+TYPE_INFO(fw_path_provider_info)
 
-static void fw_path_provider_register_types(void)
-{
-    type_register_static(&fw_path_provider_info);
-}
 
-type_init(fw_path_provider_register_types)

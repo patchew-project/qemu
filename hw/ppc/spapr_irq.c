@@ -28,6 +28,7 @@ static const TypeInfo spapr_intc_info = {
     .parent = TYPE_INTERFACE,
     .class_size = sizeof(SpaprInterruptControllerClass),
 };
+TYPE_INFO(spapr_intc_info)
 
 static void spapr_irq_msi_init(SpaprMachineState *spapr)
 {
@@ -591,9 +592,4 @@ SpaprIrq spapr_irq_xics_legacy = {
     .xive        = false,
 };
 
-static void spapr_irq_register_types(void)
-{
-    type_register_static(&spapr_intc_info);
-}
 
-type_init(spapr_irq_register_types)

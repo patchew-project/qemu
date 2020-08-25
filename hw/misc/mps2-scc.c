@@ -303,10 +303,6 @@ static const TypeInfo mps2_scc_info = {
     .instance_init = mps2_scc_init,
     .class_init = mps2_scc_class_init,
 };
+TYPE_INFO(mps2_scc_info)
 
-static void mps2_scc_register_types(void)
-{
-    type_register_static(&mps2_scc_info);
-}
 
-type_init(mps2_scc_register_types);

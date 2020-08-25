@@ -169,10 +169,6 @@ static const TypeInfo digic_timer_info = {
     .instance_init = digic_timer_init,
     .class_init = digic_timer_class_init,
 };
+TYPE_INFO(digic_timer_info)
 
-static void digic_timer_register_type(void)
-{
-    type_register_static(&digic_timer_info);
-}
 
-type_init(digic_timer_register_type)

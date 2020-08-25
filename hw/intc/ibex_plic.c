@@ -278,10 +278,6 @@ static const TypeInfo ibex_plic_info = {
     .instance_init = ibex_plic_init,
     .class_init    = ibex_plic_class_init,
 };
+TYPE_INFO(ibex_plic_info)
 
-static void ibex_plic_register_types(void)
-{
-    type_register_static(&ibex_plic_info);
-}
 
-type_init(ibex_plic_register_types)

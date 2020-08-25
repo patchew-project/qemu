@@ -255,13 +255,9 @@ static const TypeInfo scoop_sysbus_info = {
     .instance_init = scoop_init,
     .class_init    = scoop_sysbus_class_init,
 };
+TYPE_INFO(scoop_sysbus_info)
 
-static void scoop_register_types(void)
-{
-    type_register_static(&scoop_sysbus_info);
-}
 
-type_init(scoop_register_types)
 
 /* Write the bootloader parameters memory area.  */
 

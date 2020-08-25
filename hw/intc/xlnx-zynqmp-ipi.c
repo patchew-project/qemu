@@ -371,10 +371,6 @@ static const TypeInfo xlnx_zynqmp_ipi_info = {
     .class_init    = xlnx_zynqmp_ipi_class_init,
     .instance_init = xlnx_zynqmp_ipi_init,
 };
+TYPE_INFO(xlnx_zynqmp_ipi_info)
 
-static void xlnx_zynqmp_ipi_register_types(void)
-{
-    type_register_static(&xlnx_zynqmp_ipi_info);
-}
 
-type_init(xlnx_zynqmp_ipi_register_types)

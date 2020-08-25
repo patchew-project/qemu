@@ -212,6 +212,7 @@ static const TypeInfo aux_bus_info = {
     .instance_size = sizeof(AUXBus),
     .class_init = aux_bus_class_init
 };
+TYPE_INFO(aux_bus_info)
 
 /* aux-i2c implementation (internal not public) */
 struct AUXTOI2CState {
@@ -251,6 +252,7 @@ static const TypeInfo aux_to_i2c_type_info = {
     .instance_size = sizeof(AUXTOI2CState),
     .instance_init = aux_bridge_init
 };
+TYPE_INFO(aux_to_i2c_type_info)
 
 /* aux-slave implementation */
 static void aux_slave_dev_print(Monitor *mon, DeviceState *dev, int indent)
@@ -292,12 +294,6 @@ static const TypeInfo aux_slave_type_info = {
     .abstract = true,
     .class_init = aux_slave_class_init,
 };
+TYPE_INFO(aux_slave_type_info)
 
-static void aux_register_types(void)
-{
-    type_register_static(&aux_bus_info);
-    type_register_static(&aux_slave_type_info);
-    type_register_static(&aux_to_i2c_type_info);
-}
 
-type_init(aux_register_types)

@@ -135,10 +135,6 @@ static const TypeInfo vhost_scsi_common_info = {
     .instance_size = sizeof(VHostSCSICommon),
     .abstract = true,
 };
+TYPE_INFO(vhost_scsi_common_info)
 
-static void virtio_register_types(void)
-{
-    type_register_static(&vhost_scsi_common_info);
-}
 
-type_init(virtio_register_types)

@@ -171,10 +171,6 @@ static const TypeInfo pcie_pci_bridge_info = {
             { },
         }
 };
+TYPE_INFO(pcie_pci_bridge_info)
 
-static void pciepci_register(void)
-{
-    type_register_static(&pcie_pci_bridge_info);
-}
 
-type_init(pciepci_register);

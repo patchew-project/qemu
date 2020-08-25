@@ -119,10 +119,6 @@ static const TypeInfo vhost_input_info = {
     .instance_finalize = vhost_input_finalize,
     .class_init    = vhost_input_class_init,
 };
+TYPE_INFO(vhost_input_info)
 
-static void vhost_input_register_types(void)
-{
-    type_register_static(&vhost_input_info);
-}
 
-type_init(vhost_input_register_types)

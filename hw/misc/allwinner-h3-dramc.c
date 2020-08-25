@@ -349,10 +349,6 @@ static const TypeInfo allwinner_h3_dramc_info = {
     .instance_size = sizeof(AwH3DramCtlState),
     .class_init    = allwinner_h3_dramc_class_init,
 };
+TYPE_INFO(allwinner_h3_dramc_info)
 
-static void allwinner_h3_dramc_register(void)
-{
-    type_register_static(&allwinner_h3_dramc_info);
-}
 
-type_init(allwinner_h3_dramc_register)

@@ -1140,12 +1140,14 @@ static const TypeInfo s390_pcihost_info = {
         { }
     }
 };
+TYPE_INFO(s390_pcihost_info)
 
 static const TypeInfo s390_pcibus_info = {
     .name = TYPE_S390_PCI_BUS,
     .parent = TYPE_BUS,
     .instance_size = sizeof(S390PCIBus),
 };
+TYPE_INFO(s390_pcibus_info)
 
 static uint16_t s390_pci_generate_uid(S390pciState *s)
 {
@@ -1316,12 +1318,14 @@ static const TypeInfo s390_pci_device_info = {
     .instance_size = sizeof(S390PCIBusDevice),
     .class_init = s390_pci_device_class_init,
 };
+TYPE_INFO(s390_pci_device_info)
 
 static TypeInfo s390_pci_iommu_info = {
     .name = TYPE_S390_PCI_IOMMU,
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(S390PCIIOMMU),
 };
+TYPE_INFO(s390_pci_iommu_info)
 
 static void s390_iommu_memory_region_class_init(ObjectClass *klass, void *data)
 {
@@ -1336,14 +1340,6 @@ static const TypeInfo s390_iommu_memory_region_info = {
     .name = TYPE_S390_IOMMU_MEMORY_REGION,
     .class_init = s390_iommu_memory_region_class_init,
 };
+TYPE_INFO(s390_iommu_memory_region_info)
 
-static void s390_pci_register_types(void)
-{
-    type_register_static(&s390_pcihost_info);
-    type_register_static(&s390_pcibus_info);
-    type_register_static(&s390_pci_device_info);
-    type_register_static(&s390_pci_iommu_info);
-    type_register_static(&s390_iommu_memory_region_info);
-}
 
-type_init(s390_pci_register_types)

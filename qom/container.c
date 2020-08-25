@@ -18,11 +18,8 @@ static const TypeInfo container_info = {
     .name          = "container",
     .parent        = TYPE_OBJECT,
 };
+TYPE_INFO(container_info)
 
-static void container_register_types(void)
-{
-    type_register_static(&container_info);
-}
 
 Object *container_get(Object *root, const char *path)
 {
@@ -49,4 +46,3 @@ Object *container_get(Object *root, const char *path)
 }
 
 
-type_init(container_register_types)

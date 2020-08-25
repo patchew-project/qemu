@@ -131,10 +131,6 @@ static const TypeInfo can_bus_info = {
         { }
     }
 };
+TYPE_INFO(can_bus_info)
 
-static void can_bus_register_types(void)
-{
-    type_register_static(&can_bus_info);
-}
 
-type_init(can_bus_register_types);

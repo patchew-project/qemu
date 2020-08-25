@@ -1149,10 +1149,6 @@ static const TypeInfo machine_info = {
     .instance_init = machine_initfn,
     .instance_finalize = machine_finalize,
 };
+TYPE_INFO(machine_info)
 
-static void machine_register_types(void)
-{
-    type_register_static(&machine_info);
-}
 
-type_init(machine_register_types)
