@@ -3203,21 +3203,36 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
 
 static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
                                 unsigned int vlen, unsigned int flags,
-                                int send)
+                                abi_ulong timeout, int send)
 {
     struct target_mmsghdr *mmsgp;
+    struct timespec ts, end_time, curr_time;
     abi_long ret = 0;
     int i;
 
     if (vlen > UIO_MAXIOV) {
         vlen = UIO_MAXIOV;
     }
-
     mmsgp = lock_user(VERIFY_WRITE, target_msgvec, sizeof(*mmsgp) * vlen, 1);
     if (!mmsgp) {
         return -TARGET_EFAULT;
     }
+    if (timeout) {
+        if (target_to_host_timespec(&ts, timeout)) {
+            return -TARGET_EFAULT;
+        }
+        if (ts.tv_sec < 0 || ts.tv_nsec < 0 || ts.tv_nsec > 1000000000) {
+            return -TARGET_EINVAL;
+        }
 
+        clock_gettime(CLOCK_REALTIME, &curr_time);
+        end_time.tv_sec = curr_time.tv_sec + ts.tv_sec;
+        end_time.tv_nsec = curr_time.tv_nsec + ts.tv_nsec;
+        if (end_time.tv_nsec > 1000000000) {
+            end_time.tv_nsec -= 1000000000;
+            end_time.tv_sec++;
+        }
+    }
     for (i = 0; i < vlen; i++) {
         ret = do_sendrecvmsg_locked(fd, &mmsgp[i].msg_hdr, flags, send);
         if (is_error(ret)) {
@@ -3227,6 +3242,20 @@ static abi_long do_sendrecvmmsg(int fd, abi_ulong target_msgvec,
         /* MSG_WAITFORONE turns on MSG_DONTWAIT after one packet */
         if (flags & MSG_WAITFORONE) {
             flags |= MSG_DONTWAIT;
+        }
+        /*
+         * For recvmmsg() the timeout is checked only after a datagram is
+         * received.This is an existing bug in the kernel for this syscall:
+         * https://man7.org/linux/man-pages/man2/recvmmsg.2.html#BUGS
+         */
+        if (timeout) {
+            clock_gettime(CLOCK_REALTIME, &curr_time);
+            if (curr_time.tv_sec > end_time.tv_sec ||
+                (curr_time.tv_sec == end_time.tv_sec &&
+                curr_time.tv_nsec >= end_time.tv_nsec)) {
+                i++;
+                break;
+            }
         }
     }
 
@@ -3483,7 +3512,7 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         [TARGET_SYS_SENDMSG] = 3,     /* fd, msg, flags */
         [TARGET_SYS_RECVMSG] = 3,     /* fd, msg, flags */
         [TARGET_SYS_ACCEPT4] = 4,     /* fd, addr, addrlen, flags */
-        [TARGET_SYS_RECVMMSG] = 4,    /* fd, msgvec, vlen, flags */
+        [TARGET_SYS_RECVMMSG] = 5,    /* fd, msgvec, vlen, flags, timeout */
         [TARGET_SYS_SENDMMSG] = 4,    /* fd, msgvec, vlen, flags */
     };
     abi_long a[6]; /* max 6 args */
@@ -3542,10 +3571,10 @@ static abi_long do_socketcall(int num, abi_ulong vptr)
         return do_sendrecvmsg(a[0], a[1], a[2], 0);
     case TARGET_SYS_ACCEPT4: /* sockfd, addr, addrlen, flags */
         return do_accept4(a[0], a[1], a[2], a[3]);
-    case TARGET_SYS_RECVMMSG: /* sockfd, msgvec, vlen, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0);
+    case TARGET_SYS_RECVMMSG: /* sockfd, msgvec, vlen, flags, timeout */
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], a[4], 0);
     case TARGET_SYS_SENDMMSG: /* sockfd, msgvec, vlen, flags */
-        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 1);
+        return do_sendrecvmmsg(a[0], a[1], a[2], a[3], 0, 1);
     default:
         qemu_log_mask(LOG_UNIMP, "Unsupported socketcall: %d\n", num);
         return -TARGET_EINVAL;
@@ -9526,11 +9555,11 @@ static abi_long do_syscall1(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef TARGET_NR_sendmmsg
     case TARGET_NR_sendmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 1);
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0, 1);
 #endif
 #ifdef TARGET_NR_recvmmsg
     case TARGET_NR_recvmmsg:
-        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, 0);
+        return do_sendrecvmmsg(arg1, arg2, arg3, arg4, arg5, 0);
 #endif
 #ifdef TARGET_NR_sendto
     case TARGET_NR_sendto:
