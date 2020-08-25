@@ -1,4 +1,5 @@
 option('confsuffix', type : 'string', value: 'qemu')
+option('docdir', type : 'string', value : 'doc/qemu')
 option('gettext', type : 'boolean', value : true)
 option('sdl', type : 'feature', value : 'auto')
 option('sdl_image', type : 'feature', value : 'auto')
