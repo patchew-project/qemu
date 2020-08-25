@@ -26,8 +26,8 @@
 #define TYPE_SIFIVE_CLINT "riscv.sifive.clint"
 
 typedef struct SiFiveCLINTState SiFiveCLINTState;
-#define SIFIVE_CLINT(obj) \
-    OBJECT_CHECK(SiFiveCLINTState, (obj), TYPE_SIFIVE_CLINT)
+DECLARE_INSTANCE_CHECKER(SiFiveCLINTState, SIFIVE_CLINT,
+                         TYPE_SIFIVE_CLINT)
 
 struct SiFiveCLINTState {
     /*< private >*/

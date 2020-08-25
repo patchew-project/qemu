@@ -76,8 +76,8 @@ static inline uint8_t nvme_ns_lbads(NvmeNamespace *ns)
 
 #define TYPE_NVME "nvme"
 typedef struct NvmeCtrl NvmeCtrl;
-#define NVME(obj) \
-        OBJECT_CHECK(NvmeCtrl, (obj), TYPE_NVME)
+DECLARE_INSTANCE_CHECKER(NvmeCtrl, NVME,
+                         TYPE_NVME)
 
 struct NvmeCtrl {
     PCIDevice    parent_obj;
