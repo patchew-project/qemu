@@ -542,7 +542,6 @@ static void pl181_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pl181_bus_info = {
     .name = TYPE_PL181_BUS,
     .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
     .class_init = pl181_bus_class_init,
 };
 TYPE_INFO(pl181_bus_info)

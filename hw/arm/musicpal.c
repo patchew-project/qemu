@@ -1739,7 +1739,6 @@ static void mv88w8618_wlan_class_init(ObjectClass *klass, void *data)
 static const TypeInfo mv88w8618_wlan_info = {
     .name          = "mv88w8618_wlan",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
     .class_init    = mv88w8618_wlan_class_init,
 };
 TYPE_INFO(mv88w8618_wlan_info)

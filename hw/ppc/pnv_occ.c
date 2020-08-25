@@ -174,7 +174,6 @@ static void pnv_occ_power8_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_occ_power8_type_info = {
     .name          = TYPE_PNV8_OCC,
     .parent        = TYPE_PNV_OCC,
-    .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_power8_class_init,
 };
 TYPE_INFO(pnv_occ_power8_type_info)
@@ -246,7 +245,6 @@ static void pnv_occ_power9_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_occ_power9_type_info = {
     .name          = TYPE_PNV9_OCC,
     .parent        = TYPE_PNV_OCC,
-    .instance_size = sizeof(PnvOCC),
     .class_init    = pnv_occ_power9_class_init,
 };
 TYPE_INFO(pnv_occ_power9_type_info)

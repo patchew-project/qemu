@@ -911,7 +911,6 @@ static void isa_bridge_class_init(ObjectClass *klass, void *data)
 static TypeInfo isa_bridge_info = {
     .name          = "igd-passthrough-isa-bridge",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init = isa_bridge_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

@@ -72,7 +72,6 @@ static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
 static const TypeInfo dec_21154_pci_bridge_info = {
     .name          = "dec-21154-p2p-bridge",
     .parent        = TYPE_PCI_BRIDGE,
-    .instance_size = sizeof(PCIBridge),
     .class_init    = dec_21154_pci_bridge_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -135,7 +134,6 @@ static void dec_21154_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo dec_21154_pci_host_info = {
     .name          = "dec-21154",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init    = dec_21154_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

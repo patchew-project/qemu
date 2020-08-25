@@ -1061,7 +1061,6 @@ static void ivshmem_plain_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ivshmem_plain_info = {
     .name          = TYPE_IVSHMEM_PLAIN,
     .parent        = TYPE_IVSHMEM_COMMON,
-    .instance_size = sizeof(IVShmemState),
     .class_init    = ivshmem_plain_class_init,
 };
 TYPE_INFO(ivshmem_plain_info)
@@ -1122,7 +1121,6 @@ static void ivshmem_doorbell_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ivshmem_doorbell_info = {
     .name          = TYPE_IVSHMEM_DOORBELL,
     .parent        = TYPE_IVSHMEM_COMMON,
-    .instance_size = sizeof(IVShmemState),
     .instance_init = ivshmem_doorbell_init,
     .class_init    = ivshmem_doorbell_class_init,
 };

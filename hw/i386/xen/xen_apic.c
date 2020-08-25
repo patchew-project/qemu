@@ -91,7 +91,6 @@ static void xen_apic_class_init(ObjectClass *klass, void *data)
 static const TypeInfo xen_apic_info = {
     .name = "xen-apic",
     .parent = TYPE_APIC_COMMON,
-    .instance_size = sizeof(APICCommonState),
     .class_init = xen_apic_class_init,
 };
 TYPE_INFO(xen_apic_info)

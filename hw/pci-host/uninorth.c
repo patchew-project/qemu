@@ -373,7 +373,6 @@ static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo unin_main_pci_host_info = {
     .name = "uni-north-pci",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init = unin_main_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -402,7 +401,6 @@ static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo u3_agp_pci_host_info = {
     .name = "u3-agp",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init = u3_agp_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -431,7 +429,6 @@ static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo unin_agp_pci_host_info = {
     .name = "uni-north-agp",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init = unin_agp_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
@@ -460,7 +457,6 @@ static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo unin_internal_pci_host_info = {
     .name = "uni-north-internal-pci",
     .parent = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init = unin_internal_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

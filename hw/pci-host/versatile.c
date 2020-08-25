@@ -489,7 +489,6 @@ static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo versatile_pci_host_info = {
     .name          = TYPE_VERSATILE_PCI_HOST,
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init    = versatile_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

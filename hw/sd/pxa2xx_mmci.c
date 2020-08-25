@@ -592,7 +592,6 @@ TYPE_INFO(pxa2xx_mmci_info)
 static const TypeInfo pxa2xx_mmci_bus_info = {
     .name = TYPE_PXA2XX_MMCI_BUS,
     .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
     .class_init = pxa2xx_mmci_bus_class_init,
 };
 TYPE_INFO(pxa2xx_mmci_bus_info)

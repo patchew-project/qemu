@@ -448,7 +448,6 @@ TYPE_INFO(bcm2835_sdhost_info)
 static const TypeInfo bcm2835_sdhost_bus_info = {
     .name = TYPE_BCM2835_SDHOST_BUS,
     .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
 };
 TYPE_INFO(bcm2835_sdhost_bus_info)
 

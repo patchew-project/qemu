@@ -150,10 +150,8 @@ static void kvm_s390_tod_init(Object *obj)
 static TypeInfo kvm_s390_tod_info = {
     .name = TYPE_KVM_S390_TOD,
     .parent = TYPE_S390_TOD,
-    .instance_size = sizeof(S390TODState),
     .instance_init = kvm_s390_tod_init,
     .class_init = kvm_s390_tod_class_init,
-    .class_size = sizeof(S390TODClass),
 };
 TYPE_INFO(kvm_s390_tod_info)
 

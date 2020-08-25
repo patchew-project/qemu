@@ -91,7 +91,6 @@ TYPE_INFO(virtio_ccw_input_hid)
 static const TypeInfo virtio_ccw_keyboard = {
     .name          = TYPE_VIRTIO_KEYBOARD_CCW,
     .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
     .instance_init = virtio_ccw_keyboard_instance_init,
 };
 TYPE_INFO(virtio_ccw_keyboard)
@@ -99,7 +98,6 @@ TYPE_INFO(virtio_ccw_keyboard)
 static const TypeInfo virtio_ccw_mouse = {
     .name          = TYPE_VIRTIO_MOUSE_CCW,
     .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
     .instance_init = virtio_ccw_mouse_instance_init,
 };
 TYPE_INFO(virtio_ccw_mouse)
@@ -107,7 +105,6 @@ TYPE_INFO(virtio_ccw_mouse)
 static const TypeInfo virtio_ccw_tablet = {
     .name          = TYPE_VIRTIO_TABLET_CCW,
     .parent        = TYPE_VIRTIO_INPUT_HID_CCW,
-    .instance_size = sizeof(VirtIOInputHIDCcw),
     .instance_init = virtio_ccw_tablet_instance_init,
 };
 TYPE_INFO(virtio_ccw_tablet)

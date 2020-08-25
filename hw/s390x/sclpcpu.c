@@ -94,9 +94,7 @@ static void cpu_class_init(ObjectClass *oc, void *data)
 static const TypeInfo sclp_cpu_info = {
     .name          = TYPE_SCLP_CPU_HOTPLUG,
     .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPEvent),
     .class_init    = cpu_class_init,
-    .class_size    = sizeof(SCLPEventClass),
 };
 TYPE_INFO(sclp_cpu_info)
 

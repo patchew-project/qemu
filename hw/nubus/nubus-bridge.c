@@ -22,7 +22,6 @@ static void nubus_bridge_class_init(ObjectClass *klass, void *data)
 static const TypeInfo nubus_bridge_info = {
     .name          = TYPE_NUBUS_BRIDGE,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
     .class_init    = nubus_bridge_class_init,
 };
 TYPE_INFO(nubus_bridge_info)

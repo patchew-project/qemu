@@ -775,7 +775,6 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
 static const TypeInfo scsi_generic_info = {
     .name          = "scsi-generic",
     .parent        = TYPE_SCSI_DEVICE,
-    .instance_size = sizeof(SCSIDevice),
     .class_init    = scsi_generic_class_initfn,
 };
 TYPE_INFO(scsi_generic_info)

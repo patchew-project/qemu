@@ -107,7 +107,6 @@ static void igd_passthrough_i440fx_class_init(ObjectClass *klass, void *data)
 static const TypeInfo igd_passthrough_i440fx_info = {
     .name          = TYPE_IGD_PASSTHROUGH_I440FX_PCI_DEVICE,
     .parent        = TYPE_I440FX_PCI_DEVICE,
-    .instance_size = sizeof(PCII440FXState),
     .class_init    = igd_passthrough_i440fx_class_init,
 };
 TYPE_INFO(igd_passthrough_i440fx_info)

@@ -299,7 +299,6 @@ static void aspeed_2400_wdt_class_init(ObjectClass *klass, void *data)
 static const TypeInfo aspeed_2400_wdt_info = {
     .name = TYPE_ASPEED_2400_WDT,
     .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2400_wdt_class_init,
 };
 TYPE_INFO(aspeed_2400_wdt_info)
@@ -335,7 +334,6 @@ static void aspeed_2500_wdt_class_init(ObjectClass *klass, void *data)
 static const TypeInfo aspeed_2500_wdt_info = {
     .name = TYPE_ASPEED_2500_WDT,
     .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2500_wdt_class_init,
 };
 TYPE_INFO(aspeed_2500_wdt_info)
@@ -356,7 +354,6 @@ static void aspeed_2600_wdt_class_init(ObjectClass *klass, void *data)
 static const TypeInfo aspeed_2600_wdt_info = {
     .name = TYPE_ASPEED_2600_WDT,
     .parent = TYPE_ASPEED_WDT,
-    .instance_size = sizeof(AspeedWDTState),
     .class_init = aspeed_2600_wdt_class_init,
 };
 TYPE_INFO(aspeed_2600_wdt_info)

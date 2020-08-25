@@ -137,9 +137,7 @@ static void quiesce_class_init(ObjectClass *klass, void *data)
 static const TypeInfo sclp_quiesce_info = {
     .name          = TYPE_SCLP_QUIESCE,
     .parent        = TYPE_SCLP_EVENT,
-    .instance_size = sizeof(SCLPEvent),
     .class_init    = quiesce_class_init,
-    .class_size    = sizeof(SCLPEventClass),
 };
 TYPE_INFO(sclp_quiesce_info)
 

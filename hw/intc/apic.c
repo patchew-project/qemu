@@ -911,7 +911,6 @@ static void apic_class_init(ObjectClass *klass, void *data)
 
 static const TypeInfo apic_info = {
     .name          = TYPE_APIC,
-    .instance_size = sizeof(APICCommonState),
     .parent        = TYPE_APIC_COMMON,
     .class_init    = apic_class_init,
 };

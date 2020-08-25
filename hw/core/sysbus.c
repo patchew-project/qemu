@@ -83,7 +83,6 @@ static void system_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo system_bus_info = {
     .name = TYPE_SYSTEM_BUS,
     .parent = TYPE_BUS,
-    .instance_size = sizeof(BusState),
     .class_init = system_bus_class_init,
 };
 TYPE_INFO(system_bus_info)

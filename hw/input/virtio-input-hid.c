@@ -289,7 +289,6 @@ static void virtio_keyboard_init(Object *obj)
 static const TypeInfo virtio_keyboard_info = {
     .name          = TYPE_VIRTIO_KEYBOARD,
     .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_keyboard_init,
 };
 TYPE_INFO(virtio_keyboard_info)
@@ -382,7 +381,6 @@ static void virtio_mouse_init(Object *obj)
 static const TypeInfo virtio_mouse_info = {
     .name          = TYPE_VIRTIO_MOUSE,
     .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_mouse_init,
     .class_init    = virtio_mouse_class_init,
 };
@@ -507,7 +505,6 @@ static void virtio_tablet_init(Object *obj)
 static const TypeInfo virtio_tablet_info = {
     .name          = TYPE_VIRTIO_TABLET,
     .parent        = TYPE_VIRTIO_INPUT_HID,
-    .instance_size = sizeof(VirtIOInputHID),
     .instance_init = virtio_tablet_init,
     .class_init    = virtio_tablet_class_init,
 };

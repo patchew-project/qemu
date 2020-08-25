@@ -185,7 +185,6 @@ static void pnv_homer_power8_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_homer_power8_type_info = {
     .name          = TYPE_PNV8_HOMER,
     .parent        = TYPE_PNV_HOMER,
-    .instance_size = sizeof(PnvHomer),
     .class_init    = pnv_homer_power8_class_init,
 };
 TYPE_INFO(pnv_homer_power8_type_info)
@@ -329,7 +328,6 @@ static void pnv_homer_power9_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pnv_homer_power9_type_info = {
     .name          = TYPE_PNV9_HOMER,
     .parent        = TYPE_PNV_HOMER,
-    .instance_size = sizeof(PnvHomer),
     .class_init    = pnv_homer_power9_class_init,
 };
 TYPE_INFO(pnv_homer_power9_type_info)

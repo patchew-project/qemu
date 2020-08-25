@@ -502,7 +502,6 @@ static void ioapic_class_init(ObjectClass *klass, void *data)
 static const TypeInfo ioapic_info = {
     .name          = TYPE_IOAPIC,
     .parent        = TYPE_IOAPIC_COMMON,
-    .instance_size = sizeof(IOAPICCommonState),
     .class_init    = ioapic_class_init,
 };
 TYPE_INFO(ioapic_info)

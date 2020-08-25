@@ -247,7 +247,6 @@ static void isabus_bridge_class_init(ObjectClass *klass, void *data)
 static const TypeInfo isabus_bridge_info = {
     .name          = "isabus-bridge",
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
     .class_init    = isabus_bridge_class_init,
 };
 TYPE_INFO(isabus_bridge_info)

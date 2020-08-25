@@ -68,9 +68,7 @@ static void kvm_s390_skeys_class_init(ObjectClass *oc, void *data)
 static const TypeInfo kvm_s390_skeys_info = {
     .name          = TYPE_KVM_S390_SKEYS,
     .parent        = TYPE_S390_SKEYS,
-    .instance_size = sizeof(S390SKeysState),
     .class_init    = kvm_s390_skeys_class_init,
-    .class_size    = sizeof(S390SKeysClass),
 };
 TYPE_INFO(kvm_s390_skeys_info)
 

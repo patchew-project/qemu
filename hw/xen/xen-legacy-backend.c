@@ -831,7 +831,6 @@ static void xen_sysdev_class_init(ObjectClass *klass, void *data)
 static const TypeInfo xensysdev_info = {
     .name          = TYPE_XENSYSDEV,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(SysBusDevice),
     .class_init    = xen_sysdev_class_init,
 };
 TYPE_INFO(xensysdev_info)

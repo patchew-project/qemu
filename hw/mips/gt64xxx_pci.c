@@ -1259,7 +1259,6 @@ static void gt64120_pci_class_init(ObjectClass *klass, void *data)
 static const TypeInfo gt64120_pci_info = {
     .name          = "gt64120_pci",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init    = gt64120_pci_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

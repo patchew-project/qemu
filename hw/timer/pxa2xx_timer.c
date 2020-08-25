@@ -570,7 +570,6 @@ static void pxa25x_timer_dev_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pxa25x_timer_dev_info = {
     .name          = "pxa25x-timer",
     .parent        = TYPE_PXA2XX_TIMER,
-    .instance_size = sizeof(PXA2xxTimerInfo),
     .class_init    = pxa25x_timer_dev_class_init,
 };
 TYPE_INFO(pxa25x_timer_dev_info)
@@ -593,7 +592,6 @@ static void pxa27x_timer_dev_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pxa27x_timer_dev_info = {
     .name          = "pxa27x-timer",
     .parent        = TYPE_PXA2XX_TIMER,
-    .instance_size = sizeof(PXA2xxTimerInfo),
     .class_init    = pxa27x_timer_dev_class_init,
 };
 TYPE_INFO(pxa27x_timer_dev_info)

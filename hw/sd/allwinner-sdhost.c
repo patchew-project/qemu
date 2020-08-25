@@ -836,7 +836,6 @@ TYPE_INFO(allwinner_sdhost_sun5i_info)
 static const TypeInfo allwinner_sdhost_bus_info = {
     .name = TYPE_AW_SDHOST_BUS,
     .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
     .class_init = allwinner_sdhost_bus_class_init,
 };
 TYPE_INFO(allwinner_sdhost_bus_info)

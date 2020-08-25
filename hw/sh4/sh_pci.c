@@ -175,7 +175,6 @@ static void sh_pci_host_class_init(ObjectClass *klass, void *data)
 static const TypeInfo sh_pci_host_info = {
     .name          = "sh_pci_host",
     .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
     .class_init    = sh_pci_host_class_init,
     .interfaces = (InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },

@@ -496,10 +496,8 @@ static void aspeed_soc_ast2600_class_init(ObjectClass *oc, void *data)
 static const TypeInfo aspeed_soc_ast2600_type_info = {
     .name           = "ast2600-a1",
     .parent         = TYPE_ASPEED_SOC,
-    .instance_size  = sizeof(AspeedSoCState),
     .instance_init  = aspeed_soc_ast2600_init,
     .class_init     = aspeed_soc_ast2600_class_init,
-    .class_size     = sizeof(AspeedSoCClass),
 };
 
 static void aspeed_soc_register_types(void)

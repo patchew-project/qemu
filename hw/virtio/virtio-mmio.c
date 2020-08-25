@@ -788,7 +788,6 @@ static void virtio_mmio_bus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo virtio_mmio_bus_info = {
     .name          = TYPE_VIRTIO_MMIO_BUS,
     .parent        = TYPE_VIRTIO_BUS,
-    .instance_size = sizeof(VirtioBusState),
     .class_init    = virtio_mmio_bus_class_init,
 };
 TYPE_INFO(virtio_mmio_bus_info)

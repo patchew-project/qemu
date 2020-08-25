@@ -298,7 +298,6 @@ static void pci_bridge_dev_seat_class_init(ObjectClass *klass, void *data)
 static const TypeInfo pci_bridge_dev_seat_info = {
     .name              = TYPE_PCI_BRIDGE_SEAT_DEV,
     .parent            = TYPE_PCI_BRIDGE_DEV,
-    .instance_size     = sizeof(PCIBridgeDev),
     .class_init        = pci_bridge_dev_seat_class_init,
 };
 TYPE_INFO(pci_bridge_dev_seat_info)

@@ -325,7 +325,6 @@ static void milkymist_sdbus_class_init(ObjectClass *klass, void *data)
 static const TypeInfo milkymist_sdbus_info = {
     .name = TYPE_MILKYMIST_SDBUS,
     .parent = TYPE_SD_BUS,
-    .instance_size = sizeof(SDBus),
     .class_init = milkymist_sdbus_class_init,
 };
 TYPE_INFO(milkymist_sdbus_info)
