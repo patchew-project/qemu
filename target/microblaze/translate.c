@@ -530,11 +530,50 @@ static void gen_idivu(TCGv_i32 out, TCGv_i32 ina, TCGv_i32 inb)
 DO_TYPEA_CFG(idiv, use_div, true, gen_idiv)
 DO_TYPEA_CFG(idivu, use_div, true, gen_idivu)
 
+/*
+ * Try to keep the current instruction with the one following.
+ * So if this insn is the last in the TB, and is not the first
+ * in the TB, and we are not singlestepping, then back up and
+ * exit the current TB.
+ */
+static bool wait_for_next_tb(DisasContext *dc)
+{
+    if (dc->base.num_insns >= dc->base.max_insns
+        && !dc->base.singlestep_enabled) {
+        /* Also consider if this insn (e.g. brid) itself uses an imm. */
+        int ninsns = (dc->tb_flags & IMM_FLAG ? 2 : 1);
+
+        /*
+         * If this is not the first insn in the TB, back up and
+         * start again with a new TB.
+         */
+        if (dc->base.num_insns > ninsns) {
+            dc->base.pc_next -= ninsns * 4;
+            dc->base.num_insns -= ninsns;
+            dc->base.is_jmp = DISAS_TOO_MANY;
+            return true;
+        }
+
+        /*
+         * Correspondingly, if this is the first insn of the TB,
+         * then extend the TB as necessary to keep it with the
+         * next insn.  Do this by *reducing* the number of insns
+         * processed by this TB so that icount does fail an assertion.
+         */
+        if (dc->base.num_insns == ninsns) {
+            dc->base.num_insns = 0;
+        }
+    }
+    return false;
+}
+
 static bool trans_imm(DisasContext *dc, arg_imm *arg)
 {
-    dc->ext_imm = arg->imm << 16;
-    tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
-    dc->tb_flags_to_set = IMM_FLAG;
+    if (!wait_for_next_tb(dc)) {
+        dc->ext_imm = arg->imm << 16;
+        tcg_gen_movi_i32(cpu_imm, dc->ext_imm);
+        dc->tb_flags_to_set = IMM_FLAG;
+    }
     return true;
 }
 
@@ -1311,12 +1350,17 @@ static void eval_cond_jmp(DisasContext *dc, TCGv_i32 pc_true, TCGv_i32 pc_false)
     tcg_temp_free_i32(zero);
 }
 
-static void dec_setup_dslot(DisasContext *dc)
+static bool dec_setup_dslot(DisasContext *dc)
 {
+    if (wait_for_next_tb(dc)) {
+        return true;
+    }
+
     dc->tb_flags_to_set |= D_FLAG;
     if (dc->type_b && (dc->tb_flags & IMM_FLAG)) {
         dc->tb_flags_to_set |= BIMM_FLAG;
     }
+    return false;
 }
 
 static void dec_bcc(DisasContext *dc)
@@ -1327,8 +1371,8 @@ static void dec_bcc(DisasContext *dc)
     cc = EXTRACT_FIELD(dc->ir, 21, 23);
     dslot = dc->ir & (1 << 25);
 
-    if (dslot) {
-        dec_setup_dslot(dc);
+    if (dslot && dec_setup_dslot(dc)) {
+        return;
     }
 
     if (dc->type_b) {
@@ -1402,9 +1446,10 @@ static void dec_br(DisasContext *dc)
         }
     }
 
-    if (dslot) {
-        dec_setup_dslot(dc);
+    if (dslot && dec_setup_dslot(dc)) {
+        return;
     }
+
     if (link && dc->rd) {
         tcg_gen_movi_i32(cpu_R[dc->rd], dc->base.pc_next);
     }
@@ -1513,7 +1558,9 @@ static void dec_rts(DisasContext *dc)
         return;
     }
 
-    dec_setup_dslot(dc);
+    if (dec_setup_dslot(dc)) {
+        return;
+    }
 
     if (i_bit) {
         dc->tb_flags |= DRTI_FLAG;
