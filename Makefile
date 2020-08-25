@@ -4,6 +4,11 @@ ifneq ($(words $(subst :, ,$(CURDIR))), 1)
   $(error main directory cannot contain spaces nor colons)
 endif
 
+ifeq ($(filter undefine,$(value .FEATURES)),)
+$(error Unsupported Make version: $(MAKE_VERSION). \
+        Please use GNU Make 3.82 or above)
+endif
+
 # Always point to the root of the build tree (needs GNU make).
 BUILD_DIR=$(CURDIR)
 
