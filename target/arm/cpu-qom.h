@@ -63,10 +63,8 @@ struct ARMCPUClass {
 
 #define TYPE_AARCH64_CPU "aarch64-cpu"
 typedef struct AArch64CPUClass AArch64CPUClass;
-#define AARCH64_CPU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(AArch64CPUClass, (klass), TYPE_AARCH64_CPU)
-#define AARCH64_CPU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(AArch64CPUClass, (obj), TYPE_AARCH64_CPU)
+DECLARE_CLASS_CHECKERS(AArch64CPUClass, AARCH64_CPU,
+                       TYPE_AARCH64_CPU)
 
 struct AArch64CPUClass {
     /*< private >*/

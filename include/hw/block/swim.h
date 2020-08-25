@@ -71,7 +71,8 @@ struct SWIMCtrl {
 
 #define TYPE_SWIM "swim"
 typedef struct Swim Swim;
-#define SWIM(obj) OBJECT_CHECK(Swim, (obj), TYPE_SWIM)
+DECLARE_INSTANCE_CHECKER(Swim, SWIM,
+                         TYPE_SWIM)
 
 struct Swim {
     SysBusDevice parent_obj;

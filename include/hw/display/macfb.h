@@ -45,10 +45,8 @@ struct MacfbSysBusState {
 #define TYPE_NUBUS_MACFB "nubus-macfb"
 typedef struct MacfbNubusDeviceClass MacfbNubusDeviceClass;
 typedef struct MacfbNubusState MacfbNubusState;
-#define NUBUS_MACFB_CLASS(class) \
-    OBJECT_CLASS_CHECK(MacfbNubusDeviceClass, (class), TYPE_NUBUS_MACFB)
-#define NUBUS_MACFB_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(MacfbNubusDeviceClass, (obj), TYPE_NUBUS_MACFB)
+DECLARE_OBJ_CHECKERS(MacfbNubusState, MacfbNubusDeviceClass,
+                     NUBUS_MACFB, TYPE_NUBUS_MACFB)
 
 struct MacfbNubusDeviceClass {
     DeviceClass parent_class;
@@ -56,8 +54,6 @@ struct MacfbNubusDeviceClass {
     DeviceRealize parent_realize;
 };
 
-#define NUBUS_MACFB(obj) \
-    OBJECT_CHECK(MacfbNubusState, (obj), TYPE_NUBUS_MACFB)
 
 struct MacfbNubusState {
     NubusDevice busdev;
