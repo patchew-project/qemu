@@ -26,6 +26,9 @@
 #include "trace.h"
 #include "crypto/secret_keyring.h"
 
+OBJECT_DEFINE_TYPE_WITH_INTERFACES(QCryptoSecretKeyring, qcrypto_secret_keyring,
+                                   QCRYPTO_SECRET_KEYRING, QCRYPTO_SECRET_COMMON,
+                                   { TYPE_USER_CREATABLE }, { NULL })
 
 static inline
 long keyctl_read(int32_t key, uint8_t *buffer, size_t buflen)
@@ -110,6 +113,11 @@ qcrypto_secret_keyring_complete(UserCreatable *uc, Error **errp)
 
 
 static void
+qcrypto_secret_keyring_finalize(Object *obj)
+{
+}
+
+static void
 qcrypto_secret_keyring_class_init(ObjectClass *oc, void *data)
 {
     QCryptoSecretCommonClass *sic = QCRYPTO_SECRET_COMMON_CLASS(oc);
@@ -124,20 +132,7 @@ qcrypto_secret_keyring_class_init(ObjectClass *oc, void *data)
                                   NULL, NULL);
 }
 
-
-static const TypeInfo qcrypto_secret_info = {
-    .parent = TYPE_QCRYPTO_SECRET_COMMON,
-    .name = TYPE_QCRYPTO_SECRET_KEYRING,
-    .instance_size = sizeof(QCryptoSecretKeyring),
-    .class_size = sizeof(QCryptoSecretKeyringClass),
-    .class_init = qcrypto_secret_keyring_class_init,
-    .interfaces = (InterfaceInfo[]) {
-        { TYPE_USER_CREATABLE },
-        { }
-    }
-};
-TYPE_INFO(qcrypto_secret_info)
-
-
-
-
+static void
+qcrypto_secret_keyring_init(Object *obj)
+{
+}

@@ -26,11 +26,9 @@
 #include "crypto/secret_common.h"
 
 #define TYPE_QCRYPTO_SECRET "secret"
-typedef struct QCryptoSecret QCryptoSecret;
-DECLARE_INSTANCE_CHECKER(QCryptoSecret, QCRYPTO_SECRET,
-                         TYPE_QCRYPTO_SECRET)
 
-typedef struct QCryptoSecretClass QCryptoSecretClass;
+OBJECT_DECLARE_SIMPLE_TYPE(QCryptoSecret, qcrypto_secret,
+                           QCRYPTO_SECRET, QCryptoSecretCommonClass)
 
 /**
  * QCryptoSecret:
@@ -123,11 +121,6 @@ struct QCryptoSecret {
     QCryptoSecretCommon parent_obj;
     char *data;
     char *file;
-};
-
-
-struct QCryptoSecretClass {
-    QCryptoSecretCommonClass parent_class;
 };
 
 #endif /* QCRYPTO_SECRET_H */
