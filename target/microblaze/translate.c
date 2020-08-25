@@ -729,6 +729,7 @@ static TCGv compute_ldst_addr_typeb(DisasContext *dc, int ra, int imm)
     return ret;
 }
 
+#ifndef CONFIG_USER_ONLY
 static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
 {
     int addr_size = dc->cpu->cfg.addr_size;
@@ -754,6 +755,7 @@ static TCGv compute_ldst_addr_ea(DisasContext *dc, int ra, int rb)
     }
     return ret;
 }
+#endif
 
 static void record_unaligned_ess(DisasContext *dc, int rd,
                                  MemOp size, bool store)
@@ -818,8 +820,12 @@ static bool trans_lbuea(DisasContext *dc, arg_typea *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
     TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_UB, MMU_NOMMU_IDX, false);
+#endif
 }
 
 static bool trans_lbui(DisasContext *dc, arg_typeb *arg)
@@ -845,8 +851,12 @@ static bool trans_lhuea(DisasContext *dc, arg_typea *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
     TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_TEUW, MMU_NOMMU_IDX, false);
+#endif
 }
 
 static bool trans_lhui(DisasContext *dc, arg_typeb *arg)
@@ -872,8 +882,12 @@ static bool trans_lwea(DisasContext *dc, arg_typea *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
     TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     return do_load(dc, arg->rd, addr, MO_TEUL, MMU_NOMMU_IDX, false);
+#endif
 }
 
 static bool trans_lwi(DisasContext *dc, arg_typeb *arg)
@@ -952,8 +966,12 @@ static bool trans_sbea(DisasContext *dc, arg_typea *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
     TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_UB, MMU_NOMMU_IDX, false);
+#endif
 }
 
 static bool trans_sbi(DisasContext *dc, arg_typeb *arg)
@@ -979,8 +997,12 @@ static bool trans_shea(DisasContext *dc, arg_typea *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
     TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_TEUW, MMU_NOMMU_IDX, false);
+#endif
 }
 
 static bool trans_shi(DisasContext *dc, arg_typeb *arg)
@@ -1006,8 +1028,12 @@ static bool trans_swea(DisasContext *dc, arg_typea *arg)
     if (trap_userspace(dc, true)) {
         return true;
     }
+#ifdef CONFIG_USER_ONLY
+    return true;
+#else
     TCGv addr = compute_ldst_addr_ea(dc, arg->ra, arg->rb);
     return do_store(dc, arg->rd, addr, MO_TEUL, MMU_NOMMU_IDX, false);
+#endif
 }
 
 static bool trans_swi(DisasContext *dc, arg_typeb *arg)
@@ -1851,7 +1877,7 @@ void mb_cpu_dump_state(CPUState *cs, FILE *f, int flags)
     }
 
     qemu_fprintf(f, "\nesr=0x%04x fsr=0x%02x btr=0x%08x edr=0x%x\n"
-                 "ear=0x%016" PRIx64 " slr=0x%x shr=0x%x\n",
+                 "ear=0x" TARGET_FMT_lx " slr=0x%x shr=0x%x\n",
                  env->esr, env->fsr, env->btr, env->edr,
                  env->ear, env->slr, env->shr);
 
