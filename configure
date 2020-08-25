@@ -3925,15 +3925,18 @@ fi
 ##########################################
 # pixman support probe
 
-if test "$softmmu" = "no"; then
-  pixman_cflags=
-  pixman_libs=
-elif $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
+if $pkg_config --atleast-version=0.21.8 pixman-1 > /dev/null 2>&1; then
+  pixman="yes"
   pixman_cflags=$($pkg_config --cflags pixman-1)
   pixman_libs=$($pkg_config --libs pixman-1)
 else
+  pixman="no"
+  pixman_cflags=
+  pixman_libs=
+fi
+if test "$softmmu" = "yes" && test "$pixman" = "no"; then
   error_exit "pixman >= 0.21.8 not present." \
-      "Please install the pixman devel package."
+      "Please install the pixman devel package or use --disable-system."
 fi
 
 ##########################################
@@ -8054,8 +8057,11 @@ fi
 
 done # for target in $targets
 
-echo "PIXMAN_CFLAGS=$pixman_cflags" >> $config_host_mak
-echo "PIXMAN_LIBS=$pixman_libs" >> $config_host_mak
+if test "$pixman" = "yes"; then
+  echo "CONFIG_PIXMAN=y" >> $config_host_mak
+  echo "PIXMAN_CFLAGS=$pixman_cflags" >> $config_host_mak
+  echo "PIXMAN_LIBS=$pixman_libs" >> $config_host_mak
+fi
 
 if [ "$fdt" = "git" ]; then
   subdirs="$subdirs dtc"
