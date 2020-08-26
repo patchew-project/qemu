@@ -499,7 +499,7 @@ static const TypeInfo slavio_misc_info = {
 static const TypeInfo apc_info = {
     .name          = TYPE_APC,
     .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(MiscState),
+    .instance_size = sizeof(APCState),
     .instance_init = apc_init,
 };
 
