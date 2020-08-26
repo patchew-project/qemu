@@ -113,8 +113,11 @@ if 'CONFIG_GNUTLS' in config_host
   gnutls = declare_dependency(compile_args: config_host['GNUTLS_CFLAGS'].split(),
                               link_args: config_host['GNUTLS_LIBS'].split())
 endif
-pixman = declare_dependency(compile_args: config_host['PIXMAN_CFLAGS'].split(),
-                            link_args: config_host['PIXMAN_LIBS'].split())
+pixman = not_found
+if have_system or have_tools
+  pixman = dependency('pixman', required: have_system, version:'>=0.21.8',
+                      static: enable_static)
+endif
 pam = not_found
 if 'CONFIG_AUTH_PAM' in config_host
   pam = cc.find_library('pam')
@@ -1098,9 +1101,7 @@ if have_tools
   if 'CONFIG_VHOST_USER' in config_host
     subdir('contrib/libvhost-user')
     subdir('contrib/vhost-user-blk')
-    if 'CONFIG_LINUX' in config_host
-      subdir('contrib/vhost-user-gpu')
-    endif
+    subdir('contrib/vhost-user-gpu')
     subdir('contrib/vhost-user-input')
     subdir('contrib/vhost-user-scsi')
   endif
@@ -1281,6 +1282,7 @@ summary_info += {'SDL image support': sdl_image.found()}
 # TODO: add back version
 summary_info += {'GTK support':       config_host.has_key('CONFIG_GTK')}
 summary_info += {'GTK GL support':    config_host.has_key('CONFIG_GTK_GL')}
+summary_info += {'pixman':            pixman.found()}
 # TODO: add back version
 summary_info += {'VTE support':       config_host.has_key('CONFIG_VTE')}
 summary_info += {'TLS priority':      config_host['CONFIG_TLS_PRIORITY']}
