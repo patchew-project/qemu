@@ -84,11 +84,15 @@
 #                   Actions will complete or fail as a group.
 #                   See @ActionCompletionMode for details.
 #
+# @sequential: Run the jobs in the transaction one after the other, instead
+#              of all at once. Not supported for completion-mode 'individual'.
+#
 # Since: 2.5
 ##
 { 'struct': 'TransactionProperties',
   'data': {
-       '*completion-mode': 'ActionCompletionMode'
+       '*completion-mode': 'ActionCompletionMode',
+       '*sequential': 'bool'
   }
 }
 

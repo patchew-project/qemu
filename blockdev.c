@@ -1826,7 +1826,10 @@ static void drive_backup_commit(BlkActionState *common)
     aio_context_acquire(aio_context);
 
     assert(state->job);
-    job_start(&state->job->job);
+
+    if (!common->txn_props->sequential) {
+        job_start(&state->job->job);
+    }
 
     aio_context_release(aio_context);
 }
@@ -1927,7 +1930,9 @@ static void blockdev_backup_commit(BlkActionState *common)
     aio_context_acquire(aio_context);
 
     assert(state->job);
-    job_start(&state->job->job);
+    if (!common->txn_props->sequential) {
+        job_start(&state->job->job);
+    }
 
     aio_context_release(aio_context);
 }
@@ -2303,6 +2308,11 @@ static TransactionProperties *get_transaction_properties(
         props->completion_mode = ACTION_COMPLETION_MODE_INDIVIDUAL;
     }
 
+    if (!props->has_sequential) {
+        props->has_sequential = true;
+        props->sequential = false;
+    }
+
     return props;
 }
 
@@ -2328,7 +2338,11 @@ void qmp_transaction(TransactionActionList *dev_list,
      */
     props = get_transaction_properties(props);
     if (props->completion_mode != ACTION_COMPLETION_MODE_INDIVIDUAL) {
-        block_job_txn = job_txn_new();
+        block_job_txn = props->sequential ? job_txn_new_seq() : job_txn_new();
+    } else if (props->sequential) {
+        error_setg(errp, "Sequential transaction mode is not supported with "
+                         "completion-mode = individual");
+        return;
     }
 
     /* drain all i/o before any operations */
@@ -2365,6 +2379,11 @@ void qmp_transaction(TransactionActionList *dev_list,
         if (state->ops->commit) {
             state->ops->commit(state);
         }
+    }
+
+    /* jobs in sequential txns don't start themselves on commit */
+    if (block_job_txn && props->sequential) {
+        job_txn_start_seq(block_job_txn);
     }
 
     /* success */
