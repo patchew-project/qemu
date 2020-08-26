@@ -281,6 +281,18 @@ typedef enum JobCreateFlags {
 JobTxn *job_txn_new(void);
 
 /**
+ * Create a new transaction and set it to sequential mode, i.e. run all jobs
+ * one after the other instead of at the same time.
+ */
+JobTxn *job_txn_new_seq(void);
+
+/**
+ * Helper method to start the first job in a sequential transaction to kick it
+ * off. Other jobs will be run after this one completes.
+ */
+void job_txn_start_seq(JobTxn *txn);
+
+/**
  * Release a reference that was previously acquired with job_txn_add_job or
  * job_txn_new. If it's the last reference to the object, it will be freed.
  */

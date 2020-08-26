@@ -72,6 +72,8 @@ struct JobTxn {
 
     /* Reference count */
     int refcnt;
+
+    bool sequential;
 };
 
 /* Right now, this mutex is only needed to synchronize accesses to job->busy
@@ -100,6 +102,25 @@ JobTxn *job_txn_new(void)
     QLIST_INIT(&txn->jobs);
     txn->refcnt = 1;
     return txn;
+}
+
+JobTxn *job_txn_new_seq(void)
+{
+    JobTxn *txn = job_txn_new();
+    txn->sequential = true;
+    return txn;
+}
+
+void job_txn_start_seq(JobTxn *txn)
+{
+    assert(txn->sequential);
+    assert(!txn->aborting);
+
+    Job *first = QLIST_FIRST(&txn->jobs);
+    assert(first);
+    assert(first->status == JOB_STATUS_CREATED);
+
+    job_start(first);
 }
 
 static void job_txn_ref(JobTxn *txn)
@@ -840,6 +861,9 @@ static void job_completed_txn_success(Job *job)
      */
     QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
         if (!job_is_completed(other_job)) {
+            if (txn->sequential) {
+                job_start(other_job);
+            }
             return;
         }
         assert(other_job->ret == 0);
