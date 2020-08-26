@@ -110,5 +110,6 @@ if have_system or xkbcommon.found()
 endif
 
 subdir('shader')
+subdir('icons')
 
 modules += {'ui': ui_modules}
