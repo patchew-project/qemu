@@ -176,6 +176,7 @@ bool qemu_write_pidfile(const char *path, Error **errp)
         goto fail_unlink;
     }
 
+    close(fd);
     return true;
 
 fail_unlink:
