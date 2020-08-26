@@ -311,7 +311,6 @@ static void tosa_ssp_class_init(ObjectClass *klass, void *data)
 static const TypeInfo tosa_ssp_info = {
     .name          = "tosa-ssp",
     .parent        = TYPE_SSI_SLAVE,
-    .instance_size = sizeof(SSISlave),
     .class_init    = tosa_ssp_class_init,
 };
 
