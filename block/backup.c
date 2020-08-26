@@ -237,8 +237,6 @@ static int coroutine_fn backup_run(Job *job, Error **errp)
     BackupBlockJob *s = container_of(job, BackupBlockJob, common.job);
     int ret = 0;
 
-    backup_init_bcs_bitmap(s);
-
     if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
         int64_t offset = 0;
         int64_t count;
@@ -470,6 +468,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
     /* Required permissions are already taken by backup-top target */
     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
                        &error_abort);
+
+    backup_init_bcs_bitmap(job);
 
     return &job->common;
 
