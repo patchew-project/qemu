@@ -1600,6 +1600,16 @@ static BlockJob *mirror_start_job(
     mirror_top_bs->supported_zero_flags = BDRV_REQ_WRITE_UNCHANGED |
                                           BDRV_REQ_NO_FALLBACK;
     bs_opaque = g_new0(MirrorBDSOpaque, 1);
+    /* Make sure that the source is not resized while the job is running */
+    s = block_job_create(job_id, driver, NULL, bs,
+                         BLK_PERM_CONSISTENT_READ,
+                         BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
+                         BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD, speed,
+                         creation_flags, cb, opaque, errp);
+    if (!s) {
+        goto fail;
+    }
+    bs_opaque->job = s;
     mirror_top_bs->opaque = bs_opaque;
 
     /* bdrv_append takes ownership of the mirror_top_bs reference, need to keep
@@ -1612,19 +1622,8 @@ static BlockJob *mirror_start_job(
     if (local_err) {
         bdrv_unref(mirror_top_bs);
         error_propagate(errp, local_err);
-        return NULL;
-    }
-
-    /* Make sure that the source is not resized while the job is running */
-    s = block_job_create(job_id, driver, NULL, mirror_top_bs,
-                         BLK_PERM_CONSISTENT_READ,
-                         BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE_UNCHANGED |
-                         BLK_PERM_WRITE | BLK_PERM_GRAPH_MOD, speed,
-                         creation_flags, cb, opaque, errp);
-    if (!s) {
         goto fail;
     }
-    bs_opaque->job = s;
 
     /* The block job now has a reference to this node */
     bdrv_unref(mirror_top_bs);
