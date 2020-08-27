@@ -46,6 +46,7 @@
 #define RX62N_ICU_BASE  0x00087000
 #define RX62N_TMR_BASE  0x00088200
 #define RX62N_CMT_BASE  0x00088000
+#define RX62N_MTU_BASE  0x00088600
 #define RX62N_SCI_BASE  0x00088240
 #define RX62N_CPG_BASE  0x00080010
 
@@ -55,6 +56,7 @@
  */
 #define RX62N_TMR_IRQ   174
 #define RX62N_CMT_IRQ   28
+#define RX62N_MTU_IRQ   114
 #define RX62N_SCI_IRQ   214
 
 /*
@@ -187,6 +189,30 @@ static void register_cmt(RX62NState *s, int unit)
                           qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 }
 
+static void register_mtu(RX62NState *s, int unit)
+{
+    SysBusDevice *mtu;
+    int i, irqbase;
+    char ckname[16];
+
+    object_initialize_child(OBJECT(s), "mtu[*]", &s->mtu[unit],
+                            TYPE_RENESAS_MTU2);
+    mtu = SYS_BUS_DEVICE(&s->mtu[unit]);
+    qdev_prop_set_uint32(DEVICE(mtu), "unit", unit);
+
+    sysbus_mmio_map(mtu, 0, RX62N_MTU_BASE + 0x100 + unit * 0x400);
+    sysbus_mmio_map(mtu, 1, RX62N_MTU_BASE + unit * 0x400);
+    sysbus_mmio_map(mtu, 2, RX62N_MTU_BASE + 0x280 + unit * 0x400);
+    irqbase = RX62N_MTU_IRQ + MTU_NR_IRQ * unit;
+    for (i = 0; i < MTU_NR_IRQ; i++) {
+        sysbus_connect_irq(mtu, i, s->irq[irqbase + i]);
+    }
+    sysbus_realize(mtu, &error_abort);
+    snprintf(ckname, sizeof(ckname), "pck_mtu-%d", unit);
+    qdev_connect_clock_in(DEVICE(mtu), "pck",
+                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
+}
+
 static void register_sci(RX62NState *s, int unit)
 {
     SysBusDevice *sci;
@@ -248,6 +274,8 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
     register_tmr(s, 1);
     register_cmt(s, 0);
     register_cmt(s, 1);
+    register_mtu(s, 0);
+    register_mtu(s, 1);
     register_sci(s, 0);
     sysbus_realize(SYS_BUS_DEVICE(&s->cpg), &error_abort);
 }

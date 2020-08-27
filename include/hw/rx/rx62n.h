@@ -28,6 +28,7 @@
 #include "hw/intc/rx_icu.h"
 #include "hw/timer/renesas_tmr8.h"
 #include "hw/timer/renesas_timer.h"
+#include "hw/timer/renesas_mtu.h"
 #include "hw/char/renesas_sci.h"
 #include "hw/rx/rx62n-cpg.h"
 #include "qemu/units.h"
@@ -45,6 +46,7 @@
 #define RX62N_NR_TMR    2
 #define RX62N_NR_CMT    2
 #define RX62N_NR_SCI    6
+#define RX62N_NR_MTU    2
 
 typedef struct RX62NClass {
     /*< private >*/
@@ -70,6 +72,7 @@ typedef struct RX62NState {
     RXICUState icu;
     RenesasTMR8State tmr[RX62N_NR_TMR];
     RenesasCMTState cmt[RX62N_NR_CMT];
+    RenesasMTU2State mtu[RX62N_NR_MTU];
     RSCIAState sci[RX62N_NR_SCI];
     RX62NCPGState cpg;
 

@@ -4,6 +4,7 @@ config RX62N_MCU
     select RENESAS_TMR8
     select RENESAS_TIMER
     select RENESAS_SCI
+    select RENESAS_MTU
 
 config RX_GDBSIM
     bool
