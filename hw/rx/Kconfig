@@ -17,3 +17,6 @@ config TKDN_RX62N
     select RX62N_MCU
     select FITLOADER
 
+config FRK_RX62N
+    bool
+    select RX62N_MCU
