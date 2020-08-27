@@ -1618,3 +1618,211 @@ int load_targphys_hex_as(const char *filename, hwaddr *entry, AddressSpace *as)
     g_free(hex_blob);
     return total_size;
 }
+
+typedef enum {
+    SREC_SOH,
+    SREC_TYPE,
+    SREC_LEN,
+    SREC_ADDR,
+    SREC_DATA,
+    SREC_SKIP,
+    SREC_SUM,
+} srec_state;
+
+typedef struct {
+    srec_state state;
+    int nibble;
+    int total_size;
+    uint32_t address;
+    uint32_t topaddr;
+    uint32_t bufremain;
+    int length;
+    int addr_len;
+    int record_type;
+    uint8_t byte;
+    uint8_t data[DATA_FIELD_MAX_LEN];
+    uint8_t *datap;
+    uint8_t *bufptr;
+    uint8_t sum;
+} SrecLine;
+
+static bool parse_srec_line(SrecLine *line, char c)
+{
+    if (!g_ascii_isxdigit(c)) {
+        return false;
+    }
+    line->byte <<= 4;
+    line->byte |= g_ascii_xdigit_value(c);
+    line->nibble++;
+    if (line->nibble == 2) {
+        line->nibble = 0;
+        line->length--;
+        line->sum += line->byte;
+        switch (line->state) {
+        case SREC_SOH:
+        case SREC_TYPE:
+            /* first 2chars ignore parse */
+            break;
+        case SREC_LEN:
+            line->sum = line->length = line->byte;
+            if (line->addr_len > 0) {
+                line->state = SREC_ADDR;
+                line->address = 0;
+            } else {
+                line->state = SREC_SKIP;
+            }
+            break;
+        case SREC_ADDR:
+            line->address <<= 8;
+            line->address |= line->byte;
+            if (--line->addr_len == 0) {
+                if (line->length > 1) {
+                    if (line->record_type != 0) {
+                        line->state = SREC_DATA;
+                    } else {
+                        line->state = SREC_SKIP;
+                    }
+                    line->datap = line->data;
+                } else {
+                    line->state = SREC_SUM;
+                }
+            }
+            break;
+        case SREC_DATA:
+            *line->datap++ = line->byte;
+            /* fail through */
+        case SREC_SKIP:
+            if (line->length == 1) {
+                line->state = SREC_SUM;
+            }
+            break;
+        case SREC_SUM:
+            if ((line->sum & 0xff) != 0xff) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+#define SRECBUFSIZE 0x40000
+
+/* return size or -1 if error */
+static int parse_srec_blob(const char *filename, hwaddr *addr,
+                           uint8_t *hex_blob, size_t hex_blob_size,
+                           AddressSpace *as)
+{
+    SrecLine line;
+    size_t len;
+    int total_len = 0;
+    uint8_t *end = hex_blob + hex_blob_size;
+    rom_transaction_begin();
+    line.state = SREC_SOH;
+    line.bufptr = g_malloc(SRECBUFSIZE);
+    line.bufremain = SRECBUFSIZE;
+    line.topaddr = UINT32_MAX;
+    for (; hex_blob < end; ++hex_blob) {
+        switch (*hex_blob) {
+        case '\r':
+        case '\n':
+            if (line.state == SREC_SUM) {
+                switch (line.record_type) {
+                case 1:
+                case 2:
+                case 3:
+                    len = line.datap - line.data;
+                    if (line.topaddr == UINT32_MAX) {
+                        line.topaddr = line.address;
+                    }
+                    if (line.bufremain < len || line.address < line.topaddr) {
+                        rom_add_blob_fixed_as(filename, line.bufptr,
+                                              SRECBUFSIZE - line.bufremain,
+                                              line.topaddr, as);
+                        line.topaddr = line.address;
+                        line.bufremain = SRECBUFSIZE;
+                    }
+                    memcpy(line.bufptr + (line.address  - line.topaddr),
+                           line.data, len);
+                    line.bufremain -= len;
+                    total_len += len;
+                    break;
+                case 7:
+                case 8:
+                case 9:
+                    *addr = line.address;
+                    break;
+                }
+                line.state = SREC_SOH;
+            }
+            break;
+        /* start of a new record. */
+        case 'S':
+            if (line.state != SREC_SOH) {
+                total_len = -1;
+                goto out;
+            }
+            line.state = SREC_TYPE;
+            break;
+        /* decoding lines */
+        default:
+            if (line.state == SREC_TYPE) {
+                if (g_ascii_isdigit(*hex_blob)) {
+                    line.record_type = g_ascii_digit_value(*hex_blob);
+                    switch (line.record_type) {
+                    case 1:
+                    case 2:
+                    case 3:
+                        line.addr_len = 1 + line.record_type;
+                        break;
+                    case 0:
+                    case 5:
+                        line.addr_len = 2;
+                        break;
+                    case 7:
+                    case 8:
+                    case 9:
+                        line.addr_len = 11 - line.record_type;
+                        break;
+                    default:
+                        line.addr_len = 0;
+                    }
+                }
+                line.state = SREC_LEN;
+                line.nibble = 0;
+            } else {
+                if (!parse_srec_line(&line, *hex_blob)) {
+                    total_len = -1;
+                    goto out;
+                }
+            }
+            break;
+        }
+    }
+    if (line.bufremain < SRECBUFSIZE) {
+        rom_add_blob_fixed_as(filename, line.bufptr,
+                              SRECBUFSIZE - line.bufremain,
+                              line.topaddr, as);
+    }
+out:
+    rom_transaction_end(total_len != -1);
+    g_free(line.bufptr);
+    return total_len;
+}
+
+/* return size or -1 if error */
+int load_targphys_srec_as(const char *filename, hwaddr *entry, AddressSpace *as)
+{
+    gsize hex_blob_size;
+    gchar *hex_blob;
+    int total_size = 0;
+
+    if (!g_file_get_contents(filename, &hex_blob, &hex_blob_size, NULL)) {
+        return -1;
+    }
+
+    total_size = parse_srec_blob(filename, entry, (uint8_t *)hex_blob,
+                                 hex_blob_size, as);
+
+    g_free(hex_blob);
+    return total_size;
+}
