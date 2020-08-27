@@ -34,7 +34,17 @@ remainder:
 	larl	%r2,memsetxc
 	ex	%r3,0(%r2)
 done:
-	j      main		/* And call C */
+        /* prepare i/o call handler */
+        larl  %r1, io_new_code
+        larl  %r2, io_new_psw
+        stg   %r1, 8(%r2)
+        mvc   0x1f0(16),0(%r2)
+        /* prepare external call handler */
+        larl  %r1, external_new_code
+        larl  %r2, external_new_psw
+        stg   %r1, 8(%r2)
+        mvc   0x1b0(16),0(%r2)
+        j      main		/* And call C */
 
 memsetxc:
 	xc	0(1,%r1),0(%r1)
@@ -64,13 +74,16 @@ consume_sclp_int:
         oi      6(%r15),0x2
         lctlg   %c0,%c0,0(%r15)
         /* prepare external call handler */
-        larl %r1, external_new_code
-        stg %r1, 0x1b8
-        larl %r1, external_new_mask
-        mvc 0x1b0(8),0(%r1)
-        /* load enabled wait PSW */
-        larl %r1, enabled_wait_psw
-        lpswe 0(%r1)
+        larl  %r1, external_new_psw
+        lghi  %r2, 0x1b0
+        /* Is the BIOS' external new PSW already set? */
+        clc   0(16, %r1), 0(%r2)
+        je    load_ewait
+        /* No, save old PSW and write BIOS PSW */
+        larl  %r3, psw_save_ext
+        mvc   0(16, %r3), 0x1b0
+        mvc   0x1b0(16),0(%r1)
+        j     load_ewait
 
 /*
  * void consume_io_int(void)
@@ -84,11 +97,20 @@ consume_io_int:
         oi    4(%r15), 0xff
         lctlg %c6,%c6,0(%r15)
         /* prepare i/o call handler */
-        larl  %r1, io_new_code
-        stg   %r1, 0x1f8
-        larl  %r1, io_new_mask
-        mvc   0x1f0(8),0(%r1)
-        /* load enabled wait PSW */
+        larl  %r1, io_new_psw
+        lghi  %r2, 0x1f0
+        /* Is the BIOS' PSW already set? */
+        larl  %r3, load_ewait
+        clc   0(16, %r1), 0(%r2)
+        bcr   8, %r3
+        /* No, save old PSW and write BIOS PSW */
+        larl  %r3, psw_save_io
+        mvc   0(16, %r3), 0x1f0
+        mvc   0x1f0(16),0(%r1)
+        j     load_ewait
+
+load_ewait:
+        /* PSW is the correct one, time to load the enabled wait PSW */
         larl  %r1, enabled_wait_psw
         lpswe 0(%r1)
 
@@ -107,11 +129,17 @@ io_new_code:
         br    %r14
 
         .align  8
+        .globl psw_save_io
+        .globl psw_save_ext
 disabled_wait_psw:
         .quad   0x0002000180000000,0x0000000000000000
 enabled_wait_psw:
         .quad   0x0302000180000000,0x0000000000000000
-external_new_mask:
-        .quad   0x0000000180000000
-io_new_mask:
-        .quad   0x0000000180000000
+external_new_psw:
+        .quad   0x0000000180000000,0
+io_new_psw:
+        .quad   0x0000000180000000,0
+psw_save_io:
+        .quad   0,0
+psw_save_ext:
+        .quad   0,0

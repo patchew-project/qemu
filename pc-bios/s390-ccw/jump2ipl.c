@@ -13,12 +13,15 @@
 #define KERN_IMAGE_START 0x010000UL
 #define RESET_PSW_MASK (PSW_MASK_SHORTPSW | PSW_MASK_64)
 
+extern uint64_t *psw_save_io, *psw_save_ext;
 uint64_t *reset_psw = 0, save_psw, ipl_continue;
 
 static void jump_to_IPL_2(void)
 {
     /* Restore reset PSW and io and external new PSWs */
     *reset_psw = save_psw;
+    memcpy((void *)0x1f0, psw_save_io, 16);
+    memcpy((void *)0x1b0, psw_save_ext, 16);
 
     /* No reset PSW, let's jump instead. */
     if (ipl_continue) {
