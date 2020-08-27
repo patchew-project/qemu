@@ -44,6 +44,9 @@ done:
         larl  %r2, external_new_psw
         stg   %r1, 8(%r2)
         mvc   0x1b0(16),0(%r2)
+        /* set up a pgm exception disabled wait psw */
+        larl  %r2, disabled_wait_psw
+        mvc   0x01d0(16), 0(%r2)
         j      main		/* And call C */
 
 memsetxc:
