@@ -104,6 +104,60 @@ Options
   performance.  ``auto`` acts similar to NFS with a 1 second metadata cache
   timeout.  ``always`` sets a long cache lifetime at the expense of coherency.
 
+xattr-mapping
+-------------
+
+By default the name of xattr's used by the client are passed through to the server
+file system.  This can be a problem where either those xattr names are used
+by something on the server (e.g. selinux client/server confusion) or if the
+virtiofsd is running in a container with restricted priviliges where it cannot
+access some attributes.
+
+A mapping of xattr names can be made using -o xattrmap=mapping where the ``mapping``
+string consists of a series of rules.
+
+The first matching rule terminates the mapping.
+
+Each rule consists of a number of fields separated with a separator that is the
+first non-white space character in the rule.  This separator must then be used
+for the whole rule.
+White space may be added before and after each rule.
+Using ':' as the separator a rule is of the form:
+
+``:scope:type:key:prepend:``
+
+**scope** is:
+
+- 'client' - match 'key' against a xattr name from the client for
+             setxattr/getxattr/removexattr
+- 'server' - match 'prepend' against a xattr name from the server
+             for listxattr
+- 'all' - can be used to match both cases.
+
+**type** is one of:
+
+- 'prefix' - If 'key' matches the client then the 'prepend'
+  is added before the name is passed to the server.
+  For a server case, the prepend is tested and stripped
+  if matching.
+
+- 'ok' - The attribute name is OK and passed through to
+  the server unchanged.
+
+- 'bad' - If a client tries to use this name it's
+  denied using EPERM; when the server passes an attribute
+  name matching it's hidden.
+
+**key** is a string tested as a prefix on an attribute name originating
+on the client.  It maybe empty in which case a 'client' rule
+will always match on client names.
+
+**prepend** is a string tested as a prefix on an attribute name originiating
+on the server, and used as a new prefix.  It maybe empty
+in which case a 'server' rule will always match on all names from
+the server.
+
+
 Examples
 --------
 
@@ -120,3 +174,4 @@ Export ``/var/lib/fs/vm001/`` on vhost-user UNIX domain socket
       -numa node,memdev=mem \
       ...
   guest# mount -t virtiofs myfs /mnt
+
