@@ -45,6 +45,21 @@
 #define RX62N_NR_CMT    2
 #define RX62N_NR_SCI    6
 
+typedef struct RX62NClass {
+    /*< private >*/
+    DeviceClass parent_class;
+    /*< public >*/
+    const char *name;
+    uint64_t ram_size;
+    uint64_t rom_flash_size;
+    uint64_t data_flash_size;
+} RX62NClass;
+
+#define RX62N_MCU_CLASS(klass) \
+    OBJECT_CLASS_CHECK(RX62NClass, (klass), TYPE_RX62N_MCU)
+#define RX62N_MCU_GET_CLASS(obj) \
+    OBJECT_GET_CLASS(RX62NClass, (obj), TYPE_RX62N_MCU)
+
 typedef struct RX62NState {
     /*< private >*/
     DeviceState parent_obj;

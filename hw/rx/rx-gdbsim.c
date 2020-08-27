@@ -25,6 +25,7 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/loader.h"
+#include "hw/rx/loader.h"
 #include "hw/rx/rx62n.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
@@ -40,6 +41,7 @@ typedef struct RxGdbSimMachineClass {
     /*< public >*/
     const char *mcu_name;
     uint32_t xtal_freq_hz;
+    size_t romsize;
 } RxGdbSimMachineClass;
 
 typedef struct RxGdbSimMachineState {
@@ -59,26 +61,39 @@ typedef struct RxGdbSimMachineState {
 #define RX_GDBSIM_MACHINE_GET_CLASS(obj) \
     OBJECT_GET_CLASS(RxGdbSimMachineClass, (obj), TYPE_RX_GDBSIM_MACHINE)
 
-static void rx_load_image(RXCPU *cpu, const char *filename,
-                          uint32_t start, uint32_t size)
+#define TINYBOOT_TOP (0xffffff00)
+
+static void set_bootstrap(hwaddr entry, hwaddr dtb)
 {
-    static uint32_t extable[32];
-    long kernel_size;
+    /* Minimal hardware initialize for kernel requirement */
+    /* linux kernel only works little-endian mode */
+    static uint8_t tinyboot[256] = {
+        0xfb, 0x2e, 0x20, 0x00, 0x08,       /* mov.l #0x80020, r2 */
+        0xf8, 0x2e, 0x00, 0x01, 0x01,       /* mov.l #0x00010100, [r2] */
+        0xfb, 0x2e, 0x10, 0x00, 0x08,       /* mov.l #0x80010, r2 */
+        0xf8, 0x22, 0xdf, 0x7d, 0xff, 0xff, /* mov.l #0xffff7ddf, [r2] */
+        0x62, 0x42,                         /* add #4, r2 */
+        0xf8, 0x22, 0xff, 0x7f, 0xff, 0x7f, /* mov.l #0x7fff7fff, [r2] */
+        0xfb, 0x2e, 0x40, 0x82, 0x08,       /* mov.l #0x88240, r2 */
+        0x3c, 0x22, 0x00,                   /* mov.b #0, 2[r2] */
+        0x3c, 0x21, 0x4e,                   /* mov.b #78, 1[r2] */
+        0xfb, 0x22, 0x70, 0xff, 0xff, 0xff, /* mov.l #0xffffff70, r2 */
+        0xec, 0x21,                         /* mov.l [r2], r1 */
+        0xfb, 0x22, 0x74, 0xff, 0xff, 0xff, /* mov.l #0xffffff74, r2 */
+        0xec, 0x22,                         /* mov.l [r2], r2 */
+        0x7f, 0x02,                         /* jmp r2 */
+    };
     int i;
 
-    kernel_size = load_image_targphys(filename, start, size);
-    if (kernel_size < 0) {
-        fprintf(stderr, "qemu: could not load kernel '%s'\n", filename);
-        exit(1);
-    }
-    cpu->env.pc = start;
+    *((uint32_t *)&tinyboot[0x70]) = cpu_to_le32(dtb);
+    *((uint32_t *)&tinyboot[0x74]) = cpu_to_le32(entry);
 
     /* setup exception trap trampoline */
-    /* linux kernel only works little-endian mode */
-    for (i = 0; i < ARRAY_SIZE(extable); i++) {
-        extable[i] = cpu_to_le32(0x10 + i * 4);
+    for (i = 0; i < 31; i++) {
+        *((uint32_t *)&tinyboot[0x40 + i * 4]) = cpu_to_le32(0x10 + i * 4);
     }
-    rom_add_blob_fixed("extable", extable, sizeof(extable), VECTOR_TABLE_BASE);
+    *((uint32_t *)&tinyboot[0xfc - 0x40]) = cpu_to_le32(TINYBOOT_TOP);
+    rom_add_blob_fixed("tinyboot", tinyboot, sizeof(tinyboot), TINYBOOT_TOP);
 }
 
 static void rx_gdbsim_init(MachineState *machine)
@@ -86,10 +101,11 @@ static void rx_gdbsim_init(MachineState *machine)
     MachineClass *mc = MACHINE_GET_CLASS(machine);
     RxGdbSimMachineState *s = RX_GDBSIM_MACHINE(machine);
     RxGdbSimMachineClass *rxc = RX_GDBSIM_MACHINE_GET_CLASS(machine);
+    RX62NClass *rx62nc;
     MemoryRegion *sysmem = get_system_memory();
     const char *kernel_filename = machine->kernel_filename;
     const char *dtb_filename = machine->dtb;
-
+    rx_kernel_info_t kernel_info;
     if (machine->ram_size < mc->default_ram_size) {
         char *sz = size_to_str(mc->default_ram_size);
         error_report("Invalid RAM size, should be more than %s", sz);
@@ -101,49 +117,33 @@ static void rx_gdbsim_init(MachineState *machine)
 
     /* Initialize MCU */
     object_initialize_child(OBJECT(machine), "mcu", &s->mcu, rxc->mcu_name);
+    rx62nc = RX62N_MCU_GET_CLASS(&s->mcu);
     object_property_set_link(OBJECT(&s->mcu), "main-bus", OBJECT(sysmem),
                              &error_abort);
     object_property_set_uint(OBJECT(&s->mcu), "xtal-frequency-hz",
                              rxc->xtal_freq_hz, &error_abort);
-    object_property_set_bool(OBJECT(&s->mcu), "load-kernel",
-                             kernel_filename != NULL, &error_abort);
-    qdev_realize(DEVICE(&s->mcu), NULL, &error_abort);
-
     /* Load kernel and dtb */
     if (kernel_filename) {
-        ram_addr_t kernel_offset;
-
-        /*
-         * The kernel image is loaded into
-         * the latter half of the SDRAM space.
-         */
-        kernel_offset = machine->ram_size / 2;
-        rx_load_image(RXCPU(first_cpu), kernel_filename,
-                      SDRAM_BASE + kernel_offset, kernel_offset);
-        if (dtb_filename) {
-            ram_addr_t dtb_offset;
-            int dtb_size;
-            void *dtb;
-
-            dtb = load_device_tree(dtb_filename, &dtb_size);
-            if (dtb == NULL) {
-                error_report("Couldn't open dtb file %s", dtb_filename);
-                exit(1);
+        kernel_info.ram_start = SDRAM_BASE;
+        kernel_info.ram_size = machine->ram_size;
+        kernel_info.filename = kernel_filename;
+        kernel_info.dtbname = dtb_filename;
+        kernel_info.cmdline = machine->kernel_cmdline;
+        if (!load_kernel(&kernel_info)) {
+            exit(1);
+        }
+        set_bootstrap(kernel_info.entry, kernel_info.dtb_address);
+    } else {
+        if (bios_name) {
+            if (!load_bios(bios_name, rx62nc->rom_flash_size, &error_abort)) {
+                exit(0);
             }
-            if (machine->kernel_cmdline &&
-                qemu_fdt_setprop_string(dtb, "/chosen", "bootargs",
-                                        machine->kernel_cmdline) < 0) {
-                error_report("Couldn't set /chosen/bootargs");
-                exit(1);
-            }
-            /* DTB is located at the end of SDRAM space. */
-            dtb_offset = machine->ram_size - dtb_size;
-            rom_add_blob_fixed("dtb", dtb, dtb_size,
-                               SDRAM_BASE + dtb_offset);
-            /* Set dtb address to R1 */
-            RXCPU(first_cpu)->env.regs[1] = SDRAM_BASE + dtb_offset;
+        } else if (!qtest_enabled()) {
+            error_report("No bios or kernel specified");
+            exit(1);
         }
     }
+    qdev_realize(DEVICE(&s->mcu), NULL, &error_abort);
 }
 
 static void rx_gdbsim_class_init(ObjectClass *oc, void *data)

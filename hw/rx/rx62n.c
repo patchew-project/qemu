@@ -60,21 +60,6 @@
 #define RX62N_XTAL_MAX_HZ (14 * 1000 * 1000)
 #define RX62N_PCLK_MAX_HZ (50 * 1000 * 1000)
 
-typedef struct RX62NClass {
-    /*< private >*/
-    DeviceClass parent_class;
-    /*< public >*/
-    const char *name;
-    uint64_t ram_size;
-    uint64_t rom_flash_size;
-    uint64_t data_flash_size;
-} RX62NClass;
-
-#define RX62N_MCU_CLASS(klass) \
-    OBJECT_CLASS_CHECK(RX62NClass, (klass), TYPE_RX62N_MCU)
-#define RX62N_MCU_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(RX62NClass, (obj), TYPE_RX62N_MCU)
-
 /*
  * IRQ -> IPR mapping table
  * 0x00 - 0x91: IPR no (IPR00 to IPR91)
@@ -245,15 +230,6 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
                            rxc->rom_flash_size, &error_abort);
     memory_region_add_subregion(s->sysmem, RX62N_CFLASH_BASE, &s->c_flash);
 
-    if (!s->kernel) {
-        if (bios_name) {
-            rom_add_file_fixed(bios_name, RX62N_CFLASH_BASE, 0);
-        }  else if (!qtest_enabled()) {
-            error_report("No bios or kernel specified");
-            exit(1);
-        }
-    }
-
     /* Initialize CPU */
     object_initialize_child(OBJECT(s), "cpu", &s->cpu, TYPE_RX62N_CPU);
     qdev_realize(DEVICE(&s->cpu), NULL, &error_abort);
@@ -270,7 +246,6 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
 static Property rx62n_properties[] = {
     DEFINE_PROP_LINK("main-bus", RX62NState, sysmem, TYPE_MEMORY_REGION,
                      MemoryRegion *),
-    DEFINE_PROP_BOOL("load-kernel", RX62NState, kernel, false),
     DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
