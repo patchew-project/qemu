@@ -718,7 +718,7 @@ void ide_cancel_dma_sync(IDEState *s)
      * whole DMA operation will be submitted to disk with a single
      * aio operation with preadv/pwritev.
      */
-    if (s->bus->dma->aiocb) {
+    if (s->blk && s->bus->dma->aiocb) {
         trace_ide_cancel_dma_sync_remaining();
         blk_drain(s->blk);
         assert(s->bus->dma->aiocb == NULL);
