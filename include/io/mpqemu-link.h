@@ -39,6 +39,7 @@ typedef enum {
     BAR_WRITE,
     BAR_READ,
     SET_IRQFD,
+    DEVICE_RESET,
     MAX = INT_MAX,
 } MPQemuCmd;
 
