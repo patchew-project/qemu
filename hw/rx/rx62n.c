@@ -28,6 +28,7 @@
 #include "hw/loader.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-properties.h"
+#include "hw/net/mdio.h"
 #include "sysemu/sysemu.h"
 #include "sysemu/qtest.h"
 #include "cpu.h"
@@ -48,6 +49,8 @@
 #define RX62N_CMT_BASE  0x00088000
 #define RX62N_MTU_BASE  0x00088600
 #define RX62N_SCI_BASE  0x00088240
+#define RX62N_EDMAC_BASE 0x000c0000
+#define RX62N_ETHER_BASE 0x000c0100
 #define RX62N_CPG_BASE  0x00080010
 
 /*
@@ -58,6 +61,7 @@
 #define RX62N_CMT_IRQ   28
 #define RX62N_MTU_IRQ   114
 #define RX62N_SCI_IRQ   214
+#define RX62N_EDMAC_IRQ 32
 
 /*
  * IRQ -> IPR mapping table
@@ -236,6 +240,25 @@ static void register_sci(RX62NState *s, int unit)
                           qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 }
 
+static void register_eth(RX62NState *s, NICInfo *nd)
+{
+    SysBusDevice *etherc;
+
+    qemu_check_nic_model(nd, TYPE_RENESAS_ETH);
+    object_initialize_child(OBJECT(s), "ether",
+                            &s->ether, TYPE_RENESAS_ETH);
+    etherc = SYS_BUS_DEVICE(&s->ether);
+    qdev_set_nic_properties(DEVICE(etherc), nd);
+    object_property_set_link(OBJECT(etherc), "mdio",
+                             OBJECT(s->mdio), &error_abort);
+    sysbus_realize(etherc, &error_abort);
+    sysbus_connect_irq(etherc, 0, s->irq[RX62N_EDMAC_IRQ]);
+    sysbus_mmio_map(etherc, 0, RX62N_ETHER_BASE);
+    sysbus_mmio_map(etherc, 1, RX62N_EDMAC_BASE);
+    qdev_connect_clock_in(DEVICE(etherc), "ick",
+                          qdev_get_clock_out(DEVICE(&s->cpg), "ick_edmac"));
+}
+
 static void register_cpg(RX62NState *s)
 {
     SysBusDevice *cpg;
@@ -277,6 +300,7 @@ static void rx62n_realize(DeviceState *dev, Error **errp)
     register_mtu(s, 0);
     register_mtu(s, 1);
     register_sci(s, 0);
+    register_eth(s, nd_table);
     sysbus_realize(SYS_BUS_DEVICE(&s->cpg), &error_abort);
 }
 
@@ -284,6 +308,8 @@ static Property rx62n_properties[] = {
     DEFINE_PROP_LINK("main-bus", RX62NState, sysmem, TYPE_MEMORY_REGION,
                      MemoryRegion *),
     DEFINE_PROP_UINT32("xtal-frequency-hz", RX62NState, xtal_freq_hz, 0),
+    DEFINE_PROP_LINK("mdiodev", RX62NState, mdio, TYPE_ETHER_MDIO_BB,
+                     MDIOState *),
     DEFINE_PROP_END_OF_LIST(),
 };
 

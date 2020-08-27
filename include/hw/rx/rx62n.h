@@ -30,6 +30,7 @@
 #include "hw/timer/renesas_timer.h"
 #include "hw/timer/renesas_mtu.h"
 #include "hw/char/renesas_sci.h"
+#include "hw/net/renesas_eth.h"
 #include "hw/rx/rx62n-cpg.h"
 #include "qemu/units.h"
 
@@ -74,6 +75,8 @@ typedef struct RX62NState {
     RenesasCMTState cmt[RX62N_NR_CMT];
     RenesasMTU2State mtu[RX62N_NR_MTU];
     RSCIAState sci[RX62N_NR_SCI];
+    RenesasEthState ether;
+    MDIOState *mdio;
     RX62NCPGState cpg;
 
     MemoryRegion *sysmem;
