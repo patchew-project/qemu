@@ -34,6 +34,8 @@ typedef enum {
     INIT = 0,
     SYNC_SYSMEM,
     RET_MSG,
+    PCI_CONFIG_WRITE,
+    PCI_CONFIG_READ,
     MAX = INT_MAX,
 } MPQemuCmd;
 
@@ -42,6 +44,12 @@ typedef struct {
     uint64_t sizes[REMOTE_MAX_FDS];
     off_t offsets[REMOTE_MAX_FDS];
 } SyncSysmemMsg;
+
+typedef struct {
+    uint32_t addr;
+    uint32_t val;
+    int l;
+} ConfDataMsg;
 
 /**
  * MPQemuMsg:
@@ -60,6 +68,7 @@ typedef struct {
 
     union {
         uint64_t u64;
+        ConfDataMsg conf_data;
         SyncSysmemMsg sync_sysmem;
     } data;
 
