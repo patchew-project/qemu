@@ -149,7 +149,7 @@ static void register_tmr(RX62NState *s, int unit)
     char ckname[16];
 
     object_initialize_child(OBJECT(s), "tmr[*]",
-                            &s->tmr[unit], TYPE_RENESAS_TMR);
+                            &s->tmr[unit], TYPE_RENESAS_TMR8);
     tmr = SYS_BUS_DEVICE(&s->tmr[unit]);
 
     irqbase = RX62N_TMR_IRQ + TMR_NR_IRQ * unit;

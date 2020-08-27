@@ -26,7 +26,7 @@
 
 #include "target/rx/cpu.h"
 #include "hw/intc/rx_icu.h"
-#include "hw/timer/renesas_tmr.h"
+#include "hw/timer/renesas_tmr8.h"
 #include "hw/timer/renesas_cmt.h"
 #include "hw/char/renesas_sci.h"
 #include "hw/rx/rx62n-cpg.h"
@@ -68,7 +68,7 @@ typedef struct RX62NState {
 
     RXCPU cpu;
     RXICUState icu;
-    RTMRState tmr[RX62N_NR_TMR];
+    RenesasTMR8State tmr[RX62N_NR_TMR];
     RCMTState cmt[RX62N_NR_CMT];
     RSCIState sci[RX62N_NR_SCI];
     RX62NCPGState cpg;
