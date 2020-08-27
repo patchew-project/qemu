@@ -8,3 +8,4 @@ config RX62N_MCU
 config RX_GDBSIM
     bool
     select RX62N_MCU
+    select FITLOADER
