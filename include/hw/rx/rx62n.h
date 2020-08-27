@@ -70,7 +70,7 @@ typedef struct RX62NState {
     RXICUState icu;
     RenesasTMR8State tmr[RX62N_NR_TMR];
     RenesasCMTState cmt[RX62N_NR_CMT];
-    RSCIState sci[RX62N_NR_SCI];
+    RSCIAState sci[RX62N_NR_SCI];
     RX62NCPGState cpg;
 
     MemoryRegion *sysmem;

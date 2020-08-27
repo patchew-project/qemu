@@ -191,11 +191,13 @@ static void register_sci(RX62NState *s, int unit)
 {
     SysBusDevice *sci;
     int i, irqbase;
+    char ckname[16];
 
     object_initialize_child(OBJECT(s), "sci[*]",
-                            &s->sci[unit], TYPE_RENESAS_SCI);
+                            &s->sci[unit], TYPE_RENESAS_SCIA);
     sci = SYS_BUS_DEVICE(&s->sci[unit]);
     qdev_prop_set_chr(DEVICE(sci), "chardev", serial_hd(unit));
+    qdev_prop_set_uint32(DEVICE(sci), "unit", unit);
     sysbus_realize(sci, &error_abort);
 
     irqbase = RX62N_SCI_IRQ + SCI_NR_IRQ * unit;
@@ -203,6 +205,9 @@ static void register_sci(RX62NState *s, int unit)
         sysbus_connect_irq(sci, i, s->irq[irqbase + i]);
     }
     sysbus_mmio_map(sci, 0, RX62N_SCI_BASE + unit * 0x08);
+    snprintf(ckname, sizeof(ckname), "pck_sci-%d", unit);
+    qdev_connect_clock_in(DEVICE(sci), "pck",
+                          qdev_get_clock_out(DEVICE(&s->cpg), ckname));
 }
 
 static void register_cpg(RX62NState *s)
