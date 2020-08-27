@@ -253,6 +253,9 @@ static void pci_change_irq_level(PCIDevice *pci_dev, int irq_num, int change)
     PCIBus *bus;
     for (;;) {
         bus = pci_get_bus(pci_dev);
+        if (!bus) {
+            return;
+        }
         irq_num = bus->map_irq(pci_dev, irq_num);
         if (bus->set_irq)
             break;
