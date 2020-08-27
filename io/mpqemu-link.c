@@ -17,6 +17,7 @@
 #include "qemu/iov.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "io/channel.h"
 
 void mpqemu_msg_send(MPQemuMsg *msg, QIOChannel *ioc, Error **errp)
 {
@@ -148,6 +149,43 @@ fail:
     } else if (local_err) {
         error_report_err(local_err);
     }
+}
+
+uint64_t mpqemu_msg_send_and_await_reply(MPQemuMsg *msg, PCIProxyDev *pdev,
+                                         Error **errp)
+{
+    MPQemuMsg msg_reply = {0};
+    uint64_t ret = UINT64_MAX;
+    Error *local_err = NULL;
+
+    qemu_mutex_unlock_iothread();
+    qemu_mutex_lock(&pdev->io_mutex);
+
+    mpqemu_msg_send(msg, pdev->ioc, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto exit_send;
+    }
+
+    mpqemu_msg_recv(&msg_reply, pdev->ioc, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        goto exit_send;
+    }
+
+    if (!mpqemu_msg_valid(&msg_reply) || msg_reply.cmd != RET_MSG) {
+        error_setg(errp, "ERROR: Invalid reply received for command %d",
+                         msg->cmd);
+        goto exit_send;
+    } else {
+        ret = msg_reply.data.u64;
+    }
+
+ exit_send:
+    qemu_mutex_unlock(&pdev->io_mutex);
+    qemu_mutex_lock_iothread();
+
+    return ret;
 }
 
 static void coroutine_fn mpqemu_msg_send_co(void *data)
