@@ -1720,3 +1720,138 @@
 ##
 { 'event': 'UNPLUG_PRIMARY',
   'data': { 'device-id': 'str' } }
+
+##
+# @snapshot-save:
+#
+# Save a VM snapshot
+#
+# @job-id: identifier for the newly created job
+# @tag: name of the snapshot to create. If it already
+# exists it will be replaced.
+# @devices: list of block device node names to save a snapshot to
+# @vmstate: block device node name to save vmstate to
+#
+# Applications should not assume that the snapshot save is complete
+# when this command returns. Completion is indicated by the job
+# status. Clients can wait for the JOB_STATUS_CHANGE event. If the
+# job aborts, errors can be obtained via the 'query-jobs' command,
+# though. Note that at this time most vmstate procssing errors only
+# get printed to stderr. This limitation will be fixed at a future
+# date.
+#
+# Note that the VM CPUs will be paused during the time it takes to
+# save the snapshot
+#
+# If @devices is not specified, or is an empty list, then the
+# historical default logic for picking devices will be used.
+#
+# If @vmstate is not specified, then the first valid block
+# device will be used for vmstate.
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "snapshot-save",
+#      "data": {
+#         "job-id": "snapsave0",
+#         "tag": "my-snap",
+#         "vmstate": "disk0",
+#         "devices": ["disk0", "disk1"]
+#      }
+#    }
+# <- { "return": { } }
+#
+# Since: 5.2
+##
+{ 'command': 'snapshot-save',
+  'data': { 'job-id': 'str',
+            'tag': 'str',
+            '*vmstate': 'str',
+            '*devices': ['str'] } }
+
+##
+# @snapshot-load:
+#
+# Load a VM snapshot
+#
+# @job-id: identifier for the newly created job
+# @tag: name of the snapshot to load.
+# @devices: list of block device node names to load a snapshot from
+# @vmstate: block device node name to load vmstate from
+#
+# Applications should not assume that the snapshot load is complete
+# when this command returns. Completion is indicated by the job
+# status. Clients can wait for the JOB_STATUS_CHANGE event. If the
+# job aborts, errors can be obtained via the 'query-jobs' command,
+# though. Note that at this time most vmstate procssing errors only
+# get printed to stderr. This limitation will be fixed at a future
+# date.
+#
+# If @devices is not specified, or is an empty list, then the
+# historical default logic for picking devices will be used.
+#
+# If @vmstate is not specified, then the first valid block
+# device will be used for vmstate.
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "snapshot-load",
+#      "data": {
+#         "job-id": "snapload0",
+#         "tag": "my-snap",
+#         "vmstate": "disk0",
+#         "devices": ["disk0", "disk1"]
+#      }
+#    }
+# <- { "return": { } }
+#
+# Since: 5.2
+##
+{ 'command': 'snapshot-load',
+  'data': { 'job-id': 'str',
+            'tag': 'str',
+            '*vmstate': 'str',
+            '*devices': ['str'] } }
+
+##
+# @snapshot-delete:
+#
+# Delete a VM snapshot
+#
+# @job-id: identifier for the newly created job
+# @tag: name of the snapshot to delete.
+# @devices: list of block device node names to delete a snapshot from
+#
+# Applications should not assume that the snapshot load is complete
+# when this command returns. Completion is indicated by the job
+# status. Clients can wait for the JOB_STATUS_CHANGE event.
+#
+# Note that the VM CPUs will be paused during the time it takes to
+# delete the snapshot
+#
+# If @devices is not specified, or is an empty list, then the
+# historical default logic for picking devices will be used.
+#
+# Returns: nothing
+#
+# Example:
+#
+# -> { "execute": "snapshot-delete",
+#      "data": {
+#         "job-id": "snapdelete0",
+#         "tag": "my-snap",
+#         "devices": ["disk0", "disk1"]
+#      }
+#    }
+# <- { "return": { } }
+#
+# Since: 5.2
+##
+{ 'command': 'snapshot-delete',
+  'data': { 'job-id': 'str',
+            'tag': 'str',
+            '*devices': ['str'] } }

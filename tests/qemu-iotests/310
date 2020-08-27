@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+#
+# Test which nodes are involved in internal snapshots
+#
+# Copyright (C) 2019 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=berrange@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+status=1	# failure is the default!
+
+_cleanup()
+{
+    _cleanup_qemu
+    _cleanup_test_img
+    TEST_IMG="$TEST_IMG.alt1" _cleanup_test_img
+    TEST_IMG="$TEST_IMG.alt2" _cleanup_test_img
+    rm -f "$SOCK_DIR/nbd"
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.qemu
+
+_supported_fmt qcow2
+_supported_proto file
+_supported_os Linux
+_require_drivers copy-on-read
+
+# Internal snapshots are (currently) impossible with refcount_bits=1,
+# and generally impossible with external data files
+_unsupported_imgopts 'refcount_bits=1[^0-9]' data_file
+
+_require_devices virtio-blk
+
+
+size=128M
+
+if [ -n "$BACKING_FILE" ]; then
+    _make_test_img -b "$BACKING_FILE" -F $IMGFMT $size
+else
+    _make_test_img $size
+fi
+
+    _make_test_img $size
+
+echo "Single disk test"
+
+export capture_events="JOB_STATUS_CHANGE STOP RESUME"
+
+run_snapshot()
+{
+    local op=$1
+
+    _send_qemu_cmd $QEMU_HANDLE "{\"execute\": \"snapshot-${op}\", \"arguments\": {\"job-id\": \"snap${op}0\", \"tag\": \"snap0\", \"devices\": $SNAP_DEVICES}}" "return"
+    # created
+    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+    # running
+    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+    if [ $op = "delete" ]; then
+	if [ $SNAP_DELETE_FAIL = 1 ]; then
+	    # aborting
+	    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+	else
+	    # waiting
+	    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+	    # pending
+	    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+	fi
+    else
+	if [ $SNAP_FAIL = 0 ]; then
+	    _wait_event $QEMU_HANDLE "STOP"
+	    _wait_event $QEMU_HANDLE "RESUME"
+	    # waiting
+	    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+	    # pending
+	    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+	else
+	    if [ $op = "load" ]; then
+		_wait_event $QEMU_HANDLE "STOP"
+	    fi
+	    # aborting
+	    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+	fi
+    fi
+    # concluded
+    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+    _send_qemu_cmd $QEMU_HANDLE "{\"execute\": \"query-jobs\"}" "return"
+    _send_qemu_cmd $QEMU_HANDLE "{\"execute\": \"job-dismiss\", \"arguments\": {\"id\": \"snap${op}0\"}}" "return"
+    # null
+    _wait_event $QEMU_HANDLE "JOB_STATUS_CHANGE"
+}
+
+run_test()
+{
+    keep_stderr=y
+    _launch_qemu -nodefaults -nographic "$@"
+
+    _send_qemu_cmd $QEMU_HANDLE '{"execute": "qmp_capabilities"}' 'return'
+
+    run_snapshot "save"
+    run_snapshot "load"
+    run_snapshot "delete"
+
+    _send_qemu_cmd $QEMU_HANDLE '{"execute": "quit"}' 'return'
+
+    wait=1 _cleanup_qemu
+}
+
+
+echo
+echo "=====  Snapshot single qcow2 image ====="
+echo
+
+SNAP_DEVICES='["diskfmt0"]' SNAP_FAIL=0 SNAP_DELETE_FAIL=0 \
+  run_test \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}"
+
+echo
+echo "=====  Snapshot no image ====="
+echo
+
+TEST_IMG="$TEST_IMG.alt1" _make_test_img $size
+
+SNAP_DEVICES="[]" SNAP_FAIL=1 SNAP_DELETE_FAIL=0 \
+  run_test
+
+
+echo
+echo "=====  Snapshot missing image ====="
+echo
+
+SNAP_DEVICES='["diskfmt1729"]' SNAP_FAIL=1 SNAP_DELETE_FAIL=1 \
+  run_test \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}"
+
+
+echo
+echo "=====  Snapshot protocol instead of format ====="
+echo
+
+SNAP_DEVICES='["disk0"]' SNAP_FAIL=1 SNAP_DELETE_FAIL=1 \
+  run_test \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}"
+
+
+echo
+echo "=====  Snapshot dual qcow2 image ====="
+echo
+
+SNAP_DEVICES='["diskfmt0", "diskfmt1"]' SNAP_FAIL=0 SNAP_DELETE_FAIL=0 \
+  run_test \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}" \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG.alt1','node-name':'disk1'}" \
+    -blockdev "{'driver':'qcow2','file':'disk1','node-name':'diskfmt1'}"
+
+
+echo
+echo "=====  Snapshot error with raw image ====="
+echo
+
+IMGOPTS= IMGFMT=raw TEST_IMG="$TEST_IMG.alt2" _make_test_img $size
+
+SNAP_DEVICES='["diskfmt0", "diskfmt1", "diskfmt2"]' SNAP_FAIL=1 SNAP_DELETE_FAIL=1 \
+  run_test \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}" \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG.alt1','node-name':'disk1'}" \
+    -blockdev "{'driver':'qcow2','file':'disk1','node-name':'diskfmt1'}" \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG.alt2','node-name':'disk2'}" \
+    -blockdev "{'driver':'raw','file':'disk2','node-name':'diskfmt2'}"
+
+
+echo
+echo "=====  Snapshot with raw image excluded ====="
+echo
+
+SNAP_DEVICES='["diskfmt0", "diskfmt1"]' SNAP_FAIL=0 SNAP_DELETE_FAIL=0 \
+  run_test \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}" \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG.alt1','node-name':'disk1'}" \
+    -blockdev "{'driver':'qcow2','file':'disk1','node-name':'diskfmt1'}" \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG.alt2','node-name':'disk2'}" \
+    -blockdev "{'driver':'raw','file':'disk2','node-name':'diskfmt2'}"
+
+echo
+echo "=====  Snapshot bad error reporting to stderr ====="
+echo
+
+# This demonstrates that we're not capturing vmstate loading failures
+# into QMP errors, they're ending up in stderr instead. vmstate needs
+# to report errors via Error object but that is a major piece of work
+# for the future. This test case's expected output log will need
+# adjusting when that is done.
+
+SNAP_DEVICES='["diskfmt0"]'
+SNAP_FAIL=1
+SNAP_DELETE_FAIL=0
+
+keep_stderr=y
+_launch_qemu -nodefaults -nographic \
+    -device virtio-rng \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}"
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "qmp_capabilities"}' 'return'
+
+run_snapshot "save"
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "quit"}' 'return'
+
+wait=1 _cleanup_qemu
+
+# leave off virtio-rng to provoke vmstate failure
+_launch_qemu -nodefaults -nographic \
+    -blockdev "{'driver':'file','filename':'$TEST_IMG','node-name':'disk0'}" \
+    -blockdev "{'driver':'qcow2','file':'disk0','node-name':'diskfmt0'}"
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "qmp_capabilities"}' 'return'
+
+run_snapshot "load"
+run_snapshot "delete"
+
+_send_qemu_cmd $QEMU_HANDLE '{"execute": "quit"}' 'return'
+
+wait=1 _cleanup_qemu
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0
