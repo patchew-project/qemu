@@ -45,3 +45,5 @@ config AVR_TIMER16
 config RENESAS_TIMER
     bool
 
+config RENESAS_MTU
+    bool
