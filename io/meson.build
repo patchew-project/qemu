@@ -15,6 +15,8 @@ io_ss.add(files(
   'task.c',
 ))
 
+io_ss.add(when: 'CONFIG_MPQEMU', if_true: files('mpqemu-link.c'))
+
 io_ss = io_ss.apply(config_host, strict: false)
 libio = static_library('io', io_ss.sources() + genh,
                        dependencies: [io_ss.dependencies()],
