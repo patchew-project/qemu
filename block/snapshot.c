@@ -604,7 +604,9 @@ int bdrv_all_create_snapshot(QEMUSnapshotInfo *sn,
     return 0;
 }
 
-BlockDriverState *bdrv_all_find_vmstate_bs(strList *devices, Error **errp)
+BlockDriverState *bdrv_all_find_vmstate_bs(const char *vmstate_bs,
+                                           strList *devices,
+                                           Error **errp)
 {
     g_autoptr(GList) bdrvs = NULL;
     GList *iterbdrvs;
@@ -624,6 +626,13 @@ BlockDriverState *bdrv_all_find_vmstate_bs(strList *devices, Error **errp)
             bdrv_can_snapshot(bs);
         aio_context_release(ctx);
 
+        if (vmstate_bs && g_str_equal(vmstate_bs,
+                                      bdrv_get_node_name(bs))) {
+            error_setg(errp, "block device '%s' does not support snapshots",
+                       vmstate_bs);
+            return NULL;
+        }
+
         if (found) {
             return bs;
         }
@@ -631,6 +640,10 @@ BlockDriverState *bdrv_all_find_vmstate_bs(strList *devices, Error **errp)
         iterbdrvs = iterbdrvs->next;
     }
 
-    error_setg(errp, "No block device supports snapshots");
+    if (vmstate_bs) {
+        error_setg(errp, "Block device '%s' does not exist", vmstate_bs);
+    } else {
+        error_setg(errp, "No block device supports snapshots");
+    }
     return NULL;
 }
