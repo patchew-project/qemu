@@ -64,4 +64,6 @@ softmmu_ss.add(when: 'CONFIG_ROCKER', if_true: files(
 ), if_false: files('rocker/qmp-norocker.c'))
 softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('rocker/qmp-norocker.c'))
 
+softmmu_ss.add(when: 'CONFIG_MDIO_PHY', if_true: files('mdio.c'))
+
 subdir('can')
