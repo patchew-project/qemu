@@ -146,3 +146,8 @@ config CAN_SJA1000
 
 config MDIO_PHY
     bool
+
+config RENESAS_ETH
+    bool
+    select MDIO_PHY
+    select REGISTER

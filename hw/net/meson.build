@@ -65,5 +65,6 @@ softmmu_ss.add(when: 'CONFIG_ROCKER', if_true: files(
 softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('rocker/qmp-norocker.c'))
 
 softmmu_ss.add(when: 'CONFIG_MDIO_PHY', if_true: files('mdio.c'))
+softmmu_ss.add(when: 'CONFIG_RENESAS_ETH', if_true: files('renesas_eth.c'))
 
 subdir('can')
