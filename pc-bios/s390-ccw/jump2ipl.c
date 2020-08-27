@@ -13,20 +13,28 @@
 #define KERN_IMAGE_START 0x010000UL
 #define RESET_PSW_MASK (PSW_MASK_SHORTPSW | PSW_MASK_64)
 
-typedef struct ResetInfo {
-    uint64_t ipl_psw;
-    uint32_t ipl_continue;
-} ResetInfo;
-
-static ResetInfo save;
+uint64_t *reset_psw = 0, save_psw, ipl_continue;
 
 static void jump_to_IPL_2(void)
 {
-    ResetInfo *current = 0;
+    /* Restore reset PSW and io and external new PSWs */
+    *reset_psw = save_psw;
 
-    void (*ipl)(void) = (void *) (uint64_t) current->ipl_continue;
-    *current = save;
-    ipl(); /* should not return */
+    /* No reset PSW, let's jump instead. */
+    if (ipl_continue) {
+        void (*ipl)(void) = (void *) (uint64_t) ipl_continue;
+        ipl();
+    }
+
+    /* Reset PSW available, let's load it */
+    asm volatile ("lpsw 0(%0)\n"
+        :  : "a" (0):);
+    /* should not return */
+}
+
+void write_reset_psw(uint64_t psw)
+{
+    *reset_psw = psw;
 }
 
 void jump_to_IPL_code(uint64_t address)
@@ -46,15 +54,12 @@ void jump_to_IPL_code(uint64_t address)
      * content of non-BIOS memory after we loaded the guest, so we
      * save the original content and restore it in jump_to_IPL_2.
      */
-    ResetInfo *current = 0;
+    save_psw = *reset_psw;
+    *reset_psw = (uint64_t) &jump_to_IPL_2;
+    *reset_psw |= RESET_PSW_MASK;
+    ipl_continue = address;
 
-    save = *current;
-
-    current->ipl_psw = (uint64_t) &jump_to_IPL_2;
-    current->ipl_psw |= RESET_PSW_MASK;
-    current->ipl_continue = address & PSW_MASK_SHORT_ADDR;
-
-    debug_print_int("set IPL addr to", current->ipl_continue);
+    debug_print_int("set IPL addr to", ipl_continue);
 
     /* Ensure the guest output starts fresh */
     sclp_print("\n");
@@ -84,7 +89,12 @@ void jump_to_low_kernel(void)
 
     /* Trying to get PSW at zero address */
     if (*((uint64_t *)0) & RESET_PSW_MASK) {
-        jump_to_IPL_code((*((uint64_t *)0)) & PSW_MASK_SHORT_ADDR);
+        /*
+         * Surely nobody will try running directly from lowcore, so
+         * let's use 0 as an indication that we want to load the reset
+         * psw at 0x0 and not jump to the entry.
+         */
+        jump_to_IPL_code(0);
     }
 
     /* No other option left, so use the Linux kernel start address */
