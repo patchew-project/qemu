@@ -17,7 +17,17 @@
 #define PCI_PROXY_DEV(obj) \
             OBJECT_CHECK(PCIProxyDev, (obj), TYPE_PCI_PROXY_DEV)
 
-typedef struct PCIProxyDev {
+typedef struct PCIProxyDev PCIProxyDev;
+
+typedef struct ProxyMemoryRegion {
+    PCIProxyDev *dev;
+    MemoryRegion mr;
+    bool memory;
+    bool present;
+    uint8_t type;
+} ProxyMemoryRegion;
+
+struct PCIProxyDev {
     PCIDevice parent_dev;
     char *fd;
 
@@ -29,6 +39,8 @@ typedef struct PCIProxyDev {
      */
     QemuMutex io_mutex;
     QIOChannel *ioc;
-} PCIProxyDev;
+
+    ProxyMemoryRegion region[PCI_NUM_REGIONS];
+};
 
 #endif /* PROXY_H */
