@@ -17,6 +17,8 @@
 #include "monitor/monitor.h"
 #include "io/mpqemu-link.h"
 #include "qemu/error-report.h"
+#include "hw/pci/memory-sync.h"
+#include "qom/object.h"
 
 static void proxy_set_socket(PCIProxyDev *pdev, int fd, Error **errp)
 {
@@ -48,6 +50,8 @@ static void pci_proxy_dev_realize(PCIDevice *device, Error **errp)
 
     qemu_mutex_init(&dev->io_mutex);
     qio_channel_set_blocking(dev->ioc, true, NULL);
+
+    configure_memory_sync(&dev->sync, dev->ioc);
 }
 
 static void pci_proxy_dev_exit(PCIDevice *pdev)
@@ -55,6 +59,8 @@ static void pci_proxy_dev_exit(PCIDevice *pdev)
     PCIProxyDev *dev = PCI_PROXY_DEV(pdev);
 
     qio_channel_close(dev->ioc, NULL);
+
+    deconfigure_memory_sync(&dev->sync);
 }
 
 static int config_op_send(PCIProxyDev *pdev, uint32_t addr, uint32_t *val,

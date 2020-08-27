@@ -18,3 +18,5 @@ softmmu_ss.add_all(when: 'CONFIG_PCI', if_true: pci_ss)
 
 softmmu_ss.add(when: 'CONFIG_PCI', if_false: files('pci-stub.c'))
 softmmu_ss.add(when: 'CONFIG_ALL', if_true: files('pci-stub.c'))
+
+specific_ss.add(when: 'CONFIG_MPQEMU', if_true: files('memory-sync.c'))
