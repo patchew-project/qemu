@@ -15,6 +15,7 @@
  */
 
 #include <stdarg.h>
+#include "qemu/compiler.h"
 
 /**
  * Log severity level
@@ -69,6 +70,7 @@ void fuse_set_log_func(fuse_log_func_t func);
  * @param level severity level (FUSE_LOG_ERR, FUSE_LOG_DEBUG, etc)
  * @param fmt sprintf-style format string including newline
  */
+GCC_FMT_ATTR(2, 3)
 void fuse_log(enum fuse_log_level level, const char *fmt, ...);
 
 #endif /* FUSE_LOG_H_ */
