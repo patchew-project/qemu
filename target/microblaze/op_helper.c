@@ -483,22 +483,17 @@ void mb_cpu_transaction_failed(CPUState *cs, hwaddr physaddr, vaddr addr,
     cpu = MICROBLAZE_CPU(cs);
     env = &cpu->env;
 
-    cpu_restore_state(cs, retaddr, true);
     if (!(env->sregs[SR_MSR] & MSR_EE)) {
         return;
     }
 
-    env->sregs[SR_EAR] = addr;
-    if (access_type == MMU_INST_FETCH) {
-        if (cpu->cfg.iopb_bus_exception) {
-            env->sregs[SR_ESR] = ESR_EC_INSN_BUS;
-            helper_raise_exception(env, EXCP_HW_EXCP);
-        }
-    } else {
-        if (cpu->cfg.dopb_bus_exception) {
-            env->sregs[SR_ESR] = ESR_EC_DATA_BUS;
-            helper_raise_exception(env, EXCP_HW_EXCP);
-        }
+    if ((access_type == MMU_INST_FETCH && cpu->cfg.iopb_bus_exception) ||
+        (access_type != MMU_INST_FETCH && cpu->cfg.dopb_bus_exception)) {
+        cpu_restore_state(cs, retaddr, true);
+        env->sregs[SR_ESR] = access_type == MMU_INST_FETCH ?
+                             ESR_EC_INSN_BUS : ESR_EC_DATA_BUS;
+        env->sregs[SR_EAR] = addr;
+        helper_raise_exception(env, EXCP_HW_EXCP);
     }
 }
 #endif
