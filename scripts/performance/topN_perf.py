@@ -1,72 +1,77 @@
 #!/usr/bin/env python3
 
-#  Print the top N most executed functions in QEMU using perf.
-#  Syntax:
-#  topN_perf.py [-h] [-n] <number of displayed top functions>  -- \
-#           <qemu executable> [<qemu executable options>] \
-#           <target executable> [<target execurable options>]
-#
-#  [-h] - Print the script arguments help message.
-#  [-n] - Specify the number of top functions to print.
-#       - If this flag is not specified, the tool defaults to 25.
-#
-#  Example of usage:
-#  topN_perf.py -n 20 -- qemu-arm coulomb_double-arm
-#
-#  This file is a part of the project "TCG Continuous Benchmarking".
-#
-#  Copyright (C) 2020  Ahmed Karaman <ahmedkhaledkaraman@gmail.com>
-#  Copyright (C) 2020  Aleksandar Markovic <aleksandar.qemu.devel@gmail.com>
-#
-#  This program is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 2 of the License, or
-#  (at your option) any later version.
-#
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+Print the top N most executed functions in QEMU using perf.
+
+Syntax:
+topN_perf.py [-h] [-n <number of displayed top functions>] -- \
+         <qemu executable> [<qemu executable options>] \
+         <target executable> [<target execurable options>]
+
+[-h] - Print the script arguments help message.
+[-n] - Specify the number of top functions to print.
+     - If this flag is not specified, the tool defaults to 25.
+
+Example of usage:
+topN_perf.py -n 20 -- qemu-arm coulomb_double-arm
+
+This file is a part of the project "TCG Continuous Benchmarking".
+
+Copyright (C) 2020  Ahmed Karaman <ahmedkhaledkaraman@gmail.com>
+Copyright (C) 2020  Aleksandar Markovic <aleksandar.qemu.devel@gmail.com>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
 
 import argparse
 import os
 import subprocess
 import sys
+import tempfile
 
 
 # Parse the command line arguments
-parser = argparse.ArgumentParser(
-    usage='topN_perf.py [-h] [-n] <number of displayed top functions >  -- '
+PARSER = argparse.ArgumentParser(
+    usage='topN_perf.py [-h] [-n <number of displayed top functions>] -- '
           '<qemu executable> [<qemu executable options>] '
           '<target executable> [<target executable options>]')
 
-parser.add_argument('-n', dest='top', type=int, default=25,
+PARSER.add_argument('-n', dest='top', type=int, default=25,
                     help='Specify the number of top functions to print.')
 
-parser.add_argument('command', type=str, nargs='+', help=argparse.SUPPRESS)
+PARSER.add_argument('command', type=str, nargs='+', help=argparse.SUPPRESS)
 
-args = parser.parse_args()
+ARGS = PARSER.parse_args()
 
 # Extract the needed variables from the args
-command = args.command
-top = args.top
+COMMAND = ARGS.command
+TOP = ARGS.top
 
 # Insure that perf is installed
-check_perf_presence = subprocess.run(["which", "perf"],
-                                     stdout=subprocess.DEVNULL)
-if check_perf_presence.returncode:
+CHECK_PERF_PRESENCE = subprocess.run(["which", "perf"],
+                                     stdout=subprocess.DEVNULL,
+                                     check=False)
+if CHECK_PERF_PRESENCE.returncode:
     sys.exit("Please install perf before running the script!")
 
 # Insure user has previllage to run perf
-check_perf_executability = subprocess.run(["perf", "stat", "ls", "/"],
+CHECK_PERF_EXECUTABILITY = subprocess.run(["perf", "stat", "ls", "/"],
                                           stdout=subprocess.DEVNULL,
-                                          stderr=subprocess.DEVNULL)
-if check_perf_executability.returncode:
-    sys.exit(
-"""
+                                          stderr=subprocess.DEVNULL,
+                                          check=False)
+if CHECK_PERF_EXECUTABILITY.returncode:
+    sys.exit("""
 Error:
 You may not have permission to collect stats.
 
@@ -85,43 +90,42 @@ To make this setting permanent, edit /etc/sysctl.conf too, e.g.:
    kernel.perf_event_paranoid = -1
 
 * Alternatively, you can run this script under sudo privileges.
-"""
-)
+""")
 
-# Run perf record
-perf_record = subprocess.run((["perf", "record", "--output=/tmp/perf.data"] +
-                              command),
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.PIPE)
-if perf_record.returncode:
-    os.unlink('/tmp/perf.data')
-    sys.exit(perf_record.stderr.decode("utf-8"))
+# Run perf and save all intermediate files in a temporary directory
+with tempfile.TemporaryDirectory() as tmpdir:
+    RECORD_PATH = os.path.join(tmpdir, "record.data")
+    REPORT_PATH = os.path.join(tmpdir, "report.txt")
 
-# Save perf report output to /tmp/perf_report.out
-with open("/tmp/perf_report.out", "w") as output:
-    perf_report = subprocess.run(
-        ["perf", "report", "--input=/tmp/perf.data", "--stdio"],
-        stdout=output,
-        stderr=subprocess.PIPE)
-    if perf_report.returncode:
-        os.unlink('/tmp/perf.data')
-        output.close()
-        os.unlink('/tmp/perf_report.out')
-        sys.exit(perf_report.stderr.decode("utf-8"))
+    PERF_RECORD = subprocess.run((["perf", "record", "--output="+RECORD_PATH] +
+                                  COMMAND),
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.PIPE,
+                                 check=False)
+    if PERF_RECORD.returncode:
+        sys.exit(PERF_RECORD.stderr.decode("utf-8"))
 
-# Read the reported data to functions[]
-functions = []
-with open("/tmp/perf_report.out", "r") as data:
-    # Only read lines that are not comments (comments start with #)
-    # Only read lines that are not empty
-    functions = [line for line in data.readlines() if line and line[0]
-                 != '#' and line[0] != "\n"]
+    with open(REPORT_PATH, "w") as output:
+        PERF_REPORT = subprocess.run(
+            ["perf", "report", "--input="+RECORD_PATH, "--stdio"],
+            stdout=output,
+            stderr=subprocess.PIPE,
+            check=False)
+        if PERF_REPORT.returncode:
+            sys.exit(PERF_REPORT.stderr.decode("utf-8"))
 
-# Limit the number of top functions to "top"
-number_of_top_functions = top if len(functions) > top else len(functions)
+    # Save the reported data to FUNCTIONS[]
+    with open(REPORT_PATH, "r") as data:
+        # Only read lines that are not comments (comments start with #)
+        # Only read lines that are not empty
+        FUNCTIONS = [line for line in data.readlines() if line and
+                     line[0] != '#' and line[0] != "\n"]
 
-# Store the data of the top functions in top_functions[]
-top_functions = functions[:number_of_top_functions]
+# Limit the number of top functions to "TOP"
+NO_TOP_FUNCTIONS = TOP if len(FUNCTIONS) > TOP else len(FUNCTIONS)
+
+# Store the data of the top functions in TOP_FUNCTIONS[]
+TOP_FUNCTIONS = FUNCTIONS[:NO_TOP_FUNCTIONS]
 
 # Print table header
 print('{:>4}  {:>10}  {:<30}  {}\n{}  {}  {}  {}'.format('No.',
@@ -134,7 +138,7 @@ print('{:>4}  {:>10}  {:<30}  {}\n{}  {}  {}  {}'.format('No.',
                                                          '-' * 25))
 
 # Print top N functions
-for (index, function) in enumerate(top_functions, start=1):
+for (index, function) in enumerate(TOP_FUNCTIONS, start=1):
     function_data = function.split()
     function_percentage = function_data[0]
     function_name = function_data[-1]
@@ -143,7 +147,3 @@ for (index, function) in enumerate(top_functions, start=1):
                                              function_percentage,
                                              function_name,
                                              function_invoker))
-
-# Remove intermediate files
-os.unlink('/tmp/perf.data')
-os.unlink('/tmp/perf_report.out')
