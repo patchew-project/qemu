@@ -415,7 +415,10 @@ static bool vhost_section(struct vhost_dev *dev, MemoryRegionSection *section)
 {
     MemoryRegion *mr = section->mr;
 
-    if (memory_region_is_ram(mr) && !memory_region_is_rom(mr)) {
+    if (memory_region_is_ram(mr) &&
+        !memory_region_is_rom(mr) &&
+        !memory_region_is_no_vhost(mr)) {
+
         uint8_t dirty_mask = memory_region_get_dirty_log_mask(mr);
         uint8_t handled_dirty;
 

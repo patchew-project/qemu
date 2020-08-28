@@ -380,6 +380,7 @@ struct MemoryRegion {
     bool global_locking;
     uint8_t dirty_log_mask;
     bool is_iommu;
+    bool no_vhost;
     RAMBlock *ram_block;
     Object *owner;
 
@@ -1204,6 +1205,26 @@ static inline bool memory_region_is_romd(MemoryRegion *mr)
 {
     return mr->rom_device && mr->romd_mode;
 }
+
+/**
+ * memory_region_set_no_vhost: Make vhost ignore a memory region
+ *
+ * Makes vhost ignore a memory region, useful if it isn't real
+ * DMAble memory and is at inconvenient addresses
+ *
+ * @mr: the region being updated.
+ * @no_vhost: true to ignore
+ */
+void memory_region_set_no_vhost(MemoryRegion *mr, bool no_vhost);
+
+/**
+ * memory_region_is_no_vhost: Test if memory region is marked no vhost
+ *
+ * Test if the no_vhost flag is set on the memory region
+ *
+ * @mr: the region being tested.
+ */
+bool memory_region_is_no_vhost(const MemoryRegion *mr);
 
 /**
  * memory_region_get_iommu: check whether a memory region is an iommu
