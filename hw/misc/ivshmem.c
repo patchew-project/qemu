@@ -499,6 +499,7 @@ static void process_msg_shmem(IVShmemState *s, int fd, Error **errp)
     }
 
     s->ivshmem_bar2 = &s->server_bar2;
+    memory_region_set_no_vhost(s->ivshmem_bar2, true);
 }
 
 static void process_msg_disconnect(IVShmemState *s, uint16_t posn,
@@ -855,6 +856,7 @@ static void ivshmem_common_realize(PCIDevice *dev, Error **errp)
 
         s->ivshmem_bar2 = host_memory_backend_get_memory(s->hostmem);
         host_memory_backend_set_mapped(s->hostmem, true);
+        memory_region_set_no_vhost(s->ivshmem_bar2, true);
     } else {
         Chardev *chr = qemu_chr_fe_get_driver(&s->server_chr);
         assert(chr);
