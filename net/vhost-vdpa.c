@@ -206,7 +206,7 @@ static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
     }
     if (strcmp(netdev, name) == 0 &&
         !g_str_has_prefix(driver, "virtio-net-")) {
-        error_setg(errp, "vhost-vdpa requires frontend driver virtio-net-*");
+        error_setg(errp, "Vhost-vdpa requires frontend driver virtio-net-*");
         return -1;
     }
     return 0;
@@ -222,6 +222,10 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
     /* verify net frontend */
     if (qemu_opts_foreach(qemu_find_opts("device"), net_vhost_check_net,
                           (char *)name, errp)) {
+        return -1;
+    }
+    if (!opts->has_vhostdev) {
+        error_setg(errp, "vhost-vdpa requires vhostdev to be set");
         return -1;
     }
     return net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name, opts->vhostdev);
