@@ -219,6 +219,7 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
     s = DO_UPCAST(VhostVDPAState, nc, nc);
     vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR);
     if (vdpa_device_fd == -1) {
+        error_setg(errp, "Fail to open vhost-vdpa device %s", opts->vhostdev);
         return -errno;
     }
     s->vhost_vdpa.device_fd = vdpa_device_fd;
