@@ -442,12 +442,15 @@
 # @queues: number of queues to be created for multiqueue vhost-vdpa
 #          (default: 1)
 #
+# @fd: file descriptor of an already opened vhost-vdpa (since 5.2)
+#
 # Since: 5.1
 ##
 { 'struct': 'NetdevVhostVDPAOptions',
   'data': {
     '*vhostdev':     'str',
-    '*queues':       'int' } }
+    '*queues':       'int',
+    '*fd':           'str' } }
 
 ##
 # @NetClientDriver:

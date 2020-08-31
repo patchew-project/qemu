@@ -206,20 +206,34 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                           (char *)name, errp)) {
         return -1;
     }
-    if (!opts->has_vhostdev) {
-        error_setg(errp, "vhost-vdpa requires vhostdev to be set");
+    if (!(opts->has_vhostdev ^ opts->has_fd)) {
+        error_setg(errp, "Vhost-vdpa requires either vhostdev or fd to be set");
         return -1;
     }
 
     assert(name);
 
     nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, TYPE_VHOST_VDPA, name);
-    snprintf(nc->info_str, sizeof(nc->info_str), "vhostdev=%s", opts->vhostdev);
+    if (opts->has_vhostdev) {
+        snprintf(nc->info_str, sizeof(nc->info_str),
+                 "vhostdev=%s", opts->vhostdev);
+        vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR);
+        if (vdpa_device_fd == -1) {
+            error_setg(errp, "Fail to open vhost-vdpa device %s",
+                       opts->vhostdev);
+            return -errno;
+        }
+    } else {
+        snprintf(nc->info_str, sizeof(nc->info_str), "fd=%s", opts->fd);
+        vdpa_device_fd = monitor_fd_param(cur_mon, opts->fd, errp);
+        if (vdpa_device_fd == -1) {
+            return -1;
+        }
+    }
 
     s = DO_UPCAST(VhostVDPAState, nc, nc);
-    vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR);
     if (vdpa_device_fd == -1) {
-        error_setg(errp, "Fail to open vhost-vdpa device %s", opts->vhostdev);
+
         return -errno;
     }
     s->vhost_vdpa.device_fd = vdpa_device_fd;
