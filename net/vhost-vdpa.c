@@ -190,7 +190,7 @@ static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
     }
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa);
-    assert(s->vhost_net);
+
     return ret;
 }
 
