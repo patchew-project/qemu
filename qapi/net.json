@@ -438,7 +438,6 @@
 # specifications with a vendor specific control path.
 #
 # @vhostdev: path of vhost-vdpa device
-#            (default:'/dev/vhost-vdpa-0')
 #
 # @queues: number of queues to be created for multiqueue vhost-vdpa
 #          (default: 1)
