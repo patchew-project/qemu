@@ -172,27 +172,6 @@ static NetClientInfo net_vhost_vdpa_info = {
         .has_ufo = vhost_vdpa_has_ufo,
 };
 
-static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
-                               const char *name, const char *vhostdev)
-{
-    NetClientState *nc;
-    VhostVDPAState *s;
-    int vdpa_device_fd;
-    int ret;
-    assert(name);
-    nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, device, name);
-    snprintf(nc->info_str, sizeof(nc->info_str), "vhostdev=%s", vhostdev);
-    s = DO_UPCAST(VhostVDPAState, nc, nc);
-    vdpa_device_fd = qemu_open(vhostdev, O_RDWR);
-    if (vdpa_device_fd == -1) {
-        return -errno;
-    }
-    s->vhost_vdpa.device_fd = vdpa_device_fd;
-    ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa);
-
-    return ret;
-}
-
 static int net_vhost_check_net(void *opaque, QemuOpts *opts, Error **errp)
 {
     const char *name = opaque;
@@ -215,6 +194,10 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                         NetClientState *peer, Error **errp)
 {
     const NetdevVhostVDPAOptions *opts;
+    NetClientState *nc;
+    VhostVDPAState *s;
+    int vdpa_device_fd;
+    int ret;
 
     assert(netdev->type == NET_CLIENT_DRIVER_VHOST_VDPA);
     opts = &netdev->u.vhost_vdpa;
@@ -227,5 +210,19 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
         error_setg(errp, "vhost-vdpa requires vhostdev to be set");
         return -1;
     }
-    return net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name, opts->vhostdev);
+
+    assert(name);
+
+    nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, TYPE_VHOST_VDPA, name);
+    snprintf(nc->info_str, sizeof(nc->info_str), "vhostdev=%s", opts->vhostdev);
+
+    s = DO_UPCAST(VhostVDPAState, nc, nc);
+    vdpa_device_fd = qemu_open(opts->vhostdev, O_RDWR);
+    if (vdpa_device_fd == -1) {
+        return -errno;
+    }
+    s->vhost_vdpa.device_fd = vdpa_device_fd;
+    ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa);
+
+    return ret;
 }
