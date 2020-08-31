@@ -888,7 +888,6 @@ void *colo_process_incoming_thread(void *opaque)
     while (mis->state == MIGRATION_STATUS_COLO) {
         colo_wait_handle_message(mis, fb, bioc, &local_err);
         if (local_err) {
-            error_report_err(local_err);
             break;
         }
 
@@ -922,6 +921,10 @@ out:
 
     if (fb) {
         qemu_fclose(fb);
+    }
+
+    if (local_err) {
+        error_report_err(local_err);
     }
 
     /* Hope this not to be too long to loop here */
