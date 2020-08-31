@@ -1832,12 +1832,128 @@ static int allocate_first_block(int fd, size_t max_size)
     return ret;
 }
 
+static int preallocate_falloc(int fd, int64_t current_length, int64_t offset,
+                              Error **errp)
+{
+#ifdef CONFIG_POSIX_FALLOCATE
+    int result;
+
+    if (offset == current_length)
+        return 0;
+
+    /*
+     * Truncating before posix_fallocate() makes it about twice slower on
+     * file systems that do not support fallocate(), trying to check if a
+     * block is allocated before allocating it, so don't do that here.
+     */
+
+    result = -posix_fallocate(fd, current_length,
+                              offset - current_length);
+    if (result != 0) {
+        /* posix_fallocate() doesn't set errno. */
+        error_setg_errno(errp, -result,
+                         "Could not preallocate new data");
+        return result;
+    }
+
+    if (current_length == 0) {
+        /*
+         * posix_fallocate() uses fallocate() if the filesystem supports
+         * it, or fallback to manually writing zeroes. If fallocate()
+         * was used, unaligned reads from the fallocated area in
+         * raw_probe_alignment() will succeed, hence we need to allocate
+         * the first block.
+         *
+         * Optimize future alignment probing; ignore failures.
+         */
+        allocate_first_block(fd, offset);
+    }
+
+    return 0;
+#else
+    return -ENOTSUP;
+#endif
+}
+
+static int preallocate_full(int fd, int64_t current_length, int64_t offset,
+                            Error **errp)
+{
+    int64_t num = 0, left = offset - current_length;
+    off_t seek_result;
+    int result;
+    char *buf = NULL;
+
+    /*
+     * Knowing the final size from the beginning could allow the file
+     * system driver to do less allocations and possibly avoid
+     * fragmentation of the file.
+     */
+    if (ftruncate(fd, offset) != 0) {
+        result = -errno;
+        error_setg_errno(errp, -result, "Could not resize file");
+        goto out;
+    }
+
+    buf = g_malloc0(65536);
+
+    seek_result = lseek(fd, current_length, SEEK_SET);
+    if (seek_result < 0) {
+        result = -errno;
+        error_setg_errno(errp, -result,
+                         "Failed to seek to the old end of file");
+        goto out;
+    }
+
+    while (left > 0) {
+        num = MIN(left, 65536);
+        result = write(fd, buf, num);
+        if (result < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            result = -errno;
+            error_setg_errno(errp, -result,
+                             "Could not write zeros for preallocation");
+            goto out;
+        }
+        left -= result;
+    }
+
+    result = fsync(fd);
+    if (result < 0) {
+        result = -errno;
+        error_setg_errno(errp, -result, "Could not flush file to disk");
+        goto out;
+    }
+
+out:
+    g_free(buf);
+
+    return result;
+}
+
+static int preallocate_off(int fd, int64_t current_length, int64_t offset,
+                           Error **errp)
+{
+    if (ftruncate(fd, offset) != 0) {
+        int result = -errno;
+        error_setg_errno(errp, -result, "Could not resize file");
+        return result;
+    }
+
+    if (current_length == 0 && offset > current_length) {
+        /* Optimize future alignment probing; ignore failures. */
+        allocate_first_block(fd, offset);
+    }
+
+    return 0;
+}
+
 static int handle_aiocb_truncate(void *opaque)
 {
     RawPosixAIOData *aiocb = opaque;
     int result = 0;
     int64_t current_length = 0;
-    char *buf = NULL;
     struct stat st;
     int fd = aiocb->aio_fildes;
     int64_t offset = aiocb->aio_offset;
@@ -1859,95 +1975,14 @@ static int handle_aiocb_truncate(void *opaque)
     switch (prealloc) {
 #ifdef CONFIG_POSIX_FALLOCATE
     case PREALLOC_MODE_FALLOC:
-        /*
-         * Truncating before posix_fallocate() makes it about twice slower on
-         * file systems that do not support fallocate(), trying to check if a
-         * block is allocated before allocating it, so don't do that here.
-         */
-        if (offset != current_length) {
-            result = -posix_fallocate(fd, current_length,
-                                      offset - current_length);
-            if (result != 0) {
-                /* posix_fallocate() doesn't set errno. */
-                error_setg_errno(errp, -result,
-                                 "Could not preallocate new data");
-            } else if (current_length == 0) {
-                /*
-                 * posix_fallocate() uses fallocate() if the filesystem
-                 * supports it, or fallback to manually writing zeroes. If
-                 * fallocate() was used, unaligned reads from the fallocated
-                 * area in raw_probe_alignment() will succeed, hence we need to
-                 * allocate the first block.
-                 *
-                 * Optimize future alignment probing; ignore failures.
-                 */
-                allocate_first_block(fd, offset);
-            }
-        } else {
-            result = 0;
-        }
+        result = preallocate_falloc(fd, current_length, offset, errp);
         goto out;
 #endif
     case PREALLOC_MODE_FULL:
-    {
-        int64_t num = 0, left = offset - current_length;
-        off_t seek_result;
-
-        /*
-         * Knowing the final size from the beginning could allow the file
-         * system driver to do less allocations and possibly avoid
-         * fragmentation of the file.
-         */
-        if (ftruncate(fd, offset) != 0) {
-            result = -errno;
-            error_setg_errno(errp, -result, "Could not resize file");
-            goto out;
-        }
-
-        buf = g_malloc0(65536);
-
-        seek_result = lseek(fd, current_length, SEEK_SET);
-        if (seek_result < 0) {
-            result = -errno;
-            error_setg_errno(errp, -result,
-                             "Failed to seek to the old end of file");
-            goto out;
-        }
-
-        while (left > 0) {
-            num = MIN(left, 65536);
-            result = write(fd, buf, num);
-            if (result < 0) {
-                if (errno == EINTR) {
-                    continue;
-                }
-                result = -errno;
-                error_setg_errno(errp, -result,
-                                 "Could not write zeros for preallocation");
-                goto out;
-            }
-            left -= result;
-        }
-        if (result >= 0) {
-            result = fsync(fd);
-            if (result < 0) {
-                result = -errno;
-                error_setg_errno(errp, -result,
-                                 "Could not flush file to disk");
-                goto out;
-            }
-        }
+        result = preallocate_full(fd, current_length, offset, errp);
         goto out;
-    }
     case PREALLOC_MODE_OFF:
-        if (ftruncate(fd, offset) != 0) {
-            result = -errno;
-            error_setg_errno(errp, -result, "Could not resize file");
-        } else if (current_length == 0 && offset > current_length) {
-            /* Optimize future alignment probing; ignore failures. */
-            allocate_first_block(fd, offset);
-        }
-        return result;
+        return preallocate_off(fd, current_length, offset, errp);
     default:
         result = -ENOTSUP;
         error_setg(errp, "Unsupported preallocation mode: %s",
@@ -1963,7 +1998,6 @@ out:
         }
     }
 
-    g_free(buf);
     return result;
 }
 
