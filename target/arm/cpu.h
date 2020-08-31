@@ -879,6 +879,9 @@ struct ARMCPU {
      */
     int32_t core_count;
 
+    /* Number of pmu counters */
+    uint8_t pmcrn;
+
     /* The instance init functions for implementation-specific subclasses
      * set these fields to specify the implementation-dependent values of
      * various constant registers and reset values of non-constant

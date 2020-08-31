@@ -190,6 +190,7 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->gic_vpribits = 5;
     cpu->gic_vprebits = 5;
     define_arm_cp_regs(cpu, cortex_a72_a57_a53_cp_reginfo);
+    cpu->pmcrn = 6;
 }
 
 static void aarch64_a72_initfn(Object *obj)
