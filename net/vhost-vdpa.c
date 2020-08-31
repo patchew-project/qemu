@@ -175,10 +175,10 @@ static NetClientInfo net_vhost_vdpa_info = {
 static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
                                const char *name, const char *vhostdev)
 {
-    NetClientState *nc = NULL;
+    NetClientState *nc;
     VhostVDPAState *s;
-    int vdpa_device_fd = -1;
-    int ret = 0;
+    int vdpa_device_fd;
+    int ret;
     assert(name);
     nc = qemu_new_net_client(&net_vhost_vdpa_info, peer, device, name);
     snprintf(nc->info_str, sizeof(nc->info_str), "vhostdev=%s", vhostdev);
