@@ -32,6 +32,7 @@
 #include <time.h>
 #include <pxelinux.h>
 
+#include "s390-arch.h"
 #include "s390-ccw.h"
 #include "cio.h"
 #include "virtio.h"
@@ -42,6 +43,8 @@
 
 extern char _start[];
 void write_iplb_location(void) {}
+
+LowCore *lowcore; /* Yes, this *is* a pointer to address 0 */
 
 #define KERNEL_ADDR             ((void *)0L)
 #define KERNEL_MAX_SIZE         ((long)_start)

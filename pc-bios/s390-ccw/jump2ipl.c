@@ -14,6 +14,7 @@
 #define RESET_PSW_MASK (PSW_MASK_SHORTPSW | PSW_MASK_64)
 #define RESET_PSW ((uint64_t)&jump_to_IPL_addr | RESET_PSW_MASK)
 
+extern uint64_t psw_save_io[], psw_save_ext[];
 static uint64_t *reset_psw = 0, save_psw, ipl_continue;
 
 void write_reset_psw(uint64_t psw)
@@ -58,6 +59,9 @@ void jump_to_IPL_code(uint64_t address)
 
     /* Ensure the guest output starts fresh */
     sclp_print("\n");
+
+    memcpy(&lowcore->io_new_psw, psw_save_io, 16);
+    memcpy(&lowcore->external_new_psw, psw_save_ext, 16);
 
     /*
      * HACK ALERT.
