@@ -1835,36 +1835,24 @@ static int allocate_first_block(int fd, size_t max_size)
 static int preallocate_falloc(int fd, int64_t current_length, int64_t offset,
                               Error **errp)
 {
-#ifdef CONFIG_POSIX_FALLOCATE
+#ifdef CONFIG_FALLOCATE
     int result;
 
     if (offset == current_length)
         return 0;
 
-    /*
-     * Truncating before posix_fallocate() makes it about twice slower on
-     * file systems that do not support fallocate(), trying to check if a
-     * block is allocated before allocating it, so don't do that here.
-     */
-
-    result = -posix_fallocate(fd, current_length,
-                              offset - current_length);
+    result = do_fallocate(fd, 0, current_length, offset - current_length);
     if (result != 0) {
-        /* posix_fallocate() doesn't set errno. */
-        error_setg_errno(errp, -result,
-                         "Could not preallocate new data");
+        error_setg_errno(errp, -result, "Could not preallocate new data");
         return result;
     }
 
     if (current_length == 0) {
         /*
-         * posix_fallocate() uses fallocate() if the filesystem supports
-         * it, or fallback to manually writing zeroes. If fallocate()
-         * was used, unaligned reads from the fallocated area in
-         * raw_probe_alignment() will succeed, hence we need to allocate
-         * the first block.
+         * Unaligned reads from the fallocated area in raw_probe_alignment()
+         * will succeed, hence we need to allocate the first block.
          *
-         * Optimize future alignment probing; ignore failures.
+         * Optimizes future alignment probing; ignore failures.
          */
         allocate_first_block(fd, offset);
     }
@@ -1973,10 +1961,12 @@ static int handle_aiocb_truncate(void *opaque)
     }
 
     switch (prealloc) {
-#ifdef CONFIG_POSIX_FALLOCATE
+#ifdef CONFIG_FALLOCATE
     case PREALLOC_MODE_FALLOC:
         result = preallocate_falloc(fd, current_length, offset, errp);
-        goto out;
+        if (result != -ENOTSUP)
+            goto out;
+        /* If fallocate() is not supported, fallback to full preallocation. */
 #endif
     case PREALLOC_MODE_FULL:
         result = preallocate_full(fd, current_length, offset, errp);
@@ -3080,7 +3070,7 @@ static QemuOptsList raw_create_opts = {
             .name = BLOCK_OPT_PREALLOC,
             .type = QEMU_OPT_STRING,
             .help = "Preallocation mode (allowed values: off"
-#ifdef CONFIG_POSIX_FALLOCATE
+#ifdef CONFIG_FALLOCATE
                     ", falloc"
 #endif
                     ", full)"

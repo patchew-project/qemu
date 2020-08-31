@@ -750,11 +750,12 @@ Supported image file formats:
   Supported options:
 
   ``preallocation``
-    Preallocation mode (allowed values: ``off``, ``falloc``,
-    ``full``).  ``falloc`` mode preallocates space for image by
-    calling ``posix_fallocate()``.  ``full`` mode preallocates space
-    for image by writing data to underlying storage.  This data may or
-    may not be zero, depending on the storage location.
+    Preallocation mode (allowed values: ``off``, ``falloc``, ``full``).
+    ``falloc`` mode preallocates space for image by calling
+    ``fallocate()``, and falling back to ``full` mode if not supported.
+    ``full`` mode preallocates space for image by writing data to
+    underlying storage. This data may or may not be zero, depending on
+    the storage location.
 
 ``qcow2``
 
