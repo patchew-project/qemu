@@ -70,6 +70,19 @@ struct SevGuestState {
 #define DEFAULT_GUEST_POLICY    0x1 /* disable debug */
 #define DEFAULT_SEV_DEVICE      "/dev/sev"
 
+/* SEV Information Block GUID = 00f771de-1a7e-4fcb-890e-68c77e2fb44e */
+#define SEV_INFO_BLOCK_GUID \
+    "\xde\x71\xf7\x00\x7e\x1a\xcb\x4f\x89\x0e\x68\xc7\x7e\x2f\xb4\x4e"
+
+typedef struct __attribute__((__packed__)) SevInfoBlock {
+    /* SEV-ES Reset Vector Address */
+    uint32_t reset_addr;
+
+    /* SEV Information Block size and GUID */
+    uint16_t size;
+    char guid[16];
+} SevInfoBlock;
+
 static SevGuestState *sev_guest;
 static Error *sev_mig_blocker;
 
@@ -823,6 +836,44 @@ sev_encrypt_data(void *handle, uint8_t *ptr, uint64_t len)
     if (sev_check_state(sev, SEV_STATE_LAUNCH_UPDATE)) {
         return sev_launch_update_data(sev, ptr, len);
     }
+
+    return 0;
+}
+
+int
+sev_es_save_reset_vector(void *handle, void *flash_ptr, uint64_t flash_size,
+                         uint32_t *addr)
+{
+    SevInfoBlock *info;
+
+    assert(handle);
+
+    /*
+     * Initialize the address to zero. An address of zero with a successful
+     * return code indicates that SEV-ES is not active.
+     */
+    *addr = 0;
+    if (!sev_es_enabled()) {
+        return 0;
+    }
+
+    /*
+     * Extract the AP reset vector for SEV-ES guests by locating the SEV GUID.
+     * The SEV GUID is located 32 bytes from the end of the flash. Use this
+     * address to base the SEV information block.
+     */
+    info = flash_ptr + flash_size - 0x20 - sizeof(*info);
+    if (memcmp(info->guid, SEV_INFO_BLOCK_GUID, 16)) {
+        error_report("SEV information block not found in pflash rom");
+        return 1;
+    }
+
+    if (!info->reset_addr) {
+        error_report("SEV-ES reset address is zero");
+        return 1;
+    }
+
+    *addr = info->reset_addr;
 
     return 0;
 }
