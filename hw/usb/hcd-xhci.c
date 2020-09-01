@@ -1616,6 +1616,7 @@ static int xhci_setup_packet(XHCITransfer *xfer)
     usb_packet_setup(&xfer->packet, dir, ep, xfer->streamid,
                      xfer->trbs[0].addr, false, xfer->int_req);
     if (usb_packet_map(&xfer->packet, &xfer->sgl)) {
+        usb_packet_cleanup(&xfer->packet);
         qemu_sglist_destroy(&xfer->sgl);
         return -1;
     }
