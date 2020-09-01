@@ -1,6 +1,7 @@
 # core qdev-related obj files, also used by *-user and unit tests
 hwcore_files = files(
   'bus.c',
+  'error.c',
   'fw-path-provider.c',
   'hotplug.c',
   'qdev-properties.c',

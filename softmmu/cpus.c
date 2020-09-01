@@ -59,7 +59,6 @@
 #include "sysemu/replay.h"
 #include "sysemu/runstate.h"
 #include "hw/boards.h"
-#include "hw/hw.h"
 
 #include "sysemu/cpu-throttle.h"
 
@@ -910,17 +909,6 @@ static void stop_tcg_kick_timer(void)
 }
 
 /***********************************************************/
-void hw_error(const char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    fprintf(stderr, "qemu: hardware error: ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
-    abort();
-}
 
 void cpu_synchronize_all_states(void)
 {
