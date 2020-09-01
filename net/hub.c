@@ -221,7 +221,7 @@ NetClientState *net_hub_port_find(int hub_id)
 /**
  * Print hub configuration
  */
-void net_hub_info(Monitor *mon)
+void net_hub_info(Monitor *mon, NetdevInfoList *ni_list)
 {
     NetHub *hub;
     NetHubPort *port;
@@ -232,7 +232,7 @@ void net_hub_info(Monitor *mon)
             monitor_printf(mon, " \\ %s", port->nc.name);
             if (port->nc.peer) {
                 monitor_printf(mon, ": ");
-                print_net_client(mon, port->nc.peer);
+                print_net_client(mon, port->nc.peer, ni_list);
             } else {
                 monitor_printf(mon, "\n");
             }
