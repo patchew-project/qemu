@@ -913,16 +913,11 @@ static void stop_tcg_kick_timer(void)
 void hw_error(const char *fmt, ...)
 {
     va_list ap;
-    CPUState *cpu;
 
     va_start(ap, fmt);
     fprintf(stderr, "qemu: hardware error: ");
     vfprintf(stderr, fmt, ap);
     fprintf(stderr, "\n");
-    CPU_FOREACH(cpu) {
-        fprintf(stderr, "CPU #%d:\n", cpu->cpu_index);
-        cpu_dump_state(cpu, stderr, CPU_DUMP_FPU);
-    }
     va_end(ap);
     abort();
 }
