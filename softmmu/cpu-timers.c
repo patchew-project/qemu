@@ -160,7 +160,7 @@ static bool adjust_timers_state_needed(void *opaque)
     return s->icount_rt_timer != NULL;
 }
 
-static bool shift_state_needed(void *opaque)
+static bool icount_shift_state_needed(void *opaque)
 {
     return icount_enabled() == 2;
 }
@@ -196,7 +196,7 @@ static const VMStateDescription icount_vmstate_shift = {
     .name = "timer/icount/shift",
     .version_id = 1,
     .minimum_version_id = 1,
-    .needed = shift_state_needed,
+    .needed = icount_shift_state_needed,
     .fields = (VMStateField[]) {
         VMSTATE_INT16(icount_time_shift, TimersState),
         VMSTATE_END_OF_LIST()

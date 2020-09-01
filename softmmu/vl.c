@@ -2693,7 +2693,7 @@ static void user_register_global_props(void)
 
 static int do_configure_icount(void *opaque, QemuOpts *opts, Error **errp)
 {
-    configure_icount(opts, errp);
+    icount_configure(opts, errp);
     return 0;
 }
 
