@@ -1615,3 +1615,65 @@
 ##
 { 'command': 'query-vm-generation-id', 'returns': 'GuidInfo' }
 
+##
+# @YankInstances:
+#
+# @instances: List of yank instances.
+#
+# A yank instance can be yanked with the "yank" qmp command to recover from a
+# hanging qemu.
+#
+# Yank instances are named after the following schema:
+# "blockdev:<node-name>" refers to a block device. Currently only nbd block
+# devices are implemented.
+# "chardev:<chardev-name>" refers to a chardev. Currently only socket chardevs
+# are implemented.
+# "migration" refers to the migration currently in progress.
+#
+# Currently implemented yank instances:
+#  -nbd block device:
+#   Yanking it will shutdown the connection to the nbd server without
+#   attempting to reconnect.
+#  -socket chardev:
+#   Yanking it will shutdown the connected socket.
+#  -migration:
+#   Yanking it will shutdown all migration connections.
+#
+# Since: 5.2
+##
+{ 'struct': 'YankInstances', 'data': {'instances': ['str'] } }
+
+##
+# @yank:
+#
+# Recover from hanging qemu by yanking the specified instances. See
+# "YankInstances" for more information.
+#
+# Takes @YankInstances as argument.
+#
+# Returns: nothing.
+#
+# Example:
+#
+# -> { "execute": "yank", "arguments": { "instances": ["blockdev:nbd0"] } }
+# <- { "return": {} }
+#
+# Since: 5.2
+##
+{ 'command': 'yank', 'data': 'YankInstances', 'allow-oob': true }
+
+##
+# @query-yank:
+#
+# Query yank instances. See "YankInstances" for more information.
+#
+# Returns: @YankInstances
+#
+# Example:
+#
+# -> { "execute": "query-yank" }
+# <- { "return": { "instances": ["blockdev:nbd0"] } }
+#
+# Since: 5.2
+##
+{ 'command': 'query-yank', 'returns': 'YankInstances', 'allow-oob': true }
