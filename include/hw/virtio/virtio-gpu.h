@@ -150,6 +150,7 @@ typedef struct VirtIOGPU {
 
     bool renderer_inited;
     bool renderer_reset;
+    bool in_io;
     QEMUTimer *fence_poll;
     QEMUTimer *print_stats;
 

@@ -809,6 +809,10 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
 {
     struct virtio_gpu_ctrl_command *cmd;
 
+    if (atomic_read(&g->in_io)) {
+        return;
+    }
+    atomic_set(&g->in_io, 1);
     while (!QTAILQ_EMPTY(&g->cmdq)) {
         cmd = QTAILQ_FIRST(&g->cmdq);
 
@@ -838,6 +842,7 @@ void virtio_gpu_process_cmdq(VirtIOGPU *g)
             g_free(cmd);
         }
     }
+    atomic_set(&g->in_io, 0);
 }
 
 static void virtio_gpu_gl_unblock(VirtIOGPUBase *b)
@@ -1144,6 +1149,10 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
     struct virtio_gpu_simple_resource *res, *tmp;
     struct virtio_gpu_ctrl_command *cmd;
 
+    if (atomic_read(&g->in_io)) {
+        return;
+    }
+    atomic_set(&g->in_io, 1);
 #ifdef CONFIG_VIRGL
     if (g->parent_obj.use_virgl_renderer) {
         virtio_gpu_virgl_reset(g);
@@ -1179,6 +1188,7 @@ static void virtio_gpu_reset(VirtIODevice *vdev)
 #endif
 
     virtio_gpu_base_reset(VIRTIO_GPU_BASE(vdev));
+    atomic_set(&g->in_io, 0);
 }
 
 static void
