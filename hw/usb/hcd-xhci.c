@@ -2738,6 +2738,11 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
     XHCIState *xhci = ptr;
     uint32_t ret;
 
+    if (xhci->in_io) {
+        return 0;
+    }
+    xhci->in_io = true;
+
     switch (reg) {
     case 0x00: /* HCIVERSION, CAPLENGTH */
         ret = 0x01000000 | LEN_CAP;
@@ -2805,6 +2810,9 @@ static uint64_t xhci_cap_read(void *ptr, hwaddr reg, unsigned size)
     }
 
     trace_usb_xhci_cap_read(reg, ret);
+
+    xhci->in_io = false;
+
     return ret;
 }
 
@@ -2812,6 +2820,11 @@ static uint64_t xhci_port_read(void *ptr, hwaddr reg, unsigned size)
 {
     XHCIPort *port = ptr;
     uint32_t ret;
+
+    if (port->xhci->in_io) {
+        return 0;
+    }
+    port->xhci->in_io = true;
 
     switch (reg) {
     case 0x00: /* PORTSC */
@@ -2828,6 +2841,9 @@ static uint64_t xhci_port_read(void *ptr, hwaddr reg, unsigned size)
     }
 
     trace_usb_xhci_port_read(port->portnr, reg, ret);
+
+    port->xhci->in_io = false;
+
     return ret;
 }
 
@@ -2836,6 +2852,11 @@ static void xhci_port_write(void *ptr, hwaddr reg,
 {
     XHCIPort *port = ptr;
     uint32_t portsc, notify;
+
+    if (port->xhci->in_io) {
+        return;
+    }
+    port->xhci->in_io = true;
 
     trace_usb_xhci_port_write(port->portnr, reg, val);
 
@@ -2896,12 +2917,18 @@ static void xhci_port_write(void *ptr, hwaddr reg,
     default:
         trace_usb_xhci_unimplemented("port write", reg);
     }
+    port->xhci->in_io = false;
 }
 
 static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
 {
     XHCIState *xhci = ptr;
     uint32_t ret;
+
+    if (xhci->in_io) {
+        return 0;
+    }
+    xhci->in_io = true;
 
     switch (reg) {
     case 0x00: /* USBCMD */
@@ -2937,6 +2964,9 @@ static uint64_t xhci_oper_read(void *ptr, hwaddr reg, unsigned size)
     }
 
     trace_usb_xhci_oper_read(reg, ret);
+
+    xhci->in_io = false;
+
     return ret;
 }
 
@@ -2945,6 +2975,11 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
 {
     XHCIState *xhci = ptr;
     DeviceState *d = DEVICE(ptr);
+
+    if (xhci->in_io) {
+        return;
+    }
+    xhci->in_io = true;
 
     trace_usb_xhci_oper_write(reg, val);
 
@@ -3008,6 +3043,7 @@ static void xhci_oper_write(void *ptr, hwaddr reg,
     default:
         trace_usb_xhci_unimplemented("oper write", reg);
     }
+    xhci->in_io = false;
 }
 
 static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
@@ -3015,6 +3051,11 @@ static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
 {
     XHCIState *xhci = ptr;
     uint32_t ret = 0;
+
+    if (xhci->in_io) {
+        return 0;
+    }
+    xhci->in_io = true;
 
     if (reg < 0x20) {
         switch (reg) {
@@ -3054,6 +3095,9 @@ static uint64_t xhci_runtime_read(void *ptr, hwaddr reg,
     }
 
     trace_usb_xhci_runtime_read(reg, ret);
+
+    xhci->in_io = false;
+
     return ret;
 }
 
@@ -3063,10 +3107,17 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
     XHCIState *xhci = ptr;
     int v = (reg - 0x20) / 0x20;
     XHCIInterrupter *intr = &xhci->intr[v];
+
+    if (xhci->in_io) {
+        return;
+    }
+    xhci->in_io = true;
+
     trace_usb_xhci_runtime_write(reg, val);
 
     if (reg < 0x20) {
         trace_usb_xhci_unimplemented("runtime write", reg);
+        xhci->in_io = false;
         return;
     }
 
@@ -3121,6 +3172,7 @@ static void xhci_runtime_write(void *ptr, hwaddr reg,
     default:
         trace_usb_xhci_unimplemented("oper write", reg);
     }
+    xhci->in_io = false;
 }
 
 static uint64_t xhci_doorbell_read(void *ptr, hwaddr reg,
@@ -3137,10 +3189,17 @@ static void xhci_doorbell_write(void *ptr, hwaddr reg,
     XHCIState *xhci = ptr;
     unsigned int epid, streamid;
 
+    if (xhci->in_io) {
+        return;
+    }
+
+    xhci->in_io = true;
+
     trace_usb_xhci_doorbell_write(reg, val);
 
     if (!xhci_running(xhci)) {
         DPRINTF("xhci: wrote doorbell while xHC stopped or paused\n");
+        xhci->in_io = false;
         return;
     }
 
@@ -3165,6 +3224,7 @@ static void xhci_doorbell_write(void *ptr, hwaddr reg,
             xhci_kick_ep(xhci, reg, epid, streamid);
         }
     }
+    xhci->in_io = false;
 }
 
 static void xhci_cap_write(void *opaque, hwaddr addr, uint64_t val,

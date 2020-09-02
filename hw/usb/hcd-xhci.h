@@ -227,6 +227,7 @@ struct XHCIState {
     XHCIRing cmd_ring;
 
     bool nec_quirks;
+    bool in_io;
 };
 
 #endif
