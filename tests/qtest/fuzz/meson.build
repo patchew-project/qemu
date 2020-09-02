@@ -10,7 +10,6 @@ specific_fuzz_ss.add(when: 'CONFIG_VIRTIO_SCSI', if_true: files('virtio_scsi_fuz
 # this will be duplicated in meson.build
 fork_fuzz = declare_dependency(
   link_args: ['-fsanitize=fuzzer',
-              '-Wl,-T,' + (meson.current_source_dir() / 'fork_fuzz.ld'),
               '-Wl,-wrap,qtest_inb',
               '-Wl,-wrap,qtest_inw',
               '-Wl,-wrap,qtest_inl',
