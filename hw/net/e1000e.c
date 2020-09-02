@@ -77,6 +77,8 @@ typedef struct E1000EState {
 
     bool disable_vnet;
 
+    bool in_io;
+
     E1000ECore core;
 
 } E1000EState;
@@ -98,7 +100,15 @@ static uint64_t
 e1000e_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     E1000EState *s = opaque;
-    return e1000e_core_read(&s->core, addr, size);
+    uint64_t ret;
+
+    if (s->in_io) {
+        return 0;
+    }
+    s->in_io = true;
+    ret = e1000e_core_read(&s->core, addr, size);
+    s->in_io = false;
+    return ret;
 }
 
 static void
@@ -106,7 +116,13 @@ e1000e_mmio_write(void *opaque, hwaddr addr,
                    uint64_t val, unsigned size)
 {
     E1000EState *s = opaque;
+
+    if (s->in_io) {
+        return;
+    }
+    s->in_io = true;
     e1000e_core_write(&s->core, addr, val, size);
+    s->in_io = false;
 }
 
 static bool
@@ -138,19 +154,28 @@ e1000e_io_read(void *opaque, hwaddr addr, unsigned size)
     uint32_t idx = 0;
     uint64_t val;
 
+    if (s->in_io) {
+            return 0;
+    }
+    s->in_io = true;
+
     switch (addr) {
     case E1000_IOADDR:
         trace_e1000e_io_read_addr(s->ioaddr);
+        s->in_io = false;
         return s->ioaddr;
     case E1000_IODATA:
         if (e1000e_io_get_reg_index(s, &idx)) {
             val = e1000e_core_read(&s->core, idx, sizeof(val));
             trace_e1000e_io_read_data(idx, val);
+            s->in_io = false;
             return val;
         }
+        s->in_io = false;
         return 0;
     default:
         trace_e1000e_wrn_io_read_unknown(addr);
+        s->in_io = false;
         return 0;
     }
 }
@@ -162,19 +187,27 @@ e1000e_io_write(void *opaque, hwaddr addr,
     E1000EState *s = opaque;
     uint32_t idx = 0;
 
+    if (s->in_io) {
+        return;
+    }
+    s->in_io = true;
+
     switch (addr) {
     case E1000_IOADDR:
         trace_e1000e_io_write_addr(val);
         s->ioaddr = (uint32_t) val;
+        s->in_io = false;
         return;
     case E1000_IODATA:
         if (e1000e_io_get_reg_index(s, &idx)) {
             trace_e1000e_io_write_data(idx, val);
             e1000e_core_write(&s->core, idx, val, sizeof(val));
         }
+        s->in_io = false;
         return;
     default:
         trace_e1000e_wrn_io_write_unknown(addr);
+        s->in_io = false;
         return;
     }
 }
