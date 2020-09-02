@@ -1,0 +1,4544 @@
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=True, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 262144,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=True, pre_writes=False, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 262144,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 983040,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 15 dirty sectors; have 15. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 983040,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 15 dirty sectors; have 15. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 917504,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 14 dirty sectors; have 14. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 393216,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 983040,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 15 dirty sectors; have 15. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=True, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 786432,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 12 dirty sectors; have 12. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 983040,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 15 dirty sectors; have 15. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 524288,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 8 dirty sectors; have 8. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 786432,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 12 dirty sectors; have 12. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=True, disabled=False, pre_writes=False, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Write #0:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x49 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6c 0x0100000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6f 0x2000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x76 0x3ff0000 0x10000\""}}
+{"return": ""}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 262144,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 4 dirty sectors; have 4. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 393216,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=True, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 393216,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=True, pre_writes=False, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": true, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": false,
+        "status": "disabled"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 983040,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 15 dirty sectors; have 15. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 983040,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 15 dirty sectors; have 15. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 655360,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 10 dirty sectors; have 10. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 917504,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 14 dirty sectors; have 14. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 393216,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 917504,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 14 dirty sectors; have 14. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=True, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Write #1:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x65 0x0000000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x77 0x00f8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x72 0x2008000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x3fe0000 0x10000\""}}
+{"return": ""}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 393216,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 6 dirty sectors; have 6. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=True, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 786432,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 12 dirty sectors; have 12. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=True, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=True, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 786432,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 12 dirty sectors; have 12. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=True, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+-- Write #2:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x74 0x0010000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x69 0x00e8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x6e 0x2018000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0x67 0x3fe0000 0x20000\""}}
+{"return": ""}
+
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 458752,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 7 dirty sectors; have 7. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=False, cancel=True, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 524288,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 8 dirty sectors; have 8. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=False, cancel=True, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-cancel", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+Job failed: Operation canceled
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_CANCELLED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=False, cancel=False, post_writes=True) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Write #3:
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xaa 0x0010000 0x30000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xbb 0x00d8000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xcc 0x2028000 0x10000\""}}
+{"return": ""}
+{"execute": "human-monitor-command", "arguments": {"command-line": "qemu-io drive0 \"write -P0xdd 0x3fc0000 0x10000\""}}
+{"return": ""}
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 524288,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 8 dirty sectors; have 8. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
+
+=== Bitmap Populate TestConfig(base_pattern=False, disabled=False, pre_writes=False, mid_writes=False, cancel=False, post_writes=False) ===
+
+-- Prepare image & VM:
+{"execute": "blockdev-add", "arguments": {"driver": "qcow2", "file": {"driver": "file", "filename": "TEST_DIR/PID-img"}, "node-name": "drive0"}}
+{"return": {}}
+
+-- Add Bitmap:
+{"execute": "block-dirty-bitmap-add", "arguments": {"disabled": false, "granularity": 65536, "name": "target", "node": "drive0"}}
+{"return": {}}
+
+-- Test block-dirty-bitmap-populate (bitpop0):
+{"execute": "block-dirty-bitmap-populate", "arguments": {"auto-dismiss": false, "auto-finalize": false, "job-id": "bitpop0", "name": "target", "node": "drive0", "pattern": "allocation-top"}}
+{"return": {}}
+{"execute": "job-finalize", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+{"data": {"id": "bitpop0", "type": "bitmap-populate"}, "event": "BLOCK_JOB_PENDING", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"data": {"device": "bitpop0", "len": 67108864, "offset": 67108864, "speed": 0, "type": "bitmap-populate"}, "event": "BLOCK_JOB_COMPLETED", "timestamp": {"microseconds": "USECS", "seconds": "SECS"}}
+{"execute": "job-dismiss", "arguments": {"id": "bitpop0"}}
+{"return": {}}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Verification:
+{
+  "bitmaps": {
+    "drive0": [
+      {
+        "busy": false,
+        "count": 0,
+        "granularity": 65536,
+        "name": "target",
+        "persistent": false,
+        "recording": true,
+        "status": "active"
+      }
+    ]
+  }
+}
+
+= Checking Bitmap target =
+expecting 0 dirty sectors; have 0. OK!
+
+-- Cleanup:
+{"execute": "block-dirty-bitmap-remove", "arguments": {"name": "target", "node": "drive0"}}
+{"return": {}}
+OK: All bitmaps removed
+
