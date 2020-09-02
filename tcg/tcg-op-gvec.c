@@ -359,7 +359,7 @@ static inline bool check_size_impl(uint32_t oprsz, uint32_t lnsz)
 static void expand_clr(uint32_t dofs, uint32_t maxsz);
 
 /* Duplicate C as per VECE.  */
-uint64_t (dup_const)(unsigned vece, uint64_t c)
+uint64_t dup_const_eval(unsigned vece, uint64_t c)
 {
     switch (vece) {
     case MO_8:
