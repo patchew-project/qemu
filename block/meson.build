@@ -5,6 +5,7 @@ block_ss.add(files(
   'amend.c',
   'backup.c',
   'backup-top.c',
+  'bitmap-populate.c',
   'blkdebug.c',
   'blklogwrites.c',
   'blkreplay.c',

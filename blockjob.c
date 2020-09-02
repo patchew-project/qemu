@@ -56,7 +56,8 @@ static bool is_block_job(Job *job)
     return job_type(job) == JOB_TYPE_BACKUP ||
            job_type(job) == JOB_TYPE_COMMIT ||
            job_type(job) == JOB_TYPE_MIRROR ||
-           job_type(job) == JOB_TYPE_STREAM;
+           job_type(job) == JOB_TYPE_STREAM ||
+           job_type(job) == JOB_TYPE_BITMAP_POPULATE;
 }
 
 BlockJob *block_job_next(BlockJob *bjob)
