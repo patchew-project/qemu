@@ -560,9 +560,7 @@ static void qsp_iter_diff(void *p, uint32_t hash, void *htp)
 
     /* No point in reporting an empty entry */
     if (new->n_acqs == 0 && new->ns == 0) {
-        bool removed = qht_remove(ht, new, hash);
-
-        g_assert(removed);
+        g_assert(qht_remove(ht, new, hash));
         g_free(new);
     }
 }
