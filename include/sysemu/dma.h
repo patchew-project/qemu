@@ -108,6 +108,8 @@ static inline int dma_memory_rw(AddressSpace *as, dma_addr_t addr,
                                 void *buf, dma_addr_t len,
                                 DMADirection dir, MemTxAttrs attrs)
 {
+    assert(dir == DMA_DIRECTION_TO_DEVICE || attrs.direct_access);
+
     dma_barrier(as, dir);
 
     return dma_memory_rw_relaxed(as, addr, buf, len, dir, attrs);
