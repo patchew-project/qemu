@@ -176,7 +176,8 @@ static NetClientInfo net_vhost_vdpa_info = {
 };
 
 static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
-                               const char *name, const char *vhostdev)
+                               const char *name, const char *vhostdev,
+                               Error **errp)
 {
     NetClientState *nc = NULL;
     VhostVDPAState *s;
@@ -189,11 +190,15 @@ static int net_vhost_vdpa_init(NetClientState *peer, const char *device,
     s = DO_UPCAST(VhostVDPAState, nc, nc);
     vdpa_device_fd = qemu_open(vhostdev, O_RDWR);
     if (vdpa_device_fd == -1) {
-        return -errno;
+        error_setg_errno(errp, errno, "%s: Cannot open '%s'", name, vhostdev);
+        return -1;
     }
     s->vhost_vdpa.device_fd = vdpa_device_fd;
     ret = vhost_vdpa_add(nc, (void *)&s->vhost_vdpa);
-    assert(s->vhost_net);
+    if (ret == -1) {
+        error_setg(errp, "%s: Cannot add vhost-vdpa '%s'", name, vhostdev);
+        return -1;
+    }
     return ret;
 }
 
@@ -229,5 +234,6 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
     }
     return net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
                                opts->has_vhostdev ?
-                               opts->vhostdev : VHOST_VDPA_DEFAULT_VHOSTDEV);
+                               opts->vhostdev : VHOST_VDPA_DEFAULT_VHOSTDEV,
+                               errp);
 }
