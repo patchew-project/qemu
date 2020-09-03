@@ -17,12 +17,12 @@ struct SpiceChardev {
 };
 typedef struct SpiceChardev SpiceChardev;
 
-#define TYPE_CHARDEV_SPICE "chardev-spice"
-#define TYPE_CHARDEV_SPICEVMC "chardev-spicevmc"
-#define TYPE_CHARDEV_SPICEPORT "chardev-spiceport"
+#define TYPE_SPICE_CHARDEV "chardev-spice"
+#define TYPE_SPICEVMC_CHARDEV "chardev-spicevmc"
+#define TYPE_SPICEPORT_CHARDEV "chardev-spiceport"
 
 DECLARE_INSTANCE_CHECKER(SpiceChardev, SPICE_CHARDEV,
-                         TYPE_CHARDEV_SPICE)
+                         TYPE_SPICE_CHARDEV)
 
 void qemu_chr_open_spice_port(Chardev *chr, ChardevBackend *backend,
                               bool *be_opened, Error **errp);

@@ -230,24 +230,24 @@ typedef struct ChardevClass ChardevClass;
 DECLARE_OBJ_CHECKERS(Chardev, ChardevClass,
                      CHARDEV, TYPE_CHARDEV)
 
-#define TYPE_CHARDEV_NULL "chardev-null"
-#define TYPE_CHARDEV_MUX "chardev-mux"
-#define TYPE_CHARDEV_RINGBUF "chardev-ringbuf"
-#define TYPE_CHARDEV_PTY "chardev-pty"
-#define TYPE_CHARDEV_CONSOLE "chardev-console"
-#define TYPE_CHARDEV_STDIO "chardev-stdio"
-#define TYPE_CHARDEV_PIPE "chardev-pipe"
-#define TYPE_CHARDEV_MEMORY "chardev-memory"
-#define TYPE_CHARDEV_PARALLEL "chardev-parallel"
-#define TYPE_CHARDEV_FILE "chardev-file"
-#define TYPE_CHARDEV_SERIAL "chardev-serial"
-#define TYPE_CHARDEV_SOCKET "chardev-socket"
-#define TYPE_CHARDEV_UDP "chardev-udp"
+#define TYPE_NULL_CHARDEV "chardev-null"
+#define TYPE_MUX_CHARDEV "chardev-mux"
+#define TYPE_RINGBUF_CHARDEV "chardev-ringbuf"
+#define TYPE_PTY_CHARDEV "chardev-pty"
+#define TYPE_CONSOLE_CHARDEV "chardev-console"
+#define TYPE_STDIO_CHARDEV "chardev-stdio"
+#define TYPE_PIPE_CHARDEV "chardev-pipe"
+#define TYPE_MEMORY_CHARDEV "chardev-memory"
+#define TYPE_PARALLEL_CHARDEV "chardev-parallel"
+#define TYPE_FILE_CHARDEV "chardev-file"
+#define TYPE_SERIAL_CHARDEV "chardev-serial"
+#define TYPE_SOCKET_CHARDEV "chardev-socket"
+#define TYPE_UDP_CHARDEV "chardev-udp"
 
 #define CHARDEV_IS_RINGBUF(chr) \
-    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_RINGBUF)
+    object_dynamic_cast(OBJECT(chr), TYPE_RINGBUF_CHARDEV)
 #define CHARDEV_IS_PTY(chr) \
-    object_dynamic_cast(OBJECT(chr), TYPE_CHARDEV_PTY)
+    object_dynamic_cast(OBJECT(chr), TYPE_PTY_CHARDEV)
 
 struct ChardevClass {
     ObjectClass parent_class;

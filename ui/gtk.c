@@ -178,9 +178,9 @@ struct VCChardev {
 };
 typedef struct VCChardev VCChardev;
 
-#define TYPE_CHARDEV_VC "chardev-vc"
+#define TYPE_VC_CHARDEV "chardev-vc"
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
-                         TYPE_CHARDEV_VC)
+                         TYPE_VC_CHARDEV)
 
 bool gtk_use_gl_area;
 
@@ -1717,7 +1717,7 @@ static void char_gd_vc_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_gd_vc_type_info = {
-    .name = TYPE_CHARDEV_VC,
+    .name = TYPE_VC_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VCChardev),
     .class_init = char_gd_vc_class_init,

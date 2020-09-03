@@ -46,7 +46,7 @@ struct UdpChardev {
 typedef struct UdpChardev UdpChardev;
 
 DECLARE_INSTANCE_CHECKER(UdpChardev, UDP_CHARDEV,
-                         TYPE_CHARDEV_UDP)
+                         TYPE_UDP_CHARDEV)
 
 /* Called with chr_write_lock held.  */
 static int udp_chr_write(Chardev *chr, const uint8_t *buf, int len)
@@ -231,7 +231,7 @@ static void char_udp_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_udp_type_info = {
-    .name = TYPE_CHARDEV_UDP,
+    .name = TYPE_UDP_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(UdpChardev),
     .instance_finalize = char_udp_finalize,

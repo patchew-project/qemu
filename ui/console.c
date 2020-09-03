@@ -1089,9 +1089,9 @@ struct VCChardev {
 };
 typedef struct VCChardev VCChardev;
 
-#define TYPE_CHARDEV_VC "chardev-vc"
+#define TYPE_VC_CHARDEV "chardev-vc"
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
-                         TYPE_CHARDEV_VC)
+                         TYPE_VC_CHARDEV)
 
 static int vc_chr_write(Chardev *chr, const uint8_t *buf, int len)
 {
@@ -2403,7 +2403,7 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_vc_type_info = {
-    .name = TYPE_CHARDEV_VC,
+    .name = TYPE_VC_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(VCChardev),
     .class_init = char_vc_class_init,
@@ -2412,7 +2412,7 @@ static const TypeInfo char_vc_type_info = {
 void qemu_console_early_init(void)
 {
     /* set the default vc driver */
-    if (!object_class_by_name(TYPE_CHARDEV_VC)) {
+    if (!object_class_by_name(TYPE_VC_CHARDEV)) {
         type_register(&char_vc_type_info);
     }
 }

@@ -41,7 +41,7 @@ struct WinStdioChardev {
 typedef struct WinStdioChardev WinStdioChardev;
 
 DECLARE_INSTANCE_CHECKER(WinStdioChardev, WIN_STDIO_CHARDEV,
-                         TYPE_CHARDEV_WIN_STDIO)
+                         TYPE_WIN_STDIO_CHARDEV)
 
 static void win_stdio_wait_func(void *opaque)
 {
@@ -255,7 +255,7 @@ static void char_win_stdio_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_win_stdio_type_info = {
-    .name = TYPE_CHARDEV_WIN_STDIO,
+    .name = TYPE_WIN_STDIO_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(WinStdioChardev),
     .instance_finalize = char_win_stdio_finalize,

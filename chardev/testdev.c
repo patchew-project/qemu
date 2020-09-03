@@ -39,9 +39,9 @@ struct TestdevChardev {
 };
 typedef struct TestdevChardev TestdevChardev;
 
-#define TYPE_CHARDEV_TESTDEV "chardev-testdev"
+#define TYPE_TESTDEV_CHARDEV "chardev-testdev"
 DECLARE_INSTANCE_CHECKER(TestdevChardev, TESTDEV_CHARDEV,
-                         TYPE_CHARDEV_TESTDEV)
+                         TYPE_TESTDEV_CHARDEV)
 
 /* Try to interpret a whole incoming packet */
 static int testdev_eat_packet(TestdevChardev *testdev)
@@ -118,7 +118,7 @@ static void char_testdev_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_testdev_type_info = {
-    .name = TYPE_CHARDEV_TESTDEV,
+    .name = TYPE_TESTDEV_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(TestdevChardev),
     .class_init = char_testdev_class_init,

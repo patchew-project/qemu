@@ -42,7 +42,7 @@ static void char_null_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_null_type_info = {
-    .name = TYPE_CHARDEV_NULL,
+    .name = TYPE_NULL_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(Chardev),
     .class_init = char_null_class_init,

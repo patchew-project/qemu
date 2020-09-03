@@ -376,7 +376,7 @@ static void char_spice_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_spice_type_info = {
-    .name = TYPE_CHARDEV_SPICE,
+    .name = TYPE_SPICE_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(SpiceChardev),
     .instance_finalize = char_spice_finalize,
@@ -394,8 +394,8 @@ static void char_spicevmc_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_spicevmc_type_info = {
-    .name = TYPE_CHARDEV_SPICEVMC,
-    .parent = TYPE_CHARDEV_SPICE,
+    .name = TYPE_SPICEVMC_CHARDEV,
+    .parent = TYPE_SPICE_CHARDEV,
     .class_init = char_spicevmc_class_init,
 };
 
@@ -409,8 +409,8 @@ static void char_spiceport_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_spiceport_type_info = {
-    .name = TYPE_CHARDEV_SPICEPORT,
-    .parent = TYPE_CHARDEV_SPICE,
+    .name = TYPE_SPICEPORT_CHARDEV,
+    .parent = TYPE_SPICE_CHARDEV,
     .class_init = char_spiceport_class_init,
 };
 

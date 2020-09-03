@@ -85,9 +85,9 @@ struct TabletChardev {
 };
 typedef struct TabletChardev TabletChardev;
 
-#define TYPE_CHARDEV_WCTABLET "chardev-wctablet"
+#define TYPE_WCTABLET_CHARDEV "chardev-wctablet"
 DECLARE_INSTANCE_CHECKER(TabletChardev, WCTABLET_CHARDEV,
-                         TYPE_CHARDEV_WCTABLET)
+                         TYPE_WCTABLET_CHARDEV)
 
 
 static void wctablet_chr_accept_input(Chardev *chr);
@@ -352,7 +352,7 @@ static void wctablet_chr_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo wctablet_type_info = {
-    .name = TYPE_CHARDEV_WCTABLET,
+    .name = TYPE_WCTABLET_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(TabletChardev),
     .instance_finalize = wctablet_chr_finalize,
