@@ -114,17 +114,19 @@ static inline int dma_memory_rw(AddressSpace *as, dma_addr_t addr,
 }
 
 static inline int dma_memory_read(AddressSpace *as, dma_addr_t addr,
-                                  void *buf, dma_addr_t len)
+                                  void *buf, dma_addr_t len,
+                                  MemTxAttrs attrs)
 {
     return dma_memory_rw(as, addr, buf, len,
-                         DMA_DIRECTION_TO_DEVICE, MEMTXATTRS_UNSPECIFIED);
+                         DMA_DIRECTION_TO_DEVICE, attrs);
 }
 
 static inline int dma_memory_write(AddressSpace *as, dma_addr_t addr,
-                                   const void *buf, dma_addr_t len)
+                                   const void *buf, dma_addr_t len,
+                                   MemTxAttrs attrs)
 {
     return dma_memory_rw(as, addr, (void *)buf, len,
-                         DMA_DIRECTION_FROM_DEVICE, MEMTXATTRS_UNSPECIFIED);
+                         DMA_DIRECTION_FROM_DEVICE, attrs);
 }
 
 int dma_memory_set(AddressSpace *as, dma_addr_t addr,
@@ -156,7 +158,7 @@ static inline void dma_memory_unmap(AddressSpace *as,
                                                             dma_addr_t addr) \
     {                                                                   \
         uint##_bits##_t val;                                            \
-        dma_memory_read(as, addr, &val, (_bits) / 8);                   \
+        dma_memory_read(as, addr, &val, (_bits) / 8, MEMTXATTRS_UNSPECIFIED); \
         return _end##_bits##_to_cpu(val);                               \
     }                                                                   \
     static inline void st##_sname##_##_end##_dma(AddressSpace *as,      \
@@ -164,20 +166,20 @@ static inline void dma_memory_unmap(AddressSpace *as,
                                                  uint##_bits##_t val)   \
     {                                                                   \
         val = cpu_to_##_end##_bits(val);                                \
-        dma_memory_write(as, addr, &val, (_bits) / 8);                  \
+        dma_memory_write(as, addr, &val, (_bits) / 8, MEMTXATTRS_UNSPECIFIED); \
     }
 
 static inline uint8_t ldub_dma(AddressSpace *as, dma_addr_t addr)
 {
     uint8_t val;
 
-    dma_memory_read(as, addr, &val, 1);
+    dma_memory_read(as, addr, &val, 1, MEMTXATTRS_UNSPECIFIED);
     return val;
 }
 
 static inline void stb_dma(AddressSpace *as, dma_addr_t addr, uint8_t val)
 {
-    dma_memory_write(as, addr, &val, 1);
+    dma_memory_write(as, addr, &val, 1, MEMTXATTRS_UNSPECIFIED);
 }
 
 DEFINE_LDST_DMA(uw, w, 16, le);
