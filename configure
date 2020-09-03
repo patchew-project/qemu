@@ -2538,7 +2538,7 @@ fi
 # vhost-user backends
 test "$vhost_net_user" = "" && vhost_net_user=$vhost_user
 if test "$vhost_net_user" = "yes" && test "$vhost_user" = "no"; then
-  error_exit "--enable-vhost-net-user requires --enable-vhost-user"
+  error_exit "--enable-vhost-net requires --enable-vhost-user"
 fi
 test "$vhost_crypto" = "" && vhost_crypto=$vhost_user
 if test "$vhost_crypto" = "yes" && test "$vhost_user" = "no"; then
