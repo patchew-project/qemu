@@ -24,6 +24,9 @@
 #include "monitor/monitor.h"
 #include "hw/virtio/vhost.h"
 
+/* default vhostdev as defined in qapi/net.json */
+#define VHOST_VDPA_DEFAULT_VHOSTDEV "/dev/vhost-vdpa-0"
+
 /* Todo:need to add the multiqueue support here */
 typedef struct VhostVDPAState {
     NetClientState nc;
@@ -224,5 +227,7 @@ int net_init_vhost_vdpa(const Netdev *netdev, const char *name,
                           (char *)name, errp)) {
         return -1;
     }
-    return net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name, opts->vhostdev);
+    return net_vhost_vdpa_init(peer, TYPE_VHOST_VDPA, name,
+                               opts->has_vhostdev ?
+                               opts->vhostdev : VHOST_VDPA_DEFAULT_VHOSTDEV);
 }
