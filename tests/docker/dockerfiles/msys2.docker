@@ -1,0 +1,11 @@
+FROM cirrusci/windowsservercore:cmake
+RUN echo | choco install -y --no-progress --ignore-package-exit-codes --params "/NoUpdate /InstallDir:C:\tools\msys64" msys2
+COPY msys2_install.sh C:/tools
+RUN C:\tools\msys64\usr\bin\bash.exe -lc "grep -rl 'repo.msys2.org/' /etc/pacman.d/mirrorlist.* | xargs sed -i 's/repo.msys2.org\//mirrors.ustc.edu.cn\/msys2\//g'"
+RUN C:\tools\msys64\usr\bin\bash.exe -lc "pacman -Sy"
+RUN C:\tools\msys64\usr\bin\bash.exe -lc "sh /c/tools/msys2_install.sh"
+RUN C:\tools\msys64\usr\bin\bash.exe -lc "rm -rf /var/cache/pacman/pkg/*"
+
+# docker build --tag lygstate/windowsservercore:msys2 -f "../../../tests/docker/dockerfiles/msys2.docker" .
+# docker run -it lygstate/windowsservercore:msys2 cmd
+# docker push lygstate/windowsservercore:msys2
