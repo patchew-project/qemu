@@ -123,7 +123,8 @@ static inline int dma_memory_write(AddressSpace *as, dma_addr_t addr,
                          DMA_DIRECTION_FROM_DEVICE);
 }
 
-int dma_memory_set(AddressSpace *as, dma_addr_t addr, uint8_t c, dma_addr_t len);
+int dma_memory_set(AddressSpace *as, dma_addr_t addr,
+                   uint8_t c, dma_addr_t len, MemTxAttrs attrs);
 
 static inline void *dma_memory_map(AddressSpace *as,
                                    dma_addr_t addr, dma_addr_t *len,
