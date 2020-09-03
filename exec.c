@@ -3213,6 +3213,10 @@ static MemTxResult flatview_write(FlatView *fv, hwaddr addr, MemTxAttrs attrs,
 
     l = len;
     mr = flatview_translate(fv, addr, &addr1, &l, true, attrs);
+    if (attrs.direct_access && !memory_access_is_direct(mr, true)) {
+        trace_memory_access_illegal(true, addr, len, mr->name);
+        return MEMTX_BUS_ERROR;
+    }
     result = flatview_write_continue(fv, addr, attrs, buf, len,
                                      addr1, l, mr);
 
@@ -3275,6 +3279,10 @@ static MemTxResult flatview_read(FlatView *fv, hwaddr addr,
 
     l = len;
     mr = flatview_translate(fv, addr, &addr1, &l, false, attrs);
+    if (attrs.direct_access && !memory_access_is_direct(mr, false)) {
+        trace_memory_access_illegal(false, addr, len, mr->name);
+        return MEMTX_BUS_ERROR;
+    }
     return flatview_read_continue(fv, addr, attrs, buf, len,
                                   addr1, l, mr);
 }
