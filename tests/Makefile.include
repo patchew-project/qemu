@@ -128,7 +128,9 @@ ifndef CONFIG_TSAN
 # Some tests: test-char, test-qdev-global-props, and test-qga,
 # are not runnable under TSan due to a known issue.
 # https://github.com/google/sanitizers/issues/1116
+ifeq ($(CONFIG_POSIX),y)
 check-unit-$(CONFIG_SOFTMMU) += tests/test-char$(EXESUF)
+endif
 check-unit-$(CONFIG_SOFTMMU) += tests/test-qdev-global-props$(EXESUF)
 ifeq ($(CONFIG_GUEST_AGENT),y)
 check-unit-$(call land,$(CONFIG_LINUX),$(CONFIG_VIRTIO_SERIAL)) += tests/test-qga$(EXESUF)
