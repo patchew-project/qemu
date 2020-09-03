@@ -788,8 +788,12 @@ static inline AddressSpace *pci_get_address_space(PCIDevice *dev)
 static inline int pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
                              void *buf, dma_addr_t len, DMADirection dir)
 {
+    MemTxAttrs attrs = {
+        .direct_access = (dir == DMA_DIRECTION_FROM_DEVICE),
+        .requester_id = pci_requester_id(dev),
+    };
     return dma_memory_rw(pci_get_address_space(dev), addr, buf, len,
-                         dir, MEMTXATTRS_UNSPECIFIED);
+                         dir, attrs);
 }
 
 static inline int pci_dma_read(PCIDevice *dev, dma_addr_t addr,
@@ -808,14 +812,18 @@ static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
     static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
                                                    dma_addr_t addr)     \
     {                                                                   \
-        return ld##_l##_dma(pci_get_address_space(dev), addr,           \
-                            MEMTXATTRS_UNSPECIFIED);                    \
+        MemTxAttrs attrs = {                                            \
+            .requester_id = pci_requester_id(dev),                      \
+        };                                                              \
+        return ld##_l##_dma(pci_get_address_space(dev), addr, attrs);   \
     }                                                                   \
     static inline void st##_s##_pci_dma(PCIDevice *dev,                 \
                                         dma_addr_t addr, uint##_bits##_t val) \
     {                                                                   \
-        st##_s##_dma(pci_get_address_space(dev), addr, val,             \
-                     MEMTXATTRS_UNSPECIFIED);                           \
+        MemTxAttrs attrs = {                                            \
+            .requester_id = pci_requester_id(dev),                      \
+        };                                                              \
+        st##_s##_dma(pci_get_address_space(dev), addr, val, attrs);     \
     }
 
 PCI_DMA_DEFINE_LDST(ub, b, 8);
