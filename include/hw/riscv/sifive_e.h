@@ -22,12 +22,14 @@
 #include "hw/riscv/riscv_hart.h"
 #include "hw/riscv/sifive_cpu.h"
 #include "hw/riscv/sifive_gpio.h"
+#include "qom/object.h"
 
 #define TYPE_RISCV_E_SOC "riscv.sifive.e.soc"
+typedef struct SiFiveESoCState SiFiveESoCState;
 #define RISCV_E_SOC(obj) \
     OBJECT_CHECK(SiFiveESoCState, (obj), TYPE_RISCV_E_SOC)
 
-typedef struct SiFiveESoCState {
+struct SiFiveESoCState {
     /*< private >*/
     DeviceState parent_obj;
 
@@ -37,16 +39,17 @@ typedef struct SiFiveESoCState {
     SIFIVEGPIOState gpio;
     MemoryRegion xip_mem;
     MemoryRegion mask_rom;
-} SiFiveESoCState;
+};
 
-typedef struct SiFiveEState {
+struct SiFiveEState {
     /*< private >*/
     SysBusDevice parent_obj;
 
     /*< public >*/
     SiFiveESoCState soc;
     bool revb;
-} SiFiveEState;
+};
+typedef struct SiFiveEState SiFiveEState;
 
 #define TYPE_RISCV_E_MACHINE MACHINE_TYPE_NAME("sifive_e")
 #define RISCV_E_MACHINE(obj) \

@@ -20,6 +20,8 @@
 #include "qapi/error.h"
 
 #define TYPE_SPAPR_DR_CONNECTOR "spapr-dr-connector"
+typedef struct SpaprDrc SpaprDrc;
+typedef struct SpaprDrcClass SpaprDrcClass;
 #define SPAPR_DR_CONNECTOR_GET_CLASS(obj) \
         OBJECT_GET_CLASS(SpaprDrcClass, obj, TYPE_SPAPR_DR_CONNECTOR)
 #define SPAPR_DR_CONNECTOR_CLASS(klass) \
@@ -29,6 +31,7 @@
                                              TYPE_SPAPR_DR_CONNECTOR)
 
 #define TYPE_SPAPR_DRC_PHYSICAL "spapr-drc-physical"
+typedef struct SpaprDrcPhysical SpaprDrcPhysical;
 #define SPAPR_DRC_PHYSICAL_GET_CLASS(obj) \
         OBJECT_GET_CLASS(SpaprDrcClass, obj, TYPE_SPAPR_DRC_PHYSICAL)
 #define SPAPR_DRC_PHYSICAL_CLASS(klass) \
@@ -209,7 +212,7 @@ typedef enum {
     SPAPR_DRC_STATE_PHYSICAL_CONFIGURED = 8,
 } SpaprDrcState;
 
-typedef struct SpaprDrc {
+struct SpaprDrc {
     /*< private >*/
     DeviceState parent;
 
@@ -228,11 +231,11 @@ typedef struct SpaprDrc {
     bool unplug_requested;
     void *fdt;
     int fdt_start_offset;
-} SpaprDrc;
+};
 
 struct SpaprMachineState;
 
-typedef struct SpaprDrcClass {
+struct SpaprDrcClass {
     /*< private >*/
     DeviceClass parent;
     SpaprDrcState empty_state;
@@ -250,15 +253,15 @@ typedef struct SpaprDrcClass {
 
     int (*dt_populate)(SpaprDrc *drc, struct SpaprMachineState *spapr,
                        void *fdt, int *fdt_start_offset, Error **errp);
-} SpaprDrcClass;
+};
 
-typedef struct SpaprDrcPhysical {
+struct SpaprDrcPhysical {
     /*< private >*/
     SpaprDrc parent;
 
     /* DR-indicator */
     uint32_t dr_indicator;
-} SpaprDrcPhysical;
+};
 
 static inline bool spapr_drc_hotplugged(DeviceState *dev)
 {

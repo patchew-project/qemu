@@ -12,15 +12,18 @@
 
 #include "hw/ppc/spapr_irq.h"
 #include "hw/ppc/xive.h"
+#include "qom/object.h"
 
 #define TYPE_SPAPR_XIVE "spapr-xive"
+typedef struct SpaprXive SpaprXive;
+typedef struct SpaprXiveClass SpaprXiveClass;
 #define SPAPR_XIVE(obj) OBJECT_CHECK(SpaprXive, (obj), TYPE_SPAPR_XIVE)
 #define SPAPR_XIVE_CLASS(klass)                                         \
     OBJECT_CLASS_CHECK(SpaprXiveClass, (klass), TYPE_SPAPR_XIVE)
 #define SPAPR_XIVE_GET_CLASS(obj)                               \
     OBJECT_GET_CLASS(SpaprXiveClass, (obj), TYPE_SPAPR_XIVE)
 
-typedef struct SpaprXive {
+struct SpaprXive {
     XiveRouter    parent;
 
     /* Internal interrupt source for IPIs and virtual devices */
@@ -49,13 +52,13 @@ typedef struct SpaprXive {
     void          *tm_mmap;
     MemoryRegion  tm_mmio_kvm;
     VMChangeStateEntry *change;
-} SpaprXive;
+};
 
-typedef struct SpaprXiveClass {
+struct SpaprXiveClass {
     XiveRouterClass parent;
 
     DeviceRealize parent_realize;
-} SpaprXiveClass;
+};
 
 /*
  * The sPAPR machine has a unique XIVE IC device. Assign a fixed value
