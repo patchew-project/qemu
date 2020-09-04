@@ -1035,6 +1035,21 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         .type = CPUID_FEATURE_WORD,
         .cpuid = { .eax = 0x4000000A, .reg = R_EAX, },
     },
+    [FEAT_HV_NESTED_EBX] = {
+        .type = CPUID_FEATURE_WORD,
+        /* reserved */
+        .cpuid = { .eax = 0x4000000A, .reg = R_EBX, },
+    },
+    [FEAT_HV_NESTED_ECX] = {
+        .type = CPUID_FEATURE_WORD,
+        /* reserved */
+        .cpuid = { .eax = 0x4000000A, .reg = R_ECX, },
+    },
+    [FEAT_HV_NESTED_EDX] = {
+        .type = CPUID_FEATURE_WORD,
+        /* reserved */
+        .cpuid = { .eax = 0x4000000A, .reg = R_EDX, },
+    },
     [FEAT_SVM] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {

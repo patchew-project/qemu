@@ -1274,6 +1274,9 @@ static int hyperv_handle_properties(CPUState *cs,
         c = cpuid_find_entry(cpuid, HV_CPUID_NESTED_FEATURES, 0);
         if (c) {
             env->features[FEAT_HV_NESTED_EAX] = c->eax;
+            env->features[FEAT_HV_NESTED_EBX] = c->ebx;
+            env->features[FEAT_HV_NESTED_ECX] = c->ecx;
+            env->features[FEAT_HV_NESTED_EDX] = c->edx;
         }
     }
 
@@ -1384,6 +1387,9 @@ static int hyperv_handle_properties(CPUState *cs,
         c = &cpuid_ent[cpuid_i++];
         c->function = HV_CPUID_NESTED_FEATURES;
         c->eax = env->features[FEAT_HV_NESTED_EAX];
+        c->ebx = env->features[FEAT_HV_NESTED_EBX];
+        c->ecx = env->features[FEAT_HV_NESTED_ECX];
+        c->edx = env->features[FEAT_HV_NESTED_EDX];
     }
     r = cpuid_i;
 
