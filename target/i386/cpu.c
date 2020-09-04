@@ -4779,7 +4779,7 @@ static void x86_cpu_parse_featurestr(const char *typename, char *features,
     }
 }
 
-static void x86_cpu_expand_features(X86CPU *cpu, Error **errp);
+static bool x86_cpu_expand_features(X86CPU *cpu, Error **errp);
 static void x86_cpu_filter_features(X86CPU *cpu, bool verbose);
 
 /* Build a list with the name of all features on a feature word array */
@@ -4821,7 +4821,6 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
                                                  strList **missing_feats)
 {
     X86CPU *xc;
-    Error *err = NULL;
     strList **next = missing_feats;
 
     if (xcc->host_cpuid_required && !accel_uses_host_cpuid()) {
@@ -4833,8 +4832,7 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
 
     xc = X86_CPU(object_new_with_class(OBJECT_CLASS(xcc)));
 
-    x86_cpu_expand_features(xc, &err);
-    if (err) {
+    if (!x86_cpu_expand_features(xc, NULL)) {
         /* Errors at x86_cpu_expand_features should never happen,
          * but in case it does, just report the model as not
          * runnable at all using the "type" property.
@@ -4843,7 +4841,6 @@ static void x86_cpu_class_check_missing_features(X86CPUClass *xcc,
         new->value = g_strdup("type");
         *next = new;
         next = &new->next;
-        error_free(err);
     }
 
     x86_cpu_filter_features(xc, false);
@@ -6324,7 +6321,7 @@ static void x86_cpu_enable_xsave_components(X86CPU *cpu)
 /* Expand CPU configuration data, based on configured features
  * and host/accelerator capabilities when appropriate.
  */
-static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
+static bool x86_cpu_expand_features(X86CPU *cpu, Error **errp)
 {
     CPUX86State *env = &cpu->env;
     FeatureWord w;
@@ -6334,14 +6331,14 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     for (l = plus_features; l; l = l->next) {
         const char *prop = l->data;
         if (!object_property_set_bool(OBJECT(cpu), prop, true, errp)) {
-            return;
+            return false;
         }
     }
 
     for (l = minus_features; l; l = l->next) {
         const char *prop = l->data;
         if (!object_property_set_bool(OBJECT(cpu), prop, false, errp)) {
-            return;
+            return false;
         }
     }
 
@@ -6438,6 +6435,8 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
     if (env->cpuid_xlevel2 == UINT32_MAX) {
         env->cpuid_xlevel2 = env->cpuid_min_xlevel2;
     }
+
+    return true;
 }
 
 /*
