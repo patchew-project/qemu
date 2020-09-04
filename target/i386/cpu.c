@@ -974,6 +974,11 @@ static FeatureWordInfo feature_word_info[FEATURE_WORDS] = {
         },
         .cpuid = { .eax = 0x40000003, .reg = R_EBX, },
     },
+    [FEAT_HYPERV_ECX] = {
+        .type = CPUID_FEATURE_WORD,
+        /* reserved */
+        .cpuid = { .eax = 0x40000003, .reg = R_ECX, },
+    },
     [FEAT_HYPERV_EDX] = {
         .type = CPUID_FEATURE_WORD,
         .feat_names = {

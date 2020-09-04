@@ -1251,6 +1251,7 @@ static int hyperv_handle_properties(CPUState *cs,
         if (c) {
             env->features[FEAT_HYPERV_EAX] = c->eax;
             env->features[FEAT_HYPERV_EBX] = c->ebx;
+            env->features[FEAT_HYPERV_ECX] = c->ecx;
             env->features[FEAT_HYPERV_EDX] = c->edx;
         }
 
@@ -1350,6 +1351,7 @@ static int hyperv_handle_properties(CPUState *cs,
     c->function = HV_CPUID_FEATURES;
     c->eax = env->features[FEAT_HYPERV_EAX];
     c->ebx = env->features[FEAT_HYPERV_EBX];
+    c->ecx = env->features[FEAT_HYPERV_ECX];
     c->edx = env->features[FEAT_HYPERV_EDX];
 
     c = &cpuid_ent[cpuid_i++];
