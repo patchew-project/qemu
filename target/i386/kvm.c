@@ -986,6 +986,10 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid(CPUState *cs)
     do_sys_ioctl =
         kvm_check_extension(kvm_state, KVM_CAP_SYS_HYPERV_CPUID) > 0;
 
+    if (!do_sys_ioctl && !cs->kvm_state) {
+        return NULL;
+    }
+
     /*
      * When the buffer is too small, KVM_GET_SUPPORTED_HV_CPUID fails with
      * -E2BIG, however, it doesn't report back the right size. Keep increasing
@@ -1022,6 +1026,10 @@ static struct kvm_cpuid2 *get_supported_hv_cpuid_legacy(CPUState *cs)
     X86CPU *cpu = X86_CPU(cs);
     struct kvm_cpuid2 *cpuid;
     struct kvm_cpuid_entry2 *entry_feat, *entry_recomm;
+
+    if (!cs->kvm_state) {
+        return NULL;
+    }
 
     /* HV_CPUID_FEATURES, HV_CPUID_ENLIGHTMENT_INFO */
     cpuid = g_malloc0(sizeof(*cpuid) + 2 * sizeof(*cpuid->entries));
@@ -1218,11 +1226,14 @@ static void hyperv_expand_features(CPUState *cs, Error **errp)
     if (!hyperv_enabled(cpu))
         return;
 
-    if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
+    if (kvm_check_extension(kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
         cpuid = get_supported_hv_cpuid(cs);
     } else {
         cpuid = get_supported_hv_cpuid_legacy(cs);
     }
+
+    if (!cpuid)
+        return;
 
     if (cpu->hyperv_passthrough) {
         c = cpuid_find_entry(cpuid, HV_CPUID_VENDOR_AND_MAX_FUNCTIONS, 0);
