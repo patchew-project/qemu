@@ -1139,7 +1139,7 @@ static int hv_cpuid_get_fw(struct kvm_cpuid2 *cpuid, int fw, uint32_t *r)
 }
 
 static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
-                                  int feature)
+                                  int feature, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
@@ -1155,11 +1155,10 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
     while (deps) {
         dep_feat = ctz64(deps);
         if (!(hyperv_feat_enabled(cpu, dep_feat))) {
-                fprintf(stderr,
-                        "Hyper-V %s requires Hyper-V %s\n",
-                        kvm_hyperv_properties[feature].desc,
-                        kvm_hyperv_properties[dep_feat].desc);
-                return 1;
+            error_setg(errp, "Hyper-V %s requires Hyper-V %s",
+                       kvm_hyperv_properties[feature].desc,
+                       kvm_hyperv_properties[dep_feat].desc);
+            return 1;
         }
         deps &= ~(1ull << dep_feat);
     }
@@ -1174,9 +1173,8 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
 
         if (hv_cpuid_get_fw(cpuid, fw, &r) || (r & bits) != bits) {
             if (hyperv_feat_enabled(cpu, feature)) {
-                fprintf(stderr,
-                        "Hyper-V %s is not supported by kernel\n",
-                        kvm_hyperv_properties[feature].desc);
+                error_setg(errp, "Hyper-V %s is not supported by kernel",
+                           kvm_hyperv_properties[feature].desc);
                 return 1;
             } else {
                 return 0;
@@ -1200,13 +1198,13 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
  * of 'hv_passthrough' mode and fills the environment with all supported
  * Hyper-V features.
  */
-static int hyperv_expand_features(CPUState *cs)
+static int hyperv_expand_features(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     struct kvm_cpuid2 *cpuid;
     struct kvm_cpuid_entry2 *c;
-    int r;
+    int r = 1;
 
     if (!hyperv_enabled(cpu))
         return 0;
@@ -1285,34 +1283,67 @@ static int hyperv_expand_features(CPUState *cs)
     }
 
     /* Features */
-    r = hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RELAXED);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_VAPIC);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_TIME);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_CRASH);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RESET);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_VPINDEX);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RUNTIME);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_SYNIC);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_STIMER);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_FREQUENCIES);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_REENLIGHTENMENT);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_TLBFLUSH);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_EVMCS);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_IPI);
-    r |= hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_STIMER_DIRECT);
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RELAXED, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_VAPIC, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_TIME, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_CRASH, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RESET, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_VPINDEX, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_RUNTIME, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_SYNIC, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_STIMER, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_FREQUENCIES, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_REENLIGHTENMENT, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_TLBFLUSH, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_EVMCS, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_IPI, errp)) {
+        goto out;
+    }
+    if (hv_cpuid_check_and_set(cs, cpuid, HYPERV_FEAT_STIMER_DIRECT, errp)) {
+        goto out;
+    }
 
     /* Additional dependencies not covered by kvm_hyperv_properties[] */
     if (hyperv_feat_enabled(cpu, HYPERV_FEAT_SYNIC) &&
         !cpu->hyperv_synic_kvm_only &&
         !hyperv_feat_enabled(cpu, HYPERV_FEAT_VPINDEX)) {
-        fprintf(stderr, "Hyper-V %s requires Hyper-V %s\n",
-                kvm_hyperv_properties[HYPERV_FEAT_SYNIC].desc,
-                kvm_hyperv_properties[HYPERV_FEAT_VPINDEX].desc);
-        r |= 1;
+        error_setg(errp, "Hyper-V %s requires Hyper-V %s",
+                   kvm_hyperv_properties[HYPERV_FEAT_SYNIC].desc,
+                   kvm_hyperv_properties[HYPERV_FEAT_VPINDEX].desc);
+        goto out;
     }
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
+    r = 0;
+
+out:
 
     g_free(cpuid);
 
@@ -1553,8 +1584,9 @@ int kvm_arch_init_vcpu(CPUState *cs)
     env->apic_bus_freq = KVM_APIC_BUS_FREQUENCY;
 
     /* Paravirtualization CPUIDs */
-    r = hyperv_expand_features(cs);
-    if (r < 0) {
+    r = hyperv_expand_features(cs, &local_err);
+    if (local_err) {
+        error_report_err(local_err);
         return r;
     }
 
