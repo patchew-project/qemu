@@ -1198,16 +1198,15 @@ static int hv_cpuid_check_and_set(CPUState *cs, struct kvm_cpuid2 *cpuid,
  * of 'hv_passthrough' mode and fills the environment with all supported
  * Hyper-V features.
  */
-static int hyperv_expand_features(CPUState *cs, Error **errp)
+static void hyperv_expand_features(CPUState *cs, Error **errp)
 {
     X86CPU *cpu = X86_CPU(cs);
     CPUX86State *env = &cpu->env;
     struct kvm_cpuid2 *cpuid;
     struct kvm_cpuid_entry2 *c;
-    int r = 1;
 
     if (!hyperv_enabled(cpu))
-        return 0;
+        return;
 
     if (kvm_check_extension(cs->kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
         cpuid = get_supported_hv_cpuid(cs);
@@ -1341,17 +1340,12 @@ static int hyperv_expand_features(CPUState *cs, Error **errp)
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
-    r = 0;
 
 out:
 
     g_free(cpuid);
 
-    if (r) {
-        return -ENOSYS;
-    }
-
-    return 0;
+    return;
 }
 
 /*
@@ -1584,10 +1578,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     env->apic_bus_freq = KVM_APIC_BUS_FREQUENCY;
 
     /* Paravirtualization CPUIDs */
-    r = hyperv_expand_features(cs, &local_err);
+    hyperv_expand_features(cs, &local_err);
     if (local_err) {
         error_report_err(local_err);
-        return r;
+        return -ENOSYS;
     }
 
     if (hyperv_enabled(cpu)) {
