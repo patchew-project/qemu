@@ -1267,7 +1267,10 @@ static int hyperv_handle_properties(CPUState *cs,
         if (c) {
             env->features[FEAT_HV_RECOMM_EAX] = c->eax;
             cpu->hyperv_spinlock_attempts = c->ebx;
+            env->features[FEAT_HV_RECOMM_ECX] = c->ecx;
+            env->features[FEAT_HV_RECOMM_EDX] = c->edx;
         }
+
         c = cpuid_find_entry(cpuid, HV_CPUID_NESTED_FEATURES, 0);
         if (c) {
             env->features[FEAT_HV_NESTED_EAX] = c->eax;
@@ -1358,6 +1361,8 @@ static int hyperv_handle_properties(CPUState *cs,
     c->function = HV_CPUID_ENLIGHTMENT_INFO;
     c->eax = env->features[FEAT_HV_RECOMM_EAX];
     c->ebx = cpu->hyperv_spinlock_attempts;
+    c->ecx = env->features[FEAT_HV_RECOMM_ECX];
+    c->edx = env->features[FEAT_HV_RECOMM_EDX];
 
     c = &cpuid_ent[cpuid_i++];
     c->function = HV_CPUID_IMPLEMENT_LIMITS;
