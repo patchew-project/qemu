@@ -1669,6 +1669,7 @@ struct X86CPU {
     uint32_t hyperv_interface_id[4];
     uint32_t hyperv_version_id[4];
     uint32_t hyperv_limits[3];
+    bool hyperv_features_expaned;
 
     bool check_cpuid;
     bool enforce_cpuid;

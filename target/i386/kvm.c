@@ -1225,6 +1225,10 @@ static void hyperv_expand_features(CPUState *cs, Error **errp)
     if (!hyperv_enabled(cpu))
         return;
 
+    if (cpu->hyperv_features_expaned) {
+        return;
+    }
+
     if (kvm_check_extension(kvm_state, KVM_CAP_HYPERV_CPUID) > 0) {
         cpuid = get_supported_hv_cpuid(cs);
     } else {
@@ -1360,6 +1364,8 @@ static void hyperv_expand_features(CPUState *cs, Error **errp)
 
     /* Not exposed by KVM but needed to make CPU hotplug in Windows work */
     env->features[FEAT_HYPERV_EDX] |= HV_CPU_DYNAMIC_PARTITIONING_AVAILABLE;
+
+    cpu->hyperv_features_expaned = true;
 
 out:
 
