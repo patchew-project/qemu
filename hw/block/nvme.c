@@ -629,10 +629,8 @@ static void nvme_aio_destroy(NvmeAIO *aio)
 
 static uint16_t nvme_do_aio(NvmeAIO *aio)
 {
-    NvmeRequest *req = aio->req;
-
     BlockBackend *blk = aio->blk;
-    BlockAcctCookie *acct = &req->acct;
+    BlockAcctCookie *acct = &aio->acct;
     BlockAcctStats *stats = blk_get_stats(blk);
 
     bool is_write;
@@ -640,12 +638,12 @@ static uint16_t nvme_do_aio(NvmeAIO *aio)
     switch (aio->opc) {
     case NVME_AIO_OPC_FLUSH:
         block_acct_start(stats, acct, 0, BLOCK_ACCT_FLUSH);
-        req->aiocb = blk_aio_flush(blk, nvme_aio_cb, aio);
+        aio->aiocb = blk_aio_flush(blk, nvme_aio_cb, aio);
         break;
 
     case NVME_AIO_OPC_WRITE_ZEROES:
         block_acct_start(stats, acct, aio->len, BLOCK_ACCT_WRITE);
-        req->aiocb = blk_aio_pwrite_zeroes(blk, aio->offset, aio->len,
+        aio->aiocb = blk_aio_pwrite_zeroes(blk, aio->offset, aio->len,
                                            BDRV_REQ_MAY_UNMAP, nvme_aio_cb,
                                            aio);
         break;
@@ -661,20 +659,20 @@ static uint16_t nvme_do_aio(NvmeAIO *aio)
             QEMUSGList *qsg = (QEMUSGList *)aio->payload;
 
             if (is_write) {
-                req->aiocb = dma_blk_write(blk, qsg, aio->offset,
+                aio->aiocb = dma_blk_write(blk, qsg, aio->offset,
                                            BDRV_SECTOR_SIZE, nvme_aio_cb, aio);
             } else {
-                req->aiocb = dma_blk_read(blk, qsg, aio->offset,
+                aio->aiocb = dma_blk_read(blk, qsg, aio->offset,
                                           BDRV_SECTOR_SIZE, nvme_aio_cb, aio);
             }
         } else {
             QEMUIOVector *iov = (QEMUIOVector *)aio->payload;
 
             if (is_write) {
-                req->aiocb = blk_aio_pwritev(blk, aio->offset, iov, 0,
+                aio->aiocb = blk_aio_pwritev(blk, aio->offset, iov, 0,
                                              nvme_aio_cb, aio);
             } else {
-                req->aiocb = blk_aio_preadv(blk, aio->offset, iov, 0,
+                aio->aiocb = blk_aio_preadv(blk, aio->offset, iov, 0,
                                             nvme_aio_cb, aio);
             }
         }
@@ -693,6 +691,8 @@ static uint16_t nvme_aio_add(NvmeRequest *req, NvmeAIO *aio)
                            aio->offset, aio->len, nvme_aio_opc_str(aio),
                            req);
 
+    QTAILQ_INSERT_TAIL(&req->aio_tailq, aio, entry);
+
     return nvme_do_aio(aio);
 }
 
@@ -702,13 +702,15 @@ static void nvme_aio_cb(void *opaque, int ret)
     NvmeRequest *req = aio->req;
 
     BlockBackend *blk = aio->blk;
-    BlockAcctCookie *acct = &req->acct;
+    BlockAcctCookie *acct = &aio->acct;
     BlockAcctStats *stats = blk_get_stats(blk);
 
     Error *local_err = NULL;
 
     trace_pci_nvme_aio_cb(nvme_cid(req), aio, blk_name(blk), aio->offset,
                           aio->len, nvme_aio_opc_str(aio), req);
+
+    QTAILQ_REMOVE(&req->aio_tailq, aio, entry);
 
     if (!ret) {
         block_acct_done(stats, acct);
@@ -738,10 +740,19 @@ static void nvme_aio_cb(void *opaque, int ret)
         error_setg_errno(&local_err, -ret, "aio failed");
         error_report_err(local_err);
 
-        req->status = status;
+        /*
+         * An Internal Error trumps all other errors. For other errors, only
+         * set the first encountered.
+         */
+        if (!req->status || (status & 0xfff) == NVME_INTERNAL_DEV_ERROR) {
+            req->status = status;
+        }
     }
 
-    nvme_enqueue_req_completion(nvme_cq(req), req);
+    if (QTAILQ_EMPTY(&req->aio_tailq)) {
+        nvme_enqueue_req_completion(nvme_cq(req), req);
+    }
+
     nvme_aio_destroy(aio);
 }
 
@@ -872,6 +883,7 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req)
     NvmeRequest *r, *next;
     NvmeSQueue *sq;
     NvmeCQueue *cq;
+    NvmeAIO *aio;
     uint16_t qid = le16_to_cpu(c->qid);
 
     if (unlikely(!qid || nvme_check_sqid(n, qid))) {
@@ -884,8 +896,11 @@ static uint16_t nvme_del_sq(NvmeCtrl *n, NvmeRequest *req)
     sq = n->sq[qid];
     while (!QTAILQ_EMPTY(&sq->out_req_list)) {
         r = QTAILQ_FIRST(&sq->out_req_list);
-        assert(r->aiocb);
-        blk_aio_cancel(r->aiocb);
+        while (!QTAILQ_EMPTY(&r->aio_tailq)) {
+            aio = QTAILQ_FIRST(&r->aio_tailq);
+            assert(aio->aiocb);
+            blk_aio_cancel(aio->aiocb);
+        }
     }
     if (!nvme_check_cqid(n, sq->cqid)) {
         cq = n->cq[sq->cqid];
@@ -923,6 +938,7 @@ static void nvme_init_sq(NvmeSQueue *sq, NvmeCtrl *n, uint64_t dma_addr,
     for (i = 0; i < sq->size; i++) {
         sq->io_req[i].sq = sq;
         QTAILQ_INSERT_TAIL(&(sq->req_list), &sq->io_req[i], entry);
+        QTAILQ_INIT(&(sq->io_req[i].aio_tailq));
     }
     sq->timer = timer_new_ns(QEMU_CLOCK_VIRTUAL, nvme_process_sq, sq);
 

@@ -22,14 +22,13 @@ typedef struct NvmeAsyncEvent {
 typedef struct NvmeRequest {
     struct NvmeSQueue       *sq;
     struct NvmeNamespace    *ns;
-    BlockAIOCB              *aiocb;
     uint16_t                status;
     NvmeCqe                 cqe;
     NvmeCmd                 cmd;
-    BlockAcctCookie         acct;
     QEMUSGList              qsg;
     QEMUIOVector            iov;
     QTAILQ_ENTRY(NvmeRequest)entry;
+    QTAILQ_HEAD(, NvmeAIO)  aio_tailq;
 } NvmeRequest;
 
 static inline bool nvme_req_is_write(NvmeRequest *req)
@@ -86,10 +85,13 @@ typedef struct NvmeAIO {
     NvmeAIOOp       opc;
     NvmeRequest     *req;
     BlockBackend    *blk;
+    BlockAcctCookie acct;
+    BlockAIOCB      *aiocb;
     int64_t         offset;
     size_t          len;
     int             flags;
     void            *payload;
+    QTAILQ_ENTRY(NvmeAIO) entry;
 } NvmeAIO;
 
 static inline const char *nvme_aio_opc_str(NvmeAIO *aio)
