@@ -32,6 +32,17 @@ typedef struct NvmeRequest {
     QTAILQ_ENTRY(NvmeRequest)entry;
 } NvmeRequest;
 
+static inline bool nvme_req_is_write(NvmeRequest *req)
+{
+    switch (req->cmd.opcode) {
+    case NVME_CMD_WRITE:
+    case NVME_CMD_WRITE_ZEROES:
+        return true;
+    default:
+        return false;
+    }
+}
+
 static inline const char *nvme_adm_opc_str(uint8_t opc)
 {
     switch (opc) {
@@ -57,6 +68,38 @@ static inline const char *nvme_io_opc_str(uint8_t opc)
     case NVME_CMD_READ:             return "NVME_NVM_CMD_READ";
     case NVME_CMD_WRITE_ZEROES:     return "NVME_NVM_CMD_WRITE_ZEROES";
     default:                        return "NVME_NVM_CMD_UNKNOWN";
+    }
+}
+
+typedef enum NvmeAIOOp {
+    NVME_AIO_OPC_FLUSH        = 0x1,
+    NVME_AIO_OPC_READ         = 0x2,
+    NVME_AIO_OPC_WRITE        = 0x3,
+    NVME_AIO_OPC_WRITE_ZEROES = 0x4,
+} NvmeAIOOp;
+
+typedef enum NvmeAIOFlags {
+    NVME_AIO_DMA = 1 << 0,
+} NvmeAIOFlags;
+
+typedef struct NvmeAIO {
+    NvmeAIOOp       opc;
+    NvmeRequest     *req;
+    BlockBackend    *blk;
+    int64_t         offset;
+    size_t          len;
+    int             flags;
+    void            *payload;
+} NvmeAIO;
+
+static inline const char *nvme_aio_opc_str(NvmeAIO *aio)
+{
+    switch (aio->opc) {
+    case NVME_AIO_OPC_FLUSH:        return "NVME_AIO_OPC_FLUSH";
+    case NVME_AIO_OPC_READ:         return "NVME_AIO_OPC_READ";
+    case NVME_AIO_OPC_WRITE:        return "NVME_AIO_OPC_WRITE";
+    case NVME_AIO_OPC_WRITE_ZEROES: return "NVME_AIO_OPC_WRITE_ZEROES";
+    default:                        return "NVME_AIO_OPC_UNKNOWN";
     }
 }
 
@@ -169,6 +212,14 @@ typedef struct NvmeCtrl {
 static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
 {
     return n->ns_size >> nvme_ns_lbads(ns);
+}
+
+static inline NvmeCQueue *nvme_cq(NvmeRequest *req)
+{
+    NvmeSQueue *sq = req->sq;
+    NvmeCtrl *n = sq->ctrl;
+
+    return n->cq[sq->cqid];
 }
 
 #endif /* HW_NVME_H */
