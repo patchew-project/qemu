@@ -2494,6 +2494,26 @@ static void load_elf_image(const char *image_name, int image_fd,
         goto exit_perror;
     }
     load_bias = load_addr - loaddr;
+    /*
+     * Unmap the memory which not needed by ELF segments.
+     *
+     * Instead of directly reserving the needed memory space,
+     * we first target_mmap all space betwenn loaddr and hiaddr,
+     * then target_munmap the holes between space needed by segments.
+     * It is because directly reserving the needed memory will call
+     * target_mmap several times, which may result in different
+     * load_bias for different segments.
+     */
+    abi_ulong munmap_start = -1, munmap_end = 0;
+    for (i = 0; i < ehdr->e_phnum; ++i) {
+        if (phdr[i].p_type == PT_LOAD) {
+            munmap_end = phdr[i].p_vaddr - phdr[i].p_offset;
+            if (munmap_start != -1 && munmap_end > munmap_start) {
+                target_munmap(munmap_start, munmap_end - munmap_start);
+            }
+            munmap_start = phdr[i].p_vaddr + phdr[i].p_memsz;
+        }
+    }
 
     if (elf_is_fdpic(ehdr)) {
         struct elf32_fdpic_loadseg *loadsegs = info->loadsegs =
