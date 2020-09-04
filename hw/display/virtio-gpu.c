@@ -648,7 +648,9 @@ int virtio_gpu_create_mapping_iov(VirtIOGPU *g,
         hwaddr len = l;
         (*iov)[i].iov_len = l;
         (*iov)[i].iov_base = dma_memory_map(VIRTIO_DEVICE(g)->dma_as,
-                                            a, &len, DMA_DIRECTION_TO_DEVICE);
+                                            a, &len,
+                                            DMA_DIRECTION_TO_DEVICE,
+                                            MEMTXATTRS_UNSPECIFIED);
         if (addr) {
             (*addr)[i] = a;
         }
@@ -1049,7 +1051,9 @@ static int virtio_gpu_load(QEMUFile *f, void *opaque, size_t size,
             hwaddr len = res->iov[i].iov_len;
             res->iov[i].iov_base =
                 dma_memory_map(VIRTIO_DEVICE(g)->dma_as,
-                               res->addrs[i], &len, DMA_DIRECTION_TO_DEVICE);
+                               res->addrs[i], &len,
+                               DMA_DIRECTION_TO_DEVICE,
+                               MEMTXATTRS_UNSPECIFIED);
 
             if (!res->iov[i].iov_base || len != res->iov[i].iov_len) {
                 /* Clean up the half-a-mapping we just created... */
