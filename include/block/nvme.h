@@ -630,7 +630,7 @@ enum NvmeStatusCodes {
     NVME_INVALID_OPCODE         = 0x0001,
     NVME_INVALID_FIELD          = 0x0002,
     NVME_CID_CONFLICT           = 0x0003,
-    NVME_DATA_TRAS_ERROR        = 0x0004,
+    NVME_DATA_TRANSFER_ERROR    = 0x0004,
     NVME_POWER_LOSS_ABORT       = 0x0005,
     NVME_INTERNAL_DEV_ERROR     = 0x0006,
     NVME_CMD_ABORT_REQ          = 0x0007,
