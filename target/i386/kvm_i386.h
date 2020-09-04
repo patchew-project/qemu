@@ -48,4 +48,11 @@ bool kvm_has_waitpkg(void);
 
 bool kvm_hv_vpindex_settable(void);
 
+static inline bool hyperv_feature_word(enum FeatureWord w)
+{
+    return w >= FEAT_HYPERV_EAX && w <= FEAT_HV_NESTED_EDX;
+}
+
+uint32_t kvm_hv_get_supported_cpuid(X86CPU *cpu, enum FeatureWord w);
+
 #endif

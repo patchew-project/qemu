@@ -5147,7 +5147,7 @@ CpuDefinitionInfoList *qmp_query_cpu_definitions(Error **errp)
     return cpu_list;
 }
 
-static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
+static uint64_t x86_cpu_get_supported_feature_word(X86CPU *cpu, FeatureWord w,
                                                    bool migratable_only)
 {
     FeatureWordInfo *wi = &feature_word_info[w];
@@ -5156,9 +5156,12 @@ static uint64_t x86_cpu_get_supported_feature_word(FeatureWord w,
     if (kvm_enabled()) {
         switch (wi->type) {
         case CPUID_FEATURE_WORD:
-            r = kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid.eax,
-                                                        wi->cpuid.ecx,
-                                                        wi->cpuid.reg);
+            if (hyperv_feature_word(w))
+                r = kvm_hv_get_supported_cpuid(cpu, w);
+            else
+                r = kvm_arch_get_supported_cpuid(kvm_state, wi->cpuid.eax,
+                                                 wi->cpuid.ecx,
+                                                 wi->cpuid.reg);
             break;
         case MSR_FEATURE_WORD:
             r = kvm_arch_get_supported_msr_feature(kvm_state,
@@ -6485,7 +6488,7 @@ static void x86_cpu_expand_features(X86CPU *cpu, Error **errp)
              * by the user.
              */
             env->features[w] |=
-                x86_cpu_get_supported_feature_word(w, cpu->migratable) &
+                x86_cpu_get_supported_feature_word(cpu, w, cpu->migratable) &
                 ~env->user_features[w] &
                 ~feature_word_info[w].no_autoenable_flags;
         }
@@ -6589,7 +6592,7 @@ static void x86_cpu_filter_features(X86CPU *cpu, bool verbose)
 
     for (w = 0; w < FEATURE_WORDS; w++) {
         uint64_t host_feat =
-            x86_cpu_get_supported_feature_word(w, false);
+            x86_cpu_get_supported_feature_word(cpu, w, false);
         uint64_t requested_features = env->features[w];
         uint64_t unavailable_features = requested_features & ~host_feat;
         mark_unavailable_features(cpu, w, unavailable_features, prefix);

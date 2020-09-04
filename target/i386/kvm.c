@@ -1449,6 +1449,21 @@ static int hyperv_fill_cpuids(CPUState *cs,
     return cpuid_i;
 }
 
+uint32_t kvm_hv_get_supported_cpuid(X86CPU *cpu, enum FeatureWord w)
+{
+    CPUState *cs = CPU(cpu);
+    CPUX86State *env = &cpu->env;
+    Error *local_err = NULL;
+
+    hyperv_expand_features(cs, &local_err);
+
+    if (local_err) {
+            error_report_err(local_err);
+    }
+
+    return env->features[w];
+}
+
 static Error *hv_passthrough_mig_blocker;
 static Error *hv_no_nonarch_cs_mig_blocker;
 
