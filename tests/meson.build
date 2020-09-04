@@ -272,3 +272,4 @@ endif
 
 subdir('qapi-schema')
 subdir('qtest')
+subdir('migration')
