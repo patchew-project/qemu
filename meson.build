@@ -34,8 +34,6 @@ have_block = have_system or have_tools
 
 add_project_arguments(config_host['QEMU_CFLAGS'].split(),
                       native: false, language: ['c', 'objc'])
-add_project_arguments(config_host['QEMU_CXXFLAGS'].split(),
-                      native: false, language: 'cpp')
 add_project_link_arguments(config_host['QEMU_LDFLAGS'].split(),
                            native: false, language: ['c', 'cpp', 'objc'])
 add_project_arguments(config_host['QEMU_INCLUDES'].split(),
@@ -43,9 +41,31 @@ add_project_arguments(config_host['QEMU_INCLUDES'].split(),
 
 python = import('python').find_installation()
 
-link_language = meson.get_external_property('link_language', 'cpp')
-if link_language == 'cpp'
-  add_languages('cpp', required: true, native: false)
+##################
+# Compiler flags #
+##################
+
+link_language = 'c'
+if add_languages('cpp', required: false, native: false)
+  cxx = meson.get_compiler('cpp')
+  add_project_arguments('-D__STDC_LIMIT_MACROS', '-D__STDC_CONSTANT_MACROS',
+                        '-D__STDC_CONSTANT_MACROS',
+                        native: false, language: 'cpp')
+  foreach i : config_host['QEMU_CFLAGS'].split()
+    if i in [ '-Wstrict-prototypes', '-Wmissing-prototypes', '-Wnested-externs',
+              '-Wold-style-declaration', '-Wold-style-definition', '-Wredundant-decls' ]
+      # do nothing
+    elif i.startswith('-W')
+      add_project_arguments(cxx.get_supported_arguments(i), native: false, language: 'cpp')
+    else
+      add_project_arguments(i, native: false, language: 'cpp')
+    endif
+  endforeach
+  if cxx.links(files('scripts/empty.c'))
+    link_language = 'cpp'
+  else
+    warning('C++ compiler does not work with C compiler, disabling C++ code')
+  endif
 endif
 if host_machine.system() == 'darwin'
   add_languages('objc', required: false, native: false)
