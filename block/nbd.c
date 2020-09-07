@@ -125,12 +125,14 @@ typedef struct BDRVNBDState {
     bool wait_in_flight;
 
     QEMUTimer *reconnect_delay_timer;
+    QEMUTimer *open_timer;
 
     NBDClientRequest requests[MAX_NBD_REQUESTS];
     NBDReply reply;
     BlockDriverState *bs;
 
     /* Connection parameters */
+    uint64_t open_timeout;
     uint32_t reconnect_delay;
     SocketAddress *saddr;
     char *export, *tlscredsid;
@@ -304,7 +306,7 @@ static void coroutine_fn nbd_client_co_drain_end(BlockDriverState *bs)
 }
 
 
-static void nbd_teardown_connection(BlockDriverState *bs)
+static void nbd_teardown_connection_async(BlockDriverState *bs)
 {
     BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
 
@@ -324,6 +326,14 @@ static void nbd_teardown_connection(BlockDriverState *bs)
         }
         nbd_co_establish_connection_cancel(bs, true);
     }
+}
+
+static void nbd_teardown_connection(BlockDriverState *bs)
+{
+    BDRVNBDState *s = (BDRVNBDState *)bs->opaque;
+
+    nbd_teardown_connection_async(bs);
+
     if (qemu_in_coroutine()) {
         s->teardown_co = qemu_coroutine_self();
         /* connection_co resumes us when it terminates */
@@ -473,6 +483,11 @@ nbd_co_establish_connection(BlockDriverState *bs, Error **errp)
     s->wait_connect = true;
     qemu_coroutine_yield();
 
+    if (!s->connect_thread) {
+        error_setg(errp, "Connection attempt cancelled by other operation");
+        return NULL;
+    }
+
     qemu_mutex_lock(&thr->mutex);
 
     switch (thr->state) {
@@ -527,6 +542,12 @@ static void nbd_co_establish_connection_cancel(BlockDriverState *bs,
     NBDConnectThread *thr = s->connect_thread;
     bool wake = false;
     bool do_free = false;
+
+    if (!thr) {
+        /* already detached or finished */
+        assert(!s->wait_connect);
+        return;
+    }
 
     qemu_mutex_lock(&thr->mutex);
 
@@ -623,10 +644,15 @@ static coroutine_fn void nbd_reconnect_attempt(BDRVNBDState *s)
     bdrv_inc_in_flight(s->bs);
 
 out:
-    s->connect_status = ret;
-    error_free(s->connect_err);
-    s->connect_err = NULL;
-    error_propagate(&s->connect_err, local_err);
+    if (s->connect_status == -ETIMEDOUT) {
+        /* Don't rewrite timeout error by following cancel-provoked error */
+        error_free(local_err);
+    } else {
+        s->connect_status = ret;
+        error_free(s->connect_err);
+        s->connect_err = NULL;
+        error_propagate(&s->connect_err, local_err);
+    }
 
     if (ret >= 0) {
         /* successfully connected */
@@ -635,11 +661,44 @@ out:
     }
 }
 
+static void open_timer_del(BDRVNBDState *s)
+{
+    if (s->open_timer) {
+        timer_del(s->open_timer);
+        timer_free(s->open_timer);
+        s->open_timer = NULL;
+    }
+}
+
+static void open_timer_cb(void *opaque)
+{
+    BDRVNBDState *s = opaque;
+
+    if (!s->connect_status) {
+        /* First attempt was not finished. We should set an error */
+        s->connect_status = -ETIMEDOUT;
+        error_setg(&s->connect_err, "First connection attempt is cancelled by "
+                   "timeout");
+    }
+
+    nbd_teardown_connection_async(s->bs);
+    open_timer_del(s);
+}
+
+static void open_timer_init(BDRVNBDState *s, uint64_t expire_time_ns)
+{
+    assert(!s->open_timer && s->state == NBD_CLIENT_OPENING);
+    s->open_timer = aio_timer_new(bdrv_get_aio_context(s->bs),
+                                  QEMU_CLOCK_REALTIME,
+                                  SCALE_NS,
+                                  open_timer_cb, s);
+    timer_mod(s->open_timer, expire_time_ns);
+}
+
 static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
 {
     uint64_t timeout = 1 * NANOSECONDS_PER_SECOND;
     uint64_t max_timeout = 16 * NANOSECONDS_PER_SECOND;
-    bool initial_connect = s->state == NBD_CLIENT_OPENING;
 
     if (s->state == NBD_CLIENT_CONNECTING_WAIT) {
         reconnect_delay_timer_init(s, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
@@ -648,23 +707,9 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
 
     nbd_reconnect_attempt(s);
 
-    if (initial_connect) {
-        if (s->state == NBD_CLIENT_CONNECTED) {
-            /* All good. Just kick nbd_open() to successfully return */
-            if (s->open_co) {
-                aio_co_wake(s->open_co);
-                s->open_co = NULL;
-            }
-            aio_wait_kick();
-            return;
-        } else {
-            /*
-             * Failed. Currently, reconnect on open is not allowed, so quit.
-             * nbd_open() will be kicked in the end of nbd_connection_entry()
-             */
-            s->state = NBD_CLIENT_QUIT;
-            return;
-        }
+    if (s->state == NBD_CLIENT_OPENING && !s->open_timeout) {
+        s->state = NBD_CLIENT_QUIT;
+        return;
     }
 
     while (nbd_client_connecting(s)) {
@@ -694,6 +739,16 @@ static coroutine_fn void nbd_co_reconnect_loop(BDRVNBDState *s)
     }
 
     reconnect_delay_timer_del(s);
+    open_timer_del(s);
+
+    if (s->state == NBD_CLIENT_CONNECTED) {
+        /* All good. Just kick nbd_open() to successfully return */
+        if (s->open_co) {
+            aio_co_wake(s->open_co);
+            s->open_co = NULL;
+        }
+        aio_wait_kick();
+    }
 }
 
 static coroutine_fn void nbd_connection_entry(void *opaque)
@@ -2164,6 +2219,14 @@ static QemuOptsList nbd_runtime_opts = {
                     "future requests before a successful reconnect will "
                     "immediately fail. Default 0",
         },
+        {
+            .name = "open-timeout",
+            .type = QEMU_OPT_NUMBER,
+            .help = "In seconds. If zero, nbd driver tries to establish "
+                    "connection only once, on fail open fails. If non-zero, "
+                    "nbd driver may do several attempts until success or "
+                    "@open-timeout seconds passed. Default 0",
+        },
         { /* end of list */ }
     },
 };
@@ -2219,6 +2282,7 @@ static int nbd_process_options(BlockDriverState *bs, QDict *options,
     }
 
     s->reconnect_delay = qemu_opt_get_number(opts, "reconnect-delay", 0);
+    s->open_timeout = qemu_opt_get_number(opts, "open-timeout", 0);
 
     ret = 0;
 
@@ -2251,6 +2315,11 @@ static int nbd_open(BlockDriverState *bs, QDict *options, int flags,
     s->connection_co = qemu_coroutine_create(nbd_connection_entry, s);
     bdrv_inc_in_flight(bs);
     aio_co_schedule(bdrv_get_aio_context(bs), s->connection_co);
+
+    if (s->open_timeout) {
+        open_timer_init(s, qemu_clock_get_ns(QEMU_CLOCK_REALTIME) +
+                        s->open_timeout * NANOSECONDS_PER_SECOND);
+    }
 
     if (qemu_in_coroutine()) {
         s->open_co = qemu_coroutine_self();
