@@ -22,6 +22,7 @@
 #define MPS2_FPGAIO_H
 
 #include "hw/sysbus.h"
+#include "hw/misc/led.h"
 
 #define TYPE_MPS2_FPGAIO "mps2-fpgaio"
 #define MPS2_FPGAIO(obj) OBJECT_CHECK(MPS2FPGAIO, (obj), TYPE_MPS2_FPGAIO)
@@ -32,6 +33,7 @@ typedef struct {
 
     /*< public >*/
     MemoryRegion iomem;
+    LEDState *led[2];
 
     uint32_t led0;
     uint32_t prescale;
