@@ -2246,3 +2246,9 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
 
     return info;
 }
+
+GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
