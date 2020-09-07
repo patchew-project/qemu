@@ -38,10 +38,16 @@ typedef struct LEDState {
     /* Public */
 
     uint8_t intensity_percent;
+    qemu_irq irq;
 
     /* Properties */
     char *description;
     char *color;
+    /*
+     * When used with GPIO, the intensity at reset is related
+     * to the GPIO polarity.
+     */
+    bool inverted_polarity;
 } LEDState;
 
 /**
@@ -71,6 +77,7 @@ void led_set_state(LEDState *s, bool is_emitting);
 /**
  * led_create_simple: Create and realize a LED device
  * @parent: the parent object
+ * @gpio_polarity: GPIO polarity
  * @color: color of the LED
  * @description: description of the LED (optional)
  *
@@ -78,6 +85,7 @@ void led_set_state(LEDState *s, bool is_emitting);
  * drop the reference to it (the device is realized).
  */
 LEDState *led_create_simple(Object *parentobj,
+                            GpioPolarity gpio_polarity,
                             LEDColor color,
                             const char *description);
 
