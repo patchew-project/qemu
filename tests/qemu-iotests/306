@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+#
+# Test nbd reconnect on open
+#
+# Copyright (c) 2020 Virtuozzo International GmbH
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import time
+
+import iotests
+from iotests import qemu_img_create, file_path, qemu_io_popen, qemu_nbd
+
+disk, nbd_sock = file_path('disk', 'nbd-sock')
+qemu_img_create('-f', iotests.imgfmt, disk, '1M')
+
+client = qemu_io_popen('--image-opts', '-c', 'read 0 1M',
+                       'driver=nbd,__virtuozzo_open-reconnect-attempts=4,'
+                       'server.type=unix,server.path=' + nbd_sock)
+
+time.sleep(2)
+
+qemu_nbd('-k', nbd_sock, '-f', iotests.imgfmt, disk)
+
+iotests.log(client.communicate()[0], filters=[iotests.filter_qemu_io])
+
+client = qemu_io_popen('--image-opts', '-c', 'read 0 1M',
+                       'driver=nbd,__virtuozzo_open-reconnect-attempts=1,'
+                       'server.type=unix,server.path=' + nbd_sock)
+
+time.sleep(1.5)
+
+iotests.log(client.communicate()[0], filters=[iotests.filter_qemu_io,
+                                              iotests.filter_testfiles])
