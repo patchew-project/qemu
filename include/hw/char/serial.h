@@ -75,6 +75,7 @@ typedef struct SerialState {
     uint64_t char_transmit_time;    /* time to transmit a char in ticks */
     int poll_msl;
 
+    uint8_t id;
     QEMUTimer *modem_status_poll;
     MemoryRegion io;
 } SerialState;

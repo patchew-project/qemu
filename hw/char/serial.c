@@ -177,7 +177,7 @@ static void serial_update_parameters(SerialState *s)
     ssp.stop_bits = stop_bits;
     s->char_transmit_time =  (NANOSECONDS_PER_SECOND / speed) * frame_size;
     qemu_chr_fe_ioctl(&s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
-    trace_serial_update_parameters(speed, parity, data_bits, stop_bits);
+    trace_serial_update_parameters(s->id, speed, parity, data_bits, stop_bits);
 }
 
 static void serial_update_msl(SerialState *s)
@@ -333,7 +333,7 @@ static void serial_ioport_write(void *opaque, hwaddr addr, uint64_t val,
     SerialState *s = opaque;
 
     assert(size == 1 && addr < 8);
-    trace_serial_write(addr, val);
+    trace_serial_write(s->id, addr, val);
     switch(addr) {
     default:
     case 0:
@@ -550,7 +550,7 @@ static uint64_t serial_ioport_read(void *opaque, hwaddr addr, unsigned size)
         ret = s->scr;
         break;
     }
-    trace_serial_read(addr, ret);
+    trace_serial_read(s->id, addr, ret);
     return ret;
 }
 
@@ -1013,6 +1013,7 @@ static const TypeInfo serial_io_info = {
 };
 
 static Property serial_properties[] = {
+    DEFINE_PROP_UINT8("id", SerialState, id, 0),
     DEFINE_PROP_CHR("chardev", SerialState, chr),
     DEFINE_PROP_UINT32("baudbase", SerialState, baudbase, 115200),
     DEFINE_PROP_BOOL("wakeup", SerialState, wakeup, false),
