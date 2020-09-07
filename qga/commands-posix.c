@@ -62,6 +62,9 @@ extern char **environ;
 #endif
 #endif
 
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(GuestFilesystemInfo,
+    qapi_free_GuestFilesystemInfo)
+
 static void ga_wait_child(pid_t pid, int *status, Error **errp)
 {
     pid_t rpid;
@@ -1089,6 +1092,21 @@ static void build_guest_fsinfo_for_virtual_device(char const *syspath,
     closedir(dir);
 }
 
+static bool is_disk_virtual(const char *devpath, Error **errp)
+{
+    g_autofree char *syspath = realpath(devpath, NULL);
+
+    if (!syspath) {
+        error_setg_errno(errp, errno, "realpath(\"%s\")", devpath);
+        return false;
+    }
+    if (strstr(syspath, "/devices/virtual/block/")) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 /* Dispatch to functions for virtual/real device */
 static void build_guest_fsinfo_for_device(char const *devpath,
                                           GuestFilesystemInfo *fs,
@@ -1107,6 +1125,7 @@ static void build_guest_fsinfo_for_device(char const *devpath,
 
     g_debug("  parse sysfs path '%s'", syspath);
 
+    /* TODO: use is_disk_virtual() */
     if (strstr(syspath, "/devices/virtual/block/")) {
         build_guest_fsinfo_for_virtual_device(syspath, fs, errp);
     } else {
@@ -1115,6 +1134,225 @@ static void build_guest_fsinfo_for_device(char const *devpath,
 
     free(syspath);
 }
+
+#ifdef CONFIG_LIBUDEV
+
+/*
+ * Wrapper around build_guest_fsinfo_for_device() for getting just
+ * the disk address.
+ */
+static GuestDiskAddress *get_disk_address(const char *syspath, Error **errp)
+{
+    g_autoptr(GuestFilesystemInfo) fs = NULL;
+
+    fs = g_new0(GuestFilesystemInfo, 1);
+    build_guest_fsinfo_for_device(syspath, fs, errp);
+    if (fs->disk != NULL) {
+        return g_steal_pointer(&fs->disk->value);
+    }
+    return NULL;
+}
+
+static char *get_alias_for_syspath(const char *syspath)
+{
+    struct udev *udev = NULL;
+    struct udev_device *udevice = NULL;
+    char *ret = NULL;
+
+    udev = udev_new();
+    udevice = udev_device_new_from_syspath(udev, syspath);
+    if (udev == NULL || udevice == NULL) {
+        g_debug("failed to query udev");
+    } else {
+        const char *alias = udev_device_get_property_value(
+            udevice, "DM_NAME");
+        if (alias != NULL && *alias != 0) {
+            ret = g_strdup(alias);
+        }
+    }
+
+    udev_unref(udev);
+    udev_device_unref(udevice);
+    return ret;
+}
+
+static char *get_device_for_syspath(const char *syspath)
+{
+    struct udev *udev = NULL;
+    struct udev_device *udevice = NULL;
+    char *ret = NULL;
+
+    udev = udev_new();
+    udevice = udev_device_new_from_syspath(udev, syspath);
+    if (udev == NULL || udevice == NULL) {
+        g_debug("failed to query udev");
+    } else {
+        ret = g_strdup(udev_device_get_devnode(udevice));
+    }
+    udev_unref(udev);
+    udev_device_unref(udevice);
+    return ret;
+}
+
+GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
+{
+    GuestDiskInfoList *item, *ret = NULL;
+    GuestDiskInfo *disk, *partition;
+    DIR *dp = NULL;
+    struct dirent *de = NULL;
+
+    g_debug("listing /sys/block directory");
+    dp = opendir("/sys/block");
+    if (dp == NULL) {
+        error_setg_errno(errp, errno, "Can't open directory \"/sys/block\"");
+        return NULL;
+    }
+    while ((de = readdir(dp)) != NULL) {
+        g_autofree char *disk_dir = NULL, *line = NULL,
+            *size_dir = NULL, *slaves_dir = NULL;
+        struct dirent *de_disk, *de_slaves;
+        DIR *dp_disk = NULL, *dp_slaves = NULL;
+        FILE *fp = NULL;
+        size_t n = 0;
+        Error *local_err = NULL;
+        if (de->d_type != DT_LNK) {
+            g_debug("  skipping entry: %s", de->d_name);
+            continue;
+        }
+
+        /* Check size and skip zero-sized disks */
+        g_debug("  checking disk size");
+        size_dir = g_strdup_printf("/sys/block/%s/size", de->d_name);
+        fp = fopen(size_dir, "r");
+        if (!fp) {
+            g_debug("  failed to read disk size");
+            continue;
+        }
+        if (getline(&line, &n, fp) == -1) {
+            g_debug("  failed to read disk size");
+            fclose(fp);
+            continue;
+        }
+        fclose(fp);
+        if (strcmp(line, "0\n") == 0) {
+            g_debug("  skipping zero-sized disk");
+            continue;
+        }
+
+        g_debug("  adding %s", de->d_name);
+        disk_dir = g_strdup_printf("/sys/block/%s", de->d_name);
+        disk = g_new0(GuestDiskInfo, 1);
+        disk->name = get_device_for_syspath(disk_dir);
+        disk->partition = false;
+        disk->alias = get_alias_for_syspath(disk_dir);
+        if (disk->alias != NULL) {
+            disk->has_alias = true;
+        }
+        item = g_new0(GuestDiskInfoList, 1);
+        item->value = disk;
+        item->next = ret;
+        ret = item;
+
+        /* Get address for non-virtual devices */
+        bool is_virtual = is_disk_virtual(disk_dir, &local_err);
+        if (local_err != NULL) {
+            g_debug("  failed to check disk path, ignoring error: %s",
+                error_get_pretty(local_err));
+            error_free(local_err);
+            local_err = NULL;
+            /* Don't try to get the address */
+            is_virtual = true;
+        }
+        if (!is_virtual) {
+            disk->address = get_disk_address(disk_dir, &local_err);
+            if (local_err != NULL) {
+                g_debug("  failed to get device info, ignoring error: %s",
+                    error_get_pretty(local_err));
+                error_free(local_err);
+                local_err = NULL;
+            } else if (disk->address != NULL) {
+                disk->has_address = true;
+            }
+        }
+
+        /* List slave disks */
+        slaves_dir = g_strdup_printf("%s/slaves", disk_dir);
+        g_debug("  listing entries in: %s", slaves_dir);
+        dp_slaves = opendir(slaves_dir);
+        while ((de_slaves = readdir(dp_slaves)) != NULL) {
+            g_autofree char *slave_dir = NULL;
+            char *slave_dev;
+            strList *slave_item = NULL;
+
+            if ((strcmp(".", de_slaves->d_name) == 0) ||
+                (strcmp("..", de_slaves->d_name) == 0)) {
+                continue;
+            }
+
+            /* Add slave disks */
+            slave_dir = g_strdup_printf("%s/%s",
+                slaves_dir, de_slaves->d_name);
+            slave_dev = get_device_for_syspath(slave_dir);
+            if (slave_dev != NULL) {
+                g_debug("  adding slave device: %s", slave_dev);
+                slave_item = g_new0(strList, 1);
+                slave_item->value = slave_dev;
+                slave_item->next = disk->slaves;
+                disk->slaves = slave_item;
+            }
+        }
+        closedir(dp_slaves);
+
+        /*
+         * Detect partitions subdirectory name is "<parent><number>" or
+         * "<parent>p<number>"
+         */
+        dp_disk = opendir(disk_dir);
+        while ((de_disk = readdir(dp_disk)) != NULL) {
+            size_t len;
+            g_autofree char *partition_dir = NULL;
+
+            if (!(de_disk->d_type & DT_DIR)) {
+                continue;
+            }
+
+            len = strlen(de->d_name);
+            if (!(strncmp(de->d_name, de_disk->d_name, len) == 0 &&
+                ((*(de_disk->d_name + len) == 'p' &&
+                isdigit(*(de_disk->d_name + len + 1))) ||
+                    isdigit(*(de_disk->d_name + len))))) {
+                continue;
+            }
+
+            partition_dir = g_strdup_printf("%s/%s",
+                disk_dir, de_disk->d_name);
+            partition = g_new0(GuestDiskInfo, 1);
+            partition->name = get_device_for_syspath(partition_dir);
+            partition->partition = true;
+            /* Add parent disk as slave for easier tracking of hierarchy */
+            partition->slaves = g_new0(strList, 1);
+            partition->slaves->value = g_strdup(disk->name);
+
+            item = g_new0(GuestDiskInfoList, 1);
+            item->value = partition;
+            item->next = ret;
+            ret = item;
+
+        }
+        closedir(dp_disk);
+    }
+    return ret;
+}
+
+#else
+
+GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
+{
+    error_setg(errp, QERR_UNSUPPORTED);
+    return NULL;
+}
+
+#endif
 
 /* Return a list of the disk device(s)' info which @mount lies on */
 static GuestFilesystemInfo *build_guest_fsinfo(struct FsMount *mount,
@@ -2748,7 +2986,8 @@ GList *ga_command_blacklist_init(GList *blacklist)
         const char *list[] = {
             "guest-get-fsinfo", "guest-fsfreeze-status",
             "guest-fsfreeze-freeze", "guest-fsfreeze-freeze-list",
-            "guest-fsfreeze-thaw", "guest-get-fsinfo", NULL};
+            "guest-fsfreeze-thaw", "guest-get-fsinfo",
+            "guest-get-disks", NULL};
         char **p = (char **)list;
 
         while (*p) {
@@ -2980,10 +3219,4 @@ GuestOSInfo *qmp_guest_get_osinfo(Error **errp)
     }
 
     return info;
-}
-
-GuestDiskInfoList *qmp_guest_get_disks(Error **errp)
-{
-    error_setg(errp, QERR_UNSUPPORTED);
-    return NULL;
 }
