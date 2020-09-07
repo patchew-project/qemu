@@ -79,7 +79,7 @@ static void tosa_microdrive_attach(PXA2xxState *cpu)
     OBJECT_CHECK(TosaMiscGPIOState, (obj), TYPE_TOSA_MISC_GPIO)
 
 typedef struct TosaMiscGPIOState {
-    SysBusDevice parent_obj;
+    DeviceState parent_obj;
 } TosaMiscGPIOState;
 
 static void tosa_reset(void *opaque, int line, int level)
@@ -96,7 +96,7 @@ static void tosa_misc_gpio_init(Object *obj)
     qdev_init_gpio_in_named(dev, tosa_reset, "reset", 1);
 }
 
-static void tosa_gpio_setup(PXA2xxState *cpu,
+static void tosa_gpio_setup(MachineState *machine, PXA2xxState *cpu,
                 DeviceState *scp0,
                 DeviceState *scp1,
                 TC6393xbState *tmio)
@@ -104,7 +104,10 @@ static void tosa_gpio_setup(PXA2xxState *cpu,
     DeviceState *misc_gpio;
     LEDState *led[4];
 
-    misc_gpio = sysbus_create_simple(TYPE_TOSA_MISC_GPIO, -1, NULL);
+    misc_gpio = qdev_new(TYPE_TOSA_MISC_GPIO);
+    object_property_add_child(OBJECT(machine), "pcb-container",
+                              OBJECT(misc_gpio));
+    qdev_realize_and_unref(misc_gpio, NULL, &error_fatal);
 
     /* MMC/SD host */
     pxa2xx_mmci_handlers(cpu->mmc,
@@ -253,7 +256,7 @@ static void tosa_init(MachineState *machine)
     scp0 = sysbus_create_simple("scoop", 0x08800000, NULL);
     scp1 = sysbus_create_simple("scoop", 0x14800040, NULL);
 
-    tosa_gpio_setup(mpu, scp0, scp1, tmio);
+    tosa_gpio_setup(machine, mpu, scp0, scp1, tmio);
 
     tosa_microdrive_attach(mpu);
 
@@ -307,7 +310,7 @@ static const TypeInfo tosa_ssp_info = {
 
 static const TypeInfo tosa_misc_gpio_info = {
     .name          = TYPE_TOSA_MISC_GPIO,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .parent        = TYPE_DEVICE,
     .instance_size = sizeof(TosaMiscGPIOState),
     .instance_init = tosa_misc_gpio_init,
     /*
