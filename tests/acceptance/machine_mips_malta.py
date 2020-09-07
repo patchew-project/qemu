@@ -49,14 +49,16 @@ class MaltaMachineFramebuffer(Test):
                       'a5966ca4b5/mips/malta/mips64el/'
                       'vmlinux-4.7.0-rc1.I6400.gz')
         kernel_hash = '096f50c377ec5072e6a366943324622c312045f6'
-        kernel_path_gz = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path_gz = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                          cancel_on_missing=True)
         kernel_path = self.workdir + "vmlinux"
         archive.gzip_uncompress(kernel_path_gz, kernel_path)
 
         tuxlogo_url = ('https://github.com/torvalds/linux/raw/v2.6.12/'
                        'drivers/video/logo/logo_linux_vga16.ppm')
         tuxlogo_hash = '3991c2ddbd1ddaecda7601f8aafbcf5b02dc86af'
-        tuxlogo_path = self.fetch_asset(tuxlogo_url, asset_hash=tuxlogo_hash)
+        tuxlogo_path = self.fetch_asset(tuxlogo_url, asset_hash=tuxlogo_hash,
+                                        cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +

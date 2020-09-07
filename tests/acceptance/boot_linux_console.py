@@ -99,7 +99,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
                       '/vmlinuz')
         kernel_hash = '23bebd2680757891cf7adedb033532163a792495'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
@@ -119,7 +120,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    '20130217T032700Z/pool/main/l/linux-2.6/'
                    'linux-image-2.6.32-5-4kc-malta_2.6.32-48_mips.deb')
         deb_hash = 'a8cfc28ad8f45f54811fc6cf74fc43ffcfe0ba04'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-2.6.32-5-4kc-malta')
 
@@ -151,7 +153,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    '20130217T032700Z/pool/main/l/linux-2.6/'
                    'linux-image-2.6.32-5-5kc-malta_2.6.32-48_mipsel.deb')
         deb_hash = '1aaec92083bf22fda31e0d27fa8d9a388e5fc3d5'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-2.6.32-5-5kc-malta')
 
@@ -173,14 +176,16 @@ class BootLinuxConsole(LinuxKernelTest):
                    '20160601T041800Z/pool/main/l/linux/'
                    'linux-image-4.5.0-2-4kc-malta_4.5.5-1_mips.deb')
         deb_hash = 'a3c84f3e88b54e06107d65a410d1d1e8e0f340f8'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-4.5.0-2-4kc-malta')
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
                       '8584a59ed9e5eb5ee7ca91f6d74bbb06619205b8/rootfs/'
                       'mips/rootfs.cpio.gz')
         initrd_hash = 'bf806e17009360a866bf537f6de66590de349a99'
-        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                          cancel_on_missing=True)
         initrd_path = self.workdir + "rootfs.cpio"
         archive.gzip_uncompress(initrd_path_gz, initrd_path)
 
@@ -215,13 +220,15 @@ class BootLinuxConsole(LinuxKernelTest):
                       'raw/9ad2df38/mips/malta/mips64el/'
                       'vmlinux-3.19.3.mtoman.20150408')
         kernel_hash = '00d1d268fb9f7d8beda1de6bebcc46e884d71754'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
         initrd_url = ('https://github.com/groeck/linux-build-test/'
                       'raw/8584a59e/rootfs/'
                       'mipsel64/rootfs.mipsel64r1.cpio.gz')
         initrd_hash = '1dbb8a396e916847325284dbe2151167'
         initrd_path_gz = self.fetch_asset(initrd_url, algorithm='md5',
-                                          asset_hash=initrd_hash)
+                                          asset_hash=initrd_hash,
+                                          cancel_on_missing=True)
         initrd_path = self.workdir + "rootfs.cpio"
         archive.gzip_uncompress(initrd_path_gz, initrd_path)
 
@@ -247,7 +254,8 @@ class BootLinuxConsole(LinuxKernelTest):
         self.vm.wait()
 
     def do_test_mips_malta32el_nanomips(self, kernel_url, kernel_hash):
-        kernel_path_xz = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path_xz = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                          cancel_on_missing=True)
         kernel_path = self.workdir + "kernel"
         with lzma.open(kernel_path_xz, 'rb') as f_in:
             with open(kernel_path, 'wb') as f_out:
@@ -310,7 +318,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
                       '/vmlinuz')
         kernel_hash = '8c73e469fc6ea06a58dc83a628fc695b693b8493'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -334,11 +343,13 @@ class BootLinuxConsole(LinuxKernelTest):
                       '20101020ubuntu543.15/images/')
         kernel_url = images_url + 'netboot/ubuntu-installer/arm64/linux'
         kernel_hash = '5bfc54cf7ed8157d93f6e5b0241e727b6dc22c50'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         initrd_url = images_url + 'netboot/ubuntu-installer/arm64/initrd.gz'
         initrd_hash = 'd385d3e88d53e2004c5d43cbe668b458a094f772'
-        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         self.vm.add_args('-m', '2G',
@@ -356,7 +367,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '/linux/releases/29/Everything/armhfp/os/images/pxeboot'
                       '/vmlinuz')
         kernel_hash = 'e9826d741b4fb04cadba8d4824d1ed3b7fb8b4d4'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
@@ -378,12 +390,14 @@ class BootLinuxConsole(LinuxKernelTest):
                      'Subbaraya-Sundeep/qemu-test-binaries/'
                      'fe371d32e50ca682391e1e70ab98c2942aeffb01/u-boot')
         uboot_hash = 'cbb8cbab970f594bf6523b9855be209c08374ae2'
-        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash)
+        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash,
+                                      cancel_on_missing=True)
         spi_url = ('https://raw.githubusercontent.com/'
                    'Subbaraya-Sundeep/qemu-test-binaries/'
                    'fe371d32e50ca682391e1e70ab98c2942aeffb01/spi.bin')
         spi_hash = '65523a1835949b6f4553be96dec1b6a38fb05501'
-        spi_path = self.fetch_asset(spi_url, asset_hash=spi_hash)
+        spi_path = self.fetch_asset(spi_url, asset_hash=spi_hash,
+                                    cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE
@@ -412,7 +426,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    'pool/main/r/raspberrypi-firmware/'
                    'raspberrypi-kernel_1.20190215-1_armhf.deb')
         deb_hash = 'cd284220b32128c5084037553db3c482426f3972'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path, '/boot/kernel7.img')
         dtb_path = self.extract_from_deb(deb_path, '/boot/bcm2709-rpi-2-b.dtb')
 
@@ -448,7 +463,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    '20190928T224601Z/pool/main/l/linux/'
                    'linux-image-4.19.0-6-armmp_4.19.67-2+deb10u1_armhf.deb')
         deb_hash = 'fa9df4a0d38936cb50084838f2cb933f570d7d82'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-4.19.0-6-armmp')
         dtb_path = '/usr/lib/linux-image-4.19.0-6-armmp/exynos4210-smdkv310.dtb'
@@ -458,7 +474,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.cpio.gz')
         initrd_hash = '2b50f1873e113523967806f4da2afe385462ff9b'
-        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                          cancel_on_missing=True)
         initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
         archive.gzip_uncompress(initrd_path_gz, initrd_path)
 
@@ -487,7 +504,8 @@ class BootLinuxConsole(LinuxKernelTest):
         deb_url = ('https://apt.armbian.com/pool/main/l/linux-5.8.0-sunxi/'
                    'linux-image-dev-sunxi_20.08_armhf.deb')
         deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun4i-a10-cubieboard.dtb'
@@ -496,7 +514,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.cpio.gz')
         initrd_hash = '2b50f1873e113523967806f4da2afe385462ff9b'
-        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                          cancel_on_missing=True)
         initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
         archive.gzip_uncompress(initrd_path_gz, initrd_path)
 
@@ -527,7 +546,8 @@ class BootLinuxConsole(LinuxKernelTest):
         deb_url = ('https://apt.armbian.com/pool/main/l/linux-5.8.0-sunxi/'
                    'linux-image-dev-sunxi_20.08_armhf.deb')
         deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun4i-a10-cubieboard.dtb'
@@ -536,7 +556,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.ext2.gz')
         rootfs_hash = '093e89d2b4d982234bf528bc9fb2f2f17a9d1f93'
-        rootfs_path_gz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+        rootfs_path_gz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash,
+                                          cancel_on_missing=True)
         rootfs_path = os.path.join(self.workdir, 'rootfs.cpio')
         archive.gzip_uncompress(rootfs_path_gz, rootfs_path)
 
@@ -570,7 +591,8 @@ class BootLinuxConsole(LinuxKernelTest):
         deb_url = ('https://apt.armbian.com/pool/main/l/linux-5.8.0-sunxi/'
                    'linux-image-dev-sunxi_20.08_armhf.deb')
         deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun8i-h3-orangepi-pc.dtb'
@@ -595,7 +617,8 @@ class BootLinuxConsole(LinuxKernelTest):
         deb_url = ('https://apt.armbian.com/pool/main/l/linux-5.8.0-sunxi/'
                    'linux-image-dev-sunxi_20.08_armhf.deb')
         deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun8i-h3-orangepi-pc.dtb'
@@ -604,7 +627,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv7a.cpio.gz')
         initrd_hash = '604b2e45cdf35045846b8bbfbf2129b1891bdc9c'
-        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                          cancel_on_missing=True)
         initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
         archive.gzip_uncompress(initrd_path_gz, initrd_path)
 
@@ -638,7 +662,8 @@ class BootLinuxConsole(LinuxKernelTest):
         deb_url = ('https://apt.armbian.com/pool/main/l/linux-5.8.0-sunxi/'
                    'linux-image-dev-sunxi_20.08_armhf.deb')
         deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun8i-h3-orangepi-pc.dtb'
@@ -646,7 +671,8 @@ class BootLinuxConsole(LinuxKernelTest):
         rootfs_url = ('http://storage.kernelci.org/images/rootfs/buildroot/'
                       'kci-2019.02/armel/base/rootfs.ext2.xz')
         rootfs_hash = '692510cb625efda31640d1de0a8d60e26040f061'
-        rootfs_path_xz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash)
+        rootfs_path_xz = self.fetch_asset(rootfs_url, asset_hash=rootfs_hash,
+                                          cancel_on_missing=True)
         rootfs_path = os.path.join(self.workdir, 'rootfs.cpio')
         archive.lzma_uncompress(rootfs_path_xz, rootfs_path)
         image_pow2ceil_expand(rootfs_path)
@@ -693,7 +719,8 @@ class BootLinuxConsole(LinuxKernelTest):
                      'Armbian_20.08.1_Orangepipc_bionic_current_5.8.5.img.xz')
         image_hash = 'b4d6775f5673486329e45a0586bf06b6dbe792199fd182ac6b9c7bb6c7d3e6dd'
         image_path_xz = self.fetch_asset(image_url, asset_hash=image_hash,
-                                         algorithm='sha256')
+                                         algorithm='sha256',
+                                         cancel_on_missing=True)
         image_path = archive.extract(image_path_xz, self.workdir)
         image_pow2ceil_expand(image_path)
 
@@ -734,7 +761,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    '20200108T145233Z/pool/main/u/u-boot/'
                    'u-boot-sunxi_2020.01%2Bdfsg-1_armhf.deb')
         deb_hash = 'f67f404a80753ca3d1258f13e38f2b060e13db99'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         # We use the common OrangePi PC 'plus' build of U-Boot for our secondary
         # program loader (SPL). We will then set the path to the more specific
         # OrangePi "PC" device tree blob with 'setenv fdtfile' in U-Boot prompt,
@@ -744,7 +772,8 @@ class BootLinuxConsole(LinuxKernelTest):
         image_url = ('https://cdn.netbsd.org/pub/NetBSD/NetBSD-9.0/'
                      'evbarm-earmv7hf/binary/gzimg/armv7.img.gz')
         image_hash = '2babb29d36d8360adcb39c09e31060945259917a'
-        image_path_gz = self.fetch_asset(image_url, asset_hash=image_hash)
+        image_path_gz = self.fetch_asset(image_url, asset_hash=image_hash,
+                                         cancel_on_missing=True)
         image_path = os.path.join(self.workdir, 'armv7.img')
         archive.gzip_uncompress(image_path_gz, image_path)
         image_pow2ceil_expand(image_path)
@@ -796,7 +825,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '/fedora-secondary/releases/29/Everything/s390x/os/images'
                       '/kernel.img')
         kernel_hash = 'e8e8439103ef8053418ef062644ffd46a7919313'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=sclp0'
@@ -815,7 +845,8 @@ class BootLinuxConsole(LinuxKernelTest):
         kernel_url = ('http://archive.debian.org/debian/dists/lenny/main/'
                       'installer-alpha/20090123lenny10/images/cdrom/vmlinuz')
         kernel_hash = '3a943149335529e2ed3e74d0d787b85fb5671ba3'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         uncompressed_kernel = archive.uncompress(kernel_path, self.workdir)
 
@@ -837,7 +868,8 @@ class BootLinuxConsole(LinuxKernelTest):
                       '/fedora-secondary/releases/29/Everything/ppc64le/os'
                       '/ppc/ppc64/vmlinuz')
         kernel_hash = '3fe04abfc852b66653b8c3c897a59a689270bc77'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=hvc0'
@@ -856,7 +888,8 @@ class BootLinuxConsole(LinuxKernelTest):
                    '/20191021T083923Z/pool-m68k/main'
                    '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
         deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-5.3.0-1-m68k')
 
@@ -874,7 +907,8 @@ class BootLinuxConsole(LinuxKernelTest):
     def do_test_advcal_2018(self, day, tar_hash, kernel_name, console=0):
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day' + day + '.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         archive.extract(file_path, self.workdir)
         self.vm.set_console(console_index=console)
         self.vm.add_args('-kernel',

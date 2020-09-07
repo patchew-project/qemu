@@ -26,7 +26,8 @@ class CanonA1100Machine(Test):
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day18.tar.xz')
         tar_hash = '068b5fc4242b29381acee94713509f8a876e9db6'
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash
+                                     cancel_on_missing=True)
         archive.extract(file_path, self.workdir)
         self.vm.set_console()
         self.vm.add_args('-bios',

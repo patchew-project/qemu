@@ -37,7 +37,8 @@ class AVR6Machine(Test):
                    '/raw/36c3e67b8755dcf/free-rtos/Demo'
                    '/AVR_ATMega2560_GCC/demo.elf')
         rom_hash = '7eb521f511ca8f2622e0a3c5e8dd686efbb911d4'
-        rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
+        rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash,
+                                    cancel_on_missing=True)
 
         self.vm.add_args('-bios', rom_path)
         self.vm.add_args('-nographic')

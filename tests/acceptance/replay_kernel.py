@@ -83,7 +83,8 @@ class ReplayKernel(LinuxKernelTest):
                       '/linux/releases/29/Everything/x86_64/os/images/pxeboot'
                       '/vmlinuz')
         kernel_hash = '23bebd2680757891cf7adedb033532163a792495'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=ttyS0'
         console_pattern = 'VFS: Cannot open root device'
@@ -100,7 +101,8 @@ class ReplayKernel(LinuxKernelTest):
                       '/linux/releases/29/Everything/aarch64/os/images/pxeboot'
                       '/vmlinuz')
         kernel_hash = '8c73e469fc6ea06a58dc83a628fc695b693b8493'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyAMA0')
@@ -118,7 +120,8 @@ class ReplayKernel(LinuxKernelTest):
                       '/linux/releases/29/Everything/armhfp/os/images/pxeboot'
                       '/vmlinuz')
         kernel_hash = 'e9826d741b4fb04cadba8d4824d1ed3b7fb8b4d4'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
                                'console=ttyAMA0')
@@ -136,6 +139,7 @@ class ReplayKernel(LinuxKernelTest):
                    'linux-image-dev-sunxi_20.08_armhf.deb')
         deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun4i-a10-cubieboard.dtb'
@@ -144,7 +148,8 @@ class ReplayKernel(LinuxKernelTest):
                       '2eb0a73b5d5a28df3170c546ddaaa9757e1e0848/rootfs/'
                       'arm/rootfs-armv5.cpio.gz')
         initrd_hash = '2b50f1873e113523967806f4da2afe385462ff9b'
-        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path_gz = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                          cancel_on_missing=True)
         initrd_path = os.path.join(self.workdir, 'rootfs.cpio')
         archive.gzip_uncompress(initrd_path_gz, initrd_path)
 
@@ -167,7 +172,8 @@ class ReplayKernel(LinuxKernelTest):
                       '/fedora-secondary/releases/29/Everything/ppc64le/os'
                       '/ppc/ppc64/vmlinuz')
         kernel_hash = '3fe04abfc852b66653b8c3c897a59a689270bc77'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'console=hvc0'
         # icount is not good enough for PPC64 for complete boot yet
@@ -183,7 +189,8 @@ class ReplayKernel(LinuxKernelTest):
                    '/20191021T083923Z/pool-m68k/main'
                    '/l/linux/kernel-image-5.3.0-1-m68k-di_5.3.7-1_m68k.udeb')
         deb_hash = '044954bb9be4160a3ce81f8bc1b5e856b75cccd1'
-        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
+        deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash,
+                                    cancel_on_missing=True)
         kernel_path = self.extract_from_deb(deb_path,
                                             '/boot/vmlinux-5.3.0-1-m68k')
 
@@ -213,7 +220,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = '32b7677ce8b6f1471fb0059865f451169934245b'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day16.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         dtb_path = self.workdir + '/day16/vexpress-v2p-ca9.dtb'
         self.do_test_advcal_2018(file_path, 'winter.zImage',
                                  args=('-dtb', dtb_path))
@@ -226,7 +234,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = 'ac688fd00561a2b6ce1359f9ff6aa2b98c9a570c'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day07.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'sanity-clause.elf')
 
     def test_microblaze_s3adsp1800(self):
@@ -237,7 +246,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = '08bf3e3bfb6b6c7ce1e54ab65d54e189f2caf13f'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day17.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'ballerina.bin')
 
     def test_ppc64_e500(self):
@@ -249,7 +259,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = '6951d86d644b302898da2fd701739c9406527fe1'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day19.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'uImage', ('-cpu', 'e5500'))
 
     def test_ppc_g3beige(self):
@@ -260,7 +271,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day15.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'invaders.elf',
                                  args=('-M', 'graphics=off'))
 
@@ -272,7 +284,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = 'e0b872a5eb8fdc5bed19bd43ffe863900ebcedfc'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day15.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'invaders.elf',
                                  args=('-M', 'graphics=off'))
 
@@ -284,7 +297,8 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = 'b18550d5d61c7615d989a06edace051017726a9f'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day11.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'zImage.elf')
 
     def test_xtensa_lx60(self):
@@ -296,6 +310,7 @@ class ReplayKernel(LinuxKernelTest):
         tar_hash = '49e88d9933742f0164b60839886c9739cb7a0d34'
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day02.tar.xz')
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         self.do_test_advcal_2018(file_path, 'santas-sleigh-ride.elf',
                                  args=('-cpu', 'dc233c'))

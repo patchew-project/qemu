@@ -111,7 +111,8 @@ class LinuxSSH(Test):
 
     def boot_debian_wheezy_image_and_ssh_login(self, endianess, kernel_path):
         image_url, image_hash = self.get_image_info(endianess)
-        image_path = self.fetch_asset(image_url, asset_hash=image_hash)
+        image_path = self.fetch_asset(image_url, asset_hash=image_hash,
+                                      cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE
@@ -204,7 +205,8 @@ class LinuxSSH(Test):
     def check_mips_malta(self, uname_m, endianess):
         wordsize = 64 if '64' in uname_m else 32
         kernel_url, kernel_hash = self.get_kernel_info(endianess, wordsize)
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
         self.boot_debian_wheezy_image_and_ssh_login(endianess, kernel_path)
 
         stdout, _ = self.ssh_command('uname -a')

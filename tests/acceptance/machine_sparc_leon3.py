@@ -26,7 +26,8 @@ class Leon3Machine(Test):
         kernel_url = ('http://www.helenos.org/releases/'
                       'HelenOS-0.6.0-sparc32-leon3.bin')
         kernel_hash = 'a88c9cfdb8430c66650e5290a08765f9bf049a30'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_path)

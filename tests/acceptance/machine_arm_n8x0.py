@@ -24,7 +24,8 @@ class N8x0Machine(Test):
                       'meego-arm-n8x0-1.0.80.20100712.1431-'
                       'vmlinuz-2.6.35~rc4-129.1-n8x0')
         kernel_hash = 'e9d5ab8d7548923a0061b6fbf601465e479ed269'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console(console_index=1)
         self.vm.add_args('-kernel', kernel_path,

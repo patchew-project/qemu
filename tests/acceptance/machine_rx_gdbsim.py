@@ -32,7 +32,8 @@ class RxGdbSimMachine(Test):
         """
         uboot_url = ('https://acc.dl.osdn.jp/users/23/23888/u-boot.bin.gz')
         uboot_hash = '9b78dbd43b40b2526848c0b1ce9de02c24f4dcdb'
-        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash)
+        uboot_path = self.fetch_asset(uboot_url, asset_hash=uboot_hash,
+                                      cancel_on_missing=True)
         uboot_path = archive.uncompress(uboot_path, self.workdir)
 
         self.vm.set_console()
@@ -56,10 +57,12 @@ class RxGdbSimMachine(Test):
         """
         dtb_url = ('https://acc.dl.osdn.jp/users/23/23887/rx-virt.dtb')
         dtb_hash = '7b4e4e2c71905da44e86ce47adee2210b026ac18'
-        dtb_path = self.fetch_asset(dtb_url, asset_hash=dtb_hash)
+        dtb_path = self.fetch_asset(dtb_url, asset_hash=dtb_hash,
+                                    cancel_on_missing=True)
         kernel_url = ('http://acc.dl.osdn.jp/users/23/23845/zImage')
         kernel_hash = '39a81067f8d72faad90866ddfefa19165d68fc99'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         kernel_command_line = self.KERNEL_COMMON_COMMAND_LINE + 'earlycon'

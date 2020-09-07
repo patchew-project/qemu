@@ -36,7 +36,8 @@ class LinuxInitrd(Test):
         kernel_url = ('https://archives.fedoraproject.org/pub/archive/fedora/li'
                       'nux/releases/18/Fedora/x86_64/os/images/pxeboot/vmlinuz')
         kernel_hash = '41464f68efe42b9991250bed86c7081d2ccdbb21'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
         max_size = 2 * (1024 ** 3) - 1
 
         with tempfile.NamedTemporaryFile() as initrd:
@@ -63,7 +64,8 @@ class LinuxInitrd(Test):
                       '/linux/releases/28/Everything/x86_64/os/images/pxeboot/'
                       'vmlinuz')
         kernel_hash = '238e083e114c48200f80d889f7e32eeb2793e02a'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
         max_size = 2 * (1024 ** 3) + 1
 
         with tempfile.NamedTemporaryFile() as initrd:

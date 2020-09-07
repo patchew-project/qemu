@@ -27,7 +27,8 @@ class Sun4uMachine(LinuxKernelTest):
         tar_url = ('https://www.qemu-advent-calendar.org'
                    '/2018/download/day23.tar.xz')
         tar_hash = '142db83cd974ffadc4f75c8a5cad5bcc5722c240'
-        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash)
+        file_path = self.fetch_asset(tar_url, asset_hash=tar_hash,
+                                     cancel_on_missing=True)
         archive.extract(file_path, self.workdir)
         self.vm.set_console()
         self.vm.add_args('-kernel', self.workdir + '/day23/vmlinux',

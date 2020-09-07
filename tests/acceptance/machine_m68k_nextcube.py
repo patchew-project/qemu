@@ -55,7 +55,8 @@ class NextCubeMachine(Test):
         rom_url = ('http://www.nextcomputers.org/NeXTfiles/Software/ROM_Files/'
                    '68040_Non-Turbo_Chipset/Rev_2.5_v66.BIN')
         rom_hash = 'b3534796abae238a0111299fc406a9349f7fee24'
-        rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash)
+        rom_path = self.fetch_asset(rom_url, asset_hash=rom_hash,
+                                    cancel_on_missing=True)
 
         self.vm.add_args('-bios', rom_path)
         self.vm.launch()

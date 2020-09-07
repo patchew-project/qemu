@@ -37,12 +37,14 @@ class IntegratorMachine(Test):
         kernel_url = ('https://github.com/zayac/qemu-arm/raw/master/'
                       'arm-test/kernel/zImage.integrator')
         kernel_hash = '0d7adba893c503267c946a3cbdc63b4b54f25468'
-        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash)
+        kernel_path = self.fetch_asset(kernel_url, asset_hash=kernel_hash,
+                                       cancel_on_missing=True)
 
         initrd_url = ('https://github.com/zayac/qemu-arm/raw/master/'
                       'arm-test/kernel/arm_root.img')
         initrd_hash = 'b51e4154285bf784e017a37586428332d8c7bd8b'
-        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash)
+        initrd_path = self.fetch_asset(initrd_url, asset_hash=initrd_hash,
+                                       cancel_on_missing=True)
 
         self.vm.set_console()
         self.vm.add_args('-kernel', kernel_path,
@@ -76,7 +78,8 @@ class IntegratorMachine(Test):
         tuxlogo_url = ('https://github.com/torvalds/linux/raw/v2.6.12/'
                        'drivers/video/logo/logo_linux_vga16.ppm')
         tuxlogo_hash = '3991c2ddbd1ddaecda7601f8aafbcf5b02dc86af'
-        tuxlogo_path = self.fetch_asset(tuxlogo_url, asset_hash=tuxlogo_hash)
+        tuxlogo_path = self.fetch_asset(tuxlogo_url, asset_hash=tuxlogo_hash,
+                                        cancel_on_missing=True)
 
         self.boot_integratorcp()
         framebuffer_ready = 'Console: switching to colour frame buffer device'
