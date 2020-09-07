@@ -132,12 +132,12 @@ class ReplayKernel(LinuxKernelTest):
         :avocado: tags=arch:arm
         :avocado: tags=machine:cubieboard
         """
-        deb_url = ('https://apt.armbian.com/pool/main/l/'
-                   'linux-4.20.7-sunxi/linux-image-dev-sunxi_5.75_armhf.deb')
-        deb_hash = '1334c29c44d984ffa05ed10de8c3361f33d78315'
+        deb_url = ('https://apt.armbian.com/pool/main/l/linux-5.8.0-sunxi/'
+                   'linux-image-dev-sunxi_20.08_armhf.deb')
+        deb_hash = 'ae553a9f7d43b18abfa8f3e64bf2d31878b9be89'
         deb_path = self.fetch_asset(deb_url, asset_hash=deb_hash)
         kernel_path = self.extract_from_deb(deb_path,
-                                            '/boot/vmlinuz-4.20.7-sunxi')
+                                            '/boot/vmlinuz-5.8.0-sunxi')
         dtb_path = '/usr/lib/linux-image-dev-sunxi/sun4i-a10-cubieboard.dtb'
         dtb_path = self.extract_from_deb(deb_path, dtb_path)
         initrd_url = ('https://github.com/groeck/linux-build-test/raw/'
