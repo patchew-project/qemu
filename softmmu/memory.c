@@ -1410,8 +1410,20 @@ MemTxResult memory_region_dispatch_read(MemoryRegion *mr,
         return MEMTX_DECODE_ERROR;
     }
 
+    if (mr->dev) {
+        if (mr->dev->in_mmio) {
+            return MEMTX_ERROR;
+        } else {
+            mr->dev->in_mmio = true;
+        }
+    }
+
     r = memory_region_dispatch_read1(mr, addr, pval, size, attrs);
     adjust_endianness(mr, pval, op);
+
+    if (mr->dev) {
+        mr->dev->in_mmio = false;
+    }
     return r;
 }
 
@@ -1448,6 +1460,7 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
                                          MemTxAttrs attrs)
 {
     unsigned size = memop_size(op);
+    MemTxResult ret;
 
     if (!memory_region_access_valid(mr, addr, size, true, attrs)) {
         unassigned_mem_write(mr, addr, data, size);
@@ -1461,20 +1474,32 @@ MemTxResult memory_region_dispatch_write(MemoryRegion *mr,
         return MEMTX_OK;
     }
 
+    if (mr->dev) {
+        if (mr->dev->in_mmio) {
+            return MEMTX_ERROR;
+        } else {
+            mr->dev->in_mmio = true;
+        }
+    }
+
     if (mr->ops->write) {
-        return access_with_adjusted_size(addr, &data, size,
+        ret = access_with_adjusted_size(addr, &data, size,
                                          mr->ops->impl.min_access_size,
                                          mr->ops->impl.max_access_size,
                                          memory_region_write_accessor, mr,
                                          attrs);
     } else {
-        return
-            access_with_adjusted_size(addr, &data, size,
+        ret = access_with_adjusted_size(addr, &data, size,
                                       mr->ops->impl.min_access_size,
                                       mr->ops->impl.max_access_size,
                                       memory_region_write_with_attrs_accessor,
                                       mr, attrs);
     }
+    if (mr->dev) {
+        mr->dev->in_mmio = false;
+    }
+
+    return ret;
 }
 
 void memory_region_init_io(MemoryRegion *mr,
