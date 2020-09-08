@@ -234,6 +234,7 @@ retry:
 
 static void *call_rcu_thread(void *opaque)
 {
+    int *rcu_finished_ptr = (int *)opaque;
     struct rcu_head *node;
 
     rcu_register_thread();
@@ -241,6 +242,10 @@ static void *call_rcu_thread(void *opaque)
     for (;;) {
         int tries = 0;
         int n = atomic_read(&rcu_call_count);
+        if (n == 0 && atomic_mb_read(rcu_finished_ptr) == 1)
+        {
+            return NULL;
+        }
 
         /* Heuristically wait for a decent number of callbacks to pile up.
          * Fetch rcu_call_count now, we only must process elements that were
@@ -308,10 +313,12 @@ void rcu_unregister_thread(void)
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 
+static QemuThread rcu_thread;
+static int rcu_finished = 0;
+
 static void rcu_init_complete(void)
 {
-    QemuThread thread;
-
+    atomic_mb_set(&rcu_finished, 0);
     qemu_mutex_init(&rcu_registry_lock);
     qemu_mutex_init(&rcu_sync_lock);
     qemu_event_init(&rcu_gp_event, true);
@@ -321,10 +328,18 @@ static void rcu_init_complete(void)
     /* The caller is assumed to have iothread lock, so the call_rcu thread
      * must have been quiescent even after forking, just recreate it.
      */
-    qemu_thread_create(&thread, "call_rcu", call_rcu_thread,
-                       NULL, QEMU_THREAD_DETACHED);
+    qemu_thread_create(&rcu_thread, "call_rcu", call_rcu_thread,
+                       &rcu_finished, QEMU_THREAD_JOINABLE);
 
     rcu_register_thread();
+}
+
+void rcu_wait_finished(void)
+{
+    if (atomic_xchg(&rcu_finished, 1) == 0)
+    {
+        qemu_thread_join(&rcu_thread);
+    }
 }
 
 static int atfork_depth = 1;
@@ -378,4 +393,9 @@ static void __attribute__((__constructor__)) rcu_init(void)
     pthread_atfork(rcu_init_lock, rcu_init_unlock, rcu_init_child);
 #endif
     rcu_init_complete();
+}
+
+static void __attribute__((__destructor__)) rcu_uninit(void)
+{
+    rcu_wait_finished();
 }
