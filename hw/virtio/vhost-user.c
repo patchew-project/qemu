@@ -232,6 +232,7 @@ static VhostUserMsg m __attribute__ ((unused));
 
 /* The version of the protocol we support */
 #define VHOST_USER_VERSION    (0x1)
+static unsigned int vhost_user_used_memslots;
 
 struct vhost_user {
     struct vhost_dev *dev;
@@ -2354,6 +2355,31 @@ void vhost_user_cleanup(VhostUserState *user)
     user->chr = NULL;
 }
 
+static void vhost_user_set_used_memslots(struct vhost_dev *dev)
+{
+    unsigned int counter = 0;
+    int i;
+
+    for (i = 0; i < dev->mem->nregions; ++i) {
+        struct vhost_memory_region *reg = dev->mem->regions + i;
+        ram_addr_t offset;
+        MemoryRegion *mr;
+        int fd;
+
+        assert((uintptr_t)reg->userspace_addr == reg->userspace_addr);
+        mr = vhost_user_get_mr_data(reg->userspace_addr, &offset, &fd);
+        if (mr && fd > 0) {
+            counter++;
+        }
+    }
+    vhost_user_used_memslots = counter;
+}
+
+static unsigned int vhost_user_get_used_memslots(void)
+{
+    return vhost_user_used_memslots;
+}
+
 const VhostOps user_ops = {
         .backend_type = VHOST_BACKEND_TYPE_USER,
         .vhost_backend_init = vhost_user_backend_init,
@@ -2387,4 +2413,6 @@ const VhostOps user_ops = {
         .vhost_backend_mem_section_filter = vhost_user_mem_section_filter,
         .vhost_get_inflight_fd = vhost_user_get_inflight_fd,
         .vhost_set_inflight_fd = vhost_user_set_inflight_fd,
+        .vhost_set_used_memslots = vhost_user_set_used_memslots,
+        .vhost_get_used_memslots = vhost_user_get_used_memslots,
 };

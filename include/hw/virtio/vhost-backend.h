@@ -124,6 +124,9 @@ typedef int (*vhost_get_device_id_op)(struct vhost_dev *dev, uint32_t *dev_id);
 
 typedef bool (*vhost_force_iommu_op)(struct vhost_dev *dev);
 
+typedef void (*vhost_set_used_memslots_op)(struct vhost_dev *dev);
+typedef unsigned int (*vhost_get_used_memslots_op)(void);
+
 typedef struct VhostOps {
     VhostBackendType backend_type;
     vhost_backend_init vhost_backend_init;
@@ -168,6 +171,8 @@ typedef struct VhostOps {
     vhost_vq_get_addr_op  vhost_vq_get_addr;
     vhost_get_device_id_op vhost_get_device_id;
     vhost_force_iommu_op vhost_force_iommu;
+    vhost_set_used_memslots_op vhost_set_used_memslots;
+    vhost_get_used_memslots_op vhost_get_used_memslots;
 } VhostOps;
 
 extern const VhostOps user_ops;
