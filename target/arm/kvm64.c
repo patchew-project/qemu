@@ -515,6 +515,7 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
      */
     int fdarray[3];
     bool sve_supported;
+    bool spe_supported;
     uint64_t features = 0;
     uint64_t t;
     int err;
@@ -655,6 +656,8 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     }
 
     sve_supported = ioctl(fdarray[0], KVM_CHECK_EXTENSION, KVM_CAP_ARM_SVE) > 0;
+    spe_supported = ioctl(fdarray[0], KVM_CHECK_EXTENSION,
+                                      KVM_CAP_ARM_SPE_V1) > 0;
 
     kvm_arm_destroy_scratch_host_vcpu(fdarray);
 
@@ -667,6 +670,11 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
         t = ahcf->isar.id_aa64pfr0;
         t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
         ahcf->isar.id_aa64pfr0 = t;
+    }
+    if (!spe_supported) {
+        t = ahcf->isar.id_aa64dfr0;
+        t = FIELD_DP64(t, ID_AA64DFR0, PMSVER, 0);
+        ahcf->isar.id_aa64dfr0 = t;
     }
 
     /*
@@ -829,6 +837,10 @@ int kvm_arch_init_vcpu(CPUState *cs)
     if (cpu_isar_feature(aa64_sve, cpu)) {
         assert(kvm_arm_sve_supported());
         cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SVE;
+    }
+    if (cpu_isar_feature(aa64_spe, cpu)) {
+        assert(kvm_arm_spe_supported());
+        cpu->kvm_init_features[0] |= 1 << KVM_ARM_VCPU_SPE_V1;
     }
 
     /* Do KVM_ARM_VCPU_INIT ioctl */

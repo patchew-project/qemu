@@ -621,6 +621,11 @@ static void arm_spe_set(Object *obj, bool value, Error **errp)
     ARM_CPU(obj)->has_spe = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
 }
 
+void aarch64_add_spe_properties(Object *obj)
+{
+    object_property_add_bool(obj, "spe", arm_spe_get, arm_spe_set);
+}
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -772,7 +777,7 @@ static void aarch64_max_initfn(Object *obj)
                         cpu_max_set_sve_max_vq, NULL, NULL);
 
     cpu->has_spe = ON_OFF_AUTO_AUTO;
-    object_property_add_bool(obj, "spe", arm_spe_get, arm_spe_set);
+    aarch64_add_spe_properties(obj);
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
