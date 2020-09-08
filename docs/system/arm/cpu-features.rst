@@ -344,3 +344,23 @@ verbose command lines.  However, the recommended way to select vector
 lengths is to explicitly enable each desired length.  Therefore only
 example's (1), (4), and (6) exhibit recommended uses of the properties.
 
+SPE CPU Property
+==================
+
+The SPE CPU property `spe` is used to enable or disable the SPE feature,
+just as the `pmu` CPU property completely enables or disables the PMU.
+
+Currently, this property is only available with KVM mode, and is enabled
+by default if KVM support it. When KVM is enabled, if the host does not
+support SPE, then an error is generated when attempting to enable it.
+
+Following are 2 examples to use this property:
+
+  1) Disable SPE::
+
+     $ qemu-system-aarch64 -M virt,accel=kvm -cpu max,spe=off
+
+  2) Implicitly enable it with the `host` CPU type if host cpu
+     support it::
+
+     $ qemu-system-aarch64 -M virt,accel=kvm -cpu host
