@@ -308,10 +308,20 @@ void rcu_unregister_thread(void)
     qemu_mutex_unlock(&rcu_registry_lock);
 }
 
+typedef struct QemuRcuMessage {
+    struct rcu_head rcu;
+    void *message;
+} QemuRcuMessage;
+
+static int rcu_thread_exit_called = 0;
+static int rcu_thread_exited = 0;
+static QemuRcuMessage rcu_thread_message;
+
 static void rcu_init_complete(void)
 {
     QemuThread thread;
-
+    atomic_mb_set(&rcu_thread_exit_called, 0);
+    atomic_mb_set(&rcu_thread_exited, 0);
     qemu_mutex_init(&rcu_registry_lock);
     qemu_mutex_init(&rcu_sync_lock);
     qemu_event_init(&rcu_gp_event, true);
@@ -325,6 +335,26 @@ static void rcu_init_complete(void)
                        NULL, QEMU_THREAD_DETACHED);
 
     rcu_register_thread();
+}
+
+static void rcu_thread_exit(QemuRcuMessage *param)
+{
+    atomic_mb_set((int*)param->message, 1);
+    qemu_thread_exit(NULL);
+}
+
+void rcu_wait_finished(void)
+{
+    if (atomic_xchg(&rcu_thread_exit_called, 1) == 0)
+    {
+        rcu_thread_message.message = &rcu_thread_exited;
+        call_rcu(&rcu_thread_message, rcu_thread_exit, rcu);
+    }
+
+    while (atomic_mb_read(&rcu_thread_exited) == 0)
+    {
+        g_usleep(10000);
+    }
 }
 
 static int atfork_depth = 1;
@@ -378,4 +408,9 @@ static void __attribute__((__constructor__)) rcu_init(void)
     pthread_atfork(rcu_init_lock, rcu_init_unlock, rcu_init_child);
 #endif
     rcu_init_complete();
+}
+
+static void __attribute__((__destructor__)) rcu_uninit(void)
+{
+    rcu_wait_finished();
 }
