@@ -1232,7 +1232,7 @@ static void char_file_fifo_test(void)
     ret = write(fd, "fifo-in", 8);
     g_assert_cmpint(ret, ==, 8);
 
-    chr = qemu_chardev_new("label-file", TYPE_CHARDEV_FILE, &backend,
+    chr = qemu_chardev_new("label-file", TYPE_FILE_CHARDEV, &backend,
                            NULL, &error_abort);
 
     qemu_chr_fe_init(&be, chr, &error_abort);
@@ -1286,7 +1286,7 @@ static void char_file_test_internal(Chardev *ext_chr, const char *filepath)
     } else {
         out = g_build_filename(tmp_path, "out", NULL);
         file.out = out;
-        chr = qemu_chardev_new(NULL, TYPE_CHARDEV_FILE, &backend,
+        chr = qemu_chardev_new(NULL, TYPE_FILE_CHARDEV, &backend,
                                NULL, &error_abort);
     }
     ret = qemu_chr_write_all(chr, (uint8_t *)"hello!", 6);

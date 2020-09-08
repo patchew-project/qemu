@@ -89,7 +89,7 @@ struct SocketChardev {
 typedef struct SocketChardev SocketChardev;
 
 DECLARE_INSTANCE_CHECKER(SocketChardev, SOCKET_CHARDEV,
-                         TYPE_CHARDEV_SOCKET)
+                         TYPE_SOCKET_CHARDEV)
 
 static gboolean socket_reconnect_timeout(gpointer opaque);
 static void tcp_chr_telnet_init(Chardev *chr);
@@ -1506,7 +1506,7 @@ static void char_socket_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_socket_type_info = {
-    .name = TYPE_CHARDEV_SOCKET,
+    .name = TYPE_SOCKET_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(SocketChardev),
     .instance_finalize = char_socket_finalize,

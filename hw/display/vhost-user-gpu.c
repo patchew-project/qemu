@@ -388,7 +388,7 @@ vhost_user_gpu_do_set_socket(VhostUserGPU *g, Error **errp)
         return false;
     }
 
-    chr = CHARDEV(object_new(TYPE_CHARDEV_SOCKET));
+    chr = CHARDEV(object_new(TYPE_SOCKET_CHARDEV));
     if (!chr || qemu_chr_add_client(chr, sv[0]) == -1) {
         error_setg(errp, "Failed to make socket chardev");
         goto err;

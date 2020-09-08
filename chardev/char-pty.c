@@ -46,7 +46,7 @@ struct PtyChardev {
 typedef struct PtyChardev PtyChardev;
 
 DECLARE_INSTANCE_CHECKER(PtyChardev, PTY_CHARDEV,
-                         TYPE_CHARDEV_PTY)
+                         TYPE_PTY_CHARDEV)
 
 static void pty_chr_state(Chardev *chr, int connected);
 
@@ -240,7 +240,7 @@ static void char_pty_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_pty_type_info = {
-    .name = TYPE_CHARDEV_PTY,
+    .name = TYPE_PTY_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(PtyChardev),
     .instance_finalize = char_pty_finalize,

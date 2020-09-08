@@ -104,9 +104,9 @@ struct BaumChardev {
 };
 typedef struct BaumChardev BaumChardev;
 
-#define TYPE_CHARDEV_BRAILLE "chardev-braille"
+#define TYPE_BRAILLE_CHARDEV "chardev-braille"
 DECLARE_INSTANCE_CHECKER(BaumChardev, BAUM_CHARDEV,
-                         TYPE_CHARDEV_BRAILLE)
+                         TYPE_BRAILLE_CHARDEV)
 
 /* Let's assume NABCC by default */
 enum way {
@@ -674,7 +674,7 @@ static void char_braille_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_braille_type_info = {
-    .name = TYPE_CHARDEV_BRAILLE,
+    .name = TYPE_BRAILLE_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(BaumChardev),
     .instance_finalize = char_braille_finalize,

@@ -228,7 +228,7 @@ static void char_win_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_win_type_info = {
-    .name = TYPE_CHARDEV_WIN,
+    .name = TYPE_WIN_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(WinChardev),
     .instance_finalize = char_win_finalize,

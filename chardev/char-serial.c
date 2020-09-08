@@ -308,11 +308,11 @@ static void char_serial_class_init(ObjectClass *oc, void *data)
 
 
 static const TypeInfo char_serial_type_info = {
-    .name = TYPE_CHARDEV_SERIAL,
+    .name = TYPE_SERIAL_CHARDEV,
 #ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN,
+    .parent = TYPE_WIN_CHARDEV,
 #else
-    .parent = TYPE_CHARDEV_FD,
+    .parent = TYPE_FD_CHARDEV,
 #endif
     .class_init = char_serial_class_init,
 };

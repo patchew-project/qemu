@@ -42,8 +42,8 @@ static void char_console_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_console_type_info = {
-    .name = TYPE_CHARDEV_CONSOLE,
-    .parent = TYPE_CHARDEV_WIN,
+    .name = TYPE_CONSOLE_CHARDEV,
+    .parent = TYPE_WIN_CHARDEV,
     .class_init = char_console_class_init,
 };
 

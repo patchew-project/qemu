@@ -179,11 +179,11 @@ static void char_pipe_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_pipe_type_info = {
-    .name = TYPE_CHARDEV_PIPE,
+    .name = TYPE_PIPE_CHARDEV,
 #ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN,
+    .parent = TYPE_WIN_CHARDEV,
 #else
-    .parent = TYPE_CHARDEV_FD,
+    .parent = TYPE_FD_CHARDEV,
 #endif
     .class_init = char_pipe_class_init,
 };

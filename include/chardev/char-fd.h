@@ -36,10 +36,10 @@ struct FDChardev {
 };
 typedef struct FDChardev FDChardev;
 
-#define TYPE_CHARDEV_FD "chardev-fd"
+#define TYPE_FD_CHARDEV "chardev-fd"
 
 DECLARE_INSTANCE_CHECKER(FDChardev, FD_CHARDEV,
-                         TYPE_CHARDEV_FD)
+                         TYPE_FD_CHARDEV)
 
 void qemu_chr_open_fd(Chardev *chr, int fd_in, int fd_out);
 int qmp_chardev_open_file_source(char *src, int flags, Error **errp);

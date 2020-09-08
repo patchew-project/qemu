@@ -46,9 +46,9 @@ struct VCChardev {
 };
 typedef struct VCChardev VCChardev;
 
-#define TYPE_CHARDEV_VC "chardev-vc"
+#define TYPE_VC_CHARDEV "chardev-vc"
 DECLARE_INSTANCE_CHECKER(VCChardev, VC_CHARDEV,
-                         TYPE_CHARDEV_VC)
+                         TYPE_VC_CHARDEV)
 
 static ChardevBackend *
 chr_spice_backend_new(void)
@@ -99,8 +99,8 @@ static void char_vc_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_vc_type_info = {
-    .name = TYPE_CHARDEV_VC,
-    .parent = TYPE_CHARDEV_SPICEPORT,
+    .name = TYPE_VC_CHARDEV,
+    .parent = TYPE_SPICEPORT_CHARDEV,
     .instance_size = sizeof(VCChardev),
     .class_init = char_vc_class_init,
 };
@@ -166,7 +166,7 @@ static void spice_app_display_early_init(DisplayOptions *opts)
     display_opengl = opts->has_gl;
 #endif
     be->u.spiceport.data->fqdn = g_strdup("org.qemu.monitor.qmp.0");
-    qemu_chardev_new("org.qemu.monitor.qmp", TYPE_CHARDEV_SPICEPORT,
+    qemu_chardev_new("org.qemu.monitor.qmp", TYPE_SPICEPORT_CHARDEV,
                      be, NULL, &error_abort);
     qopts = qemu_opts_create(qemu_find_opts("mon"),
                              NULL, 0, &error_fatal);
