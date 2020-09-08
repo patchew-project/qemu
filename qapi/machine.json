@@ -937,3 +937,15 @@
   'data': 'NumaOptions',
   'allow-preconfig': true
 }
+
+##
+# @SmbiosEntryPointType:
+#
+# @2_1: SMBIOS version 2.1
+#
+# @3_0: SMBIOS version 3.0
+#
+# Since: 5.2
+##
+{ 'enum': 'SmbiosEntryPointType',
+  'data': [ '2_1', '3_0' ] }
