@@ -572,6 +572,55 @@ void aarch64_add_sve_properties(Object *obj)
     }
 }
 
+void arm_cpu_spe_finalize(ARMCPU *cpu, Error **errp)
+{
+    uint64_t t;
+    uint32_t value = 0;
+
+    if (cpu->has_spe == ON_OFF_AUTO_AUTO) {
+        if (kvm_enabled() && kvm_arm_spe_supported()) {
+            cpu->has_spe = ON_OFF_AUTO_ON;
+        } else {
+            cpu->has_spe = ON_OFF_AUTO_OFF;
+        }
+    } else if (cpu->has_spe == ON_OFF_AUTO_ON) {
+        if (!kvm_enabled() || !kvm_arm_spe_supported()) {
+            error_setg(errp, "'spe' cannot be enabled on this host");
+            return;
+        }
+    }
+
+    /*
+     * According to the ARM ARM, the ID_AA64DFR0[PMSVER] currently
+     * support 3 values:
+     *
+     * 0b0000: SPE not implemented
+     * 0b0001: ARMv8.2-SPE implemented
+     * 0b0010: ARMv8.3-SPE implemented
+     *
+     * But the kernel KVM API didn't expose all these 3 values, and
+     * we can only get whether the SPE feature is supported or not.
+     * So here we just set the PMSVER to 1 if this feature was supported.
+     */
+    if (cpu->has_spe == ON_OFF_AUTO_ON) {
+        value = 1;
+    }
+
+    t = cpu->isar.id_aa64dfr0;
+    t = FIELD_DP64(t, ID_AA64DFR0, PMSVER, value);
+    cpu->isar.id_aa64dfr0 = t;
+}
+
+static bool arm_spe_get(Object *obj, Error **errp)
+{
+    return ARM_CPU(obj)->has_spe != ON_OFF_AUTO_OFF;
+}
+
+static void arm_spe_set(Object *obj, bool value, Error **errp)
+{
+    ARM_CPU(obj)->has_spe = value ? ON_OFF_AUTO_ON : ON_OFF_AUTO_OFF;
+}
+
 /* -cpu max: if KVM is enabled, like -cpu host (best possible with this host);
  * otherwise, a CPU with as many features enabled as our emulation supports.
  * The version of '-cpu max' for qemu-system-arm is defined in cpu.c;
@@ -721,6 +770,9 @@ static void aarch64_max_initfn(Object *obj)
     aarch64_add_sve_properties(obj);
     object_property_add(obj, "sve-max-vq", "uint32", cpu_max_get_sve_max_vq,
                         cpu_max_set_sve_max_vq, NULL, NULL);
+
+    cpu->has_spe = ON_OFF_AUTO_AUTO;
+    object_property_add_bool(obj, "spe", arm_spe_get, arm_spe_set);
 }
 
 static const ARMCPUInfo aarch64_cpus[] = {
