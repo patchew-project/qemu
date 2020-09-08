@@ -103,6 +103,7 @@ static void char_console_test(void)
     g_test_trap_assert_stdout("CONSOLE");
 }
 #endif
+#ifndef _WIN32
 static void char_stdio_test_subprocess(void)
 {
     Chardev *chr;
@@ -126,6 +127,7 @@ static void char_stdio_test(void)
     g_test_trap_assert_passed();
     g_test_trap_assert_stdout("buf");
 }
+#endif
 
 static void char_ringbuf_test(void)
 {
@@ -1471,8 +1473,10 @@ int main(int argc, char **argv)
     g_test_add_func("/char/console/subprocess", char_console_test_subprocess);
     g_test_add_func("/char/console", char_console_test);
 #endif
+#ifndef _WIN32
     g_test_add_func("/char/stdio/subprocess", char_stdio_test_subprocess);
     g_test_add_func("/char/stdio", char_stdio_test);
+#endif
 #ifndef _WIN32
     g_test_add_func("/char/pipe", char_pipe_test);
 #endif
