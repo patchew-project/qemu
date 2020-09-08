@@ -284,6 +284,14 @@ bool kvm_arm_aarch32_supported(void);
 bool kvm_arm_pmu_supported(void);
 
 /**
+ * kvm_arm_spe_supported:
+ *
+ * Returns: true if the KVM VCPU can enable its SPE
+ * and false otherwise.
+ */
+bool kvm_arm_spe_supported(void);
+
+/**
  * kvm_arm_sve_supported:
  *
  * Returns true if KVM can enable SVE and false otherwise.
@@ -362,6 +370,11 @@ static inline bool kvm_arm_aarch32_supported(void)
 }
 
 static inline bool kvm_arm_pmu_supported(void)
+{
+    return false;
+}
+
+static inline bool kvm_arm_spe_supported(void)
 {
     return false;
 }
