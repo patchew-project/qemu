@@ -439,8 +439,8 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     s->subsys_used = s->subsys;
 
     /* Define IO/MMIO regions */
-    memory_region_init_io(&s->mmio, OBJECT(s), &mmio_ops, s,
-                          "e1000e-mmio", E1000E_MMIO_SIZE);
+    memory_region_init_io_with_dev(&s->mmio, OBJECT(s), &mmio_ops, s,
+                          "e1000e-mmio", E1000E_MMIO_SIZE, &pci_dev->qdev);
     pci_register_bar(pci_dev, E1000E_MMIO_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio);
 
@@ -453,8 +453,8 @@ static void e1000e_pci_realize(PCIDevice *pci_dev, Error **errp)
     pci_register_bar(pci_dev, E1000E_FLASH_IDX,
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &s->flash);
 
-    memory_region_init_io(&s->io, OBJECT(s), &io_ops, s,
-                          "e1000e-io", E1000E_IO_SIZE);
+    memory_region_init_io_with_dev(&s->io, OBJECT(s), &io_ops, s,
+                          "e1000e-io", E1000E_IO_SIZE, &pci_dev->qdev);
     pci_register_bar(pci_dev, E1000E_IO_IDX,
                      PCI_BASE_ADDRESS_SPACE_IO, &s->io);
 
