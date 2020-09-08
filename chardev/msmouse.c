@@ -44,9 +44,9 @@ struct MouseChardev {
 };
 typedef struct MouseChardev MouseChardev;
 
-#define TYPE_CHARDEV_MSMOUSE "chardev-msmouse"
+#define TYPE_MSMOUSE_CHARDEV "chardev-msmouse"
 DECLARE_INSTANCE_CHECKER(MouseChardev, MOUSE_CHARDEV,
-                         TYPE_CHARDEV_MSMOUSE)
+                         TYPE_MSMOUSE_CHARDEV)
 
 static void msmouse_chr_accept_input(Chardev *chr)
 {
@@ -178,7 +178,7 @@ static void char_msmouse_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_msmouse_type_info = {
-    .name = TYPE_CHARDEV_MSMOUSE,
+    .name = TYPE_MSMOUSE_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(MouseChardev),
     .instance_finalize = char_msmouse_finalize,

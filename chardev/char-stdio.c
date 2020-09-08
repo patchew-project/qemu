@@ -150,11 +150,11 @@ static void char_stdio_finalize(Object *obj)
 }
 
 static const TypeInfo char_stdio_type_info = {
-    .name = TYPE_CHARDEV_STDIO,
+    .name = TYPE_STDIO_CHARDEV,
 #ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN_STDIO,
+    .parent = TYPE_WIN_STDIO_CHARDEV,
 #else
-    .parent = TYPE_CHARDEV_FD,
+    .parent = TYPE_FD_CHARDEV,
 #endif
     .instance_finalize = char_stdio_finalize,
     .class_init = char_stdio_class_init,

@@ -43,7 +43,7 @@ struct RingBufChardev {
 typedef struct RingBufChardev RingBufChardev;
 
 DECLARE_INSTANCE_CHECKER(RingBufChardev, RINGBUF_CHARDEV,
-                         TYPE_CHARDEV_RINGBUF)
+                         TYPE_RINGBUF_CHARDEV)
 
 static size_t ringbuf_count(const Chardev *chr)
 {
@@ -233,7 +233,7 @@ static void char_ringbuf_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_ringbuf_type_info = {
-    .name = TYPE_CHARDEV_RINGBUF,
+    .name = TYPE_RINGBUF_CHARDEV,
     .parent = TYPE_CHARDEV,
     .class_init = char_ringbuf_class_init,
     .instance_size = sizeof(RingBufChardev),
@@ -242,8 +242,8 @@ static const TypeInfo char_ringbuf_type_info = {
 
 /* Bug-compatibility: */
 static const TypeInfo char_memory_type_info = {
-    .name = TYPE_CHARDEV_MEMORY,
-    .parent = TYPE_CHARDEV_RINGBUF,
+    .name = TYPE_MEMORY_CHARDEV,
+    .parent = TYPE_RINGBUF_CHARDEV,
 };
 
 static void register_types(void)

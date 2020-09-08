@@ -674,7 +674,7 @@ Chardev *qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
         backend->type = CHARDEV_BACKEND_KIND_MUX;
         backend->u.mux.data = g_new0(ChardevMux, 1);
         backend->u.mux.data->chardev = g_strdup(bid);
-        mux = qemu_chardev_new(id, TYPE_CHARDEV_MUX, backend, context, errp);
+        mux = qemu_chardev_new(id, TYPE_MUX_CHARDEV, backend, context, errp);
         if (mux == NULL) {
             object_unparent(OBJECT(chr));
             chr = NULL;

@@ -58,7 +58,7 @@ struct ParallelChardev {
 typedef struct ParallelChardev ParallelChardev;
 
 DECLARE_INSTANCE_CHECKER(ParallelChardev, PARALLEL_CHARDEV,
-                         TYPE_CHARDEV_PARALLEL)
+                         TYPE_PARALLEL_CHARDEV)
 
 static int pp_hw_mode(ParallelChardev *s, uint16_t mode)
 {
@@ -303,7 +303,7 @@ static void char_parallel_finalize(Object *obj)
 }
 
 static const TypeInfo char_parallel_type_info = {
-    .name = TYPE_CHARDEV_PARALLEL,
+    .name = TYPE_PARALLEL_CHARDEV,
     .parent = TYPE_CHARDEV,
     .instance_size = sizeof(ParallelChardev),
     .instance_finalize = char_parallel_finalize,

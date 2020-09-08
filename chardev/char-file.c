@@ -124,11 +124,11 @@ static void char_file_class_init(ObjectClass *oc, void *data)
 }
 
 static const TypeInfo char_file_type_info = {
-    .name = TYPE_CHARDEV_FILE,
+    .name = TYPE_FILE_CHARDEV,
 #ifdef _WIN32
-    .parent = TYPE_CHARDEV_WIN,
+    .parent = TYPE_WIN_CHARDEV,
 #else
-    .parent = TYPE_CHARDEV_FD,
+    .parent = TYPE_FD_CHARDEV,
 #endif
     .class_init = char_file_class_init,
 };

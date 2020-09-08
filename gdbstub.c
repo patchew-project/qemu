@@ -3301,10 +3301,10 @@ static void char_gdb_class_init(ObjectClass *oc, void *data)
     cc->chr_write = gdb_monitor_write;
 }
 
-#define TYPE_CHARDEV_GDB "chardev-gdb"
+#define TYPE_GDB_CHARDEV "chardev-gdb"
 
 static const TypeInfo char_gdb_type_info = {
-    .name = TYPE_CHARDEV_GDB,
+    .name = TYPE_GDB_CHARDEV,
     .parent = TYPE_CHARDEV,
     .class_init = char_gdb_class_init,
 };
@@ -3409,7 +3409,7 @@ int gdbserver_start(const char *device)
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
         /* Initialize a monitor terminal for gdb */
-        mon_chr = qemu_chardev_new(NULL, TYPE_CHARDEV_GDB,
+        mon_chr = qemu_chardev_new(NULL, TYPE_GDB_CHARDEV,
                                    NULL, NULL, &error_abort);
         monitor_init_hmp(mon_chr, false, &error_abort);
     } else {
