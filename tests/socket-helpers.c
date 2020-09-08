@@ -136,22 +136,17 @@ static int socket_can_bind_connect(const char *hostname, int family)
 
 int socket_check_protocol_support(bool *has_ipv4, bool *has_ipv6)
 {
-    *has_ipv4 = *has_ipv6 = false;
+    int errv4, errv6;
 
-    if (socket_can_bind_connect("127.0.0.1", PF_INET) < 0) {
-        if (errno != EADDRNOTAVAIL) {
-            return -1;
-        }
-    } else {
-        *has_ipv4 = true;
-    }
+    errv4 = socket_can_bind_connect("127.0.0.1", PF_INET);
+    *has_ipv4 = (errv4 == 0);
 
-    if (socket_can_bind_connect("::1", PF_INET6) < 0) {
-        if (errno != EADDRNOTAVAIL) {
-            return -1;
-        }
-    } else {
-        *has_ipv6 = true;
+    errv6 = socket_can_bind_connect("::1", PF_INET6);
+    *has_ipv6 = (errv6 == 0);
+
+    if (!*has_ipv4 && !*has_ipv6 &&
+        (errv4 != EADDRNOTAVAIL || errv6 != EADDRNOTAVAIL)) {
+        return -1;
     }
 
     return 0;
