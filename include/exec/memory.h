@@ -404,6 +404,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    DeviceState *dev;
 };
 
 struct IOMMUMemoryRegion {
@@ -793,6 +794,14 @@ void memory_region_init_io(MemoryRegion *mr,
                            void *opaque,
                            const char *name,
                            uint64_t size);
+
+void memory_region_init_io_with_dev(MemoryRegion *mr,
+                           struct Object *owner,
+                           const MemoryRegionOps *ops,
+                           void *opaque,
+                           const char *name,
+                           uint64_t size,
+                           DeviceState *dev);
 
 /**
  * memory_region_init_ram_nomigrate:  Initialize RAM memory region.  Accesses

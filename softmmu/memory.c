@@ -1490,6 +1490,21 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->terminates = true;
 }
 
+void memory_region_init_io_with_dev(MemoryRegion *mr,
+                           Object *owner,
+                           const MemoryRegionOps *ops,
+                           void *opaque,
+                           const char *name,
+                           uint64_t size,
+                           DeviceState *dev)
+{
+    memory_region_init(mr, owner, name, size);
+    mr->ops = ops ? ops : &unassigned_mem_ops;
+    mr->opaque = opaque;
+    mr->terminates = true;
+    mr->dev = dev;
+}
+
 void memory_region_init_ram_nomigrate(MemoryRegion *mr,
                                       Object *owner,
                                       const char *name,
