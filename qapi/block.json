@@ -3,6 +3,7 @@
 
 ##
 # = Block devices
+# == Block core (VM unrelated)
 ##
 
 { 'include': 'block-core.json' }

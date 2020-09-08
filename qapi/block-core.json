@@ -1,10 +1,6 @@
 # -*- Mode: Python -*-
 # vim: filetype=python
 
-##
-# == Block core (VM unrelated)
-##
-
 { 'include': 'common.json' }
 { 'include': 'crypto.json' }
 { 'include': 'job.json' }

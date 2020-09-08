@@ -15,6 +15,10 @@
 ##
 
 { 'include' : 'machine.json' }
+
+##
+# == Block devices
+##
 { 'include' : 'block-core.json' }
 
 ##
