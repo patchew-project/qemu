@@ -545,6 +545,32 @@ static void fdt_add_pmu_nodes(const VirtMachineState *vms)
     }
 }
 
+static void fdt_add_spe_nodes(const VirtMachineState *vms)
+{
+    ARMCPU *armcpu = ARM_CPU(first_cpu);
+    uint32_t irqflags = GIC_FDT_IRQ_FLAGS_LEVEL_HI;
+
+    if (!cpu_isar_feature(aa64_spe, armcpu)) {
+        assert(!object_property_get_bool(OBJECT(armcpu), "spe", NULL));
+        return;
+    }
+
+    if (vms->gic_version == VIRT_GIC_VERSION_2) {
+        irqflags = deposit32(irqflags, GIC_FDT_IRQ_PPI_CPU_START,
+                             GIC_FDT_IRQ_PPI_CPU_WIDTH,
+                             (1 << vms->smp_cpus) - 1);
+    }
+
+    qemu_fdt_add_subnode(vms->fdt, "/spe");
+    if (arm_feature(&armcpu->env, ARM_FEATURE_V8)) {
+        const char compat[] = "arm,statistical-profiling-extension-v1";
+        qemu_fdt_setprop(vms->fdt, "/spe", "compatible",
+                         compat, sizeof(compat));
+        qemu_fdt_setprop_cells(vms->fdt, "/spe", "interrupts",
+                               GIC_FDT_IRQ_TYPE_PPI, VIRTUAL_SPE_IRQ, irqflags);
+    }
+}
+
 static inline DeviceState *create_acpi_ged(VirtMachineState *vms)
 {
     DeviceState *dev;
@@ -716,6 +742,10 @@ static void create_gic(VirtMachineState *vms)
         qdev_connect_gpio_out_named(cpudev, "pmu-interrupt", 0,
                                     qdev_get_gpio_in(vms->gic, ppibase
                                                      + VIRTUAL_PMU_IRQ));
+
+        qdev_connect_gpio_out_named(cpudev, "spe-interrupt", 0,
+                                    qdev_get_gpio_in(vms->gic, ppibase
+                                                     + VIRTUAL_SPE_IRQ));
 
         sysbus_connect_irq(gicbusdev, i, qdev_get_gpio_in(cpudev, ARM_CPU_IRQ));
         sysbus_connect_irq(gicbusdev, i + smp_cpus,
@@ -1664,11 +1694,12 @@ static void finalize_gic_version(VirtMachineState *vms)
 
 static void virt_cpu_post_init(VirtMachineState *vms)
 {
-    bool aarch64, pmu;
+    bool aarch64, pmu, spe;
     CPUState *cpu;
 
     aarch64 = object_property_get_bool(OBJECT(first_cpu), "aarch64", NULL);
     pmu = object_property_get_bool(OBJECT(first_cpu), "pmu", NULL);
+    spe = object_property_get_bool(OBJECT(first_cpu), "spe", NULL);
 
     if (kvm_enabled()) {
         CPU_FOREACH(cpu) {
@@ -1678,6 +1709,14 @@ static void virt_cpu_post_init(VirtMachineState *vms)
                     kvm_arm_pmu_set_irq(cpu, PPI(VIRTUAL_PMU_IRQ));
                 }
                 kvm_arm_pmu_init(cpu);
+            }
+
+            if (spe) {
+                assert(ARM_CPU(cpu)->has_spe == ON_OFF_AUTO_ON);
+                if (kvm_irqchip_in_kernel()) {
+                    kvm_arm_spe_set_irq(cpu, PPI(VIRTUAL_SPE_IRQ));
+                }
+                kvm_arm_spe_init(cpu);
             }
         }
     } else {
@@ -1926,6 +1965,8 @@ static void machvirt_init(MachineState *machine)
     virt_cpu_post_init(vms);
 
     fdt_add_pmu_nodes(vms);
+
+    fdt_add_spe_nodes(vms);
 
     create_uart(vms, VIRT_UART, sysmem, serial_hd(0));
 
