@@ -2989,6 +2989,9 @@ if test "$whpx" != "no" ; then
         fi
         whpx="no"
     fi
+    if test "$whpx" = "yes" && test "$ARCH" = "i386"; then
+      error_exit "WHPX requires 64-bit host"
+    fi
 fi
 
 ##########################################
