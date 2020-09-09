@@ -96,10 +96,10 @@ static inline bool blk_log_writes_sector_size_valid(uint32_t sector_size)
         sector_size < (1ull << 24);
 }
 
-static uint64_t blk_log_writes_find_cur_log_sector(BdrvChild *log,
-                                                   uint32_t sector_size,
-                                                   uint64_t nr_entries,
-                                                   Error **errp)
+static int64_t blk_log_writes_find_cur_log_sector(BdrvChild *log,
+                                                  uint32_t sector_size,
+                                                  uint64_t nr_entries,
+                                                  Error **errp)
 {
     uint64_t cur_sector = 1;
     uint64_t cur_idx = 0;
@@ -112,13 +112,13 @@ static uint64_t blk_log_writes_find_cur_log_sector(BdrvChild *log,
         if (read_ret < 0) {
             error_setg_errno(errp, -read_ret,
                              "Failed to read log entry %"PRIu64, cur_idx);
-            return (uint64_t)-1ull;
+            return read_ret;
         }
 
         if (cur_entry.flags & ~cpu_to_le64(LOG_FLAG_MASK)) {
             error_setg(errp, "Invalid flags 0x%"PRIx64" in log entry %"PRIu64,
                        le64_to_cpu(cur_entry.flags), cur_idx);
-            return (uint64_t)-1ull;
+            return -EINVAL;
         }
 
         /* Account for the sector of the entry itself */
@@ -143,7 +143,6 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
 {
     BDRVBlkLogWritesState *s = bs->opaque;
     QemuOpts *opts;
-    Error *local_err = NULL;
     int ret;
     uint64_t log_sector_size;
     bool log_append;
@@ -215,15 +214,15 @@ static int blk_log_writes_open(BlockDriverState *bs, QDict *options, int flags,
         s->nr_entries = 0;
 
         if (blk_log_writes_sector_size_valid(log_sector_size)) {
-            s->cur_log_sector =
+            int64_t cur_log_sector =
                 blk_log_writes_find_cur_log_sector(s->log_file, log_sector_size,
-                                    le64_to_cpu(log_sb.nr_entries), &local_err);
-            if (local_err) {
-                ret = -EINVAL;
-                error_propagate(errp, local_err);
+                                    le64_to_cpu(log_sb.nr_entries), errp);
+            if (cur_log_sector < 0) {
+                ret = cur_log_sector;
                 goto fail_log;
             }
 
+            s->cur_log_sector = cur_log_sector;
             s->nr_entries = le64_to_cpu(log_sb.nr_entries);
         }
     } else {
