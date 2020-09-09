@@ -543,6 +543,7 @@ void multifd_save_cleanup(void)
 
         socket_send_channel_destroy(p->c);
         p->c = NULL;
+        p->s = NULL;
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
         qemu_sem_destroy(&p->sem_sync);
@@ -738,6 +739,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         object_unref(OBJECT(sioc));
         error_free(local_err);
     } else {
+        p->s = migrate_get_current();
         p->c = QIO_CHANNEL(sioc);
         qio_channel_set_delay(p->c, false);
         p->running = true;
