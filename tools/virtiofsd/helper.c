@@ -178,6 +178,7 @@ void fuse_cmdline_help(void)
            "                               (0 leaves rlimit unchanged)\n"
            "                               default: min(1000000, fs.file-max - 16384)\n"
            "                                        if the current rlimit is lower\n"
+           "    -o announce_submounts      Announce sub-mount points to the guest\n"
            );
 }
 
