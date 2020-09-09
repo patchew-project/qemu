@@ -1063,6 +1063,7 @@ static void char_socket_client_test(gconstpointer opaque)
 
     /* Wait for the server to go away */
     while (data.event == -1) {
+        /* This is the place getting stuck */
         main_loop_wait(false);
     }
     g_assert(data.event == CHR_EVENT_CLOSED);
