@@ -35,6 +35,8 @@ typedef struct VHostSCSICommon {
     int lun;
     uint64_t host_features;
     bool migratable;
+
+    struct vhost_inflight *inflight;
 } VHostSCSICommon;
 
 int vhost_scsi_common_start(VHostSCSICommon *vsc);
