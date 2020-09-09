@@ -2224,7 +2224,7 @@ exit:
 
 void qmp_inject_nmi(Error **errp)
 {
-    nmi_monitor_handle(monitor_get_cpu_index(), errp);
+    nmi_monitor_handle(monitor_get_cpu_index(cur_mon), errp);
 }
 
 void dump_drift_info(void)
