@@ -627,6 +627,12 @@ bool bdrv_debug_is_suspended(BlockDriverState *bs, const char *tag);
 AioContext *bdrv_get_aio_context(BlockDriverState *bs);
 
 /**
+ * Move the current coroutine to the AioContext of @bs and return the old
+ * AioContext of the coroutine.
+ */
+AioContext *coroutine_fn bdrv_co_move_to_aio_context(BlockDriverState *bs);
+
+/**
  * Transfer control to @co in the aio context of @bs
  */
 void bdrv_coroutine_enter(BlockDriverState *bs, Coroutine *co);
