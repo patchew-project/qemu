@@ -60,4 +60,4 @@
 	url = https://git.qemu.org/git/qboot.git
 [submodule "meson"]
 	path = meson
-	url = https://github.com/mesonbuild/meson/
+	url = https://git.qemu.org/git/meson.git
