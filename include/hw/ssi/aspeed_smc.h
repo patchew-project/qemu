@@ -42,7 +42,7 @@ typedef struct AspeedSMCController {
     uint8_t r_timings;
     uint8_t nregs_timings;
     uint8_t conf_enable_w0;
-    uint8_t max_slaves;
+    uint8_t max_devices;
     const AspeedSegments *segments;
     hwaddr flash_window_base;
     uint32_t flash_window_size;
