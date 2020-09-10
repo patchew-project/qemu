@@ -20,6 +20,7 @@ i386_ss.add(when: 'CONFIG_TCG', if_true: files(
   'translate.c'), if_false: files('tcg-stub.c'))
 i386_ss.add(when: 'CONFIG_KVM', if_false: files('kvm-stub.c'))
 i386_ss.add(when: 'CONFIG_SEV', if_true: files('sev.c'), if_false: files('sev-stub.c'))
+i386_ss.add(when: 'CONFIG_SOFTMMU', if_false: files('machine-stub.c'))
 
 i386_softmmu_ss = ss.source_set()
 i386_softmmu_ss.add(files(
