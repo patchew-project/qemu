@@ -231,7 +231,7 @@ static void test_smram_smbase_lock(void)
         qpci_config_writeb(pcidev, MCH_HOST_BRIDGE_F_SMBASE, i);
         g_assert(qpci_config_readb(pcidev, MCH_HOST_BRIDGE_F_SMBASE) == 0x02);
 
-        /* RAM access should go into black hole */
+        /* RAM access should go into memory hole */
         qtest_writeb(qts, SMBASE, SMRAM_TEST_PATTERN);
         g_assert_cmpint(qtest_readb(qts, SMBASE), ==, 0xff);
     }

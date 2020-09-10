@@ -48,8 +48,8 @@ typedef struct MCHPCIState {
     PAMMemoryRegion pam_regions[13];
     MemoryRegion smram_region, open_high_smram;
     MemoryRegion smram, low_smram, high_smram;
-    MemoryRegion tseg_blackhole, tseg_window;
-    MemoryRegion smbase_blackhole, smbase_window;
+    MemoryRegion tseg_hole, tseg_window;
+    MemoryRegion smbase_hole, smbase_window;
     bool has_smram_at_smbase;
     Range pci_hole;
     uint64_t below_4g_mem_size;

@@ -266,20 +266,20 @@ static const TypeInfo q35_host_info = {
  * MCH D0:F0
  */
 
-static uint64_t blackhole_read(void *ptr, hwaddr reg, unsigned size)
+static uint64_t memoryhole_read(void *ptr, hwaddr reg, unsigned size)
 {
     return 0xffffffff;
 }
 
-static void blackhole_write(void *opaque, hwaddr addr, uint64_t val,
+static void memoryhole_write(void *opaque, hwaddr addr, uint64_t val,
                             unsigned width)
 {
     /* nothing */
 }
 
-static const MemoryRegionOps blackhole_ops = {
-    .read = blackhole_read,
-    .write = blackhole_write,
+static const MemoryRegionOps memoryhole_ops = {
+    .read = memoryhole_read,
+    .write = memoryhole_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid.min_access_size = 1,
     .valid.max_access_size = 4,
@@ -393,12 +393,12 @@ static void mch_update_smram(MCHPCIState *mch)
     } else {
         tseg_size = 0;
     }
-    memory_region_del_subregion(mch->system_memory, &mch->tseg_blackhole);
-    memory_region_set_enabled(&mch->tseg_blackhole, tseg_size);
-    memory_region_set_size(&mch->tseg_blackhole, tseg_size);
+    memory_region_del_subregion(mch->system_memory, &mch->tseg_hole);
+    memory_region_set_enabled(&mch->tseg_hole, tseg_size);
+    memory_region_set_size(&mch->tseg_hole, tseg_size);
     memory_region_add_subregion_overlap(mch->system_memory,
                                         mch->below_4g_mem_size - tseg_size,
-                                        &mch->tseg_blackhole, 1);
+                                        &mch->tseg_hole, 1);
 
     memory_region_set_enabled(&mch->tseg_window, tseg_size);
     memory_region_set_size(&mch->tseg_window, tseg_size);
@@ -456,7 +456,7 @@ static void mch_update_smbase_smram(MCHPCIState *mch)
     } else {
         lck = false;
     }
-    memory_region_set_enabled(&mch->smbase_blackhole, lck);
+    memory_region_set_enabled(&mch->smbase_hole, lck);
     memory_region_set_enabled(&mch->smbase_window, lck);
     memory_region_transaction_commit();
 }
@@ -601,13 +601,13 @@ static void mch_realize(PCIDevice *d, Error **errp)
     memory_region_set_enabled(&mch->high_smram, true);
     memory_region_add_subregion(&mch->smram, 0xfeda0000, &mch->high_smram);
 
-    memory_region_init_io(&mch->tseg_blackhole, OBJECT(mch),
-                          &blackhole_ops, NULL,
-                          "tseg-blackhole", 0);
-    memory_region_set_enabled(&mch->tseg_blackhole, false);
+    memory_region_init_io(&mch->tseg_hole, OBJECT(mch),
+                          &memoryhole_ops, NULL,
+                          "tseg-hole", 0);
+    memory_region_set_enabled(&mch->tseg_hole, false);
     memory_region_add_subregion_overlap(mch->system_memory,
                                         mch->below_4g_mem_size,
-                                        &mch->tseg_blackhole, 1);
+                                        &mch->tseg_hole, 1);
 
     memory_region_init_alias(&mch->tseg_window, OBJECT(mch), "tseg-window",
                              mch->ram_memory, mch->below_4g_mem_size, 0);
@@ -619,13 +619,13 @@ static void mch_realize(PCIDevice *d, Error **errp)
      * This is not what hardware does, so it's QEMU specific hack.
      * See commit message for details.
      */
-    memory_region_init_io(&mch->smbase_blackhole, OBJECT(mch), &blackhole_ops,
-                          NULL, "smbase-blackhole",
+    memory_region_init_io(&mch->smbase_hole, OBJECT(mch), &memoryhole_ops,
+                          NULL, "smbase-hole",
                           MCH_HOST_BRIDGE_SMBASE_SIZE);
-    memory_region_set_enabled(&mch->smbase_blackhole, false);
+    memory_region_set_enabled(&mch->smbase_hole, false);
     memory_region_add_subregion_overlap(mch->system_memory,
                                         MCH_HOST_BRIDGE_SMBASE_ADDR,
-                                        &mch->smbase_blackhole, 1);
+                                        &mch->smbase_hole, 1);
 
     memory_region_init_alias(&mch->smbase_window, OBJECT(mch),
                              "smbase-window", mch->ram_memory,
