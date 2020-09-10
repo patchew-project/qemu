@@ -20,6 +20,8 @@
 #include "hw/dma/xlnx-zdma.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/rtc/xlnx-zynqmp-rtc.h"
+#include "hw/usb/hcd-dwc3.h"
+#include "hw/misc/xlnx-versal-usb2-regs.h"
 
 #define TYPE_XLNX_VERSAL "xlnx-versal"
 #define XLNX_VERSAL(obj) OBJECT_CHECK(Versal, (obj), TYPE_XLNX_VERSAL)
@@ -42,6 +44,11 @@ typedef struct Versal {
             ARMCPU cpu[XLNX_VERSAL_NR_ACPUS];
             GICv3State gic;
         } apu;
+
+        struct {
+            USBDWC3 dwc3;
+            XlnxUsb2Regs Usb2Regs;
+        } iou;
     } fpd;
 
     MemoryRegion mr_ps;
@@ -87,6 +94,7 @@ typedef struct Versal {
 
 #define VERSAL_UART0_IRQ_0         18
 #define VERSAL_UART1_IRQ_0         19
+#define VERSAL_USB0_IRQ_0          22
 #define VERSAL_GEM0_IRQ_0          56
 #define VERSAL_GEM0_WAKE_IRQ_0     57
 #define VERSAL_GEM1_IRQ_0          58
@@ -123,6 +131,12 @@ typedef struct Versal {
 
 #define MM_OCM                      0xfffc0000U
 #define MM_OCM_SIZE                 0x40000
+
+#define MM_USB2_REGS                0xFF9D0000
+#define MM_USB2_SIZE                0x10000
+
+#define MM_USB_XHCI_0               0xFE200000
+#define MM_USB_XHCI_SIZE_0          0x10000
 
 #define MM_TOP_DDR                  0x0
 #define MM_TOP_DDR_SIZE             0x80000000U

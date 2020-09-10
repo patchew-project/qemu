@@ -39,6 +39,8 @@ typedef struct VersalVirt {
         uint32_t ethernet_phy[2];
         uint32_t clk_125Mhz;
         uint32_t clk_25Mhz;
+        uint32_t usb;
+        uint32_t dwc;
     } phandle;
     struct arm_boot_info binfo;
 
@@ -66,6 +68,8 @@ static void fdt_create(VersalVirt *s)
     s->phandle.clk_25Mhz = qemu_fdt_alloc_phandle(s->fdt);
     s->phandle.clk_125Mhz = qemu_fdt_alloc_phandle(s->fdt);
 
+    s->phandle.usb = qemu_fdt_alloc_phandle(s->fdt);
+    s->phandle.dwc = qemu_fdt_alloc_phandle(s->fdt);
     /* Create /chosen node for load_dtb.  */
     qemu_fdt_add_subnode(s->fdt, "/chosen");
 
@@ -148,6 +152,60 @@ static void fdt_add_timer_nodes(VersalVirt *s)
                      compat, sizeof(compat));
 }
 
+static void fdt_add_usb_xhci_nodes(VersalVirt *s)
+{
+    const char clocknames[] = "bus_clk\0ref_clk";
+    char *usb2name = g_strdup_printf("/usb@ff9d0000");
+    const char dwcCompat[] = "xlnx,versal-dwc3";
+    qemu_fdt_add_subnode(s->fdt, usb2name);
+    qemu_fdt_setprop(s->fdt, usb2name, "compatible",
+                         dwcCompat, sizeof(dwcCompat));
+    qemu_fdt_setprop_sized_cells(s->fdt, usb2name, "reg",
+                                     2, MM_USB2_REGS, 2, 0x100);
+    qemu_fdt_setprop(s->fdt, usb2name, "clock-names",
+                         clocknames, sizeof(clocknames));
+    qemu_fdt_setprop_cells(s->fdt, usb2name, "clocks",
+                               s->phandle.clk_25Mhz, s->phandle.clk_125Mhz);
+    qemu_fdt_setprop(s->fdt, usb2name, "ranges", NULL, 0);
+    qemu_fdt_setprop_cell(s->fdt, usb2name, "#address-cells", 2);
+    qemu_fdt_setprop_cell(s->fdt, usb2name, "#size-cells", 2);
+    qemu_fdt_setprop_cell(s->fdt, usb2name, "phandle", s->phandle.usb);
+    g_free(usb2name);
+
+    {
+        uint64_t addr = MM_USB_XHCI_0;
+        unsigned int irq = VERSAL_USB0_IRQ_0;
+        const char compat[] = "snps,dwc3";
+        const char intName[] = "dwc_usb3";
+        uint32_t frameLen = 0x20;
+
+        char *name = g_strdup_printf("/usb@ff9d0000/dwc3@%" PRIx64, addr);
+        qemu_fdt_add_subnode(s->fdt, name);
+        qemu_fdt_setprop(s->fdt, name, "compatible",
+                         compat, sizeof(compat));
+        qemu_fdt_setprop_sized_cells(s->fdt, name, "reg",
+                                     2, addr, 2, MM_USB_XHCI_SIZE_0);
+        qemu_fdt_setprop(s->fdt, name, "interrupt-names",
+                         intName, sizeof(intName));
+        qemu_fdt_setprop_cells(s->fdt, name, "interrupts",
+                                   GIC_FDT_IRQ_TYPE_SPI, irq,
+                                   GIC_FDT_IRQ_FLAGS_LEVEL_HI);
+        qemu_fdt_setprop_cell(s->fdt, name,
+                              "snps,quirk-frame-length-adjustment",
+                               frameLen);
+        qemu_fdt_setprop_cells(s->fdt, name, "#stream-id-cells", 1);
+        qemu_fdt_setprop_string(s->fdt, name, "dr_mode", "host");
+        qemu_fdt_setprop_string(s->fdt, name, "phy-names", "usb3-phy");
+        qemu_fdt_setprop(s->fdt, name, "snps,dis_u2_susphy_quirk", NULL, 0);
+        qemu_fdt_setprop(s->fdt, name, "snps,dis_u3_susphy_quirk", NULL, 0);
+        qemu_fdt_setprop(s->fdt, name, "snps,refclk_fladj", NULL, 0);
+        qemu_fdt_setprop(s->fdt, name, "snps,mask_phy_reset", NULL, 0);
+        qemu_fdt_setprop(s->fdt, name, "snps,usb3_lpm_capable", NULL, 0);
+        qemu_fdt_setprop_cell(s->fdt, name, "phandle", s->phandle.dwc);
+        qemu_fdt_setprop_string(s->fdt, name, "maximum-speed", "high-speed");
+        g_free(name);
+    }
+}
 static void fdt_add_uart_nodes(VersalVirt *s)
 {
     uint64_t addrs[] = { MM_UART1, MM_UART0 };
@@ -515,6 +573,7 @@ static void versal_virt_init(MachineState *machine)
     fdt_add_gic_nodes(s);
     fdt_add_timer_nodes(s);
     fdt_add_zdma_nodes(s);
+    fdt_add_usb_xhci_nodes(s);
     fdt_add_sd_nodes(s);
     fdt_add_rtc_node(s);
     fdt_add_cpu_nodes(s, psci_conduit);
