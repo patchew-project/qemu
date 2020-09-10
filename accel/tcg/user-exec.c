@@ -712,6 +712,27 @@ int cpu_signal_handler(int host_signum, void *pinfo,
 
     /* XXX: compute is_write */
     is_write = 0;
+
+    /*
+     * Detect store instructions. Required in all versions of MIPS64
+     * since MIPS64r1. Not available in MIPS32r1. Required by MIPS32r2
+     * and subsequent versions of MIPS32.
+     */
+    switch ((insn >> 3) & 0x7) {
+        case 0x1:
+            switch (insn & 0x7) {
+            case 0x0: /* SWXC1 */
+            case 0x1: /* SDXC1 */
+                is_write = 1;
+                break;
+            default:
+                break;
+            }
+            break;
+        default:
+            break;
+    }
+
     return handle_cpu_signal(pc, info, is_write, &uc->uc_sigmask);
 }
 
