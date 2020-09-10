@@ -42,6 +42,10 @@ def c_enum_const(type_name, const_name, prefix=None):
     return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
 
 
+def to_camel_case(value):
+    return ''.join(word.title() for word in filter(None, re.split("[-_]+", value)))
+
+
 c_name_trans = str.maketrans('.-', '__')
 
 

@@ -17,10 +17,15 @@ from qapi.schema import QAPIError, QAPISchema
 from qapi.types import gen_types
 from qapi.visit import gen_visit
 
+from qapi.rs_sys import gen_rs_systypes
+from qapi.rs_types import gen_rs_types
+from qapi.rs_dbus import gen_rs_dbus
 
 def main(argv):
     parser = argparse.ArgumentParser(
         description='Generate code from a QAPI schema')
+    parser.add_argument('-r', '--rust', action='store_true',
+                        help="generate Rust code")
     parser.add_argument('-b', '--builtins', action='store_true',
                         help="generate code for built-in types")
     parser.add_argument('-o', '--output-dir', action='store', default='',
@@ -46,12 +51,17 @@ def main(argv):
         print(err, file=sys.stderr)
         exit(1)
 
-    gen_types(schema, args.output_dir, args.prefix, args.builtins)
-    gen_visit(schema, args.output_dir, args.prefix, args.builtins)
-    gen_commands(schema, args.output_dir, args.prefix)
-    gen_events(schema, args.output_dir, args.prefix)
-    gen_introspect(schema, args.output_dir, args.prefix, args.unmask)
-    gen_doc(schema, args.output_dir, args.prefix)
+    if args.rust:
+        gen_rs_systypes(schema, args.output_dir, args.prefix, args.builtins)
+        gen_rs_types(schema, args.output_dir, args.prefix, args.builtins)
+        gen_rs_dbus(schema, args.output_dir, args.prefix)
+    else:
+        gen_types(schema, args.output_dir, args.prefix, args.builtins)
+        gen_visit(schema, args.output_dir, args.prefix, args.builtins)
+        gen_commands(schema, args.output_dir, args.prefix)
+        gen_events(schema, args.output_dir, args.prefix)
+        gen_introspect(schema, args.output_dir, args.prefix, args.unmask)
+        gen_doc(schema, args.output_dir, args.prefix)
 
 
 if __name__ == '__main__':

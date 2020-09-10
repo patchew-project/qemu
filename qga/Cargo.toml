@@ -1,0 +1,22 @@
+[package]
+name = "qga"
+version = "0.1.0"
+edition = "2018"
+
+[features]
+default = ["dbus"]
+dbus = ["serde", "serde_repr", "zbus", "zvariant", "zvariant_derive"]
+
+[dependencies]
+libc = "^0.2.76"
+serde = { version = "^1.0.115", optional = true }
+serde_repr = { version = "0.1.6", optional = true }
+zbus = { git = "https://gitlab.freedesktop.org/zeenix/zbus", optional = true }
+zvariant = { git = "https://gitlab.freedesktop.org/zeenix/zbus", optional = true }
+zvariant_derive = { git = "https://gitlab.freedesktop.org/zeenix/zbus", optional = true }
+hostname = "0.3.1"
+
+[lib]
+name = "qga"
+path = "lib.rs"
+crate-type = ["staticlib"]

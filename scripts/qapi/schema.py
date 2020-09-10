@@ -167,8 +167,14 @@ class QAPISchemaType(QAPISchemaEntity):
         pass
 
     # Return the C type to be used in a parameter list.
-    def c_param_type(self):
-        return self.c_type()
+    #
+    # The argument should be considered const, since no ownership is given to the callee,
+    # but qemu C code frequently tweaks it. Set const=True for a stricter declaration.
+    def c_param_type(self, const=False):
+        c_type = self.c_type()
+        if const and c_type.endswith(pointer_suffix):
+            c_type = 'const ' + c_type
+        return c_type
 
     # Return the C type to be used where we suppress boxing.
     def c_unboxed_type(self):
@@ -221,10 +227,10 @@ class QAPISchemaBuiltinType(QAPISchemaType):
     def c_type(self):
         return self._c_type_name
 
-    def c_param_type(self):
+    def c_param_type(self, const=False):
         if self.name == 'str':
             return 'const ' + self._c_type_name
-        return self._c_type_name
+        return super().c_param_type(const)
 
     def json_type(self):
         return self._json_type_name

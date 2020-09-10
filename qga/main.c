@@ -17,6 +17,7 @@
 #ifndef _WIN32
 #include <syslog.h>
 #include <sys/wait.h>
+#include <glib-unix.h>
 #endif
 #include "qemu-common.h"
 #include "qapi/qmp/json-parser.h"
@@ -73,6 +74,13 @@ typedef struct GAPersistentState {
 
 typedef struct GAConfig GAConfig;
 
+typedef struct _QemuDBus QemuDBus;
+
+extern QemuDBus *qemu_dbus_new(void);
+extern void qemu_dbus_free(QemuDBus *dbus);
+extern int qemu_dbus_fd(QemuDBus *dbus);
+extern void qemu_dbus_next(QemuDBus *dbus);
+
 struct GAState {
     JSONMessageParser parser;
     GMainLoop *main_loop;
@@ -102,6 +110,7 @@ struct GAState {
     GAConfig *config;
     int socket_activation;
     bool force_exit;
+    QemuDBus *dbus;
 };
 
 struct GAState *ga_state;
@@ -1261,6 +1270,13 @@ static bool check_is_frozen(GAState *s)
     return false;
 }
 
+static gboolean dbus_cb(gint fd, GIOCondition condition, gpointer data)
+{
+    GAState *s = data;
+    qemu_dbus_next(s->dbus);
+    return G_SOURCE_CONTINUE;
+}
+
 static GAState *initialize_agent(GAConfig *config, int socket_activation)
 {
     GAState *s = g_new0(GAState, 1);
@@ -1353,6 +1369,14 @@ static GAState *initialize_agent(GAConfig *config, int socket_activation)
 #endif
 
     s->main_loop = g_main_loop_new(NULL, false);
+
+    {
+        s->dbus = qemu_dbus_new();
+        int fd = qemu_dbus_fd(s->dbus);
+        GSource *source = g_unix_fd_source_new(fd, G_IO_IN);
+        g_source_set_callback(source, (GSourceFunc) dbus_cb, s, NULL);
+        g_source_attach(source, NULL);
+    }
 
     s->config = config;
     s->socket_activation = socket_activation;

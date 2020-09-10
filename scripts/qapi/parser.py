@@ -342,6 +342,7 @@ class QAPIDoc:
         # servicable, but action at a distance.
         self._parser = parser
         self.info = info
+        self.text = '' # unprocessed text
         self.symbol = None
         self.body = QAPIDoc.Section()
         # dict mapping parameter name to ArgSection
@@ -371,6 +372,7 @@ class QAPIDoc:
         * A features section: ._append_line is ._append_features_line
         * An additional section: ._append_line is ._append_various_line
         """
+        self.text += line + '\n'
         line = line[1:]
         if not line:
             self._append_freeform(line)

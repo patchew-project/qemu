@@ -637,7 +637,11 @@ qapi_gen_depends = [ meson.source_root() / 'scripts/qapi/__init__.py',
                      meson.source_root() / 'scripts/qapi/visit.py',
                      meson.source_root() / 'scripts/qapi/common.py',
                      meson.source_root() / 'scripts/qapi/doc.py',
-                     meson.source_root() / 'scripts/qapi-gen.py'
+                     meson.source_root() / 'scripts/qapi/rs.py',
+                     meson.source_root() / 'scripts/qapi/rs_sys.py',
+                     meson.source_root() / 'scripts/qapi/rs_types.py',
+                     meson.source_root() / 'scripts/qapi/rs_dbus.py',
+                     meson.source_root() / 'scripts/qapi-gen.py',
 ]
 
 tracetool = [

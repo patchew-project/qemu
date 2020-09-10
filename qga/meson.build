@@ -46,9 +46,49 @@ qga_ss.add(when: 'CONFIG_WIN32', if_true: files(
 
 qga_ss = qga_ss.apply(config_host, strict: false)
 
+find_program('cargo', required: true)
+find_program('rustfmt', required: true)
+cargo_sh = find_program('../scripts/cargo.sh', required: true)
+
+run_target('cargo-clippy',
+           command: [cargo_sh, 'clippy'])
+
+qga_qapi_rs_outputs = [
+  'qga-qapi-sys-types.rs',
+  'qga-qapi-types.rs',
+  'qga-qapi-dbus.rs',
+]
+
+qga_qapi_rs_files = custom_target('QGA QAPI Rust files',
+                               output: qga_qapi_rs_outputs,
+                               input: 'qapi-schema.json',
+                               command: [ qapi_gen, '-r', '-o', 'qga', '-p', 'qga-', '@INPUT0@' ],
+                               depend_files: qapi_gen_depends)
+
+rs_files = files(
+  'Cargo.toml',
+  'error.rs',
+  'lib.rs',
+  'qapi.rs',
+  'qapi_dbus.rs',
+  'qapi_sys.rs',
+  'qemu.rs',
+  'qemu_sys.rs',
+  'qmp.rs',
+  'translate.rs',
+)
+
+buildtype = get_option('buildtype')
+cargo_build = custom_target('cargo-build',
+                            input: [qga_qapi_rs_files, rs_files],
+                            output: ['cargo-build.stamp'],
+                            console: true,
+                            command: [cargo_sh, 'build', buildtype, meson.current_build_dir(), meson.source_root(), meson.build_root()])
+qga_rs = declare_dependency(link_args: ['-lrt', '-ldl', 'rs-target/@0@/libqga.a'.format(buildtype)], sources: cargo_build)
+
 qga = executable('qemu-ga', qga_ss.sources(),
                  link_args: config_host['LIBS_QGA'].split(),
-                 dependencies: [qemuutil, libudev],
+                 dependencies: [qemuutil, libudev, qga_rs],
                  install: true)
 all_qga = [qga]
 
