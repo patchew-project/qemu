@@ -425,6 +425,14 @@ void qdev_machine_creation_done(void);
 bool qdev_machine_modified(void);
 
 /**
+ * GpioPolarity: Polarity of a GPIO line
+ */
+typedef enum {
+    GPIO_POLARITY_ACTIVE_LOW,
+    GPIO_POLARITY_ACTIVE_HIGH
+} GpioPolarity;
+
+/**
  * qdev_get_gpio_in: Get one of a device's anonymous input GPIO lines
  * @dev: Device whose GPIO we want
  * @n: Number of the anonymous GPIO line (which must be in range)
