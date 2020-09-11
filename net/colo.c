@@ -164,7 +164,7 @@ Packet *packet_new(const void *data, int size, int vnet_hdr_len)
 
     pkt->data = g_memdup(data, size);
     pkt->size = size;
-    pkt->creation_ms = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    pkt->creation_ms = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     pkt->vnet_hdr_len = vnet_hdr_len;
     pkt->tcp_seq = 0;
     pkt->tcp_ack = 0;

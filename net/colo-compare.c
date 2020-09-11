@@ -623,7 +623,7 @@ static int colo_packet_compare_other(Packet *spkt, Packet *ppkt)
 
 static int colo_old_packet_check_one(Packet *pkt, void *user_data)
 {
-    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    int64_t now = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
     uint32_t check_time = *(uint32_t *)user_data;
 
     if ((now - pkt->creation_ms) > check_time) {
