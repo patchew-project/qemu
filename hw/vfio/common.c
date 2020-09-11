@@ -844,6 +844,41 @@ vfio_get_region_info_cap(struct vfio_region_info *info, uint16_t id)
     return NULL;
 }
 
+static struct vfio_info_cap_header *
+vfio_get_iommu_type1_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
+{
+    struct vfio_info_cap_header *hdr;
+    void *ptr = info;
+
+    if (!(info->flags & VFIO_IOMMU_INFO_CAPS)) {
+        return NULL;
+    }
+
+    for (hdr = ptr + info->cap_offset; hdr != ptr; hdr = ptr + hdr->next) {
+        if (hdr->id == id) {
+            return hdr;
+        }
+    }
+
+    return NULL;
+}
+
+static unsigned int vfio_get_info_dma_limit(struct vfio_iommu_type1_info *info)
+{
+    struct vfio_info_cap_header *hdr;
+    struct vfio_iommu_type1_info_dma_limit *cap;
+
+    /* If the capability cannot be found, assume no DMA limiting */
+    hdr = vfio_get_iommu_type1_info_cap(info,
+                                        VFIO_IOMMU_TYPE1_INFO_DMA_LIMIT);
+    if (hdr == NULL) {
+        return 0;
+    }
+
+    cap = (void *) hdr;
+    return cap->max;
+}
+
 static int vfio_setup_region_sparse_mmaps(VFIORegion *region,
                                           struct vfio_region_info *info)
 {
@@ -1285,7 +1320,8 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
     case VFIO_TYPE1v2_IOMMU:
     case VFIO_TYPE1_IOMMU:
     {
-        struct vfio_iommu_type1_info info;
+        struct vfio_iommu_type1_info *info;
+        uint32_t argsz;
 
         /*
          * FIXME: This assumes that a Type1 IOMMU can map any 64-bit
@@ -1294,15 +1330,37 @@ static int vfio_connect_container(VFIOGroup *group, AddressSpace *as,
          * existing Type1 IOMMUs generally support any IOVA we're
          * going to actually try in practice.
          */
-        info.argsz = sizeof(info);
-        ret = ioctl(fd, VFIO_IOMMU_GET_INFO, &info);
-        /* Ignore errors */
-        if (ret || !(info.flags & VFIO_IOMMU_INFO_PGSIZES)) {
-            /* Assume 4k IOVA page size */
-            info.iova_pgsizes = 4096;
+        argsz = sizeof(struct vfio_iommu_type1_info);
+        info = g_malloc0(argsz);
+        info->argsz = argsz;
+        /*
+         * If the specified argsz is not large enough to contain all
+         * capabilities it will be updated upon return.  In this case
+         * use the updated value to get the entire capability chain.
+         */
+        ret = ioctl(fd, VFIO_IOMMU_GET_INFO, info);
+        if (argsz != info->argsz) {
+            argsz = info->argsz;
+            info = g_realloc(info, argsz);
+            info->argsz = argsz;
+            ret = ioctl(fd, VFIO_IOMMU_GET_INFO, info);
         }
-        vfio_host_win_add(container, 0, (hwaddr)-1, info.iova_pgsizes);
-        container->pgsizes = info.iova_pgsizes;
+        /* Set defaults on error */
+        if (ret) {
+            /* Assume 4k IOVA page size and no DMA limiting */
+            info->iova_pgsizes = 4096;
+            container->dma_limit = 0;
+        } else {
+            if (!(info->flags & VFIO_IOMMU_INFO_PGSIZES)) {
+                /* Assume 4k IOVA page size */
+                info->iova_pgsizes = 4096;
+            }
+            /* Obtain DMA limit from capability chain */
+            container->dma_limit = vfio_get_info_dma_limit(info);
+        }
+        vfio_host_win_add(container, 0, (hwaddr)-1, info->iova_pgsizes);
+        container->pgsizes = info->iova_pgsizes;
+        g_free(info);
         break;
     }
     case VFIO_SPAPR_TCE_v2_IOMMU:

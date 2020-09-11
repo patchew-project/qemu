@@ -74,6 +74,7 @@ typedef struct VFIOContainer {
     Error *error;
     bool initialized;
     unsigned long pgsizes;
+    unsigned int dma_limit;
     QLIST_HEAD(, VFIOGuestIOMMU) giommu_list;
     QLIST_HEAD(, VFIOHostDMAWindow) hostwin_list;
     QLIST_HEAD(, VFIOGroup) group_list;
