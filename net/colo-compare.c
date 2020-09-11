@@ -621,11 +621,12 @@ static int colo_packet_compare_other(Packet *spkt, Packet *ppkt)
                                        ppkt->size - offset);
 }
 
-static int colo_old_packet_check_one(Packet *pkt, int64_t *check_time)
+static int colo_old_packet_check_one(Packet *pkt, void *user_data)
 {
     int64_t now = qemu_clock_get_ms(QEMU_CLOCK_HOST);
+    uint32_t check_time = *(uint32_t *)user_data;
 
-    if ((now - pkt->creation_ms) > (*check_time)) {
+    if ((now - pkt->creation_ms) > check_time) {
         trace_colo_old_packet_check_found(pkt->creation_ms);
         return 0;
     } else {
