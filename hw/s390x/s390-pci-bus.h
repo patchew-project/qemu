@@ -265,6 +265,13 @@ typedef struct S390IOTLBEntry {
     uint64_t perm;
 } S390IOTLBEntry;
 
+typedef struct S390PCIDMACount {
+    int id;
+    int users;
+    uint32_t avail;
+    QTAILQ_ENTRY(S390PCIDMACount) link;
+} S390PCIDMACount;
+
 typedef struct S390PCIBusDevice S390PCIBusDevice;
 typedef struct S390PCIIOMMU {
     Object parent_obj;
@@ -277,6 +284,7 @@ typedef struct S390PCIIOMMU {
     uint64_t pba;
     uint64_t pal;
     GHashTable *iotlb;
+    S390PCIDMACount *dma_limit;
 } S390PCIIOMMU;
 
 typedef struct S390PCIIOMMUTable {
@@ -352,6 +360,7 @@ typedef struct S390pciState {
     GHashTable *zpci_table;
     QTAILQ_HEAD(, SeiContainer) pending_sei;
     QTAILQ_HEAD(, S390PCIBusDevice) zpci_devs;
+    QTAILQ_HEAD(, S390PCIDMACount) zpci_dma_limit;
 } S390pciState;
 
 S390pciState *s390_get_phb(void);
