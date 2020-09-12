@@ -66,6 +66,7 @@ typedef struct NvmeNamespace {
     NvmeIdNs        id_ns;
     uint32_t        nsid;
     uint8_t         csi;
+    bool            attached;
     QemuUUID        uuid;
 } NvmeNamespace;
 
