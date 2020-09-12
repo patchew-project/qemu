@@ -535,7 +535,6 @@ rng_none="no"
 secret_keyring=""
 libdaxctl=""
 meson=""
-ninja=""
 skip_meson=no
 gettext=""
 
@@ -1004,8 +1003,6 @@ for opt do
   --skip-meson) skip_meson=yes
   ;;
   --meson=*) meson="$optarg"
-  ;;
-  --ninja=*) ninja="$optarg"
   ;;
   --smbd=*) smbd="$optarg"
   ;;
@@ -1778,7 +1775,6 @@ Advanced options (experts only):
   --python=PYTHON          use specified python [$python]
   --sphinx-build=SPHINX    use specified sphinx-build [$sphinx_build]
   --meson=MESON            use specified meson [$meson]
-  --ninja=NINJA            use specified ninja [$ninja]
   --smbd=SMBD              use specified smbd [$smbd]
   --with-git=GIT           use specified git [$git]
   --static                 enable static build [$static]
@@ -2015,16 +2011,6 @@ case "$meson" in
     *) meson=$(command -v meson) ;;
 esac
 
-# Probe for ninja (used for compdb)
-
-if test -z "$ninja"; then
-    for c in ninja ninja-build samu; do
-        if has $c; then
-            ninja=$(command -v "$c")
-            break
-        fi
-    done
-fi
 
 # Check that the C compiler works. Doing this here before testing
 # the host CPU ensures that we had a valid CC to autodetect the
@@ -7956,7 +7942,7 @@ fi
 mv $cross config-meson.cross
 
 rm -rf meson-private meson-info meson-logs
-NINJA=${ninja:-$PWD/ninjatool} $meson setup \
+NINJA=$PWD/ninjatool $meson setup \
         --prefix "${pre_prefix}$prefix" \
         --libdir "${pre_prefix}$libdir" \
         --libexecdir "${pre_prefix}$libexecdir" \
