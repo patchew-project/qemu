@@ -176,6 +176,87 @@ static void nvme_remove_zone(NvmeCtrl *n, NvmeNamespace *ns, NvmeZoneList *zl,
     zone->prev = zone->next = 0;
 }
 
+/*
+ * Take the first zone out from a list, return NULL if the list is empty.
+ */
+static NvmeZone *nvme_remove_zone_head(NvmeCtrl *n, NvmeNamespace *ns,
+                                       NvmeZoneList *zl)
+{
+    NvmeZone *zone = nvme_peek_zone_head(ns, zl);
+
+    if (zone) {
+        --zl->size;
+        if (zl->size == 0) {
+            zl->head = NVME_ZONE_LIST_NIL;
+            zl->tail = NVME_ZONE_LIST_NIL;
+        } else {
+            zl->head = zone->next;
+            ns->zone_array[zl->head].prev = NVME_ZONE_LIST_NIL;
+        }
+        zone->prev = zone->next = 0;
+    }
+
+    return zone;
+}
+
+/*
+ * Check if we can open a zone without exceeding open/active limits.
+ * AOR stands for "Active and Open Resources" (see TP 4053 section 2.5).
+ */
+static int nvme_aor_check(NvmeCtrl *n, NvmeNamespace *ns,
+                          uint32_t act, uint32_t opn)
+{
+    if (n->params.max_active_zones != 0 &&
+        ns->nr_active_zones + act > n->params.max_active_zones) {
+        trace_pci_nvme_err_insuff_active_res(n->params.max_active_zones);
+        return NVME_ZONE_TOO_MANY_ACTIVE | NVME_DNR;
+    }
+    if (n->params.max_open_zones != 0 &&
+        ns->nr_open_zones + opn > n->params.max_open_zones) {
+        trace_pci_nvme_err_insuff_open_res(n->params.max_open_zones);
+        return NVME_ZONE_TOO_MANY_OPEN | NVME_DNR;
+    }
+
+    return NVME_SUCCESS;
+}
+
+static inline void nvme_aor_inc_open(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    assert(ns->nr_open_zones >= 0);
+    if (n->params.max_open_zones) {
+        ns->nr_open_zones++;
+        assert(ns->nr_open_zones <= n->params.max_open_zones);
+    }
+}
+
+static inline void nvme_aor_dec_open(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    if (n->params.max_open_zones) {
+        assert(ns->nr_open_zones > 0);
+        ns->nr_open_zones--;
+    }
+    assert(ns->nr_open_zones >= 0);
+}
+
+static inline void nvme_aor_inc_active(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    assert(ns->nr_active_zones >= 0);
+    if (n->params.max_active_zones) {
+        ns->nr_active_zones++;
+        assert(ns->nr_active_zones <= n->params.max_active_zones);
+    }
+}
+
+static inline void nvme_aor_dec_active(NvmeCtrl *n, NvmeNamespace *ns)
+{
+    if (n->params.max_active_zones) {
+        assert(ns->nr_active_zones > 0);
+        ns->nr_active_zones--;
+        assert(ns->nr_active_zones >= ns->nr_open_zones);
+    }
+    assert(ns->nr_active_zones >= 0);
+}
+
 static void nvme_assign_zone_state(NvmeCtrl *n, NvmeNamespace *ns,
                                    NvmeZone *zone, uint8_t state)
 {
@@ -715,6 +796,24 @@ static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
     return NVME_SUCCESS;
 }
 
+static void nvme_auto_transition_zone(NvmeCtrl *n, NvmeNamespace *ns,
+                                      bool implicit, bool adding_active)
+{
+    NvmeZone *zone;
+
+    if (implicit && n->params.max_open_zones &&
+        ns->nr_open_zones == n->params.max_open_zones) {
+        zone = nvme_remove_zone_head(n, ns, ns->imp_open_zones);
+        if (zone) {
+            /*
+             * Automatically close this implicitly open zone.
+             */
+            nvme_aor_dec_open(n, ns);
+            nvme_assign_zone_state(n, ns, zone, NVME_ZONE_STATE_CLOSED);
+        }
+    }
+}
+
 static uint16_t nvme_check_zone_write(NvmeZone *zone, uint64_t slba,
                                       uint32_t nlb)
 {
@@ -792,6 +891,23 @@ static uint16_t nvme_check_zone_read(NvmeCtrl *n, NvmeZone *zone, uint64_t slba,
     return status;
 }
 
+static uint16_t nvme_auto_open_zone(NvmeCtrl *n, NvmeNamespace *ns,
+                                    NvmeZone *zone)
+{
+    uint16_t status = NVME_SUCCESS;
+    uint8_t zs = nvme_get_zone_state(zone);
+
+    if (zs == NVME_ZONE_STATE_EMPTY) {
+        nvme_auto_transition_zone(n, ns, true, true);
+        status = nvme_aor_check(n, ns, 1, 1);
+    } else if (zs == NVME_ZONE_STATE_CLOSED) {
+        nvme_auto_transition_zone(n, ns, true, false);
+        status = nvme_aor_check(n, ns, 0, 1);
+    }
+
+    return status;
+}
+
 static inline uint32_t nvme_zone_idx(NvmeCtrl *n, uint64_t slba)
 {
     return n->zone_size_log2 > 0 ? slba >> n->zone_size_log2 :
@@ -827,7 +943,11 @@ static void nvme_finalize_zone_write(NvmeCtrl *n, NvmeRequest *req)
         switch (zs) {
         case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         case NVME_ZONE_STATE_EXPLICITLY_OPEN:
+            nvme_aor_dec_open(n, ns);
+            /* fall through */
         case NVME_ZONE_STATE_CLOSED:
+            nvme_aor_dec_active(n, ns);
+            /* fall through */
         case NVME_ZONE_STATE_EMPTY:
             break;
         default:
@@ -837,7 +957,10 @@ static void nvme_finalize_zone_write(NvmeCtrl *n, NvmeRequest *req)
     } else {
         switch (zs) {
         case NVME_ZONE_STATE_EMPTY:
+            nvme_aor_inc_active(n, ns);
+            /* fall through */
         case NVME_ZONE_STATE_CLOSED:
+            nvme_aor_inc_open(n, ns);
             nvme_assign_zone_state(n, ns, zone,
                                    NVME_ZONE_STATE_IMPLICITLY_OPEN);
         }
@@ -922,6 +1045,11 @@ static uint16_t nvme_write_zeroes(NvmeCtrl *n, NvmeRequest *req)
                                                zone->d.wp);
             return NVME_ZONE_INVALID_WRITE | NVME_DNR;
         }
+
+        status = nvme_auto_open_zone(n, ns, zone);
+        if (status != NVME_SUCCESS) {
+            return status;
+        }
     }
 
     block_acct_start(blk_get_stats(n->conf.blk), &req->acct, 0,
@@ -993,6 +1121,12 @@ static uint16_t nvme_rw(NvmeCtrl *n, NvmeRequest *req, bool append)
                                                    zone->d.wp);
                 return NVME_ZONE_INVALID_WRITE | NVME_DNR;
             }
+
+            status = nvme_auto_open_zone(n, ns, zone);
+            if (status != NVME_SUCCESS) {
+                return status;
+            }
+
             req->fill_ofs = -1LL;
         } else {
             status = nvme_check_zone_read(n, zone, slba, nlb,
@@ -1085,9 +1219,27 @@ static uint16_t nvme_get_mgmt_zone_slba_idx(NvmeCtrl *n, NvmeNamespace *ns,
 static uint16_t nvme_open_zone(NvmeCtrl *n, NvmeNamespace *ns,
                                NvmeZone *zone, uint8_t state)
 {
+    uint16_t status;
+
     switch (state) {
     case NVME_ZONE_STATE_EMPTY:
+        nvme_auto_transition_zone(n, ns, false, true);
+        status = nvme_aor_check(n, ns, 1, 0);
+        if (status != NVME_SUCCESS) {
+            return status;
+        }
+        nvme_aor_inc_active(n, ns);
+        /* fall through */
     case NVME_ZONE_STATE_CLOSED:
+        status = nvme_aor_check(n, ns, 0, 1);
+        if (status != NVME_SUCCESS) {
+            if (state == NVME_ZONE_STATE_EMPTY) {
+                nvme_aor_dec_active(n, ns);
+            }
+            return status;
+        }
+        nvme_aor_inc_open(n, ns);
+        /* fall through */
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
         nvme_assign_zone_state(n, ns, zone, NVME_ZONE_STATE_EXPLICITLY_OPEN);
         /* fall through */
@@ -1109,6 +1261,7 @@ static uint16_t nvme_close_zone(NvmeCtrl *n,  NvmeNamespace *ns,
     switch (state) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        nvme_aor_dec_open(n, ns);
         nvme_assign_zone_state(n, ns, zone, NVME_ZONE_STATE_CLOSED);
         /* fall through */
     case NVME_ZONE_STATE_CLOSED:
@@ -1130,7 +1283,11 @@ static uint16_t nvme_finish_zone(NvmeCtrl *n, NvmeNamespace *ns,
     switch (state) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        nvme_aor_dec_open(n, ns);
+        /* fall through */
     case NVME_ZONE_STATE_CLOSED:
+        nvme_aor_dec_active(n, ns);
+        /* fall through */
     case NVME_ZONE_STATE_EMPTY:
         zone->d.wp = nvme_zone_wr_boundary(zone);
         nvme_assign_zone_state(n, ns, zone, NVME_ZONE_STATE_FULL);
@@ -1155,7 +1312,11 @@ static uint16_t nvme_reset_zone(NvmeCtrl *n, NvmeNamespace *ns,
     switch (state) {
     case NVME_ZONE_STATE_EXPLICITLY_OPEN:
     case NVME_ZONE_STATE_IMPLICITLY_OPEN:
+        nvme_aor_dec_open(n, ns);
+        /* fall through */
     case NVME_ZONE_STATE_CLOSED:
+        nvme_aor_dec_active(n, ns);
+        /* fall through */
     case NVME_ZONE_STATE_FULL:
         zone->d.wp = zone->d.zslba;
         nvme_assign_zone_state(n, ns, zone, NVME_ZONE_STATE_EMPTY);
@@ -3218,6 +3379,18 @@ static void nvme_zoned_init_ctrl(NvmeCtrl *n, Error **errp)
         n->zasl_bs = n->params.zasl_kb * KiB;
     }
 
+    /* Make sure that the values of all Zoned Command Set properties are sane */
+    if (n->params.max_open_zones > nz) {
+        warn_report("max_open_zones value %u exceeds the number of zones %u,"
+                    " adjusting", n->params.max_open_zones, nz);
+        n->params.max_open_zones = nz;
+    }
+    if (n->params.max_active_zones > nz) {
+        warn_report("max_active_zones value %u exceeds the number of zones %u,"
+                    " adjusting", n->params.max_active_zones, nz);
+        n->params.max_active_zones = nz;
+    }
+
     return;
 }
 
@@ -3235,8 +3408,8 @@ static int nvme_zoned_init_ns(NvmeCtrl *n, NvmeNamespace *ns, int lba_index,
     ns->id_ns_zoned = g_malloc0(sizeof(*ns->id_ns_zoned));
 
     /* MAR/MOR are zeroes-based, 0xffffffff means no limit */
-    ns->id_ns_zoned->mar = 0xffffffff;
-    ns->id_ns_zoned->mor = 0xffffffff;
+    ns->id_ns_zoned->mar = cpu_to_le32(n->params.max_active_zones - 1);
+    ns->id_ns_zoned->mor = cpu_to_le32(n->params.max_open_zones - 1);
     ns->id_ns_zoned->zoc = 0;
     ns->id_ns_zoned->ozcs = n->params.cross_zone_read ? 0x01 : 0x00;
 
@@ -3632,6 +3805,8 @@ static Property nvme_props[] = {
                        NVME_DEFAULT_ZONE_SIZE),
     DEFINE_PROP_UINT64("zone_capacity", NvmeCtrl, params.zone_capacity_mb, 0),
     DEFINE_PROP_UINT32("zone_append_size_limit", NvmeCtrl, params.zasl_kb, 0),
+    DEFINE_PROP_UINT32("max_active", NvmeCtrl, params.max_active_zones, 0),
+    DEFINE_PROP_UINT32("max_open", NvmeCtrl, params.max_open_zones, 0),
     DEFINE_PROP_BOOL("cross_zone_read", NvmeCtrl, params.cross_zone_read, true),
     DEFINE_PROP_UINT8("fill_pattern", NvmeCtrl, params.fill_pattern, 0),
     DEFINE_PROP_END_OF_LIST(),
