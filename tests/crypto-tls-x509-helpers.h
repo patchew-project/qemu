@@ -24,8 +24,9 @@
 #include <gnutls/gnutls.h>
 #include <gnutls/x509.h>
 
-#if !(defined WIN32) && \
-    defined(CONFIG_TASN1)
+#include "qemu/osdep.h"
+
+#if defined(CONFIG_TASN1)
 # define QCRYPTO_HAVE_TLS_TEST_SUPPORT
 #endif
 
@@ -126,6 +127,10 @@ void test_tls_cleanup(const char *keyfile);
     test_tls_generate_cert(&varname, NULL)
 
 extern const ASN1_ARRAY_TYPE pkix_asn1_tab[];
+
+int qemu_link(const char *exist_path1, const char *new_path2);
+
+int qemu_socketpair(int family, int type, int protocol,int recv[2]);
 
 #endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
 
