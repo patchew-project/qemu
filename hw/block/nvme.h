@@ -24,6 +24,7 @@ typedef struct NvmeParams {
     uint64_t    zone_capacity_mb;
     uint32_t    max_active_zones;
     uint32_t    max_open_zones;
+    uint32_t    zd_extension_size;
 } NvmeParams;
 
 typedef struct NvmeAsyncEvent {
@@ -105,6 +106,7 @@ typedef struct NvmeNamespace {
     NvmeZoneList    *imp_open_zones;
     NvmeZoneList    *closed_zones;
     NvmeZoneList    *full_zones;
+    uint8_t         *zd_extensions;
     int32_t         nr_open_zones;
     int32_t         nr_active_zones;
 } NvmeNamespace;
@@ -216,6 +218,12 @@ static inline bool nvme_wp_is_valid(NvmeZone *zone)
     return st != NVME_ZONE_STATE_FULL &&
            st != NVME_ZONE_STATE_READ_ONLY &&
            st != NVME_ZONE_STATE_OFFLINE;
+}
+
+static inline uint8_t *nvme_get_zd_extension(NvmeCtrl *n, NvmeNamespace *ns,
+                                             uint32_t zone_idx)
+{
+    return &ns->zd_extensions[zone_idx * n->params.zd_extension_size];
 }
 
 /*
