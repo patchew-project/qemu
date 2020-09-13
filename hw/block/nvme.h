@@ -137,4 +137,15 @@ static inline uint64_t nvme_ns_nlbas(NvmeCtrl *n, NvmeNamespace *ns)
     return n->ns_size >> nvme_ns_lbads(ns);
 }
 
+static inline int nvme_ilog2(uint64_t i)
+{
+    int log = -1;
+
+    while (i) {
+        i >>= 1;
+        log++;
+    }
+    return log;
+}
+
 #endif /* HW_NVME_H */
