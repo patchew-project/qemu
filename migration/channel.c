@@ -66,6 +66,11 @@ void migration_channel_connect(MigrationState *s,
     trace_migration_set_outgoing_channel(
         ioc, object_get_typename(OBJECT(ioc)), hostname, error);
 
+    /* Save hostname into MigrationState for handshake */
+    if (hostname) {
+        s->hostname = g_strdup(hostname);
+    }
+
     if (!error) {
         if (s->parameters.tls_creds &&
             *s->parameters.tls_creds &&
@@ -90,5 +95,6 @@ void migration_channel_connect(MigrationState *s,
         }
     }
     migrate_fd_connect(s, error);
+    g_free(s->hostname);
     error_free(error);
 }
