@@ -53,7 +53,7 @@ static int next_scsi_bus;
 
 static SCSIDevice *do_scsi_device_find(SCSIBus *bus,
                                        int channel, int id, int lun,
-                                       bool include_unrealized)
+                                       bool include_unrealized, bool take_ref)
 {
     BusChild *kid;
     SCSIDevice *retval = NULL;
@@ -93,13 +93,22 @@ out:
         retval = NULL;
     }
 
+    if (take_ref) {
+        object_ref(OBJECT(retval));
+    }
+
     rcu_read_unlock();
     return retval;
 }
 
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
 {
-    return do_scsi_device_find(bus, channel, id, lun, false);
+    return do_scsi_device_find(bus, channel, id, lun, false, false);
+}
+
+SCSIDevice *scsi_device_get(SCSIBus *bus, int channel, int id, int lun)
+{
+    return do_scsi_device_find(bus, channel, id, lun, false, true);
 }
 
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
@@ -237,7 +246,8 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
             dev->lun = 0;
         }
         do {
-            d = do_scsi_device_find(bus, dev->channel, ++id, dev->lun, true);
+            d = do_scsi_device_find(bus, dev->channel, ++id, dev->lun,
+                                    true, false);
         } while (d && d->lun == dev->lun && id < bus->info->max_target);
         if (d && d->lun == dev->lun) {
             error_setg(errp, "no free target");
@@ -247,7 +257,8 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     } else if (dev->lun == -1) {
         int lun = -1;
         do {
-            d = do_scsi_device_find(bus, dev->channel, dev->id, ++lun, true);
+            d = do_scsi_device_find(bus, dev->channel, dev->id, ++lun,
+                                    true, false);
         } while (d && d->lun == lun && lun < bus->info->max_lun);
         if (d && d->lun == lun) {
             error_setg(errp, "no free lun");
@@ -255,7 +266,8 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         }
         dev->lun = lun;
     } else {
-        d = do_scsi_device_find(bus, dev->channel, dev->id, dev->lun, true);
+        d = do_scsi_device_find(bus, dev->channel, dev->id, dev->lun,
+                                true, false);
         assert(d);
         if (d->lun == dev->lun && dev != d) {
             error_setg(errp, "lun already used by '%s'", d->qdev.id);
