@@ -1631,6 +1631,23 @@ for opt do
   esac
 done
 
+if test -n "$python"
+then
+    # Preserve python version since some functionality is dependent on it
+    python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))' 2>/dev/null)
+
+    # Suppress writing compiled files
+    python="$python -B"
+
+    # Note that if the Python conditional here evaluates True we will exit
+    # with status 1 which is a shell 'false' value.
+    if ! $python -c 'import sys; sys.exit(sys.version_info < (3,5))'; then
+        print_error "Cannot use '$python', Python >= 3.5 is required." \
+            "Use --python=/path/to/python to specify a supported Python."
+        python=
+    fi
+fi
+
 firmwarepath="${firmwarepath:-$prefix/share/qemu-firmware}"
 libdir="${libdir:-$prefix/lib}"
 libexecdir="${libexecdir:-$prefix/libexec}"
@@ -1961,19 +1978,6 @@ if test -z "$python"
 then
     error_exit "Python not found. Use --python=/path/to/python"
 fi
-
-# Note that if the Python conditional here evaluates True we will exit
-# with status 1 which is a shell 'false' value.
-if ! $python -c 'import sys; sys.exit(sys.version_info < (3,5))'; then
-  error_exit "Cannot use '$python', Python >= 3.5 is required." \
-      "Use --python=/path/to/python to specify a supported Python."
-fi
-
-# Preserve python version since some functionality is dependent on it
-python_version=$($python -c 'import sys; print("%d.%d.%d" % (sys.version_info[0], sys.version_info[1], sys.version_info[2]))' 2>/dev/null)
-
-# Suppress writing compiled files
-python="$python -B"
 
 if test -z "$meson"; then
     if test "$explicit_python" = no && has meson && version_ge "$(meson --version)" 0.55.1; then
