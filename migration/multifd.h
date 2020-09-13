@@ -66,11 +66,15 @@ typedef struct {
 } MultiFDPages_t;
 
 typedef struct {
+    /* Migration State */
+    MigrationState *s;
     /* this fields are not changed once the thread is created */
     /* channel number */
     uint8_t id;
     /* channel thread name */
     char *name;
+    /* tls hostname */
+    char *tls_hostname;
     /* channel thread id */
     QemuThread thread;
     /* communication channel */

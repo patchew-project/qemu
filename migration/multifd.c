@@ -543,11 +543,14 @@ void multifd_save_cleanup(void)
 
         socket_send_channel_destroy(p->c);
         p->c = NULL;
+        p->s = NULL;
         qemu_mutex_destroy(&p->mutex);
         qemu_sem_destroy(&p->sem);
         qemu_sem_destroy(&p->sem_sync);
         g_free(p->name);
         p->name = NULL;
+        g_free(p->tls_hostname);
+        p->tls_hostname = NULL;
         multifd_pages_clear(p->pages);
         p->pages = NULL;
         p->packet_len = 0;
@@ -779,6 +782,8 @@ int multifd_save_setup(Error **errp)
         p->packet->magic = cpu_to_be32(MULTIFD_MAGIC);
         p->packet->version = cpu_to_be32(MULTIFD_VERSION);
         p->name = g_strdup_printf("multifdsend_%d", i);
+        p->s = migrate_get_current();
+        p->tls_hostname = g_strdup(p->s->hostname);
         socket_send_channel_create(multifd_new_send_channel_async, p);
     }
 
