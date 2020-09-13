@@ -80,6 +80,12 @@ ifneq ($(MESON),)
 Makefile.mtest: build.ninja scripts/mtest2make.py
 	$(MESON) introspect --tests --benchmarks | $(PYTHON) scripts/mtest2make.py > $@
 -include Makefile.mtest
+
+# jq is used to keep the result stable
+meson-buildoptions.json: meson_options.txt
+	$(MESON) introspect --buildoptions . | \
+	    jq 'map(select(.section == "user")) | sort_by(.name)' \
+	    > $(SRC_PATH)/meson-buildoptions.json
 endif
 
 Makefile: .git-submodule-status

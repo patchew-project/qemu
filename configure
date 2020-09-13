@@ -396,16 +396,10 @@ docs=""
 fdt=""
 netmap="no"
 sdl="auto"
-sdl_image="auto"
 virtfs=""
 mpath=""
-vnc="enabled"
 sparse="no"
 vde=""
-vnc_sasl="auto"
-vnc_jpeg="auto"
-vnc_png="auto"
-xkbcommon="auto"
 xen=""
 xen_ctrl_version=""
 xen_pci_passthrough=""
@@ -466,7 +460,6 @@ trace_file="trace"
 spice=""
 rbd=""
 smartcard=""
-u2f="auto"
 libusb=""
 usb_redir=""
 opengl=""
@@ -539,6 +532,7 @@ rng_none="no"
 secret_keyring=""
 libdaxctl=""
 meson=""
+meson_args=""
 ninja=""
 skip_meson=no
 gettext=""
@@ -1100,10 +1094,6 @@ for opt do
   ;;
   --enable-sdl) sdl="enabled"
   ;;
-  --disable-sdl-image) sdl_image="disabled"
-  ;;
-  --enable-sdl-image) sdl_image="enabled"
-  ;;
   --disable-qom-cast-debug) qom_cast_debug="no"
   ;;
   --enable-qom-cast-debug) qom_cast_debug="yes"
@@ -1115,10 +1105,6 @@ for opt do
   --disable-mpath) mpath="no"
   ;;
   --enable-mpath) mpath="yes"
-  ;;
-  --disable-vnc) vnc="disabled"
-  ;;
-  --enable-vnc) vnc="enabled"
   ;;
   --disable-gettext) gettext="false"
   ;;
@@ -1157,18 +1143,6 @@ for opt do
   --disable-sparse) sparse="no"
   ;;
   --disable-strip) strip_opt="no"
-  ;;
-  --disable-vnc-sasl) vnc_sasl="disabled"
-  ;;
-  --enable-vnc-sasl) vnc_sasl="enabled"
-  ;;
-  --disable-vnc-jpeg) vnc_jpeg="disabled"
-  ;;
-  --enable-vnc-jpeg) vnc_jpeg="enabled"
-  ;;
-  --disable-vnc-png) vnc_png="disabled"
-  ;;
-  --enable-vnc-png) vnc_png="enabled"
   ;;
   --disable-slirp) slirp="no"
   ;;
@@ -1368,10 +1342,6 @@ for opt do
   --disable-smartcard) smartcard="no"
   ;;
   --enable-smartcard) smartcard="yes"
-  ;;
-  --disable-u2f) u2f="disabled"
-  ;;
-  --enable-u2f) u2f="enabled"
   ;;
   --disable-libusb) libusb="no"
   ;;
@@ -1593,10 +1563,6 @@ for opt do
   ;;
   --disable-libpmem) libpmem=no
   ;;
-  --enable-xkbcommon) xkbcommon="enabled"
-  ;;
-  --disable-xkbcommon) xkbcommon="disabled"
-  ;;
   --enable-plugins) plugins="yes"
   ;;
   --disable-plugins) plugins="no"
@@ -1623,6 +1589,9 @@ for opt do
   ;;
   --disable-libdaxctl) libdaxctl=no
   ;;
+  --enable-* | --disable-*)
+      meson_args="$meson_args $(quote_sh "$opt")"
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1646,6 +1615,16 @@ then
             "Use --python=/path/to/python to specify a supported Python."
         python=
     fi
+fi
+
+# Convert unknown --enable/--disable arguments to Meson build options.
+meson_options=$(eval \
+    \$python \
+    \$source_path/scripts/configure-parse-buildoptions.py \
+    \< \$source_path/meson-buildoptions.json $meson_args)
+if test $? = 1; then
+    echo "Try '$0 --help' for more information"
+    exit 1
 fi
 
 firmwarepath="${firmwarepath:-$prefix/share/qemu-firmware}"
@@ -1853,10 +1832,14 @@ Advanced options (experts only):
                            enable plugins via shared library loading
   --disable-containers     don't use containers for cross-building
   --gdb=GDB-path           gdb to use for gdbstub tests [$gdb_bin]
-
-Optional features, enabled with --enable-FEATURE and
-disabled with --disable-FEATURE, default is enabled if available:
-
+EOF
+  if test -z "$python"; then
+    echo
+    echo "Python not found. Use --python=/path/to/python to see complete help"
+    exit 0
+  fi
+  $python $source_path/scripts/configure-parse-buildoptions.py --print-help < $source_path/meson-buildoptions.json
+cat << EOF
   system          all system emulation targets
   user            supported user emulation targets
   linux-user      all linux usermode emulation targets
@@ -1883,10 +1866,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   vte             vte support for the gtk UI
   curses          curses UI
   iconv           font glyph conversion support
-  vnc             VNC UI support
-  vnc-sasl        SASL encryption for VNC server
-  vnc-jpeg        JPEG lossy compression for VNC server
-  vnc-png         PNG compression for VNC server
   cocoa           Cocoa UI (Mac OS X only)
   virtfs          VirtFS
   mpath           Multipath persistent reservation passthrough
@@ -1920,7 +1899,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   libiscsi        iscsi support
   libnfs          nfs support
   smartcard       smartcard support (libcacard)
-  u2f             U2F support (u2f-emu)
   libusb          libusb (for usb passthrough)
   live-block-migration   Block migration in the main migration stream
   usb-redir       usb network redirection support
@@ -1962,7 +1940,6 @@ disabled with --disable-FEATURE, default is enabled if available:
   capstone        capstone disassembler support
   debug-mutex     mutex debugging support
   libpmem         libpmem support
-  xkbcommon       xkbcommon support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   libdaxctl       libdaxctl support
 
@@ -8007,9 +7984,8 @@ NINJA=${ninja:-$PWD/ninjatool} $meson setup \
         -Dstrip=$(if test "$strip_opt" = yes; then echo true; else echo false; fi) \
         -Db_pie=$(if test "$pie" = yes; then echo true; else echo false; fi) \
         -Db_coverage=$(if test "$gcov" = yes; then echo true; else echo false; fi) \
-	-Dsdl=$sdl -Dsdl_image=$sdl_image \
-	-Dvnc=$vnc -Dvnc_sasl=$vnc_sasl -Dvnc_jpeg=$vnc_jpeg -Dvnc_png=$vnc_png \
-	-Dgettext=$gettext -Dxkbcommon=$xkbcommon -Du2f=$u2f\
+	$meson_args \
+	-Dsdl=$sdl -Dgettext=$gettext \
         $cross_arg \
         "$PWD" "$source_path"
 

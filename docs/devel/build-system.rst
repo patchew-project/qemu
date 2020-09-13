@@ -52,12 +52,6 @@ following tasks:
 
  - Add a Meson build option to meson_options.txt.
 
- - Add support to the command line arg parser to handle any new
-   `--enable-XXX`/`--disable-XXX` flags required by the feature.
-
- - Add information to the help output message to report on the new
-   feature flag.
-
  - Add code to perform the actual feature check.
 
  - Add code to include the feature status in `config-host.h`
@@ -65,30 +59,6 @@ following tasks:
  - Add code to print out the feature status in the configure summary
    upon completion.
 
-
-Taking the probe for SDL2_Image as an example, we have the following pieces
-in configure::
-
-  # Initial variable state
-  sdl_image=auto
-
-  ..snip..
-
-  # Configure flag processing
-  --disable-sdl-image) sdl_image=disabled
-  ;;
-  --enable-sdl-image) sdl_image=enabled
-  ;;
-
-  ..snip..
-
-  # Help output feature message
-  sdl-image         SDL Image support for icons
-
-  ..snip..
-
-  # Meson invocation
-  -Dsdl_image=$sdl_image
 
 In meson_options.txt::
 
@@ -108,6 +78,11 @@ In meson.build::
   # Summary
   summary_info += {'SDL image support': sdl_image.found()}
 
+The configure script automatically converts command line options to
+Meson options as long as the `meson-buildoptions.json` file in the
+root source directory is up-to-date.  You can simply type
+`make meson-buildoptions.json` to update it; the `jq` program
+is needed.
 
 
 Helper functions

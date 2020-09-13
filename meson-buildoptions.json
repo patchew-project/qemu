@@ -1,0 +1,130 @@
+[
+  {
+    "name": "docdir",
+    "value": "doc",
+    "section": "user",
+    "machine": "any",
+    "type": "string",
+    "description": "Base directory for documentation installation (can be empty)"
+  },
+  {
+    "name": "gettext",
+    "value": true,
+    "section": "user",
+    "machine": "any",
+    "type": "boolean",
+    "description": "Localization of the GTK+ user interface"
+  },
+  {
+    "name": "qemu_suffix",
+    "value": "qemu",
+    "section": "user",
+    "machine": "any",
+    "type": "string",
+    "description": "Suffix for QEMU data/modules/config directories (can be empty)"
+  },
+  {
+    "name": "sdl",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "SDL user interface"
+  },
+  {
+    "name": "sdl_image",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "SDL Image support for icons"
+  },
+  {
+    "name": "u2f",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "U2F emulation support"
+  },
+  {
+    "name": "vnc",
+    "value": "enabled",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "VNC server"
+  },
+  {
+    "name": "vnc_jpeg",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "JPEG lossy compression for VNC server"
+  },
+  {
+    "name": "vnc_png",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "PNG compression for VNC server"
+  },
+  {
+    "name": "vnc_sasl",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "SASL authentication for VNC server"
+  },
+  {
+    "name": "xkbcommon",
+    "value": "auto",
+    "section": "user",
+    "machine": "any",
+    "choices": [
+      "enabled",
+      "disabled",
+      "auto"
+    ],
+    "type": "combo",
+    "description": "xkbcommon support"
+  }
+]
