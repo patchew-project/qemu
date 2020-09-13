@@ -64,6 +64,9 @@ typedef struct NvmeCQueue {
 
 typedef struct NvmeNamespace {
     NvmeIdNs        id_ns;
+    uint32_t        nsid;
+    uint8_t         csi;
+    QemuUUID        uuid;
 } NvmeNamespace;
 
 static inline NvmeLBAF *nvme_ns_lbaf(NvmeNamespace *ns)
