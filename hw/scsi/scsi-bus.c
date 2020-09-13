@@ -51,6 +51,57 @@ static const TypeInfo scsi_bus_info = {
 };
 static int next_scsi_bus;
 
+static SCSIDevice *do_scsi_device_find(SCSIBus *bus,
+                                       int channel, int id, int lun,
+                                       bool include_unrealized)
+{
+    BusChild *kid;
+    SCSIDevice *retval = NULL;
+
+    rcu_read_lock();
+
+    QTAILQ_FOREACH_RCU(kid, &bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
+        SCSIDevice *dev = SCSI_DEVICE(qdev);
+
+        if (dev->channel == channel && dev->id == id) {
+            if (dev->lun == lun) {
+                retval = dev;
+                goto out;
+            }
+
+            /*
+             * If we don't find exact match (channel/bus/lun),
+             * we will return the first device which matches channel/bus
+             */
+
+            if (!retval) {
+                retval = dev;
+            }
+        }
+    }
+out:
+    /*
+     * This function might run on the IO thread and we might race against
+     * main thread hot-plugging the device.
+     * We assume that as soon as .realized is set to true we can let
+     * the user access the device.
+     */
+
+    if (retval && !include_unrealized &&
+        !atomic_load_acquire(&retval->qdev.realized)) {
+        retval = NULL;
+    }
+
+    rcu_read_unlock();
+    return retval;
+}
+
+SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
+{
+    return do_scsi_device_find(bus, channel, id, lun, false);
+}
+
 static void scsi_device_realize(SCSIDevice *s, Error **errp)
 {
     SCSIDeviceClass *sc = SCSI_DEVICE_GET_CLASS(s);
@@ -186,7 +237,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
             dev->lun = 0;
         }
         do {
-            d = scsi_device_find(bus, dev->channel, ++id, dev->lun);
+            d = do_scsi_device_find(bus, dev->channel, ++id, dev->lun, true);
         } while (d && d->lun == dev->lun && id < bus->info->max_target);
         if (d && d->lun == dev->lun) {
             error_setg(errp, "no free target");
@@ -196,7 +247,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
     } else if (dev->lun == -1) {
         int lun = -1;
         do {
-            d = scsi_device_find(bus, dev->channel, dev->id, ++lun);
+            d = do_scsi_device_find(bus, dev->channel, dev->id, ++lun, true);
         } while (d && d->lun == lun && lun < bus->info->max_lun);
         if (d && d->lun == lun) {
             error_setg(errp, "no free lun");
@@ -204,7 +255,7 @@ static void scsi_qdev_realize(DeviceState *qdev, Error **errp)
         }
         dev->lun = lun;
     } else {
-        d = scsi_device_find(bus, dev->channel, dev->id, dev->lun);
+        d = do_scsi_device_find(bus, dev->channel, dev->id, dev->lun, true);
         assert(d);
         if (d->lun == dev->lun && dev != d) {
             error_setg(errp, "lun already used by '%s'", d->qdev.id);
@@ -1571,38 +1622,6 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     SCSIDevice *d = SCSI_DEVICE(dev);
     return g_strdup_printf("channel@%x/%s@%x,%x", d->channel,
                            qdev_fw_name(dev), d->id, d->lun);
-}
-
-SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
-{
-    BusChild *kid;
-    SCSIDevice *target_dev = NULL;
-
-    rcu_read_lock();
-
-    QTAILQ_FOREACH_RCU(kid, &bus->qbus.children, sibling) {
-        DeviceState *qdev = kid->child;
-        SCSIDevice *dev = SCSI_DEVICE(qdev);
-
-        if (dev->channel == channel && dev->id == id) {
-            if (dev->lun == lun) {
-                rcu_read_unlock();
-                return dev;
-            }
-
-            /*
-             * If we don't find exact match (channel/bus/lun),
-             * we will return the first device which matches channel/bus
-             */
-
-            if (!target_dev) {
-                target_dev = dev;
-            }
-        }
-    }
-
-    rcu_read_unlock();
-    return target_dev;
 }
 
 /* SCSI request list.  For simplicity, pv points to the whole device */
