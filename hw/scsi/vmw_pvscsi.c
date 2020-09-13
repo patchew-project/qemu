@@ -123,9 +123,9 @@ struct PVSCSIState {
     /* Collector for current command data */
     uint32_t curr_cmd_data[PVSCSI_MAX_CMD_DATA_WORDS];
 
-    uint8_t rings_info_valid;            /* Whether data rings initialized   */
-    uint8_t msg_ring_info_valid;         /* Whether message ring initialized */
-    uint8_t use_msg;                     /* Whether to use message ring      */
+    bool rings_info_valid;            /* Whether data rings initialized   */
+    bool msg_ring_info_valid;         /* Whether message ring initialized */
+    bool use_msg;                     /* Whether to use message ring      */
 
     uint8_t msi_used;                    /* For migration compatibility      */
     PVSCSIRingInfo rings;                /* Data transfer rings manager      */
@@ -349,8 +349,8 @@ pvscsi_reset_state(PVSCSIState *s)
     s->reg_command_status = PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
     s->reg_interrupt_status = 0;
     pvscsi_ring_cleanup(&s->rings);
-    s->rings_info_valid = FALSE;
-    s->msg_ring_info_valid = FALSE;
+    s->rings_info_valid = false;
+    s->msg_ring_info_valid = false;
     QTAILQ_INIT(&s->pending_queue);
     QTAILQ_INIT(&s->completion_queue);
 }
@@ -792,7 +792,7 @@ pvscsi_on_cmd_setup_rings(PVSCSIState *s)
     pvscsi_dbg_dump_tx_rings_config(rc);
     pvscsi_ring_init_data(&s->rings, rc);
 
-    s->rings_info_valid = TRUE;
+    s->rings_info_valid = true;
     return PVSCSI_COMMAND_PROCESSING_SUCCEEDED;
 }
 
@@ -874,7 +874,7 @@ pvscsi_on_cmd_setup_msg_ring(PVSCSIState *s)
         if (pvscsi_ring_init_msg(&s->rings, rc) < 0) {
             return PVSCSI_COMMAND_PROCESSING_FAILED;
         }
-        s->msg_ring_info_valid = TRUE;
+        s->msg_ring_info_valid = true;
     }
     return sizeof(PVSCSICmdDescSetupMsgRing) / sizeof(uint32_t);
 }
@@ -1232,9 +1232,9 @@ static const VMStateDescription vmstate_pvscsi = {
         VMSTATE_UINT32(curr_cmd_data_cntr, PVSCSIState),
         VMSTATE_UINT32_ARRAY(curr_cmd_data, PVSCSIState,
                              ARRAY_SIZE(((PVSCSIState *)NULL)->curr_cmd_data)),
-        VMSTATE_UINT8(rings_info_valid, PVSCSIState),
-        VMSTATE_UINT8(msg_ring_info_valid, PVSCSIState),
-        VMSTATE_UINT8(use_msg, PVSCSIState),
+        VMSTATE_BOOL(rings_info_valid, PVSCSIState),
+        VMSTATE_BOOL(msg_ring_info_valid, PVSCSIState),
+        VMSTATE_BOOL(use_msg, PVSCSIState),
 
         VMSTATE_UINT64(rings.rs_pa, PVSCSIState),
         VMSTATE_UINT32(rings.txr_len_mask, PVSCSIState),
@@ -1255,7 +1255,7 @@ static const VMStateDescription vmstate_pvscsi = {
 };
 
 static Property pvscsi_properties[] = {
-    DEFINE_PROP_UINT8("use_msg", PVSCSIState, use_msg, 1),
+    DEFINE_PROP_BOOL("use_msg", PVSCSIState, use_msg, true),
     DEFINE_PROP_BIT("x-old-pci-configuration", PVSCSIState, compat_flags,
                     PVSCSI_COMPAT_OLD_PCI_CONFIGURATION_BIT, false),
     DEFINE_PROP_BIT("x-disable-pcie", PVSCSIState, compat_flags,
