@@ -148,6 +148,7 @@ qtests_aarch64 = \
   (config_all_devices.has_key('CONFIG_TPM_TIS_SYSBUS') ? ['tpm-tis-device-swtpm-test'] : []) +  \
   ['numa-test',
    'boot-serial-test',
+   'xlnx-can-test',
    'migration-test']
 
 qtests_s390x = \
