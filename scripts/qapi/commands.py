@@ -176,8 +176,12 @@ out:
     return ret
 
 
-def gen_register_command(name, success_response, allow_oob, allow_preconfig):
+def gen_register_command(name, features,
+                         success_response, allow_oob, allow_preconfig):
     options = []
+
+    if 'deprecated' in [f.name for f in features]:
+        options += ['QCO_DEPRECATED']
 
     if not success_response:
         options += ['QCO_NO_SUCCESS_RESP']
@@ -284,8 +288,8 @@ void %(c_prefix)sqmp_init_marshal(QmpCommandList *cmds);
             self._genh.add(gen_command_decl(name, arg_type, boxed, ret_type))
             self._genh.add(gen_marshal_decl(name))
             self._genc.add(gen_marshal(name, arg_type, boxed, ret_type))
-            self._regy.add(gen_register_command(name, success_response,
-                                                allow_oob, allow_preconfig))
+            self._regy.add(gen_register_command(
+                name, features, success_response, allow_oob, allow_preconfig))
 
 
 def gen_commands(schema, output_dir, prefix):
