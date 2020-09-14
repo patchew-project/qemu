@@ -2891,6 +2891,18 @@ sub process {
 			}
 		}
 
+# check for %# or %0# in printf-style format strings
+		while ($line =~ /(?:^|")([X\t]*)(?:"|$)/g) {
+			my $string = substr($rawline, $-[1], $+[1] - $-[1]);
+			$string =~ s/%%/__/g;
+			if ($string =~ /(?<!%)%0?#/) {
+				ERROR("Don't use '#' flag of printf format " .
+				      "('%#') in format strings, use '0x' " .
+				      "prefix instead\n" . $herecurr);
+				last;
+			}
+		}
+
 # QEMU specific tests
 		if ($rawline =~ /\b(?:Qemu|QEmu)\b/) {
 			ERROR("use QEMU instead of Qemu or QEmu\n" . $herecurr);
