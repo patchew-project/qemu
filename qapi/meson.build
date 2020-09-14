@@ -20,6 +20,7 @@ qapi_all_modules = [
   'block',
   'char',
   'common',
+  'compat',
   'control',
   'crypto',
   'dump',
