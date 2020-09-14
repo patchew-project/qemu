@@ -45,6 +45,10 @@ then
     fi
     source_iotests=$(cd "$source_iotests"; pwd) || _init_error "failed to enter source tree"
     build_iotests=$(readlink -f $(dirname "$0"))
+    if [ "$?" -ne 0 ]; then
+        # Perhaps -f is unsupported, revert to pre-b1cbc33a397 behavior
+        build_iotests=$PWD
+    fi
 else
     # called from the source tree
     source_iotests=$PWD
