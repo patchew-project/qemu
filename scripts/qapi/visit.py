@@ -63,6 +63,9 @@ bool visit_type_%(c_name)s_members(Visitor *v, %(c_name)s *obj, Error **errp)
             push_indent()
         if deprecated:
             ret += mcgen('''
+    if (!visit_deprecated_accept(v, "%(name)s", errp)) {
+        return false;
+    }
     if (visit_deprecated(v, "%(name)s")) {
 ''',
                          name=memb.name)

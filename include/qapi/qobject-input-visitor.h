@@ -59,6 +59,15 @@ typedef struct QObjectInputVisitor QObjectInputVisitor;
 Visitor *qobject_input_visitor_new(QObject *obj);
 
 /*
+ * Create a QObject input visitor for @obj for use with QMP
+ *
+ * This is like qobject_input_visitor_new(), except it obeys the
+ * policy for handling deprecated management interfaces set with
+ * -compat.
+ */
+Visitor *qobject_input_visitor_new_qmp(QObject *obj);
+
+/*
  * Create a QObject input visitor for @obj for use with keyval_parse()
  *
  * This is like qobject_input_visitor_new(), except scalars are all
