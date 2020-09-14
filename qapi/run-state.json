@@ -475,3 +475,49 @@
            'psw-mask': 'uint64',
            'psw-addr': 'uint64',
            'reason': 'S390CrashReason' } }
+
+##
+# @MEMORY_FAILURE:
+#
+# Emitted when a memory failure occurs on host side.
+#
+# @action: action that has been taken. action is defined as @MemoryFailureAction.
+#
+# Since: 5.2
+#
+# Example:
+#
+# <- { "event": "MEMORY_FAILURE",
+#      "data": { "action": "guest-mce" } }
+#
+##
+{ 'event': 'MEMORY_FAILURE',
+  'data': { 'action': 'MemoryFailureAction'} }
+
+##
+# @MemoryFailureAction:
+#
+# Host memory failure occurs, handled by QEMU.
+#
+# @hypervisor-ignore: action optional memory failure at QEMU process
+#                     addressspace (none PC-RAM), QEMU could ignore this
+#                     hardware memory failure.
+#
+# @hypervisor-stop: action required memory failure at QEMU process address
+#                   space (none PC-RAM), QEMU has to stop itself.
+#
+# @guest-mce: action required memory failure at PC-RAM, and guest enables MCE
+#             handling, QEMU injects MCE to guest.
+#
+# @guest-triple-fault: action required memory failure at PC-RAM, but guest does
+#                      not enable MCE handling. QEMU raises triple fault and
+#                      shutdown/reset. Also see detailed info in QEMU log.
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'MemoryFailureAction',
+  'data': [ 'hypervisor-ignore',
+            'hypervisor-stop',
+            'guest-mce',
+            'guest-triple-fault' ] }
