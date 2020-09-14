@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/qapi-events-run-state.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/qemu-print.h"
@@ -897,6 +898,8 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
         }
 
         if (cenv->mcg_status & MCG_STATUS_MCIP) {
+            qapi_event_send_memory_failure(
+                 MEMORY_FAILURE_ACTION_GUEST_TRIPLE_FAULT);
             need_reset = true;
             snprintf(msg, sizeof(msg), "CPU %d: Previous MCE still in progress,"
                      " raising triple fault", cs->cpu_index);
@@ -934,6 +937,8 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
     } else {
         banks[1] |= MCI_STATUS_OVER;
     }
+
+    qapi_event_send_memory_failure(MEMORY_FAILURE_ACTION_GUEST_MCE);
 }
 
 void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
