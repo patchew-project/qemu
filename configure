@@ -7031,6 +7031,10 @@ if test "$tcmalloc" = "yes" ; then
   echo "CONFIG_TCMALLOC=y" >> $config_host_mak
 fi
 
+if test "$jemalloc" = "yes" ; then
+  echo "CONFIG_JEMALLOC=y" >> $config_host_mak
+fi
+
 if test "$avx2_opt" = "yes" ; then
   echo "CONFIG_AVX2_OPT=y" >> $config_host_mak
 fi
