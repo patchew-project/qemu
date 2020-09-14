@@ -13,6 +13,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/compat-policy.h"
 #include "qapi/qobject-output-visitor.h"
 #include "qapi/visitor-impl.h"
 #include "qemu/queue.h"
@@ -31,6 +32,8 @@ typedef struct QStackEntry {
 
 struct QObjectOutputVisitor {
     Visitor visitor;
+    CompatPolicyOutput deprecated_policy;
+
     QSLIST_HEAD(, QStackEntry) stack; /* Stack of unfinished containers */
     QObject *root; /* Root of the output visit */
     QObject **result; /* User's storage location for result */
@@ -207,6 +210,13 @@ static bool qobject_output_type_null(Visitor *v, const char *name,
     return true;
 }
 
+static bool qobject_output_deprecated(Visitor *v, const char *name)
+{
+    QObjectOutputVisitor *qov = to_qov(v);
+
+    return qov->deprecated_policy != COMPAT_POLICY_OUTPUT_HIDE;
+}
+
 /* Finish building, and return the root object.
  * The root object is never null. The caller becomes the object's
  * owner, and should use qobject_unref() when done with it.  */
@@ -256,11 +266,20 @@ Visitor *qobject_output_visitor_new(QObject **result)
     v->visitor.type_number = qobject_output_type_number;
     v->visitor.type_any = qobject_output_type_any;
     v->visitor.type_null = qobject_output_type_null;
+    v->visitor.deprecated = qobject_output_deprecated;
     v->visitor.complete = qobject_output_complete;
     v->visitor.free = qobject_output_free;
 
     *result = NULL;
     v->result = result;
 
+    return &v->visitor;
+}
+
+Visitor *qobject_output_visitor_new_qmp(QObject **result)
+{
+    QObjectOutputVisitor *v = to_qov(qobject_output_visitor_new(result));
+
+    v->deprecated_policy = compat_policy.deprecated_output;
     return &v->visitor;
 }

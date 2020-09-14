@@ -69,7 +69,7 @@ static void qmp_marshal_output_%(c_name)s(%(c_type)s ret_in, QObject **ret_out, 
 {
     Visitor *v;
 
-    v = qobject_output_visitor_new(ret_out);
+    v = qobject_output_visitor_new_qmp(ret_out);
     if (visit_type_%(c_name)s(v, "unused", &ret_in, errp)) {
         visit_complete(v, ret_out);
     }
