@@ -316,3 +316,19 @@ void replay_breakpoint(void)
     assert(replay_mode == REPLAY_MODE_PLAY);
     replay_last_breakpoint = replay_get_current_icount();
 }
+
+void replay_gdb_attached(void)
+{
+    /*
+     * Create VM snapshot on temporary overlay to allow reverse
+     * debugging even if snapshots were not enabled.
+     */
+    if (replay_mode == REPLAY_MODE_PLAY
+        && !replay_snapshot) {
+        Error *err = NULL;
+        if (save_snapshot("start_debugging", &err) != 0) {
+            /* Can't create the snapshot. Continue conventional debugging. */
+            error_free(err);
+        }
+    }
+}
