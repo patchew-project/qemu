@@ -661,6 +661,16 @@ else
     )
   endif
 
+  if 'CONFIG_SPARC_DIS' in config_all_disas
+    capstone_data.set('CAPSTONE_HAS_SPARC', '1')
+    capstone_files += files(
+      'capstone/arch/Sparc/SparcDisassembler.c',
+      'capstone/arch/Sparc/SparcInstPrinter.c',
+      'capstone/arch/Sparc/SparcMapping.c',
+      'capstone/arch/Sparc/SparcModule.c'
+    )
+  endif
+
   if 'CONFIG_S390_DIS' in config_all_disas
     capstone_data.set('CAPSTONE_HAS_SYSZ', '1')
     capstone_files += files(

@@ -25,6 +25,8 @@
 #include "exec/exec-all.h"
 #include "hw/qdev-properties.h"
 #include "qapi/visitor.h"
+#include "disas/capstone.h"
+
 
 //#define DEBUG_FEATURES
 
@@ -100,8 +102,10 @@ static bool sparc_cpu_exec_interrupt(CPUState *cs, int interrupt_request)
 static void cpu_sparc_disas_set_info(CPUState *cpu, disassemble_info *info)
 {
     info->print_insn = print_insn_sparc;
+    info->cap_arch = CS_ARCH_SPARC;
 #ifdef TARGET_SPARC64
     info->mach = bfd_mach_sparc_v9b;
+    info->cap_mode = CS_MODE_V9;
 #endif
 }
 
