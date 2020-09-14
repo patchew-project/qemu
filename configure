@@ -7668,7 +7668,7 @@ case "$target_name" in
     TARGET_SYSTBL_ABI=common,nospu,32
     echo "TARGET_ABI32=y" >> $config_target_mak
     gdb_xml_files="power64-core.xml power-fpu.xml power-altivec.xml power-spe.xml power-vsx.xml"
-    deprecated_features="ppc64abi32 ${deprecated_features}"
+    add_to deprecated_features ppc64abi32
   ;;
   riscv32)
     TARGET_BASE_ARCH=riscv
