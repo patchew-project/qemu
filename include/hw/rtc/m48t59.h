@@ -50,7 +50,7 @@ struct NvramClass {
 Nvram *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
                        int base_year, int type);
 Nvram *m48t59_init(qemu_irq IRQ, hwaddr mem_base,
-                   uint32_t io_base, uint16_t size, int base_year,
+                   uint16_t size, int base_year,
                    int type);
 
 #endif /* HW_M48T59_H */
