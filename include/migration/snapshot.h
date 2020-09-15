@@ -15,7 +15,15 @@
 #ifndef QEMU_MIGRATION_SNAPSHOT_H
 #define QEMU_MIGRATION_SNAPSHOT_H
 
-int save_snapshot(const char *name, bool overwrite, Error **errp);
-int load_snapshot(const char *name, Error **errp);
+#include "qapi/qapi-builtin-types.h"
+
+int save_snapshot(const char *name, bool overwrite,
+                  const char *vmstate,
+                  bool has_devices, strList *devices,
+                  Error **errp);
+int load_snapshot(const char *name,
+                  const char *vmstate,
+                  bool has_devices, strList *devices,
+                  Error **errp);
 
 #endif
