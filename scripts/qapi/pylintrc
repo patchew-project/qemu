@@ -2,8 +2,7 @@
 
 # Add files or directories matching the regex patterns to the blacklist. The
 # regex matches against base names, not paths.
-ignore-patterns=common.py,
-                doc.py,
+ignore-patterns=doc.py,
                 error.py,
                 expr.py,
                 gen.py,
