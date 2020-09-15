@@ -839,3 +839,79 @@ size_t qemu_get_host_physmem(void)
     }
     return 0;
 }
+
+int qemu_socketpair(int family, int type, int protocol, int channel[2])
+{
+    struct addrinfo addr_data;
+    struct addrinfo *addr = NULL;
+    int sock_listener = -1;
+    int sock_client = -1;
+    int sock_server = -1;
+
+    memset(&addr_data, 0, sizeof(addr_data));
+    addr_data.ai_family = AF_INET;
+    addr_data.ai_socktype = type;
+    addr_data.ai_protocol = protocol;
+    if (getaddrinfo("127.0.0.1", "0", &addr_data, &addr) < 0) {
+        goto error;
+    }
+
+    if (NULL == addr) {
+        goto error;
+    }
+
+    sock_listener = socket(addr->ai_family,
+        addr->ai_socktype, addr->ai_protocol);
+    if (sock_listener < 0) {
+        goto error;
+    }
+
+    if (bind(sock_listener, addr->ai_addr, addr->ai_addrlen) < 0) {
+        goto error;
+    }
+    if (getsockname(sock_listener,
+        addr->ai_addr, (int *)&(addr->ai_addrlen)) < 0) {
+        goto error;
+    }
+    if (listen(sock_listener, 1) < 0) {
+        goto error;
+    }
+
+    sock_client = socket(addr->ai_family,
+        addr->ai_socktype, addr->ai_protocol);
+
+    if (sock_client < 0) {
+        goto error;
+    }
+
+    if (connect(sock_client, addr->ai_addr, addr->ai_addrlen) < 0) {
+        goto error;
+    }
+
+    sock_server = accept(sock_listener, 0, 0);
+
+    if (sock_server < 0) {
+        goto error;
+    }
+
+    closesocket(sock_listener);
+
+    channel[0] = sock_client;
+    channel[1] = sock_server;
+    return 0;
+
+error:
+    if (-1 != sock_server) {
+        closesocket(sock_server);
+    }
+    if (-1 != sock_client) {
+        closesocket(sock_client);
+    }
+    if (-1 != sock_listener) {
+        closesocket(sock_listener);
+    }
+    if (NULL != addr) {
+        freeaddrinfo(addr);
+    }
+    return -1;
+}
