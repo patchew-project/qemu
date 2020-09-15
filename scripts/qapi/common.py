@@ -93,33 +93,53 @@ eatspace = '\033EATSPACE.'
 pointer_suffix = ' *' + eatspace
 
 
-def genindent(count):
-    ret = ''
-    for _ in range(count):
-        ret += ' '
-    return ret
+class Indent:
+    """
+    Indent-level management.
+
+    :param initial: Initial value, default 0.
+    """
+    def __init__(self, initial: int = 0) -> None:
+        self._level = initial
+
+    def __int__(self) -> int:
+        """Return the indent as an integer."""
+        return self._level
+
+    def __repr__(self) -> str:
+        return "{}({:d})".format(type(self).__name__, self._level)
+
+    def __str__(self) -> str:
+        """Return the indent as a string."""
+        return ' ' * self._level
+
+    def __bool__(self) -> bool:
+        """True when there is a non-zero indent."""
+        return bool(self._level)
+
+    def push(self, amount: int = 4) -> int:
+        """Push `amount` spaces onto the indent, default four."""
+        self._level += amount
+        return self._level
+
+    def pop(self, amount: int = 4) -> int:
+        """Pop `amount` spaces off of the indent, default four."""
+        if self._level < amount:
+            raise ArithmeticError(
+                "Can't pop {:d} spaces from {:s}".format(amount, repr(self)))
+        self._level -= amount
+        return self._level
 
 
-indent_level = 0
-
-
-def push_indent(indent_amount=4):
-    global indent_level
-    indent_level += indent_amount
-
-
-def pop_indent(indent_amount=4):
-    global indent_level
-    indent_level -= indent_amount
+INDENT = Indent(0)
 
 
 # Generate @code with @kwds interpolated.
 # Obey indent_level, and strip eatspace.
 def cgen(code, **kwds):
     raw = code % kwds
-    if indent_level:
-        indent = genindent(indent_level)
-        raw, _ = re.subn(r'^(?!(#|$))', indent, raw, flags=re.MULTILINE)
+    if INDENT:
+        raw, _ = re.subn(r'^(?!(#|$))', str(INDENT), raw, flags=re.MULTILINE)
     return re.sub(re.escape(eatspace) + r' *', '', raw)
 
 
