@@ -13,11 +13,11 @@ See the COPYING file in the top-level directory.
 """
 
 from .common import (
-    build_params,
     c_enum_const,
     c_name,
     mcgen,
 )
+from .params import build_params
 from .gen import QAPISchemaModularCVisitor, ifcontext
 from .schema import QAPISchemaEnumMember
 from .types import gen_enum, gen_enum_lookup

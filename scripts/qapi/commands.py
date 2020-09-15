@@ -14,10 +14,10 @@ See the COPYING file in the top-level directory.
 """
 
 from .common import (
-    build_params,
     c_name,
     mcgen,
 )
+from .params import build_params
 from .gen import QAPIGenCCode, QAPISchemaModularCVisitor, ifcontext
 
 
