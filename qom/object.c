@@ -50,6 +50,7 @@ struct TypeImpl
     size_t class_size;
 
     size_t instance_size;
+    size_t instance_align;
 
     void (*class_init)(ObjectClass *klass, void *data);
     void (*class_base_init)(ObjectClass *klass, void *data);
@@ -114,6 +115,7 @@ static TypeImpl *type_new(const TypeInfo *info)
 
     ti->class_size = info->class_size;
     ti->instance_size = info->instance_size;
+    ti->instance_align = info->instance_align;
 
     ti->class_init = info->class_init;
     ti->class_base_init = info->class_base_init;
@@ -691,13 +693,21 @@ static void object_finalize(void *data)
 static Object *object_new_with_type(Type type)
 {
     Object *obj;
+    size_t size, align;
 
     g_assert(type != NULL);
     type_initialize(type);
 
-    obj = g_malloc(type->instance_size);
-    object_initialize_with_type(obj, type->instance_size, type);
-    obj->free = g_free;
+    size = type->instance_size;
+    align = type->instance_align;
+    if (align) {
+        obj = qemu_memalign(align, size);
+    } else {
+        obj = g_malloc(size);
+    }
+
+    object_initialize_with_type(obj, size, type);
+    obj->free = (align ? qemu_vfree : g_free);
 
     return obj;
 }
