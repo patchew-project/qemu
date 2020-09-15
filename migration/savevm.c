@@ -2658,7 +2658,7 @@ int qemu_load_device_state(QEMUFile *f)
     return 0;
 }
 
-int save_snapshot(const char *name, Error **errp)
+int save_snapshot(const char *name, bool overwrite, Error **errp)
 {
     BlockDriverState *bs;
     QEMUSnapshotInfo sn1, *sn = &sn1, old_sn1, *old_sn = &old_sn1;
@@ -2685,7 +2685,7 @@ int save_snapshot(const char *name, Error **errp)
     }
 
     /* Delete old snapshots of the same name */
-    if (name) {
+    if (name && overwrite) {
         if (bdrv_all_delete_snapshot(name, false, NULL, errp) < 0) {
             return ret;
         }
