@@ -14,6 +14,11 @@
 import re
 
 
+EATSPACE = '\033EATSPACE.'
+POINTER_SUFFIX = ' *' + EATSPACE
+c_name_trans = str.maketrans('.-', '__')
+
+
 # ENUMName -> ENUM_NAME, EnumName1 -> ENUM_NAME1
 # ENUM_NAME -> ENUM_NAME, ENUM_NAME1 -> ENUM_NAME1, ENUM_Name2 -> ENUM_NAME2
 # ENUM24_Name -> ENUM24_NAME
@@ -40,9 +45,6 @@ def c_enum_const(type_name, const_name, prefix=None):
     if prefix is not None:
         type_name = prefix
     return camel_to_upper(type_name) + '_' + c_name(const_name, False).upper()
-
-
-c_name_trans = str.maketrans('.-', '__')
 
 
 # Map @name to a valid C identifier.
@@ -89,10 +91,6 @@ def c_name(name, protect=True):
     return name
 
 
-eatspace = '\033EATSPACE.'
-pointer_suffix = ' *' + eatspace
-
-
 class Indent:
     """
     Indent-level management.
@@ -135,12 +133,12 @@ INDENT = Indent(0)
 
 
 # Generate @code with @kwds interpolated.
-# Obey indent_level, and strip eatspace.
+# Obey INDENT level, and strip EATSPACE.
 def cgen(code, **kwds):
     raw = code % kwds
     if INDENT:
         raw, _ = re.subn(r'^(?!(#|$))', str(INDENT), raw, flags=re.MULTILINE)
-    return re.sub(re.escape(eatspace) + r' *', '', raw)
+    return re.sub(re.escape(EATSPACE) + r' *', '', raw)
 
 
 def mcgen(code, **kwds):
