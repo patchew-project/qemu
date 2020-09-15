@@ -3287,6 +3287,8 @@ void virtio_init(VirtIODevice *vdev, const char *name,
  */
 bool virtio_legacy_allowed(VirtIODevice *vdev)
 {
+    bool ret = false;
+
     switch (vdev->device_id) {
     case VIRTIO_ID_NET:
     case VIRTIO_ID_BLOCK:
@@ -3298,10 +3300,20 @@ bool virtio_legacy_allowed(VirtIODevice *vdev)
     case VIRTIO_ID_9P:
     case VIRTIO_ID_RPROC_SERIAL:
     case VIRTIO_ID_CAIF:
-        return true;
-    default:
-        return false;
+        ret = true;
     }
+
+    /*
+     * For backward compatibility, we allow legacy mode with old machine types
+     * to get the migration working.
+     */
+    if (!ret && vdev->disable_legacy_check) {
+        warn_report("device is modern-only, but for backward compatibility "
+                    "legacy is allowed");
+        return true;
+    }
+
+    return ret;
 }
 
 hwaddr virtio_queue_get_desc_addr(VirtIODevice *vdev, int n)
@@ -3713,6 +3725,8 @@ static Property virtio_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIODevice, host_features),
     DEFINE_PROP_BOOL("use-started", VirtIODevice, use_started, true),
     DEFINE_PROP_BOOL("use-disabled-flag", VirtIODevice, use_disabled_flag, true),
+    DEFINE_PROP_BOOL("x-disable-legacy-check", VirtIODevice,
+                     disable_legacy_check, false),
     DEFINE_PROP_END_OF_LIST(),
 };
 
