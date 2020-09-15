@@ -8,7 +8,6 @@ ignore-patterns=doc.py,
                 gen.py,
                 parser.py,
                 schema.py,
-                source.py,
                 types.py,
                 visit.py,
 
