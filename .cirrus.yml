@@ -93,6 +93,7 @@ windows_msys2_task:
         mingw-w64-x86_64-libusb
         mingw-w64-x86_64-usbredir
         mingw-w64-x86_64-libtasn1
+        mingw-w64-x86_64-libnfs
         mingw-w64-x86_64-nettle
         mingw-w64-x86_64-cyrus-sasl
         mingw-w64-x86_64-curl
