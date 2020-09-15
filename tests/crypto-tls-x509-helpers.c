@@ -23,6 +23,8 @@
 #include "crypto-tls-x509-helpers.h"
 #include "crypto/init.h"
 #include "qemu/sockets.h"
+#include <glib.h>
+#include <glib/gstdio.h>
 
 #ifdef QCRYPTO_HAVE_TLS_TEST_SUPPORT
 
@@ -133,7 +135,7 @@ void test_tls_init(const char *keyfile)
 void test_tls_cleanup(const char *keyfile)
 {
     asn1_delete_structure(&pkix_asn1);
-    unlink(keyfile);
+    g_remove(keyfile);
 }
 
 /*
@@ -501,8 +503,108 @@ void test_tls_discard_cert(QCryptoTLSTestCertReq *req)
     req->crt = NULL;
 
     if (getenv("QEMU_TEST_DEBUG_CERTS") == NULL) {
-        unlink(req->filename);
+        g_remove(req->filename);
     }
 }
+
+int qemu_link(const char *exist_path1, const char *new_path2)
+{
+#if defined(_WIN32)
+    g_autofree gchar *current_dir = g_get_current_dir();
+    g_autofree gchar *full_path = g_build_filename(current_dir, exist_path1, NULL);
+    return CreateSymbolicLinkA(
+        new_path2, full_path, 0 | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE) ? 0 : -1;
+#else
+    return link(exist_path1, new_path2);
+#endif
+}
+
+#if defined(_WIN32)
+
+int qemu_socketpair(int family, int type, int protocol, int channel[2])
+{
+    struct addrinfo addr_data;
+    struct addrinfo *addr = NULL;
+    int sock_listener = -1;
+    int sock_client = -1;
+    int sock_server = -1;
+    int one = 1;
+
+    memset(&addr_data, 0, sizeof(addr_data));
+    addr_data.ai_family = AF_INET;
+    addr_data.ai_socktype = type;
+    addr_data.ai_protocol = protocol;
+    if (0 != getaddrinfo("127.0.0.1", "0", &addr_data, &addr)) {
+        goto error;
+    }
+
+    if (NULL == addr) {
+        goto error;
+    }
+
+    sock_listener = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+    if (-1 == sock_listener) {
+        goto error;
+    }
+
+    if (-1 == setsockopt(sock_listener, SOL_SOCKET, SO_REUSEADDR, (const char *)&one, sizeof(one))) {
+        goto error;
+    }
+    if (-1 == bind(sock_listener, addr->ai_addr, addr->ai_addrlen)) {
+        goto error;
+    }
+    if (-1 == getsockname(sock_listener, addr->ai_addr, (int *)&(addr->ai_addrlen))) {
+        goto error;
+    }
+    if (-1 == listen(sock_listener, 1)) {
+        goto error;
+    }
+
+    sock_client = socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+
+    if (-1 == sock_client) {
+        goto error;
+    }
+
+    if (-1 == connect(sock_client, addr->ai_addr, addr->ai_addrlen)) {
+        goto error;
+    }
+
+    sock_server = accept(sock_listener, 0, 0);
+
+    if (-1 == sock_server) {
+        goto error;
+    }
+
+    closesocket(sock_listener);
+
+    channel[0] = sock_client;
+    channel[1] = sock_server;
+    return 0;
+
+error:
+    if (-1 != sock_server) {
+        closesocket(sock_server);
+    }
+    if (-1 != sock_client) {
+        closesocket(sock_client);
+    }
+    if (-1 != sock_listener) {
+        closesocket(sock_listener);
+    }
+    if (NULL != addr) {
+        freeaddrinfo(addr);
+    }
+    return -1;
+}
+
+#else
+
+int qemu_socketpair(int family, int type, int protocol, int recv[2])
+{
+    return socketpair(family, type, protocol, recv);
+}
+
+#endif
 
 #endif /* QCRYPTO_HAVE_TLS_TEST_SUPPORT */
