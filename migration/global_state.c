@@ -43,9 +43,9 @@ int global_state_store(void)
 void global_state_store_running(void)
 {
     const char *state = RunState_str(RUN_STATE_RUNNING);
+    QEMU_NONSTRING char *dest = (char *)global_state.runstate;
     assert(strlen(state) < sizeof(global_state.runstate));
-    strncpy((char *)global_state.runstate,
-           state, sizeof(global_state.runstate));
+    strncpy(dest, state, sizeof(global_state.runstate));
 }
 
 bool global_state_received(void)
