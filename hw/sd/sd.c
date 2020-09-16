@@ -335,7 +335,7 @@ static void sd_set_scr(SDState *sd)
     if (sd->spec_version >= SD_PHY_SPECv3_01_VERS) {
         sd->scr[2] |= 1 << 7;   /* Spec Version 3.0X */
     }
-    sd->scr[3] = 0x00;
+    sd->scr[3] = 0x2;           /* CMD23 supported */
     /* reserved for manufacturer usage */
     sd->scr[4] = 0x00;
     sd->scr[5] = 0x00;
