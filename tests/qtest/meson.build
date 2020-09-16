@@ -228,6 +228,7 @@ foreach dir : target_dirs
   endif
 
   target_base = dir.split('-')[0]
+  qtest_emulator = emulators['qemu-system-' + target_base]
   qtests = get_variable('qtests_' + target_base, []) + qtests_generic
 
   qtest_env = environment()
@@ -248,6 +249,7 @@ foreach dir : target_dirs
     # FIXME: missing dependency on the emulator binary and qemu-img
     test('qtest-@0@: @1@'.format(target_base, test),
          qtest_executables[test],
+         depends: [qemu_img, qtest_emulator],
          env: qtest_env,
          args: ['--tap', '-k'],
          protocol: 'tap',
