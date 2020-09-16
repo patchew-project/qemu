@@ -484,7 +484,7 @@ static void tcg_start_vcpu_thread(CPUState *cpu)
          * then we will have cpus running in parallel.
          */
         if (qemu_tcg_mttcg_enabled()) {
-            MachineState *ms = MACHINE(qdev_get_machine());
+            MachineState *ms = current_machine;
             if (ms->smp.max_cpus > 1) {
                 parallel_cpus = true;
             }
