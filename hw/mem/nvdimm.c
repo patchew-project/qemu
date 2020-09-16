@@ -146,6 +146,10 @@ static void nvdimm_prepare_memory_region(NVDIMMDevice *nvdimm, Error **errp)
         return;
     }
 
+    if (memory_region_is_rom(mr)) {
+        nvdimm->unarmed = true; /* this device is read-only */
+    }
+
     nvdimm->nvdimm_mr = g_new(MemoryRegion, 1);
     memory_region_init_alias(nvdimm->nvdimm_mr, OBJECT(dimm),
                              "nvdimm-memory", mr, 0, pmem_size);

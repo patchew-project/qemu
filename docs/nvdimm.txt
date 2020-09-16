@@ -17,7 +17,7 @@ following command line options:
 
  -machine pc,nvdimm
  -m $RAM_SIZE,slots=$N,maxmem=$MAX_SIZE
- -object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE
+ -object memory-backend-file,id=mem1,share=on,mem-path=$PATH,size=$NVDIMM_SIZE,readonly=off
  -device nvdimm,id=nvdimm1,memdev=mem1
 
 Where,
@@ -41,6 +41,12 @@ Where,
    "share=on", then above writes will be visible to it as well. If
    "share=off", then guest writes won't be applied to the backend
    file and thus will be invisible to other guests.
+
+   "readonly=on/off" controls whether the file $PATH is opened read-only or
+   read/write (default). "readonly=on" sets the ACPI NFIT NVDIMM Region Mapping
+   Structure "NVDIMM State Flags" Bit 3 indicating that the device is "unarmed"
+   and cannot accept persistent writes. Linux guest drivers set the device to
+   read-only when this bit is present.
 
  - "device nvdimm,id=nvdimm1,memdev=mem1" creates a virtual NVDIMM
    device whose storage is provided by above memory backend device.
