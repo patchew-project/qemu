@@ -67,9 +67,7 @@
 #define ACPI_POWER_BUTTON_DEVICE "PWRB"
 
 #define TYPE_ACPI_GED "acpi-ged"
-typedef struct AcpiGedState AcpiGedState;
-DECLARE_INSTANCE_CHECKER(AcpiGedState, ACPI_GED,
-                         TYPE_ACPI_GED)
+OBJECT_DECLARE_SIMPLE_TYPE(AcpiGedState, ACPI_GED)
 
 #define ACPI_GED_EVT_SEL_OFFSET    0x0
 #define ACPI_GED_EVT_SEL_LEN       0x4
