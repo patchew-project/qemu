@@ -12,6 +12,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/units.h"
 #include <linux/vfio.h>
 #include "qapi/error.h"
 #include "qapi/qmp/qdict.h"
@@ -82,13 +83,15 @@ typedef struct {
 } NVMeQueuePair;
 
 /* Memory mapped registers */
-typedef struct {
+typedef struct QEMU_PACKED {
     NvmeBar ctrl;
     struct {
         uint32_t sq_tail;
         uint32_t cq_head;
     } doorbells[];
-} NVMeRegs;
+} QEMU_ALIGNED(4 * KiB) NVMeRegs;
+
+QEMU_BUILD_BUG_ON(offsetof(NVMeRegs, doorbells[1]) != 4096 + 8);
 
 #define INDEX_ADMIN     0
 #define INDEX_IO(n)     (1 + n)
