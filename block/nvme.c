@@ -511,7 +511,7 @@ static void nvme_identify(BlockDriverState *bs, int namespace, Error **errp)
     uint64_t iova;
     NvmeCmd cmd = {
         .opcode = NVME_ADM_CMD_IDENTIFY,
-        .cdw10 = cpu_to_le32(0x1),
+        .cdw10 = const_le32(0x1),
     };
 
     id = qemu_try_memalign(s->page_size, sizeof(*id));
@@ -649,7 +649,7 @@ static bool nvme_add_io_queue(BlockDriverState *bs, Error **errp)
         .opcode = NVME_ADM_CMD_CREATE_CQ,
         .dptr.prp1 = cpu_to_le64(q->cq.iova),
         .cdw10 = cpu_to_le32(((queue_size - 1) << 16) | (n & 0xFFFF)),
-        .cdw11 = cpu_to_le32(0x3),
+        .cdw11 = const_le32(0x3),
     };
     if (nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd)) {
         error_setg(errp, "Failed to create CQ io queue [%d]", n);
@@ -734,10 +734,10 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     timeout_ms = MIN(500 * ((cap >> 24) & 0xFF), 30000);
 
     /* Reset device to get a clean state. */
-    s->regs->ctrl.cc = cpu_to_le32(le32_to_cpu(s->regs->ctrl.cc) & 0xFE);
+    s->regs->ctrl.cc &= const_le32(0xFE);
     /* Wait for CSTS.RDY = 0. */
     deadline = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + timeout_ms * SCALE_MS;
-    while (le32_to_cpu(s->regs->ctrl.csts) & 0x1) {
+    while (s->regs->ctrl.csts & const_le32(0x1)) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to reset (%"
                              PRId64 " ms)",
@@ -758,18 +758,18 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     }
     s->nr_queues = 1;
     QEMU_BUILD_BUG_ON(NVME_QUEUE_SIZE & 0xF000);
-    s->regs->ctrl.aqa = cpu_to_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE);
+    s->regs->ctrl.aqa = const_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE);
     s->regs->ctrl.asq = cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova);
     s->regs->ctrl.acq = cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova);
 
     /* After setting up all control registers we can enable device now. */
-    s->regs->ctrl.cc = cpu_to_le32((ctz32(NVME_CQ_ENTRY_BYTES) << 20) |
+    s->regs->ctrl.cc = const_le32((ctz32(NVME_CQ_ENTRY_BYTES) << 20) |
                               (ctz32(NVME_SQ_ENTRY_BYTES) << 16) |
                               0x1);
     /* Wait for CSTS.RDY = 1. */
     now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     deadline = now + timeout_ms * 1000000;
-    while (!(le32_to_cpu(s->regs->ctrl.csts) & 0x1)) {
+    while (!(s->regs->ctrl.csts & const_le32(0x1))) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to start (%"
                              PRId64 " ms)",
@@ -848,8 +848,8 @@ static int nvme_enable_disable_write_cache(BlockDriverState *bs, bool enable,
     NvmeCmd cmd = {
         .opcode = NVME_ADM_CMD_SET_FEATURES,
         .nsid = cpu_to_le32(s->nsid),
-        .cdw10 = cpu_to_le32(0x06),
-        .cdw11 = cpu_to_le32(enable ? 0x01 : 0x00),
+        .cdw10 = const_le32(0x06),
+        .cdw11 = enable ? const_le32(0x01) : 0x00,
     };
 
     ret = nvme_cmd_sync(bs, s->queues[INDEX_ADMIN], &cmd);
@@ -1278,8 +1278,8 @@ static int coroutine_fn nvme_co_pdiscard(BlockDriverState *bs,
     NvmeCmd cmd = {
         .opcode = NVME_CMD_DSM,
         .nsid = cpu_to_le32(s->nsid),
-        .cdw10 = cpu_to_le32(0), /*number of ranges - 0 based*/
-        .cdw11 = cpu_to_le32(1 << 2), /*deallocate bit*/
+        .cdw10 = const_le32(0), /*number of ranges - 0 based*/
+        .cdw11 = const_le32(1 << 2), /*deallocate bit*/
     };
 
     NVMeCoData data = {
