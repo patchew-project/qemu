@@ -46,7 +46,7 @@ typedef struct {
     uint8_t  *queue;
     uint64_t iova;
     /* Hardware MMIO register */
-    volatile uint32_t *doorbell;
+    uint32_t *doorbell;
 } NVMeQueue;
 
 typedef struct {
@@ -82,7 +82,7 @@ typedef struct {
 } NVMeQueuePair;
 
 /* Memory mapped registers */
-typedef volatile struct {
+typedef struct {
     NvmeBar ctrl;
     struct {
         uint32_t sq_tail;
@@ -273,8 +273,7 @@ static void nvme_kick(NVMeQueuePair *q)
     trace_nvme_kick(s, q->index);
     assert(!(q->sq.tail & 0xFF00));
     /* Fence the write to submission queue entry before notifying the device. */
-    smp_wmb();
-    *q->sq.doorbell = cpu_to_le32(q->sq.tail);
+    atomic_rcu_set(q->sq.doorbell, cpu_to_le32(q->sq.tail));
     q->inflight += q->need_kick;
     q->need_kick = 0;
 }
@@ -414,8 +413,7 @@ static bool nvme_process_completion(NVMeQueuePair *q)
     }
     if (progress) {
         /* Notify the device so it can post more completions. */
-        smp_mb_release();
-        *q->cq.doorbell = cpu_to_le32(q->cq.head);
+        atomic_store_release(q->cq.doorbell, cpu_to_le32(q->cq.head));
         nvme_wake_free_req_locked(q);
     }
 
@@ -433,8 +431,7 @@ static void nvme_process_completion_bh(void *opaque)
      * called aio_poll(). The callback may be waiting for further completions
      * so notify the device that it has space to fill in more completions now.
      */
-    smp_mb_release();
-    *q->cq.doorbell = cpu_to_le32(q->cq.head);
+    atomic_store_release(q->cq.doorbell, cpu_to_le32(q->cq.head));
     nvme_wake_free_req_locked(q);
 
     nvme_process_completion(q);
@@ -721,7 +718,7 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     /* Perform initialize sequence as described in NVMe spec "7.6.1
      * Initialization". */
 
-    cap = le64_to_cpu(s->regs->ctrl.cap);
+    cap = le64_to_cpu(atomic_read(&s->regs->ctrl.cap));
     if (!(cap & (1ULL << 37))) {
         error_setg(errp, "Device doesn't support NVMe command set");
         ret = -EINVAL;
@@ -734,10 +731,11 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     timeout_ms = MIN(500 * ((cap >> 24) & 0xFF), 30000);
 
     /* Reset device to get a clean state. */
-    s->regs->ctrl.cc &= const_le32(0xFE);
+    atomic_set(&s->regs->ctrl.cc,
+               cpu_to_le32(atomic_read(&s->regs->ctrl.cc) & const_le32(0xFE)));
     /* Wait for CSTS.RDY = 0. */
     deadline = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) + timeout_ms * SCALE_MS;
-    while (s->regs->ctrl.csts & const_le32(0x1)) {
+    while (atomic_read(&s->regs->ctrl.csts) & const_le32(0x1)) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to reset (%"
                              PRId64 " ms)",
@@ -758,18 +756,22 @@ static int nvme_init(BlockDriverState *bs, const char *device, int namespace,
     }
     s->nr_queues = 1;
     QEMU_BUILD_BUG_ON(NVME_QUEUE_SIZE & 0xF000);
-    s->regs->ctrl.aqa = const_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE);
-    s->regs->ctrl.asq = cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova);
-    s->regs->ctrl.acq = cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova);
+    atomic_set(&s->regs->ctrl.aqa,
+               const_le32((NVME_QUEUE_SIZE << 16) | NVME_QUEUE_SIZE));
+    atomic_set(&s->regs->ctrl.asq,
+               cpu_to_le64(s->queues[INDEX_ADMIN]->sq.iova));
+    atomic_set(&s->regs->ctrl.acq,
+               cpu_to_le64(s->queues[INDEX_ADMIN]->cq.iova));
 
     /* After setting up all control registers we can enable device now. */
-    s->regs->ctrl.cc = const_le32((ctz32(NVME_CQ_ENTRY_BYTES) << 20) |
-                              (ctz32(NVME_SQ_ENTRY_BYTES) << 16) |
-                              0x1);
+    atomic_set(&s->regs->ctrl.cc,
+               const_le32((ctz32(NVME_CQ_ENTRY_BYTES) << 20) |
+                          (ctz32(NVME_SQ_ENTRY_BYTES) << 16) |
+                          0x1));
     /* Wait for CSTS.RDY = 1. */
     now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
     deadline = now + timeout_ms * 1000000;
-    while (!(s->regs->ctrl.csts & const_le32(0x1))) {
+    while (!(atomic_read(&s->regs->ctrl.csts) & const_le32(0x1))) {
         if (qemu_clock_get_ns(QEMU_CLOCK_REALTIME) > deadline) {
             error_setg(errp, "Timeout while waiting for device to start (%"
                              PRId64 " ms)",
