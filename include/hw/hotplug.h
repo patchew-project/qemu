@@ -20,7 +20,7 @@ typedef struct HotplugHandlerClass HotplugHandlerClass;
 DECLARE_CLASS_CHECKERS(HotplugHandlerClass, HOTPLUG_HANDLER,
                        TYPE_HOTPLUG_HANDLER)
 #define HOTPLUG_HANDLER(obj) \
-     INTERFACE_CHECK(HotplugHandler, (obj), TYPE_HOTPLUG_HANDLER)
+     OBJECT_CHECK(HotplugHandler, (obj), TYPE_HOTPLUG_HANDLER)
 
 typedef struct HotplugHandler HotplugHandler;
 

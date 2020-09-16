@@ -39,7 +39,7 @@ typedef struct IsaDmaClass IsaDmaClass;
 DECLARE_CLASS_CHECKERS(IsaDmaClass, ISADMA,
                        TYPE_ISADMA)
 #define ISADMA(obj) \
-    INTERFACE_CHECK(IsaDma, (obj), TYPE_ISADMA)
+    OBJECT_CHECK(IsaDma, (obj), TYPE_ISADMA)
 
 typedef enum {
     ISADMA_TRANSFER_VERIFY,

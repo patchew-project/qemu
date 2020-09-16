@@ -921,18 +921,6 @@ struct InterfaceClass
     OBJECT_CLASS_CHECK(InterfaceClass, klass, TYPE_INTERFACE)
 
 /**
- * INTERFACE_CHECK:
- * @interface: the type to return
- * @obj: the object to convert to an interface
- * @name: the interface type name
- *
- * Returns: @obj casted to @interface if cast is valid, otherwise raise error.
- */
-#define INTERFACE_CHECK(interface, obj, name) \
-    ((interface *)object_dynamic_cast_assert(OBJECT((obj)), (name), \
-                                             __FILE__, __LINE__, __func__))
-
-/**
  * object_new_with_class:
  * @klass: The class to instantiate.
  *

@@ -23,7 +23,7 @@ typedef struct RdmaProviderClass RdmaProviderClass;
 DECLARE_CLASS_CHECKERS(RdmaProviderClass, RDMA_PROVIDER,
                        INTERFACE_RDMA_PROVIDER)
 #define RDMA_PROVIDER(obj) \
-    INTERFACE_CHECK(RdmaProvider, (obj), \
+    OBJECT_CHECK(RdmaProvider, (obj), \
                     INTERFACE_RDMA_PROVIDER)
 
 typedef struct RdmaProvider RdmaProvider;
