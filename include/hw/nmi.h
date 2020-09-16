@@ -29,10 +29,10 @@
 typedef struct NMIClass NMIClass;
 DECLARE_CLASS_CHECKERS(NMIClass, NMI,
                        TYPE_NMI)
-#define NMI(obj) \
-     OBJECT_CHECK(NMIState, (obj), TYPE_NMI)
-
 typedef struct NMIState NMIState;
+DECLARE_INSTANCE_CHECKER(NMIState, NMI,
+                         TYPE_NMI)
+
 
 struct NMIClass {
     InterfaceClass parent_class;

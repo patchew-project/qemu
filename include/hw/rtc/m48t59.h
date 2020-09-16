@@ -34,10 +34,10 @@
 typedef struct NvramClass NvramClass;
 DECLARE_CLASS_CHECKERS(NvramClass, NVRAM,
                        TYPE_NVRAM)
-#define NVRAM(obj) \
-    OBJECT_CHECK(Nvram, (obj), TYPE_NVRAM)
-
 typedef struct Nvram Nvram;
+DECLARE_INSTANCE_CHECKER(Nvram, NVRAM,
+                         TYPE_NVRAM)
+
 
 struct NvramClass {
     InterfaceClass parent;

@@ -12,10 +12,10 @@
 typedef struct ARMLinuxBootIfClass ARMLinuxBootIfClass;
 DECLARE_CLASS_CHECKERS(ARMLinuxBootIfClass, ARM_LINUX_BOOT_IF,
                        TYPE_ARM_LINUX_BOOT_IF)
-#define ARM_LINUX_BOOT_IF(obj) \
-    OBJECT_CHECK(ARMLinuxBootIf, (obj), TYPE_ARM_LINUX_BOOT_IF)
-
 typedef struct ARMLinuxBootIf ARMLinuxBootIf;
+DECLARE_INSTANCE_CHECKER(ARMLinuxBootIf, ARM_LINUX_BOOT_IF,
+                         TYPE_ARM_LINUX_BOOT_IF)
+
 
 struct ARMLinuxBootIfClass {
     /*< private >*/

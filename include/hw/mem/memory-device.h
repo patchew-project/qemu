@@ -22,10 +22,10 @@
 typedef struct MemoryDeviceClass MemoryDeviceClass;
 DECLARE_CLASS_CHECKERS(MemoryDeviceClass, MEMORY_DEVICE,
                        TYPE_MEMORY_DEVICE)
-#define MEMORY_DEVICE(obj) \
-     OBJECT_CHECK(MemoryDeviceState, (obj), TYPE_MEMORY_DEVICE)
-
 typedef struct MemoryDeviceState MemoryDeviceState;
+DECLARE_INSTANCE_CHECKER(MemoryDeviceState, MEMORY_DEVICE,
+                         TYPE_MEMORY_DEVICE)
+
 
 /**
  * MemoryDeviceClass:

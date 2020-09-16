@@ -9,11 +9,10 @@
 typedef struct UserCreatableClass UserCreatableClass;
 DECLARE_CLASS_CHECKERS(UserCreatableClass, USER_CREATABLE,
                        TYPE_USER_CREATABLE)
-#define USER_CREATABLE(obj) \
-     OBJECT_CHECK(UserCreatable, (obj), \
-                     TYPE_USER_CREATABLE)
-
 typedef struct UserCreatable UserCreatable;
+DECLARE_INSTANCE_CHECKER(UserCreatable, USER_CREATABLE,
+                         TYPE_USER_CREATABLE)
+
 
 /**
  * UserCreatableClass:

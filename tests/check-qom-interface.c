@@ -19,10 +19,10 @@
 typedef struct TestIfClass TestIfClass;
 DECLARE_CLASS_CHECKERS(TestIfClass, TEST_IF,
                        TYPE_TEST_IF)
-#define TEST_IF(obj) \
-     OBJECT_CHECK(TestIf, (obj), TYPE_TEST_IF)
-
 typedef struct TestIf TestIf;
+DECLARE_INSTANCE_CHECKER(TestIf, TEST_IF,
+                         TYPE_TEST_IF)
+
 
 struct TestIfClass {
     InterfaceClass parent_class;

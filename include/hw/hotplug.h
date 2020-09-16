@@ -19,10 +19,10 @@
 typedef struct HotplugHandlerClass HotplugHandlerClass;
 DECLARE_CLASS_CHECKERS(HotplugHandlerClass, HOTPLUG_HANDLER,
                        TYPE_HOTPLUG_HANDLER)
-#define HOTPLUG_HANDLER(obj) \
-     OBJECT_CHECK(HotplugHandler, (obj), TYPE_HOTPLUG_HANDLER)
-
 typedef struct HotplugHandler HotplugHandler;
+DECLARE_INSTANCE_CHECKER(HotplugHandler, HOTPLUG_HANDLER,
+                         TYPE_HOTPLUG_HANDLER)
+
 
 /**
  * hotplug_fn:

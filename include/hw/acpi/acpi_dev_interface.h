@@ -21,11 +21,10 @@ typedef enum {
 typedef struct AcpiDeviceIfClass AcpiDeviceIfClass;
 DECLARE_CLASS_CHECKERS(AcpiDeviceIfClass, ACPI_DEVICE_IF,
                        TYPE_ACPI_DEVICE_IF)
-#define ACPI_DEVICE_IF(obj) \
-     OBJECT_CHECK(AcpiDeviceIf, (obj), \
-                     TYPE_ACPI_DEVICE_IF)
-
 typedef struct AcpiDeviceIf AcpiDeviceIf;
+DECLARE_INSTANCE_CHECKER(AcpiDeviceIf, ACPI_DEVICE_IF,
+                         TYPE_ACPI_DEVICE_IF)
+
 
 void acpi_send_event(DeviceState *dev, AcpiEventStatusBits event);
 
