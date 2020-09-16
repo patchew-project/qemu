@@ -711,6 +711,7 @@ static void fw_cfg_add_bytes_callback(FWCfgState *s, uint16_t key,
 
     key &= FW_CFG_ENTRY_MASK;
 
+    assert(data);
     assert(key < fw_cfg_max_entry(s) && len < UINT32_MAX);
     assert(s->entries[arch][key].data == NULL); /* avoid key conflict */
 
