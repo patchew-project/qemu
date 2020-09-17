@@ -291,6 +291,13 @@ bool kvm_arm_pmu_supported(void);
 bool kvm_arm_sve_supported(void);
 
 /**
+ * kvm_arm_cpu_feature_supported:
+ *
+ * Returns true if KVM can set CPU features and false otherwise.
+ */
+bool kvm_arm_cpu_feature_supported(void);
+
+/**
  * kvm_arm_get_max_vm_ipa_size:
  * @ms: Machine state handle
  *
