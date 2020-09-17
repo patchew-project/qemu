@@ -1148,6 +1148,193 @@ unsigned int gt_cntfrq_period_ns(ARMCPU *cpu)
       NANOSECONDS_PER_SECOND / cpu->gt_cntfrq_hz : 1;
 }
 
+/**
+ * CPUFeatureInfo:
+ * @reg: The ID register where the ID field is in.
+ * @name: The name of the CPU feature.
+ * @length: The bit length of the ID field.
+ * @shift: The bit shift of the ID field in the ID register.
+ * @min_value: The minimum value equal to or larger than which means the CPU
+ *   feature is implemented.
+ * @ni_value: Not-implemented value. It will be set to the ID field when
+ *   disabling the CPU feature.  Usually, it's min_value - 1.
+ * @sign: Whether the ID field is signed.
+ * @is_32bit: Whether the CPU feature is for 32-bit.
+ *
+ * In ARM, a CPU feature is described by an ID field, which is a 4-bit field in
+ * an ID register.
+ */
+typedef struct CPUFeatureInfo {
+    CPUIDReg reg;
+    const char *name;
+    int length;
+    int shift;
+    int min_value;
+    int ni_value;
+    bool sign;
+    bool is_32bit;
+} CPUFeatureInfo;
+
+#define FIELD_INFO(feat_name, id_reg, field, s, min_val, ni_val, is32bit) { \
+    .reg = id_reg, \
+    .length = R_ ## id_reg ## _ ## field ## _LENGTH, \
+    .shift = R_ ## id_reg ## _ ## field ## _SHIFT, \
+    .sign = s, \
+    .min_value = min_val, \
+    .ni_value = ni_val, \
+    .name = feat_name, \
+    .is_32bit = is32bit, \
+}
+
+static struct CPUFeatureInfo cpu_features[] = {
+    FIELD_INFO("aes", ID_AA64ISAR0, AES, false, 1, 0, false),
+    FIELD_INFO("sha1", ID_AA64ISAR0, SHA1, false, 1, 0, false),
+    FIELD_INFO("sha2", ID_AA64ISAR0, SHA2, false, 1, 0, false),
+    FIELD_INFO("crc32", ID_AA64ISAR0, CRC32, false, 1, 0, false),
+    FIELD_INFO("atomics", ID_AA64ISAR0, ATOMIC, false, 1, 0, false),
+    FIELD_INFO("asimdrdm", ID_AA64ISAR0, RDM, false, 1, 0, false),
+    FIELD_INFO("sha3", ID_AA64ISAR0, SHA3, false, 1, 0, false),
+    FIELD_INFO("sm3", ID_AA64ISAR0, SM3, false, 1, 0, false),
+    FIELD_INFO("sm4", ID_AA64ISAR0, SM4, false, 1, 0, false),
+    FIELD_INFO("asimddp", ID_AA64ISAR0, DP, false, 1, 0, false),
+    FIELD_INFO("asimdfhm", ID_AA64ISAR0, FHM, false, 1, 0, false),
+    FIELD_INFO("flagm", ID_AA64ISAR0, TS, false, 1, 0, false),
+    FIELD_INFO("rng", ID_AA64ISAR0, RNDR, false, 1, 0, false),
+
+    FIELD_INFO("dcpop", ID_AA64ISAR1, DPB, false, 1, 0, false),
+    FIELD_INFO("jscvt", ID_AA64ISAR1, JSCVT, false, 1, 0, false),
+    FIELD_INFO("fcma", ID_AA64ISAR1, FCMA, false, 1, 0, false),
+    FIELD_INFO("lrcpc", ID_AA64ISAR1, LRCPC, false, 1, 0, false),
+    FIELD_INFO("frint", ID_AA64ISAR1, FRINTTS, false, 1, 0, false),
+    FIELD_INFO("sb", ID_AA64ISAR1, SB, false, 1, 0, false),
+    FIELD_INFO("i8mm", ID_AA64ISAR1, I8MM, false, 1, 0, false),
+    FIELD_INFO("bf16", ID_AA64ISAR1, BF16, false, 1, 0, false),
+    FIELD_INFO("dgh", ID_AA64ISAR1, DGH, false, 1, 0, false),
+
+    FIELD_INFO("fp", ID_AA64PFR0, FP, true, 0, 0xf, false),
+    FIELD_INFO("asimd", ID_AA64PFR0, ADVSIMD, true, 0, 0xf, false),
+    FIELD_INFO("dit", ID_AA64PFR0, DIT, false, 1, 0, false),
+
+    FIELD_INFO("bt", ID_AA64PFR1, BT, false, 1, 0, false),
+    FIELD_INFO("sbss", ID_AA64PFR1, SBSS, false, 1, 0, false),
+
+    FIELD_INFO("uscat", ID_AA64MMFR2, AT, false, 1, 0, false),
+
+    {
+        .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_FP_LENGTH,
+        .shift = R_ID_AA64PFR0_FP_SHIFT, .sign = true, .min_value = 1,
+        .ni_value = 0, .name = "fphp", .is_32bit = false,
+    },
+    {
+        .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_ADVSIMD_LENGTH,
+        .shift = R_ID_AA64PFR0_ADVSIMD_SHIFT, .sign = true, .min_value = 1,
+        .ni_value = 0, .name = "asimdhp", .is_32bit = false,
+    },
+    {
+        .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_AES_LENGTH,
+        .shift = R_ID_AA64ISAR0_AES_SHIFT, .sign = false, .min_value = 2,
+        .ni_value = 1, .name = "pmull", .is_32bit = false,
+    },
+    {
+        .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+        .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+        .ni_value = 1, .name = "sha512", .is_32bit = false,
+    },
+    {
+        .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_TS_LENGTH,
+        .shift = R_ID_AA64ISAR0_TS_SHIFT, .sign = false, .min_value = 2,
+        .ni_value = 1, .name = "flagm2", .is_32bit = false,
+    },
+    {
+        .reg = ID_AA64ISAR1, .length = R_ID_AA64ISAR1_DPB_LENGTH,
+        .shift = R_ID_AA64ISAR1_DPB_SHIFT, .sign = false, .min_value = 2,
+        .ni_value = 1, .name = "dcpodp", .is_32bit = false,
+    },
+    {
+        .reg = ID_AA64ISAR1, .length = R_ID_AA64ISAR1_LRCPC_LENGTH,
+        .shift = R_ID_AA64ISAR1_LRCPC_SHIFT, .sign = false, .min_value = 2,
+        .ni_value = 1, .name = "ilrcpc", .is_32bit = false,
+    },
+};
+
+static void arm_cpu_get_feature_prop(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    ARMCPU *cpu = ARM_CPU(obj);
+    CPUFeatureInfo *feat = opaque;
+    int field_value = feat->sign ? sextract64(cpu->isar.regs[feat->reg],
+                                              feat->shift, feat->length) :
+                                   extract64(cpu->isar.regs[feat->reg],
+                                             feat->shift, feat->length);
+    bool value = field_value >= feat->min_value;
+
+    visit_type_bool(v, name, &value, errp);
+}
+
+static void arm_cpu_set_feature_prop(Object *obj, Visitor *v, const char *name,
+                                     void *opaque, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    ARMCPU *cpu = ARM_CPU(obj);
+    ARMISARegisters *isar = &cpu->isar;
+    CPUFeatureInfo *feat = opaque;
+    Error *local_err = NULL;
+    bool value;
+
+    if (!kvm_arm_cpu_feature_supported()) {
+        warn_report("KVM doesn't support to set CPU feature in arm.  "
+                    "Setting to `%s` is ignored.", name);
+        return;
+    }
+    if (dev->realized) {
+        qdev_prop_set_after_realize(dev, name, errp);
+        return;
+    }
+
+    visit_type_bool(v, name, &value, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    if (value) {
+        if (object_property_get_bool(obj, feat->name, &error_abort)) {
+            return;
+        }
+        isar->regs[feat->reg] = deposit64(isar->regs[feat->reg],
+                                          feat->shift, feat->length,
+                                          feat->min_value);
+    } else {
+        if (!object_property_get_bool(obj, feat->name, &error_abort)) {
+            return;
+        }
+        isar->regs[feat->reg] = deposit64(isar->regs[feat->reg],
+                                          feat->shift, feat->length,
+                                          feat->ni_value);
+    }
+}
+
+static void arm_cpu_register_feature_props(ARMCPU *cpu)
+{
+    int i;
+    ObjectProperty *op;
+    CPUARMState *env = &cpu->env;
+
+    for (i = 0; i < ARRAY_SIZE(cpu_features); i++) {
+        if (!(arm_feature(env, ARM_FEATURE_AARCH64) ^
+              cpu_features[i].is_32bit)) {
+            continue;
+        }
+        op = object_property_find(OBJECT(cpu), cpu_features[i].name, NULL);
+        if (!op) {
+            object_property_add(OBJECT(cpu), cpu_features[i].name, "bool",
+                                arm_cpu_get_feature_prop,
+                                arm_cpu_set_feature_prop,
+                                NULL, &cpu_features[i]);
+        }
+    }
+}
+
 void arm_cpu_post_init(Object *obj)
 {
     ARMCPU *cpu = ARM_CPU(obj);
@@ -1273,6 +1460,7 @@ void arm_cpu_post_init(Object *obj)
         }
     }
 #endif
+    arm_cpu_register_feature_props(cpu);
 }
 
 static void arm_cpu_finalizefn(Object *obj)
