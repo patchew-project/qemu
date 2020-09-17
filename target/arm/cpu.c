@@ -1257,6 +1257,107 @@ static struct CPUFeatureInfo cpu_features[] = {
     },
 };
 
+typedef struct CPUFeatureDep {
+    CPUFeatureInfo from, to;
+} CPUFeatureDep;
+
+static const CPUFeatureDep feature_dependencies[] = {
+    {
+        .from = FIELD_INFO("fp", ID_AA64PFR0, FP, true, 0, 0xf, false),
+        .to = FIELD_INFO("asimd", ID_AA64PFR0, ADVSIMD, true, 0, 0xf, false),
+    },
+    {
+        .from = FIELD_INFO("asimd", ID_AA64PFR0, ADVSIMD, true, 0, 0xf, false),
+        .to = FIELD_INFO("fp", ID_AA64PFR0, FP, true, 0, 0xf, false),
+    },
+    {
+        .from = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_FP_LENGTH,
+            .shift = R_ID_AA64PFR0_FP_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "fphp", .is_32bit = false,
+        },
+        .to = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_ADVSIMD_LENGTH,
+            .shift = R_ID_AA64PFR0_ADVSIMD_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "asimdhp", .is_32bit = false,
+        },
+    },
+    {
+        .from = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_ADVSIMD_LENGTH,
+            .shift = R_ID_AA64PFR0_ADVSIMD_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "asimdhp", .is_32bit = false,
+        },
+        .to = {
+            .reg = ID_AA64PFR0, .length = R_ID_AA64PFR0_FP_LENGTH,
+            .shift = R_ID_AA64PFR0_FP_SHIFT, .sign = true, .min_value = 1,
+            .ni_value = 0, .name = "fphp", .is_32bit = false,
+        },
+    },
+    {
+
+        .from = FIELD_INFO("aes", ID_AA64ISAR0, AES, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_AES_LENGTH,
+            .shift = R_ID_AA64ISAR0_AES_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "pmull", .is_32bit = false,
+        },
+    },
+    {
+
+        .from = FIELD_INFO("sha2", ID_AA64ISAR0, SHA2, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+            .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "sha512", .is_32bit = false,
+        },
+    },
+    {
+        .from = FIELD_INFO("lrcpc", ID_AA64ISAR1, LRCPC, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR1, .length = R_ID_AA64ISAR1_LRCPC_LENGTH,
+            .shift = R_ID_AA64ISAR1_LRCPC_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "ilrcpc", .is_32bit = false,
+        },
+    },
+    {
+        .from = FIELD_INFO("sm3", ID_AA64ISAR0, SM3, false, 1, 0, false),
+        .to = FIELD_INFO("sm4", ID_AA64ISAR0, SM4, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO("sm4", ID_AA64ISAR0, SM4, false, 1, 0, false),
+        .to = FIELD_INFO("sm3", ID_AA64ISAR0, SM3, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO("sha1", ID_AA64ISAR0, SHA1, false, 1, 0, false),
+        .to = FIELD_INFO("sha2", ID_AA64ISAR0, SHA2, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO("sha2", ID_AA64ISAR0, SHA2, false, 1, 0, false),
+        .to = FIELD_INFO("sha1", ID_AA64ISAR0, SHA1, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO("sha1", ID_AA64ISAR0, SHA1, false, 1, 0, false),
+        .to = FIELD_INFO("sha3", ID_AA64ISAR0, SHA3, false, 1, 0, false),
+    },
+    {
+        .from = FIELD_INFO("sha3", ID_AA64ISAR0, SHA3, false, 1, 0, false),
+        .to = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+            .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "sha512", .is_32bit = false,
+        },
+    },
+    {
+        .from = {
+            .reg = ID_AA64ISAR0, .length = R_ID_AA64ISAR0_SHA2_LENGTH,
+            .shift = R_ID_AA64ISAR0_SHA2_SHIFT, .sign = false, .min_value = 2,
+            .ni_value = 1, .name = "sha512", .is_32bit = false,
+        },
+        .to = FIELD_INFO("sha3", ID_AA64ISAR0, SHA3, false, 1, 0, false),
+    },
+};
+
 static void arm_cpu_get_feature_prop(Object *obj, Visitor *v, const char *name,
                                      void *opaque, Error **errp)
 {
@@ -1491,6 +1592,8 @@ static void arm_cpu_finalizefn(Object *obj)
 
 void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
 {
+    int i;
+    ARMISARegisters *isar = &cpu->isar;
     Error *local_err = NULL;
 
     if (arm_feature(&cpu->env, ARM_FEATURE_AARCH64)) {
@@ -1498,6 +1601,37 @@ void arm_cpu_finalize_features(ARMCPU *cpu, Error **errp)
         if (local_err != NULL) {
             error_propagate(errp, local_err);
             return;
+        }
+    }
+
+    if (!kvm_enabled() || !kvm_arm_cpu_feature_supported()) {
+        return;
+    }
+
+    for (i = 0; i < ARRAY_SIZE(feature_dependencies); ++i) {
+        const CPUFeatureDep *d = &feature_dependencies[i];
+        bool from_explicit = !!(isar->user_mask[d->from.reg] &
+                                MAKE_64BIT_MASK(d->from.shift, d->from.length));
+        bool to_explicit = !!(isar->user_mask[d->to.reg] &
+                              MAKE_64BIT_MASK(d->to.shift, d->to.length));
+        bool from_enabled = object_property_get_bool(OBJECT(cpu), d->from.name,
+                                                     &error_abort);
+        bool to_enabled = object_property_get_bool(OBJECT(cpu), d->to.name,
+                                                   &error_abort);
+
+        if (!from_enabled && to_enabled) {
+            if (from_explicit && to_explicit) {
+                error_setg(errp, "The CPU feature '%s' dependes on CPU feature "
+                           "'%s' that is disabled explicitly",
+                           d->to.name, d->from.name);
+                return;
+            } else if (from_explicit) {
+                isar->regs[d->to.reg] = deposit64(isar->regs[d->to.reg],
+                        d->to.shift, d->to.length, d->to.ni_value);
+            } else if (to_explicit) {
+                isar->regs[d->from.reg] = deposit64(isar->regs[d->from.reg],
+                        d->from.shift, d->from.length, d->from.min_value);
+            }
         }
     }
 }
