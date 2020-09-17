@@ -925,6 +925,7 @@ struct ARMCPU {
      */
     struct ARMISARegisters {
         uint64_t regs[ID_MAX];
+        uint64_t user_mask[ID_MAX];
     } isar;
     uint64_t midr;
     uint32_t revidr;

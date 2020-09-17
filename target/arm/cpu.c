@@ -1312,6 +1312,8 @@ static void arm_cpu_set_feature_prop(Object *obj, Visitor *v, const char *name,
                                           feat->shift, feat->length,
                                           feat->ni_value);
     }
+
+    isar->user_mask[feat->reg] |= MAKE_64BIT_MASK(feat->shift, feat->length);
 }
 
 static void arm_cpu_register_feature_props(ARMCPU *cpu)
