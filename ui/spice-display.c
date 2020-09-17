@@ -674,6 +674,8 @@ static int interface_client_monitors_config(QXLInstance *sin,
 
     info = *dpy_get_ui_info(ssd->dcl.con);
 
+    /* Note: this code doesn't handle Spice multi-head support, where multiple
+     * monitor configuration for a single QXL device means multiple head. */
     if (mc->num_of_monitors == 1) {
         /*
          * New spice-server version which filters the list of monitors
@@ -697,7 +699,22 @@ static int interface_client_monitors_config(QXLInstance *sin,
             info.height = mc->monitors[head].height;
         }
     }
+#if SPICE_SERVER_VERSION >= 0x000e04 /* release 0.14.4 */
+    if (mc->flags & VD_AGENT_CONFIG_MONITORS_FLAG_PHYSICAL_SIZE) {
+        VDAgentMonitorMM *mm = (void *)&mc->monitors[mc->num_of_monitors];
 
+        if (mc->num_of_monitors == 1) {
+            info.width_mm = mm[0].width;
+            info.height_mm = mm[0].height;
+        } else {
+            head = qemu_console_get_index(ssd->dcl.con);
+            if (mc->num_of_monitors > head) {
+                info.width_mm = mm[head].width;
+                info.height_mm = mm[head].height;
+            }
+        }
+    }
+#endif
     trace_qemu_spice_ui_info(ssd->qxl.id, info.width, info.height);
     dpy_set_ui_info(ssd->dcl.con, &info);
     return 1;
