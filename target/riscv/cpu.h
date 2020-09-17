@@ -460,4 +460,11 @@ void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
 
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
+typedef CPURISCVState CPUArchState;
+typedef RISCVCPU ArchCPU;
+
+target_ulong do_riscv_semihosting(CPURISCVState *env);
+
+#include "exec/cpu-all.h"
+
 #endif /* RISCV_CPU_H */
