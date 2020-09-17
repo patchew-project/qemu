@@ -6627,7 +6627,7 @@ static uint64_t id_pfr1_read(CPUARMState *env, const ARMCPRegInfo *ri)
     ARMCPU *cpu = env_archcpu(env);
     uint64_t pfr1 = cpu->id_pfr1;
 
-    if (env->gicv3state) {
+    if (!arm_feature(&cpu->env, ARM_FEATURE_AARCH64) && env->gicv3state) {
         pfr1 |= 1 << 28;
     }
     return pfr1;
