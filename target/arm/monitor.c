@@ -104,6 +104,10 @@ static const char *cpu_model_advertised_features[] = {
     "sve640", "sve768", "sve896", "sve1024", "sve1152", "sve1280",
     "sve1408", "sve1536", "sve1664", "sve1792", "sve1920", "sve2048",
     "kvm-no-adjvtime",
+    "aes", "sha1", "sha2", "crc32", "atomics", "asimdrdm", "sha3", "sm3", "sm4",
+    "asimddp", "asimdfhm", "flagm", "rng", "dcpop", "jscvt", "fcma", "lrcpc",
+    "frint", "sb", "i8mm", "bf16", "dgh", "fp", "asimd", "dit", "bt", "sbss",
+    "uscat", "fphp", "asimdhp", "pmull", "sha512", "flagm2", "dcpodp", "ilrcpc",
     NULL
 };
 
