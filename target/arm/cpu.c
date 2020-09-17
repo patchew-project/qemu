@@ -170,9 +170,9 @@ static void arm_cpu_reset(DeviceState *dev)
     g_hash_table_foreach(cpu->cp_regs, cp_reg_check_reset, cpu);
 
     env->vfp.xregs[ARM_VFP_FPSID] = cpu->reset_fpsid;
-    env->vfp.xregs[ARM_VFP_MVFR0] = cpu->isar.mvfr0;
-    env->vfp.xregs[ARM_VFP_MVFR1] = cpu->isar.mvfr1;
-    env->vfp.xregs[ARM_VFP_MVFR2] = cpu->isar.mvfr2;
+    env->vfp.xregs[ARM_VFP_MVFR0] = cpu->isar.regs[MVFR0];
+    env->vfp.xregs[ARM_VFP_MVFR1] = cpu->isar.regs[MVFR1];
+    env->vfp.xregs[ARM_VFP_MVFR2] = cpu->isar.regs[MVFR2];
 
     cpu->power_state = s->start_powered_off ? PSCI_OFF : PSCI_ON;
 
@@ -1406,19 +1406,19 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         uint64_t t;
         uint32_t u;
 
-        t = cpu->isar.id_aa64isar1;
+        t = cpu->isar.regs[ID_AA64ISAR1];
         t = FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 0);
-        cpu->isar.id_aa64isar1 = t;
+        cpu->isar.regs[ID_AA64ISAR1] = t;
 
-        t = cpu->isar.id_aa64pfr0;
+        t = cpu->isar.regs[ID_AA64PFR0];
         t = FIELD_DP64(t, ID_AA64PFR0, FP, 0xf);
-        cpu->isar.id_aa64pfr0 = t;
+        cpu->isar.regs[ID_AA64PFR0] = t;
 
-        u = cpu->isar.id_isar6;
+        u = cpu->isar.regs[ID_ISAR6];
         u = FIELD_DP32(u, ID_ISAR6, JSCVT, 0);
-        cpu->isar.id_isar6 = u;
+        cpu->isar.regs[ID_ISAR6] = u;
 
-        u = cpu->isar.mvfr0;
+        u = cpu->isar.regs[MVFR0];
         u = FIELD_DP32(u, MVFR0, FPSP, 0);
         u = FIELD_DP32(u, MVFR0, FPDP, 0);
         u = FIELD_DP32(u, MVFR0, FPTRAP, 0);
@@ -1426,17 +1426,17 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
         u = FIELD_DP32(u, MVFR0, FPSQRT, 0);
         u = FIELD_DP32(u, MVFR0, FPSHVEC, 0);
         u = FIELD_DP32(u, MVFR0, FPROUND, 0);
-        cpu->isar.mvfr0 = u;
+        cpu->isar.regs[MVFR0] = u;
 
-        u = cpu->isar.mvfr1;
+        u = cpu->isar.regs[MVFR1];
         u = FIELD_DP32(u, MVFR1, FPFTZ, 0);
         u = FIELD_DP32(u, MVFR1, FPDNAN, 0);
         u = FIELD_DP32(u, MVFR1, FPHP, 0);
-        cpu->isar.mvfr1 = u;
+        cpu->isar.regs[MVFR1] = u;
 
-        u = cpu->isar.mvfr2;
+        u = cpu->isar.regs[MVFR2];
         u = FIELD_DP32(u, MVFR2, FPMISC, 0);
-        cpu->isar.mvfr2 = u;
+        cpu->isar.regs[MVFR2] = u;
     }
 
     if (!cpu->has_neon) {
@@ -1445,60 +1445,60 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
         unset_feature(env, ARM_FEATURE_NEON);
 
-        t = cpu->isar.id_aa64isar0;
+        t = cpu->isar.regs[ID_AA64ISAR0];
         t = FIELD_DP64(t, ID_AA64ISAR0, DP, 0);
-        cpu->isar.id_aa64isar0 = t;
+        cpu->isar.regs[ID_AA64ISAR0] = t;
 
-        t = cpu->isar.id_aa64isar1;
+        t = cpu->isar.regs[ID_AA64ISAR1];
         t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 0);
-        cpu->isar.id_aa64isar1 = t;
+        cpu->isar.regs[ID_AA64ISAR1] = t;
 
-        t = cpu->isar.id_aa64pfr0;
+        t = cpu->isar.regs[ID_AA64PFR0];
         t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 0xf);
-        cpu->isar.id_aa64pfr0 = t;
+        cpu->isar.regs[ID_AA64PFR0] = t;
 
-        u = cpu->isar.id_isar5;
+        u = cpu->isar.regs[ID_ISAR5];
         u = FIELD_DP32(u, ID_ISAR5, RDM, 0);
         u = FIELD_DP32(u, ID_ISAR5, VCMA, 0);
-        cpu->isar.id_isar5 = u;
+        cpu->isar.regs[ID_ISAR5] = u;
 
-        u = cpu->isar.id_isar6;
+        u = cpu->isar.regs[ID_ISAR6];
         u = FIELD_DP32(u, ID_ISAR6, DP, 0);
         u = FIELD_DP32(u, ID_ISAR6, FHM, 0);
-        cpu->isar.id_isar6 = u;
+        cpu->isar.regs[ID_ISAR6] = u;
 
-        u = cpu->isar.mvfr1;
+        u = cpu->isar.regs[MVFR1];
         u = FIELD_DP32(u, MVFR1, SIMDLS, 0);
         u = FIELD_DP32(u, MVFR1, SIMDINT, 0);
         u = FIELD_DP32(u, MVFR1, SIMDSP, 0);
         u = FIELD_DP32(u, MVFR1, SIMDHP, 0);
-        cpu->isar.mvfr1 = u;
+        cpu->isar.regs[MVFR1] = u;
 
-        u = cpu->isar.mvfr2;
+        u = cpu->isar.regs[MVFR2];
         u = FIELD_DP32(u, MVFR2, SIMDMISC, 0);
-        cpu->isar.mvfr2 = u;
+        cpu->isar.regs[MVFR2] = u;
     }
 
     if (!cpu->has_neon && !cpu->has_vfp) {
         uint64_t t;
         uint32_t u;
 
-        t = cpu->isar.id_aa64isar0;
+        t = cpu->isar.regs[ID_AA64ISAR0];
         t = FIELD_DP64(t, ID_AA64ISAR0, FHM, 0);
-        cpu->isar.id_aa64isar0 = t;
+        cpu->isar.regs[ID_AA64ISAR0] = t;
 
-        t = cpu->isar.id_aa64isar1;
+        t = cpu->isar.regs[ID_AA64ISAR1];
         t = FIELD_DP64(t, ID_AA64ISAR1, FRINTTS, 0);
-        cpu->isar.id_aa64isar1 = t;
+        cpu->isar.regs[ID_AA64ISAR1] = t;
 
-        u = cpu->isar.mvfr0;
+        u = cpu->isar.regs[MVFR0];
         u = FIELD_DP32(u, MVFR0, SIMDREG, 0);
-        cpu->isar.mvfr0 = u;
+        cpu->isar.regs[MVFR0] = u;
 
         /* Despite the name, this field covers both VFP and Neon */
-        u = cpu->isar.mvfr1;
+        u = cpu->isar.regs[MVFR1];
         u = FIELD_DP32(u, MVFR1, SIMDFMAC, 0);
-        cpu->isar.mvfr1 = u;
+        cpu->isar.regs[MVFR1] = u;
     }
 
     if (arm_feature(env, ARM_FEATURE_M) && !cpu->has_dsp) {
@@ -1506,19 +1506,19 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
 
         unset_feature(env, ARM_FEATURE_THUMB_DSP);
 
-        u = cpu->isar.id_isar1;
+        u = cpu->isar.regs[ID_ISAR1];
         u = FIELD_DP32(u, ID_ISAR1, EXTEND, 1);
-        cpu->isar.id_isar1 = u;
+        cpu->isar.regs[ID_ISAR1] = u;
 
-        u = cpu->isar.id_isar2;
+        u = cpu->isar.regs[ID_ISAR2];
         u = FIELD_DP32(u, ID_ISAR2, MULTU, 1);
         u = FIELD_DP32(u, ID_ISAR2, MULTS, 1);
-        cpu->isar.id_isar2 = u;
+        cpu->isar.regs[ID_ISAR2] = u;
 
-        u = cpu->isar.id_isar3;
+        u = cpu->isar.regs[ID_ISAR3];
         u = FIELD_DP32(u, ID_ISAR3, SIMD, 1);
         u = FIELD_DP32(u, ID_ISAR3, SATURATE, 0);
-        cpu->isar.id_isar3 = u;
+        cpu->isar.regs[ID_ISAR3] = u;
     }
 
     /* Some features automatically imply others: */
@@ -1661,7 +1661,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * registers as well. These are id_pfr1[7:4] and id_aa64pfr0[15:12].
          */
         cpu->id_pfr1 &= ~0xf0;
-        cpu->isar.id_aa64pfr0 &= ~0xf000;
+        cpu->isar.regs[ID_AA64PFR0] &= ~0xf000;
     }
 
     if (!cpu->has_el2) {
@@ -1684,9 +1684,10 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
                 cpu);
 #endif
     } else {
-        cpu->isar.id_aa64dfr0 =
-            FIELD_DP64(cpu->isar.id_aa64dfr0, ID_AA64DFR0, PMUVER, 0);
-        cpu->isar.id_dfr0 = FIELD_DP32(cpu->isar.id_dfr0, ID_DFR0, PERFMON, 0);
+        cpu->isar.regs[ID_AA64DFR0] =
+            FIELD_DP64(cpu->isar.regs[ID_AA64DFR0], ID_AA64DFR0, PMUVER, 0);
+        cpu->isar.regs[ID_DFR0] = FIELD_DP32(cpu->isar.regs[ID_DFR0], ID_DFR0,
+                                             PERFMON, 0);
         cpu->pmceid0 = 0;
         cpu->pmceid1 = 0;
     }
@@ -1696,7 +1697,7 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * registers if we don't have EL2. These are id_pfr1[15:12] and
          * id_aa64pfr0_el1[11:8].
          */
-        cpu->isar.id_aa64pfr0 &= ~0xf00;
+        cpu->isar.regs[ID_AA64PFR0] &= ~0xf00;
         cpu->id_pfr1 &= ~0xf000;
     }
 
@@ -1706,8 +1707,8 @@ static void arm_cpu_realizefn(DeviceState *dev, Error **errp)
          * Disable the MTE feature bits if we do not have tag-memory
          * provided by the machine.
          */
-        cpu->isar.id_aa64pfr1 =
-            FIELD_DP64(cpu->isar.id_aa64pfr1, ID_AA64PFR1, MTE, 0);
+        cpu->isar.regs[ID_AA64PFR1] =
+            FIELD_DP64(cpu->isar.regs[ID_AA64PFR1], ID_AA64PFR1, MTE, 0);
     }
 #endif
 
@@ -1891,24 +1892,24 @@ static void cortex_a8_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_EL3);
     cpu->midr = 0x410fc080;
     cpu->reset_fpsid = 0x410330c0;
-    cpu->isar.mvfr0 = 0x11110222;
-    cpu->isar.mvfr1 = 0x00011111;
+    cpu->isar.regs[MVFR0] = 0x11110222;
+    cpu->isar.regs[MVFR1] = 0x00011111;
     cpu->ctr = 0x82048004;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x1031;
     cpu->id_pfr1 = 0x11;
-    cpu->isar.id_dfr0 = 0x400;
+    cpu->isar.regs[ID_DFR0] = 0x400;
     cpu->id_afr0 = 0;
-    cpu->isar.id_mmfr0 = 0x31100003;
-    cpu->isar.id_mmfr1 = 0x20000000;
-    cpu->isar.id_mmfr2 = 0x01202000;
-    cpu->isar.id_mmfr3 = 0x11;
-    cpu->isar.id_isar0 = 0x00101111;
-    cpu->isar.id_isar1 = 0x12112111;
-    cpu->isar.id_isar2 = 0x21232031;
-    cpu->isar.id_isar3 = 0x11112131;
-    cpu->isar.id_isar4 = 0x00111142;
-    cpu->isar.dbgdidr = 0x15141000;
+    cpu->isar.regs[ID_MMFR0] = 0x31100003;
+    cpu->isar.regs[ID_MMFR1] = 0x20000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01202000;
+    cpu->isar.regs[ID_MMFR3] = 0x11;
+    cpu->isar.regs[ID_ISAR0] = 0x00101111;
+    cpu->isar.regs[ID_ISAR1] = 0x12112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232031;
+    cpu->isar.regs[ID_ISAR3] = 0x11112131;
+    cpu->isar.regs[ID_ISAR4] = 0x00111142;
+    cpu->isar.regs[DBGDIDR] = 0x15141000;
     cpu->clidr = (1 << 27) | (2 << 24) | 3;
     cpu->ccsidr[0] = 0xe007e01a; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x2007e01a; /* 16k L1 icache. */
@@ -1963,24 +1964,24 @@ static void cortex_a9_initfn(Object *obj)
     set_feature(&cpu->env, ARM_FEATURE_CBAR);
     cpu->midr = 0x410fc090;
     cpu->reset_fpsid = 0x41033090;
-    cpu->isar.mvfr0 = 0x11110222;
-    cpu->isar.mvfr1 = 0x01111111;
+    cpu->isar.regs[MVFR0] = 0x11110222;
+    cpu->isar.regs[MVFR1] = 0x01111111;
     cpu->ctr = 0x80038003;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x1031;
     cpu->id_pfr1 = 0x11;
-    cpu->isar.id_dfr0 = 0x000;
+    cpu->isar.regs[ID_DFR0] = 0x000;
     cpu->id_afr0 = 0;
-    cpu->isar.id_mmfr0 = 0x00100103;
-    cpu->isar.id_mmfr1 = 0x20000000;
-    cpu->isar.id_mmfr2 = 0x01230000;
-    cpu->isar.id_mmfr3 = 0x00002111;
-    cpu->isar.id_isar0 = 0x00101111;
-    cpu->isar.id_isar1 = 0x13112111;
-    cpu->isar.id_isar2 = 0x21232041;
-    cpu->isar.id_isar3 = 0x11112131;
-    cpu->isar.id_isar4 = 0x00111142;
-    cpu->isar.dbgdidr = 0x35141000;
+    cpu->isar.regs[ID_MMFR0] = 0x00100103;
+    cpu->isar.regs[ID_MMFR1] = 0x20000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01230000;
+    cpu->isar.regs[ID_MMFR3] = 0x00002111;
+    cpu->isar.regs[ID_ISAR0] = 0x00101111;
+    cpu->isar.regs[ID_ISAR1] = 0x13112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232041;
+    cpu->isar.regs[ID_ISAR3] = 0x11112131;
+    cpu->isar.regs[ID_ISAR4] = 0x00111142;
+    cpu->isar.regs[DBGDIDR] = 0x35141000;
     cpu->clidr = (1 << 27) | (1 << 24) | 3;
     cpu->ccsidr[0] = 0xe00fe019; /* 16k L1 dcache. */
     cpu->ccsidr[1] = 0x200fe019; /* 16k L1 icache. */
@@ -2027,27 +2028,27 @@ static void cortex_a7_initfn(Object *obj)
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A7;
     cpu->midr = 0x410fc075;
     cpu->reset_fpsid = 0x41023075;
-    cpu->isar.mvfr0 = 0x10110222;
-    cpu->isar.mvfr1 = 0x11111111;
+    cpu->isar.regs[MVFR0] = 0x10110222;
+    cpu->isar.regs[MVFR1] = 0x11111111;
     cpu->ctr = 0x84448003;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x00001131;
     cpu->id_pfr1 = 0x00011011;
-    cpu->isar.id_dfr0 = 0x02010555;
+    cpu->isar.regs[ID_DFR0] = 0x02010555;
     cpu->id_afr0 = 0x00000000;
-    cpu->isar.id_mmfr0 = 0x10101105;
-    cpu->isar.id_mmfr1 = 0x40000000;
-    cpu->isar.id_mmfr2 = 0x01240000;
-    cpu->isar.id_mmfr3 = 0x02102211;
+    cpu->isar.regs[ID_MMFR0] = 0x10101105;
+    cpu->isar.regs[ID_MMFR1] = 0x40000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01240000;
+    cpu->isar.regs[ID_MMFR3] = 0x02102211;
     /* a7_mpcore_r0p5_trm, page 4-4 gives 0x01101110; but
      * table 4-41 gives 0x02101110, which includes the arm div insns.
      */
-    cpu->isar.id_isar0 = 0x02101110;
-    cpu->isar.id_isar1 = 0x13112111;
-    cpu->isar.id_isar2 = 0x21232041;
-    cpu->isar.id_isar3 = 0x11112131;
-    cpu->isar.id_isar4 = 0x10011142;
-    cpu->isar.dbgdidr = 0x3515f005;
+    cpu->isar.regs[ID_ISAR0] = 0x02101110;
+    cpu->isar.regs[ID_ISAR1] = 0x13112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232041;
+    cpu->isar.regs[ID_ISAR3] = 0x11112131;
+    cpu->isar.regs[ID_ISAR4] = 0x10011142;
+    cpu->isar.regs[DBGDIDR] = 0x3515f005;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
@@ -2072,24 +2073,24 @@ static void cortex_a15_initfn(Object *obj)
     cpu->kvm_target = QEMU_KVM_ARM_TARGET_CORTEX_A15;
     cpu->midr = 0x412fc0f1;
     cpu->reset_fpsid = 0x410430f0;
-    cpu->isar.mvfr0 = 0x10110222;
-    cpu->isar.mvfr1 = 0x11111111;
+    cpu->isar.regs[MVFR0] = 0x10110222;
+    cpu->isar.regs[MVFR1] = 0x11111111;
     cpu->ctr = 0x8444c004;
     cpu->reset_sctlr = 0x00c50078;
     cpu->id_pfr0 = 0x00001131;
     cpu->id_pfr1 = 0x00011011;
-    cpu->isar.id_dfr0 = 0x02010555;
+    cpu->isar.regs[ID_DFR0] = 0x02010555;
     cpu->id_afr0 = 0x00000000;
-    cpu->isar.id_mmfr0 = 0x10201105;
-    cpu->isar.id_mmfr1 = 0x20000000;
-    cpu->isar.id_mmfr2 = 0x01240000;
-    cpu->isar.id_mmfr3 = 0x02102211;
-    cpu->isar.id_isar0 = 0x02101110;
-    cpu->isar.id_isar1 = 0x13112111;
-    cpu->isar.id_isar2 = 0x21232041;
-    cpu->isar.id_isar3 = 0x11112131;
-    cpu->isar.id_isar4 = 0x10011142;
-    cpu->isar.dbgdidr = 0x3515f021;
+    cpu->isar.regs[ID_MMFR0] = 0x10201105;
+    cpu->isar.regs[ID_MMFR1] = 0x20000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01240000;
+    cpu->isar.regs[ID_MMFR3] = 0x02102211;
+    cpu->isar.regs[ID_ISAR0] = 0x02101110;
+    cpu->isar.regs[ID_ISAR1] = 0x13112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232041;
+    cpu->isar.regs[ID_ISAR3] = 0x11112131;
+    cpu->isar.regs[ID_ISAR4] = 0x10011142;
+    cpu->isar.regs[DBGDIDR] = 0x3515f021;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32K L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32K L1 icache */
@@ -2110,7 +2111,7 @@ static void arm_max_initfn(Object *obj)
     cortex_a15_initfn(obj);
 
     /* old-style VFP short-vector support */
-    cpu->isar.mvfr0 = FIELD_DP32(cpu->isar.mvfr0, MVFR0, FPSHVEC, 1);
+    cpu->isar.regs[MVFR0] = FIELD_DP32(cpu->isar.[MVFR0], MVFR0, FPSHVEC, 1);
 
 #ifdef CONFIG_USER_ONLY
     /*
@@ -2122,43 +2123,43 @@ static void arm_max_initfn(Object *obj)
     {
         uint32_t t;
 
-        t = cpu->isar.id_isar5;
+        t = cpu->isar.regs[ID_ISAR5];
         t = FIELD_DP32(t, ID_ISAR5, AES, 2);
         t = FIELD_DP32(t, ID_ISAR5, SHA1, 1);
         t = FIELD_DP32(t, ID_ISAR5, SHA2, 1);
         t = FIELD_DP32(t, ID_ISAR5, CRC32, 1);
         t = FIELD_DP32(t, ID_ISAR5, RDM, 1);
         t = FIELD_DP32(t, ID_ISAR5, VCMA, 1);
-        cpu->isar.id_isar5 = t;
+        cpu->isar.regs[ID_ISAR5] = t;
 
-        t = cpu->isar.id_isar6;
+        t = cpu->isar.regs[ID_ISAR6];
         t = FIELD_DP32(t, ID_ISAR6, JSCVT, 1);
         t = FIELD_DP32(t, ID_ISAR6, DP, 1);
         t = FIELD_DP32(t, ID_ISAR6, FHM, 1);
         t = FIELD_DP32(t, ID_ISAR6, SB, 1);
         t = FIELD_DP32(t, ID_ISAR6, SPECRES, 1);
-        cpu->isar.id_isar6 = t;
+        cpu->isar.regs[ID_ISAR6] = t;
 
-        t = cpu->isar.mvfr1;
+        t = cpu->isar.regs[MVFR1];
         t = FIELD_DP32(t, MVFR1, FPHP, 3);     /* v8.2-FP16 */
         t = FIELD_DP32(t, MVFR1, SIMDHP, 2);   /* v8.2-FP16 */
-        cpu->isar.mvfr1 = t;
+        cpu->isar.regs[MVFR1] = t;
 
-        t = cpu->isar.mvfr2;
+        t = cpu->isar.regs[MVFR2];
         t = FIELD_DP32(t, MVFR2, SIMDMISC, 3); /* SIMD MaxNum */
         t = FIELD_DP32(t, MVFR2, FPMISC, 4);   /* FP MaxNum */
-        cpu->isar.mvfr2 = t;
+        cpu->isar.regs[MVFR2] = t;
 
-        t = cpu->isar.id_mmfr3;
+        t = cpu->isar.regs[ID_MMFR3];
         t = FIELD_DP32(t, ID_MMFR3, PAN, 2); /* ATS1E1 */
-        cpu->isar.id_mmfr3 = t;
+        cpu->isar.regs[ID_MMFR3] = t;
 
-        t = cpu->isar.id_mmfr4;
+        t = cpu->isar.regs[ID_MMFR4];
         t = FIELD_DP32(t, ID_MMFR4, HPDS, 1); /* AA32HPD */
         t = FIELD_DP32(t, ID_MMFR4, AC2, 1); /* ACTLR2, HACTLR2 */
         t = FIELD_DP32(t, ID_MMFR4, CNP, 1); /* TTCNP */
         t = FIELD_DP32(t, ID_MMFR4, XNX, 1); /* TTS2UXN */
-        cpu->isar.id_mmfr4 = t;
+        cpu->isar.regs[ID_MMFR4] = t;
     }
 #endif
 }

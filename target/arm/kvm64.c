@@ -449,7 +449,7 @@ void kvm_arm_pmu_set_irq(CPUState *cs, int irq)
     }
 }
 
-static int read_sys_reg32(int fd, uint32_t *pret, uint64_t id)
+static int read_sys_reg32(int fd, uint64_t *pret, uint64_t id)
 {
     uint64_t ret;
     struct kvm_one_reg idreg = { .id = id, .addr = (uintptr_t)&ret };
@@ -509,7 +509,7 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
     ahcf->target = init.target;
     ahcf->dtb_compatible = "arm,arm-v8";
 
-    err = read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64pfr0,
+    err = read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64PFR0],
                          ARM64_SYS_REG(3, 0, 0, 4, 0));
     if (unlikely(err < 0)) {
         /*
@@ -528,24 +528,24 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
          * ??? Either of these sounds like too much effort just
          *     to work around running a modern host kernel.
          */
-        ahcf->isar.id_aa64pfr0 = 0x00000011; /* EL1&0, AArch64 only */
+        ahcf->isar.regs[ID_AA64PFR0] = 0x00000011; /* EL1&0, AArch64 only */
         err = 0;
     } else {
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64pfr1,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64PFR1],
                               ARM64_SYS_REG(3, 0, 0, 4, 1));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64dfr0,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64DFR0],
                               ARM64_SYS_REG(3, 0, 0, 5, 0));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64dfr1,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64DFR1],
                               ARM64_SYS_REG(3, 0, 0, 5, 1));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64isar0,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64ISAR0],
                               ARM64_SYS_REG(3, 0, 0, 6, 0));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64isar1,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64ISAR1],
                               ARM64_SYS_REG(3, 0, 0, 6, 1));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64mmfr0,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64MMFR0],
                               ARM64_SYS_REG(3, 0, 0, 7, 0));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64mmfr1,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64MMFR1],
                               ARM64_SYS_REG(3, 0, 0, 7, 1));
-        err |= read_sys_reg64(fdarray[2], &ahcf->isar.id_aa64mmfr2,
+        err |= read_sys_reg64(fdarray[2], &ahcf->isar.regs[ID_AA64MMFR2],
                               ARM64_SYS_REG(3, 0, 0, 7, 2));
 
         /*
@@ -555,38 +555,38 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
          * than skipping the reads and leaving 0, as we must avoid
          * considering the values in every case.
          */
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_dfr0,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_DFR0],
                               ARM64_SYS_REG(3, 0, 0, 1, 2));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr0,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_MMFR0],
                               ARM64_SYS_REG(3, 0, 0, 1, 4));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr1,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_MMFR1],
                               ARM64_SYS_REG(3, 0, 0, 1, 5));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr2,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_MMFR2],
                               ARM64_SYS_REG(3, 0, 0, 1, 6));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr3,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_MMFR3],
                               ARM64_SYS_REG(3, 0, 0, 1, 7));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar0,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR0],
                               ARM64_SYS_REG(3, 0, 0, 2, 0));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar1,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR1],
                               ARM64_SYS_REG(3, 0, 0, 2, 1));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar2,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR2],
                               ARM64_SYS_REG(3, 0, 0, 2, 2));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar3,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR3],
                               ARM64_SYS_REG(3, 0, 0, 2, 3));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar4,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR4],
                               ARM64_SYS_REG(3, 0, 0, 2, 4));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar5,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR5],
                               ARM64_SYS_REG(3, 0, 0, 2, 5));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_mmfr4,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_MMFR4],
                               ARM64_SYS_REG(3, 0, 0, 2, 6));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.id_isar6,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[ID_ISAR6],
                               ARM64_SYS_REG(3, 0, 0, 2, 7));
 
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.mvfr0,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[MVFR0],
                               ARM64_SYS_REG(3, 0, 0, 3, 0));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.mvfr1,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[MVFR1],
                               ARM64_SYS_REG(3, 0, 0, 3, 1));
-        err |= read_sys_reg32(fdarray[2], &ahcf->isar.mvfr2,
+        err |= read_sys_reg32(fdarray[2], &ahcf->isar.regs[MVFR2],
                               ARM64_SYS_REG(3, 0, 0, 3, 2));
 
         /*
@@ -599,14 +599,16 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
          * arch/arm64/kvm/sys_regs.c:trap_dbgidr() does.
          * We only do this if the CPU supports AArch32 at EL1.
          */
-        if (FIELD_EX32(ahcf->isar.id_aa64pfr0, ID_AA64PFR0, EL1) >= 2) {
-            int wrps = FIELD_EX64(ahcf->isar.id_aa64dfr0, ID_AA64DFR0, WRPS);
-            int brps = FIELD_EX64(ahcf->isar.id_aa64dfr0, ID_AA64DFR0, BRPS);
+        if (FIELD_EX32(ahcf->isar.regs[ID_AA64PFR0], ID_AA64PFR0, EL1) >= 2) {
+            int wrps = FIELD_EX64(ahcf->isar.regs[ID_AA64DFR0],
+                                  ID_AA64DFR0, WRPS);
+            int brps = FIELD_EX64(ahcf->isar.regs[ID_AA64DFR0],
+                                  ID_AA64DFR0, BRPS);
             int ctx_cmps =
-                FIELD_EX64(ahcf->isar.id_aa64dfr0, ID_AA64DFR0, CTX_CMPS);
+                FIELD_EX64(ahcf->isar.regs[ID_AA64DFR0], ID_AA64DFR0, CTX_CMPS);
             int version = 6; /* ARMv8 debug architecture */
             bool has_el3 =
-                !!FIELD_EX32(ahcf->isar.id_aa64pfr0, ID_AA64PFR0, EL3);
+                !!FIELD_EX32(ahcf->isar.regs[ID_AA64PFR0], ID_AA64PFR0, EL3);
             uint32_t dbgdidr = 0;
 
             dbgdidr = FIELD_DP32(dbgdidr, DBGDIDR, WRPS, wrps);
@@ -616,7 +618,7 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
             dbgdidr = FIELD_DP32(dbgdidr, DBGDIDR, NSUHD_IMP, has_el3);
             dbgdidr = FIELD_DP32(dbgdidr, DBGDIDR, SE_IMP, has_el3);
             dbgdidr |= (1 << 15); /* RES1 bit */
-            ahcf->isar.dbgdidr = dbgdidr;
+            ahcf->isar.regs[DBGDIDR] = dbgdidr;
         }
     }
 
@@ -630,9 +632,9 @@ bool kvm_arm_get_host_cpu_features(ARMHostCPUFeatures *ahcf)
 
     /* Add feature bits that can't appear until after VCPU init. */
     if (sve_supported) {
-        t = ahcf->isar.id_aa64pfr0;
+        t = ahcf->isar.regs[ID_AA64PFR0];
         t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
-        ahcf->isar.id_aa64pfr0 = t;
+        ahcf->isar.regs[ID_AA64PFR0] = t;
     }
 
     /*

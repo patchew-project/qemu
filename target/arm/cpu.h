@@ -67,6 +67,36 @@
 #define ARMV7M_EXCP_PENDSV  14
 #define ARMV7M_EXCP_SYSTICK 15
 
+typedef enum CPUIDReg {
+    ID_ISAR0,
+    ID_ISAR1,
+    ID_ISAR2,
+    ID_ISAR3,
+    ID_ISAR4,
+    ID_ISAR5,
+    ID_ISAR6,
+    ID_MMFR0,
+    ID_MMFR1,
+    ID_MMFR2,
+    ID_MMFR3,
+    ID_MMFR4,
+    MVFR0,
+    MVFR1,
+    MVFR2,
+    ID_DFR0,
+    DBGDIDR,
+    ID_AA64ISAR0,
+    ID_AA64ISAR1,
+    ID_AA64PFR0,
+    ID_AA64PFR1,
+    ID_AA64MMFR0,
+    ID_AA64MMFR1,
+    ID_AA64MMFR2,
+    ID_AA64DFR0,
+    ID_AA64DFR1,
+    ID_MAX
+} CPUIDReg;
+
 /* For M profile, some registers are banked secure vs non-secure;
  * these are represented as a 2-element array where the first element
  * is the non-secure copy and the second is the secure copy.
@@ -894,32 +924,7 @@ struct ARMCPU {
      * field by reading the value from the KVM vCPU.
      */
     struct ARMISARegisters {
-        uint32_t id_isar0;
-        uint32_t id_isar1;
-        uint32_t id_isar2;
-        uint32_t id_isar3;
-        uint32_t id_isar4;
-        uint32_t id_isar5;
-        uint32_t id_isar6;
-        uint32_t id_mmfr0;
-        uint32_t id_mmfr1;
-        uint32_t id_mmfr2;
-        uint32_t id_mmfr3;
-        uint32_t id_mmfr4;
-        uint32_t mvfr0;
-        uint32_t mvfr1;
-        uint32_t mvfr2;
-        uint32_t id_dfr0;
-        uint32_t dbgdidr;
-        uint64_t id_aa64isar0;
-        uint64_t id_aa64isar1;
-        uint64_t id_aa64pfr0;
-        uint64_t id_aa64pfr1;
-        uint64_t id_aa64mmfr0;
-        uint64_t id_aa64mmfr1;
-        uint64_t id_aa64mmfr2;
-        uint64_t id_aa64dfr0;
-        uint64_t id_aa64dfr1;
+        uint64_t regs[ID_MAX];
     } isar;
     uint64_t midr;
     uint32_t revidr;
@@ -3458,82 +3463,82 @@ static inline MemTxAttrs *typecheck_memtxattrs(MemTxAttrs *x)
  */
 static inline bool isar_feature_aa32_thumb_div(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar0, ID_ISAR0, DIVIDE) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR0], ID_ISAR0, DIVIDE) != 0;
 }
 
 static inline bool isar_feature_aa32_arm_div(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar0, ID_ISAR0, DIVIDE) > 1;
+    return FIELD_EX32(id->regs[ID_ISAR0], ID_ISAR0, DIVIDE) > 1;
 }
 
 static inline bool isar_feature_aa32_jazelle(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar1, ID_ISAR1, JAZELLE) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR1], ID_ISAR1, JAZELLE) != 0;
 }
 
 static inline bool isar_feature_aa32_aes(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, AES) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, AES) != 0;
 }
 
 static inline bool isar_feature_aa32_pmull(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, AES) > 1;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, AES) > 1;
 }
 
 static inline bool isar_feature_aa32_sha1(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, SHA1) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, SHA1) != 0;
 }
 
 static inline bool isar_feature_aa32_sha2(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, SHA2) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, SHA2) != 0;
 }
 
 static inline bool isar_feature_aa32_crc32(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, CRC32) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, CRC32) != 0;
 }
 
 static inline bool isar_feature_aa32_rdm(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, RDM) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, RDM) != 0;
 }
 
 static inline bool isar_feature_aa32_vcma(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar5, ID_ISAR5, VCMA) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR5], ID_ISAR5, VCMA) != 0;
 }
 
 static inline bool isar_feature_aa32_jscvt(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar6, ID_ISAR6, JSCVT) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR6], ID_ISAR6, JSCVT) != 0;
 }
 
 static inline bool isar_feature_aa32_dp(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar6, ID_ISAR6, DP) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR6], ID_ISAR6, DP) != 0;
 }
 
 static inline bool isar_feature_aa32_fhm(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar6, ID_ISAR6, FHM) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR6], ID_ISAR6, FHM) != 0;
 }
 
 static inline bool isar_feature_aa32_sb(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar6, ID_ISAR6, SB) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR6], ID_ISAR6, SB) != 0;
 }
 
 static inline bool isar_feature_aa32_predinv(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_isar6, ID_ISAR6, SPECRES) != 0;
+    return FIELD_EX32(id->regs[ID_ISAR6], ID_ISAR6, SPECRES) != 0;
 }
 
 static inline bool isar_feature_aa32_fp16_arith(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr1, MVFR1, FPHP) >= 3;
+    return FIELD_EX32(id->regs[MVFR1], MVFR1, FPHP) >= 3;
 }
 
 static inline bool isar_feature_aa32_vfp_simd(const ARMISARegisters *id)
@@ -3542,42 +3547,42 @@ static inline bool isar_feature_aa32_vfp_simd(const ARMISARegisters *id)
      * Return true if either VFP or SIMD is implemented.
      * In this case, a minimum of VFP w/ D0-D15.
      */
-    return FIELD_EX32(id->mvfr0, MVFR0, SIMDREG) > 0;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, SIMDREG) > 0;
 }
 
 static inline bool isar_feature_aa32_simd_r32(const ARMISARegisters *id)
 {
     /* Return true if D16-D31 are implemented */
-    return FIELD_EX32(id->mvfr0, MVFR0, SIMDREG) >= 2;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, SIMDREG) >= 2;
 }
 
 static inline bool isar_feature_aa32_fpshvec(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr0, MVFR0, FPSHVEC) > 0;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, FPSHVEC) > 0;
 }
 
 static inline bool isar_feature_aa32_fpsp_v2(const ARMISARegisters *id)
 {
     /* Return true if CPU supports single precision floating point, VFPv2 */
-    return FIELD_EX32(id->mvfr0, MVFR0, FPSP) > 0;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, FPSP) > 0;
 }
 
 static inline bool isar_feature_aa32_fpsp_v3(const ARMISARegisters *id)
 {
     /* Return true if CPU supports single precision floating point, VFPv3 */
-    return FIELD_EX32(id->mvfr0, MVFR0, FPSP) >= 2;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, FPSP) >= 2;
 }
 
 static inline bool isar_feature_aa32_fpdp_v2(const ARMISARegisters *id)
 {
     /* Return true if CPU supports double precision floating point, VFPv2 */
-    return FIELD_EX32(id->mvfr0, MVFR0, FPDP) > 0;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, FPDP) > 0;
 }
 
 static inline bool isar_feature_aa32_fpdp_v3(const ARMISARegisters *id)
 {
     /* Return true if CPU supports double precision floating point, VFPv3 */
-    return FIELD_EX32(id->mvfr0, MVFR0, FPDP) >= 2;
+    return FIELD_EX32(id->regs[MVFR0], MVFR0, FPDP) >= 2;
 }
 
 static inline bool isar_feature_aa32_vfp(const ARMISARegisters *id)
@@ -3592,12 +3597,12 @@ static inline bool isar_feature_aa32_vfp(const ARMISARegisters *id)
  */
 static inline bool isar_feature_aa32_fp16_spconv(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr1, MVFR1, FPHP) > 0;
+    return FIELD_EX32(id->regs[MVFR1], MVFR1, FPHP) > 0;
 }
 
 static inline bool isar_feature_aa32_fp16_dpconv(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr1, MVFR1, FPHP) > 1;
+    return FIELD_EX32(id->regs[MVFR1], MVFR1, FPHP) > 1;
 }
 
 /*
@@ -3609,71 +3614,71 @@ static inline bool isar_feature_aa32_fp16_dpconv(const ARMISARegisters *id)
  */
 static inline bool isar_feature_aa32_simdfmac(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr1, MVFR1, SIMDFMAC) != 0;
+    return FIELD_EX32(id->regs[MVFR1], MVFR1, SIMDFMAC) != 0;
 }
 
 static inline bool isar_feature_aa32_vsel(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr2, MVFR2, FPMISC) >= 1;
+    return FIELD_EX32(id->regs[MVFR2], MVFR2, FPMISC) >= 1;
 }
 
 static inline bool isar_feature_aa32_vcvt_dr(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr2, MVFR2, FPMISC) >= 2;
+    return FIELD_EX32(id->regs[MVFR2], MVFR2, FPMISC) >= 2;
 }
 
 static inline bool isar_feature_aa32_vrint(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr2, MVFR2, FPMISC) >= 3;
+    return FIELD_EX32(id->regs[MVFR2], MVFR2, FPMISC) >= 3;
 }
 
 static inline bool isar_feature_aa32_vminmaxnm(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->mvfr2, MVFR2, FPMISC) >= 4;
+    return FIELD_EX32(id->regs[MVFR2], MVFR2, FPMISC) >= 4;
 }
 
 static inline bool isar_feature_aa32_pan(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_mmfr3, ID_MMFR3, PAN) != 0;
+    return FIELD_EX32(id->regs[ID_MMFR3], ID_MMFR3, PAN) != 0;
 }
 
 static inline bool isar_feature_aa32_ats1e1(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_mmfr3, ID_MMFR3, PAN) >= 2;
+    return FIELD_EX32(id->regs[ID_MMFR3], ID_MMFR3, PAN) >= 2;
 }
 
 static inline bool isar_feature_aa32_pmu_8_1(const ARMISARegisters *id)
 {
     /* 0xf means "non-standard IMPDEF PMU" */
-    return FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) >= 4 &&
-        FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) != 0xf;
+    return FIELD_EX32(id->regs[ID_DFR0], ID_DFR0, PERFMON) >= 4 &&
+        FIELD_EX32(id->regs[ID_DFR0], ID_DFR0, PERFMON) != 0xf;
 }
 
 static inline bool isar_feature_aa32_pmu_8_4(const ARMISARegisters *id)
 {
     /* 0xf means "non-standard IMPDEF PMU" */
-    return FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) >= 5 &&
-        FIELD_EX32(id->id_dfr0, ID_DFR0, PERFMON) != 0xf;
+    return FIELD_EX32(id->regs[ID_DFR0], ID_DFR0, PERFMON) >= 5 &&
+        FIELD_EX32(id->regs[ID_DFR0], ID_DFR0, PERFMON) != 0xf;
 }
 
 static inline bool isar_feature_aa32_hpd(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_mmfr4, ID_MMFR4, HPDS) != 0;
+    return FIELD_EX32(id->regs[ID_MMFR4], ID_MMFR4, HPDS) != 0;
 }
 
 static inline bool isar_feature_aa32_ac2(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_mmfr4, ID_MMFR4, AC2) != 0;
+    return FIELD_EX32(id->regs[ID_MMFR4], ID_MMFR4, AC2) != 0;
 }
 
 static inline bool isar_feature_aa32_ccidx(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_mmfr4, ID_MMFR4, CCIDX) != 0;
+    return FIELD_EX32(id->regs[ID_MMFR4], ID_MMFR4, CCIDX) != 0;
 }
 
 static inline bool isar_feature_aa32_tts2uxn(const ARMISARegisters *id)
 {
-    return FIELD_EX32(id->id_mmfr4, ID_MMFR4, XNX) != 0;
+    return FIELD_EX32(id->regs[ID_MMFR4], ID_MMFR4, XNX) != 0;
 }
 
 /*
@@ -3681,92 +3686,92 @@ static inline bool isar_feature_aa32_tts2uxn(const ARMISARegisters *id)
  */
 static inline bool isar_feature_aa64_aes(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, AES) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, AES) != 0;
 }
 
 static inline bool isar_feature_aa64_pmull(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, AES) > 1;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, AES) > 1;
 }
 
 static inline bool isar_feature_aa64_sha1(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA1) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, SHA1) != 0;
 }
 
 static inline bool isar_feature_aa64_sha256(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA2) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, SHA2) != 0;
 }
 
 static inline bool isar_feature_aa64_sha512(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA2) > 1;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, SHA2) > 1;
 }
 
 static inline bool isar_feature_aa64_crc32(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, CRC32) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, CRC32) != 0;
 }
 
 static inline bool isar_feature_aa64_atomics(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, ATOMIC) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, ATOMIC) != 0;
 }
 
 static inline bool isar_feature_aa64_rdm(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, RDM) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, RDM) != 0;
 }
 
 static inline bool isar_feature_aa64_sha3(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SHA3) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, SHA3) != 0;
 }
 
 static inline bool isar_feature_aa64_sm3(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SM3) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, SM3) != 0;
 }
 
 static inline bool isar_feature_aa64_sm4(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, SM4) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, SM4) != 0;
 }
 
 static inline bool isar_feature_aa64_dp(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, DP) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, DP) != 0;
 }
 
 static inline bool isar_feature_aa64_fhm(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, FHM) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, FHM) != 0;
 }
 
 static inline bool isar_feature_aa64_condm_4(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, TS) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, TS) != 0;
 }
 
 static inline bool isar_feature_aa64_condm_5(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, TS) >= 2;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, TS) >= 2;
 }
 
 static inline bool isar_feature_aa64_rndr(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar0, ID_AA64ISAR0, RNDR) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR0], ID_AA64ISAR0, RNDR) != 0;
 }
 
 static inline bool isar_feature_aa64_jscvt(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, JSCVT) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, JSCVT) != 0;
 }
 
 static inline bool isar_feature_aa64_fcma(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, FCMA) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, FCMA) != 0;
 }
 
 static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
@@ -3777,7 +3782,7 @@ static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
      * defined algorithms, and thus API+GPI, and this predicate controls
      * migration of the 128-bit keys.
      */
-    return (id->id_aa64isar1 &
+    return (id->regs[ID_AA64ISAR1] &
             (FIELD_DP64(0, ID_AA64ISAR1, APA, 0xf) |
              FIELD_DP64(0, ID_AA64ISAR1, API, 0xf) |
              FIELD_DP64(0, ID_AA64ISAR1, GPA, 0xf) |
@@ -3786,121 +3791,121 @@ static inline bool isar_feature_aa64_pauth(const ARMISARegisters *id)
 
 static inline bool isar_feature_aa64_sb(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, SB) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, SB) != 0;
 }
 
 static inline bool isar_feature_aa64_predinv(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, SPECRES) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, SPECRES) != 0;
 }
 
 static inline bool isar_feature_aa64_frint(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, FRINTTS) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, FRINTTS) != 0;
 }
 
 static inline bool isar_feature_aa64_dcpop(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, DPB) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, DPB) != 0;
 }
 
 static inline bool isar_feature_aa64_dcpodp(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, DPB) >= 2;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, DPB) >= 2;
 }
 
 static inline bool isar_feature_aa64_fp_simd(const ARMISARegisters *id)
 {
     /* We always set the AdvSIMD and FP fields identically.  */
-    return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, FP) != 0xf;
+    return FIELD_EX64(id->regs[ID_AA64PFR0], ID_AA64PFR0, FP) != 0xf;
 }
 
 static inline bool isar_feature_aa64_fp16(const ARMISARegisters *id)
 {
     /* We always set the AdvSIMD and FP fields identically wrt FP16.  */
-    return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, FP) == 1;
+    return FIELD_EX64(id->regs[ID_AA64PFR0], ID_AA64PFR0, FP) == 1;
 }
 
 static inline bool isar_feature_aa64_aa32(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, EL0) >= 2;
+    return FIELD_EX64(id->regs[ID_AA64PFR0], ID_AA64PFR0, EL0) >= 2;
 }
 
 static inline bool isar_feature_aa64_sve(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64pfr0, ID_AA64PFR0, SVE) != 0;
+    return FIELD_EX64(id->regs[ID_AA64PFR0], ID_AA64PFR0, SVE) != 0;
 }
 
 static inline bool isar_feature_aa64_vh(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, VH) != 0;
+    return FIELD_EX64(id->regs[ID_AA64MMFR1], ID_AA64MMFR1, VH) != 0;
 }
 
 static inline bool isar_feature_aa64_lor(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, LO) != 0;
+    return FIELD_EX64(id->regs[ID_AA64MMFR1], ID_AA64MMFR1, LO) != 0;
 }
 
 static inline bool isar_feature_aa64_pan(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, PAN) != 0;
+    return FIELD_EX64(id->regs[ID_AA64MMFR1], ID_AA64MMFR1, PAN) != 0;
 }
 
 static inline bool isar_feature_aa64_ats1e1(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, PAN) >= 2;
+    return FIELD_EX64(id->regs[ID_AA64MMFR1], ID_AA64MMFR1, PAN) >= 2;
 }
 
 static inline bool isar_feature_aa64_uao(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr2, ID_AA64MMFR2, UAO) != 0;
+    return FIELD_EX64(id->regs[ID_AA64MMFR2], ID_AA64MMFR2, UAO) != 0;
 }
 
 static inline bool isar_feature_aa64_bti(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64pfr1, ID_AA64PFR1, BT) != 0;
+    return FIELD_EX64(id->regs[ID_AA64PFR1], ID_AA64PFR1, BT) != 0;
 }
 
 static inline bool isar_feature_aa64_mte_insn_reg(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64pfr1, ID_AA64PFR1, MTE) != 0;
+    return FIELD_EX64(id->regs[ID_AA64PFR1], ID_AA64PFR1, MTE) != 0;
 }
 
 static inline bool isar_feature_aa64_mte(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64pfr1, ID_AA64PFR1, MTE) >= 2;
+    return FIELD_EX64(id->regs[ID_AA64PFR1], ID_AA64PFR1, MTE) >= 2;
 }
 
 static inline bool isar_feature_aa64_pmu_8_1(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) >= 4 &&
-        FIELD_EX64(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) != 0xf;
+    return FIELD_EX64(id->regs[ID_AA64DFR0], ID_AA64DFR0, PMUVER) >= 4 &&
+        FIELD_EX64(id->regs[ID_AA64DFR0], ID_AA64DFR0, PMUVER) != 0xf;
 }
 
 static inline bool isar_feature_aa64_pmu_8_4(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) >= 5 &&
-        FIELD_EX64(id->id_aa64dfr0, ID_AA64DFR0, PMUVER) != 0xf;
+    return FIELD_EX64(id->regs[ID_AA64DFR0], ID_AA64DFR0, PMUVER) >= 5 &&
+        FIELD_EX64(id->regs[ID_AA64DFR0], ID_AA64DFR0, PMUVER) != 0xf;
 }
 
 static inline bool isar_feature_aa64_rcpc_8_3(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, LRCPC) != 0;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, LRCPC) != 0;
 }
 
 static inline bool isar_feature_aa64_rcpc_8_4(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64isar1, ID_AA64ISAR1, LRCPC) >= 2;
+    return FIELD_EX64(id->regs[ID_AA64ISAR1], ID_AA64ISAR1, LRCPC) >= 2;
 }
 
 static inline bool isar_feature_aa64_ccidx(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr2, ID_AA64MMFR2, CCIDX) != 0;
+    return FIELD_EX64(id->regs[ID_AA64MMFR2], ID_AA64MMFR2, CCIDX) != 0;
 }
 
 static inline bool isar_feature_aa64_tts2uxn(const ARMISARegisters *id)
 {
-    return FIELD_EX64(id->id_aa64mmfr1, ID_AA64MMFR1, XNX) != 0;
+    return FIELD_EX64(id->regs[ID_AA64MMFR1], ID_AA64MMFR1, XNX) != 0;
 }
 
 /*

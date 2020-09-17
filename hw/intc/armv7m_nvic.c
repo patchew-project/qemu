@@ -1242,29 +1242,29 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
     case 0xd44: /* PFR1.  */
         return cpu->id_pfr1;
     case 0xd48: /* DFR0.  */
-        return cpu->isar.id_dfr0;
+        return cpu->isar.regs[ID_DFR0];
     case 0xd4c: /* AFR0.  */
         return cpu->id_afr0;
     case 0xd50: /* MMFR0.  */
-        return cpu->isar.id_mmfr0;
+        return cpu->isar.regs[ID_MMFR0];
     case 0xd54: /* MMFR1.  */
-        return cpu->isar.id_mmfr1;
+        return cpu->isar.regs[ID_MMFR1];
     case 0xd58: /* MMFR2.  */
-        return cpu->isar.id_mmfr2;
+        return cpu->isar.regs[ID_MMFR2];
     case 0xd5c: /* MMFR3.  */
-        return cpu->isar.id_mmfr3;
+        return cpu->isar.regs[ID_MMFR3];
     case 0xd60: /* ISAR0.  */
-        return cpu->isar.id_isar0;
+        return cpu->isar.regs[ID_ISAR0];
     case 0xd64: /* ISAR1.  */
-        return cpu->isar.id_isar1;
+        return cpu->isar.regs[ID_ISAR1];
     case 0xd68: /* ISAR2.  */
-        return cpu->isar.id_isar2;
+        return cpu->isar.regs[ID_ISAR2];
     case 0xd6c: /* ISAR3.  */
-        return cpu->isar.id_isar3;
+        return cpu->isar.regs[ID_ISAR3];
     case 0xd70: /* ISAR4.  */
-        return cpu->isar.id_isar4;
+        return cpu->isar.regs[ID_ISAR4];
     case 0xd74: /* ISAR5.  */
-        return cpu->isar.id_isar5;
+        return cpu->isar.regs[ID_ISAR5];
     case 0xd78: /* CLIDR */
         return cpu->clidr;
     case 0xd7c: /* CTR */
@@ -1468,11 +1468,11 @@ static uint32_t nvic_readl(NVICState *s, uint32_t offset, MemTxAttrs attrs)
         }
         return cpu->env.v7m.fpdscr[attrs.secure];
     case 0xf40: /* MVFR0 */
-        return cpu->isar.mvfr0;
+        return cpu->isar.regs[MVFR0];
     case 0xf44: /* MVFR1 */
-        return cpu->isar.mvfr1;
+        return cpu->isar.regs[MVFR1];
     case 0xf48: /* MVFR2 */
-        return cpu->isar.mvfr2;
+        return cpu->isar.regs[MVFR2];
     default:
     bad_offset:
         qemu_log_mask(LOG_GUEST_ERROR, "NVIC: Bad read offset 0x%x\n", offset);

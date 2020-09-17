@@ -103,31 +103,31 @@ static void aarch64_a57_initfn(Object *obj)
     cpu->midr = 0x411fd070;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034070;
-    cpu->isar.mvfr0 = 0x10110222;
-    cpu->isar.mvfr1 = 0x12111111;
-    cpu->isar.mvfr2 = 0x00000043;
+    cpu->isar.regs[MVFR0] = 0x10110222;
+    cpu->isar.regs[MVFR1] = 0x12111111;
+    cpu->isar.regs[MVFR2] = 0x00000043;
     cpu->ctr = 0x8444c004;
     cpu->reset_sctlr = 0x00c50838;
     cpu->id_pfr0 = 0x00000131;
     cpu->id_pfr1 = 0x00011011;
-    cpu->isar.id_dfr0 = 0x03010066;
+    cpu->isar.regs[ID_DFR0] = 0x03010066;
     cpu->id_afr0 = 0x00000000;
-    cpu->isar.id_mmfr0 = 0x10101105;
-    cpu->isar.id_mmfr1 = 0x40000000;
-    cpu->isar.id_mmfr2 = 0x01260000;
-    cpu->isar.id_mmfr3 = 0x02102211;
-    cpu->isar.id_isar0 = 0x02101110;
-    cpu->isar.id_isar1 = 0x13112111;
-    cpu->isar.id_isar2 = 0x21232042;
-    cpu->isar.id_isar3 = 0x01112131;
-    cpu->isar.id_isar4 = 0x00011142;
-    cpu->isar.id_isar5 = 0x00011121;
-    cpu->isar.id_isar6 = 0;
-    cpu->isar.id_aa64pfr0 = 0x00002222;
-    cpu->isar.id_aa64dfr0 = 0x10305106;
-    cpu->isar.id_aa64isar0 = 0x00011120;
-    cpu->isar.id_aa64mmfr0 = 0x00001124;
-    cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.regs[ID_MMFR0] = 0x10101105;
+    cpu->isar.regs[ID_MMFR1] = 0x40000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01260000;
+    cpu->isar.regs[ID_MMFR3] = 0x02102211;
+    cpu->isar.regs[ID_ISAR0] = 0x02101110;
+    cpu->isar.regs[ID_ISAR1] = 0x13112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232042;
+    cpu->isar.regs[ID_ISAR3] = 0x01112131;
+    cpu->isar.regs[ID_ISAR4] = 0x00011142;
+    cpu->isar.regs[ID_ISAR5] = 0x00011121;
+    cpu->isar.regs[ID_ISAR6] = 0;
+    cpu->isar.regs[ID_AA64PFR0] = 0x00002222;
+    cpu->isar.regs[ID_AA64DFR0] = 0x10305106;
+    cpu->isar.regs[ID_AA64ISAR0] = 0x00011120;
+    cpu->isar.regs[ID_AA64MMFR0] = 0x00001124;
+    cpu->isar.regs[DBGDIDR] = 0x3516d000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -156,31 +156,31 @@ static void aarch64_a53_initfn(Object *obj)
     cpu->midr = 0x410fd034;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034070;
-    cpu->isar.mvfr0 = 0x10110222;
-    cpu->isar.mvfr1 = 0x12111111;
-    cpu->isar.mvfr2 = 0x00000043;
+    cpu->isar.regs[MVFR0] = 0x10110222;
+    cpu->isar.regs[MVFR1] = 0x12111111;
+    cpu->isar.regs[MVFR2] = 0x00000043;
     cpu->ctr = 0x84448004; /* L1Ip = VIPT */
     cpu->reset_sctlr = 0x00c50838;
     cpu->id_pfr0 = 0x00000131;
     cpu->id_pfr1 = 0x00011011;
-    cpu->isar.id_dfr0 = 0x03010066;
+    cpu->isar.regs[ID_DFR0] = 0x03010066;
     cpu->id_afr0 = 0x00000000;
-    cpu->isar.id_mmfr0 = 0x10101105;
-    cpu->isar.id_mmfr1 = 0x40000000;
-    cpu->isar.id_mmfr2 = 0x01260000;
-    cpu->isar.id_mmfr3 = 0x02102211;
-    cpu->isar.id_isar0 = 0x02101110;
-    cpu->isar.id_isar1 = 0x13112111;
-    cpu->isar.id_isar2 = 0x21232042;
-    cpu->isar.id_isar3 = 0x01112131;
-    cpu->isar.id_isar4 = 0x00011142;
-    cpu->isar.id_isar5 = 0x00011121;
-    cpu->isar.id_isar6 = 0;
-    cpu->isar.id_aa64pfr0 = 0x00002222;
-    cpu->isar.id_aa64dfr0 = 0x10305106;
-    cpu->isar.id_aa64isar0 = 0x00011120;
-    cpu->isar.id_aa64mmfr0 = 0x00001122; /* 40 bit physical addr */
-    cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.regs[ID_MMFR0] = 0x10101105;
+    cpu->isar.regs[ID_MMFR1] = 0x40000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01260000;
+    cpu->isar.regs[ID_MMFR3] = 0x02102211;
+    cpu->isar.regs[ID_ISAR0] = 0x02101110;
+    cpu->isar.regs[ID_ISAR1] = 0x13112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232042;
+    cpu->isar.regs[ID_ISAR3] = 0x01112131;
+    cpu->isar.regs[ID_ISAR4] = 0x00011142;
+    cpu->isar.regs[ID_ISAR5] = 0x00011121;
+    cpu->isar.regs[ID_ISAR6] = 0;
+    cpu->isar.regs[ID_AA64PFR0] = 0x00002222;
+    cpu->isar.regs[ID_AA64DFR0] = 0x10305106;
+    cpu->isar.regs[ID_AA64ISAR0] = 0x00011120;
+    cpu->isar.regs[ID_AA64MMFR0] = 0x00001122; /* 40 bit physical addr */
+    cpu->isar.regs[DBGDIDR] = 0x3516d000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x700fe01a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe00a; /* 32KB L1 icache */
@@ -208,30 +208,30 @@ static void aarch64_a72_initfn(Object *obj)
     cpu->midr = 0x410fd083;
     cpu->revidr = 0x00000000;
     cpu->reset_fpsid = 0x41034080;
-    cpu->isar.mvfr0 = 0x10110222;
-    cpu->isar.mvfr1 = 0x12111111;
-    cpu->isar.mvfr2 = 0x00000043;
+    cpu->isar.regs[MVFR0] = 0x10110222;
+    cpu->isar.regs[MVFR1] = 0x12111111;
+    cpu->isar.regs[MVFR2] = 0x00000043;
     cpu->ctr = 0x8444c004;
     cpu->reset_sctlr = 0x00c50838;
     cpu->id_pfr0 = 0x00000131;
     cpu->id_pfr1 = 0x00011011;
-    cpu->isar.id_dfr0 = 0x03010066;
+    cpu->isar.regs[ID_DFR0] = 0x03010066;
     cpu->id_afr0 = 0x00000000;
-    cpu->isar.id_mmfr0 = 0x10201105;
-    cpu->isar.id_mmfr1 = 0x40000000;
-    cpu->isar.id_mmfr2 = 0x01260000;
-    cpu->isar.id_mmfr3 = 0x02102211;
-    cpu->isar.id_isar0 = 0x02101110;
-    cpu->isar.id_isar1 = 0x13112111;
-    cpu->isar.id_isar2 = 0x21232042;
-    cpu->isar.id_isar3 = 0x01112131;
-    cpu->isar.id_isar4 = 0x00011142;
-    cpu->isar.id_isar5 = 0x00011121;
-    cpu->isar.id_aa64pfr0 = 0x00002222;
-    cpu->isar.id_aa64dfr0 = 0x10305106;
-    cpu->isar.id_aa64isar0 = 0x00011120;
-    cpu->isar.id_aa64mmfr0 = 0x00001124;
-    cpu->isar.dbgdidr = 0x3516d000;
+    cpu->isar.regs[ID_MMFR0] = 0x10201105;
+    cpu->isar.regs[ID_MMFR1] = 0x40000000;
+    cpu->isar.regs[ID_MMFR2] = 0x01260000;
+    cpu->isar.regs[ID_MMFR3] = 0x02102211;
+    cpu->isar.regs[ID_ISAR0] = 0x02101110;
+    cpu->isar.regs[ID_ISAR1] = 0x13112111;
+    cpu->isar.regs[ID_ISAR2] = 0x21232042;
+    cpu->isar.regs[ID_ISAR3] = 0x01112131;
+    cpu->isar.regs[ID_ISAR4] = 0x00011142;
+    cpu->isar.regs[ID_ISAR5] = 0x00011121;
+    cpu->isar.regs[ID_AA64PFR0] = 0x00002222;
+    cpu->isar.regs[ID_AA64DFR0] = 0x10305106;
+    cpu->isar.regs[ID_AA64ISAR0] = 0x00011120;
+    cpu->isar.regs[ID_AA64MMFR0] = 0x00001124;
+    cpu->isar.regs[DBGDIDR] = 0x3516d000;
     cpu->clidr = 0x0a200023;
     cpu->ccsidr[0] = 0x701fe00a; /* 32KB L1 dcache */
     cpu->ccsidr[1] = 0x201fe012; /* 48KB L1 icache */
@@ -552,9 +552,9 @@ static void cpu_arm_set_sve(Object *obj, Visitor *v, const char *name,
         return;
     }
 
-    t = cpu->isar.id_aa64pfr0;
+    t = cpu->isar.regs[ID_AA64PFR0];
     t = FIELD_DP64(t, ID_AA64PFR0, SVE, value);
-    cpu->isar.id_aa64pfr0 = t;
+    cpu->isar.regs[ID_AA64PFR0] = t;
 }
 
 void aarch64_add_sve_properties(Object *obj)
@@ -607,7 +607,7 @@ static void aarch64_max_initfn(Object *obj)
         t = FIELD_DP64(t, MIDR_EL1, REVISION, 0);
         cpu->midr = t;
 
-        t = cpu->isar.id_aa64isar0;
+        t = cpu->isar.regs[ID_AA64ISAR0];
         t = FIELD_DP64(t, ID_AA64ISAR0, AES, 2); /* AES + PMULL */
         t = FIELD_DP64(t, ID_AA64ISAR0, SHA1, 1);
         t = FIELD_DP64(t, ID_AA64ISAR0, SHA2, 2); /* SHA512 */
@@ -621,9 +621,9 @@ static void aarch64_max_initfn(Object *obj)
         t = FIELD_DP64(t, ID_AA64ISAR0, FHM, 1);
         t = FIELD_DP64(t, ID_AA64ISAR0, TS, 2); /* v8.5-CondM */
         t = FIELD_DP64(t, ID_AA64ISAR0, RNDR, 1);
-        cpu->isar.id_aa64isar0 = t;
+        cpu->isar.regs[ID_AA64ISAR0] = t;
 
-        t = cpu->isar.id_aa64isar1;
+        t = cpu->isar.regs[ID_AA64ISAR1];
         t = FIELD_DP64(t, ID_AA64ISAR1, DPB, 2);
         t = FIELD_DP64(t, ID_AA64ISAR1, JSCVT, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, FCMA, 1);
@@ -635,15 +635,15 @@ static void aarch64_max_initfn(Object *obj)
         t = FIELD_DP64(t, ID_AA64ISAR1, SPECRES, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, FRINTTS, 1);
         t = FIELD_DP64(t, ID_AA64ISAR1, LRCPC, 2); /* ARMv8.4-RCPC */
-        cpu->isar.id_aa64isar1 = t;
+        cpu->isar.regs[ID_AA64ISAR1] = t;
 
-        t = cpu->isar.id_aa64pfr0;
+        t = cpu->isar.regs[ID_AA64PFR0];
         t = FIELD_DP64(t, ID_AA64PFR0, SVE, 1);
         t = FIELD_DP64(t, ID_AA64PFR0, FP, 1);
         t = FIELD_DP64(t, ID_AA64PFR0, ADVSIMD, 1);
-        cpu->isar.id_aa64pfr0 = t;
+        cpu->isar.regs[ID_AA64PFR0] = t;
 
-        t = cpu->isar.id_aa64pfr1;
+        t = cpu->isar.regs[ID_AA64PFR1];
         t = FIELD_DP64(t, ID_AA64PFR1, BT, 1);
         /*
          * Begin with full support for MTE. This will be downgraded to MTE=0
@@ -651,63 +651,63 @@ static void aarch64_max_initfn(Object *obj)
          * we do for EL2 with the virtualization=on property.
          */
         t = FIELD_DP64(t, ID_AA64PFR1, MTE, 2);
-        cpu->isar.id_aa64pfr1 = t;
+        cpu->isar.regs[ID_AA64PFR1] = t;
 
-        t = cpu->isar.id_aa64mmfr1;
+        t = cpu->isar.regs[ID_AA64MMFR1];
         t = FIELD_DP64(t, ID_AA64MMFR1, HPDS, 1); /* HPD */
         t = FIELD_DP64(t, ID_AA64MMFR1, LO, 1);
         t = FIELD_DP64(t, ID_AA64MMFR1, VH, 1);
         t = FIELD_DP64(t, ID_AA64MMFR1, PAN, 2); /* ATS1E1 */
         t = FIELD_DP64(t, ID_AA64MMFR1, VMIDBITS, 2); /* VMID16 */
         t = FIELD_DP64(t, ID_AA64MMFR1, XNX, 1); /* TTS2UXN */
-        cpu->isar.id_aa64mmfr1 = t;
+        cpu->isar.regs[ID_AA64MMFR1] = t;
 
-        t = cpu->isar.id_aa64mmfr2;
+        t = cpu->isar.regs[ID_AA64MMFR2];
         t = FIELD_DP64(t, ID_AA64MMFR2, UAO, 1);
         t = FIELD_DP64(t, ID_AA64MMFR2, CNP, 1); /* TTCNP */
-        cpu->isar.id_aa64mmfr2 = t;
+        cpu->isar.regs[ID_AA64MMFR2] = t;
 
         /* Replicate the same data to the 32-bit id registers.  */
-        u = cpu->isar.id_isar5;
+        u = cpu->isar.regs[ID_ISAR5];
         u = FIELD_DP32(u, ID_ISAR5, AES, 2); /* AES + PMULL */
         u = FIELD_DP32(u, ID_ISAR5, SHA1, 1);
         u = FIELD_DP32(u, ID_ISAR5, SHA2, 1);
         u = FIELD_DP32(u, ID_ISAR5, CRC32, 1);
         u = FIELD_DP32(u, ID_ISAR5, RDM, 1);
         u = FIELD_DP32(u, ID_ISAR5, VCMA, 1);
-        cpu->isar.id_isar5 = u;
+        cpu->isar.regs[ID_ISAR5] = u;
 
-        u = cpu->isar.id_isar6;
+        u = cpu->isar.regs[ID_ISAR6];
         u = FIELD_DP32(u, ID_ISAR6, JSCVT, 1);
         u = FIELD_DP32(u, ID_ISAR6, DP, 1);
         u = FIELD_DP32(u, ID_ISAR6, FHM, 1);
         u = FIELD_DP32(u, ID_ISAR6, SB, 1);
         u = FIELD_DP32(u, ID_ISAR6, SPECRES, 1);
-        cpu->isar.id_isar6 = u;
+        cpu->isar.regs[ID_ISAR6] = u;
 
-        u = cpu->isar.id_mmfr3;
+        u = cpu->isar.regs[ID_MMFR3];
         u = FIELD_DP32(u, ID_MMFR3, PAN, 2); /* ATS1E1 */
-        cpu->isar.id_mmfr3 = u;
+        cpu->isar.regs[ID_MMFR3] = u;
 
-        u = cpu->isar.id_mmfr4;
+        u = cpu->isar.regs[ID_MMFR4];
         u = FIELD_DP32(u, ID_MMFR4, HPDS, 1); /* AA32HPD */
         u = FIELD_DP32(u, ID_MMFR4, AC2, 1); /* ACTLR2, HACTLR2 */
         u = FIELD_DP32(u, ID_MMFR4, CNP, 1); /* TTCNP */
         u = FIELD_DP32(u, ID_MMFR4, XNX, 1); /* TTS2UXN */
-        cpu->isar.id_mmfr4 = u;
+        cpu->isar.regs[ID_MMFR4] = u;
 
-        t = cpu->isar.id_aa64dfr0;
+        t = cpu->isar.regs[ID_AA64DFR0];
         t = FIELD_DP64(t, ID_AA64DFR0, PMUVER, 5); /* v8.4-PMU */
-        cpu->isar.id_aa64dfr0 = t;
+        cpu->isar.regs[ID_AA64DFR0] = t;
 
-        u = cpu->isar.id_dfr0;
+        u = cpu->isar.regs[ID_DFR0];
         u = FIELD_DP32(u, ID_DFR0, PERFMON, 5); /* v8.4-PMU */
-        cpu->isar.id_dfr0 = u;
+        cpu->isar.regs[ID_DFR0] = u;
 
-        u = cpu->isar.mvfr1;
+        u = cpu->isar.regs[MVFR1];
         u = FIELD_DP32(u, MVFR1, FPHP, 3);      /* v8.2-FP16 */
         u = FIELD_DP32(u, MVFR1, SIMDHP, 2);    /* v8.2-FP16 */
-        cpu->isar.mvfr1 = u;
+        cpu->isar.regs[MVFR1] = u;
 
 #ifdef CONFIG_USER_ONLY
         /* For usermode -cpu max we can use a larger and more efficient DCZ
