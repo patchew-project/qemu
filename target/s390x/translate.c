@@ -3302,6 +3302,35 @@ static DisasJumpType op_lcbb(DisasContext *s, DisasOps *o)
     return DISAS_NEXT;
 }
 
+static DisasJumpType op_mc(DisasContext *s, DisasOps *o)
+{
+#if !defined(CONFIG_USER_ONLY)
+    /* Reconstruct the monitor mask from the tb flags. */
+    uint16_t monitor_mask = ((s->base.tb->flags & FLAG_MASK_MM0_7) >>
+                             (FLAG_SHIFT_MM0_7 - 8)) |
+                            ((s->base.tb->flags & FLAG_MASK_MM8_15) >>
+                             FLAG_SHIFT_MM8_15);
+    TCGv_i32 i2;
+#endif
+    const uint16_t monitor_class = get_field(s, i2);
+
+    if (monitor_class & 0xff00) {
+        gen_program_exception(s, PGM_SPECIFICATION);
+        return DISAS_NORETURN;
+    }
+
+#if !defined(CONFIG_USER_ONLY)
+    if (monitor_mask & (0x8000 >> monitor_class)) {
+        i2 = tcg_const_i32(get_field(s, i2));
+        gen_helper_monitor_event(cpu_env, o->addr1, i2);
+        tcg_temp_free_i32(i2);
+        return DISAS_NORETURN;
+    }
+#endif
+    /* Defaults to a NOP. */
+    return DISAS_NEXT;
+}
+
 static DisasJumpType op_mov2(DisasContext *s, DisasOps *o)
 {
     o->out = o->in2;

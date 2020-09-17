@@ -610,4 +610,18 @@ void s390x_cpu_do_unaligned_access(CPUState *cs, vaddr addr,
     tcg_s390_program_interrupt(env, PGM_SPECIFICATION, retaddr);
 }
 
+void HELPER(monitor_event)(CPUS390XState *env, uint64_t monitor_code,
+                           uint32_t monitor_class)
+{
+    g_assert(monitor_class <= 0xff);
+
+    /* Store the Monitor Class Number and the Monitor Code into the lowcore */
+    stw_phys(env_cpu(env)->as,
+             env->psa + offsetof(LowCore, mon_class_num), monitor_class);
+    stq_phys(env_cpu(env)->as,
+             env->psa + offsetof(LowCore, monitor_code), monitor_code);
+
+    tcg_s390_program_interrupt(env, PGM_MONITOR, GETPC());
+}
+
 #endif /* CONFIG_USER_ONLY */

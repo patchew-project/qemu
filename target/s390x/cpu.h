@@ -266,6 +266,7 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define PSW_SHIFT_KEY           52
 #define PSW_MASK_SHORTPSW       0x0008000000000000ULL
 #define PSW_MASK_MCHECK         0x0004000000000000ULL
+#define PSW_SHIFT_MCHECK        50
 #define PSW_MASK_WAIT           0x0002000000000000ULL
 #define PSW_MASK_PSTATE         0x0001000000000000ULL
 #define PSW_MASK_ASC            0x0000C00000000000ULL
@@ -274,6 +275,11 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define PSW_MASK_PM             0x00000F0000000000ULL
 #define PSW_SHIFT_MASK_PM       40
 #define PSW_MASK_RI             0x0000008000000000ULL
+#define PSW_MASK_UNUSED_25      0x0000004000000000ULL
+#define PSW_MASK_UNUSED_26      0x0000002000000000ULL
+#define PSW_MASK_UNUSED_27      0x0000001000000000ULL
+#define PSW_MASK_UNUSED_27      0x0000001000000000ULL
+#define PSW_SHIFT_UNUSED_27     36
 #define PSW_MASK_64             0x0000000100000000ULL
 #define PSW_MASK_32             0x0000000080000000ULL
 #define PSW_MASK_SHORT_ADDR     0x000000007fffffffULL
@@ -311,6 +317,19 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define FLAG_MASK_AFP           (PSW_MASK_UNUSED_2 >> FLAG_MASK_PSW_SHIFT)
 #define FLAG_MASK_VECTOR        (PSW_MASK_UNUSED_3 >> FLAG_MASK_PSW_SHIFT)
 
+/*
+ * We'll store the monitor mask bits in a mixture of unused PSW positions
+ * and used PSW positions that are not copied to tb flags (see FLAG_MASK_PSW).
+ */
+#define FLAG_MASK_MM0_7         ((PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_KEY | \
+                                  PSW_MASK_SHORTPSW | PSW_MASK_MCHECK) >> \
+                                 FLAG_MASK_PSW_SHIFT)
+#define FLAG_SHIFT_MM0_7        (PSW_SHIFT_MCHECK - FLAG_MASK_PSW_SHIFT)
+#define FLAG_MASK_MM8_15        ((PSW_MASK_PM | PSW_MASK_RI | \
+                                 PSW_MASK_UNUSED_25 | PSW_MASK_UNUSED_26 | \
+                                 PSW_MASK_UNUSED_27) >> FLAG_MASK_PSW_SHIFT)
+#define FLAG_SHIFT_MM8_15       (PSW_SHIFT_UNUSED_27 - FLAG_MASK_PSW_SHIFT)
+
 /* Control register 0 bits */
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_SECONDARY           0x0000000004000000ULL
@@ -323,6 +342,9 @@ extern const VMStateDescription vmstate_s390_cpu;
 #define CR0_CKC_SC              0x0000000000000800ULL
 #define CR0_CPU_TIMER_SC        0x0000000000000400ULL
 #define CR0_SERVICE_SC          0x0000000000000200ULL
+
+/* Control register 8 bits */
+#define CR8_MONITOR_MASK        0x000000000000ffffULL
 
 /* Control register 14 bits */
 #define CR14_CHANNEL_REPORT_SC  0x0000000010000000ULL
@@ -367,6 +389,8 @@ static inline int cpu_mmu_index(CPUS390XState *env, bool ifetch)
 static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
                                         target_ulong *cs_base, uint32_t *flags)
 {
+    uint8_t byte;
+
     *pc = env->psw.addr;
     *cs_base = env->ex_value;
     *flags = (env->psw.mask >> FLAG_MASK_PSW_SHIFT) & FLAG_MASK_PSW;
@@ -376,6 +400,14 @@ static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
     if (env->cregs[0] & CR0_VECTOR) {
         *flags |= FLAG_MASK_VECTOR;
     }
+    /* Copy over the monitor mask bits (16) as two separate bytes. */
+    byte = (env->cregs[8] & CR8_MONITOR_MASK) >> 8;
+    *flags |= (uint32_t)byte << FLAG_SHIFT_MM0_7;
+    byte = env->cregs[8] & CR8_MONITOR_MASK;
+    *flags |= (uint32_t)byte << FLAG_SHIFT_MM8_15;
+
+    QEMU_BUILD_BUG_ON((FLAG_MASK_AFP | FLAG_MASK_VECTOR | FLAG_MASK_MM0_7 |
+                       FLAG_MASK_MM8_15) & FLAG_MASK_PSW);
 }
 
 /* PER bits from control register 9 */
