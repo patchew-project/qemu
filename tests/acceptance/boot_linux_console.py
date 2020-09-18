@@ -638,6 +638,9 @@ class BootLinuxConsole(LinuxKernelTest):
 
         self.vm.set_console()
         kernel_command_line = (self.KERNEL_COMMON_COMMAND_LINE +
+                               'initcall_blacklist=npcm_i2c_bus_driver_init '
+                               'systemd.mask=systemd-random-seed.service '
+                               'systemd.mask=dropbearkey.service '
                                'console=ttyS0,115200n8 '
                                'earlycon=uart8250,mmio32,0xf0001000')
         self.vm.add_args('-kernel', kernel_path,
