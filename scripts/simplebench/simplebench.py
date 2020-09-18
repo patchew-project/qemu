@@ -79,10 +79,34 @@ def bench_one(test_func, test_env, test_case, count=5, initial_run=True):
     return result
 
 
+def format_float(x):
+    res = round(x)
+    if res >= 100:
+        return str(res)
+
+    res = f'{x:.1f}'
+    if len(res) >= 4:
+        return res
+
+    return f'{x:.2f}'
+
+
+def format_percent(x):
+    x *= 100
+
+    res = round(x)
+    if res >= 10:
+        return str(res)
+
+    return f'{x:.1f}' if res >= 1 else f'{x:.2f}'
+
+
 def ascii_one(result):
     """Return ASCII representation of bench_one() returned dict."""
     if 'average' in result:
-        s = '{:.2f} +- {:.2f}'.format(result['average'], result['delta'])
+        avg = result['average']
+        delta_pr = result['delta'] / avg
+        s = f'{format_float(avg)}±{format_percent(delta_pr)}%'
         if 'n-failed' in result:
             s += '\n({} failed)'.format(result['n-failed'])
         return s
