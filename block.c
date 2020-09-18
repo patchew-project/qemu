@@ -1964,8 +1964,7 @@ static void bdrv_child_perm(BlockDriverState *bs, BlockDriverState *child_bs,
 /*
  * Check whether permissions on this node can be changed in a way that
  * @cumulative_perms and @cumulative_shared_perms are the new cumulative
- * permissions of all its parents. This involves checking whether all necessary
- * permission changes to child nodes can be performed.
+ * permissions of all its parents.
  *
  * Will set *tighten_restrictions to true if and only if new permissions have to
  * be taken or currently shared permissions are to be unshared.  Otherwise,
@@ -2047,8 +2046,11 @@ static int bdrv_check_perm(BlockDriverState *bs, BlockReopenQueue *q,
     }
 
     if (drv->bdrv_check_perm) {
-        return drv->bdrv_check_perm(bs, cumulative_perms,
-                                    cumulative_shared_perms, errp);
+        ret = drv->bdrv_check_perm(bs, cumulative_perms,
+                                   cumulative_shared_perms, errp);
+        if (ret < 0) {
+            return ret;
+        }
     }
 
     /* Drivers that never have children can omit .bdrv_child_perm() */
