@@ -91,3 +91,7 @@ endif
 
 subdir('descriptors')
 subdir('keymaps')
+
+if host_machine.cpu_family() == 's390x' and cc.has_argument('-march=z900')
+  subproject('s390-ccw')
+endif
