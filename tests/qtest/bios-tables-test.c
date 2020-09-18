@@ -11,7 +11,7 @@
  */
 
 /*
- * How to add or update the tests:
+ * How to add or update the tests or commit changes that affect tables:
  * Contributor:
  * 1. add empty files for new tables, if any, under tests/data/acpi
  * 2. list any changed files in tests/qtest/bios-tables-test-allowed-diff.h
@@ -48,6 +48,24 @@
  * - patches 2 - n: real changes, may contain multiple patches.
  * - patch n + 1: update golden master binaries and empty
  *   tests/qtest/bios-tables-test-allowed-diff.h
+ *
+ * There is a reason why the above process is followed. After every commit we
+ * make sure that the unit tests are not broken.
+ * Listing changed files in patch 1 makes sure every commit that follows which
+ * affect the tests (patches 2 - n) does not break tests.
+ * This is followed by the actual changes (test changes or code changes) that
+ * actually affect the acpi tables.
+ * Finally in patch n + 1, we update the golden master blobs as well as revert
+ * the file additions in bios-tables-test-allowed-diff.h. This makes sure that
+ * the test continues to pass because of updated table blobs while the state of
+ * bios-tables-test-allowed-diff.h is reverted back to the default empty file
+ * condition.
+ *
+ * We could have committed the table updates along with the patches. However,
+ * whereas a code change is easily reviewable and in case of conflicts, easily
+ * addressible, a binary blob is not. Hence, its better to commmit the binary
+ * blob updates as a separate independent commit. Listing the modified table
+ * files additionally helps in bisection in case things are broken.
  */
 
 #include "qemu/osdep.h"
