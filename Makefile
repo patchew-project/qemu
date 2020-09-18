@@ -135,13 +135,12 @@ Makefile: ;
 configure: ;
 
 .PHONY: all clean distclean install \
-	recurse-all dist msi FORCE
+	dist msi FORCE
 
 SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
 
 include $(SRC_PATH)/tests/Makefile.include
 
-all: recurse-all
 Makefile: $(addsuffix /all, $(SUBDIRS))
 
 # LIBFDT_lib="": avoid breaking existing trees with objects requiring -fPIC
@@ -180,11 +179,9 @@ slirp/all: .git-submodule-status
 		CC="$(CC)" AR="$(AR)" 	LD="$(LD)" RANLIB="$(RANLIB)"	\
 		CFLAGS="$(QEMU_CFLAGS) $(CFLAGS)" LDFLAGS="$(QEMU_LDFLAGS)")
 
-.PHONY: recurse-all recurse-clean
-
 ######################################################################
 
-clean: recurse-clean ninja-clean clean-ctlist
+clean: ninja-clean clean-ctlist
 	if test -f ninjatool; then ./ninjatool $(if $(V),-v,) -t clean; fi
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
