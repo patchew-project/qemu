@@ -92,6 +92,18 @@ endif
 subdir('descriptors')
 subdir('keymaps')
 
+dtc = find_program('dtc', required: false)
+if dtc.found()
+  t = []
+  foreach f: ['bamboo.dts', 'canyonlands.dts', 'petalogix-ml605.dts', 'petalogix-s3adsp1800.dts']
+    t += custom_target(f,
+                       input: f,
+                       output: '@BASENAME@' + '.dtb',
+                       command: [dtc, '-I', 'dts', '-O', 'dtb', '-o', '@OUTPUT@', '@INPUT@'])
+  endforeach
+  alias_target('update-dtb', t)
+endif
+
 if host_machine.cpu_family() in ['x86', 'x86_64']
   subproject('optionrom')
 endif
