@@ -153,14 +153,22 @@ def bench(test_func, test_envs, test_cases, *args, **vargs):
 
 def ascii(results):
     """Return ASCII representation of bench() returned dict."""
-    from tabulate import tabulate
+    import tabulate
+
+    # We want leading whitespace for difference row cells (see below)
+    tabulate.PRESERVE_WHITESPACE = True
 
     dim = None
-    tab = [[""] + [c['id'] for c in results['envs']]]
+    tab = [
+        # Environment columns are named A, B, ...
+        [""] + [chr(ord('A') + i) for i in range(len(results['envs']))],
+        [""] + [c['id'] for c in results['envs']]
+    ]
     for case in results['cases']:
         row = [case['id']]
+        case_results = results['tab'][case['id']]
         for env in results['envs']:
-            res = results['tab'][case['id']][env['id']]
+            res = case_results[env['id']]
             if dim is None:
                 dim = res['dimension']
             else:
@@ -168,4 +176,34 @@ def ascii(results):
             row.append(ascii_one(res))
         tab.append(row)
 
-    return f'All results are in {dim}\n\n' + tabulate(tab)
+        # Add row of difference between column. For each column starting from
+        # B we calculate difference with all previous columns.
+        row = ['', '']  # case name and first column
+        for i in range(1, len(results['envs'])):
+            cell = ''
+            env = results['envs'][i]
+            res = case_results[env['id']]
+
+            if 'average' not in res:
+                # Failed result
+                row.append(cell)
+                continue
+
+            for j in range(0, i):
+                env_j = results['envs'][j]
+                res_j = case_results[env_j['id']]
+
+                if 'average' not in res_j:
+                    # Failed result
+                    cell += ' --'
+                    continue
+
+                col_j = chr(ord('A') + j)
+                avg_j = res_j['average']
+                delta = (res['average'] - avg_j) / avg_j * 100
+                delta_delta = (res['delta'] + res_j['delta']) / avg_j * 100
+                cell += f' {col_j}{round(delta):+}±{round(delta_delta)}%'
+            row.append(cell)
+        tab.append(row)
+
+    return f'All results are in {dim}\n\n' + tabulate.tabulate(tab)
