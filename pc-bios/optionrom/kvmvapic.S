@@ -104,7 +104,7 @@ mp_get_tpr_eax:
 	reenable_vtpr
 	push %ecx
 
-	fs/movzbl pcr_cpu, %eax
+	movzbl %fs:pcr_cpu, %eax
 
 	mov vcpu_shift, %ecx	; fixup
 	shl %cl, %eax
@@ -178,7 +178,7 @@ mp_set_tpr:
 	reenable_vtpr
 
 mp_set_tpr_failed:
-	fs/movzbl pcr_cpu, %edx
+	movzbl %fs:pcr_cpu, %edx
 
 	mov vcpu_shift, %ecx	; fixup
 	shl %cl, %edx
