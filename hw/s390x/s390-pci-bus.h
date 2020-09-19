@@ -322,6 +322,7 @@ typedef struct S390PCIGroup {
     int ug;
     QTAILQ_ENTRY(S390PCIGroup) link;
 } S390PCIGroup;
+S390PCIGroup *s390_grp_create(int ug);
 S390PCIGroup *s390_grp_find(int ug);
 
 struct S390PCIBusDevice {
