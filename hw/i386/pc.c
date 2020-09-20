@@ -77,6 +77,7 @@
 #include "hw/acpi/cpu_hotplug.h"
 #include "hw/boards.h"
 #include "acpi-build.h"
+#include "hw/mem/haprot.h"
 #include "hw/mem/pc-dimm.h"
 #include "hw/mem/nvdimm.h"
 #include "qapi/error.h"
@@ -1416,6 +1417,18 @@ static void pc_virtio_md_pci_unplug_request(HotplugHandler *hotplug_dev,
     error_setg(errp, "virtio based memory devices cannot be unplugged.");
 }
 
+static void pc_haprot_unplug_request(DeviceState *dev, Error **errp)
+{
+    HAProtDevice *haprot = HAPROT(dev);
+
+    if (haprot->busy) {
+        error_setg(errp, "the memory is still busy, cannot unplug");
+        return;
+    }
+
+    object_unparent(OBJECT(dev));
+}
+
 static void pc_virtio_md_pci_unplug(HotplugHandler *hotplug_dev,
                                     DeviceState *dev, Error **errp)
 {
@@ -1458,6 +1471,8 @@ static void pc_machine_device_unplug_request_cb(HotplugHandler *hotplug_dev,
     } else if (object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM_PCI) ||
                object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MEM_PCI)) {
         pc_virtio_md_pci_unplug_request(hotplug_dev, dev, errp);
+    } else if (object_dynamic_cast(OBJECT(dev), TYPE_HAPROT)) {
+        pc_haprot_unplug_request(dev, errp);
     } else {
         error_setg(errp, "acpi: device unplug request for not supported device"
                    " type: %s", object_get_typename(OBJECT(dev)));
@@ -1486,7 +1501,8 @@ static HotplugHandler *pc_get_hotplug_handler(MachineState *machine,
     if (object_dynamic_cast(OBJECT(dev), TYPE_PC_DIMM) ||
         object_dynamic_cast(OBJECT(dev), TYPE_CPU) ||
         object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_PMEM_PCI) ||
-        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MEM_PCI)) {
+        object_dynamic_cast(OBJECT(dev), TYPE_VIRTIO_MEM_PCI) ||
+        object_dynamic_cast(OBJECT(dev), TYPE_HAPROT)) {
         return HOTPLUG_HANDLER(machine);
     }
 

@@ -10,3 +10,7 @@ config NVDIMM
     default y
     depends on (PC || PSERIES || ARM_VIRT)
     select MEM_DEVICE
+
+config HAPROT
+    bool
+    select MEM_DEVICE
