@@ -1259,7 +1259,8 @@ ObjectProperty *object_property_find(Object *obj, const char *name,
         return prop;
     }
 
-    error_setg(errp, "Property '.%s' not found", name);
+    error_setg(errp, "Property '%s.%s' not found",
+               object_get_typename(obj), name);
     return NULL;
 }
 
