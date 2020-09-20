@@ -411,6 +411,11 @@ static void dsound_enable_out(HWVoiceOut *hw, bool enable)
     }
 }
 
+static size_t dsound_buffer_get_free(HWVoiceOut *hw)
+{
+    return INT_MAX;
+}
+
 static void *dsound_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
     DSoundVoiceOut *ds = (DSoundVoiceOut *) hw;
@@ -686,6 +691,7 @@ static struct audio_pcm_ops dsound_pcm_ops = {
     .init_out = dsound_init_out,
     .fini_out = dsound_fini_out,
     .write    = audio_generic_write,
+    .buffer_get_free = dsound_buffer_get_free,
     .get_buffer_out = dsound_get_buffer_out,
     .put_buffer_out = dsound_put_buffer_out,
     .enable_out = dsound_enable_out,

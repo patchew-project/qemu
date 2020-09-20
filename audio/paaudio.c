@@ -202,6 +202,11 @@ unlock_and_fail:
     return 0;
 }
 
+static size_t qpa_buffer_get_free(HWVoiceOut *hw)
+{
+    return INT_MAX;
+}
+
 static void *qpa_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
     PAVoiceOut *p = (PAVoiceOut *) hw;
@@ -860,6 +865,7 @@ static struct audio_pcm_ops qpa_pcm_ops = {
     .init_out = qpa_init_out,
     .fini_out = qpa_fini_out,
     .write    = qpa_write,
+    .buffer_get_free = qpa_buffer_get_free,
     .get_buffer_out = qpa_get_buffer_out,
     .put_buffer_out = qpa_write, /* pa handles it */
     .volume_out = qpa_volume_out,

@@ -391,6 +391,17 @@ static void oss_run_buffer_out(HWVoiceOut *hw)
     }
 }
 
+static size_t oss_buffer_get_free(HWVoiceOut *hw)
+{
+    OSSVoiceOut *oss = (OSSVoiceOut *)hw;
+
+    if (oss->mmapped) {
+        return oss_get_available_bytes(oss);
+    } else {
+        return audio_generic_buffer_get_free(hw);
+    }
+}
+
 static void *oss_get_buffer_out(HWVoiceOut *hw, size_t *size)
 {
     OSSVoiceOut *oss = (OSSVoiceOut *) hw;
@@ -754,6 +765,7 @@ static struct audio_pcm_ops oss_pcm_ops = {
     .init_out = oss_init_out,
     .fini_out = oss_fini_out,
     .write    = oss_write,
+    .buffer_get_free = oss_buffer_get_free,
     .run_buffer_out = oss_run_buffer_out,
     .get_buffer_out = oss_get_buffer_out,
     .put_buffer_out = oss_put_buffer_out,
