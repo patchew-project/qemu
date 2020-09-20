@@ -543,6 +543,7 @@ fuzzing="no"
 rng_none="no"
 secret_keyring=""
 libdaxctl=""
+hv_balloon=""
 meson=""
 ninja=""
 skip_meson=no
@@ -1628,6 +1629,10 @@ for opt do
   ;;
   --disable-libdaxctl) libdaxctl=no
   ;;
+  --enable-hv-balloon) hv_balloon=yes
+  ;;
+  --disable-hv-balloon) hv_balloon=no
+  ;;
   *)
       echo "ERROR: unknown option $opt"
       echo "Try '$0 --help' for more information"
@@ -1949,6 +1954,7 @@ disabled with --disable-FEATURE, default is enabled if available:
   xkbcommon       xkbcommon support
   rng-none        dummy RNG, avoid using /dev/(u)random and getrandom()
   libdaxctl       libdaxctl support
+  hv-balloon      hv-balloon driver where supported (requires extended GTree API)
 
 NOTE: The object files are built at the place where configure is launched
 EOF
@@ -6120,6 +6126,32 @@ if test "$libdaxctl" != "no"; then
 fi
 
 ##########################################
+# check for hv-balloon
+
+if test "$hv_balloon" != "no"; then
+	cat > $TMPC << EOF
+#include <string.h>
+#include <gmodule.h>
+int main(void) {
+    GTree *tree;
+
+    tree = g_tree_new((GCompareFunc)strcmp);
+    (void)g_tree_node_first(tree);
+    g_tree_destroy(tree);
+    return 0;
+}
+EOF
+	if compile_prog "$glib_cflags" "$glib_libs" ; then
+		hv_balloon=yes
+	else
+		if test "$hv_balloon" = "yes" ; then
+			feature_not_found "hv-balloon" "Update Glib"
+		fi
+		hv_balloon="no"
+	fi
+fi
+
+##########################################
 # check for slirp
 
 # slirp is only required when building softmmu targets
@@ -7351,6 +7383,9 @@ if test "$parallels" = "yes" ; then
 fi
 if test "$sheepdog" = "yes" ; then
   echo "CONFIG_SHEEPDOG=y" >> $config_host_mak
+fi
+if test "$hv_balloon" = "yes" ; then
+  echo "CONFIG_HV_BALLOON_POSSIBLE=y" >> $config_host_mak
 fi
 if test "$pty_h" = "yes" ; then
   echo "HAVE_PTY_H=y" >> $config_host_mak

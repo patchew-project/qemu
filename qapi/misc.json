@@ -277,6 +277,80 @@
   'data': { 'actual': 'int' } }
 
 ##
+# @HV_BALLOON_STATUS_REPORT:
+#
+# Emitted when the hv-balloon driver receives a "STATUS" message from
+# the guest.
+#
+# @commited: the amount of memory in use inside the guest plus the amount
+#            of the memory unusable inside the guest (ballooned out,
+#            offline, etc.)
+#
+# @available: the amount of the memory inside the guest available for new
+#             allocations ("free")
+#
+# Since: TBD
+#
+# Example:
+#
+# <- { "event": "HV_BALLOON_STATUS_REPORT",
+#      "data": { "commited": 816640000, "available": 3333054464 },
+#      "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#
+##
+{ 'event': 'HV_BALLOON_STATUS_REPORT',
+  'data': { 'commited': 'size', 'available': 'size' } }
+
+##
+# @HV_BALLOON_HAPROT_UNUSED:
+#
+# Emitted when the hv-balloon driver marks a device for memory hot-add
+# protocols (haprot) unused so it can now be removed, if required.
+#
+# This can happen because the guest returned all the memory contained
+# in it via ballooning or the VM was restarted.
+#
+# @id: the haprot device id
+#
+# Since: TBD
+#
+# Example:
+#
+# <- { "event": "HV_BALLOON_HAPROT_UNUSED",
+#      "data": { "id": "ha1" },
+#      "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#
+##
+{ 'event': 'HV_BALLOON_HAPROT_UNUSED',
+  'data': { 'id': 'str' } }
+
+##
+# @HV_BALLOON_HAPROT_INUSE:
+#
+# Emitted when the hv-balloon driver marks a device for memory hot-add
+# protocols (haprot) in use once again so it can no longer be removed.
+#
+# This can happen because the guest was unballooned using its memory range
+# or the memory range was reinserted into the guest after a VM restart.
+#
+# It is NOT emitted when a new haprot device is successfully added,
+# although such device starts in the "in use" state.
+#
+# @id: the haprot device id
+#
+# Since: TBD
+#
+# Example:
+#
+# <- { "event": "HV_BALLOON_HAPROT_INUSE",
+#      "data": { "id": "ha1" },
+#      "timestamp": { "seconds": 1600295492, "microseconds": 661044 } }
+#
+##
+{ 'event': 'HV_BALLOON_HAPROT_INUSE',
+  'data': { 'id': 'str' } }
+
+##
 # @PciMemoryRange:
 #
 # A PCI device memory region

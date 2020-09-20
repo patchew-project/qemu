@@ -525,6 +525,7 @@ kconfig_external_symbols = [
   'CONFIG_VIRTFS',
   'CONFIG_LINUX',
   'CONFIG_PVRDMA',
+  'CONFIG_HV_BALLOON_POSSIBLE',
 ]
 ignored = ['TARGET_XML_FILES', 'TARGET_ABI_DIR', 'TARGET_DIRS']
 
@@ -1525,6 +1526,7 @@ endif
 summary_info += {'thread sanitizer':  config_host.has_key('CONFIG_TSAN')}
 summary_info += {'rng-none':          config_host.has_key('CONFIG_RNG_NONE')}
 summary_info += {'Linux keyring':     config_host.has_key('CONFIG_SECRET_KEYRING')}
+summary_info += {'hv-balloon support': config_host.has_key('CONFIG_HV_BALLOON_POSSIBLE')}
 summary(summary_info, bool_yn: true)
 
 if not supported_cpus.contains(cpu)

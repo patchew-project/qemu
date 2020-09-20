@@ -11,3 +11,8 @@ config VMBUS
     bool
     default y
     depends on HYPERV
+
+config HV_BALLOON
+    bool
+    default y
+    depends on HV_BALLOON_POSSIBLE && VMBUS && HAPROT

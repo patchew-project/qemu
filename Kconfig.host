@@ -33,3 +33,6 @@ config VIRTFS
 
 config PVRDMA
     bool
+
+config HV_BALLOON_POSSIBLE
+    bool
