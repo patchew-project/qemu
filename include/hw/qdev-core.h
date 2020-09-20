@@ -675,7 +675,19 @@ typedef int (qdev_walkerfn)(DeviceState *dev, void *opaque);
 void qbus_create_inplace(void *bus, size_t size, const char *typename,
                          DeviceState *parent, const char *name);
 BusState *qbus_create(const char *typename, DeviceState *parent, const char *name);
+/**
+ * qbus_realize: Realize a bus
+ * @bus: bus to realize
+ * @errp: pointer to error object
+ *
+ * On success, return true.
+ * On failure, store an error through @errp and return false.
+ */
 bool qbus_realize(BusState *bus, Error **errp);
+/**
+ * qbus_realize: Unrealize a bus
+ * @bus: bus to unrealize
+ */
 void qbus_unrealize(BusState *bus);
 
 /* Returns > 0 if either devfn or busfn skip walk somewhere in cursion,
