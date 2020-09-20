@@ -65,12 +65,13 @@ static const MemoryRegionOps nubus_super_slot_ops = {
     },
 };
 
-static void nubus_realize(BusState *bus, Error **errp)
+static bool nubus_realize(BusState *bus, Error **errp)
 {
     if (!nubus_find()) {
         error_setg(errp, "at most one %s device is permitted", TYPE_NUBUS_BUS);
-        return;
+        return false;
     }
+    return true;
 }
 
 static void nubus_init(Object *obj)

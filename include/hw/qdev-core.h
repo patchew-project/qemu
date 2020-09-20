@@ -32,7 +32,19 @@ typedef enum DeviceCategory {
 typedef void (*DeviceRealize)(DeviceState *dev, Error **errp);
 typedef void (*DeviceUnrealize)(DeviceState *dev);
 typedef void (*DeviceReset)(DeviceState *dev);
-typedef void (*BusRealize)(BusState *bus, Error **errp);
+/**
+ * BusRealize: Realize @bus.
+ * @bus: bus to realize
+ * @errp: pointer to error object
+ *
+ * On success, return true.
+ * On failure, store an error through @errp and return false.
+ */
+typedef bool (*BusRealize)(BusState *bus, Error **errp);
+/**
+ * BusUnrealize: Unrealize @bus.
+ * @bus: bus to unrealize
+ */
 typedef void (*BusUnrealize)(BusState *bus);
 
 /**

@@ -444,7 +444,7 @@ static void xen_bus_unrealize(BusState *bus)
     }
 }
 
-static void xen_bus_realize(BusState *bus, Error **errp)
+static bool xen_bus_realize(BusState *bus, Error **errp)
 {
     XenBus *xenbus = XEN_BUS(bus);
     unsigned int domid;
@@ -478,10 +478,11 @@ static void xen_bus_realize(BusState *bus, Error **errp)
                           "failed to set up enumeration watch: ");
     }
 
-    return;
+    return true;
 
 fail:
     xen_bus_unrealize(bus);
+    return false;
 }
 
 static void xen_bus_unplug_request(HotplugHandler *hotplug,

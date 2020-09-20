@@ -2487,7 +2487,7 @@ static const TypeInfo vmbus_dev_type_info = {
     .instance_init = vmbus_dev_instance_init,
 };
 
-static void vmbus_realize(BusState *bus, Error **errp)
+static bool vmbus_realize(BusState *bus, Error **errp)
 {
     int ret = 0;
     Error *local_err = NULL;
@@ -2519,7 +2519,7 @@ static void vmbus_realize(BusState *bus, Error **errp)
         goto clear_event_notifier;
     }
 
-    return;
+    return true;
 
 clear_event_notifier:
     event_notifier_cleanup(&vmbus->notifier);
@@ -2528,6 +2528,7 @@ remove_msg_handler:
 error_out:
     qemu_mutex_destroy(&vmbus->rx_queue_lock);
     error_propagate(errp, local_err);
+    return false;
 }
 
 static void vmbus_unrealize(BusState *bus)
