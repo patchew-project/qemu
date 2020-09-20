@@ -43,7 +43,7 @@ DECLARE_INSTANCE_CHECKER(LEDMADeviceState, SPARC32_LEDMA_DEVICE,
 struct LEDMADeviceState {
     DMADeviceState parent_obj;
 
-    SysBusPCNetState *lance;
+    SysBusPCNetState lance;
 };
 
 #define TYPE_SPARC32_DMA "sparc32-dma"
