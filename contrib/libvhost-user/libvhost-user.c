@@ -2407,7 +2407,7 @@ vu_queue_set_notification(VuDev *dev, VuVirtq *vq, int enable)
     }
 }
 
-static void
+static bool
 virtqueue_map_desc(VuDev *dev,
                    unsigned int *p_num_sg, struct iovec *iov,
                    unsigned int max_num_sg, bool is_write,
@@ -2419,7 +2419,7 @@ virtqueue_map_desc(VuDev *dev,
 
     if (!sz) {
         vu_panic(dev, "virtio: zero sized buffers are not allowed");
-        return;
+        return false;
     }
 
     while (sz) {
@@ -2427,13 +2427,13 @@ virtqueue_map_desc(VuDev *dev,
 
         if (num_sg == max_num_sg) {
             vu_panic(dev, "virtio: too many descriptors in indirect table");
-            return;
+            return false;
         }
 
         iov[num_sg].iov_base = vu_gpa_to_va(dev, &len, pa);
         if (iov[num_sg].iov_base == NULL) {
             vu_panic(dev, "virtio: invalid address for buffers");
-            return;
+            return false;
         }
         iov[num_sg].iov_len = len;
         num_sg++;
@@ -2442,6 +2442,7 @@ virtqueue_map_desc(VuDev *dev,
     }
 
     *p_num_sg = num_sg;
+    return true;
 }
 
 static void *
@@ -2479,6 +2480,7 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
     if (desc[i].flags & VRING_DESC_F_INDIRECT) {
         if (desc[i].len % sizeof(struct vring_desc)) {
             vu_panic(dev, "Invalid size for indirect buffer table");
+            return NULL;
         }
 
         /* loop over the indirect descriptor table */
@@ -2506,22 +2508,27 @@ vu_queue_map_desc(VuDev *dev, VuVirtq *vq, unsigned int idx, size_t sz)
     /* Collect all the descriptors */
     do {
         if (desc[i].flags & VRING_DESC_F_WRITE) {
-            virtqueue_map_desc(dev, &in_num, iov + out_num,
-                               VIRTQUEUE_MAX_SIZE - out_num, true,
-                               desc[i].addr, desc[i].len);
+            if (!virtqueue_map_desc(dev, &in_num, iov + out_num,
+                                    VIRTQUEUE_MAX_SIZE - out_num, true,
+                                    desc[i].addr, desc[i].len)) {
+                return NULL;
+            }
         } else {
             if (in_num) {
                 vu_panic(dev, "Incorrect order for descriptors");
                 return NULL;
             }
-            virtqueue_map_desc(dev, &out_num, iov,
-                               VIRTQUEUE_MAX_SIZE, false,
-                               desc[i].addr, desc[i].len);
+            if (!virtqueue_map_desc(dev, &out_num, iov,
+                                    VIRTQUEUE_MAX_SIZE, false,
+                                    desc[i].addr, desc[i].len)) {
+                return NULL;
+            }
         }
 
         /* If we've got too many, that implies a descriptor loop. */
         if ((in_num + out_num) > max) {
             vu_panic(dev, "Looped descriptor");
+            return NULL;
         }
         rc = virtqueue_read_next_desc(dev, desc, i, max, &i);
     } while (rc == VIRTQUEUE_READ_DESC_MORE);
