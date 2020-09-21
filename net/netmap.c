@@ -411,6 +411,7 @@ int net_init_netmap(const Netdev *netdev,
     NetClientState *nc;
     Error *err = NULL;
     NetmapState *s;
+    NetdevNetmapOptions *stored;
 
     nmd = netmap_open(netmap_opts, &err);
     if (err) {
@@ -426,6 +427,18 @@ int net_init_netmap(const Netdev *netdev,
     s->vnet_hdr_len = 0;
     pstrcpy(s->ifname, sizeof(s->ifname), netmap_opts->ifname);
     netmap_read_poll(s, true); /* Initially only poll for reads. */
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_NETMAP;
+    stored = &nc->stored_config->u.netmap;
+
+    stored->ifname = g_strdup(netmap_opts->ifname);
+
+    if (netmap_opts->has_devname) {
+        stored->has_devname = true;
+        stored->devname = g_strdup(netmap_opts->devname);
+    }
 
     return 0;
 }

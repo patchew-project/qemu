@@ -535,6 +535,7 @@ int net_init_l2tpv3(const Netdev *netdev,
     struct addrinfo hints;
     struct addrinfo *result = NULL;
     char *srcport, *dstport;
+    NetdevL2TPv3Options *stored;
 
     nc = qemu_new_net_client(&net_l2tpv3_info, peer, "l2tpv3", name);
 
@@ -725,6 +726,24 @@ int net_init_l2tpv3(const Netdev *netdev,
     s->counter = 0;
 
     l2tpv3_read_poll(s, true);
+
+    /* Store startup parameters */
+    nc->stored_config = g_new0(NetdevInfo, 1);
+    nc->stored_config->type = NET_BACKEND_L2TPV3;
+    stored = &nc->stored_config->u.l2tpv3;
+
+    memcpy(stored, l2tpv3, sizeof(NetdevL2TPv3Options));
+
+    stored->src = g_strdup(l2tpv3->src);
+    stored->dst = g_strdup(l2tpv3->dst);
+
+    if (l2tpv3->has_srcport) {
+        stored->srcport = g_strdup(l2tpv3->srcport);
+    }
+
+    if (l2tpv3->has_dstport) {
+        stored->dstport = g_strdup(l2tpv3->dstport);
+    }
 
     snprintf(s->nc.info_str, sizeof(s->nc.info_str),
              "l2tpv3: connected");

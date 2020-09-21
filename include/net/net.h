@@ -92,6 +92,7 @@ struct NetClientState {
     char *model;
     char *name;
     char info_str[256];
+    NetdevInfo *stored_config;
     unsigned receive_disabled : 1;
     NetClientDestructor *destructor;
     unsigned int queue_index;
