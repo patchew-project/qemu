@@ -51,6 +51,7 @@ int net_init_l2tpv3(const Netdev *netdev, const char *name,
 #ifdef CONFIG_VDE
 int net_init_vde(const Netdev *netdev, const char *name,
                  NetClientState *peer, Error **errp);
+int net_vde_get_fd(const NetClientState *nc);
 #endif
 
 #ifdef CONFIG_NETMAP

@@ -172,7 +172,8 @@ void qemu_check_nic_model(NICInfo *nd, const char *model);
 int qemu_find_nic_model(NICInfo *nd, const char * const *models,
                         const char *default_model);
 
-void print_net_client(Monitor *mon, NetClientState *nc);
+void print_net_client(Monitor *mon, NetClientState *nc,
+                      NetdevInfoList *ni_list);
 void hmp_info_network(Monitor *mon, const QDict *qdict);
 void net_socket_rs_init(SocketReadState *rs,
                         SocketReadStateFinalize *finalize,
