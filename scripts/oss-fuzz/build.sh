@@ -87,6 +87,7 @@ make "-j$(nproc)" qemu-fuzz-i386 V=1
 
 # Copy over the datadir
 cp  -r ../pc-bios/ "$DEST_DIR/pc-bios"
+cp  -r ../pc-bios/ "$DEST_DIR/deps/pc-bios"
 
 # Run the fuzzer with no arguments, to print the help-string and get the list
 # of available fuzz-targets. Copy over the qemu-fuzz-i386, naming it according
@@ -96,6 +97,12 @@ for target in $(./qemu-fuzz-i386 | awk '$1 ~ /\*/  {print $2}');
 do
     cp qemu-fuzz-i386 "$DEST_DIR/qemu-fuzz-i386-target-$target"
 done
+
+mkdir -p "$DEST_DIR/deps"
+mv "$DEST_DIR/qemu-fuzz-i386-target-general-fuzz" "$DEST_DIR/deps/"
+
+./scripts/oss-fuzz/build_general_fuzzers.py \
+    "./scripts/oss-fuzz/general_fuzzer_configs.yml" "$DEST_DIR/general-fuzz-"
 
 echo "Done. The fuzzers are located in $DEST_DIR"
 exit 0
