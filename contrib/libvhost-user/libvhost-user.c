@@ -2722,6 +2722,7 @@ vu_log_queue_fill(VuDev *dev, VuVirtq *vq,
     if (desc[i].flags & VRING_DESC_F_INDIRECT) {
         if (desc[i].len % sizeof(struct vring_desc)) {
             vu_panic(dev, "Invalid size for indirect buffer table");
+            return;
         }
 
         /* loop over the indirect descriptor table */
