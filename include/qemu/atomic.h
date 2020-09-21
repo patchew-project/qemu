@@ -15,6 +15,32 @@
 #ifndef QEMU_ATOMIC_H
 #define QEMU_ATOMIC_H
 
+#include <stdbool.h>
+#include <stddef.h>
+
+/* Use C11 Atomics if possible, otherwise fall back to custom definitions */
+#ifdef CONFIG_STDATOMIC_H
+#include <stdatomic.h>
+#else
+/* Commonly used types from C11 "7.17.6 Atomic integer types" */
+typedef bool atomic_bool;
+typedef char atomic_char;
+typedef signed char atomic_schar;
+typedef unsigned char atomic_uchar;
+typedef short atomic_short;
+typedef unsigned short atomic_ushort;
+typedef int atomic_int;
+typedef unsigned int atomic_uint;
+typedef long atomic_long;
+typedef unsigned long atomic_ulong;
+typedef long long atomic_llong;
+typedef unsigned long long atomic_ullong;
+typedef intptr_t atomic_intptr_t;
+typedef uintptr_t atomic_uintptr_t;
+typedef size_t atomic_size_t;
+typedef ptrdiff_t atomic_ptrdiff_t;
+#endif
+
 /* Compiler barrier */
 #define barrier()   ({ asm volatile("" ::: "memory"); (void)0; })
 
@@ -205,10 +231,6 @@
     atomic_cmpxchg__nocheck(ptr, old, new);                             \
 })
 
-/* Provide shorter names for GCC atomic builtins, return old value */
-#define atomic_fetch_inc(ptr)  __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST)
-#define atomic_fetch_dec(ptr)  __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST)
-
 #ifndef atomic_fetch_add
 #define atomic_fetch_add(ptr, n) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST)
 #define atomic_fetch_sub(ptr, n) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST)
@@ -217,22 +239,41 @@
 #define atomic_fetch_xor(ptr, n) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST)
 #endif
 
-#define atomic_inc_fetch(ptr)    __atomic_add_fetch(ptr, 1, __ATOMIC_SEQ_CST)
-#define atomic_dec_fetch(ptr)    __atomic_sub_fetch(ptr, 1, __ATOMIC_SEQ_CST)
-#define atomic_add_fetch(ptr, n) __atomic_add_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_sub_fetch(ptr, n) __atomic_sub_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_and_fetch(ptr, n) __atomic_and_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_or_fetch(ptr, n)  __atomic_or_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_xor_fetch(ptr, n) __atomic_xor_fetch(ptr, n, __ATOMIC_SEQ_CST)
+/* Provide shorter names for GCC atomic builtins, return old value */
+#define atomic_fetch_inc(ptr)  atomic_fetch_add(ptr, 1)
+#define atomic_fetch_dec(ptr)  atomic_fetch_sub(ptr, 1)
+
+#define atomic_inc_fetch(ptr)    (atomic_fetch_add(ptr, 1) + 1)
+#define atomic_dec_fetch(ptr)    (atomic_fetch_sub(ptr, 1) - 1)
+#define atomic_add_fetch(ptr, n) ({ \
+    typeof(n) _n = n; \
+    atomic_fetch_add(ptr, _n) + _n; \
+})
+#define atomic_sub_fetch(ptr, n) ({ \
+    typeof(n) _n = n; \
+    atomic_fetch_sub(ptr, _n) - n; \
+})
+#define atomic_and_fetch(ptr, n) ({ \
+    typeof(n) _n = n; \
+    atomic_fetch_and(ptr, _n) & _n; \
+})
+#define atomic_or_fetch(ptr, n) ({ \
+    typeof(n) _n = n; \
+    atomic_fetch_or(ptr, _n) | _n; \
+})
+#define atomic_xor_fetch(ptr, n) ({ \
+    typeof(n) _n = n; \
+    atomic_fetch_xor(ptr, _n) ^ _n; \
+})
 
 /* And even shorter names that return void.  */
-#define atomic_inc(ptr)    ((void) __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST))
-#define atomic_dec(ptr)    ((void) __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST))
-#define atomic_add(ptr, n) ((void) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_sub(ptr, n) ((void) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_and(ptr, n) ((void) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_or(ptr, n)  ((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_xor(ptr, n) ((void) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST))
+#define atomic_inc(ptr)    ((void) atomic_fetch_add(ptr, 1))
+#define atomic_dec(ptr)    ((void) atomic_fetch_sub(ptr, 1))
+#define atomic_add(ptr, n) ((void) atomic_fetch_add(ptr, n))
+#define atomic_sub(ptr, n) ((void) atomic_fetch_sub(ptr, n))
+#define atomic_and(ptr, n) ((void) atomic_fetch_and(ptr, n))
+#define atomic_or(ptr, n)  ((void) atomic_fetch_or(ptr, n))
+#define atomic_xor(ptr, n) ((void) atomic_fetch_xor(ptr, n))
 
 #else /* __ATOMIC_RELAXED */
 
@@ -423,6 +464,8 @@
 #define atomic_and(ptr, n)     ((void) __sync_fetch_and_and(ptr, n))
 #define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
 #define atomic_xor(ptr, n)     ((void) __sync_fetch_and_xor(ptr, n))
+
+#error TODO
 
 #endif /* __ATOMIC_RELAXED */
 

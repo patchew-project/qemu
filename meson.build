@@ -433,8 +433,11 @@ keyutils = dependency('libkeyutils', required: false,
 
 has_gettid = cc.has_function('gettid')
 
+has_stdatomic_h = cc.has_header('stdatomic.h')
+
 # Create config-host.h
 
+config_host_data.set('CONFIG_STDATOMIC_H', has_stdatomic_h)
 config_host_data.set('CONFIG_SDL', sdl.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_VNC', vnc.found())

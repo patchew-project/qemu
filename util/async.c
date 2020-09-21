@@ -60,7 +60,7 @@ struct QEMUBH {
     QEMUBHFunc *cb;
     void *opaque;
     QSLIST_ENTRY(QEMUBH) next;
-    unsigned flags;
+    atomic_uint flags;
 };
 
 /* Called concurrently from any thread */

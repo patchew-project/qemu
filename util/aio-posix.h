@@ -33,7 +33,7 @@ struct AioHandler {
     QLIST_ENTRY(AioHandler) node_poll;
 #ifdef CONFIG_LINUX_IO_URING
     QSLIST_ENTRY(AioHandler) node_submitted;
-    unsigned flags; /* see fdmon-io_uring.c */
+    atomic_uint flags; /* see fdmon-io_uring.c */
 #endif
     int64_t poll_idle_timeout; /* when to stop userspace polling */
     bool is_external;

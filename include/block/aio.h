@@ -220,7 +220,7 @@ struct AioContext {
      */
     QEMUTimerListGroup tlg;
 
-    int external_disable_cnt;
+    atomic_int external_disable_cnt;
 
     /* Number of AioHandlers without .io_poll() */
     int poll_disable_cnt;

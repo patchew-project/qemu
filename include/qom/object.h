@@ -15,6 +15,7 @@
 #define QEMU_OBJECT_H
 
 #include "qapi/qapi-builtin-types.h"
+#include "qemu/atomic.h"
 #include "qemu/module.h"
 #include "qom/object.h"
 
@@ -550,7 +551,7 @@ struct Object
     ObjectClass *class;
     ObjectFree *free;
     GHashTable *properties;
-    uint32_t ref;
+    atomic_uint ref;
     Object *parent;
 };
 
