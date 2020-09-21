@@ -30,7 +30,8 @@
 static void *qvirtio_blk_get_driver(QVirtioBlk *v_blk,
                                     const char *interface)
 {
-    if (!g_strcmp0(interface, "virtio-blk")) {
+    if (!g_strcmp0(interface, "virtio-blk") ||
+            !g_strcmp0(interface, "vhost-user-blk")) {
         return v_blk;
     }
     if (!g_strcmp0(interface, "virtio")) {
@@ -118,6 +119,17 @@ static void virtio_blk_register_nodes(void)
     qos_node_create_driver("virtio-blk-pci", virtio_blk_pci_create);
     qos_node_consumes("virtio-blk-pci", "pci-bus", &opts);
     qos_node_produces("virtio-blk-pci", "virtio-blk");
+
+    g_free(arg);
+
+    /* vhost-user-blk-pci */
+    arg = g_strdup_printf("id=drv0,chardev=chdev0,addr=%x.%x",
+                                PCI_SLOT, PCI_FN);
+    opts.extra_device_opts = arg;
+    add_qpci_address(&opts, &addr);
+    qos_node_create_driver("vhost-user-blk-pci", virtio_blk_pci_create);
+    qos_node_consumes("vhost-user-blk-pci", "pci-bus", &opts);
+    qos_node_produces("vhost-user-blk-pci", "vhost-user-blk");
 
     g_free(arg);
 }
