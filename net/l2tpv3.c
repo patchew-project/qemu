@@ -745,8 +745,6 @@ int net_init_l2tpv3(const Netdev *netdev,
         stored->dstport = g_strdup(l2tpv3->dstport);
     }
 
-    snprintf(s->nc.info_str, sizeof(s->nc.info_str),
-             "l2tpv3: connected");
     return 0;
 outerr:
     qemu_del_net_client(nc);
