@@ -103,7 +103,8 @@ static void enqueue(AioHandlerSList *head, AioHandler *node, unsigned flags)
 {
     unsigned old_flags;
 
-    old_flags = atomic_fetch_or(&node->flags, FDMON_IO_URING_PENDING | flags);
+    old_flags = qemu_atomic_fetch_or(&node->flags,
+                                     FDMON_IO_URING_PENDING | flags);
     if (!(old_flags & FDMON_IO_URING_PENDING)) {
         QSLIST_INSERT_HEAD_ATOMIC(head, node, node_submitted);
     }
@@ -127,7 +128,7 @@ static AioHandler *dequeue(AioHandlerSList *head, unsigned *flags)
      * telling process_cqe() to delete the AioHandler when its
      * IORING_OP_POLL_ADD completes.
      */
-    *flags = atomic_fetch_and(&node->flags, ~(FDMON_IO_URING_PENDING |
+    *flags = qemu_atomic_fetch_and(&node->flags, ~(FDMON_IO_URING_PENDING |
                                               FDMON_IO_URING_ADD));
     return node;
 }
@@ -233,7 +234,7 @@ static bool process_cqe(AioContext *ctx,
      * with enqueue() here then we can safely clear the FDMON_IO_URING_REMOVE
      * bit before IORING_OP_POLL_REMOVE is submitted.
      */
-    flags = atomic_fetch_and(&node->flags, ~FDMON_IO_URING_REMOVE);
+    flags = qemu_atomic_fetch_and(&node->flags, ~FDMON_IO_URING_REMOVE);
     if (flags & FDMON_IO_URING_REMOVE) {
         QLIST_INSERT_HEAD_RCU(&ctx->deleted_aio_handlers, node, node_deleted);
         return false;
@@ -273,7 +274,7 @@ static int fdmon_io_uring_wait(AioContext *ctx, AioHandlerList *ready_list,
     int ret;
 
     /* Fall back while external clients are disabled */
-    if (atomic_read(&ctx->external_disable_cnt)) {
+    if (qemu_atomic_read(&ctx->external_disable_cnt)) {
         return fdmon_poll_ops.wait(ctx, ready_list, timeout);
     }
 
@@ -312,7 +313,7 @@ static bool fdmon_io_uring_need_wait(AioContext *ctx)
     }
 
     /* Are we falling back to fdmon-poll? */
-    return atomic_read(&ctx->external_disable_cnt);
+    return qemu_atomic_read(&ctx->external_disable_cnt);
 }
 
 static const FDMonOps fdmon_io_uring_ops = {
@@ -344,7 +345,7 @@ void fdmon_io_uring_destroy(AioContext *ctx)
 
         /* Move handlers due to be removed onto the deleted list */
         while ((node = QSLIST_FIRST_RCU(&ctx->submit_list))) {
-            unsigned flags = atomic_fetch_and(&node->flags,
+            unsigned flags = qemu_atomic_fetch_and(&node->flags,
                     ~(FDMON_IO_URING_PENDING |
                       FDMON_IO_URING_ADD |
                       FDMON_IO_URING_REMOVE));

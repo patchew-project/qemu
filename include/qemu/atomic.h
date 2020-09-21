@@ -125,49 +125,49 @@
  * no effect on the generated code but not using the atomic primitives
  * will get flagged by sanitizers as a violation.
  */
-#define atomic_read__nocheck(ptr) \
+#define qemu_atomic_read__nocheck(ptr) \
     __atomic_load_n(ptr, __ATOMIC_RELAXED)
 
-#define atomic_read(ptr)                              \
+#define qemu_atomic_read(ptr)                         \
     ({                                                \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
-    atomic_read__nocheck(ptr);                        \
+    qemu_atomic_read__nocheck(ptr);                   \
     })
 
-#define atomic_set__nocheck(ptr, i) \
+#define qemu_atomic_set__nocheck(ptr, i) \
     __atomic_store_n(ptr, i, __ATOMIC_RELAXED)
 
-#define atomic_set(ptr, i)  do {                      \
+#define qemu_atomic_set(ptr, i)  do {                  \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
-    atomic_set__nocheck(ptr, i);                      \
+    qemu_atomic_set__nocheck(ptr, i);                  \
 } while(0)
 
 /* See above: most compilers currently treat consume and acquire the
- * same, but this slows down atomic_rcu_read unnecessarily.
+ * same, but this slows down qemu_atomic_rcu_read unnecessarily.
  */
 #ifdef __SANITIZE_THREAD__
-#define atomic_rcu_read__nocheck(ptr, valptr)           \
+#define qemu_atomic_rcu_read__nocheck(ptr, valptr)      \
     __atomic_load(ptr, valptr, __ATOMIC_CONSUME);
 #else
-#define atomic_rcu_read__nocheck(ptr, valptr)           \
+#define qemu_atomic_rcu_read__nocheck(ptr, valptr)      \
     __atomic_load(ptr, valptr, __ATOMIC_RELAXED);       \
     smp_read_barrier_depends();
 #endif
 
-#define atomic_rcu_read(ptr)                          \
+#define qemu_atomic_rcu_read(ptr)                     \
     ({                                                \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
     typeof_strip_qual(*ptr) _val;                     \
-    atomic_rcu_read__nocheck(ptr, &_val);             \
+    qemu_atomic_rcu_read__nocheck(ptr, &_val);        \
     _val;                                             \
     })
 
-#define atomic_rcu_set(ptr, i) do {                   \
+#define qemu_atomic_rcu_set(ptr, i) do {              \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE); \
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);       \
 } while(0)
 
-#define atomic_load_acquire(ptr)                        \
+#define qemu_atomic_load_acquire(ptr)                   \
     ({                                                  \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);  \
     typeof_strip_qual(*ptr) _val;                       \
@@ -175,7 +175,7 @@
     _val;                                               \
     })
 
-#define atomic_store_release(ptr, i)  do {              \
+#define qemu_atomic_store_release(ptr, i)  do {         \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);  \
     __atomic_store_n(ptr, i, __ATOMIC_RELEASE);         \
 } while(0)
@@ -183,56 +183,75 @@
 
 /* All the remaining operations are fully sequentially consistent */
 
-#define atomic_xchg__nocheck(ptr, i)    ({                  \
+#define qemu_atomic_xchg__nocheck(ptr, i)    ({             \
     __atomic_exchange_n(ptr, (i), __ATOMIC_SEQ_CST);        \
 })
 
-#define atomic_xchg(ptr, i)    ({                           \
+#define qemu_atomic_xchg(ptr, i)    ({                      \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);      \
-    atomic_xchg__nocheck(ptr, i);                           \
+    qemu_atomic_xchg__nocheck(ptr, i);                      \
 })
 
 /* Returns the eventual value, failed or not */
-#define atomic_cmpxchg__nocheck(ptr, old, new)    ({                    \
+#define qemu_atomic_cmpxchg__nocheck(ptr, old, new)    ({               \
     typeof_strip_qual(*ptr) _old = (old);                               \
     (void)__atomic_compare_exchange_n(ptr, &_old, new, false,           \
                               __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);      \
     _old;                                                               \
 })
 
-#define atomic_cmpxchg(ptr, old, new)    ({                             \
+#define qemu_atomic_cmpxchg(ptr, old, new)    ({                        \
     QEMU_BUILD_BUG_ON(sizeof(*ptr) > ATOMIC_REG_SIZE);                  \
-    atomic_cmpxchg__nocheck(ptr, old, new);                             \
+    qemu_atomic_cmpxchg__nocheck(ptr, old, new);                        \
 })
 
 /* Provide shorter names for GCC atomic builtins, return old value */
-#define atomic_fetch_inc(ptr)  __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST)
-#define atomic_fetch_dec(ptr)  __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST)
+#define qemu_atomic_fetch_inc(ptr) \
+    __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST)
+#define qemu_atomic_fetch_dec(ptr) \
+    __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST)
 
-#ifndef atomic_fetch_add
-#define atomic_fetch_add(ptr, n) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_fetch_sub(ptr, n) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_fetch_and(ptr, n) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_fetch_or(ptr, n)  __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_fetch_xor(ptr, n) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST)
-#endif
+#define qemu_atomic_fetch_add(ptr, n) \
+    __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_fetch_sub(ptr, n) \
+    __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_fetch_and(ptr, n) \
+    __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_fetch_or(ptr, n) \
+    __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_fetch_xor(ptr, n) \
+    __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST)
 
-#define atomic_inc_fetch(ptr)    __atomic_add_fetch(ptr, 1, __ATOMIC_SEQ_CST)
-#define atomic_dec_fetch(ptr)    __atomic_sub_fetch(ptr, 1, __ATOMIC_SEQ_CST)
-#define atomic_add_fetch(ptr, n) __atomic_add_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_sub_fetch(ptr, n) __atomic_sub_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_and_fetch(ptr, n) __atomic_and_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_or_fetch(ptr, n)  __atomic_or_fetch(ptr, n, __ATOMIC_SEQ_CST)
-#define atomic_xor_fetch(ptr, n) __atomic_xor_fetch(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_inc_fetch(ptr) \
+    __atomic_add_fetch(ptr, 1, __ATOMIC_SEQ_CST)
+#define qemu_atomic_dec_fetch(ptr) \
+    __atomic_sub_fetch(ptr, 1, __ATOMIC_SEQ_CST)
+#define qemu_atomic_add_fetch(ptr, n) \
+    __atomic_add_fetch(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_sub_fetch(ptr, n) \
+    __atomic_sub_fetch(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_and_fetch(ptr, n) \
+    __atomic_and_fetch(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_or_fetch(ptr, n) \
+    __atomic_or_fetch(ptr, n, __ATOMIC_SEQ_CST)
+#define qemu_atomic_xor_fetch(ptr, n) \
+    __atomic_xor_fetch(ptr, n, __ATOMIC_SEQ_CST)
 
 /* And even shorter names that return void.  */
-#define atomic_inc(ptr)    ((void) __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST))
-#define atomic_dec(ptr)    ((void) __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST))
-#define atomic_add(ptr, n) ((void) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_sub(ptr, n) ((void) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_and(ptr, n) ((void) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_or(ptr, n)  ((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
-#define atomic_xor(ptr, n) ((void) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST))
+#define qemu_atomic_inc(ptr) \
+    ((void) __atomic_fetch_add(ptr, 1, __ATOMIC_SEQ_CST))
+#define qemu_atomic_dec(ptr) \
+    ((void) __atomic_fetch_sub(ptr, 1, __ATOMIC_SEQ_CST))
+#define qemu_atomic_add(ptr, n) \
+    ((void) __atomic_fetch_add(ptr, n, __ATOMIC_SEQ_CST))
+#define qemu_atomic_sub(ptr, n) \
+    ((void) __atomic_fetch_sub(ptr, n, __ATOMIC_SEQ_CST))
+#define qemu_atomic_and(ptr, n) \
+    ((void) __atomic_fetch_and(ptr, n, __ATOMIC_SEQ_CST))
+#define qemu_atomic_or(ptr, n) \
+    ((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
+#define qemu_atomic_xor(ptr, n) \
+    ((void) __atomic_fetch_xor(ptr, n, __ATOMIC_SEQ_CST))
 
 #else /* __ATOMIC_RELAXED */
 
@@ -272,7 +291,7 @@
  * but it is a full barrier at the hardware level.  Add a compiler barrier
  * to make it a full barrier also at the compiler level.
  */
-#define atomic_xchg(ptr, i)    (barrier(), __sync_lock_test_and_set(ptr, i))
+#define qemu_atomic_xchg(ptr, i) (barrier(), __sync_lock_test_and_set(ptr, i))
 
 #elif defined(_ARCH_PPC)
 
@@ -325,14 +344,15 @@
 /* These will only be atomic if the processor does the fetch or store
  * in a single issue memory operation
  */
-#define atomic_read__nocheck(p)   (*(__typeof__(*(p)) volatile*) (p))
-#define atomic_set__nocheck(p, i) ((*(__typeof__(*(p)) volatile*) (p)) = (i))
+#define qemu_atomic_read__nocheck(p) (*(__typeof__(*(p)) volatile*) (p))
+#define qemu_atomic_set__nocheck(p, i) \
+    ((*(__typeof__(*(p)) volatile*) (p)) = (i))
 
-#define atomic_read(ptr)       atomic_read__nocheck(ptr)
-#define atomic_set(ptr, i)     atomic_set__nocheck(ptr,i)
+#define qemu_atomic_read(ptr)       qemu_atomic_read__nocheck(ptr)
+#define qemu_atomic_set(ptr, i)     qemu_atomic_set__nocheck(ptr,i)
 
 /**
- * atomic_rcu_read - reads a RCU-protected pointer to a local variable
+ * qemu_atomic_rcu_read - reads a RCU-protected pointer to a local variable
  * into a RCU read-side critical section. The pointer can later be safely
  * dereferenced within the critical section.
  *
@@ -342,21 +362,22 @@
  * Inserts memory barriers on architectures that require them (currently only
  * Alpha) and documents which pointers are protected by RCU.
  *
- * atomic_rcu_read also includes a compiler barrier to ensure that
+ * qemu_atomic_rcu_read also includes a compiler barrier to ensure that
  * value-speculative optimizations (e.g. VSS: Value Speculation
  * Scheduling) does not perform the data read before the pointer read
  * by speculating the value of the pointer.
  *
- * Should match atomic_rcu_set(), atomic_xchg(), atomic_cmpxchg().
+ * Should match qemu_atomic_rcu_set(), qemu_atomic_xchg(),
+ * and qemu_atomic_cmpxchg().
  */
-#define atomic_rcu_read(ptr)    ({                \
-    typeof(*ptr) _val = atomic_read(ptr);         \
+#define qemu_atomic_rcu_read(ptr)    ({           \
+    typeof(*ptr) _val = qemu_atomic_read(ptr);    \
     smp_read_barrier_depends();                   \
     _val;                                         \
 })
 
 /**
- * atomic_rcu_set - assigns (publicizes) a pointer to a new data structure
+ * qemu_atomic_rcu_set - assigns (publicizes) a pointer to a new data structure
  * meant to be read by RCU read-side critical sections.
  *
  * Documents which pointers will be dereferenced by RCU read-side critical
@@ -364,65 +385,63 @@
  * them. It also makes sure the compiler does not reorder code initializing the
  * data structure before its publication.
  *
- * Should match atomic_rcu_read().
+ * Should match qemu_atomic_rcu_read().
  */
-#define atomic_rcu_set(ptr, i)  do {              \
+#define qemu_atomic_rcu_set(ptr, i)  do {         \
     smp_wmb();                                    \
-    atomic_set(ptr, i);                           \
+    qemu_atomic_set(ptr, i);                      \
 } while (0)
 
-#define atomic_load_acquire(ptr)    ({      \
-    typeof(*ptr) _val = atomic_read(ptr);   \
-    smp_mb_acquire();                       \
-    _val;                                   \
+#define qemu_atomic_load_acquire(ptr)    ({    \
+    typeof(*ptr) _val = qemu_atomic_read(ptr); \
+    smp_mb_acquire();                          \
+    _val;                                      \
 })
 
-#define atomic_store_release(ptr, i)  do {  \
-    smp_mb_release();                       \
-    atomic_set(ptr, i);                     \
+#define qemu_atomic_store_release(ptr, i)  do {  \
+    smp_mb_release();                            \
+    qemu_atomic_set(ptr, i);                     \
 } while (0)
 
-#ifndef atomic_xchg
 #if defined(__clang__)
-#define atomic_xchg(ptr, i)    __sync_swap(ptr, i)
+#define qemu_atomic_xchg(ptr, i) __sync_swap(ptr, i)
 #else
 /* __sync_lock_test_and_set() is documented to be an acquire barrier only.  */
-#define atomic_xchg(ptr, i)    (smp_mb(), __sync_lock_test_and_set(ptr, i))
+#define qemu_atomic_xchg(ptr, i) (smp_mb(), __sync_lock_test_and_set(ptr, i))
 #endif
-#endif
-#define atomic_xchg__nocheck  atomic_xchg
+#define qemu_atomic_xchg__nocheck  qemu_atomic_xchg
 
 /* Provide shorter names for GCC atomic builtins.  */
-#define atomic_fetch_inc(ptr)  __sync_fetch_and_add(ptr, 1)
-#define atomic_fetch_dec(ptr)  __sync_fetch_and_add(ptr, -1)
+#define qemu_atomic_fetch_inc(ptr)  __sync_fetch_and_add(ptr, 1)
+#define qemu_atomic_fetch_dec(ptr)  __sync_fetch_and_add(ptr, -1)
 
-#ifndef atomic_fetch_add
-#define atomic_fetch_add(ptr, n) __sync_fetch_and_add(ptr, n)
-#define atomic_fetch_sub(ptr, n) __sync_fetch_and_sub(ptr, n)
-#define atomic_fetch_and(ptr, n) __sync_fetch_and_and(ptr, n)
-#define atomic_fetch_or(ptr, n) __sync_fetch_and_or(ptr, n)
-#define atomic_fetch_xor(ptr, n) __sync_fetch_and_xor(ptr, n)
-#endif
+#define qemu_atomic_fetch_add(ptr, n) __sync_fetch_and_add(ptr, n)
+#define qemu_atomic_fetch_sub(ptr, n) __sync_fetch_and_sub(ptr, n)
+#define qemu_atomic_fetch_and(ptr, n) __sync_fetch_and_and(ptr, n)
+#define qemu_atomic_fetch_or(ptr, n) __sync_fetch_and_or(ptr, n)
+#define qemu_atomic_fetch_xor(ptr, n) __sync_fetch_and_xor(ptr, n)
 
-#define atomic_inc_fetch(ptr)  __sync_add_and_fetch(ptr, 1)
-#define atomic_dec_fetch(ptr)  __sync_add_and_fetch(ptr, -1)
-#define atomic_add_fetch(ptr, n) __sync_add_and_fetch(ptr, n)
-#define atomic_sub_fetch(ptr, n) __sync_sub_and_fetch(ptr, n)
-#define atomic_and_fetch(ptr, n) __sync_and_and_fetch(ptr, n)
-#define atomic_or_fetch(ptr, n) __sync_or_and_fetch(ptr, n)
-#define atomic_xor_fetch(ptr, n) __sync_xor_and_fetch(ptr, n)
+#define qemu_atomic_inc_fetch(ptr)  __sync_add_and_fetch(ptr, 1)
+#define qemu_atomic_dec_fetch(ptr)  __sync_add_and_fetch(ptr, -1)
+#define qemu_atomic_add_fetch(ptr, n) __sync_add_and_fetch(ptr, n)
+#define qemu_atomic_sub_fetch(ptr, n) __sync_sub_and_fetch(ptr, n)
+#define qemu_atomic_and_fetch(ptr, n) __sync_and_and_fetch(ptr, n)
+#define qemu_atomic_or_fetch(ptr, n) __sync_or_and_fetch(ptr, n)
+#define qemu_atomic_xor_fetch(ptr, n) __sync_xor_and_fetch(ptr, n)
 
-#define atomic_cmpxchg(ptr, old, new) __sync_val_compare_and_swap(ptr, old, new)
-#define atomic_cmpxchg__nocheck(ptr, old, new)  atomic_cmpxchg(ptr, old, new)
+#define qemu_atomic_cmpxchg(ptr, old, new) \
+    __sync_val_compare_and_swap(ptr, old, new)
+#define qemu_atomic_cmpxchg__nocheck(ptr, old, new) \
+    qemu_atomic_cmpxchg(ptr, old, new)
 
 /* And even shorter names that return void.  */
-#define atomic_inc(ptr)        ((void) __sync_fetch_and_add(ptr, 1))
-#define atomic_dec(ptr)        ((void) __sync_fetch_and_add(ptr, -1))
-#define atomic_add(ptr, n)     ((void) __sync_fetch_and_add(ptr, n))
-#define atomic_sub(ptr, n)     ((void) __sync_fetch_and_sub(ptr, n))
-#define atomic_and(ptr, n)     ((void) __sync_fetch_and_and(ptr, n))
-#define atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
-#define atomic_xor(ptr, n)     ((void) __sync_fetch_and_xor(ptr, n))
+#define qemu_atomic_inc(ptr)        ((void) __sync_fetch_and_add(ptr, 1))
+#define qemu_atomic_dec(ptr)        ((void) __sync_fetch_and_add(ptr, -1))
+#define qemu_atomic_add(ptr, n)     ((void) __sync_fetch_and_add(ptr, n))
+#define qemu_atomic_sub(ptr, n)     ((void) __sync_fetch_and_sub(ptr, n))
+#define qemu_atomic_and(ptr, n)     ((void) __sync_fetch_and_and(ptr, n))
+#define qemu_atomic_or(ptr, n)      ((void) __sync_fetch_and_or(ptr, n))
+#define qemu_atomic_xor(ptr, n)     ((void) __sync_fetch_and_xor(ptr, n))
 
 #endif /* __ATOMIC_RELAXED */
 
@@ -436,11 +455,11 @@
 /* This is more efficient than a store plus a fence.  */
 #if !defined(__SANITIZE_THREAD__)
 #if defined(__i386__) || defined(__x86_64__) || defined(__s390x__)
-#define atomic_mb_set(ptr, i)  ((void)atomic_xchg(ptr, i))
+#define qemu_atomic_mb_set(ptr, i)  ((void)qemu_atomic_xchg(ptr, i))
 #endif
 #endif
 
-/* atomic_mb_read/set semantics map Java volatile variables. They are
+/* qemu_atomic_mb_read/set semantics map Java volatile variables. They are
  * less expensive on some platforms (notably POWER) than fully
  * sequentially consistent operations.
  *
@@ -448,58 +467,55 @@
  * use. See docs/devel/atomics.txt for more discussion.
  */
 
-#ifndef atomic_mb_read
-#define atomic_mb_read(ptr)                             \
-    atomic_load_acquire(ptr)
-#endif
+#define qemu_atomic_mb_read(ptr) qemu_atomic_load_acquire(ptr)
 
-#ifndef atomic_mb_set
-#define atomic_mb_set(ptr, i)  do {                     \
-    atomic_store_release(ptr, i);                       \
+#ifndef qemu_atomic_mb_set
+#define qemu_atomic_mb_set(ptr, i)  do {                \
+    qemu_atomic_store_release(ptr, i);                  \
     smp_mb();                                           \
 } while(0)
 #endif
 
-#define atomic_fetch_inc_nonzero(ptr) ({                                \
-    typeof_strip_qual(*ptr) _oldn = atomic_read(ptr);                   \
-    while (_oldn && atomic_cmpxchg(ptr, _oldn, _oldn + 1) != _oldn) {   \
-        _oldn = atomic_read(ptr);                                       \
+#define qemu_atomic_fetch_inc_nonzero(ptr) ({                           \
+    typeof_strip_qual(*ptr) _oldn = qemu_atomic_read(ptr);              \
+    while (_oldn && qemu_atomic_cmpxchg(ptr, _oldn, _oldn + 1) != _oldn) { \
+        _oldn = qemu_atomic_read(ptr);                                  \
     }                                                                   \
     _oldn;                                                              \
 })
 
 /* Abstractions to access atomically (i.e. "once") i64/u64 variables */
 #ifdef CONFIG_ATOMIC64
-static inline int64_t atomic_read_i64(const int64_t *ptr)
+static inline int64_t qemu_atomic_read_i64(const int64_t *ptr)
 {
     /* use __nocheck because sizeof(void *) might be < sizeof(u64) */
-    return atomic_read__nocheck(ptr);
+    return qemu_atomic_read__nocheck(ptr);
 }
 
-static inline uint64_t atomic_read_u64(const uint64_t *ptr)
+static inline uint64_t qemu_atomic_read_u64(const uint64_t *ptr)
 {
-    return atomic_read__nocheck(ptr);
+    return qemu_atomic_read__nocheck(ptr);
 }
 
-static inline void atomic_set_i64(int64_t *ptr, int64_t val)
+static inline void qemu_atomic_set_i64(int64_t *ptr, int64_t val)
 {
-    atomic_set__nocheck(ptr, val);
+    qemu_atomic_set__nocheck(ptr, val);
 }
 
-static inline void atomic_set_u64(uint64_t *ptr, uint64_t val)
+static inline void qemu_atomic_set_u64(uint64_t *ptr, uint64_t val)
 {
-    atomic_set__nocheck(ptr, val);
+    qemu_atomic_set__nocheck(ptr, val);
 }
 
-static inline void atomic64_init(void)
+static inline void qemu_atomic64_init(void)
 {
 }
 #else /* !CONFIG_ATOMIC64 */
-int64_t  atomic_read_i64(const int64_t *ptr);
-uint64_t atomic_read_u64(const uint64_t *ptr);
-void atomic_set_i64(int64_t *ptr, int64_t val);
-void atomic_set_u64(uint64_t *ptr, uint64_t val);
-void atomic64_init(void);
+int64_t  qemu_atomic_read_i64(const int64_t *ptr);
+uint64_t qemu_atomic_read_u64(const uint64_t *ptr);
+void qemu_atomic_set_i64(int64_t *ptr, int64_t val);
+void qemu_atomic_set_u64(uint64_t *ptr, uint64_t val);
+void qemu_atomic64_init(void);
 #endif /* !CONFIG_ATOMIC64 */
 
 #endif /* QEMU_ATOMIC_H */

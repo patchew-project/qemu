@@ -146,8 +146,8 @@ typedef struct TaskState {
     /* Nonzero if process_pending_signals() needs to do something (either
      * handle a pending signal or unblock signals).
      * This flag is written from a signal handler so should be accessed via
-     * the atomic_read() and atomic_set() functions. (It is not accessed
-     * from multiple threads.)
+     * the qemu_atomic_read() and qemu_atomic_set() functions. (It is not
+     * accessed from multiple threads.)
      */
     int signal_pending;
 
