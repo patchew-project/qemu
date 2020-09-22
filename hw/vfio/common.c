@@ -407,8 +407,8 @@ static bool vfio_listener_skipped_section(MemoryRegionSection *section)
 }
 
 /* Called with rcu_read_lock held.  */
-static bool vfio_get_vaddr(IOMMUTLBEntry *iotlb, void **vaddr,
-                           bool *read_only)
+static bool vfio_get_xlat_addr(IOMMUTLBEntry *iotlb, void **vaddr,
+                               ram_addr_t *ram_addr, bool *read_only)
 {
     MemoryRegion *mr;
     hwaddr xlat;
@@ -439,8 +439,17 @@ static bool vfio_get_vaddr(IOMMUTLBEntry *iotlb, void **vaddr,
         return false;
     }
 
-    *vaddr = memory_region_get_ram_ptr(mr) + xlat;
-    *read_only = !writable || mr->readonly;
+    if (vaddr) {
+        *vaddr = memory_region_get_ram_ptr(mr) + xlat;
+    }
+
+    if (ram_addr) {
+        *ram_addr = memory_region_get_ram_addr(mr) + xlat;
+    }
+
+    if (read_only) {
+        *read_only = !writable || mr->readonly;
+    }
 
     return true;
 }
@@ -450,7 +459,6 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     VFIOGuestIOMMU *giommu = container_of(n, VFIOGuestIOMMU, n);
     VFIOContainer *container = giommu->container;
     hwaddr iova = iotlb->iova + giommu->iommu_offset;
-    bool read_only;
     void *vaddr;
     int ret;
 
@@ -466,7 +474,10 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
     rcu_read_lock();
 
     if ((iotlb->perm & IOMMU_RW) != IOMMU_NONE) {
-        if (!vfio_get_vaddr(iotlb, &vaddr, &read_only)) {
+        ram_addr_t ram_addr;
+        bool read_only;
+
+        if (!vfio_get_xlat_addr(iotlb, &vaddr, &ram_addr, &read_only)) {
             goto out;
         }
         /*
@@ -484,8 +495,28 @@ static void vfio_iommu_map_notify(IOMMUNotifier *n, IOMMUTLBEntry *iotlb)
                          "0x%"HWADDR_PRIx", %p) = %d (%m)",
                          container, iova,
                          iotlb->addr_mask + 1, vaddr, ret);
+        } else {
+            VFIOIovaRange *iova_range;
+
+            iova_range = g_malloc0(sizeof(*iova_range));
+            iova_range->iova = iova;
+            iova_range->size = iotlb->addr_mask + 1;
+            iova_range->ram_addr = ram_addr;
+
+            QLIST_INSERT_HEAD(&giommu->iova_list, iova_range, next);
         }
     } else {
+        VFIOIovaRange *iova_range, *tmp;
+
+        QLIST_FOREACH_SAFE(iova_range, &giommu->iova_list, next, tmp) {
+            if (iova_range->iova >= iova &&
+                iova_range->iova + iova_range->size <= iova +
+                                                       iotlb->addr_mask + 1) {
+                QLIST_REMOVE(iova_range, next);
+                g_free(iova_range);
+            }
+        }
+
         ret = vfio_dma_unmap(container, iova, iotlb->addr_mask + 1);
         if (ret) {
             error_report("vfio_dma_unmap(%p, 0x%"HWADDR_PRIx", "
@@ -642,6 +673,7 @@ static void vfio_listener_region_add(MemoryListener *listener,
             g_free(giommu);
             goto fail;
         }
+        QLIST_INIT(&giommu->iova_list);
         QLIST_INSERT_HEAD(&container->giommu_list, giommu, giommu_next);
         memory_region_iommu_replay(giommu->iommu, &giommu->n);
 
@@ -740,6 +772,13 @@ static void vfio_listener_region_del(MemoryListener *listener,
         QLIST_FOREACH(giommu, &container->giommu_list, giommu_next) {
             if (MEMORY_REGION(giommu->iommu) == section->mr &&
                 giommu->n.start == section->offset_within_region) {
+                VFIOIovaRange *iova_range, *tmp;
+
+                QLIST_FOREACH_SAFE(iova_range, &giommu->iova_list, next, tmp) {
+                    QLIST_REMOVE(iova_range, next);
+                    g_free(iova_range);
+                }
+
                 memory_region_unregister_iommu_notifier(section->mr,
                                                         &giommu->n);
                 QLIST_REMOVE(giommu, giommu_next);
@@ -1541,6 +1580,13 @@ static void vfio_disconnect_container(VFIOGroup *group)
         QLIST_REMOVE(container, next);
 
         QLIST_FOREACH_SAFE(giommu, &container->giommu_list, giommu_next, tmp) {
+            VFIOIovaRange *iova_range, *itmp;
+
+            QLIST_FOREACH_SAFE(iova_range, &giommu->iova_list, next, itmp) {
+                QLIST_REMOVE(iova_range, next);
+                g_free(iova_range);
+            }
+
             memory_region_unregister_iommu_notifier(
                     MEMORY_REGION(giommu->iommu), &giommu->n);
             QLIST_REMOVE(giommu, giommu_next);
