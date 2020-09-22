@@ -11,14 +11,14 @@ import argparse
 import re
 import sys
 
-from qapi.commands import gen_commands
-from qapi.doc import gen_doc
-from qapi.error import QAPIError
-from qapi.events import gen_events
-from qapi.introspect import gen_introspect
-from qapi.schema import QAPISchema
-from qapi.types import gen_types
-from qapi.visit import gen_visit
+from .commands import gen_commands
+from .doc import gen_doc
+from .error import QAPIError
+from .events import gen_events
+from .introspect import gen_introspect
+from .schema import QAPISchema
+from .types import gen_types
+from .visit import gen_visit
 
 
 DEFAULT_OUTPUT_DIR = ''
