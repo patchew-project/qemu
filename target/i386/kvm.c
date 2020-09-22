@@ -2818,7 +2818,12 @@ static int kvm_put_msrs(X86CPU *cpu, int level)
         kvm_msr_entry_add(cpu, MSR_IA32_TSC, env->tsc);
         kvm_msr_entry_add(cpu, MSR_KVM_SYSTEM_TIME, env->system_time_msr);
         kvm_msr_entry_add(cpu, MSR_KVM_WALL_CLOCK, env->wall_clock_msr);
-        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF)) {
+        /*
+         * Some kernel versions (v5.8) won't let MSR_KVM_ASYNC_PF_EN to be set
+         * at all if kernel-irqchip=off, so don't try to set it in that case.
+         */
+        if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_ASYNC_PF) &&
+            kvm_irqchip_in_kernel()) {
             kvm_msr_entry_add(cpu, MSR_KVM_ASYNC_PF_EN, env->async_pf_en_msr);
         }
         if (env->features[FEAT_KVM] & (1 << KVM_FEATURE_PV_EOI)) {
