@@ -60,6 +60,7 @@ typedef struct VFIORegion {
 
 typedef struct VFIOMigration {
     VFIORegion region;
+    uint64_t pending_bytes;
 } VFIOMigration;
 
 typedef struct VFIOAddressSpace {
