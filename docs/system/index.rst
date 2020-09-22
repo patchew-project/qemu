@@ -27,6 +27,7 @@ Contents:
    vnc-security
    tls
    gdb
+   replay
    managed-startup
    targets
    security

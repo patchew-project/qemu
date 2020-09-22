@@ -5,7 +5,7 @@ This work is licensed under the terms of the GNU GPL, version 2 or later.
 See the COPYING file in the top-level directory.
 
 Record/replay
--------------
+=============
 
 Record/replay functions are used for the deterministic replay of qemu execution.
 Execution recording writes a non-deterministic events log, which can be later
