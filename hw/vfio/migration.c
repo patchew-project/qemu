@@ -28,6 +28,7 @@
 #include "pci.h"
 #include "trace.h"
 #include "hw/hw.h"
+#include "qemu/vfio-helpers.h"
 
 /*
  * Flags used as delimiter:
@@ -39,6 +40,8 @@
 #define VFIO_MIG_FLAG_DEV_CONFIG_STATE  (0xffffffffef100002ULL)
 #define VFIO_MIG_FLAG_DEV_SETUP_STATE   (0xffffffffef100003ULL)
 #define VFIO_MIG_FLAG_DEV_DATA_STATE    (0xffffffffef100004ULL)
+
+static int64_t bytes_transferred;
 
 static inline int vfio_mig_access(VFIODevice *vbasedev, void *val, int count,
                                   off_t off, bool iswrite)
@@ -289,6 +292,7 @@ static int vfio_save_buffer(QEMUFile *f, VFIODevice *vbasedev, uint64_t *size)
         *size = data_size;
     }
 
+    bytes_transferred += data_size;
     return ret;
 }
 
@@ -770,6 +774,7 @@ static void vfio_migration_state_notifier(Notifier *notifier, void *data)
         }
 
         vfio_set_dirty_page_tracking(vbasedev, false);
+        bytes_transferred = 0;
     }
 }
 
@@ -819,6 +824,11 @@ static int vfio_migration_init(VFIODevice *vbasedev,
 }
 
 /* ---------------------------------------------------------------------- */
+
+int64_t vfio_mig_bytes_transferred(void)
+{
+    return bytes_transferred;
+}
 
 int vfio_migration_probe(VFIODevice *vbasedev, Error **errp)
 {
