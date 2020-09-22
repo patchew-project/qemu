@@ -18,6 +18,7 @@
  */
 
 #include "qemu/osdep.h"
+#include "qapi/qapi-events-run-state.h"
 #include "cpu.h"
 #include "exec/exec-all.h"
 #include "qemu/qemu-print.h"
@@ -858,6 +859,7 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
     CPUX86State *cenv = &cpu->env;
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
     char msg[64];
+    MemoryFailureFlags mf_flags = {0};
     bool need_reset = false;
 
     cpu_synchronize_state(cs);
@@ -869,6 +871,12 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
     if (!(params->flags & MCE_INJECT_UNCOND_AO)
         && !(params->status & MCI_STATUS_AR)
         && (cenv->mcg_status & MCG_STATUS_MCIP)) {
+        mf_flags.has_action_required = true;
+        mf_flags.action_required = false;
+        mf_flags.has_recursive = true;
+        mf_flags.recursive = true;
+        qapi_event_send_memory_failure(MEMORY_FAILURE_ACTION_GUEST_MCE_INJECT,
+                                       true, &mf_flags);
         return;
     }
 
@@ -909,6 +917,8 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
         }
 
         if (need_reset) {
+            qapi_event_send_memory_failure(
+                 MEMORY_FAILURE_ACTION_GUEST_MCE_FATAL, false, NULL);
             monitor_printf(params->mon, "%s", msg);
             qemu_log_mask(CPU_LOG_RESET, "%s\n", msg);
             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
@@ -934,6 +944,11 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
     } else {
         banks[1] |= MCI_STATUS_OVER;
     }
+
+    mf_flags.has_action_required = true;
+    mf_flags.action_required = !!(params->status & MCI_STATUS_AR);
+    qapi_event_send_memory_failure(MEMORY_FAILURE_ACTION_GUEST_MCE_INJECT,
+                                   true, &mf_flags);
 }
 
 void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,

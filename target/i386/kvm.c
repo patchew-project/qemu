@@ -14,6 +14,7 @@
 
 #include "qemu/osdep.h"
 #include "qapi/error.h"
+#include "qapi/qapi-events-run-state.h"
 #include <sys/ioctl.h>
 #include <sys/utsname.h>
 
@@ -577,6 +578,8 @@ static void kvm_mce_inject(X86CPU *cpu, hwaddr paddr, int code)
 
 static void hardware_memory_error(void *host_addr)
 {
+    qapi_event_send_memory_failure(MEMORY_FAILURE_ACTION_HYPERVISOR_FATAL,
+                                   false, NULL);
     error_report("QEMU got Hardware memory error at addr %p", host_addr);
     exit(1);
 }
@@ -631,7 +634,9 @@ void kvm_arch_on_sigbus_vcpu(CPUState *c, int code, void *addr)
         hardware_memory_error(addr);
     }
 
-    /* Hope we are lucky for AO MCE */
+    /* Hope we are lucky for AO MCE, just notify a event */
+    qapi_event_send_memory_failure(MEMORY_FAILURE_ACTION_HYPERVISOR_IGNORE,
+                                   false, NULL);
 }
 
 static void kvm_reset_exception(CPUX86State *env)
