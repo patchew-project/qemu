@@ -10,7 +10,7 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
-from typing import (NamedTuple, Optional, Sequence)
+from typing import (NamedTuple, List, Optional, Sequence)
 
 from .common import (
     c_name,
@@ -20,7 +20,7 @@ from .common import (
 )
 from .gen import QAPISchemaMonolithicCVisitor
 from .schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
-                     QAPISchemaType)
+                     QAPISchemaFeature, QAPISchemaType)
 
 
 class Extra(NamedTuple):
@@ -31,12 +31,10 @@ class Extra(NamedTuple):
     ifcond: Sequence[str] = tuple()
 
 
-def _make_tree(obj, ifcond, features,
+def _make_tree(obj, ifcond,
                extra: Optional[Extra] = None):
     comment = extra.comment if extra else None
     extra = Extra(comment, ifcond)
-    if features:
-        obj['features'] = [(f.name, Extra(None, f.ifcond)) for f in features]
     return (obj, extra)
 
 
@@ -169,6 +167,10 @@ const QLitObject %(c_name)s = %(c_string)s;
             return '[' + self._use_type(typ.element_type) + ']'
         return self._name(typ.name)
 
+    @classmethod
+    def _gen_features(cls, features: List[QAPISchemaFeature]):
+        return [_make_tree(f.name, f.ifcond) for f in features]
+
     def _gen_tree(self, name, mtype, obj, ifcond, features):
         extra = None
         if mtype not in ('command', 'event', 'builtin', 'array'):
@@ -179,13 +181,17 @@ const QLitObject %(c_name)s = %(c_string)s;
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
-        self._trees.append(_make_tree(obj, ifcond, features, extra))
+        if features:
+            obj['features'] = self._gen_features(features)
+        self._trees.append(_make_tree(obj, ifcond, extra))
 
     def _gen_member(self, member):
         obj = {'name': member.name, 'type': self._use_type(member.type)}
         if member.optional:
             obj['default'] = None
-        return _make_tree(obj, member.ifcond, member.features)
+        if member.features:
+            obj['features'] = self._gen_features(member.features)
+        return _make_tree(obj, member.ifcond)
 
     def _gen_variants(self, tag_name, variants):
         return {'tag': tag_name,
@@ -193,7 +199,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def _gen_variant(self, variant):
         obj = {'case': variant.name, 'type': self._use_type(variant.type)}
-        return _make_tree(obj, variant.ifcond, None)
+        return _make_tree(obj, variant.ifcond)
 
     def visit_builtin_type(self, name, info, json_type):
         self._gen_tree(name, 'builtin', {'json-type': json_type}, [], None)
