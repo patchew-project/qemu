@@ -14,11 +14,15 @@ See the COPYING file in the top-level directory.
 """
 
 from .common import (
-    build_params,
     c_name,
     mcgen,
 )
-from .gen import QAPIGenCCode, QAPISchemaModularCVisitor, ifcontext
+from .gen import (
+    QAPIGenCCode,
+    QAPISchemaModularCVisitor,
+    build_params,
+    ifcontext,
+)
 
 
 def gen_command_decl(name, arg_type, boxed, ret_type):
