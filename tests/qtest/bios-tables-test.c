@@ -11,7 +11,7 @@
  */
 
 /*
- * How to add or update the tests:
+ * How to add or update the tests or commit changes that affect ACPI tables:
  * Contributor:
  * 1. add empty files for new tables, if any, under tests/data/acpi
  * 2. list any changed files in tests/qtest/bios-tables-test-allowed-diff.h
@@ -38,6 +38,17 @@
  *      $(SRC_PATH)/tests/data/acpi/rebuild-expected-aml.sh
  * 6. Now commit any changes to the expected binary, include diff from step 4
  *    in commit log.
+ *    The reason why we follow the above process is described below:
+ *    After every commit we make sure that the unit tests are not broken. To do
+ *    that, we could have committed the table updates along with the patches.
+ *    However, expected binary updates needs to be a separate patch from the
+ *    code that introduces changes to ACPI tables. It lets maintainer to drop
+ *    and regenerate binary updates in case of merge conflicts. Further, a code
+ *    change is easily reviewable but a binary blob is not (without doing a
+ *    diassemly). Listing the modified table files additionally helps in
+ *    bisection in case things are broken.
+ *    Hence, we have a multi-step process and at each step unit tests continue
+ *    to pass.
  * 7. Before sending patches to the list (Contributor)
  *    or before doing a pull request (Maintainer), make sure
  *    tests/qtest/bios-tables-test-allowed-diff.h is empty - this will ensure
