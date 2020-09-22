@@ -156,6 +156,7 @@ struct VFIOPCIDevice {
     uint32_t display_yres;
     int32_t bootindex;
     uint32_t igd_gms;
+    int32_t version_id;     /* Version id needed for VMState */
     OffAutoPCIBAR msix_relo;
     uint8_t pm_cap;
     uint8_t nv_gpudirect_clique;
