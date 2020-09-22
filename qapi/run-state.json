@@ -475,3 +475,70 @@
            'psw-mask': 'uint64',
            'psw-addr': 'uint64',
            'reason': 'S390CrashReason' } }
+
+##
+# @MEMORY_FAILURE:
+#
+# Emitted when a memory failure occurs on host side.
+#
+# @action: action that has been taken. action is defined as @MemoryFailureAction.
+#
+# Since: 5.2
+#
+# Example:
+#
+# <- { "event": "MEMORY_FAILURE",
+#      "data": { "action": "guest-mce" } }
+#
+##
+{ 'event': 'MEMORY_FAILURE',
+  'data': { 'action': 'MemoryFailureAction',
+            '*flags': 'MemoryFailureFlags'} }
+
+##
+# @MemoryFailureAction:
+#
+# Hardware memory failure occurs, handled by QEMU.
+#
+# @hypervisor-ignore: action optional memory failure at QEMU process address
+#                     space (none guest memory, but used by QEMU itself), QEMU
+#                     could ignore this hardware memory failure.
+#
+# @hypervisor-fatal: action required memory failure at QEMU process address
+#                    space (none guest memory, but used by QEMU itself), QEMU
+#                    has to stop itself.
+#
+# @guest-mce-inject: memory failure at guest memory, and guest enables MCE
+#                    handling mechanism, QEMU injects MCE to guest.
+#
+# @guest-mce-fatal: memory failure at guest memory, but guest is not ready to
+#                   to handle MCE(typical cases: guest has no MCE mechanism, or
+#                   guest disables MCE, or during previous MCE still in
+#                   processing, an AR MCE occurs). QEMU has to raise a fault and
+#                   shutdown/reset. Also see detailed info in QEMU log.
+#
+# Since: 5.2
+#
+##
+{ 'enum': 'MemoryFailureAction',
+  'data': [ 'hypervisor-ignore',
+            'hypervisor-fatal',
+            'guest-mce-inject',
+            'guest-mce-fatal' ] }
+
+##
+# @MemoryFailureFlags:
+#
+# Structure of flags for each memory failure event.
+#
+# @action-required: describe a MCE event as AR/AO.
+#
+# @recursive: previous MCE in processing in guest, another AO MCE
+#             occurs, set recursive as true.
+#
+# Since: 5.2
+#
+##
+{ 'struct': 'MemoryFailureFlags',
+  'data': { '*action-required': 'bool',
+            '*recursive': 'bool'} }
