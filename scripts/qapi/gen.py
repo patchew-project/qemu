@@ -251,7 +251,7 @@ class QAPISchemaModularCVisitor(QAPISchemaVisitor):
 
     @staticmethod
     def _is_user_module(name):
-        return name and not name.startswith('./')
+        return name is not None and not name.startswith('./')
 
     @staticmethod
     def _is_builtin_module(name):
