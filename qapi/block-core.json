@@ -1963,10 +1963,19 @@
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
+# @bitmap: The name of a bitmap to use for sync=bitmap mode. This argument must
+#          be present for bitmap mode and absent otherwise. The bitmap's
+#          granularity is used instead of @granularity (since 5.2).
+#
+# @bitmap-mode: Specifies the type of data the bitmap should contain after
+#               the operation concludes. Must be present if sync is "bitmap".
+#               Must NOT be present otherwise. (Since 5.2)
+#
 # @granularity: granularity of the dirty bitmap, default is 64K
 #               if the image format doesn't have clusters, 4K if the clusters
 #               are smaller than that, else the cluster size.  Must be a
-#               power of 2 between 512 and 64M (since 1.4).
+#               power of 2 between 512 and 64M. Must not be specified if
+#               @bitmap is present (since 1.4).
 #
 # @buf-size: maximum amount of data in flight from source to
 #            target (since 1.4).
@@ -2004,7 +2013,9 @@
 { 'struct': 'DriveMirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*format': 'str', '*node-name': 'str', '*replaces': 'str',
-            'sync': 'MirrorSyncMode', '*mode': 'NewImageMode',
+            'sync': 'MirrorSyncMode', '*bitmap': 'str',
+            '*bitmap-mode': 'BitmapSyncMode',
+            '*mode': 'NewImageMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
@@ -2272,10 +2283,19 @@
 #        (all the disk, only the sectors allocated in the topmost image, or
 #        only new I/O).
 #
+# @bitmap: The name of a bitmap to use for sync=bitmap mode. This argument must
+#          be present for bitmap mode and absent otherwise. The bitmap's
+#          granularity is used instead of @granularity (since 5.2).
+#
+# @bitmap-mode: Specifies the type of data the bitmap should contain after
+#               the operation concludes. Must be present if sync is "bitmap".
+#               Must NOT be present otherwise. (Since 5.2)
+#
 # @granularity: granularity of the dirty bitmap, default is 64K
 #               if the image format doesn't have clusters, 4K if the clusters
 #               are smaller than that, else the cluster size.  Must be a
-#               power of 2 between 512 and 64M
+#               power of 2 between 512 and 64M . Must not be specified if
+#               @bitmap is present.
 #
 # @buf-size: maximum amount of data in flight from source to
 #            target
@@ -2324,7 +2344,8 @@
 { 'command': 'blockdev-mirror',
   'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
             '*replaces': 'str',
-            'sync': 'MirrorSyncMode',
+            'sync': 'MirrorSyncMode', '*bitmap': 'str',
+            '*bitmap-mode': 'BitmapSyncMode',
             '*speed': 'int', '*granularity': 'uint32',
             '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
             '*on-target-error': 'BlockdevOnError',
