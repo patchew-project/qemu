@@ -31,11 +31,18 @@ class Extra(NamedTuple):
     ifcond: Sequence[str] = tuple()
 
 
-def _make_tree(obj, ifcond,
-               extra: Optional[Extra] = None):
-    comment = extra.comment if extra else None
-    extra = Extra(comment, ifcond)
-    return (obj, extra)
+class Node:
+    """
+    Node generally contains a SchemaInfo-like type (as a dict),
+    But it also used to wrap comments/ifconds around leaf value types.
+    """
+    # Remove after 3.7 adds @dataclass:
+    # pylint: disable=too-few-public-methods
+    def __init__(self, data, ifcond: List[str],
+                 extra: Optional[Extra] = None):
+        self.data = data
+        comment = extra.comment if extra else None
+        self.extra = Extra(comment, ifcond)
 
 
 def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
@@ -43,18 +50,15 @@ def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
     def indent(level):
         return level * 4 * ' '
 
-    if isinstance(obj, tuple):
-        ifobj, extra = obj
-        ifcond = extra.ifcond
-        comment = extra.comment
+    if isinstance(obj, Node):
         ret = ''
-        if comment:
-            ret += indent(level) + '/* %s */\n' % comment
-        if ifcond:
-            ret += gen_if(ifcond)
-        ret += _tree_to_qlit(ifobj, level)
-        if ifcond:
-            ret += '\n' + gen_endif(ifcond)
+        if obj.extra.comment:
+            ret += indent(level) + '/* %s */\n' % obj.extra.comment
+        if obj.extra.ifcond:
+            ret += gen_if(obj.extra.ifcond)
+        ret += _tree_to_qlit(obj.data, level)
+        if obj.extra.ifcond:
+            ret += '\n' + gen_endif(obj.extra.ifcond)
         return ret
 
     ret = ''
@@ -169,7 +173,7 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     @classmethod
     def _gen_features(cls, features: List[QAPISchemaFeature]):
-        return [_make_tree(f.name, f.ifcond) for f in features]
+        return [Node(f.name, f.ifcond) for f in features]
 
     def _gen_tree(self, name, mtype, obj, ifcond, features):
         extra = None
@@ -183,7 +187,7 @@ const QLitObject %(c_name)s = %(c_string)s;
         obj['meta-type'] = mtype
         if features:
             obj['features'] = self._gen_features(features)
-        self._trees.append(_make_tree(obj, ifcond, extra))
+        self._trees.append(Node(obj, ifcond, extra))
 
     def _gen_member(self, member):
         obj = {'name': member.name, 'type': self._use_type(member.type)}
@@ -191,7 +195,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             obj['default'] = None
         if member.features:
             obj['features'] = self._gen_features(member.features)
-        return _make_tree(obj, member.ifcond)
+        return Node(obj, member.ifcond)
 
     def _gen_variants(self, tag_name, variants):
         return {'tag': tag_name,
@@ -199,15 +203,14 @@ const QLitObject %(c_name)s = %(c_string)s;
 
     def _gen_variant(self, variant):
         obj = {'case': variant.name, 'type': self._use_type(variant.type)}
-        return _make_tree(obj, variant.ifcond)
+        return Node(obj, variant.ifcond)
 
     def visit_builtin_type(self, name, info, json_type):
         self._gen_tree(name, 'builtin', {'json-type': json_type}, [], None)
 
     def visit_enum_type(self, name, info, ifcond, features, members, prefix):
         self._gen_tree(name, 'enum',
-                       {'values': [_make_tree(m.name, m.ifcond, None)
-                                   for m in members]},
+                       {'values': [Node(m.name, m.ifcond) for m in members]},
                        ifcond, features)
 
     def visit_array_type(self, name, info, ifcond, element_type):
@@ -227,9 +230,9 @@ const QLitObject %(c_name)s = %(c_string)s;
     def visit_alternate_type(self, name, info, ifcond, features, variants):
         self._gen_tree(name, 'alternate',
                        {'members': [
-                           _make_tree({'type': self._use_type(m.type)},
-                                      m.ifcond, None)
-                           for m in variants.variants]},
+                           Node({'type': self._use_type(m.type)}, m.ifcond)
+                           for m in variants.variants
+                       ]},
                        ifcond, features)
 
     def visit_command(self, name, info, ifcond, features,
