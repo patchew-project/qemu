@@ -417,6 +417,35 @@ static uint32_t cc_calc_vc(uint64_t low, uint64_t high)
     }
 }
 
+static uint32_t cc_calc_muls_32(int64_t res)
+{
+    /* Arithmetic shift with sign extension so we can compare against -1ull. */
+    const uint64_t tmp = res >> 31;
+
+    if (!res) {
+        return 0;
+    } else if (!(!tmp || tmp == -1ull)) {
+        return 3;
+    } else if (res < 0) {
+        return 1;
+    }
+    return 2;
+}
+
+static uint64_t cc_calc_muls_64(int64_t res_high, uint64_t res_low)
+{
+    const uint8_t tmp = res_low >> 63;
+
+    if (!res_high && !res_low) {
+        return 0;
+    } else if (!(!res_high && !tmp) || !(res_high == -1ull && tmp)) {
+        return 3;
+    } else if (res_high < 0) {
+        return 1;
+    }
+    return 2;
+}
+
 static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
                                   uint64_t src, uint64_t dst, uint64_t vr)
 {
@@ -484,6 +513,9 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
     case CC_OP_COMP_64:
         r =  cc_calc_comp_64(dst);
         break;
+    case CC_OP_MULS_64:
+        r = cc_calc_muls_64(src, dst);
+        break;
 
     case CC_OP_ADD_32:
         r =  cc_calc_add_32(src, dst, vr);
@@ -512,6 +544,8 @@ static uint32_t do_calc_cc(CPUS390XState *env, uint32_t cc_op,
     case CC_OP_COMP_32:
         r =  cc_calc_comp_32(dst);
         break;
+    case CC_OP_MULS_32:
+        r = cc_calc_muls_32(dst);
 
     case CC_OP_ICM:
         r =  cc_calc_icm(src, dst);
