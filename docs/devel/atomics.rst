@@ -23,9 +23,9 @@ provides macros that fall in three camps:
 
 - compiler barriers: ``barrier()``;
 
-- weak atomic access and manual memory barriers: ``atomic_read()``,
-  ``atomic_set()``, ``smp_rmb()``, ``smp_wmb()``, ``smp_mb()``, ``smp_mb_acquire()``,
-  ``smp_mb_release()``, ``smp_read_barrier_depends()``;
+- weak atomic access and manual memory barriers: ``qemu_atomic_read()``,
+  ``qemu_atomic_set()``, ``smp_rmb()``, ``smp_wmb()``, ``smp_mb()``,
+  ``smp_mb_acquire()``, ``smp_mb_release()``, ``smp_read_barrier_depends()``;
 
 - sequentially consistent atomic access: everything else.
 
@@ -67,23 +67,23 @@ in the order specified by its program".
 ``qemu/atomic.h`` provides the following set of atomic read-modify-write
 operations::
 
-    void atomic_inc(ptr)
-    void atomic_dec(ptr)
-    void atomic_add(ptr, val)
-    void atomic_sub(ptr, val)
-    void atomic_and(ptr, val)
-    void atomic_or(ptr, val)
+    void qemu_atomic_inc(ptr)
+    void qemu_atomic_dec(ptr)
+    void qemu_atomic_add(ptr, val)
+    void qemu_atomic_sub(ptr, val)
+    void qemu_atomic_and(ptr, val)
+    void qemu_atomic_or(ptr, val)
 
-    typeof(*ptr) atomic_fetch_inc(ptr)
-    typeof(*ptr) atomic_fetch_dec(ptr)
-    typeof(*ptr) atomic_fetch_add(ptr, val)
-    typeof(*ptr) atomic_fetch_sub(ptr, val)
-    typeof(*ptr) atomic_fetch_and(ptr, val)
-    typeof(*ptr) atomic_fetch_or(ptr, val)
-    typeof(*ptr) atomic_fetch_xor(ptr, val)
-    typeof(*ptr) atomic_fetch_inc_nonzero(ptr)
-    typeof(*ptr) atomic_xchg(ptr, val)
-    typeof(*ptr) atomic_cmpxchg(ptr, old, new)
+    typeof(*ptr) qemu_atomic_fetch_inc(ptr)
+    typeof(*ptr) qemu_atomic_fetch_dec(ptr)
+    typeof(*ptr) qemu_atomic_fetch_add(ptr, val)
+    typeof(*ptr) qemu_atomic_fetch_sub(ptr, val)
+    typeof(*ptr) qemu_atomic_fetch_and(ptr, val)
+    typeof(*ptr) qemu_atomic_fetch_or(ptr, val)
+    typeof(*ptr) qemu_atomic_fetch_xor(ptr, val)
+    typeof(*ptr) qemu_atomic_fetch_inc_nonzero(ptr)
+    typeof(*ptr) qemu_atomic_xchg(ptr, val)
+    typeof(*ptr) qemu_atomic_cmpxchg(ptr, old, new)
 
 all of which return the old value of ``*ptr``.  These operations are
 polymorphic; they operate on any type that is as wide as a pointer or
@@ -91,19 +91,19 @@ smaller.
 
 Similar operations return the new value of ``*ptr``::
 
-    typeof(*ptr) atomic_inc_fetch(ptr)
-    typeof(*ptr) atomic_dec_fetch(ptr)
-    typeof(*ptr) atomic_add_fetch(ptr, val)
-    typeof(*ptr) atomic_sub_fetch(ptr, val)
-    typeof(*ptr) atomic_and_fetch(ptr, val)
-    typeof(*ptr) atomic_or_fetch(ptr, val)
-    typeof(*ptr) atomic_xor_fetch(ptr, val)
+    typeof(*ptr) qemu_atomic_inc_fetch(ptr)
+    typeof(*ptr) qemu_atomic_dec_fetch(ptr)
+    typeof(*ptr) qemu_atomic_add_fetch(ptr, val)
+    typeof(*ptr) qemu_atomic_sub_fetch(ptr, val)
+    typeof(*ptr) qemu_atomic_and_fetch(ptr, val)
+    typeof(*ptr) qemu_atomic_or_fetch(ptr, val)
+    typeof(*ptr) qemu_atomic_xor_fetch(ptr, val)
 
 ``qemu/atomic.h`` also provides loads and stores that cannot be reordered
 with each other::
 
-    typeof(*ptr) atomic_mb_read(ptr)
-    void         atomic_mb_set(ptr, val)
+    typeof(*ptr) qemu_atomic_mb_read(ptr)
+    void         qemu_atomic_mb_set(ptr, val)
 
 However these do not provide sequential consistency and, in particular,
 they do not participate in the total ordering enforced by
@@ -115,12 +115,12 @@ easiest to hardest):
 
 - lightweight synchronization primitives such as ``QemuEvent``
 
-- RCU operations (``atomic_rcu_read``, ``atomic_rcu_set``) when publishing
-  or accessing a new version of a data structure
+- RCU operations (``qemu_atomic_rcu_read``, ``qemu_atomic_rcu_set``) when
+  publishing or accessing a new version of a data structure
 
-- other atomic accesses: ``atomic_read`` and ``atomic_load_acquire`` for
-  loads, ``atomic_set`` and ``atomic_store_release`` for stores, ``smp_mb``
-  to forbid reordering subsequent loads before a store.
+- other atomic accesses: ``qemu_atomic_read`` and ``qemu_atomic_load_acquire``
+  for loads, ``qemu_atomic_set`` and ``qemu_atomic_store_release`` for stores,
+  ``smp_mb`` to forbid reordering subsequent loads before a store.
 
 
 Weak atomic access and manual memory barriers
@@ -149,22 +149,22 @@ The only guarantees that you can rely upon in this case are:
 
 When using this model, variables are accessed with:
 
-- ``atomic_read()`` and ``atomic_set()``; these prevent the compiler from
-  optimizing accesses out of existence and creating unsolicited
+- ``qemu_atomic_read()`` and ``qemu_atomic_set()``; these prevent the compiler
+  from optimizing accesses out of existence and creating unsolicited
   accesses, but do not otherwise impose any ordering on loads and
   stores: both the compiler and the processor are free to reorder
   them.
 
-- ``atomic_load_acquire()``, which guarantees the LOAD to appear to
+- ``qemu_atomic_load_acquire()``, which guarantees the LOAD to appear to
   happen, with respect to the other components of the system,
   before all the LOAD or STORE operations specified afterwards.
-  Operations coming before ``atomic_load_acquire()`` can still be
+  Operations coming before ``qemu_atomic_load_acquire()`` can still be
   reordered after it.
 
-- ``atomic_store_release()``, which guarantees the STORE to appear to
+- ``qemu_atomic_store_release()``, which guarantees the STORE to appear to
   happen, with respect to the other components of the system,
   after all the LOAD or STORE operations specified before.
-  Operations coming after ``atomic_store_release()`` can still be
+  Operations coming after ``qemu_atomic_store_release()`` can still be
   reordered before it.
 
 Restrictions to the ordering of accesses can also be specified
@@ -229,18 +229,18 @@ They come in six kinds:
   dependency and a full read barrier or better is required.
 
 
-Memory barriers and ``atomic_load_acquire``/``atomic_store_release`` are
-mostly used when a data structure has one thread that is always a writer
+Memory barriers and ``qemu_atomic_load_acquire``/``qemu_atomic_store_release``
+are mostly used when a data structure has one thread that is always a writer
 and one thread that is always a reader:
 
-    +----------------------------------+----------------------------------+
-    | thread 1                         | thread 2                         |
-    +==================================+==================================+
-    | ::                               | ::                               |
-    |                                  |                                  |
-    |   atomic_store_release(&a, x);   |   y = atomic_load_acquire(&b);   |
-    |   atomic_store_release(&b, y);   |   x = atomic_load_acquire(&a);   |
-    +----------------------------------+----------------------------------+
+    +---------------------------------------+---------------------------------------+
+    | thread 1                              | thread 2                              |
+    +=======================================+=======================================+
+    | ::                                    | ::                                    |
+    |                                       |                                       |
+    |   qemu_atomic_store_release(&a, x);   |   y = qemu_atomic_load_acquire(&b);   |
+    |   qemu_atomic_store_release(&b, y);   |   x = qemu_atomic_load_acquire(&a);   |
+    +---------------------------------------+---------------------------------------+
 
 In this case, correctness is easy to check for using the "pairing"
 trick that is explained below.
@@ -251,54 +251,54 @@ thread, exactly one other thread will read or write each of these
 variables).  In this case, it is possible to "hoist" the barriers
 outside a loop.  For example:
 
-    +------------------------------------------+----------------------------------+
-    | before                                   | after                            |
-    +==========================================+==================================+
-    | ::                                       | ::                               |
-    |                                          |                                  |
-    |   n = 0;                                 |   n = 0;                         |
-    |   for (i = 0; i < 10; i++)               |   for (i = 0; i < 10; i++)       |
-    |     n += atomic_load_acquire(&a[i]);     |     n += atomic_read(&a[i]);     |
-    |                                          |   smp_mb_acquire();              |
-    +------------------------------------------+----------------------------------+
-    | ::                                       | ::                               |
-    |                                          |                                  |
-    |                                          |   smp_mb_release();              |
-    |   for (i = 0; i < 10; i++)               |   for (i = 0; i < 10; i++)       |
-    |     atomic_store_release(&a[i], false);  |     atomic_set(&a[i], false);    |
-    +------------------------------------------+----------------------------------+
+    +-----------------------------------------------+---------------------------------------+
+    | before                                        | after                                 |
+    +===============================================+=======================================+
+    | ::                                            | ::                                    |
+    |                                               |                                       |
+    |   n = 0;                                      |   n = 0;                              |
+    |   for (i = 0; i < 10; i++)                    |   for (i = 0; i < 10; i++)            |
+    |     n += qemu_atomic_load_acquire(&a[i]);     |     n += qemu_atomic_read(&a[i]);     |
+    |                                               |   smp_mb_acquire();                   |
+    +-----------------------------------------------+---------------------------------------+
+    | ::                                            | ::                                    |
+    |                                               |                                       |
+    |                                               |   smp_mb_release();                   |
+    |   for (i = 0; i < 10; i++)                    |   for (i = 0; i < 10; i++)            |
+    |     qemu_atomic_store_release(&a[i], false);  |     qemu_atomic_set(&a[i], false);    |
+    +-----------------------------------------------+---------------------------------------+
 
 Splitting a loop can also be useful to reduce the number of barriers:
 
-    +------------------------------------------+----------------------------------+
-    | before                                   | after                            |
-    +==========================================+==================================+
-    | ::                                       | ::                               |
-    |                                          |                                  |
-    |   n = 0;                                 |     smp_mb_release();            |
-    |   for (i = 0; i < 10; i++) {             |     for (i = 0; i < 10; i++)     |
-    |     atomic_store_release(&a[i], false);  |       atomic_set(&a[i], false);  |
-    |     smp_mb();                            |     smb_mb();                    |
-    |     n += atomic_read(&b[i]);             |     n = 0;                       |
-    |   }                                      |     for (i = 0; i < 10; i++)     |
-    |                                          |       n += atomic_read(&b[i]);   |
-    +------------------------------------------+----------------------------------+
+    +-----------------------------------------------+---------------------------------------+
+    | before                                        | after                                 |
+    +===============================================+=======================================+
+    | ::                                            | ::                                    |
+    |                                               |                                       |
+    |   n = 0;                                      |     smp_mb_release();                 |
+    |   for (i = 0; i < 10; i++) {                  |     for (i = 0; i < 10; i++)          |
+    |     qemu_atomic_store_release(&a[i], false);  |       qemu_atomic_set(&a[i], false);  |
+    |     smp_mb();                                 |     smb_mb();                         |
+    |     n += qemu_atomic_read(&b[i]);             |     n = 0;                            |
+    |   }                                           |     for (i = 0; i < 10; i++)          |
+    |                                               |       n += qemu_atomic_read(&b[i]);   |
+    +-----------------------------------------------+---------------------------------------+
 
 In this case, a ``smp_mb_release()`` is also replaced with a (possibly cheaper, and clearer
 as well) ``smp_wmb()``:
 
-    +------------------------------------------+----------------------------------+
-    | before                                   | after                            |
-    +==========================================+==================================+
-    | ::                                       | ::                               |
-    |                                          |                                  |
-    |                                          |     smp_mb_release();            |
-    |   for (i = 0; i < 10; i++) {             |     for (i = 0; i < 10; i++)     |
-    |     atomic_store_release(&a[i], false);  |       atomic_set(&a[i], false);  |
-    |     atomic_store_release(&b[i], false);  |     smb_wmb();                   |
-    |   }                                      |     for (i = 0; i < 10; i++)     |
-    |                                          |       atomic_set(&b[i], false);  |
-    +------------------------------------------+----------------------------------+
+    +-----------------------------------------------+---------------------------------------+
+    | before                                        | after                                 |
+    +===============================================+=======================================+
+    | ::                                            | ::                                    |
+    |                                               |                                       |
+    |                                               |     smp_mb_release();                 |
+    |   for (i = 0; i < 10; i++) {                  |     for (i = 0; i < 10; i++)          |
+    |     qemu_atomic_store_release(&a[i], false);  |       qemu_atomic_set(&a[i], false);  |
+    |     qemu_atomic_store_release(&b[i], false);  |     smb_wmb();                        |
+    |   }                                           |     for (i = 0; i < 10; i++)          |
+    |                                               |       qemu_atomic_set(&b[i], false);  |
+    +-----------------------------------------------+---------------------------------------+
 
 
 .. _acqrel:
@@ -306,8 +306,8 @@ as well) ``smp_wmb()``:
 Acquire/release pairing and the *synchronizes-with* relation
 ------------------------------------------------------------
 
-Atomic operations other than ``atomic_set()`` and ``atomic_read()`` have
-either *acquire* or *release* semantics [#rmw]_.  This has two effects:
+Atomic operations other than ``qemu_atomic_set()`` and ``qemu_atomic_read()``
+have either *acquire* or *release* semantics [#rmw]_.  This has two effects:
 
 .. [#rmw] Read-modify-write operations can have both---acquire applies to the
           read part, and release to the write.
@@ -357,30 +357,30 @@ thread 2 is relying on the *synchronizes-with* relation between ``pthread_exit``
 
 Synchronization between threads basically descends from this pairing of
 a release operation and an acquire operation.  Therefore, atomic operations
-other than ``atomic_set()`` and ``atomic_read()`` will almost always be
-paired with another operation of the opposite kind: an acquire operation
+other than ``qemu_atomic_set()`` and ``qemu_atomic_read()`` will almost always
+be paired with another operation of the opposite kind: an acquire operation
 will pair with a release operation and vice versa.  This rule of thumb is
 extremely useful; in the case of QEMU, however, note that the other
 operation may actually be in a driver that runs in the guest!
 
 ``smp_read_barrier_depends()``, ``smp_rmb()``, ``smp_mb_acquire()``,
-``atomic_load_acquire()`` and ``atomic_rcu_read()`` all count
+``qemu_atomic_load_acquire()`` and ``qemu_atomic_rcu_read()`` all count
 as acquire operations.  ``smp_wmb()``, ``smp_mb_release()``,
-``atomic_store_release()`` and ``atomic_rcu_set()`` all count as release
-operations.  ``smp_mb()`` counts as both acquire and release, therefore
+``qemu_atomic_store_release()`` and ``qemu_atomic_rcu_set()`` all count as
+release operations.  ``smp_mb()`` counts as both acquire and release, therefore
 it can pair with any other atomic operation.  Here is an example:
 
-      +----------------------+------------------------------+
-      | thread 1             | thread 2                     |
-      +======================+==============================+
-      | ::                   | ::                           |
-      |                      |                              |
-      |   atomic_set(&a, 1); |                              |
-      |   smp_wmb();         |                              |
-      |   atomic_set(&b, 2); |   x = atomic_read(&b);       |
-      |                      |   smp_rmb();                 |
-      |                      |   y = atomic_read(&a);       |
-      +----------------------+------------------------------+
+      +---------------------------+------------------------------+
+      | thread 1                  | thread 2                     |
+      +===========================+==============================+
+      | ::                        | ::                           |
+      |                           |                              |
+      |   qemu_atomic_set(&a, 1); |                              |
+      |   smp_wmb();              |                              |
+      |   qemu_atomic_set(&b, 2); |   x = qemu_atomic_read(&b);  |
+      |                           |   smp_rmb();                 |
+      |                           |   y = qemu_atomic_read(&a);  |
+      +---------------------------+------------------------------+
 
 Note that a load-store pair only counts if the two operations access the
 same variable: that is, a store-release on a variable ``x`` *synchronizes
@@ -388,15 +388,15 @@ with* a load-acquire on a variable ``x``, while a release barrier
 synchronizes with any acquire operation.  The following example shows
 correct synchronization:
 
-      +--------------------------------+--------------------------------+
-      | thread 1                       | thread 2                       |
-      +================================+================================+
-      | ::                             | ::                             |
-      |                                |                                |
-      |   atomic_set(&a, 1);           |                                |
-      |   atomic_store_release(&b, 2); |   x = atomic_load_acquire(&b); |
-      |                                |   y = atomic_read(&a);         |
-      +--------------------------------+--------------------------------+
+      +-------------------------------------+-------------------------------------+
+      | thread 1                            | thread 2                            |
+      +=====================================+=====================================+
+      | ::                                  | ::                                  |
+      |                                     |                                     |
+      |   qemu_atomic_set(&a, 1);           |                                     |
+      |   qemu_atomic_store_release(&b, 2); |   x = qemu_atomic_load_acquire(&b); |
+      |                                     |   y = qemu_atomic_read(&a);         |
+      +-------------------------------------+-------------------------------------+
 
 Acquire and release semantics of higher-level primitives can also be
 relied upon for the purpose of establishing the *synchronizes with*
@@ -412,21 +412,21 @@ Finally, this more complex example has more than two accesses and data
 dependency barriers.  It also does not use atomic accesses whenever there
 cannot be a data race:
 
-      +----------------------+------------------------------+
-      | thread 1             | thread 2                     |
-      +======================+==============================+
-      | ::                   | ::                           |
-      |                      |                              |
-      |   b[2] = 1;          |                              |
-      |   smp_wmb();         |                              |
-      |   x->i = 2;          |                              |
-      |   smp_wmb();         |                              |
-      |   atomic_set(&a, x); |  x = atomic_read(&a);        |
-      |                      |  smp_read_barrier_depends(); |
-      |                      |  y = x->i;                   |
-      |                      |  smp_read_barrier_depends(); |
-      |                      |  z = b[y];                   |
-      +----------------------+------------------------------+
+      +---------------------------+------------------------------+
+      | thread 1                  | thread 2                     |
+      +===========================+==============================+
+      | ::                        | ::                           |
+      |                           |                              |
+      |   b[2] = 1;               |                              |
+      |   smp_wmb();              |                              |
+      |   x->i = 2;               |                              |
+      |   smp_wmb();              |                              |
+      |   qemu_atomic_set(&a, x); |  x = qemu_atomic_read(&a);   |
+      |                           |  smp_read_barrier_depends(); |
+      |                           |  y = x->i;                   |
+      |                           |  smp_read_barrier_depends(); |
+      |                           |  z = b[y];                   |
+      +---------------------------+------------------------------+
 
 Comparison with Linux kernel primitives
 =======================================
@@ -438,50 +438,50 @@ and memory barriers, and the equivalents in QEMU:
   use a boxed ``atomic_t`` type; atomic operations in QEMU are polymorphic
   and use normal C types.
 
-- Originally, ``atomic_read`` and ``atomic_set`` in Linux gave no guarantee
-  at all. Linux 4.1 updated them to implement volatile
+- Originally, ``qemu_atomic_read`` and ``qemu_atomic_set`` in Linux gave no
+  guarantee at all. Linux 4.1 updated them to implement volatile
   semantics via ``ACCESS_ONCE`` (or the more recent ``READ``/``WRITE_ONCE``).
 
-  QEMU's ``atomic_read`` and ``atomic_set`` implement C11 atomic relaxed
-  semantics if the compiler supports it, and volatile semantics otherwise.
-  Both semantics prevent the compiler from doing certain transformations;
-  the difference is that atomic accesses are guaranteed to be atomic,
-  while volatile accesses aren't. Thus, in the volatile case we just cross
-  our fingers hoping that the compiler will generate atomic accesses,
-  since we assume the variables passed are machine-word sized and
-  properly aligned.
+  QEMU's ``qemu_atomic_read`` and ``qemu_atomic_set`` implement C11 atomic
+  relaxed semantics if the compiler supports it, and volatile semantics
+  otherwise. Both semantics prevent the compiler from doing certain
+  transformations; the difference is that atomic accesses are guaranteed to be
+  atomic, while volatile accesses aren't. Thus, in the volatile case we just
+  cross our fingers hoping that the compiler will generate atomic accesses,
+  since we assume the variables passed are machine-word sized and properly
+  aligned.
 
-  No barriers are implied by ``atomic_read`` and ``atomic_set`` in either Linux
-  or QEMU.
+  No barriers are implied by ``qemu_atomic_read`` and ``qemu_atomic_set`` in
+  either Linux or QEMU.
 
 - atomic read-modify-write operations in Linux are of three kinds:
 
-         ===================== =========================================
-         ``atomic_OP``         returns void
-         ``atomic_OP_return``  returns new value of the variable
-         ``atomic_fetch_OP``   returns the old value of the variable
-         ``atomic_cmpxchg``    returns the old value of the variable
-         ===================== =========================================
+         ======================= =========================================
+         ``atomic_OP``           returns void
+         ``atomic_OP_return``    returns new value of the variable
+         ``atomic_fetch_OP``     returns the old value of the variable
+         ``atomic_cmpxchg``      returns the old value of the variable
+         ======================= =========================================
 
-  In QEMU, the second kind is named ``atomic_OP_fetch``.
+  In QEMU, the second kind is named ``qemu_atomic_OP_fetch``.
 
 - different atomic read-modify-write operations in Linux imply
   a different set of memory barriers; in QEMU, all of them enforce
   sequential consistency.
 
-- in QEMU, ``atomic_read()`` and ``atomic_set()`` do not participate in
-  the total ordering enforced by sequentially-consistent operations.
+- in QEMU, ``qemu_atomic_read()`` and ``qemu_atomic_set()`` do not participate
+  in the total ordering enforced by sequentially-consistent operations.
   This is because QEMU uses the C11 memory model.  The following example
   is correct in Linux but not in QEMU:
 
-      +----------------------------------+--------------------------------+
-      | Linux (correct)                  | QEMU (incorrect)               |
-      +==================================+================================+
-      | ::                               | ::                             |
-      |                                  |                                |
-      |   a = atomic_fetch_add(&x, 2);   |   a = atomic_fetch_add(&x, 2); |
-      |   b = READ_ONCE(&y);             |   b = atomic_read(&y);         |
-      +----------------------------------+--------------------------------+
+      +-------------------------------------+-------------------------------------+
+      | Linux (correct)                     | QEMU (incorrect)                    |
+      +=====================================+=====================================+
+      | ::                                  | ::                                  |
+      |                                     |                                     |
+      |   a = qemu_atomic_fetch_add(&x, 2); |   a = qemu_atomic_fetch_add(&x, 2); |
+      |   b = READ_ONCE(&y);                |   b = qemu_atomic_read(&y);         |
+      +-------------------------------------+-------------------------------------+
 
   because the read of ``y`` can be moved (by either the processor or the
   compiler) before the write of ``x``.
@@ -495,10 +495,10 @@ and memory barriers, and the equivalents in QEMU:
       +================================+
       | ::                             |
       |                                |
-      |   a = atomic_read(&x);         |
-      |   atomic_set(&x, a + 2);       |
+      |   a = qemu_atomic_read(&x);    |
+      |   qemu_atomic_set(&x, a + 2);  |
       |   smp_mb();                    |
-      |   b = atomic_read(&y);         |
+      |   b = qemu_atomic_read(&y);    |
       +--------------------------------+
 
 Sources

@@ -595,7 +595,7 @@ int64_t aio_compute_timeout(AioContext *ctx);
  */
 static inline void aio_disable_external(AioContext *ctx)
 {
-    atomic_inc(&ctx->external_disable_cnt);
+    qemu_atomic_inc(&ctx->external_disable_cnt);
 }
 
 /**
@@ -608,7 +608,7 @@ static inline void aio_enable_external(AioContext *ctx)
 {
     int old;
 
-    old = atomic_fetch_dec(&ctx->external_disable_cnt);
+    old = qemu_atomic_fetch_dec(&ctx->external_disable_cnt);
     assert(old > 0);
     if (old == 1) {
         /* Kick event loop so it re-arms file descriptors */
@@ -624,7 +624,7 @@ static inline void aio_enable_external(AioContext *ctx)
  */
 static inline bool aio_external_disabled(AioContext *ctx)
 {
-    return atomic_read(&ctx->external_disable_cnt);
+    return qemu_atomic_read(&ctx->external_disable_cnt);
 }
 
 /**
@@ -637,7 +637,7 @@ static inline bool aio_external_disabled(AioContext *ctx)
  */
 static inline bool aio_node_check(AioContext *ctx, bool is_external)
 {
-    return !is_external || !atomic_read(&ctx->external_disable_cnt);
+    return !is_external || !qemu_atomic_read(&ctx->external_disable_cnt);
 }
 
 /**
