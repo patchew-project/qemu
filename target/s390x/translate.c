@@ -1626,6 +1626,11 @@ static DisasJumpType op_bc(DisasContext *s, DisasOps *o)
         return DISAS_NEXT;
     }
 
+    /* For BIC the address came from memory, we need to wrap it again. */
+    if (s->fields.op2 == 0x47) {
+        gen_addi_and_wrap_i64(s, o->in2, o->in2, 0);
+    }
+
     disas_jcc(s, &c, m1);
     return help_branch(s, &c, is_imm, imm, o->in2);
 }
