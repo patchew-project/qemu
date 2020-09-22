@@ -289,6 +289,7 @@ static int packet_enqueue(CompareState *s, int mode, Connection **con)
             "queue size too big, drop packet");
         packet_destroy(pkt, NULL);
         pkt = NULL;
+        return -1;
     }
 
     *con = conn;
