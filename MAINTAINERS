@@ -2356,8 +2356,8 @@ F: include/sysemu/cryptodev*.h
 F: backends/cryptodev*.c
 
 Python scripts
-M: Eduardo Habkost <ehabkost@redhat.com>
 M: Cleber Rosa <crosa@redhat.com>
+R: Eduardo Habkost <ehabkost@redhat.com>
 S: Odd fixes
 F: python/qemu/*py
 F: scripts/*.py
