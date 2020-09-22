@@ -10,6 +10,8 @@ This work is licensed under the terms of the GNU GPL, version 2.
 See the COPYING file in the top-level directory.
 """
 
+from typing import (NamedTuple, Optional, Sequence)
+
 from .common import (
     c_name,
     gen_endif,
@@ -21,16 +23,21 @@ from .schema import (QAPISchemaArrayType, QAPISchemaBuiltinType,
                      QAPISchemaType)
 
 
-def _make_tree(obj, ifcond, features, extra=None):
-    if extra is None:
-        extra = {}
-    if ifcond:
-        extra['if'] = ifcond
+class Extra(NamedTuple):
+    """
+    Extra contains data that isn't intended for output by introspection.
+    """
+    comment: Optional[str] = None
+    ifcond: Sequence[str] = tuple()
+
+
+def _make_tree(obj, ifcond, features,
+               extra: Optional[Extra] = None):
+    comment = extra.comment if extra else None
+    extra = Extra(comment, ifcond)
     if features:
-        obj['features'] = [(f.name, {'if': f.ifcond}) for f in features]
-    if extra:
-        return (obj, extra)
-    return obj
+        obj['features'] = [(f.name, Extra(None, f.ifcond)) for f in features]
+    return (obj, extra)
 
 
 def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
@@ -40,8 +47,8 @@ def _tree_to_qlit(obj, level=0, suppress_first_indent=False):
 
     if isinstance(obj, tuple):
         ifobj, extra = obj
-        ifcond = extra.get('if')
-        comment = extra.get('comment')
+        ifcond = extra.ifcond
+        comment = extra.comment
         ret = ''
         if comment:
             ret += indent(level) + '/* %s */\n' % comment
@@ -168,7 +175,7 @@ const QLitObject %(c_name)s = %(c_string)s;
             if not self._unmask:
                 # Output a comment to make it easy to map masked names
                 # back to the source when reading the generated output.
-                extra = {'comment': '"%s" = %s' % (self._name(name), name)}
+                extra = Extra(comment=f'"{self._name(name)}" = {name}')
             name = self._name(name)
         obj['name'] = name
         obj['meta-type'] = mtype
