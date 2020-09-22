@@ -17,6 +17,7 @@
 import os
 import re
 from collections import OrderedDict
+from typing import Optional
 
 from .common import c_name, POINTER_SUFFIX
 from .error import QAPIError, QAPISemError
@@ -25,7 +26,7 @@ from .parser import QAPISchemaParser
 
 
 class QAPISchemaEntity:
-    meta = None
+    meta: Optional[str] = None
 
     def __init__(self, name, info, doc, ifcond=None, features=None):
         assert name is None or isinstance(name, str)
