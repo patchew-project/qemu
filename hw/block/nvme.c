@@ -2203,6 +2203,7 @@ static void nvme_init_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 {
     int64_t bs_size;
     NvmeIdNs *id_ns = &ns->id_ns;
+    int lba_index;
 
     bs_size = blk_getlength(n->conf.blk);
     if (bs_size < 0) {
@@ -2212,7 +2213,8 @@ static void nvme_init_namespace(NvmeCtrl *n, NvmeNamespace *ns, Error **errp)
 
     n->ns_size = bs_size;
 
-    id_ns->lbaf[0].ds = BDRV_SECTOR_BITS;
+    lba_index = NVME_ID_NS_FLBAS_INDEX(ns->id_ns.flbas);
+    id_ns->lbaf[lba_index].ds = 31 - clz32(n->conf.logical_block_size);
     id_ns->nsze = cpu_to_le64(nvme_ns_nlbas(n, ns));
 
     /* no thin provisioning */
