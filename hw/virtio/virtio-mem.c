@@ -805,6 +805,14 @@ static void virtio_mem_get_block_size(Object *obj, Visitor *v, const char *name,
     const VirtIOMEM *vmem = VIRTIO_MEM(obj);
     uint64_t value = vmem->block_size;
 
+    /*
+     * If not configured by the user (and we're not realized yet), use the
+     * default block size.
+     */
+    if (!value) {
+        value = virtio_mem_default_block_size();
+    }
+
     visit_type_size(v, name, &value, errp);
 }
 
