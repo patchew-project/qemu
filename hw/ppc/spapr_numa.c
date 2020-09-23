@@ -37,6 +37,49 @@ static bool spapr_numa_is_symmetrical(MachineState *ms)
     return true;
 }
 
+/*
+ * This function will translate the user distances into
+ * what the kernel understand as possible values: 10
+ * (local distance), 20, 40, 80 and 160. Current heuristic
+ * is:
+ *
+ *  - distances between 11 and 30 -> rounded to 20
+ *  - distances between 31 and 60 -> rounded to 40
+ *  - distances between 61 and 120 -> rounded to 80
+ *  - everything above 120 -> 160
+ *
+ * This step can also be done in the same time as the NUMA
+ * associativity domains calculation, at the cost of extra
+ * complexity. We chose to keep it simpler.
+ *
+ * Note: this will overwrite the distance values in
+ * ms->numa_state->nodes.
+ */
+static void spapr_numa_PAPRify_distances(MachineState *ms)
+{
+    int src, dst;
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    NodeInfo *numa_info = ms->numa_state->nodes;
+
+    for (src = 0; src < nb_numa_nodes; src++) {
+        for (dst = src; dst < nb_numa_nodes; dst++) {
+            uint8_t distance = numa_info[src].distance[dst];
+            uint8_t rounded_distance = 160;
+
+            if (distance > 11 && distance < 30) {
+                rounded_distance = 20;
+            } else if (distance > 31 && distance < 60) {
+                rounded_distance = 40;
+            } else if (distance > 61 && distance < 120) {
+                rounded_distance = 80;
+            }
+
+            numa_info[src].distance[dst] = rounded_distance;
+            numa_info[dst].distance[src] = rounded_distance;
+        }
+    }
+}
+
 void spapr_numa_associativity_init(SpaprMachineState *spapr,
                                    MachineState *machine)
 {
@@ -95,6 +138,7 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
         exit(1);
     }
 
+    spapr_numa_PAPRify_distances(machine);
 }
 
 void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
