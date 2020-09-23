@@ -222,21 +222,30 @@ int spapr_numa_write_assoc_lookup_arrays(SpaprMachineState *spapr, void *fdt,
  */
 void spapr_numa_write_rtas_dt(SpaprMachineState *spapr, void *fdt, int rtas)
 {
+    MachineState *ms = MACHINE(spapr);
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     uint32_t refpoints[] = {
         cpu_to_be32(0x4),
-        cpu_to_be32(0x4),
+        cpu_to_be32(0x3),
         cpu_to_be32(0x2),
+        cpu_to_be32(0x1),
     };
     uint32_t nr_refpoints = ARRAY_SIZE(refpoints);
-    uint32_t maxdomain = cpu_to_be32(spapr->gpu_numa_id > 1 ? 1 : 0);
-    uint32_t maxdomains[] = {
-        cpu_to_be32(4),
-        maxdomain,
-        maxdomain,
-        maxdomain,
-        cpu_to_be32(spapr->gpu_numa_id),
-    };
+    uint32_t maxdomain = cpu_to_be32(ms->numa_state->num_nodes +
+                                     spapr->gpu_numa_id);
+    uint32_t maxdomains[] = {0x4, maxdomain, maxdomain, maxdomain, maxdomain};
+
+    if (spapr_machine_using_legacy_numa(spapr)) {
+        refpoints[1] =  cpu_to_be32(0x4);
+        refpoints[2] =  cpu_to_be32(0x2);
+        nr_refpoints = 3;
+
+        maxdomain = cpu_to_be32(spapr->gpu_numa_id > 1 ? 1 : 0);
+        maxdomains[1] = maxdomain;
+        maxdomains[2] = maxdomain;
+        maxdomains[3] = maxdomain;
+        maxdomains[4] = cpu_to_be32(spapr->gpu_numa_id);
+    }
 
     if (smc->pre_5_1_assoc_refpoints) {
         nr_refpoints = 2;
