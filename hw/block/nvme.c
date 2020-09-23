@@ -3402,8 +3402,11 @@ static int nvme_init_zone_meta(NvmeCtrl *n, NvmeNamespace *ns,
                                uint64_t capacity)
 {
     NvmeZone *zone;
+    Error *err;
     uint64_t start = 0, zone_size = n->zone_size;
+    uint32_t rnd;
     int i;
+    uint16_t zs;
 
     ns->zone_array = g_malloc0(n->zone_array_size);
     ns->exp_open_zones = g_malloc0(sizeof(NvmeZoneList));
@@ -3432,6 +3435,37 @@ static int nvme_init_zone_meta(NvmeCtrl *n, NvmeNamespace *ns,
         zone->prev = 0;
         zone->next = 0;
         start += zone_size;
+    }
+
+    /* If required, make some zones Offline or Read Only */
+
+    for (i = 0; i < n->params.nr_offline_zones; i++) {
+        do {
+            qcrypto_random_bytes(&rnd, sizeof(rnd), &err);
+            rnd %= n->num_zones;
+        } while (rnd < n->params.max_open_zones);
+        zone = &ns->zone_array[rnd];
+        zs = nvme_get_zone_state(zone);
+        if (zs != NVME_ZONE_STATE_OFFLINE) {
+            nvme_set_zone_state(zone, NVME_ZONE_STATE_OFFLINE);
+        } else {
+            i--;
+        }
+    }
+
+    for (i = 0; i < n->params.nr_rdonly_zones; i++) {
+        do {
+            qcrypto_random_bytes(&rnd, sizeof(rnd), &err);
+            rnd %= n->num_zones;
+        } while (rnd < n->params.max_open_zones);
+        zone = &ns->zone_array[rnd];
+        zs = nvme_get_zone_state(zone);
+        if (zs != NVME_ZONE_STATE_OFFLINE &&
+            zs != NVME_ZONE_STATE_READ_ONLY) {
+            nvme_set_zone_state(zone, NVME_ZONE_STATE_READ_ONLY);
+        } else {
+            i--;
+        }
     }
 
     return 0;
@@ -3483,6 +3517,16 @@ static void nvme_zoned_init_ctrl(NvmeCtrl *n, Error **errp)
         warn_report("max_active_zones value %u exceeds the number of zones %u,"
                     " adjusting", n->params.max_active_zones, nz);
         n->params.max_active_zones = nz;
+    }
+    if (n->params.max_open_zones < nz) {
+        if (n->params.nr_offline_zones > nz - n->params.max_open_zones) {
+            n->params.nr_offline_zones = nz - n->params.max_open_zones;
+        }
+        if (n->params.nr_rdonly_zones >
+            nz - n->params.max_open_zones - n->params.nr_offline_zones) {
+            n->params.nr_rdonly_zones =
+                nz - n->params.max_open_zones - n->params.nr_offline_zones;
+        }
     }
     if (n->params.zd_extension_size) {
         if (n->params.zd_extension_size & 0x3f) {
@@ -3916,6 +3960,8 @@ static Property nvme_props[] = {
                        params.zd_extension_size, 0),
     DEFINE_PROP_UINT32("max_active", NvmeCtrl, params.max_active_zones, 0),
     DEFINE_PROP_UINT32("max_open", NvmeCtrl, params.max_open_zones, 0),
+    DEFINE_PROP_UINT32("offline_zones", NvmeCtrl, params.nr_offline_zones, 0),
+    DEFINE_PROP_UINT32("rdonly_zones", NvmeCtrl, params.nr_rdonly_zones, 0),
     DEFINE_PROP_BOOL("cross_zone_read", NvmeCtrl, params.cross_zone_read, true),
     DEFINE_PROP_UINT8("fill_pattern", NvmeCtrl, params.fill_pattern, 0),
     DEFINE_PROP_END_OF_LIST(),
