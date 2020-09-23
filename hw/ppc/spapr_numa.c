@@ -80,12 +80,79 @@ static void spapr_numa_PAPRify_distances(MachineState *ms)
     }
 }
 
+static uint8_t spapr_numa_get_NUMA_level(uint8_t distance)
+{
+    uint8_t numa_level;
+
+    switch (distance) {
+    case 20:
+        numa_level = 0x3;
+        break;
+    case 40:
+        numa_level = 0x2;
+        break;
+    case 80:
+        numa_level = 0x1;
+        break;
+    default:
+        numa_level = 0;
+    }
+
+    return numa_level;
+}
+
+static void spapr_numa_define_associativity_domains(SpaprMachineState *spapr,
+                                                    MachineState *ms)
+{
+    int src, dst;
+    int nb_numa_nodes = ms->numa_state->num_nodes;
+    NodeInfo *numa_info = ms->numa_state->nodes;
+
+    for (src = 0; src < nb_numa_nodes; src++) {
+        for (dst = src; dst < nb_numa_nodes; dst++) {
+            /*
+             * This is how the associativity domain between A and B
+             * is calculated:
+             *
+             * - get the distance between them
+             * - get the correspondent NUMA level for this distance
+             * - the arrays were initialized with their own numa_ids,
+             * and we're calculating the distance in node_id ascending order,
+             * starting from node 0. This will have a cascade effect in the
+             * algorithm because the associativity domains that node 0 defines
+             * will be carried over to the other nodes, and node 1
+             * associativities will be carried over unless there's already a
+             * node 0 associativity assigned, and so on. This happens because
+             * we'll assign the lowest value of assoc_src and assoc_dst to be
+             * the associativity domain of both, for the given NUMA level.
+             *
+             * The PPC kernel expects the associativity domains of node 0 to
+             * be always 0, and this algorithm will grant that by default.
+             */
+            uint8_t distance = numa_info[src].distance[dst];
+            uint8_t n_level = spapr_numa_get_NUMA_level(distance);
+            uint32_t assoc_src, assoc_dst;
+
+            assoc_src = be32_to_cpu(spapr->numa_assoc_array[src][n_level]);
+            assoc_dst = be32_to_cpu(spapr->numa_assoc_array[dst][n_level]);
+
+            if (assoc_src < assoc_dst) {
+                spapr->numa_assoc_array[dst][n_level] = cpu_to_be32(assoc_src);
+            } else {
+                spapr->numa_assoc_array[src][n_level] = cpu_to_be32(assoc_dst);
+            }
+        }
+    }
+
+}
+
 void spapr_numa_associativity_init(SpaprMachineState *spapr,
                                    MachineState *machine)
 {
     SpaprMachineClass *smc = SPAPR_MACHINE_GET_CLASS(spapr);
     int nb_numa_nodes = machine->numa_state->num_nodes;
     int i, j, max_nodes_with_gpus;
+    bool using_legacy_numa = spapr_machine_using_legacy_numa(spapr);
 
     /*
      * For all associativity arrays: first position is the size,
@@ -99,6 +166,17 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
     for (i = 0; i < nb_numa_nodes; i++) {
         spapr->numa_assoc_array[i][0] = cpu_to_be32(MAX_DISTANCE_REF_POINTS);
         spapr->numa_assoc_array[i][MAX_DISTANCE_REF_POINTS] = cpu_to_be32(i);
+
+        /*
+         * Fill all associativity domains of the node with node_id.
+         * This is required because the kernel makes valid associativity
+         * matches with the zeroes if we leave the matrix unitialized.
+         */
+        if (!using_legacy_numa) {
+            for (j = 1; j < MAX_DISTANCE_REF_POINTS; j++) {
+                spapr->numa_assoc_array[i][j] = cpu_to_be32(i);
+            }
+        }
     }
 
     /*
@@ -128,7 +206,7 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
      * 1 NUMA node) will not benefit from anything we're going to do
      * after this point.
      */
-    if (spapr_machine_using_legacy_numa(spapr)) {
+    if (using_legacy_numa) {
         return;
     }
 
@@ -139,6 +217,7 @@ void spapr_numa_associativity_init(SpaprMachineState *spapr,
     }
 
     spapr_numa_PAPRify_distances(machine);
+    spapr_numa_define_associativity_domains(spapr, machine);
 }
 
 void spapr_numa_write_associativity_dt(SpaprMachineState *spapr, void *fdt,
