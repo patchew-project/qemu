@@ -89,6 +89,17 @@ struct MemoryDeviceClass {
     MemoryRegion *(*get_memory_region)(MemoryDeviceState *md, Error **errp);
 
     /*
+     * Optional: Return the desired minimum alignment of the device in guest
+     * physical address space, ignoring the alignment requirements of the
+     * memory region (e.g., based on the page size). The final alignment is
+     * computed by selecting the maximum of both alignments.
+     *
+     * Called when plugging the memory device to detect the required alignment
+     * during address assignment.
+     */
+    uint64_t (*get_min_alignment)(const MemoryDeviceState *md);
+
+    /*
      * Translate the memory device into #MemoryDeviceInfo.
      */
     void (*fill_device_info)(const MemoryDeviceState *md,
