@@ -33,10 +33,70 @@
 #include "trace.h"
 
 /*
- * Use QEMU_VMALLOC_ALIGN, so no THP will have to be split when unplugging
- * memory (e.g., 2MB on x86_64).
+ * Let's not allow blocks smaller than 1 MiB, for example, to keep the tracking
+ * bitmap small.
  */
-#define VIRTIO_MEM_MIN_BLOCK_SIZE ((uint32_t)QEMU_VMALLOC_ALIGN)
+#define VIRTIO_MEM_MIN_BLOCK_SIZE ((uint32_t)(1 * MiB))
+
+/*
+ * We want to have a reasonable default block size such that
+ * 1. We avoid splitting THPs when unplugging memory, which degrades
+ *    performance.
+ * 2. We avoid placing THPs for plugged blocks that also cover unplugged
+ *    blocks.
+ *
+ * The actual THP size might differ between Linux kernels, so we try to probe
+ * it. In the future (if we ever run into issues regarding 2.), we might want
+ * to disable THP in case we fail to properly probe the THP size, or if the
+ * block size is configured smaller than the THP size.
+ */
+static uint32_t default_block_size;
+
+#define HPAGE_PMD_SIZE_PATH "/sys/kernel/mm/transparent_hugepage/hpage_pmd_size"
+static uint32_t virtio_mem_default_block_size(void)
+{
+    gchar *content = NULL;
+    const char *endptr;
+    uint64_t tmp;
+
+    if (default_block_size) {
+        return default_block_size;
+    }
+
+    /*
+     * Try to probe the actual THP size, fallback to (sane but eventually
+     * incorrect) default sizes.
+     */
+    if (g_file_get_contents(HPAGE_PMD_SIZE_PATH, &content, NULL, NULL) &&
+        !qemu_strtou64(content, &endptr, 0, &tmp) &&
+        (!endptr || *endptr == '\n')) {
+        /*
+         * Sanity-check the value, if it's too big (e.g., aarch64 with 64k base
+         * pages) or weird, fallback to something smaller.
+         */
+        if (!tmp || !is_power_of_2(tmp) || tmp > 16 * MiB) {
+            warn_report("Detected a THP size of %" PRIx64
+                        " MiB, falling back to 1 MiB.", tmp / MiB);
+            default_block_size = 1 * MiB;
+        } else {
+            default_block_size = tmp;
+        }
+    } else {
+#if defined(__x86_64__) || defined(__arm__) || defined(__aarch64__) || \
+    defined(__powerpc64__)
+        default_block_size = 2 * MiB;
+#else
+        /* fallback to 1 MiB (e.g., the THP size on s390x) */
+        default_block_size = 1 * MiB;
+#endif
+        warn_report("Could not detect THP size, falling back to %" PRIx64
+                    "  MiB.", default_block_size / MiB);
+    }
+
+    g_free(content);
+    return default_block_size;
+}
+
 /*
  * Size the usable region bigger than the requested size if possible. Esp.
  * Linux guests will only add (aligned) memory blocks in case they fully
@@ -437,6 +497,15 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     rb = vmem->memdev->mr.ram_block;
     page_size = qemu_ram_pagesize(rb);
 
+    /*
+     * If the block size wasn't configured by the user, use a sane default. This
+     * allows using hugetlbfs backends with a pagesize bigger than the detected
+     * THP size without manual intervention/configuration.
+     */
+    if (!vmem->block_size) {
+        vmem->block_size = MAX(page_size, virtio_mem_default_block_size());
+    }
+
     if (vmem->block_size < page_size) {
         error_setg(errp, "'%s' property has to be at least the page size (0x%"
                    PRIx64 ")", VIRTIO_MEM_BLOCK_SIZE_PROP, page_size);
@@ -760,6 +829,12 @@ static void virtio_mem_set_block_size(Object *obj, Visitor *v, const char *name,
         error_setg(errp, "'%s' property has to be a power of two", name);
         return;
     }
+
+    if (value < virtio_mem_default_block_size()) {
+        warn_report("'%s' property is smaller than the default block size "
+                    "(detected THP size) of %" PRIx64 " MiB", name,
+                    virtio_mem_default_block_size() / MiB);
+    }
     vmem->block_size = value;
 }
 
@@ -810,7 +885,6 @@ static void virtio_mem_instance_init(Object *obj)
 {
     VirtIOMEM *vmem = VIRTIO_MEM(obj);
 
-    vmem->block_size = VIRTIO_MEM_MIN_BLOCK_SIZE;
     notifier_list_init(&vmem->size_change_notifiers);
     vmem->precopy_notifier.notify = virtio_mem_precopy_notify;
 
