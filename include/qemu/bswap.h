@@ -10,23 +10,6 @@
 # include <sys/endian.h>
 #elif defined(__HAIKU__)
 # include <endian.h>
-#elif defined(CONFIG_BYTESWAP_H)
-# include <byteswap.h>
-
-static inline uint16_t bswap16(uint16_t x)
-{
-    return bswap_16(x);
-}
-
-static inline uint32_t bswap32(uint32_t x)
-{
-    return bswap_32(x);
-}
-
-static inline uint64_t bswap64(uint64_t x)
-{
-    return bswap_64(x);
-}
 #else
 # define bswap16(_x) __builtin_bswap16(_x)
 # define bswap32(_x) __builtin_bswap32(_x)
