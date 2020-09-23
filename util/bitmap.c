@@ -211,7 +211,8 @@ void bitmap_set_atomic(unsigned long *map, long start, long nr)
         mask_to_set &= BITMAP_LAST_WORD_MASK(size);
         atomic_or(p, mask_to_set);
     } else {
-        /* If we avoided the full barrier in atomic_or(), issue a
+        /*
+         * If we avoided the full barrier in atomic_or(), issue a
          * barrier to account for the assignments in the while loop.
          */
         smp_mb();

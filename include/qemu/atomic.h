@@ -325,11 +325,11 @@
 /* These will only be atomic if the processor does the fetch or store
  * in a single issue memory operation
  */
-#define atomic_read__nocheck(p)   (*(__typeof__(*(p)) volatile*) (p))
-#define atomic_set__nocheck(p, i) ((*(__typeof__(*(p)) volatile*) (p)) = (i))
+#define atomic_read__nocheck(p)   (*(__typeof__(*(p)) volatile *) (p))
+#define atomic_set__nocheck(p, i) ((*(__typeof__(*(p)) volatile *) (p)) = (i))
 
 #define atomic_read(ptr)       atomic_read__nocheck(ptr)
-#define atomic_set(ptr, i)     atomic_set__nocheck(ptr,i)
+#define atomic_set(ptr, i)     atomic_set__nocheck(ptr, i)
 
 /**
  * atomic_rcu_read - reads a RCU-protected pointer to a local variable
@@ -440,7 +440,8 @@
 #endif
 #endif
 
-/* atomic_mb_read/set semantics map Java volatile variables. They are
+/*
+ * atomic_mb_read/set semantics map Java volatile variables. They are
  * less expensive on some platforms (notably POWER) than fully
  * sequentially consistent operations.
  *

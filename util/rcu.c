@@ -82,7 +82,8 @@ static void wait_for_readers(void)
          */
         qemu_event_reset(&rcu_gp_event);
 
-        /* Instead of using atomic_mb_set for index->waiting, and
+        /*
+         * Instead of using atomic_mb_set for index->waiting, and
          * atomic_mb_read for index->ctr, memory barriers are placed
          * manually since writes to different threads are independent.
          * qemu_event_reset has acquire semantics, so no memory barrier
@@ -151,7 +152,8 @@ void synchronize_rcu(void)
 
     QEMU_LOCK_GUARD(&rcu_registry_lock);
     if (!QLIST_EMPTY(&registry)) {
-        /* In either case, the atomic_mb_set below blocks stores that free
+        /*
+         * In either case, the atomic_mb_set below blocks stores that free
          * old RCU-protected pointers.
          */
         if (sizeof(rcu_gp_ctr) < 8) {
