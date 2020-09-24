@@ -30,6 +30,13 @@ nvme-ns Options
      zns.zcap; if the zone capacity is a power of two, the zone size will be
      set to that, otherwise it will default to the next power of two.
 
+  `zns.mar`; Specifies the number of active resources available. This is a 0s
+     based value.
+
+  `zns.mor`; Specifies the number of open resources available. This is a 0s
+     based value.
+
+
 Reference Specifications
 ------------------------
 

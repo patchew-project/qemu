@@ -28,6 +28,8 @@ typedef struct NvmeNamespaceParams {
         uint64_t zcap;
         uint64_t zsze;
         uint8_t  zdes;
+        uint32_t mar;
+        uint32_t mor;
     } zns;
 } NvmeNamespaceParams;
 
@@ -71,6 +73,11 @@ typedef struct NvmeNamespace {
         NvmeZone           *zones;
         NvmeZoneDescriptor *zd;
         uint8_t            *zde;
+
+        struct {
+            uint32_t open;
+            uint32_t active;
+        } resources;
     } zns;
 } NvmeNamespace;
 

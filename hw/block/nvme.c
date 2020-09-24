@@ -1204,6 +1204,40 @@ static uint16_t nvme_zrm_transition(NvmeNamespace *ns, NvmeZone *zone,
 
     switch (from) {
     case NVME_ZS_ZSE:
+        switch (to) {
+        case NVME_ZS_ZSF:
+        case NVME_ZS_ZSRO:
+        case NVME_ZS_ZSO:
+            break;
+
+        case NVME_ZS_ZSC:
+            if (!ns->zns.resources.active) {
+                return NVME_TOO_MANY_ACTIVE_ZONES;
+            }
+
+            ns->zns.resources.active--;
+
+            break;
+
+        case NVME_ZS_ZSIO:
+        case NVME_ZS_ZSEO:
+            if (!ns->zns.resources.active) {
+                return NVME_TOO_MANY_ACTIVE_ZONES;
+            }
+
+            if (!ns->zns.resources.open) {
+                return NVME_TOO_MANY_OPEN_ZONES;
+            }
+
+            ns->zns.resources.active--;
+            ns->zns.resources.open--;
+
+            break;
+
+        default:
+            return NVME_INVALID_ZONE_STATE_TRANSITION | NVME_DNR;
+        }
+
         break;
 
     case NVME_ZS_ZSIO:
@@ -1224,7 +1258,13 @@ static uint16_t nvme_zrm_transition(NvmeNamespace *ns, NvmeZone *zone,
 
         case NVME_ZS_ZSF:
         case NVME_ZS_ZSRO:
+            ns->zns.resources.active++;
+
+            /* fallthrough */
+
         case NVME_ZS_ZSC:
+            ns->zns.resources.open++;
+
             break;
 
         default:
@@ -1247,8 +1287,18 @@ static uint16_t nvme_zrm_transition(NvmeNamespace *ns, NvmeZone *zone,
 
         case NVME_ZS_ZSF:
         case NVME_ZS_ZSRO:
+            ns->zns.resources.active++;
+
+            break;
+
         case NVME_ZS_ZSIO:
         case NVME_ZS_ZSEO:
+            if (!ns->zns.resources.open) {
+                return NVME_TOO_MANY_OPEN_ZONES;
+            }
+
+            ns->zns.resources.open--;
+
             break;
 
         default:
@@ -1652,6 +1702,7 @@ static uint16_t nvme_zone_mgmt_send_all(NvmeCtrl *n, NvmeRequest *req)
     NvmeZoneManagementSendCmd *send = (NvmeZoneManagementSendCmd *) &req->cmd;
     NvmeNamespace *ns = req->ns;
     NvmeZone *zone;
+    int count;
 
     uint16_t status = NVME_SUCCESS;
 
@@ -1701,6 +1752,20 @@ static uint16_t nvme_zone_mgmt_send_all(NvmeCtrl *n, NvmeRequest *req)
         break;
 
     case NVME_CMD_ZONE_MGMT_SEND_OPEN:
+        count = 0;
+
+        for (int i = 0; i < ns->zns.num_zones; i++) {
+            zone = &ns->zns.zones[i];
+
+            if (nvme_zs(zone) == NVME_ZS_ZSC) {
+                count++;
+            }
+        }
+
+        if (count > ns->zns.resources.open) {
+            return NVME_TOO_MANY_OPEN_ZONES;
+        }
+
         for (int i = 0; i < ns->zns.num_zones; i++) {
             zone = &ns->zns.zones[i];
 
