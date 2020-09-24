@@ -6112,12 +6112,23 @@ elif test "$fortify_source" = "yes" ; then
   QEMU_CFLAGS="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
   debug=no
 fi
+
+SUBMODULE_CFLAGS=-Wall
+SUBMODULE_LDFLAGS=
+if test "$pie" = "yes"; then
+  SUBMODULE_CFLAGS="$SUBMODULE_CFLAGS -fPIE"
+  SUBMODULE_LDFLAGS="$SUBMODULE_LDFLAGS -pie"
+else
+  SUBMODULE_CFLAGS="$SUBMODULE_CFLAGS $CFLAGS_NOPIE"
+  SUBMODULE_LDFLAGS="$SUBMODULE_LDFLAGS $LDFLAGS_NOPIE"
+fi
 if test "$debug_info" = "yes"; then
-  CFLAGS="-g $CFLAGS"
-  LDFLAGS="-g $LDFLAGS"
+  SUBMODULE_CFLAGS="$SUBMODULE_CFLAGS -g"
+  SUBMODULE_LDFLAGS="$SUBMODULE_LDFLAGS -g"
 fi
 if test "$debug" = "no"; then
-  CFLAGS="-O2 $CFLAGS"
+  SUBMODULE_CFLAGS="$SUBMODULE_CFLAGS -O2"
+  SUBMODULE_LDFLAGS="$SUBMODULE_LDFLAGS -O2"
 fi
 
 case "$ARCH" in
@@ -7292,7 +7303,8 @@ echo "RANLIB=$ranlib" >> $config_host_mak
 echo "NM=$nm" >> $config_host_mak
 echo "PKG_CONFIG=$pkg_config_exe" >> $config_host_mak
 echo "WINDRES=$windres" >> $config_host_mak
-echo "CFLAGS=$CFLAGS" >> $config_host_mak
+echo "SUBMODULE_CFLAGS=$CFLAGS \$(QEMU_CFLAGS) $SUBMODULE_CFLAGS" >> $config_host_mak
+echo "SUBMODULE_LDFLAGS=$LDFLAGS \$(QEMU_LDFLAGS) $SUBMODULE_LDFLAGS" >> $config_host_mak
 echo "CFLAGS_NOPIE=$CFLAGS_NOPIE" >> $config_host_mak
 echo "QEMU_CFLAGS=$QEMU_CFLAGS" >> $config_host_mak
 echo "QEMU_CXXFLAGS=$QEMU_CXXFLAGS" >> $config_host_mak

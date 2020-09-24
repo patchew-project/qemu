@@ -137,7 +137,6 @@ configure: ;
 .PHONY: all clean distclean install \
 	recurse-all dist msi FORCE
 
-SUBMODULE_CFLAGS = $(QEMU_CFLAGS) $(CFLAGS)
 SUBDIR_MAKEFLAGS = $(if $(V),,--no-print-directory --quiet)
 SUBDIR_HOST_VARS = 							\
 	PKG_CONFIG="$(PKG_CONFIG)" 					\
