@@ -830,6 +830,7 @@ subdir('dump')
 
 block_ss.add(files(
   'block.c',
+  'blockdev-nbd.c',
   'blockjob.c',
   'job.c',
   'qemu-io-cmds.c',
@@ -842,7 +843,6 @@ subdir('block')
 
 blockdev_ss.add(files(
   'blockdev.c',
-  'blockdev-nbd.c',
   'iothread.c',
   'job-qmp.c',
 ))
