@@ -22,6 +22,13 @@ nvme-ns Options
   `iocs`; The "I/O Command Set" associated with the namespace. E.g. 0x0 for the
      NVM Command Set (the default), or 0x2 for the Zoned Namespace Command Set.
 
+  `zns.zcap`; If `iocs` is 0x2, this specifies the zone capacity. It is
+     specified in units of logical blocks.
+
+  `zns.zsze`; If `iocs` is 0x2, this specifies the zone size. It is specified
+     in units of the logical blocks. If not specified, the value depends on
+     zns.zcap; if the zone capacity is a power of two, the zone size will be
+     set to that, otherwise it will default to the next power of two.
 
 Reference Specifications
 ------------------------
