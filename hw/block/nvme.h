@@ -123,6 +123,7 @@ typedef struct NvmeFeatureVal {
     };
     uint32_t    async_config;
     uint32_t    vwc;
+    uint32_t    iocsci;
 } NvmeFeatureVal;
 
 typedef struct NvmeCtrl {
@@ -150,6 +151,7 @@ typedef struct NvmeCtrl {
     uint64_t    timestamp_set_qemu_clock_ms;    /* QEMU clock time */
     uint64_t    starttime_ms;
     uint16_t    temperature;
+    uint64_t    iocscs[512];
 
     HostMemoryBackend *pmrdev;
 
@@ -165,6 +167,7 @@ typedef struct NvmeCtrl {
     NvmeSQueue      admin_sq;
     NvmeCQueue      admin_cq;
     NvmeIdCtrl      id_ctrl;
+    void            *id_ctrl_iocss[NVME_IOCS_MAX];
     NvmeFeatureVal  features;
 } NvmeCtrl;
 

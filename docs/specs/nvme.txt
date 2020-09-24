@@ -19,6 +19,9 @@ nvme-ns Options
        -drive id=pstate,file=pstate.img,format=raw
        -device nvme-ns,pstate=pstate,...
 
+  `iocs`; The "I/O Command Set" associated with the namespace. E.g. 0x0 for the
+     NVM Command Set (the default), or 0x2 for the Zoned Namespace Command Set.
+
 
 Reference Specifications
 ------------------------
