@@ -3241,10 +3241,17 @@ static const TypeInfo iommu_memory_region_info = {
     .abstract           = true,
 };
 
+static const TypeInfo sparse_ram_handler_info = {
+    .parent             = TYPE_INTERFACE,
+    .name               = TYPE_SPARSE_RAM_HANDLER,
+    .class_size         = sizeof(SparseRAMHandlerClass),
+};
+
 static void memory_register_types(void)
 {
     type_register_static(&memory_region_info);
     type_register_static(&iommu_memory_region_info);
+    type_register_static(&sparse_ram_handler_info);
 }
 
 type_init(memory_register_types)

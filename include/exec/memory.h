@@ -42,6 +42,12 @@ typedef struct IOMMUMemoryRegionClass IOMMUMemoryRegionClass;
 DECLARE_OBJ_CHECKERS(IOMMUMemoryRegion, IOMMUMemoryRegionClass,
                      IOMMU_MEMORY_REGION, TYPE_IOMMU_MEMORY_REGION)
 
+#define TYPE_SPARSE_RAM_HANDLER "sparse-ram-handler"
+typedef struct SparseRAMHandlerClass SparseRAMHandlerClass;
+typedef struct SparseRAMHandler SparseRAMHandler;
+DECLARE_OBJ_CHECKERS(SparseRAMHandler, SparseRAMHandlerClass,
+                     SPARSE_RAM_HANDLER, TYPE_SPARSE_RAM_HANDLER)
+
 extern bool global_dirty_log;
 
 typedef struct MemoryRegionOps MemoryRegionOps;
@@ -134,6 +140,28 @@ static inline void iommu_notifier_init(IOMMUNotifier *n, IOMMUNotify fn,
     n->start = start;
     n->end = end;
     n->iommu_idx = iommu_idx;
+}
+
+struct SparseRAMNotifier;
+typedef int (*SparseRAMNotifyMap)(struct SparseRAMNotifier *notifier,
+                                  const MemoryRegion *mr, uint64_t mr_offset,
+                                  uint64_t size);
+typedef void (*SparseRAMNotifyUnmap)(struct SparseRAMNotifier *notifier,
+                                     const MemoryRegion *mr, uint64_t mr_offset,
+                                     uint64_t size);
+
+typedef struct SparseRAMNotifier {
+    SparseRAMNotifyMap notify_map;
+    SparseRAMNotifyUnmap notify_unmap;
+    QLIST_ENTRY(SparseRAMNotifier) next;
+} SparseRAMNotifier;
+
+static inline void sparse_ram_notifier_init(SparseRAMNotifier *notifier,
+                                            SparseRAMNotifyMap map_fn,
+                                            SparseRAMNotifyUnmap unmap_fn)
+{
+    notifier->notify_map = map_fn;
+    notifier->notify_unmap = unmap_fn;
 }
 
 /*
@@ -352,6 +380,36 @@ struct IOMMUMemoryRegionClass {
     int (*num_indexes)(IOMMUMemoryRegion *iommu);
 };
 
+struct SparseRAMHandlerClass {
+    /* private */
+    InterfaceClass parent_class;
+
+    /*
+     * Returns the minimum granularity in which (granularity-aligned pieces
+     * within the memory region) can become either be mapped or unmapped.
+     */
+    uint64_t (*get_granularity)(const SparseRAMHandler *srh,
+                                const MemoryRegion *mr);
+
+    /*
+     * Register a listener for mapping changes.
+     */
+    void (*register_listener)(SparseRAMHandler *srh, const MemoryRegion *mr,
+                              SparseRAMNotifier *notifier);
+
+    /*
+     * Unregister a listener for mapping changes.
+     */
+    void (*unregister_listener)(SparseRAMHandler *srh, const MemoryRegion *mr,
+                                SparseRAMNotifier *notifier);
+
+    /*
+     * Replay notifications for mapped RAM.
+     */
+    int (*replay_mapped)(SparseRAMHandler *srh, const MemoryRegion *mr,
+                         SparseRAMNotifier *notifier);
+};
+
 typedef struct CoalescedMemoryRange CoalescedMemoryRange;
 typedef struct MemoryRegionIoeventfd MemoryRegionIoeventfd;
 
@@ -399,6 +457,7 @@ struct MemoryRegion {
     const char *name;
     unsigned ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
+    SparseRAMHandler *srh; /* For RAM only */
 };
 
 struct IOMMUMemoryRegion {
@@ -1888,6 +1947,62 @@ bool memory_region_present(MemoryRegion *container, hwaddr addr);
  * @mr: a #MemoryRegion which should be checked if it's mapped
  */
 bool memory_region_is_mapped(MemoryRegion *mr);
+
+
+static inline SparseRAMHandler* memory_region_get_sparse_ram_handler(
+                                                               MemoryRegion *mr)
+{
+    return mr->srh;
+}
+
+static inline bool memory_region_is_sparse_ram(MemoryRegion *mr)
+{
+    return memory_region_get_sparse_ram_handler(mr) != NULL;
+}
+
+static inline void memory_region_set_sparse_ram_handler(MemoryRegion *mr,
+                                                        SparseRAMHandler *srh)
+{
+    g_assert(memory_region_is_ram(mr));
+    mr->srh = srh;
+}
+
+static inline void memory_region_register_sparse_ram_notifier(MemoryRegion *mr,
+                                                           SparseRAMNotifier *n)
+{
+    SparseRAMHandler *srh = memory_region_get_sparse_ram_handler(mr);
+    SparseRAMHandlerClass *srhc = SPARSE_RAM_HANDLER_GET_CLASS(srh);
+
+    srhc->register_listener(srh, mr, n);
+}
+
+static inline void memory_region_unregister_sparse_ram_notifier(
+                                                               MemoryRegion *mr,
+                                                           SparseRAMNotifier *n)
+{
+    SparseRAMHandler *srh = memory_region_get_sparse_ram_handler(mr);
+    SparseRAMHandlerClass *srhc = SPARSE_RAM_HANDLER_GET_CLASS(srh);
+
+    srhc->unregister_listener(srh, mr, n);
+}
+
+static inline uint64_t memory_region_sparse_ram_get_granularity(
+                                                               MemoryRegion *mr)
+{
+    SparseRAMHandler *srh = memory_region_get_sparse_ram_handler(mr);
+    SparseRAMHandlerClass *srhc = SPARSE_RAM_HANDLER_GET_CLASS(srh);
+
+    return srhc->get_granularity(srh, mr);
+}
+
+static inline int memory_region_sparse_ram_replay_mapped(MemoryRegion *mr,
+                                                         SparseRAMNotifier *n)
+{
+    SparseRAMHandler *srh = memory_region_get_sparse_ram_handler(mr);
+    SparseRAMHandlerClass *srhc = SPARSE_RAM_HANDLER_GET_CLASS(srh);
+
+    return srhc->replay_mapped(srh, mr, n);
+}
 
 /**
  * memory_region_find: translate an address/size relative to a
