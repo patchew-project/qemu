@@ -27,6 +27,8 @@
 #include "hw/pci/pci_bus.h"
 #include "hw/pci/pcie_regs.h"
 #include "hw/pci/pcie_port.h"
+#include "hw/i386/ich9.h"
+#include "hw/i386/acpi-build.h"
 #include "qemu/range.h"
 
 //#define DEBUG_PCIE
@@ -515,11 +517,25 @@ void pcie_cap_slot_unplug_request_cb(HotplugHandler *hotplug_dev,
     pcie_cap_slot_push_attention_button(hotplug_pdev);
 }
 
+static bool acpi_pcihp_enabled(void)
+{
+    Object *lpc = object_resolve_type_unambiguous(TYPE_ICH9_LPC_DEVICE);
+
+    return lpc &&
+           object_property_get_bool(lpc, "acpi-pci-hotplug-with-bridge-support",
+                                    NULL);
+
+}
+
 /* pci express slot for pci express root/downstream port
    PCI express capability slot registers */
 void pcie_cap_slot_init(PCIDevice *dev, PCIESlot *s)
 {
     uint32_t pos = dev->exp.exp_cap;
+
+    if (acpi_pcihp_enabled()) {
+        return;
+    }
 
     pci_word_test_and_set_mask(dev->config + pos + PCI_EXP_FLAGS,
                                PCI_EXP_FLAGS_SLOT);

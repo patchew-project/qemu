@@ -11,4 +11,6 @@ extern const struct AcpiGenericAddress x86_nvdimm_acpi_dsmio;
 
 void acpi_setup(void);
 
+Object *object_resolve_type_unambiguous(const char *typename);
+
 #endif
