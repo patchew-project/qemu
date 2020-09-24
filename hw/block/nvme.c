@@ -166,6 +166,8 @@ static const NvmeEffectsLog nvme_effects[NVME_IOCS_MAX] = {
             [NVME_CMD_ZONE_MGMT_RECV] = NVME_EFFECTS_CSUPP,
             [NVME_CMD_ZONE_MGMT_SEND] = NVME_EFFECTS_CSUPP |
                                         NVME_EFFECTS_LBCC,
+            [NVME_CMD_ZONE_APPEND]    = NVME_EFFECTS_CSUPP |
+                                        NVME_EFFECTS_LBCC,
         },
     },
 };
@@ -1041,6 +1043,21 @@ static inline uint16_t nvme_check_mdts(NvmeCtrl *n, size_t len)
     return NVME_SUCCESS;
 }
 
+static inline uint16_t nvme_check_zasl(NvmeCtrl *n, size_t len)
+{
+    uint8_t zasl = n->params.zns.zasl;
+
+    if (!zasl) {
+        return nvme_check_mdts(n, len);
+    }
+
+    if (len > n->page_size << zasl) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    return NVME_SUCCESS;
+}
+
 static inline uint16_t nvme_check_bounds(NvmeCtrl *n, NvmeNamespace *ns,
                                          uint64_t slba, uint32_t nlb)
 {
@@ -1393,6 +1410,7 @@ static uint16_t nvme_do_aio(BlockBackend *blk, int64_t offset, size_t len,
         break;
 
     case NVME_CMD_WRITE:
+    case NVME_CMD_ZONE_APPEND:
         is_write = true;
 
         /* fallthrough */
@@ -1928,7 +1946,7 @@ static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
     uint32_t nlb = (uint32_t)le16_to_cpu(rw->nlb) + 1;
     size_t len = nvme_l2b(ns, nlb);
 
-    bool is_write = nvme_req_is_write(req);
+    bool is_append, is_write = nvme_req_is_write(req);
     uint16_t status;
 
     trace_pci_nvme_rwz(nvme_cid(req), nvme_io_opc_str(rw->opcode),
@@ -1940,6 +1958,25 @@ static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
             trace_pci_nvme_err_invalid_zone(nvme_cid(req), slba);
             status = NVME_INVALID_FIELD | NVME_DNR;
             goto invalid;
+        }
+
+        if (req->cmd.opcode == NVME_CMD_ZONE_APPEND) {
+            is_append = true;
+            uint64_t wp = zone->wp_staging;
+
+            if (slba != nvme_zslba(zone)) {
+                trace_pci_nvme_err_invalid_zslba(nvme_cid(req), slba);
+                return NVME_INVALID_FIELD | NVME_DNR;
+            }
+
+            status = nvme_check_zasl(n, len);
+            if (status) {
+                trace_pci_nvme_err_zasl(nvme_cid(req), len);
+                goto invalid;
+            }
+
+            slba = wp;
+            rw->slba = req->cqe.qw0 = cpu_to_le64(wp);
         }
 
         status = nvme_check_zone(n, slba, nlb, req, zone);
@@ -1980,7 +2017,7 @@ static uint16_t nvme_rwz(NvmeCtrl *n, NvmeRequest *req)
 
     if (is_write) {
         if (zone) {
-            if (zone->wp_staging != nvme_wp(zone)) {
+            if (!is_append && (zone->wp_staging != nvme_wp(zone))) {
                 trace_pci_nvme_err_zone_pending_writes(nvme_cid(req),
                                                        nvme_zslba(zone),
                                                        nvme_wp(zone),
@@ -2052,6 +2089,7 @@ static uint16_t nvme_io_cmd(NvmeCtrl *n, NvmeRequest *req)
     case NVME_CMD_WRITE_ZEROES:
     case NVME_CMD_WRITE:
     case NVME_CMD_READ:
+    case NVME_CMD_ZONE_APPEND:
         return nvme_rwz(n, req);
     case NVME_CMD_ZONE_MGMT_SEND:
         return nvme_zone_mgmt_send(n, req);
@@ -3718,6 +3756,11 @@ static void nvme_check_constraints(NvmeCtrl *n, Error **errp)
         return;
     }
 
+    if (params->zns.zasl && params->zns.zasl > params->mdts) {
+        error_setg(errp, "zns.zasl must be less than or equal to mdts");
+        return;
+    }
+
     if (!n->params.cmb_size_mb && n->pmrdev) {
         if (host_memory_backend_is_mapped(n->pmrdev)) {
             error_setg(errp, "can't use already busy memdev: %s",
@@ -3894,11 +3937,15 @@ static void nvme_init_pci(NvmeCtrl *n, PCIDevice *pci_dev, Error **errp)
 static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
 {
     NvmeIdCtrl *id = &n->id_ctrl;
+    NvmeIdCtrlZns *id_zns;
     uint8_t *pci_conf = pci_dev->config;
     char *subnqn;
 
     n->id_ctrl_iocss[NVME_IOCS_NVM] = g_new0(NvmeIdCtrl, 1);
     n->id_ctrl_iocss[NVME_IOCS_ZONED] = g_new0(NvmeIdCtrl, 1);
+
+    id_zns = n->id_ctrl_iocss[NVME_IOCS_ZONED];
+    id_zns->zasl = n->params.zns.zasl;
 
     id->vid = cpu_to_le16(pci_get_word(pci_conf + PCI_VENDOR_ID));
     id->ssvid = cpu_to_le16(pci_get_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID));
@@ -4036,6 +4083,7 @@ static Property nvme_props[] = {
     DEFINE_PROP_UINT32("aer_max_queued", NvmeCtrl, params.aer_max_queued, 64),
     DEFINE_PROP_UINT8("mdts", NvmeCtrl, params.mdts, 7),
     DEFINE_PROP_BOOL("use-intel-id", NvmeCtrl, params.use_intel_id, false),
+    DEFINE_PROP_UINT8("zns.zasl", NvmeCtrl, params.zns.zasl, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
