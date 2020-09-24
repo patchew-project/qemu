@@ -137,7 +137,13 @@ configure: ;
 .PHONY: all clean distclean install \
 	recurse-all dist msi FORCE
 
-SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory --quiet)
+SUBMODULE_CFLAGS = $(QEMU_CFLAGS) $(CFLAGS)
+SUBDIR_MAKEFLAGS = $(if $(V),,--no-print-directory --quiet)
+SUBDIR_HOST_VARS = 							\
+	PKG_CONFIG="$(PKG_CONFIG)" 					\
+	CC="$(CC)" AR="$(AR)" LD="$(LD)" RANLIB="$(RANLIB)"		\
+	CFLAGS="$(SUBMODULE_CFLAGS)" LDFLAGS="$(SUBMODULE_LDFLAGS)"	\
+	ARFLAGS="$(ARFLAGS)"
 
 include $(SRC_PATH)/tests/Makefile.include
 
@@ -146,12 +152,12 @@ Makefile: $(addsuffix /all, $(SUBDIRS))
 
 # LIBFDT_lib="": avoid breaking existing trees with objects requiring -fPIC
 DTC_MAKE_ARGS=-I$(SRC_PATH)/dtc VPATH=$(SRC_PATH)/dtc -C dtc V="$(V)" LIBFDT_lib=""
-DTC_CFLAGS=$(CFLAGS) $(QEMU_CFLAGS)
 DTC_CPPFLAGS=-I$(SRC_PATH)/dtc/libfdt
 
 .PHONY: dtc/all
 dtc/all: .git-submodule-status dtc/libfdt
-	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS) CPPFLAGS="$(DTC_CPPFLAGS)" CFLAGS="$(DTC_CFLAGS)" LDFLAGS="$(QEMU_LDFLAGS)" ARFLAGS="$(ARFLAGS)" CC="$(CC)" AR="$(AR)" LD="$(LD)" $(SUBDIR_MAKEFLAGS) libfdt,)
+	$(call quiet-command,$(MAKE) $(DTC_MAKE_ARGS)			\
+            CPPFLAGS="$(DTC_CPPFLAGS)" $(SUBDIR_MAKEFLAGS) $(SUBDIR_HOST_VARS) libfdt,)
 
 dtc/%: .git-submodule-status
 	@mkdir -p $@
@@ -161,7 +167,7 @@ dtc/%: .git-submodule-status
 # Therefore we replicate some of the logic in the sub-makefile.
 # Remove all the extra -Warning flags that QEMU uses that Capstone doesn't;
 # no need to annoy QEMU developers with such things.
-CAP_CFLAGS = $(patsubst -W%,,$(CFLAGS) $(QEMU_CFLAGS)) $(CAPSTONE_CFLAGS)
+CAP_CFLAGS := $(patsubst -W%,,$(SUBMODULE_CFLAGS)) $(CAPSTONE_CFLAGS)
 CAP_CFLAGS += -DCAPSTONE_USE_SYS_DYN_MEM
 CAP_CFLAGS += -DCAPSTONE_HAS_ARM
 CAP_CFLAGS += -DCAPSTONE_HAS_ARM64
@@ -169,16 +175,17 @@ CAP_CFLAGS += -DCAPSTONE_HAS_POWERPC
 CAP_CFLAGS += -DCAPSTONE_HAS_X86
 
 .PHONY: capstone/all
+capstone/all: SUBMODULE_CFLAGS = $(CAP_CFLAGS)
 capstone/all: .git-submodule-status
-	$(call quiet-command,$(MAKE) -C $(SRC_PATH)/capstone CAPSTONE_SHARED=no BUILDDIR="$(BUILD_DIR)/capstone" CC="$(CC)" AR="$(AR)" LD="$(LD)" RANLIB="$(RANLIB)" CFLAGS="$(CAP_CFLAGS)" $(SUBDIR_MAKEFLAGS) $(BUILD_DIR)/capstone/$(LIBCAPSTONE))
+	$(call quiet-command,$(MAKE) -C $(SRC_PATH)/capstone 		\
+            CAPSTONE_SHARED=no BUILDDIR="$(BUILD_DIR)/capstone" 	\
+            $(SUBDIR_MAKEFLAGS) $(SUBDIR_HOST_VARS) $(BUILD_DIR)/capstone/$(LIBCAPSTONE))
 
 .PHONY: slirp/all
 slirp/all: .git-submodule-status
 	$(call quiet-command,$(MAKE) -C $(SRC_PATH)/slirp		\
-		BUILD_DIR="$(BUILD_DIR)/slirp" 			\
-		PKG_CONFIG="$(PKG_CONFIG)" 				\
-		CC="$(CC)" AR="$(AR)" 	LD="$(LD)" RANLIB="$(RANLIB)"	\
-		CFLAGS="$(QEMU_CFLAGS) $(CFLAGS)" LDFLAGS="$(QEMU_LDFLAGS)")
+		BUILD_DIR="$(BUILD_DIR)/slirp" 				\
+		$(SUBDIR_MAKEFLAGS) $(SUBDIR_HOST_VARS))
 
 ROM_DIRS = $(addprefix pc-bios/, $(ROMS))
 ROM_DIRS_RULES=$(foreach t, all clean, $(addsuffix /$(t), $(ROM_DIRS)))
