@@ -7297,6 +7297,15 @@ static void shift256RightJamming(uint64_t p[4], int count)
 /* R = A - B */
 static void sub256(uint64_t r[4], uint64_t a[4], uint64_t b[4])
 {
+#if defined(__x86_64__)
+    asm("sub %7, %3\n\t"
+        "sbb %6, %2\n\t"
+        "sbb %5, %1\n\t"
+        "sbb %4, %0"
+        : "=&r"(r[0]), "=&r"(r[1]), "=&r"(r[2]), "=&r"(r[3])
+        : "rme"(b[0]), "rme"(b[1]), "rme"(b[2]), "rme"(b[3]),
+            "0"(a[0]),   "1"(a[1]),   "2"(a[2]),   "3"(a[3]));
+#else
     bool borrow = false;
 
     for (int i = 3; i >= 0; --i) {
@@ -7308,11 +7317,20 @@ static void sub256(uint64_t r[4], uint64_t a[4], uint64_t b[4])
             r[i] = a[i] - b[i];
         }
     }
+#endif
 }
 
 /* A = -A */
 static void neg256(uint64_t a[4])
 {
+#if defined(__x86_64__)
+    asm("negq %3\n\t"
+        "sbb %6, %2\n\t"
+        "sbb %5, %1\n\t"
+        "sbb %4, %0"
+        : "=&r"(a[0]), "=&r"(a[1]), "=&r"(a[2]), "+rm"(a[3])
+        : "rme"(a[0]), "rme"(a[1]), "rme"(a[2]), "0"(0), "1"(0), "2"(0));
+#else
     a[3] = -a[3];
     if (likely(a[3])) {
         goto not2;
@@ -7333,11 +7351,20 @@ static void neg256(uint64_t a[4])
     a[1] = ~a[1];
  not0:
     a[0] = ~a[0];
+#endif
 }
 
 /* A += B */
 static void add256(uint64_t a[4], uint64_t b[4])
 {
+#if defined(__x86_64__)
+    asm("add %7, %3\n\t"
+        "adc %6, %2\n\t"
+        "adc %5, %1\n\t"
+        "adc %4, %0"
+        :  "+r"(a[0]),  "+r"(a[1]),  "+r"(a[2]),  "+r"(a[3])
+        : "rme"(b[0]), "rme"(b[1]), "rme"(b[2]), "rme"(b[3]));
+#else
     bool carry = false;
 
     for (int i = 3; i >= 0; --i) {
@@ -7350,6 +7377,7 @@ static void add256(uint64_t a[4], uint64_t b[4])
         }
         a[i] = t;
     }
+#endif
 }
 
 float128 float128_muladd(float128 a_f, float128 b_f, float128 c_f,

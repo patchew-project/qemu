@@ -436,6 +436,13 @@ static inline void
      uint64_t *z2Ptr
  )
 {
+#ifdef __x86_64__
+    asm("add %5, %2\n\t"
+        "adc %4, %1\n\t"
+        "adc %3, %0"
+        : "=&r"(*z0Ptr), "=&r"(*z1Ptr), "=&r"(*z2Ptr)
+        : "rm"(b0), "rm"(b1), "rm"(b2), "0"(a0), "1"(a1), "2"(a2));
+#else
     uint64_t z0, z1, z2;
     int8_t carry0, carry1;
 
@@ -450,7 +457,7 @@ static inline void
     *z2Ptr = z2;
     *z1Ptr = z1;
     *z0Ptr = z0;
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
@@ -494,6 +501,13 @@ static inline void
      uint64_t *z2Ptr
  )
 {
+#ifdef __x86_64__
+    asm("sub %5, %2\n\t"
+        "sbb %4, %1\n\t"
+        "sbb %3, %0"
+        : "=&r"(*z0Ptr), "=&r"(*z1Ptr), "=&r"(*z2Ptr)
+        : "rm"(b0), "rm"(b1), "rm"(b2), "0"(a0), "1"(a1), "2"(a2));
+#else
     uint64_t z0, z1, z2;
     int8_t borrow0, borrow1;
 
@@ -508,7 +522,7 @@ static inline void
     *z2Ptr = z2;
     *z1Ptr = z1;
     *z0Ptr = z0;
-
+#endif
 }
 
 /*----------------------------------------------------------------------------
