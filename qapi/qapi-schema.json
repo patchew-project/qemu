@@ -64,6 +64,7 @@
 { 'include': 'run-state.json' }
 { 'include': 'crypto.json' }
 { 'include': 'block.json' }
+{ 'include': 'block-export.json' }
 { 'include': 'char.json' }
 { 'include': 'dump.json' }
 { 'include': 'job.json' }

@@ -16,8 +16,9 @@ util_ss.add(files(
 qapi_all_modules = [
   'audio',
   'authz',
-  'block-core',
   'block',
+  'block-core',
+  'block-export',
   'char',
   'common',
   'control',
@@ -47,6 +48,7 @@ qapi_all_modules = [
 
 qapi_storage_daemon_modules = [
   'block-core',
+  'block-export',
   'char',
   'common',
   'control',
