@@ -72,6 +72,64 @@ static bool virtio_mem_is_busy(void)
     return migration_in_incoming_postcopy() || !migration_is_idle();
 }
 
+static void virtio_mem_srh_notify_unmap(VirtIOMEM *vmem, uint64_t offset,
+                                        uint64_t size)
+{
+    SparseRAMNotifier *notifier;
+
+    QLIST_FOREACH(notifier, &vmem->sram_notify, next) {
+        notifier->notify_unmap(notifier, &vmem->memdev->mr, offset, size);
+    }
+}
+
+static int virtio_mem_srh_notify_map(VirtIOMEM *vmem, uint64_t offset,
+                                     uint64_t size)
+{
+    SparseRAMNotifier *notifier, *notifier2;
+    int ret = 0;
+
+    QLIST_FOREACH(notifier, &vmem->sram_notify, next) {
+        ret = notifier->notify_map(notifier, &vmem->memdev->mr, offset, size);
+        if (ret) {
+            break;
+        }
+    }
+
+    /* In case any notifier failed, undo the whole operation. */
+    if (ret) {
+        QLIST_FOREACH(notifier2, &vmem->sram_notify, next) {
+            if (notifier2 == notifier) {
+                break;
+            }
+            notifier2->notify_unmap(notifier2, &vmem->memdev->mr, offset, size);
+        }
+    }
+    return ret;
+}
+
+/*
+ * TODO: Maybe we could notify directly that everything is unmapped/discarded.
+ * at least vfio should be able to deal with that.
+ */
+static void virtio_mem_srh_notify_unplug_all(VirtIOMEM *vmem)
+{
+    unsigned long first_zero_bit, last_zero_bit;
+    uint64_t offset, length;
+
+    /* Find consecutive unplugged blocks and notify */
+    first_zero_bit = find_first_zero_bit(vmem->bitmap, vmem->bitmap_size);
+    while (first_zero_bit < vmem->bitmap_size) {
+        offset = first_zero_bit * vmem->block_size;
+        last_zero_bit = find_next_bit(vmem->bitmap, vmem->bitmap_size,
+                                      first_zero_bit + 1) - 1;
+        length = (last_zero_bit - first_zero_bit + 1) * vmem->block_size;
+
+        virtio_mem_srh_notify_unmap(vmem, offset, length);
+        first_zero_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size,
+                                            last_zero_bit + 2);
+    }
+}
+
 static bool virtio_mem_test_bitmap(VirtIOMEM *vmem, uint64_t start_gpa,
                                    uint64_t size, bool plugged)
 {
@@ -146,7 +204,7 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
                                       uint64_t size, bool plug)
 {
     const uint64_t offset = start_gpa - vmem->addr;
-    int ret;
+    int ret, ret2;
 
     if (virtio_mem_is_busy()) {
         return -EBUSY;
@@ -159,6 +217,23 @@ static int virtio_mem_set_block_state(VirtIOMEM *vmem, uint64_t start_gpa,
                          strerror(-ret));
             return -EBUSY;
         }
+        /*
+         * We'll notify *after* discarding succeeded, because we might not be
+         * able to map again ...
+         */
+        virtio_mem_srh_notify_unmap(vmem, offset, size);
+    } else if (virtio_mem_srh_notify_map(vmem, offset, size)) {
+        /*
+         * Could be a mapping attempt already already resulted in memory
+         * getting populated.
+         */
+        ret2 = ram_block_discard_range(vmem->memdev->mr.ram_block, offset,
+                                       size);
+        if (ret2) {
+            error_report("Unexpected error discarding RAM: %s",
+                         strerror(-ret2));
+        }
+        return -EBUSY;
     }
     virtio_mem_set_bitmap(vmem, start_gpa, size, plug);
     return 0;
@@ -253,6 +328,8 @@ static int virtio_mem_unplug_all(VirtIOMEM *vmem)
         error_report("Unexpected error discarding RAM: %s", strerror(-ret));
         return -EBUSY;
     }
+    virtio_mem_srh_notify_unplug_all(vmem);
+
     bitmap_clear(vmem->bitmap, 0, vmem->bitmap_size);
     if (vmem->size) {
         vmem->size = 0;
@@ -480,6 +557,13 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     vmstate_register_ram(&vmem->memdev->mr, DEVICE(vmem));
     qemu_register_reset(virtio_mem_system_reset, vmem);
     precopy_add_notifier(&vmem->precopy_notifier);
+
+    /*
+     * Set it to sparse, so everybody is aware of it before the plug handler
+     * exposes the region to the system.
+     */
+    memory_region_set_sparse_ram_handler(&vmem->memdev->mr,
+                                         SPARSE_RAM_HANDLER(vmem));
 }
 
 static void virtio_mem_device_unrealize(DeviceState *dev)
@@ -487,6 +571,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
     VirtIODevice *vdev = VIRTIO_DEVICE(dev);
     VirtIOMEM *vmem = VIRTIO_MEM(dev);
 
+    memory_region_set_sparse_ram_handler(&vmem->memdev->mr, NULL);
     precopy_remove_notifier(&vmem->precopy_notifier);
     qemu_unregister_reset(virtio_mem_system_reset, vmem);
     vmstate_unregister_ram(&vmem->memdev->mr, DEVICE(vmem));
@@ -813,6 +898,7 @@ static void virtio_mem_instance_init(Object *obj)
     vmem->block_size = VIRTIO_MEM_MIN_BLOCK_SIZE;
     notifier_list_init(&vmem->size_change_notifiers);
     vmem->precopy_notifier.notify = virtio_mem_precopy_notify;
+    QLIST_INIT(&vmem->sram_notify);
 
     object_property_add(obj, VIRTIO_MEM_SIZE_PROP, "size", virtio_mem_get_size,
                         NULL, NULL, NULL);
@@ -832,11 +918,72 @@ static Property virtio_mem_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
+static uint64_t virtio_mem_srh_get_granularity(const SparseRAMHandler *srh,
+                                               const MemoryRegion *mr)
+{
+    const VirtIOMEM *vmem = VIRTIO_MEM(srh);
+
+    g_assert(mr == &vmem->memdev->mr);
+    return vmem->block_size;
+}
+
+static void virtio_mem_srh_register_listener(SparseRAMHandler *srh,
+                                             const MemoryRegion *mr,
+                                             SparseRAMNotifier *notifier)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(srh);
+
+    g_assert(mr == &vmem->memdev->mr);
+    QLIST_INSERT_HEAD(&vmem->sram_notify, notifier, next);
+}
+
+static void virtio_mem_srh_unregister_listener(SparseRAMHandler *srh,
+                                               const MemoryRegion *mr,
+                                               SparseRAMNotifier *notifier)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(srh);
+
+    g_assert(mr == &vmem->memdev->mr);
+    QLIST_REMOVE(notifier, next);
+}
+
+static int virtio_mem_srh_replay_mapped(SparseRAMHandler *srh,
+                                        const MemoryRegion *mr,
+                                        SparseRAMNotifier *notifier)
+{
+    VirtIOMEM *vmem = VIRTIO_MEM(srh);
+    unsigned long first_bit, last_bit;
+    uint64_t offset, length;
+    int ret = 0;
+
+    g_assert(mr == &vmem->memdev->mr);
+
+    /* Find consecutive plugged blocks and notify */
+    first_bit = find_first_bit(vmem->bitmap, vmem->bitmap_size);
+    while (first_bit < vmem->bitmap_size) {
+        offset = first_bit * vmem->block_size;
+        last_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size,
+                                      first_bit + 1) - 1;
+        length = (last_bit - first_bit + 1) * vmem->block_size;
+
+        ret = notifier->notify_map(notifier, mr, offset, length);
+        if (ret) {
+            break;
+        }
+        first_bit = find_next_bit(vmem->bitmap, vmem->bitmap_size,
+                                  last_bit + 2);
+    }
+
+    /* TODO: cleanup on error if necessary. */
+    return ret;
+}
+
 static void virtio_mem_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
     VirtIOMEMClass *vmc = VIRTIO_MEM_CLASS(klass);
+    SparseRAMHandlerClass *srhc = SPARSE_RAM_HANDLER_CLASS(klass);
 
     device_class_set_props(dc, virtio_mem_properties);
     dc->vmsd = &vmstate_virtio_mem;
@@ -852,6 +999,11 @@ static void virtio_mem_class_init(ObjectClass *klass, void *data)
     vmc->get_memory_region = virtio_mem_get_memory_region;
     vmc->add_size_change_notifier = virtio_mem_add_size_change_notifier;
     vmc->remove_size_change_notifier = virtio_mem_remove_size_change_notifier;
+
+    srhc->get_granularity = virtio_mem_srh_get_granularity;
+    srhc->register_listener = virtio_mem_srh_register_listener;
+    srhc->unregister_listener = virtio_mem_srh_unregister_listener;
+    srhc->replay_mapped = virtio_mem_srh_replay_mapped;
 }
 
 static const TypeInfo virtio_mem_info = {
@@ -861,6 +1013,10 @@ static const TypeInfo virtio_mem_info = {
     .instance_init = virtio_mem_instance_init,
     .class_init = virtio_mem_class_init,
     .class_size = sizeof(VirtIOMEMClass),
+    .interfaces = (InterfaceInfo[]) {
+        { TYPE_SPARSE_RAM_HANDLER },
+        { }
+    },
 };
 
 static void virtio_register_types(void)

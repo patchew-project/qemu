@@ -67,6 +67,9 @@ struct VirtIOMEM {
 
     /* don't migrate unplugged memory */
     NotifierWithReturn precopy_notifier;
+
+    /* SparseRAMNotifier list to be notified on plug/unplug events. */
+    QLIST_HEAD(, SparseRAMNotifier) sram_notify;
 };
 
 struct VirtIOMEMClass {
