@@ -104,6 +104,8 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
     NvmeIdNsNvm *id_ns = nvme_ns_id_nvm(ns);
     NvmeIdNsZns *id_ns_zns = nvme_ns_id_zoned(ns);
 
+    id_ns_zns->zoc = cpu_to_le16(ns->params.zns.zoc);
+
     for (int i = 0; i <= id_ns->nlbaf; i++) {
         id_ns_zns->lbafe[i].zsze = ns->params.zns.zsze ?
             ns->params.zns.zsze : cpu_to_le64(pow2ceil(ns->params.zns.zcap));
@@ -442,6 +444,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT8("zns.zdes", NvmeNamespace, params.zns.zdes, 0),
     DEFINE_PROP_UINT32("zns.mar", NvmeNamespace, params.zns.mar, 0xffffffff),
     DEFINE_PROP_UINT32("zns.mor", NvmeNamespace, params.zns.mor, 0xffffffff),
+    DEFINE_PROP_UINT16("zns.zoc", NvmeNamespace, params.zns.zoc, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

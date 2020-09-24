@@ -36,6 +36,11 @@ nvme-ns Options
   `zns.mor`; Specifies the number of open resources available. This is a 0s
      based value.
 
+  `zns.zoc`; Specifies Zone Operation Characteristics (ZOC). Only 0x2 is
+     supported, which allows Zone Active Excursions. If enabled, the controller
+     will release active resources when needed by transitioning zones to the
+     Full state.
+
 
 Reference Specifications
 ------------------------

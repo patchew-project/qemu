@@ -880,10 +880,11 @@ static void nvme_process_aers(void *opaque)
 
         req = n->aer_reqs[n->outstanding_aers];
 
-        result = (NvmeAerResult *) &req->cqe.dw0;
+        result = (NvmeAerResult *) &req->cqe.qw0;
         result->event_type = event->result.event_type;
         result->event_info = event->result.event_info;
         result->log_page = event->result.log_page;
+        result->nsid = event->result.nsid;
         g_free(event);
 
         trace_pci_nvme_aer_post_cqe(result->event_type, result->event_info,
@@ -893,12 +894,14 @@ static void nvme_process_aers(void *opaque)
     }
 }
 
-static void nvme_enqueue_event(NvmeCtrl *n, uint8_t event_type,
-                               uint8_t event_info, uint8_t log_page)
+static void nvme_enqueue_event(NvmeCtrl *n, NvmeNamespace *ns,
+                               uint8_t event_type, uint8_t event_info,
+                               uint8_t log_page)
 {
     NvmeAsyncEvent *event;
 
-    trace_pci_nvme_enqueue_event(event_type, event_info, log_page);
+    trace_pci_nvme_enqueue_event(ns ? ns->params.nsid : -1, event_type,
+                                 event_info, log_page);
 
     if (n->aer_queued == n->params.aer_max_queued) {
         trace_pci_nvme_enqueue_event_noqueue(n->aer_queued);
@@ -911,6 +914,11 @@ static void nvme_enqueue_event(NvmeCtrl *n, uint8_t event_type,
         .event_info = event_info,
         .log_page   = log_page,
     };
+
+    if (event_info == NVME_AER_INFO_NOTICE_ZONE_DESCR_CHANGED) {
+        assert(ns);
+        event->result.nsid = ns->params.nsid;
+    }
 
     QTAILQ_INSERT_TAIL(&n->aer_queue, event, entry);
     n->aer_queued++;
@@ -1192,9 +1200,53 @@ static inline void nvme_zone_reset_wp(NvmeZone *zone)
     zone->wp_staging = nvme_zslba(zone);
 }
 
+static void nvme_zone_changed(NvmeCtrl *n, NvmeNamespace *ns, NvmeZone *zone,
+                              NvmeRequest *req)
+{
+    uint16_t num_ids = le16_to_cpu(ns->zns.changed_list.num_ids);
+
+    trace_pci_nvme_zone_changed(nvme_cid(req), ns->params.nsid,
+                                nvme_zslba(zone));
+
+    if (num_ids < NVME_CHANGED_ZONE_LIST_MAX_IDS) {
+        for (int i = 0; i < num_ids; i++) {
+            if (ns->zns.changed_list.ids[i] == zone->zd->zslba) {
+                goto out;
+            }
+        }
+
+        ns->zns.changed_list.ids[num_ids] = zone->zd->zslba;
+        ns->zns.changed_list.num_ids = cpu_to_le16(num_ids + 1);
+    } else {
+        memset(&ns->zns.changed_list, 0x0, sizeof(NvmeChangedZoneList));
+        ns->zns.changed_list.num_ids = cpu_to_le16(0xffff);
+    }
+
+out:
+    nvme_zns_commit_zone(ns, zone);
+
+    if (NVME_AEC_ZDCN(n->features.async_config)) {
+        nvme_enqueue_event(n, ns, NVME_AER_TYPE_NOTICE,
+                           NVME_AER_INFO_NOTICE_ZONE_DESCR_CHANGED,
+                           NVME_LOG_CHANGED_ZONE_LIST);
+    }
+}
+
 static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
                                     NvmeZone *zone, NvmeZoneState to,
                                     NvmeRequest *req);
+
+static void nvme_zone_active_excursion(NvmeCtrl *n, NvmeNamespace *ns,
+                                       NvmeZone *zone, NvmeRequest *req)
+{
+    trace_pci_nvme_zone_active_excursion(ns->params.nsid, nvme_zslba(zone),
+                                         nvme_zs_str(zone));
+
+    nvme_zrm_transition(n, ns, zone, NVME_ZS_ZSF, req);
+    NVME_ZA_SET(zone->zd->za, NVME_ZA_ZFC);
+
+    nvme_zone_changed(n, ns, zone, req);
+}
 
 static uint16_t nvme_zrm_release_open(NvmeCtrl *n, NvmeNamespace *ns,
                                       NvmeRequest *req)
@@ -1237,6 +1289,57 @@ static uint16_t nvme_zrm_release_open(NvmeCtrl *n, NvmeNamespace *ns,
     return NVME_TOO_MANY_OPEN_ZONES;
 }
 
+static uint16_t nvme_zrm_release_active(NvmeCtrl *n, NvmeNamespace *ns,
+                                        NvmeRequest *req)
+{
+    NvmeZone *candidate = NULL;
+    NvmeZoneDescriptor *zd;
+    NvmeZoneState zs;
+
+    trace_pci_nvme_zone_zrm_release_active(nvme_cid(req), ns->params.nsid);
+
+    if (ns->params.zns.zoc & NVME_ID_NS_ZNS_ZOC_ZAE) {
+        return NVME_TOO_MANY_ACTIVE_ZONES;
+    }
+
+    QTAILQ_FOREACH(candidate, &ns->zns.resources.lru_active, lru_entry) {
+        zd = candidate->zd;
+        zs = nvme_zs(candidate);
+
+        trace_pci_nvme_zone_zrm_candidate(nvme_cid(req), ns->params.nsid,
+                                          nvme_zslba(candidate),
+                                          nvme_wp(candidate), zs);
+
+        goto out;
+    }
+
+    /*
+     * If all zone resources are tied up on open zones we have to transition
+     * one of those to full.
+     */
+    QTAILQ_FOREACH(candidate, &ns->zns.resources.lru_open, lru_entry) {
+        zd = candidate->zd;
+        zs = nvme_zs(candidate);
+
+        trace_pci_nvme_zone_zrm_candidate(nvme_cid(req), ns->params.nsid,
+                                          nvme_zslba(candidate),
+                                          nvme_wp(candidate), zs);
+
+        /* the zone cannot be finished if it is currently writing */
+        if (candidate->wp_staging != le64_to_cpu(zd->wp)) {
+            continue;
+        }
+
+        break;
+    }
+
+    assert(candidate);
+
+out:
+    nvme_zone_active_excursion(n, ns, candidate, req);
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
                                     NvmeZone *zone, NvmeZoneState to,
                                     NvmeRequest *req)
@@ -1261,8 +1364,10 @@ static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
 
         case NVME_ZS_ZSC:
             if (!ns->zns.resources.active) {
-                trace_pci_nvme_err_too_many_active_zones(nvme_cid(req));
-                return NVME_TOO_MANY_ACTIVE_ZONES;
+                status = nvme_zrm_release_active(n, ns, req);
+                if (status) {
+                    return status;
+                }
             }
 
             ns->zns.resources.active--;
@@ -1273,8 +1378,10 @@ static uint16_t nvme_zrm_transition(NvmeCtrl *n, NvmeNamespace *ns,
         case NVME_ZS_ZSIO:
         case NVME_ZS_ZSEO:
             if (!ns->zns.resources.active) {
-                trace_pci_nvme_err_too_many_active_zones(nvme_cid(req));
-                return NVME_TOO_MANY_ACTIVE_ZONES;
+                status = nvme_zrm_release_active(n, ns, req);
+                if (status) {
+                    return status;
+                }
             }
 
             if (!ns->zns.resources.open) {
@@ -2498,6 +2605,40 @@ static uint16_t nvme_effects_log(NvmeCtrl *n, uint32_t buf_len, uint64_t off,
                     DMA_DIRECTION_FROM_DEVICE, req);
 }
 
+static uint16_t nvme_changed_zone_info(NvmeCtrl *n, uint32_t buf_len,
+                                       uint64_t off, NvmeRequest *req)
+{
+    uint32_t nsid = le32_to_cpu(req->cmd.nsid);
+    NvmeNamespace *ns = nvme_ns(n, nsid);
+    uint32_t trans_len;
+    uint16_t status;
+
+    if (unlikely(!ns)) {
+        return NVME_INVALID_NSID | NVME_DNR;
+    }
+
+    if (!nvme_ns_zoned(ns)) {
+        return NVME_INVALID_LOG_ID | NVME_DNR;
+    }
+
+    if (off > sizeof(NvmeChangedZoneList)) {
+        return NVME_INVALID_FIELD | NVME_DNR;
+    }
+
+    trans_len = MIN(sizeof(NvmeChangedZoneList) - off, buf_len);
+
+    status = nvme_dma(n, (uint8_t *)&ns->zns.changed_list + off, trans_len,
+                      DMA_DIRECTION_FROM_DEVICE, req);
+    if (status) {
+        return status;
+    }
+
+    memset(&ns->zns.changed_list, 0x0, sizeof(NvmeChangedZoneList));
+    nvme_clear_events(n, NVME_AER_TYPE_NOTICE);
+
+    return NVME_SUCCESS;
+}
+
 static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
 {
     NvmeCmd *cmd = &req->cmd;
@@ -2543,6 +2684,8 @@ static uint16_t nvme_get_log(NvmeCtrl *n, NvmeRequest *req)
         return nvme_fw_log_info(n, len, off, req);
     case NVME_LOG_EFFECTS:
         return nvme_effects_log(n, len, off, req);
+    case NVME_LOG_CHANGED_ZONE_LIST:
+        return nvme_changed_zone_info(n, len, off, req);
     default:
         trace_pci_nvme_err_invalid_log_page(nvme_cid(req), lid);
         return NVME_INVALID_FIELD | NVME_DNR;
@@ -3161,7 +3304,7 @@ static uint16_t nvme_set_feature(NvmeCtrl *n, NvmeRequest *req)
         if (((n->temperature >= n->features.temp_thresh_hi) ||
              (n->temperature <= n->features.temp_thresh_low)) &&
             NVME_AEC_SMART(n->features.async_config) & NVME_SMART_TEMPERATURE) {
-            nvme_enqueue_event(n, NVME_AER_TYPE_SMART,
+            nvme_enqueue_event(n, NULL, NVME_AER_TYPE_SMART,
                                NVME_AER_INFO_SMART_TEMP_THRESH,
                                NVME_LOG_SMART_INFO);
         }
@@ -3725,7 +3868,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
              * fashion.
              */
             if (n->outstanding_aers) {
-                nvme_enqueue_event(n, NVME_AER_TYPE_ERROR,
+                nvme_enqueue_event(n, NULL, NVME_AER_TYPE_ERROR,
                                    NVME_AER_INFO_ERR_INVALID_DB_REGISTER,
                                    NVME_LOG_ERROR_INFO);
             }
@@ -3742,7 +3885,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
                            qid, new_head);
 
             if (n->outstanding_aers) {
-                nvme_enqueue_event(n, NVME_AER_TYPE_ERROR,
+                nvme_enqueue_event(n, NULL, NVME_AER_TYPE_ERROR,
                                    NVME_AER_INFO_ERR_INVALID_DB_VALUE,
                                    NVME_LOG_ERROR_INFO);
             }
@@ -3779,7 +3922,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
                            " sqid=%"PRIu32", ignoring", qid);
 
             if (n->outstanding_aers) {
-                nvme_enqueue_event(n, NVME_AER_TYPE_ERROR,
+                nvme_enqueue_event(n, NULL, NVME_AER_TYPE_ERROR,
                                    NVME_AER_INFO_ERR_INVALID_DB_REGISTER,
                                    NVME_LOG_ERROR_INFO);
             }
@@ -3796,7 +3939,7 @@ static void nvme_process_db(NvmeCtrl *n, hwaddr addr, int val)
                            qid, new_tail);
 
             if (n->outstanding_aers) {
-                nvme_enqueue_event(n, NVME_AER_TYPE_ERROR,
+                nvme_enqueue_event(n, NULL, NVME_AER_TYPE_ERROR,
                                    NVME_AER_INFO_ERR_INVALID_DB_VALUE,
                                    NVME_LOG_ERROR_INFO);
             }
@@ -4095,6 +4238,7 @@ static void nvme_init_ctrl(NvmeCtrl *n, PCIDevice *pci_dev)
     id->ieee[2] = 0xb3;
     id->mdts = n->params.mdts;
     id->ver = cpu_to_le32(NVME_SPEC_VER);
+    id->oaes = cpu_to_le32(NVME_OAES_ZDCN);
     id->oacs = cpu_to_le16(0);
 
     /*

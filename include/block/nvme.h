@@ -687,6 +687,7 @@ typedef struct QEMU_PACKED NvmeDsmRange {
 enum NvmeAsyncEventRequest {
     NVME_AER_TYPE_ERROR                     = 0,
     NVME_AER_TYPE_SMART                     = 1,
+    NVME_AER_TYPE_NOTICE                    = 2,
     NVME_AER_TYPE_IO_SPECIFIC               = 6,
     NVME_AER_TYPE_VENDOR_SPECIFIC           = 7,
     NVME_AER_INFO_ERR_INVALID_DB_REGISTER   = 0,
@@ -698,13 +699,15 @@ enum NvmeAsyncEventRequest {
     NVME_AER_INFO_SMART_RELIABILITY         = 0,
     NVME_AER_INFO_SMART_TEMP_THRESH         = 1,
     NVME_AER_INFO_SMART_SPARE_THRESH        = 2,
+    NVME_AER_INFO_NOTICE_ZONE_DESCR_CHANGED = 0xef,
 };
 
 typedef struct QEMU_PACKED NvmeAerResult {
-    uint8_t event_type;
-    uint8_t event_info;
-    uint8_t log_page;
-    uint8_t resv;
+    uint8_t  event_type;
+    uint8_t  event_info;
+    uint8_t  log_page;
+    uint8_t  resv;
+    uint32_t nsid;
 } NvmeAerResult;
 
 typedef struct QEMU_PACKED NvmeCqe {
@@ -882,6 +885,15 @@ typedef struct QEMU_PACKED NvmeZoneDescriptor {
     uint8_t  rsvd32[32];
 } NvmeZoneDescriptor;
 
+#define NVME_CHANGED_ZONE_LIST_MAX_IDS 511
+
+typedef struct QEMU_PACKED NvmeChangedZoneList {
+    uint16_t num_ids;
+    uint8_t  rsvd2[6];
+    uint64_t ids[NVME_CHANGED_ZONE_LIST_MAX_IDS];
+} NvmeChangedZoneList;
+
+#define NVME_ZA_ZFC  (1 << 0)
 #define NVME_ZA_ZDEV (1 << 7)
 
 #define NVME_ZA_SET(za, attrs)   ((za) |= (attrs))
@@ -996,6 +1008,10 @@ typedef struct QEMU_PACKED NvmeIdCtrl {
     uint8_t     vs[1024];
 } NvmeIdCtrl;
 
+enum NvmeIdCtrlOaes {
+    NVME_OAES_ZDCN = 1 << 27,
+};
+
 enum NvmeIdCtrlOacs {
     NVME_OACS_SECURITY  = 1 << 0,
     NVME_OACS_FORMAT    = 1 << 1,
@@ -1064,6 +1080,7 @@ typedef struct QEMU_PACKED NvmeIdCtrlZns {
 #define NVME_AEC_SMART(aec)         (aec & 0xff)
 #define NVME_AEC_NS_ATTR(aec)       ((aec >> 8) & 0x1)
 #define NVME_AEC_FW_ACTIVATION(aec) ((aec >> 9) & 0x1)
+#define NVME_AEC_ZDCN(aec)          ((aec >> 27) & 0x1)
 
 #define NVME_ERR_REC_TLER(err_rec)  (err_rec & 0xffff)
 #define NVME_ERR_REC_DULBE(err_rec) (err_rec & 0x10000)
@@ -1231,9 +1248,11 @@ typedef struct QEMU_PACKED NvmeIdNsZns {
     uint8_t     vs[256];
 } NvmeIdNsZns;
 
+#define NVME_ID_NS_ZNS_ZOC_ZAE (1 << 1)
+
 static inline void _nvme_check_size(void)
 {
-    QEMU_BUILD_BUG_ON(sizeof(NvmeAerResult) != 4);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeAerResult) != 8);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCqe) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeDsmRange) != 16);
     QEMU_BUILD_BUG_ON(sizeof(NvmeCmd) != 64);
@@ -1258,5 +1277,6 @@ static inline void _nvme_check_size(void)
     QEMU_BUILD_BUG_ON(sizeof(NvmeEffectsLog) != 4096);
     QEMU_BUILD_BUG_ON(sizeof(NvmeZoneDescriptor) != 64);
     QEMU_BUILD_BUG_ON(sizeof(NvmeLBAFE) != 16);
+    QEMU_BUILD_BUG_ON(sizeof(NvmeChangedZoneList) != 4096);
 }
 #endif
