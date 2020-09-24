@@ -2588,6 +2588,18 @@ static inline MemOp devend_memop(enum device_endian end)
 }
 #endif
 
+typedef enum RamBlockDiscardType {
+    /* Uncorrdinated discards (e.g., virtio-balloon */
+    RAM_BLOCK_DISCARD_T_UNCOORDINATED = 1,
+    /*
+     * Coordinated discards on selected memory regions (e.g., virtio-mem via
+     * SparseRamNotifier).
+     */
+    RAM_BLOCK_DISCARD_T_COORDINATED =   2,
+    /* Any type of discards */
+    RAM_BLOCK_DISCARD_T_ANY =           3,
+} RamBlockDiscardType;
+
 /*
  * Inhibit technologies that require discarding of pages in RAM blocks, e.g.,
  * to manage the actual amount of memory consumed by the VM (then, the memory
@@ -2609,7 +2621,11 @@ static inline MemOp devend_memop(enum device_endian end)
  * Returns 0 if successful. Returns -EBUSY if a technology that relies on
  * discards to work reliably is active.
  */
-int ram_block_discard_disable(bool state);
+int ram_block_discard_type_disable(RamBlockDiscardType type, bool state);
+static inline int ram_block_discard_disable(bool state)
+{
+    return ram_block_discard_type_disable(RAM_BLOCK_DISCARD_T_ANY, state);
+}
 
 /*
  * Inhibit technologies that disable discarding of pages in RAM blocks.
@@ -2617,17 +2633,29 @@ int ram_block_discard_disable(bool state);
  * Returns 0 if successful. Returns -EBUSY if discards are already set to
  * broken.
  */
-int ram_block_discard_require(bool state);
+int ram_block_discard_type_require(RamBlockDiscardType type, bool state);
+static inline int ram_block_discard_require(bool state)
+{
+    return ram_block_discard_type_require(RAM_BLOCK_DISCARD_T_ANY, state);
+}
 
 /*
  * Test if discarding of memory in ram blocks is disabled.
  */
-bool ram_block_discard_is_disabled(void);
+bool ram_block_discard_type_is_disabled(RamBlockDiscardType type);
+static inline bool ram_block_discard_is_disabled(void)
+{
+    return ram_block_discard_type_is_disabled(RAM_BLOCK_DISCARD_T_ANY);
+}
 
 /*
  * Test if discarding of memory in ram blocks is required to work reliably.
  */
-bool ram_block_discard_is_required(void);
+bool ram_block_discard_type_is_required(RamBlockDiscardType type);
+static inline bool ram_block_discard_is_required(void)
+{
+    return ram_block_discard_type_is_required(RAM_BLOCK_DISCARD_T_ANY);
+}
 
 #endif
 

@@ -4098,52 +4098,121 @@ void mtree_print_dispatch(AddressSpaceDispatch *d, MemoryRegion *root)
  * If positive, discarding RAM is disabled. If negative, discarding RAM is
  * required to work and cannot be disabled.
  */
-static int ram_block_discard_disabled;
+static int uncoordinated_discard_disabled;
+static int coordinated_discard_disabled;
 
-int ram_block_discard_disable(bool state)
+static int __ram_block_discard_disable(int *counter)
 {
     int old;
 
-    if (!state) {
-        atomic_dec(&ram_block_discard_disabled);
-        return 0;
-    }
-
     do {
-        old = atomic_read(&ram_block_discard_disabled);
+        old = atomic_read(counter);
         if (old < 0) {
             return -EBUSY;
         }
-    } while (atomic_cmpxchg(&ram_block_discard_disabled, old, old + 1) != old);
+    } while (atomic_cmpxchg(counter, old, old + 1) != old);
+
     return 0;
 }
 
-int ram_block_discard_require(bool state)
+int ram_block_discard_type_disable(RamBlockDiscardType type, bool state)
+{
+    int ret;
+
+    if (type & RAM_BLOCK_DISCARD_T_UNCOORDINATED) {
+        if (!state) {
+            atomic_dec(&uncoordinated_discard_disabled);
+        } else {
+            ret = __ram_block_discard_disable(&uncoordinated_discard_disabled);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
+    if (type & RAM_BLOCK_DISCARD_T_COORDINATED) {
+        if (!state) {
+            atomic_dec(&coordinated_discard_disabled);
+        } else {
+            ret = __ram_block_discard_disable(&coordinated_discard_disabled);
+            if (ret) {
+                /* Rollback the previous change. */
+                if (type & RAM_BLOCK_DISCARD_T_UNCOORDINATED) {
+                    atomic_dec(&uncoordinated_discard_disabled);
+                }
+                return ret;
+            }
+        }
+    }
+    return 0;
+}
+
+static int __ram_block_discard_require(int *counter)
 {
     int old;
 
-    if (!state) {
-        atomic_inc(&ram_block_discard_disabled);
-        return 0;
-    }
-
     do {
-        old = atomic_read(&ram_block_discard_disabled);
+        old = atomic_read(counter);
         if (old > 0) {
             return -EBUSY;
         }
-    } while (atomic_cmpxchg(&ram_block_discard_disabled, old, old - 1) != old);
+    } while (atomic_cmpxchg(counter, old, old - 1) != old);
+
     return 0;
 }
 
-bool ram_block_discard_is_disabled(void)
+int ram_block_discard_type_require(RamBlockDiscardType type, bool state)
 {
-    return atomic_read(&ram_block_discard_disabled) > 0;
+    int ret;
+
+    if (type & RAM_BLOCK_DISCARD_T_UNCOORDINATED) {
+        if (!state) {
+            atomic_inc(&uncoordinated_discard_disabled);
+        } else {
+            ret = __ram_block_discard_require(&uncoordinated_discard_disabled);
+            if (ret) {
+                return ret;
+            }
+        }
+    }
+    if (type & RAM_BLOCK_DISCARD_T_COORDINATED) {
+        if (!state) {
+            atomic_inc(&coordinated_discard_disabled);
+        } else {
+            ret = __ram_block_discard_require(&coordinated_discard_disabled);
+            if (ret) {
+                /* Rollback the previous change. */
+                if (type & RAM_BLOCK_DISCARD_T_UNCOORDINATED) {
+                    atomic_inc(&uncoordinated_discard_disabled);
+                }
+                return ret;
+            }
+        }
+    }
+    return 0;
 }
 
-bool ram_block_discard_is_required(void)
+bool ram_block_discard_type_is_disabled(RamBlockDiscardType type)
 {
-    return atomic_read(&ram_block_discard_disabled) < 0;
+    if (type & RAM_BLOCK_DISCARD_T_UNCOORDINATED &&
+        atomic_read(&uncoordinated_discard_disabled) > 0) {
+        return true;
+    } else if (type & RAM_BLOCK_DISCARD_T_COORDINATED &&
+               atomic_read(&coordinated_discard_disabled) > 0) {
+        return true;
+    }
+    return false;
+}
+
+bool ram_block_discard_type_is_required(RamBlockDiscardType type)
+{
+    if (type & RAM_BLOCK_DISCARD_T_UNCOORDINATED &&
+        atomic_read(&uncoordinated_discard_disabled) < 0) {
+        return true;
+    } else if (type & RAM_BLOCK_DISCARD_T_COORDINATED &&
+               atomic_read(&coordinated_discard_disabled) < 0) {
+        return true;
+    }
+    return false;
 }
 
 #endif
