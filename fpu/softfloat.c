@@ -7305,6 +7305,16 @@ static void sub256(uint64_t r[4], uint64_t a[4], uint64_t b[4])
         : "=&r"(r[0]), "=&r"(r[1]), "=&r"(r[2]), "=&r"(r[3])
         : "rme"(b[0]), "rme"(b[1]), "rme"(b[2]), "rme"(b[3]),
             "0"(a[0]),   "1"(a[1]),   "2"(a[2]),   "3"(a[3]));
+#elif defined(__aarch64__)
+    asm("subs %[r3], %x[a3], %x[b3]\n\t"
+        "sbcs %[r2], %x[a2], %x[b2]\n\t"
+        "sbcs %[r1], %x[a1], %x[b1]\n\t"
+        "sbc  %[r0], %x[a0], %x[b0]"
+        : [r0] "=&r"(r[0]), [r1] "=&r"(r[1]),
+          [r2] "=&r"(r[2]), [r3] "=&r"(r[3])
+        : [a0] "rZ"(a[0]), [a1] "rZ"(a[1]), [a2] "rZ"(a[2]), [a3] "rZ"(a[3]),
+          [b0] "rZ"(b[0]), [b1] "rZ"(b[1]), [b2] "rZ"(b[2]), [b3] "rZ"(b[3])
+        : "cc");
 #else
     bool borrow = false;
 
@@ -7330,6 +7340,13 @@ static void neg256(uint64_t a[4])
         "sbb %4, %0"
         : "=&r"(a[0]), "=&r"(a[1]), "=&r"(a[2]), "+rm"(a[3])
         : "rme"(a[0]), "rme"(a[1]), "rme"(a[2]), "0"(0), "1"(0), "2"(0));
+#elif defined(__aarch64__)
+    asm("negs %3, %3\n\t"
+        "ngcs %2, %2\n\t"
+        "ngcs %1, %1\n\t"
+        "ngc  %0, %0"
+        : "+r"(a[0]), "+r"(a[1]), "+r"(a[2]), "+r"(a[3])
+        : : "cc");
 #else
     a[3] = -a[3];
     if (likely(a[3])) {
@@ -7364,6 +7381,14 @@ static void add256(uint64_t a[4], uint64_t b[4])
         "adc %4, %0"
         :  "+r"(a[0]),  "+r"(a[1]),  "+r"(a[2]),  "+r"(a[3])
         : "rme"(b[0]), "rme"(b[1]), "rme"(b[2]), "rme"(b[3]));
+#elif defined(__aarch64__)
+    asm("adds %3, %3, %x7\n\t"
+        "adcs %2, %2, %x6\n\t"
+        "adcs %1, %1, %x5\n\t"
+        "adc  %0, %0, %x4"
+        : "+r"(a[0]), "+r"(a[1]), "+r"(a[2]), "+r"(a[3])
+        : "rZ"(b[0]), "rZ"(b[1]), "rZ"(b[2]), "rZ"(b[3])
+        : "cc");
 #else
     bool carry = false;
 
