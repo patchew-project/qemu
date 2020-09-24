@@ -531,7 +531,7 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
         return;
     }
 
-    if (ram_block_discard_require(true)) {
+    if (ram_block_discard_type_require(RAM_BLOCK_DISCARD_T_COORDINATED, true)) {
         error_setg(errp, "Discarding RAM is disabled");
         return;
     }
@@ -539,7 +539,7 @@ static void virtio_mem_device_realize(DeviceState *dev, Error **errp)
     ret = ram_block_discard_range(rb, 0, qemu_ram_get_used_length(rb));
     if (ret) {
         error_setg_errno(errp, -ret, "Unexpected error discarding RAM");
-        ram_block_discard_require(false);
+        ram_block_discard_type_require(RAM_BLOCK_DISCARD_T_COORDINATED, false);
         return;
     }
 
@@ -579,7 +579,7 @@ static void virtio_mem_device_unrealize(DeviceState *dev)
     virtio_del_queue(vdev, 0);
     virtio_cleanup(vdev);
     g_free(vmem->bitmap);
-    ram_block_discard_require(false);
+    ram_block_discard_type_require(RAM_BLOCK_DISCARD_T_COORDINATED, false);
 }
 
 static int virtio_mem_restore_unplugged(VirtIOMEM *vmem)
