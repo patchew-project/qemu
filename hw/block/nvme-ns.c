@@ -85,6 +85,9 @@ static void nvme_ns_zns_init_zones(NvmeNamespace *ns)
         zslba = i * zsze;
         zone = nvme_ns_get_zone(ns, zslba);
         zone->zd = &ns->zns.zd[i];
+        if (ns->params.zns.zdes) {
+            zone->zde = &ns->zns.zde[i];
+        }
 
         zd = zone->zd;
 
@@ -104,11 +107,15 @@ static void nvme_ns_init_zoned(NvmeNamespace *ns)
     for (int i = 0; i <= id_ns->nlbaf; i++) {
         id_ns_zns->lbafe[i].zsze = ns->params.zns.zsze ?
             ns->params.zns.zsze : cpu_to_le64(pow2ceil(ns->params.zns.zcap));
+        id_ns_zns->lbafe[i].zdes = ns->params.zns.zdes;
     }
 
     ns->zns.num_zones = nvme_ns_nlbas(ns) / nvme_ns_zsze(ns);
     ns->zns.zones = g_malloc0_n(ns->zns.num_zones, sizeof(NvmeZone));
     ns->zns.zd = g_malloc0_n(ns->zns.num_zones, sizeof(NvmeZoneDescriptor));
+    if (ns->params.zns.zdes) {
+        ns->zns.zde = g_malloc0_n(ns->zns.num_zones, nvme_ns_zdes_bytes(ns));
+    }
 
     id_ns->ncap = ns->zns.num_zones * ns->params.zns.zcap;
 
@@ -148,7 +155,7 @@ static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
     BlockBackend *blk = ns->pstate.blk;
     uint64_t perm, shared_perm;
     ssize_t len;
-    size_t util_len, zd_len, pstate_len;
+    size_t util_len, zd_len, zde_len, pstate_len;
     int ret;
 
     perm = BLK_PERM_CONSISTENT_READ | BLK_PERM_WRITE;
@@ -162,7 +169,9 @@ static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
     util_len = DIV_ROUND_UP(nvme_ns_nlbas(ns), 8);
     zd_len = nvme_ns_zoned(ns) ?
         ns->zns.num_zones * sizeof(NvmeZoneDescriptor) : 0;
-    pstate_len = ROUND_UP(util_len + zd_len, BDRV_SECTOR_SIZE);
+    zde_len = nvme_ns_zoned(ns) ?
+        ns->zns.num_zones * nvme_ns_zdes_bytes(ns) : 0;
+    pstate_len = ROUND_UP(util_len + zd_len + zde_len, BDRV_SECTOR_SIZE);
 
     len = blk_getlength(blk);
     if (len < 0) {
@@ -213,9 +222,19 @@ static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
                 return ret;
             }
 
+            if (zde_len) {
+                ret = blk_pread(blk, util_len + zd_len, ns->zns.zde,
+                                zde_len);
+                if (ret < 0) {
+                    error_setg_errno(errp, -ret, "could not read pstate");
+                    return ret;
+                }
+            }
+
             for (int i = 0; i < ns->zns.num_zones; i++) {
                 NvmeZone *zone = &ns->zns.zones[i];
                 zone->zd = &ns->zns.zd[i];
+                zone->zde = &ns->zns.zde[i];
 
                 zone->wp_staging = nvme_wp(zone);
 
@@ -227,7 +246,8 @@ static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
                     continue;
 
                 case NVME_ZS_ZSC:
-                    if (nvme_wp(zone) == nvme_zslba(zone)) {
+                    if (nvme_wp(zone) == nvme_zslba(zone) &&
+                        !(zone->zd->za & NVME_ZA_ZDEV)) {
                         nvme_zs_set(zone, NVME_ZS_ZSE);
                     }
 
@@ -247,6 +267,14 @@ static int nvme_ns_setup_blk_pstate(NvmeNamespace *ns, Error **errp)
         if (ret < 0) {
             error_setg_errno(errp, -ret, "could not write pstate");
             return ret;
+        }
+
+        if (zde_len) {
+            ret = blk_pwrite(blk, util_len + zd_len, ns->zns.zde, zde_len, 0);
+            if (ret < 0) {
+                error_setg_errno(errp, -ret, "could not write pstate");
+                return ret;
+            }
         }
     }
 
@@ -389,6 +417,7 @@ static Property nvme_ns_props[] = {
     DEFINE_PROP_UINT8("iocs", NvmeNamespace, params.iocs, NVME_IOCS_NVM),
     DEFINE_PROP_UINT64("zns.zcap", NvmeNamespace, params.zns.zcap, 0),
     DEFINE_PROP_UINT64("zns.zsze", NvmeNamespace, params.zns.zsze, 0),
+    DEFINE_PROP_UINT8("zns.zdes", NvmeNamespace, params.zns.zdes, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
